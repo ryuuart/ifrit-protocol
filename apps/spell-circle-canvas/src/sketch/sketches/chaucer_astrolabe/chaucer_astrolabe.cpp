@@ -12,8 +12,11 @@
 
 // TAGS: Data/Astronomy
 
+#include <sigilmaterial/filter/Filter.h>
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilmaterial/paint/Bases.h>
+#include <sigilweave/style/Face.h>
 #include <sigilcompose/brush/Decorations.h>
-#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
@@ -84,7 +87,7 @@ constexpr float kDegree = 3.14159265358979f / 180.0f;
 
 /** Plate units to the plate box's own pixels: x right, y UP. */
 const path::Grid kPlateBox{.scale = kR, .yScale = -1.0f, .origin = {kR, kR}};
-SkPoint onPlate(glm::vec2 units) { return kPlateBox.at({units.x, units.y}); }
+SkPoint onPlate(glm::vec2 units) { return sigil::geometry::path::toSk(kPlateBox.at({units.x, units.y})); }
 /** Where an angle (degrees counterclockwise from +x) falls along
  *  `shapes::circle()`, which runs clockwise on the page from +x. */
 float alongCircle(float angle) {
@@ -214,7 +217,7 @@ Paint brass(float level) {
 /** An engraved circle: a V-cut, dark on its shadowed wall and light on its
  *  lit one, @p depth saying how strongly it reads. */
 Element engraved(SkPoint centre, float radius, float width, float depth) {
-  return kit::ring(centre, radius,
+  return kit::ring(sigil::geometry::path::fromSk(centre), radius,
                    kit::groove(radius, width, material::withAlpha(kCut, depth),
                                material::withAlpha(kCutLight, depth * 0.5f)));
 }
@@ -225,7 +228,7 @@ Element engraved(const path::PlaneCircle& circle, float width, float depth) {
 /** A mark along a radius of @p centre, from @p inner to @p outer px, at
  *  @p angle degrees counterclockwise from +x. */
 Element spoke(SkPoint centre, float angle, float inner, float outer,
-              float thickness, SurfacePaint paint) {
+              float thickness, Fill paint) {
   return kit::at(centre.fX + inner, centre.fY - thickness * 0.5f,
                  outer - inner, thickness)
       .fill(std::move(paint))
@@ -240,7 +243,7 @@ Element around(const Utf8& words, SkPoint centre, float radius, float along,
   return text(words)
       .width(2 * radius)
       .height(2 * radius)
-      .centerAt(centre)
+      .centerAt(sigil::geometry::path::fromSk(centre))
       .textOnPath(TextPath{.path = shapes::circle(),
                            .at = along,
                            .align = TextPath::Align::Center,
@@ -266,7 +269,7 @@ Element card(const data::Json& page, Element content) {
 
 struct ChaucerAstrolabe {
   sketch::kit::Document words, tables;
-  sk_sp<SkTypeface> engraver, copperplate, book, italic, mono;
+  sigil::weave::Face engraver, copperplate, book, italic, mono;
   sigil::motion::Animatable<float> hourAngle = sigil::motion::animatable<float>(kChaucerHourAngle);
   double elapsed = 0;
 
@@ -280,37 +283,29 @@ struct ChaucerAstrolabe {
         // the throne and its shackle: the instrument hangs plumb from it
         kit::disc({top.fX, top.fY - throne - 0.055f * kR}, 0.075f * kR)
             .shape(shapes::annulus(0.62f))
-            .fill(brass(0.78f)),
+            .fill(sigil::material::skia::base(brass(0.78f))),
         kit::at(top.fX - 0.16f * kR, top.fY - throne, 0.32f * kR,
                 throne + 0.05f * kR)
             .shape(shapes::blob(3u, 0.10f, 9))
-            .fill(brass(0.74f))
-            .foreground(styles::BevelEmboss{.depth = 2,
-                                            .size = 4,
-                                            .angleDeg = 125,
-                                            .highlight = hexColor(0xfff0c4, 0.6f),
-                                            .shadow = material::withAlpha(kEdge, 0.6f)}),
-        kit::dot(kCentre, kMater, brass(0.50f))
+            .fill(sigil::material::from(sigil::material::skia::base(brass(0.74f))).effects(sigil::material::Filter::bevel({.depth = 2, .size = 4, .angleDegrees = 125, .highlight = hexColor(0xfff0c4, 0.6f), .shadow = material::withAlpha(kEdge, 0.6f)})))
+            ,
+        kit::disc(sigil::geometry::path::fromSk(kCentre), kMater).fill(sigil::material::from(sigil::material::skia::base(brass(0.50f))).effects(sigil::material::Filter::bevel({.depth = 3, .size = 6, .angleDegrees = 125, .highlight = hexColor(0xfff0c4, 0.5f), .shadow = material::withAlpha(kEdge, 0.6f)})))
             .background(shadow(hexColor(0x05070c, 0.62f), {8, 12}, 26))
-            .foreground(styles::BevelEmboss{.depth = 3,
-                                            .size = 6,
-                                            .angleDeg = 125,
-                                            .highlight = hexColor(0xfff0c4, 0.5f),
-                                            .shadow = material::withAlpha(kEdge, 0.6f)}),
+            ,
         // the three rules of the limb
         engraved(kCentre, 1.155f * kR - 2, 3.0f, 0.75f),
         engraved(kCentre, 1.082f * kR, 2.0f, 0.75f),
         engraved(kCentre, 1.005f * kR, 2.0f, 0.75f),
         // the degrees, hung from the outer rule: every degree, every fifth
         // longer, every thirtieth longest and numbered
-        kit::disc(kCentre, kMater)
+        kit::disc(sigil::geometry::path::fromSk(kCentre), kMater)
             .shape(shapes::ticks({.divisions = 360,
                                   .mark = {0.986f, 0.996f},
                                   .longEvery = 5,
                                   .longMark = {0.976f, 0.996f}}))
             .fill(Fill::none())
             .stroke(stroke(1.0f, Fill::color(material::withAlpha(kCut, 0.85f)))),
-        kit::disc(kCentre, kMater)
+        kit::disc(sigil::geometry::path::fromSk(kCentre), kMater)
             .shape(shapes::ticks({.divisions = 12, .mark = {0.966f, 0.996f}}))
             .fill(Fill::none())
             .stroke(stroke(1.6f, Fill::color(kCut))),
@@ -324,7 +319,7 @@ struct ChaucerAstrolabe {
                    .styleClass("degree");
              }),
         // the hours: a division between each pair of letters
-        kit::disc(kCentre, 1.082f * kR)
+        kit::disc(sigil::geometry::path::fromSk(kCentre),1.082f * kR)
             .shape(shapes::ticks({.divisions = 24,
                                   .from = 7.5f,
                                   .mark = {1.005f / 1.082f, 1.0f}}))
@@ -356,7 +351,7 @@ struct ChaucerAstrolabe {
     return kit::at(kCentre.fX - kR, kCentre.fY - kR, 2 * kR, 2 * kR)
         .shape(shapes::circle())
         .overflow(Overflow::Clip)
-        .fill(brass(0.46f))
+        .fill(sigil::material::from(sigil::material::skia::base(brass(0.46f))).effects(sigil::material::Filter::shadow(material::withAlpha(kEdge, 0.55f), {.blur = 9, .offset = {0, 3}, .inside = true})))
         .children({
             // the unequal hours stand below the horizon only: they are cut
             // first, and the sky is the plate again laid over them
@@ -367,9 +362,9 @@ struct ChaucerAstrolabe {
                    return kit::at(kR - 0.8f, kR, 1.6f, kR)
                        .fill(Fill::color(material::withAlpha(kCut, 0.5f)));
                  }),
-            kit::dot(onPlate(horizon.centre), horizon.radius * kR, brass(0.46f)),
+            kit::disc(sigil::geometry::path::fromSk(onPlate(horizon.centre)), horizon.radius * kR).fill(sigil::material::skia::base(brass(0.46f))),
             // the twilight: the sun 18° below the horizon
-            kit::ring(onPlate(almucantar(-18.0f).centre),
+            kit::ring(sigil::geometry::path::fromSk(onPlate(almucantar(-18.0f).centre)),
                       almucantar(-18.0f).radius * kR,
                       PathFormat{.width = 1.4f,
                                  .strokeFill = Fill::color(material::withAlpha(kCut, 0.42f)),
@@ -382,7 +377,7 @@ struct ChaucerAstrolabe {
                                    tenth ? 1.8f : 1.4f, tenth ? 0.85f : 0.65f);
                  }),
             // the azimuths, every 15°, only in the visible sky
-            kit::disc(onPlate(horizon.centre), horizon.radius * kR)
+            kit::disc(sigil::geometry::path::fromSk(onPlate(horizon.centre)),horizon.radius * kR)
                 .shape(shapes::circle())
                 .overflow(Overflow::Clip)
                 .children({each(11,
@@ -405,13 +400,12 @@ struct ChaucerAstrolabe {
                                    radius == 1.0f ? 3.0f : 2.4f, 0.8f);
                  }),
             // Chaucer's almucantar, the one the sun was set on, in rubric
-            kit::ring(onPlate(almucantar(kAltitude).centre),
+            kit::ring(sigil::geometry::path::fromSk(onPlate(almucantar(kAltitude).centre)),
                       almucantar(kAltitude).radius * kR,
                       stroke(1.6f, Fill::color(material::withAlpha(kRubric, 0.75f)))),
-            kit::dot(onPlate(kPlate.at(kZenith)), 3.6f,
-                     Fill::color(material::withAlpha(kCut, 0.85f))),
+            kit::disc(sigil::geometry::path::fromSk(onPlate(kPlate.at(kZenith))), 3.6f).fill(Fill::color(material::withAlpha(kCut, 0.85f))),
         })
-        .foreground(styles::InnerShadow{material::withAlpha(kEdge, 0.55f), {0, 3}, 9});
+        ;
   }
 
   // =========================================================================
@@ -456,18 +450,18 @@ struct ChaucerAstrolabe {
         .fill(Fill::none())
         .foreground(brush::presets::taper(0.030f * kR + 2.5f, 2.5f,
                                           Fill::color(material::withAlpha(kEdge, 0.8f))))
-        .foreground(brush::presets::taper(0.030f * kR, 1.0f, brass(0.72f)));
+        .foreground(brush::presets::taper(0.030f * kR, 1.0f, sigil::material::skia::base(brass(0.72f))));
   }
 
   /** A foil of @p lobes rings about @p centre. */
   static Element foil(SkPoint centre, int lobes, float radius) {
-    return kit::disc(centre, radius).children({each(lobes, [=](std::size_t index) {
+    return kit::disc(sigil::geometry::path::fromSk(centre), radius).children({each(lobes, [=](std::size_t index) {
       const float angle = 90.0f + 360.0f * (float)index / (float)lobes;
       const SkPoint lobe{radius + 0.5f * radius * std::cos(angle * kDegree),
                          radius - 0.5f * radius * std::sin(angle * kDegree)};
-      return kit::disc(lobe, 0.52f * radius)
+      return kit::disc(sigil::geometry::path::fromSk(lobe), 0.52f * radius)
           .shape(shapes::ring(0.16f * radius))
-          .fill(brass(0.68f));
+          .fill(sigil::material::skia::base(brass(0.68f)));
     })});
   }
 
@@ -499,23 +493,23 @@ struct ChaucerAstrolabe {
                      }),
                 // the ecliptic ring, clipped where it runs past Capricorn,
                 // so it fuses with the outer ring there as on the object
-                kit::disc(eclipticCentre, eclipticRadius + band * 0.5f)
+                kit::disc(sigil::geometry::path::fromSk(eclipticCentre), eclipticRadius + band * 0.5f)
                     .shape(shapes::ring(band))
-                    .fill(brass(0.64f)),
-                kit::disc(pin, kR)
+                    .fill(sigil::material::skia::base(brass(0.64f))),
+                kit::disc(sigil::geometry::path::fromSk(pin), kR)
                     .shape(shapes::ring(0.042f * kR))
-                    .fill(brass(0.66f)),
-                kit::at(pin.fX - kR, pin.fY - bar * 0.5f, 2 * kR, bar).fill(brass(0.66f)),
-                kit::at(pin.fX - bar * 0.5f, pin.fY - kR, bar, 2 * kR).fill(brass(0.66f)),
+                    .fill(sigil::material::skia::base(brass(0.66f))),
+                kit::at(pin.fX - kR, pin.fY - bar * 0.5f, 2 * kR, bar).fill(sigil::material::skia::base(brass(0.66f))),
+                kit::at(pin.fX - bar * 0.5f, pin.fY - kR, bar, 2 * kR).fill(sigil::material::skia::base(brass(0.66f))),
                 foil(onPlate({0, 0.72f}), 4, 0.10f * kR),
                 foil(onPlate({0, -0.66f}), 3, 0.09f * kR),
-                kit::disc(pin, 0.11f * kR)
+                kit::disc(sigil::geometry::path::fromSk(pin), 0.11f * kR)
                     .shape(shapes::star(12, 0.52f, 0.16f))
-                    .fill(brass(0.70f)),
+                    .fill(sigil::material::skia::base(brass(0.70f))),
                 // the almury, the tooth at the head of Capricorn
-                kit::disc(onPlate({0, -1.0f + 0.055f}), 0.048f * kR)
+                kit::disc(sigil::geometry::path::fromSk(onPlate({0, -1.0f + 0.055f})), 0.048f * kR)
                     .shape(shapes::polygon(3, 180))
-                    .fill(brass(0.70f)),
+                    .fill(sigil::material::skia::base(brass(0.70f))),
                 // the ecliptic itself, down the middle of its ring, and its
                 // degrees at the projection's own unequal spacing
                 engraved(eclipticCentre, eclipticRadius, 1.8f, 0.7f),
@@ -549,11 +543,11 @@ struct ChaucerAstrolabe {
                      }),
                 each(stars.array(),
                      [&](const data::Json& star) {
-                       return kit::dot(onPlate(starAt(star)), (float)star["tip"].number(5.5), Fill::color(kGilt))
+                       return kit::disc(sigil::geometry::path::fromSk(onPlate(starAt(star))), (float)star["tip"].number(5.5)).fill(Fill::color(kGilt))
                            .stroke(stroke(1.5f, Fill::color(material::withAlpha(kEdge, 0.85f))));
                      }),
                 // the sun, set in its degree of the ecliptic
-                kit::disc(onPlate(sun), 22.0f)
+                kit::disc(sigil::geometry::path::fromSk(onPlate(sun)), 22.0f)
                     .shape(shapes::star(12, 0.40f, 0.16f))
                     .fill(Fill::color(hexColor(0xfff6dc)))
                     .stroke(stroke(1.4f, Fill::color(material::withAlpha(kEdge, 0.75f)))),
@@ -562,12 +556,9 @@ struct ChaucerAstrolabe {
     return box()
         .inset(0)
         .decorationOutline(Boundary::Coverage)
+        .fill(sigil::material::from(sigil::material::Color{0, 0, 0, 0}).effects(sigil::material::Filter::bevel({.depth = 2, .size = 3, .angleDegrees = 125, .highlight = hexColor(0xffe9b0, 0.55f), .shadow = material::withAlpha(kEdge, 0.55f)})))
         .background(shadow(material::withAlpha(kEdge, 0.55f), {7, 9}, 8))
-        .foreground(styles::BevelEmboss{.depth = 2,
-                                        .size = 3,
-                                        .angleDeg = 125,
-                                        .highlight = hexColor(0xffe9b0, 0.55f),
-                                        .shadow = material::withAlpha(kEdge, 0.55f)})
+        
         .children({std::move(sheet)});
   }
 
@@ -578,16 +569,12 @@ struct ChaucerAstrolabe {
         kit::at(kCentre.fX, kCentre.fY - 4.5f, kMater * 1.02f, 9)
             .transformOrigin(Dimension(0), pct(50))
             .rotate(sigil::motion::bind(hourAngle, {.to = {-90.0f, -89.0f}}))
-            .fill(brass(0.80f))
+            .fill(sigil::material::skia::base(brass(0.80f)))
             .stroke(stroke(1.2f, Fill::color(material::withAlpha(kEdge, 0.7f))))
             .background(shadow(material::withAlpha(kEdge, 0.5f), {4, 5}, 7)),
-        kit::dot(kCentre, 0.040f * kR, brass(0.82f))
+        kit::disc(sigil::geometry::path::fromSk(kCentre), 0.040f * kR).fill(sigil::material::from(sigil::material::skia::base(brass(0.82f))).effects(sigil::material::Filter::bevel({.depth = 2, .size = 2, .angleDegrees = 125, .highlight = hexColor(0xfff0c4, 0.7f), .shadow = material::withAlpha(kEdge, 0.6f)})))
             .background(shadow(material::withAlpha(kEdge, 0.5f), {2, 3}, 5))
-            .foreground(styles::BevelEmboss{.depth = 2,
-                                            .size = 2,
-                                            .angleDeg = 125,
-                                            .highlight = hexColor(0xfff0c4, 0.7f),
-                                            .shadow = material::withAlpha(kEdge, 0.6f)}),
+            ,
     });
   }
 
@@ -609,14 +596,10 @@ struct ChaucerAstrolabe {
     // the sun enters Aries on the 12th of March in Chaucer's calendar
     constexpr float kAries = 31 + 28 + 11.5f;
     return box().width(2 * radius).height(2 * radius).styleClass("engrave").children({
-        kit::dot(centre, radius, brass(0.46f))
-            .foreground(styles::BevelEmboss{.depth = 2,
-                                            .size = 4,
-                                            .angleDeg = 125,
-                                            .highlight = hexColor(0xffe9b0, 0.45f),
-                                            .shadow = material::withAlpha(kEdge, 0.5f)}),
+        kit::disc(sigil::geometry::path::fromSk(centre), radius).fill(sigil::material::from(sigil::material::skia::base(brass(0.46f))).effects(sigil::material::Filter::bevel({.depth = 2, .size = 4, .angleDegrees = 125, .highlight = hexColor(0xffe9b0, 0.45f), .shadow = material::withAlpha(kEdge, 0.5f)})))
+            ,
         // four quadrants of ninety degrees, every second degree ruled
-        kit::disc(centre, radius)
+        kit::disc(sigil::geometry::path::fromSk(centre), radius)
             .shape(shapes::ticks({.divisions = 180,
                                   .mark = {0.93f, 0.96f},
                                   .longEvery = 5,
@@ -679,10 +662,10 @@ struct ChaucerAstrolabe {
         kit::at(centre.fX - 0.97f * radius, centre.fY - 5, 1.94f * radius, 10)
             .transformOrigin(pct(50), pct(50))
             .rotate(-kAltitude)
-            .fill(brass(0.78f))
+            .fill(sigil::material::skia::base(brass(0.78f)))
             .stroke(stroke(1.0f, Fill::color(material::withAlpha(kEdge, 0.6f))))
             .background(shadow(material::withAlpha(kEdge, 0.45f), {2, 3}, 5)),
-        kit::dot(centre, 8, brass(0.82f)),
+        kit::disc(sigil::geometry::path::fromSk(centre), 8).fill(sigil::material::skia::base(brass(0.82f))),
     });
   }
 
@@ -755,7 +738,7 @@ struct ChaucerAstrolabe {
   // =========================================================================
 
   StyleSheet registers() const {
-    const auto type = [](sk_sp<SkTypeface> face, float size, material::Color color,
+    const auto type = [](sigil::weave::Face face, float size, material::Color color,
                          float track = 0) {
       return weave::Type{.face = std::move(face), .size = size, .color = color, .track = track};
     };
@@ -789,7 +772,7 @@ struct ChaucerAstrolabe {
     copperplate = weave::ports::face({"Copperplate", "Optima", "Baskerville"});
     book = weave::ports::face({"Baskerville", "Hoefler Text", "Georgia"});
     italic = weave::ports::face({"Baskerville", "Hoefler Text", "Georgia"}, 400,
-                                SkFontStyle::kItalic_Slant);
+                                sigil::weave::FaceSlant::Italic);
     mono = weave::ports::face({"SF Mono", "Menlo", "Courier"});
 
     tables = sketch::kit::Document(context, "data/sky.json");
@@ -802,7 +785,8 @@ struct ChaucerAstrolabe {
                                       (int)std::lround((hours - std::floor(hours)) * 60)))}});
 
     // The day turns at fifteen degrees a second, from Chaucer's moment.
-    context.ticker.add([this](double step) {
+    context.engine.timer([this](sigil::motion::Duration stepDuration) {
+      const double step = stepDuration.count();
       elapsed += step;
       const float turned = kChaucerHourAngle + 15.0f * (float)(elapsed - kStill);
       hourAngle = std::fmod(std::fmod(turned + 180.0f, 360.0f) + 360.0f, 360.0f) - 180.0f;
@@ -817,7 +801,7 @@ struct ChaucerAstrolabe {
             .children({
                 kit::at(56, 140, 1132, 1416)
                     .borderRadius({3})
-                    .fill(Paint::radialGradient(
+                    .fill(sigil::material::radialGradient(
                         {0.50f, 0.46f}, 1.05f,
                         {{0.0f, hexColor(0x33405a)},
                          {0.62f, kCase},

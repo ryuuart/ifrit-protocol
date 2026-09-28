@@ -28,6 +28,8 @@
 
 // TAGS: Data/Astronomy
 
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilweave/style/Face.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Connect.h>
@@ -178,11 +180,11 @@ struct DunhuangStarChart {
   std::vector<SkPoint> stars;  // right ascension, declination
   std::vector<Map> maps;
   std::vector<Asterism> asterisms;
-  sk_sp<SkTypeface> han, latin;
+  sigil::weave::Face han, latin;
 
   void read(sketch::SketchContext& ctx) {
     const auto table = [&ctx](const char* name) {
-      return ctx.assets.table(ctx.local(std::string("data/") + name));
+      return ctx.assets.hub().load<sigil::data::Table>(ctx.local(std::string("data/") + name));
     };
     if (const auto file = table("stars.csv")) {
       const auto rightAscension = file->column<double>("ra");
@@ -258,7 +260,7 @@ struct DunhuangStarChart {
                                  : school == 'B'                ? kInk
                                  : school == 'W'                ? kLeadWhite
                                                                 : kUnread;
-    Element dot = kit::dot(at, radius, Fill::color(school == 'H'
+    Element dot = kit::dot(sigil::geometry::path::fromSk(at), radius, Fill::color(school == 'H'
                                                      ? material::withAlpha(fill, 0.6f)
                                                      : fill));
     if (school != 'H')
@@ -271,8 +273,8 @@ struct DunhuangStarChart {
   Element figure(const Asterism& asterism) const {
     std::vector<Element> parts;
     for (const auto& run : asterism.runs) {
-      std::vector<SkPoint> stops;
-      for (int star : run) stops.push_back(where(asterism, star));
+      std::vector<glm::vec2> stops;
+      for (int star : run) stops.push_back(sigil::geometry::path::fromSk(where(asterism, star)));
       if (stops.size() > 1)
         parts.push_back(connect::wire(
             stops, routers::polyline(), 0, 0, 2, "",

@@ -19,6 +19,9 @@
 
 // TAGS: Materials/Color
 
+#include <sigilmaterial/paint/Bases.h>
+#include <sigilmaterial/filter/Filter.h>
+#include <sigilweave/style/Face.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Frame.h>
@@ -98,8 +101,8 @@ std::string stacked(std::string label) {
   return label;
 }
 
-sk_sp<SkTypeface> face(std::initializer_list<const char*> families,
-                       SkFontStyle style = SkFontStyle::Normal()) {
+sigil::weave::Face face(std::initializer_list<const char*> families,
+                       sigil::weave::FaceStyle style = sigil::weave::FaceStyle{}) {
   return weave::ports::face(families, style);
 }
 
@@ -162,7 +165,8 @@ struct ChevreulCircle {
     const float diameter = 2 * kCircle.radius * kMedallionRing;
     // The two display lines are shaded letters: each stroke carries a
     // grey shadow cut below and to the right of it.
-    const LayerStyle shaded = LayerStyle::echo({1.4f, 1.4f}, hexColor(0xA39E94));
+    const auto shaded = sigil::material::from(kInk).effects(
+        sigil::material::Filter::shadow(hexColor(0xA39E94), {.offset = {1.4f, 1.4f}}));
     return box().inset(0).children(
         {kit::dot(kCircle.centre, kCircle.radius * kMedallionOuter,
                   Fill::color(kEngraving))
@@ -182,11 +186,11 @@ struct ChevreulCircle {
                       .span(weave::selectors::text(u8"er"),
                             SpanStyle().font(
                                 {.size = 11.0f, .baselineShift = 7.0f})),
-                  text(words.phrase("circle")).styleClass("circle").layerStyle(shaded),
+                  text(words.phrase("circle")).styleClass("circle").ink(shaded),
                   text(words.phrase("of")).styleClass("small"),
                   text(words.phrase("author"))
                       .styleClass("author")
-                      .layerStyle(shaded)
+                      .ink(shaded)
                       .span(weave::selectors::text(u8"r"),
                             SpanStyle().font(
                                 {.size = 16.0f, .baselineShift = 10.0f})),
@@ -221,18 +225,18 @@ struct ChevreulCircle {
 
   StyleSheet engraving() const {
     const auto didot = face({"Didot", "Bodoni 72", "Baskerville"});
-    const auto italic = face({"Didot", "Baskerville"}, SkFontStyle::Italic());
+    const auto italic = face({"Didot", "Baskerville"}, sigil::weave::FaceStyle{.slant = sigil::weave::FaceSlant::Italic});
     return StyleSheet{
         rule(".numeral").font({.face = didot, .size = 10.5f}),
         rule(".scale").font({.face = didot, .size = 6.6f, .track = 0.3f}),
         rule(".ordinal").font({.face = didot, .size = 17}),
         rule(".circle").font(
-            {.face = face({"Copperplate", "Gill Sans"}, SkFontStyle::Bold()),
+            {.face = face({"Copperplate", "Gill Sans"}, sigil::weave::FaceStyle{.weight = 700}),
              .size = 19,
              .track = 1.4f}),
         rule(".small").font({.face = didot, .size = 12, .track = 1.5f}),
         rule(".author").font(
-            {.face = face({"SuperClarendon", "Rockwell"}, SkFontStyle::Bold()),
+            {.face = face({"SuperClarendon", "Rockwell"}, sigil::weave::FaceStyle{.weight = 700}),
              .size = 29,
              .track = 1.5f}),
         rule(".colours").font(
@@ -250,7 +254,7 @@ struct ChevreulCircle {
                                  .background = kPaper});
     words = sketch::kit::Document(context, "data/content.json");
     if (const auto table =
-            context.assets.table(context.local("data/colours.csv"))) {
+            context.assets.hub().load<sigil::data::Table>(context.local("data/colours.csv"))) {
       const auto label = table->column<std::string>("label");
       const auto colour = table->column<std::string>("colour");
       for (size_t row = 0; row < label.size(); ++row)
@@ -268,8 +272,8 @@ struct ChevreulCircle {
             .children({platemark(), blades(), limb(), medallion(),
                        box()
                            .inset(0)
-                           .fill(paperGrain)
-                           .blendMode(material::BlendMode::Multiply)
+                           .fill(sigil::material::skia::base(paperGrain))
+                           .blendMode(sigil::material::BlendMode::Multiply)
                            .opacity(0.07f)
                            .cache(Cache::Texture)}));
   }
