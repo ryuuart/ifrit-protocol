@@ -8,11 +8,10 @@
 
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/core/Recipe.h>
-#include <sigilmaterial/core/Terms.h>
+#include <sigilmaterial/program/Shader.h>
+#include <sigilmaterial/advanced/Terms.h>
 
 #include <glm/vec4.hpp>
-#include <memory>
 #include <string>
 #include <string_view>
 
@@ -140,23 +139,10 @@ half4 main(float2 p) {
 }
 )SHADER";
 
-inline const std::shared_ptr<const sigil::material::Recipe>& globeRecipe() {
-  using sigil::material::FrameInput;
-  using sigil::material::Recipe;
-  using sigil::material::Target;
-  static const std::shared_ptr<const Recipe> recipe = [] {
-    const std::string prelude =
-        sigil::material::skSLFromSlang(std::string(kGlobePreludeSlang));
-    return std::make_shared<const Recipe>(
-        Recipe::of<GlobeParameters>("ksp_mapview.globe")
-            .body(Target::SkSL, std::string(prelude).append(kGlobeSkSL))
-            .frame(FrameInput::Resolution));
-  }();
-  return recipe;
-}
-
 inline sigil::material::Material globe(const GlobeParameters& parameters = {}) {
-  return sigil::material::Material(globeRecipe(), parameters);
+  return sigil::material::shader(
+      sigil::material::skSLFromSlang(std::string(kGlobePreludeSlang)).append(kGlobeSkSL),
+      parameters, {.key = "ksp_mapview.globe"});
 }
 
 }  // namespace ksp_mapview
