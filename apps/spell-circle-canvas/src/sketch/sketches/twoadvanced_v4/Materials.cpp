@@ -1,3 +1,5 @@
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmedia/advanced/Skia.h>
 #include "TwoAdvancedV4.h"
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmaterial/paint/Bases.h>
@@ -14,7 +16,7 @@ auto TwoAdvancedV4::available(std::string* why) -> bool {
 
 auto TwoAdvancedV4::stretchFill(
     const std::shared_ptr<const sigil::media::Image>& asset, float w,
-    float h, SkTileMode tx) -> material::Paint {
+    float h, material::Repeat tx) -> material::Paint {
   const sk_sp<SkImage>& img = asset->frames()[0].image;
   return material::skia::image(
       img, tx, material::Repeat::Pad,
@@ -25,7 +27,7 @@ auto TwoAdvancedV4::stretchFill(
 auto TwoAdvancedV4::tickDots(int cluster, sigil::material::Color c) -> Element {
   const auto dotAt = [this, cluster, c](int i) {
     return box().width(5).height(5).fill(c).opacity(
-        &dot[(size_t)cluster * 3 + (size_t)i]);
+        dot[(size_t)cluster * 3 + (size_t)i]);
   };
   return box()
       .row()
@@ -43,8 +45,8 @@ auto TwoAdvancedV4::radarSweep(int i, sigil::material::Color tint, float inner)
           {0, 0}, {1, 1},
           {{0.0f, sigil::material::withAlpha(tint, 0.85f)},
            {1.0f, sigil::material::withAlpha(tint, 0.05f)}}))
-      .rotate(&gauge[(size_t)i])
-      .opacity(&gaugeAlpha[(size_t)i]);
+      .rotate(gauge[(size_t)i])
+      .opacity(gaugeAlpha[(size_t)i]);
 }
 
 auto TwoAdvancedV4::statusBar() -> Element {
@@ -162,7 +164,7 @@ auto TwoAdvancedV4::audioModule() -> Element {
           .height(100)
           .shape(shapes::chamfered(8, shapes::Corner::AntiDiagonal))
           .fill(spectrum)
-          .foreground(styles::Scanlines{{0, 0, 0, 0.16f}, 3, 1})
+          .foreground(decorations::wash(sigil::material::pattern::scanlines({.color = {0, 0, 0, 0.16f}, .period = 3, .on = 1})))
           .foreground(styles::Brackets{sigil::material::withAlpha(kCyan, 0.6f),
                                        10, 2, 3, shapes::Corner::All})
           .foreground(
@@ -216,10 +218,10 @@ auto TwoAdvancedV4::audioModule() -> Element {
                .alignItems(Align::Center)
                .children({key("◂◂", false), key("■", false), key("▸", true),
                           key("▸▸", false), box().width(8),
-                          meter(64, &vuLeft,
+                          meter(64, vuLeft,
                                 sigil::material::withAlpha(kCyan, 0.85f)),
                           box().flexGrow(1), t("VOL", micro(10, kDustDim, 200)),
-                          meter(56, &vuRight,
+                          meter(56, vuRight,
                                 sigil::material::withAlpha(kCyanRing, 0.8f))}),
            box()
                .height(18)

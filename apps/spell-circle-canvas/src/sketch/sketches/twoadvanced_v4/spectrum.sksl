@@ -4,11 +4,6 @@
 // and the same reason a stylised meter animates on a beat instead of
 // smoothly.
 
-uniform float2 uResolution;
-uniform float  uTime;
-uniform float  uBars;
-uniform float4 uHot;
-uniform float4 uCool;
 float h(float a, float b) {
   return fract(sin(a * 12.9898 + b * 78.233) * 43758.5453);
 }

@@ -1,3 +1,5 @@
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/filter/Filter.h>
 #include "TwoAdvancedV4.h"
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmaterial/paint/Bases.h>
@@ -59,8 +61,7 @@ auto TwoAdvancedV4::readout(float w, float h, sigil::material::Color ground)
       .height(h)
       .shape(shapes::chamfered(7, shapes::Corner::AntiDiagonal))
       .fill(ground)
-      .foreground(styles::BevelPair{
-          sigil::material::withAlpha(kChromeHi, 0.6f), {0, 0, 0, 0.5f}, 1, 1})
+      .foreground(styles::BevelPair{sigil::material::withAlpha(kChromeHi, 0.6f), sigil::material::Color{0, 0, 0, 0.5f}, 1, 1})
       .foreground(styles::Brackets{sigil::material::withAlpha(kCyan, 0.55f), 8,
                                    2, 3, shapes::Corner::All});
 }
@@ -74,7 +75,7 @@ auto TwoAdvancedV4::navBar() -> Element {
                      .alignItems(Align::Center)
                      .padding(0, 6),
                  kChrome);
-  bar.key("nav").gridArea("nav").fill(stripesLive).staggerChildren(40ms);
+  bar.key("nav").gridArea("nav").fill(stripesLive);
   // ONE ITEM PER NAME IN THE DOCUMENT'S TAXONOMY, with the hairline that
   // stands each off the one before it interleaved by the run itself.
   bar.children({each(
@@ -83,8 +84,8 @@ auto TwoAdvancedV4::navBar() -> Element {
         return kit::centred()
             .column()
             .gap(3)
-            .translateY(motion::animate({.from = 16.0f, .to = 0.0f, .duration = 240ms, .delay = 2250ms, .ease = motion::ease::outQuint}))
-            .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 240ms, .delay = 2250ms, .ease = motion::ease::outQuad}))
+            .translateY(motion::animate({.from = 16.0f, .to = 0.0f, .duration = 240ms, .delay = motion::stagger(40ms, {.start = 2250ms}), .ease = motion::ease::outQuint}))
+            .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 240ms, .delay = motion::stagger(40ms, {.start = 2250ms}), .ease = motion::ease::outQuad}))
             .children({t(name, label(13, kNear, 80)),
                        box().width(8).height(2).fill(
                            sigil::material::withAlpha(kDust, 0.6f))});
@@ -101,23 +102,21 @@ auto TwoAdvancedV4::navBar() -> Element {
                     .top(38)
                     .width(24)
                     .height(3)
-                    .fill(kCyan)
-                    .background(styles::OuterGlow{
-                        sigil::material::withAlpha(kGlow, 0.5f), 6, 0})
-                    .translateX(&navIndX)});
+                    .fill(sigil::material::from(kCyan).effects(sigil::material::Filter::shadow(sigil::material::withAlpha(kGlow, 0.5f), {.blur = 6, .spread = 0})))
+                    
+                    .translateX(navIndX)});
   return bar;
 }
 
 auto TwoAdvancedV4::masthead() -> Element {
   using namespace tav;
-  Element emblem = kit::centred().width(78).height(78).background(
-      styles::OuterGlow{sigil::material::withAlpha(kGlow, 0.45f), 14, 0});
+  Element emblem = kit::centred().width(78).height(78).fill(sigil::material::from(sigil::material::Color{0, 0, 0, 0}).effects(sigil::material::Filter::shadow(sigil::material::withAlpha(kGlow, 0.45f), {.blur = 14, .spread = 0})));
   if (logoBugSvg) {
     // The production mark itself, recoloured to the wordmark cyan: a
     // solid fill masked by the SVG raster's coverage, so the vector
     // art contributes shape only and the palette stays sampled.
     emblem.children({box().width(62).height(62).fill(kCyan).mask(
-        by::alpha(stretchFill(logoBugSvg, 62, 62)))});
+        by::alpha(sigil::material::skia::base(stretchFill(logoBugSvg, 62, 62))))});
   } else {
     emblem
         .fill(material::sdf::material(
@@ -152,7 +151,7 @@ auto TwoAdvancedV4::masthead() -> Element {
                     box().column().gap(6).children(
                         {t("2ADVANCED STUDIOS",
                            cut(blackFace(), 25, kCyan, 80, 0.90f))
-                             .filter(styles::textGlow(
+                             .filter(sigil::material::Filter::glow(
                                  sigil::material::withAlpha(kGlow, 0.55f), 6)),
                          t("PROGRESSIVE DESIGN TECHNOLOGY",
                            micro(12, kDust, 240)),
@@ -177,8 +176,7 @@ auto TwoAdvancedV4::masthead() -> Element {
                              t("FLASH 6 REQ.", micro(10, kDustDim, 200)),
                              t("1024×768 MIN", micro(10, kDustDim, 200))})}),
            // the glowing 2px cyan divider under the whole masthead panel
-           box().height(2).fill(kCyan).background(styles::OuterGlow{
-               sigil::material::withAlpha(kGlow, 0.55f), 10, 1})});
+           box().height(2).fill(sigil::material::from(kCyan).effects(sigil::material::Filter::shadow(sigil::material::withAlpha(kGlow, 0.55f), {.blur = 10, .spread = 1})))});
 }
 
 auto TwoAdvancedV4::toggle(const char* lbl, bool on) -> Element {
@@ -187,10 +185,10 @@ auto TwoAdvancedV4::toggle(const char* lbl, bool on) -> Element {
       .height(18)
       .padding(0, 7)
       .shape(shapes::chamfered(5, shapes::Corner::Diagonal))
-      .fill(on ? material::Paint::linearGradient(
+      .fill(on ? sigil::material::linearGradient(
                      {0, 0}, {0, 1},
                      {{0.0f, hexColor(0x0A4148)}, {1.0f, hexColor(0x02181C)}})
-               : material::Paint::solid(hexColor(0x220608)))
+               : material::from(hexColor(0x220608)))
       .stroke(stroke(1,
                      Fill::color(on ? sigil::material::withAlpha(kCyan, 0.7f)
                                     : sigil::material::withAlpha(kDust, 0.35f)),
@@ -309,7 +307,7 @@ auto TwoAdvancedV4::footerDock() -> Element {
     // the SWF as a plain image, monochrome oxblood, no live states.
     // Everything the procedural fallback rebuilds is already in it.
     return box()
-        .fill(stretchFill(footerGif, 1892, 220))
+        .fill(sigil::material::skia::base(stretchFill(footerGif, 1892, 220)))
         .key("dock")
         .gridArea("dock")
         .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 400ms, .delay = 3850ms, .ease = motion::ease::outQuad}))
@@ -368,7 +366,7 @@ auto TwoAdvancedV4::footerDock() -> Element {
            .height(150)
            .shape(shapes::chamfered(7, shapes::Corner::AntiDiagonal))
            .fill(hexColor(0x110303))
-           .foreground(styles::BevelPair{kD5, {0, 0, 0, 0.6f}, 1, 1})
+           .foreground(styles::BevelPair{kD5, sigil::material::Color{0, 0, 0, 0.6f}, 1, 1})
            .children({box().left(12).top(12).width(236).height(96).children(
                           {instancing::instances(dockAtlas, dockPool,
                                                  instancing::Mode::Data)}),
@@ -382,7 +380,7 @@ auto TwoAdvancedV4::footerDock() -> Element {
            .column()
            .padding(10)
            .gap(5)
-           .foreground(styles::BevelPair{kD5, {0, 0, 0, 0.6f}, 1, 1})
+           .foreground(styles::BevelPair{kD5, sigil::material::Color{0, 0, 0, 0.6f}, 1, 1})
            .foreground(styles::Brackets{kD6, 9, 2, 3, shapes::Corner::All})
            .children(
                {box()
@@ -396,7 +394,7 @@ auto TwoAdvancedV4::footerDock() -> Element {
                 box()
                     .flexGrow(1)
                     .fill(hexColor(0x0D0202))
-                    .foreground(styles::BevelPair{kD4, {0, 0, 0, 0.5f}, 1, 1})
+                    .foreground(styles::BevelPair{kD4, sigil::material::Color{0, 0, 0, 0.5f}, 1, 1})
                     .row()
                     .alignItems(Align::End)
                     .gap(2)
@@ -419,7 +417,7 @@ auto TwoAdvancedV4::footerDock() -> Element {
           .shape(shapes::chamfered(9, shapes::Corner::Diagonal))
           .fill(material::linearGradient(
               {0, 0}, {0, 1}, {{0.0f, kD3}, {1.0f, hexColor(0x0C0202)}}))
-          .foreground(inset(5, styles::BevelPair{kD5, {0, 0, 0, 0.6f}, 2, 1}))
+          .foreground(inset(5, styles::BevelPair{kD5, sigil::material::Color{0, 0, 0, 0.6f}, 2, 1}))
           .foreground(styles::Brackets{kD6, 12, 2, 5, shapes::Corner::All})
           .row()
 
@@ -460,7 +458,7 @@ auto TwoAdvancedV4::rail(bool right) -> Element {
     // The production rail bitmap, held to the shell's own display
     // geometry: the page shows the 26×780 GIF at 12×780 CSS px, and
     // this frame is ×2 of that page, so the node is 24×1560.
-    r.fill(stretchFill(gif, 24, 1560));
+    r.fill(sigil::material::skia::base(stretchFill(gif, 24, 1560)));
     // The flare highlight stays live on top — the bitmap carries the
     // flare ART, and the travelling sheen is drawn over it.
     r.foreground(RailFlares{hexColor(0x99AAAA), 6.0f, right ? 3.0f : 0.0f});

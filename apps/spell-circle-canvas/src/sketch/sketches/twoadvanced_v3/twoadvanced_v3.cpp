@@ -3,6 +3,7 @@
 
 // TAGS: Interfaces/Web
 
+#include <sigilmaterial/skia/Paint.h>
 #include "TwoAdvancedV3.h"
 #include <sigilmedia/image/Decode.h>
 #include <sigilmotion/ease/Ease.h>
@@ -16,7 +17,7 @@ Element TwoAdvancedV3::describe() {
   if (pageTile) {
     // The 10×1600 strip exactly as the CSS places it: repeated across,
     // clamped down (the page is shorter than the strip).
-    page.fill(stretchFill(pageTile, 10, 1600, SkTileMode::kRepeat));
+    page.fill(sigil::material::skia::base(stretchFill(pageTile, 10, 1600, material::Repeat::Repeat)));
   } else {
     page.fill(material::linearGradient(
         {0, 0}, {0, 1}, {{0.0f, kPageHi}, {0.55f, kPage}}));
@@ -28,7 +29,7 @@ Element TwoAdvancedV3::describe() {
   Element ground =
       at(box().overflow(Overflow::Clip), kStageX, 640, kStageW, 400);
   if (lowerPanelBg)
-    ground.fill(stretchFill(lowerPanelBg, kStageW, 400));
+    ground.fill(sigil::material::skia::base(stretchFill(lowerPanelBg, kStageW, 400)));
   else
     ground.fill(material::linearGradient(
         {0, 0}, {1, 1}, {{0.0f, hexColor(0x22304A)}, {1.0f, kPage}}));
@@ -93,8 +94,8 @@ void TwoAdvancedV3::setup(sketch::SketchContext& ctx) {
   }
 
   // --- idle motion ------------------------------------------------------
-  ctx.engine.add([this, &ticker = ctx.engine] {
-    const double tAcc = ticker.elapsed();
+  ctx.engine.timer([this, &ticker = ctx.engine] {
+    const double tAcc = ticker.elapsed().count();
     const float s = (float)tAcc;
     // the art beacon: sharp on, slow decay, period 2.4 s
     const float ph = std::fmod(s, 2.4f);
@@ -113,7 +114,7 @@ void TwoAdvancedV3::renderCloudFrame(sketch::SketchContext& ctx, int frame) {
   cloudFrame = frame;
   ctx.composer.renderSlot("clouds",
                           box().width(310).height(255).fill(
-                              stretchFill(clouds[(size_t)frame], 310, 255)));
+                              sigil::material::skia::base(stretchFill(clouds[(size_t)frame], 310, 255))));
 }
 
 void TwoAdvancedV3::renderDiscordFrame(sketch::SketchContext& ctx, int frame) {
@@ -121,7 +122,7 @@ void TwoAdvancedV3::renderDiscordFrame(sketch::SketchContext& ctx, int frame) {
   discordFrame = frame;
   ctx.composer.renderSlot("discord",
                           box().width(64).height(64).fill(
-                              stretchFill(discordSeq[(size_t)frame], 64, 64)));
+                              sigil::material::skia::base(stretchFill(discordSeq[(size_t)frame], 64, 64))));
 }
 
 void TwoAdvancedV3::renderStage(sketch::SketchContext& ctx,

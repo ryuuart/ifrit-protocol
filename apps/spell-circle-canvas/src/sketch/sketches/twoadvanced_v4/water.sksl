@@ -1,7 +1,5 @@
 // Horizontal streak water, dark teal-black, drifting slowly.
 
-uniform float2 uResolution;
-uniform float  uTime;
 half4 main(float2 xy) {
   float v = xy.y / max(uResolution.y, 1.0);
   float s = sin(xy.y * 0.85 + sin(xy.x * 0.011 + uTime * 0.45) * 2.4);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <sigilmedia/advanced/Skia.h>
 #include <span>
 
 #include "Settings.h"
@@ -89,8 +90,8 @@ struct TwoAdvancedV3 {
 
   /** A bitmap stretched to exactly (w, h). */
   static material::Paint stretchFill(const ImagePtr& asset, float w, float h,
-                                  SkTileMode tx = SkTileMode::kClamp,
-                                  SkTileMode ty = SkTileMode::kClamp);
+                                  material::Repeat tx = material::Repeat::Pad,
+                                  material::Repeat ty = material::Repeat::Pad);
 
   // =========================================================================
   // The sky opening's coverage, baked once: the outline TRACED from the

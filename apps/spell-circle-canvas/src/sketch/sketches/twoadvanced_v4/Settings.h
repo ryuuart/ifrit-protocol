@@ -2,8 +2,9 @@
 
 // Construction data and drawing primitives owned by this study.
 
+#include <sigilweave/style/Face.h>
 #include <sigildraw/Pen.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkMaskFilter.h>
 #include <include/core/SkPathBuilder.h>
@@ -12,7 +13,6 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Decorations.h>
-#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcompose/core/Grid.h>
 #include <sigilcompose/core/Instances.h>
@@ -20,7 +20,7 @@
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Chrome.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Presets.h>
 #include <sigilcompose/kit/Placers.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
@@ -155,7 +155,7 @@ inline sigil::weave::Type heavy(float size, material::Color c, float tr = 40) {
  *  line names for itself where none of the four registers is it — the
  *  same fields the registers set, as a PARTIAL, so the line still
  *  inherits everything it does not name. */
-inline sigil::weave::Type cut(const sk_sp<SkTypeface>& face, float size,
+inline sigil::weave::Type cut(const sigil::weave::Face& face, float size,
                               material::Color c, float tr,
                               float condense = 1.0f) {
   return {.face = face,

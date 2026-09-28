@@ -196,7 +196,7 @@ struct TwoAdvancedEquipment {
    *  over five seconds, a beat at the bottom, and four seconds back. The
    *  corners are positions in the cycle; the quadratic ease rounds both
    *  shoulders without moving them. */
-  motion::Bound scrollEnvelope() const {
+  sigil::motion::Animatable<float> scrollEnvelope() const {
     using namespace teq;
     return motion::bind(clock, {.from = {0.0f, kScrollCycle}, .envelope = motion::envelope::trapezoid(kScrollRise / kScrollCycle, kScrollHold / kScrollCycle, kScrollFall / kScrollCycle, kScrollRest / kScrollCycle), .ease = motion::ease::inOutQuad});
   }
@@ -320,7 +320,7 @@ struct TwoAdvancedEquipment {
             .width(501)
             .height(kListH)
             .flexShrink(0)
-            .translateY(scrollEnvelope().target(0.0f, -contentOverflow))
+            .translateY(motion::bind(scrollEnvelope(), {.to = {0, -contentOverflow}}))
             .children(
                 {box().height(1),
                  img("ecom-productselection.gif", 501, 16, kMaroon),
@@ -361,7 +361,7 @@ struct TwoAdvancedEquipment {
                  path::Edge::Top | path::Edge::Left,
                  stroke(1, Fill::color(kWhite), PathFormat::Align::Inner))),
              .scrolled = frame,
-             .position = scrollEnvelope().target(0.0f, frame.thumb().travel),
+             .position = motion::bind(scrollEnvelope(), {.to = {0, frame.thumb().travel}}),
              .track = Fill::color(kSbTrack)})
             .width(kSbW);
 
@@ -438,8 +438,8 @@ struct TwoAdvancedEquipment {
     // --- the clock ---------------------------------------------------
     // Both behaviours are shapes of it, declared where they are drawn, so
     // this is the whole per-frame side of the page.
-    ctx.engine.add([this, &ticker = ctx.engine] {
-      const double tt = ticker.elapsed();
+    ctx.engine.timer([this, &ticker = ctx.engine] {
+      const double tt = ticker.elapsed().count();
       clock = (float)tt;
     });
 

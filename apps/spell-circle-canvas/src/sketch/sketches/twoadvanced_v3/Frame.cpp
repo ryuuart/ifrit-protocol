@@ -1,5 +1,6 @@
 // The page shell, navigation and boot sequence.
 
+#include <sigilmaterial/skia/Paint.h>
 #include "TwoAdvancedV3.h"
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmaterial/paint/Bases.h>
@@ -84,7 +85,7 @@ Element TwoAdvancedV3::headerStrip() {
     // edge, exactly as the page shows it — squeezing it to fit reads
     // measurably lighter than the reference.
     strip.children(
-        {at(box().fill(stretchFill(topHeader, 1381, 77)), 0, 0, 1381, 77)});
+        {at(box().fill(sigil::material::skia::base(stretchFill(topHeader, 1381, 77))), 0, 0, 1381, 77)});
   } else {
     strip.fill(material::linearGradient(
         {0, 0}, {1, 0.4f},
@@ -104,7 +105,7 @@ Element TwoAdvancedV3::wordmark() {
   // panel carries all the contrast, the lockup none of it.
   Element mark = box().width(46).height(46);
   if (logoMark) {
-    mark.fill(kNear).mask(by::alpha(stretchFill(logoMark, 46, 46)));
+    mark.fill(kNear).mask(by::alpha(sigil::material::skia::base(stretchFill(logoMark, 46, 46))));
   } else {
     mark.borderRadius({23})
         .stroke(stroke(3, Fill::color(kNear), PathFormat::Align::Inner))
@@ -153,7 +154,7 @@ Element TwoAdvancedV3::navBar() {
   if (navbarBg)
     // Half-res native size, cropped at the stage edge (see the header
     // strip note — squeezing lightens the render).
-    bar.overflow(Overflow::Clip).fill(stretchFill(navbarBg, 1338, 33));
+    bar.overflow(Overflow::Clip).fill(sigil::material::skia::base(stretchFill(navbarBg, 1338, 33)));
   else
     bar.fill(
         material::linearGradient({0, 0}, {0, 1},
@@ -299,7 +300,7 @@ Element TwoAdvancedV3::bootOverlay() {
   if (pageLogo)
     // The bitmap is near-black art; the page shows it inverted. A
     // white fill through its coverage is that filter's visible result.
-    lockup.fill(kNear).mask(by::alpha(stretchFill(pageLogo, 197, 94)));
+    lockup.fill(kNear).mask(by::alpha(sigil::material::skia::base(stretchFill(pageLogo, 197, 94))));
   else
     lockup.alignItems(Align::Center)
         .justifyContent(Justify::Center)

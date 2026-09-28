@@ -1,5 +1,6 @@
 #pragma once
 
+#include <sigilmedia/advanced/Skia.h>
 #include "Settings.h"
 
 struct TwoAdvancedV4 {
@@ -28,7 +29,9 @@ struct TwoAdvancedV4 {
   Pattern hatchA, hatchB;  // footer-dock crosshatch (two passes = crosshatch)
   Pattern dither;          // teal readout-box dither
   material::Paint grain;      // page-background film grain (luminance, not RGB)
-  material::Paint spectrum, stripesLive, waterStreaks;
+  material::Material spectrum = material::Color{0, 0, 0, 0};
+  material::Material stripesLive = material::Color{0, 0, 0, 0};
+  material::Material waterStreaks = material::Color{0, 0, 0, 0};
 
   // --- the production shell artefacts, fetched from the restoration host.
   // Any of these may be null (no network, cold cache); every use site
@@ -57,7 +60,7 @@ struct TwoAdvancedV4 {
    *  and this sketch is a ×2 enlargement of those numbers. */
   static material::Paint stretchFill(
       const std::shared_ptr<const sigil::media::Image>& asset, float w,
-      float h, SkTileMode tx = SkTileMode::kClamp);
+      float h, material::Repeat tx = material::Repeat::Pad);
 
   // --- instancing: the footer dock's chevron tick array ---
   std::shared_ptr<instancing::CellSheet> dockAtlas;

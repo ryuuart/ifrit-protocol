@@ -1,5 +1,6 @@
 // Section artwork and the lower content modules.
 
+#include <sigilmaterial/skia/Paint.h>
 #include "TwoAdvancedV3.h"
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmaterial/paint/Bases.h>
@@ -22,7 +23,7 @@ Element TwoAdvancedV3::sectionArt(int sec, float settle) {
       box().key(key).width(kStageW).height(kArtH).overflow(Overflow::Clip);
   const ImagePtr& bg = sec < 0 ? homeBg : sectionBg[(size_t)sec];
   if (bg)
-    art.fill(stretchFill(bg, kStageW, kArtH));
+    art.fill(sigil::material::skia::base(stretchFill(bg, kStageW, kArtH)));
   else
     art.fill(material::linearGradient(
         {0, 0}, {0, 1}, {{0.0f, hexColor(0x2A3A58)}, {1.0f, kDeep}}));
@@ -51,7 +52,7 @@ Element TwoAdvancedV3::sectionArt(int sec, float settle) {
     // never stops blinking.
     art.children({at(box().borderRadius({3}), kStageW - 116, kArtH - 62, 6, 6)
                       .fill(sigil::material::withAlpha(kSteelHi, 0.9f))
-                      .opacity(&beaconAlpha)});
+                      .opacity(beaconAlpha)});
     return art;
   }
 
@@ -188,14 +189,14 @@ Element TwoAdvancedV3::riveLockup() {
   Element row = box().row().gap(7).alignItems(Align::Center);
   if (logoMark)
     row.children({box().width(34).height(34).fill(kNear).mask(
-        by::alpha(stretchFill(logoMark, 34, 34)))});
+        by::alpha(sigil::material::skia::base(stretchFill(logoMark, 34, 34))))});
   row.children(
       {text(page["plus"],
             sigil::weave::kit::tracked(
                 grotBold(), 13, sigil::material::withAlpha(kNear, 0.9f), 0))});
   if (riveLogo)
     row.children(
-        {box().width(44).height(44).fill(stretchFill(riveLogo, 44, 44))});
+        {box().width(44).height(44).fill(sigil::material::skia::base(stretchFill(riveLogo, 44, 44)))});
   else
     row.children({text(page["rive"],
                        sigil::weave::kit::tracked(grotBold(), 26, kNear, 0))});
@@ -253,7 +254,7 @@ Element TwoAdvancedV3::updates() {
   const data::Json& page = doc["modules"]["updates"];
   Element body = box().row().padding(12).gap(12).children(
       {thumbPlate(dddLogo ? box().width(56).height(72).fill(
-                                stretchFill(dddLogo, 56, 72))
+                                sigil::material::skia::base(stretchFill(dddLogo, 56, 72)))
                           : text(page["mark"], sigil::weave::kit::tracked(
                                                    grotBold(), 20, kNear, 100)),
                   page["button"]),
@@ -330,8 +331,8 @@ Element TwoAdvancedV3::follow2a() {
   Element icons = box().height(16);
   if (socialSprite) {
     // The sprite is authored @2x (436×32); the layout shows it at 1×.
-    const float iw = (float)socialSprite->width() * 0.5f;
-    icons.width(iw).fill(stretchFill(socialSprite, iw, 16));
+    const float iw = (float)socialSprite->size().x * 0.5f;
+    icons.width(iw).fill(sigil::material::skia::base(stretchFill(socialSprite, iw, 16)));
   } else {
     icons.row().gap(12);
     for (int i = 0; i < 7; ++i)

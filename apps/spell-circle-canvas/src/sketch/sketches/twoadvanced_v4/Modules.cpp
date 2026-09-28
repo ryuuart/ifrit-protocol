@@ -1,3 +1,5 @@
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include "TwoAdvancedV4.h"
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/ease/Ease.h>
@@ -41,7 +43,7 @@ auto TwoAdvancedV4::featureSystem() -> Element {
                         108, 150, 1)})
           .foreground(styles::Brackets{sigil::material::withAlpha(kCyan, 0.85f),
                                        12, 2, 4, shapes::Corner::All})
-          .foreground(styles::Scanlines{{0, 0, 0, 0.22f}, 3, 1});
+          .foreground(decorations::wash(sigil::material::pattern::scanlines({.color = {0, 0, 0, 0.22f}, .period = 3, .on = 1})));
 
   Element copy = box().flexGrow(1).column().gap(6).children(
       {box()
@@ -132,13 +134,13 @@ auto TwoAdvancedV4::featureSystem() -> Element {
   // the hazard wedge, bottom-left — the STATIC baked-tile pattern path
   bodyArea.children({at(box()
                             .shape(keyedShape(std::string_view("hazard-wedge"),
-                                              [](SkSize s) {
+                                              [](glm::vec2 s) {
                                                 SkPathBuilder b;
                                                 b.moveTo(0, 0);
-                                                b.lineTo(s.width(), s.height());
-                                                b.lineTo(0, s.height());
+                                                b.lineTo(s.x, s.y);
+                                                b.lineTo(0, s.y);
                                                 b.close();
-                                                return b.detach();
+                                                return sigil::geometry::path::fromSk(b.detach());
                                               }))
                             .fill(hazard.material())
                             .opacity(0.45f),
@@ -185,7 +187,7 @@ auto TwoAdvancedV4::pressList() -> Element {
 
 auto TwoAdvancedV4::pressUpdates() -> Element {
   using namespace tav;
-  Element list = pressList().translateY(&pressScroll);
+  Element list = pressList().translateY(pressScroll);
 
   // The thumb is the well's share of the entries it scrolls, and it
   // rides the same Output the list does: a bar drawn at a guessed
@@ -479,7 +481,7 @@ auto TwoAdvancedV4::subSystem() -> Element {
   row.key("subsys")
       .gridArea("subsys")
       .background(
-          styles::Overlay{hazard.material(), SkBlendMode::kSrcOver, 0.16f})
+          decorations::wash(hazard.material(), sigil::material::BlendMode::Normal, 0.16f))
       .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 400ms, .delay = 3650ms, .ease = motion::ease::outQuad}))
       .foreground(styles::TickRail{sigil::material::withAlpha(kDust, 0.35f), 9,
                                    4, 8, 1, 4, 0.5f, path::Edge::Top})

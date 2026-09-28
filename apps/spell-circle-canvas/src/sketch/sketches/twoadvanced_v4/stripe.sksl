@@ -2,11 +2,6 @@
 // can run its slow conveyor pan — 20 px per 8 s — off ONE bound
 // uniform, `uPan`.
 
-uniform float  uPan;
-uniform float  uOn;
-uniform float  uPeriod;
-uniform float4 uColor;
-uniform float4 uBase;
 half4 main(float2 xy) {
   float d = (xy.x + xy.y) * 0.70710678 - uPan;
   float f = mod(d, uPeriod);

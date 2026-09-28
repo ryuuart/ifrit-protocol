@@ -2,6 +2,10 @@
 
 // TAGS: Interfaces/Web
 
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/program/Shader.h>
+#include <sigildata/decode/Json.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include "TwoAdvancedV4.h"
 #include <sigilmedia/image/Decode.h>
 #include <sigilmaterial/paint/Bases.h>
@@ -56,7 +60,7 @@ auto TwoAdvancedV4::describe() -> Element {
   // stands.
   Element page = stack().font({.face = condBlack(), .condense = 0.92f});
   if (siteBgGif) {
-    page.fill(stretchFill(siteBgGif, 1940, 3200, SkTileMode::kRepeat));
+    page.fill(sigil::material::skia::base(stretchFill(siteBgGif, 1940, 3200, material::Repeat::Repeat)));
   } else {
     // THE FALL-OFF IS READ OFF THE REAL STRIP, column by column, so
     // the two paths draw one page rather than two: down the middle the
@@ -74,7 +78,7 @@ auto TwoAdvancedV4::describe() -> Element {
                                                    {0.65f, hexColor(0x3D060D)},
                                                    {0.80f, hexColor(0x250002)},
                                                    {1.00f, kBgBot}}))
-        .children({box().inset(0).fill(grain).opacity(0.07f).blendMode(
+        .children({box().inset(0).fill(sigil::material::skia::base(grain)).opacity(0.07f).blendMode(
             material::BlendMode::Overlay)});
   }
   return page.children(
@@ -82,6 +86,11 @@ auto TwoAdvancedV4::describe() -> Element {
 }
 
 auto TwoAdvancedV4::setup(sketch::SketchContext& ctx) -> void {
+    for (auto& value : dot) value = sigil::motion::animatable(value.value());
+    for (auto& value : gauge) value = sigil::motion::animatable(value.value());
+    for (auto& value : gaugeAlpha) value = sigil::motion::animatable(value.value());
+    for (auto& value : shutter) value = sigil::motion::animatable(value.value());
+
   using namespace tav;
   sketch::kit::stage(ctx, {.size = {1940, 1560},
                            .captureAt = 6.0,
@@ -90,7 +99,7 @@ auto TwoAdvancedV4::setup(sketch::SketchContext& ctx) -> void {
   // EVERY WORD THE PAGE SETS, out of the document beside this file. It is
   // read before the hero bakes and before anything is measured, because
   // the press list the overflow is measured off is the document's own.
-  content = ctx.assets.json(ctx.local("data/content.json"));
+  content = ctx.assets.hub().load<sigil::data::Json>(ctx.local("data/content.json"));
 
   // The hero's world, baked at twice the panel's pixels because a plate
   // is taken at up to twice the canvas.
@@ -127,21 +136,25 @@ auto TwoAdvancedV4::setup(sketch::SketchContext& ctx) -> void {
   // is what the real 1x1600 sitebackground.gif strip has.
   grain = material::Paint::recipe(field::grain(0.9f, 3, 4.0f, 1.25f, 1.6f));
 
-  spectrum = material::skia::sksl(ctx.assets.shader(ctx.local("spectrum.sksl")),
-                                {{"uBars", 32.0f}})
-                 .set("uHot", kGlow)
-                 .set("uCool", kTealBar)
-                 .quantizeTime(10.0f);  // 10 steps a second, not a slide
+  struct SpectrumParameters {
+    float uBars = 32;
+    material::Color uHot = kGlow;
+    material::Color uCool = kTealBar;
+  };
+  spectrum = material::shader(ctx.assets.hub(), ctx.local("spectrum.sksl"), SpectrumParameters{})
+                 .quantizeTime(10.0f);
 
-  // ONE stripe material value, reused by the nav bar and four panel
-  // headers; the pan is a bound uniform, not five redraw loops.
-  stripesLive = material::skia::sksl(ctx.assets.shader(ctx.local("stripe.sksl")),
-                                   {{"uOn", 6.0f}, {"uPeriod", 16.0f}})
-                    .set("uColor", kChromeHi)
-                    .set("uBase", kChrome)
-                    .bind("uPan", &stripePan);
-
-  waterStreaks = material::skia::sksl(ctx.assets.shader(ctx.local("water.sksl")));
+  // One stripe material serves the nav bar and the panel headers.
+  struct StripeParameters {
+    float uPan = 0;
+    float uOn = 6;
+    float uPeriod = 16;
+    material::Color uColor = kChromeHi;
+    material::Color uBase = kChrome;
+  };
+  stripesLive = material::shader(ctx.assets.hub(), ctx.local("stripe.sksl"), StripeParameters{})
+                    .bind("uPan", stripePan);
+  waterStreaks = material::shader(ctx.assets.hub(), ctx.local("water.sksl"));
 
   // measure the press entries at the well's own wrap width, so the
   // auto-scroll walks the REAL overflow rather than a guessed one
@@ -155,14 +168,14 @@ auto TwoAdvancedV4::setup(sketch::SketchContext& ctx) -> void {
   const int chev = dockAtlas->cell(
       box()
           .shape(keyedShape(std::string_view("dock-chevron"),
-                            [](SkSize s) {
+                            [](glm::vec2 s) {
                               SkPathBuilder b;
                               b.moveTo(0, 0);
-                              b.lineTo(s.width() * 0.62f, s.height() * 0.5f);
-                              b.lineTo(0, s.height());
-                              b.lineTo(s.width() * 0.30f, s.height() * 0.5f);
+                              b.lineTo(s.x * 0.62f, s.y * 0.5f);
+                              b.lineTo(0, s.y);
+                              b.lineTo(s.x * 0.30f, s.y * 0.5f);
                               b.close();
-                              return b.detach();
+                              return sigil::geometry::path::fromSk(b.detach());
                             }))
           .fill(kD6),
       {12, 10});
@@ -181,8 +194,8 @@ auto TwoAdvancedV4::setup(sketch::SketchContext& ctx) -> void {
   }
 
   // --- the idle motion, all of it driven from this one ticker -----------
-  ctx.engine.add([this, &ticker = ctx.engine] {
-    const double t = ticker.elapsed();
+  ctx.engine.timer([this, &ticker = ctx.engine] {
+    const double t = ticker.elapsed().count();
     const float s = (float)t;
     stripePan = s * 2.5f;                               // 20 px / 8 s
     portalGlow = 54.0f + 4.4f * std::sin(s * 1.5708f);  // ±8 %, period 4 s

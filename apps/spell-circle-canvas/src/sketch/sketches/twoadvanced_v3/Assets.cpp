@@ -1,5 +1,7 @@
 // Production images, cloud grading and embedded Rive resources.
 
+#include <sigilmedia/image/Decode.h>
+#include <sigilmedia/advanced/Skia.h>
 #include "TwoAdvancedV3.h"
 
 bool TwoAdvancedV3::available(std::string* why) {
@@ -14,7 +16,7 @@ bool TwoAdvancedV3::available(std::string* why) {
 }
 
 material::Paint TwoAdvancedV3::stretchFill(const ImagePtr& asset, float w, float h,
-                                        SkTileMode tx, SkTileMode ty) {
+                                        material::Repeat tx, material::Repeat ty) {
   const sk_sp<SkImage>& img = asset->frames()[0].image;
   return material::skia::image(
       img, tx, ty,
@@ -105,9 +107,8 @@ void TwoAdvancedV3::extractRivImages(std::span<const std::byte> bytes) {
       if (idx >= 0 && idx < 62) dest = &clouds[(size_t)idx];
     }
     if (dest && !*dest) {
-      if (auto img = sigil::media::Image::decode(
-              SkData::MakeWithCopy(bytes.data() + found.offset, found.length)))
-        *dest = std::make_shared<sigil::media::Image>(std::move(*img));
+      *dest = sigil::media::decode<sigil::media::Image>(
+          std::span<const std::byte>(bytes.data() + found.offset, found.length));
     }
   }
   // Sequences are used dense-or-not-at-all: one absent frame would

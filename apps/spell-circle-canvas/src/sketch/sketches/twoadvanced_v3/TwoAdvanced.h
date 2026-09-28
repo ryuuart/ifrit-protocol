@@ -32,8 +32,9 @@
 // artefacts DIFFER by, and a shared header that held them would be
 // asserting a house style the sites do not actually share.
 
+#include <sigilmotion/time/Duration.h>
 #include <include/core/SkColor.h>
-#include <include/core/SkFontStyle.h>
+#include <sigilweave/style/Face.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/core/Factories.h>
@@ -53,37 +54,36 @@ namespace twoadvanced {
 // The faces. Resolved once; the list is the substitution, in order.
 
 /** v3's workhorse: Akzidenz-Grotesk medium, substituted. */
-inline sk_sp<SkTypeface> grot() {
+inline sigil::weave::Face grot() {
   return sigil::weave::ports::face({"Helvetica Neue", "Arial"},
-                                   SkFontStyle::kMedium_Weight);
+                                   500);
 }
 /** v3's headline weight. */
-inline sk_sp<SkTypeface> grotBold() {
+inline sigil::weave::Face grotBold() {
   return sigil::weave::ports::face({"Helvetica Neue", "Arial"},
-                                   SkFontStyle::kBold_Weight);
+                                   700);
 }
 /** v4's chrome voice: Helvetica CondensedBlack, the face the SWF
  *  embedded and the one thing the whole interface is lettered in. */
-inline sk_sp<SkTypeface> condBlack() {
+inline sigil::weave::Face condBlack() {
   return sigil::weave::ports::face(
       {"Helvetica Neue", "Avenir Next Condensed"},
-      SkFontStyle(SkFontStyle::kBlack_Weight, SkFontStyle::kCondensed_Width,
-                  SkFontStyle::kUpright_Slant));
+      sigil::weave::FaceStyle{.weight = 900, .width = 3, .slant = sigil::weave::FaceSlant::Upright});
 }
 /** v4's heavier, wider register: Arial Black. */
-inline sk_sp<SkTypeface> blackFace() {
+inline sigil::weave::Face blackFace() {
   return sigil::weave::ports::face({"Arial Black", "Helvetica Neue"},
-                                   SkFontStyle::kBlack_Weight);
+                                   900);
 }
 /** The body face both Flash-era pages set their prose in. */
-inline sk_sp<SkTypeface> arial() {
+inline sigil::weave::Face arial() {
   return sigil::weave::ports::face({"Arial", "Helvetica"});
 }
 /** The store's face: Verdana, which is what an HTML `size=1` cell was
  *  set in and what macOS still ships. */
-inline sk_sp<SkTypeface> verdanaFace(bool bold) {
+inline sigil::weave::Face verdanaFace(bool bold) {
   return bold ? sigil::weave::ports::face({"Verdana", "Arial"},
-                                          SkFontStyle::kBold_Weight)
+                                          700)
               : sigil::weave::ports::face({"Verdana", "Arial"});
 }
 
@@ -142,7 +142,7 @@ struct SectionCycle {
     // The stop is a STEP INDEX at one step per hold, taken round the run
     // of stops; the change is how far into that step the clock stands.
     const long long step =
-        sigil::motion::stepIndex(elapsed - start, 1.0 / hold);
+        sigil::motion::stepIndex(sigil::motion::Duration(elapsed - start), 1.0 / hold);
     a.stop = (int)(step % stops);
     a.previous = a.stop == 0 ? -1 : a.stop - 1;
     const double within = (elapsed - start) - (double)step * hold;

@@ -1,3 +1,6 @@
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmedia/advanced/Skia.h>
 #include "TwoAdvancedV4.h"
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmaterial/paint/Bases.h>
@@ -195,8 +198,8 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
                  .glowColor = sigil::material::withAlpha(kGlow, 0.42f)};
   const float pbox = material::sdf::minBoxFor(ps, 132);
   material::Paint pm = material::Paint::recipe(material::sdf::material(material::sdf::circle(), ps));
-  if (!still) pm.bind("uGlowR", &portalGlow);  // ±8 % sine, period 4 s
-  Element portal = at(box().fill(pm), cx - pbox * 0.5f,
+  if (!still) pm.bind("uGlowR", portalGlow);  // ±8 % sine, period 4 s
+  Element portal = at(box().fill(sigil::material::skia::base(pm)), cx - pbox * 0.5f,
                       horizon - 108 - pbox * 0.5f, pbox, pbox)
                        .blendMode(material::BlendMode::PlusLighter);
   if (!still)
@@ -292,7 +295,7 @@ auto TwoAdvancedV4::hero(float w, float h) -> Element {
                   {{0.00f, {0, 0, 0, 0}},
                    {0.58f, {0, 0, 0, 0.10f}},
                    {1.00f, {0, 0, 0, 0.66f}}})),
-              box().inset(0).foreground(styles::Scanlines{}),
+              box().inset(0).foreground(decorations::wash(sigil::material::pattern::scanlines({}))),
               box().inset(0).foreground(
                   styles::Brackets{sigil::material::withAlpha(kCyan, 0.7f), 22,
                                    2, 8, shapes::Corner::All})});
@@ -348,7 +351,7 @@ auto TwoAdvancedV4::mainframe() -> Element {
             path::Edge::Bottom,
             stroke(3, Fill::color(sigil::material::withAlpha(kCyan, 0.5f)),
                    PathFormat::Align::Inner)))
-        .scaleY(&shutter[(size_t)i])
+        .scaleY(shutter[(size_t)i])
         .transformOrigin(pct(50), pct(0));
   };
   // The ACCESSING readout rides the closed shutters, in the middle of the
@@ -358,7 +361,7 @@ auto TwoAdvancedV4::mainframe() -> Element {
       kit::centred()
           .cover()
 
-          .opacity(&shutterInfo)
+          .opacity(shutterInfo)
           .children(
               {kit::centred()
                    .width(440)
@@ -455,7 +458,7 @@ auto TwoAdvancedV4::relatedStills() -> std::vector<Element> {
              .foreground(
                  styles::Brackets{sigil::material::withAlpha(kCyan, 0.5f), 6, 1,
                                   2, shapes::Corner::All})
-             .foreground(styles::Scanlines{{0, 0, 0, 0.24f}, 3, 1}),
+             .foreground(decorations::wash(sigil::material::pattern::scanlines({.color = {0, 0, 0, 0.24f}, .period = 3, .on = 1}))),
          t(caption, micro(9, hexColor(0x123B3D), 220))});
     out.push_back(std::move(cell));
   }
