@@ -142,13 +142,15 @@ std::function<void(SkCanvas&, SkSize)> splat(pop::Builder chain,
 }
 
 Element figure(const char* key, std::function<void(SkCanvas&, SkSize)> draw) {
+  // The camera and cloud are fixed. Keep the well's ground with the
+  // splats so their additive blend has the same backdrop in the bake.
   return sketch::kit::well(
       {.width = kCell, .height = kPicture},
       custom(key, [draw = std::move(draw)](sigil::draw::Pen& pen,
                                            const PaintContext& pc) {
         SkCanvas& canvas = *pen.canvas();
         draw(canvas, sigil::geometry::path::toSkSize(pc.size));
-      }));
+      })).cache(Cache::Texture);
 }
 
 }  // namespace

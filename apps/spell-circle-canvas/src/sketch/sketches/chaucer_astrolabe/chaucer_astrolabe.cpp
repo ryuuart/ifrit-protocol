@@ -351,6 +351,7 @@ struct ChaucerAstrolabe {
     return kit::at(kCentre.fX - kR, kCentre.fY - kR, 2 * kR, 2 * kR)
         .shape(shapes::circle())
         .overflow(Overflow::Clip)
+        .cache(Cache::Texture)
         .fill(sigil::material::from(sigil::material::skia::base(brass(0.46f))).effects(sigil::material::Filter::shadow(material::withAlpha(kEdge, 0.55f), {.blur = 9, .offset = {0, 3}, .inside = true})))
         .children({
             // the unequal hours stand below the horizon only: they are cut

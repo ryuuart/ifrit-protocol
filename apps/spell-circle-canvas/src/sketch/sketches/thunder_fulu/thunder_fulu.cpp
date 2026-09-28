@@ -172,6 +172,7 @@ draw::brush::Tool brush(float width, material::Color ink, float load) {
 struct ThunderFulu {
   sketch::kit::Document words;
   std::vector<Written> ink;
+  size_t completed = 0;
   std::vector<path::Polyline> sealGraphs;
   sigil::motion::Animatable<float> score = sigil::motion::animatable(0.0f);
   StyleSheet sheet;
@@ -211,24 +212,39 @@ struct ThunderFulu {
     ink.push_back(std::move(foot));
   }
 
+  /** Finished strokes keep their seeded marks in drawing order. The
+   *  end times follow that order, so the completed ink is one prefix,
+   *  changing only when a stroke ends or the score starts again. */
+  Element writtenInk() const {
+    return box().inset(0).cache(Cache::Texture).children(
+        each(completed, [this](size_t index) {
+          return pen("thunder_fulu.written." + std::to_string(index),
+                     [this, index](draw::Pen& pen) {
+                       pen.randomSeed(1220 + (unsigned)index);
+                       draw::brush::paint(pen, ink[index].tool, ink[index].line);
+                     }, Cache::Picture);
+        }));
+  }
+
   /** THE INK: each stroke laid as far along as the score has written it.
    *  A stroke's randomness is seeded by its place in the order, so a
    *  frame paints the hairs the frame before it did. */
   Element brushwork() const {
-    return pen("thunder_fulu.ink", [this](draw::Pen& pen) {
-      const float now = score.value();
-      for (size_t index = 0; index < ink.size(); ++index) {
-        const Written& stroke = ink[index];
-        const float written =
-            std::clamp((now - stroke.start) / (stroke.end - stroke.start),
-                       0.0f, 1.0f);
-        const size_t count = (size_t)(written * (float)stroke.line.size());
-        if (count < 2) continue;
-        pen.randomSeed(1220 + (unsigned)index);
-        draw::brush::paint(pen, stroke.tool,
-                           std::span(stroke.line).first(count));
-      }
-    });
+    return box().inset(0).children({slot("written-ink").cover(),
+        pen("thunder_fulu.ink", [this](draw::Pen& pen) {
+          const float now = score.value();
+          for (size_t index = completed; index < ink.size(); ++index) {
+            const Written& stroke = ink[index];
+            const float written =
+                std::clamp((now - stroke.start) / (stroke.end - stroke.start),
+                           0.0f, 1.0f);
+            const size_t count = (size_t)(written * (float)stroke.line.size());
+            if (count < 2) continue;
+            pen.randomSeed(1220 + (unsigned)index);
+            draw::brush::paint(pen, stroke.tool,
+                               std::span(stroke.line).first(count));
+          }
+        })});
   }
 
   /** HAMMERED IRON: a plate whose edge is what a hammer leaves rather than
@@ -377,7 +393,7 @@ struct ThunderFulu {
                           (float)index / (float)(line.size() - 1));
                     pen.randomSeed(46);
                     draw::brush::paint(pen, brush(21, kCinnabar, 1), line);
-                  }),
+                  }, Cache::Texture),
               each(said["marks"].array(),
                    [](const data::Json& mark) {
                      const float along = (float)mark["s"].number();
@@ -597,8 +613,13 @@ struct ThunderFulu {
     context.composer.render(describe());
   }
 
-  void update(double elapsed, sketch::SketchContext&) {
+  void update(double elapsed, sketch::SketchContext& context) {
     score = (float)std::fmod(elapsed, (double)kLoop);
+    size_t written = 0;
+    while (written < ink.size() && ink[written].end <= score.value()) ++written;
+    if (written == completed) return;
+    completed = written;
+    context.composer.renderSlot("written-ink", writtenInk());
   }
 };
 

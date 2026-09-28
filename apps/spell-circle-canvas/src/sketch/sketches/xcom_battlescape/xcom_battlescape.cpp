@@ -18,6 +18,7 @@
 #include <sigilcompose/kit/Sprites.h>
 #include <sigildata/decode/Json.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmotion/values/Animatable.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <algorithm>
@@ -232,6 +233,8 @@ struct XcomBattlescape {
   };
   std::vector<Ground> ground;
   int tick = -1;
+  sigil::motion::Animatable<float> markerOffset = sigil::motion::animatable(0.0f);
+  sigil::motion::Animatable<Fill> alarm = sigil::motion::animatable<Fill>(Fill::none());
 
   /** Darkness at a tile: the dusk sky lights everything to 15 minus the
    *  global shade, and each soldier carries a light of 15 that loses one
@@ -297,12 +300,8 @@ struct XcomBattlescape {
     units.push_back(stamp(art, art.sprite("alien", shadeAt(art.alien)),
                           "alien", tileLeft(art.alien), tileTop(art.alien)));
 
-    // The selected soldier's marker bobs through three whole-pixel heights.
-    static constexpr std::array<int, 8> kBob{0, 1, 2, 1, 0, 1, 2, 1};
     const Tile selected = art.soldiers.front();
-    units.push_back(stamp(art, art.sprite("selected"), "selected",
-                          tileLeft(selected),
-                          tileTop(selected) - 4 + (float)kBob[tick % 8]));
+    units.push_back(selectedMarker());
 
     std::vector<Element> route;
     for (size_t step = 0; step < art.path.size(); ++step) {
@@ -331,6 +330,14 @@ struct XcomBattlescape {
                               window.height() / kPixel);
               }),
          units, route});
+  }
+
+  /** The selected soldier's marker bobs through three whole-pixel heights. */
+  Element selectedMarker() const {
+    const Tile selected = art.soldiers.front();
+    return stamp(art, art.sprite("selected"), "selected",
+                 tileLeft(selected), tileTop(selected) - 4)
+        .translateY(markerOffset);
   }
 
   /** A gauge as the game draws it: an outline one longer than the maximum,
@@ -461,23 +468,25 @@ struct XcomBattlescape {
   /** The spotted-alien buttons at the right edge, stacked upward; their
    *  red walks up its ramp one step a tick and back two at a time. */
   Element spotted() const {
-    int entry = 32, direction = 1;
-    for (int step = 0; step < tick; ++step) {
-      entry += direction > 0 ? 1 : -2;
-      if (entry >= 44) entry = 44, direction = -1;
-      if (entry <= 32) entry = 32, direction = 1;
-    }
     return box().inset(0).children({each(3, [&](size_t index) {
       const float top = 128 - 13 * (float)index;
       return box().inset(0).children(
           {screen(300, top, 15, 12).fill(art.colour(block(0, 15))),
-           screen(301, top + 1, 13, 10).fill(art.colour(entry)),
+           screen(301, top + 1, 13, 10).fill(alarm),
            numeral(art, (int)index + 1, 306, top + 4, 17)});
     })});
   }
 
   Element describe() const {
     return box().inset(0).children({battlefield(), panel(), spotted()});
+  }
+
+  void refresh() {
+    static constexpr std::array<int, 8> kBob{0, 1, 2, 1, 0, 1, 2, 1};
+    markerOffset = (float)kBob[tick % kBob.size()] * kPixel;
+    const int phase = tick % 18;
+    const int entry = phase <= 12 ? 32 + phase : 44 - 2 * (phase - 12);
+    alarm = Fill::color(art.colour(entry));
   }
 
   void setup(sketch::SketchContext& context) {
@@ -491,16 +500,17 @@ struct XcomBattlescape {
     art.read(context);
     layGround();
     tick = 0;
+    refresh();
     context.composer.render(describe());
   }
 
   /** The screen's clock ticks ten times a second and nothing on it moves
    *  between ticks. */
-  void update(double elapsed, sketch::SketchContext& context) {
+  void update(double elapsed, sketch::SketchContext&) {
     const int now = (int)(elapsed * 10);
     if (now == tick) return;
     tick = now;
-    context.composer.render(describe());
+    refresh();
   }
 };
 

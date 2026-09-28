@@ -1,5 +1,54 @@
 # Findings
 
+## The astrolabe's bevelled discs paint brass into their rectangular corners
+
+`chaucer_astrolabe` describes its mater and the reverse face as discs
+filled with the brass material and a bevel effect. Their current CPU
+photographs contain opaque brass in the rectangular corners outside the
+discs. This is also present without the stationary plate's texture cache.
+The case should remain visible outside the front disc, and the card
+should remain visible outside the reverse disc, apart from the declared
+shadows and the instrument's separate throne.
+
+A focused render should put an opaque material with a bevel on a disc
+and assert that its corners retain the backdrop, while the bevel follows
+the circular boundary. The same material without an effect should have
+the same fill coverage. Resolve the material-effect coverage before
+rebasing this study's artwork.
+
+## Explicit texture bakes change deterministic reference samples
+
+The rotating text bands in `rota_convocationis` and the retained ink in
+`thunder_fulu` request local texture bakes. Their content, geometry and
+materials stay fixed, but their cached pixels are resampled onto the
+capture's grid. `src/common/compose/core/TextureBake.cpp` uses the declared
+bake density for these images; disabling automatic promotion does not
+disable an author's explicit `Cache::Texture` request.
+
+The reference photographs consequently differ along glyph and brush
+edges. The sketch pass's unchanged-plate requirement needs a decision
+about whether a reference capture should evaluate the drawing without
+explicit bakes or accept their sampling differences. The standing plates
+remain unchanged. A test should compare a turning text ring and a seeded
+fibre stroke at the same moment and fractional capture density under the
+chosen capture policy, with an explicit bound on the permitted difference.
+
+## A window benchmark ignores a source-file selection
+
+`src/sketch/book/main.cpp` derives the window benchmark selection only
+from `--sketch` and `--kind`. A positional source file is opened by the
+live host, but `windowBenchSelection` still receives the registry-wide
+selection when neither of those flags is present. The documented
+`Sketchbook scene.cpp --window-bench` invocation consequently benchmarks
+the registry instead of the file, and edits in that file do not enter
+the measurements.
+
+The window lane should benchmark the file session when a file was
+selected. A test should supply a source file whose canvas and key are
+absent from the registry and assert that the window report contains
+exactly that sketch; another should change its paint and assert that
+the next run uses the changed file.
+
 ## Group ruby is fixed in the library and `ruby_kenten` still asks for words
 
 `weave::Unit::Selection` numbers one unit per extent a selector
@@ -22,30 +71,26 @@ JUKUGO and KENTEN must not — closes this entry. The library behaviour is
 already asserted by `ComposeAnnotate` and `TextVertical`; what a test
 cannot see is which unit a specimen names, so the plate is the check.
 
-## A study turns a screen's light off and builds it again outside the recipe
+## Two MAGI studies build the tube's light outside its recipe
 
-`eva_magi_interior/EvangelionUi.h` sets `uBloom` to zero on the tube
+`eva_magi_interior/EvangelionUi.h` sets `uBloom` and `uBloomRadius` to zero on the tube
 (`evangelion::crtTube`, `eva_magi_interior/Crt.h`)
 and adds the tube's light itself — two Gaussians, two weighting matrices
-and a table holding the sum at half — because the recipe used to gather
-that light per pixel. It does not any more: the light is a slot an
-executor fills with the layer blurred once, at a cost that follows its
-own radius. The comment above the workaround states a tap count the
-shader no longer spends, and because a recipe's slots are read from its
-body text rather than from the strength of a uniform, the study still
-pays for one blur of the whole layer every frame that nothing reads.
+and a table holding the sum at half. The zero radius makes the unused
+recipe slot an identity; no unused blur remains. The recipe can supply
+light through a slot an executor fills with the layer blurred once.
 
-The three MAGI studies should take the recipe's own light, at the radius
-and strength that match the look they have now, and drop the hand-built
-one. `uBloomRadius` is a Gaussian sigma rather than the reach of a
-fixed-tap gather, so the number is a fresh choice. A plate rebase names
-the cause.
+Defense and deliberation use this shared treatment; interior already
+uses the recipe's own light. The intended consolidation is for all three
+to take the tube light from the recipe. It needs a visual decision:
+the shared treatment blurs two lobes after curvature, while the recipe
+supplies one Gaussian before curvature. Radius and strength must match
+the reference before an approved plate rebase names the cause.
 
-A test should describe each of the three studies and assert that no
-scene under them builds a blur of its own — the only Gaussian beneath a
-MAGI screen is the one the `bloom` slot's executor fills — and that the
-screen each describes asks for that light, with `uBloom` above zero.
-The rebased plates are what hold the radius and strength chosen.
+A test should assert that each tube requests its light with `uBloom`
+above zero and has no separate tube-light pass after it. The phosphor
+treatment before the tube is a separate stage and stays. The approved
+plates should hold the chosen radius, strength and order.
 
 ## A surface is lit in light and presented as though it never was
 

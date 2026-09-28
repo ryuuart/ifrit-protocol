@@ -226,12 +226,12 @@ inline sigil::material::Filter crt(float width, float height) {
       .deepening = 2.0f,
   });
   using sigil::material::Filter;
-  // The tube's own light is drawn outside the recipe: its gather spends
-  // 192 taps a pixel every frame, where the same two Gaussians — 0.8 and
-  // 2.4 px, weighted 0.7 and 0.3, at 0.38, held at half and added — are
-  // separable blurs over the finished screen.
+  // The two light lobes are blurred after the screen bends. The tube's
+  // unused light slot has zero radius as well as zero strength, so it
+  // does not blur content the glass never reads.
   auto screen = crtTube(SkRect::MakeWH(width, height));
   screen.set("uBloom", 0.0f);
+  screen.set("uBloomRadius", 0.0f);
   static const Filter tubeLight = [] {
     const auto weigh = [](float w) {
       const float m[20] = {w, 0, 0, 0, 0, 0, w, 0, 0, 0,

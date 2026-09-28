@@ -258,7 +258,9 @@ struct RotaConvocationis {
   Element script(const Band& band, float size) {
     const float px = band.radius * kRadius;
     Text run = bandRun(band);
-    run.font({.size = size}).ink(band.ink).rotate(turn(band.turning));
+    // The lettering is fixed in each ring; only its placement turns.
+    run.font({.size = size}).ink(band.ink).rotate(turn(band.turning))
+        .cache(Cache::Texture);
     if (band.turning == kNames) run.filter(sigil::material::Filter::glow(kHalo, 6.0f));
     return kit::at(std::move(run), kEye.fX - px, kEye.fY - px, 2 * px, 2 * px)
         .textOnPath({.path = shapes::circle(), .offset = -size * 0.34f});
@@ -374,6 +376,7 @@ struct RotaConvocationis {
              .font({.size = 52, .track = 6})
              .ink(kBone)
              .filter(sigil::material::Filter::glow(kHalo, 7.0f))
+             .cache(Cache::Texture)
              .centerAt(sigil::geometry::path::fromSk(kEye))});
   }
 
@@ -387,7 +390,7 @@ struct RotaConvocationis {
     return kit::disc(sigil::geometry::path::fromSk(polar((index + 0.5f) * kPitch, rSealRide)),kSealRadius)
         .borderRadius({kSealRadius})
         .fill(sigil::material::from(kSealGround).effects(sigil::material::Filter::shadow(hexColor(0xE79A32, 0.30f), {.blur = 8.0f, .inside = true})))
-        
+        .cache(Cache::Texture)
         .foreground(decorations::border(1.2f, Fill::color(kLine)))
         .children(
             {kit::ring(sigil::geometry::path::fromSk(centre), inner, stroke(0.7f, Fill::color(kHair))),
