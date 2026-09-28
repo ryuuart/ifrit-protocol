@@ -3,6 +3,10 @@
 
 // TAGS: Interfaces/Web
 
+#include <sigilmaterial/skia/Paint.h>
+#include <span>
+#include <array>
+#include <sigilcompose/kit/Rows.h>
 #include <sigildraw/Pen.h>
 #include "Artwork.h"
 #include <sigilmotion/values/Animatable.h>
@@ -11,7 +15,7 @@ struct SpaceJam1996 {
   using Ix = sj::Ix;
 
   // The load simulator's state: one Output per asset, in [0,1].
-  ch::Output<float> got[sj::kAssetCount];
+  sigil::motion::Animatable<float> got[sj::kAssetCount];
   double gotBytes[sj::kAssetCount] = {};
   double sinceDone = 0.0;
   uint32_t arrivedMask = 0;
@@ -33,11 +37,11 @@ struct SpaceJam1996 {
   float artH[sj::kAssetCount] = {};
 
   Pattern stars;
-  material::Paint starsMat;
+  material::Material starsMat{material::Color{0, 0, 0, 0}};
   /** THE LIVE BALL'S MATERIAL, built once and held. Its shader steps its
    *  own uTime at the GIF's frame rate, so the value is the same one every
    *  describe — and describe runs again on every arrival. */
-  material::Paint fastballMat;
+  material::Material fastballMat{material::Color{0, 0, 0, 0}};
   // <TABLE WIDTH=500 CELLSPACING=2 CELLPADDING=1>, at this sketch's scale.
   // The columns and rows are the ones the children claim.
   layouts::Table table{.columns = 5,
@@ -50,7 +54,7 @@ struct SpaceJam1996 {
   Element revealed(int i, bool inFlight) const {
     const sk_sp<SkPicture> p = pic[i];
     const float h = artH[i];
-    const motion::Animatable<float>& g = &got[i];
+    const motion::Animatable<float>& g = got[i];
     // ARRIVED IS THE PICTURE ITSELF. A recorded picture's identity is its
     // own, so the leaf compares equal between describes and the node goes
     // static; the program below exists only for the hard scanline edge of
@@ -184,7 +188,8 @@ struct SpaceJam1996 {
     using namespace sj;
     sigil::weave::FontContext& f = *ctx.fonts;
     const sk_sp<SkRuntimeEffect> ball =
-        ctx.assets.shader(ctx.local("ball_still.sksl"));
+        SkRuntimeEffect::MakeForShader(SkString(
+            ctx.assets.hub().text(ctx.local("ball_still.sksl")).value_or(""))).effect;
     struct Job {
       int ix;
       Element tree;
@@ -281,7 +286,7 @@ struct SpaceJam1996 {
     const float refY[14] = {0,       230.50f, 198.00f, 175.00f, 211.00f,
                             328.00f, 292.00f, 328.00f, 400.00f, 420.00f,
                             0,       461.00f, 533.00f, 499.00f};
-    const std::vector<SkRect> rects = table.place(in);
+    const auto rects = table.place(in);
     verdict.add(measure::heading("THE TWELVE IMAGES, PLACED"));
     for (size_t i = 0; i < std::size(kSlotTable); ++i) {
       const Slot& s = kSlotTable[i];
@@ -313,12 +318,15 @@ struct SpaceJam1996 {
     look.type.captionNote = {S(7.5f), 0.1f};
     look.type.captionLabel = {S(7.5f), 0.1f, true};
     look.spacing.rowGap = S(3);
-    std::vector<sketch::kit::Row> rows;
+    std::vector<std::array<Utf8, 3>> rows;
+    std::vector<Fill> swatches;
     for (const measure::Check& c : verdict.rows) {
       if (!c.judged() || c.pass) continue;
-      rows.push_back({{c.label, c.actual, "want " + c.expected},
-                      Fill::color(C5(0xFF0000))});
+      rows.push_back({c.label, c.actual, "want " + c.expected});
+      swatches.push_back(Fill::color(C5(0xFF0000)));
     }
+    std::vector<std::span<const Utf8>> tableRows;
+    for (const auto& row : rows) tableRows.emplace_back(row);
     sketch::kit::Provide bound(look);
     return kit::at(
         box()
@@ -332,17 +340,21 @@ struct SpaceJam1996 {
                            .font({.face = display(),
                                   .size = S(11),
                                   .color = C5(0xFFFF00)}),
-                       sketch::kit::table(
-                           std::move(rows),
+                       sigil::compose::kit::table(
+                           tableRows,
                            {.columns = {{.width = S(230)},
                                         {.width = S(46), .figure = true},
                                         {}},
                             .gap = S(6),
+                            .rowGap = look.spacing.rowGap,
+                            .swatches = swatches,
                             .swatchSide = S(5)})}),
         S(40), S(120), S(560), S(30) + S(13) * (float)rows.size());
   }
 
   void setup(sketch::SketchContext& ctx) {
+    for (auto& value : got) value = sigil::motion::animatable(value.value());
+
     using namespace sj;
     // <body bgcolor="#000000">, literally
     // The still is taken mid-hold: the load finishes around 7.96 s of sketch
@@ -362,14 +374,16 @@ struct SpaceJam1996 {
     stars = Pattern::tile({S(111), S(111)}, starTile());
     starsMat = stars.material(*ctx.fonts);
     fastballMat =
-        ballMaterial(ctx.assets.shader(ctx.local("ball_live.sksl")), true,
+        ballMaterial(SkRuntimeEffect::MakeForShader(SkString(
+            ctx.assets.hub().text(ctx.local("ball_live.sksl")).value_or(""))).effect, true,
                      C5(0xFF6B29), C5(0xC64210), C5(0x521800), 0.050f);
 
     // The 216-colour round, over the finished frame. It is a property of
     // the SCREEN, not of the artwork — which is exactly why it lives here
     // and the RGB555 snap lives in the materials.
     ctx.composer.setView(
-        material::skia::program(ctx.assets.shader(ctx.local("view.sksl"))));
+        material::skia::program(SkRuntimeEffect::MakeForShader(SkString(
+            ctx.assets.hub().text(ctx.local("view.sksl")).value_or(""))).effect));
 
     for (int i = 0; i < kAssetCount; ++i) {
       gotBytes[i] = 0;
@@ -380,13 +394,10 @@ struct SpaceJam1996 {
 
     // The transport. Fixed 120 Hz so the schedule is identical whatever the
     // host draws at (and whatever --fps a capture pre-rolls with).
-    ctx.engine.addFixed(
-        120.0,
-        [this] {
+    const auto fixedClock = ctx.engine.timer([this] {
           stepLoad(1.0 / 120.0);
           return true;
-        },
-        16);
+        }, {.stepRate = 120.0, .catchUp = 16});
 
     ctx.composer.render(describe(ctx));
     needRender = false;

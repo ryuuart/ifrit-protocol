@@ -1,5 +1,6 @@
 #pragma once
 
+#include <sigilgeometry/advanced/Skia.h>
 #include "Drawing.h"
 #include <sigilmaterial/paint/Bases.h>
 
@@ -9,7 +10,7 @@ inline Element artSouvenirs(sigil::weave::FontContext& f) {
   const float W = S(83), H = S(83);
   return artBox(W, H).children(
       {sphere({S(41.5f), S(47.5f)}, S(35),
-              material::Paint::radialGradient(
+              sigil::material::radialGradient(
                   {0.5f, 0.5f}, 1.0f,
                   {{0.0f, C5(0xEFEFEF)},
                    {0.16f, C5(0xDEEFEF)},
@@ -27,7 +28,7 @@ inline Element artJump(sigil::weave::FontContext& f) {
   const float W = S(58), H = S(52);
   return artBox(W, H).children(
       {sphere({S(28.5f), S(30.0f)}, S(21),
-              material::Paint::radialGradient(
+              sigil::material::radialGradient(
                   {0.46f, 0.60f}, 1.0f,
                   {{0.0f, C5(0xFFFFFF)},
                    {0.22f, C5(0xADF7A5)},
@@ -59,7 +60,7 @@ inline Element artJamCentral(sigil::weave::FontContext& f) {
   const SkPoint c{S(27.5f), S(40)};
   const float r = S(26);
   Element globe = sphere(c, r,
-                         material::Paint::radialGradient(
+                         sigil::material::radialGradient(
                              {0.34f, 0.28f}, 1.32f,
                              {{0.0f, C5(0xA542DE)},
                               {0.30f, C5(0x8418CE)},
@@ -97,7 +98,7 @@ inline Element gasGiant(SkPoint c, float r, sigil::material::Color body,
                         sigil::material::Color limb, sigil::material::Color hi,
                         Bands bands) {
   Element d =
-      sphere(c, r, material::Paint::solid(body))
+      sphere(c, r, body)
           .overflow(Overflow::Clip)
           .overlay(std::move(bands))
           .stroke(stroke(S(1.5f), Fill::color(limb), PathFormat::Align::Inner));
@@ -171,7 +172,7 @@ inline Element artLunarTunes(sigil::weave::FontContext& f) {
   const float W = S(95), H = S(77);
   const SkPoint c{S(48), S(46)};
   auto ringMat = [] {
-    return material::Paint::linearGradient({0, 0}, {0, 1},
+    return sigil::material::linearGradient({0, 0}, {0, 1},
                                                  {{0.0f, C5(0xF71018)},
                                                   {0.38f, C5(0xF773A5)},
                                                   {0.62f, C5(0xF71818)},
@@ -180,7 +181,7 @@ inline Element artLunarTunes(sigil::weave::FontContext& f) {
   return artBox(W, H).children(
       {ring(c, S(47), S(16), -20, 0.62f, ringMat()).zIndex(0),
        sphere(c, S(30),
-              material::Paint::radialGradient(
+              sigil::material::radialGradient(
                   {0.34f, 0.28f}, 1.32f,
                   {{0.0f, C5(0x0073E7)},
                    {0.30f, C5(0x006BD6)},
@@ -204,7 +205,7 @@ inline Element artLineup(sigil::weave::FontContext& f) {
   const float W = S(63), H = S(52);
   const SkPoint c{S(33), S(31)};
   auto ringMat = [] {
-    return material::Paint::linearGradient({0, 0}, {0, 1},
+    return sigil::material::linearGradient({0, 0}, {0, 1},
                                                  {{0.0f, C5(0x21FFFF)},
                                                   {0.45f, C5(0x9CFFFF)},
                                                   {0.75f, C5(0x21FFFF)},
@@ -213,7 +214,7 @@ inline Element artLineup(sigil::weave::FontContext& f) {
   return artBox(W, H).children(
       {ring(c, S(29), S(15), -22, 0.60f, ringMat()).zIndex(0),
        sphere({S(38), S(32)}, S(17),
-              material::Paint::radialGradient(
+              sigil::material::radialGradient(
                   {0.34f, 0.30f}, 1.30f,
                   {{0.0f, C5(0xFF4A6B)},
                    {0.28f, C5(0xFF425A)},
@@ -234,14 +235,14 @@ inline Element artLineup(sigil::weave::FontContext& f) {
 // --- p-sitemap.gif, 104x67 — a rainbow vortex and four yellow darts.
 /** An arrowhead: tip forward, two barbs, a notch in the back. */
 inline sigil::compose::Shape dart() {
-  return [](SkSize s) {
+  return [](glm::vec2 s) {
     SkPathBuilder b;
-    b.moveTo(s.width(), s.height() * 0.5f);
+    b.moveTo(s.x, s.y * 0.5f);
     b.lineTo(0, 0);
-    b.lineTo(s.width() * 0.34f, s.height() * 0.5f);
-    b.lineTo(0, s.height());
+    b.lineTo(s.x * 0.34f, s.y * 0.5f);
+    b.lineTo(0, s.y);
     b.close();
-    return b.detach();
+    return sigil::geometry::path::fromSk(b.detach());
   };
 }
 
@@ -289,13 +290,13 @@ inline Element artSitemap(sigil::weave::FontContext& f) {
  *  where a fin needs three independent vertices. */
 inline sigil::compose::Shape tri(float ax, float ay, float bx, float by,
                                    float cx, float cy) {
-  return [=](SkSize s) {
+  return [=](glm::vec2 s) {
     SkPathBuilder b;
-    b.moveTo(ax * s.width(), ay * s.height());
-    b.lineTo(bx * s.width(), by * s.height());
-    b.lineTo(cx * s.width(), cy * s.height());
+    b.moveTo(ax * s.x, ay * s.y);
+    b.lineTo(bx * s.x, by * s.y);
+    b.lineTo(cx * s.x, cy * s.y);
     b.close();
-    return b.detach();
+    return sigil::geometry::path::fromSk(b.detach());
   };
 }
 
@@ -365,7 +366,7 @@ inline Element artLogo(sigil::weave::FontContext& fonts) {
     // The closest side again, for the reason artSitemap() gives: on this
     // 1.4:1 box the farthest corner would put the whole rainbow inside
     // t < 0.71 and the outer band would never draw.
-    return material::Paint::radialGradient(
+    return sigil::material::radialGradient(
         {0.5f, 0.5f}, 1.0f,
         {{0.0f, C5(0x101831)},
          {0.44f, C5(0x21103A)},
@@ -400,19 +401,22 @@ inline Element artLogo(sigil::weave::FontContext& fonts) {
                      float capTopY, float lean) {
     const float size = capPx / 0.72f;
     Text t = text(s).font(ty(display(), size, C5(0x2FA9A0), 0));
-    t.ink(material::linearGradient(
+    auto letterInk = material::linearGradient(
         {0, 0}, {0, 1},
         {{0.0f, C5(0x006BA5)},
          {0.22f, C5(0x007BAD)},
          {0.52f, C5(0x00A584)},
          {0.78f, C5(0x9CCE84)},
          {1.0f, C5(0xCEDE73)}},
-        {.units = material::GradientUnits::Pixels}));
+        {.units = material::GradientUnits::Pixels});
     const float r = S(2.2f);
     const float d[8][2] = {{-1, 0},  {1, 0},  {0, -1}, {0, 1},
                            {-1, -1}, {1, -1}, {-1, 1}, {1, 1}};
-    for (auto& v : d)
-      t.layerStyle(LayerStyle::echo({v[0] * r, v[1] * r}, C5(0x101831)));
+    material::Filter echoes;
+    for (const auto& offset : d)
+      echoes = echoes.then(material::Filter::shadow(
+          C5(0x101831), {.offset = {offset[0] * r, offset[1] * r}}));
+    t.ink(letterInk.effects(echoes));
     const SkSize m =
         intrinsicSize(text(s).font(ty(display(), size, kLabel, 0)), fonts);
     const float sx = m.width() > 1 ? targetW / m.width() : 1.0f;
@@ -469,7 +473,8 @@ inline Element wordmark(sigil::weave::FontContext& fonts, const char* s,
   float sx = 1.0f;
   if (m.width() > target && m.width() > 1) sx = target / m.width();
   Element t = text(s).font(styleAt(size));
-  t.layerStyle(LayerStyle::echo({kScale, kScale}, C5(0x8C0000)));
+  t.ink(material::from(C5(0xFF0000)).effects(material::Filter::shadow(
+      C5(0x8C0000), {.offset = {kScale, kScale}})));
   t.left(rightAlign ? w - target : 0).top(-h * 0.22f).width(m.width() + 4.0f);
   if (sx < 0.999f) t.scaleX(sx).transformOrigin(pct(0), pct(50));
   return stack()

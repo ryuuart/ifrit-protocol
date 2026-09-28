@@ -1,7 +1,9 @@
 #pragma once
 
+#include <sigilmaterial/filter/Filter.h>
+#include <sigilweave/style/Face.h>
 #include <sigildraw/Pen.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPathBuilder.h>
@@ -22,7 +24,7 @@
 #include <sigilmeasure/check/Check.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
-#include <sigilsketch/kit/Rows.h>
+#include <sigilcompose/kit/Rows.h>
 #include <sigilsketch/kit/Theme.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
@@ -93,20 +95,20 @@ const material::Color kLabelInk = C5(0x080800);
 // Type. Two live pieces of text on this page (the © line, and nothing else);
 // twelve pieces of BAKED lettering, approximated with Impact.
 
-inline sk_sp<SkTypeface> display() {
+inline sigil::weave::Face display() {
   return weave::ports::face({"Impact", "Arial Black"},
-                            SkFontStyle::kNormal_Weight);
+                            400);
 }
-inline sk_sp<SkTypeface> serif() {
+inline sigil::weave::Face serif() {
   return weave::ports::face({"Times New Roman", "Times"},
-                            SkFontStyle::kNormal_Weight);
+                            400);
 }
 
 /** A run's type: the page has one signature and names its four parameters
  *  over weave's designated-init `Type`. A PARTIAL — every piece of art here
  *  is baked alone, so a run resolves over the initial values, and the two
  *  live lines on the page over the page's. */
-inline sigil::weave::Type ty(const sk_sp<SkTypeface>& tf, float size,
+inline sigil::weave::Type ty(const sigil::weave::Face& tf, float size,
                              material::Color color, float track = 0) {
   return {.face = tf, .size = size, .color = color, .track = track};
 }
@@ -116,14 +118,16 @@ inline sigil::weave::Type ty(const sk_sp<SkTypeface>& tf, float size,
  *  1 px black outline all round PLUS a 1 px offset shadow down-right, and
  *  stamping the run nine times is the closest honest reproduction of that
  *  with a fill-only text node. */
-inline Element& outlineText(Element& e, float r) {
-  const float d[8][2] = {{-1, 0},  {1, 0},  {0, -1}, {0, 1},
-                         {-1, -1}, {1, -1}, {-1, 1}, {1, 1}};
-  for (auto& v : d)
-    e.layerStyle(LayerStyle::echo({v[0] * r, v[1] * r}, kLabelInk));
-  e.layerStyle(
-      LayerStyle::echo({2 * r, 2 * r}, kLabelInk));  // the offset shadow
-  return e;
+inline Element& outlineText(Element& element, float radius, material::Color ink) {
+  const float offsets[8][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1},
+                                {-1, -1}, {1, -1}, {-1, 1}, {1, 1}};
+  material::Filter echoes;
+  for (const auto& offset : offsets)
+    echoes = echoes.then(material::Filter::shadow(
+        kLabelInk, {.offset = {offset[0] * radius, offset[1] * radius}}));
+  echoes = echoes.then(material::Filter::shadow(
+      kLabelInk, {.offset = {2 * radius, 2 * radius}}));
+  return element.ink(material::from(ink).effects(echoes));
 }
 
 // ---------------------------------------------------------------------------
@@ -135,8 +139,8 @@ inline Element rect(float x, float y, float w, float h) {
 
 /** A shaded sphere: a circle-outlined box of 2r centred on c. Every planet
  *  here is flat-shaded with a hard limb — two stops and a dark edge. */
-inline Element sphere(SkPoint c, float r, material::Paint m) {
-  return kit::dot(c, r, std::move(m));
+inline Element sphere(SkPoint c, float r, material::Material m) {
+  return kit::dot(sigil::geometry::path::fromSk(c), r, std::move(m));
 }
 
 // ---------------------------------------------------------------------------
@@ -147,7 +151,7 @@ inline Element sphere(SkPoint c, float r, material::Paint m) {
 // quantizeTime(10) (fastbreak.gif, live, stepping at the GIF's own 100 ms
 // frame delay).
 
-inline material::Paint ballMaterial(const sk_sp<SkRuntimeEffect>& program,
+inline material::Material ballMaterial(const sk_sp<SkRuntimeEffect>& program,
                                  bool live, material::Color hi,
                                  material::Color lo, material::Color seam,
                                  float seamW) {
@@ -159,7 +163,7 @@ inline material::Paint ballMaterial(const sk_sp<SkRuntimeEffect>& program,
     m.quantizeTime(10.0f);  // fastbreak.gif: six frames, duration=100 on each
   else
     m.set("uSpin", 0.083f);  // one frozen frame
-  return m;
+  return material::skia::base(m);
 }
 
 // ---------------------------------------------------------------------------
@@ -372,7 +376,7 @@ inline Element navLabel(sigil::weave::FontContext& fonts, const char* s,
     }
   }
   Element t = text(s).font(styleAt(size));
-  outlineText(t, kScale);
+  outlineText(t, kScale, ink);
   // scaleX is PAINT-only, so a condensed run still MEASURES at its natural
   // width and wraps against the image box. Pinning the node to that natural
   // width is what keeps it one line; the artBox's overflow(Overflow::Clip)
@@ -384,7 +388,7 @@ inline Element navLabel(sigil::weave::FontContext& fonts, const char* s,
 
 /** A ring seen edge-on: an annulus on a squashed, rotated box. */
 inline Element ring(SkPoint c, float rx, float ry, float rotDeg,
-                    float innerRatio, material::Paint m) {
+                    float innerRatio, material::Material m) {
   return rect(c.fX - rx, c.fY - ry, rx * 2, ry * 2)
       .shape(shapes::annulus(innerRatio))
       .fill(std::move(m))
