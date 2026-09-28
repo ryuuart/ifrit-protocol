@@ -8,6 +8,7 @@
 
 // TAGS: Drawing/Brushes
 
+#include <sigilmedia/advanced/Skia.h>
 #include <include/core/SkBitmap.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>

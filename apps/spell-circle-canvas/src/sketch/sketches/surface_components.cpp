@@ -12,9 +12,9 @@
 
 // TAGS: Materials/Compositing
 
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/StyleSheet.h>
-#include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -38,14 +38,15 @@ namespace {
 
 struct Card {
   std::u8string title;
-  SurfacePaint ground;
+  sigil::motion::Animatable<Fill> ground;
 };
 
 Element card(const Card& properties, Element content) {
   return kit::well(
-      {.height = 204, .ground = properties.ground},
+      {.height = 204},
       box().column().padding(18).gap(12).borderRadius({12}).children(
-          {document::label(properties.title), std::move(content).flexGrow(1)}));
+          {document::label(properties.title), std::move(content).flexGrow(1)}))
+      .fill(properties.ground);
 }
 
 Element gel(float height) {
@@ -65,8 +66,8 @@ struct SurfaceComponents {
 
   Element describe(float height) {
     const sketch::kit::Provide presentation(sketch::kit::featureTheme());
-    const SurfacePaint slate = Fill::color({0.10f, 0.13f, 0.18f, 1});
-    const SurfacePaint ramp = material::Paint::linearGradient(
+    const Fill slate = Fill::color({0.10f, 0.13f, 0.18f, 1});
+    const Fill ramp = sigil::material::linearGradient(
         {0, 0}, {1, 1},
         {{0, {0.28f, 0.10f, 0.38f, 1}}, {1, {0.07f, 0.28f, 0.35f, 1}}});
     return sketch::kit::page(

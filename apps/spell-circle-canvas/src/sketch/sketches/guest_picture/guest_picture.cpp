@@ -46,6 +46,8 @@
 
 // TAGS: Media/Video, Data/Sources
 
+#include <sigildraw/Pen.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkPaint.h>
@@ -166,13 +168,14 @@ struct GuestPicture {
   compose::Element picture() {
     return compose::custom(
                "guest.picture",
-               [held = guest](SkCanvas& canvas,
+               [held = guest](sigil::draw::Pen& pen,
                               const compose::PaintContext& paint) {
+                 SkCanvas& canvas = *pen.canvas();
                  const sk_sp<SkImage> frame = held->frame(canvas.recorder());
                  if (!frame) return;
                  SkPaint how;
                  how.setBlendMode(SkBlendMode::kSrcOver);
-                 canvas.drawImageRect(frame, fitted(*frame, paint.size),
+                 canvas.drawImageRect(frame, fitted(*frame, sigil::geometry::path::toSkSize(paint.size)),
                                       SkSamplingOptions(SkFilterMode::kLinear),
                                       &how);
                })

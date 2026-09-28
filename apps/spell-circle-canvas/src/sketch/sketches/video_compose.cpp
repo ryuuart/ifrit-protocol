@@ -12,11 +12,12 @@
 
 // TAGS: Media/Video
 
-#include <include/core/SkBlendMode.h>
 #include <include/core/SkRect.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/video/Video.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilmedia/advanced/Resource.h>
+#include <sigilmedia/core/PixelSource.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/source/Source.h>
@@ -25,12 +26,11 @@
 #include <sigilsketch/kit/Kit.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilmedia/video/Video.h>
-#include <sigilmedia/video/Video.h>
 #include <sigilweave/style/Type.h>
 
 #include <array>
 #include <cstddef>
-#include <filesystem>
+#include <chrono>
 #include <memory>
 #include <ranges>
 #include <string>
@@ -75,28 +75,12 @@ constexpr std::string_view kAlphaVideo =
 constexpr std::array<std::string_view, 5> kSources = {kDaySky, kNightSky, kDust,
                                                       kColorBurst, kAlphaVideo};
 
-using Documents = std::array<std::shared_ptr<const io::Bytes>, kSources.size()>;
-using Clips = std::array<std::shared_ptr<media::Video>, kSources.size()>;
+using Clips = std::array<std::shared_ptr<const media::Video>, kSources.size()>;
 
-std::shared_ptr<media::Video> openVideo(
-    const std::shared_ptr<const io::Bytes>& encoded, std::string_view uri) {
-  if (!encoded || encoded->empty()) return nullptr;
-  media::VideoOptions options;
-  options.cachedFrames = 12;
-  return vid::decodeVideo(encoded->data(), encoded->size(), options,
-                          std::filesystem::path(uri));
-}
-
-VideoOptions optionsFor(int source, int cell, bool overlay) {
-  VideoOptions options;
-  options.startSeconds = source * 0.41;
-  options.playbackRate = 0.72 + source * 0.13;
-  options.loop = true;
-  options.fit = source == 4 ? material::Fit::Contain : material::Fit::Cover;
-  options.opacity = overlay && source == 2 ? 0.90f : 1.0f;
-  if (source == 2 || source == 3 || (source == 4 && (cell & 1)))
-    options.blend = SkBlendMode::kPlus;
-  return options;
+media::Timing timingFor(int source) {
+  return {.start = std::chrono::duration<double>(source * 0.41),
+          .rate = 0.72 + source * 0.13,
+          .loop = media::Loop::Forever};
 }
 
 }  // namespace
@@ -116,48 +100,45 @@ struct VideoCompose {
                              .captureAt = 4.25,
                              .background = material::Color{0, 0, 0, 1}});
 
-    Documents documents;
-    io::Hub& hub = ctx.assets.hub();
-    for (size_t i = 0; i < kSources.size(); ++i)
-      documents[i] = hub.read(kSources[i]);
+    std::shared_ptr<media::Playback> playback;
+    if (!ctx.deterministic)
+      playback = std::make_shared<media::Playback>(
+          media::Playback::Options{.workers = 8});
 
     Clips clips;
-    for (size_t i = 0; i < kSources.size(); ++i)
-      clips[i] = openVideo(documents[i], kSources[i]);
+    io::Hub& hub = ctx.assets.hub();
+    for (size_t index = 0; index < kSources.size(); ++index)
+      clips[index] = hub.load<media::Video>(
+          kSources[index], {.playback = playback, .cachedFrames = 12});
 
-    std::shared_ptr<media::Playback> playback;
-    std::array<media::Playback::Handle, kSources.size()> handles{};
     loading = 0.0f;
-    if (!ctx.deterministic) {
-      playback = std::make_shared<media::Playback>(
-          media::Playback::Options{.workerThreads = 8});
-      for (size_t i = 0; i < clips.size(); ++i) {
-        handles[i] = playback->add(clips[i]);
-        playback->request(handles[i],
-                          optionsFor((int)i, 0, i >= 2).startSeconds);
-      }
+    if (playback) {
+      for (size_t index = 0; index < clips.size(); ++index)
+        if (clips[index]) clips[index]->frameAt({}, timingFor((int)index));
       loading = 1.0f;
-      ctx.engine.add([this, playback, handles] {
-        for (const media::Playback::Handle handle : handles)
-          if (!playback->ready(handle)) return true;
+      ctx.engine.timer([this, clips] {
+        for (const auto& clip : clips)
+          if (clip && !clip->hasFrame()) return true;
         loading = 0.0f;
         return false;
       });
     }
 
-    const SkSize module =
+    const glm::vec2 module =
         arrange::moduleSize({kWidth, kHeight}, kColumns, kRows, {0, 0});
     const auto leafAt = [&](int source, int cell, bool overlay) {
-      const VideoOptions options = optionsFor(source, cell, overlay);
-      Element leaf =
-          playback ? video(clips[source], playback, handles[source], options)
-                   : video(clips[source], options);
+      Element leaf = image(media::PixelSource(clips[source], timingFor(source)),
+                           source == 4 ? material::Fit::Contain
+                                       : material::Fit::Cover)
+                         .opacity(overlay && source == 2 ? 0.90f : 1.0f);
+      if (source == 2 || source == 3 || (source == 4 && (cell & 1)))
+        leaf.blendMode(material::BlendMode::PlusLighter);
       // Half a pixel of bleed on the far edges, so two neighbouring
       // leaves never leave a seam between them.
-      const SkRect at =
+      const auto at =
           arrange::cellRect(arrange::cellAt((size_t)cell, kColumns), module);
-      return leaf.rect(at.fLeft, at.fTop, at.width() + 0.5f,
-                                        at.height() + 0.5f);
+      return leaf.rect(at.left(), at.top(), at.width() + 0.5f,
+                                            at.height() + 0.5f);
     };
     const auto cells = std::views::iota(0, kCells);
 

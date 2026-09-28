@@ -8,6 +8,9 @@
 
 // TAGS: Geometry/Layout, Runtime/Caching
 
+#include <sigilmotion/time/Duration.h>
+#include <sigilmedia/advanced/Skia.h>
+#include <sigilcompose/kit/Rows.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSurface.h>
@@ -201,6 +204,8 @@ struct TileMap {
   Composer::Stats worked;
 
   void setup(sketch::SketchContext& ctx) {
+    for (auto& value : flash) value = sigil::motion::animatable(value.value());
+
     sketch::kit::stage(ctx, {.size = {kCanvasW, kCanvasH}, .captureAt = 6.0});
     revisions.fill(0);
     edits.fill(Edit{});
@@ -212,11 +217,12 @@ struct TileMap {
     // The flash is a lane, not a re-describe: one ticker writes every
     // chunk's wash from the age of its last edit, and the bound opacity
     // beside each memo reads it.
-    ctx.engine.add([this](double dt) {
+    ctx.engine.timer([this](sigil::motion::Duration stepDuration) {
+      const double dt = stepDuration.count();
       clock += dt;
       for (int i = 0; i < kChunks; ++i)
         flash[(size_t)i] =
-            motion::decay((float)(clock - editedAt[(size_t)i]), kFade);
+            motion::decay(sigil::motion::Duration((float)(clock - editedAt[(size_t)i])), sigil::motion::Duration(kFade));
     });
     probe = std::make_unique<Composer>(ctx.engine, *ctx.fonts);
     probe->setSize({kChunks * kChunkCols * kTile, kChunkRows * kTile});
@@ -250,7 +256,7 @@ struct TileMap {
                              .key("flash" + std::to_string(i))
                              .cover()
                              .fill(Fill::color(kFlash))
-                             .opacity(&flash[(size_t)i])});
+                             .opacity(flash[(size_t)i])});
         })});
   }
 
@@ -313,21 +319,18 @@ struct TileMap {
              sketch::kit::sectionHeader({.label = "WORK AT THE PREVIOUS EDIT",
                                          .note = "Measured on the map alone"}),
              box().row().gap(40).children(
-                 {sketch::kit::readout(
-                      {{"Described nodes",
+                 {sigil::compose::kit::readout(std::vector<sigil::compose::kit::Reading>{{"Described nodes",
                         kit::formatted("%zu", worked.describedNodes)},
                        {"Memo hits", kit::formatted("%zu", worked.memoHits)}},
-                      {.measure = 250, .ruled = true}),
-                  sketch::kit::readout(
-                      {{"Patched instances",
+                        {.measure = 250, .gap = sketch::kit::theme().spacing.rowGap, .labelGap = sketch::kit::theme().spacing.labelGap, .divider = Fill::color(sketch::kit::theme().palette.rule)}),
+                  sigil::compose::kit::readout(std::vector<sigil::compose::kit::Reading>{{"Patched instances",
                         kit::formatted("%zu", worked.patchedNodes)},
                        {"Recordings held",
                         kit::formatted("%zu", worked.picturesLive)}},
-                      {.measure = 250, .ruled = true}),
-                  sketch::kit::readout(
-                      {{"Painted live",
+                        {.measure = 250, .gap = sketch::kit::theme().spacing.rowGap, .labelGap = sketch::kit::theme().spacing.labelGap, .divider = Fill::color(sketch::kit::theme().palette.rule)}),
+                  sigil::compose::kit::readout(std::vector<sigil::compose::kit::Reading>{{"Painted live",
                         kit::formatted("%zu", worked.nodesPainted)}},
-                      {.measure = 250})})}));
+                        {.measure = 250, .gap = sketch::kit::theme().spacing.rowGap, .labelGap = sketch::kit::theme().spacing.labelGap})})}));
   }
 
   /** THE DATA PATH, and only when the data changes: one cell of one
@@ -347,7 +350,7 @@ struct TileMap {
     // has been drawn: a describe is counted when it runs and a recording
     // when the draw after it writes one.
     worked = probe->stats();
-    const long long step = motion::stepIndex(elapsed, 1.0 / kPeriod);
+    const long long step = motion::stepIndex(sigil::motion::Duration(elapsed), 1.0 / kPeriod);
     const int chunk = (int)(step % kChunks);
     const uint32_t h = (uint32_t)step * 2654435761u;
     const int cell = (int)(h % (uint32_t)kCellsPerChunk);

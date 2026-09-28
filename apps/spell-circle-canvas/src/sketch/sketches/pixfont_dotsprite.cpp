@@ -8,6 +8,9 @@
 
 // TAGS: Typography/Lettering, Media/Images
 
+#include <sigilmedia/advanced/Skia.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilweave/style/Face.h>
 #include <sigildraw/Pen.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColorFilter.h>
@@ -57,9 +60,9 @@ sketch::kit::Theme sheetTheme() {
  *  96-cell font is baked from a PROPORTIONAL face on purpose — a `1` is
  *  narrower than a `0` there, which is the whole of trap 3. */
 weave::TextStyle bakeFace(float size, bool proportional = false) {
-  const sk_sp<SkTypeface> code =
+  const sigil::weave::Face code =
       weave::ports::face({"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  const sk_sp<SkTypeface> text = weave::ports::face(
+  const sigil::weave::Face text = weave::ports::face(
       {"Helvetica Neue", "Helvetica", "Arial", "sans-serif"});
   return weave::textStyle({.face = proportional ? text : code,
                            .size = size,
@@ -82,7 +85,7 @@ sketch::kit::ComparisonCase example(const char* title, const char* control,
 struct PixFontDotSprite {
   kit::PixFont font;
   kit::Mask sweep[3];
-  sk_sp<SkImage> dot;
+  std::shared_ptr<const sigil::media::Image> dot;
 
   void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
@@ -190,9 +193,9 @@ struct PixFontDotSprite {
                      kit::formatted("%04.0fpx", 1100.0 + t * 111.0);
                  canvas.save();
                  canvas.scale(2, 2);
-                 kit::blit(canvas, *f, {0, 0}, run, kOn,
+                 kit::blit(pen, *f, {0, 0}, run, kOn,
                            {.track = 1, .tabularDigits = true, .snap = 1});
-                 kit::blit(canvas, *f, {0, (float)f->lineHeight + 8}, run, kOn,
+                 kit::blit(pen, *f, {0, (float)f->lineHeight + 8}, run, kOn,
                            {.track = 5, .tabularDigits = true, .snap = 1});
                  canvas.restore();
                })
@@ -203,7 +206,7 @@ struct PixFontDotSprite {
 
   /** The stamp: white on transparency, so the tint is the caller's. */
   sketch::kit::ComparisonCase stamp() {
-    sk_sp<SkImage> image = dot;
+    sk_sp<SkImage> image = sigil::media::toSk(dot->frameAt({}).image);
     return example(
         "ONE WHITE STAMP, MANY TINTS", "dotSprite(32)",
         "One antialiased white disc, baked once and tinted per point.\n"
