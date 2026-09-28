@@ -17,6 +17,7 @@
  * drawing cannot drift out of agreement with the panel above it.
  */
 
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Board.h>
 #include <sigilcompose/kit/Document.h>
@@ -141,9 +142,9 @@ inline Element explodedCell(float size, TimberBank& bank,
   const auto point = [](vec2 at) { return SkPoint{at.x, at.y}; };
   const auto exploded = [&](const Piece& piece, float explode) {
     const vec2 away = ((piece.from + piece.to) * 0.5f - centre) * explode;
-    return pieceElement(piece, bank, nullptr)
-        .translateX(beat(0).target(0, away.x))
-        .translateY(beat(0).target(0, away.y));
+    return pieceElement(piece, bank, std::nullopt)
+        .translateX(motion::bind(beat(0), {.to = {0, away.x}}))
+        .translateY(motion::bind(beat(0), {.to = {0, away.y}}));
   };
 
   // The jigumi the cell stands in, each running a little past the
@@ -163,7 +164,7 @@ inline Element explodedCell(float size, TimberBank& bank,
   // struck about: the construction the whole pattern is derived from and
   // the only circles anywhere in a kumiko panel.
   art.children({each(incentres, [&](vec2 incentre) {
-    return kit::disc(point(incentre), side * kIncircle)
+    return kit::disc(sigil::geometry::path::fromSk(point(incentre)),side * kIncircle)
         .shape(shapes::circle())
         .stroke(spans::upTo(beat(0.1f)),
                 PathFormat{.width = 0.9f,
@@ -178,13 +179,13 @@ inline Element explodedCell(float size, TimberBank& bank,
   for (const Piece& piece : frame)
     art.children({exploded(piece, jigumiExplode)});
   art.children({each(incentres, [&](vec2 incentre) {
-    return kit::dot(point(incentre), 2.2f, Fill::var("centre"))
+    return kit::dot(sigil::geometry::path::fromSk(point(incentre)), 2.2f, Fill::var("centre"))
         .opacity(beat(0.3f));
   })});
   // The two jig angles a locking piece is cut at, arced at the corner it
   // leaves: 22.5° off the top edge and 22.5° off the side.
   for (const float start : {0.0f, 67.5f})
-    art.children({kit::disc(point(origin), side * 0.45f)
+    art.children({kit::disc(sigil::geometry::path::fromSk(point(origin)),side * 0.45f)
                       .shape(shapes::arc(start, 22.5f))
                       .stroke(spans::upTo(beat(0.2f)),
                               PathFormat{.width = 1.0f,

@@ -8,18 +8,19 @@
  * Nothing here knows how the page is set.
  */
 
-#include <sigilgeometry/path/Skia.h>
-#include <choreograph/Easing.h>
+#include <optional>
+#include <sigilmaterial/paint/Bases.h>
+#include <sigilmaterial/filter/Filter.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilcompose/brush/Decorations.h>
-#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilgeometry/path/Operations.h>
 #include <sigilgeometry/path/Polyline.h>
 #include <sigilgeometry/path/Segments.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/core/Bank.h>
+#include <sigilmaterial/advanced/Bank.h>
 #include <sigilmaterial/skia/Paint.h>
 
 #include <algorithm>
@@ -162,11 +163,10 @@ constexpr float kDrawingAt = 3.05f, kDrawingFor = 0.70f;
 // identity holds across describes.
 class TimberBank {
  public:
-  material::Paint get(const Timber& timber, float span, bool flip,
+  material::Material get(const Timber& timber, float span, bool flip,
                             uint32_t seed, bool along = false) {
-    return material::Paint::recipe(m_bank.get(
-        kumiko_asanoha::timberRecipe(),
-        kumiko_asanoha::TimberParameters{.base = timber.base,
+    static const auto recipe = kumiko_asanoha::timber().recipePointer();
+    return m_bank.get(recipe, kumiko_asanoha::TimberParameters{.base = timber.base,
                                         .light = timber.light,
                                         .dark = timber.dark,
                                         .span = span,
@@ -180,8 +180,7 @@ class TimberBank {
                                         // or the tooth aliases into hash.
                                         .tooth = 0.26f,
                                         .toothScale = 0.045f,
-                                        .stretch = 2.0f},
-        seed));
+                                        .stretch = 2.0f}, seed);
   }
 
  private:
@@ -480,8 +479,8 @@ struct Panel {
         highlights.push_back(line(arris - reach, arris + reach));
       }
     }
-    lapShadows = path::toPath(shadows);
-    lapHighlights = path::toPath(highlights);
+    lapShadows = path::toSk(path::toPath(shadows));
+    lapHighlights = path::toSk(path::toPath(highlights));
   }
 };
 
@@ -498,7 +497,7 @@ struct Panel {
  *  of every board at each step of scale it crosses, where a settle that
  *  stays inside one step is one bake and then a blit. */
 inline Element pieceElement(const Piece& piece, TimberBank& bank,
-                            const motion::Animatable<float>& seconds) {
+                            std::optional<motion::Animatable<float>> seconds) {
   const vec2 span = piece.to - piece.from;
   const float length = glm::length(span);
   const float angle = std::atan2(span.y, span.x);
@@ -511,7 +510,7 @@ inline Element pieceElement(const Piece& piece, TimberBank& bank,
   const float shearFrom = shear(piece.cutFrom), shearTo = shear(piece.cutTo);
   const float pad = std::max(std::abs(shearFrom), std::abs(shearTo)) + 0.5f;
   const float start = pad, end = pad + length;
-  const SkPath outline = path::toPath(path::Polyline{
+  const auto outline = path::toPath(path::Polyline{
       .points = {{start - shearFrom, 0},
                  {end - shearTo, 0},
                  {end + shearTo, piece.width},
@@ -540,13 +539,9 @@ inline Element pieceElement(const Piece& piece, TimberBank& bank,
       kit::at(middle.x - width * 0.5f, middle.y - piece.width * 0.5f, width,
               piece.width)
           .rotate(degrees)
-          .shape(heldPath(sigil::geometry::path::fromSk(outline)))
-          .fill(bank.get(*piece.timber, piece.width, !lit, piece.seed))
-          .foreground(styles::BevelEmboss{heavy ? piece.width * 0.09f : 0.7f,
-                                          heavy ? piece.width * 0.14f : 1.0f,
-                                          120.0f + degrees,
-                                          {1, 0.96f, 0.86f, bevelAlpha},
-                                          {0.14f, 0.09f, 0.03f, bevelAlpha}})
+          .shape(heldPath(outline))
+          .fill(sigil::material::from(bank.get(*piece.timber, piece.width, !lit, piece.seed)).effects(sigil::material::Filter::bevel({.depth = heavy ? piece.width * 0.09f : 0.7f, .size = heavy ? piece.width * 0.14f : 1.0f, .angleDegrees = 120.0f + degrees, .highlight = {1, 0.96f, 0.86f, bevelAlpha}, .shadow = {0.14f, 0.09f, 0.03f, bevelAlpha}})))
+          
           // The seam every abutting piece shows against its neighbour.
           .stroke(stroke(0.6f, Fill::color(kSeamInk),
                          PathFormat::Align::Inner))
@@ -555,11 +550,11 @@ inline Element pieceElement(const Piece& piece, TimberBank& bank,
           // board is and how present it is, never what is on its face, so
           // the face is resolved once and the entrance is a blit.
           .cache(Cache::Texture);
-  if (seconds != nullptr) {
+  if (seconds) {
     const float from = piece.enters, until = piece.enters + piece.entersFor;
     element
-        .opacity(motion::bind(seconds, {.from = {from, until}, .clampFrom = true, .ease = motion::ease::outCubic, .to = {0.0f, 1.35f}, .clamp = {0, 1}}))
-        .scale(motion::bind(seconds, {.from = {from, until}, .clampFrom = true, .ease = motion::ease::outCubic, .to = {0.8f, 1.0f}}));
+        .opacity(motion::bind(*seconds, {.from = {from, until}, .clampFrom = true, .ease = motion::ease::outCubic, .to = {0.0f, 1.35f}, .clamp = {0, 1}}))
+        .scale(motion::bind(*seconds, {.from = {from, until}, .clampFrom = true, .ease = motion::ease::outCubic, .to = {0.8f, 1.0f}}));
   }
   return element;
 }

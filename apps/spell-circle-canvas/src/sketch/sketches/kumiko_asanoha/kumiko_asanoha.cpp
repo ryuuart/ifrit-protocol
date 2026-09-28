@@ -11,7 +11,9 @@
  */
 // TAGS: Patterns/Tiling
 
-#include <sigilcompose/brush/LayerStyles.h>
+#include <sigilmotion/time/Duration.h>
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilmaterial/filter/Filter.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -54,14 +56,14 @@ struct KumikoAsanoha {
   motion::Animatable<float> seconds = motion::animatable(0.0f);
 
   /** The lamp's beat: 0 until it is lit, easing to 1. */
-  motion::Bound lit() const {
+  sigil::motion::Animatable<float> lit() const {
     return motion::bind(seconds, {.from = {kLampAt, kLampAt + kLampFor}, .clampFrom = true, .ease = motion::ease::outCubic});
   }
 
   /** The flame once it is lit: up on the lamp's beat, then breathing on a
    *  slow two-octave noise for the rest of the loop, so everything it
    *  lights glows brighter and dimmer with it rather than strobing. */
-  motion::Bound breath() const {
+  sigil::motion::Animatable<float> breath() const {
     return motion::bind(seconds, {.from = {kLampAt, kPeriod}, .clampFrom = true, .envelope = motion::envelope::trapezoid(0, kLampFor / (kPeriod - kLampAt), 1, 1), .ease = motion::ease::outCubic, .to = {0.0f, 0.75f}, .wiggle = {.amount = 0.25f, .frequency = 4.5f, .seed = 11, .octaves = 2, .falloff = 0.45f}, .clamp = {0, 1}});
   }
 
@@ -97,12 +99,12 @@ struct KumikoAsanoha {
     Element group = box().inset(0).opacity(
         motion::bind(seconds, {.from = {kSeatAt, kSeatAt + kSeatFor}, .clampFrom = true, .ease = motion::ease::outCubic}));
     group.children(
-        {pathFigure(panel.lapShadows, 2)
+        {pathFigure(sigil::geometry::path::fromSk(panel.lapShadows), 2)
              .stroke(stroke(1.5f, Fill::color(kLapShadowInk))),
-         pathFigure(panel.lapHighlights, 2)
+         pathFigure(sigil::geometry::path::fromSk(panel.lapHighlights), 2)
              .stroke(stroke(0.7f, Fill::color(kLapArrisInk)))});
     for (const Piece& tenon : panel.tenons)
-      group.children({pieceElement(tenon, bank, nullptr)});
+      group.children({pieceElement(tenon, bank, std::nullopt)});
     return group;
   }
 
@@ -134,11 +136,11 @@ struct KumikoAsanoha {
           .rotate(degrees)
           .opacity(opacity)
           .blendMode(material::BlendMode::Multiply)
-          .fill(face)
+          .fill(sigil::material::skia::base(face))
           .cache(Cache::Texture);
     };
     return box()
-        .rect(kOpening)
+        .rect(sigil::geometry::path::fromSk(kOpening))
         .overflow(Overflow::Clip)
         .children({
             box()
@@ -176,17 +178,17 @@ struct KumikoAsanoha {
    *  light under them. */
   Element halo() {
     return box()
-        .rect(kOpening)
-        .background(styles::OuterGlow{hexColor(0xF4E3B8, 0.34f), 70, 6})
+        .rect(sigil::geometry::path::fromSk(kOpening))
+        .fill(sigil::material::from(sigil::material::Color{0, 0, 0, 0}).effects(sigil::material::Filter::shadow(hexColor(0xF4E3B8, 0.34f), {.blur = 70, .spread = 6})))
         .cache(Cache::Texture);
   }
 
   /** Night over the paper until the lamp is lit. */
   Element veil() {
     return box()
-        .rect(kOpening.makeOutset(90, 90))
+        .rect(sigil::geometry::path::fromSk(kOpening.makeOutset(90, 90)))
         .fill(Fill::color(kNight))
-        .opacity(lit().target(1, 0));
+        .opacity(motion::bind(lit(), {.to = {1, 0}}));
   }
 
   /** THE ANDON'S FLAME: the lamp's halo added OVER the fretwork, so the
@@ -194,7 +196,7 @@ struct KumikoAsanoha {
    *  dead at their silhouettes, while the paper under it holds still. */
   Element flame() {
     return box()
-        .rect(kOpening)
+        .rect(sigil::geometry::path::fromSk(kOpening))
         .opacity(breath())
         .blendMode(material::BlendMode::PlusLighter)
         .fill(material::radialGradient(
@@ -228,7 +230,7 @@ struct KumikoAsanoha {
    *  continuous reveal, the first beat of the assembly. */
   Element keyline() {
     return box()
-        .rect(kOpening.makeOutset(1.5f, 1.5f))
+        .rect(sigil::geometry::path::fromSk(kOpening.makeOutset(1.5f, 1.5f)))
         .stroke(spans::upTo(motion::bind(seconds, {.from = {kFrameAt, kFrameAt + kFrameFor + 0.35f}, .clampFrom = true, .ease = motion::ease::outCubic})),
                 PathFormat{.width = 2.2f,
                            .strokeFill = Fill::color(hexColor(0xC79A57, 0.60f)),
@@ -240,23 +242,17 @@ struct KumikoAsanoha {
    *  opening. */
   Element beam(float top, float height, bool over) {
     return kit::at(0, top, kWidth, height)
-        .fill(bank.get(kKeyakiShade, height, !over, 7))
-        .foreground(
-            styles::InnerShadow{{0, 0, 0, 0.65f}, {0, over ? 8.f : -8.f}, 18})
-        .foreground(styles::BevelEmboss{2.5f,
-                                        4,
-                                        over ? 300.0f : 120.0f,
-                                        {1, 0.88f, 0.68f, 0.16f},
-                                        {0, 0, 0, 0.60f}});
+        .fill(sigil::material::from(bank.get(kKeyakiShade, height, !over, 7)).effects(sigil::material::Filter::shadow({0, 0, 0, 0.65f}, {.blur = 18, .offset = {0, over ? 8.f : -8.f}, .inside = true}).then(sigil::material::Filter::bevel({.depth = 2.5f, .size = 4, .angleDegrees = over ? 300.0f : 120.0f, .highlight = {1, 0.88f, 0.68f, 0.16f}, .shadow = {0, 0, 0, 0.60f}}))))
+        
+        ;
   }
 
   /** A post at @p left, its grain running down it. */
   Element post(float left, float width) {
     const bool right = left > kCentre.x;
     return kit::at(left, 118, width, kRoom - 236)
-        .fill(bank.get(kKeyakiShade, width, right, 3, /*along=*/true))
-        .foreground(
-            styles::InnerShadow{{0, 0, 0, 0.60f}, {right ? -7.f : 7.f, 0}, 16});
+        .fill(sigil::material::from(bank.get(kKeyakiShade, width, right, 3, /*along=*/true)).effects(sigil::material::Filter::shadow({0, 0, 0, 0.60f}, {.blur = 16, .offset = {right ? -7.f : 7.f, 0}, .inside = true})))
+        ;
   }
 
   Element describe() {
@@ -316,8 +312,9 @@ struct KumikoAsanoha {
                               .stretch = 4.0f,
                               .wear = 0.0f,
                               .seed = 9}));
-    ctx.engine.add([this](double, double elapsed) {
-      seconds = motion::phase(elapsed, kPeriod) * kPeriod;
+    ctx.engine.timer([this](sigil::motion::Duration, sigil::motion::Duration elapsedDuration) {
+      const double elapsed = elapsedDuration.count();
+      seconds = motion::phase(sigil::motion::Duration(elapsed), sigil::motion::Duration(kPeriod)) * kPeriod;
     });
     ctx.composer.render(describe());
   }

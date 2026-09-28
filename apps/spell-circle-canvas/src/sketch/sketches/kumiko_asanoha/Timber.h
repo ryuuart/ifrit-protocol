@@ -7,10 +7,9 @@
 
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/program/Shader.h>
 
 #include <glm/vec2.hpp>
-#include <memory>
 #include <string>
 #include <string_view>
 
@@ -68,19 +67,9 @@ half4 main(float2 p) {
 }
 )SHADER";
 
-inline const std::shared_ptr<const sigil::material::Recipe>& timberRecipe() {
-  using sigil::material::Recipe;
-  using sigil::material::Target;
-  static const std::shared_ptr<const Recipe> recipe =
-      std::make_shared<const Recipe>(
-          Recipe::of<TimberParameters>("kumiko_asanoha.timber")
-              .body(Target::SkSL, std::string(grainNoise(Target::SkSL))
-                                      .append(kTimberSkSL)));
-  return recipe;
-}
-
 inline sigil::material::Material timber(const TimberParameters& parameters = {}) {
-  return sigil::material::Material(timberRecipe(), parameters);
+  return sigil::material::shader(
+      std::string(grainNoise(sigil::material::Target::SkSL)).append(kTimberSkSL), parameters, {.key = "kumiko_asanoha.timber"});
 }
 
 }  // namespace kumiko_asanoha
