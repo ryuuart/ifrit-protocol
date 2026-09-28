@@ -697,6 +697,12 @@ than the rest glyph's.
 Wanted by `elastic_type`, whose words stand in a pool of shadow attached
 under their rest extent because neither route above follows the letters.
 
+Also wanted by `vertigo_titles`: its hollow title and soft underlay now
+use the ink material's stroke over `Boundary::Glyphs`. The settled title
+has its outline, but the entrance's `textFx::pop` cannot move that contour
+with each letter. A capture during the entrance should assert that each
+hollow contour scales and translates with its glyph, including its halo.
+
 The same outline is also painted in ONE colour: a `textFx()` track's
 `colorMultiplier`, `colorAdd` and `colorScreen` modulate the glyph passes
 and never reach a decoration drawn over `Boundary::Glyphs`
@@ -1018,3 +1024,245 @@ the pass is painted. A test should give one layer a left-to-right
 `material::linearGradient` from red to blue and assert the stroke is red
 at its left end and blue at its right, and give another `Fill::color(c)`
 and assert it paints exactly what the colour layer paints today.
+
+
+## The viewport and orientation probes still give `custom` a Skia callback
+
+`src/sketch/book/test/capture_viewport_probe.cpp` and
+`src/sketch/book/test/orientation_probe.cpp` call `compose::custom` with a
+lambda taking `SkCanvas&`. The callable now takes `draw::Pen&` and the
+paint context, so the live compiler rejects both probes before the host
+can exercise capture or presentation. Consequently `sketch_capture_viewport`
+and `sketch_window_orientation` fail even with a freshly linked Sketchbook.
+
+The probes evidently mean to check the whole declared viewport and the
+red-top/blue-bottom window orientation. They should use the current Pen
+callback and reach the native canvas only for the clip assertion. Both
+host lanes should then assert the same dimensions, full viewport coverage,
+and top/bottom colours through an actual successful capture.
+
+## The Python file-shader test expects an empty missing source instead of the placeholder
+
+`python_authoring` fails
+`test_sketch_shader_door.ShaderFile.test_a_missing_file_paints_nothing`:
+the missing source paints RGBA `(255, 0, 255, 255)` over an opaque black
+ground, where the test expects `(0, 0, 0, 255)`. The failure remains with
+host access and the current Python extension and Sketchbook linked.
+
+The material file entrance specifies a magenta-and-black placeholder
+until a source compiles, keeps the latest successfully compiled program
+through a broken edit, and exposes its diagnostic through the hub. The
+Python test evidently means to check that entrance's failure contract,
+but its assertion still expects the empty result. It should assert the
+placeholder's two colours for a missing source, a later valid program
+replacing it without reopening the session, and a broken edit preserving
+that valid program while the hub reports the failure.
+
+## A selector rule accepts material effects but loses them on the matched element
+
+`FontVerbs<Rule>::ink(Material)` calls `applyEffects` on the rule's
+declaration, storing coverage decorations and the pixel filter there.
+`Cascade.cpp` copies the rule's type and base ink into the matched node's
+computed style, but those declarations are not the node's own
+`backgrounds`, `foregrounds` or `fxData`. In `matrix_rain`, placing the
+halation material on the `.mid` and `.near` rules therefore colours the
+letters but drops their glow; placing that same ink on the text leaf
+draws it. The sketch states the effect on each rendered curtain.
+
+A material's effects evidently belong to its ink wherever the ink is
+stated. A test should apply one shadow-and-blur material directly to a
+text leaf and through a matching rule, then assert equal painted pixels
+and bounds. It should also replace the rule and assert that the matched
+node removes or updates the effect rather than retaining an old one.
+
+## Catalog plate extents differ beyond the permitted material and label changes
+
+The Release CPU sweep renders the following 84 sketches at different
+extents from the standing machine-local plates. A change to grain,
+glyph-edge effects or a readout label does not explain these page-size
+changes. For example, `cjk_rules` and `shape_tour` have no source edits in
+the sketch pass, yet both now capture taller pages. Some retained plates
+therefore also disagree with presentation choices already in the source.
+The larger canvases have not been adopted as API-migration baselines.
+
+The intended constraint is to preserve each sketch's picture unless its
+particular change is approved. A test should capture the declared frame
+with promotion off and assert the intended viewport extent and the
+positions and sizes of its content; a caption or material change should
+not silently resize the rest of a page. The owner should resolve the
+source-versus-baseline intent before these plates are rebased.
+
+The two pictures for each row remain under
+`build/plates_Release/baseline/plate_<name>.png` and
+`build/plates_Release/cpu/plate_<name>.png`. The existing
+`python3 scripts/sigil.py plates compare build/plates_Release/baseline build/plates_Release/cpu`
+command reports the size disagreements.
+
+| Sketch | Standing extent | Rendered extent |
+|---|---:|---:|
+| `blend_options` | 2400x2660 | 2400x2780 |
+| `blur_falloff` | 2160x860 | 2200x1920 |
+| `border_weave` | 2200x848 | 2200x1680 |
+| `bound_lane` | 2400x1687 | 2400x1931 |
+| `cascade` | 2336x1624 | 2200x2300 |
+| `channel_bind` | 2360x1136 | 2360x1480 |
+| `chevreul_circle` | 2400x1600 | 2400x3000 |
+| `cjk_rules` | 2200x724 | 2200x1620 |
+| `codec_roundtrip` | 2240x1400 | 2240x1820 |
+| `contour_poses` | 2200x1544 | 2200x1880 |
+| `corner_notched` | 2200x1240 | 2200x1640 |
+| `coverage_boundary` | 2200x848 | 2200x1880 |
+| `crossing_rule` | 2240x1472 | 2200x1900 |
+| `crt_bloom` | 2000x1000 | 2000x1480 |
+| `curve_shelf` | 2200x1196 | 2200x2300 |
+| `data_sources` | 2200x840 | 2200x1280 |
+| `decay_step` | 2200x800 | 2200x1540 |
+| `ember_decode` | 2000x860 | 2000x1000 |
+| `encode_write` | 2200x800 | 2200x1400 |
+| `env_faces` | 2200x1308 | 2200x2440 |
+| `env_lanes` | 2200x848 | 2200x1880 |
+| `eva_magi_interior` | 2400x1753 | 2400x1344 |
+| `exact_tangent` | 2200x800 | 2200x1700 |
+| `exr_channels` | 2160x792 | 2200x1640 |
+| `fallout2_charsheet` | 2560x2176 | 2560x2320 |
+| `feed_vitals` | 2400x787 | 2360x1440 |
+| `field_shelf` | 2200x1272 | 2200x2320 |
+| `formation_bands` | 2200x1496 | 2200x1880 |
+| `frame_grid` | 2200x1480 | 2200x1880 |
+| `frame_inputs` | 2200x1292 | 2200x1620 |
+| `fx_scatter_mix` | 2200x800 | 2200x1400 |
+| `genesis_fire` | 2400x1543 | 2400x1600 |
+| `geo_groups` | 2400x880 | 2400x1300 |
+| `gif_frames` | 2240x1120 | 2240x1520 |
+| `grid_layouts` | 2200x1244 | 2200x1520 |
+| `half_float` | 2200x800 | 2200x1640 |
+| `hitman_verlet` | 2400x1415 | 2400x1433 |
+| `hub_reload` | 2200x800 | 2200x1400 |
+| `keeps_and_frames` | 2200x1208 | 2200x2360 |
+| `kinetic_card` | 2360x1240 | 2360x1860 |
+| `lane_retarget` | 2200x800 | 2200x1380 |
+| `live_settling` | 2200x800 | 2200x1180 |
+| `material_atlas` | 2200x1320 | 2200x1760 |
+| `material_slots` | 2120x1380 | 2200x1860 |
+| `matte_luma` | 2360x1240 | 2200x2360 |
+| `mesh_generators` | 2400x857 | 2400x1182 |
+| `net_policy` | 2200x800 | 2200x1300 |
+| `night network` | 1800x1280 | 2400x1259 |
+| `nine slice` | 1800x1280 | 2200x1660 |
+| `noise_shelf` | 2200x800 | 2200x1760 |
+| `ocio_view` | 2200x1280 | 2200x1880 |
+| `over_under` | 2200x1244 | 2200x2360 |
+| `paint_shelf` | 2200x1292 | 2200x2440 |
+| `painter_gpu` | 2360x1400 | 2360x1680 |
+| `paragraph_sheet` | 2400x1987 | 2120x2560 |
+| `path_booleans` | 2400x1393 | 2400x1896 |
+| `pattern_sequence` | 2200x1272 | 2400x1620 |
+| `pixfont_dotsprite` | 2200x848 | 2200x1680 |
+| `place_repeat_tiles` | 2200x940 | 2200x1780 |
+| `pop_billboards` | 2200x1496 | 2200x1800 |
+| `pop_deform` | 2400x1664 | 2400x1722 |
+| `pop_math` | 2200x1344 | 2400x1840 |
+| `pop_order` | 1520x1000 | 2200x1380 |
+| `pop_prims` | 2400x1393 | 2400x1509 |
+| `pop_stamps` | 2400x1393 | 2400x1741 |
+| `psx_doom_fire` | 2720x1520 | 2720x1536 |
+| `rich_slot_reserve` | 2200x848 | 2200x1600 |
+| `routers_straight` | 2200x800 | 2200x1800 |
+| `routes_probe` | 2200x940 | 2200x1520 |
+| `sdf_star` | 2200x1280 | 2200x2000 |
+| `shape_tour` | 2240x1680 | 2240x1960 |
+| `shapeworks_lab` | 2400x1462 | 2400x1856 |
+| `slang_portable` | 2200x1748 | 2200x2720 |
+| `stock_materials` | 2300x1800 | 2300x2000 |
+| `substance_swatches` | 1856x1324 | 1880x640 |
+| `svg_silhouette` | 2200x1368 | 2200x1720 |
+| `threaded_story` | 2360x1400 | 2360x1520 |
+| `ticker_lanes` | 2200x800 | 2200x1440 |
+| `tile map` | 1888x662 | 2240x1420 |
+| `usd_roundtrip` | 2400x1040 | 2400x1480 |
+| `volatility_cost` | 2400x1781 | 2400x2470 |
+| `warichu_placeholder` | 2200x848 | 2200x1650 |
+| `web_script` | 2400x758 | 2400x1164 |
+| `yarn_marquee` | 2400x1320 | 2400x1640 |
+
+## Catalog plates of the same extent still have unattributed pixel changes
+
+These 78 sketches render successfully at their standing extent but do
+not match their baseline pixels, and their whole difference has not been
+attributed to a permitted material, timing or label change. Their
+baselines remain unchanged:
+
+`annotated_margin`, `artnet_lights`, `astral_tome`, `bg3_dice_roll`, `black_watch`,
+`bousen`, `bristle_bloom`, `brush_custom`, `brush_engine_atlas`, `brush_live_tutorial`,
+`bullets_dropcap`, `card_flip`, `cde_motif`, `chaucer_astrolabe`, `chrome_type`,
+`data_scales`, `ds2_bench`, `dunhuang_star_chart`, `eva_magi_defense`,
+`eva_magi_deliberation`, `feed_events`, `feed_sky`, `floating_panels`, `flourish`,
+`grpc_watch`, `guest_body`, `guest_picture`, `hello`, `hit_slots`, `horizontal_flow`,
+`import_native`, `ksp_mapview`, `lain_navi`, `loot grid`, `material_lab`, `matrix_rain`,
+`mawarikomi`, `mesh_normal_bridge`, `midi_pads`, `minard_1869`,
+`observable_circle_packing`, `observable_l_system`, `observable_l_system_tree`,
+`observable_reynolds_steering`, `optical_kerning`, `osc_desk`,
+`p5_refractive_metaballs`, `passive tree`, `penrose_paving`, `phone_sky`,
+`python_live_signals`, `python_type_atelier`, `reflection_lab`, `rota_convocationis`,
+`ruby_kenten`, `schema_scene`, `serial_sensor`, `set_stagger`, `sigillum_aemeth`,
+`slitscan_2001`, `spacejam_1996`, `spacing_passes`, `sticker_collection`,
+`stroke_atlas`, `surface_components`, `thaumonomicon`, `thunder_fulu`,
+`twoadvanced_equipment`, `twoadvanced_v3`, `twoadvanced_v4`, `vagrant_story_target`,
+`video_compose`, `video_compositing`, `web_panel`, `webrtc_sky`, `winamp_base`,
+`xcom_battlescape`, `zellige`.
+
+The discrepancies include presentation changes already present before
+the API translation: `artnet_lights` wraps its output in a titled page
+instead of the baseline's full-canvas composition, `zellige` already
+declares a different subtitle and heading layout, and `slitscan_2001`
+has a different subtitle. The current `zellige` plate also has no visible
+heading where `document::h1("ZELLIJE")` stands; a test should assert that
+the leaf paints its inherited dark ink above the subtitle.
+`surface_components` changes type sizes and panel spacing;
+`stroke_atlas` changes much more than the permitted crosshatch edge.
+A small hash difference alone is also insufficient to establish intent:
+`bristle_bloom`, `brush_live_tutorial`, `horizontal_flow` and
+`spacejam_1996` remain unadopted rather than accepting an arbitrary
+pixel tolerance.
+
+All eleven replay sketches need particular care: `artnet_lights`,
+`channel_bind`, `feed_events`, `feed_vitals`, `feed_sky`, `grpc_watch`,
+`midi_pads`, `osc_desk`, `phone_sky`, `serial_sensor` and `webrtc_sky`.
+Their permitted readout changes do not authorize the changed page
+presentation. A test should replay the same recorded input to the same
+capture time and assert the output picture's geometry, colours and
+values, with only the specified readout rows allowed to differ.
+
+`matrix_rain` also meets the glyph-effect limitation: its material
+filter follows the rendered letters' alpha and substitutes a green halo,
+but cannot reproduce the independent colour modulation of a per-glyph
+underlay through that one mask. The new loop period explains the changed
+streak positions; it does not establish pixel parity for the halo.
+A test should compare the halo beside a bright head and a dim tail while
+the same glyph modifiers affect both ink and underlay.
+
+The intended check is byte identity at the declared capture frame once
+the owner resolves each unexplained difference. Both pictures remain in
+the baseline and CPU plate directories, so an authorized change can be
+reviewed and adopted individually; none of these hashes was rebased.
+
+## Thirty renderable sketches have no standing machine-local plate
+
+These sketches render successfully but have no entry in
+`build/plate_baseline_Release.sha256` and no baseline picture to judge:
+
+`alpha_ground`, `attribute_ring`, `connect_by_lane`, `document_styles`,
+`draw_with_scope`, `ink_units`, `paint_boxes`, `pins_and_hulls`, `python_alpha_ground`,
+`python_botanical_study`, `python_compose_stamps`, `python_dashboard`,
+`python_data_garden`, `python_document`, `python_hello`, `python_hello_compose`,
+`python_kit_specimen`, `python_liquid_glass`, `python_liquid_layers`,
+`python_memo_station`, `python_mesh_observatory`, `python_motion_signals`,
+`python_observable_flowfield`, `python_observable_l_system`,
+`python_observable_reaction_diffusion`, `python_observable_reynolds`, `python_orbits`,
+`python_world_study`, `spell_circle`, `text_wrap`.
+
+The plate check is intended to detect changes to a known picture; a
+successful first render cannot prove that. Each needs an owner-reviewed
+baseline before a later sweep can assert byte identity. The CPU plates
+remain available for that review and were not silently adopted by this
+migration.
