@@ -19,9 +19,11 @@
 
 // TAGS: Geometry/Diagrams, Patterns/Ornament
 
+#include <sigilmaterial/paint/Bases.h>
+#include <sigilmaterial/filter/Filter.h>
+#include <sigilweave/style/Face.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/Decorations.h>
-#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/brush/Rails.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/StyleSheet.h>
@@ -120,9 +122,9 @@ Node inCircle(Node node, float radius = 1.0f) {
 
 /** A LETTER CUT IN THE WAX: the dark groove, and a hair below and to the
  *  right of it the lip of wax the graver pushed up, catching the light. */
-auto incised(const std::string& words) {
-  return text(words).layerStyle(
-      LayerStyle::echo({0.8f, 1.0f}, hexColor(0xe3d4a2, 0.6f)));
+auto incised(const std::string& words, sigil::material::Color ink = kEngraving) {
+  return text(words).ink(sigil::material::from(ink).effects(
+      sigil::material::Filter::shadow(hexColor(0xe3d4a2, 0.6f), {.offset = {0.8f, 1.0f}})));
 }
 
 /** A RUN LETTERED ALONG SIDE @p side of a heptagon at @p radius — seven
@@ -185,7 +187,7 @@ struct SigillumAemeth {
   template <class Read>
   static void rows(sketch::SketchContext& context, const char* file,
                    Read read) {
-    if (const auto table = context.assets.table(
+    if (const auto table = context.assets.hub().load<sigil::data::Table>(
             context.local(std::string("data/") + file)))
       read(*table);
   }
@@ -208,21 +210,11 @@ struct SigillumAemeth {
   // THE SEAL
 
   Element wax() const {
-    return kit::dot(kSeal.centre, kWax,
-                    material::from(material::radialGradient({0.42f, 0.36f}, 1.05f,
+    return kit::disc(kSeal.centre, kWax).fill(sigil::material::from(sigil::material::radialGradient({0.42f, 0.36f}, 1.05f,
                                                 {{0.0f, kWaxPale},
                                                  {0.45f, kWaxLit},
                                                  {0.82f, kWaxMid},
-                                                 {1.0f, kWaxDeep}})).layer(field::grain(1.6f, 4, 1582.0f, 0.34f), {.blend = material::BlendMode::Overlay}))
-        .layerStyle(
-            {.under = {styles::dropShadow(hexColor(0x05070a, 0.7f), {6, 12},
-                                          18)},
-             .over = {styles::BevelEmboss{
-                          .depth = 5,
-                          .size = 9,
-                          .highlight = hexColor(0xf1e2b0, 0.45f),
-                          .shadow = hexColor(0x1c1406, 0.6f)},
-                      styles::innerGlow(hexColor(0x2b2210, 0.35f), 14)}})
+                                                 {1.0f, kWaxDeep}})).layer(field::grain(1.6f, 4, 1582.0f, 0.34f), {.blend = sigil::material::BlendMode::Overlay}).effects(sigil::material::Filter::shadow(hexColor(0x05070a, 0.7f), {.blur = 18, .offset = {6, 12}}).then(sigil::material::Filter::bevel({.depth = 5, .size = 9, .highlight = hexColor(0xf1e2b0, 0.45f), .shadow = hexColor(0x1c1406, 0.6f)})).then(sigil::material::Filter::shadow(hexColor(0x2b2210, 0.35f), {.blur = 14, .inside = true}))))
         .key("wax");
   }
 
@@ -236,7 +228,7 @@ struct SigillumAemeth {
       letters.push_back(incised(entry.letter).attribute("cell", cell));
       if (entry.number != 0)
         (entry.number > 0 ? above : below)
-            .push_back(incised(std::to_string(std::abs(entry.number)))
+            .push_back(incised(std::to_string(std::abs(entry.number)), hexColor(0x4a3210))
                            .attribute("cell", cell));
     }
     const auto around = [](float radius) {
@@ -348,11 +340,11 @@ struct SigillumAemeth {
           .fill = Fill::color(hexColor(0x140f06))}});
     std::vector<brush::Strand> strands;
     for (int strand = 0; strand < 7; ++strand) {
-      const auto [fromX, fromY] = local.at(kSeventh * (float)(2 * strand % 7), kHeptagon);
-      const auto [toX, toY] =
+      const glm::vec2 from = local.at(kSeventh * (float)(2 * strand % 7), kHeptagon);
+      const glm::vec2 to =
           local.at(kSeventh * (float)(2 * (strand + 1) % 7), kHeptagon);
       strands.push_back({StrandPath::authored(path::toPath(
-                             path::Polyline{.points = {{fromX, fromY}, {toX, toY}}})),
+                             path::Polyline{.points = {from, to}})),
                          cut});
     }
     return circleOf().fill(Fill::none()).stroke(Decoration(
@@ -533,12 +525,12 @@ struct SigillumAemeth {
     // One chain of faces per lettering system: the first installed wins.
     const auto book = sketch::kit::houseFace(sketch::kit::Voice::Book);
     const auto bookItalic = sketch::kit::houseFace(
-        sketch::kit::Voice::Book, 400, SkFontStyle::kItalic_Slant);
+        sketch::kit::Voice::Book, 400, sigil::weave::FaceSlant::Italic);
     seal = {.face = weave::ports::face({"Herculanum", "Optima", "Baskerville"}),
             .size = 30,
             .color = kEngraving};
     rim = {.face = weave::ports::face({"Trattatello", "Hoefler Text", "Baskerville"},
-                                      SkFontStyle::Italic()),
+                                      sigil::weave::FaceStyle{.slant = sigil::weave::FaceSlant::Italic}),
            .size = 37,
            .color = kEngraving};
     quill = {.face = bookItalic, .size = 30, .color = kEngraving, .track = 16};

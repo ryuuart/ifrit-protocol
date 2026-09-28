@@ -53,6 +53,7 @@
 
 // TAGS: Typography/Paragraph
 
+#include <sigilweave/style/Face.h>
 #include <include/core/SkMaskFilter.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/kit/Document.h>
@@ -139,7 +140,7 @@ struct Manuscript {
   std::u8string pages[2];
   int page = 0;
   double nextTurn = 0.0;
-  sk_sp<SkTypeface> book;
+  sigil::weave::Face book;
 
   // The page turns on a cycle, so the still names its moment. This sits
   // mid-hold on the first page, the one the incipit above the block and

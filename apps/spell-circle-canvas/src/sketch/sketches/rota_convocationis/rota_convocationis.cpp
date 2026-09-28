@@ -18,8 +18,10 @@
 
 // TAGS: Typography/Lettering, Patterns/Ornament
 
+#include <sigilmaterial/filter/Filter.h>
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilcompose/brush/Decorations.h>
-#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/typography/Typography.h>
@@ -57,7 +59,7 @@ namespace {
 constexpr float kSide = 1280;
 constexpr SkPoint kEye{640, 640};
 constexpr float kRadius = 545;  // the greatest circle, px
-const sigil::geometry::path::PolarFrame kFrame{.centre = kEye,
+const sigil::geometry::path::PolarFrame kFrame{.centre = sigil::geometry::path::fromSk(kEye),
                                                .radius = kRadius};
 
 // Chalk by candlelight, then one hue of light: the lines are warm bone, the
@@ -166,7 +168,7 @@ const Band kBands[] = {
     {"texture", rTexture, 0.0f, 0.995f, "", kAsh, kTexture}};
 
 SkPoint polar(float degrees, float radius) {
-  return kFrame.at(degrees, radius);
+  return sigil::geometry::path::toSk(kFrame.at(degrees, radius));
 }
 
 /** A node the size of the sheet, where a figure centred on the eye turns
@@ -174,7 +176,7 @@ SkPoint polar(float degrees, float radius) {
 Element sheet() { return box().inset(0).hitTestable(false); }
 
 Element ladder(const Ladder& ladder) {
-  return kit::disc(kEye, ladder.outer * kRadius)
+  return kit::disc(sigil::geometry::path::fromSk(kEye),ladder.outer * kRadius)
       .shape(shapes::ticks({.divisions = ladder.count,
                             .from = ladder.from,
                             .mark = {ladder.inner / ladder.outer, 1.0f},
@@ -190,7 +192,7 @@ Element ladder(const Ladder& ladder) {
 Element brokenRing(float radius, int count, float span, float from,
                    float width, material::Color ink) {
   const float px = radius * kRadius;
-  return kit::disc(kEye, px + width * 0.5f)
+  return kit::disc(sigil::geometry::path::fromSk(kEye),px + width * 0.5f)
       .shape(shapes::arcs({.divisions = count,
                            .from = from,
                            .mark = {(px - width * 0.5f) / (px + width * 0.5f),
@@ -204,14 +206,14 @@ Element brokenRing(float radius, int count, float span, float from,
 Element beads(int count, float radius, float size, float from, float width,
               material::Color ink) {
   return sheet().children(each(count, [=](int index) {
-    return kit::ring(polar(from + 360.0f * index / count, radius), size,
+    return kit::ring(sigil::geometry::path::fromSk(polar(from + 360.0f * index / count, radius)), size,
                      stroke(width, Fill::color(ink)));
   }));
 }
 
 /** A star compound {12/step} whose vertices stand on @p radius. */
 Element compound(int step, float radius, float width) {
-  return kit::disc(kEye, radius * kRadius)
+  return kit::disc(sigil::geometry::path::fromSk(kEye),radius * kRadius)
       .shape(shapes::chords({.sides = kStations, .step = step, .closed = true}))
       .fill(Fill::none())
       .stroke(stroke(width, Fill::color(kLine)));
@@ -257,7 +259,7 @@ struct RotaConvocationis {
     const float px = band.radius * kRadius;
     Text run = bandRun(band);
     run.font({.size = size}).ink(band.ink).rotate(turn(band.turning));
-    if (band.turning == kNames) run.filter(styles::textGlow(kHalo, 6.0f));
+    if (band.turning == kNames) run.filter(sigil::material::Filter::glow(kHalo, 6.0f));
     return kit::at(std::move(run), kEye.fX - px, kEye.fY - px, 2 * px, 2 * px)
         .textOnPath({.path = shapes::circle(), .offset = -size * 0.34f});
   }
@@ -289,7 +291,7 @@ struct RotaConvocationis {
                  kPitch / 12}),
          beads(24, (rCageIn + rCageOut) * 0.5f, 2.6f, kPitch * 0.25f, 0.9f,
                kLine),
-         kit::disc(kEye, rCrescentOut * kRadius)
+         kit::disc(sigil::geometry::path::fromSk(kEye),rCrescentOut * kRadius)
              .shape(shapes::arcs({.divisions = 3,
                                   .from = kPitch * 2.5f,
                                   .mark = {rCrescentIn / rCrescentOut, 1},
@@ -299,7 +301,7 @@ struct RotaConvocationis {
          // Each crescent's rungs are stubs off its inner arc, so the mark
          // reads as a bracket and not as a grid.
          each(3, [&](int index) {
-           return kit::disc(kEye, rCrescentOut * kRadius)
+           return kit::disc(sigil::geometry::path::fromSk(kEye),rCrescentOut * kRadius)
                .shape(shapes::ticks(
                    {.divisions = 6,
                     .from = kPitch * 2.5f + 120.0f * index - crescentSpan / 2,
@@ -352,8 +354,8 @@ struct RotaConvocationis {
   Element emblem() {
     const float px = rHexagram * kRadius;
     return sheet().children(
-        {kit::disc(kEye, rEmblem * kRadius * 1.6f)
-             .fill(Paint::radialGradient(
+        {kit::disc(sigil::geometry::path::fromSk(kEye),rEmblem * kRadius * 1.6f)
+             .fill(sigil::material::radialGradient(
                  {0.5f, 0.5f}, 1.0f,
                  {{0.0f, hexColor(0x3A240C, 0.9f)},
                   {0.55f, hexColor(0x241608, 0.6f)},
@@ -361,7 +363,7 @@ struct RotaConvocationis {
                  {.extent = material::RadialExtent::ClosestSide})),
          sheet()
              .rotate(turn(kHexagram))
-             .children({kit::disc(kEye, px)
+             .children({kit::disc(sigil::geometry::path::fromSk(kEye),px)
                             .shape(shapes::chords(
                                 {.sides = 6, .step = 2, .closed = true}))
                             .fill(Fill::none())
@@ -371,8 +373,8 @@ struct RotaConvocationis {
          text(content["monogram"].string())
              .font({.size = 52, .track = 6})
              .ink(kBone)
-             .filter(styles::textGlow(kHalo, 7.0f))
-             .centerAt(kEye)});
+             .filter(sigil::material::Filter::glow(kHalo, 7.0f))
+             .centerAt(sigil::geometry::path::fromSk(kEye))});
   }
 
   /** ONE SEAL: a small magic circle of its own standing on the rim — an
@@ -382,14 +384,14 @@ struct RotaConvocationis {
   Element seal(const sigil::data::Json& seal, size_t index) {
     const float inner = kSealBaseline - 7;
     const SkPoint centre{kSealRadius, kSealRadius};
-    return kit::disc(polar((index + 0.5f) * kPitch, rSealRide), kSealRadius)
+    return kit::disc(sigil::geometry::path::fromSk(polar((index + 0.5f) * kPitch, rSealRide)),kSealRadius)
         .borderRadius({kSealRadius})
-        .fill(Fill::color(kSealGround))
-        .overlay(styles::innerGlow(hexColor(0xE79A32, 0.30f), 8.0f))
+        .fill(sigil::material::from(kSealGround).effects(sigil::material::Filter::shadow(hexColor(0xE79A32, 0.30f), {.blur = 8.0f, .inside = true})))
+        
         .foreground(decorations::border(1.2f, Fill::color(kLine)))
         .children(
-            {kit::ring(centre, inner, stroke(0.7f, Fill::color(kHair))),
-             kit::disc(centre, kSealRadius - 16)
+            {kit::ring(sigil::geometry::path::fromSk(centre), inner, stroke(0.7f, Fill::color(kHair))),
+             kit::disc(sigil::geometry::path::fromSk(centre),kSealRadius - 16)
                  .shape(shapes::polygon((int)seal["sides"].number()))
                  .fill(Fill::none())
                  .stroke(stroke(0.9f, Fill::color(kHair))),
@@ -406,8 +408,8 @@ struct RotaConvocationis {
                  .styleClass("mono")
                  .font({.size = 12, .track = 1})
                  .ink(kGold)
-                 .filter(styles::textGlow(kHalo, 3.0f))
-                 .centerAt(centre)});
+                 .filter(sigil::material::Filter::glow(kHalo, 3.0f))
+                 .centerAt(sigil::geometry::path::fromSk(centre))});
   }
 
   /** The one off-order mark: a medallion straddling the outermost rule at
@@ -418,11 +420,11 @@ struct RotaConvocationis {
     const SkPoint centre = polar(0, rEdge);
     const float size = 23;
     return sheet().children(
-        {kit::dot(centre, size, Fill::color(kSealGround)),
-         kit::ring(centre, size, stroke(1.2f, Fill::color(kLine))),
-         kit::ring(centre, size * 0.6f, stroke(1.2f, Fill::color(kLine))),
+        {kit::dot(sigil::geometry::path::fromSk(centre), size, Fill::color(kSealGround)),
+         kit::ring(sigil::geometry::path::fromSk(centre), size, stroke(1.2f, Fill::color(kLine))),
+         kit::ring(sigil::geometry::path::fromSk(centre), size * 0.6f, stroke(1.2f, Fill::color(kLine))),
          text(content["spur"].string()).font({.size = 19}).ink(kBone)
-             .centerAt(centre)});
+             .centerAt(sigil::geometry::path::fromSk(centre))});
   }
 
   Element colophon() {
@@ -441,7 +443,7 @@ struct RotaConvocationis {
   Element describe() {
     return box()
         .inset(0)
-        .fill(Paint::radialGradient(
+        .fill(sigil::material::radialGradient(
             {0.5f, 0.5f}, 0.9f, {{0.0f, kNightLift}, {1.0f, kNight}},
             {.extent = material::RadialExtent::ClosestSide}))
         .applyStyleSheet(registers)
@@ -453,7 +455,7 @@ struct RotaConvocationis {
                  .children(
                      {each(kRules,
                            [](const Rule& rule) {
-                             return kit::ring(kEye, rule.radius * kRadius,
+                             return kit::ring(sigil::geometry::path::fromSk(kEye), rule.radius * kRadius,
                                               stroke(rule.width,
                                                      Fill::color(rule.ink)));
                            }),
@@ -478,6 +480,8 @@ struct RotaConvocationis {
   }
 
   void setup(sketch::SketchContext& context) {
+    for (auto& value : phase) value = sigil::motion::animatable(value.value());
+
     context.canvas(kSide, kSide);
     context.background(kNight);
     // Far enough into the turning that every layer is visibly off its

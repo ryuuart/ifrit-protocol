@@ -11,7 +11,7 @@
 #include <include/effects/SkPerlinNoiseShader.h>
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/path/Numeric.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 

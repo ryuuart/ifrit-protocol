@@ -27,7 +27,10 @@
 
 // TAGS: Typography/Lettering, Drawing/Brushes
 
-#include <sigilgeometry/path/Skia.h>
+#include <sigildata/decode/Json.h>
+#include <sigilmaterial/paint/Bases.h>
+#include <sigilweave/style/Face.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
@@ -52,7 +55,7 @@
 #include <sigilmotion/values/Animatable.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
-#include <sigilsketch/kit/Rows.h>
+#include <sigilcompose/kit/Rows.h>
 #include <sigilsketch/kit/Theme.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -237,14 +240,14 @@ struct ThunderFulu {
     return box().inset(0).children(
         {kit::at(-16, -8, kPlateWidth + 46, kPlateHeight + 44)
              .shape(shapes::chamfered(26.0f))
-             .fill(Paint::radialGradient({0.5f, 0.5f}, 0.78f,
+             .fill(sigil::material::radialGradient({0.5f, 0.5f}, 0.78f,
                                          {{0.0f, hexColor(0x000000, 0.66f)},
                                           {0.72f, hexColor(0x000000, 0.40f)},
                                           {1.0f, hexColor(0x000000, 0.0f)}})),
          box()
              .inset(0)
              .shape(beaten)
-             .fill(Paint::linearGradient({0.10f, -0.06f}, {0.96f, 1.0f},
+             .fill(sigil::material::linearGradient({0.10f, -0.06f}, {0.96f, 1.0f},
                                          {{0.0f, hexColor(0x736a5b)},
                                           {0.18f, hexColor(0x4f4840)},
                                           {0.46f, hexColor(0x35312c)},
@@ -254,7 +257,7 @@ struct ThunderFulu {
                  Fill::color(hexColor(0xa79a83, 0.075f)), 13.0f, 1.6f, -18.0f))
              .foreground(lines::presets::hatch(
                  Fill::color(hexColor(0x000000, 0.13f)), 31.0f, 3.4f, 24.0f))
-             .foreground(Wash{.material = ironGrain,
+             .foreground(Wash{.material = sigil::material::skia::base(ironGrain),
                               .blend = material::BlendMode::Overlay,
                               .amount = 0.30f})
              .foreground(Wash{.material = ironSpeck.material(),
@@ -301,7 +304,7 @@ struct ThunderFulu {
         .children(each(sealGraphs, [](const path::Polyline& graph) {
           return box()
               .inset(0)
-              .shape(heldPath(sigil::geometry::path::fromSk(path::smoothThrough(graph))))
+              .shape(heldPath(path::smoothThrough(graph)))
               .fill(Fill::none())
               .stroke(PathFormat{.width = 4.6f,
                                  .strokeFill = Fill::color(kSealInk),
@@ -319,7 +322,7 @@ struct ThunderFulu {
                    box()
                        .inset(0)
                        .shape(shapes::chamfered(17.0f))
-                       .fill(ironGrain)
+                       .fill(sigil::material::skia::base(ironGrain))
                        .opacity(0.085f)
                        .blendMode(material::BlendMode::SoftLight)
                        .cache(Cache::Texture)});
@@ -391,22 +394,30 @@ struct ThunderFulu {
    *  the foot, lit in cinnabar, because its tempo is the table's point. */
   Element tempo() const {
     const data::Json& said = words["tempo"];
-    std::vector<sketch::kit::Row> rows;
+    std::vector<std::vector<Utf8>> rows;
     const auto read = said["rows"].array();
     for (size_t index = 0; index < read.size(); ++index) {
-      sketch::kit::Row row;
+      std::vector<Utf8> row;
       for (const data::Json& cell : read[index].array())
-        row.cells.emplace_back(std::string(cell.string()));
-      if (index + 1 == read.size()) row.ink = kCinnabar;
+        row.emplace_back(std::string(cell.string()));
       rows.push_back(std::move(row));
     }
+    std::vector<std::span<const Utf8>> tableRows;
+    for (const auto& row : rows) tableRows.emplace_back(row);
     return section(said["heading"],
-                   {sketch::kit::table(std::move(rows),
+                   {sigil::compose::kit::table(tableRows,
                                        {.columns = {{.width = 62},
                                                     {.width = 70},
                                                     {.width = 44},
                                                     {.width = 98},
-                                                    {}}}),
+                                                    {}},
+                                        .gap = sketch::kit::theme().spacing.labelGap,
+                                        .rowGap = sketch::kit::theme().spacing.rowGap,
+                                        .cellLine = [last = rows.size() - 1](const Utf8& words, const kit::Table& table, size_t column, size_t row) {
+                                          auto line = table.columns[column].figure ? kit::figure(words) : kit::captionNote(words);
+                                          if (row == last) line.ink(kCinnabar);
+                                          return line;
+                                        }}),
                     text(said["gloss"]).styleClass("gloss")});
   }
 
@@ -432,7 +443,7 @@ struct ThunderFulu {
         {box().width(kSpan + 20).height(kSpan * 0.53f + 84).children(
              {box()
                   .inset(0)
-                  .shape(heldPath(sigil::geometry::path::fromSk(path::toPath(walk))))
+                  .shape(heldPath(path::toPath(walk)))
                   .fill(Fill::none())
                   .stroke(lines::rails(
                       {{.width = 2.6f,
@@ -450,7 +461,7 @@ struct ThunderFulu {
                          .inset(0)
                          .opacity(sigil::motion::bind(score, {.from = {lit, lit + 0.45f}, .clampFrom = true}))
                          .children(
-                             {kit::disc(at, 12)
+                             {kit::disc(sigil::geometry::path::fromSk(at),12)
                                   .shape(shapes::star(6, 0.30f))
                                   .fill(unseen ? Fill::none()
                                                : Fill::color(hexColor(
@@ -533,7 +544,7 @@ struct ThunderFulu {
     context.captureAt(22.4);
     words = sketch::kit::Document(context, "data/content.json");
     if (const auto strokes =
-            context.assets.json(context.local("data/strokes.json"))) {
+            context.assets.hub().load<sigil::data::Json>(context.local("data/strokes.json"))) {
       write((*strokes)["strokes"]);
       for (const data::Json& graph : (*strokes)["seal"].array()) {
         path::Polyline line;
@@ -556,7 +567,7 @@ struct ThunderFulu {
     // gold for the heads; the book italic for what is sung and glossed.
     const auto terminal = sketch::kit::houseFace(sketch::kit::Voice::Terminal);
     const auto italic = sketch::kit::houseFace(sketch::kit::Voice::Book, 400,
-                                               SkFontStyle::kItalic_Slant);
+                                               sigil::weave::FaceSlant::Italic);
     const auto display = weave::ports::face({"Optima", "Baskerville"}, 700);
     running = {.face = terminal, .size = 10.5f, .color = kUmber};
     sheet = StyleSheet{
