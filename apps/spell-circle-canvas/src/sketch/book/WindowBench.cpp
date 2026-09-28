@@ -68,10 +68,14 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
         const double now = std::chrono::duration<double>(
                                std::chrono::steady_clock::now() - run->began)
                                .count();
-        const sketch::Entry& entry =
-            sketch::registry()[run->selection[run->at]];
+        const int index = run->selection[run->at];
+        const auto& entries = sketch::registry();
         const std::filesystem::path wanted =
-            sketch::sourceOf(SketchCatalog::sketchDirectory, entry.key);
+            index < (int)entries.size()
+                ? sketch::sourceOf(SketchCatalog::sketchDirectory,
+                                   entries[index].key)
+                : SketchCatalog::externals.at(index - entries.size());
+        const std::string key = wanted.stem().string();
 
         QMutexLocker lock(&SketchbookView::hostMutex);
         sketch::Host* host = SketchbookView::host;
@@ -99,8 +103,7 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
 
         if (step == sketch::BenchCadence::Step::Read) {
           const QVariantMap metrics = view.property("metrics").toMap();
-          const sketch::Kind kind = entry.kind();
-          const std::string_view runtime = kind ? kind->runtime() : "?";
+          const std::string_view runtime = host ? host->kind() : "?";
           const SkSize canvas = host ? host->canvasSize() : SkSize::Make(0, 0);
           const double work =
               host ? sigil::measure::Milliseconds(
@@ -131,14 +134,14 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
           // printed as a rate of nearly zero.
           if (frames < 2) {
             std::printf("WINDOW %s SKIPPED presented %llu frames in %.1fs\n",
-                        entry.key, frames, stretch);
+                        key.c_str(), frames, stretch);
             ++run->stoodDown;
           } else {
             std::printf(
                 "WINDOW %s window=%dx%d@%g canvas=%dx%d kind=%.*s fps=%.1f "
                 "work=%.2fms p99=%.2fms draw=%.2fms submit=%.2fms "
                 "headroom=%.1f\n",
-                entry.key, window.width(), window.height(),
+                key.c_str(), window.width(), window.height(),
                 window.devicePixelRatio(), (int)canvas.width(),
                 (int)canvas.height(), (int)runtime.size(), runtime.data(), fps,
                 work,
@@ -152,7 +155,7 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
         } else {
           // Step::Skip — the window never presented this entry's session.
           std::printf("WINDOW %s SKIPPED no frame presented in %.1fs\n",
-                      entry.key, run->cadence.elapsed(now));
+                      key.c_str(), run->cadence.elapsed(now));
           ++run->stoodDown;
         }
         std::fflush(stdout);

@@ -412,9 +412,10 @@ one node (`attach` on the `Scope::Node`, in that node's coordinates,
 gone when it goes) or to the scope (`Scope::attach`) — and either way it is an
 ordinary element reconciled beside the owner's authored children, after
 them and out of their flow: it takes the cascade, a sheet dresses it, it
-hit-tests, and a later operator in the list reads its bounds; it is
-arranged by nothing, counted by no structural pseudo-class, and read by
-no operator. Whatever it attaches is laid out by one more run of the
+hit-tests, and is arranged by nothing, counted by no structural pseudo-class,
+and read by no operator. Copies of a scope are snapshots of its measured
+nodes without attachments; attaching through those nodes does nothing.
+Whatever it attaches is laid out by one more run of the
 layout with the additions standing, which moves nothing that was
 authored, and an unchanged tree mounts its additions once. `zIndex` and
 `styleClass` on the `Operator` itself are what its additions paint at

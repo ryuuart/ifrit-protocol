@@ -1,5 +1,6 @@
 /** Every warm-up and capture paints the complete declared viewport. */
 #include <include/core/SkCanvas.h>
+#include <sigildraw/Pen.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <cstdio>
@@ -12,15 +13,15 @@ struct CaptureViewport {
     ctx.canvas(640, 400);
     ctx.composer.render(
         custom("viewport",
-               [](SkCanvas& canvas) {
-                 const SkRect clip = canvas.getLocalClipBounds();
+               [](sigil::draw::Pen& pen, const PaintContext&) {
+                 const SkRect clip = pen.canvas()->getLocalClipBounds();
                  if (!clip.contains(SkRect::MakeXYWH(1, 1, 638, 398))) {
                    std::fprintf(
                        stderr,
                        "capture warm-up clipped the declared viewport\n");
                    std::exit(1);
                  }
-                 canvas.clear(SK_ColorGREEN);
+                 pen.background(0, 255, 0);
                })
             .inset(0)
             .cache(Cache::None));

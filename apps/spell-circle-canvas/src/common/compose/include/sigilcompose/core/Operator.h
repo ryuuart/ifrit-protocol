@@ -10,7 +10,8 @@
  * measured size and attributes. An ADDING operator runs once layout has
  * settled, reads every node in its scope — key, facts, classes, bounds and
  * outline — and attaches new elements to one of them or to the scope. Both
- * run in list order, and each sees what the ones before it left.
+ * run in list order. Arrangers read the preceding placements; adders
+ * read the authored nodes only.
  *
  * A placement scheme — `place(const LayoutInput&)`
  * returning one rectangle per child — is an operator too: constructing
@@ -108,10 +109,18 @@ struct Arrangement {
  *  about the scope, it is attached to the scope (`attach`). Either way it
  *  becomes an ordinary element beside the authored children, after them,
  *  out of their flow: it takes the cascade, a sheet dresses it, it
- *  hit-tests, and a later operator in the list reads its bounds. It can
- *  move nothing that was authored. */
+ *  hit-tests, and is read by no operator. It can move nothing that was
+ *  authored. */
 class Scope {
  public:
+  Scope() = default;
+  /** Copies hold the measured nodes without attachments. Their nodes
+   *  cannot attach to the source scope, even after that scope is gone. */
+  Scope(const Scope& other);
+  Scope& operator=(const Scope& other);
+  Scope(Scope&& other) noexcept;
+  Scope& operator=(Scope&& other) noexcept;
+
   /** ONE NODE IN THE SCOPE as an adding operator sees it. */
   class Node {
    public:

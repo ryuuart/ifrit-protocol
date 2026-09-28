@@ -81,14 +81,6 @@ const material::Color kFaint{0.38f, 0.36f, 0.33f, 1};
 const material::Color kRule{0.78f, 0.30f, 0.20f, 0.28f};
 const material::Color kMark{0.78f, 0.30f, 0.20f, 1};
 
-/// The one hyphenator on the sheet: the justified panel asks for it, and
-/// every layout it reaches keeps a share of it.
-std::shared_ptr<const sigil::weave::Hyphenator> hyphenator() {
-  static const std::shared_ptr<const sigil::weave::Hyphenator> table =
-      std::make_shared<const sigil::weave::kit::PatternHyphenator>(
-          "en", sigil::weave::kit::englishHyphenationPatterns());
-  return table;
-}
 
 sigil::weave::Face serif() {
   return weave::ports::face(
@@ -338,7 +330,7 @@ struct ParagraphSheet {
                           .justification = spec,
                           .hyphenation =
                               weave::HyphenationOptions{.patterns =
-                                                            s::hyphenator()},
+                                                            weave::kit::englishHyphenator()},
                           .lineBreak = weave::LineBreakStrategy::kKnuthPlass}))
           .applyStyleSheet(s::callClasses())
           .width(s::kMeasure * 0.31f);

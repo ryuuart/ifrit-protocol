@@ -24,6 +24,18 @@
 
 using namespace sigil::material;
 
+namespace {
+template <class Radius>
+concept FilterRadius = requires(const Material& program, Radius radius) {
+  Filter::of(program, radius);
+};
+
+static_assert(FilterRadius<float>);
+static_assert(FilterRadius<int>);
+static_assert(!FilterRadius<SkColorType>);
+static_assert(!FilterRadius<SkBlendMode>);
+}  // namespace
+
 TEST(SkiaEffect, AStockFilterComparesByItsRecipe) {
   const Filter glow = Filter::glow({0, 1, 1, 1}, 6.0f);
   EXPECT_NE(skia::resolvedImageFilter(glow, nullptr), nullptr);

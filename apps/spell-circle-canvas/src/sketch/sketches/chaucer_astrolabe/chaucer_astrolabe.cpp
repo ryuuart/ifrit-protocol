@@ -289,7 +289,7 @@ struct ChaucerAstrolabe {
             .shape(shapes::blob(3u, 0.10f, 9))
             .fill(sigil::material::from(sigil::material::skia::base(brass(0.74f))).effects(sigil::material::Filter::bevel({.depth = 2, .size = 4, .angleDegrees = 125, .highlight = hexColor(0xfff0c4, 0.6f), .shadow = material::withAlpha(kEdge, 0.6f)})))
             ,
-        kit::disc(sigil::geometry::path::fromSk(kCentre), kMater).fill(sigil::material::from(sigil::material::skia::base(brass(0.50f))).effects(sigil::material::Filter::bevel({.depth = 3, .size = 6, .angleDegrees = 125, .highlight = hexColor(0xfff0c4, 0.5f), .shadow = material::withAlpha(kEdge, 0.6f)})))
+        kit::disc(sigil::geometry::path::fromSk(kCentre), kMater).shape(shapes::circle()).fill(sigil::material::from(sigil::material::skia::base(brass(0.50f))).effects(sigil::material::Filter::bevel({.depth = 3, .size = 6, .angleDegrees = 125, .highlight = hexColor(0xfff0c4, 0.5f), .shadow = material::withAlpha(kEdge, 0.6f)})))
             .background(shadow(hexColor(0x05070c, 0.62f), {8, 12}, 26))
             ,
         // the three rules of the limb
@@ -363,7 +363,7 @@ struct ChaucerAstrolabe {
                    return kit::at(kR - 0.8f, kR, 1.6f, kR)
                        .fill(Fill::color(material::withAlpha(kCut, 0.5f)));
                  }),
-            kit::disc(sigil::geometry::path::fromSk(onPlate(horizon.centre)), horizon.radius * kR).fill(sigil::material::skia::base(brass(0.46f))),
+            kit::disc(sigil::geometry::path::fromSk(onPlate(horizon.centre)), horizon.radius * kR).shape(shapes::circle()).fill(sigil::material::skia::base(brass(0.46f))),
             // the twilight: the sun 18° below the horizon
             kit::ring(sigil::geometry::path::fromSk(onPlate(almucantar(-18.0f).centre)),
                       almucantar(-18.0f).radius * kR,
@@ -404,7 +404,7 @@ struct ChaucerAstrolabe {
             kit::ring(sigil::geometry::path::fromSk(onPlate(almucantar(kAltitude).centre)),
                       almucantar(kAltitude).radius * kR,
                       stroke(1.6f, Fill::color(material::withAlpha(kRubric, 0.75f)))),
-            kit::disc(sigil::geometry::path::fromSk(onPlate(kPlate.at(kZenith))), 3.6f).fill(Fill::color(material::withAlpha(kCut, 0.85f))),
+            kit::disc(sigil::geometry::path::fromSk(onPlate(kPlate.at(kZenith))), 3.6f).shape(shapes::circle()).fill(Fill::color(material::withAlpha(kCut, 0.85f))),
         })
         ;
   }
@@ -544,7 +544,7 @@ struct ChaucerAstrolabe {
                      }),
                 each(stars.array(),
                      [&](const data::Json& star) {
-                       return kit::disc(sigil::geometry::path::fromSk(onPlate(starAt(star))), (float)star["tip"].number(5.5)).fill(Fill::color(kGilt))
+                       return kit::disc(sigil::geometry::path::fromSk(onPlate(starAt(star))), (float)star["tip"].number(5.5)).shape(shapes::circle()).fill(Fill::color(kGilt))
                            .stroke(stroke(1.5f, Fill::color(material::withAlpha(kEdge, 0.85f))));
                      }),
                 // the sun, set in its degree of the ecliptic
@@ -573,7 +573,7 @@ struct ChaucerAstrolabe {
             .fill(sigil::material::skia::base(brass(0.80f)))
             .stroke(stroke(1.2f, Fill::color(material::withAlpha(kEdge, 0.7f))))
             .background(shadow(material::withAlpha(kEdge, 0.5f), {4, 5}, 7)),
-        kit::disc(sigil::geometry::path::fromSk(kCentre), 0.040f * kR).fill(sigil::material::from(sigil::material::skia::base(brass(0.82f))).effects(sigil::material::Filter::bevel({.depth = 2, .size = 2, .angleDegrees = 125, .highlight = hexColor(0xfff0c4, 0.7f), .shadow = material::withAlpha(kEdge, 0.6f)})))
+        kit::disc(sigil::geometry::path::fromSk(kCentre), 0.040f * kR).shape(shapes::circle()).fill(sigil::material::from(sigil::material::skia::base(brass(0.82f))).effects(sigil::material::Filter::bevel({.depth = 2, .size = 2, .angleDegrees = 125, .highlight = hexColor(0xfff0c4, 0.7f), .shadow = material::withAlpha(kEdge, 0.6f)})))
             .background(shadow(material::withAlpha(kEdge, 0.5f), {2, 3}, 5))
             ,
     });
@@ -597,7 +597,7 @@ struct ChaucerAstrolabe {
     // the sun enters Aries on the 12th of March in Chaucer's calendar
     constexpr float kAries = 31 + 28 + 11.5f;
     return box().width(2 * radius).height(2 * radius).styleClass("engrave").children({
-        kit::disc(sigil::geometry::path::fromSk(centre), radius).fill(sigil::material::from(sigil::material::skia::base(brass(0.46f))).effects(sigil::material::Filter::bevel({.depth = 2, .size = 4, .angleDegrees = 125, .highlight = hexColor(0xffe9b0, 0.45f), .shadow = material::withAlpha(kEdge, 0.5f)})))
+        kit::disc(sigil::geometry::path::fromSk(centre), radius).shape(shapes::circle()).fill(sigil::material::from(sigil::material::skia::base(brass(0.46f))).effects(sigil::material::Filter::bevel({.depth = 2, .size = 4, .angleDegrees = 125, .highlight = hexColor(0xffe9b0, 0.45f), .shadow = material::withAlpha(kEdge, 0.5f)})))
             ,
         // four quadrants of ninety degrees, every second degree ruled
         kit::disc(sigil::geometry::path::fromSk(centre), radius)
@@ -666,7 +666,7 @@ struct ChaucerAstrolabe {
             .fill(sigil::material::skia::base(brass(0.78f)))
             .stroke(stroke(1.0f, Fill::color(material::withAlpha(kEdge, 0.6f))))
             .background(shadow(material::withAlpha(kEdge, 0.45f), {2, 3}, 5)),
-        kit::disc(sigil::geometry::path::fromSk(centre), 8).fill(sigil::material::skia::base(brass(0.82f))),
+        kit::disc(sigil::geometry::path::fromSk(centre), 8).shape(shapes::circle()).fill(sigil::material::skia::base(brass(0.82f))),
     });
   }
 

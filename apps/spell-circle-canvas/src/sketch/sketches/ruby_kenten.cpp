@@ -16,8 +16,8 @@
 //   · MONO — one reading per character (weave::Unit::Cluster). The pitch
 //     of the column opens by the reading's own line height, which is why
 //     the bare column beside it is narrower.
-//   · GROUP — one reading per word (weave::Unit::Word), centred on the whole
-//     compound rather than distributed over its characters.
+//   · GROUP — one reading per selection (weave::Unit::Selection), centred
+//     on the whole compound rather than distributed over its characters.
 //   · JUKUGO — the compound annotated per cluster with the readings its
 //     characters take, which is the same verb with a different unit and
 //     a longer list.
@@ -149,7 +149,7 @@ struct RubyKenten {
                         u8"日本語の"
                         u8"書物。")
                         .textAnnotation(kit::ruby(
-                            weave::selectors::text(u8"書物"), weave::Unit::Word,
+                            weave::selectors::text(u8"書物"), weave::Unit::Selection,
                             {u8"しょ"
                              u8"もつ"},
                             rubyType(), 1.0f));
@@ -173,7 +173,7 @@ struct RubyKenten {
             f::kSplitHeight)
             .width(f::kColumnW * 2.2f)
             .textAnnotation(kit::ruby(weave::selectors::text(u8"国語辞典"),
-                                      weave::Unit::Word,
+                                      weave::Unit::Selection,
                                       {u8"こくごじ"
                                        u8"てん"},
                                       rubyType(), 1.0f));
@@ -236,8 +236,8 @@ struct RubyKenten {
                                       "A reading for each\n"
                                       "character in a compound.",
                                       std::move(jukugo)),
-                            f::column("GROUP · WORD",
-                                      "One reading for the\nwhole compound.",
+                            f::column("GROUP · WHOLE",
+                                      "One selection for the\nwhole compound.",
                                       std::move(group)),
                             f::column("MONO · CLUSTER",
                                       "A reading per character;\n"

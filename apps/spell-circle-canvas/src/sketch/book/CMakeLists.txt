@@ -385,6 +385,16 @@ add_test(NAME sketch_window_orientation
 set_tests_properties(sketch_window_orientation PROPERTIES
   LABELS window TIMEOUT 300)
 
+add_test(NAME sketch_window_bench_file
+  COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_LIST_DIR}/test/window_orientation.py
+    --benchmark
+    --sketchbook $<TARGET_FILE:Sketchbook>
+    --probe ${CMAKE_CURRENT_LIST_DIR}/test/orientation_probe.cpp
+    --work ${CMAKE_BINARY_DIR}/sketch_window_bench_file)
+set_tests_properties(sketch_window_bench_file PROPERTIES
+  LABELS window TIMEOUT 300)
+
 # WHAT A SECOND OPEN NO LONGER BUILDS, which only a window can say. The
 # device program a draw waits for is built by the context behind the
 # presented canvas, so neither a still nor a headless sweep reaches it:

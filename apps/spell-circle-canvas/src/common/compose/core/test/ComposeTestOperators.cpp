@@ -267,6 +267,82 @@ TEST(ComposeOperators, AComparableOperatorPrunesAndAFactChangeDoesNot) {
 // ---------------------------------------------------------------------------
 // Adding operators: what they attach stands beside the authored children.
 
+TEST(ComposeOperators, CopiesCannotAttachBackIntoTheirSourceScope) {
+  Scope assigned;
+  assigned.attach(box());
+  {
+    Scope source;
+    Scope::Node node;
+    node.key = "authored";
+    source.mutableNodes().push_back(node);
+    source.mutableNodes();
+    source.find("authored")->attach(box());
+    ASSERT_EQ(source.attachments().size(), 1u);
+
+    Scope copied = source;
+    assigned = source;
+    Scope snapshot = source.snapshot();
+    for (const Scope* copy : {&copied, &assigned, &snapshot}) {
+      ASSERT_NE(copy->find("authored"), nullptr);
+      copy->find("authored")->attach(box());
+      EXPECT_TRUE(copy->attachments().empty());
+    }
+    EXPECT_EQ(source.attachments().size(), 1u);
+  }
+  assigned.find("authored")->attach(box());
+  EXPECT_TRUE(assigned.attachments().empty());
+}
+
+TEST(ComposeOperators, ALaterAdderReadsOnlyTheAuthoredNodes) {
+  struct First {
+    void add(Scope& scope) const {
+      scope.attach(box().key("addition").left(0).top(0)
+          .width(20).height(20).fill(red()));
+    }
+  };
+  struct Second {
+    bool* sawAuthored;
+    bool* sawAddition;
+    void add(Scope& scope) const {
+      *sawAuthored = scope.find("authored") != nullptr;
+      *sawAddition = scope.find("addition") != nullptr;
+    }
+  };
+  bool sawAuthored = false, sawAddition = false;
+  Host host(120, 120);
+  host.composer.render(box().width(120).height(120)
+      .children({box().key("authored").width(20).height(20)})
+      .operators({First{}, Second{&sawAuthored, &sawAddition}}));
+  host.frame();
+  EXPECT_TRUE(sawAuthored);
+  EXPECT_FALSE(sawAddition);
+  EXPECT_EQ(host.pixel(10, 10), SK_ColorRED);
+}
+
+TEST(ComposeOperators, MovingAScopeRebindsAttachmentsAndKeepsSnapshotsDetached) {
+  Scope source;
+  Scope::Node node;
+  node.key = "authored";
+  source.mutableNodes().push_back(node);
+  source.mutableNodes();
+  Scope moved(std::move(source));
+  moved.find("authored")->attach(box());
+  EXPECT_EQ(moved.attachments().size(), 1u);
+  EXPECT_TRUE(source.attachments().empty());
+
+  Scope assigned;
+  assigned = std::move(moved);
+  assigned.find("authored")->attach(box());
+  EXPECT_EQ(assigned.attachments().size(), 2u);
+  EXPECT_TRUE(moved.attachments().empty());
+
+  Scope snapshot = assigned.snapshot();
+  Scope movedSnapshot(std::move(snapshot));
+  movedSnapshot.find("authored")->attach(box());
+  EXPECT_TRUE(movedSnapshot.attachments().empty());
+  EXPECT_EQ(assigned.attachments().size(), 2u);
+}
+
 namespace {
 
 /** A red mark on every node in the scope, at the node's own origin. */

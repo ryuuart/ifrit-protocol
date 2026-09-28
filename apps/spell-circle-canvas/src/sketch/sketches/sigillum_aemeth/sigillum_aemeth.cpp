@@ -130,10 +130,7 @@ auto incised(const std::string& words, sigil::material::Color ink = kEngraving) 
 /** A RUN LETTERED ALONG SIDE @p side of a heptagon at @p radius — seven
  *  sides chained as one baseline, so a side is addressed by its fraction. */
 Element onSide(const std::string& words, int side, float radius) {
-  // workaround: a layer style's echo is stamped as a straight run at the
-  // box's origin rather than along the text's path, so a run set on a
-  // path is not incised.
-  return inCircle(text(words).textOnPath(
+  return inCircle(incised(words).textOnPath(
       {.path = shapes::chords({.sides = 7, .radius = radius}),
        .at = ((float)side + 0.5f) / 7.0f,
        .align = TextPath::Align::Center}));
@@ -210,7 +207,7 @@ struct SigillumAemeth {
   // THE SEAL
 
   Element wax() const {
-    return kit::disc(kSeal.centre, kWax).fill(sigil::material::from(sigil::material::radialGradient({0.42f, 0.36f}, 1.05f,
+    return kit::disc(kSeal.centre, kWax).shape(shapes::circle()).fill(sigil::material::from(sigil::material::radialGradient({0.42f, 0.36f}, 1.05f,
                                                 {{0.0f, kWaxPale},
                                                  {0.45f, kWaxLit},
                                                  {0.82f, kWaxMid},

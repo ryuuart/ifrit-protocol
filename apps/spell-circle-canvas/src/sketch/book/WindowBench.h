@@ -62,6 +62,8 @@ struct WindowBench {
  *  stood down by name and the run says so in its exit status; it is not
  *  a rate of nothing.
  *
+ *  The selection uses catalog indices: registry entries first, followed
+ *  by the run's external files. A file is measured from its live session.
  *  False when there is nothing to present. */
 bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
                       QObject& view, const WindowBench& options,

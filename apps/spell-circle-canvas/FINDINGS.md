@@ -1,21 +1,5 @@
 # Findings
 
-## The astrolabe's bevelled discs paint brass into their rectangular corners
-
-`chaucer_astrolabe` describes its mater and the reverse face as discs
-filled with the brass material and a bevel effect. Their current CPU
-photographs contain opaque brass in the rectangular corners outside the
-discs. This is also present without the stationary plate's texture cache.
-The case should remain visible outside the front disc, and the card
-should remain visible outside the reverse disc, apart from the declared
-shadows and the instrument's separate throne.
-
-A focused render should put an opaque material with a bevel on a disc
-and assert that its corners retain the backdrop, while the bevel follows
-the circular boundary. The same material without an effect should have
-the same fill coverage. Resolve the material-effect coverage before
-rebasing this study's artwork.
-
 ## Explicit texture bakes change deterministic reference samples
 
 The rotating text bands in `rota_convocationis` and the retained ink in
@@ -32,44 +16,6 @@ explicit bakes or accept their sampling differences. The standing plates
 remain unchanged. A test should compare a turning text ring and a seeded
 fibre stroke at the same moment and fractional capture density under the
 chosen capture policy, with an explicit bound on the permitted difference.
-
-## A window benchmark ignores a source-file selection
-
-`src/sketch/book/main.cpp` derives the window benchmark selection only
-from `--sketch` and `--kind`. A positional source file is opened by the
-live host, but `windowBenchSelection` still receives the registry-wide
-selection when neither of those flags is present. The documented
-`Sketchbook scene.cpp --window-bench` invocation consequently benchmarks
-the registry instead of the file, and edits in that file do not enter
-the measurements.
-
-The window lane should benchmark the file session when a file was
-selected. A test should supply a source file whose canvas and key are
-absent from the registry and assert that the window report contains
-exactly that sketch; another should change its paint and assert that
-the next run uses the changed file.
-
-## Group ruby is fixed in the library and `ruby_kenten` still asks for words
-
-`weave::Unit::Selection` numbers one unit per extent a selector
-addressed, `TextAnnotations.cpp` associates one reading with that whole
-unit, and a base broken across columns partitions the reading across its
-fragments instead of repeating it. Two extents that touch are still two
-units.
-
-`src/sketch/sketches/ruby_kenten.cpp` asks for a different unit. Its
-GROUP specimen and its SPLIT specimen both pass `weave::Unit::Word`, and
-word units divide `書物` and `国語辞典` into several units, so those two
-panels show one reading repeated over each piece of the compound. The
-file's own header comment and its GROUP panel caption name the word unit
-with them.
-
-The specimens should ask for the unit that means what they demonstrate.
-Moving those two call sites to `weave::Unit::Selection`, with the comment
-and the caption, and rebasing the plate — GROUP and SPLIT move, MONO,
-JUKUGO and KENTEN must not — closes this entry. The library behaviour is
-already asserted by `ComposeAnnotate` and `TextVertical`; what a test
-cannot see is which unit a specimen names, so the plate is the check.
 
 ## Two MAGI studies build the tube's light outside its recipe
 
@@ -257,22 +203,6 @@ inside the box, and nothing beside the route; and a second test should
 attach an element the operator marks untestable and assert the node
 under it answers.
 
-## `Scope` copies other than `snapshot()` route attachments to the wrong scope
-
-`Scope::Node` holds a back-pointer to the scope it was read from
-(`Scope::Node::m_scope` in `core/Operator.h`), and `Scope::snapshot()`
-exists to null it on a copy. The implicitly generated copy constructor
-and assignment do not: a `Scope` copied any other way hands out nodes
-whose `attach` appends to the source scope's attachments, or dangles once
-the source is gone. Nothing in the tree copies a scope that way today
-(`DrawWith::add` copies a snapshot), so the defect is latent.
-
-A scope is meant to be read where it is handed over and copied only as a
-snapshot. The copy constructor and assignment should be deleted, or made
-to unbind the nodes as `snapshot()` does. A test should copy a scope
-through the remaining door and assert `attach` on the copy's nodes
-attaches nothing to the original.
-
 ## The operator-order report names a keyless node as `""`
 
 `Composer::Impl::rebuildKeyIndex` (`core/Reconcile.cpp`) reports an
@@ -284,18 +214,6 @@ one and otherwise by its place — the path of child indices from the root,
 or the nearest keyed ancestor and the index under it. A test should
 build a keyless container with the two operators reversed and assert the
 report names a place rather than an empty string.
-
-## The header says a later operator reads an addition and the code does not
-
-`core/Operator.h`'s `Scope` comment says an addition is an ordinary
-element "a later operator in the list reads", and `Additions.cpp`
-collects the scope once before the operator loop with
-`if (node.added()) continue;` in `collectScope`, so no operator ever
-sees an addition. The README states the rule the code follows — an
-addition is read by no operator — and no longer makes the first claim.
-The header should say the same. A test should attach an element from
-one adding operator and assert a second adding operator in the same
-list does not find it by key.
 
 ## `connect::Along`, `pin::`, `outline::` and `stamp::` are not bound in Python
 
@@ -695,22 +613,6 @@ Wanted by: `matrix_rain` (removes its conversion). `shipping_forecast`
 literals today and would spell them like the text they churn, or read them
 from their words files, once the door is UTF-8.
 
-## Two sketches still build the English hyphenator SigilWeave now holds
-
-`weave::kit::englishHyphenator()` answers one held `PatternHyphenator`
-over the English table. Two registered sketches outside the link that
-grew it still build their own:
-
-- `src/sketch/sketches/paragraph_sheet.cpp` (around line 87) and
-  `src/sketch/sketches/manuscript/manuscript.cpp` (around line 90) each
-  build a `PatternHyphenator` over `englishHyphenationPatterns()`, so each
-  passage holds a table of its own where one expression, `hyphens({.patterns
-  = weave::kit::englishHyphenator()})`, shares the kit's.
-
-What the sketches should say: both take the held table. Taking it where
-the hand-built one held the same patterns should leave `paragraph_sheet`
-and `manuscript` byte-identical, and that is the check.
-
 ## A glyph-outline decoration is cut from the glyphs at rest, so a text shadow cannot follow a track's deformation
 
 `decorationOutline(Boundary::Glyphs)` hands a text leaf's decorations the
@@ -865,26 +767,6 @@ The sketch keeps the call, with a comment beside the ground stating
 the constraint, so the grain appears when the grain holds its
 strength on a dark ground.
 
-## `sigillum_aemeth` still marks a workaround for an echo that now follows the path
-
-`src/sketch/sketches/sigillum_aemeth/sigillum_aemeth.cpp` (around line
-130) carries a `workaround:` line above `onSide`, saying an echo is
-stamped as a straight run at the box's origin rather than along the
-text's path, so its heptagon runs set with `textOnPath` go without the
-incised echo `incised` gives every straight run. An echo — a blur-less
-`material::Filter::shadow(colour, {.offset})` in the effects of a text's
-ink — now re-stamps a path-set run along its path, glyph for glyph as
-the real pass places it
-(`ComposeTextPathEcho` asserts it), so `grep -r workaround:` lists a
-compensation for a defect that no longer exists.
-
-What the sketch evidently intends is every lettered run incised alike:
-`onSide` should set its run through `incised` (or state the same
-`Filter::shadow` echo on its ink) and the `workaround:` line should go. The plate
-moves where the seven side runs gain their lit lip below and to the
-right of each letter, and nowhere else; that move, explained in the
-commit, is the check.
-
 ## A colour is read from its CSS text only by the pen library, so a sketch whose palette is in a words file borrows SigilDraw or parses hex by hand
 
 `sigil::draw::parseColor(std::string_view)` (`sigildraw/Color.h`) reads
@@ -1009,37 +891,6 @@ as a length leaves the target standing and says so once, as a colour var read
 as a length does today. Wanted by `cosmati`; `black_watch` holds its board and
 yarn paints as members for the same reason.
 
-## Two Compose warning cases pass alone and fail when the whole binary runs
-
-`ComposeMaterial.AFillRefusesATextUnitOnASurfaceWithNoPaintToPlace`
-(`src/common/compose/core/test/ComposeTestMaterial.cpp:935`) and
-`ComposeInkUnits.ARulesUnitLandingOnABoxDrawsAsTheVerbsDoes`
-(`src/common/compose/typography/test/ComposeTestInkUnits.cpp:525`) assert
-that a warning reaches the captured log, but the warnings they wait for are
-issued once per process. Run as ctest runs them, one case per process, both
-pass; run as `compose_test` with no filter, an earlier case has already
-spent the warning and both fail with an empty find. Intended: each case
-states its own warning whatever ran before it. A test should assert the
-warning lands when the case runs after another case that triggers the same
-warning in the same process — which means the case resets the once-only
-state it reads, or the capture the case reads is the one that issues it.
-
-## `Filter::of(material, colourType)` compiles and reads the colour type as a sample radius
-
-`material::Filter::of(const Material&, float sampleRadius)`
-(`sigilmaterial/filter/Filter.h`) takes any argument that converts to a
-float, and Skia's `SkColorType` is an unscoped enum, so
-`Filter::of(program, kRGBA_8888_SkColorType)` compiles and builds the
-program with a sample radius of 4 instead of lowering it for an
-eight-bit surface. Two Material cases and the OCIO bench were written
-that way and silently tested the program path; they now call
-`skia::lowered(program, surface)`, which is the entrance that lowers.
-Evidently the radius was meant to be a length and nothing else. A test
-should assert that `Filter::of` does not accept a colour type — a
-deleted overload taking an integral or enumeration argument, or a radius
-type of its own — so the mistake fails to compile; the sketches still to
-be swept are where it would otherwise recur.
-
 ## An escaped Python connection may keep its door open after the session closes
 
 `src/common/python/data/Connection.cpp`'s `ConnectionHandle` owns its
@@ -1070,38 +921,6 @@ the pass is painted. A test should give one layer a left-to-right
 at its left end and blue at its right, and give another `Fill::color(c)`
 and assert it paints exactly what the colour layer paints today.
 
-
-## The viewport and orientation probes still give `custom` a Skia callback
-
-`src/sketch/book/test/capture_viewport_probe.cpp` and
-`src/sketch/book/test/orientation_probe.cpp` call `compose::custom` with a
-lambda taking `SkCanvas&`. The callable now takes `draw::Pen&` and the
-paint context, so the live compiler rejects both probes before the host
-can exercise capture or presentation. Consequently `sketch_capture_viewport`
-and `sketch_window_orientation` fail even with a freshly linked Sketchbook.
-
-The probes evidently mean to check the whole declared viewport and the
-red-top/blue-bottom window orientation. They should use the current Pen
-callback and reach the native canvas only for the clip assertion. Both
-host lanes should then assert the same dimensions, full viewport coverage,
-and top/bottom colours through an actual successful capture.
-
-## The Python file-shader test expects an empty missing source instead of the placeholder
-
-`python_authoring` fails
-`test_sketch_shader_door.ShaderFile.test_a_missing_file_paints_nothing`:
-the missing source paints RGBA `(255, 0, 255, 255)` over an opaque black
-ground, where the test expects `(0, 0, 0, 255)`. The failure remains with
-host access and the current Python extension and Sketchbook linked.
-
-The material file entrance specifies a magenta-and-black placeholder
-until a source compiles, keeps the latest successfully compiled program
-through a broken edit, and exposes its diagnostic through the hub. The
-Python test evidently means to check that entrance's failure contract,
-but its assertion still expects the empty result. It should assert the
-placeholder's two colours for a missing source, a later valid program
-replacing it without reopening the session, and a broken edit preserving
-that valid program while the hub reports the failure.
 
 ## A selector rule accepts material effects but loses them on the matched element
 

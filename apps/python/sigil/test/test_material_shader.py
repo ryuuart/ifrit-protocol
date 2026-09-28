@@ -75,10 +75,18 @@ class Shader(unittest.TestCase):
             (Path(folder) / "absent.sksl").write_text(FLAT)
             self.assertTrue(hub.poll())
             tone = {"ink": material.Color(1, 0, 0, 1), "level": 0.5}
-            self.assertNotEqual(
-                material.shader(hub, "res://absent.sksl", tone),
-                material.placeholder(),
+            good = material.shader(hub, "res://absent.sksl", tone)
+            self.assertNotEqual(good, material.placeholder())
+            self.assertFalse(hub.problems())
+            (Path(folder) / "absent.sksl").write_text(
+                "half4 main(float2 xy) { return missingColour; }"
             )
+            self.assertTrue(hub.poll())
+            self.assertEqual(material.shader(hub, "res://absent.sksl", tone), good)
+            problems = hub.problems()
+            self.assertEqual(len(problems), 1)
+            self.assertEqual(problems[0].uri, "res://absent.sksl")
+            self.assertIn("missingColour", problems[0].message)
 
 
 if __name__ == "__main__":

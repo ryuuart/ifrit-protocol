@@ -2,10 +2,7 @@
  *  that no encoder rounds, with the declared ground between them, so a
  *  photograph of the window says which end of the texture reached the
  *  top of the item. */
-#include <include/core/SkCanvas.h>
-#include <include/core/SkColor.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkRect.h>
+#include <sigildraw/Pen.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 namespace {
@@ -22,15 +19,13 @@ struct Orientation {
     ctx.canvas(kWidth, kHeight);
     ctx.composer.render(
         custom("bands",
-               [](SkCanvas& canvas) {
-                 canvas.clear(SK_ColorBLACK);
-                 SkPaint paint;
-                 paint.setColor(SK_ColorRED);
-                 canvas.drawRect(SkRect::MakeXYWH(0, 0, kWidth, kBand), paint);
-                 paint.setColor(SK_ColorBLUE);
-                 canvas.drawRect(
-                     SkRect::MakeXYWH(0, kHeight - kBand, kWidth, kBand),
-                     paint);
+               [](sigil::draw::Pen& pen, const PaintContext&) {
+                 pen.background(0);
+                 pen.noStroke();
+                 pen.fill(255, 0, 0);
+                 pen.rect(0, 0, kWidth, kBand);
+                 pen.fill(0, 0, 255);
+                 pen.rect(0, kHeight - kBand, kWidth, kBand);
                })
             .inset(0)
             .cache(Cache::None));

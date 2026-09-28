@@ -87,12 +87,6 @@ using namespace manuscript;
 
 namespace {
 
-std::shared_ptr<const sigil::weave::Hyphenator> hyphenator() {
-  static const std::shared_ptr<const sigil::weave::Hyphenator> table =
-      std::make_shared<const sigil::weave::kit::PatternHyphenator>(
-          "en", sigil::weave::kit::englishHyphenationPatterns());
-  return table;
-}
 
 /** The humanist old-styles this page is set in, best first. Every one of
  *  them descends from the minuscule the Florentine scribes wrote, which is
@@ -281,7 +275,7 @@ struct Manuscript {
                          {.lineBreak = weave::LineBreakStrategy::kKnuthPlass})
                      .paragraph({.hyphenation =
                                      sigil::weave::HyphenationOptions{
-                                         .patterns = hyphenator()}})
+                                         .patterns = sigil::weave::kit::englishHyphenator()}})
                      .contentFlowAround("note", px(3.0f))
                      .contentFlowAround("sprig", px(2.4f)),
                  kit::at(illuminatedPanel(rubric),

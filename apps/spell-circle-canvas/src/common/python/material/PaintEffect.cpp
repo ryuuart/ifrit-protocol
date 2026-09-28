@@ -181,9 +181,9 @@ void bindMaterialPaintEffect(py::module_& module) {
 
   py::class_<material::Filter>(nativePaint, "Filter")
       .def(py::init<>())
-      .def_static("of",
-                  py::overload_cast<const material::Material&>(&material::Filter::of),
-                  py::arg("program"))
+      .def_static("of", [](const material::Material& program) {
+        return material::Filter::of(program);
+      }, py::arg("program"))
       .def_static(
           "program",
           [](py::handle effect, py::dict parameters) {

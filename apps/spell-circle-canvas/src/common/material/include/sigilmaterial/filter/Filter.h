@@ -24,6 +24,7 @@
 #include <memory>
 #include <span>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace sigil::material {
@@ -236,6 +237,10 @@ class Filter {
    *  animate by re-describing or through `bind` on the filter. */
   static Filter of(const Material& program);
   static Filter of(const Material& program, float sampleRadius);
+  /** An enumeration names a mode, never a distance to sample. */
+  template <class Enum>
+    requires std::is_enum_v<Enum>
+  static Filter of(const Material&, Enum) = delete;
 
   /** @name Parameters, slots and chains
    *  Every one copies on write.

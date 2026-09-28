@@ -731,7 +731,8 @@ int main(int argc, char* argv[]) {
     window->raise();
     window->requestActivate();
     if (!startWindowBench(application, *window, *view, args.windowBench,
-                          windowBenchSelection(chosen, args.kind)))
+                          fileGiven ? std::vector<int>{openAt}
+                                    : windowBenchSelection(chosen, args.kind)))
       return 1;
   }
 

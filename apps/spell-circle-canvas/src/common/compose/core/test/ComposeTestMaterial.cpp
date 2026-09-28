@@ -9,6 +9,8 @@
 
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <thread>
+
 #include "support/CoreTestSupport.h"
 
 TEST(ComposeMaterial, ABoxUnitGradientFollowsTheBoxItLandsIn) {
@@ -894,52 +896,58 @@ TEST(ComposeMaterial, APaddingFillNamesTheSameRectangleTheElementsOwnDoes) {
 }
 
 TEST(ComposeMaterial, AFillRefusesATextUnitAndSaysSo) {
-  // A box has no glyphs, words or lines to restart a paint on: a text
-  // unit handed to fill is refused, once with a warning, and the paint is
-  // stretched over the element's own box. The subtree's box is the
-  // element's own too, since a fill does not inherit — silently.
-  const auto ramp = [] {
-    return material::linearGradient(
-        {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
-  };
-  const auto page = [&](PaintBox over) {
-    return box().children({box().width(100).height(40).fill(ramp(), over)});
-  };
-  ::testing::internal::CaptureStderr();
-  Host word;
-  word.composer.render(page(PaintBox::Word));
-  const std::string log = ::testing::internal::GetCapturedStderr();
-  EXPECT_NE(log.find("fill()"), std::string::npos) << log;
-  EXPECT_NE(log.find("text unit"), std::string::npos) << log;
-  ::testing::internal::CaptureStderr();
-  Host subtree, element;
-  subtree.composer.render(page(PaintBox::Subtree));
-  EXPECT_EQ(::testing::internal::GetCapturedStderr(), "")
-      << "the subtree's box on a fill must not warn";
-  element.composer.render(page(PaintBox::Element));
-  word.frame();
-  subtree.frame();
-  element.frame();
-  EXPECT_TRUE(identicalPixels(word, element, 120, 60));
-  EXPECT_TRUE(identicalPixels(subtree, element, 120, 60));
+  // Once-per-thread diagnostics need a fresh thread for each independent case.
+  std::thread([] {
+    // A box has no glyphs, words or lines to restart a paint on: a text
+    // unit handed to fill is refused, once with a warning, and the paint is
+    // stretched over the element's own box. The subtree's box is the
+    // element's own too, since a fill does not inherit — silently.
+    const auto ramp = [] {
+      return material::linearGradient(
+          {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
+    };
+    const auto page = [&](PaintBox over) {
+      return box().children({box().width(100).height(40).fill(ramp(), over)});
+    };
+    ::testing::internal::CaptureStderr();
+    Host word;
+    word.composer.render(page(PaintBox::Word));
+    const std::string log = ::testing::internal::GetCapturedStderr();
+    EXPECT_NE(log.find("fill()"), std::string::npos) << log;
+    EXPECT_NE(log.find("text unit"), std::string::npos) << log;
+    ::testing::internal::CaptureStderr();
+    Host subtree, element;
+    subtree.composer.render(page(PaintBox::Subtree));
+    EXPECT_EQ(::testing::internal::GetCapturedStderr(), "")
+        << "the subtree's box on a fill must not warn";
+    element.composer.render(page(PaintBox::Element));
+    word.frame();
+    subtree.frame();
+    element.frame();
+    EXPECT_TRUE(identicalPixels(word, element, 120, 60));
+    EXPECT_TRUE(identicalPixels(subtree, element, 120, 60));
+  }).join();
 }
 
 TEST(ComposeMaterial, AFillRefusesATextUnitOnASurfaceWithNoPaintToPlace) {
-  // The ink in force has no unit square to place, so it is applied whole;
-  // a text unit handed with it is still refused and said, as with a paint.
-  const auto page = [](PaintBox over) {
-    return box().ink(material::Color{1, 0, 0, 1}).children(
-        {box().width(100).height(40).fill(Fill::currentInk(),
-                                          over)});
-  };
-  ::testing::internal::CaptureStderr();
-  Host glyph;
-  glyph.composer.render(page(PaintBox::Glyph));
-  const std::string log = ::testing::internal::GetCapturedStderr();
-  EXPECT_NE(log.find("text unit"), std::string::npos) << log;
-  Host element;
-  element.composer.render(page(PaintBox::Element));
-  glyph.frame();
-  element.frame();
-  EXPECT_TRUE(identicalPixels(glyph, element, 120, 60));
+  // Once-per-thread diagnostics need a fresh thread for each independent case.
+  std::thread([] {
+    // The ink in force has no unit square to place, so it is applied whole;
+    // a text unit handed with it is still refused and said, as with a paint.
+    const auto page = [](PaintBox over) {
+      return box().ink(material::Color{1, 0, 0, 1}).children(
+          {box().width(100).height(40).fill(Fill::currentInk(),
+                                            over)});
+    };
+    ::testing::internal::CaptureStderr();
+    Host glyph;
+    glyph.composer.render(page(PaintBox::Glyph));
+    const std::string log = ::testing::internal::GetCapturedStderr();
+    EXPECT_NE(log.find("text unit"), std::string::npos) << log;
+    Host element;
+    element.composer.render(page(PaintBox::Element));
+    glyph.frame();
+    element.frame();
+    EXPECT_TRUE(identicalPixels(glyph, element, 120, 60));
+  }).join();
 }

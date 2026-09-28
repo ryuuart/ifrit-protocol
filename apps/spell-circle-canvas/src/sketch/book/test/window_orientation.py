@@ -23,6 +23,7 @@ Usage (invoked by the build; the paths are all absolute):
 
 import argparse
 import os
+import re
 import shutil
 import struct
 import subprocess
@@ -154,15 +155,39 @@ def assert_red_above_blue(picture: tuple[int, int, int, bytes], what: str):
     )
 
 
-def run(command: list[str], environment: dict) -> None:
+def run(command: list[str], environment: dict) -> str:
     print("$ " + " ".join(command), flush=True)
     result = subprocess.run(
-        command, capture_output=True, text=True, env=environment
+        command, capture_output=True, text=True, env=environment, timeout=120
     )
     sys.stdout.write(result.stdout)
     sys.stderr.write(result.stderr)
     if result.returncode != 0:
         sys.exit(f"exited {result.returncode}")
+    return result.stdout
+
+
+def benchmark_file(sketchbook: Path, probe: Path, work: Path, environment: dict):
+    """The window lane measures the selected source and observes its edits."""
+    fixture = work / "external_window_subject.cpp"
+    source = probe.read_text()
+    for width, height in ((640, 420), (672, 448)):
+        fixture.write_text(
+            source.replace("kWidth = 640", f"kWidth = {width}").replace(
+                "kHeight = 420", f"kHeight = {height}"
+            )
+        )
+        output = run(
+            [str(sketchbook), str(fixture), "--state", str(work / "state"),
+             "--window-bench", "0.3", "--window-size", "900x700"],
+            environment,
+        )
+        rows = [line for line in output.splitlines() if line.startswith("WINDOW ")]
+        if len(rows) != 1 or not re.match(
+            rf"WINDOW {fixture.stem} window=\S+ canvas={width}x{height} kind=canvas fps=",
+            rows[0],
+        ):
+            sys.exit(f"the window benchmark did not measure the current file: {rows}")
 
 
 def main() -> None:
@@ -170,12 +195,16 @@ def main() -> None:
     parser.add_argument("--sketchbook", type=Path, required=True)
     parser.add_argument("--probe", type=Path, required=True)
     parser.add_argument("--work", type=Path, required=True)
+    parser.add_argument("--benchmark", action="store_true")
     args = parser.parse_args()
 
     work = args.work
     shutil.rmtree(work, ignore_errors=True)
     work.mkdir(parents=True, exist_ok=True)
     environment = dict(os.environ)
+    if args.benchmark:
+        benchmark_file(args.sketchbook, args.probe, work, environment)
+        return
     # Both runs keep their state under the scratch directory: a build the
     # still left there is what the window reuses, and neither writes
     # outside it.

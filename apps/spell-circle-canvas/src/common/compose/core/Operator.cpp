@@ -90,12 +90,39 @@ void Scope::attach(Element element) {
       Attachment::kScope, std::make_shared<Element>(std::move(element))});
 }
 
+Scope::Scope(const Scope& other) : box(other.box), m_nodes(other.m_nodes) {
+  for (Node& node : m_nodes) node.m_scope = nullptr;
+}
+
+Scope& Scope::operator=(const Scope& other) {
+  if (this == &other) return *this;
+  auto nodes = other.m_nodes;
+  for (Node& node : nodes) node.m_scope = nullptr;
+  box = other.box;
+  m_nodes = std::move(nodes);
+  m_attachments.clear();
+  return *this;
+}
+
+Scope::Scope(Scope&& other) noexcept
+    : box(other.box), m_nodes(std::move(other.m_nodes)),
+      m_attachments(std::move(other.m_attachments)) {
+  for (Node& node : m_nodes)
+    if (node.m_scope) node.m_scope = this;
+}
+
+Scope& Scope::operator=(Scope&& other) noexcept {
+  if (this == &other) return *this;
+  box = other.box;
+  m_nodes = std::move(other.m_nodes);
+  m_attachments = std::move(other.m_attachments);
+  for (Node& node : m_nodes)
+    if (node.m_scope) node.m_scope = this;
+  return *this;
+}
+
 Scope Scope::snapshot() const {
-  Scope copy;
-  copy.box = box;
-  copy.m_nodes = m_nodes;
-  for (Node& node : copy.m_nodes) node.m_scope = nullptr;
-  return copy;
+  return Scope(*this);
 }
 
 namespace detail {
