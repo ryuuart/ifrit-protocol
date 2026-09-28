@@ -281,9 +281,10 @@ a contour interval carries a `geometry::path::Contour`:
   id and the band window, folded into a key with Boost's stir: the table
   lives inside one run and no bucket of it is ever seen from outside the
   process, so the fold does not have to be one whose answer is pinned.
-- **`decoration/DecorationRects.h`** — the walk that turns a layout's
-  decorations into rectangles with their paint, `detail::forEachDecorationRect()`,
-  run by both draws.
+- **`advanced/DecorationRects.h`** — the walk that turns a layout's
+  decorations into Skia rectangles with their paint,
+  `detail::forEachDecorationRect()`, run by both draws and by any painter
+  that draws a layout on a Skia canvas itself.
 
 **`paint`** — `SigilWeavePaint`: `ParagraphLayout::draw()` and
 `drawBatched()`. They are declared on `ParagraphLayout` in

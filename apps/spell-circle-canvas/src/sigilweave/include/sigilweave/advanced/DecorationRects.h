@@ -6,7 +6,10 @@
  * The decoration walk over a layout's runs: every band rectangle a
  * paragraph's decorations draw, emitted through a callback with its
  * paint already resolved. Both draws of a layout run over this same
- * walk, once beneath the glyphs and once above them.
+ * walk, once beneath the glyphs and once above them, and so does any
+ * other painter that draws a layout on a Skia canvas itself — which is
+ * why the walk speaks Skia's rect and paint, and why it stands behind
+ * `advanced/`, included by name.
  */
 
 #include <include/core/SkFontMetrics.h>

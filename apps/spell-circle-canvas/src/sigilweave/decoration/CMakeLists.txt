@@ -8,7 +8,7 @@
 find_package(boost_unordered CONFIG REQUIRED)
 sigil_library(SigilWeaveDecoration
   SOURCES Decoration.cpp
-  HEADERS Decoration.h DecorationRects.h
+  HEADERS Decoration.h ../advanced/DecorationRects.h
   PUBLIC SigilWeaveLayout
   PRIVATE Boost::unordered)
 

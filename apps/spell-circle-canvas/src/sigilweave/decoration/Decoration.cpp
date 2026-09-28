@@ -19,7 +19,7 @@
 #include <utility>
 #include <vector>
 
-#include "sigilweave/decoration/DecorationRects.h"
+#include "sigilweave/advanced/DecorationRects.h"
 
 namespace sigil::weave {
 namespace detail {

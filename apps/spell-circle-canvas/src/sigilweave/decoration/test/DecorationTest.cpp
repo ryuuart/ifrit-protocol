@@ -13,7 +13,7 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkShader.h>
 #include <sigilweave/decoration/Decoration.h>
-#include <sigilweave/decoration/DecorationRects.h>
+#include <sigilweave/advanced/DecorationRects.h>
 
 #include <string>
 #include <vector>

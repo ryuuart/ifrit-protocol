@@ -13,7 +13,7 @@
 #include <sigilgeometry/path/Numeric.h>  // radians — the degree conversion
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Pass.h>
-#include <sigilweave/decoration/DecorationRects.h>
+#include <sigilweave/advanced/DecorationRects.h>
 
 #include <algorithm>
 #include <cmath>

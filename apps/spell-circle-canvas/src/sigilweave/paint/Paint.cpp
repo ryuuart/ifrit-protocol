@@ -22,7 +22,7 @@
 #include <span>
 #include <vector>
 
-#include "sigilweave/decoration/DecorationRects.h"
+#include "sigilweave/advanced/DecorationRects.h"
 #include "sigilweave/fonts/FontContext.h"
 #include "sigilweave/fonts/Shaper.h"
 #include "sigilweave/layout/ParagraphLayout.h"
