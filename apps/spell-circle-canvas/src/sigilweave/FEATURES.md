@@ -288,8 +288,9 @@ a contour interval carries a `geometry::path::Contour`:
   process, so the fold does not have to be one whose answer is pinned.
 - **`advanced/Skia.h`** — the library's one door to Skia: `toSk`,
   `fromSk` and `borrowSk` for a `Face` and a `FaceStyle`, the
-  `FaceAdapter` over a Skia typeface, and `flowshape::path` over a Skia
-  path.
+  `FaceAdapter` over a Skia typeface, `flowshape::path` over a Skia
+  path, and `tintFilter()`, the memoized colour filter a dressed glyph's
+  pass is tinted through.
 - **`advanced/DecorationRects.h`** — the walk that turns a layout's
   decorations into Skia rectangles with their paint,
   `detail::forEachDecorationRect()`, run by both draws and by any painter
@@ -313,7 +314,9 @@ this archive.
   `forEachPlacedGlyph()`, which walks a layout's glyphs as rest pose, span
   paint, and where each sits in the text.
 - **`choreograph/GlyphDress.h`** — `GlyphDress` (placement, fade, tint,
-  face, matrix), `quantizeAngle()` and the memoized `tintFilter()`.
+  face, matrix) and `quantizeAngle()`; the memoized `tintFilter()` its
+  tint is applied through is Skia's colour filter, so it stands in
+  `advanced/Skia.h`.
 - **`choreograph/GlyphBatches.h`** — `GlyphRSXformBatches`, which
   collapses thousands of animated letters into a few `drawGlyphsRSXform`
   calls.

@@ -8,9 +8,6 @@
  * snap and the memoized colour filter a dressing reaches for.
  */
 
-#include <include/core/SkColor.h>
-#include <include/core/SkColorFilter.h>
-#include <include/core/SkRefCnt.h>
 #include <sigilmaterial/color/Color.h>
 
 #include <glm/vec2.hpp>
@@ -32,17 +29,6 @@ void quantizeAngle(float angle, float& cosine, float& sine);
  * ticks visibly on display type. At 64 steps it answers bit for bit what
  * the tabled overload answers, and 0 or less is the exact angle. */
 void quantizeAngle(float angle, int steps, float& cosine, float& sine);
-
-/** Returns the colour filter that scales a pass's RED, GREEN and BLUE by
- * @p tint, adds @p add and screens @p screen, composed over @p under,
- * which runs first; alpha is left alone. MEMOIZED, the least recently
- * used entry evicted past the cap.
- * @trap The memo is a correctness requirement: a batch's key compares its
- * colour filter by POINTER, so quantize the tint or mint a bucket a glyph. */
-sk_sp<SkColorFilter> tintFilter(const material::Color& tint,
-                                sk_sp<SkColorFilter> under,
-                                const material::Color& add = {0, 0, 0, 0},
-                                const material::Color& screen = {0, 0, 0, 0});
 
 /// How one glyph is DRESSED for a batched draw: where it lands, what it
 /// is faded and tinted by, and which face it draws with. Everything here

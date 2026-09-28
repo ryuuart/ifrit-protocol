@@ -14,12 +14,15 @@
  * their own headers. What stands here is each entrance whose Weave form
  * differs from its Skia form only in the type it takes or answers.
  */
+#include <include/core/SkColorFilter.h>
 #include <include/core/SkFontStyle.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTypeface.h>
 
 #include <memory>
+
+#include <sigilmaterial/color/Color.h>
 
 #include "sigilweave/style/Face.h"
 
@@ -56,6 +59,20 @@ inline Face fromSk(sk_sp<SkTypeface> typeface) {
 SkFontStyle toSk(const FaceStyle& style);
 /** Skia's font style as a weight, width and slant. */
 FaceStyle fromSk(const SkFontStyle& style);
+/** @} */
+
+/** @name The dressed glyph's tint
+ *  @{ */
+/** Returns the colour filter that scales a pass's RED, GREEN and BLUE by
+ * @p tint, adds @p add and screens @p screen, composed over @p under,
+ * which runs first; alpha is left alone. MEMOIZED, the least recently
+ * used entry evicted past the cap.
+ * @trap The memo is a correctness requirement: a batch's key compares its
+ * colour filter by POINTER, so quantize the tint or mint a bucket a glyph. */
+sk_sp<SkColorFilter> tintFilter(const material::Color& tint,
+                                sk_sp<SkColorFilter> under,
+                                const material::Color& add = {0, 0, 0, 0},
+                                const material::Color& screen = {0, 0, 0, 0});
 /** @} */
 
 }  // namespace sigil::weave

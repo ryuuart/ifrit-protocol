@@ -1,14 +1,15 @@
 # Platform glue kept out of the engine: the system-font-manager factory
 # (CoreText on Apple; DirectWrite and Fontconfig slot into SystemFontManager.cpp).
 # Every engine feature accepts any SkFontMgr and never links this; only
-# tools and apps that want the OS fonts do.
+# tools and apps that want the OS fonts do. It answers faces, so the style
+# feature that defines a face is public to it.
 find_package(boost_unordered CONFIG REQUIRED)
 find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilWeavePorts
   SOURCES SystemFontManager.cpp GenericFamilyManager.cpp
           GenericFamilyManager.h
   HEADERS SystemFontManager.h
-  PUBLIC unofficial::skia::skia
+  PUBLIC SigilWeaveStyle unofficial::skia::skia
   PRIVATE Boost::unordered)
 
 # The one binary in the tree whose subject IS the machine's font list, so
