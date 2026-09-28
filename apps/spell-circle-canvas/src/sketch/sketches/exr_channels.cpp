@@ -7,6 +7,8 @@
 
 // TAGS: Media/Images
 
+#include <sigilmedia/advanced/Resource.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkData.h>
 #include <include/core/SkImageInfo.h>
@@ -90,7 +92,7 @@ std::vector<float> fields() {
 }
 
 /** The fixture's bytes, or null where this build has no EXR encoder. */
-sk_sp<SkData> writeExr() {
+std::vector<std::byte> writeExr() {
   const std::vector<float> pixels = fields();
   const SkImageInfo info = SkImageInfo::Make(
       kSize, kSize, kRGBA_F32_SkColorType, kUnpremul_SkAlphaType);
@@ -101,7 +103,7 @@ sk_sp<SkData> writeExr() {
 /** One plane, drawn at the cell's own size. The picture is the plate's
  *  GROUND — a comparable image paint, which prunes on the image it names,
  *  where a canvas call can be compared to nothing. */
-Element plane(const sk_sp<SkImage>& picture, float width = 237) {
+Element plane(const media::PixelSource& picture, float width = 237) {
   return sketch::kit::well({.width = width,
                             .height = 200,
                             .ground = Fill::color(kCellGround),
@@ -118,7 +120,7 @@ struct ExrChannels {
    *  needs the EXR encoder as well as the decoder — a build without
    *  OpenImageIO's encode side has neither. */
   static bool available(std::string* why) {
-    if (writeExr()) return true;
+    if (!writeExr().empty()) return true;
     if (why)
       *why =
           "no EXR encoder in this build (SIGILIMAGE_HAS_OIIO_ENCODE), so "
@@ -131,35 +133,33 @@ struct ExrChannels {
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
-    const sk_sp<SkData> bytes = writeExr();
-    if (!bytes) {
+    const auto bytes = writeExr();
+    if (bytes.empty()) {
       ctx.composer.render(missing("the EXR encoder wrote nothing"));
       return;
     }
-    const auto* raw = static_cast<const std::byte*>(bytes->data());
     const std::optional<media::Metadata> probed =
-        image::probeImage(raw, bytes->size(), "fixture.exr");
-    const std::optional<media::Channels> planes =
-        image::decodeChannels(raw, bytes->size(), "fixture.exr");
+        media::probe(bytes, "fixture.exr");
+    const auto planes = media::decode<media::Channels>(bytes, "fixture.exr");
     if (!planes) {
       ctx.composer.render(missing("decodeChannels read no planes back"));
       return;
     }
-    ctx.composer.render(sheet(*planes, probed, bytes->size()));
+    ctx.composer.render(sheet(*planes, probed, bytes.size()));
   }
 
   /** The green plane in the slot a surface reads its roughness from, and
    *  the same texture read back out of it. */
-  static sk_sp<SkImage> throughRoughnessSlot(const media::Channels& planes) {
+  static media::Picture throughRoughnessSlot(const media::Channels& planes) {
     const int g = planes.index("G");
-    if (g < 0) return nullptr;
+    if (g < 0) return {};
     material::Material stone = material::surface::program(
         {.baseColor = {0.62f, 0.60f, 0.56f, 1}, .roughness = 1.0f});
     stone.slot(material::surface::kRoughnessSlot,
-               material::Texture(planes.makeImage(g, g, g, -1)));
+               material::Texture(planes.image(media::ChannelPick{g, g, g, -1})));
     const material::Texture* placed =
         material::surface::map(stone, material::surface::kRoughnessSlot);
-    return placed ? placed->frameAt().image : nullptr;
+    return placed ? placed->frameAt({}).image : media::Picture{};
   }
 
   Element sheet(const media::Channels& planes,
@@ -175,7 +175,7 @@ struct ExrChannels {
           {.title = planes.names[i] + " PLANE",
            .control =
                kit::formatted("channel %zu · peak %.2f", i, (double)peak),
-           .figure = plane(planes.makeImage((int)i, (int)i, (int)i, -1)),
+           .figure = plane(planes.image(media::ChannelPick{(int)i, (int)i, (int)i, -1})),
            .note = planes.names[i] == "R"
                        ? "Radiance exceeds the display range."
                    : planes.names[i] == "G"
@@ -198,8 +198,8 @@ struct ExrChannels {
     }
     Element outputs = sketch::kit::comparison(
         {.cases = {{.title = "COMPOSITE",
-                    .control = "makeImage()",
-                    .figure = plane(planes.makeImage(), 318),
+                    .control = "image()",
+                    .figure = plane(planes.image(), 318),
                     .note = "The selected R, G and B planes become one "
                             "displayable image."},
                    {.title = "ROUGHNESS INPUT",

@@ -8,6 +8,8 @@
 
 // TAGS: Runtime/Resources
 
+#include <sigilmedia/advanced/Skia.h>
+#include <sigilmaterial/skia/Color.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkData.h>
 #include <include/core/SkPaint.h>
@@ -49,7 +51,7 @@ const char* kMissing = "https://sigil.invalid/absent.png";
 
 /** What the seed holds — drawn here so the cell that serves it from the
  *  cache is showing bytes this file wrote and nothing else. */
-sk_sp<SkData> seedBytes() {
+std::vector<std::byte> seedBytes() {
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(150, 100));
   SkCanvas* canvas = surface->getCanvas();
@@ -61,7 +63,7 @@ sk_sp<SkData> seedBytes() {
   for (int i = 0; i < 5; ++i)
     canvas->drawCircle(24.0f + (float)i * 26.0f,
                        50.0f + (i % 2 ? 18.0f : -18.0f), 11.0f, paint);
-  return media::encode(*surface->makeImageSnapshot(), media::Format::Png);
+  return media::encode(surface->makeImageSnapshot(), media::Format::Png);
 }
 
 Element decision(const char* policy, const char* state, const char* route,
@@ -81,7 +83,7 @@ Element decision(const char* policy, const char* state, const char* route,
                               .padding(8)
                               .children({document::label("NO\nIMAGE")}),
                  text(result ? kit::formatted("%d × %d\nserved",
-                                              result->width(), result->height())
+                                              result->size().x, result->size().y)
                              : "null\nreturned")
                      .width(182)
                      .styleClass("readout")});
@@ -99,10 +101,10 @@ struct NetPolicy {
     // Seed the URL before any hub reads it.
     const std::filesystem::path cacheDir =
         std::filesystem::temp_directory_path() / "sigil-net-policy";
-    if (sk_sp<SkData> bytes = seedBytes())
+    if (auto bytes = seedBytes(); !bytes.empty())
       io::NetworkCache(cacheDir).put(
           kSeeded,
-          {static_cast<const std::byte*>(bytes->data()), bytes->size()});
+          bytes);
 
     /** One hub, one policy, one ask — a hub of its own each time,
      *  because the policy governs the FIRST ask and an entry already

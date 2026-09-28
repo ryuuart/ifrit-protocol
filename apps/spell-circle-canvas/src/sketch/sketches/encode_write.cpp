@@ -8,6 +8,9 @@
 
 // TAGS: Media/Images
 
+#include <sigilmedia/image/Decode.h>
+#include <sigilmedia/advanced/Skia.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <include/core/SkData.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
@@ -53,7 +56,7 @@ sk_sp<SkImage> source() {
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kSide, kSide));
   sigil::draw::on(
       *surface->getCanvas(), {kSide, kSide}, [](sigil::draw::Pen& pen) {
-        pen.background(material::Paint::linearGradient(
+        pen.background(sigil::material::linearGradient(
             {0, 0}, {1, 1},
             {{0.0f, {0.10f, 0.16f, 0.30f, 1}},
              {1.0f, {0.92f, 0.62f, 0.30f, 1}}}));
@@ -97,15 +100,14 @@ struct EncodeWrite {
     /** One encode, decoded straight back so the cell shows what the
      *  bytes hold rather than what went in. */
     const auto roundTrip = [&](media::Format format, int quality) {
-      std::vector<std::byte> bytes = media::encode(*art, format, {quality});
+      std::vector<std::byte> bytes = media::encode(art, format, {quality});
       sk_sp<SkImage> back;
-      if (bytes)
-        if (std::optional<media::Image> decoded =
-                media::Image::decode(bytes))
+      if (!bytes.empty())
+        if (auto decoded = media::decode<media::Image>(bytes))
           back = decoded->frames().empty() ? nullptr
                                            : decoded->frames().front().image;
       return std::pair<sk_sp<SkImage>, size_t>{std::move(back),
-                                               bytes ? bytes.size() : 0};
+                                               bytes.size()};
     };
 
     const auto [png, pngBytes] = roundTrip(media::Format::Png, 100);
@@ -121,10 +123,10 @@ struct EncodeWrite {
     io::Hub hub;
     io::mount(hub, kMount, dir);
     media::registerDecoders(hub);
-    std::vector<std::byte> bytes = media::encode(*art, media::Format::Png);
+    std::vector<std::byte> bytes = media::encode(art, media::Format::Png);
     const std::string uri = std::string(kMount) + "plate.png";
     const bool wrote =
-        bytes && hub.write(uri, std::span(static_cast<const std::byte*>(
+        !bytes.empty() && hub.write(uri, std::span(static_cast<const std::byte*>(
                                               bytes.data()),
                                           bytes.size()));
     const std::shared_ptr<const media::Image> read =
@@ -132,7 +134,7 @@ struct EncodeWrite {
     const std::string written =
         kit::formatted("write %s\nread back %s · %d×%d",
                        wrote ? "true" : "false", read ? "true" : "false",
-                       read ? read->width() : 0, read ? read->height() : 0);
+                       read ? read->size().x : 0, read ? read->size().y : 0);
 
     Element codecs = sketch::kit::comparison(
         {.cases =
@@ -156,14 +158,12 @@ struct EncodeWrite {
         {sketch::kit::well({.width = 150,
                             .height = 150,
                             .content = sketch::kit::Well::Content{}},
-                           image(read && !read->frames().empty()
-                                     ? read->frames().front().image
-                                     : nullptr)
+                           image(read)
                                .width(132)
                                .height(132)),
          box().column().gap(12).width(390).children(
              {document::label("WRITE THE ENCODED BYTES"),
-              text("encodeImage → Hub::write → Hub::load<ImageAsset>")
+              text("media::encode → Hub::write → Hub::load<Image>")
                   .styleClass("readout"),
               document::caption(uri),
               text("The file is read back through the same mount. Encoding "

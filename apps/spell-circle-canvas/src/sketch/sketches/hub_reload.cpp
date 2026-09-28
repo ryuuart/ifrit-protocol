@@ -8,6 +8,8 @@
 
 // TAGS: Runtime/Resources
 
+#include <sigilmedia/advanced/Skia.h>
+#include <sigilcompose/kit/Rows.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkData.h>
 #include <include/core/SkPaint.h>
@@ -84,7 +86,7 @@ std::optional<Cloud> parseCloud(const io::Bytes& bytes, std::string_view) {
 
 /** A small picture with a stated number of bars, so the two states of
  *  the same file are told apart at a glance. */
-sk_sp<SkData> chart(int bars, material::Color ink) {
+std::vector<std::byte> chart(int bars, material::Color ink) {
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(120, 80));
   draw::on(*surface->getCanvas(), {120, 80}, [bars, ink](draw::Pen& pen) {
@@ -95,7 +97,7 @@ sk_sp<SkData> chart(int bars, material::Color ink) {
       pen.rect(8.0f + (float)i * 14.0f, 70.0f - (float)(i + 1) * 7.0f, 10.0f,
                (float)(i + 1) * 7.0f + 2.0f);
   });
-  return media::encode(*surface->makeImageSnapshot(), media::Format::Png);
+  return media::encode(surface->makeImageSnapshot(), media::Format::Png);
 }
 
 }  // namespace
@@ -118,8 +120,8 @@ struct HubReload {
     // THE FIRST STATE on disk.
     put("notes.txt", kFirst);
     put("cloud.pts", "10 20\n40 64\n86 30\n120 78\n150 44\n");
-    if (sk_sp<SkData> png = chart(3, look.palette.figure))
-      io::writeBytes(dir / "chart.png", png->data(), png->size());
+    if (auto png = chart(3, look.palette.figure); !png.empty())
+      io::writeBytes(dir / "chart.png", png.data(), png.size());
 
     io::Hub hub;
     io::mount(hub, kMount, dir);
@@ -138,8 +140,8 @@ struct HubReload {
     // …and the SECOND, written under the hub's feet.
     put("notes.txt", kSecond);
     put("cloud.pts", "16 70\n52 26\n96 62\n128 22\n158 68\n");
-    if (sk_sp<SkData> png = chart(6, {0.46f, 0.74f, 0.94f, 1}))
-      io::writeBytes(dir / "chart.png", png->data(), png->size());
+    if (auto png = chart(6, {0.46f, 0.74f, 0.94f, 1}); !png.empty())
+      io::writeBytes(dir / "chart.png", png.data(), png.size());
     const bool moved = io::poll(hub);
 
     const std::optional<std::string> secondText = hub.text(notesUri);
@@ -176,7 +178,7 @@ struct HubReload {
               document::caption("registerDecoder<Cloud>\nload<Cloud>(uri)")}),
          box().height(130).column().gap(10).padding(16, 0).children(
              {document::label("IMAGE"), text("chart.png").styleClass("readout"),
-              document::caption("hub.load<ImageAsset>(uri)")})});
+              document::caption("hub.load<Image>(uri)")})});
     ctx.composer.render(sketch::kit::page(
         {.title = "A file changes. A held value does not.",
          .subtitle = "Mounted files are replaced, poll() invalidates their "
@@ -200,18 +202,17 @@ struct HubReload {
                                                 secondChart)}},
                   .measure = 1020,
                   .gap = 15}),
-             sketch::kit::readout(
-                 {{"Before / after cloud",
+             sigil::compose::kit::readout(std::vector<sigil::compose::kit::Reading>{{"Before / after cloud",
                    kit::formatted(
                        "%zu / %zu points",
                        firstCloud ? firstCloud->points.size() : 0,
                        secondCloud ? secondCloud->points.size() : 0)},
                   {"Held image",
                    kit::formatted("%d × %d",
-                                  firstChart ? firstChart->width() : 0,
-                                  firstChart ? firstChart->height() : 0)},
+                                  firstChart ? firstChart->size().x : 0,
+                                  firstChart ? firstChart->size().y : 0)},
                   {"Resolved file", io::resolve(hub, notesUri).filename().string()}},
-                 {.measure = 480, .ruled = true})})));
+                        {.measure = 480, .gap = sketch::kit::theme().spacing.rowGap, .labelGap = sketch::kit::theme().spacing.labelGap, .divider = Fill::color(sketch::kit::theme().palette.rule)})})));
   }
 
   /** A point snapshot at the same origin and scale as its comparison. */

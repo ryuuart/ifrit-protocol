@@ -9,6 +9,9 @@
 
 // TAGS: Media/Images
 
+#include <sigilmedia/advanced/Resource.h>
+#include <sigilmotion/time/Duration.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <include/core/SkSamplingOptions.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/StyleSheet.h>
@@ -96,18 +99,18 @@ struct GifFrames {
   /** The shelf of decoded frames, in file order, each with its own
    *  duration. */
   Element decoded(const media::Image& gif) const {
-    const float w = (float)gif.width() * kScale;
-    const float h = (float)gif.height() * kScale;
+    const float w = (float)gif.size().x * kScale;
+    const float h = (float)gif.size().y * kScale;
     std::vector<sketch::kit::ComparisonCase> frames;
     double start = 0;
     size_t index = 0;
     for (const auto& frame : gif.frames()) {
       frames.push_back({.title = kit::formatted("FRAME %zu", ++index),
                         .control = kit::formatted("%.0f ms duration",
-                                                  (double)frame.durationMs),
+                                                  std::chrono::duration<double, std::milli>(frame.duration).count()),
                         .figure = frameFigure(frame.image, w, h, 160),
                         .note = kit::formatted("Starts at %.0f ms", start)});
-      start += frame.durationMs;
+      start += std::chrono::duration<double, std::milli>(frame.duration).count();
     }
     return sketch::kit::comparison(
         {.cases = std::move(frames), .measure = 1040, .gap = 16});
@@ -116,16 +119,16 @@ struct GifFrames {
   /** The shelf of PLAYBACK: one moment per cell, read back through the
    *  loop. */
   Element sampled(const media::Image& gif) const {
-    const float w = (float)gif.width() * kScale;
-    const float h = (float)gif.height() * kScale;
+    const float w = (float)gif.size().x * kScale;
+    const float h = (float)gif.size().y * kScale;
     std::vector<sketch::kit::ComparisonCase> moments;
     for (double at : kSamples)
       moments.push_back(
           {.title = kit::formatted("%.0f ms", at),
            .control = "frameAt(time)",
-           .figure = frameFigure(gif.frameAt(at).image, w, h),
+           .figure = frameFigure(gif.frameAt(std::chrono::duration<double, std::milli>(at)).image, w, h),
            .note = kit::formatted("Loop phase %.0f ms",
-                                  std::fmod(at, gif.totalDurationMs()))});
+                                  std::fmod(at, std::chrono::duration<double, std::milli>(gif.duration()).count()))});
     return sketch::kit::comparison(
         {.cases = std::move(moments), .measure = 1040, .gap = 16});
   }
@@ -145,11 +148,11 @@ struct GifFrames {
       foot += "nothing (the hub could not sniff this resource)";
     foot += "   ·   decoded — " + std::to_string(gif.frames().size()) +
             " frames, " +
-            kit::formatted("%.0f ms", (double)gif.totalDurationMs()) +
+            kit::formatted("%.0f ms", (double)std::chrono::duration<double, std::milli>(gif.duration()).count()) +
             " a loop, " +
-            (gif.repetitionCount() == -1
+            (gif.repetitions() == -1
                  ? std::string("repeating forever")
-                 : std::to_string(gif.repetitionCount()) + " repetitions");
+                 : std::to_string(gif.repetitions()) + " repetitions");
 
     return sketch::kit::page(
         {.title = "Frames are not timestamps",
@@ -165,7 +168,7 @@ struct GifFrames {
              sketch::kit::sectionHeader(
                  {.label = "02  ASK FOR A MOMENT",
                   .note = kit::formatted("%.0f ms per loop",
-                                         (double)gif.totalDurationMs())}),
+                                         (double)std::chrono::duration<double, std::milli>(gif.duration()).count())}),
              sampled(gif),
              document::caption(
                  "Each frame already includes disposal and blend rules. "
