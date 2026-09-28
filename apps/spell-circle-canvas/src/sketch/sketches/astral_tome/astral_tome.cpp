@@ -2,7 +2,9 @@
 
 // TAGS: Geometry/Diagrams, Interfaces/Game
 
-#include <sigilgeometry/path/Skia.h>
+#include <sigilmaterial/paint/Bases.h>
+#include <sigilweave/style/Face.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilmaterial/color/Color.h>
 
@@ -16,7 +18,7 @@ struct AstralTome {
   sigil::motion::Animatable<float> arrowScale = sigil::motion::animatable(1.0f);
 
   std::vector<int> divisors;  // the seeded list, long enough for any chart
-  sk_sp<SkTypeface> serif, mono;
+  sigil::weave::Face serif, mono;
   double clock = 0;
 
   // ------------------------------------------------------------------ type
@@ -61,7 +63,7 @@ struct AstralTome {
             .rect(x, y, w, h)
             .key("page")
             .cache(Cache::Texture)
-            .fill(material::from({0, 0, 0, 1}).layer(material::radialGradient(
+            .fill(material::from(sigil::material::Color{0, 0, 0, 1}).layer(material::radialGradient(
                       {0.42f, 0.38f}, 0.85f,
                       {{0.0f, sigil::material::scale(at::kNebula, 2.2f)},
                        {0.5f, at::kNebula},
@@ -225,7 +227,7 @@ struct AstralTome {
     // page has ninety-odd of them. Hanging the stars off a shared full-canvas
     // group instead would allocate a canvas-sized layer per group per frame;
     // the layer has to be the size of the thing that twinkles.
-    Element grp = box().width(side).height(side).centerAt(p).key(
+    Element grp = box().width(side).height(side).centerAt(sigil::geometry::path::fromSk(p)).key(
         std::string("st") + std::to_string(key));
     // the halo — a gradient, which lowers to a SIMD blitter, not a blur
     // star1.png is a BLURRED point, and its falloff is most of what makes
@@ -233,7 +235,7 @@ struct AstralTome {
     // further and holds more of the light than the glyph does.
     // the glyph
     grp.children(
-        {box().inset(0).fill(Paint::radialGradient(
+        {box().inset(0).fill(sigil::material::radialGradient(
              {0.5f, 0.5f}, 0.62f,
              {{0.0f, sigil::material::scale(col, 1.0f, 0.60f)},
               {0.22f, sigil::material::scale(col, 1.0f, 0.30f)},
@@ -271,7 +273,7 @@ struct AstralTome {
             .transformOrigin(pct(50), pct(50))
             .shape(shapes::arrow(0.34f, 0.42f))
             .rotate(flip ? 180.0f : 0.0f)
-            .fill(Paint::linearGradient(
+            .fill(sigil::material::linearGradient(
                 {0, 0}, {0, 1}, {{0.0f, at::kOlive}, {1.0f, at::kOliveDim}}))
             .foreground(decorations::border(
                 1.2f,
@@ -335,7 +337,7 @@ struct AstralTome {
               .shape(shapes::notched(
                   at::g(9.0f), at::g(4.0f),
                   shapes::Corner::TopRight | shapes::Corner::BottomRight))
-              .fill(Paint::linearGradient(
+              .fill(sigil::material::linearGradient(
                   {0, 0}, {1, 0},
                   {{0.0f, sel ? at::kLeatherWarm : at::kLeatherMid},
                    {0.6f, sigil::material::scale(at::kLeatherMid, 0.8f)},
@@ -351,6 +353,8 @@ struct AstralTome {
   // --------------------------------------------------------------- setup
 
   void setup(sketch::SketchContext& ctx) {
+    for (auto& value : bright) value = sigil::motion::animatable(value.value());
+
     sketch::kit::stage(ctx, {.size = SkSize::Make(at::kCanvasW, at::kCanvasH),
                              .captureAt = 6.0,
                              .background = sigil::material::Color{0, 0, 0, 1}});
@@ -362,7 +366,8 @@ struct AstralTome {
     divisors = at::divisorSequence(64);
 
     // ---- motion ---------------------------------------------------------
-    ctx.engine.add([this](double dt) {
+    ctx.engine.timer([this](sigil::motion::Duration stepDuration) {
+      const double dt = stepDuration.count();
       clock += dt;
       // Cluster:243 / Render:331. clientTick runs at 20 Hz; partialTicks is
       // the sub-tick fraction, so (tick + partial) is simply t*20.
@@ -380,19 +385,19 @@ struct AstralTome {
     root.children({leather().zIndex(0), pagePlate().zIndex(1)});
 
     // THE TWINKLE. Ten divisors is the whole of it (12 + rand.nextInt(10)),
-    // so ten ch::Output<float> drive 31 stars and 62 connection passes — but
+    // so ten sigil::motion::Animatable<float> drive 31 stars and 62 connection passes — but
     // the BINDING goes on each primitive's own tight box, not on ten shared
     // full-canvas groups. A bound opacity is a saveLayer over the node's box,
     // so grouping would put twenty canvas-sized layers in every frame for the
     // same ten Outputs, the same draw order and the same pixels.
-    // The draw-on: each chart is its own container so staggerChildren can
+    // The draw-on: each chart is its own container so each child can
     // cascade the four in offsetMap order — the zig-zag reveals as a zig-zag —
     // and the links inside a chart cascade again at 25 ms. Containers with no
     // opacity of their own allocate no layer, so this costs nothing at rest.
     Element links =
-        box().inset(0).key("links").zIndex(3).staggerChildren(160ms);
+        box().inset(0).key("links").zIndex(3);
     Element stars =
-        box().inset(0).key("stars").zIndex(4).staggerChildren(160ms);
+        box().inset(0).key("stars").zIndex(4);
 
     int lkKey = 0, stKey = 0;
     for (int ci = 0; ci < 4; ++ci) {
@@ -406,12 +411,10 @@ struct AstralTome {
       const float pivot = at::g(at::kCellW * 0.5f);
       Element chartLinks = box()
                                .inset(0)
-                               .key(std::string("cl") + std::to_string(ci))
-                               .staggerChildren(25ms);
+                               .key(std::string("cl") + std::to_string(ci));
       Element chartStars = box()
                                .inset(0)
-                               .key(std::string("cs") + std::to_string(ci))
-                               .staggerChildren(25ms);
+                               .key(std::string("cs") + std::to_string(ci));
       auto place = [&](Element e) {
         e.translateX(org.fX).translateY(org.fY);
         if (hovered) {
@@ -432,7 +435,7 @@ struct AstralTome {
               divisors[(size_t)pass * (size_t)c.linkCount + (size_t)li] -
               at::kDivMin;
           chartLinks.children({place(linkPass(c, li, pass, lkKey++)
-                                         .mask(by::spans(spans::upTo(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 520ms}))))
+                                         .mask(by::spans(spans::upTo(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 520ms, .delay = sigil::motion::stagger(25ms, {.start = 160ms * ci})}))))
                                          .opacity(sigil::motion::bind(bright[(size_t)d])))});
         }
 
@@ -443,7 +446,7 @@ struct AstralTome {
             divisors[(size_t)(2 * c.linkCount + si - 1)] - at::kDivMin;
         chartStars.children(
             {place(starEl(c, si, stKey++)
-                       .scale(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 380ms}))
+                       .scale(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 380ms, .delay = sigil::motion::stagger(25ms, {.start = 160ms * ci})}))
                        .opacity(sigil::motion::bind(bright[(size_t)d])))});
       }
       links.children({std::move(chartLinks)});

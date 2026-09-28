@@ -12,8 +12,8 @@
 
 // TAGS: Patterns/Tiling
 
+#include <sigilmaterial/filter/Filter.h>
 #include <sigilcompose/brush/Decorations.h>
-#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -312,11 +312,10 @@ struct PenrosePaving {
 
   static Element panel(float left, float top, float width, float height) {
     return kit::at(box()
-                       .fill(Fill::color(kPanel))
+                       .fill(sigil::material::from(kPanel).effects(sigil::material::Filter::shadow(hexColor(0x000000, 0.5f), {.blur = 18, .offset = {0, 5}})))
                        .stroke(stroke(1, Fill::color(kPanelRule),
                                       PathFormat::Align::Inner))
-                       .background(styles::dropShadow(hexColor(0x000000, 0.5f),
-                                                      {0, 5}, 18)),
+                       ,
                    left, top, width, height);
   }
 

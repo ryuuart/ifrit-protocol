@@ -30,7 +30,8 @@
 
 // TAGS: Patterns/Tiling
 
-#include <sigilcompose/brush/LayerStyles.h>
+#include <sigilmaterial/filter/Filter.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -175,14 +176,14 @@ struct Zellige {
         {box()
              .flexGrow(1)
              .borderRadius({3})
-             .fill(one.tile.material())
+             .fill(sigil::material::from(one.tile.material()).effects(sigil::material::Filter::shadow({1, 1, 1, 0.26f}, {.blur = 2, .inside = true})))
              // GLAZED, not carved. An inner shadow with an inner glow
              // is a bevel cut into plaster; a glazed tile is a hard
              // gloss with a sheen running off the light and a thin
              // wet line where the glaze pools at the joint.
-             .foreground(styles::innerGlow({1, 1, 1, 0.26f}, 2))
+             
              .stroke(sigil::compose::stroke(2.5f, Fill::color(zw::kInk)))
-             .children({box().inset(0).fill(Paint::linearGradient(
+             .children({box().inset(0).fill(sigil::material::linearGradient(
                  {0, 0}, {180, 260},
                  {{0.00f, {1, 1, 1, 0.20f}},
                   {0.42f, {1, 1, 1, 0.05f}},

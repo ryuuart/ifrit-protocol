@@ -69,7 +69,7 @@ constexpr float kCellW = 80.0f, kCellH = 110.0f;    // Cluster:59 — the HIT bo
 constexpr float kUlen = kRenderBox / (float)kGrid;  // 3.0645 GUI px
 constexpr float kLineBreadth = 2.0f;                // Cluster:240
 
-using sigil::compose::hexColor;  // 0xRRGGBB -> material::Color
+using sigil::material::hexColor;  // 0xRRGGBB -> material::Color
 
 // Palette, sampled out of the mod's own PNGs (see the header).
 const material::Color kLeatherDark =

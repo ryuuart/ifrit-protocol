@@ -9,7 +9,7 @@
 //   EMBER LINE ...... Brush{ .shaped(shapers::Rounded) } + a cased layer --
 //                     the classic two-rail metro pair (rounding from the
 //                     PIPELINE, the router stays sharp)
-//   STEEL SPUR ...... brush::presets::railwayCarto LayerStyle -- osm-carto's
+//   STEEL SPUR ...... brush::presets::railwayCarto DecorationStack -- osm-carto's
 //   verified
 //                     dark line + white 50%-duty dash overlay (NOT ties)
 //   CURRENT LINE .... lines::Line with midMarker chevrons + terminal arrow --
@@ -41,6 +41,8 @@
 
 // TAGS: Drawing/Brushes, Drawing/Generative
 
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Brushes.h>
@@ -204,15 +206,14 @@ struct NightNetwork {
                              .background = material::Color{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
     sigil::motion::Engine& ticker = ctx.engine;
-    namespace ch = choreograph;
 
     hubGlow = 4.0f;
-    auto& tl = ticker.timeline();
     auto drawOn = [&](motion::Animatable<float>& r, float delay) {
       r = 0.0f;  // scenes re-activate: reveals re-zero here
-      tl.apply(&r)
-          .then<ch::Hold>(0.0f, delay)
-          .then<ch::RampTo>(1.0f, 1.0f, motion::ease::inOutQuad);
+      ticker.animate(r, {.from = 0.0f, .to = 1.0f,
+                         .duration = motion::Duration(1),
+                         .delay = motion::Duration(delay),
+                         .ease = motion::ease::inOutQuad});
     };
     drawOn(emberReveal, 0.10f);
     drawOn(roadReveal, 0.25f);
@@ -220,8 +221,8 @@ struct NightNetwork {
     drawOn(cyanReveal, 0.55f);
     drawOn(ringReveal, 0.70f);
 
-    ticker.add([this, &ticker] {
-      const double t = ticker.elapsed();
+    ticker.timer([this, &ticker] {
+      const double t = ticker.elapsed().count();
       hubGlow = 4.0f + 2.0f * (float)std::sin(t * 2.1);
     });
 
@@ -341,12 +342,12 @@ struct NightNetwork {
       b.layer(lines::Line{.width = 2.2f, .fill = Fill::color(c)});
       return b;
     };
-    auto demoPath = [](SkSize sz) {  // the SAME points for all three
+    auto demoPath = [](glm::vec2 sz) {  // the SAME points for all three
       SkPathBuilder b;
-      b.moveTo(0, sz.height());
-      b.lineTo(sz.width() * 0.62f, sz.height());
-      b.lineTo(sz.width(), 0);
-      return b.detach();
+      b.moveTo(0, sz.y);
+      b.lineTo(sz.x * 0.62f, sz.y);
+      b.lineTo(sz.x, 0);
+      return sigil::geometry::path::fromSk(b.detach());
     };
     // one row of the trio, at the trio's own 26 px pitch
     auto demoRow = [demoPath](int row, Brush run) {
@@ -386,7 +387,7 @@ struct NightNetwork {
             .height(nn::kH)
             .font({.color8 = true})
             .ink(nn::kAsh)
-            .fill(Paint::linearGradient(
+            .fill(sigil::material::linearGradient(
                 {0, 0}, {0, nn::kH},
                 {{0.0f, nn::kInkHigh}, {0.5f, nn::kInk}, {1.0f, nn::kInk}},
                 {.units = material::GradientUnits::Pixels}))
@@ -407,7 +408,7 @@ struct NightNetwork {
                          .stops = {{"rd_w"}, {"rd1"}, {"rd2"}, {"rd_e"}},
                          .router = routers::polyline(22),
                          .mask = by::spans(spans::upTo(roadReveal)),
-                         .style = LayerStyle{.over = {roadbed, busLane, curb}}})
+                         .style = {roadbed, busLane, curb}})
                      .zIndex(2),
                  // ---- the carto railway ----
                  Operator(connect::Along{
@@ -415,7 +416,7 @@ struct NightNetwork {
                               .router = routers::octilinear(14),
                               .mask = by::spans(spans::upTo(railReveal)),
                               .style = brush::presets::railwayCarto(
-                                  1.6f, nn::kSteel, {0.95f, 0.94f, 0.90f, 1})})
+                                  1.6f, nn::kSteel, {0.95f, 0.94f, 0.90f, 1}).marks})
                      .zIndex(3),
                  // ---- the cased metro pair ----
                  Operator(connect::Along{.stops = {{"em_w"},
@@ -469,22 +470,22 @@ struct NightNetwork {
                 box()
                     .inset(452, nn::kW - 430, nn::kH - 548, 58)
                     .shape(keyedShape(std::string_view("vine"),
-                                      [](SkSize sz) {
+                                      [](glm::vec2 sz) {
                                         SkPathBuilder b;
-                                        b.moveTo(0, sz.height() * 0.72f);
-                                        b.cubicTo(sz.width() * 0.24f,
-                                                  sz.height() * -0.25f,
-                                                  sz.width() * 0.40f,
-                                                  sz.height() * 1.30f,
-                                                  sz.width() * 0.64f,
-                                                  sz.height() * 0.42f);
-                                        b.cubicTo(sz.width() * 0.80f,
-                                                  sz.height() * -0.15f,
-                                                  sz.width() * 0.90f,
-                                                  sz.height() * 0.75f,
-                                                  sz.width() * 1.0f,
-                                                  sz.height() * 0.35f);
-                                        return b.detach();
+                                        b.moveTo(0, sz.y * 0.72f);
+                                        b.cubicTo(sz.x * 0.24f,
+                                                  sz.y * -0.25f,
+                                                  sz.x * 0.40f,
+                                                  sz.y * 1.30f,
+                                                  sz.x * 0.64f,
+                                                  sz.y * 0.42f);
+                                        b.cubicTo(sz.x * 0.80f,
+                                                  sz.y * -0.15f,
+                                                  sz.x * 0.90f,
+                                                  sz.y * 0.75f,
+                                                  sz.x * 1.0f,
+                                                  sz.y * 0.35f);
+                                        return sigil::geometry::path::fromSk(b.detach());
                                       }))
                     .foreground(brush::artAlong(nn::vineArt(), 14, 5))
                     .zIndex(3),

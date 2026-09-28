@@ -13,6 +13,8 @@
 
 // TAGS: Geometry/Diagrams, Interfaces/Game
 
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/core/Core.h>
@@ -207,7 +209,7 @@ Element nebula(SkSize size) {
   }
   return box()
       .inset(0)
-      .fill(Paint::radialGradient(
+      .fill(sigil::material::radialGradient(
           {0.5f, 0.5f}, 1.0f,
           {{0.0f, hexColor(0x1A1030)}, {1.0f, hexColor(0x05030A)}}))
       .children(
@@ -216,7 +218,7 @@ Element nebula(SkSize size) {
                   return kit::disc(
                              {cloud.x * size.width(), cloud.y * size.height()},
                              cloud.radius)
-                      .fill(Paint::radialGradient(
+                      .fill(sigil::material::radialGradient(
                           {0.5f, 0.5f}, 1.0f,
                           {{0.0f, hexColor(cloud.colour, cloud.alpha)},
                            {1.0f, hexColor(cloud.colour, 0.0f)}},
@@ -234,7 +236,7 @@ Element nebula(SkSize size) {
 // ---------------------------------------------------------------------------
 // The frame: four bands of dark grained wood, a square post at each corner.
 
-Paint wood(bool vertical) {
+sigil::material::Material wood(bool vertical) {
   return material::from(field::grain(0.03f, 2, vertical ? 5.0f : 9.0f, 1.3f,
                                    vertical ? 1.0f / 6.0f : 6.0f)).layer(kWood, {.blend = material::BlendMode::Multiply});
 }
@@ -242,7 +244,7 @@ Paint wood(bool vertical) {
 Element plank(float x, float y, float width, float height) {
   return kit::at(gui(x), gui(y), gui(width), gui(height))
       .fill(wood(height > width))
-      .layerStyle(decorations::doubleBorder(
+      .foreground(decorations::doubleBorder(
           decorations::border(gui(1), Fill::color(kWoodEdge)),
           decorations::border(gui(1), Fill::color(hexColor(0xE0B080, 0.18f)), gui(2))));
 }
@@ -283,7 +285,7 @@ struct Thaumonomicon {
     if (research.warp > 0)
       node.children(
           {kit::disc({half, half}, gui(30))
-               .fill(Paint::radialGradient(
+               .fill(sigil::material::radialGradient(
                    {0.5f, 0.5f}, 1.0f,
                    {{0.0f, hexColor(0xB040FF, 0.28f * (float)research.warp)},
                     {1.0f, hexColor(0x40006A, 0.0f)}},
@@ -295,12 +297,12 @@ struct Thaumonomicon {
                          .fill(Fill::color(material::scale(kPlateShade, 0.8f)))});
     node.children(
         {plateFace(box().inset(0), research)
-             .fill(Paint::linearGradient(
+             .fill(sigil::material::linearGradient(
                  {0.5f, 0}, {0.5f, 1},
                  {{0.0f, light},
                   {1.0f, material::scale(kPlateShade,
                                          research.hidden ? 0.86f : 1.0f)}}))
-             .layerStyle(decorations::doubleBorder(
+             .foreground(decorations::doubleBorder(
                  decorations::border(gui(1.5f), Fill::color(kPlateRim)),
                  decorations::border(
                      gui(1), Fill::color(hexColor(0xFFFFFF, 0.5f)), gui(2))))});
@@ -392,7 +394,7 @@ struct Thaumonomicon {
                          .borderRadius({gui(3)})
                          .fill(wood(false))
                          .opacity(open ? 1.0f : 0.8f)
-                         .layerStyle(decorations::doubleBorder(
+                         .foreground(decorations::doubleBorder(
                              decorations::border(gui(1), Fill::color(kWoodEdge)),
                              decorations::border(gui(1),
                                                  Fill::color(open ? hexColor(0x9FFFFF, 0.8f)
@@ -417,12 +419,12 @@ struct Thaumonomicon {
                              .background = hexColor(0x0B0806),
                              .oversample = 2});
 
-    const auto icon_document = ctx.assets.json(ctx.local("data/icons.json"));
+    const auto icon_document = ctx.assets.hub().load<sigil::data::Json>(ctx.local("data/icons.json"));
     for (const auto& [name, icon] : icon_document->object()) {
       icons[name] = readIcon(icon, false);
       greyedIcons[name] = readIcon(icon, true);
     }
-    const auto document = ctx.assets.json(ctx.local("data/research.json"));
+    const auto document = ctx.assets.hub().load<sigil::data::Json>(ctx.local("data/research.json"));
     const std::vector<Research> web = readResearch(*document);
     const std::string hovered((*document)["hovered"].string());
 
@@ -444,8 +446,8 @@ struct Thaumonomicon {
 
     // Thaumcraft's pulse: every unlockable plate brightens and dims together
     // on a 600 ms sine between half and full brightness.
-    ctx.engine.add([this, &ticker = ctx.engine] {
-      veil = (float)(0.25 - 0.25 * std::sin(std::fmod(ticker.elapsed(), 0.6) / 0.6 * 6.2831853));
+    ctx.engine.timer([this, &ticker = ctx.engine] {
+      veil = (float)(0.25 - 0.25 * std::sin(std::fmod(ticker.elapsed().count(), 0.6) / 0.6 * 6.2831853));
     });
 
     // Each plate states the research it needs under the lane of its wire:
@@ -465,7 +467,7 @@ struct Thaumonomicon {
       }
       if (!research.siblings.empty()) lanes["sibling"] = research.siblings;
       const SkPoint centre = centreOf(research);
-      Element node = plate(research).centerAt(centre).zIndex(10);
+      Element node = plate(research).centerAt(sigil::geometry::path::fromSk(centre)).zIndex(10);
       for (const auto& [lane, keys] : lanes) node.attribute(lane, keys);
       if (!research.badges.empty()) node.attribute("badges", research.badges);
       // The hovered research's tooltip names it and what it still needs.
