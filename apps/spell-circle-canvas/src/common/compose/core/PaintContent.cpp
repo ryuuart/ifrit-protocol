@@ -340,7 +340,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   if (node.boundary == Boundary::Glyphs && node.kind == Kind::Text &&
       inst.paragraph) {
     if (inst.glyphOutlineRev != inst.measuredRev) {
-      inst.glyphOutline = inst.textLayout.glyphOutline();
+      inst.glyphOutline = geometry::path::toSk(inst.textLayout.glyphOutline());
       inst.glyphOutlineRev = inst.measuredRev;
     }
     if (!inst.glyphOutline.isEmpty()) decorationBase = &inst.glyphOutline;

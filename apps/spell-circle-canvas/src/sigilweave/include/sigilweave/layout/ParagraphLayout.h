@@ -11,8 +11,6 @@
  * SigilWeavePaint; everything else here is SigilWeaveLayout.
  */
 
-#include <include/core/SkPath.h>
-#include <include/core/SkPoint.h>
 
 #include <cstdint>
 #include <memory>
@@ -203,7 +201,7 @@ struct ParagraphLayout {
    * rotated or curved run included. Derived, not stored.
    * @trap Glyphs a face reports no path for — bitmap and colour glyphs —
    * are absent, having no contour to give. */
-  [[nodiscard]] SkPath glyphOutline() const;
+  [[nodiscard]] geometry::path::Outline glyphOutline() const;
 
   /** Returns per-COLUMN geometry for a vertical layout, ascending by
    * column index — what `lineMetrics` is for a horizontal one, and the

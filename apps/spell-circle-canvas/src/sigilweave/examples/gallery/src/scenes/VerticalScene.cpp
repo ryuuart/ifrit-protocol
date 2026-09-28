@@ -83,7 +83,7 @@ class VerticalScene final : public Scene {
   /// Creates a Japanese style with the requested vertical glyph behavior.
   TextStyle japaneseStyle(
       float fontSize, VerticalForm verticalForm = VerticalForm::kAuto) const {
-    TextStyle style = makeStyle(fontSize, kInk, "ja", m_mincho);
+    TextStyle style = makeStyle(fontSize, SkColor4f::FromColor(kInk), "ja", m_mincho);
     style.shaping.verticalForm = verticalForm;
     return style;
   }

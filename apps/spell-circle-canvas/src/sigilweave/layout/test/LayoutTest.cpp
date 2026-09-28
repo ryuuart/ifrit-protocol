@@ -336,12 +336,12 @@ TEST(ParagraphLayout, CopiesAndMovesKeepAuxiliaryGlyphsAliveAfterCachePurge) {
     if (!paragraphOwned) ++auxiliaryRuns;
   }
   ASSERT_GT(auxiliaryRuns, 0u);
-  const SkPath outline = layout.glyphOutline();
+  const SkPath outline = sigil::geometry::path::toSk(layout.glyphOutline());
   ASSERT_FALSE(outline.isEmpty());
 
   ParagraphLayout copy = layout;
   layout = {};
   fontContext.purgeAllCaches();
   const ParagraphLayout moved = std::move(copy);
-  EXPECT_EQ(moved.glyphOutline(), outline);
+  EXPECT_EQ(sigil::geometry::path::toSk(moved.glyphOutline()), outline);
 }

@@ -21,7 +21,8 @@ SkPath Composer::Impl::boundaryOutlineOf(Instance& target, float width,
   if (node.boundary == Boundary::Glyphs && node.kind == Kind::Text &&
       target.paragraph) {
     if (target.glyphOutlineRev != target.measuredRev) {
-      target.glyphOutline = target.textLayout.glyphOutline();
+      target.glyphOutline =
+          geometry::path::toSk(target.textLayout.glyphOutline());
       target.glyphOutlineRev = target.measuredRev;
     }
     if (!target.glyphOutline.isEmpty()) return target.glyphOutline;

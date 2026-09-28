@@ -54,7 +54,7 @@ TEST(WeavePlates, OpenTypeFeaturesDrawTheirBaseline) {
   float rowTop = 30;
   for (const Row& row : rows) {
     kit::drawLabel(plate.canvas(), fonts, row.label, {40, rowTop},
-                   {.color = kAccent, .width = 900, .height = 18});
+                   {.color = SkColor4f::FromColor(kAccent), .width = 900, .height = 18});
     TextStyle body = plateStyle(30, kInk);
     body.shaping.typeface = hoefler;
     body.shaping.fontFeatures = row.fontFeatures;

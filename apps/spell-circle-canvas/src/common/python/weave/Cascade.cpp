@@ -88,10 +88,7 @@ void bindWeaveCascade(py::module_& module) {
          "makeStyle",
          [](float fontSize, SkColor4f color, const std::string& language,
             const std::optional<sk_sp<SkTypeface>>& typeface) {
-           // The native call states its colour as one 8-bit word, so a
-           // colour given here is quantised on the way in whatever it was
-           // spelled as.
-           return weave::kit::makeStyle(fontSize, color.toSkColor(),
+           return weave::kit::makeStyle(fontSize, color,
                                         language.c_str(),
                                         typeface.value_or(nullptr));
          },

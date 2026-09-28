@@ -7,7 +7,7 @@
  * every SigilWeave-based tool reinvents for its annotations and HUDs.
  */
 
-#include <include/core/SkCanvas.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/layout/TextContext.h>
 #include <sigilweave/style/Style.h>
@@ -15,12 +15,16 @@
 
 #include <string_view>
 
+#include <glm/vec2.hpp>
+
+class SkCanvas;
+
 namespace sigil::weave::kit {
 
 /** Creates a single-span TextStyle: size, flat foreground color, optional
  *  language tag and typeface (null → the context default). */
 [[nodiscard]] sigil::weave::TextStyle makeStyle(
-    float fontSize, SkColor color, const char* language = "",
+    float fontSize, material::Color color, const char* language = "",
     Face typeface = nullptr);
 
 /** A STYLE WHOSE TRACKING IS QUOTED IN 1/1000 EM — the unit a type
@@ -43,7 +47,7 @@ namespace sigil::weave::kit {
  *  single-line annotation under a scene. */
 struct LabelOptions {
   float fontSize = 12.0f;
-  SkColor color = SK_ColorBLACK;
+  material::Color color{0, 0, 0, 1};
   float width = 520.0f;  ///< wrap measure of the label's block flow
   float height = 32.0f;  ///< block height; two 12px lines by default
   const char* language = "";
@@ -57,21 +61,21 @@ struct LabelOptions {
  *  shaped words. The TextContext overload also reuses paragraph analysis
  *  according to that context's configured retention limit. */
 void drawLabel(SkCanvas* canvas, sigil::weave::FontContext& fontContext,
-               std::u8string_view text, SkPoint origin,
+               std::u8string_view text, glm::vec2 origin,
                const LabelOptions& options = {});
 
 /** UTF-16 variant: lets UTF-16 sources (QString via sigil::weave::qt::toU16,
  *  std::u16string) feed a label without transcoding. */
 void drawLabel(SkCanvas* canvas, sigil::weave::FontContext& fontContext,
-               std::u16string_view text, SkPoint origin,
+               std::u16string_view text, glm::vec2 origin,
                const LabelOptions& options = {});
 
 /** Draws a caption with paragraph reuse managed by the text context. */
 void drawLabel(SkCanvas* canvas, sigil::weave::TextContext& textContext,
-               std::u8string_view text, SkPoint origin,
+               std::u8string_view text, glm::vec2 origin,
                const LabelOptions& options = {});
 void drawLabel(SkCanvas* canvas, sigil::weave::TextContext& textContext,
-               std::u16string_view text, SkPoint origin,
+               std::u16string_view text, glm::vec2 origin,
                const LabelOptions& options = {});
 
 }  // namespace sigil::weave::kit

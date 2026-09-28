@@ -1,3 +1,4 @@
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilweave/advanced/Skia.h"
 #include "SceneSupport.h"
 
@@ -22,7 +23,7 @@ bool BodyCache::ensure(const SceneParameters& parameters,
     paragraph.clear();
     // Zero-copy: QString and Paragraph both store UTF-16.
     sigil::weave::qt::appendText(
-        paragraph, text, makeStyle(parameters.fontSize, kInk, "", typeface));
+        paragraph, text, makeStyle(parameters.fontSize, SkColor4f::FromColor(kInk), "", typeface));
   });
 }
 
@@ -34,15 +35,15 @@ sk_sp<SkTypeface> defaultSerif(FontContext& fontContext) {
 
 void drawCaption(SkCanvas* canvas, FontContext& fontContext,
                  std::u8string_view text, SkPoint baselineOrigin, float width) {
-  kit::drawLabel(canvas, fontContext, text, baselineOrigin,
-                 {.color = kBlue, .width = width});
+  kit::drawLabel(canvas, fontContext, text, sigil::geometry::path::fromSk(baselineOrigin),
+                 {.color = SkColor4f::FromColor(kBlue), .width = width});
 }
 
 void drawCaption(SkCanvas* canvas, FontContext& fontContext,
                  std::u16string_view text, SkPoint baselineOrigin,
                  float width) {
-  kit::drawLabel(canvas, fontContext, text, baselineOrigin,
-                 {.color = kBlue, .width = width});
+  kit::drawLabel(canvas, fontContext, text, sigil::geometry::path::fromSk(baselineOrigin),
+                 {.color = SkColor4f::FromColor(kBlue), .width = width});
 }
 
 SkPath spikyRingPath(float elapsedSeconds, float radius) {

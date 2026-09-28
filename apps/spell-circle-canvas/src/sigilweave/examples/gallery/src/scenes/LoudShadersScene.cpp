@@ -61,7 +61,7 @@ class LoudShadersPart final : public Scene {
         paragraph.clear();
         // Zero-copy: QString and Paragraph both store UTF-16.
         sigil::weave::qt::appendText(
-            paragraph, text, makeStyle(fontSize, SK_ColorWHITE, "", typeface));
+            paragraph, text, makeStyle(fontSize, SkColor4f::FromColor(SK_ColorWHITE), "", typeface));
         m_textLengths[row] = static_cast<uint32_t>(text.size());
         m_layouts[row] = layoutSingleLine(
             fontContext, paragraph,

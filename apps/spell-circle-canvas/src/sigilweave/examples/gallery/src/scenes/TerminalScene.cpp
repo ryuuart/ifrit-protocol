@@ -439,7 +439,7 @@ class TerminalScene final : public Scene {
           u8"per-glyph reveal · brightness-bucketed glow + core passes · "
           u8"RGB-split glitches · scramble-and-fade dissolve — public API, "
           u8"proportional font",
-          makeStyle(11.0f, 0xFF2F7D4C));
+          makeStyle(11.0f, SkColor4f::FromColor(0xFF2F7D4C)));
     layoutSingleLine(fontContext, m_footer, {left, baseline})
         .draw(canvas, m_footer);
   }

@@ -37,7 +37,7 @@ inline constexpr SkColor kPaper = 0xFFFAF7F0;
 /// whatever face the context resolves.
 inline TextStyle plateStyle(float fontSize, SkColor color = kInk,
                             const char* languageTag = "") {
-  return kit::makeStyle(fontSize, color, languageTag);
+  return kit::makeStyle(fontSize, SkColor4f::FromColor(color), languageTag);
 }
 
 /// Whether this run adopts every render as its baseline rather than

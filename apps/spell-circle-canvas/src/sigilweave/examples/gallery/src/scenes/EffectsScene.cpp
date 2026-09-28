@@ -92,7 +92,7 @@ class LayerShowcasePart final : public Scene {
             paragraph.clear();
             // Zero-copy: QString and Paragraph both store UTF-16.
             sigil::weave::qt::appendText(
-                paragraph, text, makeStyle(fontSize, kInk, "", typeface));
+                paragraph, text, makeStyle(fontSize, SkColor4f::FromColor(kInk), "", typeface));
             m_textLengths[row] = static_cast<uint32_t>(text.size());
             m_layouts[row] = layoutSingleLine(
                 fontContext, paragraph,
@@ -102,7 +102,7 @@ class LayerShowcasePart final : public Scene {
 
           m_paragraphBlock.clear();
           TextStyle paragraphStyle =
-              makeStyle(paragraphFontSize, kInk, "", typeface);
+              makeStyle(paragraphFontSize, SkColor4f::FromColor(kInk), "", typeface);
           uint32_t clauseStart = 0;
           for (size_t row = 0; row < kParagraphClauses.size(); ++row) {
             m_paragraphBlock.appendText(kParagraphClauses[row], paragraphStyle);

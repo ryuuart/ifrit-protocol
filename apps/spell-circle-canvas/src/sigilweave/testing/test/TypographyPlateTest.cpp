@@ -46,7 +46,7 @@ TEST(WeavePlates, TypographicOptionsDrawTheirBaseline) {
     const float exampleY = 40.0f + static_cast<float>(exampleRow) * 190.0f;
     kit::drawLabel(canvas, fonts, labels[exampleIndex],
                    {exampleX, exampleY - 24},
-                   {.color = kAccent, .width = 220, .height = 20});
+                   {.color = SkColor4f::FromColor(kAccent), .width = 220, .height = 20});
 
     Paragraph paragraph;
     paragraph.appendText(sample, plateStyle(14.5f));
@@ -66,7 +66,7 @@ TEST(WeavePlates, TypographicOptionsDrawTheirBaseline) {
   // discretionary breaks.
   {
     kit::drawLabel(canvas, fonts, u8"KP + soft hyphens, 130px", {570, 16},
-                   {.color = kAccent, .width = 220, .height = 20});
+                   {.color = SkColor4f::FromColor(kAccent), .width = 220, .height = 20});
 
     Paragraph paragraph;
     paragraph.appendText(

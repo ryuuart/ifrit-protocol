@@ -43,8 +43,8 @@ struct WordSegment {
   uint32_t textBegin = 0;
 };
 
-/// An inline object slot woven into the flow (SkParagraph's placeholder
-/// idea): the breakers treat it as an unbreakable word of the given size and
+/// An inline object slot woven into the flow — a placeholder: the breakers
+/// treat it as an unbreakable word of the given size and
 /// the layout reports the rect where it landed, so callers can draw pills,
 /// icons, or images *inside* the text flow. Anchored in the text as an
 /// object-replacement character (U+FFFC), matched to its record by

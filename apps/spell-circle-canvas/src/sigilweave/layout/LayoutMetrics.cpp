@@ -104,7 +104,7 @@ std::vector<LineMetrics> ParagraphLayout::lineMetrics(
   return lines;
 }
 
-SkPath ParagraphLayout::glyphOutline() const {
+geometry::path::Outline ParagraphLayout::glyphOutline() const {
   SkPathBuilder outline;
   const void* lastTypeface = nullptr;
   float lastFontSize = 0;
@@ -160,7 +160,7 @@ SkPath ParagraphLayout::glyphOutline() const {
       pen += advance;
     }
   }
-  return outline.detach();
+  return geometry::path::fromSk(outline.detach());
 }
 
 std::vector<ColumnMetrics> ParagraphLayout::columnMetrics(

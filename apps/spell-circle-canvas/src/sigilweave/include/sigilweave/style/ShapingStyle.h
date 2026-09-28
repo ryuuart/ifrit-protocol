@@ -124,7 +124,7 @@ struct ShapingStyle {
    *  their coverage is thresholded. Part of the shape-cache key, the
    *  shaped run carrying the flag through to the draw.
    *  @trap It is the only way to ask, Skia taking glyph edging from the
-   *  `SkFont` and ignoring `setAntiAlias(false)` on text. */
+   *  font and ignoring `setAntiAlias(false)` on text. */
   bool aliased = false;
 
   /** SET EVERY PAIR AS TIGHT AS THIS FACE'S OWN EVEN PAIR, by measuring

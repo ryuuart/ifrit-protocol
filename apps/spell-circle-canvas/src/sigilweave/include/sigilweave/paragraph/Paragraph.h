@@ -353,7 +353,7 @@ class Paragraph {
   uint64_t m_editHistoryBaseRevision = 0;
 };
 
-/// SkParagraph-style builder for the push/pop idiom; thin sugar over
+/// A builder for the push/pop style idiom; thin sugar over
 /// Paragraph::appendText.
 class ParagraphBuilder {
  public:

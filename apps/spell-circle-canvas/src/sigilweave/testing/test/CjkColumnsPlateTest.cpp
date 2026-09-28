@@ -7,6 +7,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <include/core/SkCanvas.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPaint.h>
 #include <sigilweave/layout/Flow.h>
@@ -257,7 +258,7 @@ TEST(WeavePlates, CjkColumnsDrawTheirBaseline) {
                          float positionY) {
     kit::drawLabel(canvas, fontContext, text, {positionX, positionY},
                    {.fontSize = 13,
-                    .color = kBlue,
+                    .color = SkColor4f::FromColor(kBlue),
                     .width = 400,
                     .height = 18,
                     .typeface = notoSansTypeface});

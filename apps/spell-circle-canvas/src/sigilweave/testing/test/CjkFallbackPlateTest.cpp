@@ -79,7 +79,7 @@ TEST(WeavePlates, CjkFallbackDrawsItsBaseline) {
   auto drawCaption = [&](const char8_t* text, float left, float top) {
     kit::drawLabel(plate.canvas(), fonts, text, {left, top},
                    {.fontSize = 13,
-                    .color = kAccent,
+                    .color = SkColor4f::FromColor(kAccent),
                     .width = kColumnWidth,
                     .height = 18});
   };

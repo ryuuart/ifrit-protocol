@@ -13,7 +13,7 @@
 namespace sigil::weave::kit {
 
 sigil::weave::Paragraph mixedScriptFiller(int wordCount, float fontSize,
-                                          std::array<SkColor, 3> chunkColors) {
+                                          std::array<material::Color, 3> chunkColors) {
   const char8_t* latin[] = {u8"the",    u8"letters", u8"fall",   u8"away",
                             u8"from",   u8"their",   u8"lines",  u8"and",
                             u8"return", u8"again",   u8"layout", u8"engine",

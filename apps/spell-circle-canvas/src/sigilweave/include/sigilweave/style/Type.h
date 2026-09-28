@@ -91,7 +91,7 @@ struct Type {
    *  OpenType sign). */
   std::optional<float> slant;
   /** Hard-edged glyph rasterisation.
-   *  @trap It is the only way to ask: Skia takes edging from the `SkFont`
+   *  @trap It is the only way to ask: Skia takes edging from the font
    *  and `paint.setAntiAlias(false)` is silently ignored on text. */
   std::optional<bool> aliased;
   /** The glyph paint's own antialias flag (edges of strokes/decorations on

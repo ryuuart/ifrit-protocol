@@ -46,8 +46,11 @@ template <typename TextView>
 void drawSceneLabel(SkCanvas* canvas, FontContext& fontContext, TextView text,
                     SkPoint origin, float width, SkColor color = 0xFF86D7FF) {
   kit::drawLabel(
-      canvas, fontContext, text, origin,
-      {.color = color, .width = width, .height = 28, .language = "en"});
+      canvas, fontContext, text, sigil::geometry::path::fromSk(origin),
+      {.color = SkColor4f::FromColor(color),
+       .width = width,
+       .height = 28,
+       .language = "en"});
 }
 
 class HyperScriptsScene final : public Scene {
@@ -158,7 +161,7 @@ class HyperScriptsScene final : public Scene {
  private:
   TextStyle sampleStyle(float size, SkColor color, const char* language,
                         const sk_sp<SkTypeface>& typeface) const {
-    return makeStyle(size, color, language, typeface);
+    return makeStyle(size, SkColor4f::FromColor(color), language, typeface);
   }
 
   void build(float baseSize, const sk_sp<SkTypeface>& typeface) {

@@ -39,7 +39,7 @@ sk_sp<SkShader> shade(const sigil::material::Material& material) {
 void drawRowLabel(FontContext& fontContext, SkCanvas* canvas,
                   const char8_t* label, float top) {
   kit::drawLabel(canvas, fontContext, label, {40, top},
-                 {.color = kAccent, .width = 900, .height = 18});
+                 {.color = SkColor4f::FromColor(kAccent), .width = 900, .height = 18});
 }
 
 }  // namespace

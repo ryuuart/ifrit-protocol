@@ -8,6 +8,7 @@
  * growing its own subtly different filler.
  */
 
+#include <sigilmaterial/color/Color.h>
 #include <sigilweave/paragraph/Paragraph.h>
 
 #include <array>
@@ -21,6 +22,8 @@ namespace sigil::weave::kit {
  *  are ink, blue and a warm accent. */
 [[nodiscard]] sigil::weave::Paragraph mixedScriptFiller(
     int wordCount, float fontSize,
-    std::array<SkColor, 3> chunkColors = {0xFF23252B, 0xFF2B5AA7, 0xFFC63D2F});
+    std::array<material::Color, 3> chunkColors = {material::hexColor(0x23252B),
+                                                  material::hexColor(0x2B5AA7),
+                                                  material::hexColor(0xC63D2F)});
 
 }  // namespace sigil::weave::kit

@@ -74,7 +74,7 @@ class StressPart final : public Scene {
     m_layoutBuild.ensure({size, typeface.get(), stressFontSize}, [&] {
       m_paragraph.clear();
       TextStyle textStyle =
-          makeStyle(stressFontSize, SK_ColorWHITE, "", typeface);
+          makeStyle(stressFontSize, SkColor4f::FromColor(SK_ColorWHITE), "", typeface);
       m_paragraph.appendText(makeStressText(), textStyle);
       m_textLength = static_cast<uint32_t>(m_paragraph.text().size());
 
@@ -158,7 +158,7 @@ class StressPart final : public Scene {
                   .arg(passCount == 1 ? QStringLiteral("pass")
                                       : QStringLiteral("passes"));
     Paragraph caption;
-    TextStyle captionStyle = makeStyle(12.0f, 0xFFD7E7FF);
+    TextStyle captionStyle = makeStyle(12.0f, SkColor4f::FromColor(0xFFD7E7FF));
     sigil::weave::qt::appendText(caption, captionText, captionStyle);
     layoutSingleLine(fontContext, caption, {22, 30}).draw(canvas, caption);
 

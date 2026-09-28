@@ -11,6 +11,7 @@
 #include <optional>
 #include <string>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilweave/advanced/Skia.h"
 #include "support/LayoutSupport.h"
 
@@ -37,7 +38,7 @@ TEST(TextContext, ZeroRetentionRebuildsWithoutChangingTheResult) {
   for (int i = 0; i < 3; ++i) {
     const auto actual = uncached.singleLine(u8"signal", style, {10, 30});
     ASSERT_EQ(actual.layout().runs.size(), expected.layout().runs.size());
-    EXPECT_EQ(actual.layout().glyphOutline(), expected.layout().glyphOutline());
+    EXPECT_EQ(sigil::geometry::path::toSk(actual.layout().glyphOutline()), sigil::geometry::path::toSk(expected.layout().glyphOutline()));
     EXPECT_EQ(actual.paragraph().text(), expected.paragraph().text());
   }
   EXPECT_EQ(uncached.stats().paragraphBuilds, 3u);
@@ -125,7 +126,7 @@ TEST(TextContext, RetainedResultsKeepTheirPaintWordsAndPlacement) {
   auto style = basicStyle(18);
   BlockFlow wide(sigil::geometry::path::Rect::of({0, 0}, {800, 400}));
   const auto first = context.layout(u8"one two three four five", style, wide);
-  const auto outline = first.layout().glyphOutline();
+  const auto outline = sigil::geometry::path::toSk(first.layout().glyphOutline());
   const auto words = first.paragraph().words().size();
   const auto paint = first.paragraph().spans().front().style.paint;
   style.paint.foreground.setColor(SK_ColorRED);
@@ -134,7 +135,7 @@ TEST(TextContext, RetainedResultsKeepTheirPaintWordsAndPlacement) {
   EXPECT_GT(next.layout().lineCount, first.layout().lineCount);
   EXPECT_NE(&next.paragraph(), &first.paragraph());
   EXPECT_NE(next.paragraph().identity(), first.paragraph().identity());
-  EXPECT_EQ(first.layout().glyphOutline(), outline);
+  EXPECT_EQ(sigil::geometry::path::toSk(first.layout().glyphOutline()), outline);
   EXPECT_EQ(first.paragraph().words().size(), words);
   EXPECT_EQ(first.paragraph().spans().front().style.paint, paint);
 }
@@ -146,9 +147,9 @@ TEST(TextContext, ResultsSurviveEvictionPurgeAndContextDestruction) {
     TextContext context(sigil::test::fonts(), {.paragraphCacheEntries = 1});
     const auto style = basicStyle(18);
     held.emplace(context.singleLine(u8"held", style, {10, 30}));
-    outline = held->layout().glyphOutline();
+    outline = sigil::geometry::path::toSk(held->layout().glyphOutline());
     (void)context.naturalWidth(u8"replacement", style);
-    EXPECT_EQ(held->layout().glyphOutline(), outline);
+    EXPECT_EQ(sigil::geometry::path::toSk(held->layout().glyphOutline()), outline);
     context.purgeParagraphs();
     EXPECT_EQ(context.stats().paragraphEntries, 0u);
     EXPECT_EQ(held->paragraph().text(), u"held");
@@ -157,7 +158,7 @@ TEST(TextContext, ResultsSurviveEvictionPurgeAndContextDestruction) {
   held.reset();
   EXPECT_EQ(copy.paragraph().text(), u"held");
   EXPECT_FALSE(copy.layout().runs.empty());
-  EXPECT_EQ(copy.layout().glyphOutline(), outline);
+  EXPECT_EQ(sigil::geometry::path::toSk(copy.layout().glyphOutline()), outline);
 }
 
 TEST(TextContext, MeasurementDoesNotInheritAPreviousLayoutsSegmentation) {

@@ -5,6 +5,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <include/core/SkCanvas.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>

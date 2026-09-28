@@ -518,7 +518,9 @@ void bindWeaveLayout(py::module_& root) {
           },
           py::arg("paragraph"))
       .def("glyphOutline",
-           [](const OwnedLayout& value) { return value.glyphOutline(); })
+           [](const OwnedLayout& value) {
+             return geometry::path::toSk(value.glyphOutline());
+           })
       .def("overflowed",
            [](const OwnedLayout& value) { return value.overflowed(); });
   layout.def_readonly("linePitch", &ParagraphLayout::linePitch);

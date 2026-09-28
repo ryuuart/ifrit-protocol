@@ -75,7 +75,7 @@ class SlotsScene final : public Scene {
                               placed.rect.height() * 0.5f, backgroundPaint);
         const auto text = m_pillTexts[static_cast<size_t>(placed.index)];
         const auto style =
-            makeStyle(fontSize * 0.68f, SK_ColorWHITE, "", m_sansTypeface);
+            makeStyle(fontSize * 0.68f, SkColor4f::FromColor(SK_ColorWHITE), "", m_sansTypeface);
         const float textWidth = m_text->naturalWidth(text, style);
         m_text
             ->singleLine(
@@ -127,13 +127,13 @@ class SlotsScene final : public Scene {
     m_pillWidths.clear();
     for (const char8_t* text : m_pillTexts) {
       const auto style =
-          makeStyle(fontSize * 0.68f, SK_ColorWHITE, "", m_sansTypeface);
+          makeStyle(fontSize * 0.68f, SkColor4f::FromColor(SK_ColorWHITE), "", m_sansTypeface);
       m_pillWidths.push_back(m_text->naturalWidth(text, style) +
                              fontSize * 1.1f);
     }
 
     m_paragraph.clear();
-    const TextStyle body = makeStyle(fontSize, kInk, "", m_serif);
+    const TextStyle body = makeStyle(fontSize, SkColor4f::FromColor(kInk), "", m_serif);
     const Placeholder pill{0, fontSize * 1.35f, fontSize * 0.3f};
     auto addPill = [&](size_t pillIndex) {
       Placeholder placeholder = pill;
