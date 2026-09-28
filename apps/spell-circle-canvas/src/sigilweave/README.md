@@ -517,7 +517,10 @@ Skia stays named where it is what the entrance is about:
 - **The paint.** A pass is a complete Skia paint — `PaintStyle::foreground`,
   `PaintLayer::paint`, a decoration's paint — so every stroke, blur,
   shader and blend a paint can state is reachable, and `tintFilter` is the
-  memoized colour filter a dressed glyph's pass is tinted through.
+  memoized colour filter a dressed glyph's pass is tinted through. A pass
+  is the renderer's paint and nothing more: the material that produced it
+  belongs to the layer above, which lowers a material to a paint and hands
+  the paint down, so a text look is stated there and never built here.
 - **The font manager.** A `FontContext` is made over a Skia font manager
   and resolves fallback through it, and `ports::systemFontManager` is the
   platform's; a face is what either answers.
