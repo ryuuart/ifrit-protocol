@@ -18,10 +18,9 @@
 //
 // The rows:
 //
-//   · CHROME — y2k::y2kChrome(), the whole plate: shadow, palette ramp,
-//     chisel bevel, keyline. On glyphs the horizon
-//     crosses every letter at the same height, because the ramp is read
-//     off the node's box while the shape it fills is the letters.
+//   · CHROME — y2k::y2kChrome(), the whole plate: a folded reflective
+//     face, cast shadow, chisel bevel and keyline. On type, the folds
+//     span the word's metric band and the glyphs supply its coverage.
 //   · AQUA — y2k::aquaGel(), the gel body. Its lengths are a fraction of
 //     the height it is given, so on a word it reads as one body across the
 //     whole wordmark rather than one per letter.
@@ -31,29 +30,29 @@
 // EDIT THESE FIRST
 //   kDisplay      — the display size the specimens are set at. Bigger
 //                   letters give a bevel more room to read.
-//   kWordmark     — the word itself. A wider one lengthens the horizon.
+//   kWordmark     — the word itself. A wider one stretches the reflection.
 
 // TAGS: Typography/Lettering
 
-#include <sigilmaterial/paint/Bases.h>
-#include <sigilweave/style/Face.h>
 #include <sigilcompose/brush/Brush.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Face.h>
 #include <sigilweave/style/Type.h>
-
-#include "y2k_chrome/Aqua.h"
-#include "y2k_chrome/ChromeType.h"
 
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "y2k_chrome/Aqua.h"
+#include "y2k_chrome/ChromeType.h"
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
@@ -132,12 +131,17 @@ struct ChromeType {
     Element onBox = sketch::kit::caption(
         0, "RECTANGLE", "The finish follows the enclosing box.",
         box().padding(18).borderRadius({6}).fill(finish).children(
-            {text(c::kWordmark, c::wordmark(letterInk))}));
+            {text(c::kWordmark, c::wordmark(letterInk))
+                 .decorationOutline(Boundary::Glyphs)
+                 .ink(
+                     material::from(letterInk).effects(material::Filter::stroke(
+                         hexColor(0x162331), {.width = 0.65f})))}));
     // The letters: the same value, the other boundary.
     Element onGlyphs = sketch::kit::caption(
         0, "GLYPH OUTLINE", "The same finish follows the letters.",
-        box().padding(18).children(
-            {text(c::kWordmark, c::wordmark({0, 0, 0, 0})).ink(finish)}));
+        box().padding(18).children({text(c::kWordmark, c::wordmark())
+                                        .decorationOutline(Boundary::Glyphs)
+                                        .ink(finish)}));
     // The pair's own name stands wider and larger than a cell's call, so
     // its label is this cell's own leaf — the register, this size over it
     // — and the two captions under it keep the register as it is.
@@ -162,11 +166,12 @@ struct ChromeType {
     // under the shape and a bevel over it.
     const material::Material bevelAndGlow =
         material::from(material::Color{0.72f, 0.75f, 0.80f, 1})
-            .effects(material::Filter::shadow({0.45f, 0.72f, 1.0f, 0.85f},
-                                              {.blur = 16.0f, .spread = 1.0f})
-                         .then(material::Filter::bevel({.depth = 3.0f,
-                                                        .size = 4.0f,
-                                                        .angleDegrees = 120.0f})));
+            .effects(
+                material::Filter::shadow({0.45f, 0.72f, 1.0f, 0.85f},
+                                         {.blur = 16.0f, .spread = 1.0f})
+                    .then(material::Filter::bevel({.depth = 3.0f,
+                                                   .size = 4.0f,
+                                                   .angleDegrees = 120.0f})));
 
     return sketch::kit::page(
         {.title = u8"One finish, two outlines",
@@ -181,7 +186,7 @@ struct ChromeType {
             {.cells = {pair("Y2K CHROME", y2k::y2kChrome()),
                        pair("AQUA GEL",
                             y2k::aquaGel(hexColor(0x1E8FFF), c::kDisplay + 36)),
-                       pair("BEVEL + GLOW", bevelAndGlow)},
+                       pair("BEVEL + GLOW", bevelAndGlow, hexColor(0x16283A))},
              .column = true,
              .gap = 24}));
   }
@@ -189,6 +194,5 @@ struct ChromeType {
 
 }  // namespace
 
-SIGIL_SKETCH_AS(
-    ChromeType, "chrome_type", "Catalog · Type",
-    "materials dressing glyph outlines, beside the same on a box")
+SIGIL_SKETCH_AS(ChromeType, "chrome_type", "Catalog · Type",
+                "materials dressing glyph outlines, beside the same on a box")

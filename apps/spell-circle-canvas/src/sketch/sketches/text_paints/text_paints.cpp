@@ -51,9 +51,7 @@ struct Ink {
   PaintBox box = PaintBox::Element;
 };
 
-material::Material field(material::Material recipe) {
-  return recipe;
-}
+material::Material field(material::Material recipe) { return recipe; }
 
 std::vector<Ink> inks() {
   // An ink on the default box hands its paint the unit square, so the
@@ -74,7 +72,9 @@ std::vector<Ink> inks() {
       // the 22 px it was drawn at; the bounds place only the origin.
       {"sparkle", "SPARKLE OVER A BASE", "sparkle(px, t) · plus · Subtree",
        "Stated over the passage's pixels, where its cells keep their size.",
-       material::from(sigil::material::Color{0.23f, 0.30f, 0.46f, 1}).layer(field(text_paints::sparkle(SkRect::MakeWH(220, 70), kMoment)), {.blend = material::BlendMode::PlusLighter}),
+       material::from(sigil::material::Color{0.23f, 0.30f, 0.46f, 1})
+           .layer(field(text_paints::sparkle(SkRect::MakeWH(220, 70), kMoment)),
+                  {.blend = material::BlendMode::PlusLighter}),
        PaintBox::Subtree},
       {"star-nest", "STAR NEST", "starNest(unit, t)",
        "Dense light inside the letterforms; small type keeps its warmth.",
@@ -89,7 +89,8 @@ std::vector<Ink> inks() {
        "A hard horizon at half cap height; a column takes one band of it.",
        y2k::sunsetChromeType()},
       {"silver", "SILVER CHROME", "silverChromeType()",
-       "The same mapping in a colder ramp.", y2k::silverChromeType()},
+       "Folded silver reflects a studio across the shaped text.",
+       y2k::silverChromeType()},
   };
 }
 
@@ -100,9 +101,9 @@ std::vector<Ink> inks() {
 StyleSheet sheet(const std::vector<Ink>& all) {
   StyleSheet inked;
   for (const Ink& ink : all)
-    inked = inked + StyleSheet{rule("." + ink.name +
-                                    " :is(wordmark, word, paragraph)")
-                                   .ink(ink.paint, ink.box)};
+    inked = inked +
+            StyleSheet{rule("." + ink.name + " :is(wordmark, word, paragraph)")
+                           .ink(ink.paint, ink.box)};
   return StyleSheet{
              rule("wordmark")
                  .fontFamily(
@@ -148,11 +149,13 @@ Element pageProof(const std::string& ink, const Passages& words,
            document::eyebrow("02 · A COMPLETE PARAGRAPH / 13 PX"),
            document::paragraph(words.paragraph).fontSize(13),
            document::eyebrow("03 · THE TOP OF A LONG RUN / 9 PX"),
-           box().height(kCrop).overflow(Overflow::Clip).children(
-               {document::paragraph(words.longRun).fontSize(9)}),
-           document::caption(kit::formatted(
-               "%.0f px window · %.0f px complete run", kCrop,
-               completeDepth))});
+           box()
+               .height(kCrop)
+               .overflow(Overflow::Clip)
+               .children({document::paragraph(words.longRun).fontSize(9)}),
+           document::caption(
+               kit::formatted("%.0f px window · %.0f px complete run", kCrop,
+                              completeDepth))});
 }
 
 /** One ink at a common proof size: the display word over body type. */
@@ -200,8 +203,8 @@ struct TextPaints {
          .subtitle = "An ink's unit square runs from the first cap top to the "
                      "last baseline · the horizon follows the size, and a "
                      "column stretches the field with it",
-         .footer = "Procedural fields are held at 6.4 s; the two chrome "
-                   "ramps do not move. Every ink is one class of the sheet, "
+         .footer = "Procedural fields are held at 6.4 s; the chrome finishes "
+                   "stay still. Every ink is one class of the sheet, "
                    "stated once per well."},
         // Nothing on the sheet moves, so the whole of it is held as one
         // texture.
@@ -212,49 +215,53 @@ struct TextPaints {
             .cache(Cache::Texture)
             .key("sheet")
             .children(
-            {comparison(
-                 {{.title = "A WORDMARK",
-                   .figure =
-                       sketch::kit::well(
-                           {.width = 501, .height = 236, .padding = 26})
-                           .styleClass("sunset")
-                           .column()
-                           .gap(20)
-                           .children({document::eyebrow("ONE RAMP · 104 PX"),
-                                      wordmark(104),
-                                      document::caption("The hard horizon "
-                                                        "crosses the "
-                                                        "capitals.")})},
-                  {.title = "ONE COORDINATE SYSTEM, THREE SIZES",
-                   .figure = sketch::kit::well(
-                                 {.width = 501, .height = 236, .padding = 26})
-                                 .styleClass("sunset")
-                                 .column()
-                                 .gap(12)
-                                 .children({document::eyebrow(
-                                                "THE SAME RAMP · 28 / 48 / 72 "
-                                                "PX"),
-                                            wordmark(28), wordmark(48),
-                                            wordmark(72)})}}),
-             document::heading(2, "A WORD IS NOT A PAGE"),
-             comparison(
-                 {{.title = "A HARD HORIZON",
-                   .control = "sunsetChromeType()",
-                   .figure = pageProof("sunset", words, completeDepth),
-                   .note = "The word shows the whole horizon. A paragraph "
+                {comparison(
+                     {{.title = "A WORDMARK",
+                       .figure =
+                           sketch::kit::well(
+                               {.width = 501, .height = 236, .padding = 26})
+                               .styleClass("sunset")
+                               .column()
+                               .gap(20)
+                               .children(
+                                   {document::eyebrow("ONE RAMP · 104 PX"),
+                                    wordmark(104),
+                                    document::caption("The hard horizon "
+                                                      "crosses the "
+                                                      "capitals.")})},
+                      {.title = "ONE COORDINATE SYSTEM, THREE SIZES",
+                       .figure =
+                           sketch::kit::well(
+                               {.width = 501, .height = 236, .padding = 26})
+                               .styleClass("sunset")
+                               .column()
+                               .gap(12)
+                               .children({document::eyebrow(
+                                              "THE SAME RAMP · 28 / 48 / 72 "
+                                              "PX"),
+                                          wordmark(28), wordmark(48),
+                                          wordmark(72)})}}),
+                 document::heading(2, "A WORD IS NOT A PAGE"),
+                 comparison(
+                     {{.title = "A HARD HORIZON",
+                       .control = "sunsetChromeType()",
+                       .figure = pageProof("sunset", words, completeDepth),
+                       .note =
+                           "The word shows the whole horizon. A paragraph "
                            "spreads it across its lines; the long run's top "
                            "slice never reaches it."},
-                  {.title = "A BROAD COLOUR FIELD",
-                   .control = "meshGradient(unit, t)",
-                   .figure = pageProof("mesh", words, completeDepth),
-                   .note = "The same four regions cover every run. A long "
-                           "passage samples them far more slowly down the "
-                           "page."}}),
-             document::heading(2, "EIGHT INKS · A WORD AND BODY TYPE"),
-             comparison({inkCase(all[0], words), inkCase(all[1], words),
-                         inkCase(all[2], words), inkCase(all[3], words)}),
-             comparison({inkCase(all[4], words), inkCase(all[5], words),
-                         inkCase(all[6], words), inkCase(all[7], words)})})));
+                      {.title = "A BROAD COLOUR FIELD",
+                       .control = "meshGradient(unit, t)",
+                       .figure = pageProof("mesh", words, completeDepth),
+                       .note = "The same four regions cover every run. A long "
+                               "passage samples them far more slowly down the "
+                               "page."}}),
+                 document::heading(2, "EIGHT INKS · A WORD AND BODY TYPE"),
+                 comparison({inkCase(all[0], words), inkCase(all[1], words),
+                             inkCase(all[2], words), inkCase(all[3], words)}),
+                 comparison({inkCase(all[4], words), inkCase(all[5], words),
+                             inkCase(all[6], words),
+                             inkCase(all[7], words)})})));
   }
 };
 
