@@ -29,18 +29,17 @@
 
 // TAGS: Patterns/Tiling
 
-#include <sigilgeometry/path/Skia.h>
-#include <choreograph/Easing.h>
+#include <sigilmaterial/filter/Filter.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/Decorations.h>
-#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Presets.h>
 #include <sigilcompose/typography/TextPath.h>
 #include <sigildraw/Color.h>
 #include <sigilgeometry/kit/Generators.h>
@@ -189,7 +188,7 @@ material::Material cut(const Quarry& quarry, float bedAngle, float seed = 0,
 /** A closed outline through @p corners, as a held path in the coordinates
  *  of the node that wears it. */
 HeldPath outline(std::initializer_list<glm::vec2> corners) {
-  return heldPath(sigil::geometry::path::fromSk(path::toPath(path::Polyline{.points = corners, .closed = true})));
+  return heldPath(path::toPath(path::Polyline{.points = corners, .closed = true}));
 }
 
 /** A BED OF TESSERAE: the region a field is cut to, its courses of stone
@@ -232,7 +231,7 @@ Element roundel(std::string key, SkPoint at, float radius, Shape outline,
                     .key(std::move(key))
                     .width(radius * 2)
                     .height(radius * 2)
-                    .centerAt(at)
+                    .centerAt(sigil::geometry::path::fromSk(at))
                     .cache(Cache::Texture)
                     .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 320ms, .delay = delay, .ease = sigil::motion::ease::outQuad}))
                     .scale(sigil::motion::animate({.from = 1.07f, .to = 1.0f, .duration = 560ms, .delay = delay, .ease = sigil::motion::ease::outCubic}));
@@ -282,7 +281,7 @@ struct Cosmati {
                              .captureAt = 6.0,
                              .background = draw::parseColor(words["ink"]["ground"].string())});
     sigil::motion::Engine& ticker = ctx.engine;
-    ticker.add([this, &ticker] { seconds = (float)ticker.elapsed(); });
+    ticker.timer([this, &ticker] { seconds = (float)ticker.elapsed().count(); });
     ctx.composer.render(describe());
   }
 
@@ -602,7 +601,7 @@ struct Cosmati {
    *  letter is pressed into its cut as it is set. */
   Element letters() const {
     const auto setting = [&](float from, float to) {
-      return Track{.effect = textFx::enter({.fromScale = 1.5f, .fadeOver = 0.45f}),
+      return Track{.effect = textFx::enter({.from = textFx::Displaced{.scale = 1.5f, .fadeOver = 0.45f}}),
                    .tween = {.duration = 260ms, .delay = sigil::motion::stagger(40ms)}, 
                    .progress = sigil::motion::bind(seconds, {.from = {from, to}, .clampFrom = true})};
     };
@@ -673,7 +672,7 @@ struct Cosmati {
         .width(kSide)
         .height(kSide)
         .overflow(Overflow::Clip)
-        .background(styles::dropShadow({0, 0, 0, 0.75f}, {0, 10}, 26))
+        .fill(sigil::material::from(sigil::material::Color{0, 0, 0, 0}).effects(sigil::material::Filter::shadow({0, 0, 0, 0.75f}, {.blur = 26, .offset = {0, 10}})))
         .children({matrix(), fields(), roundels(), guilloche(), letters(), light()});
   }
 
@@ -727,8 +726,8 @@ struct Cosmati {
                        .height(15)
                        .fill(cut(*quarry, 34, 60.0f + (float)order++))
                        .foreground(stroke(1.0f, Fill::var("ash"))),
-           .opacity = sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 320ms}),
-           .slide = sigil::motion::animate({.from = -12.0f, .to = 0.0f, .duration = 400ms})});
+           .opacity = sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 320ms, .delay = sigil::motion::stagger(60ms)}),
+           .slide = sigil::motion::animate({.from = -12.0f, .to = 0.0f, .duration = 400ms, .delay = sigil::motion::stagger(60ms)})});
     }
     // The column is static once its key has been dealt, and its swatches
     // are stone evaluated per pixel, so it is baked once.
@@ -781,8 +780,7 @@ struct Cosmati {
                   sketch::kit::legend({.entries = std::move(quarries),
                                        .gap = 6,
                                        .labelGap = 12})
-                      .key("quarries")
-                      .staggerChildren(60ms)})});
+                      .key("quarries")})});
   }
 
   Element describe() const {

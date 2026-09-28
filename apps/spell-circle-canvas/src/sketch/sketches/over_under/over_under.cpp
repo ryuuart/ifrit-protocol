@@ -29,6 +29,8 @@
 
 // TAGS: Materials/Compositing
 
+#include <sigilmedia/advanced/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigildraw/Pen.h>
 #include <include/core/SkSurface.h>
 #include <include/effects/SkGradient.h>
@@ -38,7 +40,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Corners.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/core/Combine.h>
+#include <sigilmaterial/advanced/Combine.h>
 #include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
@@ -72,8 +74,7 @@ constexpr float kBevel = 26;  // the shoulder the slope normals come from
 /** The plate every cell paints: one rounded octagon, so the slope mask's
  *  bevel has real corners to shade and the brass has an edge to catch. */
 SkPath plate() {
-  return shapes::rounded(shapes::chamfered(30), 8)
-      .path({kCell - 36, kPicture - 36})
+  return sigil::geometry::path::toSk(shapes::rounded(shapes::chamfered(30), 8).outline({kCell - 36, kPicture - 36}))
       .makeTransform(SkMatrix::Translate(18, 18));
 }
 

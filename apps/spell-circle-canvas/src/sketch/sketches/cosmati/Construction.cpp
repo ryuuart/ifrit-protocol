@@ -1,3 +1,4 @@
+#include <sigilgeometry/advanced/Skia.h>
 #include "Construction.h"
 
 #include <sigilcore/compute/Noise.h>
@@ -51,7 +52,7 @@ Points squareOnPoint(float half) {
   return {{0, -half}, {half, 0}, {0, half}, {-half, 0}};
 }
 
-SkPath Course::path(SkSize size) const {
+path::Outline Course::outline(glm::vec2 size) const {
   // The lattice cells whose pieces can reach the box: the box's corners
   // read in lattice coordinates, widened by a cell each way.
   const float determinant = across.x * down.y - across.y * down.x;
@@ -63,8 +64,8 @@ SkPath Course::path(SkSize size) const {
   };
   glm::vec2 lowest{1e9f, 1e9f}, highest{-1e9f, -1e9f};
   for (const glm::vec2 corner :
-       {glm::vec2{0, 0}, glm::vec2{size.width(), 0},
-        glm::vec2{0, size.height()}, glm::vec2{size.width(), size.height()}}) {
+       {glm::vec2{0, 0}, glm::vec2{size.x, 0},
+        glm::vec2{0, size.y}, glm::vec2{size.x, size.y}}) {
     const glm::vec2 cell = cellOf(corner);
     lowest = glm::min(lowest, cell);
     highest = glm::max(highest, cell);
@@ -81,8 +82,8 @@ SkPath Course::path(SkSize size) const {
         near = glm::min(near, at + corner);
         far = glm::max(far, at + corner);
       }
-      if (far.x < 0 || far.y < 0 || near.x > size.width() ||
-          near.y > size.height())
+      if (far.x < 0 || far.y < 0 || near.x > size.x ||
+          near.y > size.y)
         continue;
       if (loss > 0) {
         const uint32_t cell = (uint32_t)(i * 7919 + j * 104729);
@@ -94,9 +95,9 @@ SkPath Course::path(SkSize size) const {
   return path::toPath(pieces);
 }
 
-SkPath Rosette::path(SkSize size) const {
-  const glm::vec2 centre{size.width() * 0.5f, size.height() * 0.5f};
-  const float half = std::min(size.width(), size.height()) * 0.5f;
+path::Outline Rosette::outline(glm::vec2 size) const {
+  const glm::vec2 centre{size.x * 0.5f, size.y * 0.5f};
+  const float half = std::min(size.x, size.y) * 0.5f;
   const float step = kTurn / (float)std::max(count, 1);
   const float waist = step * 0.5f * width;
   const float middle = (inner + outer) * 0.5f * half;
@@ -159,14 +160,14 @@ Interlace quincunxInterlace(glm::vec2 centre, float centreLoop,
     knot.overTo = knot.overFrom + glm::distance(leaves, satelliteCentre +
                                                             toward(arrives) *
                                                                 satelliteLoop);
-    knot.over = stretch(leaves, satelliteCentre + toward(arrives) * satelliteLoop);
-    knot.under = stretch(line.points.back(),
-                         centre + toward(direction + bend) * centreLoop);
+    knot.over = path::toSk(stretch(leaves, satelliteCentre + toward(arrives) * satelliteLoop));
+    knot.under = path::toSk(stretch(line.points.back(),
+                         centre + toward(direction + bend) * centreLoop));
     band.knots.push_back(std::move(knot));
     previous = direction;
   }
   band.length = travelled() + glm::distance(line.points.back(), line.points.front());
-  band.spine = path::toPath(line);
+  band.spine = path::toSk(path::toPath(line));
   return band;
 }
 

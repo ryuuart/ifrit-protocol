@@ -9,6 +9,7 @@
  * settle once they are laid.
  */
 
+#include <sigilgeometry/path/Outline.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkSize.h>
 
@@ -38,7 +39,7 @@ struct Course {
   uint32_t seed = 0;
 
   bool operator==(const Course&) const = default;
-  SkPath path(SkSize size) const;
+  sigil::geometry::path::Outline outline(glm::vec2 size) const;
 };
 
 /** The triangle pointing up and the one pointing down of a triangular
@@ -63,7 +64,7 @@ struct Rosette {
   float width = 0.84f;
 
   bool operator==(const Rosette&) const = default;
-  SkPath path(SkSize size) const;
+  sigil::geometry::path::Outline outline(glm::vec2 size) const;
 };
 
 /** THE GUILLOCHE OF A QUINCUNX: the one band's centreline, which runs
