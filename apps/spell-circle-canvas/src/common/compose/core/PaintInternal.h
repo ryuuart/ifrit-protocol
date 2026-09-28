@@ -45,7 +45,7 @@ inline const MaterialData* fillSlotOf(const Instance& inst) {
  *  or null where the fill is a plain `Fill`. */
 inline const material::Paint* liveMaterialOf(const Instance& inst) {
   const MaterialData* slot = fillSlotOf(inst);
-  if (slot && slot->surfaced && inst.lighting)
+  if (slot && slot->surfaced)
     if (const material::Paint* lit = inst.litFillOf(*slot)) return lit;
   return slot && slot->live ? &*slot->live : nullptr;
 }

@@ -14,6 +14,7 @@
 #include <chrono>
 #include <functional>
 #include <memory>
+#include <optional>
 
 #include "support/CoreTestSupport.h"
 
@@ -32,10 +33,12 @@ sk_sp<SkImage> twoFacedNormals(int width, int height) {
   return bitmap.asImage();
 }
 
-material::Material relief(material::Material colours) {
+material::Material relief(material::Material colours,
+                          std::optional<material::Lighting> lighting = {}) {
   return material::from(std::move(colours))
       .surface({.roughness = 0.8f,
-                .normal = material::image(twoFacedNormals(64, 32))});
+                .normal = material::image(twoFacedNormals(64, 32)),
+                .lighting = std::move(lighting)});
 }
 
 float brightness(SkColor colour) {
@@ -72,10 +75,14 @@ sk_sp<SkImage> grey(int width, int height) {
 }  // namespace
 
 TEST(ComposeLighting, AnInheritedLightTurnsTheReliefOfANormalMappedFill) {
-  const material::Material surface = relief(material::Color{0.6f, 0.6f, 0.6f, 1});
+  const material::Material surface =
+      relief(material::Color{0.6f, 0.6f, 0.6f, 1});
   const auto scene = [&](float direction) {
-    return stack().width(200).height(200).lighting(
-        material::studio({.direction = direction, .elevation = 30.0f}))
+    return stack()
+        .width(200)
+        .height(200)
+        .lighting(
+            material::studio({.direction = direction, .elevation = 30.0f}))
         .children({box().width(64).height(32).fill(surface)});
   };
   Host host;
@@ -95,30 +102,83 @@ TEST(ComposeLighting, AnInheritedLightTurnsTheReliefOfANormalMappedFill) {
 
 TEST(ComposeLighting, ASurfaceWithNoLightingInForceIsPaintedFlat) {
   Host host;
-  host.composer.render(stack().width(200).height(200).children(
-      {box().width(64).height(32).fill(
+  host.composer.render(
+      stack().width(200).height(200).children({box().width(64).height(32).fill(
           relief(material::Color{0.6f, 0.6f, 0.6f, 1}))}));
   host.frame();
   EXPECT_EQ(host.pixel(12, 16), host.pixel(52, 16));
   // `initial` ends an inherited lighting below where it was stated.
   host.composer.render(
-      stack().width(200).height(200).lighting(material::studio()).children(
-          {box().width(64).height(32).initial(Property::Lighting).fill(
-              relief(material::Color{0.6f, 0.6f, 0.6f, 1}))}));
+      stack()
+          .width(200)
+          .height(200)
+          .lighting(material::studio())
+          .children({box()
+                         .width(64)
+                         .height(32)
+                         .initial(Property::Lighting)
+                         .fill(relief(material::Color{0.6f, 0.6f, 0.6f, 1}))}));
   host.frame();
   EXPECT_EQ(host.pixel(12, 16), host.pixel(52, 16));
 }
 
+TEST(ComposeLighting, AFillUsesItsOwnLightingWithOrWithoutAnInheritedLight) {
+  const material::Material surface =
+      relief(material::Color{0.6f, 0.6f, 0.6f, 1},
+             material::studio({.direction = 180.0f, .elevation = 30.0f}));
+  Host host;
+  const auto scene = [&] {
+    return stack().width(200).height(200).children(
+        {box().width(64).height(32).fill(surface)});
+  };
+  host.composer.render(scene());
+  host.frame();
+  const SkColor left = host.pixel(12, 16);
+  const SkColor right = host.pixel(52, 16);
+  EXPECT_GT(brightness(left), brightness(right) + 60);
+
+  host.composer.render(scene().lighting(
+      material::studio({.direction = 0.0f, .elevation = 30.0f})));
+  host.frame();
+  EXPECT_EQ(left, host.pixel(12, 16));
+  EXPECT_EQ(right, host.pixel(52, 16));
+}
+
+TEST(ComposeLighting, AFillTracksItsOwnBoundLightWithoutRereadingItsColours) {
+  auto reads = std::make_shared<int>(0);
+  sigil::motion::Animatable<float> sun = sigil::motion::animatable(180.0f);
+  const material::Material surface = relief(
+      material::image(
+          sigil::media::PixelSource(CountedPicture{reads, grey(64, 32)})),
+      material::studio({.direction = sun, .elevation = 30.0f}));
+  Host host;
+  host.composer.render(stack().width(200).height(200).children(
+      {box().width(64).height(32).fill(surface)}));
+  host.frame();
+  const int readsOnce = *reads;
+  EXPECT_GT(readsOnce, 0);
+  EXPECT_GT(brightness(host.pixel(12, 16)),
+            brightness(host.pixel(52, 16)) + 60);
+
+  sun = 0.0f;
+  host.frame();
+  EXPECT_GT(brightness(host.pixel(52, 16)),
+            brightness(host.pixel(12, 16)) + 60);
+  EXPECT_EQ(readsOnce, *reads);
+}
+
 TEST(ComposeLighting, ABoundLightMovesTheReliefAndReadsTheColoursOnce) {
   auto reads = std::make_shared<int>(0);
-  const material::Material surface = relief(
-      material::image(sigil::media::PixelSource(CountedPicture{reads, grey(64, 32)})));
+  const material::Material surface = relief(material::image(
+      sigil::media::PixelSource(CountedPicture{reads, grey(64, 32)})));
   sigil::motion::Animatable<float> sun = sigil::motion::animatable(180.0f);
   Host host;
-  host.composer.render(stack().width(200).height(200)
-                           .lighting(material::studio(
-                               {.direction = sun, .elevation = 30.0f}))
-                           .children({box().width(64).height(32).fill(surface)}));
+  host.composer.render(
+      stack()
+          .width(200)
+          .height(200)
+          .lighting(material::studio({.direction = sun, .elevation = 30.0f}))
+          .children({box().width(64).height(32).fill(surface)}));
   host.frame();
   const int readsOnce = *reads;
   EXPECT_GT(readsOnce, 0);
@@ -144,8 +204,11 @@ namespace {
 int turnedBy(const std::function<Element()>& element) {
   Host host;
   const auto scene = [&](float direction) {
-    return stack().width(200).height(200).lighting(
-        material::studio({.direction = direction, .elevation = 30.0f}))
+    return stack()
+        .width(200)
+        .height(200)
+        .lighting(
+            material::studio({.direction = direction, .elevation = 30.0f}))
         .children({element()});
   };
   host.composer.render(scene(180.0f));
@@ -168,7 +231,8 @@ int turnedBy(const std::function<Element()>& element) {
 }  // namespace
 
 TEST(ComposeLighting, AStrokeAndALineOfTypeAreLitToo) {
-  const material::Material surface = relief(material::Color{0.6f, 0.6f, 0.6f, 1});
+  const material::Material surface =
+      relief(material::Color{0.6f, 0.6f, 0.6f, 1});
   EXPECT_GT(turnedBy([&] {
               return box().width(64).height(32).stroke(surface, {.width = 8});
             }),
@@ -180,4 +244,34 @@ TEST(ComposeLighting, AStrokeAndALineOfTypeAreLitToo) {
             }),
             20)
       << "the glyphs turned with the light";
+}
+
+TEST(ComposeLighting, AStyleRulePreservesAnInksOwnLighting) {
+  const material::Material surface =
+      relief(material::Color{0.6f, 0.6f, 0.6f, 1},
+             material::studio({.direction = 180.0f, .elevation = 30.0f}));
+  Host host;
+  host.composer.render(stack().width(200).height(200).children(
+      {text(u8"MMMM").font({.size = 48}).ink(surface)}));
+  host.frame();
+  SkBitmap direct;
+  direct.allocN32Pixels(200, 200);
+  host.surface->readPixels(direct.pixmap(), 0, 0);
+
+  host.composer.render(
+      stack()
+          .width(200)
+          .height(200)
+          .applyStyleSheet(StyleSheet{rule(".metal").ink(surface)})
+          .children({text(u8"MMMM").styleClass("metal").font({.size = 48})}));
+  host.frame();
+  int changed = 0;
+  int visible = 0;
+  for (int y = 0; y < 200; y += 2)
+    for (int x = 0; x < 200; x += 2) {
+      changed += host.pixel(x, y) != direct.getColor(x, y);
+      visible += SkColorGetA(direct.getColor(x, y)) > 0;
+    }
+  EXPECT_GT(visible, 20);
+  EXPECT_EQ(changed, 0);
 }

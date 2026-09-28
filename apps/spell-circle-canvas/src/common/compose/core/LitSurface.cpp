@@ -11,11 +11,11 @@
 namespace sigil::compose::detail {
 
 const material::Paint* Instance::litFillOf(const MaterialData& slot) const {
-  if (!slot.surfaced || !lighting) return nullptr;
+  if (!slot.surfaced) return nullptr;
   const material::Material* from = &*slot.surfaced;
   if (!litFill || litFrom != from || litUnder != lighting.get()) {
-    const material::Lighting under =
-        material::skia::lightingFor(*from, *lighting);
+    const material::Lighting under = material::skia::lightingFor(
+        *from, lighting ? *lighting : material::Lighting{});
     litFill = under ? material::skia::lit(*from, under)
                     : material::skia::paint(*from);
     litFrom = from;

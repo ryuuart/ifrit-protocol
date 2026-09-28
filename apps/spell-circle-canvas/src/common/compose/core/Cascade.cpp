@@ -203,9 +203,8 @@ float Composer::Impl::resolveLength(const Instance& inst,
       relative = true;
       const CalcLength& sum = calcLength(length);
       const SkSize canvas = size.isEmpty() ? rootLayoutSize : size;
-      float total = sum.px + sum.em * fontSizePx(inst.font) +
-                    sum.rem * remPx + sum.lh * inst.lineHeight +
-                    sum.ch * inst.zeroAdvance +
+      float total = sum.px + sum.em * fontSizePx(inst.font) + sum.rem * remPx +
+                    sum.lh * inst.lineHeight + sum.ch * inst.zeroAdvance +
                     sum.pw * 0.01f * canvas.width() +
                     sum.ph * 0.01f * canvas.height();
       for (const auto& [id, coefficient] : sum.vars) {
@@ -507,7 +506,9 @@ void Composer::Impl::resolveCascade(
         const detail::ElementNode& stated = *rule.node();
         const std::optional<material::Paint> rulePaint =
             stated.cascadeData ? stated.cascadeData->inkPaint : std::nullopt;
-        inkPaint = {rulePaint, box};
+        inkPaint = {rulePaint, box,
+                    stated.cascadeData ? stated.cascadeData->inkSurfaced
+                                       : std::nullopt};
         inkPaintOrigin = rulePaint.has_value();
       }
       if (!rule.vars().empty()) ruleVars.overlay(rule.vars());
@@ -518,7 +519,8 @@ void Composer::Impl::resolveCascade(
                         said->block ? &*said->block : nullptr, said);
         if (said->sampling) sampling = said->sampling;
         if (said->lighting)
-          lighting = std::make_shared<const material::Lighting>(*said->lighting);
+          lighting =
+              std::make_shared<const material::Lighting>(*said->lighting);
         if (!said->varDefaults.empty())
           ruleVarDefaults.overlay(said->varDefaults);
       }
@@ -768,8 +770,8 @@ void Composer::Impl::resolveCascade(
   // Compared by value, so a lighting stated again as the same value keeps
   // the one the subtree already shares.
   const bool lightingChanged =
-      first || (lighting != inst.lighting &&
-                (!lighting || !inst.lighting || !(*lighting == *inst.lighting)));
+      first || (lighting != inst.lighting && (!lighting || !inst.lighting ||
+                                              !(*lighting == *inst.lighting)));
   if (lightingChanged) inst.lighting = std::move(lighting);
   inst.font = font;
   inst.inkPaint = inkPaint;
@@ -891,8 +893,8 @@ void Composer::Impl::resolveCascade(
   // Whatever reads the ink, a property or the sampling at paint — a stroke
   // in the ink, a fill on a property, an image through its filter — baked
   // the old value into its recording.
-  if (!first && (inkChanged || varsChanged || samplingChanged ||
-                 lightingChanged)) {
+  if (!first &&
+      (inkChanged || varsChanged || samplingChanged || lightingChanged)) {
     inst.markPaintDirtyUp();
     contentDirty = true;
   }
