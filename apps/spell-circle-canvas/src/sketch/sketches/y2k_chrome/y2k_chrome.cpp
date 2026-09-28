@@ -19,7 +19,7 @@
 //                     type over it, so the chrome horizon runs THROUGH the
 //                     capitals; the plate's specular sliver and starburst
 //                     glints garnish it
-//   tagline ......... two styles::textGlow passes chained with .then()
+//   tagline ......... two sigil::material::Filter::glow passes chained with .then()
 //   aqua orb ........ y2k::aquaGel() on a circle
 //   1998 button ..... a plastic bevel built by hand — flat web-safe fill,
 //                     BevelEmboss, 1px black keyline. No preset covers it.
@@ -28,13 +28,14 @@
 
 // TAGS: Materials/Compositing, Interfaces/Desktop
 
+#include <sigilmaterial/filter/Filter.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <include/core/SkMaskFilter.h>
 #include <sigilcompose/brush/Adaptors.h>
-#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Presets.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Edges.h>
 #include <sigilmaterial/color/Color.h>
@@ -44,7 +45,6 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Ticker.h>
-#include <sigilweave/style/PaintLayer.h>
 #include <sigilweave/style/Type.h>
 
 #include "Aqua.h"
@@ -93,21 +93,12 @@ inline sigil::weave::TextStyle type(float size, material::Color color,
       {.size = size, .color = color, .track = tracking, .weight = weight});
 }
 
-/** One pass under the glyphs, offset down: the 1px ground a label on gel
- *  or chrome stands on. */
-inline weave::PaintLayer ground(material::Color colour, float dy = 1.2f) {
-  weave::PaintLayer layer;
-  layer.paint.setColor4f(material::skia::toSkColor(colour), nullptr);
-  layer.paint.setAntiAlias(true);
-  layer.offset = {0, dy};
-  return layer;
-}
-
-/** The one field a gel label adds to its class: the ground under it,
- *  derived from the gel's tint. */
-inline weave::Type gelGround(material::Color tint) {
-  return {.underlays = {{ground(
-              {tint.r * 0.30f, tint.g * 0.30f, tint.b * 0.30f, 0.5f})}}};
+/** A gel label's ink and the dark ground cast just below it. */
+inline material::Material gelInk(material::Color tint) {
+  return material::from(material::Color{1, 1, 1, 0.98f}).effects(
+      material::Filter::shadow(
+          {tint.r * 0.30f, tint.g * 0.30f, tint.b * 0.30f, 0.5f},
+          {.offset = {0, 1.2f}}));
 }
 
 /** The type this card names, bound around the description: `gelLabel` is
@@ -144,7 +135,7 @@ inline Element gelPill(std::string_view label, material::Color tint,
       .row()
       .alignItems(Align::Center)
       .justifyContent(Justify::Center)
-      .children({text(label).styleClass("gelLabel").font(gelGround(tint))});
+      .children({text(label).styleClass("gelLabel").ink(gelInk(tint))});
 }
 
 inline Element gelOrb(float d = kOrbD) {
@@ -166,7 +157,7 @@ inline Element gelOrb(float d = kOrbD) {
       .children({box()
                      .inset(d * 0.50f, d * 0.14f, d * 0.02f, d * 0.14f)
                      .borderRadius({d * 0.24f})
-                     .fill(Paint::radialGradient(
+                     .fill(sigil::material::radialGradient(
                          {d * 0.36f, d * 0.55f}, d * 0.52f,
                          {{0.00f, {0.72f, 0.92f, 1.0f, 0.90f}},
                           {0.60f, {0.55f, 0.85f, 1.0f, 0.35f}},
@@ -202,11 +193,11 @@ inline Element aquaPill(std::string_view label, const PillTint& t,
       .height(h)
       .borderRadius({r})
       // halo: rgba(66,140,240,.5) offset (0,10) blur 16 - under the fill
-      .background(styles::dropShadow(t.halo, {0, 10}, 16))
+      
       // body ramp: deep .82 -> mid .9 @0.9 -> light
-      .fill(Paint::linearGradient(
+      .fill(sigil::material::from(sigil::material::linearGradient(
           {0, 0}, {0, h}, {{0.0f, t.deep}, {0.9f, t.mid}, {1.0f, t.light}},
-          {.units = material::GradientUnits::Pixels}))
+          {.units = material::GradientUnits::Pixels})).effects(sigil::material::Filter::shadow(t.halo, {.blur = 16, .offset = {0, 10}})))
       .foreground(rim(path::Edge::Top, hexColor(0x8BA2C1)))
       .foreground(rim(path::Edge::Right, hexColor(0x5890BF)))
       .foreground(rim(path::Edge::Bottom, hexColor(0x4F93CA)))
@@ -216,7 +207,7 @@ inline Element aquaPill(std::string_view label, const PillTint& t,
           {box()
                .inset(h * 0.55f, 2, 2, 2)
                .borderRadius({r - 2})
-               .fill(Paint::linearGradient(
+               .fill(sigil::material::linearGradient(
                    {0, h * 0.45f - 4}, {0, 0},
                    {{0.0f, {t.glow.r, t.glow.g, t.glow.b, 0.85f}},
                     {1.0f, {t.glow.r, t.glow.g, t.glow.b, 0.0f}}},
@@ -226,7 +217,7 @@ inline Element aquaPill(std::string_view label, const PillTint& t,
            box()
                .inset(h * 0.04f, w * 0.05f, h * 0.48f, w * 0.05f)
                .borderRadius({h * 0.24f})
-               .fill(Paint::linearGradient(
+               .fill(sigil::material::linearGradient(
                    {0, 0}, {0, h * 0.48f},
                    {{0.0f, {1, 1, 1, 0.72f}}, {1.0f, {1, 1, 1, 0.0f}}},
                    {.units = material::GradientUnits::Pixels})),
@@ -238,7 +229,7 @@ inline Element aquaPill(std::string_view label, const PillTint& t,
                .zIndex(1)
                .children({text(label)
                               .styleClass("gelLabel")
-                              .font(gelGround({t.deep.r * 1.3f, t.deep.g * 1.3f,
+                              .ink(gelInk({t.deep.r * 1.3f, t.deep.g * 1.3f,
                                                t.deep.b * 1.3f, 1}))})});
 }
 
@@ -247,7 +238,7 @@ inline Element aquaPill(std::string_view label, const PillTint& t,
 // this one; it stays the styles-primitives build).
 
 inline Element plasticButton(std::string_view label) {
-  styles::BevelEmboss bevel;
+  material::BevelOptions bevel;
   bevel.depth = 3;
   bevel.size = 0;  // HARD edges: the era's 2px outset is unblurred
   bevel.highlight = {1, 1, 1, 0.88f};
@@ -255,8 +246,7 @@ inline Element plasticButton(std::string_view label) {
   return box()
       .width(150)
       .height(34)
-      .fill(Fill::color(hexColor(0x336699)))  // flat web-safe fill
-      .foreground(bevel)
+      .fill(material::from(hexColor(0x336699)).effects(material::Filter::bevel(bevel)))
       .stroke(stroke(1, Fill::color(hexColor(0x000000))))  // keyline
       .row()
       .alignItems(Align::Center)
@@ -266,14 +256,13 @@ inline Element plasticButton(std::string_view label) {
 
 /** Tiny window-chrome bevel square (the min/max/close cluster). */
 inline Element chromeSquare(material::Color fill) {
-  styles::BevelEmboss bevel;
+  material::BevelOptions bevel;
   bevel.depth = 1.5f;
   bevel.size = 0;
   return box()
       .width(14)
       .height(13)
-      .fill(Fill::color(fill))
-      .foreground(bevel)
+      .fill(material::from(fill).effects(material::Filter::bevel(bevel)))
       .stroke(stroke(1, Fill::color({0.25f, 0.27f, 0.30f, 0.8f})));
 }
 
@@ -308,9 +297,9 @@ struct Y2kChrome {
     unitW = std::ceil(unit.width());
     wrapLen = unitW + yc::kTickerGap;
 
-    ticker.add([this, &ticker] {
+    ticker.timer([this, &ticker] {
       namespace yc = y2k_chrome;
-      const double t = ticker.elapsed();
+      const double t = ticker.elapsed().count();
       tickX = -(float)std::fmod(t * yc::kTickerSpeed, (double)wrapLen);
     });
 
@@ -339,7 +328,7 @@ struct Y2kChrome {
     using namespace std::chrono_literals;
 
     // ---- period page ground: gray + subtle woven checker -----------------
-    Paint check =
+    material::Material check =
         Pattern(material::pattern::checker(3, {0, 0, 0, 0.035f}, {1, 1, 1, 0.05f}))
             .material();
 
@@ -359,9 +348,10 @@ struct Y2kChrome {
                            .font({.size = 12,
                                   .color = hexColor(0xF2F6FA),
                                   .track = 0.4f,
-                                  .weight = 600,
-                                  .underlays = {{yc::ground(
-                                      {0, 0.04f, 0.10f, 0.6f})}}}),
+                                  .weight = 600})
+                           .ink(material::from(hexColor(0xF2F6FA)).effects(
+                               material::Filter::shadow({0, 0.04f, 0.10f, 0.6f},
+                                                        {.offset = {0, 1.2f}}))),
                        box().flexGrow(1), yc::chromeSquare(hexColor(0xD4D0C8)),
                        yc::chromeSquare(hexColor(0xD4D0C8)),
                        yc::chromeSquare(hexColor(0xC87050))});
@@ -380,30 +370,7 @@ struct Y2kChrome {
             .row()
 
             .padding(0, 34)
-            .children({text("MILLENNIUM",
-                            [] {
-                              namespace yc = y2k_chrome;
-                              auto s = yc::type(54, {1, 1, 1, 0.97f}, 3, 800);
-                              // Cast shadow, then a tight dark keyline: chrome
-                              // type needs both to sit off a chrome plate.
-                              sigil::weave::PaintLayer ground;
-                              ground.paint.setColor4f(
-                                  {0.02f, 0.05f, 0.09f, 0.55f}, nullptr);
-                              ground.paint.setAntiAlias(true);
-                              ground.paint.setMaskFilter(SkMaskFilter::MakeBlur(
-                                  kNormal_SkBlurStyle, 1.6f));
-                              ground.offset = {0, 2.4f};
-                              sigil::weave::PaintLayer contour;
-                              contour.paint.setAntiAlias(true);
-                              contour.paint.setStyle(SkPaint::kStroke_Style);
-                              contour.paint.setStrokeWidth(2.6f);
-                              contour.paint.setStrokeJoin(SkPaint::kRound_Join);
-                              contour.paint.setColor4f(
-                                  {0.02f, 0.06f, 0.11f, 0.9f}, nullptr);
-                              s.paint.addUnderlay(ground);
-                              s.paint.addUnderlay(contour);
-                              return s;
-                            }())
+            .children({text("MILLENNIUM", yc::type(54, {1, 1, 1, 0.97f}, 3, 800))
                            // The wordmark is CHROME, not white type on chrome.
                            // With flat-white capitals the plate's horizon
                            // sliver is the only bright line at that height and
@@ -411,14 +378,17 @@ struct Y2kChrome {
                            // the type with the same unit-space chrome ramp puts
                            // the horizon inside the letterforms, which is where
                            // a period chrome wordmark carries it.
-                           .ink(y2k::sunsetChromeType())});
+                           .ink(y2k::sunsetChromeType().effects(
+                               material::Filter::shadow({0.02f, 0.05f, 0.09f, 0.55f},
+                                                        {.blur = 1.6f, .offset = {0, 2.4f}})
+                                   .then(material::Filter::stroke(
+                                       {0.02f, 0.06f, 0.11f, 0.9f}, {.width = 1.3f}))))});
 
     Element wordmark =
         box()
             .key("wordmark")
-            .translateY(animate(motion::from(14.0f).to(0.0f),
-                                {550ms, motion::ease::outQuint}))
-            .opacity(animate(motion::from(0.0f).to(1.0f), {400ms}))
+            .translateY(sigil::motion::animate({.from = 14.0f, .to = 0.0f, .duration = 550ms, .ease = motion::ease::outQuint}))
+            .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 400ms}))
             .children(
                 {plate,
                  // The preset's specular sliver rides the plate BEHIND
@@ -440,7 +410,7 @@ struct Y2kChrome {
                      .justifyContent(Justify::End)
                      .children({yc::glint(13, 12, 0.85f)})});
 
-    // ---- tagline: styles::textGlow, chained for the hotter double glow ----
+    // ---- tagline: sigil::material::Filter::glow, chained for the hotter double glow ----
     // Aero glow on a LIGHT ground: saturated aero-blue core, white-hot
     // tight glow, wide cyan bloom - the chained double textGlow.
     Element tagline =
@@ -452,13 +422,13 @@ struct Y2kChrome {
             .padding(24, 0)
             .margin(-12, 0, -24, 0)
             .cache(Cache::Texture)
-            .opacity(animate(motion::from(0.0f).to(1.0f), {400ms}))
+            .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 400ms}))
             .children(
                 {text("· t h e   f u t u r e   i s   "
                       "c h r o m e ·",
                       yc::type(14, hexColor(0x7FD0FF), 2.5f, 650))
-                     .filter(styles::textGlow({1.0f, 1.0f, 1.0f, 0.95f}, 2)
-                                 .then(styles::textGlow(
+                     .filter(sigil::material::Filter::glow({1.0f, 1.0f, 1.0f, 0.95f}, 2)
+                                 .then(sigil::material::Filter::glow(
                                      {0.36f, 0.80f, 1.0f, 0.9f}, 7)))});
 
     // ---- pill rack: three aquaGel() recolors ------------------------------
@@ -469,9 +439,8 @@ struct Y2kChrome {
             .gap(22)
             .margin(18, 0, 0, 0)
             .key("pills")
-            .translateY(animate(motion::from(12.0f).to(0.0f),
-                                {550ms, motion::ease::outQuint}))
-            .opacity(animate(motion::from(0.0f).to(1.0f), {400ms}))
+            .translateY(sigil::motion::animate({.from = 12.0f, .to = 0.0f, .duration = 550ms, .ease = motion::ease::outQuint}))
+            .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 400ms}))
             .children({yc::gelPill("ENTER  PORTAL", hexColor(0x1E8FFF)),
                        yc::gelPill("HOT  LINKS", hexColor(0xE03A3A)),
                        yc::gelPill("GUESTBOOK", hexColor(0x2AA84F))});
@@ -492,7 +461,7 @@ struct Y2kChrome {
             .row()
             .justifyContent(Justify::Center)
             .margin(16, 0, 0, 0)
-            .opacity(animate(motion::from(0.0f).to(1.0f), {500ms}))
+            .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 500ms}))
             .children(
                 {box()
                      .row()
@@ -549,13 +518,13 @@ struct Y2kChrome {
     Element windowBackplate =
         box()
             .inset(yc::kWindowY, yc::kWindowX)
-            .background(styles::dropShadow({0, 0, 0, 0.38f}, {0, 7}, 18))
-            .fill(Paint::linearGradient(
+            
+            .fill(sigil::material::from(sigil::material::linearGradient(
                 {0, 0}, {0, yc::kH},
                 {{0.00f, hexColor(0x16204A)},
                  {0.48f, hexColor(0x0B1030)},
                  {1.00f, hexColor(0x050817)}},
-                {.units = material::GradientUnits::Pixels}))
+                {.units = material::GradientUnits::Pixels})).effects(sigil::material::Filter::shadow({0, 0, 0, 0.38f}, {.blur = 18, .offset = {0, 7}})))
             .borderRadius({6})
             .overflow(Overflow::Clip)
             .children({box()
@@ -565,7 +534,7 @@ struct Y2kChrome {
                                      .rotate(45)
                                      .material())
                            .blendMode(material::BlendMode::PlusLighter),
-                       box().inset(0).fill(Paint::radialGradient(
+                       box().inset(0).fill(sigil::material::radialGradient(
                            {0.5f, 0.42f}, 1.02f,
                            {{0.0f, {0.36f, 0.52f, 0.92f, 0.16f}},
                             {0.55f, {0, 0, 0, 0.0f}},
@@ -578,7 +547,7 @@ struct Y2kChrome {
     // — the pill helpers included — resolves here.
     return stack()
         .applyStyleSheet(yc::classes())
-        .fill(Paint::linearGradient(
+        .fill(sigil::material::linearGradient(
             {0, 0}, {0, yc::kH},
             {{0.0f, hexColor(0xB9BFC7)}, {1.0f, hexColor(0xA2A8B1)}},
             {.units = material::GradientUnits::Pixels}))
@@ -604,9 +573,8 @@ struct Y2kChrome {
                            box()
                                .height(2)
                                .margin(0, 4, 10, 4)
-                               .opacity(animate(motion::from(0.0f).to(1.0f),
-                                                {500ms}))
-                               .fill(Paint::linearGradient(
+                               .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 500ms}))
+                               .fill(sigil::material::linearGradient(
                                    {0, 0}, {0, 2},
                                    {{0.0f, hexColor(0x8F969D)},
                                     {0.5f, hexColor(0x8F969D)},
@@ -619,8 +587,7 @@ struct Y2kChrome {
                                .row()
                                .alignItems(Align::End)
                                .key("footer")
-                               .opacity(animate(motion::from(0.0f).to(1.0f),
-                                                {500ms}))
+                               .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 500ms}))
                                .children(
                                    {yc::gelOrb(),
                                     box()
