@@ -1,3 +1,5 @@
+#include <sigilmaterial/skia/Filter.h>
+#include <sigilmaterial/paint/Bases.h>
 #include "SlitScan2001.h"
 #include <sigilmotion/ease/Ease.h>
 
@@ -50,7 +52,7 @@ auto SlitScan2001::filmFrame() -> Element {
                                material::BlendMode::PlusLighter)});
   };
   Element accumulation =
-      raw().filter(Effect::shader(transfer, {{"k", transferK()}}));
+      raw().filter(sigil::material::skia::program(transfer, {{"k", transferK()}}));
   // THE CORE. Where the two planes converge the camera is looking
   // straight down the corridor, and every stamp in both exposures has
   // been laid on top of every other: on the Star Gate frame the
@@ -66,14 +68,14 @@ auto SlitScan2001::filmFrame() -> Element {
   Element vanishing =
       box()
           .rect(-150.0f, -150.0f, 300.0f, 300.0f)
-          .translateX(&coreX)
-          .translateY(&coreY)
+          .translateX(coreX)
+          .translateY(coreY)
           // The core's own picture never changes — only where it is —
           // so it is baked once and the binding moves the bake. A
           // full-canvas kPlus radial re-evaluated per frame costs this
           // scene more than the two exposures do.
           .cache(Cache::Texture)
-          .fill(Paint::radialGradient(
+          .fill(sigil::material::radialGradient(
               {0.5f, 0.5f}, 0.5f,
               {{0.00f, {1.0f, 0.98f, 0.92f, 0.92f}},
                {0.12f, {1.0f, 0.94f, 0.80f, 0.42f}},
@@ -86,9 +88,8 @@ auto SlitScan2001::filmFrame() -> Element {
   // added -- so it is still the accumulation, not a painted glow.
   Element halation =
       raw()
-          .filter(Effect::shader(transfer, {{"k", transferK() * 0.55f}})
-                      .then(Effect::filter(
-                          SkImageFilters::Blur(9.0f, 9.0f, nullptr))))
+          .filter(sigil::material::skia::program(transfer, {{"k", transferK() * 0.55f}})
+                      .then(sigil::material::Filter::blur(9.0f)))
           .blendMode(material::BlendMode::PlusLighter)
           .opacity(0.55f);
 
@@ -207,7 +208,7 @@ auto SlitScan2001::rigStrip() -> Element {
                                    instancing::instances(atlas, monB,
                                                          instancing::Mode::Live,
                                                          material::BlendMode::PlusLighter)})
-                        .filter(Effect::shader(transfer, {{"k", 2.4f}})),
+                        .filter(sigil::material::skia::program(transfer, {{"k", 2.4f}})),
                     t("THIS EXPOSURE",
                       {.size = 8, .color = al(kCold, 0.85f), .track = 1.4f})
                         .at({8, 5}),

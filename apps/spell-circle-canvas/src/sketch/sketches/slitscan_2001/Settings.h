@@ -2,6 +2,8 @@
 
 // Construction data and drawing primitives owned by this study.
 
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
@@ -24,7 +26,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/draw/Draw.h>
-#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Presets.h>
 #include <sigilcompose/kit/Legibility.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>

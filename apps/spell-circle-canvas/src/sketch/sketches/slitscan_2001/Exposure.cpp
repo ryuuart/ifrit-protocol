@@ -1,3 +1,5 @@
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include "SlitScan2001.h"
 
 auto SlitScan2001::shotAt(int i) -> const Shot& {
@@ -125,7 +127,7 @@ auto SlitScan2001::fitAtK(sigil::weave::FontContext& fonts, int K) -> Fit {
       std::array<int, 120> bin{};
       for (int i = 0; i < 120; ++i) {
         const float u = u0 * std::pow(u1 / u0, (float)i / 119.0f);
-        const SkPoint at = arrange::onEllipse(c, {u, u}, ang);
+        const SkPoint at = sigil::geometry::path::toSk(arrange::onEllipse(sigil::geometry::path::fromSk(c), {u, u}, ang));
         const float v = lumAt(at.fX, at.fY);
         bin[(size_t)i] = -1;
         if (v > 1e-6f) {
@@ -215,10 +217,10 @@ auto SlitScan2001::roundTrip(sigil::weave::FontContext& fonts) -> void {
 
   auto one = std::make_shared<instancing::CellSheet>(1.0f);
   one->filter(SkFilterMode::kNearest);
-  one->cell(box().fill(Paint::image(
-                S.image, SkTileMode::kClamp, SkTileMode::kClamp,
+  one->cell(box().fill(sigil::material::skia::base(sigil::material::skia::image(
+                S.image, sigil::material::Repeat::Pad, sigil::material::Repeat::Pad,
                 SkMatrix::Scale(kCellW / (float)S.w, kCellH / (float)S.h),
-                SkSamplingOptions())),
+                SkSamplingOptions()))),
             {kCellW, kCellH});
   auto pool = std::make_shared<instancing::Pool>();
   pool->resize(1);

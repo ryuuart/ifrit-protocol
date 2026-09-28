@@ -36,8 +36,8 @@ auto SlitScan2001::panelShell(const data::Json& said, int order) -> Element {
       .stroke(stroke(1.0f, Fill::color(kRule)))
       .overflow(Overflow::Clip)
       .key(kit::formatted("panel%d", order))
-      .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 300ms, .ease = sigil::motion::ease::outQuad}))
-      .translateX(sigil::motion::animate({.from = 14.0f, .to = 0.0f, .duration = 300ms, .ease = sigil::motion::ease::outQuad}))
+      .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 300ms, .delay = sigil::motion::stagger(85ms), .ease = sigil::motion::ease::outQuad}))
+      .translateX(sigil::motion::animate({.from = 14.0f, .to = 0.0f, .duration = 300ms, .delay = sigil::motion::stagger(85ms), .ease = sigil::motion::ease::outQuad}))
       .children({document::h2(std::string(said["heading"].string()))
                      .font({.face = uiFace(), .size = 9.5f, .track = 2.2f}),
                  rule(390, kRule)});
@@ -102,7 +102,7 @@ auto SlitScan2001::s3Law() -> Element {
                {box()
                     .inset(4)
                     .shape(shapes::parametric(
-                        [](float s) { return SkPoint{s, s}; }, 0.0f, 1.0f, 240,
+                        [](float s) { return glm::vec2{s, s}; }, 0.0f, 1.0f, 240,
                         false))
                     .stroke(spans::upTo(sigil::motion::animate({.to = 1.0f, .duration = 520ms, .delay = 1500ms, .ease = sigil::motion::ease::outCubic})),
                             stroke(1.6f, Fill::color(kAmber))),
@@ -161,7 +161,6 @@ auto SlitScan2001::sidebar() -> Element {
       .height(kBodyH)
       .flexShrink(0)
       .justifyContent(Justify::SpaceBetween)
-      .staggerChildren(85ms)
       .children({s1Quote(), s2Lens(), s3Law(), s4Sampling()});
 }
 
@@ -198,7 +197,7 @@ auto SlitScan2001::expoEl() -> Element {
 
 auto SlitScan2001::fitEl() -> Element {
   using namespace slit;
-  if (fixedStatus.clamped)
+  if (filmClock.droppedTime())
     return t("FIT SUPPRESSED — THIS FRAME DROPPED SIMULATED TIME",
              {.size = 8.2f, .color = kRed});
   return box().column().gap(1).children(

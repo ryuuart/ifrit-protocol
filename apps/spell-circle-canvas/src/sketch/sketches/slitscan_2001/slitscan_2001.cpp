@@ -2,7 +2,11 @@
 
 // TAGS: Media/Video
 
-#include <sigilgeometry/path/Skia.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigildata/decode/Json.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include "SlitScan2001.h"
 
 auto SlitScan2001::describe(sketch::SketchContext& ctx) -> Element {
@@ -38,7 +42,7 @@ static void dressed(Pen& pen, const PaintContext& node, SkPath outline,
                     const Decoration& dress) {
   PaintContext ctx = node;
   ctx.outline = sigil::geometry::path::fromSk(outline);
-  decorations::paintOn(*pen.canvas(), ctx, std::move(outline), dress);
+  decorations::paintOn(pen, ctx, sigil::geometry::path::fromSk(outline), dress);
 }
 
 void SlitScan2001::drawRig(Pen& pen, const PaintContext& ctx) {
@@ -50,7 +54,7 @@ void SlitScan2001::drawRig(Pen& pen, const PaintContext& ctx) {
   const float plateH = kPlateIn * S;  // 216 px
   const float benchT = 232.0f, benchB = 244.0f;
 
-  pen.textFont(monoFace());
+  pen.textFont(sigil::weave::Type{.face = monoFace()});
 
   // The bench, as a drafting section: a solid with 45-degree hatching. The
   // hatch is a compose decoration over the pen's own canvas, which is the
@@ -196,24 +200,17 @@ void SlitScan2001::drawRig(Pen& pen, const PaintContext& ctx) {
     pen.line(ax, trackY - 50, bx, trackY - 50);
     pen.circle((ax + bx) * 0.5f, trackY - 50, 22);
     pen.line((ax + bx) * 0.5f - 11, trackY - 50, 466, trackY - 22);
-    // HALOED. The carriage travels the whole rail over tau, so this caption
-    // is printed through by the camera body at some phase of every sweep —
-    // and there is no clear band to move it to: above is the clock block,
-    // below is the leader pair, the worm-gear rail and the scale note. A
-    // 2 px knockout in the panel colour is what a drafting plate does when
-    // a note has to cross the drawing, and kit::drawHaloed is exactly that
-    // pass — a knockout in the ground colour, then the ink. The BLOCK form:
-    // every halo, then every ink, because haloing line by line lets the
-    // second line's knockout eat the first line's descenders.
-    SkFont f75(monoFace(), 7.5f);
-    SkPaint ink;
-    ink.setAntiAlias(true);
-    ink.setColor4f(sigil::material::skia::toSkColor(kRed));
-    kit::drawHaloed(
-        *pen.canvas(),
-        {{"1½ in = 4.5 px [T68] — AND [C85]’s TRACK", {304, trackY - 26}},
-         {"STOPS 12 in SHORT: THE RED DASHES.", {304, trackY - 16}}},
-        f75, ink, {.colour = kPanelBg, .width = 2.2f});
+    // One block gives the two lines one knockout beneath all their ink.
+    pen.element(
+        text("1½ in = 4.5 px [T68] — AND [C85]’s TRACK\n"
+             "STOPS 12 in SHORT: THE RED DASHES.")
+            .font({.face = monoFace(), .size = 7.5f})
+            .lineHeight(sigil::weave::Leading::absolute(10))
+            .textFirstBaseline(sigil::weave::FrameOptions::FirstBaseline::kFixed, 0)
+            .ink(sigil::material::from(kRed).effects(
+                sigil::material::Filter::stroke(kPanelBg, {.width = 1.1f}))),
+        304, trackY - 26, 250, 24);
+
   }
 
   // The machine's own clock, which is the reason this study is called
@@ -277,7 +274,7 @@ void SlitScan2001::drawArtworkPanel(Pen& pen, const PaintContext& ctx) {
   const float ph = kSlitHIn * kRigPxPerIn;  // 144 px -- 3:1, undistorted
   const float top = 40.0f;
 
-  pen.textFont(monoFace());
+  pen.textFont(sigil::weave::Type{.face = monoFace()});
   // The panel crawls left by one slit-width per film frame -- pinned by
   // [GE]'s unwrap, not chosen — so two copies stand side by side and the
   // window keeps whichever part of them is under the slit. 1-bit artwork,
@@ -359,7 +356,7 @@ void SlitScan2001::drawMeasuredPoints(Pen& pen) {
   for (int i = 0; i < profN; i += 2)
     pen.circle(profX[(size_t)i] * W,
                std::clamp(profY[(size_t)i], 0.0f, 1.0f) * H, 3.0f);
-  pen.textFont(monoFace());
+  pen.textFont(sigil::weave::Type{.face = monoFace()});
   pen.textSize(6.4f);
   pen.fill(al(kTick, 0.95f));
   pen.text("log u  8 → 520 px", 3, H - 3);
@@ -379,13 +376,14 @@ const data::Json& SlitScan2001::doc() const {
 
 void SlitScan2001::setup(sketch::SketchContext& ctx) {
   using namespace slit;
-  words = ctx.assets.json(ctx.local("data/content.json"));
+  words = ctx.assets.hub().load<sigil::data::Json>(ctx.local("data/content.json"));
   // tau lands on 0.60 here, which is the carriage two thirds down its
   // fourteen feet, mid-exposure — what the +0.60 phase offset is for.
   sketch::kit::stage(ctx, {.size = SkSize::Make(kCanvasW, kCanvasH),
                            .captureAt = 6.0,
                            .background = kInk});
-  transfer = ctx.assets.shader(ctx.local("transfer.sksl"));
+  transfer = SkRuntimeEffect::MakeForShader(SkString(
+            ctx.assets.hub().text(ctx.local("transfer.sksl")).value_or(""))).effect;
 
   // ---- bake the artwork ONCE. These are static images made at setup and
   // never mutated afterwards, so they are plain baked SkImages; a live
@@ -412,11 +410,11 @@ void SlitScan2001::setup(sketch::SketchContext& ctx) {
   atlas->filter(SkFilterMode::kNearest);  // 1-bit artwork
   for (int i = 0; i < 3; ++i) {
     const Strip& S = strips[(size_t)i];
-    atlas->cell(box().fill(Paint::image(
-                    S.image, SkTileMode::kClamp, SkTileMode::kClamp,
+    atlas->cell(box().fill(sigil::material::skia::base(sigil::material::skia::image(
+                    S.image, sigil::material::Repeat::Pad, sigil::material::Repeat::Pad,
                     SkMatrix::Scale(kCellW / (float)std::max(S.w, 1),
                                     kCellH / (float)std::max(S.h, 1)),
-                    SkSamplingOptions())),
+                    SkSamplingOptions()))),
                 {kCellW, kCellH});
   }
   if (ctx.fonts && atlas->ensureBaked(*ctx.fonts) && atlas->image()) {
@@ -463,18 +461,17 @@ void SlitScan2001::setup(sketch::SketchContext& ctx) {
   // interpolant drives the shutter bar and the sub-frame readout and
   // NOTHING in the picture: a projector holds a frame for its whole 1/24 s
   // and then replaces it, so tweening the frame would be wrong.
-  ctx.engine.addFixed(
-      24.0,
-      [this] {
+  filmClock = ctx.engine.timer([this] {
         ++filmNo;
         artOffset = std::fmod(artOffset + kAdvanceIn / kPanelIn, 1.0f);
         plateDeg += shotAt(shotFor(filmNo)).dPhi;
         return true;
-      },
-      8, &frameAlpha, &fixedStatus);
+      }, {.stepRate = 24.0, .catchUp = 8});
+    ctx.engine.timer([this, clock = filmClock] { frameAlpha = clock.betweenSteps(); });
 
   // ---- the demonstration clock: tau sweeps once per 3.0 s.
-  ctx.engine.add([this](double dt) {
+  ctx.engine.timer([this](sigil::motion::Duration stepDuration) {
+      const double dt = stepDuration.count();
     elapsed += dt;
     // Phase-offset so the recommended capture lands with the carriage
     // two thirds down its fourteen feet, mid-exposure.
@@ -504,7 +501,7 @@ void SlitScan2001::setup(sketch::SketchContext& ctx) {
 }
 
 void SlitScan2001::update(double e, sketch::SketchContext& ctx) {
-  if (fixedStatus.clamped) everClamped = true;
+  if (filmClock.droppedTime()) everClamped = true;
   // Shot cuts are HARD, and they land on a FILM FRAME (every 96th), not on
   // a wall-clock boundary. The film cuts.
   (void)e;

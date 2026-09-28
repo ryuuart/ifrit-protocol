@@ -1,7 +1,7 @@
 // The film's transfer curve: D = 1 - e^(-kE), applied to the
 // ACCUMULATION.
 //
-// Effect::shader hands the node's already-painted layer to the SkSL as
+// material::skia::program hands the node's already-painted layer to the SkSL as
 // a child shader named `content`, so a tone curve over painted content
 // is one call and needs no palette lookup and no read-back. Applied
 // over a Mode::Live instancing leaf.

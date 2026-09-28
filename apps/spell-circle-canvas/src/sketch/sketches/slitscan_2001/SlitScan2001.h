@@ -5,7 +5,7 @@
 struct SlitScan2001 {
   // ---- the film clock: 24 Hz because the film runs at 24 fps -------------
   sigil::motion::Animatable<float> frameAlpha = sigil::motion::animatable(0.0f);
-  sigil::motion::Engine::FixedStatus fixedStatus;
+  sigil::motion::Timer filmClock;
   long long filmNo = 0;
   bool everClamped = false;
 
