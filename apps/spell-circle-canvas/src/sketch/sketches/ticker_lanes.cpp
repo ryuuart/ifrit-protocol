@@ -40,6 +40,7 @@
 
 // TAGS: Motion/Clocks
 
+#include <sigilmotion/time/Duration.h>
 #include <choreograph/Choreograph.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -139,30 +140,30 @@ struct TickerLanes {
     int fixedSteps = 0;
     bool stillActive = false;
 
-    ticker.add([&](double dt) {
+    ticker.timer([&](sigil::motion::Duration stepDuration) {
+      const double dt = stepDuration.count();
       elapsed += dt;
-      source = motion::phase(elapsed, 1.0);
+      source = motion::phase(sigil::motion::Duration(elapsed), sigil::motion::Duration(1.0));
       return true;  // …and so this ticker is active forever
     });
-    ticker.addFixed(
-        kFixedHz,
-        [&] {
+    const auto fixedClock = ticker.timer([&] {
           ++fixedSteps;
           return true;
-        },
-        8, alpha);
-    const bool derived_ok =
-        ticker.derive(derived, motion::bind(source, {.quantize = kLevels}));
-    ticker.timeline().apply(ramped).then<ch::RampTo>(1.0f, kRamp);
+        }, {.stepRate = kFixedHz, .catchUp = 8});
+    ticker.timer([&, fixedClock] { alpha = fixedClock.betweenSteps(); });
+    derived = motion::bind(source, {.quantize = kLevels});
+    const bool derived_ok = derived.binding() != nullptr;
+    ticker.animate(ramped, {.to = 1.0f, .duration = sigil::motion::Duration(kRamp), .ease = sigil::motion::ease::linear});
 
     for (int i = 0; i < kSteps; ++i) {
-      stillActive = ticker.tick(kDt);
-      freeLane.push_back(source);
+      ticker.advance(motion::Duration((i + 1) * kDt));
+      stillActive = ticker.isRunning();
+      freeLane.push_back(source.value());
       fixedLane.push_back((float)fixedSteps / (float)(kSpan * kFixedHz));
-      alphaLane.push_back(alpha);
-      sourceLane.push_back(source);
-      derivedLane.push_back(derived);
-      timelineLane.push_back(ramped);
+      alphaLane.push_back(alpha.value());
+      sourceLane.push_back(source.value());
+      derivedLane.push_back(derived.value());
+      timelineLane.push_back(ramped.value());
     }
 
     readouts[0] = kit::formatted("add · %d ticks · active %s", kSteps,

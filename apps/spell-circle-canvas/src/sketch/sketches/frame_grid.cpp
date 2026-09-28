@@ -29,6 +29,7 @@
 
 // TAGS: Geometry/Layout
 
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -67,7 +68,7 @@ constexpr material::Color kFigure{0.88f, 0.82f, 0.66f, 1};
 constexpr material::Color kWarm{0.96f, 0.62f, 0.30f, 1};
 constexpr material::Color kCool{0.44f, 0.72f, 0.96f, 1};
 
-SkPoint middle() { return {kCell * 0.5f, kPicture * 0.5f}; }
+glm::vec2 middle() { return {kCell * 0.5f, kPicture * 0.5f}; }
 
 /** THE PEN A LINE OF THIS SHEET IS DRAWN WITH: a colour, a width, and no
  *  fill under it — every mark on these plates is a stroke except the discs
@@ -83,33 +84,33 @@ void pen(draw::Pen& p, material::Color colour, float width) {
  *  to. */
 void dial(draw::Pen& p, const path::PolarFrame& frame) {
   pen(p, kFaint, 1.0f);
-  p.circle(frame.centre.fX, frame.centre.fY, frame.radius * 2.0f);
+  p.circle(frame.centre.x, frame.centre.y, frame.radius * 2.0f);
   p.noStroke();
   p.fill(kFaint);
-  p.circle(frame.centre.fX, frame.centre.fY, 4.0f);
+  p.circle(frame.centre.x, frame.centre.y, 4.0f);
 }
 
 /** A reading at (deg, rNorm): a spoke out to it, a disc on it, and the
  *  unit direction the frame says runs outward there. */
 void reading(draw::Pen& p, const path::PolarFrame& frame, float deg,
              material::Color colour) {
-  const SkPoint at = frame.at(deg, 0.78f);
-  const SkPoint out = frame.at(deg, 0.90f);
-  const SkVector dir = frame.direction(deg);
+  const glm::vec2 at = frame.at(deg, 0.78f);
+  const glm::vec2 out = frame.at(deg, 0.90f);
+  const glm::vec2 dir = frame.direction(deg);
   pen(p, colour, 1.3f);
-  p.line(frame.centre.fX, frame.centre.fY, at.fX, at.fY);
-  p.line(out.fX, out.fY, out.fX + dir.fX * 20, out.fY + dir.fY * 20);
+  p.line(frame.centre.x, frame.centre.y, at.x, at.y);
+  p.line(out.x, out.y, out.x + dir.x * 20, out.y + dir.y * 20);
   p.noStroke();
   p.fill(colour);
-  p.circle(at.fX, at.fY, 8.0f);
+  p.circle(at.x, at.y, 8.0f);
 }
 
 /** The rim's twelve ticks, from 0.90 of the radius out to the rim. */
 void ticks(draw::Pen& p, const path::PolarFrame& frame) {
   pen(p, kFaint, 1.0f);
   for (float d = 0; d < 360; d += 30)
-    p.line(frame.at(d, 0.90f).fX, frame.at(d, 0.90f).fY, frame.at(d, 1.0f).fX,
-           frame.at(d, 1.0f).fY);
+    p.line(frame.at(d, 0.90f).x, frame.at(d, 0.90f).y, frame.at(d, 1.0f).x,
+           frame.at(d, 1.0f).y);
 }
 
 sketch::kit::ComparisonCase cell(const char* title, const char* call,
@@ -141,8 +142,8 @@ struct FrameGrid {
         .scale = kUnits, .origin = {30, 26}, .snap = kSnap};
     // One drawing in artefact units, mapped by two grids that differ in
     // one field.
-    const std::vector<SkPoint> figure = [] {
-      std::vector<SkPoint> p;
+    const std::vector<glm::vec2> figure = [] {
+      std::vector<glm::vec2> p;
       for (int i = 0; i <= 40; ++i) {
         const float t = (float)i / 40.0f;
         p.push_back({t * 34.0f, 9.0f - 6.0f * std::sin(t * 6.2831853f)});
@@ -168,7 +169,7 @@ struct FrameGrid {
                                 "Both readings use 0° and 126°.",
                                 [](draw::Pen& p) {
                                   const path::PolarFrame frame{
-                                      .centre = middle(), .radius = kRadius};
+                                      .centre = sigil::geometry::path::fromSk(middle()), .radius = kRadius};
                                   dial(p, frame);
                                   ticks(p, frame);
                                   reading(p, frame, 0, kFigure);
@@ -195,7 +196,7 @@ struct FrameGrid {
                                 "retaining its angle convention.",
                                 [](draw::Pen& p) {
                                   const path::PolarFrame frame{
-                                      .centre = middle(), .radius = kRadius};
+                                      .centre = sigil::geometry::path::fromSk(middle()), .radius = kRadius};
                                   dial(p, frame);
                                   const path::PolarFrame inner =
                                       frame.scaled(0.62f);
@@ -227,7 +228,7 @@ struct FrameGrid {
                                          (double)arrange::step(
                                              270, 7, arrange::Turn::Closed)),
                                      [](draw::Pen& p) {
-                                       const SkPoint c = middle();
+                                       const glm::vec2 c = middle();
                                        constexpr float kStart =
                                            -2.3561945f;  // 135 deg from +x
                                        constexpr float kSweep = 4.712389f;
@@ -235,16 +236,15 @@ struct FrameGrid {
                                            [&](float r, arrange::Turn turn,
                                                material::Color colour) {
                                              pen(p, kFaint, 1.0f);
-                                             p.arc(c.fX, c.fY, 2 * r, 2 * r,
+                                             p.arc(c.x, c.y, 2 * r, 2 * r,
                                                    -135, 135, draw::OPEN);
                                              p.noStroke();
                                              p.fill(colour);
                                              for (size_t i = 0; i < 7; ++i) {
-                                               const SkPoint at =
-                                                   arrange::onRing(
-                                                       i, 7, c, {r, r}, kStart,
-                                                       kSweep, turn);
-                                               p.circle(at.fX, at.fY, 10.0f);
+                                               const glm::vec2 at =
+                                                   arrange::onRing(i, 7,
+          {.center = c, .radii = {r, r}, .fromDegrees = (kStart) * sigil::geometry::path::kRadToDeg, .sweepDegrees = (kSweep) * sigil::geometry::path::kRadToDeg, .turn = turn});
+                                               p.circle(at.x, at.y, 10.0f);
                                              }
                                            };
                                        ring(94, arrange::Turn::Open, kWarm);
@@ -256,25 +256,25 @@ struct FrameGrid {
                                      "gutters "
                                      "of the four-by-three grid.",
                                      [](draw::Pen& p) {
-                                       const SkSize container{kCell - 40,
+                                       const glm::vec2 container{kCell - 40,
                                                               kPicture - 40};
-                                       const SkSize gap{10, 10};
-                                       const SkSize module =
+                                       const glm::vec2 gap{10, 10};
+                                       const glm::vec2 module =
                                            arrange::moduleSize(container, 4, 3,
                                                                gap);
-                                       const SkPoint origin{20, 20};
-                                       const auto cellBox = [&](SkRect r) {
-                                         p.rect(r.x(), r.y(), r.width(),
+                                       const glm::vec2 origin{20, 20};
+                                       const auto cellBox = [&](path::Rect r) {
+                                         p.rect(r.left(), r.top(), r.width(),
                                                 r.height());
                                        };
                                        pen(p, kFaint, 1.0f);
                                        for (size_t i = 0; i < 12; ++i)
                                          cellBox(arrange::cellRect(
-                                             arrange::cellAt(i, 4), module, gap,
-                                             origin));
+                                             arrange::cellAt(i, 4), module, {.gap = gap,
+                                             .origin = origin}));
                                        pen(p, kWarm, 1.8f);
                                        cellBox(arrange::cellRect(
-                                           {1, 1}, module, gap, origin, 2, 2));
+                                           {1, 1}, module, {.gap = gap, .origin = origin, .columnSpan = 2, .rowSpan = 2}));
                                      }),
                                 cell("CONTINUOUS OR SNAPPED",
                                      "scale = 7 · snap = 0 / 7",
@@ -288,9 +288,9 @@ struct FrameGrid {
                                                float dy) {
                                              pen(p, colour, 1.8f);
                                              p.beginShape();
-                                             for (const SkPoint& at :
+                                             for (const glm::vec2& at :
                                                   grid.map(figure))
-                                               p.vertex(at.fX, at.fY + dy);
+                                               p.vertex(at.x, at.y + dy);
                                              p.endShape();
                                            };
                                        trace(unit, kCool, 0);

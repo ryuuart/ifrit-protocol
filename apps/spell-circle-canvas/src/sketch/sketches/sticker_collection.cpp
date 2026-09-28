@@ -15,6 +15,9 @@
 
 // TAGS: Media/Images
 
+#include <sigilmedia/advanced/Resource.h>
+#include <sigilmotion/time/Duration.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkRect.h>
 #include <sigilcompose/core/Core.h>
@@ -77,22 +80,6 @@ const std::string kWebm = "https://raw.githubusercontent.com/samdutton/simpl/" +
                           std::string(kSimplCommit) +
                           "/videoalpha/video/dancer1.webm";
 
-std::shared_ptr<media::Video> loadVideo(io::Hub& hub, std::string_view uri) {
-  const std::shared_ptr<const io::Bytes> encoded = hub.read(uri);
-  if (!encoded || encoded->empty()) return nullptr;
-  media::VideoOptions options;
-  options.cachedFrames = 8;
-  return video::decodeVideo(encoded->data(), encoded->size(),
-                            options, std::filesystem::path(uri));
-}
-
-double loopTime(const media::Video& clip, double seconds) {
-  const double duration = clip.probe().durationSeconds;
-  if (duration <= 0.0) return std::max(0.0, seconds);
-  double result = std::fmod(seconds, duration);
-  return result < 0.0 ? result + duration : result;
-}
-
 /** ONE STICKER, fitted inside @p box without distorting it and turned by
  *  @p rotation about the box's middle — which is where a sticker is
  *  stuck. */
@@ -138,7 +125,7 @@ void drawGround(draw::Pen& pen) {
 
 struct Shelf {
   std::array<std::shared_ptr<const media::Image>, 5> images;
-  std::shared_ptr<media::Video> webm;
+  std::shared_ptr<const media::Video> webm;
 };
 
 }  // namespace
@@ -161,7 +148,7 @@ struct StickerCollection {
     const Shelf shelf{
         .images = {hub.load<media::Image>(kGif), hub.load<media::Image>(kAvif), hub.load<media::Image>(kSparkle),
                    hub.load<media::Image>(kDiamond), hub.load<media::Image>(kHeart)},
-        .webm = loadVideo(hub, kWebm)};
+        .webm = hub.load<media::Video>(kWebm, {.cachedFrames = 8})};
 
     Element stage = pen("stickers.live", [shelf](draw::Pen& pen) {
       pen.angleMode(draw::DEGREES);
@@ -180,15 +167,14 @@ struct StickerCollection {
       for (size_t i = 0; i < shelf.images.size(); ++i) {
         const auto& asset = shelf.images[i];
         if (!asset) continue;
-        const media::Frame& frame = asset->frameAt(pen.millis() + offsets[i]);
+        const media::Frame& frame = asset->frameAt(std::chrono::duration<double, std::milli>(pen.millis() + offsets[i]));
         drawContained(pen, frame.image, boxes[i], turns[i]);
       }
 
       if (shelf.webm) {
         const media::Frame frame = shelf.webm->frameAt(
-            loopTime(*shelf.webm, pen.millis() * 0.001 + 0.42),
-            pen.canvas()->recorder());
-        drawContained(pen, frame.image, boxes.back(), 5.0f);
+            std::chrono::duration<double>(pen.millis() * 0.001 + 0.42));
+        drawContained(pen, media::deviceImage(frame, pen.canvas()->recorder()), boxes.back(), 5.0f);
       }
     });
 

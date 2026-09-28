@@ -30,6 +30,7 @@
 
 // TAGS: Geometry/Paths
 
+#include <sigilgeometry/advanced/Skia.h>
 #include <include/core/SkMatrix.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
@@ -55,7 +56,7 @@ namespace {
 /** A shape generator's outline at a diameter, centred on a point. */
 template <class Shape>
 SkPath at(const Shape& shape, float radius, SkPoint center) {
-  return shape.path({radius * 2, radius * 2})
+  return sigil::geometry::path::toSk(shape.outline({radius * 2, radius * 2}))
       .makeTransform(
           SkMatrix::Translate(center.fX - radius, center.fY - radius));
 }
@@ -117,26 +118,25 @@ struct PathBooleans {
       const operations::PathOperation recipe = operations::chain(
           {operations::offsetBy(18), operations::Zigzag{7, 30, true},
            operations::Roughen{2.5f, 6, 11}});
-      fillPath(pen, recipe(base), {1.0f, 0.62f, 0.3f, 0.95f});
+      fillPath(pen, sigil::geometry::path::toSk(recipe(sigil::geometry::path::fromSk(base))), {1.0f, 0.62f, 0.3f, 0.95f});
     }
     // Row 3 — the distort menu over one base star.
     {
       const float y = 710;
-      const SkPath base = shapes::star(6, 38.0f / 70.0f)
-                              .path({140, 140})
+      const SkPath base = sigil::geometry::path::toSk(shapes::star(6, 38.0f / 70.0f).outline({140, 140}))
                               .makeTransform(SkMatrix::Translate(-70, -70));
       struct Row {
         SkPath path;
         material::Color color;
       };
       const Row rows[] = {
-          {operations::Roughen{5, 7, 3}.apply(base), {0.55f, 0.95f, 0.7f, 1}},
-          {operations::Zigzag{6, 26, false}.apply(base),
+          {sigil::geometry::path::toSk(operations::Roughen{5, 7, 3}.apply(sigil::geometry::path::fromSk(base))), {0.55f, 0.95f, 0.7f, 1}},
+          {sigil::geometry::path::toSk(operations::Zigzag{6, 26, false}.apply(sigil::geometry::path::fromSk(base))),
            {0.95f, 0.85f, 0.4f, 1}},
-          {operations::Zigzag{6, 26, true}.apply(base), {0.95f, 0.6f, 0.4f, 1}},
-          {operations::PuckerBloat{-0.6f}.apply(base), {0.7f, 0.55f, 0.95f, 1}},
-          {operations::PuckerBloat{0.7f}.apply(base), {0.45f, 0.75f, 0.95f, 1}},
-          {operations::Twirl{100}.apply(base), {0.95f, 0.5f, 0.7f, 1}},
+          {sigil::geometry::path::toSk(operations::Zigzag{6, 26, true}.apply(sigil::geometry::path::fromSk(base))), {0.95f, 0.6f, 0.4f, 1}},
+          {sigil::geometry::path::toSk(operations::PuckerBloat{-0.6f}.apply(sigil::geometry::path::fromSk(base))), {0.7f, 0.55f, 0.95f, 1}},
+          {sigil::geometry::path::toSk(operations::PuckerBloat{0.7f}.apply(sigil::geometry::path::fromSk(base))), {0.45f, 0.75f, 0.95f, 1}},
+          {sigil::geometry::path::toSk(operations::Twirl{100}.apply(sigil::geometry::path::fromSk(base))), {0.95f, 0.5f, 0.7f, 1}},
       };
       float x = 130;
       for (const Row& row : rows) {

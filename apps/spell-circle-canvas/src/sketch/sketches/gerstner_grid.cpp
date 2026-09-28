@@ -44,6 +44,7 @@
 
 // TAGS: Typography/Paragraph, Geometry/Layout
 
+#include <sigilmotion/time/Duration.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
@@ -137,8 +138,8 @@ inline constexpr int kConfigCount =
 
 /** Left edge of column `i`, in units. */
 inline float columnUnit(const Config& c, int i) {
-  return arrange::cellRect({i, 0}, {(float)c.width, 0}, {(float)c.gutter, 0})
-      .fLeft;
+  return arrange::cellRect({i, 0}, {(float)c.width, 0}, {.gap = {(float)c.gutter, 0}})
+      .left();
 }
 
 /** The copy the programme reflows. Gerstner's own argument, in our words:
@@ -205,11 +206,11 @@ struct GerstnerGrid {
     // hold the opening configuration for one beat so a still frame
     // lands on a real setting rather than mid-step
     nextStep = gerstner::kHoldSecs;
-    ticker.add([this, &ticker] {
-      const double t = ticker.elapsed();
+    ticker.timer([this, &ticker] {
+      const double t = ticker.elapsed().count();
       // The reading index: one pass down the field every kSweepSecs.
       sweep = gerstner::kFieldY +
-              gerstner::kFieldH * motion::phase(t, gerstner::kSweepSecs);
+              gerstner::kFieldH * motion::phase(sigil::motion::Duration(t), sigil::motion::Duration(gerstner::kSweepSecs));
     });
     composer.render(describe());
   }
@@ -255,8 +256,7 @@ struct GerstnerGrid {
     Element bands = stack()
                         .key("bands")
                         .rect(g::kFieldX, g::kFieldY,
-                                               g::kFieldW, g::kFieldH)
-                        .staggerChildren(52ms);
+                                               g::kFieldW, g::kFieldH);
     for (int i = 0; i < c.columns; ++i) {
       const float x = g::columnUnit(c, i) * g::kUnit;
       // the column's own tint, so the configuration reads at a glance
@@ -264,8 +264,8 @@ struct GerstnerGrid {
           box()
               .key("col" + std::to_string(i))
               .rect(x, 0, colW, g::kFieldH)
-              .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 320ms, .ease = motion::ease::outQuad}))
-              .translateY(motion::animate({.from = 9.0f, .to = 0.0f, .duration = 420ms, .ease = motion::ease::outQuint}))
+              .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 320ms, .delay = motion::stagger(52ms), .ease = motion::ease::outQuad}))
+              .translateY(motion::animate({.from = 9.0f, .to = 0.0f, .duration = 420ms, .delay = motion::stagger(52ms), .ease = motion::ease::outQuint}))
               .fill(Fill::color({g::kRed.r, g::kRed.g, g::kRed.b, 0.045f}))
               // The field's foot is the page's foot: the copy that does not
               // fit is cut there, as it is in a magazine.

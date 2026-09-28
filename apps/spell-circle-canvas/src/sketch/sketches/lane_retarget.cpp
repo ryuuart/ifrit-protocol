@@ -34,11 +34,11 @@
 
 // TAGS: Motion/Transitions
 
+#include <sigilcompose/kit/Rows.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/clock/Engine.h>
-#include <sigilmotion/advanced/Held.h>
 #include <sigilmotion/advanced/Held.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Chart.h>
@@ -80,7 +80,7 @@ constexpr material::Color kSecondInk{0.46f, 0.72f, 0.92f, 1};
 enum class Family : uint8_t { Slots, Points };
 using Lane = motion::Lane<Family>;
 
-motion::Transition ramp() { return {std::chrono::milliseconds(kDuration)}; }
+motion::Tween<float> ramp() { return {.duration = std::chrono::milliseconds(kDuration)}; }
 
 using Trace = std::vector<float>;
 
@@ -183,11 +183,10 @@ struct LaneRetarget {
                                          "The new value arrives immediately."}},
                       .measure = 1020,
                       .gap = 18}),
-                 sketch::kit::readout(
-                     {{.name = "Maximum sampled difference",
+                 sigil::compose::kit::readout(std::vector<sigil::compose::kit::Reading>{{.name = "Maximum sampled difference",
                        .value = kit::formatted("%.6f", disagreement),
                        .note = "fixed slots / equal family"}},
-                     {.nameMeasure = 190})})
+                        {.nameMeasure = 190, .gap = sketch::kit::theme().spacing.rowGap, .labelGap = sketch::kit::theme().spacing.labelGap})})
             .applyStyleSheet(look())));
   }
 
@@ -202,7 +201,7 @@ struct LaneRetarget {
     const motion::Animatable<float> standing = 0.0f;
     const motion::Animatable<float> first = kFirst;
     const motion::Animatable<float> second = kSecond;
-    const std::optional<motion::Transition> spec = ramp();
+    const std::optional<motion::Tween<float>> spec = ramp();
 
     // The mount: the first description's endpoint, from the lane's own
     // standing value.
@@ -234,7 +233,7 @@ struct LaneRetarget {
                                          {afterP, 2}, spec);
         }
       }
-      ticker.tick(kDt);
+      ticker.advance(ticker.elapsed() + motion::Duration(kDt));
       const motion::Animatable<float>& reading =
           applied && change != Change::None ? second : first;
       trace.push_back(motion::valueOf(

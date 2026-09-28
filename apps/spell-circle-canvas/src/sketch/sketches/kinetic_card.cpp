@@ -47,9 +47,11 @@
 
 // TAGS: Typography/Effects, Motion/Transitions
 
+#include <sigilmotion/values/Time.h>
+#include <sigilweave/style/Face.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Instruments.h>
-#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Presets.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/color/Color.h>
@@ -91,7 +93,7 @@ constexpr material::Color kPale{0.180f, 0.090f, 0.060f, 1};
 /** The one cascade every cell beats on, so the nine differ in their
  *  effect and in nothing else. Its span is what the shared phase maps
  *  onto — one wrap is exactly one pass of the schedule. */
-const motion::Spread kCascade{.eachMs = 110, .durationMs = 620};
+const sigil::motion::Tween<float> kCascade{.duration = std::chrono::duration<double, std::milli>(620), .delay = sigil::motion::stagger(std::chrono::duration<double, std::milli>(110))};
 
 /** The nine cells, in the order the header reads them. `key` is what the
  *  meter under the cell resolves the schedule from; `over` is what this
@@ -106,14 +108,14 @@ struct Row {
   weave::Type over;
 };
 
-sk_sp<SkTypeface> display() {
+sigil::weave::Face display() {
   return weave::ports::face({"Helvetica Neue", "Inter", "Helvetica", "Arial"},
-                            SkFontStyle::Bold());
+                            sigil::weave::FaceStyle{.weight = 700});
 }
 /** The face the axis cell is set in: San Francisco carries a GRAD axis,
  *  which is advance-invariant and therefore the one a draw-time drive is
  *  allowed to move. */
-sk_sp<SkTypeface> graded() {
+sigil::weave::Face graded() {
   return sketch::kit::houseFace(sketch::kit::Voice::Interface, 500);
 }
 
@@ -156,9 +158,9 @@ struct KineticCard {
     // exists to show, and late enough that each word is legible as the
     // word it is.
     phase = 0;
-    ctx.engine.add([this, &ticker = ctx.engine] {
-      const double t = ticker.elapsed();
-      phase = motion::phase(t, kPeriod);
+    ctx.engine.timer([this, &ticker = ctx.engine] {
+      const double t = ticker.elapsed().count();
+      phase = motion::phase(motion::Duration(t), motion::Duration(kPeriod));
     });
     // THE METERS ARE A READ-BACK: they resolve from the layout the last
     // draw left standing, so the page is described once for the specimens
@@ -188,7 +190,7 @@ struct KineticCard {
                      .key(row.key)
                      .width(width - 8)
                      .textFx({.effect = row.effect,
-                              .stagger = kCascade,
+                              .tween = kCascade,
                               .progress = phase})}),
             .note = row.note};
   }
@@ -221,19 +223,19 @@ struct KineticCard {
         {"typeon", "textFx::typeOn()",
          "absent, then simply there — "
          "coverage only, no displacement",
-         "TYPE ON", textFx::typeOn()},
+         "TYPE ON", textFx::enter(textFx::typeOn())},
         {"axis",
          "GRAD axis · 400 → 1000",
          "a grade swept at draw time; advance-invariant, so nothing moves",
          "AXIS SWEEP",
-         textFx::variableAxisSweep("GRAD", 400, 1000),
+         textFx::enter(textFx::variableAxisSweep("GRAD", 400, 1000)),
          {.face = graded()}},
         {"tint",
          "textFx::tint(pale, accent)",
          "the element is set in the destination and the effect multiplies "
          "down to the origin",
          "TINT",
-         textFx::tint(kPale, kAccent),
+         textFx::tint({.from = kPale, .to = kAccent}),
          {.color = kAccent}},
         {"wave", "textFx::waveLoop(0.10, 0.5)",
          "the one that never lands: a loop on the same wrapping phase, so "

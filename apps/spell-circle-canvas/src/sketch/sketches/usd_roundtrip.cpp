@@ -9,6 +9,7 @@
 
 // TAGS: Media/Models
 
+#include <sigilmaterial/core/Lighting.h>
 #include <sigildraw/Pen.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
@@ -90,13 +91,13 @@ camera::Camera sourceCamera() {
   return view;
 }
 
-const char* kindName(world::light::LightKind kind) {
+const char* kindName(material::LightKind kind) {
   switch (kind) {
-    case world::light::LightKind::Sun:
+    case material::LightKind::Directional:
       return "sun";
-    case world::light::LightKind::Point:
+    case material::LightKind::Point:
       return "point";
-    case world::light::LightKind::Spot:
+    case material::LightKind::Spot:
       return "spot";
   }
   return "?";
@@ -120,10 +121,10 @@ sketch::kit::ComparisonCase specimen(const std::string& key,
                        SkCanvas& canvas = *pen.canvas();
                        if (lens && !mesh.positions.empty()) {
                          render::MeshStyle style = stageStyle();
-                         style.baseColor = {style.baseColor.fR * tint.r,
-                                            style.baseColor.fG * tint.g,
-                                            style.baseColor.fB * tint.b,
-                                            style.baseColor.fA * tint.a};
+                         style.baseColor = {style.baseColor.r * tint.r,
+                                            style.baseColor.g * tint.g,
+                                            style.baseColor.b * tint.b,
+                                            style.baseColor.a * tint.a};
                          render::drawMesh(canvas, mesh, glm::mat4(1), *lens,
                                           pc.size, style);
                        }
@@ -149,7 +150,7 @@ struct UsdRoundtrip {
     const gm::Cloud motes = gm::points::onMesh(source, kMotes, 7);
     const material::Material brass = material::surface::program(
         {.baseColor = kBrass, .metallic = 1, .roughness = 0.28f});
-    const world::light::Light sun =
+    const material::Light sun =
         world::light::sun({-0.5f, -0.7f, -0.5f}, {1.0f, 0.95f, 0.88f, 1}, 1.2f);
     const camera::Camera lens = sourceCamera();
 
