@@ -787,10 +787,6 @@ requires = ["compose-readout", "standalone-composer", "raster-surfaces"]
 needs = "Instanced atlas stamps; bevel emboss panel; recessed wells; noise recipes; pattern tiles; path silhouettes; legends; bound outputs"
 requires = ["kit-legend", "instancing", "layer-styles", "placers"]
 
-[sketch.manuscript]
-needs = "Its own ornament pieces; nested small-caps run; Knuth-Plass with pattern hyphenation; flowAround exclusions; texture cache; page-turn update"
-requires = ["hyphenation-patterns"]
-
 [sketch.material_atlas]
 needs = "Produced sheet texture; atlas grid, TexturePacker and Aseprite imports; wrapping sequences; texture shader draws"
 requires = ["kit-section-header", "raster-surfaces", "textures", "atlas"]

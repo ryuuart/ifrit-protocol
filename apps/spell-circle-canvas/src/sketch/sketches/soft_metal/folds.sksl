@@ -1,0 +1,8 @@
+// Broad folds cross the letter faces; the coverage bevel supplies their edges.
+half4 main(float2 point) {
+    float2 unit = point / max(uResolution, float2(1));
+    float horizontal = sin(unit.x * 6.0 + unit.y * 2.0) * 0.44;
+    float vertical = sin(unit.y * 7.0 - unit.x * 2.0) * 0.64;
+    float3 normal = normalize(float3(horizontal, vertical, 1.0));
+    return half4(half3(normal * 0.5 + 0.5), 1);
+}

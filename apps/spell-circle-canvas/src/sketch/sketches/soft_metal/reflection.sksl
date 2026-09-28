@@ -1,0 +1,4 @@
+// The lighting field is smooth; the text renderer supplies sharp coverage.
+half4 main(float2 point) {
+    return uLight.eval(point / uResolution * float2(192, 84));
+}

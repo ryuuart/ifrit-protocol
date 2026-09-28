@@ -48,12 +48,12 @@ that its pixels match the original.
 | Set | 11 | 0 | 0 |
 | Data | 12 | 0 | 0 |
 | Media | 5 | 1 | 0 |
-| Catalog · Type | 10 | 5 | 0 |
+| Catalog · Type | 9 | 4 | 0 |
 | Catalog · Chrome | 2 | 1 | 0 |
 | Catalog · Game UI | 5 | 1 | 0 |
 | Catalog · Generative | 2 | 0 | 0 |
 | Catalog · Tiling | 1 | 0 | 0 |
-| Study · Type | 6 | 0 | 0 |
+| Study · Type | 10 | 0 | 0 |
 | Study · Pattern | 4 | 0 | 0 |
 | Study · Paint | 2 | 2 | 0 |
 | Study · Motion | 4 | 0 | 0 |
@@ -62,7 +62,7 @@ that its pixels match the original.
 | Study · Esoteric | 3 | 0 | 0 |
 | Study · Screens | 6 | 0 | 0 |
 | Study · Game UI | 11 | 0 | 0 |
-| **All** | **223** | **58** | **9** |
+| **All** | **226** | **57** | **9** |
 
 Every sketch in Draw, Draw · Generative, Draw · Observable reproductions, Draw
 · Procedural, Kit · Depth, Compose · Typography and Study · Paint is bound.
@@ -560,7 +560,6 @@ model, arithmetic and data become Python code and are not listed.
 | `bousen` | Vertical blocks; decorated span paints; OpenType features; phrase marks; column cascade track; kit cells | `compose::Text::textFx` text tracks; `compose::Text::textAttach` selection marks; `compose::textFx` stock entrances (`rise`, `pop`, `typeOn`) |
 | `chrome_type` | Layer style presets on glyph boundaries; glow and bevel decorations; themed kit cells and page | — |
 | `horizontal_flow` | Document kit; specimen theme, wells and captions; stock silhouettes; shape-following flowAround exclusions | `geometry::shapes` corner operators |
-| `manuscript` | Its own ornament pieces; nested small-caps run; Knuth-Plass with pattern hyphenation; flowAround exclusions; texture cache; page-turn update | — |
 | `mawarikomi` | Vertical writing mode; silhouette exclusions; clamped column ellipsis; document kit; specimen cells; gradient ground | — |
 | `ruby_kenten` | Vertical writing mode; reserved ruby and kenten annotations; specimen cells with style classes; gradient ground | — |
 | `tategaki` | Vertical rich text forms; span paint; per-cluster kinetic entrance; document kit; specimen cells | `compose::Text::textFx` text tracks; `compose::textFx` stock entrances (`rise`, `pop`, `typeOn`) |
@@ -604,10 +603,14 @@ model, arithmetic and data become Python code and are not listed.
 | --- | --- | --- |
 | `axis_ripple` | Per-glyph variable-axis track on a looping textFx cascade; a level under each letter by textAttach with a bound scale; fontFamily on a sheet with custom properties; SketchContext::measure to the whole pixel; document type | `compose::Text::textFx` text tracks; `compose::textFx` text effects (`tween`, `scramble`, `sequence`); `compose::metrics` and `compose::runPens` measurement; `compose::Text::textAttach` selection marks; `SkTypeface` variation axes and style readback |
 | `elastic_type` | animate.css's two keyframe tables per letter and on the whole word on one clock; rest ghost; sketch-kit plots with traces, marks, cursors and axis readings; one sheet of roles, series classes and colour tokens; document type | `sketch::kit::plot` chart layers; `compose::Text::textFx` text tracks; `compose::textFx` text effects (`tween`, `scramble`, `sequence`); `compose::kit::trackMeter` and `restGhost` instruments |
+| `form_system` | Not yet audited | Not yet audited |
 | `karaoke_wipe` | Per-glyph tint cascade over a cue table read from data/; textStroke keyline on aliased type; marks hung on the letters as a ruler; palette tokens on the root; bound ball and playhead transforms | `compose::Text::textFx` text tracks; `compose::Composer::beatsOf` and `units`; `compose::textFx` stock entrances (`rise`, `pop`, `typeOn`) |
+| `manuscript` | Not yet audited | Not yet audited |
 | `matrix_rain` | Looping per-glyph streak, scramble and mirror tracks from one sheet and one clock; words in data/; seeded spread; vertical upright text; glow underlays; kit::vignette | `compose::Text::textFx` text tracks; `compose::textFx` text effects (`tween`, `scramble`, `sequence`) |
+| `rhythmus` | Not yet audited | Not yet audited |
 | `rota_convocationis` | Curved-baseline glyph tracks and pass; spread schedules; beat read-back; selector marks; SDF and SkSL recipes; path roughen/resample; instanced embers | `compose::Text::textFx` text tracks; `compose::textFx` text effects (`tween`, `scramble`, `sequence`); `compose::Composer::beatsOf` and `units`; `compose::Text::textAttach` selection marks; `compose::textFx` stock entrances (`rise`, `pop`, `typeOn`); `SkPathBuilder::arcTo` and `skpathutils::FillPathWithPaint`; `geometry::path::PolarFrame` and `path::Grid`; `geometry::shapes::ticks` and `chords` divisions; `geometry::path::Polyline` resampling and smoothing; `geometry::path::operations` chain and outline effects; `material::sdf` shapes and styles; `material::Recipe` authoring |
 | `shipping_forecast` | Per-glyph text tracks; stagger spreads; one sheet of roles, classes and colour tokens; selector span restyling; path and vertical text; the sea area being read lit on its ring; title card; kit tables; edge decoration | `sketch::kit::Document` content reader; `sketch::kit::titleCard`; `compose::Text::textFx` text tracks; `compose::onEdges` and `compose::inset` adaptors; `compose::textFx` text effects (`tween`, `scramble`, `sequence`); `compose::textFx` stock entrances (`rise`, `pop`, `typeOn`) |
+| `soft_metal` | Not yet audited | Not yet audited |
 
 #### Study · Pattern
 

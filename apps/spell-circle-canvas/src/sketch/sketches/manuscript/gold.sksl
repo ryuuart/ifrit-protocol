@@ -1,0 +1,11 @@
+// Yellow chroma isolates the gilding from blue pigment, green initials
+// and silver lettering. Coverage and colour keep the scan's abrasions.
+half4 main(float2 point) {
+    float3 source = float3(uPage.eval(point / uResolution * sourceSize).rgb);
+    float yellow = min(source.r, source.g) - source.b;
+    float warm = smoothstep(-0.055, 0.035, source.r - source.g);
+    float coverage = smoothstep(0.06, 0.22, yellow) * warm * 0.88;
+    float brightness = dot(source, float3(0.3, 0.6, 0.1));
+    float3 gold = float3(0.92, 0.69, 0.28) * (0.5 + brightness * 0.5);
+    return half4(half3(gold * coverage), half(coverage));
+}

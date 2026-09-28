@@ -1081,3 +1081,19 @@ successful first render cannot prove that. Each needs an owner-reviewed
 baseline before a later sweep can assert byte identity. The CPU plates
 remain available for that review and were not silently adopted by this
 migration.
+
+## Reflective type repeats its edge work on raster frames
+
+`soft_metal` retains its normal map, studio environment and paper, and shades
+its moving reflection in a small texture. Its glyph material still carries
+both that changing reflection and the stationary bevel, so painting the
+letters repeats edge work. The raster benchmark misses its frame budget;
+the Metal window lane remains responsive.
+
+The intended rendering keeps the bevel registered to the shaped glyphs while
+reusing unchanged edge coverage across light-only updates. Separating the
+bevel into stationary overlaid text materials currently produces rectangular
+coverage in this composition, so the sketch keeps one material on each word.
+A regression should assert that constant and changing ink retain the same
+glyph boundary and that light-only changes reuse the stationary edge mask.
+The raster benchmark should then verify the complete composition.

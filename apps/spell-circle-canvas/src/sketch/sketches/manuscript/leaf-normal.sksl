@@ -1,0 +1,11 @@
+// Small irregular slopes break the specular response of a beaten leaf.
+half4 main(float2 point) {
+    point = point / uResolution * float2(910, 1288);
+    float2 large = point * 0.032;
+    float ridge = sin(large.x * 1.1 + sin(large.y * 1.7));
+    float cross = sin(large.y * 1.4 - sin(large.x * 0.9));
+    float grain = fract(sin(dot(floor(point * 1.4), float2(127.1, 311.7))) * 43758.5453) - 0.5;
+    float3 normal = normalize(float3(ridge * 0.24 + grain * 0.10,
+                                    cross * 0.24 - grain * 0.08, 1.0));
+    return half4(half3(normal * 0.5 + 0.5), 1);
+}
