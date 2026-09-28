@@ -13,6 +13,7 @@
 
 // TAGS: Drawing/Brushes
 
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Constants.h>
@@ -94,8 +95,8 @@ std::vector<SkPoint> breathing(std::span<const SkPoint> base,
   std::vector<SkPoint> corners;
   corners.reserve(base.size());
   for (size_t index = 0; index < base.size(); ++index)
-    corners.push_back(arrange::onEllipse(base[index], {reach, reach},
-                                         phase[index] + local * rate));
+    corners.push_back(sigil::geometry::path::toSk(arrange::onEllipse(sigil::geometry::path::fromSk(base[index]), {reach, reach},
+                                         phase[index] + local * rate)));
   return corners;
 }
 
@@ -197,8 +198,8 @@ struct BrushLiveTutorial {
       const std::string_view name = pick(pen, kWheelBrushes);
       brushes.set(name, pick(pen, kPalette), 1.0f);
       brushes.flowLine(pen,
-                       arrange::onEllipse({300.0f, 300.0f}, {100.0f, 100.0f},
-                                          radians(-angle)),
+                       sigil::geometry::path::toSk(arrange::onEllipse({300.0f, 300.0f}, {100.0f, 100.0f},
+                                          radians(-angle))),
                        320, angle);
     }
 

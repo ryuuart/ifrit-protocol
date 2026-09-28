@@ -10,6 +10,7 @@
 
 // TAGS: Drawing/Brushes
 
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Constants.h>
@@ -194,7 +195,7 @@ struct BrushBotanicalStudy {
     twig.opacity = 0.66f;
     for (const LeafSpec& spec : kLeaves) {
       const SkPoint join =
-          arrange::onEllipse(spec.base, {24.0f, 24.0f}, spec.angle);
+          sigil::geometry::path::toSk(arrange::onEllipse(sigil::geometry::path::fromSk(spec.base), {24.0f, 24.0f}, spec.angle));
       brush::line(pen, twig, spec.base, join, 0.88f, 0.18f);
     }
 
@@ -222,10 +223,11 @@ struct BrushBotanicalStudy {
                           kLeaves[index].angle);
         brushes.fillTexture(0.58f, 0.52f, true);
         brushes.hatchStyle("2H", edge, 0.42f);
-        brushes.hatch({.spacing = 12.0f + (float)(index % 3) * 2.0f,
-                       .angle = kLeaves[index].angle,
-                       .jitter = 0.12f,
-                       .gradient = index % 2 == 0 ? 0.16f : -0.12f});
+        brushes.hatch(
+            {.pattern = {.spacing = 12.0f + (float)(index % 3) * 2.0f,
+                         .angle = kLeaves[index].angle,
+                         .taper = brush::gradientTaper(index % 2 == 0 ? 0.16f : -0.12f)},
+             .jitter = 0.12f});
       }
       brushes.polygon(pen, leaf.polygon);
       brushes.pop();
