@@ -207,7 +207,7 @@ void SlitScan2001::drawRig(Pen& pen, const PaintContext& ctx) {
             .font({.face = monoFace(), .size = 7.5f})
             .lineHeight(sigil::weave::Leading::absolute(10))
             .textFirstBaseline(sigil::weave::FrameOptions::FirstBaseline::kFixed, 0)
-            .ink(sigil::material::from(kRed).effects(
+            .decorationOutline(Boundary::Glyphs).ink(sigil::material::from(kRed).effects(
                 sigil::material::Filter::stroke(kPanelBg, {.width = 1.1f}))),
         304, trackY - 26, 250, 24);
 

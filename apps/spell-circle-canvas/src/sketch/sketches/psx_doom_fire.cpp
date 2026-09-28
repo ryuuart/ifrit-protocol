@@ -351,7 +351,7 @@ struct PsxDoomFire {
                                            .color = hexColor(0xC23A1C),
                                            .track = 34.0f});
     return compose::text("DOOM", std::move(s))
-        .ink(material::from(hexColor(0xC23A1C)).effects(
+        .decorationOutline(sigil::compose::Boundary::Glyphs).ink(material::from(hexColor(0xC23A1C)).effects(
             material::Filter::stroke(hexColor(0x2A0805), {.width = 3.5f})))
         .width(kPanelW)
         .paragraph({.alignment = weave::TextAlignment::kCenter})

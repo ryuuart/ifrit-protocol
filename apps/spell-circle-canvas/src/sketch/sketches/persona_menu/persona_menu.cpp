@@ -404,7 +404,7 @@ struct PersonaMenu {
             motion::animate({.from = 0.0f, .to = 1.0f, .duration = 400ms, .delay = motion::stagger(33ms), .ease = motion::ease::outQuad}))
         .cache(Cache::Texture)
         .children({text(r.label)
-                       .font(nn::menuType(41, r.color)).ink(material::from(r.color).effects(
+                       .font(nn::menuType(41, r.color)).decorationOutline(Boundary::Glyphs).ink(material::from(r.color).effects(
                             material::Filter::stroke(nn::kRing, {.width = 0.9f})))
                        .filter(sigil::material::Filter::glow({0, 0, 0, 0.5f}, 3.5f))});
   }
@@ -530,7 +530,7 @@ struct PersonaMenu {
                  .row()
                  .alignItems(Align::End)
                  .children({text("07/22")
-                                .font(nn::menuType(38, nn::kPaper)).ink(material::from(nn::kPaper).effects(
+                                .font(nn::menuType(38, nn::kPaper)).decorationOutline(Boundary::Glyphs).ink(material::from(nn::kPaper).effects(
                             material::Filter::stroke(nn::kRing, {.width = 1.0f})))
                                 .filter(sigil::material::Filter::glow({0, 0, 0, 0.45f}, 3)),
                             box()
@@ -639,7 +639,7 @@ struct PersonaMenu {
                    .row()
                    .alignItems(Align::End)
                    .children({text(m.name)
-                                  .font(nn::menuType(17, nn::kPaper)).ink(material::from(nn::kPaper).effects(
+                                  .font(nn::menuType(17, nn::kPaper)).decorationOutline(Boundary::Glyphs).ink(material::from(nn::kPaper).effects(
                             material::Filter::stroke(nn::kRing, {.width = 0.5f})))
                                   .flexGrow(1),
                               text(kit::formatted("LV %d", m.level))
@@ -718,7 +718,7 @@ struct PersonaMenu {
                  .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 300ms}))
                  .children(
                      {text("PERSONA")
-                          .font(nn::menuType(30, nn::kPaper)).ink(material::from(nn::kPaper).effects(
+                          .font(nn::menuType(30, nn::kPaper)).decorationOutline(Boundary::Glyphs).ink(material::from(nn::kPaper).effects(
                             material::Filter::stroke(nn::kRing, {.width = 1.0f})))
                           .filter(sigil::material::Filter::glow({0, 0, 0, 0.5f}, 3)),
                       box()

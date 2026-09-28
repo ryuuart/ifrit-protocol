@@ -135,7 +135,7 @@ inline Element gelPill(std::string_view label, material::Color tint,
       .row()
       .alignItems(Align::Center)
       .justifyContent(Justify::Center)
-      .children({text(label).styleClass("gelLabel").ink(gelInk(tint))});
+      .children({text(label).styleClass("gelLabel").decorationOutline(Boundary::Glyphs).ink(gelInk(tint))});
 }
 
 inline Element gelOrb(float d = kOrbD) {
@@ -229,7 +229,7 @@ inline Element aquaPill(std::string_view label, const PillTint& t,
                .zIndex(1)
                .children({text(label)
                               .styleClass("gelLabel")
-                              .ink(gelInk({t.deep.r * 1.3f, t.deep.g * 1.3f,
+                              .decorationOutline(Boundary::Glyphs).ink(gelInk({t.deep.r * 1.3f, t.deep.g * 1.3f,
                                                t.deep.b * 1.3f, 1}))})});
 }
 
@@ -349,7 +349,7 @@ struct Y2kChrome {
                                   .color = hexColor(0xF2F6FA),
                                   .track = 0.4f,
                                   .weight = 600})
-                           .ink(material::from(hexColor(0xF2F6FA)).effects(
+                           .decorationOutline(Boundary::Glyphs).ink(material::from(hexColor(0xF2F6FA)).effects(
                                material::Filter::shadow({0, 0.04f, 0.10f, 0.6f},
                                                         {.offset = {0, 1.2f}}))),
                        box().flexGrow(1), yc::chromeSquare(hexColor(0xD4D0C8)),
@@ -378,7 +378,7 @@ struct Y2kChrome {
                            // the type with the same unit-space chrome ramp puts
                            // the horizon inside the letterforms, which is where
                            // a period chrome wordmark carries it.
-                           .ink(y2k::sunsetChromeType().effects(
+                           .decorationOutline(Boundary::Glyphs).ink(y2k::sunsetChromeType().effects(
                                material::Filter::shadow({0.02f, 0.05f, 0.09f, 0.55f},
                                                         {.blur = 1.6f, .offset = {0, 2.4f}})
                                    .then(material::Filter::stroke(

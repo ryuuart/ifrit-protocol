@@ -87,7 +87,7 @@ struct EvaMagiDeliberation {
         weave::borrowSk(style.shaping.typeface)->fontStyle().weight() < 800)
       ink.effects(material::Filter::stroke(
           color, {.width = style.shaping.fontSize * 0.006f}));
-    return text(run, style).ink(ink);
+    return text(run, style).decorationOutline(Boundary::Glyphs).ink(ink);
   }
 
   /** Three rails at one pitch, the middle one heavier and lit. */

@@ -270,7 +270,7 @@ struct WorldHud {
                                         material::GradientUnits::Pixels}))});
                     return cell.children({text(s.key)
                                               .font(wh::line(9, 0.6f))
-                                              .ink(wh::shadedInk(wh::kInkDim))
+                                              .decorationOutline(Boundary::Glyphs).ink(wh::shadedInk(wh::kInkDim))
                                               .at({4, wh::kSlotFrame - 13})});
                   }),
              // the selected-exp chip skillbar.rs hangs off slot10
@@ -394,7 +394,7 @@ struct WorldHud {
                  .justifyContent(Justify::Center)
                  .children({text("1204, -388")
                                 .font(wh::line(10, 1.2f))
-                                .ink(wh::shadedInk(wh::kInkDim))})});
+                                .decorationOutline(Boundary::Glyphs).ink(wh::shadedInk(wh::kInkDim))})});
   }
 
   /** Buff and debuff pips with their drain rings — buffs.rs colours. */
@@ -456,7 +456,7 @@ struct WorldHud {
                              .zIndex(1),
                          text(p.label)
                              .font(wh::line(9, 0.6f, 640))
-                             .ink(wh::shadedInk(p.color))
+                             .decorationOutline(Boundary::Glyphs).ink(wh::shadedInk(p.color))
                              .zIndex(2)});
         }));
   }
@@ -498,7 +498,7 @@ struct WorldHud {
                        .fill({l.color.r * 0.28f, l.color.g * 0.28f,
                                            l.color.b * 0.28f, 1})
                        .foreground(stroke(1.0f, Fill::color(l.color))),
-                   text(l.text).font(wh::line(11, 0.4f)).ink(wh::shadedInk(l.color))});
+                   text(l.text).font(wh::line(11, 0.4f)).decorationOutline(Boundary::Glyphs).ink(wh::shadedInk(l.color))});
         }));
   }
 
@@ -519,7 +519,7 @@ struct WorldHud {
             {text("CAVE TROLL").font(wh::line(15, 1.6f, 640)),
              text("Lv 27")
                  .font(wh::line(10, 1.4f))
-                 .ink(wh::shadedInk(wh::kInkDim))
+                 .decorationOutline(Boundary::Glyphs).ink(wh::shadedInk(wh::kInkDim))
                  .margin(2, 0, 4, 0),
              box()
                  .width(168.0f)
@@ -545,13 +545,13 @@ struct WorldHud {
     // string, and the ink the strings are set in unless they name a dimmer or
     // a quality colour of their own.
     return stack()
-        .ink(wh::shadedInk(wh::kInk))
+        .decorationOutline(Boundary::Glyphs).ink(wh::shadedInk(wh::kInk))
         .children(
             {box().column().at({28, 70}).zIndex(6).children(
                  {text("WELDRIN VALE").font(wh::line(20, 2.6f, 640)),
                   text("LEVEL 34  ·  CLEAR, LIGHT WIND")
                       .font(wh::line(11, 0.9f))
-                      .ink(wh::shadedInk(wh::kInkDim))
+                      .decorationOutline(Boundary::Glyphs).ink(wh::shadedInk(wh::kInkDim))
                       .margin(5, 0, 0, 0)}),
              buffRow(), minimap(), targetPlate(), lootFeed(), barStack(),
              hotbar()});
