@@ -27,6 +27,7 @@
 
 // TAGS: Geometry/Layout
 
+#include <sigilcompose/kit/Rows.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Grid.h>
 #include <sigilcompose/kit/Frame.h>
@@ -141,12 +142,11 @@ struct GridLayouts {
                             "The spacing absorbs the difference in size."}},
                   .measure = 1020,
                   .gap = 18}),
-             sketch::kit::readout(
-                 {{.name = "Input", .value = "12 measured text leaves"},
+             sigil::compose::kit::readout(std::vector<sigil::compose::kit::Reading>{{.name = "Input", .value = "12 measured text leaves"},
                   {.name = "Grid changes", .value = "position + extent"},
                   {.name = "Diagonal / baseline change",
                    .value = "position only"}},
-                 {.measure = 501, .ruled = true})})));
+                        {.measure = 501, .gap = sketch::kit::theme().spacing.rowGap, .labelGap = sketch::kit::theme().spacing.labelGap, .divider = Fill::color(sketch::kit::theme().palette.rule)})})));
   }
 };
 

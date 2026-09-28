@@ -5,6 +5,8 @@
  */
 // TAGS: Typography/Paragraph, Typography/CJK
 
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilcompose/kit/Rows.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
@@ -77,7 +79,7 @@ Element horizontal(const Note& note, bool balanced) {
           {text(
                weave::rich()
                    .add(u8"An aside ")
-                   .slot("note", extent, 5)
+                   .slot("note", sigil::geometry::path::fromSk(extent), 5)
                    .add(
                        u8" can interrupt a sentence without leaving the line."))
                .font({.face = sketch::kit::houseFace(sketch::kit::Voice::Book),
@@ -154,8 +156,7 @@ struct WarichuPlaceholder {
             .column()
             .gap(20)
             .children(
-                {sketch::kit::readout(
-                     {{.name = "Single-line advance",
+                {sigil::compose::kit::readout(std::vector<sigil::compose::kit::Reading>{{.name = "Single-line advance",
                        .value = kit::formatted("%.1f px", latin.oneLine)},
                       {.name = "Balanced advance",
                        .value = kit::formatted("%.1f px", latin.split.advance)},
@@ -163,7 +164,7 @@ struct WarichuPlaceholder {
                        .value = kit::formatted("%.1f px", latin.split.band)},
                       {.name = "Cut word",
                        .value = kit::formatted("%u", latin.split.cutWord)}},
-                     {.measure = 284, .ruled = true}),
+                        {.measure = 284, .gap = sketch::kit::theme().spacing.rowGap, .labelGap = sketch::kit::theme().spacing.labelGap, .divider = Fill::color(sketch::kit::theme().palette.rule)}),
                  document::caption(
                      "Measured at 13 px. The note keeps its own size; the "
                      "base is 23 px.")

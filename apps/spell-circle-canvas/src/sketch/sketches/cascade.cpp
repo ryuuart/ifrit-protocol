@@ -6,6 +6,7 @@
  */
 // TAGS: Typography/Styles, Runtime/Composition
 
+#include <sigilcompose/kit/Rows.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/StyleSheet.h>
@@ -239,14 +240,13 @@ struct Cascade {
             .column()
             .gap(24)
             .children({document::eyebrow("WHAT THE CARD INHERITS"),
-                       sketch::kit::readout(
-                           {{.name = "Base type", .value = "14 px"},
+                       sigil::compose::kit::readout(std::vector<sigil::compose::kit::Reading>{{.name = "Base type", .value = "14 px"},
                             {.name = "Figure class", .value = "48 px"},
                             {.name = "Parent ink", .value = "warm → cool"},
                             {.name = "Transition", .value = "900 ms"},
                             {.name = "Gutter property", .value = "12 px"},
                             {.name = "Relative type", .value = "21 px"}},
-                           {.measure = 288, .ruled = true}),
+                        {.measure = 288, .gap = sketch::kit::theme().spacing.rowGap, .labelGap = sketch::kit::theme().spacing.labelGap, .divider = Fill::color(sketch::kit::theme().palette.rule)}),
                        document::caption(
                            "Watch the number, outline and filled square ease "
                            "together. Their color comes from one ancestor.")

@@ -32,6 +32,8 @@
 
 // TAGS: Typography/Lettering
 
+#include <sigilcompose/kit/Rows.h>
+#include <sigilweave/style/Face.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -76,7 +78,7 @@ sketch::kit::Theme sheetTheme() {
 /** The headline's register. `optical` is the whole difference between the
  *  two settings on this sheet. */
 weave::TextStyle display(float size, material::Color color, bool optical) {
-  const sk_sp<SkTypeface> face = weave::ports::face(
+  const sigil::weave::Face face = weave::ports::face(
       {"Helvetica Neue", "Helvetica", "Arial", "sans-serif"});
   weave::TextStyle style =
       weave::textStyle({.face = face, .size = size, .color = color});
@@ -93,7 +95,7 @@ const sketch::kit::Cell kSpecimen{
 }  // namespace
 
 struct OpticalKerning {
-  std::vector<sketch::kit::Reading> pairs;
+  std::vector<sigil::compose::kit::Reading> pairs;
   std::string lineDelta;
 
   void setup(sketch::SketchContext& ctx) {
@@ -166,8 +168,8 @@ struct OpticalKerning {
         sketch::kit::well({.width = kReading, .height = 368, .padding = 22})
             .column()
             .gap(24)
-            .children({sketch::kit::readout(
-                           pairs, {.measure = kReading - 44, .ruled = true})
+            .children({sigil::compose::kit::readout(pairs,
+                        {.measure = kReading - 44, .gap = sketch::kit::theme().spacing.rowGap, .labelGap = sketch::kit::theme().spacing.labelGap, .divider = Fill::color(sketch::kit::theme().palette.rule)})
                            .flexShrink(0),
                        box().column().gap(4).children(
                            {document::eyebrow("WHOLE LINE"),

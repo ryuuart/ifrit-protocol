@@ -47,6 +47,8 @@
 
 // TAGS: Typography/Paragraph
 
+#include <sigilcompose/kit/Rows.h>
+#include <sigilweave/style/Face.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
@@ -82,7 +84,7 @@ constexpr int kStarved = 1;     // a floor nothing can meet
 constexpr material::Color kBody{0.84f, 0.85f, 0.88f, 1};
 
 weave::TextStyle body() {
-  const sk_sp<SkTypeface> face = weave::ports::face(
+  const sigil::weave::Face face = weave::ports::face(
       {"Iowan Old Style", "Georgia", "Times New Roman", "serif"});
   return weave::textStyle({.face = face, .size = 11.5f, .color = kBody});
 }
@@ -190,13 +192,12 @@ struct LiveSettling {
                    .children({passage(run.measure, run.live, run.candidates)}),
            .note = notes[i]});
       reports.push_back(
-          {.figure = sketch::kit::readout(
-                         {{.name = "Live", .value = report.live ? "yes" : "no"},
+          {.figure = sigil::compose::kit::readout(std::vector<sigil::compose::kit::Reading>{{.name = "Live", .value = report.live ? "yes" : "no"},
                           {.name = "Reused",
                            .value = kit::formatted("%d", report.reused)},
                           {.name = "Degraded",
                            .value = kit::formatted("%d", report.degraded)}},
-                         {.nameMeasure = 92})
+                        {.nameMeasure = 92, .gap = sketch::kit::theme().spacing.rowGap, .labelGap = sketch::kit::theme().spacing.labelGap})
                          .width(kCell)});
     }
     ctx.composer.render(sketch::kit::page(

@@ -7,6 +7,7 @@
  */
 // TAGS: Data/Sources, Data/Tables
 
+#include <sigilcompose/kit/Rows.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigildata/query/Database.h>
 #include <sigildata/table/Table.h>
@@ -43,10 +44,16 @@ Element answer(const data::Table* table, const char* names, const char* values,
   // query ordered to the top — so it is lit and the rest stand quiet.
   const material::Color figure = sketch::kit::theme().palette.figure;
   const std::array<material::Color, 1> lit{figure};
-  return sketch::kit::bars(
-             *table, names, values,
+  std::vector<Utf8> labels;
+  for (const auto& name : table->column<std::string>(names)) labels.emplace_back(name);
+  return kit::bars(
+             labels, table->column<double>(values),
              {.length = kBars,
+              .barHeight = sketch::kit::theme().spacing.barHeight,
+              .gap = sketch::kit::theme().spacing.labelGap,
+              .rowGap = sketch::kit::theme().spacing.rowGap,
               .bar = Fill::color(sigil::material::withAlpha(figure, 0.5f)),
+              .rest = Fill::color(material::withAlpha(figure, 0.25f)),
               .inks = lit})
       .width(kCell - 28);
 }
@@ -62,11 +69,11 @@ struct DataSources {
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = {1100, 640}, .captureAt = 0.05});
     // The CSV beside this sketch, decoded to a Table by the hub.
-    csv = ctx.assets.table(ctx.local("data/cities.csv"));
+    csv = ctx.assets.hub().load<sigil::data::Table>(ctx.local("data/cities.csv"));
     // The SQLite store beside this sketch, opened in place: the same rows,
     // shaped by a query rather than by hand.
     if (const std::shared_ptr<const data::Database> store =
-            ctx.assets.database(ctx.local("data/cities.sqlite"))) {
+            ctx.assets.hub().load<sigil::data::Database>(ctx.local("data/cities.sqlite"))) {
       fromSqlite = store->query(
           "SELECT country, SUM(population) AS population FROM cities "
           "GROUP BY country ORDER BY population DESC",

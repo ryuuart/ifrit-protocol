@@ -6,6 +6,7 @@
  */
 // TAGS: Typography/Paragraph
 
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -35,7 +36,7 @@ weave::Type voice() {
           .track = 0};
 }
 
-Element slotted(SkSize extent, float drop) {
+Element slotted(glm::vec2 extent, float drop) {
   return text(weave::rich()
                   .add(u8"Place ")
                   .slot("chip", extent, drop)
