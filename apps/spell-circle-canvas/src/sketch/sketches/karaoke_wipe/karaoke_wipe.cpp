@@ -43,7 +43,7 @@
 // differs only in size and colour.
 //
 // THE WIPE IS A COLOUR MULTIPLIER ON A CASCADE. The sung line is set ONCE,
-// in the sung colour, and `textFx::tint(pale, sung)` multiplies every glyph
+// in the sung colour, and `textFx::tint({.from = pale, .to = sung})` multiplies every glyph
 // down to the pale colour until its own beat arrives. It is a multiplier
 // rather than a colour because that is what a `GlyphModifier` carries —
 // every pass the glyph's style draws is modulated, the keyline included,
@@ -121,7 +121,7 @@
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Presets.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigildata/decode/Json.h>
@@ -332,7 +332,7 @@ struct Song {
   std::string title;
   std::string writers;
   std::string sung;
-  std::vector<float> cues;  // ms, one per word of `sung`
+  std::vector<motion::Duration> cues;  // one start time per word of `sung`
   std::string next;
   uint32_t widest = 1;  // letters in the longest sung word
 };
@@ -342,7 +342,7 @@ Song songFrom(const sketch::kit::Document& document) {
   for (const sigil::data::Json& word : document["sung"].array()) {
     if (!song.sung.empty()) song.sung += ' ';
     song.sung += word[0].string();
-    song.cues.push_back((float)word[1].number());
+    song.cues.push_back(motion::Duration(word[1].number() / 1000.0));
     song.widest = std::max(song.widest, (uint32_t)word[0].string().size());
   }
   song.title = std::string(document["song"].string());
@@ -355,22 +355,20 @@ Song songFrom(const sketch::kit::Document& document) {
  *  What a unit IS lives on the track — `unit = Word`, `innerUnit =
  *  Cluster` — because a spread is SigilMotion's and says nothing about
  *  text. */
-motion::Spread wipeCascade(const Song& song, float letterMs = kSwitchMs) {
-  motion::Spread cascade;
-  cascade.cues(song.cues);
-  cascade.then({.eachMs = kEachMs, .durationMs = letterMs});
-  return cascade;
+motion::Tween<float> wipeCascade(const Song& song, float letterMs = kSwitchMs) {
+  return {.duration = std::chrono::duration<float, std::milli>(letterMs),
+          .delay = motion::cues(song.cues)};
 }
 
 /** The progress window a cascade over the song runs in, in seconds of the
  *  loop. The wipe's span is what `kLineSeconds` is the length of; a cascade
  *  whose beats last longer runs proportionally longer, so a cue lands at
  *  the same instant in both. */
-motion::Bound progressOf(const motion::Spread& cascade, const Song& song,
+sigil::motion::Animatable<float> progressOf(const motion::Tween<float>& cascade, const Song& song,
                          const motion::Animatable<float>& cycle) {
   const auto words = (uint32_t)song.cues.size();
-  const float span = cascade.spanMs(words, song.widest) /
-                     wipeCascade(song).spanMs(words, song.widest);
+  const float span = motion::timingOf(cascade, motion::stagger(std::chrono::duration<float, std::milli>(kEachMs))).span(words, song.widest) /
+                     motion::timingOf(wipeCascade(song), motion::stagger(std::chrono::duration<float, std::milli>(kEachMs))).span(words, song.widest);
   return motion::bind(cycle, {.from = {(float)kLeadIn, (float)(kLeadIn + kLineSeconds * span)}, .clampFrom = true});
 }
 
@@ -384,12 +382,7 @@ motion::Bound progressOf(const motion::Spread& cascade, const Song& song,
 TextEffect catchEffect() {
   constexpr float kArrived = kSwitchMs / kCatchMs;
   constexpr float kFlareOpens = 0.6f * kArrived;
-  return textFx::keys(
-      {{0.0f, {}},
-       {kFlareOpens, {.dy = -kCatchLift * 0.8f}},
-       {kArrived, {.dy = -kCatchLift, .colorMultiplier = kFlare}},
-       {1.0f, {}}},
-      motion::ease::outQuad);
+  return textFx::tween({.from = GlyphModifier{}, .keyframes = {{.to = GlyphModifier{.dy = -kCatchLift * 0.8f}, .duration = std::chrono::duration<double, std::milli>(1000.0 * ((kFlareOpens) - (0.0f)))}, {.to = GlyphModifier{.dy = -kCatchLift, .colorMultiplier = kFlare}, .duration = std::chrono::duration<double, std::milli>(1000.0 * ((kArrived) - (kFlareOpens)))}, {.to = GlyphModifier{}, .duration = std::chrono::duration<double, std::milli>(1000.0 * ((1.0f) - (kArrived)))}}, .duration = std::chrono::seconds(1), .ease = motion::ease::outQuad});
 }
 
 /** THE RULER'S PLACE under a letter: the letter's foot, and the drop below
@@ -535,17 +528,19 @@ struct KaraokeWipe {
   /** The sung line with its two tracks: the wipe from @p resting to the
    *  sung colour, and the catch, both on the song's own table. */
   [[nodiscard]] Text singing(const Song& song, material::Color resting) const {
-    const motion::Spread wipe = wipeCascade(song);
-    const motion::Spread lift = wipeCascade(song, kCatchMs);
+    const motion::Tween<float> wipe = wipeCascade(song);
+    const motion::Tween<float> lift = wipeCascade(song, kCatchMs);
     return text(song.sung)
         .role("lyric")
-        .textFx({.effect = textFx::tint(resting, kSung),
-                 .stagger = wipe,
+        .textFx({.effect = textFx::tint({.from = resting, .to = kSung}),
+                 .tween = wipe,
+                 .within = motion::stagger(std::chrono::duration<float, std::milli>(kEachMs)),
                  .unit = weave::Unit::Word,
                  .innerUnit = weave::Unit::Cluster,
                  .progress = progressOf(wipe, song, cycle)})
         .textFx({.effect = catchEffect(),
-                 .stagger = lift,
+                 .tween = lift,
+                 .within = motion::stagger(std::chrono::duration<float, std::milli>(kEachMs)),
                  .unit = weave::Unit::Word,
                  .innerUnit = weave::Unit::Cluster,
                  .progress = progressOf(lift, song, cycle)});
@@ -587,8 +582,7 @@ struct KaraokeWipe {
     // The line to come lifts toward the sung line's pale as the sung line
     // is held, word by word from the left: it is next.
     Text next = text(song.next).role("lyric").styleClass("next").textFx(
-        {.effect = textFx::keys({{0.0f, {}}, {1.0f, {.colorScreen = kCueLight}}},
-                                motion::ease::inOutQuad),
+        {.effect = textFx::tween({.from = GlyphModifier{}, .keyframes = {{.to = GlyphModifier{.colorScreen = kCueLight}, .duration = 1000ms}}, .duration = std::chrono::seconds(1), .ease = motion::ease::inOutQuad}),
          .tween = {.duration = 320ms, .delay = motion::stagger(70ms)}, 
          .unit = weave::Unit::Word,
          .progress = motion::bind(cycle, {.from = {(float)(kLeadIn + kLineSeconds + 0.25), (float)(kLeadIn + kLineSeconds + kHold - 0.15)}, .clampFrom = true})});
@@ -646,8 +640,8 @@ struct KaraokeWipe {
     // through it and the word's first letter at the top of its catch.
     ctx.captureAt(kLeadIn + kLineSeconds * 0.48);
 
-    ctx.engine.add([this, &ticker = ctx.engine] {
-      cycle = motion::phase(ticker.elapsed(), loop) * (float)loop;
+    ctx.engine.timer([this, &ticker = ctx.engine] {
+      cycle = motion::phase(ticker.elapsed(), motion::Duration(loop)) * (float)loop;
     });
 
     ctx.composer.render(

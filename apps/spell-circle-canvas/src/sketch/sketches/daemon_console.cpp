@@ -60,10 +60,12 @@
 
 // TAGS: Interfaces/Game
 
+#include <sigilmaterial/paint/Bases.h>
+#include <sigilweave/style/Face.h>
 #include <include/core/SkPaint.h>
 #include <sigilcompose/kit/Feed.h>
 #include <sigilcompose/core/Pattern.h>
-#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Presets.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/ocio/Ocio.h>
@@ -186,8 +188,8 @@ inline Pattern scanlineTile() {
 constexpr float kRefreshH = 128.0f;
 constexpr float kRefreshSpeed = 90.0f;  // px per second
 constexpr float kRefreshWrap = 820.0f;  // the sweep's period, in px
-inline Paint refreshBand() {
-  return Paint::linearGradient(
+inline sigil::material::Material refreshBand() {
+  return sigil::material::linearGradient(
       {0, 0}, {0, kRefreshH},
       {{0.0f, {kTubeInk.r, kTubeInk.g, kTubeInk.b, 0.0f}},
        {0.5f, {kTubeInk.r, kTubeInk.g, kTubeInk.b, 0.045f}},
@@ -280,7 +282,7 @@ struct DaemonConsole {
   // while the console waits.
   motion::Animatable<float> caretClock = motion::animatable(0.0f);
   motion::Animatable<float> lamp = motion::animatable(1.0f);
-  choreograph::Output<float> meter[4] = {{0.5f}, {0.5f}, {0.5f}, {0.5f}};
+  sigil::motion::Animatable<float> meter[4] = {{0.5f}, {0.5f}, {0.5f}, {0.5f}};
   // The tube's two phases: where the scanline tile has crept to, and
   // where the refresh band's top stands.
   motion::Animatable<float> scanCreep = motion::animatable(0.0f);
@@ -299,7 +301,7 @@ struct DaemonConsole {
   double nextAppend = 0.0;
   double clockNow = 0.0;
 
-  sk_sp<SkTypeface> faceMono, faceMonoMed, faceChrome, faceChromeMed;
+  sigil::weave::Face faceMono, faceMonoMed, faceChrome, faceChromeMed;
 
   // The window full: seals, warnings and a breach on screen, a cipher still
   // churning, the refresh band mid-panel and the prompt mid-command.
@@ -378,6 +380,8 @@ struct DaemonConsole {
   }
 
   void setup(sketch::SketchContext& ctx) {
+    for (auto& value : meter) value = sigil::motion::animatable(value.value());
+
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 9.0,
                              .background = material::Color{0, 0, 0, 1}});
@@ -425,8 +429,8 @@ struct DaemonConsole {
     // prices each at the new row's mount plus the chrome leaves whose text
     // changed. Meters, lamp and caret ride bound outputs and never
     // re-describe anything.
-    ticker.add([this, &composer, &ticker] {
-      const double t = ticker.elapsed();
+    ticker.timer([this, &composer, &ticker] {
+      const double t = ticker.elapsed().count();
       clockNow = t;
       meter[0] = 0.62f + 0.26f * (float)std::sin(t * 0.83 + 0.4);
       meter[1] = 0.48f + 0.30f * (float)std::sin(t * 1.31 + 2.1);
@@ -510,19 +514,21 @@ struct DaemonConsole {
                     .add(r.body, d.bodyStyle);
     if (!r.cipher.empty()) line.add("  " + r.cipher, "cipher");
 
+    const auto bootDelay = std::chrono::duration<double, std::milli>(
+        r.t < mission(0) ? (r.t - mission(-4.5)) * 52.0 : 0.0);
     Text leaf = text(std::move(line));
     switch (r.sev) {
       case dc::kTrace:
         // A trace merely surfaces: one quiet fade, no cascade.
-        leaf.textFx({.effect = textFx::keys({{0.0f, {.alpha = 0}}, {1.0f, {}}}),
-                     .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = 180ms, .ease = motion::ease::linear})});
+        leaf.textFx({.effect = textFx::tween({.from = GlyphModifier{.alpha = 0}, .keyframes = {{.to = GlyphModifier{}, .duration = 1000ms}}, .duration = std::chrono::seconds(1)}),
+                     .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = 180ms, .delay = bootDelay, .ease = motion::ease::linear})});
         break;
       case dc::kFlux:
         // A warning rises glyph by glyph — more insistent than type-on,
         // still a sweep the eye can follow.
         leaf.textFx({.effect = textFx::enter(textFx::rise(6)),
                      .tween = {.duration = 120ms, .delay = motion::stagger(4ms)}, 
-                     .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = 300ms, .ease = motion::ease::linear})});
+                     .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = 300ms, .delay = bootDelay, .ease = motion::ease::linear})});
         break;
       case dc::kBreach:
         // A breach does not type: the whole line slams in at once, wide and
@@ -535,22 +541,17 @@ struct DaemonConsole {
         // phosphor idiom (the glow underlays, the screen-blended scanline
         // pass) spoken per glyph.
         leaf.textFx(
-            {.effect = textFx::keys(
-                 {{0.0f,
-                   {.alpha = 0,
+            {.effect = textFx::tween({.from = GlyphModifier{.alpha = 0,
                     .colorScreen = {0.9f, 0.85f, 0.8f, 0},
                     .scaleX = 1.45f,
-                    .scaleY = 0.62f}},
-                  {0.35f,
-                   {.colorScreen = {0.4f, 0.28f, 0.22f, 0}, .scaleX = 0.97f}},
-                  {1.0f, {}}}),
-             .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = 240ms, .ease = motion::ease::outQuad})});
+                    .scaleY = 0.62f}, .keyframes = {{.to = GlyphModifier{.colorScreen = {0.4f, 0.28f, 0.22f, 0}, .scaleX = 0.97f}, .duration = 350ms}, {.to = GlyphModifier{}, .duration = 650ms}}, .duration = std::chrono::seconds(1)}),
+             .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = 240ms, .delay = bootDelay, .ease = motion::ease::outQuad})});
         break;
       default:
         // Info and seals type on — the terminal's own voice.
-        leaf.textFx({.effect = textFx::typeOn(),
+        leaf.textFx({.effect = textFx::enter(textFx::typeOn()),
                      .tween = {.duration = 40ms, .delay = motion::stagger(6ms)}, 
-                     .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = 320ms, .ease = motion::ease::linear})});
+                     .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = 320ms, .delay = bootDelay, .ease = motion::ease::linear})});
         break;
     }
     if (!r.cipher.empty())
@@ -562,7 +563,7 @@ struct DaemonConsole {
            .effect = textFx::hold(textFx::scramble(U"0123456789abcdef", 10)),
            .tween = {.duration = 340ms, .delay = motion::stagger(30ms)}, 
            .unit = weave::Unit::Cluster,
-           .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = 750ms, .ease = motion::ease::linear})});
+           .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = 750ms, .delay = bootDelay, .ease = motion::ease::linear})});
 
     Element row =
         box()
@@ -645,7 +646,7 @@ struct DaemonConsole {
 
     // Fade the OLDEST rows: a panel-coloured gradient over the top of the
     // well — zero row nodes touched, fully cached.
-    Paint fade = Paint::linearGradient(
+    sigil::material::Material fade = sigil::material::linearGradient(
         {0, 0}, {0, 64},
         {{0.0f, {dc::kPanel.r, dc::kPanel.g, dc::kPanel.b, 1.0f}},
          {1.0f, {dc::kPanel.r, dc::kPanel.g, dc::kPanel.b, 0.0f}}},
@@ -660,7 +661,6 @@ struct DaemonConsole {
     window.gap = 3;
     // The boot history cascades in; each live append is the only new mount
     // in its patch, so it enters the instant it arrives.
-    window.entrance = {.eachMs = 26};
 
     // Built once per describe; the rows compare it by value, so identical
     // styles prune and only genuinely new rows mount.
@@ -710,8 +710,8 @@ struct DaemonConsole {
             .gap(9)
             .children(
                 {text("CHANNELS").styleClass("label"),
-                 meterRow("LATT", &meter[0]), meterRow("GATE", &meter[1]),
-                 meterRow("FLUX", &meter[2]), meterRow("AUTH", &meter[3]),
+                 meterRow("LATT", meter[0]), meterRow("GATE", meter[1]),
+                 meterRow("FLUX", meter[2]), meterRow("AUTH", meter[3]),
                  rule(6, 2), text("SEVERITY · SESSION").styleClass("label"),
                  counterRow("SEALS", dc::kOk, gen.seals),
                  counterRow("FLUX WARNS", dc::kWarn, gen.warns),
@@ -781,7 +781,7 @@ struct DaemonConsole {
 
     return stack()
         .applyStyleSheet(classes())
-        .fill(Paint::linearGradient({0, 0}, {0, dc::kH},
+        .fill(sigil::material::linearGradient({0, 0}, {0, dc::kH},
                                     {{0.0f, dc::kGroundTop}, {1.0f, dc::kVoid}},
                                     {.units = material::GradientUnits::Pixels}))
         .children({box()

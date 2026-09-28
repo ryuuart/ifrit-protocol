@@ -191,7 +191,7 @@ constexpr material::Color kLamp = {1.0f, 0.86f, 0.68f, 0.075f};
 // ---------------------------------------------------------------------------
 // The tables, and the curve every segment of one is crossed with.
 
-using Table = std::vector<textFx::Key>;
+using Table = std::vector<motion::Keyframe<GlyphModifier>>;
 
 /** CSS's default `animation-timing-function`, `ease`. A keyframe list that
  *  names no timing function is crossed with it one segment at a time. */
@@ -201,13 +201,13 @@ motion::Easing cssEase() {
 
 /** rubberBand: a squash and a stretch on the two scale axes. */
 Table rubberBandTable() {
-  return {{0.00f, {}},
-          {0.30f, {.scaleX = 1.25f, .scaleY = 0.75f}},
-          {0.40f, {.scaleX = 0.75f, .scaleY = 1.25f}},
-          {0.50f, {.scaleX = 1.15f, .scaleY = 0.85f}},
-          {0.65f, {.scaleX = 0.95f, .scaleY = 1.05f}},
-          {0.75f, {.scaleX = 1.05f, .scaleY = 0.95f}},
-          {1.00f, {}}};
+  return {{.to = {}, .duration = 0ms},
+          {.to = {.scaleX = 1.25f, .scaleY = 0.75f}, .duration = 300ms},
+          {.to = {.scaleX = 0.75f, .scaleY = 1.25f}, .duration = 100ms},
+          {.to = {.scaleX = 1.15f, .scaleY = 0.85f}, .duration = 100ms},
+          {.to = {.scaleX = 0.95f, .scaleY = 1.05f}, .duration = 150ms},
+          {.to = {.scaleX = 1.05f, .scaleY = 0.95f}, .duration = 100ms},
+          {.to = {}, .duration = 250ms}};
 }
 
 /** jello: a halving, alternating shear, the same angle on both axes, which
@@ -218,23 +218,24 @@ Table rubberBandTable() {
  *  word by the product of the two tangents; the word here leans without
  *  that widening. */
 Table jelloTable() {
-  const auto shear = [](float at, float degrees) {
-    return textFx::Key{at, {.skewXDeg = degrees, .skewYDeg = degrees}};
+  const auto shear = [](motion::Duration duration, float degrees) {
+    return motion::Keyframe<GlyphModifier>{
+        .to = {.skewXDeg = degrees, .skewYDeg = degrees}, .duration = duration};
   };
-  return {shear(0.000f, 0.0f),        shear(0.111f, 0.0f),
-          shear(0.222f, -12.5f),      shear(0.333f, 6.25f),
-          shear(0.444f, -3.125f),     shear(0.555f, 1.5625f),
-          shear(0.666f, -0.78125f),   shear(0.777f, 0.390625f),
-          shear(0.888f, -0.1953125f), shear(1.000f, 0.0f)};
+  return {shear(0ms, 0.0f),        shear(111ms, 0.0f),
+          shear(111ms, -12.5f),    shear(111ms, 6.25f),
+          shear(111ms, -3.125f),   shear(111ms, 1.5625f),
+          shear(111ms, -0.78125f), shear(111ms, 0.390625f),
+          shear(111ms, -0.1953125f), shear(112ms, 0.0f)};
 }
 
 const TextEffect& rubberBand() {
-  static const TextEffect effect = textFx::keys(rubberBandTable(), cssEase());
+  static const TextEffect effect = textFx::tween({.from = GlyphModifier{}, .keyframes = rubberBandTable(), .duration = 1s, .ease = cssEase()});
   return effect;
 }
 
 const TextEffect& jello() {
-  static const TextEffect effect = textFx::keys(jelloTable(), cssEase());
+  static const TextEffect effect = textFx::tween({.from = GlyphModifier{}, .keyframes = jelloTable(), .duration = 1s, .ease = cssEase()});
   return effect;
 }
 
@@ -263,15 +264,14 @@ TextEffect blush(const Table& table, Strain strain, material::Color positive,
                  material::Color negative) {
   constexpr material::Color untinted{1, 1, 1, 1};
   Table tints;
-  for (const textFx::Key& stop : table) {
-    const float amount = std::clamp(strain(stop.modifier), -1.0f, 1.0f);
+  for (const motion::Keyframe<GlyphModifier>& stop : table) {
+    const float amount = std::clamp(strain(stop.to), -1.0f, 1.0f);
     tints.push_back(
-        {stop.at,
-         {.colorMultiplier = material::mixLinear(
+        {.to = {.colorMultiplier = material::mixLinear(
               untinted, amount >= 0 ? positive : negative,
-              kBlush * std::abs(amount))}});
+              kBlush * std::abs(amount))}, .duration = stop.duration});
   }
-  return textFx::keys(std::move(tints), cssEase());
+  return textFx::tween({.from = GlyphModifier{}, .keyframes = std::move(tints), .duration = 1s, .ease = cssEase()});
 }
 
 const TextEffect& rubberBandBlush() {
@@ -366,7 +366,11 @@ Element lanePanel(const Lane& lane) {
     if (tick.value != lane.scale.rest) ruled.push_back(tick.value);
   }
   std::vector<double> stops;
-  for (const textFx::Key& key : lane.table()) stops.push_back(key.at);
+  motion::Duration elapsed{};
+  for (const auto& key : lane.table()) {
+    elapsed += key.duration.value_or(motion::Duration{});
+    stops.push_back(elapsed.count());
+  }
   // The frame's own edges are 0% and 100%, so only the stops between them
   // are numbered.
   const std::vector<double> inner(stops.begin() + 1, stops.end() - 1);
@@ -598,15 +602,15 @@ struct ElasticType {
 
   /** @p lengthSeconds of the loop from @p startSeconds, as 0 → 1, held at
    *  0 before and at 1 after. */
-  [[nodiscard]] motion::Bound playing(float startSeconds,
+  [[nodiscard]] sigil::motion::Animatable<float> playing(float startSeconds,
                                       float lengthSeconds) const {
     return motion::bind(seconds, {.from = {startSeconds, startSeconds + lengthSeconds}, .clampFrom = true});
   }
 
   /** @p value of a table over a one-body word's pass from @p startSeconds. */
-  [[nodiscard]] motion::Bound oneBody(float (*value)(float),
+  [[nodiscard]] sigil::motion::Animatable<float> oneBody(float (*value)(float),
                                       float startSeconds) const {
-    return playing(startSeconds, kDurationMs / 1000.0f).map(value);
+    return motion::bind(playing(startSeconds, kDurationMs / 1000.0f), {.ease = value});
   }
 
   /** ONE EFFECT'S ROW: its name, then the word per letter beside the word
@@ -618,14 +622,14 @@ struct ElasticType {
                                   const TextEffect& effect,
                                   const TextEffect& tint, float startSeconds,
                                   const Deform& deform) const {
-    const motion::Spread cascade{.eachMs = kEachMs, .durationMs = kDurationMs};
-    const motion::Bound letters = playing(
-        startSeconds, cascade.spanMs((uint32_t)word.size()) / 1000.0f);
-    const motion::Bound whole = playing(startSeconds, kDurationMs / 1000.0f);
+    const sigil::motion::Tween<float> cascade{.duration = std::chrono::duration<double, std::milli>(kDurationMs), .delay = sigil::motion::stagger(std::chrono::duration<double, std::milli>(kEachMs))};
+    const sigil::motion::Animatable<float> letters = playing(
+        startSeconds, (float)motion::timingOf(cascade).span((uint32_t)word.size()).count());
+    const sigil::motion::Animatable<float> whole = playing(startSeconds, kDurationMs / 1000.0f);
     const auto perLetter = [&] {
       return specimen(word)
-          .textFx({.effect = effect, .stagger = cascade, .progress = letters})
-          .textFx({.effect = tint, .stagger = cascade, .progress = letters});
+          .textFx({.effect = effect, .tween = cascade, .progress = letters})
+          .textFx({.effect = tint, .tween = cascade, .progress = letters});
     };
     const auto oneBodyWord = [&] {
       return deform(specimen(word).textFx(
@@ -652,9 +656,8 @@ struct ElasticType {
    *  inside its texture. */
   [[nodiscard]] Element playhead(const Lane& lane) const {
     const float perUnit = -kPlotHeight / (lane.scale.high - lane.scale.low);
-    const motion::Bound across =
-        playing(lane.startSeconds, kDurationMs / 1000.0f)
-            .target(0, kPlotWidth);
+    const sigil::motion::Animatable<float> across =
+        motion::bind(playing(lane.startSeconds, kDurationMs / 1000.0f), {.to = {0, kPlotWidth}});
     return box()
         .width(kPlotWidth)
         .height(kPlotHeight)
@@ -668,9 +671,7 @@ struct ElasticType {
                        .left(-4.5f)
                        .top(-4.5f)
                        .translateX(across)
-                       .translateY(oneBody(lane.value, lane.startSeconds)
-                                       .scale(perUnit)
-                                       .offset(-perUnit * lane.scale.high))});
+                       .translateY(motion::bind(oneBody(lane.value, lane.startSeconds), {.to = {-perUnit * lane.scale.high, perUnit * (1 - lane.scale.high)}}))});
   }
 
   [[nodiscard]] Element describe() const {
@@ -756,8 +757,9 @@ struct ElasticType {
     // along the line, head to tail, and jello has just answered.
     sketch::kit::stage(
         ctx, {.size = kCanvas, .captureAt = 0.52, .background = kPaper});
-    ctx.engine.add([this](double, double elapsed) {
-      seconds = motion::phase(elapsed, kLoopSeconds) * kLoopSeconds;
+    ctx.engine.timer([this](sigil::motion::Duration, sigil::motion::Duration elapsedDuration) {
+      const double elapsed = elapsedDuration.count();
+      seconds = motion::phase(motion::Duration(elapsed), motion::Duration(kLoopSeconds)) * kLoopSeconds;
     });
     ctx.composer.render(describe());
   }
