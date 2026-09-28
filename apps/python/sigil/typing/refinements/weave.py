@@ -38,7 +38,8 @@ def {field}(self, value: Length | float | int | None) -> None: ...
             f"def {operator}(self, other: Selector) -> Selector: ...",
         )
     table.erased("_sigil.weave.Decoration", "color", "_t.ColorLike")
-    table.erased("_sigil.weave.PaintLayer", "offset blurred", "_t.PointLike")
+    table.accessor("_sigil.weave.PaintLayer", "offset", "_t.Vec2", "_t.PointLike")
+    table.erased("_sigil.weave.PaintLayer", "blurred", "_t.PointLike")
     table.erased("_sigil.weave.kit", "dropShadow", "_t.ColorLike", "_t.PointLike")
     table.erased("_sigil.weave.kit", "glow outline", "_t.ColorLike")
     for name in ("BlockFlow", "VerticalBlockFlow", "ExclusionFlow"):
@@ -48,8 +49,9 @@ def {field}(self, value: Length | float | int | None) -> None: ...
     )
     table.erased("_sigil.weave.Beside", "base", "_t.RectLike")
     table.accessor("_sigil.weave.PlacedInitial", "baseline", "_t.Vec2", "_t.Vec2Like")
-    table.erased("_sigil.weave.Exclusion", "offset", "_t.PointLike")
-    table.erased("_sigil.weave.LineInterval", "origin direction", "_t.PointLike")
+    table.accessor("_sigil.weave.Exclusion", "offset", "_t.Vec2", "_t.PointLike")
+    for field in ("origin", "direction"):
+        table.accessor("_sigil.weave.LineInterval", field, "_t.Vec2", "_t.PointLike")
     table.erased("_sigil.weave", "layoutSingleLine", "_t.PointLike")
     table.erased("_sigil.weave", "layoutWarichu", "_t.RectLike")
     for field, item in (

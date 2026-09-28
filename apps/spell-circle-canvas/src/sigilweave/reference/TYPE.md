@@ -75,8 +75,8 @@ separately and does not come from this tag.
 
 `ShapingStyle::variations` are design-space overrides applied to the
 typeface — or the context default — before shaping, the ergonomic
-alternative to pre-building a varied `SkTypeface` through
-`SkFontArguments` yourself. Resolution goes through `FontContext`'s
+alternative to pre-building a varied face through Skia's font
+arguments yourself. Resolution goes through `FontContext`'s
 memoized clone cache, so the varied face's `uniqueID` is a stable
 shape-cache identity and HarfBuzz mirrors the same design position Skia
 rasterizes. It is order-sensitive: `[{"wght",700},{"wdth",80}]` and its
@@ -117,7 +117,7 @@ setting's to spend.
 `FontFeature` is one OpenType feature setting, e.g. `{"liga", 0}` to
 disable ligatures. `FontVariation` is one variable-font axis override,
 e.g. `{"wght", 650}`, applied to a style's typeface through
-`FontContext::variedTypeface`, which memoizes the varied `SkTypeface`
+`FontContext::variedTypeface`, which memoizes the varied face
 clone so identical typeface-and-variations pairs share one instance — and
 therefore one shape-cache identity.
 

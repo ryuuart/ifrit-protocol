@@ -4,15 +4,21 @@
 from _sigil.material.pattern import (
     Tile,
     checker,
+    ditherBits,
     gridLines,
     halftone,
+    scanlines,
+    stipple,
     stripes,
 )
 
 __all__ = [
     "Tile",
     "checker",
+    "ditherBits",
     "gridLines",
     "halftone",
+    "scanlines",
+    "stipple",
     "stripes",
 ]

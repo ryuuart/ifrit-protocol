@@ -230,13 +230,13 @@ additions are a value rather than a patch.
 ```cpp
 class MyScene {
   sigil::weave::Paragraph m_paragraph;
-  sigil::core::RebuildGuard<std::u16string, const SkTypeface *, float> m_content;
+  sigil::core::RebuildGuard<std::u16string, const void *, float> m_content;
   sigil::weave::kit::LayoutGuard<SkISize, sigil::weave::TextAlignment> m_layoutGuard;
   sigil::weave::ParagraphLayout m_layout;
 
   void render(SkCanvas *canvas, SkISize size, ...) {
     // 1. Content: rebuilt only when its inputs change.
-    m_content.ensure({text, typeface.get(), fontSize}, [&] {
+    m_content.ensure({text, typeface.identity(), fontSize}, [&] {
       m_paragraph.clear();
       m_paragraph.appendText(text, sigil::weave::kit::makeStyle(fontSize, color));
     });

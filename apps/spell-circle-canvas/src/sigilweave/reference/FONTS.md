@@ -14,14 +14,14 @@ hand it to every `Paragraph` and `layoutParagraph` call.
 
 It owns three caches:
 
-- an `hb_face` and `hb_font` per `SkTypeface`, so font data is parsed
+- an `hb_face` and `hb_font` per face, so font data is parsed
   once, ever;
 - per typeface, code point and language, the glyph coverage and the font
   fallback;
 - the word shape cache.
 
 None of it is locked: create one `FontContext` per layout thread. All
-caches key off `SkTypeface::uniqueID`, so typefaces must outlive the
+caches key off each face's unique id, so faces must outlive the
 context or be consistently owned by it — they are ref'd where retained.
 
 ### Fallback
@@ -50,7 +50,7 @@ resolver.
 style — a weight, a width and a slant — through the context's font
 manager, which picks the family's nearest face: the italic where the
 family has one, an upright one where it does not. The answer is kept, so
-one family asked at one style is the same `SkTypeface` object every
+one family asked at one style is the same face every
 time, and its id is a stable shape-cache identity for the same reason a
 varied clone's is. It is null where the manager knows no family of that
 name; it never hands back another family standing in for the one asked.
@@ -66,7 +66,7 @@ for a set of variations — the base itself, or the context default when
 the base is null, when the variations are empty or cloning fails.
 
 Memoization is the correctness mechanism, not just a speed-up: repeated
-identical requests return the *same* `SkTypeface` object, so its unique
+identical requests return the *same* face, so its unique
 id is a stable shape-cache identity. A fresh clone per shape would mint a
 new id every time and defeat the cache. The pipeline calls this for every
 `ShapingStyle` with non-empty variations; applications only need it to
@@ -229,7 +229,7 @@ families-and-style pair for the life of the process and handed back on
 every later ask.
 
 ```cpp
-const sk_sp<SkTypeface> face =
+const weave::Face face =
     weave::ports::face({"SF Mono", "Menlo", "monospace"});
 ```
 
@@ -250,8 +250,8 @@ assembled at run time and the same chain written as literals are one
 entry and one face.
 
 Both calls have an overload spelled with a weight and a slant, for the
-common case where the caller has those two numbers and not an
-`SkFontStyle`.
+common case where the caller has those two numbers and not a whole
+`FaceStyle`.
 
 ## See also
 

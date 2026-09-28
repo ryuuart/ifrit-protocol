@@ -487,6 +487,44 @@ state.
   applied per word; glue between reordered runs is approximated, and
   multi-segment RTL words keep logical segment order.
 
+### Where Skia still shows
+
+The values a caller states and reads are the library's own or a lower
+library's: a face is a `weave::Face`, and a family's face is asked for by
+a `weave::FaceStyle`; a box is a `geometry::path::Rect`, a point a
+`glm::vec2`, an outline a `geometry::path::Outline`, an image a flow shape
+reads a `media::Picture`, and a colour a kit call takes a
+`material::Color`. Skia is the executor behind them, and the crossing is
+spelled by `<sigilweave/advanced/Skia.h>`: `toSk`, `fromSk` and `borrowSk`
+for faces and face styles, and the Skia form of an entrance whose only
+difference is the type it takes, `flowshape::path` over a Skia path.
+Including it also lets a Skia typeface stand wherever a face is taken and
+a face be handed wherever a Skia typeface is, so a caller that holds one
+only adds that include. A box, a point or an outline crosses through
+`<sigilgeometry/advanced/Skia.h>` and a picture through
+`<sigilmedia/advanced/Skia.h>`, each included by name.
+
+Skia stays named where it is what the entrance is about:
+
+- **The painter.** `ParagraphLayout::draw`, `ParagraphLayout::drawBatched`,
+  `TextLayout::draw`, `paint::setMaterialResolver`,
+  `GlyphRSXformBatches`, `kit::GlyphBuckets` and `kit::drawLabel` draw on
+  a Skia canvas, as Draw's pen does; a run carries the Skia text blob it
+  is drawn as (`PositionedRun::blob`, `wordBlob`), and `makeFont` and
+  `faceMetrics` are the font a painter draws a shaped word with and its
+  metrics. The decoration walk every painter shares stands behind
+  `advanced/`, in `advanced/DecorationRects.h`.
+- **The paint.** A pass is a complete Skia paint — `PaintStyle::foreground`,
+  `PaintLayer::paint`, a decoration's paint — so every stroke, blur,
+  shader and blend a paint can state is reachable, and `tintFilter` is the
+  memoized colour filter a dressed glyph's pass is tinted through.
+- **The font manager.** A `FontContext` is made over a Skia font manager
+  and resolves fallback through it, and `ports::systemFontManager` is the
+  platform's; a face is what either answers.
+- **The Qt bridge and the test plates.** `qt/` turns Qt's fonts, colours
+  and geometry into Skia's, and `testing::Plate` is a raster Skia surface
+  a passage is drawn on and compared as pixels.
+
 ## Build, test, and see it
 
 [docs/overview/testing.md](../../docs/overview/testing.md) is the

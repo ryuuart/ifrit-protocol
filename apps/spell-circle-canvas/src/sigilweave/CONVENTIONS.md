@@ -12,8 +12,8 @@ library, one paragraph per task with zero shared state. Several hot paths
 also use `thread_local` scratch (the ICU break iterators and bidi analyzer
 among them), so a context must not migrate between threads mid-use.
 
-**Typeface lifetime.** Every cache keys off `SkTypeface::uniqueID()`.
-Typefaces must outlive the context, or be consistently owned by it.
+**Typeface lifetime.** Every cache keys off each face's unique id.
+Faces must outlive the context, or be consistently owned by it.
 
 **Shape-cache eviction is a wholesale clear**, not LRU: past its cap the
 shape cache empties in one go and re-fills, costing one cold frame. The

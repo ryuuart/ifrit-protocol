@@ -157,6 +157,11 @@ text (its own section below).
   value, whose lookup always answers — an
   unregistered name resolves to the base alone, and `find` is the form
   that admits absence; `set`, `contains`, `entries`).
+- **`style/Face.h`** — `Face`, the typeface a style is set in, shared
+  and compared by identity, answering its `familyName` and `style`;
+  `FaceStyle` and `FaceSlant`, which face of a family is asked for; and
+  `FaceAdapter`, the seam `advanced/Skia.h` fills so a Skia typeface
+  converts to and from a face where that header is included.
 - **`style/Keyword.h`** — `Keyword`, the three things a field of a
   partial may be written as instead of a value (`Inherit`, `Initial`,
   `Unset`), and `KeywordTable`, the small ordered record of which fields
@@ -281,6 +286,10 @@ a contour interval carries a `geometry::path::Contour`:
   id and the band window, folded into a key with Boost's stir: the table
   lives inside one run and no bucket of it is ever seen from outside the
   process, so the fold does not have to be one whose answer is pinned.
+- **`advanced/Skia.h`** — the library's one door to Skia: `toSk`,
+  `fromSk` and `borrowSk` for a `Face` and a `FaceStyle`, the
+  `FaceAdapter` over a Skia typeface, and `flowshape::path` over a Skia
+  path.
 - **`advanced/DecorationRects.h`** — the walk that turns a layout's
   decorations into Skia rectangles with their paint,
   `detail::forEachDecorationRect()`, run by both draws and by any painter
