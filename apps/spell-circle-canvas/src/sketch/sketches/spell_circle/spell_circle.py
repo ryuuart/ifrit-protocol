@@ -11,7 +11,6 @@ TAGS: Runtime/Starter, Geometry/Layout, Materials/Gradients, Motion/Animation
 
 from sigil.compose import (
     Element,
-    across,
     band,
     Overflow,
     StyleSheet,

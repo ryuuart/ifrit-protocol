@@ -141,12 +141,11 @@ class BotanicalStudy:
                 brushes.fillTexture(0.58, 0.52, True)
                 brushes.hatchStyle("2H", edge, 0.42)
                 brushes.hatch(
-                    brush.Hatch(
-                        spacing=12 + index % 3 * 2,
-                        angle=spec[3],
-                        jitter=0.12,
-                        gradient=0.16 if index % 2 == 0 else -0.12,
-                    )
+                    pen,
+                    spacing=12 + index % 3 * 2,
+                    angle=spec[3],
+                    jitter=0.12,
+                    gradient=0.16 if index % 2 == 0 else -0.12,
                 )
             brushes.polygon(pen, polygon)
             brushes.pop()
