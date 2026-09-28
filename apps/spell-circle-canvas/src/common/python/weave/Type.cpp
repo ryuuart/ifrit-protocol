@@ -148,7 +148,10 @@ void bindWeave(py::module_& module) {
           })
       .def("resolvedPaint", &PaintLayer::resolvedPaint, py::arg("foreground"))
       .def_property(
-          "offset", [](const PaintLayer& value) { return value.offset; },
+          "offset",
+          [](const PaintLayer& value) {
+            return geometry::path::toSk(value.offset);
+          },
           [](PaintLayer& value, py::object offset) {
             value.offset = geometry::path::fromSk(point(offset));
           })

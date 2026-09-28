@@ -113,6 +113,21 @@ class Typography(unittest.TestCase):
             (font.underlays[0].offset.x, font.underlays[0].offset.y), (2, 3)
         )
 
+    def test_vector_fields_read_back_the_point_they_were_given(self):
+        def pair(point):
+            return (point.x, point.y)
+
+        layer = weave.PaintLayer(offset=(2, 3))
+        self.assertEqual(pair(layer.offset), (2, 3))
+        layer.offset = (-4, 5)
+        self.assertEqual(pair(layer.offset), (-4, 5))
+        blurred = weave.PaintLayer.blurred(skia.Paint(), 2, (1, 7))
+        self.assertEqual(pair(blurred.offset), (1, 7))
+        exclusion = weave.Exclusion(offset=(6, -1))
+        self.assertEqual(pair(exclusion.offset), (6, -1))
+        initial = weave.PlacedInitial(baseline=(12, 40))
+        self.assertEqual(pair(initial.baseline), (12, 40))
+
     def test_an_outline_turns_its_corners_by_a_geometry_join(self):
         def outline(*join):
             return weave.kit.outline("#000000", 3.0, *join)

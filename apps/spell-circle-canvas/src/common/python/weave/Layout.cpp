@@ -148,7 +148,14 @@ void bindWeaveLayout(py::module_& root) {
       module, "PlacedInitial", "Unknown PlacedInitial field: ");
   placedInitial.def_readwrite("placed", &PlacedInitial::placed)
       .def_readwrite("box", &PlacedInitial::box)
-      .def_readwrite("baseline", &PlacedInitial::baseline)
+      .def_property(
+          "baseline",
+          [](const PlacedInitial& initial) {
+            return geometry::path::toSk(initial.baseline);
+          },
+          [](PlacedInitial& initial, py::handle value) {
+            initial.baseline = geometry::path::fromSk(point(value));
+          })
       .def_readwrite("fontSize", &PlacedInitial::fontSize)
       .def_readwrite("bands", &PlacedInitial::bands)
       .def_readwrite("notch", &PlacedInitial::notch)
@@ -165,12 +172,14 @@ void bindWeaveLayout(py::module_& root) {
       .def_readwrite("glyphScale", &GlyphFit::glyphScale)
       .def_readwrite("closesLine", &GlyphFit::closesLine);
   lineInterval.def_property(
-      "origin", [](const LineInterval& x) { return x.origin; },
+      "origin",
+      [](const LineInterval& x) { return geometry::path::toSk(x.origin); },
       [](LineInterval& x, py::handle v) {
         x.origin = geometry::path::fromSk(point(v));
       });
   lineInterval.def_property(
-      "direction", [](const LineInterval& x) { return x.direction; },
+      "direction",
+      [](const LineInterval& x) { return geometry::path::toSk(x.direction); },
       [](LineInterval& x, py::handle v) {
         x.direction = geometry::path::fromSk(point(v));
       });
@@ -430,7 +439,8 @@ void bindWeaveLayout(py::module_& root) {
       .def_readwrite("shape", &Exclusion::shape)
       .def_readwrite("margin", &Exclusion::margin)
       .def_property(
-          "offset", [](const Exclusion& x) { return x.offset; },
+          "offset",
+          [](const Exclusion& x) { return geometry::path::toSk(x.offset); },
           [](Exclusion& x, py::handle v) {
             x.offset = geometry::path::fromSk(point(v));
           });
