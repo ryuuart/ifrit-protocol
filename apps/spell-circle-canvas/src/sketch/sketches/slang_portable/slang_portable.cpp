@@ -30,6 +30,7 @@
 
 // TAGS: Materials/Shaders
 
+#include <sigilweave/style/Face.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -117,7 +118,7 @@ float4 fsCover(VSOut input) : SV_Target { return surface(input.uv); }
 )SLANG";
 
 weave::TextStyle mono(float size, material::Color color) {
-  const sk_sp<SkTypeface> face =
+  const sigil::weave::Face face =
       weave::ports::face({"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
   return weave::textStyle({.face = face, .size = size, .color = color});
 }

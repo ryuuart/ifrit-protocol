@@ -1,6 +1,7 @@
 #pragma once
 
-#include <include/core/SkFontStyle.h>
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilweave/style/Face.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Brushes.h>
@@ -70,13 +71,13 @@ Fill soft() { return Fill::color(kInkSoft); }
  *  nothing here holds the answer. A memo in front of it would hold one
  *  answer per site in a dylib that a reload unloads, where the host
  *  already holds one for the whole process. */
-sk_sp<SkTypeface> monoFace() {
+sigil::weave::Face monoFace() {
   return sketch::kit::houseFace(sketch::kit::Voice::Terminal);
 }
-sk_sp<SkTypeface> romanFace() { return sketch::kit::featureTheme().type.sans; }
-sk_sp<SkTypeface> romanBoldFace() {
+sigil::weave::Face romanFace() { return sketch::kit::featureTheme().type.sans; }
+sigil::weave::Face romanBoldFace() {
   return sketch::kit::houseFace(sketch::kit::Voice::Interface,
-                                SkFontStyle::kBold_Weight);
+                                700);
 }
 
 /** THE PLATE'S THREE VOICES, as classes: the call is the terminal face,
@@ -119,11 +120,11 @@ Element romanBold(const char* words, float size, material::Color c = kInk,
 
 /** A straight run down the middle of the box. */
 sigil::compose::Shape hline() {
-  return [](SkSize s) {
+  return [](glm::vec2 s) {
     SkPathBuilder b;
-    b.moveTo(0, s.height() * 0.5f);
-    b.lineTo(s.width(), s.height() * 0.5f);
-    return b.detach();
+    b.moveTo(0, s.y * 0.5f);
+    b.lineTo(s.x, s.y * 0.5f);
+    return sigil::geometry::path::fromSk(b.detach());
   };
 }
 
@@ -131,14 +132,14 @@ sigil::compose::Shape hline() {
  *  exposes an offset-contour bug — the tight lobe's inner rail is much
  *  shorter than its outer one. */
 sigil::compose::Shape serpent() {
-  return [](SkSize s) {
-    const float w = s.width(), h = s.height();
+  return [](glm::vec2 s) {
+    const float w = s.x, h = s.y;
     SkPathBuilder b;
     b.moveTo(0, h * 0.5f);
     b.cubicTo(w * 0.30f, h * 0.5f, w * 0.28f, h * 0.06f, w * 0.50f, h * 0.10f);
     b.cubicTo(w * 0.66f, h * 0.13f, w * 0.60f, h * 0.96f, w * 0.78f, h * 0.90f);
     b.cubicTo(w * 0.88f, h * 0.86f, w * 0.90f, h * 0.5f, w, h * 0.5f);
-    return b.detach();
+    return sigil::geometry::path::fromSk(b.detach());
   };
 }
 
@@ -146,8 +147,8 @@ sigil::compose::Shape serpent() {
  *  self-intersects on the inside. If a style survives this it survives
  *  anything. */
 sigil::compose::Shape hairpin() {
-  return [](SkSize s) {
-    const float w = s.width(), h = s.height();
+  return [](glm::vec2 s) {
+    const float w = s.x, h = s.y;
     const float r = h * 0.30f;
     SkPathBuilder b;
     b.moveTo(0, h * 0.5f - r);
@@ -156,16 +157,16 @@ sigil::compose::Shape hairpin() {
                              h * 0.5f + r),
             -90, 180, false);
     b.lineTo(0, h * 0.5f + r);
-    return b.detach();
+    return sigil::geometry::path::fromSk(b.detach());
   };
 }
 
 /** A plain rectangle inset by `pad` — the frame specimens' carrier. */
 sigil::compose::Shape frameRect(float pad) {
-  return [pad](SkSize s) {
+  return [pad](glm::vec2 s) {
     SkPathBuilder b;
-    b.addRect(SkRect::MakeLTRB(pad, pad, s.width() - pad, s.height() - pad));
-    return b.detach();
+    b.addRect(SkRect::MakeLTRB(pad, pad, s.x - pad, s.y - pad));
+    return sigil::geometry::path::fromSk(b.detach());
   };
 }
 

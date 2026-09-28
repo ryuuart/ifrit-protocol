@@ -14,8 +14,8 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/core/Recipe.h>
-#include <sigilmaterial/core/UniformBlock.h>
+#include <sigilmaterial/advanced/Recipe.h>
+#include <sigilmaterial/advanced/UniformBlock.h>
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilsketch/canvas/Sketch.h>

@@ -42,6 +42,8 @@
 
 // TAGS: Geometry/Paths, Runtime/Starter
 
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigildraw/Pen.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
@@ -93,7 +95,7 @@ namespace pop = mesh::pop;
  *  outer radius is half a box and a centre is one translation. */
 SkPath star(int points, float outer, float inner, SkPoint centre) {
   const SkPath path =
-      shapes::star(points, inner / outer).path({2 * outer, 2 * outer});
+      sigil::geometry::path::toSk(shapes::star(points, inner / outer).outline({2 * outer, 2 * outer}));
   return path.makeTransform(
       SkMatrix::Translate(centre.fX - outer, centre.fY - outer));
 }
@@ -205,8 +207,8 @@ struct ShapeworksLab {
                [this](sigil::draw::Pen& pen, const PaintContext& paint) {
                  SkCanvas& canvas = *pen.canvas();
                  canvas.save();
-                 canvas.translate(paint.size.width() * 0.5f,
-                                  paint.size.height() * 0.5f);
+                 canvas.translate(paint.size.x * 0.5f,
+                                  paint.size.y * 0.5f);
                  if (cooked) material::skia::fill(canvas, cookedPath, *cooked);
                  canvas.restore();
                })
@@ -235,7 +237,7 @@ struct ShapeworksLab {
     Element flight =
         custom([this](sigil::draw::Pen& pen, const PaintContext& paint) {
           SkCanvas& canvas = *pen.canvas();
-          const SkSize viewport = paint.size;
+          const glm::vec2 viewport = paint.size;
           const mesh::camera::Camera camera{
               .eye = {0, 620, 900}, .target = {0, 0, 0}, .fovYDeg = 40};
 
@@ -254,7 +256,7 @@ struct ShapeworksLab {
           wire.setStyle(SkPaint::kStroke_Style);
           wire.setStrokeWidth(1);
           wire.setColor4f({1, 1, 1, 0.25f});
-          canvas.drawPath(curve::project(rail, camera, viewport, 256), wire);
+          canvas.drawPath(sigil::geometry::path::toSk(curve::project(rail, camera, viewport, 256)), wire);
 
           // The marquee: a wider sibling loop wearing the Fibonacci
           // band. A swept line charts (across, along) into uv; the strip
@@ -264,7 +266,7 @@ struct ShapeworksLab {
               .lit = false,
               .baseColor = {1, 1, 1, 0.92f},
               .texture = marqueeStrip,
-              .uvTransform = SkMatrix::Translate(0, t * 0.11f),
+              .uvTransform = sigil::geometry::path::Transform::translate({0, t * 0.11f}),
               .tileTexture = true};
           mesh::render::drawMesh(
               canvas,
@@ -353,7 +355,7 @@ struct ShapeworksLab {
         operations::Roughen{3.2f, 8, 3},
         operations::offsetBy(6),
     });
-    cookedPath = recipe(star(7, 152, 84, {0, 0}));
+    cookedPath = sigil::geometry::path::toSk(recipe(sigil::geometry::path::fromSk(star(7, 152, 84, {0, 0}))));
     cooked =
         shapeworks_lab::gold(material::skia::bevelNormals(cookedPath, 9), studio, {});
 

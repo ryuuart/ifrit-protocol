@@ -10,8 +10,8 @@
 
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/core/Recipe.h>
-#include <sigilmaterial/core/Terms.h>
+#include <sigilmaterial/program/Shader.h>
+#include <sigilmaterial/advanced/Terms.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Texture.h>
 
@@ -247,43 +247,15 @@ inline glm::vec2 environmentSize(const sigil::material::EnvironmentMap& env) {
   return {(float)std::max(s.x, 1), (float)std::max(s.y, 1)};
 }
 
-inline const std::shared_ptr<const sigil::material::Recipe>& goldRecipe() {
-  using sigil::material::Recipe;
-  using sigil::material::Target;
-  static const auto recipe = std::make_shared<const Recipe>(
-      Recipe::of<GoldParameters>("gold").slot("normals").slot("env").body(
-          Target::SkSL, reflectiveBody(kReflectiveGoldSkSL)));
-  return recipe;
-}
-
-inline const std::shared_ptr<const sigil::material::Recipe>& chromeRecipe() {
-  using sigil::material::Recipe;
-  using sigil::material::Target;
-  static const auto recipe = std::make_shared<const Recipe>(
-      Recipe::of<ChromeParameters>("chrome").slot("normals").slot("env").body(
-          Target::SkSL, reflectiveBody(kReflectiveChromeSkSL)));
-  return recipe;
-}
-
-inline const std::shared_ptr<const sigil::material::Recipe>& glassRecipe() {
-  using sigil::material::Recipe;
-  using sigil::material::Target;
-  static const auto recipe = std::make_shared<const Recipe>(
-      Recipe::of<GlassParameters>("glass")
-          .slot("normals")
-          .slot("env")
-          .slot("backdrop")
-          .body(Target::SkSL, reflectiveBody(kReflectiveGlassSkSL)));
-  return recipe;
-}
-
 inline sigil::material::Material gold(
     sigil::material::Texture normals,
     const sigil::material::EnvironmentMap& environment,
     const GoldParameters& parameters = {}) {
   GoldParameters p = parameters;
   p.envSize = environmentSize(environment);
-  sigil::material::Material m(goldRecipe(), p);
+  sigil::material::Material m = sigil::material::shader(
+      reflectiveBody(kReflectiveGoldSkSL), p,
+      {.key = "gold", .textures = {{"normals", {}}, {"env", {}}}});
   m.slot("normals", std::move(normals));
   m.slot("env", environment.texture(parameters.roughness));
   return m;
@@ -295,7 +267,9 @@ inline sigil::material::Material chrome(
     const ChromeParameters& parameters = {}) {
   ChromeParameters p = parameters;
   p.envSize = environmentSize(environment);
-  sigil::material::Material m(chromeRecipe(), p);
+  sigil::material::Material m = sigil::material::shader(
+      reflectiveBody(kReflectiveChromeSkSL), p,
+      {.key = "chrome", .textures = {{"normals", {}}, {"env", {}}}});
   m.slot("normals", std::move(normals));
   m.slot("env", environment.texture(parameters.roughness));
   return m;
@@ -307,7 +281,9 @@ inline sigil::material::Material glass(
     sigil::material::Texture backdrop, const GlassParameters& parameters = {}) {
   GlassParameters p = parameters;
   p.envSize = environmentSize(environment);
-  sigil::material::Material m(glassRecipe(), p);
+  sigil::material::Material m = sigil::material::shader(
+      reflectiveBody(kReflectiveGlassSkSL), p,
+      {.key = "glass", .textures = {{"normals", {}}, {"env", {}}, {"backdrop", {}}}});
   m.slot("normals", std::move(normals));
   m.slot("env", environment.texture(parameters.roughness));
   m.slot("backdrop", std::move(backdrop));

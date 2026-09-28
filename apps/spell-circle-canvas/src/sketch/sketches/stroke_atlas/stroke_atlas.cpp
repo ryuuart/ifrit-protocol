@@ -2,6 +2,7 @@
 
 // TAGS: Drawing/Primitives
 
+#include <sigilgeometry/advanced/Skia.h>
 #include "Specimens.h"
 
 struct StrokeAtlasSketch {
@@ -60,8 +61,8 @@ struct StrokeAtlasSketch {
                  .shape(hline())
                  .stroke(fan[(size_t)i].dec)});
         const float rad = deg * 0.0174532925f;
-        const SkPoint end = arrange::onEllipse({originX, originY},
-                                               {length + 9, length + 9}, rad);
+        const SkPoint end = sigil::geometry::path::toSk(arrange::onEllipse({originX, originY},
+                                               {length + 9, length + 9}, rad));
         const float ex = end.fX, ey = end.fY;
         const std::string numeral = kit::formatted("%d", i + 1);
         plate.children({call(numeral.c_str(), 8.5f, kRed).at({ex, ey - 6})});
@@ -163,7 +164,7 @@ struct StrokeAtlasSketch {
         // circle pulled in by the difference.
         plate.children({bare(cx - span * 0.5f, cy - span * 0.5f, span, span,
                              shapes::circle(span * 0.5f - r.r), r.dec)});
-        const SkPoint on = arrange::onEllipse({cx, cy}, {r.r, r.r}, r.angle);
+        const SkPoint on = sigil::geometry::path::toSk(arrange::onEllipse({cx, cy}, {r.r, r.r}, r.angle));
         const float lx = on.fX, ly = on.fY;
         // The leader runs OUT of the cluster to a caption column clear of
         // every ring. A caption set just off its own ring lands on top of
@@ -261,7 +262,7 @@ struct StrokeAtlasSketch {
            field(1224, 2, "Halftone / clipped wash", shapes::circle(),
                  decorations::wash(field::halftoneRamp(
                                        8, 1.0f, 3.2f, kInk),
-                                   SkBlendMode::kSrcOver, 0.95f)),
+                                   sigil::material::BlendMode::Normal, 0.95f)),
            field(1370, 26, "Hatch / chamfered edge", shapes::chamfered(22.0f),
                  lines::presets::hatch(soft(), 6.0f, 0.8f, -45.0f))});
     }
@@ -281,7 +282,7 @@ struct StrokeAtlasSketch {
         sigil::compose::Shape shape;
         Decoration dec;
         float rot = 0;
-        std::optional<LayerStyle> style;  // set instead of dec for stacks
+        std::optional<DecorationStack> style;  // set instead of dec for stacks
         std::optional<Spans> where;       // set to stroke only part of the
                                           // outline instead of all of it
       };
@@ -293,7 +294,7 @@ struct StrokeAtlasSketch {
                                std::nullopt, std::nullopt});
       };
       auto addStyle = [&](const char* label, sigil::compose::Shape shape,
-                          LayerStyle style, float rot = 0) {
+                          DecorationStack style, float rot = 0) {
         frames.push_back(Frame{label, std::move(shape), PathFormat{.width = 0},
                                rot, std::move(style), std::nullopt});
       };
@@ -416,7 +417,7 @@ struct StrokeAtlasSketch {
                             .shape(frames[i].shape);
         const Frame& spec = frames[i];
         if (spec.style.has_value())
-          frame.layerStyle(spec.style.value());
+          frame.foreground(spec.style.value());
         else if (spec.where.has_value())
           frame.stroke(spec.where.value(), spec.dec);
         else
@@ -452,12 +453,12 @@ struct StrokeAtlasSketch {
             .width(17)
             .height(17)
             .shape(keyedShape(std::string_view("chevron"),
-                              [](SkSize s) {
+                              [](glm::vec2 s) {
                                 SkPathBuilder b;
-                                b.moveTo(s.width() * 0.15f, s.height() * 0.12f);
-                                b.lineTo(s.width() * 0.88f, s.height() * 0.5f);
-                                b.lineTo(s.width() * 0.15f, s.height() * 0.88f);
-                                return b.detach();
+                                b.moveTo(s.x * 0.15f, s.y * 0.12f);
+                                b.lineTo(s.x * 0.88f, s.y * 0.5f);
+                                b.lineTo(s.x * 0.15f, s.y * 0.88f);
+                                return sigil::geometry::path::fromSk(b.detach());
                               }))
             .stroke(lines::Line{.width = 1.6f, .fill = red()});
       };
@@ -540,8 +541,8 @@ struct StrokeAtlasSketch {
 
     // The one moving thing on the sheet: the marching-ants frame. A specimen
     // plate should still prove that a rule can be alive.
-    ctx.engine.add([this, &ticker = ctx.engine] {
-      const double t = ticker.elapsed();
+    ctx.engine.timer([this, &ticker = ctx.engine] {
+      const double t = ticker.elapsed().count();
       march = std::fmod((float)t * 22.0f, 14.0f);
     });
 
