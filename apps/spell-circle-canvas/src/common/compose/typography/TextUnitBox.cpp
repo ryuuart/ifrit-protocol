@@ -14,6 +14,7 @@
 #include <utility>
 #include <vector>
 
+#include "sigilweave/advanced/Skia.h"
 #include "TextPose.h"
 
 namespace sigil::compose {
@@ -21,7 +22,7 @@ namespace sigil::compose {
 GlyphBand bandOf(const sigil::weave::ShapedWord* shaped,
                  std::vector<std::pair<BandKey, GlyphBand>>& memo) {
   if (!shaped || !shaped->typeface) return {};
-  const BandKey key{shaped->typeface.get(), shaped->fontSize};
+  const BandKey key{shaped->typeface.identity(), shaped->fontSize};
   for (const auto& [seen, band] : memo)
     if (seen == key) return band;
   SkFontMetrics metrics;

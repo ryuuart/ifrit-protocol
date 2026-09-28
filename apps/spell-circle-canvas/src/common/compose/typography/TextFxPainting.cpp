@@ -22,6 +22,7 @@
 #include <utility>
 #include <vector>
 
+#include "sigilweave/advanced/Skia.h"
 #include "sigilgeometry/advanced/Skia.h"
 #include "ComposeRuntime.h"
 #include "PaintInternal.h"

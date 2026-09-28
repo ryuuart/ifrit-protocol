@@ -4,6 +4,8 @@
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
+#include "sigilweave/advanced/Skia.h"
+
 namespace sigil::sketch::kit {
 
 weave::Type Theme::font(const Register& line) const {

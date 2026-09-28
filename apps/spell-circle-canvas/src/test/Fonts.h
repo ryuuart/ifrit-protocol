@@ -7,6 +7,7 @@
 
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkTypeface.h>
+#include <sigilweave/advanced/Skia.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 

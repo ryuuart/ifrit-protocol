@@ -17,6 +17,7 @@
 #include <string_view>
 #include <vector>
 
+#include "sigilweave/advanced/Skia.h"
 #include "../FamilyList.h"
 #include "support/CoreTestSupport.h"
 
@@ -59,7 +60,7 @@ sigil::weave::Selector allOfTheWords() {
 /** A family's face at a style, as the font context finds it. */
 sk_sp<SkTypeface> faceOf(const char* family,
                          SkFontStyle style = SkFontStyle::Normal()) {
-  return fonts().familyTypeface(family, style);
+  return fonts().familyTypeface(family, sigil::weave::fromSk(style));
 }
 
 }  // namespace

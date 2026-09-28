@@ -19,6 +19,7 @@
 #include <utility>
 #include <vector>
 
+#include "sigilweave/advanced/Skia.h"
 #include "TextEngine.h"
 #include "TextPose.h"
 
@@ -32,7 +33,7 @@ namespace {
 float capHeightOf(const sigil::weave::ShapedWord* shaped,
                   std::vector<std::pair<BandKey, float>>& memo) {
   if (!shaped || !shaped->typeface) return 0.0f;
-  const BandKey key{shaped->typeface.get(), shaped->fontSize};
+  const BandKey key{shaped->typeface.identity(), shaped->fontSize};
   for (const auto& [seen, height] : memo)
     if (seen == key) return height;
   SkFontMetrics metrics;

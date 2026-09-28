@@ -4,6 +4,7 @@
  * that is rotated or rides a contour.
  */
 
+#include "sigilweave/advanced/Skia.h"
 #include "Blobs.h"
 
 #include <include/core/SkRSXform.h>
@@ -41,7 +42,7 @@ sk_sp<SkTextBlob> buildFittedBlob(const ShapedWord& shapedWord,
     run.glyphs[glyphIndex] = shapedWord.glyphs[glyphIndex];
     run.points()[glyphIndex] = {
         fit.offsetOf(shapedWord, glyphIndex, clustersBefore),
-        shapedWord.positions[glyphIndex].y()};
+        shapedWord.positions[glyphIndex].y};
     if (GlyphFit::endsCluster(shapedWord, glyphIndex)) ++clustersBefore;
   }
   return builder.make();
@@ -62,8 +63,8 @@ sk_sp<SkTextBlob> buildTransformedBlob(const ShapedWord& shapedWord,
   for (int glyphIndex = 0; glyphIndex < glyphCount; ++glyphIndex) {
     const float advance = shapedWord.advances[glyphIndex];
     // Offsets HarfBuzz applied on top of the pen position.
-    const float glyphOffsetX = shapedWord.positions[glyphIndex].x() - penLocal;
-    const float glyphOffsetY = shapedWord.positions[glyphIndex].y();
+    const float glyphOffsetX = shapedWord.positions[glyphIndex].x - penLocal;
+    const float glyphOffsetY = shapedWord.positions[glyphIndex].y;
 
     // The interval owns the pen→placement mapping, and it is the SAME
     // function a caller re-placing these glyphs at draw time reads, so the

@@ -35,6 +35,7 @@
 #include <cstdint>
 #include <vector>
 
+#include "sigilweave/advanced/Skia.h"
 #include "sigilgeometry/advanced/Skia.h"
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
@@ -185,11 +186,11 @@ class TerminalScene final : public Scene {
                           word.segments().size()];
       const ShapedWord& shaped = *segment.shaped;
       const std::vector<SkGlyphID>& scramblePool =
-          m_glyphPools.bucketFor(shaped.typeface.get()).glyphs;
+          m_glyphPools.bucketFor(sigil::weave::borrowSk(shaped.typeface)).glyphs;
       for (size_t glyph = 0; glyph < shaped.glyphs.size(); ++glyph) {
         const uint32_t index = glyphIndex++;
         revealAt += 0.55 + 1.1 * hash01(index * 2654435761u + 17);
-        const SkPoint rest = sigil::geometry::path::toSk(run.origin) + shaped.positions[glyph];
+        const SkPoint rest = sigil::geometry::path::toSk(run.origin + shaped.positions[glyph]);
         if (!cursorPlaced) {  // first glyph anchors the cursor pre-typing
           cursorPen = rest;
           cursorFontSize = shaped.fontSize;
@@ -347,7 +348,7 @@ class TerminalScene final : public Scene {
            paragraph.words()[run.wordIndex].segments()) {
         const ShapedWord& shaped = *segment.shaped;
         std::vector<SkGlyphID>& pool =
-            m_glyphPools.bucketFor(shaped.typeface.get()).glyphs;
+            m_glyphPools.bucketFor(sigil::weave::borrowSk(shaped.typeface)).glyphs;
         pool.insert(pool.end(), shaped.glyphs.begin(), shaped.glyphs.end());
       }
   }

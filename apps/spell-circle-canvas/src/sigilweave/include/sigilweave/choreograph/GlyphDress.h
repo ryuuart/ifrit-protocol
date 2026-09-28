@@ -11,12 +11,12 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkColorFilter.h>
 #include <include/core/SkRefCnt.h>
-#include <include/core/SkTypeface.h>
 #include <sigilmaterial/color/Color.h>
 
 #include <glm/vec2.hpp>
 
 #include "sigilgeometry/path/Transform.h"
+#include "sigilweave/style/Face.h"
 
 namespace sigil::weave {
 
@@ -74,7 +74,7 @@ struct GlyphDress {
   /// The face to draw with, or null for the shaped word's own — a varied
   /// clone for a glyph whose effect drives a variable-font axis. It is part
   /// of the bucket key, so two faces are two buckets.
-  sk_sp<SkTypeface> face;
+  Face face;
   /// Non-null: the glyph-local vector from the glyph's DRAW ORIGIN to
   /// the pose centre — the point the rotation and the scale turn about.
   /// Null keeps the horizontal convention, half the advance to the right,

@@ -19,6 +19,7 @@
 
 #include <utility>
 
+#include "sigilweave/advanced/Skia.h"
 #include "sigilgeometry/advanced/Skia.h"
 #include "TextFields.h"
 #include "support/Plates.h"

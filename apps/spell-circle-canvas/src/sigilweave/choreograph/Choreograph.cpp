@@ -22,6 +22,7 @@
 #include <numbers>
 #include <utility>
 
+#include "sigilweave/advanced/Skia.h"
 #include "sigilgeometry/advanced/Skia.h"
 #include "sigilweave/choreograph/GlyphBatches.h"
 #include "sigilweave/choreograph/GlyphDress.h"
@@ -111,7 +112,7 @@ sk_sp<SkColorFilter> tintFilter(const material::Color& tint,
 GlyphRSXformBatches::Batch& GlyphRSXformBatches::batchForPass(
     const ShapedWord* font, const sk_sp<SkTypeface>& face, const SkPaint& paint,
     SkVector offset, PassBand band) {
-  const sk_sp<SkTypeface>& resolved = face ? face : font->typeface;
+  const sk_sp<SkTypeface> resolved = face ? face : toSk(font->typeface);
   auto matches = [&](const Batch& batch) {
     return batch.typeface.get() == resolved.get() &&
            batch.fontSize == font->fontSize && batch.scaleX == font->scaleX &&

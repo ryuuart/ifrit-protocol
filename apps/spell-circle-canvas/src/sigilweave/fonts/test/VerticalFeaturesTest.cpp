@@ -22,6 +22,7 @@
 #include <string>
 #include <vector>
 
+#include "sigilweave/advanced/Skia.h"
 #include "support/Faces.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
@@ -126,9 +127,9 @@ TEST_F(VerticalFeatures, AlternatesMoveTheInkAndNotThePen) {
       << "an alternate must not change the column step";
   // The instrument shifts the ink 200 font units — a fifth of the em, so
   // 20 px at this size — down the column.
-  EXPECT_NEAR(asked->positions[0].y() - unasked->positions[0].y(), 20.0f, 0.5f)
+  EXPECT_NEAR(asked->positions[0].y - unasked->positions[0].y, 20.0f, 0.5f)
       << "the alternate did not move the glyph down its column";
-  EXPECT_FLOAT_EQ(asked->positions[0].x(), unasked->positions[0].x());
+  EXPECT_FLOAT_EQ(asked->positions[0].x, unasked->positions[0].x);
 }
 
 TEST_F(VerticalFeatures, ProportionalMetricsTightenTheColumnStep) {

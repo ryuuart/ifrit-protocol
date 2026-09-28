@@ -13,6 +13,7 @@
 #include <string>
 #include <string_view>
 
+#include "sigilweave/advanced/Skia.h"
 #include "GenericFamilyManager.h"
 
 #if defined(__APPLE__)

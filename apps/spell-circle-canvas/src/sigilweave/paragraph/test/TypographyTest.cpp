@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "sigilweave/advanced/Skia.h"
 #include "support/ParagraphSupport.h"
 #include "support/Readings.h"
 using namespace sigil::weave;

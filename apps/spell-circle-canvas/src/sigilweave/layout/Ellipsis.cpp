@@ -16,6 +16,7 @@
 #include <optional>
 #include <vector>
 
+#include "sigilweave/advanced/Skia.h"
 #include "Blobs.h"
 #include "ParagraphLayoutInternal.h"
 #include "sigilweave/fonts/FontContext.h"

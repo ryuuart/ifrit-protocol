@@ -13,6 +13,7 @@
 #include <cmath>
 #include <vector>
 
+#include "sigilmedia/advanced/Skia.h"
 #include "sigilgeometry/advanced/Skia.h"
 #include "sigilweave/advanced/Skia.h"
 #include "support/LayoutSupport.h"

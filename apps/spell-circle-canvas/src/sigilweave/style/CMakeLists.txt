@@ -4,14 +4,17 @@
 # partials over it, the length a size may be stated as, the three keywords
 # a field may be written as instead of a value, and the `Type` a call site
 # names a style's numbers in — every field optional, so the merges that
-# resolve one partial against another are the one translation unit here. Style.h is the umbrella over them. Over Skia's paint and typeface
+# resolve one partial against another are the one translation unit here,
+# beside the face a style is set in, which holds the renderer's typeface
+# by reference and meets it through the library's Skia door. Style.h is the
+# umbrella over them. Over Skia's paint and typeface
 # types, and a partial's ink is SigilMaterial's colour value, so the colour
 # library is linked; a paint layer names a SigilMaterial instance by
 # pointer and links nothing more for it.
 find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilWeaveStyle
-  SOURCES Type.cpp
-  HEADERS Decoration.h Keyword.h Length.h PaintLayer.h PaintStyle.h
+  SOURCES Face.cpp Type.cpp
+  HEADERS Decoration.h Face.h Keyword.h Length.h PaintLayer.h PaintStyle.h
           ShapingStyle.h Style.h TypeSheet.h Type.h TextStyle.h
   PUBLIC SigilMaterialColor unofficial::skia::skia)
 

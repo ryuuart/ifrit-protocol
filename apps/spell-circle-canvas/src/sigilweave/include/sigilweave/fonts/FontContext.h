@@ -11,9 +11,7 @@
  */
 
 #include <include/core/SkFontMgr.h>
-#include <include/core/SkFontStyle.h>
 #include <include/core/SkRefCnt.h>
-#include <include/core/SkTypeface.h>
 
 #include <cstddef>
 #include <cstdint>
@@ -29,12 +27,12 @@ namespace sigil::weave {
 struct ShapedWord;
 
 /// Per-thread service object owning the shaping and font-resolution caches:
-///   - hb_face/hb_font per SkTypeface (font data is parsed once, ever)
+///   - hb_face/hb_font per face (font data is parsed once, ever)
 ///   - per-(typeface, code point, language) glyph coverage + font fallback
 ///   - the word shape cache (see Shaper.h)
 ///
 /// None of it is locked: create one FontContext per layout thread. All
-/// caches key off SkTypeface::uniqueID(), so typefaces must outlive the
+/// caches key off each face's unique id, so faces must outlive the
 /// context or be consistently owned by it (they are ref'd where retained).
 class FontContext {
  public:
@@ -44,9 +42,9 @@ class FontContext {
    * @trap The language tag is borrowed for the call and is NOT
    * guaranteed NUL-terminated — copy it before any C API sees it.
    */
-  using FallbackResolver = std::function<sk_sp<SkTypeface>(
-      SkFontMgr& fontManager, const SkTypeface& primaryTypeface,
-      int32_t codePoint, std::string_view languageTag)>;
+  using FallbackResolver = std::function<Face(
+      SkFontMgr& fontManager, const Face& primaryTypeface, int32_t codePoint,
+      std::string_view languageTag)>;
 
   /** Constructs a context using @p fontManager for fallback resolution.
    * @p defaultTypeface serves styles with a null typeface, and when it is
@@ -54,7 +52,7 @@ class FontContext {
    * @p fallbackResolver selects the platform fallback cascade.
    */
   explicit FontContext(sk_sp<SkFontMgr> fontManager,
-                       sk_sp<SkTypeface> defaultTypeface = nullptr,
+                       Face defaultTypeface = nullptr,
                        FallbackResolver fallbackResolver = {});
   ~FontContext();
 
@@ -64,7 +62,7 @@ class FontContext {
   /** Returns the font manager used for fallback resolution. */
   [[nodiscard]] SkFontMgr* fontManager() const;
   /** Returns the typeface used when a shaping style has none. */
-  [[nodiscard]] const sk_sp<SkTypeface>& defaultTypeface() const;
+  [[nodiscard]] const Face& defaultTypeface() const;
 
   /** THE FACE @p family NAMES AT @p style, found through the font manager
    *  and kept: two asks for one family and style return the SAME face, so
@@ -78,15 +76,15 @@ class FontContext {
    *  when it found nothing.
    *  @trap Null where the manager knows no family of that name, never
    *  another family standing in for it; an empty name is null too. */
-  [[nodiscard]] sk_sp<SkTypeface> familyTypeface(
-      std::string_view family, SkFontStyle style = SkFontStyle::Normal());
+  [[nodiscard]] Face familyTypeface(std::string_view family,
+                                    FaceStyle style = {});
 
   /** Returns the typeface to shape @p codePoint with: the primary, or
    * the default, when it covers the code point, and otherwise the
    * resolver's match. Memoized per primary, code point and language.
    */
-  [[nodiscard]] sk_sp<SkTypeface> resolveTypeface(
-      const sk_sp<SkTypeface>& primaryTypeface, int32_t codePoint,
+  [[nodiscard]] Face resolveTypeface(
+      const Face& primaryTypeface, int32_t codePoint,
       const char* languageTag);
 
   /** Returns the MEMOIZED varied clone of @p base for @p variations —
@@ -95,8 +93,8 @@ class FontContext {
    * mechanism and not a speed-up: identical requests return the SAME
    * object, so its unique id is a stable shape-cache identity.
    */
-  [[nodiscard]] sk_sp<SkTypeface> variedTypeface(
-      const sk_sp<SkTypeface>& base, std::span<const FontVariation> variations);
+  [[nodiscard]] Face variedTypeface(
+      const Face& base, std::span<const FontVariation> variations);
 
   /** Returns a varied clone of @p base that this context does NOT retain:
    * it lives exactly as long as the caller's reference. It is for a
@@ -104,8 +102,8 @@ class FontContext {
    * table would retain a clone per frame forever.
    * @trap A face from here has no stable identity, so it must never key a
    * cache that outlives the frame — `ShapingStyle::variations` above all. */
-  [[nodiscard]] sk_sp<SkTypeface> variedTypefaceTransient(
-      const sk_sp<SkTypeface>& base, std::span<const FontVariation> variations);
+  [[nodiscard]] Face variedTypefaceTransient(
+      const Face& base, std::span<const FontVariation> variations);
 
   /** Returns how many varied clones this context is retaining — the memo
    * `variedTypeface` fills and `variedTypefaceTransient` does not. Tests
@@ -116,7 +114,7 @@ class FontContext {
    *  leaves every glyph advance of @p base unchanged, advances sampled at
    *  both extremes — the gate an axis must pass to be animated at DRAW
    *  time rather than re-shaped. FALSE when the face lacks the axis. */
-  [[nodiscard]] bool axisIsAdvanceInvariant(const sk_sp<SkTypeface>& base,
+  [[nodiscard]] bool axisIsAdvanceInvariant(const Face& base,
                                             const char (&axisTag)[5]);
 
   /** The pen travel @p glyph adds in @p base, as a fraction of the em,
@@ -125,8 +123,8 @@ class FontContext {
    *  upright column. Ems rather than pixels, because a caller comparing
    *  two advances is asking about the FACE. Zero when @p base and the
    *  context default are both null. */
-  [[nodiscard]] float glyphAdvanceEm(const sk_sp<SkTypeface>& base,
-                                     SkGlyphID glyph, bool vertical);
+  [[nodiscard]] float glyphAdvanceEm(const Face& base, uint16_t glyph,
+                                     bool vertical);
 
   /** Drops every cached shape result (not HarfBuzz fonts or fallback map). */
   void purgeShapeCache();
@@ -158,7 +156,7 @@ class FontContext {
  private:
   friend std::shared_ptr<const ShapedWord> shapeWord(FontContext&,
                                                      const ShapingStyle&,
-                                                     const sk_sp<SkTypeface>&,
+                                                     const Face&,
                                                      std::u16string_view,
                                                      uint32_t, bool, bool);
   /// Reads the per-face zero advance this context measures once and keeps.

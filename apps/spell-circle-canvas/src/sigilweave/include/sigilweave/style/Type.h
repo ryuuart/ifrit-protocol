@@ -10,9 +10,6 @@
  * a total builds. `Type` decides nothing: there is no type scale here.
  */
 
-#include <include/core/SkColor.h>
-#include <include/core/SkRefCnt.h>
-#include <include/core/SkTypeface.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilweave/style/Decoration.h>
 #include <sigilweave/style/Keyword.h>
@@ -70,7 +67,7 @@ struct Type {
    *  and fallback chain when nothing above names one.
    *  @trap A STATED NULL — `.face = nullptr`, or `defaultFace()` — is the
    *  default family outright, whatever an ancestor named. */
-  std::optional<sk_sp<SkTypeface>> face;
+  std::optional<Face> face;
   /** The type size. Pixels are implicit, so `.size = 13` is thirteen of
    *  them; a relative length is resolved against what it is overlaid on. */
   std::optional<Length> size;
@@ -176,7 +173,7 @@ inline constexpr float kInitialTypeSizePx = 16.0f;
 
 /** THE FACE STATED AS THE FONT CONTEXT'S DEFAULT FAMILY: what a `Type`
  *  says with `.face = defaultFace()`, and what `initialType()` carries. */
-[[nodiscard]] inline sk_sp<SkTypeface> defaultFace() { return nullptr; }
+[[nodiscard]] inline Face defaultFace() { return nullptr; }
 
 /** EVERY FIELD ENGAGED, WITH THE VALUE AN UNSET ONE MEANS when nothing
  *  is left above it to inherit from: a null face, 16 px, opaque black,

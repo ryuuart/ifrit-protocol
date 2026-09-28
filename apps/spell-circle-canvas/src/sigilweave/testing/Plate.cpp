@@ -1,3 +1,4 @@
+#include "sigilweave/advanced/Skia.h"
 #include "sigilweave/testing/Plate.h"
 
 #include <include/core/SkCanvas.h>

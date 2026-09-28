@@ -11,15 +11,16 @@
  */
 
 #include <include/core/SkFontMetrics.h>
-#include <include/core/SkPoint.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTextBlob.h>
-#include <include/core/SkTypeface.h>
+#include <include/core/SkFont.h>
 
 #include <cstdint>
 #include <memory>
 #include <string_view>
 #include <vector>
+
+#include <glm/vec2.hpp>
 
 #include "sigilweave/style/Style.h"
 
@@ -35,14 +36,14 @@ using ScriptTag = uint32_t;
 /// typeface / script / direction. Instances are shared out of the shape
 /// cache; a layout never mutates one, it only decides where to draw it.
 struct ShapedWord {
-  sk_sp<SkTypeface> typeface;  ///< resolved face the glyph IDs index into
+  Face typeface;               ///< resolved face the glyph IDs index into
   float fontSize = 0;          ///< px size every metric below is scaled to
   float scaleX = 1.0f;         ///< horizontal condensation baked into
                                ///< positions/advances (draw fonts must match)
   bool aliased = false;        ///< hard-edged rasterisation (ShapingStyle)
 
   std::vector<uint16_t> glyphs;    ///< glyph IDs in `typeface`
-  std::vector<SkPoint> positions;  ///< pen-relative glyph origins
+  std::vector<glm::vec2> positions;  ///< pen-relative glyph origins
   std::vector<float> advances;     ///< per-glyph advance (letter spacing baked
                                    ///< in) — pen travel, used for curved lines
   std::vector<uint32_t> clusters;  ///< UTF-16 index into the shaped text
@@ -72,7 +73,7 @@ using ShapedWordReference = std::shared_ptr<const ShapedWord>;
  */
 [[nodiscard]] ShapedWordReference shapeWord(FontContext& fontContext,
                                             const ShapingStyle& style,
-                                            const sk_sp<SkTypeface>& typeface,
+                                            const Face& typeface,
                                             std::u16string_view text,
                                             ScriptTag script, bool rightToLeft,
                                             bool vertical = false);
@@ -85,7 +86,7 @@ using ShapedWordReference = std::shared_ptr<const ShapedWord>;
 /** SkFont configured the way SigilWeave shapes: unhinted, subpixel, linear
  * metrics — rendering must match shaping or positions drift.
  */
-[[nodiscard]] SkFont makeFont(const sk_sp<SkTypeface>& typeface, float fontSize,
+[[nodiscard]] SkFont makeFont(const Face& typeface, float fontSize,
                               float scaleX = 1.0f, bool aliased = false);
 
 /** The face's own metrics at the size and design position `shaping` names,

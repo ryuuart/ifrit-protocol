@@ -1,3 +1,4 @@
+#include "sigilweave/advanced/Skia.h"
 #include "SceneRenderer.h"
 
 #include <include/core/SkBlendMode.h>

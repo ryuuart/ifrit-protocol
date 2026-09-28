@@ -22,6 +22,15 @@ sigil_test(weave_test
   SOURCES test/FontContextTest.cpp
   LIBRARIES SigilWeaveFonts SigilWeavePorts)
 
+# The library's one door to Skia: a face and a typeface are one typeface
+# shared, a face style and a font style the same three numbers, and a flow
+# shape from a Skia path the one its outline makes. The face is an
+# instrument under src/test/assets/, so the claims need nothing of the
+# machine.
+sigil_test(weave_test
+  SOURCES test/SkiaDoorTest.cpp
+  LIBRARIES SigilWeaveFonts SigilWeaveLayout SigilWeavePorts)
+
 # A face found by its family's name, which only the machine's font list
 # can answer: the one promise of this directory a runner needs fonts for,
 # so it is the one that carries the label.

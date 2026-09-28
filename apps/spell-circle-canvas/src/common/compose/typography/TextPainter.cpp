@@ -14,6 +14,7 @@
 #include <cstdio>  // std::snprintf — variationDrive's effect key
 #include <cstring>
 
+#include "sigilweave/advanced/Skia.h"
 #include "AxisGate.h"
 #include "TextEngine.h"
 

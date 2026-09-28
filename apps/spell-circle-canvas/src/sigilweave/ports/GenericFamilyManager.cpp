@@ -3,6 +3,7 @@
  * in, and the font manager that answers them.
  */
 
+#include "sigilweave/advanced/Skia.h"
 #include "GenericFamilyManager.h"
 
 #include <include/core/SkFontStyle.h>

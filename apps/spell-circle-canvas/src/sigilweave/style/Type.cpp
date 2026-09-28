@@ -4,6 +4,7 @@
  * turns a relative size into pixels, and the TextStyle a total builds.
  */
 
+#include "sigilweave/advanced/Skia.h"
 #include "sigilweave/style/Type.h"
 
 namespace sigil::weave {

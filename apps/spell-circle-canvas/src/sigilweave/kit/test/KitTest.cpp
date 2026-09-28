@@ -14,6 +14,7 @@
 #include <tuple>
 #include <vector>
 
+#include "sigilweave/advanced/Skia.h"
 #include "support/KitSupport.h"
 
 using namespace sigil::weave;

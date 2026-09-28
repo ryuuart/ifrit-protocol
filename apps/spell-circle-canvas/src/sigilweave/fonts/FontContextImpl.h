@@ -215,7 +215,7 @@ struct FontContext::Impl {
   };
 
   sk_sp<SkFontMgr> fontManager;
-  sk_sp<SkTypeface> defaultTypeface;
+  Face defaultTypeface;
   FontContext::FallbackResolver fallbackResolver;
 
   boost::unordered_flat_map<uint32_t, TypefaceRecord> typefaceRecords;

@@ -16,6 +16,7 @@
 #include <string_view>
 #include <vector>
 
+#include "sigilweave/advanced/Skia.h"
 #include "support/ParagraphSupport.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
@@ -156,7 +157,7 @@ TEST(Itemization, CustomFallbackResolverControlsSelection) {
   int resolverCalls = 0;
   std::string observedLanguage;
   FontContext fontContext(std::move(fontManager), nullptr,
-                          [&](SkFontMgr&, const SkTypeface&, int32_t codePoint,
+                          [&](SkFontMgr&, const sigil::weave::Face&, int32_t codePoint,
                               std::string_view languageTag) {
                             resolverCalls++;
                             observedLanguage = languageTag;
@@ -328,10 +329,10 @@ TEST(EmojiClusters, AnEmojiInsideLatinFallsBackOnItsOwnSegment) {
   FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = machineParagraph(u8"great👍work");
   paragraph.ensureShaped(fontContext);
-  boost::unordered_flat_set<const SkTypeface*> faces;
+  boost::unordered_flat_set<const void*> faces;
   for (const Word& word : paragraph.words())
     for (const WordSegment& segment : word.segments())
-      faces.insert(segment.shaped->typeface.get());
+      faces.insert(segment.shaped->typeface.identity());
   EXPECT_GE(faces.size(), 2u) << "emoji must resolve to its own typeface";
   EXPECT_TRUE(allGlyphsResolved(paragraph));
 }
@@ -434,7 +435,7 @@ TEST(Shaper, VariedTypefaceIsMemoizedForCacheStability) {
   fontContext.purgeAllCaches();
   sk_sp<SkTypeface> afterPurge = fontContext.variedTypeface(base, axes);
   ASSERT_TRUE(afterPurge);
-  EXPECT_EQ(afterPurge.get(), fontContext.variedTypeface(base, axes).get());
+  EXPECT_EQ(afterPurge.get(), fontContext.variedTypeface(base, axes).identity());
 
   // Two paragraphs styled with the same variations share shape-cache
   // entries (the memoized clone's uniqueID keys them identically).

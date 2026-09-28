@@ -16,6 +16,7 @@
 #include <utility>
 #include <vector>
 
+#include "sigilweave/advanced/Skia.h"
 #include "support/Faces.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
@@ -39,7 +40,7 @@ TEST(FallbackMemo, AResolvedFallbackIsKeyedByTheLanguageItWasAskedFor) {
 
   int resolverCalls = 0;
   FontContext fontContext(std::move(fontManager), nullptr,
-                          [&](SkFontMgr&, const SkTypeface&, int32_t,
+                          [&](SkFontMgr&, const sigil::weave::Face&, int32_t,
                               std::string_view languageTag) {
                             resolverCalls++;
                             return languageTag == "zh-Hant" ? traditional
@@ -102,7 +103,7 @@ TEST(VariedTypeface, TheTransientCloneIsNeverPutInThePermanentMemo) {
   EXPECT_EQ(fontContext.variedTypefaceCount(), 1u);
 
   // An empty variation list is the base either way, and retains nothing.
-  EXPECT_EQ(fontContext.variedTypefaceTransient(base, {}).get(), base.get());
+  EXPECT_EQ(fontContext.variedTypefaceTransient(base, {}).identity(), base.get());
   EXPECT_EQ(fontContext.variedTypefaceCount(), 1u);
 }
 
@@ -145,7 +146,7 @@ TEST_F(OpticalKerning, APairIsSetByWhatItsOutlinesLeaveBetweenThem) {
   EXPECT_LT(byOutlines->advance, byMetrics->advance);
   // The second glyph moved with the advance: a kerned pair is two glyphs
   // closer together, not one advance quietly disagreeing with a position.
-  EXPECT_NEAR(byOutlines->positions[1].x() - byMetrics->positions[1].x(),
+  EXPECT_NEAR(byOutlines->positions[1].x - byMetrics->positions[1].x,
               byOutlines->advance - byMetrics->advance, 0.01f);
 
   // The two answers are two cache entries, not one: a word shaped under one

@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 
+#include "sigilweave/advanced/Skia.h"
 #include "sigilweave/fonts/FontContext.h"
 #include "sigilweave/fonts/Shaper.h"
 #include "sigilweave/paragraph/Paragraph.h"

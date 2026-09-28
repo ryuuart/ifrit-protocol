@@ -18,6 +18,7 @@
 #include <numbers>
 #include <vector>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilweave/advanced/Skia.h"
 #include "support/Layouts.h"
 using namespace sigil::weave;

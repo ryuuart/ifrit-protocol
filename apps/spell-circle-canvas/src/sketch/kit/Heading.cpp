@@ -6,6 +6,7 @@
 #include <string>
 #include <utility>
 
+#include "sigilweave/advanced/Skia.h"
 #include "DocumentInk.h"
 
 namespace sigil::sketch::kit {

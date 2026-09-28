@@ -9,6 +9,7 @@
  * covers.
  */
 
+#include "sigilweave/advanced/Skia.h"
 #include "sigilgeometry/advanced/Skia.h"
 #include "sigilweave/paint/Paint.h"
 
@@ -189,7 +190,7 @@ void ParagraphLayout::drawBatched(SkCanvas* canvas, const Paragraph& paragraph,
     Bucket* bucket = nullptr;
     for (Bucket& candidate :
          std::span<Bucket>(buckets.data(), activeBucketCount))
-      if (candidate.typeface.get() == shapedWord.typeface.get() &&
+      if (candidate.typeface.get() == shapedWord.typeface.identity() &&
           candidate.fontSize == shapedWord.fontSize &&
           candidate.scaleX == scaleX &&
           candidate.aliased == shapedWord.aliased && candidate.style == style) {
@@ -216,7 +217,7 @@ void ParagraphLayout::drawBatched(SkCanvas* canvas, const Paragraph& paragraph,
       bucket->positions.push_back(
           geometry::path::toSk(run.origin) +
           SkVector{run.fit.offsetOf(shapedWord, glyphIndex, clustersBefore),
-                   shapedWord.positions[glyphIndex].y()});
+                   shapedWord.positions[glyphIndex].y});
       if (GlyphFit::endsCluster(shapedWord, glyphIndex)) ++clustersBefore;
     }
   }
@@ -296,7 +297,7 @@ void ParagraphLayout::drawBatched(SkCanvas* canvas, const Paragraph& paragraph,
       for (size_t index = activeBucketCount; index-- > 0;) {
         Bucket& candidate = buckets[index];
         if (candidate.style == &style && candidate.named == named &&
-            candidate.font->typeface.get() == word.typeface.get() &&
+            candidate.font->typeface.identity() == word.typeface.identity() &&
             candidate.font->fontSize == word.fontSize &&
             candidate.font->aliased == word.aliased &&
             candidate.scaleX == scaleX)
@@ -373,7 +374,7 @@ void ParagraphLayout::drawBatched(SkCanvas* canvas, const Paragraph& paragraph,
       bucket->positions.push_back(
           geometry::path::toSk(run.origin) +
           SkVector{run.fit.offsetOf(word, glyphIndex, clustersBefore),
-                   word.positions[glyphIndex].y()});
+                   word.positions[glyphIndex].y});
       if (GlyphFit::endsCluster(word, glyphIndex)) ++clustersBefore;
     }
   }

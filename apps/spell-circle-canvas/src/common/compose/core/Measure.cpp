@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <cmath>
 
+#include "sigilweave/advanced/Skia.h"
 #include "ComposeRuntime.h"
 
 namespace sigil::compose {

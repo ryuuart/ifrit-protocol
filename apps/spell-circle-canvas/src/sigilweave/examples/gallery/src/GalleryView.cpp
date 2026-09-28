@@ -3,6 +3,7 @@
  * offers, and the renderer it hands the render thread.
  */
 
+#include "sigilweave/advanced/Skia.h"
 #include "GalleryView.h"
 
 #include <include/core/SkFontArguments.h>

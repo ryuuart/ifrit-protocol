@@ -11,6 +11,7 @@
 #include <optional>
 #include <string>
 
+#include "sigilweave/advanced/Skia.h"
 #include "support/LayoutSupport.h"
 
 using namespace sigil::weave;

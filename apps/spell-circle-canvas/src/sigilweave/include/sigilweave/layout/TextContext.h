@@ -69,7 +69,7 @@ class TextContext {
   /** Owns a font context using the supplied manager and fallback policy. */
   explicit TextContext(sk_sp<SkFontMgr> fontManager,
                        TextContextOptions options = {},
-                       sk_sp<SkTypeface> defaultTypeface = nullptr,
+                       Face defaultTypeface = nullptr,
                        FontContext::FallbackResolver fallbackResolver = {});
   /** Reuses an existing font service, which must outlive this context. */
   explicit TextContext(FontContext& fonts, TextContextOptions options = {});

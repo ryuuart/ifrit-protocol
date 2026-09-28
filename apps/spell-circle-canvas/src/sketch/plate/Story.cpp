@@ -1,5 +1,6 @@
 /** @file The vertical sketch montage and its video edit. */
 
+#include "sigilweave/advanced/Skia.h"
 #include "sigilsketch/plate/Story.h"
 
 #include <include/core/SkCanvas.h>

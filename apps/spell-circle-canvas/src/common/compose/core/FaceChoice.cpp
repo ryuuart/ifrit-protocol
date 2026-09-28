@@ -4,6 +4,7 @@
  * in where the family has neither.
  */
 
+#include "sigilweave/advanced/Skia.h"
 #include "FaceChoice.h"
 
 #include <include/core/SkFontParameters.h>
@@ -45,7 +46,7 @@ sk_sp<SkTypeface> firstInstalledFamily(sigil::weave::FontContext& fonts,
                                        const std::string& list,
                                        SkFontStyle style) {
   for (const std::string& family : familiesOf(list))
-    if (sk_sp<SkTypeface> found = fonts.familyTypeface(family, style))
+    if (sk_sp<SkTypeface> found = fonts.familyTypeface(family, sigil::weave::fromSk(style)))
       return found;
   return nullptr;
 }
@@ -97,7 +98,7 @@ void setAxis(sigil::weave::Type& font, const char (&tag)[5], float value,
 bool isFamilyMember(sigil::weave::FontContext& fonts, const SkTypeface& face,
                     const SkString& family) {
   const sk_sp<SkTypeface> member =
-      fonts.familyTypeface(family.c_str(), face.fontStyle());
+      fonts.familyTypeface(family.c_str(), sigil::weave::fromSk(face.fontStyle()));
   if (!member) return false;
   if (member.get() == &face) return true;
   SkString own, found;
@@ -140,7 +141,7 @@ void chooseFace(sigil::weave::FontContext& fonts, sigil::weave::Type& font,
       SkString name;
       inForce->getFamilyName(&name);
       if (isFamilyMember(fonts, *inForce, name))
-        chosen = fonts.familyTypeface(name.c_str(), wanted);
+        chosen = fonts.familyTypeface(name.c_str(), sigil::weave::fromSk(wanted));
     }
     if (!chosen) chosen = inForce;
   }

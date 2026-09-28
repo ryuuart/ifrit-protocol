@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cmath>
 
+#include "sigilweave/advanced/Skia.h"
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
 

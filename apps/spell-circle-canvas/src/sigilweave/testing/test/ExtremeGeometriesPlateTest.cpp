@@ -17,6 +17,7 @@
 #include <utility>
 #include <vector>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilweave/advanced/Skia.h"
 #include "support/Plates.h"
 

@@ -133,7 +133,7 @@ void forEachDecorationRect(const std::vector<PositionedRun>& runs,
           candidate.styleIndex != first.styleIndex ||
           candidate.paint != first.paint ||
           candidate.shaped->vertical != alongColumn ||
-          candidate.shaped->typeface.get() != first.shaped->typeface.get() ||
+          candidate.shaped->typeface.identity() != first.shaped->typeface.identity() ||
           candidate.shaped->fontSize != first.shaped->fontSize ||
           decorationAxisOf(candidate) != decorationAxisOf(first) ||
           decorationEntryOf(candidate) < decorationEntryOf(previous))

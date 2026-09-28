@@ -11,6 +11,7 @@
 #include <string>
 #include <string_view>
 
+#include "sigilweave/advanced/Skia.h"
 #include "FontContextImpl.h"
 
 namespace sigil::weave {
@@ -30,10 +31,10 @@ hb_blob_t* getTable(hb_face_t*, hb_tag_t tag, void* context) {
       [](void* releasedData) { static_cast<SkData*>(releasedData)->unref(); });
 }
 
-sk_sp<SkTypeface> resolveSystemFallback(SkFontMgr& fontManager,
-                                        const SkTypeface& primaryTypeface,
-                                        int32_t codePoint,
-                                        std::string_view languageTag) {
+Face resolveSystemFallback(SkFontMgr& fontManager, const Face& primaryFace,
+                           int32_t codePoint, std::string_view languageTag) {
+  const sk_sp<SkTypeface> primary = toSk(primaryFace);
+  const SkTypeface& primaryTypeface = *primary;
   // matchFamilyStyleCharacter wants C strings but the resolver contract
   // passes a string_view with no NUL-termination guarantee (see
   // FallbackResolver in fonts/FontContext.h) — copy to a local first rather
@@ -101,8 +102,7 @@ FontContext::Impl::~Impl() {
   if (shapingBuffer) hb_buffer_destroy(shapingBuffer);
 }
 
-FontContext::FontContext(sk_sp<SkFontMgr> fontManager,
-                         sk_sp<SkTypeface> defaultTypeface,
+FontContext::FontContext(sk_sp<SkFontMgr> fontManager, Face defaultTypeface,
                          FallbackResolver fallbackResolver)
     : m_impl(std::make_unique<Impl>()) {
   m_impl->fontManager = std::move(fontManager);
@@ -118,7 +118,7 @@ SkFontMgr* FontContext::fontManager() const {
   return m_impl->fontManager.get();
 }
 
-const sk_sp<SkTypeface>& FontContext::defaultTypeface() const {
+const Face& FontContext::defaultTypeface() const {
   if (!m_impl->defaultTypeface && m_impl->fontManager) {
     m_impl->defaultTypeface =
         m_impl->fontManager->matchFamilyStyle(nullptr, SkFontStyle());
@@ -129,8 +129,9 @@ const sk_sp<SkTypeface>& FontContext::defaultTypeface() const {
   return m_impl->defaultTypeface;
 }
 
-sk_sp<SkTypeface> FontContext::familyTypeface(std::string_view family,
-                                              SkFontStyle style) {
+Face FontContext::familyTypeface(std::string_view family,
+                                 FaceStyle faceStyle) {
+  const SkFontStyle style = toSk(faceStyle);
   if (family.empty() || !m_impl->fontManager) return nullptr;
   // The name, then the three numbers a style is, after a separator no
   // family name carries, so two requests share an entry exactly when they
@@ -153,11 +154,10 @@ sk_sp<SkTypeface> FontContext::familyTypeface(std::string_view family,
       .first->second;
 }
 
-sk_sp<SkTypeface> FontContext::resolveTypeface(
-    const sk_sp<SkTypeface>& primaryTypeface, int32_t codePoint,
-    const char* languageTag) {
-  const sk_sp<SkTypeface>& resolvedPrimaryTypeface =
-      primaryTypeface ? primaryTypeface : defaultTypeface();
+Face FontContext::resolveTypeface(const Face& primaryTypeface,
+                                  int32_t codePoint, const char* languageTag) {
+  const sk_sp<SkTypeface> resolvedPrimaryTypeface =
+      toSk(primaryTypeface ? primaryTypeface : defaultTypeface());
   if (!resolvedPrimaryTypeface) return nullptr;
 
   // ASCII fast path: direct-mapped table per primary, memoizing the last
@@ -189,9 +189,9 @@ sk_sp<SkTypeface> FontContext::resolveTypeface(
     m_impl->stats.fallbackQueries++;
     sk_sp<SkTypeface> matchingTypeface =
         m_impl->fontManager && m_impl->fallbackResolver
-            ? m_impl->fallbackResolver(*m_impl->fontManager,
-                                       *resolvedPrimaryTypeface, codePoint,
-                                       language)
+            ? toSk(m_impl->fallbackResolver(*m_impl->fontManager,
+                                            fromSk(resolvedPrimaryTypeface),
+                                            codePoint, language))
             : nullptr;
     if (matchingTypeface && matchingTypeface->unicharToGlyph(codePoint) != 0)
       resolvedTypeface = std::move(matchingTypeface);
@@ -226,9 +226,9 @@ sk_sp<SkTypeface> cloneAt(const sk_sp<SkTypeface>& base,
 
 }  // namespace
 
-sk_sp<SkTypeface> FontContext::variedTypeface(
-    const sk_sp<SkTypeface>& base, std::span<const FontVariation> variations) {
-  const sk_sp<SkTypeface>& resolvedBase = base ? base : defaultTypeface();
+Face FontContext::variedTypeface(const Face& base,
+                                 std::span<const FontVariation> variations) {
+  const sk_sp<SkTypeface> resolvedBase = toSk(base ? base : defaultTypeface());
   if (variations.empty() || !resolvedBase) return resolvedBase;
 
   VariedTypefaceKey key;
@@ -243,9 +243,9 @@ sk_sp<SkTypeface> FontContext::variedTypeface(
   return clone;
 }
 
-sk_sp<SkTypeface> FontContext::variedTypefaceTransient(
-    const sk_sp<SkTypeface>& base, std::span<const FontVariation> variations) {
-  const sk_sp<SkTypeface>& resolvedBase = base ? base : defaultTypeface();
+Face FontContext::variedTypefaceTransient(
+    const Face& base, std::span<const FontVariation> variations) {
+  const sk_sp<SkTypeface> resolvedBase = toSk(base ? base : defaultTypeface());
   if (variations.empty() || !resolvedBase) return resolvedBase;
   // Neither read nor written: the memo above is the ONLY thing that retains
   // a clone, so a coordinate that comes through here can never end up in it
@@ -260,9 +260,9 @@ size_t FontContext::variedTypefaceCount() const {
   return m_impl->variedTypefaces.size();
 }
 
-bool FontContext::axisIsAdvanceInvariant(const sk_sp<SkTypeface>& base,
+bool FontContext::axisIsAdvanceInvariant(const Face& base,
                                          const char (&axisTag)[5]) {
-  const sk_sp<SkTypeface>& face = base ? base : defaultTypeface();
+  const sk_sp<SkTypeface> face = toSk(base ? base : defaultTypeface());
   if (!face) return false;
   const SkFourByteTag wanted =
       SkSetFourByteTag(axisTag[0], axisTag[1], axisTag[2], axisTag[3]);
@@ -302,9 +302,9 @@ bool FontContext::axisIsAdvanceInvariant(const sk_sp<SkTypeface>& base,
   return true;
 }
 
-float FontContext::glyphAdvanceEm(const sk_sp<SkTypeface>& base,
-                                  SkGlyphID glyph, bool vertical) {
-  const sk_sp<SkTypeface>& face = base ? base : defaultTypeface();
+float FontContext::glyphAdvanceEm(const Face& base, uint16_t glyph,
+                                  bool vertical) {
+  const sk_sp<SkTypeface> face = toSk(base ? base : defaultTypeface());
   if (!face) return 0;
   Impl::TypefaceRecord& record = m_impl->recordForTypeface(face);
   // HarfBuzz points y up, so a vertical advance comes back negative for a

@@ -9,6 +9,7 @@
 #include <array>
 #include <string>
 
+#include "sigilweave/advanced/Skia.h"
 #include "TextFields.h"
 #include "EffectsParts.h"
 #include "SceneSupport.h"

@@ -10,6 +10,7 @@
 #include <cmath>
 #include <string>
 
+#include "sigilweave/advanced/Skia.h"
 #include "sigilgeometry/advanced/Skia.h"
 #include "TextFields.h"
 #include "EffectsParts.h"

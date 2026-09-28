@@ -10,12 +10,12 @@
  * positioned glyphs are painted belongs in PaintStyle instead.
  */
 
-#include <include/core/SkRefCnt.h>
-#include <include/core/SkTypeface.h>
 
 #include <cstdint>
 #include <string>
 #include <vector>
+
+#include "sigilweave/style/Face.h"
 
 namespace sigil::weave {
 
@@ -36,7 +36,7 @@ struct FontFeature {
 
 /// One variable-font axis override, e.g. {"wght", 650}. Applied to a
 /// style's typeface through FontContext::variedTypeface(), which memoizes
-/// the varied SkTypeface clone so identical (typeface, variations) pairs
+/// the varied face clone so identical (typeface, variations) pairs
 /// share one instance — and therefore one shape-cache identity.
 struct FontVariation {
   char tag[4] = {' ', ' ', ' ', ' '};  ///< OpenType axis tag, unterminated
@@ -85,7 +85,7 @@ enum class VerticalForm : uint8_t {
 /// already-positioned glyphs are painted belongs in PaintStyle instead and
 /// never invalidates shaping.
 struct ShapingStyle {
-  sk_sp<SkTypeface> typeface;  ///< null → FontContext's default (+ fallback)
+  Face typeface;  ///< null → FontContext's default (+ fallback)
   float fontSize = 16.0f;      ///< pixels in the target canvas coordinate space
   float letterSpacing = 0.0f;  ///< px of tracking added after each cluster
                                ///< (in vertical text this is JIS "aki")
@@ -137,7 +137,7 @@ struct ShapingStyle {
 
   /** Compares every input that participates in shaping identity. */
   bool operator==(const ShapingStyle& other) const {
-    return typeface.get() == other.typeface.get() &&
+    return typeface == other.typeface &&
            fontSize == other.fontSize && letterSpacing == other.letterSpacing &&
            scaleX == other.scaleX && aliased == other.aliased &&
            opticalKerning == other.opticalKerning &&

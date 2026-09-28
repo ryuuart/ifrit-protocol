@@ -3,6 +3,7 @@
  * distance two glyphs set adjacent leave between them.
  */
 
+#include "sigilweave/advanced/Skia.h"
 #include "OpticalKerning.h"
 
 #include <include/core/SkBitmap.h>

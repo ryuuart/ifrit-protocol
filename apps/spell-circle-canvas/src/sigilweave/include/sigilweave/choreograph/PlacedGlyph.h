@@ -158,8 +158,8 @@ inline void forEachPlacedGlyph(const ParagraphLayout& layout,
         // same back-out of HarfBuzz's offsets the blob was baked with —
         // otherwise an accented glyph's rest drifts off the curve.
         const float offsetX =
-            placed.shaped->positions[glyphIndex].x() - penLocal;
-        const float offsetY = placed.shaped->positions[glyphIndex].y();
+            placed.shaped->positions[glyphIndex].x - penLocal;
+        const float offsetY = placed.shaped->positions[glyphIndex].y;
         const float centreX = placed.advance * 0.5f - offsetX;
         const float centreY = -offsetY;
         placed.rest = {centre.x - (placed.tangent.x * centreX -
@@ -171,7 +171,7 @@ inline void forEachPlacedGlyph(const ParagraphLayout& layout,
         placed.rest =
             run.origin + glm::vec2{run.fit.offsetOf(*placed.shaped, glyphIndex,
                                                    clustersBefore),
-                                  placed.shaped->positions[glyphIndex].y()};
+                                  placed.shaped->positions[glyphIndex].y};
       }
       penLocal += placed.advance;
       if (endsCluster) ++clustersBefore;

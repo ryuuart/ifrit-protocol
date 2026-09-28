@@ -1,3 +1,4 @@
+#include "sigilweave/advanced/Skia.h"
 #include "SceneSupport.h"
 
 #include <include/core/SkFontMgr.h>
@@ -28,7 +29,7 @@ bool BodyCache::ensure(const SceneParameters& parameters,
 sk_sp<SkTypeface> defaultSerif(FontContext& fontContext) {
   sk_sp<SkTypeface> typeface =
       fontContext.fontManager()->matchFamilyStyle("Noto Serif", SkFontStyle());
-  return typeface ? typeface : fontContext.defaultTypeface();
+  return typeface ? typeface : sigil::weave::toSk(fontContext.defaultTypeface());
 }
 
 void drawCaption(SkCanvas* canvas, FontContext& fontContext,

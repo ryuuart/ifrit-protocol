@@ -16,6 +16,8 @@
 #include <memory>
 #include <type_traits>
 
+#include "sigilweave/advanced/Skia.h"
+
 using namespace sigil::weave;
 
 // The umbrella still spells every subject, and a sheet's entries are the

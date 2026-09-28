@@ -15,6 +15,7 @@
 #include <string>
 #include <vector>
 
+#include "sigilweave/advanced/Skia.h"
 #include "BenchOptions.h"
 #include "support/Corpus.h"
 #include "support/Layouts.h"

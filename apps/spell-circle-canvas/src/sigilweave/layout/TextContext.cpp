@@ -5,6 +5,7 @@
  * SigilWeave's own editable analysis and isolate it from published results.
  */
 
+#include "sigilweave/advanced/Skia.h"
 #include "sigilweave/layout/TextContext.h"
 
 #include <boost/container_hash/hash.hpp>
@@ -37,7 +38,7 @@ struct TextKeyHash {
     const auto key = viewOf(source);
     size_t hash = boost::hash_range(key.text.begin(), key.text.end());
     const ShapingStyle& style = key.style;
-    boost::hash_combine(hash, style.typeface.get());
+    boost::hash_combine(hash, style.typeface.identity());
     boost::hash_combine(hash, style.fontSize);
     boost::hash_combine(hash, style.letterSpacing);
     boost::hash_combine(hash, style.scaleX);
@@ -132,7 +133,7 @@ struct TextContext::Impl {
 
 TextContext::TextContext(sk_sp<SkFontMgr> fontManager,
                          TextContextOptions options,
-                         sk_sp<SkTypeface> defaultTypeface,
+                         Face defaultTypeface,
                          FontContext::FallbackResolver fallbackResolver) {
   auto fonts = std::make_unique<FontContext>(std::move(fontManager),
                                              std::move(defaultTypeface),

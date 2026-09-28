@@ -16,6 +16,7 @@
 #include <iterator>
 #include <utility>
 
+#include "sigilweave/advanced/Skia.h"
 #include "support/Plates.h"
 
 using namespace sigil::weave;
@@ -41,7 +42,7 @@ const Row kRows[] = {
 bool fellBack(const Paragraph& paragraph, const SkTypeface& primary) {
   for (const Word& word : paragraph.words())
     for (const WordSegment& segment : word.segments())
-      if (segment.shaped->typeface.get() != &primary) return true;
+      if (segment.shaped->typeface.identity() != &primary) return true;
   return false;
 }
 

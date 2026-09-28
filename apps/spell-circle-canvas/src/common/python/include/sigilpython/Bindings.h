@@ -12,6 +12,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/typing.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilweave/advanced/Skia.h>
 
 #include <chrono>
 #include <cmath>
@@ -281,6 +282,32 @@ struct type_caster<SkColor4f> {
 
   static handle cast(const SkColor4f& input, return_value_policy, handle) {
     return pybind11::cast(sigil::material::Color(input)).release();
+  }
+};
+
+/** A FACE IN PYTHON IS THE SKIA TYPEFACE IT HOLDS: the engine's face value
+ *  and Skia's typeface are one typeface shared, so an author meets one
+ *  class, and None is no face — the default family. */
+template <>
+struct type_caster<sigil::weave::Face> {
+  PYBIND11_TYPE_CASTER(sigil::weave::Face, const_name<SkTypeface>());
+
+  bool load(handle input, bool convert) {
+    if (input.is_none()) {
+      value = nullptr;
+      return true;
+    }
+    make_caster<sk_sp<SkTypeface>> typeface;
+    if (!typeface.load(input, convert)) return false;
+    value = sigil::weave::fromSk(cast_op<sk_sp<SkTypeface>>(typeface));
+    return true;
+  }
+
+  static handle cast(const sigil::weave::Face& input, return_value_policy policy,
+                     handle parent) {
+    if (!input) return none().release();
+    return make_caster<sk_sp<SkTypeface>>::cast(sigil::weave::toSk(input),
+                                                policy, parent);
   }
 };
 

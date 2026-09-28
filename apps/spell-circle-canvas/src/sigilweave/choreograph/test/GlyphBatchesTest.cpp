@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include "sigilweave/advanced/Skia.h"
 #include "sigilgeometry/advanced/Skia.h"
 #include "support/ChoreographSupport.h"
 #include "support/Paints.h"
@@ -290,9 +291,9 @@ TEST(GlyphBatches, ADrivenFaceIsItsOwnBucket) {
   BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 100}));
   auto [paragraph, layout] = laidOut(u8"AB", 32.0f, flow);
 
-  const SkTypeface* shapedFace = nullptr;
+  const void* shapedFace = nullptr;
   forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
-    if (!shapedFace && glyph.shaped) shapedFace = glyph.shaped->typeface.get();
+    if (!shapedFace && glyph.shaped) shapedFace = glyph.shaped->typeface.identity();
   });
   ASSERT_NE(shapedFace, nullptr);
   // The committed instrument stands in for a varied clone: the bucket key

@@ -3,6 +3,7 @@
  * shaped and laid out on the spot.
  */
 
+#include "sigilweave/advanced/Skia.h"
 #include "sigilweave/kit/Labels.h"
 
 #include <sigilweave/layout/Flow.h>
@@ -15,7 +16,7 @@ namespace sigil::weave::kit {
 
 sigil::weave::TextStyle makeStyle(float fontSize, SkColor color,
                                   const char* language,
-                                  sk_sp<SkTypeface> typeface) {
+                                  Face typeface) {
   sigil::weave::TextStyle style;
   style.shaping.typeface = std::move(typeface);
   style.shaping.fontSize = fontSize;

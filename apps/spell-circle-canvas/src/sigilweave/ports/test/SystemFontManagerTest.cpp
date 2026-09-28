@@ -17,6 +17,8 @@
 #include <thread>
 #include <vector>
 
+#include "sigilweave/advanced/Skia.h"
+
 namespace sigil::weave::ports {
 namespace {
 

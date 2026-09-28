@@ -14,6 +14,7 @@
 #include <ranges>
 #include <span>
 
+#include "sigilweave/advanced/Skia.h"
 #include "sigilgeometry/advanced/Skia.h"
 #include "ComposeRuntime.h"
 
@@ -64,7 +65,7 @@ float textBaseline(const Instance& inst, const SkRect& bounds) {
   for (const sigil::weave::PositionedRun& run : inst.textLayout.runs) {
     if (!run.shaped || run.transformed || run.shaped->positions.empty())
       continue;
-    return run.origin.y + run.shaped->positions.front().y() - bounds.top();
+    return run.origin.y + run.shaped->positions.front().y - bounds.top();
   }
   return 0.0f;
 }

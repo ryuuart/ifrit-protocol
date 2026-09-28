@@ -13,6 +13,7 @@
 #include <boost/container/flat_set.hpp>
 #include <cmath>
 
+#include "sigilweave/advanced/Skia.h"
 #include "sigilgeometry/advanced/Skia.h"
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
@@ -32,7 +33,7 @@ struct Coverage {
 void includeCoverage(const ParagraphLayout& layout, Coverage& coverage) {
   for (const PositionedRun& run : layout.runs) {
     if (run.shaped->typeface)
-      coverage.typefaceIds.insert(run.shaped->typeface->uniqueID());
+      coverage.typefaceIds.insert(borrowSk(run.shaped->typeface)->uniqueID());
     for (uint16_t glyph : run.shaped->glyphs) {
       ++coverage.glyphCount;
       coverage.missingGlyphCount += glyph == 0;

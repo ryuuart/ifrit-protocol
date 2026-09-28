@@ -10,6 +10,8 @@
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
+#include "sigilweave/advanced/Skia.h"
+
 using namespace sigil::weave;
 
 TEST(FamilyTypeface, OneFamilyAndStyleAnswerWithOneFace) {
@@ -34,11 +36,11 @@ TEST(FamilyTypeface, AStyleChoosesAmongTheFamilysFaces) {
   // is none, and never a face of another family.
   FontContext fontContext(ports::systemFontManager());
   const sk_sp<SkTypeface> italic =
-      fontContext.familyTypeface("Georgia", SkFontStyle::Italic());
+      fontContext.familyTypeface("Georgia", FaceStyle{.slant = FaceSlant::Italic});
   ASSERT_TRUE(italic);
   EXPECT_NE(italic->fontStyle().slant(), SkFontStyle::kUpright_Slant);
   const sk_sp<SkTypeface> onlyUpright =
-      fontContext.familyTypeface("Impact", SkFontStyle::Italic());
+      fontContext.familyTypeface("Impact", FaceStyle{.slant = FaceSlant::Italic});
   ASSERT_TRUE(onlyUpright);
   EXPECT_EQ(onlyUpright->fontStyle().slant(), SkFontStyle::kUpright_Slant);
 }

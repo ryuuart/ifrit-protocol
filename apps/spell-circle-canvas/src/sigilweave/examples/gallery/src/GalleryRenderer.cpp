@@ -4,6 +4,7 @@
  * backends the frame is presented through.
  */
 
+#include "sigilweave/advanced/Skia.h"
 #include "GalleryRenderer.h"
 
 #include <include/core/SkCanvas.h>

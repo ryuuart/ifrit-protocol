@@ -5,6 +5,7 @@
  * origin-relative blob a shaped word hands out.
  */
 
+#include "sigilweave/advanced/Skia.h"
 #include "sigilweave/fonts/Shaper.h"
 
 #include <include/core/SkFont.h>
@@ -18,7 +19,7 @@
 
 namespace sigil::weave {
 
-SkFont makeFont(const sk_sp<SkTypeface>& typeface, float fontSize, float scaleX,
+SkFont makeFont(const Face& typeface, float fontSize, float scaleX,
                 bool aliased) {
   SkFont font(typeface, fontSize);
   if (scaleX != 1.0f) font.setScaleX(scaleX);
@@ -132,7 +133,7 @@ void FontContext::Impl::applyOpticalKerning(const sk_sp<SkTypeface>& typeface,
   constexpr float kMaximumShift = 0.2f;
   float shift = 0;
   for (size_t index = 0; index + 1 < word.glyphs.size(); ++index) {
-    word.positions[index].offset(shift, 0);
+    word.positions[index].x += shift;
     const detail::GlyphProfile& left = profileOf(typeface, word.glyphs[index]);
     const detail::GlyphProfile& right =
         profileOf(typeface, word.glyphs[index + 1]);
@@ -143,20 +144,20 @@ void FontContext::Impl::applyOpticalKerning(const sk_sp<SkTypeface>& typeface,
     word.advances[index] += adjustment;
     shift += adjustment;
   }
-  word.positions.back().offset(shift, 0);
+  word.positions.back().x += shift;
   word.advance += shift;
 }
 
 ShapedWordReference shapeWord(FontContext& fontContext,
                               const ShapingStyle& style,
-                              const sk_sp<SkTypeface>& typeface,
+                              const Face& typeface,
                               std::u16string_view text, ScriptTag script,
                               bool rightToLeft, bool vertical) {
   FontContext::Impl& implementation = *fontContext.m_impl;
 
   // Probe with a borrowed view — the warm path allocates nothing.
   ShapeKeyView view;
-  view.typefaceId = typeface ? typeface->uniqueID() : 0;
+  view.typefaceId = typeface ? borrowSk(typeface)->uniqueID() : 0;
   std::memcpy(&view.fontSizeBits, &style.fontSize, sizeof(float));
   std::memcpy(&view.letterSpacingBits, &style.letterSpacing, sizeof(float));
   std::memcpy(&view.scaleXBits, &style.scaleX, sizeof(float));
@@ -324,7 +325,7 @@ const sk_sp<SkTextBlob>& wordBlob(const ShapedWord& word) {
     std::memcpy(blobRun.glyphs, word.glyphs.data(),
                 word.glyphs.size() * sizeof(uint16_t));
     std::memcpy(blobRun.points(), word.positions.data(),
-                word.positions.size() * sizeof(SkPoint));
+                word.positions.size() * sizeof(glm::vec2));
     word.m_blob = builder.make();
   }
   return word.m_blob;

@@ -3,6 +3,7 @@
  * TextSubstitution.h states what each answers and why it may refuse.
  */
 
+#include "sigilweave/advanced/Skia.h"
 #include "TextSubstitution.h"
 
 #include <include/core/SkTypes.h>  // SkDebugf — the library's one channel

@@ -54,7 +54,7 @@ struct GlyphFit {
    *  run's origin, with @p clustersBefore clusters closed ahead of it. */
   [[nodiscard]] float offsetOf(const ShapedWord& word, size_t glyphIndex,
                                uint32_t clustersBefore) const {
-    return word.positions[glyphIndex].x() * glyphScale +
+    return word.positions[glyphIndex].x * glyphScale +
            letterSpacing * static_cast<float>(glyphIndex) +
            clusterSpacing * static_cast<float>(clustersBefore);
   }

@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "sigilweave/advanced/Skia.h"
 #include "sigilweave/fonts/FontContext.h"
 #include "sigilweave/paragraph/Paragraph.h"
 #include "sigilweave/unicode/Unicode.h"
@@ -177,7 +178,7 @@ void Paragraph::shapeWordContent(FontContext& fontContext, Word& word) {
     }
     if (!resolvedTypeface)
       resolvedTypeface =
-          primaryTypeface ? primaryTypeface : fontContext.defaultTypeface();
+          primaryTypeface ? primaryTypeface : toSk(fontContext.defaultTypeface());
     if (segmentEnd <= segmentStart)
       segmentEnd =
           segmentLimit > segmentStart ? segmentLimit : segmentStart + 1;

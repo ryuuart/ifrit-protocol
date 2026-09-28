@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "sigilweave/advanced/Skia.h"
 #include "support/Corpus.h"
 
 using namespace sigil::weave;

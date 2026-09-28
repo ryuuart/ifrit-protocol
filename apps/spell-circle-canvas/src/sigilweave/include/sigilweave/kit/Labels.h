@@ -21,14 +21,14 @@ namespace sigil::weave::kit {
  *  language tag and typeface (null → the context default). */
 [[nodiscard]] sigil::weave::TextStyle makeStyle(
     float fontSize, SkColor color, const char* language = "",
-    sk_sp<SkTypeface> typeface = nullptr);
+    Face typeface = nullptr);
 
 /** A STYLE WHOSE TRACKING IS QUOTED IN 1/1000 EM — the unit a type
  *  specimen states it in — converted to the px a text style takes. The
  *  conversion needs the em size, which is why it belongs beside the
  *  style rather than in the number. @p condense is horizontal scale, for
  *  a face with no `wdth` axis to ask instead. */
-[[nodiscard]] inline TextStyle tracked(const sk_sp<SkTypeface>& face,
+[[nodiscard]] inline TextStyle tracked(const Face& face,
                                        float size, material::Color color,
                                        float trackPerMille = 0,
                                        float condense = 1.0f) {
@@ -47,7 +47,7 @@ struct LabelOptions {
   float width = 520.0f;  ///< wrap measure of the label's block flow
   float height = 32.0f;  ///< block height; two 12px lines by default
   const char* language = "";
-  sk_sp<SkTypeface> typeface;  ///< null → the context default
+  Face typeface;  ///< null → the context default
 };
 
 /** Draws a short explanatory caption in one call: builds a single-span

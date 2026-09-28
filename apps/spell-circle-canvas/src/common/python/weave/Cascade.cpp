@@ -11,6 +11,8 @@
 #include <optional>
 #include <string>
 
+#include "sigilweave/advanced/Skia.h"
+
 namespace sigil::python {
 namespace py = pybind11;
 

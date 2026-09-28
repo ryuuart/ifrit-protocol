@@ -2,6 +2,7 @@
  * The gallery's own fallback resolver.
  */
 
+#include "sigilweave/advanced/Skia.h"
 #include "GalleryFallback.h"
 
 #include <include/core/SkString.h>
@@ -92,9 +93,10 @@ sigil::weave::FontContext::FallbackResolver makeGalleryFallbackResolver(
 
   return [serifFamilies = std::move(serifFamilies),
           cuneiformTypeface = std::move(cuneiformTypeface)](
-             SkFontMgr& manager, const SkTypeface& primaryTypeface,
+             SkFontMgr& manager, const sigil::weave::Face& primaryFace,
              int32_t codePoint,
              std::string_view languageTag) -> sk_sp<SkTypeface> {
+    const SkTypeface& primaryTypeface = *sigil::weave::borrowSk(primaryFace);
     // macOS ships Noto Sans Cuneiform, but CoreText can resolve its character
     // map and rasterizer from different copies when a newer user-installed
     // font has the same PostScript name. Loading the system file directly

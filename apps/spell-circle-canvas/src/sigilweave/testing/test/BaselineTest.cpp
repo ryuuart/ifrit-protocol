@@ -20,6 +20,7 @@
 #include <string_view>
 #include <vector>
 
+#include "sigilweave/advanced/Skia.h"
 #include "ScratchDir.h"
 #include "support/Paragraphs.h"
 

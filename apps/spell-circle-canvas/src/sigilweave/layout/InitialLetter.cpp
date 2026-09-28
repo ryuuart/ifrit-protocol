@@ -12,6 +12,7 @@
  * shortened bands as ordinary geometry.
  */
 
+#include "sigilweave/advanced/Skia.h"
 #include "sigilgeometry/advanced/Skia.h"
 #include "sigilweave/layout/InitialLetter.h"
 
@@ -221,8 +222,8 @@ InitialLetterPlan planInitialLetter(FontContext& fontContext,
       const std::optional<SkPath> contour =
           font.getPath(plan.glyphs->glyphs[glyph]);
       if (!contour) continue;
-      builder.addPath(contour->makeOffset(plan.glyphs->positions[glyph].x(),
-                                          plan.glyphs->positions[glyph].y()));
+      builder.addPath(contour->makeOffset(plan.glyphs->positions[glyph].x,
+                                          plan.glyphs->positions[glyph].y));
     }
     SkPath outline = builder.detach();
     if (!outline.isEmpty()) {

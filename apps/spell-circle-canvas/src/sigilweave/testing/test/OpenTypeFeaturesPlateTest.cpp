@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "sigilweave/advanced/Skia.h"
 #include "support/Plates.h"
 
 using namespace sigil::weave;

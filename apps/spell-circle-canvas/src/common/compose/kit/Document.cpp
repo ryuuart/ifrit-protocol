@@ -9,6 +9,8 @@
 #include <string>
 #include <utility>
 
+#include "sigilweave/advanced/Skia.h"
+
 namespace sigil::compose::document {
 namespace {
 

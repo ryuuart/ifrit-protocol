@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include "sigilweave/advanced/Skia.h"
 #include "support/Faces.h"
 #include "support/Layouts.h"
 #include "support/Paragraphs.h"

@@ -13,6 +13,7 @@
 #include <optional>
 #include <vector>
 
+#include "sigilweave/advanced/Skia.h"
 #include "sigilgeometry/advanced/Skia.h"
 #include "sigilweave/fonts/Shaper.h"
 #include "sigilweave/layout/ParagraphLayout.h"
@@ -25,7 +26,7 @@ std::vector<LineMetrics> ParagraphLayout::lineMetrics(
   if (paragraph.writingMode() != WritingMode::kHorizontal) return lines;
   // Memoized per font change: lines overwhelmingly share one (typeface,
   // size), so metric resolution runs once per style stretch, not per run.
-  const SkTypeface* lastTypeface = nullptr;
+  const void* lastTypeface = nullptr;
   float lastFontSize = 0;
   SkFontMetrics fontMetrics{};
 
@@ -48,9 +49,9 @@ std::vector<LineMetrics> ParagraphLayout::lineMetrics(
     float runLeft = run.origin.x;
     float runRight = runLeft;
     if (run.shaped) {
-      if (run.shaped->typeface.get() != lastTypeface ||
+      if (run.shaped->typeface.identity() != lastTypeface ||
           run.shaped->fontSize != lastFontSize) {
-        lastTypeface = run.shaped->typeface.get();
+        lastTypeface = run.shaped->typeface.identity();
         lastFontSize = run.shaped->fontSize;
         makeFont(run.shaped->typeface, run.shaped->fontSize)
             .getMetrics(&fontMetrics);
@@ -105,16 +106,16 @@ std::vector<LineMetrics> ParagraphLayout::lineMetrics(
 
 SkPath ParagraphLayout::glyphOutline() const {
   SkPathBuilder outline;
-  const SkTypeface* lastTypeface = nullptr;
+  const void* lastTypeface = nullptr;
   float lastFontSize = 0;
   float lastScaleX = 0;
   SkFont font;
   for (const PositionedRun& run : runs) {
     if (!run.shaped) continue;
     const ShapedWord& word = *run.shaped;
-    if (word.typeface.get() != lastTypeface || word.fontSize != lastFontSize ||
+    if (word.typeface.identity() != lastTypeface || word.fontSize != lastFontSize ||
         word.scaleX != lastScaleX) {
-      lastTypeface = word.typeface.get();
+      lastTypeface = word.typeface.identity();
       lastFontSize = word.fontSize;
       lastScaleX = word.scaleX;
       font = makeFont(word.typeface, word.fontSize, word.scaleX, word.aliased);
@@ -137,13 +138,13 @@ SkPath ParagraphLayout::glyphOutline() const {
       }
       if (!interval) {
         outline.addPath(*contour,
-                        run.origin.x + word.positions[glyphIndex].x(),
-                        run.origin.y + word.positions[glyphIndex].y());
+                        run.origin.x + word.positions[glyphIndex].x,
+                        run.origin.y + word.positions[glyphIndex].y);
         continue;
       }
       const float advance = word.advances[glyphIndex];
-      const float offsetX = word.positions[glyphIndex].x() - pen;
-      const float offsetY = word.positions[glyphIndex].y();
+      const float offsetX = word.positions[glyphIndex].x - pen;
+      const float offsetY = word.positions[glyphIndex].y;
       glm::vec2 position;
       glm::vec2 tangent;
       interval->placeAt(run.penOffset + pen + advance * 0.5f, 0.0f,
@@ -168,7 +169,7 @@ std::vector<ColumnMetrics> ParagraphLayout::columnMetrics(
   // Memoized per font change, exactly as lineMetrics does it: a tate-chu-yoko
   // run is the only form whose column extent is a font metric rather than an
   // advance, and one column rarely holds more than a couple.
-  const SkTypeface* lastTypeface = nullptr;
+  const void* lastTypeface = nullptr;
   float lastFontSize = 0;
   SkFontMetrics fontMetrics{};
 
@@ -195,9 +196,9 @@ std::vector<ColumnMetrics> ParagraphLayout::columnMetrics(
         // 縦中横: the run is shaped horizontally and set upright across the
         // column, and its pen offset lands on its BASELINE, so the column
         // extent is the run's font height around that baseline.
-        if (run.shaped->typeface.get() != lastTypeface ||
+        if (run.shaped->typeface.identity() != lastTypeface ||
             run.shaped->fontSize != lastFontSize) {
-          lastTypeface = run.shaped->typeface.get();
+          lastTypeface = run.shaped->typeface.identity();
           lastFontSize = run.shaped->fontSize;
           makeFont(run.shaped->typeface, run.shaped->fontSize)
               .getMetrics(&fontMetrics);
