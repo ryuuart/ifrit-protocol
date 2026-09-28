@@ -11,12 +11,13 @@
 # types, and a partial's ink is SigilMaterial's colour value, so the colour
 # library is linked; a paint layer names a SigilMaterial instance by
 # pointer and links nothing more for it.
+find_package(glm CONFIG REQUIRED)
 find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilWeaveStyle
   SOURCES Face.cpp Type.cpp
   HEADERS Decoration.h Face.h Keyword.h Length.h PaintLayer.h PaintStyle.h
           ShapingStyle.h Style.h TypeSheet.h Type.h TextStyle.h
-  PUBLIC SigilMaterialColor unofficial::skia::skia)
+  PUBLIC SigilMaterialColor glm::glm unofficial::skia::skia)
 
 # Styles are plain values, so their test shapes nothing, links no fonts and
 # needs nothing of the machine it runs on.

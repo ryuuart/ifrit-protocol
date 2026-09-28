@@ -38,7 +38,7 @@ PaintStyle outlinedGradient(float left, float right) {
   style.foreground.setAntiAlias(true);
   style.foreground.setShader(
       horizontalGradient(left, right, SK_ColorRED, SK_ColorGREEN));
-  style.addUnderlay(sigil::weave::kit::outline(SK_ColorBLUE, 6.0f));
+  style.addUnderlay(sigil::weave::kit::outline(SkColor4f::FromColor(SK_ColorBLUE), 6.0f));
   return style;
 }
 

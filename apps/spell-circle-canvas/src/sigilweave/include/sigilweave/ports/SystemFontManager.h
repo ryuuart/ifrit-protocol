@@ -10,14 +10,14 @@
  */
 
 #include <include/core/SkFontMgr.h>
-#include <include/core/SkFontStyle.h>
 #include <include/core/SkRefCnt.h>
-#include <include/core/SkTypeface.h>
 
 #include <initializer_list>
 #include <span>
 #include <string_view>
 #include <vector>
+
+#include "sigilweave/style/Face.h"
 
 /** WHERE THE ENGINE MEETS THE OPERATING SYSTEM: the factory that hands
  *  back the platform's installed font set as a Skia font manager. It is
@@ -62,24 +62,21 @@ inline std::vector<std::string_view> familyChain(
  *  REQUESTED STYLE. This is the form a COMPUTED chain takes.
  *  @trap It walks the system font list on every call, so a chain asked
  *  for more than once goes through `face` instead. */
-sk_sp<SkTypeface> pickTypeface(std::span<const std::string_view> families,
-                               SkFontStyle style = SkFontStyle::Normal());
+Face pickTypeface(std::span<const std::string_view> families,
+                  FaceStyle style = {});
 
 /** `pickTypeface` over a chain spelled out where the call is written. */
-inline sk_sp<SkTypeface> pickTypeface(
-    std::initializer_list<const char*> families,
-    SkFontStyle style = SkFontStyle::Normal()) {
+inline Face pickTypeface(std::initializer_list<const char*> families,
+                         FaceStyle style = {}) {
   const std::vector<std::string_view> chain = detail::familyChain(families);
   return pickTypeface(std::span<const std::string_view>(chain), style);
 }
 
 /** `pickTypeface` spelled with a weight and a slant, for the (common) case
- *  where the caller has those two numbers and not an SkFontStyle. */
-inline sk_sp<SkTypeface> pickTypeface(
-    std::initializer_list<const char*> families, int weight,
-    SkFontStyle::Slant slant = SkFontStyle::kUpright_Slant) {
-  return pickTypeface(families,
-                      SkFontStyle(weight, SkFontStyle::kNormal_Width, slant));
+ *  where the caller has those two numbers and not a whole style. */
+inline Face pickTypeface(std::initializer_list<const char*> families,
+                         int weight, FaceSlant slant = FaceSlant::Upright) {
+  return pickTypeface(families, FaceStyle{.weight = weight, .slant = slant});
 }
 
 /** THE SAME RESOLUTION, HELD once per families-and-style pair for the
@@ -88,22 +85,20 @@ inline sk_sp<SkTypeface> pickTypeface(
  *  entry, and a face is compared by POINTER wherever a style is.
  *  @trap A `static` at the call site holds one answer per SITE, so the
  *  same families resolved in twenty places never compare equal. */
-sk_sp<SkTypeface> face(std::span<const std::string_view> families,
-                       SkFontStyle style = SkFontStyle::Normal());
+Face face(std::span<const std::string_view> families, FaceStyle style = {});
 
 /** `face` over a chain spelled out where the call is written. */
-inline sk_sp<SkTypeface> face(std::initializer_list<const char*> families,
-                              SkFontStyle style = SkFontStyle::Normal()) {
+inline Face face(std::initializer_list<const char*> families,
+                 FaceStyle style = {}) {
   const std::vector<std::string_view> chain = detail::familyChain(families);
   return face(std::span<const std::string_view>(chain), style);
 }
 
 /** `face` spelled with a weight and a slant, matching the `pickTypeface`
  *  overload above. */
-inline sk_sp<SkTypeface> face(
-    std::initializer_list<const char*> families, int weight,
-    SkFontStyle::Slant slant = SkFontStyle::kUpright_Slant) {
-  return face(families, SkFontStyle(weight, SkFontStyle::kNormal_Width, slant));
+inline Face face(std::initializer_list<const char*> families, int weight,
+                 FaceSlant slant = FaceSlant::Upright) {
+  return face(families, FaceStyle{.weight = weight, .slant = slant});
 }
 
 }  // namespace sigil::weave::ports

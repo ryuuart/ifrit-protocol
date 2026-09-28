@@ -110,16 +110,14 @@ TEST_F(InstalledFonts, AListRunsOutOntoTheDefaultFamilyRatherThanOntoNothing) {
 
 TEST_F(InstalledFonts, TheWeightAndSlantSpellingIsTheStyleSpelling) {
   // The two overloads are one resolution reached two ways, for a caller
-  // holding two numbers rather than an SkFontStyle — and the held form
+  // holding two numbers rather than a whole style — and the held form
   // is one entry however it was spelled.
-  constexpr int kWeight = SkFontStyle::kBold_Weight;
-  const SkFontStyle style(kWeight, SkFontStyle::kNormal_Width,
-                          SkFontStyle::kItalic_Slant);
-  EXPECT_EQ(
-      familyOf(pickTypeface({kAbsent}, kWeight, SkFontStyle::kItalic_Slant)),
-      familyOf(pickTypeface({kAbsent}, style)));
-  EXPECT_EQ(face({kAbsent}, kWeight, SkFontStyle::kItalic_Slant).get(),
-            face({kAbsent}, style).get());
+  constexpr int kWeight = 700;
+  const FaceStyle style{.weight = kWeight, .slant = FaceSlant::Italic};
+  EXPECT_EQ(familyOf(pickTypeface({kAbsent}, kWeight, FaceSlant::Italic)),
+            familyOf(pickTypeface({kAbsent}, style)));
+  EXPECT_EQ(face({kAbsent}, kWeight, FaceSlant::Italic),
+            face({kAbsent}, style));
 }
 
 TEST_F(InstalledFonts, AChainAssembledAtRunTimeIsTheChainSpelledOut) {
@@ -133,7 +131,7 @@ TEST_F(InstalledFonts, AChainAssembledAtRunTimeIsTheChainSpelledOut) {
   const std::vector<std::string_view> chain = {kAbsent, "Menlo", "monospace"};
   EXPECT_EQ(familyOf(pickTypeface(chain)),
             familyOf(pickTypeface({kAbsent, "Menlo", "monospace"})));
-  EXPECT_EQ(face(chain).get(), face({kAbsent, "Menlo", "monospace"}).get());
+  EXPECT_EQ(face(chain).identity(), face({kAbsent, "Menlo", "monospace"}).identity());
 }
 
 TEST_F(InstalledFonts, AnEmptyNameInAChainIsPassedOverAndNotResolved) {
@@ -155,7 +153,7 @@ TEST_F(InstalledFonts, AnEmptyNameInAChainIsPassedOverAndNotResolved) {
  *  each of the things the holder's key is built from. */
 struct Ask {
   const char* what;
-  sk_sp<SkTypeface> (*resolve)(bool held);
+  Face (*resolve)(bool held);
 };
 
 class HeldFace : public InstalledFonts,
@@ -163,7 +161,7 @@ class HeldFace : public InstalledFonts,
 
 TEST_P(HeldFace, AnswersWhatAFreshWalkWouldAndHandsThatBackForever) {
   const Ask& ask = GetParam();
-  const sk_sp<SkTypeface> held = ask.resolve(true);
+  const sk_sp<SkTypeface> held = toSk(ask.resolve(true));
   ASSERT_NE(held, nullptr);
   // THE ANSWER IS THE WALK'S. Holding it must not change which face a
   // caller gets, only how often the installed list is read for it.
@@ -171,7 +169,7 @@ TEST_P(HeldFace, AnswersWhatAFreshWalkWouldAndHandsThatBackForever) {
   // …AND IT IS ONE FACE. A face is compared by pointer wherever a style,
   // a memo key or an inherited value is compared, so a second answer to
   // one ask is a value that never compares equal to the first.
-  EXPECT_EQ(ask.resolve(true).get(), held.get());
+  EXPECT_EQ(ask.resolve(true).identity(), held.get());
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -193,16 +191,16 @@ INSTANTIATE_TEST_SUITE_P(
         Ask{"TheSameChainBold",
             [](bool held) {
               return held ? face({kAbsent, "Menlo", "monospace"},
-                                 SkFontStyle::Bold())
+                                 FaceStyle{.weight = 700})
                           : pickTypeface({kAbsent, "Menlo", "monospace"},
-                                         SkFontStyle::Bold());
+                                         FaceStyle{.weight = 700});
             }},
         Ask{"TheSameChainItalic",
             [](bool held) {
               return held ? face({kAbsent, "Menlo", "monospace"},
-                                 SkFontStyle::Italic())
+                                 FaceStyle{.slant = FaceSlant::Italic})
                           : pickTypeface({kAbsent, "Menlo", "monospace"},
-                                         SkFontStyle::Italic());
+                                         FaceStyle{.slant = FaceSlant::Italic});
             }}),
     [](const ::testing::TestParamInfo<Ask>& row) { return row.param.what; });
 

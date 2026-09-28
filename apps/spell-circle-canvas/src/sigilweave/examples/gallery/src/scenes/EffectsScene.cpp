@@ -212,23 +212,23 @@ class LayerShowcasePart final : public Scene {
 
     m_paints[1] = PaintStyle(kInk);
     m_paints[1].addUnderlay(
-        sigil::weave::kit::dropShadow(0x77000000, {4, 5}, 3.2f));
+        sigil::weave::kit::dropShadow(SkColor4f::FromColor(0x77000000), {4, 5}, 3.2f));
 
     m_paints[2] = PaintStyle(kBlue);
-    m_paints[2].addUnderlay(sigil::weave::kit::glow(0x8892C7FF, 6.0f,
+    m_paints[2].addUnderlay(sigil::weave::kit::glow(SkColor4f::FromColor(0x8892C7FF), 6.0f,
                                                     /*spread=*/2.0f,
                                                     /*intensity=*/1.6f));
 
     m_paints[3] = PaintStyle(SK_ColorWHITE);  // water shader set per frame
     m_paints[3].addUnderlay(
-        sigil::weave::kit::outline(0xFF5A1E17, fontSize * 0.11f));
+        sigil::weave::kit::outline(SkColor4f::FromColor(0xFF5A1E17), fontSize * 0.11f));
 
     m_paints[4] = PaintStyle(SK_ColorWHITE);  // mesh shader set per frame
     m_paints[4]
-        .addUnderlay(sigil::weave::kit::dropShadow(0x77000000, {5, 6}, 4.0f))
-        .addUnderlay(sigil::weave::kit::glow(0x6692C7FF, 7.0f, /*spread=*/1.5f,
+        .addUnderlay(sigil::weave::kit::dropShadow(SkColor4f::FromColor(0x77000000), {5, 6}, 4.0f))
+        .addUnderlay(sigil::weave::kit::glow(SkColor4f::FromColor(0x6692C7FF), 7.0f, /*spread=*/1.5f,
                                              /*intensity=*/1.5f))
-        .addUnderlay(sigil::weave::kit::outline(kInk, fontSize * 0.14f));
+        .addUnderlay(sigil::weave::kit::outline(SkColor4f::FromColor(kInk), fontSize * 0.14f));
 
     SkPaint stars;
     stars.setAntiAlias(true);
@@ -250,24 +250,24 @@ class LayerShowcasePart final : public Scene {
 
     m_paragraphPaints[1] = PaintStyle(kInk);
     m_paragraphPaints[1].addUnderlay(
-        sigil::weave::kit::dropShadow(0x77000000, {1.5f, 2.0f}, 1.4f));
+        sigil::weave::kit::dropShadow(SkColor4f::FromColor(0x77000000), {1.5f, 2.0f}, 1.4f));
 
     m_paragraphPaints[2] = PaintStyle(kBlue);
     m_paragraphPaints[2].addUnderlay(sigil::weave::kit::glow(
-        0x8892C7FF, 3.0f, /*spread=*/0.8f, /*intensity=*/1.6f));
+        SkColor4f::FromColor(0x8892C7FF), 3.0f, /*spread=*/0.8f, /*intensity=*/1.6f));
 
     m_paragraphPaints[3] = PaintStyle(SK_ColorWHITE);  // water shader per frame
     m_paragraphPaints[3].addUnderlay(
-        sigil::weave::kit::outline(0xFF5A1E17, paragraphFontSize * 0.09f));
+        sigil::weave::kit::outline(SkColor4f::FromColor(0xFF5A1E17), paragraphFontSize * 0.09f));
 
     m_paragraphPaints[4] = PaintStyle(SK_ColorWHITE);  // mesh shader per frame
     m_paragraphPaints[4]
         .addUnderlay(
-            sigil::weave::kit::dropShadow(0x77000000, {2.0f, 2.5f}, 1.8f))
-        .addUnderlay(sigil::weave::kit::glow(0x6692C7FF, 3.5f, /*spread=*/0.6f,
+            sigil::weave::kit::dropShadow(SkColor4f::FromColor(0x77000000), {2.0f, 2.5f}, 1.8f))
+        .addUnderlay(sigil::weave::kit::glow(SkColor4f::FromColor(0x6692C7FF), 3.5f, /*spread=*/0.6f,
                                              /*intensity=*/1.5f))
         .addUnderlay(
-            sigil::weave::kit::outline(kInk, paragraphFontSize * 0.11f));
+            sigil::weave::kit::outline(SkColor4f::FromColor(kInk), paragraphFontSize * 0.11f));
 
     SkPaint stars;
     stars.setAntiAlias(true);

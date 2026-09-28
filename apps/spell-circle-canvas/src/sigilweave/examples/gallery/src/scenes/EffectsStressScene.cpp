@@ -116,12 +116,12 @@ class StressPart final : public Scene {
             const float cappedSpread =
                 std::min(m_glowSpread, stressFontSize * 0.06f);
             m_effect.addUnderlay(sigil::weave::kit::glow(
-                0x882A77FF, std::max(1.2f, stressFontSize * 0.28f),
+                SkColor4f::FromColor(0x882A77FF), std::max(1.2f, stressFontSize * 0.28f),
                 cappedSpread, m_glowIntensity));
           }
           if (m_effectOutline)
             m_effect.addUnderlay(sigil::weave::kit::outline(
-                SkColors::kBlue.toSkColor(),
+                SkColor4f::FromColor(SkColors::kBlue.toSkColor()),
                 std::max(0.55f, stressFontSize * 0.03f)));
           if (m_effectStars) {
             SkPaint stars;

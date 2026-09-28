@@ -56,9 +56,9 @@ TEST(SketchKitTheme, TheHouseSheetIsTheHouseColours) {
  *  would compare unequal, and every memo under the theme would miss
  *  forever. */
 TEST(SketchKitTheme, TheMonoFaceIsOneFace) {
-  EXPECT_EQ(kit::houseTheme().type.mono.get(),
-            kit::houseTheme().type.mono.get());
-  EXPECT_NE(kit::houseTheme().type.mono.get(), nullptr);
+  EXPECT_EQ(kit::houseTheme().type.mono.identity(),
+            kit::houseTheme().type.mono.identity());
+  EXPECT_NE(kit::houseTheme().type.mono.identity(), nullptr);
 }
 
 /** What the reconciler's prune needs: equal exactly when everything

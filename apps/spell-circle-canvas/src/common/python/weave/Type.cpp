@@ -13,6 +13,8 @@
 #include <array>
 #include <string>
 
+#include "sigilgeometry/advanced/Skia.h"
+
 namespace sigil::python {
 namespace py = pybind11;
 namespace {
@@ -148,12 +150,13 @@ void bindWeave(py::module_& module) {
       .def_property(
           "offset", [](const PaintLayer& value) { return value.offset; },
           [](PaintLayer& value, py::object offset) {
-            value.offset = point(offset);
+            value.offset = geometry::path::fromSk(point(offset));
           })
       .def_static(
           "blurred",
           [](SkPaint paint, float sigma, py::object offset) {
-            return PaintLayer::blurred(std::move(paint), sigma, point(offset));
+            return PaintLayer::blurred(std::move(paint), sigma,
+                                       geometry::path::fromSk(point(offset)));
           },
           py::arg("paint"), py::arg("sigma"),
           py::arg("offset") = py::make_tuple(0, 0));

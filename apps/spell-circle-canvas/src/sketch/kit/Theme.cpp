@@ -130,7 +130,7 @@ compose::kit::Caption Theme::voice(float noteMeasure) const {
           .noteMeasure = noteMeasure};
 }
 
-sk_sp<SkTypeface> houseFace(Voice voice, int weight, SkFontStyle::Slant slant) {
+weave::Face houseFace(Voice voice, int weight, weave::FaceSlant slant) {
   switch (voice) {
     case Voice::Book:
       return weave::ports::face({"Hoefler Text", "Baskerville"}, weight, slant);

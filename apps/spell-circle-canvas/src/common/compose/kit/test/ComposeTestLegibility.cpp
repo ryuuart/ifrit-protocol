@@ -32,7 +32,7 @@ TEST(KitLegibility, ShadeIsAnOffsetFillNotAStroke) {
       kit::shaded(base, {.colour = {0, 0, 0, 0.9f}, .offset = {1, 1}});
   ASSERT_EQ(out.paint.underlays.size(), 1u);
   EXPECT_EQ(out.paint.underlays[0].paint.getStyle(), SkPaint::kFill_Style);
-  EXPECT_FLOAT_EQ(out.paint.underlays[0].offset.fX, 1.0f);
+  EXPECT_FLOAT_EQ(out.paint.underlays[0].offset.x, 1.0f);
 }
 
 TEST(KitLegibility, ScrimGrowsTheRunByItsPadding) {

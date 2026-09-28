@@ -138,7 +138,7 @@ TEST_F(Choreography, EveryGlyphReportsTheColourOfTheSpanThatCoversIt) {
   ASSERT_NE(accentStart, ~0u);
   int redGlyphs = 0;
   for (const PlacedGlyph& glyph : walk())
-    if (glyph.color == SK_ColorRED) {
+    if (glyph.color == sigil::material::Color(SkColor4f::FromColor(SK_ColorRED))) {
       ++redGlyphs;
       EXPECT_GE(glyph.textIndex, accentStart);
     }
@@ -147,11 +147,11 @@ TEST_F(Choreography, EveryGlyphReportsTheColourOfTheSpanThatCoversIt) {
   // A paint declared after the placement is resolved on the next walk of
   // the SAME layout: new colour, new passes, nothing re-placed.
   PaintStyle blue(SK_ColorBLUE);
-  blue.addUnderlay(sigil::weave::kit::outline(SK_ColorBLACK, 2.0f));
+  blue.addUnderlay(sigil::weave::kit::outline(SkColor4f::FromColor(SK_ColorBLACK), 2.0f));
   m_paragraph.setPaint(0, 7, blue);
   int blueGlyphs = 0;
   for (const PlacedGlyph& glyph : walk())
-    if (glyph.color == SK_ColorBLUE) {
+    if (glyph.color == sigil::material::Color(SkColor4f::FromColor(SK_ColorBLUE))) {
       ++blueGlyphs;
       EXPECT_EQ(glyph.paint->underlays.size(), 1u);
     }

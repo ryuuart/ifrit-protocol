@@ -12,9 +12,10 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkMaskFilter.h>
 #include <include/core/SkPaint.h>
-#include <include/core/SkPoint.h>
 
 #include <memory>
+
+#include <glm/vec2.hpp>
 #include <utility>
 
 namespace sigil::material {
@@ -35,7 +36,7 @@ struct PaintLayer {
   /// stated once stands under every colour. A pass that should draw
   /// nothing is left out rather than set transparent.
   SkPaint paint;
-  SkVector offset = {0, 0};  ///< px translation of this pass only
+  glm::vec2 offset{0, 0};  ///< px translation of this pass only
   /// A SigilMaterial instance this pass shades with, in place of the
   /// paint's own shader, held by pointer and resolved at draw time
   /// through the resolver the paint feature registers. It compares by
@@ -48,19 +49,19 @@ struct PaintLayer {
   PaintLayer() { paint.setAntiAlias(true); }
 
   /** Constructs an anti-aliased solid-color fill pass. */
-  explicit PaintLayer(SkColor color, SkVector layerOffset = {0, 0})
+  explicit PaintLayer(SkColor color, glm::vec2 layerOffset = {0, 0})
       : offset(layerOffset) {
     paint.setAntiAlias(true);
     paint.setColor(color);
   }
 
   /** Wraps a caller-configured SkPaint without changing any of its settings. */
-  explicit PaintLayer(SkPaint layerPaint, SkVector layerOffset = {0, 0})
+  explicit PaintLayer(SkPaint layerPaint, glm::vec2 layerOffset = {0, 0})
       : paint(std::move(layerPaint)), offset(layerOffset) {}
 
   /** Returns an arbitrary paint with a normal blur mask attached. */
   static PaintLayer blurred(SkPaint paint, float sigma,
-                            SkVector offset = {0, 0}) {
+                            glm::vec2 offset = {0, 0}) {
     if (sigma > 0)
       paint.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, sigma));
     return PaintLayer(std::move(paint), offset);

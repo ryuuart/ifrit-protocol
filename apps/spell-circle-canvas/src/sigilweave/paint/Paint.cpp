@@ -60,10 +60,10 @@ void drawLayer(const PaintLayer& layer, const SkPaint& foreground,
   if (layer.material && paint::hasMaterialResolver()) {
     SkPaint shaded = own;
     shaded.setShader(paint::resolverSlot()(*layer.material, bounds));
-    if (!shaded.nothingToDraw()) drawPass(shaded, layer.offset);
+    if (!shaded.nothingToDraw()) drawPass(shaded, geometry::path::toSk(layer.offset));
     return;
   }
-  if (!own.nothingToDraw()) drawPass(own, layer.offset);
+  if (!own.nothingToDraw()) drawPass(own, geometry::path::toSk(layer.offset));
 }
 
 template <typename DrawPass>

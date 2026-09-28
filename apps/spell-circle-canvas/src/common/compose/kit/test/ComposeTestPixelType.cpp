@@ -5,6 +5,7 @@
 #include <sigilcompose/kit/PixelType.h>
 #include <sigilmedia/advanced/Skia.h>
 
+#include "sigilweave/advanced/Skia.h"
 #include "support/KitType.h"
 #include "support/ShapeTestSupport.h"
 
@@ -40,7 +41,8 @@ TEST(KitPixelType, InkReallyDoesOverhangTheAdvanceSoThePadIsLoadBearing) {
   for (const char* family : {"Helvetica", "Times New Roman", "Zapfino",
                              "Apple Chancery", "Snell Roundhand"}) {
     sk_sp<SkTypeface> face =
-        sigil::weave::ports::pickTypeface({family}, SkFontStyle::Italic());
+        sigil::weave::ports::pickTypeface(
+            {family}, {.slant = sigil::weave::FaceSlant::Italic});
     if (!face) continue;
     const auto style = sigil::weave::textStyle({.face = face,
                                                 .size = 12.0f,

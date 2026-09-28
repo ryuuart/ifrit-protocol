@@ -6,6 +6,8 @@
 #include <sigilpython/weave/Registration.h>
 #include <sigilweave/kit/PaintLayers.h>
 
+#include "sigilgeometry/advanced/Skia.h"
+
 namespace sigil::python {
 
 namespace py = pybind11;
@@ -16,7 +18,8 @@ void bindWeaveKitPaintLayers(py::module_& module) {
       "dropShadow",
       [](py::handle ink, py::handle offset, float blurSigma, float spread,
          float intensity) {
-        return weave::kit::dropShadow(color(ink).toSkColor(), point(offset),
+        return weave::kit::dropShadow(color(ink),
+                                      geometry::path::fromSk(point(offset)),
                                       blurSigma, spread, intensity);
       },
       py::arg("color") = "#00000066", py::arg("offset") = py::make_tuple(2, 2),
@@ -25,7 +28,7 @@ void bindWeaveKitPaintLayers(py::module_& module) {
   kit.def(
       "glow",
       [](py::handle ink, float blurSigma, float spread, float intensity) {
-        return weave::kit::glow(color(ink).toSkColor(), blurSigma, spread,
+        return weave::kit::glow(color(ink), blurSigma, spread,
                                 intensity);
       },
       py::arg("color"), py::arg("blurSigma"), py::arg("spread") = 0.0f,
@@ -33,7 +36,7 @@ void bindWeaveKitPaintLayers(py::module_& module) {
   kit.def(
       "outline",
       [](py::handle ink, float width, geometry::path::Join join) {
-        return weave::kit::outline(color(ink).toSkColor(), width, join);
+        return weave::kit::outline(color(ink), width, join);
       },
       py::arg("color"), py::arg("width"),
       py::arg("join") = geometry::path::Join::Round);

@@ -49,8 +49,9 @@ sk_sp<SkFontMgr> systemFontManager() {
   return manager;
 }
 
-sk_sp<SkTypeface> pickTypeface(std::span<const std::string_view> families,
-                               SkFontStyle style) {
+Face pickTypeface(std::span<const std::string_view> families,
+                  FaceStyle faceStyle) {
+  const SkFontStyle style = toSk(faceStyle);
   sk_sp<SkFontMgr> manager = systemFontManager();
   if (!manager) return nullptr;
   // matchFamilyStyle reads a C string and a view carries no terminator, so
@@ -66,8 +67,8 @@ sk_sp<SkTypeface> pickTypeface(std::span<const std::string_view> families,
   return manager->matchFamilyStyle(nullptr, style);
 }
 
-sk_sp<SkTypeface> face(std::span<const std::string_view> families,
-                       SkFontStyle style) {
+Face face(std::span<const std::string_view> families, FaceStyle faceStyle) {
+  const SkFontStyle style = toSk(faceStyle);
   // The families in order, then the three numbers a style is: two asks
   // that differ anywhere differ here, and two that agree share an entry.
   // A separator no family name carries keeps {"A","BC"} apart from
@@ -91,7 +92,7 @@ sk_sp<SkTypeface> face(std::span<const std::string_view> families,
   // The walk happens under the lock, so a family two threads ask for at
   // once is walked once. It is a startup cost paid per distinct ask, and
   // holding the lock across it is what makes the answer single.
-  return resolved.emplace(std::move(key), pickTypeface(families, style))
+  return resolved.emplace(std::move(key), toSk(pickTypeface(families, faceStyle)))
       .first->second;
 }
 

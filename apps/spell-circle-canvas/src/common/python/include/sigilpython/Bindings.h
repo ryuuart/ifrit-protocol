@@ -12,6 +12,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/typing.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilpython/skia/Values.h>
 #include <sigilweave/advanced/Skia.h>
 
 #include <chrono>

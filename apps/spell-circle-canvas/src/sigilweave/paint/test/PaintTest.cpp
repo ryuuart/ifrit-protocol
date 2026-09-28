@@ -108,7 +108,7 @@ TEST(PaintPasses, ShadowAndShaderDrawWithoutRelayout) {
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
 
   PaintStyle fancy(SK_ColorWHITE);
-  fancy.addUnderlay(sigil::weave::kit::dropShadow(0x80000000, {3, 3}, 2.5f));
+  fancy.addUnderlay(sigil::weave::kit::dropShadow(SkColor4f::FromColor(0x80000000), {3, 3}, 2.5f));
   fancy.foreground.setShader(
       horizontalGradient(0, 180, SK_ColorRED, SK_ColorBLUE));
   paragraph.setPaint(0, 7, fancy);

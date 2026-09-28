@@ -18,6 +18,7 @@
 #include <vector>
 
 #include <glm/vec2.hpp>
+#include <sigilmaterial/color/Color.h>
 
 #include "sigilweave/fonts/Shaper.h"
 #include "sigilweave/layout/ParagraphLayout.h"
@@ -31,7 +32,7 @@ namespace sigil::weave {
 /// *this* paragraph; nothing here is stored during layout.
 struct PlacedGlyph {
   const ShapedWord* shaped = nullptr;  ///< glyph source: typeface, size, scaleX
-  SkGlyphID glyph = 0;                 ///< glyph ID in `shaped->typeface`
+  uint16_t glyph = 0;                  ///< glyph ID in `shaped->typeface`
   float advance = 0;                   ///< this glyph's pen travel
   glm::vec2 rest{0, 0};                ///< absolute origin the layout placed
                                        ///< it at (the effect's "rest" pose)
@@ -40,8 +41,8 @@ struct PlacedGlyph {
   /// spans, so it is re-read every walk and setPaint() shows up with no
   /// relayout. Feed it straight to GlyphRSXformBatches::addGlyph.
   const PaintStyle* paint = nullptr;
-  SkColor color = SK_ColorBLACK;  ///< paint->foreground's color, for effects
-                                  ///< that only tint
+  /// paint->foreground's colour, for effects that only tint
+  material::Color color{0, 0, 0, 1};
 
   uint32_t ordinal = 0;     ///< 0-based position in this walk's order
   uint32_t glyphIndex = 0;  ///< index into `shaped->glyphs`
@@ -115,7 +116,7 @@ inline void forEachPlacedGlyph(const ParagraphLayout& layout,
     placed.paint = run.paint                      ? run.paint
                    : run.styleIndex < spans.size() ? &spans[run.styleIndex].style.paint
                                                    : &kUnstyled;
-    placed.color = placed.paint->foreground.getColor();
+    placed.color = placed.paint->foreground.getColor4f();
     placed.wordIndex = run.wordIndex;
     placed.lineIndex = run.lineIndex;
     placed.styleIndex = run.styleIndex;

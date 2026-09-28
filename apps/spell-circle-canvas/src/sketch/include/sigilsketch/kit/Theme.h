@@ -10,9 +10,7 @@
  */
 
 #include <include/core/SkColor.h>
-#include <include/core/SkFontStyle.h>
 #include <include/core/SkRefCnt.h>
-#include <include/core/SkTypeface.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -90,7 +88,7 @@ struct Register {
    *  whichever of the two `mono` names, which is what a sheet set in two
    *  faces asks for and is the common case. Resolved once and held, for
    *  the reason `TypeScale`'s two are. */
-  sk_sp<SkTypeface> face;
+  weave::Face face;
   bool operator==(const Register&) const = default;
 };
 
@@ -125,8 +123,8 @@ struct TypeScale {
   Register section{11.5f, 1.4f, true};
   /** The literal setting being compared, distinct from its human label. */
   Register control{10.5f, 0, true};
-  sk_sp<SkTypeface> sans;
-  sk_sp<SkTypeface> mono;
+  weave::Face sans;
+  weave::Face mono;
   bool operator==(const TypeScale&) const = default;
 };
 
@@ -296,9 +294,9 @@ enum class Voice {
  *  A sheet that wants a face no other sheet asks for spells its own run
  *  through `weave::ports::face` — the shape is the same, and this only
  *  states the runs that recur. */
-[[nodiscard]] sk_sp<SkTypeface> houseFace(
+[[nodiscard]] weave::Face houseFace(
     Voice voice, int weight = 400,
-    SkFontStyle::Slant slant = SkFontStyle::kUpright_Slant);
+    weave::FaceSlant slant = weave::FaceSlant::Upright);
 
 /** THE HOUSE SHEET — the values most of this repository's specimen
  *  sheets already carry, stated once. Its mono face is resolved on the

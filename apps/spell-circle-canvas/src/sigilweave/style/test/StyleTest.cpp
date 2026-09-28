@@ -47,9 +47,9 @@ TEST(TextStyle, TheFluentSugarAppendsInTheOrderItWasCalled) {
 
 TEST(PaintStyle, PaintLayersExposeCompletePaintAndExplicitOrder) {
   PaintStyle style(SK_ColorWHITE);
-  style.addUnderlay(sigil::weave::kit::dropShadow(0x66000000, {3, 4}, 2.0f))
-      .addUnderlay(sigil::weave::kit::glow(0x550000FF, 5.0f))
-      .addUnderlay(sigil::weave::kit::outline(SK_ColorBLACK, 3.0f));
+  style.addUnderlay(sigil::weave::kit::dropShadow(SkColor4f::FromColor(0x66000000), {3, 4}, 2.0f))
+      .addUnderlay(sigil::weave::kit::glow(SkColor4f::FromColor(0x550000FF), 5.0f))
+      .addUnderlay(sigil::weave::kit::outline(SkColor4f::FromColor(SK_ColorBLACK), 3.0f));
 
   SkPaint customOverlay;
   customOverlay.setAntiAlias(true);
@@ -60,7 +60,7 @@ TEST(PaintStyle, PaintLayersExposeCompletePaintAndExplicitOrder) {
   style.addOverlay(PaintLayer(customOverlay, {-1, -1}));
 
   ASSERT_EQ(style.underlays.size(), 3u);
-  EXPECT_EQ(style.underlays[0].offset, (SkVector{3, 4}));
+  EXPECT_EQ(style.underlays[0].offset, (glm::vec2{3, 4}));
   EXPECT_NE(style.underlays[0].paint.getMaskFilter(), nullptr);
   EXPECT_NE(style.underlays[1].paint.getMaskFilter(), nullptr);
   EXPECT_EQ(style.underlays[2].paint.getStyle(), SkPaint::kStroke_Style);
@@ -71,7 +71,7 @@ TEST(PaintStyle, PaintLayersExposeCompletePaintAndExplicitOrder) {
 
   PaintStyle identical = style;
   EXPECT_EQ(identical, style);
-  identical.overlays[0].offset.set(0, 0);
+  identical.overlays[0].offset = {0, 0};
   EXPECT_FALSE(identical == style);
 }
 
@@ -496,7 +496,7 @@ TEST(Type, TheShapingControlsAndThePaintPassesLandOnTheStyle) {
   ASSERT_EQ(s.paint.decorations.size(), 1u);
   ASSERT_EQ(s.paint.underlays.size(), 1u);
   ASSERT_EQ(s.paint.overlays.size(), 1u);
-  EXPECT_EQ(s.paint.overlays[0].offset, (SkVector{1, 1}));
+  EXPECT_EQ(s.paint.overlays[0].offset, (glm::vec2{1, 1}));
   // The initial values: nothing of the kind.
   const TextStyle initial = textStyle({});
   EXPECT_TRUE(initial.shaping.languageTag.empty());

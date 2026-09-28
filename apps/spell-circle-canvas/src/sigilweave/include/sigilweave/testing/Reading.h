@@ -11,7 +11,6 @@
  * what it expects as a value rather than walking the layout itself.
  */
 
-#include <include/core/SkTypes.h>
 
 #include <cstdint>
 #include <vector>
@@ -29,7 +28,7 @@ namespace sigil::weave::testing {
  *  rest position with the line's fit applied, and where it sits in the
  *  text. */
 struct GlyphPlacement {
-  SkGlyphID glyph = 0;
+  uint16_t glyph = 0;
   glm::vec2 rest{0, 0};       ///< absolute origin, fit applied
   float advance = 0;          ///< this glyph's pen travel
   uint32_t textIndex = 0;     ///< its cluster as an offset into the text

@@ -166,7 +166,7 @@ void bindTheme(py::module_& module) {
       [](sketchKit::Voice voice, int weight, bool italic) {
         return sketchKit::houseFace(
             voice, weight,
-            italic ? SkFontStyle::kItalic_Slant : SkFontStyle::kUpright_Slant);
+            italic ? weave::FaceSlant::Italic : weave::FaceSlant::Upright);
       },
       py::arg("voice"), py::arg("weight") = 400, py::arg("italic") = false);
   module.def("houseTheme", [] { return sketchKit::houseTheme(); });

@@ -92,7 +92,7 @@ TEST(WeavePlates, TypographicOptionsDrawTheirBaseline) {
   {
     Paragraph paragraph;
     TextStyle title = plateStyle(40, SK_ColorWHITE);
-    title.paint.addUnderlay(kit::dropShadow(0x99000000, {3, 4}, 3.0f));
+    title.paint.addUnderlay(kit::dropShadow(SkColor4f::FromColor(0x99000000), {3, 4}, 3.0f));
     paragraph.appendText(u8"Shadowed ", title);
 
     TextStyle gradient = plateStyle(40);
@@ -103,7 +103,7 @@ TEST(WeavePlates, TypographicOptionsDrawTheirBaseline) {
         gradientPoints,
         SkGradient(SkGradient::Colors({colors, 2}, SkTileMode::kClamp),
                    SkGradient::Interpolation())));
-    gradient.paint.addUnderlay(kit::dropShadow(0x44000000, {2, 2}, 2.0f));
+    gradient.paint.addUnderlay(kit::dropShadow(SkColor4f::FromColor(0x44000000), {2, 2}, 2.0f));
     paragraph.appendText(u8"gradient ", gradient);
 
     TextStyle blurred = plateStyle(40, kInk);
