@@ -187,12 +187,13 @@ names it. `sigil::io::Feed::receive()` never waits: a frame that finds
 nothing gets on with itself. The door keeps the last `capacity` messages,
 so a reader that misses a frame loses nothing and one that falls a whole
 second behind loses the oldest scenes rather than the newest —
-`dropped` in `sigil::io::Feed::state()` counts those. `sigil::io::Message::sender`
+`sigil::io::FeedState::dropped`, read from `sigil::io::Feed::state()`,
+counts those. `sigil::io::Message::sender`
 names the sender, spelled `udp://127.0.0.1:52341`; both front ends show
 it with the scheme taken off.
 
-`SceneSession` is synchronous and belongs to one owner thread — the one
-that drains the door. The Qt renderer copies scene state during synchronization. A host
+`spellcircle::SceneSession::ingest()` is synchronous and the session
+belongs to one owner thread — the one that drains the door. The Qt renderer copies scene state during synchronization. A host
 can also feed the session from anything else that produces bytes. Its
 generation changes only when the accepted document changes or is cleared.
 Arrival rates use the datagram's receive time, so a busy frame cannot

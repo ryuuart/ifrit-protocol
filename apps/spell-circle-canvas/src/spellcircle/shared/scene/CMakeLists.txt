@@ -51,6 +51,7 @@ sigil_doc_probes(spellcircle
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../../../common/io/include/sigilio/hub
            ${CMAKE_CURRENT_SOURCE_DIR}/../../../common/io/include/sigilio/transport
+           ${CMAKE_CURRENT_SOURCE_DIR}/../../../common/io/include/sigilio/source
   PRELUDES "\"ReceiverDefaults.h\"" "\"SceneModel.h\"" "\"SceneSession.h\""
            "\"SceneRenderer.h\"" "<sigilio/hub/Hub.h>"
            "<sigilio/hub/Feed.h>" "<sigilio/transport/Transport.h>"
