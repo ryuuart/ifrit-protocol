@@ -26,6 +26,7 @@
 
 // TAGS: Materials/Shaders
 
+#include <sigilmedia/advanced/Skia.h>
 #include <sigildraw/Pen.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>

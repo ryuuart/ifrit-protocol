@@ -20,6 +20,7 @@
 
 // TAGS: Drawing/Primitives
 
+#include <sigilmaterial/paint/Bases.h>
 #include <include/core/SkRect.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
@@ -51,7 +52,7 @@ struct P5MixedForms {
   // One shaded ball: a radial ramp in the pen's space, so each ball is
   // drawn at the origin after a translate and the highlight sits where
   // the ramp says.
-  const Paint shade = Paint::radialGradient(
+  const sigil::material::Material shade = sigil::material::radialGradient(
       {-6, -6}, 26,
       {{0.0f, {1.0f, 0.85f, 0.6f, 1}}, {1.0f, {0.75f, 0.25f, 0.35f, 1}}},
       {.units = material::GradientUnits::Pixels});
