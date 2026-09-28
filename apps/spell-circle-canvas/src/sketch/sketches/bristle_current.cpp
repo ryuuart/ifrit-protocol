@@ -161,10 +161,10 @@ struct BristleCurrent {
     for (int ribbon = 0; ribbon < kRibbonCount; ++ribbon)
       placeRibbon(ribbon, false);
 
-    ctx.engine.addFixed(kSimHz, [this] {
+    ctx.engine.timer([this] {
       step();
       return true;
-    });
+    }, {.stepRate = kSimHz});
 
     ctx.composer.render(compose::graphics("bristle_current.field",
                                           [this](Pen& pen) { draw(pen); }));

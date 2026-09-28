@@ -156,10 +156,10 @@ struct BrushEngineAtlas {
     brushes.massArray(pen, seal);
     brushes.noMass();
     brushes.hatchStyle("rotring", {0.37f, 0.17f, 0.31f, 1}, 1.6f);
-    brushes.hatch({.spacing = 13.0f,
-                   .angle = -0.62f,
+    brushes.hatch({.pattern = {.spacing = 13.0f,
+                               .angle = -0.62f,
+                               .taper = brush::gradientTaper(-0.25f)},
                    .jitter = 0.08f,
-                   .gradient = -0.25f,
                    .continuous = true});
     brushes.hatchArray(pen, seal);
 
