@@ -18,6 +18,7 @@
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/image/Encode.h>
 #include <sigilio/source/Sink.h>
+#include <sigilio/advanced/Problems.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmeasure/advanced/FrameTimer.h>
@@ -179,6 +180,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
   const std::vector<Entry>& entries = registry();
   bool anyShortened = false;
   size_t skipped = 0;
+  size_t failed = 0;
   // How far the run got, for the crash reporter: a fault at plate 3 and a
   // fault at plate 130 are different problems, and only one of them can
   // be narrowed with --sketch on the next run.
@@ -218,6 +220,15 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     // printed, and a run of a hundred is where that costs the most.
     noteSketch(entry.name);
     notePlates((int)plates);
+    io::clearProblems(assets.hub());
+    const auto reportProblems = [&] {
+      const auto problems = assets.hub().problems();
+      if (problems.empty()) return;
+      ++failed;
+      for (const io::Problem& problem : problems)
+        std::fprintf(stderr, "sketch %s resource error: %s: %s\n",
+                     entry.key, problem.uri.c_str(), problem.message.c_str());
+    };
     std::unique_ptr<Session> session;
     {
       PhaseMark mark(Phase::Setup);
@@ -494,7 +505,8 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
         std::memcpy(bitmap.pixmap().writable_addr(0, y),
                     src + (size_t)y * srcRowBytes,
                     std::min(srcRowBytes, bitmap.rowBytes()));
-      writePlate(bitmap.pixmap(), path);
+      if (!writePlate(bitmap.pixmap(), path)) return 1;
+      reportProblems();
       ++plates;
       continue;
     }
@@ -519,6 +531,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       return 1;
     }
     ++plates;
+    reportProblems();
   }
 
   if (options.betweenSketches) options.betweenSketches();
@@ -533,7 +546,9 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     std::printf("wrote %zu plate%s to %s\n", written, written == 1 ? "" : "s",
                 options.outputDirectory.c_str());
   }
-  return 0;
+  if (failed)
+    std::fprintf(stderr, "%zu sketches rendered with resource errors\n", failed);
+  return failed ? 1 : 0;
 }
 
 }  // namespace sigil::sketch

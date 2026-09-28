@@ -12,7 +12,7 @@
 // TAGS: Drawing/Generative, Materials/Shaders
 
 #include <sigilmaterial/program/Shader.h>
-#include <include/effects/SkRuntimeEffect.h>
+#include <glm/vec4.hpp>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Pen.h>
@@ -47,7 +47,7 @@ material::Material tendrilInk(material::Material program) {
   return std::move(program).quantizeTime(30.0f);
 }
 
-std::array<float, 4> uniform(const Lobe& lobe) {
+glm::vec4 uniform(const Lobe& lobe) {
   return {lobe.centre.x(), lobe.centre.y(), lobe.radius, 0.0f};
 }
 
@@ -91,8 +91,8 @@ struct P5RefractiveMetaballs {
 
   void setup(sketch::SketchContext& context) {
     struct GlassParameters {
-      std::array<float, 4> uBall0{}, uBall1{}, uBall2{}, uBall3{};
-      std::array<float, 4> uBall4{}, uBall5{}, uBall6{}, uBall7{};
+      glm::vec4 uBall0{}, uBall1{}, uBall2{}, uBall3{};
+      glm::vec4 uBall4{}, uBall5{}, uBall6{}, uBall7{};
       float uThreshold = kThreshold;
       float uStrength = 42.0f;
     };

@@ -385,15 +385,10 @@ TextEffect catchEffect() {
   return textFx::tween({.from = GlyphModifier{}, .keyframes = {{.to = GlyphModifier{.dy = -kCatchLift * 0.8f}, .duration = std::chrono::duration<double, std::milli>(1000.0 * ((kFlareOpens) - (0.0f)))}, {.to = GlyphModifier{.dy = -kCatchLift, .colorMultiplier = kFlare}, .duration = std::chrono::duration<double, std::milli>(1000.0 * ((kArrived) - (kFlareOpens)))}, {.to = GlyphModifier{}, .duration = std::chrono::duration<double, std::milli>(1000.0 * ((1.0f) - (kArrived)))}}, .duration = std::chrono::seconds(1), .ease = motion::ease::outQuad});
 }
 
-/** THE RULER'S PLACE under a letter: the letter's foot, and the drop below
- *  it. A mark's insets are read in px, pt, pct, pw and ph only, its bottom
- *  sizes it rather than placing it, and its margin is not read, so "the
- *  foot plus 12 px" has no inset or margin that says it.
- *  workaround: the mark stands at the foot and a constant translate carries
- *  it down the rest of the way. */
+/** The ruler's place under a letter: its foot and the margin below it. */
 template <class Node>
 Node belowTheLetter(Node mark, float drop) {
-  mark.left(0).top(pct(100)).translateY(drop);
+  mark.left(0).top(pct(100)).marginTop(drop);
   return mark;
 }
 

@@ -153,6 +153,15 @@ const ReservedName kReservedNames[] = {
      "half4 main(float2 p) { /* float2 pos; */ float2 position = p; "
      "return half4(half2(position), 0.0, 1.0); }",
      false},
+    {"AReservedDeclarationAfterABlockComment",
+     "/* the shader's coordinates */\n"
+     "half4 main(float2 p) { float2 pos = p; "
+     "return half4(half2(pos), 0.0, 1.0); }",
+     true},
+    {"AReservedDeclarationBetweenBlockComments",
+     "half4 main(float2 p) { /* before */ half4 inColor = half4(1); "
+     "/* after */ return inColor; }",
+     true},
 };
 
 }  // namespace

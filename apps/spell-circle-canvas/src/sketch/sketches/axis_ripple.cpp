@@ -285,12 +285,7 @@ struct AxisRipple {
   /** THE METER CELL under letter @p index: the grade it is being drawn at,
    *  as a level rising from the foot of its bar. It hangs off the letter's
    *  own rect, so it is exactly that letter's width, and reads the same
-   *  phase through the same swell one beat later per letter.
-   *
-   *  A mark's margin is not read, and its insets take no sum, so "the
-   *  letter's foot plus the drop" has no placement that says it.
-   *  workaround: the cell stands at the foot and a constant translate
-   *  carries it down the rest of the way. */
+   *  phase through the same swell one beat later per letter. */
   [[nodiscard]] Element level(size_t index) const {
     const float lag = beatFraction() * (float)index;
     return box()
@@ -298,7 +293,7 @@ struct AxisRipple {
         .left(0)
         .right(3)
         .top(pct(100))
-        .translateY(kLevelDrop)
+        .marginTop(kLevelDrop)
         .height(kLevelHeight)
         .fill(Fill::var("bed"))
         .children({box()

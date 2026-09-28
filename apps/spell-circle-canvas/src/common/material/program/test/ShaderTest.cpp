@@ -15,6 +15,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkPaint.h>
+#include <include/core/SkShader.h>
 #include <sigilio/advanced/Places.h>
 #include <sigilio/advanced/Problems.h>
 #include <sigilio/hub/Hub.h>
@@ -23,6 +24,7 @@
 #include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/program/Shader.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/skia/Pass.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilmotion/values/Animatable.h>
@@ -79,6 +81,17 @@ TEST(MaterialShader, PaintsWhatItsBodyReturnsFromTheParameters) {
   ASSERT_TRUE(blue.hasProgram());
   const SkBitmap bitmap = drawn(skia::shader(blue, frameOf(4)));
   EXPECT_EQ(SK_ColorBLUE, bitmap.getColor(2, 2));
+}
+
+TEST(MaterialShader, VectorFieldsRemainVectorsWhenTheirValuesChange) {
+  struct Ball {
+    glm::vec4 ball{1, 0, 0, 1};
+  };
+  Material ink = shader(
+      "half4 main(float2 xy) { return half4(ball.xyz, ball.w); }", Ball{});
+  EXPECT_EQ(SK_ColorRED, drawn(skia::shader(ink, frameOf(4))).getColor(2, 2));
+  ink.set("ball", glm::vec4{0, 1, 0, 1});
+  EXPECT_EQ(SK_ColorGREEN, drawn(skia::shader(ink, frameOf(4))).getColor(2, 2));
 }
 
 TEST(MaterialShader, OneSourceIsOneDefinition) {
@@ -212,6 +225,51 @@ TEST(MaterialShader, ABrokenEditKeepsTheLastProgramThatCompiled) {
   const Material blue = shader(hub, "res://fill.sksl");
   EXPECT_EQ(SK_ColorBLUE, drawn(skia::shader(blue, frameOf(4))).getColor(2, 2));
   EXPECT_TRUE(hub.problems().empty()) << "a text that compiles takes the word back";
+}
+
+TEST(MaterialShader, AFilePassValidatesWithUnitsAndKeepsItsLastGoodBody) {
+  (void)skia::warmup(std::span<const Material>{});
+  const ScratchDir scratch("material_shader_file_pass");
+  const std::string body =
+      "half4 main(float2 xy) {\n"
+      "  return uContent.eval(xy) * half(uUnitPhase[kUnitCount - 1].x) * "
+      "half(uUnitRect[0].z / 4);\n}\n";
+  edit(scratch, "pass.sksl", body, 0);
+  sigil::io::Hub hub;
+  sigil::io::mount(hub, "res://", scratch.path);
+  const Material good = shader(hub, "res://pass.sksl");
+  ASSERT_NE(good, placeholder());
+  EXPECT_TRUE(hub.problems().empty());
+  const auto paintsGreen = [&](const Material& material, uint32_t units) {
+    const float rects[] = {0, 0, 4, 4, 0, 0, 4, 4, 0, 0, 4, 4};
+    const float phases[] = {1, 0, 1, 0, 1, 0};
+    skia::PassInputs inputs;
+    inputs.content = SkShaders::Color(SK_ColorGREEN);
+    inputs.units = units;
+    inputs.rects = rects;
+    inputs.phases = phases;
+    const auto pass = skia::resolvePass(skia::paint(material), inputs, {});
+    ASSERT_TRUE(pass);
+    EXPECT_EQ(SK_ColorGREEN, drawn(pass).getColor(2, 2));
+  };
+  paintsGreen(good, 1);
+  paintsGreen(good, 3);
+
+  edit(scratch, "pass.sksl",
+       "half4 main(float2 xy) {\n"
+       "  return uContent.eval(xy) * missingLevel;\n}\n", 2);
+  ASSERT_TRUE(sigil::io::poll(hub));
+  const Material kept = shader(hub, "res://pass.sksl");
+  EXPECT_EQ(kept, good);
+  paintsGreen(kept, 3);
+  ASSERT_EQ(hub.problems().size(), 1u);
+  EXPECT_EQ(hub.problems()[0].line, std::optional<int>(2));
+  EXPECT_NE(hub.problems()[0].message.find("missingLevel"), std::string::npos);
+
+  edit(scratch, "pass.sksl", body + "\n", 4);
+  ASSERT_TRUE(sigil::io::poll(hub));
+  paintsGreen(shader(hub, "res://pass.sksl"), 3);
+  EXPECT_TRUE(hub.problems().empty());
 }
 
 TEST(MaterialShader, AFileWithNoProgramPaintsThePlaceholderUntilOneCompiles) {

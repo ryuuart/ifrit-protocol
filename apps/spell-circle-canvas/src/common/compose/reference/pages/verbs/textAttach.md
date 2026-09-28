@@ -29,6 +29,13 @@ longhand a `positioned()` child takes — px or pct `left`, `top`,
 to sit outside it. With no dimensions at all the mark simply IS the
 rect.
 
+With a stated width or height, `right` or `bottom` places that far edge
+when its opposing inset is auto. Margins offset the placed box; for
+example, `top(pct(100)).marginTop(12)` hangs a mark twelve pixels below
+the selected unit. Percentage margins use the selected rect's width on
+every edge. Font-relative lengths and sums without percentages resolve
+against the mark's inherited font metrics.
+
 **A mark is not a reserved slot.** A `weave::rich().slot()` reserves
 space INSIDE the flow: the line breaks around it, it moves the line's
 height, and the type after it starts further along. A mark reserves

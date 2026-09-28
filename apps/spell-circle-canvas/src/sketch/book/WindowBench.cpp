@@ -132,7 +132,11 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
           // A stretch that ended with all but no frames in it is not a
           // rate: it is stood down with what it did, rather than
           // printed as a rate of nearly zero.
-          if (frames < 2) {
+          if (host && !host->errorLog().empty()) {
+            std::printf("WINDOW %s FAILED resource or runtime error\n", key.c_str());
+            std::fprintf(stderr, "%s\n", host->errorLog().c_str());
+            ++run->stoodDown;
+          } else if (frames < 2) {
             std::printf("WINDOW %s SKIPPED presented %llu frames in %.1fs\n",
                         key.c_str(), frames, stretch);
             ++run->stoodDown;
@@ -162,9 +166,9 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
 
         if (++run->at >= run->selection.size()) {
           timer->stop();
-          // A stand-down is a sketch this sweep could not measure, and a
-          // sweep that could not measure one did not do what it was
-          // asked: the rows it did take stand, and the run says so.
+          // Every selected sketch must present clean frames. Keep the
+          // successful rows, but fail the run if one could not be measured
+          // or rendered with a resource or runtime error.
           QCoreApplication::exit(run->stoodDown > 0 ? 1 : 0);
           return;
         }

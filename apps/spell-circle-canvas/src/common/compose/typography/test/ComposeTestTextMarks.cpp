@@ -142,6 +142,53 @@ TEST(ComposeTextFx, MarkPlacesAChildOnTheRectItsSelectorResolves) {
   EXPECT_FLOAT_EQ(tick.width(), 2.0f);
 }
 
+TEST(ComposeTextFx, MarkResolvesMarginsFarInsetsAndFontLengths) {
+  Host host(400, 200);
+  const auto selected = sigil::weave::selectors::word(0);
+  const auto describe = [&](float drop) {
+    return box().padding(20).fontSize(20).children({
+        box().key("lineHeight").width(1).height(sigil::weave::lh(1)),
+        text(u8"ALPHA", whiteStyle(24))
+            .var("drop", Dimension(drop))
+            .textAttach(selected, box().key("anchor"))
+            .textAttach(selected, box().key("near").width(2).height(8)
+                                      .left(0).top(pct(100))
+                                      .marginLeft(4).marginTop(var("drop")))
+            .textAttach(selected, box().key("far").width(2).height(8)
+                                      .right(-10).bottom(-20)
+                                      .marginRight(3).marginBottom(4))
+            .textAttach(selected, box().key("stretch")
+                                      .left(1).right(2).top(3).bottom(4)
+                                      .margin(2))
+            .textAttach(selected, box().key("font").width(2).height(8)
+                                      .fontSize(20)
+                                      .left(Dimension(sigil::weave::em(0.5f)) + Dimension(3))
+                                      .top(sigil::weave::lh(1))) });
+  };
+  for (const float drop : {12.0f, 24.0f}) {
+    host.composer.render(describe(drop));
+    host.frame();
+    const SkRect anchor = markRect(host, "anchor");
+    ASSERT_GT(anchor.width(), 20);
+    const SkRect near = markRect(host, "near");
+    EXPECT_NEAR(near.left(), anchor.left() + 4, 0.01f);
+    EXPECT_NEAR(near.top(), anchor.bottom() + drop, 0.01f);
+    const SkRect far = markRect(host, "far");
+    EXPECT_NEAR(far.right(), anchor.right() + 7, 0.01f);
+    EXPECT_NEAR(far.bottom(), anchor.bottom() + 16, 0.01f);
+    const SkRect stretch = markRect(host, "stretch");
+    EXPECT_NEAR(stretch.left(), anchor.left() + 3, 0.01f);
+    EXPECT_NEAR(stretch.top(), anchor.top() + 5, 0.01f);
+    EXPECT_NEAR(stretch.right(), anchor.right() - 4, 0.01f);
+    EXPECT_NEAR(stretch.bottom(), anchor.bottom() - 6, 0.01f);
+    const SkRect font = markRect(host, "font");
+    EXPECT_NEAR(font.left(), anchor.left() + 13, 0.01f);
+    const float lineHeight = markRect(host, "lineHeight").height();
+    EXPECT_GT(lineHeight, 15);
+    EXPECT_NEAR(font.top(), anchor.top() + lineHeight, 0.01f);
+  }
+}
+
 TEST(ComposeTextFx, MarkFollowsItsUnitWhenTheTextReflows) {
   // The rect is read off the placement, so a narrower box that pushes the
   // word onto the next line takes the mark with it — the reason to anchor a

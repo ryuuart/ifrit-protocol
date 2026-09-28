@@ -16,6 +16,7 @@
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/program/Shader.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/image/Decode.h>
 #include <sigilmedia/video/Video.h>
@@ -138,6 +139,16 @@ struct Ungrounded {
     ctx.canvas(64, 48);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(0.1);
+  }
+};
+
+struct MissingShader {
+  void setup(SketchContext& ctx) {
+    ctx.canvas(64, 48);
+    ctx.captureAt(0.05);
+    ctx.composer.render(box().width(64).height(48).fill(
+        sigil::material::shader(ctx.assets.hub(),
+                                "res://missing_sweep_program.sksl")));
   }
 };
 
@@ -273,6 +284,20 @@ TEST(Sweep, WritesThePlateUnderTheNameTheSketchIsFiledAs) {
   ASSERT_GE(find("sweep_probe"), 0);
   ASSERT_EQ(0, sweep(ledgerRun(out.path), fonts(), assets()));
   EXPECT_TRUE(std::filesystem::exists(out.path / "plate_sweep_probe.png"));
+}
+
+TEST(Sweep, AShaderFallbackFailsTheRunAndDoesNotTaintTheNextSketch) {
+  const ScratchDir out("sigil_sweep_missing_shader");
+  SweepOptions broken = ledgerRun(out.path);
+  broken.only = find("missing_shader");
+  ASSERT_GE(broken.only, 0);
+  ::testing::internal::CaptureStderr();
+  EXPECT_EQ(1, sweep(broken, fonts(), assets()));
+  const std::string log = ::testing::internal::GetCapturedStderr();
+  EXPECT_NE(log.find("missing_sweep_program.sksl"), std::string::npos);
+  EXPECT_NE(log.find("resource error"), std::string::npos);
+  EXPECT_TRUE(std::filesystem::exists(out.path / "plate_missing_shader.png"));
+  EXPECT_EQ(0, sweep(ledgerRun(out.path), fonts(), assets()));
 }
 
 TEST(Sweep, TheSameDeclarationRendersTheSameBytes) {
@@ -470,6 +495,9 @@ TEST(Story, AKeptCanvasSurvivesThePreRoll) {
 [[maybe_unused]] const bool ungroundedRegistered =
     add("ungrounded", nullptr, "Test", "a sketch this machine cannot draw",
         &kindOf<Ungrounded>, &probeOf<Ungrounded>);
+[[maybe_unused]] const bool missingShaderRegistered =
+    add("missing_shader", nullptr, "Test", "a shader fallback is not a pass",
+        &kindOf<MissingShader>);
 [[maybe_unused]] const bool drawnTrailRegistered =
     add("drawn_trail", nullptr, "Test", "a pen's trail, kept between frames",
         &kindOf<DrawnTrail>);

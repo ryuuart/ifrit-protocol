@@ -389,48 +389,21 @@ alone, hand it to `TextPath(path=…)` and assert the run lays out along it.
 Wanted by `python_type_atelier` (its curved baseline), `python_kit_specimen`
 (the same cubic) and `python_live_signals` (its traces).
 
-## A mark's insets are read as a positioned child's only in part: `bottom` and `right` size it, a sum or an `lh` reads as zero, and its margin is not read
+## A mark cannot state a percentage-plus-pixel inset
 
-`Text::textAttach` promises that a mark "is written in exactly the
-placement longhand a `positioned()` child takes — px or pct `left`, `top`,
-`right`, `bottom`, `width`, `height`, measured inside that rect and free to
-sit outside it". The mark's box is resolved in `Composer::Impl`'s rect pass
-(`src/common/compose/core/Rects.cpp`, the anchored branch): `left` and
-`top` default to 0 when unstated, `right` and `bottom` are read only to
-derive a missing width or height, and every inset goes through one
-`resolve` that answers px, pt, pct, pw and ph and returns nothing for any
-other unit. So a mark with a stated height and `bottom(-27)` stands at the
-rect's top, not 27 px below its foot; `top(1_lh)` and
-`top(Dimension(1_lh) + Dimension(12))` both stand at the rect's top; and
-`top(pct(100) + Dimension(12))` is refused with the flex world's warning,
-though a mark's rect is not laid out by Yoga and the sum has a value there.
-Nor does that branch read a margin at all: it returns the anchor's corner
-plus `left` and `top` and nothing else, so `top(pct(100)).marginTop(12)` —
-the other way CSS says "12 px below the foot" — stands at the foot, and a
-`marginTop` on a mark is accepted and silently inert.
+`Text::textAttach` reads the selected unit's rect as the containing box,
+but `Dimension` refuses a sum of percentages and other lengths before
+that rect is available. Consequently `top(pct(100) + Dimension(12))`
+becomes auto even though the mark's rect gives the percentage a definite
+basis. Pure font-relative sums, far-edge positioning and margins resolve;
+`top(pct(100)).marginTop(12)` expresses the intended drop.
 
-It evidently means what a positioned child means: a `bottom` (or `right`)
-beside a stated extent places the far edge, a `calc()` sum of pct and px
-resolves against the rect, a font-relative length resolves against the
-text the mark stands on, and a margin offsets the box from where its insets
-put it — so a ruler hung "12 px below each letter's foot" is one
-`top(pct(100) + Dimension(12))`, or `top(pct(100)).marginTop(12)`.
-
-A test should attach a 1x8 mark to one letter with `top(pct(100) +
-Dimension(12))` and assert its box's top is the letter rect's bottom plus
-12; attach one with `height(8).bottom(Dimension(-20))` and assert its top
-is the rect's bottom plus 12; and attach one with `top(1_lh)` and assert
-its top is the rect's top plus the leaf's line height; and attach one with
-`top(pct(100)).marginTop(12)` and assert its top is the rect's bottom plus
-12.
-
-Wanted by `karaoke_wipe`, which hangs its ruler's ticks and playhead at
-the letter's foot with `top(pct(100))` and carries them the rest of the way
-down with a constant `translateY`, under a `workaround:` line; and by
-`axis_ripple`, whose level bars stand at each letter's foot with
-`top(pct(100)).marginTop(kLevelDrop)` and so sit on the foot with no drop,
-the `marginTop` inert. Two sketches want the drop, so this is the rect
-pass's to fix rather than a kit component's to paper over.
+A percentage sum should remain a length until its consumer knows the
+containing extent. A test should attach a 1x8 mark to one letter with
+`top(pct(100) + Dimension(12))` and assert that its top is the selected
+rect's bottom plus 12, including after the type is resized. Flex layout
+must either resolve the same sum against a definite containing block or
+report its own unsupported case without erasing the authored expression.
 
 ## `textFx::tint` takes its two colours as values, so a wipe cannot follow the sheet's ink
 
@@ -517,26 +490,6 @@ boxes and solving the line between them, and states the grade's range as
 its own constants instead of reading the face's) and `eva_magi_defense`,
 which seats its numerals with `atCapHeight` over a face-held type and meets
 the same wall when it takes a family list.
-
-## A mark's margin is not read, so it places nothing
-
-`Text::textAttach` says a mark is written as a positioned child is, against
-the rect its selector resolved. `Composer::Impl::positionedRect`
-(`core/Rects.cpp`) builds a mark's rect from its left, top, right, bottom,
-width and height and never reads its margin, so a mark hung at
-`top(pct(100))` with `marginTop(10)` stands at the letter's foot, not 10 px
-below it. A positioned box's margin offsets it from its insets in CSS; the
-entry on a mark's insets (bottom and right size a mark, a sum reads as
-zero) is the same pass's other half.
-
-A test should attach a 1x8 mark to one letter with `top(pct(100))` and
-`marginTop(10)`, and assert its rect's top is the letter rect's bottom plus
-10; and with `left(0)` and `marginLeft(4)`, that its left is the letter's
-left plus 4.
-
-Wanted by `axis_ripple`, whose meter stands off the letters by a constant
-drop, and `karaoke_wipe`, whose ruler does the same; both carry the drop
-as a translate today.
 
 ## A rule cannot state a stroke, so a class cannot carry its element's keyline
 
@@ -1051,7 +1004,7 @@ command reports the size disagreements.
 
 ## Catalog plates of the same extent still have unattributed pixel changes
 
-These 78 sketches render successfully at their standing extent but do
+These 77 sketches render successfully at their standing extent but do
 not match their baseline pixels, and their whole difference has not been
 attributed to a permitted material, timing or label change. Their
 baselines remain unchanged:
@@ -1066,7 +1019,7 @@ baselines remain unchanged:
 `mawarikomi`, `mesh_normal_bridge`, `midi_pads`, `minard_1869`,
 `observable_circle_packing`, `observable_l_system`, `observable_l_system_tree`,
 `observable_reynolds_steering`, `optical_kerning`, `osc_desk`,
-`p5_refractive_metaballs`, `passive tree`, `penrose_paving`, `phone_sky`,
+`passive tree`, `penrose_paving`, `phone_sky`,
 `python_live_signals`, `python_type_atelier`, `reflection_lab`, `rota_convocationis`,
 `ruby_kenten`, `schema_scene`, `serial_sensor`, `set_stagger`, `sigillum_aemeth`,
 `slitscan_2001`, `spacejam_1996`, `spacing_passes`, `sticker_collection`,
@@ -1079,9 +1032,7 @@ The discrepancies include presentation changes already present before
 the API translation: `artnet_lights` wraps its output in a titled page
 instead of the baseline's full-canvas composition, `zellige` already
 declares a different subtitle and heading layout, and `slitscan_2001`
-has a different subtitle. The current `zellige` plate also has no visible
-heading where `document::h1("ZELLIJE")` stands; a test should assert that
-the leaf paints its inherited dark ink above the subtitle.
+has a different subtitle.
 `surface_components` changes type sizes and panel spacing;
 `stroke_atlas` changes much more than the permitted crosshatch edge.
 A small hash difference alone is also insufficient to establish intent:

@@ -155,15 +155,15 @@ def assert_red_above_blue(picture: tuple[int, int, int, bytes], what: str):
     )
 
 
-def run(command: list[str], environment: dict) -> str:
+def run(command: list[str], environment: dict, expected_exit: int = 0) -> str:
     print("$ " + " ".join(command), flush=True)
     result = subprocess.run(
         command, capture_output=True, text=True, env=environment, timeout=120
     )
     sys.stdout.write(result.stdout)
     sys.stderr.write(result.stderr)
-    if result.returncode != 0:
-        sys.exit(f"exited {result.returncode}")
+    if result.returncode != expected_exit:
+        sys.exit(f"exited {result.returncode}, expected {expected_exit}")
     return result.stdout
 
 
@@ -188,6 +188,29 @@ def benchmark_file(sketchbook: Path, probe: Path, work: Path, environment: dict)
             rows[0],
         ):
             sys.exit(f"the window benchmark did not measure the current file: {rows}")
+
+    (work / "broken.sksl").write_text(
+        "half4 main(float2 xy) { return missingColour; }"
+    )
+    fixture.write_text('''#include <sigilsketch/canvas/Sketch.h>
+#include <sigilmaterial/program/Shader.h>
+struct BrokenShader {
+  void setup(sigil::sketch::SketchContext& ctx) {
+    ctx.canvas(640, 420);
+    ctx.composer.render(sigil::compose::box().width(640).height(420).fill(
+        sigil::material::shader(ctx.assets.hub(), ctx.local("broken.sksl"))));
+  }
+};
+SIGIL_SKETCH(BrokenShader, "Test", "a shader fallback fails the benchmark")
+''')
+    output = run(
+        [str(sketchbook), str(fixture), "--state", str(work / "state"),
+         "--window-bench", "0.3", "--window-size", "900x700"],
+        environment, expected_exit=1,
+    )
+    rows = [line for line in output.splitlines() if line.startswith("WINDOW ")]
+    if rows != [f"WINDOW {fixture.stem} FAILED resource or runtime error"]:
+        sys.exit(f"the window benchmark accepted a shader fallback: {rows}")
 
 
 def main() -> None:

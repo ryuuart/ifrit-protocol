@@ -193,8 +193,9 @@ call `material::shader` in every describe, and two calls with equal
 values compare equal and prune. `material::shader(hub, uri, Parameters{…})`
 is the same over a file read through SigilIO, its language told by the
 extension; an edited file compiles anew once the hub's poll has seen the
-edit and the caller describes again. It is how a shader is live-coded,
-so a file holds three promises:
+edit and the caller describes again. A SkSL text pass that reads the runtime's
+unit uniforms is validated with one unit; the text executor compiles the
+same body with the count of units it draws. A file holds three promises:
 
 - **A broken edit never blanks the picture.** A text that does not
   compile does not replace one that did: the newest text that compiled

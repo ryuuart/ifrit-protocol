@@ -17,6 +17,7 @@
 #include <sigilmaterial/skia/ShaderLeaf.h>
 #include <sigilmaterial/skia/Texture.h>
 
+#include <algorithm>
 #include <cctype>
 #include <cstring>
 #include <mutex>
@@ -25,6 +26,7 @@
 #include <utility>
 
 #include "../core/ProgramInternal.h"
+#include "PaintDetail.h"
 
 namespace sigil::material::skia {
 
@@ -57,10 +59,13 @@ std::string uncommented(std::string_view source) {
       out[i++] = ' ';
       while (i + 1 < out.size() && !(out[i] == '*' && out[i + 1] == '/'))
         out[i++] = ' ';
-      // An unterminated block comment runs to the end of the source, and
-      // every character of it is comment: blanking all but the last one
-      // would leave a word behind for the scan to read as code.
-      while (i < out.size()) out[i++] = ' ';
+      if (i + 1 < out.size()) {
+        out[i++] = ' ';
+        out[i++] = ' ';
+      } else {
+        // An unterminated block comment includes the final character.
+        while (i < out.size()) out[i++] = ' ';
+      }
     } else {
       ++i;
     }
@@ -151,7 +156,15 @@ std::string reservedName(const std::string& source) {
 
 std::shared_ptr<Program> compile(std::shared_ptr<const Recipe> recipe,
                                  Variant variant, std::string& error) {
-  const std::string source = recipe->source(Target::SkSL);
+  // A file-backed text pass is validated before the executor knows its
+  // unit count. Validate one unit through the same specialization the
+  // executor uses; its own declarations distinguish a specialized pass.
+  const bool needsUnits =
+      detail::isPassBody(*recipe) &&
+      std::find(recipe->slots().begin(), recipe->slots().end(), "uContent") ==
+          recipe->slots().end();
+  const auto compiled = needsUnits ? detail::passRecipeFor(recipe, 1) : recipe;
+  const std::string source = compiled->source(Target::SkSL);
   if (const std::string reserved = reservedName(source); !reserved.empty()) {
     error = "the body declares `" + reserved +
             "`, which is the name Graphite gives one of the parameters it "
@@ -163,6 +176,28 @@ std::shared_ptr<Program> compile(std::shared_ptr<const Recipe> recipe,
       SkRuntimeEffect::MakeForShader(SkString(source.c_str()));
   if (!effect) {
     error = message.c_str();
+    if (needsUnits) {
+      const std::string original = recipe->source(Target::SkSL);
+      const auto& body = *recipe->body(Target::SkSL);
+      const auto linesBefore = [&](const std::string& text) {
+        return std::count(text.begin(), text.begin() + text.find(body), '\n');
+      };
+      const int added = (int)(linesBefore(source) - linesBefore(original));
+      // The file reader maps generated-source lines to body lines. Keep
+      // the diagnostic in the authored recipe's coordinates for that map.
+      for (size_t at = error.find("error: "); at != std::string::npos;
+           at = error.find("error: ", at + 7)) {
+        const size_t start = at + 7;
+        const size_t end = error.find(':', start);
+        if (end == std::string::npos) break;
+        const std::string digits = error.substr(start, end - start);
+        if (digits.empty() || digits.find_first_not_of("0123456789") !=
+                                  std::string::npos)
+          continue;
+        error.replace(start, end - start,
+                      std::to_string(std::max(1, std::stoi(digits) - added)));
+      }
+    }
     return nullptr;
   }
   return std::make_shared<SkiaProgram>(std::move(recipe), variant,

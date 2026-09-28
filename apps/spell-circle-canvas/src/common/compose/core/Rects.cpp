@@ -85,11 +85,10 @@ void warnUnknownTextSlot(const Instance& text, const std::string& key) {
 
 }  // namespace
 
-/** A positioned child's rect, straight from its description: px/pct
- *  left/top insets, px/pct dims, an open dim with an opposing
- *  right/bottom inset pinning the far edge, and text measuring against
- *  its resolved (or the parent's) width. O(depth) for pct/derived
- *  terms — arithmetic, no engine. */
+/** A positioned child's rect from its resolved lengths and margins.
+ *  Opposing insets stretch an open extent; a far inset places a stated
+ *  extent when the near inset is auto. Text measures against the resolved
+ *  width, or its parent's width where its own is open. */
 SkRect Composer::Impl::positionedRect(const Instance& inst) const {
   // A MARK child: the rect its selector resolved is its PARENT BOX, not its
   // box. Everything the child says about its own placement is then read
@@ -141,31 +140,35 @@ SkRect Composer::Impl::positionedRect(const Instance& inst) const {
     parentW = parentRect.width();
     parentH = parentRect.height();
   }
-  // The canvas a pw or a ph is measured against — the root's box, not this
-  // node's parent, and the root's laid-out extent under an intrinsic root.
-  const SkSize canvas = size.isEmpty() ? rootLayoutSize : size;
-  auto resolve = [&canvas](const Dimension& d,
+  const auto resolve = [&](Dimension length,
                            float parentExtent) -> std::optional<float> {
-    switch (d.unit) {
-      case Dimension::Unit::Px:
-        return d.value;
-      case Dimension::Unit::Pt:
-        return d.value * sigil::weave::Length::kPointPx;
-      case Dimension::Unit::Pct:
-        return parentExtent * d.value / 100.0f;
-      case Dimension::Unit::Pw:
-        return canvas.width() * d.value / 100.0f;
-      case Dimension::Unit::Ph:
-        return canvas.height() * d.value / 100.0f;
-      case Dimension::Unit::Auto:
-      default:
-        return std::nullopt;
+    if (length.unit == Dimension::Unit::Var) {
+      const VarValue* value =
+          inst.vars ? inst.vars->find(length.reference()) : nullptr;
+      const Dimension* found = value ? std::get_if<Dimension>(value) : nullptr;
+      if (!found || found->unit == Dimension::Unit::Var) return std::nullopt;
+      length = *found;
     }
+    bool relative = false;
+    const float value = resolveLength(inst, length, relative);
+    if (!std::isfinite(value)) return std::nullopt;
+    return length.unit == Dimension::Unit::Pct
+               ? parentExtent * value * 0.01f
+               : value;
   };
-  const float left =
-      l.hasInsets ? resolve(l.insets.left, parentW).value_or(0.0f) : 0.0f;
-  const float top =
-      l.hasInsets ? resolve(l.insets.top, parentH).value_or(0.0f) : 0.0f;
+  const auto left =
+      l.hasInsets ? resolve(l.insets.left, parentW) : std::nullopt;
+  const auto top =
+      l.hasInsets ? resolve(l.insets.top, parentH) : std::nullopt;
+  const auto right =
+      l.hasInsets ? resolve(l.insets.right, parentW) : std::nullopt;
+  const auto bottom =
+      l.hasInsets ? resolve(l.insets.bottom, parentH) : std::nullopt;
+  // Percent margins measure across the containing box on every edge.
+  const float marginLeft = resolve(l.margin.left, parentW).value_or(0.0f);
+  const float marginTop = resolve(l.margin.top, parentW).value_or(0.0f);
+  const float marginRight = resolve(l.margin.right, parentW).value_or(0.0f);
+  const float marginBottom = resolve(l.margin.bottom, parentW).value_or(0.0f);
   std::optional<float> width = resolve(l.width, parentW);
   std::optional<float> height = resolve(l.height, parentH);
   // Under content-box sizing a stated extent is the content's and the
@@ -175,12 +178,12 @@ SkRect Composer::Impl::positionedRect(const Instance& inst) const {
     if (width) *width += pad.across();
     if (height) *height += pad.down();
   }
-  if (!width && l.hasInsets)
-    if (std::optional<float> right = resolve(l.insets.right, parentW))
-      width = std::max(parentW - left - *right, 0.0f);
-  if (!height && l.hasInsets)
-    if (std::optional<float> bottom = resolve(l.insets.bottom, parentH))
-      height = std::max(parentH - top - *bottom, 0.0f);
+  if (!width && right)
+    width = std::max(parentW - left.value_or(0.0f) - *right - marginLeft -
+                         marginRight, 0.0f);
+  if (!height && bottom)
+    height = std::max(parentH - top.value_or(0.0f) - *bottom - marginTop -
+                          marginBottom, 0.0f);
   // Text with an open extent: measure now, against the width we have.
   // The measure caches are logically mutable (measuredForWidth guards),
   // hence the casts. What comes back is the PARAGRAPH's extent, so a leaf
@@ -201,11 +204,16 @@ SkRect Composer::Impl::positionedRect(const Instance& inst) const {
     // it just measured for itself above.
     if (!width) width = parentW;
     if (!height) height = parentH;
-    return SkRect::MakeXYWH(anchor->left() + left, anchor->top() + top, *width,
-                            *height);
   }
-  return SkRect::MakeXYWH(left, top, width.value_or(0.0f),
-                          height.value_or(0.0f));
+  float x = left.value_or(0.0f) + marginLeft;
+  float y = top.value_or(0.0f) + marginTop;
+  if (!left && right)
+    x = parentW - *right - width.value_or(0.0f) - marginRight;
+  if (!top && bottom)
+    y = parentH - *bottom - height.value_or(0.0f) - marginBottom;
+  return SkRect::MakeXYWH((anchor ? anchor->left() : 0.0f) + x,
+                          (anchor ? anchor->top() : 0.0f) + y,
+                          width.value_or(0.0f), height.value_or(0.0f));
 }
 
 SkRect Composer::Impl::absoluteRect(const Instance& inst) const {
