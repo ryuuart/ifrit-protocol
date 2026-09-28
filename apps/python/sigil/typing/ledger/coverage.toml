@@ -1722,8 +1722,8 @@ bound = "`hexColor`"
 python = ["material.hexColor"]
 
 [[section.surface.item]]
-bound = "`shader`, a shader's source over a dict or NamedTuple of uniforms, with `key`, `target` (`Target`), `sampling` (`Sampling`) and the `textures` it samples, and the same over a file read through a hub"
-python = ["material.shader", "material.Target", "material.Sampling"]
+bound = "`shader`, a shader's source over a dict or NamedTuple of uniforms, with `key`, `target` (`Target`), `sampling` (`Sampling`) and the `textures` it samples, and the same over a file read through a hub, which keeps its last text that compiled and answers `placeholder` while none has"
+python = ["material.shader", "material.Target", "material.Sampling", "material.placeholder"]
 
 [[section.surface.item]]
 bound = "a recipe `Material` stands where a paint does, on an element's fills and glyph paints and on the pen's fills, strokes and grounds"
@@ -2114,6 +2114,10 @@ python = [
   "io.Hub.preload",
   "io.NetworkPolicy",
 ]
+
+[[section.surface.item]]
+bound = "`Hub.problems`, one `Problem` per URI a reader could not make sense of"
+python = ["io.Hub.problems", "io.Problem"]
 
 [[section.surface.item]]
 bound = "`Hub.advance`"

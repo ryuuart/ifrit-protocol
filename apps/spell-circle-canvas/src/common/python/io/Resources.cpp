@@ -251,6 +251,18 @@ void bindIO(py::module_& module) {
             lease.close();
           },
           py::arg("exc_type"), py::arg("exc_value"), py::arg("traceback"));
+  py::class_<io::Problem>(resources, "Problem")
+      .def_readonly("uri", &io::Problem::uri)
+      .def_readonly("message", &io::Problem::message)
+      .def_readonly("line", &io::Problem::line)
+      .def("__eq__", [](const io::Problem& left, const io::Problem& right) {
+        return left == right;
+      })
+      .def("__repr__", [](const io::Problem& problem) {
+        return "Problem(" + problem.uri +
+               (problem.line ? ":" + std::to_string(*problem.line) : "") +
+               ": " + problem.message + ")";
+      });
   py::class_<io::ResourceInfo>(resources, "ResourceInfo")
       .def_readonly("byteSize", &io::ResourceInfo::byteSize)
       .def_readonly("path", &io::ResourceInfo::path);
@@ -587,6 +599,10 @@ void bindIO(py::module_& module) {
             });
           },
           py::arg("time"))
+      .def("problems",
+           [](const HubHandle& value) { return value.get().problems(); },
+           "What a library reading through this hub could not make of a "
+           "resource, one Problem per URI.")
       .def("poll",
            [](const HubHandle& value) {
              auto& hub = value.get();

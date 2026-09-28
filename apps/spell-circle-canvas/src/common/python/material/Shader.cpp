@@ -134,15 +134,22 @@ void bindMaterialShader(py::module_& module) {
         const std::vector<Uniform> uniforms = uniformsOf(parameters);
         const material::ShaderOptions options =
             optionsOf(key, target, sampling, textures);
-        return instanced(material::detail::shaderFileDefinition(
-                             hub.get(), uri, layoutOf(uniforms), options),
-                         uniforms, options);
+        std::shared_ptr<const material::Recipe> definition =
+            material::detail::shaderFileDefinition(hub.get(), uri,
+                                                   layoutOf(uniforms), options);
+        if (!definition) return material::placeholder();
+        return instanced(std::move(definition), uniforms, options);
       },
       py::arg("hub"), py::arg("uri"), py::arg("parameters") = py::none(),
       py::kw_only(), py::arg("key") = "", py::arg("target") = py::none(),
       py::arg("sampling") = py::none(), py::arg("textures") = py::none(),
       "The program file at uri, read through hub, as a Material whose "
-      "uniforms are the parameters' fields.");
+      "uniforms are the parameters' fields. A text that does not compile "
+      "never replaces one that did; while none has, placeholder() paints; "
+      "what is wrong stands on hub.problems() under uri.");
+  materials.def("placeholder", &material::placeholder,
+                "The magenta and black checker a program file paints while "
+                "none of its texts has compiled: a diagnostic, never a look.");
   materials.def(
       "shader",
       [](const std::string& source, py::object parameters,

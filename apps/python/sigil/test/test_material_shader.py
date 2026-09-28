@@ -1,13 +1,15 @@
 """A shader as a material from Python: the source and its parameters as a
 dict or a NamedTuple, one definition per source, fields written through the
-Material by name, and the body painting what it returns."""
+Material by name, the body painting what it returns, and a program file
+with no text that compiled answering the placeholder and standing on the
+hub's problems."""
 
 import tempfile
 import unittest
 from pathlib import Path
 from typing import NamedTuple
 
-from sigil import material, media
+from sigil import io, material, media
 from sigil.sketch import render_file
 
 FLAT = "half4 main(float2 p) { return half4(ink.rgb * level, 1); }"
@@ -59,6 +61,24 @@ class Shader(unittest.TestCase):
             pixels = media.load(output).frameAt(0).image.rgba()
             offset = (4 * 8 + 4) * 4
             self.assertEqual(bytes(pixels[offset : offset + 4]), bytes([0, 0, 255, 255]))
+
+    def test_a_file_with_no_program_is_the_placeholder_and_a_problem(self):
+        with tempfile.TemporaryDirectory() as folder:
+            hub = io.Hub()
+            hub.mount("res://", folder)
+            self.assertEqual(
+                material.shader(hub, "res://absent.sksl"), material.placeholder()
+            )
+            self.assertEqual(
+                [problem.uri for problem in hub.problems()], ["res://absent.sksl"]
+            )
+            (Path(folder) / "absent.sksl").write_text(FLAT)
+            self.assertTrue(hub.poll())
+            tone = {"ink": material.Color(1, 0, 0, 1), "level": 0.5}
+            self.assertNotEqual(
+                material.shader(hub, "res://absent.sksl", tone),
+                material.placeholder(),
+            )
 
 
 if __name__ == "__main__":
