@@ -30,10 +30,13 @@
 
 // TAGS: Materials/Compositing
 
+#include <sigilmedia/advanced/Skia.h>
+#include <sigilmaterial/paint/Bases.h>
+#include <sigilmaterial/filter/Filter.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkSurface.h>
-#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
@@ -79,13 +82,12 @@ std::shared_ptr<const sigil::media::Image> cutOut(float alpha) {
   SkPaint paint;
   paint.setAntiAlias(true);
   paint.setColor4f({kFigure.r, kFigure.g, kFigure.b, alpha});
-  canvas->drawPath(shapes::star(6, 0.46f, 0.14f).path({kSide, kSide}), paint);
+  canvas->drawPath(sigil::geometry::path::toSk(shapes::star(6, 0.46f, 0.14f).outline({kSide, kSide})), paint);
   SkPaint punch;
   punch.setAntiAlias(true);
   punch.setBlendMode(SkBlendMode::kClear);
   canvas->drawPath(
-      shapes::circle()
-          .path({kSide * 0.30f, kSide * 0.30f})
+      sigil::geometry::path::toSk(shapes::circle().outline({kSide * 0.30f, kSide * 0.30f}))
           .makeTransform(SkMatrix::Translate(kSide * 0.35f, kSide * 0.35f)),
       punch);
   return sigil::media::Image::of(surface->makeImageSnapshot());
@@ -94,9 +96,11 @@ std::shared_ptr<const sigil::media::Image> cutOut(float alpha) {
 /** One style value, worn by every cell that wears one: a halo under the
  *  outline and a recessed band inside it. Neither knows what outline it
  *  will be handed. */
-LayerStyle halo() {
-  return {.under = {styles::OuterGlow{kHalo, kGlow, 1.0f}},
-          .over = {styles::InnerShadow{{0, 0, 0, 0.55f}, {0, 2}, 5}}};
+material::Material halo() {
+  return material::from(material::Color{0, 0, 0, 0}).effects(
+      material::Filter::shadow(kHalo, {.blur = kGlow, .spread = 1})
+          .then(material::Filter::shadow({0, 0, 0, 0.55f},
+                                        {.blur = 5, .offset = {0, 2}, .inside = true})));
 }
 
 /** THE TWO CUT-OUTS THIS SHEET SHOWS, baked once and held together for
@@ -145,7 +149,7 @@ struct CoverageBoundary {
     };
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "Which edge receives the layer style?",
+        {.title = "Which edge receives the material effects?",
          .subtitle =
              "A rectangle, an alpha silhouette, and the limits of tracing",
          .footer = "Coverage is a raster-derived outline. An empty trace falls "
@@ -160,19 +164,19 @@ struct CoverageBoundary {
                                 art(cut)),
                            cell("THE BOX",
                                 "…"
-                                ".layerStyle(halo)",
+                                ".fill(halo)",
                                 "Automatic outline: the image rectangle "
-                                "receives the layer style.",
-                                art(cut).layerStyle(halo())),
+                                "receives the material effects.",
+                                art(cut).fill(halo())),
                            cell("THE DRAWN SILHOUETTE",
                                 "…"
                                 ".decorationOutline(Coverage)"
-                                ".layerStyle(halo)",
+                                ".fill(halo)",
                                 "Coverage outline: the visible star and its "
-                                "hole receive the same layer style.",
+                                "hole receive the same material effects.",
                                 art(cut)
                                     .decorationOutline(Boundary::Coverage)
-                                    .layerStyle(halo()))},
+                                    .fill(halo()))},
                       .measure = 1020,
                       .gap = 18})),
              box()
@@ -192,7 +196,7 @@ struct CoverageBoundary {
                                               art(cut, kWash)
                                                   .decorationOutline(
                                                       Boundary::Coverage)
-                                                  .layerStyle(halo())),
+                                                  .fill(halo())),
                                          cell(
                                              "CHILDREN AS ONE OUTLINE",
                                              "children only · "
@@ -205,7 +209,7 @@ struct CoverageBoundary {
                                                  .height(kArt)
                                                  .decorationOutline(
                                                      Boundary::Coverage)
-                                                 .layerStyle(halo())
+                                                 .fill(halo())
                                                  .children({disc({37, 53}, 31),
                                                             disc({79, 39}, 35),
                                                             disc({68, 98},
@@ -230,6 +234,6 @@ struct CoverageBoundary {
 };
 
 SIGIL_SKETCH(CoverageBoundary, "Kit · API",
-             "one layer style handed the node's box, then the silhouette of "
+             "one material effects handed the node's box, then the silhouette of "
              "what the node actually drew, and finally a wash too faint to "
              "have one")

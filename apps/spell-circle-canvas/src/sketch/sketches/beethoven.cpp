@@ -40,7 +40,9 @@
 
 // TAGS: Typography/Lettering
 
-#include <sigilcompose/brush/LayerStyles.h>
+#include <sigilmaterial/paint/Bases.h>
+#include <sigilmaterial/filter/Filter.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
@@ -157,7 +159,7 @@ struct Beethoven {
     const float sweep = run.endDeg - run.startDeg;
     const float span = std::min(sweep / 360.0f, 0.9995f);
 
-    Element e = kit::disc(C, rMid)
+    Element e = kit::disc(sigil::geometry::path::fromSk(C),rMid)
                     .shape(shapes::arc(canvasStart))
                     .stroke(PathFormat{.width = width,
                                        .strokeFill = Fill::color(bp::kInk)});
@@ -227,8 +229,8 @@ struct Beethoven {
     // the one ink, which every line on the poster inherits and the title
     // steps up from.
     return stack()
-        .fill(Fill::color(bp::kPaper))
-        .background(styles::dropShadow({0, 0, 0, 0.45f}, {0, 8}, 22))
+        .fill(sigil::material::from(bp::kPaper).effects(sigil::material::Filter::shadow({0, 0, 0, 0.45f}, {.blur = 22, .offset = {0, 8}})))
+        
         .overflow(Overflow::Clip)
         .font({.size = 11.5f * bp::kScale, .track = 0.2f * bp::kScale})
         .ink(bp::kInk)
