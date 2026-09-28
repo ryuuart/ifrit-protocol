@@ -100,7 +100,7 @@
 // amplitude R is the node's own half-extent, because the curve is sampled
 // in a unit frame that the box scales.
 //
-// Revealed by a stroke pass over `spans::upTo(&growth)` at a CONSTANT
+// Revealed by a stroke pass over `spans::upTo(growth)` at a CONSTANT
 // rate (a motor does not ease); spun forever by one shaped binding on the
 // clock.
 //
@@ -125,15 +125,18 @@
 
 // TAGS: Motion/Trajectories
 
+#include <sigilmaterial/filter/Filter.h>
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilmaterial/skia/Color.h>
 #include <include/core/SkFontMgr.h>
-#include <include/core/SkFontStyle.h>
+#include <sigilweave/style/Face.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Presets.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
@@ -145,13 +148,11 @@
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Tween.h>
-#include <sigilmotion/values/Transition.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Cells.h>
 #include <sigilsketch/kit/Heading.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/kit/PaintLayers.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Style.h>
 #include <sigilweave/style/Type.h>
@@ -265,29 +266,30 @@ shapes::Harmonograph figure(const Card& c, int samples = kSamples) {
 /** A node sized and placed so its box gives @p radius as the curve's
  *  amplitude about @p centre. */
 Element figureBox(SkPoint centre, float radius) {
-  return box().width(radius * 2.0f).height(radius * 2.0f).centerAt(centre);
+  return box().width(radius * 2.0f).height(radius * 2.0f).centerAt(sigil::geometry::path::fromSk(centre));
 }
 
 // ---------------------------------------------------------------------------
 // type
 
-/** The OUTLINE register: sigil::weave::kit::outline()'s stroked paint installed
- *  as the node's ENTIRE foreground pass — no fill underneath, so the
- *  spiral is visible straight through the counters. Typotheque: "outline
- *  type through which the image beneath can be seen." A WHOLE style: a
- *  stroked foreground is paint, which a partial cannot state. */
-weave::TextStyle hollow(sk_sp<SkTypeface> face, float size,
+/** The outline register keeps its face and spacing while its ink draws the contour. */
+weave::TextStyle hollow(sigil::weave::Face face, float size,
                         material::Color color, float width,
                         float tracking = 0) {
-  weave::TextStyle s = weave::textStyle({.face = std::move(face),
-                                         .size = size,
-                                         .color = color,
-                                         .track = tracking});
-  s.paint.foreground = sigil::weave::kit::outline(
-                           material::skia::toSkColor(color).toSkColor(), width)
-                           .paint;
-  s.paint.foreground.setAntiAlias(true);
-  return s;
+  return weave::textStyle({.face = std::move(face), .size = size,
+                            .color = color, .track = tracking});
+}
+
+/** An open capital: only its contour carries ink. */
+material::Material hollowInk(material::Color color, float width, bool halo = false) {
+  material::Material ink{material::Color{0, 0, 0, 0}};
+  if (halo)
+    ink.layer(material::from(material::Color{0, 0, 0, 0}).effects(
+        material::Filter::stroke(material::hexColor(0x000000, 0x59 / 255.0f),
+                                  {.width = 4, .position = material::StrokePosition::Center})
+            .then(material::Filter::blur(2.4f))));
+  return ink.effects(material::Filter::stroke(
+      color, {.width = width, .position = material::StrokePosition::Center}));
 }
 
 /** THE RING BASELINE for the textOnPath() legends: a clockwise circle
@@ -309,7 +311,7 @@ shapes::KeyedParametric ringPath() {
 /** A concentric ring on the panel — the pupil edge and the limbus, which
  *  are what make a radial ramp read as an EYE rather than a vignette. */
 Element ring(float r, material::Color color, float width) {
-  return kit::disc(kEye, r)
+  return kit::disc(sigil::geometry::path::fromSk(kEye),r)
       .borderRadius({r})
       .fill(Fill::none())
       .stroke(stroke(width, Fill::color(color)));
@@ -344,10 +346,11 @@ struct VertigoTitles {
    *  scalar the ticker has to write. It never syncs to the 16 s card
    *  cycle (lcm(16,20) = 80 s), the way a motor keeps running across cuts
    *  the editor made without it. */
-  Bound turntable() const { return sigil::motion::bind(secs, {.to = {0.0f, 18.0f}, .wrap = 360.0f}); }
+  sigil::motion::Animatable<float> turntable() const { return sigil::motion::bind(secs, {.to = {0.0f, 18.0f}, .wrap = 360.0f}); }
 
-  sk_sp<SkTypeface> faceDisplay, faceGothic, faceGothicBold;
-  Paint irisMat, filmGrain, paperGrain;
+  sigil::weave::Face faceDisplay, faceGothic, faceGothicBold;
+  material::Material irisMat{material::Color{0, 0, 0, 0}};
+  Paint filmGrain, paperGrain;
 
   // ------------------------------------------------------------------
   // one spiral card = TWO nodes over the same curve value. A span rides
@@ -365,10 +368,10 @@ struct VertigoTitles {
              .key("curve" + tag)
              .shape(figure(c))
              .stroke(
-                 spans::upTo(&growth[i]),
+                 spans::upTo(growth[i]),
                  brush::presets::filament(c.core, hexColor(0xFFE9CF), 0.48f))
              .rotate(turntable())
-             .opacity(&cardA[i]),
+             .opacity(cardA[i]),
          // the nib: a short bright plus-blended window at the trailing edge
          // The nib's trailing edge is `growth` MINUS a constant — a derived
          // value, which is a shaped binding on the same Output rather than a
@@ -377,11 +380,11 @@ struct VertigoTitles {
              .key("nib" + tag)
              .shape(figure(c))
              .stroke(spans::range(sigil::motion::bind(growth[i], {.to = {-kNib, -kNib + 1.0f}, .clamp = {0, 1}}),
-                                  &growth[i]),
+                                  growth[i]),
                      brush::presets::pulse({1.0f, 0.90f, 0.72f, 0.42f},
                                            {1, 1, 1, 0.95f}, 0.7f))
              .rotate(turntable())
-             .opacity(&penA[i])});
+             .opacity(penA[i])});
   }
 
   // ------------------------------------------------------------------
@@ -407,7 +410,7 @@ struct VertigoTitles {
     panel.children(
         {ring(61.0f, hexColor(0x090604, 0.85f), 3.0f)
              .key("pupil-edge")
-             .opacity(animate(from(0.0f).to(1.0f), ramp(300, 420))),
+             .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = std::chrono::duration<double, std::milli>(420), .delay = std::chrono::duration<double, std::milli>(300)})),
          ring(146.0f, hexColor(0x2A1D10, 0.40f), 1.2f).key("iris-mid"),
          ring(262.0f, hexColor(0x120C07, 0.24f), 10.0f).key("limbus"),
          // "the screen is suddenly stained red" — kColor keeps the iris's
@@ -417,9 +420,7 @@ struct VertigoTitles {
              .key("stain")
              .inset(0)
              .blendMode(material::BlendMode::Color)
-             .fill(animate(from(Fill::color(hexColor(0x3A2A1C)))
-                               .to(Fill::color(hexColor(0xC81E2C))),
-                           ramp(700, 500, sigil::motion::ease::inQuad)))});
+             .fill(sigil::motion::animate<Fill>({.from = Fill::color(hexColor(0x3A2A1C)), .to = Fill::color(hexColor(0xC81E2C)), .duration = std::chrono::duration<double, std::milli>(500), .delay = std::chrono::duration<double, std::milli>(700), .ease = sigil::motion::ease::inQuad}))});
 
     for (int i = 0; i < 4; ++i) spiralCard(panel, i);
 
@@ -431,34 +432,17 @@ struct VertigoTitles {
     // node the spacing IS letterspacing.
     {
       auto face = hollow(faceDisplay, 76, kBone, 2.2f, 3.0f);
-      // Legibility underlay over the busiest cards. NOT dropShadow() —
-      // that is a FILLED blurred copy and would plug the counters, which
-      // is the one thing the outline register exists to keep open. A
-      // blurred STROKE hugs the letterform and leaves the spiral visible
-      // straight through it.
-      {
-        SkPaint halo;
-        halo.setAntiAlias(true);
-        halo.setStyle(SkPaint::kStroke_Style);
-        // Kept THIN and weak on purpose. A heavy underlay reads as a
-        // fill, and a filled display cap is the one thing this register
-        // exists not to be: the record's whole point is outline type the
-        // image is seen through.
-        halo.setStrokeWidth(4.0f);
-        halo.setColor(0x59000000);
-        face.paint.underlays.push_back(weave::PaintLayer::blurred(halo, 2.4f));
-      }
       // The entrance ramp covers the cascade's own span, so the last
       // capital lands exactly when the master progress does.
-      const Spread cascade{.eachMs = 30, .durationMs = 480};
+      const sigil::motion::Tween<float> cascade{.duration = std::chrono::duration<double, std::milli>(480), .delay = sigil::motion::stagger(std::chrono::duration<double, std::milli>(30))};
       panel.children(
           {text("VERTIGO", face)
+               .ink(hollowInk(kBone, 2.2f, true))
                .key("vertigo")
-               .centerAt(kEye)
+               .centerAt(sigil::geometry::path::fromSk(kEye))
                .textFx({.effect = textFx::enter(textFx::pop(0.30f)),
-                        .stagger = cascade,
-                        .progress = animate(from(0.0f).to(1.0f),
-                                            ramp(780, cascade.spanMs(7)))})});
+                        .tween = cascade,
+                        .progress = sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = sigil::motion::timingOf(cascade).span(7), .delay = std::chrono::duration<double, std::milli>(780)})})});
     }
 
     // the other register — "solid black capitals of the SAME typeface"
@@ -472,8 +456,8 @@ struct VertigoTitles {
              .ink(kSolidInk)
              .key("credit")
              .centerAt({kEye.x(), kEye.y() + 152.0f})
-             .opacity(animate(from(0.0f).to(1.0f), ramp(1550, 300)))
-             .translateY(animate(from(10.0f).to(0.0f), ramp(1550, 300)))});
+             .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = std::chrono::duration<double, std::milli>(300), .delay = std::chrono::duration<double, std::milli>(1550)}))
+             .translateY(sigil::motion::animate({.from = 10.0f, .to = 0.0f, .duration = std::chrono::duration<double, std::milli>(300), .delay = std::chrono::duration<double, std::milli>(1550)}))});
 
     // the instrument-dial legend, set on the limbus itself with
     // Text::textOnPath() — one text leaf where hand-placing curved
@@ -486,19 +470,19 @@ struct VertigoTitles {
              .key("ring-top")
              .width(544)
              .height(544)
-             .centerAt(kEye)
+             .centerAt(sigil::geometry::path::fromSk(kEye))
              .textOnPath({.path = ringPath(),
                           .at = 0.25f,
                           .align = TextPath::Align::Center,
                           .offset = 3.0f,
                           .autoFlip = false})
-             .opacity(animate(from(0.0f).to(1.0f), ramp(1000, 500))),
+             .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = std::chrono::duration<double, std::milli>(500), .delay = std::chrono::duration<double, std::milli>(1000)})),
          text("PARAMOUNT 1958 · 1.85:1 · TECHNICOLOR")
              .font(legend)
              .key("ring-bottom")
              .width(544)
              .height(544)
-             .centerAt(kEye)
+             .centerAt(sigil::geometry::path::fromSk(kEye))
              // Same clockwise baseline as the top caption, half a turn
              // round. autoFlip turns the whole run over so it reads right
              // way up on the underside of the ring; glyph order and glyph
@@ -508,7 +492,7 @@ struct VertigoTitles {
                           .align = TextPath::Align::Center,
                           .offset = 3.0f,
                           .autoFlip = true})
-             .opacity(animate(from(0.0f).to(1.0f), ramp(1120, 500)))});
+             .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = std::chrono::duration<double, std::milli>(500), .delay = std::chrono::duration<double, std::milli>(1120)}))});
 
     // the card slug: four of them stacked in the same corner, each riding
     // its own card's opacity — so the caption cross-dissolves with the
@@ -526,7 +510,7 @@ struct VertigoTitles {
           .key(std::string("slug") + kCards[i].tag)
           .left(22)
           .top(20)
-          .opacity(&cardA[i]);
+          .opacity(cardA[i]);
     })});
     panel.children(
         {text("T = 6π · N = 1100 · TURNTABLE 18°/s · easeNone")
@@ -535,14 +519,14 @@ struct VertigoTitles {
              .key("slug-rig")
              .left(22)
              .bottom(20)
-             .opacity(animate(from(0.0f).to(1.0f), ramp(1200, 400))),
+             .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = std::chrono::duration<double, std::milli>(400), .delay = std::chrono::duration<double, std::milli>(1200)})),
          // Film gate: grain, and NO vignette. The one colour source located
          // for this passage describes a flat saturated field — cool tones and
          // warm tones, not a centre that falls off to black. A ramp to the
          // corners is a modern device and it was reading as the subject.
          box()
              .inset(0)
-             .fill(filmGrain)
+             .fill(sigil::material::skia::base(filmGrain))
              .blendMode(material::BlendMode::Overlay)
              .opacity(0.42f),
          // the bezel is its OWN node: trim() on the panel would reveal the
@@ -552,8 +536,7 @@ struct VertigoTitles {
              .inset(0)
              .borderRadius({10})
              .fill(Fill::none())
-             .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
-                                         ramp(260, 480, sigil::motion::ease::outCubic))),
+             .stroke(spans::upTo(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = std::chrono::duration<double, std::milli>(480), .delay = std::chrono::duration<double, std::milli>(260), .ease = sigil::motion::ease::outCubic})),
                      stroke(2.0f, Fill::color(kKeyline),
                             PathFormat::Align::Inner))});
     return panel;
@@ -571,6 +554,7 @@ struct VertigoTitles {
              .stroke(stroke(0.8f, Fill::color(hexColor(0x2E5C9E, 0.55f))))
              .rotate(turntable()),
          text("VERTIGO", hollow(faceDisplay, 34, kBone, 1.1f, 4.0f))
+             .ink(hollowInk(kBone, 1.1f))
              .key("spec-outline"),
          text("SAUL BASS · JOHN WHITNEY")
              .font({.face = faceDisplay, .size = 14, .track = 2.0f})
@@ -630,8 +614,7 @@ struct VertigoTitles {
       return document::paragraph(words)
           .font({.size = 10.5f, .color = kSteel, .track = 0.3f})
           .key("rig" + std::to_string(i))
-          .opacity(animate(from(0.0f).to(1.0f),
-                           ramp(900.0f + (float)i * 90.0f, 300)));
+          .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = std::chrono::duration<double, std::milli>(300), .delay = std::chrono::duration<double, std::milli>(900.0f + (float)i * 90.0f)}));
     };
     return plate(176).gap(5).children(
         {document::h2("THE M-5 GUN DIRECTOR")
@@ -681,8 +664,7 @@ struct VertigoTitles {
       sources.push_back(
           {.words = kSrc[i],
            .ink = Fill::color(kSteelDim),
-           .opacity = animate(from(0.0f).to(1.0f),
-                              ramp(520.0f + (float)i * 70.0f, 260))});
+           .opacity = sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = std::chrono::duration<double, std::milli>(260), .delay = std::chrono::duration<double, std::milli>(520.0f + (float)i * 70.0f)})});
 
     {
       // Bound round the masthead only: everything under it is set in the
@@ -692,19 +674,17 @@ struct VertigoTitles {
           {sketch::kit::titleCard(
                {.eyebrow = {.words = "PRECESSING LISSAJOUS FIGURES",
                             .opacity =
-                                animate(from(0.0f).to(1.0f), ramp(0, 260)),
-                            .lift = animate(from(8.0f).to(0.0f), ramp(0, 260))},
+                                sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = std::chrono::duration<double, std::milli>(260), .delay = std::chrono::duration<double, std::milli>(0)}),
+                            .lift = sigil::motion::animate({.from = 8.0f, .to = 0.0f, .duration = std::chrono::duration<double, std::milli>(260), .delay = std::chrono::duration<double, std::milli>(0)})},
                 .title = {.words = "VERTIGO, 1958",
                           .textFx = Track{.effect = textFx::enter(textFx::rise(18.0f)),
                                       .tween = {.duration = 420ms, .delay = sigil::motion::stagger({0ms, 0ms})}, 
-                                      .progress = animate(
-                                          from(0.0f).to(1.0f),
-                                          ramp(140, 900, sigil::motion::ease::outExpo))}},
+                                      .progress = sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = std::chrono::duration<double, std::milli>(900), .delay = std::chrono::duration<double, std::milli>(140), .ease = sigil::motion::ease::outExpo})}},
                 .subtitle = {.words = "Saul Bass, title design — John "
                                       "Whitney, spirals — Paramount, "
                                       "dir. Alfred Hitchcock",
                              .opacity =
-                                 animate(from(0.0f).to(1.0f), ramp(420, 240))},
+                                 sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = std::chrono::duration<double, std::milli>(240), .delay = std::chrono::duration<double, std::milli>(420)})},
                 .notes = std::move(sources),
                 .align = Align::Stretch,
                 .key = "head"})
@@ -717,8 +697,7 @@ struct VertigoTitles {
              .height(1)
              .fill(Fill::color(kKeyline))
              .transformOrigin(pct(0), pct(50))
-             .scale(animate(from(0.0f).to(1.0f),
-                            ramp(200, 620, sigil::motion::ease::outCubic))),
+             .scale(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = std::chrono::duration<double, std::milli>(620), .delay = std::chrono::duration<double, std::milli>(200), .ease = sigil::motion::ease::outCubic})),
          // ---- body -----------------------------------------------------
          box().row().gap(32).height(kPanelH).children(
              {screenPanel(),
@@ -732,7 +711,7 @@ struct VertigoTitles {
          // animated, so the baked texture stays valid for the whole run.
          box()
              .inset(0)
-             .fill(paperGrain)
+             .fill(sigil::material::skia::base(paperGrain))
              .blendMode(material::BlendMode::Overlay)
              .opacity(0.16f)
              .cache(Cache::Texture)});
@@ -741,6 +720,10 @@ struct VertigoTitles {
 
   // ------------------------------------------------------------------
   void setup(sketch::SketchContext& ctx) {
+    for (auto& value : growth) value = sigil::motion::animatable(value.value());
+    for (auto& value : cardA) value = sigil::motion::animatable(value.value());
+    for (auto& value : penA) value = sigil::motion::animatable(value.value());
+
     sketch::kit::stage(
         ctx,
         {.size = SkSize::Make(kW, kH), .captureAt = 5.2, .background = kInk});
@@ -750,11 +733,11 @@ struct VertigoTitles {
     // order — which is the whole reason the face verb takes a chain.
     faceDisplay = weave::ports::face(
         {"SuperClarendon", "Super Clarendon", "Rockwell", "Bodoni 72"},
-        SkFontStyle::Bold());
+        sigil::weave::FaceStyle{.weight = 700});
     // News Gothic is NOT installed — Helvetica Neue stands in, condensed.
     faceGothic = weave::ports::face({"Helvetica Neue", "Helvetica"});
     faceGothicBold = weave::ports::face({"Helvetica Neue", "Helvetica"},
-                                        SkFontStyle::kBold_Weight);
+                                        700);
 
     // ---- the iris: TWO gradient kinds flattened into one shader ----
     // radial sepia ramp (pupil → bright inner iris → limbus → dark) with
@@ -766,14 +749,14 @@ struct VertigoTitles {
       fibres.push_back({(float)i / 96.0f, {v + j, v + j, v + j, 1}});
     }
     irisMat = material::from(material::radialGradient(
-              kEye, 360.0f,
+              sigil::geometry::path::fromSk(kEye), 360.0f,
               {{0.00f, hexColor(0x100C09)},  // pupil
                {0.11f, hexColor(0x17110B)},
                {0.17f, hexColor(0x8A6A44)},  // bright inner iris
                {0.40f, hexColor(0x6E5230)},
                {0.72f, hexColor(0x6A5030)},
                {1.00f, hexColor(0x36271A)}},
-              {.units = material::GradientUnits::Pixels})).layer(material::conicGradient(kEye, fibres,
+              {.units = material::GradientUnits::Pixels})).layer(material::conicGradient(sigil::geometry::path::fromSk(kEye), fibres,
                                {.units = material::GradientUnits::Pixels,
                                 .startDegrees = 0.0f,
                                 .endDegrees = 360.0f}), {.blend = material::BlendMode::SoftLight});
@@ -786,8 +769,8 @@ struct VertigoTitles {
     // ---- the perpetual loop --------------------------------------
     // One clock, and the card cycle's own three cells. Everything the
     // turntable and the nib need is derived from these where it is used.
-    ctx.engine.add([this, &ticker = ctx.engine] {
-      const double t = ticker.elapsed();
+    ctx.engine.timer([this, &ticker = ctx.engine] {
+      const double t = ticker.elapsed().count();
       secs = (float)t;
       const double cycle = std::fmod(t, 16.0);
       for (int i = 0; i < 4; ++i) {

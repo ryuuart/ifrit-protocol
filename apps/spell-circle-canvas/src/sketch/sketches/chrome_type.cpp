@@ -35,6 +35,8 @@
 
 // TAGS: Typography/Lettering
 
+#include <sigilmaterial/paint/Bases.h>
+#include <sigilweave/style/Face.h>
 #include <sigilcompose/brush/Brush.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
@@ -80,7 +82,7 @@ weave::TextStyle wordmark(material::Color colour = {0.7f, 0.73f, 0.78f, 1}) {
   return weave::textStyle(
       {.face = weave::ports::face(
            {"Helvetica Neue", "Inter", "Arial Black", "Helvetica"},
-           SkFontStyle::Bold()),
+           sigil::weave::FaceStyle{.weight = 700}),
        .size = kDisplay,
        .color = colour,
        .track = 1.5f,
@@ -172,7 +174,7 @@ struct ChromeType {
                      u8"a rectangle or the contours of a word.",
          .footer = u8"Boundary::Auto uses the box. Boundary::Glyphs uses "
                    u8"the shaped letters. The material stays the same.",
-         .ground = material::Paint::linearGradient(
+         .ground = sigil::material::linearGradient(
              {0, 0}, {0, c::kH}, {c::kGroundLift, c::kGround},
              {.units = material::GradientUnits::Pixels})},
         kit::cells(

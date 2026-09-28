@@ -6,12 +6,11 @@
 
 #include <include/core/SkRect.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/program/Shader.h>
 
 #include <algorithm>
 #include <cmath>
 #include <glm/vec2.hpp>
-#include <memory>
 #include <string>
 #include <string_view>
 
@@ -34,15 +33,6 @@ inline TextPaintParameters textPaintParameters(const SkRect& bounds,
           {std::max(1.0f, bounds.width()), std::max(1.0f, bounds.height())},
           timeSeconds,
           {std::sin(timeSeconds * 0.83f), std::cos(timeSeconds * 0.61f)}};
-}
-
-inline std::shared_ptr<const sigil::material::Recipe> textPaintRecipe(
-    const char* name, std::string_view body) {
-  using sigil::material::Recipe;
-  using sigil::material::Target;
-  return std::make_shared<const Recipe>(
-      Recipe::of<TextPaintParameters>(name).body(Target::SkSL,
-                                                 std::string(body)));
 }
 
 inline constexpr std::string_view kWaterSkSL = R"SHADER(
@@ -314,45 +304,39 @@ half4 main(float2 fragCoord) {
 )SHADER";
 
 inline sigil::material::Material water(const SkRect& bounds, float timeSeconds) {
-  static const std::shared_ptr<const sigil::material::Recipe> recipe =
-      textPaintRecipe("text_paints.water", kWaterSkSL);
-  return sigil::material::Material(recipe,
-                                   textPaintParameters(bounds, timeSeconds));
+  return sigil::material::shader(
+      kWaterSkSL, textPaintParameters(bounds, timeSeconds),
+      {.key = "text_paints.water"});
 }
 
 inline sigil::material::Material meshGradient(const SkRect& bounds, float timeSeconds) {
-  static const std::shared_ptr<const sigil::material::Recipe> recipe =
-      textPaintRecipe("text_paints.meshGradient", kMeshGradientSkSL);
-  return sigil::material::Material(recipe,
-                                   textPaintParameters(bounds, timeSeconds));
+  return sigil::material::shader(
+      kMeshGradientSkSL, textPaintParameters(bounds, timeSeconds),
+      {.key = "text_paints.meshGradient"});
 }
 
 inline sigil::material::Material sparkle(const SkRect& bounds, float timeSeconds) {
-  static const std::shared_ptr<const sigil::material::Recipe> recipe =
-      textPaintRecipe("text_paints.sparkle", kSparkleSkSL);
-  return sigil::material::Material(recipe,
-                                   textPaintParameters(bounds, timeSeconds));
+  return sigil::material::shader(
+      kSparkleSkSL, textPaintParameters(bounds, timeSeconds),
+      {.key = "text_paints.sparkle"});
 }
 
 inline sigil::material::Material starNest(const SkRect& bounds, float timeSeconds) {
-  static const std::shared_ptr<const sigil::material::Recipe> recipe =
-      textPaintRecipe("text_paints.starNest", kStarNestSkSL);
-  return sigil::material::Material(recipe,
-                                   textPaintParameters(bounds, timeSeconds));
+  return sigil::material::shader(
+      kStarNestSkSL, textPaintParameters(bounds, timeSeconds),
+      {.key = "text_paints.starNest"});
 }
 
 inline sigil::material::Material clouds(const SkRect& bounds, float timeSeconds) {
-  static const std::shared_ptr<const sigil::material::Recipe> recipe =
-      textPaintRecipe("text_paints.clouds", kCloudsSkSL);
-  return sigil::material::Material(recipe,
-                                   textPaintParameters(bounds, timeSeconds));
+  return sigil::material::shader(
+      kCloudsSkSL, textPaintParameters(bounds, timeSeconds),
+      {.key = "text_paints.clouds"});
 }
 
 inline sigil::material::Material tunnel(const SkRect& bounds, float timeSeconds) {
-  static const std::shared_ptr<const sigil::material::Recipe> recipe =
-      textPaintRecipe("text_paints.tunnel", kTunnelSkSL);
-  return sigil::material::Material(recipe,
-                                   textPaintParameters(bounds, timeSeconds));
+  return sigil::material::shader(
+      kTunnelSkSL, textPaintParameters(bounds, timeSeconds),
+      {.key = "text_paints.tunnel"});
 }
 
 }  // namespace text_paints

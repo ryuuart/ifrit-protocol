@@ -45,14 +45,14 @@ struct Ink {
   std::string title;
   std::string control;
   std::string note;
-  material::Paint paint;
+  material::Material paint;
   /** The box the paint is stretched over; the passage's own text box
    *  unless the ink says otherwise. */
   PaintBox box = PaintBox::Element;
 };
 
-material::Paint field(material::Material recipe) {
-  return material::Paint::recipe(std::move(recipe));
+material::Material field(material::Material recipe) {
+  return recipe;
 }
 
 std::vector<Ink> inks() {
@@ -74,7 +74,7 @@ std::vector<Ink> inks() {
       // the 22 px it was drawn at; the bounds place only the origin.
       {"sparkle", "SPARKLE OVER A BASE", "sparkle(px, t) · plus · Subtree",
        "Stated over the passage's pixels, where its cells keep their size.",
-       material::from({0.23f, 0.30f, 0.46f, 1}).layer(field(text_paints::sparkle(SkRect::MakeWH(220, 70), kMoment)), {.blend = material::BlendMode::PlusLighter}),
+       material::from(sigil::material::Color{0.23f, 0.30f, 0.46f, 1}).layer(field(text_paints::sparkle(SkRect::MakeWH(220, 70), kMoment)), {.blend = material::BlendMode::PlusLighter}),
        PaintBox::Subtree},
       {"star-nest", "STAR NEST", "starNest(unit, t)",
        "Dense light inside the letterforms; small type keeps its warmth.",

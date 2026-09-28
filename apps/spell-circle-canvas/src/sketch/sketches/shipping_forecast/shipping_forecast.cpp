@@ -48,11 +48,13 @@
 
 // TAGS: Typography/Effects, Motion/Transitions
 
+#include <sigilmotion/time/Duration.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilmaterial/paint/Bases.h>
-#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Presets.h>
 #include <sigilcompose/kit/Rows.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigildata/decode/Json.h>
@@ -149,7 +151,7 @@ constexpr float kLowDeepens = 0.84f;
  *  @p radius from the middle of the islands. */
 SkPoint compass(float bearing, float radius) {
   const float radians = (bearing - 90) * std::numbers::pi_v<float> / 180;
-  return arrange::onEllipse(kEye, {radius, radius}, radians);
+  return sigil::geometry::path::toSk(arrange::onEllipse(sigil::geometry::path::fromSk(kEye), {radius, radius}, radians));
 }
 
 /** A SEA AREA AND ITS BEARING, degrees clockwise from north — rounded to
@@ -317,8 +319,8 @@ struct ShippingForecast {
    *  rise at @p from on the bulletin's clock. */
   [[nodiscard]] Element heroLine(const data::Json& line, const char* key,
                                  float from) {
-    static const material::Paint ramp =
-        material::Paint::linearGradient({0.5f, 0.0f}, {0.5f, 1.0f},
+    static const sigil::material::Material ramp =
+        sigil::material::linearGradient({0.5f, 0.0f}, {0.5f, 1.0f},
                                               {{0.00f, hexColor(0xFFFBF2)},
                                                {0.52f, hexColor(0xE9E5DB)},
                                                {1.00f, hexColor(0xC9A46A)}});
@@ -332,7 +334,7 @@ struct ShippingForecast {
                      .tween = {.duration = 560ms, .delay = motion::stagger({0ms, 320ms}, {.from = motion::StaggerFrom::First})}, 
                      .unit = weave::Unit::Glyph,
                      .progress = beat(from, from + 2.0f)})
-            .textFx({.effect = textFx::variableAxisSweep("GRAD", 400, 880),
+            .textFx({.effect = textFx::enter(textFx::variableAxisSweep("GRAD", 400, 880)),
                      .tween = {.duration = 620ms, .delay = motion::stagger(34ms)}, 
                      .progress = motion::bind(seconds, {.from = {0, kBreathPeriod}, .envelope = motion::envelope::cosine()})}),
     });
@@ -367,17 +369,17 @@ struct ShippingForecast {
                      {0.62f, hexColor(0x090E15)},
                      {1.0f, material::withAlpha(kSea, 0)}},
                     {.extent = material::RadialExtent::ClosestSide})),
-                kit::ring(kEye, kRingRadius + 21,
+                kit::ring(sigil::geometry::path::fromSk(kEye), kRingRadius + 21,
                           stroke(1, Fill::var("keyline"))),
-                kit::ring(kEye, kInnerRadius, stroke(1, Fill::var("keyline"))),
-                kit::ring(kEye, kPorthole,
+                kit::ring(sigil::geometry::path::fromSk(kEye), kInnerRadius, stroke(1, Fill::var("keyline"))),
+                kit::ring(sigil::geometry::path::fromSk(kEye), kPorthole,
                           stroke(1, Fill::var("keyline-deep"))),
             }),
         pressureChart().opacity(beat(0.40f, 1.60f)),
         readingHand(),
         // The area being read keeps its slice of the ring lit once the hand
         // has reached it, from the hairline out to the ticks.
-        kit::disc(kEye, kRingRadius + 21)
+        kit::disc(sigil::geometry::path::fromSk(kEye),kRingRadius + 21)
             .key("reading-slice")
             .shape(sigil::geometry::shapes::sector(
                 readingBearing - 90 - 7, 14, kInnerRadius / (kRingRadius + 21)))
@@ -392,7 +394,7 @@ struct ShippingForecast {
                    .width(read ? 1.5f : 1)
                    .height(read ? 18 : 9)
                    .rotate(area.bearing)
-                   .centerAt(compass(area.bearing, kRingRadius + (read ? 32 : 28)))
+                   .centerAt(sigil::geometry::path::fromSk(compass(area.bearing, kRingRadius + (read ? 32 : 28))))
                    .fill(Fill::var(read ? "amber" : "slate-dim"))
                    .opacity(beat(at - 0.08f, at + 0.30f));
              }),
@@ -401,7 +403,7 @@ struct ShippingForecast {
                return text(letter)
                    .styleClass("cardinal")
                    .key("cardinal" + std::to_string(quarter))
-                   .centerAt(compass(90.0f * quarter, kRingRadius + 46))
+                   .centerAt(sigil::geometry::path::fromSk(compass(90.0f * quarter, kRingRadius + 46)))
                    .opacity(beat(0.10f, 1.20f));
              }),
         each(areas,
@@ -423,7 +425,7 @@ struct ShippingForecast {
              }),
         // A lamp comes up behind the name as it arrives, spreading from
         // the middle, and breathes with the grade the name breathes on.
-        kit::disc(kEye, kPorthole)
+        kit::disc(sigil::geometry::path::fromSk(kEye),kPorthole)
             .key("lamp")
             .fill(material::radialGradient(
                 {kPorthole, kPorthole}, kPorthole,
@@ -458,7 +460,7 @@ struct ShippingForecast {
     const float last = areas.back().bearing;
     const float finished = reachedAt(last);
     const float radius = kRingRadius + 21;
-    return kit::disc(kEye, radius)
+    return kit::disc(sigil::geometry::path::fromSk(kEye),radius)
         .key("reading-hand")
         .rotate(motion::bind(cycle, {.from = {kReadingStarts, reachedAt(readingBearing)}, .clampFrom = true, .to = {first - 90, readingBearing - 90}}))
         .opacity(motion::bind(cycle, {.from = {0, kLoop}, .envelope = motion::envelope::trapezoid((kReadingStarts - 0.20f) / kLoop, (kReadingStarts + 0.20f) / kLoop, finished / kLoop, (finished + 0.80f) / kLoop)}))
@@ -516,14 +518,14 @@ struct ShippingForecast {
       return box()
           .width(across * 2)
           .height(across * 1.56f)
-          .centerAt(centre)
+          .centerAt(sigil::geometry::path::fromSk(centre))
           .rotate(tilt)
           .shape(sigil::geometry::shapes::circle())
           .fill(Fill::none())
           .stroke(stroke(1, Fill::var(bold ? "isobar-bold" : "isobar")));
     };
     const auto figure = [](SkPoint at, const data::Json& words) {
-      return text(words).styleClass("millibars").width(60).centerAt(at);
+      return text(words).styleClass("millibars").width(60).centerAt(sigil::geometry::path::fromSk(at));
     };
     std::vector<Element> lowRings, highRings;
     for (int step = 0; step < 8; ++step) {
@@ -540,9 +542,9 @@ struct ShippingForecast {
         .overflow(Overflow::Clip)
         .key("pressure-chart")
         .children({
-            box().cover().key("high").opacity(drift(1).invert().target(0.45f, 1)).children({
+            box().cover().key("high").opacity(motion::bind(drift(1), {.to = {1, 0.45f}})).children({
                 box().cover().key("high-isobars").children(std::move(highRings)),
-                text(high["mark"]).styleClass("centre").centerAt(highAt),
+                text(high["mark"]).styleClass("centre").centerAt(sigil::geometry::path::fromSk(highAt)),
                 figure(highAt + below, high["reading"]),
             }),
             box()
@@ -555,9 +557,9 @@ struct ShippingForecast {
                         .cover()
                         .key("low-isobars")
                         .transformOrigin(Dimension(lowAt.x()), Dimension(lowAt.y()))
-                        .scale(drift(kLowDeepens - 1).offset(1))
+                        .scale(motion::bind(drift(kLowDeepens - 1), {.to = {1, 2}}))
                         .children(std::move(lowRings)),
-                    text(low["mark"]).styleClass("centre").centerAt(lowAt),
+                    text(low["mark"]).styleClass("centre").centerAt(sigil::geometry::path::fromSk(lowAt)),
                     figure(lowAt + below, low["now"])
                         .opacity(motion::bind(cycle, {.from = {6.0f, 7.0f}, .clampFrom = true, .to = {1.0f, 0.0f}})),
                     figure(lowAt + below, low["later"])
@@ -655,11 +657,11 @@ struct ShippingForecast {
             .textFx(words(initials, textFx::enter(textFx::rise(16)), 460, 1.75f, 4.10f))
             .textFx(words(initials & !selectors::style("term") & !figures,
                           textFx::sequence(
-                              textFx::variableAxisSweep("GRAD", 400, 900)
+                              textFx::enter(textFx::variableAxisSweep("GRAD", 400, 900))
                                   .until(0.45f),
-                              textFx::variableAxisSweep("GRAD", 900, 640)),
+                              textFx::enter(textFx::variableAxisSweep("GRAD", 900, 640))),
                           620, 1.75f, 4.10f))
-            .textFx(words(figures, textFx::variableAxisSweep("GRAD", 400, 900),
+            .textFx(words(figures, textFx::enter(textFx::variableAxisSweep("GRAD", 400, 900)),
                           460, 1.75f, 4.10f))
             .textFx(words(weave::selectors::each(weave::Unit::Word).drop(1),
                           textFx::enter(textFx::rise(9)), 500, 1.83f, 4.30f)),
@@ -861,9 +863,9 @@ struct ShippingForecast {
     for (const Area& area : areas)
       if (area.name == reading) readingBearing = area.bearing;
 
-    ctx.engine.add([this, &ticker = ctx.engine] {
-      const double elapsed = ticker.elapsed();
-      cycle = motion::phase(elapsed, kLoop) * kLoop;
+    ctx.engine.timer([this, &ticker = ctx.engine] {
+      const double elapsed = ticker.elapsed().count();
+      cycle = motion::phase(sigil::motion::Duration(elapsed), sigil::motion::Duration(kLoop)) * kLoop;
       seconds = (float)elapsed;
     });
 
