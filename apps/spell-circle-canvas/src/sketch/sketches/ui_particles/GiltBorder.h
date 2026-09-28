@@ -78,7 +78,7 @@ inline Element flourishCard(const FlourishStyle& s, float w, float h,
       .width(w)
       .height(h)
       .borderRadius({radius})
-      .background(sigil::compose::shadow({0, 0, 0, 0.5f}, {0, 4}, 10))
+      .background(sigil::compose::shadow(sigil::material::Color{0, 0, 0, 0.5f}, {0, 4}, 10))
       .fill(flourishParchment(s))
       .foreground(sigil::compose::stroke(2.4f, Fill::color(s.gold)))
       .foreground(flourishVine(s, 16.0f, 20.0f, 14.0f))

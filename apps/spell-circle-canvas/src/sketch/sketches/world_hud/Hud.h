@@ -1,9 +1,10 @@
 #pragma once
 
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Brushes.h>
-#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcompose/core/Instances.h>
 #include <sigilcompose/core/Pattern.h>
@@ -110,12 +111,9 @@ constexpr float kSlotsX = (kW - kSlotsW) * 0.5f;
  *  colour on top. At 10px over terrain that is the whole legibility
  *  budget, so it is not optional — the HUD's root sets it once and every
  *  line inherits it. */
-inline sigil::weave::PaintLayer shade() {
-  sigil::weave::PaintLayer layer;
-  layer.paint.setColor4f({0, 0, 0, 0.9f}, nullptr);
-  layer.paint.setAntiAlias(true);
-  layer.offset = {1, 1};
-  return layer;
+inline sigil::material::Material shadedInk(sigil::material::Color ink) {
+  return sigil::material::from(ink).effects(sigil::material::Filter::shadow(
+      {0, 0, 0, 0.9f}, {.offset = {1, 1}}));
 }
 
 /** A line's own fields over the HUD's voice: its size, tracking and
@@ -145,7 +143,7 @@ inline Element track(float w, float h) {
 inline Element boneFrame(float w, float h, float radius = 3) {
   return skit::well({.width = Dimension(w),
                      .height = Dimension(h),
-                     .ground = Paint::linearGradient(
+                     .ground = sigil::material::linearGradient(
                          {0, 0}, {0, h},
                          {{0.0f, kBoneHi}, {0.45f, kBone}, {1.0f, kBoneLo}},
                          {.units = material::GradientUnits::Pixels}),
@@ -184,7 +182,7 @@ struct Bar {
   material::Color color{1, 1, 1, 1};
   float fraction = 1.0f;
   float decay = 0.0f;
-  const sigil::motion::Animatable<float>& live = nullptr;
+  std::optional<sigil::motion::Animatable<float>> live;
   bool ticks = false;
 };
 
@@ -192,7 +190,7 @@ inline Element bar(const Bar& b) {
   const float padX = (b.frameW - b.innerW) * 0.5f;
   const float padY = (b.frameH - b.innerH) * 0.5f;
   const material::Color c = b.color;
-  const Paint body = Paint::linearGradient(
+  const sigil::material::Material body = sigil::material::linearGradient(
       {0, 0}, {0, b.innerH},
       {{0.0f,
         {std::min(1.0f, c.r * 1.45f + 0.06f),
@@ -214,7 +212,7 @@ inline Element bar(const Bar& b) {
     e.children({box()
                     .rect(padX, padY, b.innerW, b.innerH)
                     .transformOrigin(pct(0), pct(50))
-                    .scaleX(b.live)
+                    .scaleX(*b.live)
                     .fill(body)});
   else
     e.children({box()
@@ -224,7 +222,7 @@ inline Element bar(const Bar& b) {
   if (b.ticks)
     e.children({box()
                     .rect(padX, padY, b.innerW, b.innerH)
-                    .foreground(styles::TickRail{.color = kPoiseTick,
+                    .foreground(styles::TickRail{.ink = kPoiseTick,
                                                  .pitch = b.innerW / 6.0f,
                                                  .minor = 10.0f,
                                                  .major = 10.0f,
@@ -238,9 +236,9 @@ inline Element bar(const Bar& b) {
 /** Hotbar item glyphs — paths, so a slot never needs a sprite. */
 enum class Glyph { Sword, Bow, Fire, Frost, Heal, Shield, Dash, Bomb };
 
-inline std::function<SkPath(SkSize)> glyphPath(Glyph g) {
-  return [g](SkSize s) {
-    const float w = s.width(), h = s.height(), cx = w * 0.5f;
+inline std::function<sigil::geometry::path::Outline(glm::vec2)> glyphPath(Glyph g) {
+  return [g](glm::vec2 s) {
+    const float w = s.x, h = s.y, cx = w * 0.5f;
     SkPathBuilder b;
     switch (g) {
       case Glyph::Sword:
@@ -273,8 +271,8 @@ inline std::function<SkPath(SkSize)> glyphPath(Glyph g) {
       case Glyph::Frost:
         for (int i = 0; i < 3; ++i) {
           const SkPoint arm =
-              arrange::onRing((size_t)i, 6, {0, 0}, {w * 0.36f, h * 0.36f},
-                              0.0f, 6.2831853f, arrange::Turn::Closed);
+              sigil::geometry::path::toSk(arrange::onRing((size_t)i, 6,
+          {.center = {0, 0}, .radii = {w * 0.36f, h * 0.36f}, .fromDegrees = (0.0f) * sigil::geometry::path::kRadToDeg, .sweepDegrees = (6.2831853f) * sigil::geometry::path::kRadToDeg, .turn = arrange::Turn::Closed}));
           const float dx = arm.fX, dy = arm.fY;
           b.moveTo(cx - dx, h * 0.5f - dy);
           b.lineTo(cx + dx, h * 0.5f + dy);
@@ -307,7 +305,7 @@ inline std::function<SkPath(SkSize)> glyphPath(Glyph g) {
         b.quadTo(cx + w * 0.34f, h * 0.16f, cx + w * 0.22f, h * 0.06f);
         break;
     }
-    return b.detach();
+    return sigil::geometry::path::fromSk(b.detach());
   };
 }
 

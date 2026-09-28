@@ -1,3 +1,4 @@
+#include <sigilmaterial/skia/Paint.h>
 #include "WinampBase.h"
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmaterial/paint/Bases.h>

@@ -2,6 +2,9 @@
 
 // TAGS: Interfaces/Desktop
 
+#include <sigilmotion/time/Duration.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilweave/style/Face.h>
 #include "WinampBase.h"
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Time.h>
@@ -26,21 +29,19 @@ auto WinampBase::describe() -> Element {
        box().inset(0).fill(deskMat).cache(Cache::Texture),
        each(windows, [](Dock& d, size_t i) {
          const auto ms = [](int at) { return std::chrono::milliseconds(at); };
-         Element w = std::move(d.window).left(60).top(d.top).opacity(animate(
-             motion::through(
-                 {{0ms, 0.0f}, {ms(d.atMs - 1), 0.0f}, {ms(d.atMs), 1.0f}}),
-             motion::ease::linear));
+         Element w = std::move(d.window).left(60).top(d.top).opacity(sigil::motion::animate({.from = 0.0f, .keyframes = {{.to = 0.0f, .duration = (ms(d.atMs - 1)) - (0ms)}, {.to = 1.0f, .duration = (ms(d.atMs)) - (ms(d.atMs - 1))}}, .duration = (ms(d.atMs)) - (0ms), .delay = 0ms, .ease = motion::ease::linear}));
          if (i == 0)
            return w.transformOrigin(pct(50), pct(50))
-               .scale(animate(motion::from(0.9f).to(1.0f),
-                              {200ms, motion::ease::outBack(), ms(d.atMs)}));
+               .scale(sigil::motion::animate({.from = 0.9f, .to = 1.0f, .duration = 200ms, .delay = ms(d.atMs), .ease = motion::ease::outBack()}));
          return w.translateY(
-             animate(motion::from(-60.0f).to(0.0f),
-                     {250ms, motion::ease::outBack(), ms(d.atMs)}));
+             sigil::motion::animate({.from = -60.0f, .to = 0.0f, .duration = 250ms, .delay = ms(d.atMs), .ease = motion::ease::outBack()}));
        })});
 }
 
 auto WinampBase::setup(sketch::SketchContext& ctx) -> void {
+    for (auto& value : gain) value = sigil::motion::animatable(value.value());
+    for (auto& value : rowIn) value = sigil::motion::animatable(value.value());
+
   // Inside the llama beat, which runs 7.0-7.8 s: past its bounce and
   // before its fade. Every other second of the loop is missing it.
   using namespace wa;
@@ -62,7 +63,7 @@ auto WinampBase::setup(sketch::SketchContext& ctx) -> void {
 
   // The substituted monospace faces, measured rather than assumed.
   {
-    auto probe = [&](const sk_sp<SkTypeface>& tf) {
+    auto probe = [&](const sigil::weave::Face& tf) {
       const float w =
           ctx.measure(text(u8"MMMMMMMMMM", type(tf, 100.0f, kGreen))).width();
       return w > 1.0f ? w / 1000.0f : 0.602f;
@@ -112,7 +113,8 @@ auto WinampBase::setup(sketch::SketchContext& ctx) -> void {
   if (marqueeW < 1) marqueeW = n(300);
 
   // --- one steppable drives every idle loop.
-  ctx.engine.add([this](double dt) { step(dt); });
+  ctx.engine.timer([this](sigil::motion::Duration stepDuration) {
+      const double dt = stepDuration.count(); step(dt); });
 
   ctx.composer.render(describe());
   pushSlots(ctx, true);
@@ -174,7 +176,7 @@ auto WinampBase::step(double dt) -> void {
     float v = 0.0f;
     if (t > start) {
       const float u = (float)std::min(1.0, (t - start) / 0.70);
-      v = target * ch::easeOutElastic(u, 1.0f, 0.4f);
+      v = target * sigil::motion::ease::outElastic(1.0f, 0.4f)(u);
       if (t > start + 0.70) {
         // "live audio": an 8 Hz quantised wobble on the settled preset
         const int k = (int)std::floor((t - start) * 8.0);
@@ -204,7 +206,7 @@ auto WinampBase::step(double dt) -> void {
     // WHICH step, not the held seconds: the levels are reseeded once
     // per tick and the seed is the tick's own number, so `stepIndex` is
     // the verb and `quantizeTime` — which re-emits t — is not.
-    const long long stepT = motion::stepIndex(t, 12.0);
+    const long long stepT = motion::stepIndex(sigil::motion::Duration(t), 12.0);
     if (stepT != lastRoll) {
       lastRoll = stepT;
       for (int c = 0; c < kCols; ++c) {
@@ -264,7 +266,7 @@ auto WinampBase::step(double dt) -> void {
     if (u < 0.8) {
       const float f = (float)(u / 0.8);
       llama = f < 0.12f ? f / 0.12f : (f > 0.88f ? (1.0f - f) / 0.12f : 1.0f);
-      llamaPop = 0.85f + 0.15f * ch::easeOutBounce(std::min(1.0f, f * 4.0f));
+      llamaPop = 0.85f + 0.15f * sigil::motion::ease::outBounce()(std::min(1.0f, f * 4.0f));
     } else {
       llama = 0.0f;
       llamaPop = 1.0f;

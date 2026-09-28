@@ -7,24 +7,28 @@ struct WinampBase {
 
   // ---- THE bound outputs. Every idle motion is declared; only discrete
   // state (the digits, the 28-frame sliders, the track list) re-describes.
-  Out playPos{0.42f};   // [0,1] through the current track. One source for the
+  Out playPos = sigil::motion::animatable<float>(0.42f);   // [0,1] through the current track. One source for the
                         // seek thumb's position in px, the elapsed underlay's
                         // scaleX, the MM:SS readout and the playlist's
                         // running-time line, so none of them can disagree.
-  Out marqueePhase{0};  // px, wraps
-  Out volFrame{0};      // a HARD integer in 0..28: round(pct * 28), the
+  Out marqueePhase = sigil::motion::animatable<float>(0);  // px, wraps
+  Out volFrame = sigil::motion::animatable<float>(0);      // a HARD integer in 0..28: round(pct * 28), the
                         // player's 29 thumb positions over the sprite strip
-  Out balFrame{0};      // the same, and 14 is dead centre
+  Out balFrame = sigil::motion::animatable<float>(0);      // the same, and 14 is dead centre
   std::array<Out, 11> gain{};  // preamp + 10 bands, [-1,1]; drives the fader
                                // thumbs AND the response graph
-  Out graphDraw{0};
-  Out llama{0}, llamaPop{1};    // the title-bar easter egg
-  Out glint{0};                 // clutter-bar specular sweep
-  Out led{0};                   // play-status LED
+  Out graphDraw = sigil::motion::animatable<float>(0);
+  Out llama = sigil::motion::animatable<float>(0), llamaPop = sigil::motion::animatable(1.0f);    // the title-bar easter egg
+  Out glint = sigil::motion::animatable<float>(0);                 // clutter-bar specular sweep
+  Out led = sigil::motion::animatable<float>(0);                   // play-status LED
   std::array<Out, 25> rowIn{};  // playlist row reveal, in bands of four
 
   // ---- generated materials, held so their identity prunes ----
-  material::Paint steel, deskMat, lcdMat, faderTrack, graphMat;
+  material::Material steel{material::Color{0, 0, 0, 0}};
+material::Material deskMat{material::Color{0, 0, 0, 0}};
+material::Material lcdMat{material::Color{0, 0, 0, 0}};
+material::Material faderTrack{material::Color{0, 0, 0, 0}};
+material::Material graphMat{material::Color{0, 0, 0, 0}};
   Pattern gripTile, visDots, graphGrid, previewCheck;
 
   // ---- instancing: the spectrum analyser LEDs and the playlist rows ----

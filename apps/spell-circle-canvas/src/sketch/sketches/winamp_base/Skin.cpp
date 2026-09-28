@@ -1,3 +1,4 @@
+#include <sigilmaterial/skia/Color.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/values/Animatable.h>
@@ -51,10 +52,10 @@ auto WinampBase::buildMaterials() -> void {
       steps.push_back({lo, c});
       steps.push_back({hi, c});
     }
-    faderTrack = material::Paint::linearGradient({0, 0}, {0, 1}, steps);
+    faderTrack = sigil::material::linearGradient({0, 0}, {0, 1}, steps);
   }
 
-  graphMat = material::Paint::solid(kGraph);
+  graphMat = kGraph;
 
   // The title-bar grip: horizontal hairlines, as a rotated stripe tile.
   // TITLEBAR.BMP's grip rails are CREAM, not the body's blue-grey — the
@@ -162,8 +163,8 @@ auto WinampBase::titleBar(float wN, const char* label, bool wide, bool hasMin,
                      .opacity(motion::bind(llama, {.to = {1.0f, 0.0f}})),
                  caption(document::label("IT REALLY WHIPS THE LLAMA'S ASS!")
                              .font(pix(5.2f, true, 0.7f))
-                             .scale(&llamaPop))
-                     .opacity(&llama),
+                             .scale(llamaPop))
+                     .opacity(llama),
                  // the option/context menu, native 9x9 at x=6
                  wide ? box() : wbtn(6, "-"),
                  hasMin ? wbtn(wN - 31, "_") : box(), wbtn(wN - 21, "="),

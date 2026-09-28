@@ -2,13 +2,13 @@
 
 // Construction data and drawing primitives owned by this study.
 
-#include <sigilgeometry/path/Skia.h>
+#include <sigilweave/style/Face.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Decorations.h>
-#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcompose/core/Instances.h>
 #include <sigilcompose/core/Paint.h>
@@ -16,7 +16,7 @@
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Chrome.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Presets.h>
 #include <sigilcompose/kit/Marquee.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
@@ -141,18 +141,18 @@ constexpr std::array<material::Color, 16> kVis = {
 // the thing to preserve, and everything else is a deliberate monospace
 // approximation at the real cell size.
 
-inline sk_sp<SkTypeface> mono() {
-  return weave::ports::face({"Menlo", "Monaco"}, SkFontStyle::kNormal_Weight);
+inline sigil::weave::Face mono() {
+  return weave::ports::face({"Menlo", "Monaco"}, 400);
 }
-inline sk_sp<SkTypeface> monoBold() {
-  return weave::ports::face({"Menlo", "Monaco"}, SkFontStyle::kBold_Weight);
+inline sigil::weave::Face monoBold() {
+  return weave::ports::face({"Menlo", "Monaco"}, 700);
 }
-inline sk_sp<SkTypeface> arial() {
+inline sigil::weave::Face arial() {
   return weave::ports::face({"Arial", "Helvetica"},
-                            SkFontStyle::kNormal_Weight);
+                            400);
 }
 
-inline sigil::weave::TextStyle type(const sk_sp<SkTypeface>& tf, float size,
+inline sigil::weave::TextStyle type(const sigil::weave::Face& tf, float size,
                                     material::Color color, float track = 0,
                                     float condense = 1.0f) {
   return weave::textStyle({.face = tf,
@@ -263,8 +263,8 @@ inline Shape upDown(bool up) {
  *  the about/easter-egg hitzone at native 253,91,13,15. One drawing, keyed
  *  on its own name so the node settles between describes. */
 inline Shape bolt() {
-  return keyedShape(std::string_view("nullsoft-bolt"), [](SkSize s) {
-    const float w = s.width(), h = s.height();
+  return keyedShape(std::string_view("nullsoft-bolt"), [](glm::vec2 s) {
+    const float w = s.x, h = s.y;
     static const float p[7][2] = {
         {0.62f, 0.00f}, {0.05f, 0.56f}, {0.40f, 0.56f}, {0.24f, 1.00f},
         {0.95f, 0.40f}, {0.55f, 0.40f}, {0.92f, 0.00f}};
@@ -272,7 +272,7 @@ inline Shape bolt() {
     b.moveTo(p[0][0] * w, p[0][1] * h);
     for (int i = 1; i < 7; ++i) b.lineTo(p[i][0] * w, p[i][1] * h);
     b.close();
-    return b.detach();
+    return sigil::geometry::path::fromSk(b.detach());
   });
 }
 

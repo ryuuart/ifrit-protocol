@@ -7,7 +7,7 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/effects/SkPerlinNoiseShader.h>
 #include <sigildraw/Pen.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/paint/Bases.h>

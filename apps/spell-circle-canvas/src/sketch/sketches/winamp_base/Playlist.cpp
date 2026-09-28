@@ -1,3 +1,4 @@
+#include <sigilmaterial/skia/Paint.h>
 #include "WinampBase.h"
 #include <sigilmotion/values/Animatable.h>
 
@@ -120,7 +121,7 @@ auto WinampBase::trackList() -> Element {
         .row()
         .alignItems(Align::Center)
         .padding(0, n(3))
-        .opacity(&rowIn[i])
+        .opacity(rowIn[i])
         .translateY(motion::bind(rowIn[i], {.to = {n(2), n(2) + (-1.0f) * (n(2))}}))
         .children({ellipsized((int)i, std::to_string(i + 1) + ". " + tr.title,
                               st, n(listW - 40)),

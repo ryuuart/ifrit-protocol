@@ -444,8 +444,8 @@ struct UiParticles {
   }
 
   void update(double t, sketch::SketchContext& ctx) {
-    syncPool(chips, *chipPool, t, stepAlpha);
-    syncPool(posts, *postPool, t, stepAlpha);
+    syncPool(chips, *chipPool, t, stepAlpha.value());
+    syncPool(posts, *postPool, t, stepAlpha.value());
   }
 
   void setup(sketch::SketchContext& ctx) {
@@ -472,14 +472,12 @@ struct UiParticles {
     // `--video` and `--bench` run a different simulation from the sweep,
     // so what a plate shows would be a claim about the machine that took
     // it rather than about the declaration.
-    ticker.addFixed(
-        kStepHz,
-        [this] {
+    const auto fixedClock = ticker.timer([this] {
           step(chips, kSprite);
           step(posts, kPostW);
           return true;
-        },
-        8, stepAlpha);
+        }, {.stepRate = kStepHz, .catchUp = 8});
+    ticker.timer([this, clock = fixedClock] { stepAlpha = clock.betweenSteps(); });
 
     // A TIER IS AN ATLAS AND THE POOL THAT STAMPS IT. instances() fills
     // its parent, so each tier gets a full-canvas box and the pool's

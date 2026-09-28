@@ -93,7 +93,7 @@ inline Slice carvedFrameSlice(
     float density = 1.0f) {
   Slice nine;
   nine.asset = asset;
-  const int size = asset ? asset->size().width() : 96;
+  const int size = asset ? asset->size().x : 96;
   nine.xDivs = {size / 3, size * 2 / 3};
   nine.yDivs = {size / 3, size * 2 / 3};
   nine.density = density;

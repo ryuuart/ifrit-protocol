@@ -2,6 +2,9 @@
 
 // TAGS: Interfaces/Game
 
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilmaterial/paint/Bases.h>
 #include "Hud.h"
 #include <sigilmotion/ease/Ease.h>
 
@@ -37,6 +40,8 @@ struct WorldHud {
   worldhud::gm::Mesh valley = worldhud::valley();
 
   void setup(sketch::SetContext& ctx) {
+    for (auto& value : cooldown) value = sigil::motion::animatable(value.value());
+
     namespace wh = worldhud;
     ctx.canvas((int)kSceneSize.fWidth, (int)kSceneSize.fHeight);
     ctx.captureAt(6.0);
@@ -61,8 +66,8 @@ struct WorldHud {
     slotPool = std::make_shared<instancing::Pool>();
     for (int i = 0; i < wh::kSlotCount; ++i)
       slotPool->add({arrange::cellRect({i, 0}, {wh::kSlotFrame, wh::kSlotFrame},
-                                       {wh::kSlotGap, 0})
-                             .fLeft +
+                                       {.gap = {wh::kSlotGap, 0}})
+                             .left() +
                          wh::kSlotFrame * 0.5f,
                      wh::kSlotFrame * 0.5f});
     retained = hud();
@@ -113,9 +118,9 @@ struct WorldHud {
   world::Element overlayQuad(sigil::material::Texture texture) {
     const glm::vec3 forward = glm::normalize(lens.target - lens.eye);
     constexpr float kAt = 60.0f;
-    const SkSize frame =
+    const glm::vec2 frame =
         lens.extentAt(kAt, kSceneSize.fWidth / kSceneSize.fHeight);
-    const float h = frame.height(), w = frame.width();
+    const float h = frame.y, w = frame.x;
     const glm::vec3 at = lens.eye + forward * kAt;
     sigil::material::Material surface =
         sigil::material::surface::unlit({.baseColor = {1, 1, 1, 1}});
@@ -229,15 +234,15 @@ struct WorldHud {
                     const float x =
                         arrange::cellRect({(int)i, 0},
                                           {wh::kSlotFrame, wh::kSlotFrame},
-                                          {wh::kSlotGap, 0})
-                            .fLeft;
+                                          {.gap = {wh::kSlotGap, 0}})
+                            .left();
                     Element cell = box().rect(x, 0, wh::kSlotFrame, wh::kSlotFrame);
                     if (s.filled)
                       cell.children(
                           {box()
                                .rect(9, 9, 24.0f, 24.0f)
                                .shape(wh::glyphPath(s.glyph))
-                               .fill(Paint::linearGradient(
+                               .fill(sigil::material::linearGradient(
                                    {0, 0}, {0, 24},
                                    {{0.0f, wh::kBoneHi}, {1.0f, wh::kBone}},
                                    {.units = material::GradientUnits::Pixels}))
@@ -256,8 +261,8 @@ struct WorldHud {
                                .rect(3, 3, wh::kSlot - 4,
                                                       wh::kSlot - 4)
                                .transformOrigin(pct(50), pct(0))
-                               .scaleY(&cooldown[i - 1])
-                               .fill(Paint::linearGradient(
+                               .scaleY(cooldown[i - 1])
+                               .fill(sigil::material::linearGradient(
                                    {0, 0}, {0, wh::kSlot - 4},
                                    {{0.0f, {0.06f, 0.10f, 0.16f, 0.86f}},
                                     {1.0f, {0.10f, 0.16f, 0.24f, 0.72f}}},
@@ -265,7 +270,7 @@ struct WorldHud {
                                         material::GradientUnits::Pixels}))});
                     return cell.children({text(s.key)
                                               .font(wh::line(9, 0.6f))
-                                              .ink(wh::kInkDim)
+                                              .ink(wh::shadedInk(wh::kInkDim))
                                               .at({4, wh::kSlotFrame - 13})});
                   }),
              // the selected-exp chip skillbar.rs hangs off slot10
@@ -314,7 +319,7 @@ struct WorldHud {
         .top(28)
         .width(d)
         .height(d)
-        .opacity(animate(motion::from(0.0f).to(1.0f), {420ms}))
+        .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 420ms}))
         .children(
             {box()
                  .inset(0)
@@ -330,7 +335,7 @@ struct WorldHud {
                                        .opacity(b.opacity)
                                        .blendMode(b.blend);
                                  }),
-                            box().inset(0).fill(Paint::radialGradient(
+                            box().inset(0).fill(sigil::material::radialGradient(
                                 {d * 0.5f, d * 0.5f}, d * 0.55f,
                                 {{0.0f, {0, 0, 0, 0}},
                                  {0.72f, {0, 0, 0, 0.25f}},
@@ -361,7 +366,7 @@ struct WorldHud {
                           .inset(9)
                           .shape(shapes::star(4, 0.22f))
                           .fill(
-                              Paint::solid({bone.r, bone.g, bone.b, 0.62f}))}),
+                              sigil::material::skia::base(Paint::solid({bone.r, bone.g, bone.b, 0.62f})))}),
              box()
                  .rect(d * 0.5f - 4, d * 0.5f - 4, 8.0f, 8.0f)
                  .shape(shapes::polygon(3))
@@ -374,7 +379,7 @@ struct WorldHud {
                  .borderRadius({d * 0.5f})
                  .foreground(stroke(
                      5.0f,
-                     material::Paint::linearGradient(
+                     sigil::material::linearGradient(
                          {0, 0}, {0, d}, {wh::kBoneHi, wh::kBone, wh::kBoneLo},
                          {.units = material::GradientUnits::Pixels}),
                      PathFormat::Align::Inner))
@@ -389,7 +394,7 @@ struct WorldHud {
                  .justifyContent(Justify::Center)
                  .children({text("1204, -388")
                                 .font(wh::line(10, 1.2f))
-                                .ink(wh::kInkDim)})});
+                                .ink(wh::shadedInk(wh::kInkDim))})});
   }
 
   /** Buff and debuff pips with their drain rings — buffs.rs colours. */
@@ -421,15 +426,14 @@ struct WorldHud {
         .gap(6)
         .at({28, 28})
         .zIndex(6)
-        .staggerChildren(70ms)
         .children(each(kPips, [drainRing](const Pip& p) {
           return box()
               .width(30.0f)
               .height(30.0f)
               .borderRadius({4})
-              .opacity(animate(motion::from(0.0f).to(1.0f), {320ms}))
-              .translateY(animate(motion::from(-10.0f).to(0.0f), {380ms}))
-              .fill(Paint::linearGradient(
+              .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 320ms, .delay = motion::stagger(70ms)}))
+              .translateY(sigil::motion::animate({.from = -10.0f, .to = 0.0f, .duration = 380ms, .delay = motion::stagger(70ms)}))
+              .fill(sigil::material::linearGradient(
                   {0, 0}, {0, 30},
                   {{0.0f, hexColor(0x2A2118)}, {1.0f, hexColor(0x120C08)}},
                   {.units = material::GradientUnits::Pixels}))
@@ -452,7 +456,7 @@ struct WorldHud {
                              .zIndex(1),
                          text(p.label)
                              .font(wh::line(9, 0.6f, 640))
-                             .ink(p.color)
+                             .ink(wh::shadedInk(p.color))
                              .zIndex(2)});
         }));
   }
@@ -479,14 +483,13 @@ struct WorldHud {
         .left(28)
         .bottom(70)
         .zIndex(6)
-        .staggerChildren(90ms)
         .children(each(kLines, [](const Line& l) {
           return box()
               .row()
               .alignItems(Align::Center)
               .gap(7)
-              .opacity(animate(motion::from(0.0f).to(1.0f), {420ms}))
-              .translateX(animate(motion::from(-24.0f).to(0.0f), {480ms}))
+              .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 420ms, .delay = motion::stagger(90ms)}))
+              .translateX(sigil::motion::animate({.from = -24.0f, .to = 0.0f, .duration = 480ms, .delay = motion::stagger(90ms)}))
               .children(
                   {box()
                        .width(16.0f)
@@ -495,7 +498,7 @@ struct WorldHud {
                        .fill({l.color.r * 0.28f, l.color.g * 0.28f,
                                            l.color.b * 0.28f, 1})
                        .foreground(stroke(1.0f, Fill::color(l.color))),
-                   text(l.text).font(wh::line(11, 0.4f)).ink(l.color)});
+                   text(l.text).font(wh::line(11, 0.4f)).ink(wh::shadedInk(l.color))});
         }));
   }
 
@@ -511,13 +514,12 @@ struct WorldHud {
         .right(0)
         .top(96)
         .zIndex(6)
-        .opacity(animate(motion::from(0.0f).to(1.0f),
-                         {360ms, motion::ease::outQuad, 220ms}))
+        .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 360ms, .delay = 220ms, .ease = motion::ease::outQuad}))
         .children(
             {text("CAVE TROLL").font(wh::line(15, 1.6f, 640)),
              text("Lv 27")
                  .font(wh::line(10, 1.4f))
-                 .ink(wh::kInkDim)
+                 .ink(wh::shadedInk(wh::kInkDim))
                  .margin(2, 0, 4, 0),
              box()
                  .width(168.0f)
@@ -543,14 +545,13 @@ struct WorldHud {
     // string, and the ink the strings are set in unless they name a dimmer or
     // a quality colour of their own.
     return stack()
-        .font({.underlays = {{wh::shade()}}})
-        .ink(wh::kInk)
+        .ink(wh::shadedInk(wh::kInk))
         .children(
             {box().column().at({28, 70}).zIndex(6).children(
                  {text("WELDRIN VALE").font(wh::line(20, 2.6f, 640)),
                   text("LEVEL 34  ·  CLEAR, LIGHT WIND")
                       .font(wh::line(11, 0.9f))
-                      .ink(wh::kInkDim)
+                      .ink(wh::shadedInk(wh::kInkDim))
                       .margin(5, 0, 0, 0)}),
              buffRow(), minimap(), targetPlate(), lootFeed(), barStack(),
              hotbar()});

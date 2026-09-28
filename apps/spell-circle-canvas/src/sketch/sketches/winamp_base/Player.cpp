@@ -1,3 +1,4 @@
+#include <sigilmaterial/skia/Paint.h>
 #include "WinampBase.h"
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/ease/Ease.h>
@@ -108,10 +109,10 @@ auto WinampBase::mainWindow() -> Element {
                         .opacity(motion::bind(glint, {.to = {2.0f, 0.0f}, .clamp = {0.0f, 0.75f}}))}),
            // play-status LED (native 26,28,9,9)
            at(box(), 26, 28, 9, 9)
-               .children({at(box(), 0, 1, 3, 7).fill(kGreen).opacity(&led),
+               .children({at(box(), 0, 1, 3, 7).fill(kGreen).opacity(led),
                           at(box(), 4, 2, 5, 5)
                               .fill(kGreen)
-                              .opacity(&led)
+                              .opacity(led)
                               .shape(tri(0))}),
            // MM:SS. In the original the four NUMBERS.BMP digits are 9x13 cells
            // at native x 48/60 and 78/90; here the readout is one 54-wide box
@@ -136,7 +137,7 @@ auto WinampBase::mainWindow() -> Element {
                    {at(box(), 2, 1, 154, 9)
                         .overflow(Overflow::Clip)
                         .children({kit::marquee(t(marqueeText(), pix(5)),
-                                                {.phase = &marqueePhase,
+                                                {.phase = marqueePhase,
                                                  .gap = n(40),
                                                  .contentWidth = marqueeW})})}),
            readout(111, 17, "192"), unit(130, 20, "kbps"),
@@ -157,14 +158,7 @@ auto WinampBase::mainWindow() -> Element {
            // each step is a hard cut — old displays do not fade in.
            at(box(), 0, 21, 275, 37)
                .fill(hexColor(0x090911))
-               .opacity(animate(motion::through({{0ms, 1.0f},
-                                                 {300ms, 1.0f},
-                                                 {310ms, 0.0f},
-                                                 {360ms, 0.0f},
-                                                 {370ms, 1.0f},
-                                                 {420ms, 1.0f},
-                                                 {430ms, 0.0f}}),
-                                motion::ease::linear)),
+               .opacity(sigil::motion::animate({.from = 1.0f, .keyframes = {{.to = 1.0f, .duration = 300ms}, {.to = 0.0f, .duration = 10ms}, {.to = 0.0f, .duration = 50ms}, {.to = 1.0f, .duration = 10ms}, {.to = 1.0f, .duration = 50ms}, {.to = 0.0f, .duration = 10ms}}, .duration = 430ms, .delay = 0ms, .ease = motion::ease::linear})),
            // volume / balance, and the EQ+PL toggles
            at(box(), 107, 57, 108, 13).children({slot("sliders")}),
            eqPlToggle(),
@@ -178,7 +172,7 @@ auto WinampBase::mainWindow() -> Element {
                    {at(box(), 1, 1, 246, 8)
                         .fill(hexColor(0x24243A))
                         .transformOrigin(pct(0), pct(50))
-                        .scaleX(&playPos),
+                        .scaleX(playPos),
                     raised(at(box(), 1, 0, 29, 10)
                                .fill(material::linearGradient(
                                    {0, 0}, {0, 1},
@@ -269,13 +263,8 @@ auto WinampBase::transportRow() -> Element {
                .fill(hexColor(0xE8F4FF, 0.55f))
                .blendMode(material::BlendMode::PlusLighter)
                .translateX(
-                   animate(motion::through({{600ms, n(10)}, {750ms, n(162)}}),
-                           motion::ease::linear))
-               .opacity(animate(motion::through({{590ms, 0.0f},
-                                                 {600ms, 1.0f},
-                                                 {735ms, 1.0f},
-                                                 {750ms, 0.0f}}),
-                                motion::ease::linear))});
+                   sigil::motion::animate({.from = n(10), .keyframes = {{.to = n(162), .duration = 150ms}}, .duration = 150ms, .delay = 600ms, .ease = motion::ease::linear}))
+               .opacity(sigil::motion::animate({.from = 0.0f, .keyframes = {{.to = 1.0f, .duration = 10ms}, {.to = 1.0f, .duration = 135ms}, {.to = 0.0f, .duration = 15ms}}, .duration = 160ms, .delay = 590ms, .ease = motion::ease::linear}))});
 }
 
 auto WinampBase::sliders(int vol, int bal) -> Element {
