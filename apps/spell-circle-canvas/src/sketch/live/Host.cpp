@@ -14,6 +14,8 @@
 #include <sigilcore/schedule/ConcurrentIo.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/image/Encode.h>
+#include <sigilio/advanced/Problems.h>
+#include <sigilio/hub/Hub.h>
 #include <sigilio/source/Sink.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilmaterial/color/Color.h>
@@ -309,6 +311,7 @@ bool Host::openSession(const Kind& kind) {
       key = m_options.sketchPath.stem().string();
       m_assets.mountSketch(key, m_options.sketchPath.parent_path());
     }
+    beginDeclaration();
     // Setup may fail after allocating retained descriptions or callbacks.
     // Finish the candidate before releasing the last working session.
     auto candidate = kind->open(
@@ -327,10 +330,45 @@ bool Host::openSession(const Kind& kind) {
   std::fprintf(stderr, "[sketch] set up in %.0f ms\n", measure::Milliseconds(opened.elapsed()).count());
   m_runtimeFailed = false;
   m_errorLog.clear();
+  m_problemLog.clear();
   m_frameTimes.reset();
   m_drawTimes.clear();
   m_presentedFrames = 0;
+  noteProblems();
   return true;
+}
+
+void Host::beginDeclaration() { io::clearProblems(m_assets.hub()); }
+
+void Host::noteProblems() {
+  std::string problems;
+  for (const io::Problem& problem : m_assets.hub().problems()) {
+    if (!problems.empty()) problems.push_back('\n');
+    problems += problem.uri;
+    if (problem.line) problems += ":" + std::to_string(*problem.line);
+    problems += ": " + problem.message;
+  }
+  if (problems == m_problemLog) return;
+  // The log may hold a failed build's output as well, which stands first
+  // and is never this function's to take back: only the words it wrote
+  // itself, at the end of the log, are replaced. A build that failed
+  // after them wrote over them, and its output stands alone.
+  std::string rest = m_errorLog;
+  if (!m_problemLog.empty() && rest.ends_with(m_problemLog)) {
+    rest.resize(rest.size() - m_problemLog.size());
+    while (!rest.empty() && rest.back() == '\n') rest.pop_back();
+  }
+  m_problemLog = std::move(problems);
+  m_errorLog = std::move(rest);
+  if (!m_errorLog.empty() && !m_problemLog.empty()) m_errorLog += "\n\n";
+  m_errorLog += m_problemLog;
+  if (m_problemLog.empty())
+    std::fprintf(stderr, "[sketch] every resource reads again\n");
+  else
+    std::fprintf(stderr,
+                 "[sketch] a resource could not be read — the sketch runs "
+                 "on with what its libraries keep\n%s\n",
+                 m_problemLog.c_str());
 }
 
 bool Host::restartSession() {
@@ -687,6 +725,7 @@ void Host::poll() {
         loadPython();
       } else {
         try {
+          beginDeclaration();
           m_session->redeclare();
         } catch (const std::exception& error) {
           sessionFailed(error);
@@ -694,6 +733,9 @@ void Host::poll() {
       }
     }
   }
+  // A library may report while the sketch draws as well as while it
+  // declares itself, so the list is read on every poll.
+  if (m_session && !m_runtimeFailed) noteProblems();
 }
 
 bool Host::frame(SkCanvas& canvas, double fixedDt) {

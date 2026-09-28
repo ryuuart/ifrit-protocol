@@ -83,6 +83,18 @@ embedding a scripting language — so a sketch never leaves the real API.
   alive under it — and it is the gap between a link and the dlopen after
   it that an id per host closes.
 * Compile errors overlay while the **last good sketch keeps running**.
+* **A resource the sketch reads that is wrong shows as a failed build
+  does.** Every poll the host reads the hub's `problems()` — what a
+  library reading through the hub could not make of a URI — and puts each
+  as `URI:LINE: message` in the error log, after any build output, with
+  the state Failed. The commonest is a shader file that does not compile:
+  Material keeps painting the last text of it that compiled, or its
+  magenta checker when none has, and the compiler's message with the
+  body's line stands in the log until the file compiles. Before the
+  sketch declares itself again — a restart, a rebuild, an asset poll that
+  saw an edit — the host empties the hub's list, so a name the sketch no
+  longer asks for leaves the log while whatever it still reads wrong is
+  said again.
 * Old libraries are never unloaded. Their statics stay valid — a running
   session may hold a vtable or a string literal that lives in one — and
   one small leak per reload is the trade.

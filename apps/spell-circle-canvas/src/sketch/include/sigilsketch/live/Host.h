@@ -350,7 +350,11 @@ class Host {
   [[nodiscard]] const std::string& status() const { return m_status; }
   /** Full compiler or loader output of the most recent failure; empty
    *  when the latest build is good. Python import, setup and frame failures
-   *  include the traceback. */
+   *  include the traceback. What the hub's `problems()` lists — a shader
+   *  file that does not compile, with the compiler's message and the
+   *  line — stands here too, after any build output, while the sketch
+   *  runs on with what its libraries keep painting, until the resource is
+   *  mended or the sketch no longer asks for it. */
   [[nodiscard]] const std::string& errorLog() const { return m_errorLog; }
 
   [[nodiscard]] const std::filesystem::path& sketchPath() const {
@@ -398,6 +402,14 @@ class Host {
    *  @p scale, and the pixels read back. */
   SkBitmap drawStill(SkISize extent, float scale, const SkColor4f& ground,
                      const std::function<void(SkCanvas&)>& draw);
+  /** Says what the hub's `problems()` lists the way a failed build is
+   *  said, after any build output the log already holds, and takes back
+   *  its own words once the list is empty. */
+  void noteProblems();
+  /** Empties the hub's problems before the sketch asks for its
+   *  resources again, so a resource it no longer asks for leaves the
+   *  log. */
+  void beginDeclaration();
   /** THE NEWEST WRITE ACROSS EVERYTHING THE SKETCH IS BUILT FROM, or
    *  nothing when the entry itself is not there.
    *
@@ -464,6 +476,9 @@ class Host {
   measure::Window<measure::Duration> m_drawTimes{120};
   std::string m_status = "waiting for first build";
   std::string m_errorLog;
+  /** What `noteProblems` last put in the error log, so that it takes
+   *  back its own words and never a build's. */
+  std::string m_problemLog;
   CaptureBackend m_captureBackend;
 };
 

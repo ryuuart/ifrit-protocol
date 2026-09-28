@@ -1018,32 +1018,3 @@ the pass is painted. A test should give one layer a left-to-right
 `material::linearGradient` from red to blue and assert the stroke is red
 at its left end and blue at its right, and give another `Fill::color(c)`
 and assert it paints exactly what the colour layer paints today.
-
-
-## A shader file that does not compile paints nothing and the live host never says so
-
-`material::shader(hub, uri, Params{})` in `<sigilmaterial/program/Shader.h>`
-reads the file through the hub and defines one recipe per source and
-layout; a file that cannot be read answers a material of nothing, and a
-body that does not compile is found only when `ProgramCache` compiles it
-for a draw, which writes the compiler's message once to stderr through
-`material::reportOnce` and paints nothing. The sketch host's error log
-(`sketch::Host::errorLog()`, the window's failed-build pane) never hears
-of either, and an edit that breaks a shader the sketch drew a moment ago
-blanks the node rather than keeping the last program that compiled.
-
-A live-edited shader evidently wants what a failed build already gets:
-the last program that compiled kept drawing while the file is broken,
-and the file's name with the compiler's message shown where a failed
-build is shown, taken back when the file compiles or the sketch stops
-asking for it. Material owns the compile, so it grows the channel — a
-per-definition compile result a caller can read (or a report sink a host
-installs) and a last-good program held under the definition's key — and
-the host reads it after each declaration.
-
-Once restored, a `SketchShaderReload` case writes a program that does
-not compile over one that did, polls, and asserts
-`host.state() == Host::State::Failed`, that `host.errorLog()` names the
-file, and that the still's middle keeps the previous colour; a second
-case corrects a misspelt file name in the sketch and asserts the log
-clears on `restartSession()` although the wrong name is still missing.
