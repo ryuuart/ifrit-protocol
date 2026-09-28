@@ -8,6 +8,7 @@
 
 // TAGS: Geometry/Meshes, Media/Models
 
+#include <sigilweave/style/Face.h>
 #include <sigildraw/Pen.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -63,7 +64,7 @@ sketch::kit::Theme sheetTheme() {
 }
 
 weave::TextStyle mono(float size, material::Color color) {
-  const sk_sp<SkTypeface> face =
+  const sigil::weave::Face face =
       weave::ports::face({"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
   return weave::textStyle({.face = face, .size = size, .color = color});
 }

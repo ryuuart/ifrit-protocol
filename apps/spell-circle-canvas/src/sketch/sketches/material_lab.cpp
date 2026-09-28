@@ -46,6 +46,8 @@
 
 // TAGS: Materials/Lighting
 
+#include <sigilmedia/advanced/Skia.h>
+#include <sigilmaterial/skia/Color.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImageInfo.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -53,7 +55,7 @@
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/core/Combine.h>
+#include <sigilmaterial/advanced/Combine.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/pattern/Patterns.h>

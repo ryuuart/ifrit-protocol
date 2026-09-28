@@ -25,6 +25,7 @@
 
 // TAGS: Materials/Shaders
 
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilio/hub/Hub.h>

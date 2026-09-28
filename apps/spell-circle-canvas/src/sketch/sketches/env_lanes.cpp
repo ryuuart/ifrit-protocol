@@ -31,6 +31,7 @@
 
 // TAGS: Materials/Lighting
 
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Solids.h>

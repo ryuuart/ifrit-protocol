@@ -31,6 +31,7 @@
 
 // TAGS: Materials/Compositing, Media/Images
 
+#include <sigildraw/Pen.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilmaterial/skia/Texture.h>
@@ -78,9 +79,9 @@ material::Texture buildSheet() {
     SkCanvas* canvas = surface->getCanvas();
     canvas->clear(SkColor4f{0.10f, 0.12f, 0.16f, 1}.toSkColor());
     for (int i = 0; i < kCols * kRows; ++i) {
-      const SkRect cell = arrange::cellRect(arrange::cellAt((size_t)i, kCols),
+      const auto cell = arrange::cellRect(arrange::cellAt((size_t)i, kCols),
                                             {kCellSide, kCellSide});
-      const float x = cell.fLeft, y = cell.fTop;
+      const float x = cell.left(), y = cell.top();
       SkPaint back;
       back.setColor4f({0.14f + 0.02f * (float)i, 0.16f, 0.22f, 1});
       canvas->drawRect(
@@ -150,7 +151,8 @@ sketch::kit::ComparisonCase cell(const char* caseTitle, const char* call,
           .figure = sketch::kit::well(
               {.width = kCell, .height = kPicture},
               custom(call,
-                     [draw = std::move(draw)](SkCanvas& canvas) {
+                     [draw = std::move(draw)](sigil::draw::Pen& pen) {
+                       SkCanvas& canvas = *pen.canvas();
                        if (draw) draw(canvas);
                      })),
           .note = note};

@@ -8,6 +8,8 @@
 
 // TAGS: Geometry/Meshes
 
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigildraw/Pen.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -109,13 +111,13 @@ struct PainterGpu {
                                    .specular = 0,
                                    .backfaceCull = false,
                                    .runtime = runtime};
-    render::drawMesh(canvas, floor, glm::mat4(1.0f), view, kCell, ground);
+    render::drawMesh(canvas, floor, glm::mat4(1.0f), view, sigil::geometry::path::fromSk(kCell), ground);
 
     for (int i = 0; i < kPanels; ++i) {
       const float x = ((float)i - (float)(kPanels - 1) * 0.5f) * 190.0f;
       const float yaw = -((float)i - (float)(kPanels - 1) * 0.5f) * 26.0f;
       render::drawImagePanel(canvas, cards[i], 176, 116,
-                             camera::place({x, 90, -40}, yaw), view, kCell,
+                             camera::place({x, 90, -40}, yaw), view, sigil::geometry::path::fromSk(kCell),
                              0.97f, runtime);
     }
 
@@ -128,7 +130,7 @@ struct PainterGpu {
                                      .texture = screen,
                                      .runtime = runtime};
     render::drawMesh(canvas, curved, camera::place({0, -96, 40}, 0, 8), view,
-                     kCell, emissive);
+                     sigil::geometry::path::fromSk(kCell), emissive);
   }
 
   Element viewport(const char* key, const render::Runtime& runtime) {

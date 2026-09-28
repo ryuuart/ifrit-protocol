@@ -30,6 +30,8 @@
 
 // TAGS: Materials/Color
 
+#include <sigilmedia/advanced/Skia.h>
+#include <sigilmaterial/skia/Color.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <include/effects/SkGradient.h>

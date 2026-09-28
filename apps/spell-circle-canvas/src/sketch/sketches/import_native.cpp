@@ -37,6 +37,7 @@
 
 // TAGS: Materials/Compositing, Media/Images
 
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/texture/Texture.h>
