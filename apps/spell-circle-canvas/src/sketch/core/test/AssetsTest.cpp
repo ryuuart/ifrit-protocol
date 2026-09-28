@@ -251,19 +251,19 @@ TEST(Assets, ADocumentIsReadWholeAndReloadedWhenItsFileChanges) {
   write(R"({"title": "A2", "lines": [{"code": "x1 -= d;", "marked": true}]})");
   Assets assets("");
   assets.mountSketch("study", dir.path);
-  const auto document = assets.json("sketch://study/data/content.json");
+  const auto document = assets.hub().load<sigil::data::Json>("sketch://study/data/content.json");
   ASSERT_TRUE(document);
   EXPECT_EQ((*document)["title"].string(), "A2");
   EXPECT_TRUE((*document)["lines"][0]["marked"].boolean());
   EXPECT_TRUE((*document)["absent"]["deeper"].null());
   EXPECT_EQ((*document)["absent"].string("fallback"), "fallback");
-  EXPECT_EQ(assets.json("sketch://study/data/missing.json"), nullptr);
+  EXPECT_EQ(assets.hub().load<sigil::data::Json>("sketch://study/data/missing.json"), nullptr);
 
   write(R"({"title": "A3"})");
   std::filesystem::last_write_time(
       dir.path / "data" / "content.json",
       std::filesystem::file_time_type::clock::now() + std::chrono::seconds(2));
   EXPECT_TRUE(assets.poll());
-  EXPECT_EQ((*assets.json("sketch://study/data/content.json"))["title"].string(),
+  EXPECT_EQ((*assets.hub().load<sigil::data::Json>("sketch://study/data/content.json"))["title"].string(),
             "A3");
 }

@@ -57,7 +57,7 @@ std::string_view sentence(const data::Json& item) {
 }  // namespace
 
 Document::Document(SketchContext& ctx, std::string_view name)
-    : m_held(ctx.assets.json(ctx.local(name))) {}
+    : m_held(ctx.assets.hub().load<data::Json>(ctx.local(name))) {}
 
 Document& Document::figures(Figures named) {
   for (std::pair<std::string, compose::Utf8>& one : named) {

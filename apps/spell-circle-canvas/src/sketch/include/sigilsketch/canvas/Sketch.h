@@ -116,7 +116,7 @@ struct SketchContext {
   std::vector<std::shared_ptr<compose::TextureScene>>* scenes = nullptr;
   /** The sketch's registry key, and the files beside it: `local("x.csv")`
    *  is the URI of the file `x.csv` in the directory the sketch's entry
-   *  stands in, which `assets.table()`, `assets.database()` and
+   *  stands in, which `assets.hub().load<data::Table>()` and
    *  `assets.hub().load<media::Image>()` take as they take any URI. Empty
    *  when the session was opened without a key. */
   std::string_view key;

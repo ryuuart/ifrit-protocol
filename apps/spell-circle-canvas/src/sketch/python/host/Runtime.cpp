@@ -1,12 +1,8 @@
 #include <include/core/SkCanvas.h>
-#include <include/effects/SkRuntimeEffect.h>
 #include <pybind11/embed.h>
 #include <pybind11/stl.h>
 #include <pybind11/stl/filesystem.h>
-#include <sigildata/decode/Json.h>
-#include <sigildata/table/Table.h>
 #include <sigilpython/Bindings.h>
-#include <sigilpython/data/Convert.h>
 #include <sigilpython/io/Hub.h>
 #include <sigilpython/skia/Values.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -527,37 +523,6 @@ void stageContext(py::handle value, const kit::Stage& stage) {
 void bindRuntime(py::module_& module) {
   auto sketches = module.def_submodule("sketch");
   py::class_<AssetsView>(sketches, "Assets")
-      .def(
-          "json",
-          [](const AssetsView& v,
-             const std::string& uri) -> std::optional<data::Json> {
-            const auto value = v.state()->assets->json(uri);
-            if (value) return *value;
-            return {};
-          },
-          py::arg("uri"))
-      .def(
-          "table",
-          [](const AssetsView& v,
-             const std::string& uri) -> std::optional<data::Table> {
-            const auto value = v.state()->assets->table(uri);
-            if (value) return *value;
-            return {};
-          },
-          py::arg("uri"))
-      .def(
-          "database",
-          [](const AssetsView& v, const std::string& uri) {
-            return sigil::python::dataDatabase(
-                v.state()->assets->database(uri));
-          },
-          py::arg("uri"))
-      .def(
-          "shader",
-          [](const AssetsView& v, const std::string& uri) {
-            return v.state()->assets->shader(uri);
-          },
-          py::arg("uri"))
       .def("hub",
            [](const AssetsView& v) {
              v.state();

@@ -3,29 +3,17 @@
 /** @file
  * @ingroup sketch-core
  *
- * Sketch-facing assets: a thin veneer over the resource hub, with the
- * forgiving contract a live-edited file wants — and the probe a sketch
- * over fetched art answers its availability with.
+ * The resource hub a host mounts for its sketches, and the probe a
+ * sketch over fetched art answers its availability with.
  */
 
-#include <include/core/SkRefCnt.h>
 #include <sigilio/hub/Hub.h>
 
 #include <filesystem>
 #include <initializer_list>
-#include <memory>
 #include <span>
 #include <string>
 #include <string_view>
-#include <vector>
-
-class SkRuntimeEffect;
-
-namespace sigil::data {
-class Table;
-class Database;
-class Json;
-}  // namespace sigil::data
 
 namespace sigil::sketch {
 
@@ -33,14 +21,15 @@ namespace sigil::sketch {
  *
  *  The demo assets root mounts at `res://` and the sketches folder at
  *  `sketch://`, under which a sketch's own files stand. `hub()` is the
- *  resource surface — `hub().load<media::Image>(uri)`, a video, a table,
- *  text, bytes, metadata probes — with SigilMedia's and SigilData's
- *  decoders on it, answering a sketch compiled into the host and one
- *  compiled and loaded while it runs alike; a file a load found missing
- *  or unreadable is watched, and `poll()` says when it appears.
- *  `shader()` keeps the forgiving contract a live-edited program wants:
- *  a magenta checker stands in for one that is missing or does not
- *  compile. */
+ *  one resource entrance, with SigilMedia's and SigilData's decoders and
+ *  SigilIO's transports on it, answering a sketch compiled into the host
+ *  and one compiled and loaded while it runs alike:
+ *  `hub().load<media::Image>("res://ui/mark.png")`,
+ *  `hub().load<data::Table>("res://cities.csv")`, and a shader file read
+ *  through it by `material::shader(hub(), "res://aurora.sksl", Params{})`.
+ *  A URI is spelled whole; a bare name is a path from where the process
+ *  started, never a resource. A file a load found missing or unreadable
+ *  is watched, and `poll()` says when it appears. */
 class Assets {
  public:
   /** @p root mounts at `res://`; @p sketches, the directory the sketch
@@ -48,91 +37,25 @@ class Assets {
    *  files are `sketch://<key>/name`. */
   explicit Assets(std::filesystem::path root,
                   std::filesystem::path sketches = {});
-  /** Out of line, where the shader programs it holds are a whole type. */
-  ~Assets();
   /** Mounts @p directory as the files of the sketch keyed @p key — what a
    *  workspace sketch opened by path needs, since its files stand beside
    *  that path and not under the sketches the build compiled. */
   void mountSketch(std::string_view key, std::filesystem::path directory);
 
-  /** The table at "res://<name>", decoded from whichever rectangular
-   *  format the file is in, cached and reloaded by the hub. Null where
-   *  there is no such resource or no decoder answers for it. */
-  std::shared_ptr<const sigil::data::Table> table(std::string_view name);
-  /** A SQL store — a `.sqlite`, `.sqlite3`, `.db` or `.duckdb` file —
-   *  opened in place, cached and reopened when the file changes. Null
-   *  until it loads or when it is not one. */
-  std::shared_ptr<const sigil::data::Database> database(std::string_view name);
-  /** THE DOCUMENT AT @p name — a `.json` file read whole as one nested
-   *  value, cached and reloaded by the hub, so a sketch's words and
-   *  settings stand in a file beside it and an edit to that file re-runs
-   *  setup without a rebuild. Null when there is no such file or it is
-   *  not JSON; a key that is not in it reads as a null value, so a sketch
-   *  states the default it wants where it reads. */
-  std::shared_ptr<const sigil::data::Json> json(std::string_view name);
-
-  /** THE SHADER AT @p name — an `.sksl` file holding one SkSL shader
-   *  program, `half4 main(float2 xy)` and the uniforms and child shaders
-   *  it declares — compiled into the runtime effect every paint seam
-   *  takes: `material::skia::sksl`, `material::skia::program`
-   *  and a pen's own shader builder. Cached and recompiled by the hub when
-   *  the file changes, so an edit to it re-runs setup without a rebuild,
-   *  and one file compiles into one effect however often it is asked for.
-   *
-   *  Never null. A file that is missing or does not compile answers the
-   *  last program that compiled under the name, or a magenta checker
-   *  before any has, and says why in `problems()` until the file
-   *  compiles, which a host shows as it shows a failed build. The checker
-   *  is a FILL: it declares no uniform and no `content` child, so handed
-   *  to `material::skia::program` over a layer it filters nothing
-   *  and the layer shows through unchanged.
-   *  @trap A material recipe's body is not a whole program — it reads
-   *  the declarations its recipe adds — so it is read as text through
-   *  `hub().text()` and handed to the recipe, never through this door. */
-  sk_sp<SkRuntimeEffect> shader(std::string_view name);
-
-  /** WHAT IS WRONG WITH THE FILES ASKED FOR since the last
-   *  `beginDeclaration()`, one per line: each shader that is missing or
-   *  does not compile, named, with the compiler's own message. Empty when
-   *  every one compiled. */
-  [[nodiscard]] std::string problems() const;
-
-  /** STARTS A DECLARATION — what a host calls before a sketch's setup
-   *  runs, and before it runs again. From here `problems()` speaks of the
-   *  shaders asked for after this call alone, so a name the sketch
-   *  stopped asking for stops being wrong with it; the program last
-   *  compiled under every name is kept. */
-  void beginDeclaration();
-
-  /** The full resource hub (images, videos, text, bytes, probes, EXR
-   *  layers…) with the sketch's assets directory mounted at "res://":
-   *  `hub().load<media::Image>("res://ui/mark.png")`. */
+  /** The resource hub with the assets directory mounted at `res://` and
+   *  the sketches at `sketch://`. */
   sigil::io::Hub& hub() { return m_hub; }
 
-  /** Re-checks everything: returns true when a loaded resource changed
-   *  on disk OR a file a load or a shader found missing appeared (host
-   *  re-runs setup). */
+  /** Re-checks everything: true when a loaded resource changed on disk
+   *  or a file a load found missing appeared (the host re-runs setup). */
   bool poll();
 
   const std::filesystem::path& root() const { return m_root; }
 
  private:
-  /** One shader a sketch asked for: the program that last compiled under
-   *  its name, what stands wrong with its file now, and whether the
-   *  declaration running now asked for it. */
-  struct HeldShader {
-    std::string name;
-    sk_sp<SkRuntimeEffect> program;
-    std::string problem;
-    bool missing = false;
-    bool asked = false;
-  };
-
   std::filesystem::path m_root;
   std::filesystem::path m_sketches;
   sigil::io::Hub m_hub;
-  std::vector<HeldShader> m_shaders;
-  sk_sp<SkRuntimeEffect> m_placeholderShader;
 };
 
 /** WHETHER EVERY ONE OF @p urls IS ALREADY ON THIS MACHINE, in the

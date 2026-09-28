@@ -1,69 +1,19 @@
 #include "sigilsketch/core/Assets.h"
 
-#include <include/core/SkString.h>
-#include <include/effects/SkRuntimeEffect.h>
 #include <sigildata/read/Read.h>
-#include <sigildata/query/Database.h>
-#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/advanced/Resource.h>
 #include <sigilio/advanced/Network.h>
 #include <sigilio/hub/Network.h>
 #include <sigilio/transport/Transport.h>
-#include <sigilio/advanced/Decoding.h>
 #include <sigilio/advanced/Places.h>
 
-#include <algorithm>
-#include <iterator>
-#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
-#include <type_traits>
 
 namespace sigil::sketch {
 
 namespace {
-
-/** THE MISSING-TEXTURE CHECKER AS A PROGRAM, sixteen canvas units a cell:
- *  what a shader that never compiled paints, declaring nothing a caller
- *  could fill. */
-sk_sp<SkRuntimeEffect> makePlaceholderShader() {
-  return SkRuntimeEffect::MakeForShader(SkString(R"(
-      half4 main(float2 xy) {
-        float2 cell = floor(xy / 16.0);
-        half on = half(mod(cell.x + cell.y, 2.0));
-        return half4(on, 0.0, on, 1.0);
-      })"))
-      .effect;
-}
-
-/** One `.sksl` file as the hub caches it: the program it compiled into,
- *  or the compiler's message where it did not. A file that does not
- *  compile is still a value, so the hub keeps watching it and decodes
- *  it again the moment it changes. */
-struct CompiledShader {
-  sk_sp<SkRuntimeEffect> program;
-  std::string error;
-};
-
-/** The name the hub registers and asks for a compiled shader under. */
-std::string_view meaningName(std::type_identity<CompiledShader>) {
-  return "sketch.CompiledShader";
-}
-
-std::optional<CompiledShader> compileShader(const sigil::io::Bytes& bytes) {
-  auto [program, error] = SkRuntimeEffect::MakeForShader(
-      SkString(bytes.asText().data(), bytes.asText().size()));
-  if (program) return CompiledShader{std::move(program), {}};
-  return CompiledShader{nullptr, error.c_str()};
-}
-
-/** A name is a resource under `res://`; a URI written whole — one the
- *  context's `local()` spelled, or any other mount — is itself. */
-std::string uriFor(std::string_view name) {
-  if (name.find("://") != std::string_view::npos) return std::string(name);
-  return "res://" + std::string(name);
-}
 
 /** The hub a host's assets stand on. An empty root mounts nothing: a
  *  name under it is a placeholder, not a file found wherever the process
@@ -105,85 +55,17 @@ Assets::Assets(std::filesystem::path root, std::filesystem::path sketches)
   // reaches it arrives in that feed. A URI replay() names is played
   // back from its file instead, through no transport at all.
   sigil::io::registerTransports(m_hub);
-  // A shader is decoded by compiling it, here in the host's own image,
-  // so the effect a sketch is handed is the host's whichever image the
-  // sketch itself was loaded from.
-  io::registerDecoder<CompiledShader>(m_hub, [](const sigil::io::Bytes& bytes, std::string_view) {
-        return compileShader(bytes);
-      });
-  m_placeholderShader = makePlaceholderShader();
 }
-
-Assets::~Assets() = default;
 
 void Assets::mountSketch(std::string_view key,
                          std::filesystem::path directory) {
   io::mount(m_hub, "sketch://" + std::string(key) + "/", std::move(directory));
 }
 
-std::shared_ptr<const sigil::data::Database> Assets::database(
-    std::string_view name) {
-  return m_hub.load<sigil::data::Database>(uriFor(name));
-}
-
-std::shared_ptr<const sigil::data::Table> Assets::table(std::string_view name) {
-  return m_hub.load<sigil::data::Table>(uriFor(name));
-}
-
-std::shared_ptr<const sigil::data::Json> Assets::json(std::string_view name) {
-  return m_hub.load<sigil::data::Json>(uriFor(name));
-}
-
-sk_sp<SkRuntimeEffect> Assets::shader(std::string_view name) {
-  auto held = std::find_if(
-      m_shaders.begin(), m_shaders.end(),
-      [&](const HeldShader& shader) { return shader.name == name; });
-  if (held == m_shaders.end()) {
-    m_shaders.push_back({.name = std::string(name)});
-    held = std::prev(m_shaders.end());
-  }
-  held->asked = true;
-  const std::shared_ptr<const CompiledShader> compiled =
-      m_hub.load<CompiledShader>(uriFor(name));
-  held->missing = !compiled;
-  if (!compiled) {
-    held->problem = held->name + ": no such file";
-  } else if (compiled->program) {
-    held->program = compiled->program;
-    held->problem.clear();
-  } else {
-    held->problem = held->name + ": " + compiled->error;
-  }
-  return held->program ? held->program : m_placeholderShader;
-}
-
-std::string Assets::problems() const {
-  std::string said;
-  for (const HeldShader& shader : m_shaders) {
-    if (!shader.asked || shader.problem.empty()) continue;
-    if (!said.empty()) said.push_back('\n');
-    said += shader.problem;
-  }
-  return said;
-}
-
-void Assets::beginDeclaration() {
-  for (HeldShader& shader : m_shaders) shader.asked = false;
-}
-
 bool Assets::poll() {
   // A file any typed ask found missing or unreadable is the hub's to
   // watch, as a loaded one is: its poll says when it appears or changes.
-  bool changed = io::poll(m_hub);
-  // A shader the sketch still asks for whose file was not there heals
-  // here as well, so the problem said about it clears with it.
-  for (HeldShader& shader : m_shaders)
-    if (shader.asked && shader.missing &&
-        m_hub.load<CompiledShader>(uriFor(shader.name))) {
-      shader.missing = false;
-      changed = true;
-    }
-  return changed;
+  return io::poll(m_hub);
 }
 
 bool requireCached(std::span<const std::string_view> urls, std::string* why,

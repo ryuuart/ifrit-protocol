@@ -311,7 +311,6 @@ bool Host::openSession(const Kind& kind) {
     }
     // Setup may fail after allocating retained descriptions or callbacks.
     // Finish the candidate before releasing the last working session.
-    m_assets.beginDeclaration();
     auto candidate = kind->open(
         m_fonts, m_assets, m_options.clock != motion::ClockPolicy::Wall, key);
     if (!candidate) throw std::runtime_error("the sketch opened no session");
@@ -328,37 +327,10 @@ bool Host::openSession(const Kind& kind) {
   std::fprintf(stderr, "[sketch] set up in %.0f ms\n", measure::Milliseconds(opened.elapsed()).count());
   m_runtimeFailed = false;
   m_errorLog.clear();
-  m_assetProblems.clear();
   m_frameTimes.reset();
   m_drawTimes.clear();
   m_presentedFrames = 0;
-  noteAssetProblems();
   return true;
-}
-
-void Host::noteAssetProblems() {
-  std::string problems = m_assets.problems();
-  if (problems == m_assetProblems) return;
-  // The log may hold a failed build's output as well, which stands first
-  // and is never this function's to take back: only the words it wrote
-  // itself, at the end of the log, are replaced. A build that failed
-  // after them wrote over them, and its output stands alone.
-  std::string rest = m_errorLog;
-  if (!m_assetProblems.empty() && rest.ends_with(m_assetProblems)) {
-    rest.resize(rest.size() - m_assetProblems.size());
-    while (!rest.empty() && rest.back() == '\n') rest.pop_back();
-  }
-  m_assetProblems = std::move(problems);
-  m_errorLog = std::move(rest);
-  if (!m_errorLog.empty() && !m_assetProblems.empty()) m_errorLog += "\n\n";
-  m_errorLog += m_assetProblems;
-  if (m_assetProblems.empty())
-    std::fprintf(stderr, "[sketch] shaders compile again\n");
-  else
-    std::fprintf(stderr,
-                 "[sketch] a shader failed — keeping the last program that "
-                 "compiled\n%s\n",
-                 m_assetProblems.c_str());
 }
 
 bool Host::restartSession() {
@@ -582,8 +554,7 @@ void Host::adopt(const std::filesystem::path& library) {
     return;
   }
   m_libraries.push_back(handle);
-  // An open that succeeded has already cleared the log and said what the
-  // sketch's shaders found wrong, which stands.
+  // An open that succeeded has already cleared the log.
   if (!openSession(entry->kind())) return;
   const double seconds = std::chrono::duration<double>(
                              std::chrono::steady_clock::now() - m_compileStart)
@@ -716,9 +687,7 @@ void Host::poll() {
         loadPython();
       } else {
         try {
-          m_assets.beginDeclaration();
           m_session->redeclare();
-          noteAssetProblems();
         } catch (const std::exception& error) {
           sessionFailed(error);
         }
