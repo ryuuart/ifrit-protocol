@@ -54,6 +54,8 @@
  */
 // TAGS: Typography/Effects, Motion/Particles
 
+#include <sigilmaterial/filter/Filter.h>
+#include <sigilmaterial/pattern/Patterns.h>
 #include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/StyleSheet.h>
@@ -68,7 +70,6 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>
-#include <sigilweave/kit/PaintLayers.h>
 #include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/query/Selector.h>
 #include <sigilweave/style/Type.h>
@@ -89,6 +90,7 @@ namespace weave = sigil::weave;
 using namespace sigil::compose;
 
 namespace {
+using namespace std::chrono_literals;
 
 /** The darkening toward the corners of the box it fills: transparent out
  *  to @p clear of the way to the far corner, then ramped to @p edge at the
@@ -120,8 +122,9 @@ constexpr material::Color kVoid = {0.004f, 0.012f, 0.006f, 1};
  *  sixteen pixels it does not change the picture. */
 StyleSheet screen() {
   const auto halation = [](float sigma) {
-    return weave::Type{.underlays = std::vector<weave::PaintLayer>{
-                           weave::kit::glow(0xFF44FF74, sigma, 1.9f)}};
+    return material::from(material::Color{0.97f, 1.0f, 0.98f, 1}).effects(
+        material::Filter::shadow(material::hexColor(0x44FF74),
+                                 {.blur = sigma, .spread = 1.9f}));
   };
   return StyleSheet{
       rule("plane")
@@ -133,8 +136,8 @@ StyleSheet screen() {
       rule("screen > plane").inset(0).overflow(Overflow::Clip),
       rule(".bed").fontSize(20).ink({0.026f, 0.090f, 0.050f, 1}),
       rule(".far").fontSize(16).opacity(0.55f).ink({0.62f, 0.94f, 1.0f, 1}),
-      rule(".mid").fontSize(23).opacity(0.80f).font(halation(5.5f)),
-      rule(".near").fontSize(32).font(halation(9)),
+      rule(".mid").fontSize(23).opacity(0.80f).ink(halation(5.5f)),
+      rule(".near").fontSize(32).ink(halation(9)),
       rule("caption, eyebrow")
           .fontFamily("Helvetica Neue, Arial, sans-serif")
           .fontWeight(500)
@@ -211,13 +214,7 @@ weave::Selector digitCells() { return weave::selectors::regex(u8"[0-9#]"); }
  *  between drops is the table's own tail and the re-opening flash is its
  *  head. */
 TextEffect streak() {
-  return textFx::keys({
-      {0.000f, {}},
-      {0.155f, {}},
-      {0.300f, {.colorMultiplier = {0.27f, 0.96f, 0.42f, 1}}},
-      {0.600f, {.colorMultiplier = {0.09f, 0.50f, 0.16f, 1}}},
-      {1.000f, {.alpha = 0.0f, .colorMultiplier = {0.02f, 0.20f, 0.06f, 1}}},
-  });
+  return textFx::tween({.from = GlyphModifier{}, .keyframes = {{.to = GlyphModifier{}, .duration = 155ms}, {.to = GlyphModifier{.colorMultiplier = {0.27f, 0.96f, 0.42f, 1}}, .duration = 145ms}, {.to = GlyphModifier{.colorMultiplier = {0.09f, 0.50f, 0.16f, 1}}, .duration = 300ms}, {.to = GlyphModifier{.alpha = 0.0f, .colorMultiplier = {0.02f, 0.20f, 0.06f, 1}}, .duration = 400ms}}, .duration = std::chrono::seconds(1)});
 }
 
 /** THE TRACE LINE over one character's local time: absent, struck in the
@@ -228,20 +225,13 @@ TextEffect streak() {
  *  first character is struck. */
 TextEffect traced() {
   constexpr material::Color settled = {0.34f, 0.93f, 0.50f, 1};
-  return textFx::keys({
-      {0.000f, {.alpha = 0.0f}},
-      {0.004f, {}},
-      {0.045f, {.colorMultiplier = settled}},
-      {0.900f, {.colorMultiplier = settled}},
-      {0.925f, {.alpha = 0.0f, .colorMultiplier = settled}},
-      {1.000f, {.alpha = 0.0f}},
-  });
+  return textFx::tween({.from = GlyphModifier{.alpha = 0.0f}, .keyframes = {{.to = GlyphModifier{}, .duration = 4ms}, {.to = GlyphModifier{.colorMultiplier = settled}, .duration = 41ms}, {.to = GlyphModifier{.colorMultiplier = settled}, .duration = 855ms}, {.to = GlyphModifier{.alpha = 0.0f, .colorMultiplier = settled}, .duration = 25ms}, {.to = GlyphModifier{.alpha = 0.0f}, .duration = 75ms}}, .duration = std::chrono::seconds(1)});
 }
 
 /** The cursor's blink: lit at 0, gone at 1. Its alpha multiplies the
  *  trace's, so it blinks only once it has been typed. */
 TextEffect blink() {
-  return textFx::keys({{0.0f, {}}, {1.0f, {.alpha = 0.0f}}});
+  return textFx::tween({.from = GlyphModifier{}, .keyframes = {{.to = GlyphModifier{.alpha = 0.0f}, .duration = 1000ms}}, .duration = std::chrono::seconds(1)});
 }
 
 /** The phosphor lift every cell wears: a seeded screen of green, most
@@ -388,19 +378,21 @@ struct MatrixRain {
    *  period apart, as the screens' do. */
   Element curtain(const Plane& plane) const {
     const float columns = (float)plane.columns;
-    motion::Spread cascade{
-        .amountMs = plane.loopMs * (columns - 1.0f) / columns,
-        .from = motion::Spread::From::Random};
-    cascade.seed = plane.seed;
-    cascade.then({.eachMs = plane.eachMs, .durationMs = plane.durationMs});
-    cascade.loopMs = plane.loopMs;
+    const motion::Tween<float> cascade{
+        .duration = std::chrono::duration<double, std::milli>(plane.durationMs),
+        .delay = motion::stagger(
+            {motion::Duration{}, motion::Duration((plane.loopMs * (columns - 1.0f) / columns) / 1000.0)},
+            {.from = motion::StaggerFrom::Random, .seed = plane.seed}),
+        .loop = -1,
+        .loopDelay = std::chrono::duration<double, std::milli>(plane.loopMs - plane.durationMs)};
     return churning(
         text(plane.text)
             .role("plane")
             .styleClass(plane.name)
             .key(plane.name)
             .textFx({.effect = streak(),
-                     .stagger = cascade,
+                     .tween = cascade,
+                     .within = motion::stagger(std::chrono::duration<double, std::milli>(plane.eachMs)),
                      .unit = weave::Unit::Line,
                      .innerUnit = weave::Unit::Cluster,
                      .progress = motion::bind(seconds, {.to = {0.0f, 1000.0f / plane.loopMs}, .wrap = 1.0f})}),
@@ -412,14 +404,16 @@ struct MatrixRain {
    *  cursor, the line's last character, takes a second track that blinks
    *  it on its own clock. */
   Element trace() const {
-    motion::Spread typing{.eachMs = traceLine.eachMs,
-                          .durationMs = traceLine.durationMs};
-    typing.loopMs = traceLine.loopMs;
+    const motion::Tween<float> typing{
+        .duration = std::chrono::duration<double, std::milli>(traceLine.durationMs),
+        .delay = motion::stagger(std::chrono::duration<double, std::milli>(traceLine.eachMs)),
+        .loop = -1,
+        .loopDelay = std::chrono::duration<double, std::milli>(traceLine.loopMs - traceLine.durationMs)};
     const weave::Selector cursor = weave::selectors::regex(u8"█");
     return document::code(traceLine.words)
         .key("trace")
         .textFx({.effect = traced(),
-                 .stagger = typing,
+                 .tween = typing,
                  .progress = motion::bind(seconds, {.to = {0.0f, 1000.0f / traceLine.loopMs}, .wrap = 1.0f})})
         .textFx({.where = cursor,
                  .effect = blink(),
@@ -458,7 +452,7 @@ struct MatrixRain {
       const material::Color clear = material::withAlpha(kVoid, 0);
       const material::Color held = material::withAlpha(kVoid, 0.92f);
       const material::Color half = material::withAlpha(kVoid, 0.72f);
-      return material::Paint::linearGradient(
+      return sigil::material::linearGradient(
           {0, 0}, {0, height},
           fromTop ? std::vector<material::ColorStop>{{0.0f, held},
                                                      {0.55f, half},
@@ -473,7 +467,7 @@ struct MatrixRain {
         .key("glass")
         .hitTestable(false)
         .cache(Cache::Texture)
-        .foreground(styles::scanlines({0, 0, 0, 0.14f}, 3, 1))
+        .foreground(decorations::wash(sigil::material::pattern::scanlines({.color = {0, 0, 0, 0.14f}, .period = 3, .on = 1})))
         .children({
             box().cover().fill(vignette({0.002f, 0.008f, 0.004f, 0.55f}, 0.35f)),
             box().cover().fill(material::linearGradient(
@@ -529,7 +523,8 @@ struct MatrixRain {
     sketch::kit::stage(ctx, {.size = {kWidth, kHeight},
                              .captureAt = 7.0,
                              .background = kVoid});
-    ctx.engine.add([this](double, double elapsed) {
+    ctx.engine.timer([this](sigil::motion::Duration, sigil::motion::Duration elapsedDuration) {
+      const double elapsed = elapsedDuration.count();
       seconds = (float)elapsed;
       return true;
     });

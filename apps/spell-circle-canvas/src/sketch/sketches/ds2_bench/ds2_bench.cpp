@@ -14,8 +14,10 @@
 
 // TAGS: Geometry/Diagrams, Interfaces/Game
 
+#include <sigilmaterial/filter/Filter.h>
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilcompose/brush/Decorations.h>
-#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Frame.h>
@@ -135,7 +137,7 @@ struct Ds2Bench {
       return kit::at((float)strut[0].number(), -40, (float)strut[1].number(),
                      kHeight + 80)
           .fill(
-              Paint::linearGradient({0, 0}, {0, 1},
+              sigil::material::linearGradient({0, 0}, {0, 1},
                                     {{0.0f, hexColor(0x16262F, alpha * 0.35f)},
                                      {0.38f, hexColor(0x1C303C, alpha)},
                                      {1.0f, hexColor(0x080F16, alpha * 0.2f)}}))
@@ -149,7 +151,7 @@ struct Ds2Bench {
             each(bench["room"].array(), strut),
             kit::at(250, 118, 176, 470)
                 .fill(
-                    Paint::linearGradient({0, 0}, {0, 1},
+                    sigil::material::linearGradient({0, 0}, {0, 1},
                                           {{0.0f, hexColor(0x2A4A52, 0.34f)},
                                            {0.45f, hexColor(0x3E6A6E, 0.26f)},
                                            {1.0f, hexColor(0x0C1A20, 0.09f)}}))
@@ -165,15 +167,14 @@ struct Ds2Bench {
   static Element panel() {
     return kit::at(kPanelX, kPanelY, kPanelW, kPanelH)
         .shape(shapes::svg(kPanelOutline))
-        .fill(
-            Paint::radialGradient({0.4f, 0.32f}, 1.15f,
+        .fill(sigil::material::from(sigil::material::radialGradient({0.4f, 0.32f}, 1.15f,
                                   {{0.0f, hexColor(0x2A4A4C, 0.74f)},
                                    {0.55f, hexColor(0x16302F, 0.72f)},
-                                   {1.0f, material::withAlpha(kBody, 0.70f)}}))
-        .background(styles::OuterGlow{cyan(0.28f), 9})
+                                   {1.0f, material::withAlpha(kBody, 0.70f)}})).effects(sigil::material::Filter::shadow(cyan(0.28f), {.blur = 9})))
+        
         .foreground(
             decorations::wash(field::grain(0.9f, 2, 7.0f),
-                              SkBlendMode::kOverlay, 0.07f))
+                              sigil::material::BlendMode::Overlay, 0.07f))
         .foreground(
             decorations::border(2.2f, Fill::color(hexColor(0xCFF2F5, 0.95f))))
         .children({
@@ -198,7 +199,7 @@ struct Ds2Bench {
             .justifyContent(Justify::Center)
             .children({text(bench["weapon"].string())
                            .styleClass("weapon")
-                           .filter(styles::textGlow(cyan(0.5f), 5))}),
+                           .filter(sigil::material::Filter::glow(cyan(0.5f), 5))}),
         text(bench["repair"].string()).styleClass("caption").left(142).top(117),
         kit::disc({799, 123}, 13)
             .shape(shapes::annulus(0.58f))
@@ -220,22 +221,20 @@ struct Ds2Bench {
    *  upper right. */
   static Element node(SkPoint at, const std::string& cell, bool large) {
     if (cell == "o")
-      return kit::dot(at, large ? 10.5f : 6, Fill::color(kSocket))
+      return kit::disc(sigil::geometry::path::fromSk(at), large ? 10.5f : 6).fill(Fill::color(kSocket))
           .foreground(decorations::border(1.7f, Fill::color(cyan(0.88f))));
     const Kind kind = kindOf(cell);
     const float radius = large ? 14 : 9.5f;
     return box().inset(0).children({
-        kit::disc(at, radius + 12)
+        kit::disc(sigil::geometry::path::fromSk(at),radius + 12)
             .shape(shapes::ticks({.divisions = 24, .mark = {0.72f, 1.0f}}))
             .stroke(stroke(0.9f, Fill::color(cyan(0.22f)))),
-        kit::dot(
-            at, radius,
-            Paint::radialGradient(
+        kit::disc(sigil::geometry::path::fromSk(at), radius).fill(sigil::material::from(sigil::material::radialGradient(
                 {0.38f, 0.34f}, 0.8f,
                 {{0.0f, material::mixToward(kind.core, kind.rim, 0.45f, 1)},
                  {0.6f, kind.core},
-                 {1.0f, material::scale(kind.core, 0.7f)}}))
-            .background(styles::OuterGlow{cyan(0.4f), 5})
+                 {1.0f, material::scale(kind.core, 0.7f)}})).effects(sigil::material::Filter::shadow(cyan(0.4f), {.blur = 5})))
+            
             .foreground(decorations::border(2.4f, Fill::color(kind.rim))),
         text(cell)
             .styleClass(large ? "node" : "node-small")
@@ -303,7 +302,7 @@ struct Ds2Bench {
     }
 
     const std::string_view caption = spec["caption"].string();
-    return box().inset(0).filter(styles::textGlow(cyan(0.3f), 3)).children({
+    return box().inset(0).filter(sigil::material::Filter::glow(cyan(0.3f), 3)).children({
         box().inset(0).children(std::move(traces)),
         socket({origin.x, origin.y + pitch.y}, large),
         box().inset(0).children(std::move(cells)),
@@ -349,7 +348,7 @@ struct Ds2Bench {
       if ((int)index >= filled)
         return pip.fill(Fill::none()).stroke(stroke(1.2f, Fill::color(cyan(0.3f))));
       return pip
-          .fill(Paint::linearGradient({0, 0}, {0, 1},
+          .fill(sigil::material::linearGradient({0, 0}, {0, 1},
                                       {{0.0f, metal},
                                        {0.45f, material::scale(metal, 0.74f)},
                                        {0.55f, material::scale(metal, 0.6f)},
@@ -370,7 +369,7 @@ struct Ds2Bench {
                 .height(9)
                 .margin(0, 13)
                 .shape(shapes::circle())
-                .fill(Paint::radialGradient(
+                .fill(sigil::material::radialGradient(
                     {0.5f, 0.5f}, 0.6f, {{0.0f, kind.rim}, {1.0f, kind.core}})),
             box().row().gap(6).children(
                 {each((size_t)stat["total"].number(), pip)}),
@@ -422,7 +421,7 @@ struct Ds2Bench {
                 box().width(66).height(46).marginTop(6).children({
                     kit::at(2, 14, 62, 28)
                         .borderRadius({14})
-                        .fill(Paint::linearGradient(
+                        .fill(sigil::material::linearGradient(
                             {0, 0}, {0, 1},
                             {{0.0f, hexColor(0xC9A227)},
                              {0.45f, hexColor(0x7E6318)},
@@ -430,7 +429,7 @@ struct Ds2Bench {
                     kit::at(2, 2, 62, 27)
                         .shape(shapes::squircle(2))
                         .fill(
-                            Paint::linearGradient({0, 0}, {1, 1},
+                            sigil::material::linearGradient({0, 0}, {1, 1},
                                                   {{0.0f, hexColor(0xE8C860)},
                                                    {0.4f, hexColor(0xD3AA33)},
                                                    {1.0f, hexColor(0x8E6F1E)}}))
@@ -485,7 +484,7 @@ struct Ds2Bench {
   Element describe() const {
     return box()
         .inset(0)
-        .fill(Paint::radialGradient({0.5f, 0.5f}, 0.9f,
+        .fill(sigil::material::radialGradient({0.5f, 0.5f}, 0.9f,
                                     {{0.0f, hexColor(0x09131B)},
                                      {0.6f, hexColor(0x050B11)},
                                      {1.0f, hexColor(0x020406)}}))

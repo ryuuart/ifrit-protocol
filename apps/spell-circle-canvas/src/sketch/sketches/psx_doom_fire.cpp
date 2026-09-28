@@ -40,12 +40,17 @@
 
 // TAGS: Drawing/Generative, Interfaces/Game
 
+#include <sigilmaterial/filter/Filter.h>
+#include <sigilmotion/time/Duration.h>
+#include <sigilmedia/advanced/Skia.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilweave/style/Face.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImage.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Document.h>
-#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Presets.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
@@ -56,7 +61,6 @@
 #include <sigilmotion/values/Tween.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/kit/PaintLayers.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -78,8 +82,7 @@ namespace weave = sigil::weave;
 
 using namespace sigil::draw;
 using namespace std::chrono_literals;
-using compose::hexColor;
-namespace ch = choreograph;
+using material::hexColor;
 
 namespace {
 
@@ -137,15 +140,15 @@ constexpr float kInspectY = kBodyY + kSpecH + 12;
 // ---------------------------------------------------------------------------
 // Type
 
-sk_sp<SkTypeface> monoFace() {
-  return weave::ports::face({"Menlo"}, SkFontStyle::Normal());
+sigil::weave::Face monoFace() {
+  return weave::ports::face({"Menlo"}, sigil::weave::FaceStyle{});
 }
-sk_sp<SkTypeface> heavyFace() {
+sigil::weave::Face heavyFace() {
   return weave::ports::face({"Helvetica Neue", "Helvetica"},
-                            SkFontStyle::kBlack_Weight);
+                            900);
 }
-sk_sp<SkTypeface> uiFace() {
-  return weave::ports::face({"Helvetica Neue"}, SkFontStyle::Normal());
+sigil::weave::Face uiFace() {
+  return weave::ports::face({"Helvetica Neue"}, sigil::weave::FaceStyle{});
 }
 
 /** The pen's register. A pen carries one type and one fill, so a register
@@ -163,7 +166,7 @@ material::Color fade(material::Color c, float a) {
 
 /** A PART'S ENTRANCE, as time arithmetic: 0 before @p delayMs, 1 after
  *  @p delayMs + @p durationMs, and the curve between. What a described
- *  tree spells as `animate(from(0).to(1), {duration, delay})` is this in
+ *  tree spells as `sigil::motion::animate({.from = 0, .to = 1, .duration = duration, .ease = delay})` is this in
  *  a loop, because a loop has the clock in its hand. */
 float cue(double ms, float delayMs, float durationMs,
           const motion::Easing& ease = nullptr) {
@@ -210,7 +213,7 @@ struct PsxDoomFire {
 
   // The palette strip's entrance ladder, resolved once: 37 swatches on a
   // 12 ms spread, read back per swatch instead of restated as i·12.
-  motion::Cascade swatchCascade;
+  motion::Schedule swatchCascade;
   static constexpr float kSwatchSpanMs = 220.0f + 12.0f * 36.0f;
 
   // =========================================================================
@@ -295,7 +298,7 @@ struct PsxDoomFire {
 
   compose::Element header() {
     static constexpr char kTitle[] = "DOOM FIRE, 1995";
-    const motion::Spread cascade{.eachMs = 28, .durationMs = 480};
+    const sigil::motion::Tween<float> cascade{.duration = std::chrono::duration<double, std::milli>(480), .delay = sigil::motion::stagger(std::chrono::duration<double, std::milli>(28))};
     // A space is a gap the flow leaves rather than a glyph, so for this
     // ASCII line the unit count is its non-space character count, and the
     // progress lasts exactly the cascade's own span: the last glyph lands
@@ -304,7 +307,7 @@ struct PsxDoomFire {
         (uint32_t)std::count_if(std::begin(kTitle), std::end(kTitle) - 1,
                                 [](char c) { return c != ' '; });
     const auto span =
-        std::chrono::milliseconds(std::lround(cascade.spanMs(units)));
+        motion::timingOf(cascade).span(units);
     return compose::box()
         .column()
         .gap(5)
@@ -324,8 +327,8 @@ struct PsxDoomFire {
                         .track = -0.6f})
                  .key("title")
                  .textFx(
-                     {.effect = compose::textFx::rise(24),
-                      .stagger = cascade,
+                     {.effect = compose::textFx::enter(compose::textFx::rise(24)),
+                      .tween = cascade,
                       .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = span, .delay = 120ms, .ease = motion::ease::linear})}),
              compose::document::lead(
                  "id Software / Williams · PlayStation title screen, 1995\n"
@@ -347,10 +350,9 @@ struct PsxDoomFire {
                                            .size = 186,
                                            .color = hexColor(0xC23A1C),
                                            .track = 34.0f});
-    s.paint.addUnderlay(sigil::weave::kit::outline(
-        material::skia::toSkColor(hexColor(0x2A0805)).toSkColor(), 7.0f,
-        sigil::geometry::path::Join::Round));
     return compose::text("DOOM", std::move(s))
+        .ink(material::from(hexColor(0xC23A1C)).effects(
+            material::Filter::stroke(hexColor(0x2A0805), {.width = 3.5f})))
         .width(kPanelW)
         .paragraph({.alignment = weave::TextAlignment::kCenter})
         .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 600ms, .delay = 380ms}));
@@ -473,7 +475,7 @@ struct PsxDoomFire {
    *  and a still of it is a claim about the piece. */
   float strobe() const {
     return 0.22f +
-           0.78f * motion::decay(alpha.value() * (float)kSimStep, 0.02f);
+           0.78f * motion::decay(sigil::motion::Duration(alpha.value() * (float)kSimStep), sigil::motion::Duration(0.02f));
   }
 
   void paletteStrip(Pen& pen, double ms) {
@@ -481,7 +483,7 @@ struct PsxDoomFire {
     pen.noStroke();
     for (int i = 0; i < kPaletteSize; ++i) {
       const float u = swatchCascade.localProgress(master, (uint32_t)i, 0);
-      const float s = ch::easeOutBack(u);
+      const float s = sigil::motion::ease::outBack()(u);
       const float x = kPadX + (float)i * (float)(kSwatch + 2);
       const float bottom = kStripY + 34.0f;
       pen.push();
@@ -546,7 +548,7 @@ struct PsxDoomFire {
     }
     const double done = kFirst + kEach * (kCount - 1);
     const bool blink =
-        seconds < done || motion::phase(seconds - done, 1.0) < 0.5f;
+        seconds < done || motion::phase(sigil::motion::Duration(seconds - done), sigil::motion::Duration(1.0)) < 0.5f;
     if (blink) {
       pen.noStroke();
       pen.fill(kAmber);
@@ -681,7 +683,7 @@ struct PsxDoomFire {
     const float bw = (float)(kInspectCells * kInspectZoom);
     const float bh = (float)(kInspectRows * kInspectZoom);
     const float a = cue(ms, 700, 300);
-    const float s = 0.94f + 0.06f * ch::easeOutBack(cue(ms, 700, 300));
+    const float s = 0.94f + 0.06f * sigil::motion::ease::outBack()(cue(ms, 700, 300));
     pen.push();
     pen.translate(bx + bw * 0.5f, by + bh * 0.5f);
     pen.scale(s);
@@ -758,7 +760,7 @@ struct PsxDoomFire {
     seed();
     rasterize();
 
-    swatchCascade.build({.eachMs = 12, .durationMs = 220}, 37, 1);
+    swatchCascade = motion::Schedule(motion::timingOf(motion::Tween<float>{.duration = 220ms, .delay = motion::stagger(12ms)}), 37);
 
     // ---- the fixed-timestep clock ----------------------------------------
     // Everything the automaton does happens on THIS clock, at 27 Hz,
@@ -768,15 +770,13 @@ struct PsxDoomFire {
     // a long run, so the same simulated moment lands on either side of a
     // boundary depending on how fast the host drew, and a captured frame
     // is then a function of the machine.
-    ctx.engine.addFixed(
-        kSimHz,
-        [this] {
+    const auto fixedClock = ctx.engine.timer([this] {
           doFire();
           ++simSteps;
           stepped = true;
           return true;
-        },
-        6, alpha);
+        }, {.stepRate = kSimHz, .catchUp = 6});
+    ctx.engine.timer([this, clock = fixedClock] { alpha = clock.betweenSteps(); });
 
     ctx.composer.render(compose::graphics("psx_doom_fire.loop",
                                           [this](Pen& pen) { draw(pen); }));

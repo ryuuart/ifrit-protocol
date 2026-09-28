@@ -14,6 +14,9 @@
 
 // TAGS: Interfaces/Film
 
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilmaterial/paint/Bases.h>
+#include <sigilweave/style/Face.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Frame.h>
@@ -89,21 +92,21 @@ constexpr float kRuling = 62.8f;
 // The second orbit shares the centre and not the plane.
 constexpr SkPoint kOrbitCentre{465, 300};
 
-sk_sp<SkTypeface> monoFace() {
+sigil::weave::Face monoFace() {
   return weave::ports::face({"JetBrainsMono Nerd Font", "JetBrains Mono",
                              "Andale Mono", "Menlo"},
                             300);
 }
-sk_sp<SkTypeface> minchoFace() {
+sigil::weave::Face minchoFace() {
   return weave::ports::face(
       {"Hiragino Mincho ProN", "YuMincho", "Noto Serif JP"}, 400);
 }
-sk_sp<SkTypeface> serifFace(int weight = 400, bool italic = false) {
+sigil::weave::Face serifFace(int weight = 400, bool italic = false) {
   return weave::ports::face(
       {"Times New Roman", "Times", "Georgia"}, weight,
-      italic ? SkFontStyle::kItalic_Slant : SkFontStyle::kUpright_Slant);
+      italic ? sigil::weave::FaceSlant::Italic : sigil::weave::FaceSlant::Upright);
 }
-sk_sp<SkTypeface> titleFace() {
+sigil::weave::Face titleFace() {
   return weave::ports::face({"Helvetica Neue", "Helvetica", "Arial"}, 500);
 }
 
@@ -146,7 +149,7 @@ Element orbit(SkPoint centre, float across, float down, float tilt,
   return box()
       .width(across * 2)
       .height(down * 2)
-      .centerAt(centre)
+      .centerAt(sigil::geometry::path::fromSk(centre))
       .rotate(tilt)
       .shape(shapes::arc(start, sweep))
       .fill(Fill::none())
@@ -169,7 +172,7 @@ Element chromeBar(float left, float top, float width, float height,
   return kit::at(left, top, width, height)
       .styleClass("light")
       .shape(shapes::parallelogram(skew))
-      .fill(Paint::linearGradient({0, 0}, {0, 1},
+      .fill(sigil::material::linearGradient({0, 0}, {0, 1},
                                   {{0.00f, mix(0.05f)},
                                    {0.13f, mix(1.00f)},
                                    {0.30f, mix(0.32f)},
@@ -221,7 +224,7 @@ struct LainNavi {
                 kBodyBottom - kBodyTop)
             .styleClass("light")
             .backdropFilter(Filter::blur(1.2f))
-            .fill(Paint::radialGradient(
+            .fill(sigil::material::radialGradient(
                 {0.483f, 0.456f}, 0.70f,
                 {{0.00f, kBodyMiddle},
                  {0.10f, material::mixLinear(kBodyEdge, kBodyMiddle, 0.73f)},
@@ -283,7 +286,7 @@ struct LainNavi {
     const float focus = (kFocusPlane - kListingTop) / blockHeight;
     // The red channel is the blur's sigma as a fraction of 3 px: a tenth
     // of it on the plane, most of it at the block's two ends.
-    const Paint depth = Paint::linearGradient(
+    const sigil::material::Material depth = sigil::material::linearGradient(
         {0, 0}, {0, 1},
         {{0, {0.8f, 0, 0, 1}}, {focus, {0.1f, 0, 0, 1}}, {1, {0.7f, 0, 0, 1}}});
     return kit::at(text(passage)
@@ -397,7 +400,7 @@ struct LainNavi {
             // nothing at its edge.
             kit::at(178, 88, 304, 304)
                 .styleClass("light")
-                .fill(Paint::radialGradient(
+                .fill(sigil::material::radialGradient(
                     {0.48f, 0.46f}, 0.95f,
                     {{0.00f, kPanel},
                      {0.55f, material::scale(kPanel, 0.86f)},

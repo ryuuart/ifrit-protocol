@@ -6,9 +6,8 @@
 // are off until a field names them. It reads the node's resolution.
 
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/program/Shader.h>
 
-#include <memory>
 #include <string>
 #include <string_view>
 
@@ -71,20 +70,10 @@ half4 main(float2 xy) {
 }
 )SHADER";
 
-inline const std::shared_ptr<const sigil::material::Recipe>& crtOverlayRecipe() {
-  using sigil::material::FrameInput;
-  using sigil::material::Recipe;
-  using sigil::material::Target;
-  static const auto recipe = std::make_shared<const Recipe>(
-      Recipe::of<CrtOverlayParameters>("ds2_bench.crtOverlay")
-          .frame(FrameInput::Resolution)
-          .body(Target::SkSL, std::string(kCrtOverlaySkSL)));
-  return recipe;
-}
-
 inline sigil::material::Material crtOverlay(
     const CrtOverlayParameters& parameters = {}) {
-  return sigil::material::Material(crtOverlayRecipe(), parameters);
+  return sigil::material::shader(
+      std::string(kCrtOverlaySkSL), parameters, {.key = "ds2_bench.crtOverlay"});
 }
 
 }  // namespace ds2_bench

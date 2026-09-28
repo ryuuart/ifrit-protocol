@@ -7,12 +7,11 @@
 // header says.
 
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/program/Shader.h>
 
 #include <cmath>
 #include <glm/vec4.hpp>
 #include <initializer_list>
-#include <memory>
 #include <string>
 #include <string_view>
 
@@ -113,18 +112,9 @@ inline std::string crtBodyOf(std::initializer_list<std::string_view> parts,
   return source;
 }
 
-inline const std::shared_ptr<const sigil::material::Recipe>& crtBeamRecipe() {
-  using sigil::material::Recipe;
-  using sigil::material::Target;
-  static const auto recipe = std::make_shared<const Recipe>(
-      Recipe::of<CrtBeamParameters>("lain_navi.crt.beam")
-          .slot("content")
-          .body(Target::SkSL, crtBodyOf({kCrtBeamSkSL}, "crtBeam(p)")));
-  return recipe;
-}
-
 inline sigil::material::Material crtBeam(const CrtBeamParameters& parameters) {
-  return sigil::material::Material(crtBeamRecipe(), parameters);
+  return sigil::material::shader(
+      crtBodyOf({kCrtBeamSkSL}, "crtBeam(p)"), parameters, {.key = "lain_navi.crt.beam", .textures = {{"content", {}}}});
 }
 
 /** How far the beam reads away from the pixel it paints: the sideways

@@ -33,7 +33,7 @@
 //    resolved from the SAME cascade `Composer::beatsOf` reports — the meter
 //    bars under the display line are drawn from that query, so the bars and
 //    the burn read one schedule by construction;
-//  - the material is `material::Paint::recipe(...)` over a SigilMaterial recipe,
+//  - the material is a shader body with its explicit parameter fields,
 //    and the runtime owns the per-count specialization and its cache;
 //  - the layer is sampled at the device's resolution, so a 2x host stays
 //    sharp with no supersampled bake;
@@ -64,8 +64,11 @@
 
 // TAGS: Typography/Effects, Materials/Shaders
 
+#include <sigilmaterial/program/Shader.h>
+#include <sigilmotion/time/Duration.h>
+#include <sigilweave/style/Face.h>
 #include <sigilcompose/kit/Document.h>
-#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Presets.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
@@ -130,25 +133,6 @@ struct BurnParameters {
   std::array<float, 3> uWeights;  // sweep, speckle, patch
 };
 
-/** THE DEFINITION, made once and held by whoever draws with it: a recipe's
- *  identity IS the object, so a fresh one per describe compiles a fresh
- *  program and never compares equal to itself. The sketch holds it, rather
- *  than a static in this dylib, which a reload unloads. @p body is the pass,
- *  `burn.sksl` beside this file. */
-std::shared_ptr<const sigil::material::Recipe> burnRecipe(std::string body) {
-  return std::make_shared<const sigil::material::Recipe>(
-      sigil::material::Recipe::of<BurnParameters>("ember.burn")
-          .body(sigil::material::Target::SkSL, std::move(body)));
-}
-
-material::Paint burnMaterial(
-    const std::shared_ptr<const sigil::material::Recipe>& recipe) {
-  return material::Paint::recipe(sigil::material::Material(recipe))
-      .set("uInk", kInk)
-      .set("uEmber", kEmber)
-      .set("uWeights", std::vector<float>{kSweep, kSpeckle, kPatch});
-}
-
 /** One track's master progress across the loop: a linear ramp up from
  *  @p startAt (so `master * totalMs` advances at wall speed and each unit
  *  crosses its own beat exactly as the cascade schedules it), a hold at 1,
@@ -165,7 +149,7 @@ float masterAt(double t, double startAt, float totalMs) {
 // ===========================================================================
 
 struct EmberDecode {
-  std::shared_ptr<const sigil::material::Recipe> recipe;
+  material::Material burn{material::Color{0, 0, 0, 0}};
   sigil::motion::Animatable<float> display = sigil::motion::animatable(0.0f), words = sigil::motion::animatable(0.0f);
   float displayTotalMs = 1;  // the cascades' spans, read back from beatsOf
   float wordsTotalMs = 1;
@@ -173,7 +157,7 @@ struct EmberDecode {
   Element describe(sketch::SketchContext& ctx) {
     const sketch::kit::Provide presentation(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
-    const sk_sp<SkTypeface> face =
+    const sigil::weave::Face face =
         weave::ports::face({"Helvetica Neue", "Arial", "Inter"}, 700);
     // The letters are set WHITE: the pass reads the layer's coverage and
     // supplies every colour itself, so the type's own colour never lands.
@@ -183,7 +167,6 @@ struct EmberDecode {
                          .color = material::Color{1, 1, 1, 1},
                          .track = track};
     };
-    const material::Paint burn = burnMaterial(recipe);
 
     // THE SCHEDULE, DRAWN, from the same query the pass agrees with: one
     // meter per beat of the display track, at that beat's laid-out rect,
@@ -249,10 +232,9 @@ struct EmberDecode {
   }
 
   void setup(sketch::SketchContext& ctx) {
-    // The pass is a recipe's body rather than a whole program, so it is
-    // read as text and handed to the recipe.
-    recipe = burnRecipe(
-        ctx.assets.hub().text(ctx.local("burn.sksl")).value_or(std::string()));
+    burn = material::shader(ctx.assets.hub(), ctx.local("burn.sksl"),
+                            BurnParameters{kInk, kEmber, {kSweep, kSpeckle, kPatch}},
+                            {.key = "ember.burn"});
     const sketch::kit::Provide presentation(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(
@@ -272,12 +254,12 @@ struct EmberDecode {
     const auto span = [&](const char* key) {
       float total = 1;
       for (const Beat& b : ctx.composer.beatsOf(key, 0))
-        total = std::max(total, b.startMs + kUnitMs);
+        total = std::max(total, float(std::chrono::duration<double, std::milli>(b.start).count()) + kUnitMs);
       return total;
     };
     if (displayTotalMs <= 1.0f) displayTotalMs = span("burn-display");
     if (wordsTotalMs <= 1.0f) wordsTotalMs = span("burn-words");
-    const double t = sigil::motion::phase(elapsed, kLoop) * kLoop;
+    const double t = sigil::motion::phase(sigil::motion::Duration(elapsed), sigil::motion::Duration(kLoop)) * kLoop;
     display = masterAt(t, kInAt, displayTotalMs);
     words = masterAt(t, kWordsAt, wordsTotalMs);
     // Re-described per frame for the meter, which reads beatsOf at
