@@ -117,7 +117,7 @@ Element splat(geometry::mesh::Cloud cloud) {
            SkCanvas& canvas = *pen.canvas();
            geometry::mesh::points::drawBillboards(canvas, cloud, lookDown(),
                                                   paint.size,
-                                                  {.sprite = sprite,
+                                                  {.sprite = sprite->frames().front().image,
                                                    .size = 6,
                                                    .sizeLane = "size",
                                                    .tintLane = "tint",

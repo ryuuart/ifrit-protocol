@@ -139,7 +139,7 @@ struct DartFlight {
                 {world::Element()
                      .key("dart")
                      .along(loop,
-                            motion::phase(seconds, 1.0 / kLapsPerSecond) * lap)
+                            motion::phase(motion::Duration(seconds), motion::Duration(1.0 / kLapsPerSecond)) * lap)
                      .mesh(dart())
                      .fill(chrome)
                      .tag("dart")});

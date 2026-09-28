@@ -106,7 +106,7 @@ struct CurveShelf {
                                 shapes::parametric(
                                     "epicycle",
                                     [](float t) {
-                                      return SkPoint{
+                                      return glm::vec2{
                                           0.62f * std::cos(t) +
                                               0.34f * std::cos(7 * t),
                                           0.62f * std::sin(t) +

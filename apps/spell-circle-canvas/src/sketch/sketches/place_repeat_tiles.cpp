@@ -28,6 +28,7 @@
 
 // TAGS: Geometry/Layout, Patterns/Tiling
 
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigildraw/Pen.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPicture.h>
@@ -248,7 +249,9 @@ struct PlaceRepeatTiles {
                        canvas.clipRect(SkRect::MakeWH((float)kTile.width(),
                                                       (float)kTile.height()));
                        canvas.concat(
-                           tiles::window(kTile, k, tiles::Flow::Down, facing));
+                           sigil::geometry::path::toSk(tiles::window(
+                               {(float)kTile.width(), (float)kTile.height()},
+                               k, tiles::Flow::Down, facing)));
                        canvas.drawPicture(art);
                        canvas.restore();
                      }

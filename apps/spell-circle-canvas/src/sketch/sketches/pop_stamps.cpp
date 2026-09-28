@@ -33,6 +33,7 @@
 
 // TAGS: Geometry/Points
 
+#include <sigilmedia/advanced/Skia.h>
 #include <sigildraw/Pen.h>
 #include <include/core/SkMatrix.h>
 #include <sigilcompose/kit/Frame.h>
@@ -191,9 +192,7 @@ struct PopStamps {
                 .noise(20, 0.004f)
                 .smooth(0.5f, 2)
                 .sweep(pop::profile::fromPath(
-                           shapes::star(5, 14.0f / 30.0f)
-                               .path({60, 60})
-                               .makeTransform(SkMatrix::Translate(-30, -30))),
+                           shapes::star(5, 14.0f / 30.0f).at({0, 0}, 30)),
                        true,
                        {.segments = 160,
                         .normals = pop::SweepOptions::Normals::Geometric});

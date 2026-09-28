@@ -69,12 +69,12 @@ struct FirstLight {
                         .normals = gm::pop::SweepOptions::Normals::Radial});
 
     const std::vector<glm::vec3> path = loop.sampleArcLength(96);
-    const float head = motion::phase(seconds, 1.0 / 0.35);
+    const float head = motion::phase(motion::Duration(seconds), motion::Duration(1.0 / 0.35));
     // Where the lens stands: the turntable's node carries it, so the
     // pose the rail puts that node in at the distance it has travelled
     // IS the eye, and the comet is turned onto the same point.
     const float travelled =
-        motion::phase(seconds, kTable.period) * track.length();
+        motion::phase(motion::Duration(seconds), motion::Duration(kTable.period)) * track.length();
     const glm::vec3 eye = gm::curve::poseAlong(track, travelled).position;
     // What stands at every point of the comet is a FLAKE, and a flat
     // body reads as the bead it draws only while it faces the viewer —

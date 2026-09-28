@@ -28,6 +28,8 @@
 
 // TAGS: Geometry/Paths
 
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigildraw/Pen.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPath.h>
@@ -80,8 +82,7 @@ sketch::kit::Theme sheetTheme() {
  *  outside and inside of a closed path are unambiguous. */
 SkPath spine() {
   const float art = kPicture - 76;
-  return shapes::polygon(6)
-      .path({art, art})
+  return sigil::geometry::path::toSk(shapes::polygon(6).outline({art, art}))
       .makeTransform(
           SkMatrix::Translate((kCell - art) * 0.5f, (kPicture - art) * 0.5f));
 }

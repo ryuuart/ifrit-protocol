@@ -92,7 +92,7 @@ Element splat(geometry::mesh::Cloud cloud) {
   return custom([cloud = std::move(cloud), sprite = kit::dotSprite()](sigil::draw::Pen& pen, const PaintContext& paint) {
            SkCanvas& canvas = *pen.canvas();
            geometry::mesh::points::BillboardStyle style;
-           style.sprite = sprite;
+           style.sprite = sprite->frames().front().image;
            style.size = 7;
            style.sizeLane = "size";
            style.tintLane = "tint";

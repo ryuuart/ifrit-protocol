@@ -95,9 +95,9 @@ Element field(const char* key, Field sample) {
     for (int y = 0; y < rows; ++y)
       for (int x = 0; x < columns; ++x) {
         const float v = sample(x, y);
-        const SkRect at = arrange::cellRect({x, y}, {kBlock, kBlock});
+        const auto at = arrange::cellRect({x, y}, {kBlock, kBlock});
         pen.fill(material::Color{ink.r * v, ink.g * v, ink.b * v, 1});
-        pen.rect(at.fLeft, at.fTop, kBlock, kBlock);
+        pen.rect(at.left(), at.top(), kBlock, kBlock);
       }
   });
 }

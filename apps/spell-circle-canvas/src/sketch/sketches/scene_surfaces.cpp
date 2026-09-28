@@ -41,6 +41,7 @@
 
 // TAGS: Geometry/Meshes
 
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Paint.h>
@@ -330,12 +331,12 @@ struct SceneSurfaces {
       const float bearing = bearingDeg * kTwoPi / 360.0f;
       // A bearing is measured from +z and turns toward +x, so the
       // ellipse's two components land on z and on x in that order.
-      const SkPoint on =
+      const glm::vec2 on =
           arrange::onEllipse({0, 0}, {kArcRadius, kArcRadius}, bearing);
       console.children(
           {world::Element()
                .key("card" + std::to_string(i))
-               .at({on.fY, 78.0f, on.fX - kArcRadius})
+               .at({on.y, 78.0f, on.x - kArcRadius})
                .mesh(gm::quad(kCardWidth, kCardHeight))
                .backface(material::Backface::Visible)
                .fill(screenOf(cards[(size_t)i].at(seconds, content[(size_t)i])))
