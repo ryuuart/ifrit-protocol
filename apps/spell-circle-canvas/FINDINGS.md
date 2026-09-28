@@ -22,30 +22,6 @@ JUKUGO and KENTEN must not — closes this entry. The library behaviour is
 already asserted by `ComposeAnnotate` and `TextVertical`; what a test
 cannot see is which unit a specimen names, so the plate is the check.
 
-## `ksp_mapview` describes its map twice for a light that keeps its source
-
-A bright pass is a colour program: `skia::Effect::brightPass` sets a
-colour filter and leaves the image filter null, so a light built over it
-carries no program over coordinates and the layer beneath
-`Effect().emit(brightPass().then(<blur>))` is kept at the device's own
-resolution, which
-`SkiaEffect.AnEmittedLightLeavesTheSharpLayerAtDeviceResolution`
-asserts. One description of a layer is enough to bloom it.
-
-`src/sketch/sketches/ksp_mapview/ksp_mapview.cpp` builds its bloom out
-of a second `mapLayer(ctx)`, filtered and composited back over the first
-with `kPlus`, and the comment above it states that the duplicate
-describe "is not avoidable" and that only a gathering light would need
-one describe. Neither holds of the pass the scene uses: an emitted
-bright pass keeps its own source, at one tap and a separable blur.
-
-The scene should describe its map once and emit the bright pass and its
-blur from that one layer, with the light's strength folded into the
-light and the comment saying what the seam costs. The library half is
-asserted already; what a test cannot see is how many times a specimen
-describes a layer, so the plate is the check, and it moves where the
-composite differs — a plate rebase names the cause.
-
 ## A study turns a screen's light off and builds it again outside the recipe
 
 `eva_magi_interior/EvangelionUi.h` sets `uBloom` to zero on the tube
@@ -410,8 +386,8 @@ it only as a fill.
 
 ## Ten Data sketches still snapshot and print a connection's vitals by hand
 
-`data::Connection::vitals()` answers one comparable
-`data::Connection::Vitals`, and `sketch::kit::connectionReadout(connection,
+`data::Connection::state()` answers one comparable
+`data::ConnectionState`, and `sketch::kit::connectionReadout(connection,
 {.door, .rows})` is the one readout over it; `feed_sky` reads both. Ten
 registered sketches still declare their own `Reading` (or `Vitals`)
 struct of those fields, fill it by hand, test it for a change and set
@@ -420,8 +396,8 @@ their own rows in an order of their own: `phone_sky`, `webrtc_sky`,
 `artnet_lights` and `channel_bind` over a `data::Connection`, and
 `feed_vitals` (`Vitals`, `vitalsOf`) over the `io::Feed` beneath one.
 
-What the sketches should say: a door keeps the `Vitals` it last showed
-and describes again when `vitals() != shown`, and its readout is
+What the sketches should say: a door keeps the `ConnectionState` it last
+showed and describes again when `state() != shown`, and its readout is
 `connectionReadout`. `feed_vitals` reads the feed with no connection
 over it, so it either opens one or keeps its own rows and says why. Each
 plate moves only where the kit's rows differ from the sketch's own (a
@@ -696,32 +672,27 @@ and `manuscript` byte-identical, and that is the check.
 outline `TextLayout::glyphOutline()` builds from the placement
 (`compose/core/PaintContent.cpp`, cached against `measuredRev`). A
 `textFx()` track's `GlyphModifier` — its scale, shear, offset and rotation —
-is applied at paint time after that outline is taken, so a
-`styles::dropShadow`, an `OuterGlow` or a bevel on a leaf whose letters a
+is applied at paint time after that outline is taken, so a coverage
+shadow, glow or bevel over that outline (`material::Filter::shadow`,
+`Filter::bevel` in the effects of the leaf's ink) on a leaf whose letters a
 keyframe table squashes and shears stays drawn around the letters where
 they stood. `Boundary::Coverage` would follow them, but it rasterises and
 traces the leaf's layer whenever it is invalidated, which a track moving
-every frame does every frame. And `material::skia::Effect` has no offset
-drop shadow (CSS's `filter: drop-shadow(x y blur colour)`): `glow` is the
-zero-offset form, so a shadow cast AWAY from a deformed run is a second
-copy of the run, translated and blurred with `Effect::blur` — on the bench
-that copy is the most expensive node on the plate, at several ms per
-display-size word at 2x.
+every frame does every frame. A pixel-reading shadow over the whole leaf,
+`Element::filter(material::Filter::dropShadow(colour, {.offset}))`, does
+follow the drawn letters; what does not is the coverage shadow a text's
+own ink carries.
 
-It evidently means a shadow that belongs to what the letters DO: either
-the glyph outline is rebuilt from the deviated glyphs when a leaf carries
+It evidently means a shadow that belongs to what the letters DO: the
+glyph outline rebuilt from the deviated glyphs when a leaf carries
 displacing tracks (the tracks already know their reach, and a settled
-cascade could cache the deviated outline as a static one is), or the
-effect family carries `dropShadow(offset, sigma, colour)` so one filter on
-the leaf casts the drawn letters, deformed, without a copy.
+cascade could cache the deviated outline as a static one is).
 
 A test should lay `textFx::tween({.to = GlyphModifier{.scaleX = 2}})` at
 progress 1 on a one-glyph leaf with `decorationOutline(Boundary::Glyphs)`
-and an `OuterGlow`, and assert the glow's painted bounds span the doubled
-glyph's width rather than the rest glyph's; and, for the effect, that a
-leaf filtered with a drop shadow of offset (0, 12) paints shadow pixels
-12 px below the deformed glyph's lowest ink and none beside its rest
-position.
+and an outer glow (a zero-offset `Filter::shadow` with a spread), and
+assert the glow's painted bounds span the doubled glyph's width rather
+than the rest glyph's.
 
 Wanted by `elastic_type`, whose words stand in a pool of shadow attached
 under their rest extent because neither route above follows the letters.
@@ -748,16 +719,16 @@ Add `karaoke_wipe` to that entry's wanted-by list: its glow is a second,
 blurred copy of the sung line sung from black, where one glyph-outline
 glow on the line would do.
 
-## `Effect::phosphorBloom` over a live layer costs the same whatever the layer's size, and far more than a blur
+## `Filter::phosphorBloom` over a live layer costs the same whatever the layer's size, and far more than a blur
 
-`Effect::phosphorBloom` (`sigilmaterial/skia/Effect.h`, built in
-`skia/EffectBloom.cpp` by `makePhosphorBloom`) says its halo is gathered
+`material::Filter::phosphorBloom` (`sigilmaterial/filter/Filter.h`, built in
+`material/skia/EffectBloom.cpp` by `makePhosphorBloom`) says its halo is gathered
 over a REDUCED layer and resampled up, which reads as a bloom meant for
 live content. Over a live node it costs the whole frame: `karaoke_wipe`
 put it on the caption box of its screen (928x318) and on the sung text
 leaf alone (810x63), and `--bench` reported the node at about 43 ms per
-frame in both cases, p99 45.6 ms, where `Effect::blur(6)` on the same text
-leaf costs 3.3 ms and `skia::bloom` (two separable Gaussians) over the
+frame in both cases, p99 45.6 ms, where `Filter::blur(6)` on the same text
+leaf costs 3.3 ms and `Filter::bloom` (two separable Gaussians) over the
 caption box 24 ms.
 
 THE PROBABLE CAUSE, from the source. `makePhosphorBloom` builds two
@@ -784,7 +755,7 @@ cost following the layer it filters, of the order of the blur it replaces
 for a caption-sized layer, which a crop of the filter graph to the
 content's bounds grown by the effect's reach would give.
 
-A test should build `Effect::phosphorBloom(radius, …)` and ask the filter
+A test should build `Filter::phosphorBloom(radius, …)` and ask the filter
 it produces for its forward bounds over a node rect
 (`SkImageFilter::filterBounds(nodeRect, identity, kForward_MapDirection)`,
 and `computeFastBounds(nodeRect)`), asserting both equal the node's rect
@@ -846,18 +817,19 @@ strength on a dark ground.
 ## `sigillum_aemeth` still marks a workaround for an echo that now follows the path
 
 `src/sketch/sketches/sigillum_aemeth/sigillum_aemeth.cpp` (around line
-130) carries a `workaround:` line above `onSide`, saying a layer
-style's echo is stamped as a straight run at the box's origin rather
-than along the text's path, so its heptagon runs set with `textOnPath`
-go without the incised echo `incised` gives every straight run. A
-layer style's echo now re-stamps a path-set run along its path, glyph
-for glyph as the real pass places it
+130) carries a `workaround:` line above `onSide`, saying an echo is
+stamped as a straight run at the box's origin rather than along the
+text's path, so its heptagon runs set with `textOnPath` go without the
+incised echo `incised` gives every straight run. An echo — a blur-less
+`material::Filter::shadow(colour, {.offset})` in the effects of a text's
+ink — now re-stamps a path-set run along its path, glyph for glyph as
+the real pass places it
 (`ComposeTextPathEcho` asserts it), so `grep -r workaround:` lists a
 compensation for a defect that no longer exists.
 
 What the sketch evidently intends is every lettered run incised alike:
 `onSide` should set its run through `incised` (or state the same
-`LayerStyle::echo`) and the `workaround:` line should go. The plate
+`Filter::shadow` echo on its ink) and the `workaround:` line should go. The plate
 moves where the seven side runs gain their lit lip below and to the
 right of each letter, and nowhere else; that move, explained in the
 commit, is the check.
@@ -868,7 +840,7 @@ commit, is the check.
 `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa` and the named colours, and it is
 the only door in the tree that turns a colour's text into a
 `material::Color`. SigilMaterial, which owns what a colour means, offers
-`material::rgb(uint32_t)` and SigilCompose `hexColor(uint32_t)`, both
+only `material::hexColor(uint32_t, alpha)` (`sigilmaterial/color/Color.h`),
 from an integer. So a compose sketch that keeps its palette in `data/`,
 as a sketch keeps its words, either links the p5 pen library for one
 function (`chladni_tab1` does, in `Figures.h`) or writes
@@ -898,7 +870,8 @@ Also wanted by `cosmati` (its nine quarries and four inks live in `data/pavement
 `chladni_tab1` fills its stars with `ink`, a `material::skia::Paint`
 held as a member and built once in `setup()` as
 `Paint::blend({{Paint::solid(ink), kSrc}, {Paint::recipe(field::grain(0.09f, 3, 4.0f, 0.35f)), kSoftLight}})`,
-each star under `Cache::Texture`. Describing the unchanged tree again —
+handed to the node as `.fill(material::skia::base(ink))`, each star
+under `Cache::Texture`. Describing the unchanged tree again —
 the same members, the same held paint — makes the frame of each describe
 several times the steady frame, and that frame's bakes are the stars':
 with the stars filled by `Fill::var("ink")`, or by a `Paint::blend` of
@@ -906,9 +879,10 @@ two solids, the same describes leave the frame flat, and with
 `Paint::recipe(field::grain(...))` alone as the fill they spike as the
 blend does. So the recipe-backed layer, not the blend, is what keeps the
 node from pruning or keeps its texture from surviving the prune. Where
-it goes wrong was not traced: `.fill(Paint)` stores a geometry-dependent
-paint in the live material slot, and `materialEqual` answers false for
-any slot whose paint reports `isAnimated()`; `field::grain`'s shader
+it goes wrong was not traced: `material::skia::base(paint)` as a fill
+stores a geometry-dependent material in the live slot, and
+`materialEqual` (`compose/core/ReconcileEquality.cpp`) answers false for
+any live slot that reports `isRunning()` and is not pan-only; `field::grain`'s shader
 reads neither time nor content scale, so either the recipe reports a
 frame input it does not read, or the live slot's texture is dropped on
 re-patch whatever the compare answers.
@@ -921,7 +895,7 @@ grain whose recipe, bytes and bindings are the same is the same paint,
 and a texture over it stands until something it depends on changes.
 
 A test should fill a 200 x 200 box with
-`Paint::recipe(field::grain(0.09f, 3, 4.0f, 0.35f))` under
+`material::skia::base(Paint::recipe(field::grain(0.09f, 3, 4.0f, 0.35f)))` under
 `Cache::Texture`, draw, describe the identical tree, draw again and
 assert the second draw takes no bake; the same with the recipe as the
 soft-light layer of a `Paint::blend` over a solid; and that changing the
