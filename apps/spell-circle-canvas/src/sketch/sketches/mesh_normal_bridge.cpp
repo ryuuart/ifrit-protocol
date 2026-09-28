@@ -51,6 +51,8 @@
 
 // TAGS: Geometry/Meshes, Materials/Lighting
 
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigildraw/Pen.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkSurface.h>
@@ -99,8 +101,7 @@ constexpr material::Color kDim{0.56f, 0.61f, 0.72f, 1};
  *  the normal under it. */
 SkPath squircle() {
   const float side = 300;
-  return shapes::squircle(3.4f)
-      .path({side, side})
+  return sigil::geometry::path::toSk(shapes::squircle(3.4f).outline({side, side}))
       .makeTransform(SkMatrix::Translate(
           kCanvas.width() * 0.5f + kStations[2] - side * 0.5f,
           kCanvas.height() * 0.5f - side * 0.5f));
@@ -121,7 +122,7 @@ struct MeshNormalBridge {
     sk_sp<SkSurface> surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
         (int)kCanvas.width(), (int)kCanvas.height()));
     surface->getCanvas()->clear(SkColorSetARGB(255, 128, 128, 255));
-    render::drawMesh(*surface->getCanvas(), body, model, view, kCanvas,
+    render::drawMesh(*surface->getCanvas(), body, model, view, sigil::geometry::path::fromSk(kCanvas),
                      {.mode = render::MeshStyle::Mode::Normals});
     return surface->makeImageSnapshot();
   }
@@ -131,7 +132,7 @@ struct MeshNormalBridge {
                                    const camera::Camera& view,
                                    const sk_sp<SkShader>& shader) {
     canvas.saveLayer(nullptr, nullptr);
-    render::drawMesh(canvas, body, model, view, kCanvas,
+    render::drawMesh(canvas, body, model, view, sigil::geometry::path::fromSk(kCanvas),
                      {.mode = render::MeshStyle::Mode::Uv});
     SkPaint shade;
     shade.setShader(shader);

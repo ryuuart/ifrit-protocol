@@ -25,6 +25,8 @@
 
 // TAGS: Geometry/Diagrams
 
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigildraw/Pen.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPathBuilder.h>
@@ -82,8 +84,8 @@ std::vector<SkPath> heptagram() {
   const SkPoint c{kCell * 0.5f, kCell * 0.5f};
   SkPoint v[n];
   for (int i = 0; i < n; ++i)
-    v[i] = arrange::onRing((size_t)i, n, c, {r, r}, -1.5707963f, 6.2831853f,
-                           arrange::Turn::Closed);
+    v[i] = sigil::geometry::path::toSk(arrange::onRing((size_t)i, n,
+          {.center = sigil::geometry::path::fromSk(c), .radii = {r, r}, .fromDegrees = (-1.5707963f) * sigil::geometry::path::kRadToDeg, .sweepDegrees = (6.2831853f) * sigil::geometry::path::kRadToDeg, .turn = arrange::Turn::Closed}));
   std::vector<SkPath> strands;
   for (int i = 0; i < n; ++i) {
     SkPathBuilder b;
@@ -101,8 +103,8 @@ std::vector<SkPath> rings() {
   std::vector<SkPath> strands;
   for (int i = 0; i < 3; ++i) {
     const SkPoint at =
-        arrange::onRing((size_t)i, 3, c, {r * 0.62f, r * 0.62f}, -1.5707963f,
-                        6.2831853f, arrange::Turn::Closed);
+        sigil::geometry::path::toSk(arrange::onRing((size_t)i, 3,
+          {.center = sigil::geometry::path::fromSk(c), .radii = {r * 0.62f, r * 0.62f}, .fromDegrees = (-1.5707963f) * sigil::geometry::path::kRadToDeg, .sweepDegrees = (6.2831853f) * sigil::geometry::path::kRadToDeg, .turn = arrange::Turn::Closed}));
     SkPathBuilder b;
     b.addCircle(at.fX, at.fY, r);
     strands.push_back(b.detach());
@@ -144,7 +146,7 @@ void paintWeave(SkCanvas& canvas, const std::vector<SkPath>& strands,
       mark.setStyle(SkPaint::kStroke_Style);
       mark.setStrokeWidth(1.5f);
       mark.setColor4f(material::skia::toSkColor(kPin));
-      canvas.drawCircle(x.at, kReach, mark);
+      canvas.drawCircle(path::toSk(x.at), kReach, mark);
     }
   }
 }

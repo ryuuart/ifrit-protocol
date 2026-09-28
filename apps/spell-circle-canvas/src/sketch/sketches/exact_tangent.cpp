@@ -6,6 +6,8 @@
 
 // TAGS: Typography/Lettering
 
+#include <sigilmaterial/skia/Texture.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <include/core/SkBitmap.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
@@ -98,13 +100,12 @@ Element arcRun(const char* word, float size, material::Color colour, bool exact,
 }
 
 SkBitmap coverage(weave::FontContext& fonts, bool exact) {
-  const auto raster =
+  const auto raster = material::skia::image(
       texture(
           box().applyStyleSheet(voices()).children(
               {arcRun("R", kDetailSize, SkColors::kWhite, exact, 0.78f, -140, 4)
                    .translateY(110)}),
-          kRaster, fonts)
-          .image();
+          kRaster, fonts));
   SkBitmap mask;
   mask.allocN32Pixels(kRaster.width(), kRaster.height());
   if (!raster || !raster->readPixels(mask.pixmap(), 0, 0))
@@ -169,10 +170,10 @@ Element tangentDetail(weave::FontContext& fonts) {
   return box().column().gap(10).children(
       {box().width(kCell).height(210).children(
            {image(pixels, material::Fit::Stretch)
-                .imageRegion(overview)
+                .imageRegion(sigil::geometry::path::fromSk(overview))
                 .width(overview.width() * scale)
                 .height(overview.height() * scale)
-                .at(origin),
+                .at(sigil::geometry::path::fromSk(origin)),
             box()
                 .rect(
                     origin.x() + (crop.x() - overview.x()) * scale,
@@ -181,7 +182,7 @@ Element tangentDetail(weave::FontContext& fonts) {
                 .foreground(decorations::border(1, Fill::color(marker)))}),
        document::label("EDGE DETAIL \u00b7 8\u00d7 RASTER").padding(0, 10),
        image(pixels, material::Fit::Stretch)
-           .imageRegion(crop)
+           .imageRegion(sigil::geometry::path::fromSk(crop))
            .imageRendering(material::Sampling::Nearest)
            .width(kCrop.width() * kMagnification)
            .height(kCrop.height() * kMagnification)});

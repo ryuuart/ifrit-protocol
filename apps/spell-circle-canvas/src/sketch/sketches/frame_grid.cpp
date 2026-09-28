@@ -169,7 +169,7 @@ struct FrameGrid {
                                 "Both readings use 0° and 126°.",
                                 [](draw::Pen& p) {
                                   const path::PolarFrame frame{
-                                      .centre = sigil::geometry::path::fromSk(middle()), .radius = kRadius};
+                                      .centre = middle(), .radius = kRadius};
                                   dial(p, frame);
                                   ticks(p, frame);
                                   reading(p, frame, 0, kFigure);
@@ -196,7 +196,7 @@ struct FrameGrid {
                                 "retaining its angle convention.",
                                 [](draw::Pen& p) {
                                   const path::PolarFrame frame{
-                                      .centre = sigil::geometry::path::fromSk(middle()), .radius = kRadius};
+                                      .centre = middle(), .radius = kRadius};
                                   dial(p, frame);
                                   const path::PolarFrame inner =
                                       frame.scaled(0.62f);

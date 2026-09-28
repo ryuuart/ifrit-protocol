@@ -56,6 +56,8 @@
 
 // TAGS: Motion/Transitions
 
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigildraw/Pen.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPathBuilder.h>
@@ -107,7 +109,7 @@ sketch::kit::Theme sheetTheme() {
  *  this sheet is placed by its centre instead. */
 template <class Shape>
 SkPath at(const Shape& shape, float radius, SkPoint center) {
-  return shape.path({radius * 2, radius * 2})
+  return sigil::geometry::path::toSk(shape.outline({radius * 2, radius * 2}))
       .makeTransform(
           SkMatrix::Translate(center.fX - radius, center.fY - radius));
 }
@@ -116,7 +118,7 @@ SkPath at(const Shape& shape, float radius, SkPoint center) {
  *  its own steps, so its keys carry no position of their own. */
 template <class Shape>
 SkPath centred(const Shape& shape, float radius) {
-  return shape.path({radius * 2, radius * 2})
+  return sigil::geometry::path::toSk(shape.outline({radius * 2, radius * 2}))
       .makeTransform(SkMatrix::Translate(-radius, -radius));
 }
 
@@ -170,9 +172,9 @@ Element explained(sketch::kit::ComparisonCase one) {
 
 // 1 — the two-key run at a stated count.
 void statedCount(SkCanvas& canvas) {
-  blend::Key from{at(shapes::star(5, 30.0f / 70.0f), 62, {80, kRun / 2}),
+  blend::Key from{sigil::geometry::path::fromSk(at(shapes::star(5, 30.0f / 70.0f), 62, {80, kRun / 2})),
                   {1.0f, 0.42f, 0.30f, 1}};
-  blend::Key to{at(shapes::circle(), 56, {kBand - 80, kRun / 2}),
+  blend::Key to{sigil::geometry::path::fromSk(at(shapes::circle(), 56, {kBand - 80, kRun / 2})),
                 {0.30f, 0.62f, 1.0f, 1}};
   blend::draw(canvas, blend::make(from, to, {.steps = 8}));
 }
@@ -180,11 +182,11 @@ void statedCount(SkCanvas& canvas) {
 // 2 — a waypoint between the ends.
 void waypoint(SkCanvas& canvas) {
   const blend::Key keys[3] = {
-      {at(shapes::star(4, 28.0f / 70.0f), 62, {80, kRun / 2}),
+      {sigil::geometry::path::fromSk(at(shapes::star(4, 28.0f / 70.0f), 62, {80, kRun / 2})),
        {1.0f, 0.85f, 0.25f, 1}},
-      {at(shapes::squircle(3.6f), 54, {kBand / 2, kRun / 2 - 28}),
+      {sigil::geometry::path::fromSk(at(shapes::squircle(3.6f), 54, {kBand / 2, kRun / 2 - 28})),
        {0.35f, 1.0f, 0.65f, 1}},
-      {at(shapes::star(12, 52.0f / 66.0f), 58, {kBand - 80, kRun / 2}),
+      {sigil::geometry::path::fromSk(at(shapes::star(12, 52.0f / 66.0f), 58, {kBand - 80, kRun / 2})),
        {0.75f, 0.4f, 1.0f, 1}}};
   blend::draw(canvas, blend::make(keys, {.steps = 5, .smoothOutlines = true}));
 }
@@ -192,14 +194,13 @@ void waypoint(SkCanvas& canvas) {
 // 3 — stroke width and stroke colour interpolate as well.
 void strokes(SkCanvas& canvas) {
   const blend::Key from{
-      .path = at(shapes::star(6, 40.0f / 72.0f), 62, {80, kRun / 2}),
+      .path = sigil::geometry::path::fromSk(at(shapes::star(6, 40.0f / 72.0f), 62, {80, kRun / 2})),
       .fill = {0, 0, 0, 0},
-      .stroke = material::skia::toSkColor(material::Color{0.2f, 0.9f, 1.0f, 1}),
+      .stroke = glm::vec4{0.2f, 0.9f, 1.0f, 1},
       .strokeWidth = 6};
-  const blend::Key to{.path = at(shapes::circle(), 56, {kBand - 80, kRun / 2}),
+  const blend::Key to{.path = sigil::geometry::path::fromSk(at(shapes::circle(), 56, {kBand - 80, kRun / 2})),
                       .fill = {0, 0, 0, 0},
-                      .stroke = material::skia::toSkColor(
-                          material::Color{1.0f, 0.35f, 0.75f, 1}),
+                      .stroke = glm::vec4{1.0f, 0.35f, 0.75f, 1},
                       .strokeWidth = 1};
   blend::draw(canvas,
               blend::make(from, to, {.steps = 14, .smoothOutlines = true}));
@@ -209,25 +210,24 @@ void strokes(SkCanvas& canvas) {
 // same question asked of two open runs at a stated count.
 void derivedCount(SkCanvas& canvas) {
   {
-    blend::Key from{at(shapes::squircle(3.2f), 96, {200, kWide / 2}),
+    blend::Key from{sigil::geometry::path::fromSk(at(shapes::squircle(3.2f), 96, {200, kWide / 2})),
                     {0.08f, 0.10f, 0.35f, 1}};
-    blend::Key to{at(shapes::circle(), 16, {222, kWide / 2 - 18}),
+    blend::Key to{sigil::geometry::path::fromSk(at(shapes::circle(), 16, {222, kWide / 2 - 18})),
                   {1.0f, 0.95f, 0.55f, 1}};
     blend::draw(canvas, blend::make(from, to,
                                     {.spacing = blend::Spacing::SmoothColor,
                                      .smoothOutlines = true}));
   }
   {
-    const blend::Key from{.path = wave({470, 40}, {kBand - 40, 52}, 24, 3),
+    const blend::Key from{.path = sigil::geometry::path::fromSk(wave({470, 40}, {kBand - 40, 52}, 24, 3)),
                           .fill = {0, 0, 0, 0},
-                          .stroke = material::skia::toSkColor(
-                              material::Color{0.15f, 0.85f, 1.0f, 0.9f}),
+                          .stroke = glm::vec4{0.15f, 0.85f, 1.0f, 0.9f},
                           .strokeWidth = 2.5f};
     const blend::Key to{
-        .path = wave({450, kWide - 60}, {kBand - 60, kWide - 52}, 38, 2),
+        .path = sigil::geometry::path::fromSk(wave({450, kWide - 60}, {kBand - 60, kWide - 52}, 38, 2)),
         .fill = {0, 0, 0, 0},
         .stroke =
-            material::skia::toSkColor(material::Color{1.0f, 0.3f, 0.75f, 0.9f}),
+            glm::vec4{1.0f, 0.3f, 0.75f, 0.9f},
         .strokeWidth = 2.5f};
     blend::draw(canvas, blend::make(from, to, {.steps = 42}));
   }
@@ -236,9 +236,9 @@ void derivedCount(SkCanvas& canvas) {
 /** Bands 5 and 6: the same run over the same spiral, spaced by distance,
  *  differing only in what `orientation` says. */
 void spined(SkCanvas& canvas, blend::Orientation orientation) {
-  blend::Key from{centred(shapes::star(3, 16.0f / 34.0f), 30),
+  blend::Key from{sigil::geometry::path::fromSk(centred(shapes::star(3, 16.0f / 34.0f), 30)),
                   {1.0f, 0.9f, 0.3f, 0.95f}};
-  blend::Key to{centred(shapes::star(7, 12.0f / 30.0f), 26),
+  blend::Key to{sigil::geometry::path::fromSk(centred(shapes::star(7, 12.0f / 30.0f), 26)),
                 {0.4f, 0.5f, 1.0f, 0.95f}};
   // The spiral is inscribed in a square inside the cell, so both cells
   // walk one spine and only the orientation differs.
@@ -247,10 +247,9 @@ void spined(SkCanvas& canvas, blend::Orientation orientation) {
               blend::make(from, to,
                           {.spacing = blend::Spacing::Distance,
                            .distance = 30,
-                           .spine = shapes::spiral(2.2f)
-                                        .path({side, side})
-                                        .makeTransform(SkMatrix::Translate(
-                                            (kSpineCell - side) / 2, 20)),
+                           .spine = shapes::spiral(2.2f).outline({side, side})
+                                        .transformed(sigil::geometry::path::Transform::translate(
+                                            {(kSpineCell - side) / 2, 20})),
                            .orientation = orientation,
                            .smoothOutlines = true}));
 }

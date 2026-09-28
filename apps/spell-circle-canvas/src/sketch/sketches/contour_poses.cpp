@@ -28,6 +28,7 @@
 
 // TAGS: Geometry/Paths
 
+#include <sigilgeometry/advanced/Skia.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
@@ -82,8 +83,7 @@ sketch::kit::Theme sheetTheme() {
  *  what makes the corner threshold visible as a threshold. */
 SkPath subject() {
   const float art = kPicture - 56;
-  return shapes::star(5, 0.46f, 0.13f)
-      .path({art, art})
+  return sigil::geometry::path::toSk(shapes::star(5, 0.46f, 0.13f).outline({art, art}))
       .makeTransform(
           SkMatrix::Translate((kCell - art) * 0.5f, (kPicture - art) * 0.5f));
 }
@@ -128,7 +128,7 @@ struct ContourPoses {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     const SkPath figure = subject();
-    const std::vector<path::Contour> contours = path::Contour::of(figure);
+    const std::vector<path::Contour> contours = path::Contour::of(sigil::geometry::path::fromSk(figure));
     const float total = path::totalLength(contours);
     const std::span<const path::Contour> run{contours};
 

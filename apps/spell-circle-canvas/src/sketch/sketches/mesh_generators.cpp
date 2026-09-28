@@ -55,6 +55,8 @@
 
 // TAGS: Geometry/Meshes
 
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigildraw/Pen.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPaint.h>
@@ -131,27 +133,27 @@ struct MeshGenerators {
     const auto tinted = [&steel](material::Color colour, float specular = 0.9f,
                                  float shininess = 64) {
       render::MeshStyle style = steel;
-      style.baseColor = material::skia::toSkColor(colour);
+      style.baseColor = {colour.r, colour.g, colour.b, colour.a};
       style.specular = specular;
       style.shininess = shininess;
       return style;
     };
 
     render::drawMesh(canvas, pedestal, camera::place({kLineupAt, -150, 0}),
-                     view, kCanvas, tinted({0.3f, 0.32f, 0.4f, 1}, 0.4f));
+                     view, sigil::geometry::path::fromSk(kCanvas), tinted({0.3f, 0.32f, 0.4f, 1}, 0.4f));
 
     render::drawMesh(canvas, star,
                      camera::place({kLineupAt - 290, 60, 0}, 38, -18, 8), view,
-                     kCanvas, steel);
+                     sigil::geometry::path::fromSk(kCanvas), steel);
 
     render::drawMesh(canvas, ring,
                      camera::place({kLineupAt + 20, 40, -60}, 0, -32, 14), view,
-                     kCanvas, tinted({0.85f, 0.55f, 0.3f, 1}));
+                     sigil::geometry::path::fromSk(kCanvas), tinted({0.85f, 0.55f, 0.3f, 1}));
 
     render::drawMesh(canvas, vase, camera::place({kLineupAt + 310, 30, -30}),
-                     view, kCanvas, tinted({0.35f, 0.8f, 0.6f, 1}));
+                     view, sigil::geometry::path::fromSk(kCanvas), tinted({0.35f, 0.8f, 0.6f, 1}));
 
-    render::drawMesh(canvas, tube, glm::mat4(1.0f), view, kCanvas,
+    render::drawMesh(canvas, tube, glm::mat4(1.0f), view, sigil::geometry::path::fromSk(kCanvas),
                      tinted({0.6f, 0.68f, 0.8f, 1}, 0.9f, 48));
 
     // The panels are their own light, so the tint lane graded along `t`
@@ -159,14 +161,14 @@ struct MeshGenerators {
     render::MeshStyle panels;
     panels.lit = false;
     panels.baseColor = {0.86f, 0.87f, 0.92f, 1};
-    render::drawMesh(canvas, stations, glm::mat4(1.0f), view, kCanvas, panels);
+    render::drawMesh(canvas, stations, glm::mat4(1.0f), view, sigil::geometry::path::fromSk(kCanvas), panels);
 
     SkPaint wire;
     wire.setAntiAlias(true);
     wire.setStyle(SkPaint::kStroke_Style);
     wire.setStrokeWidth(1.2f);
     wire.setColor4f({1, 1, 1, 0.35f});
-    canvas.drawPath(curve::project(rail, view, kCanvas, 400), wire);
+    canvas.drawPath(sigil::geometry::path::toSk(curve::project(rail, view, sigil::geometry::path::fromSk(kCanvas), 400)), wire);
   }
 
   void setup(sketch::SketchContext& ctx) {
@@ -178,9 +180,8 @@ struct MeshGenerators {
     // The bodies are built once. A generator's cost belongs to the
     // description, not to the frame: nothing below changes per frame, so
     // rebuilding them there would be paying for the same vertices again.
-    star = mesh::extrude(shapes::star(5, 44.0f / 95.0f)
-                             .path({190, 190})
-                             .makeTransform(SkMatrix::Translate(-95, -95)),
+    star = mesh::extrude(sigil::geometry::path::fromSk(sigil::geometry::path::toSk(shapes::star(5, 44.0f / 95.0f).outline({190, 190}))
+                             .makeTransform(SkMatrix::Translate(-95, -95))),
                          {.depth = 40});
     ring = mesh::torus(110, 40);
 
