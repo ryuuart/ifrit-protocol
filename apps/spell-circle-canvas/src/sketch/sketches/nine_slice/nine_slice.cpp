@@ -8,6 +8,7 @@
 
 // TAGS: Geometry/Layout, Materials/Compositing
 
+#include <sigilmedia/advanced/Skia.h>
 #include <sigildraw/Pen.h>
 #include <include/core/SkSamplingOptions.h>
 #include <sigilcompose/brush/Decorations.h>
@@ -94,7 +95,7 @@ Element directLattice(std::shared_ptr<const sigil::media::Image> asset) {
                                              const PaintContext& ctx) {
                     SkCanvas& canvas = *pen.canvas();
                     const sk_sp<SkImage> image =
-                        asset ? asset->frameAt(0).image : nullptr;
+                        asset ? asset->frameAt({}).image : nullptr;
                     if (!image) return;
                     const int side = image->width();
                     const std::vector<int> xs{side / 3, side * 2 / 3};

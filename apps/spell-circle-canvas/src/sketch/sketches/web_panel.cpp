@@ -42,6 +42,7 @@
 
 // TAGS: Interfaces/Web
 
+#include <sigilgeometry/advanced/Skia.h>
 #include <include/core/SkCanvas.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/typography/Typography.h>
@@ -150,9 +151,10 @@ void drawSigil(SkCanvas& canvas, float size) {
   const float centre = size / 2;
   const float radius = centre * 0.92f;
   const auto corner = [&](int i) {
-    return arrange::onRing((size_t)(i % 6), 6, {centre, centre},
-                           {radius, radius}, 0.0f, 2.0f * (float)M_PI,
-                           arrange::Turn::Closed);
+    return arrange::onRing((size_t)(i % 6), 6,
+                           {.center = {centre, centre},
+                            .radii = {radius, radius},
+                            .fromDegrees = 0.0f});
   };
   sigil::draw::on(canvas, {size, size}, [&](sigil::draw::Pen& pen) {
     pen.clear();
@@ -164,7 +166,8 @@ void drawSigil(SkCanvas& canvas, float size) {
     }
     pen.strokeWeight(1.4f);
     pen.stroke(hexColor(0x7ee8ff, 0.7f));
-    for (int i = 0; i < 6; ++i) pen.line(corner(i), corner(i + 2));
+    for (int i = 0; i < 6; ++i) pen.line(sigil::geometry::path::toSk(corner(i)),
+                                              sigil::geometry::path::toSk(corner(i + 2)));
   });
 }
 

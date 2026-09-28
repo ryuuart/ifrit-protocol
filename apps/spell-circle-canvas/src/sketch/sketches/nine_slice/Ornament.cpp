@@ -1,6 +1,7 @@
 // The manuscript border's drawing, painted with Skia's canvas: each piece
 // sets its own paint and path, so a change to one leaves the others as
 // they are.
+#include <sigilmedia/advanced/Skia.h>
 #include "Ornament.h"
 
 #include <include/core/SkCanvas.h>
@@ -11,7 +12,7 @@
 #include <include/effects/SkPerlinNoiseShader.h>
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/path/Numeric.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 

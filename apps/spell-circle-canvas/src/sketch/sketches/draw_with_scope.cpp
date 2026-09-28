@@ -110,20 +110,20 @@ ScopeProgram drawTraffic() {
       for (const std::string& name : *calls) {
         const Scope::Node* target = scope.find(name);
         if (!target) continue;
-        const SkPoint from = node->bounds.center();
-        const SkPoint to = target->bounds.center();
+        const glm::vec2 from = node->bounds.centre();
+        const glm::vec2 to = target->bounds.centre();
         pen.stroke(ink);
         pen.strokeWeight(std::max(1.0f, load * kWeight));
-        pen.line(from, to);
+        pen.line(from.x, from.y, to.x, to.y);
         pen.noStroke();
         pen.fill(ink);
         pen.textSize(10);
-        const float dx = to.x() - from.x();
-        const float dy = to.y() - from.y();
+        const float dx = to.x - from.x;
+        const float dy = to.y - from.y;
         const float length = std::max(1.0f, std::hypot(dx, dy));
         pen.text(std::to_string((int)load),
-                 (from.x() + to.x()) / 2 + dy / length * 12,
-                 (from.y() + to.y()) / 2 - dx / length * 12);
+                 (from.x + to.x) / 2 + dy / length * 12,
+                 (from.y + to.y) / 2 - dx / length * 12);
         pen.noFill();
       }
     }

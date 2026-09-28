@@ -62,7 +62,6 @@
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
-namespace field = sigil::material::field;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;

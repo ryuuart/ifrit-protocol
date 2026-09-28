@@ -12,6 +12,7 @@
 //
 // TAGS: Interfaces/Game
 
+#include <sigildata/decode/Json.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Sprites.h>
@@ -108,7 +109,7 @@ struct Artefact {
 
   void read(sketch::SketchContext& context) {
     const auto file = [&](const char* name) {
-      return context.assets.json(context.local(std::string("data/") + name));
+      return context.assets.hub().load<sigil::data::Json>(context.local(std::string("data/") + name));
     };
     if (const auto ramps = file("palette.json"))
       for (size_t ramp = 0; ramp < ramps->size(); ++ramp)
