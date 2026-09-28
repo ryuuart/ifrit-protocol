@@ -12,9 +12,11 @@
 // labels stand; this header only describes the shapes and type registers they
 // share.
 
+#include <sigilweave/advanced/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkColorFilter.h>
-#include <include/core/SkFontStyle.h>
+#include <sigilweave/style/Face.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPoint.h>
@@ -25,7 +27,6 @@
 #include <sigilgeometry/kit/Corners.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
@@ -92,7 +93,7 @@ struct MagiModule {
 
   [[nodiscard]] sigil::compose::Shape outline() const {
     const MagiModule geometry = *this;
-    return [geometry] {
+    return [geometry](glm::vec2) {
       const float stemLeft = geometry.stemLeft();
       SkPathBuilder path;
       path.moveTo(0, 0);
@@ -104,7 +105,7 @@ struct MagiModule {
       path.lineTo(stemLeft, geometry.barHeight);
       path.lineTo(0, geometry.barHeight);
       path.close();
-      return path.detach();
+      return sigil::geometry::path::fromSk(path.detach());
     };
   }
 
@@ -174,39 +175,37 @@ struct MagiVoteLayout {
   }
 };
 
-inline sk_sp<SkTypeface> groteskBold() {
+inline sigil::weave::Face groteskBold() {
   return sigil::weave::ports::face({"Helvetica", "Arial"},
-                                   SkFontStyle::kBold_Weight);
+                                   700);
 }
 
-inline sk_sp<SkTypeface> condensedBold() {
+inline sigil::weave::Face condensedBold() {
   return sigil::weave::ports::face(
       {"Helvetica Neue", "Arial Narrow", "DIN Condensed"},
-      SkFontStyle(SkFontStyle::kBold_Weight, SkFontStyle::kCondensed_Width,
-                  SkFontStyle::kUpright_Slant));
+      sigil::weave::FaceStyle{.weight = 700, .width = 3, .slant = sigil::weave::FaceSlant::Upright});
 }
 
-inline sk_sp<SkTypeface> condensedRegular() {
+inline sigil::weave::Face condensedRegular() {
   return sigil::weave::ports::face(
       {"Helvetica Neue", "Arial Narrow", "DIN Condensed"},
-      SkFontStyle(SkFontStyle::kNormal_Weight, SkFontStyle::kCondensed_Width,
-                  SkFontStyle::kUpright_Slant));
+      sigil::weave::FaceStyle{.weight = 400, .width = 3, .slant = sigil::weave::FaceSlant::Upright});
 }
 
-inline sk_sp<SkTypeface> moduleLabel() {
+inline sigil::weave::Face moduleLabel() {
   return sigil::weave::ports::face({"Helvetica", "Arial"});
 }
 
-inline sk_sp<SkTypeface> magiWordmark() {
+inline sigil::weave::Face magiWordmark() {
   return sigil::weave::ports::face({"Times New Roman", "Times", "Noto Serif"},
-                                   SkFontStyle::kBold_Weight);
+                                   700);
 }
 
-inline sk_sp<SkTypeface> minchoHeavy() {
+inline sigil::weave::Face minchoHeavy() {
   return sigil::weave::ports::face(
       {"FOT-Matisse Pro EB", "FOT-Matisse ProN EB", "MatissePro-EB",
        "Noto Serif JP", "Hiragino Mincho ProN", "Noto Serif CJK JP"},
-      SkFontStyle::kBlack_Weight);
+      900);
 }
 
 /** The shared colour-screen treatment, applied once to the whole display:
@@ -237,7 +236,7 @@ inline sigil::material::Filter crt(float width, float height) {
     const auto weigh = [](float w) {
       const float m[20] = {w, 0, 0, 0, 0, 0, w, 0, 0, 0,
                            0, 0, w, 0, 0, 0, 0, 0, 1, 0};
-      return material::skia::filter(SkColorFilters::Matrix(m));
+      return sigil::material::skia::filter(SkColorFilters::Matrix(m));
     };
     std::array<uint8_t, 256> half{};
     for (int i = 0; i < 256; ++i)
@@ -245,20 +244,17 @@ inline sigil::material::Filter crt(float width, float height) {
     const Filter glow =
         Filter::blur(0.8f).then(weigh(0.7f * 0.38f))
             .emit(Filter::blur(2.4f).then(weigh(0.3f * 0.38f)),
-                  material::BlendMode::PlusLighter)
-            .then(material::skia::filter(SkColorFilters::TableARGB(
+                  sigil::material::BlendMode::PlusLighter)
+            .then(sigil::material::skia::filter(SkColorFilters::TableARGB(
                 nullptr, half.data(), half.data(), half.data())));
-    return Effect().emit(glow, material::BlendMode::PlusLighter);
+    return Filter().emit(glow, sigil::material::BlendMode::PlusLighter);
   }();
   return light
       .then(Filter::of(screen, std::max(width, height) * 0.05f + 10.0f))
       .then(tubeLight);
 }
 
-/** The Japanese display register used where Matisse EB is unavailable. A
- *  WHOLE style rather than a partial for the cascade: a stand-in below
- *  extra-bold is thickened with a stroke on its paint, which a partial
- *  cannot state. */
+/** The Japanese display register used where Matisse EB is unavailable. */
 inline sigil::weave::TextStyle minchoDisplay(float size,
                                              sigil::material::Color color,
                                              float scaleX = 1.30f) {
@@ -267,11 +263,6 @@ inline sigil::weave::TextStyle minchoDisplay(float size,
                                .size = size,
                                .color = color,
                                .condense = scaleX});
-  if (style.shaping.typeface && style.shaping.typeface->fontStyle().weight() <
-                                    SkFontStyle::kExtraBold_Weight) {
-    style.paint.foreground.setStyle(SkPaint::kStrokeAndFill_Style);
-    style.paint.foreground.setStrokeWidth(size * 0.012f);
-  }
   return style;
 }
 

@@ -8,7 +8,12 @@
 
 // TAGS: Interfaces/Film
 
-#include <sigilgeometry/path/Skia.h>
+#include <span>
+#include <array>
+#include <sigilcompose/kit/Rows.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmedia/advanced/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/core/Measure.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilmaterial/color/Color.h>
@@ -26,11 +31,11 @@ struct EvaMagiDefense {
   // the site falls — and the fall is the ticker easing that alpha to one.
   // Nothing re-describes for a fall, and no bloom is ever painted live.
   static constexpr float kFallRest = 1.0f / 255.0f;
-  ch::Output<float> fallAlpha[eva::kSiteN] = {{kFallRest}, {kFallRest},
+  sigil::motion::Animatable<float> fallAlpha[eva::kSiteN] = {{kFallRest}, {kFallRest},
                                               {kFallRest}, {kFallRest},
                                               {kFallRest}, {kFallRest}};
   /** The fall ladder, resolved for the five that fall. */
-  motion::Cascade falls;
+  motion::Schedule falls;
   // The front: the field's pan in whole px, negative as it climbs. Bound on
   // the funnel's material and on the ribbons' halo, so nothing re-describes.
   motion::Animatable<float> front = motion::animatable(0.0f);
@@ -124,7 +129,7 @@ struct EvaMagiDefense {
     SkMatrix turn;
     turn.setRotate(s.rotation, module.barWidth * 0.5f,
                    module.totalHeight() * 0.5f);
-    const SkRect turned = module.outline()(SkSize::MakeEmpty())
+    const SkRect turned = sigil::geometry::path::toSk(module.outline()({0, 0}))
                               .makeTransform(turn)
                               .computeTightBounds();
     const SkPoint at = unroll(s.centre) - origin -
@@ -144,7 +149,7 @@ struct EvaMagiDefense {
     for (int n : {1, 2, 3}) {
       const SkRect r = module.cell(n);
       auto cell = box()
-                      .rect(r)
+                      .rect(sigil::geometry::path::fromSk(r))
                       .borderRadius({module.cellRadius})
                       .fill(Fill::color(kCell))
                       .foreground(rimStroke(3.2f, rim))
@@ -166,7 +171,7 @@ struct EvaMagiDefense {
     // The word is narrower than the installation number. Its width must
     // also clear the neighbouring cell when the plate turns sideways.
     plate.children({box()
-                        .centerAt(module.labelCentre())
+                        .centerAt(sigil::geometry::path::fromSk(module.labelCentre()))
                         .column()
                         .alignItems(Align::Center)
                         .gap(-6)
@@ -240,7 +245,7 @@ struct EvaMagiDefense {
         .width(kW)
         .height(kH)
         .shape(heldPath(sigil::geometry::path::fromSk(funnel)))
-        .fill(field(fieldStrip))
+        .fill(sigil::material::skia::base(field(fieldStrip)))
         .cache(Cache::Texture)
         .key("funnel");
   }
@@ -256,7 +261,7 @@ struct EvaMagiDefense {
     return box()
         .width(kW)
         .height(kH)
-        .fill(material::from(material::skia::image(ribbonHalo)).layer(field(haloStrip), {.blend = material::BlendMode::SourceIn}))
+        .fill(material::from(sigil::material::skia::base(material::skia::image(ribbonHalo))).layer(sigil::material::skia::base(field(haloStrip)), {.blend = material::BlendMode::SourceIn}))
         .cache(Cache::Texture)
         .cacheScale(0.5f)
         .key("ribbonglow");
@@ -299,7 +304,7 @@ struct EvaMagiDefense {
                      [&, i](SkPoint origin) {
                        return installation(i, origin, false);
                      })
-                 .opacity(&fallAlpha[i])});
+                 .opacity(fallAlpha[i])});
     }
     for (int i = 0; i < kLabelN; ++i)
       g.children({glowing(unroll(kLabels[i].centre), kLabels[i].w, kLabels[i].h,
@@ -385,15 +390,18 @@ struct EvaMagiDefense {
     look.type.captionNote = {23.0f, 0.2f};
     look.type.captionLabel = {23.0f, 0.2f, true};
     look.spacing.rowGap = 7;
-    std::vector<sketch::kit::Row> rows;
+    std::vector<std::array<Utf8, 3>> rows;
+    std::vector<Fill> swatches;
     for (const measure::Check& c : verdict.rows) {
       if (!c.judged()) continue;
       rows.push_back(
-          {{c.label, c.actual,
-            c.pass ? std::string("PASS") : "FAIL want " + c.expected},
-           Fill::color(c.pass ? sigil::material::Color{0, 0.30f, 0.14f, 1}
-                              : sigil::material::Color{0.62f, 0, 0, 1})});
+          {c.label, c.actual,
+            c.pass ? std::string("PASS") : "FAIL want " + c.expected});
+      swatches.push_back(Fill::color(c.pass ? sigil::material::Color{0, 0.30f, 0.14f, 1}
+                              : sigil::material::Color{0.62f, 0, 0, 1}));
     }
+    std::vector<std::span<const Utf8>> tableRows;
+    for (const auto& row : rows) tableRows.emplace_back(row);
     sketch::kit::Provide bound(look);
     return kit::at(0, 300, eva::kW, 150.0f + 30.0f * (float)rows.size())
         .fill(Fill::color({1, 0, 1, 0.93f}))
@@ -404,16 +412,20 @@ struct EvaMagiDefense {
             {text(u8"ROTATION RULE VIOLATED — this plate is not one component")
                  .font(eva::type(40, 0.95f))
                  .ink({0, 0, 0, 1}),
-             sketch::kit::table(std::move(rows),
+             sigil::compose::kit::table(tableRows,
                                 {.columns = {{.width = 820},
                                              {.width = 180, .figure = true},
                                              {}},
                                  .gap = 18,
+                                 .rowGap = look.spacing.rowGap,
+                                 .swatches = swatches,
                                  .swatchSide = 15})});
   }
 
   // --- host ------------------------------------------------------------------
   void setup(sketch::SketchContext& ctx) {
+    for (auto& value : fallAlpha) value = sigil::motion::animatable(value.value());
+
     using namespace eva;
     // The plate at exactly 2x. The canvas is the reference frame's own
     // 1920x1080, so halving the capture puts it on the frame directly.
@@ -460,9 +472,9 @@ struct EvaMagiDefense {
                       .shaping.fontSize;
 
     // --- motion ---
-    falls.build(eva::kFalls, eva::kFallN, 1);
-    ctx.engine.add([this, &ticker = ctx.engine] {
-      const double t = ticker.elapsed();
+    falls.build(motion::timingOf(eva::kFalls), eva::kFallN, 1);
+    ctx.engine.timer([this, &ticker = ctx.engine] {
+      const double t = ticker.elapsed().count();
       // phosphor flicker: a 4 s cycle, 1% duty
       const double ph = std::fmod(t, 4.0);
       flicker = ph < 0.04 ? 0.04f : 0.0f;

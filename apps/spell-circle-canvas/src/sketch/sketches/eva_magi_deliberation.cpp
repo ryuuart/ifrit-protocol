@@ -4,6 +4,7 @@
 
 // TAGS: Geometry/Diagrams, Interfaces/Film
 
+#include <sigilweave/style/Face.h>
 #include <include/core/SkPaint.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Paint.h>
@@ -48,7 +49,7 @@ struct EvaMagiDeliberation {
    *  size, condensation) set in the ink where it lands, or over the initial
    *  values when a probe lays it out alone; the metrics probe takes it whole,
    *  since metrics() reads a style rather than a tree. */
-  weave::Type fit(const sk_sp<SkTypeface>& face, const Utf8& run,
+  weave::Type fit(const sigil::weave::Face& face, const Utf8& run,
                   float capHeight, float maxWidth) const {
     float size = capHeight * 1.4f;
     if (fonts) {
@@ -66,8 +67,8 @@ struct EvaMagiDeliberation {
     return style;
   }
 
-  /** A Han run stays a whole style: the Mincho stand-in strokes its paint. */
-  weave::TextStyle han(const std::u8string& run, float capHeight,
+  /** A Han run fits the measure and thickens a lighter Mincho face with its ink. */
+  Element han(const std::u8string& run, float capHeight,
                        float maxWidth, material::Color color) const {
     weave::TextStyle style =
         evangelion::minchoDisplay(capHeight * 1.34f, color, 1.30f);
@@ -81,7 +82,12 @@ struct EvaMagiDeliberation {
       if (measured.width() > maxWidth && measured.width() > 1.0f)
         style.shaping.scaleX *= maxWidth / measured.width();
     }
-    return style;
+    material::Material ink{color};
+    if (style.shaping.typeface &&
+        weave::borrowSk(style.shaping.typeface)->fontStyle().weight() < 800)
+      ink.effects(material::Filter::stroke(
+          color, {.width = style.shaping.fontSize * 0.006f}));
+    return text(run, style).ink(ink);
   }
 
   /** Three rails at one pitch, the middle one heavier and lit. */
@@ -109,7 +115,7 @@ struct EvaMagiDeliberation {
          // The bus is deliberately earlier in the display list. Every module is
          // an opaque mask over it, so the route disappears cleanly at module
          // edges.
-         kit::disc(layout.busCentre, layout.busRadius)
+         kit::disc({layout.busCentre.fX, layout.busCentre.fY}, layout.busRadius)
              .shape(sigil::geometry::shapes::circle())
              .fill(Fill::none())
              .foreground(
@@ -129,7 +135,7 @@ struct EvaMagiDeliberation {
         // The module's ink is its label colour; the inner rule is drawn in it.
         .ink(kInk)
         .overflow(Overflow::Clip)
-        .layerStyle(decorations::doubleBorder(
+        .foreground(decorations::doubleBorder(
             decorations::border(6.0f, Fill::color(kOrange), 0.0f),
             decorations::border(3.0f, Fill::currentInk(), 9.0f)))
         .children(
@@ -145,8 +151,7 @@ struct EvaMagiDeliberation {
                  .centerAt({side * 0.5f, side * layout.nameSlotY(number)})});
   }
 
-  /** The layer's Latin is orange, stated once; the whole-style Han names its
-   * own. */
+  /** The layer's Latin is orange; each Han run names its own ink. */
   Element information() const {
     // The four blocks of ruling, by the corner each starts at.
     static constexpr std::array<SkPoint, 4> kRuled{
@@ -155,9 +160,9 @@ struct EvaMagiDeliberation {
         u8"FILE:MAGI_SYS\nEXTENTION:2048\nEX_MODE:ON\nPRIORITY:A__";
     return box().inset(0).ink(kOrange).children(
         {each(kRuled, [](SkPoint corner) { return rules(corner, 375.0f); }),
-         text(u8"提訴", han(u8"提訴", 83.0f, 300.0f, kOrange))
+         han(u8"提訴", 83.0f, 300.0f, kOrange)
              .centerAt({332.5f, 184.0f}),
-         text(u8"決議", han(u8"決議", 83.0f, 300.0f, kOrange))
+         han(u8"決議", 83.0f, 300.0f, kOrange)
              .centerAt({1107.5f, 184.0f}),
          text(u8"CODE : 132")
              .font(fit(evangelion::condensedBold(), u8"CODE : 132", 45.0f,
@@ -176,11 +181,11 @@ struct EvaMagiDeliberation {
          kit::at(
              box()
                  .fill(hexColor(0x150103))
-                 .layerStyle(decorations::doubleBorder(
+                 .foreground(decorations::doubleBorder(
                      decorations::border(7.0f, Fill::color(kRed), 0.0f),
                      decorations::border(3.0f, Fill::color(kRedHot), 14.0f)))
                  .children(
-                     {text(u8"審議中", han(u8"審議中", 49.0f, 205.0f, kRedHot))
+                     {han(u8"審議中", 49.0f, 205.0f, kRedHot)
                           .centerAt({137.5f, 65.0f})}),
              995.0f, 295.0f, 275.0f, 130.0f)});
   }

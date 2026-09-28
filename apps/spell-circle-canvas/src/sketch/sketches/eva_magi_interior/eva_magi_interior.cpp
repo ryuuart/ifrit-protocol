@@ -2,6 +2,8 @@
 // inside concentric defense rings; four fixed panels read the moving field.
 // TAGS: Interfaces/Film, Typography/Paths, Drawing/Primitives
 
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -62,7 +64,7 @@ struct EvaMagiInterior {
                [](Pen& p) {
                  p.noFill();
                  p.strokeWeight(4);
-                 p.stroke(Paint::linearGradient(
+                 p.stroke(sigil::material::linearGradient(
                      {0, 40}, {0, 760},
                      {{0, kDarkGreen},
                       {0.55f, hexColor(0x8D9954)},
@@ -88,7 +90,7 @@ struct EvaMagiInterior {
                                  .condense = 0.70f})
                           .width(r * 2)
                           .height(r * 2)
-                          .centerAt(kCentre)
+                          .centerAt(sigil::geometry::path::fromSk(kCentre))
                           .textOnPath({.path = shapes::circle(),
                                        .at = motion::bind(turn, {.to = {band * 0.037f, band * 0.037f + (band % 2 ? -1 : 1)}}),
                                        .align = TextPath::Align::Start,
@@ -169,15 +171,15 @@ struct EvaMagiInterior {
                         .rect(x, y, width, 112)
                         .fill(kGround)
                         .borderRadius({8})
-                        .stroke(stroke(4, Paint::solid(kOrange)));
+                        .stroke(stroke(4, sigil::material::skia::base(Paint::solid(kOrange))));
     if (timer) {
-      plate.children({box().rect({8, 39, width - 8, 42}).fill(kOrange),
+      plate.children({box().rect(sigil::geometry::path::Rect{{8, 39},{ width - 8, 42}}).fill(kOrange),
                       label(heading, {10, 9}, 24, width - 20),
                       label(reading, {15, 52}, 47, width - 100),
                       label("sec.", {width - 77, 77}, 23, 63)});
     } else {
       plate.children({label(heading, {9, 12}, 50, width - 18),
-                      box().rect({6, 72, width - 6, 75}).fill(kOrange),
+                      box().rect(sigil::geometry::path::Rect{{6, 72},{ width - 6, 75}}).fill(kOrange),
                       label(reading, {width * 0.33f, 82}, 21, width * 0.62f)});
     }
     return box().inset(0).children(

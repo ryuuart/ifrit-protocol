@@ -2,6 +2,11 @@
 
 // Site topology, label registers and the defense display's colour field.
 
+#include <include/core/SkCanvas.h>
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilmedia/advanced/Skia.h>
+#include <sigilmaterial/paint/Bases.h>
+#include <sigilweave/style/Face.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkMaskFilter.h>
@@ -26,10 +31,9 @@
 #include <sigilmotion/schedule/Schedule.h>
 #include <sigilmotion/values/Tween.h>
 #include <sigilmotion/values/Time.h>
-#include <sigilmotion/values/Transition.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
-#include <sigilsketch/kit/Rows.h>
+#include <sigilcompose/kit/Rows.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <algorithm>
@@ -145,7 +149,7 @@ constexpr int kRampN = (int)(sizeof(kRamp) / sizeof(kRamp[0]));
 // metrics probe takes it whole, since metrics() reads a style rather than a
 // tree.
 
-inline sk_sp<SkTypeface> boldFace() { return evangelion::groteskBold(); }
+inline sigil::weave::Face boldFace() { return evangelion::groteskBold(); }
 
 // Horizontal condensation is independent of the selected cap height.
 inline weave::Type type(float size, float condense = 1.0f) {
@@ -277,7 +281,7 @@ constexpr int kFallN = kSiteN - 1;
  *  ladder written out — and a ladder written out is a ladder that can
  *  disagree with itself. */
 constexpr double kFirstFall = 0.30;
-inline const motion::Spread kFalls{.eachMs = 450.0f, .durationMs = 180.0f};
+inline const sigil::motion::Tween<float> kFalls{.duration = std::chrono::duration<double, std::milli>(180.0f), .delay = sigil::motion::stagger(std::chrono::duration<double, std::milli>(450.0f))};
 
 // ---------------------------------------------------------------------------
 // PILLS. Unfilled: black interior, stroked rim, text inside. The label role
@@ -639,9 +643,9 @@ inline sk_sp<SkImage> fieldStrip(float hueTurn) {
   for (const auto& stop : kRamp)
     stops.push_back({stop.t, hexColor(turnHue(stop.rgb, hueTurn))});
   SkPaint paint;
-  paint.setShader(sigil::material::skia::shader(material::Paint::linearGradient(
+  paint.setShader(sigil::material::skia::shader(sigil::material::skia::paint(sigil::material::linearGradient(
                       {0, 0}, {0, kH}, std::move(stops),
-                      {.units = material::GradientUnits::Pixels})));
+                      {.units = material::GradientUnits::Pixels}))));
   surface->getCanvas()->drawPaint(paint);
   return surface->makeImageSnapshot();
 }
@@ -693,13 +697,13 @@ inline SkRect turnedBounds(SkPoint centre, float w, float h, float degrees) {
  *  library's answer: the numbers the generator is a function of ARE its
  *  identity, and equal keys mean equal drawings. */
 inline Shape siteSilhouette() {
-  return keyedShape(0, [](SkSize s) { return tre::kModule.outline()(s); });
+  return keyedShape(0, [](glm::vec2 s) { return tre::kModule.outline().outline(s); });
 }
 inline Shape pillSilhouette(uint8_t cutMask, float radius = 10.0f,
                             SkVector cut = {26.0f, 26.0f}) {
-  return keyedShape(std::tuple(radius, cut.fX, cut.fY, cutMask), [=](SkSize s) {
+  return keyedShape(std::tuple(radius, cut.fX, cut.fY, cutMask), [=](glm::vec2 s) {
     return evangelion::panel(
-        {.radius = radius, .cut = cut, .cutMask = cutMask})(s);
+        {.radius = radius, .cut = cut, .cutMask = cutMask}).outline(s);
   });
 }
 

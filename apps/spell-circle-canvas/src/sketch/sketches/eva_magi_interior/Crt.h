@@ -9,7 +9,7 @@
 
 #include <include/core/SkRect.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/advanced/Recipe.h>
 
 #include <glm/vec4.hpp>
 #include <initializer_list>
