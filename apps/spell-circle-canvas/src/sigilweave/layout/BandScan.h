@@ -13,12 +13,11 @@
  * implementation for columns anywhere.
  */
 
-#include <include/core/SkRect.h>
-
 #include <glm/vec2.hpp>
 #include <utility>
 #include <vector>
 
+#include "sigilgeometry/path/Outline.h"
 #include "sigilweave/layout/Flow.h"
 
 namespace sigil::weave::detail {
@@ -30,10 +29,10 @@ inline constexpr float kBandEpsilon = 0.01f;
 
 float alongOf(FlowAxis axis, const glm::vec2& point);
 float acrossOf(FlowAxis axis, const glm::vec2& point);
-float alongMin(FlowAxis axis, const SkRect& rect);
-float alongMax(FlowAxis axis, const SkRect& rect);
-float acrossMin(FlowAxis axis, const SkRect& rect);
-float acrossMax(FlowAxis axis, const SkRect& rect);
+float alongMin(FlowAxis axis, const geometry::path::Rect& rect);
+float alongMax(FlowAxis axis, const geometry::path::Rect& rect);
+float acrossMin(FlowAxis axis, const geometry::path::Rect& rect);
+float acrossMax(FlowAxis axis, const geometry::path::Rect& rect);
 
 /** Occupied ALONG-intervals of a flattened polygon set within the band
  *  [@p bandStart, @p bandEnd] measured ACROSS: fill intervals sampled at

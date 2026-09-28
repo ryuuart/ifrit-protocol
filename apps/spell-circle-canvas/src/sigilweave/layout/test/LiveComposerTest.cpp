@@ -27,8 +27,8 @@ std::vector<std::tuple<uint32_t, int, float, float>> placement(
     const ParagraphLayout& layout) {
   std::vector<std::tuple<uint32_t, int, float, float>> placed;
   for (const PositionedRun& run : layout.runs)
-    placed.emplace_back(run.wordIndex, run.lineIndex, run.origin.x(),
-                        run.origin.y());
+    placed.emplace_back(run.wordIndex, run.lineIndex, run.origin.x,
+                        run.origin.y);
   return placed;
 }
 
@@ -72,7 +72,7 @@ class LiveComposer : public ::testing::Test {
   }
 
   Paragraph m_story;
-  BlockFlow m_tall{SkRect::MakeWH(300, 4000)};
+  BlockFlow m_tall{sigil::geometry::path::Rect::of({0, 0}, {300, 4000})};
 };
 
 TEST_F(LiveComposer, AMeasureAlreadySeenIsNotDecidedAgain) {
@@ -98,7 +98,7 @@ TEST_F(LiveComposer, TheSameBreaksAsTheSettledComposerAtTheSameMeasure) {
   // A second story of its own: a live fill writes what it decided onto the
   // paragraph it read, so the settled answer has to come off a fresh one.
   Paragraph settled = makeParagraph(storyText(), 16.0f);
-  BlockFlow flow(SkRect::MakeWH(300, 4000));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 4000}));
   ParagraphLayoutOptions settledOptions;
   settledOptions.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
   EXPECT_EQ(placement(compose(liveComposer())),
@@ -108,7 +108,7 @@ TEST_F(LiveComposer, TheSameBreaksAsTheSettledComposerAtTheSameMeasure) {
 TEST_F(LiveComposer, AFrameThatChangesOnlyInDepthNeverMovesALineBreak) {
   const ParagraphLayoutOptions options = liveComposer();
   const std::vector<uint32_t> whole = lastWordPerLine(compose(options));
-  BlockFlow shallow(SkRect::MakeWH(300, 200));
+  BlockFlow shallow(sigil::geometry::path::Rect::of({0, 0}, {300, 200}));
   const ParagraphLayout cut =
       layoutParagraph(sigil::test::fonts(), m_story, shallow, options);
   const std::vector<uint32_t> held = lastWordPerLine(cut);
@@ -134,7 +134,7 @@ TEST_F(LiveComposer, AFloorTooLowLeavesTheBlockToTheGreedyBreaker) {
           std::array<const char8_t*, 4>{u8"budget", u8"is", u8"a", u8"degrade"},
           4000, 3),
       16.0f);
-  BlockFlow flow(SkRect::MakeWH(300, 200000));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 200000}));
   ParagraphLayoutOptions options;
   options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
   // The lowest floor the option can carry, against a text the breaker

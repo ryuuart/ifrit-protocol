@@ -259,7 +259,7 @@ sigil::weave::GlyphRSXformBatches batchAtRest(const sigil::weave::ParagraphLayou
                                               const sigil::weave::Paragraph &paragraph) {
   sigil::weave::GlyphRSXformBatches batches;
   sigil::weave::forEachPlacedGlyph(layout, paragraph, [&](const sigil::weave::PlacedGlyph &glyph) {
-    batches.addGlyph(glyph, glyph.rest + SkVector{glyph.advance * 0.5f, 0});
+    batches.addGlyph(glyph, glyph.rest + glm::vec2{glyph.advance * 0.5f, 0});
   });
   return batches;
 }

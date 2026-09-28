@@ -5,6 +5,7 @@
 
 #include <cmath>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
 
@@ -109,7 +110,7 @@ class MarkersScene final : public Scene {
         {size, parameters.alignment, parameters.lineBreakStrategy,
          parameters.fontSize},
         [&] {
-          BlockFlow flow(box);
+          BlockFlow flow(sigil::geometry::path::fromSk(box));
           ParagraphLayoutOptions options;
           options.alignment = parameters.alignment;
           options.lineBreakStrategy = parameters.lineBreakStrategy;

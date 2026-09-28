@@ -39,7 +39,7 @@ LaidOut justified(const JustificationOptions& spec, std::u8string_view body,
                   float measure,
                   LineBreakStrategy strategy = LineBreakStrategy::kGreedy) {
   Paragraph paragraph = makeParagraph(body, 12.0f);
-  BlockFlow flow(SkRect::MakeWH(measure, 400));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {measure, 400}));
   ParagraphLayoutOptions options;
   options.alignment = TextAlignment::kJustify;
   options.lineBreakStrategy = strategy;
@@ -71,7 +71,7 @@ std::vector<float> runStartsUnder(const JustificationOptions& spec,
   const LaidOut set = justified(spec, body, measure);
   std::vector<float> starts;
   for (const PositionedRun* run : wordRuns(set.layout))
-    starts.push_back(run->origin.x());
+    starts.push_back(run->origin.x);
   return starts;
 }
 
@@ -96,7 +96,7 @@ TEST(Justification, ShrinkNeverCollapsesASpacePastItsLimit) {
   // A measure a hair narrower than a natural line forces shrink.
   ParagraphLayoutOptions options;
   options.alignment = TextAlignment::kJustify;
-  BlockFlow flow(SkRect::MakeWH(200, 400));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {200, 400}));
   ParagraphLayout layout =
       layoutParagraph(fontContext, paragraph, flow, options);
 
@@ -105,7 +105,7 @@ TEST(Justification, ShrinkNeverCollapsesASpacePastItsLimit) {
     const PositionedRun& firstRun = layout.runs[runIndex];
     const PositionedRun& secondRun = layout.runs[runIndex + 1];
     if (firstRun.lineIndex != secondRun.lineIndex) continue;
-    const float gapWidth = secondRun.origin.x() - runEnd(paragraph, firstRun);
+    const float gapWidth = secondRun.origin.x - runEnd(paragraph, firstRun);
     const float naturalSpaceWidth =
         paragraph.words()[firstRun.wordIndex].spaceWidth;
     if (naturalSpaceWidth <= 0) continue;
@@ -243,7 +243,7 @@ TEST(Justification, TheLastLineTakesItsOwnAlignmentAndNotTheParagraphs) {
   Paragraph paragraph = makeParagraph(
       u8"a justified paragraph whose final line is pushed to the right edge "
       "instead of hanging on the left like usual short last lines do");
-  BlockFlow flow(SkRect::MakeWH(260, 600));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {260, 600}));
   ParagraphLayoutOptions options;
   options.alignment = TextAlignment::kJustify;
   options.justification.lastLineAlignment = TextAlignment::kEnd;
@@ -257,7 +257,7 @@ TEST(Justification, TheLastLineTakesItsOwnAlignmentAndNotTheParagraphs) {
   for (const PositionedRun& run : layout.runs) {
     if (run.lineIndex != layout.lineCount - 1) continue;
     lastLineEnd = std::max(lastLineEnd, runEnd(paragraph, run));
-    lastLineStart = std::min(lastLineStart, run.origin.x());
+    lastLineStart = std::min(lastLineStart, run.origin.x);
   }
   EXPECT_NEAR(lastLineEnd, 260.0f, 1.0f);
   EXPECT_GT(lastLineStart, 5.0f);
@@ -274,7 +274,7 @@ JustificationOptions under(JustificationMethod method,
 
 /// Where a run ends as the line set it, its fit included.
 float fittedEnd(const PositionedRun& run) {
-  return run.origin.x() + run.advance;
+  return run.origin.x + run.advance;
 }
 
 /// Where a run's last glyph ends: its position under the fit plus its own
@@ -286,7 +286,7 @@ float lastGlyphEnd(const PositionedRun& run) {
   uint32_t clustersBefore = 0;
   for (size_t glyphIndex = 0; glyphIndex < last; ++glyphIndex)
     clustersBefore += GlyphFit::endsCluster(word, glyphIndex) ? 1u : 0u;
-  return run.origin.x() + run.fit.offsetOf(word, last, clustersBefore) +
+  return run.origin.x + run.fit.offsetOf(word, last, clustersBefore) +
          word.advances[last] * run.fit.glyphScale;
 }
 
@@ -381,7 +381,7 @@ TEST(JustificationMethod, ATakenHyphenFollowsItsWordAndEndsOnTheMeasure) {
   // its word, with no cluster spacing between them, and ends the line.
   JustificationOptions spec = under(JustificationMethod::kInterCharacter);
   Paragraph paragraph = makeParagraph(u8"ab cd\u00adef gh", 12.0f);
-  BlockFlow flow(SkRect::MakeWH(44.0f, 400));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {44.0f, 400}));
   ParagraphLayoutOptions options;
   options.alignment = TextAlignment::kJustify;
   options.hyphenation.enabled = true;
@@ -402,8 +402,8 @@ TEST(JustificationMethod, ATakenHyphenFollowsItsWordAndEndsOnTheMeasure) {
   ASSERT_NE(mark, nullptr) << "the first line did not take the hyphen";
   ASSERT_NE(word, nullptr);
   ASSERT_GT(word->fit.clusterSpacing, 0.0f);
-  EXPECT_NEAR(mark->origin.x(), lastGlyphEnd(*word), 0.001f);
-  EXPECT_NEAR(mark->origin.x() + mark->advance, 44.0f, 0.01f);
+  EXPECT_NEAR(mark->origin.x, lastGlyphEnd(*word), 0.001f);
+  EXPECT_NEAR(mark->origin.x + mark->advance, 44.0f, 0.01f);
 }
 
 TEST(JustificationMethod, InterCharacterSpacingStopsAtItsCap) {
@@ -450,7 +450,7 @@ TEST(JustificationMethod, NoneSetsAJustifiedLineAtItsStart) {
   const LaidOut none =
       justified(under(JustificationMethod::kNone), kTightPassage, kMeasure);
   Paragraph paragraph = makeParagraph(kTightPassage, 12.0f);
-  BlockFlow flow(SkRect::MakeWH(kMeasure, 400));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {kMeasure, 400}));
   ParagraphLayoutOptions start;
   ParagraphLayout ragged =
       layoutParagraph(sigil::test::fonts(), paragraph, flow, start);

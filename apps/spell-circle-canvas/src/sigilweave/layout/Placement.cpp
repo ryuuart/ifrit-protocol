@@ -591,8 +591,8 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
       // drawBatched() skip it, placeholderRects() surfaces it).
       PositionedRun run;
       run.origin = flatInterval.interval.origin +
-                   SkVector{flatInterval.interval.direction.x() * penPosition,
-                            flatInterval.interval.direction.y() * penPosition};
+                   glm::vec2{flatInterval.interval.direction.x * penPosition,
+                            flatInterval.interval.direction.y * penPosition};
       run.wordIndex = wordIndex;
       run.lineIndex = flatInterval.sourceLineIndex;
       run.intervalIndex = flatInterval.index;

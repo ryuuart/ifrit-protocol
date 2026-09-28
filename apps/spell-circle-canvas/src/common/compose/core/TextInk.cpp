@@ -155,7 +155,7 @@ detail::TextInk Composer::Impl::textInkOf(Instance& inst,
     // reading down the page rather than across it.
     SkRect block = SkRect::MakeEmpty();
     for (const sigil::weave::ColumnMetrics& column : inst.columns)
-      block.join(column.rect());
+      block.join(sigil::geometry::path::toSk(column.rect()));
     SkMatrix map = SkMatrix::Translate(block.left(), block.top());
     map.preScale(std::max(block.width(), 1.0f), std::max(block.height(), 1.0f));
     metric.foreground.setShader(shader->makeWithLocalMatrix(map));

@@ -15,6 +15,7 @@
 #include <numbers>
 #include <utility>
 
+#include "sigilweave/advanced/Skia.h"
 #include "support/Plates.h"
 
 using namespace sigil::weave;
@@ -64,7 +65,7 @@ TEST(WeavePlates, PathExclusionsDrawTheirBaseline) {
   donut.addCircle(330, 660, 82);
   donut.setFillType(SkPathFillType::kEvenOdd);
 
-  ExclusionFlow flow(SkRect::MakeXYWH(40, 40, 920, 800));
+  ExclusionFlow flow(sigil::geometry::path::Rect::of({40, 40}, {920, 800}));
   const SkPath starPath = star.detach();
   const SkPath heartPath = heart.detach();
   const SkPath donutPath = donut.detach();

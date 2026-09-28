@@ -69,8 +69,8 @@ void emitLeader(FontContext& fontContext, const Paragraph& paragraph,
                 const Word& word, uint32_t wordIndex, const TabStop& stop,
                 float gapStart, float gapEnd) {
   if (gapEnd - gapStart <= 0 || flatInterval.interval.contour.valid()) return;
-  if (flatInterval.interval.direction.x() != 1 ||
-      flatInterval.interval.direction.y() != 0)
+  if (flatInterval.interval.direction.x != 1 ||
+      flatInterval.interval.direction.y != 0)
     return;
   const uint32_t styleIndex =
       word.segments().empty() ? 0 : word.segments().back().styleIndex;
@@ -113,7 +113,7 @@ void emitLeader(FontContext& fontContext, const Paragraph& paragraph,
     run.lineIndex = flatInterval.sourceLineIndex;
     run.intervalIndex = flatInterval.index;
     run.penOffset = pen;
-    run.origin = flatInterval.interval.origin + SkVector{pen, 0};
+    run.origin = flatInterval.interval.origin + glm::vec2{pen, 0};
     if (run.blob) result.runs.push_back(std::move(run));
     pen += leader->advance;
   }

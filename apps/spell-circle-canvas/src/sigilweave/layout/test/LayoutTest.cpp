@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "support/LayoutSupport.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
@@ -53,13 +54,13 @@ TEST_P(LineWidthInvariant, LinesNeverExceedTheMeasure) {
 
   for (int measureStep = 150; measureStep <= 430; measureStep += 7) {
     const float measure = static_cast<float>(measureStep);
-    BlockFlow flow(SkRect::MakeWH(measure, 3000));
+    BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {measure, 3000}));
     ParagraphLayout layout =
         layoutParagraph(fontContext, paragraph, flow, options);
     EXPECT_FALSE(layout.overflowed());
     for (const PositionedRun& run : layout.runs) {
       if (!run.shaped) continue;
-      const float end = run.origin.x() + run.shaped->advance;
+      const float end = run.origin.x + run.shaped->advance;
       EXPECT_LE(end, measure + 0.75f)
           << "line " << run.lineIndex << " leaks past the " << measure
           << "px measure";
@@ -73,11 +74,11 @@ INSTANTIATE_TEST_SUITE_P(Breakers, LineWidthInvariant, bothBreakers(),
 TEST(ParagraphLayout, MandatoryBreakStartsNewLine) {
   FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"alpha\nbeta");
-  BlockFlow flow(SkRect::MakeWH(500, 300));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {500, 300}));
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
   ASSERT_EQ(layout.runs.size(), 2u);
   EXPECT_NE(layout.runs[0].lineIndex, layout.runs[1].lineIndex);
-  EXPECT_LT(layout.runs[0].origin.y(), layout.runs[1].origin.y());
+  EXPECT_LT(layout.runs[0].origin.y, layout.runs[1].origin.y);
 }
 
 TEST(ParagraphLayout, CentringHalvesTheSlackAndEndAlignmentTakesItAll) {
@@ -85,17 +86,17 @@ TEST(ParagraphLayout, CentringHalvesTheSlackAndEndAlignmentTakesItAll) {
   ParagraphLayoutOptions options;
 
   Paragraph paragraph = makeParagraph(u8"word");
-  BlockFlow flow(SkRect::MakeWH(400, 100));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 100}));
 
   options.alignment = TextAlignment::kStart;
   const float startX =
-      layoutParagraph(fontContext, paragraph, flow, options).runs[0].origin.x();
+      layoutParagraph(fontContext, paragraph, flow, options).runs[0].origin.x;
   options.alignment = TextAlignment::kCenter;
   const float centerX =
-      layoutParagraph(fontContext, paragraph, flow, options).runs[0].origin.x();
+      layoutParagraph(fontContext, paragraph, flow, options).runs[0].origin.x;
   options.alignment = TextAlignment::kEnd;
   const float endX =
-      layoutParagraph(fontContext, paragraph, flow, options).runs[0].origin.x();
+      layoutParagraph(fontContext, paragraph, flow, options).runs[0].origin.x;
 
   EXPECT_FLOAT_EQ(startX, 0);
   EXPECT_GT(centerX, startX);
@@ -108,7 +109,7 @@ TEST(ParagraphLayout, JustifiedLinesFillTheMeasure) {
   Paragraph paragraph = makeParagraph(
       u8"justification stretches the spaces between words so every full line "
       "extends to the right edge of the measure exactly");
-  BlockFlow flow(SkRect::MakeWH(260, 600));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {260, 600}));
   ParagraphLayoutOptions options;
   options.alignment = TextAlignment::kJustify;
   ParagraphLayout layout =
@@ -128,9 +129,9 @@ TEST(ParagraphLayout, ExclusionShapeSplitsText) {
   Paragraph paragraph = makeParagraph(
       u8"text flows around the shape and continues on the far side of it, "
       "filling both fragments of every interrupted line with words");
-  ExclusionFlow flow(SkRect::MakeWH(400, 300));
+  ExclusionFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 300}));
   flow.exclusions().push_back(
-      {flowshape::circle(SkRect::MakeXYWH(140, 40, 120, 120)), 6});
+      {flowshape::circle(sigil::geometry::path::Rect::of({140, 40}, {120, 120})), 6});
   flow.setMinimumIntervalWidth(40);
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
 
@@ -140,8 +141,8 @@ TEST(ParagraphLayout, ExclusionShapeSplitsText) {
     bool left = false, right = false;
     for (const PositionedRun& run : layout.runs) {
       if (run.lineIndex != line) continue;
-      if (run.origin.x() < 140) left = true;
-      if (run.origin.x() > 260) right = true;
+      if (run.origin.x < 140) left = true;
+      if (run.origin.x > 260) right = true;
     }
     split = left && right;
   }
@@ -161,8 +162,8 @@ TEST(ParagraphLayout, WordSpacingReachesTheBreakerAndTheNaturalWidth) {
   // A measure that fits the normal text on one line wraps the spaced one,
   // so the breaker fitted against the same widths placement spends.
   const float measure = normal.naturalWidth(fontContext) + 20.0f;
-  BlockFlow flowNormal(SkRect::MakeWH(measure, 400));
-  BlockFlow flowWide(SkRect::MakeWH(measure, 400));
+  BlockFlow flowNormal(sigil::geometry::path::Rect::of({0, 0}, {measure, 400}));
+  BlockFlow flowWide(sigil::geometry::path::Rect::of({0, 0}, {measure, 400}));
   EXPECT_EQ(layoutParagraph(fontContext, normal, flowNormal).lineCount, 1);
   EXPECT_GT(layoutParagraph(fontContext, wide, flowWide).lineCount, 1);
 }
@@ -173,7 +174,7 @@ TEST(ParagraphLayout, AContinuousSpanOfEmphasisFollowsItsWordsOntoEveryLine) {
       u8"a long sentence that will certainly wrap across several lines gets "
       "one continuous span of emphasis applied to its middle third and the "
       "styling must follow the words wherever the line breaker puts them");
-  BlockFlow flow(SkRect::MakeWH(220, 600));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {220, 600}));
   ParagraphLayout before = layoutParagraph(fontContext, paragraph, flow);
   ASSERT_GT(before.lineCount, 3);
 
@@ -204,14 +205,14 @@ TEST(ParagraphLayout, AContinuousSpanOfEmphasisFollowsItsWordsOntoEveryLine) {
 TEST(BidiOrder, AReorderedPairRendersInVisualOrderBetweenItsNeighbours) {
   FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = machineParagraph(u8"aaa בבב גגג zzz", 16.0f);
-  BlockFlow flow(SkRect::MakeWH(600, 60));  // one wide line
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {600, 60}));  // one wide line
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
 
   // Logical order: aaa(0) בבב(1) גגג(2) zzz(3). UAX#9: the two RTL words
   // swap visually — גגג renders left of בבב, both between aaa and zzz.
   float runOrigins[4] = {0, 0, 0, 0};
   for (const PositionedRun& run : layout.runs)
-    if (run.wordIndex < 4) runOrigins[run.wordIndex] = run.origin.x();
+    if (run.wordIndex < 4) runOrigins[run.wordIndex] = run.origin.x;
   EXPECT_LT(runOrigins[0], runOrigins[2]);
   EXPECT_LT(runOrigins[2], runOrigins[1])
       << "RTL pair must render in reversed visual order";
@@ -232,7 +233,7 @@ TEST(EditSafety, ACutThroughASurrogatePairLeavesEveryWordInsideTheText) {
     EXPECT_LE(word.textEnd, paragraph.text().size());
   ParagraphLayout layout =
       layoutParagraph(fontContext, paragraph,
-                      *std::make_unique<BlockFlow>(SkRect::MakeWH(400, 100)));
+                      *std::make_unique<BlockFlow>(sigil::geometry::path::Rect::of({0, 0}, {400, 100})));
   EXPECT_FALSE(layout.runs.empty());
 }
 
@@ -243,7 +244,7 @@ TEST(LineMetricsQuery, DescribesEveryPlacedLine) {
   Paragraph paragraph = makeParagraph(
       u8"enough words to wrap this paragraph across a handful of lines in "
       "a narrow measure so every line has real geometry to report");
-  BlockFlow flow(SkRect::MakeXYWH(10, 20, 220, 600));
+  BlockFlow flow(sigil::geometry::path::Rect::of({10, 20}, {220, 600}));
   ParagraphLayoutOptions options;
   options.lineMetrics.height = 24;
   ParagraphLayout layout =
@@ -268,7 +269,7 @@ TEST(LineMetricsQuery, DescribesEveryPlacedLine) {
       EXPECT_EQ(line.textBegin, lines[lineNumber - 1].textEnd);
     }
     // rect() is the ascent/descent band around the baseline.
-    const SkRect band = line.rect();
+    const sigil::geometry::path::Rect band = line.rect();
     EXPECT_FLOAT_EQ(band.top(), line.baseline - line.ascent);
     EXPECT_FLOAT_EQ(band.bottom(), line.baseline + line.descent);
   }
@@ -280,9 +281,9 @@ TEST(LineMetricsQuery, DescribesEveryPlacedLine) {
   for (const PositionedRun& run : layout.runs) {
     if (!run.shaped) continue;
     const LineMetrics& line = lines[static_cast<size_t>(run.lineIndex)];
-    EXPECT_GE(run.origin.x(), line.left);
-    EXPECT_LE(run.origin.x() + run.shaped->advance, line.right + 0.01f);
-    EXPECT_FLOAT_EQ(run.origin.y(), line.baseline);
+    EXPECT_GE(run.origin.x, line.left);
+    EXPECT_LE(run.origin.x + run.shaped->advance, line.right + 0.01f);
+    EXPECT_FLOAT_EQ(run.origin.y, line.baseline);
   }
 }
 
@@ -291,14 +292,14 @@ TEST(LineMetricsQuery, MixedFontsGrowTheLineBand) {
   Paragraph paragraph;
   paragraph.appendText(u8"small ", basicStyle(14.0f));
   paragraph.appendText(u8"HUGE", basicStyle(40.0f));
-  BlockFlow flow(SkRect::MakeWH(600, 100));  // one line
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {600, 100}));  // one line
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
 
   const std::vector<LineMetrics> lines = layout.lineMetrics(paragraph);
   ASSERT_EQ(lines.size(), 1u);
 
   Paragraph smallOnly = makeParagraph(u8"small", 14.0f);
-  BlockFlow smallFlow(SkRect::MakeWH(600, 100));
+  BlockFlow smallFlow(sigil::geometry::path::Rect::of({0, 0}, {600, 100}));
   const std::vector<LineMetrics> smallLines =
       layoutParagraph(fontContext, smallOnly, smallFlow).lineMetrics(smallOnly);
   ASSERT_EQ(smallLines.size(), 1u);
@@ -313,7 +314,7 @@ TEST(ParagraphLayout, CopiesAndMovesKeepAuxiliaryGlyphsAliveAfterCachePurge) {
       "go out before the light does, one after another, until the harbour "
       "is empty and the gulls have the quay to themselves once more.",
       16.0f);
-  BlockFlow flow(SkRect::MakeWH(320, 90));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {320, 90}));
   ParagraphLayoutOptions options;
   ParagraphStyle style;
   style.initial = {.lines = 2, .margin = 4.0f};

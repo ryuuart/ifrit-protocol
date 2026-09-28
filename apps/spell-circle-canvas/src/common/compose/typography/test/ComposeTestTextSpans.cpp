@@ -120,7 +120,7 @@ TEST(TextSpans, APaintSpanRecolorsWithoutReshaping) {
   host.composer.render(box().padding(10).children({text(body, base).key("t")}));
   host.frame();
   const std::vector<const void*> shapesBefore = runShapes(host, "t");
-  const std::vector<SkPoint> originsBefore = runOrigins(host, "t");
+  const std::vector<glm::vec2> originsBefore = runOrigins(host, "t");
   ASSERT_FALSE(shapesBefore.empty());
 
   host.composer.render(box().padding(10).children(

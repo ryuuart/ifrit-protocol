@@ -10,11 +10,13 @@
 
 #include <include/core/SkColor.h>
 #include <include/core/SkColorFilter.h>
-#include <include/core/SkMatrix.h>
-#include <include/core/SkPoint.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTypeface.h>
 #include <sigilmaterial/color/Color.h>
+
+#include <glm/vec2.hpp>
+
+#include "sigilgeometry/path/Transform.h"
 
 namespace sigil::weave {
 
@@ -47,7 +49,7 @@ sk_sp<SkColorFilter> tintFilter(const material::Color& tint,
 /// is per-GLYPH and nothing here is per-pass — a dressed glyph still
 /// draws its span's whole PaintStyle, one bucket per pass.
 struct GlyphDress {
-  SkPoint center = {0, 0};  ///< where the glyph's advance-centre lands
+  glm::vec2 center{0, 0};   ///< where the glyph's advance-centre lands
   float cosine = 1;         ///< rotation with the uniform scale folded in,
   float sine = 0;           ///< the RSXform convention
   /// Multiplies every pass's alpha. Quantize it if an effect drives it
@@ -77,12 +79,12 @@ struct GlyphDress {
   /// the pose centre — the point the rotation and the scale turn about.
   /// Null keeps the horizontal convention, half the advance to the right,
   /// which a vertical column cannot use. Borrowed for the call.
-  const SkVector* centreOffset = nullptr;
+  const glm::vec2* centreOffset = nullptr;
   /// Non-null: draw this glyph under this MATRIX instead of an RSXform,
   /// which is the only way to place a shear or a non-uniform scale. It
   /// carries the whole placement, so `center`, `cosine` and `sine` are
   /// unread when it is set. Borrowed for the call.
-  const SkMatrix* matrix = nullptr;
+  const geometry::path::Transform* matrix = nullptr;
 };
 
 }  // namespace sigil::weave

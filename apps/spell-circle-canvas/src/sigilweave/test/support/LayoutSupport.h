@@ -47,8 +47,8 @@ inline std::vector<float> baselines(const ParagraphLayout& layout) {
   std::vector<float> found;
   for (const PositionedRun& run : layout.runs) {
     if (run.transformed) continue;
-    if (std::find(found.begin(), found.end(), run.origin.y()) == found.end())
-      found.push_back(run.origin.y());
+    if (std::find(found.begin(), found.end(), run.origin.y) == found.end())
+      found.push_back(run.origin.y);
   }
   std::sort(found.begin(), found.end());
   return found;
@@ -63,9 +63,9 @@ inline std::vector<float> lineStarts(const ParagraphLayout& layout) {
                                 return entry.first == run.lineIndex;
                               });
     if (found == byLine.end())
-      byLine.emplace_back(run.lineIndex, run.origin.x());
+      byLine.emplace_back(run.lineIndex, run.origin.x);
     else
-      found->second = std::min(found->second, run.origin.x());
+      found->second = std::min(found->second, run.origin.x);
   }
   std::sort(byLine.begin(), byLine.end());
   std::vector<float> starts;

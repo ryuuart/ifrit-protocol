@@ -66,7 +66,7 @@ class KnuthPlassScene final : public Scene {
             const float left =
                 pass == 0 ? canvasWidth * 0.07f : canvasWidth * 0.55f;
             BlockFlow flow(
-                SkRect::MakeXYWH(left, 48, measure, canvasHeight - 80));
+                sigil::geometry::path::Rect::of({left, 48}, {measure, canvasHeight - 80}));
             m_layouts[pass] =
                 layoutParagraph(fontContext, m_body.paragraph, flow, options);
           }

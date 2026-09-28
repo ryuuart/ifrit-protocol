@@ -7,18 +7,18 @@ the library is the front page; the pass that consumes a geometry is
 ## Text is never bound to a rectangle
 
 A "line" is an ordered list of `LineInterval` values — straight segments
-in any direction, or spans of an `SkPath` contour — supplied one line at
+in any direction, or spans of an outline's contour — supplied one line at
 a time by a `FlowGeometry`. The ready-made geometries cover the common
 cases:
 
 - `BlockFlow` — a single rectangle.
 - `ExclusionFlow` — a rectangle minus moving flow shapes (a rect, a
-  circle, an ellipse, any filled `SkPath`, an image's own alpha, or one a
+  circle, an ellipse, any filled outline, an image's own alpha, or one a
   caller writes), in lines or in columns.
 - `VerticalBlockFlow` — top-to-bottom CJK columns advancing right to
   left.
 - `LineSetFlow` — an explicit set of intervals, any origin and direction.
-- `PathFlow` — each `SkPath` contour becomes a line; glyphs ride the
+- `PathFlow` — each contour of a `geometry::path::Outline` becomes a line; glyphs ride the
   tangent through RSXform runs.
 
 A contour is the geometry library's `geometry::path::Contour` — one
@@ -170,8 +170,7 @@ owes that meaning, because a caller asking two shapes for six pixels of
 standoff is asking one question.
 
 A flow shape CACHES what answering costs it — a flattening, a raster, a
-distance field — so one belongs to one flow at a time, as an `SkPath`'s
-own caches do.
+distance field — so one belongs to one flow at a time.
 
 `Exclusion` is ONE AREA TEXT FLOWS AROUND: a shape, how far the text
 stands off it, and where it has moved to since. `Exclusion::offset` is
@@ -190,7 +189,7 @@ oval inscribed in a box — the circle when it is round, and otherwise the
 oval's own path, because a disc offset of an ellipse is not an ellipse
 and only the path answer stays exact.
 
-`flowshape::path` is any filled `SkPath` — several contours, curves,
+`flowshape::path` is any filled `geometry::path::Outline` — several contours, curves,
 winding or even-odd fill, so holes and concavities stay available to
 text. It is flattened once and kept. An inverse fill type is read as its
 own non-inverse self: a flow shape is the region the path encloses. The

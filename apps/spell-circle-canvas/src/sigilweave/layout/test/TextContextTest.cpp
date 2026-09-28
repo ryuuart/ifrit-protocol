@@ -122,13 +122,13 @@ TEST(TextContext, PaintChangesReuseAnalysisWhenNoResultIsHeld) {
 TEST(TextContext, RetainedResultsKeepTheirPaintWordsAndPlacement) {
   TextContext context(sigil::test::fonts());
   auto style = basicStyle(18);
-  BlockFlow wide(SkRect::MakeWH(800, 400));
+  BlockFlow wide(sigil::geometry::path::Rect::of({0, 0}, {800, 400}));
   const auto first = context.layout(u8"one two three four five", style, wide);
   const auto outline = first.layout().glyphOutline();
   const auto words = first.paragraph().words().size();
   const auto paint = first.paragraph().spans().front().style.paint;
   style.paint.foreground.setColor(SK_ColorRED);
-  BlockFlow narrow(SkRect::MakeWH(55, 400));
+  BlockFlow narrow(sigil::geometry::path::Rect::of({0, 0}, {55, 400}));
   const auto next = context.layout(u8"one two three four five", style, narrow);
   EXPECT_GT(next.layout().lineCount, first.layout().lineCount);
   EXPECT_NE(&next.paragraph(), &first.paragraph());
@@ -165,7 +165,7 @@ TEST(TextContext, MeasurementDoesNotInheritAPreviousLayoutsSegmentation) {
   constexpr auto text = u8"hy\u00adphen\u00adation";
   const float expected = context.naturalWidth(text, style);
   {
-    BlockFlow flow(SkRect::MakeWH(80, 400));
+    BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {80, 400}));
     ParagraphLayoutOptions options;
     options.hyphenation.enabled = false;
     (void)context.layout(text, style, flow, options);

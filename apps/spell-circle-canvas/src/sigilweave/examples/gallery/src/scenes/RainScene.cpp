@@ -9,6 +9,7 @@
 #include <cmath>
 #include <random>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
 
@@ -36,7 +37,7 @@ class RainScene final : public Scene {
     const float width =
         (canvasWidth - 90) *
         (1.0f + 0.05f * std::sin(static_cast<float>(frameNumber) * 0.02f));
-    BlockFlow flow(SkRect::MakeXYWH(40, 16, width, canvasHeight * 0.52f));
+    BlockFlow flow(sigil::geometry::path::Rect::of({40, 16}, {width, canvasHeight * 0.52f}));
     ParagraphLayoutOptions options;
     options.alignment = TextAlignment::kJustify;
     options.lineMetrics.height = 21;
@@ -69,7 +70,7 @@ class RainScene final : public Scene {
       Particle& particle = m_particles[particleIndex % m_particles.size()];
       particleIndex++;
       const float halfAdvance = placed.advance * 0.5f;
-      const SkPoint restingCenter = placed.rest + SkVector{halfAdvance, 0};
+      const SkPoint restingCenter = sigil::geometry::path::toSk(placed.rest) + SkVector{halfAdvance, 0};
       float cosine = 1;
       float sine = 0;
       SkPoint drawingCenter = restingCenter;
@@ -118,7 +119,7 @@ class RainScene final : public Scene {
         drawingCenter = particle.position;
         quantizeAngle(particle.angle, cosine, sine);
       }
-      m_batches.addGlyph(placed, drawingCenter, cosine, sine);
+      m_batches.addGlyph(placed, sigil::geometry::path::fromSk(drawingCenter), cosine, sine);
     });
 
     canvas->clear(kPaper);

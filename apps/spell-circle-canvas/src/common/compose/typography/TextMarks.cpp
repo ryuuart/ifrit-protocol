@@ -196,7 +196,7 @@ std::vector<TextUnit> detail::unitsOfText(
         // A COLUMN HAS NO BASELINE: its glyphs centre themselves across the
         // column's axis, so that axis is what the annotation beside them
         // reads. A line reports the baseline they stand on.
-        entry.axis = vertical ? pose.centre.x() : placed.rest.y();
+        entry.axis = vertical ? pose.centre.x : placed.rest.y;
         // The LAYOUT's pitch, which is the flow's band depth and one number
         // for the whole passage.
         entry.pitch = layout.linePitch;

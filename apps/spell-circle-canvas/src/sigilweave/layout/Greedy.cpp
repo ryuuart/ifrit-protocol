@@ -39,8 +39,8 @@ detail::FlatInterval withLastLineIndent(const detail::FlatInterval& flat,
                                         float indent) {
   if (indent == 0 || flat.interval.contour.valid()) return flat;
   detail::FlatInterval shortened = flat;
-  shortened.interval.origin += SkVector{flat.interval.direction.x() * indent,
-                                        flat.interval.direction.y() * indent};
+  shortened.interval.origin += glm::vec2{flat.interval.direction.x * indent,
+                                        flat.interval.direction.y * indent};
   shortened.interval.length = std::max(0.0f, flat.interval.length - indent);
   return shortened;
 }

@@ -9,6 +9,7 @@
 #include <cmath>
 #include <random>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
 
@@ -60,7 +61,7 @@ class RippleScene final : public Scene {
     }
 
     BlockFlow flow(
-        SkRect::MakeXYWH(36, 24, canvasWidth - 72, canvasHeight - 48));
+        sigil::geometry::path::Rect::of({36, 24}, {canvasWidth - 72, canvasHeight - 48}));
     ParagraphLayoutOptions options;
     options.alignment = TextAlignment::kJustify;
     options.lineMetrics.height = 21;
@@ -75,7 +76,7 @@ class RippleScene final : public Scene {
       SkVector offset = {0, 0};
       float tilt = 0;
       for (const Drop& drop : m_drops) {
-        const SkVector radialVector = placed.rest - drop.center;
+        const SkVector radialVector = sigil::geometry::path::toSk(placed.rest) - drop.center;
         const float distance = radialVector.length() + 1.0f;
         const float ringRadius =
             6.0f * static_cast<float>(frameNumber - drop.birthFrameNumber);
@@ -94,8 +95,8 @@ class RippleScene final : public Scene {
       float sine;
       quantizeAngle(tilt, cosine, sine);
       const SkPoint drawingCenter =
-          placed.rest + offset + SkVector{placed.advance * 0.5f, 0};
-      m_batches.addGlyph(placed, drawingCenter, cosine, sine);
+          sigil::geometry::path::toSk(placed.rest) + offset + SkVector{placed.advance * 0.5f, 0};
+      m_batches.addGlyph(placed, sigil::geometry::path::fromSk(drawingCenter), cosine, sine);
     });
 
     canvas->clear(kPaper);

@@ -25,8 +25,8 @@ std::vector<SkRect> wordExtents(const sigil::weave::ParagraphLayout& layout,
   std::vector<SkRect> out(words, SkRect::MakeEmpty());
   for (const sigil::weave::PositionedRun& run : layout.runs) {
     if (!run.shaped || run.wordIndex >= words) continue;
-    SkRect extent = SkRect::MakeXYWH(run.origin.x() + origin.x(),
-                                     run.origin.y() + origin.y() - 0.5f,
+    SkRect extent = SkRect::MakeXYWH(run.origin.x + origin.x(),
+                                     run.origin.y + origin.y() - 0.5f,
                                      run.shaped->advance, 1.0f);
     if (out[run.wordIndex].isEmpty())
       out[run.wordIndex] = extent;

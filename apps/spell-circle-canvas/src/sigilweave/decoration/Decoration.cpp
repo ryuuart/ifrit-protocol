@@ -202,7 +202,7 @@ std::vector<std::pair<float, float>> decorationSegments(
   if (run.transformed || !run.shaped || run.placeholderIndex >= 0)
     return segments;
   const bool alongColumn = run.shaped->vertical;
-  const float startX = alongColumn ? run.origin.y() : run.origin.x();
+  const float startX = alongColumn ? run.origin.y : run.origin.x;
   const float endX = startX + run.advance;
   if (endX <= startX) return segments;
 

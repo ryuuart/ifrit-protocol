@@ -20,7 +20,7 @@ using namespace sigil::weave::test;
 TEST(FrameSeating, FixedFirstBaselineMovesTheWholePassage) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"one two three four five six seven");
-  BlockFlow flow(SkRect::MakeWH(120, 600));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {120, 600}));
   ParagraphLayoutOptions options;
   options.frame.firstBaseline = FrameOptions::FirstBaseline::kFixed;
   options.frame.firstBaselineOffset = 60.0f;
@@ -36,8 +36,8 @@ TEST(FrameSeating, CentredDistributionHalvesTheLeftoverRoom) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph plain = makeParagraph(u8"one two three four");
   Paragraph centred = makeParagraph(u8"one two three four");
-  BlockFlow flowA(SkRect::MakeWH(120, 400));
-  BlockFlow flowB(SkRect::MakeWH(120, 400));
+  BlockFlow flowA(sigil::geometry::path::Rect::of({0, 0}, {120, 400}));
+  BlockFlow flowB(sigil::geometry::path::Rect::of({0, 0}, {120, 400}));
   const std::vector<float> bare =
       baselines(layoutParagraph(fonts, plain, flowA));
   ParagraphLayoutOptions options;
@@ -93,7 +93,7 @@ ParagraphLayoutOptions framedTo(int lines) {
 TEST(Keeps, AnOrphanTooShortToStandMovesItsWholeBlockOver) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph measured = twoBlocks();
-  BlockFlow open(SkRect::MakeWH(150, 600));
+  BlockFlow open(sigil::geometry::path::Rect::of({0, 0}, {150, 600}));
   const ParagraphLayout whole = layoutParagraph(fonts, measured, open);
   const int firstBlockLines =
       whole.lineCount - linesFrom(whole, measured, kSecondBlockText);
@@ -102,13 +102,13 @@ TEST(Keeps, AnOrphanTooShortToStandMovesItsWholeBlockOver) {
   // A frame with room for one line of the second block: without a keep it
   // takes that line, with an orphan rule of two it takes none.
   Paragraph loose = twoBlocks();
-  BlockFlow flowA(SkRect::MakeWH(150, 600));
+  BlockFlow flowA(sigil::geometry::path::Rect::of({0, 0}, {150, 600}));
   const ParagraphLayout unkept =
       layoutParagraph(fonts, loose, flowA, framedTo(firstBlockLines + 1));
   EXPECT_EQ(linesFrom(unkept, loose, kSecondBlockText), 1);
 
   Paragraph kept = twoBlocks();
-  BlockFlow flowB(SkRect::MakeWH(150, 600));
+  BlockFlow flowB(sigil::geometry::path::Rect::of({0, 0}, {150, 600}));
   ParagraphLayoutOptions options = framedTo(firstBlockLines + 1);
   ParagraphStyle second;
   second.keep.orphanLines = 2;
@@ -121,7 +121,7 @@ TEST(Keeps, AnOrphanTooShortToStandMovesItsWholeBlockOver) {
 TEST(Keeps, BothBreakersEnforceTheSameKeepBecauseNoBreakIsReDecided) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph measured = twoBlocks();
-  BlockFlow open(SkRect::MakeWH(150, 600));
+  BlockFlow open(sigil::geometry::path::Rect::of({0, 0}, {150, 600}));
   const int firstBlockLines = layoutParagraph(fonts, measured, open).lineCount -
                               linesFrom(layoutParagraph(fonts, measured, open),
                                         measured, kSecondBlockText);
@@ -130,7 +130,7 @@ TEST(Keeps, BothBreakersEnforceTheSameKeepBecauseNoBreakIsReDecided) {
   second.keep.orphanLines = 2;
   const auto fillWith = [&](LineBreakStrategy strategy) {
     Paragraph paragraph = twoBlocks();
-    BlockFlow flow(SkRect::MakeWH(150, 600));
+    BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {150, 600}));
     ParagraphLayoutOptions options = framedTo(firstBlockLines + 1);
     options.lineBreakStrategy = strategy;
     options.blocks = {ParagraphStyle{}, second};
@@ -154,7 +154,7 @@ TEST(Keeps, WithNextTakesTheBlockThatEndedAtTheBoundaryWithIt) {
   constexpr uint32_t kThirdBlockText = kHeadingText + sizeof("A heading.") - 1;
 
   Paragraph measured = makeParagraph(text, 16.0f);
-  BlockFlow open(SkRect::MakeWH(150, 600));
+  BlockFlow open(sigil::geometry::path::Rect::of({0, 0}, {150, 600}));
   const ParagraphLayout whole = layoutParagraph(fonts, measured, open);
   const int throughHeading =
       whole.lineCount - linesFrom(whole, measured, kThirdBlockText);
@@ -162,7 +162,7 @@ TEST(Keeps, WithNextTakesTheBlockThatEndedAtTheBoundaryWithIt) {
 
   const auto fillWith = [&](bool withNext) {
     Paragraph paragraph = makeParagraph(text, 16.0f);
-    BlockFlow flow(SkRect::MakeWH(150, 600));
+    BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {150, 600}));
     ParagraphLayoutOptions options = framedTo(throughHeading);
     ParagraphStyle heading;
     heading.keep.withNext = withNext;
@@ -181,7 +181,7 @@ TEST(Keeps, WithNextTakesTheBlockThatEndedAtTheBoundaryWithIt) {
 TEST(Keeps, StartInNextFrameEndsTheFillBeforeTheBlock) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = twoBlocks();
-  BlockFlow flow(SkRect::MakeWH(150, 600));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {150, 600}));
   ParagraphLayoutOptions options;
   ParagraphStyle second;
   second.keep.startInNextFrame = true;
@@ -196,7 +196,7 @@ TEST(Keeps, AKeepNeverEmptiesAFrame) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(
       u8"A single block whose lines cannot go anywhere but here.", 16.0f);
-  BlockFlow flow(SkRect::MakeWH(150, 600));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {150, 600}));
   ParagraphLayoutOptions options = framedTo(1);
   ParagraphStyle only;
   only.keep.orphanLines = 4;
@@ -216,7 +216,7 @@ TEST(Keeps, AWidowIsCountedInTheLinesTheNextFrameWouldGet) {
       u8"One block long enough to fill several lines of a narrow frame and "
       u8"leave a short remainder behind it.",
       16.0f);
-  BlockFlow open(SkRect::MakeWH(150, 600));
+  BlockFlow open(sigil::geometry::path::Rect::of({0, 0}, {150, 600}));
   const int total = layoutParagraph(fonts, measured, open).lineCount;
   ASSERT_GT(total, 3);
 
@@ -227,7 +227,7 @@ TEST(Keeps, AWidowIsCountedInTheLinesTheNextFrameWouldGet) {
         u8"One block long enough to fill several lines of a narrow frame and "
         u8"leave a short remainder behind it.",
         16.0f);
-    BlockFlow flow(SkRect::MakeWH(150, 600));
+    BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {150, 600}));
     ParagraphLayoutOptions options = framedTo(total - 1);
     ParagraphStyle style;
     style.keep.widowLines = widowLines;
@@ -244,7 +244,7 @@ TEST(Keeps, AWidowIsCountedAtTheMeasureTheNextFrameSetsIn) {
       u8"One block long enough to fill several lines of a narrow frame and "
       u8"leave a short remainder behind it.";
   Paragraph measured = makeParagraph(body, 16.0f);
-  BlockFlow open(SkRect::MakeWH(150, 600));
+  BlockFlow open(sigil::geometry::path::Rect::of({0, 0}, {150, 600}));
   const int total = layoutParagraph(fonts, measured, open).lineCount;
   ASSERT_GT(total, 3);
 
@@ -255,7 +255,7 @@ TEST(Keeps, AWidowIsCountedAtTheMeasureTheNextFrameSetsIn) {
   // retracts a line it did not need to.
   const auto placedLines = [&](float nextMeasure) {
     Paragraph paragraph = makeParagraph(body, 16.0f);
-    BlockFlow flow(SkRect::MakeWH(150, 600));
+    BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {150, 600}));
     ParagraphLayoutOptions options = framedTo(total - 2);
     options.nextMeasure = nextMeasure;
     ParagraphStyle style;

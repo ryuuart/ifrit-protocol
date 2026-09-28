@@ -31,6 +31,7 @@
 #include "sigilgeometry/advanced/Skia.h"
 #include "sigilmedia/advanced/Skia.h"
 #include "sigilmedia/field/DistanceField.h"
+#include "sigilweave/advanced/Skia.h"
 #include "sigilweave/layout/Flow.h"
 
 namespace sigil::weave {
@@ -68,7 +69,8 @@ float acrossGap(float bandStart, float bandEnd, float near, float far) {
 
 class RectangleFlowShape final : public FlowShape {
  public:
-  explicit RectangleFlowShape(const SkRect& bounds) : m_bounds(bounds) {}
+  explicit RectangleFlowShape(const geometry::path::Rect& bounds)
+      : m_bounds(bounds) {}
   void bandSpans(FlowAxis axis, Band band, float margin,
                  std::vector<Span>& spans) override {
     const float near = acrossMin(axis, m_bounds);
@@ -80,10 +82,10 @@ class RectangleFlowShape final : public FlowShape {
     spans.push_back({alongMin(axis, m_bounds) - std::max(reach, 0.0f),
                      alongMax(axis, m_bounds) + std::max(reach, 0.0f)});
   }
-  SkRect bounds() const override { return m_bounds; }
+  geometry::path::Rect bounds() const override { return m_bounds; }
 
  private:
-  SkRect m_bounds;
+  geometry::path::Rect m_bounds;
 };
 
 class CircleFlowShape final : public FlowShape {
@@ -106,9 +108,8 @@ class CircleFlowShape final : public FlowShape {
     const float halfChord = std::sqrt(radius * radius - distance * distance);
     spans.push_back({centerAlong - halfChord, centerAlong + halfChord});
   }
-  SkRect bounds() const override {
-    return SkRect::MakeLTRB(m_center.x - m_radius, m_center.y - m_radius,
-                            m_center.x + m_radius, m_center.y + m_radius);
+  geometry::path::Rect bounds() const override {
+    return {m_center - m_radius, m_center + m_radius};
   }
 
  private:
@@ -222,7 +223,7 @@ class DilatedCoverage {
 /// m of the ink" is the only meaning available there.
 class PathFlowShape final : public FlowShape {
  public:
-  explicit PathFlowShape(const SkPath& path) : m_path(path) {
+  explicit PathFlowShape(SkPath path) : m_path(std::move(path)) {
     // An inverse fill means everything the path does not enclose, which as
     // a flow shape is the frame with a hole in it. One meaning is kept:
     // the enclosed region, which is what the band scan reads and what the
@@ -256,7 +257,9 @@ class PathFlowShape final : public FlowShape {
     for (const auto& [start, end] : occupied) spans.push_back({start, end});
   }
 
-  SkRect bounds() const override { return m_bounds; }
+  geometry::path::Rect bounds() const override {
+    return geometry::path::fromSk(m_bounds);
+  }
 
  private:
   // Layout avoidance needs a couple of pixels of fidelity, not rendering
@@ -325,7 +328,9 @@ class CoverageFlowShape final : public FlowShape {
     m_dilated.spans(axis, band, margin, spans);
   }
 
-  SkRect bounds() const override { return m_box; }
+  geometry::path::Rect bounds() const override {
+    return geometry::path::fromSk(m_box);
+  }
 
  private:
   sk_sp<SkImage> m_image;
@@ -337,32 +342,38 @@ class CoverageFlowShape final : public FlowShape {
 
 namespace flowshape {
 
-std::shared_ptr<FlowShape> rectangle(const SkRect& bounds) {
+std::shared_ptr<FlowShape> rectangle(const geometry::path::Rect& bounds) {
   return std::make_shared<RectangleFlowShape>(bounds);
 }
 
-std::shared_ptr<FlowShape> circle(const SkRect& bounds) {
-  return std::make_shared<CircleFlowShape>(bounds);
+std::shared_ptr<FlowShape> circle(const geometry::path::Rect& bounds) {
+  return std::make_shared<CircleFlowShape>(geometry::path::toSk(bounds));
 }
 
-std::shared_ptr<FlowShape> ellipse(const SkRect& bounds) {
+std::shared_ptr<FlowShape> ellipse(const geometry::path::Rect& bounds) {
   if (std::abs(bounds.width() - bounds.height()) <= kBandEpsilon)
     return circle(bounds);
   // A disc offset of an ellipse is not an ellipse, and scaling the axes to
   // fake one over- and under-shoots at different points of the curve. The
   // path answer is the exact one, so an oval that is not round takes it.
   SkPathBuilder oval;
-  oval.addOval(bounds);
-  return path(oval.detach());
+  oval.addOval(geometry::path::toSk(bounds));
+  return std::make_shared<PathFlowShape>(oval.detach());
 }
 
-std::shared_ptr<FlowShape> path(const SkPath& outline) {
-  return std::make_shared<PathFlowShape>(outline);
+std::shared_ptr<FlowShape> path(const geometry::path::Outline& outline) {
+  return std::make_shared<PathFlowShape>(geometry::path::toSk(outline));
 }
 
-std::shared_ptr<FlowShape> coverage(sk_sp<SkImage> image, const SkRect& box,
+std::shared_ptr<FlowShape> path(const SkPath& path) {
+  return std::make_shared<PathFlowShape>(path);
+}
+
+std::shared_ptr<FlowShape> coverage(media::Picture image,
+                                    const geometry::path::Rect& box,
                                     float threshold) {
-  return std::make_shared<CoverageFlowShape>(std::move(image), box, threshold);
+  return std::make_shared<CoverageFlowShape>(
+      media::toSk(image), geometry::path::toSk(box), threshold);
 }
 
 }  // namespace flowshape

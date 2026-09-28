@@ -94,7 +94,7 @@ std::vector<float> measureRun(std::u8string_view utf8,
   sigil::weave::Paragraph paragraph;
   paragraph.appendText(utf8, style);
   static const sigil::weave::ParagraphLayoutOptions kOptions;
-  sigil::weave::BlockFlow flow(SkRect::MakeWH(1.0e6f, 1.0e6f));
+  sigil::weave::BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {1.0e6f, 1.0e6f}));
   sigil::weave::ParagraphLayout layout =
       sigil::weave::layoutParagraph(fonts, paragraph, flow, kOptions);
   // An inter-word space is a GAP the flow leaves between positioned runs,
@@ -115,7 +115,7 @@ std::vector<float> measureRun(std::u8string_view utf8,
   uint32_t wordIndex = 0;
   sigil::weave::forEachPlacedGlyph(
       layout, paragraph, [&](const sigil::weave::PlacedGlyph& placed) {
-        const float step = placed.rest.x() - pen;
+        const float step = placed.rest.x - pen;
         if (placed.lineIndex != lineIndex) {
           lineIndex = placed.lineIndex;
         } else if (!advances.empty() &&
@@ -123,7 +123,7 @@ std::vector<float> measureRun(std::u8string_view utf8,
           advances.back() += step;
         }
         advances.push_back(placed.advance);
-        pen = placed.rest.x() + placed.advance;
+        pen = placed.rest.x + placed.advance;
         wordIndex = placed.wordIndex;
       });
   return advances;

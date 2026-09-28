@@ -22,6 +22,7 @@
 #include <utility>
 #include <vector>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "ComposeRuntime.h"
 #include "PaintInternal.h"
 #include "TextEngine.h"
@@ -383,8 +384,8 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
         // Horizontal type and tate-chu-yoko take the (halfAdvance, 0) the
         // RSXform convention assumes; an upright glyph in a column does not,
         // because half of ITS advance is a step down the page.
-        const SkVector local =
-            pose.centreOffset.value_or(SkVector{halfAdvance, 0});
+        const glm::vec2 local =
+            pose.centreOffset.value_or(glm::vec2{halfAdvance, 0});
         // THE DEVIATION APPLIES IN THE REST POSE'S OWN FRAME. On a level
         // baseline that is the canvas frame and this is the identity, so a
         // plain run is untouched; on a curve it is what makes `textFx::rise`
@@ -392,9 +393,9 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
         // keeps a stagger's shove tangential to the lettering it belongs
         // to. The rotations compose the same way: the track's angle turns
         // the glyph from wherever the baseline had already turned it.
-        const SkPoint centre = {pose.centre.x() + pose.cosine * modifier.dx -
+        const glm::vec2 centre = {pose.centre.x + pose.cosine * modifier.dx -
                                     pose.sine * modifier.dy,
-                                pose.centre.y() + pose.sine * modifier.dx +
+                                pose.centre.y + pose.sine * modifier.dx +
                                     pose.cosine * modifier.dy};
         const float turnCos = pose.cosine * cosv - pose.sine * sinv;
         const float turnSin = pose.sine * cosv + pose.cosine * sinv;
@@ -424,10 +425,11 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
         // unevenly draws under its own matrix while every glyph that does
         // not keeps the shared transform array untouched.
         SkMatrix matrix;
+        geometry::path::Transform transform;
         if (modifier.skewXDeg != 0 || modifier.skewYDeg != 0 ||
             modifier.scaleX != 1 || modifier.scaleY != 1) {
-          matrix.setAll(turnCos, -turnSin, centre.x(), turnSin, turnCos,
-                        centre.y(), 0, 0, 1);
+          matrix.setAll(turnCos, -turnSin, centre.x, turnSin, turnCos,
+                        centre.y, 0, 0, 1);
           // ONE shear carrying both angles, as the node's own skew lanes
           // take them — not an x shear applied after a y one, which would
           // put a product of the two tangents on the diagonal and scale the
@@ -440,8 +442,9 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
                           modifier.scale * modifier.scaleY);
           // Innermost, so the pivot shift rides the scale exactly as it
           // does inside an RSXform.
-          matrix.preTranslate(-local.x(), -local.y());
-          dress.matrix = &matrix;
+          matrix.preTranslate(-local.x, -local.y);
+          transform = geometry::path::fromSk(matrix);
+          dress.matrix = &transform;
         } else {
           dress.center = centre;
           dress.cosine = turnCos * modifier.scale;

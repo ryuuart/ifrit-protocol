@@ -18,7 +18,6 @@
 
 #include "BandScan.h"
 #include "sigilgeometry/path/Numeric.h"
-#include "sigilgeometry/advanced/Skia.h"
 
 namespace sigil::weave {
 
@@ -36,10 +35,10 @@ namespace {
 // invisible). Continuously varying per-glyph rotations would otherwise mint
 // a fresh glyph-atlas strike every frame for every glyph on a moving path,
 // turning animated curved text into a per-frame mask-rasterization storm.
-SkVector quantizeTangent(SkVector tangent, int directionCount) {
+glm::vec2 quantizeTangent(glm::vec2 tangent, int directionCount) {
   if (directionCount <= 0) return tangent;
   constexpr float kTwoPi = 2.0f * std::numbers::pi_v<float>;
-  const float angle = std::atan2(tangent.fY, tangent.fX);
+  const float angle = std::atan2(tangent.y, tangent.x);
   int directionIndex =
       static_cast<int>(std::lround(angle / kTwoPi * directionCount)) %
       directionCount;
@@ -70,13 +69,12 @@ void subtractSpan(std::vector<std::pair<float, float>>& availableSpans,
 }  // namespace
 
 bool LineInterval::placeAt(float pen, float phase, int rotationSteps,
-                           SkPoint* position, SkVector* tangent) const {
+                           glm::vec2* position, glm::vec2* tangent) const {
   if (!contour.valid()) {
     // Straight: the pen simply travels along the interval's own direction.
     // Nothing to run off the end of, so the phase is a plain shift.
     const float travel = pen + phase;
-    *position =
-        origin + SkVector{direction.x() * travel, direction.y() * travel};
+    *position = origin + glm::vec2{direction.x * travel, direction.y * travel};
     *tangent = quantizeTangent(direction, rotationSteps);
     return true;
   }
@@ -100,17 +98,18 @@ bool LineInterval::placeAt(float pen, float phase, int rotationSteps,
     *tangent = {1, 0};
     return false;
   }
-  *position = geometry::path::toSk(sample->position);
-  *tangent = geometry::path::toSk(sample->tangent);
+  *position = sample->position;
+  *tangent = sample->tangent;
   // Walking backwards faces the other way — turned before the snap, so the
   // reversed direction lands on a ladder step rather than beside one.
-  if (advanceScale < 0) *tangent = {-tangent->fX, -tangent->fY};
+  if (advanceScale < 0) *tangent = {-tangent->x, -tangent->y};
   // Rotation snaps; position stays exact.
   *tangent = quantizeTangent(*tangent, rotationSteps);
   return inside;
 }
 
-ExclusionFlow::ExclusionFlow(const SkRect& bounds, FlowAxis axis)
+ExclusionFlow::ExclusionFlow(const geometry::path::Rect& bounds,
+                             FlowAxis axis)
     : m_bounds(bounds), m_axis(axis) {}
 ExclusionFlow::~ExclusionFlow() = default;
 
@@ -166,10 +165,10 @@ bool ExclusionFlow::lineIntervals(const LineRequest& request,
     // cached: the band arrives moved back by the offset and the spans come
     // out moved forward by it.
     const float offsetAlong =
-        alongOf(axis, {exclusion.offset.x(), exclusion.offset.y()});
+        alongOf(axis, exclusion.offset);
     const float offsetAcross =
-        acrossOf(axis, {exclusion.offset.x(), exclusion.offset.y()});
-    const SkRect shapeBounds = exclusion.shape->bounds();
+        acrossOf(axis, exclusion.offset);
+    const geometry::path::Rect shapeBounds = exclusion.shape->bounds();
     const float margin = std::max(exclusion.margin, 0.0f);
     if (acrossMax(axis, shapeBounds) + offsetAcross + margin <= bandStart ||
         acrossMin(axis, shapeBounds) + offsetAcross - margin >= bandEnd)
@@ -188,8 +187,8 @@ bool ExclusionFlow::lineIntervals(const LineRequest& request,
     if (spanEnd - spanStart < m_minimumIntervalWidth) continue;
     LineInterval interval;
     interval.origin =
-        columns ? SkPoint{penAxis, spanStart} : SkPoint{spanStart, penAxis};
-    interval.direction = columns ? SkVector{0, 1} : SkVector{1, 0};
+        columns ? glm::vec2{penAxis, spanStart} : glm::vec2{spanStart, penAxis};
+    interval.direction = columns ? glm::vec2{0, 1} : glm::vec2{1, 0};
     interval.length = spanEnd - spanStart;
     intervals.push_back(interval);
   }
@@ -219,10 +218,13 @@ bool LineSetFlow::lineIntervals(const LineRequest& request,
   return true;
 }
 
-PathFlow::PathFlow(const SkPath& path) { addPath(path); }
+PathFlow::PathFlow(const geometry::path::Outline& outline) {
+  addPath(outline);
+}
 
-void PathFlow::addPath(const SkPath& path) {
-  for (geometry::path::Contour& contour : geometry::path::contoursOf(path))
+void PathFlow::addPath(const geometry::path::Outline& outline) {
+  for (geometry::path::Contour& contour :
+       geometry::path::Contour::of(outline))
     m_contours.push_back(std::move(contour));
 }
 

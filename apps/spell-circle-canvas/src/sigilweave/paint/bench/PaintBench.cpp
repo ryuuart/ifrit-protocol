@@ -16,6 +16,7 @@
 
 #include <cmath>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "TextFields.h"
 #include "support/Corpus.h"
 #include "support/Layouts.h"
@@ -49,7 +50,7 @@ struct Scene {
 Scene scene(int words, const TextStyle& style) {
   Scene s;
   s.paragraph.appendText(makeText(words, /*mixed=*/true), style);
-  BlockFlow flow(SkRect::MakeWH(700, 40000));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {700, 40000}));
   s.layout = layoutParagraph(sigil::test::fonts(), s.paragraph, flow);
   const int height =
       (int)std::ceil((float)s.layout.lineCount * s.layout.linePitch) + 40;
@@ -65,7 +66,7 @@ Scene columnScene(int words, const TextStyle& style) {
   s.paragraph.setWritingMode(WritingMode::kVerticalRL);
   ParagraphLayoutOptions options;
   options.lineMetrics.height = 26;  // column pitch
-  VerticalBlockFlow flow(SkRect::MakeWH(1400, 680));
+  VerticalBlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {1400, 680}));
   s.layout = layoutParagraph(sigil::test::fonts(), s.paragraph, flow, options);
   s.surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(1400, 700));
   return s;
@@ -199,7 +200,7 @@ Scene wall(bool effects) {
   }
   Scene s;
   s.paragraph.appendText(makeText(2000, /*mixed=*/true), textStyle);
-  BlockFlow flow(bounds);
+  BlockFlow flow(sigil::geometry::path::fromSk(bounds));
   ParagraphLayoutOptions options;
   options.alignment = TextAlignment::kJustify;
   options.lineMetrics.height = 10.0f;

@@ -49,7 +49,7 @@ TEST(WeavePlates, TypographicOptionsDrawTheirBaseline) {
 
     Paragraph paragraph;
     paragraph.appendText(sample, plateStyle(14.5f));
-    BlockFlow flow(SkRect::MakeXYWH(exampleX, exampleY, 220, 160));
+    BlockFlow flow(sigil::geometry::path::Rect::of({exampleX, exampleY}, {220, 160}));
     ParagraphLayoutOptions options;
     options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
     options.alignment = TextAlignment::kJustify;
@@ -75,7 +75,7 @@ TEST(WeavePlates, TypographicOptionsDrawTheirBaseline) {
         "spac­ing apart, ex­act­ly as a book "
         "com­pos­i­tor would want.",
         plateStyle(14.5f));
-    BlockFlow flow(SkRect::MakeXYWH(570, 40, 130, 400));
+    BlockFlow flow(sigil::geometry::path::Rect::of({570, 40}, {130, 400}));
     ParagraphLayoutOptions options;
     options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
     options.alignment = TextAlignment::kJustify;
@@ -110,7 +110,7 @@ TEST(WeavePlates, TypographicOptionsDrawTheirBaseline) {
         SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, 2.4f));
     paragraph.appendText(u8"blur", blurred);
 
-    BlockFlow flow(SkRect::MakeXYWH(730, 40, 310, 400));
+    BlockFlow flow(sigil::geometry::path::Rect::of({730, 40}, {310, 400}));
     plate.draw(weave::testing::lay(fonts, std::move(paragraph), flow));
   }
 
@@ -137,7 +137,7 @@ TEST(WeavePlates, TypographicOptionsDrawTheirBaseline) {
     paragraph.appendText(u8"— one paragraph, many fonts, one shape cache.",
                          serif);
 
-    BlockFlow flow(SkRect::MakeXYWH(30, 470, 660, 320));
+    BlockFlow flow(sigil::geometry::path::Rect::of({30, 470}, {660, 320}));
     ParagraphLayoutOptions options;
     options.alignment = TextAlignment::kJustify;
     options.lineMetrics.height = 34;

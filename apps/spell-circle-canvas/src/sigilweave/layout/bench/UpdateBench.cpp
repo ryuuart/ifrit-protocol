@@ -15,6 +15,7 @@
 #include <string>
 #include <vector>
 
+#include "sigilweave/advanced/Skia.h"
 #include "BenchOptions.h"
 #include "support/Corpus.h"
 #include "support/Layouts.h"
@@ -31,7 +32,7 @@ namespace {
 void BM_Update_EditOneWord_500w(benchmark::State& state) {
   Paragraph paragraph;
   paragraph.appendText(makeText(500, /*mixed=*/true), basicStyle());
-  BlockFlow flow(SkRect::MakeWH(600, 20000));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {600, 20000}));
   layoutParagraph(sigil::test::fonts(), paragraph, flow);
   // Same-length alternatives so the text stays put across iterations.
   const char8_t* alternatives[] = {u8"changed", u8"updated", u8"swapped",
@@ -52,7 +53,7 @@ BENCHMARK(BM_Update_EditOneWord_500w)->Unit(benchmark::kMicrosecond);
 void BM_Update_EditOneWord_KnuthPlass_500w(benchmark::State& state) {
   Paragraph paragraph;
   paragraph.appendText(makeText(500, /*mixed=*/false), basicStyle());
-  BlockFlow flow(SkRect::MakeWH(420, 40000));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {420, 40000}));
   const ParagraphLayoutOptions options = knuthPlass();
   layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
   const char8_t* alternatives[] = {u8"changed", u8"updated", u8"swapped",
@@ -73,7 +74,7 @@ BENCHMARK(BM_Update_EditOneWord_KnuthPlass_500w)->Unit(benchmark::kMicrosecond);
 void BM_Update_PaintRestyle_500w(benchmark::State& state) {
   Paragraph paragraph;
   paragraph.appendText(makeText(500, /*mixed=*/true), basicStyle());
-  BlockFlow flow(SkRect::MakeWH(600, 20000));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {600, 20000}));
   layoutParagraph(sigil::test::fonts(), paragraph, flow);
   SkColor colors[] = {SK_ColorRED, SK_ColorBLUE, SK_ColorGREEN};
   int colorIndex = 0;
@@ -94,7 +95,7 @@ BENCHMARK(BM_Update_PaintRestyle_500w)->Unit(benchmark::kMicrosecond);
 void BM_Update_PaintRestyle_Overflowed_30000w(benchmark::State& state) {
   Paragraph paragraph;
   paragraph.appendText(makeText(30000, /*mixed=*/false), basicStyle());
-  BlockFlow flow(SkRect::MakeWH(420, 320));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {420, 320}));
   ParagraphLayout warm = layoutParagraph(sigil::test::fonts(), paragraph, flow);
   const uint32_t placedEnd =
       paragraph.words()[warm.firstUnplacedWord].textBegin;
@@ -115,7 +116,7 @@ BENCHMARK(BM_Update_PaintRestyle_Overflowed_30000w)
 void BM_Update_SizeRestyle_500w(benchmark::State& state) {
   Paragraph paragraph;
   paragraph.appendText(makeText(500, /*mixed=*/true), basicStyle());
-  BlockFlow flow(SkRect::MakeWH(600, 20000));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {600, 20000}));
   layoutParagraph(sigil::test::fonts(), paragraph, flow);
   float sizes[] = {18.0f, 20.0f, 22.0f, 24.0f};
   int sizeIndex = 0;
@@ -136,7 +137,7 @@ BENCHMARK(BM_Update_SizeRestyle_500w)->Unit(benchmark::kMicrosecond);
 void BM_Update_SpanRestyleAcrossLines_500w(benchmark::State& state) {
   Paragraph paragraph;
   paragraph.appendText(makeText(500, /*mixed=*/true), basicStyle());
-  BlockFlow flow(SkRect::MakeWH(600, 20000));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {600, 20000}));
   layoutParagraph(sigil::test::fonts(), paragraph, flow);
   const uint32_t textLength = (uint32_t)paragraph.text().size();
   uint32_t rangeStart = 0;
@@ -157,11 +158,11 @@ BENCHMARK(BM_Update_SpanRestyleAcrossLines_500w)->Unit(benchmark::kMicrosecond);
 void BM_Update_MovingExclusions_300w(benchmark::State& state) {
   Paragraph paragraph;
   paragraph.appendText(makeText(300, /*mixed=*/true), basicStyle());
-  ExclusionFlow flow(SkRect::MakeWH(700, 3000));
+  ExclusionFlow flow(sigil::geometry::path::Rect::of({0, 0}, {700, 3000}));
   flow.exclusions().push_back(
-      {flowshape::circle(SkRect::MakeXYWH(100, 100, 160, 160)), 8});
+      {flowshape::circle(sigil::geometry::path::Rect::of({100, 100}, {160, 160})), 8});
   flow.exclusions().push_back(
-      {flowshape::rectangle(SkRect::MakeXYWH(400, 600, 180, 120)), 8});
+      {flowshape::rectangle(sigil::geometry::path::Rect::of({400, 600}, {180, 120})), 8});
   layoutParagraph(sigil::test::fonts(), paragraph, flow);
 
   ParagraphLayoutOptions options;
@@ -207,7 +208,7 @@ void BM_Update_MovingPathExclusions_300w(benchmark::State& state) {
   donut.addCircle(450, 700, 55);
   donut.setFillType(SkPathFillType::kEvenOdd);
 
-  ExclusionFlow flow(SkRect::MakeWH(700, 3000));
+  ExclusionFlow flow(sigil::geometry::path::Rect::of({0, 0}, {700, 3000}));
   flow.exclusions().push_back({flowshape::path(star.detach()), 8});
   flow.exclusions().push_back({flowshape::path(donut.detach()), 8});
   layoutParagraph(sigil::test::fonts(), paragraph, flow);
@@ -257,7 +258,7 @@ void BM_Update_MovingColumnExclusions_300w(benchmark::State& state) {
   donut.addCircle(700, 450, 55);
   donut.setFillType(SkPathFillType::kEvenOdd);
 
-  ExclusionFlow flow(SkRect::MakeWH(3000, 700), FlowAxis::kColumns);
+  ExclusionFlow flow(sigil::geometry::path::Rect::of({0, 0}, {3000, 700}), FlowAxis::kColumns);
   flow.exclusions().push_back({flowshape::path(star.detach()), 8});
   flow.exclusions().push_back({flowshape::path(donut.detach()), 8});
   ParagraphLayoutOptions options;
@@ -291,7 +292,7 @@ void BM_Layout_Vertical_ClampedEllipsis_500w(benchmark::State& state) {
   options.lineMetrics.height = 26;  // column pitch
   options.overflow.maxLines = 8;
   options.overflow.ellipsis = u"\u2026";
-  VerticalBlockFlow flow(SkRect::MakeWH(20000, 600));
+  VerticalBlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {20000, 600}));
   layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
   for ([[maybe_unused]] auto iteration : state) {
     ParagraphLayout layout =
@@ -313,7 +314,7 @@ void BM_Update_ReplaceWholeParagraph_500w(benchmark::State& state) {
         makeText(500, /*mixed=*/true, /*seed=*/variantIndex + 1);
   Paragraph paragraph;
   paragraph.appendText(variants[0], basicStyle());
-  BlockFlow flow(SkRect::MakeWH(600, 20000));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {600, 20000}));
   for (const std::u8string& variant : variants) {
     paragraph.replaceText(0, (uint32_t)paragraph.text().size(), variant);
     layoutParagraph(sigil::test::fonts(), paragraph, flow);
@@ -335,7 +336,7 @@ BENCHMARK(BM_Update_ReplaceWholeParagraph_500w)->Unit(benchmark::kMicrosecond);
 void BM_Update_ReplaceWholeParagraph_Cold_500w(benchmark::State& state) {
   Paragraph paragraph;
   paragraph.appendText(makeText(500, /*mixed=*/true), basicStyle());
-  BlockFlow flow(SkRect::MakeWH(600, 20000));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {600, 20000}));
   layoutParagraph(sigil::test::fonts(), paragraph, flow);
   std::mt19937
       randomEngine(  // NOLINT(bugprone-random-generator-seed): a fixed corpus

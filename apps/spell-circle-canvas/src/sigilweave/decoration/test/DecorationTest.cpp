@@ -104,9 +104,9 @@ TEST(DecorationBand, SkipInkBreaksAroundDescenders) {
   solid.skipInk = false;
   const auto solidSegments = detail::decorationSegments(run, solid, band);
   ASSERT_EQ(solidSegments.size(), 1u);
-  EXPECT_FLOAT_EQ(solidSegments[0].first, run.origin.x());
+  EXPECT_FLOAT_EQ(solidSegments[0].first, run.origin.x);
   EXPECT_FLOAT_EQ(solidSegments[0].second,
-                  run.origin.x() + run.shaped->advance);
+                  run.origin.x + run.shaped->advance);
 
   // Total skipped coverage is strictly less than the solid line.
   float skippedLength = 0;
@@ -162,7 +162,7 @@ TEST(DecorationBand, AColumnBandRunsUncutDownItsRun) {
   FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = machineParagraph(u8"縦書きの傍線", 32.0f);
   paragraph.setWritingMode(WritingMode::kVerticalRL);
-  VerticalBlockFlow flow(SkRect::MakeWH(120, 400));
+  VerticalBlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {120, 400}));
   ParagraphLayoutOptions options;
   options.lineMetrics.height = 40;
   ParagraphLayout layout =
@@ -181,8 +181,8 @@ TEST(DecorationBand, AColumnBandRunsUncutDownItsRun) {
   // Intercepts are cut out of a horizontal window; a column has none to
   // read, so the band is whole and runs along the column, not across it.
   ASSERT_EQ(segments.size(), 1u);
-  EXPECT_FLOAT_EQ(segments[0].first, run.origin.y());
-  EXPECT_FLOAT_EQ(segments[0].second, run.origin.y() + run.shaped->advance);
+  EXPECT_FLOAT_EQ(segments[0].first, run.origin.y);
+  EXPECT_FLOAT_EQ(segments[0].second, run.origin.y + run.shaped->advance);
 }
 
 // ── Where a band's kind and side anchor it ───────────────────────────────
@@ -329,12 +329,12 @@ TEST(DecorationRects, ASpanningBandIsOneRectangleAcrossEveryRunItCovers) {
   const std::vector<SkRect> above =
       rectsInPhase(detail::DecorationPhase::kAboveGlyphs);
   ASSERT_EQ(above.size(), 1u) << "two words under one style are one band";
-  EXPECT_FLOAT_EQ(above.front().left(), placed.front()->origin.x());
+  EXPECT_FLOAT_EQ(above.front().left(), placed.front()->origin.x);
   EXPECT_FLOAT_EQ(above.front().right(),
-                  placed.back()->origin.x() + placed.back()->shaped->advance)
+                  placed.back()->origin.x + placed.back()->shaped->advance)
       << "the band must reach across the glue to the last run";
   EXPECT_FLOAT_EQ(above.front().height(), 3.0f);
-  EXPECT_FLOAT_EQ(above.front().top(), placed.front()->origin.y() + 6.0f);
+  EXPECT_FLOAT_EQ(above.front().top(), placed.front()->origin.y + 6.0f);
 
   EXPECT_TRUE(rectsInPhase(detail::DecorationPhase::kBelowGlyphs).empty())
       << "only a highlight draws beneath the glyphs";

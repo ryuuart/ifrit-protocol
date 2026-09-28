@@ -9,6 +9,7 @@
 #include <boost/unordered/unordered_flat_set.hpp>
 #include <string>
 
+#include "sigilweave/advanced/Skia.h"
 #include "sigilgeometry/advanced/Skia.h"
 #include "support/LayoutSupport.h"
 using namespace sigil::weave;
@@ -21,7 +22,7 @@ TEST(Placeholders, ReservesWidthInTheLine) {
   paragraph.appendPlaceholder({90, 20, 0}, basicStyle());
   paragraph.appendText(u8" after", basicStyle());
 
-  BlockFlow flow(SkRect::MakeWH(600, 60));  // everything on one line
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {600, 60}));  // everything on one line
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
 
   const auto rects = layout.placeholderRects(paragraph);
@@ -35,7 +36,7 @@ TEST(Placeholders, ReservesWidthInTheLine) {
     if (run.placeholderIndex >= 0) continue;
     const Word& word = paragraph.words()[run.wordIndex];
     const std::u16string_view text(paragraph.text());
-    if (text.substr(word.textBegin, 5) == u"after") afterX = run.origin.x();
+    if (text.substr(word.textBegin, 5) == u"after") afterX = run.origin.x;
   }
   ASSERT_GE(afterX, 0);
   EXPECT_GE(afterX, rects[0].rect.right() - 0.25f);
@@ -47,12 +48,12 @@ TEST(Placeholders, SitOnTheBaselineWithDrop) {
   paragraph.appendText(u8"x ", basicStyle());
   paragraph.appendPlaceholder({40, 30, 8},
                               basicStyle());  // bottom 8px below base
-  BlockFlow flow(SkRect::MakeWH(300, 60));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 60}));
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
 
   float baselineY = -1;
   for (const PositionedRun& run : layout.runs)
-    if (run.placeholderIndex < 0) baselineY = run.origin.y();
+    if (run.placeholderIndex < 0) baselineY = run.origin.y;
   const auto rects = layout.placeholderRects(paragraph);
   ASSERT_EQ(rects.size(), 1u);
   EXPECT_FLOAT_EQ(rects[0].rect.bottom(), baselineY + 8);
@@ -67,7 +68,7 @@ TEST(Placeholders, WrapAndJustifyLikeWords) {
     paragraph.appendPlaceholder({60, 14, 0}, basicStyle());
     paragraph.appendText(u8" ", basicStyle());
   }
-  BlockFlow flow(SkRect::MakeWH(220, 400));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {220, 400}));
   ParagraphLayoutOptions options;
   options.alignment = TextAlignment::kJustify;
   ParagraphLayout layout =
@@ -90,7 +91,7 @@ TEST(Placeholders, ResizeRelayoutsLive) {
   Paragraph paragraph;
   paragraph.appendText(u8"pill: ", basicStyle());
   paragraph.appendPlaceholder({50, 16, 0}, basicStyle());
-  BlockFlow flow(SkRect::MakeWH(400, 60));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 60}));
   ParagraphLayout before = layoutParagraph(fontContext, paragraph, flow);
 
   paragraph.setPlaceholder(0, {120, 16, 0});
@@ -105,7 +106,7 @@ TEST(Placeholders, VerticalSlotsReserveLogicalAdvanceAndReportPhysicalRects) {
   paragraph.appendPlaceholder({72, 26, 4}, basicStyle());
   paragraph.appendText(u8" B", basicStyle());
   paragraph.setWritingMode(WritingMode::kVerticalRL);
-  VerticalBlockFlow flow(SkRect::MakeWH(160, 280));
+  VerticalBlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {160, 280}));
   const ParagraphLayout layout = layoutParagraph(fonts, paragraph, flow);
   const auto slots = layout.placeholderRects(paragraph);
   ASSERT_EQ(slots.size(), 1u);
@@ -119,7 +120,7 @@ TEST(Placeholders, VerticalSlotsReserveLogicalAdvanceAndReportPhysicalRects) {
   bool before = false, after = false;
   for (const PositionedRun& run : layout.runs) {
     if (run.placeholderIndex >= 0) {
-      EXPECT_FLOAT_EQ(rect.top(), run.origin.y());
+      EXPECT_FLOAT_EQ(rect.top(), run.origin.y);
       continue;
     }
     const Word& word = paragraph.words()[run.wordIndex];
@@ -140,14 +141,14 @@ TEST(Placeholders, VerticalCrossSizeOpensColumnsWithoutHorizontalDrop) {
     Paragraph paragraph;
     paragraph.appendPlaceholder({72, 54, drop}, basicStyle());
     paragraph.setWritingMode(WritingMode::kVerticalRL);
-    VerticalBlockFlow flow(SkRect::MakeWH(160, 280));
+    VerticalBlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {160, 280}));
     const ParagraphLayout layout = layoutParagraph(fonts, paragraph, flow);
     const auto slots = layout.placeholderRects(paragraph);
     ASSERT_EQ(slots.size(), 1u);
     const auto columns = layout.columnMetrics(paragraph);
     ASSERT_EQ(columns.size(), 1u);
     EXPECT_FLOAT_EQ(layout.linePitch, 54);
-    EXPECT_TRUE(sigil::geometry::path::fromSk(columns.front().rect())
+    EXPECT_TRUE(columns.front().rect()
                     .contains(slots.front().rect));
   }
 }
@@ -160,7 +161,7 @@ TEST(Placeholders, VerticalSlotsWrapByTheirLogicalAdvance) {
     for (int index = 0; index < 3; ++index)
       paragraph.appendPlaceholder({80, 24, 0}, basicStyle());
     paragraph.setWritingMode(WritingMode::kVerticalRL);
-    VerticalBlockFlow flow(SkRect::MakeWH(160, 150));
+    VerticalBlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {160, 150}));
     ParagraphLayoutOptions options;
     options.lineBreakStrategy = breaker;
     const ParagraphLayout layout =

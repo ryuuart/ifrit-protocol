@@ -33,7 +33,7 @@ void drawLabelImpl(SkCanvas* canvas, sigil::weave::FontContext& fontContext,
   paragraph.appendText(text, makeStyle(options.fontSize, options.color,
                                        options.language, options.typeface));
   sigil::weave::BlockFlow flow(
-      SkRect::MakeXYWH(origin.x(), origin.y(), options.width, options.height));
+      sigil::geometry::path::Rect::of({origin.x(), origin.y()}, {options.width, options.height}));
   layoutParagraph(fontContext, paragraph, flow).draw(canvas, paragraph);
 }
 
@@ -41,7 +41,7 @@ template <typename TextView>
 void drawLabelImpl(SkCanvas* canvas, TextContext& context, TextView text,
                    SkPoint origin, const LabelOptions& options) {
   BlockFlow flow(
-      SkRect::MakeXYWH(origin.x(), origin.y(), options.width, options.height));
+      sigil::geometry::path::Rect::of({origin.x(), origin.y()}, {options.width, options.height}));
   context
       .layout(text,
               makeStyle(options.fontSize, options.color, options.language,

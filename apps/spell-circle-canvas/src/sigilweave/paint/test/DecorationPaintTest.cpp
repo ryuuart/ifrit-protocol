@@ -36,8 +36,8 @@ class DecorationInk : public ::testing::Test {
     m_layout = std::move(setting.layout);
     m_wordRuns = wordRuns(m_layout);
     ASSERT_GE(m_wordRuns.size(), 2u) << "the fixture must place two words";
-    m_gapStart = m_wordRuns[0]->origin.x() + m_wordRuns[0]->shaped->advance;
-    m_gapEnd = m_wordRuns[1]->origin.x();
+    m_gapStart = m_wordRuns[0]->origin.x + m_wordRuns[0]->shaped->advance;
+    m_gapEnd = m_wordRuns[1]->origin.x;
     ASSERT_GT(m_gapEnd, m_gapStart) << "expected inter-word glue";
   }
 
@@ -63,12 +63,12 @@ class DecorationInk : public ::testing::Test {
   }
 
   int gapX() const { return static_cast<int>((m_gapStart + m_gapEnd) * 0.5f); }
-  int baselineY() const { return static_cast<int>(m_wordRuns[0]->origin.y()); }
+  int baselineY() const { return static_cast<int>(m_wordRuns[0]->origin.y); }
   /// True when some pixel inside the first word's extent, within six
   /// pixels of `y`, satisfies `predicate`.
   template <typename Predicate>
   bool inkInFirstWord(const SkPixmap& pixmap, int y, Predicate&& predicate) {
-    const int wordStartX = static_cast<int>(m_wordRuns[0]->origin.x());
+    const int wordStartX = static_cast<int>(m_wordRuns[0]->origin.x);
     const int wordEndX = static_cast<int>(m_gapStart);
     for (int x = wordStartX; x < wordEndX; ++x)
       for (int row = y - 6; row <= y + 6; ++row)
@@ -173,7 +173,7 @@ TEST(ColumnDecorationInk, AColumnDrawsItsBandBesideTheType) {
   FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = machineParagraph(u8"縦書きの傍線", 32.0f);
   paragraph.setWritingMode(WritingMode::kVerticalRL);
-  VerticalBlockFlow flow(SkRect::MakeWH(120, 300));
+  VerticalBlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {120, 300}));
   ParagraphLayoutOptions options;
   options.lineMetrics.height = 40;
   ParagraphLayout layout =
@@ -212,7 +212,7 @@ TEST(ColumnDecorationInk, AColumnDrawsItsBandBesideTheType) {
   for (int y = 0; y < pixmap.height(); ++y)
     for (int x = 0; x < pixmap.width(); ++x) {
       if (!isBandRed(pixmap.getColor(x, y))) continue;
-      if ((float)x < first.origin.x()) ++redLeftOfAxis;
+      if ((float)x < first.origin.x) ++redLeftOfAxis;
       topMost = std::min(topMost, y);
       bottomMost = std::max(bottomMost, y);
       minX = std::min(minX, (float)x);

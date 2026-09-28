@@ -9,6 +9,7 @@
  * covers.
  */
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilweave/paint/Paint.h"
 
 #include <include/core/SkCanvas.h>
@@ -79,7 +80,7 @@ void drawPaintLayers(const PaintStyle& style, const SkRect& bounds,
  *  origin. Computed only for a pass that asks, since every other pass
  *  never reads it. */
 SkRect runBounds(const PositionedRun& run) {
-  return run.blob->bounds().makeOffset(run.origin.x(), run.origin.y());
+  return run.blob->bounds().makeOffset(run.origin.x, run.origin.y);
 }
 
 bool anyMaterial(const PaintStyle& style) {
@@ -109,8 +110,8 @@ void ParagraphLayout::draw(SkCanvas* canvas, const Paragraph& paragraph,
     const SkRect bounds =
         anyMaterial(style) ? runBounds(run) : SkRect::MakeEmpty();
     drawPaintLayers(style, bounds, [&](const SkPaint& paint, SkVector offset) {
-      canvas->drawTextBlob(run.blob.get(), run.origin.x() + offset.x(),
-                           run.origin.y() + offset.y(), paint);
+      canvas->drawTextBlob(run.blob.get(), run.origin.x + offset.x(),
+                           run.origin.y + offset.y(), paint);
     });
   }
   forEachDecorationRect(runs, spans, overridePaint,
@@ -177,8 +178,8 @@ void ParagraphLayout::drawBatched(SkCanvas* canvas, const Paragraph& paragraph,
           anyMaterial(style) ? runBounds(run) : SkRect::MakeEmpty();
       drawPaintLayers(
           style, bounds, [&](const SkPaint& paint, SkVector offset) {
-            canvas->drawTextBlob(run.blob.get(), run.origin.x() + offset.x(),
-                                 run.origin.y() + offset.y(), paint);
+            canvas->drawTextBlob(run.blob.get(), run.origin.x + offset.x(),
+                                 run.origin.y + offset.y(), paint);
           });
       continue;
     }
@@ -213,7 +214,7 @@ void ParagraphLayout::drawBatched(SkCanvas* canvas, const Paragraph& paragraph,
       // The line's fit changes both the glyph origins and their horizontal
       // scale. Shaping positions alone describe the unfitted word.
       bucket->positions.push_back(
-          run.origin +
+          geometry::path::toSk(run.origin) +
           SkVector{run.fit.offsetOf(shapedWord, glyphIndex, clustersBefore),
                    shapedWord.positions[glyphIndex].y()});
       if (GlyphFit::endsCluster(shapedWord, glyphIndex)) ++clustersBefore;
@@ -350,8 +351,8 @@ void ParagraphLayout::drawBatched(SkCanvas* canvas, const Paragraph& paragraph,
           anyMaterial(style) ? runBounds(run) : SkRect::MakeEmpty();
       drawPaintLayers(
           style, bounds, [&](const SkPaint& paint, SkVector offset) {
-            canvas->drawTextBlob(run.blob.get(), run.origin.x() + offset.x(),
-                                 run.origin.y() + offset.y(), paint);
+            canvas->drawTextBlob(run.blob.get(), run.origin.x + offset.x(),
+                                 run.origin.y + offset.y(), paint);
           });
       continue;
     }
@@ -370,7 +371,7 @@ void ParagraphLayout::drawBatched(SkCanvas* canvas, const Paragraph& paragraph,
       }
       bucket->glyphs.push_back(word.glyphs[glyphIndex]);
       bucket->positions.push_back(
-          run.origin +
+          geometry::path::toSk(run.origin) +
           SkVector{run.fit.offsetOf(word, glyphIndex, clustersBefore),
                    word.positions[glyphIndex].y()});
       if (GlyphFit::endsCluster(word, glyphIndex)) ++clustersBefore;

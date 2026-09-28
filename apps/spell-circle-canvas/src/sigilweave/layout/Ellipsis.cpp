@@ -43,9 +43,9 @@ void applyEllipsis(FontContext& fontContext, Paragraph& paragraph,
        ++intervalIndex)
     lastInterval = flatInterval;
   if (!lastInterval || lastInterval->interval.contour.valid()) return;
-  const SkVector direction = lastInterval->interval.direction;
-  const bool alongColumn = direction.x() == 0 && direction.y() == 1;
-  if (!alongColumn && (direction.x() != 1 || direction.y() != 0)) return;
+  const glm::vec2 direction = lastInterval->interval.direction;
+  const bool alongColumn = direction.x == 0 && direction.y == 1;
+  if (!alongColumn && (direction.x != 1 || direction.y != 0)) return;
 
   // Shape the marker in the style of the line's tail (fallback-resolved on
   // its first codepoint; cache-shared like every other word) — and, down a
@@ -94,12 +94,12 @@ void applyEllipsis(FontContext& fontContext, Paragraph& paragraph,
                                                 run.placeholderIndex)]
                                             .width
                                       : 0.0f);
-    if (!alongColumn) return run.origin.x() + runWidth;
+    if (!alongColumn) return run.origin.x + runWidth;
     // A ROTATED run's placement is baked into its blob and its origin is
     // the canvas origin, so only its pen offset says where down the column
     // it sits; its horizontal advance IS its travel down the column.
     if (run.transformed)
-      return lastInterval->interval.origin.y() + run.penOffset + runWidth;
+      return lastInterval->interval.origin.y + run.penOffset + runWidth;
     // A TATE-CHU-YOKO run stands across the column and consumes its font
     // height, not the advance of however many digits it holds; its origin
     // is the baseline it stands on, so its foot is one descent below.
@@ -108,14 +108,14 @@ void applyEllipsis(FontContext& fontContext, Paragraph& paragraph,
       makeFont(run.shaped->typeface, run.shaped->fontSize, run.shaped->scaleX,
                run.shaped->aliased)
           .getMetrics(&metrics);
-      return run.origin.y() + metrics.fDescent;
+      return run.origin.y + metrics.fDescent;
     }
-    return run.origin.y() + runWidth;
+    return run.origin.y + runWidth;
   };
 
   // Drop whole trailing words until the marker fits inside the interval.
-  const float intervalStart = alongColumn ? lastInterval->interval.origin.y()
-                                          : lastInterval->interval.origin.x();
+  const float intervalStart = alongColumn ? lastInterval->interval.origin.y
+                                          : lastInterval->interval.origin.x;
   const float limit =
       intervalStart + lastInterval->interval.length - marker->advance + 0.25f;
   while (result.runs.size() > lineBegin && runEnd(result.runs.back()) > limit) {
@@ -145,11 +145,11 @@ void applyEllipsis(FontContext& fontContext, Paragraph& paragraph,
   run.penOffset = markerPen - intervalStart;
   if (!alongColumn) {
     run.blob = wordBlob(*marker);
-    run.origin = {markerPen, afterARun ? result.runs.back().origin.y()
-                                       : lastInterval->interval.origin.y()};
+    run.origin = {markerPen, afterARun ? result.runs.back().origin.y
+                                       : lastInterval->interval.origin.y};
   } else if (uprightMarker) {
     run.blob = wordBlob(*marker);
-    run.origin = {lastInterval->interval.origin.x(), markerPen};
+    run.origin = {lastInterval->interval.origin.x, markerPen};
   } else {
     run.blob = buildTransformedBlob(*marker, lastInterval->interval,
                                     markerPen - intervalStart,

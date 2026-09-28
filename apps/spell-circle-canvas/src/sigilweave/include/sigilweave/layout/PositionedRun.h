@@ -11,13 +11,14 @@
  * and hit-testing.
  */
 
-#include <include/core/SkPoint.h>
-#include <include/core/SkRect.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTextBlob.h>
 
 #include <cstdint>
 
+#include <glm/vec2.hpp>
+
+#include "sigilgeometry/path/Outline.h"
 #include "sigilweave/fonts/Shaper.h"
 
 namespace sigil::weave {
@@ -97,7 +98,7 @@ struct PositionedRun {
   /// Glyph source (batched drawing, choreography) — BORROWED, see above.
   /// Null on a placeholder run.
   const ShapedWord* shaped = nullptr;
-  SkPoint origin = {0, 0};    ///< draw position; already baked into
+  glm::vec2 origin{0, 0};     ///< draw position; already baked into
                               ///< transformed blobs
   uint32_t styleIndex = 0;    ///< paint lookup into Paragraph::spans()
   /// A PAINT OF THE LAYOUT'S OWN, standing in for the span's: set on a run
@@ -143,8 +144,8 @@ struct LineMetrics {
   uint32_t textEnd = 0;    ///< one past the last unit, trailing glue included
 
   /** Returns the line's bounding band (ascent above to descent below). */
-  [[nodiscard]] SkRect rect() const {
-    return SkRect::MakeLTRB(left, baseline - ascent, right, baseline + descent);
+  [[nodiscard]] geometry::path::Rect rect() const {
+    return {{left, baseline - ascent}, {right, baseline + descent}};
   }
 };
 
@@ -163,9 +164,8 @@ struct ColumnMetrics {
   uint32_t textEnd = 0;    ///< one past the last unit, trailing glue included
 
   /** Returns the column's bounding band (half the pitch either side). */
-  [[nodiscard]] SkRect rect() const {
-    return SkRect::MakeLTRB(axis - pitch * 0.5f, top, axis + pitch * 0.5f,
-                            bottom);
+  [[nodiscard]] geometry::path::Rect rect() const {
+    return {{axis - pitch * 0.5f, top}, {axis + pitch * 0.5f, bottom}};
   }
 };
 

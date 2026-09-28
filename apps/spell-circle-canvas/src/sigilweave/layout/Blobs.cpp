@@ -68,8 +68,8 @@ sk_sp<SkTextBlob> buildTransformedBlob(const ShapedWord& shapedWord,
     // The interval owns the pen→placement mapping, and it is the SAME
     // function a caller re-placing these glyphs at draw time reads, so the
     // baked blob and a live re-placement can never disagree.
-    SkPoint position;
-    SkVector tangent;
+    glm::vec2 position;
+    glm::vec2 tangent;
     interval.placeAt(penOffset + penLocal + advance * 0.5f, 0.0f, rotationSteps,
                      &position, &tangent);
 
@@ -78,11 +78,11 @@ sk_sp<SkTextBlob> buildTransformedBlob(const ShapedWord& shapedWord,
     const float glyphCenterX = advance * 0.5f - glyphOffsetX;
     const float glyphCenterY = -glyphOffsetY;
     run.glyphs[glyphIndex] = shapedWord.glyphs[glyphIndex];
-    run.xforms()[glyphIndex] = {tangent.x(), tangent.y(),
-                                position.x() - (tangent.x() * glyphCenterX -
-                                                tangent.y() * glyphCenterY),
-                                position.y() - (tangent.y() * glyphCenterX +
-                                                tangent.x() * glyphCenterY)};
+    run.xforms()[glyphIndex] = {tangent.x, tangent.y,
+                                position.x - (tangent.x * glyphCenterX -
+                                                tangent.y * glyphCenterY),
+                                position.y - (tangent.y * glyphCenterX +
+                                                tangent.x * glyphCenterY)};
     penLocal += advance;
   }
   return builder.make();

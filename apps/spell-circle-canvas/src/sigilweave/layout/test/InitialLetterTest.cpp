@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 
+#include "sigilweave/advanced/Skia.h"
 #include "sigilgeometry/advanced/Skia.h"
 #include "support/LayoutSupport.h"
 
@@ -56,7 +57,7 @@ const std::u8string& opening() {
 const PositionedRun* remainderRun(const ParagraphLayout& layout,
                                   uint32_t openingWord) {
   for (const PositionedRun& run : layout.runs)
-    if (run.wordIndex == openingWord && sigil::geometry::path::fromSk(run.origin) != layout.initial.baseline)
+    if (run.wordIndex == openingWord && run.origin != layout.initial.baseline)
       return &run;
   return nullptr;
 }
@@ -72,7 +73,7 @@ const PositionedRun* runOfWord(const ParagraphLayout& layout,
 /// The advance between the end of one run and the start of the next, along
 /// the reading axis of a horizontal line.
 float gapBetween(const PositionedRun& before, const PositionedRun& after) {
-  return after.origin.x() - (before.origin.x() + before.advance);
+  return after.origin.x - (before.origin.x + before.advance);
 }
 
 }  // namespace
@@ -80,7 +81,7 @@ float gapBetween(const PositionedRun& before, const PositionedRun& after) {
 TEST(InitialLetter, TheNotchIsAsManyBandsDeepAsTheInitialSinks) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(passage(), 14.0f);
-  BlockFlow flow(SkRect::MakeWH(300, 400));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 400}));
   ParagraphLayoutOptions options;
   ParagraphStyle style;
   style.initial = {.lines = 3, .margin = 6.0f};
@@ -104,7 +105,7 @@ TEST(InitialLetter, TheNotchIsAsManyBandsDeepAsTheInitialSinks) {
 TEST(InitialLetter, AOneLineInitialIsSizedToTheFirstLinesOwnCapHeight) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(passage(), 14.0f);
-  BlockFlow flow(SkRect::MakeWH(300, 400));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 400}));
   ParagraphLayoutOptions options;
   ParagraphStyle style;
   style.initial = {.lines = 1};
@@ -124,7 +125,7 @@ TEST(InitialLetter, AOneLineInitialIsSizedToTheFirstLinesOwnCapHeight) {
 TEST(InitialLetter, ThreeLinesOfCapReachFromTheFirstCapTopToTheThirdBaseline) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(passage(), 14.0f);
-  BlockFlow flow(SkRect::MakeWH(300, 400));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 400}));
   ParagraphLayoutOptions options;
   ParagraphStyle style;
   style.initial = {.lines = 3};
@@ -148,7 +149,7 @@ TEST(InitialLetter, ThreeLinesOfCapReachFromTheFirstCapTopToTheThirdBaseline) {
 TEST(InitialLetter, ASinkOfOnePutsTheInitialsBaselineOnTheSecondLine) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(passage(), 14.0f);
-  BlockFlow flow(SkRect::MakeWH(300, 400));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 400}));
   ParagraphLayoutOptions options;
   ParagraphStyle style;
   style.initial = {.lines = 3, .sink = 1};
@@ -169,7 +170,7 @@ TEST(InitialLetter, AColumnFlowGetsTheNotchTheSameWrapperCuts) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(passage(), 14.0f);
   paragraph.setWritingMode(WritingMode::kVerticalRL);
-  ExclusionFlow flow(SkRect::MakeWH(300, 400), FlowAxis::kColumns);
+  ExclusionFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 400}), FlowAxis::kColumns);
   ParagraphLayoutOptions options;
   ParagraphStyle style;
   style.initial = {.lines = 2, .margin = 4.0f};
@@ -184,15 +185,15 @@ TEST(InitialLetter, AColumnFlowGetsTheNotchTheSameWrapperCuts) {
   // travel off the head of the columns the initial stands in and none off
   // the one after them. The FIRST column also carries what is left of the
   // word the initial split, so the second is where the notch alone shows.
-  EXPECT_NEAR(layout.intervals[1].origin.y() - flow.bounds().top(),
+  EXPECT_NEAR(layout.intervals[1].origin.y - flow.bounds().top(),
               layout.initial.notch, 1.0f);
-  EXPECT_NEAR(layout.intervals[2].origin.y(), flow.bounds().top(), 1.0f);
+  EXPECT_NEAR(layout.intervals[2].origin.y, flow.bounds().top(), 1.0f);
 }
 
 TEST(InitialLetter, APathFlowGetsTheNotchAsArcLengthOffItsContour) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"Whale roads open under a sky", 14.0f);
-  PathFlow flow(SkPath::Circle(200, 200, 150));
+  PathFlow flow(sigil::geometry::path::fromSk(SkPath::Circle(200, 200, 150)));
   ParagraphLayoutOptions options;
   ParagraphStyle style;
   style.initial = {.lines = 2, .margin = 4.0f};
@@ -210,7 +211,7 @@ TEST(InitialLetter, APathFlowGetsTheNotchAsArcLengthOffItsContour) {
 TEST(InitialLetter, AnInitialOnALaterBlockOpensThatBlockAndNotTheFirst) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = twoBlocks();
-  BlockFlow flow(SkRect::MakeWH(300, 400));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 400}));
   ParagraphLayoutOptions options;
   ParagraphStyle plain;
   ParagraphStyle dropped;
@@ -237,7 +238,7 @@ TEST(InitialLetter, AnInitialOnALaterBlockOpensThatBlockAndNotTheFirst) {
   // And it reports the line it is on, which is a line of its own block.
   int capLine = -1;
   for (const PositionedRun& run : layout.runs)
-    if (sigil::geometry::path::fromSk(run.origin) == layout.initial.baseline) capLine = run.lineIndex;
+    if (run.origin == layout.initial.baseline) capLine = run.lineIndex;
   ASSERT_GE(capLine, 1) << "the cap is not on the paragraph's first line";
 }
 
@@ -248,7 +249,7 @@ TEST(InitialLetter, ABlockShorterThanTheSinkKeepsTheNextBlocksLinesClear) {
       u8"The second block runs on for long enough to wrap several times "
       u8"under the cap the block above it opened with.",
       16.0f);
-  BlockFlow flow(SkRect::MakeWH(300, 400));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 400}));
   ParagraphLayoutOptions options;
   ParagraphStyle dropped;
   dropped.initial = {.lines = 3, .margin = 6.0f};
@@ -282,7 +283,7 @@ TEST_P(InitialTakingItsBlock, TheBlockAfterItOpensInTheCapsBand) {
       u8"second block runs on for long enough to wrap several times under "
       u8"the cap the block above it is nothing but.",
       16.0f);
-  BlockFlow flow(SkRect::MakeWH(300, 400));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 400}));
   ParagraphLayoutOptions options;
   options.lineBreakStrategy = breaker();
   ParagraphStyle dropped;
@@ -300,14 +301,14 @@ TEST_P(InitialTakingItsBlock, TheBlockAfterItOpensInTheCapsBand) {
   std::vector<float> starts;
   std::vector<float> lines;
   for (const PositionedRun& run : layout.runs) {
-    if (sigil::geometry::path::fromSk(run.origin) == layout.initial.baseline || run.lineIndex < 0) continue;
+    if (run.origin == layout.initial.baseline || run.lineIndex < 0) continue;
     const size_t line = static_cast<size_t>(run.lineIndex);
     if (starts.size() <= line) {
       starts.resize(line + 1, 1e9f);
       lines.resize(line + 1, 0.0f);
     }
-    starts[line] = std::min(starts[line], run.origin.x());
-    lines[line] = run.origin.y();
+    starts[line] = std::min(starts[line], run.origin.x);
+    lines[line] = run.origin.y;
   }
   ASSERT_GE(starts.size(), 4u);
   // The first line stands in the cap's band, inset as that band was asked;
@@ -329,7 +330,7 @@ INSTANTIATE_TEST_SUITE_P(Breakers, InitialTakingItsBlock, bothBreakers(),
 
 TEST(InitialLetter, AGlyphWrapMeasuresTheOutlineAndNotTheAdvanceBox) {
   FontContext& fonts = sigil::test::fonts();
-  BlockFlow flow(SkRect::MakeWH(300, 400));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 400}));
 
   const auto startsUnder = [&](InitialLetter::Wrap wrap) {
     Paragraph paragraph = makeParagraph(passage(), 14.0f);
@@ -356,7 +357,7 @@ TEST(InitialLetter, AGlyphWrapMeasuresTheOutlineAndNotTheAdvanceBox) {
 TEST(InitialLetter, ANegativeSinkLeavesTheCapOnTheFirstBaseline) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(passage(), 14.0f);
-  BlockFlow flow(SkRect::MakeWH(300, 400));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 400}));
   ParagraphLayoutOptions options;
   ParagraphStyle style;
   style.initial = {.lines = 3, .sink = -2};
@@ -375,7 +376,7 @@ TEST(InitialLetter, ANegativeSinkLeavesTheCapOnTheFirstBaseline) {
 
 TEST(InitialLetter, TheInitialTakesTheGraphemesItAsksForAndNoMoreThanTheWord) {
   FontContext& fonts = sigil::test::fonts();
-  BlockFlow flow(SkRect::MakeWH(300, 400));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 400}));
 
   const auto takenBy = [&](uint32_t graphemes) {
     Paragraph paragraph = makeParagraph(passage(), 14.0f);
@@ -396,7 +397,7 @@ TEST(InitialLetter, TheInitialTakesTheGraphemesItAsksForAndNoMoreThanTheWord) {
 TEST(InitialLetter, AResumedPassDoesNotOpenTheInitialAgain) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(passage(), 14.0f);
-  BlockFlow shallow(SkRect::MakeWH(300, 60));
+  BlockFlow shallow(sigil::geometry::path::Rect::of({0, 0}, {300, 60}));
   ParagraphLayoutOptions options;
   ParagraphStyle style;
   style.initial = {.lines = 2, .margin = 4.0f};
@@ -421,7 +422,7 @@ TEST(InitialLetter, AColumnsInitialStandsUprightAtTheHeadOfItsColumn) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(passage(), 14.0f);
   paragraph.setWritingMode(WritingMode::kVerticalRL);
-  ExclusionFlow flow(SkRect::MakeWH(300, 400), FlowAxis::kColumns);
+  ExclusionFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 400}), FlowAxis::kColumns);
   ParagraphLayoutOptions options;
   ParagraphStyle style;
   style.initial = {.lines = 2, .margin = 4.0f};
@@ -435,7 +436,7 @@ TEST(InitialLetter, AColumnsInitialStandsUprightAtTheHeadOfItsColumn) {
   // the page.
   const PositionedRun* cap = nullptr;
   for (const PositionedRun& run : layout.runs)
-    if (sigil::geometry::path::fromSk(run.origin) == layout.initial.baseline) cap = &run;
+    if (run.origin == layout.initial.baseline) cap = &run;
   ASSERT_NE(cap, nullptr);
   ASSERT_NE(cap->shaped, nullptr);
   EXPECT_TRUE(cap->shaped->vertical);
@@ -449,7 +450,7 @@ TEST(InitialLetter, AColumnsInitialStandsUprightAtTheHeadOfItsColumn) {
 TEST(InitialLetter, TheLineTheCapStandsOnKeepsItsOwnBand) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(passage(), 14.0f);
-  BlockFlow flow(SkRect::MakeWH(300, 400));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 400}));
   ParagraphLayoutOptions options;
   ParagraphStyle style;
   style.initial = {.lines = 3};
@@ -472,7 +473,7 @@ TEST(InitialLetter, TheLineTheCapStandsOnKeepsItsOwnBand) {
 TEST(InitialLetter, TheSpaceAfterTheSplitWordSurvives) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(opening(), 14.0f);
-  BlockFlow flow(SkRect::MakeWH(300, 400));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 400}));
   ParagraphLayoutOptions options;
   ParagraphStyle style;
   style.initial = {.lines = 3, .margin = 8.0f};
@@ -496,7 +497,7 @@ TEST(InitialLetter, TheSpaceAfterTheSplitWordSurvives) {
 TEST(InitialLetter, TheSameParagraphLaidOutTwiceOpensTheSameFirstLine) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(opening(), 14.0f);
-  BlockFlow flow(SkRect::MakeWH(300, 400));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 400}));
   ParagraphLayoutOptions options;
   ParagraphStyle style;
   style.initial = {.lines = 3, .margin = 8.0f};
@@ -519,7 +520,7 @@ TEST(InitialLetter, TheSameParagraphLaidOutTwiceOpensTheSameFirstLine) {
   for (size_t index = 0; index < first.runs.size(); ++index) {
     if (first.runs[index].lineIndex != 0) continue;
     EXPECT_EQ(first.runs[index].wordIndex, again.runs[index].wordIndex);
-    EXPECT_NEAR(first.runs[index].origin.x(), again.runs[index].origin.x(),
+    EXPECT_NEAR(first.runs[index].origin.x, again.runs[index].origin.x,
                 0.01f)
         << "run " << index;
   }
@@ -527,7 +528,7 @@ TEST(InitialLetter, TheSameParagraphLaidOutTwiceOpensTheSameFirstLine) {
 
 TEST(InitialLetter, TheRemainderOfTheOpeningLineSetsAsAnOrdinaryParagraphDoes) {
   FontContext& fonts = sigil::test::fonts();
-  BlockFlow flow(SkRect::MakeWH(300, 400));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 400}));
 
   Paragraph plain = makeParagraph(opening(), 14.0f);
   ParagraphLayoutOptions plainOptions;
@@ -564,7 +565,7 @@ TEST(InitialLetter, TheCapTakesTheStyleItsOwnWordIsSetIn) {
       u8"that it wraps and ends.\n",
       sigil::weave::test::basicStyle(14.0f));
   paragraph.appendText(opening(), sigil::weave::test::basicStyle(18.0f));
-  BlockFlow flow(SkRect::MakeWH(300, 400));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 400}));
   ParagraphLayoutOptions options;
   ParagraphStyle above;
   ParagraphStyle dropped;
@@ -576,7 +577,7 @@ TEST(InitialLetter, TheCapTakesTheStyleItsOwnWordIsSetIn) {
   ASSERT_TRUE(layout.initial.placed);
   const PositionedRun* cap = nullptr;
   for (const PositionedRun& run : layout.runs)
-    if (sigil::geometry::path::fromSk(run.origin) == layout.initial.baseline) cap = &run;
+    if (run.origin == layout.initial.baseline) cap = &run;
   ASSERT_NE(cap, nullptr);
   // The cap is set in the voice of the word it was taken from, which is
   // the second span here and the first span in every single-voice text.

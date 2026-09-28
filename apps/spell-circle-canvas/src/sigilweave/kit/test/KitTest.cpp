@@ -53,7 +53,7 @@ TEST(LayoutGuard, RelayoutsOnEditAndDeclaredKeysOnly) {
   int relayouts = 0;
   auto relayout = [&] {
     ++relayouts;
-    BlockFlow flow(SkRect::MakeXYWH(0, 0, 200, 200));
+    BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {200, 200}));
     layout = layoutParagraph(sigil::test::fonts(), paragraph, flow);
   };
 
@@ -89,7 +89,7 @@ TEST(LayoutGuard, PaintOnlyRestyleDoesNotRelayout) {
   int relayouts = 0;
   auto relayout = [&] {
     ++relayouts;
-    BlockFlow flow(SkRect::MakeXYWH(0, 0, 300, 100));
+    BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 100}));
     layout = layoutParagraph(sigil::test::fonts(), paragraph, flow);
   };
 
@@ -226,7 +226,7 @@ TEST(PatternHyphenator, TheHeldEnglishTableIsOneInstanceAndBreaksAsTheTable) {
     TextStyle english = basicStyle();
     english.shaping.languageTag = "en-US";
     Paragraph paragraph = paragraphIn(u8"specimen specimen specimen", english);
-    BlockFlow flow(SkRect::MakeWH(60, 400));
+    BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {60, 400}));
     ParagraphLayoutOptions options;
     options.hyphenation = HyphenationOptions{.patterns = std::move(table)};
     const ParagraphLayout layout =

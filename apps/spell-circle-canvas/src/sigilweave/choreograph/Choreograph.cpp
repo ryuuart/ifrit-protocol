@@ -22,6 +22,7 @@
 #include <numbers>
 #include <utility>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilweave/choreograph/GlyphBatches.h"
 #include "sigilweave/choreograph/GlyphDress.h"
 
@@ -151,16 +152,16 @@ void GlyphRSXformBatches::addGlyph(const ShapedWord* font,
                       dress.colorAdd.r != 0 || dress.colorAdd.g != 0 ||
                       dress.colorAdd.b != 0 || dress.colorScreen.r != 0 ||
                       dress.colorScreen.g != 0 || dress.colorScreen.b != 0;
-  const SkVector local =
-      dress.centreOffset ? *dress.centreOffset : SkVector{halfAdvance, 0};
+  const glm::vec2 local =
+      dress.centreOffset ? *dress.centreOffset : glm::vec2{halfAdvance, 0};
   const SkRSXform transform = {
       dress.cosine, dress.sine,
-      dress.center.x() - (dress.cosine * local.x() - dress.sine * local.y()),
-      dress.center.y() - (dress.sine * local.x() + dress.cosine * local.y())};
+      dress.center.x - (dress.cosine * local.x - dress.sine * local.y),
+      dress.center.y - (dress.sine * local.x + dress.cosine * local.y)};
   auto place = [&](Batch& batch) {
     if (dress.matrix) {
       batch.matrixGlyphs.push_back(glyph);
-      batch.matrices.push_back(*dress.matrix);
+      batch.matrices.push_back(geometry::path::toSk(*dress.matrix));
     } else {
       batch.glyphs.push_back(glyph);
       batch.transforms.push_back(transform);

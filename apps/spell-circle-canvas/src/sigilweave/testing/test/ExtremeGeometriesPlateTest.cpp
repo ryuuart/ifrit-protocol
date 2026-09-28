@@ -17,6 +17,7 @@
 #include <utility>
 #include <vector>
 
+#include "sigilweave/advanced/Skia.h"
 #include "support/Plates.h"
 
 using namespace sigil::weave;
@@ -75,7 +76,7 @@ TEST(WeavePlates, ExtremeGeometriesDrawTheirBaseline) {
         u8"a scribbled stroke is still a line to this engine, the pen just "
         "wanders wherever the curve goes — 落書きの線でも文字は流れる",
         plateStyle(15, kBlue));
-    PathFlow flow(pathBuilder.detach());
+    PathFlow flow(sigil::geometry::path::fromSk(pathBuilder.detach()));
     plate.draw(weave::testing::lay(fonts, std::move(paragraph), flow));
   }
 
@@ -98,7 +99,7 @@ TEST(WeavePlates, ExtremeGeometriesDrawTheirBaseline) {
             : u8"波打つベースラインの上でも字形は接線に沿って進む — 파도치는 "
               "기준선 위에서도 글자는 계속 흐른다 — 波浪基线上的文字",
         plateStyle(15, line == 0 ? kInk : kAccent));
-    PathFlow flow(pathBuilder.detach());
+    PathFlow flow(sigil::geometry::path::fromSk(pathBuilder.detach()));
     plate.draw(weave::testing::lay(fonts, std::move(paragraph), flow));
   }
 

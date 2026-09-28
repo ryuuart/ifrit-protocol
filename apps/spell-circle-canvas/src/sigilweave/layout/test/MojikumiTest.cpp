@@ -29,10 +29,10 @@ MojikumiTable bracketTable(float room) {
 /// The advance from the first placed run to the end of the last.
 float placedExtent(const Paragraph& paragraph, const ParagraphLayout& layout) {
   if (layout.runs.empty()) return 0;
-  float left = layout.runs.front().origin.x();
+  float left = layout.runs.front().origin.x;
   float right = left;
   for (const PositionedRun& run : layout.runs) {
-    left = std::min(left, run.origin.x());
+    left = std::min(left, run.origin.x);
     right = std::max(right, runEnd(paragraph, run));
   }
   return right - left;
@@ -45,7 +45,7 @@ TEST(Mojikumi, ATableClosesTheGapItNamesAndLeavesEveryOtherGapAlone) {
   const std::u8string text = u8"\xef\xbc\x89\xef\xbc\x88";  // ） （
   const auto extentWith = [&](const MojikumiTable& table) {
     Paragraph paragraph = makeParagraph(text, 20.0f);
-    BlockFlow flow(SkRect::MakeWH(400, 200));
+    BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 200}));
     ParagraphLayoutOptions options;
     options.mojikumi = table;
     const ParagraphLayout layout =
@@ -66,7 +66,7 @@ TEST(Mojikumi, TsumeClosesTheGapBetweenTwoPlainFullWidthCharacters) {
       u8"\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e";  // 日本語
   const auto extentWith = [&](float tsume) {
     Paragraph paragraph = makeParagraph(text, 20.0f);
-    BlockFlow flow(SkRect::MakeWH(400, 200));
+    BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 200}));
     ParagraphLayoutOptions options;
     options.tsume = tsume;
     const ParagraphLayout layout =
@@ -85,7 +85,7 @@ TEST(Mojikumi, TheBreakerFitsAgainstTheRoomTheTableAsked) {
       u8"\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e\xe6\x96\x87";
   const auto lineCountWith = [&](float tsume) {
     Paragraph paragraph = makeParagraph(text, 20.0f);
-    BlockFlow flow(SkRect::MakeWH(70, 400));
+    BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {70, 400}));
     ParagraphLayoutOptions options;
     options.tsume = tsume;
     return layoutParagraph(fonts, paragraph, flow, options).lineCount;

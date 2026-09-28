@@ -33,8 +33,8 @@ namespace sigil::weave::test {
 /// each offset by its own advanceOffset), so use the segment's shaped
 /// advance.
 inline float runEnd(const Paragraph& paragraph, const PositionedRun& run) {
-  if (run.shaped) return run.origin.x() + run.shaped->advance;
-  return run.origin.x() + paragraph.words()[run.wordIndex].width;
+  if (run.shaped) return run.origin.x + run.shaped->advance;
+  return run.origin.x + paragraph.words()[run.wordIndex].width;
 }
 
 /// A closed circle as one contour, plus its length.
@@ -87,7 +87,7 @@ inline LaidOut laidOut(std::u8string_view utf8, float fontSize,
 /// setting every claim about one is read in — as geometry in the
 /// decoration feature, and as pixels in the paint feature.
 inline LaidOut twoWordsOnOneLine() {
-  BlockFlow flow(SkRect::MakeWH(400, 80));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 80}));
   return laidOut(u8"mono nano", 32.0f, flow);
 }
 
@@ -112,7 +112,7 @@ inline std::vector<float> lineWidths(const ParagraphLayout& layout,
                                      const Paragraph& paragraph) {
   std::vector<std::pair<int, std::pair<float, float>>> byLine;
   for (const PositionedRun& run : layout.runs) {
-    const float left = run.origin.x();
+    const float left = run.origin.x;
     const float right = runEnd(paragraph, run);
     auto found = std::find_if(
         byLine.begin(), byLine.end(),
@@ -164,11 +164,11 @@ inline IntervalContainment runsStayInsideIntervals(
       continue;
     }
     if (intervals.size() > 1) ++found.splitBands;
-    const float start = columns ? run.origin.y() : run.origin.x();
+    const float start = columns ? run.origin.y : run.origin.x;
     const float end = start + run.shaped->advance;
     bool inside = false;
     for (const LineInterval& interval : intervals) {
-      const float open = columns ? interval.origin.y() : interval.origin.x();
+      const float open = columns ? interval.origin.y : interval.origin.x;
       inside = inside ||
                (start >= open - 0.75f && end <= open + interval.length + 0.75f);
     }

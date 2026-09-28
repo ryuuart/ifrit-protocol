@@ -89,7 +89,7 @@ TEST(TextSpanAxis, AnInvariantAxisRedrawsWithoutReshaping) {
   host.composer.render(box().padding(10).children({text(body, base).key("t")}));
   host.frame();
   const std::vector<const void*> shapesBefore = runShapes(host, "t");
-  const std::vector<SkPoint> originsBefore = runOrigins(host, "t");
+  const std::vector<glm::vec2> originsBefore = runOrigins(host, "t");
   ASSERT_FALSE(shapesBefore.empty());
   const SkBitmap plain = grab(host, 400, 120);
 
@@ -349,7 +349,7 @@ TEST(TextOptionSetters, SettersOverrideAPassedOptionsValueFieldByField) {
   ASSERT_NE(layout, nullptr);
   EXPECT_EQ(layout->lineCount, 2) << "the setter did not override maxLines";
   ASSERT_FALSE(layout->runs.empty());
-  EXPECT_GT(layout->runs.front().origin.fX, 1.0f)
+  EXPECT_GT(layout->runs.front().origin.x, 1.0f)
       << "the passed alignment was clobbered rather than left alone";
 }
 

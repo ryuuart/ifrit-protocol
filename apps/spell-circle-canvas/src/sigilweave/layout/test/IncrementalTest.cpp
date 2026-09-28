@@ -19,7 +19,7 @@ TEST(Incremental, OneWordEditKeepsOtherWordBlobs) {
   Paragraph paragraph = makeParagraph(
       u8"steady text with one word that will change between frames while all "
       "other words keep their shaped blobs perfectly intact");
-  BlockFlow flow(SkRect::MakeWH(300, 600));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 600}));
   ParagraphLayout before = layoutParagraph(fontContext, paragraph, flow);
 
   paragraph.replaceText(17, 20, u8"two");  // "one" → "two"
@@ -39,9 +39,9 @@ TEST(Incremental, MovingAnExclusionCostsNoCallToTheShaper) {
   Paragraph paragraph = makeParagraph(
       u8"the shape moves through the paragraph and every frame the words "
       "reflow around it without any reshaping at all, just new positions");
-  ExclusionFlow flow(SkRect::MakeWH(360, 400));
+  ExclusionFlow flow(sigil::geometry::path::Rect::of({0, 0}, {360, 400}));
   flow.exclusions().push_back(
-      {flowshape::circle(SkRect::MakeXYWH(50, 30, 90, 90)), 4});
+      {flowshape::circle(sigil::geometry::path::Rect::of({50, 30}, {90, 90})), 4});
 
   ParagraphLayout first = layoutParagraph(fontContext, paragraph, flow);
   fontContext.resetStats();
@@ -64,7 +64,7 @@ TEST(Incremental, APaintEditLeavesAnOverflowExactlyWhereItWas) {
       u8"lattice", u8"shapes",  u8"glyphs", u8"marker",  u8"cache"};
   Paragraph paragraph;
   paragraph.appendText(makePooledText(kWordPool, 4000, 7), basicStyle());
-  BlockFlow flow(SkRect::MakeWH(420, 320));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {420, 320}));
   const ParagraphLayout before = layoutParagraph(fontContext, paragraph, flow);
   ASSERT_TRUE(before.overflowed());
 

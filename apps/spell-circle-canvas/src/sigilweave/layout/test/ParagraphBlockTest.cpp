@@ -144,7 +144,7 @@ TEST(ParagraphBlock, ALastLineStatedApartLandsInAWholeJustificationBesideIt) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph =
       makeParagraph(u8"one two three four five six seven eight nine ten");
-  BlockFlow flow(SkRect::MakeWH(140, 400));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {140, 400}));
   ParagraphLayoutOptions options;
   apply(options, block);
   options.blocks = {style};

@@ -13,6 +13,7 @@
 #include <boost/container/flat_set.hpp>
 #include <cmath>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
 
@@ -127,7 +128,7 @@ class HyperScriptsScene final : public Scene {
       const SkRect textBox =
           SkRect::MakeXYWH(panel.left() + 12, textTop, panel.width() - 24,
                            std::max(1.0f, panel.bottom() - textTop - 7));
-      BlockFlow flow(textBox);
+      BlockFlow flow(sigil::geometry::path::fromSk(textBox));
       ParagraphLayoutOptions options;
       options.alignment =
           panelIndex <= 2 ? TextAlignment::kCenter : TextAlignment::kStart;

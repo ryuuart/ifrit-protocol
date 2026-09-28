@@ -19,7 +19,7 @@ TEST(Vertical, UprightCjkStacksDownColumns) {
                        machineStyle(20.0f));
   paragraph.setWritingMode(WritingMode::kVerticalRL);
 
-  VerticalBlockFlow flow(SkRect::MakeWH(200, 220));
+  VerticalBlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {200, 220}));
   ParagraphLayoutOptions options;
   options.lineMetrics.height = 30;  // column pitch
   ParagraphLayout layout =
@@ -33,11 +33,11 @@ TEST(Vertical, UprightCjkStacksDownColumns) {
     EXPECT_FALSE(run.transformed) << "upright CJK is a positioned blob";
     EXPECT_TRUE(run.shaped->vertical);
     if (run.lineIndex == 0) {
-      line0x = run.origin.x();
-      EXPECT_GT(run.origin.y(), prevYInLine0) << "pen must travel downward";
-      prevYInLine0 = run.origin.y();
+      line0x = run.origin.x;
+      EXPECT_GT(run.origin.y, prevYInLine0) << "pen must travel downward";
+      prevYInLine0 = run.origin.y;
     } else if (run.lineIndex == 1) {
-      line1x = run.origin.x();
+      line1x = run.origin.x;
     }
   }
   EXPECT_LT(line1x, line0x) << "columns must advance right to left";
@@ -48,7 +48,7 @@ TEST(Vertical, AutoRotatesLatinMixedIntoCjk) {
   Paragraph paragraph;
   paragraph.appendText(u8"縦書きにHTTPが混ざる", machineStyle(20.0f));
   paragraph.setWritingMode(WritingMode::kVerticalRL);
-  VerticalBlockFlow flow(SkRect::MakeWH(200, 400));
+  VerticalBlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {200, 400}));
   ParagraphLayoutOptions options;
   options.lineMetrics.height = 30;
   ParagraphLayout layout =
@@ -79,7 +79,7 @@ TEST(Vertical, TateChuYokoSetsRunUprightAcrossColumn) {
     paragraph.appendText(u8"31", digits);
     paragraph.appendText(u8"年の縦組み", japaneseStyle);
     paragraph.setWritingMode(WritingMode::kVerticalRL);
-    VerticalBlockFlow flow(SkRect::MakeWH(200, 400));
+    VerticalBlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {200, 400}));
     ParagraphLayoutOptions options;
     options.lineMetrics.height = 30;
     ParagraphLayout layout =
@@ -88,7 +88,7 @@ TEST(Vertical, TateChuYokoSetsRunUprightAcrossColumn) {
     for (const PositionedRun& run : layout.runs)
       if (run.shaped)
         columnLength =
-            std::max(columnLength, run.origin.y() + run.shaped->advance);
+            std::max(columnLength, run.origin.y + run.shaped->advance);
     return std::make_pair(std::move(layout), columnLength);
   };
 
@@ -99,7 +99,7 @@ TEST(Vertical, TateChuYokoSetsRunUprightAcrossColumn) {
     if (!run.shaped->vertical && !run.transformed) tcyRun = &run;
   ASSERT_NE(tcyRun, nullptr) << "the digit run must be placed upright";
   // Centred across the column: origin shifted left by half its advance.
-  EXPECT_NEAR(tcyRun->origin.x(), axis - tcyRun->shaped->advance * 0.5f, 0.5f);
+  EXPECT_NEAR(tcyRun->origin.x, axis - tcyRun->shaped->advance * 0.5f, 0.5f);
   // And the pair costs less column length set across it than it does
   // stacked, which is the whole point of the form.
   EXPECT_LT(tcyLength, set(VerticalForm::kUpright).second);
@@ -115,7 +115,7 @@ TEST(Vertical, ColumnMetricsReportTheBandAndTheExtent) {
                        machineStyle(20.0f));
   paragraph.setWritingMode(WritingMode::kVerticalRL);
 
-  VerticalBlockFlow flow(SkRect::MakeWH(200, 200));
+  VerticalBlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {200, 200}));
   ParagraphLayoutOptions options;
   options.lineMetrics.height = 30;
   ParagraphLayout layout =
@@ -156,7 +156,7 @@ TEST(Vertical, TateChuYokoCountsItsFontHeightDownTheColumn) {
     paragraph.appendText(digits, tcy);
     paragraph.appendText(u8"年", body);
     paragraph.setWritingMode(WritingMode::kVerticalRL);
-    VerticalBlockFlow flow(SkRect::MakeWH(120, 400));
+    VerticalBlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {120, 400}));
     ParagraphLayoutOptions options;
     options.lineMetrics.height = 28;
     ParagraphLayout layout =
@@ -185,9 +185,9 @@ TEST(Vertical, ColumnsFlowAroundAFlowShape) {
   paragraph.setWritingMode(WritingMode::kVerticalRL);
 
   constexpr float kPitch = 30;
-  ExclusionFlow flow(SkRect::MakeWH(300, 400), FlowAxis::kColumns);
+  ExclusionFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 400}), FlowAxis::kColumns);
   flow.exclusions().push_back(
-      {flowshape::circle(SkRect::MakeXYWH(90, 140, 120, 120)), 6});
+      {flowshape::circle(sigil::geometry::path::Rect::of({90, 140}, {120, 120})), 6});
   ParagraphLayoutOptions options;
   options.lineMetrics.height = kPitch;
   ParagraphLayout layout =
@@ -210,7 +210,7 @@ TEST(Vertical, ColumnsFlowAroundAFlowShape) {
 
   // And the exclusion costs room: the same text in the same block with
   // nothing in its way needs fewer columns.
-  VerticalBlockFlow clear(SkRect::MakeWH(300, 400));
+  VerticalBlockFlow clear(sigil::geometry::path::Rect::of({0, 0}, {300, 400}));
   ParagraphLayout unobstructed =
       layoutParagraph(fontContext, paragraph, clear, options);
   EXPECT_GT(layout.lineCount, unobstructed.lineCount);
@@ -223,7 +223,7 @@ namespace {
 /// How far down its column a run reaches. Every form a column carries is
 /// placed from the column's own pen, so one reading covers them all.
 float columnFoot(const PositionedRun& run) {
-  return run.origin.y() + (run.shaped ? run.shaped->advance : 0.0f);
+  return run.origin.y + (run.shaped ? run.shaped->advance : 0.0f);
 }
 
 }  // namespace
@@ -240,7 +240,7 @@ class ClampedColumn : public ::testing::Test {
   }
 
   ParagraphLayout column(bool withMarker) {
-    VerticalBlockFlow flow(SkRect::MakeWH(200, 220));
+    VerticalBlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {200, 220}));
     ParagraphLayoutOptions options;
     options.lineMetrics.height = 30;
     options.overflow.maxLines = 1;
@@ -263,11 +263,11 @@ TEST_F(ClampedColumn, TheMarkerStandsUprightAtTheFootOfTheColumnItCuts) {
       << "an upright column takes an upright marker — the face's own "
          "vertical form when it has one";
   EXPECT_FALSE(marker.transformed);
-  EXPECT_FLOAT_EQ(marker.origin.x(), 200 - 30 * 0.5f)
+  EXPECT_FLOAT_EQ(marker.origin.x, 200 - 30 * 0.5f)
       << "on the column's central axis, like every glyph above it";
   // At the FOOT: below the last of the text, and inside the column.
   const PositionedRun& tail = layout.runs[layout.runs.size() - 2];
-  EXPECT_GE(marker.origin.y(), columnFoot(tail) - 0.25f);
+  EXPECT_GE(marker.origin.y, columnFoot(tail) - 0.25f);
   EXPECT_LE(columnFoot(marker), 220.0f + 0.75f);
   EXPECT_EQ(marker.lineIndex, tail.lineIndex);
 
@@ -309,7 +309,7 @@ TEST(Vertical, ARotatedRunTakesARotatedMarker) {
       machineStyle(18.0f));
   paragraph.setWritingMode(WritingMode::kVerticalRL);
 
-  VerticalBlockFlow flow(SkRect::MakeWH(160, 200));
+  VerticalBlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {160, 200}));
   ParagraphLayoutOptions options;
   options.lineMetrics.height = 26;
   options.overflow.maxLines = 1;

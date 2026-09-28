@@ -23,6 +23,7 @@
 #include <string_view>
 #include <vector>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "PenInternal.h"
 
 namespace sigil::draw {
@@ -256,7 +257,7 @@ void Pen::text(std::string_view str, float x, float y, float w, float h) {
   const SkRect box = rectBox(x, y, w, h);
   weave::Paragraph paragraph;
   paragraph.appendText(utf8(str), textStyleNow());
-  weave::BlockFlow flow(box);
+  weave::BlockFlow flow(geometry::path::fromSk(box));
   weave::ParagraphLayoutOptions options;
   options.alignment =
       m_style.textAlignX == CENTER  ? weave::TextAlignment::kCenter

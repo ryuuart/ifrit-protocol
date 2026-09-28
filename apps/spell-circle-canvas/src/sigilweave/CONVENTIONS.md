@@ -162,7 +162,7 @@ passes**, so an implementation may depend freely on animated state. For
 exclusion flows, animate through `Exclusion::offset`: a flow shape caches
 what answering costs it — a flattening, a grown outline, a distance field
 — and
-rigid motion reuses all of it, while a rebuilt shape (a morphing `SkPath`,
+rigid motion reuses all of it, while a rebuilt shape (a morphing outline,
 a new video frame) re-measures from scratch.
 
 **Lazy shaping is ascending and idempotent only.** `ensureShapedTo()` with a

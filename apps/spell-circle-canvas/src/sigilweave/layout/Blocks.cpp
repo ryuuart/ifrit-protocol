@@ -369,11 +369,11 @@ void distributeInFrame(const FrameOptions& frame, float usedDepth,
   if (leftover <= 0) return;
   for (const PositionedRun& run : layout.runs)
     if (run.transformed) return;
-  const SkVector direction = layout.intervals.front().direction;
-  SkVector stack{0, 1};  // lines stack down the page
-  if (direction.x() == 0 && direction.y() == 1)
+  const glm::vec2 direction = layout.intervals.front().direction;
+  glm::vec2 stack{0, 1};  // lines stack down the page
+  if (direction.x == 0 && direction.y == 1)
     stack = {-1, 0};  // columns advance right to left
-  else if (direction.x() != 1 || direction.y() != 0)
+  else if (direction.x != 1 || direction.y != 0)
     return;  // neither a line nor a column: nothing to distribute along
 
   float shift = 0;
@@ -394,10 +394,10 @@ void distributeInFrame(const FrameOptions& frame, float usedDepth,
         perLine = std::min(perLine, frame.maximumInterlineSpacing);
       break;
   }
-  const auto move = [&](SkPoint& point, int lineIndex) {
+  const auto move = [&](glm::vec2& point, int lineIndex) {
     const float distance =
         shift + perLine * static_cast<float>(std::max(lineIndex, 0));
-    point += SkVector{stack.x() * distance, stack.y() * distance};
+    point += glm::vec2{stack.x * distance, stack.y * distance};
   };
   for (PositionedRun& run : layout.runs) move(run.origin, run.lineIndex);
   for (size_t index = 0; index < layout.intervals.size(); ++index)

@@ -36,7 +36,7 @@ std::vector<LineMetrics> ParagraphLayout::lineMetrics(
   const auto isTheInitial = [&](const PositionedRun& run) {
     return initial.placed && run.shaped &&
            run.shaped->fontSize == initial.fontSize &&
-           geometry::path::fromSk(run.origin) == initial.baseline;
+           run.origin == initial.baseline;
   };
 
   for (const PositionedRun& run : runs) {
@@ -45,7 +45,7 @@ std::vector<LineMetrics> ParagraphLayout::lineMetrics(
 
     float runAscent = 0;
     float runDescent = 0;
-    float runLeft = run.origin.x();
+    float runLeft = run.origin.x;
     float runRight = runLeft;
     if (run.shaped) {
       if (run.shaped->typeface.get() != lastTypeface ||
@@ -84,7 +84,7 @@ std::vector<LineMetrics> ParagraphLayout::lineMetrics(
     }
     const Word& word = paragraph.words()[run.wordIndex];
     if (!line) {
-      lines.push_back({run.lineIndex, run.origin.y(), runAscent, runDescent,
+      lines.push_back({run.lineIndex, run.origin.y, runAscent, runDescent,
                        runLeft, runRight, word.textBegin, word.whitespaceEnd});
       continue;
     }
@@ -137,24 +137,24 @@ SkPath ParagraphLayout::glyphOutline() const {
       }
       if (!interval) {
         outline.addPath(*contour,
-                        run.origin.x() + word.positions[glyphIndex].x(),
-                        run.origin.y() + word.positions[glyphIndex].y());
+                        run.origin.x + word.positions[glyphIndex].x(),
+                        run.origin.y + word.positions[glyphIndex].y());
         continue;
       }
       const float advance = word.advances[glyphIndex];
       const float offsetX = word.positions[glyphIndex].x() - pen;
       const float offsetY = word.positions[glyphIndex].y();
-      SkPoint position;
-      SkVector tangent;
+      glm::vec2 position;
+      glm::vec2 tangent;
       interval->placeAt(run.penOffset + pen + advance * 0.5f, 0.0f,
                         tangentRotationSteps, &position, &tangent);
       const float centreX = advance * 0.5f - offsetX;
       const float centreY = -offsetY;
       SkMatrix place;
-      place.setSinCos(tangent.y(), tangent.x());
+      place.setSinCos(tangent.y, tangent.x);
       place.postTranslate(
-          position.x() - (tangent.x() * centreX - tangent.y() * centreY),
-          position.y() - (tangent.y() * centreX + tangent.x() * centreY));
+          position.x - (tangent.x * centreX - tangent.y * centreY),
+          position.y - (tangent.y * centreX + tangent.x * centreY));
       outline.addPath(contour->makeTransform(place));
       pen += advance;
     }
@@ -180,11 +180,11 @@ std::vector<ColumnMetrics> ParagraphLayout::columnMetrics(
         intervals[static_cast<size_t>(run.intervalIndex)];
     // A column is a straight interval whose pen travels straight down. Any
     // other geometry belongs to lineMetrics or to nothing.
-    if (interval.contour.valid() || interval.direction.x() != 0 ||
-        interval.direction.y() != 1)
+    if (interval.contour.valid() || interval.direction.x != 0 ||
+        interval.direction.y != 1)
       continue;
 
-    float top = interval.origin.y() + run.penOffset;
+    float top = interval.origin.y + run.penOffset;
     float bottom = top;
     if (run.shaped) {
       if (run.shaped->vertical || run.transformed) {
@@ -226,7 +226,7 @@ std::vector<ColumnMetrics> ParagraphLayout::columnMetrics(
     }
     const Word& word = paragraph.words()[run.wordIndex];
     if (!column) {
-      columns.push_back({run.lineIndex, interval.origin.x(), linePitch, top,
+      columns.push_back({run.lineIndex, interval.origin.x, linePitch, top,
                          bottom, word.textBegin, word.whitespaceEnd});
       continue;
     }
@@ -252,11 +252,11 @@ ParagraphLayout::placeholderRects(const Paragraph& paragraph) const {
         paragraph.placeholders()[static_cast<size_t>(run.placeholderIndex)];
     const SkRect rect =
         paragraph.writingMode() == WritingMode::kVerticalRL
-            ? SkRect::MakeXYWH(run.origin.x() - placeholder.height * 0.5f,
-                               run.origin.y(), placeholder.height,
+            ? SkRect::MakeXYWH(run.origin.x - placeholder.height * 0.5f,
+                               run.origin.y, placeholder.height,
                                placeholder.width)
-            : SkRect::MakeXYWH(run.origin.x(),
-                               run.origin.y() - placeholder.height +
+            : SkRect::MakeXYWH(run.origin.x,
+                               run.origin.y - placeholder.height +
                                    placeholder.baselineDrop,
                                placeholder.width, placeholder.height);
     placedPlaceholders.push_back(

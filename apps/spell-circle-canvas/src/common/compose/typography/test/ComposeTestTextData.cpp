@@ -497,7 +497,7 @@ TEST(ComposeText, MeasureRunShapesOnceAndMatchesTheLaidOutElement) {
   {
     sigil::weave::Paragraph paragraph;
     paragraph.appendText(u8"HAMBURGEFONTSIV", style);
-    sigil::weave::BlockFlow flow(SkRect::MakeWH(1.0e6f, 1.0e6f));
+    sigil::weave::BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {1.0e6f, 1.0e6f}));
     sigil::weave::forEachPlacedGlyph(
         sigil::weave::layoutParagraph(fonts(), paragraph, flow), paragraph,
         [&](const sigil::weave::PlacedGlyph&) { ++placedGlyphs; });
@@ -517,7 +517,7 @@ TEST(ComposeText, MeasureRunPrefixSumsAreThePenPositionsAcrossWords) {
   const auto lastPenEnd = [&](std::u8string_view utf8) {
     sigil::weave::Paragraph paragraph;
     paragraph.appendText(utf8, style);
-    sigil::weave::BlockFlow flow(SkRect::MakeWH(1.0e6f, 1.0e6f));
+    sigil::weave::BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {1.0e6f, 1.0e6f}));
     const sigil::weave::ParagraphLayout layout =
         sigil::weave::layoutParagraph(fonts(), paragraph, flow);
     // The right edge of the last glyph, and the pen the first one starts at:
@@ -526,9 +526,9 @@ TEST(ComposeText, MeasureRunPrefixSumsAreThePenPositionsAcrossWords) {
     bool seen = false;
     sigil::weave::forEachPlacedGlyph(
         layout, paragraph, [&](const sigil::weave::PlacedGlyph& placed) {
-          if (!seen) first = placed.rest.x();
+          if (!seen) first = placed.rest.x;
           seen = true;
-          end = placed.rest.x() + placed.advance;
+          end = placed.rest.x + placed.advance;
         });
     return end - first;
   };
@@ -568,7 +568,7 @@ TEST(ComposeText, RunPensAreThePenPositionsWithOnePastTheEnd) {
   const auto placed = [&](std::u8string_view utf8) {
     sigil::weave::Paragraph paragraph;
     paragraph.appendText(utf8, style);
-    sigil::weave::BlockFlow flow(SkRect::MakeWH(1.0e6f, 1.0e6f));
+    sigil::weave::BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {1.0e6f, 1.0e6f}));
     const sigil::weave::ParagraphLayout layout =
         sigil::weave::layoutParagraph(fonts(), paragraph, flow);
     // Pen positions relative to the FIRST glyph's pen, which is where the
@@ -578,9 +578,9 @@ TEST(ComposeText, RunPensAreThePenPositionsWithOnePastTheEnd) {
     bool seen = false;
     sigil::weave::forEachPlacedGlyph(
         layout, paragraph, [&](const sigil::weave::PlacedGlyph& glyph) {
-          if (!seen) first = glyph.rest.x();
+          if (!seen) first = glyph.rest.x;
           seen = true;
-          pens.push_back(glyph.rest.x() - first);
+          pens.push_back(glyph.rest.x - first);
         });
     return std::pair{pens, seen};
   };

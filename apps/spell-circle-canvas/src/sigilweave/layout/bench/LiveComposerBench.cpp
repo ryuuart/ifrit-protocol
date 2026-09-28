@@ -39,11 +39,11 @@ void BM_Live_Composer_AnimatingMeasure_600w(benchmark::State& state) {
   paragraph.appendText(makeText(600, /*mixed=*/false), basicStyle());
   const ParagraphLayoutOptions options = liveComposer();
   float measure = 380.0f;
-  BlockFlow warm(SkRect::MakeWH(measure, 40000));
+  BlockFlow warm(sigil::geometry::path::Rect::of({0, 0}, {measure, 40000}));
   layoutParagraph(sigil::test::fonts(), paragraph, warm, options);
   int frame = 0;
   for ([[maybe_unused]] auto iteration : state) {
-    BlockFlow flow(SkRect::MakeWH(measure + (float)(frame++ % 120), 40000));
+    BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {measure + (float)(frame++ % 120), 40000}));
     ParagraphLayout layout =
         layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
     benchmark::DoNotOptimize(layout.runs.data());
@@ -59,7 +59,7 @@ void BM_Live_Composer_SeenMeasure_600w(benchmark::State& state) {
   Paragraph paragraph;
   paragraph.appendText(makeText(600, /*mixed=*/false), basicStyle());
   const ParagraphLayoutOptions options = liveComposer();
-  BlockFlow flow(SkRect::MakeWH(380, 40000));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {380, 40000}));
   layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
   for ([[maybe_unused]] auto iteration : state) {
     ParagraphLayout layout =
@@ -78,7 +78,7 @@ void BM_Live_Composer_ContentChurn_600w(benchmark::State& state) {
   Paragraph paragraph;
   paragraph.appendText(makeText(600, /*mixed=*/false), basicStyle());
   const ParagraphLayoutOptions options = liveComposer();
-  BlockFlow flow(SkRect::MakeWH(380, 40000));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {380, 40000}));
   layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
   // Same-length replacements, so the churn moves glyphs and not offsets.
   const char8_t* alternatives[] = {u8"aaaa", u8"bbbb", u8"cccc", u8"dddd"};
@@ -113,7 +113,7 @@ void BM_Live_Story_Refill_600w_SixFrames(benchmark::State& state) {
   for ([[maybe_unused]] auto iteration : state) {
     uint32_t cursor = 0;
     for (int frameIndex = 0; frameIndex < 6; ++frameIndex) {
-      BlockFlow flow(SkRect::MakeWH(380, 700));
+      BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {380, 700}));
       ParagraphLayout layout = layoutParagraph(sigil::test::fonts(), paragraph,
                                                flow, options, cursor);
       benchmark::DoNotOptimize(layout.runs.data());

@@ -21,8 +21,8 @@ TEST(LineEdges, HangingPunctuationPullsALineBackPastItsStart) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph plain = makeParagraph(u8"“quoted opening words here”");
   Paragraph hung = makeParagraph(u8"“quoted opening words here”");
-  BlockFlow flowA(SkRect::MakeWH(400, 200));
-  BlockFlow flowB(SkRect::MakeWH(400, 200));
+  BlockFlow flowA(sigil::geometry::path::Rect::of({0, 0}, {400, 200}));
+  BlockFlow flowB(sigil::geometry::path::Rect::of({0, 0}, {400, 200}));
   const std::vector<float> square =
       lineStarts(layoutParagraph(fonts, plain, flowA));
   ParagraphLayoutOptions options;
@@ -38,7 +38,7 @@ TEST(LineEdges, HangingPunctuationPullsALineBackPastItsStart) {
 TEST(LineEdges, ATextWithNoTableIsSquaredOnItsAdvances) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph plain = makeParagraph(u8"“quoted opening words here”");
-  BlockFlow flow(SkRect::MakeWH(400, 200));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 200}));
   const std::vector<float> starts =
       lineStarts(layoutParagraph(fonts, plain, flow));
   ASSERT_FALSE(starts.empty());
@@ -56,8 +56,8 @@ TEST(LineEdges, KinsokuNeverOpensALineWithAProhibitedCharacter) {
   Paragraph ruled = machineParagraph(passage, 20.0f);
   ParagraphLayoutOptions options;
   options.kinsoku = kit::kinsoku::japanese();
-  BlockFlow flowA(SkRect::MakeWH(126, 300));
-  BlockFlow flowB(SkRect::MakeWH(126, 300));
+  BlockFlow flowA(sigil::geometry::path::Rect::of({0, 0}, {126, 300}));
+  BlockFlow flowB(sigil::geometry::path::Rect::of({0, 0}, {126, 300}));
   layoutParagraph(fonts, bare, flowA);
   layoutParagraph(fonts, ruled, flowB, options);
   // The prohibited characters never open a Word under the table, because
@@ -80,8 +80,8 @@ TEST(LineEdges, KinsokuDropsTheBoundaryBeforeAProhibitedCharacter) {
   Paragraph ruled = machineParagraph(passage, 20.0f);
   ParagraphLayoutOptions options;
   options.kinsoku.notLineStart = u"\u6587";
-  BlockFlow flowA(SkRect::MakeWH(126, 300));
-  BlockFlow flowB(SkRect::MakeWH(126, 300));
+  BlockFlow flowA(sigil::geometry::path::Rect::of({0, 0}, {126, 300}));
+  BlockFlow flowB(sigil::geometry::path::Rect::of({0, 0}, {126, 300}));
   layoutParagraph(fonts, bare, flowA);
   layoutParagraph(fonts, ruled, flowB, options);
   EXPECT_LT(ruled.words().size(), bare.words().size());

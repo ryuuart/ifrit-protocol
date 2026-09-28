@@ -13,6 +13,7 @@
 #include <cmath>
 #include <string>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "TextFields.h"
 #include "EffectsParts.h"
 #include "SceneRegistry.h"
@@ -121,7 +122,7 @@ class LayerShowcasePart final : public Scene {
           ParagraphLayoutOptions paragraphOptions;
           paragraphOptions.alignment = TextAlignment::kJustify;
           paragraphOptions.lineMetrics.height = paragraphFontSize * 1.35f;
-          BlockFlow paragraphFlow(paragraphBounds);
+          BlockFlow paragraphFlow(sigil::geometry::path::fromSk(paragraphBounds));
           m_paragraphBlockLayout = layoutParagraph(
               fontContext, m_paragraphBlock, paragraphFlow, paragraphOptions);
 

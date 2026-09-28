@@ -30,7 +30,7 @@ void BM_Layout_Greedy(benchmark::State& state) {
   const int words = (int)state.range(0);
   Paragraph paragraph;
   paragraph.appendText(makeText(words, /*mixed=*/true), basicStyle());
-  BlockFlow flow(SkRect::MakeWH(600, 20000));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {600, 20000}));
   layoutParagraph(sigil::test::fonts(), paragraph, flow);
   for ([[maybe_unused]] auto iteration : state) {
     ParagraphLayout layout =
@@ -52,7 +52,7 @@ void BM_Layout_KnuthPlass(benchmark::State& state) {
   const int words = (int)state.range(0);
   Paragraph paragraph;
   paragraph.appendText(makeText(words, /*mixed=*/false), basicStyle());
-  BlockFlow flow(SkRect::MakeWH(420, 40000));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {420, 40000}));
   const ParagraphLayoutOptions options = knuthPlass();
   layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
   for ([[maybe_unused]] auto iteration : state) {
@@ -79,7 +79,7 @@ BENCHMARK(BM_Layout_KnuthPlass)
 void BM_Layout_Overflowed_30000w(benchmark::State& state) {
   Paragraph paragraph;
   paragraph.appendText(makeText(30000, /*mixed=*/false), basicStyle());
-  BlockFlow flow(SkRect::MakeWH(420, 320));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {420, 320}));
   ParagraphLayoutOptions options;
   options.lineBreakStrategy = state.range(0) == 0
                                   ? LineBreakStrategy::kGreedy
@@ -109,7 +109,7 @@ void BM_Layout_Vertical_Columns(benchmark::State& state) {
   paragraph.setWritingMode(WritingMode::kVerticalRL);
   ParagraphLayoutOptions options;
   options.lineMetrics.height = 26;  // column pitch
-  VerticalBlockFlow flow(SkRect::MakeWH(20000, 600));
+  VerticalBlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {20000, 600}));
   layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
   for ([[maybe_unused]] auto iteration : state) {
     ParagraphLayout layout =
@@ -147,7 +147,7 @@ void BM_Layout_KnuthPlass_Hyphenated_300w(benchmark::State& state) {
   }
   Paragraph paragraph;
   paragraph.appendText(text, basicStyle());
-  BlockFlow flow(SkRect::MakeWH(180, 40000));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {180, 40000}));
   const ParagraphLayoutOptions options = knuthPlass();
   layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
   for ([[maybe_unused]] auto iteration : state) {
@@ -185,7 +185,7 @@ void BM_Layout_Greedy_MultiFont_500w(benchmark::State& state) {
                              : latin[randomEngine() % latin.size()];
     paragraph.appendText(word + u8" ", styles[wordIndex % 3]);
   }
-  BlockFlow flow(SkRect::MakeWH(600, 20000));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {600, 20000}));
   layoutParagraph(sigil::test::fonts(), paragraph, flow);
   for ([[maybe_unused]] auto iteration : state) {
     ParagraphLayout layout =
@@ -221,7 +221,7 @@ void BM_Layout_ParagraphStyles_600w(benchmark::State& state) {
     style.indent.end = 6.0f;
     options.blocks.push_back(style);
   }
-  BlockFlow flow(SkRect::MakeWH(420, 40000));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {420, 40000}));
   layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
   for ([[maybe_unused]] auto iteration : state) {
     ParagraphLayout layout =
@@ -243,7 +243,7 @@ void BM_Layout_JustificationRanges_600w(benchmark::State& state) {
   options.justification.glyphScaleMinimum = 0.98f;
   options.justification.glyphScaleMaximum = 1.03f;
   options.justification.singleWord = JustificationOptions::SingleWord::kJustify;
-  BlockFlow flow(SkRect::MakeWH(420, 40000));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {420, 40000}));
   layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
   for ([[maybe_unused]] auto iteration : state) {
     ParagraphLayout layout =
@@ -264,7 +264,7 @@ void BM_Layout_ReservedBand_600w(benchmark::State& state) {
   TextStyle reading = basicStyle();
   reading.shaping.fontSize = 8.0f;
   options.reserved.before = bandBeside(sigil::test::fonts(), reading, 1.0f);
-  BlockFlow flow(SkRect::MakeWH(420, 40000));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {420, 40000}));
   layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
   for ([[maybe_unused]] auto iteration : state) {
     ParagraphLayout layout =

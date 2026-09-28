@@ -11,13 +11,13 @@
  * here is stored during layout.
  */
 
-#include <include/core/SkPoint.h>
-
 #include <algorithm>
 #include <concepts>
 #include <cstdint>
 #include <span>
 #include <vector>
+
+#include <glm/vec2.hpp>
 
 #include "sigilweave/fonts/Shaper.h"
 #include "sigilweave/layout/ParagraphLayout.h"
@@ -33,7 +33,7 @@ struct PlacedGlyph {
   const ShapedWord* shaped = nullptr;  ///< glyph source: typeface, size, scaleX
   SkGlyphID glyph = 0;                 ///< glyph ID in `shaped->typeface`
   float advance = 0;                   ///< this glyph's pen travel
-  SkPoint rest = {0, 0};               ///< absolute origin the layout placed
+  glm::vec2 rest{0, 0};                ///< absolute origin the layout placed
                                        ///< it at (the effect's "rest" pose)
   /// The style span's draw-time paint — foreground plus its ordered
   /// underlay/overlay passes. Never null: it points into the paragraph's
@@ -64,7 +64,7 @@ struct PlacedGlyph {
   /// still the absolute origin, and `tangent` is the direction the glyph
   /// was turned to; an untransformed glyph reports (1, 0).
   bool transformed = false;
-  SkVector tangent = {1, 0};  ///< unit direction, already snapped
+  glm::vec2 tangent{1, 0};  ///< unit direction, already snapped
 
   /// WHERE ALONG ITS FLOW INTERVAL the glyph's ADVANCE CENTRE sits, in
   /// advance units, together with which interval that is (an index into
@@ -151,7 +151,7 @@ inline void forEachPlacedGlyph(const ParagraphLayout& layout,
           run.fit.spacingAfter(*placed.shaped, glyphIndex);
       placed.pen = run.penOffset + penLocal + placed.advance * 0.5f;
       if (run.transformed && interval) {
-        SkPoint centre;
+        glm::vec2 centre;
         interval->placeAt(placed.pen, 0.0f, layout.tangentRotationSteps,
                           &centre, &placed.tangent);
         // From the advance CENTRE back to the glyph's origin, through the
@@ -162,14 +162,14 @@ inline void forEachPlacedGlyph(const ParagraphLayout& layout,
         const float offsetY = placed.shaped->positions[glyphIndex].y();
         const float centreX = placed.advance * 0.5f - offsetX;
         const float centreY = -offsetY;
-        placed.rest = {centre.x() - (placed.tangent.x() * centreX -
-                                     placed.tangent.y() * centreY),
-                       centre.y() - (placed.tangent.y() * centreX +
-                                     placed.tangent.x() * centreY)};
+        placed.rest = {centre.x - (placed.tangent.x * centreX -
+                                   placed.tangent.y * centreY),
+                       centre.y - (placed.tangent.y * centreX +
+                                   placed.tangent.x * centreY)};
       } else {
         placed.tangent = {1, 0};
         placed.rest =
-            run.origin + SkVector{run.fit.offsetOf(*placed.shaped, glyphIndex,
+            run.origin + glm::vec2{run.fit.offsetOf(*placed.shaped, glyphIndex,
                                                    clustersBefore),
                                   placed.shaped->positions[glyphIndex].y()};
       }

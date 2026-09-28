@@ -18,6 +18,8 @@
 #include <utility>
 #include <vector>
 
+#include <glm/vec2.hpp>
+
 #include "PaintInternal.h"
 
 namespace sigil::compose {
@@ -72,11 +74,11 @@ struct PoseContext {
 };
 
 struct RestPose {
-  SkPoint centre{0, 0};
+  glm::vec2 centre{0, 0};
   float cosine = 1, sine = 0;
   /// Glyph-local vector from the draw origin to `centre`. The horizontal
   /// convention, (halfAdvance, 0), is null here.
-  std::optional<SkVector> centreOffset;
+  std::optional<glm::vec2> centreOffset;
 };
 
 /** The rest pose of @p placed under @p ctx; false drops the glyph. */

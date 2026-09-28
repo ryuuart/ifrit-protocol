@@ -28,18 +28,18 @@ void emitSegment(ParagraphLayout& result, const FlatInterval& flatInterval,
   // it over is a second set of stores and a second pass over the same
   // bytes, and the blob handle it carries is reference-counted.
   sk_sp<SkTextBlob> blob;
-  SkPoint origin = {0, 0};
+  glm::vec2 origin = {0, 0};
   bool transformed = false;
   float advance = shapedWord.advance;
   GlyphFit runFit;
   const bool straight = !flatInterval.interval.contour.valid();
   const bool horizontal = straight &&
-                          flatInterval.interval.direction.x() == 1 &&
-                          flatInterval.interval.direction.y() == 0 &&
+                          flatInterval.interval.direction.x == 1 &&
+                          flatInterval.interval.direction.y == 0 &&
                           segment.form == SegmentForm::kFlow;
   const bool verticalColumn = straight &&
-                              flatInterval.interval.direction.x() == 0 &&
-                              flatInterval.interval.direction.y() == 1;
+                              flatInterval.interval.direction.x == 0 &&
+                              flatInterval.interval.direction.y == 1;
   if (horizontal) {
     // Respacing and scaling are a STRAIGHT HORIZONTAL answer: a column and
     // a curve place per glyph already, and a second per-glyph rule on top
@@ -53,17 +53,17 @@ void emitSegment(ParagraphLayout& result, const FlatInterval& flatInterval,
     // A BASELINE SHIFT lifts the span off its line's baseline and changes
     // nothing else: the advances are the face's own, so the pen is where
     // it was and the shaped run is the shared one.
-    origin = flatInterval.interval.origin + SkVector{penOffset, -baselineShift};
+    origin = flatInterval.interval.origin + glm::vec2{penOffset, -baselineShift};
   } else if (verticalColumn && segment.form == SegmentForm::kUpright) {
     // Vertical-shaped word: positions already stack down the column.
     blob = wordBlob(shapedWord);
-    origin = flatInterval.interval.origin + SkVector{0, penOffset};
+    origin = flatInterval.interval.origin + glm::vec2{0, penOffset};
   } else if (verticalColumn && segment.form == SegmentForm::kTateChuYoko) {
     // Horizontal run set upright across the column, centred on its axis;
     // penX already points at the run's baseline (see Paragraph::analyze).
     blob = wordBlob(shapedWord);
     origin = flatInterval.interval.origin +
-             SkVector{-shapedWord.advance * 0.5f, penOffset};
+             glm::vec2{-shapedWord.advance * 0.5f, penOffset};
   } else {
     // Rotated/curved: bake per-glyph transforms (kRotated Latin in a
     // vertical column rotates 90° clockwise here via the interval tangent).

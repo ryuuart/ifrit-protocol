@@ -8,6 +8,9 @@
  */
 
 #include <gtest/gtest.h>
+
+#include <glm/geometric.hpp>
+#include <glm/vec2.hpp>
 #include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
 
@@ -15,6 +18,7 @@
 #include <numbers>
 #include <vector>
 
+#include "sigilweave/advanced/Skia.h"
 #include "support/Layouts.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
@@ -30,18 +34,18 @@ TEST(PathText, APhaseWalksTheRunRoundAClosedContourWithoutRelayout) {
   interval.contour = contour;
   interval.length = length;
 
-  SkPoint atZero, nearSeam, pastSeam;
-  SkVector tangent;
+  glm::vec2 atZero, nearSeam, pastSeam;
+  glm::vec2 tangent;
   EXPECT_TRUE(interval.placeAt(0.0f, 0.0f, 0, &atZero, &tangent));
   EXPECT_TRUE(interval.placeAt(0.0f, length * 0.98f, 0, &nearSeam, &tangent));
   EXPECT_TRUE(interval.placeAt(0.0f, length * 1.02f, 0, &pastSeam, &tangent));
   // Every one of them is ON the circle…
-  for (const SkPoint& p : {atZero, nearSeam, pastSeam})
-    EXPECT_NEAR(std::hypot(p.x(), p.y()), 150.0f, 0.5f);
+  for (const glm::vec2& p : {atZero, nearSeam, pastSeam})
+    EXPECT_NEAR(std::hypot(p.x, p.y), 150.0f, 0.5f);
   // …and a phase past the seam is a short step from the phase before it,
   // not a jump back to the start.
-  EXPECT_LT(SkPoint::Distance(nearSeam, pastSeam), length * 0.1f);
-  EXPECT_GT(SkPoint::Distance(atZero, nearSeam), 1.0f);
+  EXPECT_LT(glm::distance(nearSeam, pastSeam), length * 0.1f);
+  EXPECT_GT(glm::distance(atZero, nearSeam), 1.0f);
 }
 
 TEST(PathText, AGeometricallyClosedContourWrapsWhenItSaysSo) {
@@ -61,13 +65,13 @@ TEST(PathText, AGeometricallyClosedContourWrapsWhenItSaysSo) {
   LineInterval wrapping = clamping;
   wrapping.wrapContour = true;
 
-  SkPoint clamped, wrapped;
-  SkVector tangent;
+  glm::vec2 clamped, wrapped;
+  glm::vec2 tangent;
   EXPECT_FALSE(clamping.placeAt(-40.0f, 0.0f, 0, &clamped, &tangent))
       << "a pen before the start must report that it was clamped";
   EXPECT_TRUE(wrapping.placeAt(-40.0f, 0.0f, 0, &wrapped, &tangent));
-  EXPECT_GT(SkPoint::Distance(clamped, wrapped), 10.0f);
-  EXPECT_NEAR(std::hypot(wrapped.x(), wrapped.y()), 100.0f, 1.0f);
+  EXPECT_GT(glm::distance(clamped, wrapped), 10.0f);
+  EXPECT_NEAR(std::hypot(wrapped.x, wrapped.y), 100.0f, 1.0f);
 }
 
 TEST(PathText, ANegativeAdvanceScaleWalksTheContourBackwards) {
@@ -82,25 +86,25 @@ TEST(PathText, ANegativeAdvanceScaleWalksTheContourBackwards) {
   backward.advanceScale = -1.0f;
   backward.contourStart = 100.0f;
 
-  SkPoint forwardPoint, backwardPoint;
-  SkVector forwardTangent, backwardTangent;
+  glm::vec2 forwardPoint, backwardPoint;
+  glm::vec2 forwardTangent, backwardTangent;
   forward.placeAt(100.0f, 0.0f, 0, &forwardPoint, &forwardTangent);
   backward.placeAt(0.0f, 0.0f, 0, &backwardPoint, &backwardTangent);
   // Same point on the contour…
-  EXPECT_NEAR(forwardPoint.x(), backwardPoint.x(), 0.01f);
-  EXPECT_NEAR(forwardPoint.y(), backwardPoint.y(), 0.01f);
+  EXPECT_NEAR(forwardPoint.x, backwardPoint.x, 0.01f);
+  EXPECT_NEAR(forwardPoint.y, backwardPoint.y, 0.01f);
   // …faced the other way.
-  EXPECT_NEAR(backwardTangent.x(), -forwardTangent.x(), 1e-4f);
-  EXPECT_NEAR(backwardTangent.y(), -forwardTangent.y(), 1e-4f);
+  EXPECT_NEAR(backwardTangent.x, -forwardTangent.x, 1e-4f);
+  EXPECT_NEAR(backwardTangent.y, -forwardTangent.y, 1e-4f);
   // And the pen still travels forward through the text: a later pen sits
   // further BACK along the contour.
-  SkPoint later;
-  SkVector ignored;
+  glm::vec2 later;
+  glm::vec2 ignored;
   backward.placeAt(30.0f, 0.0f, 0, &later, &ignored);
-  SkPoint earlierForward;
+  glm::vec2 earlierForward;
   forward.placeAt(70.0f, 0.0f, 0, &earlierForward, &ignored);
-  EXPECT_NEAR(later.x(), earlierForward.x(), 0.01f);
-  EXPECT_NEAR(later.y(), earlierForward.y(), 0.01f);
+  EXPECT_NEAR(later.x, earlierForward.x, 0.01f);
+  EXPECT_NEAR(later.y, earlierForward.y, 0.01f);
 }
 
 TEST(PathText, ALineSetPlacesEachLineOnTheSegmentItNamed) {
@@ -115,11 +119,11 @@ TEST(PathText, ALineSetPlacesEachLineOnTheSegmentItNamed) {
   ASSERT_FALSE(layout.runs.empty());
   for (const PositionedRun& run : layout.runs) {
     if (run.lineIndex == 0) {
-      EXPECT_FLOAT_EQ(run.origin.y(), 40);
-      EXPECT_GE(run.origin.x(), 50);
+      EXPECT_FLOAT_EQ(run.origin.y, 40);
+      EXPECT_GE(run.origin.x, 50);
     } else {
-      EXPECT_FLOAT_EQ(run.origin.y(), 90);
-      EXPECT_GE(run.origin.x(), 200);
+      EXPECT_FLOAT_EQ(run.origin.y, 90);
+      EXPECT_GE(run.origin.x, 200);
     }
   }
 }
@@ -138,7 +142,7 @@ TEST(PathText, ARunOnATurnedLineBakesItsPositionsIntoTheBlob) {
   // interval named. On a line at forty-five degrees the run reaches about
   // its own advance over the root of two on each axis, so half its advance
   // is a floor no horizontal setting could clear on y.
-  EXPECT_EQ(layout.runs[0].origin, (SkPoint{0, 0}));
+  EXPECT_EQ(layout.runs[0].origin, (glm::vec2{0, 0}));
   const float half = layout.runs[0].shaped->advance * 0.5f;
   const SkRect bounds = layout.runs[0].blob->bounds();
   EXPECT_GT(bounds.right(), half);
@@ -149,7 +153,7 @@ TEST(PathText, APathFlowLaysEveryRunAlongTheContour) {
   FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"around and around and around it goes");
   SkPath circle = SkPath::Circle(200, 200, 120);
-  PathFlow flow(circle);
+  PathFlow flow(sigil::geometry::path::fromSk(circle));
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
 
   ASSERT_FALSE(layout.runs.empty());

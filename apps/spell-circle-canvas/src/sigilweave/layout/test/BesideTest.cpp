@@ -38,9 +38,9 @@ TEST(Beside, AReadingStandsCentredOnItsBaseAndClearOfIt) {
                     .gap = 3.0f});
   ASSERT_FALSE(above.runs.empty());
   const float width = reading.naturalWidth(fonts);
-  EXPECT_NEAR(above.runs.front().origin.x(), base.centre().x - width * 0.5f,
+  EXPECT_NEAR(above.runs.front().origin.x, base.centre().x - width * 0.5f,
               0.5f);
-  EXPECT_NEAR(above.runs.front().origin.y(), base.top() - 3.0f, 0.5f);
+  EXPECT_NEAR(above.runs.front().origin.y, base.top() - 3.0f, 0.5f);
 }
 
 TEST(Beside, AColumnReadsItsFurnitureOnTheRight) {
@@ -54,7 +54,7 @@ TEST(Beside, AColumnReadsItsFurnitureOnTheRight) {
                     .side = Beside::Side::Before,
                     .gap = 2.0f});
   ASSERT_FALSE(beside.runs.empty());
-  EXPECT_GT(beside.runs.front().origin.x(), base.right());
+  EXPECT_GT(beside.runs.front().origin.x, base.right());
 }
 
 TEST(Beside, ABrokenBaseSharesItsReadingByAdvance) {
@@ -109,13 +109,13 @@ TEST(Warichu, TheTwoLinesStackInsideTheSlotTheBaseReserved) {
   ASSERT_FALSE(layout.runs.empty());
   std::vector<float> baselines;
   for (const PositionedRun& run : layout.runs)
-    if (std::find(baselines.begin(), baselines.end(), run.origin.y()) ==
+    if (std::find(baselines.begin(), baselines.end(), run.origin.y) ==
         baselines.end())
-      baselines.push_back(run.origin.y());
+      baselines.push_back(run.origin.y);
   EXPECT_EQ(baselines.size(), 2u);
   for (const PositionedRun& run : layout.runs) {
-    EXPECT_GE(run.origin.x(), slot.left() - 0.01f);
-    EXPECT_LE(run.origin.y(), slot.bottom() + 0.01f);
+    EXPECT_GE(run.origin.x, slot.left() - 0.01f);
+    EXPECT_LE(run.origin.y, slot.bottom() + 0.01f);
   }
 }
 
@@ -128,5 +128,5 @@ TEST(Warichu, AColumnSetsItsTwoLinesSideBySideAcrossTheSlot) {
       layoutWarichu(fonts, note, slot, WritingMode::kVerticalRL);
   ASSERT_FALSE(layout.runs.empty());
   for (const PositionedRun& run : layout.runs)
-    EXPECT_LE(run.origin.x(), slot.right() + 0.01f);
+    EXPECT_LE(run.origin.x, slot.right() + 0.01f);
 }

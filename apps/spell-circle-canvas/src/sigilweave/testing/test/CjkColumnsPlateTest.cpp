@@ -17,6 +17,7 @@
 #include <string_view>
 #include <vector>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "support/Plates.h"
 
 using namespace sigil::weave;
@@ -30,7 +31,7 @@ namespace {
 struct RangeExtent {
   bool valid = false;
   int lineIndex = 0;
-  SkPoint origin = {0, 0};  // first covering run's origin (on the axis)
+  glm::vec2 origin{0, 0};  // first covering run's origin (on the axis)
   float flowBegin = 0;
   float flowEnd = 0;
 };
@@ -53,7 +54,7 @@ RangeExtent placedExtent(const Paragraph& paragraph,
       extent.flowEnd = word.width;
     } else if (run.lineIndex == extent.lineIndex) {
       // Same column/line: extend along the flow direction (vertical here).
-      const float offset = run.origin.y() - extent.origin.y();
+      const float offset = run.origin.y - extent.origin.y;
       extent.flowBegin = std::min(extent.flowBegin, offset);
       extent.flowEnd = std::max(extent.flowEnd, offset + word.width);
     }
@@ -103,7 +104,7 @@ TEST(WeavePlates, CjkColumnsDrawTheirBaseline) {
   verticalParagraph.setWritingMode(WritingMode::kVerticalRL);
 
   const SkRect verticalBounds = SkRect::MakeXYWH(430, 80, 500, 540);
-  VerticalBlockFlow verticalFlow(verticalBounds);
+  VerticalBlockFlow verticalFlow(sigil::geometry::path::fromSk(verticalBounds));
   ParagraphLayoutOptions verticalOptions;
   verticalOptions.lineMetrics.height = fontSize * 1.9f;
   ParagraphLayout verticalLayout = layoutParagraph(
@@ -125,10 +126,10 @@ TEST(WeavePlates, CjkColumnsDrawTheirBaseline) {
     ruby.setWritingMode(WritingMode::kVerticalRL);
     const float length = ruby.naturalWidth(fontContext);
     const float mid =
-        extent.origin.y() + (extent.flowBegin + extent.flowEnd) * 0.5f;
+        extent.origin.y + (extent.flowBegin + extent.flowEnd) * 0.5f;
     LineSetFlow flow;
     flow.lines().push_back({LineInterval{
-        {extent.origin.x() + fontSize * 0.62f, mid - length * 0.5f},
+        {extent.origin.x + fontSize * 0.62f, mid - length * 0.5f},
         {0, 1},
         length + 1}});
     layoutParagraph(fontContext, ruby, flow).draw(canvas, ruby);
@@ -160,8 +161,8 @@ TEST(WeavePlates, CjkColumnsDrawTheirBaseline) {
           const uint32_t textOffset =
               word.textBegin + shapedWord.clusters[glyphIndex];
           if (textOffset >= matches[0].start && textOffset < matches[0].end)
-            canvas->drawCircle(run.origin.x() + fontSize * 0.60f,
-                               run.origin.y() + penAdvance +
+            canvas->drawCircle(run.origin.x + fontSize * 0.60f,
+                               run.origin.y + penAdvance +
                                    shapedWord.advances[glyphIndex] * 0.5f,
                                fontSize * 0.07f, dot);
           penAdvance += shapedWord.advances[glyphIndex];
@@ -176,7 +177,7 @@ TEST(WeavePlates, CjkColumnsDrawTheirBaseline) {
       u8"漢字にルビを振ると、誰でも読みやすい。強調したい語には圏点を打つ。",
       japaneseStyle(fontSize * 0.85f));
   const SkRect horizontalBounds = SkRect::MakeXYWH(50, 120, 330, 400);
-  BlockFlow horizontalFlow(horizontalBounds);
+  BlockFlow horizontalFlow(sigil::geometry::path::fromSk(horizontalBounds));
   ParagraphLayoutOptions horizontalOptions;
   horizontalOptions.lineMetrics.height = fontSize * 2.0f;
   ParagraphLayout horizontalLayout = layoutParagraph(
@@ -199,11 +200,11 @@ TEST(WeavePlates, CjkColumnsDrawTheirBaseline) {
         continue;
       if (!valid) {
         valid = true;
-        rangeLeft = run.origin.x();
-        rangeRight = run.origin.x() + word.width;
-        baseline = run.origin.y();
-      } else if (run.origin.y() == baseline) {
-        rangeRight = std::max(rangeRight, run.origin.x() + word.width);
+        rangeLeft = run.origin.x;
+        rangeRight = run.origin.x + word.width;
+        baseline = run.origin.y;
+      } else if (run.origin.y == baseline) {
+        rangeRight = std::max(rangeRight, run.origin.x + word.width);
       }
     }
     if (!valid) return;
@@ -240,9 +241,9 @@ TEST(WeavePlates, CjkColumnsDrawTheirBaseline) {
           const uint32_t textOffset =
               word.textBegin + shapedWord.clusters[glyphIndex];
           if (textOffset >= matches[0].start && textOffset < matches[0].end)
-            canvas->drawCircle(run.origin.x() + penAdvance +
+            canvas->drawCircle(run.origin.x + penAdvance +
                                    shapedWord.advances[glyphIndex] * 0.5f,
-                               run.origin.y() - fontSize * 0.92f,
+                               run.origin.y - fontSize * 0.92f,
                                fontSize * 0.06f, dot);
           penAdvance += shapedWord.advances[glyphIndex];
         }

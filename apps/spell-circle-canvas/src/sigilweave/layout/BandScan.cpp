@@ -15,16 +15,16 @@ float alongOf(FlowAxis axis, const glm::vec2& point) {
 float acrossOf(FlowAxis axis, const glm::vec2& point) {
   return axis == FlowAxis::kColumns ? point.x : point.y;
 }
-float alongMin(FlowAxis axis, const SkRect& rect) {
+float alongMin(FlowAxis axis, const geometry::path::Rect& rect) {
   return axis == FlowAxis::kColumns ? rect.top() : rect.left();
 }
-float alongMax(FlowAxis axis, const SkRect& rect) {
+float alongMax(FlowAxis axis, const geometry::path::Rect& rect) {
   return axis == FlowAxis::kColumns ? rect.bottom() : rect.right();
 }
-float acrossMin(FlowAxis axis, const SkRect& rect) {
+float acrossMin(FlowAxis axis, const geometry::path::Rect& rect) {
   return axis == FlowAxis::kColumns ? rect.left() : rect.top();
 }
-float acrossMax(FlowAxis axis, const SkRect& rect) {
+float acrossMax(FlowAxis axis, const geometry::path::Rect& rect) {
   return axis == FlowAxis::kColumns ? rect.right() : rect.bottom();
 }
 

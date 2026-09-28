@@ -5,24 +5,21 @@
  *
  * The geometry a paragraph flows into. Text is never bound to a rectangle:
  * a "line" is an ordered list of LineIntervals — straight segments in any
- * direction, or spans of an SkPath contour — supplied one line at a time
+ * direction, or spans of an outline's contour — supplied one line at a time
  * by a FlowGeometry, of which BlockFlow, ExclusionFlow, VerticalBlockFlow,
  * LineSetFlow and PathFlow are the ready-made ones. Implement the
  * interface for anything else, and pass the geometry to layoutParagraph().
  */
 
-#include <include/core/SkPath.h>
-#include <include/core/SkPoint.h>
-#include <include/core/SkRect.h>
-#include <include/core/SkRefCnt.h>
-
 #include <cstdint>
 #include <memory>
 #include <vector>
 
-#include "sigilgeometry/path/Contour.h"
+#include <glm/vec2.hpp>
 
-class SkImage;
+#include "sigilgeometry/path/Contour.h"
+#include "sigilgeometry/path/Outline.h"
+#include "sigilmedia/core/Picture.h"
 
 namespace sigil::weave {
 
@@ -39,9 +36,9 @@ enum class FlowAxis : uint8_t { kLines, kColumns };
 struct LineInterval {
   /// Straight form: pen starts at `origin` (a baseline point) and travels
   /// along unit vector `direction` for at most `length`.
-  SkPoint origin = {0, 0};
-  SkVector direction = {1, 0};  ///< unit vector of pen travel
-  float length = 0;             ///< maximum pen travel, px
+  glm::vec2 origin{0, 0};
+  glm::vec2 direction{1, 0};  ///< unit vector of pen travel
+  float length = 0;           ///< maximum pen travel, px
 
   /// Path form: when `contour` is valid, the pen instead travels the
   /// contour's arc length starting at `contourStart`; glyphs are rotated to
@@ -74,8 +71,8 @@ struct LineInterval {
    * @p rotationSteps snaps the direction, 0 keeping it exact. False when
    * the pen fell OUTSIDE a non-wrapping contour and was clamped to its end.
    * @trap Anchor the glyph's ADVANCE CENTRE there, or accents drift. */
-  bool placeAt(float pen, float phase, int rotationSteps, SkPoint* position,
-               SkVector* tangent) const;
+  bool placeAt(float pen, float phase, int rotationSteps, glm::vec2* position,
+               glm::vec2* tangent) const;
 };
 
 /// ONE BAND ASKED OF A GEOMETRY, and everything about it the band's number
@@ -142,7 +139,7 @@ class FlowGeometry {
 class BlockFlow : public FlowGeometry {
  public:
   /** Creates horizontal line bands inside `bounds`. */
-  explicit BlockFlow(const SkRect& bounds) : m_bounds(bounds) {}
+  explicit BlockFlow(const geometry::path::Rect& bounds) : m_bounds(bounds) {}
   using FlowGeometry::lineIntervals;
   /** Returns the interval for a horizontal line band when it fits. */
   bool lineIntervals(const LineRequest& request,
@@ -151,7 +148,7 @@ class BlockFlow : public FlowGeometry {
   bool uniformIntervals() const override { return true; }
 
  private:
-  SkRect m_bounds;
+  geometry::path::Rect m_bounds;
 };
 
 /// ONE STRETCH OF A BAND a flow shape occupies, measured along the flow's
@@ -184,7 +181,7 @@ class FlowShape {
   virtual void bandSpans(FlowAxis axis, Band band, float margin,
                          std::vector<Span>& spans) = 0;
   /** The shape's own extent, margin excluded. */
-  virtual SkRect bounds() const = 0;
+  virtual geometry::path::Rect bounds() const = 0;
 };
 
 /// ONE AREA TEXT FLOWS AROUND: a shape, how far the text stands off it,
@@ -193,9 +190,9 @@ class FlowShape {
 /// photograph — where a rebuilt shape re-answers from scratch.
 struct Exclusion {
   std::shared_ptr<FlowShape> shape;
-  float margin = 0;         ///< the standoff, px, as a disc; never negative,
-                            ///< and a negative one is read as none
-  SkPoint offset = {0, 0};  ///< translation applied per layout pass
+  float margin = 0;          ///< the standoff, px, as a disc; never negative,
+                             ///< and a negative one is read as none
+  glm::vec2 offset{0, 0};    ///< translation applied per layout pass
 };
 
 /// The stock flow shapes. A caller with a shape none of these describes
@@ -204,27 +201,31 @@ namespace flowshape {
 
 /** An axis-aligned rectangle. Its margin rounds the corners, exactly as a
  * disc offset does. */
-[[nodiscard]] std::shared_ptr<FlowShape> rectangle(const SkRect& bounds);
+[[nodiscard]] std::shared_ptr<FlowShape> rectangle(
+    const geometry::path::Rect& bounds);
 /** The circle INSCRIBED in `bounds`, answered analytically: one square root
  * a band, and the margin is simply a larger radius. */
-[[nodiscard]] std::shared_ptr<FlowShape> circle(const SkRect& bounds);
+[[nodiscard]] std::shared_ptr<FlowShape> circle(
+    const geometry::path::Rect& bounds);
 /** The oval inscribed in `bounds` — the circle above when it is round, and
  * otherwise the oval's own path, because a disc offset of an ellipse is not
  * an ellipse and only the path answer stays exact. */
-[[nodiscard]] std::shared_ptr<FlowShape> ellipse(const SkRect& bounds);
-/** Any filled SkPath — several contours, curves, winding or even-odd fill,
+[[nodiscard]] std::shared_ptr<FlowShape> ellipse(
+    const geometry::path::Rect& bounds);
+/** Any filled outline — several contours, curves, winding or even-odd fill,
  * so holes and concavities stay available to text. Flattened once and
  * kept, and read exactly at any margin. An inverse fill type is read as
  * its own non-inverse self: a flow shape is the region the path encloses.
  */
-[[nodiscard]] std::shared_ptr<FlowShape> path(const SkPath& path);
+[[nodiscard]] std::shared_ptr<FlowShape> path(
+    const geometry::path::Outline& outline);
 /** AN IMAGE'S OWN ALPHA, resolved inside @p box in flow coordinates: a
  * pixel is inside where its alpha is greater than @p threshold, a fraction
  * of full opacity, so a soft edge admits words further in as the tolerance
  * rises. A new frame re-thresholds and re-measures. */
-[[nodiscard]] std::shared_ptr<FlowShape> coverage(sk_sp<SkImage> image,
-                                                  const SkRect& box,
-                                                  float threshold = 0.5f);
+[[nodiscard]] std::shared_ptr<FlowShape> coverage(
+    media::Picture image, const geometry::path::Rect& box,
+    float threshold = 0.5f);
 
 }  // namespace flowshape
 
@@ -239,14 +240,14 @@ class ExclusionFlow : public FlowGeometry {
  public:
   /** Creates line bands — or columns — in `bounds`, minus configured
    * exclusions. */
-  explicit ExclusionFlow(const SkRect& bounds,
+  explicit ExclusionFlow(const geometry::path::Rect& bounds,
                          FlowAxis axis = FlowAxis::kLines);
   ~ExclusionFlow() override;
 
   /** Returns the mutable list of exclusions subtracted from each band. */
   std::vector<Exclusion>& exclusions() { return m_exclusions; }
   /** Returns the outer layout bounds. */
-  const SkRect& bounds() const { return m_bounds; }
+  const geometry::path::Rect& bounds() const { return m_bounds; }
   /** Returns whether the bands are lines or columns. */
   FlowAxis axis() const { return m_axis; }
 
@@ -264,7 +265,7 @@ class ExclusionFlow : public FlowGeometry {
                      std::vector<LineInterval>& intervals) override;
 
  private:
-  SkRect m_bounds;
+  geometry::path::Rect m_bounds;
   FlowAxis m_axis = FlowAxis::kLines;
   std::vector<Exclusion> m_exclusions;
   float m_minimumIntervalWidth = 8;
@@ -278,7 +279,8 @@ class ExclusionFlow : public FlowGeometry {
 class VerticalBlockFlow : public FlowGeometry {
  public:
   /** Creates top-to-bottom columns advancing right-to-left in `bounds`. */
-  explicit VerticalBlockFlow(const SkRect& bounds) : m_bounds(bounds) {}
+  explicit VerticalBlockFlow(const geometry::path::Rect& bounds)
+      : m_bounds(bounds) {}
   using FlowGeometry::lineIntervals;
   /** Returns the interval for one vertical column when it fits. */
   bool lineIntervals(const LineRequest& request,
@@ -287,7 +289,7 @@ class VerticalBlockFlow : public FlowGeometry {
   bool uniformIntervals() const override { return true; }
 
  private:
-  SkRect m_bounds;
+  geometry::path::Rect m_bounds;
 };
 
 /// Fully explicit geometry: the caller supplies every line's intervals —
@@ -318,9 +320,9 @@ class LineSetFlow : public FlowGeometry {
 class PathFlow : public FlowGeometry {
  public:
   /** Measures every contour of `path` as a separate line. */
-  explicit PathFlow(const SkPath& path);
-  /** Appends every contour of another path as additional lines. */
-  void addPath(const SkPath& path);
+  explicit PathFlow(const geometry::path::Outline& outline);
+  /** Appends every contour of another outline as additional lines. */
+  void addPath(const geometry::path::Outline& outline);
 
   using FlowGeometry::lineIntervals;
   /** Returns the measured contour interval at `request.index`. */

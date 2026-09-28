@@ -18,7 +18,7 @@ TEST(Overflow, ReportsFirstUnplacedWord) {
   FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(
       u8"far more text than could ever fit inside such a tiny little box");
-  BlockFlow flow(SkRect::MakeWH(120, 40));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {120, 40}));
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
   EXPECT_TRUE(layout.overflowed());
   EXPECT_GT(layout.firstUnplacedWord, 0u);
@@ -45,7 +45,7 @@ TEST_P(OverflowedFrame, AFrameStopsAtItsGeometryAndNotAtTheLastWord) {
       u8"instead", u8"of",      u8"walking", u8"every", u8"word"};
   Paragraph paragraph;
   paragraph.appendText(makePooledText(kWordPool, 30000, 11), basicStyle());
-  BlockFlow flow(SkRect::MakeWH(420, 320));  // room for a small part of it
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {420, 320}));  // room for a small part of it
 
   ParagraphLayoutOptions options;
   options.lineBreakStrategy = breaker();
@@ -65,7 +65,7 @@ TEST(Overflow, EllipsisMarksOverflow) {
   Paragraph paragraph = makeParagraph(
       u8"far more text than a two line box can ever hope to hold so the "
       "marker has to step in and admit that the rest is missing");
-  BlockFlow flow(SkRect::MakeWH(260, 44));  // ~2 lines
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {260, 44}));  // ~2 lines
   ParagraphLayoutOptions options;
   options.overflow.ellipsis = u"…";
 
@@ -78,8 +78,8 @@ TEST(Overflow, EllipsisMarksOverflow) {
   ASSERT_TRUE(marker.shaped);
   // The marker sits at the end of the final line, inside the measure.
   EXPECT_EQ(marker.lineIndex, layout.runs[layout.runs.size() - 2].lineIndex);
-  EXPECT_LE(marker.origin.x() + marker.shaped->advance, 260.0f + 0.75f);
-  EXPECT_GT(marker.origin.x(), 0.0f);
+  EXPECT_LE(marker.origin.x + marker.shaped->advance, 260.0f + 0.75f);
+  EXPECT_GT(marker.origin.x, 0.0f);
   // Truncated words count as unplaced.
   for (const PositionedRun& run : layout.runs)
     if (&run != &marker) EXPECT_LT(run.wordIndex, layout.firstUnplacedWord);
@@ -95,7 +95,7 @@ TEST(Overflow, TheMarkerIsAShapedWordTheLayoutOwns) {
   Paragraph paragraph = makeParagraph(
       u8"far more text than a two line box can ever hope to hold so the "
       "marker has to step in and admit that the rest is missing");
-  BlockFlow flow(SkRect::MakeWH(260, 44));  // ~2 lines
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {260, 44}));  // ~2 lines
   ParagraphLayoutOptions options;
   options.overflow.ellipsis = u"…";
 
@@ -114,7 +114,7 @@ TEST(Overflow, TheMarkerIsAShapedWordTheLayoutOwns) {
 TEST(Overflow, NoEllipsisWhenTextFits) {
   FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"short and sweet");
-  BlockFlow flow(SkRect::MakeWH(400, 200));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 200}));
   ParagraphLayoutOptions options;
   options.overflow.ellipsis = u"…";
 
@@ -142,7 +142,7 @@ TEST(Overflow, ShapesOnlyWhatFits) {
   }
   Paragraph paragraph;
   paragraph.appendText(text, basicStyle());
-  BlockFlow flow(SkRect::MakeWH(420, 320));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {420, 320}));
 
   const uint64_t callsBefore = fontContext.stats().shapeCalls;
   ParagraphLayoutOptions options;
@@ -175,7 +175,7 @@ TEST(LineClamp, ClampsWithEllipsisOnLastLine) {
   Paragraph paragraph = makeParagraph(
       u8"a paragraph long enough to fill five or six lines in this narrow "
       "measure keeps flowing and flowing until the clamp cuts it short");
-  BlockFlow flow(SkRect::MakeWH(220, 1000));  // room for many lines
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {220, 1000}));  // room for many lines
   ParagraphLayoutOptions options;
   options.overflow.maxLines = 2;
   options.overflow.ellipsis = u"…";
@@ -203,7 +203,7 @@ TEST(LineClamp, TruncatesSilentlyWithoutEllipsis) {
   Paragraph paragraph = makeParagraph(
       u8"plenty of words that will not fit inside a single clamped line at "
       "all in this measure");
-  BlockFlow flow(SkRect::MakeWH(200, 1000));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {200, 1000}));
   ParagraphLayoutOptions options;
   options.overflow.maxLines = 1;
   ParagraphLayout layout =
@@ -218,9 +218,9 @@ TEST(LineClamp, WorksUnderKnuthPlassAndExclusions) {
   Paragraph paragraph = makeParagraph(
       u8"text flows around the circle while the clamp limits how far down "
       "the exclusion geometry the paragraph is allowed to travel at all");
-  ExclusionFlow flow(SkRect::MakeWH(300, 1000));
+  ExclusionFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 1000}));
   flow.exclusions().push_back(
-      {flowshape::circle(SkRect::MakeXYWH(100, 20, 90, 90)), 4});
+      {flowshape::circle(sigil::geometry::path::Rect::of({100, 20}, {90, 90})), 4});
   ParagraphLayoutOptions options;
   options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
   options.alignment = TextAlignment::kJustify;
@@ -234,7 +234,7 @@ TEST(LineClamp, WorksUnderKnuthPlassAndExclusions) {
 TEST(LineClamp, RespectsMandatoryBreaks) {
   FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"one\ntwo\nthree\nfour");
-  BlockFlow flow(SkRect::MakeWH(400, 1000));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 1000}));
   ParagraphLayoutOptions options;
   options.overflow.maxLines = 2;
   ParagraphLayout layout =

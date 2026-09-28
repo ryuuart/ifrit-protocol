@@ -33,7 +33,7 @@ constexpr float kHyphen = 6.4f;
 weave::testing::Passage laidInBlock(std::u8string_view text, float measure,
                                     ParagraphLayoutOptions options = {}) {
   options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
-  BlockFlow flow(SkRect::MakeWH(measure, 400));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {measure, 400}));
   return weave::testing::lay(sigil::test::fonts(), makeParagraph(text), flow,
                              std::move(options));
 }
@@ -62,7 +62,7 @@ TEST(WeaveReading, ALineReadsItsBoxMeasureAndNaturalWidth) {
 
 TEST(WeaveReading, AGreedyLineReadsNoScore) {
   // The greedy breaker weighs no break, so there is nothing to read back.
-  BlockFlow flow(SkRect::MakeWH(1000, 400));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {1000, 400}));
   const weave::testing::Reading reading =
       weave::testing::read(weave::testing::lay(sigil::test::fonts(),
                                                makeParagraph(u8"aa bb"), flow));

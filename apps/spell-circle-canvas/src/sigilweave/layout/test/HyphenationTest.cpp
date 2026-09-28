@@ -44,7 +44,7 @@ class SoftHyphenBreaker : public BrokenBothWays {};
 TEST(SoftHyphen, ABrokenWordDrawsItsHyphenGlyph) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"an extra­ordinarily narrow measure");
-  BlockFlow flow(SkRect::MakeWH(kHalfWordMeasure, 300));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {kHalfWordMeasure, 300}));
   ParagraphLayout layout = layoutParagraph(fonts, paragraph, flow);
 
   const Word* hyphenWord = nullptr;
@@ -63,7 +63,7 @@ TEST(SoftHyphen, ABrokenWordDrawsItsHyphenGlyph) {
 TEST(SoftHyphen, AnUnbrokenWordNeverDrawsItsHyphenGlyph) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(kOneSoftHyphen);
-  BlockFlow flow(SkRect::MakeWH(500, 100));  // plenty of room: no break
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {500, 100}));  // plenty of room: no break
   ParagraphLayout layout = layoutParagraph(fonts, paragraph, flow);
 
   ASSERT_EQ(paragraph.words().size(), 2u);  // the two halves
@@ -81,7 +81,7 @@ TEST_P(SoftHyphenBreaker, ADiscretionaryBreakIsTakenToFitTheMeasure) {
   Paragraph paragraph = makeParagraph(
       u8"the as­ton­ish­ing­ly in­com­pre­hen"
       u8"­si­ble hy­phen­ation ma­chin­ery works");
-  BlockFlow flow(SkRect::MakeWH(120, 600));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {120, 600}));
   ParagraphLayoutOptions options;
   options.lineBreakStrategy = breaker();
   options.alignment = TextAlignment::kJustify;
@@ -99,7 +99,7 @@ TEST_P(SoftHyphenBreaker,
        TurningHyphenationOffFusesTheHalvesAndRemovesTheBreak) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(kOneSoftHyphen);
-  BlockFlow flow(SkRect::MakeWH(kHalfWordMeasure, 300));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {kHalfWordMeasure, 300}));
   ParagraphLayoutOptions hyphenating;
   hyphenating.lineBreakStrategy = breaker();
   hyphenating.hyphenation.enabled = true;
@@ -149,7 +149,7 @@ TEST(Hyphenation, PatternBreaksReachTheWordList) {
   style.shaping.languageTag = "en-US";
   Paragraph paragraph;
   paragraph.appendText(u8"hyphenation", style);
-  BlockFlow flow(SkRect::MakeWH(40, 400));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {40, 400}));
   ParagraphLayoutOptions options;
   options.hyphenation.patterns = kit::englishHyphenator();
   layoutParagraph(fonts, paragraph, flow, options);
@@ -170,7 +170,7 @@ TEST(Hyphenation, AHyphenatorHandedOverIsKeptForAsLongAsItIsAsked) {
   style.shaping.languageTag = "en-US";
   Paragraph paragraph;
   paragraph.appendText(u8"hyphenation", style);
-  BlockFlow flow(SkRect::MakeWH(40, 400));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {40, 400}));
 
   std::weak_ptr<const Hyphenator> watched;
   {
@@ -225,7 +225,7 @@ TEST_P(HyphenationZone, AZoneAsWideAsTheMeasureLeavesTheRagAlone) {
     // letters of 9.6 px, so no break is forced on a word the measure
     // cannot hold and every hyphen is one the zone could refuse.
     constexpr float kMeasure = 150.0f;
-    BlockFlow flow(SkRect::MakeWH(kMeasure, 600));
+    BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {kMeasure, 600}));
     ParagraphLayoutOptions options;
     options.lineBreakStrategy = breaker();
     options.hyphenation.patterns = kit::englishHyphenator();
@@ -255,7 +255,7 @@ TEST(Hyphenation, TheZoneIsARaggedSettingRuleAndAJustifiedLineIgnoresIt) {
       u8"The typography of hyphenation and justification is a discipline "
       u8"of considerable subtlety and consequence.",
       style);
-  BlockFlow flow(SkRect::MakeWH(180, 600));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {180, 600}));
   ParagraphLayoutOptions options;
   options.alignment = TextAlignment::kJustify;
   options.hyphenation.patterns = kit::englishHyphenator();
@@ -271,7 +271,7 @@ TEST(Hyphenation, TheMinimumWordLengthIsSettledInTheAnalysis) {
   style.shaping.languageTag = "en-US";
   Paragraph paragraph;
   paragraph.appendText(u8"hyphenation", style);
-  BlockFlow flow(SkRect::MakeWH(40, 400));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {40, 400}));
   ParagraphLayoutOptions options;
   options.hyphenation.patterns = kit::englishHyphenator();
   options.hyphenation.limits.minimumWordLength = 40;

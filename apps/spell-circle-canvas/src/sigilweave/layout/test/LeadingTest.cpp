@@ -37,7 +37,7 @@ std::vector<float> baselinesByLine(const ParagraphLayout& layout) {
     if (run.lineIndex < 0) continue;
     if (byLine.size() <= static_cast<size_t>(run.lineIndex))
       byLine.resize(static_cast<size_t>(run.lineIndex) + 1, 0.0f);
-    byLine[static_cast<size_t>(run.lineIndex)] = run.origin.y();
+    byLine[static_cast<size_t>(run.lineIndex)] = run.origin.y;
   }
   return byLine;
 }
@@ -50,8 +50,8 @@ TEST(ParagraphStyle, FaceLeadingIsWhatAnUnstyledTextGets) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph plain = makeParagraph(u8"one two three four five six seven eight");
   Paragraph styled = makeParagraph(u8"one two three four five six seven eight");
-  BlockFlow flowA(SkRect::MakeWH(120, 400));
-  BlockFlow flowB(SkRect::MakeWH(120, 400));
+  BlockFlow flowA(sigil::geometry::path::Rect::of({0, 0}, {120, 400}));
+  BlockFlow flowB(sigil::geometry::path::Rect::of({0, 0}, {120, 400}));
 
   const ParagraphLayout bare = layoutParagraph(fonts, plain, flowA);
   ParagraphLayoutOptions options;
@@ -66,7 +66,7 @@ TEST(ParagraphStyle, FaceLeadingIsWhatAnUnstyledTextGets) {
 TEST(ParagraphStyle, LineHeightOfAStyleIsTheHeightFaceLeadingSetsThePitchTo) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"one two three four five six seven");
-  BlockFlow flow(SkRect::MakeWH(120, 900));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {120, 900}));
   const std::vector<float> lines =
       baselines(layoutParagraph(fonts, paragraph, flow));
   ASSERT_GE(lines.size(), 2u);
@@ -81,7 +81,7 @@ TEST(ParagraphStyle, LineHeightOfAStyleIsTheHeightFaceLeadingSetsThePitchTo) {
 TEST(ParagraphStyle, MultipleLeadingOpensThePitch) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"one two three four five six seven");
-  BlockFlow flow(SkRect::MakeWH(120, 900));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {120, 900}));
   ParagraphLayoutOptions options;
   ParagraphStyle style;
   style.leading = Leading::multiple(2.0f);
@@ -102,7 +102,7 @@ TEST(ParagraphStyle, MultipleLeadingOpensThePitch) {
 TEST(ParagraphStyle, AbsoluteLeadingStatesThePitchOutright) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"one two three four five six seven");
-  BlockFlow flow(SkRect::MakeWH(120, 900));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {120, 900}));
   ParagraphLayoutOptions options;
   ParagraphStyle style;
   style.leading = Leading::absolute(40.0f);
@@ -124,7 +124,7 @@ class BetweenBlocks : public BrokenBothWays {};
 TEST_P(BetweenBlocks, GridLeadingLandsTwoBlocksOnOneRhythm) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = twoBlocks();
-  BlockFlow flow(SkRect::MakeWH(160, 900));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {160, 900}));
   ParagraphLayoutOptions options;
   options.lineBreakStrategy = breaker();
   ParagraphStyle grid;
@@ -156,14 +156,14 @@ TEST_P(BetweenBlocks, TheGapIsTheLargerOfAfterAndBefore) {
   options.blocks = {first, second};
 
   Paragraph paragraph = twoBlocks();
-  BlockFlow flow(SkRect::MakeWH(160, 900));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {160, 900}));
   const ParagraphLayout spaced =
       layoutParagraph(fonts, paragraph, flow, options);
 
   ParagraphLayoutOptions plainOptions;
   plainOptions.lineBreakStrategy = breaker();
   Paragraph plain = twoBlocks();
-  BlockFlow plainFlow(SkRect::MakeWH(160, 900));
+  BlockFlow plainFlow(sigil::geometry::path::Rect::of({0, 0}, {160, 900}));
   const ParagraphLayout bare =
       layoutParagraph(fonts, plain, plainFlow, plainOptions);
 
@@ -186,7 +186,7 @@ TEST_P(BetweenBlocks, TheGapIsTheLargerOfAfterAndBefore) {
 TEST_P(BetweenBlocks, EachBlockStacksAtItsOwnPitch) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = twoBlocks();
-  BlockFlow flow(SkRect::MakeWH(160, 900));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {160, 900}));
   ParagraphLayoutOptions options;
   options.lineBreakStrategy = breaker();
   ParagraphStyle tight;
@@ -218,7 +218,7 @@ INSTANTIATE_TEST_SUITE_P(Breakers, BetweenBlocks, bothBreakers(),
 TEST(ParagraphStyle, SpaceBeforeIsNotSuppressedAtTheHeadOfTheFlow) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"one two three");
-  BlockFlow flow(SkRect::MakeWH(300, 400));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 400}));
   ParagraphLayoutOptions options;
   ParagraphStyle style;
   style.spaceBefore = 20.0f;
@@ -235,7 +235,7 @@ TEST(ParagraphStyle, SpaceBeforeIsNotSuppressedAtTheHeadOfTheFlow) {
 TEST(ParagraphStyle, FirstLineIndentShortensOnlyTheFirstLine) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"one two three four five six seven");
-  BlockFlow flow(SkRect::MakeWH(140, 400));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {140, 400}));
   ParagraphLayoutOptions options;
   ParagraphStyle style;
   style.indent.firstLine = 24.0f;
@@ -255,7 +255,7 @@ class EveryBlockIndent : public BrokenBothWays {};
 TEST_P(EveryBlockIndent, EachBlockIndentsItsFirstLineAndNoOther) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = twoBlocks();
-  BlockFlow flow(SkRect::MakeWH(140, 600));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {140, 600}));
   ParagraphLayoutOptions options;
   options.lineBreakStrategy = breaker();
   options.blockDefault.indent.firstLine = 20.0f;
@@ -281,7 +281,7 @@ INSTANTIATE_TEST_SUITE_P(Breakers, EveryBlockIndent, bothBreakers(),
 TEST(ParagraphStyle, StartIndentMovesEveryLine) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"one two three four five six seven");
-  BlockFlow flow(SkRect::MakeWH(140, 400));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {140, 400}));
   ParagraphLayoutOptions options;
   ParagraphStyle style;
   style.indent.start = 18.0f;
@@ -295,7 +295,7 @@ TEST(ParagraphStyle, StartIndentMovesEveryLine) {
 TEST(ParagraphStyle, HangingIndentPullsTheFirstLineOut) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"one two three four five six seven");
-  BlockFlow flow(SkRect::MakeWH(160, 400));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {160, 400}));
   ParagraphLayoutOptions options;
   ParagraphStyle style;
   style.indent.start = 30.0f;
@@ -312,8 +312,8 @@ TEST(ParagraphStyle, EndIndentShortensTheMeasure) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph wide = makeParagraph(u8"one two three four five six seven eight");
   Paragraph narrow = makeParagraph(u8"one two three four five six seven eight");
-  BlockFlow wideFlow(SkRect::MakeWH(200, 600));
-  BlockFlow narrowFlow(SkRect::MakeWH(200, 600));
+  BlockFlow wideFlow(sigil::geometry::path::Rect::of({0, 0}, {200, 600}));
+  BlockFlow narrowFlow(sigil::geometry::path::Rect::of({0, 0}, {200, 600}));
   ParagraphLayoutOptions options;
   ParagraphStyle style;
   style.indent.end = 90.0f;
@@ -328,7 +328,7 @@ TEST(ParagraphStyle, EndIndentShortensTheMeasure) {
 TEST(ParagraphStyle, AlignmentIsPerBlock) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = twoBlocks();
-  BlockFlow flow(SkRect::MakeWH(400, 600));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 600}));
   ParagraphLayoutOptions options;
   ParagraphStyle centred;
   centred.alignment = TextAlignment::kCenter;
@@ -345,8 +345,8 @@ TEST(ParagraphStyle, HalfLeadingPutsHalfTheOpenedRoomUnderTheLine) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph above = makeParagraph(u8"one two three four five six seven");
   Paragraph split = makeParagraph(u8"one two three four five six seven");
-  BlockFlow flowA(SkRect::MakeWH(120, 900));
-  BlockFlow flowB(SkRect::MakeWH(120, 900));
+  BlockFlow flowA(sigil::geometry::path::Rect::of({0, 0}, {120, 900}));
+  BlockFlow flowB(sigil::geometry::path::Rect::of({0, 0}, {120, 900}));
   ParagraphStyle style;
   style.leading = Leading::multiple(2.0f);
   ParagraphLayoutOptions allAbove;
@@ -376,15 +376,15 @@ TEST(ParagraphStyle, ABaselineShiftLiftsASpanAndCostsNoReshape) {
   Paragraph paragraph;
   paragraph.appendText(u8"level ", base);
   paragraph.appendText(u8"lifted", lifted);
-  BlockFlow flow(SkRect::MakeWH(400, 200));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 200}));
   const ParagraphLayout layout = layoutParagraph(fonts, paragraph, flow);
   ASSERT_GE(layout.runs.size(), 2u);
   float levelBaseline = 0;
   float liftedBaseline = 0;
   for (const PositionedRun& run : layout.runs) {
     const uint32_t begin = paragraph.words()[run.wordIndex].textBegin;
-    if (begin == 0) levelBaseline = run.origin.y();
-    if (begin >= 6) liftedBaseline = run.origin.y();
+    if (begin == 0) levelBaseline = run.origin.y;
+    if (begin >= 6) liftedBaseline = run.origin.y;
   }
   EXPECT_NEAR(levelBaseline - liftedBaseline, 6.0f, 0.01f);
   // The advances are the face's own either way, so the two spans share

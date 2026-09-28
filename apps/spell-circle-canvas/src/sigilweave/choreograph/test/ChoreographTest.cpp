@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 
+#include "sigilweave/advanced/Skia.h"
 #include "support/ChoreographSupport.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
@@ -54,7 +55,7 @@ class Choreography : public ::testing::Test {
   std::vector<PlacedGlyph> walk() { return collect(m_layout, m_paragraph); }
 
   Paragraph m_paragraph = mixedStyleParagraph();
-  BlockFlow m_flow{SkRect::MakeWH(240, 400)};
+  BlockFlow m_flow{sigil::geometry::path::Rect::of({0, 0}, {240, 400})};
   ParagraphLayout m_layout;
 };
 
@@ -106,11 +107,11 @@ TEST_F(Choreography, EveryGlyphOfALineSitsOnThatLinesBaseline) {
   float previousBaseline = 0;
   for (const PlacedGlyph& glyph : walk()) {
     if (glyph.lineIndex != currentLine) {
-      if (currentLine >= 0) EXPECT_GT(glyph.rest.y(), previousBaseline);
-      previousBaseline = lineBaseline = glyph.rest.y();
+      if (currentLine >= 0) EXPECT_GT(glyph.rest.y, previousBaseline);
+      previousBaseline = lineBaseline = glyph.rest.y;
       currentLine = glyph.lineIndex;
     }
-    EXPECT_FLOAT_EQ(glyph.rest.y(), lineBaseline);
+    EXPECT_FLOAT_EQ(glyph.rest.y, lineBaseline);
   }
 }
 
@@ -161,7 +162,7 @@ TEST(PlacedGlyph, ClustersStayInsideTheirWordAcrossACombiningMark) {
   // Decomposed: "cafe" plus COMBINING ACUTE ACCENT — five code units
   // that shape to four or five glyphs, depending on whether the face
   // composes them.
-  BlockFlow flow(SkRect::MakeWH(400, 100));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 100}));
   auto [paragraph, layout] = laidOut(u8"cafe\u0301 noir", 24.0f, flow);
 
   const std::vector<Word>& words = paragraph.words();
@@ -261,20 +262,20 @@ TEST(PlacedGlyphOnAContour, ItReportsTheIntervalAndPenItWasPlacedAt) {
     ASSERT_TRUE(glyph.transformed);
     ASSERT_EQ(glyph.intervalIndex, 0);
     ++seen;
-    SkPoint centre;
-    SkVector tangent;
+    glm::vec2 centre;
+    glm::vec2 tangent;
     layout.intervals[0].placeAt(glyph.pen, 0.0f, layout.tangentRotationSteps,
                                 &centre, &tangent);
     // The rest position is the glyph's ORIGIN; walking back from it by the
     // same half-advance the placement walked forward lands on the centre.
-    const SkPoint fromRest{glyph.rest.x() + tangent.x() * glyph.advance * 0.5f,
-                           glyph.rest.y() + tangent.y() * glyph.advance * 0.5f};
-    EXPECT_NEAR(fromRest.x(), centre.x(), 0.75f);
-    EXPECT_NEAR(fromRest.y(), centre.y(), 0.75f);
-    EXPECT_NEAR(glyph.tangent.x(), tangent.x(), 1e-4f);
-    EXPECT_NEAR(glyph.tangent.y(), tangent.y(), 1e-4f);
+    const glm::vec2 fromRest{glyph.rest.x + tangent.x * glyph.advance * 0.5f,
+                           glyph.rest.y + tangent.y * glyph.advance * 0.5f};
+    EXPECT_NEAR(fromRest.x, centre.x, 0.75f);
+    EXPECT_NEAR(fromRest.y, centre.y, 0.75f);
+    EXPECT_NEAR(glyph.tangent.x, tangent.x, 1e-4f);
+    EXPECT_NEAR(glyph.tangent.y, tangent.y, 1e-4f);
     // …and every one of them sits on the ring.
-    EXPECT_NEAR(std::hypot(centre.x(), centre.y()), 200.0f, 1.0f);
+    EXPECT_NEAR(std::hypot(centre.x, centre.y), 200.0f, 1.0f);
   });
   EXPECT_GT(seen, 10);
 }

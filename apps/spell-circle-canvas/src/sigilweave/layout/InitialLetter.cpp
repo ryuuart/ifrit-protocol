@@ -278,7 +278,7 @@ void InitialLetterGeometry::cutFromHead(std::vector<LineInterval>& intervals,
       first.contourStart += take * first.advanceScale;
     else
       first.origin +=
-          SkVector{first.direction.x() * take, first.direction.y() * take};
+          glm::vec2{first.direction.x * take, first.direction.y * take};
     first.length -= take;
     travel -= take;
     if (first.length <= 0) intervals.erase(intervals.begin());
@@ -297,10 +297,10 @@ bool InitialLetterGeometry::lineIntervals(
     m_seat = intervals.front();
     m_seated = true;
     m_seatBandStart = request.bandStart;
-    const SkVector direction = m_seat.direction;
+    const glm::vec2 direction = m_seat.direction;
     m_inert = !m_seat.contour.valid() &&
-              !(direction.x() == 1 && direction.y() == 0) &&
-              !(direction.x() == 0 && direction.y() == 1);
+              !(direction.x == 1 && direction.y == 0) &&
+              !(direction.x == 0 && direction.y == 1);
     // Nothing upright can stand in a notch cut out of a slanted band, so a
     // seat that runs in no axis direction keeps its whole band rather than
     // opening a hole no cap fills.
@@ -341,24 +341,24 @@ void placeInitialLetter(const InitialLetterPlan& plan,
                         ParagraphLayout& layout) {
   if (!plan.active() || !plan.glyphs || !geometry.seated()) return;
   const LineInterval& seat = geometry.seat();
-  SkPoint origin = seat.origin;
-  const SkVector direction = seat.direction;
-  const bool downTheColumn = direction.x() == 0 && direction.y() == 1;
+  glm::vec2 origin = seat.origin;
+  const glm::vec2 direction = seat.direction;
+  const bool downTheColumn = direction.x == 0 && direction.y == 1;
   if (seat.contour.valid()) {
     // A CONTOUR HAS NO BASELINE TO SINK TO: a loop's bands are one line
     // wound round, so the initial stands upright where the pen enters the
     // contour and the notch it cut is the room it stands in.
-    SkVector tangent = {1, 0};
+    glm::vec2 tangent = {1, 0};
     seat.placeAt(0, 0, 0, &origin, &tangent);
   } else if (downTheColumn) {
     // A COLUMN'S INITIAL HANGS FROM THE COLUMN HEAD, which is where the
     // seat already is, and the glyphs stack down from there. It sinks
     // ACROSS the columns instead, and its ink is centred on the axis it
     // stands on, so half the sink carries it over the columns it cut.
-    origin += SkVector{-plan.sinkOffset * 0.5f, 0};
-  } else if (direction.x() == 1 && direction.y() == 0) {
+    origin += glm::vec2{-plan.sinkOffset * 0.5f, 0};
+  } else if (direction.x == 1 && direction.y == 0) {
     // Lines stack down the page and the initial sinks with them.
-    origin += SkVector{0, plan.sinkOffset};
+    origin += glm::vec2{0, plan.sinkOffset};
   } else {
     return;
   }
@@ -407,8 +407,8 @@ void placeInitialLetter(const InitialLetterPlan& plan,
     rest.origin =
         geometry.tailSeated()
             ? tail.origin
-            : seat.origin + SkVector{seat.direction.x() * plan.notchAt(0),
-                                     seat.direction.y() * plan.notchAt(0)};
+            : seat.origin + glm::vec2{seat.direction.x * plan.notchAt(0),
+                                     seat.direction.y * plan.notchAt(0)};
     rest.styleIndex = plan.styleIndex;
     rest.wordIndex = plan.wordIndex;
     rest.lineIndex = lineIndex;
@@ -421,7 +421,7 @@ void placeInitialLetter(const InitialLetterPlan& plan,
   }
 
   layout.initial.placed = true;
-  layout.initial.baseline = geometry::path::fromSk(origin);
+  layout.initial.baseline = origin;
   layout.initial.fontSize = plan.fontSize;
   layout.initial.bands = plan.bands;
   layout.initial.notch = plan.notch;
@@ -430,7 +430,7 @@ void placeInitialLetter(const InitialLetterPlan& plan,
     // A vertical cap hangs from its origin: the em box across the column,
     // its own pen travel down it.
     layout.initial.box = geometry::path::fromSk(
-        SkRect::MakeXYWH(origin.x() - plan.fontSize * 0.5f, origin.y(),
+        SkRect::MakeXYWH(origin.x - plan.fontSize * 0.5f, origin.y,
                          plan.fontSize, plan.glyphs->advance));
   } else {
     const SkFont font = makeFont(plan.glyphs->typeface, plan.glyphs->fontSize,
@@ -438,7 +438,7 @@ void placeInitialLetter(const InitialLetterPlan& plan,
     SkFontMetrics metrics;
     font.getMetrics(&metrics);
     layout.initial.box = geometry::path::fromSk(SkRect::MakeXYWH(
-        origin.x(), origin.y() + metrics.fAscent, plan.glyphs->advance,
+        origin.x, origin.y + metrics.fAscent, plan.glyphs->advance,
         -metrics.fAscent + metrics.fDescent));
   }
 }

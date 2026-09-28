@@ -59,7 +59,7 @@ TEST(WeavePlates, OpenTypeFeaturesDrawTheirBaseline) {
     body.shaping.fontFeatures = row.fontFeatures;
     Paragraph paragraph;
     paragraph.appendText(row.text, body);
-    BlockFlow flow(SkRect::MakeXYWH(40, rowTop + 20, 900, 48));
+    BlockFlow flow(sigil::geometry::path::Rect::of({40, rowTop + 20}, {900, 48}));
     plate.draw(weave::testing::lay(fonts, std::move(paragraph), flow));
     rowTop += 88;
   }

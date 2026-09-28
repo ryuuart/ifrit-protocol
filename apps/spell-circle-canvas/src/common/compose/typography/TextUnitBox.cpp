@@ -62,8 +62,8 @@ SkRect glyphBox(const sigil::weave::PlacedGlyph& placed, const RestPose& pose,
   for (const SkPoint corner :
        {SkPoint{x0, y0}, SkPoint{x1, y0}, SkPoint{x1, y1}, SkPoint{x0, y1}}) {
     const SkPoint at{
-        pose.centre.x() + corner.x() * pose.cosine - corner.y() * pose.sine,
-        pose.centre.y() + corner.x() * pose.sine + corner.y() * pose.cosine};
+        pose.centre.x + corner.x() * pose.cosine - corner.y() * pose.sine,
+        pose.centre.y + corner.x() * pose.sine + corner.y() * pose.cosine};
     if (first) {
       box = SkRect::MakeLTRB(at.x(), at.y(), at.x(), at.y());
       first = false;

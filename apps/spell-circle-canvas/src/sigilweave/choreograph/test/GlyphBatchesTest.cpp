@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "support/ChoreographSupport.h"
 #include "support/Paints.h"
 #include "support/Pixels.h"
@@ -46,7 +47,7 @@ GlyphRSXformBatches batchAtRest(const ParagraphLayout& layout,
                                 float alphaScale = 1.0f) {
   GlyphRSXformBatches batches;
   forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
-    batches.addGlyph(glyph, glyph.rest + SkVector{glyph.advance * 0.5f, 0},
+    batches.addGlyph(glyph, glyph.rest + glm::vec2{glyph.advance * 0.5f, 0},
                      1.0f, 0.0f, alphaScale);
   });
   return batches;
@@ -55,7 +56,7 @@ GlyphRSXformBatches batchAtRest(const ParagraphLayout& layout,
 }  // namespace
 
 TEST(GlyphBatches, EveryPaintPassOfTheSpanDraws) {
-  BlockFlow flow(SkRect::MakeXYWH(10, 10, 380, 100));
+  BlockFlow flow(sigil::geometry::path::Rect::of({10, 10}, {380, 100}));
   auto [paragraph, layout] = laidOut(u8"HALO", 64.0f, flow);
   const std::vector<LineMetrics> lines = layout.lineMetrics(paragraph);
   ASSERT_EQ(lines.size(), 1u);
@@ -96,7 +97,7 @@ TEST(GlyphBatches, EveryPaintPassOfTheSpanDraws) {
 }
 
 TEST(GlyphBatches, BucketsSplitOnPassAndFontButNotOnGlyph) {
-  BlockFlow flow(SkRect::MakeWH(400, 200));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 200}));
   auto [paragraph, layout] = laidOut(u8"many many letters here", 24.0f, flow);
 
   // A plain single-pass style is one bucket, however many glyphs it draws.
@@ -122,7 +123,7 @@ TEST(GlyphBatches, BucketsSplitOnPassAndFontButNotOnGlyph) {
 }
 
 TEST(GlyphBatches, AlphaScaleFadesEveryPassAndDropsInvisibleOnes) {
-  BlockFlow flow(SkRect::MakeWH(400, 100));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 100}));
   auto [paragraph, layout] = laidOut(u8"fade", 32.0f, flow);
   PaintStyle style(SK_ColorBLACK);
   style.addUnderlay(PaintLayer(0x80FF0000, {2, 2}));
@@ -143,7 +144,7 @@ TEST(GlyphBatches, UnderlaysDrawBeneathForegroundsAcrossFadeClasses) {
   // EVERY underlay beneath EVERY foreground: a blurred halo reaches past its
   // own glyph, and a cascade mid-flight (each letter at its own fade) must
   // not lay a later letter's halo over an earlier letter's stroke.
-  BlockFlow flow(SkRect::MakeWH(300, 120));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 120}));
   auto [paragraph, layout] = laidOut(u8"OO", 64.0f, flow);
 
   SkPaint stroke;
@@ -172,7 +173,7 @@ TEST(GlyphBatches, UnderlaysDrawBeneathForegroundsAcrossFadeClasses) {
       const float alpha = index++ == 0 ? 0.995f : 1.0f;
       batches.addGlyph(glyph.shaped, override ? *override : *glyph.paint,
                        glyph.glyph, glyph.advance * 0.5f,
-                       glyph.rest + SkVector{glyph.advance * 0.5f, 0}, 1.0f,
+                       glyph.rest + glm::vec2{glyph.advance * 0.5f, 0}, 1.0f,
                        0.0f, alpha);
     });
     return batches;
@@ -212,7 +213,7 @@ TEST(GlyphBatches, TintMultipliesAFlatPassAndModulatesAShaderOne) {
   // carries, a shader pass cannot (its colour is decided downstream) and
   // takes an equivalent modulating filter instead. Either way the glyph
   // keeps the pass — a tinted letter is not a re-styled letter.
-  BlockFlow flow(SkRect::MakeXYWH(10, 10, 380, 100));
+  BlockFlow flow(sigil::geometry::path::Rect::of({10, 10}, {380, 100}));
   auto [paragraph, layout] = laidOut(u8"HALO", 64.0f, flow);
   const std::vector<LineMetrics> lines = layout.lineMetrics(paragraph);
   ASSERT_EQ(lines.size(), 1u);
@@ -225,7 +226,7 @@ TEST(GlyphBatches, TintMultipliesAFlatPassAndModulatesAShaderOne) {
   GlyphRSXformBatches batches;
   forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
     GlyphDress placed = dress;
-    placed.center = glyph.rest + SkVector{glyph.advance * 0.5f, 0};
+    placed.center = glyph.rest + glm::vec2{glyph.advance * 0.5f, 0};
     batches.addGlyph(glyph, placed);
   });
   ASSERT_EQ(batches.batches.size(), 2u) << "the tint dropped a pass";
@@ -260,7 +261,7 @@ TEST(GlyphBatches, OneTintIsOneBucketHoweverManyGlyphsWearIt) {
   // filter by POINTER, so the modulating filter has to be memoized: a fresh
   // one per glyph would mint a bucket per glyph and undo the batching that
   // is the entire point of this file.
-  BlockFlow flow(SkRect::MakeWH(400, 200));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 200}));
   auto [paragraph, layout] = laidOut(u8"many many letters here", 24.0f, flow);
   PaintStyle shaded;
   const SkPoint ends[2] = {{0, 0}, {400, 0}};
@@ -274,7 +275,7 @@ TEST(GlyphBatches, OneTintIsOneBucketHoweverManyGlyphsWearIt) {
   GlyphRSXformBatches batches;
   forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
     GlyphDress dress;
-    dress.center = glyph.rest + SkVector{glyph.advance * 0.5f, 0};
+    dress.center = glyph.rest + glm::vec2{glyph.advance * 0.5f, 0};
     dress.colorMultiplier = {0.5f, 0.75f, 1.0f, 1.0f};
     batches.addGlyph(glyph, dress);
   });
@@ -286,7 +287,7 @@ TEST(GlyphBatches, OneTintIsOneBucketHoweverManyGlyphsWearIt) {
 TEST(GlyphBatches, ADrivenFaceIsItsOwnBucket) {
   // A glyph drawn through a varied clone cannot share a bucket with one
   // drawn through the base face: the face is what the draw call carries.
-  BlockFlow flow(SkRect::MakeWH(400, 100));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 100}));
   auto [paragraph, layout] = laidOut(u8"AB", 32.0f, flow);
 
   const SkTypeface* shapedFace = nullptr;
@@ -304,7 +305,7 @@ TEST(GlyphBatches, ADrivenFaceIsItsOwnBucket) {
   GlyphRSXformBatches batches;
   forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
     GlyphDress dress;
-    dress.center = glyph.rest + SkVector{glyph.advance * 0.5f, 0};
+    dress.center = glyph.rest + glm::vec2{glyph.advance * 0.5f, 0};
     if (!first) dress.face = other;
     first = false;
     batches.addGlyph(glyph, dress);
@@ -318,22 +319,24 @@ TEST(GlyphBatches, AMatrixGlyphRidesItsOwnLaneInsideItsBucket) {
   // A shear cannot be an RSXform, so that glyph draws under its own matrix
   // — in the SAME bucket, so it keeps its pass order and its paint, and
   // without disturbing the shared transform array its neighbours ride.
-  BlockFlow flow(SkRect::MakeXYWH(10, 10, 380, 80));
+  BlockFlow flow(sigil::geometry::path::Rect::of({10, 10}, {380, 80}));
   auto [paragraph, layout] = laidOut(u8"HH", 48.0f, flow);
 
   SkMatrix sheared;
+  sigil::geometry::path::Transform shearedTransform;
   GlyphRSXformBatches batches;
   bool first = true;
   forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
     GlyphDress dress;
-    const SkPoint center = glyph.rest + SkVector{glyph.advance * 0.5f, 0};
+    const glm::vec2 center = glyph.rest + glm::vec2{glyph.advance * 0.5f, 0};
     if (first) {
       dress.center = center;
     } else {
-      sheared = SkMatrix::Translate(center.x(), center.y());
+      sheared = SkMatrix::Translate(center.x, center.y);
       sheared.preConcat(SkMatrix::MakeAll(1, -0.5f, 0, 0, 1, 0, 0, 0, 1));
       sheared.preTranslate(-glyph.advance * 0.5f, 0);
-      dress.matrix = &sheared;
+      shearedTransform = sigil::geometry::path::fromSk(sheared);
+      dress.matrix = &shearedTransform;
     }
     first = false;
     batches.addGlyph(glyph, dress);
@@ -353,7 +356,7 @@ TEST(GlyphBatches, AMatrixGlyphRidesItsOwnLaneInsideItsBucket) {
 }
 
 TEST(GlyphBatches, ClearKeepsBucketsButReleasesGlyphs) {
-  BlockFlow flow(SkRect::MakeWH(400, 100));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 100}));
   auto [paragraph, layout] = laidOut(u8"reuse", 20.0f, flow);
 
   GlyphRSXformBatches batches = batchAtRest(layout, paragraph);
@@ -372,12 +375,12 @@ TEST(GlyphBatches, ACentreOffsetMovesThePivotOffTheAdvanceAxis) {
   // its advance ALONG ITS OWN X. A vertical column's advance is not on x,
   // so the dress carries the back-out instead — and it turns with the
   // glyph, exactly as the default one does.
-  BlockFlow flow(SkRect::MakeWH(200, 60));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {200, 60}));
   auto [paragraph, layout] = laidOut(u8"H", 40.0f, flow);
 
-  const SkPoint centre{100, 30};
-  const SkVector offset{0, 12};
-  const auto placedAt = [&](float cosine, float sine, const SkVector* off) {
+  const glm::vec2 centre{100, 30};
+  const glm::vec2 offset{0, 12};
+  const auto placedAt = [&](float cosine, float sine, const glm::vec2* off) {
     GlyphRSXformBatches batches;
     forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
       GlyphDress dress;
@@ -391,19 +394,19 @@ TEST(GlyphBatches, ACentreOffsetMovesThePivotOffTheAdvanceAxis) {
   };
 
   const SkRSXform upright = placedAt(1, 0, &offset);
-  EXPECT_FLOAT_EQ(upright.fTx, centre.x());
-  EXPECT_FLOAT_EQ(upright.fTy, centre.y() - offset.y())
+  EXPECT_FLOAT_EQ(upright.fTx, centre.x);
+  EXPECT_FLOAT_EQ(upright.fTy, centre.y - offset.y)
       << "an unrotated glyph backs out along the offset itself";
 
   // A quarter turn takes (0, 12) to (-12, 0).
   const SkRSXform turned = placedAt(0, 1, &offset);
-  EXPECT_NEAR(turned.fTx, centre.x() + offset.y(), 1e-4f);
-  EXPECT_NEAR(turned.fTy, centre.y(), 1e-4f);
+  EXPECT_NEAR(turned.fTx, centre.x + offset.y, 1e-4f);
+  EXPECT_NEAR(turned.fTy, centre.y, 1e-4f);
 
   // Null keeps the horizontal convention.
   const SkRSXform plain = placedAt(1, 0, nullptr);
-  EXPECT_LT(plain.fTx, centre.x()) << "backed out by half its advance";
-  EXPECT_FLOAT_EQ(plain.fTy, centre.y());
+  EXPECT_LT(plain.fTx, centre.x) << "backed out by half its advance";
+  EXPECT_FLOAT_EQ(plain.fTy, centre.y);
 }
 
 TEST(GlyphBatches, SubpixelDecidesWhetherAFractionOfAPixelMovesAnything) {
@@ -412,7 +415,7 @@ TEST(GlyphBatches, SubpixelDecidesWhetherAFractionOfAPixelMovesAnything) {
   // without the subpixel grid the glyph is rasterized at the rounded
   // origin both times and the two frames are the same picture; with it
   // they are not.
-  BlockFlow flow(SkRect::MakeXYWH(10, 10, 380, 100));
+  BlockFlow flow(sigil::geometry::path::Rect::of({10, 10}, {380, 100}));
   auto [paragraph, layout] = laidOut(u8"H", 44.0f, flow);
   PaintStyle white;
   white.foreground.setColor(SK_ColorWHITE);
@@ -434,7 +437,7 @@ TEST(GlyphBatches, SubpixelDecidesWhetherAFractionOfAPixelMovesAnything) {
     batches.subpixel = subpixel;
     forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
       batches.addGlyph(glyph,
-                       SkPoint{deviceX + advance * 0.5f, glyph.rest.y()});
+                       glm::vec2{deviceX + advance * 0.5f, glyph.rest.y});
     });
     sk_sp<SkSurface> surface =
         SkSurfaces::Raster(SkImageInfo::MakeN32Premul(200, 100));
@@ -467,7 +470,7 @@ TEST(GlyphBatches, ATurnedRunDrawsIntoASurfaceTheSizeOfItsOwnBounds) {
   // describe somewhere else entirely — the batch draws nothing and the
   // surface stays empty. Everything the batches draw goes through a blob,
   // so the ink is here.
-  BlockFlow flow(SkRect::MakeWH(400, 200));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 200}));
   auto [paragraph, layout] = laidOut(u8"TURNING", 48.0f, flow);
   const std::vector<LineMetrics> lines = layout.lineMetrics(paragraph);
   ASSERT_EQ(lines.size(), 1u);
@@ -475,7 +478,7 @@ TEST(GlyphBatches, ATurnedRunDrawsIntoASurfaceTheSizeOfItsOwnBounds) {
   constexpr float kTurn = 0.9f;  // radians, so no glyph stands upright
   GlyphRSXformBatches batches;
   forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
-    batches.addGlyph(glyph, glyph.rest + SkVector{glyph.advance * 0.5f, 0},
+    batches.addGlyph(glyph, glyph.rest + glm::vec2{glyph.advance * 0.5f, 0},
                      std::cos(kTurn), std::sin(kTurn));
   });
   ASSERT_FALSE(batches.batches.empty());

@@ -100,8 +100,8 @@ std::vector<const void*> runShapes(Host& host, const char* key) {
   return out;
 }
 
-std::vector<SkPoint> runOrigins(Host& host, const char* key) {
-  std::vector<SkPoint> out;
+std::vector<glm::vec2> runOrigins(Host& host, const char* key) {
+  std::vector<glm::vec2> out;
   const auto* layout = host.composer.paragraphLayout(key);
   if (!layout) return out;
   for (const sigil::weave::PositionedRun& run : layout->runs)

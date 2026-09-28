@@ -25,7 +25,7 @@ float runOriginFor(const Paragraph& paragraph, const ParagraphLayout& layout,
     const Word& word = paragraph.words()[run.wordIndex];
     if (std::u16string_view(text).substr(
             word.textBegin, word.textEnd - word.textBegin) == needle)
-      return run.origin.x();
+      return run.origin.x;
   }
   return -1.0f;
 }
@@ -39,7 +39,7 @@ class TabbedLine : public BrokenBothWays {};
 TEST_P(TabbedLine, EveryPostTabRunStartsAtItsStop) {
   FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"ab\tlongerhead\tx\ncdef\tk\tyz");
-  BlockFlow flow(SkRect::MakeWH(600, 90));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {600, 90}));
   ParagraphLayoutOptions options;
   options.lineBreakStrategy = breaker();
   options.tabStops.stops = {{120.0f}, {300.0f}};
@@ -59,7 +59,7 @@ TEST_P(TabbedLine, AWordThatCannotFitAfterItsStopWrapsInsteadOfLeaking) {
   // measure instead of wrapping.
   FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"head\ttail");
-  BlockFlow flow(SkRect::MakeWH(200, 200));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {200, 200}));
   ParagraphLayoutOptions options;
   options.lineBreakStrategy = breaker();
   options.tabStops.stops = {{180.0f}};  // "tail" cannot fit after the stop
@@ -75,7 +75,7 @@ TEST_P(TabbedLine, AWordThatCannotFitAfterItsStopWrapsInsteadOfLeaking) {
 TEST(TabStops, RepeatingIntervalAfterExplicitStops) {
   FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"a\tb\tc\td");
-  BlockFlow flow(SkRect::MakeWH(800, 60));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {800, 60}));
   ParagraphLayoutOptions options;
   options.tabStops.stops = {{50.0f}};
   options.tabStops.interval = 100.0f;
@@ -92,7 +92,7 @@ TEST(TabStops, ContentPastStopAdvancesToNext) {
   // "wideenough" extends past the 40px stop, so the tab after it must jump
   // to the following stop instead of backing up.
   Paragraph paragraph = makeParagraph(u8"wideenoughcontent\tafter");
-  BlockFlow flow(SkRect::MakeWH(800, 60));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {800, 60}));
   ParagraphLayoutOptions options;
   options.tabStops.stops = {{40.0f}, {400.0f}};
   ParagraphLayout layout =
@@ -103,7 +103,7 @@ TEST(TabStops, ContentPastStopAdvancesToNext) {
 TEST(TabStops, EndAlignedStopPinsTheCellsEnd) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"Chapter\t12");
-  BlockFlow flow(SkRect::MakeWH(400, 200));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 200}));
   ParagraphLayoutOptions options;
   options.tabStops.stops = {TabStop{300.0f, TabStop::Align::kEnd}};
   const ParagraphLayout layout =
@@ -116,7 +116,7 @@ TEST(TabStops, EndAlignedStopPinsTheCellsEnd) {
 TEST(TabStops, CharacterAlignedStopPinsTheDecimalPoint) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"Total\t1284.50");
-  BlockFlow flow(SkRect::MakeWH(400, 200));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 200}));
   ParagraphLayoutOptions options;
   options.tabStops.stops = {TabStop{280.0f, TabStop::Align::kCharacter, u'.'}};
   const ParagraphLayout layout =
@@ -125,7 +125,7 @@ TEST(TabStops, CharacterAlignedStopPinsTheDecimalPoint) {
   // The figures start left of the stop and reach past it: the point sits on
   // it, so neither edge does.
   const PositionedRun& figures = layout.runs.back();
-  EXPECT_LT(figures.origin.x(), 280.0f);
+  EXPECT_LT(figures.origin.x, 280.0f);
   EXPECT_GT(runEnd(paragraph, figures), 280.0f);
 }
 
@@ -133,8 +133,8 @@ TEST(TabStops, LeaderFillsTheGapItOpened) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph plain = makeParagraph(u8"Chapter\t12");
   Paragraph led = makeParagraph(u8"Chapter\t12");
-  BlockFlow flowA(SkRect::MakeWH(400, 200));
-  BlockFlow flowB(SkRect::MakeWH(400, 200));
+  BlockFlow flowA(sigil::geometry::path::Rect::of({0, 0}, {400, 200}));
+  BlockFlow flowB(sigil::geometry::path::Rect::of({0, 0}, {400, 200}));
   ParagraphLayoutOptions bare;
   bare.tabStops.stops = {TabStop{300.0f}};
   ParagraphLayoutOptions dotted = bare;
@@ -149,7 +149,7 @@ TEST(TabStops, LeaderFillsTheGapItOpened) {
 TEST_P(TabbedLine, JustificationStretchesOnlyTheGapsPastTheStop) {
   FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"a\tbb cc dd");
-  BlockFlow flow(SkRect::MakeWH(400, 60));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 60}));
   ParagraphLayoutOptions options;
   options.lineBreakStrategy = breaker();
   options.alignment = TextAlignment::kJustify;
@@ -170,7 +170,7 @@ INSTANTIATE_TEST_SUITE_P(Breakers, TabbedLine, bothBreakers(), breakerName);
 TEST(TabStops, CenterAlignmentShiftsTheResolvedLine) {
   FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"a\tb");
-  BlockFlow flow(SkRect::MakeWH(300, 60));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 60}));
   ParagraphLayoutOptions options;
   options.alignment = TextAlignment::kCenter;
   options.tabStops.stops = {{100.0f}};
@@ -191,8 +191,8 @@ TEST(TabStops, UnconfiguredTabsStillMeasureAsSpaces) {
   FontContext& fontContext = sigil::test::fonts();
   Paragraph tab = makeParagraph(u8"a\tb");
   Paragraph space = makeParagraph(u8"a b");
-  BlockFlow tabFlow(SkRect::MakeWH(400, 60));
-  BlockFlow spaceFlow(SkRect::MakeWH(400, 60));
+  BlockFlow tabFlow(sigil::geometry::path::Rect::of({0, 0}, {400, 60}));
+  BlockFlow spaceFlow(sigil::geometry::path::Rect::of({0, 0}, {400, 60}));
   ParagraphLayout tabLayout = layoutParagraph(fontContext, tab, tabFlow);
   ParagraphLayout spaceLayout = layoutParagraph(fontContext, space, spaceFlow);
   EXPECT_FLOAT_EQ(runOriginFor(tab, tabLayout, u"b"),

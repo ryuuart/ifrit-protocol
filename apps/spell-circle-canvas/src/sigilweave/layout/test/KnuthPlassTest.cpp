@@ -40,7 +40,7 @@ TEST(KnuthPlass, EveryWordIsPlacedOnceAndInReadingOrder) {
       "whose daughters were all beautiful; and the youngest was so beautiful "
       "that the sun itself, which has seen so much, was astonished whenever "
       "it shone in her face.");
-  BlockFlow flow(SkRect::MakeWH(300, 900));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 900}));
   ParagraphLayoutOptions options;
   options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
   options.alignment = TextAlignment::kJustify;
@@ -67,11 +67,11 @@ TEST(KnuthPlass, NoWorseRaggednessThanGreedy) {
   const float measure = 320;
 
   Paragraph paragraph = makeParagraph(tale);
-  BlockFlow greedyFlow(SkRect::MakeWH(measure, 2000));
+  BlockFlow greedyFlow(sigil::geometry::path::Rect::of({0, 0}, {measure, 2000}));
   ParagraphLayout greedyLayout =
       layoutParagraph(fontContext, paragraph, greedyFlow);  // ragged-right
 
-  BlockFlow knuthPlassFlow(SkRect::MakeWH(measure, 2000));
+  BlockFlow knuthPlassFlow(sigil::geometry::path::Rect::of({0, 0}, {measure, 2000}));
   ParagraphLayoutOptions knuthPlassOptions;
   knuthPlassOptions.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
   ParagraphLayout knuthPlassLayout = layoutParagraph(
@@ -89,7 +89,7 @@ TEST(KnuthPlass, EveryLineCarriesTheScoreItWasChosenAt) {
       "whose daughters were all beautiful; and the youngest was so beautiful "
       "that the sun itself, which has seen so much, was astonished whenever "
       "it shone in her face.");
-  BlockFlow flow(SkRect::MakeWH(300, 900));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 900}));
   ParagraphLayoutOptions options;
   options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
   options.alignment = TextAlignment::kJustify;
@@ -112,7 +112,7 @@ TEST(KnuthPlass, EveryLineCarriesTheScoreItWasChosenAt) {
       << "the last line's slack goes to the end of the paragraph";
 
   // The greedy breaker weighs nothing and scores nothing.
-  BlockFlow greedyFlow(SkRect::MakeWH(300, 900));
+  BlockFlow greedyFlow(sigil::geometry::path::Rect::of({0, 0}, {300, 900}));
   EXPECT_TRUE(
       layoutParagraph(fontContext, paragraph, greedyFlow).lineScores.empty());
 }
@@ -123,7 +123,7 @@ TEST(KnuthPlass, AJustifiedCjkBlockKeepsEveryColumnInsideTheMeasure) {
       u8"吾輩は猫である。名前はまだ無い。どこで生れたかとんと見当がつかぬ。"
       "何でも薄暗いじめじめした所でニャーニャー泣いていた事だけは記憶している"
       "。");
-  BlockFlow flow(SkRect::MakeWH(280, 600));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {280, 600}));
   ParagraphLayoutOptions options;
   options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
   options.alignment = TextAlignment::kJustify;

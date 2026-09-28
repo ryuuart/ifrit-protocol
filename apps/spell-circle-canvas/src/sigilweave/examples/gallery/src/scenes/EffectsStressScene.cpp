@@ -10,6 +10,7 @@
 #include <cmath>
 #include <string>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "TextFields.h"
 #include "EffectsParts.h"
 #include "SceneSupport.h"
@@ -80,7 +81,7 @@ class StressPart final : public Scene {
       options.alignment = TextAlignment::kJustify;
       options.lineBreakStrategy = LineBreakStrategy::kGreedy;
       options.lineMetrics.height = stressFontSize * 1.22f;
-      BlockFlow flow(textBounds);
+      BlockFlow flow(sigil::geometry::path::fromSk(textBounds));
       const sigil::measure::Stopwatch layoutTime;
       m_layout = layoutParagraph(fontContext, m_paragraph, flow, options);
       layoutMicroseconds = sigil::measure::Microseconds(layoutTime.elapsed()).count();

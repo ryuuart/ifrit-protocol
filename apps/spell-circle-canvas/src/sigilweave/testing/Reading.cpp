@@ -1,3 +1,4 @@
+#include "sigilweave/advanced/Skia.h"
 #include "sigilweave/testing/Reading.h"
 
 #include <sigilgeometry/advanced/Skia.h>
@@ -35,7 +36,7 @@ bool drawsItsWord(const Paragraph& paragraph, const PositionedRun& run) {
 /// Where a run starts and ends along the pen: x across a line, y down a
 /// column.
 std::pair<float, float> penSpan(const PositionedRun& run, bool columns) {
-  const float start = columns ? run.origin.y() : run.origin.x();
+  const float start = columns ? run.origin.y : run.origin.x;
   return {start, start + run.advance};
 }
 
@@ -57,7 +58,7 @@ Reading read(const Passage& passage) {
     RunReading& runReading = reading.runs.emplace_back();
     runReading.wordIndex = run.wordIndex;
     runReading.lineIndex = run.lineIndex;
-    runReading.origin = geometry::path::fromSk(run.origin);
+    runReading.origin = run.origin;
     runReading.advance = run.advance;
     runReading.glyphCount =
         run.shaped ? static_cast<uint32_t>(run.shaped->glyphs.size()) : 0u;
@@ -70,13 +71,13 @@ Reading read(const Passage& passage) {
 
   forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& placed) {
     reading.glyphs.push_back({.glyph = placed.glyph,
-                              .rest = geometry::path::fromSk(placed.rest),
+                              .rest = placed.rest,
                               .advance = placed.advance,
                               .textIndex = placed.textIndex,
                               .wordIndex = placed.wordIndex,
                               .lineIndex = placed.lineIndex,
                               .transformed = placed.transformed,
-                              .tangent = geometry::path::fromSk(placed.tangent)});
+                              .tangent = placed.tangent});
   });
 
   for (uint32_t wordIndex = 0; wordIndex < words.size(); ++wordIndex)
@@ -85,9 +86,9 @@ Reading read(const Passage& passage) {
 
   std::map<int, geometry::path::Rect> boxes;
   for (const LineMetrics& metrics : layout.lineMetrics(paragraph))
-    boxes[metrics.lineIndex] = geometry::path::fromSk(metrics.rect());
+    boxes[metrics.lineIndex] = metrics.rect();
   for (const ColumnMetrics& metrics : layout.columnMetrics(paragraph))
-    boxes[metrics.lineIndex] = geometry::path::fromSk(metrics.rect());
+    boxes[metrics.lineIndex] = metrics.rect();
 
   std::map<int, std::vector<LineScore>> scoresByLine;
   for (const LineScore& score : layout.lineScores)

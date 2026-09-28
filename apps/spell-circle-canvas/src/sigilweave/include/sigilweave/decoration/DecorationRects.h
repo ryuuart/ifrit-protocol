@@ -57,12 +57,12 @@ inline bool canDecorateRun(const PositionedRun& run) {
 /// The coordinate of the axis a run's band is measured from: its baseline
 /// along a line, its column axis down a column.
 inline float decorationAxisOf(const PositionedRun& run) {
-  return run.shaped->vertical ? run.origin.x() : run.origin.y();
+  return run.shaped->vertical ? run.origin.x : run.origin.y;
 }
 
 /// Where the run's pen enters, along its own axis of travel.
 inline float decorationEntryOf(const PositionedRun& run) {
-  return run.shaped->vertical ? run.origin.y() : run.origin.x();
+  return run.shaped->vertical ? run.origin.y : run.origin.x;
 }
 
 /// One band rectangle: `start`/`end` travel with the pen, `axis` names the
@@ -190,8 +190,8 @@ void forEachDecorationRect(const std::vector<PositionedRun>& runs,
         if (interceptCount < 2) continue;
         for (int pair = 0; pair + 1 < interceptCount; pair += 2) {
           const float inkStart =
-              run.origin.x() + intercepts[static_cast<size_t>(pair)] - standoff;
-          const float inkEnd = run.origin.x() +
+              run.origin.x + intercepts[static_cast<size_t>(pair)] - standoff;
+          const float inkEnd = run.origin.x +
                                intercepts[static_cast<size_t>(pair) + 1] +
                                standoff;
           if (inkStart > cursor)

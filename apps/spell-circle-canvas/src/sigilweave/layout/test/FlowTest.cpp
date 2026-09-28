@@ -14,6 +14,8 @@
 #include <numbers>
 #include <vector>
 
+#include "sigilgeometry/advanced/Skia.h"
+#include "sigilweave/advanced/Skia.h"
 #include "support/LayoutSupport.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
@@ -21,29 +23,29 @@ using namespace sigil::weave::test;
 // ── Flow geometry ─────────────────────────────────────────────────────────
 
 TEST(Flow, ABlockHandsOutOneFullWidthBandPerLineUntilItRunsOut) {
-  BlockFlow flow(SkRect::MakeXYWH(10, 20, 300, 100));
+  BlockFlow flow(sigil::geometry::path::Rect::of({10, 20}, {300, 100}));
   std::vector<LineInterval> out;
   ASSERT_TRUE(flow.lineIntervals(0, 20, 15, out));
   ASSERT_EQ(out.size(), 1u);
-  EXPECT_FLOAT_EQ(out[0].origin.x(), 10);
-  EXPECT_FLOAT_EQ(out[0].origin.y(), 35);  // top + ascent
+  EXPECT_FLOAT_EQ(out[0].origin.x, 10);
+  EXPECT_FLOAT_EQ(out[0].origin.y, 35);  // top + ascent
   EXPECT_FLOAT_EQ(out[0].length, 300);
   ASSERT_TRUE(flow.lineIntervals(4, 20, 15, out));  // last fitting line
   EXPECT_FALSE(flow.lineIntervals(5, 20, 15, out));
 }
 
 TEST(Flow, ExclusionSplitsLineAroundCircle) {
-  ExclusionFlow flow(SkRect::MakeWH(400, 200));
+  ExclusionFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 200}));
   flow.exclusions().push_back(
-      {flowshape::circle(SkRect::MakeXYWH(150, 50, 100, 100))});
+      {flowshape::circle(sigil::geometry::path::Rect::of({150, 50}, {100, 100}))});
 
   std::vector<LineInterval> out;
   // A band through the circle's center: two intervals around x∈[100, 300].
   ASSERT_TRUE(flow.lineIntervals(4, 20, 15, out));  // band y=[80,100]
   ASSERT_EQ(out.size(), 2u);
-  EXPECT_FLOAT_EQ(out[0].origin.x(), 0);
+  EXPECT_FLOAT_EQ(out[0].origin.x, 0);
   EXPECT_LE(out[0].length, 150.0f);
-  EXPECT_GE(out[1].origin.x(), 250.0f - 1.0f);
+  EXPECT_GE(out[1].origin.x, 250.0f - 1.0f);
 
   // A band fully above the circle: one full-width interval.
   ASSERT_TRUE(flow.lineIntervals(0, 20, 15, out));
@@ -52,9 +54,9 @@ TEST(Flow, ExclusionSplitsLineAroundCircle) {
 }
 
 TEST(Flow, ExclusionRectBlocksWholeBand) {
-  ExclusionFlow flow(SkRect::MakeWH(300, 100));
+  ExclusionFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 100}));
   flow.exclusions().push_back(
-      {flowshape::rectangle(SkRect::MakeXYWH(0, 30, 300, 20))});
+      {flowshape::rectangle(sigil::geometry::path::Rect::of({0, 30}, {300, 20}))});
   std::vector<LineInterval> out;
   ASSERT_TRUE(flow.lineIntervals(1, 25, 18, out));  // band [25,50] overlaps
   EXPECT_TRUE(out.empty());
@@ -87,7 +89,7 @@ TEST(Flow, PathExclusionRespectsFillRule) {
   // through the centre must block or stay open accordingly.
   const SkPoint center = {200, 150};
   auto centerIntervals = [&](SkPathFillType fillType) {
-    ExclusionFlow flow(SkRect::MakeWH(400, 300));
+    ExclusionFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 300}));
     flow.exclusions().push_back(
         {flowshape::path(pentagramPath(center, 100, fillType))});
     std::vector<LineInterval> out;
@@ -100,15 +102,15 @@ TEST(Flow, PathExclusionRespectsFillRule) {
       centerIntervals(SkPathFillType::kWinding);
   // Solid star: just the two stretches left and right of it.
   ASSERT_EQ(winding.size(), 2u);
-  EXPECT_LT(winding[0].origin.x() + winding[0].length, center.x() - 55);
-  EXPECT_GT(winding[1].origin.x(), center.x() + 55);
+  EXPECT_LT(winding[0].origin.x + winding[0].length, center.x() - 55);
+  EXPECT_GT(winding[1].origin.x, center.x() + 55);
 
   const std::vector<LineInterval> evenOdd =
       centerIntervals(SkPathFillType::kEvenOdd);
   // Hollow centre pentagon: a third interval opens up inside the star.
   ASSERT_EQ(evenOdd.size(), 3u);
-  EXPECT_GT(evenOdd[1].origin.x(), center.x() - 40);
-  EXPECT_LT(evenOdd[1].origin.x() + evenOdd[1].length, center.x() + 40);
+  EXPECT_GT(evenOdd[1].origin.x, center.x() - 40);
+  EXPECT_LT(evenOdd[1].origin.x + evenOdd[1].length, center.x() + 40);
 }
 
 TEST(Flow, CompoundPathKeepsHoleAvailable) {
@@ -118,14 +120,14 @@ TEST(Flow, CompoundPathKeepsHoleAvailable) {
   builder.addCircle(200, 150, 50);
   builder.setFillType(SkPathFillType::kEvenOdd);
 
-  ExclusionFlow flow(SkRect::MakeWH(400, 300));
+  ExclusionFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 300}));
   flow.exclusions().push_back({flowshape::path(builder.detach())});
   std::vector<LineInterval> out;
   ASSERT_TRUE(flow.lineIntervals(14, 10, 8, out));  // band [140, 150]
   ASSERT_EQ(out.size(), 3u);
   // Middle interval sits inside the hole (|x - 200| < 50 at this height).
-  EXPECT_GT(out[1].origin.x(), 145.0f);
-  EXPECT_LT(out[1].origin.x() + out[1].length, 255.0f);
+  EXPECT_GT(out[1].origin.x, 145.0f);
+  EXPECT_LT(out[1].origin.x + out[1].length, 255.0f);
   EXPECT_GT(out[1].length, 60.0f);
 }
 
@@ -139,19 +141,19 @@ TEST(Flow, PathExclusionTipsBetweenScanlinesStillBlock) {
   builder.lineTo(300, 111);
   builder.close();
 
-  ExclusionFlow flow(SkRect::MakeWH(400, 300));
+  ExclusionFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 300}));
   flow.exclusions().push_back({flowshape::path(builder.detach())});
   std::vector<LineInterval> out;
   ASSERT_TRUE(flow.lineIntervals(10, 10, 8, out));  // band [100, 110]
   ASSERT_FALSE(out.empty());
   // Nothing may be placed across the tip: the first interval ends at or
   // before x=100.
-  EXPECT_LE(out[0].origin.x() + out[0].length, 100.0f + 0.5f);
+  EXPECT_LE(out[0].origin.x + out[0].length, 100.0f + 0.5f);
 }
 
 TEST(Flow, PathExclusionOffsetMovesWithoutReflatten) {
   SkPath star = pentagramPath({200, 150}, 100, SkPathFillType::kWinding);
-  ExclusionFlow flow(SkRect::MakeWH(800, 300));
+  ExclusionFlow flow(sigil::geometry::path::Rect::of({0, 0}, {800, 300}));
   flow.exclusions().push_back({flowshape::path(star)});
 
   std::vector<LineInterval> at0, at300;
@@ -163,13 +165,13 @@ TEST(Flow, PathExclusionOffsetMovesWithoutReflatten) {
     // Interval edges bordering the star shift by exactly the offset; the
     // flow-rect edges stay put.
     const float end0 =
-        at0[intervalIndex].origin.x() + at0[intervalIndex].length;
+        at0[intervalIndex].origin.x + at0[intervalIndex].length;
     const float end300 =
-        at300[intervalIndex].origin.x() + at300[intervalIndex].length;
-    EXPECT_TRUE(at300[intervalIndex].origin.x() ==
-                    at0[intervalIndex].origin.x() ||
-                std::abs(at300[intervalIndex].origin.x() -
-                         (at0[intervalIndex].origin.x() + 300)) < 0.01f);
+        at300[intervalIndex].origin.x + at300[intervalIndex].length;
+    EXPECT_TRUE(at300[intervalIndex].origin.x ==
+                    at0[intervalIndex].origin.x ||
+                std::abs(at300[intervalIndex].origin.x -
+                         (at0[intervalIndex].origin.x + 300)) < 0.01f);
     EXPECT_TRUE(end300 == end0 || std::abs(end300 - (end0 + 300)) < 0.01f);
   }
 }
@@ -208,15 +210,14 @@ TEST_P(ExcludedFlow, NoRunEverSitsInsideAnExclusionShape) {
   // a second interval on a band, and one where the donut and the circle
   // overlap, which splits more bands than either shape does alone.
   for (int phase : {3, 4}) {
-    ExclusionFlow flow(SkRect::MakeWH(760, 900));
+    ExclusionFlow flow(sigil::geometry::path::Rect::of({0, 0}, {760, 900}));
     flow.exclusions().push_back(
         {flowshape::path(donutPath),
          8,
          {60.0f * std::sin(static_cast<float>(phase) * 1.1f),
           70.0f * std::cos(static_cast<float>(phase) * 0.7f)}});
     flow.exclusions().push_back(
-        {flowshape::circle(SkRect::MakeXYWH(
-             80.0f + 20.0f * static_cast<float>(phase), 480, 180, 180)),
+        {flowshape::circle(sigil::geometry::path::Rect::of({80.0f + 20.0f * static_cast<float>(phase), 480}, {180, 180})),
          8});
 
     ParagraphLayoutOptions options;
@@ -257,7 +258,7 @@ std::vector<std::pair<float, float>> penSpans(FlowGeometry& flow, int index,
   std::vector<std::pair<float, float>> spans;
   if (!flow.lineIntervals(index, pitch, ascent, intervals)) return spans;
   for (const LineInterval& interval : intervals) {
-    const float start = columns ? interval.origin.y() : interval.origin.x();
+    const float start = columns ? interval.origin.y : interval.origin.x;
     spans.emplace_back(start, start + interval.length);
   }
   return spans;
@@ -281,11 +282,11 @@ TEST(Flow, AnExclusionCutsAColumnExactlyAsItCutsALine) {
   constexpr float kAlong = 400, kAcross = 200, kPitch = 20, kAscent = 15;
   const SkRect shape = SkRect::MakeXYWH(150, 50, 100, 60);
 
-  ExclusionFlow lines(SkRect::MakeWH(kAlong, kAcross));
-  lines.exclusions().push_back({flowshape::rectangle(shape), 4});
-  ExclusionFlow columns(SkRect::MakeWH(kAcross, kAlong), FlowAxis::kColumns);
+  ExclusionFlow lines(sigil::geometry::path::Rect::of({0, 0}, {kAlong, kAcross}));
+  lines.exclusions().push_back({flowshape::rectangle(sigil::geometry::path::fromSk(shape)), 4});
+  ExclusionFlow columns(sigil::geometry::path::Rect::of({0, 0}, {kAcross, kAlong}), FlowAxis::kColumns);
   columns.exclusions().push_back(
-      {flowshape::rectangle(turned(shape, kAcross)), 4});
+      {flowshape::rectangle(sigil::geometry::path::fromSk(turned(shape, kAcross))), 4});
 
   bool sawASplit = false;
   for (int index = 0; index < 12; ++index) {
@@ -306,22 +307,22 @@ TEST(Flow, AnExclusionCutsAColumnExactlyAsItCutsALine) {
 TEST(Flow, AnExclusionShortensTheColumnItCrosses) {
   // The column's own reading of it: a shape over the head of a column
   // moves the pen down past it, and the column beside it runs clean.
-  ExclusionFlow flow(SkRect::MakeWH(200, 300), FlowAxis::kColumns);
+  ExclusionFlow flow(sigil::geometry::path::Rect::of({0, 0}, {200, 300}), FlowAxis::kColumns);
   flow.exclusions().push_back(
-      {flowshape::rectangle(SkRect::MakeXYWH(160, 0, 40, 120))});
+      {flowshape::rectangle(sigil::geometry::path::Rect::of({160, 0}, {40, 120}))});
 
   std::vector<LineInterval> out;
   ASSERT_TRUE(flow.lineIntervals(0, 20, 0, out));  // column x ∈ [180, 200]
   ASSERT_EQ(out.size(), 1u);
-  EXPECT_FLOAT_EQ(out[0].origin.x(), 190) << "the column's central axis";
-  EXPECT_FLOAT_EQ(out[0].direction.x(), 0);
-  EXPECT_FLOAT_EQ(out[0].direction.y(), 1);
-  EXPECT_FLOAT_EQ(out[0].origin.y(), 120) << "the pen starts below the shape";
+  EXPECT_FLOAT_EQ(out[0].origin.x, 190) << "the column's central axis";
+  EXPECT_FLOAT_EQ(out[0].direction.x, 0);
+  EXPECT_FLOAT_EQ(out[0].direction.y, 1);
+  EXPECT_FLOAT_EQ(out[0].origin.y, 120) << "the pen starts below the shape";
   EXPECT_FLOAT_EQ(out[0].length, 180);
 
   ASSERT_TRUE(flow.lineIntervals(2, 20, 0, out));  // clear of the shape
   ASSERT_EQ(out.size(), 1u);
-  EXPECT_FLOAT_EQ(out[0].origin.y(), 0);
+  EXPECT_FLOAT_EQ(out[0].origin.y, 0);
   EXPECT_FLOAT_EQ(out[0].length, 300);
 
   // Columns run out at the left edge, exactly as lines run out at the
@@ -338,22 +339,22 @@ TEST(Flow, AFlowShapeSplitsAColumn) {
   builder.addCircle(150, 200, 50);
   builder.setFillType(SkPathFillType::kEvenOdd);
 
-  ExclusionFlow flow(SkRect::MakeWH(300, 400), FlowAxis::kColumns);
+  ExclusionFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 400}), FlowAxis::kColumns);
   flow.exclusions().push_back({flowshape::path(builder.detach())});
 
   std::vector<LineInterval> out;
   ASSERT_TRUE(flow.lineIntervals(7, 20, 0, out));  // column x ∈ [140, 160]
   ASSERT_EQ(out.size(), 3u);
   for (const LineInterval& interval : out) {
-    EXPECT_FLOAT_EQ(interval.origin.x(), 150) << "all three on one axis";
-    EXPECT_FLOAT_EQ(interval.direction.y(), 1);
+    EXPECT_FLOAT_EQ(interval.origin.x, 150) << "all three on one axis";
+    EXPECT_FLOAT_EQ(interval.direction.y, 1);
   }
-  EXPECT_FLOAT_EQ(out[0].origin.y(), 0);
+  EXPECT_FLOAT_EQ(out[0].origin.y, 0);
   EXPECT_LT(out[0].length, 105.0f) << "the head stops above the ring";
-  EXPECT_GT(out[1].origin.y(), 145.0f) << "the middle one is the hole";
-  EXPECT_LT(out[1].origin.y() + out[1].length, 255.0f);
-  EXPECT_GT(out[2].origin.y(), 295.0f) << "the foot resumes below the ring";
-  EXPECT_FLOAT_EQ(out[2].origin.y() + out[2].length, 400.0f);
+  EXPECT_GT(out[1].origin.y, 145.0f) << "the middle one is the hole";
+  EXPECT_LT(out[1].origin.y + out[1].length, 255.0f);
+  EXPECT_GT(out[2].origin.y, 295.0f) << "the foot resumes below the ring";
+  EXPECT_FLOAT_EQ(out[2].origin.y + out[2].length, 400.0f);
 
   // A column clear of the donut runs the whole height.
   ASSERT_TRUE(flow.lineIntervals(0, 20, 0, out));
@@ -364,9 +365,9 @@ TEST(Flow, AFlowShapeSplitsAColumn) {
 TEST(Flow, AnExclusionWiderThanTheFrameLeavesTheBandWithNothing) {
   // The band is handed out — the flow has not run out of room — and every
   // interval on it is gone, which is a different answer from "no band".
-  ExclusionFlow flow(SkRect::MakeWH(300, 200));
+  ExclusionFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 200}));
   flow.exclusions().push_back(
-      {flowshape::rectangle(SkRect::MakeXYWH(-500, 40, 1300, 40)), 10});
+      {flowshape::rectangle(sigil::geometry::path::Rect::of({-500, 40}, {1300, 40})), 10});
 
   std::vector<LineInterval> out;
   ASSERT_TRUE(flow.lineIntervals(2, 20, 15, out));  // band [40, 60]
@@ -391,14 +392,14 @@ TEST(Flow, AnImagesAlphaIsReadTheColumnsWayToo) {
 
   // Ink over the top half of a 200-tall box, read as columns: every
   // column starts below it.
-  ExclusionFlow columns(SkRect::MakeWH(200, 400), FlowAxis::kColumns);
+  ExclusionFlow columns(sigil::geometry::path::Rect::of({0, 0}, {200, 400}), FlowAxis::kColumns);
   columns.exclusions().push_back(
-      {flowshape::coverage(half, SkRect::MakeXYWH(0, 0, 200, 200), 0.5f)});
+      {flowshape::coverage(half, sigil::geometry::path::Rect::of({0, 0}, {200, 200}), 0.5f)});
 
   std::vector<LineInterval> out;
   ASSERT_TRUE(columns.lineIntervals(2, 20, 0, out));
   ASSERT_EQ(out.size(), 1u);
-  EXPECT_FLOAT_EQ(out[0].direction.y(), 1);
-  EXPECT_NEAR(out[0].origin.y(), 100.0f, 2.0f) << "the ink ends halfway down";
+  EXPECT_FLOAT_EQ(out[0].direction.y, 1);
+  EXPECT_NEAR(out[0].origin.y, 100.0f, 2.0f) << "the ink ends halfway down";
   EXPECT_NEAR(out[0].length, 300.0f, 2.0f);
 }

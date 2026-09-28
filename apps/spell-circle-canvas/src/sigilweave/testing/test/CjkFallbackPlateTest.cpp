@@ -96,7 +96,7 @@ TEST(WeavePlates, CjkFallbackDrawsItsBaseline) {
       Paragraph paragraph;
       paragraph.appendText(row.text, style);
       BlockFlow flow(
-          SkRect::MakeXYWH(left, top, kColumnWidth, kRowHeight - 12));
+          sigil::geometry::path::Rect::of({left, top}, {kColumnWidth, kRowHeight - 12}));
       const weave::testing::Passage passage =
           weave::testing::lay(fonts, std::move(paragraph), flow);
       EXPECT_TRUE(fellBack(passage.paragraph, **primary)) << row.languageTag;

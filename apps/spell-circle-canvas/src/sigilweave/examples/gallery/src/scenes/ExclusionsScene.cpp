@@ -7,6 +7,7 @@
 
 #include <cmath>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
 
@@ -51,7 +52,7 @@ class ExclusionsScene final : public Scene {
     const float canvasHeight = size.height();
     const float fontSize = parameters.fontSize;
     ExclusionFlow flow(
-        SkRect::MakeXYWH(28, 24, canvasWidth - 56, canvasHeight - 48));
+        sigil::geometry::path::Rect::of({28, 24}, {canvasWidth - 56, canvasHeight - 48}));
 
     const float circleRadius = std::min(canvasWidth, canvasHeight) * 0.13f;
     const SkPoint circleCenter = {
@@ -62,9 +63,7 @@ class ExclusionsScene final : public Scene {
             canvasHeight * 0.24f *
                 std::sin(static_cast<float>(elapsedSeconds) * 0.53f)};
     flow.exclusions().push_back(
-        {flowshape::circle(SkRect::MakeXYWH(
-             circleCenter.x() - circleRadius, circleCenter.y() - circleRadius,
-             2 * circleRadius, 2 * circleRadius)),
+        {flowshape::circle(sigil::geometry::path::Rect::of({circleCenter.x() - circleRadius, circleCenter.y() - circleRadius}, {2 * circleRadius, 2 * circleRadius})),
          fontSize * 0.5f});
 
     const SkPath& donutPath = m_donut.ensure({size}, [&] {
@@ -89,7 +88,7 @@ class ExclusionsScene final : public Scene {
             canvasHeight * 0.1f *
                 std::sin(static_cast<float>(elapsedSeconds) * 0.7f)};
     flow.exclusions().push_back(
-        {flowshape::path(spiky), fontSize * 0.4f, starOffset});
+        {flowshape::path(sigil::geometry::path::fromSk(spiky)), fontSize * 0.4f, sigil::geometry::path::fromSk(starOffset)});
     // The donut drifts too: an exclusion's offset is rigid motion, so its
     // flow shape answers from what it already measured and every frame is
     // still a full live relayout around it.
@@ -99,7 +98,7 @@ class ExclusionsScene final : public Scene {
         canvasHeight * 0.06f *
             std::cos(static_cast<float>(elapsedSeconds) * 0.45f)};
     flow.exclusions().push_back(
-        {flowshape::path(donutPath), fontSize * 0.4f, donutOffset});
+        {flowshape::path(sigil::geometry::path::fromSk(donutPath)), fontSize * 0.4f, sigil::geometry::path::fromSk(donutOffset)});
     flow.setMinimumIntervalWidth(fontSize * 3);
 
     ParagraphLayoutOptions options;

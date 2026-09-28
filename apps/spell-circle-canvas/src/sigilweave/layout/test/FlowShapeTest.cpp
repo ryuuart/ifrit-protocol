@@ -13,6 +13,8 @@
 #include <cmath>
 #include <vector>
 
+#include "sigilgeometry/advanced/Skia.h"
+#include "sigilweave/advanced/Skia.h"
 #include "support/LayoutSupport.h"
 
 using namespace sigil::weave;
@@ -38,7 +40,7 @@ float freeEndAt(ExclusionFlow& flow, int index, float pitch) {
   std::vector<LineInterval> out;
   if (!flow.lineIntervals(index, pitch, pitch * 0.8f, out) || out.empty())
     return -1;
-  return out.front().origin.x() + out.front().length;
+  return out.front().origin.x + out.front().length;
 }
 
 /// An image whose alpha ramps left to right across `width`, so the column
@@ -65,9 +67,9 @@ TEST(FlowShape, AMarginOnADiagonalEdgeIsTheDistanceItAsksForAndNotItsDiagonal) {
   constexpr float kPitch = 4;
   constexpr int kBand = 25;  // the band [100, 104]
 
-  ExclusionFlow bare(SkRect::MakeWH(kSide, kSide));
+  ExclusionFlow bare(sigil::geometry::path::Rect::of({0, 0}, {kSide, kSide}));
   bare.exclusions().push_back({flowshape::path(diagonalHalfPlane())});
-  ExclusionFlow stood(SkRect::MakeWH(kSide, kSide));
+  ExclusionFlow stood(sigil::geometry::path::Rect::of({0, 0}, {kSide, kSide}));
   stood.exclusions().push_back({flowshape::path(diagonalHalfPlane()), kMargin});
 
   const float bareEnd = freeEndAt(bare, kBand, kPitch);
@@ -91,8 +93,8 @@ TEST(FlowShape, AMarginOnADiagonalEdgeIsTheDistanceItAsksForAndNotItsDiagonal) {
 TEST(FlowShape, ARectanglesCornerIsRoundedByItsMargin) {
   constexpr float kMargin = 30;
   const SkRect block = SkRect::MakeXYWH(200, 100, 100, 100);
-  ExclusionFlow flow(SkRect::MakeWH(kSide, kSide));
-  flow.exclusions().push_back({flowshape::rectangle(block), kMargin});
+  ExclusionFlow flow(sigil::geometry::path::Rect::of({0, 0}, {kSide, kSide}));
+  flow.exclusions().push_back({flowshape::rectangle(sigil::geometry::path::fromSk(block)), kMargin});
 
   std::vector<LineInterval> out;
   // A band level with the rectangle: the whole margin stands beside it.
@@ -114,8 +116,8 @@ TEST(FlowShape, ASoftAlphaEdgeAdmitsWordsUpToTheTolerance) {
   const SkRect box = SkRect::MakeXYWH(0, 0, 100, 100);
 
   const auto freeEndAtThreshold = [&](float threshold) {
-    ExclusionFlow flow(SkRect::MakeWH(200, 100));
-    flow.exclusions().push_back({flowshape::coverage(ramp, box, threshold)});
+    ExclusionFlow flow(sigil::geometry::path::Rect::of({0, 0}, {200, 100}));
+    flow.exclusions().push_back({flowshape::coverage(ramp, sigil::geometry::path::fromSk(box), threshold)});
     return freeEndAt(flow, 10, 4);
   };
 
@@ -127,7 +129,7 @@ TEST(FlowShape, ASoftAlphaEdgeAdmitsWordsUpToTheTolerance) {
 }
 
 TEST(FlowShape, AMovingShapeIsAnsweredWhereItStandsThisPass) {
-  ExclusionFlow flow(SkRect::MakeWH(kSide, kSide));
+  ExclusionFlow flow(sigil::geometry::path::Rect::of({0, 0}, {kSide, kSide}));
   flow.exclusions().push_back({flowshape::path(diagonalHalfPlane()), 8});
 
   const float atRest = freeEndAt(flow, 25, 4);
@@ -154,12 +156,10 @@ TEST(FlowShape, ACirclesMarginIsExactHoweverLargeTheCircleIs) {
   SkPathBuilder round;
   round.addCircle(centre.x(), centre.y(), kRadius);
 
-  ExclusionFlow exact(SkRect::MakeWH(kFrame, kFrame));
-  exact.exclusions().push_back({flowshape::circle(SkRect::MakeXYWH(
-                                    centre.x() - kRadius, centre.y() - kRadius,
-                                    kRadius * 2, kRadius * 2)),
+  ExclusionFlow exact(sigil::geometry::path::Rect::of({0, 0}, {kFrame, kFrame}));
+  exact.exclusions().push_back({flowshape::circle(sigil::geometry::path::Rect::of({centre.x() - kRadius, centre.y() - kRadius}, {kRadius * 2, kRadius * 2})),
                                 kMargin});
-  ExclusionFlow drawn(SkRect::MakeWH(kFrame, kFrame));
+  ExclusionFlow drawn(sigil::geometry::path::Rect::of({0, 0}, {kFrame, kFrame}));
   drawn.exclusions().push_back({flowshape::path(round.detach()), kMargin});
 
   constexpr float kPitch = 40;
@@ -177,8 +177,8 @@ TEST(FlowShape, AnOvalGrowsByTheMarginOnBothOfItsAxes) {
   // Both have to grow by exactly the margin.
   constexpr float kMargin = 25;
   const SkRect oval = SkRect::MakeXYWH(100, 200, 400, 100);
-  ExclusionFlow flow(SkRect::MakeWH(800, 600));
-  flow.exclusions().push_back({flowshape::ellipse(oval), kMargin});
+  ExclusionFlow flow(sigil::geometry::path::Rect::of({0, 0}, {800, 600}));
+  flow.exclusions().push_back({flowshape::ellipse(sigil::geometry::path::fromSk(oval)), kMargin});
 
   std::vector<LineInterval> out;
   // The band through the oval's middle: the free room ahead of it is the
@@ -202,12 +202,12 @@ TEST(FlowShape, AnOvalGrowsByTheMarginOnBothOfItsAxes) {
 TEST(FlowShape, ARectanglesFlatSideStandsOffByExactlyTheMargin) {
   constexpr float kMargin = 18;
   const SkRect block = SkRect::MakeXYWH(240, 100, 80, 120);
-  ExclusionFlow flow(SkRect::MakeWH(kSide, kSide));
-  flow.exclusions().push_back({flowshape::rectangle(block), kMargin});
+  ExclusionFlow flow(sigil::geometry::path::Rect::of({0, 0}, {kSide, kSide}));
+  flow.exclusions().push_back({flowshape::rectangle(sigil::geometry::path::fromSk(block)), kMargin});
 
   std::vector<LineInterval> out;
   ASSERT_TRUE(flow.lineIntervals(30, 5, 4, out));  // band [150, 155]
   ASSERT_EQ(out.size(), 2u);
   EXPECT_FLOAT_EQ(out.front().length, block.left() - kMargin);
-  EXPECT_FLOAT_EQ(out.back().origin.x(), block.right() + kMargin);
+  EXPECT_FLOAT_EQ(out.back().origin.x, block.right() + kMargin);
 }

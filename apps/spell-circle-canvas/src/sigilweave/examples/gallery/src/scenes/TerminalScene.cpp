@@ -35,6 +35,7 @@
 #include <cstdint>
 #include <vector>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
 
@@ -109,7 +110,7 @@ class TerminalScene final : public Scene {
     m_layoutGuard.ensure(
         paragraph, {size, parameters.lineBreakStrategy, parameters.fontSize},
         [&] {
-          BlockFlow flow(box);
+          BlockFlow flow(sigil::geometry::path::fromSk(box));
           ParagraphLayoutOptions options;
           options.alignment = TextAlignment::kStart;
           options.lineBreakStrategy = parameters.lineBreakStrategy;
@@ -188,7 +189,7 @@ class TerminalScene final : public Scene {
       for (size_t glyph = 0; glyph < shaped.glyphs.size(); ++glyph) {
         const uint32_t index = glyphIndex++;
         revealAt += 0.55 + 1.1 * hash01(index * 2654435761u + 17);
-        const SkPoint rest = run.origin + shaped.positions[glyph];
+        const SkPoint rest = sigil::geometry::path::toSk(run.origin) + shaped.positions[glyph];
         if (!cursorPlaced) {  // first glyph anchors the cursor pre-typing
           cursorPen = rest;
           cursorFontSize = shaped.fontSize;

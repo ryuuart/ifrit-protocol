@@ -91,7 +91,7 @@ std::vector<float> columnAxes(const sigil::weave::ParagraphLayout& layout) {
   for (const sigil::weave::PositionedRun& run : layout.runs) {
     if (run.lineIndex == seen || run.transformed) continue;
     seen = run.lineIndex;
-    axes.push_back(run.origin.x());
+    axes.push_back(run.origin.x);
   }
   return axes;
 }
@@ -121,8 +121,8 @@ TEST(TextVertical, ColumnsRunTopToBottomAndAdvanceRightToLeft) {
   float previous = -1e9f;
   for (const sigil::weave::PositionedRun& run : layout->runs) {
     if (run.lineIndex != 0 || run.transformed) continue;
-    EXPECT_GT(run.origin.y(), previous);
-    previous = run.origin.y();
+    EXPECT_GT(run.origin.y, previous);
+    previous = run.origin.y;
   }
 
   // And the first column is the RIGHTMOST ink on the canvas: text starts at
@@ -236,7 +236,7 @@ TEST(TextVertical, APaintSpanRecolorsAColumnWithoutReshaping) {
     return out;
   };
   const auto originsOf = [&] {
-    std::vector<SkPoint> out;
+    std::vector<glm::vec2> out;
     const auto* layout = host.composer.paragraphLayout("t");
     if (!layout) return out;
     for (const sigil::weave::PositionedRun& run : layout->runs)
@@ -259,7 +259,7 @@ TEST(TextVertical, APaintSpanRecolorsAColumnWithoutReshaping) {
   host.composer.render(describe(false));
   host.frame();
   const std::vector<const void*> shapesBefore = shapesOf();
-  const std::vector<SkPoint> originsBefore = originsOf();
+  const std::vector<glm::vec2> originsBefore = originsOf();
   ASSERT_FALSE(shapesBefore.empty());
 
   host.composer.render(describe(true));
@@ -593,7 +593,7 @@ TEST(TextVertical, ASizeSpanReshapesOnlyTheRunItNames) {
   host.frame();
   const auto* plain = host.composer.paragraphLayout("t");
   ASSERT_NE(plain, nullptr);
-  const float plainExtent = plain->runs.back().origin.y();
+  const float plainExtent = plain->runs.back().origin.y;
 
   host.composer.render(describe(true));
   host.frame();
@@ -603,7 +603,7 @@ TEST(TextVertical, ASizeSpanReshapesOnlyTheRunItNames) {
   for (const sigil::weave::PositionedRun& run : dressed->runs)
     if (run.shaped && run.shaped->fontSize > 30.0f) sawBigger = true;
   EXPECT_TRUE(sawBigger) << "the named run kept the size it was set at";
-  EXPECT_GT(dressed->runs.back().origin.y(), plainExtent)
+  EXPECT_GT(dressed->runs.back().origin.y, plainExtent)
       << "a taller run must push the pen further down the column";
 }
 
@@ -676,7 +676,7 @@ TEST(TextVertical, ABandStandsAtRestUnderATrack) {
   const auto* layout = host.composer.paragraphLayout("t");
   ASSERT_NE(layout, nullptr);
   ASSERT_FALSE(layout->runs.empty());
-  const float axis = layout->runs.front().origin.x();
+  const float axis = layout->runs.front().origin.x;
 
   // Every pixel the band painted, as a box: red ink, well clear of the
   // white glyphs.
@@ -756,7 +756,7 @@ TEST(TextVertical, ASidelineCanTakeTheOtherSideOfTheColumn) {
   const auto redSpread = [&] {
     int count = 0, leftOfAxis = 0, rightOfAxis = 0;
     const auto* layout = host.composer.paragraphLayout("t");
-    const float axis = layout->runs.front().origin.x();
+    const float axis = layout->runs.front().origin.x;
     for (int y = 0; y < 260; ++y)
       for (int x = 0; x < 240; ++x) {
         const SkColor c = host.pixel(x, y);

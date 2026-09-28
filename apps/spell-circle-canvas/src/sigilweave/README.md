@@ -17,7 +17,7 @@ Nothing important is sealed inside an opaque paragraph object.
 **A line of text is not a rectangle.** Layout consumes an ordered list of
 line *intervals*, supplied one line at a time by a geometry interface you
 can implement. An interval is a straight segment in any direction, or a span
-of an `SkPath` contour. So the same engine fills a block, flows around
+of an outline's contour. So the same engine fills a block, flows around
 arbitrary excluded shapes, runs down vertical CJK columns, or rides the
 tangent of a Bezier curve — and none of those is a special mode inside the
 breaker.
@@ -63,7 +63,7 @@ Paragraph paragraph = builder.build();
 // A rectangle with shapes punched out of it. They are cheap to move:
 // geometry is re-queried on every layout pass, and an offset costs a
 // flow shape nothing.
-ExclusionFlow flow(SkRect::MakeWH(900, 700));
+ExclusionFlow flow(sigil::geometry::path::Rect::of({0, 0}, {900, 700}));
 flow.exclusions().push_back({flowshape::circle(circleBounds), 8});
 flow.exclusions().push_back({flowshape::path(anyPath), 8});
 flow.exclusions().push_back({flowshape::coverage(photo, photoBox, 0.35f), 8});
@@ -511,7 +511,7 @@ it expects rather than walking runs itself:
 #include <sigilweave/testing/Plate.h>
 #include <sigilweave/testing/Reading.h>
 
-sigil::weave::BlockFlow flow(SkRect::MakeWH(70, 400));
+sigil::weave::BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {70, 400}));
 sigil::weave::ParagraphLayoutOptions options;
 options.alignment = sigil::weave::TextAlignment::kJustify;
 const sigil::weave::testing::Passage passage = sigil::weave::testing::lay(

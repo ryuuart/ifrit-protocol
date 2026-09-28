@@ -39,7 +39,7 @@ TEST(KitOrnament, AnOrnamentKeepsItsSilhouetteAsTheOpeningExclusion) {
     float start = 10000;
     for (const weave::PositionedRun& run :
          host.composer.paragraphLayout("body")->runs)
-      if (run.lineIndex == 0) start = std::min(start, run.origin.x());
+      if (run.lineIndex == 0) start = std::min(start, run.origin.x);
     return start;
   };
   EXPECT_LT(firstLineStart(round), firstLineStart(boxed));

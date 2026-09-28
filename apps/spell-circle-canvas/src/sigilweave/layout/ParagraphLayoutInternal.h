@@ -197,7 +197,7 @@ class IntervalSequence {
     LineInterval& first = intervals.front();
     if (near != 0 && !first.contour.valid()) {
       first.origin +=
-          SkVector{first.direction.x() * near, first.direction.y() * near};
+          glm::vec2{first.direction.x * near, first.direction.y * near};
       first.length = std::max(0.0f, first.length - near);
     }
     LineInterval& last = intervals.back();

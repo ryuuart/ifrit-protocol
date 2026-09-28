@@ -44,8 +44,7 @@ class SlotsScene final : public Scene {
 
     const float canvasWidth = size.width();
     const float canvasHeight = size.height();
-    BlockFlow flow(SkRect::MakeXYWH(canvasWidth * 0.1f, 44, canvasWidth * 0.8f,
-                                    canvasHeight - 90));
+    BlockFlow flow(sigil::geometry::path::Rect::of({canvasWidth * 0.1f, 44}, {canvasWidth * 0.8f, canvasHeight - 90}));
     ParagraphLayoutOptions options;
     options.alignment = parameters.alignment;
     options.lineBreakStrategy = parameters.lineBreakStrategy;

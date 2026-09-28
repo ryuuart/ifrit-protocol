@@ -660,8 +660,8 @@ void placeBreaks(FontContext& fontContext, Paragraph& paragraph,
         !placed.interval.contour.valid()) {
       const float indent = block.style.indent.lastLine;
       placed.interval.origin +=
-          SkVector{placed.interval.direction.x() * indent,
-                   placed.interval.direction.y() * indent};
+          glm::vec2{placed.interval.direction.x * indent,
+                   placed.interval.direction.y * indent};
       placed.interval.length = std::max(0.0f, placed.interval.length - indent);
     }
     placeWords(fontContext, paragraph, firstWordIndex, lastWordIndex, placed,

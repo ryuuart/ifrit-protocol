@@ -191,7 +191,7 @@ TEST(Query, PaintOnlyRestyleSkipsReanalysis) {
   FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(
       u8"the quick brown fox jumps over the lazy dog again and again");
-  BlockFlow flow(SkRect::MakeWH(300, 200));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 200}));
   ParagraphLayout before = layoutParagraph(fontContext, paragraph, flow);
   const uint32_t shapedBefore = paragraph.shapedWordCount();
 
@@ -208,10 +208,10 @@ TEST(Query, PaintOnlyRestyleSkipsReanalysis) {
   EXPECT_EQ(paragraph.shapedWordCount(), shapedBefore);
   ASSERT_EQ(after.runs.size(), before.runs.size());
   for (size_t runIndex = 0; runIndex < after.runs.size(); ++runIndex) {
-    EXPECT_EQ(after.runs[runIndex].origin.x(),
-              before.runs[runIndex].origin.x());
-    EXPECT_EQ(after.runs[runIndex].origin.y(),
-              before.runs[runIndex].origin.y());
+    EXPECT_EQ(after.runs[runIndex].origin.x,
+              before.runs[runIndex].origin.x);
+    EXPECT_EQ(after.runs[runIndex].origin.y,
+              before.runs[runIndex].origin.y);
   }
   // And the marked words resolve to the new paint through their runs.
   int redRuns = 0;

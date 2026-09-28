@@ -96,7 +96,7 @@ struct GlyphRSXformBatches {
    * @trap Quantize a continuously driven alpha: distinct alphas are
    * distinct buckets. */
   void addGlyph(const ShapedWord* font, const PaintStyle& style,
-                SkGlyphID glyph, float halfAdvance, SkPoint centerPosition,
+                SkGlyphID glyph, float halfAdvance, glm::vec2 centerPosition,
                 float cosine = 1, float sine = 0, float alphaScale = 1.0f) {
     addGlyph(font, style, glyph, halfAdvance,
              GlyphDress{.center = centerPosition,
@@ -118,7 +118,7 @@ struct GlyphRSXformBatches {
    * and span paint from the walk. The ergonomic pairing with
    * forEachPlacedGlyph.
    */
-  void addGlyph(const PlacedGlyph& placed, SkPoint centerPosition,
+  void addGlyph(const PlacedGlyph& placed, glm::vec2 centerPosition,
                 float cosine = 1, float sine = 0, float alphaScale = 1.0f) {
     addGlyph(placed.shaped, *placed.paint, placed.glyph, placed.advance * 0.5f,
              centerPosition, cosine, sine, alphaScale);

@@ -23,6 +23,7 @@
 #include <utility>
 #include <vector>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "TextFields.h"
 #include "GlyphCanvas.h"
 #include "support/Faces.h"
@@ -69,7 +70,7 @@ TEST_P(FittedPaint, BatchedDrawingKeepsThePositionsAndScaleOfTheFittedBlobs) {
   options.blocks = {
       {.alignment = TextAlignment::kJustify, .justification = fit},
       {.alignment = TextAlignment::kStart}};
-  BlockFlow flow(SkRect::MakeWH(200, 100));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {200, 100}));
   const ParagraphLayout layout =
       layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
   ASSERT_EQ(layout.runs.size(), 2u);
@@ -103,7 +104,7 @@ INSTANTIATE_TEST_SUITE_P(Justification, FittedPaint,
 TEST(PaintPasses, ShadowAndShaderDrawWithoutRelayout) {
   FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"effects are paint-only");
-  BlockFlow flow(SkRect::MakeWH(400, 100));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 100}));
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
 
   PaintStyle fancy(SK_ColorWHITE);
@@ -134,7 +135,7 @@ TEST(PaintPasses, APassWhoseColourIsTransparentDrawsInTheForegrounds) {
   // stays black.
   FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"halo");
-  BlockFlow flow(SkRect::MakeWH(200, 60));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {200, 60}));
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
   const auto inkOf = [&](SkColor layerColour) {
     PaintStyle style(SK_ColorRED);
@@ -172,7 +173,7 @@ TEST(PaintPasses, ASelectionBandBehindALineCoversItsInterior) {
   Paragraph paragraph;
   paragraph.appendText(u8"pill ", basicStyle(14.0f));
   paragraph.appendPlaceholder({60, 50, /*baselineDrop=*/10}, basicStyle(14.0f));
-  BlockFlow flow(SkRect::MakeWH(600, 120));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {600, 120}));
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
 
   const std::vector<LineMetrics> lines = layout.lineMetrics(paragraph);
@@ -184,7 +185,7 @@ TEST(PaintPasses, ASelectionBandBehindALineCoversItsInterior) {
   canvas->clear(SK_ColorWHITE);
   SkPaint selection;
   selection.setColor(0x5533AAFF);
-  canvas->drawRect(lines[0].rect(), selection);
+  canvas->drawRect(sigil::geometry::path::toSk(lines[0].rect()), selection);
   layout.draw(canvas, paragraph);
   SkPixmap pixmap;
   ASSERT_TRUE(surface->peekPixels(&pixmap));
@@ -197,7 +198,7 @@ TEST(PaintPasses, ASelectionBandBehindALineCoversItsInterior) {
 TEST(PaintPasses, MaterialPassShadesThroughTheInstalledResolver) {
   FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"material pass");
-  BlockFlow flow(SkRect::MakeWH(300, 80));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 80}));
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
 
   // A white pass: on its own it inks pure white; with a material and a
@@ -258,7 +259,7 @@ TEST(PaintPasses, AStylePerGlyphDrawsEachGlyphInTheStyleItNames) {
   // glyph's fill. The glyphs land exactly where the plain draw puts them.
   FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"HH", 60.0f);
-  BlockFlow flow(SkRect::MakeWH(200, 100));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {200, 100}));
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
 
   PaintStyle red(SK_ColorRED), blue(SK_ColorBLUE);
@@ -335,7 +336,7 @@ InitialInk initialInk(const Type& initial, bool batched) {
       u8"out before the light does, one after another, until the harbour is "
       u8"empty.",
       white);
-  BlockFlow flow(SkRect::MakeWH(300, 300));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {300, 300}));
   ParagraphLayoutOptions options;
   ParagraphStyle opening;
   opening.initial = {.lines = 3, .style = initial};

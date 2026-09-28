@@ -5,6 +5,7 @@
 
 #include <cmath>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
 
@@ -59,7 +60,7 @@ class OverflowScene final : public Scene {
       const float left = pass == 0 ? canvasWidth * 0.06f : canvasWidth * 0.54f;
       const SkRect box = SkRect::MakeXYWH(left, 48, paneWidth, boxHeight);
 
-      BlockFlow flow(box);
+      BlockFlow flow(sigil::geometry::path::fromSk(box));
       ParagraphLayoutOptions options;
       options.alignment = parameters.alignment;
       options.lineBreakStrategy = parameters.lineBreakStrategy;

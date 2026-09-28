@@ -64,7 +64,7 @@ float textBaseline(const Instance& inst, const SkRect& bounds) {
   for (const sigil::weave::PositionedRun& run : inst.textLayout.runs) {
     if (!run.shaped || run.transformed || run.shaped->positions.empty())
       continue;
-    return run.origin.y() + run.shaped->positions.front().y() - bounds.top();
+    return run.origin.y + run.shaped->positions.front().y() - bounds.top();
   }
   return 0.0f;
 }
@@ -132,7 +132,7 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   // paint, and the flow underneath it only measures.
   const detail::Insets pad = onPath ? detail::Insets{} : paddingOf(inst);
   const auto flowRect = [&](float across, float down) {
-    return SkRect::MakeXYWH(pad.left, pad.top, across, down);
+    return sigil::geometry::path::Rect::of({pad.left, pad.top}, {across, down});
   };
   // A percentage indent is one of the INLINE size, which down a vertical
   // passage is its columns' height.
@@ -168,13 +168,13 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
     for (const detail::Exclusion& exclusion : inst.exclusionsLocal) {
       if (exclusion.circle)
         flow.exclusions().push_back(
-            {sigil::weave::flowshape::circle(exclusion.bounds), flowMargin});
+            {sigil::weave::flowshape::circle(sigil::geometry::path::fromSk(exclusion.bounds)), flowMargin});
       else if (!exclusion.path.isEmpty())
         flow.exclusions().push_back(
-            {sigil::weave::flowshape::path(exclusion.path), flowMargin});
+            {sigil::weave::flowshape::path(sigil::geometry::path::fromSk(exclusion.path)), flowMargin});
       else
         flow.exclusions().push_back(
-            {sigil::weave::flowshape::rectangle(exclusion.bounds), flowMargin});
+            {sigil::weave::flowshape::rectangle(sigil::geometry::path::fromSk(exclusion.bounds)), flowMargin});
     }
   };
   const auto layOut = [&] {
@@ -286,9 +286,9 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   inst.measuredForHeight = downConstraint;
   SkRect bounds = SkRect::MakeEmpty();
   for (const sigil::weave::LineMetrics& line : inst.lines)
-    bounds.join(line.rect());
+    bounds.join(sigil::geometry::path::toSk(line.rect()));
   for (const sigil::weave::ColumnMetrics& column : inst.columns)
-    bounds.join(column.rect());
+    bounds.join(sigil::geometry::path::toSk(column.rect()));
   // A positive first-line offset is room inside the leaf. The glyphs
   // keep that offset when painted, so measuring only their span would
   // let the final line protrude past the leaf and into its next sibling.
@@ -321,7 +321,7 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
       SkRect box = run.blob->bounds();
       // A transformed run's placement is baked into its blob and it draws
       // at the origin; an ordinary one is a shared word blob translated.
-      if (!run.transformed) box.offset(run.origin.fX, run.origin.fY);
+      if (!run.transformed) box.offset(run.origin.x, run.origin.y);
       ink.join(box);
     }
     return ink;

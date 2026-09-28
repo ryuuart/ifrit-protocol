@@ -39,8 +39,7 @@ class VerticalScene final : public Scene {
     canvas->clear(kPaper);
 
     // Vertical-rl block on the right.
-    VerticalBlockFlow verticalFlow(SkRect::MakeXYWH(
-        canvasWidth * 0.42f, 30, canvasWidth * 0.55f, canvasHeight - 90));
+    VerticalBlockFlow verticalFlow(sigil::geometry::path::Rect::of({canvasWidth * 0.42f, 30}, {canvasWidth * 0.55f, canvasHeight - 90}));
     ParagraphLayoutOptions verticalOptions;
     verticalOptions.lineMetrics.height = fontSize * 1.9f;
     const auto layoutStartTime = Clock::now();
@@ -58,8 +57,7 @@ class VerticalScene final : public Scene {
         0.6f + 0.4f * static_cast<float>(std::sin(elapsedSeconds * 2.0)));
 
     // Horizontal comparison block on the left.
-    BlockFlow horizontalFlow(SkRect::MakeXYWH(
-        30, canvasHeight * 0.14f, canvasWidth * 0.34f, canvasHeight * 0.7f));
+    BlockFlow horizontalFlow(sigil::geometry::path::Rect::of({30, canvasHeight * 0.14f}, {canvasWidth * 0.34f, canvasHeight * 0.7f}));
     ParagraphLayoutOptions horizontalOptions;
     horizontalOptions.lineMetrics.height = fontSize * 1.9f;
     ParagraphLayout horizontalLayout = layoutParagraph(
@@ -122,7 +120,7 @@ class VerticalScene final : public Scene {
     if (matches.empty()) return;
     bool valid = false;
     int line = 0;
-    SkPoint origin = {0, 0};
+    glm::vec2 origin{0, 0};
     float rangeBegin = 0;
     float rangeEnd = 0;
     for (const PositionedRun& run : layout.runs) {
@@ -137,7 +135,7 @@ class VerticalScene final : public Scene {
         rangeBegin = 0;
         rangeEnd = word.width;
       } else if (run.lineIndex == line) {
-        const float offset = run.origin.y() - origin.y();
+        const float offset = run.origin.y - origin.y;
         rangeBegin = std::min(rangeBegin, offset);
         rangeEnd = std::max(rangeEnd, offset + word.width);
       }
@@ -149,8 +147,8 @@ class VerticalScene final : public Scene {
     const float length = ruby.naturalWidth(fontContext);
     LineSetFlow flow;
     flow.lines().push_back({LineInterval{
-        {origin.x() + m_fontSize * 0.62f,
-         origin.y() + (rangeBegin + rangeEnd) * 0.5f - length * 0.5f},
+        {origin.x + m_fontSize * 0.62f,
+         origin.y + (rangeBegin + rangeEnd) * 0.5f - length * 0.5f},
         {0, 1},
         length + 1}});
     layoutParagraph(fontContext, ruby, flow).draw(canvas, ruby);
@@ -179,8 +177,8 @@ class VerticalScene final : public Scene {
         const uint32_t textOffset =
             word.textBegin + shapedWord.clusters[glyphIndex];
         if (textOffset >= matches[0].start && textOffset < matches[0].end)
-          canvas->drawCircle(run.origin.x() + m_fontSize * 0.60f,
-                             run.origin.y() + penAdvance +
+          canvas->drawCircle(run.origin.x + m_fontSize * 0.60f,
+                             run.origin.y + penAdvance +
                                  shapedWord.advances[glyphIndex] * 0.5f,
                              m_fontSize * 0.07f, dot);
         penAdvance += shapedWord.advances[glyphIndex];
@@ -205,11 +203,11 @@ class VerticalScene final : public Scene {
         continue;
       if (!valid) {
         valid = true;
-        rangeLeft = run.origin.x();
-        rangeRight = run.origin.x() + word.width;
-        baseline = run.origin.y();
-      } else if (run.origin.y() == baseline) {
-        rangeRight = std::max(rangeRight, run.origin.x() + word.width);
+        rangeLeft = run.origin.x;
+        rangeRight = run.origin.x + word.width;
+        baseline = run.origin.y;
+      } else if (run.origin.y == baseline) {
+        rangeRight = std::max(rangeRight, run.origin.x + word.width);
       }
     }
     if (!valid) return;

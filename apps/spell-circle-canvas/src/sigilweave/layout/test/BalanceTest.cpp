@@ -26,7 +26,7 @@ TEST(Balance, ABalancedBlockIsSetInTheNarrowestMeasureThatKeepsItsLineCount) {
   // with a rag the same count can be set far more evenly under.
   const auto fillWith = [&](bool balance) {
     Paragraph paragraph = makeParagraph(text, 16.0f);
-    BlockFlow flow(SkRect::MakeWH(260, 400));
+    BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {260, 400}));
     ParagraphLayoutOptions options;
     options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
     ParagraphStyle style;
@@ -64,9 +64,9 @@ TEST(Balance, ABlockCutIntoUnequalLinesGivesUpAProportionOfEachOfThem) {
   constexpr float kWholeWidth = 300.0f;
   const auto fillWith = [&](bool balance) {
     Paragraph paragraph = makeParagraph(text, 15.0f);
-    ExclusionFlow flow(SkRect::MakeWH(kWholeWidth, 400));
+    ExclusionFlow flow(sigil::geometry::path::Rect::of({0, 0}, {kWholeWidth, 400}));
     flow.exclusions().push_back({flowshape::rectangle(
-        SkRect::MakeXYWH(kCutWidth, 0, kWholeWidth - kCutWidth, kCutBottom))});
+        sigil::geometry::path::Rect::of({kCutWidth, 0}, {kWholeWidth - kCutWidth, kCutBottom}))});
     ParagraphLayoutOptions options;
     options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
     ParagraphStyle style;
@@ -97,7 +97,7 @@ TEST(Balance, ABalancedBlockIsStillSetInItsWholeMeasure) {
   // on the measure it was given, not on the one it was broken against.
   Paragraph paragraph = makeParagraph(
       u8"A heading of several words that wants an even rag beneath it", 16.0f);
-  BlockFlow flow(SkRect::MakeWH(260, 400));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {260, 400}));
   ParagraphLayoutOptions options;
   options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
   ParagraphStyle style;
@@ -110,7 +110,7 @@ TEST(Balance, ABalancedBlockIsStillSetInItsWholeMeasure) {
   ASSERT_FALSE(widths.empty());
   std::vector<float> centres;
   for (const PositionedRun& run : layout.runs)
-    if (run.lineIndex == 0) centres.push_back(run.origin.x());
+    if (run.lineIndex == 0) centres.push_back(run.origin.x);
   ASSERT_FALSE(centres.empty());
   const float left = *std::min_element(centres.begin(), centres.end());
   EXPECT_NEAR(left, (260.0f - widths.front()) * 0.5f, 1.0f);
@@ -127,7 +127,7 @@ TEST(Balance, ARaggedBlockKeepsEveryLineInsideItsMeasure) {
         u8"Justification spends interword gaps before letterspacing, and "
         u8"reaches for horizontal glyph-scaling last of all.",
         12.0f);
-    BlockFlow flow(SkRect::MakeWH(180, 400));
+    BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {180, 400}));
     ParagraphLayoutOptions options;
     options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
     ParagraphStyle style;

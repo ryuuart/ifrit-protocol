@@ -20,6 +20,7 @@
 #include "TextPose.h"
 #include "sigilgeometry/path/Contour.h"
 #include "sigilgeometry/advanced/Skia.h"
+#include <glm/geometric.hpp>
 
 namespace sigil::compose {
 
@@ -127,7 +128,7 @@ void detail::ensurePathLayout(Composer::Impl& impl, Instance& inst,
   sigil::weave::forEachPlacedGlyph(
       inst.textLayout, *inst.paragraph,
       [&](const sigil::weave::PlacedGlyph& placed) {
-        runWidth = std::max(runWidth, placed.rest.x() + placed.advance);
+        runWidth = std::max(runWidth, placed.rest.x + placed.advance);
       });
 
   static thread_local std::vector<geometry::path::Contour> contours;
@@ -141,12 +142,13 @@ void detail::ensurePathLayout(Composer::Impl& impl, Instance& inst,
   // One arc-length coordinate over the whole chain, for the two questions
   // that are about the BASELINE rather than about one glyph: is it closed,
   // and which way does the run read along it.
-  const auto posTan = [](float distance, SkPoint* position, SkVector* tangent) {
+  const auto posTan = [](float distance, glm::vec2* position,
+                          glm::vec2* tangent) {
     const auto read = [&](const geometry::path::Contour& contour, float d) {
       const auto sample = contour.at(d);
       if (!sample) return false;
-      if (position) *position = geometry::path::toSk(sample->position);
-      if (tangent) *tangent = geometry::path::toSk(sample->tangent);
+      if (position) *position = sample->position;
+      if (tangent) *tangent = sample->tangent;
       return true;
     };
     for (const geometry::path::Contour& contour : contours) {
@@ -164,10 +166,10 @@ void detail::ensurePathLayout(Composer::Impl& impl, Instance& inst,
   // anyone wants.
   bool closed = contours.size() == 1 && contours.front().closed();
   if (!closed) {
-    SkPoint head, tail;
-    SkVector ignored;
+    glm::vec2 head, tail;
+    glm::vec2 ignored;
     if (posTan(0, &head, &ignored) && posTan(length, &tail, &ignored))
-      closed = SkPoint::Distance(head, tail) <= std::max(1.0f, length * 0.002f);
+      closed = glm::distance(head, tail) <= std::max(1.0f, length * 0.002f);
   }
 
   const float restAt = spec.at.constant() ? *spec.at.constant() : 0.0f;
@@ -201,12 +203,12 @@ void detail::ensurePathLayout(Composer::Impl& impl, Instance& inst,
     for (int vote = 0; vote < kVotes; ++vote) {
       float at = start + runWidth * ((float)vote + 0.5f) / (float)kVotes;
       if (closed) at = std::fmod(std::fmod(at, length) + length, length);
-      SkPoint position;
-      SkVector tangent;
+      glm::vec2 position;
+      glm::vec2 tangent;
       if (!posTan(std::clamp(at, 0.0f, length), &position, &tangent)) continue;
-      if (tangent.x() < 0)
+      if (tangent.x < 0)
         ++upsideDown;
-      else if (tangent.x() > 0)
+      else if (tangent.x > 0)
         ++upright;
     }
     flipRun = upsideDown > upright;
@@ -318,14 +320,14 @@ bool restPoseOf(const PoseContext& ctx, const sigil::weave::PlacedGlyph& placed,
               ? &layout.intervals[(size_t)placed.intervalIndex]
               : nullptr;
       if (!interval) return false;
-      SkVector tangent;
+      glm::vec2 tangent;
       if (!interval->placeAt(placed.pen, 0.0f, layout.tangentRotationSteps,
                              &pose.centre, &tangent))
         return false;
-      const float magnitude = std::hypot(tangent.x(), tangent.y());
+      const float magnitude = std::hypot(tangent.x, tangent.y);
       if (magnitude <= 1e-6f) return false;
-      pose.cosine = tangent.x() / magnitude;
-      pose.sine = tangent.y() / magnitude;
+      pose.cosine = tangent.x / magnitude;
+      pose.sine = tangent.y / magnitude;
       return true;
     }
     // An UPRIGHT run stands level in a column that runs down the page: its
@@ -340,10 +342,10 @@ bool restPoseOf(const PoseContext& ctx, const sigil::weave::PlacedGlyph& placed,
               ? &layout.intervals[(size_t)placed.intervalIndex]
               : nullptr;
       if (interval) {
-        SkVector tangent;
+        glm::vec2 tangent;
         if (interval->placeAt(placed.pen, 0.0f, 0, &pose.centre, &tangent)) {
-          pose.centreOffset = SkVector{pose.centre.x() - placed.rest.x(),
-                                       pose.centre.y() - placed.rest.y()};
+          pose.centreOffset = glm::vec2{pose.centre.x - placed.rest.x,
+                                       pose.centre.y - placed.rest.y};
           return true;
         }
       }
@@ -351,7 +353,7 @@ bool restPoseOf(const PoseContext& ctx, const sigil::weave::PlacedGlyph& placed,
     // Horizontal flow, and 縦中横 — a horizontally shaped run set upright
     // across the column, whose advance runs across the page like any
     // other horizontal run's.
-    pose.centre = {placed.rest.x() + placed.advance * 0.5f, placed.rest.y()};
+    pose.centre = {placed.rest.x + placed.advance * 0.5f, placed.rest.y};
     return true;
   }
   if (placed.intervalIndex < 0 ||
@@ -359,23 +361,23 @@ bool restPoseOf(const PoseContext& ctx, const sigil::weave::PlacedGlyph& placed,
     return false;
   const sigil::weave::LineInterval& interval =
       ctx.inst->textState->pathIntervals[(size_t)placed.intervalIndex];
-  SkPoint position;
-  SkVector tangent;
+  glm::vec2 position;
+  glm::vec2 tangent;
   // EXACT, not snapped: the snapping is a rasterization concession and
   // belongs to the rotation alone. `offset` rides the type off the
   // baseline along the perpendicular, so a tangent rounded onto a ladder
   // step would slide it along the curve by however far the rounding was.
   if (!interval.placeAt(placed.pen, ctx.phaseArc, 0, &position, &tangent))
     return false;
-  const float magnitude = std::hypot(tangent.x(), tangent.y());
+  const float magnitude = std::hypot(tangent.x, tangent.y);
   if (magnitude <= 1e-6f) return false;
-  float dirX = tangent.x() / magnitude, dirY = tangent.y() / magnitude;
+  float dirX = tangent.x / magnitude, dirY = tangent.y / magnitude;
   // Perpendicular offset, positive to the LEFT of travel (outward on a
   // clockwise circle). The path replaces the glyph's own baseline.
   // Measured along TRAVEL even under Radial orientation, so `offset`
   // keeps meaning "how far off the baseline the type rides" regardless of
   // which way the glyph ends up facing.
-  position.offset(dirY * ctx.onPath->offset, -dirX * ctx.onPath->offset);
+  position += glm::vec2{dirY * ctx.onPath->offset, -dirX * ctx.onPath->offset};
   // Radial: the glyph's BASELINE runs along the radius, so the run reads
   // outward from the centre like a spoke. That is how an astrolabe limb,
   // a compass rose and a radial axis label their divisions — you turn the
@@ -390,8 +392,8 @@ bool restPoseOf(const PoseContext& ctx, const sigil::weave::PlacedGlyph& placed,
     dirX = 1.0f;
     dirY = 0.0f;
   } else if (ctx.onPath->orient == TextPath::Orient::Radial) {
-    const float ox = position.x() - ctx.inst->textState->pathCentroid.x();
-    const float oy = position.y() - ctx.inst->textState->pathCentroid.y();
+    const float ox = position.x - ctx.inst->textState->pathCentroid.x();
+    const float oy = position.y - ctx.inst->textState->pathCentroid.y();
     const float radius = std::hypot(ox, oy);
     if (radius <= 1e-6f) return false;
     dirX = ox / radius;

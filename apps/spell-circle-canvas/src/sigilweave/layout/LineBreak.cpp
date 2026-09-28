@@ -340,7 +340,7 @@ ParagraphLayout layoutSingleLine(FontContext& fontContext, Paragraph& paragraph,
                                  const PathTextOptions& pathText) {
   const float availableWidth = paragraph.naturalWidth(fontContext) + 1.0f;
   LineSetFlow singleLineFlow(
-      {{{geometry::path::toSk(baselineOrigin), {1, 0}, availableWidth}}});
+      {{{baselineOrigin, {1, 0}, availableWidth}}});
   ParagraphLayoutOptions options;
   options.pathText = pathText;
   return layoutParagraph(fontContext, paragraph, singleLineFlow, options);

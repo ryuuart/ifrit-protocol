@@ -1,6 +1,8 @@
 #include <pybind11/stl.h>
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/advanced/Skia.h>
+#include <sigilmedia/advanced/Skia.h>
+#include <sigilweave/advanced/Skia.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/skia/Values.h>
 #include <sigilpython/weave/Registration.h>
@@ -164,10 +166,14 @@ void bindWeaveLayout(py::module_& root) {
       .def_readwrite("closesLine", &GlyphFit::closesLine);
   lineInterval.def_property(
       "origin", [](const LineInterval& x) { return x.origin; },
-      [](LineInterval& x, py::handle v) { x.origin = point(v); });
+      [](LineInterval& x, py::handle v) {
+        x.origin = geometry::path::fromSk(point(v));
+      });
   lineInterval.def_property(
       "direction", [](const LineInterval& x) { return x.direction; },
-      [](LineInterval& x, py::handle v) { x.direction = point(v); });
+      [](LineInterval& x, py::handle v) {
+        x.direction = geometry::path::fromSk(point(v));
+      });
   py::class_<LineMetrics>(module, "LineMetrics")
       .def_readonly("lineIndex", &LineMetrics::lineIndex)
       .def_readonly("baseline", &LineMetrics::baseline)
@@ -382,16 +388,26 @@ void bindWeaveLayout(py::module_& root) {
           py::arg("request"))
       .def("uniformIntervals", &FlowGeometry::uniformIntervals);
   py::class_<BlockFlow, FlowGeometry>(module, "BlockFlow")
-      .def(py::init([](py::handle bounds) { return BlockFlow(rect(bounds)); }),
+      .def(py::init([](py::handle bounds) { return BlockFlow(geometry::path::fromSk(rect(bounds))); }),
            py::arg("bounds"));
   py::class_<VerticalBlockFlow, FlowGeometry>(module, "VerticalBlockFlow")
       .def(py::init([](py::handle bounds) {
-             return VerticalBlockFlow(rect(bounds));
+             return VerticalBlockFlow(geometry::path::fromSk(rect(bounds)));
            }),
            py::arg("bounds"));
   py::class_<PathFlow, FlowGeometry>(module, "PathFlow")
-      .def(py::init<const SkPath&>(), py::arg("path"))
-      .def("addPath", &PathFlow::addPath, py::arg("path"));
+      .def(py::init<const geometry::path::Outline&>(), py::arg("path"))
+      .def(py::init([](const SkPath& path) {
+             return PathFlow(geometry::path::fromSk(path));
+           }),
+           py::arg("path"))
+      .def("addPath", &PathFlow::addPath, py::arg("path"))
+      .def(
+          "addPath",
+          [](PathFlow& flow, const SkPath& path) {
+            flow.addPath(geometry::path::fromSk(path));
+          },
+          py::arg("path"));
   py::class_<LineSetFlow, FlowGeometry>(module, "LineSetFlow")
       .def(py::init<std::vector<std::vector<LineInterval>>>(),
            py::arg("lines") = std::vector<std::vector<LineInterval>>{})
@@ -415,10 +431,13 @@ void bindWeaveLayout(py::module_& root) {
       .def_readwrite("margin", &Exclusion::margin)
       .def_property(
           "offset", [](const Exclusion& x) { return x.offset; },
-          [](Exclusion& x, py::handle v) { x.offset = point(v); });
+          [](Exclusion& x, py::handle v) {
+            x.offset = geometry::path::fromSk(point(v));
+          });
   py::class_<ExclusionFlow, FlowGeometry>(module, "ExclusionFlow")
       .def(py::init([](py::handle bounds, FlowAxis axis) {
-             return std::make_unique<ExclusionFlow>(rect(bounds), axis);
+             return std::make_unique<ExclusionFlow>(
+                 geometry::path::fromSk(rect(bounds)), axis);
            }),
            py::arg("bounds"), py::arg("axis") = FlowAxis::kLines)
       .def_property(
@@ -433,21 +452,31 @@ void bindWeaveLayout(py::module_& root) {
   auto flowshapes = module.def_submodule("flowshape");
   flowshapes.def(
       "rectangle",
-      [](py::handle bounds) { return flowshape::rectangle(rect(bounds)); },
+      [](py::handle bounds) { return flowshape::rectangle(geometry::path::fromSk(rect(bounds))); },
       py::arg("bounds"));
   flowshapes.def(
       "circle",
-      [](py::handle bounds) { return flowshape::circle(rect(bounds)); },
+      [](py::handle bounds) { return flowshape::circle(geometry::path::fromSk(rect(bounds))); },
       py::arg("bounds"));
   flowshapes.def(
       "ellipse",
-      [](py::handle bounds) { return flowshape::ellipse(rect(bounds)); },
+      [](py::handle bounds) { return flowshape::ellipse(geometry::path::fromSk(rect(bounds))); },
       py::arg("bounds"));
-  flowshapes.def("path", &flowshape::path, py::arg("path"));
+  flowshapes.def(
+      "path",
+      [](const geometry::path::Outline& outline) {
+        return flowshape::path(outline);
+      },
+      py::arg("path"));
+  flowshapes.def(
+      "path", [](const SkPath& path) { return flowshape::path(path); },
+      py::arg("path"));
   flowshapes.def(
       "coverage",
       [](sk_sp<SkImage> image, py::handle bounds, float threshold) {
-        return flowshape::coverage(image, rect(bounds), threshold);
+        return flowshape::coverage(media::fromSk(std::move(image)),
+                                   geometry::path::fromSk(rect(bounds)),
+                                   threshold);
       },
       py::arg("image"), py::arg("bounds"), py::arg("threshold") = 0.5f);
   auto layout = py::class_<OwnedLayout>(module, "ParagraphLayout");

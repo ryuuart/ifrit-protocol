@@ -31,7 +31,7 @@ namespace {
 
 /// @p text in the instrument face, rendered alone on a white plate.
 sk_sp<SkImage> rendered(std::u8string_view text, SkISize size = {200, 40}) {
-  BlockFlow flow(SkRect::MakeXYWH(4, 4, 190, 30));
+  BlockFlow flow(sigil::geometry::path::Rect::of({4, 4}, {190, 30}));
   return weave::testing::render(
       weave::testing::lay(sigil::test::fonts(), makeParagraph(text), flow),
       size);
@@ -108,7 +108,7 @@ namespace {
 weave::testing::Plate plateIn(const sk_sp<SkTypeface>& face) {
   TextStyle style = basicStyle(24.0f);
   style.shaping.typeface = face;
-  BlockFlow flow(SkRect::MakeXYWH(4, 4, 190, 30));
+  BlockFlow flow(sigil::geometry::path::Rect::of({4, 4}, {190, 30}));
   weave::testing::Plate plate({200, 40}, SK_ColorWHITE);
   plate.draw(weave::testing::lay(sigil::test::fonts(),
                                  paragraphIn(u8"AVn", style), flow));
@@ -158,7 +158,7 @@ TEST(WeaveBaseline, APlateWithNoRoomReadsAsResizedRatherThanCrashing) {
                   plateIn(sigil::test::instrument::sans()), baseline,
                   weave::testing::BaselineAction::kAdopt)
                   .passed());
-  BlockFlow flow(SkRect::MakeWH(100, 40));
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {100, 40}));
   weave::testing::Plate empty({0, 0}, SK_ColorWHITE);
   empty.draw(
       weave::testing::lay(sigil::test::fonts(), makeParagraph(u8"one"), flow));
