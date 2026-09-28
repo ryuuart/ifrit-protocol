@@ -11,6 +11,7 @@
 
 // TAGS: Drawing/Generative, Materials/Shaders
 
+#include <sigilmaterial/program/Shader.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
@@ -38,12 +39,12 @@ struct Lobe {
   float radius;
 };
 
-material::Paint lineField(sk_sp<SkRuntimeEffect> program) {
-  return material::skia::sksl(std::move(program)).quantizeTime(30.0f);
+material::Material lineField(material::Material program) {
+  return std::move(program).quantizeTime(30.0f);
 }
 
-material::Paint tendrilInk(sk_sp<SkRuntimeEffect> program) {
-  return material::skia::sksl(std::move(program)).quantizeTime(30.0f);
+material::Material tendrilInk(material::Material program) {
+  return std::move(program).quantizeTime(30.0f);
 }
 
 std::array<float, 4> uniform(const Lobe& lobe) {
@@ -52,11 +53,10 @@ std::array<float, 4> uniform(const Lobe& lobe) {
 
 /** THE REFRACTION, over @p source. The effect is handed in rather than
  *  read here, because this is asked for on every frame. */
-material::Paint glass(const sk_sp<SkRuntimeEffect>& effect,
-                   const material::Paint& source,
+material::Material glass(const material::Material& effect,
+                   const material::Material& source,
                    const std::array<Lobe, kLobeCount>& lobes) {
-  material::Paint paint = material::skia::sksl(effect, {{"uThreshold", kThreshold},
-                                                   {"uStrength", 42.0f}})
+  material::Material paint = material::Material(effect)
                            .slot("uSource", source)
                            .quantizeTime(30.0f);
   for (int index = 0; index < kLobeCount; ++index)
@@ -84,15 +84,23 @@ void drawTendril(Pen& pen, SkPoint from, SkPoint to, int index, float clock,
 }
 
 struct P5RefractiveMetaballs {
-  material::Paint source;
-  material::Paint filament;
+  material::Material source = material::Color{0, 0, 0, 0};
+  material::Material filament = material::Color{0, 0, 0, 0};
   /** Held on the sketch: the frame asks for it. */
-  sk_sp<SkRuntimeEffect> refraction;
+  material::Material refraction = material::Color{0, 0, 0, 0};
 
   void setup(sketch::SketchContext& context) {
-    refraction = context.assets.shader(context.local("glass.sksl"));
-    source = lineField(context.assets.shader(context.local("line_field.sksl")));
-    filament = tendrilInk(context.assets.shader(context.local("tendril.sksl")));
+    struct GlassParameters {
+      std::array<float, 4> uBall0{}, uBall1{}, uBall2{}, uBall3{};
+      std::array<float, 4> uBall4{}, uBall5{}, uBall6{}, uBall7{};
+      float uThreshold = kThreshold;
+      float uStrength = 42.0f;
+    };
+    refraction = material::shader(
+        context.assets.hub(), context.local("glass.sksl"), GlassParameters{},
+        {.textures = {{"uSource", {}}}});
+    source = lineField(material::shader(context.assets.hub(), context.local("line_field.sksl")));
+    filament = tendrilInk(material::shader(context.assets.hub(), context.local("tendril.sksl")));
     context.canvas(720, 720);
     context.background({2 / 255.0f, 5 / 255.0f, 14 / 255.0f, 1});
     context.captureAt(0.05);  // the field is a direct function of the clock
@@ -154,7 +162,7 @@ struct P5RefractiveMetaballs {
     pen.strokeWeight(5.0f);
     weave(0.0f);
 
-    pen.stroke(filament, CANVAS);
+    pen.stroke(material::skia::paint(filament), CANVAS);
     pen.strokeWeight(1.35f);
     for (float offset : {-7.0f, 0.0f, 7.0f}) weave(offset);
   }
@@ -170,7 +178,7 @@ struct P5RefractiveMetaballs {
 
     pen.blendMode(BLEND);
     pen.noStroke();
-    pen.fill(glass(refraction, source, balls), CANVAS);
+    pen.fill(material::skia::paint(glass(refraction, source, balls)), CANVAS);
     pen.rect(0.0f, 0.0f, pen.width, pen.height);
 
     drawTendrils(pen, balls, clock);

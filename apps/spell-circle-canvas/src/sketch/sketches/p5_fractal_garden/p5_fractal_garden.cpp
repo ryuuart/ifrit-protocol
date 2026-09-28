@@ -11,6 +11,8 @@
 
 // TAGS: Drawing/Generative
 
+#include <sigilmaterial/program/Shader.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/core/Core.h>
@@ -39,18 +41,18 @@ constexpr int kTrunks = 6;
 constexpr int kDepth = 7;
 constexpr float kFirstLength = 108.0f;
 
-material::Paint branchInk(sk_sp<SkRuntimeEffect> program) {
-  return material::skia::sksl(std::move(program))
-      .slot("uGrain", material::Paint::recipe(field::grain(0.08f, 3, 17.0f)))
+material::Material branchInk(material::Material program) {
+  return std::move(program)
+      .slot("uGrain", field::grain(0.08f, 3, 17.0f))
       .quantizeTime(30.0f);
 }
 
-material::Paint ground() {
-  return material::from({0.025f, 0.032f, 0.065f, 1.0f}).layer(field::grain(0.012f, 4, 31.0f, 0.6f, 2.2f), {.blend = material::BlendMode::SoftLight, .opacity = 0.22f});
+material::Material ground() {
+  return material::from(sigil::material::Color{0.025f, 0.032f, 0.065f, 1.0f}).layer(field::grain(0.012f, 4, 31.0f, 0.6f, 2.2f), {.blend = material::BlendMode::SoftLight, .opacity = 0.22f});
 }
 
-material::Paint budLight() {
-  return material::Paint::radialGradient(
+material::Material budLight() {
+  return sigil::material::radialGradient(
       {0.36f, 0.30f}, 0.92f,
       {{0.00f, {1.00f, 0.98f, 0.82f, 1.0f}},
        {0.30f, {1.00f, 0.62f, 0.30f, 1.0f}},
@@ -65,12 +67,13 @@ struct P5FractalGarden {
     SkPoint to;
   };
 
-  material::Paint branches;
-  const material::Paint background = ground();
-  const material::Paint buds = budLight();
+  material::Material branches = material::Color{0, 0, 0, 0};
+  const material::Material background = ground();
+  const material::Material buds = budLight();
 
   void setup(sketch::SketchContext& context) {
-    branches = branchInk(context.assets.shader(context.local("branch.sksl")));
+    branches = branchInk(material::shader(context.assets.hub(), context.local("branch.sksl"),
+                       {.textures = {{"uGrain", {}}}}));
     context.canvas(900, 900);
     context.background({6 / 255.0f, 8 / 255.0f, 16 / 255.0f, 1});
     context.captureAt(0.05);  // the tree is a direct function of the clock
@@ -121,7 +124,7 @@ struct P5FractalGarden {
              angle, kDepth, clock, trunk + 1);
     }
 
-    pen.stroke(branches, CANVAS);
+    pen.stroke(material::skia::paint(branches), CANVAS);
     for (int depth = kDepth; depth >= 0; --depth) {
       pen.strokeWeight(1.35f + 0.52f * depth);
       SkPathBuilder path;
@@ -143,7 +146,7 @@ struct P5FractalGarden {
     pen.push();
     pen.blendMode(BLEND);
     pen.noStroke();
-    pen.fill(buds, SHAPE);
+    pen.fill(material::skia::paint(buds), SHAPE);
     pen.circle(pen.width * 0.5f, pen.height * 0.5f,
                42.0f + 5.0f * std::sin(clock * 1.3f));
     pen.pop();

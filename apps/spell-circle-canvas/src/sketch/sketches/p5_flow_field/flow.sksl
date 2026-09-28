@@ -2,9 +2,6 @@
 // warmed to amber where the field in `uField`, sliding sideways
 // with time, runs high, and more opaque there too.
 
-uniform shader uField;
-uniform float2 uResolution;
-uniform float uTime;
 half4 main(float2 xy) {
   float2 uv = xy / max(uResolution, float2(1.0));
   float field = uField.eval(xy * 0.55 + float2(uTime * 9.0, 0.0)).r;

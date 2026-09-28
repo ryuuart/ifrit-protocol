@@ -3,9 +3,6 @@
 // by the grain in `uGrain` and laid at a little over half opacity
 // so crossing threads build up.
 
-uniform shader uGrain;
-uniform float2 uResolution;
-uniform float uTime;
 half4 main(float2 xy) {
   float2 uv = xy / max(uResolution, float2(1.0));
   float grain = uGrain.eval(xy * 0.48).r;

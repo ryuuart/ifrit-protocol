@@ -2,8 +2,6 @@
 // interference in cyan, magenta and amber over a near-black
 // ground, drifting with the clock and vignetted toward the edges.
 
-uniform float2 uResolution;
-uniform float uTime;
 half4 main(float2 xy) {
   float side = max(min(uResolution.x, uResolution.y), 1.0);
   float2 uv = (xy - uResolution * 0.5) / side;

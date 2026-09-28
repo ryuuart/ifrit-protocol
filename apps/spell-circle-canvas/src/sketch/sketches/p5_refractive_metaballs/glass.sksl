@@ -5,19 +5,6 @@
 // channels at three offsets, then lit by a key, a rim and a
 // caustic off a normal derived from the same field.
 
-uniform shader uSource;
-uniform float4 uBall0;
-uniform float4 uBall1;
-uniform float4 uBall2;
-uniform float4 uBall3;
-uniform float4 uBall4;
-uniform float4 uBall5;
-uniform float4 uBall6;
-uniform float4 uBall7;
-uniform float uThreshold;
-uniform float uStrength;
-uniform float2 uResolution;
-uniform float uTime;
 
 float3 sampleBall(float2 xy, float4 ball) {
   float2 delta = xy - ball.xy;

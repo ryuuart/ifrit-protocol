@@ -11,6 +11,7 @@
 
 // TAGS: Drawing/Generative
 
+#include <sigilmaterial/program/Shader.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/core/Core.h>
@@ -36,22 +37,23 @@ constexpr int kThreads = 9;
 constexpr int kSettlingSteps = 90;
 constexpr int kTraceSteps = 720;
 
-material::Paint threadInk(sk_sp<SkRuntimeEffect> program) {
-  return material::skia::sksl(std::move(program))
-      .slot("uGrain", material::Paint::recipe(field::grain(0.07f, 3, 41.0f)))
+material::Material threadInk(material::Material program) {
+  return std::move(program)
+      .slot("uGrain", field::grain(0.07f, 3, 41.0f))
       .quantizeTime(30.0f);
 }
 
-material::Paint ground() {
-  return material::from({0.018f, 0.025f, 0.052f, 1.0f}).layer(field::grain(0.018f, 4, 29.0f, 0.8f, 1.7f), {.blend = material::BlendMode::SoftLight, .opacity = 0.18f});
+material::Material ground() {
+  return material::from(sigil::material::Color{0.018f, 0.025f, 0.052f, 1.0f}).layer(field::grain(0.018f, 4, 29.0f, 0.8f, 1.7f), {.blend = material::BlendMode::SoftLight, .opacity = 0.18f});
 }
 
 struct P5AttractorLoom {
-  material::Paint threads;
-  const material::Paint background = ground();
+  material::Material threads = material::Color{0, 0, 0, 0};
+  const material::Material background = ground();
 
   void setup(sketch::SketchContext& context) {
-    threads = threadInk(context.assets.shader(context.local("thread.sksl")));
+    threads = threadInk(material::shader(context.assets.hub(), context.local("thread.sksl"),
+                       {.textures = {{"uGrain", {}}}}));
     // The loom is a direct function of the clock, so the plate is the
     // first moment.
     sketch::kit::stage(context, {.size = {900, 720},
@@ -109,7 +111,7 @@ struct P5AttractorLoom {
 
     pen.noFill();
     pen.blendMode(BLEND);
-    pen.stroke(threads, CANVAS);
+    pen.stroke(material::skia::paint(threads), CANVAS);
     pen.strokeWeight(1.9f);
     for (int thread = 0; thread < kThreads; ++thread)
       trace(pen, thread, clock + thread * 0.012f);

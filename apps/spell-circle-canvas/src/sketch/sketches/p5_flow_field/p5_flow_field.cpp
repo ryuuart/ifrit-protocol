@@ -9,6 +9,9 @@
 
 // TAGS: Drawing/Generative, Patterns/Noise
 
+#include <sigilmaterial/program/Shader.h>
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
@@ -40,14 +43,14 @@ float hash01(int value) {
   return wave - std::floor(wave);
 }
 
-material::Paint currentInk(sk_sp<SkRuntimeEffect> program) {
-  return material::skia::sksl(std::move(program))
-      .slot("uField", material::Paint::recipe(field::noise(0.025f, 4, 23.0f)))
+material::Material currentInk(material::Material program) {
+  return std::move(program)
+      .slot("uField", field::noise(0.025f, 4, 23.0f))
       .quantizeTime(30.0f);
 }
 
-material::Paint particleLight() {
-  return material::Paint::radialGradient(
+material::Material particleLight() {
+  return sigil::material::radialGradient(
       {0.34f, 0.30f}, 0.92f,
       {{0.0f, {1.0f, 1.0f, 0.88f, 1.0f}},
        {0.32f, {0.30f, 0.94f, 1.0f, 0.96f}},
@@ -56,11 +59,12 @@ material::Paint particleLight() {
 }
 
 struct P5FlowField {
-  material::Paint ink;
-  const material::Paint sparks = particleLight();
+  material::Material ink = material::Color{0, 0, 0, 0};
+  const material::Material sparks = particleLight();
 
   void setup(sketch::SketchContext& context) {
-    ink = currentInk(context.assets.shader(context.local("flow.sksl")));
+    ink = currentInk(material::shader(context.assets.hub(), context.local("flow.sksl"),
+                       {.textures = {{"uField", {}}}}));
     context.canvas(960, 720);
     context.background({4 / 255.0f, 7 / 255.0f, 17 / 255.0f, 1});
     context.captureAt(0.05);  // the field is a direct function of the clock
@@ -80,19 +84,19 @@ struct P5FlowField {
     const float clock = static_cast<float>(pen.millis() * 0.001);
     pen.background(4, 7, 17);
     pen.blendMode(ADD);
-    pen.stroke(ink, CANVAS);
+    pen.stroke(material::skia::paint(ink), CANVAS);
     pen.strokeWeight(3.8f);
     pen.noFill();
 
-    const SkSize module =
+    const glm::vec2 module =
         arrange::moduleSize({pen.width, pen.height}, kAcross, kDown, {0, 0});
     for (int row = 0; row < kDown; ++row) {
       for (int column = 0; column < kAcross; ++column) {
         const int id = row * kAcross + column;
         float x =
-            (column + 0.5f + (hash01(id) - 0.5f) * 0.62f) * module.width();
+            (column + 0.5f + (hash01(id) - 0.5f) * 0.62f) * module.x;
         float y =
-            (row + 0.5f + (hash01(id + 701) - 0.5f) * 0.62f) * module.height();
+            (row + 0.5f + (hash01(id + 701) - 0.5f) * 0.62f) * module.y;
         x += 13.0f * std::sin(clock * 0.31f + id * 0.73f);
         y += 10.0f * std::cos(clock * 0.27f + id * 0.51f);
 
@@ -116,7 +120,7 @@ struct P5FlowField {
         if (id % 11 == 0) {
           pen.push();
           pen.noStroke();
-          pen.fill(sparks, SHAPE);
+          pen.fill(material::skia::paint(sparks), SHAPE);
           pen.circle(x, y, 15.0f + 4.0f * std::sin(clock * 1.6f + id));
           pen.pop();
         }
