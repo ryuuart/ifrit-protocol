@@ -71,6 +71,10 @@
 
 // TAGS: Runtime/Caching
 
+#include <span>
+#include <array>
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilcompose/kit/Rows.h>
 #include <include/utils/SkNoDrawCanvas.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/core/Core.h>
@@ -257,11 +261,11 @@ struct VolatilityCost {
    *  steppables would double them. */
   void makeMovers(sigil::motion::Engine& ticker) {
     for (int i = 0; i < kMovers; ++i) {
-      auto out = std::make_unique<sigil::motion::Animatable<float>>(0.0f);
+      auto out = std::make_unique<sigil::motion::Animatable<float>>(sigil::motion::animatable(0.0f));
       const float phase = (float)i * 0.7f;
       movers.push_back(std::move(out));
-      ticker.add([o = movers.back().get(), phase, &ticker] {
-        const double t = ticker.elapsed();
+      ticker.timer([o = movers.back().get(), phase, &ticker] {
+        const double t = ticker.elapsed().count();
         *o = 280.0f + 270.0f * (float)std::sin(t * 0.9 + phase);
       });
     }
@@ -284,7 +288,7 @@ struct VolatilityCost {
       return kit::at(box()
                          .key("m" + std::to_string(i))
                          .borderRadius({4})
-                         .translateX(movers[(size_t)i].get())
+                         .translateX(*movers[(size_t)i])
                          .fill(Fill::color({0.49f, 0.91f, 1.0f, 0.8f})),
                      0, 12.0f + 22.0f * (float)i, 46, 18);
     };
@@ -344,14 +348,15 @@ struct VolatilityCost {
     // a TIME is a function of the machine and is hidden when the host is
     // capturing for a diff.
     const auto count = [](size_t v) { return std::to_string(v); };
-    const sketch::kit::Readout how{.measure = 280};
+    const sigil::compose::kit::Rows how{.measure = 280,
+        .gap = sketch::kit::theme().spacing.rowGap,
+        .labelGap = sketch::kit::theme().spacing.labelGap};
     const auto time = [&](double value) {
       return ctx.deterministic ? std::string("—") : ms(ctx.measured(value));
     };
     return box().column().gap(3).children(
         {text("FRAME / COUNTS + TIME").styleClass("heading"),
-         sketch::kit::readout(
-             {{u8"instances", count(frame.instances)},
+         sigil::compose::kit::readout(std::vector<sigil::compose::kit::Reading>{{u8"instances", count(frame.instances)},
               {u8"described", count(frame.describedNodes)},
               {u8"memo hits", count(frame.memoHits)},
               {u8"patched", count(frame.patchedNodes)},
@@ -364,14 +369,13 @@ struct VolatilityCost {
               {u8"layout ms", time(frame.layoutMs)},
               {u8"volatile ms", time(frame.volatileMs)},
               {u8"paint ms", time(frame.paintMs)}},
-             how),
+                        how),
          box().height(8),
          text("CACHE VERDICT / ALL NODES").styleClass("heading"),
-         sketch::kit::readout(
-             {{u8"refused: Volatile", count((size_t)volatileNodes)},
+         sigil::compose::kit::readout(std::vector<sigil::compose::kit::Reading>{{u8"refused: Volatile", count((size_t)volatileNodes)},
               {u8"reached a bake", count((size_t)bakedNodes)},
               {u8"nodes profiled", count(profiled)}},
-             how)});
+                        how)});
   }
 
   /** REPRESENTATIVE SUBJECT NODES, costliest first, each with the tier it took
@@ -387,27 +391,32 @@ struct VolatilityCost {
       if (key == "m0") return "moving card";
       return "static star";
     };
-    std::vector<sketch::kit::Row> rows;
+    std::vector<std::array<Utf8, 4>> rows;
+    std::vector<Fill> swatches;
     for (const Composer::NodeCost& row : worst) {
       const std::string key = row.label.substr(0, row.label.find(' '));
-      rows.push_back({{subject(key),
+      rows.push_back({subject(key),
                        ctx.deterministic ? "—" : ms(ctx.measured(row.selfMs)),
                        tierOf(row.cacheState).name,
-                       Composer::promotionReason(row.promotion)},
-                      Fill::color(tierOf(row.cacheState).color)});
+                       Composer::promotionReason(row.promotion)});
+      swatches.push_back(Fill::color(tierOf(row.cacheState).color));
     }
+    std::vector<std::span<const Utf8>> tableRows;
+    for (const auto& row : rows) tableRows.emplace_back(row);
     return box().width(752).column().gap(14).children(
         {text("SUBJECT / THE NODE'S OWN COST").styleClass("heading"),
-         sketch::kit::table(
-             std::move(rows),
+         sigil::compose::kit::table(
+             tableRows,
              {.columns = {{.head = "SUBJECT", .width = 128, .figure = true},
                           {.head = "SELF MS", .width = 72, .figure = true},
                           {.head = "TIER", .width = 98},
                           {.head = "PROMOTION VERDICT", .width = 340}},
               .gap = 14,
-              .swatchSide = 9,
-              .ruled = true,
-              .headRuled = true}),
+              .rowGap = sketch::kit::theme().spacing.rowGap,
+              .divider = Fill::color(sketch::kit::theme().palette.rule),
+              .headRuled = true,
+              .swatches = swatches,
+              .swatchSide = 9}),
          document::caption(
              ctx.deterministic
                  ? "Capture mode hides machine-dependent times and orders "
@@ -483,7 +492,7 @@ struct VolatilityCost {
     // The probe carries the same tree at the same size, so every rect it
     // answers lands where the sheet drew the node it is about.
     probe = std::make_unique<Composer>(ctx.engine, *ctx.fonts);
-    probe->setSize(ctx.size);
+    probe->setSize(sigil::geometry::path::fromSk(ctx.size));
     // The per-node reading is what this sheet is; it costs a timing call
     // per node and is off everywhere else.
     probe->setProfiling(true);
@@ -550,8 +559,8 @@ struct VolatilityCost {
       const bool subject = numbered || key == "field" || key == "cellPanel" ||
                            key == "cells" || key == "accent";
       if (subject)
-        if (const std::optional<SkRect> rect = composer.bounds(key))
-          marks.push_back({*rect, row.cacheState});
+        if (const auto rect = composer.bounds(key))
+          marks.push_back({sigil::geometry::path::toSk(*rect), row.cacheState});
       if (key == "field" || key == "cellPanel" || key == "cells" ||
           key == "accent" || key == "k0" || key == "m0" || key == "c0")
         worst.push_back(row);

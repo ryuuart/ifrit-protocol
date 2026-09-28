@@ -38,6 +38,7 @@
 
 // TAGS: Motion/Clocks
 
+#include <sigilmotion/time/Duration.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
 #include <sigilcompose/core/Core.h>
@@ -134,8 +135,8 @@ struct DecayStep {
         motion::Spring s{0.0f, 0.0f};
         constexpr float kDt = 1.0f / 240.0f;
         for (float u = 0; u < t; u += kDt)
-          s = motion::spring(s, 1.0f, kDt,
-                             {.periodSeconds = kPeriod, .damping = damping});
+          s = s.step(1.0f, motion::Duration(kDt),
+                     {.period = motion::Duration(kPeriod), .damping = damping});
         return s.value * 0.9f;
       };
     };
@@ -178,7 +179,7 @@ struct DecayStep {
                                                       [](double t) {
                                                         return (double)motion::
                                                                    stepIndex(
-                                                                       (float)t,
+                                                                       sigil::motion::Duration((float)t),
                                                                        kHz) /
                                                                (kSpan * kHz);
                                                       },
@@ -191,7 +192,7 @@ struct DecayStep {
                             .figure = figure(328, 150,
                                              plot("phase", {curve([](double t) {
                                                     return motion::phase(
-                                                        (float)t, kPeriod);
+                                                        sigil::motion::Duration((float)t), sigil::motion::Duration(kPeriod));
                                                   })})),
                             .note = "Wrap to zero every 0.8 seconds. The value "
                                     "remains in [0, 1)."}},
@@ -204,7 +205,7 @@ struct DecayStep {
                             .figure = figure(498, 200,
                                              plot("decay", {curve([](double t) {
                                                     return motion::decay(
-                                                        (float)t, kTau);
+                                                        sigil::motion::Duration((float)t), sigil::motion::Duration(kTau));
                                                   })},
                                                   5)),
                             .note = "Each grid interval is one time constant: "

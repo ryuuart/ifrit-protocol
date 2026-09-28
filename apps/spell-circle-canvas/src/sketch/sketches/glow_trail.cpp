@@ -17,6 +17,8 @@
 
 // TAGS: Motion/Particles, Materials/Compositing
 
+#include <sigilmotion/time/Duration.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
@@ -65,7 +67,7 @@ gm::curve::Spline3 loop() {
 world::Element set(float seconds) {
   const gm::curve::Spline3 rail = loop();
   const std::vector<glm::vec3> path = rail.sampleArcLength(96);
-  const float head = motion::phase(seconds, 1.0 / 0.42);
+  const float head = motion::phase(sigil::motion::Duration(seconds), sigil::motion::Duration(1.0 / 0.42));
   // What stands at every point is a FLAKE, and a flat body reads as the
   // bead it draws only while it faces the viewer — so the direction lane
   // the loop seeded with its tangent is replaced by the gaze, and the
@@ -84,7 +86,7 @@ world::Element set(float seconds) {
     // the ring is taken as the two halves rather than as onRing.
     const float angle =
         arrange::along(0.0f, kTwoPi, i, kPosts, arrange::Turn::Closed);
-    const SkPoint on = arrange::onEllipse({0, 0}, {kRing, kRing}, angle);
+    const SkPoint on = sigil::geometry::path::toSk(arrange::onEllipse({0, 0}, {kRing, kRing}, angle));
     return world::Element()
         .key("post" + std::to_string(i))
         .at({on.fX, -84.0f, on.fY})
@@ -161,11 +163,11 @@ struct GlowTrail {
                   .reads("ember")
                   .previous("trail")
                   .writes("trail")
-                  .composite(SkBlendMode::kPlus, 0.88f))
+                  .composite(sigil::material::BlendMode::PlusLighter, 0.88f))
         .pass(world::postPass("picture")
                   .reads("hot", "trail")
                   .writes("picture")
-                  .composite(SkBlendMode::kPlus, 1.0f));
+                  .composite(sigil::material::BlendMode::PlusLighter, 1.0f));
     return frame;
   }
 };

@@ -16,9 +16,9 @@
  * other.
  *
  * The other three cells change nothing about the effect and only WHO GETS
- * A BEAT WHEN. `Spread::From` picks the origin — Start, Center, End,
+ * A BEAT WHEN. `StaggerFrom` picks the origin — First, Center, Last,
  * Random or Edges, where Edges starts at both ends and meets in the
- * middle — and `distribution` passes the linear ramp of delays through a
+ * middle — and the stagger's `ease` passes the linear ramp of delays through a
  * curve, so an ease-in crowds the early units together and lets the tail
  * spread out. The per-unit motion is untouched by it.
  *
@@ -33,10 +33,11 @@
 
 // TAGS: Typography/Effects, Motion/Transitions
 
+#include <sigilweave/style/Face.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Instruments.h>
-#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Presets.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/color/Color.h>
@@ -70,7 +71,7 @@ constexpr material::Color kHot{0.95f, 0.36f, 0.28f,
                                1};  // what the mixed tint wipes FROM
 
 weave::TextStyle specimen() {
-  const sk_sp<SkTypeface> face = weave::ports::face(
+  const sigil::weave::Face face = weave::ports::face(
       {"Helvetica Neue", "Helvetica", "Arial", "sans-serif"});
   return weave::textStyle({.face = face,
                            .size = 34,
@@ -91,12 +92,11 @@ Element figure(float width, const char* key, Track track) {
 
 /** The one spread every cell starts from — the origin and the
  *  distribution are the only fields the cells change. */
-motion::Spread ladder(motion::Spread::From from,
+motion::Tween<float> ladder(motion::StaggerFrom from,
                       motion::Easing distribution = nullptr) {
-  return motion::Spread{.eachMs = kEach,
-                        .durationMs = kDuration,
-                        .from = from,
-                        .distribution = std::move(distribution)};
+  return {.duration = std::chrono::duration<double, std::milli>(kDuration),
+          .delay = motion::stagger(std::chrono::duration<double, std::milli>(kEach),
+                                   {.from = from, .ease = std::move(distribution)})};
 }
 
 }  // namespace
@@ -111,7 +111,7 @@ struct FxScatterMix {
     instrumented = false;
     ctx.composer.render(describe(ctx));
     // Request frames only until layout can supply the static beat meters.
-    ctx.engine.add([this]() -> bool { return !instrumented; });
+    ctx.engine.timer([this]() -> bool { return !instrumented; });
   }
 
   void update(double, sketch::SketchContext& ctx) {
@@ -141,7 +141,7 @@ struct FxScatterMix {
                         .figure = figure(
                             498, "sc",
                             {.effect = textFx::enter(textFx::scatter(kRadius, kLean)),
-                             .stagger = ladder(motion::Spread::From::Start)}),
+                             .tween = ladder(motion::StaggerFrom::First)}),
                         .note = "Each glyph gets a stable, seeded offset and "
                                 "lean."},
                        {.title = "SCATTER + TINT",
@@ -150,8 +150,8 @@ struct FxScatterMix {
                             498, "mx",
                             {.effect =
                                  textFx::mix(textFx::enter(textFx::scatter(kRadius, kLean)),
-                                             textFx::tint(kHot, ink)),
-                             .stagger = ladder(motion::Spread::From::Start)}),
+                                             textFx::tint({.from = kHot, .to = ink})),
+                             .tween = ladder(motion::StaggerFrom::First)}),
                         .note = "Position follows scatter while colour "
                                 "changes alongside it."}},
                   .measure = 1020,
@@ -165,7 +165,7 @@ struct FxScatterMix {
                             figure(
                                 328, "en",
                                 {.effect = textFx::enter(textFx::scatter(kRadius, kLean)),
-                                 .stagger = ladder(motion::Spread::From::End)}),
+                                 .tween = ladder(motion::StaggerFrom::Last)}),
                         .note = "The final glyph starts first; the cascade "
                                 "travels backward."},
                        {.title = "FROM BOTH EDGES",
@@ -173,7 +173,7 @@ struct FxScatterMix {
                         .figure = figure(
                             328, "ed",
                             {.effect = textFx::enter(textFx::scatter(kRadius, kLean)),
-                             .stagger = ladder(motion::Spread::From::Edges)}),
+                             .tween = ladder(motion::StaggerFrom::Edges)}),
                         .note = "Both ends arrive together. The centre "
                                 "remains in flight."},
                        {.title = "EASE THE DELAYS",
@@ -181,7 +181,7 @@ struct FxScatterMix {
                         .figure = figure(
                             328, "di",
                             {.effect = textFx::enter(textFx::scatter(kRadius, kLean)),
-                             .stagger = ladder(motion::Spread::From::Start,
+                             .tween = ladder(motion::StaggerFrom::First,
                                                [](float t) { return t * t; })}),
                         .note = "Only the delay spacing changes; each glyph "
                                 "keeps the same motion."}},

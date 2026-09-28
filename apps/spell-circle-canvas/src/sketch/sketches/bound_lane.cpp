@@ -1,7 +1,7 @@
 // bound_lane.cpp — ONE CHAIN: what a bound lane does to a property
 // between the Output and the pixel.
 // =============================================================================
-// A bare `&output` binding lands on a property RAW. `bind(&output)` puts
+// A live value lands on a property raw. `bind(output)` puts
 // a chain of stages in between, and the stages run in a FIXED ORDER
 // whatever order they were called in — normalise, envelope, curve,
 // quantize, affine, wrap, wiggle, clamp. None of them reads a clock:
@@ -19,7 +19,7 @@
 //   two-lane shake has a LOCUS and it can be drawn. Sharing one seed
 //   between x and y collapses that locus to the diagonal y = x: the
 //   layer slides instead of shaking. Two seeds is the whole rig, and the
-//   two chips beside the plots are the same two BoundFloat values on
+//   two chips beside the plots are the same two sigil::motion::Binding values on
 //   live properties.
 //
 //   THE LANE AS A SCHEDULE. Five tracks under `Element::travel`, where
@@ -49,6 +49,8 @@
 
 // TAGS: Motion/Clocks
 
+#include <sigilcompose/kit/Rows.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Document.h>
@@ -57,7 +59,6 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilmotion/bind/BoundFloat.h>
 #include <sigilmotion/values/Tween.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -127,7 +128,7 @@ void strokePath(SkCanvas& canvas, const SkPath& path, material::Color color,
  *  and @p hi as the frame's own y domain so a stage that overshoots shows
  *  the overshoot instead of clipping it. This is exactly the value the
  *  runtime hands a bound property. */
-Element stage(const char* key, const BoundFloat& lane, float lo, float hi) {
+Element stage(const char* key, const sigil::motion::Binding& lane, float lo, float hi) {
   return sketch::kit::plot(
       key, {.x = {.domain = {0, 1}}, .y = {.domain = {lo, hi}}, .pad = 6},
       {sketch::kit::rules({.y = {0.0, 1.0}}),
@@ -137,7 +138,7 @@ Element stage(const char* key, const BoundFloat& lane, float lo, float hi) {
 
 /** THE WIGGLE STAGE, on its own axes: the ±amount rails in the rail
  *  class, because the bound is the claim worth seeing. */
-Element wiggleStage(const char* key, const BoundFloat& lane) {
+Element wiggleStage(const char* key, const sigil::motion::Binding& lane) {
   return sketch::kit::plot(
       key,
       {.x = {.domain = {0, kWindow}},
@@ -154,7 +155,7 @@ Element wiggleStage(const char* key, const BoundFloat& lane) {
  *  walks a parameter into both, so it is drawn with the pen. Shared seeds
  *  put x == y, so the locus IS the line y = x — the layer slides on a
  *  diagonal and never shakes. */
-Element locus(const char* key, const BoundFloat& wx, const BoundFloat& wy,
+Element locus(const char* key, const sigil::motion::Binding& wx, const sigil::motion::Binding& wy,
               const char* ink) {
   // Both axes read the SAME parameter, which is what no trace can be and
   // what `path` is: the ±amount box is two rules across and two down, and
@@ -237,29 +238,29 @@ struct BoundLane {
     // `seconds` is the SCHEDULE the shake is phased off. It ramps forever
     // rather than wrapping, so `frequency` reads as plain Hz and the noise
     // never steps at a seam.
-    ctx.engine.add([this, &ticker = ctx.engine] {
-      const double t = ticker.elapsed();
+    ctx.engine.timer([this, &ticker = ctx.engine] {
+      const double t = ticker.elapsed().count();
       seconds = (float)t;
     });
     // `phase` is the other kind of schedule: a lap, wrapped by hand here
     // because the tracks want it in [0,1) as their input, not as their
     // output.
-    ctx.engine.add([this, &ticker = ctx.engine] {
-      const double t = ticker.elapsed();
+    ctx.engine.timer([this, &ticker = ctx.engine] {
+      const double t = ticker.elapsed().count();
       phase = (float)std::fmod(t / kPeriod, 1.0);
     });
 
     // The chips' own lanes and the plots' are the SAME values: build
-    // them once and hand the BoundFloat to both.
-    const Bound shakeX = sigil::motion::bind(seconds, {.to = {0.0f, 0.0f}, .wiggle = {.amount = kAmount, .frequency = kFrequency, .seed = kSeedX}});
-    const Bound shakeY = sigil::motion::bind(seconds, {.to = {0.0f, 0.0f}, .wiggle = {.amount = kAmount, .frequency = kFrequency, .seed = kSeedY}});
-    const Bound sameY = sigil::motion::bind(seconds, {.to = {0.0f, 0.0f}, .wiggle = {.amount = kAmount, .frequency = kFrequency, .seed = kSeedX}});
+    // them once and hand the sigil::motion::Binding to both.
+    const sigil::motion::Animatable<float> shakeX = sigil::motion::bind(seconds, {.to = {0.0f, 0.0f}, .wiggle = {.amount = kAmount, .frequency = kFrequency, .seed = kSeedX}});
+    const sigil::motion::Animatable<float> shakeY = sigil::motion::bind(seconds, {.to = {0.0f, 0.0f}, .wiggle = {.amount = kAmount, .frequency = kFrequency, .seed = kSeedY}});
+    const sigil::motion::Animatable<float> sameY = sigil::motion::bind(seconds, {.to = {0.0f, 0.0f}, .wiggle = {.amount = kAmount, .frequency = kFrequency, .seed = kSeedX}});
 
-    // A live chip: two lanes, noise around REST. `wiggle(&out, …)` is
-    // `bind(&out).scale(0).wiggle(…)` — without the scale(0) the property
+    // A live chip: two lanes, noise around rest.
+    // a zero output range keeps the wiggle centred; without it the property
     // would track `seconds` itself and drift off the canvas. `left/top` are
     // the REST position; the wiggle is a paint-only transform on top of it.
-    const auto chip = [](const Bound& x, const Bound& y, material::Color color,
+    const auto chip = [](const sigil::motion::Animatable<float>& x, const sigil::motion::Animatable<float>& y, material::Color color,
                          float left) {
       return box()
           .width(26)
@@ -275,35 +276,34 @@ struct BoundLane {
     Element chain = sketch::kit::comparison(
         {.cases =
              {panel(190, 128, "INPUT", "sigil::motion::bind(phase)",
-                    stage("lane.bare", sigil::motion::bind(phase).value(), -0.15f, 1.15f)),
+                    stage("lane.bare", *sigil::motion::bind(phase).binding(), -0.15f, 1.15f)),
               panel(190, 128, "ENVELOPE", "pingPong()",
-                    stage("lane.pingPong", sigil::motion::bind(phase, {.alternate = true}).value(),
+                    stage("lane.pingPong", *sigil::motion::bind(phase, {.alternate = true}).binding(),
                           -0.15f, 1.15f)),
               panel(
                   190, 128, "CURVE", "map(outBack)",
-                  stage("lane.curve", sigil::motion::bind(phase, {.ease = ease::outBack()}).value(),
+                  stage("lane.curve", *sigil::motion::bind(phase, {.ease = ease::outBack()}).binding(),
                         -0.15f, 1.15f)),
               panel(190, 128, "STEPS", "quantize(8)",
-                    stage("lane.quantize", sigil::motion::bind(phase, {.quantize = 8}).value(),
+                    stage("lane.quantize", *sigil::motion::bind(phase, {.quantize = 8}).binding(),
                           -0.15f, 1.15f)),
               panel(190, 128, "REPEAT", "scale(3).wrap(1)",
                     stage("lane.wrap",
-                          sigil::motion::bind(phase, {.to = {0.0f, 3.0f}, .wrap = 1.0f}).value(), -0.15f,
+                          *sigil::motion::bind(phase, {.to = {0.0f, 3.0f}, .wrap = 1.0f}).binding(), -0.15f,
                           1.15f)),
               panel(190, 128, "NOISE", "3 octaves · rails ±60",
                     wiggleStage("lane.wiggle",
-                                sigil::motion::bind(seconds, {.to = {0.0f, 0.0f}, .wiggle = {.amount = kAmount, .frequency = kFrequency, .seed = kSeedX, .octaves = kOctaves, .falloff = kFalloff}})
-                                    .value()))},
+                                *sigil::motion::bind(seconds, {.to = {0.0f, 0.0f}, .wiggle = {.amount = kAmount, .frequency = kFrequency, .seed = kSeedX, .octaves = kOctaves, .falloff = kFalloff}}).binding()))},
          .measure = 1200,
          .gap = 12});
 
     Element locusRow = sketch::kit::comparison(
         {.cases =
              {panel(282, 220, "SHARED SEED", "x: seed 1 / y: seed 1",
-                    locus("locus.shared", shakeX.value(), sameY.value(),
+                    locus("locus.shared", *shakeX.binding(), *sameY.binding(),
                           "locusShared")),
               panel(282, 220, "INDEPENDENT SEEDS", "x: seed 1 / y: seed 2",
-                    locus("locus.split", shakeX.value(), shakeY.value(),
+                    locus("locus.split", *shakeX.binding(), *shakeY.binding(),
                           "locus")),
               panel(282, 220, "THE SAME LANES, LIVE",
                     "amber: shared / teal: split",
@@ -316,11 +316,10 @@ struct BoundLane {
                         "along a diagonal. Independent seeds let it explore "
                         "the plane.")
                         .width(282),
-                    sketch::kit::readout(
-                        {{.name = "Amplitude", .value = "±60 px"},
+                    sigil::compose::kit::readout(std::vector<sigil::compose::kit::Reading>{{.name = "Amplitude", .value = "±60 px"},
                          {.name = "Frequency", .value = "3 Hz"},
                          {.name = "Plotted window", .value = "2 seconds"}},
-                        {.measure = 282, .ruled = true}),
+                        {.measure = 282, .gap = sketch::kit::theme().spacing.rowGap, .labelGap = sketch::kit::theme().spacing.labelGap, .divider = Fill::color(sketch::kit::theme().palette.rule)}),
                     document::caption(
                         "The red rails bound the displacement. Noise is "
                         "added in the property's own units; clamp runs last.")
@@ -381,6 +380,6 @@ struct BoundLane {
 };
 
 SIGIL_SKETCH(BoundLane, "Specimen",
-             "one BoundFloat chain, stage by stage — each one "
+             "one sigil::motion::Binding chain, stage by stage — each one "
              "graphed because none reads a clock, then the wiggle's locus "
              "and the schedule under travel()")

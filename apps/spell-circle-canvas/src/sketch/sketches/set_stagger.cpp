@@ -2,7 +2,7 @@
  * set_stagger — the entrances of a set's children, cascaded, and the two
  * selectors that address a subtree afterwards.
  *
- * `staggerChildren(Spread)` cascades the entrances of a node's children
+ * A stagger on the child's tween delays each entrance
  * AS THEY MOUNT, on the schedule SigilMotion speaks — an even ladder, a
  * fixed total divided across however many children there are, a cue
  * table, an origin and a distribution curve. The delay COMPOUNDS down the
@@ -81,9 +81,9 @@ material::Material coolSlab() {
 }
 
 /** One row of children under its own key, cascaded by its own spread. */
-world::Element row(const std::string& key, float z, motion::Spread spread,
+world::Element row(const std::string& key, float z, motion::StaggerFrom from,
                    const material::Material& skin) {
-  return world::Element().key(key).staggerChildren(spread).children(
+  return world::Element().key(key).children(
       std::views::iota(0, kCount) | std::views::transform([&](int i) {
         const float x = ((float)i - (float)(kCount - 1) * 0.5f) * kPitch;
         return world::Element()
@@ -96,9 +96,11 @@ world::Element row(const std::string& key, float z, motion::Spread spread,
             // delays: the path plays once, when the node first
             // appears.
             .translateY(
-                motion::animate({.from = kRise, .to = 0.0f, .duration = std::chrono::milliseconds((int)kDuration)}))
+                motion::animate({.from = kRise, .to = 0.0f, .duration = std::chrono::milliseconds((int)kDuration),
+                                 .delay = motion::stagger(std::chrono::duration<double, std::milli>(kEach), {.from = from})}))
             .scale(
-                motion::animate({.from = 0.35f, .to = 1.0f, .duration = std::chrono::milliseconds((int)kDuration)}));
+                motion::animate({.from = 0.35f, .to = 1.0f, .duration = std::chrono::milliseconds((int)kDuration),
+                                 .delay = motion::stagger(std::chrono::duration<double, std::milli>(kEach), {.from = from})}));
       }));
 }
 
@@ -140,14 +142,10 @@ struct SetStagger {
          world::kit::threePoint(rig),
          world::Element().key("rows").children(
              {row("near", 60,
-                  {.eachMs = kEach,
-                   .durationMs = kDuration,
-                   .from = motion::Spread::From::Start},
+                  motion::StaggerFrom::First,
                   coolSlab()),
               row("far", -80,
-                  {.eachMs = kEach,
-                   .durationMs = kDuration,
-                   .from = motion::Spread::From::Edges},
+                  motion::StaggerFrom::Edges,
                   litSlab())})});
 
     world::Frame frame(std::move(root));
@@ -163,7 +161,7 @@ struct SetStagger {
         .pass(world::postPass("picture")
                   .reads("colour", "soft")
                   .writes("picture")
-                  .composite(SkBlendMode::kPlus, 0.75f));
+                  .composite(sigil::material::BlendMode::PlusLighter, 0.75f));
     return frame;
   }
 };
