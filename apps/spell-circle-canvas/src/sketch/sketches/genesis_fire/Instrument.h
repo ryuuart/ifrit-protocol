@@ -12,7 +12,7 @@
 // what it says are each study's own, and none of that belongs here.
 
 #include <include/core/SkColor.h>
-#include <include/core/SkFontStyle.h>
+#include <sigilweave/style/Face.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/core/Element.h>
@@ -28,27 +28,27 @@
 namespace instrument {
 
 /** The measured face, and its bold cut. */
-inline sk_sp<SkTypeface> monoFace() {
-  return sigil::weave::ports::face({"Menlo"}, SkFontStyle::Normal());
+inline sigil::weave::Face monoFace() {
+  return sigil::weave::ports::face({"Menlo"}, sigil::weave::FaceStyle{});
 }
-inline sk_sp<SkTypeface> monoBoldFace() {
-  return sigil::weave::ports::face({"Menlo"}, SkFontStyle::Bold());
+inline sigil::weave::Face monoBoldFace() {
+  return sigil::weave::ports::face({"Menlo"}, sigil::weave::FaceStyle{.weight = 700});
 }
 /** The named face, its bold cut, and the black cut a masthead takes. */
-inline sk_sp<SkTypeface> uiFace() {
-  return sigil::weave::ports::face({"Helvetica Neue"}, SkFontStyle::Normal());
+inline sigil::weave::Face uiFace() {
+  return sigil::weave::ports::face({"Helvetica Neue"}, sigil::weave::FaceStyle{});
 }
-inline sk_sp<SkTypeface> uiBoldFace() {
-  return sigil::weave::ports::face({"Helvetica Neue"}, SkFontStyle::Bold());
+inline sigil::weave::Face uiBoldFace() {
+  return sigil::weave::ports::face({"Helvetica Neue"}, sigil::weave::FaceStyle{.weight = 700});
 }
-inline sk_sp<SkTypeface> heavyFace() {
+inline sigil::weave::Face heavyFace() {
   return sigil::weave::ports::face({"Helvetica Neue", "Helvetica"},
-                                   SkFontStyle::kBlack_Weight);
+                                   900);
 }
 
 /** A positional shorthand over the library's designated-init `textStyle`,
  *  for the one display line that names its own face. */
-inline sigil::weave::TextStyle faced(sk_sp<SkTypeface> face, float size,
+inline sigil::weave::TextStyle faced(sigil::weave::Face face, float size,
                                      sigil::material::Color color,
                                      float track = 0.0f) {
   return sigil::weave::textStyle(
@@ -83,7 +83,7 @@ inline sigil::compose::Element t(const sigil::compose::Utf8& line,
 /** The same register as a PEN's type, for the study that draws its panel
  *  rather than describing it: a pen carries one type and one fill, so a
  *  register is set on it rather than handed to a node. */
-inline sigil::weave::Type penType(const sk_sp<SkTypeface>& face, float size,
+inline sigil::weave::Type penType(const sigil::weave::Face& face, float size,
                                   float track = 0.0f) {
   return sigil::weave::Type{.face = face, .size = size, .track = track};
 }

@@ -2,6 +2,7 @@
 
 // Stage dimensions, emission parameters, palette and reusable panel furniture.
 
+#include <sigilgeometry/advanced/Skia.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkPaint.h>
@@ -14,7 +15,7 @@
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Presets.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Chance.h>
 #include <sigildata/decode/Json.h>
@@ -212,19 +213,19 @@ inline void penMono(Pen& pen, float size, material::Color c,
 }
 
 // The planet's silhouette: the limb arc, closed down to the stage floor.
-inline std::function<SkPath(SkSize)> limbOutline() {
-  return [](SkSize s) {
+inline std::function<sigil::geometry::path::Outline(glm::vec2)> limbOutline() {
+  return [](glm::vec2 s) {
     SkPathBuilder b;
     constexpr int kSamples = 160;
     b.moveTo(0, limbY(0));
     for (int i = 1; i <= kSamples; ++i) {
-      const float x = s.width() * (float)i / (float)kSamples;
+      const float x = s.x * (float)i / (float)kSamples;
       b.lineTo(x, limbY(x));
     }
-    b.lineTo(s.width(), s.height());
-    b.lineTo(0, s.height());
+    b.lineTo(s.x, s.y);
+    b.lineTo(0, s.y);
     b.close();
-    return b.detach();
+    return sigil::geometry::path::fromSk(b.detach());
   };
 }
 

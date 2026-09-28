@@ -3,6 +3,7 @@
 
 // TAGS: Drawing/Generative, Motion/Particles
 
+#include <sigildata/decode/Json.h>
 #include "GenesisFire.h"
 #include <sigilmotion/ease/Ease.h>
 
@@ -13,7 +14,7 @@ void GenesisFire::setup(sketch::SketchContext& ctx) {
   ctx.background(kInk);
   ctx.captureAt(4.6);
 
-  content = ctx.assets.json(ctx.local("data/content.json"));
+  content = ctx.assets.hub().load<sigil::data::Json>(ctx.local("data/content.json"));
 
   loopT = 0;
   stepped = false;
@@ -60,14 +61,12 @@ void GenesisFire::setup(sketch::SketchContext& ctx) {
   // the ticker dt = 1.0, addFixed runs its 8 steps and DROPS the other
   // 16, so the sim lags the wall clock — which is the correct failure,
   // not a bug.
-  ctx.engine.addFixed(
-      kSimHz,
-      [this] {
+  const auto fixedClock = ctx.engine.timer([this] {
         stepSim();
         stepped = true;
         return true;
-      },
-      8, &simAlpha);
+      }, {.stepRate = kSimHz, .catchUp = 8});
+    ctx.engine.timer([this, clock = fixedClock] { simAlpha = clock.betweenSteps(); });
 
   // Each panel is its own guest tree under the pen, so the registers
   // stand on each one's root.

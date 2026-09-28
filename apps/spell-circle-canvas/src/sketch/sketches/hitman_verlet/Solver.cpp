@@ -102,16 +102,16 @@ auto HitmanVerlet::collideWorld(Body& b, bool record) -> void {
 auto HitmanVerlet::collideSticks(Body& b, bool record) -> void {
   for (const physics::Constraint& s : b.sticks) {
     const float c1 = 0.5f, c2 = 0.5f;
-    const SkPoint p = b.at(s.a) * c1 + b.at(s.b) * c2;
+    const SkPoint p = b.at(s.first) * c1 + b.at(s.second) * c2;
     SkPoint q;
     if (!projectWorld(p, b.radius, &q)) continue;
     const SkPoint D = q - p;
     const float dd = dot(D, D);
     if (dd < 1e-8f) continue;
     const float lambda = dot(q - p, D) / ((c1 * c1 + c2 * c2) * dd);
-    const float w1 = b.invm(s.a), w2 = b.invm(s.b);
-    if (w1 > 0) b.moveTo(s.a, b.at(s.a) + D * (c1 * lambda));
-    if (w2 > 0) b.moveTo(s.b, b.at(s.b) + D * (c2 * lambda));
+    const float w1 = b.invm(s.first), w2 = b.invm(s.second);
+    if (w1 > 0) b.moveTo(s.first, b.at(s.first) + D * (c1 * lambda));
+    if (w2 > 0) b.moveTo(s.second, b.at(s.second) + D * (c2 * lambda));
     if (record && contacts.size() < 40)
       contacts.push_back({q, D * (1.0f / std::sqrt(dd))});
   }
@@ -148,7 +148,7 @@ auto HitmanVerlet::applyBlast(Body& b, SkPoint c) -> void {
 auto HitmanVerlet::maxError(const Body& b) const -> float {
   float e = 0;
   for (const physics::Constraint& s : b.sticks)
-    e = std::max(e, std::abs(len(b.at(s.b) - b.at(s.a)) - s.rest) / s.rest);
+    e = std::max(e, std::abs(len(b.at(s.second) - b.at(s.first)) - s.rest) / s.rest);
   return e;
 }
 
@@ -156,7 +156,7 @@ auto HitmanVerlet::chainStats(const Body& b, float* mean, float* mx) const
     -> void {
   float sum = 0, m = 0;
   for (const physics::Constraint& s : b.sticks) {
-    const float e = std::abs(len(b.at(s.b) - b.at(s.a)) - s.rest) / s.rest;
+    const float e = std::abs(len(b.at(s.second) - b.at(s.first)) - s.rest) / s.rest;
     sum += e;
     m = std::max(m, e);
   }

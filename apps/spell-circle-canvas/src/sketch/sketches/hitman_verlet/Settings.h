@@ -8,7 +8,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Presets.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigildata/decode/Json.h>
@@ -199,7 +199,7 @@ inline void penUi(Pen& pen, float size, material::Color c, float track = 0.0f) {
 }
 
 /** A part's entrance as time arithmetic: what a described tree spells as
- *  `animate(from(0).to(1), {duration, delay})`, in a loop that has the
+ *  `sigil::motion::animate({.from = 0, .to = 1, .duration = duration, .ease = delay})`, in a loop that has the
  *  clock in its hand. */
 inline float cue(double ms, float delayMs, float durationMs,
                  const sigil::motion::Easing& ease = nullptr) {

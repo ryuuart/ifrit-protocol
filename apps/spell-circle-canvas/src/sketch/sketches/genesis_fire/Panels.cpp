@@ -15,19 +15,19 @@ Element GenesisFire::generationPanel() {
 }
 
 Element GenesisFire::censusBar(float frac, sigil::material::Color c,
-                               const char* key) {
+                               const char* key, sigil::motion::Duration delay) {
   sketch::kit::Meter bar{.width = Dimension(kCensusW[4]),
                          .height = Dimension(7),
                          .track = Fill::color(hexColor(0x171B24)),
                          .bar = Fill::color(c)};
-  bar.level = sigil::motion::animate({.from = 0.0f, .to = frac, .duration = 420ms, .delay = 1200ms, .ease = ease::outBack(1.2f)});
+  bar.level = sigil::motion::animate({.from = 0.0f, .to = frac, .duration = 420ms, .delay = delay, .ease = ease::outBack(1.2f)});
   if (key) bar.level = sigil::motion::bind(liveFrac, {.clamp = {0.02f, 1.0f}});
   Element rail = sketch::kit::meter(bar).flexShrink(0);
   if (key) rail.key(key);
   return rail;
 }
 
-Element GenesisFire::censusRow(const sigil::data::Json& row) {
+Element GenesisFire::censusRow(const sigil::data::Json& row, size_t index) {
   return box()
       .row()
       .height(14)
@@ -40,7 +40,7 @@ Element GenesisFire::censusRow(const sigil::data::Json& row) {
                      .font({.face = monoBoldFace()}),
                  censusCell(row["per"], 3, kSteel),
                  censusBar((float)row["share"].number(), hexColor(0x6D5A3F),
-                           nullptr)});
+                           nullptr, 1200ms + 70ms * index)});
 }
 
 Element GenesisFire::liveRow() {
@@ -74,10 +74,10 @@ Element GenesisFire::censusPanel() {
                      [this](const sigil::data::Json& name, size_t i) {
                        return censusCell(name, i, kSteelDim);
                      })}),
-           box().column().gap(3).flexShrink(0).staggerChildren(70ms).children(
+           box().column().gap(3).flexShrink(0).children(
                {each(census["rows"].array(),
-                     [this](const sigil::data::Json& row) {
-                       return censusRow(row);
+                     [this](const sigil::data::Json& row, size_t index) {
+                       return censusRow(row, index);
                      }),
                 liveRow()}),
            box().flexGrow(1), note(census["footnote"]).ink(kSteelDim),
@@ -88,11 +88,11 @@ Element GenesisFire::rampPanel() {
   // ONE SWATCH AND ONE NUMBER PER OVERLAP COUNT, dealt in one step at a
   // time, with the number LIT where the count is one of the three a
   // channel saturates at — which is what the strip's own inks say.
-  std::vector<SurfacePaint> steps;
+  std::vector<Fill> steps;
   std::vector<Utf8> counts;
   std::vector<Fill> lit;
   for (const int n : kRampN) {
-    steps.push_back(Paint::solid(overlap(n)));
+    steps.push_back(Fill::color(overlap(n)));
     counts.push_back(std::to_string(n));
     lit.push_back(
         Fill::color(n == 5 || n == 20 || n == 111 ? kBone : kSteelDim));
@@ -108,9 +108,8 @@ Element GenesisFire::rampPanel() {
                       .width = Dimension(28),
                       .height = Dimension(26),
                       .gap = 2,
-                      .opacity = sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 220ms, .ease = ease::outBack()})})
-                     .flexShrink(0)
-                     .staggerChildren(26ms),
+                      .opacity = sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 220ms, .delay = sigil::motion::stagger(26ms), .ease = ease::outBack()})})
+                     .flexShrink(0),
                  box().flexGrow(1), note(ramp["note"])});
 }
 

@@ -175,16 +175,16 @@ auto HitmanVerlet::paintRig(Pen& pen, float scale, SkPoint offset, float fade,
     pen.strokeWeight(2.0f * kCapsule * kUnit * scale);
     pen.stroke(hexColor(0x6FA8DC, 0.10f * fade));
     for (const physics::Constraint& s : rig.sticks) {
-      const SkPoint a = at(s.a), b = at(s.b);
+      const SkPoint a = at(s.first), b = at(s.second);
       pen.line(a.fX, a.fY, b.fX, b.fY);
     }
   }
   // 2. The centrelines, coloured by LIVE constraint error.
   pen.strokeWeight(std::max(4.6f, 2.5f * scale));
   for (const physics::Constraint& s : rig.sticks) {
-    const float e = std::abs(len(rig.at(s.b) - rig.at(s.a)) - s.rest) / s.rest;
+    const float e = std::abs(len(rig.at(s.second) - rig.at(s.first)) - s.rest) / s.rest;
     pen.stroke(errColor(e, fade));
-    const SkPoint a = at(s.a), b = at(s.b);
+    const SkPoint a = at(s.first), b = at(s.second);
     pen.line(a.fX, a.fY, b.fX, b.fY);
   }
   // 3. The inequality constraint — dotted, as Figure 8 draws it.
@@ -224,7 +224,7 @@ auto HitmanVerlet::writeBarPool(SkPoint origin, float scale) -> void {
   const float f = bodyFade.value();
   for (size_t i = 0; i < rig.sticks.size(); ++i) {
     const physics::Constraint& s = rig.sticks[i];
-    SkPoint a = drawn(rig, s.a), b = drawn(rig, s.b);
+    SkPoint a = drawn(rig, s.first), b = drawn(rig, s.second);
     a = {origin.fX + a.fX * scale, origin.fY + a.fY * scale};
     b = {origin.fX + b.fX * scale, origin.fY + b.fY * scale};
     const SkPoint d = b - a;
@@ -236,7 +236,7 @@ auto HitmanVerlet::writeBarPool(SkPoint origin, float scale) -> void {
     // fixed: ONE cell length serving 24 different stick lengths remaps the
     // cell's aspect by itself.
     size[i] = {L / 32.0f, 4.6f / 8.0f};
-    const float e = std::abs(len(rig.at(s.b) - rig.at(s.a)) - s.rest) / s.rest;
+    const float e = std::abs(len(rig.at(s.second) - rig.at(s.first)) - s.rest) / s.rest;
     tint[i] = errColor(e, f);
   }
   barPool->commit();

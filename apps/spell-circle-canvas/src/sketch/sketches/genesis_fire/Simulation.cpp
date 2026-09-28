@@ -1,5 +1,7 @@
 // Particle emission, fixed steps and streak geometry.
 
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <glm/geometric.hpp>
 #include <glm/vec2.hpp>
 #include "GenesisFire.h"
@@ -10,10 +12,10 @@ physics::Emitter GenesisFire::mouthFor(const Site& s, int index,
                                        float genScale) {
   return physics::Emitter{
       .from = physics::EmitFrom::Segment,
-      .at = s.p,
-      .along = s.u,
+      .at = sigil::geometry::path::fromSk(s.p),
+      .along = sigil::geometry::path::fromSk(s.u),
       .size = {kRGen * genScale, 0.0f},
-      .aim = s.n,
+      .aim = sigil::geometry::path::fromSk(s.n),
       .cone = kPsiMax,
       .speed = {.mean = kMeanSpeed,
                 .variation = kVarSpeed,
@@ -55,11 +57,11 @@ void GenesisFire::advance(physics::Particles& cloud,
 
   for (size_t i = 0; i < cloud.size(); ++i) {
     const Site& s = ss[(size_t)which[i]];
-    cloud.points.velocity[i] -= glm::vec2(s.n) * gravity;
+    cloud.points.velocity[i] -= glm::vec2{s.n.fX, s.n.fY} * gravity;
     cloud.points.position[i] += cloud.points.velocity[i];
   }
   // One film frame older, and every attribute moved by its own rate.
-  cloud.live(1.0f);
+  cloud.ageBy(sigil::motion::Duration(1.0));
 
   cloud.reap([&](size_t i) {
     const glm::vec2 at = cloud.points.position[i];
@@ -262,7 +264,7 @@ void GenesisFire::seedPlan() {
                                      PathFormat::Align::Inner)),
                   {4, 4});
   planAtlas->cell(box().width(4.0f).height(4.0f).fill(
-                      Paint::radialGradient({0.5f, 0.5f}, 0.707f,
+                      sigil::material::radialGradient({0.5f, 0.5f}, 0.707f,
                                             {{0.0f, {1, 1, 1, 1}},
                                              {0.45f, {1, 1, 1, 0.8f}},
                                              {1.0f, {1, 1, 1, 0}}})),
@@ -279,7 +281,7 @@ void GenesisFire::seedPlan() {
     const int n = (int)std::lround(0.055f * 2.0f * 3.14159265f * r);
     for (int i = 0; i < n; ++i) {
       const float a = rng.unit() * 6.2831853f;
-      const SkPoint p = arrange::onEllipse(impact, {r, r}, a);
+      const SkPoint p = sigil::geometry::path::toSk(arrange::onEllipse(sigil::geometry::path::fromSk(impact), {r, r}, a));
       planMarks.push_back({p, r});
       planPool->add(p, 0, 0.0f, 1.0f, {1, 1, 1, 0.55f});
     }
@@ -292,7 +294,7 @@ void GenesisFire::seedBench() {
   // stubby at apogee; an atlas cell is one size and a Pool scale is one
   // float, so this cell is the compromise the middle two panels show.
   abAtlas->cell(box().width(4.4f).height(2.3f).borderRadius({1.0f}).fill(
-                    Paint::radialGradient({0.5f, 0.5f}, 1.05f,
+                    sigil::material::radialGradient({0.5f, 0.5f}, 1.05f,
                                           {{0.0f, {1, 1, 1, 1}},
                                            {0.42f, {1, 1, 1, 0.9f}},
                                            {1.0f, {1, 1, 1, 0}}})),

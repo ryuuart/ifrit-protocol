@@ -1,5 +1,8 @@
 // The planet, star field and layered stage artwork.
 
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/paint/Bases.h>
 #include "GenesisFire.h"
 #include <sigilmotion/ease/Ease.h>
 
@@ -9,7 +12,7 @@ void GenesisFire::seedStars() {
   const float sizes[5] = {7.0f, 5.4f, 4.2f, 3.2f, 2.4f};
   for (float s : sizes)
     starAtlas->cell(box().width(s).height(s).fill(
-                        Paint::radialGradient({0.5f, 0.5f}, 0.707f,
+                        sigil::material::radialGradient({0.5f, 0.5f}, 0.707f,
                                               {{0.0f, {1, 1, 1, 1}},
                                                {0.22f, {1, 1, 1, 0.78f}},
                                                {0.58f, {1, 1, 1, 0.14f}},
@@ -89,7 +92,7 @@ Element GenesisFire::dipper() {
                                b.lineTo(P(5));
                                b.lineTo(P(6));
                                b.lineTo(P(3));
-                               return b.detach();
+                               return sigil::geometry::path::fromSk(b.detach());
                              }))
            .stroke(spans::upTo(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 620ms, .delay = 1300ms})),
                    stroke(1.0f, Fill::color(hexColor(0x4FB8D8, 0.35f))))
@@ -99,8 +102,8 @@ Element GenesisFire::dipper() {
     const SkPoint p = at(i);
     const float rad = std::max(1.4f, 4.6f - 0.85f * kStars[i].mag);
     const bool sol = i == 7;
-    g.children({kit::disc(p, rad * 2.0f)
-                    .fill(Paint::radialGradient(
+    g.children({kit::disc(sigil::geometry::path::fromSk(p),rad * 2.0f)
+                    .fill(sigil::material::radialGradient(
                         {0.5f, 0.5f}, 0.707f,
                         {{0.0f, sol ? hexColor(0xFFFFFF) : hexColor(0xEFF3FF)},
                          {0.22f, sol ? hexColor(0xFFF4D8, 0.9f)
@@ -135,7 +138,7 @@ Element GenesisFire::dipper() {
 Element GenesisFire::regolith() {
   // A generated surface, plus the ONE hand-added light in the shot
   // (Tom Duff's), riding the wavefront.
-  Paint ground =
+  sigil::material::Material ground =
       material::from(material::radialGradient({0.5f, 0.723f}, 0.50f,
                                            {{0.0f, hexColor(0x3B3933)},
                                             {0.42f, hexColor(0x232119)},
@@ -156,7 +159,7 @@ Element GenesisFire::regolith() {
       // Duff's local light. ONE Output (loopU) shaped into px.
       .children(
           {kit::disc(glm::vec2{0, 0}, 132)
-               .fill(Paint::radialGradient({0.5f, 0.5f}, 0.707f,
+               .fill(sigil::material::radialGradient({0.5f, 0.5f}, 0.707f,
                                            {{0.0f, hexColor(0xFF8A3A, 0.62f)},
                                             {0.38f, hexColor(0xC24E14, 0.24f)},
                                             {1.0f, hexColor(0xFF8A3A, 0.0f)}}))
@@ -176,8 +179,8 @@ Element GenesisFire::shockwave() {
   const SkPoint impact{kX0, limbY(kX0 < 0 ? 0.0f : kX0) + 8.0f};
   Element g = box().inset(0);
   g.children(
-      {kit::disc(impact, 170)
-           .fill(Paint::radialGradient({0.5f, 0.5f}, 0.707f,
+      {kit::disc(sigil::geometry::path::fromSk(impact),170)
+           .fill(sigil::material::radialGradient({0.5f, 0.5f}, 0.707f,
                                        {{0.0f, {1, 1, 1, 0.95f}},
                                         {0.25f, hexColor(0xFFE7B0, 0.6f)},
                                         {1.0f, hexColor(0xFF7A20, 0.0f)}}))
@@ -191,7 +194,7 @@ Element GenesisFire::shockwave() {
              }
              return 0.0f;
            }}))});
-  g.children({kit::disc(impact, 520)
+  g.children({kit::disc(sigil::geometry::path::fromSk(impact),520)
                   .shape(shapes::circle())
                   .stroke(stroke(2.0f, Fill::color(hexColor(0xFFB070, 0.85f))))
                   .blendMode(material::BlendMode::PlusLighter)
@@ -213,7 +216,7 @@ Element GenesisFire::stageBelow() {
       .width(kStageW)
       .height(kStageH)
       .overflow(Overflow::Clip)
-      .fill(Paint::linearGradient({0.5f, 0.0f}, {0.5f, 0.85f},
+      .fill(sigil::material::linearGradient({0.5f, 0.0f}, {0.5f, 0.85f},
                                   {{0.0f, hexColor(0x03040A)},
                                    {0.55f, hexColor(0x05060D)},
                                    {1.0f, hexColor(0x0A0B13)}}))

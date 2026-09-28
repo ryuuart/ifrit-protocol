@@ -274,11 +274,12 @@ struct GenesisFire {
    *  fraction and the rail clips, which is what keeps a bar that
    *  overshoots inside its own track. The live row names its bar, since
    *  that row is described again every frame. */
-  Element censusBar(float frac, sigil::material::Color c, const char* key);
+  Element censusBar(float frac, sigil::material::Color c, const char* key,
+                    sigil::motion::Duration delay = 1200ms);
 
   /** ONE FIGURE'S ROW, out of the document: its four cells and the bar
    *  that says its share of the largest census. */
-  Element censusRow(const sigil::data::Json& row);
+  Element censusRow(const sigil::data::Json& row, size_t index);
 
   /** The live census row. The numbers tick, so the row is re-described
    *  every frame and reconciled against what the guest's own composer
@@ -328,7 +329,7 @@ struct GenesisFire {
   void stageCaption(Pen& pen);
 
   /** A part's entrance as time arithmetic: what a described tree spells
-   *  as `animate(from(0).to(1), {duration, delay})`, in a loop that has
+   *  as `sigil::motion::animate({.from = 0, .to = 1, .duration = duration, .ease = delay})`, in a loop that has
    *  the clock in its hand. */
   static float cue(double ms, float delayMs, float durationMs,
                    const sigil::motion::Easing& ease = nullptr) {

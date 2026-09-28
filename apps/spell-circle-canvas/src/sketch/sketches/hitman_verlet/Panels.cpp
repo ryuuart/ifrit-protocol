@@ -64,7 +64,7 @@ auto HitmanVerlet::panelA3() -> Element {
     return box()
         .fill(Fill::currentInk())
         .styleClass(i + 1 == kSoft.size() ? "hit" : "")
-        .scaleY(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 220ms, .delay = 1600ms, .ease = ease::outBack()}))
+        .scaleY(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 220ms, .delay = sigil::motion::stagger(60ms, {.start = 1600ms}), .ease = ease::outBack()}))
         .transformOrigin(pct(50), pct(100));
   };
   return panel(kPanelAH[2], a3["heading"].string(), 3)
@@ -119,8 +119,7 @@ auto HitmanVerlet::panelA3() -> Element {
                           std::size_t i) {
                   return sketch::kit::bands(
                              kSoft, {.y = [](double v) { return v * 0.2; },
-                                     .part = column})(f, key, i)
-                      .staggerChildren(60ms);
+                                     .part = column})(f, key, i);
                 },
                 sketch::kit::axis({.line = false,
                                    .reach = 0,
@@ -164,7 +163,7 @@ auto HitmanVerlet::paintAnatomy(Pen& pen, float x0, float y0, float w) -> void {
   pen.strokeWeight(1.5f);
   pen.stroke(hexColor(0x8A8F9C, 0.9f));
   for (const physics::Constraint& s : rig.sticks) {
-    const SkPoint a = p[s.a], b = p[s.b];
+    const SkPoint a = p[s.first], b = p[s.second];
     pen.line(a.fX, a.fY, b.fX, b.fY);
   }
   pen.strokeWeight(1.0f);
@@ -203,9 +202,9 @@ auto HitmanVerlet::paintChains(Pen& pen, float x0, float y0) -> void {
   for (int k = 0; k < 3; ++k) {
     const Body& b = chains[(size_t)k];
     for (const physics::Constraint& s : b.sticks) {
-      const float e = std::abs(len(b.at(s.b) - b.at(s.a)) - s.rest) / s.rest;
-      const SkPoint a = drawnWorld(b, s.a);
-      const SkPoint z = drawnWorld(b, s.b);
+      const float e = std::abs(len(b.at(s.second) - b.at(s.first)) - s.rest) / s.rest;
+      const SkPoint a = drawnWorld(b, s.first);
+      const SkPoint z = drawnWorld(b, s.second);
       pen.stroke(errColor(e));
       pen.line(a.fX, a.fY, z.fX, z.fY);
     }

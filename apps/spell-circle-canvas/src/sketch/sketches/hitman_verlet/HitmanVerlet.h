@@ -1,5 +1,6 @@
 #pragma once
 
+#include <sigilgeometry/advanced/Skia.h>
 #include "Settings.h"
 
 struct HitmanVerlet {
@@ -41,12 +42,12 @@ struct HitmanVerlet {
     [[nodiscard]] SkPoint was(size_t i) const {
       return {pts.previous[i].x, pts.previous[i].y};
     }
-    void moveTo(size_t i, SkPoint p) { pts.position[i] = p; }
-    void wasAt(size_t i, SkPoint p) { pts.previous[i] = p; }
+    void moveTo(size_t i, SkPoint p) { pts.position[i] = {p.fX, p.fY}; }
+    void wasAt(size_t i, SkPoint p) { pts.previous[i] = {p.fX, p.fY}; }
     [[nodiscard]] float invm(size_t i) const { return pts.inverseMass(i); }
     /** A particle at rest at @p p; `held` is the paper's constraint to
      *  origo, an infinite mass by another road. */
-    void add(SkPoint p, bool held = false) { pts.add(p, {}, 1.0f, held); }
+    void add(SkPoint p, bool held = false) { pts.add(sigil::geometry::path::fromSk(p), {}, 1.0f, held); }
   };
 
   struct Contact {

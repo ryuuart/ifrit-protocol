@@ -1,3 +1,5 @@
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/paint/Bases.h>
 #include "HitmanVerlet.h"
 #include <sigilmotion/ease/Ease.h>
 
@@ -9,7 +11,7 @@ auto HitmanVerlet::stageChrome(Pen& pen, double ms) -> void {
   // a LAYER OF THE PAINT — Paint::blend soft-lights it onto the solid in
   // one fill, rather than costing a second pass over the same band.
   const float floorTop = kStage - kCapsule * kUnit;
-  const Paint floor =
+  const sigil::material::Material floor =
       material::from(fadeTo(kSolid, a)).layer(field::grain(0.035f, 3, 11.0f, 0.5f), {.blend = material::BlendMode::SoftLight});
   pen.noStroke();
   pen.fill(floor);
@@ -99,14 +101,14 @@ auto HitmanVerlet::simulation(Pen& pen) -> void {
   pen.strokeWeight(1.0f);
   pen.stroke(hexColor(0x8A8F9C, 0.45f * f));
   for (const physics::Constraint& s : cloth.sticks) {
-    const SkPoint a = drawn(cloth, s.a), b = drawn(cloth, s.b);
+    const SkPoint a = drawn(cloth, s.first), b = drawn(cloth, s.second);
     pen.line(a.fX, a.fY, b.fX, b.fY);
   }
   pen.strokeWeight(2.0f);
   pen.stroke(hexColor(0x8A8F9C, 0.70f * f));
   for (const Body& p : plants)
     for (const physics::Constraint& st : p.sticks) {
-      const SkPoint a = drawn(p, st.a), b = drawn(p, st.b);
+      const SkPoint a = drawn(p, st.first), b = drawn(p, st.second);
       pen.line(a.fX, a.fY, b.fX, b.fY);
     }
 
@@ -193,11 +195,11 @@ auto HitmanVerlet::blastGlow(Pen& pen) -> void {
   pen.blendMode(sigil::draw::ADD);
   pen.rectMode(sigil::draw::CENTER);
   pen.fill(
-      Paint::radialGradient({0.5f, 0.5f}, 1.0f,
+      sigil::material::skia::paint(sigil::material::radialGradient({0.5f, 0.5f}, 1.0f,
                             {{0.0f, hexColor(0xFFF3E2, 1.0f * a)},
                              {0.35f, hexColor(0xFFC98A, 0.55f * a)},
                              {1.0f, hexColor(0xC8402F, 0.0f)}},
-                            {.extent = material::RadialExtent::ClosestSide}),
+                            {.extent = material::RadialExtent::ClosestSide})),
       sigil::draw::SHAPE);
   pen.rect(c.fX, c.fY, 240.0f, 240.0f);
   pen.pop();

@@ -2,6 +2,7 @@
 
 // TAGS: Motion/Physics
 
+#include <sigildata/decode/Json.h>
 #include "HitmanVerlet.h"
 
 auto HitmanVerlet::setup(sketch::SketchContext& ctx) -> void {
@@ -14,7 +15,7 @@ auto HitmanVerlet::setup(sketch::SketchContext& ctx) -> void {
   // floor, which is the one still a physics study must not ship.
   ctx.captureAt(3.35);
 
-  content = ctx.assets.json(ctx.local("data/content.json"));
+  content = ctx.assets.hub().load<sigil::data::Json>(ctx.local("data/content.json"));
 
   loopT = 0;
   simSteps = 0;
@@ -55,13 +56,11 @@ auto HitmanVerlet::setup(sketch::SketchContext& ctx) -> void {
   // parameter publishes the leftover fraction of a step: a verlet body's
   // state IS the pair (x*, x), so lerp(x*, x, alpha) is the integrator's
   // own interpolant, and drawing through it costs nothing extra.
-  ctx.engine.addFixed(
-      kSimHz,
-      [this] {
+  const auto fixedClock = ctx.engine.timer([this] {
         stepPhysics();
         return true;
-      },
-      8, &alpha);
+      }, {.stepRate = kSimHz, .catchUp = 8});
+    ctx.engine.timer([this, clock = fixedClock] { alpha = clock.betweenSteps(); });
 
   headerEl = header();
   overlayEl = stageOverlay();
