@@ -43,6 +43,8 @@
 
 // TAGS: Data/Sources, Motion/Clocks
 
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilcompose/kit/Rows.h>
 #include <include/core/SkPoint.h>
 #include <include/core/SkRect.h>
 #include <sigilcompose/core/Core.h>
@@ -218,13 +220,13 @@ struct ChannelBind {
   /** THE THREE CHAINS, one value each. The tree binds them and the
    *  readout evaluates them, so what a row says the property is standing
    *  at is the number the property is standing at. */
-  motion::Bound rise() const {
+  sigil::motion::Animatable<float> rise() const {
     return motion::bind(faders[0].live(), {.from = {0, kFull}, .to = {kBladeShort / kBladeTall, 1.0f}});
   }
-  motion::Bound turn() const {
+  sigil::motion::Animatable<float> turn() const {
     return motion::bind(faders[1].live(), {.from = {0, kFull}, .ease = &motion::ease::smoothstep, .to = {0.0f, 360.0f}});
   }
-  motion::Bound swing() const {
+  sigil::motion::Animatable<float> swing() const {
     return motion::bind(faders[2].live(), {.from = {0, kFull}, .alternate = true, .to = {-kSway, kSway}});
   }
 
@@ -261,7 +263,7 @@ struct ChannelBind {
     const auto plate = [&](std::vector<compose::Element> parts) {
       parts.push_back(
           compose::box()
-              .rect(geometry::path::fromSk(SkRect::MakeLTRB(26, kFloor, kFigureWidth - 26, kFloor + 1)))
+              .rect(sigil::geometry::path::fromSk(SkRect::MakeLTRB(26, kFloor, kFigureWidth - 26, kFloor + 1)))
               .fill(compose::Fill::color(look.palette.rule)));
       return sketch::kit::well(
           {.width = kFigureWidth, .height = kFigureHeight},
@@ -290,7 +292,7 @@ struct ChannelBind {
   /** A HEIGHT, as the scale of a blade about its own foot. */
   compose::Element blade(const sketch::kit::Theme& look) {
     return compose::box()
-        .rect(geometry::path::fromSk(SkRect::MakeLTRB(kBladeAt, kFloor - kBladeTall,
+        .rect(sigil::geometry::path::fromSk(SkRect::MakeLTRB(kBladeAt, kFloor - kBladeTall,
                                kBladeAt + kBladeWide, kFloor)))
         .fill(compose::Fill::color(look.palette.figure))
         .borderRadius(4)
@@ -306,11 +308,11 @@ struct ChannelBind {
     std::vector<compose::Element> pieces;
     pieces.push_back(
         compose::box()
-            .rect(geometry::path::fromSk(SkRect::MakeLTRB(kWheelAt, kWheelTop, kWheelAt + kWheelSide,
+            .rect(sigil::geometry::path::fromSk(SkRect::MakeLTRB(kWheelAt, kWheelTop, kWheelAt + kWheelSide,
                                    kWheelTop + kWheelSide)))
             .borderRadius(kWheelSide * 0.5f)
             .fill(material::conicGradient(
-                SkPoint{kWheelSide * 0.5f, kWheelSide * 0.5f}, hues(),
+                sigil::geometry::path::fromSk(SkPoint{kWheelSide * 0.5f, kWheelSide * 0.5f}), hues(),
                 {.units = material::GradientUnits::Pixels}))
             .rotate(turn()));
     // The hub, which turns the disc into a ring, and the pointer the ring
@@ -318,7 +320,7 @@ struct ChannelBind {
     // wheel would name one colour forever.
     pieces.push_back(
         compose::box()
-            .rect(geometry::path::fromSk(SkRect::MakeLTRB(kWheelMiddleX - kHubSide * 0.5f,
+            .rect(sigil::geometry::path::fromSk(SkRect::MakeLTRB(kWheelMiddleX - kHubSide * 0.5f,
                                    kWheelMiddleY - kHubSide * 0.5f,
                                    kWheelMiddleX + kHubSide * 0.5f,
                                    kWheelMiddleY + kHubSide * 0.5f)))
@@ -326,7 +328,7 @@ struct ChannelBind {
             .fill(compose::Fill::color(look.palette.cellGround)));
     pieces.push_back(
         compose::box()
-            .rect(geometry::path::fromSk(SkRect::MakeLTRB(kWheelMiddleX - 5, kWheelTop - 16,
+            .rect(sigil::geometry::path::fromSk(SkRect::MakeLTRB(kWheelMiddleX - 5, kWheelTop - 16,
                                    kWheelMiddleX + 5, kWheelTop + 14)))
             .borderRadius(2)
             .fill(compose::Fill::color(look.palette.ink)));
@@ -341,24 +343,24 @@ struct ChannelBind {
     std::vector<compose::Element> pieces;
     pieces.push_back(
         compose::box()
-            .rect(geometry::path::fromSk(SkRect::MakeLTRB(kPlumbAt, kPlumbTop, kPlumbAt + kPlumbWide,
+            .rect(sigil::geometry::path::fromSk(SkRect::MakeLTRB(kPlumbAt, kPlumbTop, kPlumbAt + kPlumbWide,
                                    kPlumbTop + kPlumbLong)))
             .transformOrigin(compose::pct(50), compose::pct(0))
             .rotate(swing())
             .children({compose::box()
-                           .rect(geometry::path::fromSk(SkRect::MakeLTRB(kPlumbWide * 0.5f - 3, 0,
+                           .rect(sigil::geometry::path::fromSk(SkRect::MakeLTRB(kPlumbWide * 0.5f - 3, 0,
                                                   kPlumbWide * 0.5f + 3,
                                                   kPlumbLong - kBobSide)))
                            .fill(compose::Fill::color(look.palette.rule)),
                        compose::box()
-                           .rect(geometry::path::fromSk(SkRect::MakeLTRB(
+                           .rect(sigil::geometry::path::fromSk(SkRect::MakeLTRB(
                                kPlumbWide * 0.5f - kBobSide * 0.5f,
                                kPlumbLong - kBobSide,
                                kPlumbWide * 0.5f + kBobSide * 0.5f, kPlumbLong)))
                            .borderRadius(kBobSide * 0.5f)
                            .fill(compose::Fill::color(look.palette.figure))}));
     pieces.push_back(compose::box()
-                         .rect(geometry::path::fromSk(SkRect::MakeLTRB(
+                         .rect(sigil::geometry::path::fromSk(SkRect::MakeLTRB(
                              kPlumbAt + kPlumbWide * 0.5f - 7, kPlumbTop - 7,
                              kPlumbAt + kPlumbWide * 0.5f + 7, kPlumbTop + 7)))
                          .borderRadius(7)
@@ -372,10 +374,9 @@ struct ChannelBind {
     std::vector<sketch::kit::ComparisonCase> cases;
     for (size_t index = 0; index != kFaders; ++index)
       cases.push_back({.title = kAddresses[index],
-                       .figure = sketch::kit::readout(
-                           {{.name = "LAST INPUT", .value = reading(index)},
+                       .figure = sigil::compose::kit::readout(std::vector<sigil::compose::kit::Reading>{{.name = "LAST INPUT", .value = reading(index)},
                             {.name = kDriven[index], .value = standing(index)}},
-                           {.measure = kFigureWidth, .ruled = true})});
+                        {.measure = kFigureWidth, .gap = sketch::kit::theme().spacing.rowGap, .labelGap = sketch::kit::theme().spacing.labelGap, .divider = compose::Fill::color(sketch::kit::theme().palette.rule)})});
     return sketch::kit::comparison(
         {.cases = std::move(cases), .measure = 1100, .gap = 19});
   }
@@ -393,12 +394,12 @@ struct ChannelBind {
   compose::Utf8 standing(size_t index) const {
     if (index == 0)
       return compose::kit::formatted("x %.3f",
-                                     rise().value().apply(faders[0].value()));
+                                     rise().value());
     if (index == 1)
       return compose::kit::formatted("%.1f deg",
-                                     turn().value().apply(faders[1].value()));
+                                     turn().value());
     return compose::kit::formatted("%.1f deg",
-                                   swing().value().apply(faders[2].value()));
+                                   swing().value());
   }
 
   /** WHAT THE DOOR ANSWERS, under the table: where it is, how much has

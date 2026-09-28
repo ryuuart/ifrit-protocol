@@ -41,7 +41,6 @@
 // TAGS: Motion/Clocks
 
 #include <sigilmotion/time/Duration.h>
-#include <choreograph/Choreograph.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/color/Color.h>
@@ -61,7 +60,6 @@ namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace motion = sigil::motion;
 namespace weave = sigil::weave;
-namespace ch = choreograph;
 
 using namespace sigil::compose;
 

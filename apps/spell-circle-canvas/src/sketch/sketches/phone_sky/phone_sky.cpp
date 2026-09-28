@@ -38,7 +38,6 @@
 
 // TAGS: Data/Sources, Runtime/Resources
 
-#include <choreograph/Choreograph.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
@@ -68,7 +67,6 @@ namespace compose = sigil::compose;
 namespace data = sigil::data;
 namespace io = sigil::io;
 namespace motion = sigil::motion;
-namespace ch = choreograph;
 
 using sigil::draw::Pen;
 

@@ -55,7 +55,7 @@
 
 // TAGS: Data/Schema, Data/Sources, Runtime/Resources
 
-#include <choreograph/Choreograph.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigildata/connection/Connection.h>
@@ -178,7 +178,8 @@ struct FeedSky {
 
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = kCaptureAt});
-    ctx.engine.add([this, seconds = 0.0](double step) mutable {
+    ctx.engine.timer([this, seconds = 0.0](sigil::motion::Duration stepDuration) mutable {
+      const double step = stepDuration.count();
       seconds += step;
       clock = (float)seconds;
       return true;
@@ -245,8 +246,8 @@ struct FeedSky {
 
   /** THE NIGHT the bands cross: darker overhead, lifting toward the
    *  horizon. */
-  static SurfacePaint skyGround() {
-    return material::Paint::linearGradient(
+  static material::Material skyGround() {
+    return sigil::material::linearGradient(
         {0, 0}, {0, kSkyHeight * kSkyScale},
         {{0.02f, 0.025f, 0.06f, 1}, {0.07f, 0.06f, 0.14f, 1}},
         {.units = material::GradientUnits::Pixels});
