@@ -240,6 +240,8 @@ sigil_doc_probes(sketch
            "<sigilweave/ports/SystemFontManager.h>"
            "<sigilmedia/video/Video.h>"
            "<sigilmaterial/substance/Substance.h>"
+           "<sigilmaterial/program/Shader.h>"
+           "<sigildata/query/Database.h>"
   ALIASES ${SIGIL_SKETCH_DOC_SCRY_ALIASES}
   SKIP_HEADERS ${SIGIL_SKETCH_DOC_SKIP_HEADERS}
   EXCLUDE ${SIGIL_SKETCH_DOC_EXCLUDE}

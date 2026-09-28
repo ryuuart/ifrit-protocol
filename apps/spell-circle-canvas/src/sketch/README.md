@@ -827,19 +827,27 @@ monitor and PNG capture workflow.
 
 ## Assets
 
-A sketch reaches for what it did not generate through `ctx.assets`.
-`res://` is one root, whichever it is: the demo assets a machine fetched
-(`build/assets`) in this repository, `assets/` beside a sketch opened by
-path, or the directory `--assets <dir>` names. A sketch's own files stand
-in its directory under `data/` and are named by `ctx.local()`.
-A `.json` file there is a document: `ctx.assets.json(ctx.local("data/content.json"))`
-reads it whole as one nested `data::Json` — a sketch whose words, lists
-and settings stand in such a file reads them in `setup()`, and an edit to
-the file re-runs setup without a rebuild, which is the live-editing door
-for content. A key that is not there reads as a null value, so the sketch
-states its fallback where it reads.
-`hub()` opens the full resource surface without the sketch ever touching
-the filesystem, with SigilMedia's and SigilData's decoders on it:
+A sketch reaches for what it did not generate through one hub,
+`ctx.assets.hub()`; `Assets` itself is only the host's pump and mount —
+the hub it mounts, `poll()` that says a watched file changed, and
+`mountSketch()` for a sketch opened by path — and carries no loader of
+its own. `res://` is one root, whichever it is: the demo assets a
+machine fetched (`build/assets`) in this repository, `assets/` beside a
+sketch opened by path, or the directory `--assets <dir>` names. A
+sketch's own files stand in its directory under `data/` and are named by
+`ctx.local()`. A URI is spelled whole: a bare name is a path from where
+the process started, never a resource under `res://`.
+Every meaning loads through the one entrance, with SigilMedia's and
+SigilData's decoders on it:
+`ctx.assets.hub().load<sigil::data::Table>("res://cities.csv")` decodes
+a table from whichever rectangular format the file is in,
+`load<sigil::data::Database>()` opens a `.sqlite` or `.duckdb` file in
+place, and `load<sigil::data::Json>(ctx.local("data/content.json"))`
+reads a document whole as one nested `data::Json` — a sketch whose
+words, lists and settings stand in such a file reads them in `setup()`,
+and an edit to the file re-runs setup without a rebuild, which is the
+live-editing door for content. A key that is not there reads as a null
+value, so the sketch states its fallback where it reads.
 `ctx.assets.hub().load<sigil::media::Image>(ctx.local("mark.png"))`
 answers a `media::Image` — still or animated, read with
 `frameAt(elapsed)` and shown by `compose::image()`, a pen's `image()` or
@@ -849,24 +857,16 @@ the name its meaning declares and not by the C++ type's identity, which
 the two images need not share. A load answers null for a file that is
 missing or does not decode, and the hub watches it: the poll that sees
 it appear or change re-runs the sketch's declaration, which asks again.
-`shader()` is the door for a shader a sketch carries as a file: an `.sksl`
-file beside it holding one SkSL program, `half4 main(float2 xy)` with the
-uniforms and child shaders it declares, compiled into the
-`sk_sp<SkRuntimeEffect>` that `material::skia::sksl`,
-`material::skia::program` and a pen's shader builder all take —
-`material::skia::sksl(ctx.assets.shader(ctx.local("aurora.sksl")))`. One file is one
-compiled effect however often it is asked for, and an edit to it recompiles
-and re-runs setup without a rebuild. It keeps a forgiving contract a
-picture does not need: an edit that does not compile leaves the sketch drawing with the
-last program that did, or a magenta checker before any has — a fill, which
-as an effect over a layer filters nothing — and the compiler's message,
-naming the file, is the host's error log until the file compiles or the
-sketch stops asking for it, so the window shows it where it shows a failed
-build, after the build's own output when that failed too. A sketch
-with a shader is a directory sketch, the `.sksl` beside `<stem>.cpp`. A
-material recipe's body is not a whole program — it reads the declarations
-the recipe adds — so it stands in a file the same way and is read as text,
-`ctx.assets.hub().text(ctx.local("burn.sksl"))`, for `Recipe::body`.
+A shader a sketch carries as a file is Material's:
+`material::shader(ctx.assets.hub(), ctx.local("aurora.sksl"), Params{})`
+reads the `.sksl` or `.slang` body through the hub and answers a
+`material::Material` whose uniforms are the fields of `Params`. The hub
+caches the file and Material keys one definition per source and layout,
+so an edit to the file compiles anew and re-runs setup without a
+rebuild. A file that is missing or does not compile paints nothing, and
+the reason is written once to the diagnostic stream; the host's error
+log does not carry it. A sketch with a shader is a directory sketch, the
+`.sksl` beside `<stem>.cpp`.
 `hub().load<sigil::media::Video>(uri, options)` is one clip per URI and
 options, cached and reopened by the hub when the source changes. A video
 keeps only its small decoded-frame cache; the hub does not expand the

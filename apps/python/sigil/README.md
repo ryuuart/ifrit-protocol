@@ -608,12 +608,12 @@ The context exposes checked views of the native services:
 - `ctx.assets.hub().load(media.Image, uri)` reads an owned native image,
   `None` until the file is there; `frameAt` supplies its image, and the
   host sets the sketch up again when a file it asked for appears or
-  changes. `json` and `table` return owned data snapshots, and
-  `database` returns a native query view. `shader(uri)` compiles an `.sksl`
-  file into the `skia.RuntimeEffect` that `Paint.sksl` takes, recompiled
-  when the file changes; a file that is missing or does not compile keeps
-  the last program that compiled, or a magenta checker, and the host shows
-  why as it shows a failed build. `ctx.assets.hub()` provides
+  changes. `hub().load(data.Json, uri)` and `load(data.Table, uri)`
+  return owned data snapshots, and `load(data.Database, uri)` a native
+  query view. `material.shader(ctx.assets.hub(), uri, parameters)` reads
+  an `.sksl` or `.slang` file through the hub as a `Material`, compiled
+  anew when the file changes; a file that is missing or does not compile
+  paints nothing. `ctx.assets.hub()` provides
   mounts, URI resolution, text, bytes, resource metadata, selection,
   live feeds and byte output.
   `ctx.local(name)` creates a URI for a file beside the sketch.

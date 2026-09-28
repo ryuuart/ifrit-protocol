@@ -169,13 +169,13 @@ assets root, `build/assets`, which `mise run assets` fills. A sketch's
 OWN files stand in its directory, under `data/`: `ctx.local("data/x.csv")`
 is the URI of `data/x.csv` under the directory the sketch's entry stands
 in — `sketch://<key>/data/x.csv`, the sketches folder mounted at
-`sketch://` — which `ctx.assets.table()`, `ctx.assets.database()` and
+`sketch://` — which `ctx.assets.hub().load<sigil::data::Table>()` and
 `ctx.assets.hub().load<sigil::media::Image>()` take as they take any URI. For a
 directory sketch that directory is its own, for a bare file it is the
 folder the sketches share, so a sketch that carries data of its own is
 written as a directory, and a workspace sketch opened by path has the
 files beside that path. A `.sqlite` or `.duckdb` file is a data source
-like a CSV is: `ctx.assets.database(ctx.local("data/cities.sqlite"))` opens
+like a CSV is: `ctx.assets.hub().load<sigil::data::Database>(ctx.local("data/cities.sqlite"))` opens
 it in place, cached and reopened when it changes, and its `query()`
 answers the same `Table` the CSV decodes to. Saving `palette.h` rebuilds
 the sketch that includes it.
