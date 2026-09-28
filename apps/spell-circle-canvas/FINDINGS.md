@@ -935,14 +935,15 @@ grained ink or ground meets it.
 
 ## An echo and a shadow take their colour as a value, so neither can follow the sheet's ink
 
-`LayerStyle::echo(SkVector offset, material::Color color)`
-(`sigilcompose/core/Shape.h`) and `shadow(material::Material ink,
-glm::vec2 offset, float blur)` (`sigilcompose/brush/Decorations.h`, the
-`Shadow` value) hold a colour or a material, not a `Fill`, so neither can be written as
-`Fill::currentInk()` or `Fill::var(name)`. A stroke's `PathFormat` already
-takes a `SurfacePaint` whose default is the ink in force, and
-`textStroke` resolves a `Fill::var` against the tree; an echo under a
-title and a glow under a needle are the same kind of mark and cannot.
+An echo is `material::Filter::shadow(material::Color, {.offset})` in the
+effects of a node's fill or ink (`sigilmaterial/filter/Filter.h`), and
+`compose::shadow(material::Material ink, glm::vec2 offset, float blur)`
+(`sigilcompose/brush/Decorations.h`, the `Shadow` value) holds a material.
+Neither is a `Fill`, so neither can be written as `Fill::currentInk()` or
+`Fill::var(name)`. A stroke's `PathFormat` takes a `Fill` whose default is
+the ink in force, and `textStroke` resolves a `Fill::var` against the
+tree; an echo under a title and a glow under a needle are the same kind of
+mark and cannot.
 
 So a sketch whose colours live in a sheet's custom properties still reads
 them out of its own palette to hand to these two: `nightingale_coxcomb`
@@ -950,12 +951,12 @@ passes its palette's ink to the echo under each display line and its
 palette's brass to the needle's glow, and a theme swapped by a different
 token sheet would leave both behind.
 
-They are evidently meant to paint like every other decoration: a
-`SurfacePaint` defaulting to the ink in force, resolved at paint against
-the node's cascade. A test should set `ink(var("accent"))` on a root with
-`var("accent", red)`, give a child text `layerStyle(LayerStyle::echo({1,
-1}, Fill::currentInk()))`, and assert the echo's pixels are red; and the
-same for a `shadow(Fill::var("accent"), …)` under a box. This is the same
+They are evidently meant to paint like every other decoration: a `Fill`
+defaulting to the ink in force, resolved at paint against the node's
+cascade. A test should set `ink(var("accent"))` on a root with
+`var("accent", red)`, give a child text an echo whose colour is
+`Fill::currentInk()`, and assert the echo's pixels are red; and the same
+for a `shadow(Fill::var("accent"), …)` under a box. This is the same
 defect as `textFx::tint` taking its colours as values, in two more places.
 Wanted by `nightingale_coxcomb`.
 
@@ -972,7 +973,7 @@ cannot name "the porphyry" without restating the recipe.
 
 It evidently means CSS's custom properties, which hold any value a property
 takes — a gradient or an image as readily as a colour: a `var` holding a
-`SurfacePaint` (colour, gradient, shader or material), resolved by `fill`,
+`material::Material` (a colour, a gradient, a shader or a layered look), resolved by `fill`,
 `ink` and a stroke's paint exactly as a colour var is, so a quarry is a token
 and a class is its whole look.
 
