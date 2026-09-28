@@ -35,8 +35,9 @@
  */
 // TAGS: Drawing/Generative
 
+#include <sigilmaterial/filter/Filter.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/brush/Hatches.h>
-#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Instances.h>
 #include <sigilcompose/core/Mask.h>
@@ -46,15 +47,13 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/paint/Bases.h>
-#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Presets.h>
 #include <sigilcompose/typography/TextFx.h>
-#include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/ease/Ease.h>
-#include <sigilmotion/values/Animatable.h>
-#include <sigilmotion/values/Transition.h>
+#include <sigilmotion/values/Tween.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
@@ -216,7 +215,7 @@ struct ChladniTab1 {
         std::make_shared<instancing::Pool>();
     std::vector<float> shiver;
     std::unique_ptr<sigil::motion::Animatable<float>> baked =
-        std::make_unique<sigil::motion::Animatable<float>>(0.0f);
+        std::make_unique<sigil::motion::Animatable<float>>(sigil::motion::animatable(0.0f));
   };
   std::vector<Sand> sand;
   std::shared_ptr<instancing::CellSheet> marks;
@@ -224,7 +223,7 @@ struct ChladniTab1 {
    *  read by the drawing and by the sand alike; how far along the rim the
    *  contact has drawn; how far its sound has spread. */
   struct BowPass {
-    Bound pressure, travel, sound;
+    sigil::motion::Animatable<float> pressure, travel, sound;
   };
   std::vector<BowPass> firstPass, roundPass;
   /** THE SAND IS STAMPED TWICE, live and baked, and one of the two
@@ -241,7 +240,7 @@ struct ChladniTab1 {
   bool gathering = true, describeAgain = false;
   size_t hopping = kNoFigure;
 
-  Paint ink;
+  material::Material ink{material::Color{0, 0, 0, 0}};
   Pattern foxing, foxingLow;
   /** Built once and held: a gradient or grained fill made afresh compares
    *  unequal to the one before, so a node described again with it would
@@ -271,16 +270,11 @@ struct ChladniTab1 {
             kit::at(box(), left, top,
                     (float)mark["right"].number() * scale - left,
                     (float)mark["bottom"].number() * scale - top)
-                .fill(Fill::var("plate-tone"))
+                .fill(sigil::material::from(colourOf(plate["ink"]["plate-tone"])).effects(sigil::material::Filter::bevel({.depth = 2, .size = 3, .angleDegrees = 305, .highlight = {1, 0.98f, 0.92f, 0.55f}, .shadow = {edge.r * 0.6f, edge.g * 0.6f,
+                                                   edge.b * 0.6f, 0.5f}})))
                 // Lit from the upper left, a recess shades its upper-left
                 // wall and catches the light on its lower-right one.
-                .foreground(
-                    styles::BevelEmboss{.depth = 2,
-                                        .size = 3,
-                                        .angleDeg = 305,
-                                        .highlight = {1, 0.98f, 0.92f, 0.55f},
-                                        .shadow = {edge.r * 0.6f, edge.g * 0.6f,
-                                                   edge.b * 0.6f, 0.5f}}),
+                ,
             box().cover().fill(
                 vignette({edge.r, edge.g, edge.b, 0.26f}, 0.62f)),
             box().cover().fill(material::linearGradient(
@@ -315,7 +309,7 @@ struct ChladniTab1 {
 
   /** The figure's own settle, from the bow's stroke to the sand at rest,
    *  as the fraction @p from to @p to of it. */
-  Bound settled(size_t index, float from, float to) const {
+  sigil::motion::Animatable<float> settled(size_t index, float from, float to) const {
     return sigil::motion::bind(clock, {.from = {bowAt(index) + from * kSettle, bowAt(index) + to * kSettle}, .clampFrom = true});
   }
 
@@ -325,7 +319,7 @@ struct ChladniTab1 {
     const std::string tag = "figure" + std::to_string(figure.number);
     switch (figure.kind) {
       case Kind::Star:
-        return kit::disc(middle(), radius * kTip)
+        return kit::disc(sigil::geometry::path::fromSk(middle()),radius * kTip)
             .key(tag + "star")
             .shape(shapes::star(figure.points, figure.inner, figure.waist))
             .fill(ink)
@@ -337,7 +331,7 @@ struct ChladniTab1 {
         // are evenly spaced and open out toward the rim, where they would
         // read as a ruled band, so the fan fades out before the rim and
         // the combed grains alone carry the fur there.
-        return kit::disc(middle(), radius)
+        return kit::disc(sigil::geometry::path::fromSk(middle()),radius)
             .key(tag + "fan")
             .shape(shapes::circle())
             .fill(Fill::none())
@@ -347,7 +341,7 @@ struct ChladniTab1 {
                                            .holeFraction = figure.inner})
             .mask(by::outside(Region::path(
                 shapes::star(figure.points, figure.inner,
-                             figure.waist)(SkSize{2 * radius, 2 * radius}))))
+                             figure.waist).outline({2 * radius, 2 * radius}))))
             .opacity(settled(index, 0.52f, 0.98f))
             .cache(Cache::Texture);
       }
@@ -356,7 +350,7 @@ struct ChladniTab1 {
         // figure settles.
         return box().cover().children(each(figure.linien, [&](const Linie&,
                                                               size_t line) {
-          return kit::disc(middle(), radius)
+          return kit::disc(sigil::geometry::path::fromSk(middle()), radius)
               .key(tag + "line" + std::to_string(line))
               .shape(outlineOf(figure, line))
               .fill(Fill::none())
@@ -377,23 +371,23 @@ struct ChladniTab1 {
     contact.trimPhase = pass.travel;
     return box()
         .cover()
-        .children({kit::disc(middle(), radius)
+        .children({kit::disc(sigil::geometry::path::fromSk(middle()),radius)
                        .key(key + "contact")
                        .shape(shapes::circle())
                        .fill(Fill::none())
                        .stroke(contact)
-                       .opacity(Bound(pass.pressure).target(0, 0.66f))
+                       .opacity(sigil::motion::bind(pass.pressure, {.to = {0, 0.66f}}))
                        .cache(Cache::None)})
         .children(each(kFronts, [&](const Front& front, size_t at) {
-          return kit::disc(middle(), radius)
+          return kit::disc(sigil::geometry::path::fromSk(middle()), radius)
               .key(key + "sound" + std::to_string(at))
               .shape(shapes::circle())
               .fill(Fill::none())
               .stroke(stroke(front.width, frontInks[at]))
               .scale(
-                  Bound(pass.sound).map(front.reach).target(1, 1 + kSoundReach))
+                  sigil::motion::bind(pass.sound, {.ease = front.reach, .to = {1, 1 + kSoundReach}}))
               .opacity(
-                  Bound(pass.sound).map(front.loudness).target(0, front.peak))
+                  sigil::motion::bind(pass.sound, {.ease = front.loudness, .to = {0, front.peak}}))
               .cache(Cache::None);
         }));
   }
@@ -413,7 +407,7 @@ struct ChladniTab1 {
                    figure.centre.fY - side * 0.5f, side, side)
         .key(tag)
         .children({
-            kit::disc(middle(), radius)
+            kit::disc(sigil::geometry::path::fromSk(middle()),radius)
                 .key(tag + "rim")
                 .shape(shapes::circle())
                 .fill(Fill::none())
@@ -421,7 +415,7 @@ struct ChladniTab1 {
                     spans::upTo(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 620ms, .delay = std::chrono::duration<double, std::milli>(kRimAt * 1000 + (float)index * 26), .ease = sigil::motion::ease::outQuad})),
                     stroke(1.5f, Fill::var("ink-line"))),
             drawing(index),
-            kit::disc(middle(), radius + kSandMargin)
+            kit::disc(sigil::geometry::path::fromSk(middle()),radius + kSandMargin)
                 .key(tag + "sand")
                 .opacity(
                     sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 400ms, .delay = std::chrono::duration<double, std::milli>(kScatterAt * 1000)}))
@@ -429,14 +423,14 @@ struct ChladniTab1 {
                     box()
                         .cover()
                         .key(tag + "sandbaked")
-                        .opacity(sigil::motion::bind(sand[index].baked.get()))
+                        .opacity(sigil::motion::bind(*sand[index].baked))
                         .children({instancing::instances(
                             marks, sand[index].pool, instancing::Mode::Data)})
                         .cache(Cache::Texture),
                     box()
                         .cover()
                         .key(tag + "sandlive")
-                        .opacity(sigil::motion::bind(sand[index].baked.get(), {.to = {1.0f, 0.0f}}))
+                        .opacity(sigil::motion::bind(*sand[index].baked, {.to = {1.0f, 0.0f}}))
                         .children({instancing::instances(
                             marks, sand[index].pool, instancing::Mode::Live)}),
                 }),
@@ -460,13 +454,10 @@ struct ChladniTab1 {
                        return text(letter.glyph)
                            .role("letter")
                            .key(tag + "letter" + std::to_string(at))
-                           .centerAt(kUnit.about(middle()).atPixels(
+                           .centerAt(kUnit.about(sigil::geometry::path::fromSk(middle())).atPixels(
                                letter.bearing, radius * letter.radius))
                            .opacity(settled(index, 0.84f, 0.99f))
-                           .translateY(settled(index, 0.84f, 0.99f)
-                                           .map(sigil::motion::ease::outQuad)
-                                           .invert()
-                                           .target(0, 7));
+                           .translateY(sigil::motion::bind(settled(index, 0.84f, 0.99f), {.ease = sigil::motion::ease::outQuad, .to = {7, 0}}));
                      })),
         });
   }
@@ -495,10 +486,10 @@ struct ChladniTab1 {
             document::h1(Utf8(title["words"].string()))
                 .key("title")
                 .textFx(Track{
-                    .effect = textFx::typeOn(),
+                    .effect = textFx::enter(textFx::typeOn()),
                     .tween = {.duration = 60ms, .delay = sigil::motion::stagger({0ms, 520ms})}, 
                     .progress = sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 620ms, .delay = std::chrono::duration<double, std::milli>(kTitleAt * 1000), .ease = sigil::motion::ease::linear})})
-                .centerAt(at(title)),
+                .centerAt(sigil::geometry::path::fromSk(at(title))),
         })
         .children(each(
             figures,
@@ -556,9 +547,9 @@ struct ChladniTab1 {
       const auto flights = std::as_const(*grains.pool).flights();
       auto positions = grains.pool->positions();
       const float pressure =
-          firstPass[index].pressure.value().apply(seconds) +
+          firstPass[index].pressure.value() +
           (seconds >= roundAt(index)
-               ? roundPass[index].pressure.value().apply(seconds)
+               ? roundPass[index].pressure.value()
                : 0.0f);
       const float nudge = pressure * 1.8f;
       for (size_t at = 0; at < flights.size(); ++at) {
@@ -667,8 +658,8 @@ struct ChladniTab1 {
            .sound = sigil::motion::bind(clock, {.from = {round, cycle}, .envelope = sigil::motion::envelope::shaped(roundSound)})});
     }
 
-    ctx.engine.add([this, &ticker = ctx.engine] {
-      const float seconds = (float)ticker.elapsed();
+    ctx.engine.timer([this, &ticker = ctx.engine] {
+      const float seconds = (float)ticker.elapsed().count();
       clock = seconds;
       stepSand(seconds);
     });

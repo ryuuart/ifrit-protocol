@@ -7,6 +7,7 @@
  * and where each grain of a figure's sand comes to rest.
  */
 
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/core/Instances.h>
 #include <sigilcore/compute/Chance.h>
 #include <sigildata/decode/Json.h>
@@ -43,8 +44,7 @@ constexpr path::PolarFrame kUnit{.centre = {0, 0},
                                  .sense = path::Sense::CW};
 
 glm::vec2 onUnit(float bearing, float radius) {
-  const SkPoint point = kUnit.at(bearing, radius);
-  return {point.fX, point.fY};
+  return kUnit.at(bearing, radius);
 }
 
 /** HOW A FIGURE IS DRAWN. A star is the sand's own heap along the nodal
@@ -198,7 +198,7 @@ shapes::KeyedParametric outlineOf(const Figure& figure, size_t index) {
       "chladni." + std::to_string(figure.number) + "." + std::to_string(index),
       [arc](float along) {
         const glm::vec2 point = arc.at(along);
-        return SkPoint{point.x, point.y};
+        return point;
       },
       0.0f, 1.0f, arc.straight ? 2 : 72);
 }
@@ -208,8 +208,8 @@ shapes::KeyedParametric outlineOf(const Figure& figure, size_t index) {
  *  pixels, fine enough that a grain inside the rings is inside the ink. */
 std::vector<path::Polyline> starRings(const Figure& figure, float reach) {
   constexpr float kBox = 400;
-  const SkPath star = shapes::star(figure.points, figure.inner,
-                                   figure.waist)(SkSize{kBox, kBox});
+  const auto star = shapes::star(figure.points, figure.inner,
+                                   figure.waist).outline({kBox, kBox});
   std::vector<path::Polyline> rings = path::Region::of(star).rings;
   for (path::Polyline& ring : rings)
     for (glm::vec2& point : ring.points)

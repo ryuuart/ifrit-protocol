@@ -10,6 +10,7 @@
 
 // TAGS: Data/Charts
 
+#include <sigilweave/style/Face.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/Ribbons.h>
 #include <sigilcompose/core/Core.h>
@@ -93,7 +94,7 @@ struct Minard1869 {
   template <class Read>
   static void rows(sketch::SketchContext& context, const char* file,
                    Read read) {
-    if (const auto table = context.assets.table(
+    if (const auto table = context.assets.hub().load<sigil::data::Table>(
             context.local(std::string("data/") + file)))
       read(*table);
   }
@@ -182,7 +183,7 @@ struct Minard1869 {
     script = {.face = weave::ports::face({"Snell Roundhand", "Apple Chancery"}),
               .size = 34};
     italic = {.face = weave::ports::face({"Baskerville", "Times New Roman"},
-                                         SkFontStyle::Italic()),
+                                         sigil::weave::FaceStyle{.slant = sigil::weave::FaceSlant::Italic}),
               .size = 17,
               .track = 0.2f};
     roman = {.face = weave::ports::face({"Baskerville", "Times New Roman"}),
@@ -331,7 +332,7 @@ struct Minard1869 {
                 box()
                     .inset(0)
                     .fill(field::grain(0.5f, 3, 1869.0f))
-                    .blendMode(material::BlendMode::Multiply)
+                    .blendMode(sigil::material::BlendMode::Multiply)
                     .opacity(0.08f),
                 // The printed frame: a heavy rule outside a fine one.
                 kit::at(box().foreground(

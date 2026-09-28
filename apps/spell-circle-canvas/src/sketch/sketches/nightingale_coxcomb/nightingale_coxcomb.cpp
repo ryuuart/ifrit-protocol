@@ -44,7 +44,8 @@
 
 // TAGS: Data/Charts
 
-#include <sigilcompose/brush/LayerStyles.h>
+#include <sigilmaterial/filter/Filter.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/core/StyleSheet.h>
@@ -52,7 +53,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/paint/Bases.h>
-#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Presets.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigildata/scale/Scale.h>
 #include <sigildata/table/Table.h>
@@ -62,13 +63,11 @@
 #include <sigilgeometry/path/Frame.h>
 #include <sigilgeometry/path/Polyline.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/schedule/Stagger.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Tween.h>
-#include <sigilmotion/values/Transition.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Chart.h>
 #include <sigilsketch/kit/Page.h>
@@ -219,7 +218,7 @@ struct Diagram {
   float rim() const { return radiusOf(largestRate()); }
   /** The box the wheel is inscribed in, in the sheet's space. */
   SkRect box(float radius) const {
-    return path::PolarFrame{.centre = hub, .radius = radius}.box();
+    return sigil::geometry::path::toSk(path::PolarFrame{.centre = sigil::geometry::path::fromSk(hub), .radius = radius}.box());
   }
 };
 
@@ -241,7 +240,7 @@ const shapes::Ellipse kRimBaseline = shapes::ellipse({.start = 0});
  *  density wanders, and a luminance grain for the stone's own unevenness.
  *  The stipple's tile is larger than the eye's patch, so its repeat never
  *  reads as a motif. */
-Paint tintStone(material::Color wash, material::Color ink, int fine,
+sigil::material::Material tintStone(material::Color wash, material::Color ink, int fine,
                 int coarse, uint32_t seed, Pattern& stipple, Pattern& blot) {
   stipple = material::pattern::speckle(128, fine * 10, 0.25f, 0.66f, {ink});
   stipple.seed(seed);
@@ -263,7 +262,9 @@ struct NightingaleCoxcomb {
   // Held so their identity, and the stipple's bake, survive re-describes.
   std::array<Pattern, 6> stipples;
   Pattern foxing;
-  Paint disease, wounds, other;
+  sigil::material::Material disease = material::Color{0, 0, 0, 0};
+  sigil::material::Material wounds = material::Color{0, 0, 0, 0};
+  sigil::material::Material other = material::Color{0, 0, 0, 0};
 
   material::Color colour(const std::string& name) const {
     const auto found = palette.find(name);
@@ -400,8 +401,8 @@ struct NightingaleCoxcomb {
    *  title and subtitle; the captions arrive with their wheels. */
   Element titles() const {
     const auto writing = [](float startMs, float spanMs, float durationMs) {
-      return Track{.effect = textFx::typeOn(),
-                   .tween = {.duration = 40ms, .delay = sigil::motion::stagger({0ms, std::chrono::duration<double, std::milli>(spanMs)})}, 
+      return Track{.effect = textFx::enter(textFx::typeOn()),
+                   .tween = {.duration = 40ms, .delay = sigil::motion::stagger<sigil::motion::Duration>({0ms, std::chrono::duration<double, std::milli>(spanMs)})}, 
                    .progress = sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = std::chrono::duration<double, std::milli>(durationMs), .delay = std::chrono::duration<double, std::milli>(startMs), .ease = sigil::motion::ease::linear})};
     };
     const auto arrive = [](float startMs) {
@@ -429,13 +430,13 @@ struct NightingaleCoxcomb {
     return box().cover().children({
         document::h1("DIAGRAM of the CAUSES of MORTALITY")
             .textFx(writing(0, 620, 700))
-            .layerStyle(LayerStyle::echo({0.8f, 0.5f},
-                                         material::withAlpha(colour("ink"), 0.8f)))
+            .ink(material::from(colour("ink")).effects(
+                material::Filter::shadow(material::withAlpha(colour("ink"), 0.8f), {.offset = {0.8f, 0.5f}})))
             .centerAt({kAxis, kTitleRow}),
         document::h2("in the ARMY in the EAST.")
             .textFx(writing(900, 340, 400))
-            .layerStyle(LayerStyle::echo({0.6f, 0.4f},
-                                         material::withAlpha(colour("ink"), 0.7f)))
+            .ink(material::from(colour("ink")).effects(
+                material::Filter::shadow(material::withAlpha(colour("ink"), 0.7f), {.offset = {0.6f, 0.4f}})))
             .centerAt({kAxis, kCaptionRow}),
         kit::line({.length = Dimension(368),
                    .pair = kit::Line::Companion{.thickness = 1.0f, .gap = 3.0f}})
@@ -502,7 +503,7 @@ struct NightingaleCoxcomb {
                                        .y = &sketch::kit::Datum::y,
                                        .part = part,
                                        .styleClass = key ? "key" : "tint"})})
-            .rect(diagram.box(diagram.rim()));
+            .rect(sigil::geometry::path::fromSk(diagram.box(diagram.rim())));
     if (key) plate.translateX(kRegistration.x()).translateY(kRegistration.y());
     return plate;
   }
@@ -516,7 +517,7 @@ struct NightingaleCoxcomb {
     const auto rimOf = [&](int month) {
       return radiusOf(std::max(diagram.months[(month + 12) % 12].largest(), 0.1f));
     };
-    Element wheel = box().rect(diagram.box(rim)).styleClass("spoke");
+    Element wheel = box().rect(sigil::geometry::path::fromSk(diagram.box(rim))).styleClass("spoke");
     for (int month = 0; month < 12; ++month) {
       const float length =
           std::min({rimOf(month - 1), rimOf(month), rim * kSpokeReach}) * 0.98f;
@@ -539,7 +540,7 @@ struct NightingaleCoxcomb {
     };
     const float start = diagram.needle, end = diagram.needleEnd;
     const float sweep = end - start;
-    Element reading = box().rect(diagram.box(rim));
+    Element reading = box().rect(sigil::geometry::path::fromSk(diagram.box(rim)));
     for (int month = 0; month < 12; ++month) {
       const float passes = start + sweep * ((float)month * 30.0f + 15.0f) / 360.0f;
       const float halfWidth = sweep * 13.0f / 360.0f;
@@ -550,11 +551,7 @@ struct NightingaleCoxcomb {
                .styleClass("flash")
                .shape(shapes::arc((float)month * 30.0f - 90.0f + 1.0f, 28.0f))
                .stroke(stroke(2.4f))
-               .opacity(animate(through({{0ms, 0.0f},
-                                         {at(passes - halfWidth), 0.0f},
-                                         {at(passes), 1.0f},
-                                         {at(passes + halfWidth), 0.0f}}),
-                                sigil::motion::ease::linear))});
+               .opacity(sigil::motion::animate({.from = 0.0f, .keyframes = {{.to = 0.0f, .duration = (at(passes - halfWidth)) - (0ms)}, {.to = 1.0f, .duration = (at(passes)) - (at(passes - halfWidth))}, {.to = 0.0f, .duration = (at(passes + halfWidth)) - (at(passes))}}, .duration = (at(passes + halfWidth)) - (0ms), .delay = 0ms, .ease = sigil::motion::ease::linear}))});
     }
     reading.children(
         {box()
@@ -566,14 +563,8 @@ struct NightingaleCoxcomb {
              // palette's brass rather than the needle's ink.
              .background(shadow(colour("brass-glow"), {0, 0}, 9))
              .transformOrigin(pct(50), pct(50))
-             .rotate(animate(through({{0ms, 0.0f}, {at(start), 0.0f}, {at(end), 360.0f}}),
-                             sigil::motion::ease::linear))
-             .opacity(animate(through({{0ms, 0.0f},
-                                       {at(start), 0.0f},
-                                       {at(start + 0.15f), 1.0f},
-                                       {at(end), 1.0f},
-                                       {at(end + 0.45f), 0.0f}}),
-                              sigil::motion::ease::linear))});
+             .rotate(sigil::motion::animate({.from = 0.0f, .keyframes = {{.to = 0.0f, .duration = (at(start)) - (0ms)}, {.to = 360.0f, .duration = (at(end)) - (at(start))}}, .duration = (at(end)) - (0ms), .delay = 0ms, .ease = sigil::motion::ease::linear}))
+             .opacity(sigil::motion::animate({.from = 0.0f, .keyframes = {{.to = 0.0f, .duration = (at(start)) - (0ms)}, {.to = 1.0f, .duration = (at(start + 0.15f)) - (at(start))}, {.to = 1.0f, .duration = (at(end)) - (at(start + 0.15f))}, {.to = 0.0f, .duration = (at(end + 0.45f)) - (at(end))}}, .duration = (at(end + 0.45f)) - (0ms), .delay = 0ms, .ease = sigil::motion::ease::linear}))});
     return reading;
   }
 
@@ -585,7 +576,7 @@ struct NightingaleCoxcomb {
     return std::move(label)
         .width(2 * radius)
         .height(2 * radius)
-        .centerAt(diagram.hub)
+        .centerAt(sigil::geometry::path::fromSk(diagram.hub))
         .textOnPath({.path = kRimBaseline,
                      .at = bearing / 360.0f,
                      .align = TextPath::Align::Center,
@@ -604,7 +595,7 @@ struct NightingaleCoxcomb {
         .styleClass("campaign")
         .width(2 * box)
         .height(2 * box)
-        .centerAt(diagram.hub)
+        .centerAt(sigil::geometry::path::fromSk(diagram.hub))
         .textOnPath({.path = spoke(bearing, (radius - reach) / box,
                                    (radius + reach) / box),
                      .at = 0.5f,
@@ -656,20 +647,20 @@ struct NightingaleCoxcomb {
    *  corner at nine o'clock on diagram 1, down under the gap between the
    *  wheels, to the April 1855 wedge's on diagram 2. */
   Element leader() const {
-    const SkPoint yearEnds =
-        kPlate.about(first.hub).atPixels(270.0f, radiusOf(first.months[8].disease));
-    const SkPoint yearBegins =
-        kPlate.about(second.hub).atPixels(270.0f, radiusOf(second.months[9].disease));
-    const SkPoint knee{(yearEnds.x() + yearBegins.x()) * 0.5f, kHubRow + 138.0f};
+    const glm::vec2 yearEnds =
+        kPlate.about(sigil::geometry::path::fromSk(first.hub)).atPixels(270.0f, radiusOf(first.months[8].disease));
+    const glm::vec2 yearBegins =
+        kPlate.about(sigil::geometry::path::fromSk(second.hub)).atPixels(270.0f, radiusOf(second.months[9].disease));
+    const SkPoint knee{(yearEnds.x + yearBegins.x) * 0.5f, kHubRow + 138.0f};
     PathFormat dashed = stroke(1.1f);
     dashed.dashIntervals = {7.0f, 5.0f};
     return box()
         .inset(0)
         .styleClass("leader")
         .shape(heldPath(path::toPath(path::Polyline{
-            .points = {{yearBegins.x(), yearBegins.y()},
+            .points = {{yearBegins.x, yearBegins.y},
                        {knee.x(), knee.y()},
-                       {yearEnds.x(), yearEnds.y()}}})))
+                       {yearEnds.x, yearEnds.y}}})))
         .stroke(spans::upTo(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 620ms, .delay = 6000ms, .ease = sigil::motion::ease::outQuad})),
                 dashed);
   }
@@ -682,19 +673,22 @@ struct NightingaleCoxcomb {
    *  of a second after the one above. */
   Element key() const {
     const float margin =
-        kPlate.about(second.hub).px(270.0f, radiusOf(second.months[9].disease)).x();
+        kPlate.about(sigil::geometry::path::fromSk(second.hub)).atPixels(270.0f, radiusOf(second.months[9].disease)).x;
     std::string words;
     for (const std::string& sentence : legend)
       words += (words.empty() ? "" : "\n") + sentence;
-    const Spread pen = Spread{.eachMs = 200}.then({.amountMs = 620, .durationMs = 30});
+    const sigil::motion::Tween<float> pen{
+        .duration = 30ms, .delay = sigil::motion::stagger(200ms)};
+    const auto within = sigil::motion::stagger({0ms, 620ms});
     return document::paragraph(words)
         .at({margin, kLegendTop})
         .width(kLegendRight - margin)
-        .textFx({.effect = textFx::typeOn(),
-                 .stagger = pen,
+        .textFx({.effect = textFx::enter(textFx::typeOn()),
+                 .tween = pen,
+                 .within = within,
                  .unit = weave::Unit::Line,
                  .innerUnit = weave::Unit::Cluster,
-                 .progress = sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = std::chrono::duration<double, std::milli>(pen.spanMs(12, 70)), .delay = 6400ms, .ease = sigil::motion::ease::linear})});
+                 .progress = sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = sigil::motion::timingOf(pen, within).span(12, 70), .delay = 6400ms, .ease = sigil::motion::ease::linear})});
   }
 
   // ------------------------------------------------------------------
@@ -726,13 +720,13 @@ struct NightingaleCoxcomb {
   void setup(sketch::SketchContext& ctx) {
     // A colour is read from its CSS text by the p5 canvas library's parser,
     // the one such parser the libraries hold.
-    if (const auto colours = ctx.assets.table(ctx.local("data/palette.csv"))) {
+    if (const auto colours = ctx.assets.hub().load<sigil::data::Table>(ctx.local("data/palette.csv"))) {
       const auto names = colours->column<std::string>("name");
       const auto values = colours->column<std::string>("colour");
       for (size_t row = 0; row < names.size(); ++row)
         palette[names[row]] = draw::parseColor(values[row]);
     }
-    if (const auto deaths = ctx.assets.table(ctx.local("data/deaths.csv"))) {
+    if (const auto deaths = ctx.assets.hub().load<sigil::data::Table>(ctx.local("data/deaths.csv"))) {
       first = {.name = "first",
                .months = readWheel(*deaths, 1),
                .hub = {1397, kHubRow},
@@ -758,7 +752,7 @@ struct NightingaleCoxcomb {
                 .needle = 11.50f,
                 .needleEnd = 13.10f};
     }
-    if (const auto sentences = ctx.assets.table(ctx.local("data/legend.csv")))
+    if (const auto sentences = ctx.assets.hub().load<sigil::data::Table>(ctx.local("data/legend.csv")))
       for (const auto& sentence : sentences->column<std::string>("sentence"))
         legend.emplace_back(sentence);
 
