@@ -506,14 +506,10 @@ What else the headers still spell, and why:
   implement, and `points::drawBillboards`, `pop::cookBillboards` and
   `pop::Builder::billboards` take that canvas and a sprite image. Each is
   where a host hands a picture in or takes one out.
-- **The blend's drawn steps.** `blend::Step` holds the path and the
-  colours a blend's in-between is painted with, and `blend::draw` paints
-  them: the colour value is SigilMaterial's, and the blend links it
-  privately, so naming that value in the header is a boundary change of
-  its own.
 
-The first is the boundary a painter needs; the blend's steps move to
-the library's vocabulary when its colour link does.
+That is the boundary a painter needs. A blend's steps are the library's
+own values — an `Outline` and `glm::vec4` colours — and only
+`blend::draw` takes the host's canvas.
 
 ## Build and test
 

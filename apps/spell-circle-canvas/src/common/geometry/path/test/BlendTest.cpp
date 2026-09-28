@@ -15,8 +15,8 @@ using namespace sigil::geometry;
 using namespace sigil::geometry::path;
 
 TEST(Blend, EndpointsMatchKeysExactly) {
-  blend::Key from{SkPath::Circle(100, 100, 50), {1, 0, 0, 1}};
-  blend::Key to{SkPath::Circle(400, 100, 30), {0, 0, 1, 1}};
+  blend::Key from{fromSk(SkPath::Circle(100, 100, 50)), {1, 0, 0, 1}};
+  blend::Key to{fromSk(SkPath::Circle(400, 100, 30)), {0, 0, 1, 1}};
   blend::Options options;
   options.steps = 3;
   const std::vector<blend::Step> steps = blend::make(from, to, options);
@@ -24,18 +24,18 @@ TEST(Blend, EndpointsMatchKeysExactly) {
   EXPECT_EQ(steps.front().t, 0.0f);
   EXPECT_EQ(steps.back().t, 1.0f);
   // Endpoint colors are the key colors (OKLab is identity at t=0/1).
-  EXPECT_NEAR(steps.front().fill.fR, 1.0f, 0.01f);
-  EXPECT_NEAR(steps.back().fill.fB, 1.0f, 0.01f);
+  EXPECT_NEAR(steps.front().fill.r, 1.0f, 0.01f);
+  EXPECT_NEAR(steps.back().fill.b, 1.0f, 0.01f);
   // Midpoint centroid sits between the keys.
-  const SkRect mid = steps[2].path.computeTightBounds();
-  EXPECT_NEAR(mid.centerX(), 250.0f, 2.0f);
-  EXPECT_NEAR(mid.centerY(), 100.0f, 2.0f);
+  const Rect mid = steps[2].path.bounds();
+  EXPECT_NEAR((mid.min.x + mid.max.x) * 0.5f, 250.0f, 2.0f);
+  EXPECT_NEAR((mid.min.y + mid.max.y) * 0.5f, 100.0f, 2.0f);
 }
 
 TEST(Blend, SmoothColorScalesWithColorDistance) {
-  blend::Key white{SkPath::Circle(0, 0, 10), {1, 1, 1, 1}};
-  blend::Key black{SkPath::Circle(100, 0, 10), {0, 0, 0, 1}};
-  blend::Key nearWhite{SkPath::Circle(100, 0, 10), {0.95f, 0.95f, 0.95f, 1}};
+  blend::Key white{fromSk(SkPath::Circle(0, 0, 10)), {1, 1, 1, 1}};
+  blend::Key black{fromSk(SkPath::Circle(100, 0, 10)), {0, 0, 0, 1}};
+  blend::Key nearWhite{fromSk(SkPath::Circle(100, 0, 10)), {0.95f, 0.95f, 0.95f, 1}};
   blend::Options options;
   options.spacing = blend::Spacing::SmoothColor;
   const size_t far = blend::make(white, black, options).size();
@@ -49,8 +49,8 @@ TEST(Blend, SmoothColorScalesWithColorDistance) {
 }
 
 TEST(Blend, DistanceSpacingCountsSpineLength) {
-  blend::Key from{SkPath::Circle(0, 0, 10), {1, 0, 0, 1}};
-  blend::Key to{SkPath::Circle(300, 0, 10), {0, 1, 0, 1}};
+  blend::Key from{fromSk(SkPath::Circle(0, 0, 10)), {1, 0, 0, 1}};
+  blend::Key to{fromSk(SkPath::Circle(300, 0, 10)), {0, 1, 0, 1}};
   blend::Options options;
   options.spacing = blend::Spacing::Distance;
   options.distance = 50;
@@ -63,21 +63,23 @@ TEST(Blend, SpinePlacesStepsAlongPath) {
   SkPathBuilder spine;
   spine.moveTo({0, 0});
   spine.lineTo({0, 400});  // vertical spine
-  blend::Key from{SkPath::Circle(0, 0, 10), {1, 0, 0, 1}};
-  blend::Key to{SkPath::Circle(0, 0, 10), {0, 1, 0, 1}};  // same spot
+  blend::Key from{fromSk(SkPath::Circle(0, 0, 10)), {1, 0, 0, 1}};
+  blend::Key to{fromSk(SkPath::Circle(0, 0, 10)), {0, 1, 0, 1}};  // same spot
   blend::Options options;
   options.steps = 3;
-  options.spine = spine.detach();
+  options.spine = fromSk(spine.detach());
   const std::vector<blend::Step> steps = blend::make(from, to, options);
   ASSERT_EQ(steps.size(), 5u);
   // Steps should march down the vertical spine.
   float lastY = -1;
   for (const blend::Step& step : steps) {
-    const float y = step.path.computeTightBounds().centerY();
+    const Rect bounds = step.path.bounds();
+    const float y = (bounds.min.y + bounds.max.y) * 0.5f;
     EXPECT_GT(y, lastY);
     lastY = y;
   }
-  EXPECT_NEAR(steps.back().path.computeTightBounds().centerY(), 400.0f, 2.0f);
+  const Rect last = steps.back().path.bounds();
+  EXPECT_NEAR((last.min.y + last.max.y) * 0.5f, 400.0f, 2.0f);
 }
 
 // OKLab L is cube-root lightness: its black-white midpoint is linear
@@ -87,26 +89,26 @@ TEST(Blend, SpinePlacesStepsAlongPath) {
 // a channel dropped or transposed on the way through would show up
 // nowhere else.
 TEST(Blend, TheOklabMidpointReachedThroughTheBlendIsPerceptual) {
-  const SkColor4f mid =
+  const glm::vec4 mid =
       blend::detail::lerpOklab({0, 0, 0, 1}, {1, 1, 1, 1}, 0.5f);
-  EXPECT_NEAR(mid.fR, 0.389f, 0.03f);
-  EXPECT_NEAR(mid.fR, mid.fG, 0.01f);
-  EXPECT_NEAR(mid.fG, mid.fB, 0.01f);
-  EXPECT_FLOAT_EQ(mid.fA, 1.0f);
+  EXPECT_NEAR(mid.r, 0.389f, 0.03f);
+  EXPECT_NEAR(mid.r, mid.g, 0.01f);
+  EXPECT_NEAR(mid.g, mid.b, 0.01f);
+  EXPECT_FLOAT_EQ(mid.a, 1.0f);
 }
 
 // A key, the dials between two of them and each step they expand into
 // are VALUES, so a whole blend can be compared: make() is a function of
 // the keys and the options, and expanding twice answers the same steps.
 TEST(Blend, TheKeysTheOptionsAndTheStepsAreValues) {
-  const blend::Key from{SkPath::Circle(100, 100, 50), {1, 0, 0, 1}};
-  const blend::Key to{SkPath::Circle(400, 100, 30), {0, 0, 1, 1}};
-  const blend::Key again{SkPath::Circle(100, 100, 50), {1, 0, 0, 1}};
+  const blend::Key from{fromSk(SkPath::Circle(100, 100, 50)), {1, 0, 0, 1}};
+  const blend::Key to{fromSk(SkPath::Circle(400, 100, 30)), {0, 0, 1, 1}};
+  const blend::Key again{fromSk(SkPath::Circle(100, 100, 50)), {1, 0, 0, 1}};
   EXPECT_EQ(from, again);
   EXPECT_NE(from, to);
 
   blend::Key stroked = from;
-  stroked.stroke = SkColor4f{0, 1, 0, 1};
+  stroked.stroke = glm::vec4{0, 1, 0, 1};
   EXPECT_NE(from, stroked);
 
   blend::Options options;
@@ -122,4 +124,24 @@ TEST(Blend, TheKeysTheOptionsAndTheStepsAreValues) {
   blend::Step later = steps.front();
   later.t = 1;
   EXPECT_NE(later, steps.front());
+}
+
+// The blended colours are pinned to the bit: the key colours changed their
+// spelling to glm, never their arithmetic, so one in-between step of a
+// stroked blend with translucent keys answers exactly what it always did.
+TEST(Blend, AnInBetweenColourKeepsItsExactValue) {
+  blend::Key from{fromSk(SkPath::Circle(100, 100, 50)), {0.9f, 0.2f, 0.1f, 1}};
+  from.stroke = glm::vec4{0.1f, 0.3f, 0.8f, 0.5f};
+  const blend::Key to{fromSk(SkPath::Circle(400, 100, 30)),
+                      {0.1f, 0.4f, 0.95f, 0.7f}};
+  blend::Options options;
+  options.steps = 3;
+  const std::vector<blend::Step> steps = blend::make(from, to, options);
+  ASSERT_EQ(steps.size(), 5u);
+  const blend::Step& middle = steps[2];
+  EXPECT_EQ(middle.fill, glm::vec4(0x1.2cadcap-1f, 0x1.9a9568p-2f,
+                                   0x1.326104p-1f, 0x1.b33334p-1f));
+  ASSERT_TRUE(middle.stroke.has_value());
+  EXPECT_EQ(*middle.stroke, glm::vec4(0x1.9d08fep-4f, 0x1.661d2ap-2f,
+                                      0x1.bfb4c4p-1f, 0x1.333334p-1f));
 }

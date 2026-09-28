@@ -41,7 +41,7 @@ is silently, plausibly wrong rather than obviously broken.
   encoding. This is deliberate: it is the encoding SigilMaterial's bevel
   normal maps use, so a normals pass can be fed straight into one of its
   surface recipes as the normal map.
-- **`SkColor4f` values here are display-encoded sRGB, not linear.** Colour
+- **A blend's `glm::vec4` colours are display-encoded sRGB, not linear.** Colour
   interpolation runs through OKLab, with an explicit sRGB decode on the way
   in and encode on the way out (`blend::detail::lerpOklab`). Interpolating
   the components directly is a different — and visibly worse — result.

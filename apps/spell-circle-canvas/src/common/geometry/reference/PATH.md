@@ -647,7 +647,8 @@ in no header.
   copying), a run of outlines and a run of paths, and from `FillRule`,
   `Winding`, `Join` and `Cap` onto the fill type, the path direction and
   a paint's join and cap; `toSkSize()` for a size and `centre()` of a
-  rect. Beside them the SKIA FORM of each operator, over the same body its
+  rect; `toSkM44()` for a camera's matrix, the form a mesh painter
+  concatenates onto a canvas. Beside them the SKIA FORM of each operator, over the same body its
   outline form wraps, for a caller already holding a Skia path: the
   contour walk (`contoursOf()`, `lengthOf()`, `segmentOf()`, `splitOf()`,
   and `appendSegment()`, whose `startWithMoveTo` false continues the run
@@ -659,4 +660,9 @@ in no header.
 - **`path/blend/Blend.h`** — shape interpolation modelled on Illustrator's
   blend tool: `Key`s expand into drawable `Step`s under `Options`
   controlling spacing (`Steps`, `Distance`, `SmoothColor`), an optional
-  spine path, orientation, sample density and outline smoothing.
+  spine outline, orientation, sample density and outline smoothing. A
+  key's and a step's shape is an `Outline` and its colours are
+  `glm::vec4` — straight red, green, blue and alpha — because the
+  library stands below the one that names colours; `draw()` paints the
+  steps onto the canvas a host owns, the one place the header names the
+  renderer.

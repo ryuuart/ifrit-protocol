@@ -42,10 +42,10 @@ SkPath star(int points, float radius) {
 
 std::vector<blend::Key> twoKeys() {
   blend::Key from;
-  from.path = star(5, 120);
+  from.path = fromSk(star(5, 120));
   from.fill = {1, 0.4f, 0.1f, 1};
   blend::Key to;
-  to.path = star(9, 220);
+  to.path = fromSk(star(9, 220));
   to.fill = {0.1f, 0.5f, 1, 1};
   return {from, to};
 }
@@ -99,7 +99,7 @@ void BM_BlendAlongSpine(benchmark::State& state) {
   spine.cubicTo({-120, -260}, {120, 260}, {400, 0});
   blend::Options options;
   options.steps = (int)state.range(0);
-  options.spine = spine.detach();
+  options.spine = fromSk(spine.detach());
   options.orientation = blend::Orientation::AlignToPath;
   std::vector<blend::Step> last;
   for ([[maybe_unused]] auto iteration : state) {

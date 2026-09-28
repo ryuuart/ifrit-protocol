@@ -119,9 +119,9 @@ int stepsForPair(const Options& options, const Key& a, const Key& b,
       // Enough steps that adjacent colors differ by under a display
       // quantum: Illustrator's 254-step black-to-white, scaled by the
       // actual color distance.
-      auto channelDelta = [](const SkColor4f& x, const SkColor4f& y) {
-        return std::max({std::abs(x.fR - y.fR), std::abs(x.fG - y.fG),
-                         std::abs(x.fB - y.fB), std::abs(x.fA - y.fA)});
+      auto channelDelta = [](const glm::vec4& x, const glm::vec4& y) {
+        return std::max({std::abs(x.r - y.r), std::abs(x.g - y.g),
+                         std::abs(x.b - y.b), std::abs(x.a - y.a)});
       };
       float delta = channelDelta(a.fill, b.fill);
       if (a.stroke && b.stroke)
@@ -140,8 +140,8 @@ Step makeStep(const Prepared& a, const Prepared& b,
   Step step;
   step.fill = detail::lerpOklab(keyA.fill, keyB.fill, u);
   if (keyA.stroke || keyB.stroke) {
-    const SkColor4f sa = keyA.stroke.value_or(keyA.fill);
-    const SkColor4f sb = keyB.stroke.value_or(keyB.fill);
+    const glm::vec4 sa = keyA.stroke.value_or(keyA.fill);
+    const glm::vec4 sb = keyB.stroke.value_or(keyB.fill);
     step.stroke = detail::lerpOklab(sa, sb, u);
   }
   step.strokeWidth =
@@ -187,7 +187,7 @@ Step makeStep(const Prepared& a, const Prepared& b,
     path = path.makeTransform(placement);
   }
 
-  step.path = std::move(path);
+  step.path = fromSk(path);
   return step;
 }
 
@@ -195,9 +195,9 @@ Step makeStep(const Prepared& a, const Prepared& b,
 
 namespace detail {
 
-SkColor4f lerpOklab(const SkColor4f& a, const SkColor4f& b, float t) {
-  const material::Color c = material::lerpOklab({a.fR, a.fG, a.fB, a.fA},
-                                                {b.fR, b.fG, b.fB, b.fA}, t);
+glm::vec4 lerpOklab(const glm::vec4& a, const glm::vec4& b, float t) {
+  const material::Color c =
+      material::lerpOklab({a.r, a.g, a.b, a.a}, {b.r, b.g, b.b, b.a}, t);
   return {c.r, c.g, c.b, c.a};
 }
 
@@ -221,7 +221,7 @@ std::vector<Step> make(std::span<const Key> keys, const Options& options) {
   // Custom spine: flatten once, split into one equal arc-length span
   // per key pair.
   Spine spine;
-  if (!options.spine.isEmpty()) {
+  if (!options.spine.empty()) {
     std::vector<Polyline> flat = flatten(options.spine, 0.25f);
     if (!flat.empty()) {
       if (options.reverseSpine) flat.front().reverse();
@@ -277,19 +277,21 @@ void draw(SkCanvas& canvas, std::span<const Step> steps) {
   for (const Step& step : steps) {
     SkPaint fill;
     fill.setAntiAlias(true);
-    SkColor4f fc = step.fill;
+    const SkPath path = toSk(step.path);
+    SkColor4f fc = {step.fill.r, step.fill.g, step.fill.b, step.fill.a};
     fc.fA *= step.opacity;
     fill.setColor4f(fc);
-    canvas.drawPath(step.path, fill);
+    canvas.drawPath(path, fill);
     if (step.stroke && step.strokeWidth > 0) {
       SkPaint stroke;
       stroke.setAntiAlias(true);
       stroke.setStyle(SkPaint::kStroke_Style);
       stroke.setStrokeWidth(step.strokeWidth);
-      SkColor4f sc = *step.stroke;
+      SkColor4f sc = {step.stroke->r, step.stroke->g, step.stroke->b,
+                      step.stroke->a};
       sc.fA *= step.opacity;
       stroke.setColor4f(sc);
-      canvas.drawPath(step.path, stroke);
+      canvas.drawPath(path, stroke);
     }
   }
 }

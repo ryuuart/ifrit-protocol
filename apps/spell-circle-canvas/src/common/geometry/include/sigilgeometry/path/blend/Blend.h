@@ -25,18 +25,23 @@
  * target is rotated/reversed to the least-squares-nearest start (the
  * stable version of Illustrator's "drag between two anchor points").
  * Colors interpolate in OKLab so a red-to-blue blend passes through
- * neither gray nor purple mud.
+ * neither gray nor purple mud. A colour is a `glm::vec4` of straight
+ * (unpremultiplied) red, green, blue and alpha in [0, 1]: the library
+ * names no colour type of its own, and a consumer that paints with one
+ * converts at its door.
  */
 
-#include <include/core/SkColor.h>
-#include <include/core/SkPath.h>
+#include <glm/vec4.hpp>
 
 #include <optional>
 #include <span>
 #include <vector>
 
+#include "sigilgeometry/path/Outline.h"
 #include "sigilgeometry/path/Polyline.h"
 
+// A step is painted onto the canvas a host owns; the canvas is the one
+// renderer type this header names, and only by declaration.
 class SkCanvas;
 
 /** THE STEPS BETWEEN TWO OUTLINES, paint and all. A blend runs between
@@ -51,9 +56,9 @@ namespace sigil::geometry::path::blend {
 /** One end (or waypoint) of a blend: an outline plus the paint
  *  attributes that interpolate alongside it. */
 struct Key {
-  SkPath path;
-  SkColor4f fill = SkColors::kWhite;
-  std::optional<SkColor4f> stroke;
+  Outline path;
+  glm::vec4 fill = {1, 1, 1, 1};
+  std::optional<glm::vec4> stroke;
   float strokeWidth = 0;
   float opacity = 1;
 
@@ -87,7 +92,7 @@ struct Options {
    *  With K keys the spine is split by arc length into K-1 equal spans,
    *  one per key pair (Illustrator splits at the spine's anchors; equal
    *  spans are the resampled equivalent). */
-  SkPath spine;
+  Outline spine;
   bool reverseSpine = false;
   Orientation orientation = Orientation::AlignToPage;
   /** Arc-length samples per contour during interpolation. More = closer
@@ -108,9 +113,9 @@ struct Options {
 /** One drawable step of the blend, keys included when asked. `t` runs 0
  *  to 1 over the whole multi-key sequence. */
 struct Step {
-  SkPath path;
-  SkColor4f fill = SkColors::kWhite;
-  std::optional<SkColor4f> stroke;
+  Outline path;
+  glm::vec4 fill = {1, 1, 1, 1};
+  std::optional<glm::vec4> stroke;
   float strokeWidth = 0;
   float opacity = 1;
   float t = 0;
@@ -129,12 +134,14 @@ std::vector<Step> make(std::span<const Key> keys, const Options& options = {});
 std::vector<Step> make(const Key& from, const Key& to,
                        const Options& options = {});
 
-/** Draw the expanded steps: fill (and stroke when present) per step. */
+/** Draw the expanded steps onto a host's canvas: fill (and stroke when
+ *  present) per step, antialiased, each colour's alpha multiplied by the
+ *  step's opacity. */
 void draw(SkCanvas& canvas, std::span<const Step> steps);
 
 namespace detail {
 /** OKLab round trip used for color interpolation — exposed for tests. */
-SkColor4f lerpOklab(const SkColor4f& a, const SkColor4f& b, float t);
+glm::vec4 lerpOklab(const glm::vec4& a, const glm::vec4& b, float t);
 }  // namespace detail
 
 }  // namespace sigil::geometry::path::blend
