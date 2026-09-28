@@ -57,12 +57,12 @@ that its pixels match the original.
 | Study · Pattern | 4 | 0 | 0 |
 | Study · Paint | 2 | 2 | 0 |
 | Study · Motion | 4 | 0 | 0 |
-| Study · Film | 4 | 0 | 0 |
+| Study · Film | 5 | 0 | 0 |
 | Study · Science | 5 | 0 | 0 |
 | Study · Esoteric | 3 | 0 | 0 |
 | Study · Screens | 6 | 0 | 0 |
-| Study · Game UI | 9 | 0 | 0 |
-| **All** | **220** | **58** | **9** |
+| Study · Game UI | 11 | 0 | 0 |
+| **All** | **223** | **58** | **9** |
 
 Every sketch in Draw, Draw · Generative, Draw · Observable reproductions, Draw
 · Procedural, Kit · Depth, Compose · Typography and Study · Paint is bound.
@@ -638,6 +638,7 @@ model, arithmetic and data become Python code and are not listed.
 
 | Sketch | Needs | Not yet bound |
 | --- | --- | --- |
+| `arrival_semagram` | Not yet audited | Not yet audited |
 | `eva_magi_defense` | Cap-height metrics; image-filter phosphor; bound image pan; raster bakes; stroke-to-outline paths; chamfered silhouettes; cascade ladder; measured checks; kit table | `compose::kit::table` with `Column`; `compose::metrics` and `compose::runPens` measurement; `compose::LayeredBrush` stroke layers; `SkSurfaces::Raster` standalone raster surfaces; `SkCanvas` layers, `drawPaint` and `drawImageRect`; `SkPathBuilder::arcTo` and `skpathutils::FillPathWithPaint`; `geometry::shapes` corner operators; `material::Paint::offset` bound to motion values; `material::skia::filter` over an already-built image filter; `material::skia::image` sampling options |
 | `eva_magi_deliberation` | Cap-height metrics; condensed faces; face weight readback; inset double borders; image-filter phosphor; CRT field recipe; knockout type | `compose::Border` and `compose::decorations::border` rules; `compose::metrics` and `compose::runPens` measurement; `weave::ports::face` with a width style; `SkTypeface` variation axes and style readback; `material::skia::filter` over an already-built image filter |
 | `eva_magi_interior` | Cap-height metrics; condensed faces; face weight readback; chamfered shapes; float-field runtime shader with bound uniform; image-filter phosphor; CRT recipe | `compose::Border` and `compose::decorations::border` rules; `compose::metrics` and `compose::runPens` measurement; `weave::ports::face` with a width style; `SkSurfaces::Raster` standalone raster surfaces; `SkShader` local matrices and raw image shaders; `SkTypeface` variation axes and style readback; `geometry::shapes` corner operators; `material::Paint::offset` bound to motion values; `material::skia::filter` over an already-built image filter; `material::skia::paint` SkShader interop |
@@ -678,6 +679,8 @@ model, arithmetic and data become Python code and are not listed.
 | --- | --- | --- |
 | `astral_tome` | Stock silhouettes; scatter, ribbon and rail strokes; span-masked reveal; bound twinkle; grain leather; document captions | `compose::lines::Line` and `lines::Rails`; `compose::Border` and `compose::decorations::border` rules; `compose::brush` scatter, pattern and art brushes; `compose::brush::Ribbon` tapered bands; `geometry::shapes` corner operators; `geometry::shapes` parametric curve generators; `geometry::path::Profile` width profiles and bands |
 | `bg3_dice_roll` | Stock borders, line presets, rails and ornament brushes; stock shapes; mesh face queries; custom canvas die; memoised retained motion | `compose::lines::Line` and `lines::Rails`; `compose::Border` and `compose::decorations::border` rules; `compose::brush` scatter, pattern and art brushes; `compose::brush::Ribbon` tapered bands; `compose::lines::Hatch` and `lines::RadialHatch`; `compose::lines::presets` and `compose::brush::presets`; `geometry::shapes` corner operators; `geometry::shapes` parametric curve generators |
+| `control_resonance` | Not yet audited | Not yet audited |
+| `dead_space_rig` | Not yet audited | Not yet audited |
 | `ds2_bench` | Routed wires; spans mask; layered brushes; kinetic text; instanced atlas; SDF materials; live shader uniforms; stock shapes | `compose::Text::textFx` text tracks; `compose::LayeredBrush` stroke layers; `compose::textFx` stock entrances (`rise`, `pop`, `typeOn`); `compose::lines::presets` and `compose::brush::presets`; `compose::instancing::place` placers; `geometry::path::PolarFrame` and `path::Grid`; `geometry::shapes::ticks` and `chords` divisions; `material::sdf` shapes and styles; `material::Paint::offset` bound to motion values |
 | `fallout2_charsheet` | Check tables; condensed face matching; bevels and layer styles; decoration adaptors; rounded outlines; keyed shapes; sketch-kit table; unit grid; slots | `compose::kit::table` with `Column`; `compose::onEdges` and `compose::inset` adaptors; `compose::kit::Bevel` and `kit::bevels` presets; `weave::ports::face` with a width style; `geometry::shapes` corner operators; `geometry::path::PolarFrame` and `path::Grid` |
 | `ksp_mapview` | Instanced starfield; live-bound SDF and globe materials; conic paths; stock and keyed shapes; filament, hatch and tick lines; readout rows | `sketch::kit::Document` content reader; `compose::lines::Line` and `lines::Rails`; `compose::LayeredBrush` stroke layers; `compose::lines::presets` and `compose::brush::presets`; `compose::kit::readout` rows; `geometry::path::Conic` conic sections; `material::sdf` shapes and styles; `material::Recipe` authoring; `material::Paint::offset` bound to motion values |

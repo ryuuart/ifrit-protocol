@@ -1,0 +1,8 @@
+half4 main(float2 point) {
+    float2 uv = point / uResolution;
+    float carrier = sin(uv.x * 4.0 + uv.y * 2.0);
+    float pressure = 0.5 + 0.5 * sin(uv.y * 12.0 - uTime * 0.8 + carrier);
+    float focus = exp(-abs(uv.x - 0.5) * 3.2);
+    float light = 0.215 + 0.28 * focus + 0.08 * pressure;
+    return half4(half3(light, light * 0.10, light * 0.085), 1.0);
+}
