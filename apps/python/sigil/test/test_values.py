@@ -59,8 +59,8 @@ class Values(unittest.TestCase):
         self.assertEqual(hi, (10, 20, 0))
         camera = mesh.camera.Camera()
         center = camera.project((0, 0, 0), (640, 480))
-        self.assertAlmostEqual(center.x, 320)
-        self.assertAlmostEqual(center.y, 240)
+        self.assertAlmostEqual(center[0], 320)
+        self.assertAlmostEqual(center[1], 240)
         self.assertIsNone(camera.project((0, 0, 500), (640, 480)))
 
     def test_shader_slot_and_mesh_render_headlessly(self):

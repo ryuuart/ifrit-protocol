@@ -71,6 +71,9 @@ def register(table: Table) -> None:
     )
     table.parameters(CAMERA + ".project", point="_t.Vec3Like", viewport="_t.Vec2Like")
     table.parameters(CAMERA + ".viewProjection", viewport="_t.Vec2Like")
+    # A frustum extent and a projected point are two numbers, x then y.
+    table.returns(CAMERA, "extentAt", "_t.Vec2")
+    table.returns(CAMERA, "project", "_t.Vec2 | None")
     table.parameters(MODULE + ".place", position="_t.Vec3Like")
     table.parameters(
         MODULE + ".faceCamera",

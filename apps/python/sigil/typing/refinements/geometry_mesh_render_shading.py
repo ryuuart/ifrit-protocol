@@ -11,7 +11,7 @@ the three vectors are where the panorama's own x, y and z axes point.
 
 from __future__ import annotations
 
-from .table import Table
+from .table import COLOR, Table
 
 MODULE = "_sigil.geometry.mesh.render"
 ENVIRONMENT = MODULE + ".Environment"
@@ -34,10 +34,30 @@ def register(table: Table) -> None:
     table.parameters(LIGHT + ".__init__", direction="_t.Vec3Like")
 
     # A panorama that was never given is read as black rather than
-    # refused, so every slot holding one reads back as absent too.
-    table.attribute(ENVIRONMENT + ".irradiance", IMAGE + " | None")
-    table.attribute(ENVIRONMENT + ".nextIrradiance", IMAGE + " | None")
-    table.attribute(STYLE + ".texture", IMAGE + " | None")
+    # refused, so every slot holding one reads back as absent too. The
+    # painter keeps each as a picture and the binding crosses it as the
+    # image Python holds, which is why both halves are stated.
+    for owner, name in (
+        (ENVIRONMENT, "irradiance"),
+        (ENVIRONMENT, "nextIrradiance"),
+        (STYLE, "texture"),
+    ):
+        table.accessor(owner, name, IMAGE + " | None", IMAGE + " | None")
+    for name in ("levels", "nextLevels"):
+        table.accessor(
+            ENVIRONMENT,
+            name,
+            "list[" + IMAGE + "]",
+            "collections.abc.Sequence[" + IMAGE + "]",
+        )
+    # A texture's placement is the path tier's 2D map, bound beside the
+    # outline it also moves.
+    table.attribute(STYLE + ".uvTransform", "_sigil.geometry.path.Transform")
+    # The painter's colours are four straight floats, read back as the
+    # colour class and written with any spelling of a colour.
+    table.accessor(LIGHT, "color", COLOR, "_t.ColorLike")
+    table.accessor(STYLE, "baseColor", COLOR, "_t.ColorLike")
+    table.accessor(STYLE, "ambient", COLOR, "_t.ColorLike")
     table.declares(
         ENVIRONMENT,
         "orientation",
