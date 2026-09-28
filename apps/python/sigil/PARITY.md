@@ -59,10 +59,10 @@ that its pixels match the original.
 | Study · Motion | 4 | 0 | 0 |
 | Study · Film | 5 | 0 | 0 |
 | Study · Science | 5 | 0 | 0 |
-| Study · Esoteric | 3 | 0 | 0 |
+| Study · Esoteric | 4 | 0 | 0 |
 | Study · Screens | 6 | 0 | 0 |
 | Study · Game UI | 11 | 0 | 0 |
-| **All** | **226** | **57** | **9** |
+| **All** | **227** | **57** | **9** |
 
 Every sketch in Draw, Draw · Generative, Draw · Observable reproductions, Draw
 · Procedural, Kit · Depth, Compose · Typography and Study · Paint is bound.
@@ -661,6 +661,7 @@ model, arithmetic and data become Python code and are not listed.
 
 | Sketch | Needs | Not yet bound |
 | --- | --- | --- |
+| `clavicula` | Not yet audited | Not yet audited |
 | `dunhuang_star_chart` | Instanced star atlas; jittered rails and ribbons; spherical projections; polar charts; speckle paper; line fits; document runs; text feeds | `sketch::kit::plot` chart layers; `sketch::kit::Document` content reader; `compose::lines::Line` and `lines::Rails`; `compose::Brush` shaped layer stacks; `compose::brush::Ribbon` tapered bands; `compose::Wash` material wash; `compose::lines::presets` and `compose::brush::presets`; `core::noise::hash` / `lattice` positional hashes; `geometry::shapers` and `path::Shaper`; `geometry::path::Profile` width profiles and bands; `geometry::path::Projection` spherical projections; `material::pattern` stock tiles |
 | `sigillum_aemeth` | Text on path; rails, hatches, stamp brushes; span masks; path crossings; jittered shapes; speckle tile; console feeds; checks | `sketch::kit::Document` content reader; `compose::lines::Line` and `lines::Rails`; `compose::Brush` shaped layer stacks; `compose::brush` scatter, pattern and art brushes; `compose::PaintProgram` canvas decorations; `compose::lines::Hatch` and `lines::RadialHatch`; `compose::test` geometry and pixel checks; `compose::lines::presets` and `compose::brush::presets`; `compose::kit::console` and `plate` panels; `geometry::shapers` and `path::Shaper`; `geometry::path` crossings and crossing rules; `material::pattern` stock tiles |
 | `thunder_fulu` | Profiled ribbons under span masks; layered brushes, rails, washes; jittered shapes; path displacement, measure; chart, table, console; checks | `sketch::kit::plot` chart layers; `compose::kit::table` with `Column`; `compose::lines::Line` and `lines::Rails`; `compose::Brush` shaped layer stacks; `compose::brush` scatter, pattern and art brushes; `compose::brush::Ribbon` tapered bands; `compose::Wash` material wash; `compose::lines::presets` and `compose::brush::presets`; `compose::kit::console` and `plate` panels; `SkContourMeasureIter` path measurement; `geometry::shapes` corner operators; `geometry::shapers` and `path::Shaper`; `geometry::path::Profile` width profiles and bands; `geometry::path::Contour` corners, poses and offsets; `geometry::path::Polyline` resampling and smoothing; `material::pattern` stock tiles |

@@ -1,0 +1,14 @@
+// Broad hammered dents let directional light move across the thin gilding.
+float hash(float2 p) {
+    p = fract(p * float2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
+}
+half4 main(float2 p) {
+    float2 uv = p / uResolution;
+    float x = sin(uv.x * 43 + cos(uv.y * 19)) * 0.16;
+    float y = cos(uv.y * 51 + sin(uv.x * 21)) * 0.16;
+    float2 dents = (float2(hash(floor(p)), hash(floor(p) + 73)) - 0.5) * 0.12;
+    float3 n = normalize(float3(x + dents.x, y + dents.y, 1));
+    return half4(half3(n * 0.5 + 0.5), 1);
+}

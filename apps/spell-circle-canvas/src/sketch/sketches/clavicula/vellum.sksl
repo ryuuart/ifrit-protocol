@@ -1,0 +1,31 @@
+// Laid fibres, foxing, edge wear and two shallow folds share one retained sheet.
+float hash(float2 p) {
+    p = fract(p * float2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
+}
+float noise(float2 p) {
+    float2 i = floor(p), f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash(i), hash(i + float2(1,0)), f.x),
+               mix(hash(i + float2(0,1)), hash(i + 1), f.x), f.y);
+}
+half4 main(float2 p) {
+    float2 uv = p / uResolution;
+    float clouds = noise(uv * 5.3) * 0.7 + noise(uv * 27.0) * 0.3;
+    float grain = hash(floor(p)) - 0.5;
+    float edge = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
+    float rim = exp(-max(edge, 0.0) * 42.0) * (0.08 + noise(uv * 42) * 0.08);
+    float foldX = uv.x - 0.487 + (noise(uv.yy * 9) - 0.5) * 0.002;
+    float foldY = uv.y - 0.524 + (noise(uv.xx * 7) - 0.5) * 0.002;
+    float fold = exp(-abs(foldX) * 230.0) * 0.035 + exp(-abs(foldY) * 300.0) * 0.018;
+    float fibres = (noise(p * float2(0.014, 0.77)) - 0.5) * 0.009;
+    float2 cells = uv * float2(95, 130);
+    float2 cell = floor(cells);
+    float2 fleck = fract(cells) - float2(hash(cell), hash(cell + 91));
+    float foxing = exp(-dot(fleck, fleck) * 95.0) * step(0.983, hash(cell + 33)) * 0.25;
+    float3 paper = mix(float3(0.86, 0.81, 0.69), float3(0.97, 0.945, 0.86), clouds);
+    paper += grain * 0.013 + fibres;
+    paper -= (rim + fold + foxing) * float3(0.63, 0.78, 0.92);
+    return half4(half3(paper), 1);
+}
