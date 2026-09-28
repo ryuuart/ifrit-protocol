@@ -66,8 +66,8 @@ struct Hub::Caches {
     Configure configure;
   };
 
-  /** A typed ask that found nothing to decode — no file, or bytes the
-   *  decoder refused: the URI, and the stamp its file carried then, empty
+  /** An ask that found nothing to read or decode — no file, or bytes
+   *  the decoder refused: the URI, and the stamp its file carried then, empty
    *  for none. poll() answers true once the stamp differs. */
   struct Missed {
     std::string uri;

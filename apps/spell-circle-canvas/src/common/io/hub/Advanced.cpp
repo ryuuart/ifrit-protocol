@@ -10,6 +10,7 @@
 #include "sigilio/advanced/Feeds.h"
 #include "sigilio/advanced/Network.h"
 #include "sigilio/advanced/Places.h"
+#include "sigilio/advanced/Problems.h"
 #include "sigilio/advanced/Residency.h"
 #include "sigilio/advanced/Time.h"
 #include "sigilio/advanced/Transport.h"
@@ -56,6 +57,13 @@ struct detail::HubAccess {
     return hub.onAdvance(std::move(callback));
   }
   static std::vector<Feed> feeds(const Hub& hub) { return hub.feeds(); }
+  static void reportProblem(Hub& hub, Problem problem) {
+    hub.reportProblem(std::move(problem));
+  }
+  static void clearProblem(Hub& hub, std::string_view uri) {
+    hub.clearProblem(uri);
+  }
+  static void clearProblems(Hub& hub) { hub.clearProblems(); }
   static void registerTransport(Hub& hub, std::string scheme,
                                 Transport transport) {
     hub.setFeedTransport(std::move(scheme), std::move(transport));
@@ -130,6 +138,14 @@ Lease onAdvance(Hub& hub, Lease::Callback callback) {
 }
 
 std::vector<Feed> feeds(const Hub& hub) { return HubAccess::feeds(hub); }
+
+void reportProblem(Hub& hub, Problem problem) {
+  HubAccess::reportProblem(hub, std::move(problem));
+}
+void clearProblem(Hub& hub, std::string_view uri) {
+  HubAccess::clearProblem(hub, uri);
+}
+void clearProblems(Hub& hub) { HubAccess::clearProblems(hub); }
 
 void registerTransport(Hub& hub, std::string scheme, Transport transport) {
   HubAccess::registerTransport(hub, std::move(scheme), std::move(transport));

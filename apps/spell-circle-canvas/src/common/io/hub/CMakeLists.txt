@@ -13,11 +13,12 @@ find_package(CURL CONFIG REQUIRED)
 find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilIOHub
   SOURCES Advanced.cpp Cache.cpp Decoders.cpp Feed.cpp Feeds.cpp Inlet.cpp Mounts.cpp
-          Network.cpp Recording.cpp Retention.cpp Selection.cpp Caches.h
+          Network.cpp Problems.cpp Recording.cpp Retention.cpp Selection.cpp Caches.h
           FeedDoor.h Fetch.h Residency.h
-  HEADERS Feed.h Hub.h Network.h Recording.h ../advanced/Decoding.h
+  HEADERS Feed.h Hub.h Network.h Problem.h Recording.h ../advanced/Decoding.h
           ../advanced/Feeds.h ../advanced/Lease.h ../advanced/Network.h
-          ../advanced/Places.h ../advanced/Residency.h ../advanced/Time.h
+          ../advanced/Places.h ../advanced/Problems.h ../advanced/Residency.h
+          ../advanced/Time.h
           ../advanced/Transport.h
           ../testing/Testing.h
   PUBLIC SigilIOSource SigilCoreCallable
@@ -34,7 +35,8 @@ find_package(OpenImageIO CONFIG QUIET)
 sigil_test(io_test
   SOURCES test/CacheTest.cpp test/FeedTest.cpp test/MeaningElsewhere.cpp
           test/MeaningElsewhere.h test/MeaningTest.cpp test/MountsTest.cpp
-          test/NetworkTest.cpp test/OiioTest.cpp test/RetentionTest.cpp
+          test/NetworkTest.cpp test/OiioTest.cpp test/ProblemTest.cpp
+          test/RetentionTest.cpp
           test/SelectionTest.cpp test/StandardExceptionsTest.cpp
           test/MountedHub.h
   LIBRARIES SigilIOHub SigilMediaResource SigilMediaImageEncode SigilCoreSchedule)

@@ -33,6 +33,7 @@
 #include "sigilio/frames/Frame.h"
 #include "sigilio/hub/Feed.h"
 #include "sigilio/hub/Network.h"
+#include "sigilio/hub/Problem.h"
 #include "sigilio/source/Sink.h"
 #include "sigilio/source/Source.h"
 
@@ -179,6 +180,14 @@ class Hub {
     return value && save(uri, *value);
   }
 
+  /** WHAT COULD NOT BE MADE OF THE RESOURCES ASKED FOR, one problem per
+   *  URI in the order they were first said: a shader that did not
+   *  compile, a document that did not parse — whatever a library that
+   *  reads through this hub reported with `reportProblem()`. A URI leaves
+   *  the list when a later load of it succeeds or its reader takes it
+   *  back; a host shows the list where it shows a failed build. */
+  std::vector<Problem> problems() const;
+
   /** THE FEED AT @p uri: a handle onto the same door for the same URI
    *  while anyone holds one. A URI replay() named plays that recording
    *  back; any other opens through the transport registered for its
@@ -241,6 +250,9 @@ class Hub {
   ResourceLease retain(std::span<const std::string_view> selectors);
   size_t discardUnretained();
   bool poll();
+  void reportProblem(Problem problem);
+  void clearProblem(std::string_view uri);
+  void clearProblems();
   void setFeedTransport(std::string scheme, Transport transport);
   Transport feedTransport(std::string_view scheme) const;
   std::vector<Feed> feeds() const;
@@ -363,6 +375,8 @@ class Hub {
    *  may ask this hub for a resource — and erases the entries whose
    *  lease is gone. */
   std::vector<std::weak_ptr<AdvanceCallback>> m_advancers;
+  /** What `problems()` answers, at most one per URI. */
+  std::vector<Problem> m_problems;
   /** When this hub was made: what advance() counts its time from. */
   const std::chrono::steady_clock::time_point m_created =
       std::chrono::steady_clock::now();

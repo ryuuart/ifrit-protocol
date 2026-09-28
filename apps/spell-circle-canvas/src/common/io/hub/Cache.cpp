@@ -41,9 +41,19 @@ std::shared_ptr<const Bytes> Hub::read(std::string_view uri) {
   }
 
   FetchResult fetched = fetchResource(*this, network, uri);
-  if (!fetched.bytes)
-    return nullptr;  // not cached: heals as soon as the file appears
+  if (!fetched.bytes) {
+    // Not cached, so the next ask finds the file as soon as it appears;
+    // remembered as asked for, so the poll that sees it appear says so
+    // and a reader that asks again on that word finds it. A network URI
+    // has no stamp to watch.
+    if (!isNetworkUri(uri)) {
+      const std::lock_guard lock(m_mutex);
+      m_caches->missed.try_emplace(key, Caches::Missed{key, {}});
+    }
+    return nullptr;
+  }
   const std::lock_guard lock(m_mutex);
+  m_caches->missed.erase(key);
   auto it = m_caches->entries.find(key);
   if (it != m_caches->entries.end() && it->second.bytes)
     return it->second.bytes;
@@ -210,6 +220,10 @@ std::shared_ptr<const void> Hub::loadView(const std::string& key,
 
   const std::lock_guard lock(m_mutex);
   m_caches->missed.erase(key);
+  // A resource that now means what it was asked for has nothing wrong
+  // with it left to say.
+  std::erase_if(m_problems,
+                [&](const Problem& problem) { return problem.uri == uri; });
   auto [entry, inserted] = m_caches->entries.try_emplace(key);
   if (!inserted) {
     if (const auto view = entry->second.views.find(meaning);

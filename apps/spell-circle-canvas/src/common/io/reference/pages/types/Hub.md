@@ -52,6 +52,14 @@ re-asking). Failed lookups are NOT cached: a missing file loads as soon
 as it appears, and a `Hub::load` that found it missing makes the poll
 that sees it appear answer true.
 
+`Hub::problems()` lists what a library reading through the hub could
+not make of a resource — a shader that did not compile, with the
+compiler's message and the line — one `sigil::io::Problem` per URI, so a
+host shows it where it shows a failed build. A reader reports through
+`sigil::io::reportProblem` in `<sigilio/advanced/Problems.h>`; a later
+successful `Hub::load` of the URI, or the reader's `sigil::io::clearProblem`,
+takes it back.
+
 Calls on one `Hub` may overlap: mount, decoder, cache and retention state
 are synchronized internally. A `Hub` satisfies `sigil::io::ByteSource` and
 `sigil::io::ResolvingByteSource`.

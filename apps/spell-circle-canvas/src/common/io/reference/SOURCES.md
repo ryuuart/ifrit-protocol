@@ -103,12 +103,31 @@ the C++ type's own name — the same text in every image that holds the
 type — is then checked as well, so a type that borrows a name answers
 null rather than another type's view.
 
-A typed ask that finds nothing to decode — no file yet, or bytes its
-decoder refused — is remembered with the stamp its file carried, and the
+An ask that finds nothing — a `read()` or `text()` with no file yet, or
+a typed ask whose decoder refused the bytes — is remembered with the
+stamp its file carried, and the
 next `poll()` that sees that file appear or change answers true and
 forgets it. The ask is not retried by the poll: the answer is the next
 ask's, which is what a host re-running a declaration on a true poll
 makes.
+
+### Problems
+
+What a library could not make of a resource it read through the hub is
+the hub's to list, because the hub is what a host already holds:
+`Hub::problems()` answers one `sigil::io::Problem` per URI — the URI, the
+reader's message, and the line of the resource it is about when it names
+one — in the order they were first said. A reader reports with
+`sigil::io::reportProblem(hub, problem)` from `<sigilio/advanced/Problems.h>`,
+which replaces whatever stood for that URI, and takes it back with
+`sigil::io::clearProblem`; a typed `load<T>()` of the URI that succeeds
+takes it back as well. A host that asks its program for every resource
+again — a sketch declaring itself anew — calls `sigil::io::clearProblems`
+first, so a URI the program no longer asks for stops being listed, and
+reads the list after: a reader that still finds the resource wrong says
+so again on that ask. Material's `shader(hub, uri, …)` is one such
+reader: a program file that does not compile stands here with the
+compiler's message and the body's line.
 
 A type is loaded with options when its own namespace declares
 `loadOptions(std::type_identity<T>)`, answering the options at their
