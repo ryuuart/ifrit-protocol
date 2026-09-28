@@ -17,7 +17,7 @@
 
 // TAGS: Materials/Lighting
 
-#include <choreograph/Choreograph.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/path/Arrange.h>
@@ -70,7 +70,7 @@ world::Element subject() {
     // the ring is taken as the two halves rather than as onRing.
     const float angle =
         arrange::along(0.0f, kTwoPi, i, kPosts, arrange::Turn::Closed);
-    const SkPoint on = arrange::onEllipse({0, 0}, {kRing, kRing}, angle);
+    const SkPoint on = sigil::geometry::path::toSk(arrange::onEllipse({0, 0}, {kRing, kRing}, angle));
     return world::Element()
         .key("post" + std::to_string(i))
         .at({on.fX, 0.0f, on.fY})

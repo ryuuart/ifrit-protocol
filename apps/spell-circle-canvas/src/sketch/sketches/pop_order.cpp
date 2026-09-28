@@ -34,6 +34,8 @@
 
 // TAGS: Geometry/Points
 
+#include <sigilcompose/kit/Rows.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigildraw/Pen.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
@@ -182,13 +184,12 @@ struct PopOrder {
                                  "with the depth encoded by colour."}},
                   .measure = 1020,
                   .gap = 24}),
-             sketch::kit::readout(
-                 {{.name = "DEPTH KEY",
+             sigil::compose::kit::readout(std::vector<sigil::compose::kit::Reading>{{.name = "DEPTH KEY",
                    .value = "dark blue / far     →     pale blue / near"},
                   {.name = "MEMBERSHIP",
                    .value = kit::formatted("%zu before     %zu after",
                                            unsorted.size(), sorted.size())}},
-                 {.nameMeasure = 110})})));
+                        {.nameMeasure = 110, .gap = sketch::kit::theme().spacing.rowGap, .labelGap = sketch::kit::theme().spacing.labelGap})})));
   }
 };
 

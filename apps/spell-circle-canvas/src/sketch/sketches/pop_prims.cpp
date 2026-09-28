@@ -35,6 +35,7 @@
 
 // TAGS: Geometry/Points
 
+#include <sigilcompose/kit/Rows.h>
 #include <sigildraw/Pen.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Solids.h>
@@ -186,34 +187,31 @@ struct PopPrims {
                   .measure = 1160,
                   .gap = 22}),
              sketch::kit::comparison(
-                 {.cases = {{.figure = sketch::kit::readout(
-                                           {{.name = "Vertices",
+                 {.cases = {{.figure = sigil::compose::kit::readout(std::vector<sigil::compose::kit::Reading>{{.name = "Vertices",
                                              .value = kit::formatted(
                                                  "%zu", facets.vertexCount())},
                                             {.name = "Triangles",
                                              .value = kit::formatted(
                                                  "%zu",
                                                  facets.triangleCount())}},
-                                           {.nameMeasure = 88})
+                        {.nameMeasure = 88, .gap = sketch::kit::theme().spacing.rowGap, .labelGap = sketch::kit::theme().spacing.labelGap})
                                            .width(372)},
-                            {.figure = sketch::kit::readout(
-                                           {{.name = "Vertices",
+                            {.figure = sigil::compose::kit::readout(std::vector<sigil::compose::kit::Reading>{{.name = "Vertices",
                                              .value = kit::formatted(
                                                  "%zu", baked.vertexCount())},
                                             {.name = "Triangles",
                                              .value = kit::formatted(
                                                  "%zu",
                                                  baked.triangleCount())}},
-                                           {.nameMeasure = 88})
+                        {.nameMeasure = 88, .gap = sketch::kit::theme().spacing.rowGap, .labelGap = sketch::kit::theme().spacing.labelGap})
                                            .width(372)},
-                            {.figure = sketch::kit::readout(
-                                           {{.name = "Pieces",
+                            {.figure = sigil::compose::kit::readout(std::vector<sigil::compose::kit::Reading>{{.name = "Pieces",
                                              .value =
                                                  kit::formatted("%d", kPieces)},
                                             {.name = "Triangles",
                                              .value =
                                                  kit::formatted("%zu", pieces.triangleCount())}},
-                                           {.nameMeasure = 88})
+                        {.nameMeasure = 88, .gap = sketch::kit::theme().spacing.rowGap, .labelGap = sketch::kit::theme().spacing.labelGap})
                                            .width(372)}},
                   .measure = 1160,
                   .gap = 22})})));

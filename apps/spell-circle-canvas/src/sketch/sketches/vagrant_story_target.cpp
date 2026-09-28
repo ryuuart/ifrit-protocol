@@ -93,6 +93,7 @@
 
 // TAGS: Interfaces/Game
 
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/kit/Frame.h>
@@ -407,7 +408,7 @@ Element reachSphere(float seconds) {
     // One point on the meridian: its height up the sphere and the radius
     // of the ring cut there are the two components of the same place.
     const SkPoint on =
-        arrange::onEllipse({0, 0}, {kSphereRadius, kSphereRadius}, lat);
+        sigil::geometry::path::toSk(arrange::onEllipse({0, 0}, {kSphereRadius, kSphereRadius}, lat));
     sphere.children(
         {Element()
              .key("latitude" + std::to_string(i))
@@ -435,7 +436,7 @@ Element attackLadder() {
     // The ticks turn the other way round the floor than they do on
     // screen, so the ellipse's second component is negated onto z.
     const SkPoint on =
-        arrange::onEllipse({0, 0}, {kSphereRadius, kSphereRadius}, a);
+        sigil::geometry::path::toSk(arrange::onEllipse({0, 0}, {kSphereRadius, kSphereRadius}, a));
     Element bearing = Element()
                           .key("tick" + std::to_string(i))
                           .at({on.fX, 0.0f, -on.fY})
@@ -470,7 +471,7 @@ compose::Element run(const ck::Mask& mask, float x, float y,
                      material::Color colour) {
   return ck::masked(mask, {.colour = colour,
                            .scale = kHudScale,
-                           .shadowOffset = kShadow,
+                           .shadowOffset = sigil::geometry::path::fromSk(kShadow),
                            .shadowMultiplier = 0.0f})
       .at({std::round(x / 2.5f) * 2.5f, std::round(y / 4.0f) * 4.0f});
 }
@@ -651,9 +652,9 @@ struct VagrantStoryTarget {
   Element overlayQuad(material::Texture texture) {
     const glm::vec3 forward = glm::normalize(lens.target - lens.eye);
     constexpr float kAt = 100.0f;
-    const SkSize frame =
+    const glm::vec2 frame =
         lens.extentAt(kAt, (float)vs::kHudW / (float)vs::kHudH);
-    const float w = frame.width(), h = frame.height();
+    const float w = frame.x, h = frame.y;
     const glm::vec3 at = lens.eye + forward * kAt;
     material::Material surface =
         material::surface::unlit({.baseColor = {1, 1, 1, 1}});

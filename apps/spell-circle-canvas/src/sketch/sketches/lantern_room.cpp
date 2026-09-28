@@ -24,6 +24,7 @@
 
 // TAGS: Materials/Lighting
 
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/path/Arrange.h>
@@ -146,7 +147,7 @@ struct LanternRoom {
       const float bob = std::sin(seconds * 0.75f + lantern.bearingDeg * 0.03f);
       // A bearing is measured from +z and turns toward +x, so the
       // ellipse's two components land on z and on x in that order.
-      const SkPoint on = arrange::onEllipse({0, 0}, {kRing, kRing}, bearing);
+      const SkPoint on = sigil::geometry::path::toSk(arrange::onEllipse({0, 0}, {kRing, kRing}, bearing));
       const glm::vec3 at{on.fY, kFloor + lantern.height + 42.0f * bob, on.fX};
       room.children(
           {world::Element()
@@ -162,7 +163,7 @@ struct LanternRoom {
                .key(std::string(lantern.key) + "-lamp")
                .at(at)
                .light(
-                   world::light::point({0, 0, 0}, lantern.color, 1.25f, kReach))
+                   world::light::point({0, 0, 0}, {lantern.color.r, lantern.color.g, lantern.color.b, lantern.color.a}, 1.25f, kReach))
                .tag("lamp")});
     }
 

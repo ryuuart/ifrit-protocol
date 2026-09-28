@@ -53,6 +53,9 @@
 
 // TAGS: Typography/Lettering, Geometry/Paths
 
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilmedia/advanced/Skia.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigildraw/Pen.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
@@ -177,7 +180,7 @@ void paintRail(SkCanvas& canvas, const std::vector<curve::Frame3>& rail,
       {.scale = kWidth, .normals = mesh::pop::SweepOptions::Normals::Frame});
   // The cloth is its own light: the banner is what it shows, so nothing
   // shades it and both of its faces draw.
-  render::drawMesh(canvas, cloth, glm::mat4(1.0f), camera, viewport,
+  render::drawMesh(canvas, cloth, glm::mat4(1.0f), camera, sigil::geometry::path::fromSk(viewport),
                    {.baseColor = {1, 1, 1, 1},
                     .lights = {},
                     .ambient = {1, 1, 1, 1},
@@ -187,7 +190,7 @@ void paintRail(SkCanvas& canvas, const std::vector<curve::Frame3>& rail,
 
   // The ticks. Projected exactly as the painter projects a vertex:
   // clip = viewProjection * p, then the perspective divide.
-  const glm::mat4 vp = camera.viewProjection(viewport);
+  const glm::mat4 vp = camera.viewProjection(sigil::geometry::path::fromSk(viewport));
   const auto project = [&vp](glm::vec3 p, SkPoint* out) {
     const glm::vec4 clip = vp * glm::vec4{p, 1};
     if (clip.w <= 1e-4f) return false;
@@ -250,7 +253,7 @@ struct YarnMarquee {
                    const auto b = camera.project(f.position + f.binormal,
                                                  {kPanel, kPanelH});
                    if (!a || !b) continue;
-                   SkVector direction = *b - *a;
+                   SkVector direction = sigil::geometry::path::toSk(*b - *a);
                    if (!direction.normalize()) continue;
                    const float x =
                        28 + static_cast<float>(i) * (kPanel - 56) / 15;

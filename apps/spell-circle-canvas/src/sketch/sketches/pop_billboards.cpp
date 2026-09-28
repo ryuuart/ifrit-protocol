@@ -28,6 +28,8 @@
 
 // TAGS: Geometry/Points, Motion/Particles
 
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigildraw/Pen.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
@@ -135,7 +137,7 @@ std::function<void(SkCanvas&, SkSize)> splat(pop::Builder chain,
                                              points::BillboardStyle style) {
   return [chain = std::move(chain), style = std::move(style)](SkCanvas& canvas,
                                                               SkSize size) {
-    chain.billboards(canvas, stage(), size, style);
+    chain.billboards(canvas, stage(), sigil::geometry::path::fromSk(size), style);
   };
 }
 
@@ -145,7 +147,7 @@ Element figure(const char* key, std::function<void(SkCanvas&, SkSize)> draw) {
       custom(key, [draw = std::move(draw)](sigil::draw::Pen& pen,
                                            const PaintContext& pc) {
         SkCanvas& canvas = *pen.canvas();
-        draw(canvas, pc.size);
+        draw(canvas, sigil::geometry::path::toSkSize(pc.size));
       }));
 }
 
