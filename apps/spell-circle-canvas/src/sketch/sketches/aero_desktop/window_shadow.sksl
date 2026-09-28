@@ -4,8 +4,6 @@
 // (the smoothstep knockout below) or the backdrop blur samples its own
 // black core and the whole pane goes murky.
 
-uniform float2 uResolution;
-uniform float4 uMargins; // l, t, r, b
 half4 main(float2 p) {
   float2 rectMin = uMargins.xy;
   float2 rectMax = uResolution - uMargins.zw;

@@ -21,7 +21,10 @@
 
 // TAGS: Drawing/Generative, Patterns/Ornament
 
-#include <sigilgeometry/path/Skia.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmedia/advanced/Skia.h>
+#include <sigilmaterial/program/Shader.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkSurface.h>
@@ -71,7 +74,18 @@ namespace {
  *  sketch gets when it declares none. */
 constexpr SkSize kSceneSize = {900, 640};
 
-namespace ch = choreograph;
+
+void drawDiamond(SkCanvas& canvas, SkPoint centre, float radius,
+                 material::Color color) {
+  const SkPoint corners[] = {{centre.x(), centre.y() - radius},
+                              {centre.x() + radius, centre.y()},
+                              {centre.x(), centre.y() + radius},
+                              {centre.x() - radius, centre.y()}};
+  SkPaint paint;
+  paint.setAntiAlias(true);
+  paint.setColor4f(material::skia::toSkColor(color));
+  canvas.drawPath(SkPath::Polygon(corners, true), paint);
+}
 
 struct Flourish {
   static constexpr float kW = 900.0f;  // kSceneSize.width()
@@ -91,11 +105,12 @@ struct Flourish {
   motion::Animatable<float> titleDrop = motion::animatable(-18.0f);
   motion::Animatable<float> titleFade = motion::animatable(0.0f);
   motion::Animatable<float> sealBreathe = motion::animatable(1.0f);
-  ch::Output<float> spin[4];
-  ch::Output<float> breathe[4];
+  sigil::motion::Animatable<float> spin[4];
+  sigil::motion::Animatable<float> breathe[4];
   motion::Animatable<float> flare = motion::animatable(0.0f);
 
-  sk_sp<SkRuntimeEffect> hatch, engraved;
+  material::Material hatch = material::Color{0, 0, 0, 0};
+  material::Material engraved = material::Color{0, 0, 0, 0};
   std::shared_ptr<const sigil::media::Image> carvedFrame, gemAtlas;
   bool accent = false;
   double nextAccent = 4.0;
@@ -140,15 +155,15 @@ struct Flourish {
                           .shape(shapes::star(6, 0.5f))
                           .fill(Fill::color(st.gold)));
 
-    auto innerRect = [](SkSize s) {
-      return SkPath::RRect(SkRRect::MakeRectXY(
-          SkRect::MakeLTRB(22, 22, s.width() - 22, s.height() - 22), 16, 16));
+    auto innerRect = [](glm::vec2 s) {
+      return sigil::geometry::path::fromSk(SkPath::RRect(SkRRect::MakeRectXY(
+          SkRect::MakeLTRB(22, 22, s.x - 22, s.y - 22), 16, 16)));
     };
 
     return box()
         .inset(kFrameInset)
         .borderRadius({22})
-        .background(sigil::compose::shadow({0, 0, 0, 0.55f}, {0, 5}, 16))
+        .background(sigil::compose::shadow(material::Color{0, 0, 0, 0.55f}, {0, 5}, 16))
         .foreground(sigil::compose::stroke(2.6f, Fill::color(st.gold)))
         .foreground(flourishVine(st, 17.0f, 24.0f, 17.0f))
         .foreground(onEdges(path::Edge::Top | path::Edge::Bottom,
@@ -212,9 +227,7 @@ struct Flourish {
                            .foreground(sigil::compose::stroke(
                                0.7f, Fill::color(st.bronze))));
 
-    Fill disc =
-        engraved ? Fill::shader(SkRuntimeShaderBuilder(engraved).makeShader())
-                 : Fill::color({0.14f, 0.07f, 0.05f, 1});
+    Fill disc = engraved;
 
     return box()
         .key("med" + std::to_string(q))
@@ -222,8 +235,8 @@ struct Flourish {
         .width(kMedD)
         .height(kMedD)
         .transformOrigin(pct(50), pct(50))
-        .rotate(&spin[q])
-        .scale(&breathe[q])
+        .rotate(spin[q])
+        .scale(breathe[q])
         .cache(Cache::Picture)
         .children(
             {box()
@@ -283,21 +296,7 @@ struct Flourish {
   Element cartouche() const {
     Slice carved = carvedFrameSlice(carvedFrame);
 
-    Decoration hatchDeco{PaintProgram{}};
-    if (hatch) {
-      auto fx = hatch;
-      hatchDeco =
-          Decoration(PaintProgram([fx](sigil::draw::Pen& pen, const PaintContext& ctx) {
-            SkCanvas& c = *pen.canvas();
-            SkPaint p;
-            p.setShader(SkRuntimeShaderBuilder(fx).makeShader());
-            p.setAlphaf(0.6f);
-            c.save();
-            c.clipPath(sigil::geometry::path::toSk(ctx.outline), true);
-            c.drawRect(SkRect::MakeSize(ctx.size), p);
-            c.restore();
-          }));
-    }
+    const Decoration hatchDeco = decorations::wash(hatch, material::BlendMode::Normal, 0.6f);
 
     std::vector<Element> sparks;
     sparks.reserve(kSparks);
@@ -349,7 +348,7 @@ struct Flourish {
         .overflow(Overflow::Clip)
         .backdropFilter(sigil::material::skia::filter(
             SkImageFilters::Blur(8, 8, nullptr)))
-        .background(sigil::compose::shadow({0, 0, 0, 0.5f}, {0, 6}, 16))
+        .background(sigil::compose::shadow(material::Color{0, 0, 0, 0.5f}, {0, 6}, 16))
         .fill(flourishParchment(st))
         .background(hatchDeco)
         .background(carved)
@@ -378,7 +377,7 @@ struct Flourish {
                  .transformOrigin(pct(50), pct(50))
                  .scale(sealBreathe)
                  .shape(shapes::star(12, 0.66f))
-                 .fill(motion::animate({.to = Fill::color(accent ? st.rubric : st.bronze), .duration = 600ms}))
+                 .fill(motion::animate<Fill>({.to = Fill::color(accent ? st.rubric : st.bronze), .duration = 600ms}))
                  .foreground(
                      sigil::compose::stroke(1.4f, Fill::color(st.goldBright))),
              document::paragraph(
@@ -425,32 +424,32 @@ struct Flourish {
              const float armLen = 195.0f;
              const float x0 = kFrameInset + 10, y0 = kFrameInset + 10;
              auto sweep = [&](bool along) {
-               std::vector<SkPoint> pts;
+               std::vector<glm::vec2> pts;
                appendCubic(pts, {x0, y0}, {x0 + armLen * 0.16f, y0 - 22},
                            {x0 + armLen * 0.44f, y0 - 8},
                            {x0 + armLen * 0.62f, y0 + 6});
-               const SkPoint eye{x0 + armLen * 0.72f, y0 + 16};
+               const glm::vec2 eye{x0 + armLen * 0.72f, y0 + 16};
                appendSpiral(pts, eye, 12.0f, 1.2f, -1.7f, -1.7f + 7.6f, 32);
                SkMatrix m;
                if (along)
                  m.setRotate(90, x0, y0);
                else
                  m.setIdentity();
-               for (auto& p : pts) p = m.mapPoint(p);
+               for (auto& point : pts) point = path::fromSk(m.mapPoint(path::toSk(point)));
                p.noStroke();
                p.fill(st.gold);
-               p.shape(taperedStroke(revealed(pts, local), 5.0f));
-               std::vector<SkPoint> under;
+               p.shape(path::toSk(taperedStroke(revealed(pts, local), 5.0f)));
+               std::vector<glm::vec2> under;
                appendCubic(under, {x0 + 4, y0 + 20},
                            {x0 + armLen * 0.16f, y0 + 30},
                            {x0 + armLen * 0.30f, y0 + 26},
                            {x0 + armLen * 0.40f, y0 + 22});
                appendSpiral(under, {x0 + armLen * 0.47f, y0 + 18}, 8.0f, 1.0f,
                             2.4f, 2.4f - 6.6f, 28);
-               for (auto& p : under) p = m.mapPoint(p);
-               p.shape(taperedStroke(revealed(under, local), 2.6f));
+               for (auto& point : under) point = path::fromSk(m.mapPoint(path::toSk(point)));
+               p.shape(path::toSk(taperedStroke(revealed(under, local), 2.6f)));
                if (local > 0.85f) {
-                 const SkPoint e = m.mapPoint(eye);
+                 const SkPoint e = m.mapPoint(path::toSk(eye));
                  p.fill(st.goldBright);
                  p.circle(e.x(), e.y(), 5.2f);
                }
@@ -467,7 +466,7 @@ struct Flourish {
   }
 
   // Truncate a point list to the leading `fraction` for the draw-on reveal.
-  static std::vector<SkPoint> revealed(const std::vector<SkPoint>& pts,
+  static std::vector<glm::vec2> revealed(const std::vector<glm::vec2>& pts,
                                        float fraction) {
     const size_t keep = std::max<size_t>(
         2, (size_t)std::lround((float)pts.size() *
@@ -515,7 +514,7 @@ struct Flourish {
              // takes as its fill, in the pen's own space, so the sweep is
              // one rect and no shader is spelled by hand.
              p.noStroke();
-             p.fill(Paint::linearGradient(
+             p.fill(sigil::material::linearGradient(
                  {sweep, 0}, {sweep + 130, h},
                  {{0.0f, {1, 1, 1, 0}},
                   {0.5f, {g.r, g.g, g.b, 0.22f}},
@@ -556,14 +555,17 @@ struct Flourish {
   }
 
   void setup(sketch::SketchContext& ctx) {
+    for (auto& value : spin) value = sigil::motion::animatable(value.value());
+    for (auto& value : breathe) value = sigil::motion::animatable(value.value());
+
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 6.0,
                              .background = material::Color{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
     sigil::motion::Engine& ticker = ctx.engine;
     sceneTicker = &ticker;
-    hatch = ctx.assets.shader(ctx.local("hatch.sksl"));
-    engraved = ctx.assets.shader(ctx.local("engraved.sksl"));
+    hatch = material::shader(ctx.assets.hub(), ctx.local("hatch.sksl"));
+    engraved = material::shader(ctx.assets.hub(), ctx.local("engraved.sksl"));
     carvedFrame = (makeCarvedFrame(toOrnamentPalette(st), 192));
     gemAtlas = makeGemAtlas();
 
@@ -578,16 +580,13 @@ struct Flourish {
       breathe[q] = 1.0f;
     }
 
-    ticker.timeline().apply(reveal).then<ch::RampTo>(1.0f, 2.4f,
-                                                      motion::ease::outQuint);
-    ticker.timeline()
-        .apply(titleDrop)
-        .then<ch::RampTo>(0.0f, 1.0f, motion::ease::outQuint);
-    ticker.timeline().apply(titleFade).then<ch::RampTo>(1.0f, 1.2f);
-    ticker.timeline().apply(flare).then<ch::RampTo>(1.0f, 1.3f);
+    ticker.animate(reveal, {.to = 1.0f, .duration = sigil::motion::Duration(2.4f), .ease = motion::ease::outQuint});
+    ticker.animate(titleDrop, {.to = 0.0f, .duration = sigil::motion::Duration(1.0f), .ease = motion::ease::outQuint});
+    ticker.animate(titleFade, {.to = 1.0f, .duration = sigil::motion::Duration(1.2f), .ease = sigil::motion::ease::linear});
+    ticker.animate(flare, {.to = 1.0f, .duration = sigil::motion::Duration(1.3f), .ease = sigil::motion::ease::linear});
 
-    ticker.add([this, &ticker] {
-      const double t = ticker.elapsed();
+    ticker.timer([this, &ticker] {
+      const double t = ticker.elapsed().count();
       for (int q = 0; q < 4; ++q) {
         const float dir = (q == 0 || q == 2) ? 1.0f : -1.0f;
         spin[q] = (float)(t * 7.0) * dir;
@@ -608,8 +607,7 @@ struct Flourish {
     // then settles back over 1.1 s.
     if (sceneTicker) {
       flare = 1.0f;
-      sceneTicker->timeline().apply(flare).then<ch::RampTo>(0.55f, 1.1f,
-                                                             motion::ease::outQuint);
+      sceneTicker->animate(flare, {.to = 0.55f, .duration = sigil::motion::Duration(1.1f), .ease = motion::ease::outQuint});
     }
     composer.render(describe());
   }

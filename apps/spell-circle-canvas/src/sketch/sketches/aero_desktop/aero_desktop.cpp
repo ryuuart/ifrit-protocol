@@ -31,9 +31,12 @@
 
 // TAGS: Materials/Compositing, Interfaces/Desktop
 
+#include <sigilmaterial/program/Shader.h>
+#include <sigilmaterial/filter/Filter.h>
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -78,34 +81,15 @@ constexpr material::Color kSky{0.455f, 0.722f, 0.988f, 1};
 // The DWM colorization approximated as ONE flattened shader stack over
 // the blurred backdrop: Sky tint (colorBalance+afterglow read), a top
 // glass sheen, and the diagonal desktop reflection (screen, peak a~.2).
-inline Paint glassTint(float w, float h) {
-  return Paint::blend({
-      // tint*colorBalance -- the flat Sky wash.
-      //
-      // This alpha is the whole scene's balance point, so change it
-      // knowingly. It is a THIRD lower than a flat sky wash wants,
-      // because what has to survive it is the wallpaper's own filament
-      // structure seen through the blur — the one thing that makes a
-      // nine-pixel frame read as a band of glass rather than as a pale
-      // keyline. The pane's translucency does not come from a live
-      // backdropFilter(): it is a canvas-aligned frozen copy of the aurora,
-      // blurred and clipped to the pane, chosen deliberately so the pane can
-      // bake as one texture. That copy resolves correctly underneath, and
-      // this wash sits on top of it. Raise the alpha and it simply covers the
-      // blurred desktop, and the glass stops reading as glass; lower it and
-      // the Sky character goes, along with the contrast the dark caption text
-      // needs to stay legible.
-      {Paint::solid({kSky.r, kSky.g, kSky.b, 0.19f}), material::BlendMode::Normal},
-      // afterglow stand-in: brighter accent breathing down from the top
-      {Paint::linearGradient({0, 0}, {0, h},
+inline sigil::material::Material glassTint(float w, float h) {
+  return material::from(material::Color{kSky.r, kSky.g, kSky.b, 0.19f})
+      .layer(sigil::material::linearGradient({0, 0}, {0, h},
                              {{0.00f, {0.62f, 0.82f, 1.00f, 0.24f}},
                               {0.10f, {0.55f, 0.78f, 1.00f, 0.11f}},
                               {0.30f, {0.45f, 0.72f, 0.99f, 0.03f}},
                               {1.00f, {0.45f, 0.72f, 0.99f, 0.07f}}},
-                             {.units = material::GradientUnits::Pixels}),
-       material::BlendMode::Normal},
-      // the desktop-space diagonal sheen (~30 deg, peak a~.2)
-      {Paint::linearGradient({0, h * 0.85f}, {w, h * 0.15f},
+                             {.units = material::GradientUnits::Pixels}), {.blend = material::BlendMode::Normal})
+      .layer(sigil::material::linearGradient({0, h * 0.85f}, {w, h * 0.15f},
                              {{0.00f, {1, 1, 1, 0.00f}},
                               {0.40f, {1, 1, 1, 0.00f}},
                               {0.52f, {1, 1, 1, 0.20f}},
@@ -113,21 +97,19 @@ inline Paint glassTint(float w, float h) {
                               {0.78f, {1, 1, 1, 0.12f}},
                               {0.88f, {1, 1, 1, 0.00f}},
                               {1.00f, {1, 1, 1, 0.00f}}},
-                             {.units = material::GradientUnits::Pixels}),
-       material::BlendMode::Screen},
-  });
+                             {.units = material::GradientUnits::Pixels}), {.blend = material::BlendMode::Screen});
 }
 
 // Radial white corner glow, a.35->0 over ~30px, centered on a top corner.
-inline Paint cornerGlow(SkPoint center) {
-  return Paint::radialGradient(
-      center, 34, {{0.0f, {1, 1, 1, 0.35f}}, {1.0f, {1, 1, 1, 0.0f}}},
+inline sigil::material::Material cornerGlow(SkPoint center) {
+  return sigil::material::radialGradient(
+      sigil::geometry::path::fromSk(center), 34, {{0.0f, {1, 1, 1, 0.35f}}, {1.0f, {1, 1, 1, 0.0f}}},
       {.units = material::GradientUnits::Pixels});
 }
 
 // The bloom that filled the close button on hover.
-inline Paint closeBloom(float w, float h) {
-  return Paint::radialGradient({w * 0.5f, h * 0.42f}, w * 0.60f,
+inline sigil::material::Material closeBloom(float w, float h) {
+  return sigil::material::radialGradient({w * 0.5f, h * 0.42f}, w * 0.60f,
                                {{0.00f, {1.000f, 0.769f, 0.706f, 0.95f}},
                                 {0.35f, {0.902f, 0.431f, 0.353f, 0.90f}},
                                 {0.70f, {0.745f, 0.098f, 0.078f, 0.85f}},
@@ -136,8 +118,8 @@ inline Paint closeBloom(float w, float h) {
 }
 
 // Caption-button glass base (idle): faint vertical white gradient.
-inline Paint buttonBase(float h) {
-  return Paint::linearGradient({0, 0}, {0, h},
+inline sigil::material::Material buttonBase(float h) {
+  return sigil::material::linearGradient({0, 0}, {0, h},
                                {{0.00f, {1, 1, 1, 0.28f}},
                                 {0.45f, {1, 1, 1, 0.10f}},
                                 {0.50f, {1, 1, 1, 0.04f}},
@@ -152,8 +134,9 @@ struct AeroDesktop {
    *  read in setup and held for the sketch's life. An effect is compared by
    *  POINTER, so the wallpaper, its taskbar copy and its thumbnail copy
    *  share one program or they are three unequal paints. */
-  sk_sp<SkRuntimeEffect> aurora;
-  sk_sp<SkRuntimeEffect> windowShadow;
+  material::Material aurora = material::Color{0, 0, 0, 0};
+  material::Material frozenAurora = material::Color{0, 0, 0, 0};
+  material::Material windowShadow = material::Color{0, 0, 0, 0};
 
   motion::Animatable<float> bloom = motion::animatable(0.0f);    // close-button hover bloom fade-in
   motion::Animatable<float> orbGlow = motion::animatable(0.0f);  // start-orb ambient breathing
@@ -162,26 +145,26 @@ struct AeroDesktop {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 6.0,
                              .background = material::Color{0, 0, 0, 1}});
-    aurora = ctx.assets.shader(ctx.local("aurora.sksl"));
-    windowShadow = ctx.assets.shader(ctx.local("window_shadow.sksl"));
+    aurora = material::shader(ctx.assets.hub(), ctx.local("aurora.sksl"));
+    struct FrozenTime { float uTime = 0.75f; };
+    frozenAurora = material::shader(ctx.assets.hub(), ctx.local("aurora.sksl"), FrozenTime{});
+    struct ShadowParameters { material::Color uMargins = {34, 30, 34, 40}; };
+    windowShadow = material::shader(ctx.assets.hub(), ctx.local("window_shadow.sksl"), ShadowParameters{});
     Composer& composer = ctx.composer;
     sigil::motion::Engine& ticker = ctx.engine;
-    namespace ch = choreograph;
     bloom = 0.0f;
     orbGlow = 0.0f;
 
-    ticker.timeline()
-        .apply(bloom)
-        .then<ch::Hold>(0.0f, 0.45f)
-        // Aero's hover bloom came up fast, over roughly a tenth of a second.
-        .then<ch::RampTo>(1.0f, 0.10f, motion::ease::outQuad);
+    ticker.animate(bloom, {.from = 0.0f, .to = 1.0f,
+                           .duration = 100ms, .delay = 450ms,
+                           .ease = motion::ease::outQuad});
 
-    ticker.add([this, &ticker] {
-      const double t = ticker.elapsed();
+    ticker.timer([this, &ticker] {
+      const double t = ticker.elapsed().count();
       // 8 Hz-stepped breathing: invisible on a soft glow, and the stepped
       // value holds between steps so the taskbar plane can blit instead
       // of re-rastering (the live-resolve/stability rule, host-side).
-      const double q = motion::quantizeTime(t, 8.0);
+      const double q = motion::quantizeTime(motion::Duration(t), 8.0).count();
       orbGlow = 0.55f + 0.25f * (float)std::sin(q * 1.4);
     });
 
@@ -263,8 +246,8 @@ struct AeroDesktop {
                  .font({.size = 12.5f,
                         .color = material::Color{0.05f, 0.05f, 0.05f, 1}})
                  .inset(0)
-                 .filter(styles::textGlow({1, 1, 1, 0.90f}, 2.2f)
-                             .then(styles::textGlow({1, 1, 1, 0.50f}, 4.5f)))});
+                 .filter(sigil::material::Filter::glow({1, 1, 1, 0.90f}, 2.2f)
+                             .then(sigil::material::Filter::glow({1, 1, 1, 0.50f}, 4.5f)))});
   }
 
   // ---- the client area (white, so the glass frame reads) --------------
@@ -303,7 +286,7 @@ struct AeroDesktop {
             {// toolbar strip
              box()
                  .inset(0, 0, clientH - 34, 0)
-                 .fill(Paint::linearGradient(
+                 .fill(sigil::material::linearGradient(
                      {0, 0}, {0, 34},
                      {{0.0f, {0.937f, 0.957f, 0.980f, 1}},
                       {1.0f, {0.867f, 0.906f, 0.949f, 1}}},
@@ -330,7 +313,7 @@ struct AeroDesktop {
                  .inset(50, 12, 0, 162)
                  .height(22)
                  .borderRadius({2})
-                 .fill(Paint::linearGradient(
+                 .fill(sigil::material::linearGradient(
                      {0, 0}, {0, 22},
                      {{0.0f, {0.86f, 0.92f, 0.98f, 1}},
                       {1.0f, {0.74f, 0.85f, 0.96f, 1}}},
@@ -371,7 +354,7 @@ struct AeroDesktop {
                      .children(
                          {box()
                               .inset(0)
-                              .fill(Paint::sksl(aurora).set("uTime", 0.75f))
+                              .fill(frozenAurora)
                               .filter(sigil::material::skia::filter(
                                   SkImageFilters::Blur(3, 3, nullptr)))}),
                  // ...then the colorization tint stack over it
@@ -397,7 +380,7 @@ struct AeroDesktop {
                  box()
                      .inset(8, ad::kWW - 30, ad::kWH - 24, 14)
                      .borderRadius({3})
-                     .fill(Paint::linearGradient(
+                     .fill(sigil::material::linearGradient(
                          {0, 0}, {0, 16},
                          {{0.0f, {0.55f, 0.80f, 1.0f, 1}},
                           {1.0f, {0.10f, 0.38f, 0.75f, 1}}},
@@ -431,7 +414,7 @@ struct AeroDesktop {
                        .inset(ad::kWY - 30, ad::kW - ad::kWX - ad::kWW - 34,
                               ad::kH - ad::kWY - ad::kWH - 40, ad::kWX - 34)
                        .cache(Cache::Texture)  // static SDF shadow: bake once
-                       .fill(Paint::sksl(windowShadow)
+                       .fill(material::Material(windowShadow)
                                  .set("uMargins",
                                           material::Color{34, 30, 34, 40})),
                    std::move(frame)});
@@ -464,7 +447,7 @@ struct AeroDesktop {
                  .borderRadius({d / 2})
                  .overflow(Overflow::Clip)
                  // the orb's radial base
-                 .fill(Paint::radialGradient(
+                 .fill(sigil::material::radialGradient(
                      {d * 0.5f, d * 0.42f}, d * 0.62f,
                      {{0.00f, {0.086f, 0.227f, 0.373f, 1}},  // #163A5F
                       {0.70f, {0.043f, 0.137f, 0.251f, 1}},  // #0B2340
@@ -491,7 +474,7 @@ struct AeroDesktop {
                           .inset(1.5f, 4, d * 0.52f, 4)
                           .borderRadius(
                               {d * 0.36f, d * 0.36f, d * 0.20f, d * 0.20f})
-                          .fill(Paint::linearGradient(
+                          .fill(sigil::material::linearGradient(
                               {0, 0}, {0, d * 0.46f},
                               {{0.0f, {1, 1, 1, 0.55f}},
                                {1.0f, {1, 1, 1, 0.04f}}},
@@ -531,7 +514,7 @@ struct AeroDesktop {
         .inset(ad::kH - ad::kTaskbarH + 3 - pad, 0, 0, 14 - pad)
         .width(2 * r)
         .height(2 * r)
-        .fill(Paint::radialGradient({r, r}, r,
+        .fill(sigil::material::radialGradient({r, r}, r,
                                     {{0.00f, {0.35f, 0.75f, 1.0f, 0}},
                                      {0.60f, {0.35f, 0.75f, 1.0f, 0}},
                                      {0.68f, {0.35f, 0.75f, 1.0f, 0.11f}},
@@ -557,10 +540,10 @@ struct AeroDesktop {
                  .children(
                      {box()
                           .inset(0)
-                          .fill(Paint::sksl(aurora).set("uTime", 0.75f))
+                          .fill(frozenAurora)
                           .filter(sigil::material::skia::filter(
                               SkImageFilters::Blur(3, 3, nullptr)))}),
-             box().inset(0).fill(material::from({0.02f, 0.05f, 0.10f, 0.52f}).layer({ad::kSky.r, ad::kSky.g, ad::kSky.b, 0.16f}).layer(material::linearGradient(
+             box().inset(0).fill(material::from(sigil::material::Color{0.02f, 0.05f, 0.10f, 0.52f}).layer(material::Color{ad::kSky.r, ad::kSky.g, ad::kSky.b, 0.16f}).layer(material::linearGradient(
                       {0, 0}, {0, th},
                       {{0.00f, {1, 1, 1, 0.22f}},
                        {0.08f, {1, 1, 1, 0.05f}},
@@ -635,7 +618,7 @@ struct AeroDesktop {
         {box()
              .inset(6, 4, 8, 2)
              .borderRadius({2, 2, 3, 3})
-             .fill(Paint::linearGradient(
+             .fill(sigil::material::linearGradient(
                  {0, 0}, {0, 30},
                  {{0.0f, {1.00f, 0.88f, 0.55f, 1}},
                   {1.0f, {0.86f, 0.62f, 0.20f, 1}}},
@@ -652,7 +635,7 @@ struct AeroDesktop {
         {box()
              .inset(10, 8, 4, 8)
              .borderRadius({3, 3, 6, 6})
-             .fill(Paint::linearGradient(
+             .fill(sigil::material::linearGradient(
                  {0, 0}, {28, 0},
                  {{0.00f, {0.75f, 0.88f, 0.97f, 0.55f}},
                   {0.50f, {0.45f, 0.62f, 0.80f, 0.35f}},
@@ -689,7 +672,7 @@ struct AeroDesktop {
                  // this scene; the curtains drift at a tenth of a screen a
                  // second, so ten steps and four are the same picture in
                  // motion and four is six tenths of the bakes.
-                 .fill(Paint::sksl(aurora).quantizeTime(4.0f)),
+                 .fill(material::Material(aurora).quantizeTime(4.0f)),
              desktopIcon(24, 22, binGlyph(), "Recycle Bin"),
              desktopIcon(24, 116, folderGlyph(), "Nightscapes"),
              // Each chrome region is its own texture PLANE: the backdrop blur

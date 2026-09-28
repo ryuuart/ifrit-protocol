@@ -3,10 +3,6 @@
 // per 6 Hz step: because the time input holds between steps, the memo
 // turns every intermediate frame into a blit.
 
-uniform float2 uResolution;
-uniform float  uTime;   // pre-quantized to 6 Hz by the host
-uniform float4 uLight;  // cut .48 layer color (alpha = strength)
-uniform float4 uDark;   // cut .79 layer color
 float vhash(float2 p) {
   return fract(sin(dot(p, float2(127.1, 311.7))) * 43758.5453);
 }

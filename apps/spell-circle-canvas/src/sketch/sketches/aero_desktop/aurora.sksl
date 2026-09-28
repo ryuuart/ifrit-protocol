@@ -2,8 +2,6 @@
 // bands, fine filaments + speckle stars (high-frequency detail so the
 // tight sigma=3 glass blur actually READS through the frame).
 
-uniform float uTime;
-uniform float2 uResolution;
 half4 main(float2 p) {
   float2 uv = p / uResolution;
   // deep night ground, faint teal horizon at the bottom
