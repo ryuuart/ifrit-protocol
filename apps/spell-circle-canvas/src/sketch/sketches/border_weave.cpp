@@ -148,7 +148,7 @@ struct BorderWeave {
                            cell("TWO RULES", "weightedCorners + border",
                                 "Weight the turns, then add a second inset "
                                 "rule.",
-                                plaque().layerStyle(decorations::doubleBorder(
+                                plaque().foreground(decorations::doubleBorder(
                                     decorations::weightedCorners(
                                         kWidth, kWidth * 3,
                                         Fill::color(sheet.palette.figure), kArm,

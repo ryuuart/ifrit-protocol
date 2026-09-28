@@ -131,8 +131,8 @@ struct HelloSketch {
     ctx.composer.render(describe());
 
     // One output animates a retained card and feeds the immediate wave.
-    ctx.engine.add([this, &ticker = ctx.engine] {
-      wave = static_cast<float>(std::sin(ticker.elapsed() * 1.6));
+    ctx.engine.timer([this, &ticker = ctx.engine] {
+      wave = static_cast<float>(std::sin(ticker.elapsed().count() * 1.6));
     });
   }
 

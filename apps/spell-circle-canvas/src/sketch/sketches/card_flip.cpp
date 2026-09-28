@@ -45,6 +45,7 @@
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Theme.h>
@@ -132,11 +133,11 @@ struct CardFlip {
     spinX = 0;
     spinY = 0;
     sway = 0;
-    ctx.engine.add([this, &ticker = ctx.engine] {
-      const double t = ticker.elapsed();
-      flip = motion::phase(t, kFlipPeriod);
-      spinX = motion::phase(t, kSpinXPeriod);
-      spinY = motion::phase(t, kSpinYPeriod);
+    ctx.engine.timer([this, &ticker = ctx.engine] {
+      const double t = ticker.elapsed().count();
+      flip = motion::phase(ticker.elapsed(), motion::Duration(kFlipPeriod));
+      spinX = motion::phase(ticker.elapsed(), motion::Duration(kSpinXPeriod));
+      spinY = motion::phase(ticker.elapsed(), motion::Duration(kSpinYPeriod));
       sway = (float)std::sin(t * 6.283185 / kSwayPeriod);
     });
     ctx.composer.render(describe());

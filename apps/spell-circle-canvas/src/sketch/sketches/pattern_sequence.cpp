@@ -85,8 +85,9 @@ pattern::Tile squaresTile() {
 }
 
 /** A tile as a paint: what a node is grounded in. */
-material::Paint painted(const pattern::Tile& tile) {
-  return material::skia::paint(material::skia::shader(tile.texture()));
+material::Material painted(const pattern::Tile& tile) {
+  return material::skia::base(
+      material::skia::paint(material::skia::shader(tile.texture())));
 }
 
 /** One cell: the tile as the ground of the well the specimen stands in. */

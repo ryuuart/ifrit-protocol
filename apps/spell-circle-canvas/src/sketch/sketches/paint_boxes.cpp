@@ -5,9 +5,9 @@
  */
 // TAGS: Typography/Paint
 
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
-#include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -28,8 +28,8 @@ constexpr int kCards = 3;
 /** The one ramp every panel here is painted with, authored in the unit
  *  square so that every PaintBox is a statement about the BOX and never
  *  about the ramp. */
-material::Paint ramp() {
-  return material::Paint::linearGradient(
+material::Material ramp() {
+  return sigil::material::linearGradient(
       {0, 0}, {1, 0},
       {{0.0f, {0.96f, 0.29f, 0.24f, 1}},
        {0.5f, {0.98f, 0.76f, 0.19f, 1}},

@@ -522,8 +522,8 @@ struct AxisRipple {
     gradLight = widthOf(ctx, proofRun("GRAD", kGradLight));
     gradHeavy = widthOf(ctx, proofRun("GRAD", kGradHeavy));
 
-    ctx.engine.add([this, &ticker = ctx.engine] {
-      phase = motion::phase(ticker.elapsed(), kPeriod);
+    ctx.engine.timer([this, &ticker = ctx.engine] {
+      phase = motion::phase(ticker.elapsed(), motion::Duration(kPeriod));
     });
 
     ctx.composer.render(describe());
