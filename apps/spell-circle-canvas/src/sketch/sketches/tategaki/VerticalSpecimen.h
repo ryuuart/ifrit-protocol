@@ -18,6 +18,7 @@
 // the names are the same words in both: ink on unbleached paper, or shell
 // white on a sumi ground.
 
+#include <sigilweave/style/Face.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSize.h>
@@ -66,7 +67,7 @@ constexpr sigil::material::Color kAka{0.847f, 0.294f, 0.216f, 1};  // vermilion
 /** The mincho face the plates are set in, or whatever the platform
  *  offers. Resolved once: the fallback chain walks the system font list,
  *  which is not a per-frame cost anyone should pay. */
-inline sk_sp<SkTypeface> mincho() {
+inline sigil::weave::Face mincho() {
   return sigil::weave::ports::face(
       {"Hiragino Mincho ProN", "Yu Mincho", "Songti SC", "Noto Serif CJK JP"});
 }

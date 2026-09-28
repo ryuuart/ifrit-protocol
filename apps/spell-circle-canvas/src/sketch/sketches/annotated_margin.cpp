@@ -31,11 +31,12 @@
 
 // TAGS: Typography/Paragraph
 
+#include <sigilweave/style/Face.h>
 #include <sigilcompose/kit/Annotations.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Instruments.h>
-#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Presets.h>
 #include <sigilcompose/kit/Typeset.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/color/Color.h>
@@ -78,11 +79,11 @@ const material::Color kFaint{0.106f, 0.114f, 0.129f, 0.60f};
 const material::Color kMark{0.192f, 0.404f, 0.545f, 1};
 const material::Color kHot{0.780f, 0.286f, 0.176f, 1};
 
-sk_sp<SkTypeface> serif() {
+sigil::weave::Face serif() {
   return weave::ports::face(
       {"Iowan Old Style", "Palatino", "Georgia", "Times New Roman"});
 }
-sk_sp<SkTypeface> grotesque() {
+sigil::weave::Face grotesque() {
   return weave::ports::face({"Helvetica Neue", "Inter", "Helvetica", "Arial"});
 }
 
@@ -92,12 +93,10 @@ weave::TextStyle note(float size = 8.5f, material::Color colour = kFaint,
       {.face = grotesque(), .size = size, .color = colour, .track = track});
 }
 
-/** The cascade the playhead rides, and the ms its master must span for it
- *  to run at those numbers: `Track::spanMs` is the same arithmetic
- *  `Composer::cascadeSpanMs` reads back off the mounted track, computed
- *  here from the word count before any node exists. */
-const motion::Spread kRoll{.eachMs = 90, .durationMs = 420};
-const float kRollSpan = kRoll.spanMs(12);  // the line below is twelve words
+/** The playhead and the text share one timing, resolved over twelve words. */
+const motion::Tween<float> kRoll{.duration = 420ms,
+                                 .delay = motion::stagger(90ms)};
+const auto kRollSpan = motion::timingOf(kRoll).span(12);  // the line below is twelve words
 
 constexpr const char8_t* kPassage =
     u8"Marginalia stand beside a text and reserve nothing. Each note here "
@@ -178,9 +177,9 @@ struct AnnotatedMargin {
                  .top(m::kH - 210)
                  .width(m::kMeasure)
                  .textFx({.effect = textFx::enter(textFx::rise(14)),
-                          .stagger = m::kRoll,
+                          .tween = m::kRoll,
                           .unit = weave::Unit::Word,
-                          .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = std::chrono::milliseconds((int)m::kRollSpan), .delay = 200ms, .ease = motion::ease::linear})}),
+                          .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = m::kRollSpan, .delay = 200ms, .ease = motion::ease::linear})}),
              // ── The label under every word of the opening phrase
              kit::annotate(composer, "passage", weave::selectors::words(0, 6),
                            weave::Unit::Word,

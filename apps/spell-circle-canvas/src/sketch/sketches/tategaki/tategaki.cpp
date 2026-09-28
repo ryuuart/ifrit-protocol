@@ -29,7 +29,7 @@
 //   kColumnBlockW / ...H      — the main column block's measure and its
 //                               depth: how many columns the passage
 //                               breaks into, and how far each one runs.
-//   the stagger's amountMs    — how long the settling entrance takes to
+//   the stagger's range       — how long the settling entrance takes to
 //                               reach the last cluster. The declared
 //                               moment stands after it, so raising it
 //                               past 2.4 s puts the plate mid-entrance.
@@ -38,7 +38,7 @@
 
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Presets.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -78,8 +78,9 @@ constexpr float kColumnBlockRight = 56;
 /** The settling entrance: an AMOUNT-mode cascade, so the whole spread is
  *  1100 ms however many clusters the passage breaks into, and its span is
  *  the same number for every count past one. */
-const sigil::motion::Spread kSettle{.amountMs = 1100, .durationMs = 520};
-const float kSettleSpan = kSettle.spanMs(2);
+const sigil::motion::Tween<float> kSettle{
+    .duration = 520ms, .delay = sigil::motion::stagger({0ms, 1100ms})};
+const auto kSettleSpan = sigil::motion::timingOf(kSettle).span(2);
 
 }  // namespace tategaki
 
@@ -165,8 +166,8 @@ struct Tategaki {
                  // One settling entrance, beating cluster by cluster in
                  // READING ORDER: down each column, then right to left.
                  .textFx({.effect = textFx::enter(textFx::rise(30)),
-                          .stagger = tg::kSettle,
-                          .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = std::chrono::milliseconds((int)tg::kSettleSpan), .delay = 180ms, .ease = motion::ease::linear})}),
+                          .tween = tg::kSettle,
+                          .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = tg::kSettleSpan, .delay = 180ms, .ease = motion::ease::linear})}),
              box()
                  .absolute()
                  .inset(88, 0, 0, 64)

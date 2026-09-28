@@ -39,9 +39,10 @@
 
 // TAGS: Typography/CJK
 
+#include <sigilmaterial/skia/Color.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Presets.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -131,8 +132,9 @@ inline SpanStyle bandedSpan(material::Color ink, weave::Decoration::Kind kind,
 
 /** The strip's entrance, and the ms its master must span to run at those
  *  numbers: one beat a COLUMN, and the strip sets four of them. */
-const motion::Spread kColumnEntrance{.eachMs = 210, .durationMs = 520};
-const float kColumnEntranceSpan = kColumnEntrance.spanMs(4);
+const motion::Tween<float> kColumnEntrance{.duration = 520ms,
+                                          .delay = motion::stagger(210ms)};
+const auto kColumnEntranceSpan = motion::timingOf(kColumnEntrance).span(4);
 
 }  // namespace bousen
 
@@ -304,10 +306,9 @@ struct Bousen {
                                       weave::Decoration::Kind::kUnderline,
                                       bs::kAka, 2.0f))
                  .textFx({.effect = textFx::enter(textFx::rise(18)),
-                          .stagger = bs::kColumnEntrance,
+                          .tween = bs::kColumnEntrance,
                           .unit = weave::Unit::Line,
-                          .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = std::chrono::milliseconds((
-                                                   int)bs::kColumnEntranceSpan), .delay = 220ms, .ease = motion::ease::linear})}),
+                          .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = bs::kColumnEntranceSpan, .delay = 220ms, .ease = motion::ease::linear})}),
              document::caption("One column per beat.\n"
                                "The sideline remains fixed while the "
                                "letters arrive.")
