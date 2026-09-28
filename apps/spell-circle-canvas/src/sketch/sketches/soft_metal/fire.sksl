@@ -1,0 +1,33 @@
+// Narrow flame tongues rise from three pools at the plate's lower edge.
+float hash(float2 p) {
+    p = fract(p * float2(123.34, 345.45));
+    p += dot(p, p + 34.345);
+    return fract(p.x * p.y);
+}
+float noise(float2 p) {
+    float2 i = floor(p), f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash(i), hash(i + float2(1, 0)), f.x),
+               mix(hash(i + float2(0, 1)), hash(i + 1), f.x), f.y);
+}
+float square(float value) { return value * value; }
+half4 main(float2 p) {
+    float2 uv = p / uResolution;
+    uv.y = 0.56 + uv.y * 0.44;
+    float t = uTime;
+    float warp = noise(float2(uv.x * 18.0, uv.y * 8.0 + t * 1.3));
+    float x = uv.x + (warp - 0.5) * (1.0 - uv.y) * 0.22;
+    float pools = exp(-square((x - 0.055) * 16.0)) * 0.30;
+    pools += exp(-square((x - 0.34) * 24.0)) * 0.43;
+    pools += exp(-square((x - 0.94) * 15.0)) * 0.26;
+    float fold = noise(float2(x * 31.0 + warp, uv.y * 12.0 + t * 2.2));
+    float detail = noise(float2(x * 65.0, uv.y * 26.0 + t * 3.1));
+    float altitude = (1.0 - uv.y) / max(pools, 0.005);
+    float tongue = 1.0 - smoothstep(0.28, 0.80, altitude + fold * 0.48);
+    tongue *= smoothstep(0.015, 0.10, pools);
+    float flame = tongue * (0.35 + fold * 0.45 + detail * 0.20);
+    float3 color = mix(float3(1.0, 0.18, 0.015), float3(1.0, 0.77, 0.26),
+                       pow(flame, 0.72));
+    float alpha = flame * 0.56;
+    return half4(half3(color * alpha), half(alpha));
+}

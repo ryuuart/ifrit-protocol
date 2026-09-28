@@ -1082,18 +1082,17 @@ baseline before a later sweep can assert byte identity. The CPU plates
 remain available for that review and were not silently adopted by this
 migration.
 
-## Reflective type repeats its edge work on raster frames
+## Separating a text bevel from changing ink can change its coverage
 
-`soft_metal` retains its normal map, studio environment and paper, and shades
-its moving reflection in a small texture. Its glyph material still carries
-both that changing reflection and the stationary bevel, so painting the
-letters repeats edge work. The raster benchmark misses its frame budget;
-the Metal window lane remains responsive.
+A stationary bevel on an overlaid text copy can produce rectangular coverage
+where the material was intended to follow the glyphs. Keeping the bevel on the
+same material as the changing reflection preserves the glyph boundary, but
+repeats edge work when that ink changes. A text leaf's declared glyph boundary
+should remain the same when the ink and its stationary edge treatment are
+composed separately.
 
-The intended rendering keeps the bevel registered to the shaped glyphs while
-reusing unchanged edge coverage across light-only updates. Separating the
-bevel into stationary overlaid text materials currently produces rectangular
-coverage in this composition, so the sketch keeps one material on each word.
-A regression should assert that constant and changing ink retain the same
-glyph boundary and that light-only changes reuse the stationary edge mask.
-The raster benchmark should then verify the complete composition.
+A regression should compare constant and changing ink on identical shaped
+text, assert that both edge treatments follow the glyph boundary, and assert
+reuse of stationary edge coverage across light-only updates. The machined
+film-title sketch uses retained vector contours; that avoids this text case
+without establishing that the underlying coverage issue is fixed.

@@ -1,15 +1,24 @@
-# Rhythmus
+# Rhythmus — a phototypesetting study
 
-An original concert poster studying the asymmetric grids, economical colour
-and oversized grotesk typography of Swiss graphic design. It is not a
-reproduction of a historical poster; the concert programme is fictional.
+A fictional concert poster based on Wolfgang Weingart's **Kunstkredit Basel
+1976/77** (1977), an offset lithograph in LACMA's collection.
 
-The black word stem holds its register while the red syllable shifts with a
-slow pulse. Three programme columns share the same left edges and baseline
-rhythm. The paper grain is retained as a texture; only the syllable moves.
-Helvetica Neue Bold is resolved at the requested weight, with Helvetica and
-Arial as fallbacks.
+The reference supplies the asymmetric black ground, interrupted text strips,
+colliding scales, overlapping dot screens and diagonal framing. The concert
+programme and percussion image are an original adaptation: a native vector
+diagram of a diaphragm occupies the place of the photographic machine collage.
+This is not a reproduction of the museum poster.
 
-Reference: [Josef Müller-Brockmann, designer foundation](https://syjmb.foundation/en/josef-mueller-brockmann/).
+Five clipped strips carry one headline and shift its printing register.
+A separately shaped run travels around the circular diaphragm. Dot fields,
+ruled acetate, outlined type and paper grain remain independent native layers.
+The fixed composition and its grain are retained as textures; the live strips
+move at paint without relayout, and the path lettering retains its shaped run.
 
-Open `rhythmus.cpp` in Sketchbook. The declared still is at 3.2 seconds.
+The display face is Helvetica Neue Bold, with Helvetica and Arial fallbacks.
+The event and dates are fictional. Open `rhythmus.cpp` in Sketchbook; the still
+is taken at 3.2 seconds.
+
+Reference and image credit:
+[Wolfgang Weingart, Kunstkredit Basel 1976/77 — LACMA](https://collections.lacma.org/object/207622).
+The museum image is used for visual comparison and is not bundled in the sketch.

@@ -1,0 +1,39 @@
+// Broad reflected fire and cool light share one field. The lower tongues
+// emit light; the upper plate reads only their softer reflected colour.
+float hash(float2 p) {
+    p = fract(p * float2(123.34, 345.45));
+    p += dot(p, p + 34.345);
+    return fract(p.x * p.y);
+}
+float noise(float2 p) {
+    float2 i = floor(p), f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash(i), hash(i + float2(1, 0)), f.x),
+               mix(hash(i + float2(0, 1)), hash(i + 1), f.x), f.y);
+}
+float smoke(float2 p) {
+    return noise(p) * 0.57 + noise(p * 2.03) * 0.28 + noise(p * 4.11) * 0.15;
+}
+float square(float value) { return value * value; }
+half4 main(float2 p) {
+    float2 uv = p / uResolution;
+    float t = uTime;
+    float2 flow = float2(uv.x * 11.0, uv.y * 5.0 + t * 0.8);
+    float curl = smoke(flow + float2(0, -t * 0.4));
+    float f = smoke(flow + float2(curl * 2.2, -t * 1.7));
+    float tongues = smoothstep(0.82, 1.07, uv.y + (f - 0.4) * 0.42);
+    float fire = tongues * (0.3 + pow(f, 1.5) * 1.8);
+    float warmth = 0.89 + 0.09 * sin(t * 0.62 + uv.x * 3.4);
+    float sweep = exp(-square((uv.x - 0.5 - sin(t * 0.38) * 0.7) * 3.7));
+    float hot = exp(-square((uv.x - 0.63) * 2.0)) * (0.7 + curl * 0.6);
+    float3 cold = float3(0.31, 0.48, 0.64) + sweep * float3(0.32, 0.37, 0.41);
+    float3 warm = float3(1.32, 0.43, 0.14) * (0.42 + hot * 0.48);
+    float3 reflection = mix(cold, warm, warmth) + float3(0.08, 0.035, 0.02);
+    float localFire = fire * (0.25 + 0.75 * square(sin(uv.x * 9.0 + 1.3)));
+    float3 light = (reflection + float3(0.9, 0.29, 0.025) * localFire) * 1.34 + 0.035;
+    float vignette = 1.0 - 0.2 * square(length((uv - 0.5) * float2(1.25, 0.6)));
+    light *= vignette;
+    // Scale the whole color so bright reflections keep their warm hue.
+    light /= max(1.0, max(light.r, max(light.g, light.b)));
+    return half4(half3(light), 1);
+}

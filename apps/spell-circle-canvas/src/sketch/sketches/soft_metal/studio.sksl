@@ -1,9 +1,0 @@
-// An equirectangular studio with broad softboxes and narrow dark flags.
-half4 main(float2 point) {
-    float2 unit = point / float2(512, 256);
-    float stripe = 0.5 + 0.5 * cos(unit.x * 12.56637);
-    float panel = smoothstep(0.46, 0.70, stripe);
-    float horizon = smoothstep(0.16, 0.52, unit.y) * (1.0 - smoothstep(0.60, 0.82, unit.y));
-    float3 color = mix(float3(0.028, 0.065, 0.052), float3(1.05, 1.12, 0.98), panel);
-    return half4(half3(color * (0.25 + 0.75 * horizon)), 1);
-}

@@ -1,0 +1,16 @@
+// The plate is brushed horizontally; long scratches interrupt finer grain.
+float hash(float2 q) {
+    q = fract(q * float2(123.34, 456.21));
+    q += dot(q, q + 45.32);
+    return fract(q.x * q.y);
+}
+half4 main(float2 p) {
+    float2 uv = p / uResolution;
+    float grain = hash(floor(p * float2(0.045, 2.2)));
+    float brushing = hash(float2(floor(p.y * 1.4), 17));
+    float streak = pow(hash(floor(p * float2(0.011, 0.53))), 14.0);
+    float smudge = sin(uv.x * 8.3 + sin(uv.y * 3.0)) * sin(uv.y * 11.0);
+    float value = 0.45 + grain * 0.025 + brushing * 0.055 + streak * 0.04 + smudge * 0.025;
+    float edge = pow(abs(uv.x - 0.5) * 2.0, 4.0);
+    return half4(half3(float3(0.91, 0.95, 1.0) * value * (1.0 - edge * 0.18)), 1);
+}
