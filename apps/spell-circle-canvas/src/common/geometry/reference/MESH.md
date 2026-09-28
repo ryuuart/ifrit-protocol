@@ -102,15 +102,19 @@ own repertoire here rather than inside whatever draws through it.
   value. `Executor` is what a runtime supplies (the mesh draw and the
   panel draw); `Runtime` holds one and compares like the model it holds;
   `Runtime::cpu()` is the built-in executor, an erased value of
-  SigilCoreComparable's shape. glm, std and that leaf only — the header
-  names no device, so a GPU executor arrives from a feature that owns one
-  without this target learning about it.
+  SigilCoreComparable's shape. glm, std, that leaf and a declaration of
+  the host's canvas only — the header names no device, so a GPU executor
+  arrives from a feature that owns one without this target learning
+  about it.
 - **`mesh/render/Painter.h`** — the draws themselves: `drawMesh()`
   (transform, per-vertex lighting, back-to-front sort, emission),
   `drawPanel()`/`drawImagePanel()` (perspective-correct 2D content on a
   plane), and `MeshStyle` with `Light` — the shading mode, colour,
-  texture, lights and the `Runtime` that performs the work. `Painter.cpp`
-  is the doors; `Runtime.cpp` is the built-in executor behind them. Two
+  texture, lights and the `Runtime` that performs the work. A colour is a
+  `glm::vec4` of straight sRGB, a texture a `media::Picture`, its
+  placement in uv space a `path::Transform` and how it is read between
+  texels a `Sampling`; a viewport is a `glm::vec2` of pixels, and the
+  canvas a draw lands on is the host's. `Painter.cpp` is the doors; `Runtime.cpp` is the built-in executor behind them. Two
   fields of the style are the surface speaking for itself rather than the
   scene: `lit`, off for a surface that is its own light, whose colour and
   tint are then the whole of what it shows; and `filter`, nearest for a
@@ -118,7 +122,8 @@ own repertoire here rather than inside whatever draws through it.
   because blending two levels is the same bleed by the other door.
 - **`mesh/render/Shading.h`** — the arithmetic a lit draw is composed of,
   for a tier with no shading language: `Environment` (the prefiltered
-  chain a reflection reads, the cosine convolution a diffuse term reads,
+  chain a reflection reads and the cosine convolution a diffuse term
+  reads, each a `media::Picture`,
   the orientation, the dials, the backdrop and the ground sphere it is
   projected onto), `equirectangularUv` and the two polynomials under it,
   `specularColor`, `fresnelRough`, `environmentBrdf` and
@@ -177,7 +182,8 @@ implementations of the same dispatch seams.
   `displaceNoise()`, `stampOptions()` and `promoteToPrimitives()`
   (`Modifiers.cpp`); the consumers `instance()` and `quads()`, which
   stamp a mesh at every point into one merged mesh (`Stamp.cpp`); and
-  `drawBillboards()`, camera-facing sprites
+  `drawBillboards()`, camera-facing sprites onto the host's canvas, each
+  splat a `BillboardStyle::sprite` picture or a soft dot
   (`Billboards.cpp`). `BillboardStyle::textureLane` names a colour lane of
   {uOffset, vOffset, uScale, vScale} windows — what a `pop::AtlasCell` operation
   writes into `"Tex"` — and each splat then draws THAT CELL of the

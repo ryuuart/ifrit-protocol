@@ -91,6 +91,7 @@ sigil_doc_probes(geometry
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/roundCorners.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../skia/include
+           ${CMAKE_CURRENT_SOURCE_DIR}/../media/include
   PRELUDES "<sigilcore/hardware/GpuDevice.h>"
            "<sigilcore/hardware/Handle.h>"
            "<sigilskia/graphite/OffscreenSurface.h>"

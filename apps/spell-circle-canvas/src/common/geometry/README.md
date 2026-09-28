@@ -9,8 +9,9 @@ geometry, point clouds carrying named attribute lanes and a point-operator
 chain language, and a runtime that draws meshes and perspective panels
 onto an ordinary `SkCanvas`.
 
-It links Skia, [glm](https://github.com/g-truc/glm) and two SigilCore
-leaves publicly, and SigilMaterial's colour leaf privately in the one
+It links Skia, [glm](https://github.com/g-truc/glm), two SigilCore
+leaves and SigilMedia's core publicly, and SigilMaterial's colour leaf
+privately in the one
 feature that interpolates colour. There is no windowing, no UI framework
 and no scene graph — you hand it values, it hands you paths, meshes,
 clouds and pixels — and the one feature that owns a GPU device is named
@@ -189,8 +190,9 @@ cloud positions, flattened path points — is glm (`vec2`, `vec3`, `vec4`,
 `geometry::mesh::Transform` (its parts and the `matrix()` they describe), and every 2D figure is a
 `path::Outline`, whose header names no renderer. Skia EXECUTES an outline
 — its path, its path operations and its contour measure stand behind the
-value — and what is drawn still speaks Skia: `SkColor4f` paint, `SkImage`
-textures, `SkCanvas`. `advanced/Skia.h` is the crossing for an outline, a
+value — and what is drawn lands on the `SkCanvas` a host owns, while its
+colours are `glm::vec4` and its textures, sprites and panoramas
+`media::Picture`. `advanced/Skia.h` is the crossing for an outline, a
 rectangle, a transform and a point (`toSk()`, `fromSk()`);
 a camera's matrices cross with `camera::toSkM44()` from the same
 header. Because glm's `mat4` and
@@ -424,10 +426,12 @@ that are ABI, and what each importer does and does not carry.
 
 ## Boundaries
 
-Publicly the library links Skia, glm, Boost.Container and Boost.Unordered, and
+Publicly the library links Skia, glm, Boost.Container and Boost.Unordered,
 the two SigilCore leaves —
 SigilCoreCompute for the seeded mixers, SigilCoreComparable for the
-erased value the mesh and point-operator runtimes are — and nothing
+erased value the mesh and point-operator runtimes are — and
+SigilMediaCore, whose `media::Picture` is the texture, the sprite and
+the panorama the mesh painter and the billboards read, and nothing
 else; every feature links only the features above it in the tree. Linking the
 leaves acquires no kernel, no device and nothing that draws.
 Privately `path/blend` links `SigilMaterialColor`, the colour value and
@@ -498,18 +502,22 @@ by `<sigilgeometry/advanced/Skia.h>` — the conversions and the Skia form
 of each operator — inside the library's sources and in any consumer that
 draws with Skia, never in a header that a default include reaches.
 
-What else the headers still spell, and why:
+The mesh tier crosses there too: a camera takes and answers glm, and
+`camera::toSkM44()` in the same header is the form a painter
+concatenates onto a canvas.
 
-- **The mesh tier's drawing entrances.** A mesh, a panel, a point
-  cloud's billboards and a cooked chain are drawn onto the canvas a host
-  owns: `render::Runtime` is the seam the CPU and device painters
-  implement, and `points::drawBillboards`, `pop::cookBillboards` and
-  `pop::Builder::billboards` take that canvas and a sprite image. Each is
-  where a host hands a picture in or takes one out.
-
-That is the boundary a painter needs. A blend's steps are the library's
-own values — an `Outline` and `glm::vec4` colours — and only
-`blend::draw` takes the host's canvas.
+Outside that header one Skia type is named, and only by declaration:
+**the host's canvas**, which is the painter boundary. Everything a draw
+lands on is a canvas the host owns, so the drawing entrances take one —
+`render::drawMesh`, `render::drawPanel` (whose panel-local body is
+handed the same canvas), `render::drawImagePanel`, `render::drawBackdrop`
+and the `render::Runtime` seam the CPU and device painters implement;
+`points::drawBillboards`, `pop::cookBillboards` and
+`pop::Builder::billboards`; and `blend::draw`. Every other parameter and
+field beside that canvas is the library's own value or Media's picture:
+a viewport is a `glm::vec2`, a colour a `glm::vec4` of straight sRGB, a
+texture, a sprite or a panorama a `media::Picture`, a texture's
+placement a `path::Transform`, and how it is read a `render::Sampling`.
 
 ## Build and test
 

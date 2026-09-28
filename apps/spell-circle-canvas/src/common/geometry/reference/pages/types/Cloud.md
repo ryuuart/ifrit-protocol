@@ -21,7 +21,7 @@ perturb them, and two consumers turn them into pictures.
   across points" is `quads()` plus a normal lane, or leave normals off
   and let billboarding face the camera at draw time.
 - `sigil::geometry::mesh::points::drawBillboards` is the UI-particle path:
-  camera-facing sprites (an SkImage, or a soft procedural dot) with
+  camera-facing sprites (a `media::Picture`, or a soft procedural dot) with
   perspective size, depth sort, per-point size and tint lanes, additive
   or normal blend.
 
