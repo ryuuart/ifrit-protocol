@@ -1,6 +1,6 @@
-"""The shader door: an `.sksl` file beside a sketch, compiled into the
-runtime effect a paint takes, and a checker standing in for a file that is
-not there rather than an exception."""
+"""A shader file beside a sketch, read through the host's hub by
+`material.shader`: it paints, and a file that is not there paints nothing
+rather than raising."""
 
 import tempfile
 import unittest
@@ -9,22 +9,20 @@ from pathlib import Path
 from sigil import media
 from sigil.sketch import render_file
 
-SCENE = """from sigil import skia
+SCENE = """from sigil import material
 from sigil.compose import box
-from sigil.material import Paint
 from sigil.sketch import sketch
 
 
 @sketch(size=(32, 32), background="#000000", capture_at=0)
 class Scene:
     def setup(self, ctx):
-        program = ctx.assets.shader(ctx.local({name!r}))
-        assert isinstance(program, skia.RuntimeEffect)
-        ctx.render(box().width(32).height(32).fill(Paint.sksl(program)))
+        program = material.shader(ctx.assets.hub(), ctx.local({name!r}))
+        ctx.render(box().width(32).height(32).fill(program))
 """
 
 
-class ShaderDoor(unittest.TestCase):
+class ShaderFile(unittest.TestCase):
     def render(self, name, files, at=(16, 16)):
         with tempfile.TemporaryDirectory() as folder:
             for file, body in files.items():
@@ -43,13 +41,10 @@ class ShaderDoor(unittest.TestCase):
             self.render("fill.sksl", {"fill.sksl": red}), bytes([255, 0, 0, 255])
         )
 
-    def test_a_missing_file_paints_the_checker(self):
-        # Sixteen-unit cells, black where the checker starts.
+    def test_a_missing_file_paints_nothing(self):
+        # The background shows through where the shader would stand.
         self.assertEqual(
-            self.render("absent.sksl", {}, at=(4, 4)), bytes([0, 0, 0, 255])
-        )
-        self.assertEqual(
-            self.render("absent.sksl", {}, at=(20, 4)), bytes([255, 0, 255, 255])
+            self.render("absent.sksl", {}, at=(20, 4)), bytes([0, 0, 0, 255])
         )
 
 

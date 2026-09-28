@@ -209,6 +209,7 @@ class Data(unittest.TestCase):
             entry = root / "scene.py"
             entry.write_text(
                 textwrap.dedent("""import builtins
+from sigil import data
 from sigil.compose import box
 from sigil.sketch import sketch
 
@@ -216,7 +217,8 @@ from sigil.sketch import sketch
 @sketch(size=(24, 24), capture_at=0)
 class Cached:
     def setup(self, ctx):
-        builtins._sigil_read_only = ctx.assets.database(ctx.local("field.sqlite"))
+        hub = ctx.assets.hub()
+        builtins._sigil_read_only = hub.load(data.Database, ctx.local("field.sqlite"))
         ctx.render(box().width(24).height(24).fill("#45827b"))
 """)
             )
@@ -301,6 +303,7 @@ class Cached:
             entry = root / "scene.py"
             entry.write_text(
                 textwrap.dedent("""import builtins
+from sigil import data
 from sigil.compose import box
 from sigil.sketch import sketch
 
@@ -308,22 +311,22 @@ from sigil.sketch import sketch
 @sketch(size=(24, 24), capture_at=0)
 class Resources:
     def setup(self, ctx):
-        assets = ctx.assets
-        document = assets.json(ctx.local("config.json"))
-        table = assets.table(ctx.local("rows.csv"))
-        database = assets.database(ctx.local("field.sqlite"))
-        assert assets.json(ctx.local("missing.json")) is None
-        assert assets.table(ctx.local("missing.csv")) is None
-        assert assets.database(ctx.local("missing.sqlite")) is None
-        builtins._sigil_data = (assets, document, table, database)
+        hub = ctx.assets.hub()
+        document = hub.load(data.Json, ctx.local("config.json"))
+        table = hub.load(data.Table, ctx.local("rows.csv"))
+        database = hub.load(data.Database, ctx.local("field.sqlite"))
+        assert hub.load(data.Json, ctx.local("missing.json")) is None
+        assert hub.load(data.Table, ctx.local("missing.csv")) is None
+        assert hub.load(data.Database, ctx.local("missing.sqlite")) is None
+        builtins._sigil_data = (hub, document, table, database)
         ctx.render((box().width(24).height(24).fill("#45827b")))
 """)
             )
             render_file(entry, root / "frame.png", at=0)
-            assets, document, table, database = builtins._sigil_data
+            hub, document, table, database = builtins._sigil_data
             gc.collect()
             with self.assertRaisesRegex(RuntimeError, "session"):
-                assets.json("anything")
+                hub.load(data.Json, "anything")
             self.assertEqual(document["title"].string(), "field measurements")
             self.assertEqual(table.column("height").values(), [42, 3])
             self.assertEqual(

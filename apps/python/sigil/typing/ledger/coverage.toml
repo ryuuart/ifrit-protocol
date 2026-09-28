@@ -44,12 +44,8 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "checked assets (`json`, `table`, `database`, `shader`, `hub`, `root`)"
+bound = "checked assets (`hub`, `root`)"
 python = [
-  "sketch.Assets.json",
-  "sketch.Assets.table",
-  "sketch.Assets.database",
-  "sketch.Assets.shader",
   "sketch.Assets.hub",
   "sketch.Assets.root",
 ]
@@ -2075,7 +2071,7 @@ bound = "`json`, `csv` and `table` reading a file whole over a hub, a query over
 python = ["data.json", "data.csv", "data.table"]
 
 [[section.surface.item]]
-bound = "`registerDecoders`, which installs the database decoder beside the table and JSON ones; the session asset loaders"
+bound = "`registerDecoders`, which installs the database decoder beside the table and JSON ones"
 python = ["data.registerDecoders"]
 
 [[section.surface.item]]
