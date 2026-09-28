@@ -20,6 +20,7 @@ uniforms, in one line.
 | `material::shader(source)` | C++ | a body with no parameters of its own |
 | `material::shader(source, Parameters{…}, options)` | C++ | the same with a `ShaderOptions` last |
 | `material::shader(hub, uri, Parameters{…})` | C++ | the body kept in a file, read through SigilIO |
+| `material::placeholder()` | C++ | what a file with no program that compiled paints |
 | `material.shader(source, {"heat": 0.6})` | Python | the parameters as a dict or a NamedTuple, in order |
 | `material.shader(hub, uri, parameters)` | Python | the file form |
 
@@ -43,6 +44,20 @@ describing the same shader again answers an equal material and a node
 over it prunes, and a differing source is another definition. With no
 `key` the name a message calls it is derived from the source.
 
+## A file, live-coded
+
+`material::shader(hub, uri, Parameters{…})` reads the file as the hub
+holds it on every call, so an edit the hub's poll has seen compiles anew
+on the next describe. A text that does not compile never replaces one
+that did: the newest text that compiled keeps painting. While none has —
+the file is missing, its first text is broken, its extension names no
+language — the material is `material::placeholder()`, a magenta and black
+checker sixteen pixels a cell: a diagnostic, never a look. What is wrong
+stands on the hub's `problems()` under the URI, with the compiler's
+message and the body's line, until a text compiles. A text is judged once
+a compiler for its language is registered, and drawn as it stands before
+that.
+
 ## The options
 
 `ShaderOptions`: `key` (the name in messages; empty derives one),
@@ -54,8 +69,8 @@ body samples and the pixels behind it; empty pixels declare the name for
 
 ## See also
 
-- `program/Shader.h` — the header: `shader`, `ShaderOptions`,
-  `ShaderTexture`
+- `program/Shader.h` — the header: `shader`, `placeholder`,
+  `ShaderOptions`, `ShaderTexture`
 - [Material](../types/Material.md) — what the answer is
 - The program model a shader is built from — a recipe, its program and
   the cache — is the library's `ADVANCED.md`.

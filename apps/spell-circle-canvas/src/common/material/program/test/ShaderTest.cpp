@@ -4,8 +4,10 @@
  * re-described material prunes and a differing source does not; a bound
  * field makes the shader's pass live while a layer over it stays still
  * and nothing compiles again; a texture is sampled by the name its body
- * reads; a file is read through a hub; and the tier-one headers reach no
- * header of the program model.
+ * reads; a file is read through a hub, where a broken edit keeps the
+ * last program that compiled, a file with none paints the placeholder,
+ * and what the compiler said stands on the hub's problems; and the
+ * tier-one headers reach no header of the program model.
  */
 
 #include <gtest/gtest.h>
@@ -14,6 +16,7 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkPaint.h>
 #include <sigilio/advanced/Places.h>
+#include <sigilio/advanced/Problems.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilmaterial/advanced/FrameData.h>
 #include <sigilmaterial/advanced/Program.h>
@@ -25,6 +28,7 @@
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmedia/advanced/Skia.h>
 
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <regex>
@@ -156,7 +160,99 @@ TEST(MaterialShader, AFileIsReadThroughAHub) {
   EXPECT_TRUE(first.recipe().reads(FrameInput::Time));
   EXPECT_EQ(first, shader(hub, "res://tint.sksl", Tint{0.25f}));
 
-  EXPECT_FALSE(shader(hub, "res://absent.sksl", Tint{}).hasProgram());
+  EXPECT_EQ(placeholder(), shader(hub, "res://absent.sksl", Tint{}));
+}
+
+namespace {
+
+/** @p body written over @p name in @p scratch, stamped @p later seconds
+ *  ahead so the hub's poll sees an edit however fast the case runs. */
+void edit(const ScratchDir& scratch, const std::string& name,
+          const std::string& body, int later) {
+  scratch.write(name, body);
+  std::filesystem::last_write_time(
+      scratch.path / name, std::filesystem::file_time_type::clock::now() +
+                               std::chrono::seconds(later));
+}
+
+std::string solid(const char* rgb) {
+  return std::string("half4 main(float2 p) { return half4(") + rgb +
+         ", 1); }\n";
+}
+
+constexpr const char* kBroken =
+    "half4 main(float2 p) {\n  return notDeclaredAnywhere;\n}\n";
+
+}  // namespace
+
+TEST(MaterialShader, ABrokenEditKeepsTheLastProgramThatCompiled) {
+  const ScratchDir scratch("material_shader_broken_edit");
+  edit(scratch, "fill.sksl", solid("0, 1, 0"), 0);
+  sigil::io::Hub hub;
+  sigil::io::mount(hub, "res://", scratch.path);
+  const Material green = shader(hub, "res://fill.sksl");
+  EXPECT_EQ(SK_ColorGREEN, drawn(skia::shader(green, frameOf(4))).getColor(2, 2));
+  EXPECT_TRUE(hub.problems().empty());
+
+  edit(scratch, "fill.sksl", kBroken, 2);
+  ASSERT_TRUE(sigil::io::poll(hub));
+  const Material kept = shader(hub, "res://fill.sksl");
+  EXPECT_EQ(green, kept) << "the broken text did not replace the one that compiled";
+  EXPECT_EQ(SK_ColorGREEN, drawn(skia::shader(kept, frameOf(4))).getColor(2, 2));
+  const std::vector<sigil::io::Problem> said = hub.problems();
+  ASSERT_EQ(said.size(), 1u);
+  EXPECT_EQ(said[0].uri, "res://fill.sksl");
+  EXPECT_NE(said[0].message.find("notDeclaredAnywhere"), std::string::npos)
+      << said[0].message;
+  EXPECT_EQ(said[0].line, std::optional<int>(2))
+      << "the line is the body's own, not the generated program's";
+
+  edit(scratch, "fill.sksl", solid("0, 0, 1"), 4);
+  ASSERT_TRUE(sigil::io::poll(hub));
+  const Material blue = shader(hub, "res://fill.sksl");
+  EXPECT_EQ(SK_ColorBLUE, drawn(skia::shader(blue, frameOf(4))).getColor(2, 2));
+  EXPECT_TRUE(hub.problems().empty()) << "a text that compiles takes the word back";
+}
+
+TEST(MaterialShader, AFileWithNoProgramPaintsThePlaceholderUntilOneCompiles) {
+  // The first text is judged only once a compiler is registered, which
+  // the Skia backend does on its first use.
+  (void)skia::warmup(std::span<const Material>{});
+  const ScratchDir scratch("material_shader_placeholder");
+  sigil::io::Hub hub;
+  sigil::io::mount(hub, "res://", scratch.path);
+
+  const Material missing = shader(hub, "res://later.sksl");
+  EXPECT_EQ(placeholder(), missing);
+  const SkBitmap checker = drawn(skia::shader(missing, frameOf(32)), 32);
+  EXPECT_EQ(SK_ColorMAGENTA, checker.getColor(20, 4));
+  EXPECT_EQ(SK_ColorBLACK, checker.getColor(4, 4));
+  ASSERT_EQ(hub.problems().size(), 1u);
+  EXPECT_EQ(hub.problems()[0].uri, "res://later.sksl");
+
+  edit(scratch, "later.sksl", kBroken, 0);
+  ASSERT_TRUE(sigil::io::poll(hub)) << "the file that appeared is a change";
+  EXPECT_EQ(placeholder(), shader(hub, "res://later.sksl"))
+      << "a first text that does not compile has nothing to keep";
+  ASSERT_EQ(hub.problems().size(), 1u);
+  EXPECT_TRUE(hub.problems()[0].line);
+
+  edit(scratch, "later.sksl", solid("1, 0, 0"), 2);
+  ASSERT_TRUE(sigil::io::poll(hub));
+  const Material red = shader(hub, "res://later.sksl");
+  EXPECT_NE(placeholder(), red);
+  EXPECT_EQ(SK_ColorRED, drawn(skia::shader(red, frameOf(4))).getColor(2, 2));
+  EXPECT_TRUE(hub.problems().empty());
+}
+
+TEST(MaterialShader, AFileWhoseLanguageCannotBeToldIsAProblem) {
+  const ScratchDir scratch("material_shader_language");
+  edit(scratch, "fill.txt", solid("1, 0, 0"), 0);
+  sigil::io::Hub hub;
+  sigil::io::mount(hub, "res://", scratch.path);
+  EXPECT_EQ(placeholder(), shader(hub, "res://fill.txt"));
+  ASSERT_EQ(hub.problems().size(), 1u);
+  EXPECT_EQ(hub.problems()[0].uri, "res://fill.txt");
 }
 
 namespace {

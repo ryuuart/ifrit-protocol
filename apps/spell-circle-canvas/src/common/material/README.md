@@ -19,7 +19,7 @@ and no named looks — a look belongs to the sketch that uses it.
 #include <sigilmaterial/field/Field.h>      // noise
 #include <sigilmaterial/filter/Filter.h>    // Filter
 #include <sigilmaterial/paint/Bases.h>      // linearGradient, radialGradient, conicGradient
-#include <sigilmaterial/program/Shader.h>   // shader
+#include <sigilmaterial/program/Shader.h>   // shader, placeholder
 #include <sigilmaterial/texture/Image.h>    // image
 
 namespace material = sigil::material;
@@ -158,6 +158,11 @@ ripple.bind("speed", tempo);                           // a motion::Animatable<f
 box().fill(material::from(ripple).layer(material::noise(0.6f),
                                         {.blend = BlendMode::Overlay, .opacity = 0.2f}));
 
+// A file, live-coded: the last text that compiled paints while an edit
+// is broken, the placeholder while none has, and what is wrong stands on
+// hub.problems() under the URI.
+material::Material aurora = material::shader(hub, "res://aurora.sksl", Ripple{});
+
 // A picture the body samples, by the name it reads it as.
 material::Material lens = material::shader(
     "half4 main(float2 p) { return photo.eval(p * 0.5); }",
@@ -187,7 +192,30 @@ One source is one definition however often it is described: a sketch may
 call `material::shader` in every describe, and two calls with equal
 values compare equal and prune. `material::shader(hub, uri, Parameters{…})`
 is the same over a file read through SigilIO, its language told by the
-extension; an edited file compiles anew.
+extension; an edited file compiles anew once the hub's poll has seen the
+edit and the caller describes again. It is how a shader is live-coded,
+so a file holds three promises:
+
+- **A broken edit never blanks the picture.** A text that does not
+  compile does not replace one that did: the newest text that compiled
+  keeps painting, and the material compares equal to the one before, so
+  the node over it prunes.
+- **A file with no program says so on the canvas.** While no text of the
+  file has compiled — the file is missing, its first text is broken, its
+  extension names no language — the material is `material::placeholder()`,
+  a magenta and black checker sixteen pixels a cell. It is a diagnostic
+  standing where the program would paint, the one stock material this
+  library owns, and never a look.
+- **The failure reaches the host.** What is wrong stands on the hub's
+  `problems()` under the URI — the compiler's message and the body's own
+  line when the compiler names one — and is taken back when a text
+  compiles. A host that shows `problems()` where it shows a failed build
+  shows a broken shader there; the program cache still writes the
+  compiler's message once to the diagnostic stream.
+
+A text is judged when a compiler for its language is registered — the
+Skia backend registers on its first use, a device renderer when it
+starts — and before that it is drawn as it stands.
 
 What one source cannot say — a body in two languages at once, a slot an
 executor fills from the rendered layer through a filter, a channelwise
@@ -743,7 +771,7 @@ promises. What is only true of SigilMaterial:
 | `texture/test/` | the image side: the sources and their identity across the erasure, the sampling dials, the environment map, the bevel producer, the atlas readers and packer, and the tools' file names — one row per name, so a failure says which tool's spelling moved rather than that a list changed | — |
 | `mask/test/` | that a mask shapes what it reads, and that reshaping something that is not a mask changes nothing | — |
 | `surface/test/` | both surface programs compiled, an authored colour and a map texel one number, a program dressed from a decoded set, a stated response lowered with its numbers and maps in place, a stack shaded at both ends of its mask, every shading term against its closed form, and the sampler budget: a stack asks a device for its operands' samplers and no more, and a tree over the limit is refused with the count and the limit named rather than drawn | — |
-| `program/test/` | a shader as a material: it paints what its body returns from the struct's values, one source is one definition while a differing one is another, a bound field makes its own pass live and compiles nothing, a texture is sampled by the name the body reads, a file is read through a hub — and `MaterialTier`, that neither `core/Material.h` nor `program/Shader.h` reaches a header under `advanced/` | — |
+| `program/test/` | a shader as a material: it paints what its body returns from the struct's values, one source is one definition while a differing one is another, a bound field makes its own pass live and compiles nothing, a texture is sampled by the name the body reads, a file is read through a hub, where a broken edit keeps the last program that compiled, a file with none paints the placeholder until one does, and the compiler's message and the body's line stand on the hub's problems — and `MaterialTier`, that neither `core/Material.h` nor `program/Shader.h` reaches a header under `advanced/` | — |
 | `skia/test/` | the SkSL backend — a two-uniform recipe compiled through the cache shading a raster byte identical to the same SkSL compiled and filled by hand, the four parameter names a body may not redeclare and the three spellings that must still compile — and `SkiaPalette`, a picture's own colours coming back | — |
 | `slang/test/` | the Slang backend, with no device | — |
 | `MaterialGpu` | every body this library ships, on a device | `gpu` |

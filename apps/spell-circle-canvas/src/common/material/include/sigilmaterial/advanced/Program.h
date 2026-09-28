@@ -104,6 +104,13 @@ class ProgramCache {
    *  first use. */
   std::shared_ptr<Program> program(std::shared_ptr<const Recipe> recipe,
                                    Target target, Variant variant = {});
+  /** The same, with what stopped it written to @p error when there is no
+   *  program: the compiler's message, or why no compiler was asked. A
+   *  caller that shows a failure to a person reads it here rather than
+   *  from the diagnostic stream, which says it once. */
+  std::shared_ptr<Program> program(std::shared_ptr<const Recipe> recipe,
+                                   Target target, Variant variant,
+                                   std::string& error);
 
   /** Compiles the distinct requests concurrently and populates this cache. */
   WarmupResult warmup(std::span<const WarmupRequest> requests);

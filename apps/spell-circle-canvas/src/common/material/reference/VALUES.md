@@ -76,7 +76,7 @@ built, each copying on write, has a page of its own.
 - `color/Extract.h` — `palette`, `closestEntry`, `PaletteOptions`
 - `core/Backface.h` — `Backface`
 - `core/Material.h` — `Material`
-- `program/Shader.h` — `shader`, `ShaderOptions`, `ShaderTexture`
+- `program/Shader.h` — `shader`, `placeholder`, `ShaderOptions`, `ShaderTexture`
 - `advanced/Leaf.h` — `Leaf`
 - `core/Gradient.h` — `ColorStops`, `GradientOptions`, `GradientUnits`,
   `RadialExtent`, `Repeat`

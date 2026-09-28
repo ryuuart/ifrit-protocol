@@ -191,7 +191,9 @@ field unread is reported the same way.
 **One program cache.** `ProgramCache::shared()` holds every compiled
 program in the process, keyed by (recipe identity, target, variant). A
 backend registers its compiler with `registerCompiler(Target, Compiler)`
-and the cache compiles on first use. Every Skia lowering entry prepares
+and the cache compiles on first use; `program(recipe, target, variant, error)`
+is the same ask with what stopped it written to `error`, which is how the
+file shader judges a text and puts the compiler's message on the hub. Every Skia lowering entry prepares
 the built-in SkSL compiler automatically, including `skia::builder`,
 `skia::shader`, `skia::fill`, recipe-backed paints and recipe-backed effects.
 An explicitly registered SkSL compiler takes precedence for subsequent

@@ -74,9 +74,12 @@ namespace detail {
 std::shared_ptr<const Recipe> shaderDefinition(std::string_view source,
                                                const Schema& parameters,
                                                const ShaderOptions& options);
-/** The definition of the program file at @p uri, read through @p hub;
- *  null when it cannot be read or its language cannot be told (said
- *  once). */
+/** The definition of the program file at @p uri, read through @p hub:
+ *  its newest text that compiled, or its newest text while no compiler
+ *  for its language is registered to judge it. Null when no text of it
+ *  has compiled, it cannot be read, or its language cannot be told. What
+ *  is wrong stands on the hub's problems under @p uri until a text
+ *  compiles. */
 std::shared_ptr<const Recipe> shaderFileDefinition(
     io::Hub& hub, std::string_view uri, const Schema& parameters,
     const ShaderOptions& options);
@@ -102,9 +105,23 @@ Material shader(std::string_view source, const Parameters& parameters,
 /** THE SHADER @p source with no parameters of its own. */
 Material shader(std::string_view source, const ShaderOptions& options = {});
 
+/** THE MATERIAL A PROGRAM FILE PAINTS WHILE NONE OF ITS TEXTS HAS
+ *  COMPILED: a magenta and black checker, sixteen pixels a cell. It is a
+ *  diagnostic — it says a program is missing where the program would
+ *  paint — and never a look. */
+Material placeholder();
+
 /** THE PROGRAM FILE at @p uri, read through @p hub, as a material over
- *  @p parameters. The file is read once per text, so an edited file
- *  compiles anew. An unreadable file is a material of nothing. */
+ *  @p parameters, which is how a file is live-coded. Each call reads the
+ *  file as the hub holds it, so an edited file compiles anew once the
+ *  hub's poll has seen the edit. A text that does not compile never
+ *  replaces one that did: the newest text that compiled keeps painting.
+ *  While none has — the file is missing, its first text is broken, its
+ *  extension names no language — `placeholder()` paints. Whatever is
+ *  wrong is reported on the hub's `problems()` under @p uri, with the
+ *  compiler's message and the body's line when it names one, and taken
+ *  back when a text compiles. A text is judged once a compiler for its
+ *  language is registered; before that it is drawn as it stands. */
 template <class Parameters>
   requires(!std::same_as<Parameters, ShaderOptions>)
 Material shader(io::Hub& hub, std::string_view uri,
@@ -112,7 +129,7 @@ Material shader(io::Hub& hub, std::string_view uri,
                 const ShaderOptions& options = {}) {
   std::shared_ptr<const Recipe> definition = detail::shaderFileDefinition(
       hub, uri, schema<Parameters>(), options);
-  if (!definition) return Color{0, 0, 0, 0};
+  if (!definition) return placeholder();
   return detail::withTextures(Material(std::move(definition), parameters),
                               options);
 }

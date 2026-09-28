@@ -80,7 +80,17 @@ bool ProgramCache::hasCompiler(Target target) const {
 
 std::shared_ptr<Program> ProgramCache::program(
     std::shared_ptr<const Recipe> recipe, Target target, Variant variant) {
-  if (!recipe) return nullptr;
+  std::string error;
+  return program(std::move(recipe), target, variant, error);
+}
+
+std::shared_ptr<Program> ProgramCache::program(
+    std::shared_ptr<const Recipe> recipe, Target target, Variant variant,
+    std::string& said) {
+  if (!recipe) {
+    said = "no recipe";
+    return nullptr;
+  }
   const Impl::Key key{recipe.get(), target, variant};
   std::shared_future<std::shared_ptr<Program>> waiting;
   std::shared_ptr<std::promise<std::shared_ptr<Program>>> promise;
@@ -99,7 +109,11 @@ std::shared_ptr<Program> ProgramCache::program(
       m_impl->inFlight.emplace(key, Impl::InFlight{generation, waiting});
     }
   }
-  if (!promise) return waiting.get();
+  if (!promise) {
+    std::shared_ptr<Program> joined = waiting.get();
+    if (!joined) said = "the compile this ask joined failed";
+    return joined;
+  }
 
   const auto finish = [&](std::shared_ptr<Program> built) {
     std::shared_ptr<Program> result = built;
@@ -122,6 +136,7 @@ std::shared_ptr<Program> ProgramCache::program(
   // not change whether a body exists or compiles, and a renderer asking
   // for several variants would otherwise say the same thing several times.
   const auto report = [&](const std::string& what) {
+    said = what;
     std::lock_guard lock(m_impl->mutex);
     if (!m_impl->reported.insert({recipe.get(), target}).second) return;
     std::fprintf(stderr, "[sigil::material] recipe \"%s\": %s\n",
@@ -152,6 +167,7 @@ std::shared_ptr<Program> ProgramCache::program(
   }
   if (!built) {
     report(std::string(name(target)) + " failed to compile: " + error);
+    said = error;
     return finish(nullptr);
   }
   // A field the compiled body never reads: whatever the material writes
