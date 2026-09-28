@@ -5,12 +5,10 @@
 from math import cos, hypot, sin
 
 from sigil.draw import ADD, BLEND, CANVAS, ROUND, Pen
-from sigil.material import Paint
+from sigil.material import Paint, shader
 from sigil.sketch import SketchContext, sketch
 
 LINE_FIELD = r"""
-      uniform float2 uResolution;
-      uniform float uTime;
       half4 main(float2 xy) {
         float side = max(min(uResolution.x, uResolution.y), 1.0);
         float2 uv = (xy - uResolution * 0.5) / side;
@@ -35,19 +33,6 @@ LINE_FIELD = r"""
 """
 
 GLASS = r"""
-      uniform shader uSource;
-      uniform float4 uBall0;
-      uniform float4 uBall1;
-      uniform float4 uBall2;
-      uniform float4 uBall3;
-      uniform float4 uBall4;
-      uniform float4 uBall5;
-      uniform float4 uBall6;
-      uniform float4 uBall7;
-      uniform float uThreshold;
-      uniform float uStrength;
-      uniform float2 uResolution;
-      uniform float uTime;
 
       float3 sampleBall(float2 xy, float4 ball) {
         float2 delta = xy - ball.xy;
@@ -100,8 +85,6 @@ GLASS = r"""
 """
 
 FILAMENT = r"""
-      uniform float2 uResolution;
-      uniform float uTime;
       half4 main(float2 xy) {
         float2 uv = xy / max(uResolution, float2(1.0));
         float pulse = 0.5 + 0.5 * sin((uv.x * 1.3 + uv.y) * 19.0 -
@@ -120,10 +103,15 @@ FILAMENT = r"""
 @sketch(size=(720, 720), background="#02050e", capture_at=0.05)
 class LiquidGlass:
     def setup(self, ctx: SketchContext) -> None:
-        self.source = Paint.sksl(LINE_FIELD).quantizeTime(30)
-        self.filament = Paint.sksl(FILAMENT).quantizeTime(30)
+        self.source = Paint(shader(LINE_FIELD, key="python_liquid_glass/line_field")).quantizeTime(30)
+        self.filament = Paint(shader(FILAMENT, key="python_liquid_glass/filament")).quantizeTime(30)
         self.glass = (
-            Paint.sksl(GLASS, {"uThreshold": 1.16, "uStrength": 42})
+            Paint(shader(
+                GLASS,
+                {"uThreshold": 1.16, "uStrength": 42.0,
+                 **{f"uBall{index}": (0.0, 0.0, 0.0, 0.0) for index in range(8)}},
+                key="python_liquid_glass/glass", textures={"uSource": None},
+            ))
             .slot("uSource", self.source)
             .quantizeTime(30)
         )

@@ -139,7 +139,7 @@ class MeshObservatory:
             if p:
                 pen.fill(color)
                 pen.textFont(self.look.font(self.look.type.captionLabel))
-                pen.text(label, p.x - 70, p.y + 30)
+                pen.text(label, p[0] - 70, p[1] + 30)
 
         pen.stroke(self.look.palette.rule)
         pen.strokeWeight(1)
