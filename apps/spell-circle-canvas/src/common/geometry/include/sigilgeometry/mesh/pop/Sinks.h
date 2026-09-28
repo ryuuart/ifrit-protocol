@@ -85,7 +85,7 @@ Mesh cookSweep(const Chain& chain, const path::Polyline& profile,
  *  tints from "tint" wherever @p style names them, the cook runs on
  *  @p runtime, and the splatting stands on its cloud. */
 void cookBillboards(const Chain& chain, SkCanvas& canvas,
-                    const camera::Camera& camera, SkSize viewport,
+                    const camera::Camera& camera, glm::vec2 viewport,
                     const points::BillboardStyle& style = {},
                     const Runtime& runtime = Runtime::cpu());
 

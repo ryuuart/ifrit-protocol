@@ -8,6 +8,8 @@
  * types, and USD is private to the library.
  */
 
+#include <include/core/SkImage.h>
+#include <include/core/SkRefCnt.h>
 #include <pxr/usd/sdf/path.h>
 #include <pxr/usd/usd/stage.h>
 #include <pxr/usd/usdGeom/mesh.h>

@@ -61,7 +61,8 @@ sigil_library(SigilGeometryMeshPop
           kernels/Pop.slang kernels/Stamp.slang kernels/Sweep.slang
   HEADERS Builder.h Kernel.h Operations.h Points.h Pop.h Runtime.h Sinks.h
           Stamp.h Sweep.h
-  PUBLIC SigilGeometryMeshCurve SigilCoreComparable Boost::container
+  PUBLIC SigilGeometryMeshCurve SigilCoreComparable SigilMediaCore
+         Boost::container
   PRIVATE SigilCoreCompute SigilCoreSchedule SigilSkiaDraw)
 # The generated headers are PUBLIC because a runtime that dispatches the
 # kernel on a device reads the words this build embedded rather than

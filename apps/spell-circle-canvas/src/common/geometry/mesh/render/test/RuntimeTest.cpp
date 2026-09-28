@@ -35,10 +35,10 @@ struct Recorder : render::Executor {
   bool operator==(const Recorder& o) const { return label == o.label; }
 
   void drawMesh(SkCanvas&, const Mesh&, const glm::mat4&, const camera::Camera&,
-                SkSize, const render::MeshStyle&) const override {
+                glm::vec2, const render::MeshStyle&) const override {
     ++meshes;
   }
-  void drawPanel(SkCanvas&, const glm::mat4&, const camera::Camera&, SkSize,
+  void drawPanel(SkCanvas&, const glm::mat4&, const camera::Camera&, glm::vec2,
                  const std::function<void(SkCanvas&)>&) const override {
     ++panels;
   }

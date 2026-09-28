@@ -49,7 +49,7 @@ Subject subjectOf(const Draw& draw) {
   const light::Directional value = light::directional(light);
   ::sigil::geometry::mesh::render::Light out;
   out.direction = value.direction;
-  out.color = SkColor4f{value.color.r, value.color.g, value.color.b, 1.0f};
+  out.color = glm::vec4{value.color.r, value.color.g, value.color.b, 1.0f};
   out.intensity = value.intensity;
   return out;
 }
@@ -58,10 +58,12 @@ void dress(::sigil::geometry::mesh::render::MeshStyle& style,
            const Draw& body) {
   const Sampling sampling =
       body.texture ? samplingOf(*body.texture) : Sampling{};
-  style.texture = media::toSk(sampling.image);
-  style.uvTransform = toSk(sampling.uv);
+  style.texture = sampling.image;
+  style.uvTransform = ::sigil::geometry::path::Transform{sampling.uv};
   style.tileTexture = sampling.tile;
-  style.filter = toSk(sampling.filter);
+  style.filter = sampling.filter == material::Sampling::Nearest
+                     ? ::sigil::geometry::mesh::render::Sampling::Nearest
+                     : ::sigil::geometry::mesh::render::Sampling::Linear;
   style.lit = body.lit;
   style.backfaceCull = body.backface == material::Backface::Hidden;
   const SurfaceTerms terms = surfaceTermsOf(body.material);
@@ -104,7 +106,7 @@ SurfaceTerms surfaceTermsOf(const ::sigil::material::Material* material) {
   // The chain and the convolution are baked once per panorama and kept
   // by the value, so asking for them every frame is a lookup.
   const auto images = [](const std::vector<material::Texture>& levels) {
-    std::vector<sk_sp<SkImage>> out;
+    std::vector<media::Picture> out;
     out.reserve(levels.size());
     for (const material::Texture& level : levels)
       out.push_back(material::skia::image(level));

@@ -23,7 +23,7 @@ import unittest
 from pathlib import Path
 
 from _sigil.geometry.mesh import render as native
-from sigil import media, skia
+from sigil import media
 from sigil.geometry.mesh import camera, render
 from sigil.sketch import render_file
 
@@ -133,12 +133,12 @@ class RuntimeSeam(unittest.TestCase):
 
     def test_the_four_dials_the_binding_had_no_spelling_for(self):
         style = render.MeshStyle(
-            filter=skia.FilterMode.Nearest,
+            filter=render.Sampling.Nearest,
             primitiveColorLane="Color",
             environment=render.Environment(exposure=2),
             runtime=render.Runtime.cpu(),
         )
-        self.assertEqual(style.filter, skia.FilterMode.Nearest)
+        self.assertEqual(style.filter, render.Sampling.Nearest)
         self.assertEqual(style.primitiveColorLane, "Color")
         self.assertEqual(style.environment.exposure, 2)
         self.assertNotEqual(style, render.MeshStyle())
@@ -552,10 +552,10 @@ class Panels(unittest.TestCase):
         """
         self.results["texels"] = TEXELS
         centre, edge = PLATE // 4, PLATE // 2 - 2
-        self.results["filter"] = skia.FilterMode.Nearest
+        self.results["filter"] = render.Sampling.Nearest
         hard = self.render(drawing)
         self.assertEqual(self.pixel(hard, edge, centre), self.pixel(hard, 2, centre))
-        self.results["filter"] = skia.FilterMode.Linear
+        self.results["filter"] = render.Sampling.Linear
         soft = self.render(drawing)
         self.assertNotEqual(self.pixel(soft, edge, centre), self.pixel(soft, 2, centre))
 

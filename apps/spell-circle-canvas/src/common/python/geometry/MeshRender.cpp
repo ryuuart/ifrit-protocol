@@ -5,6 +5,7 @@
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilgeometry/mesh/render/Runtime.h>
 #include <sigilgeometry/mesh/render/Shading.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/geometry/Casters.h>
@@ -14,6 +15,7 @@
 #include <exception>
 #include <glm/glm.hpp>
 #include <utility>
+#include <vector>
 
 namespace sigil::python {
 namespace py = pybind11;
@@ -66,6 +68,56 @@ std::exception_ptr drawThroughPanelPen(const py::function& body,
   return raised;
 }
 
+/** A colour field the painter keeps as four straight floats, read back
+ *  as the colour class and written with any spelling of a colour, as
+ *  every other colour in Python is. */
+template <class Record>
+void colourField(py::class_<Record>& type, const char* name,
+                 glm::vec4 Record::*member) {
+  type.def_property(
+      name,
+      [member](const Record& value) {
+        const glm::vec4& colour = value.*member;
+        return SkColor4f{colour.r, colour.g, colour.b, colour.a};
+      },
+      [member](Record& value, const SkColor4f& colour) {
+        value.*member = {colour.fR, colour.fG, colour.fB, colour.fA};
+      });
+}
+
+/** A picture field, read and written as the image Python holds; an
+ *  absent picture reads back as None. */
+template <class Record>
+void pictureField(py::class_<Record>& type, const char* name,
+                  media::Picture Record::*member) {
+  type.def_property(
+      name,
+      [member](const Record& value) -> sk_sp<SkImage> { return value.*member; },
+      [member](Record& value, sk_sp<SkImage> image) {
+        value.*member = media::Picture(std::move(image));
+      });
+}
+
+/** A chain of pictures, copied out as a list of images. */
+template <class Record>
+void pictureChainField(py::class_<Record>& type, const char* name,
+                       std::vector<media::Picture> Record::*member) {
+  type.def_property(
+      name,
+      [member](const Record& value) {
+        std::vector<sk_sp<SkImage>> images;
+        for (const media::Picture& picture : value.*member)
+          images.push_back(picture);
+        return images;
+      },
+      [member](Record& value, const std::vector<sk_sp<SkImage>>& images) {
+        std::vector<media::Picture> pictures;
+        pictures.reserve(images.size());
+        for (const sk_sp<SkImage>& image : images) pictures.push_back(image);
+        value.*member = std::move(pictures);
+      });
+}
+
 }  // namespace
 
 void bindGeometryMeshRender(py::module_& module) {
@@ -97,14 +149,16 @@ void bindGeometryMeshRender(py::module_& module) {
   // reads, where the sky is turned to, and how far it is believed.
   auto environment = bindRecord<render::Environment>(
       renderer, "Environment", "An environment has no field named ");
+  // A chain is copied out as a list of images, so a level is added by
+  // assigning the list back rather than by appending to what a read
+  // handed over.
+  pictureChainField(environment, "levels", &render::Environment::levels);
+  pictureField(environment, "irradiance", &render::Environment::irradiance);
+  pictureChainField(environment, "nextLevels",
+                    &render::Environment::nextLevels);
+  pictureField(environment, "nextIrradiance",
+               &render::Environment::nextIrradiance);
   environment
-      // A chain is copied out as a list of images, so a level is added
-      // by assigning the list back rather than by appending to what a
-      // read handed over.
-      .def_readwrite("levels", &render::Environment::levels)
-      .def_readwrite("irradiance", &render::Environment::irradiance)
-      .def_readwrite("nextLevels", &render::Environment::nextLevels)
-      .def_readwrite("nextIrradiance", &render::Environment::nextIrradiance)
       .def_readwrite("crossfade", &render::Environment::crossfade)
       // The rotation is read and answered by columns: where the
       // panorama's own x, y and z axes point, in that order.
@@ -129,12 +183,12 @@ void bindGeometryMeshRender(py::module_& module) {
   py::class_<render::Light> light(renderer, "Light");
   light
       .def(py::init([](glm::vec3 direction, SkColor4f color, float intensity) {
-             return render::Light{direction, color, intensity};
+             return render::Light{
+                 direction, {color.fR, color.fG, color.fB, color.fA}, intensity};
            }),
            py::arg("direction") = glm::vec3(-0.5f, -0.8f, -0.4f),
            py::arg("color") = SkColors::kWhite, py::arg("intensity") = 1)
       .def_readwrite("direction", &render::Light::direction)
-      .def_readwrite("color", &render::Light::color)
       .def_readwrite("intensity", &render::Light::intensity)
       .def(
           "__eq__",
@@ -143,7 +197,13 @@ void bindGeometryMeshRender(py::module_& module) {
           },
           py::arg("other"), py::is_operator())
       .def("copy", [](const render::Light& value) { return value; });
+  colourField(light, "color", &render::Light::color);
   copyProtocol(light);
+
+  // How a texture is read between its texels.
+  py::enum_<render::Sampling>(renderer, "Sampling")
+      .value("Linear", render::Sampling::Linear)
+      .value("Nearest", render::Sampling::Nearest);
 
   py::enum_<render::MeshStyle::Mode>(renderer, "Mode")
       .value("Lit", render::MeshStyle::Mode::Lit)
@@ -154,16 +214,13 @@ void bindGeometryMeshRender(py::module_& module) {
       renderer, "MeshStyle", "A mesh style has no field named ");
   style.def_readwrite("mode", &render::MeshStyle::mode)
       .def_readwrite("lit", &render::MeshStyle::lit)
-      .def_readwrite("baseColor", &render::MeshStyle::baseColor)
       .def_readwrite("lights", &render::MeshStyle::lights)
-      .def_readwrite("ambient", &render::MeshStyle::ambient)
       .def_readwrite("environment", &render::MeshStyle::environment)
       .def_readwrite("metallic", &render::MeshStyle::metallic)
       .def_readwrite("roughness", &render::MeshStyle::roughness)
       .def_readwrite("specular", &render::MeshStyle::specular)
       .def_readwrite("shininess", &render::MeshStyle::shininess)
       .def_readwrite("rim", &render::MeshStyle::rim)
-      .def_readwrite("texture", &render::MeshStyle::texture)
       .def_readwrite("uvTransform", &render::MeshStyle::uvTransform)
       .def_readwrite("tileTexture", &render::MeshStyle::tileTexture)
       .def_readwrite("filter", &render::MeshStyle::filter)
@@ -181,6 +238,9 @@ void bindGeometryMeshRender(py::module_& module) {
             return value == other;
           },
           py::arg("other"), py::is_operator());
+  colourField(style, "baseColor", &render::MeshStyle::baseColor);
+  colourField(style, "ambient", &render::MeshStyle::ambient);
+  pictureField(style, "texture", &render::MeshStyle::texture);
 
   renderer.def(
       "drawMesh",
@@ -220,7 +280,8 @@ void bindGeometryMeshRender(py::module_& module) {
          const glm::mat4& model, const camera::Camera& camera, float opacity,
          const render::Runtime& runtime) {
         auto& host = pen(borrowed);
-        render::drawImagePanel(*host.canvas(), std::move(image), width, height,
+        render::drawImagePanel(*host.canvas(), media::Picture(std::move(image)),
+                               width, height,
                                model, camera, {host.width, host.height},
                                opacity, runtime);
       },
@@ -266,8 +327,12 @@ void bindGeometryMeshRender(py::module_& module) {
                py::arg("exposure"));
   renderer.def("refraction", &render::refraction, py::arg("incident"),
                py::arg("normal"), py::arg("eta"));
-  renderer.def("samplePanorama", &render::samplePanorama, py::arg("panorama"),
-               py::arg("uv"));
+  renderer.def(
+      "samplePanorama",
+      [](sk_sp<SkImage> panorama, glm::vec2 uv) {
+        return render::samplePanorama(media::Picture(std::move(panorama)), uv);
+      },
+      py::arg("panorama"), py::arg("uv"));
   renderer.def("environmentRadiance", &render::environmentRadiance,
                py::arg("environment"), py::arg("direction"),
                py::arg("roughness"));

@@ -8,7 +8,7 @@
  *  - drawPanel(): a full perspective transform concat'd onto the
  *    canvas, then ordinary 2D drawing — the rasterizer works
  *    perspective-correct, which is exactly what a diegetic UI card
- *    needs. Panels are the zero-copy path: any SkImage (a compose
+ *    needs. Panels are the zero-copy path: any picture (a compose
  *    scene, a web view, an SVG) lands on a plane in space.
  *
  *  - drawMesh(): transform, per-vertex lighting, back-to-front triangle
@@ -21,16 +21,15 @@
  * Both run on the Runtime the style carries, defaulting to the built-in
  * CPU one, so the vocabulary here — Mesh, glm vectors and matrices, the
  * camera, MeshStyle — is the same whichever executor performs the work.
+ * A colour is a `glm::vec4` of straight red, green, blue and alpha, a
+ * texture a `media::Picture`, a viewport a `glm::vec2` of pixels; the
+ * canvas a draw lands on is the host's, and it is the one renderer type
+ * named here.
  */
 
-#include <include/core/SkCanvas.h>
-#include <include/core/SkColor.h>
-#include <include/core/SkImage.h>
-#include <include/core/SkMatrix.h>
-#include <include/core/SkRefCnt.h>
-#include <include/core/SkSamplingOptions.h>
-#include <include/core/SkSize.h>
+#include <sigilmedia/core/Picture.h>
 
+#include <cstdint>
 #include <functional>
 #include <glm/glm.hpp>
 #include <string>
@@ -40,6 +39,7 @@
 #include "sigilgeometry/mesh/camera/Camera.h"
 #include "sigilgeometry/mesh/render/Runtime.h"
 #include "sigilgeometry/mesh/render/Shading.h"
+#include "sigilgeometry/path/Transform.h"
 
 /** DRAWING A MESH OR A PANEL ONTO AN ORDINARY CANVAS — no GPU device,
  *  no scene graph. A panel concatenates a full perspective transform
@@ -55,11 +55,19 @@ namespace sigil::geometry::mesh::render {
  *  scene rather than back at it. */
 struct Light {
   glm::vec3 direction = {-0.5f, -0.8f, -0.4f};  ///< world-space, toward scene
-  SkColor4f color = SkColors::kWhite;
+  glm::vec4 color = {1, 1, 1, 1};
   float intensity = 1;
 
   /** Value equality: the direction, the colour and the strength. */
   bool operator==(const Light&) const = default;
+};
+
+/** HOW A TEXTURE IS READ BETWEEN ITS TEXELS. Nearest keeps a texel's
+ *  edge hard and takes no mip level with it; linear reads between texels
+ *  and between levels. */
+enum class Sampling : uint8_t {
+  Linear,
+  Nearest,
 };
 
 /** Everything the mesh shader needs beyond the geometry itself: which
@@ -82,9 +90,9 @@ struct MeshStyle {
    *  which is why it sits beside the colour rather than among the modes:
    *  Normals and Uv render buffers, and this still renders a picture. */
   bool lit = true;
-  SkColor4f baseColor = {0.8f, 0.8f, 0.85f, 1};
+  glm::vec4 baseColor = {0.8f, 0.8f, 0.85f, 1};
   std::vector<Light> lights = {{}};
-  SkColor4f ambient = {0.12f, 0.12f, 0.15f, 1};
+  glm::vec4 ambient = {0.12f, 0.12f, 0.15f, 1};
   /** THE PANORAMA THE SURFACE SEES PAST THE LIGHTS. Carrying one
    *  replaces the flat `ambient` above with what actually falls on the
    *  surface from each direction, and gives it something to mirror; an
@@ -101,11 +109,11 @@ struct MeshStyle {
   float shininess = 48;   ///< Blinn exponent
   float rim = 0.25f;      ///< rim light strength
   /** Optional texture: uvs sample this image, modulated by lighting. */
-  sk_sp<SkImage> texture;
+  media::Picture texture;
   /** Texture PLACEMENT in uv space, applied before the lookup —
    *  translate to scroll (a marquee riding a ribbon), scale to repeat,
    *  rotate to spin. Identity = the image spans uv [0,1] once. */
-  SkMatrix uvTransform = SkMatrix::I();
+  path::Transform uvTransform;
   /** Wrap the texture when uvs leave [0,1] (a scrolling band on a
    *  closed loop); off = clamp, the panel default. */
   bool tileTexture = false;
@@ -114,7 +122,7 @@ struct MeshStyle {
    *  must not bleed — and takes no mip level with it, because blending
    *  two levels is the same bleed arriving by the other door; linear
    *  reads between texels and between levels. */
-  SkFilterMode filter = SkFilterMode::kLinear;
+  Sampling filter = Sampling::Linear;
   /** PRIMITIVE lane (Mesh::primitives) multiplied into each triangle's
    *  colour — flat per-face tint, no vertex duplication. Empty = off;
    *  a missing or mis-sized lane is ignored. Lit mode only: Normals
@@ -126,8 +134,8 @@ struct MeshStyle {
    *  assigning another one is the whole of switching runtimes. */
   Runtime runtime = Runtime::cpu();
 
-  /** Value equality, dial for dial. Images compare by identity, as
-   *  `sk_sp` does, and the runtime by the executor it carries — so two
+  /** Value equality, dial for dial. Pictures compare by identity, and
+   *  the runtime by the executor it carries — so two
    *  default styles are equal and a consumer that caches a drawing can
    *  prove two frames asked for the same shading. */
   bool operator==(const MeshStyle&) const = default;
@@ -137,7 +145,7 @@ struct MeshStyle {
  *  provides view/projection at the canvas's @p viewport size; the
  *  style's runtime performs the work. */
 void drawMesh(SkCanvas& canvas, const Mesh& mesh, const glm::mat4& model,
-              const camera::Camera& camera, SkSize viewport,
+              const camera::Camera& camera, glm::vec2 viewport,
               const MeshStyle& style = {});
 
 /** Place 2D content on a plane in space: concats the full perspective
@@ -145,15 +153,15 @@ void drawMesh(SkCanvas& canvas, const Mesh& mesh, const glm::mat4& model,
  *  coordinates (origin at panel center, x right, y DOWN like any Skia
  *  canvas, one unit = one world unit). */
 void drawPanel(SkCanvas& canvas, const glm::mat4& model,
-               const camera::Camera& camera, SkSize viewport,
+               const camera::Camera& camera, glm::vec2 viewport,
                const std::function<void(SkCanvas&)>& draw,
                const Runtime& runtime = Runtime::cpu());
 
 /** Convenience: an image mapped onto a width x height panel at
  *  @p model (image stretched to the panel rect, centered). */
-void drawImagePanel(SkCanvas& canvas, sk_sp<SkImage> image, float width,
-                    float height, const glm::mat4& model,
-                    const camera::Camera& camera, SkSize viewport,
+void drawImagePanel(SkCanvas& canvas, const media::Picture& image,
+                    float width, float height, const glm::mat4& model,
+                    const camera::Camera& camera, glm::vec2 viewport,
                     float opacity = 1, const Runtime& runtime = Runtime::cpu());
 
 }  // namespace sigil::geometry::mesh::render

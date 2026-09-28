@@ -27,10 +27,12 @@
 // forward header carries are the whole of what this file needs; an
 // executor's own file includes the matrix it multiplies with.
 #include <glm/fwd.hpp>
+#include <glm/vec2.hpp>
 #include <utility>
 
+// Both draws land on the canvas a host owns; the canvas is the one
+// renderer type the seam names, and only by declaration.
 class SkCanvas;
-struct SkSize;
 
 namespace sigil::geometry::mesh {
 
@@ -53,12 +55,12 @@ class Executor {
   /** Transform, shade, sort and emit @p mesh under @p style. */
   virtual void drawMesh(SkCanvas& canvas, const Mesh& mesh,
                         const glm::mat4& model, const camera::Camera& camera,
-                        SkSize viewport, const MeshStyle& style) const = 0;
+                        glm::vec2 viewport, const MeshStyle& style) const = 0;
 
   /** Put @p draw's 2D content on the plane @p model describes, in
    *  panel-local coordinates. */
   virtual void drawPanel(SkCanvas& canvas, const glm::mat4& model,
-                         const camera::Camera& camera, SkSize viewport,
+                         const camera::Camera& camera, glm::vec2 viewport,
                          const std::function<void(SkCanvas&)>& draw) const = 0;
 };
 

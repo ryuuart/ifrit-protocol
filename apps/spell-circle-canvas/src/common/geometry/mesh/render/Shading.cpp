@@ -4,9 +4,12 @@
  */
 
 #include <include/core/SkBitmap.h>
+#include <include/core/SkCanvas.h>
+#include <include/core/SkImage.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkPixmap.h>
 #include <sigilgeometry/mesh/render/Shading.h>
+#include <sigilmedia/advanced/Skia.h>
 
 #include <boost/unordered/unordered_node_map.hpp>
 #include <cstdint>
@@ -101,8 +104,9 @@ std::shared_ptr<const Pixels> pixelsOf(const sk_sp<SkImage>& image) {
 
 }  // namespace
 
-glm::vec3 samplePanorama(const sk_sp<SkImage>& panorama, glm::vec2 uv) {
-  const std::shared_ptr<const Pixels> kept = pixelsOf(panorama);
+glm::vec3 samplePanorama(const media::Picture& panorama, glm::vec2 uv) {
+  const sk_sp<SkImage> image = panorama;
+  const std::shared_ptr<const Pixels> kept = pixelsOf(image);
   const Pixels& p = *kept;
   if (p.w <= 0 || p.h <= 0) return {0, 0, 0};
   const float fx = uv.x * (float)p.w - 0.5f;
@@ -129,7 +133,7 @@ namespace {
  *  it and the two either side are mixed rather than the nearer one
  *  taken — a body whose roughness ramps must not step from one blur to
  *  the next. */
-glm::vec3 atLevel(const std::vector<sk_sp<SkImage>>& levels, glm::vec2 uv,
+glm::vec3 atLevel(const std::vector<media::Picture>& levels, glm::vec2 uv,
                   float pick) {
   if (levels.empty()) return {0, 0, 0};
   const int low = std::clamp((int)pick, 0, (int)levels.size() - 1);
@@ -171,9 +175,9 @@ glm::vec3 environmentIrradiance(const Environment& environment,
 
 void drawBackdrop(SkCanvas& canvas, const Environment& environment,
                   const glm::mat4& projection, const glm::mat4& viewMatrix,
-                  SkSize viewport) {
+                  glm::vec2 viewport) {
   if (!environment.valid() || environment.backdrop <= 0) return;
-  const int w = (int)viewport.width(), h = (int)viewport.height();
+  const int w = (int)viewport.x, h = (int)viewport.y;
   if (w <= 0 || h <= 0) return;
 
   // The sky's own strength is not the specular dial, which belongs to

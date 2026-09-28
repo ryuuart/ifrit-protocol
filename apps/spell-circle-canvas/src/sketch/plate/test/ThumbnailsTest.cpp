@@ -128,12 +128,12 @@ namespace render = sigil::geometry::mesh::render;
 struct PainterReached : render::Executor {
   std::atomic_int* reached = nullptr;
   void drawMesh(SkCanvas&, const sigil::geometry::mesh::Mesh&, const glm::mat4&,
-                const sigil::geometry::mesh::camera::Camera&, SkSize,
+                const sigil::geometry::mesh::camera::Camera&, glm::vec2,
                 const render::MeshStyle&) const override {
     if (reached) reached->fetch_add(1);
   }
   void drawPanel(SkCanvas&, const glm::mat4&,
-                 const sigil::geometry::mesh::camera::Camera&, SkSize,
+                 const sigil::geometry::mesh::camera::Camera&, glm::vec2,
                  const std::function<void(SkCanvas&)>&) const override {
     if (reached) reached->fetch_add(1);
   }
@@ -159,7 +159,7 @@ struct Standing {
           SkCanvas& canvas = *pen.canvas();
           const sigil::geometry::mesh::camera::Camera camera;
           painter.get()->drawPanel(canvas, glm::mat4(1.0f), camera,
-                                   SkSize{paint.size.x, paint.size.y},
+                                   glm::vec2{paint.size.x, paint.size.y},
                                    [](SkCanvas&) {});
         })}));
   }

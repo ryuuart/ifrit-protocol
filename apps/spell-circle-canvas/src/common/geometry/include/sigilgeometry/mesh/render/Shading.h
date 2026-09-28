@@ -22,10 +22,7 @@
  * reads as facets where a device reads as a curve.
  */
 
-#include <include/core/SkCanvas.h>
-#include <include/core/SkImage.h>
-#include <include/core/SkRefCnt.h>
-#include <include/core/SkSize.h>
+#include <sigilmedia/core/Picture.h>
 
 #include <algorithm>
 #include <cmath>
@@ -35,6 +32,10 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <vector>
+
+// A backdrop is painted onto the canvas a host owns; the canvas is the
+// one renderer type this header names, and only by declaration.
+class SkCanvas;
 
 namespace sigil::geometry::mesh::render {
 
@@ -46,15 +47,15 @@ namespace sigil::geometry::mesh::render {
 struct Environment {
   /** Level 0 sharpest, each one after it blurrier; a roughness picks
    *  among them. */
-  std::vector<sk_sp<SkImage>> levels;
+  std::vector<media::Picture> levels;
   /** The diffuse side: what a surface facing a direction receives from
    *  everywhere, already convolved with a cosine lobe. */
-  sk_sp<SkImage> irradiance;
+  media::Picture irradiance;
   /** A SECOND PANORAMA and how far along the way to it every sample
    *  stands. Both are sampled and mixed rather than one being rebuilt,
    *  which is what lets a sky change while the frame is running. */
-  std::vector<sk_sp<SkImage>> nextLevels;
-  sk_sp<SkImage> nextIrradiance;
+  std::vector<media::Picture> nextLevels;
+  media::Picture nextIrradiance;
   float crossfade = 0;
   /** Takes a WORLD-space direction into the panorama's own frame, so
    *  turning the node that placed the sky turns the reflection. */
@@ -237,7 +238,7 @@ inline glm::vec3 refraction(glm::vec3 i, glm::vec3 n, float eta) {
 /** ONE TEXEL OF A PANORAMA, bilinear, wrapping in azimuth and clamping
  *  at the poles. A host tier reads a handful of these per vertex, so the
  *  image is read through its own pixels rather than through a shader. */
-glm::vec3 samplePanorama(const sk_sp<SkImage>& panorama, glm::vec2 uv);
+glm::vec3 samplePanorama(const media::Picture& panorama, glm::vec2 uv);
 
 /** The radiance @p direction (world space) mirrors off the environment
  *  at @p roughness, tint and strength applied. Black when the
@@ -266,6 +267,6 @@ glm::vec3 environmentIrradiance(const Environment& environment,
  *  empty or its backdrop strength is zero. */
 void drawBackdrop(SkCanvas& canvas, const Environment& environment,
                   const glm::mat4& projection, const glm::mat4& viewMatrix,
-                  SkSize viewport);
+                  glm::vec2 viewport);
 
 }  // namespace sigil::geometry::mesh::render

@@ -14,7 +14,9 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
+#include <include/core/SkImage.h>
 #include <include/utils/SkNoDrawCanvas.h>
+#include <sigilmedia/advanced/Skia.h>
 
 #include <cmath>
 #include <glm/gtc/matrix_transform.hpp>

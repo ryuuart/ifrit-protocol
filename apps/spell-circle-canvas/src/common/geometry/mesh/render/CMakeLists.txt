@@ -8,6 +8,7 @@ sigil_library(SigilGeometryMeshRender
   SOURCES Painter.cpp Runtime.cpp Shading.cpp
   HEADERS Painter.h Runtime.h Shading.h
   PUBLIC SigilGeometryMesh SigilGeometryMeshCamera SigilCoreComparable
+         SigilMediaCore
   PRIVATE Boost::unordered)
 
 sigil_test(geometry_test

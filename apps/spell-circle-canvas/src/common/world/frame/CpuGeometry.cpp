@@ -53,14 +53,8 @@ geometry::mesh::render::MeshStyle coverageStyle() {
   return style;
 }
 
-SkSize viewportOf(const View& view) {
-  return SkSize::Make((float)view.extent.x, (float)view.extent.y);
-}
-
-/** The base colour a material was resolved to, as the mesh painter
- *  takes it. */
-SkColor4f colourOf(const glm::vec4& colour) {
-  return SkColor4f{colour.r, colour.g, colour.b, colour.a};
+glm::vec2 viewportOf(const View& view) {
+  return {(float)view.extent.x, (float)view.extent.y};
 }
 
 void drawSelection(SkCanvas& canvas, const View& view, const Selector& selector,
@@ -69,7 +63,7 @@ void drawSelection(SkCanvas& canvas, const View& view, const Selector& selector,
     if (!draw.mesh) continue;
     if (!selector.matches(subjectOf(draw))) continue;
     if (!flat) {
-      style.baseColor = colourOf(draw.baseColor);
+      style.baseColor = draw.baseColor;
       dress(style, draw);
     }
     geometry::mesh::render::drawMesh(canvas, *draw.mesh, draw.world,
@@ -96,11 +90,11 @@ void drawStamps(SkCanvas& canvas, const Pass& pass, const View& view,
     if (!cloud || cloud->positions.empty()) continue;
     const geometry::mesh::Mesh* stamped = targets.stamped(*cloud, pass.stamp());
     if (!stamped || stamped->indices.empty()) continue;
-    style.baseColor = colourOf({0.9f, 0.9f, 0.95f, 1.0f});
+    style.baseColor = {0.9f, 0.9f, 0.95f, 1.0f};
     style.texture = nullptr;
     // A stamp wears no material, so it says nothing of its own about
     // the map or the light and takes the pass's reading of both.
-    style.filter = SkFilterMode::kLinear;
+    style.filter = geometry::mesh::render::Sampling::Linear;
     style.lit = true;
     geometry::mesh::render::drawMesh(canvas, *stamped, glm::mat4(1.0f),
                                      view.camera, viewportOf(view), style);
@@ -127,16 +121,15 @@ void paintGeometry(const PassWork& work, const View& view, Targets& targets) {
     // nothing about it is a body's business.
     geometry::mesh::render::drawBackdrop(
         *canvas, style.environment,
-        view.camera.projection(viewportOf(view).width() > 0
-                                   ? viewportOf(view).width() /
-                                         viewportOf(view).height()
+        view.camera.projection(viewportOf(view).x > 0
+                                   ? viewportOf(view).x / viewportOf(view).y
                                    : 1.0f),
         view.camera.view(), viewportOf(view));
     const bool cull = work.realisation == Selection::Cull;
     for (const Draw& draw : view.draws) {
       if (!draw.mesh) continue;
       if (cull && !pass.selector().matches(subjectOf(draw))) continue;
-      style.baseColor = colourOf(draw.baseColor);
+      style.baseColor = draw.baseColor;
       dress(style, draw);
       geometry::mesh::render::drawMesh(*canvas, *draw.mesh, draw.world,
                                        view.camera, viewportOf(view), style);
@@ -152,10 +145,9 @@ void paintGeometry(const PassWork& work, const View& view, Targets& targets) {
       // names, and the pass's own lights are what it stands under —
       // whatever the last body drawn happened to say about its own.
       over.lit = true;
-      over.baseColor =
-          field && field->floats == 4
-              ? colourOf(pass.variant()->get<glm::vec4>("baseColor"))
-              : SkColor4f{1.0f, 1.0f, 1.0f, 1.0f};
+      over.baseColor = field && field->floats == 4
+                           ? pass.variant()->get<glm::vec4>("baseColor")
+                           : glm::vec4{1.0f, 1.0f, 1.0f, 1.0f};
       drawSelection(*canvas, view, pass.selector(), over, /*flat=*/true);
     }
   }

@@ -78,11 +78,20 @@ const material::slang::Compiled& painterProgram() {
 
 /** A texture's placement as a shader reads it: the same matrix a style
  *  carries, in the four-by-four the uniform is. */
-glm::mat4 mapMatrix(const SkMatrix& uv) {
+glm::mat4 mapMatrix(const path::Transform& uv) {
+  const glm::mat3& m = uv.matrix;
   glm::mat4 out(1.0f);
-  out[0] = {uv.getScaleX(), uv.getSkewY(), 0.0f, 0.0f};
-  out[1] = {uv.getSkewX(), uv.getScaleY(), 0.0f, 0.0f};
-  out[3] = {uv.getTranslateX(), uv.getTranslateY(), 0.0f, 1.0f};
+  out[0] = {m[0][0], m[0][1], 0.0f, 0.0f};
+  out[1] = {m[1][0], m[1][1], 0.0f, 0.0f};
+  out[3] = {m[2][0], m[2][1], 0.0f, 1.0f};
+  return out;
+}
+
+/** A panorama's levels as the residency uploads them. */
+std::vector<sk_sp<SkImage>> imagesOf(const std::vector<media::Picture>& levels) {
+  std::vector<sk_sp<SkImage>> out;
+  out.reserve(levels.size());
+  for (const media::Picture& level : levels) out.push_back(level);
   return out;
 }
 
@@ -173,10 +182,10 @@ class PainterExecutor : public Executor {
   }
 
   void drawMesh(SkCanvas& canvas, const Mesh& mesh, const glm::mat4& model,
-                const camera::Camera& cam, SkSize viewport,
+                const camera::Camera& cam, glm::vec2 viewport,
                 const MeshStyle& style) const override {
-    const SkISize extent{(int)std::ceil(viewport.width()),
-                         (int)std::ceil(viewport.height())};
+    const SkISize extent{(int)std::ceil(viewport.x),
+                         (int)std::ceil(viewport.y)};
     if (extent.isEmpty()) return;
     if (mesh.positions.empty() || mesh.indices.size() < 3) return;
     const material::slang::Compiled& program = painterProgram();
@@ -222,7 +231,8 @@ class PainterExecutor : public Executor {
     const Environment& sky = style.environment;
     const bool lit = style.mode == MeshStyle::Mode::Lit && style.lit;
     dg::ITexture* chain =
-        lit && !sky.levels.empty() ? state.maps.panorama(sky.levels) : nullptr;
+        lit && !sky.levels.empty() ? state.maps.panorama(imagesOf(sky.levels))
+                                   : nullptr;
     dg::ITexture* lobe = lit && sky.irradiance
                              ? state.maps.convolution(sky.irradiance)
                              : nullptr;
@@ -244,7 +254,9 @@ class PainterExecutor : public Executor {
     dg::IDeviceContext* context = state.device->context();
     context->SetPipelineState(pipeline->state);
     device::bindDraw(state.shared, *pipeline, program, uniforms, textures,
-                     style.filter, style.tileTexture, isPanoramaSlot);
+                     style.filter == Sampling::Nearest ? SkFilterMode::kNearest
+                                                       : SkFilterMode::kLinear,
+                     style.tileTexture, isPanoramaSlot);
     dg::IBuffer* vertices = buffers->vertices;
     const dg::Uint64 offset = 0;
     context->SetVertexBuffers(0, 1, &vertices, &offset,
@@ -269,14 +281,14 @@ class PainterExecutor : public Executor {
   }
 
   void drawPanel(SkCanvas& canvas, const glm::mat4& model,
-                 const camera::Camera& cam, SkSize viewport,
+                 const camera::Camera& cam, glm::vec2 viewport,
                  const std::function<void(SkCanvas&)>& draw) const override {
     // THE CANVAS'S OWN DRAW. A panel is the caller's 2D content under a
     // perspective transform, and that content is Skia's to rasterise: a
     // panel on a GPU-backed canvas is already on the GPU, and a device
     // that took it away and gave it back would only cost a crossing.
     canvas.save();
-    SkM44 full = camera::toSkM44(cam.viewProjection(path::fromSk(viewport)));
+    SkM44 full = camera::toSkM44(cam.viewProjection(viewport));
     full.preConcat(camera::toSkM44(model));
     // Panel-local drawing keeps Skia's y-down convention; the flip makes
     // local content upright in the y-up world.
@@ -313,10 +325,10 @@ class PainterExecutor : public Executor {
                  glm::mat4(glm::inverseTranspose(glm::mat3(modelView))));
     uniforms.set("uLightMatrix",
                  glm::mat4(glm::inverseTranspose(glm::mat3(view))));
-    uniforms.set("uBaseColor", style.baseColor.fR, style.baseColor.fG,
-                 style.baseColor.fB, style.baseColor.fA);
-    uniforms.set("uAmbient", style.ambient.fR, style.ambient.fG,
-                 style.ambient.fB, style.ambient.fA);
+    uniforms.set("uBaseColor", style.baseColor.r, style.baseColor.g,
+                 style.baseColor.b, style.baseColor.a);
+    uniforms.set("uAmbient", style.ambient.r, style.ambient.g,
+                 style.ambient.b, style.ambient.a);
     const float mode = style.mode == MeshStyle::Mode::Uv        ? 2.0f
                        : style.mode == MeshStyle::Mode::Normals ? 1.0f
                                                                 : 0.0f;
@@ -328,9 +340,9 @@ class PainterExecutor : public Executor {
       const Light& light = style.lights[i];
       const float direction[4] = {light.direction.x, light.direction.y,
                                   light.direction.z, 0.0f};
-      const float colour[4] = {light.color.fR * light.intensity,
-                               light.color.fG * light.intensity,
-                               light.color.fB * light.intensity, 1.0f};
+      const float colour[4] = {light.color.r * light.intensity,
+                               light.color.g * light.intensity,
+                               light.color.b * light.intensity, 1.0f};
       uniforms.setElement("uLightDir", i, direction, 4);
       uniforms.setElement("uLightColor", i, colour, 4);
     }

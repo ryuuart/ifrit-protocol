@@ -13,6 +13,7 @@
 // Release build; Debug numbers say nothing.
 
 #include <benchmark/benchmark.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkPaint.h>

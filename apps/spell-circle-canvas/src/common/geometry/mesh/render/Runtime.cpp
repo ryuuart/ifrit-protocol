@@ -6,6 +6,8 @@
 #include "sigilgeometry/mesh/render/Runtime.h"
 
 #include <include/core/SkCanvas.h>
+#include <include/core/SkImage.h>
+#include <include/core/SkM44.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkShader.h>
 #include <include/core/SkVertices.h>
@@ -15,6 +17,7 @@
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/mat3x3.hpp>
 #include <numeric>
+#include <sigilmedia/advanced/Skia.h>
 
 #include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/mesh/Vec.h"
@@ -69,14 +72,14 @@ struct CpuExecutor : Executor {
   bool operator==(const CpuExecutor&) const { return true; }
 
   void drawMesh(SkCanvas& canvas, const Mesh& mesh, const glm::mat4& model,
-                const camera::Camera& camera, SkSize viewport,
+                const camera::Camera& camera, glm::vec2 viewport,
                 const MeshStyle& style) const override {
     const size_t n = mesh.vertexCount();
     if (n == 0 || mesh.indices.size() < 3) return;
 
     SkM44 viewModel = toSkM44(camera.view());
     viewModel.preConcat(toSkM44(model));
-    SkM44 full = toSkM44(camera.viewProjection(path::fromSk(viewport)));
+    SkM44 full = toSkM44(camera.viewProjection(viewport));
     full.preConcat(toSkM44(model));
     const glm::mat3 normalM = normalMatrix(camera.view() * model);
     const glm::mat3 lightM = normalMatrix(camera.view());
@@ -134,9 +137,9 @@ struct CpuExecutor : Executor {
           const glm::vec3 N = hasNormals ? normalized(normalM * mesh.normals[i])
                                          : glm::vec3{0, 0, 1};
           const glm::vec3 V = normalized(posView * -1.0f);
-          glm::vec3 base = {style.baseColor.fR, style.baseColor.fG,
-                            style.baseColor.fB};
-          float alpha = style.baseColor.fA;
+          glm::vec3 base = {style.baseColor.r, style.baseColor.g,
+                            style.baseColor.b};
+          float alpha = style.baseColor.a;
           if (i < mesh.colors.size()) {  // per-vertex tint lane (instancing)
             base = {base.x * mesh.colors[i].r, base.y * mesh.colors[i].g,
                     base.z * mesh.colors[i].b};
@@ -162,15 +165,15 @@ struct CpuExecutor : Executor {
           // direction, rather than one constant for the whole set.
           const glm::vec3 ambient =
               sky ? environmentIrradiance(environment, worldM * N)
-                  : glm::vec3{style.ambient.fR, style.ambient.fG,
-                              style.ambient.fB};
+                  : glm::vec3{style.ambient.r, style.ambient.g,
+                              style.ambient.b};
           glm::vec3 accum = albedo * ambient;
           for (const Light& light : style.lights) {
             const glm::vec3 L = normalized(lightM * (light.direction * -1.0f));
             const float diff = std::max(glm::dot(N, L), 0.0f);
-            const glm::vec3 lc = {light.color.fR * light.intensity,
-                                  light.color.fG * light.intensity,
-                                  light.color.fB * light.intensity};
+            const glm::vec3 lc = {light.color.r * light.intensity,
+                                  light.color.g * light.intensity,
+                                  light.color.b * light.intensity};
             accum += albedo * lc * diff;
             if (style.specular > 0 && diff > 0) {
               const glm::vec3 H = normalized(L + V);
@@ -253,20 +256,22 @@ struct CpuExecutor : Executor {
     // NEAREST TAKES NO MIP LEVEL WITH IT: a map asked for hard texel
     // edges would get them back softened if two levels were blended
     // under the lookup, so the level is the image itself.
-    const SkSamplingOptions sampling(style.filter,
-                                     style.filter == SkFilterMode::kNearest
-                                         ? SkMipmapMode::kNone
-                                         : SkMipmapMode::kLinear);
+    const bool nearest = style.filter == Sampling::Nearest;
+    const SkSamplingOptions sampling(
+        nearest ? SkFilterMode::kNearest : SkFilterMode::kLinear,
+        nearest ? SkMipmapMode::kNone : SkMipmapMode::kLinear);
     SkPaint paint;
     paint.setAntiAlias(true);
-    const bool textured = style.texture && hasUvs;
+    const sk_sp<SkImage> texture = style.texture;
+    const bool textured = texture && hasUvs;
     if (textured) {
       const SkTileMode tile =
           style.tileTexture ? SkTileMode::kRepeat : SkTileMode::kClamp;
-      paint.setShader(style.texture->makeShader(tile, tile, sampling));
+      paint.setShader(texture->makeShader(tile, tile, sampling));
     }
-    const float texW = textured ? (float)style.texture->width() : 1;
-    const float texH = textured ? (float)style.texture->height() : 1;
+    const float texW = textured ? (float)texture->width() : 1;
+    const float texH = textured ? (float)texture->height() : 1;
+    const SkMatrix uvTransform = path::toSk(style.uvTransform);
 
     const size_t maxTrisPerChunk = 65535 / 3;
     for (size_t start = 0; start < tris.size(); start += maxTrisPerChunk) {
@@ -287,7 +292,7 @@ struct CpuExecutor : Executor {
           col.push_back(toColor({c.x, c.y, c.z}, c.w));
           if (textured) {
             const SkPoint uv =
-                style.uvTransform.mapPoint({mesh.uvs[idx].x, mesh.uvs[idx].y});
+                uvTransform.mapPoint({mesh.uvs[idx].x, mesh.uvs[idx].y});
             tex.push_back({uv.fX * texW, uv.fY * texH});
           }
         }
@@ -302,10 +307,10 @@ struct CpuExecutor : Executor {
   }
 
   void drawPanel(SkCanvas& canvas, const glm::mat4& model,
-                 const camera::Camera& camera, SkSize viewport,
+                 const camera::Camera& camera, glm::vec2 viewport,
                  const std::function<void(SkCanvas&)>& draw) const override {
     canvas.save();
-    SkM44 full = toSkM44(camera.viewProjection(path::fromSk(viewport)));
+    SkM44 full = toSkM44(camera.viewProjection(viewport));
     full.preConcat(toSkM44(model));
     // Panel-local drawing keeps Skia's y-down convention; the flip makes
     // local content upright in the y-up world.

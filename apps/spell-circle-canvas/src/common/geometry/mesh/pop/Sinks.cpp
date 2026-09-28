@@ -56,7 +56,7 @@ Spline3 pathThrough(const pop::Chain& chain, bool closed,
 }  // namespace
 
 void pop::cookBillboards(const pop::Chain& chain, SkCanvas& canvas,
-                         const camera::Camera& camera, SkSize viewport,
+                         const camera::Camera& camera, glm::vec2 viewport,
                          const points::BillboardStyle& style,
                          const pop::Runtime& runtime) {
   // The size and tint lanes a cook exports are "size" and "tint"; a

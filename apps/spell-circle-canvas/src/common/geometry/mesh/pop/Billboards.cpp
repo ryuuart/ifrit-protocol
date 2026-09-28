@@ -12,6 +12,8 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkShader.h>
+#include <include/core/SkImage.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilskia/draw/Direct.h>
 
 #include <algorithm>
@@ -23,11 +25,11 @@
 namespace sigil::geometry::mesh::points {
 
 void drawBillboards(SkCanvas& canvas, const Cloud& cloud,
-                    const camera::Camera& camera, SkSize viewport,
+                    const camera::Camera& camera, glm::vec2 viewport,
                     const BillboardStyle& style) {
   const size_t n = cloud.size();
   if (n == 0) return;
-  const glm::mat4 vp = camera.viewProjection({viewport.width(), viewport.height()});
+  const glm::mat4 vp = camera.viewProjection(viewport);
   const glm::mat4 view = camera.view();
 
   struct Splat {
@@ -52,7 +54,7 @@ void drawBillboards(SkCanvas& canvas, const Cloud& cloud,
 
   // Pixels per world unit at distance d: focal / d * (h/2).
   const float focal = 1.0f / std::tan(camera.fovYDeg * (float)M_PI / 360.0f);
-  const float halfH = viewport.height() * 0.5f;
+  const float halfH = viewport.y * 0.5f;
 
   for (size_t i = 0; i < n; ++i) {
     const glm::vec3& p = cloud.positions[i];
@@ -106,7 +108,8 @@ void drawBillboards(SkCanvas& canvas, const Cloud& cloud,
     return bm.asImage();
   }();
 
-  const sk_sp<SkImage>& sprite = style.sprite ? style.sprite : softDot;
+  const sk_sp<SkImage> given = style.sprite;
+  const sk_sp<SkImage>& sprite = given ? given : softDot;
   const float sheetWidth = (float)sprite->width();
   const float sheetHeight = (float)sprite->height();
   const SkSamplingOptions sampling(SkFilterMode::kLinear,

@@ -16,12 +16,14 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImageInfo.h>
+#include <include/core/SkImage.h>
 #include <include/core/SkPaint.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilgeometry/mesh/render/device/Painter.h>
+#include <sigilmedia/advanced/Skia.h>
 
 #include <cmath>
 #include <cstring>
@@ -35,7 +37,7 @@ namespace gm = sigil::geometry::mesh;
 namespace {
 
 constexpr SkISize kExtent{160, 120};
-constexpr SkSize kViewport{(float)kExtent.width(), (float)kExtent.height()};
+constexpr glm::vec2 kViewport{(float)kExtent.width(), (float)kExtent.height()};
 
 /** LOOKING DOWN ON A BODY from above and in front, which is where the
  *  shading has something to say across it. */
@@ -72,9 +74,9 @@ geometry::mesh::render::MeshStyle litStyle() {
   style.baseColor = {0.8f, 0.6f, 0.3f, 1.0f};
   style.lights = {
       geometry::mesh::render::Light{
-          {-0.4f, -0.8f, -0.4f}, SkColors::kWhite, 1.0f},
+          {-0.4f, -0.8f, -0.4f}, glm::vec4{1, 1, 1, 1}, 1.0f},
       geometry::mesh::render::Light{
-          {0.6f, -0.2f, 0.5f}, SkColor4f{0.4f, 0.6f, 1.0f, 1.0f}, 0.6f}};
+          {0.6f, -0.2f, 0.5f}, glm::vec4{0.4f, 0.6f, 1.0f, 1.0f}, 0.6f}};
   return style;
 }
 
@@ -115,7 +117,7 @@ TEST(Painter, ASurfaceThatIsItsOwnLightIsBrighterThanALitOne) {
   // read the same field of the style the host does.
   geometry::mesh::render::MeshStyle shaded = litStyle();
   shaded.lights = {
-      geometry::mesh::render::Light{{0, 0, 1}, SkColors::kWhite, 1.0f}};
+      geometry::mesh::render::Light{{0, 0, 1}, glm::vec4{1, 1, 1, 1}, 1.0f}};
   shaded.specular = 0;
   shaded.rim = 0;
 

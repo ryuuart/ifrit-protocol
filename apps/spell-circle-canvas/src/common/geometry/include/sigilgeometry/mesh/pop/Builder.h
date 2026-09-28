@@ -353,7 +353,7 @@ class Builder {
   /** The chain cooked and splatted onto @p canvas as camera-facing
    *  sprites — pop::cookBillboards on this builder's chain. */
   void billboards(SkCanvas& canvas, const camera::Camera& camera,
-                  SkSize viewport, const points::BillboardStyle& style = {},
+                  glm::vec2 viewport, const points::BillboardStyle& style = {},
                   const Runtime& runtime = Runtime::cpu()) const;
 
  private:
@@ -393,7 +393,7 @@ inline Mesh pop::Builder::stamps(const Mesh& stamp,
 }
 inline void pop::Builder::billboards(SkCanvas& canvas,
                                      const camera::Camera& camera,
-                                     SkSize viewport,
+                                     glm::vec2 viewport,
                                      const points::BillboardStyle& style,
                                      const Runtime& runtime) const {
   pop::cookBillboards(m_chain, canvas, camera, viewport, style, runtime);

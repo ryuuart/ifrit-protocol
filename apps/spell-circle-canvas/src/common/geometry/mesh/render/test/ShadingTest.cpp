@@ -11,6 +11,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkSurface.h>
+#include <sigilmedia/advanced/Skia.h>
 
 #include <cmath>
 #include <glm/glm.hpp>
@@ -152,7 +153,7 @@ TEST(Shading, TheBackdropPutsTheZenithAtTheTop) {
   sigil::geometry::mesh::camera::Camera camera;
   camera.eye = {0, 0, 200};
   camera.target = {0, 0, 0};
-  const SkSize viewport = SkSize::Make(120, 120);
+  const glm::vec2 viewport{120, 120};
   SkBitmap plate;
   plate.allocPixels(SkImageInfo::MakeN32Premul(120, 120));
   SkCanvas canvas(plate);
@@ -203,7 +204,7 @@ int horizonRow(const sigil::geometry::mesh::render::Environment& sky,
   camera.eye = {0, height, 0};
   camera.target = {0, height, -100};
   const int side = 120;
-  const SkSize viewport = SkSize::Make((float)side, (float)side);
+  const glm::vec2 viewport{(float)side, (float)side};
   SkBitmap plate;
   plate.allocPixels(SkImageInfo::MakeN32Premul(side, side));
   SkCanvas canvas(plate);

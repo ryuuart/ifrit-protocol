@@ -45,8 +45,7 @@ void draw(Scene& scene, SkCanvas& canvas,
   const SkISize layer = declared.x <= 0 || declared.y <= 0
                             ? canvas.getBaseLayerSize()
                             : toSk(declared);
-  const SkSize viewport =
-      SkSize::Make((float)layer.width(), (float)layer.height());
+  const glm::vec2 viewport{(float)layer.width(), (float)layer.height()};
 
   geometry::mesh::render::MeshStyle style;
   style.runtime = runtime;
@@ -63,14 +62,13 @@ void draw(Scene& scene, SkCanvas& canvas,
   geometry::mesh::render::drawBackdrop(
       canvas, style.environment,
       camera.projection(
-          viewport.width() > 0 ? viewport.width() / viewport.height() : 1.0f),
+          viewport.x > 0 ? viewport.x / viewport.y : 1.0f),
       camera.view(), viewport);
 
   std::vector<Draw> bodies;
   impl.collectBodies(camera, bodies);
   for (const Draw& body : bodies) {
-    style.baseColor = SkColor4f{body.baseColor.r, body.baseColor.g,
-                                body.baseColor.b, body.baseColor.a};
+    style.baseColor = body.baseColor;
     dress(style, body);
     geometry::mesh::render::drawMesh(canvas, *body.mesh, body.world, camera,
                                      viewport, style);

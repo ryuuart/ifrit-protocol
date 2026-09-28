@@ -16,9 +16,7 @@
  * "size", "tint".
  */
 
-#include <include/core/SkCanvas.h>
-#include <include/core/SkImage.h>
-#include <include/core/SkRefCnt.h>
+#include <sigilmedia/core/Picture.h>
 
 #include <boost/container/map.hpp>
 #include <glm/glm.hpp>
@@ -29,6 +27,10 @@
 #include "sigilgeometry/mesh/camera/Camera.h"
 #include "sigilgeometry/mesh/curve/Curve.h"
 #include "sigilgeometry/mesh/pop/Stamp.h"
+
+// Billboards are splatted onto the canvas a host owns; the canvas is the
+// one renderer type this header names, and only by declaration.
+class SkCanvas;
 
 namespace sigil::geometry::mesh {
 
@@ -196,8 +198,8 @@ void promoteToPrimitives(Mesh& mesh, const Cloud& cloud,
  *  splats glow additively, sort back-to-front, and shrink with
  *  distance. */
 struct BillboardStyle {
-  /** Sprite image; null draws a soft radial dot. */
-  sk_sp<SkImage> sprite;
+  /** Sprite picture; none draws a soft radial dot. */
+  media::Picture sprite;
   float size = 10;       ///< world units at scale 1
   std::string sizeLane;  ///< scalar multiplier per point
   std::string tintLane;  ///< color per point
@@ -218,14 +220,13 @@ struct BillboardStyle {
   /** Shrink with distance (perspective); off = constant pixel size. */
   bool perspective = true;
 
-  /** Value equality, dial for dial. The sprite compares by identity, as
-   *  `sk_sp` does. */
+  /** Value equality, dial for dial. The sprite compares by identity. */
   bool operator==(const BillboardStyle&) const = default;
 };
 
 /** The UI-particle draw: project, sort, splat camera-facing sprites. */
 void drawBillboards(SkCanvas& canvas, const Cloud& cloud,
-                    const camera::Camera& camera, SkSize viewport,
+                    const camera::Camera& camera, glm::vec2 viewport,
                     const BillboardStyle& style = {});
 
 }  // namespace points
