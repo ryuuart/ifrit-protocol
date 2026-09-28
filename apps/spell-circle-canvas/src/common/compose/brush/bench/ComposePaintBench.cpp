@@ -5,6 +5,7 @@
 
 #include <include/core/SkCanvas.h>
 #include <sigilcompose/Compose.h>
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/sdf/Sdf.h>

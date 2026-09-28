@@ -156,12 +156,12 @@ TEST(SeerTextureDelivery, AStaticFrameReachesClientsThatSubscribeAfterDrawingSto
         const auto decoded = sigil::media::decode<sigil::media::Image>(written);
         if (!decoded || decoded->frames().empty()) return {};
         const auto& image = decoded->frames().front().image;
-        if (image->width() != 2 || image->height() != 2) return {};
+        if (image.size().x != 2 || image.size().y != 2) return {};
         SkBitmap pixels;
         if (!pixels.tryAllocPixels(
                 SkImageInfo::Make(2, 2, kBGRA_8888_SkColorType, kPremul_SkAlphaType)))
           return {};
-        if (!image->readPixels(nullptr, pixels.pixmap(), 0, 0)) return {};
+        if (!sigil::media::toSk(image)->readPixels(nullptr, pixels.pixmap(), 0, 0)) return {};
         return {*pixels.getAddr32(0, 0), *pixels.getAddr32(1, 0), *pixels.getAddr32(0, 1),
                 *pixels.getAddr32(1, 1)};
       };

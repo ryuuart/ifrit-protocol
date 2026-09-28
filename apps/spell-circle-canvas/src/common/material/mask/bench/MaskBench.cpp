@@ -9,6 +9,7 @@
 #include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
+#include <sigilmedia/advanced/Skia.h>
 
 using namespace sigil::material;
 

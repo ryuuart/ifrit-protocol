@@ -136,7 +136,7 @@ static void BM_Draw_TileGrid_SkSLFill(benchmark::State& state) {
     return;
   }
   const auto& frame = benchAtlas()->frames().front();
-  sk_sp<SkShader> atlasShader = frame.image->makeShader(
+  sk_sp<SkShader> atlasShader = sigil::media::toSk(frame.image)->makeShader(
       SkTileMode::kClamp, SkTileMode::kClamp, SkSamplingOptions());
   SkRuntimeShaderBuilder builder(effect);
   builder.child("atlas") = atlasShader;

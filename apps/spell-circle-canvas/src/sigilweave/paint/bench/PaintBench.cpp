@@ -167,9 +167,9 @@ BENCHMARK(BM_DrawBatched_ColumnSideline_600w)->Unit(benchmark::kMicrosecond);
 void BM_DrawBatched_4PassEffects_300w(benchmark::State& state) {
   TextStyle layered = basicStyle();
   layered.paint
-      .addUnderlay(sigil::weave::kit::dropShadow(0x66000000, {2, 2}, 2.0f))
-      .addUnderlay(sigil::weave::kit::glow(0x440000FF, 3.0f))
-      .addUnderlay(sigil::weave::kit::outline(SK_ColorBLACK, 1.5f));
+      .addUnderlay(sigil::weave::kit::dropShadow(SkColor4f::FromColor(0x66000000), {2, 2}, 2.0f))
+      .addUnderlay(sigil::weave::kit::glow(SkColor4f::FromColor(0x440000FF), 3.0f))
+      .addUnderlay(sigil::weave::kit::outline(SkColor4f::FromColor(SK_ColorBLACK), 1.5f));
   Scene s = scene(300, layered);
   for ([[maybe_unused]] auto iteration : state) {
     s.surface->getCanvas()->clear(SK_ColorWHITE);
@@ -188,8 +188,8 @@ Scene wall(bool effects) {
   textStyle.shaping.fontSize = 8.0f;
   const SkRect bounds = SkRect::MakeXYWH(10, 10, 1180, 880);
   if (effects) {
-    textStyle.paint.addUnderlay(sigil::weave::kit::glow(0x772A77FF, 1.8f))
-        .addUnderlay(sigil::weave::kit::outline(0xFF061229, 0.7f));
+    textStyle.paint.addUnderlay(sigil::weave::kit::glow(SkColor4f::FromColor(0x772A77FF), 1.8f))
+        .addUnderlay(sigil::weave::kit::outline(SkColor4f::FromColor(0xFF061229), 0.7f));
     textStyle.paint.foreground.setShader(
         shade(text_fields::meshGradient(bounds, 1.25f)));
     SkPaint stars;
