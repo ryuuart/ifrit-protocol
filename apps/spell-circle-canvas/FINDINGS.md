@@ -180,6 +180,32 @@ means carrying the varying rail down to 10 beside it, with every corner
 blunter than a right angle and every constant rail unchanged to the
 bit.
 
+## A rail off the centreline rounds every outer corner, whatever its join says
+
+`lines::Rail` carries a `join`, and `Rails::paint`
+(`src/common/compose/brush/Lines.cpp`) hands it to the stroke of each
+rail. But a rail with a nonzero `across` is first offset through
+`geometry::path::parallel`, which builds every outer corner as a round
+join by construction, so the curve the stroke then joins has no corner
+left to mitre: only the rail on the centreline honours `Join::Miter`. A
+band of rails round a star — a channel on the centreline between two
+edge rails — therefore comes out with a sharp channel and round outer
+edges at every point, where a band cut round a star polygon has sharp
+points on both edges.
+
+It evidently means the join the rail states, as a stroke's own join
+does: `parallel` taking the join (it already mitres inner corners, cut
+back no further than the neighbouring corner), and `Rails::paint`
+passing the rail's join through, so a mitred rail is a mitred curve.
+
+A test should offset a closed {7/2} chord outline by 12 px on its outer
+side through a rail stating `Join::Miter` and assert the rail's curve
+reaches each outer vertex's mitre point within a pixel, and that the
+same rail stating `Join::Round` keeps today's arc. `sigillum_aemeth`
+cuts its star's two edges as two stars of their own for this reason,
+since the lines beside every chord of a star polygon meet at a scaled
+star.
+
 ## A wire an operator attaches cannot be hit, and an addition cannot say whether it may be
 
 `connect::wire` (`src/common/compose/kit/Connect.cpp`) marks every wire
