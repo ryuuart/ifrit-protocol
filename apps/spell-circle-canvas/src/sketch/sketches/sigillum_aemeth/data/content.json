@@ -1,27 +1,28 @@
 {
-  "title": "SIGILLVM DEI ÆMÆTH",
-  "subtitle": "EMETH nuncupatum · Mortlake by Richemond · 21 Martii 1582",
-  "provenance": "BL Sloane MS 3188 f.30r · wax disc BM 1838,1232.90.a · 23.2 cm",
+  "title": "SIGILLVM DEI ÆMETH",
+  "subtitle": "Mortlake by Richemond · 21 Martii 1582",
+  "provenance": "the wax disc, BM 1838,1232.90.a, 23 cm · Dee's drawing, Sloane MS 3188",
 
-  "namesHeading": "THE SEVEN NAMES, WALKED OFF THE RIM",
-  "rule": "Begin at the Name's first letter; the number beside a letter is how many cells to step, right when it stands above, left when below; a bare letter ends the Name.",
-  "consumed": "{used} of 40 cells consumed · {unvisited} never visited",
+  "namesHeading": "The seven Names, walked off the rim",
+  "rule": "Begin at the Name's first letter. A number above a letter steps that many cells to the right, one below to the left; a letter with no number ends the Name. Aa within a Name is taken with its inward power as one a.",
+  "consumed": "{used} of the forty cells are walked · {unvisited} are never visited",
 
-  "basketsHeading": "SEVEN BASKETS, SEVEN BIRDS · READ DOWN",
+  "anglesHeading": "The seven Angles, read down",
   "archangels": "Zaphkiel · Zadkiel · Cumael · Raphael · Haniel · Michael · Gabriel",
-  "crossNote": "48 letters, and one is noted by a Cross: which maketh the 49th.",
+  "crossNote": "Forty-eight letters, and one noted by a Cross, which maketh the forty-ninth.",
 
-  "ordersHeading": "THE FOUR ORDERS OF THE CHILDREN OF LIGHT",
+  "ordersHeading": "The Children of Light, from the star inward",
   "orders": [
-    "Filiæ Lucis · blue tablet in the forehead",
-    "Filii Lucis · round gold tablet on the breast",
-    "Filiæ Filiarum · four-square white ivory",
-    "Filii Filiorum · three-cornered green"
+    "Filiæ Lucis · in the seven points of the star",
+    "Filii Lucis · in the star's own band",
+    "Filiæ Filiarum · on the first heptagon within",
+    "Filii Filiorum · on the second"
   ],
 
   "zabathiel": ["Z", "A", "B", "A", "T", "H", "Iɛ"],
+  "zabathielDegrees": [-11, 41, 97, 153, 207, 261, 311],
   "levanael": ["VA", "NA", "el", "LE"],
 
   "seal": "“This is the Seale, whose Name is Æmeth: and it is to be made of perfect wax.”",
-  "imprint": "Uriel, 14 March 1582 · reconstruction from the rule, not a tracing · SigilCompose study"
+  "imprint": "Uriel, 10 March 1582 · the names derived from the rule on the rim"
 }

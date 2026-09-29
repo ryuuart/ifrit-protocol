@@ -1,27 +1,35 @@
-// John Dee's Sigillum Dei Aemeth, the seal of wax the angels dictated at
-// Mortlake in March 1582, as a plate of the cake itself and a margin that
-// reads it.
+// John Dee's Sigillum Dei Aemeth, the seal the angels dictated at Mortlake
+// in March 1582, as the cake of pale beeswax it was made in, lying beside a
+// leaf that reads it.
 //
 // The seal, from the rim inward: the greatest Circle, cut into forty cells,
-// each a letter with a number above or below it; the seven "segments of
-// circles", plates carrying the forty-nine letters of the angels in seven
-// rows, a little cross at every corner; the heptagon, with the seven Names
-// of God written along its sides; the heptagram, one band cut in the wax and
-// woven over and under itself; the four orders of the Children of Light in
-// the star's points; ZABATHIEL on the innermost heptagon; the pentagram of
-// the five planetary angels; and the cross of LEVANAEL at the centre.
+// each a letter with a number above or below it; the heptagon, a band of
+// forty-nine cells carrying the seven Angles and within it a band carrying
+// the seven Names of God; the heptagram {7/2}, one band woven over and
+// under itself, with the Daughters of Light in its points and the Sons of
+// Light and little crosses in the band; two heptagons within it lettered
+// with the Daughters of the Daughters and the Sons of the Sons; ZABATHIEL
+// round the innermost; the pentagram of the five planetary angels, woven
+// like the star; and the cross of LEVANAEL at the centre. Every band reads
+// clockwise with the feet of its letters toward the centre, as a seal is
+// read by turning it.
+//
+// The wax is one height field — the face of the cake, the floor of a cut,
+// the channel of a band — carved once and lit from the upper left by a
+// program over it, so every cut has a lit wall and a shadowed one.
+//
+// Over it the seal is used as the instrument it is: a lamp walks each of
+// the seven Names off the rim, stepping as many cells as the number says,
+// right for a number above and left for one below, and the letters it lands
+// on are rubricated on the wax and gathered on the leaf.
 //
 // Every letter stands in data/: the forty cells (ring.csv), the seven Names
-// and the cell each begins at (names.csv), the seven rows of the angles
-// (angles.csv), the Names of God (god.csv), the Children of Light
-// (children.csv), the planets (planets.csv) and the margin's words
-// (content.json).
+// and the cell each begins at (names.csv), the seven Angles (angles.csv),
+// the Names of God (god.csv), the Children of Light (children.csv), the
+// planetary angels (planets.csv) and the leaf's words (content.json).
 
 // TAGS: Geometry/Diagrams, Patterns/Ornament
 
-#include <sigilmaterial/paint/Bases.h>
-#include <sigilmaterial/filter/Filter.h>
-#include <sigilweave/style/Face.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/Rails.h>
@@ -29,7 +37,6 @@
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigildata/table/Table.h>
@@ -40,118 +47,121 @@
 #include <sigilgeometry/path/Polyline.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/filter/Filter.h>
+#include <sigilmaterial/paint/Bases.h>
+#include <sigilmaterial/program/Shader.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/bind/Binding.h>
+#include <sigilmotion/values/Animatable.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Theme.h>
 #include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Type.h>
 
+#include <array>
+#include <cmath>
+#include <numbers>
 #include <set>
 #include <sstream>
 #include <string>
 #include <vector>
 
-namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
+namespace data = sigil::data;
+namespace document = sigil::compose::document;
+namespace material = sigil::material;
+namespace motion = sigil::motion;
 namespace path = sigil::geometry::path;
 namespace shapes = sigil::geometry::shapes;
-namespace field = sigil::material::field;
-namespace document = sigil::compose::document;
-namespace data = sigil::data;
-using sigil::material::Paint;
+namespace sketch = sigil::sketch;
+namespace weave = sigil::weave;
+using material::Filter;
+using material::hexColor;
 using namespace sigil::compose;
-using sigil::material::hexColor;
 
 namespace {
 
-// Beeswax four centuries old under museum light: one dull olive-brown and
-// its depths. On wax a line is not drawn but cut, so every mark is a groove
-// with a shadowed floor and a wall that catches the light.
-const auto kVitrine = hexColor(0x14161c);
-const auto kWaxDeep = hexColor(0x5c4c26);
-const auto kWaxMid = hexColor(0x7d6a37);
-const auto kWaxLit = hexColor(0x9c8949);
-const auto kWaxPale = hexColor(0xb3a267);
-const auto kFloor = hexColor(0x2b2210);
-const auto kWall = hexColor(0xc4b485);
-const auto kEngraving = hexColor(0x241603);
-const auto kVellum = hexColor(0xece1c8);
-const auto kRubric = hexColor(0xbf634f);
-
 constexpr float kWidth = 2000, kHeight = 1417;
-// The greatest Circle, in px, and the cake of wax it is cut into.
-constexpr float kRadius = 618;
-constexpr float kWax = 1.058f * kRadius;
 
-// The rings, in units of the greatest Circle. Every angle is measured
-// clockwise from twelve o'clock, which is how Dee gives each instruction:
-// "the begynning of the greatest Circle … and so procede toward thy right
-// hand".
-constexpr float kBandInner = 0.876f;    // the forty cells lie outside this
-constexpr float kCellLetter = 0.912f;   // a cell's letter
-constexpr float kNumberAbove = 0.952f;  // a number that steps right
-constexpr float kNumberBelow = 0.884f;  // a number that steps left
-constexpr float kPlateOuter = 0.868f, kPlateInner = 0.720f;
-constexpr float kAngleSides = 0.836f;  // the heptagon the 49 letters ride
-constexpr float kHeptagon = 0.777f;    // the heptagon the star is drawn on
-constexpr float kNameSides = 0.727f;   // the Names of God ride this one
-constexpr float kInnerHeptagon = 0.285f;
-constexpr float kPentagram = 0.215f;
-// The concentric rules that cut the star's points into cells.
-constexpr float kCellRings[] = {0.590f, 0.505f, 0.428f, 0.355f};
+// THE HEIGHT FIELD the wax is carved in: grey is how high the wax stands.
+// The face of the cake, the shallow channel a band is cut as, the floor of
+// every cut, and the fall of the cake's edge.
+const auto kFace = hexColor(0x9e9e9e);
+const auto kChannel = hexColor(0x858585);
+const auto kCut = hexColor(0x1e1e1e);
+const auto kEdge = hexColor(0x2a2a2a);
+
+// The room and the leaf: a dark case, a vellum leaf in iron-gall ink with
+// its rubrics in red, and the lamp's gilt.
+const auto kVitrine = hexColor(0x13110d);
+const auto kVellum = hexColor(0xeadcc0);
+const auto kInk = hexColor(0x33241a);
+const auto kFaded = hexColor(0x80684c);
+const auto kRubric = hexColor(0x9e3322);
+const auto kGilt = hexColor(0xffd57e);
+const auto kVermilion = hexColor(0xc8321b);
+
+// THE CAKE and the greatest Circle cut in it, in canvas pixels.
+constexpr float kDisc = 642;
+constexpr glm::vec2 kCentre{688, 708.5f};
+constexpr float kRadius = 604;
+
+/** The seal's polar frame in the carving's own box: every angle is
+ *  measured clockwise from twelve o'clock, which is how Dee gives each
+ *  instruction — "the begynning of the greatest Circle … and so procede
+ *  toward thy right hand". */
+const path::PolarFrame kSeal{.centre = {kDisc, kDisc}, .radius = kRadius};
 
 constexpr float kSeventh = 360.0f / 7.0f;
+constexpr float kHalfSeventh = kSeventh / 2.0f;
+/** A heptagon's side stands this far in from its vertex, as a fraction. */
+const float kApothem = std::cos(std::numbers::pi_v<float> / 7.0f);
+/** The vertex radius of the heptagon whose sides stand at @p apothem. */
+float vertexOf(float apothem) { return apothem / kApothem; }
 
-/** The seal's own polar frame, in the coordinates of the wax cake's box. */
-const path::PolarFrame kSeal{.centre = {kWax, kWax}, .radius = kRadius};
+// THE RADIUS TABLE, in units of the greatest Circle, outside in. The rim's
+// cells lie outside kRimInner; a cell's number stands above its letter when
+// it steps right and below it when it steps left.
+constexpr float kRimInner = 0.880f;
+constexpr float kRimLetter = 0.936f, kNumberAbove = 0.977f,
+                kNumberBelow = 0.898f;
+// The heptagon's vertices stand on the rim's inner circle; its three sides
+// bound the Angles' cells and the Names of God.
+const float kHeptagonSide = kRimInner * kApothem;
+constexpr float kCellsSide = 0.742f, kNamesSide = 0.688f;
+// The star's vertices stand on the heptagon's innermost vertices.
+const float kStarVertex = vertexOf(kNamesSide);
+constexpr float kStarBand = 0.056f;
+// The two heptagons within the star stand flat side up, between the
+// star's inner edge and the innermost heptagon.
+constexpr float kInnerSides[] = {0.448f, 0.384f, 0.320f};
+constexpr float kPentagramVertex = 0.300f, kPentagramBand = 0.030f;
+constexpr float kZabathiel = 0.268f;
 
-/** A NODE THE SIZE OF A CIRCLE of the seal at @p radius, centred on it:
- *  every figure below is inscribed in one, so a ring's letters, a
- *  polygon's sides and a star's points are all fractions of its box. */
-Element circleOf(float radius = 1.0f) {
-  return kit::disc(kSeal.centre, radius * kRadius);
-}
-template <class Node>
-Node inCircle(Node node, float radius = 1.0f) {
-  const float half = radius * kRadius;
-  return kit::at(std::move(node), kWax - half, kWax - half, 2 * half,
-                 2 * half);
-}
+// A little cross pattée, as Dee drew them at the corners of the segments
+// and along the star's band.
+constexpr const char* kPattee =
+    "M8 0H16L13 11L24 8V16L13 13L16 24H8L11 13L0 16V8L11 11Z";
+// The cross of LEVANAEL, its foot longer than its arms.
+constexpr const char* kLatinCross = "M9 0H15V9H24V15H15V34H9V15H0V9H9Z";
 
-/** A LETTER CUT IN THE WAX: the dark groove, and a hair below and to the
- *  right of it the lip of wax the graver pushed up, catching the light. */
-auto incised(const std::string& words, sigil::material::Color ink = kEngraving) {
-  return text(words).ink(sigil::material::from(ink).effects(
-      sigil::material::Filter::shadow(hexColor(0xe3d4a2, 0.6f), {.offset = {0.8f, 1.0f}})));
-}
-
-/** A RUN LETTERED ALONG SIDE @p side of a heptagon at @p radius — seven
- *  sides chained as one baseline, so a side is addressed by its fraction. */
-Element onSide(const std::string& words, int side, float radius) {
-  return inCircle(incised(words).textOnPath(
-      {.path = shapes::chords({.sides = 7, .radius = radius}),
-       .at = ((float)side + 0.5f) / 7.0f,
-       .align = TextPath::Align::Center}));
-}
-
-/** A cut rule: a dark floor with a lit hairline on the side away from the
- *  light. */
-Decoration cutRule(float weight) {
-  return lines::rails({{.across = 0, .width = weight, .fill = Fill::color(kFloor)},
-                       {.across = weight * 0.5f + 0.8f,
-                        .width = 0.9f,
-                        .fill = Fill::color(hexColor(0xc4b485, 0.55f))}});
-}
+// THE WALK, in seconds: the lamp comes up on a Name's first cell, rests on
+// each letter it lands on, and counts its way to the next cell by cell.
+constexpr float kLead = 0.6f;     // before the first Name
+constexpr float kRise = 0.45f;    // the lamp coming up
+constexpr float kDwell = 0.55f;   // resting on a letter
+constexpr float kStep = 0.055f;   // counting one cell
+constexpr float kHold = 1.1f;     // resting on the letter that ends a Name
+constexpr float kBetween = 0.6f;  // dark, between Names
+constexpr float kRest = 4.0f;     // every Name gathered, before it begins again
+constexpr float kConsumed = 0.45f;  // how much of a walked cell's red stays
 
 /** A run split into its characters, each whole however many bytes it is. */
 std::vector<std::string> characters(const std::string& run) {
   std::vector<std::string> split;
   for (size_t at = 0; at < run.size();) {
     size_t length = 1;
-    while (at + length < run.size() && (run[at + length] & 0xC0) == 0x80)
-      ++length;
+    while (at + length < run.size() && (run[at + length] & 0xC0) == 0x80) ++length;
     split.push_back(run.substr(at, length));
     at += length;
   }
@@ -162,29 +172,150 @@ struct Cell {
   std::string letter;
   int number;  // positive steps right, negative left, zero ends a Name
 };
-struct Name {
+
+/** ONE NAME AS THE LAMP WALKS IT: the cells, counted from one as the rim
+ *  numbers them, and the moment the lamp lands on each. */
+struct Walk {
   std::string name;
-  std::vector<int> cells;  // counted from one, as the plate numbers them
+  std::vector<int> cells;
+  std::vector<float> landed;
+  float begins = 0, ends = 0;
 };
+
 struct Order {
-  std::string name;
-  float radius;
+  std::string name, band;
   std::vector<std::string> names;
 };
 
+/** A NODE THE SIZE OF A CIRCLE of the seal at @p radius, centred on it:
+ *  a shape's radius fractions are then fractions of that circle. */
+Element circleOf(float radius = 1.0f) {
+  return kit::disc(kSeal.centre, radius * kRadius);
+}
+
+/** @p node centred on @p point, turned @p degrees clockwise from upright. */
+Element placed(Element node, glm::vec2 point, float degrees) {
+  node.centerAt(point).rotate(degrees);
+  return node;
+}
+
+/** @p node STANDING ON THE SEAL at @p degrees and @p radius, its foot
+ *  toward the centre, which is how every letter on the seal stands. */
+Element standing(Element node, float degrees, float radius) {
+  return placed(std::move(node), kSeal.at(degrees, radius), degrees);
+}
+
+/** A RUN LETTERED ALONG SIDE @p side of the heptagon whose vertices stand
+ *  at @p vertexRadius, the first at @p from degrees, its letters' bodies
+ *  straddling the side. */
+Element alongSide(Text run, float size, int side, float vertexRadius,
+                  float from = 0) {
+  return kit::at(std::move(run), kSeal.centre.x - kRadius,
+                 kSeal.centre.y - kRadius, 2 * kRadius, 2 * kRadius)
+      .textOnPath({.path = shapes::chords(
+                       {.sides = 7, .radius = vertexRadius, .from = from}),
+                   .at = ((float)side + 0.5f) / 7.0f,
+                   .align = TextPath::Align::Center,
+                   .offset = -size * 0.36f});
+}
+
+/** A cut @p width px wide. */
+Decoration cut(float width) { return stroke(width, Fill::color(kCut)); }
+
+/** A figure's outline cut into the wax. */
+Element outlined(Element node, float width) {
+  node.fill(Fill::none()).stroke(cut(width));
+  return node;
+}
+
+/** A little cross, cut @p size px across. */
+Element cross(float size) {
+  return box().width(size).height(size).shape(shapes::svg(kPattee)).fill(
+      Fill::color(kCut));
+}
+
+/** A BAND CUT IN THE WAX: a shallow channel @p width px wide between two
+ *  deep cuts. Every layer is opaque, so a strand passing over another is
+ *  repainted across it and its cuts run on unbroken. */
+Decoration band(float width) {
+  const float edge = width * 0.5f - 1.7f;
+  const auto rail = [](float across, float breadth, material::Color height) {
+    return lines::Rail{.across = across,
+                       .width = breadth,
+                       .fill = Fill::color(height),
+                       .cap = path::Cap::Butt};
+  };
+  return lines::rails({rail(0, width, kChannel), rail(edge, 3.2f, kCut),
+                       rail(-edge, 3.2f, kCut)});
+}
+
+/** THE STAR {sides/2} WOVEN IN ITS BAND. The band is cut once round the
+ *  whole star — its channel, and its two edges, each of which is itself a
+ *  star, since the lines beside every chord meet at a star's points — so
+ *  its points are sharp. Over it each chord is laid again across the
+ *  stretch where it meets the others, one strand per chord in the order
+ *  the star is drawn without lifting the graver, so that walking it the
+ *  crossings go over, under, over — the rule that makes an interlace read.
+ *  A chord of {7/2} or {5/2} meets the others between three and seven
+ *  tenths of its length. */
+Element interlaced(int sides, float vertexRadius, float width) {
+  const float degrees = 360.0f / (float)sides;
+  // How far in from its vertex a chord runs, as a fraction.
+  const float chordApothem = std::cos(std::numbers::pi_v<float> * 2.0f / (float)sides);
+  const float edge = (width * kRadius * 0.5f - 1.7f) / kRadius / chordApothem;
+  const auto star = [&](float radius, Decoration mark) {
+    return circleOf()
+        .shape(shapes::chords({.sides = sides, .step = 2, .radius = radius, .closed = true}))
+        .fill(Fill::none())
+        .stroke(std::move(mark));
+  };
+  std::vector<brush::Strand> strands;
+  for (int chord = 0; chord < sides; ++chord) {
+    const glm::vec2 from = kSeal.at(degrees * (float)(2 * chord % sides), vertexRadius);
+    const glm::vec2 to = kSeal.at(degrees * (float)(2 * (chord + 1) % sides), vertexRadius);
+    strands.push_back(
+        {StrandPath::authored(path::toPath(
+             path::Polyline{.points = {from + (to - from) * 0.2f, from + (to - from) * 0.8f}})),
+         band(width * kRadius)});
+  }
+  return box().inset(0).children(
+      {star(vertexRadius, stroke(width * kRadius, Fill::color(kChannel))),
+       star(vertexRadius + edge, cut(3.2f)), star(vertexRadius - edge, cut(3.2f)),
+       box().inset(0).fill(Fill::none()).stroke(Decoration(
+           brush::weave(std::move(strands), path::crossing::alternateAlong())))});
+}
+
+/** @p fraction of the way along the star's chord whose middle faces
+ *  @p degrees. */
+glm::vec2 alongChord(float degrees, float fraction) {
+  const glm::vec2 from = kSeal.at(degrees - kSeventh, kStarVertex);
+  const glm::vec2 to = kSeal.at(degrees + kSeventh, kStarVertex);
+  return from + (to - from) * fraction;
+}
+
 struct SigillumAemeth {
   std::vector<Cell> ring;
-  std::vector<Name> walked;
-  std::vector<std::string> angleRows, godNames, glosses;
+  std::vector<Walk> walks;
+  std::vector<std::vector<std::string>> angleRows;
+  std::vector<std::string> godNames;
   std::vector<Order> orders;
   std::vector<std::string> initials, tails;
   sketch::kit::Document words;
-  weave::Type seal, rim, quill, italic, display, mono, serif;
+  StyleSheet registers;
+  std::optional<material::Material> relief;
+  float loopLength = 60;
+
+  // THE DEMONSTRATION'S LIVE VALUES: seconds into the walk, where the lamp
+  // stands on the rim and how bright it is, and how far each cell's letter
+  // is rubricated.
+  motion::Animatable<float> score = motion::animatable(0.0f);
+  motion::Animatable<float> lampTurn = motion::animatable(0.0f);
+  motion::Animatable<float> lampLight = motion::animatable(0.0f);
+  std::array<motion::Animatable<float>, 40> rubricated{};
 
   template <class Read>
-  static void rows(sketch::SketchContext& context, const char* file,
-                   Read read) {
-    if (const auto table = context.assets.hub().load<sigil::data::Table>(
+  static void rows(sketch::SketchContext& context, const char* file, Read read) {
+    if (const auto table = context.assets.hub().load<data::Table>(
             context.local(std::string("data/") + file)))
       read(*table);
   }
@@ -203,341 +334,433 @@ struct SigillumAemeth {
     return cells;
   }
 
-  // -------------------------------------------------------------------------
-  // THE SEAL
+  const Cell& cellAt(int counted) const { return ring[(size_t)counted - 1]; }
 
-  Element wax() const {
-    return kit::disc(kSeal.centre, kWax).shape(shapes::circle()).fill(sigil::material::from(sigil::material::radialGradient({0.42f, 0.36f}, 1.05f,
-                                                {{0.0f, kWaxPale},
-                                                 {0.45f, kWaxLit},
-                                                 {0.82f, kWaxMid},
-                                                 {1.0f, kWaxDeep}})).layer(field::grain(1.6f, 4, 1582.0f, 0.34f), {.blend = sigil::material::BlendMode::Overlay}).effects(sigil::material::Filter::shadow(hexColor(0x05070a, 0.7f), {.blur = 18, .offset = {6, 12}}).then(sigil::material::Filter::bevel({.depth = 5, .size = 9, .highlight = hexColor(0xf1e2b0, 0.45f), .shadow = hexColor(0x1c1406, 0.6f)})).then(sigil::material::Filter::shadow(hexColor(0x2b2210, 0.35f), {.blur = 14, .inside = true}))))
-        .key("wax");
+  /** A binding of the score that rises from @p low to @p high over the
+   *  moment @p from and holds there until the walk begins again. */
+  motion::Animatable<float> holdFrom(float from, float low, float high) const {
+    const float span = loopLength - from;
+    return motion::bind(score, {.from = {from, loopLength},
+                                .clampFrom = true,
+                                .envelope = motion::envelope::trapezoid(
+                                    0, 0.3f / span, 1 - 0.8f / span, 1),
+                                .to = {low, high}});
+  }
+
+  // -------------------------------------------------------------------------
+  // THE CARVING — a height field, lit by the relief program over it
+
+  /** THE CAKE: its face, lumpy where it cooled, falling away at its edge. */
+  Element cake() const {
+    return kit::disc(kSeal.centre, kDisc)
+        .shape(shapes::circle())
+        .fill(material::from(material::radialGradient(
+                                 {0.5f, 0.5f}, 1.0f,
+                                 {{0.0f, kFace},
+                                  {0.955f, kFace},
+                                  {0.985f, hexColor(0x6a6a6a)},
+                                  {1.0f, kEdge}},
+                                 {.extent = material::RadialExtent::ClosestSide}))
+                  .layer(material::noise(0.006f, {.octaves = 3, .seed = 1582}),
+                         {.blend = material::BlendMode::SoftLight, .opacity = 0.22f})
+                  .layer(material::noise(0.22f, {.octaves = 2, .seed = 3188, .grain = true}),
+                         {.blend = material::BlendMode::SoftLight, .opacity = 0.10f}));
   }
 
   /** THE GREATEST CIRCLE: forty cells of nine degrees, the first at twelve
-   *  o'clock. Each letter stands at its cell's centre facing out; its
-   *  number stands above it or below, by which way it steps. */
-  Element circumference() const {
-    std::vector<Element> letters, above, below;
+   *  o'clock, each a letter with its number above or below it. */
+  Element rim() const {
+    std::vector<Element> marks;
     for (int cell = 0; cell < 40; ++cell) {
       const Cell& entry = ring[(size_t)cell];
-      letters.push_back(incised(entry.letter).attribute("cell", cell));
+      const float degrees = 9.0f * (float)cell;
+      marks.push_back(standing(text(entry.letter).styleClass("hand"), degrees, kRimLetter));
       if (entry.number != 0)
-        (entry.number > 0 ? above : below)
-            .push_back(incised(std::to_string(std::abs(entry.number)), hexColor(0x4a3210))
-                           .attribute("cell", cell));
+        marks.push_back(standing(text(std::to_string(std::abs(entry.number))).styleClass("numeral"),
+                                 degrees, entry.number > 0 ? kNumberAbove : kNumberBelow));
     }
-    const auto around = [](float radius) {
-      return layouts::Radial{.radiusFraction = radius,
-                             .lane = "cell",
-                             .divisions = 40,
-                             .facing = true};
-    };
     return box().inset(0).children(
-        {kit::ring(kSeal.centre, kRadius,
-                   kit::groove(kRadius, 5.6f, kFloor, kWall)),
-         kit::ring(kSeal.centre, kBandInner * kRadius,
-                   kit::groove(kBandInner * kRadius, 3.4f, kFloor, kWall)),
-         circleOf()
-             .shape(shapes::ticks({.divisions = 40,
-                                   .from = 4.5f,
-                                   .mark = {kBandInner + 0.012f, 0.988f}}))
-             .fill(Fill::none())
-             .stroke(stroke(1.9f, Fill::color(kEngraving))),
-         circleOf().operators({around(kCellLetter)}).font(rim).children(letters),
-         circleOf()
-             .operators({around(kNumberAbove)})
-             .font({.face = rim.face, .size = 19})
-             .ink(hexColor(0x4a3210))
-             .children(above),
-         circleOf()
-             .operators({around(kNumberBelow)})
-             .font({.face = rim.face, .size = 19})
-             .ink(hexColor(0x4a3210))
-             .children(below)});
+        {kit::ring(kSeal.centre, kRadius, cut(4.2f)),
+         kit::ring(kSeal.centre, kRimInner * kRadius, cut(3.2f)),
+         outlined(circleOf().shape(shapes::ticks(
+                      {.divisions = 40, .from = 4.5f, .mark = {kRimInner, 1.0f}})),
+                  2.4f),
+         marks});
   }
 
-  /** THE SEVEN ANGLES: seven plates cut as segments of circles, a row of
-   *  seven letters on each, "and at each corner of these segments of
-   *  circles, to make little Crosses". */
-  Element angles() const {
-    const float halfPlate = kSeventh * 0.5f - 1.1f;
-    std::vector<Element> crosses;
-    for (int plate = 0; plate < 7; ++plate)
-      for (float side : {-halfPlate, halfPlate})
-        for (float radius : {kPlateInner, kPlateOuter}) {
-          const float degrees = ((float)plate + 0.5f) * kSeventh + side;
-          crosses.push_back(kit::disc(kSeal.at(degrees, radius), 6.5f)
-                                .shape(shapes::svg(
-                                    "M4 0H8V4H12V8H8V12H4V8H0V4H4Z"))
-                                .fill(Fill::color(kEngraving))
-                                .rotate(degrees));
-        }
-    return box().inset(0).font(seal).font({.track = 21}).children(
-        {circleOf()
-             .shape(shapes::arcs({.divisions = 7,
-                                  .from = kSeventh * 0.5f,
-                                  .mark = {kPlateInner, kPlateOuter},
-                                  .spanDeg = 2 * halfPlate}))
-             .fill(Fill::color(hexColor(0xd9bd88, 0.22f)))
-             .stroke(cutRule(1.8f)),
-         crosses, each(7, [this](int row) {
-           return onSide(angleRows[(size_t)row], row, kAngleSides);
+  /** THE HEPTAGON: its outer band of forty-nine cells holding the seven
+   *  Angles, a row of seven letters on each side, and within it the band of
+   *  the seven Names of God; in the seven segments between the heptagon
+   *  and the rim, "at each corner of these segments of circles, to make
+   *  little Crosses". */
+  Element heptagon() const {
+    const float middle = (kHeptagonSide + kCellsSide) * 0.5f;
+    const float halfSide = middle * std::tan(std::numbers::pi_v<float> / 7.0f);
+    // A point on the line @p apothem in from side @p side's middle, @p along
+    // of its half-length clockwise of it.
+    const auto onSide = [](int side, float apothem, float along) {
+      const float degrees = ((float)side + 0.5f) * kSeventh;
+      const float radians = kSeal.screenRadians(degrees);
+      const glm::vec2 tangent{-std::sin(radians), std::cos(radians)};
+      return kSeal.at(degrees, apothem) + tangent * (along * kRadius);
+    };
+    path::Outline dividers;
+    std::vector<Element> letters, crosses;
+    for (int side = 0; side < 7; ++side) {
+      const float degrees = ((float)side + 0.5f) * kSeventh;
+      for (int cell = 0; cell < 7; ++cell) {
+        const float at = halfSide * (-1.0f + (2.0f * (float)cell + 1.0f) / 7.0f);
+        letters.push_back(placed(text(angleRows[(size_t)side][(size_t)cell])
+                                     .styleClass("angle"),
+                                 onSide(side, middle, at), degrees));
+        if (cell == 0) continue;
+        const float edge = halfSide * (-1.0f + 2.0f * (float)cell / 7.0f);
+        dividers = dividers.joined(path::toPath(path::Polyline{
+            .points = {onSide(side, kHeptagonSide, edge * kHeptagonSide / middle),
+                       onSide(side, kCellsSide, edge * kCellsSide / middle)}}));
+      }
+      for (const auto& [offset, radius] :
+           {std::pair{9.0f, 0.853f}, {kHalfSeventh, 0.836f}, {kSeventh - 9.0f, 0.853f}})
+        crosses.push_back(standing(cross(19), (float)side * kSeventh + offset, radius));
+    }
+    return box().inset(0).children(
+        {each(std::array{kHeptagonSide, kCellsSide, kNamesSide},
+              [](float apothem) {
+                return outlined(circleOf().shape(shapes::chords(
+                                    {.sides = 7, .radius = vertexOf(apothem), .closed = true})),
+                                3.0f);
+              }),
+         box().inset(0).shape(heldPath(dividers)).fill(Fill::none()).stroke(cut(2.2f)),
+         letters, crosses,
+         each(7, [this](int side) {
+           return alongSide(text(godNames[(size_t)side]).styleClass("god"), 25, side,
+                            vertexOf((kCellsSide + kNamesSide) * 0.5f));
          })});
   }
 
-  /** THE HEPTAGON, and the seven Names of God written along its sides
-   *  with a quill, each over its Latin reading; within it, the concentric
-   *  rules that cut the star's points into cells. */
-  Element heptagon() const {
-    return box().inset(0).children(
-        {each(kCellRings,
-              [](float radius) {
-                return kit::ring(kSeal.centre, radius * kRadius,
-                                 kit::groove(radius * kRadius, 1.6f, kFloor, kWall));
-              }),
-         circleOf()
-             .shape(shapes::chords({.sides = 7, .radius = kHeptagon}))
-             .fill(Fill::none())
-             .stroke(cutRule(2.6f)),
-         circleOf()
-             .shape(shapes::chords({.sides = 7, .radius = kNameSides - 0.043f}))
-             .fill(Fill::none())
-             .stroke(cutRule(1.4f)),
-         box().inset(0).font(quill).children(each(7, [this](int side) {
-           return onSide(godNames[(size_t)side], side, kNameSides);
-         })),
-         box()
-             .inset(0)
-             .font({.face = italic.face, .size = 13.5f, .track = 0})
-             .ink(hexColor(0x53380f, 0.88f))
-             .children(each(7, [this](int side) {
-               return onSide(glosses[(size_t)side], side, kNameSides - 0.056f);
-             }))});
-  }
-
-  /** THE HEPTAGRAM {7/2}: one band cut in the wax, vertex to every second
-   *  vertex. Its seven strands cross seven times, and it alternates as you
-   *  TRAVEL it — over, under, over along each strand — which is the rule
-   *  that makes an interlace read. */
+  /** THE HEPTAGRAM, woven in its band: a Daughter of Light and a cross in
+   *  each point, and a Son of Light in the middle of each strand between
+   *  crosses, three to a side. */
   Element heptagram() const {
-    const path::PolarFrame local{.centre = {kRadius, kRadius},
-                                 .radius = kRadius};
-    const float band = 0.038f * kRadius;
-    // The floor, the lit wall and the shadowed one, all opaque: a strand
-    // passing over is repainted across the one beneath it.
-    const Decoration cut = lines::rails(
-        {{.across = 0, .width = band, .fill = Fill::color(hexColor(0x3e3116))},
-         {.across = band * 0.5f - 1.6f,
-          .width = 3.2f,
-          .fill = Fill::color(kWall)},
-         {.across = 1.6f - band * 0.5f,
-          .width = 3.2f,
-          .fill = Fill::color(hexColor(0x140f06))}});
-    std::vector<brush::Strand> strands;
-    for (int strand = 0; strand < 7; ++strand) {
-      const glm::vec2 from = local.at(kSeventh * (float)(2 * strand % 7), kHeptagon);
-      const glm::vec2 to =
-          local.at(kSeventh * (float)(2 * (strand + 1) % 7), kHeptagon);
-      strands.push_back({StrandPath::authored(path::toPath(
-                             path::Polyline{.points = {from, to}})),
-                         cut});
+    const Order* daughters = order("points");
+    const Order* sons = order("strands");
+    std::vector<Element> lettering;
+    for (int point = 0; point < 7; ++point) {
+      const float degrees = (float)point * kSeventh;
+      if (daughters)
+        lettering.push_back(standing(text(daughters->names[(size_t)point]).styleClass("point"),
+                                     degrees, 0.598f));
+      lettering.push_back(standing(cross(22), degrees, 0.672f));
+      if (sons)
+        lettering.push_back(placed(text(sons->names[(size_t)point]).styleClass("strand"),
+                                   alongChord(degrees, 0.5f), degrees));
+      for (float fraction : {0.10f, 0.20f, 0.365f, 0.635f, 0.80f, 0.90f})
+        lettering.push_back(placed(cross(17), alongChord(degrees, fraction), degrees));
     }
-    return circleOf().fill(Fill::none()).stroke(Decoration(
-        brush::weave(std::move(strands), path::crossing::alternateAlong())));
+    return box().inset(0).children(
+        {interlaced(7, kStarVertex, kStarBand), lettering});
   }
 
-  /** WITHIN THE STAR: the four orders of the Children of Light, each name
-   *  on the ray of a point beside the tablet its order wears, and
-   *  ZABATHIEL distributed "in his letters into 7 sides of that innermost
-   *  Heptagonum". */
-  Element children() const {
-    // A forehead's arc-segment, a round gold plate on the breast, a
-    // four-square ivory and a three-cornered green.
-    const Shape tablets[4] = {shapes::sector(200, 140, 0.45f), shapes::circle(),
-                              shapes::polygon(4, 45), shapes::polygon(3, 180)};
-    const data::Json& zabathiel = words["zabathiel"];
-    return box().inset(0).font(seal).children(
-        {each(orders,
-              [&tablets](const Order& order, size_t index) {
-                return circleOf()
-                    .operators({layouts::Radial{.radiusFraction = order.radius,
-                                                .facing = true}})
-                    // each name keeps its own width rather than the ring's
-                    .alignItems(Align::Start)
-                    .font({.size = 19.0f - (float)index * 0.8f})
-                    .children(each(order.names, [&](const std::string& name) {
-                      return box().row().gap(5).alignItems(Align::Center).children(
-                          {box()
-                               .width(15)
-                               .height(15)
-                               .shape(tablets[index])
-                               .fill(Fill::color(hexColor(0xe4cd9e, 0.6f)))
-                               .stroke(stroke(1.5f, Fill::color(kEngraving))),
-                           incised(name)});
-                    }));
+  /** THE TWO HEPTAGONS WITHIN THE STAR, flat side up: the Daughters of the
+   *  Daughters on the outer and the Sons of the Sons on the inner, each
+   *  name between little crosses. */
+  Element within() const {
+    std::vector<Element> runs;
+    for (const auto& [band, outer, inner] :
+         {std::tuple{"outer", kInnerSides[0], kInnerSides[1]},
+          std::tuple{"inner", kInnerSides[1], kInnerSides[2]}})
+      if (const Order* children = order(band))
+        for (int side = 0; side < 7; ++side)
+          runs.push_back(alongSide(text("+++ " + children->names[(size_t)side] + " +++")
+                                       .styleClass("heptagon"),
+                                   17, side, vertexOf((outer + inner) * 0.5f), -kHalfSeventh));
+    return box().inset(0).children(
+        {each(kInnerSides,
+              [](float apothem) {
+                return outlined(circleOf().shape(shapes::chords({.sides = 7,
+                                                                 .radius = vertexOf(apothem),
+                                                                 .from = -kHalfSeventh,
+                                                                 .closed = true})),
+                                2.6f);
               }),
-         circleOf()
-             .shape(shapes::chords({.sides = 7, .radius = kInnerHeptagon}))
-             .fill(Fill::none())
-             .stroke(cutRule(2.2f)),
-         box().inset(0).font({.size = 18.5f}).children(
-             each(7, [&zabathiel](int side) {
-               return onSide(std::string(zabathiel[(size_t)side].string()), side,
-                             kInnerHeptagon - 0.028f);
-             }))});
+         runs});
   }
 
-  /** THE PENTAGRAM, point up on the first cell — "Set Z, of Zedekieil
-   *  within the angle which standeth up toward the begynning of the
-   *  greatest Circle" — each initial in its angle and the rest of the
-   *  name running round outside it; and the cross of LEVANAEL, its
-   *  syllables read left, top, right, foot. */
+  /** THE CENTRE: ZABATHIEL "in his letters into 7 sides of that innermost
+   *  Heptagonum"; the pentagram, point up on the first cell, woven, each
+   *  planetary angel's initial in its point and the rest of the name in
+   *  the angle beside it; and the cross of LEVANAEL, read left, top, right,
+   *  foot. */
   Element centre() const {
+    const data::Json& zabathiel = words["zabathiel"];
+    const data::Json& zabathielDegrees = words["zabathielDegrees"];
     const data::Json& levanael = words["levanael"];
-    const float armDegrees[4] = {0, 90, 180, 270};
-    const float armRadius[4] = {0.052f, 0.075f, 0.075f, 0.075f};
-    return box().inset(0).font(seal).children(
-        {circleOf(kPentagram)
-             .shape(shapes::star(5, 0.382f))
-             .fill(Fill::color(hexColor(0xe6cf9e, 0.18f)))
-             .stroke(cutRule(3.0f)),
-         circleOf()
-             .operators({layouts::Radial{.radiusFraction = 0.176f, .facing = true}})
-             .font({.size = 32})
-             .children(each(initials, [](const std::string& initial) {
-               return incised(initial);
-             })),
-         box().inset(0).font({.face = quill.face, .size = 15}).children(
-             each(5, [this](int point) {
-               return inCircle(
-                   text(tails[(size_t)point])
-                       .textOnPath({.path = shapes::circle(),
-                                    .at = kSeal.fraction((float)point * 72 + 38),
-                                    .align = TextPath::Align::Center}),
-                   0.161f);
-             })),
-         circleOf(0.085f)
-             .shape(shapes::svg("M44 0H56V34H90V46H56V100H44V46H10V34H44Z"))
-             .fill(Fill::color(hexColor(0xe9d4a4, 0.34f)))
-             .stroke(stroke(2.4f, Fill::color(kEngraving))),
-         box().inset(0).font({.size = 15}).children(
-             each(4, [&](int arm) {
-               return incised(std::string(levanael[(size_t)arm].string()))
-                   .centerAt(kSeal.at(armDegrees[arm], armRadius[arm]));
-             }))});
+    const float tailRadius = 0.188f;
+    return box().inset(0).children(
+        {each(7,
+              [&](int side) {
+                return standing(text(std::string(zabathiel[(size_t)side].string()))
+                                    .styleClass("zabathiel"),
+                                (float)zabathielDegrees[(size_t)side].number(), kZabathiel);
+              }),
+         interlaced(5, kPentagramVertex, kPentagramBand),
+         each(initials.size(),
+              [this](int point) {
+                return standing(text(initials[(size_t)point]).styleClass("initial"),
+                                72.0f * (float)point, 0.196f);
+              }),
+         each(tails.size(),
+              [&](int point) {
+                return kit::at(text(tails[(size_t)point]).styleClass("tail"),
+                               kSeal.centre.x - tailRadius * kRadius,
+                               kSeal.centre.y - tailRadius * kRadius,
+                               2 * tailRadius * kRadius, 2 * tailRadius * kRadius)
+                    .textOnPath({.path = shapes::circle(),
+                                 .at = kSeal.fraction(72.0f * (float)point + 36.0f),
+                                 .align = TextPath::Align::Center,
+                                 .offset = -4.5f});
+              }),
+         placed(box().width(32).height(46).shape(shapes::svg(kLatinCross)).fill(
+                    Fill::color(kChannel)).stroke(cut(2.4f)),
+                kSeal.at(180, 0.012f), 0),
+         each(4, [&](int arm) {
+           return placed(text(std::string(levanael[(size_t)arm].string())).styleClass("syllable"),
+                         kSeal.at(90.0f * (float)arm, arm == 2 ? 0.080f : 0.064f), 0);
+         })});
+  }
+
+  const Order* order(std::string_view band) const {
+    for (const Order& candidate : orders)
+      if (candidate.band == band && candidate.names.size() >= 7) return &candidate;
+    return nullptr;
+  }
+
+  /** THE SEAL: the carving, baked once as the lit wax it describes. */
+  Element carving() const {
+    Element carved = kit::at(kCentre.x - kDisc, kCentre.y - kDisc, 2 * kDisc, 2 * kDisc)
+                         .ink(kCut)
+                         .cache(Cache::Texture)
+                         .key("carving")
+                         .children({cake(), rim(), heptagon(), heptagram(), within(), centre()});
+    if (relief) carved.filter(Filter::of(*relief, 4.0f));
+    return carved;
   }
 
   // -------------------------------------------------------------------------
-  // THE MARGIN
+  // THE DEMONSTRATION — the lamp on the rim and the red it leaves
 
-  Element margin() const {
-    const auto doubleRule = [](float weight) {
-      return kit::line({.length = Dimension(575),
-                        .thickness = weight,
-                        .fill = Fill::color(hexColor(0xc7ab74, 0.7f)),
-                        .pair = {{.thickness = 0.7f,
-                                  .gap = 2.8f,
-                                  .fill = Fill::color(hexColor(0xc7ab74, 0.4f)),
-                                  .dash = {1.6f, 4.4f}}}});
-    };
-    const Shape tablets[4] = {shapes::sector(-100, 200, 0.55f), shapes::circle(),
-                              shapes::polygon(4, 45), shapes::polygon(3)};
-    const sigil::material::Color tabletColours[4] = {
-        hexColor(0xb9c6da), hexColor(0xe6bf63), hexColor(0xf7f1e2),
-        hexColor(0x9dbfa2)};
-    return kit::at(1383, 56, 575, 1320)
+  /** THE LAMP: a pool of warm light and a gilt frame round the cell it
+   *  stands on, standing at twelve o'clock and turned round the seal's
+   *  centre to wherever the walk has brought it. */
+  Element lamp() const {
+    constexpr float kSize = 132;
+    const float reach = kRimLetter * kRadius;
+    const glm::vec2 local{kSize * 0.5f, kSize * 0.5f + reach};
+    const path::Outline frame =
+        shapes::ellipse({.fromDegrees = -94.5f, .sweepDegrees = 9.0f, .inner = kRimInner})
+            .outline({2 * kRadius, 2 * kRadius})
+            .transformed(path::Transform::translate(local - glm::vec2{kRadius, kRadius}));
+    return kit::at(kCentre.x - kSize * 0.5f, kCentre.y - reach - kSize * 0.5f, kSize, kSize)
+        .hitTestable(false)
+        .transformOrigin(Dimension(local.x), Dimension(local.y))
+        .rotate(lampTurn)
+        .opacity(lampLight)
+        .children({box().inset(0).cache(Cache::Texture).key("lamp").children(
+            {kit::disc({kSize * 0.5f, kSize * 0.5f}, kSize * 0.5f)
+                 .fill(material::radialGradient({0.5f, 0.5f}, 1.0f,
+                                                {{0.0f, hexColor(0xffcf73, 0.55f)},
+                                                 {0.45f, hexColor(0xffb347, 0.26f)},
+                                                 {1.0f, hexColor(0xff9a30, 0.0f)}},
+                                                {.extent = material::RadialExtent::ClosestSide})),
+             box().inset(0).shape(heldPath(frame)).fill(hexColor(0xffd57e, 0.10f)).stroke(
+                 stroke(2.0f, Fill::color(kGilt)))})});
+  }
+
+  /** THE RUBRICATION: every rim letter again, its cut filled with
+   *  vermilion — shown as the lamp lands on it while its Name is walked,
+   *  and faintly held once the Name is gathered. */
+  Element rubrication() const {
+    return kit::at(kCentre.x - kDisc, kCentre.y - kDisc, 2 * kDisc, 2 * kDisc)
+        .hitTestable(false)
+        .children(each(40, [this](int cell) {
+          return standing(text(ring[(size_t)cell].letter)
+                              .styleClass("hand")
+                              .ink(kVermilion)
+                              .filter(Filter::glow(hexColor(0xffb45a, 0.85f), 4.0f))
+                              .cache(Cache::Texture),
+                          9.0f * (float)cell, kRimLetter)
+              .opacity(rubricated[(size_t)cell]);
+        }));
+  }
+
+  // -------------------------------------------------------------------------
+  // THE LEAF
+
+  /** ONE CELL OF A NAME, as the rim carries it: its letter, the number
+   *  above or below it, and which cell of the forty it is. */
+  Element tile(int counted, float landed) const {
+    const Cell& cell = cellAt(counted);
+    const std::string number = cell.number ? std::to_string(std::abs(cell.number)) : "";
+    return box()
         .column()
-        .gap(7)
-        .font(mono)
-        .ink(hexColor(0x8d7a58))
-        .applyStyleSheet(StyleSheet{
-            rule("h1").font({.face = display.face, .size = 40, .color = kVellum,
-                             .track = 2}),
-            rule("lead").font({.face = italic.face, .size = 16,
-                               .color = hexColor(0xc7ab74)}),
-            rule("h2").font({.size = 12.5f, .color = kRubric, .track = 1.4f}),
-            rule(".serif").font(serif),
-            rule(".italic").font({.face = italic.face, .size = 14}),
-            rule(".name").font({.face = display.face, .size = 25,
-                                .color = kVellum, .track = 1}),
-            rule(".chain").font({.color = hexColor(0x71b2cf)}),
-            rule(".basket").font({.face = seal.face, .size = 24,
-                                  .color = kVellum})})
-        .children(
-            {document::h1(words.phrase("title")),
-             document::lead(words.phrase("subtitle")),
-             text(words.phrase("provenance")).styleClass("serif"),
-             doubleRule(2.2f),
-             document::h2(words.phrase("namesHeading")),
-             text(words.phrase("rule")).styleClass("italic").width(575),
-             box().column().children(each(walked, [](const Name& name, size_t index) {
-               std::string chain;
-               for (int cell : name.cells)
-                 chain += (chain.empty() ? "" : "·") + std::to_string(cell);
-               return box().row().height(40).alignItems(Align::Baseline).children(
-                   {text(std::to_string(index + 1) + ".").width(26),
-                    text(name.name).styleClass("name").width(170),
-                    text(chain).styleClass("chain")});
-             })),
-             text(words.phrase("consumed")),
-             document::h2(words.phrase("basketsHeading")),
-             box().column().children(each(angleRows, [](const std::string& row) {
-               return box().row().children(
-                   each(characters(row), [](const std::string& letter) {
-                     return text(letter)
-                         .styleClass("basket")
-                         .width(44)
-                         .paragraph({.alignment = weave::TextAlignment::kCenter});
-                   }));
-             })),
-             text(words.phrase("archangels")).styleClass("italic"),
-             text(words.phrase("crossNote")).styleClass("italic"),
-             document::h2(words.phrase("ordersHeading")),
-             box().column().gap(8).children(each(
-                 words.run("orders"),
-                 [&](const sketch::kit::Document::Line& line, size_t index) {
-                   return box().row().gap(10).alignItems(Align::Center).children(
-                       {box()
-                            .width(14)
-                            .height(14)
-                            .shape(tablets[index])
-                            .fill(Fill::color(tabletColours[index])),
-                        text(line.words).styleClass("serif")});
-                 })),
-             box().flexGrow(1),
-             doubleRule(1.6f),
-             text(words.phrase("seal")).styleClass("italic").width(575),
-             text(words.phrase("imprint")).font({.size = 10})});
+        .width(33)
+        .alignItems(Align::Center)
+        .opacity(holdFrom(landed, 0.2f, 1.0f))
+        .children({text(cell.number > 0 ? number : "").styleClass("step").height(14),
+                   text(cell.letter).styleClass("letter").height(32),
+                   text(cell.number < 0 ? number : "").styleClass("step").height(14),
+                   text(std::to_string(counted)).styleClass("cell")});
+  }
+
+  /** ONE NAME ON THE LEAF: the hand pointing while it is walked, its cells
+   *  lighting as the lamp lands on them, and the Name once it is whole. */
+  Element walkRow(const Walk& walk, size_t index) const {
+    return box().row().alignItems(Align::Center).gap(2).children(
+        {text("☞")
+             .styleClass("hand-pointing")
+             .width(24)
+             .opacity(motion::bind(score, {.from = {walk.begins, walk.ends + 0.4f},
+                                           .clampFrom = true,
+                                           .envelope = motion::envelope::trapezoid(
+                                               0, 0.05f, 0.95f, 1)})),
+         text(std::to_string(index + 1)).styleClass("index").width(18),
+         each(walk.cells.size(),
+              [&](int step) { return tile(walk.cells[(size_t)step], walk.landed[(size_t)step]); }),
+         box().flexGrow(1),
+         text(walk.name).styleClass("name").opacity(holdFrom(walk.ends - 0.3f, 0, 1))});
+  }
+
+  Element doubleRule() const {
+    return box().column().gap(3).children(
+        {kit::line({.thickness = 1.4f, .fill = Fill::color(kRubric)}),
+         kit::line({.thickness = 0.6f, .fill = Fill::color(kRubric)})});
+  }
+
+  Element leaf() const {
+    return kit::at(1438, 104, 476, 1210).column().gap(14).children(
+        {box().column().gap(7).cache(Cache::Texture).key("leaf.head").children(
+             {document::h1(words.phrase("title")), document::lead(words.phrase("subtitle")),
+              text(words.phrase("provenance")).styleClass("note"), doubleRule(),
+              document::h2(words.phrase("namesHeading")),
+              text(words.phrase("rule")).styleClass("plain")}),
+         box().column().gap(9).children(
+             each(walks, [this](const Walk& walk, size_t index) { return walkRow(walk, index); })),
+         box().column().gap(9).flexGrow(1).cache(Cache::Texture).key("leaf.foot").children(
+             {text(words.phrase("consumed")).styleClass("note"), doubleRule(),
+              document::h2(words.phrase("anglesHeading")),
+              box().column().alignItems(Align::Center).children(
+                  each(angleRows,
+                       [](const std::vector<std::string>& row) {
+                         return box().row().children(each(row, [](const std::string& letter) {
+                           return text(letter)
+                               .styleClass("basket")
+                               .width(46)
+                               .paragraph({.alignment = weave::TextAlignment::kCenter});
+                         }));
+                       })),
+              text(words.phrase("archangels")).styleClass("note"),
+              text(words.phrase("crossNote")).styleClass("note"),
+              document::h2(words.phrase("ordersHeading")),
+              box().column().gap(3).children(each(
+                  words.run("orders"),
+                  [](const sketch::kit::Document::Line& line) {
+                    return text(line.words).styleClass("plain");
+                  })),
+              box().flexGrow(1), doubleRule(),
+              text(words.phrase("seal")).styleClass("quote"),
+              text(words.phrase("imprint")).styleClass("note")})});
   }
 
   // -------------------------------------------------------------------------
+
+  /** THE CASE, drawn once: dark cloth under a light from the upper left,
+   *  the cake's shadow on it, and the vellum leaf on its own shadow. */
+  Element ground() const {
+    const float left = 1392, top = 62, width = 568, height = 1296;
+    return box()
+        .inset(0)
+        .cache(Cache::Texture)
+        .key("ground")
+        .fill(material::from(material::radialGradient({0.22f, 0.12f}, 1.25f,
+                                                      {{0.0f, hexColor(0x2a241c)},
+                                                       {0.55f, hexColor(0x17140f)},
+                                                       {1.0f, kVitrine}}))
+                  .layer(material::noise(0.9f, {.octaves = 2, .seed = 7, .grain = true}),
+                         {.blend = material::BlendMode::SoftLight, .opacity = 0.18f}))
+        .children(
+            {kit::disc(kCentre + glm::vec2{14, 22}, kDisc + 6)
+                 .shape(shapes::circle())
+                 .fill(hexColor(0x000000, 0.72f))
+                 .filter(Filter::blur(22)),
+             kit::at(left + 12, top + 18, width, height)
+                 .fill(hexColor(0x000000, 0.6f))
+                 .filter(Filter::blur(16)),
+             kit::at(left, top, width, height)
+                 .fill(material::from(material::linearGradient(
+                                          {0.0f, 0.0f}, {1.0f, 1.0f},
+                                          {{0.0f, hexColor(0xf1e6cd)},
+                                           {0.6f, kVellum},
+                                           {1.0f, hexColor(0xd6c29c)}}))
+                           .layer(material::noise(0.012f, {.octaves = 4, .seed = 30}),
+                                  {.blend = material::BlendMode::SoftLight, .opacity = 0.35f})
+                           .layer(material::noise(0.6f, {.octaves = 2, .seed = 31, .grain = true}),
+                                  {.blend = material::BlendMode::SoftLight, .opacity = 0.2f}))
+                 .foreground(decorations::border(1.0f, Fill::color(hexColor(0x8a7450, 0.5f))))});
+  }
+
+  StyleSheet sheet() const {
+    const weave::Face hand = weave::ports::face({"Baskerville", "Hoefler Text"}, 600);
+    const weave::Face capitals = weave::ports::face({"Herculanum", "Optima", "Baskerville"});
+    const weave::Face italic = weave::ports::face(
+        {"Baskerville", "Hoefler Text"}, weave::FaceStyle{.slant = weave::FaceSlant::Italic});
+    const weave::Face book = sketch::kit::houseFace(sketch::kit::Voice::Book);
+    const weave::Face mono = sketch::kit::houseFace(sketch::kit::Voice::Terminal);
+    return StyleSheet{
+        // The carving: every letter is a cut, so each takes the cut's ink.
+        rule(".hand").font({.face = hand, .size = 29}),
+        rule(".numeral").font({.face = hand, .size = 15}),
+        rule(".angle").font({.face = hand, .size = 27}),
+        rule(".god").font({.face = capitals, .size = 25, .track = 9}),
+        rule(".point").font({.face = capitals, .size = 24, .track = 1}),
+        rule(".strand").font({.face = capitals, .size = 21, .track = 2}),
+        rule(".heptagon").font({.face = capitals, .size = 17, .track = 1}),
+        rule(".zabathiel").font({.face = capitals, .size = 24}),
+        rule(".initial").font({.face = capitals, .size = 22}),
+        rule(".tail").font({.face = hand, .size = 15}),
+        rule(".syllable").font({.face = capitals, .size = 15}),
+        // The leaf.
+        rule("h1").font({.face = capitals, .size = 36, .color = kInk, .track = 2.5f}),
+        rule("lead").font({.face = italic, .size = 18, .color = kInk}),
+        rule("h2").font({.face = italic, .size = 19, .color = kRubric}),
+        rule(".plain").font({.face = book, .size = 13.5f, .color = kInk}),
+        rule(".note").font({.face = italic, .size = 14, .color = kFaded}),
+        rule(".quote").font({.face = italic, .size = 16, .color = kInk}),
+        rule(".hand-pointing").font({.face = book, .size = 18, .color = kRubric}),
+        rule(".index").font({.face = italic, .size = 15, .color = kRubric}),
+        rule(".letter").font({.face = hand, .size = 26, .color = kInk}),
+        rule(".step").font({.face = book, .size = 12, .color = kRubric}),
+        rule(".cell").font({.face = mono, .size = 9.5f, .color = kFaded}),
+        rule(".name").font({.face = capitals, .size = 23, .color = kInk, .track = 0.5f}),
+        rule(".basket").font({.face = hand, .size = 23, .color = kInk})};
+  }
+
+  /** WHEN THE LAMP LANDS on each cell of each Name, one Name after another,
+   *  and how long the whole demonstration runs before it begins again. */
+  void schedule() {
+    float now = kLead;
+    for (Walk& walk : walks) {
+      walk.begins = now;
+      walk.landed = {now + kRise};
+      for (size_t step = 0; step + 1 < walk.cells.size(); ++step)
+        walk.landed.push_back(walk.landed.back() + kDwell +
+                              kStep * (float)std::abs(cellAt(walk.cells[step]).number));
+      walk.ends = walk.landed.back() + kHold;
+      now = walk.ends + kBetween;
+    }
+    loopLength = now + kRest;
+  }
 
   void setup(sketch::SketchContext& context) {
-    sketch::kit::stage(context, {.size = {kWidth, kHeight},
-                                 .captureAt = 0.05,
-                                 .background = kVitrine});
-
-    // One chain of faces per lettering system: the first installed wins.
-    const auto book = sketch::kit::houseFace(sketch::kit::Voice::Book);
-    const auto bookItalic = sketch::kit::houseFace(
-        sketch::kit::Voice::Book, 400, sigil::weave::FaceSlant::Italic);
-    seal = {.face = weave::ports::face({"Herculanum", "Optima", "Baskerville"}),
-            .size = 30,
-            .color = kEngraving};
-    rim = {.face = weave::ports::face({"Trattatello", "Hoefler Text", "Baskerville"},
-                                      sigil::weave::FaceStyle{.slant = sigil::weave::FaceSlant::Italic}),
-           .size = 37,
-           .color = kEngraving};
-    quill = {.face = bookItalic, .size = 30, .color = kEngraving, .track = 16};
-    italic = {.face = bookItalic};
-    display = {.face = weave::ports::face(
-                   {"Luminari", "Herculanum", "Optima", "Baskerville"})};
-    mono = {.face = sketch::kit::houseFace(sketch::kit::Voice::Terminal),
-            .size = 12.5f};
-    serif = {.face = book, .size = 13};
-
     rows(context, "ring.csv", [this](const auto& table) {
       const auto letter = table.template column<std::string>("letter");
       const auto number = table.template column<double>("number");
@@ -546,22 +769,18 @@ struct SigillumAemeth {
     });
     rows(context, "angles.csv", [this](const auto& table) {
       for (const std::string& row : table.template column<std::string>("letters"))
-        angleRows.push_back(row);
+        angleRows.push_back(characters(row));
     });
     rows(context, "god.csv", [this](const auto& table) {
-      const auto plate = table.template column<std::string>("plate");
-      const auto gloss = table.template column<std::string>("gloss");
-      for (size_t row = 0; row < plate.size(); ++row) {
-        godNames.push_back(plate[row]);
-        glosses.push_back(gloss[row]);
-      }
+      for (const std::string& name : table.template column<std::string>("plate"))
+        godNames.push_back(name);
     });
     rows(context, "children.csv", [this](const auto& table) {
       const auto name = table.template column<std::string>("order");
-      const auto radius = table.template column<double>("radius");
+      const auto band = table.template column<std::string>("band");
       const auto names = table.template column<std::string>("names");
       for (size_t row = 0; row < name.size(); ++row) {
-        Order order{name[row], (float)radius[row], {}};
+        Order order{name[row], band[row], {}};
         std::istringstream split(names[row]);
         for (std::string word; split >> word;) order.names.push_back(word);
         orders.push_back(std::move(order));
@@ -579,26 +798,92 @@ struct SigillumAemeth {
         const auto name = table.template column<std::string>("name");
         const auto start = table.template column<double>("start");
         for (size_t row = 0; row < name.size(); ++row) {
-          walked.push_back({name[row], walk((int)start[row])});
-          consumed.insert(walked.back().cells.begin(), walked.back().cells.end());
+          walks.push_back({.name = name[row], .cells = walk((int)start[row])});
+          consumed.insert(walks.back().cells.begin(), walks.back().cells.end());
         }
       });
+    if (angleRows.size() < 7 || godNames.size() < 7) return;
+    for (const auto& row : angleRows)
+      if (row.size() < 7) return;
+    schedule();
+
+    // Captured while the fifth Name is being walked: four gathered on the
+    // leaf, the lamp on the rim, the rest still dim.
+    sketch::kit::stage(context, {.size = {kWidth, kHeight},
+                                 .captureAt = walks.size() > 4 ? walks[4].landed[2] + 0.2f : 1.0,
+                                 .background = kVitrine});
 
     words = sketch::kit::Document(context, "data/content.json");
     words.figures({{"used", std::to_string(consumed.size())},
                    {"unvisited", std::to_string(40 - consumed.size())}});
 
-    context.composer.render(box().inset(0).children(
-        {kit::disc({50 + kWax, 50 + kWax}, kWax)
-             .ink(kEngraving)
-             .children({wax(), circumference(), angles(), heptagon(),
-                        heptagram(), children(), centre()}),
-         margin()}));
+    struct Relief {
+      glm::vec4 uWax{0.84f, 0.73f, 0.52f, 1};
+      glm::vec4 uGrime{0.24f, 0.17f, 0.10f, 1};
+      glm::vec4 uLight{-0.55f, -0.66f, 0.60f, 0};
+      glm::vec4 uLightColour{1.0f, 0.95f, 0.86f, 1};
+      glm::vec4 uCake{kDisc, kDisc, kDisc, 0};
+      float uDepth = 6.0f;
+      float uAmbient = 0.40f;
+      float uKey = 0.75f;
+      float uSheen = 0.16f;
+      float uFloor = 0.16f;
+      float uFace = 0.58f;
+      float uFalloff = 0.20f;
+    };
+    relief = material::shader(context.assets.hub(), context.local("data/relief.sksl"), Relief{},
+                              {.textures = {{"content", {}}}});
+    registers = sheet();
+    for (auto& level : rubricated) level = motion::animatable(0.0f);
+
+    context.composer.render(box().inset(0).applyStyleSheet(registers).children(
+        {ground(), carving(), rubrication(), lamp(), leaf()}));
+  }
+
+  void update(double elapsed, sketch::SketchContext&) {
+    if (walks.empty()) return;
+    const float now = std::fmod((float)elapsed, loopLength);
+    score = now;
+    // 0 before, 1 after, eased between.
+    const auto rise = [](float fraction) {
+      fraction = std::clamp(fraction, 0.0f, 1.0f);
+      return fraction * fraction * (3 - 2 * fraction);
+    };
+    // At the end of the demonstration everything goes dark together.
+    const float fading = 1 - rise((now - (loopLength - 0.8f)) / 0.8f);
+    std::array<float, 40> shown{};
+    lampLight = 0.0f;
+    for (const Walk& walk : walks) {
+      const bool walked = now >= walk.ends;
+      for (size_t step = 0; step < walk.cells.size(); ++step) {
+        float& level = shown[(size_t)walk.cells[step] - 1];
+        if (walked)
+          level = std::max(level, kConsumed + (1 - kConsumed) * (1 - rise((now - walk.ends) / 0.6f)));
+        else if (now >= walk.landed[step])
+          level = std::max(level, rise((now - walk.landed[step]) / 0.25f));
+      }
+      if (now < walk.begins || now >= walk.ends + kBetween) continue;
+      lampLight = rise((now - walk.begins) / kRise) * (1 - rise((now - walk.ends) / 0.4f));
+      // Where the lamp stands: on a letter while it rests there, and while
+      // it counts, stepping cell by cell toward the next.
+      float cell = (float)(walk.cells.front() - 1);
+      for (size_t step = 0; step + 1 < walk.cells.size(); ++step) {
+        const float departs = walk.landed[step] + kDwell;
+        if (now < departs) break;
+        const int number = cellAt(walk.cells[step]).number;
+        const float counted = std::min((now - departs) / kStep, (float)std::abs(number));
+        const float whole = std::floor(counted);
+        cell = (float)(walk.cells[step] - 1) +
+               std::copysign(whole + rise(counted - whole), (float)number);
+      }
+      lampTurn = 9.0f * cell;
+    }
+    for (size_t cell = 0; cell < 40; ++cell) rubricated[cell] = shown[cell] * fading;
   }
 };
 
 }  // namespace
 
 SIGIL_SKETCH(SigillumAemeth, "Study · Esoteric",
-             "Dee's Sigillum Dei Aemeth (1582) — solved from the "
-             "angels' own jump rule, 33 of 40 cells")
+             "Dee's Sigillum Dei Aemeth (1582) carved in pale wax — a lamp "
+             "walks the seven Names off the rim by the angels' own rule")

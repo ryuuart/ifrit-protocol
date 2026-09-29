@@ -1,0 +1,65 @@
+// THE WAX, LIT. The layer in `content` is a height field — grey is how
+// high the wax stands, black the floor of a cut — and every pixel is shaded
+// as the surface that height describes, under one light standing at
+// `uLight`. A cut therefore has a wall turned to the light and a wall in
+// its own shadow without either being drawn, and grime lies on its floor.
+// `uCake` is the cake's centre and radius in the layer's own pixels.
+
+float heightAt(float2 p) {
+    half4 texel = content.eval(p);
+    return texel.a > 0.004 ? float(texel.r / texel.a) : 0.0;
+}
+
+// The fall of the surface across @p reach pixels either side.
+float2 slopeAt(float2 p, float reach) {
+    float left = heightAt(p - float2(reach, 0));
+    float right = heightAt(p + float2(reach, 0));
+    float up = heightAt(p - float2(0, reach));
+    float down = heightAt(p + float2(0, reach));
+    return float2(right - left, down - up) / (2.0 * reach);
+}
+
+float hash(float2 cell) {
+    return fract(sin(dot(cell, float2(127.1, 311.7))) * 43758.5453);
+}
+
+// Soft blotches of paler and darker wax, where the cake cooled unevenly.
+float mottle(float2 p) {
+    float2 cell = floor(p);
+    float2 within = p - cell;
+    within = within * within * (3.0 - 2.0 * within);
+    float a = hash(cell), b = hash(cell + float2(1, 0));
+    float c = hash(cell + float2(0, 1)), d = hash(cell + float2(1, 1));
+    return mix(mix(a, b, within.x), mix(c, d, within.x), within.y);
+}
+
+half4 main(float2 p) {
+    half4 here = content.eval(p);
+    if (here.a < 0.004) return half4(0);
+    float height = here.r / here.a;
+
+    // A fine reading for the cuts and a broad one for the swell of the rim.
+    float2 slope = slopeAt(p, 1.0) * 0.65 + slopeAt(p, 3.5) * 0.35;
+    float3 normal = normalize(float3(-slope * uDepth, 1.0));
+    float3 light = normalize(uLight.xyz);
+    float lit = max(dot(normal, light), 0.0);
+
+    // How far down into a cut this point lies, 0 on the face.
+    float sunk = 1.0 - smoothstep(uFloor, uFace, height);
+    float blotch = mottle(p / 110.0) * 0.6 + mottle(p / 23.0) * 0.4;
+    float3 wax = uWax.rgb * (0.86 + 0.28 * blotch);
+    // Handled and dusty toward the edge of the cake, a little darker there.
+    wax *= 1.0 - 0.10 * smoothstep(0.75, 1.0, length((p - uCake.xy) / uCake.z));
+    float3 albedo = mix(wax, uGrime.rgb, sunk * 0.9);
+
+    // Old wax is dull: a broad, faint sheen on the face and none in a cut.
+    float3 halfway = normalize(light + float3(0, 0, 1));
+    float sheen = pow(max(dot(normal, halfway), 0.0), 16.0) * uSheen * (1.0 - sunk);
+
+    // The light falls off across the cake, away from where it stands.
+    float2 across = (p - uCake.xy) / uCake.z;
+    float pool = 1.0 + uFalloff * dot(across, normalize(uLight.xy));
+
+    float3 colour = albedo * (uAmbient + uKey * lit) * pool * uLightColour.rgb + sheen;
+    return half4(half3(clamp(colour, 0.0, 1.0)) * here.a, here.a);
+}
