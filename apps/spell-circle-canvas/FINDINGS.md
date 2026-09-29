@@ -324,13 +324,12 @@ within a small distance of the tool's colour, and none is lighter than it.
 
 The study rewrites of 2026-09-24 (minard_1869, penrose_paving,
 chaucer_astrolabe, dunhuang_star_chart, lain_navi, fallout2_charsheet,
-sigillum_aemeth, ds2_bench, ksp_mapview)
-state paper grain, stone, wax, brush ribbons and lettering as material
+ds2_bench, ksp_mapview)
+state paper grain, stone, brush ribbons and lettering as material
 paints and shapes in the tree with no `Cache::Texture` over them, so a
 plate whose picture does not move between frames is re-rasterised on
 each one. The headless sweep measured minard_1869 at 873 ms of paint per
-frame and sigillum_aemeth at 360 ms, against roughly 60 ms for the
-sketches they replaced; the 60 FPS gate fails all of them, and a sweep
+frame, against roughly 60 ms for the sketches they replaced; the 60 FPS gate fails all of them, and a sweep
 that renders a few hundred frames per sketch for its statistics takes
 minutes per study.
 
