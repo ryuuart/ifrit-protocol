@@ -61,6 +61,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
 #include <span>
 #include <string>
 #include <vector>
@@ -120,13 +121,21 @@ float widthLaw(float along) {
          0.55f * std::exp(-90.0f * press * press);
 }
 
-/** ONE WRITTEN STROKE: its centreline sampled evenly, the pressure the law
- *  puts on every sample, the brush that lays it and when it is written. */
+/** ONE WRITTEN PIECE: a run of a stroke's centreline sampled evenly, the
+ *  pressure the law puts on every sample, the brush that lays it, when it
+ *  is written and the rectangle its ink stays inside. */
 struct Written {
   draw::brush::Stroke line;
   draw::brush::Tool tool;
   float start = 0, end = 1;
+  float left = 0, top = 0, width = 0, height = 0;
 };
+
+/** The most samples one piece holds. A frame repaints only the pieces
+ *  being written, each from its own start, so a stroke is cut into pieces
+ *  short enough that the one in progress is cheap to lay again; a finished
+ *  piece is kept as pixels. */
+constexpr size_t kPieceSamples = 96;
 
 /** The centreline through @p points (x, y pairs), pressed by the width law
  *  times @p weight along its own length. */
@@ -172,7 +181,6 @@ draw::brush::Tool brush(float width, material::Color ink, float load) {
 struct ThunderFulu {
   sketch::kit::Document words;
   std::vector<Written> ink;
-  size_t completed = 0;
   std::vector<path::Polyline> sealGraphs;
   sigil::motion::Animatable<float> score = sigil::motion::animatable(0.0f);
   StyleSheet sheet;
@@ -180,12 +188,49 @@ struct ThunderFulu {
   Paint ironGrain;
   Pattern ironSpeck;
 
+  /** Adds @p line, written from @p start to @p end, as pieces of at most
+   *  kPieceSamples samples; each piece shares one sample with the next so
+   *  the ink runs on through the join, and is written over its own share
+   *  of the time. */
+  void lay(const draw::brush::Stroke& line, const draw::brush::Tool& tool,
+           float start, float end) {
+    const size_t count = line.size();
+    for (size_t first = 0; first + 1 < count; first += kPieceSamples) {
+      const size_t last = std::min(count, first + kPieceSamples + 1);
+      Written piece{.line = {line.begin() + (long)first,
+                             line.begin() + (long)last},
+                    .tool = tool,
+                    .start = start + (end - start) * (float)first / (float)count,
+                    .end = start + (end - start) * (float)last / (float)count};
+      float left = piece.line.front().position.fX, right = left;
+      float top = piece.line.front().position.fY, bottom = top;
+      float pressure = 0;
+      for (const draw::brush::Sample& sample : piece.line) {
+        left = std::min(left, sample.position.fX);
+        right = std::max(right, sample.position.fX);
+        top = std::min(top, sample.position.fY);
+        bottom = std::max(bottom, sample.position.fY);
+        pressure = std::max(pressure, sample.pressure);
+      }
+      // Half the widest hair bundle, and the round caps and antialiasing
+      // past it.
+      const float reach = tool.width * pressure * 0.5f + 4.0f;
+      piece.left = std::floor(left - reach);
+      piece.top = std::floor(top - reach);
+      piece.width = std::ceil(right + reach) - piece.left;
+      piece.height = std::ceil(bottom + reach) - piece.top;
+      ink.push_back(std::move(piece));
+    }
+  }
+
   /** Every stroke of data/strokes.json as the brush will lay it. The foot
-   *  is ONE stroke: its thirty-eight strokes chained by the light hops
-   *  between them, because the brush never leaves the plate there. */
+   *  is written without a lift: each of its thirty-eight strokes begins
+   *  with the light hop from where the one before it ended, because the
+   *  brush never leaves the plate there. */
   void write(const data::Json& strokes) {
     constexpr float kFootWidth = 5.9f;
-    Written foot{.tool = brush(kFootWidth, kCinnabarDry, 0.55f)};
+    const draw::brush::Tool footBrush = brush(kFootWidth, kCinnabarDry, 0.55f);
+    std::optional<SkPoint> footReached;
     for (const data::Json& stroke : strokes.array()) {
       const std::string part(stroke["part"].string());
       const float width = (float)stroke["width"].number();
@@ -193,58 +238,60 @@ struct ThunderFulu {
       const float end = (float)stroke["end"].number();
       if (part != "foot") {
         const material::Color loaded = part == "tap" ? kCinnabarWet : kCinnabar;
-        ink.push_back({pressed(stroke["points"], 1.0f),
-                       brush(width, loaded, 1.0f), start, end});
+        lay(pressed(stroke["points"], 1.0f), brush(width, loaded, 1.0f), start,
+            end);
         continue;
       }
-      draw::brush::Stroke next = pressed(stroke["points"], width / kFootWidth);
-      if (foot.line.empty()) {
-        foot.start = start;
-      } else {
-        const draw::brush::Stroke hop =
-            draw::brush::segment(foot.line.back().position,
-                                 next.front().position, 1.2f, 0.16f, 0.16f);
-        foot.line.insert(foot.line.end(), hop.begin(), hop.end());
+      draw::brush::Stroke line = pressed(stroke["points"], width / kFootWidth);
+      if (footReached) {
+        draw::brush::Stroke hop = draw::brush::segment(
+            *footReached, line.front().position, 1.2f, 0.16f, 0.16f);
+        hop.insert(hop.end(), line.begin(), line.end());
+        line = std::move(hop);
       }
-      foot.line.insert(foot.line.end(), next.begin(), next.end());
-      foot.end = end;
+      footReached = line.back().position;
+      lay(line, footBrush, start, end);
     }
-    ink.push_back(std::move(foot));
   }
 
-  /** Finished strokes keep their seeded marks in drawing order. The
-   *  end times follow that order, so the completed ink is one prefix,
-   *  changing only when a stroke ends or the score starts again. */
-  Element writtenInk() const {
-    return box().inset(0).cache(Cache::Texture).children(
-        each(completed, [this](size_t index) {
-          return pen("thunder_fulu.written." + std::to_string(index),
-                     [this, index](draw::Pen& pen) {
-                       pen.randomSeed(1220 + (unsigned)index);
-                       draw::brush::paint(pen, ink[index].tool, ink[index].line);
-                     }, Cache::Picture);
-        }));
+  /** One piece of the ink, laid once with the seed of its place in the
+   *  order and kept as pixels, shown from the moment it is written. */
+  Element piece(size_t index) const {
+    const Written& written = ink[index];
+    return kit::at(written.left, written.top, written.width, written.height)
+        .opacity(bind(score, {.from = {written.end, written.end + 0.001f},
+                              .clampFrom = true}))
+        .children({pen("thunder_fulu.piece." + std::to_string(index),
+                       [this, index](draw::Pen& pen) {
+                         const Written& written = ink[index];
+                         pen.translate(-written.left, -written.top);
+                         pen.randomSeed(1220 + (unsigned)index);
+                         draw::brush::paint(pen, written.tool, written.line);
+                       },
+                       Cache::Texture)});
   }
 
-  /** THE INK: each stroke laid as far along as the score has written it.
-   *  A stroke's randomness is seeded by its place in the order, so a
-   *  frame paints the hairs the frame before it did. */
+  /** THE INK: the finished pieces as they are kept, and over them the
+   *  pieces being written, each laid as far along as the score has
+   *  reached with the seed its finished pixels are laid with, so a piece
+   *  ends the frame before it is kept as the picture it is kept as. */
   Element brushwork() const {
-    return box().inset(0).children({slot("written-ink").cover(),
-        pen("thunder_fulu.ink", [this](draw::Pen& pen) {
-          const float now = score.value();
-          for (size_t index = completed; index < ink.size(); ++index) {
-            const Written& stroke = ink[index];
-            const float written =
-                std::clamp((now - stroke.start) / (stroke.end - stroke.start),
-                           0.0f, 1.0f);
-            const size_t count = (size_t)(written * (float)stroke.line.size());
-            if (count < 2) continue;
-            pen.randomSeed(1220 + (unsigned)index);
-            draw::brush::paint(pen, stroke.tool,
-                               std::span(stroke.line).first(count));
-          }
-        })});
+    return box().inset(0).children(
+        {box().inset(0).children(
+             each(ink.size(), [this](size_t index) { return piece(index); })),
+         pen("thunder_fulu.ink", [this](draw::Pen& pen) {
+           const float now = score.value();
+           for (size_t index = 0; index < ink.size(); ++index) {
+             const Written& stroke = ink[index];
+             if (now <= stroke.start || now >= stroke.end) continue;
+             const float written = (now - stroke.start) / (stroke.end - stroke.start);
+             const size_t count = (size_t)(written * (float)stroke.line.size());
+             if (count < 2) continue;
+             pen.randomSeed(1220 + (unsigned)index);
+             draw::brush::paint(pen, stroke.tool,
+                                std::span(stroke.line).first(count));
+           }
+         })});
   }
 
   /** HAMMERED IRON: a plate whose edge is what a hammer leaves rather than
@@ -312,6 +359,7 @@ struct ThunderFulu {
   Element seal() const {
     const auto pressedAt = sigil::motion::bind(score, {.from = {kSeal, kSeal + 0.45f}, .clampFrom = true});
     return kit::at(474, 786, 104, 104)
+        .cache(Cache::Texture)
         .rotate(-6.0f)
         .transformOrigin(pct(50), pct(50))
         .opacity(pressedAt)
@@ -329,19 +377,30 @@ struct ThunderFulu {
         }));
   }
 
+  /** The plate before it is written on: iron and its ruled registers,
+   *  kept as pixels and faded in whole. */
   Element plate() const {
     return kit::at(kPlateLeft, kPlateTop, kPlateWidth, kPlateHeight)
-        .opacity(sigil::motion::bind(score, {.from = {0.05f, 1.15f}, .clampFrom = true}))
-        .children({iron(), registers(), brushwork(), seal(),
-                   // The iron's grain again, faintly over the ink, so the
-                   // cinnabar reads as lying on the metal and not over it.
-                   box()
-                       .inset(0)
-                       .shape(shapes::chamfered(17.0f))
-                       .fill(sigil::material::skia::base(ironGrain))
-                       .opacity(0.085f)
-                       .blendMode(material::BlendMode::SoftLight)
-                       .cache(Cache::Texture)});
+        .children(
+            {box()
+                 .inset(0)
+                 .opacity(bind(score, {.from = {0.05f, 1.15f}, .clampFrom = true}))
+                 .children({iron(), registers()})
+                 .cache(Cache::Texture)
+                 .key("thunder_fulu.ground"),
+             brushwork(), seal(),
+             // The iron's grain again, faintly over the ink, so the
+             // cinnabar reads as lying on the metal and not over it. The
+             // grain is kept as pixels and only its blend is paid for.
+             box()
+                 .inset(0)
+                 .opacity(0.085f)
+                 .blendMode(material::BlendMode::SoftLight)
+                 .children({box()
+                                .inset(0)
+                                .shape(shapes::chamfered(17.0f))
+                                .fill(sigil::material::skia::base(ironGrain))
+                                .cache(Cache::Texture)})});
   }
 
   /** A section: its head over a gold rule with a dashed hairline under it,
@@ -613,13 +672,8 @@ struct ThunderFulu {
     context.composer.render(describe());
   }
 
-  void update(double elapsed, sketch::SketchContext& context) {
+  void update(double elapsed, sketch::SketchContext&) {
     score = (float)std::fmod(elapsed, (double)kLoop);
-    size_t written = 0;
-    while (written < ink.size() && ink[written].end <= score.value()) ++written;
-    if (written == completed) return;
-    completed = written;
-    context.composer.renderSlot("written-ink", writtenInk());
   }
 };
 
