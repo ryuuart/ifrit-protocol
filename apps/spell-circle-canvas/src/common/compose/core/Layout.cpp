@@ -570,26 +570,38 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
       inst.schemeSizedHeight = false;
       applied = true;
     }
+    // An axis nothing assigns — no stated extent, no inset pair, no grow,
+    // no stretch from a sized parent — measured its extent from the
+    // children this pass has just taken out of flow. The scheme sizes it
+    // in the SAME round: left to the next Yoga pass, the container
+    // collapses to nothing, and every child bounded by a percentage of it
+    // is measured at zero, which the next round places as its size.
+    //
+    // The extent is WRITTEN even where this pass measured the same number,
+    // because what measured it is about to leave the flow.
+    //
     // …and it keeps sizing an axis it once sized. WHICH IT REMEMBERS: the
     // point width in the style is not evidence, because the placement loop
     // above writes point widths on every child, so a scheme nested in a
     // scheme would read its parent's placement as its own and override it.
-    const bool sizesWidth = l.absolute ||
+    const bool sizesWidth = l.absolute || !constrainedAxis(inst, true) ||
                             YGNodeLayoutGetWidth(inst.yoga) <= 0.25f ||
                             inst.schemeSizedWidth;
-    const bool sizesHeight = l.absolute ||
+    const bool sizesHeight = l.absolute || !constrainedAxis(inst, false) ||
                              YGNodeLayoutGetHeight(inst.yoga) <= 0.25f ||
                              inst.schemeSizedHeight;
     if (!contentWidth && l.width.unit == Dimension::Unit::Auto &&
         !widthPinned && sizesWidth && extent.right() > 0 &&
-        std::abs(YGNodeLayoutGetWidth(inst.yoga) - extent.right()) > 0.25f) {
+        (!inst.schemeSizedWidth ||
+         std::abs(YGNodeLayoutGetWidth(inst.yoga) - extent.right()) > 0.25f)) {
       YGNodeStyleSetWidth(inst.yoga, extent.right());
       inst.schemeSizedWidth = true;
       applied = true;
     }
     if (!contentHeight && l.height.unit == Dimension::Unit::Auto &&
         !heightPinned && sizesHeight && extent.bottom() > 0 &&
-        std::abs(YGNodeLayoutGetHeight(inst.yoga) - extent.bottom()) > 0.25f) {
+        (!inst.schemeSizedHeight ||
+         std::abs(YGNodeLayoutGetHeight(inst.yoga) - extent.bottom()) > 0.25f)) {
       YGNodeStyleSetHeight(inst.yoga, extent.bottom());
       inst.schemeSizedHeight = true;
       applied = true;

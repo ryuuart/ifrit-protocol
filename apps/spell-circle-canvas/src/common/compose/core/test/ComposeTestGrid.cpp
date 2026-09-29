@@ -754,3 +754,50 @@ TEST(ComposeGrid, EqualModulesRespectSpansAndFlowIntoFreeCells) {
   EXPECT_NEAR(d->left(), 0, 0.01f);  // next free cell: (0, 1)
   EXPECT_NEAR(d->top(), 52, 0.01f);
 }
+
+TEST(ComposeGrid, AnImageLeafAsACellPaintsInsideTheCellItWasGiven) {
+  // An image leaf keeps its proportions by bounding itself at a percentage
+  // of the box it stands in. Every child of a grid leaves the flow once
+  // the grid places it, so a grid whose height its children gave it has
+  // no height of its own on the next pass unless it is sized from what it
+  // placed at once, and a percentage of nothing bounds the leaf to nothing.
+  SkBitmap solid;
+  solid.allocN32Pixels(16, 16);
+  solid.eraseColor(SK_ColorGREEN);
+  const auto picture = sigil::media::Image::of(solid.asImage());
+  const auto leaf = [&] {
+    return image(sigil::media::PixelSource(picture)).width(80).height(80);
+  };
+  const auto inside = [](Host& host, const SkRect& cell) {
+    return host.pixel((int)cell.centerX(), (int)cell.centerY());
+  };
+  // Two columns of 195 with a gap of 10: the picture in the first cell,
+  // a box in the second, and a picture alone on the second row.
+  const Grid grid{.columns = {layouts::fr(), layouts::fr()}, .gap = {10, 10}};
+  Host host(400, 400);
+  host.composer.render(box().column().children(
+      {layout(grid)
+           .key("grid")
+           .row()
+           .alignItems(Align::Start)
+           .children({leaf().key("picture")})
+           .children({box().key("box").width(80).height(80).fill(red())})
+           .children({box().key("cell").column().children(
+               {leaf().key("framed"),
+                box().key("label").width(80).height(20).fill(blue())})})}));
+  host.frame();
+  const SkRect cell = require(host.composer.bounds("picture"));
+  EXPECT_EQ(cell, SkRect::MakeXYWH(0, 0, 195, 80));
+  EXPECT_EQ(inside(host, cell), SK_ColorGREEN);
+  // The box beside it stands where it always did.
+  EXPECT_EQ(require(host.composer.bounds("box")),
+            SkRect::MakeXYWH(205, 0, 195, 80));
+  EXPECT_EQ(host.pixel(300, 40), SK_ColorRED);
+  // The same leaf in a column in a cell: the picture above, its label
+  // below it.
+  const SkRect framed = require(host.composer.bounds("framed"));
+  EXPECT_EQ(framed, SkRect::MakeXYWH(0, 90, 80, 80));
+  EXPECT_EQ(inside(host, framed), SK_ColorGREEN);
+  EXPECT_EQ(require(host.composer.bounds("label")).top(), 170);
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("grid")).height(), 190);
+}
