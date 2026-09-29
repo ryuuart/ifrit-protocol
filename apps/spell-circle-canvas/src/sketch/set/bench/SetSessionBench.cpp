@@ -68,4 +68,29 @@ void SetFrame(benchmark::State& state) {
 }
 BENCHMARK(SetFrame)->Unit(benchmark::kMicrosecond);
 
+/** THE RING THROUGH A PANE, magnified by the argument about its centre
+ *  and performed through passes, the way a window zoomed into a set
+ *  draws it: the pane is the declared canvas's size at every zoom, so
+ *  the work a frame does is meant to stay where it is at one while the
+ *  picture it is a piece of grows with the square of the zoom. */
+void SetFrameThroughPane(benchmark::State& state) {
+  const float zoom = (float)state.range(0);
+  useRuntime(world::Runtime::cpu());
+  std::unique_ptr<Session> session = kindOf<Ring>()->open(fonts(), assets());
+  useRuntime({});
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(480, 320));
+  SkCanvas canvas(bitmap);
+  canvas.translate(240.0f, 160.0f);
+  canvas.scale(zoom, zoom);
+  canvas.translate(-240.0f, -160.0f);
+  for (int i = 0; i < 8; ++i) session->frame(canvas, 1.0 / 60.0);
+  for (auto&& _ : state) session->frame(canvas, 1.0 / 60.0);
+}
+BENCHMARK(SetFrameThroughPane)
+    ->Arg(1)
+    ->Arg(2)
+    ->Arg(4)
+    ->Unit(benchmark::kMicrosecond);
+
 }  // namespace

@@ -29,7 +29,14 @@ void draw(Scene& scene, SkCanvas& canvas,
   if (!impl.frame.passes().empty()) {
     if (impl.plan.present().empty()) return;
     const sk_sp<SkImage> picture = impl.targets.image(impl.plan.present());
-    if (picture) canvas.drawImage(picture, 0, 0);
+    // A frame formed over a PART of its picture lands where that part
+    // stands in it, so the canvas is addressed in the whole picture's
+    // pixels either way.
+    const ViewOffset& offset = impl.frame.viewOffset();
+    const glm::ivec2 corner = isPart(offset, impl.frame.extent())
+                                  ? offset.origin
+                                  : glm::ivec2{0, 0};
+    if (picture) canvas.drawImage(picture, (float)corner.x, (float)corner.y);
     return;
   }
 
@@ -40,8 +47,13 @@ void draw(Scene& scene, SkCanvas& canvas,
   // reading the projection off the surface instead would magnify the
   // scene by that fit and carry most of it off its own edge. A frame
   // that declared no extent has said nothing, and the surface is then
-  // the only size there is.
-  const glm::ivec2 declared = impl.frame.extent();
+  // the only size there is. A frame with no passes forms no targets, so
+  // a part of a picture is nothing to it: it is drawn over the whole one
+  // and the canvas's clip leaves what the part would have.
+  const glm::ivec2 declared =
+      isPart(impl.frame.viewOffset(), impl.frame.extent())
+          ? impl.frame.viewOffset().whole
+          : impl.frame.extent();
   const SkISize layer = declared.x <= 0 || declared.y <= 0
                             ? canvas.getBaseLayerSize()
                             : toSk(declared);

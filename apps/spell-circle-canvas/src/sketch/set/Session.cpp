@@ -54,6 +54,38 @@ float pixelScale(const SkCanvas& canvas) {
   return std::isfinite(scale) && scale > 0.0f ? scale : 1.0f;
 }
 
+/** WHERE A FRAME IS FORMED for one canvas: the whole declared canvas in
+ *  the pixels that canvas has for it, and the part of that picture the
+ *  canvas's clip leaves — the only part of it that can be seen. */
+struct Window {
+  SkISize whole{1, 1};
+  SkIRect part = SkIRect::MakeWH(1, 1);
+
+  /** Whether the part is less than the whole picture. */
+  [[nodiscard]] bool partial() const {
+    return part != SkIRect::MakeSize(whole);
+  }
+  /** Whether a frame formed over this window already holds every pixel
+   *  @p wanted asks for. */
+  [[nodiscard]] bool covers(const Window& wanted) const {
+    return whole == wanted.whole && part.contains(wanted.part);
+  }
+};
+
+/** @p frame without the readbacks it asked for: what forming a frame a
+ *  second time over another part of the same picture runs, since a
+ *  readback is owed once per frame described and not once per forming. */
+world::Frame formedAgain(const world::Frame& frame) {
+  world::Frame again(frame.scene());
+  again.extent(frame.extent())
+      .viewOffset(frame.viewOffset())
+      .camera(frame.camera())
+      .runtime(frame.runtime());
+  for (const world::Pass& pass : frame.passes()) again.pass(pass);
+  if (!frame.present().empty()) again.present(frame.present());
+  return again;
+}
+
 /** A set about the SCENE, made into one a runtime can perform: one
  *  geometry pass clearing to the declared background and painting every
  *  body. A set that already declares passes is left alone — an executor
@@ -82,8 +114,9 @@ class SetSession final : public Session {
                    &m_camera, &m_scenes, deterministic};
     m_set->setup(ctx);
     m_declared = m_camera;
-    m_extent = {(int)m_specification.size.width(),
-                (int)m_specification.size.height()};
+    m_window.whole = {(int)m_specification.size.width(),
+                      (int)m_specification.size.height()};
+    m_window.part = SkIRect::MakeSize(m_window.whole);
   }
 
   [[nodiscard]] const CanvasSpecification& canvas() const override {
@@ -107,11 +140,13 @@ class SetSession final : public Session {
     io::advance(m_assets.hub(), std::chrono::duration<double>(seconds));
     world::Frame frame = m_set->describe((float)seconds);
     // The plate's size and its viewpoint are the host's to state: a set
-    // says what it is of, not where it lands. The size is the declared
+    // says what it is of, not where it lands. The picture is the declared
     // canvas in the pixels this canvas actually has, so the frame is
-    // formed at the resolution it will be seen at.
-    m_extent = extentOn(canvas);
-    frame.extent(glm::ivec2(m_extent.width(), m_extent.height())).camera(viewing());
+    // formed at the resolution it will be seen at, and only over the part
+    // of it this canvas's clip leaves.
+    m_window = windowOn(canvas);
+    frame.camera(viewing());
+    over(frame, m_window);
     if (m_orbiting) {
       // A TREE'S OWN LENS WINS over the frame's, which is what lets a
       // set put its camera on a rail and be photographed from it. A host
@@ -126,6 +161,15 @@ class SetSession final : public Session {
       throughPasses(frame, m_specification.background);
     }
     m_scene.render(frame);
+    // A frame formed over a part of its picture is kept, so a repaint
+    // onto a canvas that shows more of the picture can form what the
+    // part left out without describing the moment again. A frame with
+    // no passes forms no targets and is drawn over the whole picture
+    // whatever the part, so there is nothing of it to form again.
+    if (m_window.partial() && !frame.passes().empty())
+      m_standing = std::move(frame);
+    else
+      m_standing.reset();
     // WHAT THE SET ITSELF DECLARED, read back after the describe that
     // said it, so a host asking where the sketch stands is told the
     // set's own answer and not the fallback the host handed in. It is
@@ -153,14 +197,14 @@ class SetSession final : public Session {
                LaneCost{"passes", (double)stats.passes}};
   }
 
-  void repaint(SkCanvas& canvas) override { paint(canvas); }
+  void repaint(SkCanvas& canvas) override { present(canvas); }
 
   /** The plate IS the frame just finished, put on the canvas the host
    *  sized. A set is formed at ONE resolution and this call describes
    *  nothing, so there is nothing here to form again larger: a bigger
    *  canvas magnifies the frame that stands rather than sharpening it,
    *  which is why a set asks for no oversample. */
-  void still(SkCanvas& canvas) override { paint(canvas); }
+  void still(SkCanvas& canvas) override { present(canvas); }
 
   [[nodiscard]] Timing timing() const override { return m_timing; }
 
@@ -210,28 +254,108 @@ class SetSession final : public Session {
     return m_orbiting ? m_orbit : m_declared;
   }
 
-  /** The declared canvas in the pixels @p canvas has for it. */
-  [[nodiscard]] SkISize extentOn(const SkCanvas& canvas) const {
+  /** The declared canvas in the pixels @p canvas has for it, and the
+   *  part of that picture @p canvas's clip leaves.
+   *
+   *  THE PART IS NEVER LARGER THAN THE CLIP, whatever the scale: a host
+   *  showing a magnified piece of the canvas through a pane forms the
+   *  pane's pixels, not the whole canvas's at the magnification. It is
+   *  the clip's device bounds carried back through the canvas's matrix
+   *  and rounded out to the picture's pixels, so a clip whose edge falls
+   *  inside one of them takes the whole of that pixel.
+   *  A canvas whose clip is the whole picture, as a plate's is, forms
+   *  the whole picture exactly as a frame with no part does. */
+  [[nodiscard]] Window windowOn(const SkCanvas& canvas) const {
     const float scale = pixelScale(canvas);
-    return {
-        std::max(1, (int)std::lround(m_specification.size.width() * scale)),
-        std::max(1, (int)std::lround(m_specification.size.height() * scale))};
+    const SkSize size = m_specification.size;
+    Window window;
+    window.whole = {std::max(1, (int)std::lround(size.width() * scale)),
+                    std::max(1, (int)std::lround(size.height() * scale))};
+    const SkIRect all = SkIRect::MakeSize(window.whole);
+    window.part = all;
+    SkMatrix toCanvas;
+    if (!canvas.getTotalMatrix().invert(&toCanvas)) return window;
+    const SkIRect device = canvas.getDeviceClipBounds();
+    if (device.isEmpty()) {
+      // Nothing can be seen through an empty clip, so the least there is
+      // to form is formed.
+      window.part = SkIRect::MakeWH(1, 1);
+      return window;
+    }
+    const SkRect clip = toCanvas.mapRect(SkRect::Make(device));
+    const float across = (float)window.whole.width() / size.width();
+    const float down = (float)window.whole.height() / size.height();
+    // A clip edge the matrix carries onto a pixel boundary lands a
+    // rounding error either side of it, and is read as on it.
+    constexpr float kOnTheEdge = 1.0f / 256.0f;
+    const SkRect pixels = SkRect::MakeLTRB(
+        clip.left() * across + kOnTheEdge, clip.top() * down + kOnTheEdge,
+        clip.right() * across - kOnTheEdge, clip.bottom() * down - kOnTheEdge);
+    if (!pixels.isFinite()) return window;
+    SkIRect part = pixels.roundOut();
+    if (!part.intersect(all)) {
+      window.part = SkIRect::MakeWH(1, 1);
+      return window;
+    }
+    // A part within a pixel of an edge of the picture is taken to that
+    // edge: a canvas whose pixels are a rounding short of the picture —
+    // a plate at a fractional density — is still shown the whole of it,
+    // and forms it through the same projection a frame with no part has.
+    if (part.left() <= 1) part.fLeft = 0;
+    if (part.top() <= 1) part.fTop = 0;
+    if (part.right() >= all.right() - 1) part.fRight = all.right();
+    if (part.bottom() >= all.bottom() - 1) part.fBottom = all.bottom();
+    window.part = part;
+    return window;
+  }
+
+  /** @p frame made to form @p window: its targets the part's size, and —
+   *  where the part is less than the picture — standing at the part's
+   *  corner of it. */
+  static void over(world::Frame& frame, const Window& window) {
+    frame.extent(glm::ivec2(window.part.width(), window.part.height()));
+    frame.viewOffset(
+        window.partial()
+            ? world::ViewOffset{{window.whole.width(), window.whole.height()},
+                                {window.part.left(), window.part.top()}}
+            : world::ViewOffset{});
+  }
+
+  /** The frame standing, onto a canvas that did not step it. Where the
+   *  standing frame was formed over a part of its picture and @p canvas
+   *  shows pixels the part left out, the same description is formed
+   *  again over what @p canvas shows — the moment is not stepped, and the
+   *  part it leaves out is the picture's and not the ground's. */
+  void present(SkCanvas& canvas) {
+    if (m_standing) {
+      const Window wanted = windowOn(canvas);
+      if (!m_window.covers(wanted)) {
+        world::Frame again = formedAgain(*m_standing);
+        over(again, wanted);
+        m_scene.render(again);
+        m_window = wanted;
+        if (!wanted.partial()) m_standing.reset();
+      }
+    }
+    paint(canvas);
   }
 
   void paint(SkCanvas& canvas) {
     canvas.clear(
         material::skia::toSkColor(m_specification.background).toSkColor());
     // The picture arrives as many pixels across as the frame STANDING
-    // was formed at — as a presented resource, or as bodies projected
-    // into that extent — and is put back on the declared canvas here.
+    // was formed at — as a presented resource standing where its part of
+    // the picture does, or as bodies projected into the whole picture —
+    // and is put back on the declared canvas here.
     // It is read off the frame rather than off this canvas because a
     // repaint may arrive on a canvas fitted differently from the one the
     // frame was formed for, and the picture that exists is the one that
     // has to land. On a canvas at the declared size it is the identity
     // and the bytes are the plate's.
     SkAutoCanvasRestore restore(&canvas, true);
-    canvas.scale(m_specification.size.width() / (float)m_extent.width(),
-                 m_specification.size.height() / (float)m_extent.height());
+    canvas.scale(
+        m_specification.size.width() / (float)m_window.whole.width(),
+        m_specification.size.height() / (float)m_window.whole.height());
     world::draw(m_scene, canvas, viewing());
   }
 
@@ -258,7 +382,12 @@ class SetSession final : public Session {
   geometry::mesh::camera::Camera m_declared;
   geometry::mesh::camera::Camera m_orbit;
   bool m_orbiting = false;
-  SkISize m_extent{1, 1};  // the pixels the frame standing was formed at
+  /** The picture the frame standing was formed for, and the part of it
+   *  that was formed. */
+  Window m_window;
+  /** The description standing, kept only while it was formed over a part
+   *  of its picture — the one case a repaint may have to form more of. */
+  std::optional<world::Frame> m_standing;
   Timing m_timing;
   // Reset per frame rather than built per frame, so the laps a frame
   // lays cost no allocation inside the span they are timing.

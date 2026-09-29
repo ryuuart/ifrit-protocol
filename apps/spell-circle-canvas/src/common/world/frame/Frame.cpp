@@ -22,6 +22,11 @@ Frame& Frame::extent(glm::ivec2 size) {
   return *this;
 }
 
+Frame& Frame::viewOffset(ViewOffset offset) {
+  m_viewOffset = offset;
+  return *this;
+}
+
 Frame& Frame::camera(geometry::mesh::camera::Camera c) {
   m_camera = c;
   return *this;

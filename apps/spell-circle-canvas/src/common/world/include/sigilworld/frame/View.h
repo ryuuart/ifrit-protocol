@@ -113,6 +113,35 @@ void dress(::sigil::geometry::mesh::render::MeshStyle& style, const Draw& body);
 ::sigil::geometry::mesh::render::Environment paintedEnvironment(
     const Environment& environment, const glm::mat3& orientation);
 
+/** WHERE A FRAME'S TARGETS STAND IN A LARGER PICTURE: one `whole` pixels
+ *  across, of which the targets are the part whose top-left corner is at
+ *  `origin`, counted down and across the picture as its rows run. The
+ *  projection stays the whole picture's and is carried off-centre onto
+ *  the part, so a pixel of the targets is the pixel the whole picture
+ *  holds there and nothing outside the part is formed at all — which is
+ *  how a host showing a magnified piece of a set pays for the piece.
+ *
+ *  A zero `whole` says the targets ARE the picture, and so does one
+ *  equal to the targets' size at the origin; either leaves every
+ *  projection exactly the one a frame without an offset has. */
+struct ViewOffset {
+  glm::ivec2 whole{0, 0};
+  glm::ivec2 origin{0, 0};
+
+  /** Value equality: the picture's size and the part's corner. */
+  bool operator==(const ViewOffset&) const = default;
+};
+
+/** Whether @p offset makes the targets, @p extent pixels across, a part
+ *  of a larger picture rather than the picture itself. */
+[[nodiscard]] bool isPart(const ViewOffset& offset, glm::ivec2 extent);
+
+/** THE CLIP-SPACE CROP that carries the whole picture @p offset names
+ *  onto targets @p extent pixels across: a scale and a shift of x and y
+ *  applied after a projection, leaving depth where it was. The identity
+ *  where the targets are the whole picture. */
+[[nodiscard]] glm::mat4 cropOf(const ViewOffset& offset, glm::ivec2 extent);
+
 /** WHAT ONE FRAME EXTRACTED, handed to every pass that runs over it.
  *  The bodies arrive sorted back to front by view depth, stably, so two
  *  at one depth stand in tree order — the order a rasteriser with no
@@ -129,8 +158,23 @@ struct View {
   Environment environment;
   glm::mat3 orientation{1.0f};
   geometry::mesh::camera::Camera camera;
+  /** The size the frame's targets are made at. */
   glm::ivec2 extent{0, 0};
+  /** Where the targets stand in the picture the camera frames; the
+   *  targets are the whole of it unless this says otherwise. */
+  ViewOffset offset;
 };
+
+/** The size of the picture @p view's camera frames, in pixels: the
+ *  offset's whole where the targets are a part of it, the targets'
+ *  extent where they are all of it. The aspect every projection is
+ *  formed at is this one's. */
+[[nodiscard]] glm::ivec2 wholeOf(const View& view);
+
+/** The camera's clip transform onto @p view's targets — the one
+ *  `Camera::clipProjection` gives for the whole picture, cropped onto the
+ *  part the targets are. A device draws with this. */
+[[nodiscard]] glm::mat4 clipProjection(const View& view);
 
 /** @p draw as a Selector reads it. */
 Subject subjectOf(const Draw& draw);

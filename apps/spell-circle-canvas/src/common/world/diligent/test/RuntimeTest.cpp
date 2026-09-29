@@ -587,6 +587,35 @@ TEST_P(EitherTier, AVariantReDrawStandsUnderThePassesLights) {
   EXPECT_LT(luma(shaded), luma(sunlit) - 0.1f);
 }
 
+TEST_P(EitherTier, APartOfThePictureIsThatPartOfTheWhole) {
+  // A frame whose targets are a part of a larger picture is formed
+  // through the whole picture's projection carried off-centre, so each
+  // pixel of the part is the pixel the whole picture holds there — and
+  // the draw puts the part where it stands in the whole.
+  constexpr glm::ivec2 kWhole{kExtent.x * 4, kExtent.y * 4};
+  constexpr glm::ivec2 kCorner{280, 150};
+  Frame whole = lit();
+  whole.extent(kWhole);
+  Frame part = lit();
+  part.viewOffset({kWhole, kCorner});
+  const SkBitmap all =
+      diligent::photograph(whole, runtime, kWhole, diligent::raisedEye());
+  const SkBitmap piece =
+      diligent::photograph(part, runtime, kWhole, diligent::raisedEye());
+
+  const SkIRect region =
+      SkIRect::MakeXYWH(kCorner.x, kCorner.y, kExtent.x, kExtent.y);
+  // The part looks at the body, so a part that drew nothing would not
+  // pass for the wrong reason.
+  EXPECT_NE(piece.getColor(kWhole.x / 2, kWhole.y / 2), SK_ColorBLACK);
+  EXPECT_LE(diligent::pixelsApart(all, piece, region, 2),
+            kExtent.x * kExtent.y / 500);
+  // Nothing outside the part was formed, so nothing outside it lands:
+  // the ground there is the canvas's own, where the whole picture shows
+  // the plate the body stands on.
+  EXPECT_EQ(piece.getColor(kCorner.x - 4, kWhole.y / 2), SK_ColorBLACK);
+}
+
 INSTANTIATE_TEST_SUITE_P(Tiers, EitherTier,
                          testing::Values(Tier::Host, Tier::Device), tierName);
 

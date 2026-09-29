@@ -1096,32 +1096,3 @@ text, assert that both edge treatments follow the glyph boundary, and assert
 reuse of stationary edge coverage across light-only updates. The machined
 film-title sketch uses retained vector contours; that avoids this text case
 without establishing that the underlying coverage issue is fixed.
-
-## A set in the window is formed over its whole canvas at the view's scale, so its frame grows with the square of the zoom
-
-The window draws a sketch through a pane-sized texture and clips it to the
-pane, so a canvas sketch at 4× costs what the pane costs. A set does not:
-the set session in `src/sketch/set/Session.cpp` forms each frame at
-`extentOn(canvas)` — the declared canvas size times
-`canvas.getTotalMatrix().getMaxScale()` — and the device frame at that
-extent is read back and drawn onto the pane, whatever part of it the pane
-shows. `world_hud` (900x640) in a 1728x1080 window at a device pixel ratio
-of 2 draws at 80–88 fps with 11 ms of frame work at fit (view scale 2.4,
-2160x1536 formed), 30 fps with 30 ms held at 3× (view 7.2, 6480x4608
-formed) and 14 fps with 65–70 ms held at 4× (view 9.6, 8640x6144 formed).
-The pane's deepest zoom for that canvas allows about 16384 pixels across.
-
-It is evidently meant to cost what the pane costs at any zoom, as
-`src/sketch/RUNNING.md` states for the window ("a frame at 4× fills the
-pane's pixels and not sixteen times them"): the frame formed over the part
-of the canvas the canvas's clip leaves, at the view's density, and placed
-there, while a plate — whose clip is the whole canvas — forms exactly what
-it forms now.
-
-A test should draw a set session onto a canvas scaled 4× and clipped to a
-quarter of the canvas's width and height and assert that the extent the
-frame is formed at is the clipped region's pixels, not the whole canvas
-times the scale; and that the same session on an unclipped canvas at the
-declared size forms the declared size, byte for byte as today. A bench arm
-in the set's bench should frame `world_hud` at view scales 1, 2 and 4
-through a pane-sized clip and record that the work stays flat.

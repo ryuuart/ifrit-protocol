@@ -155,7 +155,9 @@ class Scene;
  *  @p camera, on @p runtime. A frame that declared passes has already run
  *  them, and this presents the resource they wrote — the camera and the
  *  runtime are the ones the passes already used, and these arguments do
- *  not enter into it. */
+ *  not enter into it. The canvas is addressed in the pixels of the whole
+ *  picture the frame's camera framed, so a frame formed over a part of it
+ *  (`Frame::viewOffset`) lands where that part stands. */
 void draw(Scene& scene, SkCanvas& canvas,
           const geometry::mesh::camera::Camera& camera,
           const geometry::mesh::render::Runtime& runtime =

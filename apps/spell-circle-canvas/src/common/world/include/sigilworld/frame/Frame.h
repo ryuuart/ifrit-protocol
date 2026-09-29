@@ -86,6 +86,12 @@ class Frame {
   /** The size the frame's targets are made at. A frame declaring passes
    *  needs one. */
   Frame& extent(glm::ivec2 size);
+  /** WHERE THE TARGETS STAND IN A LARGER PICTURE: they are the part of
+   *  a picture `offset.whole` pixels across whose top-left corner is at
+   *  `offset.origin`, so the extent is the part's size and every projection is the whole
+   *  picture's, carried off-centre onto it. Unset, the targets are the
+   *  picture. */
+  Frame& viewOffset(ViewOffset offset);
   /** The viewpoint, for a tree that declares none of its own. */
   Frame& camera(geometry::mesh::camera::Camera c);
   /** Adds a pass. The order passes are added in is not the order they
@@ -103,6 +109,8 @@ class Frame {
   [[nodiscard]] const Element& scene() const { return m_scene; }
   /** The size the targets are made at; zero when none was declared. */
   [[nodiscard]] glm::ivec2 extent() const { return m_extent; }
+  /** Where the targets stand in the picture the camera frames. */
+  [[nodiscard]] const ViewOffset& viewOffset() const { return m_viewOffset; }
   /** The frame's own viewpoint, used where the tree declares none. */
   [[nodiscard]] const geometry::mesh::camera::Camera& camera() const {
     return m_camera;
@@ -122,6 +130,7 @@ class Frame {
  private:
   Element m_scene;
   glm::ivec2 m_extent{0, 0};
+  ViewOffset m_viewOffset;
   geometry::mesh::camera::Camera m_camera;
   std::vector<Pass> m_passes;
   std::vector<Readback> m_readbacks;

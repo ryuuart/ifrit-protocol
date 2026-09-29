@@ -115,6 +115,7 @@ bool Scene::Impl::phaseGraph() {
   view.orientation = environmentOrientation;
   view.camera = viewpoint();
   view.extent = frame.extent();
+  view.offset = frame.viewOffset();
 
   stats.barriers = (int64_t)plan.barriers().size();
   stats.aliased = plan.aliased();

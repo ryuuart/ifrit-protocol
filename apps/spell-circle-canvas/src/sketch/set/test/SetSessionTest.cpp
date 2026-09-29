@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <glm/geometric.hpp>
 #include <memory>
@@ -296,6 +297,158 @@ TEST(SetDoors, PaintsATextureSceneOntoABody) {
   EXPECT_GT(SkColorGetG(centre), 200u);
   EXPECT_LT(SkColorGetR(centre), 40u);
   EXPECT_LT(SkColorGetB(centre), 40u);
+}
+
+/** A body on a turntable, performed through a pass the set declares
+ *  itself and asked back, so a case can read how many pixels the frame
+ *  was formed at — which is what a host zooming into a piece of it pays
+ *  for. */
+struct Measured {
+  static inline glm::ivec2 formed{0, 0};
+  void setup(SetContext& ctx) {
+    ctx.canvas(160, 120);
+    ctx.background({0.05f, 0.05f, 0.08f, 1});
+    sigil::geometry::mesh::camera::Camera lens;
+    lens.eye = {0, 90, 260};
+    lens.target = {0, 0, 0};
+    ctx.camera(lens);
+  }
+  world::Frame describe(float seconds) {
+    // A rounded box large enough to fill the pane the zoomed cases look
+    // through, turning, so its shading moves across every pixel of it.
+    world::Frame frame(world::Element().key("set").children(
+        {world::Element().key("sun").light(
+             world::light::sun({-0.4f, -0.8f, -0.3f}, {1, 1, 1, 1}, 1.0f)),
+         world::Element()
+             .key("body")
+             .rotateY(seconds * 90.0f)
+             .mesh(gm::superellipsoid({60, 60, 60}, 2.0f, 24, 16))
+             .fill(sigil::material::surface::program())}));
+    frame.pass(world::geometryPass("colour").writes("colour").clear(
+                   sigil::material::Color{0.05f, 0.05f, 0.08f, 1}))
+        .readback(world::readback("colour").then(
+            [](const world::Readback::Result& result) {
+              formed = result.image.size();
+            }));
+    return frame;
+  }
+};
+
+/** How far into the canvas the pane of the zoomed cases looks, in the
+ *  pixels of the canvas at four times its declared size: a quarter of
+ *  its width and height, off-centre so a part placed at the centre of
+ *  the picture would be caught out. */
+constexpr int kPaneLeft = 240;
+constexpr int kPaneTop = 180;
+constexpr float kZoom = 4.0f;
+
+/** @p frames of @p session onto a pane the declared canvas's size,
+ *  looking at the canvas magnified four times — what a window zoomed to
+ *  4x hands a sketch: a canvas scaled up and clipped to the pane. */
+SkBitmap throughThePane(Session& session, int frames) {
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(160, 120));
+  SkCanvas canvas(bitmap);
+  canvas.translate(-(float)kPaneLeft, -(float)kPaneTop);
+  canvas.scale(kZoom, kZoom);
+  for (int f = 0; f < frames; ++f) session.frame(canvas, 1.0 / 60.0);
+  return bitmap;
+}
+
+TEST(SetWindow, AZoomedPaneFormsOnlyThePanesPixels) {
+  // A set is formed at the resolution it is seen at, so at 4x the
+  // whole canvas would be 640x480 — sixteen times the pane. What is
+  // formed is the part the pane shows, and no larger than the pane.
+  Measured::formed = {0, 0};
+  std::unique_ptr<Session> session =
+      kindOf<Measured>()->open(fonts(), assets());
+  // Two frames: a readback is handed over the frame after it was made.
+  throughThePane(*session, 2);
+  EXPECT_EQ(Measured::formed, glm::ivec2(160, 120));
+}
+
+TEST(SetWindow, APaneShowsWhatTheWholeCanvasShowsThere) {
+  // The part is the whole picture's projection carried off-centre, so
+  // each pixel of it is the pixel the whole canvas at 4x holds there.
+  // The two projections are the same numbers composed differently, so a
+  // pixel may land a rounding apart on an edge: a channel may move by a
+  // level or two, and a pixel whose centre stands on a triangle's edge
+  // may fall to the other side of it — never more than a sliver of the
+  // pane.
+  std::unique_ptr<Session> zoomed = kindOf<Measured>()->open(fonts(), assets());
+  const SkBitmap pane = throughThePane(*zoomed, 30);
+
+  std::unique_ptr<Session> whole = kindOf<Measured>()->open(fonts(), assets());
+  SkBitmap canvasPixels;
+  canvasPixels.allocPixels(SkImageInfo::MakeN32Premul(640, 480));
+  SkCanvas canvas(canvasPixels);
+  canvas.scale(kZoom, kZoom);
+  for (int f = 0; f < 30; ++f) whole->frame(canvas, 1.0 / 60.0);
+
+  int apart = 0;
+  int drawn = 0;
+  // The whole canvas's corner is the ground; the pane looks at the box.
+  const SkColor ground = canvasPixels.getColor(0, 0);
+  for (int y = 0; y < pane.height(); ++y)
+    for (int x = 0; x < pane.width(); ++x) {
+      const SkColor here = pane.getColor(x, y);
+      const SkColor there = canvasPixels.getColor(x + kPaneLeft, y + kPaneTop);
+      if (here != ground) ++drawn;
+      const int difference = std::max(
+          {std::abs((int)SkColorGetR(here) - (int)SkColorGetR(there)),
+           std::abs((int)SkColorGetG(here) - (int)SkColorGetG(there)),
+           std::abs((int)SkColorGetB(here) - (int)SkColorGetB(there))});
+      if (difference > 2) ++apart;
+    }
+  // The pane looks at the box, so a pane showing only the ground would
+  // pass the comparison for the wrong reason.
+  EXPECT_GT(drawn, pane.width() * pane.height() / 4);
+  EXPECT_LE(apart, pane.width() * pane.height() / 500)
+      << apart << " pixels differ by more than two levels";
+}
+
+TEST(SetWindow, AWholeCanvasClipFormsTheWholeCanvas) {
+  // A plate's clip is the whole canvas, and what it forms is the
+  // declared canvas in the plate's pixels — the frame a set with no
+  // part in it forms, unmoved.
+  Measured::formed = {0, 0};
+  std::unique_ptr<Session> declared =
+      kindOf<Measured>()->open(fonts(), assets());
+  oneFrame(*declared);
+  oneFrame(*declared);
+  EXPECT_EQ(Measured::formed, glm::ivec2(160, 120));
+
+  Measured::formed = {0, 0};
+  std::unique_ptr<Session> fitted = kindOf<Measured>()->open(fonts(), assets());
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(640, 480));
+  SkCanvas canvas(bitmap);
+  canvas.scale(kZoom, kZoom);
+  fitted->frame(canvas, 1.0 / 60.0);
+  fitted->frame(canvas, 1.0 / 60.0);
+  EXPECT_EQ(Measured::formed, glm::ivec2(640, 480));
+}
+
+TEST(SetWindow, AStillAfterAZoomedFrameShowsTheWholePicture) {
+  // A still describes nothing and shows the frame standing; a frame
+  // standing that was formed over a pane's part of the picture is formed
+  // again over what the still shows, at the same moment — so it is the
+  // still a session that was never zoomed takes.
+  std::unique_ptr<Session> zoomed = kindOf<Measured>()->open(fonts(), assets());
+  throughThePane(*zoomed, 12);
+  std::unique_ptr<Session> plain = kindOf<Measured>()->open(fonts(), assets());
+  for (int f = 0; f < 11; ++f) oneFrame(*plain);
+  oneFrame(*plain);
+
+  SkBitmap fromZoomed;
+  fromZoomed.allocPixels(SkImageInfo::MakeN32Premul(160, 120));
+  SkCanvas zoomedCanvas(fromZoomed);
+  zoomed->still(zoomedCanvas);
+  SkBitmap fromPlain;
+  fromPlain.allocPixels(SkImageInfo::MakeN32Premul(160, 120));
+  SkCanvas plainCanvas(fromPlain);
+  plain->still(plainCanvas);
+  EXPECT_TRUE(samePicture(fromZoomed, fromPlain));
 }
 
 /** A SET THAT SPELLS NOTHING BUT ITS FRAME: no `setup`, and therefore no

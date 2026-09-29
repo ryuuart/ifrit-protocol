@@ -253,9 +253,13 @@ surfaces from those declarations alone.
 ## Frames, passes and the ordering
 
 A `Frame` is three declared things: the scene, an ordered list of passes,
-and the readbacks — plus the two dials that say where the picture lands.
+and the readbacks — plus the dials that say where the picture lands.
 `extent(size)` is what its targets are made at, and a frame declaring
-passes needs one; `camera(c)` is the viewpoint for a tree that declares
+passes needs one; `viewOffset(ViewOffset)` makes those targets a part of
+a larger picture — `whole` pixels across, the part's corner at `origin` —
+formed through the whole picture's projection carried off-centre, so a
+host showing a magnified piece of a set forms only the piece and draws it
+where it stands; `camera(c)` is the viewpoint for a tree that declares
 none of its own; `present(name)` names the resource the finished picture
 is in, and an unset one means the last image any pass wrote.
 

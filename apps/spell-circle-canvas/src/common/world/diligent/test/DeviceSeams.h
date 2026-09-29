@@ -145,6 +145,29 @@ inline int worstChannel(const SkBitmap& a, const SkBitmap& b) {
   return worst;
 }
 
+/** HOW MANY PIXELS OF @p region @p a AND @p b DISAGREE ABOUT by more than
+ *  @p levels in some channel, in 0..255. A frame formed over a part of a
+ *  picture is the whole picture's projection composed another way, so a
+ *  pixel whose centre stands on an edge may fall either side of it: what
+ *  the part owes the whole is that such pixels are a sliver, and this is
+ *  the count that says so. */
+inline int pixelsApart(const SkBitmap& a, const SkBitmap& b,
+                       const SkIRect& region, int levels) {
+  int apart = 0;
+  for (int y = region.top(); y < region.bottom(); ++y) {
+    for (int x = region.left(); x < region.right(); ++x) {
+      const SkColor4f left = a.getColor4f(x, y);
+      const SkColor4f right = b.getColor4f(x, y);
+      const float worst = std::max({std::abs(left.fR - right.fR),
+                                    std::abs(left.fG - right.fG),
+                                    std::abs(left.fB - right.fB),
+                                    std::abs(left.fA - right.fA)});
+      if ((int)std::lround(worst * 255.0f) > levels) ++apart;
+    }
+  }
+  return apart;
+}
+
 /** A pixel of @p plate at fractions of its width and height, so a case
  *  names where it is looking rather than where a projection put it. */
 inline SkColor4f at(const SkBitmap& plate, float x, float y) {

@@ -352,6 +352,44 @@ TEST(Environment, TheBackdropPutsTheZenithAtTheTopOfTheFrame) {
       << "the nadir is blue and it belongs at the bottom";
 }
 
+TEST(Environment, APartOfTheSkyIsThatPartOfTheWholeSky) {
+  // The sky is a fill over every pixel of the target, read through the
+  // projection a pixel turns into a ray with — so a frame whose targets
+  // are a part of a larger picture reads the rays the whole picture
+  // reads there, and its horizon stands on the whole picture's row. It
+  // is asked of the host, which always answers, and of the device where
+  // there is one.
+  constexpr glm::ivec2 kWhole{kExtent.x * 4, kExtent.y * 4};
+  constexpr glm::ivec2 kCorner{100, 180};
+  world::Environment sky;
+  sky.map = hemispheres({0.9f, 0.1f, 0.1f, 1}, {0.1f, 0.1f, 0.9f, 1});
+  sky.backdrop.intensity = 1.0f;
+  Frame whole = skyAlone(sky);
+  whole.extent(kWhole);
+  Frame part = skyAlone(sky);
+  part.viewOffset({kWhole, kCorner});
+  const SkIRect region =
+      SkIRect::MakeXYWH(kCorner.x, kCorner.y, kExtent.x, kExtent.y);
+
+  std::vector<Runtime> runtimes{Runtime::cpu()};
+  const auto on = diligent::onDevice();
+  if (on) runtimes.push_back(on.runtime);
+  for (const Runtime& runtime : runtimes) {
+    const SkBitmap all =
+        diligent::photograph(whole, runtime, kWhole, diligent::levelEye());
+    const SkBitmap piece =
+        diligent::photograph(part, runtime, kWhole, diligent::levelEye());
+    // The part straddles the horizon, so both hemispheres are in it.
+    const SkColor4f top = piece.getColor4f(kCorner.x + 8, kCorner.y + 2);
+    const SkColor4f bottom =
+        piece.getColor4f(kCorner.x + 8, kCorner.y + kExtent.y - 2);
+    EXPECT_GT(top.fR, top.fB);
+    EXPECT_GT(bottom.fB, bottom.fR);
+    EXPECT_LE(diligent::pixelsApart(all, piece, region, 2),
+              kExtent.x * kExtent.y / 500);
+  }
+}
+
 TEST(Environment, ABackdropAtZeroStrengthDrawsNothing) {
   const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;

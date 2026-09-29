@@ -53,8 +53,21 @@ geometry::mesh::render::MeshStyle coverageStyle() {
   return style;
 }
 
+/** The viewport a body is projected into: the WHOLE picture, even where
+ *  the targets are only a part of it. The part is then reached by moving
+ *  the target's canvas to where the part stands (`partOf`), so a body is
+ *  projected exactly as it would be onto the whole and the canvas's own
+ *  bounds reject what falls outside the part. */
 glm::vec2 viewportOf(const View& view) {
-  return {(float)view.extent.x, (float)view.extent.y};
+  const glm::ivec2 whole = wholeOf(view);
+  return {(float)whole.x, (float)whole.y};
+}
+
+/** Moves @p canvas so the whole picture's pixels land on the part of it
+ *  the targets are; nothing where the targets are the whole. */
+void partOf(SkCanvas& canvas, const View& view) {
+  if (!isPart(view.offset, view.extent)) return;
+  canvas.translate(-(float)view.offset.origin.x, -(float)view.offset.origin.y);
 }
 
 void drawSelection(SkCanvas& canvas, const View& view, const Selector& selector,
@@ -112,19 +125,31 @@ void paintGeometry(const PassWork& work, const View& view, Targets& targets) {
 
   geometry::mesh::render::MeshStyle style = litStyle(view);
   const bool asCoverage = work.realisation == Selection::Mask;
+  SkAutoCanvasRestore placed(canvas, true);
   if (asCoverage) {
     style = coverageStyle();
+    partOf(*canvas, view);
     drawSelection(*canvas, view, pass.selector(), style, /*flat=*/true);
   } else {
     // THE SKY FIRST, where the set shows one: it stands behind every
     // body in the frame, so it is painted before the first of them and
-    // nothing about it is a body's business.
-    geometry::mesh::render::drawBackdrop(
-        *canvas, style.environment,
-        view.camera.projection(viewportOf(view).x > 0
-                                   ? viewportOf(view).x / viewportOf(view).y
-                                   : 1.0f),
-        view.camera.view(), viewportOf(view));
+    // nothing about it is a body's business. It is a fill over every
+    // pixel of the target, so it is painted over the target's own
+    // pixels through the projection cropped onto them, and not over the
+    // whole picture's.
+    const glm::vec2 whole = viewportOf(view);
+    const glm::mat4 projection =
+        view.camera.projection(whole.x > 0 ? whole.x / whole.y : 1.0f);
+    if (isPart(view.offset, view.extent))
+      geometry::mesh::render::drawBackdrop(
+          *canvas, style.environment,
+          cropOf(view.offset, view.extent) * projection, view.camera.view(),
+          {(float)view.extent.x, (float)view.extent.y});
+    else
+      geometry::mesh::render::drawBackdrop(*canvas, style.environment,
+                                           projection, view.camera.view(),
+                                           whole);
+    partOf(*canvas, view);
     const bool cull = work.realisation == Selection::Cull;
     for (const Draw& draw : view.draws) {
       if (!draw.mesh) continue;
@@ -158,6 +183,8 @@ void paintGeometry(const PassWork& work, const View& view, Targets& targets) {
     SkCanvas* coverage = targets.canvas(painted.name);
     if (!coverage) continue;
     coverage->clear(SkColor4f{0.0f, 0.0f, 0.0f, 0.0f});
+    SkAutoCanvasRestore coveragePlaced(coverage, true);
+    partOf(*coverage, view);
     geometry::mesh::render::MeshStyle flat = coverageStyle();
     drawSelection(*coverage, view, painted.of, flat, /*flat=*/true);
   }
