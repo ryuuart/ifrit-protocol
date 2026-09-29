@@ -857,13 +857,9 @@ struct RotaConvocationis {
   void update(double elapsed, sketch::SketchContext&) {
     const float now = float(elapsed);
     // 0 before @p from, 1 once @p over seconds have passed, eased between.
-    // workaround: a baked node under an opacity of exactly 0 is not baked
-    // until the frame it first shows, so a band's wedges would all bake on
-    // the frame it kindles; a floor below one level of eight-bit alpha
-    // has them bake on the first frame instead, unseen.
     const auto rise = [now](float from, float over) {
       const float x = std::clamp((now - from) / over, 0.0f, 1.0f);
-      return std::max(x * x * (3 - 2 * x), 0.002f);
+      return x * x * (3 - 2 * x);
     };
     for (int layer = 0; layer < kTurnings; ++layer) {
       // A ring arrives behind its gear and catches up, fast at first.

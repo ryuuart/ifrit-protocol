@@ -426,11 +426,10 @@ struct ThunderFulu {
       };
     };
     std::vector<Element> coats{
-        pen(key, kept(false), Cache::Texture).translateY(recoiling())};
+        pen(key, kept(false), Cache::Texture)};
     if (written.loaded)
       coats.push_back(
           pen(key + ".wet", kept(true), Cache::Texture)
-              .translateY(recoiling())
               .opacity(bind(score, {.from = {written.end, written.end + kDrying},
                                     .clampFrom = true,
                                     .ease = sigil::motion::ease::inQuad,
@@ -460,7 +459,7 @@ struct ThunderFulu {
              dry(pen, stroke, count, 1220 + (unsigned)index);
              wet(pen, stroke, count);
            }
-         }).translateY(recoiling())});
+         })});
   }
 
   /** THE PLATE'S FACE: iron darkening away from the lamp, dented all over
@@ -551,11 +550,7 @@ struct ThunderFulu {
   /** THE MASTER'S SEAL, pressed last: square, five above and thunder
    *  below, each graph stretched to fill its half of the square as seal
    *  script is, and cut in relief so the graphs and the frame print. */
-  /** How far the plate has given under the seal. It is bound on every
-   *  kept node of the plate rather than once over all of them.
-   *  workaround: a bound transform on an ancestor takes every texture
-   *  bake under it again on each frame it moves, where the same transform
-   *  on the baked node itself moves the kept pixels. */
+  /** How far the plate has given under the seal. */
   sigil::motion::Animatable<float> recoiling() const {
     return bind(score, {.from = {kSeal + kSealFall, kSeal + kSealFall + 0.7f},
                         .clampFrom = true,
@@ -567,7 +562,6 @@ struct ThunderFulu {
     return kit::at(474, 786, 104, 104)
         .cache(Cache::Texture)
         .rotate(-6.0f)
-        .translateY(recoiling())
         .transformOrigin(pct(50), pct(50))
         .opacity(bind(score, {.from = {kSeal, kSeal + 0.08f}, .clampFrom = true}))
         // The seal is brought down from above the plate and lands hard:
@@ -594,13 +588,13 @@ struct ThunderFulu {
    *  at the end of the rite the ink is washed off for the next writing. */
   Element plate() const {
     return kit::at(kPlateLeft, kPlateTop, kPlateWidth, kPlateHeight)
+        .translateY(recoiling())
         .children(
             {box()
                  .inset(0)
                  .children({iron(), registers()})
                  .cache(Cache::Texture)
-                 .key("thunder_fulu.ground")
-                 .translateY(recoiling()),
+                 .key("thunder_fulu.ground"),
              box()
                  .inset(0)
                  .opacity(bind(score, {.from = {kLoop - 1.3f, kLoop - 0.15f},
