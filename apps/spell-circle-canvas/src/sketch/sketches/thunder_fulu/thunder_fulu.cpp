@@ -47,11 +47,15 @@
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Band.h>
 #include <sigilgeometry/path/Polyline.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/core/Lighting.h>
+#include <sigilmaterial/program/Shader.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
@@ -61,6 +65,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <map>
 #include <optional>
 #include <span>
 #include <string>
@@ -89,7 +94,14 @@ namespace {
 const material::Color kNight = hexColor(0x08070a);
 const material::Color kCinnabar = hexColor(0xcf3018);
 const material::Color kCinnabarDry = hexColor(0xa82a14);
-const material::Color kCinnabarWet = hexColor(0xf2542a);
+// Fresh paint is glossier and brighter than it dries, and catches the lamp
+// in a line; laid thick it throws a shadow and its edge takes the light;
+// the foot's thinning load leaves a stain rather than a body.
+const material::Color kCinnabarWet = hexColor(0xf2542a, 0.42f);
+const material::Color kGlint = hexColor(0xffd6b0, 0.62f);
+const material::Color kLitEdge = hexColor(0xf08a5c, 0.85f);
+const material::Color kCastShadow = hexColor(0x050403, 0.55f);
+const material::Color kStain = hexColor(0xb8321c);
 const material::Color kSealInk = hexColor(0xc4301a, 0.92f);
 const material::Color kGold = hexColor(0xb2914f);
 const material::Color kGoldDim = hexColor(0x6d5a33);
@@ -109,6 +121,16 @@ constexpr float kSpine = 306;
 constexpr float kSeal = 21.45f, kGall = 15.95f, kGallEach = 0.36f;
 constexpr float kHead = 1.90f, kHeadEach = 1.05f;
 constexpr float kLoop = 27;
+// How long the seal takes to come down onto the plate.
+constexpr float kSealFall = 0.26f;
+
+/** How the plate gives under the seal, as a share of the deepest it goes
+ *  over the time it takes to settle: struck down at once, then ringing
+ *  back up with less each time. */
+float recoil(float settled) {
+  return std::sin(settled * 3.14159265f * 3.0f) * std::exp(-4.2f * settled) *
+         (1.0f - settled);
+}
 
 /** THE WIDTH LAW, as a multiple of a stroke's body width over the fraction
  *  of it written: the reversed-tip entry swells to 1.77, the body thins to
@@ -123,19 +145,46 @@ float widthLaw(float along) {
 
 /** ONE WRITTEN PIECE: a run of a stroke's centreline sampled evenly, the
  *  pressure the law puts on every sample, the brush that lays it, when it
- *  is written and the rectangle its ink stays inside. */
+ *  is written and the rectangle its ink stays inside. A loaded brush lays
+ *  a body of paint under its hairs; whether the piece opens or closes its
+ *  stroke says where the round of the brush's tip is left. */
 struct Written {
   draw::brush::Stroke line;
   draw::brush::Tool tool;
   float start = 0, end = 1;
   float left = 0, top = 0, width = 0, height = 0;
+  /** The full width of the paint the brush leaves at pressure one. */
+  float thickness = 0;
+  bool loaded = true, opens = false, closes = false;
+  /** Samples at the head of the line that belong to the piece before:
+   *  the body of paint is laid over them too, so it covers the lit edge
+   *  and the shadow a piece throws back over the join, and nothing else
+   *  is. */
+  size_t lead = 0;
+
+  /** How many samples are laid once @p fraction of the piece is
+   *  written. */
+  size_t reached(float fraction) const {
+    return lead + (size_t)(fraction * (float)(line.size() - lead));
+  }
 };
+
+/** How far back into the piece before a body of paint is laid. */
+constexpr size_t kLead = 4;
 
 /** The most samples one piece holds. A frame repaints only the pieces
  *  being written, each from its own start, so a stroke is cut into pieces
  *  short enough that the one in progress is cheap to lay again; a finished
  *  piece is kept as pixels. */
 constexpr size_t kPieceSamples = 96;
+
+// The altar lamp stands to the upper left of the plate. Cinnabar laid
+// thick stands proud of the iron: it throws a shadow away from the lamp
+// and its edge toward the lamp catches the light. Fresh paint is glossy
+// and dries matte over these seconds.
+constexpr SkPoint kShadowFall = {1.4f, 1.8f};
+constexpr SkPoint kLampSide = {-0.75f, -0.85f};
+constexpr float kDrying = 3.2f;
 
 /** The centreline through @p points (x, y pairs), pressed by the width law
  *  times @p weight along its own length. */
@@ -160,48 +209,84 @@ draw::brush::Stroke pressed(const data::Json& points, float weight) {
 
 /** THE BRUSH: a bundle of hairs laid side by side across the stroke, its
  *  width the pressure and its envelope flat because the law is already in
- *  the samples. Loaded wet, every hair holds to the end of the stroke; the
+ *  the samples. Over a loaded stroke the hairs are the furrows the brush
+ *  combs into its own body of paint, and part where the load thins; the
  *  foot is written so fast that the load runs out, the hairs part and each
  *  runs dry on its own, and the stroke breaks into streaks along its
  *  length with the iron showing between them. */
-draw::brush::Tool brush(float width, material::Color ink, float load) {
+draw::brush::Tool brush(float width, material::Color ink, float load,
+                        int bristles) {
   return {.tip = draw::brush::Tip::Fibres,
           .color = ink,
           .width = width,
           .spacing = 0.7f,
-          .opacity = 1.0f + load * 0.8f,
+          .opacity = 2.2f,
           .scatter = 0.0f,
           .density = load,
-          .bristles = load < 1 ? 14 : 30,
+          .bristles = bristles,
           .pressure = {.variation = std::nullopt},
           .pressureOpacity = 0.0f,
           .markerTip = false};
 }
 
+/** The hairs a loaded brush combs through a body of paint @p thickness
+ *  wide: darker furrows, kept inside its edges. */
+draw::brush::Tool combed(float thickness) {
+  return brush(thickness * 0.84f, kCinnabarDry, 0.72f, 7);
+}
+
+/** THE BODY OF PAINT a loaded brush leaves along @p samples: the region
+ *  its width sweeps, @p width times the pressure at every station. */
+SkPath bodyOf(std::span<const draw::brush::Sample> samples, float width) {
+  path::Polyline spine;
+  for (const draw::brush::Sample& sample : samples)
+    spine.points.push_back({sample.position.fX, sample.position.fY});
+  const auto across = [&](const path::SweepStation& station) {
+    // The samples are evenly spaced, so a fraction of the length is a
+    // fraction of the samples.
+    const size_t at = (size_t)std::lround(station.fraction *
+                                          (float)(samples.size() - 1));
+    return samples[std::min(at, samples.size() - 1)].pressure * width;
+  };
+  return path::toSk(path::sweptRegion(
+      path::toPath(spine), across,
+      {.stepPx = 1.5f, .join = path::SweepJoin::Round}));
+}
+
 struct ThunderFulu {
   sketch::kit::Document words;
   std::vector<Written> ink;
+  /** When the writing of each part of the talisman begins, by the part's
+   *  name in data/strokes.json. */
+  std::map<std::string, float> begun;
   std::vector<path::Polyline> sealGraphs;
   sigil::motion::Animatable<float> score = sigil::motion::animatable(0.0f);
   StyleSheet sheet;
   weave::Type running;
   Paint ironGrain;
   Pattern ironSpeck;
+  std::optional<material::Material> dents;
 
   /** Adds @p line, written from @p start to @p end, as pieces of at most
    *  kPieceSamples samples; each piece shares one sample with the next so
    *  the ink runs on through the join, and is written over its own share
    *  of the time. */
   void lay(const draw::brush::Stroke& line, const draw::brush::Tool& tool,
-           float start, float end) {
+           float thickness, bool loaded, float start, float end) {
     const size_t count = line.size();
     for (size_t first = 0; first + 1 < count; first += kPieceSamples) {
       const size_t last = std::min(count, first + kPieceSamples + 1);
-      Written piece{.line = {line.begin() + (long)first,
+      const size_t lead = std::min(first, kLead);
+      Written piece{.line = {line.begin() + (long)(first - lead),
                              line.begin() + (long)last},
                     .tool = tool,
                     .start = start + (end - start) * (float)first / (float)count,
-                    .end = start + (end - start) * (float)last / (float)count};
+                    .end = start + (end - start) * (float)last / (float)count,
+                    .thickness = thickness,
+                    .loaded = loaded,
+                    .opens = loaded && first == 0,
+                    .closes = loaded && last == count,
+                    .lead = lead};
       float left = piece.line.front().position.fX, right = left;
       float top = piece.line.front().position.fY, bottom = top;
       float pressure = 0;
@@ -212,9 +297,8 @@ struct ThunderFulu {
         bottom = std::max(bottom, sample.position.fY);
         pressure = std::max(pressure, sample.pressure);
       }
-      // Half the widest hair bundle, and the round caps and antialiasing
-      // past it.
-      const float reach = tool.width * pressure * 0.5f + 4.0f;
+      // Half the widest body, its shadow, and the antialiasing past it.
+      const float reach = thickness * pressure * 0.5f + 6.0f;
       piece.left = std::floor(left - reach);
       piece.top = std::floor(top - reach);
       piece.width = std::ceil(right + reach) - piece.left;
@@ -226,20 +310,21 @@ struct ThunderFulu {
   /** Every stroke of data/strokes.json as the brush will lay it. The foot
    *  is written without a lift: each of its thirty-eight strokes begins
    *  with the light hop from where the one before it ended, because the
-   *  brush never leaves the plate there. */
+   *  brush never leaves the plate there, and the load it carries thins
+   *  from the first of them to the last. */
   void write(const data::Json& strokes) {
-    constexpr float kFootWidth = 5.9f;
-    const draw::brush::Tool footBrush = brush(kFootWidth, kCinnabarDry, 0.55f);
+    constexpr float kFootWidth = 5.9f, kFootStrokes = 38;
+    float footWritten = 0;
     std::optional<SkPoint> footReached;
     for (const data::Json& stroke : strokes.array()) {
       const std::string part(stroke["part"].string());
       const float width = (float)stroke["width"].number();
       const float start = (float)stroke["start"].number();
       const float end = (float)stroke["end"].number();
+      begun.try_emplace(part, start);
       if (part != "foot") {
-        const material::Color loaded = part == "tap" ? kCinnabarWet : kCinnabar;
-        lay(pressed(stroke["points"], 1.0f), brush(width, loaded, 1.0f), start,
-            end);
+        lay(pressed(stroke["points"], 1.0f),
+            combed(width), width, true, start, end);
         continue;
       }
       draw::brush::Stroke line = pressed(stroke["points"], width / kFootWidth);
@@ -250,25 +335,110 @@ struct ThunderFulu {
         line = std::move(hop);
       }
       footReached = line.back().position;
-      lay(line, footBrush, start, end);
+      const float load = 0.78f - 0.40f * (footWritten++ / (kFootStrokes - 1));
+      lay(line, brush(kFootWidth, kCinnabar, load, 5), kFootWidth * 1.2f,
+          false, start, end);
     }
   }
 
-  /** One piece of the ink, laid once with the seed of its place in the
-   *  order and kept as pixels, shown from the moment it is written. */
+  /** The body of paint piece @p written leaves over its first @p count
+   *  samples, painted at @p offset in @p color: the swept region, and the
+   *  round of the tip where the stroke begins and where it lifts. */
+  static void body(draw::Pen& pen, const Written& written, size_t count,
+                   SkPoint offset, material::Color color, bool overLead) {
+    const size_t from = overLead ? 0 : written.lead;
+    if (count < from + 2) return;
+    const auto samples = std::span(written.line).subspan(from, count - from);
+    const float width = written.thickness;
+    pen.push();
+    pen.translate(offset.fX, offset.fY);
+    pen.noStroke();
+    pen.fill(color);
+    pen.shape(bodyOf(samples, width));
+    const auto tip = [&](const draw::brush::Sample& sample) {
+      pen.circle(sample.position.fX, sample.position.fY,
+                 sample.pressure * width * 0.92f);
+    };
+    if (written.opens) tip(samples.front());
+    if (written.closes && count == written.line.size()) tip(samples.back());
+    pen.pop();
+  }
+
+  /** Piece @p written as it dries, over its first @p count samples. A loaded
+   *  piece is its body of paint, standing on its shadow with its lit edge
+   *  showing, and the brush's hairs combed through it; the foot is the
+   *  hairs over a stain. */
+  static void dry(draw::Pen& pen, const Written& written, size_t count,
+                  unsigned seed) {
+    const auto samples =
+        std::span(written.line).subspan(written.lead, count - written.lead);
+    if (written.loaded) {
+      body(pen, written, count, kShadowFall, kCastShadow, false);
+      body(pen, written, count, kLampSide, kLitEdge, false);
+      body(pen, written, count, {0, 0}, kCinnabar, true);
+    } else {
+      // Too little is left on the brush to stand proud: a thin stain the
+      // iron shows through, thinner as the load runs out.
+      material::Color stain = kStain;
+      stain.a = written.tool.density * 0.45f;
+      body(pen, written, count, {0, 0}, stain, false);
+    }
+    pen.randomSeed(seed);
+    draw::brush::paint(pen, written.tool, samples);
+  }
+
+  /** The gloss of piece @p written while it is wet, over its first @p count
+   *  samples: the body brighter, and the lamp caught in a line along the
+   *  crown of the paint on the side it stands. */
+  static void wet(draw::Pen& pen, const Written& written, size_t count) {
+    if (!written.loaded) return;
+    body(pen, written, count, {0, 0}, kCinnabarWet, false);
+    const float width = written.thickness;
+    pen.push();
+    pen.noFill();
+    pen.stroke(kGlint);
+    pen.strokeWeight(width * 0.16f);
+    pen.strokeCap(draw::ROUND);
+    pen.strokeJoin(draw::ROUND);
+    pen.translate(kLampSide.fX * width * 0.22f, kLampSide.fY * width * 0.22f);
+    pen.beginShape();
+    for (const draw::brush::Sample& sample :
+         std::span(written.line).subspan(written.lead, count - written.lead))
+      pen.vertex(sample.position.fX, sample.position.fY);
+    pen.endShape();
+    pen.pop();
+  }
+
+  /** One piece of the ink, laid once and kept as pixels, shown from the
+   *  moment it is written; its gloss is kept beside it and fades as it
+   *  dries. */
   Element piece(size_t index) const {
     const Written& written = ink[index];
+    const std::string key = "thunder_fulu.piece." + std::to_string(index);
+    const auto kept = [this, index, &written](bool gloss) {
+      return [this, index, gloss, left = written.left,
+              top = written.top](draw::Pen& pen) {
+        pen.translate(-left, -top);
+        const Written& written = ink[index];
+        const size_t count = written.line.size();
+        gloss ? wet(pen, written, count)
+              : dry(pen, written, count, 1220 + (unsigned)index);
+      };
+    };
+    std::vector<Element> coats{
+        pen(key, kept(false), Cache::Texture).translateY(recoiling())};
+    if (written.loaded)
+      coats.push_back(
+          pen(key + ".wet", kept(true), Cache::Texture)
+              .translateY(recoiling())
+              .opacity(bind(score, {.from = {written.end, written.end + kDrying},
+                                    .clampFrom = true,
+                                    .ease = sigil::motion::ease::inQuad,
+                                    .to = {1.0f, 0.0f}})));
     return kit::at(written.left, written.top, written.width, written.height)
         .opacity(bind(score, {.from = {written.end, written.end + 0.001f},
                               .clampFrom = true}))
-        .children({pen("thunder_fulu.piece." + std::to_string(index),
-                       [this, index](draw::Pen& pen) {
-                         const Written& written = ink[index];
-                         pen.translate(-written.left, -written.top);
-                         pen.randomSeed(1220 + (unsigned)index);
-                         draw::brush::paint(pen, written.tool, written.line);
-                       },
-                       Cache::Texture)});
+        .children(coats);
   }
 
   /** THE INK: the finished pieces as they are kept, and over them the
@@ -285,13 +455,34 @@ struct ThunderFulu {
              const Written& stroke = ink[index];
              if (now <= stroke.start || now >= stroke.end) continue;
              const float written = (now - stroke.start) / (stroke.end - stroke.start);
-             const size_t count = (size_t)(written * (float)stroke.line.size());
-             if (count < 2) continue;
-             pen.randomSeed(1220 + (unsigned)index);
-             draw::brush::paint(pen, stroke.tool,
-                                std::span(stroke.line).first(count));
+             const size_t count = stroke.reached(written);
+             if (count < stroke.lead + 2) continue;
+             dry(pen, stroke, count, 1220 + (unsigned)index);
+             wet(pen, stroke, count);
            }
-         })});
+         }).translateY(recoiling())});
+  }
+
+  /** THE PLATE'S FACE: iron darkening away from the lamp, dented all over
+   *  by the hammer that beat it flat, each dent a shallow bowl that turns
+   *  its far wall to the lamp and its near wall away. The lamp is low, warm
+   *  and to the upper left, as the ink's own shadows say. */
+  material::Material beatenIron() const {
+    return material::from(
+               material::linearGradient({0.10f, -0.06f}, {0.96f, 1.0f},
+                                        {{0.0f, hexColor(0x8a7f6c)},
+                                         {0.18f, hexColor(0x5e564c)},
+                                         {0.46f, hexColor(0x3f3a34)},
+                                         {0.78f, hexColor(0x272423)},
+                                         {1.0f, hexColor(0x1a1918)}}))
+        .surface({.metallic = 0.55f,
+                  .roughness = 0.46f,
+                  .normal = dents,
+                  .lighting = material::studio({.direction = 128,
+                                                .elevation = 34,
+                                                .color = hexColor(0xffd2a0),
+                                                .intensity = 1.05f,
+                                                .ambient = 0.40f})});
   }
 
   /** HAMMERED IRON: a plate whose edge is what a hammer leaves rather than
@@ -310,12 +501,7 @@ struct ThunderFulu {
          box()
              .inset(0)
              .shape(beaten)
-             .fill(sigil::material::linearGradient({0.10f, -0.06f}, {0.96f, 1.0f},
-                                         {{0.0f, hexColor(0x736a5b)},
-                                          {0.18f, hexColor(0x4f4840)},
-                                          {0.46f, hexColor(0x35312c)},
-                                          {0.78f, hexColor(0x201e1d)},
-                                          {1.0f, hexColor(0x161514)}}))
+             .fill(beatenIron())
              .foreground(lines::presets::hatch(
                  Fill::color(hexColor(0xa79a83, 0.075f)), 13.0f, 1.6f, -18.0f))
              .foreground(lines::presets::hatch(
@@ -332,7 +518,16 @@ struct ThunderFulu {
                   {.across = -5.5f,
                    .width = 1.1f,
                    .fill = Fill::color(hexColor(0x0a0909, 0.75f))}}))
-             .cache(Cache::Texture)});
+             // The lamp's pool: warm where it stands, falling off down the
+             // plate.
+             .foreground(Wash{
+                 .material = sigil::material::radialGradient(
+                     {0.26f, 0.14f}, 0.95f,
+                     {{0.0f, hexColor(0xffb070, 0.34f)},
+                      {0.45f, hexColor(0xc07038, 0.12f)},
+                      {1.0f, hexColor(0x000000, 0.0f)}}),
+                 .blend = material::BlendMode::Screen,
+                 .amount = 1.0f})});
   }
 
   /** The five registers, ruled faintly across the plate the way it is
@@ -356,14 +551,31 @@ struct ThunderFulu {
   /** THE MASTER'S SEAL, pressed last: square, five above and thunder
    *  below, each graph stretched to fill its half of the square as seal
    *  script is, and cut in relief so the graphs and the frame print. */
+  /** How far the plate has given under the seal. It is bound on every
+   *  kept node of the plate rather than once over all of them.
+   *  workaround: a bound transform on an ancestor takes every texture
+   *  bake under it again on each frame it moves, where the same transform
+   *  on the baked node itself moves the kept pixels. */
+  sigil::motion::Animatable<float> recoiling() const {
+    return bind(score, {.from = {kSeal + kSealFall, kSeal + kSealFall + 0.7f},
+                        .clampFrom = true,
+                        .ease = recoil,
+                        .to = {0.0f, 3.2f}});
+  }
+
   Element seal() const {
-    const auto pressedAt = sigil::motion::bind(score, {.from = {kSeal, kSeal + 0.45f}, .clampFrom = true});
     return kit::at(474, 786, 104, 104)
         .cache(Cache::Texture)
         .rotate(-6.0f)
+        .translateY(recoiling())
         .transformOrigin(pct(50), pct(50))
-        .opacity(pressedAt)
-        .scale(sigil::motion::bind(score, {.from = {kSeal, kSeal + 0.45f}, .clampFrom = true, .to = {1.5f, 1.0f}}))
+        .opacity(bind(score, {.from = {kSeal, kSeal + 0.08f}, .clampFrom = true}))
+        // The seal is brought down from above the plate and lands hard:
+        // it gathers speed all the way to the iron.
+        .scale(bind(score, {.from = {kSeal, kSeal + kSealFall},
+                            .clampFrom = true,
+                            .ease = sigil::motion::ease::inCubic,
+                            .to = {1.6f, 1.0f}}))
         .foreground(decorations::border(5.0f, Fill::color(kSealInk), 2.0f))
         .children(each(sealGraphs, [](const path::Polyline& graph) {
           return box()
@@ -377,30 +589,25 @@ struct ThunderFulu {
         }));
   }
 
-  /** The plate before it is written on: iron and its ruled registers,
-   *  kept as pixels and faded in whole. */
+  /** THE PLATE: iron and its ruled registers kept as pixels, the ink and
+   *  the seal over them. The plate gives under the seal as it lands, and
+   *  at the end of the rite the ink is washed off for the next writing. */
   Element plate() const {
     return kit::at(kPlateLeft, kPlateTop, kPlateWidth, kPlateHeight)
         .children(
             {box()
                  .inset(0)
-                 .opacity(bind(score, {.from = {0.05f, 1.15f}, .clampFrom = true}))
                  .children({iron(), registers()})
                  .cache(Cache::Texture)
-                 .key("thunder_fulu.ground"),
-             brushwork(), seal(),
-             // The iron's grain again, faintly over the ink, so the
-             // cinnabar reads as lying on the metal and not over it. The
-             // grain is kept as pixels and only its blend is paid for.
+                 .key("thunder_fulu.ground")
+                 .translateY(recoiling()),
              box()
                  .inset(0)
-                 .opacity(0.085f)
-                 .blendMode(material::BlendMode::SoftLight)
-                 .children({box()
-                                .inset(0)
-                                .shape(shapes::chamfered(17.0f))
-                                .fill(sigil::material::skia::base(ironGrain))
-                                .cache(Cache::Texture)})});
+                 .opacity(bind(score, {.from = {kLoop - 1.3f, kLoop - 0.15f},
+                                       .clampFrom = true,
+                                       .ease = sigil::motion::ease::inOutSine,
+                                       .to = {1.0f, 0.0f}}))
+                 .children({brushwork(), seal()})});
   }
 
   /** A section: its head over a gold rule with a dashed hairline under it,
@@ -445,13 +652,17 @@ struct ThunderFulu {
         {box().width(kLength).height(58).children(
              {pen("thunder_fulu.law",
                   [](draw::Pen& pen) {
-                    draw::brush::Stroke line =
-                        draw::brush::segment({4, 22}, {kLength - 4, 22}, 1.2f);
-                    for (size_t index = 0; index < line.size(); ++index)
-                      line[index].pressure = widthLaw(
-                          (float)index / (float)(line.size() - 1));
-                    pen.randomSeed(46);
-                    draw::brush::paint(pen, brush(21, kCinnabar, 1), line);
+                    Written stroke{
+                        .line = draw::brush::segment({12, 22},
+                                                     {kLength - 12, 22}, 1.2f),
+                        .tool = combed(21),
+                        .thickness = 21,
+                        .opens = true,
+                        .closes = true};
+                    for (size_t index = 0; index < stroke.line.size(); ++index)
+                      stroke.line[index].pressure = widthLaw(
+                          (float)index / (float)(stroke.line.size() - 1));
+                    dry(pen, stroke, stroke.line.size(), 46);
                   }, Cache::Texture),
               each(said["marks"].array(),
                    [](const data::Json& mark) {
@@ -463,6 +674,15 @@ struct ThunderFulu {
                               44});
                    })}),
          text(said["note"]).styleClass("gloss")});
+  }
+
+  /** When the part a row of the tempo table names begins to be written:
+   *  its rows run head, aperture, body, gall, foot. */
+  float partBegun(size_t row) const {
+    static const char* const kParts[] = {"head", "aperture", "body", "gall",
+                                         "foot"};
+    const auto found = begun.find(row < 5 ? kParts[row] : "");
+    return found == begun.end() ? 0.0f : found->second;
   }
 
   /** The tempo each part of the talisman is written at. The last row is
@@ -488,10 +708,12 @@ struct ThunderFulu {
                                                     {}},
                                         .gap = sketch::kit::theme().spacing.labelGap,
                                         .rowGap = sketch::kit::theme().spacing.rowGap,
-                                        .cellLine = [last = rows.size() - 1](const Utf8& words, const kit::Table& table, size_t column, size_t row) {
+                                        .cellLine = [this, last = rows.size() - 1](const Utf8& words, const kit::Table& table, size_t column, size_t row) {
                                           auto line = table.columns[column].figure ? kit::figure(words) : kit::captionNote(words);
                                           if (row == last) line.ink(kCinnabar);
-                                          return line;
+                                          // A row comes up as the brush reaches its part.
+                                          const float from = partBegun(row);
+                                          return line.opacity(bind(score, {.from = {from - 0.3f, from + 0.2f}, .clampFrom = true, .to = {0.28f, 1.0f}}));
                                         }}),
                     text(said["gloss"]).styleClass("gloss")});
   }
@@ -637,6 +859,7 @@ struct ThunderFulu {
         420, 26, 0.7f, 2.6f,
         {hexColor(0x7c7263, 0.10f), hexColor(0x000000, 0.16f)});
     ironSpeck.seed(1220);
+    dents = material::shader(context.assets.hub(), context.local("data/dents.sksl"));
 
     // The terminal face wherever a line names none; a display face in
     // gold for the heads; the book italic for what is sung and glossed.

@@ -1,0 +1,33 @@
+// The normals of a plate beaten flat with a hammer: each blow leaves a
+// shallow round dent, and every point belongs to the nearest blow, so
+// neighbouring dents cut into each other along sharp ridges. The dents are
+// eighteen pixels apart and each is struck to its own depth.
+float2 blow(float2 cell) {
+    float2 seed = float2(dot(cell, float2(127.1, 311.7)),
+                         dot(cell, float2(269.5, 183.3)));
+    return fract(sin(seed) * 43758.5453);
+}
+half4 main(float2 p) {
+    float2 scaled = p / 18.0;
+    float2 cell = floor(scaled);
+    float2 local = scaled - cell;
+    float nearest = 9.0;
+    float2 fromCentre = float2(0);
+    float depth = 0.0;
+    for (int y = -1; y <= 1; ++y) {
+        for (int x = -1; x <= 1; ++x) {
+            float2 neighbour = float2(float(x), float(y));
+            float2 centre = neighbour + 0.12 + 0.76 * blow(cell + neighbour);
+            float2 away = local - centre;
+            float distance = dot(away, away);
+            if (distance < nearest) {
+                nearest = distance;
+                fromCentre = away;
+                depth = 0.12 + 0.22 * blow(cell + neighbour + 17.0).x;
+            }
+        }
+    }
+    // A bowl's wall leans back toward its centre.
+    float3 normal = normalize(float3(-fromCentre * depth, 1.0));
+    return half4(half3(normal * 0.5 + 0.5), 1);
+}
