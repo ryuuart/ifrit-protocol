@@ -37,6 +37,7 @@ qt_add_qml_module(IfritQt
     PanZoomCanvas.qml
   SOURCES
     WindowChrome.h
+    ActivityHold.h ActivityHold.cpp
     WindowCapture.h WindowCapture.cpp
     FontDatabase.h FontDatabase.cpp
     TexturePublisher.h TexturePublisher.cpp
@@ -54,10 +55,10 @@ endif()
 # dressing, which exists on Apple alone and wants a window server: the
 # cases stand up a QGuiApplication on first ask rather than in main(),
 # so listing them needs nothing, and each skips where there is no
-# session behind it.
+# session behind it. The activity hold's cases need neither.
 if(APPLE)
   sigil_test(qt_test
-    SOURCES test/BackgroundRenderingTest.mm
+    SOURCES test/BackgroundRenderingTest.mm test/ActivityHoldTest.cpp
     LIBRARIES IfritQt Qt6::Quick ${appkit}
     SUITES BackgroundRendering LABELS cocoa)
 endif()

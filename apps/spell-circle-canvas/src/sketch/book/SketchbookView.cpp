@@ -78,8 +78,9 @@ QQuickRhiItemRenderer* SketchbookView::createRenderer() {
 
 void SketchbookView::itemChange(ItemChange change, const ItemChangeData& data) {
   QQuickRhiItem::itemChange(change, data);
-  if (change == ItemSceneChange && data.window && m_publishing)
-    WindowChrome::keepRendering(data.window);
+  if (change != ItemSceneChange || !data.window) return;
+  WindowChrome::keepActiveWhileVisible(data.window);
+  if (m_publishing) WindowChrome::keepRendering(data.window);
 }
 
 void SketchbookView::setCanvasScale(qreal scale) {

@@ -180,11 +180,24 @@ also returns false below macOS 11. Callers must have a fallback path — an
 opaque background, and the scene name folded into the composite window
 title. Treat the return value as the branch, not as a diagnostic.
 
+**A visible window keeps the process user-facing.** macOS demotes every
+thread of an application that is not frontmost to the background tier,
+however much it draws, unless the application declares user-facing
+activity. A C++ host calls `WindowChrome::keepActiveWhileVisible` on the
+GUI thread for a window that must present at the display's rate while
+another application is in front: the declaration stands while any part of
+that window is on screen — in front or behind — and falls when it is
+hidden, minimised, wholly covered or destroyed. The native window's
+occlusion state is what decides, because Qt's visibility stays true for a
+minimised or covered window. Publishing and visibility record their
+reasons with one owner of the declaration, so it is released only when
+no window is visible and none publishes.
+
 **Background rendering is explicit.** C++ hosts call
 `WindowChrome::keepRendering` on the GUI thread when frame publication must
 continue behind another window. It enables Qt graphics and scene-graph
-persistence. On macOS it also keeps an activity token until application exit
-and opts that native window into rendering while covered — through one
+persistence. On macOS it also declares user-facing activity until application
+exit and opts that native window into rendering while covered — through one
 override on the window CLASS, with the window itself marked rather than
 reclassified, because the system's own window chrome observes these
 windows and observation reclassifies them too. Offscreen windows

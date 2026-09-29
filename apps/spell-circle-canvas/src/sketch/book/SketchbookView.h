@@ -203,8 +203,10 @@ class SketchbookView : public QQuickRhiItem {
   void thumbnailCaptured(int index);
 
  protected:
-  /** A window that is publishing keeps rendering whatever covers it, so
-   *  the item asks that of each window it is placed in. */
+  /** The window the item is placed in keeps the process user-facing
+   *  while any of it is on screen, so it presents at the display's rate
+   *  behind another application; a publishing window also keeps
+   *  rendering whatever covers it. */
   void itemChange(ItemChange change, const ItemChangeData& data) override;
 
  private:

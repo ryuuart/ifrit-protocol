@@ -10,3 +10,5 @@ bool WindowChrome::keepRendering(QQuickWindow* window) {
   window->setPersistentSceneGraph(true);
   return true;
 }
+
+bool WindowChrome::keepActiveWhileVisible(QQuickWindow*) { return false; }

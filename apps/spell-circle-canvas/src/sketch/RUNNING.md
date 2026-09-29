@@ -528,6 +528,12 @@ screen, and, for a set drawn on a device, the readback and blit its
 paint phase performs. Selection goes through the same property a click
 sets, so a switch takes the path a reader's click takes.
 
+The window declares the process user-facing to the system while any of
+it is on screen, in front of other applications or behind them, so a
+stretch presented behind another application is not demoted to the
+background tier part-way through; a window hidden, minimised or wholly
+covered stops declaring it, unless it is publishing.
+
 A presented rate is bounded by the compositor, which means by the
 display: a sketch comfortably inside its budget reads at the refresh
 rate and says nothing more. The interesting rows are the ones BELOW it,

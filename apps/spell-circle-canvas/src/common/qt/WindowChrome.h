@@ -36,9 +36,23 @@ class WindowChrome : public QObject {
    *  window title. */
   Q_INVOKABLE bool setSubtitle(QQuickWindow* window, const QString& subtitle);
 
-  /** Keeps graphics resources resident and requests background rendering.
-   *  On macOS this prevents App Nap and preserves rendering while another
-   *  window covers this one. Returns false if the native window cannot be
+  /** Keeps graphics resources resident and requests background rendering,
+   *  for a window whose frames other applications watch. On macOS the
+   *  process is declared user-facing from here until it exits, whether or
+   *  not the window is on screen, and the window keeps rendering while
+   *  another covers it. Returns false if the native window cannot be
    *  configured; Qt resource persistence is still enabled. GUI thread only. */
   static bool keepRendering(QQuickWindow* window);
+
+  /** Declares the process user-facing while any part of @p window is on
+   *  screen — in front of other applications or behind them — and stops
+   *  declaring it when the window is hidden, minimised, wholly covered or
+   *  destroyed. On macOS the system otherwise demotes every thread of an
+   *  application that is not frontmost to the background tier, and the
+   *  window stops presenting at the display's rate. The declaration is
+   *  shared with keepRendering: it is released only when no window is
+   *  visible and none publishes. Safe to call more than once per window.
+   *  Returns false where there is no such declaration to make. GUI thread
+   *  only. */
+  static bool keepActiveWhileVisible(QQuickWindow* window);
 };

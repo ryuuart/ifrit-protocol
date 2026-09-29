@@ -4,13 +4,14 @@
 
 #include <QCoreApplication>
 #include <QGuiApplication>
+#include <QHash>
 #include <QWindow>
 #include <atomic>
+
+#include "ActivityHold.h"
 #include "WindowChrome.h"
 
 namespace {
-// Retained for the lifetime of the process to keep the activity active.
-id<NSObject> g_activityToken = nil;
 
 /** WHICH WINDOW ASKED, held beside the window rather than in it.
  *
@@ -144,28 +145,135 @@ bool overrideOcclusionState(Class windowClass) {
 
 namespace {
 
-void beginContinuousActivity() {
-  if (g_activityToken) return;
+/** The system's record of the activity, present exactly while the hold
+ *  below is taken. */
+id<NSObject> g_activityToken = nil;
 
+void beginActivity() {
+  if (g_activityToken) return;
   g_activityToken = [[[NSProcessInfo processInfo]
       beginActivityWithOptions:NSActivityUserInitiated | NSActivityLatencyCritical
-                        reason:@"Continuous rendering and background frame publication"] retain];
-  QObject::connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit, [] {
-    [[NSProcessInfo processInfo] endActivity:g_activityToken];
-    [g_activityToken release];
-    g_activityToken = nil;
-  });
+                        reason:@"A window on screen, or frames published to other applications"]
+      retain];
+}
+
+void endActivity() {
+  if (!g_activityToken) return;
+  [[NSProcessInfo processInfo] endActivity:g_activityToken];
+  [g_activityToken release];
+  g_activityToken = nil;
+}
+
+/** THE ONE OWNER OF THE ACTIVITY TOKEN. Publishing and a window's
+ *  visibility each record a reason here and never begin or end the
+ *  activity themselves, so the token is taken while either stands and
+ *  released only when neither does. Without it the system demotes every
+ *  thread of an application that is not frontmost to the background
+ *  tier however much the application draws, and a window behind another
+ *  application stops presenting at the display's rate. GUI thread
+ *  only. */
+ifrit::qt::ActivityHold &activityHold() {
+  static ifrit::qt::ActivityHold *hold = [] {
+    auto *made = new ifrit::qt::ActivityHold([](bool held) {
+      if (held)
+        beginActivity();
+      else
+        endActivity();
+    });
+    QObject::connect(QCoreApplication::instance(),
+                     &QCoreApplication::aboutToQuit, [] { endActivity(); });
+    return made;
+  }();
+  return *hold;
+}
+
+NSWindow *nativeWindowOf(QWindow *window) {
+  // On macOS QWindow::winId() is the native NSView, and calling it
+  // creates the platform window when there is none yet. Qt hands the
+  // view over as an integer, and ARC bridges only from void*.
+  // NOLINTNEXTLINE(performance-no-int-to-ptr,bugprone-casting-through-void)
+  NSView *nativeView = (__bridge NSView *)reinterpret_cast<void *>(window->winId());
+  return nativeView.window;
+}
+
+/** What watches one window's visibility on the system's behalf: the
+ *  notification observers registered for its native window. */
+struct VisibilityWatch {
+  NSWindow *nativeWindow = nil;
+  id occlusionObserver = nil;
+  id closeObserver = nil;
+};
+
+QHash<QWindow *, VisibilityWatch> &visibilityWatches() {
+  static QHash<QWindow *, VisibilityWatch> watches;
+  return watches;
+}
+
+/** Removes the observers on @p window's native window, which leaves
+ *  the window watched for its next showing but no longer visible. */
+void forgetNativeWindow(QWindow *window) {
+  auto found = visibilityWatches().find(window);
+  if (found == visibilityWatches().end()) return;
+  NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
+  if (found->occlusionObserver) [center removeObserver:found->occlusionObserver];
+  if (found->closeObserver) [center removeObserver:found->closeObserver];
+  *found = VisibilityWatch{};
+  activityHold().set(window, ifrit::qt::ActivityReason::Visible, false);
+}
+
+void stopWatching(QWindow *window) {
+  forgetNativeWindow(window);
+  visibilityWatches().remove(window);
+}
+
+/** Reads whether any part of @p window is on screen. The native
+ *  occlusion state is the system's own answer and covers every way a
+ *  window leaves the screen — hidden, minimised, on another space,
+ *  wholly covered, or the display asleep — where Qt's visibility says
+ *  only whether the window was shown. */
+void readVisibility(QWindow *window) {
+  const VisibilityWatch &watch = visibilityWatches().value(window);
+  const bool visible =
+      watch.nativeWindow &&
+      (watch.nativeWindow.occlusionState & NSWindowOcclusionStateVisible);
+  activityHold().set(window, ifrit::qt::ActivityReason::Visible, visible);
+}
+
+/** Starts watching @p window's native window, which must exist. */
+void watchNativeWindow(QWindow *window) {
+  if (visibilityWatches().value(window).nativeWindow) return;
+  NSWindow *nativeWindow = nativeWindowOf(window);
+  if (!nativeWindow) return;
+  NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
+  VisibilityWatch watch;
+  watch.nativeWindow = nativeWindow;
+  watch.occlusionObserver = [center
+      addObserverForName:NSWindowDidChangeOcclusionStateNotification
+                  object:nativeWindow
+                   queue:nil
+              usingBlock:^(NSNotification *) {
+                readVisibility(window);
+              }];
+  // Delivered synchronously: AppKit posts both on the main thread, which
+  // is the thread the hold lives on.
+  // A closed native window posts no further occlusion changes, and Qt
+  // may make another one for the same QWindow when it is shown again.
+  watch.closeObserver = [center addObserverForName:NSWindowWillCloseNotification
+                                            object:nativeWindow
+                                             queue:nil
+                                        usingBlock:^(NSNotification *) {
+                                          forgetNativeWindow(window);
+                                        }];
+  visibilityWatches()[window] = watch;
+  readVisibility(window);
 }
 
 bool keepRenderingWhileOccluded(QWindow *window) {
   if (!window) return false;
 
-  // On macOS QWindow::winId() is the native NSView. Calling it also ensures
-  // the platform window has been created before we install the override.
-  // Qt hands the view over as an integer, and ARC bridges only from void*.
-  // NOLINTNEXTLINE(performance-no-int-to-ptr,bugprone-casting-through-void)
-  NSView *nativeView = (__bridge NSView *)reinterpret_cast<void *>(window->winId());
-  NSWindow *nativeWindow = nativeView.window;
+  // Creates the platform window when there is none, so the override is
+  // installed before the window is first shown.
+  NSWindow *nativeWindow = nativeWindowOf(window);
   if (!nativeWindow) return false;
 
   // -class, not object_getClass: an observer already registered on this
@@ -185,6 +293,28 @@ bool WindowChrome::keepRendering(QQuickWindow *window) {
   window->setPersistentGraphics(true);
   window->setPersistentSceneGraph(true);
   if (QGuiApplication::platformName() != "cocoa") return false;
-  beginContinuousActivity();
+  // A publisher's subscribers watch its frames whether or not the window
+  // is on screen, so this reason is never withdrawn while the process
+  // runs, not even when publishing stops.
+  activityHold().set(window, ifrit::qt::ActivityReason::Publishing, true);
   return keepRenderingWhileOccluded(window);
+}
+
+bool WindowChrome::keepActiveWhileVisible(QQuickWindow *window) {
+  if (!window) return false;
+  if (QGuiApplication::platformName() != "cocoa") return false;
+  if (visibilityWatches().contains(window)) return true;
+  visibilityWatches().insert(window, VisibilityWatch{});
+  QObject::connect(window, &QObject::destroyed, [window] { stopWatching(window); });
+  // Watched from the first time the window is shown rather than now:
+  // asking for the native window before then would create it before the
+  // window's own properties are settled.
+  QObject::connect(window, &QWindow::visibleChanged, [window](bool visible) {
+    if (visible)
+      watchNativeWindow(window);
+    else
+      readVisibility(window);
+  });
+  if (window->handle() && window->isVisible()) watchNativeWindow(window);
+  return true;
 }
