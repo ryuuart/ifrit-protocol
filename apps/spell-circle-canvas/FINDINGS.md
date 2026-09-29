@@ -1115,3 +1115,23 @@ own transform does. A test should mount a keyed `Cache::Texture` child
 under a parent whose `translateX` is bound, step the bound value across
 several fractional values, and assert that `Composer::stats` reports no
 bake written after the first frame.
+
+## A baked node held at opacity 0 takes its bake on the frame it first shows
+
+A `Cache::Texture` node under a bound opacity of exactly 0 is not baked
+while it is invisible; its first bake is taken on the first frame the
+opacity rises above 0. A sheet that fades a population of baked nodes in
+together therefore pays every one of their bakes on that one frame:
+forty small glowing texts faded in at once cost a 9 ms frame in a
+0.3 ms scene, and `rota_convocationis`, kindling a band of script baked
+in some twenty wedges, took a frame of about 200 ms per band.
+`rota_convocationis` works around it by holding its kindling opacities
+at 0.002, below one level of eight-bit alpha, so every bake is taken
+unseen on the first frame.
+
+Skipping the paint of an invisible node is evidently right, but its
+bake is evidently meant to be ready when the node appears, the way a
+bake under any other bound value is taken once and carried. A test
+should mount forty baked texts under a parent whose bound opacity is 0
+for some frames and then 1, and assert that `Composer::stats` reports
+no bake written on the frame the opacity leaves 0.
