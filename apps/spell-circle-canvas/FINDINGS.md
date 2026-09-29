@@ -1097,25 +1097,6 @@ reuse of stationary edge coverage across light-only updates. The machined
 film-title sketch uses retained vector contours; that avoids this text case
 without establishing that the underlying coverage issue is fixed.
 
-## A bound transform on an ancestor takes every texture bake under it again on each frame it moves
-
-In `thunder_fulu` the plate is a `kit::at` node over about two hundred
-`pen(key, program, Cache::Texture)` pieces and one keyed texture ground.
-A bound `translateY` on that plate node, moving a few pixels over 0.7 s,
-cost about 480 ms a frame for as long as it moved: every bake under it
-was taken again on every frame. The same binding placed on each baked
-node itself costs under 6 ms a frame for the whole plate, because a
-node's own bound transform moves its kept pixels. The sketch binds it on
-each baked node under a `workaround:` line.
-
-A bound transform is paint-only by contract and a bake's content does
-not change with its ancestor's translation, so a moving ancestor is
-evidently meant to move its descendants' kept pixels the way the node's
-own transform does. A test should mount a keyed `Cache::Texture` child
-under a parent whose `translateX` is bound, step the bound value across
-several fractional values, and assert that `Composer::stats` reports no
-bake written after the first frame.
-
 ## A baked node held at opacity 0 takes its bake on the frame it first shows
 
 A `Cache::Texture` node under a bound opacity of exactly 0 is not baked

@@ -108,6 +108,20 @@ going, so the bake is taken there once and the blit minifies through the
 entrance, which is the sharp direction. A scale driven by a binding names
 nothing and keeps the ladder.
 
+**A MOTION DECLARED ABOVE A NODE MOVES ITS BAKE THE WAY ITS OWN DOES.** A
+`Cache::Texture` node keeps the local bake while a transform on it OR ON
+ANY ANCESTOR is declared as moving — bound to a live value, or easing —
+and blits that one image through every matrix above it. What a bake holds
+does not depend on where it lands, and a device bake is exact at one
+sub-pixel position only: a plate drifting a few pixels over many frames
+lands each node on the same device rect on most of them at another
+position, so a device bake would be taken again on every frame of the
+drift. The ladder, or the declared density below, decides the bake's
+resolution exactly as it does for a node that moves itself, and the device
+bake is taken once no declaration above or on the node moves. Automatic
+promotion is not this tier and is not changed by it: it takes device bakes
+only, remade whenever the matrix they stand under moves.
+
 **A DECLARED DENSITY MAKES A BAKE A PICTURE OF THE CANVAS.** The ladder
 above is right for a host that draws its canvas at one scale and wants
 the sharpest raster for it, and wrong for a host whose reader can zoom:

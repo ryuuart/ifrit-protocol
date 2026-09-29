@@ -139,6 +139,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
       (above.inSpace || (node.depthData && transformOf(inst).spatial())))
     moving = true;
   inst.transformLive = moving;
+  inst.transformLiveAbove = movingAbove;
   inst.placementUnderMotion = moving || movingAbove;
   ownPaint |= moving;
 

@@ -72,15 +72,20 @@ bool paintTextureBake(PaintPass& pass) {
   //    recording is remade the frame that matrix differs.
   //  - the node must be HOLDING STILL, by both available measures, which
   //    are not the same measure:
-  //      * `transformLive` — its own transform is declared as animating.
-  //        A spinning ornament must keep the local bake and ride it,
-  //        even on a frame where it happens to land on the same rect.
+  //      * `transformLive` — its own transform is declared as animating —
+  //        or `transformLiveAbove` — an ancestor's is. A spinning
+  //        ornament must keep the local bake and ride it, even on a frame
+  //        where it happens to land on the same rect; and so must a node
+  //        carried by a moving ancestor. A motion of a few pixels over
+  //        many frames lands on the same device rect on most of them at a
+  //        different sub-pixel position, so the rect alone would answer
+  //        "still", take a device bake exact for that one position, and
+  //        take it again on the next frame and every frame after.
   //      * the device rect it lands on has not moved since last frame.
-  //        A node with no animated property of its own still moves under
-  //        a resizing window, a pinch zoom, a pan, or an uncached
-  //        ancestor's live transform — none of which any per-node
-  //        DECLARATION can see, and all of which would re-bake a
-  //        device-pinned texture every frame. At the root the node is
+  //        A node with no declared motion on it or above it still moves
+  //        under a resizing window, a pinch zoom or a pan — none of
+  //        which any DECLARATION can see, and all of which would re-bake
+  //        a device-pinned texture every frame. At the root the node is
   //        painted every frame and keeps that history itself; inside a
   //        recording it is painted only when the recording is, so the
   //        outermost recording's own matrix history answers instead.
@@ -118,7 +123,8 @@ bool paintTextureBake(PaintPass& pass) {
   //    path is not what it wants, and the local bake below is the one
   //    that honours it.
   const bool deviceEligible =
-      !deferEffect && !inst.transformLive && impl.unpinnedRecordingDepth == 0 &&
+      !deferEffect && !inst.transformLive && !inst.transformLiveAbove &&
+      impl.unpinnedRecordingDepth == 0 &&
       node.bakeScale >= 1.0f && !totalM.hasPerspective() &&
       impl.bakeDensity <= 0 && deviceR.width() > 0 && deviceR.height() > 0 &&
       deviceArea <= int64_t{16} * 1024 * 1024;

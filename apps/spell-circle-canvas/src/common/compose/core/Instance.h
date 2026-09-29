@@ -546,6 +546,12 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // derived from paint history, which a node under a cached parent never
   // accumulates.
   bool transformLive = false;
+  // …and is an ANCESTOR's transform declared as animating? A local bake
+  // rides every matrix above it exactly as it rides the node's own, and a
+  // device bake under a moving ancestor is exact at one sub-pixel position
+  // only, so a Cache::Texture node keeps its local bake under either
+  // declaration. Written beside `transformLive`, by the same walk.
+  bool transformLiveAbove = false;
   // …and does what this node draws LAND SOMEWHERE ELSE next frame?
   // `transformLive` is the node's OWN declared motion; this is that, OR any
   // ancestor's, OR — for text — a live textFx() track whose effect moves glyphs

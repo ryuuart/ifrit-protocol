@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <string>
 #include <vector>
 
 #include "support/CoreTestSupport.h"
@@ -45,15 +46,13 @@ TEST(ComposeCaching, TextureBakeReusedUnderAMovingAncestor) {
   // may only be taken while the node is holding still — and "still" has
   // two independent measures that are easy to mistake for one:
   //
-  //   * the node's own transform is not declared as animating, and
+  //   * no transform on the node or above it is declared as animating, and
   //   * the device rect it LANDS on has not moved.
   //
-  // This node declares nothing. It is dragged across the canvas by an
-  // ancestor, through a Cache::None parent so no recording intervenes —
-  // the one arrangement where a moving rect reaches a node that looks
-  // static from every declaration available to it. A device-pinned bake
-  // would re-rasterize every frame here, which is precisely the cost the
-  // quantized local bake exists to avoid.
+  // This node declares nothing of its own. It is dragged across the canvas
+  // by an ancestor, through a Cache::None parent so no recording
+  // intervenes. A device-pinned bake would re-rasterize every frame here,
+  // which is precisely the cost the quantized local bake exists to avoid.
   //
   // Note this cannot be a pixel assertion: every arrangement below draws
   // the correct picture. Only the bake COUNT tells them apart.
@@ -76,20 +75,50 @@ TEST(ComposeCaching, TextureBakeReusedUnderAMovingAncestor) {
                                       green())})})}));
   host.frame();
   EXPECT_GE(host.composer.stats().picturesRecorded, 1u);  // the first bake
-  // The still -> moving transition costs exactly one re-bake, because the
-  // held image is in the wrong space for the path now being taken. That is
-  // inherent to having two bake spaces and is not what this test guards.
-  slide = 7.0f;
-  host.frame();
-  // From here the guarantee is absolute: a moving node reuses ONE local
+  // The ancestor's motion is declared from the first frame, so the bake
+  // taken there is already the local one: a moving node reuses ONE local
   // bake and blits it through its transform, however far it travels.
-  for (int i = 2; i <= 5; ++i) {
+  for (int i = 1; i <= 5; ++i) {
     slide = (float)i * 7.0f;  // whole-pixel slides: the rect really moves
     host.frame();
     EXPECT_EQ(host.composer.stats().picturesRecorded, 0u)
         << "frame " << i
         << ": the bake was re-rasterized while the node slid, instead of "
            "being reused and blitted through the transform";
+  }
+}
+
+TEST(ComposeCaching, ABakeUnderABoundAncestorSurvivesSubPixelMotion) {
+  // The motion a plate drifting a few pixels over many frames makes: most
+  // frames land every child on the same device rect at another sub-pixel
+  // position. The rect alone reads that as holding still, and a device
+  // bake is exact at one position only — so every child would be baked
+  // again on every frame of the drift. The ancestor's bound translation is
+  // declared, and the children's local bakes ride it the way they ride a
+  // transform of their own.
+  Host host(300, 300);
+  motion::Animatable<float> drift = motion::animatable(0.0f);
+  Element plate = box().cache(Cache::None).absolute().translateX(drift);
+  for (int i = 0; i < 6; ++i)
+    plate.children({box()
+                        .key("piece" + std::to_string(i))
+                        .absolute()
+                        .left(10.0f + 45.0f * (float)i)
+                        .top(40)
+                        .width(36)
+                        .height(36)
+                        .cache(Cache::Texture)
+                        .fill(red())
+                        .children({box().width(12).height(12).fill(green())})});
+  host.composer.render(box().cache(Cache::None).children({std::move(plate)}));
+  host.frame();
+  EXPECT_EQ(host.composer.stats().texturesBaked, 6u) << "one bake a piece";
+  for (int i = 1; i <= 12; ++i) {
+    drift = (float)i * 0.23f;  // a quarter pixel a frame: rects mostly hold
+    host.frame(1.0 / 60.0);
+    EXPECT_EQ(host.composer.stats().texturesBaked, 0u)
+        << "frame " << i
+        << ": a piece was baked again while its ancestor drifted";
   }
 }
 
