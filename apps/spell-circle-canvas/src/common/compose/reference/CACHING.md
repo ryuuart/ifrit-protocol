@@ -122,6 +122,20 @@ bake is taken once no declaration above or on the node moves. Automatic
 promotion is not this tier and is not changed by it: it takes device bakes
 only, remade whenever the matrix they stand under moves.
 
+**A NODE ABOUT TO SHOW HOLDS ITS BAKE ALREADY.** A node at an opacity of
+0 draws nothing, and its subtree is not painted. When that opacity is
+declared to move — bound to a live value, or easing — the node will show,
+and a `Cache::Texture` node under it whose bake waits (none yet, or a
+stale one, over content that holds still) would take it on the frame it
+first shows, so a fade releasing many of them at once pays every bake in
+that one frame. So while such a bake waits, the subtree is walked through
+a canvas that stands where the frame's canvas stands — its matrix, its
+clip, the device it makes surfaces on — and draws nothing: each bake is
+the one the node would take on the frame it shows, and every blit and
+live draw of the walk is discarded. Once no bake waits, the subtree is
+skipped again. A node whose opacity is 0 and declared still never shows,
+and nothing under it is baked ahead.
+
 **A DECLARED DENSITY MAKES A BAKE A PICTURE OF THE CANVAS.** The ladder
 above is right for a host that draws its canvas at one scale and wants
 the sharpest raster for it, and wrong for a host whose reader can zoom:

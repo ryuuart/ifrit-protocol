@@ -12,6 +12,8 @@
 #include <include/core/SkPath.h>
 #include <include/core/SkRRect.h>
 #include <include/core/SkRect.h>
+#include <include/core/SkSurface.h>
+#include <include/utils/SkNoDrawCanvas.h>
 
 #include <algorithm>
 #include <optional>
@@ -25,6 +27,74 @@ namespace sigil::compose {
 
 using namespace detail;
 
+namespace {
+
+/** Is this node's opacity declared to move — bound to a live value, or
+ *  easing? */
+bool opacityDeclaredLive(const Instance& inst) {
+  return inst.computed.paint.opacity.identity() != nullptr ||
+         (inst.anims[Instance::kOpacity] &&
+          inst.anims[Instance::kOpacity]->isRunning());
+}
+
+/** Does a Cache::Texture node at or under @p inst wait for a bake it can
+ *  take now — content that holds still, and no image yet or a stale one?
+ *  A node held at an opacity of 0 that is not declared to move never
+ *  shows while its ancestor does, and a bake inside another bake is never
+ *  taken, so the search stops at both. */
+bool bakeAwaitedUnder(const Instance& inst) {
+  const ElementNode& node = *inst.description;
+  if (inst.computed.layout.display == Display::None) return false;
+  if (node.cacheMode == Cache::Texture)
+    return !inst.subtreeVolatile && !backdropEffectOf(node) &&
+           (!inst.textureImage || inst.paintDirty);
+  for (const auto& child : inst.children) {
+    if (child->resolveFloat(Instance::kOpacity,
+                            child->computed.paint.opacity) <= 0.0f &&
+        !opacityDeclaredLive(*child))
+      continue;
+    if (bakeAwaitedUnder(*child)) return true;
+  }
+  return false;
+}
+
+/** A canvas that stands where @p seen stands — its matrix, its clip, the
+ *  device it makes surfaces on — and draws nothing. A bake taken through
+ *  it is the bake the same node takes on the visible canvas, and every
+ *  blit and live draw is discarded. */
+class UnseenCanvas final : public SkNoDrawCanvas {
+ public:
+  explicit UnseenCanvas(SkCanvas& seen)
+      : SkNoDrawCanvas(extentOf(seen)), m_seen(seen) {
+    this->clipIRect(seen.getDeviceClipBounds());
+    this->setMatrix(seen.getLocalToDevice());
+  }
+  GrRecordingContext* recordingContext() const override {
+    return m_seen.recordingContext();
+  }
+  skgpu::graphite::Recorder* recorder() const override {
+    return m_seen.recorder();
+  }
+
+ protected:
+  sk_sp<SkSurface> onNewSurface(const SkImageInfo& info,
+                                const SkSurfaceProps& props) override {
+    return m_seen.makeSurface(info, &props);
+  }
+  SkImageInfo onImageInfo() const override { return m_seen.imageInfo(); }
+
+ private:
+  static SkIRect extentOf(SkCanvas& seen) {
+    const SkISize base = seen.getBaseLayerSize();
+    SkIRect extent = SkIRect::MakeSize(base);
+    extent.join(seen.getDeviceClipBounds());
+    return extent;
+  }
+  SkCanvas& m_seen;
+};
+
+}  // namespace
+
 void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   const ElementNode& node = *inst.description;
   const ComputedStyle& style = inst.computed;
@@ -32,11 +102,30 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   // does not.
   if (style.layout.display == Display::None) return;
   const SkRect rect = instanceRect(inst);
-  ProfileScope profileScope(this, inst, rect);
-
   const float opacity = std::clamp(
       inst.resolveFloat(Instance::kOpacity, style.paint.opacity), 0.0f, 1.0f);
-  if (opacity <= 0.0f) return;
+  // AN INVISIBLE NODE PAINTS NOTHING, AND A NODE ABOUT TO SHOW HAS ITS
+  // BAKES TAKEN ALREADY. Nothing at an opacity of 0 reaches the canvas, so
+  // the subtree is not drawn. But an opacity declared to move is a node
+  // that will show, and a Cache::Texture node under it that first bakes
+  // on the frame it shows makes that frame pay for every bake a fade-in
+  // releases together. So while one of those bakes waits, the subtree is
+  // walked through a canvas that stands where this one does and draws
+  // nothing: each bake is taken under the matrix and clip it will be
+  // blitted under, and the blits are discarded. Once none waits, the
+  // subtree is skipped as before. A node whose opacity is 0 and declared
+  // still never shows, so nothing is taken ahead for it.
+  const bool bakeAhead = opacity <= 0.0f && !liveOnly &&
+                         opacityDeclaredLive(inst) && bakeAwaitedUnder(inst);
+  if (bakeAhead && !paintingUnseen) {
+    UnseenCanvas unseen(canvas);
+    paintingUnseen = true;
+    paint(inst, unseen);
+    paintingUnseen = false;
+    return;
+  }
+  ProfileScope profileScope(this, inst, rect);
+  if (opacity <= 0.0f && !bakeAhead) return;
 
   // (Size-change invalidation for recordings — including geometry-dependent
   // materials' baked uResolution — happens in ensureLayout's
@@ -375,10 +464,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   // drawn into a transparent layer and composited at alpha is the same
   // pixels as that path drawn at alpha, since there is nothing inside the
   // layer for it to composite against first.
-  const bool opacityLive =
-      style.paint.opacity.identity() != nullptr ||
-      (inst.anims[Instance::kOpacity] &&
-       inst.anims[Instance::kOpacity]->isRunning());
+  const bool opacityLive = opacityDeclaredLive(inst);
   const bool leafDirectBlend =
       (node.kind == Kind::Box || node.kind == Kind::Stack) &&
       inst.children.empty() && node.backgrounds.empty() &&

@@ -1,8 +1,9 @@
 // When a bake is taken once and blitted after: the scale it is quantised
 // to, the ancestor motion it survives, the angles it stays exact at, the
 // matrix move that remakes the recording holding it, the local bake a
-// live transform leaves alone, the cache a memo shell carries onto its
-// produce, and what a blit keeps of what was baked.
+// live transform leaves alone, the bakes a hidden fade takes before it
+// shows, the cache a memo shell carries onto its produce, and what a blit
+// keeps of what was baked.
 
 #include <algorithm>
 #include <cmath>
@@ -120,6 +121,51 @@ TEST(ComposeCaching, ABakeUnderABoundAncestorSurvivesSubPixelMotion) {
         << "frame " << i
         << ": a piece was baked again while its ancestor drifted";
   }
+}
+
+TEST(ComposeCaching, BakesUnderAHiddenFadeAreTakenBeforeItShows) {
+  // A fade that releases forty baked texts at once pays forty bakes on the
+  // one frame they appear unless the bakes are already held. Their parent
+  // is held at a bound opacity of 0 for a few frames: the bakes are taken
+  // unseen on the first of them, nothing reaches the canvas while the
+  // opacity is 0, and the frame the fade leaves 0 is a blit of each.
+  Host host(400, 400);
+  motion::Animatable<float> fade = motion::animatable(0.0f);
+  Element sheet = box().cache(Cache::None).inset(0).opacity(fade);
+  for (int i = 0; i < 40; ++i)
+    sheet.children({text(u8"GLOW", whiteStyle(14))
+                        .key("glow" + std::to_string(i))
+                        .absolute()
+                        .left(8.0f + 48.0f * (float)(i % 8))
+                        .top(8.0f + 40.0f * (float)(i / 8))
+                        .width(44)
+                        .cache(Cache::Texture)});
+  host.composer.render(box().cache(Cache::None).children({std::move(sheet)}));
+  // How many pixels of the canvas carry anything but the black it was
+  // cleared to.
+  const auto inkedPixels = [&] {
+    SkBitmap read;
+    read.allocPixels(SkImageInfo::MakeN32Premul(400, 400));
+    host.surface->readPixels(read.pixmap(), 0, 0);
+    int inked = 0;
+    for (int y = 0; y < 400; ++y)
+      for (int x = 0; x < 400; ++x) inked += read.getColor(x, y) != SK_ColorBLACK;
+    return inked;
+  };
+  host.frame();
+  EXPECT_EQ(host.composer.stats().texturesBaked, 40u)
+      << "every bake is taken while the sheet is unseen";
+  EXPECT_EQ(inkedPixels(), 0) << "an unseen bake reached the canvas";
+  for (int i = 0; i < 3; ++i) {
+    host.frame(1.0 / 60.0);
+    EXPECT_EQ(host.composer.stats().texturesBaked, 0u)
+        << "held frame " << i << ": an unseen bake was taken again";
+  }
+  fade = 1.0f;
+  host.frame(1.0 / 60.0);
+  EXPECT_EQ(host.composer.stats().texturesBaked, 0u)
+      << "the frame the fade left 0 baked instead of blitting";
+  EXPECT_GT(inkedPixels(), 0) << "the shown texts drew nothing";
 }
 
 namespace {

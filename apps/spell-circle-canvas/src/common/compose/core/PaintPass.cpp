@@ -128,7 +128,7 @@ void PaintPass::deviceBlit(const sk_sp<SkImage>& image, const SkIRect& at,
                    SkSamplingOptions(), paint);
   canvas.restore();
   if (impl.recordingDepth > 0) ++impl.recordingDeviceBakes;
-  if (impl.countComposites) impl.countBlit(image, at);
+  if (impl.countComposites && !impl.paintingUnseen) impl.countBlit(image, at);
 }
 
 sk_sp<SkImageFilter> PaintPass::resolveLayerFilter() {

@@ -264,6 +264,11 @@ struct Composer::Impl {
   // all PINNED to the matrix they were made under (Instance::pictureMatrix)
   // and remade when it changes.
   int unpinnedRecordingDepth = 0;
+  // Whether the walk is painting a subtree held at an opacity of 0 only to
+  // take the bakes it will blit once it shows (`paint`): every draw lands
+  // on a canvas that keeps the matrix and clip and discards the pixels, so
+  // nothing painted here may be counted as reaching the canvas.
+  bool paintingUnseen = false;
   // The matrix the innermost open recording's ops reach the device through
   // when it is replayed — identity outside any recording. A node inside a
   // recording composes its canvas matrix through this to find the device
