@@ -25,14 +25,13 @@
 
 // TAGS: Materials/Shaders
 
-#include <sigilmedia/advanced/Skia.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/substance/Substance.h>
 #include <sigilmaterial/substance/advanced/Archive.h>
-#include <sigilmedia/core/Image.h>
+#include <sigilmedia/core/PixelSource.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
@@ -90,20 +89,19 @@ std::string archive() {
 }
 
 /** One cooked channel: the usage the archive tagged it with, and the
- *  image itself wrapped so the layout can draw it like any other. */
+ *  cooked output itself. A cook that ran on the device leaves its frame
+ *  there, so the card takes the source and the draw binds the frame. */
 struct Swatch {
   std::string usage;
-  int width = 0;
-  int height = 0;
-  std::shared_ptr<const sigil::media::Image> asset;
+  sigil::media::PixelSource cooked;
 };
 
 Element card(const Swatch& swatch) {
-  const std::string size =
-      kit::formatted("%d × %d", swatch.width, swatch.height);
+  const std::string size = kit::formatted(
+      "%d × %d", swatch.cooked.size().x, swatch.cooked.size().y);
   return sketch::kit::caption(
              kCard, swatch.usage, size,
-             image(swatch.asset)
+             image(swatch.cooked)
                  .width(kCard)
                  .height(kCard)
                  .borderRadius({10})
@@ -176,14 +174,16 @@ struct SubstanceSwatchesSketch {
     const material::Material leaves = material::substance(
         hub, archive(), {.resolution = kCook, .outputs = every});
 
+    // The cook runs apart from this thread; a plate shows what landed.
+    sbsar::settle(leaves);
+
     const sketch::kit::Provide look(sheetTheme());
     std::vector<Swatch> swatches;
     for (const sbsar::OutputRequest& output : every) {
-      const sk_sp<SkImage> cooked =
-          sbsar::output(leaves, output.usage).frameAt({}).image;
-      if (!cooked) continue;
-      swatches.push_back({output.usage, cooked->width(), cooked->height(),
-                          (sigil::media::Image::of(cooked))});
+      sigil::media::PixelSource cooked = sbsar::output(leaves, output.usage);
+      // A frame stands in host memory or on the device; either is cooked.
+      if (!cooked.frameAt({})) continue;
+      swatches.push_back({output.usage, std::move(cooked)});
     }
     if (swatches.empty()) {
       refuse(ctx, u8"the graph did not cook", archive());
