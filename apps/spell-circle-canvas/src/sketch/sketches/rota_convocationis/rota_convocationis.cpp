@@ -41,6 +41,7 @@
 #include <cmath>
 #include <numbers>
 #include <string>
+#include <vector>
 
 namespace material = sigil::material;
 namespace motion = sigil::motion;
@@ -74,6 +75,9 @@ const material::Color kBone = hexColor(0xEDE3CC);
 const material::Color kAsh = hexColor(0x8E86A0);
 const material::Color kRuneInk = hexColor(0xA697C4);
 const material::Color kSealGround = hexColor(0x0D0A16);
+// The light every line carries, per px of the line's width: a far wash
+// and a near one.
+constexpr float kHaloFar = 0.035f, kHaloNear = 0.075f;
 
 // THE RADIUS TABLE, in units of the greatest circle, outside in.
 constexpr float rEdge = 1.000f, rEdgeIn = 0.980f;      // 240 teeth
@@ -102,6 +106,9 @@ constexpr float rSealRide = (rSealLip + rSealFoot) * 0.5f;
 constexpr float kSealRadius = (rSealLip - rSealFoot) * 0.5f * kRadius;
 constexpr float kSealBaseline = kSealRadius * 0.78f;
 constexpr int kStations = 12;
+// How many wedges a band of script is baked in: enough that each wedge's
+// box is mostly lettering, few enough that each blit is worth its cost.
+constexpr int kWedges = 24;
 constexpr float kPitch = 360.0f / kStations;
 
 // THE TURNING LAYERS and their periods in seconds per revolution; a
@@ -175,15 +182,46 @@ SkPoint polar(float degrees, float radius) {
  *  about the eye. */
 Element sheet() { return box().inset(0).hitTestable(false); }
 
+/** THE LIGHT a line of the wheel carries: two washes of the halo, wider
+ *  than the line and under it, as strong as the line is heavy, laid on a
+ *  stroke @p stroked px wide (none for a filled mark's own edge), so the circle reads as charged rather than
+ *  merely drawn. It is in the pen rather than a filter over the drawing
+ *  because most of the drawing turns, and a filter over a turning figure
+ *  runs again over its whole box on every frame. */
+Element haloed(Element node, float width, float stroked) {
+  const float weight = std::min(width, 1.6f);
+  node.stroke(stroke(stroked + 6.0f,
+                     Fill::color(hexColor(0xE79A32, kHaloFar * weight))))
+      .stroke(stroke(stroked + 2.5f,
+                     Fill::color(hexColor(0xE79A32, kHaloNear * weight))));
+  return node;
+}
+
+/** A line of the wheel: @p width of @p ink over its light. */
+Element lit(Element node, float width, material::Color ink) {
+  node = haloed(std::move(node), width, width);
+  node.fill(Fill::none()).stroke(stroke(width, Fill::color(ink)));
+  return node;
+}
+
+/** One ruled circle of @p radius px about @p centre. */
+Element circle(SkPoint centre, float radius, float width,
+               material::Color ink) {
+  return lit(kit::disc(sigil::geometry::path::fromSk(centre), radius)
+                 .shape(shapes::circle()),
+             width, ink);
+}
+
 Element ladder(const Ladder& ladder) {
-  return kit::disc(sigil::geometry::path::fromSk(kEye),ladder.outer * kRadius)
-      .shape(shapes::ticks({.divisions = ladder.count,
-                            .from = ladder.from,
-                            .mark = {ladder.inner / ladder.outer, 1.0f},
-                            .longEvery = ladder.skip,
-                            .longMark = {1.0f, 1.0f}}))
-      .fill(Fill::none())
-      .stroke(stroke(ladder.width, Fill::color(ladder.ink)));
+  return lit(kit::disc(sigil::geometry::path::fromSk(kEye),
+                       ladder.outer * kRadius)
+                 .shape(shapes::ticks({.divisions = ladder.count,
+                                       .from = ladder.from,
+                                       .mark = {ladder.inner / ladder.outer,
+                                                1.0f},
+                                       .longEvery = ladder.skip,
+                                       .longMark = {1.0f, 1.0f}})),
+             ladder.width, ladder.ink);
 }
 
 /** @p count arcs on one circle, each @p span degrees wide and centred on
@@ -192,13 +230,16 @@ Element ladder(const Ladder& ladder) {
 Element brokenRing(float radius, int count, float span, float from,
                    float width, material::Color ink) {
   const float px = radius * kRadius;
-  return kit::disc(sigil::geometry::path::fromSk(kEye),px + width * 0.5f)
-      .shape(shapes::arcs({.divisions = count,
-                           .from = from,
-                           .mark = {(px - width * 0.5f) / (px + width * 0.5f),
-                                    1.0f},
-                           .spanDeg = span}))
-      .fill(Fill::color(ink));
+  Element slabs = haloed(
+      kit::disc(sigil::geometry::path::fromSk(kEye), px + width * 0.5f)
+          .shape(shapes::arcs(
+              {.divisions = count,
+               .from = from,
+               .mark = {(px - width * 0.5f) / (px + width * 0.5f), 1.0f},
+               .spanDeg = span})),
+      width, 0.0f);
+  slabs.fill(Fill::color(ink));
+  return slabs;
 }
 
 /** @p count small circles standing on a ring: the furniture at every
@@ -206,17 +247,17 @@ Element brokenRing(float radius, int count, float span, float from,
 Element beads(int count, float radius, float size, float from, float width,
               material::Color ink) {
   return sheet().children(each(count, [=](int index) {
-    return kit::ring(sigil::geometry::path::fromSk(polar(from + 360.0f * index / count, radius)), size,
-                     stroke(width, Fill::color(ink)));
+    return circle(polar(from + 360.0f * index / count, radius), size, width,
+                  ink);
   }));
 }
 
 /** A star compound {12/step} whose vertices stand on @p radius. */
 Element compound(int step, float radius, float width) {
-  return kit::disc(sigil::geometry::path::fromSk(kEye),radius * kRadius)
-      .shape(shapes::chords({.sides = kStations, .step = step, .closed = true}))
-      .fill(Fill::none())
-      .stroke(stroke(width, Fill::color(kLine)));
+  return lit(kit::disc(sigil::geometry::path::fromSk(kEye), radius * kRadius)
+                 .shape(shapes::chords(
+                     {.sides = kStations, .step = step, .closed = true})),
+             width, kLine);
 }
 
 struct RotaConvocationis {
@@ -224,10 +265,12 @@ struct RotaConvocationis {
   StyleSheet registers;
   std::array<motion::Animatable<float>, kTurnings> phase{};
   std::array<float, std::size(kBands)> bandSize{};
+  std::array<std::vector<float>, std::size(kBands)> bandCuts{};
   std::array<float, kStations> sealSize{};
 
-  motion::Animatable<float> turn(Turning layer) {
-    return motion::bind(phase[layer], {.to = {0.0f, 360.0f}});
+  /** The bound rotation of @p layer, starting @p from degrees round. */
+  motion::Animatable<float> turn(Turning layer, float from = 0) {
+    return motion::bind(phase[layer], {.to = {from, from + 360.0f}});
   }
 
   /** The size at which @p run girds a circle of @p radius px, measured
@@ -254,16 +297,93 @@ struct RotaConvocationis {
 
   /** One band of script: the text node IS the circle its baseline runs
    *  on, and the letters' bodies straddle that circle so they sit between
-   *  the band's two rules. */
-  Element script(const Band& band, float size) {
+   *  the band's two rules.
+   *
+   *  A turning texture costs every pixel of its box on each frame it
+   *  turns, and a ring's box is almost all empty middle. So the band is
+   *  cut into WEDGES, each an annular slice clipping the whole run and
+   *  baked once. Every wedge is drawn standing at twelve o'clock, where
+   *  its box is no taller than its lettering, and set back in its place
+   *  by the same rotation that turns it. The cuts fall in the spaces
+   *  between words, so no letter is split between two bakes. */
+  Element script(size_t index) {
+    const Band& band = kBands[index];
+    const float size = bandSize[index];
     const float px = band.radius * kRadius;
-    Text run = bandRun(band);
-    // The lettering is fixed in each ring; only its placement turns.
-    run.font({.size = size}).ink(band.ink).rotate(turn(band.turning))
-        .cache(Cache::Texture);
-    if (band.turning == kNames) run.filter(sigil::material::Filter::glow(kHalo, 6.0f));
-    return kit::at(std::move(run), kEye.fX - px, kEye.fY - px, 2 * px, 2 * px)
-        .textOnPath({.path = shapes::circle(), .offset = -size * 0.34f});
+    // The letters stand about half a size either side of the circle; the
+    // names' glow reaches three sigmas further.
+    const float reach = size * 0.62f + (band.turning == kNames ? 18.0f : 2.0f);
+    const float outer = px + reach, inner = px - reach;
+    const std::vector<float>& cuts = bandCuts[index];
+    return sheet().children(each(cuts.size(), [&, px, size, outer, inner](int wedge) {
+      const float from = cuts[wedge];
+      const float to = wedge + 1 < int(cuts.size()) ? cuts[wedge + 1]
+                                                    : cuts.front() + 360.0f;
+      // Degrees from the wedge's own place round to twelve o'clock.
+      const float home = -90.0f - (from + to) * 0.5f;
+      const sigil::geometry::path::Outline slice =
+          shapes::ellipse({.fromDegrees = -90.0f - (to - from) * 0.5f,
+                           .sweepDegrees = to - from,
+                           .inner = inner / outer})
+              .outline({2 * outer, 2 * outer})
+              .transformed(sigil::geometry::path::Transform::translate(
+                  {kEye.fX - outer, kEye.fY - outer}));
+      const auto bounds = slice.bounds();
+      const float left = std::floor(bounds.left()), top = std::floor(bounds.top());
+      Text run = bandRun(band);
+      run.font({.size = size}).ink(band.ink).rotate(home);
+      if (band.turning == kNames) run.filter(Filter::glow(kHalo, 6.0f));
+      return kit::at(left, top, std::ceil(bounds.right()) - left,
+                     std::ceil(bounds.bottom()) - top)
+          .shape(heldPath(slice.transformed(
+              sigil::geometry::path::Transform::translate({-left, -top}))))
+          .overflow(Overflow::Clip)
+          .hitTestable(false)
+          .cache(Cache::Texture)
+          .transformOrigin(Dimension(kEye.fX - left), Dimension(kEye.fY - top))
+          .rotate(turn(band.turning, -home))
+          .children({kit::at(std::move(run), kEye.fX - px - left,
+                             kEye.fY - px - top, 2 * px, 2 * px)
+                         .textOnPath({.path = shapes::circle(),
+                                      .offset = -size * 0.34f})});
+    }));
+  }
+
+  /** Where a band may be cut: the middle of every space between words,
+   *  as degrees clockwise from due east, where the circle's baseline
+   *  starts. The measure is whole pixels and leaves a trailing space out,
+   *  which a cut in the middle of a space has room for. Of those, the ones nearest an even division of the ring,
+   *  so each wedge holds about as much lettering as its neighbours. */
+  std::vector<float> cutsOf(sketch::SketchContext& context, const Band& band,
+                            float size) const {
+    const std::string words{content[band.words].string()};
+    const auto width = [&](const std::string& run) {
+      Element probe = text(run).styleClass(band.voice).font(
+          {.size = size, .track = band.track});
+      probe.applyStyleSheet(registers);
+      return context.measure(probe).width();
+    };
+    const float space = width("A A") - width("AA");
+    const float degreesPerPixel = 180.0f / (std::numbers::pi_v<float> *
+                                            band.radius * kRadius);
+    std::vector<float> spaces;
+    for (size_t at = 1; at < words.size(); ++at)
+      if (words[at] == ' ' && words[at - 1] != ' ')
+        spaces.push_back((width(words.substr(0, at)) + space * 0.5f) *
+                         degreesPerPixel);
+    // The first cut falls in the middle of the gap the run leaves where
+    // its end comes round to its start.
+    std::vector<float> cuts{-180.0f * (1.0f - band.fill)};
+    for (int wedge = 1; wedge < kWedges; ++wedge) {
+      const float aim = 360.0f * wedge / kWedges;
+      float best = cuts.back();
+      for (float candidate : spaces)
+        if (candidate > cuts.back() &&
+            std::abs(candidate - aim) < std::abs(best - aim))
+          best = candidate;
+      if (best > cuts.back()) cuts.push_back(best);
+    }
+    return cuts;
   }
 
   /** The arc layer: two broken rings half a pitch apart, the spokes that
@@ -293,17 +413,17 @@ struct RotaConvocationis {
                  kPitch / 12}),
          beads(24, (rCageIn + rCageOut) * 0.5f, 2.6f, kPitch * 0.25f, 0.9f,
                kLine),
-         kit::disc(sigil::geometry::path::fromSk(kEye),rCrescentOut * kRadius)
-             .shape(shapes::arcs({.divisions = 3,
-                                  .from = kPitch * 2.5f,
-                                  .mark = {rCrescentIn / rCrescentOut, 1},
-                                  .spanDeg = crescentSpan}))
-             .fill(Fill::none())
-             .stroke(stroke(1.3f, Fill::color(kLine))),
+         lit(kit::disc(sigil::geometry::path::fromSk(kEye),
+                       rCrescentOut * kRadius)
+                 .shape(shapes::arcs({.divisions = 3,
+                                      .from = kPitch * 2.5f,
+                                      .mark = {rCrescentIn / rCrescentOut, 1},
+                                      .spanDeg = crescentSpan})),
+             1.3f, kLine),
          // Each crescent's rungs are stubs off its inner arc, so the mark
          // reads as a bracket and not as a grid.
          each(3, [&](int index) {
-           return kit::disc(sigil::geometry::path::fromSk(kEye),rCrescentOut * kRadius)
+           return lit(kit::disc(sigil::geometry::path::fromSk(kEye),rCrescentOut * kRadius)
                .shape(shapes::ticks(
                    {.divisions = 6,
                     .from = kPitch * 2.5f + 120.0f * index - crescentSpan / 2,
@@ -313,9 +433,8 @@ struct RotaConvocationis {
                                                      rCrescentIn)) /
                                  rCrescentOut},
                     .longEvery = 6,
-                    .longMark = {1, 1}}))
-               .fill(Fill::none())
-               .stroke(stroke(1.0f, Fill::color(kLine)));
+                    .longMark = {1, 1}})),
+               1.0f, kLine);
          })});
   }
 
@@ -365,11 +484,10 @@ struct RotaConvocationis {
                  {.extent = material::RadialExtent::ClosestSide})),
          sheet()
              .rotate(turn(kHexagram))
-             .children({kit::disc(sigil::geometry::path::fromSk(kEye),px)
-                            .shape(shapes::chords(
-                                {.sides = 6, .step = 2, .closed = true}))
-                            .fill(Fill::none())
-                            .stroke(stroke(1.1f, Fill::color(kLine))),
+             .children({lit(kit::disc(sigil::geometry::path::fromSk(kEye), px)
+                                .shape(shapes::chords(
+                                    {.sides = 6, .step = 2, .closed = true})),
+                            1.1f, kLine),
                         beads(6, rKern, 4, kPitch, 1.0f, kLine),
                         beads(6, rMote, 2.2f, kPitch * 0.5f, 0.9f, kHair)}),
          text(content["monogram"].string())
@@ -451,29 +569,22 @@ struct RotaConvocationis {
             {.extent = material::RadialExtent::ClosestSide}))
         .applyStyleSheet(registers)
         .children(
-            {// The line work, lit: one soft halo over every rule and figure,
-             // so the circle reads as charged rather than merely drawn.
+            {// The rules and the ladders that stand still, drawn once.
              sheet()
-                 .filter(Filter::glow(hexColor(0xE79A32, 0.45f), 3.0f))
-                 .children(
-                     {each(kRules,
-                           [](const Rule& rule) {
-                             return kit::ring(sigil::geometry::path::fromSk(kEye), rule.radius * kRadius,
-                                              stroke(rule.width,
-                                                     Fill::color(rule.ink)));
-                           }),
-                      each(kLadders, ladder),
-                      // The fast layer: a hairline ladder in the tick band's
-                      // inner half.
-                      sheet()
-                          .rotate(turn(kFine))
-                          .children({ladder({288, 6, rTickMid - 0.003f, 0.800f,
-                                             0.6f, kLine})}),
-                      arcs(), star(), innerStar()}),
-             each(kBands,
-                  [&](const Band& band, size_t index) {
-                    return script(band, bandSize[index]);
-                  }),
+                 .cache(Cache::Texture)
+                 .key("plate")
+                 .children({each(kRules,
+                                 [](const Rule& rule) {
+                                   return circle(kEye, rule.radius * kRadius,
+                                                 rule.width, rule.ink);
+                                 }),
+                            each(kLadders, ladder)}),
+             // The fast layer: a hairline ladder in the tick band's inner
+             // half.
+             sheet().rotate(turn(kFine)).children(
+                 {ladder({288, 6, rTickMid - 0.003f, 0.800f, 0.6f, kLine})}),
+             arcs(), star(), innerStar(),
+             each(std::size(kBands), [&](int index) { return script(index); }),
              thresholds(), emblem(),
              each(content["seals"].array(),
                   [&](const sigil::data::Json& row, size_t index) {
@@ -504,10 +615,12 @@ struct RotaConvocationis {
             {.face = weave::ports::face({"Menlo", "SF Mono", "Courier New"},
                                         500)})};
 
-    for (size_t index = 0; index < std::size(kBands); ++index)
+    for (size_t index = 0; index < std::size(kBands); ++index) {
       bandSize[index] = fit(context, bandRun(kBands[index]),
                             kBands[index].radius * kRadius,
                             kBands[index].fill);
+      bandCuts[index] = cutsOf(context, kBands[index], bandSize[index]);
+    }
     const auto seals = content["seals"].array();
     for (size_t index = 0; index < seals.size() && index < kStations; ++index)
       sealSize[index] = fit(context,
