@@ -298,7 +298,7 @@ within a small distance of the tool's colour, and none is lighter than it.
 
 The study rewrites of 2026-09-24 (minard_1869, penrose_paving,
 chaucer_astrolabe, dunhuang_star_chart, lain_navi, fallout2_charsheet,
-sigillum_aemeth, ds2_bench, thunder_fulu, rota_convocationis, ksp_mapview)
+sigillum_aemeth, ds2_bench, rota_convocationis, ksp_mapview)
 state paper grain, stone, wax, brush ribbons and lettering as material
 paints and shapes in the tree with no `Cache::Texture` over them, so a
 plate whose picture does not move between frames is re-rasterised on
