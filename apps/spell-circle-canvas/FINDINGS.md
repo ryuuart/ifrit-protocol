@@ -405,6 +405,8 @@ against the leaf's custom properties at apply time) should reach a
 keyframe entry's colour terms too. Add `elastic_type` to that entry's
 wanted-by list.
 
+Progress: a tint naming no rest divides by the glyph's ink read at apply time (`GlyphInfo::ink`), test in ComposeTestTextMarks.cpp. Left: run it; karaoke_wipe; a `textFx::tween` keyframe's colour terms still cannot name a property (elastic_type's blush) — needs a design decision.
+
 ## A run can be measured to the pen only from a held typeface, never from the family list or the leaf a sheet sets
 
 `compose::runPens`, `measureRun`, `fitRun`, `atCapHeight` and `metrics`
@@ -476,6 +478,8 @@ class (`black_watch` states its keylines inline on each node).
 Also wanted by `nightingale_coxcomb`: the key stone's outline round every wedge, the twelve hairline radials, each month's rim flash and the index needle state their stroke widths inline beside the `.key`, `.spoke`, `.flash` and `.needle` classes that already carry their ink.
 
 Also wanted by `cosmati`: every field and every roundel restates its marble fillet inline where one `.fillet` class would carry it.
+
+Progress: `Rule` states marks and the matched rules' marks stand under the node's own (core/RuleMarks.cpp), with tests in brush/test/ComposeTestRuleMarks.cpp; cosmati, black_watch and fallout2 moved onto classes. Left: run compose_test, check those plates with --frame, then elastic_type and nightingale_coxcomb.
 
 ## Two skew angles are one shear pair, where CSS's `skewX(a) skewY(a)` composes two shears
 
@@ -648,6 +652,8 @@ for a `shadow(Fill::var("accent"), …)` under a box. This is the same
 defect as `textFx::tint` taking its colours as values, in two more places.
 Wanted by `nightingale_coxcomb`.
 
+Progress: `Shadow::ink` is a `Fill` defaulting to the ink in force. Left: the echo — `material::Filter::shadow` is SigilMaterial's and cannot name the ink in force or a property; needs an owner decision (a compose echo verb taking a `Fill`, or SigilMaterial's shadow colour optional as CSS's currentcolor); then nightingale_coxcomb.
+
 ## A custom property holds a colour or a length, never a paint, so a palette of materials cannot be tokens
 
 `compose::VarValue` is `std::variant<material::Color, Dimension>`
@@ -671,6 +677,8 @@ fill a box with `Fill::var("stone")` under it, and assert the box paints what
 as a length leaves the target standing and says so once, as a colour var read
 as a length does today. Wanted by `cosmati`; `black_watch` holds its board and
 yarn paints as members for the same reason.
+
+Progress: `VarValue` holds a paint and `var(name, Material)` sets one (tests in brush/test/ComposeTestCascadePaints.cpp); black_watch's board and yarn and cosmati's fillet are tokens. Left: run the tests and plates; regenerate apps/python/sigil typing; cosmati's pieces keep per-piece cuts on purpose.
 
 ## An escaped Python connection may keep its door open after the session closes
 
@@ -702,6 +710,7 @@ the pass is painted. A test should give one layer a left-to-right
 at its left end and blue at its right, and give another `Fill::color(c)`
 and assert it paints exactly what the colour layer paints today.
 
+Progress: `StrokeLayer::ink` is a `Fill` (tests in ComposeTestCascadePaints.cpp). Left: run compose_test.
 
 ## A selector rule accepts material effects but loses them on the matched element
 
@@ -718,6 +727,8 @@ stated. A test should apply one shadow-and-blur material directly to a
 text leaf and through a matching rule, then assert equal painted pixels
 and bounds. It should also replace the rule and assert that the matched
 node removes or updates the effect rather than retaining an old one.
+
+Progress: a rule's ink and fill effects are kept on the rule and dress the matched element where that lane stands (tests in ComposeTestRuleMarks.cpp). Left: run compose_test.
 
 ## A glow on changing text is a filter over the leaf's whole box, so it re-runs every frame
 
