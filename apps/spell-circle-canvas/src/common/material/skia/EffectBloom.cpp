@@ -6,6 +6,8 @@
  */
 
 #include <include/core/SkMatrix.h>
+#include <include/core/SkRect.h>
+#include <include/core/SkSize.h>
 #include <include/core/SkSamplingOptions.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
@@ -43,18 +45,29 @@ int haloDivisor(float radius) {
 
 }  // namespace
 
-/** The bloom's filter DAG: reduce, gather, enlarge, composite.
+/** The bloom's filter DAG: reduce, gather, enlarge, composite, cropped to
+ *  the box it is painted in grown by its reach.
  *
  *  @p haloBuilder arrives with every uniform of the halo program already
  *  set; its radius is rewritten here, because inside a reduced layer a
- *  reach is measured in that layer's pixels. The gather declares its own
- *  sampling radius, so Skia bounds the node to the reduced source grown
- *  by the reach instead of giving a runtime shader the whole clip. The
- *  composite reads the source at full resolution, so the sharp picture
- *  never passes through a resample — only the light added to it does. */
+ *  reach is measured in that layer's pixels. The composite reads the
+ *  source at full resolution, so the sharp picture never passes through a
+ *  resample — only the light added to it does.
+ *
+ *  THE REACH, DECLARED. A runtime shader may write any pixel, so Skia
+ *  gives a node built from one an unbounded output, and the gather's
+ *  sampling radius bounds only what the gather READS, never what it
+ *  writes: left alone, the composite is asked for the whole clip and
+ *  every node under it runs over the clip, whatever the size of the layer
+ *  it filters. The halo reaches no further from the content than the
+ *  radius, and one pixel of the layer it is gathered on beyond it, where
+ *  a tap between pixels reads the pixel past it or the enlarge spreads
+ *  one; so over a known @p box the graph is cropped to the box grown by
+ *  that much, and every node under the crop is asked for no more. Without
+ *  a box the graph stays as Skia found it. */
 sk_sp<SkImageFilter> makePhosphorBloom(SkRuntimeShaderBuilder& haloBuilder,
                                        const sk_sp<SkRuntimeEffect>& composite,
-                                       float radius) {
+                                       float radius, SkSize box) {
   const int divisor = haloDivisor(radius);
   const float scale = 1.0f / static_cast<float>(divisor);
   const float reach = radius * scale;
@@ -72,12 +85,21 @@ sk_sp<SkImageFilter> makePhosphorBloom(SkRuntimeShaderBuilder& haloBuilder,
         SkMatrix::Scale(static_cast<float>(divisor),
                         static_cast<float>(divisor)),
         resample, std::move(halo));
-  if (!composite) return halo;
+  if (composite) {
+    SkRuntimeShaderBuilder over(composite);
+    std::string_view names[2] = {"content", "halo"};
+    const sk_sp<SkImageFilter> inputs[2] = {nullptr, std::move(halo)};
+    halo = SkImageFilters::RuntimeShader(over, names, inputs, 2);
+  }
+  if (box.isEmpty()) return halo;
+  const float outset = phosphorBloomReach(radius);
+  return SkImageFilters::Crop(
+      SkRect::MakeWH(box.width(), box.height()).makeOutset(outset, outset),
+      std::move(halo));
+}
 
-  SkRuntimeShaderBuilder over(composite);
-  std::string_view names[2] = {"content", "halo"};
-  const sk_sp<SkImageFilter> inputs[2] = {nullptr, std::move(halo)};
-  return SkImageFilters::RuntimeShader(over, names, inputs, 2);
+float phosphorBloomReach(float radius) {
+  return std::max(radius, 0.0f) + static_cast<float>(haloDivisor(radius));
 }
 
 Effect Effect::brightPass(float threshold, float knee) {

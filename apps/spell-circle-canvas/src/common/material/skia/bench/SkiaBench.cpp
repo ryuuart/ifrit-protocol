@@ -156,6 +156,52 @@ void BM_Layer_PhosphorBloom_Wide(benchmark::State& state) {
 }
 BENCHMARK(BM_Layer_PhosphorBloom_Wide);
 
+/** A LIVE LAYER smaller than the canvas it stands on: the layer is
+ *  opened, its content drawn and the bloom run as it closes, on a canvas
+ *  the size of a screen. What the bloom costs should follow the layer —
+ *  a caption line and a caption box — and not the canvas around it. */
+void throughLiveLayer(benchmark::State& state, const Filter& effect,
+                      int width, int height) {
+  constexpr int kCanvasWidth = 1920, kCanvasHeight = 1080;
+  const sk_sp<SkImage> content = litField(width, height);
+  sk_sp<SkSurface> surface = SkSurfaces::Raster(
+      SkImageInfo::MakeN32Premul(kCanvasWidth, kCanvasHeight));
+  // The layer stands at an offset on the canvas and knows its own box,
+  // as a node's layer does.
+  FrameData frame;
+  frame.resolution = {(float)width, (float)height};
+  SkPaint paint;
+  paint.setImageFilter(skia::resolvedImageFilter(effect, &frame));
+  const SkRect layer = SkRect::MakeWH((float)width, (float)height);
+  for ([[maybe_unused]] auto iteration : state) {
+    state.PauseTiming();
+    SkGraphics::PurgeResourceCache();
+    state.ResumeTiming();
+    SkCanvas* canvas = surface->getCanvas();
+    canvas->clear(SkColors::kBlack);
+    canvas->save();
+    canvas->translate(200, 400);
+    canvas->saveLayer(&layer, &paint);
+    canvas->drawImage(content.get(), 0, 0);
+    canvas->restore();
+    canvas->restore();
+    SkPixmap pixels;
+    surface->peekPixels(&pixels);
+    benchmark::DoNotOptimize(pixels.addr());
+  }
+  state.counters["megapixels"] = (double)(width * height) / 1e6;
+}
+
+void BM_LiveLayer_PhosphorBloom_CaptionLine(benchmark::State& state) {
+  throughLiveLayer(state, Filter::phosphorBloom(), 800, 60);
+}
+BENCHMARK(BM_LiveLayer_PhosphorBloom_CaptionLine);
+
+void BM_LiveLayer_PhosphorBloom_CaptionBox(benchmark::State& state) {
+  throughLiveLayer(state, Filter::phosphorBloom(), 900, 300);
+}
+BENCHMARK(BM_LiveLayer_PhosphorBloom_CaptionBox);
+
 }  // namespace
 
 BENCHMARK_CAPTURE(BM_Shader_Live<P2>, 2, kBody2)->Name("BM_Shader_Live/2");

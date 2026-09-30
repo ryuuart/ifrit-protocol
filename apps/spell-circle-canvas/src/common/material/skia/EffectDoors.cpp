@@ -95,6 +95,9 @@ bool Effect::anyChildNeedsContext() const {
   for (const auto& [name, child] : m_slots)
     if (child && (child->isRunning() || child->geometryDependent()))
       return true;
+  // A gathered halo is cropped to the box it is painted in, so it is
+  // built against that box at every paint rather than frozen without one.
+  if (m_gatheredHalo) return true;
   // A chain is retained only because a side needs a paint frame, and it
   // has no precomposed filter to stand in for it.
   return m_chainA != nullptr;

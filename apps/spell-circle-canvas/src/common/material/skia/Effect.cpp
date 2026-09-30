@@ -410,7 +410,8 @@ sk_sp<SkImageFilter> Effect::buildFilter(const PaintFrame* paintFrame) const {
       if (name == "uRadius") radius = value;
     for (const auto& [name, out] : m_bound)
       if (name == "uRadius") radius = out.value();
-    return makePhosphorBloom(builder, composite, radius);
+    return makePhosphorBloom(builder, composite, radius,
+                             paintFrame ? paintFrame->size : SkSize::MakeEmpty());
   }
   return SkImageFilters::RuntimeShader(builder, "content", nullptr);
 }

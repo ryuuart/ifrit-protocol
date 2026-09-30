@@ -587,55 +587,6 @@ Add `karaoke_wipe` to that entry's wanted-by list: its glow is a second,
 blurred copy of the sung line sung from black, where one glyph-outline
 glow on the line would do.
 
-## `Filter::phosphorBloom` over a live layer costs the same whatever the layer's size, and far more than a blur
-
-`material::Filter::phosphorBloom` (`sigilmaterial/filter/Filter.h`, built in
-`material/skia/EffectBloom.cpp` by `makePhosphorBloom`) says its halo is gathered
-over a REDUCED layer and resampled up, which reads as a bloom meant for
-live content. Over a live node it costs the whole frame: `karaoke_wipe`
-put it on the caption box of its screen (928x318) and on the sung text
-leaf alone (810x63), and `--bench` reported the node at about 43 ms per
-frame in both cases, p99 45.6 ms, where `Filter::blur(6)` on the same text
-leaf costs 3.3 ms and `Filter::bloom` (two separable Gaussians) over the
-caption box 24 ms.
-
-THE PROBABLE CAUSE, from the source. `makePhosphorBloom` builds two
-`SkImageFilters::RuntimeShader` nodes — the gather, given `reach` as its
-sample radius, and the composite over it, given none — and wraps neither
-in `SkImageFilters::Crop`. In Skia (`SkRuntimeImageFilter.cpp`) a
-runtime-shader filter's `onGetOutputLayerBounds` returns
-`LayerSpace<SkIRect>::Unbounded()` and its `computeFastBounds` returns
-`SkRectPriv::MakeLargeS32()`, whatever its inputs: a shader may paint
-where its input is transparent, so Skia assumes it covers everything. The
-sample radius only grows the INPUT a node asks for from the output it is
-asked to make (`onGetInputLayerBounds` → `applyMaxSampleRadius`); it
-never bounds the output. So the outermost node, the composite, declares an
-unbounded output, the output asked of it is the whole clip, and the
-composite, the enlarge, the gather and the reduce all run over the clip
-(the gather over the clip grown by the reach). That is why the cost does
-not follow the node. The comment above `makePhosphorBloom` says the
-opposite — that the declared sampling radius makes Skia bound the node to
-the reduced source grown by the reach instead of giving a runtime shader
-the whole clip — and is wrong on this point.
-
-It evidently means a phosphor bloom a live caption can wear: the halo's
-cost following the layer it filters, of the order of the blur it replaces
-for a caption-sized layer, which a crop of the filter graph to the
-content's bounds grown by the effect's reach would give.
-
-A test should build `Filter::phosphorBloom(radius, …)` and ask the filter
-it produces for its forward bounds over a node rect
-(`SkImageFilter::filterBounds(nodeRect, identity, kForward_MapDirection)`,
-and `computeFastBounds(nodeRect)`), asserting both equal the node's rect
-grown by the effect's reach on every side, never the canvas or an
-unbounded rect. A bench arm in the material library should run
-`phosphorBloom` over an 800x60 and a 900x300 live layer and record both,
-and the pair should scale with area.
-
-Wanted by `karaoke_wipe`, whose sung line glows through a blurred copy of
-itself added under it (a second text leaf on the same tracks) because the
-one-node bloom does not fit a frame.
-
 ## A node filled with a material recipe takes its bake again on every describe, even when the paint is held
 
 `chladni_tab1` fills its stars with `ink`, a `material::skia::Paint`

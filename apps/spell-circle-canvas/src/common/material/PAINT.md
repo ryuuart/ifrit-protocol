@@ -178,10 +178,14 @@ hard-edged source, never the source itself, which is composited at full
 resolution and to the bit. A reach too small for the reduction to leave
 anything behind is gathered whole, and a wider reach is gathered coarser
 — down to a quarter, past which the bright pass would alias on its own
-sources — so a wide bloom is not the wide gather it looks like. The
-layer is still worth bounding: put the glow sources on a node of their
-own and let the host bake that node to a texture, and the bloom is baked
-with them once rather than gathered over a whole canvas every frame. `then()` chains effects,
+sources — so a wide bloom is not the wide gather it looks like. Painted
+in a box, the bloom declares its reach — the box grown by the radius and
+one pixel of the reduced layer — and every stage of it runs over that and
+no more, so a bloom on a caption line costs a caption line and not the
+canvas it stands on; without a box, Skia gives its runtime shaders the
+whole clip. A glow that does not move is still worth baking: put the
+glow sources on a node of their own and let the host bake that node to a
+texture, and the bloom is gathered once rather than every frame. `then()` chains effects,
 and the same tier rules hold — a bound
 uniform or a live slot makes the effect live, and a static chain
 precomposes once. It resolves against the same `FrameData` a paint

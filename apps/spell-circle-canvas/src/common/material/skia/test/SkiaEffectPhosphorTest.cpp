@@ -8,8 +8,12 @@
 
 #include <gtest/gtest.h>
 #include <include/core/SkColor.h>
+#include <include/core/SkImageFilter.h>
+#include <include/core/SkMatrix.h>
+#include <include/core/SkRect.h>
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilmaterial/advanced/FrameData.h>
 #include <sigilmaterial/skia/Filter.h>
 
 #include <cmath>
@@ -193,4 +197,40 @@ TEST(SkiaEffect, PhosphorHueDriftTurnsTheHaloAndNotTheSource) {
   // constant uniforms and take part in equality.
   EXPECT_FALSE(Filter::phosphorBloom() ==
                Filter::phosphorBloom(9, 0.52f, 0.46f, 0.80f, -40.0f));
+}
+
+TEST(SkiaEffect, PhosphorBloomReachesItsOwnBoxGrownByTheRadiusAndNotTheClip) {
+  // A runtime shader may write any pixel, so a bloom left as Skia finds
+  // it runs over the whole clip whatever the size of the layer it
+  // filters. Painted in a box, the bloom states where it may write
+  // instead: the box grown by the radius and one pixel of the layer the
+  // halo is gathered on — a whole layer at a small radius, a quarter-size
+  // one at a wide one. Asked over the node's rect, or over a clip the size
+  // of a screen, it answers that rect grown by that reach on every side,
+  // forward and fast alike.
+  struct Case {
+    float radius;
+    int reach;
+  };
+  for (const Case& bloomCase : {Case{6.0f, 6 + 1}, Case{24.0f, 24 + 4}}) {
+    for (const SkIRect node :
+         {SkIRect::MakeWH(800, 60), SkIRect::MakeWH(900, 300)}) {
+      FrameData frame;
+      frame.resolution = {(float)node.width(), (float)node.height()};
+      const sk_sp<SkImageFilter> filter = skia::resolvedImageFilter(
+          Filter::phosphorBloom(bloomCase.radius), &frame);
+      ASSERT_NE(filter, nullptr);
+      const SkIRect expected =
+          node.makeOutset(bloomCase.reach, bloomCase.reach);
+      for (const SkIRect asked : {node, SkIRect::MakeWH(1920, 1080)})
+        EXPECT_EQ(filter->filterBounds(asked, SkMatrix::I(),
+                                       SkImageFilter::kForward_MapDirection,
+                                       nullptr),
+                  expected)
+            << "radius " << bloomCase.radius;
+      EXPECT_EQ(filter->computeFastBounds(SkRect::Make(node)),
+                SkRect::Make(expected))
+          << "radius " << bloomCase.radius;
+    }
+  }
 }

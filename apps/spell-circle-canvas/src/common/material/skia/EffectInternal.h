@@ -64,10 +64,15 @@ const sk_sp<SkRuntimeEffect>& effectProgram(EffectProgram which);
  *  and whiten joined by emit. */
 Effect bloom(const BloomOptions& options);
 
-/** The bloom's filter DAG: reduce, gather, enlarge, composite. */
+/** The bloom's filter DAG: reduce, gather, enlarge, composite — cropped
+ *  to @p box grown by the reach when a box is known. */
 sk_sp<SkImageFilter> makePhosphorBloom(SkRuntimeShaderBuilder& haloBuilder,
                                        const sk_sp<SkRuntimeEffect>& composite,
-                                       float radius);
+                                       float radius, SkSize box);
+
+/** How far past its content a phosphor bloom of @p radius can write: the
+ *  radius, and one pixel of the layer its halo is gathered on. */
+float phosphorBloomReach(float radius);
 
 /** directionalBlur's filter: Skia's separable Gaussian on an axis, in a
  *  rotate/unrotate sandwich when the axis is not the box's. */
