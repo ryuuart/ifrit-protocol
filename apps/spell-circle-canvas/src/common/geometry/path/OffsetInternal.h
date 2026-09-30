@@ -77,11 +77,16 @@ struct OffsetJoin {
 /** The joins along one contour for a width law read at a DISTANCE along
  *  it, in the public frame: positive `across` is LEFT of travel.
  *
- *  The law is read AT THE VERTEX. A corner is one place, and the two
- *  edges either side of it may be different widths; the width of that
- *  place is the one the join is struck with. `stride` is the spacing the
- *  caller walks the contour at, which is also how finely a corner is
- *  searched for. */
+ *  A corner is one place, and the width of that place is the one its
+ *  two offset edges END at. Where the law varies those edges are not
+ *  parallel to the edges they came from — each slants by the law's own
+ *  rate along it — and a fold is where the two slanted edges meet: the
+ *  one place the rail before the corner and the rail after it stand at
+ *  together, which is also where the samples the join answers for end.
+ *  A constant law has no slant, and its two folds are one distance.
+ *
+ *  `stride` is the spacing the caller walks the contour at, which is
+ *  also how finely a corner is searched for. */
 std::vector<OffsetJoin> offsetJoins(
     const Contour& contour,
     const std::function<float(float distance)>& acrossAt, float stride);

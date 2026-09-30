@@ -151,35 +151,6 @@ upstream — `precompile` should refuse a key it cannot resolve — and a
 test should assert that a key naming an unmade piece comes back false
 rather than taking the process down.
 
-## A varying rail's fold is struck at one width and met at another
-
-`offsetJoins` in `src/common/geometry/path/Contour.cpp` reads a width
-law once per corner, at the vertex, and strikes from that one number
-both the place the two offset edges fold across each other and the
-window of samples the corner answers for. The window reaches the fold,
-which below a right angle is longer than the offset and grows without
-bound as the turn approaches a reversal, so at a sharp corner the
-samples at the window's ends stand far enough along the contour for the
-law to read a different width there. The rail steps sideways by that
-difference where the window ends, and the step closes a small loop
-against the cut the join wrote. A four-arm zigzag under a width that
-swells over its length shows it below about 30 degrees of interior
-angle, on the side of travel the corner turns into, one crossing
-enclosing a few pixels of rail at 30 and more of them as the corner
-sharpens. A constant law on the same spine has nothing to read twice
-and is clean to the sharpest corner a spine can carry without folding
-its own arms onto the rail.
-
-The offset edges a varying law cuts are not parallel to the edges they
-came from — they slant by the law's own rate along the contour — and
-the fold is where those slanted edges meet, not where the edges of one
-width would. `Band.ACornerSharperThanARightAngleLeavesNoSpurEitherSide`
-already sweeps its zigzag from 150 degrees of interior angle down, with
-both rails to 30 and the constant rail on to 10; closing this entry
-means carrying the varying rail down to 10 beside it, with every corner
-blunter than a right angle and every constant rail unchanged to the
-bit.
-
 ## A rail off the centreline rounds every outer corner, whatever its join says
 
 `lines::Rail` carries a `join`, and `Rails::paint`
@@ -1090,3 +1061,86 @@ text, assert that both edge treatments follow the glyph boundary, and assert
 reuse of stationary edge coverage across light-only updates. The machined
 film-title sketch uses retained vector contours; that avoids this text case
 without establishing that the underlying coverage issue is fixed.
+
+
+## API request: the pen cannot fit a Material to each shape directly
+
+The scan-visor study tries to fill a rounded containment chamber and a
+curved specimen with shape-relative gradients. `draw::Pen::fill` and
+`stroke` accept `material::Material`, and their `material::Paint`
+overloads accept the `SHAPE` fit, but there is no two-argument Material
+overload. The natural call
+`pen.fill(material::radialGradient(...), draw::SHAPE)` fails to compile.
+The source confirms this split in `src/common/draw/include/sigildraw/Pen.h`;
+`src/common/draw/Pen.cpp` already lowers the one-argument Material form
+through `material::Paint::recipe`.
+
+The intended fit operation is available. The study uses the older Paint
+gradient factories to reach it, so this is an authoring-API gap rather
+than missing rendering capability. Wanted: `fill(const Material&, Constant)`
+and `stroke(const Material&, Constant)`, lowering through the same recipe
+bridge and retaining the fit as pen style. The material builder should not
+require a second gradient vocabulary merely because it paints a shape.
+
+A regression should compile both forms, draw differently sized closed
+Bezier shapes under `SHAPE`, and assert that each receives its own complete
+gradient. It should compare the Material form with an explicitly wrapped
+Paint recipe, including a shader or layered material, and assert that
+push/pop restores the earlier fit and that a one-argument fill returns to
+canvas-relative coordinates.
+
+## API request: curved inscriptions must repeat the figure's resolved geometry
+
+The cosmic-monochord study draws musical-interval arcs and places shaped
+Latin inscriptions along those same curves. `TextPath::path` accepts a
+`Shape`, resolved against the text leaf's own width and height. It cannot
+name a keyed figure's resolved outline. Consequently the study's arc and
+label factories repeat the bounds, start angle and sweep; changing one
+without the other silently separates the inscription from its bracket.
+
+This is an ergonomics request, not a claim that curved text is absent.
+`Text::textOnPath` already shapes and places a whole run correctly.
+`strand::from(key)` in `sigilcompose/core/Stroke.h` already borrows a
+resolved outline for a decoration, and `PaintContext::borrowedPath` supplies
+that outline after derive. That value is a StrandPath, not the Shape
+`TextPath::path` takes; the existing borrow does not connect this text case.
+
+Wanted: a curve source for TextPath that can either hold authored shape
+geometry or name a keyed node, with the existing declared-read and cycle
+rules. A natural declaration would be
+`text("Diatessaron formalis").textOnPath({.path = baseline::from("formal.quart"), .at = 0.5f})`.
+A shared helper that emits both arc and text remains possible, but requires
+the sketch author to manage their relationship.
+
+A regression should place an arc and its inscription in a transformed
+parent, resize and move the keyed arc, and assert that the text follows its
+resolved baseline without duplicated coordinates. The run should remain
+shaped once when only the borrowed curve's placement changes, and the
+borrow should obey the same missing-key and cycle policy as other derived
+geometry.
+
+
+## API request: converting a bound material to a layer filter snapshots its motion
+
+The Nostromo monitor declares a tube program whose seconds uniform is
+bound to the scene clock, then applies the program to a rendered subtree.
+`material::Filter::of` reads the material's current bindings once while
+constructing the filter. The binding does not carry into the resulting
+filter; the study must call `bind` again on that filter. The contract is
+explicit in `sigilmaterial/filter/Filter.h`, and
+`src/common/material/skia/Effect.cpp` constructs its runtime-shader filter
+and recipe snapshot from the resolved builder.
+
+This is documented behavior, not a reproduced violation of the current
+contract. It is nevertheless an authoring trap: the same material animates
+as a fill, but its ordinary conversion to a layer filter needs a second
+animation declaration. Wanted: either binding-preserving conversion or an
+explicit snapshot spelling beside a live conversion, so the value's
+animation does not disappear at an otherwise composable boundary.
+
+A regression should bind a uniform before conversion, advance the same
+clock through two known values and pin the chosen conversion's behavior.
+For a binding-preserving form it should assert changing output and retained
+static content beneath the filter; for an explicit snapshot form it should
+assert that the snapshot stays fixed while a filter-specific binding moves.
+The program should not need recompilation when only the uniform changes.

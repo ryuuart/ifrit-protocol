@@ -451,9 +451,16 @@ TEST(Band, ACornerSharperThanARightAngleLeavesNoSpurEitherSide) {
   // at a right angle exactly the offset, above one less, and BELOW one
   // further — so a window of the offset alone leaves the samples between
   // the two standing in the rail, each of them already past the fold,
-  // and each closing a small loop toward the offset side.
-  for (const float interior :
-       {150.0f, 120.0f, 90.0f, 75.0f, 60.0f, 45.0f, 30.0f}) {
+  // and each closing a small loop toward the offset side. The fold
+  // reaches several times the offset far into the acute, where no bound
+  // but the neighbouring corner stops it.
+  //
+  // A law that VARIES slants both offset edges against the edges they
+  // came from, and the fold is where the SLANTED edges meet: struck from
+  // the width at the vertex alone, it stands where the rail no longer
+  // is, and the rail steps sideways where the window ends.
+  for (const float interior : {150.0f, 120.0f, 90.0f, 75.0f, 60.0f, 45.0f,
+                               30.0f, 25.0f, 20.0f, 15.0f, 10.0f}) {
     const SkPath spine = zigzagOfInteriorAngle(interior);
     const float step = railSampleStep(spine);
     // Both sides: a zigzag turns each way, so one side's inside of a
@@ -466,19 +473,6 @@ TEST(Band, ACornerSharperThanARightAngleLeavesNoSpurEitherSide) {
           0)
           << "varying " << width << " at " << interior << "°";
     }
-  }
-  // A CONSTANT rail holds far into the acute, where the fold reaches
-  // several times the offset and no bound but the neighbouring corner
-  // stops it. A law that VARIES is struck from the width at the vertex
-  // and read again at the window's ends, and by this sharpness those
-  // are two different widths — which is a separate matter from the
-  // window, and the reason the sweep above stops where it does.
-  for (const float interior : {25.0f, 20.0f, 15.0f, 10.0f}) {
-    const SkPath spine = zigzagOfInteriorAngle(interior);
-    const float step = railSampleStep(spine);
-    for (const float width : {12.0f, -12.0f})
-      EXPECT_EQ(cornerLoops(parallel(spine, width, step), step), 0)
-          << "constant " << width << " at " << interior << "°";
   }
 }
 

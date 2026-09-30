@@ -262,14 +262,22 @@ std::vector<OffsetJoin> offsetJoins(
     return count > 1 ? len - corners[k].distance + corners.front().distance
                      : len;
   };
+  // `beside` measures to the right of travel; the offset is asked for on
+  // the left.
+  const auto sideAt = [&](float distance) { return -acrossAt(distance); };
+  // THE HEADING OF AN OFFSET EDGE: its source tangent, slanted by how
+  // fast the offset grows along it. Zero growth is the tangent itself,
+  // to the bit.
+  const auto slanted = [](glm::vec2 tangent, float rate) {
+    return glm::vec2{tangent.x - tangent.y * rate, tangent.y + tangent.x * rate};
+  };
+  const auto cross = [](glm::vec2 a, glm::vec2 b) { return a.x * b.y - a.y * b.x; };
   std::vector<OffsetJoin> joins;
   for (size_t k = 0; k < count; ++k) {
     const Contour::Corner& hit = corners[k];
     const auto vertex = contour.at(hit.distance);
     if (!vertex) continue;
-    // `beside` measures to the right of travel; the offset is asked for
-    // on the left.
-    const float side = -acrossAt(hit.distance);
+    const float side = sideAt(hit.distance);
     OffsetJoin join;
     join.distance = hit.distance;
     join.radius = std::abs(side);
@@ -277,12 +285,18 @@ std::vector<OffsetJoin> offsetJoins(
     join.entering = beside({join.vertex, hit.in}, side);
     join.leaving = beside({join.vertex, hit.out}, side);
     const float turn = hit.in.x * hit.out.y - hit.in.y * hit.out.x;
+    const float room = behind(k), roomOn = ahead(k);
+    // How fast the offset grows along the edge arriving and the edge
+    // leaving, read as the rise across `before` back and `after` on —
+    // never past the neighbouring corner, where the edge has ended.
+    const auto rates = [&](float before, float after) {
+      const float back = std::clamp(before, 1e-3f, std::max(room, 1e-3f));
+      const float on = std::clamp(after, 1e-3f, std::max(roomOn, 1e-3f));
+      return std::pair{(side - sideAt(hit.distance - back)) / back,
+                       (sideAt(hit.distance + on) - side) / on};
+    };
+    const glm::vec2 apart = join.leaving - join.entering;
     if (turn * side >= 0.0f && std::abs(turn) > 1e-4f) {
-      // The two offset edges are struck along the SOURCE tangents: a
-      // width that changes along the contour slants each offset edge
-      // against the edge it came from, and the corner is read from the
-      // width AT THE VERTEX rather than from either edge's slant.
-      const glm::vec2 apart = join.leaving - join.entering;
       const float reach = (apart.x * hit.out.y - apart.y * hit.out.x) / turn;
       // A TURN INTO THE OFFSET FOLDS THE TWO OFFSET EDGES ACROSS EACH
       // OTHER, and they meet `reach` back from where they end — the
@@ -296,23 +310,66 @@ std::vector<OffsetJoin> offsetJoins(
       // the corner where it does not.
       const float fold = std::abs(reach);
       const float towards = reach < 0 ? -1.0f : 1.0f;
-      const float room = behind(k), roomOn = ahead(k);
-      const float back = towards * std::min(fold, room);
-      const float on = towards * std::min(fold, roomOn);
+      // The fold a constant offset makes, which is the same distance back
+      // along the edge arriving as on along the edge leaving.
+      float foldBefore = fold, foldAfter = fold;
+      glm::vec2 headingIn = hit.in, headingOut = hit.out;
+      // A LAW THAT VARIES SLANTS BOTH EDGES, and the fold is where the
+      // slanted edges meet. Each edge's heading is read as the rise from
+      // the vertex to the place the fold stands at, and the fold is then
+      // placed again from those headings; where it settles, the place it
+      // names on each edge is the rail's own point at that distance, so
+      // the rail before the corner, the cut and the rail after it are one
+      // curve. A constant law rises by nothing and is left as it stands.
+      if (const auto [rateIn, rateOut] = rates(fold, fold);
+          rateIn != 0.0f || rateOut != 0.0f) {
+        float before = fold, after = fold;
+        bool settled = false;
+        for (int pass = 0; pass < 16; ++pass) {
+          const auto [slantIn, slantOut] = rates(before, after);
+          const glm::vec2 alongIn = slanted(hit.in, slantIn);
+          const glm::vec2 alongOut = slanted(hit.out, slantOut);
+          const float meeting = cross(alongIn, alongOut);
+          if (std::abs(meeting) <= 1e-6f) break;
+          // Distances along each slanted edge from its end at the vertex:
+          // back along the one arriving, on along the one leaving.
+          const float nextBefore = -cross(apart, alongOut) / meeting;
+          const float nextAfter = cross(apart, alongIn) / meeting;
+          if (!std::isfinite(nextBefore) || !std::isfinite(nextAfter) ||
+              nextBefore <= 0.0f || nextAfter <= 0.0f)
+            break;
+          headingIn = alongIn;
+          headingOut = alongOut;
+          settled = std::abs(nextBefore - before) < 1e-3f &&
+                    std::abs(nextAfter - after) < 1e-3f;
+          before = nextBefore;
+          after = nextAfter;
+          if (settled) break;
+        }
+        if (settled) {
+          foldBefore = before;
+          foldAfter = after;
+        } else {
+          headingIn = hit.in;
+          headingOut = hit.out;
+        }
+      }
+      const float back = towards * std::min(foldBefore, room);
+      const float on = towards * std::min(foldAfter, roomOn);
       join.miter = true;
-      join.cutEntering = {join.entering.x + hit.in.x * back,
-                          join.entering.y + hit.in.y * back};
-      join.cutLeaving = room >= fold && roomOn >= fold
+      join.cutEntering = {join.entering.x + headingIn.x * back,
+                          join.entering.y + headingIn.y * back};
+      join.cutLeaving = room >= foldBefore && roomOn >= foldAfter
                             ? join.cutEntering
-                            : glm::vec2{join.leaving.x - hit.out.x * on,
-                                        join.leaving.y - hit.out.y * on};
+                            : glm::vec2{join.leaving.x - headingOut.x * on,
+                                        join.leaving.y - headingOut.y * on};
       // Every sample inside the fold stands past the meeting, so the
       // join answers for it. At a corner blunter than a right angle the
       // offset is the wider of the two and it is still the corner's own
       // place, because that is how far the rail stands from the spine
       // there.
-      join.answersBefore = std::min(std::max(join.radius, fold), room);
-      join.answersAfter = std::min(std::max(join.radius, fold), roomOn);
+      join.answersBefore = std::min(std::max(join.radius, foldBefore), room);
+      join.answersAfter = std::min(std::max(join.radius, foldAfter), roomOn);
     } else if (turn * side < 0.0f) {
       join.arc = true;
       join.startRadians = std::atan2(join.entering.y - join.vertex.y,
