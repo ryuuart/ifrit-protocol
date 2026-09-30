@@ -1,0 +1,77 @@
+{
+  "playing": 9,
+  "selected": 14,
+  "startSecond": 181.4,
+  "bitrate": "192",
+  "sampleRate": "44",
+  "tempo": 121.3,
+  "scrollSpeed": 22,
+  "scrollFrom": 1.0,
+  "visualiser": [
+    {
+      "at": 0.0,
+      "mode": "spectrum"
+    },
+    {
+      "at": 8.0,
+      "mode": "oscilloscope"
+    },
+    {
+      "at": 12.0,
+      "mode": "spectrum"
+    }
+  ],
+  "equalizer": {
+    "bands": [
+      "60",
+      "170",
+      "310",
+      "600",
+      "1K",
+      "3K",
+      "6K",
+      "12K",
+      "14K",
+      "16K"
+    ],
+    "preset": [
+      0.0,
+      0.8,
+      0.6,
+      0.2,
+      0.0,
+      0.0,
+      -0.47,
+      -0.6,
+      -0.6,
+      0.0,
+      0.0
+    ],
+    "loadAt": 1.2,
+    "loadFor": 0.35,
+    "drags": [
+      {
+        "slider": 9,
+        "at": 4.4,
+        "for": 0.9,
+        "to": 0.45
+      },
+      {
+        "slider": 10,
+        "at": 5.6,
+        "for": 0.7,
+        "to": 0.55
+      },
+      {
+        "slider": 0,
+        "at": 9.2,
+        "for": 0.8,
+        "to": -0.25
+      }
+    ]
+  },
+  "pointerRest": [
+    118,
+    330
+  ]
+}
