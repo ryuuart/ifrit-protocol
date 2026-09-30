@@ -6,6 +6,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iterator>
+#include <limits>
 
 #include "PaintInternal.h"
 
@@ -129,6 +131,45 @@ void PaintPass::deviceBlit(const sk_sp<SkImage>& image, const SkIRect& at,
   canvas.restore();
   if (impl.recordingDepth > 0) ++impl.recordingDeviceBakes;
   if (impl.countComposites && !impl.paintingUnseen) impl.countBlit(image, at);
+}
+
+PaintPass::BakeRung PaintPass::localBakeRung(const SkMatrix& total) {
+  BakeRung rung{.scale = impl.bakeDensity,
+                .lowest = 0.0f,
+                .highest = std::numeric_limits<float>::infinity()};
+  if (impl.bakeDensity > 0) return rung;
+  // maxScaleOf, NOT the matrix diagonal: a quarter-turned node's diagonal
+  // is (0, 0) and would clamp to the floor, baking at a quarter resolution
+  // to be upscaled by the blit. The paint bounds locate the Jacobian
+  // samples when the matrix carries a host perspective. An underestimate
+  // here means a stale, blurry bake rather than a wasted one.
+  static constexpr float kBakeSteps[] = {0.25f, 0.5f, 0.75f, 1.0f,
+                                         1.5f,  2.0f, 3.0f,  4.0f};
+  const float measured = maxScaleOf(total, localBounds());
+  const float raw = std::clamp(measured, 0.25f, 4.0f);
+  rung.scale = kBakeSteps[std::size(kBakeSteps) - 1];
+  float below = 0.0f;
+  for (float step : kBakeSteps)
+    if (step >= raw) {
+      rung.scale = step;
+      break;
+    } else {
+      below = step;
+    }
+  // The rung spans (below, scale]; carried onto the host's scale by the
+  // ratio between the two, which is the node's own transform and holds
+  // while the host's scale is the only thing moving. The clamps are the
+  // ends of the ladder and reach past it: a node already rasterizing at
+  // the floor or the ceiling answers the same rung however much further
+  // the host goes that way.
+  if (measured > 0.0f) {
+    const float perHost = impl.hostScale / measured;
+    rung.lowest = raw <= kBakeSteps[0] ? 0.0f : below * perHost;
+    rung.highest = raw >= kBakeSteps[std::size(kBakeSteps) - 1]
+                       ? std::numeric_limits<float>::infinity()
+                       : rung.scale * perHost;
+  }
+  return rung;
 }
 
 sk_sp<SkImageFilter> PaintPass::resolveLayerFilter() {

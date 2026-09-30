@@ -276,6 +276,22 @@ struct PaintPass {
   void deviceBlit(const sk_sp<SkImage>& image, const SkIRect& at,
                   const SkPaint* paint);
 
+  /** THE SCALE A LOCAL BAKE IS TAKEN AT, and the window of host scales
+   *  that answer the same one — what a recording holding the bake carries
+   *  (`Composer::Impl::narrowScaleWindow`). A declared bake density is the
+   *  scale, whatever the matrix says, and narrows nothing. With none, the
+   *  scale is what @p total magnifies the node's paint bounds by, quantized
+   *  UP to a coarse ladder, so a scale nobody declared — a window resize,
+   *  a pinch zoom — reuses one bake per step instead of re-rasterizing per
+   *  frame. Between steps the blit minifies slightly, which stays sharp.
+   *  `cacheScale()` is not applied here. */
+  struct BakeRung {
+    float scale = 1.0f;
+    float lowest = 0.0f;
+    float highest = 0.0f;
+  };
+  BakeRung localBakeRung(const SkMatrix& total);
+
   /** The node's layer effect, resolved against its box and clock — the same
    *  context the node's own paint builds, minus the marks outline, because
    *  nothing of the node has been painted yet. */

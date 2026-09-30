@@ -568,13 +568,13 @@ TEST(ComposeCache, GroupRefusesWhatItsMemoCannotSee) {
       << "a group baked over an animated decoration";
 }
 
-TEST(ComposeCache, AMovingGroupRefusesTheBakeRatherThanRemakingIt) {
+TEST(ComposeCache, AMovingGroupRidesOneLocalBakeRatherThanRemakingIt) {
   // The other documented limit, and the one whose failure is a slowdown
   // rather than a wrong picture: a device-pinned bake remade every frame
-  // costs strictly more than the paint it replaces, so a moving group must
-  // REFUSE the bake instead of remaking it. The group's own transform is the
-  // case a declaration can see coming; a resizing host is the case only the
-  // device rect can.
+  // costs strictly more than the paint it replaces, so a group whose own
+  // transform is declared as moving holds its settled subtree as ONE local
+  // bake and blits it through the motion, rather than remaking a device
+  // bake at every position.
   static sigil::motion::Animatable<float> slide = sigil::motion::animatable(0.0f);
   Host host(240, 240);
   host.composer.setAutoTexturePromotion(false);
@@ -601,5 +601,5 @@ TEST(ComposeCache, AMovingGroupRefusesTheBakeRatherThanRemakingIt) {
                        << bakes << " bakes";
   const Composer::NodeCost* row = requireRow(host.composer, "lattice");
   ASSERT_NE(row, nullptr);
-  EXPECT_NE(row->cacheState, Composer::CacheState::Group);
+  EXPECT_EQ(row->cacheState, Composer::CacheState::Group);
 }

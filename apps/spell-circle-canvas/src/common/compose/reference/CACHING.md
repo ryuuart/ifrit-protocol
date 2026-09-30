@@ -118,9 +118,12 @@ lands each node on the same device rect on most of them at another
 position, so a device bake would be taken again on every frame of the
 drift. The ladder, or the declared density below, decides the bake's
 resolution exactly as it does for a node that moves itself, and the device
-bake is taken once no declaration above or on the node moves. Automatic
-promotion is not this tier and is not changed by it: it takes device bakes
-only, remade whenever the matrix they stand under moves.
+bake is taken once no declaration above or on the node moves. A
+`Cache::Group` node follows the same rule: its settled subtree is held in
+local space while it or an ancestor moves, or its device rect does, and in
+device space once all of them hold still. Automatic promotion is not this
+tier and is not changed by it: it takes device bakes only, remade whenever
+the matrix they stand under moves.
 
 **A NODE ABOUT TO SHOW HOLDS ITS BAKE ALREADY.** A node at an opacity of
 0 draws nothing, and its subtree is not painted. When that opacity is

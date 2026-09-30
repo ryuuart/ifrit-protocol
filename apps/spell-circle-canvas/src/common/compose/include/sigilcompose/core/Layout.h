@@ -378,11 +378,12 @@ struct Echo {
  *  (`uTime` or a bound uniform), an animated decoration, an animated
  *  image, a bound `fill()`, a variable-font drive, a `Cache::None`
  *  descendant, or a non-srcOver blend or backdrop filter below the root
- *  (which would resolve against the bake's transparent black). It also
- *  declines per frame while its own transform animates or its device rect
- *  is moving, because a device-pinned bake remade every frame costs more
- *  than the paint it replaces. A Group node that never reports itself as
- *  held has one of the above in it. */
+ *  (which would resolve against the bake's transparent black). While its
+ *  own transform or an ancestor's is declared as moving, or its device
+ *  rect is moving, the bake is held in local space and rides the motion
+ *  through the blit, as Texture's does, because a device-pinned bake
+ *  remade every frame costs more than the paint it replaces. A Group node
+ *  that never reports itself as held has one of the above in it. */
 enum class Cache : uint8_t { Auto, Picture, Texture, Group, None };
 
 /** The POLICY half of a cache mode — what the settled-subtree proof reads,

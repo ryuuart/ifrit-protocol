@@ -123,6 +123,46 @@ TEST(ComposeCaching, ABakeUnderABoundAncestorSurvivesSubPixelMotion) {
   }
 }
 
+TEST(ComposeCaching, AGroupBakeUnderABoundAncestorSurvivesSubPixelMotion) {
+  // The same drift over a Cache::Group: its subtree is settled, so it
+  // holds a bake, and the ancestor's bound translation is declared — the
+  // group's bake rides it in local space rather than being taken again in
+  // device space at every sub-pixel position the drift lands on.
+  Host host(300, 300);
+  motion::Animatable<float> drift = motion::animatable(0.0f);
+  Element assembly = box()
+                         .key("assembly")
+                         .absolute()
+                         .left(20)
+                         .top(40)
+                         .width(240)
+                         .height(60)
+                         .cache(Cache::Group);
+  for (int i = 0; i < 6; ++i)
+    assembly.children({box()
+                           .absolute()
+                           .left(4.0f + 38.0f * (float)i)
+                           .top(12)
+                           .width(30)
+                           .height(30)
+                           .rotate(12.0f * (float)i)
+                           .fill(i % 2 ? red() : green())});
+  host.composer.render(box().cache(Cache::None).children(
+      {box().cache(Cache::None).absolute().translateX(drift).children(
+          {std::move(assembly)})}));
+  host.frame();
+  host.frame(1.0 / 60.0);  // the group has a frame to compare with
+  host.frame(1.0 / 60.0);
+  ASSERT_GE(host.composer.stats().texturesLive, 1u) << "the group holds a bake";
+  for (int i = 1; i <= 12; ++i) {
+    drift = (float)i * 0.23f;  // a quarter pixel a frame: rects mostly hold
+    host.frame(1.0 / 60.0);
+    EXPECT_EQ(host.composer.stats().texturesBaked, 0u)
+        << "frame " << i
+        << ": the group was baked again while its ancestor drifted";
+  }
+}
+
 TEST(ComposeCaching, BakesUnderAHiddenFadeAreTakenBeforeItShows) {
   // A fade that releases forty baked texts at once pays forty bakes on the
   // one frame they appear unless the bakes are already held. Their parent

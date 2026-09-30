@@ -250,51 +250,15 @@ bool paintTextureBake(PaintPass& pass) {
       destTotal.preConcat(destTf.matrix({0, 0}, rect.width(), rect.height()));
     }
   }
-  // maxScaleOf, NOT the matrix diagonal: a quarter-turned node's diagonal
-  // is (0, 0) and would clamp to the 0.25 floor, baking at a quarter
-  // resolution to be upscaled by the blit (see maxScaleOf in
-  // ComposeRuntime.h). The node's local bounds locate the Jacobian
-  // samples when the CTM carries a host perspective. This ladder feeds
-  // the re-bake test below, so an underestimate here means a stale,
-  // blurry bake rather than a wasted one.
-  static constexpr float kBakeSteps[] = {0.25f, 0.5f, 0.75f, 1.0f,
-                                         1.5f,  2.0f, 3.0f,  4.0f};
-  float scale = impl.bakeDensity;
-  // …AND THE WINDOW OF HOST SCALES THAT WOULD ANSWER THE SAME RUNG, for a
-  // recording to carry. A node painted every frame re-asks the ladder and
-  // re-bakes when the answer moves; a node inside a held recording is
-  // never asked again, so the recording is remade when the host's scale
-  // leaves this. A DECLARED DENSITY has no ladder to leave — that bake is
-  // taken at the density the host named whatever the matrix says — so it
-  // narrows nothing.
-  float rungLo = 0.0f;
-  float rungHi = std::numeric_limits<float>::infinity();
-  if (impl.bakeDensity <= 0) {
-    const float measured = maxScaleOf(destTotal, localBounds);
-    const float raw = std::clamp(measured, 0.25f, 4.0f);
-    scale = kBakeSteps[std::size(kBakeSteps) - 1];
-    float below = 0.0f;
-    for (float step : kBakeSteps)
-      if (step >= raw) {
-        scale = step;
-        break;
-      } else {
-        below = step;
-      }
-    // The rung spans (below, scale]; carried onto the host's scale by the
-    // ratio between the two, which is the node's own transform and holds
-    // while the host's scale is the only thing moving. The clamps are the
-    // ends of the ladder and reach past it: a node already rasterizing at
-    // the floor or the ceiling answers the same rung however much further
-    // the host goes that way.
-    if (measured > 0.0f) {
-      const float perHost = impl.hostScale / measured;
-      rungLo = raw <= kBakeSteps[0] ? 0.0f : below * perHost;
-      rungHi = raw >= kBakeSteps[std::size(kBakeSteps) - 1]
-                   ? std::numeric_limits<float>::infinity()
-                   : scale * perHost;
-    }
-  }
+  // The ladder feeds the re-bake test below. The window of host scales
+  // that would answer the same rung is for a recording to carry: a node
+  // painted every frame re-asks the ladder and re-bakes when the answer
+  // moves; a node inside a held recording is never asked again, so the
+  // recording is remade when the host's scale leaves it.
+  const PaintPass::BakeRung rung = pass.localBakeRung(destTotal);
+  float scale = rung.scale;
+  const float rungLo = rung.lowest;
+  const float rungHi = rung.highest;
   // cacheScale(): opt-in reduced raster scale — the bake evaluates fewer
   // pixels and the blit below linear-upscales through the same dst rect.
   scale = std::max(0.1f, scale * node.bakeScale);
