@@ -375,10 +375,8 @@ Element lanePanel(const Lane& lane) {
       .gap(7)
       .width(kPlotWidth)
       .children(
-          // A rule cannot state a stroke, so the frame's keyline is the node's.
           {box()
                .styleClass("frame")
-               .stroke(stroke(1, Fill::var("faint")))
                .children(
                    {sketch::kit::plot(
                         lane.key,
@@ -524,7 +522,10 @@ StyleSheet sheet() {
       rule(".rest").ink(var("rest")),
       rule(".x").ink(var("x")),
       rule(".y").ink(var("y")),
-      rule(".frame").width(pct(100)).height(kPlotHeight),
+      rule(".frame")
+          .width(pct(100))
+          .height(kPlotHeight)
+          .stroke(stroke(1, Fill::var("faint"))),
       // A number is knocked out of the hairline it names.
       rule(".reading")
           .fontSize(9.5f)
@@ -545,7 +546,8 @@ StyleSheet sheet() {
           .width(9)
           .height(9)
           .borderRadius(Corners{4.5f})
-          .fill(Fill::var("paper")),
+          .fill(Fill::var("paper"))
+          .stroke(stroke(1.5f)),
   };
 }
 
@@ -647,10 +649,8 @@ struct ElasticType {
         .height(kPlotHeight)
         .styleClass(lane.series)
         .children({box().styleClass("cursor").absolute().translateX(across),
-                   // A rule cannot state a stroke, so the ring's is the node's.
                    box()
                        .styleClass("ring")
-                       .stroke(stroke(1.5f))
                        .absolute()
                        .left(-4.5f)
                        .top(-4.5f)
