@@ -361,8 +361,12 @@ struct PenrosePaving {
     words = sketch::kit::Document(context, "data/content.json");
     setts = paving();
 
+    // Nothing on the plaza moves, so the whole of it is kept as one image
+    // and drawn again from that.
     context.composer.render(
         stack()
+            .cache(Cache::Texture)
+            .key("penrose_paving.plaza")
             .fill(Fill::color(kJointMortar))
             // The plaza's lettering voice: small, tracked, cool grey.
             .font({.size = 10.5f, .color = hexColor(0x8E9295), .track = 1.0f})
