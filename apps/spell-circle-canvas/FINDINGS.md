@@ -745,37 +745,6 @@ The sketch keeps the call, with a comment beside the ground stating
 the constraint, so the grain appears when the grain holds its
 strength on a dark ground.
 
-## A colour is read from its CSS text only by the pen library, so a sketch whose palette is in a words file borrows SigilDraw or parses hex by hand
-
-`sigil::draw::parseColor(std::string_view)` (`sigildraw/Color.h`) reads
-`#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa` and the named colours, and it is
-the only door in the tree that turns a colour's text into a
-`material::Color`. SigilMaterial, which owns what a colour means, offers
-only `material::hexColor(uint32_t, alpha)` (`sigilmaterial/color/Color.h`),
-from an integer. So a compose sketch that keeps its palette in `data/`,
-as a sketch keeps its words, either links the p5 pen library for one
-function (`chladni_tab1` does, in `Figures.h`) or writes
-`std::stoul(hex.substr(1), nullptr, 16)` itself: `black_watch`'s
-`Tartan.h` `colourOf`, `chevreul_circle` (its colour column) and
-`thaumonomicon` each do, and none of the three reads an alpha or a
-three-digit form.
-
-It evidently means one reading of a colour's text in the library that
-owns colour, with `parseColor` moving to SigilMaterial (and SigilDraw
-calling it there), so a palette written as `"#3a3125b8"` in a words file
-means the same colour in every sketch and every runtime, and a JSON
-value a sheet's custom property is set from needs no local helper.
-
-A test should assert that `#e3d7b6`, `#e3d7b6ff`, `#ed7` (as `#eedd77`)
-and `#3a3125b8` read to the colours and alphas their digits say, that a
-named colour reads as SigilDraw reads it today, that text it cannot read
-answers opaque black as today, and that SigilDraw's `parseColor` answers
-the same colour for each.
-
-Wanted by `chladni_tab1`, `black_watch`, `chevreul_circle` and
-`thaumonomicon`.
-Also wanted by `cosmati` (its nine quarries and four inks live in `data/pavement.json` and it links the pen library for one function), `chevreul_circle` and `thaumonomicon` (each parses hex by hand over `std::stoul`, without alpha), beside `black_watch` and `nightingale_coxcomb`.
-
 ## A node filled with a material recipe takes its bake again on every describe, even when the paint is held
 
 `chladni_tab1` fills its stars with `ink`, a `material::skia::Paint`

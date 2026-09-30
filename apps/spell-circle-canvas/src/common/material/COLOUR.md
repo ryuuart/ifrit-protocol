@@ -143,7 +143,11 @@ Skia's colour crosses once, with `skia::toColor`, and reaches the verbs
 themselves.
 
 **Two ways to name a colour, for two different jobs.** `hexColor()` is how an
-authored palette is typed in; `hsv(hueDegrees, saturation, value)` is how
+authored palette is typed in — and `parseColor()` how one kept as text is
+read, in a words file or a JSON value a sheet's custom property is set
+from: `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`, `transparent` and the named
+colours, anything else opaque black. It is the one reading of a colour's
+text in the tree, so the pen library's `parseColor` is this one; `hsv(hueDegrees, saturation, value)` is how
 a palette is WALKED — a wheel, a run of chips on a golden-angle step, one
 hue's tone ladder read off saturation and value together. The hue wraps
 and the other two clamp, and both folds are in the verb rather than at

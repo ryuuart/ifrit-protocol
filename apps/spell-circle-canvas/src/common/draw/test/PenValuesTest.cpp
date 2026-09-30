@@ -6,11 +6,13 @@
 
 #include <gtest/gtest.h>
 #include <sigilcore/compute/Angle.h>
+#include <sigildraw/Color.h>
 #include <sigildraw/Constants.h>
 #include <sigildraw/Math.h>
 #include <sigildraw/Noise.h>
 #include <sigildraw/Pen.h>
 #include <sigildraw/Retained.h>
+#include <sigilmaterial/color/Color.h>
 
 #include <cmath>
 #include <vector>
@@ -44,6 +46,14 @@ namespace {
 
 using namespace sigil::draw;
 using sigil::draw::testing::Paper;
+
+// The pen reads a colour's text through the library that owns colour, so
+// a palette in a words file means one colour to a pen and to a material.
+TEST(Pen, AColourStringReadsAsTheMaterialLibraryReadsIt) {
+  for (const char* css : {"#e3d7b6", "#e3d7b6ff", "#ed7", "#3a3125b8",
+                          "steelblue", "transparent", "not a colour"})
+    EXPECT_EQ(parseColor(css), sigil::material::parseColor(css)) << css;
+}
 
 TEST(Pen, OneSeedGivesOneSequenceOnEveryPen) {
   Pen a;

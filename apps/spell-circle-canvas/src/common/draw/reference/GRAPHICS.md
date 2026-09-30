@@ -93,6 +93,9 @@ for this one where a pasted sketch wants p5's.
 
 ## parseColor: a CSS colour as p5 accepts one
 
+The pen's name for `sigil::material::parseColor`, which reads it: a
+colour's text means one colour to a pen, a material and a sheet alike.
+
 `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`, and the named colours a sketch
 reaches for — the sixteen of HTML's first palette with `grey`, `orange`,
 `pink`, `brown`, `gold`, `violet`, `indigo`, `crimson`, `coral`,

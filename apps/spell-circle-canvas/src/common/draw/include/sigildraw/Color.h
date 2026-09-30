@@ -53,10 +53,12 @@ inline material::Color colorFrom(const ColorMode& mode, float gray) {
   return colorFrom(mode, gray, mode.maxA);
 }
 
-/** A CSS colour string as p5 accepts one: `#rgb`, `#rgba`, `#rrggbb`,
- *  `#rrggbbaa`, and the named colours a sketch reaches for. Anything
- *  else is opaque black, which is what a canvas gives an unparseable
- *  colour too. */
+/** A CSS colour string as p5 accepts one, read by
+ *  `sigil::material::parseColor`, the library that owns colour, so a
+ *  string means the same colour to a pen as to a material: `#rgb`,
+ *  `#rgba`, `#rrggbb`, `#rrggbbaa`, and the named colours a sketch
+ *  reaches for. Anything else is opaque black, which is what a canvas
+ *  gives an unparseable colour too. */
 material::Color parseColor(std::string_view css);
 
 }  // namespace sigil::draw

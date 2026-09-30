@@ -259,3 +259,26 @@ TEST(Color, APaletteIsReadExactlyWhereARampIsReadBetween) {
   EXPECT_EQ(none.at(0), (Color{0, 0, 0, 0}));
   EXPECT_EQ(none.nearest(0.5f), (Color{0, 0, 0, 0}));
 }
+
+// A colour's text reads to the colour and alpha its digits say, whichever
+// of the four hex lengths spells it; a named colour reads to its CSS
+// value; and text it cannot read is opaque black.
+TEST(Color, ACssColourReadsToTheColourItsDigitsSay) {
+  const Color six = parseColor("#e3d7b6");
+  EXPECT_EQ(six, hexColor(0xe3d7b6));
+  EXPECT_EQ(parseColor("#e3d7b6ff"), six);
+  EXPECT_EQ(parseColor("#E3D7B6"), six);
+  EXPECT_EQ(parseColor("#ed7"), hexColor(0xeedd77));
+  EXPECT_EQ(parseColor("#ed78"), hexColor(0xeedd77, (float)0x88 / 255.0f));
+  EXPECT_EQ(parseColor("#3a3125b8"), hexColor(0x3a3125, (float)0xb8 / 255.0f));
+
+  EXPECT_EQ(parseColor("steelblue"), hexColor(0x4682b4));
+  EXPECT_EQ(parseColor("grey"), hexColor(0x808080));
+  EXPECT_EQ(parseColor("transparent"), (Color{0, 0, 0, 0}));
+
+  const Color black{0, 0, 0, 1};
+  for (const char* unreadable :
+       {"", "#", "#12", "#12345", "#1234567", "#e3d7bg", "e3d7b6",
+        "rebeccapurple", "Steelblue"})
+    EXPECT_EQ(parseColor(unreadable), black) << unreadable;
+}

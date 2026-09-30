@@ -7,7 +7,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstdint>
 #include <string_view>
 
 namespace sigil::draw {
@@ -64,33 +63,6 @@ material::Color fromHsl(float h, float s, float l, float a) {
   return fromHsb(h, sv, v, a);
 }
 
-int hexDigit(char c) {
-  if (c >= '0' && c <= '9') return c - '0';
-  if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-  if (c >= 'A' && c <= 'F') return c - 'A' + 10;
-  return -1;
-}
-
-struct Named {
-  std::string_view name;
-  uint32_t rgb;
-};
-
-constexpr Named kNamed[] = {
-    {"black", 0x000000},    {"white", 0xffffff},     {"red", 0xff0000},
-    {"lime", 0x00ff00},     {"blue", 0x0000ff},      {"yellow", 0xffff00},
-    {"cyan", 0x00ffff},     {"aqua", 0x00ffff},      {"magenta", 0xff00ff},
-    {"fuchsia", 0xff00ff},  {"silver", 0xc0c0c0},    {"gray", 0x808080},
-    {"grey", 0x808080},     {"maroon", 0x800000},    {"olive", 0x808000},
-    {"green", 0x008000},    {"purple", 0x800080},    {"teal", 0x008080},
-    {"navy", 0x000080},     {"orange", 0xffa500},    {"pink", 0xffc0cb},
-    {"brown", 0xa52a2a},    {"gold", 0xffd700},      {"violet", 0xee82ee},
-    {"indigo", 0x4b0082},   {"crimson", 0xdc143c},   {"coral", 0xff7f50},
-    {"salmon", 0xfa8072},   {"tomato", 0xff6347},    {"turquoise", 0x40e0d0},
-    {"skyblue", 0x87ceeb},  {"steelblue", 0x4682b4}, {"slategray", 0x708090},
-    {"darkgray", 0xa9a9a9}, {"lightgray", 0xd3d3d3},
-};
-
 }  // namespace
 
 ColorMode ColorMode::standard(Constant mode) {
@@ -119,33 +91,7 @@ material::Color colorFrom(const ColorMode& mode, float gray, float alpha) {
 }
 
 material::Color parseColor(std::string_view css) {
-  if (!css.empty() && css.front() == '#') {
-    const std::string_view hex = css.substr(1);
-    int digits[8];
-    if (hex.size() != 3 && hex.size() != 4 && hex.size() != 6 &&
-        hex.size() != 8)
-      return {0, 0, 0, 1};
-    for (size_t i = 0; i < hex.size(); ++i) {
-      digits[i] = hexDigit(hex[i]);
-      if (digits[i] < 0) return {0, 0, 0, 1};
-    }
-    float channel[4] = {0, 0, 0, 1};
-    if (hex.size() <= 4) {
-      for (size_t i = 0; i < hex.size(); ++i)
-        channel[i] = (float)(digits[i] * 17) / 255.0f;
-    } else {
-      for (size_t i = 0; i < hex.size() / 2; ++i)
-        channel[i] = (float)(digits[2 * i] * 16 + digits[2 * i + 1]) / 255.0f;
-    }
-    return {channel[0], channel[1], channel[2], channel[3]};
-  }
-  if (css == "transparent") return {0, 0, 0, 0};
-  for (const Named& named : kNamed)
-    if (named.name == css)
-      return {(float)((named.rgb >> 16u) & 0xffu) / 255.0f,
-              (float)((named.rgb >> 8u) & 0xffu) / 255.0f,
-              (float)(named.rgb & 0xffu) / 255.0f, 1.0f};
-  return {0, 0, 0, 1};
+  return material::parseColor(css);
 }
 
 }  // namespace sigil::draw

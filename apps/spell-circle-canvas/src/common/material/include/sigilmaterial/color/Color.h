@@ -17,6 +17,7 @@
 #include <concepts>
 #include <cstdint>
 #include <span>
+#include <string_view>
 #include <vector>
 
 namespace sigil::material {
@@ -73,6 +74,20 @@ constexpr Color hexColor(uint32_t rrggbb, float alpha = 1.0f) {
           (float)((rrggbb >> 8u) & 0xffu) / 255.0f,
           (float)(rrggbb & 0xffu) / 255.0f, alpha};
 }
+
+/** A COLOUR FROM ITS CSS TEXT — the spelling a palette kept in a words
+ *  file is written in: `#rgb`, `#rgba`, `#rrggbb` and `#rrggbbaa`, the
+ *  hex digits in either case, a short digit standing for itself twice
+ *  (`#ed7` is `#eedd77`); `transparent`; and the named colours a palette
+ *  reaches for — HTML's first sixteen with `grey`, `aqua` and `fuchsia`,
+ *  and `orange`, `pink`, `brown`, `gold`, `violet`, `indigo`, `crimson`,
+ *  `coral`, `salmon`, `tomato`, `turquoise`, `skyblue`, `steelblue`,
+ *  `slategray`, `darkgray` and `lightgray`.
+ *
+ *  Text it cannot read is opaque black, which is what a canvas gives an
+ *  unparseable colour too, so a misspelt entry shows as a black shape
+ *  rather than as nothing. */
+Color parseColor(std::string_view css);
 
 /** A colour from HUE, SATURATION and VALUE — the wheel a palette is
  *  WALKED on, where `hexColor()` is the one an authored palette is typed in.
