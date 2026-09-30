@@ -151,32 +151,6 @@ upstream — `precompile` should refuse a key it cannot resolve — and a
 test should assert that a key naming an unmade piece comes back false
 rather than taking the process down.
 
-## A rail off the centreline rounds every outer corner, whatever its join says
-
-`lines::Rail` carries a `join`, and `Rails::paint`
-(`src/common/compose/brush/Lines.cpp`) hands it to the stroke of each
-rail. But a rail with a nonzero `across` is first offset through
-`geometry::path::parallel`, which builds every outer corner as a round
-join by construction, so the curve the stroke then joins has no corner
-left to mitre: only the rail on the centreline honours `Join::Miter`. A
-band of rails round a star — a channel on the centreline between two
-edge rails — therefore comes out with a sharp channel and round outer
-edges at every point, where a band cut round a star polygon has sharp
-points on both edges.
-
-It evidently means the join the rail states, as a stroke's own join
-does: `parallel` taking the join (it already mitres inner corners, cut
-back no further than the neighbouring corner), and `Rails::paint`
-passing the rail's join through, so a mitred rail is a mitred curve.
-
-A test should offset a closed {7/2} chord outline by 12 px on its outer
-side through a rail stating `Join::Miter` and assert the rail's curve
-reaches each outer vertex's mitre point within a pixel, and that the
-same rail stating `Join::Round` keeps today's arc. `sigillum_aemeth`
-cuts its star's two edges as two stars of their own for this reason,
-since the lines beside every chord of a star polygon meet at a scaled
-star.
-
 ## A wire an operator attaches cannot be hit, and an addition cannot say whether it may be
 
 `connect::wire` (`src/common/compose/kit/Connect.cpp`) marks every wire
@@ -1144,3 +1118,134 @@ For a binding-preserving form it should assert changing output and retained
 static content beneath the filter; for an explicit snapshot form it should
 assert that the snapshot stays fixed while a filter-specific binding moves.
 The program should not need recompilation when only the uniform changes.
+
+
+## Bug: a world-space material restarts inside each hosted Pen leaf
+
+The scan-visor and registered-print studies need one material field to span
+separately positioned drawings. A single `Material` wrapping
+`Paint.linearGradient((0, 0), (1, 0), stops).worldSpace()` remains continuous
+across ordinary Compose fills, but starts the full gradient again inside
+each `compose::pen` leaf. Changing a pen leaf's width changes the gradient's
+scale even though the root canvas size is unchanged.
+
+Two native Python probes reproduce this in the loaded Sketchbook host. On
+an 800-pixel-wide canvas, ordinary fills and Pen fills occupy matching
+x ranges, with Pen fills on a second row. At x406 the control pixel is
+(158, 97, 161) and the 310-pixel-wide Pen leaf is (251, 65, 68). A second
+probe with 180- and 420-pixel-wide Pen leaves demonstrates the same loss of
+root extent. The runtime evidence uses the previously built host; captures
+against a refreshed host remain pending while libraries are being built.
+
+The current source supplies local size and time in
+`src/common/compose/draw/Draw.cpp`'s `Held::frameIn`, and
+`src/common/draw/Pen.cpp`'s `paintFrame` supplies local resolution, time and
+content scale. Neither transfers root resolution or the node-to-root
+transform. Ordinary fills transfer both in `frameOf` in
+`src/common/compose/core/Fills.cpp`. The documented world-space material
+contract requires root canvas coordinates and root resolution.
+
+A regression should paint the same root-space linear gradient and a
+root-space runtime shader through ordinary fills and translated Pen leaves
+of unequal width, then compare interior pixels at matching root positions.
+It should resize the root and move the leaves, asserting continuity and
+root-sized shader resolution. A translated/scaled parent and pen-local
+transforms should preserve the field's root anchoring; ordinary local-space
+paints should retain their existing local behavior.
+
+
+## API request: Python layout strings stop at the clipping declaration
+
+The macrodata-terminal study naturally writes `.overflow("clip")`, which
+raises TypeError: `Element::overflow` accepts only `Overflow`. The supported
+`.overflow(Overflow.Clip)` works. Exact neighboring declarations
+`.alignItems("center")` and `.justifyContent("space_between")` accept strings,
+as confirmed by a native host probe and the checked converters in
+`src/common/python/compose/Convert.cpp`. The interruption is therefore
+specific to inconsistent convenience across these layout options. This is
+an authoring request, not a rendering defect; other setters such as
+`flexDirection` and `textAlign` also use native enum arguments.
+
+Wanted: a checked Python string convenience for common layout values,
+documented alongside the native enum form. `overflow` could accept
+`"visible"` and `"clip"` while preserving native enum arguments. A regression
+should compare enum and string clipping at the same overflowing content boundary
+and assert that an unknown word raises a clear ValueError.
+
+
+## API request: Python studies cannot declare a study category or display name
+
+The Borges architectural study carries literary-study tags and prose, but
+its native catalog row is registered with category `"Python"` and a display
+name equal to its file stem. `registration` in
+`src/sketch/python/cmake/register_sketches.py` fixes those arguments for
+every Python entry. The `@sketch` declaration accepts size, background and
+capture time; the sketch context does not expose a title or category setter.
+C++ study registration can declare both independently of the lookup key.
+
+Python is an authoring language rather than a visual subject. Wanted: a
+literal category and display-name declaration that the existing Python AST
+registration pass can read without importing the sketch, alongside its
+existing dependency metadata. A study should be able to declare
+`CATEGORY = "Study · Literature"` and an authored display name while keeping
+`borges_library` as its stable key. Other metadata spellings are possible;
+the requirement is equivalent author control across the two languages.
+
+A regression should register an explicit Python study category and display
+name, verify both in its catalog row and verify stem-based lookup. An entry
+without those declarations should retain documented defaults. The metadata
+reader should not execute module code to discover either value.
+
+
+## Authoring difficulty: C++ studies depend on the mutable library header set
+
+While another pass edits public library headers, an existing Sketchbook
+host refuses to compile a new C++ study. `Host::startCompile` checks every
+public framework header against the running image's stamp; the refusal
+correctly prevents a new object layout from entering an older host. The
+result is that reference drawing and visual refinement stop until a
+matching host is rebuilt, even when the study needs only existing APIs.
+Python studies can continue through that host's already compiled bindings.
+
+A narrowed registry via `SIGIL_SKETCH_ONLY` already reduces the sketches a
+separate build tree must compile. It does not provide a coherent immutable
+header set for an already running host. Wanted: an authoring SDK snapshot
+that pairs a host with its public headers, compiler/link flags and native
+artifacts, so a study can select a consistent runtime while library work
+continues elsewhere. This request must preserve the ABI refusal; it is not
+a request to disable the guard or adjust file timestamps.
+
+A regression should compile and render an external study against a selected
+SDK snapshot while the working checkout changes public headers. The live
+compiler should use the selected snapshot's headers and artifacts, reject
+an explicitly mismatched set, and leave the last working session intact
+when compilation fails. A later snapshot should let the same study be
+reviewed against the changed library without changing its lookup key.
+
+
+## Bug: file-path video export ignores the requested study
+
+A live Python study renders correctly when supplied by path with `--frame`.
+The same file with `--video` is accepted by argument parsing and file
+validation, but `main.cpp` dispatches `runVideo` before the live-file lane.
+`src/sketch/book/VideoLane.cpp` selects only the registry index and category;
+it never reads `Arguments::sketchFile`. Consequently the file does not
+select the output. A native probe using the macrodata terminal, one video
+frame and a small output size exits with the registry's set-rendering
+requirement, even though that file is an ordinary CPU-renderable Compose
+study. With the device enabled, the code would select the registry montage
+instead of the supplied file. That broad encode was not launched.
+
+The intended authoring action is to export the current study. Wanted: the
+video lane should render and encode a file-selected session, or reject the
+unsupported file-plus-video combination before selecting other sketches.
+A silently substituted registry selection is not an acceptable fallback.
+The limitation affects newly authored sources that are not yet registered
+in the installed host as well as file edits newer than its bundled copy.
+
+A regression should supply a temporary study file whose content differs
+from every registry entry and assert that only its frames reach the video
+encoder. If the combination is unsupported, it should instead assert a
+clear early error naming that combination, before device selection or
+montage rendering. File-based stills and registry-based montages should
+retain their existing selections.

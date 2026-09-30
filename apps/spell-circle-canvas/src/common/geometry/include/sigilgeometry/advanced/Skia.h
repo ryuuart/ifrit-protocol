@@ -177,7 +177,8 @@ std::pair<SkPath, SkPath> splitOf(const Contour& contour, float distance);
  *  contour's seam join into one run. */
 void appendSegment(SkPathBuilder& out, const Contour& contour, float from,
                    float to, bool startWithMoveTo = true);
-SkPath parallel(const SkPath& path, float across, float step = 4.0f);
+SkPath parallel(const SkPath& path, float across, float step = 4.0f,
+                Join join = Join::Round, float miterLimit = 4.0f);
 SkPath displace(const SkPath& path, float amplitude, float wavelength,
                 bool zigzag);
 SkPath cornerWindows(const SkPath& path, float radius, bool keepNearCorners,

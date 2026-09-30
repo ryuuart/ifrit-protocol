@@ -15,6 +15,7 @@
 #include <glm/vec2.hpp>
 
 #include "sigilgeometry/path/Outline.h"
+#include "sigilgeometry/path/Stroke.h"
 #include <memory>
 #include <optional>
 #include <utility>
@@ -130,22 +131,26 @@ class Contour {
 };
 
 /** The curve a constant distance `across` to the side of every contour,
- *  built by walking in `step`-length strides: outer corners take a
- *  round join, inner corners a miter — cut back no further than the
- *  neighbouring corner, so a turn near a reversal becomes the chord
- *  across it rather than a meeting that never comes — and the samples a
- *  join already answers for are dropped. A join stands for its own
- *  vertex, and a corner the contour turns INTO for everything within
- *  the reach its two offset edges fold across, which below a right
- *  angle is further than the offset itself. Positive `across` is to the
- *  left of the direction of travel in y-down space.
+ *  built by walking in `step`-length strides. A corner the contour
+ *  turns AWAY from the offset takes `join`: an arc about the vertex, the
+ *  point the two offset edges meet at carried on past their ends (the
+ *  chord instead, once that point stands more than `miterLimit` offsets
+ *  from the vertex), or the chord. A corner the contour turns INTO is
+ *  always the miter its two offset edges fold across at, cut back no
+ *  further than the neighbouring corner, so a turn near a reversal
+ *  becomes the chord across it rather than a meeting that never comes;
+ *  the fold stands for everything within its reach, which below a right
+ *  angle is further than the offset itself, and the samples it answers
+ *  for are dropped. Positive `across` is to the left of the direction
+ *  of travel in y-down space.
  *
  *  This is the RAIL — one curve, not a region — and it is the walk
  *  `operations::offset` performs at either end of its position dial, where the
- *  offset takes one side only. A caller that wants the band, the grown
- *  silhouette or a join it can name asks the operator; a caller that
- *  wants the curve beside this curve asks here. */
-Outline parallel(const Outline& outline, float across, float step = 4.0f);
+ *  offset takes one side only. A caller that wants the band or the grown
+ *  silhouette asks the operator; a caller that wants the curve beside
+ *  this curve asks here. */
+Outline parallel(const Outline& outline, float across, float step = 4.0f,
+                 Join join = Join::Round, float miterLimit = 4.0f);
 
 /** Every contour displaced sideways by a wave: sinusoidal, or a
  *  four-phase zigzag when `zigzag`. The wavelength is rounded so a whole

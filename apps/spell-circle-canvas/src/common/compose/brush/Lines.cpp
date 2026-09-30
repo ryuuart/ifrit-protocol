@@ -386,7 +386,7 @@ void Rails::paint(draw::Pen& pen, const PaintContext& ctx) const {
             : dashPath(body, SkSpan(rail.dash.data(), rail.dash.size()),
                            base + rail.dashPhase);
     if (rail.across != 0)
-      run = geometry::path::parallel(run, rail.across, stride);
+      run = geometry::path::parallel(run, rail.across, stride, rail.join);
     SkPaint p;
     p.setAntiAlias(true);
     p.setStyle(SkPaint::kStroke_Style);

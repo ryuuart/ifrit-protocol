@@ -239,7 +239,8 @@ std::vector<Contour::Corner> Contour::corners(float angleDeg, float minSpacing,
 
 std::vector<OffsetJoin> offsetJoins(
     const Contour& contour,
-    const std::function<float(float distance)>& acrossAt, float stride) {
+    const std::function<float(float distance)>& acrossAt, float stride,
+    Join outsideJoin, float miterLimit) {
   const std::vector<Contour::Corner> corners =
       contour.corners(20.0f, std::max(stride, 1.0f), stride);
   const float len = contour.length();
@@ -370,7 +371,26 @@ std::vector<OffsetJoin> offsetJoins(
       // there.
       join.answersBefore = std::min(std::max(join.radius, foldBefore), room);
       join.answersAfter = std::min(std::max(join.radius, foldAfter), roomOn);
-    } else if (turn * side < 0.0f) {
+    } else if (turn * side < 0.0f && outsideJoin == Join::Miter) {
+      // THE OUTSIDE OF A TURN, MITRED: the two offset edges carried on
+      // past their ends to where they meet, along the headings they
+      // arrive and leave with. Past `miterLimit` widths from the vertex
+      // the point is refused and the corner is the chord, as a stroke's
+      // own mitre is.
+      const auto [rateIn, rateOut] = rates(stride, stride);
+      const glm::vec2 alongIn = slanted(hit.in, rateIn);
+      const glm::vec2 alongOut = slanted(hit.out, rateOut);
+      const float meeting = cross(alongIn, alongOut);
+      const float reach = cross(apart, alongOut) / meeting;
+      const glm::vec2 point{join.entering.x + alongIn.x * reach,
+                            join.entering.y + alongIn.y * reach};
+      if (std::abs(meeting) > 1e-6f && std::isfinite(reach) && reach > 0.0f &&
+          glm::distance(point, join.vertex) <= miterLimit * join.radius) {
+        join.miter = true;
+        join.cutEntering = point;
+        join.cutLeaving = point;
+      }
+    } else if (turn * side < 0.0f && outsideJoin == Join::Round) {
       join.arc = true;
       join.startRadians = std::atan2(join.entering.y - join.vertex.y,
                                      join.entering.x - join.vertex.x);
@@ -438,7 +458,8 @@ bool joinAlreadyWrote(std::span<const OffsetJoin> written, float distance) {
   return !written.empty() && distance <= written.back().distance;
 }
 
-SkPath parallel(const SkPath& path, float across, float step) {
+SkPath parallel(const SkPath& path, float across, float step, Join join,
+                float miterLimit) {
   if (across == 0) return path;
   // `beside` measures to the right of travel; the parallel is asked for
   // on the left.
@@ -448,7 +469,8 @@ SkPath parallel(const SkPath& path, float across, float step) {
   for (const Contour& contour : contoursOf(path)) {
     const float len = contour.length();
     const std::vector<OffsetJoin> joins =
-        offsetJoins(contour, [across](float) { return across; }, stride);
+        offsetJoins(contour, [across](float) { return across; }, stride, join,
+                    miterLimit);
     size_t next = 0;
     bool started = false;
     for (float d = 0;; d += stride) {
@@ -564,8 +586,9 @@ SkPath cornerWindows(const SkPath& path, float radius, bool keepNearCorners,
   return out.detach();
 }
 
-Outline parallel(const Outline& outline, float across, float step) {
-  return fromSk(parallel(toSk(outline), across, step));
+Outline parallel(const Outline& outline, float across, float step, Join join,
+                 float miterLimit) {
+  return fromSk(parallel(toSk(outline), across, step, join, miterLimit));
 }
 
 Outline displace(const Outline& outline, float amplitude, float wavelength,

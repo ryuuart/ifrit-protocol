@@ -20,14 +20,17 @@
 #include <vector>
 
 #include "sigilgeometry/path/Contour.h"
+#include "sigilgeometry/path/Stroke.h"
 
 class SkPathBuilder;
 
 namespace sigil::geometry::path {
 
 /** ONE REAL VERTEX, OFFSET: either the MITER the two offset edges are
- *  cut back to where they fold across each other, or those two ends
- *  with an ARC between them where the turn spreads them apart.
+ *  cut back to where they fold across each other, or — where the turn
+ *  spreads them apart — those two ends joined the way the caller asks:
+ *  an ARC between them, the MITER point they meet at carried on past
+ *  their ends, or the straight chord between them.
  *
  *  `radius` is the offset's magnitude AT THIS VERTEX — what the arc is
  *  struck with, and how far either side the sampled points the join
@@ -56,9 +59,10 @@ struct OffsetJoin {
    *  long edge and a short one answers far in one direction and little
    *  in the other.
    *
-   *  An arc answers for its vertex alone, and both are zero: a turn away
-   *  from the offset side spreads the two offset edges apart, so no
-   *  sample beyond the vertex has overshot anything. */
+   *  A join on the outside of a turn answers for its vertex alone, and
+   *  both are zero: a turn away from the offset side spreads the two
+   *  offset edges apart, so no sample beyond the vertex has overshot
+   *  anything. */
   float answersBefore = 0, answersAfter = 0;
   bool miter = false;
   /** MITER: where the edge arriving is cut and where the edge leaving
@@ -66,7 +70,12 @@ struct OffsetJoin {
    *  the two fold across each other at — wherever the corner has the
    *  room either side for the fold to close; where a neighbouring
    *  corner is nearer than that, each edge is cut at the neighbour
-   *  instead and the pair is the chord across the corner. */
+   *  instead and the pair is the chord across the corner. On the
+   *  outside of a turn they are one place always: the point the two
+   *  edges, carried on past their ends, meet at.
+   *
+   *  Neither `miter` nor `arc` is the chord from `entering` to
+   *  `leaving`: a bevel, or a mitre its limit refused. */
   glm::vec2 cutEntering{0, 0}, cutLeaving{0, 0};
   glm::vec2 entering{0, 0}, leaving{0, 0};
   glm::vec2 vertex{0, 0};
@@ -85,11 +94,15 @@ struct OffsetJoin {
  *  together, which is also where the samples the join answers for end.
  *  A constant law has no slant, and its two folds are one distance.
  *
- *  `stride` is the spacing the caller walks the contour at, which is
- *  also how finely a corner is searched for. */
+ *  `outsideJoin` is what the outside of a turn takes, and `miterLimit`
+ *  how many widths from its vertex a mitre may stand before it is cut
+ *  to the chord. The inside of a turn is always the fold. `stride` is
+ *  the spacing the caller walks the contour at, which is also how
+ *  finely a corner is searched for. */
 std::vector<OffsetJoin> offsetJoins(
     const Contour& contour,
-    const std::function<float(float distance)>& acrossAt, float stride);
+    const std::function<float(float distance)>& acrossAt, float stride,
+    Join outsideJoin = Join::Round, float miterLimit = 4.0f);
 
 /** Write one rail point, opening the rail when it has not started. */
 void appendOffsetPoint(SkPathBuilder& out, glm::vec2 point, bool& started);

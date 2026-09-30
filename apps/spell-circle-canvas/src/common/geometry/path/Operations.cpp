@@ -146,7 +146,9 @@ SkPath offset(const SkPath& path, float distance,
       std::abs(distance) * (1.0f - std::abs(1.0f - 2.0f * position));
 
   const SkPath spine =
-      centre == 0 ? path : parallel(path, centre, options.step);
+      centre == 0 ? path
+                  : parallel(path, centre, options.step, options.join,
+                             options.miterLimit);
   if (halfWidth <= 0) return spine;
 
   SkPaint stroke;

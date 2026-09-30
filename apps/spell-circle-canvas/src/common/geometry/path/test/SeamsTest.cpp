@@ -476,6 +476,55 @@ TEST(Band, ACornerSharperThanARightAngleLeavesNoSpurEitherSide) {
   }
 }
 
+TEST(Band, ARailMitresTheOutsideOfATurnWhenItsJoinSaysSo) {
+  // A {7/2} star drawn as one closed contour of chords, clockwise, so
+  // LEFT of travel is the outside of every point. The two lines 12 px
+  // beside the chords meeting at a point meet on the point's bisector,
+  // 12 / sin(half the point's angle) from it — the star the band's edge
+  // is when it is cut round a star polygon.
+  const glm::vec2 centre{300.0f, 300.0f};
+  const float radius = 200.0f;
+  std::vector<glm::vec2> vertices;
+  for (int k = 0; k < 7; ++k) {
+    const float radians = -1.5707963f + (float)k * 6.2831853f / 7.0f;
+    vertices.push_back(
+        centre + radius * glm::vec2{std::cos(radians), std::sin(radians)});
+  }
+  SkPathBuilder b;
+  b.moveTo(vertices[0].x, vertices[0].y);
+  for (int k = 1; k < 7; ++k)
+    b.lineTo(vertices[(size_t)(2 * k % 7)].x, vertices[(size_t)(2 * k % 7)].y);
+  b.close();
+  const SkPath star = b.detach();
+  const float across = 12.0f;
+  const float halfPoint = 0.5f * 3.14159265f * 3.0f / 7.0f;
+
+  const SkPath mitred = parallel(star, across, 2.0f, Join::Miter);
+  const SkPath rounded = parallel(star, across, 2.0f, Join::Round);
+  EXPECT_EQ(parallel(star, across, 2.0f), rounded) << "round by default";
+  for (const glm::vec2& vertex : vertices) {
+    const glm::vec2 point =
+        vertex + glm::normalize(vertex - centre) * (across / std::sin(halfPoint));
+    EXPECT_LT(nearestTo(mitred, point), 1.0f)
+        << "mitred at " << vertex.x << "," << vertex.y;
+    // An arc about the vertex stands the offset from it and no nearer —
+    // to within where a search between samples places the vertex.
+    EXPECT_GE(nearestTo(rounded, vertex), across - 0.01f);
+    EXPECT_GT(nearestTo(rounded, point), across * 0.5f)
+        << "rounded at " << vertex.x << "," << vertex.y;
+  }
+  // …and a point further than the limit allows is the chord between the
+  // two edges' ends, nowhere near the meeting.
+  const SkPath limited = parallel(star, across, 2.0f, Join::Miter, 1.2f);
+  const SkPath bevelled = parallel(star, across, 2.0f, Join::Bevel);
+  EXPECT_EQ(limited, bevelled);
+  for (const glm::vec2& vertex : vertices) {
+    const glm::vec2 point =
+        vertex + glm::normalize(vertex - centre) * (across / std::sin(halfPoint));
+    EXPECT_GT(nearestTo(bevelled, point), across * 0.5f);
+  }
+}
+
 TEST(Band, AFoldReachesNoFurtherThanTheCornerBesideIt) {
   // A long edge, a 30° corner whose two offset edges fold 44.8 px back
   // from it against a 12 px law, a 25 px edge, a corner turning the
