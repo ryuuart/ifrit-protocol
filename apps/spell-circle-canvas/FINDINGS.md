@@ -1420,3 +1420,22 @@ A test: a keyed `Cache::Texture` over `kit::disc({740, 470}, 197.6f)`
 and over a rotated `centerAt` box, beside `slot("s")`; after the first
 draw, `renderSlot("s", …)` with a different fill and draw again —
 `Composer::stats` shows no bake on the second draw.
+
+## Bug: an unkeyed child that turns from a container into a text leaf fails the describe
+
+A stack whose unkeyed children are `[stack, text]` on one describe and
+`[text]` on the next (a throbber losing its meteor strip when the load
+ends) fails that render with Yoga's "Cannot set measure function: Nodes
+with measure functions cannot have children", and the sketch stops. The
+reconciler matches unkeyed children by position, so the retained
+container instance at position 0 is re-described as the text leaf and
+given a measure function while it still holds the container's children.
+Keying both children (`.key("meteors")`, `.key("letter")`) avoids it,
+which is how `spacejam_1996` states its throbber.
+
+A position match between two different kinds of node is evidently meant
+to replace the instance, or at least to drop its children before the
+leaf's measure function is set, as a keyed swap does. A test should
+render `stack().children({stack().children({box()}), text("N")})`, then
+`stack().children({text("N")})`, and assert the second render succeeds
+and lays out one text leaf.
