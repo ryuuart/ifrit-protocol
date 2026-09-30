@@ -44,19 +44,14 @@
  *     by a selector into its two advance classes; the record's mirror and
  *     a seeded phosphor lift ride a third and fourth.
  *   - THE LOAD, deliberately: per-glyph alpha and tint every frame, a
- *     matrix draw per mirrored glyph, and a blurred alpha underlay beneath
- *     each of the two nearest planes. Each underlay lands beneath its
- *     whole plane, so its halo cannot cover a neighbouring glyph's body.
+ *     matrix draw per mirrored glyph, and a green stroke under every glyph
+ *     of the two nearest planes, dimmed with the glyph it surrounds.
  *
  * The words, the charsets and every plane's clock stand in
- * `data/rain.json`; the sheet sets each plane's type, and its ink carries
- * the halation over the rendered glyphs.
+ * `data/rain.json`; the sheet sets each plane's type.
  */
 // TAGS: Typography/Effects, Motion/Particles
 
-#include <sigilmaterial/filter/Filter.h>
-#include <sigilmaterial/skia/Filter.h>
-#include <include/core/SkColorFilter.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcompose/core/Core.h>
@@ -117,19 +112,7 @@ constexpr material::Color kVoid = {0.004f, 0.012f, 0.006f, 1};
  *  orientation is rotated, and the screens show them standing), in the
  *  HEAD's near-white — `colorMultiplier` only darkens, so the brightest
  *  moment of a streak is the one the sheet owns. A plane's class is its
- *  depth: its size, its haze, and its halation. A phosphor screen excites
- *  a spot rather than drawing a glyph, and the spot spreads into a green
- *  bloom heavy enough to fill a glyph's counters. The far plane has no
- *  halation, keeping its sixteen-pixel forms distinct behind the others. */
-material::Material halation(float sigma) {
-  const auto glow = material::Filter::dilate(0.95f)
-      .then(material::skia::filter(SkColorFilters::Blend(
-          0xFF44FF74, SkBlendMode::kSrcIn)))
-      .then(material::Filter::blur(sigma));
-  return material::from(material::Color{0.97f, 1.0f, 0.98f, 1}).effects(
-      material::Filter{}.emit(glow, material::BlendMode::DestinationOver));
-}
-
+ *  depth: its size, its haze, and its bloom. */
 StyleSheet screen() {
   return StyleSheet{
       rule("plane")
@@ -162,7 +145,7 @@ StyleSheet screen() {
 }
 
 /** A HALO WHERE THE TYPE STANDS, gone over the dark screen: the heads of
- *  the near plane carry a halation, but a phosphor tube also warms its
+ *  the near plane carry a bloom, but a phosphor tube also warms its
  *  whole face where it is struck most, so the ground the rain falls on is
  *  a faint green at the middle falling to the void at the corners. */
 Fill tubeGlow() {
@@ -402,10 +385,15 @@ struct MatrixRain {
                      .innerUnit = weave::Unit::Cluster,
                      .progress = motion::bind(seconds, {.to = {0.0f, 1000.0f / plane.loopMs}, .wrap = 1.0f})}),
         plane);
-    // Material effects belong to the rendered leaf; the sheet carries
-    // only the inherited type and ink.
-    if (plane.name == "mid") leaf.ink(halation(5.5f));
-    if (plane.name == "near") leaf.ink(halation(9));
+    // THE BLOOM: a phosphor spot spreads past the glyph it draws, so the
+    // two nearest planes stroke every glyph under its fill in a
+    // translucent green. The stroke is one of the glyph's own passes, so
+    // the streak's tint and fade dim it with the glyph — bright about a
+    // head, gone in the dark.
+    if (plane.name == "mid")
+      leaf.textStroke(3.0f, Fill::color({0.16f, 0.95f, 0.36f, 0.30f}));
+    if (plane.name == "near")
+      leaf.textStroke(5.0f, Fill::color({0.16f, 0.95f, 0.36f, 0.26f}));
     return leaf;
   }
 
