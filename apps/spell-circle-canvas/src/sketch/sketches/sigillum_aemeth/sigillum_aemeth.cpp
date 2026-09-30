@@ -235,24 +235,24 @@ Element cross(float size) {
 }
 
 /** A BAND CUT IN THE WAX: a shallow channel @p width px wide between two
- *  deep cuts. Every layer is opaque, so a strand passing over another is
- *  repainted across it and its cuts run on unbroken. */
-Decoration band(float width) {
+ *  deep cuts, its corners met by @p join. Every layer is opaque, so a
+ *  strand passing over another is repainted across it and its cuts run on
+ *  unbroken. */
+Decoration band(float width, path::Join join = path::Join::Round) {
   const float edge = width * 0.5f - 1.7f;
-  const auto rail = [](float across, float breadth, material::Color height) {
+  const auto rail = [join](float across, float breadth, material::Color height) {
     return lines::Rail{.across = across,
                        .width = breadth,
                        .fill = Fill::color(height),
-                       .cap = path::Cap::Butt};
+                       .cap = path::Cap::Butt,
+                       .join = join};
   };
   return lines::rails({rail(0, width, kChannel), rail(edge, 3.2f, kCut),
                        rail(-edge, 3.2f, kCut)});
 }
 
 /** THE STAR {sides/2} WOVEN IN ITS BAND. The band is cut once round the
- *  whole star — its channel, and its two edges, each of which is itself a
- *  star, since the lines beside every chord meet at a star's points — so
- *  its points are sharp. Over it each chord is laid again across the
+ *  whole star, mitred, so its points are sharp on both edges. Over it each chord is laid again across the
  *  stretch where it meets the others, one strand per chord in the order
  *  the star is drawn without lifting the graver, so that walking it the
  *  crossings go over, under, over — the rule that makes an interlace read.
@@ -260,15 +260,6 @@ Decoration band(float width) {
  *  tenths of its length. */
 Element interlaced(int sides, float vertexRadius, float width) {
   const float degrees = 360.0f / (float)sides;
-  // How far in from its vertex a chord runs, as a fraction.
-  const float chordApothem = std::cos(std::numbers::pi_v<float> * 2.0f / (float)sides);
-  const float edge = (width * kRadius * 0.5f - 1.7f) / kRadius / chordApothem;
-  const auto star = [&](float radius, Decoration mark) {
-    return circleOf()
-        .shape(shapes::chords({.sides = sides, .step = 2, .radius = radius, .closed = true}))
-        .fill(Fill::none())
-        .stroke(std::move(mark));
-  };
   std::vector<brush::Strand> strands;
   for (int chord = 0; chord < sides; ++chord) {
     const glm::vec2 from = kSeal.at(degrees * (float)(2 * chord % sides), vertexRadius);
@@ -279,8 +270,11 @@ Element interlaced(int sides, float vertexRadius, float width) {
          band(width * kRadius)});
   }
   return box().inset(0).children(
-      {star(vertexRadius, stroke(width * kRadius, Fill::color(kChannel))),
-       star(vertexRadius + edge, cut(3.2f)), star(vertexRadius - edge, cut(3.2f)),
+      {circleOf()
+           .shape(shapes::chords(
+               {.sides = sides, .step = 2, .radius = vertexRadius, .closed = true}))
+           .fill(Fill::none())
+           .stroke(band(width * kRadius, path::Join::Miter)),
        box().inset(0).fill(Fill::none()).stroke(Decoration(
            brush::weave(std::move(strands), path::crossing::alternateAlong())))});
 }
