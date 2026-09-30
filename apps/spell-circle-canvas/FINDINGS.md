@@ -233,7 +233,7 @@ within a small distance of the tool's colour, and none is lighter than it.
 ## The rewritten studies paint their static art on every frame
 
 The study rewrites of 2026-09-24 (minard_1869,
-chaucer_astrolabe, dunhuang_star_chart, lain_navi, ksp_mapview)
+chaucer_astrolabe, dunhuang_star_chart, ksp_mapview)
 state paper grain, stone, brush ribbons and lettering as material
 paints and shapes in the tree with no `Cache::Texture` over them, so a
 plate whose picture does not move between frames is re-rasterised on
