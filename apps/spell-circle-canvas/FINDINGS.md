@@ -565,12 +565,6 @@ than the rest glyph's.
 Wanted by `elastic_type`, whose words stand in a pool of shadow attached
 under their rest extent because neither route above follows the letters.
 
-Also wanted by `vertigo_titles`: its hollow title and soft underlay now
-use the ink material's stroke over `Boundary::Glyphs`. The settled title
-has its outline, but the entrance's `textFx::pop` cannot move that contour
-with each letter. A capture during the entrance should assert that each
-hollow contour scales and translates with its glyph, including its halo.
-
 The same outline is also painted in ONE colour: a `textFx()` track's
 `colorMultiplier`, `colorAdd` and `colorScreen` modulate the glyph passes
 and never reach a decoration drawn over `Boundary::Glyphs`
@@ -1135,24 +1129,31 @@ The Nostromo monitor declares a tube program whose seconds uniform is
 bound to the scene clock, then applies the program to a rendered subtree.
 `material::Filter::of` reads the material's current bindings once while
 constructing the filter. The binding does not carry into the resulting
-filter; the study must call `bind` again on that filter. The contract is
-explicit in `sigilmaterial/filter/Filter.h`, and
-`src/common/material/skia/Effect.cpp` constructs its runtime-shader filter
-and recipe snapshot from the resolved builder.
+filter. Calling `Filter::bind` on that converted value produces a warning
+and ignores the binding: it holds an already built image filter and recipe
+snapshot rather than the runtime program that `bind` needs. This behavior
+is explicit in `sigilmaterial/filter/Filter.h` and implemented in
+`src/common/material/skia/Effect.cpp`.
 
 This is documented behavior, not a reproduced violation of the current
 contract. It is nevertheless an authoring trap: the same material animates
-as a fill, but its ordinary conversion to a layer filter needs a second
-animation declaration. Wanted: either binding-preserving conversion or an
+as a fill, but its ordinary conversion to a layer filter freezes that
+animation. The supported workaround is a filter constructed directly from
+`material::skia::program`, with static uniforms and its own live binding;
+the study's native captures verify that route. It requires the author to
+compile and hold the runtime program separately, and shader source changes
+require session reload. Wanted: either binding-preserving conversion or an
 explicit snapshot spelling beside a live conversion, so the value's
 animation does not disappear at an otherwise composable boundary.
 
 A regression should bind a uniform before conversion, advance the same
 clock through two known values and pin the chosen conversion's behavior.
 For a binding-preserving form it should assert changing output and retained
-static content beneath the filter; for an explicit snapshot form it should
-assert that the snapshot stays fixed while a filter-specific binding moves.
-The program should not need recompilation when only the uniform changes.
+static content beneath the filter. For an explicit snapshot form it should
+assert that the snapshot stays fixed and that a subsequent binding is
+either supported or rejected with a clear snapshot-specific diagnostic.
+The direct runtime-program filter should remain bindable. The program
+should not need recompilation when only the uniform changes.
 
 
 ## Bug: a world-space material restarts inside each hosted Pen leaf
@@ -1169,8 +1170,8 @@ an 800-pixel-wide canvas, ordinary fills and Pen fills occupy matching
 x ranges, with Pen fills on a second row. At x406 the control pixel is
 (158, 97, 161) and the 310-pixel-wide Pen leaf is (251, 65, 68). A second
 probe with 180- and 420-pixel-wide Pen leaves demonstrates the same loss of
-root extent. The runtime evidence uses the previously built host; captures
-against a refreshed host remain pending while libraries are being built.
+root extent. A C++ probe on the matching host reproduces the same samples
+using the exact same wrapped Paint for ordinary fills and Pen fills.
 
 The current source supplies local size and time in
 `src/common/compose/draw/Draw.cpp`'s `Held::frameIn`, and
@@ -1284,3 +1285,64 @@ encoder. If the combination is unsupported, it should instead assert a
 clear early error naming that combination, before device selection or
 montage rendering. File-based stills and registry-based montages should
 retain their existing selections.
+
+
+## Bug: Material root anchoring is discarded by Skia lowering
+
+`Material::worldSpace` stores its flag in
+`src/common/material/core/Material.cpp`, and its public contract anchors
+the material to the root. `src/common/material/skia/Bases.cpp` copies a
+composed gradient's PaintPart into the accumulated Paint and returns it
+without transferring that flag. `Material::geometryDependent` also omits
+the flag.
+
+A native C++ probe uses ordinary Compose fills for both rows. A gradient
+Material marked `worldSpace` restarts its red-to-blue ramp in each
+translated 310-pixel panel, while a Paint marked `worldSpace` and wrapped
+as a Material stays continuous on the 800-pixel root. At root x406 the
+Material-level row is RGB(251, 65, 68), and the Paint-level row is
+RGB(158, 97, 161). This is distinct from the hosted Pen defect: no Pen
+leaf participates in this probe.
+
+The intended root anchor should survive Material lowering and participate
+in geometry-dependency classification. A regression should render both
+authoring forms at identical root coordinates across translated, scaled
+and rotated nodes, assert matching pixels, and assert geometry changes
+invalidate the anchored Material's cached result. Local-space materials
+should retain their existing behavior.
+
+
+## Bug: Python clip callback typing disagrees with runtime invocation
+
+`src/common/python/draw/Pen.cpp` invokes the mask callback passed to
+`Pen.clip` with no arguments, while
+`apps/python/sigil/typing/refinements/pen.py` declares `_t.DrawCallback`.
+The generated type defines that as `Callable[[Pen], None]`. The Shahnameh
+study's mineral outlines render with zero-argument closures over the
+supplied Pen, but the correctly annotated one-argument callback cannot be
+invoked by this binding.
+
+The callback protocol and generated declaration should agree. A regression
+should type-check the callback form accepted at runtime and render its
+normal and inverted clipping, with the outer clip restored. An exception
+inside the callback should preserve the same restoration behavior.
+
+
+## API request: paragraphs cannot state the bidi base of their page
+
+`src/sigilweave/paragraph/ParagraphAnalysis.cpp` calls
+`unicode::bidi(m_text)` with automatic LTR fallback. The existing Unicode
+primitive accepts `BaseDirection`, but Paragraph, ParagraphBlock,
+ParagraphStyle and LayoutOptions do not carry it through.
+
+The Shahnameh folio's Persian text shapes correctly. The limitation arises
+when a numeric folio label is followed by English on a Persian page.
+Native analysis of `۱۵۲۵ · Folio 22v` gives one level-zero run
+automatically, versus three runs with levels 2, 1 and 2 under explicit RTL.
+A paragraph partial accepting the existing BaseDirection value would let
+authors preserve their page's bidi context without injecting directional
+control characters into the content.
+
+A regression should compare Paragraph's run levels with the explicit
+Unicode primitive and verify that changing the base invalidates cached
+analysis while an unchanged base reuses it.
