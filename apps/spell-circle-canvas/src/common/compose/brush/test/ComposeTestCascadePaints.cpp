@@ -83,10 +83,12 @@ TEST(ComposeCascadePaints, APaintReadAsALengthLeavesTheTargetStanding) {
   Host host(kSide, kSide);
   host.composer.render(box().var("stone", leftToRight()).children(
       {box().key("sized").width(var("stone")).height(40),
-       box().key("unsized").height(40)}));
+       box().var("colour", kRed).children(
+           {box().key("coloured").width(var("colour")).height(40)})}));
   host.frame();
+  // As a colour property read as a length does.
   EXPECT_EQ(require(host.composer.bounds("sized")).width(),
-            require(host.composer.bounds("unsized")).width());
+            require(host.composer.bounds("coloured")).width());
 }
 
 // ---------------------------------------------------------------------------

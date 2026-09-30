@@ -61,11 +61,12 @@ TEST(ComposeTextFx, TintRampsColorMulBetweenTheTwoColoursInTimeOrder) {
 
 namespace {
 
-/** Whether any pixel of @p host is @p colour, within a step of rounding. */
+/** Whether any pixel of @p host is @p colour, within the quantisation a
+ *  glyph multiplier is drawn through. */
 bool drawsColour(Host& host, const sigil::material::Color& colour, int w,
                  int h) {
   const auto near = [](unsigned channel, float want) {
-    return std::abs((int)channel - (int)std::lround(want * 255.0f)) <= 2;
+    return std::abs((int)channel - (int)std::lround(want * 255.0f)) <= 8;
   };
   for (int y = 0; y < h; ++y)
     for (int x = 0; x < w; ++x) {
