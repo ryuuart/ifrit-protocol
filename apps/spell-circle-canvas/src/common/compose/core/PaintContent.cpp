@@ -162,7 +162,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
                                   float contentScale, SkBlendMode leafBlend,
                                   float leafOpacity, Phase phase,
                                   bool deferLayerEffect) {
-  const ElementNode& node = *inst.description;
+  const ElementNode& node = inst.painted();
   const ComputedStyle& style = inst.computed;
   // The two halves of a node's paint, split at the children loop. A
   // split bake is only ever offered to a node with no layer effect — that

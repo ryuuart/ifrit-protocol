@@ -19,7 +19,7 @@ using namespace detail;
 
 core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
                                                      Above above) {
-  const ElementNode& node = *inst.description;
+  const ElementNode& node = inst.painted();
   const ComputedStyle& style = inst.computed;
   const bool movingAbove = above.moving;
 

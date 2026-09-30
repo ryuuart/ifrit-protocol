@@ -44,7 +44,7 @@ sigil_library(SigilComposeCore
     ElementTextStyle.cpp ElementText.cpp
     ElementIdentity.cpp ElementImage.cpp Factories.cpp Region.cpp
     Pattern.cpp
-    MaterialEffects.cpp LitSurface.cpp
+    MaterialEffects.cpp LitSurface.cpp RuleMarks.cpp
     ElementNode.cpp Diagnostics.cpp CellFlow.cpp Grid.cpp
     ElementCascade.cpp ElementFont.cpp
     # the facts a node states, the operator seam that reads them, and the
@@ -83,7 +83,7 @@ sigil_library(SigilComposeCore
     ComputedStyle.h DeclaredFields.h PropertyBlocks.h HeapBox.h
     SelectorInternal.h SelectorMatch.h SheetBody.h Calc.h
     TextState.h SlotSpecs.h FaceChoice.h FamilyList.h LonghandFold.h
-    Lanes.h
+    Lanes.h RuleMarks.h
     Transforms.h NodeTransform.h ComposerImpl.h DeriveInternal.h
     PaintInternal.h PaintPass.h GlyphInk.h
     PaintProfile.h InstanceStamp.h

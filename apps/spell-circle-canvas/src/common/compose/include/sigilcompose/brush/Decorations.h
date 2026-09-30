@@ -215,8 +215,11 @@ inline PathFormat stroke(float width,
  *  (so a static shadowed node prunes without memo). Attach with .background()
  *  *before* the fill so the fill paints over it. */
 struct Shadow {
-  /** What the shadow is painted in; a colour converts. */
-  material::Material ink = material::Color{0, 0, 0, 1};
+  /** What the shadow is painted in — a colour (`Fill::color`), a
+   *  material, or the ink in force or a custom property, read where the
+   *  shadow is painted — and CSS's `box-shadow` colour: the ink in force
+   *  where none is named. */
+  Fill ink = Fill::currentInk();
   glm::vec2 offset = {0, 0};
   float blur = 0;
 
@@ -249,10 +252,16 @@ struct Shadow {
   void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
 
-/** A blurred copy of the node's outline cast at @p offset — attach it
- *  as the FIRST background so everything else paints over it. */
-inline Shadow shadow(material::Material ink, glm::vec2 offset, float blur) {
+/** A blurred copy of the node's outline cast at @p offset in @p ink — a
+ *  material converts, and `Fill::currentInk()` or `Fill::var(name)` follow
+ *  the node's cascade — attach it as the FIRST background so everything
+ *  else paints over it. */
+inline Shadow shadow(Fill ink, glm::vec2 offset, float blur) {
   return Shadow{std::move(ink), offset, blur};
+}
+/** The same in a flat colour. */
+inline Shadow shadow(material::Color ink, glm::vec2 offset, float blur) {
+  return shadow(Fill::color(ink), offset, blur);
 }
 
 /** Image-onto-box through a lattice (per-cell stretch); nine-slice is

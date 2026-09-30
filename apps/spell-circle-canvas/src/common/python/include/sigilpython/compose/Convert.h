@@ -34,8 +34,8 @@ compose::Decoration decoration(pybind11::handle value);
  *  refused as the native verb refuses it: it reads as a fraction of the
  *  box as readily as a pixel count. */
 compose::Dimension originLength(pybind11::handle value);
-/** What a custom property holds, read from @p value: a colour, or a
- *  length. */
+/** What a custom property holds, read from @p value: a colour, a paint
+ *  (a material), or a length. */
 compose::VarValue variable(pybind11::handle value);
 /** Whether @p value is a node: an element, or one of the typed leaves a
  *  factory hands back. Each leaf is a class of its own in Python rather

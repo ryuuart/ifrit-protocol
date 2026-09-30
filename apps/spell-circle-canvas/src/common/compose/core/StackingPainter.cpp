@@ -43,7 +43,7 @@ bool opacityDeclaredLive(const Instance& inst) {
  *  shows while its ancestor does, and a bake inside another bake is never
  *  taken, so the search stops at both. */
 bool bakeAwaitedUnder(const Instance& inst) {
-  const ElementNode& node = *inst.description;
+  const ElementNode& node = inst.painted();
   if (inst.computed.layout.display == Display::None) return false;
   if (node.cacheMode == Cache::Texture)
     return !inst.subtreeVolatile && !backdropEffectOf(node) &&
@@ -96,7 +96,7 @@ class UnseenCanvas final : public SkNoDrawCanvas {
 }  // namespace
 
 void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
-  const ElementNode& node = *inst.description;
+  const ElementNode& node = inst.painted();
   const ComputedStyle& style = inst.computed;
   // No box, and no subtree: the description keeps the node, the picture
   // does not.

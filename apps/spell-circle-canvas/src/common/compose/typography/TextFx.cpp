@@ -222,7 +222,53 @@ TextEffect tween(motion::Tween<GlyphModifier> description) {
       reach, std::move(curves), displaces);
 }
 
+namespace {
+
+/** THE TINT THAT RESTS AT THE LEAF'S OWN INK: a tween naming neither a
+ *  `to` nor keyframes. The rest is read off the glyph when the effect is
+ *  applied — `GlyphInfo::ink`, whatever a class or a custom property made
+ *  it — and every stop is reached by dividing by it, exactly as a tint that
+ *  names its rest divides by the colour it names. */
+TextEffect tintToTheInk(const material::Color& from,
+                        const motion::Tween<material::Color>& description) {
+  motion::Tween<float> weight;
+  weight.from = 0.0f;
+  weight.keyframes.push_back({1.0f, description.duration.value(), {}});
+  weight.duration = description.duration.value();
+  weight.ease = description.ease ? description.ease
+                                 : motion::Easing(motion::ease::smoothstep);
+  const motion::Duration total = weight.duration.value();
+  // What two tints compare by: the colour it starts from, and a marker no
+  // stated colour can carry, so it never equals a tint that rests at a
+  // colour.
+  std::vector<float> parameters{from.r, from.g, from.b, from.a, -1.0f};
+  return TextEffect(
+      "tint", std::move(parameters),
+      [weight = std::move(weight), total, from](const GlyphInfo& glyph,
+                                                float t,
+                                                core::noise::Mix64Stream&) {
+        const float amount =
+            weight.at(total * (double)std::clamp(t, 0.0f, 1.0f));
+        // A multiplier can only take a colour toward black, so `from` is
+        // reached by dividing by the ink — and an ink channel of zero holds.
+        const auto channel = [amount](float start, float rest) {
+          const float origin = rest > 0 ? start / rest : 1.0f;
+          return origin + (1.0f - origin) * amount;
+        };
+        GlyphModifier m;
+        m.colorMultiplier = {channel(from.r, glyph.ink.r),
+                             channel(from.g, glyph.ink.g),
+                             channel(from.b, glyph.ink.b), 1.0f};
+        return m;
+      },
+      0.0f, std::vector<motion::Easing>{description.ease}, /*displaces=*/false);
+}
+
+}  // namespace
+
 TextEffect tint(motion::Tween<material::Color> description) {
+  if (!description.to && description.keyframes.empty() && description.from)
+    return tintToTheInk(description.from->value(), description);
   // The colour the style paints is where the tween rests; a tween naming no
   // start starts there too, and tints nothing.
   const material::Color rest = description.rest();

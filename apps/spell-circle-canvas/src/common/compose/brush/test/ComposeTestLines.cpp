@@ -36,7 +36,7 @@ TEST(ComposeDecorations, BoundShadowOffsetSlides) {
   Host host;
   sigil::motion::Animatable<float> lift = sigil::motion::animatable(0.0f);
   Shadow shadow;
-  shadow.ink = material::Color{0, 1, 0, 1};
+  shadow.ink = Fill::color({0, 1, 0, 1});
   shadow.bindOffsetX = lift;
   shadow.maxBind = 40.0f;
   host.composer.render(box().children(
@@ -56,7 +56,7 @@ TEST(ComposeDecorations, BoundShadowOffsetSlides) {
 TEST(ComposeDecorations, KnockoutShadowLeavesTheFootprintClear) {
   Host host;
   Shadow s;
-  s.ink = material::Color{0, 1, 0, 1};
+  s.ink = Fill::color({0, 1, 0, 1});
   s.offset = {20, 0};
   s.knockout = true;
   host.composer.render(box().children(

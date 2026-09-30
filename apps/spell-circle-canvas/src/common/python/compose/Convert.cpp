@@ -139,6 +139,14 @@ compose::Dimension originLength(py::handle value) {
 }
 
 compose::VarValue variable(py::handle value) {
+  // A paint, lowered once as the native verb lowers it; a flat one is its
+  // colour.
+  if (py::isinstance<material::Material>(value) ||
+      py::isinstance<material::Paint>(value)) {
+    compose::Fill paint = fill(value);
+    if (paint.kind == compose::Fill::Kind::Color) return paint.colorValue;
+    return paint;
+  }
   if (py::isinstance<py::str>(value)) {
     const auto text = value.cast<std::string>();
     if (text != "auto" && !text.ends_with("%")) return color(value);

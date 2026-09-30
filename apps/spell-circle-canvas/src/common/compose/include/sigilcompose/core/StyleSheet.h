@@ -19,6 +19,7 @@
 #include <sigilcompose/core/Var.h>
 #include <sigilcompose/core/verbs/Box.h>
 #include <sigilcompose/core/verbs/Cascade.h>
+#include <sigilcompose/core/verbs/Decoration.h>
 #include <sigilcompose/core/verbs/Effects.h>
 #include <sigilcompose/core/verbs/Flex.h>
 #include <sigilcompose/core/verbs/Font.h>
@@ -57,11 +58,19 @@ struct SheetAccess;
  *  A rule states the TEXT PROPERTIES too, which an element cannot: they
  *  reach the text leaves a rule matches and nothing else. It never states
  *  the element's structure, identity or callbacks.
+ *
+ *  A rule's MARKS — `stroke`, `background`, `overlay` and `foreground` —
+ *  APPEND as the element's do, and stand UNDER the element's own in each
+ *  slot, the weaker rule's before the stronger's: a class carries its
+ *  keyline, and a `stroke()` on the element is a second ring painted over
+ *  it, exactly as a second call on the element would be. A mark that
+ *  borrows another node's outline is left out and said once.
  *  @trap A rule holds STATIC values. A live binding, an entrance and an
  *  animation stay verbs on the element; one written here is left out of
  *  the fold and said once. What a rule cannot carry at all — a shape
  *  generator, a grid area, a filter, a travel path, `cover()`'s flag, an
- *  exclusion — does not compile on a rule. */
+ *  exclusion, a span-qualified pass, the outline the marks dress — does
+ *  not compile on a rule. */
 class Rule : public detail::Declaring,
              public BoxVerbs<Rule>,
              public FlexVerbs<Rule>,
@@ -70,6 +79,7 @@ class Rule : public detail::Declaring,
              public CascadeVerbs<Rule>,
              public FontVerbs<Rule>,
              public PaintVerbs<Rule>,
+             public DecorationVerbs<Rule>,
              public EffectVerbs<Rule>,
              public TransformVerbs<Rule>,
              public TextStyleVerbs<Rule> {
@@ -77,6 +87,8 @@ class Rule : public detail::Declaring,
   explicit Rule(ElementSelector subject);
 
   using CascadeVerbs<Rule>::paragraph;
+  using DecorationVerbs<Rule>::stroke;
+  using DecorationVerbs<Rule>::background;
 
   /** HOW A MATCHED ELEMENT'S VALUES CHANGE when a later describe moves
    *  them: the element's `transition`, stated by the rule, so a class
@@ -102,6 +114,11 @@ class Rule : public detail::Declaring,
   Rule& backdropFilter(material::Filter) = delete;
   Rule& travel(MotionPath) = delete;
   Rule& contentFlowAround(std::string_view, float = 0.0f) = delete;
+  // A span-qualified pass claims runs of ONE node's boundary, and the
+  // outline the marks dress is kept on the description.
+  Rule& stroke(Spans, Decoration, std::string = {}) = delete;
+  Rule& background(Spans, Decoration, std::string = {}) = delete;
+  Rule& decorationOutline(Boundary, float = 0.5f) = delete;
 
   /** Which elements this rule speaks about. */
   [[nodiscard]] const ElementSelector& selector() const { return m_selector; }

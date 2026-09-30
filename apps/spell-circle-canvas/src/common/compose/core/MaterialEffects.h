@@ -7,11 +7,13 @@
  * shadow of the whole node (fill and text) as a misprint echo.
  */
 
+#include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Shape.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/filter/Filter.h>
 
 #include <optional>
+#include <vector>
 
 class SkCanvas;
 
@@ -42,6 +44,20 @@ struct MaterialStroke {
   }
   void paint(draw::Pen& pen, const PaintContext& context) const;
 };
+
+/** WHAT A MATERIAL'S EFFECTS PUT ON A NODE: its coverage steps as marks
+ *  beneath the fill (an outer shadow or glow) and over it (a stroke, a
+ *  bevel, an inner shadow), a hard outer shadow as an echo, and the passes
+ *  that read pixels as a filter over the node and its subtree. */
+struct EffectMarks {
+  std::vector<Decoration> beneath;
+  std::vector<Decoration> over;
+  std::vector<Echo> echoes;
+  std::optional<material::Filter> pixels;
+};
+
+/** @p effects split into what each puts on a node. */
+[[nodiscard]] EffectMarks effectMarksOf(const material::Filter& effects);
 
 /** Splices @p effects onto @p node: its coverage steps as marks and
  *  echoes, and the passes that read pixels as the node's filter, which

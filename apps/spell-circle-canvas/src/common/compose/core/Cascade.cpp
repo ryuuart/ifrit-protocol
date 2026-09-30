@@ -20,9 +20,11 @@
 #include <vector>
 
 #include "Calc.h"
+#include "FillLowering.h"
 #include "ComposeRuntime.h"
 #include "FaceChoice.h"
 #include "LonghandFold.h"
+#include "RuleMarks.h"
 #include "SelectorMatch.h"
 
 namespace sigil::compose {
@@ -142,9 +144,13 @@ Fill resolveRef(const Fill& fill, const PaintContext& ctx) {
     case Fill::Ref::Var: {
       const VarValue* value =
           ctx.vars ? ctx.vars->find(VarRef{fill.varId}) : nullptr;
-      const material::Color* colour =
-          value ? std::get_if<material::Color>(value) : nullptr;
-      if (colour) return Fill::color(*colour);
+      if (const material::Color* colour =
+              value ? std::get_if<material::Color>(value) : nullptr)
+        return Fill::color(*colour);
+      // A paint is laid over the box being painted, as that node's own
+      // fill of it would be.
+      if (const Fill* paint = value ? std::get_if<Fill>(value) : nullptr)
+        return resolveFill(*paint, ctx);
       warnNoSuchVar(VarRef{fill.varId}, true);
       return Fill::none();
     }
@@ -414,6 +420,25 @@ void Composer::Impl::resolveCascade(
     if (ruleFillUsesWorldSpace(inst.ruleLayer.get()))
       inst.hasWorldSpaceMaterial = true;
   }
+  // THE MARKS THE MATCHED RULES STATE, laid under the node's own on the
+  // description the paint phase reads — again where the rules moved, and
+  // where a patch swapped the description the last dressing was made from.
+  if ((!matched.empty() || inst.dressed) &&
+      (!sameRules || inst.dressedFrom != inst.description)) {
+    std::vector<const Rule*> rules;
+    rules.reserve(matched.size());
+    for (const MatchedRule& one : matched) rules.push_back(one.rule);
+    std::shared_ptr<const ElementNode> dressed =
+        rules.empty() ? nullptr : dressedWithRules(node, rules);
+    const bool dressingMoved = dressed != nullptr || inst.dressed != nullptr;
+    inst.dressed = std::move(dressed);
+    inst.dressedFrom = inst.description;
+    if (!first && dressingMoved) {
+      inst.markPaintDirtyUp();
+      contentDirty = true;
+      volatileDirty = true;
+    }
+  }
   // A NODE THAT WRITES A KEYWORD takes a value from its parent, and the
   // parent's answer can move while this node's own declarations stand
   // still — the one case the patch cannot see, because a node whose
@@ -640,9 +665,16 @@ void Composer::Impl::resolveCascade(
       const VarValue* value = vars ? vars->find(*inkVar) : nullptr;
       const material::Color* colour =
           value ? std::get_if<material::Color>(value) : nullptr;
+      const Fill* paint = value ? std::get_if<Fill>(value) : nullptr;
       if (colour) {
         font.color = *colour;
         statesOwnInk = true;
+      } else if (paint && paint->kind == Fill::Kind::Paint) {
+        // A PAINT HELD BY A PROPERTY is the ink as a whole paint, exactly
+        // as `ink(paint)` states one: it inherits from here, stretched
+        // over each thing it is laid on, and the colour stands beneath.
+        inkPaint = {detail::paintOf(*paint), PaintBox::Element, std::nullopt};
+        inkPaintOrigin = true;
       } else {
         warnNoSuchVar(*inkVar, true);
       }

@@ -43,7 +43,7 @@ SkM44 Composer::Impl::depthMatrixOf(Instance& inst, const NodeTransform& tf,
 }
 
 bool Composer::Impl::hostsSpace(Instance& inst) {
-  const ElementNode& node = *inst.description;
+  const ElementNode& node = inst.painted();
   if (!node.depthData || !node.depthData->preserve3d) return false;
   // THE GROUPING PROPERTIES. Each of these composites the node as ONE
   // layer — a clip, a layer effect, a coverage layer, an opacity or blend

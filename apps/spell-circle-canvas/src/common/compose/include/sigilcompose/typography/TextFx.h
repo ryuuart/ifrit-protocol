@@ -289,7 +289,22 @@ inline constexpr float kNominalSizePx = 96.0f;
  *  with this one. UNSET, THE CURVE IS A SMOOTHSTEP (`motion::ease::smoothstep`)
  *  because a hard cut at display size flickers at any frame rate; the width
  *  of the edge is bought with the track's `duration`, not with the curve. A
- *  named curve runs every segment whole. */
+ *  named curve runs every segment whole.
+ *
+ *  A TINT THAT NAMES NO REST — `.from` alone, no `.to` and no keyframes —
+ *  COMES TO REST AT THE LEAF'S OWN INK, whatever that ink is when it
+ *  paints: a colour a class or a custom property states, a ramp, an
+ *  image. It is the form for a line inked through the cascade, because
+ *  the colour is stated once, in the sheet:
+ *
+ *      text(u8"sung").ink(var("sung"))
+ *          .textFx({.effect = textFx::tint({.from = pale})})
+ *
+ *  The rest is read off the glyph when the effect is applied —
+ *  `GlyphInfo::ink`, the colour its ink paints it in there — and every
+ *  stop is reached by dividing by it as above, so local 0 draws `from`,
+ *  local 1 draws the ink, and a class that restates `--sung` moves only
+ *  the rest. */
 [[nodiscard]] TextEffect tint(motion::Tween<material::Color> description);
 
 /** NOTHING UNTIL THE BEAT OPENS: `effect` as it is, except that a unit

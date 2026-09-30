@@ -168,7 +168,7 @@ def rect(self, x: _t.DimensionLike, y: _t.DimensionLike, width: _t.DimensionLike
         "transformOrigin",
         f"def transformOrigin(self, x: {origin}, y: {origin}, z: {origin} | None = None) -> Element: ...",
     )
-    table.erased(node, "var", "_t.DimensionLike | _t.ColorLike")
+    table.erased(node, "var", "_t.DimensionLike | _t.ColorLike | _sigil.material.Material")
     # Four arities in CSS's order, each with its own names, and each name
     # usable as a keyword; beside them the named-sides form, any subset.
     for edge in ("padding", "margin"):
@@ -242,10 +242,10 @@ def layout(scheme: _t.OperatorLike, children: collections.abc.Iterable[_t.NodeLi
         "_t.ScalarLike | None",
     )
     table.erased("_sigil.compose.PathFormat", "strokeFill", "_t.FillLike")
-    table.erased("_sigil.compose.Shadow", "ink", "_t.ColorLike | _sigil.material.Material")
+    table.erased("_sigil.compose.Shadow", "ink", "_t.FillLike")
     table.erased("_sigil.compose.Shadow", "offset", "_t.PointLike")
     table.erased("_sigil.compose.Shape", "__init__", "_t.ShapeLike")
-    table.erased("_sigil.compose", "shadow", "_t.ColorLike | _sigil.material.Material", "_t.PointLike")
+    table.erased("_sigil.compose", "shadow", "_t.FillLike", "_t.PointLike")
     table.erased("_sigil.compose", "shape", "_t.ShapeLike")
     # A band's spine is any shape a node takes; the leaf it hands back
     # keeps the band's own verb in reach.

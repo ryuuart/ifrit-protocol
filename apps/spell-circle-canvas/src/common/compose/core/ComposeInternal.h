@@ -426,6 +426,11 @@ struct FxData {
   std::vector<Mask> masks;
   // Local labels for the UNqualified marks (see MarkLabel).
   std::vector<MarkLabel> markNames;
+  // THE EFFECTS OF THE MATERIAL A RULE'S FILL WAS STATED WITH, kept whole
+  // on the rule rather than spliced into its marks: they belong to the
+  // fill, so they dress a matched element only where that rule's fill is
+  // the one standing there. An element splices its own at the verb.
+  std::optional<material::Filter> fillEffects;
 };
 
 struct MaterialData {
@@ -578,6 +583,11 @@ struct CascadeData {
   PaintBox inkBox = PaintBox::Element;
   /** ink(material): the material, where it states a lit surface. */
   std::optional<material::Material> inkSurfaced;
+  /** THE EFFECTS OF THE MATERIAL A RULE'S INK WAS STATED WITH, kept whole
+   *  on the rule, as `FxData::fillEffects` keeps a fill's: they dress a
+   *  matched element where that rule's ink is the one standing there. An
+   *  element splices its own at the verb. */
+  std::optional<material::Filter> inkEffects;
   bool statesInk = false;
   /** Properties supplied only where no ancestor or this node states a
    *  value, so component defaults do not override their document. */
@@ -715,7 +725,10 @@ struct ElementNode {
     return fields.state(Property::Paragraph, cascadeData.ensure());
   }
   CascadeData& ink() {
-    return fields.state(Property::Ink, cascadeData.ensure());
+    // Whatever writes the ink ends the effects an earlier material stated.
+    CascadeData& cascade = fields.state(Property::Ink, cascadeData.ensure());
+    cascade.inkEffects.reset();
+    return cascade;
   }
   CascadeData& customProperties() {
     return fields.state(Property::CustomProperties, cascadeData.ensure());

@@ -8,12 +8,15 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilweave/style/Type.h>
 
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <utility>
 
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/skia/Lit.h>
+
+#include <sigilcompose/core/StyleSheet.h>
 
 #include "ComposeInternal.h"
 #include "MaterialEffects.h"
@@ -153,13 +156,22 @@ Derived& FontVerbs<Derived>::ink(VarRef reference) {
 
 template <class Derived>
 Derived& FontVerbs<Derived>::ink(material::Material material, PaintBox box) {
-  if (const material::Filter* effects = material.effects())
-    detail::applyEffects(*declarations(), *effects);
+  // A RULE keeps the effects whole beside its ink, because they belong to
+  // the ink and dress a matched element only where this rule's ink is the
+  // one standing there; an element's own ink stands, so they are its marks.
+  std::optional<material::Filter> effects;
+  if (const material::Filter* stated = material.effects()) {
+    if constexpr (std::is_same_v<Derived, Rule>)
+      effects = *stated;
+    else
+      detail::applyEffects(*declarations(), *stated);
+  }
   ink(Fill::fromMaterial(material), box);
   // A lit surface keeps its material, shaded under the lighting in force
   // at each node the ink reaches.
   if (material::skia::isLit(material))
     declarations()->ink().inkSurfaced = std::move(material);
+  if (effects) declarations()->cascadeData->inkEffects = std::move(effects);
   return self();
 }
 

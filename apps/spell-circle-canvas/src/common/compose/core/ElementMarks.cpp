@@ -10,6 +10,8 @@
 #include <sigilmaterial/skia/Lit.h>
 #include <sigilmaterial/skia/Paint.h>
 
+#include <sigilcompose/core/StyleSheet.h>
+
 #include "ComposeInternal.h"
 #include "MaterialEffects.h"
 
@@ -104,5 +106,6 @@ template class DecorationVerbs<Element>;
 template class DecorationVerbs<Text>;
 template class DecorationVerbs<Image>;
 template class DecorationVerbs<Band>;
+template class DecorationVerbs<Rule>;
 
 }  // namespace sigil::compose

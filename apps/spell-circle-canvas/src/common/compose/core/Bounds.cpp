@@ -54,7 +54,7 @@ namespace {
  *  ink with no diagnostic. */
 float declaredBleed(const Instance& inst, SkSize skiaSize) {
   const glm::vec2 size{skiaSize.width(), skiaSize.height()};
-  const ElementNode& node = *inst.description;
+  const ElementNode& node = inst.painted();
   float bleed = 0;
 
   for (const Decoration& d : node.backgrounds)
@@ -115,7 +115,7 @@ float declaredBleed(const Instance& inst, SkSize skiaSize) {
  *  and, in the trace's case, a silhouette cut square where the ink went
  *  on. */
 SkRect Composer::Impl::ownPaintBounds(Instance& inst) {
-  const ElementNode& node = *inst.description;
+  const ElementNode& node = inst.painted();
   const SkRect rect = instanceRect(inst);
   SkRect local = SkRect::MakeWH(rect.width(), rect.height());
   // A GLYPH'S OUTLINE IS NOT ITS LINE BOX. A text leaf is measured to the
@@ -420,7 +420,7 @@ SkRect Composer::Impl::recordBounds(Instance& inst, const SkM44* space,
   // decided, so growing it would re-aim the effect rather than make room
   // for it.
   const auto childBounds = [&](Instance& kid, const SkM44* plane) {
-    return filteredReach(*kid.description, recordBounds(kid, plane, forBake),
+    return filteredReach(kid.painted(), recordBounds(kid, plane, forBake),
                          forBake);
   };
   for (auto& child : inst.children) {

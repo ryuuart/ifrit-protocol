@@ -12,6 +12,7 @@
 
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Var.h>
+#include <sigilcompose/core/Paint.h>
 #include <sigilmaterial/color/Color.h>
 
 #include <utility>
@@ -20,11 +21,17 @@
 
 namespace sigil::compose {
 
-/** WHAT A CUSTOM PROPERTY HOLDS: a colour, read by `Fill::var` and
- *  `Element::ink(var(...))`; or a length, read wherever a `Dimension` is
- *  written as `var(...)`. A length may itself be relative and resolves
- *  where it is read, against the font in force there. */
-using VarValue = std::variant<material::Color, Dimension>;
+/** WHAT A CUSTOM PROPERTY HOLDS: a colour, or a PAINT — a material
+ *  lowered once into the `Fill` it paints as: a gradient, a recipe,
+ *  layers, a program — each read by `Fill::var`, by
+ *  `Element::ink(var(...))` and by a stroke or a mark written in
+ *  `Fill::var`; or a length, read wherever a `Dimension` is written as
+ *  `var(...)`. A length may itself be relative and resolves where it is
+ *  read, against the font in force there, and a paint is laid over the box
+ *  of the node that reads it, as that node's own `fill` would lay it. A
+ *  flat material is held as its colour, so the third form always holds a
+ *  paint. */
+using VarValue = std::variant<material::Color, Dimension, Fill>;
 
 /** THE CUSTOM PROPERTIES IN FORCE AT A NODE — every name an ancestor set,
  *  the nearest ancestor winning, as one comparable value. Small and

@@ -160,13 +160,27 @@ is spelled once whichever side says it. A rule states:
   `textFirstBaseline`, `textVerticalAlign`, `textLineMargin`,
   `textWillChange` and `textStroke`. They reach the text leaves a rule
   matches and nothing else, and a leaf's own statement of one stands
-  over the rule's.
+  over the rule's;
+- the MARKS — `stroke`, `background`, `overlay` and `foreground` — which
+  are CSS's `border`, `outline` and `box-shadow` stated by a class.
+
+Marks APPEND, on a rule as on an element, so they do not stand over one
+another the way a property does: each matched rule's marks are laid
+under the element's own in every slot, the weaker rule's first. A class
+carries its keyline, `rule(".frame").stroke(stroke(1, Fill::var("line")))`,
+and paints exactly what `box().stroke(stroke(1, Fill::var("line")))`
+paints, its colour read where the element stands; a `stroke()` on the
+element is a second ring over the class's, as a second call on the
+element would be. A mark that borrows another node's outline
+(`strand::from`) is the declaring element's alone, and one stated in a
+rule is left out and said once.
 
 What is kept on the element's description rather than in the style the
 cascade folds — a shape generator, a grid area, a filter, a travel
-path, the plane a node turns in, `cover()`'s flag, the decorations, an
-exclusion — does not compile on a rule, and neither do the element's
-structure, identity and callbacks. `transformOrigin` states the flat
+path, the plane a node turns in, `cover()`'s flag, a span-qualified
+stroke pass, the outline the marks dress, an exclusion — does not
+compile on a rule, and neither do the element's structure, identity
+and callbacks. `transformOrigin` states the flat
 pivot in a rule; a depth off the plane is the element's own, and one
 written in a rule is left out and said once.
 

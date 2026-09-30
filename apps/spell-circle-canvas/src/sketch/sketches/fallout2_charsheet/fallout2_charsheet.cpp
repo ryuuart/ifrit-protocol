@@ -186,10 +186,13 @@ StyleSheet registers() {
                  .size = px(7.6f),
                  .condense = 1.0f})
           .ink(var("card-ink")),
-      // Steel standing proud of the plate: panels, plaques, keys.
+      // Steel standing proud of the plate: panels, plaques, keys, each
+      // keylined where it meets the plate.
       rule(".raised")
           .fill(kRaisedSteel)
-          .borderRadius(Corners{px(2)}),
+          .borderRadius(Corners{px(2)})
+          .stroke(stroke(px(1), Fill::color(hexColor(0x100C08)),
+                         PathFormat::Align::Outer)),
       rule(".card-title")
           .font({.face = weave::ports::face({"Superclarendon", "Rockwell"}, 900),
                  .size = px(19),
@@ -227,8 +230,7 @@ Element screw(float x, float y, float turn) {
 
 /** A plate standing proud of the ground, screwed at its corners. */
 Element raised(float x, float y, float width, float height, bool screwed = true) {
-  Element plate = screen(x, y, width, height).styleClass("raised").stroke(
-      stroke(px(1), Fill::color(hexColor(0x100C08)), PathFormat::Align::Outer));
+  Element plate = screen(x, y, width, height).styleClass("raised");
   kit::bevelled(plate, kit::bevels::plate(hexColor(0xE8D4A0, 0.5f),
                                           hexColor(0x080604, 0.75f), px(1.4f), px(1.6f)));
   if (!screwed) return plate;
@@ -527,7 +529,7 @@ struct Fallout2CharSheet {
              .borderRadius(Corners{px(1.5f)})
              .stroke(stroke(px(1.2f), Fill::color(hexColor(0x2A1C08, 0.8f)),
                             PathFormat::Align::Inner))
-             .background(Shadow{.ink = hexColor(0x000000, 0.7f),
+             .background(Shadow{.ink = Fill::color(hexColor(0x000000, 0.7f)),
                                 .offset = {px(1.5f), px(2)},
                                 .blur = px(3)})});
   }

@@ -422,6 +422,23 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // a pass that matches the same ones keeps both layers as they stand.
   // Held, not merely pointed at, so a later sheet cannot reuse an address.
   std::vector<std::shared_ptr<ElementNode>> ruleLayerSource;
+  // THE DESCRIPTION AS IT IS PAINTED, where a matched rule states marks —
+  // a stroke, a background, an overlay, a foreground, or the effects of the
+  // fill or ink it states: `description` with the rules' marks laid under
+  // the node's own in each slot. Null where no matched rule states one,
+  // which is nearly every node, and `painted()` is then the description.
+  // Only the paint phase reads it; the reconcile compares `description`.
+  std::shared_ptr<const ElementNode> dressed;
+  // The description `dressed` was built from, held so a later description
+  // cannot reuse its address; a patch that swaps the description dresses
+  // it again.
+  std::shared_ptr<ElementNode> dressedFrom;
+  /** What the paint phase reads this node's marks, effects and fields off:
+   *  the dressed description where a rule states marks, else the
+   *  description itself. */
+  [[nodiscard]] const ElementNode& painted() const {
+    return dressed ? *dressed : *description;
+  }
   /** How this node's values change when a describe moves them: its own
    *  `transition()`, else the one a matched rule states, else none. */
   [[nodiscard]] const std::optional<motion::Tween<float>>& transitionInForce()

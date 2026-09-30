@@ -34,6 +34,8 @@
 #include <utility>
 #include <vector>
 
+#include "Ink.h"
+
 namespace sigil::compose {
 
 void LayeredBrush::paint(draw::Pen& pen, const PaintContext& ctx) const {
@@ -44,7 +46,7 @@ void LayeredBrush::paint(draw::Pen& pen, const PaintContext& ctx) const {
     p.setStyle(SkPaint::kStroke_Style);
     p.setStrokeWidth(layer.width);
     p.setStrokeCap(layer.roundCap ? SkPaint::kRound_Cap : SkPaint::kButt_Cap);
-    p.setColor4f(material::skia::toSkColor(layer.color), nullptr);
+    if (!detail::layInk(p, resolveFill(layer.ink, ctx))) continue;
     p.setBlendMode(material::skia::toSkBlendMode(layer.blend));
     if (layer.blurSigma > 0)
       p.setMaskFilter(

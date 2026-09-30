@@ -9,6 +9,11 @@
 #include <sigilmaterial/skia/Lit.h>
 #include <sigilmaterial/skia/Paint.h>
 
+#include <sigilcompose/core/StyleSheet.h>
+
+#include <optional>
+#include <type_traits>
+
 #include "ComposeInternal.h"
 #include "MaterialEffects.h"
 
@@ -59,6 +64,8 @@ void placePaint(detail::ElementNode* node, material::Paint m, PaintBox box) {
   }
   std::optional<motion::Animatable<Fill>>& fill = node->fields.fill();
   node->fields.fillBox() = box;
+  // Whatever writes the fill ends the effects an earlier material stated.
+  if (node->fxData) node->fxData->fillEffects.reset();
   detail::MaterialData& slots = node->materialData.ensure();
   if (m.isRunning() || m.geometryDependent()) {
     // Live paints re-resolve per frame; geometry-dependent ones resolve
@@ -87,6 +94,7 @@ Derived& PaintVerbs<Derived>::fill(motion::Animatable<Fill> f) {
   }
   detail::ElementNode* node = declarations();
   node->fields.fill() = std::move(f);
+  if (node->fxData) node->fxData->fillEffects.reset();
   // The box is part of the fill's statement, so a fill with no picture to
   // place states the element's own and ends whatever an earlier one said.
   node->fields.fillBox() = PaintBox::Element;
@@ -103,9 +111,17 @@ Derived& PaintVerbs<Derived>::fill(motion::Animatable<Fill> f) {
 
 template <class Derived>
 Derived& PaintVerbs<Derived>::fill(material::Material material, PaintBox box) {
-  if (const material::Filter* effects = material.effects())
-    detail::applyEffects(*declarations(), *effects);
+  // A RULE keeps the effects whole beside its fill, as it keeps an ink's:
+  // they dress a matched element only where this rule's fill stands.
+  std::optional<material::Filter> effects;
+  if (const material::Filter* stated = material.effects()) {
+    if constexpr (std::is_same_v<Derived, Rule>)
+      effects = *stated;
+    else
+      detail::applyEffects(*declarations(), *stated);
+  }
   fill(Fill::fromMaterial(material), box);
+  if (effects) declarations()->fxData.ensure().fillEffects = std::move(effects);
   // A surface that takes light keeps its material: the painter shades it
   // under the lighting in force, and paints the fill above where none is.
   if (material::skia::isLit(material))

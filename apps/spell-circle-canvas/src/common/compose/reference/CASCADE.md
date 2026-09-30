@@ -128,10 +128,16 @@ discipline through the paragraph half of the sheet and `Text::paragraphStyles`.
 **A custom property is set on a node and read by anything under it.**
 `Element::var` sets one; `var(name)` reads it as a `Dimension`,
 `Fill::var(name)` as a fill, and `ink(var(name))` as the ink, the nearest
-ancestor that set the name winning. It reaches exactly what the kernel
-resolves — a fill, a stroke, a mark, a length, the ink — and no further:
-a material, a layer style and every other value the kernel cannot see
-inside take concrete values, so inside those the look is still read
+ancestor that set the name winning. A property holds a colour, a length or
+a PAINT — `var("porphyry", stone)` with any `material::Material`, lowered
+once where it is set — and a paint is read by a fill, an ink, a stroke and
+every mark that takes a `Fill` exactly as a colour is, laid over the box
+of the node that reads it, so a palette of quarried stones is a set of
+tokens and a class names its stone by name. It reaches exactly what the
+kernel resolves — a fill, a stroke, a mark (a shadow, a layered brush's
+pass), a length, the ink — and no further: the inside of a material, a
+layer style and every other value the kernel cannot see inside take
+concrete values, so inside those the look is still read
 where it is written, through `core::environment::Provide`. That channel
 is LEXICAL, read by the code that builds an element; the cascade is
 STRUCTURAL, carried by the tree the element ends up in. One sentence

@@ -553,17 +553,13 @@ void bindCompose(py::module_& module) {
       },
       py::arg("width"), py::arg("paint") = py::none(),
       py::arg("align") = PathFormat::Align::Center);
-  // A mark's ink is a material, and a colour stands for the flat one.
-  const auto ink = [](py::handle value) -> material::Material {
-    if (py::isinstance<material::Material>(value))
-      return value.cast<material::Material>();
-    return material::Material(color(value));
-  };
+  // A mark's ink is a fill: a colour, a material, the ink in force or a
+  // custom property.
   py::class_<Shadow>(composition, "Shadow")
       .def(py::init<>())
       .def_property(
           "ink", [](const Shadow& self) { return self.ink; },
-          [ink](Shadow& self, py::object value) { self.ink = ink(value); })
+          [](Shadow& self, py::object value) { self.ink = fill(value); })
       .def_property(
           "offset",
           [](const Shadow& self) { return geometry::path::toSk(self.offset); },
@@ -575,9 +571,9 @@ void bindCompose(py::module_& module) {
       .def_readwrite("knockout", &Shadow::knockout);
   composition.def(
       "shadow",
-      [ink](py::object value, py::object offset, float blur) {
-        return compose::shadow(ink(value), geometry::path::fromSk(point(offset)),
-                               blur);
+      [](py::object value, py::object offset, float blur) {
+        return compose::shadow(fill(value),
+                               geometry::path::fromSk(point(offset)), blur);
       },
       py::arg("ink"), py::arg("offset"), py::arg("blur"));
   py::class_<Decoration>(composition, "Decoration")

@@ -83,6 +83,11 @@ struct GlyphInfo {
    *  paragraph-wide count. A per-word track sees word ordinals here. */
   uint32_t unitIndex = 0;
   uint32_t unitCount = 1;
+  /** The colour the glyph's own ink paints it in where it stands — the
+   *  leaf's ink, or a span's over it, as the cascade resolved it — which a
+   *  `textFx::tint` naming no rest comes to rest at. White where no paint
+   *  is known, which is no tint. */
+  material::Color ink{1, 1, 1, 1};
 };
 
 /** One glyph's deviation from rest — what an effect returns for local

@@ -175,21 +175,36 @@ void MaterialStroke::paint(draw::Pen& pen, const PaintContext& context) const {
              options.position);
 }
 
-void applyEffects(ElementNode& node, const material::Filter& effects) {
+EffectMarks effectMarksOf(const material::Filter& effects) {
+  EffectMarks marks;
   for (const material::CoverageEffect& step : effects.coverage()) {
     const bool hardEcho = step.kind == Step::Shadow && !step.shadow.inside &&
                           step.shadow.blur <= 0 && step.shadow.spread <= 0;
     if (hardEcho) {
-      node.fxData.ensure().echoes.push_back(
+      marks.echoes.push_back(
           Echo{{step.shadow.offset.x, step.shadow.offset.y}, step.color});
       continue;
     }
     const bool beneath = step.kind == Step::Shadow && !step.shadow.inside;
-    (beneath ? node.backgrounds : node.foregrounds)
+    (beneath ? marks.beneath : marks.over)
         .push_back(Decoration(CoverageMark{step}));
   }
   material::Filter pixels = effects.withoutCoverage();
-  if (!pixels.isNone()) node.fxData.ensure().layerEffect = std::move(pixels);
+  if (!pixels.isNone()) marks.pixels = std::move(pixels);
+  return marks;
+}
+
+void applyEffects(ElementNode& node, const material::Filter& effects) {
+  EffectMarks marks = effectMarksOf(effects);
+  if (!marks.echoes.empty()) {
+    std::vector<Echo>& echoes = node.fxData.ensure().echoes;
+    echoes.insert(echoes.end(), marks.echoes.begin(), marks.echoes.end());
+  }
+  node.backgrounds.insert(node.backgrounds.end(), marks.beneath.begin(),
+                          marks.beneath.end());
+  node.foregrounds.insert(node.foregrounds.end(), marks.over.begin(),
+                          marks.over.end());
+  if (marks.pixels) node.fxData.ensure().layerEffect = std::move(marks.pixels);
 }
 
 }  // namespace sigil::compose::detail

@@ -86,6 +86,17 @@ class CascadeVerbs {
    *  or the other, and reading one as the other leaves the target
    *  standing and says so once. */
   Derived& var(std::string_view name, Dimension length);
+  /** The same, holding a PAINT — a gradient, a quarried stone, a layered
+   *  look — which `Fill::var(name)` fills with, `ink(var(name))` inks
+   *  with and a stroke in `Fill::var(name)` strokes with, laid over the
+   *  box of the node that reads it. A flat material is the colour form
+   *  above. Its effects and its surface are not part of a paint, as they
+   *  are not part of a `Fill`.
+   *  @trap A paint read as a length, or where only a colour is read — a
+   *  span's ink, a transition's endpoints — leaves the target standing
+   *  and says so once. A live paint is read as it stands when a node
+   *  reading it records, and does not make that node repaint. */
+  Derived& var(std::string_view name, material::Material paint);
   /** FALLBACK CUSTOM PROPERTIES for this node and its descendants.
    *  An inherited property overrides these, and one this node sets with
    *  `var()` overrides both, explicit zeros included. A later call

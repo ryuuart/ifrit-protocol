@@ -9,6 +9,8 @@
 #include <pybind11/operators.h>
 #include <sigilgeometry/advanced/Skia.h>
 #include <pybind11/stl.h>
+
+#include <type_traits>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Factories.h>
@@ -322,7 +324,11 @@ void bindDeclarationVerbs(py::class_<Node>& element) {
           [](Node& self, const std::string& name, py::object value) -> Node& {
             return std::visit(
                 [&](const auto& converted) -> Node& {
-                  return self.var(name, converted);
+                  if constexpr (std::is_same_v<std::decay_t<decltype(converted)>,
+                                               compose::Fill>)
+                    return self.var(name, *converted.material());
+                  else
+                    return self.var(name, converted);
                 },
                 variable(value));
           },
@@ -337,8 +343,8 @@ void bindDeclarationVerbs(py::class_<Node>& element) {
                           variable(value));
             } catch (const py::cast_error&) {
               throw py::type_error(
-                  "Default properties require string names and color or "
-                  "dimension values");
+                  "Default properties require string names and color, "
+                  "material or dimension values");
             }
             return self.varDefaults(std::move(table));
           },

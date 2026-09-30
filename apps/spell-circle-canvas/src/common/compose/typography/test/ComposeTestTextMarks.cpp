@@ -4,7 +4,11 @@
 //
 // The text binary's share of the content suites, one file per subject.
 
+#include <cmath>
 #include <memory>
+#include <string_view>
+
+#include <sigilcompose/core/StyleSheet.h>
 
 #include "DressedTypeProbes.h"
 
@@ -53,6 +57,76 @@ TEST(ComposeTextFx, TintRampsColorMulBetweenTheTwoColoursInTimeOrder) {
       textFx::tint({.from = sigil::material::Color{1, 1, 1, 1},
                     .to = sigil::material::Color{0, 0, 0, 1}})(glyph, 0.0f, rng);
   EXPECT_FLOAT_EQ(dark.colorMultiplier.r, 1.0f);
+}
+
+namespace {
+
+/** Whether any pixel of @p host is @p colour, within a step of rounding. */
+bool drawsColour(Host& host, const sigil::material::Color& colour, int w,
+                 int h) {
+  const auto near = [](unsigned channel, float want) {
+    return std::abs((int)channel - (int)std::lround(want * 255.0f)) <= 2;
+  };
+  for (int y = 0; y < h; ++y)
+    for (int x = 0; x < w; ++x) {
+      const SkColor c = host.pixel(x, y);
+      if (near(SkColorGetR(c), colour.r) && near(SkColorGetG(c), colour.g) &&
+          near(SkColorGetB(c), colour.b))
+        return true;
+    }
+  return false;
+}
+
+}  // namespace
+
+TEST(ComposeTextFx, ATintNamingNoRestComesToRestAtTheLeafsInk) {
+  // The model first: the rest is the ink the glyph is handed, read when
+  // the effect is applied, and local 0 is `from` divided by it.
+  const sigil::material::Color pale{0.2f, 0.3f, 0.4f, 1};
+  const TextEffect wipe = textFx::tint({.from = pale});
+  GlyphInfo glyph;
+  glyph.ink = {0.4f, 0.6f, 0.8f, 1};
+  sigil::core::noise::Mix64Stream rng(1);
+  const GlyphModifier start = wipe(glyph, 0.0f, rng);
+  const GlyphModifier end = wipe(glyph, 1.0f, rng);
+  EXPECT_NEAR(start.colorMultiplier.r * glyph.ink.r, pale.r, 1e-5f);
+  EXPECT_NEAR(start.colorMultiplier.b * glyph.ink.b, pale.b, 1e-5f);
+  EXPECT_FLOAT_EQ(end.colorMultiplier.g, 1.0f);
+  EXPECT_FALSE(wipe == textFx::tint({.from = pale, .to = pale}));
+  EXPECT_FALSE(wipe.displaces());
+
+  // Then on a leaf inked from a sheet's property, at either end of the
+  // wipe, and again once a class restates the property.
+  const sigil::material::Color sung{0.4f, 0.8f, 1.0f, 1};
+  const sigil::material::Color restated{1.0f, 0.6f, 0.8f, 1};
+  const auto lyric = [&](float progress, std::string_view classes) {
+    Text line = text(u8"I");
+    if (!classes.empty()) line.styleClass(classes);
+    line.ink(var("sung")).textFx(
+        {.effect = wipe,
+         .tween = {.duration = 100ms, .delay = sigil::motion::stagger(0ms)},
+         .progress = progress});
+    return box()
+        .padding(8)
+        .font({.face = sigil::test::instrument::sans(), .size = 64})
+        .applyStyleSheet({rule(":root").var("sung", sung),
+                          rule(".restated").var("sung", restated)})
+        .children({std::move(line)});
+  };
+  for (const std::string_view classes : {"", "restated"}) {
+    const sigil::material::Color rest = classes.empty() ? sung : restated;
+    Host atStart(160, 120), atRest(160, 120);
+    atStart.composer.render(lyric(0.0f, classes));
+    atRest.composer.render(lyric(1.0f, classes));
+    atStart.frame();
+    atRest.frame();
+    EXPECT_TRUE(drawsColour(atStart, pale, 160, 120))
+        << "local 0 does not draw from, under '" << classes << "'";
+    EXPECT_FALSE(drawsColour(atStart, rest, 160, 120));
+    EXPECT_TRUE(drawsColour(atRest, rest, 160, 120))
+        << "local 1 does not draw the ink, under '" << classes << "'";
+    EXPECT_FALSE(drawsColour(atRest, pale, 160, 120));
+  }
 }
 
 TEST(ComposeTextFx, TintComposesWithAnotherTrackByMultiplying) {

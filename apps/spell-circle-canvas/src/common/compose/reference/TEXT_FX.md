@@ -489,6 +489,15 @@ hard edge at display size flickers. Multiplying is also what lets it tint a grad
 line without knowing what fills it, and why a destination channel of zero
 cannot be departed from.
 
+A tint that names NO REST — `.from` alone — comes to rest at the leaf's own
+ink, whatever that is when it paints, so a line inked through the cascade
+states its colour once: `text(u8"sung").ink(var("sung"))` under
+`textFx::tint({.from = pale})` wipes pale to whatever `--sung` holds where
+the leaf stands, and a class that restates `--sung` moves the rest and
+leaves `pale` exactly where it was. The rest is read off the glyph when the
+effect is applied, `GlyphInfo::ink`, and the stops are divided by it as
+they are by a stated rest.
+
 The way *up* is the other two colour terms. `GlyphModifier::colorAdd` is the
 **hard flash**: added to whatever the style paints — after the multiply,
 clamped at the draw — it brightens where a multiplier can only darken, and

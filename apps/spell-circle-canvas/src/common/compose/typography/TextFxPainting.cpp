@@ -6,6 +6,7 @@
  */
 
 #include <include/core/SkCanvas.h>
+#include <sigilmaterial/skia/Color.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPicture.h>
 #include <include/core/SkPictureRecorder.h>
@@ -264,6 +265,8 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
         RestPose pose;
         if (!restPoseOf(poseCtx, placed, pose)) return;
         GlyphInfo info = structure.glyphs[g];
+        info.ink = material::skia::toColor(
+            styleOf(g, placed).foreground.getColor4f());
 
         // Every track that addresses this glyph, composed: offsets, shear
         // and rotations add, scale, alpha and the colour multiplier

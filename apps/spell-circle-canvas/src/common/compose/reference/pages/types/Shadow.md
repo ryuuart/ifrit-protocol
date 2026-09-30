@@ -16,7 +16,7 @@ the fill however late in the chain it is said.
 
 ## Anatomy
 
-`Shadow::ink` is the material the silhouette is re-stamped in,
+`Shadow::ink` is the `Fill` the silhouette is re-stamped in,
 `Shadow::offset` is how far it is moved, and `Shadow::blur` is how soft
 it is. Those three are the whole of the still shadow.
 
@@ -40,13 +40,15 @@ the decoration entry point the seam calls.
 | Spelling | Language | What it gives |
 | --- | --- | --- |
 | `compose::shadow(ink, offset, blur)` | C++ | the three-argument spelling |
-| `Shadow{.ink = colour, .blur = 18.0f}` | C++ | designated initialisers, for the fields the three-argument form does not reach |
-| `compose.shadow(ink, offset, blur)` | Python | the same, taking any colour spelling or a material |
+| `Shadow{.ink = Fill::color(colour), .blur = 18.0f}` | C++ | designated initialisers, for the fields the three-argument form does not reach |
+| `compose.shadow(ink, offset, blur)` | Python | the same, taking any colour spelling, a material or a fill |
 
-The ink is a `material::Material`, and a `material::Color` converts to
-one, so a flat shadow is written with its colour; a braced literal names
-the type, `material::Color{0, 0, 0, 0.5f}`. It is not a `Fill`: a shadow
-has no ink in force to inherit. A shadow cast by a node's own fill is
+The ink is a `Fill`, as every other mark's is: `compose::shadow` takes a
+colour — a braced literal names the type, `material::Color{0, 0, 0, 0.5f}`
+— or a material, which converts, and `Fill::currentInk()` and
+`Fill::var(name)` follow the node's cascade where the shadow is painted.
+Unstated, it is the ink in force, as CSS's `box-shadow` colour is. A
+shadow cast by a node's own fill is
 also the material's effect `material::Filter::shadow`, which rides the
 fill rather than standing beside it.
 

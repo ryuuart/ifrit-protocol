@@ -76,7 +76,7 @@ struct PaintPass {
             const SkRect& rect, ProfileScope& profile)
       : impl(impl),
         inst(inst),
-        node(*inst.description),
+        node(inst.painted()),
         style(inst.computed),
         canvas(canvas),
         rect(rect),

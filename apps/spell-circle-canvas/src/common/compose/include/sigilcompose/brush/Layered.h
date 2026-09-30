@@ -26,7 +26,11 @@ namespace sigil::compose {
 /** One stroke pass of a layered brush. */
 struct StrokeLayer {
   float width = 2.0f;
-  material::Color color = {1, 1, 1, 1};
+  /** What the pass is painted in, as every other mark takes it: a colour
+   *  (`Fill::color`), a material — a ramp, a pattern — laid over the
+   *  node's box, or the ink in force or a custom property, read where the
+   *  pass is painted. The ink in force when unstated. */
+  Fill ink = Fill::currentInk();
   float blurSigma = 0;         ///< soft halo layers
   std::vector<float> dash;  ///< empty → solid
   float dashPhase = 0;

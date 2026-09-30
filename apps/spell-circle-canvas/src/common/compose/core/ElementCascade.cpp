@@ -143,6 +143,20 @@ Derived& CascadeVerbs<Derived>::var(std::string_view name, Dimension length) {
 }
 
 template <class Derived>
+Derived& CascadeVerbs<Derived>::var(std::string_view name,
+                                    material::Material paint) {
+  // Lowered once, here, so every node reading the property shares one
+  // paint; a flat material is the colour form.
+  Fill lowered = Fill::fromMaterial(paint);
+  VarTable& vars = declarations()->customProperties().vars;
+  if (lowered.kind == Fill::Kind::Color)
+    vars.set(compose::var(name), lowered.colorValue);
+  else
+    vars.set(compose::var(name), std::move(lowered));
+  return self();
+}
+
+template <class Derived>
 Derived& CascadeVerbs<Derived>::varDefaults(VarTable defaults) {
   declarations()->customProperties().varDefaults = std::move(defaults);
   return self();

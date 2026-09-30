@@ -221,7 +221,7 @@ bool strokeEqual(const Box<StrokeData>& a, const Box<StrokeData>& b) {
   return true;
 }
 
-static_assert(kFieldCount<FxData> == 6 && kFieldCount<Mask> == 2,
+static_assert(kFieldCount<FxData> == 7 && kFieldCount<Mask> == 2,
               "FxData/Mask gained or lost a field — rule on it in fxEqual() "
               "below, where a mask compares by its own operator, then bump "
               "this count.");
@@ -243,7 +243,8 @@ bool fxEqual(const Box<FxData>& a, const Box<FxData>& b) {
   for (size_t i = 0; i < a->overlays.size(); ++i)
     if (!(a->overlays[i] == b->overlays[i])) return false;
   return effectEqual(a->layerEffect, b->layerEffect) &&
-         effectEqual(a->backdropEffect, b->backdropEffect);
+         effectEqual(a->backdropEffect, b->backdropEffect) &&
+         effectEqual(a->fillEffects, b->fillEffects);
 }
 
 static_assert(kFieldCount<MaterialData> == 3,
