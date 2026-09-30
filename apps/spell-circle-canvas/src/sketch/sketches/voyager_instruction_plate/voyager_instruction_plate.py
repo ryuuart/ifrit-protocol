@@ -1,361 +1,405 @@
-"""Study · Diagram — a material and decoding study of the Voyager record cover.
+"""Study · Voyager — an engraved object and a working decoding folio.
 
-An engraved cover, symbolic playback instructions, a radial pulsar diagram,
-hydrogen states and a live vertical image raster share an archival plate.
+TAGS: Studies/Science, Studies/Cultural Media, Geometry/Diagrams, Materials/Metal, Typography/Documents, Animation/Signals
 
-TAGS: Studies/Science, Studies/Diagrams, Materials/Metal, Drawing/Engraving
-TAGS: Typography/Technical, Motion/Signals, Media/Transmission
+The vector transcription supplies a height field. Reflection and incision
+shading read that field; the folio performs a clock-to-picture sequence.
 """
 
-from math import cos, pi, sin, sqrt
+from math import cos, pi, sin
 from pathlib import Path
 from random import Random
 
-from sigil.compose import Cache, box, pen
+from sigil.compose import Cache, box, image, pen
 from sigil.draw import CENTER, CLOSE, LEFT, Pen
-from sigil.material import shader
+from sigil.material import Filter, ShadowOptions, shader
+from sigil.media import load
 from sigil.sketch import SketchContext, sketch
+from sigil.weave import typeface
 
-WIDTH, HEIGHT = 1560, 1100
-CX, CY, RADIUS = 486, 550, 397
-ETCH = "#f6dfa2"
-QUIET = "#929f9f"
-PAPER = "#d5ded8"
-GROUND = "#111d23"
+WIDTH, HEIGHT = 2100, 1460
+DISC_X, DISC_Y, DISC_SIZE = 85, 220, 1150
+PAGE_X, PAGE_Y, PAGE_W, PAGE_H = 1280, 132, 682, 1208
+INK, QUIET, RED, BLUE = "#292C2C", "#737267", "#9B4C34", "#386875"
+CYCLE = 24.0
+LOCAL = Path(__file__).parent
 
 
 def label(
     p: Pen,
-    words: str,
-    x: float,
-    y: float,
-    size: float = 13,
-    color: str = PAPER,
-    center: bool = False,
-    family: str = "Menlo",
+    words,
+    x,
+    y,
+    size=15,
+    color=INK,
+    center=False,
+    family="Baskerville",
+    italic=False,
 ) -> None:
     p.noStroke()
     p.fill(color)
-    p.textFont(family, size)
+    p.textFont(typeface(family, italic=italic))
+    p.textSize(size)
     p.textAlign(CENTER if center else LEFT)
     p.text(words, x, y)
 
 
-def poly(p: Pen, points, closed=False) -> None:
+def line(p: Pen, x1, y1, x2, y2, ink=QUIET, weight=0.75) -> None:
+    p.noFill()
+    p.stroke(ink)
+    p.strokeWeight(weight)
+    p.line(x1, y1, x2, y2)
+
+
+def poly(p: Pen, points, color=None, weight=1, closed=False) -> None:
+    p.fill(color) if color is not None else p.noFill()
+    p.strokeWeight(weight)
     p.beginShape()
     for x, y in points:
         p.vertex(x, y)
-    if closed:
-        p.endShape(CLOSE)
-    else:
-        p.endShape()
+    p.endShape(CLOSE) if closed else p.endShape()
 
 
-def arrow(p: Pen, x1, y1, x2, y2, size=6) -> None:
-    p.line(x1, y1, x2, y2)
-    dx, dy = x2 - x1, y2 - y1
-    d = sqrt(dx * dx + dy * dy)
-    if d:
-        ux, uy = dx / d, dy / d
-        p.line(
-            x2, y2, x2 - size * ux + size * uy * 0.55, y2 - size * uy - size * ux * 0.55
-        )
-        p.line(
-            x2, y2, x2 - size * ux - size * uy * 0.55, y2 - size * uy + size * ux * 0.55
-        )
+def arrow(p: Pen, x1, y1, x2, y2, ink=INK, size=6, weight=1) -> None:
+    from math import atan2
+
+    a = atan2(y2 - y1, x2 - x1)
+    line(p, x1, y1, x2, y2, ink, weight)
+    for side in (-0.5, 0.5):
+        p.line(x2, y2, x2 - cos(a + side) * size, y2 - sin(a + side) * size)
 
 
-def binary(p: Pen, value: str, x, y, angle=0, spacing=5, color=ETCH) -> None:
-    p.push()
-    p.translate(x, y)
-    p.rotate(angle)
+def hydrogen(p: Pen, x, y, radius=27, ink=INK) -> None:
     p.noFill()
-    p.stroke(color)
-    p.strokeWeight(0.9)
+    p.stroke(ink)
+    p.strokeWeight(1.15)
+    for i in (0, 1):
+        cx = x + i * radius * 3.0
+        p.circle(cx, y, radius * 2)
+        p.circle(cx, y, 3.3)
+        arrow(p, cx, y - 10, cx, y - 22, ink, 4)
+        arrow(p, cx, y + (10 if i else 22), cx, y + (22 if i else 10), ink, 4)
+        p.line(cx, y - radius - 8, cx, y - radius + 3)
+    arrow(p, x + radius + 7, y, x + radius * 2 - 7, y, ink, 4)
+    label(p, "1", x + radius * 1.5, y + 24, 12, ink, True, "Menlo")
+
+
+def bits(p: Pen, value, x, y, spacing=5.0, ink=INK) -> None:
+    p.stroke(ink)
+    p.strokeWeight(0.85)
     for i, bit in enumerate(value):
-        bx = i * spacing
-        p.line(bx, -4 if bit == "1" else 0, bx, 4 if bit == "1" else 0)
-        if bit == "0":
-            p.line(bx - 1.2, 0, bx + 1.2, 0)
-    p.pop()
+        xx = x + i * spacing
+        if bit == "1":
+            p.line(xx, y - 4, xx, y + 4)
+        else:
+            p.line(xx - 1.3, y, xx + 1.3, y)
 
 
-def playback(p: Pen) -> None:
-    x, y, r = 314, 356, 106
-    p.noFill()
-    p.stroke(ETCH)
-    p.strokeWeight(1.55)
-    p.circle(x, y, r * 2)
-    p.circle(x, y, 17)
-    p.circle(x, y, 4)
-    for i in range(6):
-        p.strokeWeight(0.38)
-        p.circle(x, y, (r - 6 - i * 3) * 2)
-    p.strokeWeight(1.4)
-    for i in range(52):
-        a = i / 52 * 2 * pi
-        if -0.25 < a < 0.3:
-            continue
-        s = r + 6
-        t = s + (7 if i % 3 == 0 else 3)
-        p.line(x + cos(a) * s, y + sin(a) * s, x + cos(a) * t, y + sin(a) * t)
-    # The stylus contact begins on the outer groove, beside a pickup body.
-    poly(
+def cloth_details(p: Pen) -> None:
+    rng = Random(1977)
+    # Two crossing thread directions belong to the woven ground.
+    for row in range(0, HEIGHT, 7):
+        line(p, 0, row, WIDTH, row + 19, "#242B291D", 0.6)
+    for col in range(0, WIDTH, 8):
+        line(p, col, 0, col + 36, HEIGHT, "#04080732", 0.7)
+    for _ in range(260):
+        x, y = rng.uniform(0, WIDTH), rng.uniform(0, HEIGHT)
+        line(p, x, y, x + rng.uniform(5, 24), y - 1, "#5E666514", 0.6)
+    # Padded mounts establish a support beneath the cover.
+    for x, y in ((290, 1210), (1030, 1210), (668, 315)):
+        p.noStroke()
+        p.fill("#060B0C")
+        p.ellipse(x, y + 6, 130, 40)
+        p.fill("#293333")
+        p.ellipse(x, y, 112, 29)
+        p.fill("#4D5752")
+        p.ellipse(x, y - 3, 90, 17)
+
+
+def setting(p: Pen) -> None:
+    label(
         p,
-        [
-            (431, 316),
-            (438, 314),
-            (444, 323),
-            (444, 363),
-            (437, 367),
-            (431, 356),
-            (431, 316),
-        ],
+        "ARCHIVE   /   INTERSTELLAR CORRESPONDENCE",
+        90,
+        80,
+        13,
+        "#A9AEA1",
+        family="Menlo",
     )
-    p.rect(434, 328, 6, 20)
-    p.line(437, 367, 423, 385)
-    arrow(p, 411, 293, 396, 279, 5)
-    binary(p, "100110001011001101101110000000000", 225, 221, spacing=5)
-    p.line(209, 509, 419, 509)
-    p.line(214, 513, 415, 513)
-    poly(p, [(417, 493), (424, 491), (426, 505), (422, 516), (417, 507)])
-    arrow(p, 313, 530, 417, 530, 5)
-    binary(p, "1010011001101011011000100000000000", 244, 555, spacing=4.7)
-    label(p, "01", 215, 468, 11, ETCH)
-
-
-def cover_raster(p: Pen) -> None:
-    p.noFill()
-    p.stroke(ETCH)
-    p.strokeWeight(1.3)
-    # A square synchronising pulse introduces three illustrative image lines.
-    points = []
-    for i in range(15):
-        x = 527 + i * 5
-        points.extend([(x, 268 if i % 2 else 302), (x + 5, 268 if i % 2 else 302)])
-    points += [(602, 302), (602, 324), (625, 324), (625, 286), (644, 286)]
-    for i in range(62):
-        x = 644 + i * 2.6
-        y = 286 - sin(i * 0.73) * (11 + sin(i * 0.26) * 8)
-        points.append((x, y))
-    poly(p, points)
-    for i in range(3):
-        binary(p, bin(i + 1)[2:], 661 + i * 61, 257, spacing=6)
-    poly(
+    label(p, "A message without a shared language", 90, 130, 37, "#DED9C7")
+    line(p, 90, 164, 1185, 164, "#8B948A55")
+    label(p, "01", 1180, 128, 20, "#CECBB4", True, "Menlo")
+    label(p, "VOYAGER", 354, 1381, 25, "#DED7BF", family="Helvetica Neue")
+    label(p, "ENGRAVED COVER  ·  1977", 550, 1380, 13, "#AEA998", family="Menlo")
+    label(p, "SOUND  →  TIME  →  GEOMETRY", 354, 1405, 12, "#888F83", family="Menlo")
+    line(p, 91, 1420, 1962, 1420, "#747D7044")
+    label(
         p,
-        [
-            (551, 350),
-            (595, 390),
-            (618, 337),
-            (658, 384),
-            (681, 332),
-            (723, 385),
-            (747, 331),
-            (790, 379),
-        ],
+        "STUDY OF AN OBJECT, ITS SYMBOLS AND THE ACT OF READING",
+        91,
+        1440,
+        11,
+        "#8B9485",
+        family="Menlo",
     )
-    for i, x in enumerate((596, 658, 723)):
-        p.circle(x, 387, 5)
-        binary(p, bin(i + 1)[2:], x - 3, 408, spacing=5)
-    p.rect(572, 444, 156, 109)
-    for i in range(18):
-        p.strokeWeight(0.46)
-        p.line(576 + i * 2.3, 447, 576 + i * 2.3, 550)
-    p.strokeWeight(1.3)
-    arrow(p, 577, 432, 716, 432, 5)
-    binary(p, "1000000000", 625, 419, spacing=5)
-    p.rect(572, 578, 156, 109)
-    p.circle(650, 633, 72)
-    label(p, "02", 740, 519, 11, ETCH)
 
 
-def pulsars(p: Pen) -> None:
-    ox, oy = 337, 718
-    angles = [
-        -0.05,
-        0.32,
-        0.61,
-        0.99,
-        1.33,
-        1.81,
-        2.34,
-        2.86,
-        3.24,
-        3.63,
-        4.11,
-        4.48,
-        4.81,
-        5.12,
-    ]
-    lengths = [333, 205, 232, 190, 215, 188, 175, 157, 154, 166, 180, 210, 239, 190]
-    p.noFill()
-    p.stroke(ETCH)
-    p.strokeWeight(1.15)
-    for i, (a, reach) in enumerate(zip(angles, lengths)):
-        ex, ey = ox + cos(a) * reach, oy + sin(a) * reach
-        p.line(ox, oy, ex, ey)
-        p.line(ex - sin(a) * 3, ey + cos(a) * 3, ex + sin(a) * 3, ey - cos(a) * 3)
-        # Bit strings are illustrative visual data rather than navigation data.
-        bits = format((17831 + i * 1147) & 65535, "016b")
-        binary(
+def folio(p: Pen) -> None:
+    rng = Random(238)
+    # Fibres cluster near the cut edge rather than covering the diagrams.
+    for _ in range(1100):
+        x, y = rng.uniform(10, PAGE_W - 10), rng.uniform(4, PAGE_H - 4)
+        line(
             p,
-            bits,
-            ox + cos(a) * (reach * 0.48) - sin(a) * 6,
-            oy + sin(a) * (reach * 0.48) + cos(a) * 6,
-            a,
-            spacing=3.1,
+            x,
+            y,
+            x + rng.uniform(0.4, 2.8),
+            y + rng.uniform(-0.5, 0.6),
+            "#69554110",
+            0.35,
         )
-    p.circle(ox, oy, 9)
-    label(p, "03", 685, 751, 11, ETCH)
+    for inset, ink in ((2, "#9D8B6855"), (5, "#EEE5CD99")):
+        p.noFill()
+        p.stroke(ink)
+        p.strokeWeight(0.6)
+        p.rect(inset, inset, PAGE_W - inset * 2, PAGE_H - inset * 2)
+    label(p, "FIELD NOTES", 50, 48, 12, QUIET, family="Menlo")
+    label(p, "An unknown reader", 50, 102, 43)
+    label(p, "Four instructions, one common clock.", 51, 139, 21, QUIET, italic=True)
+    line(p, 50, 161, PAGE_W - 49, 161, "#867A61", 0.7)
+    for y, number, heading in (
+        (196, "I", "ESTABLISH A UNIT"),
+        (416, "II", "FOLLOW THE GROOVE"),
+        (639, "III", "LET TIME BECOME AN IMAGE"),
+        (930, "IV", "FIND THE POINT OF ORIGIN"),
+    ):
+        label(p, number, 50, y, 17, RED)
+        label(p, heading, 85, y, 14, INK, family="Menlo")
+        line(p, 50, y + 13, PAGE_W - 49, y + 13, "#9F92736C")
+    hydrogen(p, 83, 269, 31)
+    label(p, "t₀ ≈ 0.70 × 10⁻⁹ s", 243, 262, 25)
+    label(p, "Hyperfine transition of hydrogen", 245, 294, 15, QUIET)
+    label(p, "The connecting mark says: one event, one unit.", 51, 337, 18)
+    label(
+        p, "Every binary duration on the cover uses this interval.", 51, 365, 17, QUIET
+    )
 
-
-def hydrogen(p: Pen, x, y, r=23, color=ETCH) -> None:
     p.noFill()
-    p.stroke(color)
-    p.strokeWeight(1.15)
-    for i in range(2):
-        cx = x + i * 79
-        p.circle(cx, y, 2 * r)
-        p.circle(cx, y, 3)
-        p.line(cx, y - r - 12, cx, y - r + 6)
-        p.line(cx, y + r - 6, cx, y + r + 10)
-        arrow(p, cx, y - 13, cx, y - 3, 3)
-        arrow(p, cx, y + 4 if i else y + 15, cx, y + 15 if i else y + 4, 3)
-    p.line(x + r, y, x + 79 - r, y)
-    binary(p, "1", x + 39, y + 18)
+    p.stroke(INK)
+    p.strokeWeight(0.8)
+    p.circle(111, 493, 89)
+    p.circle(111, 493, 11)
+    for rr in (29, 33, 36, 39):
+        p.circle(111, 493, rr * 2)
+    poly(p, [(155, 477), (167, 459), (173, 459), (174, 494), (167, 497), (155, 477)])
+    label(p, "3.6 seconds / revolution", 244, 470, 23)
+    bits(p, "100110010100011100010100000000001", 247, 502, spacing=6)
+    label(p, "Read from the edge toward the centre.", 244, 529, 17, QUIET)
+    label(p, "The side view gives the duration of a whole side.", 51, 572, 18)
+    line(p, 61, 592, 588, 592, "#A5967466", 0.6)
+
+    for x, word in ((64, "SIGNAL"), (357, "512 VERTICAL LINES")):
+        label(p, word, x, 682, 11, QUIET, family="Menlo")
+    signal = []
+    for i in range(97):
+        xx = 61 + i * 2.27
+        local = (i % 31) / 31
+        yy = 737 - 40 * max(0, sin(local * pi)) ** 1.5
+        signal.append((xx, yy))
+    p.stroke(BLUE)
+    poly(p, signal, weight=1.25)
+    arrow(p, 300, 720, 335, 720, QUIET, 7)
+    for x1, y1, x2, y2 in (
+        (356, 691, 614, 691),
+        (356, 691, 356, 841),
+        (614, 691, 614, 841),
+        (356, 841, 614, 841),
+    ):
+        line(p, x1, y1, x2, y2, INK)
+    p.stroke("#A29B85")
+    p.strokeWeight(0.38)
+    for i in range(128):
+        p.line(359 + i * 1.986, 694, 359 + i * 1.986, 838)
+    p.stroke(INK)
+    p.strokeWeight(1.0)
+    p.noFill()
+    p.circle(485, 766, 110)
+    label(p, "First image: a circle. Distortion reveals a wrong ratio.", 51, 877, 17)
+
+    ox, oy = 105, 1030
+    ends = [
+        (109, 974),
+        (123, 999),
+        (167, 1002),
+        (196, 1018),
+        (171, 1047),
+        (145, 1079),
+        (118, 1100),
+        (99, 1099),
+        (75, 1080),
+        (63, 1052),
+        (43, 1037),
+        (53, 1011),
+        (66, 991),
+        (86, 982),
+    ]
+    for x, y in ends:
+        line(p, ox, oy, x, y, QUIET, 0.75)
+        p.line(x - 2, y, x + 2, y)
+    line(p, ox, oy, 216, oy, INK, 1)
+    label(p, "14 pulsars", 260, 1007, 27)
+    label(p, "Independent periods give a place and an epoch.", 261, 1039, 17, QUIET)
+    label(p, "The long radius points toward the galactic centre.", 261, 1068, 16, QUIET)
+    line(p, 50, 1119, PAGE_W - 49, 1119, "#8A7B5F")
+    label(
+        p,
+        "NASA / JPL  ·  A READING OF THE ENGRAVED COVER",
+        50,
+        1148,
+        10,
+        QUIET,
+        family="Menlo",
+    )
+    label(
+        p,
+        "Clock   /   Groove   /   Image   /   Location",
+        50,
+        1180,
+        15,
+        INK,
+        italic=True,
+    )
 
 
-def plate(p: Pen) -> None:
-    label(p, "VOYAGER", 69, 84, 52, PAPER, family="Helvetica Neue")
-    label(p, "AN INSTRUCTION PLATE FOR AN UNKNOWN READER", 74, 119, 13)
-    label(p, "INTERSTELLAR MESSAGE / 1977", 1150, 70, 13, QUIET)
-    p.stroke(QUIET)
-    p.strokeWeight(0.6)
-    p.line(72, 147, 1488, 147)
-    p.line(934, 173, 934, 954)
-    for i in range(120):
-        a = i * 2 * pi / 120
-        s = RADIUS + 9
-        t = s + (10 if i % 10 == 0 else 3)
-        p.stroke("#63777a" if i % 10 == 0 else "#334a51")
-        p.line(CX + cos(a) * s, CY + sin(a) * s, CX + cos(a) * t, CY + sin(a) * t)
-    label(p, "GOLD-PLATED RECORD / ENGRAVED COVER", 486, 999, 12, QUIET, True)
+def smooth(x) -> float:
+    x = min(1.0, max(0.0, x))
+    return x * x * (3 - 2 * x)
+
+
+def reading(p: Pen) -> None:
+    t = (p.millis() / 1000) % CYCLE
+    stage = min(3, int(t / 6))
+    q = (t % 6) / 6
+    alpha = smooth(q * 8) * smooth((1 - q) * 8)
+    if alpha <= 0.002:
+        return
     p.push()
-    p.clip(lambda: p.circle(CX, CY, RADIUS * 2 - 7))
-    playback(p)
-    cover_raster(p)
-    pulsars(p)
-    hydrogen(p, 666, 827)
-    p.noFill()
-    p.stroke(ETCH)
-    p.strokeWeight(1.3)
-    p.circle(473, 565, 22)
-    p.circle(473, 565, 12)
-    label(p, "04", 732, 885, 11, ETCH)
+    p.translate(PAGE_X, PAGE_Y)
+    # The active rule marks the current instruction in the folio.
+    active_y = (196, 416, 639, 930)[stage]
+    line(p, 35, active_y - 16, 35, active_y + 105, RED, 2.2)
+    if stage == 0:
+        phase = (t * 0.6) % 1
+        for x in (83, 176):
+            p.noStroke()
+            p.fill(RED)
+            p.circle(x, 237 + 8 * sin(phase * pi * 2), 5)
+        label(p, "1", 207, 271, 15, RED, family="Menlo")
+    elif stage == 1:
+        a = -pi / 2 + t / 3.6 * pi * 2
+        radius = 40 - smooth(q) * 18
+        p.noStroke()
+        p.fill(RED)
+        p.circle(111 + cos(a) * radius, 493 + sin(a) * radius, 6)
+        label(p, "OUTSIDE  →  INSIDE", 245, 549, 11, RED, family="Menlo")
+    elif stage == 2:
+        column = int(smooth(q) * 512)
+        # Logical columns reveal the calibration circle from left to right.
+        p.stroke(BLUE)
+        p.strokeWeight(0.38)
+        for i in range(column):
+            xx = 358 + i * 0.496
+            dx = xx - 485
+            if abs(dx) < 55:
+                dy = (55 * 55 - dx * dx) ** 0.5
+                p.line(xx, 766 - dy, xx, 766 + dy)
+        line(p, 358 + column * 0.496, 694, 358 + column * 0.496, 838, RED, 1.2)
+        label(p, f"{column:03d} / 512", 359, 861, 11, RED, family="Menlo")
+    else:
+        a = -pi / 2 + int(q * 14) * pi * 2 / 14
+        line(p, 105, 1030, 105 + cos(a) * 55, 1030 + sin(a) * 55, RED, 1.4)
+        p.noStroke()
+        p.fill(RED)
+        p.circle(105, 1030, 5)
+    for i in range(4):
+        p.noStroke()
+        p.fill(RED if i == stage else "#AA9C7B")
+        p.circle(585 + i * 14, 1175, 4 if i != stage else 6)
     p.pop()
 
-    # The reading column separates clock, playback, raster and location scales.
-    x = 974
-    sections = [
-        (195, "01 / ESTABLISH A CLOCK", "Hydrogen supplies a shared time unit."),
-        (373, "02 / FOLLOW THE GROOVE", "A stylus reads from the edge inward."),
-        (567, "03 / RECONSTRUCT AN IMAGE", "Vertical lines unfold into a raster."),
-        (803, "04 / LOCATE THE SOURCE", "Radial directions form a pulsar diagram."),
-    ]
-    for y, heading, prose in sections:
-        label(p, heading, x, y, 16, PAPER)
-        label(p, prose, x, y + 27, 13, QUIET, family="Helvetica Neue")
-        p.stroke("#3c5158")
-        p.strokeWeight(0.6)
-        p.line(x, y + 44, 1488, y + 44)
-    hydrogen(p, 1008, 287, 21, PAPER)
-    label(p, "t₀ = 0.70 × 10⁻⁹ s", 1138, 282, 17)
-    label(p, "ONE TRANSITION / ONE UNIT", 1138, 311, 10, QUIET)
-    p.noFill()
-    p.stroke(PAPER)
-    p.strokeWeight(1)
-    p.circle(1036, 473, 102)
-    p.circle(1036, 473, 10)
-    arrow(p, 1085, 460, 1077, 444)
-    p.line(1090, 432, 1103, 460)
-    p.line(1103, 460, 1085, 460)
-    label(p, "3.6 s / REVOLUTION", 1138, 461, 17)
-    label(p, "OUTSIDE → INSIDE", 1138, 489, 12, QUIET)
-    p.noFill()
-    p.stroke(PAPER)
-    p.rect(983, 632, 188, 119)
-    p.circle(1077, 691, 74)
-    for i in range(46):
-        p.stroke("#425a62")
-        p.strokeWeight(0.5)
-        p.line(986 + i * 4, 635, 986 + i * 4, 748)
-    label(p, "512 VERTICAL LINES", 1195, 660, 17)
-    label(p, "VERIFY ASPECT RATIO", 1195, 689, 12, QUIET)
-    label(p, "A CIRCLE MUST STAY ROUND", 1195, 714, 10, QUIET)
-    label(p, "14 PULSAR DIRECTIONS", 985, 883, 17)
-    label(p, "BIT PATTERNS HERE ARE ILLUSTRATIVE", 985, 911, 11, QUIET)
-    p.stroke("#425a62")
-    p.strokeWeight(0.6)
-    p.line(72, 1034, 1488, 1034)
-    label(p, "TRANSMISSION / SOUND → SIGNAL → GEOMETRY", 73, 1065, 11, QUIET)
-    label(p, "SCHEMATIC RECONSTRUCTION                 PLATE 01", 1001, 1065, 11, QUIET)
 
-
-def raster_motion(p: Pen) -> None:
-    phase = (p.millis() / 1000 / 4) % 1
-    x = 986 + phase * 182
-    p.stroke("#b7eee4")
-    p.strokeWeight(1.5)
-    p.line(x, 635, x, 748)
-    p.noStroke()
-    p.fill("#b7eee435")
-    p.rect(max(986, x - 7), 635, min(7, x - 986), 113)
-    p.fill("#b7eee4")
-    p.circle(x, 756, 3)
-
-
-@sketch(size=(WIDTH, HEIGHT), background=GROUND, capture_at=2.4)
+@sketch(size=(WIDTH, HEIGHT), background="#0F1617", capture_at=14.8)
 class VoyagerInstructionPlate:
     def setup(self, ctx: SketchContext) -> None:
-        source = Path(__file__).with_name("gold.sksl").read_text()
+        cover = load(LOCAL / "data" / "cover.svg", width=DISC_SIZE, height=DISC_SIZE)
+        hub = ctx.assets.hub()
+        optical = Filter.of(
+            shader(
+                hub,
+                ctx.local("gold.sksl"),
+                {"uSize": (float(DISC_SIZE), float(DISC_SIZE))},
+                textures={"content": None},
+            )
+        )
         disc = (
+            image(cover)
+            .absolute()
+            .left(DISC_X)
+            .top(DISC_Y)
+            .width(DISC_SIZE)
+            .height(DISC_SIZE)
+            .filter(optical)
+            .cache(Cache.Texture)
+            .key("voyager.incised.cover")
+        )
+        shadow = (
+            image(cover)
+            .absolute()
+            .left(DISC_X)
+            .top(DISC_Y)
+            .width(DISC_SIZE)
+            .height(DISC_SIZE)
+            .filter(
+                Filter.program(
+                    "uniform shader content; half4 main(float2 p) { half4 c=content.eval(p); return half4(0,0,0,c.a); }"
+                ).then(Filter.blur(20))
+            )
+            .translateY(21)
+            .translateX(10)
+            .cache(Cache.Texture)
+        )
+        page = (
             box()
             .absolute()
-            .left(CX - RADIUS)
-            .top(CY - RADIUS)
-            .width(RADIUS * 2)
-            .height(RADIUS * 2)
-            .borderRadius(RADIUS)
-            .fill(shader(source))
+            .left(PAGE_X)
+            .top(PAGE_Y)
+            .width(PAGE_W)
+            .height(PAGE_H)
+            .fill(
+                shader(hub, ctx.local("paper.sksl")).effects(
+                    Filter.shadow("#000000A0", ShadowOptions(blur=20, offset=(7, 17)))
+                )
+            )
+            .children(
+                pen("voyager.folio", folio, cache=Cache.Picture).absolute().inset(0)
+            )
+            .cache(Cache.Texture)
         )
-        rim = pen("voyager.rim", self.rim, cache=Cache.Picture).absolute().inset(0)
-        engraving = (
-            pen("voyager.engraving", plate, cache=Cache.Picture).absolute().inset(0)
-        )
-        signal = pen("voyager.raster", raster_motion).absolute().inset(0)
         ctx.render(
-            box().width(WIDTH).height(HEIGHT).children(disc, rim, engraving, signal)
+            box()
+            .width(WIDTH)
+            .height(HEIGHT)
+            .children(
+                box().absolute().inset(0).fill(shader(hub, ctx.local("cloth.sksl"))),
+                pen("voyager.cloth", cloth_details, cache=Cache.Picture)
+                .absolute()
+                .inset(0),
+                shadow,
+                disc,
+                page,
+                pen("voyager.setting", setting, cache=Cache.Picture)
+                .absolute()
+                .inset(0),
+                pen("voyager.reading", reading).absolute().inset(0),
+            )
         )
-
-    @staticmethod
-    def rim(p: Pen) -> None:
-        p.noFill()
-        for inset, weight, color in (
-            (0, 2.4, "#d4a658"),
-            (3, 0.6, "#f1d796"),
-            (6, 0.7, "#49381d"),
-        ):
-            p.stroke(color)
-            p.strokeWeight(weight)
-            p.circle(CX, CY, (RADIUS - inset) * 2)
-        # Scratches are fixed cuts, with shorter cuts crossing the grain.
-        rng = Random(1977)
-        p.push()
-        p.clip(lambda: p.circle(CX, CY, (RADIUS - 6) * 2))
-        for i in range(460):
-            x, y = rng.uniform(92, 880), rng.uniform(155, 944)
-            length = rng.uniform(4, 49)
-            p.stroke("#ffe9b311" if i % 3 else "#19140d19")
-            p.strokeWeight(rng.uniform(0.22, 0.65))
-            p.line(x, y, x + length, y - length * 0.52)
-        p.pop()

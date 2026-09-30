@@ -1,0 +1,20 @@
+// The color CRT bends the complete interface and reads its cyan phosphor
+// with a restrained registration offset, beam rows and deterministic grain.
+float hash(float2 p) {
+    return fract(sin(dot(p, float2(41.71, 289.13))) * 9137.113);
+}
+half4 main(float2 p) {
+    float2 uv = p / uSize, c = uv - 0.5;
+    float2 q = (uv + c * dot(c, c) * 0.15) * uSize;
+    q.x += 0.12 * sin(uSeconds * 17.13 + q.y * 0.018);
+    if (min(q.x, q.y) < 0 || q.x >= uSize.x || q.y >= uSize.y) return half4(0);
+    half4 source = content.eval(q);
+    half3 signal = half3(content.eval(q + float2(0.35, 0)).r,
+                         source.g, content.eval(q - float2(0.25, 0)).b);
+    float beam = 0.94 - 0.075 * cos(q.y * 2.5132741);
+    float grain = (hash(floor(q) + float2(floor(uSeconds * 24), 11)) - 0.5) * 0.004;
+    float edge = 1 - 0.20 * dot(c, c);
+    float flicker = 0.994 + 0.006 * cos(uSeconds * 21.13);
+    signal = signal * beam * edge * flicker + source.a * half3(grain * .35, grain * .8, grain);
+    return half4(clamp(signal, 0, source.a), source.a);
+}

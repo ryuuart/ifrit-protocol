@@ -1,88 +1,96 @@
 # The First Fire — illuminated manuscript study
 
-An original 1100 × 1560 native folio in the **Study · Manuscripts** family.
-Its miniature shows a royal gathering around a ceremonial fire, with
-folded garments, embroidered carpets, long-necked vessels, fruit dishes,
-deer, flowering trees and mineral crags. A lapis-and-gold ornamental frame,
-eight-point rosettes, gilded arabesques, ruled text columns and a
-speckled paper ground make this a substantial typography and drawing study.
+An original **1650 × 2340** native folio in **Study · Manuscripts**. Its
+miniature shows a royal gathering around a ceremonial fire, with standing
+attendants, a musician, a reader, seated courtiers, three deer, embroidered
+carpets, vessels, fruit dishes, flowering trees and mineral crags. Lapis and
+gold borders, varied floral motifs, fine ink, painted cloth, four Persian
+verse columns and a fibrous paper ground make the folio a comprehensive
+brush, typography and retained-composition study.
 
-## Visual source and authored interpretation
+## Reference and authored interpretation
 
 The primary reference is [The Metropolitan Museum of Art's *The Feast of
 Sada*, folio 22v from the Shahnameh of Shah Tahmasp](https://www.metmuseum.org/art/collection/search/452111),
-painted around 1525 in Tabriz, attributed to Sultan Muhammad. The museum
-records opaque watercolor, ink, silver and gold on paper, and identifies
-the object as public domain. Its
-[primary museum image](https://collectionapi.metmuseum.org/api/collection/v1/iiif/452111/865998/main-image)
-was visually inspected before drawing.
+painted around 1525 in Tabriz and attributed to Sultan Muhammad. The museum
+records opaque watercolor, ink, silver and gold on paper and identifies the
+object as public domain. Its [primary museum image](https://collectionapi.metmuseum.org/api/collection/v1/iiif/452111/865998/main-image)
+was visually inspected alongside native renders.
 
-The source contributes the oval hierarchy of king, courtiers and animals;
-the small red-and-gold fire; cool sky; colored mineral formations that
-spill into paper margins; gold-speckled paper; and four ruled text columns.
-The miniature, people, ornament, palettes and inscriptions here are newly
-authored. The broad lapis border and title panel are original additions.
-The figure treatment is deliberately stylized. This is an interpretation,
-not a facsimile or a transcription of folio 22v.
+The source contributes the oval hierarchy of king, courtiers and animals,
+the red and gold fire, cool sky, colored mineral formations extending into
+the paper margins, delicate foliage, gold-speckled paper and four ruled text
+columns. The figures, miniature geometry, ornament, palettes and caption
+here are newly authored. The broad lapis border and title panel are original
+additions. This is an interpretation, not a facsimile or a transcription of
+the museum folio's inscriptions.
 
 ## Text and script
 
-The four bottom columns contain only the two opening couplets of Ferdowsi's
-public-domain Shahnameh, in logical Unicode order, read across columns from
-right to left. The short text was checked against
-[Ganjoor's opening of the Shahnameh](https://ganjoor.net/ferdousi/shahname/aghaz/sh1/):
+The lower columns contain the first **eight couplets**, sixteen hemistiches,
+of Ferdowsi's public-domain Shahnameh, checked against [Ganjoor's published
+opening](https://ganjoor.net/ferdousi/shahname/aghaz/sh1/). They read across
+four columns from right to left, then down. These opening verses differ
+from the passage surrounding the museum's Feast of Sada miniature. The
+publisher's punctuation and diacritics are retained; this does not claim to
+establish a critical edition.
 
-> به نام خداوندِ جان و خرد
->
-> کز این برتر، اندیشه، بر نگذرد
->
-> خداوندِ نام و خداوندِ جای
->
-> خداوندِ روزی‌دِهِ رهنمای
+The title is `شاهنامه`. The cartouche's `جشن آتش` means “fire celebration”
+and is an original caption. A native RichText footer combines Persian,
+English and Persian digits in logical Unicode order. Text is shaped by the
+native paragraph engine, without reversal or painted substitute glyphs.
 
-These are opening verses, not the text surrounding the museum's Feast of
-Sada miniature. The title reads `شاهنامه`; the small cartouche's `جشن آتش`
-means “fire celebration” and is an original caption, not a canonical verse.
-A mixed-run footer combines Persian, English and Persian digits in one
-native RichText passage. No text is reversed or painted as a substitute
-for native shaping.
+The installed **Noto Nastaliq Urdu** family supplies the title, cartouche and
+verses; its collection is `/System/Library/Fonts/NotoNastaliq.ttc`. **Geeza
+Pro** supplies the mixed footer and **Baskerville** the English captions.
+The title uses the existing fixed first-baseline control. The verses share
+one size selected by native intrinsic measurement of all sixteen lines, so
+longer hemistiches fit their narrow columns while preserving a consistent
+reading rhythm. The native font size values are expressed in the folio's
+1100 × 1560 author space; the retained root scales it by 1.5 for output.
 
-The installed family **Noto Nastaliq Urdu** supplies the title, cartouche
-and verses at 52, 28 and 25 pixels. Its system collection is
-`/System/Library/Fonts/NotoNastaliq.ttc`. **Geeza Pro** supplies the mixed
-footer, and **Baskerville** the English captions. A native font probe
-confirmed the requested families visually; nonexistent alternate names
-were rejected by the font context. The large title uses the existing
-`textFirstBaseline(Fixed, 58)` control to seat its ink in the ornamental
-panel, since the face's ascent leaves much more air above the ink than a
-Latin display face.
+## Native drawing and craft
 
-## Native craft and retention
+The miniature uses closed Bezier outlines, native pressure-bearing brush
+splines and polygon pigment washes. Gathered garment folds radiate from
+creased cloth instead of following a repeated grid. Coats vary their floral,
+leaf and curled brocade motifs; washes and fine fibers give the colored
+cloth restrained pigment variation. Faces vary profile proportions, noses,
+skin colors, moustaches, beard length and head inclination. Turbans have
+individual wrap lines, trailing cloth and a smaller silhouette; the royal
+cap carries engraved bands, jewels and a feather.
 
-`setup` describes one retained Compose tree. Paper, border, headings,
-miniature and ruling occupy separately keyed native Pen pictures. They
-are painted once and retained. Text remains native Compose/Weave text.
-The complete static printed page, including those pictures and its text,
-is held in one explicitly declared Texture cache. The animated ember
-picture stands outside that cache as a sibling. The page covers its own
-opaque ground and all its drawing uses normal source-over compositing,
-so baking it together preserves the compositional reading of its marks.
-There is no sketch update loop repainting the folio and no raster art asset.
+Crags use overlapping ledges, branching veins, rifts, curling contours and
+matte washes. Continuous fine ink joins those forms into a mineral surface.
+Cypresses have slender continuous silhouettes with lanceolate leaves over
+small branches. Flowering trees use tapered pressure strokes for trunks,
+roots and twigs. The deer have staggered bent legs, hooves, fine fur marks,
+profile features and branching antlers. Asymmetric S-shaped fire tongues
+turn back into their plumes, with smaller detached curls over painted logs.
 
-The miniature uses closed Bezier contours for mineral outcrops, coats,
-folded knees, faces, fire tongues and vessels. A second group of wavy
-mineral bands and short curling marks is clipped to each rock silhouette.
-Carpet flowers, coat embroidery, leaf veins, fringe, facial marks,
-antlers and gilded linework stress very small paths and strokes. Paper
-fibers and mineral stipple use fixed seeds. Repeated rosettes combine a
-lapis outline and a shape-fitted foil gradient. Native typography stays
-above the painting and ruling pictures in the retained stack.
+The frame alternates flowers, split palmettes and paisley forms over gilded
+arabesques. Fine secondary stems, leaves, stipple, inner rules and rosettes
+provide detail at several scales. Shape-fitted native Paint gradients dress
+the foil marks; the pigment and miniature use matte colors and native
+washes. All random drawing uses fixed seeds.
 
-Only a small ember picture moves. Native opacity and translation
-animations alternately lift and dim its sparks; the printed folio stays
-still. The declared still is at 3 seconds.
+## Retention and motion
 
-## Run and verified captures
+`setup` describes one retained native Compose tree. Paper, border, headings,
+illumination, miniature and ruling are keyed Pen pictures. Native
+Compose/Weave text stands above those pictures. The whole opaque printed
+page is held in one explicitly declared Texture cache. A small ember picture
+is a sibling outside that cache, where native opacity and translation
+animations lift and dim its sparks. Static art is authored once rather than
+repainted by a sketch update loop. The scene contains no raster art assets.
+
+An explicitly declared Picture retains commands but still replays them.
+This known opaque folio is therefore an appropriate place to declare its
+Texture boundary. The texture combines source-over artwork and text; the
+independent ember overlay keeps the page static during animation. Cache
+choice is an authoring observation, not a library defect.
+
+## Run and evidence
 
 From `apps/spell-circle-canvas`:
 
@@ -90,72 +98,55 @@ From `apps/spell-circle-canvas`:
 UV_CACHE_DIR=/private/tmp/sigil-study-uv-cache \
   build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
   src/sketch/sketches/shahnameh_folio/shahnameh_folio.py \
-  --frame /private/tmp/shahnameh-folio-cpu.png \
-  --state /private/tmp/shahnameh-folio-state
+  --frame /private/tmp/shahnameh-redo-final.png --at 3 \
+  --state /private/tmp/shahnameh-redo-python-state
 ```
 
-Append `--at 0` to inspect the spark animation's starting state. Appending
-`--gpu` to this file capture initializes the device executor but the
-host's file `--frame` lane photographs the 2D canvas on raster. It is a
-GPU-enabled capture and device smoke test, not evidence of Graphite
-execution for the folio's material or text rendering.
+Use `--at 0` for the spark overlay's other state. Open the same entry without
+`--frame` for native live authoring. The file-frame lane is raster even if
+`--gpu` initializes a device executor. The separate `--window-bench` and
+`--shot` checks identify their renderer as Graphite GPU and exercise the
+actual native window. Captures, logs, control source, brush probes and the
+benchmark ledger are preserved in `build/media-study-redo/shahnameh_folio/`.
 
-The final CPU capture and elevated GPU-enabled capture both completed
-successfully and were inspected. Their PNGs are byte-identical:
+## Authoring findings
 
-- `/private/tmp/shahnameh-folio-cpu.png`
-- `/private/tmp/shahnameh-folio-gpu.png`
+Native Persian joining, diacritics, narrow columns and mixed runs render.
+The existing first-baseline and intrinsic-measurement APIs resolve placement
+and line fitting. Pen rotation defaults to radians while Compose rotation
+uses degrees; the painting callbacks set Pen's angle mode explicitly. That
+unit mistake was corrected in the authoring, rather than reported as a
+library defect.
 
-The zero-second control is `/private/tmp/shahnameh-folio-zero.png`.
-Comparing it with the 3-second still changed 218 pixels in the small
-spark region, x 501–591 / y 749–810. The rest of the paper, miniature,
-ornament and text stayed identical. The font and baseline controls were
-also rendered separately. These captures used the existing host's
-compiled Python bindings; no library source was changed for the study.
-
-The Texture-cache refinement also produced byte-identical stills at both
-zero and three seconds against the preserved Picture-cache controls. Its
-ember-only difference between those moments remains the same. The
-sequential window check identified its renderer as Graphite GPU. Control
-sources, images and logs, together with the measured cache comparison,
-are kept in `build/media-study-evidence/shahnameh_cache_benchmark.md`.
-
-## Authoring pressure
-
-Native Persian joining, diacritics, contextual forms, multi-line narrow
-columns and mixed runs all rendered. The existing baseline control
-resolved the large-title placement; it is not an absent-API finding.
-
-A retained Picture avoids re-authoring its paths but still replays those
-paths on the GPU. Pen callbacks are opaque to automatic backdrop analysis,
-and an explicitly declared Picture also refuses texture promotion. A
-known opaque page is therefore an appropriate place to declare a Texture
-cache explicitly. The static page and live sparks form the cache boundary;
-this is an authoring and cache-choice observation, not a library defect.
+Fine nib splines are a separate coverage issue. A native raster probe uses
+widths below one pixel, dense spacing and no scatter or jitter. The nib
+strokes become dotted while the same-width Pen curve remains continuous.
+Changing the existing tool to one fibre produces continuous pressure ink.
+The nib routes through `Stamps.cpp` to the sprite batch in
+`sigilskia/draw/Direct.h`; that lowering sets paint antialiasing and calls
+Skia's vertex renderer. Skia's installed `SkCanvas.h` explicitly states that
+vertex drawing ignores paint antialiasing. The coverage intent therefore
+requires a supported lowering rather than that flag. A regression should
+render thin sprites and dense nib strokes at several subpixel translations
+on raster and Graphite and verify smooth, nonvanishing coverage along the
+run. The study uses the existing fibre tip to author its fine ink.
 
 The clipping binding invokes a zero-argument callback, while the generated
-Python declaration says the callback receives a Pen. The study uses a
-closure over the existing Pen to match runtime behavior. This extends the
-same clip-callback inconsistency observed while authoring the scan visor.
-The checked source is `src/common/python/draw/Pen.cpp` at the `shape()`
-invocation, and `apps/python/sigil/typing/refinements/pen.py` supplies the
-incompatible `DrawCallback` annotation. A regression should type-check the
-callback form accepted by the binding and render its contained mineral
-engraving, including inverted clipping and restoration of the outer clip.
+Python declaration says the callback receives a Pen. The study closes over
+the existing Pen to match runtime behavior. The checked binding is
+`src/common/python/draw/Pen.cpp` at its `shape()` invocation; the declaration
+is supplied by `apps/python/sigil/typing/refinements/pen.py`. A regression
+should type-check the accepted callback form and render contained mineral
+ink, including inverted clipping and restoration of the outer clip.
 
-The Unicode primitive already supports explicit bidi base direction, but
-the Paragraph analysis path calls it with automatic direction. A numeric
-folio label followed by an English title can therefore adopt a different
-base direction from its Persian page. Passing the existing base-direction
-value through a paragraph partial would avoid inserting directional
-control characters into authored content. This is an API request, not a
-claim that the rendered Persian passages failed.
-`ParagraphAnalysis.cpp` invokes the Unicode primitive without its
-base-direction argument; the checked Paragraph, ParagraphBlock,
-ParagraphStyle and LayoutOptions declarations do not pass one. The lower
-Unicode API's existing BaseDirection value is the natural field to carry
-through. For `۱۵۲۵ · Folio 22v`, native Unicode analysis returns one
-level-zero run under automatic direction, but explicit RTL yields the
-expected mixed embedding levels. A regression should compare Paragraph
-analysis with that explicit Unicode analysis and invalidate its cached
-analysis when the authored base direction changes.
+The Unicode primitive supports an explicit bidi base direction, but
+Paragraph analysis calls it with automatic direction. A numeric folio label
+followed by an English title can adopt a different base from its Persian
+page. Passing the existing direction value through a paragraph partial
+would avoid inserting control characters into authored text.
+`ParagraphAnalysis.cpp` calls the Unicode primitive without that argument;
+the checked Paragraph, ParagraphBlock, ParagraphStyle and LayoutOptions
+declarations do not carry it. Native analysis of `۱۵۲۵ · Folio 22v` adopts
+level zero with automatic direction but returns mixed levels with explicit
+RTL. A regression should compare Paragraph analysis with explicit Unicode
+analysis and invalidate cached analysis when the base direction changes.

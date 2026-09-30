@@ -1,152 +1,162 @@
-# Nostromo service monitor
+# Mother wall
 
-A film-interface study of the industrial computer language in *Alien*.
-The display is a 1600 × 1000 native drawing. It includes the cabinet,
-recessed glass, indicator banks, scored metal, a physical function-key
-strip, a cooling-circuit plan, subsystem states, two measured traces,
-five correlation channels, and a continuously arriving inquiry log.
+A frontal study of the illuminated Mother computer room in *Alien*,
+authored as native retained geometry at 1800 × 1125. Six equipment banks
+surround a thick molded CRT bezel. Stepped panel relief, clear acrylic
+edges, black and red transfer legends, fasteners, amber incandescent
+cores and broad lamp spill give the display a physical setting.
 
-The telemetry and arrangement are original. The study does not reproduce
-a particular film frame, an authentic ship circuit, or engineering data.
-The names identify the visual subject; the diagnostic story is a service
-technician examining a delayed return-line actuator while the ship remains
-in automatic flight.
+The display follows a complete 30-second scene: power rises, a dense
+circuit is active, the circuit clears for a typed inquiry, the request is
+held, the circuit returns, and the tube powers down. Circuit topology,
+numeric labels and the inquiry are original study content.
 
-## Reference observations
+## Inspected references
 
-- [Ron Cobb's Alien gallery](https://www.roncobb.net/05-Alien.html) is a
-  primary design source for the functional industrial vocabulary.
-- [The contemporary Mediascene production account](https://www.gigerdb.com/articles/files/Mediascene_35_1979.pdf)
-  describes a worn working ship, multiple screens with different
-  technical roles, dense functional indicator banks, and hardware
-  assembled from aircraft, automotive and radio equipment. Those
-  production constraints guide the service-console story and material
-  wear.
-- [The original Mother console at Julien's Auctions](https://www.juliensauctions.com/en/items/107804/alien-1979-original-mu-th-ur-6000-mother-computer-console-with-dvd)
-  identifies the production prop. The scored enclosure, amber lamp banks
-  and physical key assignments in this study are authored hardware.
-- [Mother's order readout reproduced by AvP Central](https://www.avpcentral.com/images/mother/special-order-937.webp)
-  was visually inspected. Its green fixed-pitch capitals, generous line
-  spacing and black field guide the inquiry's typography. The linked
-  image is a film still reproduced by a secondary source, rather than
-  a production-design document.
-- [The recovered GRAM system](https://www.chilton-computing.org.uk/acl/htmls/gram/gram_paper.htm)
-  describes computer readouts, maps and navigation graphics made for the
-  Nostromo's monitors. The study's chart and diagram layers follow that
-  functional approach; their geometry is authored here.
-- [The docking-monitor still in that archive](https://www.chilton-computing.org.uk/acl/htmls/gram/refs/gram_aliena.jpg)
-  was visually inspected. It combines paired thin lines, interrupted
-  structural rings, filled rectangular accents, a timing readout and a
-  faint background grid. Its blue-white display is a separate visual
-  convention from Mother's green text terminal. This study combines the
-  functional diagram grammar with a green service inquiry; it does not
-  claim the cooling circuit appeared in the film.
+The [frontal Mother wall film frame](https://www.avpcentral.com/images/mother/mother-interface-wall-hero.webp)
+was the principal visual reference. It supplies the cream nested molding,
+three upper banks, flanking indicator fields, thick central bezel, black
+CRT, green octagonal circuit, warm bulbs and lower access panels. This is
+a film frame reproduced by a secondary host. The study redraws these
+conventions; it imports none of the photograph's pixels.
 
-The green inquiry display, amber physical lamps, fixed-pitch text and
-meaningful subsystem labels guide the adaptation. The five-channel delay
-analysis, cooling loop, warning colors, key assignments and cabinet
-proportions are creative extrapolations.
+The [room view with Ripley](https://www.avpcentral.com/images/mother/ripley-in-mother-room.webp)
+and [production photograph with Ripley and Ash](https://www.avpcentral.com/images/mother/ripley-ash-mother.webp)
+were also inspected. They establish the warm enveloping wall light and
+the layered cream enclosure. The
+[Mother order readout](https://www.avpcentral.com/images/mother/special-order-937.webp)
+shows wide geometric green capitals and generous black space. The
+study's machine glyphs were drawn for this work. They are an interpretation
+of that construction, not the production typeface.
 
-## Craft exercised
+[Ron Cobb's original Nostromo bridge drawing](https://www.roncobb.net/img/filmography/05-Alien/FB-158-on-Nostromo_Control_Bridge_3-alien.jpg)
+was inspected as a primary production artifact. It supports treating the
+hardware as built equipment with distinct access and control surfaces.
+The [original acrylic Mother wall prop](https://www.icollector.com/Alien-Mother-Computer-Room-Display-Panel_i23631607)
+is documented as clear acrylic carrying applied labels; its description,
+rather than an unobserved image, informs the transfer layer. The
+[contemporary production account](https://www.gigerdb.com/articles/files/Mediascene_35_1979.pdf)
+provides context about the ship's functional industrial construction.
 
-The screen has a consistent information hierarchy: identity and access at
-the top, system health at left, the primary network at center, measured
-signals at right, and the machine's response beneath. Paired pressure
-lines, arrows and hatched exchangers let the diagram read independently
-of color. The delay markers join the warning to the analysis display.
+The proportions, individual codes, hardware layout, circuit topology,
+access story, clock periods and material wear are authored adaptations.
+This is not a frame reconstruction or a functional ship circuit.
 
-The optical treatment is deliberately small. A library bloom creates the
-near phosphor halo; one original shader bends the source coordinate,
-modulates raster rows, adds deterministic grain and applies corner
-falloff. The entire screen passes through the same tube. The metal and
-keys remain outside that optical pass. No imported raster image is part
-of the drawing.
+## Native craft
 
-The cabinet, diagram, grid and trace curves are retained texture leaves.
-Signal points, scanning cursors, the command caret and status lamps are
-bound independently to a single clock with different periods. Numeric
-readings update every 0.6 scene seconds. Inquiry rows arrive every three
-seconds through the feed kit; monotonic row identities preserve surviving
-rows. Each row records its arrival time and binds the native hard typewriter
-entrance's master progress to the scene clock. The full scene is described
-once; only the readout and inquiry slots are replaced when their data changes.
+The wall is one cached grayscale height field. Its nested molded steps
+are softened with native blur, then an original material reads neighboring
+heights for normals, contact recesses, dull sheen and painted surface
+variation. The stock bevel-normal primitive addresses an outer silhouette;
+the interior steps here require distinct heights inside that outline.
+
+The acrylic edge and fasteners are separate cached geometry. Native type
+carries the applied black and red legends. Shape-fitted radial gradients
+and native bloom supply lamp halos. Eighteen bound lamps vary independently;
+the other lamp geometry is retained. The tube's green spill is a separate
+layer over the enclosure.
+
+The circuit contains eight interleaved bus sectors, nested chip traces,
+contact pads and a central cross. Its geometry is cached. Twenty-four
+packets use native path travel, including its arc-length parameter and
+orientation. Native bloom, an original beam/curvature filter, glass sheen,
+surface scoring and a corner mask act at distinct physical layers.
+Only the clock and a few native phase/visibility values change per frame.
+
+The preserved C++ experiment loads `data/MachineType.ttf` into native Weave
+and uses its native typewriter entrance. `data/make_type.py` builds that original font
+with FontTools. `data/glyphs.json` carries the same authored stroke data.
+The canonical Python entry uses cached native vector glyphs with bound entrances,
+because the current compiled Python surface lacks the native textFx
+entrance and a bytes/file typeface constructor. No bitmap type is baked
+or imported. The Python entry preserves the wall, shader, optical and
+native path-motion composition. The C++ experiment is kept outside the
+sketch registry at `build/media-study-redo/nostromo_monitor/candidate-source.cpp`.
 
 ## Render
 
 From `apps/spell-circle-canvas`:
 
 ```sh
+UV_CACHE_DIR=/tmp/sigil-study-uv-cache \
 build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
-  src/sketch/sketches/nostromo_monitor/nostromo_monitor.cpp \
-  --frame /tmp/nostromo-8-4.png --at 8.4 \
-  --state /tmp/nostromo-study-state
+  src/sketch/sketches/nostromo_monitor/nostromo_monitor.py \
+  --frame /tmp/mother-circuit.png --at 5.5 \
+  --state /tmp/mother-study-state
 ```
 
-The file `--frame` lane renders this Compose sketch through raster Skia,
-including when `--gpu` initializes the device runtime. Use the bounded
-file-window lane for Graphite validation. A later frame at 17.4 seconds
-shows the log farther into its diagnostic cycle. Reload the sketch session
-after editing `Tube.sksl`: the file is loaded through the resource hub, but
-the direct runtime-program filter captures its compiled effect during setup.
+Use 21.5 seconds for the held inquiry, 12.7 for a partly typed row, and
+28.8 for tube decay. Python is the sole canonical sketch entry.
+Reload the session after changing either shader, which is compiled in setup.
 
-## Authoring observations
+File `--frame` captures use raster Skia for this Compose canvas. A bounded
+file window with `--gpu --window-bench 3` exercises actual Graphite.
 
-These are requests for the library backlog, not claims of repaired defects.
+For a complete native frame sequence:
 
-**File-authored filters are supported by the high-level shader API.** An
-empty-pixel `content` texture entry declares the executor-supplied input.
-The ordinary shader constructor supplies typed uniforms, resource loading
-and shader diagnostics; its source can participate in resource hot reload.
-The texture-options name makes this route less obvious, but the header
-documents it. Reading a rendered subtree needs no advanced recipe
-construction. This sketch's direct runtime-program filter captures the
-compiled effect and therefore needs a session reload to pick up shader edits.
+```sh
+mkdir -p /tmp/mother-frames
+UV_CACHE_DIR=/tmp/sigil-study-uv-cache \
+build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
+  src/sketch/sketches/nostromo_monitor/nostromo_monitor.py \
+  --frame /tmp/mother-frames/frame.png --frames 300 --fps 10 --at 0 \
+  --state /tmp/mother-motion-state
+ffmpeg -framerate 10 -start_number 1 -i /tmp/mother-frames/frame_%04d.png \
+  -vf 'pad=ceil(iw/2)*2:ceil(ih/2)*2' \
+  -c:v libx264 -crf 17 -pix_fmt yuv420p -movflags +faststart \
+  /tmp/mother-motion.mp4
+```
 
-**Material bindings do not pass through the filter conversion.** The
-material conversion builds a filter from the source material's current
-inputs. It is documented as a snapshot; re-description is needed to sample
-live values again. The resulting filter also rejects `bind` because it has
-no direct parameter program. The tube uses the public Skia compiler and
-runtime-program filter, sets its typed values and binds the clock there.
-That direct route was rendered with a changing beam and noise clock.
-A binding-preserving material-to-filter conversion would keep file-authored
-optical effects within the high-level vocabulary. A regression should bind
-a material uniform, convert it, advance the live value and verify the
-chosen live or snapshot contract; a separate case should assert that a
-snapshot filter reports an unsupported binding clearly.
+The pad adds one bottom row for the encoder's even-height requirement.
+The movie is made only from these native frames.
 
-**True phosphor persistence needs a temporal source.** The stock filter
-vocabulary supplies spatial bloom; its layer inputs describe the current
-rendered layer. The graphics canvas can retain manual accumulation, so an
-afterimage can be built through that immediate drawing path. A runtime-owned
-history input for a retained subtree would let the text, diagrams and
-telemetry share a real temporal decay without reimplementing their drawing.
-A regression should flash a signal, remove it, assert that the residual
-fades by scene time, and compare deterministic stepped captures. Resize and
-reload should follow an explicit history policy. This is an API desire,
-not a demonstrated rendering defect. The study currently has no simulated
-history layer.
+## Authoring findings
 
-**The basic streaming and typewriter APIs were sufficient.** The feed kit
-preserves rows by sequence, and the typewriter entrance gates shaped glyph
-coverage. Its unit timing remaps an explicit master progress; the default
-master is one, so mounting a row does not start an animation. Recording
-the arrival time in each row and binding that progress to the native clock
-allows new rows to print while surviving rows remain complete. No terminal
-engine or substring animation was needed. The manual caret is a fixed
-prompt marker; an eventual typing caret should use the existing text-unit
-attachment seam and its track schedule rather than duplicate advances.
+The material-to-filter conversion snapshots its uniforms. This study uses
+the supported direct runtime-program filter for a live beam clock.
+A binding-preserving conversion would remove that assembly step.
+
+Python supports family-based typeface lookup, but the inspected compiled
+surface does not expose a file or bytes constructor. The C++ experiment can
+adapt a native Skia typeface into Weave. A resource-hub face loader shared
+by both authoring languages would let a bundled font participate in the
+same resource and reload contract as other assets. A regression should
+load a bundled face and verify its family and glyph metrics in both hosts.
+
+The Python textFx/typewriter gap is documented in the binding parity
+chapter. Native cached glyph geometry expresses this study's entrance,
+but duplicates spacing and glyph assembly that Weave already owns. Binding
+the native entrance should preserve identical glyph selection, timing and
+layout for the same face, text and scene clock.
+
+The pen's default gradient fitting is canvas-wide. Lamp halos must name
+shape fitting explicitly. That is a documented contract, not a rendering
+bug; the first refinement corrected an authoring mistake.
 
 ## Verification
 
-Native file compilation and raster captures passed at 1.2, 3.05, 6.5 and 12
-scene seconds. The 3.05-second capture shows the initial letter of the new
-line; the 6.5-second capture shows the next line partially printed, with
-surviving rows complete. Visual inspection checked the hardware surround,
-transparent curved tube edges, typography, diagram boundaries, readout changes, independent
-signal phases and inquiry scrolling. Shader output preserves premultiplied
-source alpha so the optical pass cannot cover the unfiltered enclosure.
-The material-to-filter snapshot rejected a live uniform binding as documented;
-the direct runtime-program filter renders successfully without that warning.
-These captures do not establish GPU execution. A separate bounded file-window
-capture validates the Graphite lane on the Metal-capable host.
+The native Python host captured and visually verified the active circuit
+at 5.5 seconds, the partial inquiry at 12.7, the held inquiry at 21.5 and
+the fading circuit at 28.8. Relief, lamp halos, circuit boundaries and
+machine glyphs remain distinct. The final still evidence is
+`/private/tmp/nostromo-redo-optical-5-5.png` and
+`/private/tmp/nostromo-redo-final-inquiry-21-5.png`.
+
+The bounded native file-window run and separate own-window capture
+completed with `renderer: Graphite GPU` and no shader or runtime errors.
+The window image was visually inspected with its Graphite footer visible:
+`/private/tmp/nostromo-redo-graphite-window.png`. Its logs are
+`/private/tmp/nostromo-redo-window.log` and
+`/private/tmp/nostromo-redo-shot.log`.
+
+The complete Python composition rendered 300 native frames and encoded
+as a 30-second H.264 clip at 10 frames per second. Its 1800 × 1126 frame
+includes one padded bottom row. Partial-inquiry and tube-decay frames
+were visually inspected. The movie is
+`build/media-study-redo/nostromo-motion.mp4`, with render and encode logs
+beside it. File frames remain raster evidence; the window run supplies
+the Graphite evidence.
+
+The preserved C++ experiment passed a syntax-only check. Its live run is guarded because
+the available host binary predates changing public framework headers.
+The guard has not been bypassed, and no C++ runtime validation is claimed.

@@ -1,74 +1,70 @@
 # Voyager instruction plate
 
-A native Python study of the Golden Record's engraved cover and its symbolic
-decoding instructions. The plate has a scratched metallic surface, native
-vector grooves and stylus, a waveform, image raster, calibration circle,
-fourteen radial directions, binary line marks and hydrogen-state diagrams.
-An animated vertical scan crosses the explanatory raster.
+An engraved Golden Record cover on woven museum cloth, beside a working
+decoding folio. The source's complete vector transcription supplies the
+incisions; the native optical program turns those cuts into a reflective
+gold surface with a machined rim, anisotropic grain, abrasion and contact
+shadow. The folio reads the cover through four successive instructions.
 
-## Reference and interpretation
+## Source and interpretation
 
-The primary source is [NASA's Golden Record cover explanation](https://science.nasa.gov/mission/voyager/golden-record-cover/).
-Its [photograph and diagram](https://science.nasa.gov/wp-content/uploads/2024/03/voyager-record-diagram.jpeg)
-were inspected directly. The cover's main arrangement, stylus/groove motif,
-binary notation, calibration circle, hydrogen states and radial diagram
-inform this reconstruction. NASA specifies the 3.6-second revolution, a
-hydrogen-transition time unit of approximately 0.70 nanoseconds and an image
-format of 512 vertical lines.
+[NASA's cover explanation](https://science.nasa.gov/mission/voyager/golden-record-cover/)
+and its photograph/diagram supply the arrangement and decoding facts. The
+rotation lasts 3.6 seconds, measured in units of the hydrogen transition's
+approximately 0.70 nanoseconds. The image instructions specify 512 vertical
+lines and a calibration circle; the location diagram uses fourteen pulsars.
 
-The surrounding archival composition, type, metal shader, wear and live scan
-are original. Pulsar angles and bit strings are illustrative visual data:
-this study cannot be used to locate the Solar System. The page states that
-limitation within the diagram. It does not reproduce every engraved number.
-No reference bitmap is loaded or bundled.
+The bundled `data/cover.svg` is the public-domain vector transcription by
+Nicolás González Montofré from
+[Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Voyager_plaque.svg).
+It supplies the original-style symbols and binary marks rather than
+invented visual data. The study does not independently verify the pulsar
+measurements or claim navigational authority.
 
-## Construction
+The metal optics, archival arrangement, padded mounts, cloth, paper, native
+type and animated explanatory diagrams are authored. The printed field
+notes interpret the instructions; they are separate from the engraved
+source, and their evenly spaced pulsar spokes are explanatory geometry.
 
-- The metal shader uses fixed diagonal reflection, elongated grain, small
-  scratches and faint concentric machining marks.
-- Native Pen commands construct all engraved figures, symbols and labels.
-  Binary values use line marks, preserving the cover's visual alphabet.
-- The rim and engraving each use a retained Picture cache. The raster scan
-  is a separate live Pen leaf, so its motion does not rebuild the plate or
-  accumulate the previous scan positions.
-- The explanatory column keeps the fundamental clock, playback time, image
-  geometry and location diagram legible at different scales.
-- Menlo and Helvetica Neue are system font dependencies. Their roles are
-  technical annotations and an archival title, rather than cover facsimile.
+## Native construction
+
+- The native SVG loader rasterizes the transcription at the disc's
+  resolution. The image's luminance supplies a height field for the cuts.
+  Nearby samples produce the incision normal and small lip highlights.
+- Soft reflected light shares the incision normal with the broader gold
+  surface. Concentric machining, elongated grain and edge wear belong to
+  the same optical material.
+- Disc, contact shadow, paper and static Pen drawings are retained layers.
+  The live instruction leaf changes without rebuilding the object.
+- The twenty-four-second sequence establishes a clock, moves a stylus
+  inward, assembles a circle from 512 columns, then reads pulsar directions.
+  The active rule and marginal stage markers follow that sequence.
+- Baskerville supplies the reading leaf and native italics. Menlo and
+  Helvetica Neue supply archival identifiers.
 
 ## Capture
 
-From `apps/spell-circle-canvas`:
+The canvas is 2100 × 1460. From `apps/spell-circle-canvas`:
 
 ```sh
 UV_CACHE_DIR=/tmp/sigil-study-uv-cache \
 build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
   src/sketch/sketches/voyager_instruction_plate/voyager_instruction_plate.py \
-  --frame /tmp/voyager-instruction-plate.png --at 2.4 \
-  --state /tmp/voyager-instruction-state
+  --frame /tmp/voyager-instruction-plate.png --at 14.8 \
+  --state /tmp/voyager-state
 ```
 
-Native CPU captures at 0.5 and 2.4 seconds were visually inspected. Their
-changed pixels stay within the live raster region; the disc and engraved
-figures remain identical. An elevated capture with `--gpu` at 3.5 seconds
-initialized the Apple M1 Pro device and was visually inspected, with no
-shader error. The file-capture lane rasterizes this 2D canvas, so that run
-is a device smoke test rather than Graphite optical-effect evidence.
-The final CPU evidence is `/tmp/voyager-instruction-plate.png`, and the
-device-enabled evidence is `/tmp/voyager-instruction-gpu.png`.
-
-A separate bounded file-window run selected only this study and reported
-`renderer: Graphite GPU`. The gold program, engraved vectors and moving
-raster rendered without shader errors. To repeat that backend check:
+The exact-time still uses the raster canvas. A separate file-window capture
+reported `renderer: Graphite GPU`, rendered the cut-metal program and folio,
+and completed without shader errors:
 
 ```sh
 UV_CACHE_DIR=/tmp/sigil-study-uv-cache \
 build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
   src/sketch/sketches/voyager_instruction_plate/voyager_instruction_plate.py \
-  --window-bench 2.5 --window-size 1280x900 --gpu \
+  --shot /tmp/voyager-window.png --gpu \
   --state /tmp/voyager-window-state
 ```
 
-Use `--shot /tmp/voyager-window.png` in place of the benchmark options to
-photograph the fitted canvas through the app window. This is separate
-from the full-resolution, exact-time raster still.
+Full-resolution still and actual-window evidence are preserved separately
+under `build/media-study-redo/`.

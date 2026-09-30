@@ -1,30 +1,59 @@
-"""An original architectural atlas after Borges: rooms, books and uncertain connections.
+"""Study · Literature — a reader's view into the Library of Babel.
 
-TAGS: Studies/Cultural, Studies/Literature, Typography/Paragraphs, Drawing/Generative, Diagrams/Architecture, Runtime/Python
+TAGS: Studies/Cultural, Studies/Literature, Typography/Paragraphs, Drawing/Generative, Diagrams/Architecture, Materials/Physical, Runtime/Python
+
+Four book walls, two open sides and a central well form each hexagon.
+The perspective, joinery, connecting route and reader's ledger are authored.
 """
 
-from itertools import pairwise
-from math import cos, pi, sin
+from math import cos, exp, hypot, pi, sin
 from random import Random
 
 from sigil.compose import Cache, box, text
 from sigil.compose import pen as canvas
 from sigil.draw import CLOSE, Pen
+from sigil.material import shader
+from sigil.motion import animatable, bind
 from sigil.sketch import SketchContext, sketch
 from sigil.weave import FrameOptions, Leading, Type
 
-SIZE = (1400, 1000)
-PAPER = "#eee3c9"
-INK = "#263b42"
-PALE = "#c2c3ad"
-RED = "#a54532"
-GOLD = "#bd9860"
+SIZE = (1600, 1100)
+GROUND = "#171b19"
 TYPE = "Baskerville, Georgia, serif"
 LABEL = "Avenir Next, Helvetica Neue, sans-serif"
 MONO = "Menlo, monospace"
+CAMERA = (0.4, 4.0, -1)
+PITCH, FOCAL, HORIZON, CENTER = 0.115, 800, 381, 880
+ROOM_RADIUS, WELL_RADIUS, ROOM_STEP, LEVEL_STEP = 12, 5.25, 24.15, 5.5
+HEX = [(-12, 0), (-6, 10.3923), (6, 10.3923), (12, 0), (6, -10.3923), (-6, -10.3923)]
+WALLS = (0, 2, 3, 5)
+BACK = (23, 27, 25)
+SPINES = ("MIXA", "LVM", "QVRA", "MAV", "AXM", "VAR", "TXX")
+LEATHER = (
+    (105, 61, 42),
+    (77, 78, 50),
+    (128, 90, 49),
+    (107, 47, 33),
+    (141, 113, 72),
+    (76, 61, 52),
+    (61, 70, 65),
+)
 
 
-def polygon(p: Pen, points, fill=None, weight=0.7, edge=INK):
+def lerp(a, b, t):
+    return tuple(x + (y - x) * t for x, y in zip(a, b))
+
+
+def project(q):
+    x, y, z = (q[i] - CAMERA[i] for i in range(3))
+    depth = cos(PITCH) * z - sin(PITCH) * y
+    vertical = cos(PITCH) * y + sin(PITCH) * z
+    if depth < 0.8:
+        return None
+    return (CENTER + FOCAL * x / depth, HORIZON - FOCAL * vertical / depth, depth)
+
+
+def polygon(p, points, fill, edge=None, weight=0.8):
     if fill is None:
         p.noFill()
     else:
@@ -40,275 +69,701 @@ def polygon(p: Pen, points, fill=None, weight=0.7, edge=INK):
     p.endShape(CLOSE)
 
 
-def hexagon(cx, cy, radius, squash=1):
-    return [
-        (
-            cx + radius * cos(pi / 6 + k * pi / 3),
-            cy + radius * squash * sin(pi / 6 + k * pi / 3),
+def rgba(rgb, alpha=255):
+    return tuple(max(0, min(255, v)) / 255 for v in rgb) + (alpha / 255,)
+
+
+class Interior:
+    """A painter's projection of bounded native polygons, not a bitmap scene."""
+
+    def __init__(self):
+        self.faces = []
+        self.lamps = []
+        self.build()
+
+    def light(self, q, rgb, normal=1.0):
+        x, y, z = q
+        level = round(y / LEVEL_STEP)
+        center = 18 + ROOM_STEP * round((z - 18) / ROOM_STEP)
+        strength = 0.22
+        for lx, lz in ((-3.8, center - 2.8), (3.8, center + 2.8)):
+            d2 = (x - lx) ** 2 + (y - level * LEVEL_STEP - 3.6) ** 2 + (z - lz) ** 2
+            strength += 18.0 / (7 + d2)
+        strength = min(1.52, strength) * normal
+        fog = 1 - exp(-max(0, z - 24) / 135)
+        return rgba(
+            tuple((c * strength) * (1 - fog) + BACK[i] * fog for i, c in enumerate(rgb))
         )
-        for k in range(6)
-    ]
 
+    def face(self, points, rgb, normal=1.0, bias=0):
+        vertices = [project(q) for q in points]
+        if any(q is None for q in vertices):
+            return
+        xy = [(q[0], q[1]) for q in vertices]
+        if (
+            max(q[0] for q in xy) < -20
+            or min(q[0] for q in xy) > 1620
+            or max(q[1] for q in xy) < -20
+            or min(q[1] for q in xy) > 1010
+        ):
+            return
+        center = tuple(sum(q[k] for q in points) / len(points) for k in range(3))
+        depth = sum(q[2] for q in vertices) / len(vertices) + bias
+        self.faces.append((depth, 0, xy, self.light(center, rgb, normal), 0))
 
-def along(a, b, t, dy=0):
-    return (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t + dy)
-
-
-def line(p, a, b, color=INK, weight=0.65):
-    p.stroke(color)
-    p.strokeWeight(weight)
-    p.line(*a, *b)
-
-
-def paper(p: Pen):
-    p.noStroke()
-    p.fill(PAPER)
-    p.rect(0, 0, *SIZE)
-    rng = Random(711)
-    # The uniform grain material has no directional fibre construction;
-    # sparse native lines give the stock a physical direction at this scale.
-    for _ in range(5200):
-        x, y = rng.uniform(0, SIZE[0]), rng.uniform(0, SIZE[1])
-        p.stroke(96, 75, 42, rng.randrange(3, 15))
-        p.strokeWeight(rng.uniform(0.18, 0.5))
-        p.line(x, y, x + rng.uniform(0.4, 3.8), y + rng.uniform(-0.4, 0.4))
-    for inset in range(0, 16, 2):
-        p.noFill()
-        p.stroke(110, 78, 29, 4)
-        p.strokeWeight(2)
-        p.rect(inset, inset, SIZE[0] - inset * 2, SIZE[1] - inset * 2)
-
-
-def shelf_wall(p, a, b, height, seed):
-    rng = Random(seed)
-    polygon(
-        p, [a, b, (b[0], b[1] - height), (a[0], a[1] - height)], "#d2c5a7", weight=1.0
-    )
-    shades = ("#243940", "#596264", "#765541", "#a24431", "#a88955", "#c7b693")
-    for row in range(5):
-        lo = -height + 4 + row * (height - 5) / 5
-        hi = lo + (height - 5) / 5 - 2
-        for book in range(32):
-            t0, t1 = (book + 0.09) / 32, (book + 0.9) / 32
-            drop = rng.uniform(0, 1.5)
-            polygon(
-                p,
-                [
-                    along(a, b, t0, lo + drop),
-                    along(a, b, t1, lo + drop),
-                    along(a, b, t1, hi),
-                    along(a, b, t0, hi),
-                ],
-                shades[rng.randrange(len(shades))],
-                edge=None,
+    def line(self, a, b, rgb, width=1.0, normal=1.0, bias=-0.04):
+        aa, bb = project(a), project(b)
+        if aa is None or bb is None:
+            return
+        if (
+            max(aa[0], bb[0]) < -20
+            or min(aa[0], bb[0]) > 1620
+            or max(aa[1], bb[1]) < -20
+            or min(aa[1], bb[1]) > 1010
+        ):
+            return
+        depth = (aa[2] + bb[2]) * 0.5 + bias
+        weight = max(0.28, min(3.8, FOCAL / depth * width))
+        self.faces.append(
+            (
+                depth,
+                1,
+                [(aa[0], aa[1]), (bb[0], bb[1])],
+                self.light(lerp(a, b, 0.5), rgb, normal),
+                weight,
             )
-            if book % 4 == 0:
-                line(
-                    p,
-                    along(a, b, t0, lo + 3.2),
-                    along(a, b, t1, lo + 3.2),
-                    "#dacdad",
-                    0.3,
-                )
-        line(p, along(a, b, 0, hi + 1.2), along(a, b, 1, hi + 1.2), INK, 0.7)
-    for t in (0, 1 / 3, 2 / 3, 1):
-        line(p, along(a, b, t), along(a, b, t, -height), INK, 1.2)
-
-
-def room(p, cx, cy, radius, index):
-    outside = hexagon(cx, cy, radius, 0.25)
-    inside = hexagon(cx, cy, radius * 0.46, 0.25)
-    polygon(p, outside, "#d9ceb1", 1.05)
-    polygon(p, inside, "#293f46", 0.85)
-    # Each annular floor is six quads. The central opening stays empty
-    # without relying on a contour winding convention in the Python seam.
-    for k in range(6):
-        polygon(
-            p,
-            [outside[k], outside[(k + 1) % 6], inside[(k + 1) % 6], inside[k]],
-            "#e8ddc2",
-            edge=None,
         )
-        for t in (0.25, 0.5, 0.75):
-            line(
-                p,
-                along(inside[k], outside[k], t),
-                along(inside[(k + 1) % 6], outside[(k + 1) % 6], t),
-                "#c8bea5",
-                0.35,
+
+    def cuboid(self, low, high, rgb):
+        x, y, z = low
+        xx, yy, zz = high
+        self.face([(x, y, z), (xx, y, z), (xx, yy, z), (x, yy, z)], rgb, 0.79)
+        self.face([(x, yy, z), (xx, yy, z), (xx, yy, zz), (x, yy, zz)], rgb, 1.12)
+        self.face([(x, y, z), (x, yy, z), (x, yy, zz), (x, y, zz)], rgb, 0.90)
+        self.face([(xx, y, z), (xx, yy, z), (xx, yy, zz), (xx, y, zz)], rgb, 0.95)
+        # Long lintels expose a timber face: its grain is longitudinal,
+        # with a bevel highlight and a shaded lower molding edge.
+        if xx - x > 4 and z < 42:
+            self.line(
+                (x, y + 0.025, z - 0.013),
+                (xx, y + 0.025, z - 0.013),
+                (48, 36, 24),
+                0.025,
             )
-    # The two foreground sides are removed for the section. Four intact
-    # walls retain five shelves and thirty-two spines on every shelf.
-    for k in (2, 3, 4, 5):
-        shelf_wall(p, outside[k], outside[(k + 1) % 6], 44, 110 + index * 31 + k)
-    for k in range(6):
-        a, b = inside[k], inside[(k + 1) % 6]
-        line(p, a, b, INK, 1.4)
-        line(p, (a[0], a[1] - 11), (b[0], b[1] - 11), INK, 0.85)
-        for t in (0, 0.25, 0.5, 0.75):
-            q = along(a, b, t)
-            line(p, q, (q[0], q[1] - 11), INK, 0.65)
-    for k in (0, 1, 2):
-        a, b = outside[k], outside[(k + 1) % 6]
-        polygon(p, [a, b, (b[0], b[1] + 6), (a[0], a[1] + 6)], "#bcae8d", 0.5)
-        for t in range(13):
-            q = along(a, b, t / 12)
-            line(p, q, (q[0] + 4, q[1] + 5), "#887c64", 0.45)
-    for x in (cx - radius * 0.48, cx + radius * 0.48):
-        p.noStroke()
-        p.fill(GOLD)
-        p.circle(x, cy - 27, 7)
-        p.noFill()
-        p.stroke("#bea66d")
-        p.strokeWeight(0.35)
-        p.circle(x, cy - 27, 14)
-    if index % 2 == 0:
-        x, y = cx - 119, cy + 5
-        p.noStroke()
-        p.fill(INK)
-        p.circle(x, y - 15, 4)
-        line(p, (x, y - 12), (x + 1, y - 5), INK, 2.0)
-        line(p, (x, y - 10), (x + 7, y - 8), INK, 1.0)
-        line(p, (x + 1, y - 5), (x - 3, y), INK, 1.0)
-        line(p, (x + 1, y - 5), (x + 4, y), INK, 1.0)
-        polygon(
-            p,
-            [(x + 7, y - 12), (x + 11, y - 11), (x + 10, y - 7), (x + 6, y - 8)],
-            RED,
-            edge=None,
-        )
-
-
-def tower(p: Pen):
-    # Axonometric coordinates expose the shaft and repeated rooms. This
-    # is an original explanatory projection rather than a spatial model.
-    for cx, cy, radius in ((485, 287, 75), (917, 283, 74), (735, 260, 73)):
-        for offset in (0, 26, 52):
-            polygon(p, hexagon(cx, cy + offset, radius, 0.47), None, 0.45, "#a9ad9b")
-            polygon(
-                p, hexagon(cx, cy + offset, radius * 0.43, 0.47), None, 0.45, "#a9ad9b"
+            self.line(
+                (x, yy - 0.016, z - 0.018),
+                (xx, yy - 0.016, z - 0.018),
+                (189, 136, 72),
+                0.017,
             )
-        line(p, (cx, cy - 33), (cx, cy + 85), "#a9ad9b", 0.4)
-    for x in (529, 851):
-        line(p, (x, 270), (x, 772), "#abb1a4", 0.5)
-    for y in (744, 604, 464, 324):
-        room(p, 690, y, 188, y // 108)
-    # A narrow vestibule continues right. The spiral is displaced beside
-    # the room shaft so its circulation can be read in the section.
-    for y in (744, 604, 464, 324):
-        polygon(
-            p,
-            [(851, y - 23), (943, y - 49), (967, y - 36), (875, y - 9)],
-            "#d9cdb0",
-            0.9,
-        )
-        line(p, (851, y - 29), (943, y - 55), INK, 0.75)
-        for step in range(6):
-            q = along((851, y - 23), (943, y - 49), step / 5)
-            line(p, q, (q[0], q[1] - 6), INK, 0.65)
-    line(p, (960, 299), (960, 755), INK, 1.3)
-    for i in range(74):
-        theta = i * 0.43
-        y = 744 - i * 5.7
-        a = (960 + 6 * cos(theta), y + 3 * sin(theta))
-        b = (960 + 33 * cos(theta), y + 14 * sin(theta))
-        polygon(
-            p,
-            [a, b, (b[0], b[1] - 3), (a[0], a[1] - 3)],
-            "#9d927a" if sin(theta) > 0 else "#d7cbb0",
-            0.5,
-        )
-        line(p, b, (b[0], b[1] - 8), INK, 0.4)
+            for strand in range(9):
+                h = y + (yy - y) * (strand + 1) / 11
+                for segment in range(20):
+                    a = x + (xx - x) * segment / 20
+                    b = x + (xx - x) * (segment + 1) / 20
+                    ya = h + sin(a * 1.1 + strand * 0.47) * 0.006
+                    yb = h + sin(b * 1.1 + strand * 0.47) * 0.006
+                    self.line(
+                        (a, ya, z - 0.02),
+                        (b, yb, z - 0.02),
+                        (95 + strand * 3, 65 + strand * 2, 37),
+                        0.006,
+                    )
 
+    def wall(self, a, b, y, seed, far):
+        rng = Random(seed)
+        nx, nz = -(a[0] + b[0]), -(a[2] + b[2] - 2 * (18 + ROOM_STEP * far))
+        nn = hypot(nx, nz)
+        nx, nz = nx / nn, nz / nn
 
-def diagrams(p: Pen):
-    # A network sketch shows one selected route through many possible
-    # neighbour relations; it does not claim a unique map of the story.
-    for row in range(4):
-        for col in range(3):
-            x = 1134 + col * 68 + (row % 2) * 34
-            y = 280 + row * 58
-            polygon(p, hexagon(x, y, 38), None, 0.75, "#7b8c88")
-            polygon(p, hexagon(x, y, 18), None, 0.4, "#9da18d")
-            p.noStroke()
-            p.fill("#b7b89e")
-            p.circle(x, y, 3)
-    route = [(1134, 280), (1168, 338), (1236, 338), (1270, 396), (1236, 454)]
-    for a, b in pairwise(route):
-        line(p, a, b, RED, 2.2)
-    for q in route:
-        p.noStroke()
-        p.fill(RED)
-        p.circle(*q, 6)
+        def q(t, h, inward=0):
+            return (
+                a[0] + (b[0] - a[0]) * t + nx * inward,
+                y + h,
+                a[2] + (b[2] - a[2]) * t + nz * inward,
+            )
 
-    points = hexagon(1214, 630, 83)
-    polygon(p, points, None, 1.1)
-    polygon(p, hexagon(1214, 630, 38), "#d0c7ab", 0.8)
-    for k in (0, 2, 3, 5):
-        a, b = points[k], points[(k + 1) % 6]
-        for offset in range(5):
-            inset_a = along(a, (1214, 630), 0.045 * (offset + 1))
-            inset_b = along(b, (1214, 630), 0.045 * (offset + 1))
-            line(p, inset_a, inset_b, INK, 0.8)
-    for k in (1, 4):
-        mid = along(points[k], points[(k + 1) % 6], 0.5)
-        line(p, mid, (mid[0], mid[1] + (26 if k == 1 else -26)), RED, 1.8)
-    p.noStroke()
-    p.fill(RED)
-    p.circle(1175, 630, 5)
-    p.circle(1253, 630, 5)
-
-
-def page(p: Pen):
-    p.stroke(INK)
-    p.strokeWeight(0.85)
-    p.line(44, 172, 1356, 172)
-    p.line(44, 819, 1356, 819)
-    p.line(44, 940, 1356, 940)
-    p.stroke("#bcb9a2")
-    p.strokeWeight(0.7)
-    p.line(341, 204, 341, 786)
-    p.line(1046, 204, 1046, 786)
-    for x in range(44, 1357, 8):
-        p.line(x, 177, x, 181 if (x - 44) % 40 else 187)
-    # Four-wall folio count as a real grid: twenty shelves, 640 volumes.
-    for wall in range(4):
-        start = 439 + wall * 231
+        for panel in range(64):
+            t0, t1 = panel / 64, (panel + 1) / 64
+            self.face([q(t0, 0), q(t1, 0), q(t1, 4.84), q(t0, 4.84)], (58, 44, 31), 0.8)
+        # Width diversity shares one shelf extent and preserves 32 books.
         for row in range(5):
-            for book in range(32):
+            lo = 0.35 + row * 0.83
+            for segment in range(64):
+                t0, t1 = segment / 64, (segment + 1) / 64
+                self.face(
+                    [
+                        q(t0, lo - 0.13, 0.25),
+                        q(t1, lo - 0.13, 0.25),
+                        q(t1, lo + 0.005, 0.25),
+                        q(t0, lo + 0.005, 0.25),
+                    ],
+                    (97, 67, 39),
+                )
+            self.line(
+                q(0, lo + 0.025, 0.30),
+                q(1, lo + 0.025, 0.30),
+                (183, 133, 71),
+                0.019,
+                1.15,
+            )
+            widths = [rng.uniform(0.64, 1.5) for _ in range(32)]
+            total, acc = sum(widths), 0
+            for book, width in enumerate(widths):
+                t0, t1 = (
+                    0.028 + 0.944 * acc / total,
+                    0.028 + 0.944 * (acc + width * 0.94) / total,
+                )
+                acc += width
+                hi, inward = lo + rng.uniform(0.59, 0.76), rng.uniform(0.12, 0.24)
+                color = LEATHER[rng.randrange(len(LEATHER))]
+                self.face(
+                    [
+                        q(t0, lo, inward),
+                        q(t1, lo, inward),
+                        q(t1, hi - 0.025, inward),
+                        q(t1 - 0.0015, hi, inward),
+                        q(t0 + 0.0015, hi, inward),
+                        q(t0, hi - 0.025, inward),
+                    ],
+                    color,
+                    1.0,
+                    -0.015,
+                )
+                self.line(
+                    q(t0 + 0.001, lo + 0.03, inward + 0.008),
+                    q(t0 + 0.001, hi - 0.025, inward + 0.008),
+                    tuple(c * 1.42 for c in color),
+                    0.010,
+                )
+                self.line(
+                    q(t1, lo, inward + 0.008),
+                    q(t1, hi - 0.02, inward + 0.008),
+                    (37, 28, 23),
+                    0.014,
+                )
+                if far == 0 and row in (1, 3) and book % 7 == 0:
+                    origin = project(
+                        q(t0 + (t1 - t0) * 0.32, hi - 0.12, inward + 0.025)
+                    )
+                    down = project(q(t0 + (t1 - t0) * 0.32, lo + 0.20, inward + 0.025))
+                    across = project(
+                        q(t1 - (t1 - t0) * 0.20, hi - 0.12, inward + 0.025)
+                    )
+                    if origin and down and across:
+                        self.faces.append(
+                            (
+                                origin[2] - 0.035,
+                                3,
+                                [origin[:2], down[:2], across[:2]],
+                                self.light(q(t0, hi), (201, 166, 92), 1.18),
+                                SPINES[(book + row) % len(SPINES)],
+                            )
+                        )
+                if far < 3:
+                    for band in (0.10, 0.18, 0.47, 0.55):
+                        if band < hi - lo:
+                            self.line(
+                                q(t0, lo + band, inward + 0.013),
+                                q(t1, lo + band, inward + 0.013),
+                                (156, 120, 64),
+                                0.012,
+                            )
+                    if book % 3 == 0:
+                        for mark in range(rng.randrange(2, 5)):
+                            h = lo + 0.27 + mark * 0.039
+                            self.line(
+                                q(t0 + (t1 - t0) * 0.25, h, inward + 0.02),
+                                q(t1 - (t1 - t0) * 0.21, h, inward + 0.02),
+                                (179, 145, 85),
+                                0.010,
+                            )
+        for t in (0, 0.5, 1):
+            self.face(
+                [
+                    q(t - 0.017, 0, 0.38),
+                    q(t + 0.017, 0, 0.38),
+                    q(t + 0.017, 4.87, 0.38),
+                    q(t - 0.017, 4.87, 0.38),
+                ],
+                (108, 69, 37),
+                0.94,
+                -0.08,
+            )
+            self.line(
+                q(t - 0.010, 0.1, 0.401),
+                q(t - 0.010, 4.75, 0.401),
+                (179, 129, 71),
+                0.021,
+            )
+            self.line(
+                q(t + 0.014, 0.1, 0.411), q(t + 0.014, 4.75, 0.411), (56, 39, 25), 0.027
+            )
+            if far == 0:
+                for grain in range(7):
+                    tbase = t - 0.011 + grain * 0.0031
+                    for segment in range(16):
+                        h0, h1 = 0.12 + segment * 0.282, 0.12 + (segment + 1) * 0.282
+                        tt0 = tbase + sin(h0 * 3 + grain) * 0.00065
+                        tt1 = tbase + sin(h1 * 3 + grain) * 0.00065
+                        self.line(
+                            q(tt0, h0, 0.417),
+                            q(tt1, h1, 0.417),
+                            (132 + grain * 4, 92 + grain * 2, 49),
+                            0.005,
+                        )
+            for h in (0.1, 4.58, 4.75):
+                self.line(
+                    q(t - 0.02, h, 0.42), q(t + 0.02, h, 0.42), (202, 151, 81), 0.035
+                )
+        for h in (0.12, 4.80, 4.91):
+            for segment in range(48):
+                t0, t1 = segment / 48, (segment + 1) / 48
+                self.face(
+                    [
+                        q(t0, h, 0.40),
+                        q(t1, h, 0.40),
+                        q(t1, h + 0.075, 0.40),
+                        q(t0, h + 0.075, 0.40),
+                    ],
+                    (146, 101, 51),
+                    1.03,
+                    -0.09,
+                )
+
+    def floor(self, outer, inner, y, seed, far):
+        rng = Random(seed)
+        for k in range(6):
+            a, b, ia, ib = outer[k], outer[(k + 1) % 6], inner[k], inner[(k + 1) % 6]
+            for strip in range(8):
+                r0, r1 = strip / 8, (strip + 1) / 8
+                for board in range(12):
+                    t0, t1 = board / 12, (board + 1) / 12
+                    q00 = lerp(lerp(ia, a, r0), lerp(ib, b, r0), t0)
+                    q01 = lerp(lerp(ia, a, r0), lerp(ib, b, r0), t1)
+                    q10 = lerp(lerp(ia, a, r1), lerp(ib, b, r1), t0)
+                    q11 = lerp(lerp(ia, a, r1), lerp(ib, b, r1), t1)
+                    tone = 0.94 + (board % 4) * 0.025
+                    self.face(
+                        [q00, q01, q11, q10],
+                        tuple(c * tone for c in (130, 102, 65)),
+                        1.18,
+                    )
+            self.face(
+                [ia, ib, (ib[0], y - 0.28, ib[2]), (ia[0], y - 0.28, ia[2])],
+                (93, 59, 33),
+                0.8,
+                -0.08,
+            )
+            for fraction in (0.22, 0.47, 0.72, 0.95):
+                aa, bb = lerp(ia, a, fraction), lerp(ib, b, fraction)
+                self.line(aa, bb, (67, 49, 31), 0.024)
+                self.line(
+                    (aa[0], aa[1] + 0.003, aa[2] + 0.018),
+                    (bb[0], bb[1] + 0.003, bb[2] + 0.018),
+                    (176, 131, 75),
+                    0.009,
+                )
+            for t in range(1, 9):
+                aa, bb = lerp(ia, ib, t / 9), lerp(a, b, t / 9)
+                self.line(aa, bb, (84, 63, 40), 0.012)
+                if far < 2:
+                    for g in range(3):
+                        start, stop = (
+                            lerp(aa, bb, rng.uniform(0.09, 0.58)),
+                            lerp(aa, bb, rng.uniform(0.61, 0.96)),
+                        )
+                        self.line(
+                            (start[0] + g * 0.04, y + 0.004, start[2]),
+                            (stop[0] + g * 0.04, y + 0.004, stop[2]),
+                            (114, 87, 50),
+                            0.006,
+                        )
+            # Grain follows each projected timber plane and bends around
+            # a knot. Its direction is inherited from the plank joints.
+            if far == 0:
+                for grain in range(31):
+                    tbase = (grain + 0.6) / 32
+                    for segment in range(15):
+                        u0, u1 = segment / 15, (segment + 1) / 15
+                        t0 = (
+                            tbase
+                            + sin(u0 * 15 + grain * 0.67) * 0.0018
+                            + sin(u0 * 42 + grain) * 0.0005
+                        )
+                        t1 = (
+                            tbase
+                            + sin(u1 * 15 + grain * 0.67) * 0.0018
+                            + sin(u1 * 42 + grain) * 0.0005
+                        )
+                        q0 = lerp(lerp(ia, a, u0), lerp(ib, b, u0), t0)
+                        q1 = lerp(lerp(ia, a, u1), lerp(ib, b, u1), t1)
+                        self.line(
+                            (q0[0], y + 0.009, q0[2]),
+                            (q1[0], y + 0.009, q1[2]),
+                            (95 + (grain % 5) * 4, 70 + (grain % 5) * 3, 40),
+                            0.008,
+                        )
+                if k in (3, 4):
+                    for ring in range(6):
+                        for sample in range(24):
+                            a0, a1 = sample * pi / 12, (sample + 1) * pi / 12
+
+                            def knot(angle, ring=ring, ia=ia, a=a, ib=ib, b=b, y=y):
+                                u = 0.54 + (0.026 + ring * 0.011) * cos(angle)
+                                t = 0.41 + (0.008 + ring * 0.003) * sin(angle)
+                                q = lerp(lerp(ia, a, u), lerp(ib, b, u), t)
+                                return (q[0], y + 0.011, q[2])
+
+                            self.line(knot(a0), knot(a1), (82, 57, 32), 0.009)
+            # A narrow contact shadow stays on the floor beside the rail.
+            shadow_a, shadow_b = lerp(ia, a, 0.023), lerp(ib, b, 0.023)
+            self.face([ia, ib, shadow_b, shadow_a], (39, 34, 25), 0.82, -0.08)
+            for t in range(11):
+                q = lerp(ia, ib, t / 10)
+                self.line(q, (q[0], y + 0.64, q[2]), (139, 104, 61), 0.035, 0.85, -0.15)
+                self.cuboid(
+                    (q[0] - 0.035, y, q[2] - 0.035),
+                    (q[0] + 0.035, y + 0.07, q[2] + 0.035),
+                    (94, 71, 43),
+                )
+                if t % 2 == 0:
+                    self.line(
+                        (q[0], y + 0.15, q[2]),
+                        (q[0], y + 0.47, q[2]),
+                        (190, 149, 81),
+                        0.014,
+                        1.1,
+                        -0.18,
+                    )
+            for h in (0.14, 0.64, 0.70):
+                self.line(
+                    (ia[0], y + h, ia[2]),
+                    (ib[0], y + h, ib[2]),
+                    (161, 117, 62),
+                    0.043 if h > 0.5 else 0.020,
+                    1.12,
+                    -0.2,
+                )
+
+    def reader(self, x, y, z, facing=1):
+        self.face(
+            [
+                (x - 0.19, y + 0.013, z - 0.10),
+                (x + 0.24, y + 0.013, z - 0.10),
+                (x + 0.79, y + 0.013, z + 0.46),
+                (x + 0.28, y + 0.013, z + 0.55),
+            ],
+            (35, 32, 24),
+            0.7,
+            -0.07,
+        )
+        self.cuboid(
+            (x - 0.13, y + 0.45, z), (x + 0.13, y + 1.29, z + 0.18), (44, 47, 42)
+        )
+        self.cuboid(
+            (x - 0.105, y + 1.36, z + 0.03),
+            (x + 0.105, y + 1.63, z + 0.17),
+            (132, 107, 74),
+        )
+        for dx in (-0.09, 0.09):
+            self.line(
+                (x + dx, y, z + 0.08), (x + dx, y + 0.59, z + 0.08), (39, 38, 31), 0.085
+            )
+        self.line(
+            (x, y + 1.18, z),
+            (x + facing * 0.34, y + 0.94, z - 0.08),
+            (59, 61, 52),
+            0.070,
+        )
+        self.face(
+            [
+                (x + facing * 0.24, y + 0.92, z - 0.14),
+                (x + facing * 0.49, y + 0.96, z - 0.14),
+                (x + facing * 0.49, y + 1.15, z - 0.14),
+                (x + facing * 0.24, y + 1.11, z - 0.14),
+            ],
+            (171, 137, 83),
+            1.3,
+            -0.1,
+        )
+
+    def stair(self):
+        cx, cz = -5.15, 6.65
+        for i in range(179):
+            angle, y = i * 0.19, -19.0 + i * 0.154
+            a0, a1 = angle, angle + 0.165
+
+            def q(r, a, h=y):
+                return (cx + r * cos(a), h, cz + r * sin(a))
+
+            self.face(
+                [q(0.16, a0), q(1.34, a0), q(1.34, a1), q(0.16, a1)],
+                (142, 106, 58),
+                0.99,
+                -0.025,
+            )
+            self.line(q(0.18, a0), q(1.34, a0), (199, 149, 73), 0.019)
+            self.line(q(1.30, a0), q(1.30, a0, y + 0.82), (104, 97, 68), 0.023)
+            self.line(
+                q(1.30, a0, y + 0.82), q(1.30, a1, y + 0.974), (185, 151, 88), 0.030
+            )
+        self.line((cx, -20, cz), (cx, 12.4, cz), (74, 67, 46), 0.11)
+
+    def build(self):
+        for far in range(6):
+            cz = 18 + far * ROOM_STEP
+            for level in range(-5, 5):
+                y = level * LEVEL_STEP
+                outer = [(x, y, z + cz) for x, z in HEX]
+                inner = [
+                    (
+                        x * WELL_RADIUS / ROOM_RADIUS,
+                        y,
+                        z * WELL_RADIUS / ROOM_RADIUS + cz,
+                    )
+                    for x, z in HEX
+                ]
+                self.floor(outer, inner, y, far * 59 + level, far)
+                for k in WALLS:
+                    self.wall(
+                        outer[k],
+                        outer[(k + 1) % 6],
+                        y,
+                        501 + far * 719 + level * 41 + k,
+                        far,
+                    )
+                for z in (cz - 10.4, cz + 10.4):
+                    for x in (-5.65, 5.30):
+                        self.cuboid(
+                            (x, y, z - 0.15),
+                            (x + 0.35, y + 5.15, z + 0.25),
+                            (107, 75, 44),
+                        )
+                    self.cuboid(
+                        (-5.7, y + 4.88, z - 0.15),
+                        (5.65, y + 5.18, z + 0.25),
+                        (128, 87, 45),
+                    )
+                if far < 5:
+                    start, stop = cz + 10.39, cz + ROOM_STEP - 10.39
+                    self.face(
+                        [
+                            (-2.15, y, start),
+                            (2.15, y, start),
+                            (2.15, y, stop),
+                            (-2.15, y, stop),
+                        ],
+                        (134, 105, 67),
+                        1.12,
+                    )
+                    for x in (-2.2, 2.2):
+                        self.line(
+                            (x, y + 0.62, start),
+                            (x, y + 0.62, stop),
+                            (165, 122, 67),
+                            0.052,
+                        )
+                        for t in range(6):
+                            z = start + (stop - start) * t / 5
+                            self.line((x, y, z), (x, y + 0.62, z), (122, 96, 60), 0.038)
+                    if level == 0:
+                        self.line(
+                            (0.55, y + 0.012, start),
+                            (0.55, y + 0.012, stop),
+                            (191, 113, 65),
+                            0.042,
+                        )
+                for x, z in ((-3.8, cz - 2.8), (3.8, cz + 2.8)):
+                    q = project((x, y + 3.6, z))
+                    if q is not None and -20 < q[1] < 1000:
+                        self.lamps.append(
+                            (q[0], q[1], FOCAL / q[2] * 0.19, q[2], level)
+                        )
+                        self.faces.append(
+                            (
+                                q[2] - 0.12,
+                                2,
+                                [(q[0], q[1])],
+                                (1, 1, 1, 1),
+                                FOCAL / q[2] * 0.19,
+                            )
+                        )
+                    self.line((x, y + 3.85, z), (x, y + 5.10, z), (102, 105, 72), 0.020)
+                    self.cuboid(
+                        (x - 0.05, y + 3.72, z - 0.06),
+                        (x + 0.05, y + 3.86, z + 0.06),
+                        (169, 134, 65),
+                    )
+        self.stair()
+        self.reader(6.3, 0, 11.8)
+        self.reader(-6.8, 5.5, 20.8, -1)
+        self.reader(2.9, 0, 50.1)
+        self.reader(-3.2, -5.5, 37.1)
+        self.faces.sort(key=lambda q: q[0], reverse=True)
+
+    def draw(self, p: Pen):
+        p.push()
+        p.clip(lambda: p.rect(0, 0, 1600, 996))
+        for _, kind, points, color, weight in self.faces:
+            if kind == 0:
+                polygon(p, points, color)
+            elif kind == 1:
+                p.stroke(color)
+                p.strokeWeight(weight)
+                p.line(*points[0], *points[1])
+            elif kind == 3:
+                origin, down, across = points
+                p.push()
+                p.applyMatrix(
+                    (down[0] - origin[0]) / 20,
+                    (down[1] - origin[1]) / 20,
+                    (across[0] - origin[0]) / 5,
+                    (across[1] - origin[1]) / 5,
+                    *origin,
+                )
                 p.noStroke()
-                p.fill(INK if (book + row + wall) % 7 else RED)
-                p.rect(start + book * 6.4, 863 + row * 9.6, 4.5, 7.5)
-    for a, b, c in (
-        ((389, 408), (464, 408), (535, 421)),
-        ((884, 246), (813, 246), (746, 324)),
-        ((911, 577), (996, 552), (1019, 552)),
-        ((970, 780), (856, 780), (780, 717)),
-    ):
-        line(p, a, b, RED, 0.65)
-        line(p, b, c, RED, 0.65)
+                p.fill(color)
+                p.textFont("Baskerville", 4.2)
+                p.text(weight, 0, 0)
+                p.pop()
+            else:
+                x, y = points[0]
+                radius = weight
+                p.noStroke()
+                for ring in range(9, 0, -1):
+                    p.fill(216, 162, 76, max(1, 11 - ring))
+                    p.circle(x, y, radius * (1.1 + ring * 0.92) * 2)
+                p.fill("#D5B77A")
+                p.circle(x, y, radius * 2)
+                p.fill("#EEDAAF")
+                p.circle(x - radius * 0.19, y - radius * 0.23, radius * 1.4)
+                p.fill("#FFF1C8")
+                p.circle(x - radius * 0.3, y - radius * 0.35, radius * 0.61)
+        p.pop()
+
+
+ATMOSPHERE = """
+half4 main(float2 p) {
+    float2 uv = p / float2(1600,1100);
+    float shade = 0.015 + 0.45*pow(abs(uv.x-0.55)*1.5,2.0) + 0.13*pow(abs(uv.y-0.42),2.0);
+    float aperture = smoothstep(0.10,0.67,length((p-float2(839,370))/float2(720,590)));
+    float pulse = 0.012*sin(seconds*1.1) + 0.006*sin(seconds*2.67);
+    float a=clamp(shade + aperture*0.10 + pulse,0.0,0.53);
+    return half4(half3(0.025,0.033,0.026)*half(a),half(a));
+}
+"""
+BACKGROUND = """
+half4 main(float2 p) {
+    float focus = exp(-length((p-float2(845,390))/float2(620,520)));
+    float tone = 0.035 + 0.16*focus;
+    return half4(tone*1.04,tone*1.01,tone*0.86,1);
+}
+"""
+
+
+def desk(p):
+    polygon(p, [(0, 976), (1600, 956), (1600, 1100), (0, 1100)], "#30261B")
+    rng = Random(749)
+    for row in range(68):
+        y = 980 + row * 2.0
+        p.stroke(93 + row % 8, 62, 36, 65)
+        p.strokeWeight(0.45)
+        p.bezier(0, y, 540, y - 12 + sin(row * 0.3) * 5, 1080, y + 7, 1600, y - 20)
+    polygon(p, [(60, 917), (745, 914), (813, 933), (829, 1100), (22, 1100)], "#131510")
+    polygon(
+        p, [(819, 933), (884, 914), (1528, 910), (1585, 1100), (828, 1100)], "#16150E"
+    )
+    for i in range(7):
+        color = rgba((179 + i * 6, 165 + i * 5, 128 + i * 4))
+        polygon(
+            p,
+            [
+                (67 - i, 912 - i * 2),
+                (752, 914 - i * 2),
+                (814, 933 - i),
+                (822, 1100),
+                (39 - i * 2, 1100),
+            ],
+            color,
+        )
+        polygon(
+            p,
+            [
+                (827, 934 - i),
+                (878, 914 - i * 2),
+                (1527 + i, 908 - i * 2),
+                (1570 + i * 2, 1100),
+                (829, 1100),
+            ],
+            color,
+        )
+    for i in range(22):
+        p.stroke(73, 51, 28, max(1, 26 - i))
+        p.strokeWeight(1.5)
+        p.bezier(
+            811 - i * 1.6,
+            924,
+            824 - i * 0.85,
+            952,
+            819 - i * 0.40,
+            1010,
+            823 - i * 0.3,
+            1100,
+        )
+        p.bezier(
+            833 + i * 1.6,
+            924,
+            821 + i * 0.85,
+            952,
+            829 + i * 0.40,
+            1010,
+            829 + i * 0.3,
+            1100,
+        )
+    for _ in range(950):
+        x, y = rng.uniform(74, 1540), rng.uniform(941, 1100)
+        if 797 < x < 850:
+            continue
+        p.stroke(125, 98, 54, rng.randrange(5, 13))
+        p.strokeWeight(0.3)
+        p.line(x, y, x + rng.uniform(0.8, 4.0), y - rng.uniform(0, 0.5))
+    p.stroke("#6C5A3C")
+    p.strokeWeight(0.6)
+    p.line(109, 981, 764, 979)
+    p.line(891, 979, 1497, 974)
+    for i in range(9):
+        x, y = 1057 + i * 46, 1042
+        points = [
+            (x + 24 * cos(pi / 6 + k * pi / 3), y + 24 * sin(pi / 6 + k * pi / 3))
+            for k in range(6)
+        ]
+        polygon(p, points, None, "#91754C", 0.7)
         p.noStroke()
-        p.fill(RED)
-        p.circle(*c, 4)
+        p.fill("#9D4D2D")
+        p.circle(x, y, 3)
+        if i < 8:
+            p.stroke("#9D4D2D")
+            p.strokeWeight(1.2)
+            p.line(x, y, x + 46, 1042)
 
 
 def label(
     value,
     x,
     y,
-    size=12,
-    width=260,
-    height=42,
+    size=14,
+    width=650,
+    height=50,
     family=LABEL,
-    color=INK,
+    color="#D8C5A0",
     tracking=0,
-    weight=400,
     leading=None,
 ):
     node = (
         text(value)
         .fontFamily(family)
-        .font(Type(size=size, weight=weight))
+        .font(Type(size=size))
         .ink(color)
         .absolute()
         .left(x)
@@ -323,139 +778,156 @@ def label(
     return node
 
 
-@sketch(size=SIZE, background=PAPER, capture_at=0)
+@sketch(size=SIZE, background=GROUND, capture_at=4.0)
 class BorgesLibrary:
-    def setup(self, ctx: SketchContext) -> None:
+    def setup(self, ctx: SketchContext):
+        self.seconds = animatable(0)
+        self.interior = Interior()
+        route_dot = (
+            box()
+            .absolute()
+            .left(1057)
+            .translateX(bind(bind(self.seconds, from_=(0, 24), wrap=1), to=(0, 368)))
+            .top(1039)
+            .width(6)
+            .height(6)
+            .fill("#9D4D2D")
+        )
+        architecture = (
+            canvas("borges.interior", self.interior.draw, Cache.Texture)
+            .absolute()
+            .inset(0)
+        )
+        foreground = canvas("borges.ledger", desk, Cache.Texture).absolute().inset(0)
         words = [
-            label("ATLAS DE ESPACIOS IMAGINADOS", 44, 34, 12, 780, tracking=2.4),
-            label("LA BIBLIOTECA", 42, 69, 75, 980, 80, TYPE, tracking=-1.3),
-            label("DE BABEL", 1023, 84, 42, 335, 66, TYPE, color=RED),
             label(
-                "J. L. BORGES / ARCHITECTURAL READING", 46, 148, 11, 890, tracking=1.7
+                "ESPACIOS IMAGINADOS   /   JORGE LUIS BORGES", 62, 48, 11, tracking=2.1
             ),
+            label("La Biblioteca", 58, 83, 55, 635, 80, TYPE, "#E5D4AC", -0.7),
+            label("de Babel", 61, 140, 42, 495, 64, TYPE, "#BE9E65"),
             label(
-                "FOLIO 06  •  SECTION / PLAN / COUNT", 1060, 149, 10, 298, tracking=0.8
-            ),
-            label("01  /  LA REGLA", 44, 215, 12, color=RED, tracking=1.5),
-            label(
-                "Una habitación.\nTodos los mundos.",
-                44,
-                250,
-                31,
-                273,
-                91,
-                TYPE,
-                leading=34,
-            ),
-            label(
-                "La galería hexagonal se repite arriba, abajo y más allá del pasillo. La sala conserva su forma; los libros agotan las combinaciones de un alfabeto limitado.",
-                44,
-                352,
+                "Una galería es una medida.\nLa búsqueda no tiene término.",
+                65,
+                213,
                 17,
-                260,
-                128,
+                340,
+                57,
                 TYPE,
-                leading=23,
+                "#C4B590",
+                leading=24,
             ),
             label(
-                "A room becomes a cosmology. Repetition offers a measure; the search for meaning exceeds it. This cutaway makes one possible route legible.",
-                44,
-                493,
-                16,
-                260,
-                124,
-                TYPE,
-                leading=22,
-            ),
-            label("READING THE SECTION", 44, 639, 10, tracking=1.5),
-            label(
-                "A   Repeated galleries\nB   Central ventilation shaft\nC   Vestibule + spiral stair\nD   Two spherical lamps",
-                44,
-                670,
-                12,
-                269,
-                102,
-                MONO,
-                leading=23,
-            ),
-            label(
-                "02  /  EXPLODED AXONOMETRIC CUTAWAY",
-                382,
-                215,
-                11,
-                600,
-                color=RED,
-                tracking=1.5,
-            ),
-            label("A", 386, 386, 16, 20, family=TYPE, color=RED),
-            label("B", 881, 226, 16, 20, family=TYPE, color=RED),
-            label("C", 1004, 529, 16, 20, family=TYPE, color=RED),
-            label("D", 966, 757, 16, 20, family=TYPE, color=RED),
-            label("LEVEL +02", 374, 319, 9, 80, family=MONO, color="#788379"),
-            label("LEVEL +01", 374, 459, 9, 80, family=MONO, color="#788379"),
-            label("LEVEL  00", 374, 599, 9, 80, family=MONO, color="#788379"),
-            label("LEVEL −01", 374, 739, 9, 80, family=MONO, color="#788379"),
-            label("THE TWO FRONT WALLS ARE CUT AWAY", 416, 801, 8, 520, tracking=1.4),
-            label("03  /  CONTINUIDAD", 1080, 215, 11, color=RED, tracking=1.4),
-            label("One selected itinerary", 1096, 494, 14, 245, family=TYPE),
-            label(
-                "Connections are interpretive;\nthe story leaves their geometry open.",
-                1096,
-                518,
-                11,
-                245,
-                43,
-                family=TYPE,
-                leading=15,
-            ),
-            label("04  /  PLANTA", 1080, 566, 11, color=RED, tracking=1.4),
-            label("Four walls × five shelves", 1096, 732, 14, 250, family=TYPE),
-            label(
-                "Central void / two free sides\nCirculation drawn as an assumption",
-                1096,
-                757,
-                11,
-                250,
-                40,
-                family=TYPE,
-                leading=15,
-            ),
-            label("05  /  THE VOLUME", 44, 841, 11, color=RED, tracking=1.4),
-            label("410", 44, 863, 42, 130, 55, TYPE),
-            label("PAGES", 160, 880, 10, 98, tracking=1.4),
-            label(
-                "40 lines × approximately 80 characters", 46, 918, 11, 350, family=TYPE
-            ),
-            label(
-                "20 SHELVES  /  32 BOOKS EACH  /  640 VOLUMES PER ROOM",
-                439,
-                842,
-                10,
-                900,
-                tracking=1.1,
-            ),
-            label("I", 439, 918, 10, 80, family=TYPE),
-            label("II", 670, 918, 10, 80, family=TYPE),
-            label("III", 901, 918, 10, 80, family=TYPE),
-            label("IV", 1132, 918, 10, 80, family=TYPE),
-            label(
-                "ORIGINAL INTERPRETATION  /  NATIVE GEOMETRY + TYPE  /  NOT A UNIQUE MAP OF THE STORY",
-                44,
-                961,
+                "POZOS, PASILLOS, ANAQUELES / HACIA EL CATÁLOGO",
+                62,
+                865,
                 9,
-                1050,
-                tracking=1.2,
+                810,
+                tracking=1.7,
             ),
             label(
-                "LITERARY STUDY     06 / ∞", 1160, 959, 11, 199, family=TYPE, color=RED
+                "Uncounted rooms. A finite alphabet. Each book waits for its reader.",
+                62,
+                883,
+                13,
+                970,
+                25,
+                TYPE,
+            ),
+            label("CUADERNO DEL VIAJERO", 109, 940, 13, 647, 31, TYPE, "#713D29", 2.0),
+            label(
+                "20 ANAQUELES   /   640 VOLÚMENES",
+                109,
+                990,
+                14,
+                647,
+                28,
+                TYPE,
+                "#504A36",
+                0.8,
+            ),
+            label(
+                "Cuatro paredes · cinco estantes · treinta y dos libros por estante",
+                109,
+                1018,
+                15,
+                671,
+                28,
+                TYPE,
+                "#544B37",
+            ),
+            label(
+                "Dos lámparas. Un pozo central. Una escalera entre pisos.",
+                109,
+                1045,
+                15,
+                665,
+                27,
+                TYPE,
+                "#544B37",
+            ),
+            label(
+                "A book has 410 pages; each page, 40 lines and about 80 characters.",
+                109,
+                1073,
+                12,
+                675,
+                24,
+                TYPE,
+                "#746344",
+            ),
+            label(
+                "ITINERARIO / SEARCH FOR A CATALOGUE",
+                893,
+                938,
+                12,
+                610,
+                33,
+                TYPE,
+                "#713D29",
+                1.2,
+            ),
+            label(
+                "La forma se repite. El sentido no se deja localizar.",
+                893,
+                988,
+                16,
+                626,
+                29,
+                TYPE,
+                "#554D38",
+            ),
+            label("01", 967, 1035, 13, 75, 29, MONO, "#9D4D2D"),
+            label("∞", 1491, 1034, 23, 45, 34, TYPE, "#9D4D2D"),
+            label(
+                "25 SÍMBOLOS / COMBINACIONES FINITAS / RECORRIDO SIN TÉRMINO",
+                894,
+                1080,
+                8,
+                629,
+                18,
+                LABEL,
+                "#746344",
+                1.1,
             ),
         ]
-        artwork = [
-            canvas("paper", paper, Cache.Picture),
-            canvas("architecture", tower, Cache.Picture),
-            canvas("diagrams", diagrams, Cache.Picture),
-            canvas("ruling", page, Cache.Picture),
-        ]
-        for element in artwork:
-            element.absolute().inset(0)
-        ctx.render(box(*artwork, *words).width(SIZE[0]).height(SIZE[1]))
+        ctx.render(
+            box()
+            .width(1600)
+            .height(1100)
+            .children(
+                box().absolute().inset(0).fill(shader(BACKGROUND)),
+                architecture,
+                box()
+                .absolute()
+                .inset(0)
+                .fill(
+                    shader(ATMOSPHERE, {"seconds": 0.0}).bind("seconds", self.seconds)
+                ),
+                foreground,
+                route_dot,
+                *words,
+            )
+        )
+
+    def update(self, elapsed, ctx: SketchContext):
+        self.seconds.set(elapsed)

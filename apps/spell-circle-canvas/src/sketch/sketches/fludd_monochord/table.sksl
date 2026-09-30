@@ -1,0 +1,7 @@
+float hash(float2 p) { return fract(sin(dot(p,float2(127.1,311.7)))*43758.5453); }
+half4 main(float2 p) {
+    float2 uv=p/uResolution;
+    float pool=exp(-length((uv-float2(.38,.42))*1.4));
+    float grain=sin(p.y*1.7)*.0017+hash(floor(p))*.005;
+    return half4(half3(mix(float3(.057,.069,.062),float3(.17,.18,.154),pool)+grain),1);
+}

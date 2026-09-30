@@ -1,0 +1,81 @@
+// A perspective ray intersects the room and equipment. The surfaces carry
+// panel seams, recessed vents and small indicator lights under a cyan key.
+float h(float2 p) { return fract(sin(dot(p,float2(127.1,311.7)))*43758.5453); }
+float boxHit(float3 ro,float3 rd,float3 center,float3 halfSize) {
+  float3 a=(center-halfSize-ro)/rd, b=(center+halfSize-ro)/rd;
+  float3 near=min(a,b), far=max(a,b);
+  float lo=max(max(near.x,near.y),near.z), hi=min(min(far.x,far.y),far.z);
+  return hi>=max(lo,0.0) ? max(lo,0.0) : 1000.0;
+}
+half4 main(float2 pixel) {
+  float2 uv=(pixel/uResolution-0.5)*float2(3.35,2.12);
+  float3 ro=float3(0,-0.06,5.0),rd=normalize(float3(uv,-3.8));
+  float depth=1000.0;
+  float kind=0.0;
+  float3 normal=float3(0,0,1), center=float3(0), extent=float3(1);
+  float floorT=(1.82-ro.y)/rd.y;
+  if(floorT>0.0 && floorT<depth){depth=floorT;normal=float3(0,-1,0);kind=1.0;}
+  float ceilingT=(-2.15-ro.y)/rd.y;
+  if(ceilingT>0.0 && ceilingT<depth){depth=ceilingT;normal=float3(0,1,0);kind=2.0;}
+  float backT=(-7.5-ro.z)/rd.z;
+  if(backT>0.0 && backT<depth){depth=backT;normal=float3(0,0,1);kind=3.0;}
+  float side=rd.x<0.0?-1.0:1.0;
+  float wallT=(side*3.25-ro.x)/rd.x;
+  if(wallT>0.0 && wallT<depth){depth=wallT;normal=float3(-side,0,0);kind=4.0;}
+  for(int item=0;item<12;++item) {
+    float s=item<6?-1.0:1.0;
+    float i=mod(float(item),6.0);
+    float3 c=float3(s*(2.45-0.17*mod(i,2.0)),1.42,-4.8+i*1.15);
+    float3 e=float3(0.70,0.19,0.40);
+    float t=boxHit(ro,rd,c,e);
+    if(t<depth) {depth=t;kind=5.0;center=c;extent=e;}
+    c=float3(s*2.73,-0.50,-5.9+i*1.7);e=float3(0.47,1.13,0.14);
+    t=boxHit(ro,rd,c,e);
+    if(t<depth) {depth=t;kind=6.0;center=c;extent=e;}
+  }
+  float3 point=ro+rd*depth;
+  float2 grid;
+  if(kind==1.0 || kind==2.0) grid=point.xz;
+  else if(kind==3.0) grid=point.xy;
+  else grid=point.zy;
+  float seams=max(pow(abs(sin(grid.x*2.5)),36.0),pow(abs(sin(grid.y*2.5)),38.0));
+  float vents=pow(abs(sin(grid.x*24.0)),14.0)*smoothstep(0.2,0.6,sin(grid.y*2.5));
+  float grain=h(pixel)*0.025+h(pixel*0.31)*0.012;
+  float3 albedo=float3(0.075,0.096,0.110)*(0.78-0.46*seams-0.18*vents)+grain;
+  float indicator=0.0;
+  if(kind>=5.0) {
+    float3 q=(point-center)/extent;
+    float3 aq=abs(q);
+    normal=aq.x>aq.y && aq.x>aq.z?float3(sign(q.x),0,0):
+           aq.y>aq.z?float3(0,sign(q.y),0):float3(0,0,sign(q.z));
+    float panel=step(0.72,max(abs(q.x),abs(q.y)));
+    albedo=float3(0.061,0.082,0.093)*(0.75+panel*0.52);
+    indicator=pow(abs(sin(q.y*41.0)),45.0)*step(0.62,abs(q.x))*step(abs(q.x),0.80);
+  }
+  float3 light=float3(-0.95,-0.65,-1.05)-point;
+  float len=length(light);
+  float lambert=max(dot(normal,light/len),0.0);
+  float3 colour=albedo*(0.18+lambert*6.5/(1.0+len*len*0.18))*float3(0.56,0.93,1.03);
+  float3 midway=normalize(normalize(light)-rd);
+  float spec=pow(max(dot(normal,midway),0.0),34.0);
+  colour+=float3(0.14,0.36,0.38)*spec/(1.0+len*0.2);
+  colour+=float3(0.85,0.49,0.12)*indicator*0.24;
+  if(kind==1.0) {
+    float pool=exp(-dot(point.xz-float2(0,-1.3),point.xz-float2(0,-1.3))*0.48);
+    colour+=float3(0.03,0.18,0.19)*pool;
+    float track=pow(max(0.0,cos(point.x*6.0)),60.0)*0.06;
+    colour+=float3(0.2,0.5,0.5)*track;
+  }
+  if(kind==4.0) {
+    float2 blower=float2(point.z+1.3,point.y+0.13);
+    float ring=abs(length(blower)-0.73);
+    float rim=exp(-ring*55.0);
+    float blades=pow(abs(sin(atan(blower.y,blower.x)*21.0)),8.0);
+    colour+=float3(0.044,0.078,0.087)*rim;
+    colour*=1.0-step(length(blower),0.65)*(0.62-blades*0.23);
+  }
+  float fog=1.0-exp(-depth*0.018);
+  colour=mix(colour,float3(0.025,0.057,0.060),fog);
+  float vignette=1.0-0.54*pow(length(uv/float2(2.0,1.4)),2.0);
+  return half4(half3(max(colour*vignette,float3(0.003))),1.0);
+}

@@ -1,0 +1,141 @@
+// The organism is integrated along an orthographic optical ray. A thin
+// membrane scatters light around opaque nuclei and collagen filaments;
+// curved mandibular teeth have their own solid surface and normal.
+float hash3(float3 p) {
+  return fract(sin(dot(p, float3(127.1, 311.7, 74.7))) * 43758.5453);
+}
+float noise3(float3 p) {
+  float3 i = floor(p), f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(hash3(i), hash3(i+float3(1,0,0)),f.x),
+                 mix(hash3(i+float3(0,1,0)),hash3(i+float3(1,1,0)),f.x),f.y),
+             mix(mix(hash3(i+float3(0,0,1)),hash3(i+float3(1,0,1)),f.x),
+                 mix(hash3(i+float3(0,1,1)),hash3(i+float3(1,1,1)),f.x),f.y),f.z);
+}
+float ellipsoid(float3 p, float3 size) {
+  float k0 = length(p / size);
+  float k1 = length(p / (size * size));
+  return k0 * (k0 - 1.0) / max(k1, 0.001);
+}
+float bell(float3 p) {
+  float d = ellipsoid(p-float3(0,-0.32,0),float3(0.91,0.71,0.58));
+  d += (noise3(p*9.0)-0.5)*0.008 + sin(p.x*17.0+p.z*8.0)*sin(p.y*19.0)*0.004;
+  float skirt = p.y - 0.29 + 0.045 * cos(p.x * 16.0) * cos(p.z * 9.0);
+  return max(d, skirt);
+}
+float fang(float3 p, float side, float lane) {
+  float tip = lane > 0.5 ? 0.96 : 1.20;
+  float height = clamp(p.y,0.13,tip);
+  float t = clamp((height-0.13)/(tip-0.13),0.0,1.0);
+  float root = lane > 0.5 ? 0.64 : 0.28;
+  float bend = side * (0.10 * t - 0.32 * t*t*t);
+  float radius = (0.116 + lane*0.012) * pow(1.0-t,0.72) + 0.003;
+  float3 q = p-float3(side*root+bend,height,lane>0.5?-0.05:0.21);
+  return length(q*float3(1.0,1.0,1.24))-radius;
+}
+float teeth(float3 p) {
+  return min(min(fang(p,-1.0,0.0),fang(p,1.0,0.0)),
+             min(fang(p,-1.0,1.0),fang(p,1.0,1.0)));
+}
+float nuclei(float3 p) {
+  p += float3(sin(p.y*25.0+p.z*18.0),sin(p.z*23.0+p.x*11.0),sin(p.x*27.0+p.y*13.0))*0.009;
+  float a = ellipsoid(p-float3(-0.28,-0.22,-0.02),float3(0.21,0.29,0.21));
+  float b = ellipsoid(p-float3(0.15,-0.13,0.08),float3(0.23,0.26,0.22));
+  float c = ellipsoid(p-float3(-0.03,0.12,0.13),float3(0.18,0.20,0.19));
+  float d = ellipsoid(p-float3(0.47,-0.04,-0.16),float3(0.12,0.17,0.14));
+  return min(min(a,b),min(c,d));
+}
+float3 bellNormal(float3 p) {
+  float e=0.004;
+  return normalize(float3(bell(p+float3(e,0,0))-bell(p-float3(e,0,0)),
+                          bell(p+float3(0,e,0))-bell(p-float3(0,e,0)),
+                          bell(p+float3(0,0,e))-bell(p-float3(0,0,e))));
+}
+float3 toothNormal(float3 p) {
+  float e=0.003;
+  return normalize(float3(teeth(p+float3(e,0,0))-teeth(p-float3(e,0,0)),
+                          teeth(p+float3(0,e,0))-teeth(p-float3(0,e,0)),
+                          teeth(p+float3(0,0,e))-teeth(p-float3(0,0,e))));
+}
+half4 main(float2 pixel) {
+  float2 uv=(pixel/uResolution-float2(0.5,0.48))*float2(2.25,2.65);
+  float3 light=normalize(float3(-0.6,-0.65,1.3));
+  float3 accumulated=float3(0), scatter=float3(0.32,0.58,0.25);
+  float transmission=1.0;
+  float2 silhouette=uv-float2(0,-0.32);
+  float halo=exp(-abs(length(silhouette/float2(0.95,0.76))-1.0)*34.0);
+  for (int step=0;step<56;++step) {
+    float z=0.83-float(step)*0.031;
+    float angle=bearing*0.0174533;
+    float3 point=float3(uv.x*cos(angle)+z*sin(angle),uv.y,
+                        z*cos(angle)-uv.x*sin(angle));
+    float b=bell(point), organ=nuclei(point), tooth=teeth(point);
+    if (b<0.025) {
+      float3 normal=bellNormal(point);
+      float membrane=exp(-abs(b)*115.0);
+      float grit=noise3(point*42.0);
+      float deep=noise3(point*6.0);
+      float density=0.009+membrane*0.20;
+      float3 colour=scatter*(0.40+0.62*max(dot(normal,light),0.0));
+      float fresnel=pow(1.0-abs(normal.z),3.0);
+      colour+=float3(0.42,0.83,0.61)*membrane*(fresnel*1.45);
+      float3 halfway=normalize(light+float3(0,0,1));
+      float glint=pow(max(dot(normal,halfway),0.0),90.0);
+      colour+=float3(0.85,1.0,0.87)*glint*membrane*4.0;
+      colour*=0.79+0.22*deep+0.14*grit;
+      // Collagen lamellae follow the membrane's spherical coordinates.
+      float longitude=atan(point.x,point.z);
+      float latitude=atan(point.y+0.32,length(point.xz));
+      float warped=longitude*17.0+sin(latitude*7.0+longitude*3.0)*2.4
+                   +(noise3(point*7.0)-0.5)*5.0;
+      float filaments=exp(-abs(sin(warped))*74.0)
+                      *(0.28+0.72*noise3(point*13.0));
+      density+=filaments*membrane*0.075;
+      colour+=float3(0.41,0.63,0.39)*filaments*membrane;
+      // The nuclei's folded outer skins and red cores attenuate the ray.
+      if (organ<0.018) {
+        float fold=0.5+0.5*sin(point.x*47.0+sin(point.y*31.0+point.z*21.0)*4.1+sin(point.z*33.0)*1.1);
+        float rim=exp(-abs(organ)*80.0);
+        float hot=exp(-length((point-float3(-0.33,-0.34,0.16))*float3(4,5,5)));
+        colour=mix(float3(0.12,0.009,0.028),float3(0.91,0.16,0.10),rim*0.55+fold*0.22);
+        colour+=float3(1.0,0.33,0.17)*hot*0.9;
+        density=0.48+rim*0.35;
+      }
+      float3 curl=point+float3(sin(point.y*9.0+point.z*7.0),
+                              sin(point.z*8.0+point.x*11.0),
+                              sin(point.x*12.0+point.y*5.0))*0.11;
+      float branch=abs(sin(curl.x*23.0+curl.y*15.0)
+                       +sin(curl.z*19.0-curl.y*12.0)*0.63);
+      if(branch<0.028 && b< -0.09 && organ>0.025) {
+        density+=0.12;
+        colour=mix(colour,float3(0.77,0.66,0.33),0.68);
+      }
+      if(diagnostic>0.5) {
+        float wire=filaments*2.8+exp(-branch*65.0)*0.7;
+        colour=mix(float3(0.04,0.17,0.21),float3(0.36,0.94,1.0),membrane);
+        if(organ<0.02) colour=float3(0.86,0.46,0.11)*(0.45+0.55*exp(-abs(organ)*80.0));
+        density*=0.20+wire*0.42;
+      }
+      float alpha=1.0-exp(-density);
+      accumulated+=transmission*alpha*colour;
+      transmission*=1.0-alpha;
+    }
+    if(tooth<0.004) {
+      float3 normal=toothNormal(point);
+      float diffuse=max(dot(normal,light),0.0);
+      float grooves=0.5+0.5*sin(point.y*98.0+point.x*18.0);
+      float rough=noise3(point*70.0);
+      float3 colour=mix(float3(0.08,0.15,0.09),float3(0.69,0.76,0.47),diffuse);
+      colour*=0.89+0.055*grooves+0.07*rough;
+      float spec=pow(max(dot(normal,normalize(light+float3(0,0,1))),0.0),35.0);
+      colour+=float3(0.77,0.91,0.73)*spec*0.8;
+      float alpha=0.93*smoothstep(0.13,0.36,point.y);
+      accumulated+=transmission*alpha*colour;
+      transmission*=1.0-alpha;
+    }
+  }
+  float alpha=1.0-transmission;
+  accumulated+=float3(0.16,0.45,0.28)*halo*0.065;
+  alpha=max(alpha,halo*0.045);
+  return half4(half3(clamp(accumulated,0.0,alpha)),half(alpha));
+}

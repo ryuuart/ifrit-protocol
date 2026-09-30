@@ -1,70 +1,81 @@
 # Borges library
 
-An original architectural atlas inspired by Jorge Luis Borges's *La
-biblioteca de Babel*. Four exploded galleries, a ventilation shaft,
-vestibules and a spiral staircase sit between bilingual literary
-annotation, a selected hexagonal itinerary, a room plan and a volume
-count. The drawing is a reading of the story, not a unique map of it.
+A reader stands at the open side of a hexagonal gallery. Five shelf rows
+and varied leather spines flank a central ventilation well; low rails,
+pendant lamps and further vestibules repeat above, below and toward the
+vanishing point. A spiral stair occupies the near vestibule. An open
+traveller's ledger in the foreground records the room rule and a search
+for a catalogue. The canvas is 1600 × 1100.
 
-The canvas is 1400 × 1000. The headings request Baskerville with Georgia
-as an alternative. Small architectural labels request Avenir Next with
-Helvetica Neue as an alternative; level labels request Menlo. All
-typography is native shaped text. The Spanish and English annotation is
-original, and includes no quotation from the story.
+This is an original spatial reading of Jorge Luis Borges's *La biblioteca
+de Babel*. The Spanish and English annotations are authored paraphrases,
+not quotations. The diagram is a finite visible portion of an imagined
+library; it does not claim a uniquely determined plan or a historically
+existing building.
 
-## Sources and choices
+## Reference structure
 
 [The Spanish story](https://www.literatura.us/borges/biblioteca.html)
-supplies the hexagonal galleries, central openings, repeated levels,
-four shelf walls, two free sides, spherical lamps and spiral stair.
-Its book specification supplies five shelves per wall, thirty-two books
-per shelf, 410 pages per book, forty lines per page and approximately
-eighty characters per line. The bottom grid explicitly counts twenty
-shelves and 640 volumes. These numerical facts do not determine a unique
-building.
+supplies hexagonal galleries, a central well, low rails, four shelf walls,
+two unshelved sides, two spherical lamps, repeated floors, narrow
+vestibules and a spiral staircase. The shelf specification is five rows
+per wall and thirty-two volumes per row: twenty shelves and 640 books per
+room. Each book has 410 pages, with forty lines per page and approximately
+eighty characters per line. The finite alphabet has twenty-five symbols.
+These constraints drive the geometry and ledger rather than decorate it.
 
 [Gerardo Centenera Tapia's architectural reading](https://www.borges.pitt.edu/sites/default/files/pdfs/La_Biblioteca_de_Babel_pertinencia_de_u.pdf)
-explains why a drawing must resolve ambiguities in the story: the
-positions of the free sides, the connections and the arrangement of
-vestibules are underdetermined. This study makes its circulation an
-assumption, chooses a visible route through the small network and uses
-an exploded projection to make lower shelves readable. The article's
-text was read; its PDF images could not be viewed in the available
-browser. No diagram from that article is reproduced.
+was read for its discussion of ambiguities in the connections and free
+sides. The PDF figures were not available for visual inspection. No
+figure from that article is reproduced. This study chooses opposite free
+sides and a straight chain of vestibules. The ledger itinerary follows
+that authored chain. The central wells remain open; the passage floor
+joins neighbouring rooms rather than bridging their wells.
 
-[Trinity College Dublin's own Long Room page](https://www.visittrinity.ie/venue/the-long-room/)
-was inspected visually in the browser. Its photo shows timber shelf
-bays, a long gallery and a repeated balustrade. Those physical rhythms
-inform the architectural line work and shelf subdivisions. The study
-does not copy the Long Room's plan, vault or historical architecture.
+[Trinity College Dublin's Long Room page](https://www.visittrinity.ie/venue/the-long-room/)
+was inspected visually in the browser. Its repeated timber shelf bays,
+balustrade and deep gallery informed the sense of physical rhythm and
+scale. Its plan, vault and ornament are not reproduced. The honey-coloured
+timber, turned-looking rails, leather palette, brass mounts, invented
+spine inscriptions, readers and ledger are authored choices.
 
-The paper stock, muted blue ink, brick annotations, human figures,
-exploded spacing, flattened projection and supporting folio system are
-original artistic choices. The diagram is an illustration; its
-coordinates are not a dimensioned building model.
+## Native construction and craft
 
-## Native construction
+A world-coordinate model is projected into native polygons and strokes.
+Six room depths and ten floor levels provide bounded geometry; perspective
+and atmospheric attenuation allow their continuation to become unreadable
+in the distance. Surface pieces, rails, shelf boards, fittings, shaped
+spine text and spherical pendants share one depth order. Lamps disappear
+behind floors and framing members. Four small readers establish a body
+scale against the floor spacing.
 
-The retained composition contains four cached native drawing programs:
-paper, architecture, supporting diagrams and page ruling. Text leaves
-remain retained elements above those programs. The paper uses seeded
-sparse fibres and faint edge staining. Room walls contain five rows of
-thirty-two generated book spines with varied ink and tiny spine bands.
-The open central shaft is assembled from six annular floor quads, so
-the hole does not require a sketch-local path winding convention.
+Every intact book wall has five rows with exactly thirty-two generated
+bindings. Unequal widths share one shelf extent. Heights, leather colours,
+projecting spines, light edges, dark contact edges, gilt bands and selected
+native shaped inscriptions vary within that constraint. The inscriptions
+are invented, not transcripts of books in the story. Tiny lettering uses
+an affine tangent approximation to each projected spine. The retained
+large headings and paragraphs remain shaped text with explicit cap-height
+anchors and leading.
 
-The spiral stair uses a sampled helix, projected treads, a continuous
-axis and a low outer rail. Lamps, shelf uprights, floor seams, section
-hatching and small readers establish several scales of detail. Pale
-wire rooms are drawn before the readable cutaway so they recede behind
-the main geometry. No bitmap assets or generated raster illustration
-are used.
+The floor planes are subdivided for local falloff from each room's two
+lamps. Boards carry perspective seams, longitudinal grain that curves
+within a board, occasional knot contours and contact shade beside the
+rail. Lintels carry longitudinal grain, a bright bevel and a shaded lower
+molding; pilasters have narrow carved highlights and dark return edges.
+All these marks inherit their surface direction rather than being
+uncorrelated screen noise. The helix has individually projected treads,
+a continuous spindle and a rail following its rise.
 
-The plate is deliberately still. Repeated architecture and dense type
-test retained authoring, projection, Unicode, cap-height anchors and
-cached native drawing without requiring frame-driven callbacks.
+The foreground ledger has a layered page block, a bowed dark gutter,
+paper fibres, ruled annotations and a selected itinerary. Its red marker
+travels down the authored chain over twenty-four seconds and repeats.
+The lamp atmosphere breathes slightly. Live material and transform
+bindings drive that motion; the static architecture and ledger use native
+texture caches. No reference bitmap, raster illustration or image-generation
+asset appears in the artwork.
 
-## Capture
+## Running and inspecting
 
 From the application directory:
 
@@ -72,17 +83,14 @@ From the application directory:
 UV_CACHE_DIR=/private/tmp/sigil-study-uv-cache \
   build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
   src/sketch/sketches/borges_library/borges_library.py \
-  --frame /private/tmp/borges-library.png --at 0 --scale 2 \
+  --frame /private/tmp/borges-library.png --at 4 --scale 2 \
   --state /private/tmp/borges-library-state
 ```
 
-Add `--gpu` to initialize the device executor on a host with device access.
-The file-capture lane still rasterizes this 2D canvas; this checks device
-availability rather than Graphite rendering of the plate.
-
-Actual Graphite rendering was separately verified in the live window
-using the explicit file path. The bounded run presented this study
-successfully and its renderer identified Graphite GPU:
+The exact file-frame capture rasterizes the native 2D composition. Adding
+`--gpu` initializes the device but does not turn this lane into Graphite
+evidence. For a bounded live-window rendering check, use the explicit
+file path:
 
 ```sh
 UV_CACHE_DIR=/private/tmp/sigil-study-uv-cache \
@@ -92,8 +100,7 @@ UV_CACHE_DIR=/private/tmp/sigil-study-uv-cache \
   --state /private/tmp/borges-library-window-state
 ```
 
-The final CPU and device-enabled plates were rendered at 2× and inspected. The refinement
-made every repeated room's shelf rhythm visible, moved the wire rooms
-behind the cutaway and placed the four architectural callouts on their
-stated features. The book grids, Spanish accents, negative level sign,
-infinity symbol and dense footer remain visible at their intended scale.
+A live window capture uses `--shot /private/tmp/borges-window.png --gpu`
+instead of the benchmark flags. It includes the application frame and
+its fitted canvas. Renderer logs establish the backend; an image filename
+or device initialization alone does not.

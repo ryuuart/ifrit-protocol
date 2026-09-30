@@ -1,22 +1,41 @@
-// A fixed scratched metal plate under a broad diagonal reflection.
-float hash(float2 p) {
-    return fract(sin(dot(p, float2(127.1, 311.7))) * 43758.5453);
-}
+// White is the face of the cover; black vector marks are recessed cuts.
+float hash(float2 p) { return fract(sin(dot(p,float2(127.1,311.7)))*43758.5453); }
 float noise(float2 p) {
-    float2 q = floor(p), f = fract(p);
-    f = f * f * (3 - 2 * f);
-    return mix(mix(hash(q), hash(q + float2(1, 0)), f.x),
-               mix(hash(q + float2(0, 1)), hash(q + 1), f.x), f.y);
+    float2 q=floor(p),f=fract(p); f=f*f*(3.0-2.0*f);
+    return mix(mix(hash(q),hash(q+float2(1,0)),f.x),mix(hash(q+float2(0,1)),hash(q+1.0),f.x),f.y);
+}
+float heightAt(float2 p) {
+    half4 q=content.eval(p);
+    return q.a>0.003 ? float(q.r/q.a) : 1.0;
 }
 half4 main(float2 p) {
-    float2 uv = p / uResolution;
-    float diagonal = uv.x - uv.y * .55;
-    float light = exp(-pow((diagonal - .24) * 5, 2));
-    float cloud = noise(uv * 12) * .16 + noise(uv * 31) * .05;
-    float scratch = pow(hash(float2(floor((uv.x + uv.y * 1.9) * 1300), 0)), 9) * .08;
-    float ring = sin(length(uv - .5) * 1600) * .011;
-    float3 dark = float3(.24, .17, .072);
-    float3 bright = float3(.71, .49, .19);
-    float3 metal = mix(dark, bright, clamp(light * .8 + cloud + scratch + ring, 0, 1));
-    return half4(half3(metal), 1);
+    half4 source=content.eval(p);
+    if(source.a<0.003) return half4(0);
+    float2 uv=p/uSize;
+    float h=heightAt(p);
+    float2 slope=float2(heightAt(p+float2(.85,0))-heightAt(p-float2(.85,0)),
+                        heightAt(p+float2(0,.85))-heightAt(p-float2(0,.85)));
+    float3 normal=normalize(float3(-slope*3.4,1.0));
+    float cut=1.0-smoothstep(.18,.9,h);
+    float2 q=uv-.5;
+    float diagonal=q.x*.73+q.y*.68;
+    float brushed=noise(float2(p.x*.10+p.y*.18,p.y*2.3-p.x*.84));
+    float patch=noise(p/180.0)*.58+noise(p/39.0)*.42;
+    // An elongated softbox reflects along the brushed face and into cut walls.
+    float band=exp(-pow((diagonal+normal.x*.20+normal.y*.26-.03)/.20,2.0));
+    float narrow=exp(-pow((diagonal+normal.x*.25+normal.y*.19+.26)/.055,2.0));
+    float shade=max(0.0,dot(normal,normalize(float3(-.62,-.5,.61))));
+    float3 body=mix(float3(.11,.086,.048),float3(.42,.28,.086),patch);
+    float3 colour=body*(.57+.49*shade)*(1.0+.15*(brushed-.5));
+    colour+=float3(.74,.53,.20)*band*(.45+.22*shade);
+    colour+=float3(.51,.60,.64)*narrow*.36;
+    float rim=length(q/float2(.476,.477));
+    colour*=1.0-.27*smoothstep(.93,.985,rim);
+    float gleam=pow(max(dot(normal,normalize(float3(-.42,-.34,.91))),0.0),18.0);
+    colour=mix(colour,float3(.052,.039,.019)+float3(.73,.49,.17)*shade*.38,cut*.61);
+    colour+=float3(.84,.74,.49)*gleam*(.16+.60*length(slope));
+    // Microscopic longitudinal abrasion shares the reflection's direction.
+    float scratch=smoothstep(.992,1.0,noise(float2(p.x*.026+p.y*.058,p.y*4.2-p.x*1.55)));
+    colour+=float3(.12,.095,.038)*scratch*(1.0-cut);
+    return half4(half3(clamp(colour,0.0,1.0))*source.a,source.a);
 }

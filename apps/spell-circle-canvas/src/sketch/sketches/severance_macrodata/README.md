@@ -1,56 +1,100 @@
-# Macrodata Refinement
+# Macrodata Refinement workstation
 
-A television-interface study of the *Severance* Macrodata Refinement
-terminal, authored in Python and rendered through native Compose. The
-1440 × 1000 composition includes a recessed navy cabinet, a small keyboard,
-cyan screen rules, a wireframe Lumon globe, 242 drifting numeric glyphs,
-an enlarged selection, a traveling collection packet, five completion
-bins, a four-temper drawer, and a hexadecimal status address.
+A television study of the *Severance* Macrodata Refinement terminal,
+authored in Python through native Compose at 1800 × 1280. The screen
+sits to the left inside a deep navy molding, with a broad right front
+panel, an ivory enclosure, recessed fasteners, a lower-right control,
+stand, desk and a separately modeled blue keyboard and trackball.
 
-## Reference and interpretation
+The cyan interface contains a wireframe Lumon globe, segmented completion
+rail, 242 individually drifting digits, an enlarged seven-digit selection,
+five numbered bins, percentage bars and a hexadecimal status address.
+A complete 26-second transaction removes the selected digits, carries
+them along a curved collection path, classifies them in bin 03, commits
+the totals and replenishes the field.
+
+## Inspected references
 
 The [production-screen photograph reproduced by Nerdist](https://cdn.nerdist.com/wp-content/uploads/2025/01/17104528/Severance-Computer.jpg)
-was visually inspected before authoring. Its observed conventions are
-the deep blue screen, cyan luminous digits, the Cold Harbor heading,
-segmented completion rail, wireframe Lumon mark, a loose numeric field
-whose selected digits grow, five numbered bins with percentage bars,
-and a hexadecimal address underneath. The study preserves that hierarchy
-and the photographed 67% completion and bin percentages.
+was visually inspected. It establishes the offset CRT, wide navy right
+panel, rounded deep bezel, ivory outer edge, front fastener and low right
+control. Its screen establishes the deep blue field, cyan digits, Cold
+Harbor heading, segmented completion rail, Lumon globe, grown selected
+digits, five bins and the hexadecimal address. The study preserves that
+hierarchy and the photographed initial 67% completion and 77%, 73%, 59%,
+52%, 75% bin values. The photograph is a television-production image reproduced
+by a secondary host, rather than an original design specification.
 
-[Apple's production account](https://www.apple.com/newsroom/2025/03/how-the-mind-splitting-world-of-severance-comes-together-on-mac/)
-supplies context about the show's production and post-production workflow.
-It does not document the terminal's interface design or its implementation.
+The [Figma interview with production designer Jeremy Hindle](https://www.figma.com/blog/free-association-jeremy-hindle/)
+includes a room frame that was also visually inspected. Its sterile white
+room and green office palette inform the pale desk and restrained setting.
+The [Motion Picture Association interview](https://www.motionpictures.org/2022/06/severance-production-designer-jeremy-hindle/)
+and [Film Independent interview](https://www.filmindependent.org/blog/creating-the-singular-disquieting-aesthetic-of-severance-with-emmy-winning-production-designer-jeremy-hindle/)
+describe the original computers, keypads, trackballs and functioning
+screen programs. These are primary production-design accounts. They
+support treating the workstation as purpose-built equipment; they do not
+supply the exact geometry or program reproduced here.
 
-The numeric data, selected cluster, collection path, drawer timing,
-temper balance values, cabinet wear and simplified physical keyboard are
-authored extrapolations. The four abbreviations WO, FC, DR and MA identify
-the fictional temper categories; their balances do not claim to reproduce
-a canonical work file. The original grid remains visible during the
-collection event so the packet is an explicit motion study rather than a
-complete simulation of the show's interaction rules.
+The numeric file, selected values, movement, collection path, four-temper
+drawer, balance values, commit and replenishment are authored study
+content. The blue keyboard, its key arrangement, trackball details,
+vent-like side scoring, case wear and materials are authored adaptations.
+Menlo and Helvetica Neue interpret the observed monospaced numeric field
+and heavier headings; the production typefaces have not been identified.
+This is a reference-informed workstation study, not a frame reconstruction
+or a functional reproduction of the fictional application.
 
-## Craft exercised
+## Native craft
 
-Each digit has a seeded phase and a distinct motion period. Their small
-independent drifts create a living field without a uniform wave. Seven
-digits grow through a separate selection envelope. A cached arrow moves
-on its own horizontal and vertical periods. The collection packet follows
-an envelope toward bin 03, and the temper drawer opens later in the
-classification cycle. These activities share one scene clock but retain
-separate motion bindings.
+The cabinet uses native gradient materials, a subtle stock noise layer,
+rough surfaces, stock bevel filters and native studio lighting. Separate
+outer ivory, navy front and screen molding silhouettes give the case its
+depth. Cached native pen geometry supplies recessed hardware, transfer
+marks, the support, keyboard case, sculpted keycaps and trackball sphere.
+Native text supplies the legends. No photographic or generated bitmap
+is imported into the composition.
 
-The small type uses Menlo with enough weight to hold a phosphor edge;
-the file heading and Lumon wordmark use a contrasting heavier sans-serif
-face. Native optical bloom adds a narrow halo around the entire screen.
-An original transparent shader overlays faint raster rows and corner
-falloff. The bezel and keyboard remain outside that optical pass. No
-photographic or generated bitmap is used in the composition.
+The screen hierarchy remains restrained. Rules and globe are cached
+native pen leaves; headings, digits, bins, addresses and balances are
+retained native text and boxes. Each field digit has a seeded phase and
+period, using native motion bindings for small independent horizontal and
+vertical drifts. Selected digits have a separate scale binding and remain
+large until consumed. The original cells fade out and stay empty while
+the packet travels. Replacement values enter later at those same cells.
 
-The cabinet, rules, globe and cursor are cached native pen leaves. Text is
-described once as keyed native text nodes. Frame updates set one native
-animatable value; they do not rebuild the scene or issue Python drawing
-callbacks. The file uses the same retained rendering and motion vocabulary
-as native C++ studies through the compiled Python bindings.
+The packet contains the same seven selected values. It uses a native
+cubic path with native path travel and scale. The drawer and progress
+bars use bound opacity and transforms. Static cabinet, keyboard, globe,
+rules, cursor and glass geometry are retained separately from the
+changing screen. The frame update writes native scalar clocks and
+phase values; it does not rebuild the scene or issue Python drawing
+callbacks.
+
+Native bloom supplies a narrow phosphor halo. An original runtime filter
+warps the full interface, applies horizontal beam jitter, slight color
+registration, scan rows, restrained grain and edge falloff. Native glass
+gradients, a thin reflection, surface scratches and a rounded clipping
+boundary remain distinct from that optical screen pass. The case stays
+outside the CRT filter, with a separate soft cyan spill.
+
+## Motion cycle
+
+The transaction is an authored deterministic sequence driven by scene
+time:
+
+| Time | Visible event |
+| --- | --- |
+| 0–3.6 s | The pointer approaches the cluster; seven digits grow. |
+| 3.6–6.25 s | The enlarged selection is held. |
+| 6.25–9 s | Selected cells empty; the same digits move and shrink into bin 03. |
+| 8.4–12.15 s | The temper drawer opens; its bars fill; 67% becomes 68%, and bin 03 changes from 59% to 64%. |
+| 13.3–16.8 s | The drawer closes and replacement digits refill the emptied cells. |
+| 16.8–24.8 s | The replenished field and committed values are held. |
+| 24.8–26 s | The screen dims slightly before the demonstration resets. |
+
+Small numeric drifts and beam variation continue on their own periods.
+The values and timing illustrate an interaction narrative; they do not
+claim to reproduce the show's data-processing rules.
 
 ## Render
 
@@ -61,104 +105,88 @@ UV_CACHE_DIR=/tmp/sigil-study-uv-cache \
 build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
   src/sketch/sketches/severance_macrodata/severance_macrodata.py \
   --frame /tmp/severance-selection.png --at 4.6 \
-  --state /tmp/severance-python-study-state
+  --state /tmp/severance-study-state
 ```
 
-Add `--gpu` to initialize the device executor. The file-capture lane still
-rasterizes this 2D canvas. Use `--at 8.4` for the traveling
-packet and `--at 12` for the expanded
-temper drawer. Give each concurrent capture its own output path. The
-state directory is private to this study and avoids another study's saved
-selection or viewport state.
+Use 7.6 seconds for the moving packet, 12.8 for the committed drawer,
+and 18 for the replenished field. Give concurrent captures separate
+state directories and output paths. Reload the session after editing
+`Tube.sksl`, which is compiled during setup.
 
-The Python package path is `apps/python/sigil/sigil`. Sketchbook manages
-its Python environment and loads the installed bindings; no standalone
-Python drawing runner is required.
+File `--frame` captures use raster Skia for this 2D Compose canvas, even
+when `--gpu` initializes a device. For the actual interactive Graphite
+backend, use a bounded file window with `--gpu --window-bench 3`. A
+separate `--gpu --shot /tmp/severance-window.png` captures the study's own
+window and exits. Device access requires the host's normal GPU permissions.
 
-For a complete motion cycle, capture numbered native frames and encode
-only those frames:
+For the full native motion sequence:
 
 ```sh
-mkdir -p /tmp/severance-motion-frames
+mkdir -p /tmp/severance-frames
 UV_CACHE_DIR=/tmp/sigil-study-uv-cache \
 build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
   src/sketch/sketches/severance_macrodata/severance_macrodata.py \
-  --gpu --frame /tmp/severance-motion-frames/frame.png \
-  --frames 216 --fps 12 --at 0 --state /tmp/severance-motion-state
+  --frame /tmp/severance-frames/frame.png --frames 312 --fps 12 --at 0 \
+  --state /tmp/severance-motion-state
 ffmpeg -framerate 12 -start_number 1 \
-  -i /tmp/severance-motion-frames/frame_%04d.png \
-  -c:v libx264 -crf 16 -pix_fmt yuv420p -movflags +faststart \
+  -i /tmp/severance-frames/frame_%04d.png \
+  -c:v libx264 -crf 17 -pix_fmt yuv420p -movflags +faststart \
   /tmp/severance-motion.mp4
 ```
 
+The movie is encoded only from the emitted native frames.
+
 ## Authoring observations
 
-**Retained native motion is sufficient for the numeric field.** Individual
-digits, grouped digits and the pointer all accept native bound transforms.
-Python only writes the scene clock. No sketch-local interpolation engine,
-glyph rasterization or drawing loop was needed.
+Retained native geometry, stock material surfaces, native bevels, text,
+motion bindings and path travel express the workstation and complete
+transaction without a sketch-local renderer or interpolation engine.
+The shader is an optical treatment over native interface content, rather
+than a bitmap mockup.
 
-**String convenience is uneven at adjacent layout methods.** The overflow
-method accepts the exported `Overflow.Clip` enum. Passing the natural
-`"clip"` string raises an argument-type error, while `alignItems("center")`
-and `justifyContent("space_between")` accept categorical strings. A small
-live-host probe verified all three forms. The supported enum is used in
-the study. A consistent
-string convenience layer would reduce interruptions while authoring;
-this is an API request, not a rendering defect. If added, a regression
-should assert that both forms produce identical clipping and that an
-unknown string produces a clear value error.
+The layout overflow method accepts the exported `Overflow.Clip` enum.
+Passing `"clip"` raises an argument-type error, while the neighboring
+`alignItems("center")` and `justifyContent("space_between")` categorical
+forms work in a live-host probe. Consistent string convenience would
+reduce interruptions while authoring. This is an API request, not a
+rendering defect; a regression should compare both forms and reject an
+unknown string with a clear value error.
 
-**Material tuning exposes many coupled controls.** The stock bloom can
-express the intended narrow phosphor halo, but specifying the look means
-coordinating threshold, knee, sigma, spread, tail, whitening, dilation and
-deepening. These controls are available, so the study needs no new bloom
-implementation. An authoring preview that exposes them together, or
-documented starter values for narrow luminous text, would make finding a
-subtle optical treatment easier without placing a named film look in the
-core library. A future preview should use the same effect implementation
-as the renderer so its displayed result matches a captured frame.
+Bloom can express the intended narrow halo, but authoring it involves
+several coupled controls. A preview using the same implementation as the
+renderer, with documented starting values for luminous text, would make
+subtle tuning easier. The supported bloom is used here without replacing
+it with a shader implementation.
 
-**The video lane exports registry selections.** The source accepts and
-validates a file argument before dispatch, but video dispatch passes only
-the registry selection and kind into the montage. It does not pass the
-file path into a live host. A newly authored file therefore has no
-file-specific video route through that command. An export command that
-loads the file directly would complete the still-to-motion authoring
-workflow. Until that route exists, combining a file with video should
-fail explicitly instead of silently choosing a registry montage. A
-regression should provide a file and assert that only that file is encoded,
-or that the command refuses before invoking the registry montage. This
-finding is source-verified; no unintended montage was launched.
+The file video lane currently dispatches through a registry selection
+rather than opening the supplied file. A live ordinary-file probe exits
+with `selection holds a set`. A file-specific export route would complete
+the authoring workflow. A regression should encode the explicitly supplied
+file, or reject it clearly before dispatching a registry montage. The
+supported numbered-frame lane supplies the movie for this study.
 
 ## Verification
 
-The live Python host rendered selection at 4.6 seconds, collection at 8.4
-seconds, and the temper drawer at 12 seconds on the CPU executor. All
-three refined images were visually inspected against the reference
-photograph: the field fits its ruled bounds, the header and five bins
-remain legible, and the drawer fits above bin 03. The saved evidence is
-`/private/tmp/severance-refined-4-6.png`,
-`/private/tmp/severance-refined-8-4.png`, and
-`/private/tmp/severance-refined-12.png`.
+The native Python host captured and visually verified the refined
+selection at 4.6 seconds, traveling packet at 7.6 and committed drawer
+at 12.8. Header rules, digits, bin labels and the address stay inside the
+rounded tube; the cabinet and keyboard preserve their separate material
+layers. The selection values match the packet, and consumed cells remain
+empty while the drawer commits. These captures are raster evidence:
+`/private/tmp/severance-redo-refined-4-6.png`,
+`/private/tmp/severance-redo-packet-7-6.png`, and
+`/private/tmp/severance-redo-classified-12-8.png`.
 
-An elevated capture with `--gpu` at 4.6 seconds initialized the Apple M1 Pro
-Vulkan device and was visually inspected. The 2D file-capture canvas remains
-raster, so this is a device smoke test rather than Graphite bloom evidence.
-Its selected cluster and bins preserve the intended CPU composition. The
-image is `/private/tmp/severance-gpu-4-6.png`; its log is
-`/private/tmp/severance-gpu.log`. The log reports no shader diagnostics;
-its sole warning says that thread naming is unavailable on the platform.
-A separate bounded file-window run selected only this study, identified
-`renderer: Graphite GPU` and completed without shader errors. Its luminous
-digits, selection and bins therefore also exercised the interactive backend.
-The window log is preserved with the study evidence. The file still and
-motion export continue to use the raster capture lane.
+The bounded native file-window run and its separate own-window screenshot
+completed with `renderer: Graphite GPU` and no shader or runtime errors.
+The window image was visually inspected with its Graphite footer visible.
+Evidence is `/private/tmp/severance-redo-graphite-window.png`,
+`/private/tmp/severance-redo-window.log`, and
+`/private/tmp/severance-redo-shot.log`.
 
-The complete motion sequence rendered 216 native frames and encoded as
-an 18-second, 1440 × 1000 H.264 clip at 12 frames per second. The encoded
-selection, packet, drawer and closed end-state frames were extracted and
-visually inspected. The artifact is
-`build/media-study-evidence/severance-motion.mp4`, with render and encode
-logs beside it. This is an authored export cadence, not a measurement of
-interactive playback performance.
+The full sequence rendered 312 native frames and encoded as a 26-second,
+1800 × 1280 H.264 clip at 12 frames per second. The replenished field at
+18 seconds and final dimmed hold were visually inspected from the emitted
+frames. The movie is `build/media-study-redo/severance-motion.mp4`, with
+render and encode logs beside it. The movie cadence is an export choice,
+not a measurement of interactive playback.

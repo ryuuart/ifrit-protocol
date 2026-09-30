@@ -1,0 +1,8 @@
+// The source plate supplies ink; the receiving leaf supplies its paper.
+half4 main(float2 p) {
+    float2 q=uCrop.xy+(p/uResolution)*uCrop.zw;
+    half4 texel=plate.eval(q);
+    float grey=dot(float3(texel.rgb),float3(.25,.62,.13));
+    float alpha=smoothstep(.13,.53,.88-grey);
+    return half4(half3(.095,.098,.076)*alpha,alpha);
+}

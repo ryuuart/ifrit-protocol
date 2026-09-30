@@ -1,0 +1,37 @@
+// A retained molded panel is a stepped height field. Interior ridges,
+// recesses and the tube bezel share one warm directional illumination.
+float heightAt(float2 p) {
+    half4 v = content.eval(p);
+    return v.a > 0.001 ? v.r / v.a : 0.0;
+}
+float hash(float2 p) {
+    return fract(sin(dot(p, float2(127.1, 311.7))) * 43758.5453);
+}
+float noise(float2 p) {
+    float2 f = floor(p), q = fract(p);
+    q = q * q * (3.0 - 2.0 * q);
+    return mix(mix(hash(f), hash(f + float2(1, 0)), q.x),
+               mix(hash(f + float2(0, 1)), hash(f + float2(1, 1)), q.x), q.y);
+}
+half4 main(float2 p) {
+    half4 source = content.eval(p);
+    if (source.a < 0.001) return half4(0);
+    float h = source.r / source.a;
+    float2 fine = float2(heightAt(p + float2(1, 0)) - heightAt(p - float2(1, 0)),
+                         heightAt(p + float2(0, 1)) - heightAt(p - float2(0, 1))) * 0.5;
+    float2 broad = float2(heightAt(p + float2(3, 0)) - heightAt(p - float2(3, 0)),
+                          heightAt(p + float2(0, 3)) - heightAt(p - float2(0, 3))) / 6.0;
+    float3 normal = normalize(float3(-(fine * 0.62 + broad * 0.38) * uDepth, 1));
+    float3 light = normalize(uLight.xyz);
+    float diffuse = max(0.0, dot(normal, light));
+    float recess = 1 - smoothstep(0.12, 0.36, h);
+    float contact = max(0.0, max(heightAt(p - float2(3, 3)), heightAt(p + float2(3, 3))) - h);
+    float mottle = noise(p / 91.0) * 0.05 + noise(p / 17.0) * 0.024;
+    float tooth = (hash(floor(p * 1.6)) - 0.5) * 0.035;
+    float3 ivory = uIvory.rgb * (0.94 + mottle + tooth);
+    float3 base = mix(ivory, uGrime.rgb, recess * 0.83);
+    float sheen = pow(max(dot(normal, normalize(light + float3(0, 0, 1))), 0.0), 19.0) * 0.105;
+    float pool = 0.96 + 0.08 * (1 - p.y / uSize.y);
+    float3 colour = base * (0.53 + 0.61 * diffuse) * pool * (1 - min(0.28, contact * 0.72)) + sheen;
+    return half4(half3(clamp(colour, 0, 1)) * source.a, source.a);
+}

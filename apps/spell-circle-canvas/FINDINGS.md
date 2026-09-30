@@ -1297,3 +1297,143 @@ that the residual fades with elapsed scene time. Identical fixed-step
 captures should reproduce the same history. Resize and session reload
 should follow an explicit reset or preservation policy, and a skipped
 frame should not silently change the stated decay law.
+
+
+## Bug: Python shader constructor advertises live uniforms it cannot accept
+
+The generated `material.shader` declaration accepts `_t.UniformValue` for
+each parameter. That alias includes live scalar values and describes them
+as inputs re-read every frame. `src/common/python/material/Shader.cpp`
+instead handles Color, bool, int and float, then iterates every other value.
+Passing an Animatable as a shader parameter raises
+`TypeError: '_sigil.motion.Animatable' object is not iterable` before the
+study can render. The Borges lighting study must construct a static scalar
+and call `Material.bind` afterward.
+
+The native reproducer is
+`build/media-study-redo/findings/shader_live_uniform_probe.py`; its separate
+log preserves the failure. The declared constructor and runtime should
+accept the same uniform inputs, or the constructor's type should explicitly
+exclude live values. If accepted, a live initializer should establish the
+same binding as `shader(source, {'seconds': 0.0}).bind('seconds', value)`.
+A regression should initialize a shader through both forms, advance the
+scalar, and assert matching pixels before and after the change without a
+TypeError. Color strings and other advertised UniformValue alternatives
+should be checked through the same conversion seam.
+
+
+## API request: Python filters cannot declare their sampling reach
+
+The metal-cover relief samples its input on either side of a cut to derive
+a surface normal. Native `Filter::of(material, sampleRadius)` lets an
+author declare that reach to the Skia runtime filter. The Python binding
+in `src/common/python/material/PaintEffect.cpp` exposes only the one-argument
+form, and the generated declaration has the same restriction. Python
+authors cannot express the sampling contract of this otherwise supported
+native material. This is a parity gap, not a demonstrated image defect.
+
+Wanted: the existing optional sampling reach on the Python construction
+door. A binding regression should accept a positive reach and match the
+native two-argument form on tiled GPU rendering, including a cut crossing
+tile and layer boundaries. The one-argument form should retain its existing
+behavior.
+
+
+## API request: Python texture-slot typing excludes the empty layer input
+
+`material.shader` types every `textures` value as a media or Skia Image.
+Its runtime converter deliberately accepts None as an empty PixelSource.
+That empty slot is how the Voyager and monochord filters declare `content`
+for the executor to supply from the painted layer. Both studies render
+successfully with `textures={'content': None}`, but that supported call
+disagrees with the generated declaration.
+
+The declaration should include the runtime's empty slot form, or expose an
+equivalent typed declaration for executor-provided layer inputs. A regression
+should type-check that form and render a content-sampling filter through it,
+while still rejecting values that cannot be image sources.
+
+
+## Bug: sprite nib strokes lose continuous coverage below a pixel
+
+The monochord and miniature studies need continuous fine ink. A native
+probe draws marker splines at widths 0.35, 0.6, 1, 2 and 4 with all scatter,
+jitter and noise disabled. The thin nib splines become separated dots,
+while adjacent Pen curves at the same nominal width remain continuous. Selecting the
+existing fibre tip with one bristle gives continuous antialiased ink.
+The probe and both raster controls are preserved under
+`build/media-study-redo/shahnameh_folio/`.
+
+`src/common/skia/include/sigilskia/draw/Direct.h` sets antialiasing on the
+paint for its textured sprite vertices and states that this makes a
+subpixel sprite contribute coverage. It then calls SkCanvas::drawVertices.
+The installed Skia header explicitly states that drawVertices ignores
+paint antialiasing. The nib stamp path reaches this sprite lowering, so
+the flag cannot provide its stated coverage behavior. This differs from
+the white-disc tint defect in hosted nib strokes.
+
+The sprite lowering should preserve smooth area coverage for narrow
+sprites through a supported Skia drawing operation or equivalent coverage
+construction. A regression should draw colored thin sprites and dense nib
+strokes at several subpixel translations and scales, assert nonzero smooth
+coverage along the whole run, and exercise raster and Graphite. It should
+also preserve tint and the stated destination blend mode.
+
+
+## API request: Python cannot load a bundled typeface as a resource
+
+The Mother-wall study authors its own machine glyphs and font data. The
+native C++ surface can construct a Skia face from data and adapt it into
+Weave. The inspected Python binding exposes Typeface.familyName and
+family-based weave.typeface lookup, but no file or bytes constructor.
+The study must assemble cached vector glyphs and their spacing itself to
+keep the authored face, despite Weave already owning those responsibilities.
+
+Wanted: a resource-hub typeface loader shared by both authoring languages,
+with the same cache, lifetime and reload semantics as other bundled assets.
+A regression should load a bundled face through both hosts, verify matching
+family and glyph advances, and replace its resource without leaving the
+previous face in a restarted session. This is a binding/resource gap, not
+a claim that native font loading is absent.
+
+
+## API request: Python cannot author the native text entrance
+
+The Mother-wall study's typed inquiry uses retained native vector glyph
+entrances. `src/common/python/compose/TextEffects.cpp` creates the textFx
+submodule without exposing the native entrance, and the Python parity
+chapter identifies Text.textFx and typeOn as missing. Reproducing the
+entrance locally duplicates glyph selection, spacing and timing already
+owned by native Compose and Weave.
+
+Wanted: Python access to the existing native text entrance with the same
+font, layout and scene-clock contract. A regression should render identical
+face, text and progress through both authoring languages and compare which
+glyphs are revealed, their advances, retained layout and final pixels.
+An unchanged progress value should preserve the same retained text work.
+
+
+## API request: a tonal screen cannot use an arbitrary child material
+
+The radio poster screens a shaded metal horn with positive ink dots and
+negative paper holes. The stock pattern halftone exposes a fixed-radius
+tile; the field halftone ramp varies radius vertically. Neither accepts an
+arbitrary luminance child such as a metal surface with a throat, rolled
+rim and reflected light. The generic shader API can express it, but the
+author must implement area mapping, the dot-to-hole crossover and sampling
+at device scale each time.
+
+The custom poster shader initially used a fine logical-pixel screen whose
+cells became unresolved at the fitted window scale. Both raster and
+Graphite showed the same moiré islands. Using the existing content-scale
+uniform for edge filtering and unresolved mean coverage corrects the
+study. This was an authoring error, not a renderer defect; the controls
+and minimal native sampling probe are preserved under
+`build/media-study-redo/findings/` and the radio evidence directory.
+
+Wanted: a stock tonal-screen operator over a child material, with pitch,
+angle and ink/paper colors, positive dots, negative holes and device-scale
+mean coverage. A regression should verify solid ink/paper endpoints,
+continuous coverage through the dot-to-hole crossover, and matching mean
+coverage above and below the scale where individual cells are resolvable.
+The unresolved screen should not form large alternating islands.

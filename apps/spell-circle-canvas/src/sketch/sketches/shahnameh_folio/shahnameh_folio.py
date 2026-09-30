@@ -9,8 +9,8 @@ import random
 
 from sigil.compose import Cache, pen, positioned, text
 from sigil.compose.kit import at
-from sigil.draw import CLOSE, SHAPE
-from sigil.material import Paint
+from sigil.draw import CLOSE, DEGREES, SHAPE, brush
+from sigil.material import Paint, mixLinear
 from sigil.motion import animate
 from sigil.sketch import sketch
 from sigil.weave import FrameOptions, TextAlignment, Type, rich
@@ -155,6 +155,7 @@ def scroll(p, x, y, w, h, color=GOLD):
 
 
 def paper(p):
+    p.angleMode(DEGREES)
     rng = random.Random(12344)
     p.noStroke()
     p.fill("#202c30")
@@ -190,6 +191,7 @@ def paper(p):
 
 
 def border(p):
+    p.angleMode(DEGREES)
     p.fill(LAPIS)
     p.stroke("#775b35")
     p.strokeWeight(0.7)
@@ -260,6 +262,7 @@ def border(p):
 
 
 def headings(p):
+    p.angleMode(DEGREES)
     # The headings are ornaments and live Unicode text occupies their centres.
     p.fill("#283366")
     p.stroke(GOLD)
@@ -293,69 +296,182 @@ def mountain(p, x, y, s, color):
     p.push()
     p.translate(x, y)
     p.scale(s)
+    rng = random.Random(int(x * 13 + y * 29))
+    tilt = rng.uniform(-8, 9)
+    p.rotate(tilt)
+    tip = rng.uniform(-22, 24)
 
     def outline():
         curve(
             p,
-            (-51, 87),
+            (-59, 87),
             [
-                (-79, 82, -79, 56, -58, 47),
-                (-84, 21, -47, 13, -48, -6),
-                (-70, -23, -28, -26, -29, -44),
-                (-49, -62, -5, -61, 9, -94),
-                (35, -100, 28, -67, 39, -59),
-                (61, -68, 44, -35, 57, -20),
-                (83, -17, 62, 11, 72, 26),
-                (89, 43, 87, 59, 61, 71),
-                (71, 96, 23, 102, -6, 105),
-                (-22, 101, -31, 104, -51, 87),
+                (-88, 81, -80, 59, -63, 43),
+                (-87, 26, -58, 9, -47, -7),
+                (-68, -22, -33, -34, -30, -52),
+                (-46, -72, tip - 9, -79, tip, -104),
+                (tip + 30, -113, tip + 31, -72, 40, -61),
+                (67, -73, 50, -34, 59, -18),
+                (85, -15, 65, 12, 72, 32),
+                (94, 49, 78, 73, 59, 83),
+                (61, 99, 23, 108, -5, 104),
+                (-20, 103, -46, 106, -59, 87),
             ],
             color,
-            "#796378",
-            0.8,
+            "#71606c",
+            0.58,
         )
 
     outline()
     p.push()
     p.clip(outline)
-    # Hand-authored mineral bands, curling fault lines and broken stipple.
-    rng = random.Random(int(x * 7 + y))
-    for n in range(9):
-        xx = -72 + n * 20
+    brush.wash(
+        p,
+        brush.Wash(
+            color="#342648", opacity=0.13, layers=4, border=0.2, texture=0.8, bleed=0.35
+        ),
+        [(-75, 108), (-34, -66), (30, -96), (86, 74), (39, 112)],
+    )
+    for ridge in range(4):
+        base = -49 + ridge * 27 + rng.uniform(-7, 7)
+        knots = [
+            (base, 109),
+            (base + 16, 66),
+            (base - 8, 37),
+            (base + 17, 6),
+            (base + 7, -29),
+            (base + 24, -78),
+        ]
+        inkline(p, knots, "#44325350", 2.2, 0.6)
+        inkline(p, [(xx + 2, yy - 2) for xx, yy in knots], "#f1d3c8a0", 0.7, 0.8)
+    for shelf in range(12):
+        cx = rng.uniform(-32, 25)
+        cy = -83 + shelf * 15.3 + rng.uniform(-8, 8)
+        reach = rng.uniform(37, 65)
+        rise = rng.uniform(12, 25)
+        pigment = mixLinear(color, "#633d73", rng.uniform(0.05, 0.22))
         curve(
             p,
-            (xx, 115),
+            (cx - reach, cy + rise * 0.55),
             [
-                (xx - 20, 76, xx + 22, 54, xx + 9, 24),
-                (xx - 7, 3, xx + 29, -10, xx + 15, -37),
-                (xx - 1, -59, xx + 30, -89, xx + 32, -106),
-                (xx + 35, -85, xx + 7, -58, xx + 24, -35),
-                (xx + 41, -9, xx + 7, 2, xx + 26, 22),
-                (xx + 39, 47, xx + 6, 71, xx + 20, 115),
+                (
+                    cx - reach * 1.1,
+                    cy - 4,
+                    cx - reach * 0.50,
+                    cy - rise * 0.1,
+                    cx - reach * 0.31,
+                    cy - rise,
+                ),
+                (
+                    cx - reach * 0.25,
+                    cy - rise * 1.13,
+                    cx + reach * 0.08,
+                    cy - rise * 0.76,
+                    cx + reach * 0.33,
+                    cy - rise * 1.22,
+                ),
+                (
+                    cx + reach * 0.29,
+                    cy - rise * 0.54,
+                    cx + reach * 0.7,
+                    cy - rise * 0.51,
+                    cx + reach,
+                    cy - rise * 0.2,
+                ),
+                (
+                    cx + reach * 0.84,
+                    cy + rise * 0.61,
+                    cx + reach * 0.39,
+                    cy + rise * 0.58,
+                    cx + reach * 0.1,
+                    cy + rise * 0.30,
+                ),
+                (
+                    cx - reach * 0.25,
+                    cy + rise * 0.75,
+                    cx - reach * 0.75,
+                    cy + rise * 0.8,
+                    cx - reach,
+                    cy + rise * 0.55,
+                ),
             ],
-            "#ebd0d222" if n % 2 else "#59487518",
-            "#88789244",
-            0.45,
+            pigment,
+            "#624969b0",
+            0.6,
         )
-    for n in range(180):
-        xx = rng.uniform(-78, 82)
-        yy = rng.uniform(-97, 101)
+        for band in range(5):
+            d = band * 1.8
+            knots = [
+                (cx - reach * 0.94, cy + rise * 0.35 - d),
+                (cx - reach * 0.72, cy - d),
+                (cx - reach * 0.32, cy - rise * 0.62 - d),
+                (cx - reach * 0.12, cy - rise * 0.45 - d),
+                (cx + reach * 0.33, cy - rise * 0.91 - d),
+                (cx + reach * 0.67, cy - rise * 0.24 - d),
+            ]
+            inkline(p, knots, "#e9c5bc90" if band % 2 else "#7250768a", 0.5, 0.8)
+        for fissure in range(3):
+            xx = cx - reach * 0.5 + fissure * reach * 0.42
+            inkline(
+                p,
+                [
+                    (xx, cy + rise * 0.35),
+                    (xx + 8, cy + rise * 0.12),
+                    (xx + 9, cy - rise * 0.25),
+                    (xx + 18, cy - rise * 0.55),
+                ],
+                "#694d728a",
+                0.5,
+                0.65,
+            )
+    for ledge in range(16):
+        xx = rng.uniform(-61, 59)
+        yy = rng.uniform(-70, 86)
+        reach = rng.uniform(9, 28)
+        for ring in range(4):
+            w = reach - ring * 1.9
+            inkline(
+                p,
+                [
+                    (xx - w * 0.9, yy + ring * 2),
+                    (xx - w * 0.8, yy - w * 0.24 + ring * 2),
+                    (xx + w * 0.3, yy - w * 0.50 + ring * 2),
+                    (xx + w * 0.9, yy - w * 0.8 + ring * 2),
+                ],
+                "#6651748a" if ring % 2 else "#e8cec19e",
+                0.45,
+                0.7,
+            )
+    for n in range(330):
+        xx = rng.uniform(-84, 86)
+        yy = rng.uniform(-102, 106)
+        pigment = rng.choice(["#fcddc066", "#65577466", "#8c75904e"])
         p.noFill()
-        p.stroke(rng.choice(["#eee2d24c", "#6f688c60", "#c7afc9b0"]))
-        p.strokeWeight(0.38)
-        p.bezier(xx, yy, xx - 5, yy - 3, xx + 1, yy - 6, xx + 3, yy - 7)
-    colors = ["#baa3b5", "#7f7c9c", "#dab6b8", "#a480a3"]
-    for n in range(16):
-        xx = -47 + n * 6
-        yy = 43 + math.sin(n * 1.5) * 20
-        p.noFill()
-        p.stroke(colors[n % 4])
-        p.strokeWeight(0.65)
-        p.bezier(xx, yy + 35, xx - 20, yy - 6, xx + 10, yy - 8, xx + 14, yy - 46)
-        p.bezier(xx, yy + 20, xx + 28, yy + 4, xx + 13, yy - 21, xx + 10, yy - 35)
-    for n in range(18):
-        yy = 73 - n * 7
-        line(p, (-40, yy), (5, yy - 18), "#d4b8c1", 0.45)
+        p.stroke(pigment)
+        p.strokeWeight(0.22)
+        p.bezier(xx, yy, xx - 1.5, yy - 2, xx + 2, yy - 2.7, xx + 3, yy - 4)
+    for n in range(9):
+        xx = -45 + n * 12 + rng.uniform(-5, 5)
+        yy = 61 + rng.uniform(-38, 25)
+        inkline(
+            p,
+            [
+                (xx - 12, yy + 8),
+                (xx - 5, yy - 6),
+                (xx + 10, yy - 16),
+                (xx + 6, yy - 28),
+            ],
+            "#5d486b",
+            0.62,
+            0.75,
+        )
+        inkline(
+            p,
+            [(xx - 8, yy + 6), (xx - 3, yy - 5), (xx + 13, yy - 16)],
+            "#e0c3b1",
+            0.5,
+            0.65,
+        )
     p.pop()
     p.pop()
 
@@ -374,21 +490,287 @@ def cloud(p, x, y, s):
     p.pop()
 
 
-def tree(p, x, y, h):
-    line(p, (x, y), (x - 4, y - h), "#705444", 3)
-    for n in range(11):
-        yy = y - h * 0.15 - n * h * 0.07
-        side = -1 if n % 2 else 1
-        tip = x + side * (23 + 14 * math.sin(n * 0.8))
-        line(p, (x - 4, yy + 20), (tip, yy - 15), "#715744", 1.2)
-        for j in range(3):
-            leaf(
-                p, tip + side * j * 5, yy - j * 8, 23, side * (-70 - j * 10), "#426961"
+def arabesque(p, x, y, w, h, seed=0):
+    rng = random.Random(seed)
+    for j in range(2):
+        p.noFill()
+        p.stroke("#e1c480" if j == 0 else "#91713f")
+        p.strokeWeight(0.55 if j == 0 else 0.28)
+        p.bezier(
+            x,
+            y + h * 0.72 + j * 0.6,
+            x + w * 0.28,
+            y - h * 0.19,
+            x + w * 0.75,
+            y + h * 1.05,
+            x + w,
+            y + h * 0.28 + j * 0.6,
+        )
+        p.bezier(
+            x,
+            y + h * 0.27 + j * 0.5,
+            x + w * 0.40,
+            y + h * 1.0,
+            x + w * 0.72,
+            y - h * 0.14,
+            x + w,
+            y + h * 0.72 + j * 0.5,
+        )
+    for j in range(7):
+        t = (j + 0.5) / 7
+        xx = x + w * t
+        yy = y + h * (0.53 + 0.23 * math.sin(t * math.tau))
+        leaf(p, xx, yy, min(w, h) * 0.26, -65 if j % 2 else 160, "#d2ac59")
+        leaf(p, xx, yy, min(w, h) * 0.19, 75 if j % 2 else -145, "#b69a61")
+        if j % 2 == 0:
+            flower(p, xx, yy, 2.3, 5, "#d7c194")
+    for j in range(30):
+        p.noStroke()
+        p.fill("#d2aa596a")
+        p.circle(x + rng.random() * w, y + rng.random() * h, 0.45)
+
+
+def border_motif(p, x, y, w, h, phase):
+    p.push()
+    p.translate(x + w * 0.5, y + h * 0.5)
+    if phase % 3 == 0:
+        flower(p, 0, 0, 3.5, 8, "#c3c4ad")
+        for side in (-1, 1):
+            leaf(p, side * 5, 3, 8, 25 if side > 0 else 155, "#e4c16c")
+            leaf(p, side * 6, -2, 7, -40 if side > 0 else -140, "#ba9c57")
+            inkline(
+                p,
+                [(side * 8, -5), (side * 12, -7), (side * 14, -3)],
+                "#ede1b5",
+                0.4,
+                0.65,
             )
-            if n % 3 == 0:
-                flower(p, tip + side * (j * 7 + 8), yy - 8 - j * 10, 4.8, 5, "#d08b91")
-    for n in range(6):
-        line(p, (x, y), (x - 20 + n * 8, y + 10), "#77604b", 0.65)
+    elif phase % 3 == 1:
+        for j in range(5):
+            leaf(p, 0, 4, 10, -155 + j * 33, "#e4c482" if j % 2 else "#b5944e")
+        curve(
+            p,
+            (-4, 3),
+            [(-7, -2, -6, -6, 0, -9), (6, -6, 7, -2, 4, 3), (2, 6, -2, 6, -4, 3)],
+            "#384a7a",
+            "#e5c584",
+            0.45,
+        )
+        flower(p, 0, -2, 2.2, 5, "#ccb99e")
+    else:
+        curve(
+            p,
+            (-4, 5),
+            [
+                (-10, 1, -7, -5, -1, -5),
+                (4, -5, 7, -8, 5, -11),
+                (12, -6, 10, 1, 4, 5),
+                (2, 8, -2, 8, -4, 5),
+            ],
+            "#756d7c",
+            "#e2bf77",
+            0.55,
+        )
+        p.noFill()
+        p.stroke("#eee2b3")
+        p.strokeWeight(0.35)
+        p.bezier(-3, 3, -7, -1, 1, -5, 4, -8)
+        disk(p, 1, 1, 2.3, "#c2ac73", "#eddaa0", 0.3)
+    p.pop()
+
+
+def illumination(p):
+    p.angleMode(DEGREES)
+    for xx in range(173, 911, 42):
+        arabesque(p, xx, 129, 40, 25, xx)
+        border_motif(p, xx, 129, 40, 25, xx // 42)
+        arabesque(p, xx, 1387, 40, 24, xx + 41)
+        border_motif(p, xx, 1387, 40, 24, xx // 42 + 1)
+    for yy in range(176, 1369, 42):
+        p.push()
+        p.translate(157, yy)
+        p.rotate(90)
+        arabesque(p, 0, 0, 40, 25, yy)
+        border_motif(p, 0, 0, 40, 25, yy // 42)
+        p.pop()
+        p.push()
+        p.translate(943, yy + 40)
+        p.rotate(-90)
+        arabesque(p, 0, 0, 40, 25, yy + 4)
+        border_motif(p, 0, 0, 40, 25, yy // 42 + 1)
+        p.pop()
+    for yy in (216, 252):
+        for xx in range(257, 832, 42):
+            arabesque(p, xx, yy, 38, 13, xx + yy)
+    for side in (-1, 1):
+        p.push()
+        p.translate(550, 0)
+        p.scale(side, 1)
+        for n in range(4):
+            xx = 208 + n * 30
+            p.noFill()
+            p.stroke("#b8a473")
+            p.strokeWeight(0.5)
+            p.bezier(xx, 1308, xx - 19, 1292, xx - 7, 1274, xx + 5, 1283)
+            p.bezier(xx + 5, 1283, xx + 18, 1289, xx - 8, 1301, xx, 1308)
+            flower(p, xx + 5, 1283, 3.3, 7, "#b1b7a0")
+            leaf(p, xx - 7, 1299, 11, -37, "#b3a075")
+        p.pop()
+    for x, y in [(189, 325), (911, 325), (189, 1097), (911, 1097)]:
+        rosette(p, x, y, 11, 8)
+    for x in range(185, 913, 9):
+        line(p, (x, 161), (x + 3, 168), "#e6c887", 0.35)
+        line(p, (x, 1373), (x + 3, 1380), "#e6c887", 0.35)
+
+
+def tree(p, x, y, h):
+    rng = random.Random(int(x * 53 + y))
+    curve(
+        p,
+        (x - 6, y),
+        [
+            (x - 14, y - h * 0.33, x + 11, y - h * 0.57, x - 3, y - h),
+            (x + 5, y - h * 0.58, x - 6, y - h * 0.28, x + 5, y),
+            (x + 1, y + 3, x - 2, y + 3, x - 6, y),
+        ],
+        "#715649",
+        "#5c4a3e",
+        0.55,
+    )
+    inkline(
+        p,
+        [
+            (x - 3, y - 4),
+            (x - 7, y - h * 0.29),
+            (x + 3, y - h * 0.57),
+            (x - 4, y - h * 0.91),
+        ],
+        "#b49872",
+        0.65,
+    )
+    for b in range(9):
+        side = -1 if b % 2 else 1
+        yy = y - h * 0.12 - b * h * 0.084
+        endx = x + side * rng.uniform(22, 47)
+        endy = yy - rng.uniform(18, 36)
+        inkline(
+            p,
+            [
+                (x, yy + 13),
+                (x + side * 10, yy),
+                (endx - side * 7, endy + 5),
+                (endx, endy),
+            ],
+            "#5d4d3b",
+            1.65,
+            0.9,
+        )
+        for branch in range(4):
+            xx = endx + side * branch * 8
+            yyy = endy - branch * 5
+            inkline(
+                p, [(endx, endy), (xx, yyy), (xx + side * 4, yyy - 11)], "#6a5a3f", 0.75
+            )
+            for j in range(3):
+                size = rng.uniform(7, 14)
+                leaf(
+                    p,
+                    xx + side * j * 3,
+                    yyy - j * 5,
+                    size,
+                    -155 + j * 20 if side < 0 else -45 + j * 18,
+                    rng.choice(["#3b685d", "#476f60", "#47615c", "#658168"]),
+                )
+            if b % 2 == 0:
+                flower(p, xx + side * 4, yyy - 10, rng.uniform(2.1, 3.8), 5, "#bd6f7b")
+                flower(p, xx - side * 2, yyy - 16, 2.3, 5, "#e0b3a9")
+    for n in range(7):
+        inkline(
+            p,
+            [(x - 4, y - 7), (x - 6 + n * 1.5, y + 2), (x - 22 + n * 7, y + 10)],
+            "#84745c",
+            0.45,
+        )
+
+
+def cypress(p, x, y, h):
+    rng = random.Random(int(x + y * 3))
+    width = h * 0.16
+    curve(
+        p,
+        (x - width, y),
+        [
+            (
+                x - width * 1.1,
+                y - h * 0.30,
+                x - width * 0.60,
+                y - h * 0.65,
+                x - 2,
+                y - h,
+            ),
+            (
+                x + width * 0.50,
+                y - h * 0.68,
+                x + width * 1.1,
+                y - h * 0.25,
+                x + width,
+                y,
+            ),
+            (x + width * 0.3, y + 5, x - width * 0.3, y + 5, x - width, y),
+        ],
+        "#3b5b51",
+        "#405848",
+        0.6,
+    )
+    inkline(
+        p,
+        [(x, y), (x + 2, y - h * 0.36), (x - 1, y - h * 0.75), (x - 2, y - h)],
+        "#28483f",
+        1.15,
+        0.75,
+    )
+    for n in range(32):
+        t = (n + 0.4) / 33
+        yy = y - h * t
+        spread = width * (1 - t) ** 0.68
+        for side in (-1, 1):
+            xx = x + side * spread * rng.uniform(0.62, 0.98)
+            inkline(
+                p,
+                [(x, yy + 7), (x + side * spread * 0.48, yy - 3), (xx, yy - 12)],
+                "#233f3b",
+                0.6,
+                0.8,
+            )
+            for j in range(5):
+                q = (j + 0.3) / 5
+                lx = x + side * spread * q
+                ly = yy - 7 * q
+                length = rng.uniform(6, 12) * (1 - t * 0.55)
+                angle = (
+                    -145 + rng.uniform(-12, 12)
+                    if side < 0
+                    else -34 + rng.uniform(-12, 12)
+                )
+                leaf(
+                    p,
+                    lx,
+                    ly,
+                    length,
+                    angle,
+                    rng.choice(["#537768", "#5c7c66", "#41675b", "#2c5048"]),
+                )
+    for n in range(180):
+        t = rng.random()
+        yy = y - h * t
+        xx = x + rng.uniform(-1, 1) * width * (1 - t) ** 0.68
+        inkline(
+            p,
+            [(xx, yy), (xx + rng.uniform(-2, 2), yy - 3), (xx + 1, yy - 5)],
+            "#8aa18166",
+            0.28,
+            0.7,
+        )
 
 
 def sprig(p, x, y, s, color="#4a6d5d"):
@@ -418,133 +800,599 @@ def carpet(p, x, y, w, h, color):
         line(p, (xx, y + h), (xx + 1, y + h + 4), "#c0a16b", 0.4)
 
 
-def person(p, x, y, s, robe, pose=0, royal=False):
+def inkline(p, points, color="#443a35", width=0.6, pressure=0.8):
+    tool = brush.marker(color, width)
+    # workaround: sprite nib triangles ignore antialiasing at fine widths.
+    tool.tip = brush.Tip.Fibres
+    tool.bristles = 1
+    tool.density = 1
+    tool.sharpness = 1
+    tool.opacity = 0.94
+    tool.spacing = 0.05
+    tool.scatter = 0
+    tool.sizeJitter = 0.025
+    tool.opacityJitter = 0.015
+    tool.noise = 0.10
+    brush.spline(
+        p,
+        tool,
+        [
+            brush.Sample(
+                pt,
+                pressure
+                * (0.55 + 0.45 * math.sin(i * math.pi / max(1, len(points) - 1))),
+            )
+            for i, pt in enumerate(points)
+        ],
+        curvature=1.0,
+    )
+
+
+def cloth(p, start, spans, color, seed, folds=7):
+    def outline():
+        curve(p, start, spans, color, "#443941", 0.7)
+
+    outline()
+    p.push()
+    p.clip(outline)
+    rng = random.Random(seed)
+    pts = [start] + [(span[i], span[i + 1]) for span in spans for i in (0, 2, 4)]
+    left = min(pt[0] for pt in pts)
+    right = max(pt[0] for pt in pts)
+    top = min(pt[1] for pt in pts)
+    bottom = max(pt[1] for pt in pts)
+    w = right - left
+    h = bottom - top
+    crease = left + w * (0.35 + (seed % 3) * 0.13)
+    brush.wash(
+        p,
+        brush.Wash(
+            color="#34203d",
+            opacity=0.14,
+            layers=4,
+            border=0.12,
+            texture=0.9,
+            bleed=0.16,
+        ),
+        [
+            (left, top),
+            (left + w * 0.36, top + h * 0.17),
+            (right, bottom),
+            (left, bottom),
+        ],
+    )
+    brush.wash(
+        p,
+        brush.Wash(
+            color="#ead2a4",
+            opacity=0.09,
+            layers=3,
+            border=0.02,
+            texture=0.65,
+            bleed=0.09,
+        ),
+        [
+            (crease, top),
+            (right, top + h * 0.25),
+            (right - w * 0.17, bottom),
+            (crease - w * 0.25, bottom),
+        ],
+    )
+    for n in range(folds):
+        q = (n + 0.5) / folds
+        knots = [
+            (crease + (q - 0.5) * w * 0.19, top + h * 0.16),
+            (crease + (q - 0.5) * w * 0.31, top + h * 0.34),
+            (left + w * q + (q - 0.5) * w * 0.10, top + h * 0.64),
+            (left + w * q, bottom - h * 0.04),
+        ]
+        inkline(p, knots, "#32223c78", 1.4, 0.65)
+        inkline(p, [(xx + 0.95, yy - 0.3) for xx, yy in knots], "#f1d4a290", 0.55, 0.85)
+    for n in range(3):
+        yy = top + h * (0.60 + n * 0.12)
+        inkline(
+            p,
+            [
+                (left + w * 0.13, yy),
+                (crease, yy + h * 0.07),
+                (right - w * 0.13, yy - h * 0.07),
+            ],
+            "#3a2b455a",
+            0.72,
+            0.65,
+        )
+    for n in range(50):
+        x = rng.uniform(left, right)
+        y = rng.uniform(top, bottom)
+        if seed % 3 == 0:
+            flower(p, x, y, 1.15, 5, "#d7b56c")
+            leaf(p, x + 2, y + 1, 3.5, 45, "#ccb27677")
+        elif seed % 3 == 1:
+            leaf(p, x, y, 3, -43, "#d8b579a0")
+            leaf(p, x + 1, y + 1, 2.5, 145, "#e6c98e88")
+            disk(p, x + 2, y - 0.5, 0.9, "#d8b36b", "#d8b36b", 0.15)
+        else:
+            curve(
+                p,
+                (x, y),
+                [
+                    (x + 1, y - 2, x + 3, y - 1, x + 3, y + 1),
+                    (x + 1, y + 3, x - 1, y + 1, x, y),
+                ],
+                "#d9bb8488",
+                "#e7c99188",
+                0.24,
+            )
+    for n in range(160):
+        x = rng.uniform(left, right)
+        y = rng.uniform(top, bottom)
+        line(p, (x, y), (x + 0.6, y + 0.1), rng.choice(["#2a244720", "#f5dcad3d"]), 0.2)
+    p.pop()
+
+
+def hand(p, x, y, angle=0):
     p.push()
     p.translate(x, y)
-    p.scale(s)
-    # Folded knees, coat, cuffs, fingers and a profile are separate filled contours.
+    p.rotate(angle)
     curve(
         p,
-        (-30, 59),
+        (-2, 5),
         [
-            (-45, 47, -42, 34, -19, 29),
-            (-10, 30, 7, 34, 18, 34),
-            (44, 33, 45, 57, 22, 62),
-            (2, 59, -11, 68, -30, 59),
+            (1, 6, 7, 3, 10, -1),
+            (14, -4, 14, -7, 11, -6),
+            (8, -4, 7, -2, 4, -2),
+            (8, -8, 6, -10, 4, -7),
+            (1, -6, 0, -2, -2, 0),
+            (-4, 1, -4, 4, -2, 5),
         ],
-        robe,
-        "#60484b",
-        0.7,
+        "#e9c8a8",
+        "#785b4b",
+        0.45,
     )
-    curve(
-        p,
-        (-21, 30),
-        [
-            (-20, 8, -14, -8, -11, -17),
-            (-1, -22, 10, -20, 15, -12),
-            (19, 10, 26, 22, 18, 43),
-            (1, 47, -9, 45, -21, 30),
-        ],
-        robe,
-        "#5f4246",
-        0.8,
-    )
-    line(p, (0, -13), (-7, 34), "#d2a170", 0.7)
-    line(p, (7, -13), (9, 35), "#382b42", 0.5)
-    for n in range(5):
-        line(p, (-25 + n * 12, 49), (-17 + n * 11, 58), "#c39872", 0.5)
+    for j in range(3):
+        inkline(
+            p,
+            [(3 + j * 2, -2 - j), (6 + j * 2, -4 - j), (9 + j, -5 - j)],
+            "#92705a",
+            0.32,
+            0.65,
+        )
+    p.pop()
+
+
+def face(p, x, y, tilt=0, variant=0):
+    p.push()
+    p.translate(x, y)
+    p.rotate(tilt)
+    p.scale(0.69 + (variant % 3) * 0.028, 0.91 + (variant % 2) * 0.04)
+    nose = 12 + (variant % 4) * 0.75
+    jaw = 6 + (variant % 3) * 1.4
+    skin = [
+        "#e4c29b",
+        "#dfb58f",
+        "#edd0a8",
+        "#d7ad86",
+        "#dfbe98",
+        "#e9cba6",
+        "#d4b28e",
+    ][variant % 7]
     curve(
         p,
         (-11, -18),
         [
-            (-18, -29, -9, -46, 1, -44),
-            (11, -44, 14, -30, 6, -20),
-            (4, -15, -5, -14, -11, -18),
+            (-3, -24, 9, -22, 12, -12),
+            (12, -7, 11, -3, nose, 0),
+            (nose + 1, 2, 10, 2, 11, 4),
+            (11, 7, jaw, 12, 1, 14),
+            (-6, 12, -10, 7, -12, 1),
+            (-14, -6, -15, -13, -11, -18),
         ],
-        "#e7bc9a",
-        "#6d544d",
-        0.65,
+        skin,
+        "#654b40",
+        0.55,
     )
-    line(p, (2, -35), (5, -34), "#594448", 0.6)
-    line(p, (4, -31), (8, -29), "#755749", 0.55)
-    line(p, (3, -24), (-1, -22), "#9b6759", 0.5)
-    # Turbans are stacked crescent bands; the crowned figure wears a gilded cap.
-    if royal:
-        polygon(
-            p,
-            [
-                (-12, -42),
-                (-14, -54),
-                (-5, -50),
-                (0, -60),
-                (5, -49),
-                (13, -54),
-                (12, -41),
-            ],
-            "#d0aa56",
-            "#694e3c",
-            0.7,
-        )
-        for xx in (-8, 0, 8):
-            disk(p, xx, -45, 3, "#283c7c", "#e4c781", 0.4)
-        disk(p, 0, -55, 3, "#ae4249", "#e4c781", 0.4)
-    else:
-        for j in range(4):
-            curve(
-                p,
-                (-13, -40 - j * 2),
-                [
-                    (-24, -49 - j * 2, 14, -58 + j, 17, -43 - j),
-                    (4, -38 - j, -9, -39 - j, -13, -40 - j * 2),
-                ],
-                "#e4dac6",
-                "#827567",
-                0.55,
-            )
-        polygon(p, [(1, -50), (2, -61), (7, -63), (7, -46)], "#ece0c5", "#6d6259", 0.6)
-    if pose == 1:
+    brush.wash(
+        p,
+        brush.Wash(
+            color="#ae7961",
+            opacity=0.09,
+            layers=2,
+            border=0.01,
+            texture=0.5,
+            bleed=0.05,
+        ),
+        [(-11, -17), (-2, -20), (2, 13), (-10, 7)],
+    )
+    brow_y = -7 - variant % 2
+    inkline(
+        p,
+        [(-6, brow_y), (-1, brow_y - 1.1), (3, brow_y), (6, brow_y + 1)],
+        "#4b3530",
+        0.58,
+    )
+    curve(
+        p,
+        (-5, -4),
+        [(-2, -6, 2, -5.7, 5, -3.6), (1, -2.1, -2, -2.3, -5, -4)],
+        "#f1d9b5",
+        "#765747",
+        0.3,
+    )
+    disk(p, 1.5, -4.1, 1.05, "#312824", "#312824", 0.15)
+    line(p, (5, -2), (6, 1), "#b38568", 0.35)
+    inkline(p, [(nose - 4, -1), (nose - 5, 2), (nose - 2, 2)], "#775247", 0.4)
+    inkline(p, [(5, 6), (8, 5.5), (10, 6.5)], "#955f51", 0.45)
+    line(p, (6, 8), (9, 8), "#b7866c", 0.3)
+    curve(
+        p,
+        (-9, -1),
+        [(-14, -5, -16, 2, -12, 6), (-9, 7, -8, 3, -9, -1)],
+        skin,
+        "#87624e",
+        0.4,
+    )
+    inkline(p, [(-12, 1), (-13, 3), (-11, 4)], "#ad7e62", 0.35)
+    if variant in (3, 5, 6):
+        beard = ["#554038", "#433830", "#a39a88"][[3, 5, 6].index(variant)]
+        length = 16 + (variant % 3) * 4
         curve(
             p,
-            (-18, -7),
+            (-8, 5),
             [
-                (-32, -2, -41, 16, -28, 23),
-                (-18, 25, -8, 9, -7, 4),
-                (-10, 3, -16, 1, -18, -7),
+                (-2, 13, 7, 13, 10, 7),
+                (9, length, 1, length + 4, -5, 13),
+                (-8, 10, -9, 8, -8, 5),
             ],
-            robe,
-            "#63484a",
-            0.7,
+            beard,
+            "#4f3b32",
+            0.4,
         )
-        polygon(
+        for n in range(15):
+            inkline(
+                p,
+                [(-7 + n * 1.1, 10), (0 + n * 0.35, length + 1), (2 + n * 0.3, length)],
+                "#ccb69b68",
+                0.27,
+                0.65,
+            )
+        inkline(p, [(4, 4), (7, 3), (11, 4)], "#44342f", 0.6, 0.8)
+    elif variant in (1, 2):
+        inkline(p, [(4, 4), (7, 3), (11, 4)], "#553d32", 0.65, 0.8)
+        inkline(p, [(5, 4), (4, 5), (2, 5)], "#553d32", 0.42, 0.8)
+    if variant in (5, 6):
+        inkline(p, [(-5, -10), (-1, -11), (4, -10)], "#96735d", 0.28, 0.6)
+        inkline(p, [(-1, 2), (0, 6), (-2, 9)], "#a98268", 0.28, 0.6)
+    p.pop()
+
+
+def turban(p, x, y, royal=False):
+    p.push()
+    p.translate(x, y)
+    p.scale(0.87, 0.85)
+    if royal:
+        curve(
             p,
-            [(-10, 7), (-8, -12), (-4, -17), (0, -14), (-2, 6)],
-            "#e8bd9c",
-            "#745a4d",
+            (-15, 2),
+            [
+                (-16, -8, -12, -13, -8, -13),
+                (-4, -29, 3, -30, 6, -13),
+                (14, -18, 17, -6, 16, 2),
+                (5, 7, -4, 7, -15, 2),
+            ],
+            "#c29b44",
+            "#674d2f",
             0.6,
         )
-        for j in range(3):
-            line(p, (-7 + j * 2, -14), (-5 + j * 2, -9), "#9e7a61", 0.4)
+        for n in range(10):
+            inkline(
+                p,
+                [(-13 + n * 2.9, 1), (-10 + n * 2.4, -5), (-7 + n * 1.7, -11)],
+                "#f3d88a",
+                0.45,
+            )
+        for x0 in [-10, -3, 4, 11]:
+            disk(p, x0, -1, 3.3, "#325c84", "#edd292", 0.3)
+        disk(p, 1, -17, 4.6, "#9f3037", "#ecd391", 0.4)
+        p.noFill()
+        p.stroke("#c7ad69")
+        p.strokeWeight(0.5)
+        p.bezier(4, -27, 14, -40, 22, -32, 17, -20)
     else:
         curve(
             p,
-            (12, -8),
-            [(24, -4, 36, 9, 29, 19), (22, 19, 14, 13, 7, 7), (8, 0, 10, -4, 12, -8)],
-            robe,
-            "#60464a",
-            0.7,
+            (-16, 2),
+            [
+                (-27, -5, -15, -22, 2, -20),
+                (15, -21, 22, -10, 18, -1),
+                (7, 7, -5, 7, -16, 2),
+            ],
+            "#e8dfc5",
+            "#73675a",
+            0.55,
         )
-        polygon(
+        for n in range(8):
+            inkline(
+                p,
+                [(-18 + n * 3, -1), (-10 + n * 2.6, -9), (4 + n * 1.6, -15)],
+                "#a99a7e",
+                0.45,
+            )
+        curve(
             p,
-            [(27, 14), (39, 9), (44, 12), (40, 16), (28, 20)],
-            "#e8bd9c",
-            "#705244",
+            (-14, -6),
+            [(-2, 2, 7, 3, 17, -3), (18, 1, 3, 9, -11, 2), (-17, 0, -18, -3, -14, -6)],
+            "#e8dec5",
+            "#9a8c74",
             0.5,
         )
-        disk(p, 42, 9, 7, "#aa4a4e", "#735543", 0.6)
-    for n in range(14):
-        xx = -10 + (n % 3) * 9
-        yy = -5 + (n // 3) * 8
-        flower(p, xx, yy, 1.3, 4, "#d7b271")
+        polygon(p, [(0, -15), (2, -32), (7, -33), (9, -14)], "#e7dbc0", "#766755", 0.4)
+        inkline(p, [(3, -29), (4, -21), (6, -15)], "#b0a185", 0.4)
+        curve(
+            p,
+            (-19, -1),
+            [(-23, 7, -20, 17, -23, 29), (-17, 20, -15, 6, -13, 0)],
+            "#e0d0b1",
+            "#897b64",
+            0.4,
+        )
+    p.pop()
+
+
+def person(p, x, y, s, robe, pose=0, royal=False):
+    p.push()
+    p.translate(x, y)
+    p.scale(s)
+    p.randomSeed(int(x * 11 + y * 17))
+    flip = -1 if pose in (1, 3, 5) else 1
+    p.scale(flip, 1)
+    bodyseed = int(x * 3 + y * 7)
+    if pose == 2:
+        polygon(
+            p, [(-16, 78), (-17, 110), (-5, 112), (0, 73)], "#b79172", "#574844", 0.5
+        )
+        polygon(
+            p, [(10, 74), (12, 109), (25, 110), (21, 75)], "#b79172", "#574844", 0.5
+        )
+        curve(
+            p,
+            (-19, 109),
+            [(-26, 115, -5, 120, -4, 113), (-7, 108, -13, 108, -19, 109)],
+            "#3b3b3b",
+            "#342a2a",
+            0.6,
+        )
+        curve(
+            p,
+            (14, 108),
+            [(13, 116, 34, 116, 31, 111), (27, 108, 20, 107, 14, 108)],
+            "#3b3b3b",
+            "#342a2a",
+            0.6,
+        )
+        cloth(
+            p,
+            (-22, -5),
+            [
+                (-29, 24, -24, 62, -29, 88),
+                (-2, 95, 19, 91, 31, 86),
+                (23, 53, 27, 12, 13, -5),
+                (3, -13, -10, -11, -22, -5),
+            ],
+            robe,
+            bodyseed,
+        )
+    elif pose == 3:
+        cloth(
+            p,
+            (-13, 3),
+            [
+                (-23, 28, -32, 50, -39, 62),
+                (-39, 76, -16, 82, 16, 76),
+                (36, 69, 37, 60, 20, 52),
+                (9, 35, 9, 10, -1, 0),
+                (-4, -4, -10, -2, -13, 3),
+            ],
+            robe,
+            bodyseed,
+        )
+        cloth(
+            p,
+            (-14, 49),
+            [
+                (-3, 45, 27, 46, 35, 59),
+                (52, 75, 29, 84, 1, 83),
+                (-31, 81, -50, 72, -44, 62),
+                (-41, 55, -28, 51, -14, 49),
+            ],
+            robe,
+            bodyseed + 1,
+        )
+    else:
+        cloth(
+            p,
+            (-25, 41),
+            [
+                (-41, 42, -50, 67, -36, 78),
+                (-14, 95, 3, 89, 15, 87),
+                (31, 90, 52, 75, 43, 63),
+                (29, 41, 10, 45, -25, 41),
+            ],
+            robe,
+            bodyseed,
+        )
+        cloth(
+            p,
+            (-19, -7),
+            [
+                (-24, 9, -26, 27, -23, 44),
+                (-11, 56, 14, 59, 27, 44),
+                (23, 29, 27, 7, 13, -9),
+                (5, -16, -10, -17, -19, -7),
+            ],
+            robe,
+            bodyseed + 4,
+        )
+        inkline(p, [(-37, 69), (-19, 74), (1, 74), (19, 69), (36, 71)], "#e2bc84", 0.55)
+        inkline(p, [(-29, 78), (-5, 82), (13, 82)], "#352b4244", 1.3)
+    # The inner coat and folded gold sash follow the torso rather than a grid.
+    curve(
+        p,
+        (-3, -11),
+        [(-8, 0, -9, 23, -7, 44), (0, 48, 6, 47, 9, 44), (11, 21, 8, -2, 5, -13)],
+        "#bd956d",
+        "#56443b",
+        0.5,
+    )
+    for n in range(8):
+        disk(p, 1, -5 + n * 6, 1.9, "#dfbc71", "#584432", 0.3)
+    curve(
+        p,
+        (-22, 37),
+        [(-9, 35, 9, 36, 25, 35), (25, 41, 8, 43, -22, 43)],
+        "#d2ba83",
+        "#6c5b41",
+        0.45,
+    )
+    for n in range(13):
+        line(p, (-19 + n * 3.3, 38), (-16 + n * 3.3, 41), "#977947", 0.38)
+    if pose == 1:
+        cloth(
+            p,
+            (-19, -7),
+            [
+                (-30, -3, -38, 15, -34, 21),
+                (-24, 33, -14, 15, -8, 7),
+                (-10, 1, -15, -5, -19, -7),
+            ],
+            robe,
+            bodyseed + 11,
+        )
+        hand(p, -17, 4, -88)
+        cloth(
+            p,
+            (17, -3),
+            [(34, 5, 27, 23, 9, 31), (-1, 30, -3, 26, 3, 21), (11, 16, 18, 8, 17, -3)],
+            robe,
+            bodyseed + 9,
+        )
+        hand(p, 0, 24, 20)
+    elif pose == 2:
+        cloth(
+            p,
+            (-16, -5),
+            [
+                (-35, 6, -34, 26, -19, 25),
+                (-10, 23, -4, 14, -1, 11),
+                (-4, 2, -9, -1, -16, -5),
+            ],
+            robe,
+            bodyseed + 8,
+        )
+        hand(p, -3, 15, 10)
+        cloth(
+            p,
+            (12, -5),
+            [(26, 0, 37, 17, 28, 24), (14, 28, 9, 17, 6, 12), (6, 4, 8, 0, 12, -5)],
+            robe,
+            bodyseed + 9,
+        )
+        hand(p, 27, 21, -10)
+        p.fill("#c6b478")
+        p.stroke("#6d5b3e")
+        p.strokeWeight(0.6)
+        p.ellipse(15, 15, 48, 9)
+        for j in range(4):
+            disk(p, 2 + j * 8, 12, 6, "#ab4c3e", "#684d38", 0.3)
+    elif pose == 4:
+        cloth(
+            p,
+            (-20, -6),
+            [
+                (-34, 4, -31, 27, -17, 32),
+                (-4, 35, 5, 18, 3, 10),
+                (-1, 0, -15, -6, -20, -6),
+            ],
+            robe,
+            bodyseed + 3,
+        )
+        cloth(
+            p,
+            (17, -5),
+            [(33, 2, 34, 21, 20, 30), (13, 34, 9, 25, 5, 22), (13, 14, 17, 9, 17, -5)],
+            robe,
+            bodyseed + 8,
+        )
+        p.push()
+        p.translate(16, 41)
+        p.rotate(-44)
+        curve(
+            p,
+            (-18, -2),
+            [
+                (-24, 17, -7, 32, 8, 23),
+                (22, 13, 22, 1, 13, -5),
+                (6, -10, -9, -11, -18, -2),
+            ],
+            "#bc914f",
+            "#59472f",
+            0.6,
+        )
+        polygon(p, [(-3, -5), (-4, -57), (4, -60), (5, -4)], "#9a773f", "#524531", 0.6)
+        for j in range(4):
+            line(p, (-2 + j * 1.5, -57), (-2 + j * 1.7, 21), "#e1c48c", 0.35)
+        p.fill("#674b2d")
+        p.noStroke()
+        p.circle(0, 9, 8)
+        p.pop()
+        hand(p, 23, 22, -42)
+        hand(p, 9, 40, 45)
+    elif pose == 3:
+        cloth(
+            p,
+            (11, -2),
+            [(25, 5, 35, 28, 23, 35), (16, 36, 9, 20, 5, 12), (4, 4, 7, 0, 11, -2)],
+            robe,
+            bodyseed + 8,
+        )
+        hand(p, 24, 32, 22)
+        polygon(p, [(19, 40), (42, 36), (55, 50), (32, 54)], "#ead5a6", "#8b7050", 0.55)
+        for j in range(4):
+            inkline(p, [(30, 41 + j * 2.1), (45, 39 + j * 2.1)], "#76624e", 0.35)
+        hand(p, 4, 38, 60)
+    else:
+        cloth(
+            p,
+            (-18, -8),
+            [
+                (-31, -1, -40, 13, -30, 22),
+                (-17, 34, -8, 16, -5, 8),
+                (-7, 1, -13, -6, -18, -8),
+            ],
+            robe,
+            bodyseed + 3,
+        )
+        hand(p, -9, 13, -30)
+        cloth(
+            p,
+            (17, -6),
+            [(30, -3, 40, 9, 32, 20), (24, 29, 9, 13, 6, 7), (8, 1, 13, -5, 17, -6)],
+            robe,
+            bodyseed + 7,
+        )
+        hand(p, 32, 17, 15)
+        if royal:
+            p.fill("#b8463f")
+            p.stroke("#d1b071")
+            p.strokeWeight(0.5)
+            p.ellipse(43, 12, 13, 6)
+            line(p, (42, 15), (43, 20), "#ae8651", 0.7)
+    # A slight head inclination changes the social direction of each figure.
+    tilt = {0: 0, 1: -16, 2: -5, 3: 21, 4: 11, 5: -9, 6: 8}.get(pose, 0)
+    face(p, 0, -24, tilt, (pose + (int(x) % 3)) % 7)
+    turban(p, 0, -42, royal)
+    if royal:
+        inkline(p, [(-17, -2), (-19, 16), (-13, 33)], "#e6c17d", 1.5)
+        inkline(p, [(13, -4), (18, 15), (21, 30)], "#e6c17d", 1.5)
     p.pop()
 
 
@@ -552,43 +1400,112 @@ def deer(p, x, y, s, color="#ceae8d", horns=True):
     p.push()
     p.translate(x, y)
     p.scale(s)
-    curve(
-        p,
-        (-33, 8),
-        [
-            (-42, -13, -6, -22, 20, -9),
-            (22, -20, 22, -33, 32, -40),
-            (39, -42, 42, -32, 35, -26),
-            (29, -6, 40, 3, 24, 11),
-            (8, 20, -20, 22, -33, 8),
-        ],
-        color,
-        "#715a4d",
-        0.7,
-    )
-    for off in (-24, -9, 17, 25):
-        polygon(
+    p.randomSeed(int(x * 17 + y))
+
+    def body():
+        curve(
             p,
-            [(off, 10), (off + 4, 10), (off + 5, 38), (off - 1, 39)],
+            (-39, 4),
+            [
+                (-40, -14, -16, -19, 6, -11),
+                (19, -9, 24, -21, 27, -37),
+                (29, -48, 42, -51, 44, -41),
+                (44, -36, 48, -34, 53, -32),
+                (56, -28, 46, -27, 39, -30),
+                (36, -14, 43, -3, 28, 11),
+                (15, 21, -25, 21, -39, 4),
+            ],
             color,
-            "#715a4d",
+            "#685344",
             0.6,
         )
-        line(p, (off - 1, 39), (off + 6, 39), "#443e36", 1.4)
-    leaf(p, 32, -35, 13, -70, color)
-    disk(p, 35, -32, 2, "#3d3831", "#3d3831", 0.3)
-    line(p, (-35, 3), (-49, -13), "#745a4b", 1.5)
+
+    # Staggered near and far limbs have flexed knees and dark hooves.
+    for off, bend, shade in [
+        (-25, -9, "#967e63"),
+        (17, 7, "#a58c6e"),
+        (-32, 2, color),
+        (23, -6, color),
+    ]:
+        curve(
+            p,
+            (off, 9),
+            [
+                (off + 5, 17, off + bend, 28, off + bend + 2, 33),
+                (off + bend + 6, 36, off + 5, 43, off + 1, 47),
+                (off - 2, 48, off - 4, 45, off - 3, 43),
+                (off + 2, 35, off + bend - 2, 31, off + bend - 3, 27),
+                (off - 6, 20, off - 4, 16, off, 9),
+            ],
+            shade,
+            "#715849",
+            0.45,
+        )
+        polygon(
+            p,
+            [(off - 5, 43), (off + 4, 43), (off + 3, 48), (off - 6, 48)],
+            "#484137",
+            "#705948",
+            0.3,
+        )
+    body()
+    p.push()
+    p.clip(body)
+    brush.wash(
+        p,
+        brush.Wash(
+            color="#705642", opacity=0.12, layers=3, border=0.03, texture=0.7, bleed=0.1
+        ),
+        [(-42, 1), (7, 0), (37, -25), (39, 20), (-41, 22)],
+    )
+    rng = random.Random(int(x + y))
+    for n in range(100):
+        xx = rng.uniform(-39, 44)
+        yy = rng.uniform(-46, 18)
+        inkline(
+            p, [(xx, yy), (xx + 2, yy + 1), (xx + 3, yy + 3)], "#765d4959", 0.28, 0.6
+        )
+    for n in range(15):
+        disk(p, -28 + (n % 5) * 10, -8 + (n // 5) * 8, 2.5, "#f3dfb8", "#bcaa88", 0.2)
+    p.pop()
+    inkline(p, [(-35, 4), (-51, -1), (-58, -12)], "#6b5946", 1.0, 0.9)
+    leaf(p, 40, -43, 12, -63, color)
+    leaf(p, 34, -41, 10, -112, color)
+    p.fill("#514137")
+    p.noStroke()
+    p.circle(52, -31, 3.5)
+    curve(
+        p,
+        (36, -38),
+        [(39, -40, 42, -38, 42, -36), (40, -35, 37, -35, 36, -38)],
+        "#ebe0bd",
+        "#6b5545",
+        0.35,
+    )
+    disk(p, 39, -37, 1.5, "#3b352b", "#3b352b", 0.2)
+    inkline(p, [(43, -34), (48, -33), (52, -34)], "#7e604b", 0.3)
     if horns:
         for direction in (-1, 1):
-            line(p, (30, -42), (30 + direction * 5, -59), "#705a46", 1)
-            line(
-                p, (30 + direction * 4, -54), (30 + direction * 12, -58), "#705a46", 0.8
+            points = [(34, -45), (34 + direction * 4, -58), (32 + direction * 7, -70)]
+            inkline(p, points, "#705b45", 1.0, 0.8)
+            inkline(
+                p,
+                [
+                    (34 + direction * 4, -57),
+                    (36 + direction * 13, -59),
+                    (38 + direction * 15, -65),
+                ],
+                "#705b45",
+                0.7,
+                0.8,
             )
-            line(
-                p, (30 + direction * 3, -49), (30 + direction * 10, -51), "#705a46", 0.8
+            inkline(
+                p,
+                [(33 + direction * 6, -64), (31 + direction * 11, -68)],
+                "#705b45",
+                0.65,
+                0.8,
             )
-    for n in range(8):
-        disk(p, -24 + (n % 4) * 9, -6 + (n // 4) * 10, 2.7, "#f4ddaf", "#a18869", 0.2)
     p.pop()
 
 
@@ -596,45 +1513,136 @@ def flames(p, x, y, s):
     p.push()
     p.translate(x, y)
     p.scale(s)
-    polygon(
-        p,
-        [(-44, 11), (-15, -3), (35, 6), (47, 21), (-19, 26)],
-        "#96816a",
-        "#604d41",
-        0.65,
-    )
-    for xx in (-28, -10, 9, 28):
-        line(p, (xx - 11, 19), (xx + 24, 5), "#6b5140", 2.4)
-    for j in range(8):
-        xx = -33 + j * 9
+    p.randomSeed(9801)
+    rng = random.Random(763)
+    for n in range(11):
+        xx = rng.uniform(-40, 35)
+        yy = rng.uniform(8, 22)
+        p.push()
+        p.translate(xx, yy)
+        p.rotate(rng.uniform(-27, 25))
         curve(
             p,
-            (xx, 15),
+            (-20, -3),
+            [(-22, -7, 14, -7, 19, -3), (21, 2, -16, 5, -20, 1)],
+            "#7b6554",
+            "#564b44",
+            0.45,
+        )
+        for j in range(3):
+            inkline(
+                p,
+                [(-17, -2 + j * 1.3), (-4, -3 + j * 1.3), (16, -2 + j * 1.3)],
+                "#aa9471",
+                0.35,
+            )
+        p.pop()
+    for n in range(23):
+        xx = rng.uniform(-40, 35)
+        ht = rng.uniform(29, 73)
+        curl = rng.uniform(-24, 24)
+        r = rng.uniform(4.5, 8)
+        # The tip turns back into the plume, producing an S rather than a straight wedge.
+        curve(
+            p,
+            (xx - r, 15),
             [
-                (xx - 17, -5, xx + 5, -21, xx - 1, -43 - j % 3 * 13),
-                (xx + 14, -23, xx + 24, -5, xx + 7, 18),
-                (xx + 2, 20, xx - 3, 18, xx, 15),
+                (xx - r * 2, -2, xx + curl - r * 2, -ht * 0.30, xx + curl, -ht * 0.54),
+                (
+                    xx + curl + r * 1.9,
+                    -ht * 0.81,
+                    xx + curl - r * 0.7,
+                    -ht * 0.94,
+                    xx + curl - r * 0.6,
+                    -ht,
+                ),
+                (
+                    xx + curl + r * 3,
+                    -ht * 0.88,
+                    xx + curl + r * 2,
+                    -ht * 0.62,
+                    xx + curl + r * 0.6,
+                    -ht * 0.44,
+                ),
+                (xx + r * 1.2, -ht * 0.17, xx + r * 2.1, 5, xx + r, 15),
+                (xx + r * 0.1, 19, xx - r * 0.5, 18, xx - r, 15),
             ],
-            "#bd583c" if j % 2 else "#b04337",
-            "#8f5b3c",
+            rng.choice(["#bb4436", "#a94333", "#c8703d", "#b95537"]),
+            "#87533d",
+            0.43,
+        )
+        curve(
+            p,
+            (xx - r * 0.22, 14),
+            [
+                (
+                    xx - r * 0.7,
+                    0,
+                    xx + curl - r,
+                    -ht * 0.21,
+                    xx + curl - r * 0.3,
+                    -ht * 0.38,
+                ),
+                (
+                    xx + curl + r,
+                    -ht * 0.45,
+                    xx + curl + r * 0.25,
+                    -ht * 0.59,
+                    xx + curl - r * 0.2,
+                    -ht * 0.66,
+                ),
+                (
+                    xx + curl + r * 1.2,
+                    -ht * 0.57,
+                    xx + curl + r * 1.3,
+                    -ht * 0.39,
+                    xx + curl + r * 0.5,
+                    -ht * 0.28,
+                ),
+                (xx + r * 0.7, -ht * 0.1, xx + r, 6, xx + r * 0.5, 14),
+            ],
+            "#d7a854",
+            "#e6c179",
+            0.25,
+        )
+        inkline(
+            p,
+            [
+                (xx, 13),
+                (xx - 2, -2),
+                (xx + curl - r * 0.3, -ht * 0.26),
+                (xx + curl + r * 0.2, -ht * 0.40),
+            ],
+            "#f0d39b",
             0.5,
+            0.8,
         )
+    for n in range(9):
+        xx = rng.uniform(-32, 31)
+        yy = rng.uniform(-74, -48)
         curve(
             p,
-            (xx, 16),
+            (xx, yy),
             [
-                (xx - 8, 0, xx + 9, -7, xx + 5, -30),
-                (xx + 18, -8, xx + 12, 2, xx + 5, 17),
-                (xx + 3, 17, xx + 1, 17, xx, 16),
+                (xx - 2, yy - 5, xx + 7, yy - 7, xx + 3, yy - 13),
+                (xx + 10, yy - 6, xx + 5, yy - 3, xx + 4, yy + 2),
+                (xx + 1, yy + 4, xx, yy + 2, xx, yy),
             ],
-            "#e1a352",
-            "#e8bc68",
-            0.35,
+            "#c58a4d",
+            "#ae7544",
+            0.3,
         )
+    for n in range(15):
+        xx = rng.uniform(-26, 28)
+        yy = rng.uniform(-87, -54)
+        p.noStroke()
+        p.fill("#c3915965")
+        p.circle(xx, yy, 0.8)
     p.pop()
 
 
 def painting(p):
+    p.angleMode(DEGREES)
     rng = random.Random(663)
     p.noStroke()
     p.fill("#37417a")
@@ -690,22 +1698,25 @@ def painting(p):
         (213, 995, 160),
     ]:
         tree(p, x, y, h)
-    for n in range(52):
+    for n in range(110):
         sprig(p, rng.uniform(245, 854), rng.uniform(672, 1060), rng.uniform(11, 25))
+    cypress(p, 332, 701, 161)
+    cypress(p, 771, 633, 155)
     # Central dais and the surrounding courtiers follow the source's oval hierarchy.
     carpet(p, 476, 669, 157, 99, "#3c3264")
     person(p, 553, 684, 1.22, "#b75238", 0, True)
     carpet(p, 312, 778, 119, 78, "#6e4855")
     person(p, 370, 786, 1.0, "#326962", 1)
     carpet(p, 674, 769, 117, 77, "#a97855")
-    person(p, 729, 779, 1.02, "#4a4370", 0)
-    person(p, 288, 672, 0.87, "#9a4a47", 0)
-    person(p, 294, 745, 0.84, "#454c8c", 0)
-    person(p, 811, 687, 0.84, "#8d4b5f", 1)
-    person(p, 805, 746, 0.86, "#b99a58", 0)
-    person(p, 402, 894, 0.92, "#454382", 0)
-    person(p, 738, 889, 0.94, "#b74f3c", 1)
-    person(p, 679, 918, 0.89, "#484986", 0)
+    person(p, 729, 779, 1.02, "#4a4370", 3)
+    person(p, 279, 659, 0.77, "#9a4a47", 2)
+    person(p, 306, 745, 0.84, "#454c8c", 5)
+    person(p, 802, 655, 0.76, "#8d4b5f", 2)
+    person(p, 813, 756, 0.86, "#b99a58", 1)
+    person(p, 362, 898, 0.94, "#454382", 4)
+    person(p, 745, 898, 0.94, "#b74f3c", 1)
+    person(p, 688, 932, 0.89, "#484986", 6)
+    person(p, 471, 983, 0.62, "#617b67", 3)
     flames(p, 548, 879, 1.15)
     # Long-necked vessels and shallow dishes echo the precise painted objects.
     for x, y in [(466, 828), (619, 830), (622, 942)]:
@@ -752,6 +1763,7 @@ def painting(p):
 
 
 def inscription_ruling(p):
+    p.angleMode(DEGREES)
     p.fill("#eadfbe")
     p.stroke("#8b7049")
     p.strokeWeight(0.8)
@@ -763,9 +1775,6 @@ def inscription_ruling(p):
         p.rect(x - 5, 1108, 10, 157)
         for y in range(1119, 1260, 17):
             flower(p, x, y, 2.9, 4, "#e0c489")
-    for x in range(218, 884, 174):
-        line(p, (x, 1229), (x + 134, 1229), "#d0b882", 0.35)
-        rosette(p, x + 64, 1244, 7, 6)
     for off, c in [(0, "#a88d52"), (5, "#c9aa65"), (10, "#586474")]:
         p.noFill()
         p.stroke(c)
@@ -777,6 +1786,7 @@ def inscription_ruling(p):
 
 
 def ember_sparks(p):
+    p.angleMode(DEGREES)
     p.noStroke()
     for x, y, d in [
         (35, 58, 2.8),
@@ -821,7 +1831,7 @@ def label(
     return at(leaf_text, x, y, w, h)
 
 
-@sketch(size=(W, H), background="#17252b", capture_at=3.0)
+@sketch(size=(W * 1.5, H * 1.5), background="#17252b", capture_at=3.0)
 class ShahnamehFolio:
     def setup(self, ctx):
         # Only the spark overlay animates; the folio's geometry and text remain retained.
@@ -829,6 +1839,7 @@ class ShahnamehFolio:
             at(pen("folio.paper", paper, Cache.Picture), 0, 0, W, H),
             at(pen("folio.border", border, Cache.Picture), 0, 0, W, H),
             at(pen("folio.headings", headings, Cache.Picture), 0, 0, W, H),
+            at(pen("folio.illumination", illumination, Cache.Picture), 0, 0, W, H),
             at(pen("folio.miniature", painting, Cache.Picture), 0, 0, W, H),
             at(pen("folio.ruling", inscription_ruling, Cache.Picture), 0, 0, W, H),
             label(
@@ -848,24 +1859,47 @@ class ShahnamehFolio:
                 "جشن آتش", 695, 363, 178, 55, 28, "Noto Nastaliq Urdu", language="fa"
             ),
         ]
-        # The two opening couplets are printed in reading order from right to left.
+        # Verses read across the four columns from right to left, then down.
         verses = [
             "به نام خداوندِ جان و خرد",
             "کز این برتر، اندیشه، بر نگذرد",
             "خداوندِ نام و خداوندِ جای",
             "خداوندِ روزی‌دِهِ رهنمای",
+            "خداوندِ کیوان و گَردان‌سپهر",
+            "فروزندهٔ ماه و ناهید و مِهر",
+            "ز نام و نشان و گمان، برتر است",
+            "نگارندهٔ بَرشده‌پیکر است",
+            "به بینندگان، آفریننده را",
+            "نبینی، مرنجان دو بیننده را",
+            "نیابد بِدو، نیز، اندیشه، راه",
+            "که او برتر از نام و از جایگاه",
+            "سخن، هر چه زین گوهران، بُگذرد",
+            "نیابد، بِدو راه، جان و خرد",
+            "خرد، گر سخن، برگزیند همی",
+            "همان را گزیند که بیند همی",
         ]
+        max_width = max(
+            ctx.measure(
+                text(verse)
+                .font(Type(language="fa"))
+                .fontFamily("Noto Nastaliq Urdu")
+                .fontSize(17.8)
+            ).width()
+            for verse in verses
+        )
+        verse_size = 17.8 * min(1.0, 151.0 / max_width)
         for index, verse in enumerate(verses):
             parts.append(
                 label(
                     verse,
-                    730 - index * 174,
-                    1120,
+                    730 - (index % 4) * 174,
+                    1107 + (index // 4) * 35,
                     160,
-                    108,
-                    25,
+                    40,
+                    verse_size,
                     "Noto Nastaliq Urdu",
                     language="fa",
+                    baseline=29,
                 )
             )
         mixed = (
@@ -888,7 +1922,7 @@ class ShahnamehFolio:
         )
         parts.append(
             label(
-                "Original miniature · Opening couplets by Ferdowsi",
+                "Original miniature · Opening verses by Ferdowsi",
                 153,
                 1448,
                 794,
@@ -928,4 +1962,10 @@ class ShahnamehFolio:
             .opacity(animate(from_=0.22, to=0.9, duration=2.3, loop=-1, alternate=True))
             .translateY(animate(from_=0, to=-7, duration=2.3, loop=-1, alternate=True))
         )
-        ctx.render(positioned(printed_page, sparks).width(W).height(H))
+        ctx.render(
+            positioned(printed_page, sparks)
+            .width(W)
+            .height(H)
+            .transformOrigin("0%", "0%")
+            .scale(1.5)
+        )
