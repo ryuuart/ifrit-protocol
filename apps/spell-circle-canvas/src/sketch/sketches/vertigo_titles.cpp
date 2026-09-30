@@ -443,6 +443,7 @@ struct VertigoTitles {
           {text("VERTIGO", face)
                .decorationOutline(Boundary::Glyphs).ink(hollowInk(kBone, 2.2f, true))
                .key("vertigo")
+               .cache(Cache::Texture)
                .centerAt(sigil::geometry::path::fromSk(kEye))
                .textFx({.effect = textFx::enter(textFx::pop(0.30f)),
                         .tween = cascade,
@@ -530,9 +531,11 @@ struct VertigoTitles {
          // corners is a modern device and it was reading as the subject.
          box()
              .inset(0)
+             .key("film-grain")
              .fill(sigil::material::skia::base(filmGrain))
              .blendMode(material::BlendMode::Overlay)
-             .opacity(0.42f),
+             .opacity(0.42f)
+             .cache(Cache::Texture),
          // the bezel is its OWN node: trim() on the panel would reveal the
          // iris fill along with the keyline.
          box()
