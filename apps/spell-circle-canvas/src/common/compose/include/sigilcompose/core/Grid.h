@@ -156,6 +156,12 @@ struct Grid {
   /** This scheme reads `LayoutInput::childMinSizes`: a `Content` floor is
    *  a child's minimum, not its measured size. */
   static constexpr bool readsChildMinSizes = true;
+  /** A child's percentages are of the box its cells make, as CSS resolves
+   *  a grid item's against its grid area: a column is sized first, with a
+   *  percentage of it standing as the size the child was measured at; a
+   *  row then from each child's size in the columns it spans; and the
+   *  child is placed at its size in its cells. */
+  static constexpr bool resolvesChildPercentages = true;
 
   bool operator==(const Grid&) const = default;
 

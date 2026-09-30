@@ -462,6 +462,44 @@ struct CellSpan {
  *  an earlier one. */
 void flowCells(std::vector<CellSpan>& spans, int columns, bool dense = false);
 
+/** ONE LENGTH A CHILD STATES FOR ITS SIZE, as a scheme that gives the
+ *  child a box of its own reads it: pixels, a fraction of that box's
+ *  extent, or nothing stated. */
+struct StatedLength {
+  enum class Kind : uint8_t { Unstated, Pixels, Fraction };
+  Kind kind = Kind::Unstated;
+  float value = 0.0f;
+
+  /** In pixels against @p extent — NaN where nothing is stated, and where
+   *  a fraction is of an extent that is not yet known. */
+  [[nodiscard]] float in(float extent) const;
+  bool operator==(const StatedLength&) const = default;
+};
+
+/** WHAT A CHILD STATES OF ITS SIZE: the six box lengths and the aspect
+ *  ratio, with every unit but a percentage already in pixels — a
+ *  percentage stays a fraction of whatever box the scheme gives it, as CSS
+ *  resolves a grid item's against its grid area and not the grid. */
+struct StatedSize {
+  StatedLength width, height, minWidth, minHeight, maxWidth, maxHeight;
+  float aspectRatio = 0.0f;  ///< width over height; 0 when none is stated
+
+  /** Whether any of the six is a fraction — the only case the size
+   *  depends on the box at all. */
+  [[nodiscard]] bool anyFraction() const;
+  bool operator==(const StatedSize&) const = default;
+};
+
+/** A child's size in a box, and which axes it states rather than takes
+ *  from the box. */
+struct SizeInBox {
+  glm::vec2 size{0, 0};
+  /** An axis the box fixes — a percentage of it, or the aspect ratio
+   *  carried from such an axis — which a stretching scheme leaves as it
+   *  is. */
+  bool widthStated = false, heightStated = false;
+};
+
 /** What a custom layout sees: the container's resolved size, each child's
  *  measured size (text children measured by SigilWeave), each child's
  *  first-baseline offset from its own top (NaN for children without one) —
@@ -502,6 +540,22 @@ struct LayoutInput {
    *  child, so a scheme places by what a child says of itself — its
    *  tier, its hour, its weight — rather than by its index alone. */
   std::vector<Attributes> childAttributes;
+  /** WHAT EACH CHILD STATES OF ITS SIZE, for a scheme that gives each
+   *  child a box of its own — a grid's cell — in which the child's
+   *  percentages resolve. EMPTY unless the scheme asked for it, by
+   *  declaring `static constexpr bool resolvesChildPercentages = true;`:
+   *  the composer then leaves the child's percentage bounds to the scheme,
+   *  which answers them in the rect it places. */
+  std::vector<StatedSize> childStatedSizes;
+
+  /** THE SIZE CHILD @p index COMES TO IN @p box, for a child whose stated
+   *  size holds a percentage; nothing for any other, whose measured size
+   *  in `childSizes` stands. An extent of @p box that is not yet known
+   *  (NaN) leaves a percentage of it unstated. A length stated on one axis
+   *  carries across the aspect ratio to an axis stated on neither, the
+   *  bounds clamp both, and a bound that moved one axis carries back. */
+  [[nodiscard]] std::optional<SizeInBox> sizeIn(size_t index,
+                                                glm::vec2 box) const;
 
   /** The fact child @p index states under @p name, as a @p T, or nothing. */
   template <typename T>

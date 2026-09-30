@@ -801,3 +801,37 @@ TEST(ComposeGrid, AnImageLeafAsACellPaintsInsideTheCellItWasGiven) {
   EXPECT_EQ(require(host.composer.bounds("label")).top(), 170);
   EXPECT_FLOAT_EQ(require(host.composer.bounds("grid")).height(), 190);
 }
+
+TEST(ComposeGrid, AGridItemsPercentagesAreOfItsCellNotTheGrid) {
+  // As CSS resolves a grid item's percentages against its grid area: a
+  // picture bounded at a hundred percent of its box is as wide as its
+  // cell, and its proportions give the row its height; a box half as wide
+  // as its box is half its cell.
+  SkBitmap solid;
+  solid.allocN32Pixels(16, 16);
+  solid.eraseColor(SK_ColorGREEN);
+  const auto picture = sigil::media::Image::of(solid.asImage());
+  // Two columns of 195 with a gap of 10.
+  const Grid grid{.columns = {layouts::fr(), layouts::fr()}, .gap = {10, 10}};
+  Host host(400, 400);
+  host.composer.render(box().column().children(
+      {layout(grid)
+           .key("grid")
+           .children({image(sigil::media::PixelSource(picture)).key("picture")})
+           .children({box()
+                          .key("half")
+                          .width(pct(50))
+                          .height(20)
+                          .gridCellAlign(Align::Start, Align::Start)
+                          .fill(red())})}));
+  host.frame();
+  EXPECT_EQ(require(host.composer.bounds("picture")),
+            SkRect::MakeXYWH(0, 0, 195, 195));
+  EXPECT_EQ(host.pixel(190, 190), SK_ColorGREEN);
+  // Half of 195, on the whole pixel the layout rounds it to.
+  const SkRect half = require(host.composer.bounds("half"));
+  EXPECT_EQ(half.left(), 205);
+  EXPECT_NEAR(half.width(), 97.5f, 0.5f);
+  EXPECT_EQ(half.height(), 20);
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("grid")).height(), 195);
+}

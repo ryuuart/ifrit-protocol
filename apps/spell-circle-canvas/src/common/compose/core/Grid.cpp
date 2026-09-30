@@ -2,6 +2,8 @@
 #include <sigilcompose/core/Grid.h>
 
 #include <algorithm>
+#include <limits>
+#include <optional>
 #include <string_view>
 
 namespace sigil::compose::layouts {
@@ -136,8 +138,16 @@ struct GridLayout {
           extent(grid.rowHeights, s.row, s.rows, gap.y)};
       const Align a = s.alignDeclared ? s.across : across;
       const Align d = s.alignDeclared ? s.down : down;
-      const glm::vec2 size{a == Align::Stretch ? box.x : in.childSizes[i].x,
-                           d == Align::Stretch ? box.y : in.childSizes[i].y};
+      // A child whose size holds a percentage comes to its size in the
+      // box its cells make; an axis it states stands under a stretch, and
+      // one it leaves to the box is stretched as any child's is.
+      const std::optional<SizeInBox> stated = in.sizeIn(i, box);
+      const glm::vec2 own = stated ? stated->size : in.childSizes[i];
+      const glm::vec2 size{
+          a == Align::Stretch && !(stated && stated->widthStated) ? box.x
+                                                                  : own.x,
+          d == Align::Stretch && !(stated && stated->heightStated) ? box.y
+                                                                   : own.y};
       rects[i] = geometry::path::Rect::of(
           {grid.columnX[(size_t)s.column] + slack(a, box.x, size.x),
            grid.rowY[(size_t)s.row] + slack(d, box.y, size.y)},
@@ -159,9 +169,38 @@ struct GridLayout {
     out.columnWidths =
         resolve(columns, Track::fr(1.0f), cols, in.container.x,
                 gap.x, spans, in, /*horizontal=*/true);
+    // THE ROWS ARE SIZED FROM THE COLUMNS. A child whose size holds a
+    // percentage has, once its columns are known, a width — and through
+    // its proportions a height — that the size it was measured at, a
+    // percentage of the whole grid, is not.
+    bool anyStated = false;
+    for (const StatedSize& stated : in.childStatedSizes)
+      anyStated = anyStated || stated.anyFraction();
+    if (!anyStated) {
+      out.rowHeights = resolve(rows, Track::content(), lines, in.container.y,
+                               gap.y, spans, in, /*horizontal=*/false);
+      out.columnX = origins(out.columnWidths, gap.x);
+      out.rowY = origins(out.rowHeights, gap.y);
+      return out;
+    }
+    LayoutInput rowInput = in;
+    for (size_t i = 0; i < spans.size() && i < rowInput.childSizes.size();
+         ++i) {
+      const CellSpan& s = spans[i];
+      const float across =
+          s.column >= 0 && s.column < cols
+              ? extent(out.columnWidths, s.column, s.columns, gap.x)
+              : std::numeric_limits<float>::quiet_NaN();
+      const std::optional<SizeInBox> stated = in.sizeIn(
+          i, {across, std::numeric_limits<float>::quiet_NaN()});
+      if (!stated) continue;
+      rowInput.childSizes[i].y = stated->size.y;
+      if (i < rowInput.childMinSizes.size())
+        rowInput.childMinSizes[i].y = stated->size.y;
+    }
     out.rowHeights =
         resolve(rows, Track::content(), lines, in.container.y,
-                gap.y, spans, in, /*horizontal=*/false);
+                gap.y, spans, rowInput, /*horizontal=*/false);
     out.columnX = origins(out.columnWidths, gap.x);
     out.rowY = origins(out.rowHeights, gap.y);
     return out;

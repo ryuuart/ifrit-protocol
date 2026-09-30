@@ -303,6 +303,13 @@ struct OperatorData {
       if (op.readsChildMinSizes()) return true;
     return false;
   }
+  /** Whether any operator resolves the children's percentages against
+   *  boxes of its own. */
+  bool resolvesChildPercentages() const {
+    for (const Operator& op : operators)
+      if (op.resolvesChildPercentages()) return true;
+    return false;
+  }
 };
 
 struct DeriveData {

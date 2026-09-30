@@ -60,6 +60,9 @@ struct Arrangement {
     /// The smallest the child can be without spilling its content, filled
     /// only for an operator that declares `readsChildMinSizes`.
     glm::vec2 minSize{0, 0};
+    /// What the child states of its size, filled only for an operator
+    /// that declares `resolvesChildPercentages`.
+    StatedSize statedSize;
     CellSpan cells;
     std::string area;
     Attributes attributes;
@@ -92,6 +95,9 @@ struct Arrangement {
   /// operator in the list asked, since the measure costs one text layout
   /// per text child.
   bool minSizesMeasured = false;
+  /// Whether an operator in the list resolves the children's percentages
+  /// against boxes of its own, so each child's `statedSize` was read.
+  bool percentagesResolved = false;
 };
 
 /** WHAT AN ADDING OPERATOR IS HANDED: the node's box and every node under
@@ -225,6 +231,17 @@ concept ReadsChildMinSizes = requires {
   { T::readsChildMinSizes } -> std::convertible_to<bool>;
 } && T::readsChildMinSizes;
 
+/** Whether a scheme or an operator gives each child a box of its own in
+ *  which the child's percentages resolve — a grid's cell, as CSS resolves
+ *  a grid item's against its grid area: it says so with
+ *  `static constexpr bool resolvesChildPercentages = true;`, reads
+ *  `LayoutInput::childStatedSizes`, and answers the percentages in the
+ *  rects it places. */
+template <typename T>
+concept ResolvesChildPercentages = requires {
+  { T::resolvesChildPercentages } -> std::convertible_to<bool>;
+} && T::resolvesChildPercentages;
+
 namespace detail {
 
 /** WHAT THE OPERATOR SEAM DOES, behind the erasure: one of the two
@@ -324,7 +341,9 @@ class Operator {
   Operator(O operatorValue)  // NOLINT: implicit by design (operators({Ring{…}}))
       : m_held(detail::ArrangingModel<std::remove_cvref_t<O>>(
             std::move(operatorValue))),
-        m_readsChildMinSizes(ReadsChildMinSizes<std::remove_cvref_t<O>>) {}
+        m_readsChildMinSizes(ReadsChildMinSizes<std::remove_cvref_t<O>>),
+        m_resolvesChildPercentages(
+            ResolvesChildPercentages<std::remove_cvref_t<O>>) {}
 
   template <Adding O>
     requires(!Arranging<std::remove_cvref_t<O>> &&
@@ -338,7 +357,9 @@ class Operator {
     requires(!std::same_as<std::remove_cvref_t<L>, Operator>)
   Operator(L scheme)  // NOLINT: implicit by design (operators({layouts::Grid{…}}))
       : m_held(detail::SchemeModel<std::remove_cvref_t<L>>(std::move(scheme))),
-        m_readsChildMinSizes(ReadsChildMinSizes<std::remove_cvref_t<L>>) {}
+        m_readsChildMinSizes(ReadsChildMinSizes<std::remove_cvref_t<L>>),
+        m_resolvesChildPercentages(
+            ResolvesChildPercentages<std::remove_cvref_t<L>>) {}
 
   explicit operator bool() const { return (bool)m_held; }
   /** Whether this operator places children (else it adds elements). */
@@ -355,6 +376,9 @@ class Operator {
   }
   /** Whether the held value asked for the children's content minima. */
   bool readsChildMinSizes() const { return m_readsChildMinSizes; }
+  /** Whether the held value resolves the children's percentages against
+   *  boxes of its own. */
+  bool resolvesChildPercentages() const { return m_resolvesChildPercentages; }
   /** Does this value take part in structural equality? (False for a
    *  value with no equality of its own.) */
   bool comparable() const { return m_held.comparable(); }
@@ -417,6 +441,7 @@ class Operator {
  private:
   core::Erased<detail::OperatorOperations> m_held;
   bool m_readsChildMinSizes = false;
+  bool m_resolvesChildPercentages = false;
   std::optional<int> m_zIndex;
   std::string m_classes;
   std::optional<bool> m_hitTestable;

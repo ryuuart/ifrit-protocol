@@ -12,6 +12,8 @@
 #include <sigilgeometry/path/Transform.h>
 
 #include <algorithm>
+#include <cmath>
+#include <limits>
 #include <memory>
 
 #include "sigilcompose/core/Element.h"
@@ -136,6 +138,99 @@ bool Operator::operator==(const Operator& other) const {
          motion::tweenEqual(*m_transition, *other.m_transition);
 }
 
+float StatedLength::in(float extent) const {
+  switch (kind) {
+    case Kind::Pixels:
+      return value;
+    case Kind::Fraction:
+      return std::isfinite(extent) ? value * extent
+                                   : std::numeric_limits<float>::quiet_NaN();
+    case Kind::Unstated:
+      break;
+  }
+  return std::numeric_limits<float>::quiet_NaN();
+}
+
+bool StatedSize::anyFraction() const {
+  for (const StatedLength* length :
+       {&width, &height, &minWidth, &minHeight, &maxWidth, &maxHeight})
+    if (length->kind == StatedLength::Kind::Fraction) return true;
+  return false;
+}
+
+std::optional<SizeInBox> LayoutInput::sizeIn(size_t index,
+                                             glm::vec2 box) const {
+  if (index >= childStatedSizes.size() || index >= childSizes.size())
+    return std::nullopt;
+  const StatedSize& stated = childStatedSizes[index];
+  if (!stated.anyFraction()) return std::nullopt;
+  const glm::vec2 measured = childSizes[index];
+  const float ratio = stated.aspectRatio;
+  // The bounds on one axis: a maximum first, then a minimum, which wins
+  // where the two cross, as CSS resolves them.
+  const auto clampWidth = [&](float value) {
+    const float maximum = stated.maxWidth.in(box.x);
+    const float minimum = stated.minWidth.in(box.x);
+    if (std::isfinite(maximum)) value = std::min(value, maximum);
+    if (std::isfinite(minimum)) value = std::max(value, minimum);
+    return value;
+  };
+  const auto clampHeight = [&](float value) {
+    const float maximum = stated.maxHeight.in(box.y);
+    const float minimum = stated.minHeight.in(box.y);
+    if (std::isfinite(maximum)) value = std::min(value, maximum);
+    if (std::isfinite(minimum)) value = std::max(value, minimum);
+    return value;
+  };
+  SizeInBox out;
+  float width = stated.width.in(box.x);
+  float height = stated.height.in(box.y);
+  const bool widthGiven = std::isfinite(width);
+  const bool heightGiven = std::isfinite(height);
+  // Which axes the box fixes: one stated as a fraction of it, and one the
+  // proportions carry from such an axis.
+  out.widthStated = widthGiven && stated.width.kind == StatedLength::Kind::Fraction;
+  out.heightStated =
+      heightGiven && stated.height.kind == StatedLength::Kind::Fraction;
+  if (ratio > 0.0f && widthGiven != heightGiven) {
+    // One axis stated: the ratio carries it to the other, and a bound that
+    // moves the carried axis carries back.
+    if (widthGiven) {
+      width = clampWidth(width);
+      const float carried = width / ratio;
+      height = clampHeight(carried);
+      if (height != carried) width = clampWidth(height * ratio);
+    } else {
+      height = clampHeight(height);
+      const float carried = height * ratio;
+      width = clampWidth(carried);
+      if (width != carried) height = clampHeight(width / ratio);
+    }
+    const bool fixed = out.widthStated || out.heightStated;
+    out.widthStated = out.heightStated = fixed;
+  } else if (ratio > 0.0f && !widthGiven) {
+    // Neither stated: the proportions stand, sized from nothing up to
+    // whatever bounds the box gives — a minimum on one axis, carried to
+    // the other.
+    const float least = stated.minWidth.in(box.x);
+    const float leastDown = stated.minHeight.in(box.y);
+    if (std::isfinite(least) || std::isfinite(leastDown)) {
+      width = clampWidth(std::isfinite(least) ? least : leastDown * ratio);
+      height = clampHeight(width / ratio);
+      if (height * ratio > width) width = clampWidth(height * ratio);
+      out.widthStated = out.heightStated = true;
+    } else {
+      width = clampWidth(measured.x);
+      height = clampHeight(measured.y);
+    }
+  } else {
+    width = clampWidth(widthGiven ? width : measured.x);
+    height = clampHeight(heightGiven ? height : measured.y);
+  }
+  out.size = {std::max(width, 0.0f), std::max(height, 0.0f)};
+  return out;
+}
+
 namespace detail {
 
 LayoutInput layoutInputOf(const Arrangement& arrangement) {
@@ -160,6 +255,9 @@ LayoutInput layoutInputOf(const Arrangement& arrangement) {
   if (arrangement.minSizesMeasured)
     for (const Arrangement::Child& child : arrangement.children)
       input.childMinSizes.push_back(child.minSize);
+  if (arrangement.percentagesResolved)
+    for (const Arrangement::Child& child : arrangement.children)
+      input.childStatedSizes.push_back(child.statedSize);
   return input;
 }
 

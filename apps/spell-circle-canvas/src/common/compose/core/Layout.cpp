@@ -364,6 +364,34 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
     arrangement.box = geometry::path::Rect::of(
         {0, 0}, {YGNodeLayoutGetWidth(inst.yoga), YGNodeLayoutGetHeight(inst.yoga)});
     arrangement.minSizesMeasured = operators.readsChildMinSizes();
+    arrangement.percentagesResolved = operators.resolvesChildPercentages();
+    // One stated length for a scheme that resolves percentages itself: a
+    // percentage kept as a fraction of the box the scheme gives the child,
+    // every other unit in pixels, a custom property read on the way.
+    const auto statedLength = [&](const Instance& child, Dimension declared) {
+      if (declared.unit == Dimension::Unit::Var) {
+        const VarValue* value =
+            child.vars ? child.vars->find(declared.reference()) : nullptr;
+        const Dimension* length =
+            value ? std::get_if<Dimension>(value) : nullptr;
+        declared = length && length->unit != Dimension::Unit::Var
+                       ? *length
+                       : autoDimension();
+      }
+      StatedLength stated;
+      if (declared.unit == Dimension::Unit::Auto) return stated;
+      if (declared.unit == Dimension::Unit::Pct) {
+        stated.kind = StatedLength::Kind::Fraction;
+        stated.value = declared.value * 0.01f;
+        return stated;
+      }
+      bool relative = false;
+      const float pixels = resolveLength(child, declared, relative);
+      if (!std::isfinite(pixels)) return stated;
+      stated.kind = StatedLength::Kind::Pixels;
+      stated.value = pixels;
+      return stated;
+    };
     arrangement.children.reserve(placed.size());
     for (Instance* child : placed) {
       const ElementNode& description = *child->description;
@@ -384,6 +412,17 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
         record.attributes = description.operatorData->attributes;
       if (arrangement.minSizesMeasured)
         record.minSize = geometry::path::fromSk(minimumSizeOf(*child));
+      if (arrangement.percentagesResolved) {
+        const LayoutProps& layout = child->computed.layout;
+        record.statedSize = {.width = statedLength(*child, layout.width),
+                             .height = statedLength(*child, layout.height),
+                             .minWidth = statedLength(*child, layout.minWidth),
+                             .minHeight = statedLength(*child, layout.minHeight),
+                             .maxWidth = statedLength(*child, layout.maxWidth),
+                             .maxHeight = statedLength(*child, layout.maxHeight),
+                             .aspectRatio = layout.aspect > 0 ? layout.aspect
+                                                              : 0.0f};
+      }
       // Where the child stands before the list runs: the flex layout's
       // answer, which an operator that nudges rather than places reads.
       record.rect = geometry::path::fromSk(instanceRect(*child));
@@ -481,6 +520,24 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
       YGNodeStyleSetPosition(child.yoga, YGEdgeTop, rect.top());
       YGNodeStyleSetWidth(child.yoga, rect.width());
       YGNodeStyleSetHeight(child.yoga, rect.height());
+      // A scheme that resolved the child's percentages against a box of
+      // its own answered its bounds in that rect. Left in the flex style,
+      // a percentage bound would be taken of this container instead and
+      // move the child off the rect it was placed at.
+      if (arrangement.percentagesResolved &&
+          record.statedSize.anyFraction()) {
+        const auto release = [&](YGValue (*get)(YGNodeConstRef),
+                                 void (*set)(YGNodeRef, float)) {
+          if (get(child.yoga).unit == YGUnitPercent) set(child.yoga, YGUndefined);
+        };
+        release(&YGNodeStyleGetMinWidth, &YGNodeStyleSetMinWidth);
+        release(&YGNodeStyleGetMaxWidth, &YGNodeStyleSetMaxWidth);
+        release(&YGNodeStyleGetMinHeight, &YGNodeStyleSetMinHeight);
+        release(&YGNodeStyleGetMaxHeight, &YGNodeStyleSetMaxHeight);
+        // The rect already carries the proportions.
+        if (record.statedSize.aspectRatio > 0)
+          YGNodeStyleSetAspectRatio(child.yoga, YGUndefined);
+      }
     }
     // Auto-size an ABSOLUTE container from the placed extent, per axis,
     // when the author left that axis open (no explicit dim, no

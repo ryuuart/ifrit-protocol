@@ -398,7 +398,12 @@ escape hatch that never does. A scheme of the older shape —
 `layouts::Grid` and its peers still are — is an `Operator` too, adapted
 when it is held, and `layout(scheme)` is `box().operators({scheme})`
 under the shorter spelling; `LayoutInput::childAttributes` hands such a
-scheme the same facts.
+scheme the same facts. A scheme that gives each child a box of its own
+says so with `resolvesChildPercentages`, and a child's percentages are
+then of that box rather than of the container, as CSS resolves a grid
+item's against its grid area: `layouts::Grid` sizes its columns, then its
+rows from each child's size in its columns (`LayoutInput::sizeIn`), and
+places the child at its size in its cells.
 
 An ADDING operator — a value with `add(Scope&)` — runs once layout has
 settled and builds elements from what it reads. It is handed a `Scope`:
