@@ -100,18 +100,6 @@ material::Material vignette(material::Color edge, float clear = 0.45f) {
       {0.5f, 0.5f}, 1.0f, {{std::clamp(clear, 0.0f, 1.0f), inner}, {1.0f, edge}});
 }
 
-/** @p over WITH A GRAIN IN IT: luminance noise soft-lit over the colour,
- *  so the ground is dressed in light rather than speckled in hue. @p amount
- *  is how far the grain reaches (0 is @p over exactly), @p frequency is
- *  features per px: around 0.8 is film grain, around 0.05 is paper. */
-material::Material grained(material::Color over, float amount = 0.06f,
-                           float frequency = 0.8f) {
-  return material::from(over).layer(
-      material::noise(frequency, {.octaves = 2, .grain = true}),
-      {.blend = material::BlendMode::SoftLight,
-       .opacity = std::clamp(amount, 0.0f, 1.0f)});
-}
-
 constexpr float kWidth = 1120.0f;
 constexpr float kHeight = 620.0f;
 constexpr float kPaddingX = 52.0f;
@@ -445,20 +433,14 @@ struct AxisRipple {
 
   /** THE GROUND, the page's one texture: a dark sheet lit from above the
    *  specimen line and darkened toward the corners. Nothing on it moves,
-   *  so it is baked once and blitted under everything that does.
-   *
-   *  The sheet asks for a fine grain, but `grained` puts no grain on
-   *  a near-black ground: it folds its noise in by soft light, whose
-   *  change on a dark destination stays under one 8-bit level, so this
-   *  fill reads as the flat paper until the kit's grain holds its
-   *  strength on a dark ground. */
+   *  so it is baked once and blitted under everything that does. */
   [[nodiscard]] static Element ground() {
     const material::Color skylight = {0.36f, 0.42f, 0.58f, 1.0f};
     return box()
         .cover()
         .key("ground")
         .cache(Cache::Texture)
-        .fill(grained(kPaper, 0.07f, 0.85f))
+        .fill(material::grained(kPaper, 0.07f, 0.85f))
         .children({box().cover().fill(material::radialGradient(
                        {kWidth * 0.5f, kHeight * 0.36f}, kWidth * 0.62f,
                        {{0.0f, material::withAlpha(skylight, 0.13f)},

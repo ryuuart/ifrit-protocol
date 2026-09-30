@@ -109,18 +109,6 @@ material::Material vignette(material::Color edge, float clear = 0.45f) {
       {0.5f, 0.5f}, 1.0f, {{std::clamp(clear, 0.0f, 1.0f), inner}, {1.0f, edge}});
 }
 
-/** @p over WITH A GRAIN IN IT: luminance noise soft-lit over the colour,
- *  so the ground is dressed in light rather than speckled in hue. @p amount
- *  is how far the grain reaches (0 is @p over exactly), @p frequency is
- *  features per px: around 0.8 is film grain, around 0.05 is paper. */
-material::Material grained(material::Color over, float amount = 0.06f,
-                           float frequency = 0.8f) {
-  return material::from(over).layer(
-      material::noise(frequency, {.octaves = 2, .grain = true}),
-      {.blend = material::BlendMode::SoftLight,
-       .opacity = std::clamp(amount, 0.0f, 1.0f)});
-}
-
 // ---------------------------------------------------------------------------
 // THE SHEET'S GRID. The canvas keeps the plate's 35:19. Both hubs stand on
 // one row, the titles and captions on two rows above them with every rule
@@ -348,7 +336,7 @@ struct NightingaleCoxcomb {
     const float gutter = 180.0f;
     return stack()
         .inset(0)
-        .fill(grained(colour("paper"), 0.05f, 0.011f))
+        .fill(material::grained(colour("paper"), 0.05f, 0.011f))
         .children({
             box().inset(0).fill(foxing.material()),
             box().inset(0).fill(vignette(colour("umber"), 0.62f)),

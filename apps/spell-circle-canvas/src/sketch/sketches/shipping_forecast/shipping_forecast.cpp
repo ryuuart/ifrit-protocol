@@ -816,9 +816,7 @@ struct ShippingForecast {
             {{0.0f, kSea}, {0.55f, kSeaLift}, {1.0f, hexColor(0x05080C)}},
             {.units = material::GradientUnits::Pixels}))
         .children({
-            // The sea falls to near black at the corners. It carries no
-            // grain: a grain soft-lit over the ground, which
-            // moves a ground this dark by less than one level.
+            // The sea falls to near black at the corners.
             box().cover().fill(
                 vignette(hexColor(0x020304, 0.9f), 0.3f)),
             spine().opacity(envelope()),

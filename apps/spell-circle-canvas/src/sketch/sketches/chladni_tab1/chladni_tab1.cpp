@@ -85,18 +85,6 @@ material::Material vignette(material::Color edge, float clear = 0.45f) {
       {0.5f, 0.5f}, 1.0f, {{std::clamp(clear, 0.0f, 1.0f), inner}, {1.0f, edge}});
 }
 
-/** @p over WITH A GRAIN IN IT: luminance noise soft-lit over the colour,
- *  so the ground is dressed in light rather than speckled in hue. @p amount
- *  is how far the grain reaches (0 is @p over exactly), @p frequency is
- *  features per px: around 0.8 is film grain, around 0.05 is paper. */
-material::Material grained(material::Color over, float amount = 0.06f,
-                           float frequency = 0.8f) {
-  return material::from(over).layer(
-      material::noise(frequency, {.octaves = 2, .grain = true}),
-      {.blend = material::BlendMode::SoftLight,
-       .opacity = std::clamp(amount, 0.0f, 1.0f)});
-}
-
 /** The star's tips stop just short of the rim, as engraved. */
 constexpr float kTip = 0.985f;
 /** How far a figure's cell reaches from its centre, in radii: far enough
@@ -262,7 +250,7 @@ struct ChladniTab1 {
     return box()
         .key("leaf")
         .cover()
-        .fill(grained(colourOf(plate["ink"]["paper"]), 0.16f, 0.013f))
+        .fill(material::grained(colourOf(plate["ink"]["paper"]), 0.16f, 0.013f))
         .children({
             box().cover().fill(foxing.material()),
             kit::at(box().fill(foxingLow.material()), 0, canvas.height() * 0.5f,
