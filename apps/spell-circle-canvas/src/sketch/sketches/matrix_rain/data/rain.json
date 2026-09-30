@@ -1,22 +1,22 @@
 {
   "credit": "DIGITAL RAIN · SIMON WHITELEY, ANIMAL LOGIC, 1999",
-  "statement": "FOUR PLANES OF HALF-WIDTH KATAKANA AND DIGITS · MIRRORED PER GLYPH · HELD UPRIGHT",
-  "motto": "THE LIGHT FALLS · THE TYPE STANDS STILL",
-  "trace": {"words": "TRACE ▸ OPERATOR 04 ▸ CARRIER HELD ▸ 02·19·98 13:24:18 ▸ SIGNAL FOUND █",
-            "eachMs": 46, "durationMs": 11800, "loopMs": 15500, "blinkSeconds": 1.1},
-  "sweep": {"seconds": 6.8, "height": 190, "phaseSeconds": 2.2},
+  "statement": "THREE DEPTHS OF HALF-WIDTH KATAKANA AND DIGITS · MIRRORED PER GLYPH · THE LIGHT FALLS, THE TYPE STANDS",
+  "motto": "WAKE UP",
   "charsets": {
     "kana": "ｦｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝｰ｢｣･ｧｨｩｪｫｬｭｮｯ",
     "digits": "012356789#",
     "digitsOneIn": 7
   },
-  "bed": {"plane": "bed", "seed": 4, "churnSeconds": 11.0},
-  "curtains": [
-    {"plane": "far", "seed": 1, "churnSeconds": 9.2, "churnOffsetSeconds": 0.0,
-     "eachMs": 130, "durationMs": 1900, "loopMs": 14200},
-    {"plane": "mid", "seed": 2, "churnSeconds": 7.6, "churnOffsetSeconds": 1.7,
-     "eachMs": 105, "durationMs": 1650, "loopMs": 11000},
-    {"plane": "near", "seed": 3, "churnSeconds": 6.4, "churnOffsetSeconds": 3.4,
-     "eachMs": 80, "durationMs": 1400, "loopMs": 8200}
-  ]
+  "planes": [
+    {"plane": "far", "seed": 1, "cellsPerSecond": [4.0, 8.0], "tailCells": 7,
+     "restCells": [8, 70], "drift": 4, "halo": 0},
+    {"plane": "mid", "seed": 2, "cellsPerSecond": [6.5, 11.0], "tailCells": 11,
+     "restCells": [12, 60], "drift": 11, "halo": 2.8},
+    {"plane": "near", "seed": 3, "cellsPerSecond": [9.0, 15.0], "tailCells": 13,
+     "restCells": [14, 50], "drift": 24, "halo": 3.4}
+  ],
+  "title": {"words": "THE MATRIX", "charset": "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+            "periodSeconds": 16.0, "phaseSeconds": 1.0},
+  "trace": {"words": "TRACE ▸ OPERATOR 04 ▸ CARRIER HELD ▸ 02·19·98 13:24:18 ▸ SIGNAL FOUND █",
+            "eachMs": 46, "durationMs": 11800, "loopMs": 15500, "blinkSeconds": 1.1}
 }
