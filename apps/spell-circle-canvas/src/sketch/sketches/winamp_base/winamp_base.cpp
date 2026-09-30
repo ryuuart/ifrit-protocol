@@ -389,7 +389,6 @@ struct WinampBase {
     }
     return {pointer.back().x, pointer.back().y};
   }
-  }
 
   // =========================================================================
   // THE STILL SKIN — painted once, into one texture
