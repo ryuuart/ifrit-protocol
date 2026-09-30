@@ -1391,3 +1391,32 @@ report the actual backend and scene times, keep Graphite work on its
 owning thread, and verify repeated held captures and the requested frame
 count. Detaching the client should restore the host's ordinary clock and
 leave the live window usable.
+
+## A sibling slot's `renderSlot` retakes a keyed texture over centre-pinned art
+
+`Composer::renderSlot` promises that the tree around the slot keeps its
+caches. Inside a keyed `Cache::Texture` whose content does not change,
+some nodes placed by `centerAt` are nevertheless retaken on every
+`renderSlot` of an unrelated sibling slot. Found in `lain_navi`: its
+desktop texture (1016 x 720 under a bloom and a program filter, about
+230 ms to take on the CPU) was taken again on every keystroke typed into
+the prompt slot beside it. Narrowed with the desktop reduced to one
+child at a time, under `COMPOSE_PROF`:
+
+- `box().width(50).height(3).centerAt({320, 315}).rotate(37)` retakes
+  it; the same box placed by `rect(300, 300, 50, 3).rotate(37)` does not.
+- `kit::disc({740, 470}, 197.6f)` filled with a radial gradient retakes
+  it; `kit::disc({740, 470}, 190)`, `kit::disc({740, 470}, 40)` and
+  `kit::disc({300, 300}, 40.3f)` under the same fill do not.
+- A plain `box().width(40).height(4).centerAt({300, 300})` does not.
+
+A change of the slot's colour alone is enough; the slot's size need not
+move. What it evidently means: a centre pin resolved again by a layout
+that nothing above it changed lands where it landed before, and the
+texture over it holds. The sketch now places its rules as paths and its
+discs by `rect`.
+
+A test: a keyed `Cache::Texture` over `kit::disc({740, 470}, 197.6f)`
+and over a rotated `centerAt` box, beside `slot("s")`; after the first
+draw, `renderSlot("s", …)` with a different fill and draw again —
+`Composer::stats` shows no bake on the second draw.
