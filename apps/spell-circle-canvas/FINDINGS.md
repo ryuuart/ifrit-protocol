@@ -516,10 +516,9 @@ spelled in UTF-32: `text()`, `Text::span`, `document::*` and
 words — read from a sketch's `data/` file, or shared with the text it
 churns — reaches the effect only through a conversion at the call site
 (`weave::unicode::toUtf16`, then `weave::unicode::decodeAt` in a loop).
-`matrix_rain` reads its two advance classes (half-width katakana, digits)
-from `data/rain.json`, deals its field from them as UTF-8, and converts the
-same strings to UTF-32 under a `workaround:` line only to hand them to
-`scramble`.
+`matrix_rain` reads the charset its title resolves through from
+`data/rain.json` and converts it to UTF-32 under a `workaround:` line only
+to hand it to `scramble`.
 
 The effect evidently means to take the characters a text is written in,
 in the spelling every other text verb takes. `scramble` should accept a
@@ -820,16 +819,61 @@ and assert it paints exactly what the colour layer paints today.
 declaration, storing coverage decorations and the pixel filter there.
 `Cascade.cpp` copies the rule's type and base ink into the matched node's
 computed style, but those declarations are not the node's own
-`backgrounds`, `foregrounds` or `fxData`. In `matrix_rain`, placing the
-halation material on the `.mid` and `.near` rules therefore colours the
-letters but drops their glow; placing that same ink on the text leaf
-draws it. The sketch states the effect on each rendered curtain.
+`backgrounds`, `foregrounds` or `fxData`. A halation material placed on a
+`.near` rule therefore colours the letters but drops their glow; placing
+that same ink on the text leaf draws it.
 
 A material's effects evidently belong to its ink wherever the ink is
 stated. A test should apply one shadow-and-blur material directly to a
 text leaf and through a matching rule, then assert equal painted pixels
 and bounds. It should also replace the rule and assert that the matched
 node removes or updates the effect rather than retaining an old one.
+
+## A glow on changing text is a filter over the leaf's whole box, so it re-runs every frame
+
+A text leaf's glow, halation or blur — an ink material's effects stage
+or `Element::filter` — is a layer filter: the leaf's glyphs are drawn into
+a layer the size of the leaf and the filter runs over every pixel of it.
+When any glyph changes (a `textFx` track fading, tinting or substituting
+it) the layer and the filter run again. On a sheet of rain, two
+1280x780 leaves under dilate + colour + blur cost about 55 ms each on the
+raster gate per frame, where the same leaves without the glow cost about
+1 ms. A glow that belongs to each glyph, and follows that glyph's
+brightness, has no statement that costs per glyph.
+
+The evident intent of "the ink glows" is a glyph-sized cost: a glyph drawn
+with its halo, dimmed and tinted by the same `GlyphModifier` as its body.
+What is missing is a filtered-glyph sprite: a blur (and a colour) that
+lowers to a per-draw mask filter on the glyph pass, which Skia keys into
+its strike cache, so each glyph at each size is blurred once and every
+later frame blits it under the glyph's own colour and alpha. `textStroke`
+is the one per-glyph pass that exists, and it can only say a hard
+outline. `matrix_rain` states its heads' bloom as a gradient spot moved
+by a bound transform, which is exact only because a head is always the
+brightest the rain gets; a tail's glow, which should fade with it, is not
+stated at all.
+
+A test should draw one text leaf with a glow ink whose tracks change one
+glyph's alpha per frame and assert that the per-frame paint cost does not
+scale with the leaf's box (a 64x64 leaf and a 1280x780 leaf holding the
+same glyphs cost alike within a factor), and that the halo about a glyph
+at alpha 0.2 is 0.2 of the halo at alpha 1.
+
+## A text track whose bound progress holds still is taken again every frame
+
+A `textFx` track driven by a bound progress re-renders its leaf on every
+frame, even while the binding's output does not change. `matrix_rain`'s
+title is bound through a there-and-back clamped to [0, 1], so for most of
+its period its progress reads exactly 1; with `.cache(Cache::Texture)` and
+a glow filter on the leaf, the gate still reports one bake per frame
+(about 2.5 ms). The same leaf with its progress stated as the constant 1
+keeps its bake and costs nothing.
+
+A bound value is evidently meant to cost what it changes: a track whose
+resolved progress equals the last frame's should leave its leaf's bake
+standing, as a constant does. A test should bind a track's progress to a
+clock through a clamp that holds it at 1, advance the clock several
+frames, and assert zero bakes (and no re-recording) after the first.
 
 ## Catalog plate extents differ beyond the permitted material and label changes
 
@@ -954,7 +998,7 @@ baselines remain unchanged:
 `data_scales`, `ds2_bench`, `dunhuang_star_chart`, `eva_magi_defense`,
 `eva_magi_deliberation`, `feed_events`, `feed_sky`, `floating_panels`, `flourish`,
 `grpc_watch`, `guest_body`, `guest_picture`, `hello`, `hit_slots`, `horizontal_flow`,
-`import_native`, `ksp_mapview`, `lain_navi`, `loot grid`, `material_lab`, `matrix_rain`,
+`import_native`, `ksp_mapview`, `lain_navi`, `loot grid`, `material_lab`,
 `mawarikomi`, `mesh_normal_bridge`, `midi_pads`, `minard_1869`,
 `observable_circle_packing`, `observable_l_system`, `observable_l_system_tree`,
 `observable_reynolds_steering`, `optical_kerning`, `osc_desk`,
@@ -986,14 +1030,6 @@ Their permitted readout changes do not authorize the changed page
 presentation. A test should replay the same recorded input to the same
 capture time and assert the output picture's geometry, colours and
 values, with only the specified readout rows allowed to differ.
-
-`matrix_rain` also meets the glyph-effect limitation: its material
-filter follows the rendered letters' alpha and substitutes a green halo,
-but cannot reproduce the independent colour modulation of a per-glyph
-underlay through that one mask. The new loop period explains the changed
-streak positions; it does not establish pixel parity for the halo.
-A test should compare the halo beside a bright head and a dim tail while
-the same glyph modifiers affect both ink and underlay.
 
 The intended check is byte identity at the declared capture frame once
 the owner resolves each unexplained difference. Both pictures remain in
