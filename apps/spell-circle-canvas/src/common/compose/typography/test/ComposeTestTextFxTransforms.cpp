@@ -39,6 +39,49 @@ TEST(ComposeTextFx, ScrambleChurnsDeterministicallyAndResolvesAtOne) {
   EXPECT_FALSE(textFx::scramble(U"ABC") == textFx::scramble(U"ABC", 7));
 }
 
+TEST(ComposeTextFx, ScrambleTakesItsCharsetInEitherSpelling) {
+  // A charset is words, so it is spelled the way every text door spells
+  // them; the UTF-8 and UTF-32 spellings of one charset are one effect and
+  // churn one seeded run through the same characters at the same moments.
+  const TextEffect fromUtf8 = textFx::scramble(u8"ｱｲｳ");
+  const TextEffect fromUtf32 = textFx::scramble(U"ｱｲｳ");
+  EXPECT_TRUE(fromUtf8 == fromUtf32);
+  bool churned = false;
+  for (int index = 0; index < 8; ++index) {
+    GlyphInfo glyph;
+    glyph.index = index;
+    glyph.textIndex = index;
+    for (int step = 0; step < 40; ++step) {
+      const float t = (float)step / 40.0f;
+      sigil::core::noise::Mix64Stream utf8Stream(4242 + (uint64_t)index);
+      sigil::core::noise::Mix64Stream utf32Stream(4242 + (uint64_t)index);
+      const char32_t utf8Point = fromUtf8(glyph, t, utf8Stream).codepoint;
+      const char32_t utf32Point = fromUtf32(glyph, t, utf32Stream).codepoint;
+      EXPECT_EQ(utf8Point, utf32Point)
+          << "glyph " << index << " at t = " << t;
+      if (utf8Point != 0) churned = true;
+    }
+  }
+  EXPECT_TRUE(churned) << "neither spelling substituted anything";
+
+  // A character outside the BMP is four bytes in UTF-8 and ONE candidate:
+  // every substitution is that character, never one of its bytes.
+  const TextEffect wide = textFx::scramble(u8"\U0001F600");
+  EXPECT_TRUE(wide == textFx::scramble(U"\U0001F600"));
+  GlyphInfo glyph;
+  glyph.index = 1;
+  glyph.textIndex = 1;
+  bool substituted = false;
+  for (int step = 0; step < 40; ++step) {
+    sigil::core::noise::Mix64Stream rng(90210);
+    const char32_t point = wide(glyph, (float)step / 40.0f, rng).codepoint;
+    if (point == 0) continue;
+    substituted = true;
+    EXPECT_EQ(point, (char32_t)0x1F600) << "a byte of the character churned";
+  }
+  EXPECT_TRUE(substituted);
+}
+
 TEST(ComposeTextFx, SkewAndNonUniformScaleTakeTheMatrixPath) {
   // Neither a shear nor an uneven scale is expressible as an RSXform, so
   // these glyphs route through a per-glyph matrix. The assertions are about

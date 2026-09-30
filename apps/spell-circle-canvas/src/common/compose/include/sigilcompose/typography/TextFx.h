@@ -17,6 +17,7 @@
  * and everything here is a door that builds an effect the runtime reads.
  */
 
+#include <sigilcompose/core/Utf8.h>
 #include <sigilcompose/typography/TextEffect.h>
 #include <sigilmotion/values/Tween.h>
 
@@ -70,6 +71,13 @@ inline constexpr float kNominalSizePx = 96.0f;
 [[nodiscard]] TextEffect scramble(
     std::u32string charset = U"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
     int steps = 14);
+
+/** The same effect over a charset spelled as UTF-8, the way every text
+ *  door takes its words, so a charset read from a words file or shared with
+ *  the text it churns reaches the effect as it is written. Each code point
+ *  is one substitution candidate, whatever its encoded length; malformed
+ *  UTF-8 is an empty charset, which substitutes nothing. */
+[[nodiscard]] TextEffect scramble(const Utf8& charset, int steps = 14);
 
 /** A VARIABLE-FONT AXIS HELD AT ONE COORDINATE for every glyph the track
  *  addresses — a grade, an optical size, a slant applied at draw time with

@@ -446,34 +446,6 @@ Also wanted by `cosmati`: every field and every roundel restates its marble fill
 
 Progress: `Rule` states marks and the matched rules' marks stand under the node's own (core/RuleMarks.cpp), with tests in brush/test/ComposeTestRuleMarks.cpp; cosmati, black_watch and fallout2 moved onto classes. Left: run compose_test, check those plates with --frame, then elastic_type and nightingale_coxcomb.
 
-## `textFx::scramble` takes its charset as UTF-32 while every text door takes UTF-8
-
-`compose::textFx::scramble(std::u32string charset, int steps)`
-(`typography/TextFx.h`) is the one text-facing value in Compose that is
-spelled in UTF-32: `text()`, `Text::span`, `document::*` and
-`sketch::kit::Document::phrase` all take `compose::Utf8`. A charset that is
-words — read from a sketch's `data/` file, or shared with the text it
-churns — reaches the effect only through a conversion at the call site
-(`weave::unicode::toUtf16`, then `weave::unicode::decodeAt` in a loop).
-`matrix_rain` reads the charset its title resolves through from
-`data/rain.json` and converts it to UTF-32 under a `workaround:` line only
-to hand it to `scramble`.
-
-The effect evidently means to take the characters a text is written in,
-in the spelling every other text verb takes. `scramble` should accept a
-`compose::Utf8` charset (decoding once, where it already builds its
-per-codepoint table); the UTF-32 overload may stay beside it.
-
-A test should build `scramble(u8"ｱｲｳ")` and `scramble(U"ｱｲｳ")` and assert
-the two effects substitute identically on one seeded glyph run, and that a
-charset holding a four-byte character (outside the BMP) decodes to one
-substitution candidate, not four.
-
-Wanted by: `matrix_rain` (removes its conversion). `shipping_forecast`
-(its barometer charset) and `daemon_console` spell their charsets as `U""`
-literals today and would spell them like the text they churn, or read them
-from their words files, once the door is UTF-8.
-
 ## A glyph-outline decoration is cut from the glyphs at rest, so a text shadow cannot follow a track's deformation
 
 `decorationOutline(Boundary::Glyphs)` hands a text leaf's decorations the

@@ -13,6 +13,7 @@
 
 #include <sigilcompose/typography/TextEffect.h>
 #include <sigilmotion/values/Tween.h>
+#include <sigilweave/unicode/Unicode.h>
 
 #include <algorithm>
 #include <cmath>
@@ -407,6 +408,18 @@ TextEffect scramble(std::u32string charset, int steps) {
       // POSITION — that is the whole condition the runtime enforces on it —
       // so a churning glyph never moves.
       0.0f, {}, /*displaces=*/false);
+}
+
+TextEffect scramble(const Utf8& charset, int steps) {
+  // Decoded here, once, into the code-point table the UTF-32 door keeps, so
+  // the two spellings of one charset build the same effect and compare
+  // equal.
+  const std::u16string units = weave::unicode::toUtf16(charset.bytes());
+  std::u32string points;
+  points.reserve(units.size());
+  for (size_t offset = 0; offset < units.size();)
+    points.push_back(weave::unicode::decodeAt(units, offset));
+  return scramble(std::move(points), steps);
 }
 
 TextEffect mix(std::vector<TextEffect> effects) {
