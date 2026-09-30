@@ -1,0 +1,22 @@
+// The glass bends the read coordinate once. The beam varies by row;
+// grain is reproducible at each snapped scene frame.
+float hash(float2 p) {
+  return fract(sin(dot(p, float2(41.71, 289.13))) * 9137.113);
+}
+
+half4 main(float2 p) {
+  float2 uv = p / uSize;
+  float2 c = uv - 0.5;
+  float2 q = (uv + c * dot(c, c) * uCurvature) * uSize;
+  if (min(q.x, q.y) < 0 || q.x >= uSize.x || q.y >= uSize.y)
+    return half4(0);
+  half4 source = content.eval(q);
+  half3 signal = source.rgb;
+  float beam = 1.0 - uRaster * (0.5 + 0.5 * cos(q.y * 2.0943951));
+  float frame = floor(uSeconds * 24.0);
+  float grain = (hash(floor(q) + float2(frame, frame * 0.43)) - 0.5) * uNoise;
+  float vignette = 1.0 - 0.34 * dot(c, c);
+  float flicker = 0.995 + 0.005 * cos(uSeconds * 17.31);
+  signal = signal * beam * vignette * flicker + source.a * half3(grain * 0.65, grain, grain * 0.55);
+  return half4(clamp(signal, 0.0, source.a), source.a);
+}

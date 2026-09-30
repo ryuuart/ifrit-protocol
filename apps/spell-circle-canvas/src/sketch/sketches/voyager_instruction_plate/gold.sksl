@@ -1,0 +1,22 @@
+// A fixed scratched metal plate under a broad diagonal reflection.
+float hash(float2 p) {
+    return fract(sin(dot(p, float2(127.1, 311.7))) * 43758.5453);
+}
+float noise(float2 p) {
+    float2 q = floor(p), f = fract(p);
+    f = f * f * (3 - 2 * f);
+    return mix(mix(hash(q), hash(q + float2(1, 0)), f.x),
+               mix(hash(q + float2(0, 1)), hash(q + 1), f.x), f.y);
+}
+half4 main(float2 p) {
+    float2 uv = p / uResolution;
+    float diagonal = uv.x - uv.y * .55;
+    float light = exp(-pow((diagonal - .24) * 5, 2));
+    float cloud = noise(uv * 12) * .16 + noise(uv * 31) * .05;
+    float scratch = pow(hash(float2(floor((uv.x + uv.y * 1.9) * 1300), 0)), 9) * .08;
+    float ring = sin(length(uv - .5) * 1600) * .011;
+    float3 dark = float3(.24, .17, .072);
+    float3 bright = float3(.71, .49, .19);
+    float3 metal = mix(dark, bright, clamp(light * .8 + cloud + scratch + ring, 0, 1));
+    return half4(half3(metal), 1);
+}

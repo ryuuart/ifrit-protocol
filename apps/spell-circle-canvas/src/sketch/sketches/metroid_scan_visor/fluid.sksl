@@ -1,0 +1,14 @@
+// Thin caustic strata and floating interference inside the containment
+// tank. Coverage is premultiplied so the laboratory remains visible.
+half4 main(float2 p) {
+  float2 uv = p / uResolution;
+  float phase = uTime * 0.22;
+  float folded = sin(uv.y * 18.0 + sin(uv.x * 7.0 + phase) * 1.4 - phase);
+  float finer = sin(uv.y * 31.0 - sin(uv.x * 12.0 - phase * 0.6) * 0.8);
+  float ray = pow(max(0.0, folded * 0.6 + finer * 0.4), 16.0);
+  float center = exp(-pow((uv.x - 0.50) * 2.3, 2.0));
+  float border = smoothstep(0.0, 0.08, uv.x) * (1.0 - smoothstep(0.92, 1.0, uv.x));
+  float vertical = smoothstep(0.0, 0.06, uv.y) * (1.0 - smoothstep(0.90, 1.0, uv.y));
+  float film = (0.024 + ray * 0.17) * center * border * vertical;
+  return half4(half3(0.30, 0.86, 0.72) * film, film);
+}

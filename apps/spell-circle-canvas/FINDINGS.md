@@ -1300,3 +1300,46 @@ control characters into the content.
 A regression should compare Paragraph's run levels with the explicit
 Unicode primitive and verify that changing the base invalidates cached
 analysis while an unchanged base reuses it.
+
+
+## Authoring difficulty: optical bloom has no shared parameter preview
+
+The macrodata-terminal study can express its narrow luminous text with
+the existing `BloomOptions` in `sigilmaterial/filter/Filter.h`. Finding that
+look requires coordinated edits to extraction threshold and knee, near
+radius and strength, broad spread and tail, and core whitening, dilation
+and halo deepening. Each control is documented. The existing `crt_bloom`
+specimen compares a fixed glow with an additive construction, but does not
+expose these extraction, core and two-halo parameters together. The study
+needs no replacement bloom implementation.
+
+Wanted: an authoring preview or stock material specimen that exposes the
+coupled controls together, with a few neutral starting configurations for
+fine luminous type and broad emissive surfaces. It should use the same
+filter and color pipeline as the production renderer and keep the controls
+composable, rather than make a named film treatment part of the core API.
+A verification should apply an identical parameter set in the preview
+and a captured native text leaf, assert matching optical output, and make
+the near and broad halo roles visible when either strength is zero.
+
+
+## API request: retained subtree filters cannot sample a previous frame
+
+The Nostromo monitor's native tube filter bends and modulates the current
+rendered screen. Stock bloom spreads the current layer spatially; these
+filters do not carry a prior-frame input for temporal phosphor decay.
+SigilDraw's Graphics buffers already retain pixels and copy them on resize,
+so accumulation exists for immediate drawing. Using that route for this
+screen would require the author to redraw its native text and diagram into
+the manual buffer, or manage capture and feedback outside the subtree.
+
+Wanted: a runtime-owned prior-frame input that a retained Compose subtree
+can use with decay measured in scene time. This is an API desire, not a
+demonstrated rendering defect or a claim that Graphics cannot accumulate.
+The monitor currently uses spatial optics without simulated persistence.
+
+A regression should flash a subtree, remove its current content and assert
+that the residual fades with elapsed scene time. Identical fixed-step
+captures should reproduce the same history. Resize and session reload
+should follow an explicit reset or preservation policy, and a skipped
+frame should not silently change the stated decay law.

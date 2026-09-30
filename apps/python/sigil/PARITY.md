@@ -57,12 +57,14 @@ that its pixels match the original.
 | Study · Pattern | 4 | 0 | 0 |
 | Study · Paint | 2 | 2 | 0 |
 | Study · Motion | 4 | 0 | 0 |
-| Study · Film | 5 | 0 | 0 |
+| Study · Film | 6 | 0 | 0 |
 | Study · Science | 5 | 0 | 0 |
 | Study · Esoteric | 4 | 0 | 0 |
 | Study · Screens | 6 | 0 | 0 |
-| Study · Game UI | 11 | 0 | 0 |
-| **All** | **227** | **57** | **9** |
+| Study · Game UI | 12 | 0 | 0 |
+| Study · Manuscript | 1 | 0 | 0 |
+| Study · Typography | 1 | 0 | 0 |
+| **All** | **231** | **57** | **9** |
 
 Every sketch in Draw, Draw · Generative, Draw · Observable reproductions, Draw
 · Procedural, Kit · Depth, Compose · Typography and Study · Paint is bound.
@@ -646,6 +648,7 @@ model, arithmetic and data become Python code and are not listed.
 | `eva_magi_deliberation` | Cap-height metrics; condensed faces; face weight readback; inset double borders; image-filter phosphor; CRT field recipe; knockout type | `compose::Border` and `compose::decorations::border` rules; `compose::metrics` and `compose::runPens` measurement; `weave::ports::face` with a width style; `SkTypeface` variation axes and style readback; `material::skia::filter` over an already-built image filter |
 | `eva_magi_interior` | Cap-height metrics; condensed faces; face weight readback; chamfered shapes; float-field runtime shader with bound uniform; image-filter phosphor; CRT recipe | `compose::Border` and `compose::decorations::border` rules; `compose::metrics` and `compose::runPens` measurement; `weave::ports::face` with a width style; `SkSurfaces::Raster` standalone raster surfaces; `SkShader` local matrices and raw image shaders; `SkTypeface` variation axes and style readback; `geometry::shapes` corner operators; `material::Paint::offset` bound to motion values; `material::skia::filter` over an already-built image filter; `material::skia::paint` SkShader interop |
 | `lain_navi` | Retained slots; runtime shader; CRT field recipe; blurred additive text; blurred additive dashed stroke layers; bound outputs | `compose::LayeredBrush` stroke layers |
+| `nostromo_monitor` | Not yet audited | Not yet audited |
 
 #### Study · Science
 
@@ -688,10 +691,23 @@ model, arithmetic and data become Python code and are not listed.
 | `ds2_bench` | Routed wires; spans mask; layered brushes; kinetic text; instanced atlas; SDF materials; live shader uniforms; stock shapes | `compose::Text::textFx` text tracks; `compose::LayeredBrush` stroke layers; `compose::textFx` stock entrances (`rise`, `pop`, `typeOn`); `compose::lines::presets` and `compose::brush::presets`; `compose::instancing::place` placers; `geometry::path::PolarFrame` and `path::Grid`; `geometry::shapes::ticks` and `chords` divisions; `material::sdf` shapes and styles; `material::Paint::offset` bound to motion values |
 | `fallout2_charsheet` | Check tables; condensed face matching; bevels and layer styles; decoration adaptors; rounded outlines; keyed shapes; sketch-kit table; unit grid; slots | `compose::kit::table` with `Column`; `compose::onEdges` and `compose::inset` adaptors; `compose::kit::Bevel` and `kit::bevels` presets; `weave::ports::face` with a width style; `geometry::shapes` corner operators; `geometry::path::PolarFrame` and `path::Grid` |
 | `ksp_mapview` | Instanced starfield; live-bound SDF and globe materials; conic paths; stock and keyed shapes; filament, hatch and tick lines; readout rows | `sketch::kit::Document` content reader; `compose::lines::Line` and `lines::Rails`; `compose::LayeredBrush` stroke layers; `compose::lines::presets` and `compose::brush::presets`; `compose::kit::readout` rows; `geometry::path::Conic` conic sections; `material::sdf` shapes and styles; `material::Recipe` authoring; `material::Paint::offset` bound to motion values |
+| `metroid_scan_visor` | Not yet audited | Not yet audited |
 | `psx_doom_fire` | Fixed-step ticker; RGBA image blits; pen text and clipping; retained guest header; kinetic glyph rise; motion cascade | `compose::Text::textFx` text tracks; `compose::textFx` stock entrances (`rise`, `pop`, `typeOn`) |
 | `thaumonomicon` | Stamped brushes and shapers; hatches; routed wires; silhouettes; pixel sprites; baked pixel type; lattice hash; grain; bound motion | `compose::lines::Line` and `lines::Rails`; `compose::Brush` shaped layer stacks; `compose::brush` scatter, pattern and art brushes; `compose::PaintProgram` canvas decorations; `compose::lines::Hatch` and `lines::RadialHatch`; `compose::LayeredBrush` stroke layers; `compose::routers` stock routers; `compose::kit` pixel type (`bakeRun`, `Mask`, `PixFont`); `compose::kit` pixel sprites (`Sprite`, `PixelInk`); `SkCanvas` layers, `drawPaint` and `drawImageRect`; `core::noise::hash` / `lattice` positional hashes; `geometry::path::PolarFrame` and `path::Grid`; `geometry::shapers` and `path::Shaper` |
 | `vagrant_story_target` | Device set hosting; lit meshes and lights; compose texture on material slot; frustum extent; baked pixel type; kit meter | Set sketches (`sketch::SetContext`, `describe`); `sketch::kit::meter` and `gauge`; `compose::TextureScene` and `SketchContext::textureScene`; `compose::Border` and `compose::decorations::border` rules; `compose::kit` pixel type (`bakeRun`, `Mask`, `PixFont`); `material::Texture` and `Material::slot` |
 | `xcom_battlescape` | Instanced atlas pools; palette lookup shader; index sprites; coverage pixel type; pattern tiles; check table; lattice hash; composer queries | `compose::kit::table` with `Column`; `compose::Pattern` tiled fills; `compose::kit` pixel type (`bakeRun`, `Mask`, `PixFont`); `compose::kit` pixel sprites (`Sprite`, `PixelInk`); `core::noise::hash` / `lattice` positional hashes; `geometry::path::PolarFrame` and `path::Grid`; `material::pattern` stock tiles |
+
+#### Study · Manuscript
+
+| Sketch | Needs | Not yet bound |
+| --- | --- | --- |
+| `fludd_monochord` | Not yet audited | Not yet audited |
+
+#### Study · Typography
+
+| Sketch | Needs | Not yet bound |
+| --- | --- | --- |
+| `constructivist_radio` | Not yet audited | Not yet audited |
 
 ## Translating a C++ source
 

@@ -1,0 +1,13 @@
+// A plucked string oscillates about its fixed ends; its two partials decay
+// within each six-second excitation. Only this narrow region is animated.
+half4 main(float2 p) {
+    float2 uv = p / uResolution;
+    float t = mod(uTime, 6.0);
+    float decay = exp(-t * 0.78);
+    float fundamental = sin(uv.y * 3.14159) * sin(t * 18.84956);
+    float harmonic = sin(uv.y * 9.42478) * sin(t * 56.54867) * 0.22;
+    float x = 6 + decay * (fundamental + harmonic) * 4;
+    float a = 1 - smoothstep(0.45, 1.12, abs(p.x - x));
+    a *= 0.78;
+    return half4(half3(0.28, 0.21, 0.13) * a, a);
+}
