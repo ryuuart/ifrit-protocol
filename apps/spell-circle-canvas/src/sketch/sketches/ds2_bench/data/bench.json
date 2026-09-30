@@ -1,58 +1,73 @@
 {
   "weapon": "CONTACT BEAM",
-  "repair": "NANOCIRCUIT REPAIR · TIER III",
-  "integrity": 0.78,
+  "bench": "[ BENCH ]",
+  "repair": "NANOCIRCUIT  ·  TIER III",
   "nodes": 2,
-  "hints": ["Navigate", "[Enter] Select", "[Esc] Exit"],
+  "hints": ["[ENTER]  INSTALL", "[ESC]  EXIT"],
 
-  "circuits": [
-    {
-      "origin": [236, 164], "pitch": [110, 78], "large": true,
-      "grid": [
-        ". o   DMG .   CAP . .   DMG",
-        "o o   CAP o   o   o o   o",
-        ". CHR o   REL .   o CHR CAP",
-        ". .   o   o   .   DMG . ."
-      ],
-      "runs": [
-        [[0, 1], [7, 1]],
-        [[1, 1], [1, 0], [2, 0]],
-        [[4, 1], [4, 0]],
-        [[7, 1], [7, 0]],
-        [[1, 2], [2, 2]],
-        [[2, 1], [2, 3], [5, 3]],
-        [[3, 1], [3, 3]],
-        [[5, 1], [5, 3]],
-        [[5, 2], [6, 2], [6, 1]],
-        [[7, 1], [7, 2]]
-      ]
-    },
-    {
-      "origin": [210, 470], "pitch": [76, 46], "large": false,
-      "caption": "R.I.G. — ARMOR PLATE",
-      "grid": [
-        ". CHR .   DMG .",
-        "o o   CAP o   o"
-      ],
-      "runs": [[[0, 1], [4, 1]], [[1, 1], [1, 0]], [[3, 1], [3, 0]]]
-    },
-    {
-      "origin": [650, 470], "pitch": [76, 46], "large": false,
-      "caption": "STASIS MODULE",
-      "grid": [
-        ". . DMG . CAP",
-        "o o REL o o"
-      ],
-      "runs": [[[0, 1], [4, 1]], [[2, 1], [2, 0]], [[4, 1], [4, 0]]]
-    }
-  ],
+  "board": {
+    "origin": [210, 118], "pitch": [98, 46],
+    "grid": [
+      ". o   DMG .   CAP . .   DMG",
+      "o o   CAP o   o   o o   o",
+      ". CHR o   REL .   o CHR CAP",
+      ". .   o   o   .   DMG . ."
+    ],
+    "runs": [
+      [[0, 1], [7, 1]],
+      [[1, 1], [1, 0], [2, 0]],
+      [[4, 1], [4, 0]],
+      [[7, 1], [7, 0]],
+      [[1, 2], [2, 2]],
+      [[2, 1], [2, 3], [5, 3]],
+      [[3, 1], [3, 3]],
+      [[5, 1], [5, 3]],
+      [[5, 2], [6, 2], [6, 1]],
+      [[7, 1], [7, 2]]
+    ],
+    "selected": [3, 1]
+  },
 
   "stats": [
-    { "label": "DAMAGE",   "kind": "DMG", "filled": 5, "total": 6, "value": "100 Pts." },
-    { "label": "CAPACITY", "kind": "CAP", "filled": 3, "total": 6, "value": "44 Pts." },
-    { "label": "RELOAD",   "kind": "REL", "filled": 2, "total": 6, "value": "18 Pts." },
-    { "label": "CHARGE",   "kind": "CHR", "filled": 1, "total": 6, "value": "9 Pts." }
+    { "label": "DAMAGE",   "kind": "DMG", "filled": 5, "total": 7, "value": "100" },
+    { "label": "CAPACITY", "kind": "CAP", "filled": 3, "total": 7, "value": "44" },
+    { "label": "RELOAD",   "kind": "REL", "filled": 2, "total": 7, "value": "18" },
+    { "label": "CHARGE",   "kind": "CHR", "filled": 1, "total": 7, "value": "9" }
   ],
+
+  "offer": {
+    "node": "[ NODE 07 ]",
+    "kind": "DMG",
+    "raise": "DAMAGE  +1",
+    "lines": [["DAMAGE", "100  ▸  115"], ["COST", "1 POWER NODE"]],
+    "prompt": "[ENTER]  INSTALL",
+    "stat": 0,
+    "schematic": [
+      "M44 34 L214 34 L232 24 L286 24 L286 72 L232 72 L220 64 L44 64 Z",
+      "M44 64 L30 64 L20 92 L50 92 L64 64",
+      "M84 34 L84 20 L180 20 L196 34",
+      "M104 42 L200 42 M104 49 L200 49 M104 56 L200 56",
+      "M340 48 A28 28 0 1 1 284 48 A28 28 0 1 1 340 48 Z",
+      "M328 48 A16 16 0 1 1 296 48 A16 16 0 1 1 328 48 Z",
+      "M312 12 L312 4 M312 92 L312 84 M348 48 L356 48",
+      "M20 100 L340 100 M20 96 L20 104 M340 96 L340 104"
+    ]
+  },
+
+  "rig": { "segments": 10, "lit": 7, "stasis": [0.35, 1.0] },
+
+  "choreography": {
+    "periodSeconds": 12,
+    "stasisSeconds": 6,
+    "scanSeconds": 4.5,
+    "cursorFrom": [80, 175],
+    "cursor":   [0.20, 1.00, 10.90, 11.70],
+    "brackets": [0.85, 1.15, 10.30, 10.60],
+    "widen":    [1.05, 1.35, 10.60, 10.90],
+    "open":     [1.30, 1.70, 10.35, 10.65],
+    "draw":     [1.60, 2.40, 10.20, 10.40],
+    "preview":  [2.20, 2.30, 10.20, 10.30]
+  },
 
   "room": [
     [-30, 96, 0.9], [66, 30, 0.5], [196, 54, 0.42], [430, 38, 0.3],
