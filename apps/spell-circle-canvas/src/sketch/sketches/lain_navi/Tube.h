@@ -84,11 +84,11 @@ half4 main(float2 p) {
   float2 shoulders = (p - float2(uScreen.x + uScreen.z * 0.53, uScreen.y + uScreen.w * 1.10)) / float2(330, 190);
   float figure = max(1 - smoothstep(0.80, 1.15, length(head)),
                      1 - smoothstep(0.80, 1.10, length(shoulders)));
-  float dark = max(rim, figure * 0.20);
+  float dark = max(rim, figure * 0.30);
   // The one lamp behind the viewer, a long soft sheen across the upper
   // left following the curve of the glass.
   float2 sheenAxis = unit - float2(-0.55, -0.75);
-  float sheen = exp(-pow(length(sheenAxis * float2(0.9, 2.4)), 2) * 2.2) * 0.07;
+  float sheen = exp(-pow(length(sheenAxis * float2(0.9, 2.4)), 2) * 2.2) * 0.10;
   // A window's blinds, far off in the room, over the upper right.
   float2 blinds = (p - uScreen.xy) / uScreen.zw;
   float slats = step(0.5, fract(blinds.y * 46)) *

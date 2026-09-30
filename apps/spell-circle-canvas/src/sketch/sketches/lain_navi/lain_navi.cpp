@@ -83,7 +83,7 @@ StyleSheet copland() {
       rule(":root")
           .var("ground", hexColor(0x050818))
           .var("ink", hexColor(0xd2e2ea))
-          .var("dim", hexColor(0x6d8496))
+          .var("dim", hexColor(0x8ea6b8))
           .var("phosphor", hexColor(0x5fe0b0))
           .var("wired", hexColor(0x9cc4ff))
           .var("pane", hexColor(0x14223a, 0.62f))
@@ -102,7 +102,7 @@ StyleSheet copland() {
           .paddingRight(6)
           .fill(Fill::var("chrome"))
           .fontSize(12)
-          .fontWeight(500)
+          .fontWeight(600)
           .letterSpacing(1.8)
           .ink(var("chromeInk")),
       rule(".button").width(10).height(10).marginLeft(4).stroke(stroke(1, Fill::var("chromeInk"))),
@@ -410,17 +410,18 @@ struct LainNavi {
                                       .inset(0)
                                       .key("face")
                                       .cache(Cache::Texture)
-                                      .filter(Filter::blur(6))
+                                      .filter(Filter::blur(4))
                                       .children({
-                                          box().rect(40, 20, 260, 360).shape(shapes::ellipse()).fill(
-                                              material::radialGradient({0.5f, 0.45f}, 0.55f,
-                                                                       {{0, hexColor(0x6d8fd8, 0.34f)},
+                                          box().rect(30, 10, 280, 400).shape(shapes::ellipse()).fill(
+                                              material::radialGradient({0.5f, 0.42f}, 0.55f,
+                                                                       {{0, hexColor(0x8fb0f0, 0.55f)},
+                                                                        {0.7f, hexColor(0x6d8fd8, 0.22f)},
                                                                         {1, hexColor(0x6d8fd8, 0)}})),
-                                          box().rect(88, 178, 70, 22).shape(shapes::ellipse()).fill(socket),
-                                          box().rect(182, 178, 70, 22).shape(shapes::ellipse()).fill(socket),
-                                          kit::dot({126, 189}, 6, iris),
-                                          kit::dot({214, 189}, 6, iris),
-                                          box().rect(140, 300, 60, 3).fill(hexColor(0x02040c, 0.5f)),
+                                          box().rect(80, 172, 84, 30).shape(shapes::ellipse()).fill(socket),
+                                          box().rect(176, 172, 84, 30).shape(shapes::ellipse()).fill(socket),
+                                          kit::dot({122, 187}, 8, iris),
+                                          kit::dot({218, 187}, 8, iris),
+                                          box().rect(136, 318, 68, 4).fill(hexColor(0x02040c, 0.6f)),
                                       })})});
   }
 
