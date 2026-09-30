@@ -1,15 +1,346 @@
 #pragma once
 
+// THE PAGE'S GIFS, drawn as trees in 1996 pixels. Each is rasterised once
+// at its own size and decoded the way the browser decoded it (see
+// `decodeGif` in the entry), so what is here is the artwork as its artist
+// drew it, before the file format had its say.
+
+#include <include/core/SkCanvas.h>
+#include <include/core/SkPathBuilder.h>
+#include <include/effects/SkRuntimeEffect.h>
+#include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/core/Measure.h>
+#include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigilcompose/kit/Frame.h>
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/advanced/Skia.h>
-#include "Drawing.h"
+#include <sigilgeometry/kit/Generators.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/paint/Bases.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilsketch/canvas/Sketch.h>
+#include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Face.h>
+#include <sigilweave/style/Type.h>
 
-namespace sj {
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <string>
+#include <vector>
 
-inline Element artSouvenirs(sigil::weave::FontContext& f) {
-  const float W = S(83), H = S(83);
-  return artBox(W, H).children(
-      {sphere({S(41.5f), S(47.5f)}, S(35),
+namespace material = sigil::material;
+namespace shapes = sigil::geometry::shapes;
+namespace weave = sigil::weave;
+
+using namespace sigil::compose;
+
+namespace spacejam {
+
+// ---------------------------------------------------------------------------
+// Colour. Every distinct component in the twelve navigation palettes sits
+// on the 5-bit grid: c8 -> round(c8 * 31 / 255) -> (i << 3) | (i >> 2).
+
+inline float snapFive(float value) {
+  const int level = (int)std::lround(std::clamp(value, 0.0f, 1.0f) * 31.0f);
+  return (float)(((uint32_t)level << 3u) | ((uint32_t)level >> 2u)) / 255.0f;
+}
+/** A navigation-art colour, snapped to the grid the shipped art lives on. */
+inline material::Color C5(uint32_t rgb) noexcept {
+  return {snapFive((float)((rgb >> 16u) & 0xffu) / 255.0f),
+          snapFive((float)((rgb >> 8u) & 0xffu) / 255.0f),
+          snapFive((float)(rgb & 0xffu) / 255.0f), 1.0f};
+}
+
+/** What a label says and the ink it is set in. Twelve labels, and the
+ *  page's only typographic variation is that three of them are white. */
+struct Label {
+  std::string text;
+  material::Color ink;
+};
+const material::Color kLabelInk = C5(0x080800);
+
+inline weave::Face display() { return weave::ports::face({"Impact", "Arial Black"}, 400); }
+
+inline weave::Type type(float size, material::Color color, float track = 0) {
+  return {.face = display(), .size = size, .color = color, .track = track};
+}
+
+// ---------------------------------------------------------------------------
+// Geometry
+
+inline Element rect(float left, float top, float width, float height) {
+  return kit::at(left, top, width, height);
+}
+
+/** A shaded sphere: every planet here is flat-shaded with a hard limb. */
+inline Element sphere(SkPoint centre, float radius, material::Material paint) {
+  return kit::dot(sigil::geometry::path::fromSk(centre), radius, std::move(paint));
+}
+
+/** A ring seen edge-on: an annulus on a squashed, rotated box. */
+inline Element ring(SkPoint centre, float radiusX, float radiusY, float degrees,
+                    float innerRatio, material::Material paint) {
+  return rect(centre.fX - radiusX, centre.fY - radiusY, radiusX * 2, radiusY * 2)
+      .shape(shapes::annulus(innerRatio))
+      .fill(std::move(paint))
+      .rotate(degrees);
+}
+
+/** A polygon in unit-box coordinates, stretched over the node. */
+inline Shape unitPolygon(std::vector<glm::vec2> corners) {
+  return [corners = std::move(corners)](glm::vec2 size) {
+    SkPathBuilder builder;
+    for (size_t index = 0; index < corners.size(); ++index) {
+      const SkPoint point{corners[index].x * size.x, corners[index].y * size.y};
+      index == 0 ? builder.moveTo(point) : builder.lineTo(point);
+    }
+    builder.close();
+    return sigil::geometry::path::fromSk(builder.detach());
+  };
+}
+
+inline Element artBox(float width, float height) {
+  return stack().width(width).height(height).overflow(Overflow::Clip);
+}
+
+// ---------------------------------------------------------------------------
+// The basketball: a sphere with rotating seams, one program for every
+// build of it. `uSpin` is the frame's angle in GIF frames of 60 degrees.
+
+inline material::Material ballMaterial(const sk_sp<SkRuntimeEffect>& program, float spin,
+                                       material::Color light, material::Color dark,
+                                       material::Color seam, float seamWidth) {
+  material::Paint paint = material::skia::sksl(program, {{"uSeamW", seamWidth}});
+  paint.set("uHi", light);
+  paint.set("uLo", dark);
+  paint.set("uSeam", seam);
+  paint.set("uSpin", spin);
+  return material::skia::base(paint);
+}
+
+/** fastbreak.gif as its frames, side by side: one bounce of the ball in a
+ *  40x40 frame, turning 60 degrees a frame, flattened where it meets the
+ *  floor. Six frames at the GIF's 100 ms delay, looped forever. */
+constexpr int kBallFrames = 6;
+constexpr float kBallFrame = 40;
+inline Element ballFilmstrip(const sk_sp<SkRuntimeEffect>& program) {
+  Element strip = stack().width(kBallFrame * kBallFrames).height(kBallFrame);
+  for (int frame = 0; frame < kBallFrames; ++frame) {
+    const float lift = std::sin(3.14159265f * (float)frame / kBallFrames);
+    const float radius = 13;
+    const bool landing = frame == 0;
+    Element ball = rect(frame * kBallFrame + kBallFrame / 2 - radius,
+                        kBallFrame - 2 - radius * 2 - 13 * lift, radius * 2, radius * 2)
+                       .shape(shapes::circle())
+                       .fill(ballMaterial(program, 0.1f * (float)frame, C5(0xFF6B29),
+                                          C5(0xC64210), C5(0x521800), 0.05f));
+    if (landing) ball.scaleX(1.14f).scaleY(0.84f).transformOrigin(pct(50), pct(100));
+    strip.children({std::move(ball)});
+  }
+  return strip;
+}
+
+// ---------------------------------------------------------------------------
+// Gas-giant banding: torn wavy streaks, drawn as an overlay() so it paints
+// over the body fill and under the sphere-shading child.
+
+inline float hashUnit(uint32_t value) {
+  value = (value ^ 61u) ^ (value >> 16u);
+  value *= 9u;
+  value ^= value >> 4u;
+  value *= 0x27d4eb2du;
+  value ^= value >> 15u;
+  return (float)(value & 0xffffffu) / (float)0xffffff;
+}
+
+struct Bands {
+  std::vector<material::Color> inks;
+  int count = 6;
+  uint32_t seed = 1;
+  float thick = 0.11f;    // fraction of the box height
+  float wobble = 0.055f;  // vertical excursion
+  float tear = 0.55f;     // how much the thickness pinches along x
+  float bow = 0.20f;      // limb curvature
+  float tilt = 0.0f;      // streaks running off the horizontal
+
+  void paint(sigil::draw::Pen& pen, const PaintContext& context) const {
+    SkCanvas& canvas = *pen.canvas();
+    const float width = context.size.x, height = context.size.y;
+    if (width <= 0 || height <= 0 || inks.empty()) return;
+    canvas.save();
+    canvas.clipPath(sigil::geometry::path::toSk(context.outline), true);
+    SkPaint ink;
+    ink.setAntiAlias(true);
+    constexpr float kTurn = 6.2831853f;
+    for (int band = 0; band < count; ++band) {
+      const uint32_t key = seed * 131u + (uint32_t)band * 7919u;
+      const float centre = height * (0.10f + 0.80f * ((float)band + 0.5f) / (float)count +
+                                     (hashUnit(key) - 0.5f) * 0.05f);
+      const float thickness = height * thick * (0.55f + 0.9f * hashUnit(key + 1u));
+      const float swell = height * wobble * (0.5f + hashUnit(key + 2u));
+      const float ripple = height * wobble * 0.45f * hashUnit(key + 3u);
+      const float swellFrequency = 0.9f + 1.1f * hashUnit(key + 4u);
+      const float rippleFrequency = 2.2f + 1.8f * hashUnit(key + 5u);
+      const float swellPhase = hashUnit(key + 6u) * kTurn;
+      const float ripplePhase = hashUnit(key + 7u) * kTurn;
+      const float tearFrequency = 1.4f + 1.6f * hashUnit(key + 8u);
+      const float tearPhase = hashUnit(key + 9u) * kTurn;
+      const float latitude = (centre - height * 0.5f) / (height * 0.5f);
+
+      std::vector<SkPoint> upper, lower;
+      constexpr int kSteps = 72;
+      for (int step = 0; step <= kSteps; ++step) {
+        const float along = (float)step / (float)kSteps;
+        const float horizontal = along * width;
+        const float across = (horizontal - width * 0.5f) / (width * 0.5f);
+        const float wave = swell * std::sin(swellFrequency * along * kTurn + swellPhase) +
+                           ripple * std::sin(rippleFrequency * along * kTurn + ripplePhase);
+        const float bend = bow * height * latitude * across * across + tilt * height * across * 0.5f;
+        const float pinch =
+            std::max(0.06f, 1.0f - tear * (0.5f + 0.5f * std::sin(tearFrequency * along * kTurn + tearPhase)));
+        const float middle = centre + wave + bend;
+        const float half = thickness * 0.5f * pinch;
+        upper.push_back({horizontal, middle - half});
+        lower.push_back({horizontal, middle + half});
+      }
+      SkPathBuilder ribbon;
+      ribbon.moveTo(upper.front());
+      for (const SkPoint& point : upper) ribbon.lineTo(point);
+      for (auto point = lower.rbegin(); point != lower.rend(); ++point) ribbon.lineTo(*point);
+      ribbon.close();
+      ink.setColor4f(material::skia::toSkColor(inks[(size_t)band % inks.size()]), nullptr);
+      canvas.drawPath(ribbon.detach(), ink);
+    }
+    canvas.restore();
+  }
+};
+
+// ---------------------------------------------------------------------------
+// The star tile: ONE 111x111 GIF, repeated on a visible lattice. The 33
+// local maxima at L >= 45 (x, y, peak) are pixel-sampled off bg_stars.gif;
+// the same stars repeat every 111 px, and that repetition is part of how
+// the page looks.
+
+struct Star {
+  int column, row, peak;
+};
+inline constexpr auto kStarField = std::to_array<Star>(
+    {{96, 64, 253}, {69, 9, 244},  {59, 101, 238},  {44, 43, 235},  {9, 104, 233},
+     {3, 66, 222},  {89, 79, 219}, {40, 105, 209},  {14, 48, 205},  {16, 12, 194},
+     {50, 65, 188}, {52, 30, 161}, {15, 85, 153},   {28, 52, 150},  {102, 102, 145},
+     {73, 87, 143}, {38, 24, 140}, {94, 22, 138},   {107, 64, 133}, {43, 13, 130},
+     {11, 32, 129}, {85, 45, 128}, {32, 84, 127},   {61, 36, 125},  {13, 5, 120},
+     {107, 1, 112}, {98, 46, 112}, {22, 70, 110},   {86, 21, 109},  {68, 68, 97},
+     {48, 80, 97},  {40, 0, 72},   {107, 110, 68}});
+constexpr float kStarTile = 111;
+
+inline Element starTile() {
+  Element tile = stack().width(kStarTile).height(kStarTile);
+  int rank = 0;
+  for (const Star& star : kStarField) {
+    const float light = (float)star.peak / 255.0f;
+    const glm::vec2 centre{(float)star.column + 0.5f, (float)star.row + 0.5f};
+    // Most of the tile sits below L16: the density on the page comes from
+    // repetition, not brightness, so the glow falls off steeply.
+    tile.children({kit::disc(centre, 2.3f + 7.0f * light * light)
+                       .fill(material::radialGradient(
+                           {0.5f, 0.5f}, 1.0f,
+                           {{0.0f, {light, light, light, 1.0f}},
+                            {0.24f, {light, light, light, 0.66f}},
+                            {0.44f, {light, light, light, 0.26f}},
+                            {0.70f, {light, light, light, 0.055f}},
+                            {1.0f, {light, light, light, 0.0f}}},
+                           {.extent = material::RadialExtent::ClosestSide}))
+                       .blendMode(material::BlendMode::PlusLighter)});
+    // The brightest half-dozen carry an eight-point spike, the next few a
+    // four-point cross: on this tile the spikes are the dominant visual.
+    const bool eight = rank < 6, four = rank >= 6 && rank < 14;
+    ++rank;
+    if (eight || four)
+      tile.children({kit::disc(centre, eight ? 4.8f + 6.6f * light : 4.2f + 6.0f * light)
+                         .shape(shapes::star(eight ? 8 : 4, 0.035f, eight ? 0.15f : 0.12f))
+                         .fill(Fill::color({1, 1, 1, 0.38f + 0.42f * light}))
+                         .blendMode(material::BlendMode::PlusLighter)});
+  }
+  return tile;
+}
+
+// ---------------------------------------------------------------------------
+// A navigation label. The shipped ones are set much narrower than anything
+// on the system: "SITE MAP" is eight glyphs in 37 px at a 10 px cap. So the
+// run is sized by its cap band first, condensed with scaleX down to a 0.70
+// floor, and only then gives up cap height. Its outline is eight echoes at
+// one pixel and a ninth down-right: a 1 px black keyline plus a 1 px drop.
+
+inline Element navLabel(weave::FontContext& fonts, const Label& label, float left, float top,
+                        float width, float capHeight) {
+  auto styleAt = [&](float size) { return type(size, label.ink, 0.4f); };
+  float size = capHeight / 0.72f;  // Impact's cap height is about 0.72 em
+  SkSize measured = intrinsicSize(text(label.text).font(styleAt(size)), fonts);
+  float condense = 1.0f;
+  if (measured.width() > width && measured.width() > 1) {
+    condense = width / measured.width();
+    if (condense < 0.70f) {
+      size *= condense / 0.70f;
+      measured = intrinsicSize(text(label.text).font(styleAt(size)), fonts);
+      condense = (measured.width() > width && measured.width() > 1) ? width / measured.width() : 1.0f;
+    }
+  }
+  material::Filter keyline;
+  const float offsets[9][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}, {-1, -1},
+                               {1, -1}, {-1, 1}, {1, 1},  {2, 2}};
+  for (const auto& offset : offsets)
+    keyline = keyline.then(material::Filter::shadow(kLabelInk, {.offset = {offset[0], offset[1]}}));
+  // scaleX is paint-only, so the node is pinned to the run's natural width
+  // to keep it one line, and the paint-time condense brings it inside.
+  Element run = text(label.text).font(styleAt(size));
+  run.ink(material::from(label.ink).effects(keyline));
+  run.left(left).top(top).width(measured.width() + 4.0f);
+  if (condense < 0.999f) run.scaleX(condense).transformOrigin(pct(0), pct(50));
+  return run;
+}
+
+// ---------------------------------------------------------------------------
+// The visitor counter: an odometer GIF from the counter service, seven
+// white figures in black wells with a lit top and a shaded foot.
+
+constexpr float kCounterDigit = 11, kCounterHeight = 17;
+inline Element artCounter(weave::FontContext&, const std::string& figures) {
+  Element counter = stack().width(kCounterDigit * (float)figures.size()).height(kCounterHeight);
+  for (size_t index = 0; index < figures.size(); ++index) {
+    counter.children(
+        {rect((float)index * kCounterDigit, 0, kCounterDigit, kCounterHeight)
+             .fill(material::linearGradient({0, 0}, {0, 1},
+                                            {{0.0f, C5(0x6B6B6B)},
+                                             {0.18f, C5(0x101010)},
+                                             {0.82f, C5(0x000000)},
+                                             {1.0f, C5(0x424242)}}))
+             .stroke(stroke(1, Fill::color(C5(0x9C9C9C)), PathFormat::Align::Inner)),
+         text(std::string(1, figures[index]))
+             .font({.face = weave::ports::face({"Courier New"}, 700),
+                    .size = 15,
+                    .color = C5(0xFFFFFF),
+                    .aliased = true})
+             .left((float)index * kCounterDigit + 1.5f)
+             .top(-0.5f)});
+  }
+  return counter;
+}
+
+// ---------------------------------------------------------------------------
+// The twelve navigation GIFs, at the sizes the page's <IMG> tags give them.
+
+// --- p-souvenirs.gif, 83x83 — the centred glow.
+inline Element artSouvenirs(sigil::weave::FontContext& fonts, const Label& label) {
+  const float width = 83, height = 83;
+  return artBox(width, height).children(
+      {sphere({41.5f, 47.5f}, 35,
               sigil::material::radialGradient(
                   {0.5f, 0.5f}, 1.0f,
                   {{0.0f, C5(0xEFEFEF)},
@@ -18,16 +349,16 @@ inline Element artSouvenirs(sigil::weave::FontContext& f) {
                    {0.80f, C5(0x08C6C6)},
                    {1.0f, C5(0x006363)}},
                   {.extent = material::RadialExtent::ClosestSide}))
-           .stroke(stroke(S(1.5f), Fill::color(C5(0x005252)),
+           .stroke(stroke(1.5f, Fill::color(C5(0x005252)),
                           PathFormat::Align::Inner)),
-       navLabel(f, "STELLAR SOUVENIRS", 0, S(-1), W, S(10), kLabelWhite)});
+       navLabel(fonts, label, 0, -1, width, 10)});
 }
 
 // --- p-jump.gif, 58x52 — the other centred glow.
-inline Element artJump(sigil::weave::FontContext& f) {
-  const float W = S(58), H = S(52);
-  return artBox(W, H).children(
-      {sphere({S(28.5f), S(30.0f)}, S(21),
+inline Element artJump(sigil::weave::FontContext& fonts, const Label& label) {
+  const float width = 58, height = 52;
+  return artBox(width, height).children(
+      {sphere({28.5f, 30.0f}, 21,
               sigil::material::radialGradient(
                   {0.46f, 0.60f}, 1.0f,
                   {{0.0f, C5(0xFFFFFF)},
@@ -36,30 +367,30 @@ inline Element artJump(sigil::weave::FontContext& f) {
                    {0.86f, C5(0x009400)},
                    {1.0f, C5(0x006B00)}},
                   {.extent = material::RadialExtent::ClosestSide}))
-           .stroke(stroke(S(1.5f), Fill::color(C5(0x005A00)),
+           .stroke(stroke(1.5f, Fill::color(C5(0x005A00)),
                           PathFormat::Align::Inner)),
-       navLabel(f, "JUMP STATION", 0, S(0), W, S(10))});
+       navLabel(fonts, label, 0, 0, width, 10)});
 }
 
 // --- p-bball.gif, 62x62 — the static build of the seam shader.
-inline Element artBball(sigil::weave::FontContext& f,
+inline Element artBball(sigil::weave::FontContext& fonts, const Label& label,
                         const sk_sp<SkRuntimeEffect>& ball) {
-  const float W = S(62), H = S(62);
-  return artBox(W, H).children(
-      {kit::dot(glm::vec2{S(31), S(37.5f)}, S(25.5f),
-                ballMaterial(ball, false, C5(0xFF9C10), C5(0xC66300),
+  const float width = 62, height = 62;
+  return artBox(width, height).children(
+      {kit::dot(glm::vec2{31, 37.5f}, 25.5f,
+                ballMaterial(ball, 0.083f, C5(0xFF9C10), C5(0xC66300),
                              C5(0x843900), 0.055f))
-           .stroke(stroke(S(1.2f), Fill::color(C5(0x632900)),
+           .stroke(stroke(1.2f, Fill::color(C5(0x632900)),
                           PathFormat::Align::Inner)),
-       navLabel(f, "PLANET B-BALL", 0, S(0), W, S(10))});
+       navLabel(fonts, label, 0, 0, width, 10)});
 }
 
 // --- p-jamcentral.gif, 55x67 — purple globe, green continents.
-inline Element artJamCentral(sigil::weave::FontContext& f) {
-  const float W = S(55), H = S(67);
-  const SkPoint c{S(27.5f), S(40)};
-  const float r = S(26);
-  Element globe = sphere(c, r,
+inline Element artJamCentral(sigil::weave::FontContext& fonts, const Label& label) {
+  const float width = 55, height = 67;
+  const SkPoint centre{27.5f, 40};
+  const float radius = 26;
+  Element globe = sphere(centre, radius,
                          sigil::material::radialGradient(
                              {0.34f, 0.28f}, 1.32f,
                              {{0.0f, C5(0xA542DE)},
@@ -68,55 +399,56 @@ inline Element artJamCentral(sigil::weave::FontContext& f) {
                               {1.0f, C5(0x630894)}},
                              {.extent = material::RadialExtent::ClosestSide}))
                       .overflow(Overflow::Clip)
-                      .stroke(stroke(S(1.5f), Fill::color(C5(0x9400DE)),
+                      .stroke(stroke(1.5f, Fill::color(C5(0x9400DE)),
                                      PathFormat::Align::Inner));
   // Six landmasses, seeded blobs clipped to the disc. Their coordinates are
   // fractions of the disc box (2r), not of the image box.
-  const float d = r * 2;
+  const float diameter = radius * 2;
   struct Mass {
-    float x, y, w, h;
+    float left, top, across, down;
     uint32_t seed;
     uint32_t ink;
   };
-  const Mass mass[6] = {{0.04f, 0.10f, 0.44f, 0.26f, 11, 0x08E700},
+  const Mass masses[6] = {{0.04f, 0.10f, 0.44f, 0.26f, 11, 0x08E700},
                         {0.14f, 0.30f, 0.26f, 0.52f, 27, 0x00EF00},
                         {0.46f, 0.14f, 0.44f, 0.26f, 43, 0x00EF00},
                         {0.50f, 0.36f, 0.30f, 0.50f, 61, 0x08E700},
                         {0.74f, 0.28f, 0.24f, 0.30f, 83, 0x08E700},
                         {0.28f, 0.80f, 0.34f, 0.16f, 97, 0x00EF00}};
-  for (const Mass& m : mass)
-    globe.children({rect(m.x * d, m.y * d, m.w * d, m.h * d)
-                        .shape(shapes::blob(m.seed, 0.62f, 13))
-                        .fill(Fill::color(C5(m.ink)))});
-  return artBox(W, H).children(
-      {std::move(globe), navLabel(f, "JAM CENTRAL", 0, S(-1), W, S(10))});
+  for (const Mass& land : masses)
+    globe.children({rect(land.left * diameter, land.top * diameter, land.across * diameter,
+                         land.down * diameter)
+                        .shape(shapes::blob(land.seed, 0.62f, 13))
+                        .fill(Fill::color(C5(land.ink)))});
+  return artBox(width, height).children(
+      {std::move(globe), navLabel(fonts, label, 0, -1, width, 10)});
 }
 
 /** The shared gas-giant recipe: solid body, torn bands as an overlay(),
  *  and one shading child for the highlight and the hard limb. */
-inline Element gasGiant(SkPoint c, float r, sigil::material::Color body,
-                        sigil::material::Color limb, sigil::material::Color hi,
+inline Element gasGiant(SkPoint centre, float radius, sigil::material::Color body,
+                        sigil::material::Color limb, sigil::material::Color highlight,
                         Bands bands) {
-  Element d =
-      sphere(c, r, body)
+  Element planet =
+      sphere(centre, radius, body)
           .overflow(Overflow::Clip)
           .overlay(std::move(bands))
-          .stroke(stroke(S(1.5f), Fill::color(limb), PathFormat::Align::Inner));
-  d.children({box().inset(0).fill(material::radialGradient(
+          .stroke(stroke(1.5f, Fill::color(limb), PathFormat::Align::Inner));
+  planet.children({box().inset(0).fill(material::radialGradient(
       {0.34f, 0.28f}, 1.35f,
-      {{0.0f, sigil::material::withAlpha(hi, 0.42f)},
-       {0.34f, sigil::material::withAlpha(hi, 0.10f)},
+      {{0.0f, sigil::material::withAlpha(highlight, 0.42f)},
+       {0.34f, sigil::material::withAlpha(highlight, 0.10f)},
        {0.62f, {0, 0, 0, 0}},
        {0.90f, {0, 0, 0, 0.30f}},
        {1.0f, {0, 0, 0, 0.62f}}},
       {.extent = material::RadialExtent::ClosestSide}))});
-  return d;
+  return planet;
 }
 
 // --- p-junior.gif, 49x57 — green body, yellow bands.
-inline Element artJunior(sigil::weave::FontContext& f) {
-  const float W = S(49), H = S(57);
-  Bands b{{C5(0xFFFF00), C5(0xBDF700), C5(0xA5F700), C5(0x7BEF00), C5(0xFFFF00),
+inline Element artJunior(sigil::weave::FontContext& fonts, const Label& label) {
+  const float width = 49, height = 57;
+  Bands bands{{C5(0xFFFF00), C5(0xBDF700), C5(0xA5F700), C5(0x7BEF00), C5(0xFFFF00),
            C5(0xBDF700)},
           6,
           5,
@@ -125,16 +457,16 @@ inline Element artJunior(sigil::weave::FontContext& f) {
           0.42f,
           0.24f,
           -0.05f};
-  return artBox(W, H).children(
-      {gasGiant({S(24), S(34)}, S(22.5f), C5(0x00DE00), C5(0x005A00),
-                C5(0xCEFFB5), std::move(b)),
-       navLabel(f, "JUNIOR JAM", 0, S(-1), W, S(10))});
+  return artBox(width, height).children(
+      {gasGiant({24, 34}, 22.5f, C5(0x00DE00), C5(0x005A00),
+                C5(0xCEFFB5), std::move(bands)),
+       navLabel(fonts, label, 0, -1, width, 10)});
 }
 
 // --- p-studiostore.gif, 94x72 — orange body, purple streaks, torn hard.
-inline Element artStudioStore(sigil::weave::FontContext& f) {
-  const float W = S(94), H = S(72);
-  Bands b{
+inline Element artStudioStore(sigil::weave::FontContext& fonts, const Label& label) {
+  const float width = 94, height = 72;
+  Bands bands{
       {C5(0x7310C6), C5(0x6B08CE), C5(0x7310C6), C5(0x6B08CE), C5(0x7310C6)},
       5,
       17,
@@ -143,16 +475,16 @@ inline Element artStudioStore(sigil::weave::FontContext& f) {
       0.60f,
       0.28f,
       -0.07f};
-  return artBox(W, H).children(
-      {gasGiant({S(48), S(42)}, S(29.5f), C5(0xFF9400), C5(0xE7A518),
-                C5(0xFFDE9C), std::move(b)),
-       navLabel(f, "WARNER STUDIO STORE", 0, S(-1), W, S(10))});
+  return artBox(width, height).children(
+      {gasGiant({48, 42}, 29.5f, C5(0xFF9400), C5(0xE7A518),
+                C5(0xFFDE9C), std::move(bands)),
+       navLabel(fonts, label, 0, -1, width, 10)});
 }
 
 // --- p-behind.gif, 67x63 — navy body, four thin cyan cloud streaks.
-inline Element artBehind(sigil::weave::FontContext& f) {
-  const float W = S(67), H = S(63);
-  Bands b{{C5(0x21FFFF), C5(0x21FFFF), C5(0x18E7EF), C5(0x21FFFF)},
+inline Element artBehind(sigil::weave::FontContext& fonts, const Label& label) {
+  const float width = 67, height = 63;
+  Bands bands{{C5(0x21FFFF), C5(0x21FFFF), C5(0x18E7EF), C5(0x21FFFF)},
           4,
           31,
           0.085f,
@@ -160,17 +492,17 @@ inline Element artBehind(sigil::weave::FontContext& f) {
           0.52f,
           0.30f,
           -0.17f};
-  return artBox(W, H).children(
-      {gasGiant({S(33), S(37)}, S(25.5f), C5(0x000873), C5(0x0010BD),
-                C5(0x2131C6), std::move(b)),
-       navLabel(f, "BEHIND THE JAM", 0, S(-1), W, S(10))});
+  return artBox(width, height).children(
+      {gasGiant({33, 37}, 25.5f, C5(0x000873), C5(0x0010BD),
+                C5(0x2131C6), std::move(bands)),
+       navLabel(fonts, label, 0, -1, width, 10)});
 }
 
 // --- p-lunartunes.gif, 95x77 — blue Saturn, red ring: two arcs and a
 // --- z-order, since the ring passes behind at the top and in front below.
-inline Element artLunarTunes(sigil::weave::FontContext& f) {
-  const float W = S(95), H = S(77);
-  const SkPoint c{S(48), S(46)};
+inline Element artLunarTunes(sigil::weave::FontContext& fonts, const Label& label) {
+  const float width = 95, height = 77;
+  const SkPoint centre{48, 46};
   auto ringMat = [] {
     return sigil::material::linearGradient({0, 0}, {0, 1},
                                                  {{0.0f, C5(0xF71018)},
@@ -178,9 +510,9 @@ inline Element artLunarTunes(sigil::weave::FontContext& f) {
                                                   {0.62f, C5(0xF71818)},
                                                   {1.0f, C5(0xAD0810)}});
   };
-  return artBox(W, H).children(
-      {ring(c, S(47), S(16), -20, 0.62f, ringMat()).zIndex(0),
-       sphere(c, S(30),
+  return artBox(width, height).children(
+      {ring(centre, 47, 16, -20, 0.62f, ringMat()).zIndex(0),
+       sphere(centre, 30,
               sigil::material::radialGradient(
                   {0.34f, 0.28f}, 1.32f,
                   {{0.0f, C5(0x0073E7)},
@@ -188,22 +520,22 @@ inline Element artLunarTunes(sigil::weave::FontContext& f) {
                    {0.66f, C5(0x0052AD)},
                    {1.0f, C5(0x00317B)}},
                   {.extent = material::RadialExtent::ClosestSide}))
-           .stroke(stroke(S(1.5f), Fill::color(C5(0x00397B)),
+           .stroke(stroke(1.5f, Fill::color(C5(0x00397B)),
                           PathFormat::Align::Inner))
            .zIndex(1),
        // the front half: the same ellipse, clipped to below the sphere's centre
-       rect(0, c.fY, W, H - c.fY)
+       rect(0, centre.fY, width, height - centre.fY)
            .overflow(Overflow::Clip)
            .zIndex(2)
-           .children({ring({c.fX, -S(0)}, S(47), S(16), -20, 0.62f, ringMat())
-                          .top(-c.fY)}),
-       navLabel(f, "LUNAR TUNES", S(19), S(0), S(57), S(9), kLabelWhite)});
+           .children({ring({centre.fX, -0}, 47, 16, -20, 0.62f, ringMat())
+                          .top(-centre.fY)}),
+       navLabel(fonts, label, 19, 0, 57, 9)});
 }
 
 // --- p-lineup.gif, 63x52 — the same construction, red and cyan.
-inline Element artLineup(sigil::weave::FontContext& f) {
-  const float W = S(63), H = S(52);
-  const SkPoint c{S(33), S(31)};
+inline Element artLineup(sigil::weave::FontContext& fonts, const Label& label) {
+  const float width = 63, height = 52;
+  const SkPoint centre{33, 31};
   auto ringMat = [] {
     return sigil::material::linearGradient({0, 0}, {0, 1},
                                                  {{0.0f, C5(0x21FFFF)},
@@ -211,9 +543,9 @@ inline Element artLineup(sigil::weave::FontContext& f) {
                                                   {0.75f, C5(0x21FFFF)},
                                                   {1.0f, C5(0x089494)}});
   };
-  return artBox(W, H).children(
-      {ring(c, S(29), S(15), -22, 0.60f, ringMat()).zIndex(0),
-       sphere({S(38), S(32)}, S(17),
+  return artBox(width, height).children(
+      {ring(centre, 29, 15, -22, 0.60f, ringMat()).zIndex(0),
+       sphere({38, 32}, 17,
               sigil::material::radialGradient(
                   {0.34f, 0.30f}, 1.30f,
                   {{0.0f, C5(0xFF4A6B)},
@@ -221,40 +553,27 @@ inline Element artLineup(sigil::weave::FontContext& f) {
                    {0.62f, C5(0xF71818)},
                    {1.0f, C5(0xBD0810)}},
                   {.extent = material::RadialExtent::ClosestSide}))
-           .stroke(stroke(S(1.4f), Fill::color(C5(0xA50008)),
+           .stroke(stroke(1.4f, Fill::color(C5(0xA50008)),
                           PathFormat::Align::Inner))
            .zIndex(1),
-       rect(0, S(34), W, H - S(34))
+       rect(0, 34, width, height - 34)
            .overflow(Overflow::Clip)
            .zIndex(2)
-           .children({ring({c.fX, 0}, S(29), S(15), -22, 0.60f, ringMat())
-                          .top(c.fY - S(34) - S(15))}),
-       navLabel(f, "THE LINEUP", S(8), S(-1), S(50), S(9))});
+           .children({ring({centre.fX, 0}, 29, 15, -22, 0.60f, ringMat())
+                          .top(centre.fY - 34 - 15)}),
+       navLabel(fonts, label, 8, -1, 50, 9)});
 }
 
 // --- p-sitemap.gif, 104x67 — a rainbow vortex and four yellow darts.
-/** An arrowhead: tip forward, two barbs, a notch in the back. */
-inline sigil::compose::Shape dart() {
-  return [](glm::vec2 s) {
-    SkPathBuilder b;
-    b.moveTo(s.x, s.y * 0.5f);
-    b.lineTo(0, 0);
-    b.lineTo(s.x * 0.34f, s.y * 0.5f);
-    b.lineTo(0, s.y);
-    b.close();
-    return sigil::geometry::path::fromSk(b.detach());
-  };
-}
-
-inline Element artSitemap(sigil::weave::FontContext& f) {
-  const float W = S(104), H = S(67);
-  const SkPoint c{S(36), S(32)};
+inline Element artSitemap(sigil::weave::FontContext& fonts, const Label& label) {
+  const float width = 104, height = 67;
+  const SkPoint centre{36, 32};
   // The closest side, not the farthest corner: on a 2:1 box a radius
   // against the corner is a fraction of the HALF-DIAGONAL, so the whole
   // band stack lands inside t < 0.71 and the outer bands never appear.
   // Against the closest side the radius is the half side, so t = 1 IS the ellipse edge and the bands sit where
   // they were authored.
-  Element vortex = rect(c.fX - S(35), c.fY - S(17), S(70), S(34))
+  Element vortex = rect(centre.fX - 35, centre.fY - 17, 70, 34)
                        .shape(shapes::annulus(0.30f))
                        .fill(material::radialGradient(
                            {0.5f, 0.5f}, 1.0f,
@@ -266,68 +585,52 @@ inline Element artSitemap(sigil::weave::FontContext& f) {
                             {1.0f, C5(0x8C0000)}},
                            {.extent = material::RadialExtent::ClosestSide}))
                        .rotate(-33);
-  Element out = artBox(W, H).children({std::move(vortex)});
+  Element out = artBox(width, height).children({std::move(vortex)});
   // four darts, outside the vortex on its two axes
-  const float dw = S(17), dh = S(16);
-  const float ang[4] = {122, -58, 210, 30};
-  const float px[4] = {0.28f, -0.28f, 0.86f, -0.86f};
-  const float py[4] = {-0.95f, 0.95f, 0.42f, -0.42f};
-  for (int i = 0; i < 4; ++i)
-    out.children({rect(c.fX + px[i] * S(34) - dw * 0.5f,
-                       c.fY + py[i] * S(31) - dh * 0.5f, dw, dh)
-                      .shape(dart())
+  const float dartWidth = 17, dartHeight = 16;
+  const float angles[4] = {122, -58, 210, 30};
+  const float acrossAxis[4] = {0.28f, -0.28f, 0.86f, -0.86f};
+  const float alongAxis[4] = {-0.95f, 0.95f, 0.42f, -0.42f};
+  for (int index = 0; index < 4; ++index)
+    out.children({rect(centre.fX + acrossAxis[index] * 34 - dartWidth * 0.5f,
+                       centre.fY + alongAxis[index] * 31 - dartHeight * 0.5f, dartWidth, dartHeight)
+                      .shape(unitPolygon({{1, 0.5f}, {0, 0}, {0.34f, 0.5f}, {0, 1}}))
                       .fill(Fill::color(C5(0xFFFF00)))
-                      .rotate(ang[i])});
-  out.children({navLabel(f, "SITE MAP", S(64), S(26), S(39), S(10))});
+                      .rotate(angles[index])});
+  out.children({navLabel(fonts, label, 64, 26, 39, 10)});
   return out;
 }
 
 // --- p-pressbox.gif, 131x56 — the one genuinely photographic asset, and
 // --- the one deliberate approximation: a lozenge fuselage and swept fins.
-/** A triangle in unit-box coordinates — the fin primitive.
- *  `shapes::polygon(3, deg)` is inscribed and equilateral, which is the
- *  wrong shape for a swept fin: it has one aspect ratio and one rotation,
- *  where a fin needs three independent vertices. */
-inline sigil::compose::Shape tri(float ax, float ay, float bx, float by,
-                                   float cx, float cy) {
-  return [=](glm::vec2 s) {
-    SkPathBuilder b;
-    b.moveTo(ax * s.x, ay * s.y);
-    b.lineTo(bx * s.x, by * s.y);
-    b.lineTo(cx * s.x, cy * s.y);
-    b.close();
-    return sigil::geometry::path::fromSk(b.detach());
-  };
-}
-
-inline Element artPressBox(sigil::weave::FontContext& f) {
-  const float W = S(131), H = S(56);
+inline Element artPressBox(sigil::weave::FontContext& fonts, const Label& label) {
+  const float width = 131, height = 56;
   const sigil::material::Color hull = C5(0xFF0042), hullLo = C5(0xCE0031),
-                               hullHi = C5(0xFF8CA5), grn = C5(0x319431),
-                               grnLo = C5(0x101800), gold = C5(0xFFFF00);
+                               hullHi = C5(0xFF8CA5), green = C5(0x319431),
+                               greenShade = C5(0x101800), gold = C5(0xFFFF00);
 
   // The measured body axis runs from the tail at (4.5, 41) to the nose at
   // (125, 14): atan2(-27, 120) = -12.6 degrees.
   Element ship =
-      rect(0, 0, W, H).rotate(-12.6f).transformOrigin(pct(50), pct(50));
+      rect(0, 0, width, height).rotate(-12.6f).transformOrigin(pct(50), pct(50));
   // dorsal fin, swept back from mid-body
   ship.children(
-      {rect(S(38), S(6), S(52), S(20))
-           .shape(tri(1.0f, 1.0f, 0.86f, 0.0f, 0.0f, 1.0f))
+      {rect(38, 6, 52, 20)
+           .shape(unitPolygon({{1, 1}, {0.86f, 0}, {0, 1}}))
            .fill(material::linearGradient(
                {0, 0}, {0, 1}, {{0.0f, C5(0xF71039)}, {1.0f, hullLo}})),
        // ventral fin
-       rect(S(58), S(36), S(40), S(15))
-           .shape(tri(0.0f, 0.0f, 1.0f, 0.0f, 0.62f, 1.0f))
+       rect(58, 36, 40, 15)
+           .shape(unitPolygon({{0, 0}, {1, 0}, {0.62f, 1}}))
            .fill(Fill::color(C5(0xA50029))),
        // rear nacelle
-       rect(S(4), S(25), S(36), S(14))
+       rect(4, 25, 36, 14)
            .shape(shapes::squircle(2.6f))
            .fill(material::linearGradient(
                {0, 0}, {0, 1},
-               {{0.0f, C5(0x8CDE73)}, {0.42f, grn}, {1.0f, grnLo}})),
+               {{0.0f, C5(0x8CDE73)}, {0.42f, green}, {1.0f, greenShade}})),
        // fuselage
-       rect(S(16), S(23), S(100), S(17))
+       rect(16, 23, 100, 17)
            .shape(shapes::squircle(2.2f))
            .fill(material::linearGradient({0, 0}, {0, 1},
                                                        {{0.0f, hullHi},
@@ -335,32 +638,32 @@ inline Element artPressBox(sigil::weave::FontContext& f) {
                                                         {0.68f, hullLo},
                                                         {1.0f, C5(0x8C0021)}})),
        // dorsal ridge highlight
-       rect(S(28), S(25), S(72), S(3))
+       rect(28, 25, 72, 3)
            .shape(shapes::squircle(2.0f))
            .fill(Fill::color(sigil::material::withAlpha(C5(0xFFC6D6), 0.85f))),
        // nose spike
-       rect(S(108), S(27), S(24), S(8))
+       rect(108, 27, 24, 8)
            .shape(shapes::arrow(0.28f, 0.90f))
            .fill(Fill::color(hull))});
   // window strip
-  for (int i = 0; i < 5; ++i)
-    ship.children({rect(S(44 + i * 7.0f), S(29), S(4), S(4))
-                       .borderRadius({S(1)})
+  for (int index = 0; index < 5; ++index)
+    ship.children({rect(44 + index * 7.0f, 29, 4, 4)
+                       .borderRadius({1})
                        .fill(Fill::color(gold))});
 
-  return artBox(W, H).children(
-      {std::move(ship), navLabel(f, "PRESS BOX SHUTTLE", S(50), S(38), S(80),
-                                 S(10), kLabelWhite)});
+  return artBox(width, height).children(
+      {std::move(ship), navLabel(fonts, label, 50, 38, 80,
+                                 10)});
 }
 
 // --- p-jamlogo.gif, 272x165 — the largest object on the page by a factor
 // --- of four, and the one a viewer judges the sketch on.
-inline Element artLogo(sigil::weave::FontContext& fonts) {
-  const float W = S(272), H = S(165);
+inline Element artLogo(sigil::weave::FontContext& fonts, const Label&) {
+  const float width = 272, height = 165;
   // Swirl geometry measured off p-jamlogo_x2: centre ~(172, 62) in the
   // 272x165 box, spanning x 65..250 and y 5..145.
-  const SkPoint c{S(176), S(54)};
-  const float rx = S(92), ry = S(58);
+  const SkPoint centre{176, 54};
+  const float radiusX = 92, radiusY = 58;
 
   auto swirlFill = [] {
     // The closest side again, for the reason artSitemap() gives: on this
@@ -377,7 +680,7 @@ inline Element artLogo(sigil::weave::FontContext& fonts) {
         {.extent = material::RadialExtent::ClosestSide});
   };
   auto swirl = [&] {
-    return rect(c.fX - rx, c.fY - ry, rx * 2, ry * 2)
+    return rect(centre.fX - radiusX, centre.fY - radiusY, radiusX * 2, radiusY * 2)
         .shape(shapes::annulus(0.44f))
         .fill(swirlFill())
         .rotate(-18);
@@ -397,10 +700,10 @@ inline Element artLogo(sigil::weave::FontContext& fonts) {
   // divides by uResolution (the NODE size) on top of it, so t collapses to
   // ~0 and every glyph comes out the first stop, flat. A pixel-unit
   // gradient with unit-square endpoints is the spelling that works.
-  auto letters = [&](const char* s, float capPx, float targetW, float x,
+  auto letters = [&](const char* words, float capPx, float targetW, float left,
                      float capTopY, float lean) {
     const float size = capPx / 0.72f;
-    Text t = text(s).font(ty(display(), size, C5(0x2FA9A0), 0));
+    Text glyphs = text(words).font(type(size, C5(0x2FA9A0)));
     auto letterInk = material::linearGradient(
         {0, 0}, {0, 1},
         {{0.0f, C5(0x006BA5)},
@@ -409,31 +712,33 @@ inline Element artLogo(sigil::weave::FontContext& fonts) {
          {0.78f, C5(0x9CCE84)},
          {1.0f, C5(0xCEDE73)}},
         {.units = material::GradientUnits::Pixels});
-    const float r = S(2.2f);
-    const float d[8][2] = {{-1, 0},  {1, 0},  {0, -1}, {0, 1},
+    const float radius = 2.2f;
+    const float offsets[8][2] = {{-1, 0},  {1, 0},  {0, -1}, {0, 1},
                            {-1, -1}, {1, -1}, {-1, 1}, {1, 1}};
     material::Filter echoes;
-    for (const auto& offset : d)
+    for (const auto& offset : offsets)
       echoes = echoes.then(material::Filter::shadow(
-          C5(0x101831), {.offset = {offset[0] * r, offset[1] * r}}));
-    t.ink(letterInk.effects(echoes));
-    const SkSize m =
-        intrinsicSize(text(s).font(ty(display(), size, kLabel, 0)), fonts);
-    const float sx = m.width() > 1 ? targetW / m.width() : 1.0f;
-    return t.left(x)
+          C5(0x101831), {.offset = {offset[0] * radius, offset[1] * radius}}));
+    // and the hard drop a 1996 logotype was cast down and right with.
+    echoes = echoes.then(material::Filter::shadow(C5(0x000000), {.offset = {3, 3}}));
+    glyphs.ink(letterInk.effects(echoes));
+    const SkSize natural =
+        intrinsicSize(text(words).font(type(size, C5(0xFFFF00))), fonts);
+    const float condense = natural.width() > 1 ? targetW / natural.width() : 1.0f;
+    return glyphs.left(left)
         .top(capTopY - 0.20f * size)
-        .width(m.width() + 4.0f)
-        .scaleX(sx)
+        .width(natural.width() + 4.0f)
+        .scaleX(condense)
         .skewX(lean)
         .transformOrigin(pct(0), pct(50));
   };
 
-  return artBox(W, H).children(
+  return artBox(width, height).children(
       {swirl().zIndex(0),
        // "SPACE": measured x 17..132, cap band y 47..87
-       letters("SPACE", S(40), S(112), S(16), S(47), -7).zIndex(1),
+       letters("SPACE", 40, 112, 16, 47, -7).zIndex(1),
        // "JAM": measured x 122..250, cap band y 25..115
-       letters("JAM", S(80), S(132), S(124), S(28), -8).zIndex(2),
+       letters("JAM", 80, 132, 124, 28, -8).zIndex(2),
        // The swirl passing IN FRONT of the bottom of the J — the single cue
        // that makes this read as a 1996 logotype instead of a gradient
        // wordmark. Four concentric arcs, not one stroke: a PathFormat's fill
@@ -441,143 +746,38 @@ inline Element artLogo(sigil::weave::FontContext& fonts) {
        // band but not ACROSS its width, which is the direction the rainbow
        // runs.
        [&] {
-         Element band = rect(c.fX - rx, c.fY - ry, rx * 2, ry * 2).rotate(-18);
+         Element band = rect(centre.fX - radiusX, centre.fY - radiusY, radiusX * 2, radiusY * 2).rotate(-18);
          // Same four bands, at the same four radii the annulus ramp puts
          // them at, so the ring READS as one ring that goes behind at the
          // top and comes round in front at the bottom left.
          const uint32_t ink[4] = {0x7310C6, 0xF70000, 0xFFAD42, 0xFFEF00};
-         for (int i = 0; i < 4; ++i) {
-           const float k = 0.960f - (float)i * 0.092f;
+         for (int index = 0; index < 4; ++index) {
+           const float extent = 0.960f - (float)index * 0.092f;
            band.children(
-               {rect(rx * (1 - k), ry * (1 - k), rx * 2 * k, ry * 2 * k)
+               {rect(radiusX * (1 - extent), radiusY * (1 - extent), radiusX * 2 * extent, radiusY * 2 * extent)
                     .shape(shapes::arc(96, 90))
-                    .stroke(stroke(S(9.4f), Fill::color(C5(ink[i])),
+                    .stroke(stroke(9.4f, Fill::color(C5(ink[index])),
                                    PathFormat::Align::Center))});
          }
          return band.zIndex(3);
        }()});
 }
 
-// --- the Fast Break row's two wordmarks, 50x11 each, bright red caps.
-inline Element wordmark(sigil::weave::FontContext& fonts, const char* s,
-                        float w, float h, bool rightAlign) {
-  // fast.gif is right-aligned inside its 50x11 box, with the left ~40% of
-  // the box empty; break.gif fills its own.
-  const float track = 0.35f * kScale;
-  const float target = (rightAlign ? 0.60f : 0.97f) * w;
-  auto styleAt = [&](float sz) {
-    return ty(display(), sz, C5(0xFF0000), track);
-  };
-  float size = h * 1.16f;
-  SkSize m = intrinsicSize(text(s).font(styleAt(size)), fonts);
-  float sx = 1.0f;
-  if (m.width() > target && m.width() > 1) sx = target / m.width();
-  Element t = text(s).font(styleAt(size));
-  t.ink(material::from(C5(0xFF0000)).effects(material::Filter::shadow(
-      C5(0x8C0000), {.offset = {kScale, kScale}})));
-  t.left(rightAlign ? w - target : 0).top(-h * 0.22f).width(m.width() + 4.0f);
-  if (sx < 0.999f) t.scaleX(sx).transformOrigin(pct(0), pct(50));
-  return stack()
-      .width(w)
-      .height(h)
-      .overflow(Overflow::Clip)
-      .children({std::move(t)});
+// --- fast.gif and break.gif, 50x11 each, bright red caps with a dark red
+// --- drop. fast.gif is set flush right inside its box, the left two fifths
+// --- empty; break.gif fills its own.
+inline Element wordmark(weave::FontContext& fonts, const Label& label, bool flushRight) {
+  const float width = 50, height = 11;
+  const float measure = (flushRight ? 0.60f : 0.97f) * width;
+  const weave::Type style = type(height * 1.16f, label.ink, 0.35f);
+  const SkSize natural = intrinsicSize(text(label.text).font(style), fonts);
+  Element run = text(label.text).font(style);
+  run.ink(material::from(label.ink).effects(
+      material::Filter::shadow(C5(0x8C0000), {.offset = {1, 1}})));
+  run.left(flushRight ? width - measure : 0).top(-height * 0.22f).width(natural.width() + 4.0f);
+  if (natural.width() > measure)
+    run.scaleX(measure / natural.width()).transformOrigin(pct(0), pct(50));
+  return artBox(width, height).children({std::move(run)});
 }
 
-// ---------------------------------------------------------------------------
-// The load — 28.8 kbps over four connections. Byte counts are the files'
-// own, as served.
-
-struct Asset {
-  const char* name;
-  int bytes;
-};
-/** THE SIXTEEN REQUESTS AND THEIR BYTE COUNTS, as a constant for the same
- *  reason the star field above is one. */
-inline constexpr auto kManifest = std::to_array<Asset>({{"bg_stars", 8452},
-                                                        {"fast", 189},
-                                                        {"fastbreak", 6756},
-                                                        {"break", 229},
-                                                        {"pressbox", 4422},
-                                                        {"jamcentral", 1908},
-                                                        {"bball", 1368},
-                                                        {"lunartunes", 3538},
-                                                        {"lineup", 1929},
-                                                        {"jamlogo", 15410},
-                                                        {"jump", 2593},
-                                                        {"junior", 1253},
-                                                        {"studiostore", 2745},
-                                                        {"souvenirs", 3594},
-                                                        {"sitemap", 3401},
-                                                        {"behind", 1902}});
-enum Ix {
-  kStars = 0,
-  kFast,
-  kFastbreak,
-  kBreak,
-  kPressbox,
-  kJamcentral,
-  kBball,
-  kLunartunes,
-  kLineup,
-  kJamlogo,
-  kJump,
-  kJunior,
-  kStudiostore,
-  kSouvenirs,
-  kSitemap,
-  kBehind,
-  kAssetCount
-};
-
-constexpr double kBandwidth = 3000.0;  // bytes/sec, effective on a 28.8k line
-constexpr int kSlots = 4;              // Netscape's HTTP/1.0 default
-constexpr double kSpeedup = 2.5;       // sketch-time compression
-constexpr double kReloadAt = 11.5;     // length of one cycle in sketch
-                                       // seconds: the finished page holds for
-                                       // the balance of it, then every byte
-                                       // counter is reset and the load replays
-                                       // from empty
-
-// ---------------------------------------------------------------------------
-// The table — the page's <TABLE>, cell by cell.
-
-/** One <TD> in document order: which asset fills it, how many <br> stand
- *  above the image inside it, the cells it claims and the alignment the
- *  HTML gives it.
- *
- *  The children are BUILT from this list and each one carries its own claim
- *  through `Element::gridCells`, so there is nothing running parallel to them
- *  that an inserted row could knock out of step. */
-struct Slot {
-  int asset = -1;  ///< -1 for the two cells the page leaves empty
-  int brs = 0;
-  int col = 0, row = 0, colspan = 1, rowspan = 1;
-  Align across = Align::Center;
-  Align down = Align::Start;
-};
-
-/** The occupancy straight out of the HTML: <TABLE WIDTH=500 CELLSPACING=2
- *  CELLPADDING=1>, five columns by five rows. */
-constexpr Slot kSlotTable[] = {
-    // <TD colspan=5 align=right valign=top>, empty
-    {-1, 0, 0, 0, 5, 1, Align::End, Align::Start},
-    {kPressbox, 3, 0, 1, 2, 1, Align::End, Align::Center},
-    {kJamcentral, 0, 2, 1, 1, 1, Align::Center, Align::Center},
-    {kBball, 0, 3, 1, 1, 1, Align::Center, Align::Start},
-    {kLunartunes, 2, 4, 1, 1, 1, Align::Center, Align::End},
-    // align=middle on the image reads as centre
-    {kLineup, 2, 0, 2, 1, 1, Align::Center, Align::Start},
-    {kJamlogo, 0, 1, 2, 3, 2, Align::End, Align::Center},
-    {kJump, 0, 4, 2, 1, 1, Align::End, Align::End},
-    {kJunior, 0, 0, 3, 1, 1, Align::Center, Align::End},
-    {kStudiostore, 2, 4, 3, 1, 2, Align::Center, Align::Start},
-    {-1, 0, 0, 4, 1, 1, Align::Center, Align::Start},
-    {kSouvenirs, 0, 1, 4, 1, 1, Align::Center, Align::Start},
-    {kSitemap, 4, 2, 4, 1, 1, Align::Center, Align::End},
-    {kBehind, 0, 3, 4, 1, 1, Align::Center, Align::Center},
-};
-
-}  // namespace sj
-
-// ---------------------------------------------------------------------------
+}  // namespace spacejam

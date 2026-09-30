@@ -1,459 +1,583 @@
-// The Space Jam website assembled from illustrated navigation and a table
-// layout.
+// SPACE JAM, www.spacejam.com, 1996 — the page as Netscape Navigator 3.0
+// showed it on a Windows 95 desktop over a 28.8k modem.
+//
+// Reload is pressed and the page comes down the line: the document, then
+// the tiled star field all at once, then the sixteen GIFs four at a time,
+// the interlaced ones in Netscape's blocky passes and the rest top to
+// bottom; the throbber's meteors fly and the status bar counts the bytes.
+// When the last GIF lands — the visitor counter, from a counter service
+// that is always slow — Fast Break's ball starts to bounce, and the
+// pointer visits the planets: each one lights under it, the pointer
+// becomes the hand and the status bar reads the link. Then it goes back
+// to Reload and presses it.
+//
+// THE RECORD, in data/: `page.csv` is the page's requests in the order it
+// makes them, with every file's size as served, where the browser placed
+// each image, its label and its link. `tour.csv` is where the pointer
+// rests and when. THIS STUDY'S OWN: the chrome, drawn from memory of the
+// browser; which GIFs were saved interlaced; the rollover images, which
+// the page never had; the counter.
+//
+// Everything is authored in 1996 pixels and shown at twice that. Each GIF
+// is drawn once, then decoded as the browser decoded it: one bit of
+// transparency, matted on black, each colour put onto Netscape's
+// 216-colour cube; so it is shown as whole 1996 pixels. What stands still
+// — the window, the star field, the page's text, each GIF once it has
+// arrived — is a texture or an image, and only what moves is live: the
+// pointer, the ball's frame, a planet's rollover, the progress bar and,
+// while loading, the arriving GIFs and the meteors.
 
 // TAGS: Interfaces/Web
 
-#include <sigilmaterial/skia/Paint.h>
-#include <span>
-#include <array>
-#include <sigilcompose/kit/Rows.h>
+#include <include/core/SkBitmap.h>
+#include <include/core/SkCanvas.h>
+#include <include/core/SkImage.h>
+#include <include/core/SkPicture.h>
+#include <sigildata/table/Table.h>
 #include <sigildraw/Pen.h>
-#include "Artwork.h"
+#include <sigilmotion/bind/Binding.h>
 #include <sigilmotion/values/Animatable.h>
+#include <sigilsketch/kit/Page.h>
 
-struct SpaceJam1996 {
-  using Ix = sj::Ix;
+#include <cstdio>
+#include <cstring>
 
-  // The load simulator's state: one Output per asset, in [0,1].
-  sigil::motion::Animatable<float> got[sj::kAssetCount];
-  double gotBytes[sj::kAssetCount] = {};
-  double sinceDone = 0.0;
-  uint32_t arrivedMask = 0;
-  bool needRender = true;
+#include "Artwork.h"
+#include "Browser.h"
 
-  /** THE LAYOUT'S VERDICT against the browser's own numbers. Every row is
-   *  COMPUTED from the two it reports, so a page that stops resolving the
-   *  grid cannot keep claiming it does. */
-  measure::CheckTable verdict;
+namespace motion = sigil::motion;
+namespace sketch = sigil::sketch;
+using namespace spacejam;
 
-  // Everything the browser would have cached as a decoded GIF: each nav
-  // image baked ONCE from its element tree via snapshot(), then replayed
-  // under a hard scanline clip. Baking is what makes the reveal affordable —
-  // sixteen assets, each redrawn on every frame it is still arriving — and
-  // the clip is hand-written because a picture has no directional-wipe
-  // control of its own.
-  sk_sp<SkPicture> pic[sj::kAssetCount];
-  float artW[sj::kAssetCount] = {};
-  float artH[sj::kAssetCount] = {};
+namespace {
 
-  Pattern stars;
-  material::Material starsMat{material::Color{0, 0, 0, 0}};
-  /** THE LIVE BALL'S MATERIAL, built once and held. Its shader steps its
-   *  own uTime at the GIF's frame rate, so the value is the same one every
-   *  describe — and describe runs again on every arrival. */
-  material::Material fastballMat{material::Color{0, 0, 0, 0}};
-  // <TABLE WIDTH=500 CELLSPACING=2 CELLPADDING=1>, at this sketch's scale.
-  // The columns and rows are the ones the children claim.
-  layouts::Table table{.columns = 5,
-                       .rows = 5,
-                       .width = sj::S(500),
-                       .spacing = sj::S(2),
-                       .padding = sj::S(1)};
+// The line: 28.8k gives about 3.5K a second; the study runs it two and a
+// half times faster, over Netscape's four connections.
+constexpr double kLineBytesPerSecond = 3600;
+constexpr double kBytesPerSecond = kLineBytesPerSecond * 2.5;
+constexpr int kConnections = 4;
+constexpr double kConnectSeconds = 0.8;  // contacting the host, then waiting
+constexpr float kZoom = 2;               // canvas pixels to a 1996 pixel
+constexpr int kFirstVisitor = 482913;
 
-  // ---- the reveal --------------------------------------------------------
-  Element revealed(int i, bool inFlight) const {
-    const sk_sp<SkPicture> p = pic[i];
-    const float h = artH[i];
-    const motion::Animatable<float>& g = got[i];
-    // ARRIVED IS THE PICTURE ITSELF. A recorded picture's identity is its
-    // own, so the leaf compares equal between describes and the node goes
-    // static; the program below exists only for the hard scanline edge of
-    // a partial image, which nothing in the picture can express.
-    if (!inFlight) return picture(p, SkSize::Make(artW[i], artH[i]));
-    // KEYLESS: the scanline edge is read off the arrival's live fraction.
-    Element e = custom([p, h, g](sigil::draw::Pen& pen, const PaintContext& ctx) {
-                  SkCanvas& canvas = *pen.canvas();
-                  const float frac = g.value();
-                  if (frac <= 0.0f || !p) return;
-                  // No interlacing on any of the sixteen (every image
-                  // descriptor's flag is zero), so this is the older, simpler
-                  // behaviour: a complete top band and nothing below, the
-                  // edge hard and landing on a 1996 scanline.
-                  const float rows =
-                      std::floor(h / sj::kScale * frac) * sj::kScale;
-                  if (rows <= 0.0f) return;
-                  canvas.save();
-                  canvas.clipRect(SkRect::MakeWH(ctx.size.x, rows));
-                  canvas.drawPicture(p.get());
-                  canvas.restore();
-                })
-                    .width(artW[i])
-                    .height(artH[i]);
-    if (inFlight) e.cache(Cache::None);
-    return e;
-  }
+/** ONE REQUEST: what the page asks for, and what came back. */
+struct Gif {
+  std::string name;
+  double bytes = 0;
+  bool interlaced = false;
+  float left = 0, top = 0, width = 0, height = 0;
+  Label label;
+  std::string href;
+  /** When each byte count was reached, seconds into the load. */
+  struct Mark {
+    double seconds, bytes;
+  };
+  std::vector<Mark> transfer;
+  sk_sp<SkImage> plain, lit;  // as it stands, and as its rollover
+  motion::Animatable<float> received = motion::animatable(0.0f);  // fraction
+  motion::Animatable<float> rollover = motion::animatable(0.0f);
 
-  /** A table cell: the `<br>` blocks as an 18 px line box each, then the
-   *  image. Its MEASURED size is what the table algorithm reads, so the
-   *  br-count reaches the layout the same way it does in a browser. */
-  /** One <TD>: the <br> block above the image inside the cell, the image
-   *  itself, and the claim on the grid — said on the child, so a cell and
-   *  its occupancy cannot drift apart. */
-  Element cell(const sj::Slot& s) const {
-    const bool inFlight =
-        s.asset >= 0 && (arrivedMask & (1u << (unsigned)s.asset)) == 0;
-    Element c = box().column().alignSelf(Align::Start).flexShrink(0);
-    if (s.asset < 0) c.width(0).height(0);
-    if (s.brs > 0)
-      c.children({box().width(0).height(sj::S(18) * (float)s.brs)});
-    if (s.asset >= 0) c.children({revealed(s.asset, inFlight)});
-    c.gridCells(s.col, s.row, s.colspan, s.rowspan)
-        .gridCellAlign(s.across, s.down);
-    return c;
-  }
-
-  // ---- the page ----------------------------------------------------------
-  Element describe(sketch::SketchContext& ctx) {
-    using namespace sj;
-
-    // 1. the starfield, genuinely full bleed: the body background paints the
-    //    whole viewport including under the 8 px margin, so stars run to all
-    //    four edges. Black until the tile's LAST byte lands, then the whole
-    //    lattice at once — a tiled background cannot wipe (each repeat would
-    //    reveal its own band and comb the page every 111 px), so a hard cut
-    //    is the defensible model.
-    //
-    //    Spelled with bind()'s affine chain rather than a second Output:
-    //    v*1000 - 999, clamped, is zero for every byte but the last. The
-    //    step is the shaping, and it lives at the property instead of in
-    //    the tick loop.
-    Element field = box()
-                        .inset(0)
-                        .fill(starsMat)
-                        .opacity(motion::bind(got[kStars], {.to = {-999.0f, 1.0f}, .clamp = {0.0f, 1.0f}}))
-                        .key("starfield");
-
-    // 2. the Fast Break row — the only left-aligned thing on the page, and
-    //    the only thing that moves. Restored from the HTML comment the live
-    //    page keeps it in.
-    const bool ballIn = (arrivedMask & (1u << kFastbreak)) != 0;
-    Element fastRow = kit::at(
-        stack().children({revealed(kFast, (arrivedMask & (1u << kFast)) == 0)
-                              .left(S(3))
-                              .top(S(17.5f)),
-                          revealed(kBreak, (arrivedMask & (1u << kBreak)) == 0)
-                              .left(S(93))
-                              .top(S(17.5f))}),
-        S(70), S(86), S(500), S(46));
-    if (ballIn) {
-      // Fully arrived: the live element, whose material steps its uTime at
-      // 10 Hz — the GIF's own frame rate, six frames, forever.
-      fastRow.children({rect(S(53), S(3), S(40), S(40))
-                            .shape(shapes::circle())
-                            .fill(fastballMat)
-                            .key("fastbreak")});
-    } else {
-      // Still arriving: a partially-downloaded animated GIF shows its first
-      // frame and does not animate. Same picture path as everything else.
-      fastRow.children({revealed(kFastbreak, true).left(S(53)).top(S(3))});
-    }
-
-    // 3. the planet table. Nothing below is hand-placed: `layouts::Table`
-    //    runs the auto-layout rule over the children's measured sizes and
-    //    the cells they claim.
-    Element grid =
-        layout(table).left(S(70)).top(S(168)).width(S(500)).height(S(435)).key(
-            "table");
-    grid.children(
-        {each(kSlotTable, [this](const Slot& s) { return cell(s); })});
-
-    // 4. the © line — the ONLY live text on the page. <font size="-1"> is
-    //    HTML size 2 of 7 -> 13.33 px computed, hard-wrapped by the author's
-    //    own <br> into two centred lines.
-    auto small = ty(serif(), S(13.33f), kBodyText);
-    Element colophon =
-        box()
-            .left(0)
-            .top(S(757))
-            .width(S(640))
-            .column()
-            .alignItems(Align::Center)
-            .children({text("SPACE JAM, characters, names, and all related")
-                           .font(small),
-                       text("indicia are trademarks of Warner Bros. © 1996")
-                           .font(small)});
-
-    (void)ctx;
-    return stack().children(
-        {std::move(field),
-         // the ad-slot table: 488x60 of server-side includes that no longer
-         // resolve. Left empty on purpose — 60 px of stars, and the reason
-         // the page has a bald strip at the top.
-         std::move(fastRow), std::move(grid), std::move(colophon),
-         verdict.failures() > 0 ? failureCard() : box()});
-  }
-
-  // ---- setup -------------------------------------------------------------
-  void bakeArt(sketch::SketchContext& ctx) {
-    using namespace sj;
-    sigil::weave::FontContext& f = *ctx.fonts;
-    const sk_sp<SkRuntimeEffect> ball =
-        SkRuntimeEffect::MakeForShader(SkString(
-            ctx.assets.hub().text(ctx.local("ball_still.sksl")).value_or(""))).effect;
-    struct Job {
-      int ix;
-      Element tree;
-      float w, h;
-    };
-    // EVERY BAKED ASSET IN ONE LIST, in the order the page asks for
-    // them: what it is, the tree it is drawn from, and the size the
-    // browser's own <IMG> gave it.
-    const std::vector<Job> jobs = {
-        {kFast, wordmark(f, "FAST", S(50), S(11), true), S(50), S(11)},
-        {kBreak, wordmark(f, "BREAK", S(50), S(11), false), S(50), S(11)},
-        {kFastbreak,
-         rect(0, 0, S(40), S(40))
-             .left(0)
-             .top(0)
-             .shape(shapes::circle())
-             .fill(ballMaterial(ball, false, C5(0xFF6B29), C5(0xC64210),
-                                C5(0x521800), 0.050f)),
-         S(40), S(40)},
-        {kPressbox, artPressBox(f), S(131), S(56)},
-        {kJamcentral, artJamCentral(f), S(55), S(67)},
-        {kBball, artBball(f, ball), S(62), S(62)},
-        {kLunartunes, artLunarTunes(f), S(95), S(77)},
-        {kLineup, artLineup(f), S(63), S(52)},
-        {kJamlogo, artLogo(f), S(272), S(165)},
-        {kJump, artJump(f), S(58), S(52)},
-        {kJunior, artJunior(f), S(49), S(57)},
-        {kStudiostore, artStudioStore(f), S(94), S(72)},
-        {kSouvenirs, artSouvenirs(f), S(83), S(83)},
-        {kSitemap, artSitemap(f), S(104), S(67)},
-        {kBehind, artBehind(f), S(67), S(63)}};
-    for (const Job& j : jobs) {
-      artW[j.ix] = j.w;
-      artH[j.ix] = j.h;
-      pic[j.ix] = snapshot(box()
-                               .width(j.w)
-                               .height(j.h)
-                               .overflow(Overflow::Clip)
-                               .children({j.tree}),
-                           f, {j.w, j.h});
-    }
-    artW[kStars] = artH[kStars] = 0;
-  }
-
-  /** CLAIM the grid the table resolved against the browser's, once at
-   *  startup, so the layout is verified against the reference render
-   *  instead of taken on trust. The literals are what headless Chrome
-   *  reports for the same page, and every row's verdict is COMPUTED from
-   *  the two numbers it carries.
-   *
-   *  The input is built from the same `kSlotTable` the children are, so
-   *  what is claimed is the layout that was drawn. */
-  void checkGrid() {
-    using namespace sj;
-    LayoutInput in;
-    in.container = {S(500), S(435)};
-    for (const Slot& s : kSlotTable) {
-      in.childSizes.push_back(
-          s.asset < 0
-              ? glm::vec2{0, 0}
-              : glm::vec2{artW[s.asset], artH[s.asset] + S(18) * (float)s.brs});
-      in.childCells.push_back({.column = s.col,
-                               .row = s.row,
-                               .columns = s.colspan,
-                               .rows = s.rowspan,
-                               .across = s.across,
-                               .down = s.down,
-                               .declared = true});
-    }
-    const layouts::Table::Grid grid = table.solve(in);
-    verdict = {};
-    verdict.add(measure::heading("TABLE-AUTO AGAINST HEADLESS CHROME"));
-    // The surplus a table-auto scheme distributes lands on fractional
-    // pixels, so the columns agree to a hundredth and the rows — which are
-    // whole content heights — agree exactly.
-    const double chromeCols[5] = {71.42, 97.70, 122.33, 78.95, 107.59};
-    for (size_t i = 0; i < grid.columnWidths.size() && i < 5; ++i)
-      verdict.add(measure::check(
-          kit::formatted("column %zu content width, page px", i), chromeCols[i],
-          (double)grid.columnWidths[i] / kScale, 0.15));
-    const double chromeRows[5] = {0, 113, 88, 73, 139};
-    for (size_t i = 0; i < grid.rowHeights.size() && i < 5; ++i)
-      verdict.add(measure::check(kit::formatted("row %zu height, page px", i),
-                                 chromeRows[i],
-                                 (double)grid.rowHeights[i] / kScale, 0.01));
-
-    // ...and the twelve images, which is what actually has to land. The
-    // table origin is (70, 168) on the page; each row prints the
-    // scheme-placed rect against the headless-Chrome
-    // getBoundingClientRect() probe for the same image.
-    const float refX[14] = {0,      115.13f, 283.78f, 384.92f, 465.70f,
-                            77.20f, 183.41f, 509.00f, 84.20f,  466.20f,
-                            0,      155.77f, 259.28f, 382.42f};
-    const float refY[14] = {0,       230.50f, 198.00f, 175.00f, 211.00f,
-                            328.00f, 292.00f, 328.00f, 400.00f, 420.00f,
-                            0,       461.00f, 533.00f, 499.00f};
-    const auto rects = table.place(in);
-    verdict.add(measure::heading("THE TWELVE IMAGES, PLACED"));
-    for (size_t i = 0; i < std::size(kSlotTable); ++i) {
-      const Slot& s = kSlotTable[i];
-      if (s.asset < 0) continue;
-      const float px = 70.0f + rects[i].left() / kScale;
-      // the <br> block sits above the image inside the cell
-      const float py = 168.0f + rects[i].top() / kScale + 18.0f * (float)s.brs;
-      const float dx = px - refX[i], dy = py - refY[i];
-      // One claim per image on the FARTHER of its two axes: an x that
-      // agrees and a y that is thirty pixels out must not average into a
-      // verdict that reads well.
-      verdict.add(measure::check(
-          kit::formatted("%s  at (%.2f, %.2f), px from the browser",
-                         kManifest[(size_t)s.asset].name, (double)px,
-                         (double)py),
-          0.0, (double)std::max(std::abs(dx), std::abs(dy)), 0.15));
-    }
-  }
-
-  /** THE CLAIMS THAT DID NOT HOLD, painted over the page — and only when
-   *  there are any. The page is the artefact and carries no drafting
-   *  chrome, so a layout that agrees with the browser shows the page and
-   *  nothing else. */
-  Element failureCard() const {
-    using namespace sj;
-    sketch::kit::Theme look;
-    look.palette.ash = C5(0xFFFFFF);
-    look.palette.figure = C5(0xFFFF00);
-    look.type.captionNote = {S(7.5f), 0.1f};
-    look.type.captionLabel = {S(7.5f), 0.1f, true};
-    look.spacing.rowGap = S(3);
-    std::vector<std::array<Utf8, 3>> rows;
-    std::vector<Fill> swatches;
-    for (const measure::Check& c : verdict.rows) {
-      if (!c.judged() || c.pass) continue;
-      rows.push_back({c.label, c.actual, "want " + c.expected});
-      swatches.push_back(Fill::color(C5(0xFF0000)));
-    }
-    std::vector<std::span<const Utf8>> tableRows;
-    for (const auto& row : rows) tableRows.emplace_back(row);
-    sketch::kit::Provide bound(look);
-    return kit::at(
-        box()
-            .fill(Fill::color(C5(0x000080)))
-            .foreground(stroke(S(2), Fill::color(C5(0xFF0000)),
-                               PathFormat::Align::Inner))
-            .column()
-            .padding(S(12))
-            .gap(S(8))
-            .children({text("THE TABLE DOES NOT RESOLVE THE BROWSER'S GRID")
-                           .font({.face = display(),
-                                  .size = S(11),
-                                  .color = C5(0xFFFF00)}),
-                       sigil::compose::kit::table(
-                           tableRows,
-                           {.columns = {{.width = S(230)},
-                                        {.width = S(46), .figure = true},
-                                        {}},
-                            .gap = S(6),
-                            .rowGap = look.spacing.rowGap,
-                            .swatches = swatches,
-                            .swatchSide = S(5)})}),
-        S(40), S(120), S(560), S(30) + S(13) * (float)rows.size());
-  }
-
-  void setup(sketch::SketchContext& ctx) {
-    for (auto& value : got) value = sigil::motion::animatable(value.value());
-
-    using namespace sj;
-    // <body bgcolor="#000000">, literally
-    // The still is taken mid-hold: the load finishes around 7.96 s of sketch
-    // time and the reload wipes the page around 11.46 s, so 9.5 s is the one
-    // window where every asset is present. Anything earlier catches the page
-    // mid-load and misses the logotype, which is dead last in the byte
-    // schedule — and the reference this study is diffed against is the
-    // FINISHED page.
-    sketch::kit::stage(ctx, {.size = SkSize::Make(S(640), S(800)),
-                             .captureAt = 9.5,
-                             .background = kPageBlack,
-                             .nonlinearPicture = true});
-
-    bakeArt(ctx);
-    checkGrid();
-
-    stars = Pattern::tile({S(111), S(111)}, starTile());
-    starsMat = stars.material(*ctx.fonts);
-    fastballMat =
-        ballMaterial(SkRuntimeEffect::MakeForShader(SkString(
-            ctx.assets.hub().text(ctx.local("ball_live.sksl")).value_or(""))).effect, true,
-                     C5(0xFF6B29), C5(0xC64210), C5(0x521800), 0.050f);
-
-    // The 216-colour round, over the finished frame. It is a property of
-    // the SCREEN, not of the artwork — which is exactly why it lives here
-    // and the RGB555 snap lives in the materials.
-    ctx.composer.setView(
-        material::skia::program(SkRuntimeEffect::MakeForShader(SkString(
-            ctx.assets.hub().text(ctx.local("view.sksl")).value_or(""))).effect));
-
-    for (int i = 0; i < kAssetCount; ++i) {
-      gotBytes[i] = 0;
-      got[i] = 0.0f;
-    }
-    arrivedMask = 0;
-    sinceDone = 0.0;
-
-    // The transport. Fixed 120 Hz so the schedule is identical whatever the
-    // host draws at (and whatever --fps a capture pre-rolls with).
-    const auto fixedClock = ctx.engine.timer([this] {
-          stepLoad(1.0 / 120.0);
-          return true;
-        }, {.stepRate = 120.0, .catchUp = 16});
-
-    ctx.composer.render(describe(ctx));
-    needRender = false;
-  }
-
-  void stepLoad(double dt) {
-    using namespace sj;
-    const auto& m = kManifest;
-    dt *= kSpeedup;
-
-    uint32_t done = 0;
-    int active[kSlots];
-    int nActive = 0;
-    for (int i = 0; i < kAssetCount; ++i) {
-      if (gotBytes[i] >= (double)m[(size_t)i].bytes) {
-        done |= 1u << (unsigned)i;
-        continue;
+  double receivedAt(double seconds) const {
+    if (transfer.empty() || seconds <= transfer.front().seconds) return 0;
+    for (size_t index = 1; index < transfer.size(); ++index)
+      if (seconds < transfer[index].seconds) {
+        const Mark from = transfer[index - 1], to = transfer[index];
+        return from.bytes + (to.bytes - from.bytes) * (seconds - from.seconds) / (to.seconds - from.seconds);
       }
-      if (nActive < kSlots) active[nActive++] = i;
-    }
-    if (nActive == 0) {
-      sinceDone += dt / kSpeedup;  // back to sketch seconds
-      // Idle time since the last byte. The subtrahend is the load's own
-      // duration in sketch seconds, so a cycle — load plus hold — comes to
-      // kReloadAt. Every counter goes back to zero, so the whole page
-      // re-downloads: a cold reload, deliberately — a 1996 Reload
-      // re-requested every asset, so everything blanks and re-arrives,
-      // the spinning ball included. Do not add a warm cache here.
-      if (sinceDone > kReloadAt - 8.0) {
-        for (int i = 0; i < kAssetCount; ++i) {
-          gotBytes[i] = 0;
-          got[i] = 0.0f;
-        }
-        sinceDone = 0.0;
-      }
-    } else {
-      const double share = kBandwidth * dt / (double)nActive;
-      for (int k = 0; k < nActive; ++k) {
-        const int i = active[k];
-        gotBytes[i] = std::min((double)m[(size_t)i].bytes, gotBytes[i] + share);
-        got[i] = (float)(gotBytes[i] / (double)m[(size_t)i].bytes);
-      }
-    }
-    if (done != arrivedMask) {
-      arrivedMask = done;
-      needRender = true;
-    }
-  }
-
-  void update(double, sketch::SketchContext& ctx) {
-    if (!needRender) return;
-    needRender = false;
-    ctx.composer.render(describe(ctx));
+    return bytes;
   }
 };
 
+/** A GIF AS THE BROWSER SHOWED IT: the drawing rasterised at its own 1996
+ *  size, then one bit of transparency — a pixel at least half covered is
+ *  opaque, over the black the artist matted it on — and each channel put
+ *  onto the 216-colour cube, the six levels a Netscape on an 8-bit screen
+ *  mapped every image to as it decoded it. */
+sk_sp<SkImage> decodeGif(const Element& drawing, float width, float height,
+                         weave::FontContext& fonts, bool opaque = false) {
+  const sk_sp<SkPicture> picture =
+      snapshot(box().children({stack().width(width).height(height).overflow(Overflow::Clip)
+                                   .children({drawing})}),
+               fonts, {width, height});
+  SkBitmap pixels;
+  pixels.allocPixels(SkImageInfo::Make((int)width, (int)height, kRGBA_8888_SkColorType,
+                                       kPremul_SkAlphaType));
+  pixels.eraseColor(opaque ? SK_ColorBLACK : SK_ColorTRANSPARENT);
+  SkCanvas(pixels).drawPicture(picture);
+  auto cube = [](uint8_t channel) { return (uint8_t)((channel + 25) / 51 * 51); };
+  for (int row = 0; row < pixels.height(); ++row)
+    for (int column = 0; column < pixels.width(); ++column) {
+      // Premultiplied colour is the colour over black, which is the matte.
+      uint8_t* pixel = static_cast<uint8_t*>(pixels.getAddr(column, row));
+      const bool covered = pixel[3] >= 128;
+      for (int channel = 0; channel < 3; ++channel) pixel[channel] = covered ? cube(pixel[channel]) : 0;
+      pixel[3] = covered ? 255 : 0;
+    }
+  pixels.setImmutable();
+  return pixels.asImage();
+}
+
+sk_sp<SkImage> pointerImage(std::span<const char* const> mask) {
+  int width = 0;
+  for (const char* row : mask) width = std::max(width, (int)std::strlen(row));
+  SkBitmap pixels;
+  pixels.allocPixels(SkImageInfo::Make(width, (int)mask.size(), kRGBA_8888_SkColorType,
+                                       kPremul_SkAlphaType));
+  pixels.eraseColor(SK_ColorTRANSPARENT);
+  for (size_t row = 0; row < mask.size(); ++row)
+    for (size_t column = 0; mask[row][column]; ++column)
+      if (mask[row][column] != ' ') {
+        const uint8_t level = mask[row][column] == '#' ? 0 : 255;
+        uint8_t* pixel = static_cast<uint8_t*>(pixels.getAddr((int)column, (int)row));
+        pixel[0] = pixel[1] = pixel[2] = level;
+        pixel[3] = 255;
+      }
+  pixels.setImmutable();
+  return pixels.asImage();
+}
+
+/** AN ARRIVING GIF, drawn as far as its bytes go. A plain one fills from
+ *  the top; an interlaced one arrives as every eighth row, then the
+ *  fourth, the second and the rest, and Netscape stretched each row it
+ *  had down over the rows it did not have yet — the blocky first pass
+ *  that sharpens. @p frameWidth is how much of the image one frame is. */
+Element arriving(const Gif& gif, float frameWidth) {
+  return custom([image = gif.plain, received = gif.received, interlaced = gif.interlaced,
+                 frameWidth](sigil::draw::Pen& pen, const PaintContext&) {
+           if (!image) return;
+           const int rows = image->height();
+           const int decoded = (int)std::floor(received.value() * (float)rows);
+           std::vector<int> source(rows, -1);  // the decoded row each row shows
+           if (!interlaced) {
+             for (int row = 0; row < std::min(decoded, rows); ++row) source[row] = row;
+           } else {
+             std::vector<int> order;
+             for (auto [first, step] : {std::pair{0, 8}, {4, 8}, {2, 4}, {1, 2}})
+               for (int row = first; row < rows; row += step) order.push_back(row);
+             std::vector<bool> have(rows, false);
+             for (int index = 0; index < std::min(decoded, rows); ++index) have[order[index]] = true;
+             int latest = -1;
+             for (int row = 0; row < rows; ++row) {
+               if (have[row]) latest = row;
+               if (latest >= 0 && row - latest < 8) source[row] = latest;
+             }
+           }
+           SkCanvas& canvas = *pen.canvas();
+           const SkSamplingOptions nearest(SkFilterMode::kNearest);
+           for (int row = 0; row < rows;) {
+             int end = row + 1;
+             while (end < rows && source[end] == source[row]) ++end;
+             if (source[row] >= 0)
+               canvas.drawImageRect(image, SkRect::MakeXYWH(0, (float)source[row], frameWidth, 1),
+                                    SkRect::MakeXYWH(0, (float)row, frameWidth, (float)(end - row)),
+                                    nearest, nullptr, SkCanvas::kStrict_SrcRectConstraint);
+             row = end;
+           }
+         })
+      .cache(Cache::None);
+}
+
+}  // namespace
+
+struct SpaceJam1996 {
+  std::vector<Gif> gifs;
+  struct Rest {
+    double arrive, leave;
+    std::string target;
+  };
+  std::vector<Rest> tour;
+  double loadEnd = 0, cycle = 0;
+  double totalBytes = 0;
+
+  Pattern stars;
+  sk_sp<SkImage> arrowPointer, handPointer, ballStrip;
+  sk_sp<SkRuntimeEffect> ballProgram;
+
+  // What moves, as bound values.
+  motion::Animatable<float> clock = motion::animatable(0.0f);  // seconds into the cycle
+  motion::Animatable<float> progress = motion::animatable(0.0f);
+  motion::Animatable<float> ballFrame = motion::animatable(0.0f);
+  motion::Animatable<float> pointerX = motion::animatable(0.0f);
+  motion::Animatable<float> pointerY = motion::animatable(0.0f);
+  motion::Animatable<float> overLink = motion::animatable(0.0f);
+
+  // What changes the tree, and is described again when it does.
+  enum class Toolbar { Idle, Loading, Pressed };
+  struct Scene {
+    uint32_t started = 0, arrived = 0;
+    Toolbar toolbar = Toolbar::Idle;
+    long visit = -1;
+    bool operator==(const Scene&) const = default;
+  } shown;
+  std::string status;
+
+  const Gif* find(std::string_view name) const {
+    for (const Gif& gif : gifs)
+      if (gif.name == name) return &gif;
+    return nullptr;
+  }
+
+  // ---- the record ---------------------------------------------------------
+
+  void read(sketch::SketchContext& context) {
+    const auto load = [&](const char* file) {
+      return context.assets.hub().load<sigil::data::Table>(context.local(std::string("data/") + file));
+    };
+    if (const auto page = load("page.csv")) {
+      const auto name = page->column<std::string>("name");
+      const auto bytes = page->column<double>("bytes");
+      const auto interlaced = page->column<double>("interlaced");
+      const auto left = page->column<double>("x"), top = page->column<double>("y");
+      const auto width = page->column<double>("width"), height = page->column<double>("height");
+      const auto label = page->column<std::string>("label");
+      const auto ink = page->column<std::string>("ink");
+      const auto href = page->column<std::string>("href");
+      for (size_t row = 0; row < name.size(); ++row)
+        gifs.push_back({.name = name[row],
+                        .bytes = bytes[row],
+                        .interlaced = interlaced[row] != 0,
+                        .left = (float)left[row], .top = (float)top[row],
+                        .width = (float)width[row], .height = (float)height[row],
+                        .label = {label[row], ink[row].empty()
+                                                  ? C5(0xFFFF00)
+                                                  : C5((uint32_t)std::stoul(ink[row], nullptr, 16))},
+                        .href = href[row]});
+    }
+    if (const auto rests = load("tour.csv")) {
+      const auto arrive = rests->column<double>("arrive"), leave = rests->column<double>("leave");
+      const auto target = rests->column<std::string>("target");
+      for (size_t row = 0; row < target.size(); ++row) tour.push_back({arrive[row], leave[row], target[row]});
+    }
+    cycle = tour.empty() ? 20 : tour.back().leave;
+  }
+
+  /** THE LOAD, worked out once: the document alone, then the images in
+   *  the page's order four at a time, the line shared evenly between the
+   *  connections open. */
+  void scheduleTransfers() {
+    std::vector<double> remaining;
+    for (const Gif& gif : gifs) {
+      remaining.push_back(gif.bytes);
+      totalBytes += gif.bytes;
+    }
+    double seconds = kConnectSeconds;
+    while (true) {
+      std::vector<size_t> open;
+      for (size_t index = 0; index < gifs.size() && (int)open.size() < kConnections; ++index) {
+        if (remaining[index] <= 0) continue;
+        open.push_back(index);
+        if (index == 0) break;  // no image is asked for before the document is read
+      }
+      if (open.empty()) break;
+      const double share = kBytesPerSecond / (double)open.size();
+      double step = 1e9;
+      for (size_t index : open) {
+        if (gifs[index].transfer.empty()) gifs[index].transfer.push_back({seconds, 0});
+        step = std::min(step, remaining[index] / share);
+      }
+      seconds += step;
+      for (size_t index : open) {
+        remaining[index] = std::max(0.0, remaining[index] - share * step);
+        gifs[index].transfer.push_back({seconds, gifs[index].bytes - remaining[index]});
+      }
+    }
+    loadEnd = seconds;
+  }
+
+  Element drawing(const Gif& gif, weave::FontContext& fonts, long visit) const {
+    const std::string& name = gif.name;
+    if (name == "fast") return wordmark(fonts, gif.label, true);
+    if (name == "break") return wordmark(fonts, gif.label, false);
+    if (name == "fastbreak") return ballFilmstrip(ballProgram);
+    if (name == "pressbox") return artPressBox(fonts, gif.label);
+    if (name == "jamcentral") return artJamCentral(fonts, gif.label);
+    if (name == "bball") return artBball(fonts, gif.label, ballProgram);
+    if (name == "lunartunes") return artLunarTunes(fonts, gif.label);
+    if (name == "lineup") return artLineup(fonts, gif.label);
+    if (name == "jamlogo") return artLogo(fonts, gif.label);
+    if (name == "jump") return artJump(fonts, gif.label);
+    if (name == "junior") return artJunior(fonts, gif.label);
+    if (name == "studiostore") return artStudioStore(fonts, gif.label);
+    if (name == "souvenirs") return artSouvenirs(fonts, gif.label);
+    if (name == "sitemap") return artSitemap(fonts, gif.label);
+    if (name == "behind") return artBehind(fonts, gif.label);
+    if (name == "counter") {
+      char figures[16];
+      std::snprintf(figures, sizeof figures, "%07ld", kFirstVisitor + visit);
+      return artCounter(fonts, figures);
+    }
+    return box();
+  }
+
+  /** Every GIF decoded; a linked one also as its rollover, the same
+   *  drawing brightened with a yellow glow about it, inside the same box. */
+  void decode(weave::FontContext& fonts, long visit, bool counterOnly) {
+    for (Gif& gif : gifs) {
+      if (gif.width <= 0 || gif.name == "bg_stars" || (counterOnly && gif.name != "counter")) continue;
+      const float width = gif.name == "fastbreak" ? kBallFrame * kBallFrames : gif.width;
+      const Element art = drawing(gif, fonts, visit);
+      gif.plain = decodeGif(art, width, gif.height, fonts);
+      if (!gif.href.empty())
+        gif.lit = decodeGif(box().width(width).height(gif.height)
+                                .filter(material::Filter::brightness(1.3f).then(
+                                    material::Filter::glow(C5(0xFFFF73), 2.5f)))
+                                .children({art}),
+                            width, gif.height, fonts);
+    }
+  }
+
+  // ---- the page -----------------------------------------------------------
+
+  Element window() const {
+    Element frame = dressed(stack().width(kWindowWidth).height(kWindowHeight).fill(kFace), raised());
+    // the caption
+    frame.children(
+        {rect(3, 3, kWindowWidth - 6, 18).fill(kCaption),
+         kit::centred(label("N", "caption")).left(5).top(5).width(14).height(14)
+             .fill(material::hexColor(0x18086B)),
+         label("Netscape - [Space Jam]", "caption").left(23).top(5)});
+    const char* glyphs[3] = {"_", "□", "×"};
+    for (int index = 0; index < 3; ++index)
+      frame.children({dressed(kit::centred(label(glyphs[index]))
+                                  .left(kWindowWidth - 57 + (float)index * 16 + (index == 2 ? 2 : 0))
+                                  .top(5).width(16).height(14).fill(kFace),
+                              raised())});
+    // the menu
+    Element menu = box().row().gap(13).left(10).top(24);
+    for (const char* item : {"File", "Edit", "View", "Go", "Bookmarks", "Options", "Directory",
+                             "Window", "Help"})
+      menu.children({label(item)});
+    frame.children({std::move(menu)});
+    // the bands' etched rules
+    for (float rule : {40.0f, 86.0f, 111.0f, 131.0f})
+      frame.children({rect(3, rule, kWindowWidth - 6, 1).fill(kShadow),
+                      rect(3, rule + 1, kWindowWidth - 6, 1).fill(kHighlight)});
+    // the throbber's ground and the location
+    frame.children(
+        {dressed(stack().left(kThrobberLeft).top(kToolbarTop).width(kThrobberSize)
+                     .height(kThrobberSize).overflow(Overflow::Clip)
+                     .children({throbberSky()}),
+                 field()),
+         label("Location:").left(8).top(93),
+         dressed(box().row().alignItems(Align::Center).left(60).top(89).width(582).height(20)
+                     .fill(kHighlight).paddingLeft(4)
+                     .children({label("http://www.spacejam.com/")}),
+                 sunken()),
+         dressed(kit::centred(rect(0, 0, 7, 4).shape(unitPolygon({{0, 0}, {1, 0}, {0.5f, 1}})).fill(kDark))
+                     .left(624).top(91).width(16).height(16).fill(kFace),
+                 raised())});
+    // the directory buttons
+    Element directory = box().row().gap(2).left(4).top(114).width(kWindowWidth - 8).height(16);
+    for (const char* place : {"What's New?", "What's Cool?", "Destinations", "Net Search", "People",
+                              "Software"})
+      directory.children({dressed(kit::centred(label(place)).flexGrow(1).flexBasis(0).fill(kFace), raised())});
+    frame.children({std::move(directory)});
+    // the content well and the status bar
+    frame.children(
+        {dressed(rect(kPageLeft - 2, kPageTop - 2, kPageWidth + 4, kPageHeight + 4).fill(kDark), sunken()),
+         dressed(kit::centred(brokenKey()).left(4).top(kStatusTop).width(24).height(18), field()),
+         dressed(rect(30, kStatusTop, 488, 18), field()),
+         dressed(rect(522, kStatusTop, 124, 18), field())});
+    return frame;
+  }
+
+  Element toolbar(Toolbar state) const {
+    const bool loading = state == Toolbar::Loading;
+    return box().row().gap(2).left(4).top(kToolbarTop).children(
+        {toolButton(Tool::Back, "Back", false), toolButton(Tool::Forward, "Forward", false),
+         toolButton(Tool::Home, "Home", true),
+         toolButton(Tool::Reload, "Reload", true, state == Toolbar::Pressed),
+         toolButton(Tool::Images, "Images", false), toolButton(Tool::Open, "Open", true),
+         toolButton(Tool::Print, "Print", true), toolButton(Tool::Find, "Find", true),
+         toolButton(Tool::Stop, "Stop", loading)});
+  }
+
+  /** The page's own content: the star tile, the text and the GIFs. */
+  Element page() const {
+    const Gif& document = gifs.front();
+    Element content = stack().left(kPageLeft).top(kPageTop).width(kPageWidth).height(kPageHeight)
+                          .overflow(Overflow::Clip);
+    // A tiled background cannot arrive in bands — every repeat would show
+    // its own — so the field is black until its last byte, then whole.
+    const auto whenComplete = [](const Gif& gif) {
+      return motion::bind(gif.received, {.to = {-999.0f, 1.0f}, .clamp = {0.0f, 1.0f}});
+    };
+    if (const Gif* tile = find("bg_stars"))
+      content.children({stack().inset(0).opacity(whenComplete(*tile)).children(
+          {box().inset(0).fill(stars.material()).cache(Cache::Texture).key("stars")})});
+    // <font size="-1"> in red Times, hard-wrapped by the author's <br>.
+    content.children({kit::at(stack(), 0, 757, kPageWidth, 62)
+                          .opacity(whenComplete(document))
+                          .children({box().column().alignItems(Align::Center).left(0).top(0)
+                                         .width(kPageWidth)
+                                         .children({label("SPACE JAM, characters, names, and all related", "copy"),
+                                                    label("indicia are trademarks of Warner Bros. © 1996", "copy")}),
+                                     label("You are visitor number", "copy").left(214).top(43)})
+                          .cache(Cache::Texture)
+                          .key("copy")});
+    for (const Gif& gif : gifs) {
+      const int index = (int)(&gif - gifs.data());
+      if (gif.width <= 0 || gif.name == "bg_stars" || !(shown.started & (1u << index))) continue;
+      const bool ball = gif.name == "fastbreak";
+      const float frameWidth = ball ? kBallFrame : gif.width;
+      if (!(shown.arrived & (1u << index))) {
+        content.children({kit::at(arriving(gif, frameWidth), gif.left, gif.top, gif.width, gif.height)});
+        continue;
+      }
+      Element shownGif = stack().left(gif.left).top(gif.top).width(gif.width).height(gif.height);
+      if (ball) {
+        // The GIF's frames behind a gate one frame wide, stepped along.
+        shownGif.overflow(Overflow::Clip).children(
+            {image(gif.plain, material::Fit::Stretch).left(0).top(0).width(kBallFrame * kBallFrames)
+                 .height(kBallFrame).translateX(motion::bind(ballFrame, {.to = {0, -kBallFrame}}))});
+      } else {
+        shownGif.children({image(gif.plain, material::Fit::Stretch).inset(0)});
+        if (gif.lit)
+          shownGif.children({image(gif.lit, material::Fit::Stretch).inset(0).opacity(gif.rollover)});
+      }
+      content.children({std::move(shownGif)});
+    }
+    return content;
+  }
+
+  Element describe() const {
+    const bool loading = shown.toolbar == Toolbar::Loading;
+    Element throbber = stack().left(kThrobberLeft + 2).top(kToolbarTop + 2).width(kThrobberSize - 4)
+                           .height(kThrobberSize - 4).overflow(Overflow::Clip);
+    if (loading)
+      throbber.children({meteors().key("meteors").left(-40).top(-28)
+                             .translateX(motion::bind(clock, {.from = {0, 0.9f}, .to = {0, 64}, .wrap = 64}))
+                             .translateY(motion::bind(clock, {.from = {0, 0.9f}, .to = {0, 45}, .wrap = 45}))});
+    throbber.children({throbberLetter().key("letter")});
+
+    Element pointer = stack().width(16).height(21).translateX(pointerX).translateY(pointerY).children(
+        {kit::at(image(arrowPointer, material::Fit::Stretch), 0, 0, (float)arrowPointer->width(),
+                 (float)arrowPointer->height())
+             .opacity(motion::bind(overLink, {.reverse = true})),
+         kit::at(image(handPointer, material::Fit::Stretch), -5, 0, (float)handPointer->width(),
+                 (float)handPointer->height())
+             .opacity(overLink)});
+
+    return stack()
+        .width(kWindowWidth)
+        .height(kWindowHeight)
+        .scale(kZoom)
+        .transformOrigin(pct(0), pct(0))
+        .imageRendering(material::Sampling::Nearest)
+        .applyStyleSheet(chromeSheet())
+        .children({window().cache(Cache::Texture).key("window"),
+                   toolbar(shown.toolbar).cache(Cache::Texture)
+                       .key(loading ? "toolbar loading" : shown.toolbar == Toolbar::Pressed ? "toolbar pressed" : "toolbar"),
+                   std::move(throbber),
+                   box().row().alignItems(Align::Center).left(34).top(kStatusTop).width(480).height(18)
+                       .overflow(Overflow::Clip).children({slot("status")}),
+                   rect(524, kStatusTop + 2, 120, 14).fill(kCaption)
+                       .scaleX(progress).transformOrigin(pct(0), pct(50)),
+                   page(),
+                   std::move(pointer)});
+  }
+
+  // ---- time ---------------------------------------------------------------
+
+  glm::vec2 restPoint(const std::string& target) {
+    if (const Gif* gif = find(target))
+      return {kPageLeft + gif->left + gif->width * 0.5f, kPageTop + gif->top + gif->height * 0.6f};
+    return {174, 62};  // the Reload button
+  }
+
+  void advance(double elapsed, sketch::SketchContext& context) {
+    const long visit = (long)std::floor(elapsed / cycle);
+    const double seconds = elapsed - (double)visit * cycle;
+    clock = (float)seconds;
+    ballFrame = (float)((long)std::floor(elapsed * 10.0) % kBallFrames);
+
+    Scene scene{.visit = visit};
+    double received = 0;
+    for (size_t index = 0; index < gifs.size(); ++index) {
+      Gif& gif = gifs[index];
+      const double bytes = gif.receivedAt(seconds);
+      received += bytes;
+      gif.received = (float)(bytes / gif.bytes);
+      if (bytes > 0) scene.started |= 1u << index;
+      if (bytes >= gif.bytes) scene.arrived |= 1u << index;
+    }
+    const bool loading = seconds < loadEnd;
+    progress = loading ? (float)(received / totalBytes) : 0.0f;
+
+    // The pointer: resting at a stop, or easing to the next one.
+    std::string resting;
+    glm::vec2 at = restPoint(tour.front().target);
+    for (size_t index = 0; index < tour.size(); ++index) {
+      const Rest& rest = tour[index];
+      if (seconds >= rest.arrive && seconds <= rest.leave) {
+        at = restPoint(rest.target);
+        resting = rest.target;
+        break;
+      }
+      if (index + 1 < tour.size() && seconds > rest.leave && seconds < tour[index + 1].arrive) {
+        const float along = (float)((seconds - rest.leave) / (tour[index + 1].arrive - rest.leave));
+        at = glm::mix(restPoint(rest.target), restPoint(tour[index + 1].target),
+                      along * along * (3 - 2 * along));
+        break;
+      }
+    }
+    pointerX = at.x;
+    pointerY = at.y;
+    const Gif* over = resting.empty() ? nullptr : find(resting);
+    overLink = over ? 1.0f : 0.0f;
+    for (Gif& gif : gifs) gif.rollover = &gif == over ? 1.0f : 0.0f;
+
+    scene.toolbar = loading ? Toolbar::Loading
+                    : seconds > cycle - 0.3 ? Toolbar::Pressed
+                                             : Toolbar::Idle;
+    if (scene.visit != shown.visit) decode(*context.fonts, visit, shown.visit >= 0);
+    if (!(scene == shown)) {
+      shown = scene;
+      context.composer.render(describe());
+    }
+
+    char line[160];
+    if (seconds < 0.35)
+      std::snprintf(line, sizeof line, "Connect: Contacting host: www.spacejam.com...");
+    else if (seconds < kConnectSeconds)
+      std::snprintf(line, sizeof line, "Connect: Host contacted. Waiting for reply...");
+    else if (loading)
+      std::snprintf(line, sizeof line, "%d%% of %dK (at %.1fK/sec, %d secs remaining)",
+                    (int)(100 * received / totalBytes), (int)std::lround(totalBytes / 1024),
+                    kLineBytesPerSecond / 1024,
+                    (int)std::ceil((totalBytes - received) / kLineBytesPerSecond));
+    else if (over)
+      std::snprintf(line, sizeof line, "http://www.spacejam.com/%s", over->href.c_str());
+    else
+      std::snprintf(line, sizeof line, "Document: Done.");
+    if (status != line) {
+      status = line;
+      context.composer.renderSlot("status", label(line));
+    }
+  }
+
+  void setup(sketch::SketchContext& context) {
+    // Taken with the page whole and the pointer resting on Jam Central.
+    sketch::kit::stage(context, {.size = SkSize::Make(kWindowWidth * kZoom, kWindowHeight * kZoom),
+                                 .captureAt = 9.5,
+                                 .background = kDark});
+    read(context);
+    scheduleTransfers();
+    ballProgram = SkRuntimeEffect::MakeForShader(
+                      SkString(context.assets.hub().text(context.local("ball.sksl")).value_or("")))
+                      .effect;
+    arrowPointer = pointerImage(kArrowPointer);
+    handPointer = pointerImage(kHandPointer);
+    const sk_sp<SkImage> tile = decodeGif(starTile(), kStarTile, kStarTile, *context.fonts, true);
+    stars = Pattern::tile({kStarTile, kStarTile}, [tile](SkCanvas& canvas, SkSize, uint32_t) {
+              canvas.drawImage(tile, 0, 0);
+            }).sampling(material::Sampling::Nearest);
+    advance(0, context);
+  }
+
+  void update(double elapsed, sketch::SketchContext& context) { advance(elapsed, context); }
+};
+
 SIGIL_SKETCH(SpaceJam1996, "Study · Screens",
-             "spacejam.com, still live — the page set by Table, "
-             "each <TD> naming its own cells")
+             "spacejam.com in Netscape 3 over a 28.8k line — the GIFs interlacing in, the planets lit "
+             "under the pointer, the ball bouncing")

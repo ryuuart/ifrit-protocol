@@ -1,7 +1,8 @@
-// The one animated thing on the page: a sphere with rotating seams —
-// the live build: `uTime` arrives quantized to the GIF's frames.
+// A basketball: a sphere lit from the upper left with five seams on it,
+// turned about a spin axis tilted toward the viewer. `uSpin` is the turn
+// in GIF frames, each 60 degrees.
 
-uniform float uTime;
+uniform float uSpin;
 
 uniform float2 uResolution;
 uniform float4 uHi;
@@ -15,10 +16,10 @@ half4 main(float2 xy) {
   float z  = sqrt(max(1.0 - r2, 0.0));
   float3 P = float3(p.x, p.y, z);
 
-  // tilt the spin axis toward the viewer (the GIF's ball is not upright)
+  // the spin axis leans toward the viewer
   float3 Q = float3(P.x, P.y * 0.940 - P.z * 0.342, P.y * 0.342 + P.z * 0.940);
 
-  float ang = uTime * 10.4719755;   // 600 deg/s = 60 deg per GIF frame
+  float ang = uSpin * 10.4719755;
   float cs = cos(ang), sn = sin(ang);
   float3 R = float3(Q.x * cs - Q.z * sn, Q.y, Q.x * sn + Q.z * cs);
 

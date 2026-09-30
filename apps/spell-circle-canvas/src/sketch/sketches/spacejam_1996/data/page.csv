@@ -1,0 +1,19 @@
+name,bytes,interlaced,x,y,width,height,label,ink,href
+index.html,3977,0,0,0,0,0,,,
+bg_stars,8452,0,0,0,111,111,,,
+fast,189,0,73,104,50,11,FAST,FF0000,
+fastbreak,6756,0,123,89,40,40,,,
+break,229,0,163,104,50,11,BREAK,FF0000,
+pressbox,4422,1,115,231,131,56,PRESS BOX SHUTTLE,FFFFFF,cmp/pressbox/pressboxframes.html
+jamcentral,1908,0,284,198,55,67,JAM CENTRAL,FFFF00,cmp/jamcentral/jamcentralframes.html
+bball,1368,0,385,175,62,62,PLANET B-BALL,FFFF00,cmp/bball/bballframes.html
+lunartunes,3538,1,466,211,95,77,LUNAR TUNES,FFFFFF,cmp/lunartunes/lunartunesframes.html
+lineup,1929,0,77,328,63,52,THE LINEUP,FFFF00,cmp/lineup/lineupframes.html
+jamlogo,15410,1,183,292,272,165,,,
+jump,2593,0,509,328,58,52,JUMP STATION,FFFF00,cmp/jump/jumpframes.html
+junior,1253,0,84,400,49,57,JUNIOR JAM,FFFF00,cmp/junior/juniorframes.html
+studiostore,2745,1,466,420,94,72,WARNER STUDIO STORE,FFFF00,cmp/studiostore/studiostoreframes.html
+souvenirs,3594,1,156,461,83,83,STELLAR SOUVENIRS,FFFFFF,cmp/souvenirs/souvenirsframes.html
+sitemap,3401,1,259,533,104,67,SITE MAP,FFFF00,cmp/sitemap.html
+behind,1902,0,382,499,67,63,BEHIND THE JAM,FFFF00,cmp/behind/behindframes.html
+counter,1377,0,351,799,77,17,,,
