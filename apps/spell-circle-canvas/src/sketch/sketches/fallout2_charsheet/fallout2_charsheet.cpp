@@ -466,7 +466,6 @@ struct Fallout2CharSheet {
 
   Element describe() const {
     Element face = screen(0, 0, 640, 480)
-                       .fill(kPlate)
                        .overflow(Overflow::Clip)
                        .font({.face = weave::ports::face({"Verdana", "DejaVu Sans"}, 700),
                               .size = px(9),
@@ -475,10 +474,18 @@ struct Fallout2CharSheet {
                        .applyStyleSheet(registers())
                        .foreground(stroke(px(3), Fill::color(hexColor(0x1E1810)),
                                           PathFormat::Align::Inner));
+    // The plate and everything printed on it stands still; only the skill
+    // list, the card and the counter change, and each is kept until it does.
     face.children(
-        {box().inset(0).fill(kPlateTooth).blendMode(material::BlendMode::Overlay).opacity(0.3f),
-         box().inset(0).fill(kRust).blendMode(material::BlendMode::SoftLight).opacity(0.55f),
-         chrome(), special(), statistics(), folder(), skills(), card(), buttons()});
+        {box()
+             .inset(0)
+             .fill(kPlate)
+             .children({box().inset(0).fill(kPlateTooth).blendMode(material::BlendMode::Overlay).opacity(0.3f),
+                        box().inset(0).fill(kRust).blendMode(material::BlendMode::SoftLight).opacity(0.55f),
+                        chrome(), special(), statistics(), folder(), buttons()})
+             .cache(Cache::Texture)
+             .key("fallout2_charsheet.plate"),
+         skills().cache(Cache::Texture), card().cache(Cache::Texture)});
     return box().inset(0).children(
         {face,
          screen(0, 480, 640, 100)
