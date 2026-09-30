@@ -84,8 +84,11 @@ float sparkleHash(float2 p) {
 }
 
 half4 main(float2 point) {
-  float cellSize = 22.0;
-  float2 uv = point - origin + float2(time * 3.0, time * 1.3);
+  // A cell is a fraction of the run's height, as every other text paint
+  // works in fractions of the run: a word twice the size takes cells twice
+  // as large, and a run stretched over the unit box still holds several.
+  float cellSize = extent.y * (22.0 / 70.0);
+  float2 uv = point - origin + float2(time * 3.0, time * 1.3) * (cellSize / 22.0);
   float2 cell = floor(uv / cellSize);
   float2 local = fract(uv / cellSize) - 0.5;
 

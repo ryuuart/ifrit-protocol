@@ -64,18 +64,11 @@ std::vector<Ink> inks() {
       {"mesh", "MESH", "meshGradient(unit, t)",
        "Four colour regions, crossed by the word and by the column alike.",
        field(text_paints::meshGradient(unit, kMoment))},
-      // `sparkle` sizes its cells in the pixels it is
-      // sampled in and never reads the run's extent, so on the unit
-      // square of the default box a whole passage falls inside one cell.
-      // The rule states the ink on the passage itself, so the Subtree box
-      // is the passage's own box, resolved in its pixels, where a cell is
-      // the 22 px it was drawn at; the bounds place only the origin.
-      {"sparkle", "SPARKLE OVER A BASE", "sparkle(px, t) · plus · Subtree",
-       "Stated over the passage's pixels, where its cells keep their size.",
+      {"sparkle", "SPARKLE OVER A BASE", "sparkle(unit, t) · plus",
+       "Points of light across the word, each cell a share of the type.",
        material::from(sigil::material::Color{0.23f, 0.30f, 0.46f, 1})
-           .layer(field(text_paints::sparkle(SkRect::MakeWH(220, 70), kMoment)),
-                  {.blend = material::BlendMode::PlusLighter}),
-       PaintBox::Subtree},
+           .layer(field(text_paints::sparkle(unit, kMoment)),
+                  {.blend = material::BlendMode::PlusLighter})},
       {"star-nest", "STAR NEST", "starNest(unit, t)",
        "Dense light inside the letterforms; small type keeps its warmth.",
        field(text_paints::starNest(unit, kMoment))},
