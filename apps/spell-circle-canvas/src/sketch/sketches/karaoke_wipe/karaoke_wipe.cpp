@@ -43,8 +43,9 @@
 // differs only in size and colour.
 //
 // THE WIPE IS A COLOUR MULTIPLIER ON A CASCADE. The sung line is set ONCE,
-// in the sung colour, and `textFx::tint({.from = pale, .to = sung})` multiplies every glyph
-// down to the pale colour until its own beat arrives. It is a multiplier
+// in the sung colour, and `textFx::tint({.from = pale})` multiplies every glyph
+// down to the pale colour until its own beat arrives, coming to rest at the
+// ink the sheet sets the line in. It is a multiplier
 // rather than a colour because that is what a `GlyphModifier` carries —
 // every pass the glyph's style draws is modulated, the keyline included,
 // and black multiplied by anything stays black.
@@ -184,11 +185,11 @@ constexpr float kScreenHeight = 318.0f;
 // against a warm yellow would come back olive, which looks like a bug in
 // the tint rather than a choice about the palette.
 //
-// The sheet reads the colours it sets as custom properties on the root.
-// The ground, the resting colour and the ball are not the sheet's: a
-// gradient's stops and `textFx::tint`'s two ends are colours, not
-// references into it, so the tint's sung end is `kSung` beside the
-// `sung` the lyric is inked in, and the two must stay one value.
+// The sheet reads the colours it sets as custom properties on the root,
+// and the wipe comes to rest at whatever the lyric is inked in, so `sung`
+// is stated there once. The ground, the resting colour and the ball are
+// not the sheet's: a gradient's stops and a tint's departure are colours,
+// not references into it.
 constexpr material::Color kStage = hexColor(0x110033);  // the screen's rim
 constexpr material::Color kGlass = hexColor(0x221166);  // where the tube is lit
 constexpr material::Color kSung = hexColor(0xFFEEAA);  // the saturated colour
@@ -521,13 +522,14 @@ struct KaraokeWipe {
   double loop = kLeadIn + kLineSeconds + kHold;
 
   /** The sung line with its two tracks: the wipe from @p resting to the
-   *  sung colour, and the catch, both on the song's own table. */
+   *  ink the sheet sets it in, and the catch, both on the song's own
+   *  table. */
   [[nodiscard]] Text singing(const Song& song, material::Color resting) const {
     const motion::Tween<float> wipe = wipeCascade(song);
     const motion::Tween<float> lift = wipeCascade(song, kCatchMs);
     return text(song.sung)
         .role("lyric")
-        .textFx({.effect = textFx::tint({.from = resting, .to = kSung}),
+        .textFx({.effect = textFx::tint({.from = resting}),
                  .tween = wipe,
                  .within = motion::stagger(std::chrono::duration<float, std::milli>(kEachMs)),
                  .unit = weave::Unit::Word,
@@ -544,8 +546,8 @@ struct KaraokeWipe {
   [[nodiscard]] Element describe(const Song& song) const {
     // The line is SET IN the sung colour and the tint multiplies it down to
     // the pale one until each letter's own beat arrives — the inversion a
-    // colour multiplier forces, which is why the effect takes the two
-    // colours in time order and does the division itself. The catch rides
+    // colour multiplier forces, which is why the effect reads the ink it
+    // comes to rest at and does the division itself. The catch rides
     // the same table on a second track.
     Text sung = singing(song, kPale).key("sung");
     // The ball and the playhead stand on the FIRST letter and are carried
