@@ -81,18 +81,23 @@ alone does. A number beside a length is pixels, as it is everywhere
 here; a length is scaled by a number and divided by one, never by
 another length.
 
-A PERCENTAGE MIXES WITH NOTHING. Yoga lays out a percentage of the parent
-itself and holds no sum, so `50_pct + 1_em` is REFUSED: it warns once,
-naming the two units, and stands as `autoDimension()`. The canvas units
-`pw` and `ph` are resolved here rather than by Yoga, so they mix freely,
-and a percentage beside a zero of pixels is still that percentage. A
-custom property read inside a sum must hold a length a sum can hold.
-Arithmetic on auto and a division by zero are refused the same way, as
-the `calc()` text refuses all three.
+A PERCENTAGE IN A SUM is a term the sum keeps until the property reading
+it knows the extent the percentage is of: `top(pct(100) + 12)` on a
+positioned child or on a `Text::textAttach` mark is its containing box's
+bottom and twelve pixels more, and it follows that box when the box
+changes. A transform origin reads a sum's percentage as a fraction of the
+box and the rest as an offset from there. Flex layout cannot hold such a
+sum, because Yoga's percent is a unit of its own, so a flex-laid property
+holding one warns once and is laid out as auto while the declaration
+keeps the sum as written; a percentage beside a zero of pixels is still
+that percentage. A custom property read inside a sum must hold a length
+that resolves where the sum does: not a percentage, not auto. Arithmetic
+on auto and a division by zero are refused, as the `calc()` text refuses
+both: each warns once and stands as `autoDimension()`.
 
 Python spells the same arithmetic on `compose.Dimension`, with a number
 or a length string on either side, and raises `ValueError` at the call
-for each of the three refusals where C++ warns and stands as auto.
+for each refusal where C++ warns and stands as auto.
 
 ## A length written as text
 

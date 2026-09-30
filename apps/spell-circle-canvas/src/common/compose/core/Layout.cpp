@@ -579,6 +579,9 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
                        ? *length
                        : Dimension(0.0f);
       }
+      // A sum holding a percentage stands as auto in flex layout, as the
+      // style that wrote this minimum reported.
+      if (percentageSum(declared)) declared = autoDimension();
       bool relative = false;
       float value = resolveLength(inst, declared, relative);
       YGUnit unit = declared.unit == Dimension::Unit::Auto  ? YGUnitUndefined

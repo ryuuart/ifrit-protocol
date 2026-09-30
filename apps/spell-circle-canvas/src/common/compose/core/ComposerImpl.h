@@ -476,9 +476,15 @@ struct Composer::Impl {
    *  unit against the font in force at the node, a custom property
    *  looked up and resolved the same way. A percent answers itself and
    *  is the caller's to hand Yoga as one; @p relative is raised when the
-   *  answer depended on the font or on a property. */
-  float resolveLength(const detail::Instance& inst, const Dimension& length,
-                      bool& relative) const;
+   *  answer depended on the font or on a property.
+   *
+   *  A SUM's percentage term is measured against @p percentBasis, the
+   *  extent the calling property's percentages are of. A caller with no
+   *  such extent leaves it unstated, and a sum holding a percentage then
+   *  answers its other terms alone and says so once. */
+  float resolveLength(
+      const detail::Instance& inst, const Dimension& length, bool& relative,
+      float percentBasis = std::numeric_limits<float>::quiet_NaN()) const;
   /** textIndent's @p indent resolved at @p inst: pixels written into
    *  @p block's first-line indent, or a percentage of the measure kept in
    *  @p percent for the layout, a custom property read once on the way. */

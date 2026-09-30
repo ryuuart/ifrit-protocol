@@ -115,8 +115,8 @@ class CalcReader {
       const Dimension a = left->asLength();
       const Dimension b = right->asLength();
       const Dimension combined = sign == '+' ? a + b : a - b;
-      // A sum the arithmetic refused — a percentage beside another unit —
-      // is text this grammar does not read, rather than an auto.
+      // A sum the arithmetic refused — auto inside it — is text this
+      // grammar does not read, rather than an auto.
       if (combined.unit == Dimension::Unit::Auto) return std::nullopt;
       left = Term{false, 0.0f, combined};
     }

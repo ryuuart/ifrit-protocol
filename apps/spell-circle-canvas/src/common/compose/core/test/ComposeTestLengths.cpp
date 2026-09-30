@@ -235,18 +235,48 @@ TEST(ComposeLengths, ASumReadsACustomPropertyAndTheCanvas) {
   EXPECT_FLOAT_EQ(widthOf(host), 3.0f * 10.0f + 0.1f * 400.0f);
 }
 
-TEST(ComposeLengths, APercentageMixesWithNothingAndStandsAsAuto) {
-  // Yoga resolves a percentage of the parent itself and holds no sum, so
-  // the arithmetic refuses rather than guessing, and says so once.
-  EXPECT_EQ(50_pct + Dimension(1_em), autoDimension());
-  EXPECT_EQ(12_px - 50_pct, autoDimension());
+TEST(ComposeLengths, APercentageIsATermOfTheSumAndAutoIsRefused) {
+  // A percentage is kept in the sum for the property that knows its
+  // extent; auto is no length, and arithmetic on it is refused and said
+  // once.
+  EXPECT_EQ((50_pct + Dimension(1_em)).unit, Dimension::Unit::Calc);
+  EXPECT_EQ(12_px - 50_pct, -(50_pct - 12_px));
+  EXPECT_EQ(50_pct + Dimension(1_em) - Dimension(1_em), 50_pct)
+      << "a sum that cancels back to its percentage is that percentage";
   EXPECT_EQ(autoDimension() * 2, autoDimension());
+  EXPECT_EQ(autoDimension() + 50_pct, autoDimension());
   // A division by zero is no length, refused as the calc() text refuses it.
   EXPECT_EQ(Dimension(1_em) / 0.0f, autoDimension());
   EXPECT_EQ((Dimension(1_em) + 12_px) / 0.0f, autoDimension());
   // A zero of pixels adds nothing, so it may stand beside one.
   EXPECT_EQ(50_pct + 0_px, 50_pct);
   EXPECT_EQ(50_pct + 25_pct, 75_pct);
+}
+
+TEST(ComposeLengths, APercentageSumResolvesWhereItsExtentIsKnown) {
+  // A positioned child knows its containing box, so `pct(50) + 10` is half
+  // of it and ten more. Flex layout cannot hold the sum — Yoga's percent is
+  // a unit of its own — so it says so and lays the property out as auto,
+  // and the SAME declaration still resolves where the extent is known.
+  const Dimension halfAndTen = pct(50) + Dimension(10);
+  Host host(400, 200);
+  host.composer.render(
+      positioned().width(300).height(100).children(
+          {box().key("measured").left(0).top(0).width(halfAndTen).height(10)}));
+  host.frame();
+  EXPECT_FLOAT_EQ(widthOf(host), 0.5f * 300.0f + 10.0f);
+
+  Host flex(400, 200);
+  ::testing::internal::CaptureStderr();
+  flex.composer.render(box().row().width(300).height(100).children(
+      {box().key("measured").width(halfAndTen).height(10)}));
+  flex.frame();
+  const std::string report = ::testing::internal::GetCapturedStderr();
+  EXPECT_NE(report.find("flex layout"), std::string::npos)
+      << "flex layout dropped the sum without saying so: " << report;
+  EXPECT_FLOAT_EQ(widthOf(flex), 0.0f) << "laid out as auto";
+  EXPECT_EQ(halfAndTen, pct(50) + Dimension(10))
+      << "the declaration kept the sum as written";
 }
 
 TEST(ComposeLengths, CalcTextReadsAsTheArithmeticDoes) {
@@ -256,11 +286,12 @@ TEST(ComposeLengths, CalcTextReadsAsTheArithmeticDoes) {
   EXPECT_EQ(parseDimension("calc(var(--gutter) / 2 + 1ch)"),
             Dimension(var("gutter")) / 2 + Dimension(1_ch));
   EXPECT_EQ(parseDimension("calc(3 * 4)"), 12_px) << "a bare number is px";
-  // A length times a length, a division by nothing or by a length, a sum
-  // with a gap in it, and a percentage in a sum are none of them lengths.
+  EXPECT_EQ(parseDimension("calc(100% + 12px)"), 100_pct + 12_px);
+  // A length times a length, a division by nothing or by a length, and a
+  // sum with a gap in it are none of them lengths.
   EXPECT_FALSE(parseDimension("calc(1em * 2px)"));
   EXPECT_FALSE(parseDimension("calc(1em / 0)"));
   EXPECT_FALSE(parseDimension("calc(1em / 1px)"));
   EXPECT_FALSE(parseDimension("calc(1em +)"));
-  EXPECT_FALSE(parseDimension("calc(50% + 1em)"));
+  EXPECT_FALSE(parseDimension("calc(auto + 1em)"));
 }

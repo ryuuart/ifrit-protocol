@@ -77,23 +77,11 @@ void requireLength(const compose::Dimension& length) {
 }
 
 /** @p left plus @p right times @p sign, raising where native arithmetic
- *  refuses the pair: auto on either side, or a percentage beside another
- *  unit — a zero of pixels aside, which adds nothing. */
+ *  refuses the pair: auto on either side. */
 compose::Dimension combined(const compose::Dimension& left,
                             const compose::Dimension& right, float sign) {
-  using Unit = compose::Dimension::Unit;
   requireLength(left);
   requireLength(right);
-  const bool leftPercent = left.unit == Unit::Pct;
-  const bool rightPercent = right.unit == Unit::Pct;
-  if (leftPercent != rightPercent) {
-    const compose::Dimension& other = leftPercent ? right : left;
-    if (!(other.unit == Unit::Px && other.value == 0.0f))
-      throw py::value_error(
-          "A percentage is laid out against the parent and shares a sum "
-          "with no other unit. Use pw or ph to measure the canvas, or state "
-          "the two on different properties.");
-  }
   return sign > 0.0f ? left + right : left - right;
 }
 }  // namespace
@@ -193,8 +181,9 @@ void bindCompose(py::module_& module) {
       .def(py::self == py::self)
       // CSS's calc(), as arithmetic: lengths in one unit stay in it, a sum
       // over several resolves where the node lands, and a number stands
-      // for pixels. What native arithmetic refuses — a percentage beside
-      // another unit, auto, a division by zero — raises here, at the call.
+      // for pixels, and a percentage is a term of the sum. What native
+      // arithmetic refuses — auto, a division by zero — raises here, at
+      // the call.
       .def(
           "__add__",
           [](const Dimension& self, py::handle other) {

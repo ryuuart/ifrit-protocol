@@ -264,6 +264,35 @@ TEST(ComposeTextFx, MarkResolvesMarginsFarInsetsAndFontLengths) {
   }
 }
 
+TEST(ComposeTextFx, MarkResolvesAPercentagePlusPixelInset) {
+  // A sum holding a percentage stays a length until its consumer knows
+  // the extent: on a mark that extent is the selected unit's rect, so
+  // `top(pct(100) + 12)` is that rect's bottom and twelve more — and it
+  // follows the rect when the type is resized.
+  Host host(400, 200);
+  const auto selected = sigil::weave::selectors::text(u8"L");
+  for (const float size : {24.0f, 40.0f}) {
+    host.composer.render(box().padding(10).children(
+        {text(u8"ALPHA", whiteStyle(size))
+             .textAttach(selected, box().key("letter"))
+             .textAttach(selected, box()
+                                       .key("drop")
+                                       .left(0)
+                                       .top(pct(100) + Dimension(12))
+                                       .width(1)
+                                       .height(8)
+                                       .fill(green()))}));
+    host.frame();
+    const SkRect letter = markRect(host, "letter");
+    ASSERT_GT(letter.height(), size * 0.5f) << "at " << size << " px";
+    const SkRect drop = markRect(host, "drop");
+    EXPECT_NEAR(drop.left(), letter.left(), 0.01f) << "at " << size << " px";
+    EXPECT_NEAR(drop.top(), letter.bottom() + 12, 0.01f)
+        << "at " << size << " px";
+    EXPECT_FLOAT_EQ(drop.height(), 8.0f);
+  }
+}
+
 TEST(ComposeTextFx, MarkFollowsItsUnitWhenTheTextReflows) {
   // The rect is read off the placement, so a narrower box that pushes the
   // word onto the next line takes the mark with it — the reason to anchor a

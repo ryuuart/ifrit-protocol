@@ -49,7 +49,7 @@ detail::Insets Composer::Impl::paddingOf(const Instance& inst) const {
     }
     if (d.unit == Dimension::Unit::Auto) return 0.0f;
     bool relative = false;
-    const float px = resolveLength(inst, d, relative);
+    const float px = resolveLength(inst, d, relative, parentW);
     if (!std::isfinite(px)) return 0.0f;
     return d.unit == Dimension::Unit::Pct ? parentW * px * 0.01f : px;
   };
@@ -149,8 +149,10 @@ SkRect Composer::Impl::positionedRect(const Instance& inst) const {
       if (!found || found->unit == Dimension::Unit::Var) return std::nullopt;
       length = *found;
     }
+    // A sum's percentage term measures the same extent a percent does, so
+    // `top(pct(100) + 12)` on a mark is the rect's bottom and twelve more.
     bool relative = false;
-    const float value = resolveLength(inst, length, relative);
+    const float value = resolveLength(inst, length, relative, parentExtent);
     if (!std::isfinite(value)) return std::nullopt;
     return length.unit == Dimension::Unit::Pct
                ? parentExtent * value * 0.01f

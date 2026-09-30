@@ -53,13 +53,13 @@ class Compose(unittest.TestCase):
         self.assertEqual(mixed, Dimension("calc(2em + 12px)"))
         self.assertEqual(mixed - 12, compose.em(2))
         self.assertEqual(-Dimension(10), Dimension(-10))
+        # A percentage is a term of the sum, kept for the property that
+        # knows its containing extent.
+        self.assertEqual((pct(50) + compose.em(1)).unit, Dimension.Unit.Calc)
+        self.assertEqual(pct(100) + 12, Dimension("calc(100% + 12px)"))
         # What native arithmetic refuses — it warns and stands as auto —
-        # raises here, at the call: a percentage beside another unit,
-        # arithmetic on auto, and a division by zero.
-        with self.assertRaises(ValueError):
-            pct(50) + compose.em(1)
-        with self.assertRaises(ValueError):
-            12 - pct(50)
+        # raises here, at the call: arithmetic on auto, and a division by
+        # zero.
         with self.assertRaises(ValueError):
             compose.autoDimension() * 2
         with self.assertRaises(ValueError):

@@ -1,8 +1,8 @@
 /** @file
  * Arithmetic on lengths, as CSS's calc(): lengths in one unit combined in
  * that unit, lengths in several summed into an interned sum whose entry
- * is counted by the Dimensions holding it, and the percentage refused
- * wherever it would have to share a sum.
+ * is counted by the Dimensions holding it, and a percentage kept as a
+ * term of the sum for the consumer that knows its extent.
  */
 
 #include "Calc.h"
@@ -66,7 +66,7 @@ std::string keyOf(const CalcLength& sum) {
     key.append(bytes, sizeof bytes);
   };
   for (const float term :
-       {sum.px, sum.em, sum.rem, sum.lh, sum.ch, sum.pw, sum.ph})
+       {sum.px, sum.pct, sum.em, sum.rem, sum.lh, sum.ch, sum.pw, sum.ph})
     put(term);
   for (const auto& [id, coefficient] : sum.vars) {
     put(std::bit_cast<float>(id));
@@ -112,12 +112,36 @@ void warnRefusedSum(Dimension::Unit left, Dimension::Unit right) {
   const uint16_t pair = (uint16_t)(((uint16_t)left << 8) | (uint16_t)right);
   if (!warned.emplace(pair, true).second) return;
   SkDebugf(
-      "[compose] a length in %s was combined with one in %s. A percentage "
-      "is laid out by Yoga against the parent and cannot share a sum with "
-      "another unit, and auto is no length at all, so the result is "
-      "REFUSED and stands as auto. Use pw or ph to measure the canvas, or "
-      "state the two on different properties. (warned once)\n",
+      "[compose] a length in %s was combined with one in %s. Auto is no "
+      "length at all, and a percentage read through a custom property is "
+      "a percentage of whatever reads that property, not a term a sum can "
+      "hold, so the result is REFUSED and stands as auto. (warned once)\n",
       unitName(left), unitName(right));
+}
+
+float percentOf(const Dimension& length) {
+  if (length.unit == Dimension::Unit::Pct) return length.value;
+  if (length.unit == Dimension::Unit::Calc) return calcLength(length).pct;
+  return 0.0f;
+}
+
+bool percentageSum(const Dimension& length) {
+  return length.unit == Dimension::Unit::Calc && calcLength(length).pct != 0;
+}
+
+void warnPercentageSumUnresolved(const char* consumer, const char* instead) {
+  static std::mutex guard;
+  static boost::unordered_flat_map<std::string, bool> warned;
+  {
+    const std::lock_guard<std::mutex> lock(guard);
+    if (!warned.emplace(consumer, true).second) return;
+  }
+  SkDebugf(
+      "[compose] a sum holding a percentage reached %s, which has no "
+      "extent to measure the percentage against, so %s. The sum is kept as "
+      "written: a positioned child and a text mark resolve it against "
+      "their containing box. (warned once)\n",
+      consumer, instead);
 }
 
 namespace {
@@ -150,18 +174,20 @@ CalcLength termsOf(const Dimension& length, float factor) {
     case Dimension::Unit::Ph:
       sum.ph = length.value * factor;
       break;
+    case Dimension::Unit::Pct:
+      sum.pct = length.value * factor;
+      break;
     case Dimension::Unit::Var:
       sum.vars.emplace_back(length.reference().id, factor);
       break;
     case Dimension::Unit::Calc: {
       sum = calcLength(length);
-      for (float* term :
-           {&sum.px, &sum.em, &sum.rem, &sum.lh, &sum.ch, &sum.pw, &sum.ph})
+      for (float* term : {&sum.px, &sum.pct, &sum.em, &sum.rem, &sum.lh,
+                          &sum.ch, &sum.pw, &sum.ph})
         *term *= factor;
       for (auto& [id, coefficient] : sum.vars) coefficient *= factor;
       break;
     }
-    case Dimension::Unit::Pct:
     case Dimension::Unit::Auto:
       break;
   }
@@ -174,7 +200,8 @@ CalcLength termsOf(const Dimension& length, float factor) {
 Dimension fromSum(CalcLength sum) {
   std::erase_if(sum.vars, [](const auto& term) { return term.second == 0; });
   const std::pair<float, Dimension::Unit> units[] = {
-      {sum.px, Dimension::Unit::Px},   {sum.em, Dimension::Unit::Em},
+      {sum.px, Dimension::Unit::Px},   {sum.pct, Dimension::Unit::Pct},
+      {sum.em, Dimension::Unit::Em},
       {sum.rem, Dimension::Unit::Rem}, {sum.lh, Dimension::Unit::Lh},
       {sum.ch, Dimension::Unit::Ch},   {sum.pw, Dimension::Unit::Pw},
       {sum.ph, Dimension::Unit::Ph}};
@@ -218,15 +245,9 @@ Dimension fromSum(CalcLength sum) {
   return interned;
 }
 
-/** Whether @p length can stand in a sum: every unit but a percentage and
- *  auto. */
+/** Whether @p length can stand in a sum: every unit but auto. */
 bool summable(const Dimension& length) {
-  return length.unit != Dimension::Unit::Pct &&
-         length.unit != Dimension::Unit::Auto;
-}
-
-bool zeroPixels(const Dimension& length) {
-  return length.unit == Dimension::Unit::Px && length.value == 0.0f;
+  return length.unit != Dimension::Unit::Auto;
 }
 
 /** Whether both are the same plain unit, which combines in that unit. */
@@ -272,10 +293,6 @@ Dimension summed(const Dimension& left, const Dimension& right, float sign) {
     out.value = left.value + sign * right.value;
     return out;
   }
-  // A percentage stands only beside a zero of pixels, which adds nothing.
-  if (left.unit == Dimension::Unit::Pct && zeroPixels(right)) return left;
-  if (right.unit == Dimension::Unit::Pct && zeroPixels(left))
-    return scaled(right, sign, false);
   if (!summable(left) || !summable(right)) {
     warnRefusedSum(left.unit, right.unit);
     return autoDimension();
@@ -283,6 +300,7 @@ Dimension summed(const Dimension& left, const Dimension& right, float sign) {
   CalcLength sum = termsOf(left, 1.0f);
   const CalcLength more = termsOf(right, sign);
   sum.px += more.px;
+  sum.pct += more.pct;
   sum.em += more.em;
   sum.rem += more.rem;
   sum.lh += more.lh;

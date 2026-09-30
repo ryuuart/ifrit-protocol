@@ -264,8 +264,12 @@ Pivot Composer::Impl::pivotOf(const Instance& inst, const Dimension& x,
       // the half a matrix was built about before it had a unit.
       fraction = length.value / 100.0f;
     } else {
+      // A sum's percentage is a fraction of the box like a percent's, and
+      // the rest of it the offset from there: `calc(100% - 12px)` is the
+      // far edge, twelve pixels in.
+      fraction = percentOf(length) / 100.0f;
       bool relative = false;
-      offset = resolveLength(inst, length, relative);
+      offset = resolveLength(inst, length, relative, /*percentBasis=*/0.0f);
     }
   };
   Pivot out;

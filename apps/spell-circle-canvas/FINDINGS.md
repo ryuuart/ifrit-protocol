@@ -315,22 +315,6 @@ alone, hand it to `TextPath(path=…)` and assert the run lays out along it.
 Wanted by `python_type_atelier` (its curved baseline), `python_kit_specimen`
 (the same cubic) and `python_live_signals` (its traces).
 
-## A mark cannot state a percentage-plus-pixel inset
-
-`Text::textAttach` reads the selected unit's rect as the containing box,
-but `Dimension` refuses a sum of percentages and other lengths before
-that rect is available. Consequently `top(pct(100) + Dimension(12))`
-becomes auto even though the mark's rect gives the percentage a definite
-basis. Pure font-relative sums, far-edge positioning and margins resolve;
-`top(pct(100)).marginTop(12)` expresses the intended drop.
-
-A percentage sum should remain a length until its consumer knows the
-containing extent. A test should attach a 1x8 mark to one letter with
-`top(pct(100) + Dimension(12))` and assert that its top is the selected
-rect's bottom plus 12, including after the type is resized. Flex layout
-must either resolve the same sum against a definite containing block or
-report its own unsupported case without erasing the authored expression.
-
 ## `textFx::tint` takes its two colours as values, so a wipe cannot follow the sheet's ink
 
 `textFx::tint({.from, .to})` (`sigilcompose/typography/TextFx.h`) computes

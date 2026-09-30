@@ -12,6 +12,7 @@
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
+#include <cmath>
 #include <boost/unordered/unordered_flat_map.hpp>
 #include <deque>
 #include <mutex>
@@ -162,8 +163,8 @@ Fill resolveRef(const Fill& fill, const PaintContext& ctx) {
 // Lengths against the font
 
 float Composer::Impl::resolveLength(const Instance& inst,
-                                    const Dimension& length,
-                                    bool& relative) const {
+                                    const Dimension& length, bool& relative,
+                                    float percentBasis) const {
   switch (length.unit) {
     case Dimension::Unit::Px:
     case Dimension::Unit::Pct:
@@ -213,6 +214,16 @@ float Composer::Impl::resolveLength(const Instance& inst,
                     sum.lh * inst.lineHeight + sum.ch * inst.zeroAdvance +
                     sum.pw * 0.01f * canvas.width() +
                     sum.ph * 0.01f * canvas.height();
+      // The percentage is of the extent the property reading the sum
+      // measures against, which only that property knows.
+      if (sum.pct != 0.0f) {
+        if (std::isfinite(percentBasis))
+          total += sum.pct * 0.01f * percentBasis;
+        else
+          warnPercentageSumUnresolved("a property measured without a "
+                                      "containing extent",
+                                      "the percentage term is left out");
+      }
       for (const auto& [id, coefficient] : sum.vars) {
         const VarValue* value =
             inst.vars ? inst.vars->find(VarRef{id}) : nullptr;
@@ -258,8 +269,15 @@ void Composer::Impl::resolveTextIndent(const Instance& inst,
     block.firstLineIndent.reset();
     return;
   }
+  // A sum holding a percentage of the measure is not one the paragraph
+  // can take: its first-line indent is a pixel length or a percentage,
+  // never both.
+  if (percentageSum(*length))
+    warnPercentageSumUnresolved("textIndent",
+                                "its percentage term is left out");
   bool relative = false;
-  block.firstLineIndent = resolveLength(inst, *length, relative);
+  block.firstLineIndent =
+      resolveLength(inst, *length, relative, /*percentBasis=*/0.0f);
   percent.reset();
 }
 

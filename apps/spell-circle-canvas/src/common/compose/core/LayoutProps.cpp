@@ -126,10 +126,22 @@ void Composer::Impl::applyLayoutProps(Instance& inst) {
     if (readsCanvas(d)) canvas = true;
     return resolveLength(inst, d, relative);
   };
+  // A SUM HOLDING A PERCENTAGE is a length Yoga cannot hold: its percent
+  // is a unit of its own and it keeps no sum. Flex layout reports that and
+  // lays the property out as auto; the declaration itself stays as it was
+  // written, so a positioned child or a text mark reading the same style
+  // resolves the sum against its containing box.
+  const auto unresolvable = [&](const Dimension& d) {
+    if (!percentageSum(d)) return false;
+    warnPercentageSumUnresolved("flex layout, whose percent holds no sum",
+                                "the property is laid out as auto");
+    return true;
+  };
   const auto applyDim = [&](const Dimension& raw,
                             void (*setPx)(YGNodeRef, float),
                             void (*setPct)(YGNodeRef, float)) {
-    const Dimension d = deref(raw);
+    Dimension d = deref(raw);
+    if (unresolvable(d)) d = autoDimension();
     switch (d.unit) {
       case Dimension::Unit::Pct:
         setPct(n, d.value);
@@ -150,7 +162,8 @@ void Composer::Impl::applyLayoutProps(Instance& inst) {
   const auto applyEdge = [&](const Dimension& raw, YGEdge edge,
                              void (*setPx)(YGNodeRef, YGEdge, float),
                              void (*setPct)(YGNodeRef, YGEdge, float)) {
-    const Dimension d = deref(raw);
+    Dimension d = deref(raw);
+    if (unresolvable(d)) d = autoDimension();
     switch (d.unit) {
       case Dimension::Unit::Pct:
         setPct(n, edge, d.value);
@@ -171,7 +184,8 @@ void Composer::Impl::applyLayoutProps(Instance& inst) {
                                  ? YGBoxSizingContentBox
                                  : YGBoxSizingBorderBox);
   {
-    const Dimension gap = deref(l.gap);
+    Dimension gap = deref(l.gap);
+    if (unresolvable(gap)) gap = autoDimension();
     if (gap.unit == Dimension::Unit::Pct)
       YGNodeStyleSetGapPercent(n, YGGutterAll, gap.value);
     else
@@ -244,7 +258,8 @@ void Composer::Impl::applyLayoutProps(Instance& inst) {
     // Always write all four — patch() reuses the yoga node, and a side
     // that was pinned last describe must actually release.
     auto applyInset = [&](YGEdge edge, const Dimension& raw) {
-      const Dimension d = deref(raw);
+      Dimension d = deref(raw);
+      if (unresolvable(d)) d = autoDimension();
       switch (d.unit) {
         case Dimension::Unit::Pct:
           YGNodeStyleSetPositionPercent(n, edge, d.value);

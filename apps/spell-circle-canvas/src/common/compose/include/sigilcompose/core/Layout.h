@@ -214,12 +214,17 @@ constexpr Dimension autoDimension() { return {}; }
  *  the font, the custom properties and the canvas in force. Lengths in
  *  one unit stay in that unit, so `2 * 1_em` IS `2_em`. A number stands
  *  for pixels, as it does everywhere here; a length may be scaled by a
- *  number and divided by one, never by another length.
- *  @trap A PERCENTAGE MIXES WITH NOTHING: Yoga resolves a percentage of
- *  the parent itself and holds no sum, so `50_pct + 1_em` is REFUSED — it
- *  warns once and stands as `autoDimension()` — and so are arithmetic on
- *  auto and a division by zero. `pw` and `ph` measure the canvas and mix
- *  freely.
+ *  number and divided by one, never by another length. Arithmetic on
+ *  auto and a division by zero are REFUSED — each warns once and stands
+ *  as `autoDimension()`.
+ *
+ *  A PERCENTAGE IN A SUM is kept as a term until the property reading it
+ *  knows its containing extent: `top(pct(100) + 12)` on a positioned child
+ *  or a `Text::textAttach` mark is its containing box's bottom and twelve
+ *  more, and a transform origin's is a fraction of the box plus an offset.
+ *  @trap Flex layout cannot hold such a sum — Yoga's percent is a unit of
+ *  its own — so a flex-laid property holding one says so once and is laid
+ *  out as auto; the declaration keeps the sum as written.
  *  @{ */
 [[nodiscard]] Dimension operator+(Dimension left, Dimension right);
 [[nodiscard]] Dimension operator-(Dimension left, Dimension right);
