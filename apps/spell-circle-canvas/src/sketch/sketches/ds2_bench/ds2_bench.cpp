@@ -481,9 +481,13 @@ struct Ds2Bench {
     });
   }
 
+  /** Nothing on the bench moves, so the whole of it is kept as one
+   *  image and drawn again from that. */
   Element describe() const {
     return box()
         .inset(0)
+        .cache(Cache::Texture)
+        .key("ds2_bench.bench")
         .fill(sigil::material::radialGradient({0.5f, 0.5f}, 0.9f,
                                     {{0.0f, hexColor(0x09131B)},
                                      {0.6f, hexColor(0x050B11)},
