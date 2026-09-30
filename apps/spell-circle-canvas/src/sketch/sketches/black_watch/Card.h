@@ -8,12 +8,14 @@
  * them.
  */
 
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigildata/decode/Json.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/field/Field.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/kit/Hyphenation.h>
 #include <sigilweave/kit/LineTables.h>
@@ -25,6 +27,7 @@
 #include <string_view>
 #include <vector>
 
+#include "Board.h"
 #include "Tartan.h"
 
 namespace material = sigil::material;
@@ -96,9 +99,30 @@ StyleSheet cardSheet(const CardColours& colours, float draftCell) {
           .var("ink", colours.ink)
           .var("ash", colours.ash)
           .var("proof", colours.proof)
+          // The board is one recipe, paint and tooth together: a mount
+          // board reads as one even card, a fine tooth the eye takes as
+          // paper and almost no wear, since any slow blotch on a light card
+          // reads as marble rather than as board.
+          .var("board", black_watch::board({.paint = colours.ground,
+                                            .tooth = 0.05f,
+                                            .toothScale = 0.06f,
+                                            .wear = 0.004f,
+                                            .wearScale = 0.004f,
+                                            .seed = 7.0f}))
+          // The yarn's tooth keeps frequency · stretch · 2^(octaves−1)
+          // under 0.4, past which its y axis aliases into hash noise.
+          .var("yarn", material::field::grain(0.09f, 3, 3.0f, 0.75f))
           .fontFamily(mono)
           .fontSize(10)
           .ink(var("ash")),
+      // The keylines a class carries: a bar's or a sample's rule, a
+      // draft's inked edge, and the rule a panel is framed inside.
+      rule(".keyline").stroke(
+          stroke(1, Fill::var("rule"), PathFormat::Align::Outer)),
+      rule(".draft").stroke(
+          stroke(1, Fill::var("ink"), PathFormat::Align::Outer)),
+      rule(".frame").stroke(
+          stroke(1, Fill::var("rule"), PathFormat::Align::Inner)),
       rule("h1")
           .fontFamily(grotesque)
           .fontWeight(700)

@@ -137,7 +137,7 @@ float thrown(float weave) {
 }
 
 /** A layer filling the box it stands in. */
-Element layer(material::Material paint) {
+Element layer(Fill paint) {
   return box().cover().fill(std::move(paint));
 }
 
@@ -172,8 +172,6 @@ struct BlackWatch {
   std::array<Pattern, 9> blends;
   /** One wound card per shade card, a wrap of yarn per shade. */
   std::vector<std::array<Pattern, 3>> wraps;
-  material::Material board = material::Color{0, 0, 0, 0};
-  material::Material yarn = material::Color{0, 0, 0, 0};
 
   sigil::motion::Animatable<float> loom = sigil::motion::animatable(0.0f);
 
@@ -217,19 +215,6 @@ struct BlackWatch {
     draftGrid =
         material::pattern::gridLines(kDraftCell, 0.7f, faded(colours.rule, 0.6f))
             .sampling(material::Sampling::Nearest);
-    // The board is one recipe, paint and tooth together; the yarn's tooth
-    // keeps frequency · stretch · 2^(octaves−1) under 0.4, past which its
-    // y axis aliases into hash noise.
-    // A mount board reads as one even card: a fine tooth the eye takes
-    // as paper and almost no wear, since any slow blotch on a light card
-    // reads as marble rather than as board.
-    board = black_watch::board({.paint = colours.ground,
-                              .tooth = 0.05f,
-                              .toothScale = 0.06f,
-                              .wear = 0.004f,
-                              .wearScale = 0.004f,
-                              .seed = 7.0f});
-    yarn = material::field::grain(0.09f, 3, 3.0f, 0.75f);
     // A shade card is yarn wound round a board: each turn a lit crown and
     // a shadowed valley where it presses on the next.
     for (const ShadeCard& card : cards) {
@@ -365,8 +350,8 @@ struct BlackWatch {
     Element bar =
         box()
             .height(34)
+            .styleClass("keyline")
             .fill(warpOnBeam.material())
-            .stroke(stroke(1, Fill::var("rule"), PathFormat::Align::Outer))
             .children({document::caption(doc.phrase(words["register"]))
                            .styleClass("proof")
                            .right(0)
@@ -457,7 +442,7 @@ struct BlackWatch {
                         .blendMode(material::BlendMode::Multiply)
                         .opacity(0.9f)
                         .cache(Cache::Texture),
-                    layer(yarn)
+                    layer(Fill::var("yarn"))
                         .blendMode(material::BlendMode::Overlay)
                         .opacity(0.14f)
                         .cache(Cache::Texture),
@@ -566,7 +551,7 @@ struct BlackWatch {
         .row()
         .flexWrap()
         .width((float)columns * kDraftCell)
-        .stroke(stroke(1, Fill::var("ink"), PathFormat::Align::Outer))
+        .styleClass("draft")
         .children({each(std::views::iota(0, columns * rows),
                         [&](int index) {
                           return box().styleClass(
@@ -620,9 +605,8 @@ struct BlackWatch {
                      box()
                          .width(side)
                          .height(side)
+                         .styleClass("draft")
                          .fill(drawdown.material())
-                         .stroke(stroke(1, Fill::var("ink"),
-                                        PathFormat::Align::Outer))
                          .children({layer(draftGrid.material())})),
               tagged(words["tags"][2], std::move(treadling))}),
          document::caption(doc.phrase(words["caption"]))});
@@ -792,8 +776,7 @@ struct BlackWatch {
           {box().row().width(kName).styleClass("bar-name").children(
                {document::caption(std::string(name.string())).width(100),
                 document::caption(kit::formatted("%d", (int)total))}),
-           box().row().width(kBar).height(kHeight).stroke(
-               stroke(1, Fill::var("rule"), PathFormat::Align::Outer))
+           box().row().width(kBar).height(kHeight).styleClass("keyline")
                .children({each(runs, [&](const Run& run) {
                  Element band =
                      box().width(kBar * (float)run.threads / total)
@@ -861,8 +844,8 @@ struct BlackWatch {
         doc.phrase(doc["verification"]["heading"]),
         {box()
              .padding(8, 12)
+             .styleClass("frame")
              .fill(faded(colours.well, 0.8f))
-             .stroke(stroke(1, Fill::var("rule"), PathFormat::Align::Inner))
              .children({sigil::compose::kit::table(
                             tableRows,
                             {.columns = {{.width = 104},
@@ -891,7 +874,7 @@ struct BlackWatch {
         .applyStyleSheet(cardSheet(colours, kDraftCell))
         .padding(46, 64, 0, 64)
         .children({
-            layer(board).cache(Cache::Texture),
+            layer(Fill::var("board")).cache(Cache::Texture),
             // The card lies under a window: light falls across it from the
             // upper left and the far corner sits in shade.
             box()
@@ -904,8 +887,7 @@ struct BlackWatch {
                      {1, {0, 0, 0, 0.11f}}},
                     {.units = material::GradientUnits::Pixels}))
                 .cache(Cache::Texture),
-            box().cover().inset(24).stroke(
-                stroke(1, Fill::var("rule"), PathFormat::Align::Inner)),
+            box().cover().inset(24).styleClass("frame"),
             box().column().gap(26).children({
                 box().column().children(
                     {masthead(),

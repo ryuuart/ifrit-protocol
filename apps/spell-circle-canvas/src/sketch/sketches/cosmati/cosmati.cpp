@@ -196,14 +196,13 @@ struct Field {
   std::vector<std::pair<cosmati::Course, material::Material>> courses;
 };
 
-Element field(const Field& bed, const Quarry& marble) {
+Element field(const Field& bed) {
   Element laid = stack()
                      .cover()
                      .shape(bed.region)
                      .overflow(Overflow::Clip)
-                     .fill(Fill::var("mortar"))
-                     .foreground(stroke(kFillet, cut(marble, 40),
-                                        PathFormat::Align::Inner));
+                     .styleClass("fillet")
+                     .fill(Fill::var("mortar"));
   for (const auto& [course, stone] : bed.courses)
     laid.children({box().cover().shape(course).fill(stone)});
   return laid;
@@ -223,7 +222,7 @@ struct Piece {
  *  so it is baked once and the entrance rides over the texture. */
 Element roundel(std::string key, SkPoint at, float radius, Shape outline,
                 material::Material disc, std::vector<Piece> pieces,
-                const Quarry& marble, float enters) {
+                float enters) {
   const std::chrono::milliseconds delay{(int)(enters * 1000)};
   Element set = stack()
                     .key(std::move(key))
@@ -233,8 +232,8 @@ Element roundel(std::string key, SkPoint at, float radius, Shape outline,
                     .cache(Cache::Texture)
                     .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 320ms, .delay = delay, .ease = sigil::motion::ease::outQuad}))
                     .scale(sigil::motion::animate({.from = 1.07f, .to = 1.0f, .duration = 560ms, .delay = delay, .ease = sigil::motion::ease::outCubic}));
-  set.children({box().cover().shape(outline).fill(std::move(disc)).foreground(
-      stroke(kFillet, cut(marble, 70), PathFormat::Align::Inner))});
+  set.children(
+      {box().cover().shape(outline).styleClass("fillet").fill(std::move(disc))});
   for (Piece& piece : pieces)
     set.children({box()
                        .inset(piece.inset)
@@ -296,6 +295,8 @@ struct Cosmati {
             .var("ash", material::parseColor(ink["ash"].string()))
             .var("rule", material::parseColor(ink["rule"].string()))
             .var("mortar", material::parseColor(ink["mortar"].string()))
+            // The marble every field and roundel is edged in, one stone.
+            .var("fillet", cut(stone.marble, 50))
             .fontFamily(inscriptional)
             .fontSize(11)
             .ink(var("ash")),
@@ -333,6 +334,8 @@ struct Cosmati {
             .fontSize(1.2_rem)
             .letterSpacing(0.34_em),
         rule(".ring").fontSize(0.74_rem).letterSpacing(0.12_em),
+        rule(".fillet").stroke(
+            stroke(kFillet, Fill::var("fillet"), PathFormat::Align::Inner)),
     };
   }
 
@@ -353,8 +356,7 @@ struct Cosmati {
    *  fillets that mark the strip, the border and the inner square. */
   Element matrix() const {
     const auto fillet = [&](float inset) {
-      return box().inset(inset).foreground(stroke(kFillet, cut(stone.marble, 50),
-                                                  PathFormat::Align::Inner));
+      return box().inset(inset).styleClass("fillet");
     };
     return stack()
         .cover()
@@ -442,14 +444,13 @@ struct Cosmati {
                        .key("fields")
                        .cache(Cache::Texture)
                        .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 800ms, .delay = std::chrono::milliseconds{(int)(kFieldsAt * 1000)}, .ease = sigil::motion::ease::outQuad}))
-                       .children({field(turned, stone.marble)});
+                       .children({field(turned)});
     for (size_t index = 0; index < corners.size(); ++index) {
       const auto& [a, b, c] = corners[index];
       laid.children({field({.region = outline({a, b, c}),
                             .courses = squares(7, *cornerStones[index].first,
                                                *cornerStones[index].second,
-                                               (uint32_t)(20 + 2 * index))},
-                           stone.marble)});
+                                               (uint32_t)(20 + 2 * index))})});
     }
     // The border panel at the middle of each side, a finer chequer of
     // porphyry and glass turned with its side.
@@ -463,8 +464,7 @@ struct Cosmati {
                                          {left + kPanelLength, top + kPanelDepth},
                                          {left, top + kPanelDepth}}),
                       .courses = squares(5, sideIndex % 2 ? stone.red : stone.porphyry,
-                                         stone.giallo, (uint32_t)(40 + 2 * sideIndex))},
-                     stone.marble)})});
+                                         stone.giallo, (uint32_t)(40 + 2 * sideIndex))})})});
     }
     return laid;
   }
@@ -478,7 +478,7 @@ struct Cosmati {
     set.push_back(roundel(
         "onyx", centre, kLetterRing, shapes::circle(), cut(stone.purbeck, 8, 11, 0.2f),
         {{shapes::circle(), cut(stone.onyx, 64, 12, 0.5f), kLetterRing - kOnyx}},
-        stone.marble, kRoundelsAt));
+        kRoundelsAt));
 
     // The four orbiting roundels: a circle, a hexagon, a heptagon and an
     // octagon, each with a ring course of as many lozenges as it has sides
@@ -508,7 +508,7 @@ struct Cosmati {
                              .phase = -kTurn * 0.25f},
             cut(*cutting.course, 50, 24.0f + (float)index)},
            {outer, cut(*cutting.eye, 20, 28.0f + (float)index), kSatellite * 0.68f}},
-          stone.marble, kRoundelsAt + 0.2f + 0.12f * (float)index));
+          kRoundelsAt + 0.2f + 0.12f * (float)index));
     }
 
     // The great roundels, each on the incentre of its corner: an
@@ -535,7 +535,7 @@ struct Cosmati {
       set.push_back(roundel("great." + std::to_string(index), greatAt[index],
                             kCornerRoundel, shapes::circle(),
                             cut(*greatDisc[index], 25.0f * (float)index, 40.0f + (float)index),
-                            greatPieces[index], stone.marble,
+                            greatPieces[index],
                             kRoundelsAt + 0.7f + 0.12f * (float)index));
 
     // The border's twenty: one on each corner and two either side of it,
@@ -567,7 +567,7 @@ struct Cosmati {
             cut(green ? stone.giallo : stone.marble, 40, 90.0f + (float)index)},
            {shapes::circle(), cut(green ? stone.red : stone.turquoise, 30, 80.0f + (float)index),
             kBorderRoundel * 0.7f}},
-          stone.marble, kRoundelsAt + 1.0f + 0.03f * (float)index));
+          kRoundelsAt + 1.0f + 0.03f * (float)index));
     }
     return stack().cover().key("roundels").children({std::move(set)});
   }
