@@ -1,81 +1,281 @@
 {
-  "listing": [
-    "lw    $31,20($sp)",
-    "lw    $fp,16($sp)",
-    "addu  $sp,$sp,24",
-    "j     $31",
-    ".end  _3D_Flip",
-    ".text",
-    ".ent  _3D_Polling",
-    "_3D_Polling:",
-    ".frame  $fp,40,$31    # vars= 8, regs= 2/0, args= 24, extra=",
-    ".mask   0xc0000000,-4",
-    ".fmask  0x00000000,0",
-    "subu  $sp,$sp,40",
-    "sw    $31,36($sp)",
-    "sw    $fp,32($sp)",
-    "move  $fp,$sp",
-    "jal   start3D",
-    "lw    $2,%got(_navi_ctx)($28)",
-    "nop",
-    "lw    $3,4($2)",
-    "beq   $3,$0,$L18",
-    "nop",
-    "addu  $4,$fp,24",
-    "jal   _3D_Sync",
-    "move  $5,$3",
-    "$L18:",
-    "lw    $31,36($sp)",
-    "lw    $fp,32($sp)",
-    "addu  $sp,$sp,40",
-    "j     $31",
-    ".end  _3D_Polling",
-    ".text",
-    ".ent  _Layer_Commit",
-    "_Layer_Commit:",
-    ".frame  $fp,24,$31    # vars= 0, regs= 2/0, args= 16, extra=",
-    ".mask   0xc0000000,-4",
-    ".fmask  0x00000000,0",
-    "subu  $sp,$sp,24",
-    "sw    $31,20($sp)"
+ "listing": [
+  "lw    $31,20($sp)",
+  "lw    $fp,16($sp)",
+  "addu  $sp,$sp,24",
+  "j     $31",
+  ".end  _3D_Flip",
+  ".text",
+  ".ent  _3D_Polling",
+  "_3D_Polling:",
+  ".frame  $fp,40,$31    # vars= 8, regs= 2/0, args= 24, extra=",
+  ".mask   0xc0000000,-4",
+  ".fmask  0x00000000,0",
+  "subu  $sp,$sp,40",
+  "sw    $31,36($sp)",
+  "sw    $fp,32($sp)",
+  "move  $fp,$sp",
+  "jal   start3D",
+  "lw    $2,%got(_navi_ctx)($28)",
+  "nop",
+  "lw    $3,4($2)",
+  "beq   $3,$0,$L18",
+  "nop",
+  "addu  $4,$fp,24",
+  "jal   _3D_Sync",
+  "move  $5,$3",
+  "$L18:",
+  "lw    $31,36($sp)",
+  "lw    $fp,32($sp)",
+  "addu  $sp,$sp,40",
+  "j     $31",
+  ".end  _3D_Polling",
+  ".text",
+  ".ent  _Layer_Commit",
+  "_Layer_Commit:",
+  ".frame  $fp,24,$31    # vars= 0, regs= 2/0, args= 16, extra=",
+  ".mask   0xc0000000,-4",
+  ".fmask  0x00000000,0",
+  "subu  $sp,$sp,24",
+  "sw    $31,20($sp)"
+ ],
+ "prose": [
+  "おおよそ人の能力というものは、その",
+  "されがちである。しかしながら、これを",
+  "肉体の物理的発生源との関係を考察するに",
+  "ずとその制限が明らかとなる。したがって一応に",
+  "われるような特殊な能力を人間が持ちうるとすれば",
+  "ている可能性は決して低くはない、と言える。",
+  "それは特別なものではなく、誰にでも",
+  "えられる。ここで一つの例を挙げるならば",
+  "俗にいう『火事場の馬鹿力』である。",
+  "これが精神の力によってなしえるものでなく",
+  "肉体の持つ潜在的能力によるものである",
+  "考えはいささか乱暴ではあるが",
+  "えるのでなかろうか。",
+  "アルツハイマー病に苦しむ老人に肉体的な",
+  "訓練を施し、改善したというケースは、その建"
+ ],
+ "menu": [
+  "NAVI",
+  "File",
+  "Edit",
+  "Layer",
+  "Wired",
+  "Protocol",
+  "Help"
+ ],
+ "icons": [
+  "NAVI",
+  "Wired",
+  "mail",
+  "Psyche"
+ ],
+ "wired": {
+  "nodes": [
+   {
+    "name": "NAVI",
+    "x": 36,
+    "y": 170
+   },
+   {
+    "name": "Cyberia",
+    "x": 118,
+    "y": 62
+   },
+   {
+    "name": "Tachibana",
+    "x": 250,
+    "y": 40
+   },
+   {
+    "name": "Knights",
+    "x": 330,
+    "y": 120
+   },
+   {
+    "name": "Protocol 7",
+    "x": 214,
+    "y": 150
+   },
+   {
+    "name": "Psyche",
+    "x": 120,
+    "y": 196
+   },
+   {
+    "name": "???",
+    "x": 352,
+    "y": 200
+   }
   ],
-  "prose": [
-    "おおよそ人の能力というものは、その",
-    "されがちである。しかしながら、これを",
-    "肉体の物理的発生源との関係を考察するに",
-    "ずとその制限が明らかとなる。したがって一応に",
-    "われるような特殊な能力を人間が持ちうるとすれば",
-    "ている可能性は決して低くはない、と言える。",
-    "それは特別なものではなく、誰にでも",
-    "えられる。ここで一つの例を挙げるならば",
-    "俗にいう『火事場の馬鹿力』である。",
-    "これが精神の力によってなしえるものでなく",
-    "肉体の持つ潜在的能力によるものである",
-    "考えはいささか乱暴ではあるが",
-    "えるのでなかろうか。",
-    "アルツハイマー病に苦しむ老人に肉体的な",
-    "訓練を施し、改善したというケースは、その建"
-  ],
-  "phrases": [
-    {"words": "no double minds", "at": 0.5, "hold": 3.0, "x": 546, "y": 42, "size": 60},
-    {"words": "make me feel all right", "at": 4.2, "hold": 2.8, "x": 486, "y": 44, "size": 48},
-    {"words": "With no wings…with no things…one love", "at": 7.6, "hold": 2.6, "x": 520, "y": 42, "size": 40},
-    {"words": "make me mad", "at": 10.7, "hold": 2.6, "x": 418, "y": 40, "size": 60}
-  ],
-  "streaks": [
-    {"x": 474, "y": 508, "width": 128, "strength": 0.95},
-    {"x": 556, "y": 528, "width": 250, "strength": 0.72},
-    {"x": 498, "y": 552, "width": 74, "strength": 0.55},
-    {"x": 640, "y": 574, "width": 190, "strength": 0.85},
-    {"x": 742, "y": 604, "width": 118, "strength": 0.48}
-  ],
-  "city": [
-    {"x": 610, "y": 120, "width": 70, "height": 600, "light": 0.30},
-    {"x": 700, "y": 40, "width": 90, "height": 680, "light": 0.45},
-    {"x": 800, "y": 170, "width": 60, "height": 550, "light": 0.35},
-    {"x": 870, "y": 0, "width": 146, "height": 720, "light": 0.80},
-    {"x": 920, "y": 260, "width": 96, "height": 460, "light": 1.00},
-    {"x": 40, "y": 420, "width": 120, "height": 300, "light": 0.15},
-    {"x": 260, "y": 520, "width": 160, "height": 200, "light": 0.12}
+  "links": [
+   [
+    0,
+    1
+   ],
+   [
+    0,
+    5
+   ],
+   [
+    1,
+    4
+   ],
+   [
+    1,
+    2
+   ],
+   [
+    2,
+    3
+   ],
+   [
+    2,
+    4
+   ],
+   [
+    3,
+    4
+   ],
+   [
+    4,
+    5
+   ],
+   [
+    4,
+    6
+   ],
+   [
+    3,
+    6
+   ]
   ]
+ },
+ "mail": {
+  "header": [
+   "From:  Chisa Yomoda",
+   "To:    Lain Iwakura",
+   "Subject:  (none)"
+  ],
+  "body": [
+   "わたしは肉体を捨てただけ。",
+   "ここには神様がいるの。",
+   "— i only left my body behind."
+  ]
+ },
+ "cursor": [
+  {
+   "at": 0.0,
+   "x": 700,
+   "y": 530
+  },
+  {
+   "at": 1.2,
+   "x": 700,
+   "y": 530
+  },
+  {
+   "at": 2.6,
+   "x": 300,
+   "y": 488
+  },
+  {
+   "at": 6.0,
+   "x": 300,
+   "y": 488
+  },
+  {
+   "at": 7.2,
+   "x": 520,
+   "y": 352
+  },
+  {
+   "at": 11.4,
+   "x": 548,
+   "y": 362
+  },
+  {
+   "at": 13.2,
+   "x": 820,
+   "y": 214
+  },
+  {
+   "at": 18.6,
+   "x": 842,
+   "y": 186
+  },
+  {
+   "at": 19.8,
+   "x": 884,
+   "y": 104
+  },
+  {
+   "at": 23.2,
+   "x": 884,
+   "y": 104
+  },
+  {
+   "at": 24.8,
+   "x": 700,
+   "y": 530
+  },
+  {
+   "at": 26.0,
+   "x": 700,
+   "y": 530
+  }
+ ],
+ "command": {
+  "at": 2.9,
+  "perSecond": 8.5,
+  "words": "connect --wired --layer 07"
+ },
+ "voices": [
+  {
+   "words": "PRESENT DAY",
+   "at": 7.6,
+   "until": 13.0,
+   "x": 508,
+   "y": 178,
+   "size": 84,
+   "role": "announce"
+  },
+  {
+   "words": "PRESENT TIME",
+   "at": 8.4,
+   "until": 13.4,
+   "x": 508,
+   "y": 560,
+   "size": 84,
+   "role": "announce"
+  },
+  {
+   "words": "聞こえる？",
+   "at": 14.4,
+   "until": 19.4,
+   "x": 250,
+   "y": 600,
+   "size": 34,
+   "role": "whisper"
+  },
+  {
+   "words": "どこにいても、人は繋がっているのよ",
+   "at": 16.0,
+   "until": 21.8,
+   "x": 620,
+   "y": 640,
+   "size": 26,
+   "role": "whisper"
+  },
+  {
+   "words": "no double minds",
+   "at": 20.6,
+   "until": 25.0,
+   "x": 470,
+   "y": 296,
+   "size": 44,
+   "role": "lyric"
+  }
+ ]
 }
