@@ -315,46 +315,30 @@ alone, hand it to `TextPath(path=…)` and assert the run lays out along it.
 Wanted by `python_type_atelier` (its curved baseline), `python_kit_specimen`
 (the same cubic) and `python_live_signals` (its traces).
 
-## `textFx::tint` takes its two colours as values, so a wipe cannot follow the sheet's ink
+## A keyframe's colour terms are values, so a table cannot follow the sheet's palette
 
-`textFx::tint({.from, .to})` (`sigilcompose/typography/TextFx.h`) computes
-its per-channel multiplier as each stop over the rest colour, from
-`material::Color` values in its `motion::Tween` when the effect is built. It
-must be used on a line whose ink IS the rest (`.to`): the multiplier only
-ever takes the drawn colour down toward `.from`. A sheet
-that states its palette as custom properties inks the line with
-`ink(var("sung"))`, but the effect cannot read that property, so the sketch
-states the sung colour twice — once on `:root` for the ink, once as the
-constant handed to the tint — and a class or a later sheet that restates
-`--sung` recolours the letters while the tint still divides by the old
-value, which lands the resting colour somewhere neither end names, with no
-diagnostic.
+`textFx::tween` keyframes write `GlyphModifier::colorMultiplier`,
+`colorAdd` and `colorScreen` as `material::Color` values when the table is
+built (`sigilcompose/typography/TextFx.h`). A sheet that states its
+palette as custom properties cannot hand one to a keyframe, so a table
+that colours its glyphs in the sheet's colours states them twice.
+`elastic_type`'s blush keyframes multiply each glyph toward the two
+series colours the sheet also states as `--x` and `--y`, once as custom
+properties for the traces and once as constants for the glyphs; a sheet
+that restates `--x` recolours the trace and leaves the letters behind.
 
-It evidently means one statement of the colour: either `tint` takes a
-`VarRef` (or `Fill`) for its ends and resolves it against the leaf's
-custom properties when the effect is applied, or it takes only the `from`
-end and reads the leaf's resolved ink as `to`, which is what it already
-requires the ink to be.
+`textFx::tint` naming only `.from` already comes to rest at the glyph's
+own ink, read when the effect is applied (`GlyphInfo::ink`). A keyframe
+evidently means the same reach: a colour term that can name a custom
+property (or the ink in force), resolved against the leaf's custom
+properties when the effect is applied. How a keyframe spells that — a
+`Fill` or `VarRef` in `GlyphModifier`, or a separate colour table beside
+the geometric one — is an owner decision.
 
-A test should ink a leaf with `ink(var("sung"))` under a rule that sets
-`--sung` to one colour, apply a tint whose destination is that property
-(or the leaf's ink), and assert a glyph at local 0 draws `from` and one at
-local 1 draws the property's colour; then restate `--sung` on a class the
-leaf carries and assert local 0 still draws `from`.
-
-Wanted by `karaoke_wipe`, whose wipe is `textFx::tint({.from = kPale, .to = kSung})` over
-a lyric inked `var("sung")`.
-
-`elastic_type` meets the same constraint from `textFx::tween`: its blush
-keyframes write each stop's `GlyphModifier::colorMultiplier` from the two
-series colours the sheet also states as `--x` and `--y`, so the palette is
-stated twice, once as custom properties for the traces and once as
-constants for the glyphs. Whatever fixes `tint` (a `VarRef` end resolved
-against the leaf's custom properties at apply time) should reach a
-keyframe entry's colour terms too. Add `elastic_type` to that entry's
-wanted-by list.
-
-Progress: a tint naming no rest divides by the glyph's ink read at apply time (`GlyphInfo::ink`), test in ComposeTestTextMarks.cpp. Left: run it; karaoke_wipe; a `textFx::tween` keyframe's colour terms still cannot name a property (elastic_type's blush) — needs a design decision.
+A test should ink a leaf under a rule setting `--x`, run a one-keyframe
+tween whose multiplier names `--x`, and assert a glyph at local 1 draws
+the property's colour over its ink; then restate `--x` on a class the
+leaf carries and assert local 1 follows it.
 
 ## A run can be measured to the pen only from a held typeface, never from the family list or the leaf a sheet sets
 
@@ -402,33 +386,6 @@ boxes and solving the line between them, and states the grade's range as
 its own constants instead of reading the face's) and `eva_magi_defense`,
 which seats its numerals with `atCapHeight` over a face-held type and meets
 the same wall when it takes a family list.
-
-## A rule cannot state a stroke, so a class cannot carry its element's keyline
-
-`compose::Rule` takes `BoxVerbs`, `PaintVerbs`, `ShapeVerbs` and the rest of
-the style families, but not the decoration verbs
-(`sigilcompose/core/verbs/Decoration.h`), so `rule(".frame").stroke(...)`
-does not compile: `stroke()` exists only on an element. A frame, a keyline,
-a ring or a card's border is therefore restated on every node that wears it,
-even where the class already states that node's size, radius and fill —
-`elastic_type` gives the plot frame and the playhead ring their strokes
-inline beside a class that says everything else about them.
-
-It evidently means CSS's `border`/`outline`: part of the class's whole look,
-cascading like a fill, with the colour free to be a custom property or the
-ink in force. A test should state
-`rule(".frame").stroke(stroke(1, Fill::var("line")))` in a sheet, apply it
-over a box carrying the class, and assert that the box paints the same
-stroke as `box().stroke(stroke(1, Fill::var("line")))`; and that a node's
-own `stroke()` appends to, or overrides, the rule's by one stated order.
-Wanted by `elastic_type`; every sketch that frames cells or cards with a
-class (`black_watch` states its keylines inline on each node).
-
-Also wanted by `nightingale_coxcomb`: the key stone's outline round every wedge, the twelve hairline radials, each month's rim flash and the index needle state their stroke widths inline beside the `.key`, `.spoke`, `.flash` and `.needle` classes that already carry their ink.
-
-Also wanted by `cosmati`: every field and every roundel restates its marble fillet inline where one `.fillet` class would carry it.
-
-Progress: `Rule` states marks and the matched rules' marks stand under the node's own (core/RuleMarks.cpp), with tests in brush/test/ComposeTestRuleMarks.cpp; cosmati, black_watch and fallout2 moved onto classes. Left: run compose_test, check those plates with --frame, then elastic_type and nightingale_coxcomb.
 
 ## A glyph-outline decoration is cut from the glyphs at rest, so a text shadow cannot follow a track's deformation
 
@@ -483,60 +440,36 @@ Add `karaoke_wipe` to that entry's wanted-by list: its glow is a second,
 blurred copy of the sung line sung from black, where one glyph-outline
 glow on the line would do.
 
-## An echo and a shadow take their colour as a value, so neither can follow the sheet's ink
+## An echo takes its colour as a value, so it cannot follow the sheet's ink
 
 An echo is `material::Filter::shadow(material::Color, {.offset})` in the
-effects of a node's fill or ink (`sigilmaterial/filter/Filter.h`), and
-`compose::shadow(material::Material ink, glm::vec2 offset, float blur)`
-(`sigilcompose/brush/Decorations.h`, the `Shadow` value) holds a material.
-Neither is a `Fill`, so neither can be written as `Fill::currentInk()` or
-`Fill::var(name)`. A stroke's `PathFormat` takes a `Fill` whose default is
-the ink in force, and `textStroke` resolves a `Fill::var` against the
-tree; an echo under a title and a glow under a needle are the same kind of
-mark and cannot.
+effects of a node's fill or ink (`sigilmaterial/filter/Filter.h`). It is
+not a `Fill`, so it cannot be written as the ink in force or as a custom
+property, where `compose::Shadow::ink` now can. `nightingale_coxcomb`
+still reads its palette's ink out of code for the echo under each display
+line, and a theme swapped by a different token sheet would leave the echo
+behind.
 
-So a sketch whose colours live in a sheet's custom properties still reads
-them out of its own palette to hand to these two: `nightingale_coxcomb`
-passes its palette's ink to the echo under each display line and its
-palette's brass to the needle's glow, and a theme swapped by a different
-token sheet would leave both behind.
+It is evidently meant to paint like every other decoration: the ink in
+force when unstated, a property when named. Either a Compose echo verb
+taking a `Fill`, or SigilMaterial's shadow colour made optional and read
+as CSS's `currentcolor` where the effect is applied — an owner decision,
+since the second reaches into SigilMaterial. A test should set
+`ink(var("accent"))` on a root with `var("accent", red)`, give a child
+text an echo naming the ink in force, and assert the echo's pixels are
+red.
 
-They are evidently meant to paint like every other decoration: a `Fill`
-defaulting to the ink in force, resolved at paint against the node's
-cascade. A test should set `ink(var("accent"))` on a root with
-`var("accent", red)`, give a child text an echo whose colour is
-`Fill::currentInk()`, and assert the echo's pixels are red; and the same
-for a `shadow(Fill::var("accent"), …)` under a box. This is the same
-defect as `textFx::tint` taking its colours as values, in two more places.
-Wanted by `nightingale_coxcomb`.
+## The Python typing modules have not been regenerated since a custom property could hold a paint
 
-Progress: `Shadow::ink` is a `Fill` defaulting to the ink in force. Left: the echo — `material::Filter::shadow` is SigilMaterial's and cannot name the ink in force or a property; needs an owner decision (a compose echo verb taking a `Fill`, or SigilMaterial's shadow colour optional as CSS's currentcolor); then nightingale_coxcomb.
-
-## A custom property holds a colour or a length, never a paint, so a palette of materials cannot be tokens
-
-`compose::VarValue` is `std::variant<material::Color, Dimension>`
-(`core/Cascade.h`), so `var(name, …)` on a node or a rule takes a colour or a
-length and nothing else. A study whose palette is MATERIALS — `cosmati`'s nine
-quarried stones, each a `cosmati::stone` recipe, and the brass its
-letters are set in — cannot state them once as custom properties at the root
-and read them with `fill(Fill::var("porphyry"))`; the stones are built in code
-by a helper and handed to every piece's `fill()` as values, and a class
-cannot name "the porphyry" without restating the recipe.
-
-It evidently means CSS's custom properties, which hold any value a property
-takes — a gradient or an image as readily as a colour: a `var` holding a
-`material::Material` (a colour, a gradient, a shader or a layered look), resolved by `fill`,
-`ink` and a stroke's paint exactly as a colour var is, so a quarry is a token
-and a class is its whole look.
-
-A test should state `rule(":root").var("stone", someMaterial)`,
-fill a box with `Fill::var("stone")` under it, and assert the box paints what
-`fill(someMaterial)` paints; and that reading the same property
-as a length leaves the target standing and says so once, as a colour var read
-as a length does today. Wanted by `cosmati`; `black_watch` holds its board and
-yarn paints as members for the same reason.
-
-Progress: `VarValue` holds a paint and `var(name, Material)` sets one (tests in brush/test/ComposeTestCascadePaints.cpp); black_watch's board and yarn and cosmati's fillet are tokens. Left: run the tests and plates; regenerate apps/python/sigil typing; cosmati's pieces keep per-piece cuts on purpose.
+`compose::VarValue` holds a paint and `var(name, Material)` sets one, and
+the Python binding takes it, but the committed `sigil` typing modules were
+not regenerated after the binding and `typing/refinements/compose.py`
+changed, so they may still describe a custom property as a colour or a
+length (`varDefaults` in the refinements still does). Run
+`apps/python/sigil/typing/generate.py` against the matching extension,
+widen `varDefaults` to take a material if the binding does, and commit
+what it writes; the typing check should then accept a material beside a
+colour and a length.
 
 ## An escaped Python connection may keep its door open after the session closes
 
@@ -550,43 +483,6 @@ opened when it closes, whatever Python still holds. A test should store a
 connection wrapper in `builtins`, close the session, and assert the feed's state
 is closed and its inlet expired, as `SketchPython.ASessionClosesFeedsDespiteEscapedPythonWrappers`
 asserts for a feed.
-
-## A layered brush's passes take a colour, where every other mark takes a material
-
-`StrokeLayer::color` (`sigilcompose/brush/Layered.h`, the pass a
-`LayeredBrush` stacks) is a `material::Color`. Every other mark in the
-brush tier takes its ink as a material — `Shadow`, `styles::BevelPair`,
-`styles::Brackets` and `styles::TickRail` a `material::Material`, the
-strokes, borders, lines and hatches a `Fill` — so a layered neon or a
-cased road cannot be inked with a gradient or a pattern, and cannot
-follow the ink in force, while a single stroke of the same road can.
-
-It is evidently meant to take a material like its neighbours: a
-`material::Material` ink (a colour converts) or a `Fill`, lowered where
-the pass is painted. A test should give one layer a left-to-right
-`material::linearGradient` from red to blue and assert the stroke is red
-at its left end and blue at its right, and give another `Fill::color(c)`
-and assert it paints exactly what the colour layer paints today.
-
-Progress: `StrokeLayer::ink` is a `Fill` (tests in ComposeTestCascadePaints.cpp). Left: run compose_test.
-
-## A selector rule accepts material effects but loses them on the matched element
-
-`FontVerbs<Rule>::ink(Material)` calls `applyEffects` on the rule's
-declaration, storing coverage decorations and the pixel filter there.
-`Cascade.cpp` copies the rule's type and base ink into the matched node's
-computed style, but those declarations are not the node's own
-`backgrounds`, `foregrounds` or `fxData`. A halation material placed on a
-`.near` rule therefore colours the letters but drops their glow; placing
-that same ink on the text leaf draws it.
-
-A material's effects evidently belong to its ink wherever the ink is
-stated. A test should apply one shadow-and-blur material directly to a
-text leaf and through a matching rule, then assert equal painted pixels
-and bounds. It should also replace the rule and assert that the matched
-node removes or updates the effect rather than retaining an old one.
-
-Progress: a rule's ink and fill effects are kept on the rule and dress the matched element where that lane stands (tests in ComposeTestRuleMarks.cpp). Left: run compose_test.
 
 ## A glow on changing text is a filter over the leaf's whole box, so it re-runs every frame
 
@@ -617,6 +513,32 @@ glyph's alpha per frame and assert that the per-frame paint cost does not
 scale with the leaf's box (a 64x64 leaf and a 1280x780 leaf holding the
 same glyphs cost alike within a factor), and that the halo about a glyph
 at alpha 0.2 is 0.2 of the halo at alpha 1.
+
+## A phosphor bloom on a text leaf cuts away whatever the leaf paints outside its box
+
+`Filter::phosphorBloom` painted in a box is cropped to that box grown by
+its reach (`makePhosphorBloom`, `material/skia/EffectBloom.cpp`, handed
+`paintFrame->size` in `Effect.cpp`). The box is the node's layout box, but
+a leaf's layer holds more than that: its `textAttach` marks, which reserve
+nothing and stand above and below the line, and a `textStroke` wider than
+the reach. On `karaoke_wipe`'s sung line, `.filter(Filter::phosphorBloom(9))`
+on the leaf erases the ruler hung below it and cuts the bouncing ball off
+at its middle, where `Filter::blur(9)` on the same leaf keeps both. So the
+sketch keeps its second, blurred copy of the line for its glow.
+
+The crop evidently means "no further than this layer's content can
+reach": it should be the bounds the leaf actually paints (its ink
+overflow, attachments included) grown by the reach, as the layer a plain
+blur runs over already is. A test should give a text leaf a `textAttach`
+mark standing wholly below its box, filter the leaf with a phosphor bloom,
+and assert the mark's pixels are drawn; and assert the bloom's cost still
+follows the painted bounds, not the canvas.
+
+Measured on `karaoke_wipe` with the one-node bloom in place of the copy:
+the gate held (p50 7.8 ms, p99 12.6 ms against the copy's p50 3.7 ms,
+p99 4.2 ms), and the sung letters also came out paler, the bloom's
+retained source whitening the yellow; the owner decides the look once the
+crop is fixed.
 
 ## Catalog plate extents differ beyond the permitted material and label changes
 
