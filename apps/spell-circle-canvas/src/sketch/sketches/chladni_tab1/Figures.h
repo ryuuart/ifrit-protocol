@@ -11,11 +11,11 @@
 #include <sigilcompose/core/Instances.h>
 #include <sigilcore/compute/Chance.h>
 #include <sigildata/decode/Json.h>
-#include <sigildraw/Color.h>
 #include <sigilgeometry/kit/Curves.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Frame.h>
 #include <sigilgeometry/path/Scatter.h>
+#include <sigilmaterial/color/Color.h>
 
 #include <algorithm>
 #include <cmath>
@@ -99,7 +99,7 @@ struct Figure {
 
 /** "#e3d7b6" or "#3a3125b8" as a colour. */
 sigil::material::Color colourOf(const data::Json& word) {
-  return sigil::draw::parseColor(word.string("#000000"));
+  return sigil::material::parseColor(word.string("#000000"));
 }
 
 std::vector<Figure> readFigures(const data::Json& entries, float scale) {

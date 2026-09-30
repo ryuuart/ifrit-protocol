@@ -57,7 +57,6 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigildata/scale/Scale.h>
 #include <sigildata/table/Table.h>
-#include <sigildraw/Color.h>
 #include <sigilgeometry/kit/Divisions.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Frame.h>
@@ -84,7 +83,6 @@
 
 namespace data = sigil::data;
 namespace document = sigil::compose::document;
-namespace draw = sigil::draw;
 namespace field = sigil::material::field;
 namespace material = sigil::material;
 namespace path = sigil::geometry::path;
@@ -724,7 +722,7 @@ struct NightingaleCoxcomb {
       const auto names = colours->column<std::string>("name");
       const auto values = colours->column<std::string>("colour");
       for (size_t row = 0; row < names.size(); ++row)
-        palette[names[row]] = draw::parseColor(values[row]);
+        palette[names[row]] = material::parseColor(values[row]);
     }
     if (const auto deaths = ctx.assets.hub().load<sigil::data::Table>(ctx.local("data/deaths.csv"))) {
       first = {.name = "first",

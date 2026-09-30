@@ -114,13 +114,6 @@ std::vector<Research> readResearch(const data::Json& document) {
   return web;
 }
 
-/** `#RRGGBB` or `#RRGGBBAA`. */
-material::Color parseHex(std::string_view hex) {
-  const uint32_t word = (uint32_t)std::stoul(std::string(hex.substr(1)), nullptr, 16);
-  return hex.size() > 7 ? hexColor(word >> 8u, (float)(word & 255u) / 255.0f)
-                        : hexColor(word);
-}
-
 /** AN ICON FROM ITS CHARACTER GRID. A locked research's icon is drawn in
  *  one dark grey wherever the art has paint, so `greyed` replaces every
  *  entry's colour and keeps its alpha. */
@@ -128,7 +121,7 @@ kit::Sprite readIcon(const data::Json& icon, bool greyed) {
   std::string characters = ".";
   std::vector<material::Color> colours = {{0, 0, 0, 0}};
   for (const auto& [character, hex] : icon["palette"].object()) {
-    const material::Color colour = parseHex(hex.string());
+    const material::Color colour = material::parseColor(hex.string());
     characters += character;
     colours.push_back(greyed ? material::Color{0.18f, 0.18f, 0.18f, colour.a}
                              : colour);

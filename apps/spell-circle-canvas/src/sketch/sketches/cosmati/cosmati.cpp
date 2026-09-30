@@ -41,7 +41,6 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/typography/Presets.h>
 #include <sigilcompose/typography/TextPath.h>
-#include <sigildraw/Color.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Crossings.h>
 #include <sigilgeometry/path/Polyline.h>
@@ -67,7 +66,6 @@
 
 #include "Construction.h"
 
-namespace draw = sigil::draw;
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
@@ -153,8 +151,8 @@ struct Quarry {
 Quarry quarryOf(const sketch::kit::Document& words, std::string_view key) {
   const auto& stone = words["quarries"][key];
   return {std::string(stone["name"].string()), std::string(stone["source"].string()),
-          draw::parseColor(stone["hi"].string("#808080")),
-          draw::parseColor(stone["lo"].string("#606060"))};
+          material::parseColor(stone["hi"].string("#808080")),
+          material::parseColor(stone["lo"].string("#606060"))};
 }
 
 struct Quarries {
@@ -279,7 +277,7 @@ struct Cosmati {
                                       kSatelliteLoop, kOrbit, -kTurn * 0.25f);
     sketch::kit::stage(ctx, {.size = kCanvas,
                              .captureAt = 6.0,
-                             .background = draw::parseColor(words["ink"]["ground"].string())});
+                             .background = material::parseColor(words["ink"]["ground"].string())});
     sigil::motion::Engine& ticker = ctx.engine;
     ticker.timer([this, &ticker] { seconds = (float)ticker.elapsed().count(); });
     ctx.composer.render(describe());
@@ -294,10 +292,10 @@ struct Cosmati {
     const std::string book = "Palatino, Book Antiqua, Baskerville, serif";
     return StyleSheet{
         rule(":root")
-            .var("ink", draw::parseColor(ink["ink"].string()))
-            .var("ash", draw::parseColor(ink["ash"].string()))
-            .var("rule", draw::parseColor(ink["rule"].string()))
-            .var("mortar", draw::parseColor(ink["mortar"].string()))
+            .var("ink", material::parseColor(ink["ink"].string()))
+            .var("ash", material::parseColor(ink["ash"].string()))
+            .var("rule", material::parseColor(ink["rule"].string()))
+            .var("mortar", material::parseColor(ink["mortar"].string()))
             .fontFamily(inscriptional)
             .fontSize(11)
             .ink(var("ash")),
@@ -754,9 +752,9 @@ struct Cosmati {
                  {.length = Dimension(kColumnWidth),
                   .fill = material::linearGradient(
                       {0, 0}, {kColumnWidth, 0},
-                      {draw::parseColor(words["ink"]["rule"].string()),
+                      {material::parseColor(words["ink"]["rule"].string()),
                        material::withAlpha(
-                           draw::parseColor(words["ink"]["rule"].string()), 0)},
+                           material::parseColor(words["ink"]["rule"].string()), 0)},
                       {.units = material::GradientUnits::Pixels})}),
              document::paragraph(words.phrase(apparatus["reading"])),
              // The quotation and what it is, one indented block.
@@ -789,7 +787,7 @@ struct Cosmati {
         .fill(material::radialGradient(
             {kMargin + kCentre, kMargin + kCentre}, kCanvas.fWidth * 0.8f,
             {hexColor(0x1C1814),
-             draw::parseColor(words["ink"]["ground"].string())},
+             material::parseColor(words["ink"]["ground"].string())},
             {.units = material::GradientUnits::Pixels}))
         .children({pavement(), apparatus()});
   }

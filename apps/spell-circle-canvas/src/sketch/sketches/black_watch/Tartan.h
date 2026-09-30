@@ -40,12 +40,6 @@ constexpr int kShadeCount = 5;
 
 using Shades = std::array<sigil::material::Color, kShadeCount>;
 
-/** "#2C2C80" as a colour. */
-inline sigil::material::Color colourOf(std::string_view hex) {
-  return sigil::material::hexColor(
-      (uint32_t)std::stoul(std::string(hex.substr(1)), nullptr, 16));
-}
-
 /** ONE SHADE CARD: its register name, and the colour each code is dyed in.
  *  Only black, blue and green vary between cards; the two overchecks are
  *  one yellow and one white on every card. */
@@ -62,7 +56,7 @@ inline std::vector<ShadeCard> readShadeCards(const sigil::data::Json& file) {
       const std::string code(1, kShadeCodes[(size_t)shade]);
       const sigil::data::Json& own = card[code];
       read.shades[(size_t)shade] =
-          colourOf(own.null() ? file["overchecks"][code].string() : own.string());
+          material::parseColor(own.null() ? file["overchecks"][code].string() : own.string());
     }
     cards.push_back(std::move(read));
   }

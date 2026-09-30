@@ -260,7 +260,7 @@ struct ChevreulCircle {
       for (size_t row = 0; row < label.size(); ++row)
         sectors.push_back(
             {label[row],
-             hexColor((uint32_t)std::stoul(colour[row].substr(1), nullptr, 16))});
+             sigil::material::parseColor(colour[row])});
     }
     paperGrain = Paint::recipe(field::grain(0.013f, 4, 11.0f, 0.32f));
 
