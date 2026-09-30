@@ -1437,3 +1437,91 @@ mean coverage. A regression should verify solid ink/paper endpoints,
 continuous coverage through the dot-to-hole crossover, and matching mean
 coverage above and below the scale where individual cells are resolvable.
 The unresolved screen should not form large alternating islands.
+
+
+## Authoring ergonomics: optional positional captures receive paint context
+
+The optical-record study's ordinary Python capture
+`lambda pen, width=64: draw_mark(pen, width)` receives a PaintContext in
+`width`, then raises TypeError when drawing divides the value. The callback
+dispatcher in `apps/python/sigil/sigil/_callbacks.py` deliberately selects
+the largest compatible positional prefix, and
+`src/common/python/compose/PaintPrograms.cpp` supplies the context whenever
+two arguments fit. A default capture is therefore indistinguishable from
+an optional context parameter. This follows the dispatcher contract but
+conflicts with a common Python authoring idiom.
+
+A keyword-only capture and a one-argument closure both preserve the value
+and produce identical native Raster images. The failing source, exception
+and successful controls are preserved in
+`build/media-study-redo/andromeda_optical_lab/probes/`.
+
+Wanted: an explicit way to request context, or a documented callback
+adapter that preserves ordinary captured defaults. The public callback
+guidance should show the keyword-only form and explain the positional
+injection. A regression should preserve explicit `(pen, context)` calls,
+assert the chosen behavior for optional positional captures, and verify
+that keyword-only captured values retain their values.
+
+
+## Authoring ergonomics: CLI captures do not share an exact-time request
+
+The optical-record focus probe asks for a Python file still at 0.25
+seconds. Its update log visits 0.25 and then 0.26666666666666666 seconds
+before writing the image. `src/sketch/canvas/Session.cpp` deliberately
+paints a still through `frame(..., stillStep())`, and
+`src/sketch/live/Host.cpp` advances the requested duration before invoking
+that photograph. The extra step is intentional, but the file lane's
+reported requested time does not identify the time its pixels observe.
+
+The same probe's live blur map matches a static map at the actual observed
+time exactly. Nominal-time comparisons produce false differences. This
+is a capture contract issue, not a mapped-blur defect. Endpoint controls,
+observed clocks and pixel comparisons are preserved in
+`build/media-study-redo/andromeda_optical_lab/probes/`.
+
+The native window screenshot in `src/sketch/book/main.cpp` waits for a live
+session and warm-up frames, but does not consume the file lane's `--at`
+setting. A matching window composition currently needs a clearly
+identified fixed-time capture fixture or clock control outside that CLI
+option.
+
+The headless protocol already supports a held clock, repeated stills
+without advancement and a current-clock result. Those existing semantics
+are the model for the authoring request, rather than missing primitives.
+
+Wanted: CLI capture requests that expose a held scene time and report the
+timestamp actually drawn, while retaining any redraw needed for capture
+density. A regression should put a time readout and
+moving edge in one scene, request the same timestamp through file and
+window lanes, and verify both reported time and edge position. Repeated
+captures should not advance the scene unless advancement was requested.
+
+
+## API request: the GPU window cannot expose its capture backend to a client
+
+The optical-record sequence draws successfully in the native Graphite
+window. `SketchbookRenderer::installCaptureBackend` gives its Host a
+Graphite surface, ordered canvas and device readback. The window's
+Inspection endpoint, however, mounts only host and registry agents.
+Its advertised domains agree with that restriction. Requests for
+`clock.setPolicy` and `session.still` both return `notMounted`, even while
+host.describe reports the live optical-record canvas.
+
+The protocol already defines clock stepping and session sequence capture,
+and the Host already has the device-backed capture seam. An author cannot
+combine those existing facilities through the window endpoint. The
+file-frame lane deliberately captures 2D canvases on Raster, including
+when `--gpu` enables the device for mesh or set content. A procedural
+optical movie therefore cannot request the window's 2D backend through
+either public route. The observed refusals and advertised capabilities
+are preserved in
+`build/media-study-redo/andromeda_optical_lab/probes/window_protocol_result.json`.
+
+Wanted: safe client access to the active window's clock and capture
+session, or an explicit file-sequence backend selector using the existing
+device capture seam. A regression should export only the selected file,
+report the actual backend and scene times, keep Graphite work on its
+owning thread, and verify repeated held captures and the requested frame
+count. Detaching the client should restore the host's ordinary clock and
+leave the live window usable.

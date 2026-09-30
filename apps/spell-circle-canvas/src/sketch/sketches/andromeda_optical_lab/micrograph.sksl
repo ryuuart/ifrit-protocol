@@ -1,0 +1,180 @@
+// A tilted crystalline sheet is sampled in specimen coordinates. Shared
+// neighbors, broken facets, cleavage and a second sheet give the material
+// a continuous mass. Focus is a depth selection; modality three supplies
+// a coherent defocus field for a spatial optical blur.
+float microHash(float2 p) {
+  return fract(sin(dot(p,float2(127.1,311.7)))*43758.5453);
+}
+float2 microHash2(float2 p) {
+  return float2(microHash(p),microHash(p+float2(41.7,29.4)));
+}
+float microNoise(float2 p) {
+  float2 i=floor(p),f=fract(p);
+  f=f*f*(3.0-2.0*f);
+  return mix(mix(microHash(i),microHash(i+float2(1,0)),f.x),
+             mix(microHash(i+float2(0,1)),microHash(i+float2(1,1)),f.x),f.y);
+}
+float2 microRotate(float2 p,float angle) {
+  float c=cos(angle),s=sin(angle);
+  return float2(c*p.x-s*p.y,s*p.x+c*p.y);
+}
+float microDetail(float2 p,float footprint,float frequency) {
+  float resolved=1.0-smoothstep(0.22,0.85,footprint*frequency);
+  return mix(0.5,microNoise(p*frequency),resolved);
+}
+struct MicroFacet {
+  float distance;
+  float2 normal;
+  float seed;
+  float radius;
+  float depth;
+};
+MicroFacet microFacet(float2 point,float2 identity,float layer,float pose) {
+  MicroFacet result;
+  result.seed=microHash(identity+layer*float2(13.7,61.9));
+  result.radius=0.292+0.225*microHash(identity+float2(8.7,51.3));
+  result.radius*=0.94+0.06*sin(pose*0.36+identity.x*0.69+identity.y*0.27);
+  float angle=(result.seed-0.5)*0.34+sin(pose*0.37+identity.y*0.51)*0.065;
+  float2 q=microRotate(point,-angle);
+  q.x*=0.88+microHash(identity+float2(5.8,44.1))*0.21;
+  q.y*=0.93+microHash(identity+float2(16.1,7.4))*0.18;
+  result.distance=-100.0;
+  result.normal=float2(0);
+  for(int side=0;side<6;++side) {
+    float a=float(side)*1.04719755+0.52359877;
+    float2 normal=float2(cos(a),sin(a));
+    float radius=result.radius*(0.95+0.10*microHash(identity+float2(float(side)*7.3,11.7)));
+    float candidate=dot(q,normal)-radius;
+    if(candidate>result.distance) {
+      result.distance=candidate;
+      result.normal=microRotate(normal,angle);
+    }
+  }
+  result.depth=0.14+layer*0.43+result.seed*0.17;
+  return result;
+}
+half4 main(float2 pixel) {
+  float shortSide=max(1.0,min(uResolution.x,uResolution.y));
+  float scale=max(0.12,magnification);
+  float2 view=(pixel-uResolution*0.5)*5.2/(shortSide*scale)+center;
+  float2 specimen=microRotate(view,0.37);
+  float perspective=max(0.42,1.0+(specimen.x-specimen.y)*0.095);
+  specimen/=perspective;
+  specimen.y*=1.17;
+  float footprint=5.2/(shortSide*scale*max(uContentScale,0.10)*perspective);
+  float exposurePose=floor(seconds*0.44);
+  float slowLight=0.94+0.06*sin(exposurePose*0.37);
+  float2 distort=float2(microNoise(specimen*0.85+3.1),microNoise(specimen*0.91+17.0))-0.5;
+  specimen+=distort*0.14;
+  float bed=microNoise(specimen*1.1)*0.57+microNoise(specimen*3.7)*0.26
+            +microDetail(specimen,footprint,46.0)*0.17;
+  float backbone=0.12*sin(specimen.x*1.15)-0.20;
+  float envelope=length(float2((specimen.x+0.24)/3.65,(specimen.y-backbone)/1.19));
+  float mass=1.0-smoothstep(0.72,1.20,envelope+(microNoise(specimen*1.35)-0.5)*0.36);
+  float beam=exp(-pow((specimen.y+0.31)-specimen.x*0.12,2.0)*1.9);
+  beam*=0.34+0.86*smoothstep(-3.6,2.7,specimen.x);
+  float blueHaze=exp(-pow(specimen.y+0.70-specimen.x*0.10,2.0)*7.5);
+  float lightPool=0.20+beam*1.62;
+  float3 green=float3(0.024,0.12,0.054)*(0.40+bed*1.10)*lightPool;
+  float3 mono=float3(0.036,0.038,0.038)*(0.5+bed*1.25);
+  float3 violet=float3(0.30,0.073,0.235)*(0.26+bed*0.75)*lightPool
+                 +float3(0.11,0.16,0.31)*blueHaze*0.54;
+  float3 accumulated=modality<0.5?green:(modality<1.5?mono:violet);
+  float opacity=1.0;
+  float fieldDepth=0.91;
+  float fieldWeight=0.0;
+  float3 light=normalize(float3(-0.48,-0.63,0.84));
+  for(int layerIndex=1;layerIndex>=0;--layerIndex) {
+    float layer=float(layerIndex);
+    float2 plane=specimen+float2(0.21,-0.13)*layer;
+    plane+=float2(microNoise(specimen*0.62+layer*7.1)-0.5,
+                  microNoise(specimen*0.73+layer*23.2)-0.5)*0.15;
+    float2 tile=floor(plane/float2(0.72,0.645));
+    for(int oy=-1;oy<=1;++oy) {
+      for(int ox=-1;ox<=1;++ox) {
+        float2 id=tile+float2(float(ox),float(oy));
+        float parity=mod(id.y,2.0);
+        float2 jitter=(microHash2(id+layer*float2(91.4,12.3))-0.5)*float2(0.085,0.11);
+        float2 cellCenter=(id+0.5)*float2(0.72,0.645)+float2(parity*0.36,0)+jitter;
+        float2 local=plane-cellCenter;
+        if(dot(local,local)>0.49) continue;
+        float active=microHash(id+float2(22.9,48.7)+layer*13.3);
+        if(active<0.10+layer*0.10) continue;
+        MicroFacet facet=microFacet(local,id,layer,exposurePose-layer);
+        float depth=clamp(0.47+layer*0.25+cellCenter.y*0.115-cellCenter.x*0.075+facet.seed*0.035,0.02,0.98);
+        float defocus=abs(depth-clamp(focus,0.0,1.0));
+        float opticalWidth=max(footprint*0.9,0.005)+defocus*0.010;
+        float inside=1.0-smoothstep(-opticalWidth,opticalWidth,facet.distance);
+        if(facet.distance>0.075) continue;
+        float voids=smoothstep(0.61,0.79,microNoise(cellCenter*0.86+float2(19.3,4.7)));
+        float localMass=mass*(1.0-voids)*(0.40+0.60*microNoise(cellCenter*1.45));
+        float coverage=inside*localMass*(layer>0.5?0.37:0.90);
+        if(coverage>fieldWeight) { fieldDepth=depth;fieldWeight=coverage; }
+        if(modality>2.5) continue;
+        float contrast=1.0-smoothstep(0.15,0.77,defocus)*0.72;
+        float edge=exp(-abs(facet.distance)/max(0.009,opticalWidth));
+        float inset=exp(-abs(facet.distance+0.044)/max(0.006,opticalWidth*0.75));
+        float inner=clamp(-facet.distance/facet.radius,0.0,1.0);
+        float2 ridgePoint=local+float2(-0.041,0.073)*(0.75+facet.seed*0.85);
+        float backDistance=microFacet(ridgePoint,id,layer,exposurePose-layer).distance;
+        float backRim=exp(-abs(backDistance)/max(0.008,opticalWidth));
+        float coarse=microDetail(plane+facet.seed*7.0,footprint,18.0);
+        float grains=microDetail(plane+facet.seed*11.0,footprint,73.0);
+        float fine=microDetail(plane+facet.seed*31.0,footprint,142.0);
+        float grit=smoothstep(0.60,0.83,grains)*(0.4+0.6*coarse);
+        float pits=smoothstep(0.66,0.83,1.0-grains)*inner;
+        float cleavageCoordinate=dot(local,microRotate(float2(1,0),facet.seed*3.14));
+        float cleavage=exp(-abs(sin(cleavageCoordinate*51.0+microNoise(plane*7.1)*3.1))*37.0);
+        cleavage*=1.0-smoothstep(0.18,0.70,footprint*51.0);
+        float membrane=(edge*1.0+inset*0.72+backRim*0.46)*contrast;
+        float facetGlow=exp(-abs(facet.distance)/max(0.028,opticalWidth*3.0));
+        float broadGlow=exp(-abs(facet.distance)/0.074);
+        float rimExposure=0.18+beam*(0.66+facet.seed*0.65);
+        float3 normal=normalize(float3(-facet.normal*(0.38+inner*0.24),0.64));
+        float diffuse=max(dot(normal,light),0.0);
+        float facetResponse=0.16+diffuse*0.94;
+        float glint=pow(max(dot(normal,normalize(light+float3(0,0,1))),0.0),17.0);
+        float density=(0.55+coarse*0.60+grit*0.33)*inner;
+        float3 color;
+        if(modality<0.5) {
+          float3 transmitted=float3(0.26,0.66,0.26)*exp(-float3(0.45,0.91,0.62)*density);
+          color=transmitted*(0.30+facetResponse*0.39)*lightPool;
+          color+=float3(0.48,0.92,0.41)*membrane*rimExposure*0.91;
+          color+=float3(0.35,0.56,0.17)*grit*contrast*0.21;
+          color-=float3(0.09,0.16,0.07)*pits*contrast;
+          color+=float3(0.20,0.42,0.22)*cleavage*contrast*0.22;
+          color+=float3(0.61,0.80,0.48)*glint*0.13;
+        } else if(modality<1.5) {
+          float relief=(0.075+facetResponse*(0.20+inner*0.31))*lightPool;
+          relief+=(grains-0.5)*0.17*contrast+(fine-0.5)*0.075*contrast;
+          relief+=membrane*rimExposure*0.67+glint*0.20-cleavage*0.08;
+          color=float3(relief*0.93,relief*0.98,relief);
+        } else {
+          float3 transmitted=float3(0.48,0.14,0.39)*exp(-float3(0.57,0.91,0.46)*density);
+          color=transmitted*(0.33+facetResponse*0.62)*lightPool;
+          color+=float3(0.30,0.34,0.57)*blueHaze*facetResponse*0.34;
+          color+=float3(1.0,0.69,0.88)*edge*contrast*rimExposure*1.48;
+          color+=float3(0.70,0.69,1.0)*inset*contrast*rimExposure*0.78;
+          color+=float3(0.85,0.34,0.66)*backRim*contrast*rimExposure*0.65;
+          color+=float3(0.80,0.39,0.59)*grit*contrast*0.18;
+          color-=float3(0.19,0.04,0.15)*pits*contrast;
+          color+=float3(0.79,0.54,0.74)*cleavage*contrast*0.21;
+        }
+        color*=0.78+coarse*0.13+fine*0.14;
+        color*=slowLight;
+        accumulated=mix(accumulated,clamp(color,0.0,1.0),coverage);
+        float3 bloomColor=modality<0.5?float3(0.13,0.34,0.14):(modality<1.5?float3(0.22):float3(0.39,0.17,0.37));
+        accumulated+=bloomColor*(facetGlow*0.26+broadGlow*0.15)*localMass*contrast*rimExposure;
+      }
+    }
+  }
+  if(modality>2.5) {
+    float sigma=clamp(abs(fieldDepth-clamp(focus,0.0,1.0))*1.55,0.0,1.0);
+    return half4(half3(sigma),1);
+  }
+  float2 optic=(pixel/uResolution-float2(0.5))*float2(uResolution.x/uResolution.y,1);
+  float vignette=1.0-0.28*smoothstep(0.35,1.25,length(optic));
+  float photographicGrain=(microHash(floor(pixel/max(uContentScale,0.25)))-0.5)*0.010;
+  accumulated=accumulated*vignette+photographicGrain;
+  return half4(half3(clamp(accumulated,0.0,1.0)),half(opacity));
+}

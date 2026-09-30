@@ -1,0 +1,18 @@
+uniform shader content;
+uniform float seconds;
+
+float hash(float2 p) {
+    float3 q = fract(float3(p.xyx) * float3(.1031, .1030, .0973));
+    q += dot(q, q.yxz + 33.33);
+    return fract((q.x + q.y) * q.z);
+}
+
+half4 main(float2 xy) {
+    float frame = floor(seconds * 24.0);
+    float grain = hash(floor(xy) + float2(frame * 17.0, frame * 43.0)) - .5;
+    half4 c = content.eval(xy);
+    float light = dot(float3(c.rgb), float3(.2126, .7152, .0722));
+    float amount = .011 + .012 * sqrt(max(light, 0.0));
+    float flicker = 1.0 + .003 * sin(frame * 1.753);
+    return half4(clamp(float3(c.rgb) * flicker + grain * amount, 0.0, 1.0), c.a);
+}
