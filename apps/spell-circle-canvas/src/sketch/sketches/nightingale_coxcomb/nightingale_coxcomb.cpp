@@ -321,8 +321,14 @@ struct NightingaleCoxcomb {
         rule(".tint .wounds").fill(wounds),
         rule(".tint .other").fill(other),
         rule(".key").ink(var("ink")),
-        rule(".flash").ink(var("flash")),
-        rule(".needle").ink(var("brass")),
+        // The key stone outlines the red and black wedges; the blue tint
+        // simply stops.
+        rule(".key .wounds, .key .other").stroke(stroke(1.0f)),
+        rule(".flash").ink(var("flash")).stroke(stroke(2.4f)),
+        rule(".needle")
+            .ink(var("brass"))
+            .stroke(stroke(1.4f))
+            .background(shadow(Fill::var("brass-glow"), {0, 0}, 9)),
         rule(".leader").ink(var("ink")),
     };
   }
@@ -411,8 +417,9 @@ struct NightingaleCoxcomb {
               .scaleX(ruled(startMs + 200)),
       });
     };
-    // An echo takes its colour as a value and not as the ink in force, so
-    // the doubled pass under each display line reads the palette's ink.
+    // The echo under each display line is the ink's own shadow filter,
+    // which takes its colour as a value and not as the ink in force or a
+    // custom property, so it reads the palette's ink.
     return box().cover().children({
         document::h1("DIAGRAM of the CAUSES of MORTALITY")
             .textFx(writing(0, 620, 700))
@@ -464,10 +471,9 @@ struct NightingaleCoxcomb {
         if (wedge.datum.y > 0 && !(key && wedge.cause == "disease"))
           wedges.push_back(wedge);
     }
-    const auto part = [wedges, diagram, key](std::size_t index) {
+    const auto part = [wedges, diagram](std::size_t index) {
       const Wedge& wedge = wedges[index];
       Element shape = box().styleClass(wedge.cause);
-      if (key) shape.stroke(stroke(1.0f));
       const float delay =
           (diagram.wedges + diagram.wedgeStep * (float)wedge.month) * 1000.0f;
       return std::move(shape)
@@ -508,6 +514,8 @@ struct NightingaleCoxcomb {
       const float length =
           std::min({rimOf(month - 1), rimOf(month), rim * kSpokeReach}) * 0.98f;
       if (length < 4.0f) continue;
+      // A span-qualified pass is the element's own, so each radial states
+      // the hairline it draws on with; the class gives it its ink.
       wheel.children({box()
                           .inset(0)
                           .shape(spoke((float)month * 30.0f, 0.0f, length / rim))
@@ -536,7 +544,6 @@ struct NightingaleCoxcomb {
                .rect(path::PolarFrame{.centre = {rim, rim}, .radius = rimOfMonth}.box())
                .styleClass("flash")
                .shape(shapes::arc((float)month * 30.0f - 90.0f + 1.0f, 28.0f))
-               .stroke(stroke(2.4f))
                .opacity(sigil::motion::animate({.from = 0.0f, .keyframes = {{.to = 0.0f, .duration = (at(passes - halfWidth)) - (0ms)}, {.to = 1.0f, .duration = (at(passes)) - (at(passes - halfWidth))}, {.to = 0.0f, .duration = (at(passes + halfWidth)) - (at(passes))}}, .duration = (at(passes + halfWidth)) - (0ms), .delay = 0ms, .ease = sigil::motion::ease::linear}))});
     }
     reading.children(
@@ -544,10 +551,6 @@ struct NightingaleCoxcomb {
              .inset(0)
              .styleClass("needle")
              .shape(spoke(0.0f, 0.0f, 1.0f))
-             .stroke(stroke(1.4f))
-             // A shadow takes its colour as a value, so the glow names the
-             // palette's brass rather than the needle's ink.
-             .background(shadow(colour("brass-glow"), {0, 0}, 9))
              .transformOrigin(pct(50), pct(50))
              .rotate(sigil::motion::animate({.from = 0.0f, .keyframes = {{.to = 0.0f, .duration = (at(start)) - (0ms)}, {.to = 360.0f, .duration = (at(end)) - (at(start))}}, .duration = (at(end)) - (0ms), .delay = 0ms, .ease = sigil::motion::ease::linear}))
              .opacity(sigil::motion::animate({.from = 0.0f, .keyframes = {{.to = 0.0f, .duration = (at(start)) - (0ms)}, {.to = 1.0f, .duration = (at(start + 0.15f)) - (at(start))}, {.to = 1.0f, .duration = (at(end)) - (at(start + 0.15f))}, {.to = 0.0f, .duration = (at(end + 0.45f)) - (at(end))}}, .duration = (at(end + 0.45f)) - (0ms), .delay = 0ms, .ease = sigil::motion::ease::linear}))});
