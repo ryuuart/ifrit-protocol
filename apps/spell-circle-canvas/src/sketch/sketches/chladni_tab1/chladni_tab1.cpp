@@ -196,14 +196,11 @@ struct ChladniTab1 {
    *  the bow as well as on its own flight. */
   sigil::motion::Animatable<float> clock = sigil::motion::animatable(0.0f);
 
-  /** One figure's sand: its pool, the phase each grain shivers at, and
-   *  which of its two stampings shows — 1 the baked one, 0 the live one. */
+  /** One figure's sand: its pool and the phase each grain shivers at. */
   struct Sand {
     std::shared_ptr<instancing::Pool> pool =
         std::make_shared<instancing::Pool>();
     std::vector<float> shiver;
-    std::unique_ptr<sigil::motion::Animatable<float>> baked =
-        std::make_unique<sigil::motion::Animatable<float>>(sigil::motion::animatable(0.0f));
   };
   std::vector<Sand> sand;
   std::shared_ptr<instancing::CellSheet> marks;
@@ -214,19 +211,17 @@ struct ChladniTab1 {
     sigil::motion::Animatable<float> pressure, travel, sound;
   };
   std::vector<BowPass> firstPass, roundPass;
-  /** THE SAND IS STAMPED TWICE, live and baked, and one of the two
-   *  shows: the live stamping while the sand gathers, the baked one once
-   *  every grain has landed, and the live one again for the figure the
-   *  round is bowing, so its grains hop, until the bow moves on. The
-   *  switch is a stepped value rather than a new description, because a
-   *  node filled with a material recipe takes its bake again on every
-   *  describe, however unchanged; the tree is described once more only
-   *  when the sand has landed, so the baked stamping holds the grains at
-   *  rest. */
+  /** THE SAND IS STAMPED LIVE while it moves — every figure's while the
+   *  sand gathers, and the figure the round is bowing, so its grains hop —
+   *  and baked once it lies still. The tree is described again whenever
+   *  that changes: when the sand has landed, and when the bow moves on. */
   static constexpr size_t kNoFigure = SIZE_MAX;
   float allLanded = 0;
-  bool gathering = true, describeAgain = false;
+  bool gathering = true;
   size_t hopping = kNoFigure;
+  /** What the tree was last described with. */
+  bool describedGathering = true;
+  size_t describedHopping = kNoFigure;
 
   material::Material ink{material::Color{0, 0, 0, 0}};
   Pattern foxing, foxingLow;
@@ -407,21 +402,20 @@ struct ChladniTab1 {
                 .key(tag + "sand")
                 .opacity(
                     sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 400ms, .delay = std::chrono::duration<double, std::milli>(kScatterAt * 1000)}))
-                .children({
-                    box()
-                        .cover()
-                        .key(tag + "sandbaked")
-                        .opacity(sigil::motion::bind(*sand[index].baked))
-                        .children({instancing::instances(
-                            marks, sand[index].pool, instancing::Mode::Data)})
-                        .cache(Cache::Texture),
-                    box()
-                        .cover()
-                        .key(tag + "sandlive")
-                        .opacity(sigil::motion::bind(*sand[index].baked, {.to = {1.0f, 0.0f}}))
-                        .children({instancing::instances(
-                            marks, sand[index].pool, instancing::Mode::Live)}),
-                }),
+                .children({stamping(index)
+                               ? box()
+                                     .cover()
+                                     .key(tag + "sandlive")
+                                     .children({instancing::instances(
+                                         marks, sand[index].pool,
+                                         instancing::Mode::Live)})
+                               : box()
+                                     .cover()
+                                     .key(tag + "sandbaked")
+                                     .children({instancing::instances(
+                                         marks, sand[index].pool,
+                                         instancing::Mode::Data)})
+                                     .cache(Cache::Texture)}),
             bowed(tag + "first", firstPass[index]),
             // The round's waves repeat on a folded phase, so the pass is
             // shown only from its first turn on.
@@ -510,9 +504,7 @@ struct ChladniTab1 {
         grains.pool->fly(allLanded + 1, bounce);
         grains.pool->commit();
       }
-      for (Sand& grains : sand) *grains.baked = 1.0f;
       gathering = false;
-      describeAgain = true;
     }
     if (!gathering) {
       const size_t bowing =
@@ -520,12 +512,9 @@ struct ChladniTab1 {
               ? kNoFigure
               : (size_t)((seconds - kRoundAt) / kRoundStep) % figures.size();
       if (bowing != hopping) {
-        if (hopping != kNoFigure) {
+        if (hopping != kNoFigure)
           sand[hopping].pool->fly(allLanded + 1, bounce);
-          *sand[hopping].baked = 1.0f;
-        }
         hopping = bowing;
-        if (hopping != kNoFigure) *sand[hopping].baked = 0.0f;
       }
     }
     for (size_t index = 0; index < sand.size(); ++index) {
@@ -655,10 +644,12 @@ struct ChladniTab1 {
     ctx.composer.render(describe());
   }
 
-  /** Described once more, when the sand has landed. */
+  /** Described again when the sand lands and when the bow moves on. */
   void update(double, sketch::SketchContext& ctx) {
-    if (!describeAgain) return;
-    describeAgain = false;
+    if (gathering == describedGathering && hopping == describedHopping)
+      return;
+    describedGathering = gathering;
+    describedHopping = hopping;
     ctx.composer.render(describe());
   }
 };
