@@ -7,6 +7,11 @@
 // the hit test that follows paint order and skew.
 
 #include <sigildraw/Pen.h>
+
+#include <algorithm>
+#include <cmath>
+#include <numbers>
+
 #include "support/CoreTestSupport.h"
 #include <sigilgeometry/advanced/Skia.h>
 
@@ -650,6 +655,45 @@ TEST(ComposeTransform, SkewLeansPaintAndHits) {
   ASSERT_TRUE(hit.has_value());
   EXPECT_EQ(*hit, "card");  // transform-aware hit through the shear
   EXPECT_FALSE(host.composer.hitTest({61, 64}).has_value());
+}
+
+TEST(ComposeTransform, TwoSkewLanesComposeAsCssTransformList) {
+  // A borrowed CSS name reads as CSS reads it: `skewX(a) skewY(a)` is the
+  // x shear with the y shear inside it, [1 + tan²a, tan a; tan a, 1], which
+  // widens a 100 px box along x by the product of the tangents. One shear
+  // pair [1 tan a; tan a 1] would lean it without the widening.
+  Host host(300, 300);
+  host.composer.render(box().children({box()
+                                           .key("card")
+                                           .width(100)
+                                           .height(100)
+                                           .inset(100, 100, 100, 100)
+                                           .absolute()
+                                           .fill(red())
+                                           .skewX(-12.5f)
+                                           .skewY(-12.5f)}));
+  host.frame();
+  int left = 300, right = -1;
+  for (int y = 0; y < 300; ++y)
+    for (int x = 0; x < 300; ++x)
+      if (host.pixel(x, y) == SK_ColorRED) {
+        left = std::min(left, x);
+        right = std::max(right, x);
+      }
+  ASSERT_GE(right, left) << "the card painted nothing";
+  const double tangent = std::tan(12.5 * std::numbers::pi / 180.0);
+  const double cssWidth = 100.0 * (1.0 + tangent * tangent) + 100.0 * tangent;
+  EXPECT_NEAR((double)(right - left + 1), cssWidth, 2.0)
+      << "the two lanes did not compose as CSS's transform list";
+  // The hit test walks the same product backwards: the widened right end
+  // of the top edge is inside the card.
+  const double centre = 150.0;
+  const double topRightX =
+      centre + (1.0 + tangent * tangent) * 50.0 - tangent * -50.0 - 3.0;
+  const double topRightY = centre - tangent * 50.0 + -50.0 + 2.0;
+  EXPECT_EQ(host.composer.hitTest({(float)topRightX, (float)topRightY})
+                .value_or(""),
+            "card");
 }
 
 TEST(ComposeTransform, SkewXPositiveLeansTheTopTowardNegativeX) {

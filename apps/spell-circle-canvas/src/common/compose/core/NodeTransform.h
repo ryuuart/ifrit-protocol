@@ -57,7 +57,14 @@ struct NodeTransform {
   /** The matrix these lanes describe, prepended with `anchor` (the
    *  layout offset — pass {0, 0} for node-local): the translate lanes,
    *  then — gated on pivoted(), NOT a copy of it — the origin-pivoted
-   *  rotate → scale → skew stack. THE ONE PRODUCER for recordBounds()'s
+   *  rotate → scale → skew stack.
+   *
+   *  THE SKEW IS CSS's `skewX(x) skewY(y)`: an x shear, then a y shear
+   *  inside it, whose product `[1 + tan x·tan y, tan x; tan y, 1]` widens
+   *  a node naming both along x by the product of the tangents, exactly
+   *  as a browser draws the same transform list. Each shear is its own
+   *  step in every producer, so a node naming one lane takes the single
+   *  shear it always did. THE ONE PRODUCER for recordBounds()'s
    *  child union and hitInstance()'s inverse. The anchor folds into the
    *  FIRST translate rather than being post-concatenated, because the two
    *  associate their float multiplies differently and recordBounds()'s
@@ -72,9 +79,8 @@ struct NodeTransform {
       m.preTranslate(origin.x(), origin.y());
       if (rot != 0) m.preRotate(rot);
       if (scl != 1 || sx != 1 || sy != 1) m.preScale(scl * sx, scl * sy);
-      if (skx != 0 || sky != 0)
-        m.preSkew(std::tan(geometry::path::radians(skx)),
-                  std::tan(geometry::path::radians(sky)));
+      if (skx != 0) m.preSkew(std::tan(geometry::path::radians(skx)), 0);
+      if (sky != 0) m.preSkew(0, std::tan(geometry::path::radians(sky)));
       m.preTranslate(-origin.x(), -origin.y());
     }
     return m;
@@ -100,9 +106,12 @@ struct NodeTransform {
       if (rot != 0) m.preConcat(detail::rotateZMatrix(rot));
       if (scl != 1 || sx != 1 || sy != 1 || sz != 1)
         m.preScale(scl * sx, scl * sy, sz);
-      if (skx != 0 || sky != 0)
-        m.preConcat(detail::skewMatrix(std::tan(geometry::path::radians(skx)),
-                                       std::tan(geometry::path::radians(sky))));
+      if (skx != 0)
+        m.preConcat(
+            detail::skewMatrix(std::tan(geometry::path::radians(skx)), 0));
+      if (sky != 0)
+        m.preConcat(
+            detail::skewMatrix(0, std::tan(geometry::path::radians(sky))));
       m.preTranslate(-origin.x(), -origin.y(), -oz);
     }
     return m;
@@ -127,9 +136,8 @@ struct NodeTransform {
       canvas.translate(origin.x(), origin.y());
       if (rot != 0) canvas.rotate(rot);
       if (scl != 1 || sx != 1 || sy != 1) canvas.scale(scl * sx, scl * sy);
-      if (skx != 0 || sky != 0)
-        canvas.skew(std::tan(geometry::path::radians(skx)),
-                    std::tan(geometry::path::radians(sky)));
+      if (skx != 0) canvas.skew(std::tan(geometry::path::radians(skx)), 0);
+      if (sky != 0) canvas.skew(0, std::tan(geometry::path::radians(sky)));
       canvas.translate(-origin.x(), -origin.y());
     }
   }

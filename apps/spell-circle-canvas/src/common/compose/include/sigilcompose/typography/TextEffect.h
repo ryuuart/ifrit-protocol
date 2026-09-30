@@ -142,9 +142,10 @@ struct GlyphModifier {
    *
    *  The two angles read as `Element::skewX` and `Element::skewY` do:
    *  positive `skewXDeg` leans the top toward −x, positive `skewYDeg`
-   *  pushes the right side toward +y, and a glyph naming both takes the
-   *  single shear pair `(tan x, tan y)` rather than one shear applied after
-   *  the other. */
+   *  pushes the right side toward +y, and a glyph naming both takes CSS's
+   *  `skewX(x) skewY(y)`: the x shear, then the y shear inside it, which
+   *  widens the glyph by the product of the two tangents as a browser's
+   *  transform list does. */
   float scaleX = 1, scaleY = 1;
   float skewXDeg = 0, skewYDeg = 0;
   /** A variable-font axis coordinate, applied at DRAW time by swapping the

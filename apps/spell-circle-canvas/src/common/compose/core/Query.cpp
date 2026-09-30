@@ -152,15 +152,17 @@ std::optional<std::string> Composer::Impl::hitInstance(
     // is shared rather than mirrored here.
     //
     // Degenerate lanes are sanitized rather than refused: a zero scale axis
-    // or a numerically singular skew pair makes that STEP identity, so a
+    // or a skew with no finite tangent makes that STEP identity, so a
     // zero-scaled node still answers hits as if unscaled instead of
-    // becoming unhittable.
+    // becoming unhittable. Each shear step has determinant one, so a skew
+    // with finite tangents always inverts.
     NodeTransform safe = tf;
     if (tf.scl * tf.sx == 0 || tf.scl * tf.sy == 0)
       safe.scl = safe.sx = safe.sy = 1;
-    const float kx = std::tan(geometry::path::radians(tf.skx));
-    const float ky = std::tan(geometry::path::radians(tf.sky));
-    if (std::abs(1.0f - kx * ky) <= 1e-6f) safe.skx = safe.sky = 0;
+    if (!std::isfinite(std::tan(geometry::path::radians(tf.skx))))
+      safe.skx = 0;
+    if (!std::isfinite(std::tan(geometry::path::radians(tf.sky))))
+      safe.sky = 0;
     SkMatrix inv;
     if (safe.matrix({0, 0}, rect.width(), rect.height()).invert(&inv))
       local = inv.mapPoint(local);

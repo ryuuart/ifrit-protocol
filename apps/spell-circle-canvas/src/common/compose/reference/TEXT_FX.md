@@ -524,8 +524,9 @@ so a gradient keeps its ramp and wears the tint over it); `colorAdd` and
 the tint section above; `scaleX`, `scaleY`, `skewXDeg` and `skewYDeg` place the
 glyph with a full matrix, because an RSXform carries a rotation and one scale
 and no shear at all — the two shear angles read as `Element::skewX` and
-`Element::skewY` do, and a glyph naming both takes one shear pair rather than
-one shear after the other; `axis` drives a variable-font axis at draw time; and
+`Element::skewY` do, and a glyph naming both takes CSS's `skewX(x) skewY(y)`,
+the y shear inside the x one, so it widens by the product of the tangents as a
+browser draws it; `axis` drives a variable-font axis at draw time; and
 `codepoint` draws a different letter in this one's place. The last two are
 SUBSTITUTIONS and compose last-one-wins — a `textFx::sequence` crossfade cuts
 them at the middle of its window rather than lerping, because there is no

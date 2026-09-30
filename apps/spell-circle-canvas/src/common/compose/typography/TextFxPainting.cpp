@@ -434,14 +434,16 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
             modifier.scaleX != 1 || modifier.scaleY != 1) {
           matrix.setAll(turnCos, -turnSin, centre.x, turnSin, turnCos,
                         centre.y, 0, 0, 1);
-          // ONE shear carrying both angles, as the node's own skew lanes
-          // take them — not an x shear applied after a y one, which would
-          // put a product of the two tangents on the diagonal and scale the
-          // glyph as well as leaning it.
-          if (modifier.skewXDeg != 0 || modifier.skewYDeg != 0)
+          // CSS's `skewX(x) skewY(y)`, as the node's own skew lanes take
+          // it: an x shear, then a y shear inside it, so a glyph naming
+          // both widens by the product of the tangents exactly as a
+          // browser's transform list does.
+          if (modifier.skewXDeg != 0)
             matrix.preSkew(
-                std::tan(geometry::path::radians(modifier.skewXDeg)),
-                std::tan(geometry::path::radians(modifier.skewYDeg)));
+                std::tan(geometry::path::radians(modifier.skewXDeg)), 0);
+          if (modifier.skewYDeg != 0)
+            matrix.preSkew(
+                0, std::tan(geometry::path::radians(modifier.skewYDeg)));
           matrix.preScale(modifier.scale * modifier.scaleX,
                           modifier.scale * modifier.scaleY);
           // Innermost, so the pivot shift rides the scale exactly as it

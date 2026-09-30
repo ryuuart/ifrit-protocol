@@ -74,8 +74,9 @@ inline SkM44 rotateZMatrix(float degrees) {
                0, 0, 0, 1);
 }
 
-/** The shear the 2D lanes apply, as a 4x4: `[1 kx; ky 1]`, the same two
- *  tangents SkMatrix::preSkew takes. */
+/** One shear step as a 4x4: `[1 kx; ky 1]`, the same two tangents
+ *  SkMatrix::preSkew takes. The skew lanes apply it once per axis, x
+ *  first, so each call passes one tangent and a zero. */
 inline SkM44 skewMatrix(float kx, float ky) {
   return SkM44(1, kx, 0, 0,  //
                ky, 1, 0, 0,  //

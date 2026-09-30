@@ -446,27 +446,6 @@ Also wanted by `cosmati`: every field and every roundel restates its marble fill
 
 Progress: `Rule` states marks and the matched rules' marks stand under the node's own (core/RuleMarks.cpp), with tests in brush/test/ComposeTestRuleMarks.cpp; cosmati, black_watch and fallout2 moved onto classes. Left: run compose_test, check those plates with --frame, then elastic_type and nightingale_coxcomb.
 
-## Two skew angles are one shear pair, where CSS's `skewX(a) skewY(a)` composes two shears
-
-A glyph's `skewXDeg` and `skewYDeg` (`TextFxPainting.cpp`, the per-glyph
-matrix route) and a node's `skewX` and `skewY` both build ONE shear matrix
-`[1 tan a; tan b 1]`, by design, so a glyph naming both leans without
-scaling. CSS's transform list `skewX(a) skewY(a)` is the product of two
-shears, `[1 + tan a·tan b, tan a; tan b, 1]`, which also widens the element
-along x by the product of the tangents. Animate.css's `jello` is written
-that way, so its extreme pose (a = b = −12.5°) is about five per cent wider
-in a browser than the word `elastic_type` draws from the same table.
-
-It evidently intends to read as CSS reads wherever a CSS name is borrowed:
-either the node's skew lanes follow CSS's order (x shear then y shear), or a
-transform list is expressible (an ordered `transform(...)` value on the node
-and in a `GlyphModifier`) so a table transcribed from CSS lands the browser's
-matrix. A test should set `skewX(-12.5)` and `skewY(-12.5)` on a 100 px box
-and assert its painted bounds match the CSS matrix — width
-`100·(1 + tan²12.5°) + 100·tan 12.5°` — or, if the pair stays the lane's
-meaning, that a CSS-ordered list door produces that width. Wanted by
-`elastic_type` (the jello row, per letter and on the whole word).
-
 ## `textFx::scramble` takes its charset as UTF-32 while every text door takes UTF-8
 
 `compose::textFx::scramble(std::u32string charset, int steps)`

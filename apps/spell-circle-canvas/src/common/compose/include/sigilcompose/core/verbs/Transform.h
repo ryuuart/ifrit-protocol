@@ -51,7 +51,9 @@ class TransformVerbs {
   Derived& skewX(motion::Animatable<float> degrees);
   /** Shear that slants HORIZONTALS, in degrees, about the transform
    *  origin. Zero when unstated; a positive angle pushes points
-   *  further right further down. */
+   *  further right further down. A node naming both lanes takes CSS's
+   *  `skewX(x) skewY(y)`, the y shear inside the x one, so it widens
+   *  along x by the product of the two tangents as a browser draws it. */
   Derived& skewY(motion::Animatable<float> degrees);
   /** THE PIVOT every rotation, scale and skew turns about — CSS
    *  `transform-origin`. A percentage is of the node's own box,
