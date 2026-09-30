@@ -560,7 +560,7 @@ struct DaemonConsole {
       // of turn), then hex churn, resolved by the end of the beat.
       leaf.textFx(
           {.where = selectors::style("cipher"),
-           .effect = textFx::hold(textFx::scramble(U"0123456789abcdef", 10)),
+           .effect = textFx::hold(textFx::scramble("0123456789abcdef", 10)),
            .tween = {.duration = 340ms, .delay = motion::stagger(30ms)}, 
            .unit = weave::Unit::Cluster,
            .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = 750ms, .delay = bootDelay, .ease = motion::ease::linear})});

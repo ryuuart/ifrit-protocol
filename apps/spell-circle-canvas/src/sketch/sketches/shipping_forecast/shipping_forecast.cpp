@@ -679,8 +679,7 @@ struct ShippingForecast {
         text(page["reading"])
             .styleClass("readout")
             .key("barometer")
-            .textFx({.effect = textFx::hold(textFx::scramble(
-                         U"0123456789ABCDEFGHJKLMNPRSTUVWXYZ", 16)),
+            .textFx({.effect = textFx::hold(textFx::scramble(page["charset"], 16)),
                      .tween = {.duration = 520ms, .delay = motion::stagger(26ms, {.from = motion::StaggerFrom::First})}, 
                      .progress = beat(2.25f, 4.10f)}),
         document::caption(page["note"]).opacity(beat(3.30f, 3.90f)),

@@ -245,12 +245,12 @@ struct MatrixRain {
   /** The one clock: seconds since the screen came up. */
   motion::Animatable<float> seconds = motion::animatable(0.0f);
   std::vector<std::string> kana, digits;
-  std::u32string kanaCodepoints, digitCodepoints, titleCodepoints;
+  std::u32string kanaCodepoints, digitCodepoints;
   uint32_t digitsOneIn = 1;
   std::vector<Plane> planes;
   std::string credit, statement, motto;
   struct {
-    std::string words;
+    std::string words, charset;
     float periodSeconds = 1, phaseSeconds = 0;
   } titleLine;
   struct {
@@ -413,7 +413,7 @@ struct MatrixRain {
                 .role("title")
                 .cache(Cache::Texture)
                 .filter(material::Filter::glow({0.16f, 1.0f, 0.38f, 0.85f}, 9))
-                .textFx({.effect = textFx::scramble(titleCodepoints, 18),
+                .textFx({.effect = textFx::scramble(titleLine.charset, 18),
                          .tween = {.duration = 1s},
                          .progress = reveal})
                 .textFx({.effect = arrival,
@@ -546,11 +546,9 @@ struct MatrixRain {
     motto = std::string(words["motto"].string());
     const data::Json& title = words["title"];
     titleLine = {.words = std::string(title["words"].string()),
+                 .charset = std::string(title["charset"].string()),
                  .periodSeconds = (float)title["periodSeconds"].number(),
                  .phaseSeconds = (float)title["phaseSeconds"].number()};
-    // workaround: `textFx::scramble` takes its charset as UTF-32, so the
-    // charset the words file carries is converted to reach it.
-    titleCodepoints = codepointsOf(title["charset"]);
     const data::Json& trace = words["trace"];
     traceLine = {.words = std::string(trace["words"].string()),
                  .eachMs = (float)trace["eachMs"].number(),
