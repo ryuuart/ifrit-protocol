@@ -122,5 +122,21 @@ struct NoiseOptions {
 /** FRACTAL NOISE at @p frequency cycles per local pixel, as a material. */
 Material noise(float frequency, NoiseOptions options = {});
 
+/** @p ground WITH A GRAIN IN IT: two octaves of luminance noise read as
+ *  LIGHT, so the ground is dressed in light rather than speckled in hue.
+ *  @p amount is how far the grain reaches, 0 answering @p ground exactly;
+ *  @p frequency is features per pixel — around 0.8 is film grain, around
+ *  0.05 is paper.
+ *
+ *  The grain moves every ground by the same amount of light, where the
+ *  noise is at its extremes a quarter of @p amount either way: the reach
+ *  soft light has over a mid grey, where it is widest. It is not soft
+ *  light, because soft light's reach falls with the ground's value, and
+ *  on a ground as dark as a night sky a grain soft-lit over it moves the
+ *  ground by less than one eight-bit level, where a dark ground is where
+ *  a film grain is most wanted. A channel the reach would carry past
+ *  black or white stops there. */
+Material grained(Color ground, float amount = 0.06f, float frequency = 0.8f);
+
 }  // namespace sigil::material
 

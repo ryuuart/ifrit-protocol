@@ -152,4 +152,24 @@ Material noise(float frequency, NoiseOptions options) {
                       options.turbulence);
 }
 
+Material grained(Color ground, float amount, float frequency) {
+  amount = std::clamp(amount, 0.0f, 1.0f);
+  if (amount <= 0.0f) return from(ground);
+  // The ground a quarter of the amount darker and lighter, and the noise
+  // choosing between them: mid-grey noise is the ground itself, and the
+  // grain's reach is the same on every ground rather than a fraction of
+  // its value.
+  const float reach = amount * 0.25f;
+  const Color darker{std::max(0.0f, ground.r - reach),
+                     std::max(0.0f, ground.g - reach),
+                     std::max(0.0f, ground.b - reach), ground.a};
+  const Color lighter{std::min(1.0f, ground.r + reach),
+                      std::min(1.0f, ground.g + reach),
+                      std::min(1.0f, ground.b + reach), ground.a};
+  return from(darker).layer(
+      from(lighter),
+      {.mask = Mask{.source = noise(frequency, {.octaves = 2, .grain = true}),
+                    .channel = MaskChannel::Luminance}});
+}
+
 }  // namespace sigil::material

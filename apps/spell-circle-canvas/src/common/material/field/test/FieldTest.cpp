@@ -12,12 +12,14 @@
 #include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Filter.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilshaders/MaterialField.h>
 #include <sigilmedia/advanced/Skia.h>
 
 #include <algorithm>
+#include <cmath>
 #include <vector>
 
 #include "ShaderTable.h"
@@ -27,6 +29,32 @@ using namespace sigil::material;
 using sigil::material::test::render;
 
 namespace {
+
+/** The standard deviation of the picture's luminance, in eight-bit
+ *  levels, read on the Rec.709 weights over the eight-bit channels. */
+double luminanceDeviation(const SkBitmap& bitmap) {
+  double sum = 0, squares = 0;
+  const double count = (double)bitmap.width() * bitmap.height();
+  for (int y = 0; y < bitmap.height(); ++y)
+    for (int x = 0; x < bitmap.width(); ++x) {
+      const SkColor colour = bitmap.getColor(x, y);
+      const double light = 0.2126 * SkColorGetR(colour) +
+                           0.7152 * SkColorGetG(colour) +
+                           0.0722 * SkColorGetB(colour);
+      sum += light;
+      squares += light * light;
+    }
+  const double mean = sum / count;
+  return std::sqrt(std::max(0.0, squares / count - mean * mean));
+}
+
+/** @p material lowered to the one Skia paint a layered material becomes,
+ *  and painted over a @p width × @p height surface. */
+SkBitmap painted(const Material& material, int width, int height) {
+  return render(skia::shader(skia::paint(material),
+                             {.resolution = {(float)width, (float)height}}),
+                width, height);
+}
 
 int coverage(const SkBitmap& bm, int y) {
   int n = 0;
@@ -64,6 +92,24 @@ TEST(Field, GrainIsMonochromeAndVaries) {
   EXPECT_EQ(g, field::grain(0.3f, 3, 4.0f, 1.0f));
   EXPECT_FALSE(g == field::grain(0.3f, 4, 4.0f, 1.0f));
   EXPECT_EQ(field::grainRecipe(3).get(), field::grainRecipe(3).get());
+}
+
+// A grain moves a near-black ground as far as it moves a mid-tone one,
+// since a dark ground is where a grain is most wanted, and no grain at
+// all is the ground exactly.
+TEST(Field, AGrainHoldsItsStrengthOnADarkGround) {
+  const Color night = hexColor(0x0B111A), clay = hexColor(0x8A7560);
+  const double dark = luminanceDeviation(painted(grained(night, 0.1f), 256, 256));
+  const double middle = luminanceDeviation(painted(grained(clay, 0.1f), 256, 256));
+  EXPECT_GT(middle, 1.0);
+  EXPECT_GE(dark, 0.75 * middle) << "dark " << dark << ", mid-tone " << middle;
+
+  for (const Color ground : {night, clay}) {
+    EXPECT_EQ(grained(ground, 0.0f), from(ground));
+    const SkBitmap still = painted(grained(ground, 0.0f), 64, 64);
+    const SkBitmap flat = painted(from(ground), 64, 64);
+    EXPECT_TRUE(sigil::material::test::identical(still, flat));
+  }
 }
 
 TEST(Field, NoiseComparesByParametersAndShades) {

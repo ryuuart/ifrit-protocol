@@ -636,52 +636,6 @@ Wanted by `karaoke_wipe`, whose sung line glows through a blurred copy of
 itself added under it (a second text leaf on the same tracks) because the
 one-node bloom does not fit a frame.
 
-## `grained` puts no grain on a near-black ground
-
-The `grained(over, amount, frequency)` the ground studies carry
-(`axis_ripple`, `chladni_tab1`, `elastic_type`, `nightingale_coxcomb`)
-layers `material::noise(frequency, {.grain = true})` over `over` with
-`BlendMode::SoftLight` at `amount` opacity.
-Soft light has two halves, and both scale with the ground's value `d`.
-Where the noise `s` is below mid grey it darkens by `d·(1−d)·(1−2s)`;
-where it is above, it lightens by `(2s−1)·(D(d)−d)`, and for `d ≤ 0.25`
-`D(d)−d = 16d³ − 12d² + 3d`, which tends to `3d` as `d` falls and is
-about `2.3·d` at `d = 0.07`. So on a ground as dark as a night sky or
-a night sea, the noise moves the ground by under one 8-bit level either
-way. `shipping_forecast` measured it on its sea (`0x0B111A`): at
-`amount = 0.5` the ground's standard deviation over a 100 px patch at
-2x was 0.36 levels against 0.13 with no grain. Laying a mid grey
-grained at full strength over the ground as a separate translucent
-layer does not help either: the noise the kit keeps has so little
-range that at 14% opacity it lifted the ground's mean by ten levels and
-its deviation only to 0.7.
-
-The function is meant to dress ANY ground in grain as light, and says
-so in its comment ("dressed in light rather than speckled in hue").
-Dark grounds are where film grain and phosphor grain are most wanted.
-
-A test should render `grained(c, 0.1f)` over a 256×256 box for a
-near-black `c` (`0x0B111A`) and a mid-tone `c`, and assert that the
-luminance standard deviation of the dark one reaches at least a stated
-fraction of the mid-tone one's (a grain whose strength does not
-collapse with the ground's value — for instance soft light replaced by
-an additive light term scaled by `amount`, or the noise's range
-normalised before the blend), while `amount = 0` still returns `c`
-exactly.
-
-Wanted by `shipping_forecast` (its night sea carries no grain, and a
-comment beside the ground says why). `elastic_type` and `axis_ripple`
-also call `grained` and would move with it.
-
-Not a new finding: append `axis_ripple` to the wanted-by list of the
-entry of that name (filed from `shipping_forecast`). Its ground asks
-for `grained(0x0C0C0E, 0.07f, 0.85f)`, and a 100 x 80 px patch of
-that ground at 2x measures a luminance standard deviation of 0.58
-8-bit levels with the vignette's slope included, so no grain reads.
-The sketch keeps the call, with a comment beside the ground stating
-the constraint, so the grain appears when the grain holds its
-strength on a dark ground.
-
 ## A node filled with a material recipe takes its bake again on every describe, even when the paint is held
 
 `chladni_tab1` fills its stars with `ink`, a `material::skia::Paint`
