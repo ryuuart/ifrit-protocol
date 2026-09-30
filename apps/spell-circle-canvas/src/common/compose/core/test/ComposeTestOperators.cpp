@@ -562,3 +562,24 @@ TEST(ComposeOperators, AnOperatorWithNoEqualityNeverPrunes) {
   EXPECT_TRUE(ring == Operator(AroundRing{}));
   EXPECT_FALSE(ring == Operator(AroundRing{.radiusFraction = 0.5f}));
 }
+
+TEST(ComposeOperators, AnOutOfOrderListIsReportedByWhereItStands) {
+  // The report exists to locate the list. A keyless container has no name
+  // of its own, so it is named by the child indices that lead to it from
+  // its nearest keyed ancestor — never by an empty string.
+  Host host;
+  ::testing::internal::CaptureStderr();
+  host.composer.render(
+      box().key("operator-order-scope").width(200).height(200).children(
+          {box().width(10).height(10),
+           box().width(200).height(100).children(
+               {box().key("order-a").width(20).height(20),
+                box().key("order-b").width(20).height(20)})
+               .operators({Wire{"order-a", "order-b"}, Nudge{{4, 0}}})}));
+  host.frame();
+  const std::string report = ::testing::internal::GetCapturedStderr();
+  EXPECT_EQ(report.find("on \"\""), std::string::npos) << report;
+  EXPECT_NE(report.find("on \"operator-order-scope\" > child 1:"),
+            std::string::npos)
+      << report;
+}

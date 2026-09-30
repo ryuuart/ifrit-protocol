@@ -151,18 +151,6 @@ upstream — `precompile` should refuse a key it cannot resolve — and a
 test should assert that a key naming an unmade piece comes back false
 rather than taking the process down.
 
-## The operator-order report names a keyless node as `""`
-
-`Composer::Impl::rebuildKeyIndex` (`core/Reconcile.cpp`) reports an
-arranging operator listed after an adding one as
-`.operators() on "<key>"`, and a node with no key prints as `""`, which
-tells the author nothing about which node to look at. The report is
-meant to locate the list. It should name the node by its key when it has
-one and otherwise by its place — the path of child indices from the root,
-or the nearest keyed ancestor and the index under it. A test should
-build a keyless container with the two operators reversed and assert the
-report names a place rather than an empty string.
-
 ## `connect::Along`, `pin::`, `outline::` and `stamp::` are not bound in Python
 
 `src/common/python/compose/Schemes.cpp` builds an `Operator` from every
