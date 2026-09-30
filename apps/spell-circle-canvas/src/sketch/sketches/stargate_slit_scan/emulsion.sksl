@@ -1,0 +1,18 @@
+uniform shader content;
+uniform float seconds;
+
+float grainHash(float2 p) {
+    float3 q = fract(float3(p.xyx) * float3(.1031, .1030, .0973));
+    q += dot(q, q.yxz + 33.33);
+    return fract((q.x + q.y) * q.z);
+}
+
+half4 main(float2 xy) {
+    float frame = floor(seconds * 24.0);
+    half4 source = content.eval(xy);
+    float luminance = dot(float3(source.rgb), float3(.2126, .7152, .0722));
+    float grain = grainHash(floor(xy) + float2(frame * 17.0, frame * 43.0)) - .5;
+    float amount = .008 * smoothstep(.006, .16, luminance) + .009 * sqrt(max(luminance, 0.0));
+    float flicker = 1.0 + .003 * sin(frame * 1.753);
+    return half4(clamp(float3(source.rgb) * flicker + grain * amount, 0.0, 1.0), source.a);
+}

@@ -1298,6 +1298,30 @@ captures should reproduce the same history. Resize and session reload
 should follow an explicit reset or preservation policy, and a skipped
 frame should not silently change the stated decay law.
 
+The Passage optical study adds a related desire: a bounded exposure window
+over an arbitrary retained source. Analytic procedural samples and the
+existing `slitscan_2001` weighted sprite construction already express a
+finite exposure without stored history. Python exposes those sprite
+seams, including per-instance additive blending; no new history API is
+required for that construction.
+
+The remaining source contract matters when the exposed subject is an
+arbitrary retained composition. `SceneSource::frameAt` currently returns
+its latest image without evaluating the requested time, and
+`TextureScene::render` advances its engine by a nonnegative time delta.
+These are current-image semantics, not random-access scene history.
+The requested temporal window should distinguish sources that can be
+reconstructed at a time from live sources requiring buffered frames. Its
+exposure interval, sample weights, history bound and reset behavior should
+be explicit. This is a source-backed API request, not a failed runtime
+probe or a rendering defect.
+
+Acceptance should compare a reconstructed exposure after direct seeking
+with one reached by sequential stepping, preserve integrated energy when
+sample count changes, evict frames beyond the stated window and expose a
+defined reset/resize policy. Capture cadence should not change the
+exposure's duration.
+
 
 ## Bug: Python shader constructor advertises live uniforms it cannot accept
 
