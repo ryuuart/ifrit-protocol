@@ -161,6 +161,12 @@ struct Table {
   }
 };
 
+/** What the throw does to a picture it projects: see `Projection.h`. */
+Filter projected() {
+  const ds2_bench::ProjectionParameters projection{};
+  return Filter::of(ds2_bench::projection(projection), ds2_bench::projectionReach(projection));
+}
+
 /** THE CARD the selected socket unfolds, in the panel's coordinates. */
 struct Card {
   static constexpr float x = 570, y = 294, width = 364, height = 176;
@@ -187,21 +193,20 @@ struct Ds2Bench {
    *  times, holding, and falling back across its last two — read off the
    *  loop, eased, and put onto @p to. */
   motion::Animatable<float> beat(std::string_view name, motion::Range to,
-                                 motion::Easing ease = motion::ease::inOutCubic) const {
+                                 motion::Easing ease = motion::ease::inOutCubic,
+                                 motion::Wiggle wiggle = {}) const {
     const data::Json& times = bench["choreography"][name];
     const auto at = [&](size_t index) { return (float)times[index].number() / period(); };
     return motion::bind(cycle(), {.envelope = motion::envelope::trapezoid(at(0), at(1), at(2), at(3)),
                                   .ease = std::move(ease),
-                                  .to = to});
+                                  .to = to,
+                                  .wiggle = wiggle});
   }
 
   /** THE EMITTER'S SUPPLY: the throw is never quite steady. */
-  motion::Animatable<float> flicker(float level) const {
-    return motion::bind(seconds, {.to = {level, level},
-                                  .wiggle = {.amount = level * 0.07f,
-                                             .frequency = 9,
-                                             .seed = 11,
-                                             .octaves = 3}});
+  motion::Animatable<float> flicker() const {
+    return motion::bind(seconds, {.to = {1, 1},
+                                  .wiggle = {.amount = 0.07f, .frequency = 9, .seed = 11, .octaves = 3}});
   }
 
   /** Where a cell of the board stands on the panel. */
@@ -282,6 +287,14 @@ struct Ds2Bench {
         });
   }
 
+  /** A LIGHT THE THROW CASTS at @p place: kept as one image under @p key,
+   *  added to whatever is behind it, and flickering with the emitter. */
+  Element cast(Element place, std::string key, std::vector<Element> content) const {
+    return place.blendMode(material::BlendMode::PlusLighter)
+        .opacity(flicker())
+        .children({box().inset(0).key(std::move(key)).cache(Cache::Texture).children(std::move(content))});
+  }
+
   /** THE THROW'S LIGHT on the floor: a pool about the bench, and the
    *  panel's own glow lying along the floor under its foot. */
   Element floorLight() const {
@@ -291,13 +304,8 @@ struct Ds2Bench {
           .fill(Fill::color(light(alpha)))
           .filter(Filter::blur(blur));
     };
-    return kit::at(0, kHorizon - 30, kWidth, kHeight - kHorizon + 30)
-        .blendMode(material::BlendMode::PlusLighter)
-        .opacity(flicker(1))
-        .children({box().inset(0).key("floor-light").cache(Cache::Texture).children({
-            glow(220, 40, 760, 150, 0.16f, 44),
-            glow(150, 22, 900, 34, 0.22f, 14),
-        })});
+    return cast(kit::at(0, kHorizon - 30, kWidth, kHeight - kHorizon + 30), "floor-light",
+                {glow(220, 40, 760, 150, 0.16f, 44), glow(150, 22, 900, 34, 0.22f, 14)});
   }
 
   /** THE CONE OF THE THROW: light widening from the lens to the panel's
@@ -311,30 +319,26 @@ struct Ds2Bench {
       ray.points = {apex, {foot, 0}};
       rays.push_back(pathFigure(path::toPath(ray), 4).stroke(stroke(3, Fill::color(light(0.05f)))));
     }
-    return kit::at(left, top, width, height)
-        .blendMode(material::BlendMode::PlusLighter)
-        .opacity(flicker(1))
-        .children({box().inset(0).key("cone").cache(Cache::Texture).filter(Filter::blur(3)).children({
-            box()
-                .inset(0)
-                .shape(shapes::svg("M0 0 L920 0 L468 444 L452 444 Z"))
-                .fill(material::linearGradient({0, 0}, {0, 1},
-                                               {{0.0f, light(0)},
-                                                {0.6f, light(0.05f)},
-                                                {0.9f, light(0.14f)},
-                                                {1.0f, white(0.4f)}})),
-            box().inset(0).children(std::move(rays)),
-        })});
+    return cast(kit::at(left, top, width, height), "cone",
+                {box().inset(0).filter(Filter::blur(3)).children({
+                    box()
+                        .inset(0)
+                        .shape(shapes::svg("M0 0 L920 0 L468 444 L452 444 Z"))
+                        .fill(material::linearGradient({0, 0}, {0, 1},
+                                                       {{0.0f, light(0)},
+                                                        {0.6f, light(0.05f)},
+                                                        {0.9f, light(0.14f)},
+                                                        {1.0f, white(0.4f)}})),
+                    box().inset(0).children(std::move(rays)),
+                })});
   }
 
   /** The lens itself, burning at the heart of the throw. */
   Element lens() const {
-    return kit::disc(kLens, 46)
-        .blendMode(material::BlendMode::PlusLighter)
-        .opacity(flicker(1))
-        .children({box().inset(0).key("lens").cache(Cache::Texture).fill(material::radialGradient(
-            {0.5f, 0.5f}, 0.5f,
-            {{0.0f, white(0.95f)}, {0.12f, light(0.6f)}, {0.4f, light(0.12f)}, {1.0f, light(0)}}))});
+    return cast(kit::disc(kLens, 46), "lens",
+                {box().inset(0).fill(material::radialGradient(
+                    {0.5f, 0.5f}, 0.5f,
+                    {{0.0f, white(0.95f)}, {0.12f, light(0.6f)}, {0.4f, light(0.12f)}, {1.0f, light(0)}}))});
   }
 
   // ------------------------------------------------------------ the panel
@@ -534,12 +538,11 @@ struct Ds2Bench {
   /** EVERYTHING ON THE PANEL THAT STANDS STILL, as one image the throw
    *  projects. */
   Element panelArt() const {
-    const ds2_bench::ProjectionParameters projection{};
     return box()
         .inset(0)
         .key("panel")
         .cache(Cache::Texture)
-        .filter(Filter::of(ds2_bench::projection(projection), ds2_bench::projectionReach(projection)))
+        .filter(projected())
         .children({sheet(), header(), board(), table(), rig()});
   }
 
@@ -587,12 +590,8 @@ struct Ds2Bench {
     const glm::vec2 from = pair(bench["choreography"]["cursorFrom"]);
     const glm::vec2 to = selected() + glm::vec2(16, 16);
     const auto axis = [&](float start, float end, uint32_t seed) {
-      const data::Json& times = bench["choreography"]["cursor"];
-      const auto at = [&](size_t index) { return (float)times[index].number() / period(); };
-      return motion::bind(cycle(), {.envelope = motion::envelope::trapezoid(at(0), at(1), at(2), at(3)),
-                                    .ease = motion::ease::inOutCubic,
-                                    .to = {start, end},
-                                    .wiggle = {.amount = 1.5f, .frequency = 5, .seed = seed, .octaves = 2}});
+      return beat("cursor", {start, end}, motion::ease::inOutCubic,
+                  {.amount = 1.5f, .frequency = 5, .seed = seed, .octaves = 2});
     };
     return kit::at(-14, -14, 28, 28)
         .translateX(axis(from.x, to.x, 3))
@@ -614,12 +613,11 @@ struct Ds2Bench {
           text(line[size_t(0)].string()).styleClass("caption"),
           text(line[1].string()).styleClass("label"),
       }));
-    const ds2_bench::ProjectionParameters projection{};
     return box()
         .inset(0)
         .key("card")
         .cache(Cache::Texture)
-        .filter(Filter::of(ds2_bench::projection(projection), ds2_bench::projectionReach(projection)))
+        .filter(projected())
         .children({
             box().inset(0).shape(shapes::chamfered(10))
                 .fill(material::linearGradient({0, 0}, {0, 1}, {{0.0f, light(0.16f)}, {1.0f, light(0.07f)}}))
@@ -710,7 +708,7 @@ struct Ds2Bench {
   Element hologram() const {
     return kit::at(kPanelX, kPanelY, kPanelWidth, kPanelHeight)
         .blendMode(material::BlendMode::PlusLighter)
-        .opacity(flicker(1))
+        .opacity(flicker())
         .children({panelArt(), scan(), beckon(), vitals(), preview(), bracket(), card(), cursor()});
   }
 
