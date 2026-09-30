@@ -560,48 +560,6 @@ Add `karaoke_wipe` to that entry's wanted-by list: its glow is a second,
 blurred copy of the sung line sung from black, where one glyph-outline
 glow on the line would do.
 
-## A node filled with a material recipe takes its bake again on every describe, even when the paint is held
-
-`chladni_tab1` fills its stars with `ink`, a `material::skia::Paint`
-held as a member and built once in `setup()` as
-`Paint::blend({{Paint::solid(ink), kSrc}, {Paint::recipe(field::grain(0.09f, 3, 4.0f, 0.35f)), kSoftLight}})`,
-handed to the node as `.fill(material::skia::base(ink))`, each star
-under `Cache::Texture`. Describing the unchanged tree again —
-the same members, the same held paint — makes the frame of each describe
-several times the steady frame, and that frame's bakes are the stars':
-with the stars filled by `Fill::var("ink")`, or by a `Paint::blend` of
-two solids, the same describes leave the frame flat, and with
-`Paint::recipe(field::grain(...))` alone as the fill they spike as the
-blend does. So the recipe-backed layer, not the blend, is what keeps the
-node from pruning or keeps its texture from surviving the prune. Where
-it goes wrong was not traced: `material::skia::base(paint)` as a fill
-stores a geometry-dependent material in the live slot, and
-`materialEqual` (`compose/core/ReconcileEquality.cpp`) answers false for
-any live slot that reports `isRunning()` and is not pan-only; `field::grain`'s shader
-reads neither time nor content scale, so either the recipe reports a
-frame input it does not read, or the live slot's texture is dropped on
-re-patch whatever the compare answers.
-
-It evidently means what `Paint::operator==` documents — "re-running the
-same describe code yields EQUAL paints" — and what `materialEqual`
-states for geometry-dependent static materials: they "compare by recipe,
-so identical re-describes prune like any other static material". A
-grain whose recipe, bytes and bindings are the same is the same paint,
-and a texture over it stands until something it depends on changes.
-
-A test should fill a 200 x 200 box with
-`material::skia::base(Paint::recipe(field::grain(0.09f, 3, 4.0f, 0.35f)))` under
-`Cache::Texture`, draw, describe the identical tree, draw again and
-assert the second draw takes no bake; the same with the recipe as the
-soft-light layer of a `Paint::blend` over a solid; and that changing the
-grain's frequency does take a bake.
-
-Wanted by `chladni_tab1`, which for this reason shows the bowed figure's
-live sand by a stepped value over two stampings of every figure's pool,
-a baked one and a live one, instead of describing the tree again when
-the bow moves to the next figure; any sketch that describes again over a
-grained ink or ground meets it.
-
 ## An echo and a shadow take their colour as a value, so neither can follow the sheet's ink
 
 An echo is `material::Filter::shadow(material::Color, {.offset})` in the

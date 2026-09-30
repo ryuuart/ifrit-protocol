@@ -4,6 +4,7 @@
 // uTime making a material live, a snapshot sampling it now, and a stable live
 // resolve replaying its picture and blitting its texture.
 
+#include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
@@ -379,4 +380,57 @@ TEST(ComposeMaterial, StableLiveResolveBlitsTheTexture) {
   phase = 0.75f;
   host.frame();  // real change → one re-bake
   EXPECT_GE(host.composer.stats().picturesRecorded, 1u);
+}
+
+namespace {
+
+/** A 200 x 200 texture-cached box filled with @p fill. */
+Element grainedBox(const material::Material& fill) {
+  return box().children({box()
+                             .key("grained")
+                             .width(200)
+                             .height(200)
+                             .cache(Cache::Texture)
+                             .fill(fill)});
+}
+
+}  // namespace
+
+TEST(ComposeMaterial, AHeldRecipeFillKeepsItsBakeAcrossIdenticalDescribes) {
+  // A recipe whose bytes and bindings are the same is the same paint:
+  // describing the identical tree again prunes, and the texture over it
+  // stands until something it depends on changes.
+  using material::Paint;
+  const auto grain = [](float frequency) {
+    return Paint::recipe(material::field::grain(frequency, 3, 4.0f, 0.35f));
+  };
+  const material::Color blue{0.2f, 0.3f, 0.8f, 1.0f};
+  const std::pair<const char*, material::Material> fills[] = {
+      {"the recipe alone", material::skia::base(grain(0.09f))},
+      {"the recipe in a blend",
+       material::skia::base(Paint::blend(
+           {{Paint::solid(blue), material::BlendMode::Normal},
+            {grain(0.09f), material::BlendMode::SoftLight}}))},
+      {"the recipe as a layer",
+       material::from(blue).layer(
+           material::field::grain(0.09f, 3, 4.0f, 0.35f),
+           {.blend = material::BlendMode::SoftLight})},
+  };
+  for (const auto& [what, fill] : fills) {
+    Host host(240, 240);
+    host.composer.render(grainedBox(fill));
+    host.frame();
+    ASSERT_EQ(host.composer.stats().texturesBaked, 1u) << what;
+    host.composer.render(grainedBox(fill));
+    host.frame(1.0 / 60.0);
+    EXPECT_EQ(host.composer.stats().texturesBaked, 0u)
+        << what << " was baked again by an identical describe";
+  }
+  // A different frequency is a different paint, and takes its bake.
+  Host host(240, 240);
+  host.composer.render(grainedBox(material::skia::base(grain(0.09f))));
+  host.frame();
+  host.composer.render(grainedBox(material::skia::base(grain(0.12f))));
+  host.frame(1.0 / 60.0);
+  EXPECT_EQ(host.composer.stats().texturesBaked, 1u);
 }
