@@ -159,6 +159,16 @@ bool Composer::Impl::phaseAdditions() {
         if (op.zIndexStated())
           startWithOperatorZIndex(node->fields, *op.zIndexStated());
         layClassesUnder(*node, op.classesStated());
+        // The identity verbs the operator states land where the element
+        // left the node's default.
+        if (op.hitTestableStated() && node->hitTestable)
+          node->hitTestable = *op.hitTestableStated();
+        if (op.cacheStated() && node->cacheMode == Cache::Auto)
+          node->cacheMode = *op.cacheStated();
+        if (op.cacheScaleStated() && node->bakeScale == 1.0f)
+          node->bakeScale = std::clamp(*op.cacheScaleStated(), 0.1f, 1.0f);
+        if (op.transitionStated() && !node->nodeTransition)
+          node->nodeTransition.ensure() = *op.transitionStated();
         Instance* owner = attachment.owner == Scope::Attachment::kScope
                               ? inst
                               : owners[attachment.owner];

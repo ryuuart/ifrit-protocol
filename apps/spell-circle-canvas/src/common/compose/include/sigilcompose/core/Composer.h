@@ -316,7 +316,10 @@ class Composer {
    *  Paint-order aware (zIndex, then declaration order, topmost first),
    *  transform-aware (rotated, scaled and translated nodes hit in their
    *  visual place), and shape-aware (custom outlines and corner radii
-   *  bound the hit region, so the gap between a star's arms misses). A
+   *  bound the hit region, so the gap between a star's arms misses). An
+   *  OPEN contour in an outline — a wire, an arc — is hit along its line,
+   *  within 6 units of it in the node's own space, and not inside the
+   *  region a fill would close it over. A
    *  keyless node's hit resolves to its nearest keyed ancestor, and
    *  clipped subtrees do not hit outside their clip.
    *

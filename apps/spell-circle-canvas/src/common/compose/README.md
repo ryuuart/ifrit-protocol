@@ -420,7 +420,10 @@ layout with the additions standing, which moves nothing that was
 authored, and an unchanged tree mounts its additions once. `zIndex` and
 `styleClass` on the `Operator` itself are what its additions paint at
 and are dressed by where they state none of their own, so
-`.zIndex(-1)` puts a whole operator's wires behind the nodes they join.
+`.zIndex(-1)` puts a whole operator's wires behind the nodes they join;
+`hitTestable`, `cache`, `cacheScale` and `transition` on it land on every
+addition that leaves that verb at a node's default, so
+`.hitTestable(false)` lets the pointer through a whole operator's marks.
 The arranging operators are written first in the list, since they run
 first whatever the list says; a list that says otherwise is reported.
 

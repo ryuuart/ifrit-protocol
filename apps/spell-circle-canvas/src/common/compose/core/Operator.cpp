@@ -125,6 +125,17 @@ Scope Scope::snapshot() const {
   return Scope(*this);
 }
 
+bool Operator::operator==(const Operator& other) const {
+  if (!(m_held == other.m_held) || m_zIndex != other.m_zIndex ||
+      m_classes != other.m_classes || m_hitTestable != other.m_hitTestable ||
+      m_cache != other.m_cache || m_cacheScale != other.m_cacheScale)
+    return false;
+  if (!m_transition || !other.m_transition)
+    return !m_transition && !other.m_transition;
+  return m_transition == other.m_transition ||
+         motion::tweenEqual(*m_transition, *other.m_transition);
+}
+
 namespace detail {
 
 LayoutInput layoutInputOf(const Arrangement& arrangement) {

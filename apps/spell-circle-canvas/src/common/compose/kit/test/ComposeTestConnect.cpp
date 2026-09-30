@@ -190,3 +190,45 @@ TEST(ComposeConnect, TheOperatorsZIndexPutsTheWiresBehindTheNodes) {
   EXPECT_EQ(host.pixel(30, 100), SK_ColorGREEN);  // the node, over the wire
   EXPECT_EQ(host.pixel(100, 100), SK_ColorRED);
 }
+
+TEST(ComposeConnect, AWireIsHitAlongItsRouteAndNowhereBesideIt) {
+  // A wire is an open path: it answers along its line, within the reach a
+  // pointer is given, and not inside the region the route's implicit
+  // closure would enclose. The elbow from a's centre to b's runs across
+  // to x = 170 at y = 30, then down; the triangle its closure encloses
+  // is empty space.
+  Host host;
+  host.composer.render(
+      box().width(200).height(200)
+          .children({node("a", 20, 20), node("b", 160, 160)})
+          .operators({connect::Along{
+              .stops = {Anchor::on("a"), Anchor::at({170.0f, 30.0f}),
+                        Anchor::on("b")},
+              .wire = stroke(2.0f, red())}}));
+  host.frame();
+  const auto route = host.composer.bounds("a->b");
+  ASSERT_TRUE(route.has_value());
+  EXPECT_EQ(host.composer.hitTest({100, 30}), "a->b");  // on the route
+  EXPECT_EQ(host.composer.hitTest({100, 34}), "a->b");  // within its reach
+  EXPECT_EQ(host.composer.hitTest({23, 37}), "a");      // in a, off the line
+  EXPECT_EQ(host.composer.hitTest({120, 90}), std::nullopt);  // inside the
+                                                              // closure
+  EXPECT_EQ(host.composer.hitTest({100, 50}), std::nullopt);  // beside it
+}
+
+TEST(ComposeConnect, AnOperatorMarkedUntestableLetsTheNodeUnderItAnswer) {
+  Host host;
+  host.composer.render(
+      box().width(200).height(200)
+          .children({box().key("pad").left(80).top(80).width(40).height(40)})
+          .operators({Operator(connect::Along{
+                          .stops = {Anchor::at({10.0f, 100.0f}),
+                                    Anchor::at({190.0f, 100.0f})},
+                          .wire = stroke(4.0f, red()),
+                          .key = "rail"})
+                          .hitTestable(false)}));
+  host.frame();
+  ASSERT_TRUE(host.composer.bounds("rail").has_value());
+  EXPECT_EQ(host.composer.hitTest({100, 100}), "pad");  // under the wire
+  EXPECT_EQ(host.composer.hitTest({40, 100}), std::nullopt);
+}

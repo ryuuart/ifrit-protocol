@@ -23,10 +23,12 @@
 #include <sigilcompose/core/Attributes.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcore/comparable/Erased.h>
+#include <sigilmotion/values/Tween.h>
 
 #include <concepts>
 #include <cstddef>
 #include <limits>
+#include <memory>
 #include <optional>
 #include <span>
 #include <string>
@@ -305,7 +307,9 @@ struct SchemeModel : OperatorOperations {
  *  What an ADDING operator attaches takes the properties stated on the
  *  operator itself — `zIndex`, which is where its additions paint among
  *  the owner's children, and `styleClass`, the classes a sheet dresses
- *  them by — unless the element states its own.
+ *  them by — unless the element states its own; and the identity verbs
+ *  `hitTestable`, `cache`, `cacheScale` and `transition`, on every
+ *  element that leaves that verb at a node's default.
  *
  *  Held as one shared immutable pointer, so a node carrying an operator
  *  list costs a pointer per entry. */
@@ -368,19 +372,59 @@ class Operator {
     m_classes = std::string(names);
     return *this;
   }
+  /** WHETHER THE ADDITIONS ANSWER A HIT — `Element::hitTestable` on every
+   *  element this operator attaches that leaves it at the default, so
+   *  `.hitTestable(false)` lets the pointer through a whole operator's
+   *  marks to what they dress. */
+  Operator& hitTestable(bool enabled) {
+    m_hitTestable = enabled;
+    return *this;
+  }
+  /** WHAT THE PAINTER MAY KEEP of each addition — `Element::cache` on
+   *  every element this operator attaches that leaves it at `Cache::Auto`. */
+  Operator& cache(Cache mode) {
+    m_cache = mode;
+    return *this;
+  }
+  /** `Element::cacheScale` on every addition that leaves its bake at full
+   *  resolution. */
+  Operator& cacheScale(float factor) {
+    m_cacheScale = factor;
+    return *this;
+  }
+  /** HOW THE ADDITIONS' PLAIN CONSTANTS CHANGE — `Element::transition` on
+   *  every element this operator attaches that states none of its own. */
+  Operator& transition(motion::Tween<float> timing) {
+    m_transition =
+        std::make_shared<const motion::Tween<float>>(std::move(timing));
+    return *this;
+  }
+  Operator& transition(motion::Duration duration) {
+    return transition(motion::Tween<float>{.duration = duration});
+  }
   std::optional<int> zIndexStated() const { return m_zIndex; }
   const std::string& classesStated() const { return m_classes; }
-
-  bool operator==(const Operator& other) const {
-    return m_held == other.m_held && m_zIndex == other.m_zIndex &&
-           m_classes == other.m_classes;
+  std::optional<bool> hitTestableStated() const { return m_hitTestable; }
+  std::optional<Cache> cacheStated() const { return m_cache; }
+  std::optional<float> cacheScaleStated() const { return m_cacheScale; }
+  const motion::Tween<float>* transitionStated() const {
+    return m_transition.get();
   }
+
+  /** The held value and every property stated on the operator. */
+  bool operator==(const Operator& other) const;
 
  private:
   core::Erased<detail::OperatorOperations> m_held;
   bool m_readsChildMinSizes = false;
   std::optional<int> m_zIndex;
   std::string m_classes;
+  std::optional<bool> m_hitTestable;
+  std::optional<Cache> m_cache;
+  std::optional<float> m_cacheScale;
+  // Boxed: a tween is several times the size of the rest of the operator,
+  // and most operators state none.
+  std::shared_ptr<const motion::Tween<float>> m_transition;
 };
 
 }  // namespace sigil::compose

@@ -7,6 +7,8 @@
  */
 
 #include <include/core/SkPathBuilder.h>
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilgeometry/path/Contour.h>
 #include <sigilgeometry/path/Numeric.h>
 
 #include <cmath>
@@ -17,11 +19,69 @@ namespace sigil::compose {
 
 using namespace detail;
 
+namespace {
+
+/** How far from an open contour's line a point still lands on it, in the
+ *  node's own units: the reach a pointer is given along a wire or an arc,
+ *  whose drawn width is the dress's business and not the shape's. */
+constexpr float kOpenContourReach = 6.0f;
+
+/** Whether @p local lands on @p outline: inside its CLOSED contours under
+ *  the path's fill rule, or within `kOpenContourReach` of the line of an
+ *  OPEN one. An open contour is a line, and the region the fill's implicit
+ *  close would enclose — the lens under an arc, the triangle inside an
+ *  elbow — is empty space beside what is drawn along it. */
+bool outlineContains(const SkPath& outline, SkPoint local) {
+  SkPathBuilder closedPart(outline.getFillType());
+  SkPathBuilder contour;
+  bool open = false;
+  bool anyOpen = false;
+  const auto finish = [&] {
+    if (contour.isEmpty()) return;
+    if (open)
+      anyOpen = true;
+    else
+      closedPart.addPath(contour.detach());
+    contour = SkPathBuilder();
+  };
+  SkPath::Iter iter(outline, false);
+  SkPoint points[4];
+  for (SkPath::Verb verb; (verb = iter.next(points)) != SkPath::kDone_Verb;) {
+    switch (verb) {
+      case SkPath::kMove_Verb:
+        finish();
+        open = !iter.isClosedContour();
+        contour.moveTo(points[0]);
+        break;
+      case SkPath::kLine_Verb: contour.lineTo(points[1]); break;
+      case SkPath::kQuad_Verb: contour.quadTo(points[1], points[2]); break;
+      case SkPath::kConic_Verb:
+        contour.conicTo(points[1], points[2], iter.conicWeight());
+        break;
+      case SkPath::kCubic_Verb:
+        contour.cubicTo(points[1], points[2], points[3]);
+        break;
+      case SkPath::kClose_Verb: contour.close(); break;
+      default: break;
+    }
+  }
+  finish();
+  if (!anyOpen) return outline.contains(local.x(), local.y());
+  if (closedPart.detach().contains(local.x(), local.y())) return true;
+  const glm::vec2 point = geometry::path::fromSk(local);
+  for (const geometry::path::Contour& line :
+       geometry::path::Contour::of(geometry::path::fromSk(outline)))
+    if (!line.closed() && line.nearest(point).gap <= kOpenContourReach)
+      return true;
+  return false;
+}
+
+}  // namespace
+
 bool Composer::Impl::shapeContains(Instance& inst, SkPoint local,
                                    SkSize size) const {
   const ElementNode& node = *inst.description;
-  if (node.shapeFn)
-    return resolveOutline(inst, size).contains(local.x(), local.y());
+  if (node.shapeFn) return outlineContains(resolveOutline(inst, size), local);
   const SkRect bounds = SkRect::MakeWH(size.width(), size.height());
   if (!bounds.contains(local.x(), local.y())) return false;
   const Corners& corners = inst.computed.corners;
