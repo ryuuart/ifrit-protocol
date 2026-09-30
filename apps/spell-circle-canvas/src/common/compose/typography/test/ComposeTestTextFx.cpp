@@ -4,6 +4,8 @@
 //
 // The text binary's share of the content suites, one file per subject.
 
+#include <sigilmaterial/filter/Filter.h>
+
 #include <numeric>
 
 #include "DressedTypeProbes.h"
@@ -571,4 +573,62 @@ TEST(ComposeTextFx, SettledMultiTrackTextStopsPaintingLive) {
   host.frame(0.016);
   EXPECT_GT(host.composer.stats().nodesPainted, 0u)
       << "the second track moved and nothing re-declared";
+}
+
+TEST(ComposeTextFx, ATrackBoundToAHeldValueKeepsItsBake) {
+  // A bound progress costs what it changes. A clock the engine keeps
+  // running, stretched and clamped so the tracks read exactly 1, is the
+  // same input to the leaf as the constant 1, so the cached leaf keeps the
+  // bake its first frame took however many frames the clock advances —
+  // through the frame its volatility is released, too, which changes what
+  // the leaf declares to its ancestors and never its pixels.
+  const auto leafAfterTheFirstFrame = [](bool bound) {
+    Host host(260, 120);
+    host.composer.setProfiling(true);
+    // A there-and-back over forty seconds, at its crest for every frame
+    // below: stretched past [0, 1] and clamped, the tracks read 1.
+    motion::Animatable<float> clock = motion::animatable(20.0f);
+    host.engine.timer([&clock](motion::Duration, motion::Duration elapsed) {
+      clock = 20.0f + (float)elapsed.count();
+      return true;
+    });
+    const motion::Animatable<float> progress =
+        bound ? motion::bind(clock, {.from = {0.0f, 40.0f},
+                                     .alternate = true,
+                                     .to = {-0.5f, 1.7f},
+                                     .clamp = {0.0f, 1.0f}})
+              : motion::Animatable<float>(1.0f);
+    const TextEffect arrival = textFx::tween(
+        {.from = GlyphModifier{.alpha = 0.0f},
+         .keyframes = {{.to = GlyphModifier{}, .duration = 650ms}}});
+    host.composer.render(box().padding(10).children(
+        {text(u8"WAKE UP", whiteStyle(24))
+             .key("k")
+             .cache(Cache::Texture)
+             .filter(material::Filter::glow({0.16f, 1.0f, 0.38f, 0.85f}, 9))
+             .textFx({.effect = textFx::scramble(U"ABC", 18),
+                      .tween = {.duration = 1s},
+                      .progress = progress})
+             .textFx({.effect = arrival,
+                      .tween = {.duration = 1s},
+                      .progress = progress})}));
+    host.frame();
+    size_t bakes = 0, framesOffTheBake = 0;
+    for (int frame = 0; frame < 16; ++frame) {
+      host.frame(0.05);
+      bakes += host.composer.stats().texturesBaked;
+      for (const Composer::NodeCost& row : host.composer.profile())
+        if (row.label.starts_with("k ") &&
+            row.cacheState != Composer::CacheState::Texture)
+          ++framesOffTheBake;
+    }
+    return std::pair{bakes, framesOffTheBake};
+  };
+  const auto [constantBakes, constantOff] = leafAfterTheFirstFrame(false);
+  EXPECT_EQ(constantBakes, 0u) << "the constant progress re-baked";
+  EXPECT_EQ(constantOff, 0u) << "the constant progress left its bake";
+  const auto [boundBakes, boundOff] = leafAfterTheFirstFrame(true);
+  EXPECT_EQ(boundBakes, 0u) << "a progress held at 1 by its clamp re-baked";
+  EXPECT_EQ(boundOff, 0u)
+      << "a progress held at 1 by its clamp painted without its bake";
 }

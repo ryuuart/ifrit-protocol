@@ -683,22 +683,6 @@ scale with the leaf's box (a 64x64 leaf and a 1280x780 leaf holding the
 same glyphs cost alike within a factor), and that the halo about a glyph
 at alpha 0.2 is 0.2 of the halo at alpha 1.
 
-## A text track whose bound progress holds still is taken again every frame
-
-A `textFx` track driven by a bound progress re-renders its leaf on every
-frame, even while the binding's output does not change. `matrix_rain`'s
-title is bound through a there-and-back clamped to [0, 1], so for most of
-its period its progress reads exactly 1; with `.cache(Cache::Texture)` and
-a glow filter on the leaf, the gate still reports one bake per frame
-(about 2.5 ms). The same leaf with its progress stated as the constant 1
-keeps its bake and costs nothing.
-
-A bound value is evidently meant to cost what it changes: a track whose
-resolved progress equals the last frame's should leave its leaf's bake
-standing, as a constant does. A test should bind a track's progress to a
-clock through a clamp that holds it at 1, advance the clock several
-frames, and assert zero bakes (and no re-recording) after the first.
-
 ## Catalog plate extents differ beyond the permitted material and label changes
 
 The Release CPU sweep renders the following 84 sketches at different

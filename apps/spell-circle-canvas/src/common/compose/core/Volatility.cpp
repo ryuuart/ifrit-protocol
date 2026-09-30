@@ -584,9 +584,16 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
                     !verdict.subtreeReadsBackdrop && !node.hasMasks() &&
                     node.boundary == Boundary::Auto;
   const bool memoized = inst.liveMatOnly || inst.scalarMemo;
+  // A node the release freed on this walk was held by the scalar memo up to
+  // it, and the release is the proof that the values its recording and its
+  // bake were made with still hold. What changes is what the node declares
+  // to its ancestors, never its pixels, so its artefacts stay: a bound
+  // progress held still costs what a constant costs.
+  const bool releasedExact = scalarDeclared && !scalarContent &&
+                             !otherThanScalar && !childrenVolatile;
   if (blocked != inst.subtreeVolatile) {
     inst.subtreeVolatile = blocked;
-    if (!memoized)
+    if (!memoized && !releasedExact)
       inst.paintDirty = true;  // cacheability changed → re-record/drop
   }
   if (inst.subtreeVolatile && !memoized) {
