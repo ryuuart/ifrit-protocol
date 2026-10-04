@@ -20,6 +20,7 @@
 
 // TAGS: Patterns/Tiling
 
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/typography/Typography.h>
@@ -69,7 +70,8 @@ constexpr float kChamfer = 3.2f;  // the bevelled arris round each sett's face
 constexpr float kGolden = std::numbers::phi_v<float>;
 constexpr float kPi = std::numbers::pi_v<float>;
 
-// --- the construction, in seconds of one loop ---------------------------------
+// --- the construction, in seconds of one loop
+// ---------------------------------
 
 constexpr float kFirstCut = 0.8f;  // the sun alone, before the first cut
 constexpr float kCutEvery = 1.8f;  // one generation: chalk, then recut
@@ -92,7 +94,8 @@ const material::Color kPanelRule = hexColor(0x8C8577, 0.5f);
 const material::Color kLettering = hexColor(0xEDE6D6);
 const material::Color kLetteringQuiet = hexColor(0xA59D8E);
 
-// --- the tiling ----------------------------------------------------------------
+// --- the tiling
+// ----------------------------------------------------------------
 
 /** HALF A RHOMB, cut along the diagonal between `first` and `second`. A fat
  *  half is 108° at its apex and 36° at the other two corners; a thin half
@@ -110,8 +113,10 @@ std::vector<Half> subdivide(const std::vector<Half>& halves) {
   std::vector<Half> finer;
   for (const Half& half : halves) {
     if (half.fat) {
-      const glm::vec2 alongApex = half.first + (half.apex - half.first) / kGolden;
-      const glm::vec2 alongBase = half.first + (half.second - half.first) / kGolden;
+      const glm::vec2 alongApex =
+          half.first + (half.apex - half.first) / kGolden;
+      const glm::vec2 alongBase =
+          half.first + (half.second - half.first) / kGolden;
       finer.push_back({true, alongBase, half.second, half.apex});
       finer.push_back({true, alongApex, alongBase, half.first});
       finer.push_back({false, alongBase, alongApex, half.apex});
@@ -146,7 +151,9 @@ std::vector<Half> sun() {
 struct Sett {
   bool fat;
   glm::vec2 apex, first, far, second;
-  std::array<glm::vec2, 4> corners() const { return {apex, first, far, second}; }
+  std::array<glm::vec2, 4> corners() const {
+    return {apex, first, far, second};
+  }
   glm::vec2 centre() const { return (first + second) / 2.0f; }
 };
 
@@ -160,21 +167,24 @@ std::vector<Sett> generation(int cuts) {
   for (const Half& half : halves) {
     const Sett sett{half.fat, half.apex, half.first,
                     half.first + half.second - half.apex, half.second};
-    float left = INFINITY, right = -INFINITY, top = INFINITY, bottom = -INFINITY;
+    float left = INFINITY, right = -INFINITY, top = INFINITY,
+          bottom = -INFINITY;
     for (glm::vec2 corner : sett.corners()) {
       left = std::min(left, corner.x), right = std::max(right, corner.x);
       top = std::min(top, corner.y), bottom = std::max(bottom, corner.y);
     }
     if (right < 0 || left > kWidth || bottom < 0 || top > kHeight) continue;
     const glm::vec2 centre = sett.centre();
-    setts.emplace(std::pair{std::lround(centre.x * 8), std::lround(centre.y * 8)}, sett);
+    setts.emplace(
+        std::pair{std::lround(centre.x * 8), std::lround(centre.y * 8)}, sett);
   }
   std::vector<Sett> laid;
   for (const auto& [place, sett] : setts) laid.push_back(sett);
   return laid;
 }
 
-// --- cutting a sett from its outline --------------------------------------------
+// --- cutting a sett from its outline
+// --------------------------------------------
 
 using Quad = std::array<glm::vec2, 4>;
 
@@ -198,28 +208,31 @@ Quad inset(const Quad& quad, float distance) {
     const glm::vec2 before = -outward(quad, (corner + 3) % 4);
     const glm::vec2 after = -outward(quad, corner);
     const glm::vec2 bisector = glm::normalize(before + after);
-    inner[corner] = quad[corner] + bisector * (distance / glm::dot(bisector, before));
+    inner[corner] =
+        quad[corner] + bisector * (distance / glm::dot(bisector, before));
   }
   return inner;
 }
 
 /** Closed polygons, or open runs, as one outline. */
-path::Outline outlineOf(const std::vector<std::vector<glm::vec2>>& runs, bool closed) {
+path::Outline outlineOf(const std::vector<std::vector<glm::vec2>>& runs,
+                        bool closed) {
   std::vector<path::SegmentContour> contours;
   for (const auto& run : runs) {
     path::SegmentContour contour{.closed = closed};
     for (size_t point = 0; point + 1 < run.size(); ++point)
-      contour.segments.push_back(
-          {.kind = path::SegmentKind::Line, .points = {run[point], run[point + 1]}});
+      contour.segments.push_back({.kind = path::SegmentKind::Line,
+                                  .points = {run[point], run[point + 1]}});
     if (closed)
-      contour.segments.push_back(
-          {.kind = path::SegmentKind::Line, .points = {run.back(), run.front()}});
+      contour.segments.push_back({.kind = path::SegmentKind::Line,
+                                  .points = {run.back(), run.front()}});
     contours.push_back(std::move(contour));
   }
   return path::toPath(contours);
 }
 
-// --- the stone -------------------------------------------------------------------
+// --- the stone
+// -------------------------------------------------------------------
 
 /** A BED OF A QUARRY: its two tones and the way its grain runs. */
 struct Bed {
@@ -266,11 +279,14 @@ material::Material quarry(bool fat, size_t bed) {
 /** Which bed a sett was cut from, fixed by where it lies. */
 size_t bedOf(const Sett& sett) {
   const glm::vec2 centre = sett.centre();
-  const float scatter = std::sin(centre.x * 12.9898f + centre.y * 78.233f) * 43758.5453f;
-  return (size_t)((scatter - std::floor(scatter)) * kBedsPerQuarry) % kBedsPerQuarry;
+  const float scatter =
+      std::sin(centre.x * 12.9898f + centre.y * 78.233f) * 43758.5453f;
+  return (size_t)((scatter - std::floor(scatter)) * kBedsPerQuarry) %
+         kBedsPerQuarry;
 }
 
-// --- the sun -----------------------------------------------------------------------
+// --- the sun
+// -----------------------------------------------------------------------
 
 /** A LOW SUN: where it stands in plan, how high, where its light pools on
  *  the plaza, and the colour of that light from the pool outward. */
@@ -280,10 +296,16 @@ struct Sun {
   glm::vec2 pool;
   std::array<material::Color, 4> light;
 };
-const Sun kMorning{glm::normalize(glm::vec2{-0.82f, -0.57f}), 17, {360, 240},
-                   {hexColor(0xFFFCF5), hexColor(0xF1EDE6), hexColor(0xC6C4C4), hexColor(0x9B9CA2)}};
-const Sun kEvening{glm::normalize(glm::vec2{0.86f, -0.51f}), 14, {1260, 260},
-                   {hexColor(0xFFF3DC), hexColor(0xF6E4C6), hexColor(0xD0BCA4), hexColor(0x9C8B82)}};
+const Sun kMorning{glm::normalize(glm::vec2{-0.82f, -0.57f}),
+                   17,
+                   {360, 240},
+                   {hexColor(0xFFFCF5), hexColor(0xF1EDE6), hexColor(0xC6C4C4),
+                    hexColor(0x9B9CA2)}};
+const Sun kEvening{glm::normalize(glm::vec2{0.86f, -0.51f}),
+                   14,
+                   {1260, 260},
+                   {hexColor(0xFFF3DC), hexColor(0xF6E4C6), hexColor(0xD0BCA4),
+                    hexColor(0x9C8B82)}};
 
 /** How much brighter (above 0) or darker (below 0) than the flat face a
  *  45° chamfer facing @p normal is under @p sun. */
@@ -291,11 +313,13 @@ float chamferLight(const Sun& sun, glm::vec2 normal) {
   const float elevation = sun.elevationDegrees * kPi / 180;
   const float face = std::sin(elevation);
   const float slope = std::numbers::sqrt2_v<float> / 2;
-  const float lit = slope * (glm::dot(normal, sun.towards) * std::cos(elevation) + face);
+  const float lit =
+      slope * (glm::dot(normal, sun.towards) * std::cos(elevation) + face);
   return std::max(lit, 0.0f) / face - 1;
 }
 
-// --- a generation laid in stone ----------------------------------------------------
+// --- a generation laid in stone
+// ----------------------------------------------------
 
 /** THE CHAMFERS AND JOINTS, grouped by the way they face. A Penrose tiling's
  *  sides run in five directions, so its outward normals take ten, and each
@@ -308,12 +332,15 @@ std::vector<Element> relief(const std::vector<Sett>& setts, const Sun& sun) {
     const Quad arris = inset(face, kChamfer);
     for (size_t side = 0; side < 4; ++side) {
       const glm::vec2 normal = outward(face, side);
-      const int turn = (int)std::lround(std::atan2(normal.y, normal.x) / (kPi / 5));
+      const int turn =
+          (int)std::lround(std::atan2(normal.y, normal.x) / (kPi / 5));
       const size_t direction = (size_t)((turn % 10 + 10) % 10);
       facing[direction] = normal;
       const size_t next = (side + 1) % 4;
-      chamfers[direction].push_back({face[side], face[next], arris[next], arris[side]});
-      joints[direction].push_back({face[side], face[next], face[next] + normal * kJoint,
+      chamfers[direction].push_back(
+          {face[side], face[next], arris[next], arris[side]});
+      joints[direction].push_back({face[side], face[next],
+                                   face[next] + normal * kJoint,
                                    face[side] + normal * kJoint});
     }
   }
@@ -322,16 +349,18 @@ std::vector<Element> relief(const std::vector<Sett>& setts, const Sun& sun) {
     if (chamfers[direction].empty()) continue;
     const float light = chamferLight(sun, facing[direction]);
     const material::Color chamferInk =
-        light > 0 ? material::Color{kSunlight.r, kSunlight.g, kSunlight.b,
-                                    std::min(light * 0.32f, 0.8f)}
-                  : material::Color{kShade.r, kShade.g, kShade.b, -light * 0.6f};
-    figures.push_back(
-        pathFigure(outlineOf(chamfers[direction], true)).fill(Fill::color(chamferInk)));
+        light > 0
+            ? material::Color{kSunlight.r, kSunlight.g, kSunlight.b,
+                              std::min(light * 0.32f, 0.8f)}
+            : material::Color{kShade.r, kShade.g, kShade.b, -light * 0.6f};
+    figures.push_back(pathFigure(outlineOf(chamfers[direction], true))
+                          .fill(Fill::color(chamferInk)));
     // The joint behind a side turned from the sun lies in that sett's shadow.
     const float away = -glm::dot(facing[direction], sun.towards);
     if (away > 0)
-      figures.push_back(pathFigure(outlineOf(joints[direction], true))
-                            .fill(Fill::color({kShade.r, kShade.g, kShade.b, away * 0.75f})));
+      figures.push_back(
+          pathFigure(outlineOf(joints[direction], true))
+              .fill(Fill::color({kShade.r, kShade.g, kShade.b, away * 0.75f})));
   }
   return figures;
 }
@@ -339,7 +368,8 @@ std::vector<Element> relief(const std::vector<Sett>& setts, const Sun& sun) {
 /** ONE GENERATION AS PAVING under @p sun: mortar, the setts of every bed of
  *  both quarries, their chamfers and joints, and the pool of the light. */
 Element paving(const std::vector<Sett>& setts, const Sun& sun) {
-  std::array<std::array<std::vector<std::vector<glm::vec2>>, kBedsPerQuarry>, 2> beds;
+  std::array<std::array<std::vector<std::vector<glm::vec2>>, kBedsPerQuarry>, 2>
+      beds;
   for (const Sett& sett : setts) {
     const Quad face = inset(sett.corners(), kJoint / 2);
     beds[sett.fat][bedOf(sett)].push_back({face.begin(), face.end()});
@@ -348,15 +378,25 @@ Element paving(const std::vector<Sett>& setts, const Sun& sun) {
   for (bool fat : {false, true})
     for (size_t bed = 0; bed < kBedsPerQuarry; ++bed)
       if (!beds[fat][bed].empty())
-        stone.push_back(pathFigure(outlineOf(beds[fat][bed], true)).fill(quarry(fat, bed)));
-  return stack().inset(0).fill(Fill::color(kMortar)).children({
-      stone,
-      relief(setts, sun),
-      box().inset(0).blendMode(material::BlendMode::Multiply).fill(material::radialGradient(
-          sun.pool, 1500,
-          {{0.0f, sun.light[0]}, {0.4f, sun.light[1]}, {0.8f, sun.light[2]}, {1.0f, sun.light[3]}},
-          {.units = material::GradientUnits::Pixels})),
-  });
+        stone.push_back(
+            pathFigure(outlineOf(beds[fat][bed], true)).fill(quarry(fat, bed)));
+  return stack()
+      .inset(0)
+      .fill(Fill::color(kMortar))
+      .children({
+          stone,
+          relief(setts, sun),
+          box()
+              .inset(0)
+              .blendMode(material::BlendMode::Multiply)
+              .fill(material::radialGradient(
+                  sun.pool, 1500,
+                  {{0.0f, sun.light[0]},
+                   {0.4f, sun.light[1]},
+                   {0.8f, sun.light[2]},
+                   {1.0f, sun.light[3]}},
+                  {.units = material::GradientUnits::Pixels})),
+      });
 }
 
 /** THE MASON'S CHALK: every side of a generation's setts, marked on the
@@ -368,20 +408,23 @@ Element chalk(const std::vector<Sett>& setts) {
     sides.push_back({corners.begin(), corners.end()});
   }
   return stack().inset(0).children(
-      {pathFigure(outlineOf(sides, true), 2).stroke(stroke(1.6f, Fill::color(kChalk)))});
+      {pathFigure(outlineOf(sides, true), 2)
+           .stroke(stroke(1.6f, Fill::color(kChalk)))});
 }
 
 /** AN ARC round @p corner, from its side towards @p one to its side towards
  *  @p two, at @p radius. */
-std::vector<glm::vec2> arc(glm::vec2 corner, glm::vec2 one, glm::vec2 two, float radius) {
+std::vector<glm::vec2> arc(glm::vec2 corner, glm::vec2 one, glm::vec2 two,
+                           float radius) {
   const float start = std::atan2(one.y - corner.y, one.x - corner.x);
-  const float sweep =
-      std::remainder(std::atan2(two.y - corner.y, two.x - corner.x) - start, 2 * kPi);
+  const float sweep = std::remainder(
+      std::atan2(two.y - corner.y, two.x - corner.x) - start, 2 * kPi);
   const int steps = std::max(6, (int)std::ceil(std::abs(sweep) / (kPi / 45)));
   std::vector<glm::vec2> points;
   for (int step = 0; step <= steps; ++step) {
     const float angle = start + sweep * step / steps;
-    points.push_back(corner + radius * glm::vec2{std::cos(angle), std::sin(angle)});
+    points.push_back(corner +
+                     radius * glm::vec2{std::cos(angle), std::sin(angle)});
   }
   return points;
 }
@@ -398,12 +441,13 @@ Element rules(const std::vector<Sett>& setts) {
   for (const Sett& sett : setts) {
     const float goldRadius = kEdge / (sett.fat ? kGolden : kGolden * kGolden);
     gold.push_back(arc(sett.first, sett.apex, sett.far, goldRadius));
-    blue.push_back(
-        arc(sett.second, sett.apex, sett.far, kEdge / (kGolden * kGolden * kGolden)));
+    blue.push_back(arc(sett.second, sett.apex, sett.far,
+                       kEdge / (kGolden * kGolden * kGolden)));
   }
   auto glowing = [](const path::Outline& outline, material::Color colour) {
-    return pathFigure(outline, 14).stroke(stroke(
-        3.4f, Fill(material::from(colour).effects(Filter::shadow(colour, {.blur = 5})))));
+    return pathFigure(outline, 14)
+        .stroke(stroke(3.4f, Fill(material::from(colour).effects(
+                                 Filter::shadow(colour, {.blur = 5})))));
   };
   return stack().inset(0).children({
       box().inset(0).fill(hexColor(0x07090D, 0.2f)),
@@ -413,14 +457,16 @@ Element rules(const std::vector<Sett>& setts) {
 }
 
 /** A generation in words: its cut, its setts, and their ratio closing on φ. */
-Utf8 tally(sketch::kit::Document words, int cuts, const std::vector<Sett>& setts) {
+Utf8 tally(sketch::kit::Document words, int cuts,
+           const std::vector<Sett>& setts) {
   int fat = 0;
   for (const Sett& sett : setts) fat += sett.fat;
   const int thin = (int)setts.size() - fat;
   words.figures({{"cut", std::to_string(cuts)},
                  {"fat", std::to_string(fat)},
                  {"thin", std::to_string(thin)},
-                 {"ratio", fat ? kit::formatted("%.3f", (double)fat / thin) : std::string("—")}});
+                 {"ratio", fat ? kit::formatted("%.3f", (double)fat / thin)
+                               : std::string("—")}});
   return words.phrase(cuts == 0 ? "tally.sun" : "tally.cut");
 }
 
@@ -447,43 +493,56 @@ struct PenrosePaving {
   motion::Animatable<float> marking(int generation) const {
     return motion::bind(depth, {.from = {generation - 1.0f, (float)generation},
                                 .clampFrom = true,
-                                .envelope = motion::envelope::trapezoid(0, kMarking, kMarking, 1)});
+                                .envelope = motion::envelope::trapezoid(
+                                    0, kMarking, kMarking, 1)});
   }
   /** A generation's tally, handed to the next halfway through its cut. */
   motion::Animatable<float> tallied(int generation) const {
     return motion::bind(depth, {.from = {generation - 1.0f, generation + 1.0f},
                                 .clampFrom = true,
-                                .envelope = motion::envelope::trapezoid(0.225f, 0.275f, 0.725f, 0.775f)});
+                                .envelope = motion::envelope::trapezoid(
+                                    0.225f, 0.275f, 0.725f, 0.775f)});
   }
   /** The rules drawn over the finished paving, and gone before it is
    *  gathered back. */
   motion::Animatable<float> showingRules() const {
     return motion::bind(seconds, {.from = {kLaid + 2, kGathered - 1},
                                   .clampFrom = true,
-                                  .envelope = motion::envelope::trapezoid(0, 0.1f, 0.75f, 0.85f)});
+                                  .envelope = motion::envelope::trapezoid(
+                                      0, 0.1f, 0.75f, 0.85f)});
   }
 
   Element cartouche() const {
-    const weave::Face engraved = weave::ports::face({"Optima", "Gill Sans", "Avenir Next"}, 500);
+    const weave::Face engraved =
+        weave::ports::face({"Optima", "Gill Sans", "Avenir Next"}, 500);
     std::vector<Element> tallies;
     for (int cuts = 0; cuts <= kGenerations; ++cuts)
       tallies.push_back(
-          kit::at(text(tally(words, cuts, generations[(size_t)cuts])), 80, 1100, 700, 18)
-              .font({.face = engraved, .size = 12.5f, .color = kLettering, .track = 1.6f})
+          kit::at(text(tally(words, cuts, generations[(size_t)cuts])), 80, 1100,
+                  700, 18)
+              .font({.face = engraved,
+                     .size = 12.5f,
+                     .color = kLettering,
+                     .track = 1.6f})
               .opacity(tallied(cuts)));
     return stack().inset(0).children({
-        kit::at(box()
-                    .fill(material::from(kPanel).effects(Filter::shadow(
-                        hexColor(0x000000, 0.55f), {.blur = 22, .offset = {0, 6}})))
-                    .stroke(stroke(1, Fill::color(kPanelRule), PathFormat::Align::Inner)),
-                56, 1010, 760, 150)
+        kit::at(
+            box()
+                .fill(material::from(kPanel).effects(Filter::shadow(
+                    hexColor(0x000000, 0.55f), {.blur = 22, .offset = {0, 6}})))
+                .stroke(stroke(1, Fill::color(kPanelRule),
+                               PathFormat::Align::Inner)),
+            56, 1010, 760, 150)
             .column()
             .padding(24)
             .gap(10)
             .cache(Cache::Texture)
             .key("cartouche")
             .children({text(words.phrase("title"))
-                           .font({.face = engraved, .size = 24, .color = kLettering, .track = 6}),
+                           .font({.face = engraved,
+                                  .size = 24,
+                                  .color = kLettering,
+                                  .track = 6}),
                        text(words.phrase("tiling"))
                            .font({.face = engraved,
                                   .size = 11.5f,
@@ -491,7 +550,10 @@ struct PenrosePaving {
                                   .track = 1.8f})}),
         tallies,
         kit::at(text(words.phrase("rules")), 80, 1127, 720, 16)
-            .font({.face = engraved, .size = 11.5f, .color = kGold, .track = 1.6f})
+            .font({.face = engraved,
+                   .size = 11.5f,
+                   .color = kGold,
+                   .track = 1.6f})
             .opacity(showingRules()),
     });
   }
@@ -499,10 +561,12 @@ struct PenrosePaving {
   void setup(sketch::SketchContext& context) {
     // Captured in the evening light with the rules drawn on the finished
     // paving; the loop begins at the sun, so the moment is late in it.
-    sketch::kit::stage(context,
-                       {.size = {kWidth, kHeight}, .captureAt = 22, .background = kMortar});
+    sketch::kit::stage(
+        context,
+        {.size = {kWidth, kHeight}, .captureAt = 22, .background = kMortar});
     words = sketch::kit::Document(context, "data/content.json");
-    for (int cuts = 0; cuts <= kGenerations; ++cuts) generations.push_back(generation(cuts));
+    for (int cuts = 0; cuts <= kGenerations; ++cuts)
+      generations.push_back(generation(cuts));
     const std::vector<Sett>& laid = generations.back();
 
     // Each generation, and the rules, stand still once laid, so each is one
@@ -519,19 +583,27 @@ struct PenrosePaving {
                              .cache(Cache::Texture)
                              .opacity(marking(cuts)));
     }
-    context.composer.render(stack().fill(Fill::color(kMortar)).children({
-        layers,
-        // The finished paving in the evening, over the same paving in the
-        // morning: the sun swings across it by the one fading into the other.
-        paving(laid, kEvening)
-            .key("generation.evening")
-            .cache(Cache::Texture)
-            .opacity(motion::bind(seconds, {.from = {kLaid, kGathered},
-                                            .clampFrom = true,
-                                            .envelope = motion::envelope::cosine()})),
-        rules(laid).key("rules").cache(Cache::Texture).opacity(showingRules()),
-        cartouche(),
-    }));
+    context.composer.render(
+        stack()
+            .fill(Fill::color(kMortar))
+            .children({
+                layers,
+                // The finished paving in the evening, over the same paving in
+                // the morning: the sun swings across it by the one fading into
+                // the other.
+                paving(laid, kEvening)
+                    .key("generation.evening")
+                    .cache(Cache::Texture)
+                    .opacity(motion::bind(
+                        seconds, {.from = {kLaid, kGathered},
+                                  .clampFrom = true,
+                                  .envelope = motion::envelope::cosine()})),
+                rules(laid)
+                    .key("rules")
+                    .cache(Cache::Texture)
+                    .opacity(showingRules()),
+                cartouche(),
+            }));
   }
 
   void update(double elapsed, sketch::SketchContext&) {
@@ -541,10 +613,12 @@ struct PenrosePaving {
     auto cuts = [](float progress) {
       const float whole = std::floor(progress);
       const float within = std::clamp((progress - whole) / 0.8f, 0.0f, 1.0f);
-      return std::min(whole + within * within * (3 - 2 * within), (float)kGenerations);
+      return std::min(whole + within * within * (3 - 2 * within),
+                      (float)kGenerations);
     };
-    depth = now < kGathered ? cuts(std::max(now - kFirstCut, 0.0f) / kCutEvery)
-                            : kGenerations - cuts((now - kGathered) / kGatherEvery);
+    depth = now < kGathered
+                ? cuts(std::max(now - kFirstCut, 0.0f) / kCutEvery)
+                : kGenerations - cuts((now - kGathered) / kGatherEvery);
   }
 };
 

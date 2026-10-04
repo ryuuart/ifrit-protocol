@@ -19,9 +19,7 @@
 
 // TAGS: Materials/Color
 
-#include <sigilmaterial/paint/Bases.h>
-#include <sigilmaterial/filter/Filter.h>
-#include <sigilweave/style/Face.h>
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Frame.h>
@@ -32,11 +30,14 @@
 #include <sigilgeometry/path/Frame.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/filter/Filter.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Face.h>
 #include <sigilweave/style/Type.h>
 
 #include <string>
@@ -101,8 +102,9 @@ std::string stacked(std::string label) {
   return label;
 }
 
-sigil::weave::Face face(std::initializer_list<const char*> families,
-                       sigil::weave::FaceStyle style = sigil::weave::FaceStyle{}) {
+sigil::weave::Face face(
+    std::initializer_list<const char*> families,
+    sigil::weave::FaceStyle style = sigil::weave::FaceStyle{}) {
   return weave::ports::face(families, style);
 }
 
@@ -117,7 +119,8 @@ struct ChevreulCircle {
     const float half = (kSectorDegrees - kBladeGap) * 0.5f;
     return box().inset(0).children(
         each(sectors, [half](const Sector& sector, size_t number) {
-          const float centre = kCircle.screenDegrees(kSectorDegrees * (float)number);
+          const float centre =
+              kCircle.screenDegrees(kSectorDegrees * (float)number);
           return kit::disc(kCircle, kBladeOuter)
               .shape(shapes::sector(centre - half, 2 * half,
                                     kMedallionOuter / kBladeOuter))
@@ -165,8 +168,9 @@ struct ChevreulCircle {
     const float diameter = 2 * kCircle.radius * kMedallionRing;
     // The two display lines are shaded letters: each stroke carries a
     // grey shadow cut below and to the right of it.
-    const auto shaded = sigil::material::from(kInk).effects(
-        sigil::material::Filter::shadow(hexColor(0xA39E94), {.offset = {1.4f, 1.4f}}));
+    const auto shaded =
+        sigil::material::from(kInk).effects(sigil::material::Filter::shadow(
+            hexColor(0xA39E94), {.offset = {1.4f, 1.4f}}));
     return box().inset(0).children(
         {kit::dot(kCircle.centre, kCircle.radius * kMedallionOuter,
                   Fill::color(kEngraving))
@@ -225,42 +229,45 @@ struct ChevreulCircle {
 
   StyleSheet engraving() const {
     const auto didot = face({"Didot", "Bodoni 72", "Baskerville"});
-    const auto italic = face({"Didot", "Baskerville"}, sigil::weave::FaceStyle{.slant = sigil::weave::FaceSlant::Italic});
+    const auto italic =
+        face({"Didot", "Baskerville"},
+             sigil::weave::FaceStyle{.slant = sigil::weave::FaceSlant::Italic});
     return StyleSheet{
         rule(".numeral").font({.face = didot, .size = 10.5f}),
         rule(".scale").font({.face = didot, .size = 6.6f, .track = 0.3f}),
         rule(".ordinal").font({.face = didot, .size = 17}),
         rule(".circle").font(
-            {.face = face({"Copperplate", "Gill Sans"}, sigil::weave::FaceStyle{.weight = 700}),
+            {.face = face({"Copperplate", "Gill Sans"},
+                          sigil::weave::FaceStyle{.weight = 700}),
              .size = 19,
              .track = 1.4f}),
         rule(".small").font({.face = didot, .size = 12, .track = 1.5f}),
         rule(".author").font(
-            {.face = face({"SuperClarendon", "Rockwell"}, sigil::weave::FaceStyle{.weight = 700}),
+            {.face = face({"SuperClarendon", "Rockwell"},
+                          sigil::weave::FaceStyle{.weight = 700}),
              .size = 29,
              .track = 1.5f}),
-        rule(".colours").font(
-            {.face = face({"Avenir Next Condensed", "Gill Sans"}),
-             .size = 20,
-             .track = 1}),
+        rule(".colours")
+            .font({.face = face({"Avenir Next Condensed", "Gill Sans"}),
+                   .size = 20,
+                   .track = 1}),
         rule(".head").font({.face = didot, .size = 10, .track = 0.6f}),
         rule(".credit").font({.face = italic, .size = 10}),
         rule(".imprint").font({.face = didot, .size = 11, .track = 0.3f})};
   }
 
   void setup(sketch::SketchContext& context) {
-    sketch::kit::stage(context, {.size = {kWidth, kHeight},
-                                 .captureAt = 0.05,
-                                 .background = kPaper});
+    sketch::kit::stage(
+        context,
+        {.size = {kWidth, kHeight}, .captureAt = 0.05, .background = kPaper});
     words = sketch::kit::Document(context, "data/content.json");
-    if (const auto table =
-            context.assets.hub().load<sigil::data::Table>(context.local("data/colours.csv"))) {
+    if (const auto table = context.assets.hub().load<sigil::data::Table>(
+            context.local("data/colours.csv"))) {
       const auto label = table->column<std::string>("label");
       const auto colour = table->column<std::string>("colour");
       for (size_t row = 0; row < label.size(); ++row)
         sectors.push_back(
-            {label[row],
-             sigil::material::parseColor(colour[row])});
+            {label[row], sigil::material::parseColor(colour[row])});
     }
     paperGrain = Paint::recipe(field::grain(0.013f, 4, 11.0f, 0.32f));
 

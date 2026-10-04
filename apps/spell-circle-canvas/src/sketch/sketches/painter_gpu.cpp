@@ -8,18 +8,18 @@
 
 // TAGS: Geometry/Meshes
 
-#include <sigilgeometry/advanced/Skia.h>
-#include <sigilmedia/advanced/Skia.h>
-#include <sigildraw/Pen.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/texture/Texture.h>
+#include <sigildraw/Pen.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilgeometry/mesh/render/Runtime.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
@@ -85,6 +85,7 @@ Element card(float w, float h, material::Color accent) {
 }  // namespace
 
 struct PainterGpu {
+  static constexpr bool needsDevice = true;
   sk_sp<SkImage> cards[kPanels];
   sk_sp<SkImage> screen;
   mesh::Mesh floor, curved;
@@ -111,14 +112,15 @@ struct PainterGpu {
                                    .specular = 0,
                                    .backfaceCull = false,
                                    .runtime = runtime};
-    render::drawMesh(canvas, floor, glm::mat4(1.0f), view, sigil::geometry::path::fromSk(kCell), ground);
+    render::drawMesh(canvas, floor, glm::mat4(1.0f), view,
+                     sigil::geometry::path::fromSk(kCell), ground);
 
     for (int i = 0; i < kPanels; ++i) {
       const float x = ((float)i - (float)(kPanels - 1) * 0.5f) * 190.0f;
       const float yaw = -((float)i - (float)(kPanels - 1) * 0.5f) * 26.0f;
-      render::drawImagePanel(canvas, cards[i], 176, 116,
-                             camera::place({x, 90, -40}, yaw), view, sigil::geometry::path::fromSk(kCell),
-                             0.97f, runtime);
+      render::drawImagePanel(
+          canvas, cards[i], 176, 116, camera::place({x, 90, -40}, yaw), view,
+          sigil::geometry::path::fromSk(kCell), 0.97f, runtime);
     }
 
     // The curved sheet: the same kind of picture, mapped per triangle,
@@ -136,7 +138,9 @@ struct PainterGpu {
   Element viewport(const char* key, const render::Runtime& runtime) {
     return custom(key,
                   [this, runtime](sigil::draw::Pen& pen) {
- SkCanvas& canvas = *pen.canvas(); draw(canvas, runtime); })
+                    SkCanvas& canvas = *pen.canvas();
+                    draw(canvas, runtime);
+                  })
         .width(kCell.width())
         .height(kCell.height())
         .overflow(Overflow::Clip)

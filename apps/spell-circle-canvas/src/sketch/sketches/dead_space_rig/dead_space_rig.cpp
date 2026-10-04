@@ -4,6 +4,7 @@
 // TAGS: Studies/Games, Layout/3D, Materials/Shaders, Motion/Bindings,
 // Drawing/Geometry
 
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Frame.h>

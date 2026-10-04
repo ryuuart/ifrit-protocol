@@ -41,19 +41,25 @@ a wrong one distorts everything under it, and the wrong ones have all
 been cases where a capable author concluded "impossible" from the
 documentation without reading the source.
 
-Run any of them:
+Open a compiled catalog entry:
 
 ```sh
 ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
-    src/sketch/sketches/<name>.cpp \
-    --frame /tmp/<name>.png --at 2.5
+    --sketch <name>
 ```
 
-`--at` picks the moment; `--frames N --fps N` writes a sequence. With no
-`--frame` the app opens on it, watches the file and hot-swaps on save —
-which is what you want while you are CHANGING one. Opening the app on
-the whole registry is what you want while you are LOOKING at one next to
-everything else.
+Capture a native GPU plate at a named moment:
+
+```sh
+./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
+    --headless /tmp/sketch-plates --gpu --sketch <name> --at 2.5
+```
+
+The result is `plate_<name>.png` in that directory. The registry addresses
+both file and directory sketches by their stem. An independently built
+native module opens with `--plugin /path/to/module.dylib`; build its CMake
+target to publish a replacement. Opening the app on the whole registry lets
+you inspect scenes beside one another.
 
 Each entry's opening comment carries `TAGS:` with comma-separated subject
 paths, such as `Typography/Paragraph, Motion/Transitions`. Sketchbook builds
@@ -114,6 +120,22 @@ were read off; the rule above is written for all of them.
 
 | Sketch | Subject | What it puts under load |
 |---|---|---|
+| [painted_fields](painted_fields/README.md) | A stone and metal material workbench | Native brush/text input maps, shared height and wetness, shader slots, committed uniform arrays, erasure, clipping, reset and density placement. |
+| [glass_atelier](glass_atelier/README.md) | An optical-material editor over moving content | Compose shaped backdrop glass, bounded Snell displacement, material inks, retained placement, open contours, clipping and optical identity endpoints. |
+| [stone_relief](stone_relief/README.md) | Raking light on carved limestone and engraved lettering | Analytical relief normals, glyph-derived normal maps, inherited moving light, roughness endpoints, matching normal conventions and small clipped geometry. |
+| [optical_liquid](optical_liquid/README.md) | Volumetric instrument menisci and floating optical layers | Live destination refraction, liquid fill endpoints, thick edges, diffuse and opaque coatings, nested clips and overlapping Compose layers. |
+| [metal_instrument](metal_instrument/README.md) | Machined aluminum audio hardware and studio reflections | Real World solids, Compose face textures, normal/roughness maps, grazing and reverse views, exploded depth, near-plane clipping and a projected Compose comparison. |
+| [wet_glass_console](wet_glass_console/README.md) | Water beading on an environmental instrument | Compose surface fills and ink, moving droplets over live telemetry, film, smears, refraction, opacity endpoints and clipped overlap. |
+| [ceramic_glaze](ceramic_glaze/README.md) | Glazed stoneware and porcelain controls | Compose ceramic surfaces, pore and crack maps, glyph relief, roughness and normal extremes, grazing light and unlit controls. |
+| [embossed_foil](embossed_foil/README.md) | Crinkled thermal blanket and embossed interface | Compose material fills and ink, combined contour and wrinkle normals, metallic reflections, signed relief, scoped lights, masks and counter-holes. |
+| [struck_metal](struck_metal/README.md) | Pierced brass, enamel inlay and stamped controls | Physical relief, actual glyph counters and openings, a sliding register, ribbed controls, roughness extremes and reverse views. |
+| [carved_marks](carved_marks/README.md) | Carved stone and chased copper under one letter die | A shared height field from text, ribbon and fibre marks, signed cut depth, masked ink and gilding, raking light, and height-driven material ink in Element, Glyph and Word domains. |
+| [layered_material_type](layered_material_type/README.md) | Porcelain and precious-metal type impressed in one surface | Text blurred into a held height texture, signed bump normals, coating and overprint endpoints, counter clipping, and Glyph and Word ink under directional, Point and Spot scenes. |
+| [light_table](light_table/README.md) | A material inspection desk for live light | Pointer-edited light colour, strength, bearing and elevation; Point and Spot placement, range and cones; paired scenes, a nested scene, cached and live content. |
+| [luminous_layers](luminous_layers/README.md) | Emissive alloy type, pressure ribbons and painted deposits | A half-float working image with a display exposure, shoulder and clip; overbright emission, alpha calibration, layer order, glass refraction, and 8-bit against float textures. |
+| [metal_linework](metal_linework/README.md) | Silver and copper routing linework and material lettering | Stroke caps and joins as coverage, pressure ribbons, brushed normals, masked plating, roughness and metallic endpoints, and a single source's colour sweep. |
+| [pigment_brushes](pigment_brushes/README.md) | Layered pigment brushes, metallic lines and lettering | Variable-width ribbons and brush layers sharing materials, ridge normals, wet roughness, metallic overprint opacity and sub-pixel clipped marks. |
+| [reflection_lobe](reflection_lobe/README.md) | Curved metal, letters and bristles under a shared studio | Roughness-dependent reflection spread on equal ramps, a seam-continuous panorama, per-pixel roughness maps, coating, and scoped Point lights. |
 | `black_watch` | The Government sett, from Douglas's 1949 *Scotch Tartan Setts* | A tartan as CLOTH — 24 integers and a mod-4 rule, 63,504 emergent cells, ten invariants computed and printed |
 | `chaucer_astrolabe` | A planispheric astrolabe of the English "Chaucer" type, computed for Oxford 51° 50′ | A working instrument that tells the time — every radius out of φ and ε, proving itself to 5.55e-16 R on the canvas |
 | `cde_motif` | CDE 1.0 on OSF/Motif 2.1 (1995) | A desktop as the OUTPUT of a published function — `XmGetColors` derives four colours from one background, byte-exact including C's truncating division |
@@ -128,7 +150,7 @@ were read off; the rule above is written for all of them.
 | `nightingale_coxcomb` | Nightingale's 1858 "Diagram of the Causes of Mortality in the Army in the East" | Polar-area wedges from the real mortality table on one sheet of roles and palette tokens; ring labels on curved baselines, tint and key stones printed a hair out of register, a hanging-indent roundhand legend written line by line, and the plate bound into its book with a gutter and raking light |
 | `penrose_paving` | Penrose's 2012 decorated P3 paving, Andrew Wiles Building, Oxford | 549 setts from de Bruijn's pentagrid, zero authored geometry, self-verifying to φ |
 | `slitscan_2001` | Trumbull's slit-scan machine (1966–68) and the Star Gate | A frame that is a TIME INTEGRAL — 1624 stamps summing per wall, with the 1/ρ exponent measured off an F16 read-back rather than assumed |
-| `spacejam_1996` | spacejam.com, Warner Bros. Online, still live and unmodified | A DOCUMENT, not a panel — HTML auto table layout as a `LayoutScheme` matching Chrome to 0.11 px, and a 216-colour dither in `setView` |
+| `spacejam_1996` | spacejam.com, Warner Bros. Online, still live and unmodified | A DOCUMENT, not a panel — HTML auto table layout as an arranging value matching Chrome to 0.11 px, and a 216-colour dither in `setView` |
 | `psx_doom_fire` | The DOOM PlayStation title flame (1995) | A stateful cellular automaton at a fixed 27 Hz under a variable frame rate |
 | `minard_1869` | Minard's own BnF presentation copy of the 1869 sheet | The plate audited against its own printed legend, then the sketch audited by the same instrument |
 | `twoadvanced_equipment` | 2Advanced's Equipment.Modules store (2003), an HTML 4.0 frameset of Dreamweaver tables | The page's own bitmaps over SigilIO's https path, its table metrics verbatim, the styled IE scrollbar — and its only two behaviours (JS rollovers, frame scroll) as the only motion |

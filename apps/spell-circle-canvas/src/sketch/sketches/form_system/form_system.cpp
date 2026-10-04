@@ -4,6 +4,7 @@
 // TAGS: Studies/Graphic Design, Typography/Motion, Typography/Lettering,
 // Layout/Grid, Geometry/Booleans, Motion/Bindings
 
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilgeometry/kit/Generators.h>

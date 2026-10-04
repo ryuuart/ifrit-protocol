@@ -11,6 +11,29 @@ dispositions and image evidence describe that review, not validation of the
 feature presentation refresh appended below. Retaining a visual treatment is
 not a claim that the sketch was redesigned.
 
+## Material interface studies
+
+Sixteen studies under `Study · Materials` present invented instruments, desks
+and ateliers whose shapes and lettering are made of material: `carved_marks`,
+`ceramic_glaze`, `embossed_foil`, `glass_atelier`, `layered_material_type`,
+`light_table`, `luminous_layers`, `metal_linework`, `optical_liquid`,
+`painted_fields`, `pigment_brushes`, `reflection_lobe`, `stone_relief` and
+`wet_glass_console` on Compose, and `metal_instrument` and `struck_metal` as
+World sets with physical cuts and depth. Each keeps its own authored interface
+rather than the shared feature page and steps through timed states that each
+change one material parameter or light; most keep fixed endpoint specimens
+beside the hero in every state.
+
+Their refinement still wants:
+
+- contour-relief lettering that is an ink rather than a foreground decoration
+  over transparent ink, so a relief letter is one statement;
+- smoother curved shoulders in the contour normals behind the glass studies,
+  where strong displacement shows small steps;
+- a separate coat normal and coat roughness, and anisotropic roughness, so
+  coated and brushed finishes need not be approximated with scalar roughness
+  and normal grooves.
+
 ## Earlier feature review
 
 Seventy-one API and data studies use compositions built around their subjects.

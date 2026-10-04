@@ -3,6 +3,7 @@
 // TAGS: Studies/Graphic Design, Typography/Posters, Typography/Paths,
 // Materials/Print, Motion/Bindings
 
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/typography/TextPath.h>

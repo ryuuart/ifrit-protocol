@@ -66,11 +66,12 @@ struct Manuscript {
                 {.metallic = 1.0f,
                  .roughness = 0.43f,
                  .normal = material::image(normalScene->texture().source())});
-    const auto light = material::studio({.direction = direction,
-                                         .elevation = elevation,
-                                         .color = {1.0f, 0.96f, 0.82f, 1.0f},
-                                         .intensity = 0.8f,
-                                         .ambient = 0.84f});
+    const auto light =
+        material::studio({.direction = direction,
+                          .elevation = elevation,
+                          .color = material::Color{1.0f, 0.96f, 0.82f, 1.0f},
+                          .intensity = 0.8f,
+                          .ambient = 0.84f});
     // The full-resolution image and coverage preserve the script and
     // worn foil. Only the smooth illumination needs a smaller surface.
     lightScene = ctx.textureScene({114, 161});

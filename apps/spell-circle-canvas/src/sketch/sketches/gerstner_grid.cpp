@@ -44,7 +44,7 @@
 
 // TAGS: Typography/Paragraph, Geometry/Layout
 
-#include <sigilmotion/time/Duration.h>
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
@@ -53,8 +53,12 @@
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/ease/Ease.h>
+#include <sigilmotion/time/Duration.h>
+#include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/style/Type.h>
@@ -64,9 +68,6 @@
 #include <cstdio>
 #include <string>
 #include <utility>
-#include <sigilmotion/ease/Ease.h>
-#include <sigilmotion/values/Time.h>
-#include <sigilmaterial/paint/Bases.h>
 
 namespace arrange = sigil::geometry::arrange;
 namespace material = sigil::material;
@@ -138,7 +139,8 @@ inline constexpr int kConfigCount =
 
 /** Left edge of column `i`, in units. */
 inline float columnUnit(const Config& c, int i) {
-  return arrange::cellRect({i, 0}, {(float)c.width, 0}, {.gap = {(float)c.gutter, 0}})
+  return arrange::cellRect({i, 0}, {(float)c.width, 0},
+                           {.gap = {(float)c.gutter, 0}})
       .left();
 }
 
@@ -210,7 +212,9 @@ struct GerstnerGrid {
       const double t = ticker.elapsed().count();
       // The reading index: one pass down the field every kSweepSecs.
       sweep = gerstner::kFieldY +
-              gerstner::kFieldH * motion::phase(sigil::motion::Duration(t), sigil::motion::Duration(gerstner::kSweepSecs));
+              gerstner::kFieldH *
+                  motion::phase(sigil::motion::Duration(t),
+                                sigil::motion::Duration(gerstner::kSweepSecs));
     });
     composer.render(describe());
   }
@@ -253,10 +257,8 @@ struct GerstnerGrid {
     const g::Config& c = g::kConfigs[config];
     const float colW = c.width * g::kUnit;
 
-    Element bands = stack()
-                        .key("bands")
-                        .rect(g::kFieldX, g::kFieldY,
-                                               g::kFieldW, g::kFieldH);
+    Element bands = stack().key("bands").rect(g::kFieldX, g::kFieldY,
+                                              g::kFieldW, g::kFieldH);
     for (int i = 0; i < c.columns; ++i) {
       const float x = g::columnUnit(c, i) * g::kUnit;
       // the column's own tint, so the configuration reads at a glance
@@ -264,8 +266,16 @@ struct GerstnerGrid {
           box()
               .key("col" + std::to_string(i))
               .rect(x, 0, colW, g::kFieldH)
-              .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 320ms, .delay = motion::stagger(52ms), .ease = motion::ease::outQuad}))
-              .translateY(motion::animate({.from = 9.0f, .to = 0.0f, .duration = 420ms, .delay = motion::stagger(52ms), .ease = motion::ease::outQuint}))
+              .opacity(motion::animate({.from = 0.0f,
+                                        .to = 1.0f,
+                                        .duration = 320ms,
+                                        .delay = motion::stagger(52ms),
+                                        .ease = motion::ease::outQuad}))
+              .translateY(motion::animate({.from = 9.0f,
+                                           .to = 0.0f,
+                                           .duration = 420ms,
+                                           .delay = motion::stagger(52ms),
+                                           .ease = motion::ease::outQuint}))
               .fill(Fill::color({g::kRed.r, g::kRed.g, g::kRed.b, 0.045f}))
               // The field's foot is the page's foot: the copy that does not
               // fit is cut there, as it is in a magazine.
@@ -340,7 +350,8 @@ struct GerstnerGrid {
             .alignItems(Align::Center)
             .gap(10)
             .at({g::kFieldX, g::kFieldY + g::kFieldH + 16})
-            .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 300ms}))
+            .opacity(
+                motion::animate({.from = 0.0f, .to = 1.0f, .duration = 300ms}))
             .children({text("58 =").font({.size = 13,
                                           .color = g::kInkSoft,
                                           .track = 1.2f,

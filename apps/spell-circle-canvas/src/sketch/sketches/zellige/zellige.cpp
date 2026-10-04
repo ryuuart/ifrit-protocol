@@ -5,8 +5,8 @@
 
 // A wall of zellige panels, generated rather than drawn.
 //
-// zellige::girih8 (Girih.h) runs Hankin's polygons-in-contact construction on the real
-// 4.8.8 tiling: two rays leave every octagon edge's midpoint at the
+// zellige::girih8 (Girih.h) runs Hankin's polygons-in-contact construction on
+// the real 4.8.8 tiling: two rays leave every octagon edge's midpoint at the
 // CONTACT ANGLE θ to that edge, and where neighbouring rays meet is a
 // vertex of the star. θ is the whole parameter of the construction, and
 // the three panels here are one θ each — 30°, the classic 45° where the
@@ -30,12 +30,13 @@
 
 // TAGS: Patterns/Tiling
 
-#include <sigilmaterial/filter/Filter.h>
-#include <sigilmaterial/paint/Bases.h>
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/filter/Filter.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -127,8 +128,8 @@ struct Zellige {
   // rather than built in describe(): a Pattern bakes once per recipe, so a
   // fresh one each render would re-bake every frame.
   std::array<zellige_wall::Panel, 3> panels;
-  Pattern grain =
-      material::pattern::speckle(96, 60, 0.4f, 1.1f, {{0.35f, 0.30f, 0.24f, 0.25f}});
+  Pattern grain = material::pattern::speckle(96, 60, 0.4f, 1.1f,
+                                             {{0.35f, 0.30f, 0.24f, 0.25f}});
   double nextSwap = 0.0;
   int phase = 0;
 
@@ -176,12 +177,14 @@ struct Zellige {
         {box()
              .flexGrow(1)
              .borderRadius({3})
-             .fill(sigil::material::from(one.tile.material()).effects(sigil::material::Filter::shadow({1, 1, 1, 0.26f}, {.blur = 2, .inside = true})))
+             .fill(sigil::material::from(one.tile.material())
+                       .effects(sigil::material::Filter::shadow(
+                           {1, 1, 1, 0.26f}, {.blur = 2, .inside = true})))
              // GLAZED, not carved. An inner shadow with an inner glow
              // is a bevel cut into plaster; a glazed tile is a hard
              // gloss with a sheen running off the light and a thin
              // wet line where the glaze pools at the joint.
-             
+
              .stroke(sigil::compose::stroke(2.5f, Fill::color(zw::kInk)))
              .children({box().inset(0).fill(sigil::material::linearGradient(
                  {0, 0}, {180, 260},

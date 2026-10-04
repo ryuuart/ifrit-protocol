@@ -43,31 +43,32 @@
 
 // TAGS: Interfaces/Game
 
-#include <sigilmaterial/program/Shader.h>
-#include <sigilmaterial/filter/Filter.h>
-#include <sigilgeometry/advanced/Skia.h>
-#include <sigilmaterial/skia/Color.h>
-#include <sigilmaterial/paint/Bases.h>
-#include <sigilweave/style/Face.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/brush/Adaptors.h>
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/filter/Filter.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/program/Shader.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/values/Spring.h>
 #include <sigilmotion/ease/Ease.h>
+#include <sigilmotion/values/Spring.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Face.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
@@ -196,15 +197,15 @@ inline Shape sliverWedge() {
  *  sets at 84px, 0.82 condensed and italic. Avenir Next Condensed Heavy
  *  Italic is the closest face macOS ships. */
 inline sigil::weave::Face menuFace(bool italic = true) {
-  const auto slant =
-      italic ? sigil::weave::FaceSlant::Italic : sigil::weave::FaceSlant::Upright;
+  const auto slant = italic ? sigil::weave::FaceSlant::Italic
+                            : sigil::weave::FaceSlant::Upright;
   return sigil::weave::ports::face(
       {"Avenir Next Condensed", "Helvetica Neue"},
       sigil::weave::FaceStyle{.weight = 900, .width = 5, .slant = slant});
 }
 
-/** Menu voice: heavy condensed italic with negative tracking. A partial: the colour is the reference's own ARGB
- *  word, so it takes the 8-bit ladder. */
+/** Menu voice: heavy condensed italic with negative tracking. A partial: the
+ * colour is the reference's own ARGB word, so it takes the 8-bit ladder. */
 inline sigil::weave::Type menuType(float size, material::Color fill,
                                    bool italic = true) {
   sigil::weave::Type t{.face = menuFace(italic),
@@ -235,7 +236,8 @@ struct PersonaMenu {
   // cursor's damped diagonal overshoot.
   motion::Animatable<float> qTime = motion::animatable(0.0f);
   motion::Animatable<float> wedgePulse = motion::animatable(1.0f);
-  motion::Animatable<float> curDx = motion::animatable(40.0f), curDy = motion::animatable(-40.0f);
+  motion::Animatable<float> curDx = motion::animatable(40.0f),
+                            curDy = motion::animatable(-40.0f);
   // The cursor's landing carries its own velocity, so it is a spring and
   // not a curve: the offset is what rings down, and the two triangles
   // read it on both axes.
@@ -255,7 +257,8 @@ struct PersonaMenu {
       material::Color uLight = persona_menu::kCausLight;
       material::Color uDark = persona_menu::kCausBub;
     };
-    causticFx = material::shader(ctx.assets.hub(), ctx.local("caustic.sksl"), CausticParameters{});
+    causticFx = material::shader(ctx.assets.hub(), ctx.local("caustic.sksl"),
+                                 CausticParameters{});
     qTime = 0;
     wedgePulse = 1;
     curDx = 40;
@@ -283,9 +286,9 @@ struct PersonaMenu {
       // 0.391s at a damping of 0.215 — the successive overshoots halve.
       const double tau = t - 0.4;
       if (tau > 0)
-        cursorFlight =
-            cursorFlight.step(0.0f, motion::Duration(std::min(dt, tau)),
-                              {.period = motion::Duration(0.391f), .damping = 0.215f});
+        cursorFlight = cursorFlight.step(
+            0.0f, motion::Duration(std::min(dt, tau)),
+            {.period = motion::Duration(0.391f), .damping = 0.215f});
       curDx = cursorFlight.value;
       curDy = -cursorFlight.value;
     });
@@ -307,19 +310,19 @@ struct PersonaMenu {
   Element backdrop() {
     namespace nn = persona_menu;
     // 5-stop posterized band structure: HARD stops at the LUT positions.
-    material::Material bands =
-        sigil::material::linearGradient({0, 0}, {0, nn::kH},
-                              {{0.000f, nn::kLut0},
-                               {0.309f, nn::kLut0},
-                               {0.309f, nn::kLut1},
-                               {0.480f, nn::kLut1},
-                               {0.480f, nn::kLut2},
-                               {0.768f, nn::kLut2},
-                               {0.768f, nn::kLut3},
-                               {0.813f, nn::kLut3},
-                               {0.813f, nn::kLut4},
-                               {1.000f, nn::kLut4}},
-                              {.units = material::GradientUnits::Pixels});
+    material::Material bands = sigil::material::linearGradient(
+        {0, 0}, {0, nn::kH},
+        {{0.000f, nn::kLut0},
+         {0.309f, nn::kLut0},
+         {0.309f, nn::kLut1},
+         {0.480f, nn::kLut1},
+         {0.480f, nn::kLut2},
+         {0.768f, nn::kLut2},
+         {0.768f, nn::kLut3},
+         {0.813f, nn::kLut3},
+         {0.813f, nn::kLut4},
+         {1.000f, nn::kLut4}},
+        {.units = material::GradientUnits::Pixels});
 
     // Three Z-planes so steady-state recomposition is BLITS, not
     // re-raster: everything below the sea is one static texture, the sea
@@ -398,15 +401,25 @@ struct PersonaMenu {
         .padding(14)
         .rotate(r.rot)
         .zIndex(r.z)
-        .translateY(
-            motion::animate({.from = -30.0f, .to = 0.0f, .duration = 400ms, .delay = motion::stagger(33ms), .ease = motion::ease::outQuint}))
-        .opacity(
-            motion::animate({.from = 0.0f, .to = 1.0f, .duration = 400ms, .delay = motion::stagger(33ms), .ease = motion::ease::outQuad}))
+        .translateY(motion::animate({.from = -30.0f,
+                                     .to = 0.0f,
+                                     .duration = 400ms,
+                                     .delay = motion::stagger(33ms),
+                                     .ease = motion::ease::outQuint}))
+        .opacity(motion::animate({.from = 0.0f,
+                                  .to = 1.0f,
+                                  .duration = 400ms,
+                                  .delay = motion::stagger(33ms),
+                                  .ease = motion::ease::outQuad}))
         .cache(Cache::Texture)
-        .children({text(r.label)
-                       .font(nn::menuType(41, r.color)).decorationOutline(Boundary::Glyphs).ink(material::from(r.color).effects(
-                            material::Filter::stroke(nn::kRing, {.width = 0.9f})))
-                       .filter(sigil::material::Filter::glow({0, 0, 0, 0.5f}, 3.5f))});
+        .children(
+            {text(r.label)
+                 .font(nn::menuType(41, r.color))
+                 .decorationOutline(Boundary::Glyphs)
+                 .ink(material::from(r.color).effects(
+                     material::Filter::stroke(nn::kRing, {.width = 0.9f})))
+                 .filter(
+                     sigil::material::Filter::glow({0, 0, 0, 0.5f}, 3.5f))});
   }
 
   /** The selected sticker: black label at 1.5x on a
@@ -423,16 +436,25 @@ struct PersonaMenu {
     const float lx = 20, ly = -2;  // label, row-local
     const float wW = 250, wH = 68;
 
-    Element row = box()
-                      .key(r.label)
-                      .left(nn::kBaseX + r.dx)
-                      .top(r.y - 12)
-                      .width(264)
-                      .height(78)
-                      .rotate(r.rot)
-                      .zIndex(r.z)
-                      .translateY(motion::animate({.from = -30.0f, .to = 0.0f, .duration = 400ms, .delay = motion::stagger(33ms), .ease = motion::ease::outQuint}))
-                      .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 400ms, .delay = motion::stagger(33ms), .ease = motion::ease::outQuad}));
+    Element row =
+        box()
+            .key(r.label)
+            .left(nn::kBaseX + r.dx)
+            .top(r.y - 12)
+            .width(264)
+            .height(78)
+            .rotate(r.rot)
+            .zIndex(r.z)
+            .translateY(motion::animate({.from = -30.0f,
+                                         .to = 0.0f,
+                                         .duration = 400ms,
+                                         .delay = motion::stagger(33ms),
+                                         .ease = motion::ease::outQuint}))
+            .opacity(motion::animate({.from = 0.0f,
+                                      .to = 1.0f,
+                                      .duration = 400ms,
+                                      .delay = motion::stagger(33ms),
+                                      .ease = motion::ease::outQuad}));
     // pink back-wedge, misregistered under the white one
     row.children(
         {kit::at(10, 3, wW, wH)
@@ -478,20 +500,22 @@ struct PersonaMenu {
         .rotate(-16)
         .translateX(curDx)
         .translateY(curDy)
-        .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 60ms, .delay = 400ms, .ease = motion::ease::outQuad}))
+        .opacity(motion::animate({.from = 0.0f,
+                                  .to = 1.0f,
+                                  .duration = 60ms,
+                                  .delay = 400ms,
+                                  .ease = motion::ease::outQuad}))
         // The original draws this additively. At this size over the navy
         // sea, kPlus washes the red rim out completely, so it stays a plain
         // red fill.
-        .children({box()
-                       .inset(0)
-                       .shape(shapes::polygon(3, 92))
-                       .fill(nn::kRedC)
-                       .translateX(1)
-                       .translateY(5),
-                   box()
-                       .inset(0)
-                       .shape(shapes::polygon(3, 90))
-                       .fill(nn::kPaper)});
+        .children(
+            {box()
+                 .inset(0)
+                 .shape(shapes::polygon(3, 92))
+                 .fill(nn::kRedC)
+                 .translateX(1)
+                 .translateY(5),
+             box().inset(0).shape(shapes::polygon(3, 90)).fill(nn::kPaper)});
   }
 
   Element promptCircle(const char* glyph) {
@@ -523,16 +547,23 @@ struct PersonaMenu {
         .top(34)
         .column()
         .zIndex(8)
-        .translateX(motion::animate({.from = -30.0f, .to = 0.0f, .duration = 420ms, .ease = motion::ease::outQuint}))
+        .translateX(motion::animate({.from = -30.0f,
+                                     .to = 0.0f,
+                                     .duration = 420ms,
+                                     .ease = motion::ease::outQuint}))
         .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 340ms}))
         .children(
             {box()
                  .row()
                  .alignItems(Align::End)
                  .children({text("07/22")
-                                .font(nn::menuType(38, nn::kPaper)).decorationOutline(Boundary::Glyphs).ink(material::from(nn::kPaper).effects(
-                            material::Filter::stroke(nn::kRing, {.width = 1.0f})))
-                                .filter(sigil::material::Filter::glow({0, 0, 0, 0.45f}, 3)),
+                                .font(nn::menuType(38, nn::kPaper))
+                                .decorationOutline(Boundary::Glyphs)
+                                .ink(material::from(nn::kPaper)
+                                         .effects(material::Filter::stroke(
+                                             nn::kRing, {.width = 1.0f})))
+                                .filter(sigil::material::Filter::glow(
+                                    {0, 0, 0, 0.45f}, 3)),
                             box()
                                 .column()
                                 .margin(0, 0, 5, 11)
@@ -610,26 +641,28 @@ struct PersonaMenu {
                text(numbers).font(nn::smallType(9, nn::kPaper, 0.6f))});
     };
 
-    Element rail = box()
-                       .key("party")
-                       .right(41)
-                       .bottom(74)
-                       .column()
-                       .gap(7)
-                       .zIndex(8);
+    Element rail =
+        box().key("party").right(41).bottom(74).column().gap(7).zIndex(8);
     rail.children({each(kParty, [&](const Member& m) {
       return box()
           .width(246)
           .height(52)
           .rotate(-4)
-          .translateX(motion::animate({.from = 46.0f, .to = 0.0f, .duration = 440ms, .delay = motion::stagger(60ms), .ease = motion::ease::outQuint}))
-          .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 360ms, .delay = motion::stagger(60ms)}))
+          .translateX(motion::animate({.from = 46.0f,
+                                       .to = 0.0f,
+                                       .duration = 440ms,
+                                       .delay = motion::stagger(60ms),
+                                       .ease = motion::ease::outQuint}))
+          .opacity(motion::animate({.from = 0.0f,
+                                    .to = 1.0f,
+                                    .duration = 360ms,
+                                    .delay = motion::stagger(60ms)}))
           .shape(shapes::parallelogram(9))
-          .fill(
-              sigil::material::linearGradient({0, 0}, {246, 0},
-                                    {{0.0f, {0.02f, 0.16f, 0.42f, 0.78f}},
-                                     {1.0f, {0.02f, 0.30f, 0.62f, 0.55f}}},
-                                    {.units = material::GradientUnits::Pixels}))
+          .fill(sigil::material::linearGradient(
+              {0, 0}, {246, 0},
+              {{0.0f, {0.02f, 0.16f, 0.42f, 0.78f}},
+               {1.0f, {0.02f, 0.30f, 0.62f, 0.55f}}},
+              {.units = material::GradientUnits::Pixels}))
           .stroke(stroke(1.4f, Fill::color({1, 1, 1, 0.55f})))
           .column()
           .padding(7, 17)
@@ -639,8 +672,11 @@ struct PersonaMenu {
                    .row()
                    .alignItems(Align::End)
                    .children({text(m.name)
-                                  .font(nn::menuType(17, nn::kPaper)).decorationOutline(Boundary::Glyphs).ink(material::from(nn::kPaper).effects(
-                            material::Filter::stroke(nn::kRing, {.width = 0.5f})))
+                                  .font(nn::menuType(17, nn::kPaper))
+                                  .decorationOutline(Boundary::Glyphs)
+                                  .ink(material::from(nn::kPaper)
+                                           .effects(material::Filter::stroke(
+                                               nn::kRing, {.width = 0.5f})))
                                   .flexGrow(1),
                               text(kit::formatted("LV %d", m.level))
                                   .font(nn::smallType(10, nn::kCyanB, 1.6f))}),
@@ -672,7 +708,8 @@ struct PersonaMenu {
                        .rotate(90)
                        .zIndex(1)
                        .blendMode(material::BlendMode::Screen)
-                       .opacity(motion::animate({.from = 0.0f, .to = 0.85f, .duration = 500ms}))
+                       .opacity(motion::animate(
+                           {.from = 0.0f, .to = 0.85f, .duration = 500ms}))
                        // 220px digits render as glyph PATHS (over the atlas
                        // cutoff); bake them once, the rotation rides outside
                        .cache(Cache::Texture)})
@@ -714,13 +751,21 @@ struct PersonaMenu {
                  // room for the glow tail, pins shifted to compensate
                  .padding(12)
                  .cache(Cache::Texture)
-                 .translateX(motion::animate({.from = 36.0f, .to = 0.0f, .duration = 400ms, .ease = motion::ease::outQuint}))
-                 .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 300ms}))
+                 .translateX(motion::animate({.from = 36.0f,
+                                              .to = 0.0f,
+                                              .duration = 400ms,
+                                              .ease = motion::ease::outQuint}))
+                 .opacity(motion::animate(
+                     {.from = 0.0f, .to = 1.0f, .duration = 300ms}))
                  .children(
                      {text("PERSONA")
-                          .font(nn::menuType(30, nn::kPaper)).decorationOutline(Boundary::Glyphs).ink(material::from(nn::kPaper).effects(
-                            material::Filter::stroke(nn::kRing, {.width = 1.0f})))
-                          .filter(sigil::material::Filter::glow({0, 0, 0, 0.5f}, 3)),
+                          .font(nn::menuType(30, nn::kPaper))
+                          .decorationOutline(Boundary::Glyphs)
+                          .ink(material::from(nn::kPaper)
+                                   .effects(material::Filter::stroke(
+                                       nn::kRing, {.width = 1.0f})))
+                          .filter(sigil::material::Filter::glow({0, 0, 0, 0.5f},
+                                                                3)),
                       box()
                           .row()
                           .alignItems(Align::Center)
@@ -733,22 +778,27 @@ struct PersonaMenu {
                                          .fill(material::Color{1, 1, 1, 0.8f})
                                          .margin(0, 0, 0, 8)})})})
         // ---- button prompts, bottom-right ----
-        .children({box()
-                       .key("prompts")
-                       .right(41)
-                       .bottom(28)
-                       .row()
-                       .alignItems(Align::Center)
-                       .zIndex(8)
-                       .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 400ms, .delay = 250ms, .ease = motion::ease::outQuad}))
-                       .children({promptCircle("O"),
-                                  text("CONFIRM")
-                                      .font(nn::smallType(11, nn::kCyanB, 1.5f))
-                                      .margin(0, 22, 0, 8),
-                                  promptCircle("X"),
-                                  text("BACK")
-                                      .font(nn::smallType(11, nn::kCyanB, 1.5f))
-                                      .margin(0, 0, 0, 8)})});
+        .children(
+            {box()
+                 .key("prompts")
+                 .right(41)
+                 .bottom(28)
+                 .row()
+                 .alignItems(Align::Center)
+                 .zIndex(8)
+                 .opacity(motion::animate({.from = 0.0f,
+                                           .to = 1.0f,
+                                           .duration = 400ms,
+                                           .delay = 250ms,
+                                           .ease = motion::ease::outQuad}))
+                 .children({promptCircle("O"),
+                            text("CONFIRM")
+                                .font(nn::smallType(11, nn::kCyanB, 1.5f))
+                                .margin(0, 22, 0, 8),
+                            promptCircle("X"),
+                            text("BACK")
+                                .font(nn::smallType(11, nn::kCyanB, 1.5f))
+                                .margin(0, 0, 0, 8)})});
   }
 };
 

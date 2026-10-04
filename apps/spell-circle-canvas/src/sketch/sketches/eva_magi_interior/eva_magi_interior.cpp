@@ -2,15 +2,16 @@
 // inside concentric defense rings; four fixed panels read the moving field.
 // TAGS: Interfaces/Film, Typography/Paths, Drawing/Primitives
 
-#include <sigilgeometry/advanced/Skia.h>
-#include <sigilmaterial/paint/Bases.h>
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigildraw/Pen.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Animatable.h>
@@ -29,8 +30,8 @@ namespace shapes = sigil::geometry::shapes;
 namespace motion = sigil::motion;
 namespace weave = sigil::weave;
 using namespace sigil::compose;
-using sigil::material::hexColor;
 using sigil::draw::Pen;
+using sigil::material::hexColor;
 using sigil::material::Paint;
 
 namespace {
@@ -82,19 +83,23 @@ struct EvaMagiInterior {
     for (int i = 0; i < 45; ++i) code += i % 3 == 0 ? "110 " : "001 ";
     for (int band = 0; band < 13; ++band) {
       const float r = 383 + band * 29.0f;
-      group.children({text(code)
-                          .font({.face = evangelion::condensedRegular(),
-                                 .size = 34,
-                                 .color = kGreen,
-                                 .track = 1.3f,
-                                 .condense = 0.70f})
-                          .width(r * 2)
-                          .height(r * 2)
-                          .centerAt(sigil::geometry::path::fromSk(kCentre))
-                          .textOnPath({.path = shapes::circle(),
-                                       .at = motion::bind(turn, {.to = {band * 0.037f, band * 0.037f + (band % 2 ? -1 : 1)}}),
-                                       .align = TextPath::Align::Start,
-                                       .autoFlip = false})});
+      group.children(
+          {text(code)
+               .font({.face = evangelion::condensedRegular(),
+                      .size = 34,
+                      .color = kGreen,
+                      .track = 1.3f,
+                      .condense = 0.70f})
+               .width(r * 2)
+               .height(r * 2)
+               .centerAt(sigil::geometry::path::fromSk(kCentre))
+               .textOnPath(
+                   {.path = shapes::circle(),
+                    .at = motion::bind(
+                        turn, {.to = {band * 0.037f,
+                                      band * 0.037f + (band % 2 ? -1 : 1)}}),
+                    .align = TextPath::Align::Start,
+                    .autoFlip = false})});
     }
     group.children({pen(
         "protection.channels",
@@ -167,27 +172,32 @@ struct EvaMagiInterior {
 
   Element panel(float x, float y, float width, Utf8 heading, Utf8 reading,
                 bool timer) const {
-    Element plate = box()
-                        .rect(x, y, width, 112)
-                        .fill(kGround)
-                        .borderRadius({8})
-                        .stroke(stroke(4, sigil::material::skia::base(Paint::solid(kOrange))));
+    Element plate =
+        box()
+            .rect(x, y, width, 112)
+            .fill(kGround)
+            .borderRadius({8})
+            .stroke(
+                stroke(4, sigil::material::skia::base(Paint::solid(kOrange))));
     if (timer) {
-      plate.children({box().rect(sigil::geometry::path::Rect{{8, 39},{ width - 8, 42}}).fill(kOrange),
-                      label(heading, {10, 9}, 24, width - 20),
-                      label(reading, {15, 52}, 47, width - 100),
-                      label("sec.", {width - 77, 77}, 23, 63)});
+      plate.children(
+          {box()
+               .rect(sigil::geometry::path::Rect{{8, 39}, {width - 8, 42}})
+               .fill(kOrange),
+           label(heading, {10, 9}, 24, width - 20),
+           label(reading, {15, 52}, 47, width - 100),
+           label("sec.", {width - 77, 77}, 23, 63)});
     } else {
-      plate.children({label(heading, {9, 12}, 50, width - 18),
-                      box().rect(sigil::geometry::path::Rect{{6, 72},{ width - 6, 75}}).fill(kOrange),
-                      label(reading, {width * 0.33f, 82}, 21, width * 0.62f)});
+      plate.children(
+          {label(heading, {9, 12}, 50, width - 18),
+           box()
+               .rect(sigil::geometry::path::Rect{{6, 72}, {width - 6, 75}})
+               .fill(kOrange),
+           label(reading, {width * 0.33f, 82}, 21, width * 0.62f)});
     }
     return box().inset(0).children(
         {std::move(plate),
-         box()
-             .rect(x - 31, y - 2, 17, 116)
-             .fill(kOrange)
-             .borderRadius({9}),
+         box().rect(x - 31, y - 2, 17, 116).fill(kOrange).borderRadius({9}),
          box()
              .rect(x + width + 15, y - 2, 17, 116)
              .fill(kOrange)
@@ -214,15 +224,15 @@ struct EvaMagiInterior {
     auto tube = evangelion::crtTube(SkRect::MakeWH(kWidth, kHeight));
     tube.set("uBloom", 0.22f);
     const auto phosphor = material::Filter::bloom({.sigma = 1.6f,
-                                                .strength = 0.24f,
-                                                .spread = 2.2f,
-                                                .tail = 0.12f,
-                                                .threshold = 0.12f,
-                                                .knee = 0.18f,
-                                                .softness = 0.3f,
-                                                .whitening = 0.06f,
-                                                .dilation = 0.35f,
-                                                .deepening = 1.5f});
+                                                   .strength = 0.24f,
+                                                   .spread = 2.2f,
+                                                   .tail = 0.12f,
+                                                   .threshold = 0.12f,
+                                                   .knee = 0.18f,
+                                                   .softness = 0.3f,
+                                                   .whitening = 0.06f,
+                                                   .dilation = 0.35f,
+                                                   .deepening = 1.5f});
     ctx.composer.render(box().inset(0).fill(kGround).children(
         {box()
              .inset(0)
@@ -233,8 +243,7 @@ struct EvaMagiInterior {
                         panel(59, 667, 365, "PROTECT NO.666",
                               "on MAGI-01 ORIGINAL", false),
                         slot("timers")})
-             .filter(phosphor.then(
-                 material::Filter::of(tube, 82.0f)))}));
+             .filter(phosphor.then(material::Filter::of(tube, 82.0f)))}));
     second = 0;
     ctx.composer.renderSlot("timers", timers(second));
   }

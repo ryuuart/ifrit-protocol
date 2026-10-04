@@ -47,10 +47,9 @@
 
 // TAGS: Geometry/Meshes
 
-#include <sigilgeometry/advanced/Skia.h>
-#include <sigilmedia/advanced/Skia.h>
-#include <sigildraw/Pen.h>
 #include <sigilcompose/texture/Texture.h>
+#include <sigildraw/Pen.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
@@ -58,6 +57,7 @@
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilgeometry/mesh/render/Runtime.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
@@ -145,6 +145,7 @@ Element card(float w, float h, material::Color accent) {
 }  // namespace
 
 struct FloatingPanels {
+  static constexpr bool needsDevice = true;
   sk_sp<SkImage> cardA, cardB, cardC, screen;
   mesh::Mesh floor, curved;
 
@@ -165,22 +166,23 @@ struct FloatingPanels {
     // A sheet has one facing, and this one is being looked at from the
     // side the winding calls the back. Culling it would leave the frame
     // with no ground at all.
-    render::drawMesh(canvas, floor, glm::mat4(1.0f), view, sigil::geometry::path::fromSk(kCanvas),
+    render::drawMesh(canvas, floor, glm::mat4(1.0f), view,
+                     sigil::geometry::path::fromSk(kCanvas),
                      {.baseColor = {0.16f, 0.3f, 0.5f, 0.5f},
                       .ambient = {0.45f, 0.5f, 0.62f, 1},
                       .specular = 0,
                       .backfaceCull = false,
                       .runtime = painter()});
 
-    render::drawImagePanel(canvas, cardA, 360, 240,
-                           camera::place({-350, 120, -80}, 34), view, sigil::geometry::path::fromSk(kCanvas),
-                           0.95f, painter());
-    render::drawImagePanel(canvas, cardB, 360, 240,
-                           camera::place({0, 130, 30}, 0, -4), view, sigil::geometry::path::fromSk(kCanvas),
-                           0.98f, painter());
-    render::drawImagePanel(canvas, cardC, 360, 240,
-                           camera::place({350, 110, -80}, -34), view, sigil::geometry::path::fromSk(kCanvas),
-                           0.95f, painter());
+    render::drawImagePanel(
+        canvas, cardA, 360, 240, camera::place({-350, 120, -80}, 34), view,
+        sigil::geometry::path::fromSk(kCanvas), 0.95f, painter());
+    render::drawImagePanel(
+        canvas, cardB, 360, 240, camera::place({0, 130, 30}, 0, -4), view,
+        sigil::geometry::path::fromSk(kCanvas), 0.98f, painter());
+    render::drawImagePanel(
+        canvas, cardC, 360, 240, camera::place({350, 110, -80}, -34), view,
+        sigil::geometry::path::fromSk(kCanvas), 0.95f, painter());
 
     // The curved sheet: the same kind of picture, mapped per triangle.
     // Unlit on purpose — a screen emits, and a light term on it would
@@ -227,9 +229,8 @@ struct FloatingPanels {
           const float scale = std::min(paint.size.x / kCanvas.width(),
                                        paint.size.y / kCanvas.height());
           canvas.save();
-          canvas.translate(
-              (paint.size.x - kCanvas.width() * scale) / 2,
-              (paint.size.y - kCanvas.height() * scale) / 2);
+          canvas.translate((paint.size.x - kCanvas.width() * scale) / 2,
+                           (paint.size.y - kCanvas.height() * scale) / 2);
           canvas.scale(scale, scale);
           draw(canvas);
           canvas.restore();

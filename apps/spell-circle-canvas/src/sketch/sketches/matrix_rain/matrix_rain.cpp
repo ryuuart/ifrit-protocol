@@ -33,6 +33,7 @@
  */
 // TAGS: Typography/Effects, Motion/Particles
 
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
@@ -223,10 +224,11 @@ GlyphModifier cell(const Plane& plane, const std::u32string& charset,
   GlyphModifier modifier;
   if (mirrored) modifier.scaleX = -1.0f;
   // Under the head the glyph churns fast; elsewhere on its own clock.
-  const float churn = since < 2 ? seconds * 14 : seconds * churnRate + churnPhase;
-  modifier.codepoint = charset[(size_t)(unitHash(churnSeed, (uint32_t)churn) *
-                                        charset.size()) %
-                               charset.size()];
+  const float churn =
+      since < 2 ? seconds * 14 : seconds * churnRate + churnPhase;
+  modifier.codepoint =
+      charset[(size_t)(unitHash(churnSeed, (uint32_t)churn) * charset.size()) %
+              charset.size()];
   if (since < 1) return modifier;  // the head: the sheet's near-white
   const float light = std::exp(-(since - 1) / plane.tailCells);
   modifier.colorMultiplier = material::mixLinear(kDecayed, kPhosphor, light);
@@ -280,8 +282,10 @@ struct MatrixRain {
                                         .applyStyleSheet(screen()));
     plane.cellHeight = column.height() / 8;
     plane.cellWidth = std::max(1.0f, column.width());
-    plane.rows = std::max(1, (int)std::floor(plane.height() / plane.cellHeight));
-    plane.columns = std::max(1, (int)std::floor(plane.width() / plane.cellWidth));
+    plane.rows =
+        std::max(1, (int)std::floor(plane.height() / plane.cellHeight));
+    plane.columns =
+        std::max(1, (int)std::floor(plane.width() / plane.cellWidth));
     noise::Mix64Stream random(plane.seed);
     for (int at = 0; at < plane.columns; ++at) {
       if (at > 0) plane.text += '\n';
@@ -305,7 +309,8 @@ struct MatrixRain {
     const std::u32string& charset = mirrored ? kanaCodepoints : digitCodepoints;
     return textFx::effect(
                "rain-" + plane.name + (mirrored ? "-kana" : "-digits"),
-               [plane, charset, mirrored](const GlyphInfo& glyph, float progress,
+               [plane, charset, mirrored](const GlyphInfo& glyph,
+                                          float progress,
                                           noise::Mix64Stream& random) {
                  return cell(plane, charset, mirrored, glyph,
                              progress * kClockSeconds, random);
@@ -324,8 +329,8 @@ struct MatrixRain {
     const float tall = across * 1.35f;
     // Vertical-RL columns fill from the right, each glyph set against the
     // right of its column, one em across.
-    const float centreX = plane.width() - (float)column * plane.cellWidth -
-                          plane.cellHeight / 2;
+    const float centreX =
+        plane.width() - (float)column * plane.cellWidth - plane.cellHeight / 2;
     return kit::at(centreX - across / 2, -tall / 2, across, tall)
         .hitTestable(false)
         .blendMode(material::BlendMode::PlusLighter)
@@ -395,7 +400,8 @@ struct MatrixRain {
                   .clamp = {0.0f, 1.0f}});
     const TextEffect arrival = textFx::tween(
         {.from = GlyphModifier{.alpha = 0.0f, .colorMultiplier = kPhosphor},
-         .keyframes = {{.to = GlyphModifier{.colorMultiplier = kPhosphor}, .duration = 350ms},
+         .keyframes = {{.to = GlyphModifier{.colorMultiplier = kPhosphor},
+                        .duration = 350ms},
                        {.to = GlyphModifier{}, .duration = 650ms}}});
     return kit::at(0, kHeight * 0.5f - 90, kWidth, 180)
         .key("title")
@@ -403,8 +409,11 @@ struct MatrixRain {
         .alignItems(Align::Center)
         .justifyContent(Justify::Center)
         .children({
-            box().cover().opacity(reveal).cache(Cache::Texture).fill(
-                material::radialGradient(
+            box()
+                .cover()
+                .opacity(reveal)
+                .cache(Cache::Texture)
+                .fill(material::radialGradient(
                     {0.5f, 0.5f}, 0.5f,
                     {{0.0f, material::withAlpha(kVoid, 0.94f)},
                      {0.6f, material::withAlpha(kVoid, 0.70f)},
@@ -430,29 +439,39 @@ struct MatrixRain {
     constexpr material::Color settled = {0.34f, 0.93f, 0.50f, 1};
     const TextEffect traced = textFx::tween(
         {.from = GlyphModifier{.alpha = 0.0f},
-         .keyframes = {{.to = GlyphModifier{}, .duration = 4ms},
-                       {.to = GlyphModifier{.colorMultiplier = settled}, .duration = 41ms},
-                       {.to = GlyphModifier{.colorMultiplier = settled}, .duration = 855ms},
-                       {.to = GlyphModifier{.alpha = 0.0f, .colorMultiplier = settled}, .duration = 25ms},
-                       {.to = GlyphModifier{.alpha = 0.0f}, .duration = 75ms}}});
-    const TextEffect blink = textFx::tween(
-        {.keyframes = {{.to = GlyphModifier{.alpha = 0.0f}, .duration = 1000ms}}});
-    const motion::Duration each = std::chrono::duration<double, std::milli>(traceLine.eachMs);
+         .keyframes = {
+             {.to = GlyphModifier{}, .duration = 4ms},
+             {.to = GlyphModifier{.colorMultiplier = settled},
+              .duration = 41ms},
+             {.to = GlyphModifier{.colorMultiplier = settled},
+              .duration = 855ms},
+             {.to = GlyphModifier{.alpha = 0.0f, .colorMultiplier = settled},
+              .duration = 25ms},
+             {.to = GlyphModifier{.alpha = 0.0f}, .duration = 75ms}}});
+    const TextEffect blink =
+        textFx::tween({.keyframes = {{.to = GlyphModifier{.alpha = 0.0f},
+                                      .duration = 1000ms}}});
+    const motion::Duration each =
+        std::chrono::duration<double, std::milli>(traceLine.eachMs);
     return document::code(traceLine.words)
         .key("trace")
-        .textFx({.effect = traced,
-                 .tween = {.duration = std::chrono::duration<double, std::milli>(traceLine.durationMs),
-                           .delay = motion::stagger(each),
-                           .loop = -1,
-                           .loopDelay = std::chrono::duration<double, std::milli>(
-                               traceLine.loopMs - traceLine.durationMs)},
-                 .progress = motion::bind(seconds, {.to = {0.0f, 1000.0f / traceLine.loopMs},
-                                                    .wrap = 1.0f})})
+        .textFx(
+            {.effect = traced,
+             .tween = {.duration = std::chrono::duration<double, std::milli>(
+                           traceLine.durationMs),
+                       .delay = motion::stagger(each),
+                       .loop = -1,
+                       .loopDelay = std::chrono::duration<double, std::milli>(
+                           traceLine.loopMs - traceLine.durationMs)},
+             .progress = motion::bind(
+                 seconds,
+                 {.to = {0.0f, 1000.0f / traceLine.loopMs}, .wrap = 1.0f})})
         .textFx({.where = weave::selectors::regex(u8"█"),
                  .effect = blink,
-                 .progress = motion::bind(seconds, {.from = {0, traceLine.blinkSeconds},
-                                                    .envelope = motion::envelope::square(0.55f),
-                                                    .to = {1.0f, 0.0f}})});
+                 .progress = motion::bind(
+                     seconds, {.from = {0, traceLine.blinkSeconds},
+                               .envelope = motion::envelope::square(0.55f),
+                               .to = {1.0f, 0.0f}})});
   }
 
   /** THE GLASS over the rain, which never moves: the tube's falloff toward
@@ -465,9 +484,9 @@ struct MatrixRain {
           {0.0f, material::withAlpha(kVoid, 0.92f)},
           {0.5f, material::withAlpha(kVoid, 0.70f)},
           {1.0f, material::withAlpha(kVoid, 0)}};
-      return material::linearGradient({0, fromTop ? 0 : height},
-                                      {0, fromTop ? height : 0}, stops,
-                                      {.units = material::GradientUnits::Pixels});
+      return material::linearGradient(
+          {0, fromTop ? 0 : height}, {0, fromTop ? height : 0}, stops,
+          {.units = material::GradientUnits::Pixels});
     };
     return box()
         .cover()
@@ -509,7 +528,8 @@ struct MatrixRain {
         .borderRadius(34)
         .overflow(Overflow::Clip)
         .fill(material::radialGradient(
-            {kWidth * 0.5f, kHeight * 0.46f}, std::hypot(kWidth, kHeight) * 0.5f,
+            {kWidth * 0.5f, kHeight * 0.46f},
+            std::hypot(kWidth, kHeight) * 0.5f,
             {{0.0f, {0.014f, 0.050f, 0.026f, 1}},
              {0.55f, {0.007f, 0.020f, 0.011f, 1}},
              {1.0f, kVoid}},
@@ -526,9 +546,9 @@ struct MatrixRain {
   void setup(sketch::SketchContext& ctx) {
     // The title held over a rain deep in its steady state: fresh heads,
     // long tails and columns resting dark between drops.
-    sketch::kit::stage(ctx, {.size = {kWidth, kHeight},
-                             .captureAt = 7.0,
-                             .background = kVoid});
+    sketch::kit::stage(
+        ctx,
+        {.size = {kWidth, kHeight}, .captureAt = 7.0, .background = kVoid});
     ctx.engine.timer([this](motion::Duration, motion::Duration elapsed) {
       seconds = (float)elapsed.count();
       return true;
@@ -538,7 +558,8 @@ struct MatrixRain {
     const data::Json& charsets = words["charsets"];
     kana = glyphsOf(charsets["kana"].string());
     digits = glyphsOf(charsets["digits"].string());
-    digitsOneIn = std::max<uint32_t>(1, (uint32_t)charsets["digitsOneIn"].number());
+    digitsOneIn =
+        std::max<uint32_t>(1, (uint32_t)charsets["digitsOneIn"].number());
     kanaCodepoints = codepointsOf(charsets["kana"]);
     digitCodepoints = codepointsOf(charsets["digits"]);
     credit = std::string(words["credit"].string());

@@ -40,14 +40,16 @@
 
 // TAGS: Typography/Lettering
 
-#include <sigilmaterial/paint/Bases.h>
-#include <sigilmaterial/filter/Filter.h>
-#include <sigilgeometry/advanced/Skia.h>
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/filter/Filter.h>
+#include <sigilmaterial/paint/Bases.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/style/Type.h>
@@ -57,7 +59,6 @@
 #include <cmath>
 #include <string>
 #include <vector>
-#include <sigilmotion/ease/Ease.h>
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
@@ -159,7 +160,7 @@ struct Beethoven {
     const float sweep = run.endDeg - run.startDeg;
     const float span = std::min(sweep / 360.0f, 0.9995f);
 
-    Element e = kit::disc(sigil::geometry::path::fromSk(C),rMid)
+    Element e = kit::disc(sigil::geometry::path::fromSk(C), rMid)
                     .shape(shapes::arc(canvasStart))
                     .stroke(PathFormat{.width = width,
                                        .strokeFill = Fill::color(bp::kInk)});
@@ -170,8 +171,12 @@ struct Beethoven {
     // the transition's own.
     const auto duration = std::chrono::milliseconds(
         bp::kRingBaseMs << (unsigned)std::min(ring, 5));
-    e.mask(by::spans(spans::upTo(
-        motion::animate({.from = 0.0001f, .to = span, .duration = duration, .delay = bp::kRevealDelay, .ease = motion::ease::linear}))));
+    e.mask(by::spans(
+        spans::upTo(motion::animate({.from = 0.0001f,
+                                     .to = span,
+                                     .duration = duration,
+                                     .delay = bp::kRevealDelay,
+                                     .ease = motion::ease::linear}))));
     return e;
   }
 
@@ -229,8 +234,10 @@ struct Beethoven {
     // the one ink, which every line on the poster inherits and the title
     // steps up from.
     return stack()
-        .fill(sigil::material::from(bp::kPaper).effects(sigil::material::Filter::shadow({0, 0, 0, 0.45f}, {.blur = 22, .offset = {0, 8}})))
-        
+        .fill(sigil::material::from(bp::kPaper)
+                  .effects(sigil::material::Filter::shadow(
+                      {0, 0, 0, 0.45f}, {.blur = 22, .offset = {0, 8}})))
+
         .overflow(Overflow::Clip)
         .font({.size = 11.5f * bp::kScale, .track = 0.2f * bp::kScale})
         .ink(bp::kInk)
@@ -266,8 +273,8 @@ struct Beethoven {
         .children({
             // The plate, centered on the wall — the letterbox panels are
             // the mat itself.
-            plate().key("plate").rect(
-                bp::kPlateX, bp::kPlateY, bp::kPlateW, bp::kPlateH),
+            plate().key("plate").rect(bp::kPlateX, bp::kPlateY, bp::kPlateW,
+                                      bp::kPlateH),
             // The museum label, right panel, at hanging height.
             box()
                 .key("label")

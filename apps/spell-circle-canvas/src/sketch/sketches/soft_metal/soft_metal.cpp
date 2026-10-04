@@ -3,6 +3,7 @@
 // TAGS: Studies/Film, Typography/Lettering, Materials/Metal,
 // Materials/Lighting, Motion/Transitions
 
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/texture/Texture.h>

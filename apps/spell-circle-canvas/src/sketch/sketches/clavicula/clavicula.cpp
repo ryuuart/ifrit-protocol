@@ -3,6 +3,7 @@
 // TAGS: Studies/Manuscripts, Geometry/Diagrams, Typography/Lettering,
 // Materials/Metal, Patterns/Ornament
 
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/texture/Texture.h>
@@ -348,7 +349,7 @@ struct Clavicula {
     lightField = box().width(130).height(160).fill(gold).lighting(
         material::studio({.direction = direction,
                           .elevation = elevation,
-                          .color = {1, 0.96f, 0.83f, 1},
+                          .color = material::Color{1, 0.96f, 0.83f, 1},
                           .intensity = 0.9f,
                           .ambient = 0.75f}));
     lightScene->render(lightField);

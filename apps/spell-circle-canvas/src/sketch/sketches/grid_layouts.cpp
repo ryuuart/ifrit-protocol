@@ -2,8 +2,8 @@
  * grid_layouts — the three schemes that place a run of cards without a
  * row or a column, given the same twelve cards.
  *
- * A `LayoutScheme` returns one rect per child from the container size
- * and the children's MEASURED sizes, in a bounded second pass after
+ * An arranger writes each child record's rect from the container box
+ * and the children's measured sizes, in a bounded second pass after
  * Yoga. The three here differ in what they do with that measurement.
  * `Grid` throws the measured size away and SIZES each card to its
  * cell span, so a card is whatever the module is. `Diagonal` keeps every
@@ -11,7 +11,7 @@
  * the same shear line a `skewX` would lean the verticals to. And
  * `BaselineGrid` keeps the sizes too but shifts each card DOWN so its
  * first text baseline lands on the next grid line — the only scheme that
- * reads `childBaselines`, which is why the twelve cards here are text
+ * reads each child's `baseline`, which is why the twelve cards here are text
  * leaves at three different sizes rather than boxes: a box has no
  * baseline and falls back to its bottom edge.
  *
@@ -27,11 +27,11 @@
 
 // TAGS: Geometry/Layout
 
-#include <sigilcompose/kit/Rows.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Grid.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Layouts.h>
+#include <sigilcompose/kit/Rows.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -142,11 +142,17 @@ struct GridLayouts {
                             "The spacing absorbs the difference in size."}},
                   .measure = 1020,
                   .gap = 18}),
-             sigil::compose::kit::readout(std::vector<sigil::compose::kit::Reading>{{.name = "Input", .value = "12 measured text leaves"},
-                  {.name = "Grid changes", .value = "position + extent"},
-                  {.name = "Diagonal / baseline change",
-                   .value = "position only"}},
-                        {.measure = 501, .gap = sketch::kit::theme().spacing.rowGap, .labelGap = sketch::kit::theme().spacing.labelGap, .divider = Fill::color(sketch::kit::theme().palette.rule)})})));
+             sigil::compose::kit::readout(
+                 std::vector<sigil::compose::kit::Reading>{
+                     {.name = "Input", .value = "12 measured text leaves"},
+                     {.name = "Grid changes", .value = "position + extent"},
+                     {.name = "Diagonal / baseline change",
+                      .value = "position only"}},
+                 {.measure = 501,
+                  .gap = sketch::kit::theme().spacing.rowGap,
+                  .labelGap = sketch::kit::theme().spacing.labelGap,
+                  .divider =
+                      Fill::color(sketch::kit::theme().palette.rule)})})));
   }
 };
 

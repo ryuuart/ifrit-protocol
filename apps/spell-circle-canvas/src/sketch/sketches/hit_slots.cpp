@@ -57,18 +57,19 @@
 
 // TAGS: Runtime/Interaction
 
-#include <sigilgeometry/advanced/Skia.h>
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Connect.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Routers.h>
+#include <sigilcompose/kit/Rows.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
-#include <sigilcompose/kit/Rows.h>
 #include <sigilsketch/kit/Theme.h>
 #include <sigilweave/style/Type.h>
 
@@ -189,8 +190,10 @@ struct HitSlots {
    *  slot is re-rendered on every frame. */
   Element probeDot() const {
     return stack().inset(0).hitTestable(false).children(
-        {kit::dot(sigil::geometry::path::fromSk(probe), 5, Fill::color(SkColors::kWhite)),
-         kit::ring(sigil::geometry::path::fromSk(probe), 10, stroke(1.5f, Fill::color(SkColors::kWhite)))});
+        {kit::dot(sigil::geometry::path::fromSk(probe), 5,
+                  Fill::color(SkColors::kWhite)),
+         kit::ring(sigil::geometry::path::fromSk(probe), 10,
+                   stroke(1.5f, Fill::color(SkColors::kWhite)))});
   }
 
   /** THE ANSWER: the ring placed from `bounds`, the wires that touch the
@@ -212,11 +215,12 @@ struct HitSlots {
     // copy is the SAME ROUTE over the same two resolved boxes — routeBetween
     // is the one statement of where a wire runs, so the copy cannot land
     // anywhere else than the wire it lights.
-    root.children({each(litWires, [](const sigil::geometry::path::Outline& route) {
-      return pathFigure(route, 8.0f)
-          .foreground(stroke(2.6f, Fill::color(kLit)))
-          .hitTestable(false);
-    })});
+    root.children(
+        {each(litWires, [](const sigil::geometry::path::Outline& route) {
+          return pathFigure(route, 8.0f)
+              .foreground(stroke(2.6f, Fill::color(kLit)))
+              .hitTestable(false);
+        })});
 
     std::string routes;
     for (const std::string& route : hitRoutes)
@@ -224,21 +228,26 @@ struct HitSlots {
     if (routes.empty()) routes = "—";
 
     const std::string rect =
-        hitBounds ? kit::formatted("%d, %d, %d × %d", (int)hitBounds->left(),
-                                   (int)hitBounds->top(), (int)hitBounds->width(),
-                                   (int)hitBounds->height())
-                  : "—";
+        hitBounds
+            ? kit::formatted("%d, %d, %d × %d", (int)hitBounds->left(),
+                             (int)hitBounds->top(), (int)hitBounds->width(),
+                             (int)hitBounds->height())
+            : "—";
 
     // The three answers as a reading each: the name at the left in the
     // theme's quiet register, what the query came back with beside it in
     // the figure register, and the hit itself lit in the sheet's own ink.
     return root.children(
-        {sigil::compose::kit::readout(std::vector<sigil::compose::kit::Reading>{{.name = "hitTest(probe)",
-               .value = hitLabel,
-               .ink = sketch::kit::theme().palette.ink},
-              {.name = "bounds(\"" + hitLabel + "\")", .value = rect},
-              {.name = "wires at \"" + hitLabel + "\"", .value = routes}},
-                        {.nameMeasure = 196, .gap = sketch::kit::theme().spacing.rowGap, .labelGap = sketch::kit::theme().spacing.labelGap})
+        {sigil::compose::kit::readout(
+             std::vector<sigil::compose::kit::Reading>{
+                 {.name = "hitTest(probe)",
+                  .value = hitLabel,
+                  .ink = sketch::kit::theme().palette.ink},
+                 {.name = "bounds(\"" + hitLabel + "\")", .value = rect},
+                 {.name = "wires at \"" + hitLabel + "\"", .value = routes}},
+             {.nameMeasure = 196,
+              .gap = sketch::kit::theme().spacing.rowGap,
+              .labelGap = sketch::kit::theme().spacing.labelGap})
              .absolute()
              .left(20)
              .bottom(14)
@@ -273,7 +282,8 @@ struct HitSlots {
     // Per frame: the marker moved, so its content is different.
     composer.renderSlot("probe", probeDot());
     // Per change: most frames the answer is the one already on screen.
-    std::string found = composer.hitTest(sigil::geometry::path::fromSk(probe)).value_or("—");
+    std::string found =
+        composer.hitTest(sigil::geometry::path::fromSk(probe)).value_or("—");
     if (found == hitLabel) return;
     hitLabel = std::move(found);
     hitBounds = composer.bounds(hitLabel);
@@ -287,8 +297,10 @@ struct HitSlots {
       if (key.find(hitLabel) == std::string::npos) continue;
       if (!composer.bounds(key)) continue;
       hitRoutes.push_back(key);
-      const std::optional<sigil::geometry::path::Rect> from = composer.bounds(targetKey(i));
-      const std::optional<sigil::geometry::path::Rect> to = composer.bounds(targetKey(i + 1));
+      const std::optional<sigil::geometry::path::Rect> from =
+          composer.bounds(targetKey(i));
+      const std::optional<sigil::geometry::path::Rect> to =
+          composer.bounds(targetKey(i + 1));
       if (from && to)
         litWires.push_back(routeBetween(wireRouter(i), *from, *to, kWireGap));
     }
