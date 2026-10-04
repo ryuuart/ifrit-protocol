@@ -245,11 +245,8 @@ void SketchActions::open(sketchbook::WorkspaceLocation location) {
     refreshRecents();
     return;
   }
-  if (!folder && target.extension() != ".py" && target.extension() != ".cpp" &&
-      target.extension() != ".dylib" && target.extension() != ".so" &&
-      target.extension() != ".bundle") {
-    failOpen(QStringLiteral(
-        "Choose a .cpp or .py sketch, or a native plugin module."));
+  if (!folder && target.extension() != ".py" && target.extension() != ".cpp") {
+    failOpen(QStringLiteral("Choose a .cpp or .py sketch file."));
     return;
   }
   bool python = target.extension() == ".py";

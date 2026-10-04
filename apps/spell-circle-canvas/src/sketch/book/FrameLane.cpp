@@ -16,7 +16,6 @@
 #include <sigilsketch/core/Session.h>
 #include <sigilsketch/live/Host.h>
 #include <sigilsketch/plate/Graphite.h>
-#include <sigilsketch/plate/Sweep.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/PaintOrder.h>
 #include <sigilskia/graphite/Readback.h>
@@ -54,7 +53,7 @@ std::string numberedPath(const std::string& path, int index) {
 
 /** Blocks until the first build lands (or fails); false = never got
  *  live. */
-bool awaitFirstBuild(sketch::Host& host, std::string_view runtime) {
+bool awaitFirstBuild(sketch::Host& host) {
   using namespace std::chrono_literals;
   for (int i = 0; !host.live() && i < 1200; ++i) {
     host.poll();
@@ -64,12 +63,6 @@ bool awaitFirstBuild(sketch::Host& host, std::string_view runtime) {
   if (!host.live()) {
     std::fprintf(stderr, "sketch failed to build:\n%s\n",
                  host.errorLog().c_str());
-    return false;
-  }
-  if (!runtime.empty() && runtime != host.kind()) {
-    std::fprintf(stderr, "plugin runtime is %.*s, not the requested %.*s\n",
-                 (int)host.kind().size(), host.kind().data(),
-                 (int)runtime.size(), runtime.data());
     return false;
   }
   return true;
@@ -89,8 +82,8 @@ bool awaitFirstBuild(sketch::Host& host, std::string_view runtime) {
  *  one over budget. It exits 0 whenever it measured; a sketch that never
  *  built, or a surface that could not be allocated, exits 1. */
 int runBench(sketch::Host& host, const CaptureOptions& options,
-             const std::filesystem::path& path, std::string_view runtime) {
-  if (!awaitFirstBuild(host, runtime)) return 1;
+             const std::filesystem::path& path) {
+  if (!awaitFirstBuild(host)) return 1;
   const SkSize canvas = host.canvasSize();
   const int width = std::max(1, (int)(canvas.width() * options.scale));
   const int height = std::max(1, (int)(canvas.height() * options.scale));
@@ -279,9 +272,8 @@ int runBench(sketch::Host& host, const CaptureOptions& options,
 }
 
 int runFrames(sketch::Host& host, const CaptureOptions& options, bool gpu,
-              std::string_view runtime,
               sigil::skia::GraphiteContext* canvasGraphite) {
-  if (!awaitFirstBuild(host, runtime)) return 1;
+  if (!awaitFirstBuild(host)) return 1;
   struct CaptureScope {
     sketch::Host* host = nullptr;
     std::unique_ptr<sigil::skia::PaintOrderCanvas> canvas;
@@ -363,39 +355,4 @@ int runFrames(sketch::Host& host, const CaptureOptions& options, bool gpu,
       host.generation(),
       sigil::measure::Milliseconds(host.frameTimes().work().mean()).count());
   return 0;
-}
-
-int runPluginSweep(sketch::Host& host, const sketch::SweepOptions& sweep,
-                   CaptureOptions capture,
-                   sigil::skia::GraphiteContext* canvasGraphite) {
-  if (!awaitFirstBuild(host, sweep.kind)) return 1;
-  if (sweep.promotion && sweep.noPromotion) {
-    std::fprintf(stderr,
-                 "--promotion and --no-promotion ask for opposite runs\n");
-    return 2;
-  }
-  if (sweep.countPlane) {
-    std::fprintf(stderr,
-                 "--composites is unavailable for a native plugin capture\n");
-    return 2;
-  }
-  sketch::Session* session = host.session();
-  session->setAutoPromotion(sweep.promotion ? sketch::Session::Promotion::Eager
-                                            : sketch::Session::Promotion::Off);
-  if (sweep.promotion && session->canvas().nonlinearPicture)
-    std::printf("plugin: declared nonlinear\n");
-  capture.scale =
-      sweep.density > 0 ? sweep.density : sketch::plateDensity(*session);
-  std::error_code error;
-  std::filesystem::create_directories(sweep.outputDirectory, error);
-  if (error) {
-    std::fprintf(stderr, "could not create plate directory: %s\n",
-                 error.message().c_str());
-    return 1;
-  }
-  capture.outputPath = (std::filesystem::path(sweep.outputDirectory) /
-                        (std::string(sketch::kPlatePrefix) +
-                         host.sketchPath().stem().string() + ".png"))
-                           .string();
-  return runFrames(host, capture, sweep.gpu, {}, canvasGraphite);
 }

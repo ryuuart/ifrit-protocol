@@ -56,10 +56,10 @@ Capture a native GPU plate at a named moment:
 ```
 
 The result is `plate_<name>.png` in that directory. The registry addresses
-both file and directory sketches by their stem. An independently built
-native module opens with `--plugin /path/to/module.dylib`; build its CMake
-target to publish a replacement. Opening the app on the whole registry lets
-you inspect scenes beside one another.
+both file and directory sketches by their stem. Opening the app on a
+sketch's own file — `Sketchbook src/sketch/sketches/<name>.cpp` — watches
+it and swaps each save in; opening it on the whole registry lets you
+inspect scenes beside one another.
 
 Each entry's opening comment carries `TAGS:` with comma-separated subject
 paths, such as `Typography/Paragraph, Motion/Transitions`. Sketchbook builds

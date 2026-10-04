@@ -1,189 +1,128 @@
-# Building and hosting sketch plugins
+# Hosts: how a sketch reaches one
 
-A native plugin is an ordinary compiled consumer of the Sigil libraries.
-SigilSketch supplies its registration and session adapter. The host watches
-the compiled artifact and adopts a valid replacement after its candidate
-session opens. A build failure, incompatible artifact or failing factory
-preserves the running session.
+Sigil is a suite of libraries — Compose, World, Draw, Motion, IO and the
+rest — each used directly through its own headers and target. SigilSketch
+is the framework a scene is hosted through: registration (`SIGIL_SKETCH`
+and `sketch::Entry`), sessions (`sketch::Kind` opens a `sketch::Session`),
+the canvas and set runtimes those sessions draw through, the live host
+(`sketch::Host`) that compiles, loads and swaps sketches, and the
+workspace convention for sketches kept outside this repository.
+Sketchbook is one host built on that framework: the stock one, and an
+example of using it. It lists and runs the sketches it is pointed at —
+its compiled-in catalogue, a file, or a workspace — and a custom host
+links SigilSketch and drives `sketch::Host` in the same way.
 
-## Build with the Sigil targets
+## Three ways a sketch reaches a host
 
-In a CMake tree defining the existing libraries:
+A sketch reaches a host in exactly three ways.
 
-```cmake
-sigil_sketch_plugin(my_sketch
-  SOURCES MySketch.cpp Helpers.cpp
-  LIBRARIES SigilComposeCore)
-```
+1. **Compiled into the host.** A source the host's own build compiles
+   registers itself with `SIGIL_SKETCH`; Sketchbook's build compiles every
+   entry under `sketches/`. Such a sketch opens at once, with no compiler.
+   Editing its file afterwards rebuilds it as the second way does.
+2. **A C++ source file anywhere on disk.** The host compiles it against
+   itself, caches the build, and swaps each successful build into the
+   running session.
+3. **A Python file.** The host imports a module declaring a `@sketch`
+   class through its Python importer (`Host::Options::pythonLoader`), and
+   imports it again on save. No C++ is compiled.
 
-The helper consumes SigilSketch and the additional originating targets'
-compile requirements. It creates a module with hidden implementation symbols,
-registration metadata and the matching host identity. Framework symbols
-resolve from the host; the helper does not link another set of framework
-static archives into the module. Additional libraries must be present in
-that host's exported link surface.
+There is no fourth way: a host never loads a library compiled anywhere
+but by itself.
 
-```sh
-cmake --build build --config Release --target my_sketch
-Sketchbook --plugin /path/to/my_sketch.dylib
-Sketchbook --plugin /path/to/my_sketch.dylib --frame out.png --gpu
-Sketchbook --plugin /path/to/my_sketch.dylib --headless plates --gpu
-```
+## Why the host compiles a C++ sketch
 
-One module exports one entry. The host invokes no compiler in this mode.
-`--frame` and `--headless` open that artifact's session. Canvas captures use
-Graphite with `--gpu` and raster without it; Set scenes use the selected World
-executor. A requested device or Graphite context that cannot open fails the
-capture. `--bench` retains its raster frame path; `--gpu` selects the device
-executor for Set and mesh work during that measurement.
+The boundary between a sketch and the libraries is their whole C++
+vocabulary. A sketch constructs the libraries' objects and the host
+mutates them; an entry hands back a `sketch::Kind` whose session the host
+drives; inline functions, templates and struct layouts from every header
+the sketch includes cross that line. Code compiled apart from the host
+agrees with it only where every header and every flag agrees, and the
+only build that guarantees that is the host's own.
 
-On Apple, single-source and module captures of pure Canvas kinds own a Metal
-device and Graphite context without starting World or Vulkan. A kind that
-declares device work prepares the shared Geometry/World executor before its
-availability probe and setup. Canvas bodies declare that work with
-`static constexpr bool needsDevice = true;`; a supplied non-CPU painter also
-requires it. CPU captures retain their CPU executors. Registry sweeps and the
-interactive application retain their shared device startup path.
+So a C++ sketch outside the host is always compiled BY the host, with the
+compile line the host's build captured and against the headers that build
+read. Sketchbook's build lifts that line out of the compilation database
+from `sketches/Anchor.cpp`, a unit that includes what a sketch includes,
+into `sketch_flags.rsp` beside the executable (`Host::Options::flagsFile`).
+The sketch's library links with `-undefined dynamic_lookup` and resolves
+every framework symbol out of the running executable.
 
-A module's headless capture writes `plate_<module stem>.png`, at its declared
-moment and plate density unless `--at` or `--scale` overrides them. It accepts
-`--promotion` and `--no-promotion`; `--kind` must match the module's runtime.
-It takes one session's photographs, without the registry sweep's benchmark
-phases, so `--ledger` has nothing to skip and is refused along with `--frame`
-and `--bench`. `--composites` is refused for module captures.
-Its filename stem is the session key, and its containing directory supplies
-local assets. The adjacent `assets/` directory is the default `res://` root;
-`--assets <dir>` overrides it.
+The host refuses to compile when its headers are newer than itself. Before
+each build it compares every framework header on the flags file's include
+paths with the running image's stamp, read once when the process first
+asks (`sketch::hostBinaryTime`, the default of `Host::Options::hostStamp`).
+A sketch compiled against a newer header would load into a host whose
+structs have the old layout, so the build is refused with "framework
+headers are newer than this host", and the previous session keeps running
+until the host is rebuilt and restarted. The registration also exports the
+framework's `sketch::kAbiVersion`; a library whose version differs from
+the host's is refused at load.
 
-Native library and plugin builds can omit the bundled applications and Python
-bindings. Configure the ordinary project with its dependency toolchain and
-`-DSIGIL_BUILD_APPS=OFF -DSIGIL_BUILD_PYTHON=OFF`, then build `SigilSketch`,
-`SigilSketchSDK` or the desired plugin target. This path discovers no Qt or
-pybind11 package. Metadata uses SigilSketch's native library requirements and
-does not require Sketchbook or the bundled catalogue. Both options default
-to `ON`; the bundled applications require Python bindings.
+## Workspaces
 
-## A separate CMake build
-
-The `SigilSketchSDK` target writes a convenience helper package for one
-framework configuration at `build/sdk/Release/`. It references that
-checkout and dependency build tree. The Sigil libraries remain the SDK;
-this helper supplies their captured compile surface to a project that cannot
-name their in-tree targets. The package declares only the Sigil libraries'
-own targets, each carrying the compile requirements of everything it uses
-flattened onto it; it declares no third-party target, so a project that
-needs Qt, Boost or another package finds that package itself. Test support
-libraries are not part of it.
-
-```cmake
-cmake_minimum_required(VERSION 3.28)
-project(MySketch LANGUAGES CXX)
-find_package(SigilSketchSDK CONFIG REQUIRED)
-sigil_sketch_plugin(my_sketch
-  SOURCES MySketch.cpp Helpers.cpp
-  LIBRARIES SigilComposeCore)
-```
+A workspace is how sketches live outside this repository: an ordinary
+folder of C++ and Python sketches and the files they stand on.
 
 ```sh
-cmake -S ~/sketches/my_sketch -B ~/sketches/my_sketch/build -G Ninja \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DSigilSketchSDK_DIR=/path/to/framework/build/sdk/Release
-cmake --build ~/sketches/my_sketch/build
-Sketchbook --plugin ~/sketches/my_sketch/build/my_sketch.dylib
-```
-
-The helper supplies include directories, definitions and compiler options.
-It requires the matching compiler version, target architecture and
-configuration; a multi-config build uses `--config Release`. It refuses
-changed public headers or dependency binaries from the originating libraries
-the plugin consumes until their metadata is regenerated.
-Keep the supplied ABI settings intact. A complete example is in
-`cmake/test/plugin/`.
-
-## Compatibility and publication
-
-The entry returns C++ framework types, so plugins must match the running
-host's headers and build context. This is a matching-build C++ contract.
-The helper is not a relocatable installation or an independently versioned
-binary ABI.
-
-The build emits two files: the module and `<module>.sigil-build`. Deploy both.
-The sidecar binds the module bytes to its compiled native runtime and
-originating-library identities. The host copies
-each changed generation to a unique runtime path and verifies those bytes
-and identity before loading it. It then checks the exported ABI and identity
-before invoking the C++ entry and factory.
-
-Publish a completed module by atomic rename, then publish its matching
-sidecar. During an incomplete or inconsistent publication, the previous
-session keeps running. These checks assume trusted native code.
-
-A build may also write the module in place and stamp the sidecar
-afterwards, as the helper does. Until it finishes, the host sees new bytes
-beside a sidecar that still names this host's build. It treats that as a
-publication in progress: no status change and no failure, and it looks
-again on the next poll. The disagreement is reported only when the same
-module and sidecar are seen on consecutive polls spanning at least
-`Host::Options::pluginPublicationGrace` (two seconds by default; zero
-reports it on the second such poll). A sidecar naming another build is
-reported at once. A refused generation is not counted: the host's
-generation numbers only the modules it adopted.
-
-Each originating target's fingerprint covers its transitive public target
-closure, compiler-discovered public header dependencies, imported dependency
-binaries and compiler/configuration requirements. Indirect public includes
-are covered even when absent from the target's header list. Conditional
-dependencies are evaluated for the selected configuration. Documentation and
-unrelated build declarations do not participate.
-
-The runtime checks SigilSketch's public C++ boundary and each additional
-origin named in `LIBRARIES`. An incompatible consumed boundary requires
-rebuilding the host and plugins and restarting the host. An unconsumed
-library can change independently. The convenience package publishes the
-configured Sigil libraries' targets with their flattened compile requirements
-and validates only the plugin's consumed boundaries. A custom host still must supply the libraries it uses.
-
-Deleting a sidecar and rebuilding an unchanged target restores the identity
-embedded in that artifact. Recovery cannot assign current metadata to an
-older module; a newly linked module receives its own compiled identity.
-
-Accepted modules and modules whose callbacks throw remain mapped until
-process exit. Framework values and callbacks can outlive their originating
-host, so destroying a host does not unload their code. Each adopted
-generation retains a mapped image; restarting the process reclaims them.
-
-## Source compilation as a convenience
-
-Sketchbook can also own compilation for a C++ source path:
-
-```sh
-Sketchbook ~/sketches/my_experiment.cpp
 python3 scripts/sigil.py workspace new ~/sketches/aurora_drift
+Sketchbook --workspace ~/sketches/aurora_drift
+Sketchbook ~/sketches/aurora_drift/aurora_drift.cpp
 ```
 
-The workspace command creates an entry source, `assets/`, `captures/` and a
-README. A workspace is an ordinary directory; native plugins instead use
-their own CMake project.
+`workspace new` writes an entry named for the folder, an `assets/`
+directory, `captures/` for what the window's Capture writes, and a README
+stating the contract. `Sketchbook --workspace <dir>` lists the
+folder's C++ and Python sketches in their own Workspace collection; a path
+opens one file directly. [RUNNING.md](RUNNING.md) covers discovery and the
+commands a file opened by path can be put through.
+
+A workspace is bound to one host build. Its C++ sketches compile with that
+build's `sketch_flags.rsp`, against the headers of the checkout that build
+came from, and are refused once those headers are newer than the running
+host; after rebuilding the libraries, restart the host before opening the
+workspace again. Cached builds are keyed by the running host image, so a
+build made for one host is never handed to another.
+
+A workspace brings sources, headers and data, and nothing compiled. Every
+framework symbol a sketch calls resolves out of the host, so a workspace
+reaches only the libraries its host already contains: those the host's
+build force-loaded into its executable. A sketch that needs a library the
+host does not contain needs a host that contains it — a library added to
+this tree and linked into Sketchbook, or a custom host whose own build
+carries it. A Python sketch's own packages come from the `pyproject.toml`
+beside it; Sigil itself always comes from the host.
+
+## Source builds
 
 A single entry builds on its own. For a source entry whose directory shares
 its stem, every other `.cpp` directly beside it is a unit of that sketch.
 Quoted includes reach local headers. The watcher checks the entry every poll
-and scans sibling units and literal quoted includes on its configured cadence.
-The compiler resolves all includes when preprocessing a cache lookup.
+and scans sibling units and literal quoted includes on its configured cadence
+(`Host::Options::siblingScanInterval`). The compiler resolves all includes
+when preprocessing a cache lookup.
 
-Source mode uses the host build's captured compiler flags. Changed units
-compile separately and link into one module; unchanged matching units can
-reuse cached objects. Successful builds are cached across sessions and
-application restarts. The cache key includes preprocessed contents, compiler
-settings and the running host image. Failed builds never populate it.
-The platform cache contains `SigilSketch/builds`; `--state <dir>` places
-builds under that state root.
+Changed units compile separately and link into one library; unchanged
+matching units can reuse cached objects. Successful builds are cached
+across sessions and application restarts. The cache key includes the
+preprocessed contents, the compiler and its flags, and the running host
+image. Failed builds never populate it. The platform cache contains
+`SigilSketch/builds`; `--state <dir>` places builds under that state root.
 
-Temporary objects and module copies belong to the process's runtime directory.
-Each host and generation uses a distinct name. The directory is removed
-when the last host is destroyed and on normal exit; an abandoned directory
-is removed only when its process is no longer alive. Removing those files
-does not unmap already loaded code.
+Objects and libraries belong to the process's build directory
+(`Host::buildDirectory`). Each host and build uses a distinct name, and a
+refused build's library stays there with the rest. The directory is
+removed when the last host is destroyed and on normal exit; an abandoned
+directory is removed only when its process is no longer alive
+(`Host::sweepAbandonedBuildDirectories`). Removing those files does not
+unmap already loaded code.
+
+A build that fails to compile, a library that does not load, a factory
+that throws and a setup that fails all keep the running session. A frame
+that throws fails the session until an edit or `Host::restartSession`
+opens it again. Whatever a sketch throws from its entry, factory, setup,
+declarations, frames or stills — a standard exception or anything else —
+is reported in `Host::errorLog` and does not escape the host.
 
 For a single source, `assets/` stands beside the entry. A directory source
 sketch shares the `assets/` root above its own directory.
@@ -193,19 +132,45 @@ sketch shares the `assets/` root above its own directory.
 Bundled entries open their compiled-in bodies before any source edit.
 Sketchbook keeps the last three selected sessions resident; returning to one
 reuses it, and a rebuild starts that session afresh. A custom host chooses
-its own residency policy. C++ and Python source workspace paths use `--frame`
-and `--bench`; their `--headless` plate sweep walks the compiled-in registry.
+its own residency policy. A file opened by path is photographed with
+`--frame` and measured with `--bench`; `--headless` walks the compiled-in
+registry.
 
-After rebuilding the framework, restart a source host. The source compiler
-also refuses framework headers newer than the pinned running-image stamp.
+## Captures on the device
+
+`--frame` with `--gpu` draws a Canvas still through Graphite and a Set
+scene through the World device executor; a requested device or Graphite
+context that cannot open fails the capture. On Apple, a capture of a pure
+Canvas kind owns a Metal device and Graphite context without starting
+World or Vulkan. A kind that declares device work prepares the shared
+Geometry and World executor before its availability probe and setup.
+Canvas bodies declare that work with `static constexpr bool needsDevice =
+true;`; a supplied non-CPU painter also requires it. `--bench` keeps its
+raster frame path; `--gpu` selects the device executor for Set and mesh
+work during that measurement.
+
+## Mapped-code lifetime
+
+Accepted libraries are never closed. Framework values and callbacks can
+outlive the host that loaded them — a vtable, a string literal, a function
+pointer retained elsewhere — so destroying a host does not unload their
+code. A library whose callback throws while it is being adopted stays
+mapped too, because the exception's message, destructor and type
+information may live in it. Only a library refused before it handed the
+host anything — one missing the registration's exports, or one whose ABI
+query answers another `sketch::kAbiVersion` — is closed at once. Each adopted generation retains
+its image until the process ends.
 
 ## A custom host
 
-Set `Host::Options::pluginPath` for artifact mode. Compiler and flags fields
-are unused. Call `Host::poll` to adopt replacements and resource edits, then
-`Host::frame` to advance and draw. The host owns its candidate sessions and
-asset mounts; the caller owns the font context, drawing surface and device
-runtime that those sessions use.
+A custom host links SigilSketch and owns a `sketch::Host` per open sketch.
+`Host::Options::sketchPath` names the entry, `Host::Options::flagsFile`
+the captured compile line and `Host::Options::compiler` the command that
+compiles and links; `Host::Options::compiledIn` starts from a sketch the
+executable carries. Call `Host::poll` to adopt builds and resource edits,
+then `Host::frame` to advance and draw. The host owns its candidate
+sessions and asset mounts; the caller owns the font context, drawing
+surface and device runtime that those sessions use.
 
 `Host::frame(double)` advances an unobserved capture step through
 `Session::discardedFrame`; `Host::prepareCapture` uses this path for its
@@ -228,14 +193,21 @@ loader, setup and resource failures. Resources with problems may continue
 rendering their library's fallback; the host replaces only a successfully
 opened session. [RUNNING.md](RUNNING.md) defines the application commands.
 
-A custom executable must export the framework symbols its plugins call.
-Hidden plugin definitions keep each generation's factories, vtables and
-inline state in its own image; undefined framework references resolve from
-the host. The registration exports remain visible.
+A custom executable must export the framework symbols its sketches call,
+and must contain every library they may reach. Sketchbook's build does
+both through `cmake/SketchLinkSurface.cmake`, which walks the framework
+archives in the sketch and host target closures, including private
+dependencies, force-loads them into the executable and re-exports them;
+symbol export requirements stay with the originating targets. A custom
+host captures its own flags file the same way, by running
+`cmake/SketchFlags.py` over the compile line of a unit that includes what
+its sketches may include. The host compiles every sketch with hidden
+visibility, so each generation's factories, vtables and inline state stay
+in its own image; undefined framework references resolve from the host,
+and the registration exports remain visible. The reload tests exercise
+symbols that compiled-in scenes might otherwise omit from the executable.
 
-The build derives the source convenience compile surface from `sketches/Anchor.cpp`,
-which belongs to `SigilSketches`. `SketchLinkSurface.cmake` walks the
-framework archives in the scene and host target closures, including private
-dependencies, and force-loads them into Sketchbook. This keeps symbol export
-requirements with the originating targets. The reload tests exercise symbols
-that compiled-in scenes might otherwise omit from the executable.
+A host that carries no applications or Python bindings configures the
+project with `-DSIGIL_BUILD_APPS=OFF -DSIGIL_BUILD_PYTHON=OFF` and builds
+`SigilSketch`; that path discovers no Qt or pybind11 package. Both options
+default to `ON`, and the bundled applications require the Python bindings.

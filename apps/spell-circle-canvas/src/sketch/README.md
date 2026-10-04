@@ -1,16 +1,20 @@
 # SigilSketch — authoring and hosting scenes
 
-The Sigil libraries are the SDK. Use Compose, World, Draw or another library
+Sigil is a suite of libraries. Use Compose, World, Draw or another library
 directly by including its own headers, spelling its namespace and linking its
-target. SigilSketch adds registration and runtime sessions for scenes hosted
-in Sketchbook or another sketch host. The drawing libraries do not depend on
-this adapter.
+target. SigilSketch is the framework a scene is hosted through: registration,
+sessions, the canvas and set runtimes, the live host that compiles and swaps
+sketches, and the workspace convention for sketches kept outside this
+repository. The drawing libraries do not depend on it. Sketchbook is one host
+built on SigilSketch — the stock one — that lists and runs the sketches it is
+pointed at.
 
-A sketch is a plain C++ type that describes a canvas or a lit set. The host
-supplies the clock, assets and rendering runtime. Sketchbook opens native
-plugins built with CMake, watches replacements and keeps the last working
-session when a replacement fails. It also supports compiling source files
-and opening Python sketches.
+A sketch is a plain C++ type that describes a canvas or a lit set, or a
+Python class doing the same. The host supplies the clock, assets and
+rendering runtime. A sketch reaches a host compiled into it, as a C++ source
+file the host compiles against itself, or as a Python file; the host watches
+the file, swaps each good build in and keeps the last working session when
+one fails.
 
 ## Write a canvas sketch
 
@@ -40,24 +44,19 @@ SIGIL_SKETCH(Hello, "Example", "A coloured panel.")
 A body may take fewer of the offered arguments: `setup()`,
 `update(elapsed)` and `update()` are accepted too. No base class is needed.
 
-In a CMake tree that defines the Sigil libraries, build and open the module:
-
-```cmake
-sigil_sketch_plugin(hello
-  SOURCES Hello.cpp
-  LIBRARIES SigilComposeCore)
-```
+A sketch can stand anywhere on disk. Start a folder for one and open it; the
+host compiles the file with its own flags and swaps every saved build in:
 
 ```sh
-cmake --build build --config Release --target hello
-Sketchbook --plugin /path/to/hello.dylib
-Sketchbook --plugin /path/to/hello.dylib --frame out.png
+python3 scripts/sigil.py workspace new ~/sketches/hello
+Sketchbook ~/sketches/hello/hello.cpp
+Sketchbook ~/sketches/hello/hello.cpp --frame out.png
+Sketchbook --workspace ~/sketches/hello
 ```
 
-The helper supplies registration metadata and hidden implementation symbols;
-the host supplies the framework implementation. Ship the generated
-`<module>.sigil-build` beside the module. [HOST.md](HOST.md) covers the
-matching-build contract, separate CMake projects and custom hosts.
+A folder of sketches outside this repository is a workspace. [HOST.md](HOST.md) covers the
+three ways a sketch reaches a host, why a C++ sketch is always compiled by
+its host, what binds a workspace to one host build, and custom hosts.
 [RUNNING.md](RUNNING.md) covers window, capture and benchmark commands.
 
 For the bundled catalogue, put one entry under `sketches/`; the build discovers
@@ -184,12 +183,12 @@ returns null and remains watched.
 
 | Name | Location |
 | --- | --- |
-| `ctx.local("data/x.csv")` | beside the entry source or native module |
+| `ctx.local("data/x.csv")` | beside the entry source |
 | `res://x.csv` | the resource root selected by the host |
 | a bare path | relative to the process's working directory |
 
-For a module or a single source opened by path, the default resource root is
-its adjacent `assets/` directory. A directory source sketch shares the
+For a single source opened by path, the default resource root is its
+adjacent `assets/` directory. A directory source sketch shares the
 `assets/` directory above it. Bundled sketches use the demo asset root;
 `--assets <dir>` overrides it.
 
@@ -246,8 +245,8 @@ sketches/
 
 Only the entry registers a sketch. Every other `.cpp` directly beside a
 same-stem entry is a unit of that sketch. Quoted includes reach local helpers;
-the source watcher follows literal quoted includes recursively. A native
-plugin lists its sources in its own CMake target instead.
+the source watcher follows literal quoted includes recursively. A sketch
+outside the tree follows the same rule beside its own entry.
 
 Keep subject-specific geometry, colours and helpers with their sketch.
 General-purpose helpers belong to the library that owns their purpose.
@@ -397,10 +396,14 @@ runtimes with which they opened.
 
 The canvas runtime installs the default text material resolver unless a host
 already supplied one. Runtimes link no device backend or Qt.
-The live host watches and adopts replacements; Sketchbook owns its windows,
-Python environments and navigation. The host's exported framework symbols,
-plugin compatibility and mapped-code lifetime are defined in
-[HOST.md](HOST.md). The protocol API is in [PROTOCOL.md](PROTOCOL.md).
+`sketch::Host` compiles a C++ sketch with the flags its own build captured,
+against its own headers, and refuses to when those headers are newer than
+the running image, because the boundary between a sketch and the libraries is
+their whole C++ vocabulary; it imports a Python sketch through its importer.
+Either way it adopts a replacement only once the replacement's session opens.
+Sketchbook is one host over it and owns its windows, Python environments and
+navigation. The exported framework symbols, the libraries a sketch can reach,
+workspaces and mapped-code lifetime are defined in [HOST.md](HOST.md). The protocol API is in [PROTOCOL.md](PROTOCOL.md).
 
 ## Source layout and targets
 
@@ -408,11 +411,11 @@ plugin compatibility and mapped-code lifetime are defined in
 | --- | --- |
 | `core/` | registry, kind, session, assets and crash reporting |
 | `canvas/`, `set/` | the two rendering runtimes |
-| `live/` | watching, compilation, artifact adoption and residency |
+| `live/` | watching, compilation, the build cache, adoption and residency |
 | `plate/` | captures, sweeps, comparisons and thumbnails |
 | `kit/`, `scry/` | specimen furniture and optional web integration |
 | `book/` | Sketchbook's application and headless entry point |
-| `cmake/` | native plugin build helpers and exported link surface |
+| `cmake/` | the captured sketch flags and the exported link surface |
 | `testing/`, `test/support/` | host harnesses and shared test fixtures |
 | `sketches/` | bundled scene entries |
 
@@ -422,13 +425,7 @@ protocol agents. `SigilSketchTesting` and `SigilSketchTestingHarness` supply
 test support. `SigilSketches` is the bundled scenes' object library, and
 `Sketchbook` is their application host.
 
-`SigilSketchSDK` generates native boundary metadata and the separate-build
-plugin helper from library usage requirements. The helper package exports
-the Sigil libraries' own targets, with what they need from third-party
-packages flattened onto them as compile requirements; a consumer finds any
-third-party package it uses itself. Test support is neither an origin nor
-exported. It is available with `SIGIL_BUILD_APPS=OFF` and
-`SIGIL_BUILD_PYTHON=OFF`; it does not require Sketchbook or replace the
-existing Sigil library targets.
+`SigilSketch` builds with `SIGIL_BUILD_APPS=OFF` and `SIGIL_BUILD_PYTHON=OFF`
+for a host that carries no applications or Python bindings.
 [TESTING.md](TESTING.md) covers building this library, isolated cases,
 benchmarks and host fixtures.

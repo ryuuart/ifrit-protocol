@@ -30,8 +30,8 @@ values, relations, work counts or ownership directly. Repeated claims
 with one input varying use a named `TEST_P` parameter.
 
 Rendering and cross-library behaviour belong in integration cases with a
-shared raster fixture. Registration, sessions, capture and plugin loading
-belong in host or native-consumer end-to-end cases. These cases may compare
+shared raster fixture. Registration, sessions, capture and source reload
+belong in host end-to-end cases. These cases may compare
 two renderings of the same input; adopted reference images belong to the
 plate ledger. Elapsed-time thresholds belong to benchmarks. Share setup
 between files in the owning library's `test/support/`, and use existing
@@ -153,7 +153,6 @@ as a script run with `-P` or a `configure_file`.
 | A sketch's own schema and SigilData's test schemas | `<stem>_values.h` in the build tree | `sigil_schema_values`, the C++ tool in `src/common/data/values` | a build product; `data_test` round-trips what it writes |
 | The Python sketch entries | `PythonSketches.cpp`, their registrations | `src/sketch/python/cmake/register_sketches.py` | a build product |
 | `compile_commands.json` | `sketch_flags.rsp`, the flags a hot-reloaded sketch compiles with | `src/sketch/cmake/SketchFlags.py` | a build product |
-| `compile_commands.json`, the native libraries' public headers and usage requirements, and the compiler | Under `build/sdk/<config>/`: `SigilSketchBuildIdentity.h`, the host's build and boundary identities; `boundaries.json`, each originating library's identity; `origin-inputs.json` and `inputs.sha256`, the digests a plugin build validates against; `native_flags.rsp`, the compile line a plugin uses; `SigilSketchSDKConfig.cmake`, the helper package's Sigil library targets | `src/sketch/cmake/SketchSDK.py`, through the `SigilSketchSDK` target | a build product |
 | A library's `.sksl` and `.slang` sources | A header and translation unit carrying their text, under `build/generated/shaders` | `sigil_shader_sources()`, running `cmake/EmbedShaders.cmake` with `-P` over the templates in `cmake/shaders`: not yet Python | a build product |
 | A Slang entry point's compiled SPIR-V | `<name>.spv.h`, carrying its words | `src/common/material/cmake/SlangEmbedSpirv.cmake`, with `-P`: not yet Python | a build product |
 | SigilScry's `UltralightShaders.metal` | `ShaderSource.h` in the build tree | `configure_file` over `metal/ShaderSource.h.in`: not yet Python | a build product |
@@ -724,15 +723,17 @@ install step, and nothing is added to this repository. The folder is
 bound to one checkout at one build time, because the flags the sketch
 compiles with are the ones in `sketch_flags.rsp` beside the Sketchbook
 binary — which is what the README it writes says, along with the lanes a
-file opened by path can and cannot be put through.
+file opened by path can and cannot be put through. Nothing compiled travels
+with it either: a sketch resolves every framework symbol out of the host,
+so it reaches only the libraries that Sketchbook already contains.
 
 The folder's own name is the sketch's: it names the entry file, the key
 the sketch's files are reached under, and the C++ type the registration
 macro is handed. A name no type can be made from is refused, and so is a
 folder that already holds a sketch of that name — nothing is overwritten.
 
-`src/sketch/README.md` is the canon for what a workspace is and how the
-live host compiles one.
+`src/sketch/README.md` and its `HOST.md` chapter are the canon for what a
+workspace is and how the live host compiles one.
 
 ## Docs, assets, flags, schema
 

@@ -1,6 +1,6 @@
 /** @file
- * Watch sources or native artifacts, adopt a compatible replacement,
- * and keep the last good sketch running while a replacement fails.
+ * The reload loop: watch, compile, dlopen, swap — and keep the last good
+ * sketch running while a build or its session fails.
  */
 
 #include "sigilsketch/live/Host.h"
@@ -36,7 +36,6 @@
 
 #include "BuildCache.h"
 #include "BuildDirectory.h"
-#include "SigilSketchBuildIdentity.h"
 #include "SkewGuard.h"
 #include "sigilsketch/core/Crash.h"
 
@@ -55,18 +54,16 @@ std::optional<SkISize> captureExtent(SkSize size, float scale = 1.0f) {
 }
 
 Host::Options withDefaults(Host::Options options) {
-  if (!options.pluginPath.empty()) {
-    options.sketchPath = options.pluginPath;
-    options.compiledIn = nullptr;
-  }
   // A sketch this binary carries takes the root the process stated; only
   // a file opened by path defaults to the assets beside it.
   if (options.assetsDirectory.empty() && !options.compiledIn) {
-    // A directory source sketch shares an assets root with its sibling
-    // sketches. A module's assets root always stands beside the module.
+    // A SKETCH THAT IS A DIRECTORY keeps its other units beside its
+    // entry, so the assets are NOT beside the entry: they are one level
+    // further up, in the directory every sketch shares. The entry's stem
+    // naming its own directory is what says which of the two forms this
+    // is, and it is the same rule that decides what compiles with it.
     std::filesystem::path beside = options.sketchPath.parent_path();
-    if (options.pluginPath.empty() &&
-        beside.filename() == options.sketchPath.stem())
+    if (beside.filename() == options.sketchPath.stem())
       beside = beside.parent_path();
     options.assetsDirectory = beside / "assets";
   }
@@ -269,8 +266,6 @@ class BuildDirectoryRollback {
 
 }  // namespace
 
-std::string_view hostBuildIdentity() { return SIGIL_SKETCH_BUILD_ID; }
-
 Host::Host(Options options, weave::FontContext& fonts)
     : m_options(withDefaults(std::move(options))),
       m_fonts(fonts),
@@ -283,10 +278,6 @@ Host::Host(Options options, weave::FontContext& fonts)
   m_buildDirectory = acquireBuildDirectory();
   const BuildDirectoryRollback rollbackDirectory;
   m_hostId = nextHostId();
-  if (!m_options.pluginPath.empty()) {
-    loadPlugin();
-    return;
-  }
   // Registered native bodies open directly. Python entries use the source
   // loader and record their input stamps before opening, so the first poll
   // does not import the same generation twice.
@@ -308,8 +299,10 @@ Host::Host(Options options, weave::FontContext& fonts)
 
 Host::~Host() {
   if (m_compile.valid()) m_compile.wait();
-  // Release retained descriptions and motions while their modules remain
-  // mapped for values and callbacks that escaped this host.
+  // A session's retained descriptions and running motions may point into
+  // sketch-owned state; release it before the libraries it came from.
+  // Loaded libraries intentionally remain mapped, for the values and
+  // callbacks that escaped this host.
   m_session.reset();
   // …and the files behind them go with the last host in this process.
   // An unlinked file that is mapped stays readable until the last
@@ -596,35 +589,23 @@ void Host::startCompile() {
       });
 }
 
-bool Host::adopt(const std::filesystem::path& library,
-                 std::string_view pluginIdentity) {
-  const bool prebuilt = !pluginIdentity.empty();
-  // A refused image that is no longer mapped leaves its per-generation
-  // file in the build directory with nothing to load it again.
-  // A compiled build's output stays: the build directory owns it.
-  const auto discardLibrary = [&library, prebuilt] {
-    if (!prebuilt) return;
-    std::error_code ignored;
-    std::filesystem::remove(library, ignored);
-  };
+bool Host::adopt(const std::filesystem::path& library) {
+  // A refused build's output stays where it is: the build directory owns
+  // it, and removes it with everything else at the end of the run.
   void* handle = dlopen(library.c_str(), RTLD_NOW | RTLD_LOCAL);
   if (!handle) {
     const char* reason = dlerror();
-    m_errorLog = reason ? reason : "the module could not be opened";
+    m_errorLog = reason ? reason : "the library could not be opened";
     m_status = live() ? "load failed — keeping previous sketch" : "load failed";
-    discardLibrary();
     return false;
   }
   auto abi = reinterpret_cast<unsigned (*)()>(dlsym(handle, "sigilSketchAbi"));
   auto exported =
       reinterpret_cast<const Entry* (*)()>(dlsym(handle, "sigilSketchEntry"));
-  auto identity =
-      reinterpret_cast<const char* (*)()>(dlsym(handle, "sigilSketchBuild"));
-  // A module without the required exports has supplied no callbacks or
-  // retained state, so it can be closed immediately.
+  // A library without the registration's exports has supplied no
+  // callbacks or retained state, so it can be closed immediately.
   if (!abi || !exported) {
     dlclose(handle);
-    discardLibrary();
     m_errorLog =
         "sketch ABI mismatch — is SIGIL_SKETCH(...) present? "
         "(after framework changes, restart the host)";
@@ -634,32 +615,22 @@ bool Host::adopt(const std::filesystem::path& library,
   try {
     if (abi() != kAbiVersion) {
       dlclose(handle);
-      discardLibrary();
-      m_errorLog = "sketch ABI mismatch — rebuild the plugin for this host";
-      m_status =
-          live() ? "load failed — keeping previous sketch" : "load failed";
-      return false;
-    }
-    const char* compiledIdentity = prebuilt && identity ? identity() : nullptr;
-    if (prebuilt && (!compiledIdentity || compiledIdentity != pluginIdentity)) {
-      dlclose(handle);
-      discardLibrary();
       m_errorLog =
-          "plugin build identity mismatch — rebuild with this host's "
-          "SigilSketchSDK";
+          "sketch ABI mismatch — the sketch was compiled against framework "
+          "headers this host was not built from; rebuild the host and "
+          "restart it";
       m_status =
           live() ? "load failed — keeping previous sketch" : "load failed";
       return false;
     }
   } catch (const std::exception& error) {
     // The exception's what(), destructor or type information may live in
-    // this image. Keep it mapped through exception destruction and any
-    // callback-owned state that escaped while querying the metadata.
+    // this image, so it stays mapped.
     m_errorLog = error.what();
     m_status = live() ? "load failed — keeping previous sketch" : "load failed";
     return false;
   } catch (...) {
-    m_errorLog = "plugin metadata callback threw an unknown exception";
+    m_errorLog = "the sketch's ABI query threw an unknown exception";
     m_status = live() ? "load failed — keeping previous sketch" : "load failed";
     return false;
   }
@@ -675,16 +646,9 @@ bool Host::adopt(const std::filesystem::path& library,
     m_status = live() ? "load failed — keeping previous sketch" : "load failed";
     return false;
   } catch (...) {
-    m_errorLog = "plugin entry or factory threw an unknown exception";
+    m_errorLog = "the sketch's entry or factory threw an unknown exception";
     m_status = live() ? "load failed — keeping previous sketch" : "load failed";
     return false;
-  }
-  if (prebuilt) {
-    // A plugin's generation counts adopted modules, not attempts.
-    ++m_generation;
-    m_status = "live · plugin " + std::to_string(m_generation);
-    std::fprintf(stderr, "[sketch] %s\n", m_status.c_str());
-    return true;
   }
   const double seconds = std::chrono::duration<double>(
                              std::chrono::steady_clock::now() - m_compileStart)
@@ -804,9 +768,7 @@ void Host::poll() {
   }
 
   // Source changed (or never built) → kick a compile.
-  if (!m_options.pluginPath.empty()) {
-    loadPlugin();
-  } else if (m_options.sketchPath.extension() == ".py") {
+  if (m_options.sketchPath.extension() == ".py") {
     if (pythonChanged()) loadPython();
   } else if (!m_compile.valid()) {
     if (const auto stamp = sourceStamp();

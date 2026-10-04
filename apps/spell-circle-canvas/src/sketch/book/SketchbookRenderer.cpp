@@ -218,12 +218,9 @@ std::unique_ptr<sketch::Host> SketchbookRenderer::openSketch(int index) {
         sketch::sourceOf(SketchCatalog::sketchDirectory, entries[index].key);
   } else if (const int external = externalAt(index);
              external >= 0 && external < (int)SketchCatalog::externals.size()) {
-    // An external source opens through compilation; a native module
-    // opens through artifact validation and adoption.
+    // A file this binary does not carry has to be built to be seen, so
+    // it opens on the compiler rather than on an entry.
     options.sketchPath = SketchCatalog::externals[external];
-    const auto extension = options.sketchPath.extension();
-    if (extension == ".dylib" || extension == ".so" || extension == ".bundle")
-      options.pluginPath = options.sketchPath;
   } else {
     return nullptr;
   }

@@ -4,7 +4,6 @@
 Sketchbook [--no-gpu]                       # the app
 Sketchbook --sketch <name>                  # the app, on that one
 Sketchbook <file.cpp>                       # the app, on that file
-Sketchbook --plugin <module.dylib|module.so> # the app, on an externally built plugin
 Sketchbook --workspace <directory>          # the app, on a folder of sketches
 Sketchbook --examples                       # the app, on the bundled catalogue
 Sketchbook --list [--kind canvas|set]      # the registry, one per line
@@ -13,11 +12,6 @@ Sketchbook <file.cpp> --frame out.png [--at <sec>] [--scale <n>] [--gpu]
                                   [--frames <count>] [--fps <n>]
                                   [--deterministic | --no-deterministic]
 Sketchbook <file.cpp> --bench [--bench-frames <n>] [--jitter-dt [amp]]
-Sketchbook --plugin <module.dylib|module.so> --frame out.png [--at <sec>] [--gpu]
-Sketchbook --plugin <module.dylib|module.so> --bench [--bench-frames <n>]
-Sketchbook --plugin <module.dylib|module.so> --headless [<outdir>] [--gpu]
-                                             [--at <sec>] [--scale <n>] [--kind <k>]
-                                             [--promotion | --no-promotion]
 Sketchbook --headless [<outdir>] [--gpu] [--sketch <name>] [--kind <k>]
            [--at <sec>] [--scale <n>] [--ledger] [--no-promotion | --promotion]
            [--composites]
@@ -43,34 +37,25 @@ Sketchbook --headless --inspect[=<port>] [--state <dir>]
                                             # drives over the protocol
 ```
 
-`--plugin` selects one native module built by CMake over the Sigil libraries,
-either in their build tree or through the SigilSketchSDK plugin helper
-package from a separate build directory. The window, `--frame`, `--headless`
-and `--bench` load it without invoking a compiler. A positional `.dylib`, `.so` or `.bundle`
-path selects the same mode. The module and its `.sigil-build` sidecar must
-match the originating libraries consumed by the module and supplied by the host. Rebuilding the
-plugin target reloads a valid replacement; a partial publication, build
-mismatch or failing factory preserves the running session. Module-local
-assets stand beside it, and `--assets` overrides the resource root.
-[HOST.md](HOST.md) gives the external project's CMake setup and the native
-compatibility and image-lifetime contract.
+A file opened by path — a `.cpp` entry or a `.py` module, anywhere on
+disk — is compiled or imported by this host and swapped in on every save;
+a build that fails keeps the running session. [HOST.md](HOST.md) is the
+chapter on how a sketch reaches a host, what binds a C++ file to one host
+build, and the workspace a folder of such files makes.
 
 `--sketch` takes a case-insensitive substring and answers to a sketch's
 filed name or its file stem, which is the loop for visual iteration.
 `--headless` writes its plates into `sketch_plates/` when no directory
-follows it — unless `--inspect` is given and no module, sketch or kind is named,
+follows it — unless `--inspect` is given and no sketch or kind is named,
 when it serves the protocol instead. [PROTOCOL.md](PROTOCOL.md) is the
 chapter on what a client driving a sketch host is answered: the agents,
 the harness a test drives one through, and what each lane mounts.
 
-For a module, `--headless` writes `plate_<module stem>.png` from its own
-session, without walking the registry or running its benchmark phases.
-`--kind` must match its runtime. Promotion is off unless `--promotion` asks
-for eager baking; `--composites` is refused for module captures. `--frame`
-and `--headless` with `--gpu` draw Canvas stills through Graphite and Set
-scenes through the World device executor. A missing device context fails
-instead of producing a raster substitute. `--bench` keeps its raster canvas
-frame path, with the selected device executor for Set and mesh work.
+`--frame` and `--headless` with `--gpu` draw Canvas stills through
+Graphite and Set scenes through the World device executor. A missing
+device context fails instead of producing a raster substitute. `--bench`
+keeps its raster canvas frame path, with the selected device executor for
+Set and mesh work.
 
 For a headless sweep, `--scale <n>` sets device pixels per canvas unit on
 both CPU and GPU. It overrides the sketch's oversample and the host's width

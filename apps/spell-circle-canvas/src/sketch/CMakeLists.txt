@@ -43,17 +43,17 @@ set(SIGIL_SKETCH_ASSET_DIR ${SIGIL_ASSET_DIR})
 # rebuilds and swaps without a window; book/ is the only place one
 # appears.
 #
-# PUBLIC supplies the types and complete runtime values named by the native
-# headers. Authoring kits, image codecs and device executors are consumers'
-# own dependencies. The two doors between runtimes name the other side by
-# forward declaration; their texture and scene executors are PRIVATE, beside
-# the codecs and Graphite handles the implementation uses.
+# PUBLIC supplies the types and complete runtime values the library's own
+# headers name. Authoring kits, image codecs and device executors are
+# consumers' own dependencies. The two doors between runtimes name the other
+# side by forward declaration; their texture and scene executors are PRIVATE,
+# beside the codecs and Graphite handles the implementation uses.
 set(SIGIL_SKETCH_SOURCES
   core/Assets.cpp core/Catalog.cpp core/Crash.cpp core/Device.cpp
   core/Registry.cpp core/Sources.cpp core/State.cpp
   canvas/Context.cpp canvas/Guest.cpp canvas/Session.cpp
   set/Context.cpp set/Session.cpp
-  live/BuildDirectory.cpp live/BuildCache.cpp live/Host.cpp live/Plugin.cpp live/Residency.cpp live/SkewGuard.cpp
+  live/BuildDirectory.cpp live/BuildCache.cpp live/Host.cpp live/Residency.cpp live/SkewGuard.cpp
   plate/Compare.cpp plate/Graphite.cpp plate/Story.cpp plate/Sweep.cpp
   plate/ThumbnailQueue.cpp plate/Thumbnails.cpp plate/ThumbnailWriter.cpp)
 set(SIGIL_SKETCH_HEADERS
@@ -105,11 +105,6 @@ sigil_library(SigilSketch
   PUBLIC ${SIGIL_SKETCH_PUBLIC}
   PRIVATE ${SIGIL_SKETCH_PRIVATE})
 
-# Native modules consume the existing SDK targets and share the runtime's
-# metadata. The configuration's identity files are generated before build.
-include("${CMAKE_CURRENT_LIST_DIR}/cmake/SketchSDK.cmake")
-sigil_sketch_sdk()
-
 if(SIGIL_BUILD_PYTHON)
   add_subdirectory(python)
 endif()
@@ -138,9 +133,6 @@ if(SIGIL_BUILD_APPS)
 
 # Sketchbook: the one live application.
   add_subdirectory(book)
-endif()
-if(TARGET sketch_test)
-  add_subdirectory(cmake/test)
 endif()
 
 # Every sketch stem a document names, resolved against the registry.

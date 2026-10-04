@@ -49,10 +49,6 @@ than unit-test thresholds.
   framework. `SigilSketchTestingHarness` adds the GoogleTest fixture in
   `sigilsketch/testing/Harness.h`, with `open`, `clock`, `step`, `still` and
   `compare`. Failed cases retain their artifacts and print the host's state.
-- Native plugin integration configures a separate consumer, builds modules
-  with CMake and loads the resulting artifacts through a native host. It
-  verifies compiler/configuration and consumed-library compatibility at
-  the loading boundary.
 
 A helper needed by one file stays in that file. Shared fixtures live in the
 owning library's `test/support/`; reusable consumer-facing verification
@@ -97,13 +93,6 @@ An aggregate test binary collects every feature's link requirements. It
 can conceal a missing dependency supplied by another feature. A public
 header probe therefore compiles against its originating feature target,
 and a consumer probe must link and run with only its stated requirements.
-Compose's standalone native fixture, `sketch_compose_consumer`, covers its
-basic Core drawing path without Sketchbook, Qt or another Compose feature
-target. It is filed under Sketch's `cmake/test/native` and is built only
-inside the separate native-library configure that
-`SketchSDK.NativeLibraryBoundary` drives; that case is registered only when
-`SIGIL_BUILD_APPS` is on, so a tree configured without the applications
-never runs it.
 
 `sigil_header_self_test()` compiles each exported header first and twice.
 `sigil_doc_probes()` checks qualified API names and designated initializers

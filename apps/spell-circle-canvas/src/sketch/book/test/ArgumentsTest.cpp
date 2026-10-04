@@ -206,45 +206,19 @@ TEST(SketchbookArguments, ExplicitPublicationNamesCannotBecomeSketchPaths) {
   EXPECT_FALSE(parse({"selected.py", "--publish="}));
 }
 
-TEST(SketchbookArguments, NativePluginSelectsTheWindowOrCaptureFile) {
-  const auto args =
-      parse({"--plugin", "build/scene.dylib", "--frame", "out.png"});
-  ASSERT_TRUE(args);
-  EXPECT_TRUE(args->plugin);
-  EXPECT_EQ(args->sketchFile, "build/scene.dylib");
-  EXPECT_EQ(args->capture.outputPath, "out.png");
-  const auto positional = parse({"build/scene.so"});
-  ASSERT_TRUE(positional);
-  EXPECT_TRUE(positional->plugin);
-  EXPECT_FALSE(parse({"--plugin"}));
-  EXPECT_FALSE(parse({"--plugin", ""}));
-  EXPECT_FALSE(parse({"--plugin", "scene.cpp"}));
-  EXPECT_FALSE(parse({"scene.cpp", "--plugin", "scene.dylib"}));
-  EXPECT_FALSE(parse({"--plugin", "scene.dylib", "--plugin", "other.dylib"}));
-  EXPECT_FALSE(parse({"--plugin", "scene.dylib", "--workspace", "sketches"}));
-  EXPECT_FALSE(parse({"--plugin", "scene.dylib", "--sketch", "scene"}));
+TEST(SketchbookArguments, ASketchIsASourceFileAndNeverALibrary) {
+  for (const char* library : {"scene.dylib", "scene.so", "scene.bundle"})
+    EXPECT_FALSE(parse({library})) << library;
+  const auto source = parse({"scene.cpp"});
+  ASSERT_TRUE(source);
+  EXPECT_EQ(source->sketchFile, "scene.cpp");
 }
 
-TEST(SketchbookArguments, NativePluginSelectsOneHeadlessCaptureLane) {
-  const auto args =
-      parse({"--plugin", "scene.dylib", "--headless", "plates", "--gpu", "--at",
-             "0.25", "--scale", "0.5", "--promotion", "--kind", "canvas"});
+TEST(SketchbookArguments, AHeadlessScaleIsThePlateDensity) {
+  const auto args = parse({"--headless", "plates", "--scale", "0.5"});
   ASSERT_TRUE(args);
-  EXPECT_TRUE(args->plugin);
   EXPECT_TRUE(args->headless);
-  EXPECT_TRUE(args->gpu);
-  EXPECT_EQ(args->capture.at, 0.25);
   EXPECT_EQ(args->sweepOptions.density, 0.5f);
-  EXPECT_TRUE(args->sweepOptions.promotion);
-  EXPECT_EQ(args->kind, "canvas");
-  EXPECT_FALSE(parse({"--plugin", "scene.dylib", "--headless", "plates",
-                      "--frame", "frame.png"}));
-  EXPECT_FALSE(parse({"--plugin", "scene.dylib", "--headless", "--bench"}));
-  EXPECT_FALSE(parse({"--plugin", "scene.dylib", "--headless", "--ledger"}));
-  EXPECT_FALSE(parse({"--plugin", "scene.dylib", "--headless", "plates",
-                      "--timing-json", "timing.json"}));
-  EXPECT_FALSE(parse(
-      {"--plugin", "scene.dylib", "--headless", "plates", "--stability"}));
 }
 
 }  // namespace

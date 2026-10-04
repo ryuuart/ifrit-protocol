@@ -515,8 +515,7 @@ For retained rendering tests, include
 its composer, call `frame(seconds)` with an explicit time step, and inspect
 `pixel(x, y)` or an owned `pixels()` snapshot. It needs no window or GPU.
 Draw adapter cases reuse the pen's raster fixture and carry the
-`integration` label; native module tests configure and run a separate
-consumer without the product host.
+`integration` label.
 
 Committed test fonts keep ordinary cases independent of the machine.
 Device and platform-font cases carry labels for their dependencies.

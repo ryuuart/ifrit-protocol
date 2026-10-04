@@ -8,7 +8,7 @@ project(SpellCircleCanvas VERSION 0.1 LANGUAGES CXX)
 option(SIGIL_BUILD_APPS "Build Qt applications and the bundled sketch catalogue" ON)
 option(SIGIL_BUILD_PYTHON "Build Python bindings and the Python package" ON)
 if(SIGIL_BUILD_APPS AND NOT SIGIL_BUILD_PYTHON)
-  message(FATAL_ERROR "The bundled applications require Python bindings; set SIGIL_BUILD_APPS=OFF for native libraries and plugins")
+  message(FATAL_ERROR "The bundled applications require Python bindings; set SIGIL_BUILD_APPS=OFF to build the native libraries alone")
 endif()
 
 set(CMAKE_CXX_STANDARD 20)

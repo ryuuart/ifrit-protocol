@@ -1898,39 +1898,6 @@ The local bakes should allocate against the same destination. A test on
 a device should record a picture holding a `Cache::Texture` child and
 find the child's bake texture-backed.
 
-## Build gap: SigilSketch cannot compile without the plugin identity step
-
-`sigil_sketch_sdk()` in `src/sketch/cmake/SketchSDK.cmake` generates
-`SigilSketchBuildIdentity.h` by lifting a compile line from
-`compile_commands.json` and preprocessing every Sigil public header, and
-`SigilSketch` includes that header. A host that only reloads sources
-still pays for it: a generator that writes no compile database cannot
-build the library, and a change to any public header in the tree
-rebuilds it. Only a host that loads a compiled plugin compares
-identities.
-
-The identity should be an option of the build that a plugin-loading host
-turns on; without it `SigilSketch` compiles with an empty identity and
-refuses compiled plugins, saying why. A test configure with the option
-off should build `SigilSketch` and reload a source sketch.
-
-## Contract gap: a plugin's undeclared libraries are not compared
-
-`sigil_sketch_plugin()` in `src/sketch/cmake/SketchPlugin.cmake` records
-an identity for `SigilSketch` and for each library named in `LIBRARIES`,
-and `src/sketch/live/Plugin.cpp` compares those. A library's include
-root is shared by all of its feature targets, so a plugin that declares
-`SigilComposeCore` can include a kit header and call into
-`SigilComposeKit` with no identity recorded for it, and a layout change
-there loads without complaint.
-
-Every library whose headers the plugin's sources reach should be
-compared. The helper already runs the compiler's dependency scan for the
-host; the same scan over the plugin's sources gives the set, which either
-becomes `LIBRARIES` or is checked against it at build time. A test
-plugin that includes a header of an undeclared library should fail to
-build, or load with that library's identity in its sidecar.
-
 ## Study queue: the material studies are written around the libraries
 
 The sixteen `Study · Materials` sketches under `src/sketch/sketches/`
@@ -2027,3 +1994,16 @@ installed resolver twice, through `drawBatched` and through
 `GlyphRSXformBatches` at the same pose, and assert that both resolve the
 material once per bucket and produce the same pixels. Layer materials
 want the same.
+
+## Bug: a workspace's own `assets/` is not what `res://` mounts
+
+`python3 scripts/sigil.py workspace new <dir>` writes `<dir>/<dir>.cpp`
+beside `<dir>/assets/`, and the README it writes says that folder mounts
+at `res://`; `scripts/README.md` says the same. The host reads an entry
+whose directory shares its stem as a directory sketch and mounts `res://`
+from the `assets/` folder one level above that directory, so a file put
+in the workspace's own `assets/` is not found.
+
+A workspace should mount the `assets/` folder it was written with. A test
+should make a workspace, put a file in its `assets/`, open the entry and
+read the file through `res://`.

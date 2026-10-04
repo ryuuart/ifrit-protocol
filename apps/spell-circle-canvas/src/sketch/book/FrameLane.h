@@ -8,18 +8,17 @@
 
 #include <filesystem>
 #include <string>
-#include <string_view>
 
 namespace sigil::sketch {
 class Host;
-struct SweepOptions;
 }  // namespace sigil::sketch
 namespace sigil::skia {
 class GraphiteContext;
 }
 
-/** Waits for a session to open and verifies a requested runtime. */
-bool awaitFirstBuild(sigil::sketch::Host& host, std::string_view runtime = {});
+/** Waits for the first build to land or fail; false when no session
+ *  opened. */
+bool awaitFirstBuild(sigil::sketch::Host& host);
 
 /** What a run was asked to photograph or to measure. */
 struct CaptureOptions {
@@ -51,19 +50,12 @@ struct CaptureOptions {
  *  one over budget. It exits 0 whenever it measured; a sketch that never
  *  built, or a surface that could not be allocated, exits 1. */
 int runBench(sigil::sketch::Host& host, const CaptureOptions& options,
-             const std::filesystem::path& path, std::string_view runtime = {});
+             const std::filesystem::path& path);
 
 /** THE STILL, AT THE MOMENT THE SKETCH DECLARED unless the caller named
  *  another, and the numbered sequence when more than one frame was
  *  asked for. Non-zero when the sketch never built or a frame could not
  *  be written. */
 int runFrames(sigil::sketch::Host& host, const CaptureOptions& options,
-              bool gpu = false, std::string_view runtime = {},
+              bool gpu = false,
               sigil::skia::GraphiteContext* canvasGraphite = nullptr);
-
-/** One prebuilt module photographed into the headless output directory,
- *  using its declared density and the requested promotion policy. */
-int runPluginSweep(sigil::sketch::Host& host,
-                   const sigil::sketch::SweepOptions& sweep,
-                   CaptureOptions capture,
-                   sigil::skia::GraphiteContext* canvasGraphite = nullptr);

@@ -1,5 +1,6 @@
 /** @file
- * A native module whose exported callback throws a module-owned exception.
+ * A guest image whose exported callback throws an exception defined in
+ * the guest itself.
  *
  * Built once per mode: `factory` throws a standard exception from the
  * kind factory, `metadata` from the ABI query, and `frame` opens a

@@ -3,8 +3,8 @@
 /** @file
  * @ingroup sketch-live
  *
- * The live host watches source files or externally built native modules
- * and swaps a successful replacement into the running session.
+ * The live host: a sketch watched, compiled into a library on save
+ * against the host's own headers, and swapped into the running session.
  */
 
 #include <include/core/SkBitmap.h>
@@ -54,28 +54,43 @@ namespace sigil::sketch {
  *  means the image could not be located. */
 [[nodiscard]] std::filesystem::file_time_type hostBinaryTime();
 
-/** The native runtime's public C++ boundary fingerprint, including its
- *  transitive public headers, dependency binaries and compile context.
- *  A plugin must match the runtime and every additional originating library
- *  it consumes before its factory can be called. */
-[[nodiscard]] std::string_view hostBuildIdentity();
-
-/** The Qt-free live host watches a native plugin artifact or sketch sources.
- *  An artifact is compiled by the caller's toolchain; source mode captures
- *  the framework's flags and builds changed units into a versioned module.
- *  A compatible replacement opens a candidate session before replacing the
- *  running one, so an unsuccessful build or load keeps the last session.
+/** THE LIVE HOST, and it is Qt-free on purpose: it watches a sketch's
+ *  sources, compiles them into a versioned library with the compiler
+ *  flags this host's own build captured, dlopens the result and swaps
+ *  the running session — keeping the previous one alive on a compile
+ *  error or a session that fails to open, which is the behaviour that
+ *  makes live coding usable. A Python entry is imported instead, through
+ *  the importer the options name.
  *
- *  The executable exports the framework symbols that a guest resolves.
- *  Accepted libraries remain mapped for the process lifetime because
- *  sessions, values and callbacks can retain their code beyond this host.
- *  Each adopted generation therefore retains its mapped image; restarting
- *  the process reclaims those images. */
+ *  A C++ sketch outside the host is always compiled BY the host. The
+ *  boundary between a sketch and the libraries is their whole C++
+ *  vocabulary — struct layouts, inline bodies, templates — so a sketch
+ *  is compiled with this host's flags against this host's headers, and
+ *  not at all when those headers are newer than the running image.
+ *
+ *  The executable exports the framework's symbols, so a sketch library
+ *  links with `-undefined dynamic_lookup` and builds in a couple of
+ *  seconds: a few small translation units, nothing linked against the
+ *  static libraries. A sketch that is a directory is the entry and every
+ *  source beside it, compiled apart and linked once, and a build whose
+ *  preprocessed inputs match one already made is restored from the cache
+ *  rather than compiled.
+ *
+ *  Accepted libraries are never closed. Sessions, values and callbacks
+ *  can retain their code beyond this host — a vtable, a string literal,
+ *  a function pointer — so each adopted generation keeps its mapped
+ *  image until the process ends. */
 class Host {
  public:
-  /** Selects artifact mode with pluginPath, or source mode with sketchPath.
-   *  Other fields configure asset mounts, source compilation and watching.
-   *  The options are read once when the host is constructed. */
+  /** EVERYTHING A HOST IS TOLD WHEN IT IS BUILT: which file it is
+   *  watching, how to compile it, what mounts where, and how hard to
+   *  look for a change.
+   *
+   *  Only `sketchPath` has no useful default — everything else stands
+   *  at what a host opened on a file in this tree wants, so a caller
+   *  states the fields its situation differs in and leaves the rest.
+   *  It is read once, when the host is constructed, and a change of
+   *  policy is a new host. */
   struct Options {
     /** The sketch's ENTRY: the file to watch, and the one whose
      *  directory says what else is built with it. A file standing in a
@@ -83,13 +98,6 @@ class Host {
      *  and every other `.cpp` in that directory is a unit of it; any
      *  other file is a sketch of one unit. */
     std::filesystem::path sketchPath;
-    /** An already compiled native sketch module to watch and load.
-     *  Nonempty chooses the artifact path in place of source compilation;
-     *  no compiler or flags file is needed. The matching .sigil-build sidecar
-     *  binds its bytes to this host build before loading. Each replacement is
-     *  copied into a unique runtime file before loading. Its containing
-     *  directory supplies local assets, and its stem is the session's key. */
-    std::filesystem::path pluginPath;
     /** Optional importer for Python entries. The host owns watching and
      *  adoption; the importer returns a native kind and owns its interpreter.
      *  Null leaves Python files unavailable without adding an interpreter
@@ -142,16 +150,6 @@ class Host {
      *  a header is saved by hand a moment before the sketch is. Zero
      *  re-reads them on every poll. */
     std::chrono::milliseconds siblingScanInterval{250};
-    /** HOW LONG A MODULE MAY DISAGREE WITH ITS SIDECAR BEFORE THAT IS A
-     *  FAILURE, when the sidecar still names this host's build. A build
-     *  that links the module in place and stamps the sidecar afterwards
-     *  shows new bytes beside the old sidecar until it finishes, so the
-     *  host treats the disagreement as a publication in progress: it says
-     *  nothing and checks again on the next poll. The disagreement is
-     *  reported once the same module and sidecar have been seen on
-     *  consecutive polls spanning at least this long. Zero reports it on
-     *  the second consecutive poll that sees them. */
-    std::chrono::milliseconds pluginPublicationGrace{2000};
   };
 
   Host(Options options, weave::FontContext& fonts);
@@ -193,8 +191,8 @@ class Host {
    *  A host that finds it unclaimed walks itself. */
   [[nodiscard]] static bool claimSweep();
 
-  /** Drives reloads from artifact or source changes, completed compiles,
-   *  and asset changes. Call once per frame. */
+  /** Drives reloads from source changes, completed compiles and asset
+   *  changes. Call once per frame. */
   void poll();
 
   /** Ticks and draws one frame. Returns false while nothing has loaded or
@@ -414,9 +412,7 @@ class Host {
   };
 
   void startCompile();
-  bool adopt(const std::filesystem::path& library,
-             std::string_view pluginIdentity = {});
-  void loadPlugin();
+  bool adopt(const std::filesystem::path& library);
   bool openSession(const Kind& kind, bool (*available)(std::string*) = nullptr);
   void loadPython();
   bool pythonChanged();
@@ -471,24 +467,6 @@ class Host {
   std::unique_ptr<Session> m_session;
 
   std::future<CompileResult> m_compile;
-  struct PluginStamp {
-    std::filesystem::file_time_type modified;
-    uintmax_t bytes = 0;
-    std::filesystem::file_time_type manifestModified;
-    uintmax_t manifestBytes = 0;
-    bool operator==(const PluginStamp&) const = default;
-  };
-  [[nodiscard]] std::optional<PluginStamp> pluginStamp() const;
-  std::optional<PluginStamp> m_pluginStamp;
-  /** The module and sidecar last seen disagreeing while the sidecar named
-   *  this host's build, and when they were first seen that way; cleared
-   *  when any poll sees other files. */
-  std::optional<PluginStamp> m_unsettledPluginStamp;
-  std::chrono::steady_clock::time_point m_unsettledPluginSince;
-  /** Copies of the module taken so far, which names each copy: a refused
-   *  copy that stays mapped keeps its path, and a later copy at that path
-   *  would be handed the mapped image again. */
-  int m_pluginCopies = 0;
   std::filesystem::file_time_type m_compiledMtime;
   // The directories around the sketch, re-read on the cadence the
   // options name rather than every poll: reading a directory is not

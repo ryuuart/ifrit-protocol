@@ -28,8 +28,6 @@
  *                                              its session is opened for:
  *                                              Advance (the default) or
  *                                              the wall's
- *   Sketchbook --plugin <module> --headless [<outdir>] [--gpu] [--kind <k>]
- *                                              one prebuilt module
  *   Sketchbook <file.cpp> --bench [--bench-frames <n>]
  *              [--jitter-dt [<amplitude>]] [--at <s>] [--scale <n>]
  *              [--fps <n>] [--gpu]
@@ -384,7 +382,7 @@ int main(int argc, char* argv[]) {
   // sweep mounts it between its sketches; the window mounts it unasked.
   if (args.inspectPort &&
       (args.list || args.catalog || args.warmThumbnails ||
-       (args.plugin && args.headless) || !args.compareOptions.first.empty() ||
+       !args.compareOptions.first.empty() ||
        !args.storyOptions.outputPath.empty() ||
        !args.capture.outputPath.empty() || args.capture.bench)) {
     std::fprintf(stderr,
@@ -484,8 +482,7 @@ int main(int argc, char* argv[]) {
     return runServe(args, flagsFileNear(executableDirectory(argv[0])),
                     materialWarmup);
 
-  if (args.headless && !args.plugin)
-    return runSweep(args, chosen, materialWarmup);
+  if (args.headless) return runSweep(args, chosen, materialWarmup);
 
   // ---- one file, live or measured -------------------------------------
   const std::filesystem::path sketchDirectory = SIGIL_SKETCH_DIR;
@@ -507,8 +504,7 @@ int main(int argc, char* argv[]) {
   // a measurement and the live host keep the wall's clock and their real
   // numbers, which is where they are wanted.
   options.clock = args.clockPolicy.value_or(
-      (!args.capture.outputPath.empty() || (args.plugin && args.headless)) &&
-              !args.capture.bench
+      !args.capture.outputPath.empty() && !args.capture.bench
           ? sigil::motion::ClockPolicy::Advance
           : sigil::motion::ClockPolicy::Wall);
   // WHAT MOUNTS AT res:// unless `--assets` says otherwise: for a sketch
@@ -523,8 +519,7 @@ int main(int argc, char* argv[]) {
   options.sketchesDirectory = sketchDirectory;
   options.flagsFile = flagsFileNear(executableDirectory(argv[0]));
 
-  if (!args.capture.outputPath.empty() || args.capture.bench ||
-      (args.plugin && args.headless)) {
+  if (!args.capture.outputPath.empty() || args.capture.bench) {
     if (args.sketchFile.empty() || !std::filesystem::exists(args.sketchFile)) {
       std::fprintf(
           stderr,
@@ -533,30 +528,28 @@ int main(int argc, char* argv[]) {
           "         [--frames <count>] [--fps <n>] [--bench] "
           "[--bench-frames <n>]\n"
           "         [--gpu] [--jitter-dt [amplitude]] "
-          "[--deterministic | --no-deterministic]\n"
-          "       Sketchbook --plugin <module> [--frame <out.png> | --bench | "
-          "--headless [<outdir>]]\n"
-          "         [--at <sec>] [--scale <n>] [--kind <k>] [--gpu]\n");
+          "[--deterministic | --no-deterministic]\n");
       return 2;
     }
-    if (!args.plugin && args.sketchFile.extension() != ".py" &&
+    if (args.sketchFile.extension() != ".py" &&
         !std::filesystem::exists(options.flagsFile)) {
       std::fprintf(stderr, "missing %s (rebuild Sketchbook)\n",
                    options.flagsFile.string().c_str());
       return 2;
     }
     options.sketchPath = std::filesystem::absolute(args.sketchFile);
-    if (args.plugin) options.pluginPath = options.sketchPath;
     // Installed before the guest can ever run: without it, a fault
     // inside a sketch is a bare signal with nothing printed.
     sketch::installCrashReporter(options.sketchPath);
     finishMaterialWarmup(materialWarmup);
+    // `--gpu` PUTS THIS RUN ON THE DEVICE: a set draws its frame there,
+    // and a canvas is photographed on a Graphite surface. A sketch whose
+    // kind needs the device executor brings it up before its session
+    // opens, and a device that will not come up fails the run, because a
+    // capture that asked for the device and quietly gave the CPU's
+    // picture puts two different pictures under one name.
     if (args.gpu) {
       options.prepareSession = [&](const sketch::Kind& kind) {
-        if (args.plugin && !args.kind.empty() && args.kind != kind->runtime())
-          throw std::runtime_error("plugin runtime is " +
-                                   std::string(kind->runtime()) +
-                                   ", not the requested " + args.kind);
 #ifdef __APPLE__
         if (!kind->needsDevice()) return;
 #else
@@ -575,10 +568,7 @@ int main(int argc, char* argv[]) {
     int result = 0;
     {
       sketch::Host host(std::move(options), fonts());
-      if (!awaitFirstBuild(host,
-                           args.plugin ? args.kind : std::string_view{})) {
-        result = 1;
-      }
+      if (!awaitFirstBuild(host)) result = 1;
 #ifdef __APPLE__
       if (!result && args.gpu && !args.capture.bench && !host.needsDevice()) {
         std::string error;
@@ -598,18 +588,9 @@ int main(int argc, char* argv[]) {
       }
 #endif
       if (!result && args.capture.bench) {
-        result = runBench(host, args.capture, host.sketchPath(),
-                          args.plugin ? args.kind : std::string_view{});
-      } else if (!result && args.plugin && args.headless) {
-        auto sweep = args.sweepOptions;
-        sweep.kind = args.kind;
-        sweep.gpu = args.gpu;
-        result =
-            runPluginSweep(host, sweep, args.capture, canvasGraphite.get());
+        result = runBench(host, args.capture, host.sketchPath());
       } else if (!result) {
-        result = runFrames(host, args.capture, args.gpu,
-                           args.plugin ? args.kind : std::string_view{},
-                           canvasGraphite.get());
+        result = runFrames(host, args.capture, args.gpu, canvasGraphite.get());
       }
     }
     // The session goes before the device does: it holds textures and
