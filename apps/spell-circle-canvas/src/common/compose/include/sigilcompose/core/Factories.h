@@ -6,7 +6,7 @@
  * SigilCompose factories — the functions that start an Element: `box`,
  * `stack`, `positioned`, `text` in its three content forms and `frame`
  * over a story, `image`, `picture`, `pathFigure`, `custom`, `layout`,
- * `slot` and `memo`.
+ * `slot`, `scene`, `light` and `memo`.
  */
 
 #include <include/core/SkImage.h>
@@ -16,6 +16,7 @@
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Operator.h>
 #include <sigilcompose/core/Utf8.h>
+#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/skia/Paint.h>  // material::Fit — how a picture meets its box
 #include <sigilmedia/core/PixelSource.h>
 #include <sigilweave/layout/ParagraphLayout.h>
@@ -52,6 +53,26 @@ namespace sigil::compose {
  *  The one to reach for by default — a box with a fill is a panel, a
  *  box with a shape is a drawing, and a box with neither is layout. */
 Element box();
+/** A FLEX CONTAINER THAT OWNS PLANAR LIGHTING. Light leaves anywhere below
+ *  it contribute to its own lit paint and receivers under it, independent
+ *  of declaration order. A nested scene owns its sources separately and
+ *  starts with no inherited light or environment. A receiver's lighting
+ *  declaration or material's own lighting replaces the scene context.
+ *  An environment may be supplied with `Element::environment`.
+ *  This is a retained planar composition, without cast shadows or a depth
+ *  buffer. */
+Element scene();
+/** A NONVISUAL SOURCE in the nearest scene, excluded from layout, paint,
+ *  hit testing and structural child counts. Appending a child throws
+ *  `std::invalid_argument`. Outside a scene it contributes no illumination.
+ *  The light's position is local to this declaration; ordinary element
+ *  transforms place it through its ancestors and turn spot or directional
+ *  axes. Receivers shade their normals in the shared root-page frame.
+ *  Out-of-plane source turns or perspective disable direct illumination.
+ *  Directional sources read direction and elevation rather than position.
+ *  Keep an animated light
+ *  or transform bound to the model to move it without describing again. */
+Element light(material::Light source);
 /** Overlap container: children share the box, painted in (zIndex,
  *  declaration order). EVERY child is absolute — the container sets it
  *  after the child's own layout properties, so a child cannot rejoin the flex
@@ -193,8 +214,8 @@ Text text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
  *  an animation and a video play on the motion clock, placed by the
  *  `sigil::media::Timing` the source was made with.
  *
- *      image(poster).width(320).height(180)            // sized as any node is
- *      image(clip, material::Fit::Cover)               // a video filling its box
+ *      image(poster).width(320).height(180)  // sized as any node is
+ *      image(clip, material::Fit::Cover)     // a video covering its box
  *      image(media::PixelSource(clip, {.start = 410ms, .rate = 0.72}))
  *
  *  @p fit is how the source meets a box of another shape, as it is for a
@@ -226,9 +247,8 @@ Text text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
  *  the first three, and under `Contain` and `Cover` the node itself
  *  carries the picture's proportions, so what is painted is the whole of
  *  the node. A null picture draws nothing. */
-[[nodiscard]] Image image(
-    sk_sp<SkImage> picture,
-    material::Fit fit = material::Fit::Contain);
+[[nodiscard]] Image image(sk_sp<SkImage> picture,
+                          material::Fit fit = material::Fit::Contain);
 /** A box whose content is one paint program (≡ box().background(p)).
  *
  *  TWO COSTS AN AUTHOR MUST KNOW. First, it is cached like any static
@@ -317,7 +337,7 @@ Element point();
  *  Yoga/SigilWeave, then positioned and sized by the scheme in a bounded
  *  second layout pass. Text reflows at its placed reading measure before
  *  the scheme resolves content-sized tracks again. */
-template <typename L>
+template <Arranging L>
   requires(std::constructible_from<Operator, L>)
 Element layout(L scheme);
 
@@ -325,7 +345,7 @@ namespace detail {
 Element makeLayout(Operator scheme);
 }  // namespace detail
 
-template <typename L>
+template <Arranging L>
   requires(std::constructible_from<Operator, L>)
 Element layout(L scheme) {
   return detail::makeLayout(Operator(std::move(scheme)));

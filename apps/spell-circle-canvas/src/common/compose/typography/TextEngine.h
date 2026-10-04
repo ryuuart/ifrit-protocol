@@ -20,8 +20,8 @@
 #include <string>
 #include <vector>
 
-#include "ComposeRuntime.h"
-#include "GlyphInk.h"
+#include "paint/GlyphInk.h"
+#include "runtime/ComposeRuntime.h"
 
 namespace sigil::core {
 
@@ -187,11 +187,11 @@ struct TrackBeats {
  *  can drift apart. */
 void compose(GlyphModifier& into, const GlyphModifier& next);
 /** FIELD PIN for GlyphModifier: A FIELD ADDED TO IT IS A BUILD FAILURE until
- * `compose` above and `compose::interpolate` carry it. The definition binds every member by name,
- *  so a new one breaks the count. What it closes is invisible otherwise — a
- *  field left out of `compose` or `interpolate` reads at rest for every
- * stacked track and never interpolates, so the effect appears to work and then
- *  quietly does not move. Defined beside the two, never called. */
+ * `compose` above and `compose::interpolate` carry it. The definition binds
+ * every member by name, so a new one breaks the count. What it closes is
+ * invisible otherwise — a field left out of `compose` or `interpolate` reads at
+ * rest for every stacked track and never interpolates, so the effect appears to
+ * work and then quietly does not move. Defined beside the two, never called. */
 void glyphModifierFieldPin(GlyphModifier& v);
 /** The seed an effect's random stream is constructed from — the glyph's
  * identity plus the operand lane inside a composite. */
@@ -215,15 +215,15 @@ uint64_t glyphSeed(const GlyphInfo& g, uint32_t lane = 0);
 void paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
                  const TextInk& ink, const TextPath* onPath, SkSize size,
                  const PaintContext& ctx);
-/** THE INK RESTARTED ON EACH UNIT, for the glyphs of @p layout as
- *  @p structure numbers them and @p poses places them: one style per unit
- *  an ink in @p ink or in the leaf's spans restarts on, its paint's unit
- *  square on the text-metric box of the glyphs of that unit it reaches. */
-void inkByUnit(const sigil::weave::ParagraphLayout& layout,
-               const Instance& inst, const GlyphStructure& structure,
-               const PoseContext& poses, const TextInk& ink, GlyphInk& glyphs);
+/** The resolved foreground per glyph of @p layout as @p structure
+ *  numbers them and @p poses places them. A span keeps its painted
+ *  coordinates; restarting ink maps onto each unit's text-metric box. */
+void resolveGlyphInk(const sigil::weave::ParagraphLayout& layout,
+                     const Instance& inst, const GlyphStructure& structure,
+                     const PoseContext& poses, const TextInk& ink,
+                     GlyphInk& glyphs);
 /** The same, for the passage at rest: the layout the kernel draws. */
-void inkAtRestByUnit(Instance& inst, const TextInk& ink, GlyphInk& glyphs);
+void glyphInkAtRest(Instance& inst, const TextInk& ink, GlyphInk& glyphs);
 /** Breaks the run across the baseline's contours through SigilWeave's
  *  contour-interval geometry, and caches the result on the instance. */
 void ensurePathLayout(Composer::Impl& impl, Instance& inst,

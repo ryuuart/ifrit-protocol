@@ -19,8 +19,14 @@
 #include <sigilgeometry/path/Stroke.h>
 
 #include <memory>
+#include <optional>
+#include <utility>
 
 #include "sigilcompose/Compose.h"
+
+namespace sigil::compose::detail {
+struct RibbonCache;
+}
 
 namespace sigil::compose::brush {
 
@@ -31,16 +37,10 @@ namespace sigil::compose::brush {
  *  back as geometry by `band()` for anything that has to measure it. */
 struct Ribbon {
   Fill fill = Fill::color({1, 1, 1, 1});
-  /** A Material for the band, superseding `fill` when set — the same
-   *  door `Decoration::strokeFill` opens on a stroke, so a recipe
-   *  that dresses an outline can dress the ribbon beside it without
-   *  being written twice.
-   *
-   *  Prefer it to `fill` when the same paint also fills something else:
-   *  a Material is authored in the unit square, compares structurally,
-   *  and can carry live uniforms, where a `Fill` is node-local pixels
-   *  compared by shader pointer. A live material makes the ribbon
-   *  animated, so the node repaints without a re-describe. */
+  /** Material paint for the swept band, taking precedence over `fill`.
+   *  Retains layers, surface response, effects and live inputs. A live
+   *  material repaints without re-describing; a lit surface reads the
+   *  inherited lighting. */
   std::optional<material::Material> fillMaterial;
   float widthStart = 10.0f, widthEnd = 2.0f;
   float nibAngleDeg = -1.0f;  ///< ≥0 → calligraphic (widthStart = full)
@@ -110,11 +110,13 @@ struct Ribbon {
     // A bevel and a round join stay inside the width; a miter is allowed
     // to reach `miterLimit` of them, and a bleed that did not say so
     // would clip the one corner the caller asked to be sharp.
-    return join == geometry::path::Join::Miter
-               ? w * std::max(miterLimit, 1.0f)
-               : w;
+    return join == geometry::path::Join::Miter ? w * std::max(miterLimit, 1.0f)
+                                               : w;
   }
-  bool isRunning() const { return fillMaterial && fillMaterial->isRunning(); }
+  bool isRunning() const;
+  bool readsLighting() const;
+  bool usesWorldSpace() const;
+  float bleed(glm::vec2 size) const;
   bool operator==(const Ribbon& o) const {
     return fill == o.fill && fillMaterial == o.fillMaterial &&
            widthStart == o.widthStart && widthEnd == o.widthEnd &&
@@ -134,6 +136,9 @@ struct Ribbon {
   SkPath band(const SkPath& spine) const;
 
   void paint(draw::Pen& pen, const PaintContext& ctx) const;
+
+  /** Paint scratch is shared by copies and excluded from value equality. */
+  mutable std::shared_ptr<detail::RibbonCache> cache;
 };
 
 /** The ART brush: ONE art cell stretched and continuously BENT along each
@@ -195,5 +200,10 @@ Art artAlong(Element art, float height = 0, float stationPx = 6.0f);
  *  the profile is the half of a ribbon that shares a vocabulary with
  *  bands and strands. */
 Ribbon ribbon(geometry::path::Profile width, Fill fill);
+/** A swept band retaining the material's layers, surface and effects. */
+Ribbon ribbon(geometry::path::Profile width, material::Material material);
+inline Ribbon ribbon(geometry::path::Profile width, material::Color color) {
+  return ribbon(std::move(width), material::Material(color));
+}
 
 }  // namespace sigil::compose::brush

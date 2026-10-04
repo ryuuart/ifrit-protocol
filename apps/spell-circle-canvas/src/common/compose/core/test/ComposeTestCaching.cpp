@@ -55,10 +55,7 @@ TEST(ComposeCaching, CacheNoneRunsEveryFrame) {
   programRuns = 0;
   Host host;
   host.composer.render(box().children(
-      {custom([] { ++programRuns; })
-           .width(10)
-           .height(10)
-           .cache(Cache::None)}));
+      {custom([] { ++programRuns; }).width(10).height(10).cache(Cache::None)}));
   host.frame();
   host.frame();
   EXPECT_EQ(programRuns, 2);
@@ -94,8 +91,8 @@ TEST(ComposeCaching, APhosphorBloomOnATextureNodeIsBakedWithIt) {
                    .width(80)
                    .height(80)
                    .cache(Cache::Texture)
-                   .filter(material::Filter::phosphorBloom(
-                       9, 0.5f, 1.0f, 0.8f, -30.0f, 0.5f))
+                   .filter(material::Filter::phosphorBloom(9, 0.5f, 1.0f, 0.8f,
+                                                           -30.0f, 0.5f))
                    .children({box()
                                   .absolute()
                                   .left(28)
@@ -263,6 +260,47 @@ TEST(ComposeCache, ADeclaredBakeDensityHoldsOneBakeAcrossViewScales) {
   EXPECT_GT(ladderBakes, 1u);
 }
 
+TEST(ComposeCache, ADeclaredGroupBakeDensityHoldsAcrossViewScales) {
+  Host host;
+  host.composer.setAutoTexturePromotion(false);
+  host.composer.setBakeDensity(2.0f);
+  host.composer.render(box()
+                           .cache(Cache::None)
+                           .children({box()
+                                          .absolute()
+                                          .left(20)
+                                          .top(20)
+                                          .width(60)
+                                          .height(60)
+                                          .fill(green())
+                                          .cache(Cache::Group)}));
+  const auto drawAt = [&](float viewScale) {
+    SkCanvas* canvas = host.surface->getCanvas();
+    canvas->clear(SK_ColorBLACK);
+    canvas->save();
+    canvas->scale(viewScale, viewScale);
+    host.composer.draw(*canvas);
+    canvas->restore();
+  };
+
+  // A group must observe the same scalar values twice before it bakes.
+  drawAt(1.0f);
+  drawAt(1.0f);
+  ASSERT_EQ(host.composer.stats().texturesBaked, 1u);
+  for (float viewScale : {1.0f, 1.4f, 2.744f}) {
+    // The changed rect and the following stable rect must both reuse the
+    // local image. A device bake would replace it on the stable frame.
+    for (int frame = 0; frame < 2; ++frame) {
+      drawAt(viewScale);
+      EXPECT_EQ(host.composer.stats().texturesBaked, 0u)
+          << "view scale " << viewScale << ", frame " << frame;
+      EXPECT_EQ(host.composer.stats().texturesLive, 1u);
+      EXPECT_EQ(host.pixel(60, 60), SK_ColorGREEN);
+      EXPECT_EQ(host.pixel(10, 10), SK_ColorBLACK);
+    }
+  }
+}
+
 TEST(ComposeCache, ADeclaredBakeDensityStillReBakesChangedContent) {
   // The density answers "at what resolution", never "is this still the
   // same picture". A node whose content changed is a different picture
@@ -300,7 +338,10 @@ TEST(ComposeCache, ADeclaredScaleEntranceBakesOnceAtItsDestination) {
                         .height(80)
                         .fill(green())
                         .cache(Cache::Texture)
-                        .scale(motion::animate({.from = 0.2f, .to = 1.0f, .duration = std::chrono::milliseconds(400)}))));
+                        .scale(motion::animate(
+                            {.from = 0.2f,
+                             .to = 1.0f,
+                             .duration = std::chrono::milliseconds(400)}))));
   host.frame();
   EXPECT_EQ(host.composer.stats().texturesBaked, 1u)
       << "the bake, taken at the scale the motion names";
@@ -415,7 +456,8 @@ TEST(ComposeCaching, AStaticEffectOverSettledContentIsRunOverItsBake) {
   // transparent margin — here the halo's sigma against the 20 px the inner
   // box is inset by — exactly as it had to before, when that same margin
   // was what the filter's own layer spread into.
-  motion::Animatable<float> still = motion::animatable(0.0f);  // held at rest: no pixel moves
+  motion::Animatable<float> still =
+      motion::animatable(0.0f);  // held at rest: no pixel moves
   const auto plate = [&still](Boundary boundary) {
     Host host;
     host.composer.setProfiling(true);
@@ -664,9 +706,9 @@ TEST(ComposeCaching, DecorationOverflowFollowsResizeAndCachedReplay) {
       SkPaint paint;
       paint.setColor(SK_ColorRED);
       const float extra = bleed(ctx.size);
-      canvas.drawRect(SkRect::MakeWH(ctx.size.x, ctx.size.y)
-                          .makeOutset(extra, extra),
-                      paint);
+      canvas.drawRect(
+          SkRect::MakeWH(ctx.size.x, ctx.size.y).makeOutset(extra, extra),
+          paint);
     }
   };
   for (Cache cache : {Cache::Picture, Cache::Texture}) {

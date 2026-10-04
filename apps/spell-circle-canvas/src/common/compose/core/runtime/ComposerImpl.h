@@ -1,0 +1,977 @@
+#pragma once
+
+/** @file
+ * Internal to the kernel — Composer::Impl, the retained state behind the
+ * facade and the method set every phase translation unit defines its slice
+ * of.
+ */
+
+#include <include/core/SkBlendMode.h>
+#include <include/core/SkImageInfo.h>
+#include <include/core/SkSize.h>
+#include <include/core/SkSurface.h>
+#include <sigilcore/cache/Bake.h>
+#include <sigilcore/cache/Volatility.h>
+#include <sigilcore/reconcile/Phases.h>
+#include <sigilcore/reconcile/Reconciler.h>
+#include <sigilgeometry/path/Numeric.h>
+#include <sigilweave/style/Type.h>
+
+#include <algorithm>
+#include <boost/unordered/unordered_flat_map.hpp>
+#include <cstdlib>
+#include <limits>
+#include <optional>
+
+#include "Instance.h"
+#include "Lanes.h"
+#include "NodeTransform.h"
+#include "SlotSpecs.h"
+#include "Transforms.h"
+#include "paint/BakeFormat.h"
+#include "paint/GlyphInk.h"
+#include "paint/RecordingState.h"
+
+namespace sigil::compose {
+
+/** WHAT THE PICTURE TIER BAKES: the node, the canvas its recording is
+ *  replayed onto, and the paint context the recording freezes in — the
+ *  leaf blend and opacity a recording bakes rather than applies, and the
+ *  content scalars it was recorded from. */
+struct PictureBakeTarget {
+  Composer::Impl* painter = nullptr;
+  detail::Instance* inst = nullptr;
+  SkCanvas* canvas = nullptr;
+  float hostScale = 1;
+  SkBlendMode leafBlend = SkBlendMode::kSrcOver;
+  float leafOpacity = 1;
+  detail::Instance::ContentScalars* scalars = nullptr;
+  /** The matrix the recording's ops reach the DEVICE through when it is
+   *  replayed this frame — the canvas's own matrix composed out through
+   *  every enclosing recording. A recording holding a device-space bake is
+   *  exact under this one matrix and is remade when it differs. */
+  SkMatrix deviceMatrix = SkMatrix::I();
+  /** Whether that matrix is the one the node was drawn under last frame.
+   *  The outermost recording hands it to every device bake inside it as
+   *  the "holding still" verdict those bakes cannot observe for themselves,
+   *  being painted only when the recording is. */
+  bool matrixStable = true;
+  /** The device clip the recording's ops were cut to. An ink clip inside
+   *  one names whole device pixels, so a recording holding a device bake
+   *  is exact for the clip it was made under and is remade under
+   *  another. */
+  SkIRect deviceClip = SkIRect::MakeEmpty();
+};
+
+/** THE RECORDED-COMMAND-LIST TIER, behind the kernel's bake seam. Taking
+ *  it, replaying it and dropping it are this library's — an SkPicture is a
+ *  Skia value and its cull rect, its recording depth and the leaf paint it
+ *  freezes are all compose's rules. Whether to take one THIS FRAME is not:
+ *  that is the kernel's three-way answer over what the proof said and what
+ *  the node is holding, and the pixel tiers beside this one ask it in
+ *  exactly the same words.
+ *
+ *  Stateless, so every instance of it is the same value. */
+struct PictureBake : core::BakeOperations<PictureBakeTarget> {
+  void take(PictureBakeTarget& t) const override;
+  void replay(PictureBakeTarget& t) const override;
+  void drop(PictureBakeTarget& t) const override;
+  [[nodiscard]] bool held(const PictureBakeTarget& t) const override;
+  // Stateless: every instance of it is the same value. (A defaulted
+  // comparison would compare the abstract base subobject, which has none.)
+  bool operator==(const PictureBake&) const { return true; }
+};
+
+// fields are grouped by what they belong to, not by size
+// NOLINTNEXTLINE(clang-analyzer-optin.performance.Padding)
+struct Composer::Impl {
+  motion::Engine& engine;
+  sigil::weave::FontContext& fonts;
+
+  SkSize size = SkSize::MakeEmpty();
+  /** The owning draw's destination format, including while a picture canvas
+   *  records commands without its own pixel format. */
+  SkImageInfo outputInfo = SkImageInfo::MakeN32Premul(1, 1);
+  /** Recordings may hold sampled device images from this destination. The
+   *  recorder's identity also distinguishes a reused recorder address. */
+  skgpu::graphite::Recorder* outputRecorder = nullptr;
+  uint32_t outputRecorderId = 0;
+  GrRecordingContext* outputContext = nullptr;
+  /** Transparent pixel bakes keep the destination's precision and profile. */
+  SkImageInfo bakeInfo(SkISize dimensions) const {
+    return detail::pixelBakeInfo(outputInfo, dimensions);
+  }
+  /** Whether any node in the tree declares a canvas-relative length, and the
+   *  canvas those lengths were last resolved against. A resize is the only
+   *  thing that moves them, and it moves every one of them at once. */
+  bool anyCanvasLengths = false;
+  SkSize canvasLengthsAt = SkSize::MakeEmpty();
+  std::unique_ptr<detail::Instance> root;
+  /** The reconciler, with this composer as its host: it owns the shape of
+   *  the tree — matching, memo, the identity prune, the counts — and
+   *  reaches everything else through the host operations below. */
+  using Reconciler = core::Reconciler<Impl, detail::Instance,
+                                      std::shared_ptr<detail::ElementNode>>;
+  Reconciler reconciler;
+  YGConfigRef yogaConfig = nullptr;
+  bool needsLayout = true;
+  bool contentDirty = true;
+  // ---- the cascade ----
+  // What the root inherits from — Composer::setInherited — every field
+  // engaged, its colour the root ink; and the face's line height at it,
+  // computed when it is first needed.
+  sigil::weave::Type rootFont = sigil::weave::initialType();
+  float rootLineHeight = 0.0f;
+  // What `1_rem` measures: the ROOT ELEMENT's computed font size, as CSS's
+  // rem is, so a size stated on the tree's root node — directly or by a
+  // `:root` rule — sets every rem below it, and what `setInherited` states
+  // decides it only where the root states none. The root's own font size
+  // is measured against the inherited one, since a root cannot be measured
+  // against itself. Set by the cascade pass once the root's font resolves;
+  // `remMoved` says this pass moved it, so every length written in rems is
+  // rewritten even where nothing about its own node moved.
+  float remPx = sigil::weave::kInitialTypeSizePx;
+  bool remMoved = false;
+  // What the root inherits as its block: nothing stated, so every block
+  // under nothing is set in the layout's own answer.
+  sigil::weave::ParagraphBlock rootBlock;
+  std::optional<SkSamplingOptions> rootSampling;
+  // Whether the resolved fonts, inks and properties on the instances may
+  // be stale: set by every reconcile that changed anything and by
+  // setInherited, and left set by a pass that found an ink transition
+  // running, so the next frame resolves again.
+  bool cascadeDirty = true;
+  bool inkAnimating = false;
+  // Which cascade pass is running, and the names the `:has()` arguments
+  // of the sheets it met test for — the key a node's `:has()` summary is
+  // read against.
+  uint32_t cascadePass = 0;
+  detail::HasNames hasNames;
+  Reconciler::KeyIndex byKey;
+  // Slots get their OWN index. They live in byKey too (so bounds() and
+  // hitTest() still answer for a slot's name), but a slot's CONTENT may
+  // legitimately carry a root .key() with the same name — and a child is
+  // indexed after its parent, so in a single shared map the content would
+  // overwrite the slot's entry and every later renderSlot() would silently
+  // find the wrong instance. Two namespaces, no collision.
+  boost::unordered_flat_map<std::string, detail::Instance*, core::KeyHash,
+                            std::equal_to<>>
+      bySlot;
+  // THE BORROW LISTS, rebuilt with the key index each render: the nodes
+  // whose own answer is a function of another keyed node's resolved
+  // geometry, flat and in tree order, so the derive pass iterates them
+  // instead of recursing the whole tree and a tree that borrows nothing
+  // pays nothing.
+  std::vector<detail::Instance*> borrowInstances;
+  std::vector<detail::Instance*>
+      flowInstances;  // contentFlowAround() text nodes
+  // Nodes applying ADDING operators, in tree order — the list the
+  // additions pass walks once layout has settled — and the nodes holding
+  // what a pass before it attached, so an owner nothing attaches to any
+  // more is emptied rather than left with last frame's elements.
+  std::vector<detail::Instance*> addingInstances;
+  std::vector<detail::Instance*> additionOwners;
+  // Text nodes carrying textAttach() on a path-laid run. Their curve resolves
+  // against the node's FINAL box, which measurement never sees, so their
+  // marks resolve in a post-layout pass over this flat list instead of
+  // inside measure like a flow run's.
+  std::vector<detail::Instance*> pathMarkInstances;
+  // Text nodes that thread INTO another frame. The chain is walked in the
+  // derive pass, because frame b's fill begins where frame a's RESULT ended
+  // and the phase order has no edge for that.
+  std::vector<detail::Instance*> threadedInstances;
+  // …and the frames THEY thread into, kept from the last walk so a frame
+  // that stops being a target is unbounded again the moment it does.
+  std::vector<detail::Instance*> threadTargets;
+  bool volatileDirty = true;  // recompute needed (render or animation)
+  bool engineWasRunning = false;
+  // The root verdict's volatileAbove bit: unlike Instance::subtreeVolatile,
+  // this includes the root's own opacity and transform, which can change the
+  // composited pixels without invalidating any content cache below it.
+  bool rootVolatile = false;
+  // Instances whose scalar volatility is RELEASED (settled bound gates,
+  // glyph progress and the other memoized scalar lanes). Rebuilt by every
+  // computeVolatile walk, and scanned once per draw so an EXTERNALLY-driven
+  // output that starts moving again re-declares volatility the same frame:
+  // the walk itself only re-runs on reconcile or while the engine is
+  // active, so without this scan a released node driven from outside the
+  // library would never notice it had resumed. Guarded by !volatileDirty —
+  // a pending recompute means the tree changed and these pointers may be
+  // stale.
+  std::vector<detail::Instance*> releasedScalars;
+  void scanReleasedScalars();  // defined in Volatility.cpp beside the memos
+  std::vector<detail::Instance*> sceneInstances;
+  material::Lighting sceneLightingScratch;
+  /** Resolve mounted sources independently of paint and cached subtrees. */
+  void resolveSceneLighting();
+  bool hasDerived() const {
+    return !borrowInstances.empty() || !flowInstances.empty() ||
+           !threadedInstances.empty();
+  }
+  bool hasAdding() const {
+    return !addingInstances.empty() || !additionOwners.empty();
+  }
+  // Recomputed with the key index, so unmounting the last arranging or
+  // pinned node clears them rather than latching them on forever.
+  bool hasCustomLayout = false;
+  bool hasCenterPins = false;  // any centerAt() in the tree
+  bool liveOnly = false;       // snapshot(): skip per-node caches
+  material::Filter view;  // output view transform (no filter = pass-through)
+  // The view as its author described it, when they described a Material.
+  // Kept because how a Material LOWERS depends on the surface it lands
+  // on, which is known only at draw: a view whose channels are
+  // independent runs as a table on an eight-bit surface and as its
+  // program anywhere else. `viewColorType` is the surface `view` was
+  // lowered for, so a stable surface lowers once and every later frame
+  // compares one enum.
+  std::optional<material::Material> viewMaterial;
+  SkColorType viewColorType = kUnknown_SkColorType;
+
+  mutable Stats stats;
+  // ---- per-node paint profiler (opt-in; Composer::setProfiling) ----------
+  // profChildMs is the running total the CURRENT node's children have cost;
+  // each node saves its parent's value, zeroes it, paints, then reports its
+  // own total upward. That gives selfMs = totalMs - children without a
+  // second traversal.
+  bool profileEnabled = false;
+  // Composer::setAutoTexturePromotion (the INTENT).
+  Composer::PromotionPolicy autoPromote = Composer::PromotionPolicy::ByCost;
+  /** Composer::setBakeDensity: device pixels per layout unit every pixel
+   *  bake is taken at, whatever the frame's matrix says. Zero is the
+   *  coarse ladder read off that matrix. */
+  float bakeDensity = 0.0f;
+  /** Composer::setPointer and setKey: what the host last fed, handed to
+   *  every paint context of the frame. */
+  SkPoint pointerAt = {0, 0};
+  bool pointerPressed = false;
+  KeyState keys;
+  bool promotionExplicit = false;  // did the host call the setter?
+  // The value paint() actually reads, recomputed each draw(). Differs from
+  // `autoPromote` only under the backend-aware default: automatic promotion
+  // is OFF on a Graphite/GPU surface unless the host asked for it
+  // explicitly. The cost model that drives promotion — the millisecond
+  // threshold, the stability average, the temporal gate — times how long a
+  // node takes to RECORD its ops, which stands in for raster cost and says
+  // nothing about GPU cost. On GPU the threshold is rarely crossed, and
+  // when it is, the bake plus its synchronization and upload costs more
+  // than the recording it replaces. Re-enabling it there needs a cost model
+  // built on GPU timestamps. The global switch still overrides in both
+  // directions.
+  Composer::PromotionPolicy autoPromoteEffective =
+      Composer::PromotionPolicy::ByCost;
+  // Promoted bakes are pixels, and a dense scene can carry many
+  // full-canvas nodes at several megabytes each. A budget, carried from the
+  // previous frame (paint order is stable, so the previous frame's total is
+  // the right question to ask before adding one more), keeps an automatic
+  // win from becoming an automatic out-of-memory.
+  size_t promotedBytes = 0;      // accumulated during the current paint
+  size_t promotedBytesLast = 0;  // what the previous frame ended up holding
+  // The recording the walk is painting into, saved and restored by value
+  // by every scope that opens one.
+  detail::RecordingState recording;
+  // Whether the walk is painting a subtree held at an opacity of 0 only to
+  // take the bakes it will blit once it shows (`paint`): every draw lands
+  // on a canvas that keeps the matrix and clip and discards the pixels, so
+  // nothing painted here may be counted as reaching the canvas.
+  bool paintingUnseen = false;
+  // Set by a paint that was handed the content scale while a node painted
+  // (`PaintContext::contentScaleRead`). What was drawn is then a picture of
+  // that one scale: a recording is pinned to it, and a local bake is keyed
+  // by the host scale it was taken under.
+  bool contentScaleRead = false;
+  // The node→root matrix accumulated by paint()'s own recursion — the same
+  // walk Query.cpp inverts for hit testing, run forwards. Saved and
+  // restored around each paint() frame (RAII, because paint() returns from
+  // several places); identity between draws. PaintContext::toRoot is read
+  // from here, so every consumer of the material seam sees the SAME matrix
+  // the hit test inverts, and a world-space field lands where the hit test
+  // says the node is.
+  SkMatrix curToRoot = SkMatrix::I();
+  // THE BOX THE INK'S PAINT IS ANCHORED TO, accumulated by the same walk:
+  // the anchor box's own node→root matrix and its extent. An EMPTY extent
+  // is the own-box case — every node maps the paint onto its own box —
+  // and is what an ink anchored to a declaring box or to the canvas
+  // replaces for the subtree under the node that stated it.
+  SkMatrix inkAnchorToRoot = SkMatrix::I();
+  SkSize inkAnchorSize = SkSize::MakeEmpty();
+  /** The node being painted mapped into that anchor box — what a paint
+   *  anchored there samples through. Identity on the own-box case and
+   *  wherever the anchor's matrix will not invert, which draws the
+   *  anchored paint as an own-box one rather than as nothing. */
+  [[nodiscard]] SkMatrix anchorSpace() const {
+    if (inkAnchorSize.isEmpty()) return SkMatrix::I();
+    SkMatrix fromAnchor;
+    if (!inkAnchorToRoot.invert(&fromAnchor)) return SkMatrix::I();
+    fromAnchor.preConcat(curToRoot);
+    return fromAnchor;
+  }
+  // The root's LAID-OUT size (canvas px) — differs from `size` under an
+  // intrinsic root (snapshot()). Written by paint() at the root frame;
+  // PaintContext::rootSize is read from here.
+  SkSize rootLayoutSize = SkSize::MakeEmpty();
+  static constexpr size_t kPromotedBudget = size_t{192} * 1024 * 1024;
+  /** THE MARGIN EVERY DEVICE BAKE IS ALLOCATED WITH, in device pixels, for
+   *  a bake whose larger side is @p extent.
+   *
+   *  A bake surface sized to exactly what the node paints puts that paint
+   *  flush against the surface's own edge, and Skia does not rasterize a
+   *  path that reaches its clip the way it rasterizes one standing clear of
+   *  it: the decision is taken on the path's CONTROL-POINT bounds, and the
+   *  two routes do not answer the same antialiased coverage. A stroked
+   *  curve baked flush moves by TENS of code values along its whole length
+   *  — not the one an integer device offset costs — so the margin is what
+   *  makes a promoted node paint the picture its live paint paints.
+   *
+   *  It is a FRACTION of the bake because the reach it has to cover is one:
+   *  a stroker approximates an offset curve with cubics whose control
+   *  points stand outside the ink they draw, by about a hundredth of the
+   *  curve's own extent. A thirty-second is that with room, and the two are
+   *  the floor for a bake too small for the fraction to reach a pixel. What
+   *  it costs is a frame of transparent pixels around each bake. */
+  static constexpr int bakeMargin(int extent) {
+    return 2 + std::max(0, extent) / 32;
+  }
+  /** Reusable device-bake surfaces, one per nesting depth, sized to the
+   *  largest requested rect. Baking on the canvas's own grid avoids an
+   *  offset in the layer matrix. Nodes retain image snapshots rather than
+   *  these scratch surfaces, so later bakes can reuse them. */
+  std::vector<sk_sp<SkSurface>> bakeSurfaces;
+  size_t bakeDepth = 0;  ///< how many bakes are in flight above this one
+  /** The device or raster layer that receives this canvas's commands. */
+  SkCanvas& paintDestination(SkCanvas& canvas) const;
+  SkSurface* bakeSurface(SkCanvas& canvas, SkISize need);
+  std::vector<Composer::NodeCost> profileRows;
+  double profChildMs = 0;
+  int profDepth = 0;
+  // Composer::setCompositeCounting: the tally every device blit adds to,
+  // sized to the canvas at the top of a counted draw and read back off each
+  // bake's image, so it is a diagnostic and never a frame's cost.
+  bool countComposites = false;
+  Composer::CompositePlane compositePlane;
+  void countBlit(const sk_sp<SkImage>& image, const SkIRect& at);
+  // render()/renderSlot() phase time accumulated since the previous draw();
+  // draw() publishes it as stats.reconcileMs and zeroes the accumulator.
+  double reconcileAccumMs = 0;
+
+  Impl(motion::Engine& t, sigil::weave::FontContext& f)
+      : engine(t), fonts(f), reconciler(*this) {
+    yogaConfig = YGConfigNew();
+  }
+  ~Impl() {
+    root.reset();
+    YGConfigFree(yogaConfig);
+  }
+
+  double elapsed() const { return engine.elapsed().count(); }
+
+  // ---- the reconciler's host (ReconcileHost.cpp) ----
+  // The ReconcileHost operations, in the reconciler's terms. Reading a
+  // description:
+  using Description = std::shared_ptr<detail::ElementNode>;
+  static const std::string& keyOf(const Description& description) {
+    return description->key;
+  }
+  static bool equal(const Description& a, const Description& b) {
+    return detail::propertiesEqual(*a, *b);
+  }
+  /** Slot content is owned by renderSlot(), not the description. */
+  static bool reconcilesChildren(const Description& description) {
+    return description->kind != detail::Kind::Slot;
+  }
+  /** THE CHILDREN A NODE RECONCILES: the description's, then what the
+   *  adding operators kept under the node — one range, so one pass
+   *  mounts, patches and retires both by key. */
+  struct ChildRange {
+    const std::vector<Element>* authored = nullptr;
+    const std::vector<Element>* added = nullptr;
+    struct Iterator {
+      const ChildRange* range = nullptr;
+      size_t at = 0;
+      const Element& operator*() const {
+        const size_t authored = range->authored->size();
+        return at < authored ? (*range->authored)[at]
+                             : (*range->added)[at - authored];
+      }
+      Iterator& operator++() {
+        ++at;
+        return *this;
+      }
+      bool operator!=(const Iterator& other) const { return at != other.at; }
+    };
+    size_t size() const { return authored->size() + added->size(); }
+    Iterator begin() const { return {this, 0}; }
+    Iterator end() const { return {this, size()}; }
+  };
+  static ChildRange children(const detail::Instance& inst,
+                             const Description& description) {
+    return {&description->children, &inst.addedChildren};
+  }
+  static const Description& descriptionOf(const Element& child) {
+    return child.node();
+  }
+  static const detail::MemoData* memoOf(const Description& description) {
+    return description->memoData ? &*description->memoData : nullptr;
+  }
+  static Description produce(const detail::MemoData& memo) {
+    return memo.invoke(memo.properties).node();
+  }
+  // Acting on an instance:
+  /** A fresh instance for @p node under @p parent, patched once. @p ordinal
+   *  is its order among the children created in the same patch and @p count
+   *  the parent's child count: the place a staggered tween on it resolves
+   *  against. */
+  std::unique_ptr<detail::Instance> create(const Description& node,
+                                           detail::Instance* parent,
+                                           size_t ordinal, size_t count);
+  /** Everything the composer does to an instance whose description changed:
+   *  @p prev is null on the first patch. */
+  void onPatched(detail::Instance& inst, const detail::ElementNode* prev,
+                 const detail::ElementNode& next);
+  /** Sorts the paint order and reattaches Yoga children when
+   *  @p structureChanged — a child mounted, unmounted or moved — then
+   *  dirties the parent. */
+  void reorder(detail::Instance& parent, bool structureChanged);
+  /** Whether a surviving @p match must be unmounted and created afresh under
+   *  @p parent rather than patched in place. */
+  bool remountRequired(const detail::Instance& match,
+                       const detail::Instance& parent);
+  /** Marks the instance's paint dirty up to the root and the content dirty. */
+  void invalidate(detail::Instance& inst);
+  /** An instance that left the tree: retired at once — its destructor
+   *  frees its Yoga node and its motions disconnect with their outputs. */
+  void destroy(std::unique_ptr<detail::Instance> inst, uint64_t frame);
+  /** The key index and the edge store, rebuilt over the whole tree after
+   *  every reconcile (Reconcile.cpp). */
+  void rebuildKeyIndex();
+  void applyLayoutProps(detail::Instance& inst);
+  /** @p length in pixels for @p inst: a pixel as it stands, a relative
+   *  unit against the font in force at the node, a custom property
+   *  looked up and resolved the same way. A percent answers itself and
+   *  is the caller's to hand Yoga as one; @p relative is raised when the
+   *  answer depended on the font or on a property.
+   *
+   *  A SUM's percentage term is measured against @p percentBasis, the
+   *  extent the calling property's percentages are of. A caller with no
+   *  such extent leaves it unstated, and a sum holding a percentage then
+   *  answers its other terms alone and says so once. */
+  float resolveLength(
+      const detail::Instance& inst, const Dimension& length, bool& relative,
+      float percentBasis = std::numeric_limits<float>::quiet_NaN()) const;
+  /** textIndent's @p indent resolved at @p inst: pixels written into
+   *  @p block's first-line indent, or a percentage of the measure kept in
+   *  @p percent for the layout, a custom property read once on the way. */
+  void resolveTextIndent(const detail::Instance& inst, const Dimension& indent,
+                         sigil::weave::ParagraphBlock& block,
+                         std::optional<float>& percent) const;
+  /** Writes every canvas-relative length in the subtree into its flex style
+   *  again, for a canvas that has changed size. */
+  void reapplyCanvasLengths(detail::Instance& inst);
+
+  // ---- the cascade (Cascade.cpp) ----
+  /** Resolves the font, the ink and the custom properties in force at
+   *  every node, top-down from the root's, and applies what changed: an
+   *  inheriting text leaf is re-materialised or repainted, a node with
+   *  relative lengths has its style rewritten, and everything whose
+   *  colour moved is marked to repaint. Runs before layout whenever
+   *  `cascadeDirty` says the answers may have moved. */
+  void runCascade();
+  void resolveCascade(detail::Instance& inst,
+                      const sigil::weave::Type& parentFont,
+                      float parentLineHeight,
+                      const std::shared_ptr<const VarTable>& parentVars,
+                      const sigil::weave::ParagraphBlock& parentBlock,
+                      const std::optional<SkSamplingOptions>& parentSampling,
+                      const detail::SheetChain& parentSheets,
+                      const detail::InkInForce& parentInkPaint,
+                      const std::optional<material::Color>& parentInkTarget);
+  /** WHAT THE SHEETS IN FORCE SAY ABOUT EACH NAME @p leaf's rich runs and
+   *  paragraph styles were written with, each matched as a virtual child
+   *  of the leaf and folded weakest first: the font partial and the ink a
+   *  run named so is set in, with the face a family or an italic the rules
+   *  state chooses, and the block partial a paragraph named so is laid out
+   *  in, with an indent in another unit resolved at the leaf. A name no
+   *  rule speaks about is left out (NamedStyles.cpp). */
+  void namedStylesOf(const detail::Instance& leaf,
+                     const detail::SheetChain& chain,
+                     sigil::weave::TypeSheet& runs,
+                     std::vector<detail::NamedParagraphStyle>& blocks) const;
+  /** An inheriting text leaf whose ink alone changed: the new colour set
+   *  on its inherited ranges in place, the restyles replayed over them,
+   *  and nothing re-shaped or re-broken. */
+  void refreshInheritedInk(detail::Instance& inst);
+  /** THE STYLE A LEAF'S TEXT IS SET IN before any restyle or reading is
+   *  laid over it: the font in force for an inheriting leaf — the root's
+   *  before the cascade has run — the base of a rich passage, or the whole
+   *  style a leaf was written with. What a partial restyle, a reading's
+   *  partial and a nested style overlay. */
+  [[nodiscard]] sigil::weave::TextStyle leafStyle(
+      const detail::Instance& inst) const;
+  /** WHAT A SPAN LAYS OVER THE RANGE IT FINDS: its partial over @p base,
+   *  with the ink it reads from a custom property in force at @p inst and
+   *  the shader it states as the glyphs' own. */
+  [[nodiscard]] sigil::weave::TextStyle styleOfSpan(
+      const sigil::weave::TextStyle& base, const detail::SpanRestyle& span,
+      const detail::Instance& inst) const;
+  /** The face's own line height at @p font, px. */
+  float lineHeightAt(const sigil::weave::Type& font);
+  /** The advance of "0" in @p font's face at its size, px. */
+  float zeroAdvanceAt(const sigil::weave::Type& font);
+  /** Builds the instance's Paragraph from whichever content form its
+   *  description carries — plain utf8, `weave::rich()` runs, or a copy of a
+   *  supplied Paragraph — and then applies the span restyles in
+   *  declaration order. @p lines is the geometry a previous layout
+   *  produced, which is what a `weave::selectors::line` restyle addresses;
+   * empty leaves those selectors unresolved. @p columns carries the same
+   *  geometry for a vertical passage, where a line IS a column. */
+  void materializeText(
+      detail::Instance& inst,
+      std::span<const sigil::weave::LineMetrics> lines = {},
+      std::span<const sigil::weave::ColumnMetrics> columns = {});
+  /** The options a text node actually lays out under: the full-control
+   *  overload's value where it has one, with every field a fluent setter
+   *  named written over it. */
+  sigil::weave::ParagraphLayoutOptions textLayoutOptions(
+      const detail::Instance& inst, float measure) const;
+
+  // ---- transitions (Transitions.cpp) ----
+  /** Every lane of @p styled, Slot lanes first in kSlotSpecs order, then
+   *  the Span, Gate and Track families in declaration order. The overload
+   *  writing into @p out refills a caller-owned vector. */
+  std::vector<detail::Lane> lanes(detail::StyledNode styled);
+  void lanes(detail::StyledNode styled, std::vector<detail::Lane>& out);
+  /** Retargets every PROPERTY lane of @p inst — the slot table's rows and
+   *  the fill's synthesized progress — from the style it stood in onto the
+   *  one it stands in now, which is the instance's own. Called wherever
+   *  the computed style moves: at the patch for a node whose description
+   *  changed, and in the cascade pass for one whose answer came from
+   *  above. @p prevLanes and @p nextLanes are the caller's scratch, left
+   *  holding the two sides so a caller with positional families to
+   *  retarget walks each description only once; a lane points INTO its
+   *  description, so neither list may outlive @p prev. */
+  void retargetProperties(detail::Instance& inst, detail::StyledNode prev,
+                          std::vector<detail::Lane>& prevLanes,
+                          std::vector<detail::Lane>& nextLanes);
+  /** THE INK LANE. @p target is where the node's colour is headed: the
+   *  colour its own fold resolved, or for a node that inherits, the
+   *  target its parent is headed for. It becomes the target in force; the
+   *  lane eases from the target that stood before it, under
+   *  @p nodeTransition, and stands down where there is none. An unset
+   *  @p target is a node that resolves no colour and runs no lane.
+   *  @p recordOnly keeps the target and starts nothing, for a node
+   *  resolving its colour for the first time, which has none to ease
+   *  from. */
+  void retargetInk(detail::Instance& inst,
+                   const std::optional<material::Color>& target,
+                   const std::optional<motion::Tween<float>>& nodeTransition,
+                   bool recordOnly);
+  /** A patch: the property lanes, then the positional families a changed
+   *  description brings. */
+  void applyTransitions(detail::Instance& inst, detail::StyledNode prev);
+  void applyMountTransitions(detail::Instance& inst);
+
+  // ---- volatility & caching (Volatility.cpp) ----
+  /** What the walk threads down to a child about the planes above it:
+   *  whether a bound or transitioning transform is connected on some
+   *  ancestor, whether the shared space it stands in is moving (its
+   *  host's transform, or the host's own space), whether the view its
+   *  parent declares is live, and whether it stands in a space at all — a
+   *  node whose projection moves for any of those reasons is moving
+   *  exactly as one whose own lane is.
+   *
+   *  A node carrying a world-space material under a moving ancestor has
+   *  its node→root matrix changing off the describe clock, which is
+   *  CONTENT volatility for that node — and it joins the memoized scalar
+   *  lane, because that matrix is six floats, so the recording survives
+   *  between ticks and the flag releases when the motion settles. */
+  struct Above {
+    bool moving = false;           ///< a connected transform on an ancestor
+    bool spaceMoving = false;      ///< the space this node stands in moves
+    bool perspectiveLive = false;  ///< the parent's perspective lane is live
+    bool inSpace = false;          ///< the parent hosts a shared space
+  };
+  core::SubtreeVerdict computeVolatile(detail::Instance& inst, Above above);
+  /** The root's walk: nothing stands above it. */
+  core::SubtreeVerdict computeVolatile(detail::Instance& inst) {
+    return computeVolatile(inst, Above{});
+  }
+  /** The node→root matrix, recomputed OUTSIDE paint by walking the ancestor
+   *  chain root-down through the same ops paint() accumulates —
+   *  translate(rect), then NodeTransform::matrix. The result must be
+   *  BIT-IDENTICAL to the paint-side accumulation: the settle compare reads
+   *  an ulp of drift as motion and never releases. */
+  SkMatrix worldMatrixOf(detail::Instance& inst);
+  /** That matrix's affine six for the ContentScalars lane — all-zero unless
+   *  the instance carries a world-space material (both sites that fill the
+   *  member apply the same guard). */
+  std::array<float, 6> worldScalarsOf(detail::Instance& inst);
+  // Scratch for the subtree value memo, swapped with the group root's
+  // `groupPrev` each frame so a settled group allocates nothing at all.
+  std::vector<float> groupScratch;
+  /** The picture tier's seam value: the kernel decides bake, replay or
+   *  live, and these are the operations that carry the decision out. */
+  core::Bake<PictureBakeTarget> pictureBake{PictureBake{}};
+  /** Record the node's own paint into a replayable picture, freezing the
+   *  leaf blend and opacity into it and stamping the values it was
+   *  recorded from. The bake half of the picture tier. */
+  void recordPicture(detail::Instance& inst, SkCanvas& destination,
+                     const SkMatrix& deviceMatrix, const SkIRect& deviceClip,
+                     bool matrixStable, float hostScale, SkBlendMode leafBlend,
+                     float leafOpacity,
+                     detail::Instance::ContentScalars&& scalars);
+
+  // ---- layout (Layout.cpp) ----
+  /** Temporary phase records: authored flex inputs and the preceding
+   *  placement are kept separate while an arrangement writes its output. */
+  struct PlacedChild {
+    detail::Instance* instance = nullptr;
+    SkRect input = SkRect::MakeEmpty();
+    SkRect previous = SkRect::MakeEmpty();
+    bool wasAbsolute = false;
+  };
+  void calculateYoga();
+  void applyCustomLayouts(detail::Instance& inst,
+                          std::span<PlacedChild> placed);
+  SkSize minimumSizeOf(detail::Instance& child);
+  bool applyCenterPins(detail::Instance& inst);
+  /** The passes, as the runner sees them. Each returns whether it changed
+   *  geometry; the non-converging ones answer false. */
+  bool phaseYoga();           ///< initial resolved geometry
+  bool phaseCustomLayouts();  ///< custom layout() containers, when any
+  bool phaseCenterPins();     ///< centerAt() pins, when any
+  bool phaseDerive();         ///< flow exclusions and routes, when any
+  bool phasePathMarks();      ///< textAttach() on path-laid runs
+  // ---- the additions (Additions.cpp) ----
+  /** THE ADDING OPERATORS OVER THE SETTLED TREE: every node applying one
+   *  is handed its scope, what the operators attach is reconciled beside
+   *  the owner's authored children, and true says something changed and
+   *  the layout must run again with the additions standing. */
+  bool phaseAdditions();
+  /** Fills @p scope with every node under @p from as an adding operator
+   *  sees it — closed at a node with operators of its own, blind to a
+   *  node an operator added — with the owner instance of each record in
+   *  @p owners at the same index. */
+  void collectScope(detail::Instance& from, SkPoint origin, Scope& scope,
+                    std::vector<detail::Instance*>& owners);
+  bool phaseSyncRects();  ///< invalidate recordings whose rect moved
+  /** The runner's list: Yoga, the converging group, then the post-layout
+   *  passes. The derive family (connector, rail, band, contentFlowAround)
+   * reaches the schedule ONLY as the `derive` entry of the converging group —
+   * the registration IS its seam — and the runner's settle step re-runs it
+   *  after every relayout so a routed plate is drawn against settled
+   *  geometry. */
+  static constexpr core::Phase<Impl> phases[] = {
+      {"yoga", &Impl::phaseYoga, false},
+      {"customLayouts", &Impl::phaseCustomLayouts, true},
+      {"centerPins", &Impl::phaseCenterPins, true},
+      {"derive", &Impl::phaseDerive, true},
+      {"pathMarks", &Impl::phasePathMarks, false},
+      {"syncRects", &Impl::phaseSyncRects, false},
+  };
+  /** Rounds the converging group may run before the runner gives up: what
+   *  guarantees termination if two writers ever disagree permanently. */
+  static constexpr int kConvergeRounds = 3;
+  /** Runs the phase list when the tree needs layout: the converging group
+   *  repeats until a round changes nothing, relaying out and settling the
+   *  routes between rounds. */
+  void ensureLayout();
+  /** @p movedAbove: some ancestor's layout rect changed this pass. A node
+   *  carrying a world-space material below any moved rect marks its OWN
+   *  paint dirty — its recording baked the node→root matrix, and that
+   *  matrix moved with the ancestor even though this node's
+   *  parent-relative rect did not. */
+  void syncLayoutRects(detail::Instance& inst, bool movedAbove = false);
+  /** AN EXTENT THAT DOES NOT BOUND: the depth a leaf that grows down the
+   *  page is laid out in, and the measure an unconstrained one is measured
+   *  at. One value rather than a large number spelled per call site,
+   *  because it is also the cache key a layout is held valid for — a
+   *  second spelling a hair away from this one re-lays the passage out
+   *  every frame and nothing says so. */
+  static constexpr float kUnbounded = 1.0e6f;
+  /** Lays the node's text out inside @p constraint px across and
+   *  @p downConstraint px down — the CONTENT box, which is what Yoga's
+   *  measure callback is handed. A horizontal passage reads the first as
+   *  its measure and ignores the second; a vertical one reads the first as
+   *  where its rightmost column stands and the second as how far a column
+   *  may run before the next one starts. */
+  void layoutText(detail::Instance& inst, float constraint,
+                  float downConstraint = kUnbounded);
+  /** The same, for a caller holding the node's BOX rather than the room
+   *  inside it — every caller outside the measure callback. The node's own
+   *  padding is the difference. */
+  void layoutTextInBox(detail::Instance& inst, float boxWidth,
+                       float boxHeight = kUnbounded);
+  /** THE NODE'S OWN PADDING IN PIXELS — the inset from its box to the
+   *  content box its children, and its own paragraph, are laid out in.
+   *  Yoga resolves it for a node in the flex world, percents against the
+   *  container included; a node in a positioned subtree carries no Yoga
+   *  node and its lengths are resolved the way its rect is. */
+  detail::Insets paddingOf(const detail::Instance& inst) const;
+  SkRect instanceRect(const detail::Instance& inst) const;
+  SkRect positionedRect(const detail::Instance& inst) const;
+  SkRect absoluteRect(const detail::Instance& inst) const;
+
+  // ---- derive (Derive.cpp) ----
+  /** One pass over the flat flow and borrow lists — no tree recursion.
+   *  Returns true when a text exclusion changed (second layout pass
+   *  needed). */
+  bool resolveDerived();
+  bool deriveFlow(detail::Instance& inst);
+  /** Walks every frame chain in order, handing each frame the cursor the
+   *  one before it left. True when a cursor moved. */
+  bool resolveThreads();
+  /** What a run of a chain came to when it was filled at one depth: the
+   *  lines it placed, whether the last of them still had something over,
+   *  and the word the run stopped at. */
+  struct ChainFill {
+    uint32_t lines = 0;
+    uint32_t cursor = 0;
+    bool overflowed = false;
+  };
+  ChainFill fillRun(const std::vector<detail::Instance*>& run, size_t first,
+                    size_t last, float depth, uint32_t cursor);
+  bool balanceRuns(const std::vector<detail::Instance*>& chain);
+  /** How many times a balanced run's depth is halved. A fixed count leaves
+   *  the answer a hair deeper than the tightest depth and costs the same
+   *  whatever the story is. */
+  static constexpr int kBalanceSteps = 8;
+  /** Sorts the derive lists into the order their declared reads imply —
+   *  stable, so a list whose members read none of each other is untouched. */
+  void orderDerivedByReads();
+  /** Everything one node borrows off another's settled geometry: the
+   *  boxes a span gate is sized from and the paths a decoration reads. */
+  void deriveBorrows(detail::Instance& inst);
+
+  // ---- the node's paint transform, resolved once (Bounds.cpp) ----
+  /** The node's lanes for THIS frame (NodeTransform.h), resolved once so
+   *  paint's matrix, recordBounds's child union and hitInstance's inverse
+   *  all describe the same matrix. */
+  NodeTransform transformOf(detail::Instance& inst);
+  /** An origin written as lengths, resolved for @p inst: a percentage as
+   *  a fraction of its box, every other unit as pixels against its font,
+   *  its custom properties and the canvas. @p z is the depth, null where
+   *  the origin has none. */
+  detail::Pivot pivotOf(const detail::Instance& inst, const Dimension& x,
+                        const Dimension& y, const Dimension* z) const;
+
+  // ---- depth (Depth.cpp): the plane a node is, and the space it hosts ----
+  /** The node's 4x4 in the plane its PARENT paints on: the parent's
+   *  perspective, then the layout offset, then the node's own lanes about
+   *  its origin — `Persp(parent) · T(rect) · matrix44`. The parent's
+   *  perspective is the child's business and is folded here, once, so no
+   *  consumer composes it on its own. A node inside a shared space
+   *  prepends that space's accumulation to this. */
+  SkM44 depthMatrixOf(detail::Instance& inst, const NodeTransform& tf,
+                      const SkRect& rect);
+  /** Do this node's children share its space — preserve3d(), and none of
+   *  the grouping properties that flatten it (a clip, an opacity below 1,
+   *  a blend, an effect, a backdrop, a mask, a coverage boundary, an
+   *  explicit bake)? Asked by paint, the hit test, the bounds walk and the
+   *  volatility walk, and answered by ONE body, because the four must
+   *  agree about which plane a child is drawn on. */
+  bool hostsSpace(detail::Instance& inst);
+  /** THE DEPTH ORDER of a hosting node's children: its paint order (zIndex,
+   *  then declaration) stable-sorted by the depth of each child's centre
+   *  in the space — farthest first, so a nearer plane covers a farther
+   *  one wherever the two overlap. `space` is the host's own 4x4 in the
+   *  plane the space is drawn on, which every child's matrix begins with.
+   *  Planes are never intersected: a child crossing another is drawn
+   *  whole, in this order. */
+  void depthOrder(detail::Instance& host, const SkM44& space,
+                  std::vector<size_t>& out);
+  /** A SHARED SPACE, open while a hosting node's children are painted or
+   *  hit. The canvas stays at the plane the space is drawn on — the
+   *  hosting node concatenates nothing for its children — and every node
+   *  in the space places itself with `accum · depthMatrixOf` flattened,
+   *  relative to that plane. That is what makes the space free of any
+   *  inverse: a host turned edge-on has a singular plane of its own and
+   *  its children still stand where the space puts them. `rootToPlane` is
+   *  the node→root matrix of that plane, which a node in the space builds
+   *  its own node→root from. */
+  struct Space {
+    SkM44 accum;           ///< the plane the space is drawn on → the host
+    SkMatrix rootToPlane;  ///< …and that plane's own node→root
+  };
+  /** The space the node being painted stands in — set by its parent while
+   *  that parent hosts one, null otherwise. Saved and restored around each
+   *  paint() frame. */
+  const Space* curSpace = nullptr;
+  /** The plane a HOSTING node's own paint concatenates inside paintContent:
+   *  paint() leaves the canvas at the plane the space is drawn on, so the
+   *  children can place themselves, and the host's own marks, fill and
+   *  content are drawn under this instead. Absent for every other node. */
+  std::optional<SkMatrix> curOwnPlane;
+  /** …and whether that own plane is drawn at all: a host facing away with
+   *  its backface hidden, or turned edge-on, paints nothing of its own and
+   *  still paints the children its space holds. */
+  bool curOwnHidden = false;
+  /** Where on its motion path this node sits, in its PARENT's space, and
+   *  the auto-orient angle in degrees. Nullopt when no path is engaged
+   *  (absent, empty, or resolving to no measurable length) — the
+   *  translate lanes then stand. Rebuilds the instance's arc-length table
+   *  when the Shape value or the parent size no longer matches. */
+  std::optional<std::pair<SkPoint, float>> motionPathSample(
+      detail::Instance& inst, const SkSize& frame);
+
+  // ---- the text painter, as the kernel reaches it ----
+  /** The engine a text description installed, or null for text the kernel
+   *  draws at rest by itself. */
+  static const TextPainterOperations* textPainterOf(
+      const detail::Instance& inst) {
+    const detail::ElementNode* node = inst.description.get();
+    return node && node->textData ? node->textData->painter.get() : nullptr;
+  }
+  /** Resolves the node's textAttach() rects through its painter; a node with no
+   *  painter anchors nothing. */
+  void resolveTextMarks(detail::Instance& inst) {
+    if (const TextPainterOperations* painter = textPainterOf(inst))
+      painter->marks(inst);
+    else
+      inst.textMarkRects.clear();
+  }
+  /** Lays out the node's textAnnotation() readings against the layout its
+   * letters are drawn from. The engine answers even for a passage that dresses
+   *  nothing else, because a reading IS the dressing and the base may
+   *  carry no other. */
+  void resolveTextAnnotations(detail::Instance& inst) {
+    inst.textAnnotations.clear();
+    if (!inst.description || !inst.description->textData ||
+        inst.description->textData->annotations.empty())
+      return;
+    const TextPainterOperations* painter = textPainterOf(inst);
+    if (!painter) painter = detail::registeredTextEngine();
+    if (painter) painter->annotations(inst);
+  }
+
+  // ---- paint (StackingPainter.cpp and the paint-phase files beside it) ----
+  float hostScale = 1.0f;  // device px per layout px at draw() entry
+  void paint(detail::Instance& inst, SkCanvas& canvas);
+  /** The ink a text leaf's glyphs are painted with this draw: the
+   *  glyph-paint override ink(paint)/textStroke() ask for, and the paint an
+   *  ink restarting per unit lays on each unit. ONE body, read by the
+   *  resting draw and by the textFx() draw — a letter in flight is painted
+   *  exactly as a resting one is. */
+  detail::TextInk textInkOf(detail::Instance& inst,
+                            const PaintContext& paintCtx);
+  /** Which half of a node's paint to emit.
+   *
+   *  The node's own paint is a CONTIGUOUS PREFIX of paintContent —
+   *  backgrounds, clip, fill, echoes, overlays, leaf content — ending
+   *  exactly at the children loop. Everything after that loop (the clip
+   *  restore, the FOREGROUNDS, the wipe and effect restores) belongs to the
+   *  children half: foregrounds paint over the children, so they can never
+   *  be in an own-paint bake. That is why this is a phase flag and two
+   *  skips rather than a split function. */
+  enum class Phase : uint8_t {
+    All,           ///< the whole node, unchanged
+    OwnOnly,       ///< the prefix: no children, no foregrounds
+    ChildrenOnly,  ///< the children and the foregrounds over them
+  };
+  /** @p deferLayerEffect leaves the node's own layer effect OUT of what is
+   *  emitted, for a bake that is going to be filtered at its blit instead.
+   *  Everything else is unchanged, so the bake holds exactly the pixels the
+   *  effect's saveLayer would have been handed. */
+  void paintContent(detail::Instance& inst, SkCanvas& canvas,
+                    float contentScale,
+                    SkBlendMode leafBlend = SkBlendMode::kSrcOver,
+                    float leafOpacity = 1.0f, Phase phase = Phase::All,
+                    bool deferLayerEffect = false);
+  const SkPath& resolveOutline(detail::Instance& inst, SkSize size) const;
+  /** THE COVERAGE BOUNDARY (Coverage.cpp): the silhouette of what this
+   *  node's layer drew, in the node's own space.
+   *
+   *  The node's fill, content and children are rasterised into an alpha
+   *  surface of their own and the covered pixels are traced back into a
+   *  path, so the answer is the visible extent of an image with a cut-out,
+   *  of a clipped or masked subtree, of anything a shape and a glyph run
+   *  cannot describe. Cached on the instance and re-traced only when the
+   *  layer that produced it is invalidated.
+   *
+   *  The surface covers `ownPaintBounds`, not `size`: a silhouette is the
+   *  ink, and a raster allocated at the box cuts the boundary square
+   *  wherever a carrier stands outside it. `size` is the box the content
+   *  was laid out against, which the trace keeps only to know the node is
+   *  sized at all and to re-trace when it changes. The path comes back in
+   *  the node's own local space either way, so a node whose ink stays
+   *  inside its box traces where it always did and one whose ink reaches
+   *  past it traces wider. */
+  const SkPath& coverageOutline(detail::Instance& inst, SkSize size,
+                                float contentScale);
+  /** WHAT A NODE SAYS ITS EDGE IS, in its own space — its glyph outlines
+   *  under `Boundary::Glyphs`, the silhouette of what it drew under
+   *  `Boundary::Coverage`, its declared shape otherwise. Empty when the
+   *  node declares no silhouette at all and its box is the whole answer.
+   *
+   *  One reading, for the node's own decorations and for anything that
+   *  borrows its edge, so a node cannot be dressed along one outline and
+   *  flowed around along another. */
+  SkPath boundaryOutlineOf(detail::Instance& target, float width, float height);
+  /** The node whose coverage is being traced RIGHT NOW, if any.
+   *
+   *  A coverage boundary is what the node drew, and the node's own marks
+   *  are what dress that boundary: drawing them into the trace would make
+   *  the boundary a function of itself. So paintContent emits no marks for
+   *  this one node while it is set, and asks it for no coverage boundary
+   *  either — which is also what keeps the trace from re-entering itself.
+   *  Its children, and their marks, are drawn: they are part of what the
+   *  node drew, and none of them reads this node's boundary. */
+  const detail::Instance* coverageTrace = nullptr;
+  /** What the node paints BY ITSELF, in its own local space: its box grown
+   *  by every decoration's declared bleed, any routed path and the shape it
+   *  declares, and NOTHING from its children. The split bake sizes its
+   *  layer with this — and the independence from the children is the
+   *  load-bearing part, not an optimisation: `recordBounds` unions the
+   *  children in, so it changes every frame a child moves, and a bake rect
+   *  that changes every frame is a bake remade every frame. */
+  SkRect ownPaintBounds(detail::Instance& inst);
+  /** The rect a node's recording must cover — in its own local plane, or,
+   *  for a node hosting a shared space, in the plane that space is drawn
+   *  on, which is where its children stand. `space` is the accumulation of
+   *  the space the node itself stands in, null under a flat parent; a
+   *  hosting node nested in a space needs it to place its own plane. */
+  SkRect recordBounds(detail::Instance& inst, const SkM44* space = nullptr,
+                      bool forBake = false);
+  /** The same union, for the rect a SURFACE is allocated to rather than the
+   *  rect a layer or a recording is bounded by: every layer effect in the
+   *  subtree is given the reach its own filter answers, because the skirt a
+   *  blur, a glow or a shadow puts outside the content it filters is drawn
+   *  INTO the allocation and a surface sized to the unfiltered content cuts
+   *  it off square. A LAYER is not sized with this — Skia grows a filtered
+   *  saveLayer for its filter already, and growing it here too would
+   *  composite the layer over ground the picture does not stand on. */
+  SkRect bakeBounds(detail::Instance& inst);
+  /** WHERE THE SHAPE A NODE DECLARES ACTUALLY REACHES, outset by the same
+   *  bleed its box is — empty on a node that declares none. A Shape is a
+   *  function of a size and nothing requires what it returns to stand
+   *  inside the box that size came from: a generator anchored on a centre
+   *  of its own, a ring of contours drawn at radii the box knows nothing
+   *  about. The node's surface is filled with that path and every
+   *  decoration dresses it, so the ink is where the path is. It is a
+   *  carrier of `ownPaintBounds` and therefore bounds EVERY rect a node is
+   *  sized to — the allocation a device or local bake is made at, and the
+   *  LAYERS too: a group's opacity layer, an effect's, the surface a lifted
+   *  filter is run over. A layer whose bounds cut the node's own shape cuts
+   *  the drawing, which is the same failure as an allocation that does; the
+   *  clip a node's drawing is bounded by is the one it carries in, never
+   *  the rect it was given room in. */
+  SkRect declaredShapeBounds(detail::Instance& inst);
+
+  // ---- hit testing / queries (Query.cpp) ----
+  bool shapeContains(detail::Instance& inst, SkPoint local, SkSize size) const;
+  /** The hit test's view of a shared space: the host's accumulation, and
+   *  the point being tested in the plane the space is drawn on — a node
+   *  in the space maps THAT point back through its own full projection,
+   *  since its parent's local plane is not the plane it stands on. */
+  struct HitSpace {
+    SkM44 accum;
+    SkPoint planePt;
+  };
+  /** @p parentPt is the point in the parent's local plane, read when the
+   *  node stands on it; @p space is the shared space the parent hosts,
+   *  null under a flat parent. */
+  std::optional<std::string> hitInstance(detail::Instance& inst,
+                                         SkPoint parentPt,
+                                         const std::string* inheritedKey,
+                                         const HitSpace* space);
+};
+
+}  // namespace sigil::compose

@@ -10,7 +10,11 @@
 #include <include/core/SkSurface.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/Compose.h>
+#include <sigilcompose/core/Grid.h>
+#include <sigilcompose/core/Table.h>
+#include <sigilcompose/kit/Layouts.h>
 #include <sigilcore/reconcile/Environment.h>
+#include <sigilgeometry/path/Outline.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilweave/paragraph/Paragraph.h>
 
@@ -49,8 +53,7 @@ Element flexGrid(int count, int changed = -1, int phase = 0,
 }
 
 Element positionedGrid(int count) {
-  auto root =
-      positioned().inset(0);
+  auto root = positioned().inset(0);
   constexpr int kColumns = 50;
   for (int id = 0; id < count; ++id) {
     const int row = id / kColumns;
@@ -86,15 +89,15 @@ Element groupScene(int count, Cache mode) {
   constexpr int kColumns = 10;
   for (int id = 0; id < count; ++id) {
     const int row = id / kColumns;
-    group.children(
-        {box()
-             .absolute()
-             .left(18.0f + (float)(id % kColumns) * 59.0f)
-             .top(18.0f + (float)row * 43.0f)
-             .width(64)
-             .height(13)
-             .rotate((float)(id % 7) * 6.0f - 18.0f)
-             .fill(sigil::material::skia::base(sigil::material::skia::sksl(groupShader())))});
+    group.children({box()
+                        .absolute()
+                        .left(18.0f + (float)(id % kColumns) * 59.0f)
+                        .top(18.0f + (float)row * 43.0f)
+                        .width(64)
+                        .height(13)
+                        .rotate((float)(id % 7) * 6.0f - 18.0f)
+                        .fill(sigil::material::skia::base(
+                            sigil::material::skia::sksl(groupShader())))});
   }
   // Keep the parent live so it calls into the group every frame. An Auto
   // parent would cache one picture containing the first-frame traversal and
@@ -232,35 +235,104 @@ BENCHMARK(BM_Layout_Positioned_ViewportToggle)->Apply(nodeLadder);
  *  re-laid out in. */
 static void BM_Layout_Table_Resolve(benchmark::State& state) {
   constexpr int kColumns = 20, kRows = 8;
-  LayoutInput in;
-  in.container = {1200, 700};
+  std::vector<Arrangement::Child> children;
   for (int row = 0; row < kRows; ++row)
     for (int column = 0; column < kColumns; ++column) {
       const int columns = column % 10 == 0 && column + 1 < kColumns ? 2 : 1;
       const int rows = row % 8 == 3 && row + 1 < kRows ? 2 : 1;
-      in.childSizes.push_back({30.0f + (float)((column * 7 + row * 3) % 40),
-                               18.0f + (float)(row % 5) * 6.0f});
-      in.childCells.push_back(CellSpan{.column = column,
-                                       .row = row,
-                                       .columns = columns,
-                                       .rows = rows,
-                                       .declared = true});
+      Arrangement::Child child;
+      child.size = {30.0f + (float)((column * 7 + row * 3) % 40),
+                    18.0f + (float)(row % 5) * 6.0f};
+      child.minSize = child.size;
+      child.cells = {.column = column,
+                     .row = row,
+                     .columns = columns,
+                     .rows = rows,
+                     .declared = true};
+      children.push_back(std::move(child));
     }
-  in.childBaselines.assign(in.childSizes.size(),
-                           std::numeric_limits<float>::quiet_NaN());
-  in.childAreas.resize(in.childSizes.size());
-  in.childMinSizes = in.childSizes;
+  Arrangement in{.box = sigil::geometry::path::Rect::of({0, 0}, {1200, 700}),
+                 .children = children,
+                 .minSizesMeasured = true};
   const layouts::Table table{.columns = kColumns,
                              .rows = kRows,
                              .width = 1200,
                              .spacing = 2,
                              .padding = 1};
-  for ([[maybe_unused]] auto iteration : state)
-    benchmark::DoNotOptimize(table.place(in));
-  state.counters["cells"] = (double)in.childSizes.size();
+  for ([[maybe_unused]] auto iteration : state) {
+    table.arrange(in);
+    benchmark::DoNotOptimize(children.data());
+    benchmark::ClobberMemory();
+  }
+  state.counters["cells"] = (double)children.size();
   state.SetItemsProcessed(state.iterations());
 }
 BENCHMARK(BM_Layout_Table_Resolve)->Unit(benchmark::kMicrosecond);
+
+/** Ordinary layouts use the same borrowed records when called directly
+ *  and when held by an Operator. Compare dispatch with placement work. */
+template <bool Erased>
+static void BM_Layout_BaselineGrid(benchmark::State& state) {
+  const size_t count = (size_t)state.range(0);
+  std::vector<Arrangement::Child> children(count);
+  for (size_t i = 0; i < count; ++i) {
+    children[i].size = {40, 12.0f + (float)(i % 4)};
+    children[i].baseline = 9.0f + (float)(i % 4);
+  }
+  Arrangement arrangement{
+      .box = sigil::geometry::path::Rect::of({0, 0}, {1200, 700}),
+      .children = children};
+  const layouts::BaselineGrid grid{.rhythm = 24, .gap = 2};
+  const Operator erased(grid);
+  for ([[maybe_unused]] auto iteration : state) {
+    if constexpr (Erased)
+      erased.arrange(arrangement);
+    else
+      grid.arrange(arrangement);
+    benchmark::DoNotOptimize(children.data());
+    benchmark::ClobberMemory();
+  }
+  state.counters["children"] = (double)count;
+  state.SetItemsProcessed(state.iterations() * (int64_t)count);
+}
+BENCHMARK_TEMPLATE(BM_Layout_BaselineGrid, false)
+    ->Apply(nodeLadder)
+    ->Unit(benchmark::kMicrosecond);
+BENCHMARK_TEMPLATE(BM_Layout_BaselineGrid, true)
+    ->Apply(nodeLadder)
+    ->Unit(benchmark::kMicrosecond);
+
+/** Nested arranging containers need fresh flex inputs after the outer
+ *  grid assigns their boxes. Vary the viewport to exercise settlement. */
+static void BM_Layout_NestedArrangement_ViewportToggle(
+    benchmark::State& state) {
+  const int count = (int)state.range(0);
+  constexpr int columns = 16;
+  const int rows = (count + columns - 1) / columns;
+  Host host(1024, 1024);
+  auto scene = layout(
+      layouts::Grid{.columns = layouts::repeatTrack(columns, layouts::fr()),
+                    .rows = layouts::repeatTrack(rows, layouts::fr()),
+                    .gap = {2, 2}});
+  for (int i = 0; i < count; ++i)
+    scene.children({box()
+                        .row()
+                        .justifyContent(Justify::End)
+                        .operators({layouts::Jitter{.seed = 7, .amount = 4}})
+                        .children({box().width(10).height(10),
+                                   box().width(10).height(10)})});
+  host.composer.render(std::move(scene));
+  host.draw();
+  bool wide = false;
+  for ([[maybe_unused]] auto iteration : state) {
+    wide = !wide;
+    host.composer.setSize({wide ? 1200.0f : 1024.0f, 1024.0f});
+    host.draw();
+  }
+  state.counters["arrangedContainers"] = (double)count + 1;
+  reportNodes(state, count * 3 + 1);
+}
+BENCHMARK(BM_Layout_NestedArrangement_ViewportToggle)->Apply(nodeLadder);
 
 // ---- queries --------------------------------------------------------------
 
@@ -421,15 +493,12 @@ Element marqueeStrip(float acrossPx, float alongPx) {
     centered.alignment = sigil::weave::TextAlignment::kCenter;
     return sigil::compose::text(paragraph, centered);
   };
-  auto root = box()
-                  .column()
-                  .width(acrossPx)
-                  .height(alongPx)
-                  .padding(110, 52)
-                  .children({box().left(10).top(0).bottom(0).width(6).fill(
-                                 Fill::color({0.455f, 0.878f, 0.745f, 0.95f})),
-                             box().right(10).top(0).bottom(0).width(4).fill(
-                                 Fill::color({0.455f, 0.878f, 0.745f, 0.5f}))});
+  auto root =
+      box().column().width(acrossPx).height(alongPx).padding(110, 52).children(
+          {box().left(10).top(0).bottom(0).width(6).fill(
+               Fill::color({0.455f, 0.878f, 0.745f, 0.95f})),
+           box().right(10).top(0).bottom(0).width(4).fill(
+               Fill::color({0.455f, 0.878f, 0.745f, 0.5f}))});
   const int sectors = (int)(alongPx / 930.0f);  // the marquee's own density
   for (int s = 0; s < sectors; ++s) {
     root.children({box().flexGrow()});

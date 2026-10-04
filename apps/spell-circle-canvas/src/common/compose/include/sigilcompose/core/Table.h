@@ -87,7 +87,7 @@ struct Table {
   enum class ColumnSizing : uint8_t { Fill, Shrink };
   ColumnSizing fit = ColumnSizing::Fill;
 
-  /** This scheme reads `LayoutInput::childMinSizes`: the narrowest a
+  /** This scheme reads each child's `minSize`: the narrowest a
    *  column's content can be set is the floor it is solved from, and no
    *  measured size carries it. */
   static constexpr bool readsChildMinSizes = true;
@@ -108,12 +108,12 @@ struct Table {
   };
 
   /** Where every child lands, in child order. */
-  std::vector<geometry::path::Rect> place(const LayoutInput& in) const {
+  void arrange(Arrangement& in) const {
     const std::vector<CellSpan> spans = flowed(in);
-    const Grid grid = solve(in);
-    std::vector<geometry::path::Rect> rects(in.childSizes.size());
+    const Grid grid = solve(in, spans);
     for (size_t i = 0; i < spans.size(); ++i) {
       const CellSpan& s = spans[i];
+      in.children[i].rect = {};
       if ((size_t)s.column >= grid.columnX.size() ||
           (size_t)s.row >= grid.rowY.size())
         continue;  // outside the grid it was given; placed nowhere
@@ -122,21 +122,22 @@ struct Table {
       const glm::vec2 at{grid.columnX[(size_t)s.column],
                          grid.rowY[(size_t)s.row]};
       const glm::vec2 size{
-          s.across == Align::Stretch ? box.x : in.childSizes[i].x,
-          s.down == Align::Stretch ? box.y : in.childSizes[i].y};
-      rects[i] = geometry::path::Rect::of(
-          {at.x + slack(s.across, box.x, size.x),
-           at.y + slack(s.down, box.y, size.y)},
-          size);
+          s.across == Align::Stretch ? box.x : in.children[i].size.x,
+          s.down == Align::Stretch ? box.y : in.children[i].size.y};
+      in.children[i].place(
+          geometry::path::Rect::of({at.x + slack(s.across, box.x, size.x),
+                                    at.y + slack(s.down, box.y, size.y)},
+                                   size));
     }
-    return rects;
   }
 
   /** The column widths, row heights and origins, without placing anything.
-   *  `place()` calls it; a caller that wants to REPORT the grid calls it
+   *  `arrange()` calls it; a caller that wants to REPORT the grid calls it
    *  itself, and gets exactly the numbers the placement used. */
-  Grid solve(const LayoutInput& in) const {
-    const std::vector<CellSpan> spans = flowed(in);
+  Grid solve(const Arrangement& in) const { return solve(in, flowed(in)); }
+
+ private:
+  Grid solve(const Arrangement& in, const std::vector<CellSpan>& spans) const {
     const int cols = std::max(columnCount(spans), 1);
     const int lines = std::max(rowCount(spans), 1);
     const float pitch = 2 * padding + spacing;
@@ -148,8 +149,8 @@ struct Table {
     // only where a child can be set narrower than it was measured.
     std::vector<float> least((size_t)cols, 0.0f);
     auto narrowest = [&](size_t i) {
-      return i < in.childMinSizes.size() ? in.childMinSizes[i].x
-                                         : in.childSizes[i].x;
+      return in.minSizesMeasured ? in.children[i].minSize.x
+                                 : in.children[i].size.x;
     };
 
     // 1. Every column is at least as wide as the widest thing that sits
@@ -161,7 +162,7 @@ struct Table {
           c >= grid.columnWidths.size())
         continue;
       grid.columnWidths[c] =
-          std::max(grid.columnWidths[c], in.childSizes[i].x);
+          std::max(grid.columnWidths[c], in.children[i].size.x);
       least[c] = std::max(least[c], narrowest(i));
     }
 
@@ -185,13 +186,13 @@ struct Table {
     for (int k = 2; k <= cols; ++k)
       for (size_t i = 0; i < spans.size(); ++i) {
         if (spans[i].columns != k || spans[i].column < 0) continue;
-        topUp(grid.columnWidths, spans[i], in.childSizes[i].x);
+        topUp(grid.columnWidths, spans[i], in.children[i].size.x);
         topUp(least, spans[i], narrowest(i));
       }
 
     // 3. The room the table has for columns, which is what a percentage
     //    is a share of and what the two divisions below spend.
-    const float table = width > 0 ? width : in.container.x;
+    const float table = width > 0 ? width : in.box.size().x;
     float room =
         table - ((float)cols * 2 * padding + (float)(cols + 1) * spacing);
 
@@ -252,14 +253,14 @@ struct Table {
     for (size_t i = 0; i < spans.size(); ++i)
       if (spans[i].rows == 1 && (size_t)spans[i].row < grid.rowHeights.size())
         grid.rowHeights[(size_t)spans[i].row] = std::max(
-            grid.rowHeights[(size_t)spans[i].row], in.childSizes[i].y);
+            grid.rowHeights[(size_t)spans[i].row], in.children[i].size.y);
     // …and deliberately NOT the same second one: the whole of a rowspan's
     //    deficit lands on the last row it covers.
     for (int k = 2; k <= lines; ++k)
       for (size_t i = 0; i < spans.size(); ++i) {
         if (spans[i].rows != k) continue;
-        const float deficit = in.childSizes[i].y -
-                              extent(grid.rowHeights, spans[i].row, k);
+        const float deficit =
+            in.children[i].size.y - extent(grid.rowHeights, spans[i].row, k);
         const size_t last = (size_t)(spans[i].row + k - 1);
         if (deficit > 0 && last < grid.rowHeights.size())
           grid.rowHeights[last] += deficit;
@@ -270,14 +271,12 @@ struct Table {
     return grid;
   }
 
- private:
   /** Every child's cells, with the ones that said nothing flowed into the
    *  free cells left over — the kernel's own flow, which every
    *  cell-shaped scheme fills its grid with. */
-  std::vector<CellSpan> flowed(const LayoutInput& in) const {
-    std::vector<CellSpan> out(in.childSizes.size());
-    for (size_t i = 0; i < out.size(); ++i)
-      if (i < in.childCells.size()) out[i] = in.childCells[i];
+  std::vector<CellSpan> flowed(const Arrangement& in) const {
+    std::vector<CellSpan> out(in.children.size());
+    for (size_t i = 0; i < out.size(); ++i) out[i] = in.children[i].cells;
     flowCells(out, columnCount(out));
     return out;
   }

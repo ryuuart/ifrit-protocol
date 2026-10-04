@@ -11,16 +11,16 @@
 
 #include <algorithm>
 #include <cmath>
+#include <glm/geometric.hpp>
 #include <utility>
 #include <vector>
 
-#include "ComposeRuntime.h"
-#include "PaintInternal.h"
 #include "TextEngine.h"
 #include "TextPose.h"
-#include "sigilgeometry/path/Contour.h"
+#include "paint/PaintInternal.h"
+#include "runtime/ComposeRuntime.h"
 #include "sigilgeometry/advanced/Skia.h"
-#include <glm/geometric.hpp>
+#include "sigilgeometry/path/Contour.h"
 
 namespace sigil::compose {
 
@@ -143,7 +143,7 @@ void detail::ensurePathLayout(Composer::Impl& impl, Instance& inst,
   // that are about the BASELINE rather than about one glyph: is it closed,
   // and which way does the run read along it.
   const auto posTan = [](float distance, glm::vec2* position,
-                          glm::vec2* tangent) {
+                         glm::vec2* tangent) {
     const auto read = [&](const geometry::path::Contour& contour, float d) {
       const auto sample = contour.at(d);
       if (!sample) return false;
@@ -345,7 +345,7 @@ bool restPoseOf(const PoseContext& ctx, const sigil::weave::PlacedGlyph& placed,
         glm::vec2 tangent;
         if (interval->placeAt(placed.pen, 0.0f, 0, &pose.centre, &tangent)) {
           pose.centreOffset = glm::vec2{pose.centre.x - placed.rest.x,
-                                       pose.centre.y - placed.rest.y};
+                                        pose.centre.y - placed.rest.y};
           return true;
         }
       }

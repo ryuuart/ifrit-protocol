@@ -1,34 +1,3 @@
-# SigilComposeCore — the kernel.
-#
-# Holds the element value and its authoring grammar, the keyed reconciler,
-# Yoga layout with SigilWeave-measured text, stacking paint with automatic
-# picture caching of provably-static subtrees, transitions and bindings, the
-# composer's queries, the streaming feed and the instanced sprite leaf.
-# Dressed
-# type, the stroke grammar and the mask gates reach the kernel through the
-# seam values a description carries (TextPainter, StrokeResolver,
-# MaskResolver); their engines are the typography and brush tiers'. The
-# reconciler that drives the retained tree is SigilCoreReconcile's, and the
-# settled-subtree proof its caches turn on is SigilCoreCache's, with this
-# target as the host of both. Links SigilCoreCache, SigilCoreCallable,
-# SigilCoreComparable, SigilCoreCompute, SigilCoreReconcile,
-# SigilGeometryPath, SigilMediaCore, SigilMotion, SigilSkiaDraw, SigilWeave and
-# Skia publicly, because those
-# types appear in its headers — the seam value's erasure, the paint value
-# a fill carries, the prefix call a paint program is taken through, the
-# glyph mixer and the direct atlas draw the instanced leaf stamps through
-# among them, each named by the header that spells it rather than reached
-# through a neighbour that happens to link it;
-# SigilMaterial and SigilMeasure are public for the same reason. Yoga is
-# private, because no header spells it.
-#
-# The translation units that see this directory — ComposeInternal.h,
-# ComposeRuntime.h and the paint-phase internals — are this target's and
-# the two engines' that implement its seams (typography/ and brush/); the
-# include path is PRIVATE to each. Every other target in this tree compiles
-# against the public headers alone.
-set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
-
 find_package(EnTT CONFIG REQUIRED)
 find_package(boost_container CONFIG REQUIRED)
 find_package(boost_unordered CONFIG REQUIRED)
@@ -36,57 +5,128 @@ find_package(unofficial-skia CONFIG REQUIRED)
 find_package(yoga CONFIG REQUIRED)
 sigil_library(SigilComposeCore
   SOURCES
-    # the element value and its builders, one verb family each
-    ElementBox.cpp ElementFlex.cpp ElementPlacement.cpp
-    ElementShape.cpp ElementBand.cpp ElementMask.cpp
-    ElementPaint.cpp ElementEffects.cpp ElementMarks.cpp
-    ElementTransform.cpp ElementDepth.cpp
-    ElementTextStyle.cpp ElementText.cpp
-    ElementIdentity.cpp ElementImage.cpp Factories.cpp Region.cpp
-    Pattern.cpp
-    MaterialEffects.cpp LitSurface.cpp RuleMarks.cpp
-    ElementNode.cpp Diagnostics.cpp CellFlow.cpp Grid.cpp
-    ElementCascade.cpp ElementFont.cpp
-    # the facts a node states, the operator seam that reads them, and the
-    # pass that mounts what the adding operators build
-    Attributes.cpp Operator.cpp Additions.cpp
-    # which elements a rule speaks about, the CSS text that says so,
-    # and the rules a sheet states about them
-    Selector.cpp SelectorParse.cpp StyleSheet.cpp SelectorMatch.cpp
-    # the composer and its phases
-    Composer.cpp Measure.cpp Tiles.cpp Cascade.cpp CascadeDiagnostics.cpp
-    LonghandFold.cpp NamedStyles.cpp
-    Reconcile.cpp ReconcileEquality.cpp MaterializeText.cpp
-    LayoutProps.cpp ReconcileHost.cpp Layout.cpp LayoutText.cpp Rects.cpp
-    Derive.cpp FlowAround.cpp Threads.cpp Routes.cpp
-    Transitions.cpp Query.cpp
-    # the paint phase
-    Volatility.cpp GroupScalars.cpp WorldMatrix.cpp Bounds.cpp Depth.cpp
-    Coverage.cpp
-    # the paint of one node: the walk, its shared state, and the cache
-    # ladder it dispatches through, one tier per file
-    StackingPainter.cpp PaintContent.cpp PaintPass.cpp PaintProfile.cpp
-    PromotionTier.cpp SplitBake.cpp GroupBake.cpp TextureBake.cpp
-    PictureTier.cpp
-    # text
-    TextPainter.cpp TextInk.cpp FaceChoice.cpp FamilyList.cpp
-    # the instanced leaf
-    Instances.cpp Shelf.cpp
-    # paint values
-    Fills.cpp
-    # a length written as text, and lengths summed as calc() sums them
-    Dimensions.cpp Calc.cpp
-    # what a property is: its name, and where its value is kept
-    Properties.cpp
-    # internal headers
-    ComposeInternal.h ComposeCompare.h ComposeRuntime.h Instance.h
-    ComputedStyle.h DeclaredFields.h PropertyBlocks.h HeapBox.h
-    SelectorInternal.h SelectorMatch.h SheetBody.h Calc.h
-    TextState.h SlotSpecs.h FaceChoice.h FamilyList.h LonghandFold.h
-    Lanes.h RuleMarks.h
-    Transforms.h NodeTransform.h ComposerImpl.h DeriveInternal.h
-    PaintInternal.h PaintPass.h GlyphInk.h
-    PaintProfile.h InstanceStamp.h
+    # immutable descriptions, comparable values and storage
+    description/Attributes.cpp
+    description/Calc.cpp
+    description/Calc.h
+    description/ComposeCompare.h
+    description/ComposeInternal.h
+    description/DeclaredFields.h
+    description/Diagnostics.cpp
+    description/Dimensions.cpp
+    description/ElementNode.cpp
+    description/Factories.cpp
+    description/Fills.cpp
+    description/HeapBox.h
+    description/Operator.cpp
+    description/Properties.cpp
+    description/PropertyBlocks.h
+    description/Region.cpp
+    # the fluent authoring verbs
+    description/verbs/ElementBand.cpp
+    description/verbs/ElementBox.cpp
+    description/verbs/ElementCascade.cpp
+    description/verbs/ElementDepth.cpp
+    description/verbs/ElementEffects.cpp
+    description/verbs/ElementFlex.cpp
+    description/verbs/ElementFont.cpp
+    description/verbs/ElementIdentity.cpp
+    description/verbs/ElementImage.cpp
+    description/verbs/ElementMarks.cpp
+    description/verbs/ElementMask.cpp
+    description/verbs/ElementPaint.cpp
+    description/verbs/ElementPlacement.cpp
+    description/verbs/ElementShape.cpp
+    description/verbs/ElementText.cpp
+    description/verbs/ElementTextStyle.cpp
+    description/verbs/ElementTransform.cpp
+    # selector matching, cascade and inherited style resolution
+    style/Cascade.cpp
+    style/CascadeDiagnostics.cpp
+    style/ComputedStyle.h
+    style/FaceChoice.cpp
+    style/FaceChoice.h
+    style/FamilyList.cpp
+    style/FamilyList.h
+    style/LonghandFold.cpp
+    style/LonghandFold.h
+    style/NamedStyles.cpp
+    style/RuleMarks.cpp
+    style/RuleMarks.h
+    style/Selector.cpp
+    style/SelectorInternal.h
+    style/SelectorMatch.cpp
+    style/SelectorMatch.h
+    style/SelectorParse.cpp
+    style/SheetBody.h
+    style/StyleSheet.cpp
+    # retained ownership, reconciliation, transitions and queries
+    runtime/ComposeRuntime.h
+    runtime/Composer.cpp
+    runtime/ComposerImpl.h
+    runtime/Instance.h
+    runtime/Lanes.h
+    runtime/NodeTransform.h
+    runtime/Query.cpp
+    runtime/Reconcile.cpp
+    runtime/ReconcileEquality.cpp
+    runtime/ReconcileHost.cpp
+    runtime/SceneLighting.cpp
+    runtime/SlotSpecs.h
+    runtime/TextState.h
+    runtime/Transforms.h
+    runtime/Transitions.cpp
+    # measurement, arrangement and derived geometry
+    layout/Additions.cpp
+    layout/CellFlow.cpp
+    layout/Derive.cpp
+    layout/DeriveInternal.h
+    layout/FlowAround.cpp
+    layout/Grid.cpp
+    layout/Layout.cpp
+    layout/LayoutProps.cpp
+    layout/LayoutText.cpp
+    layout/MaterializeText.cpp
+    layout/Measure.cpp
+    layout/Rects.cpp
+    layout/Routes.cpp
+    layout/Shelf.cpp
+    layout/Threads.cpp
+    # placement, stacking and content drawing
+    paint/Bounds.cpp
+    paint/BakeFormat.h
+    paint/Coverage.cpp
+    paint/Depth.cpp
+    paint/FillLowering.h
+    paint/GlyphInk.h
+    paint/InstanceStamp.h
+    paint/Instances.cpp
+    paint/LitSurface.cpp
+    paint/MaterialEffects.cpp
+    paint/MaterialEffects.h
+    paint/PaintContent.cpp
+    paint/PaintInternal.h
+    paint/PaintPass.cpp
+    paint/PaintPass.h
+    paint/PaintProfile.cpp
+    paint/PaintProfile.h
+    paint/PenOnCanvas.h
+    paint/RecordingState.h
+    paint/StackingPainter.cpp
+    paint/TextInk.cpp
+    paint/TextPainter.cpp
+    paint/Tiles.cpp
+    paint/WorldMatrix.cpp
+    # cache validity, recordings, bakes and resource stores
+    cache/GroupBake.cpp
+    cache/GroupScalars.cpp
+    cache/Pattern.cpp
+    cache/PictureTier.cpp
+    cache/PromotionTier.cpp
+    cache/SplitBake.cpp
+    cache/StampCache.h
+    cache/TextureBake.cpp
+    cache/Volatility.cpp
   HEADERS ../Compose.h Band.h Cascade.h Composer.h Core.h Declarations.h
           Derive.h Element.h
           Factories.h Grid.h Image.h Instances.h Layout.h Mask.h
@@ -100,37 +140,38 @@ sigil_library(SigilComposeCore
           verbs/Placement.h verbs/Shape.h verbs/TextStyle.h
           verbs/Transform.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}
+  # Public links supply the types named by the authoring vocabulary.
   PUBLIC SigilCoreCache SigilCoreCallable SigilCoreComparable SigilCoreCompute
-         SigilCoreReconcile SigilGeometryPath SigilMediaCore SigilMaterial
-         SigilMeasure SigilMotion SigilSkiaDraw SigilWeave SigilDraw
+         SigilCoreReconcile SigilGeometryPath SigilMediaCore
+         SigilMaterialColor SigilMaterialCore SigilMaterialTexture
+         SigilMaterialPattern SigilMaterialSkia
+         SigilMeasure SigilMotionClock SigilMotionValues SigilMotionEase
+         SigilMotionSchedule SigilMotionTime
+         SigilSkiaDraw SigilWeaveStyle SigilWeaveFonts SigilWeaveParagraph
+         SigilWeaveLayout SigilWeaveQuery SigilDraw
          unofficial::skia::skia
-  PRIVATE Boost::container Boost::unordered yoga::yogacore)
-sigil_shader_sources(SigilComposeCore DIR ${_shaders} NAMESPACE sigil::compose)
+  PRIVATE SigilWeaveUnicode SigilWeaveChoreograph SigilWeavePaint
+          Boost::container Boost::unordered yoga::yogacore)
+sigil_shader_sources(SigilComposeCore
+  DIR ${CMAKE_CURRENT_LIST_DIR}/shaders NAMESPACE sigil::compose)
 
-# The kernel: elements, the reconciler, layout, paint, transitions, text,
-# the feed, the instanced leaf, masks and the field walks. Links Core
-# ALONE, which is the proof that the kernel stands without its catalogs.
-# Two TUs include the library's own headers — the field walks
-# (ComposeInternal.h and ComposeRuntime.h, for the equality comparators
-# and the kSlotSpecs table) and the slot-consumer scenes (ComposeRuntime.h,
-# for the accounting that every slot is driven or excused) — which is why
-# this binary alone sees the library's source directory. yoga::yogacore is
-# PRIVATE to Core, so its headers are not on this target's path by
-# inheritance — and ComposeRuntime.h includes <yoga/Yoga.h>. Listed for
-# the INCLUDE PATH; the archive itself was already in the link closure.
+# Internal-state tests need private kernel and Yoga headers. Grain fixtures
+# link their field generator directly rather than adding it to the kernel.
 sigil_test(compose_test
   SOURCES test/ComposeTestLayout.cpp test/ComposeTestGrid.cpp
           test/ComposeTestContent.cpp
           test/ComposeTestReconcile.cpp test/ComposeTestCaching.cpp
           test/ComposeTestPromotion.cpp test/ComposeTestMotion.cpp
-          test/ComposeTestBakeReuse.cpp
+          test/ComposeTestBakeReuse.cpp test/ComposeTestBakeFormat.cpp
+          test/ComposeTestGroupSettling.cpp
           test/ComposeTestFlowAroundCore.cpp
           test/ComposeTestPromotionBounds.cpp
           test/ComposeTestPromotionGate.cpp
           test/StandardExceptionsTest.cpp
           test/ComposeTestEffects.cpp test/ComposeTestMaterial.cpp
           test/ComposeTestLiveMaterial.cpp test/ComposeTestWorldSpace.cpp
-          test/ComposeTestLighting.cpp
+    test/ComposeTestLighting.cpp
+    test/ComposeTestSceneLighting.cpp
           test/ComposeTestMask.cpp test/ComposeTestFieldPins.cpp
           test/ComposeTestDeclareDoor.cpp
           test/ComposeTestSlotConsumers.cpp
@@ -143,22 +184,18 @@ sigil_test(compose_test
           test/ComposeTestRem.cpp
           test/ComposeTestFillSurfaces.cpp
           test/ComposeTestPatternSampling.cpp
-          test/ComposeTestRootBox.cpp
+          test/ComposeTestRootBox.cpp test/ComposeTestCenterPins.cpp
           test/ComposeTestDeclarations.cpp
           test/ComposeTestSelector.cpp test/ComposeTestStyleSheet.cpp
           test/ComposeTestMatching.cpp test/ComposeTestHas.cpp
           test/ComposeTestTypedLeaves.cpp test/ComposeTestRuleScope.cpp
           test/ComposeTestLonghandValues.cpp test/ComposeTestTextIndent.cpp
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
-  LIBRARIES SigilComposeCore SigilComposeTesting SigilWeavePorts
+  LIBRARIES SigilComposeCore SigilComposeTesting SigilMaterialField SigilWeavePorts
             yoga::yogacore
   LABELS fonts
   SUITES ComposeFaces ComposeFontFamily ComposeFontStyle)
 
-# The kernel: describe, reconcile, layout, query and caching in the
-# first file, then one whole-scene file per subject — the scoreboard,
-# the effects, the batches that stand for many items, and the two scenes
-# that price a bake against drawing the same picture again.
 sigil_bench(compose_bench
   SOURCES bench/ComposeCoreBench.cpp bench/ComposeCoreScoreboardBench.cpp
           bench/ComposeCoreEffectBench.cpp bench/ComposeCoreBatchBench.cpp
@@ -166,8 +203,7 @@ sigil_bench(compose_bench
   LIBRARIES SigilComposeCore EnTT::EnTT SigilWeavePorts
   GPU_LIBRARIES SigilSkia)
 
-# The image leaf over a moving source: a clip the test encodes in memory
-# and opens, with a decode pool and without one.
+# Moving-image fixtures encode their own clips.
 sigil_test(compose_test
   SOURCES test/ComposeTestMovingImage.cpp
   LIBRARIES SigilComposeCore SigilMediaVideoDecode SigilMediaVideoEncode

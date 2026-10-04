@@ -14,8 +14,8 @@
 #include <utility>
 #include <vector>
 
-#include "ComposeRuntime.h"
 #include "SpanArithmetic.h"
+#include "runtime/ComposeRuntime.h"
 
 namespace sigil::compose {
 

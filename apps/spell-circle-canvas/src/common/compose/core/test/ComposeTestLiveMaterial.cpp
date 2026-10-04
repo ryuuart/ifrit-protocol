@@ -4,10 +4,13 @@
 // uTime making a material live, a snapshot sampling it now, and a stable live
 // resolve replaying its picture and blitting its texture.
 
-#include <sigilmaterial/field/Field.h>
-#include <sigilmaterial/skia/Paint.h>
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/skia/Paint.h>
+
+#include <algorithm>
+#include <stdexcept>
 
 #include "support/CoreTestSupport.h"
 
@@ -22,13 +25,14 @@ TEST(ComposeMaterial, LiveUniformAnimatesAndDeclaresVolatility) {
   ASSERT_TRUE(effect) << err.c_str();
   sigil::motion::Animatable<float> k = sigil::motion::animatable(0.0f);
   Host host;
-  host.composer.render(box().children(
-      {box()
-           .width(40)
-           .height(40)
-           .inset(0, 160, 160, 0)
-           .absolute()
-           .fill(material::skia::base(material::skia::sksl(effect).bind("uK", k)))}));
+  host.composer.render(
+      box().children({box()
+                          .width(40)
+                          .height(40)
+                          .inset(0, 160, 160, 0)
+                          .absolute()
+                          .fill(material::skia::base(
+                              material::skia::sksl(effect).bind("uK", k)))}));
   host.frame();
   const SkColor c0 = host.pixel(20, 20);
   k = 1.0f;      // change the bound uniform — NO re-render
@@ -42,8 +46,7 @@ TEST(ComposeMaterial, LiveUniformAnimatesAndDeclaresVolatility) {
 TEST(ComposeMaterial, UniformOnNonShaderMaterialIsNoOp) {
   // uniform() on a material with no named uniforms (a solid) has nothing to
   // hook against: it is ignored, the material stays static and non-live.
-  material::Paint m =
-      material::Paint::solid({0, 1, 0, 1}).set("uK", 0.5f);
+  material::Paint m = material::Paint::solid({0, 1, 0, 1}).set("uK", 0.5f);
   EXPECT_FALSE(m.isRunning());
   EXPECT_TRUE(m.isSolid());
 }
@@ -54,7 +57,8 @@ TEST(ComposeMaterial, UniformCopiesOnWriteNeverAlias) {
   // base material bound to two different live values — with aliasing, both
   // copies read whichever binding was applied last.
   material::Paint base = material::skia::sksl(ukEffect());
-  sigil::motion::Animatable<float> low = sigil::motion::animatable(0.2f), high = sigil::motion::animatable(1.0f);
+  sigil::motion::Animatable<float> low = sigil::motion::animatable(0.2f),
+                                   high = sigil::motion::animatable(1.0f);
   material::Paint a = base;
   a.bind("uK", low);
   material::Paint b = base;
@@ -64,19 +68,18 @@ TEST(ComposeMaterial, UniformCopiesOnWriteNeverAlias) {
   EXPECT_TRUE(b.isRunning());
 
   Host host;
-  host.composer.render(box().children(
-      {box()
-           .width(40)
-           .height(40)
-           .inset(0, 160, 160, 0)
-           .absolute()
-           .fill(material::skia::base(a)),
-       box()
-           .width(40)
-           .height(40)
-           .inset(0, 100, 160, 60)
-           .absolute()
-           .fill(material::skia::base(b))}));
+  host.composer.render(box().children({box()
+                                           .width(40)
+                                           .height(40)
+                                           .inset(0, 160, 160, 0)
+                                           .absolute()
+                                           .fill(material::skia::base(a)),
+                                       box()
+                                           .width(40)
+                                           .height(40)
+                                           .inset(0, 100, 160, 60)
+                                           .absolute()
+                                           .fill(material::skia::base(b))}));
   host.frame();
   EXPECT_LT(SkColorGetR(host.pixel(20, 20)), 90u);   // a: uK=0.2
   EXPECT_GT(SkColorGetR(host.pixel(80, 20)), 200u);  // b: uK=1.0 — not aliased
@@ -95,8 +98,8 @@ TEST(ComposeMaterial, LaterPlainFillReplacesLiveMaterial) {
            .height(40)
            .inset(0, 160, 160, 0)
            .absolute()
-           .fill(material::skia::base(material::skia::sksl(ukEffect())
-                     .bind("uK", k)))         // live red
+           .fill(material::skia::base(
+               material::skia::sksl(ukEffect()).bind("uK", k)))  // live red
            .fill(Fill::color({0, 1, 0, 1}))}));  // then plain green
   host.frame();
   const SkColor c = host.pixel(20, 20);
@@ -117,13 +120,12 @@ TEST(ComposeMaterial, BlendWithLiveLayerTracksLiveValues) {
   });
   EXPECT_TRUE(m.isRunning());  // inherited from the bound layer
   Host host;
-  host.composer.render(box().children(
-      {box()
-           .width(40)
-           .height(40)
-           .inset(0, 160, 160, 0)
-           .absolute()
-           .fill(material::skia::base(m))}));
+  host.composer.render(box().children({box()
+                                           .width(40)
+                                           .height(40)
+                                           .inset(0, 160, 160, 0)
+                                           .absolute()
+                                           .fill(material::skia::base(m))}));
   host.frame();
   const uint32_t bright = SkColorGetR(host.pixel(20, 20));
   EXPECT_GT(bright, 170u);  // ~0.8 * 255 = 204
@@ -181,8 +183,9 @@ TEST(ComposeMaterial, NestedBlendAsShaderFoldsItsLiveLayersPerCall) {
 
 TEST(ComposeMaterial, DeclaringUTimeMakesMaterialLive) {
   // "Reading the clock IS the volatility declaration": an sksl effect that
-  // declares uTime takes the live path with no bound live values — it re-resolves
-  // per frame with PaintContext time instead of freezing a uTime=0 snapshot.
+  // declares uTime takes the live path with no bound live values — it
+  // re-resolves per frame with PaintContext time instead of freezing a uTime=0
+  // snapshot.
   auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(
       "uniform float uTime;"
       "half4 main(float2 p) { return half4(fract(uTime), 0, 0, 1); }"));
@@ -191,13 +194,12 @@ TEST(ComposeMaterial, DeclaringUTimeMakesMaterialLive) {
   EXPECT_TRUE(m.isRunning());
 
   Host host;
-  host.composer.render(box().children(
-      {box()
-           .width(40)
-           .height(40)
-           .inset(0, 160, 160, 0)
-           .absolute()
-           .fill(material::skia::base(m))}));
+  host.composer.render(box().children({box()
+                                           .width(40)
+                                           .height(40)
+                                           .inset(0, 160, 160, 0)
+                                           .absolute()
+                                           .fill(material::skia::base(m))}));
   host.frame();
   // The engine stands at zero, so uTime is zero and the fill is black; the
   // claim is that the material painted live rather than from a snapshot.
@@ -213,22 +215,20 @@ TEST(ComposeMaterial, LiveMaterialUnderLeafDirectBlend) {
   Host host;
   host.composer.render(
       stack()
-          .children(
-              {box()
-                   .width(40)
-                   .height(40)
-                   .inset(0, 160, 160, 0)
-                   .absolute()
-                   .fill(Fill::color({0, 1, 0, 1}))})  // green under
-          .children(
-              {box()
-                   .width(40)
-                   .height(40)
-                   .inset(0, 160, 160, 0)
-                   .absolute()
-                   .fill(material::skia::base(material::skia::sksl(ukEffect())
-                             .bind("uK", k)))
-                   .blendMode(material::BlendMode::PlusLighter)}));
+          .children({box()
+                         .width(40)
+                         .height(40)
+                         .inset(0, 160, 160, 0)
+                         .absolute()
+                         .fill(Fill::color({0, 1, 0, 1}))})  // green under
+          .children({box()
+                         .width(40)
+                         .height(40)
+                         .inset(0, 160, 160, 0)
+                         .absolute()
+                         .fill(material::skia::base(
+                             material::skia::sksl(ukEffect()).bind("uK", k)))
+                         .blendMode(material::BlendMode::PlusLighter)}));
   host.frame();
   const SkColor c = host.pixel(20, 20);  // red + green = yellow
   EXPECT_GT(SkColorGetR(c), 200u);
@@ -240,10 +240,10 @@ TEST(ComposeMaterial, SnapshotSamplesLiveMaterialNow) {
   // snapshot() — the element-tree-as-a-brush bake — samples live
   // materials at the CURRENT values of their live values.
   sigil::motion::Animatable<float> k = sigil::motion::animatable(1.0f);
-  sk_sp<SkPicture> pic =
-      snapshot(box().width(60).height(60).fill(
-                   material::skia::base(material::skia::sksl(ukEffect()).bind("uK", k))),
-               fonts());
+  sk_sp<SkPicture> pic = snapshot(
+      box().width(60).height(60).fill(
+          material::skia::base(material::skia::sksl(ukEffect()).bind("uK", k))),
+      fonts());
   ASSERT_TRUE(pic);
   Host host;
   host.surface->getCanvas()->clear(SK_ColorBLACK);
@@ -258,8 +258,8 @@ TEST(ComposeMaterial, RenderSlotHostsLiveMaterial) {
   Host host;
   host.composer.render(box().children({slot("s").width(40).height(40)}));
   host.composer.renderSlot(
-      "s", box().width(40).height(40).fill(
-               material::skia::base(material::skia::sksl(ukEffect()).bind("uK", k))));
+      "s", box().width(40).height(40).fill(material::skia::base(
+               material::skia::sksl(ukEffect()).bind("uK", k))));
   host.frame();
   EXPECT_LT(SkColorGetR(host.pixel(20, 20)), 30u);  // k=0
   k = 1.0f;                                         // no render, no renderSlot
@@ -267,14 +267,107 @@ TEST(ComposeMaterial, RenderSlotHostsLiveMaterial) {
   EXPECT_GT(SkColorGetR(host.pixel(20, 20)), 200u);  // live through the slot
 }
 
-TEST(ComposeMaterial, ContentScaleDeclaringMaterialIsLive) {
-  // uContentScale tracks the HOST's zoom, not the node — it must take the
-  // live tier (the pre-tier-split behavior), unlike uResolution.
+namespace {
+
+/** A paint whose red channel is a quarter of the content scale it is
+ *  handed: 64 on a canvas at one device pixel per logical pixel, 128 at
+ *  two. */
+material::Material scaleReader() {
   auto [effect, err] = SkRuntimeEffect::MakeForShader(
       SkString("uniform float uContentScale;"
-               "half4 main(float2 p) { return half4(1, 0, 0, 1); }"));
-  ASSERT_TRUE(effect) << err.c_str();
-  EXPECT_TRUE(material::skia::sksl(effect).isRunning());
+               "half4 main(float2 p) {"
+               "  return half4(uContentScale * 0.25, 0, 0, 1); }"));
+  if (!effect) throw std::logic_error(err.c_str());
+  return material::skia::base(material::skia::sksl(effect));
+}
+
+/** One frame with the host's canvas magnified by @p scale. */
+void drawAtScale(Host& host, float scale) {
+  SkCanvas& canvas = *host.surface->getCanvas();
+  canvas.clear(SK_ColorBLACK);
+  canvas.save();
+  canvas.scale(scale, scale);
+  host.composer.draw(canvas);
+  canvas.restore();
+}
+
+/** The strongest red anywhere on the host's surface. */
+int strongestRed(const Host& host) {
+  int strongest = 0;
+  const SkBitmap pixels = host.pixels();
+  for (int y = 0; y < pixels.height(); ++y)
+    for (int x = 0; x < pixels.width(); ++x)
+      strongest = std::max(strongest, (int)SkColorGetR(pixels.getColor(x, y)));
+  return strongest;
+}
+
+/** Frames at @p scale until the caches have taken what they will take;
+ *  the last of them must have recorded and baked nothing. */
+void settleAtScale(Host& host, float scale) {
+  for (int frame = 0; frame < 4; ++frame) drawAtScale(host, scale);
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u) << "at " << scale;
+  EXPECT_EQ(host.composer.stats().texturesBaked, 0u) << "at " << scale;
+}
+
+}  // namespace
+
+TEST(ComposeMaterial, ContentScaleIsGeometryAndNeverAClock) {
+  // The destination's scale holds still between frames, so a material
+  // that reads it resolves with the frame and does not run.
+  const material::Material reader = scaleReader();
+  EXPECT_FALSE(reader.isRunning());
+  EXPECT_TRUE(reader.geometryDependent());
+  const material::Paint lowered = material::skia::paint(reader);
+  EXPECT_FALSE(lowered.isRunning());
+  EXPECT_TRUE(lowered.geometryDependent());
+}
+
+TEST(ComposeMaterial, AScaleReadingFillSleepsAndWakesWhenTheScaleChanges) {
+  // Under each cache a node can hold, the fill settles at one scale and
+  // is drawn afresh at another: a kept picture or bake never shows the
+  // scale it was first taken at.
+  for (const Cache mode :
+       {Cache::Auto, Cache::Picture, Cache::Texture, Cache::Group}) {
+    SCOPED_TRACE((int)mode);
+    Host host;
+    host.composer.render(box().children(
+        {box().width(40).height(40).fill(scaleReader()).cache(mode)}));
+    settleAtScale(host, 1.0f);
+    EXPECT_NEAR(SkColorGetR(host.pixel(20, 20)), 64, 2);
+    settleAtScale(host, 2.0f);
+    EXPECT_NEAR(SkColorGetR(host.pixel(20, 20)), 128, 2);
+    settleAtScale(host, 1.0f);
+    EXPECT_NEAR(SkColorGetR(host.pixel(20, 20)), 64, 2);
+  }
+}
+
+TEST(ComposeMaterial, AScaleReadingFillUnderAKeptAncestorFollowsTheScale) {
+  // The read reaches every cache above the node that made it: an ancestor
+  // holding a picture, and one holding a local bake of a turned plane.
+  for (const Cache mode : {Cache::Picture, Cache::Texture, Cache::Group}) {
+    SCOPED_TRACE((int)mode);
+    Host host;
+    host.composer.render(box().children(
+        {box().width(60).height(60).rotate(8).cache(mode).children(
+            {box().width(60).height(60).fill(scaleReader())})}));
+    settleAtScale(host, 1.0f);
+    EXPECT_NEAR(SkColorGetR(host.pixel(30, 30)), 64, 2);
+    settleAtScale(host, 2.0f);
+    EXPECT_NEAR(SkColorGetR(host.pixel(30, 30)), 128, 2);
+  }
+}
+
+TEST(ComposeMaterial, AScaleReadingGlyphInkSleepsAndFollowsTheScale) {
+  for (const PaintBox unit : {PaintBox::Glyph, PaintBox::Word}) {
+    SCOPED_TRACE((int)unit);
+    Host host(320, 160);
+    host.composer.render(box().padding(8).children(
+        {text(u8"HH", whiteStyle(48)).ink(scaleReader(), unit)}));
+    settleAtScale(host, 1.0f);
+    EXPECT_NEAR(strongestRed(host), 64, 2);
+    settleAtScale(host, 2.0f);
+    EXPECT_NEAR(strongestRed(host), 128, 2);
+  }
 }
 
 TEST(ComposeMaterial, StableLiveResolveReplaysThePicture) {
@@ -310,15 +403,15 @@ TEST(ComposeMaterial, BoundUniformOwnsItsSlotOverInjection) {
                "  return half4(fract(uTime), 0, 0, 1); }"));
   ASSERT_TRUE(fx) << err.c_str();
   sigil::motion::Animatable<float> stepped = sigil::motion::animatable(0.5f);
-  material::Paint m =
-      material::skia::sksl(fx).bind("uTime", stepped);
+  material::Paint m = material::skia::sksl(fx).bind("uTime", stepped);
   PaintContext ctx;
   ctx.size = {4, 4};
   ctx.elapsedSeconds = 123.789;  // continuous clock — must be IGNORED
   Fill f = resolveFill(material::skia::base(m), ctx);
   sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(2, 2));
   SkPaint p;
-  p.setShader(material::skia::staticShader(material::skia::paint(*f.material())));
+  p.setShader(
+      material::skia::staticShader(material::skia::paint(*f.material())));
   s->getCanvas()->drawPaint(p);
   SkBitmap bm;
   bm.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
@@ -358,15 +451,16 @@ TEST(ComposeMaterial, StableLiveResolveBlitsTheTexture) {
                "  return half4(fract(uPhase), 0.4, 0.2, 1); }"));
   ASSERT_TRUE(fx) << err.c_str();
   Host host;
-  sigil::motion::Animatable<float> phase = sigil::motion::animatable(0.25f), sibling = sigil::motion::animatable(0.0f);
+  sigil::motion::Animatable<float> phase = sigil::motion::animatable(0.25f),
+                                   sibling = sigil::motion::animatable(0.0f);
   host.composer.render(
       box()
           .children({box()
                          .width(100)
                          .height(100)
                          .cache(Cache::Texture)
-                         .fill(material::skia::base(material::skia::sksl(fx).bind(
-                             "uPhase", phase)))})
+                         .fill(material::skia::base(
+                             material::skia::sksl(fx).bind("uPhase", phase)))})
           // An always-animating sibling keeps the ROOT live, which is the
           // ordinary case in a real scene: the shader-filled node must still
           // blit even though the frame as a whole is repainting.
@@ -408,13 +502,12 @@ TEST(ComposeMaterial, AHeldRecipeFillKeepsItsBakeAcrossIdenticalDescribes) {
   const std::pair<const char*, material::Material> fills[] = {
       {"the recipe alone", material::skia::base(grain(0.09f))},
       {"the recipe in a blend",
-       material::skia::base(Paint::blend(
-           {{Paint::solid(blue), material::BlendMode::Normal},
-            {grain(0.09f), material::BlendMode::SoftLight}}))},
+       material::skia::base(
+           Paint::blend({{Paint::solid(blue), material::BlendMode::Normal},
+                         {grain(0.09f), material::BlendMode::SoftLight}}))},
       {"the recipe as a layer",
-       material::from(blue).layer(
-           material::field::grain(0.09f, 3, 4.0f, 0.35f),
-           {.blend = material::BlendMode::SoftLight})},
+       material::from(blue).layer(material::field::grain(0.09f, 3, 4.0f, 0.35f),
+                                  {.blend = material::BlendMode::SoftLight})},
   };
   for (const auto& [what, fill] : fills) {
     Host host(240, 240);

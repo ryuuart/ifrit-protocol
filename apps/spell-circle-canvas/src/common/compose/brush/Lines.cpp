@@ -3,7 +3,6 @@
  * and terminal caps of a Line, the rails and the hatches.
  */
 
-#include <sigildraw/Pen.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPathUtils.h>
@@ -14,8 +13,9 @@
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/brush/Rails.h>
-#include <sigilgeometry/path/Numeric.h>
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/advanced/Skia.h>
+#include <sigilgeometry/path/Numeric.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -26,7 +26,7 @@
 
 #include "sigilgeometry/path/Contour.h"  // the contour walkers: corners,
                                          // parallels, displacement, windows
-#include "FillLowering.h"
+#include "paint/FillLowering.h"
 
 namespace sigil::compose::lines {
 
@@ -90,12 +90,11 @@ void drawLineMarker(const Line& line, SkCanvas& canvas, const SkPaint& head,
       SkPaint bar = head;
       bar.setStyle(SkPaint::kStroke_Style);
       bar.setStrokeWidth(std::max(width, 2.0f));
-      canvas.drawLine(
-          {pos.x() - n.x() * markerSize * 0.5f,
-           pos.y() - n.y() * markerSize * 0.5f},
-          {pos.x() + n.x() * markerSize * 0.5f,
-           pos.y() + n.y() * markerSize * 0.5f},
-          bar);
+      canvas.drawLine({pos.x() - n.x() * markerSize * 0.5f,
+                       pos.y() - n.y() * markerSize * 0.5f},
+                      {pos.x() + n.x() * markerSize * 0.5f,
+                       pos.y() + n.y() * markerSize * 0.5f},
+                      bar);
       break;
     }
     case Marker::None:
@@ -108,10 +107,9 @@ void drawLineMarker(const Line& line, SkCanvas& canvas, const SkPaint& head,
 geometry::path::Outline dashGeometry(const geometry::path::Outline& src,
                                      std::span<const float> intervals,
                                      float phase) {
-  return geometry::path::fromSk(
-      dashPath(geometry::path::toSk(src),
-               SkSpan<const SkScalar>(intervals.data(), intervals.size()),
-               phase));
+  return geometry::path::fromSk(dashPath(
+      geometry::path::toSk(src),
+      SkSpan<const SkScalar>(intervals.data(), intervals.size()), phase));
 }
 
 geometry::path::Outline cornerBrackets(const geometry::path::Outline& src,
@@ -143,8 +141,9 @@ void Line::paint(draw::Pen& pen, const PaintContext& ctx) const {
   // 1. The body run: offset, then displaced into a wave, then trimmed
   //    back from under Arrow and Bar heads, which also stops dashes
   //    cleanly instead of letting them show through the head.
-  SkPath body =
-      across != 0 ? geometry::path::parallel(geometry::path::toSk(ctx.outline), across) : geometry::path::toSk(ctx.outline);
+  SkPath body = across != 0 ? geometry::path::parallel(
+                                  geometry::path::toSk(ctx.outline), across)
+                            : geometry::path::toSk(ctx.outline);
   if (waveAmplitude > 0)
     body = geometry::path::displace(body, waveAmplitude, waveLength, zigzag);
   // Markers ride the FINAL geometry (offset + wave applied), not the raw
@@ -161,8 +160,9 @@ void Line::paint(draw::Pen& pen, const PaintContext& ctx) const {
         // Closed contours have no terminals — keep whole.
         geometry::path::appendSegment(trimmed, contour, 0, len);
       } else {
-        geometry::path::appendSegment(trimmed, contour, std::min(tailTrim, len * 0.4f),
-                              len - std::min(headTrim, len * 0.4f));
+        geometry::path::appendSegment(trimmed, contour,
+                                      std::min(tailTrim, len * 0.4f),
+                                      len - std::min(headTrim, len * 0.4f));
       }
     }
     body = trimmed.detach();
@@ -313,11 +313,11 @@ void Line::paint(draw::Pen& pen, const PaintContext& ctx) const {
         if (endMarker != Marker::None)
           if (const auto end = contour.at(len))
             drawLineMarker(*this, canvas, head, endMarker, toSk(end->position),
-                       toSk(end->tangent));
+                           toSk(end->tangent));
         if (startMarker != Marker::None)
           if (const auto start = contour.at(0))
-            drawLineMarker(*this, canvas, head, startMarker, toSk(start->position),
-                       toSk(-start->tangent));
+            drawLineMarker(*this, canvas, head, startMarker,
+                           toSk(start->position), toSk(-start->tangent));
       }
       if (midMarker != Marker::None && midSpacing > 0) {
         // Closed contours have no terminals: chevrons run the full loop.
@@ -327,8 +327,8 @@ void Line::paint(draw::Pen& pen, const PaintContext& ctx) const {
         // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
         for (float d = from; d < until; d += midSpacing)
           if (const auto sample = contour.at(d))
-            drawLineMarker(*this, canvas, head, midMarker, toSk(sample->position),
-                       toSk(sample->tangent));
+            drawLineMarker(*this, canvas, head, midMarker,
+                           toSk(sample->position), toSk(sample->tangent));
       }
     }
   }
@@ -346,7 +346,6 @@ float Line::trimFor(Marker marker) const {
   }
   return 0.0f;
 }
-
 
 float Rails::bleed() const {
   float worst = 0.0f;
@@ -368,10 +367,10 @@ float Rails::span() const {
 void Rails::paint(draw::Pen& pen, const PaintContext& ctx) const {
   SkCanvas& canvas = *pen.canvas();
   if (ctx.outline.empty() || rails.empty()) return;
-  const SkPath body = waveAmplitude > 0
-                          ? geometry::path::displace(geometry::path::toSk(ctx.outline), waveAmplitude,
-                                                     waveLength, zigzag)
-                          : geometry::path::toSk(ctx.outline);
+  const SkPath body = waveAmplitude > 0 ? geometry::path::displace(
+                                              geometry::path::toSk(ctx.outline),
+                                              waveAmplitude, waveLength, zigzag)
+                                        : geometry::path::toSk(ctx.outline);
   const float base = phase();
   const float stride =
       std::isfinite(offsetStep) ? std::max(offsetStep, 0.5f) : 2.0f;
@@ -384,7 +383,7 @@ void Rails::paint(draw::Pen& pen, const PaintContext& ctx) const {
         rail.dash.empty()
             ? body
             : dashPath(body, SkSpan(rail.dash.data(), rail.dash.size()),
-                           base + rail.dashPhase);
+                       base + rail.dashPhase);
     if (rail.across != 0)
       run = geometry::path::parallel(run, rail.across, stride, rail.join);
     SkPaint p;
@@ -431,9 +430,9 @@ void Hatch::paint(draw::Pen& pen, const PaintContext& ctx) const {
     laid.angle = radians;
     p.setStyle(SkPaint::kStroke_Style);
     p.setStrokeWidth(width);
-    c.drawPath(geometry::path::toSk(geometry::shapes::hatchOutline(
-                   ctx.outline, laid)),
-               p);
+    c.drawPath(
+        geometry::path::toSk(geometry::shapes::hatchOutline(ctx.outline, laid)),
+        p);
   } else {
     // An even pattern is the same lines as Skia's own line lattice lays
     // them, which fills the outline in one path effect per pass.

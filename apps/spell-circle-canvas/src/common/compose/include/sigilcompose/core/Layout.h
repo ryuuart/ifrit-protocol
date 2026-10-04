@@ -6,12 +6,11 @@
  * SigilCompose layout values — Dimension and its literals, the Edges that
  * name the four sides around a node, Align, Justify,
  * Echo, Cache with the `cachePolicy` that reads it as the kernel's own, the
- * CellSpan a child claims and the LayoutInput a custom LayoutScheme
- * places children from, and the ComponentProperties and ComponentFunction
- * concepts the generic entry points are constrained by.
+ * CellSpan a child claims and the Arrangement an operator places from, and the
+ * ComponentProperties and ComponentFunction concepts the generic entry points
+ * are constrained by.
  */
 
-#include <glm/vec2.hpp>
 #include <sigilcompose/core/Attributes.h>
 #include <sigilcompose/core/Var.h>
 #include <sigilcore/cache/Policy.h>
@@ -23,7 +22,10 @@
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <glm/vec2.hpp>
+#include <limits>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -505,86 +507,70 @@ struct SizeInBox {
   bool widthStated = false, heightStated = false;
 };
 
-/** What a custom layout sees: the container's resolved size, each child's
- *  measured size (text children measured by SigilWeave), each child's
- *  first-baseline offset from its own top (NaN for children without one) —
- *  what baseline-rhythm schemes (layouts::BaselineGrid) snap by — and the
- *  cells each child claimed with `Element::gridCells`. */
-struct LayoutInput {
-  glm::vec2 container{0, 0};
-  std::vector<glm::vec2> childSizes;
-  std::vector<float> childBaselines;  ///< NaN = no baseline (non-text)
-  std::vector<CellSpan> childCells;   ///< .declared = false when unspoken
-  /** THE NAME OF THE REGION each child claims, when the scheme draws a
-   *  picture of itself out of names (`layouts::Grid::areas`) — empty for a
-   *  child that named none, which is the numeric spelling in `childCells`
-   *  and what a name resolves to. A name no picture carries is silent and
-   *  the child flows.
-   *
-   *  Beside `childCells` rather than in it because a string on the properties
-   *  of every node in the tree is what the node size assertion forbids,
-   *  and a named region is rare. */
-  std::vector<std::string> childAreas;
-  /** THE SMALLEST EACH CHILD CAN BE without its content spilling out of
-   *  it — the second of the two intrinsic contributions a track-sizing
-   *  rule needs, where `childSizes` is the first.
-   *
-   *  A text leaf's is its longest unbreakable run, measured at a nil
-   *  width; its height is left at the measured one, because the height of
-   *  a paragraph set one word to a line is not a minimum anybody wants.
-   *  Everything else answers with its measured size; a scheme does not
-   *  re-describe a box or infer a smaller intrinsic size for it. Text's
-   *  wrapped extent is remeasured at the scheme's placed reading measure
-   *  before content-sized tracks settle.
-   *
-   *  EMPTY unless the scheme asked for it, since the text minimum costs a
-   *  measure per text child. A scheme asks by declaring
-   *  `static constexpr bool readsChildMinSizes = true;`. */
-  std::vector<glm::vec2> childMinSizes;
-  /** THE FACTS EACH CHILD STATES (`Element::attribute`), one table per
-   *  child, so a scheme places by what a child says of itself — its
-   *  tier, its hour, its weight — rather than by its index alone. */
-  std::vector<Attributes> childAttributes;
-  /** WHAT EACH CHILD STATES OF ITS SIZE, for a scheme that gives each
-   *  child a box of its own — a grid's cell — in which the child's
-   *  percentages resolve. EMPTY unless the scheme asked for it, by
-   *  declaring `static constexpr bool resolvesChildPercentages = true;`:
-   *  the composer then leaves the child's percentage bounds to the scheme,
-   *  which answers them in the rect it places. */
-  std::vector<StatedSize> childStatedSizes;
+/** WHAT AN ARRANGING OPERATOR IS HANDED: the node's box, and one record
+ *  per direct child that has a box — measured, with its facts, and where
+ *  it stands so far. An operator writes where each child goes onto the
+ *  record; the composer reads the records back once the list has run. */
+struct Arrangement {
+  /** ONE DIRECT CHILD as an operator sees it. `rect` is where the child
+   *  stands when the operator is called — where the operator before it
+   *  in the list left it, or the authored flex placement for the first
+   *  — so an operator that nudges reads it and an operator that places
+   *  overwrites it. `turnDegrees` is a paint-only turn about the
+   *  child's own transform origin, laid over the rotation the child
+   *  states for itself; it moves no layout. */
+  struct Child {
+    glm::vec2 size{0, 0};
+    /// First-baseline offset from the child's top; NaN for a child with none.
+    float baseline = std::numeric_limits<float>::quiet_NaN();
+    /// The smallest the child can be without spilling its content, filled
+    /// only for an operator that declares `readsChildMinSizes`.
+    glm::vec2 minSize{0, 0};
+    /// What the child states of its size, filled only for an operator
+    /// that declares `resolvesChildPercentages`.
+    StatedSize statedSize;
+    /** Resolves this child's percentage sizes and bounds against @p box.
+     *  Nothing when it states no percentage. Unknown box extents (NaN)
+     *  leave percentages of that axis unresolved. */
+    [[nodiscard]] std::optional<SizeInBox> sizeIn(glm::vec2 box) const;
+    CellSpan cells;
+    std::string area;
+    Attributes attributes;
+    geometry::path::Rect rect;
+    float turnDegrees = 0.0f;
 
-  /** THE SIZE CHILD @p index COMES TO IN @p box, for a child whose stated
-   *  size holds a percentage; nothing for any other, whose measured size
-   *  in `childSizes` stands. An extent of @p box that is not yet known
-   *  (NaN) leaves a percentage of it unstated. A length stated on one axis
-   *  carries across the aspect ratio to an axis stated on neither, the
-   *  bounds clamp both, and a bound that moved one axis carries back. */
-  [[nodiscard]] std::optional<SizeInBox> sizeIn(size_t index,
-                                                glm::vec2 box) const;
+    /** The fact under @p name, as the child stated it. */
+    template <typename T>
+    std::optional<T> attribute(std::string_view name) const {
+      return attributes.get<T>(name);
+    }
+    /** The fact under @p name as a number, whichever numeric type it was
+     *  written in — an operator placing by a lane reads it here, so an
+     *  author who wrote `3` and one who wrote `3.0f` are placed alike. */
+    std::optional<float> number(std::string_view name) const;
+    /** Puts the child at @p where, size included. */
+    void place(const geometry::path::Rect& where) { rect = where; }
+    /** Centres the child's measured size on @p centre. */
+    void centreAt(glm::vec2 centre) {
+      rect = geometry::path::Rect::centredOn(centre, size);
+    }
+    /** Turns the child @p degrees clockwise about its transform origin. */
+    void turn(float degrees) { turnDegrees = degrees; }
+  };
 
-  /** The fact child @p index states under @p name, as a @p T, or nothing. */
-  template <typename T>
-  std::optional<T> attribute(size_t index, std::string_view name) const {
-    if (index >= childAttributes.size()) return std::nullopt;
-    return childAttributes[index].get<T>(name);
-  }
+  /// The node's own box, at the origin: what the children are placed in.
+  geometry::path::Rect box;
+  /// Borrowed records, valid only during the call. Write placements in
+  /// place; the child count and order belong to the composer.
+  std::span<Child> children;
+  /// Whether each child's `minSize` was measured — true only when an
+  /// operator in the list asked, since the measure costs one text layout
+  /// per text child.
+  bool minSizesMeasured = false;
+  /// Whether an operator in the list resolves the children's percentages
+  /// against boxes of its own, so each child's `statedSize` was read.
+  bool percentagesResolved = false;
 };
-
-/** A custom layout places children: one rect per child (position and
- *  size, container-relative). Runs as a bounded second layout pass. */
-template <typename L>
-concept LayoutScheme = requires(const L& l, const LayoutInput& in) {
-  { l.place(in) } -> std::convertible_to<std::vector<geometry::path::Rect>>;
-};
-
-/** A scheme that sizes tracks from the content and therefore needs
- *  `LayoutInput::childMinSizes` filled. Opt in, because the minimum costs
- *  a measure per text child and most schemes place from the container and
- *  a formula. */
-template <typename L>
-concept SizesFromContentMinima = LayoutScheme<L> && requires {
-  { L::readsChildMinSizes } -> std::convertible_to<bool>;
-} && L::readsChildMinSizes;
 
 // ---------------------------------------------------------------------------
 // Concepts (readable errors at the generic entry points)

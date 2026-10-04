@@ -24,8 +24,6 @@
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilmotion/values/Animatable.h>
-#include <sigilmotion/values/Tween.h>
 #include <sigilmotion/values/Tween.h>
 #include <sigilweave/layout/ParagraphBlock.h>
 #include <sigilweave/layout/ParagraphLayout.h>

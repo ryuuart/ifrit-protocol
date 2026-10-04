@@ -83,6 +83,21 @@ does: `Element::imageRendering` on any node reaches every image leaf under it.
 a fill, an ink or a stroke whose material states a `surface()` — is shaded
 under the nearest lighting above it.
 
+`scene()` owns a planar lighting context for its own paint and descendants.
+Its `light()` leaves contribute sources independent of sibling order, and
+`Element::environment` states its reflected surroundings. A nested scene
+starts with no inherited sources or environment. Light declarations belong
+to their nearest scene; they have no layout, paint or hit region. A
+receiver's `Element::lighting` replaces the complete scene context, as does
+its material's own lighting. Attributes do not participate in the cascade.
+Collected scene lighting uses `material::LightingFrame::Scene`: sources and
+receiver normals share root-page axes. A complete manual lighting value
+defaults to `material::LightingFrame::Surface`, retaining surface-relative
+directional and environment shading. Its `frame` field can opt into shared
+axes. A scene's source transforms may place point emitters and turn spot
+or directional axes; out-of-plane turns and perspective disable direct
+source illumination.
+
 **A range and a reading take the same partial.** `Text::span` lays
 the font fields and the ink its `SpanStyle` state over the style the
 range is set in — the inherited font for an inheriting leaf, the leaf's own style

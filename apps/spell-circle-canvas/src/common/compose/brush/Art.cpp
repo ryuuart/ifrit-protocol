@@ -5,50 +5,64 @@
  * round every turn of the boundary.
  */
 
-#include <sigildraw/Pen.h>
-#include <sigilgeometry/path/Contour.h>
-#include <sigilgeometry/advanced/Skia.h>
 #include <include/core/SkSurface.h>
 #include <include/core/SkVertices.h>
 #include <sigilcompose/brush/Ribbons.h>
+#include <sigilcompose/core/Composer.h>
+#include <sigilcompose/core/Measure.h>
+#include <sigildraw/Pen.h>
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilgeometry/path/Contour.h>
+#include <sigilmotion/clock/Engine.h>
 
 #include <cmath>
 #include <utility>
 #include <vector>
 
 #include "BakedArt.h"
-#include "StampCache.h"
+#include "cache/StampCache.h"
+#include "paint/BakeFormat.h"
 
 namespace sigil::compose::brush {
 
 void Art::paint(draw::Pen& pen, const PaintContext& ctx) const {
   SkCanvas& c = *pen.canvas();
   if (!ctx.fonts) return;
-  if (!cache->image || !bakedFromNode(cache->bakedFor, art.node())) {
+  const SkImageInfo actual = c.imageInfo();
+  const SkImageInfo info = detail::pixelBakeInfo(
+      actual.colorType() == kUnknown_SkColorType ? ctx.destination : actual,
+      {1, 1});
+  if (!cache->image || !bakedFromNode(cache->bakedFor, art.node()) ||
+      cache->image->imageInfo().colorInfo() != info.colorInfo()) {
     cache->bakedFor = art.node();
     cache->image = nullptr;
     // Consult the instance-side store before doing any raster work.
     if (ctx.stamps) {
       if (const StampCache::Entry* hit = ctx.stamps->get(art.node());
-          hit && hit->image) {
+          hit && hit->image &&
+          hit->image->imageInfo().colorInfo() == info.colorInfo()) {
         cache->image = hit->image;
         cache->artSize = hit->artSize;
       }
     }
   }
   if (!cache->image) {
-    // Shell box: snapshot() and intrinsicSize() size by the root's CHILDREN
-    // and ignore the root's own dimensions.
+    // The shell includes the art's declared dimensions in its intrinsic size.
     const SkSize sz = intrinsicSize(box().children({art}), *ctx.fonts);
     if (sz.isEmpty()) return;
-    sk_sp<SkPicture> pic = snapshot(box().children({art}), *ctx.fonts);
-    sk_sp<SkSurface> surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
-        std::max(1, (int)std::ceil(sz.width() * 2.0f)),
-        std::max(1, (int)std::ceil(sz.height() * 2.0f))));
-    if (!pic || !surface) return;
+    sk_sp<SkSurface> surface = SkSurfaces::Raster(
+        info.makeWH(std::max(1, (int)std::ceil(sz.width() * 2.0f)),
+                    std::max(1, (int)std::ceil(sz.height() * 2.0f))));
+    if (!surface) return;
     surface->getCanvas()->clear(SK_ColorTRANSPARENT);
     surface->getCanvas()->scale(2.0f, 2.0f);
-    surface->getCanvas()->drawPicture(pic);
+    motion::Engine engine;
+    Composer composer(engine, *ctx.fonts);
+    composer.setSize({sz.width(), sz.height()});
+    composer.setAutoTexturePromotion(false);
+    composer.render(
+        box().width(sz.width()).height(sz.height()).children({art}));
+    composer.draw(*surface->getCanvas());
     cache->image = surface->makeImageSnapshot();
     cache->artSize = sz;
     if (ctx.stamps && cache->image)

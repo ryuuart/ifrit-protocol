@@ -465,6 +465,25 @@ TEST(ComposeInstances, AFlightLaneCarriesTheEntranceThePoolCannot) {
   EXPECT_NE(pool.revision(), before);
 }
 
+TEST(ComposeInstances, ACellBakesTheSettledValueOfItsEntrance) {
+  // The sheet is baked once and nothing steps a clock for it, so a cell
+  // that fades in on mount must bake where the fade comes to rest; its
+  // `from` would be held in the sheet for good.
+  using namespace sigil::compose::instancing;
+  CellSheet atlas(1.0f);
+  atlas.cell(box()
+                 .fill(Fill::color({1, 1, 1, 1}))
+                 .opacity(motion::animate(
+                     {.from = 0.0f, .to = 1.0f, .duration = 400ms})),
+             {20, 20});
+  ASSERT_TRUE(atlas.ensureBaked(fonts()));
+  ASSERT_TRUE(atlas.image());
+  SkBitmap probe;
+  probe.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
+  ASSERT_TRUE(atlas.image()->readPixels(nullptr, probe.pixmap(), 10, 10));
+  EXPECT_EQ(probe.getColor(0, 0), SK_ColorWHITE);
+}
+
 TEST(ComposeInstances, ACellRegisteredAfterTheFirstDrawIsDrawn) {
   // The cached mode memoizes the leaf, and the pool is not the only thing
   // the picture was recorded from: registering a cell re-bakes the sheet,

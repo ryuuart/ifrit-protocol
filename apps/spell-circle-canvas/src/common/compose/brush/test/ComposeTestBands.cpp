@@ -3,7 +3,18 @@
 // along its own spine, and the comparable spine that lets the node
 // carrying one prune.
 
+#include <include/core/SkString.h>
+#include <include/effects/SkRuntimeEffect.h>
+#include <sigilcompose/brush/Relief.h>
+#include <sigilmaterial/core/Lighting.h>
+#include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/texture/Image.h>
+#include <sigilmedia/advanced/Skia.h>
+
+#include <chrono>
+#include <memory>
+
 #include "support/BrushTestSupport.h"
 
 namespace {
@@ -43,8 +54,7 @@ TEST(ComposeBand, ProfilesAreComparableAndReflexive) {
 TEST(ComposeBand, FormationsTakeTheDeclaredSide) {
   auto draw = [](geometry::path::Formation f) {
     Host host(200, 200);
-    Band b =
-        band(rectSpine(), 10).rect(20, 20, 100, 100);
+    Band b = band(rectSpine(), 10).rect(20, 20, 100, 100);
     b.bandAlignment(f);
     host.composer.render(stack().children({b.fill(red())}));
     host.frame();
@@ -68,14 +78,13 @@ TEST(ComposeBand, MultiContourSpinesDoNotBridge) {
   // a filled disc, which looks deliberate rather than broken.
   Host host(400, 400);
   host.composer.render(stack().children(
-      {band(
-           skiaShape([](SkSize s) {
-             SkPathBuilder b;
-             b.addCircle(s.width() * 0.5f, s.height() * 0.5f, 150);
-             b.addCircle(s.width() * 0.5f, s.height() * 0.5f, 60);
-             return b.detach();
-           }),
-           12)
+      {band(skiaShape([](SkSize s) {
+              SkPathBuilder b;
+              b.addCircle(s.width() * 0.5f, s.height() * 0.5f, 150);
+              b.addCircle(s.width() * 0.5f, s.height() * 0.5f, 60);
+              return b.detach();
+            }),
+            12)
            .inset(0)
            .fill(red())}));
   host.frame();
@@ -141,16 +150,16 @@ TEST(ComposeRibbon, ProfileRibbonPaintsItsBand) {
   r.width = geometry::path::Profile(
       geometry::path::profile::offset(16.0f));  // constant 16px wide
   r.fill = Fill::color({1, 0, 0, 1});
-  host.composer.render(
-      stack().children({box()
-                            .rect(40, 40, 100, 100)
-                            .shape(skiaShape([](SkSize s) {
-                              SkPathBuilder p;
-                              p.moveTo(0, s.height() * 0.5f);
-                              p.lineTo(s.width(), s.height() * 0.5f);
-                              return p.detach();
-                            }))
-                            .stroke(std::move(r))}));
+  host.composer.render(stack().children({box()
+                                             .rect(40, 40, 100, 100)
+                                             .shape(skiaShape([](SkSize s) {
+                                               SkPathBuilder p;
+                                               p.moveTo(0, s.height() * 0.5f);
+                                               p.lineTo(s.width(),
+                                                        s.height() * 0.5f);
+                                               return p.detach();
+                                             }))
+                                             .stroke(std::move(r))}));
   host.frame();
   EXPECT_EQ(host.pixel(90, 90), SK_ColorRED) << "on the spine";
   EXPECT_EQ(host.pixel(90, 84), SK_ColorRED) << "6px off it, inside 16 wide";
@@ -467,7 +476,8 @@ TEST(ComposeRibbon, ARecipeCanPaintTheBandAndALiveOneDeclaresItself) {
   const auto paintedPerFrame = [](bool live) {
     Host again;
     again.composer.render(straightRun(brush::presets::taper(
-        24, 24, material::skia::base(material::skia::sksl(heavyEffect(live))))));
+        24, 24,
+        material::skia::base(material::skia::sksl(heavyEffect(live))))));
     again.frame();
     again.frame();
     return again.composer.stats().nodesPainted;
@@ -475,6 +485,262 @@ TEST(ComposeRibbon, ARecipeCanPaintTheBandAndALiveOneDeclaresItself) {
   EXPECT_GT(paintedPerFrame(true), 0u)
       << "a live band material must declare isRunning()";
   EXPECT_EQ(paintedPerFrame(false), 0u) << "…and a static one must cache";
+}
+
+namespace {
+
+int ribbonBrightness(SkColor color) {
+  return SkColorGetR(color) + SkColorGetG(color) + SkColorGetB(color);
+}
+
+struct CountedRibbonPicture {
+  std::shared_ptr<int> reads;
+  sk_sp<SkImage> image;
+  sigil::media::Frame frameAt(std::chrono::duration<double>) const {
+    ++*reads;
+    return {.image = image};
+  }
+  bool isRunning() const { return false; }
+  SkISize size() const { return image->dimensions(); }
+  bool operator==(const CountedRibbonPicture&) const = default;
+};
+
+}  // namespace
+
+TEST(ComposeRibbon, InheritedLightMovesTheSurfaceWithoutReadingItsBaseAgain) {
+  auto reads = std::make_shared<int>(0);
+  SkBitmap pixels;
+  pixels.allocN32Pixels(200, 200, true);
+  pixels.eraseColor(SkColorSetRGB(150, 150, 150));
+  pixels.setImmutable();
+  const material::Material finish =
+      material::image(sigil::media::PixelSource(
+                          CountedRibbonPicture{reads, pixels.asImage()}))
+          .surface(
+              {.roughness = .75f,
+               .normal = material::from(material::Color{.9f, .5f, .8f, 1})});
+  motion::Animatable<float> direction = motion::animatable(0.0f);
+  Host host;
+  host.composer.render(
+      stack()
+          .lighting(material::studio(
+              {.direction = direction, .elevation = 30, .ambient = .05f}))
+          .children({straightRun(brush::ribbon(24, finish))}));
+  host.frame();
+  const int first = ribbonBrightness(host.pixel(100, 100));
+  const int readsOnce = *reads;
+  ASSERT_GT(readsOnce, 0);
+  direction = 180.0f;
+  host.frame();
+  EXPECT_GT(first, ribbonBrightness(host.pixel(100, 100)) + 60);
+  EXPECT_GT(host.composer.stats().nodesPainted, 0u);
+  direction = 90.0f;
+  host.frame();
+  EXPECT_EQ(*reads, readsOnce);
+}
+
+TEST(ComposeRibbon, PlainMaterialsAndUnlitSurfacesPreserveTheFillBaseline) {
+  const material::Color color{.8f, .25f, .1f, 1};
+  const material::Material plain = material::from(color);
+  const material::Material unlit =
+      material::from(color).surface({.unlit = true});
+  motion::Animatable<float> direction = motion::animatable(0.0f);
+  const material::Lighting lighting =
+      material::studio({.direction = direction, .elevation = 20});
+  Host fillHost, plainHost, unlitHost;
+  const auto scene = [&](brush::Ribbon mark) {
+    return stack().lighting(lighting).children({straightRun(std::move(mark))});
+  };
+  fillHost.composer.render(scene(brush::ribbon(24, Fill::color(color))));
+  plainHost.composer.render(scene(brush::ribbon(24, plain)));
+  unlitHost.composer.render(scene(brush::ribbon(24, unlit)));
+  for (float angle : {0.0f, 180.0f}) {
+    direction = angle;
+    fillHost.frame();
+    plainHost.frame();
+    unlitHost.frame();
+    EXPECT_TRUE(identicalPixels(fillHost, plainHost, 200, 200));
+    EXPECT_TRUE(identicalPixels(fillHost, unlitHost, 200, 200));
+  }
+  EXPECT_FALSE(brush::ribbon(24, plain).readsLighting());
+  EXPECT_FALSE(brush::ribbon(24, unlit).readsLighting());
+}
+
+TEST(ComposeRibbon, AnEmptyFillLeavesTheDestinationUnpainted) {
+  Host painted, empty;
+  painted.composer.render(straightRun(brush::ribbon(24, Fill::none())));
+  painted.frame(0, SK_ColorWHITE);
+  empty.frame(0, SK_ColorWHITE);
+  EXPECT_TRUE(identicalPixels(painted, empty, 200, 200));
+}
+
+TEST(ComposeRibbon, ALiveFillRefreshesItsHeldRecordingWithoutRedescribe) {
+  auto [program, error] = SkRuntimeEffect::MakeForShader(SkString(R"(
+uniform float uTime;
+half4 main(float2 p) {
+  return uTime < 0.5 ? half4(1, 0, 0, 1) : half4(0, 0, 1, 1);
+})"));
+  ASSERT_NE(program, nullptr) << error.c_str();
+  const Fill fill = Fill::fromMaterial(
+      material::skia::base(material::skia::sksl(std::move(program))));
+  ASSERT_TRUE(fill.needsFrame());
+  const brush::Ribbon mark = brush::ribbon(24, fill);
+  EXPECT_TRUE(mark.isRunning());
+  Host host;
+  host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Off);
+  host.composer.render(straightRun(mark).cache(Cache::Picture));
+  host.frame();
+  ASSERT_EQ(host.pixel(100, 100), SK_ColorRED);
+  host.frame(1.0);
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorBLUE);
+}
+
+namespace {
+
+enum class RootRibbonInput { SurfaceNormal, EffectSigma };
+
+struct RootRibbonCase {
+  const char* name;
+  RootRibbonInput input;
+};
+
+class HeldRootRibbon : public testing::TestWithParam<RootRibbonCase> {};
+
+}  // namespace
+
+TEST_P(HeldRootRibbon, ReanchorsSurfaceAndEffectInputsWhenItsAncestorMoves) {
+  const bool normal = GetParam().input == RootRibbonInput::SurfaceNormal;
+  material::Paint field = material::Paint::linearGradient(
+      {0, 0}, {400, 0},
+      {{0, normal ? material::Color{.1f, .5f, .8f, 1}
+                  : material::Color{0, 0, 0, 1}},
+       {1, normal ? material::Color{.9f, .5f, .8f, 1}
+                  : material::Color{1, 1, 1, 1}}},
+      {.units = material::GradientUnits::Pixels});
+  field.worldSpace();
+  const material::Material input = material::skia::base(std::move(field));
+  material::Material finish = material::from(material::Color{.7f, .7f, .7f, 1});
+  if (normal)
+    finish.surface({.roughness = .7f, .normal = input});
+  else
+    finish.effects(material::Filter::blur(input, 20));
+  const brush::Ribbon mark = brush::ribbon(24, finish);
+  ASSERT_TRUE(mark.usesWorldSpace());
+  EXPECT_TRUE(Decoration(mark).usesWorldSpace());
+  EXPECT_TRUE(relief(finish, {.shoulder = 0, .depth = 0}).usesWorldSpace());
+  auto shift = motion::animatable(0.0f);
+  const auto scene = [&](Cache cache) {
+    return box()
+        .cache(Cache::None)
+        .lighting(material::studio(
+            {.direction = 0, .elevation = 25, .ambient = .05f}))
+        .children({box()
+                       .absolute()
+                       .rect(20, 0, 200, 200)
+                       .translateX(shift)
+                       .cache(Cache::None)
+                       .children({straightRun(mark).cache(cache)})});
+  };
+  Host retained(400, 200), ordinary(400, 200);
+  retained.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Off);
+  ordinary.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Off);
+  retained.composer.render(scene(Cache::Picture));
+  ordinary.composer.render(scene(Cache::None));
+  for (int frame = 0; frame < 16; ++frame) {
+    retained.frame(1.0 / 60.0);
+    ordinary.frame(1.0 / 60.0);
+  }
+  ASSERT_TRUE(identicalPixels(retained, ordinary, 400, 200));
+  const SkBitmap before = ordinary.pixels();
+  shift = 80.0f;
+  retained.frame(1.0 / 60.0);
+  ordinary.frame(1.0 / 60.0);
+  EXPECT_TRUE(identicalPixels(retained, ordinary, 400, 200));
+  int changed = 0;
+  for (int y = 70; y < 130; ++y)
+    for (int x = 40; x < 180; ++x)
+      changed += before.getColor(20 + x, y) != ordinary.pixel(100 + x, y);
+  EXPECT_GT(changed, 100);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ComposeRibbon, HeldRootRibbon,
+    testing::Values(
+        RootRibbonCase{"SurfaceNormal", RootRibbonInput::SurfaceNormal},
+        RootRibbonCase{"EffectSigma", RootRibbonInput::EffectSigma}),
+    [](const testing::TestParamInfo<RootRibbonCase>& info) {
+      return info.param.name;
+    });
+
+TEST(ComposeRibbon, MaterialShadowUsesTheSweptBandAndExtendsItsBleed) {
+  const auto finish =
+      material::from(material::Color{1, 0, 0, 1})
+          .effects(material::Filter::shadow(material::Color{1, 1, 1, 1},
+                                            {.blur = 0, .offset = {0, 35}}));
+  const brush::Ribbon mark = brush::ribbon(24, finish);
+  EXPECT_GE(mark.bleed({160, 1}), mark.bleed() + 35);
+  EXPECT_GE(Decoration(mark).bleed({160, 1}), mark.bleed() + 35);
+  Host host;
+  host.composer.render(box().children({box()
+                                           .absolute()
+                                           .rect(20, 80, 160, 1)
+                                           .cache(Cache::Picture)
+                                           .shape(skiaShape([] {
+                                             SkPathBuilder path;
+                                             path.moveTo(0, 0).lineTo(160, 0);
+                                             return path.detach();
+                                           }))
+                                           .stroke(mark)}));
+  host.frame();
+  EXPECT_EQ(host.pixel(100, 80), SK_ColorRED);
+  EXPECT_EQ(host.pixel(100, 105), SK_ColorWHITE);
+  EXPECT_EQ(host.pixel(100, 125), SK_ColorWHITE);
+  EXPECT_EQ(host.pixel(100, 130), SK_ColorBLACK);
+}
+
+TEST(ComposeRibbon, MaterialConstructorAndLayersKeepRootSpaceAndLighting) {
+  material::Paint ramp = material::Paint::linearGradient(
+      {0, 0}, {240, 0}, {{0, {1, 0, 0, 1}}, {1, {0, 0, 1, 1}}},
+      {.units = material::GradientUnits::Pixels});
+  ramp.worldSpace();
+  const material::Material finish =
+      material::skia::base(std::move(ramp)).surface({.roughness = .7f});
+  const brush::Ribbon mark = brush::ribbon(geometry::path::Profile(24), finish);
+  ASSERT_TRUE(mark.fillMaterial);
+  EXPECT_TRUE(*mark.fillMaterial == finish);
+  EXPECT_TRUE(mark.readsLighting());
+  EXPECT_TRUE(mark.usesWorldSpace());
+  const auto layers =
+      brush::layers({brush::ribbon(30, Fill::color({.1f, .1f, .1f, 1})), mark});
+  EXPECT_TRUE(layers.readsLighting());
+  EXPECT_TRUE(layers.usesWorldSpace());
+  motion::Animatable<float> shift = motion::animatable(0.0f);
+  Host host(240, 100);
+  host.composer.render(
+      box()
+          .cache(Cache::None)
+          .children({box()
+                         .absolute()
+                         .rect(20, 20, 160, 60)
+                         .translateX(shift)
+                         .cache(Cache::None)
+                         .children({box()
+                                        .absolute()
+                                        .rect(0, 0, 160, 60)
+                                        .cache(Cache::Picture)
+                                        .shape(skiaShape([] {
+                                          SkPathBuilder path;
+                                          path.moveTo(0, 30).lineTo(160, 30);
+                                          return path.detach();
+                                        }))
+                                        .stroke(layers)})}));
+  host.frame();
+  const SkColor before = host.pixel(80, 50);
+  shift = 40.0f;
+  host.frame();
+  const SkColor after = host.pixel(120, 50);
+  EXPECT_GT(SkColorGetR(before), SkColorGetR(after) + 30);
+  EXPECT_GT(SkColorGetB(after), SkColorGetB(before) + 30);
 }
 
 // ---- The ribbon's corners, and the audit that finds them ------------------

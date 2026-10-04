@@ -15,8 +15,8 @@
 #include <memory>
 #include <utility>
 
-#include "ComposeRuntime.h"
 #include "TextEngine.h"
+#include "runtime/ComposeRuntime.h"
 
 namespace sigil::compose {
 
@@ -34,8 +34,7 @@ sigil::weave::ReservedBand detail::reservedBandOf(
     // is broken — which is what makes a reservation a layout input and not
     // a cycle.
     const float depth = sigil::weave::bandBeside(
-        impl.fonts,
-        sigil::weave::overlay(base, annotation.style, impl.remPx),
+        impl.fonts, sigil::weave::overlay(base, annotation.style, impl.remPx),
         annotation.gap);
     if (annotation.side == Annotation::Side::Before)
       band.before = std::max(band.before, depth);

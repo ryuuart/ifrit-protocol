@@ -1,0 +1,230 @@
+/** @file
+ * What a node's rect READS as, once layout has run: the box Yoga or a
+ * positioned description gives it, the padding that insets that box to the
+ * content box inside it, and the same box in canvas coordinates.
+ */
+
+#include <algorithm>
+#include <boost/unordered/unordered_flat_set.hpp>
+#include <cmath>
+#include <string>
+
+#include "runtime/ComposeRuntime.h"
+
+namespace sigil::compose {
+
+using namespace detail;
+
+// ---------------------------------------------------------------------------
+// Resolved-rect reads
+
+SkRect Composer::Impl::instanceRect(const Instance& inst) const {
+  if (inst.description->kind == Kind::Light) return SkRect::MakeEmpty();
+  if (inst.yoga)
+    return SkRect::MakeXYWH(
+        YGNodeLayoutGetLeft(inst.yoga), YGNodeLayoutGetTop(inst.yoga),
+        YGNodeLayoutGetWidth(inst.yoga), YGNodeLayoutGetHeight(inst.yoga));
+  return positionedRect(inst);
+}
+
+detail::Insets Composer::Impl::paddingOf(const Instance& inst) const {
+  if (inst.yoga)
+    return {YGNodeLayoutGetPadding(inst.yoga, YGEdgeLeft),
+            YGNodeLayoutGetPadding(inst.yoga, YGEdgeTop),
+            YGNodeLayoutGetPadding(inst.yoga, YGEdgeRight),
+            YGNodeLayoutGetPadding(inst.yoga, YGEdgeBottom)};
+  const EdgeDims& pad = inst.computed.layout.padding;
+  // A PERCENT PADDING MEASURES ACROSS on all four edges, the top and the
+  // bottom included — the rule that keeps a percentage-padded box's own
+  // aspect from depending on its height, and the rule the flex world
+  // resolves these by, so a positioned subtree answers the same.
+  const float parentW = inst.parent ? instanceRect(*inst.parent).width() : 0.0f;
+  const auto edge = [&](const Dimension& raw) {
+    Dimension d = raw;
+    if (d.unit == Dimension::Unit::Var) {
+      const VarValue* value =
+          inst.vars ? inst.vars->find(d.reference()) : nullptr;
+      const Dimension* length = value ? std::get_if<Dimension>(value) : nullptr;
+      if (!length || length->unit == Dimension::Unit::Var) return 0.0f;
+      d = *length;
+    }
+    if (d.unit == Dimension::Unit::Auto) return 0.0f;
+    bool relative = false;
+    const float px = resolveLength(inst, d, relative, parentW);
+    if (!std::isfinite(px)) return 0.0f;
+    return d.unit == Dimension::Unit::Pct ? parentW * px * 0.01f : px;
+  };
+  return {edge(pad.left), edge(pad.top), edge(pad.right), edge(pad.bottom)};
+}
+
+namespace {
+
+/** A child keyed for a slot the text content DOES NOT DECLARE. Loud once,
+ *  because the symptom — a pill that simply is not there — points at the
+ *  child rather than at the misspelling in the caption that was supposed to
+ *  reserve room for it.
+ *
+ *  A key the content does declare but the geometry could not place is a
+ *  different answer and stays silent: it is the same "did not fit" a line
+ *  clamp, an ellipsis or an exclusion gives every other word. */
+void warnUnknownTextSlot(const Instance& text, const std::string& key) {
+  for (const std::string& declared : text.textSlotKeys)
+    if (declared == key)
+      return;  // declared; the layout just could not place it
+  static thread_local boost::unordered_flat_set<std::string> warned;
+  if (!warned.insert(key).second) return;
+  std::string have;
+  for (const std::string& declared : text.textSlotKeys)
+    have += (have.empty() ? "" : ", ") + declared;
+  SkDebugf(
+      "[compose] a child keyed \"%s\" sits on text that reserves no slot by "
+      "that name, so it lays out at zero and draws nothing. Slots this "
+      "text DOES reserve: [%s]. Room for one is reserved in the CONTENT, "
+      "with rich(...).slot(name, size).\n",
+      key.c_str(), have.empty() ? "none" : have.c_str());
+}
+
+}  // namespace
+
+/** A positioned child's rect from its resolved lengths and margins.
+ *  Opposing insets stretch an open extent; a far inset places a stated
+ *  extent when the near inset is auto. Text measures against the resolved
+ *  width, or its parent's width where its own is open. */
+SkRect Composer::Impl::positionedRect(const Instance& inst) const {
+  // A MARK child: the rect its selector resolved is its PARENT BOX, not its
+  // box. Everything the child says about its own placement is then read
+  // against that rect exactly as a positioned child reads it against its
+  // parent's — px or pct, in the rect's space, and free to land outside it
+  // — and a child that says nothing at all simply IS the rect. That is the
+  // whole difference from a slot below, whose box the CONTENT reserved and
+  // whose child cannot argue with it. Looked up first for the same reason:
+  // a text node may carry both, and a mark is not an unknown slot.
+  const SkRect* anchor = nullptr;
+  if (inst.parent && inst.parent->description->kind == Kind::Text &&
+      inst.parent->description->textData && !inst.description->key.empty() &&
+      std::ranges::any_of(inst.parent->description->textData->marks,
+                          [&](const detail::MarkAnchor& mark) {
+                            return mark.key == inst.description->key;
+                          })) {
+    for (const auto& [key, rect] : inst.parent->textMarkRects)
+      if (key == inst.description->key) {
+        anchor = &rect;
+        break;
+      }
+    // A mark whose selector resolved NOTHING has no rect, and the honest
+    // answer is an empty box rather than the child's own dims at the text
+    // node's origin — which would be a mark drawn confidently in the wrong
+    // place. resolveTextMarks() already said so once.
+    if (!anchor) return SkRect::MakeEmpty();
+  }
+  // A TEXT SLOT child: its box is the placeholder rect the paragraph
+  // reserved for its key, and nothing in the child's own description
+  // decides it. Read here rather than written back into the tree because a
+  // slot child has no Yoga node to write to — the paragraph IS its layout,
+  // so a reflow that moves the placeholder moves the child with no second
+  // pass and no convergence round.
+  if (!anchor && inst.parent && inst.parent->description->kind == Kind::Text &&
+      !inst.parent->textSlotKeys.empty() && !inst.description->key.empty()) {
+    for (const auto& [key, rect] : inst.parent->textSlotRects)
+      if (key == inst.description->key) return rect;
+    warnUnknownTextSlot(*inst.parent, inst.description->key);
+    return SkRect::MakeEmpty();
+  }
+  const LayoutProps& l = inst.computed.layout;
+  if (l.display == Display::None) return SkRect::MakeEmpty();
+  float parentW = 0, parentH = 0;
+  if (anchor) {
+    parentW = anchor->width();
+    parentH = anchor->height();
+  } else if (inst.parent) {
+    const SkRect parentRect = instanceRect(*inst.parent);
+    parentW = parentRect.width();
+    parentH = parentRect.height();
+  }
+  const auto resolve = [&](Dimension length,
+                           float parentExtent) -> std::optional<float> {
+    if (length.unit == Dimension::Unit::Var) {
+      const VarValue* value =
+          inst.vars ? inst.vars->find(length.reference()) : nullptr;
+      const Dimension* found = value ? std::get_if<Dimension>(value) : nullptr;
+      if (!found || found->unit == Dimension::Unit::Var) return std::nullopt;
+      length = *found;
+    }
+    // A sum's percentage term measures the same extent a percent does, so
+    // `top(pct(100) + 12)` on a mark is the rect's bottom and twelve more.
+    bool relative = false;
+    const float value = resolveLength(inst, length, relative, parentExtent);
+    if (!std::isfinite(value)) return std::nullopt;
+    return length.unit == Dimension::Unit::Pct ? parentExtent * value * 0.01f
+                                               : value;
+  };
+  const auto left =
+      l.hasInsets ? resolve(l.insets.left, parentW) : std::nullopt;
+  const auto top = l.hasInsets ? resolve(l.insets.top, parentH) : std::nullopt;
+  const auto right =
+      l.hasInsets ? resolve(l.insets.right, parentW) : std::nullopt;
+  const auto bottom =
+      l.hasInsets ? resolve(l.insets.bottom, parentH) : std::nullopt;
+  // Percent margins measure across the containing box on every edge.
+  const float marginLeft = resolve(l.margin.left, parentW).value_or(0.0f);
+  const float marginTop = resolve(l.margin.top, parentW).value_or(0.0f);
+  const float marginRight = resolve(l.margin.right, parentW).value_or(0.0f);
+  const float marginBottom = resolve(l.margin.bottom, parentW).value_or(0.0f);
+  std::optional<float> width = resolve(l.width, parentW);
+  std::optional<float> height = resolve(l.height, parentH);
+  // Under content-box sizing a stated extent is the content's and the
+  // padding stands outside it, as the flex world sizes the same node.
+  if (l.boxSizing == BoxSizing::ContentBox && (width || height)) {
+    const detail::Insets pad = paddingOf(inst);
+    if (width) *width += pad.across();
+    if (height) *height += pad.down();
+  }
+  if (!width && right)
+    width = std::max(
+        parentW - left.value_or(0.0f) - *right - marginLeft - marginRight,
+        0.0f);
+  if (!height && bottom)
+    height = std::max(
+        parentH - top.value_or(0.0f) - *bottom - marginTop - marginBottom,
+        0.0f);
+  // Text with an open extent: measure now, against the width we have.
+  // The measure caches are logically mutable (measuredForWidth guards),
+  // hence the casts. What comes back is the PARAGRAPH's extent, so a leaf
+  // that sizes to its own words is its words plus its padding — the same
+  // box the flex world gives it.
+  if (inst.description->kind == Kind::Text && inst.paragraph &&
+      (!width || !height)) {
+    const detail::Insets pad = paddingOf(inst);
+    const_cast<Composer::Impl*>(this)->layoutTextInBox(
+        const_cast<Instance&>(inst), width ? *width : parentW,
+        height ? *height : kUnbounded);
+    if (!width) width = inst.measuredSize.width + pad.across();
+    if (!height) height = inst.measuredSize.height + pad.down();
+  }
+  if (anchor) {
+    // An unstated extent on a mark is the ANCHOR's, which is what makes a
+    // mark with no dims at all the unit's own rect. Text keeps the extent
+    // it just measured for itself above.
+    if (!width) width = parentW;
+    if (!height) height = parentH;
+  }
+  float x = left.value_or(0.0f) + marginLeft;
+  float y = top.value_or(0.0f) + marginTop;
+  if (!left && right) x = parentW - *right - width.value_or(0.0f) - marginRight;
+  if (!top && bottom)
+    y = parentH - *bottom - height.value_or(0.0f) - marginBottom;
+  return SkRect::MakeXYWH((anchor ? anchor->left() : 0.0f) + x,
+                          (anchor ? anchor->top() : 0.0f) + y,
+                          width.value_or(0.0f), height.value_or(0.0f));
+}
+
+SkRect Composer::Impl::absoluteRect(const Instance& inst) const {
+  SkRect rect = instanceRect(inst);
+  for (Instance* p = inst.parent; p; p = p->parent) {
+    const SkRect parentRect = instanceRect(*p);
+    rect.offset(parentRect.left(), parentRect.top());
+  }
+  return rect;
+}
+
+}  // namespace sigil::compose

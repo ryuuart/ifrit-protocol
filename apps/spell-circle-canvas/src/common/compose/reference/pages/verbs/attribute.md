@@ -42,8 +42,8 @@ another type, is matched only within the image that wrote it.
 parent reads the facts of the children it places — `layouts::Radial`
 told a `lane` stands each child at the fraction its fact makes of the
 ring. An adding operator reads the facts of every node in its scope —
-`connect::ByLane` wires each node to the keys it states. A scheme of the
-older shape reads them through `LayoutInput::childAttributes`.
+`connect::ByLane` wires each node to the keys it states. Arrangers read facts on each `Arrangement::Child` with `attribute` or
+`number`.
 
 **A later fact under the same name replaces the earlier one.** `key` and
 `styleClass` stay what they are: facts the kernel already knows.

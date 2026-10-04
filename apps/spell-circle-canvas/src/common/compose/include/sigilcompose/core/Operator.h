@@ -13,13 +13,9 @@
  * run in list order. Arrangers read the preceding placements; adders
  * read the authored nodes only.
  *
- * A placement scheme — `place(const LayoutInput&)`
- * returning one rectangle per child — is an operator too: constructing
- * one from it adapts the call, so every `layouts::` value is applied by
- * the same verb.
+ * Stock `layouts::` values use the same arranging call.
  */
 
-#include <glm/vec2.hpp>
 #include <sigilcompose/core/Attributes.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcore/comparable/Erased.h>
@@ -27,6 +23,7 @@
 
 #include <concepts>
 #include <cstddef>
+#include <glm/vec2.hpp>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -40,65 +37,6 @@
 namespace sigil::compose {
 
 class Element;
-
-/** WHAT AN ARRANGING OPERATOR IS HANDED: the node's box, and one record
- *  per direct child that has a box — measured, with its facts, and where
- *  it stands so far. An operator writes where each child goes onto the
- *  record; the composer reads the records back once the list has run. */
-struct Arrangement {
-  /** ONE DIRECT CHILD as an operator sees it. `rect` is where the child
-   *  stands when the operator is called — where the operator before it
-   *  in the list left it, or where the flex layout put it for the first
-   *  — so an operator that nudges reads it and an operator that places
-   *  overwrites it. `turnDegrees` is a paint-only turn about the
-   *  child's own transform origin, laid over the rotation the child
-   *  states for itself; it moves no layout. */
-  struct Child {
-    glm::vec2 size{0, 0};
-    /// First-baseline offset from the child's top; NaN for a child with none.
-    float baseline = std::numeric_limits<float>::quiet_NaN();
-    /// The smallest the child can be without spilling its content, filled
-    /// only for an operator that declares `readsChildMinSizes`.
-    glm::vec2 minSize{0, 0};
-    /// What the child states of its size, filled only for an operator
-    /// that declares `resolvesChildPercentages`.
-    StatedSize statedSize;
-    CellSpan cells;
-    std::string area;
-    Attributes attributes;
-    geometry::path::Rect rect;
-    float turnDegrees = 0.0f;
-
-    /** The fact under @p name, as the child stated it. */
-    template <typename T>
-    std::optional<T> attribute(std::string_view name) const {
-      return attributes.get<T>(name);
-    }
-    /** The fact under @p name as a number, whichever numeric type it was
-     *  written in — an operator placing by a lane reads it here, so an
-     *  author who wrote `3` and one who wrote `3.0f` are placed alike. */
-    std::optional<float> number(std::string_view name) const;
-    /** Puts the child at @p where, size included. */
-    void place(const geometry::path::Rect& where) { rect = where; }
-    /** Centres the child's measured size on @p centre. */
-    void centreAt(glm::vec2 centre) {
-      rect = geometry::path::Rect::centredOn(centre, size);
-    }
-    /** Turns the child @p degrees clockwise about its transform origin. */
-    void turn(float degrees) { turnDegrees = degrees; }
-  };
-
-  /// The node's own box, at the origin: what the children are placed in.
-  geometry::path::Rect box;
-  std::vector<Child> children;
-  /// Whether each child's `minSize` was measured — true only when an
-  /// operator in the list asked, since the measure costs one text layout
-  /// per text child.
-  bool minSizesMeasured = false;
-  /// Whether an operator in the list resolves the children's percentages
-  /// against boxes of its own, so each child's `statedSize` was read.
-  bool percentagesResolved = false;
-};
 
 /** WHAT AN ADDING OPERATOR IS HANDED: the node's box and every node under
  *  it, settled — and the two places it may attach what it builds.
@@ -202,13 +140,13 @@ class Scope {
 /** WHAT ARRANGES: a value with `void arrange(Arrangement&) const`. */
 template <typename O>
 concept Arranging = requires(const O& o, Arrangement& a) {
-  { o.arrange(a) };
+  { o.arrange(a) } -> std::same_as<void>;
 };
 
 /** WHAT ADDS: a value with `void add(Scope&) const`. */
 template <typename O>
 concept Adding = requires(const O& o, Scope& s) {
-  { o.add(s) };
+  { o.add(s) } -> std::same_as<void>;
 };
 
 /** AN ARRANGING OPERATOR: what arranges, as a comparable value. Equality
@@ -235,7 +173,7 @@ concept ReadsChildMinSizes = requires {
  *  which the child's percentages resolve — a grid's cell, as CSS resolves
  *  a grid item's against its grid area: it says so with
  *  `static constexpr bool resolvesChildPercentages = true;`, reads
- *  `LayoutInput::childStatedSizes`, and answers the percentages in the
+ *  each child's `statedSize`, and answers the percentages in the
  *  rects it places. */
 template <typename T>
 concept ResolvesChildPercentages = requires {
@@ -288,34 +226,10 @@ struct AddingModel : OperatorOperations {
   void add(Scope& scope) const override { held.add(scope); }
 };
 
-/** The table a placement scheme reads, built from the arrangement's
- *  records, and the rectangles it answers written back onto them. */
-LayoutInput layoutInputOf(const Arrangement& arrangement);
-void placeFromRects(Arrangement& arrangement,
-                    const std::vector<geometry::path::Rect>& rects);
-
-/** A placement scheme — `place(const LayoutInput&)` returning one rect per
- *  child — as the same operations, adapted. */
-template <LayoutScheme L>
-struct SchemeModel : OperatorOperations {
-  L held;
-  explicit SchemeModel(L value) : held(std::move(value)) {}
-  bool operator==(const SchemeModel& other) const
-    requires std::equality_comparable<L>
-  {
-    return held == other.held;
-  }
-  bool arranges() const override { return true; }
-  void arrange(Arrangement& arrangement) const override {
-    placeFromRects(arrangement, held.place(layoutInputOf(arrangement)));
-  }
-};
-
 }  // namespace detail
 
 /** THE OPERATOR AS A NODE HOLDS IT, type-erased: what `Element::operators`
- *  takes. Three constructions, one value: an arranging operator, an
- *  adding operator, or a placement scheme adapted to the arranging call.
+ *  takes: an arranging operator or an adding operator.
  *  A comparable value prunes the node while the value and what it read
  *  are unchanged; a value with no equality never compares equal to a
  *  separately-built one, so its node re-runs the operator on every
@@ -335,10 +249,10 @@ class Operator {
   Operator() = default;
 
   template <Arranging O>
-    requires(!LayoutScheme<std::remove_cvref_t<O>> &&
-             !Adding<std::remove_cvref_t<O>> &&
+    requires(!Adding<std::remove_cvref_t<O>> &&
              !std::same_as<std::remove_cvref_t<O>, Operator>)
-  Operator(O operatorValue)  // NOLINT: implicit by design (operators({Ring{…}}))
+  Operator(
+      O operatorValue)  // NOLINT: implicit by design (operators({Ring{…}}))
       : m_held(detail::ArrangingModel<std::remove_cvref_t<O>>(
             std::move(operatorValue))),
         m_readsChildMinSizes(ReadsChildMinSizes<std::remove_cvref_t<O>>),
@@ -347,19 +261,11 @@ class Operator {
 
   template <Adding O>
     requires(!Arranging<std::remove_cvref_t<O>> &&
-             !LayoutScheme<std::remove_cvref_t<O>> &&
              !std::same_as<std::remove_cvref_t<O>, Operator>)
-  Operator(O operatorValue)  // NOLINT: implicit by design (operators({connect::ByLane{…}}))
+  Operator(O operatorValue)  // NOLINT: implicit by design
+                             // (operators({connect::ByLane{…}}))
       : m_held(detail::AddingModel<std::remove_cvref_t<O>>(
             std::move(operatorValue))) {}
-
-  template <LayoutScheme L>
-    requires(!std::same_as<std::remove_cvref_t<L>, Operator>)
-  Operator(L scheme)  // NOLINT: implicit by design (operators({layouts::Grid{…}}))
-      : m_held(detail::SchemeModel<std::remove_cvref_t<L>>(std::move(scheme))),
-        m_readsChildMinSizes(ReadsChildMinSizes<std::remove_cvref_t<L>>),
-        m_resolvesChildPercentages(
-            ResolvesChildPercentages<std::remove_cvref_t<L>>) {}
 
   explicit operator bool() const { return (bool)m_held; }
   /** Whether this operator places children (else it adds elements). */

@@ -1,8 +1,7 @@
 #pragma once
-// Support for compose_core_test: the kernel — elements, the reconciler,
-// layout, paint, transitions, text, the feed and the instanced leaf — and
-// the field walks. Only kernel headers: the binary links SigilComposeCore
-// alone, which is what proves the kernel stands without its catalogs.
+// Shared fixtures for element, layout, paint and retained-runtime cases.
+// These headers include the stock values the cases use. The library's
+// aggregate test binary does not prove an individual feature's link closure.
 
 #include <include/core/SkColorFilter.h>
 #include <include/core/SkPathBuilder.h>
@@ -16,10 +15,11 @@
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/kit/Feed.h>
 #include <sigilcompose/testing/Checks.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
-#include <sigilmedia/core/Image.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmedia/core/Image.h>
 #include <sigilweave/choreograph/Choreograph.h>
 
 #include <algorithm>
@@ -33,8 +33,6 @@
 #include "Profile.h"
 #include "Strokes.h"
 
-#include <sigilgeometry/advanced/Skia.h>
-
 namespace sigil::compose {
 
 /** Placed rectangles read back as Skia rects, which a test compares with
@@ -46,15 +44,5 @@ struct SkiaRects : std::vector<SkRect> {
       push_back(geometry::path::toSk(rect));
   }
 };
-
-/** Skia rects as the layout's own rectangles, for a scheme a test writes
- *  in Skia's terms. */
-inline std::vector<geometry::path::Rect> rectanglesOf(
-    const std::vector<SkRect>& rects) {
-  std::vector<geometry::path::Rect> out;
-  out.reserve(rects.size());
-  for (const SkRect& rect : rects) out.push_back(geometry::path::fromSk(rect));
-  return out;
-}
 
 }  // namespace sigil::compose

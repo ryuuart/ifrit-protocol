@@ -16,7 +16,10 @@ declares and every verb that paints a surface takes — and the references
 are the part of it only a cascade can mean.
 
 A `material::Material` converts to a `Fill` implicitly, so a caller
-writes a gradient, layers, an image or a program as it holds it. A fill that moves is `motion::Animatable<Fill>`.
+writes a gradient, layers, an image or a program as it holds it. This carries
+the material's base paint and layers, including authored shaders. Pass the
+Material directly to `fill` or `ink` to retain its surface response and effects.
+A fill that moves is `motion::Animatable<Fill>`.
 
 ## Anatomy
 

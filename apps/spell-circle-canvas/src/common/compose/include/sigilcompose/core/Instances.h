@@ -16,11 +16,11 @@
  *    stamps at scales up to `oversample` never magnify baked pixels. Hold
  *    it wherever you hold assets; it outlives any one describe.
  *  - The POOL is yours: plain parallel arrays (position / rotation / uniform
- *    scale / tint / frame). Mutate it directly, from an engine timer, or by copying
- *    out of an ECS — no registry type crosses this seam. It can also carry
- *    one FLIGHT per instance — from, to, start, duration — and step them
- *    all with `Pool::fly`, which is the entrance a field of thousands
- *    otherwise keeps as a shadow array of little timelines.
+ *    scale / tint / frame). Mutate it directly, from an engine timer, or by
+ *    copying out of an ECS — no registry type crosses this seam. It can
+ *    also carry one FLIGHT per instance — from, to, start, duration — and
+ *    step them all with `Pool::fly`, which is the entrance a field of
+ *    thousands otherwise keeps as a shadow array of little timelines.
  *  - Stamping is one `skia::draw::drawSpriteAtlas` call with RSXform semantics:
  *    rotation, uniform scale and translation, plus two opt-in lanes —
  *    `sizes()` for per-instance NON-UNIFORM scale and `texWindows()` for a
@@ -45,6 +45,7 @@
  */
 
 #include <include/core/SkImage.h>
+#include <include/core/SkImageInfo.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Layout.h>
@@ -310,9 +311,12 @@ class CellSheet {
     return valid(frame) && m_sheet ? m_tex[(size_t)frame] : SkRect::MakeEmpty();
   }
 
-  /** Bakes the sheet if needed. Shelf-packs cells left-to-right, wrapping
-   *  at kMaxSheetWidth. Returns false when there is nothing to bake. */
-  bool ensureBaked(sigil::weave::FontContext& fonts);
+  /** Bakes the sheet for the destination's precision and color space, keeping
+   *  one format at a time. Shelf-packs cells left-to-right, wrapping at
+   *  kMaxSheetWidth. Returns false when there is nothing to bake. */
+  bool ensureBaked(
+      sigil::weave::FontContext& fonts,
+      const SkImageInfo& destination = SkImageInfo::MakeN32Premul(1, 1));
 
  private:
   /** The two erased forms the templates above land on: one shared size for

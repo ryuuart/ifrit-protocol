@@ -8,8 +8,8 @@
 
 #include <boost/container/map.hpp>
 
+#include "runtime/Instance.h"
 #include "sigilweave/advanced/Skia.h"
-#include "Instance.h"
 
 namespace sigil::compose::detail {
 

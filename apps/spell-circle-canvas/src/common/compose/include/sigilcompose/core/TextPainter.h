@@ -121,11 +121,11 @@ class TextPainterOperations {
   virtual void paint(detail::Instance& inst, SkCanvas& canvas,
                      const detail::TextInk& ink, const TextPath* onPath,
                      SkSize size, const PaintContext& ctx) const = 0;
-  /** WHAT EACH GLYPH OF THE PASSAGE AT REST IS PAINTED WITH where @p ink
-   *  restarts on each unit: one style per unit, its paint's unit square on
-   *  that unit's text-metric box, read off the layout the kernel draws. */
-  virtual void inkByUnit(detail::Instance& inst, const detail::TextInk& ink,
-                         detail::GlyphInk& glyphs) const = 0;
+  /** WHAT EACH GLYPH OF THE PASSAGE AT REST IS PAINTED WITH: resolved
+   *  span ink, or a paint restarted on each unit's text-metric box,
+   *  read off the layout the kernel draws. */
+  virtual void glyphInk(detail::Instance& inst, const detail::TextInk& ink,
+                        detail::GlyphInk& glyphs) const = 0;
   /** WHERE EACH textAttach() ANCHORS: refills the instance's mark rects
    *  from the layout the letters are drawn from, one rect per anchor. */
   virtual void marks(detail::Instance& inst) const = 0;

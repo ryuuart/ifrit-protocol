@@ -1,12 +1,6 @@
 #pragma once
-// The harness every compose test binary shares: a composer drawn into a
-// raster surface, the system font context, and the colour and text-style
-// helpers. Includes only the kernel header and what the harness itself
-// touches — each binary's own support header adds the extension headers
-// its translation units use, so editing an extension header rebuilds
-// only the tests that exercise it. Helpers sit in anonymous namespaces so
-// each including TU gets its own internal-linkage copy; nothing here is
-// meant to be shared across TUs at link time.
+// Raster scene setup and instrument-font helpers shared by Compose cases.
+// Feature-specific support headers add the vocabulary their cases use.
 
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
@@ -14,8 +8,9 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/Compose.h>
-#include <sigilgeometry/advanced/Skia.h>
+#include <sigilcompose/testing/Scene.h>
 #include <sigildraw/Pen.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmotion/time/Duration.h>
 
 #include <chrono>
@@ -136,30 +131,8 @@ sigil::weave::TextStyle machineStyleAt(float size) {
 }
 
 /** A composer with its own engine, drawn into a raster surface. */
-struct Host {
-  sigil::motion::Engine engine;
-  Composer composer{engine, fonts()};
-  sk_sp<SkSurface> surface;
-
-  explicit Host(int w = 200, int h = 200) {
-    composer.setSize({(float)w, (float)h});
-    surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(w, h));
-  }
-
-  SkColor pixel(int x, int y) {
-    SkBitmap bm;
-    bm.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
-    surface->readPixels(bm.pixmap(), x, y);
-    return bm.getColor(0, 0);
-  }
-
-  /** Moves the engine `seconds` past where it stands, then draws. */
-  void frame(double seconds = 0.0) {
-    if (seconds > 0)
-      engine.advance(engine.elapsed() + sigil::motion::Duration(seconds));
-    surface->getCanvas()->clear(SK_ColorBLACK);
-    composer.draw(*surface->getCanvas());
-  }
+struct Host : sigil::compose::test::Scene {
+  explicit Host(int w = 200, int h = 200) : Scene(fonts(), w, h) {}
 };
 
 Fill red() { return Fill::color({1, 0, 0, 1}); }

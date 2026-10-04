@@ -28,15 +28,11 @@ SkRect boundsOf(Host& host, std::string_view key) {
 /** A scheme of two columns of 100 by 40 cells, filled in reading order by
  *  however many children it is handed. */
 struct TwoColumns {
-  std::vector<geometry::path::Rect> place(const LayoutInput& input) const {
-    return rectanglesOf(placeSkia(input));
-  }
-  std::vector<SkRect> placeSkia(const LayoutInput& input) const {
-    std::vector<SkRect> cells;
-    for (size_t index = 0; index < input.childSizes.size(); ++index)
-      cells.push_back(SkRect::MakeXYWH(100.0f * (float)(index % 2),
-                                       40.0f * (float)(index / 2), 100, 40));
-    return cells;
+  void arrange(Arrangement& arrangement) const {
+    for (size_t index = 0; index < arrangement.children.size(); ++index)
+      arrangement.children[index].place(geometry::path::Rect::of(
+          {100.0f * (float)(index % 2), 40.0f * (float)(index / 2)},
+          {100, 40}));
   }
 };
 

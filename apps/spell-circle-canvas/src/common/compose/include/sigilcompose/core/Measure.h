@@ -21,6 +21,8 @@
 #include <string_view>
 #include <vector>
 
+class SkCanvas;
+
 namespace sigil::weave {
 class FontContext;
 }
@@ -54,6 +56,22 @@ struct SnapshotOptions {
 sk_sp<SkPicture> snapshot(const Element& root, sigil::weave::FontContext& fonts,
                           SkSize maxSize = SkSize::MakeEmpty(),
                           SnapshotOptions options = {});
+
+namespace detail {
+
+/** One-shot draw onto a canvas the caller owns, under the sampling rules of
+ *  `snapshot`: bindings at their current values, and every entrance and
+ *  transition shown at its destination, since nothing advances the time.
+ *  @p viewport is the root's containing block, as `Composer::setSize`
+ *  takes it. Drawing straight onto @p canvas rather than replaying a
+ *  picture keeps that canvas's precision and colour space in every pixel
+ *  bake the tree takes. For the bakes and verification helpers that need
+ *  a settled frame in a destination's format; a host that draws again
+ *  holds a `Composer`. */
+void drawSettled(const Element& root, sigil::weave::FontContext& fonts,
+                 SkCanvas& canvas, SkSize viewport);
+
+}  // namespace detail
 
 /** A face's vertical metrics at a given size, without laying anything out.
  *

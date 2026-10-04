@@ -1,92 +1,30 @@
-# SigilCompose — data-driven, cacheable, animated drawable components
-# over Yoga + SigilWeave + SigilMotion + Skia, as one feature library per
-# directory. README.md is the canon.
-#
-# Each feature is its own target with its own tests and benchmarks, and
-# links only the features beneath it, so a consumer links what it draws
-# with and nothing above it:
-#
-#   SigilComposeCore        core/        the kernel — element values, the
-#                                        reconciler, layout, paint,
-#                                        transitions, text at rest, the
-#                                        instanced sprite leaf
-#   SigilComposeTypography  typography/  the text engine (textFx tracks, path
-#                                        text, marks), type styles and the
-#                                        text-fx presets
-#   SigilComposeBrush       brush/       decorations, lines, brushes, layer
-#                                        styles, the stroke grammar's engine
-#                                        and the mask gates
-#   SigilComposeTesting     testing/     the read-back checks (headers)
-#   SigilComposeTexture     texture/     a scene painted into a surface and
-#                                        handed over as a material texture
-#   SigilComposeWeb         web/         the Ultralight leaf (headers; only
-#                                        with SigilScry)
-#   SigilComposeDraw        draw/        the door to SigilDraw's pen, both
-#                                        ways: a node running a pen program,
-#                                        and an element retained in a pen
-#   SigilComposeKit         kit/         the kit tier: the silhouette shelf
-#                                        spelled for a node, the layout
-#                                        schemes, the routers, the placers,
-#                                        the kinetic type presets and the
-#                                        instruments over Typography
-#   SigilCompose                         the whole-library name: Kit, Brush
-#                                        and Typography, which reach Core
-#
-# Every public header lives under one include root, include/sigilcompose/
-# <feature>/ — except the testing feature's read-back checks, which sit
-# under a root of their own (testing/include/) so that only a target that
-# links SigilComposeTesting can reach them; <sigilcompose/Compose.h> at
-# the root is the umbrella over the kernel — exactly core/Core.h — and
-# each feature has a <Feature>.h umbrella of its own.
-#
-# One test binary, compose_test, declared feature by feature from each
-# directory's own test/, and one bench binary, compose_bench, the same
-# way. What locates a case is its name, not a binary: ctest discovers one
-# entry per CASE, so a suite is selected by its own prefix and nothing
-# stands behind it to build. Each declaration links exactly the targets
-# its cases name plus SigilComposeTesting and the system font port, so a
-# case reaching past its feature fails to link rather than passing on a
-# dependency it was not meant to have.
-#
-# One file per subject, named for what it asserts, so a case is found by
-# opening the file its subject names. Each feature has a support header
-# under test/support that includes only the headers its targets expose,
-# over the shared harness in test/support/Host.h; the font context that
-# harness holds is the tree-wide src/test/Fonts.h. A case that skips or
-# vanishes without a device, a font or an SDK carries the ctest label
-# that says so, scoped by SUITES to the cases that need it.
-#
-# The benchmarks stand over bench/BenchSupport.h, and the ones that ask
-# for the Graphite arm get it where a GPU device can be made. A claim
-# about how a cost GROWS lives there rather than in a ctest wall-clock
-# ceiling.
-#
-# Committed test assets sit in test/assets/: one generated variable font,
-# the vertical-advance instrument, beside the script that generates it.
-# Not fetch_assets — a TEST must never depend on an opt-in target.
+# Chapters registered with both the documentation site and compile probes.
+set(compose_chapters
+  ${CMAKE_CURRENT_SOURCE_DIR}/TYPOGRAPHY.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/core/README.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/README.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/ELEMENTS.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/VERBS.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/VALUES.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/COLOURING.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/CASCADE.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/SELECTORS.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/DEPTH.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/HEADERS.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/CACHING.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/TRAPS.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/TEXT_FX.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/TEXT_PATH.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/RICH_TEXT.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/PARAGRAPHS.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/BESIDE_TEXT.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/VERTICAL_TEXT.md)
+
 sigil_library_root(SigilCompose
   BRIEF "Immutable value-typed descriptions of a 2D scene, laid out with flexbox and drawn to an SkCanvas"
-  DOCS ${CMAKE_CURRENT_SOURCE_DIR}/TYPOGRAPHY.md
-       ${CMAKE_CURRENT_SOURCE_DIR}/reference/README.md
-       ${CMAKE_CURRENT_SOURCE_DIR}/reference/ELEMENTS.md
-       ${CMAKE_CURRENT_SOURCE_DIR}/reference/VERBS.md
-       ${CMAKE_CURRENT_SOURCE_DIR}/reference/VALUES.md
-       ${CMAKE_CURRENT_SOURCE_DIR}/reference/COLOURING.md
-       ${CMAKE_CURRENT_SOURCE_DIR}/reference/CASCADE.md
-       ${CMAKE_CURRENT_SOURCE_DIR}/reference/SELECTORS.md
-       ${CMAKE_CURRENT_SOURCE_DIR}/reference/DEPTH.md
-       ${CMAKE_CURRENT_SOURCE_DIR}/reference/HEADERS.md
-       ${CMAKE_CURRENT_SOURCE_DIR}/reference/CACHING.md
-       ${CMAKE_CURRENT_SOURCE_DIR}/reference/TRAPS.md
-       ${CMAKE_CURRENT_SOURCE_DIR}/reference/TEXT_FX.md
-       ${CMAKE_CURRENT_SOURCE_DIR}/reference/TEXT_PATH.md
-       ${CMAKE_CURRENT_SOURCE_DIR}/reference/RICH_TEXT.md
-       ${CMAKE_CURRENT_SOURCE_DIR}/reference/PARAGRAPHS.md
-       ${CMAKE_CURRENT_SOURCE_DIR}/reference/BESIDE_TEXT.md
-       ${CMAKE_CURRENT_SOURCE_DIR}/reference/VERTICAL_TEXT.md)
+  DOCS ${compose_chapters})
 
-# Dependencies point down this list. testing/ precedes the features whose
-# test binaries link it; kit/ links the tiers above it.
+# Define dependencies before consumers, including the shared testing target.
 add_subdirectory(core)
 add_subdirectory(testing)
 add_subdirectory(typography)
@@ -96,58 +34,16 @@ add_subdirectory(web)
 add_subdirectory(draw)
 add_subdirectory(kit)
 
-# ---------------------------------------------------------------------------
-# SigilCompose — the whole-library name, the way SigilWeave, SigilMotion
-# and SigilGeometry each keep one. It carries no code of its own; linking
-# it is exactly linking Kit, Brush and Typography, which between them
-# reach Core. The sketch library links it, for the sketch API surface;
-# every test and bench in this library names the feature targets it draws
-# with instead, which is what keeps a dependency on a tier a stated fact
-# rather than an accident of the umbrella. The web leaf is deliberately
-# NOT here: it is linked by the consumers that browse with it.
+# The convenience target includes the authoring tiers; hosted leaves are opt-in.
 sigil_library(SigilCompose
   INTERFACE SigilComposeKit SigilComposeBrush SigilComposeTypography)
 
-# ---------------------------------------------------------------------------
-# The cross-feature tests, which are the library's rather than one tier's.
-
-# The engine walkthroughs and the compile check over the prose.
-# Every API name README.md, TYPOGRAPHY.md, the chapters those two index,
-# the reference's catalogue
-# indexes and its entity pages spell, compiled against the headers that
-# own it — every one of them, because a chapter, the catalogue
-# and an entity's own page are the same canon as the page that links
-# them. The testing tier's own include root is scanned beside the
-# library's, since the walkthroughs spell the harness the cases are
-# written against.
-#
-# SigilWeave's control-by-control catalogue is read here too. Its "From
-# compose" column names how a Compose author reaches each control, and
-# SigilWeave's own probe cannot compile those names without linking the
-# library above it; this one stands above both. Its "Where" column spells
-# SigilWeave's own names, which that library's probe compiles; the few
-# that read here as Compose names are exempted one by one.
+# Probe the text library's Compose-facing controls here; names owned by that
+# library are excluded because its own probe compiles them.
 set(weave_owned "a SigilWeave name in its catalogue's Where column, compiled by SigilWeave's own probe")
 sigil_doc_probes(compose
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/TYPOGRAPHY.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/README.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/ELEMENTS.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/VERBS.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/VALUES.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/COLOURING.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/CASCADE.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/SELECTORS.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/DEPTH.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/HEADERS.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/CACHING.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/TRAPS.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/TEXT_FX.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/TEXT_PATH.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/RICH_TEXT.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/PARAGRAPHS.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/BESIDE_TEXT.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/VERTICAL_TEXT.md
+          ${compose_chapters}
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Corners.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Dimension.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Edges.md
@@ -232,6 +128,8 @@ sigil_doc_probes(compose
            "<sigilskia/draw/Direct.h>"
            "<sigilmedia/video/Video.h>"
            "<sigilmaterial/program/Shader.h>"
+           "<sigilmaterial/surface/Surface.h>"
+           "<sigilmaterial/texture/Image.h>"
   SKIP_HEADERS Web.h
   EXCLUDE "kit::PatternHyphenator=${weave_owned}"
           "kit::englishHyphenator=${weave_owned}"
@@ -251,36 +149,43 @@ sigil_test(compose_test
             SigilComposeBrush SigilComposeTypography
             SigilComposeDraw SigilComposeTesting SigilWeavePorts)
 
-# Every public header compiles first and alone. Compose.h says each
-# header stands on its own; this is what makes that a build fact rather
-# than a claim — a header that leans on an earlier include's transitive
-# reach breaks here, not in the next consumer's include order. Over the
-# same glob the docs probe reads, against every feature target a header
-# can belong to: the docs test's set, the texture feature, and the web
-# leaf where the SDK produced it (its header names SigilScry, so without
-# the target it is left out rather than failed).
-file(GLOB_RECURSE COMPOSE_SELF_TEST_HEADERS
-     CONFIGURE_DEPENDS include/sigilcompose/*.h)
-set(COMPOSE_SELF_TEST_LIBRARIES
-    SigilComposeCore SigilComposeKit SigilComposeBrush SigilComposeTypography
-    SigilComposeDraw SigilComposeTexture)
-if(TARGET SigilComposeWeb)
-  list(APPEND COMPOSE_SELF_TEST_LIBRARIES SigilComposeWeb)
-else()
-  list(FILTER COMPOSE_SELF_TEST_HEADERS EXCLUDE REGEX "/sigilcompose/web/")
-endif()
-sigil_header_self_test(compose_header_self_test
-  HEADERS ${COMPOSE_SELF_TEST_HEADERS}
-  LIBRARIES ${COMPOSE_SELF_TEST_LIBRARIES})
+# Compile headers against their originating feature's own usage requirements.
+add_custom_target(compose_header_self_test)
+foreach(feature Core Kit Brush Typography Draw Texture Web)
+  if(NOT TARGET SigilCompose${feature})
+    continue()
+  endif()
+  string(TOLOWER ${feature} directory)
+  file(GLOB_RECURSE headers CONFIGURE_DEPENDS
+       ${CMAKE_CURRENT_SOURCE_DIR}/include/sigilcompose/${directory}/*.h)
+  if(feature STREQUAL Core)
+    list(APPEND headers ${CMAKE_CURRENT_SOURCE_DIR}/include/sigilcompose/Compose.h)
+  elseif(feature STREQUAL Brush)
+    list(APPEND headers ${CMAKE_CURRENT_SOURCE_DIR}/include/sigilcompose/advanced/PathEffect.h)
+  endif()
+  sigil_header_self_test(compose_${directory}_header_self_test NO_TEST
+    HEADERS ${headers} LIBRARIES SigilCompose${feature})
+  add_dependencies(compose_header_self_test compose_${directory}_header_self_test)
+endforeach()
+file(GLOB_RECURSE testing_headers CONFIGURE_DEPENDS
+     ${CMAKE_CURRENT_SOURCE_DIR}/testing/include/sigilcompose/*.h)
+sigil_header_self_test(compose_testing_header_self_test NO_TEST
+  INCLUDE_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/testing/include
+  HEADERS ${testing_headers} LIBRARIES SigilComposeTesting)
+add_dependencies(compose_header_self_test compose_testing_header_self_test)
+add_test(NAME compose_header_self_test
+  COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}
+          --config $<CONFIG> --target compose_header_self_test)
+set_tests_properties(compose_header_self_test PROPERTIES RESOURCE_LOCK sigil_build_tree)
 
-# GPU-backend behavior tests (Graphite on a GPU device): the raster suites prove
-# semantics, this one proves the same pixels arrive on the GPU — it
-# exists for the direct-image draw gaps (lattice/atlas) the raster suites
-# cannot see.
+# Device readbacks cover image operations unavailable to the raster suites.
 if(APPLE)
   sigil_test(compose_test
-    SOURCES test/ComposeGpuTest.mm
+    SOURCES test/ComposeGpuTest.mm test/ComposeGpuDestinationTest.mm
+            test/ComposeGpuPromotionTest.mm
     LIBRARIES SigilComposeKit SigilComposeBrush SigilComposeTypography
               SigilWeavePorts SigilSkia
-    SUITES ComposeGpu DirectImageDraw LABELS gpu)
+    SUITES ComposeGpu "*/DirectImageDraw" "*/ComposeGpuMaterialDestination"
+      "*/ComposeGpuSpanInk"
+    LABELS gpu)
 endif()

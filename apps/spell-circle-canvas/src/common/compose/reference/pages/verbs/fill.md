@@ -38,7 +38,7 @@ def fill(self, value: MotionFillLike, box: PaintBox = ...) -> Element: ...
 
 | Value | What it is | Where one comes from |
 |---|---|---|
-| `Fill` | Nothing, a colour, a material, or a reference the tree resolves at paint — what a component property hands on. A material in it is placed over the box as the material form below places it. | [`Fill`](../types/Fill.md) |
+| `Fill` | Nothing, a colour, a material's base paint and layers, or a reference the tree resolves at paint — what a component property hands on. Authored shaders remain part of the paint; pass a Material directly to retain its surface response and effects. | [`Fill`](../types/Fill.md) |
 | `motion::Animatable<Fill>` | The same, at rest, as a described motion, or as a live value somebody writes. | [`motion::Animatable`](../../VALUES.md#motion-over-a-value) |
 | `material::Material` | The whole model: its base and layers paint the box, and its effects dress the node's own layer — a `Filter::shadow` beneath the fill (a hard one as an echo of the fill and the text), an inside shadow, a `Filter::stroke` and a `Filter::bevel` over it; a pass that reads pixels runs over the node and its subtree as [`filter`](filter.md) does. | `material::from(base).layer(…).effects(…)`, a gradient, a noise, an image, a program, a sketch's own look |
 | `material::Color` | A solid colour, without the `Fill::color` ceremony. | `hexColor(0xRRGGBB)`, or the four channels |

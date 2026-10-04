@@ -9,18 +9,18 @@
 
 #include <include/core/SkPoint.h>
 #include <include/core/SkRect.h>
+#include <sigilweave/choreograph/PlacedGlyph.h>
 #include <sigilweave/fonts/Shaper.h>
 
 #include <algorithm>
 #include <cmath>
+#include <glm/vec2.hpp>
 #include <optional>
 #include <span>
 #include <utility>
 #include <vector>
 
-#include <glm/vec2.hpp>
-
-#include "PaintInternal.h"
+#include "paint/PaintInternal.h"
 
 namespace sigil::compose {
 

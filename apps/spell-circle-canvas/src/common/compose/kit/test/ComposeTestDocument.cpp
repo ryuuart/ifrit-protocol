@@ -29,8 +29,8 @@ TEST(KitDocument, StandaloneHeadingsHaveAHierarchyAndKeepExplicitOverrides) {
   EXPECT_NEAR(require(host.composer.bounds("h1")).width(), body * 2, 1);
   EXPECT_NEAR(require(host.composer.bounds("h2")).width(), body * 1.5f, 1);
   EXPECT_FLOAT_EQ(require(host.composer.bounds("explicit")).width(), body);
-  EXPECT_THROW(doc::heading(0, "Invalid"), std::out_of_range);
-  EXPECT_THROW(doc::heading(7, "Invalid"), std::out_of_range);
+  EXPECT_THROW((void)doc::heading(0, "Invalid"), std::out_of_range);
+  EXPECT_THROW((void)doc::heading(7, "Invalid"), std::out_of_range);
 }
 
 TEST(KitDocument, APreviouslyBuiltArticleAdoptsMeasureAndZeroGap) {
@@ -66,9 +66,8 @@ TEST(KitDocument, RoleRulesRethemeExistingContentAndReflowParagraphs) {
   host.composer.render(onPage(article));
   host.frame();
   const float before = require(host.composer.bounds("body")).height();
-  host.composer.render(onPage(article).applyStyleSheet(
-      StyleSheet{rule("h2").font({.size = 36}),
-                 rule("paragraph").font({.size = 24})}));
+  host.composer.render(onPage(article).applyStyleSheet(StyleSheet{
+      rule("h2").font({.size = 36}), rule("paragraph").font({.size = 24})}));
   host.frame();
   EXPECT_GT(require(host.composer.bounds("body")).height(), before * 1.5f);
   EXPECT_GE(require(host.composer.bounds("body")).top(),

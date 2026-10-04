@@ -52,13 +52,14 @@ Element benchChunk(const ChunkProps& p) {
   auto tiles = box().width(10 * kTile).height(10 * kTile);
   for (int i = 0; i < (int)p.ids.size(); ++i) {
     const int row = i / 10;
-    tiles.children({image(benchAtlas())
-                        .imageRegion(sigil::geometry::path::Rect::of(
-                            {(float)(p.ids[(size_t)i] % 4) * 16, 0}, {16, 16}))
-                        .absolute()
-                        .inset((float)row * kTile, 0, 0, (float)(i % 10) * kTile)
-                        .width(kTile)
-                        .height(kTile)});
+    tiles.children(
+        {image(benchAtlas())
+             .imageRegion(sigil::geometry::path::Rect::of(
+                 {(float)(p.ids[(size_t)i] % 4) * 16, 0}, {16, 16}))
+             .absolute()
+             .inset((float)row * kTile, 0, 0, (float)(i % 10) * kTile)
+             .width(kTile)
+             .height(kTile)});
   }
   return tiles;
 }
@@ -136,17 +137,20 @@ static void BM_Draw_TileGrid_SkSLFill(benchmark::State& state) {
     return;
   }
   const auto& frame = benchAtlas()->frames().front();
-  sk_sp<SkShader> atlasShader = sigil::media::toSk(frame.image)->makeShader(
-      SkTileMode::kClamp, SkTileMode::kClamp, SkSamplingOptions());
+  sk_sp<SkShader> atlasShader =
+      sigil::media::toSk(frame.image)
+          ->makeShader(SkTileMode::kClamp, SkTileMode::kClamp,
+                       SkSamplingOptions());
   SkRuntimeShaderBuilder builder(effect);
   builder.child("atlas") = atlasShader;
   sk_sp<SkShader> field = builder.makeShader();
 
-  host.composer.render(box().children({box()
-                                           .width(960)
-                                           .height(640)
-                                           .fill(Fill{material::skia::base(material::skia::paint(field))})
-                                           .cache(Cache::None)}));
+  host.composer.render(box().children(
+      {box()
+           .width(960)
+           .height(640)
+           .fill(Fill{material::skia::base(material::skia::paint(field))})
+           .cache(Cache::None)}));
   for ([[maybe_unused]] auto iteration : state) host.draw();
 }
 BENCHMARK(BM_Draw_TileGrid_SkSLFill);
@@ -221,3 +225,38 @@ static void BM_Draw_ChargedDisc_Live(benchmark::State& state) {
   chargedDiscArm(state, Cache::None);
 }
 BENCHMARK(BM_Draw_ChargedDisc_Live)->Arg(1)->Arg(4)->Arg(16)->Arg(64);
+
+/** One held texture at a fixed extent, with increasing descendant counts.
+ *  Only unchanged draws are timed; description, layout and the first bake
+ *  finish before the iteration loop. */
+static void BM_Draw_HeldTexture_SubtreeScaling(benchmark::State& state) {
+  const int count = (int)state.range(0);
+  Host host(256, 256);
+  host.composer.setAutoTexturePromotion(false);
+  host.composer.setBakeDensity(1.0f);
+  Element subtree = box().width(256).height(256).cache(Cache::Texture);
+  for (int i = 0; i < count; ++i) {
+    subtree.children({box()
+                          .absolute()
+                          .left((float)(i % 50) * 5)
+                          .top((float)(i / 50) * 5)
+                          .width(2)
+                          .height(2)
+                          .fill(sigil::compose::bench::cellFill(i))});
+  }
+  host.composer.render(box().cache(Cache::None).children({std::move(subtree)}));
+  host.draw();
+  if (host.composer.stats().texturesBaked != 1) {
+    state.SkipWithError("the texture subtree did not take one initial bake");
+    return;
+  }
+  for ([[maybe_unused]] auto iteration : state) host.draw();
+  state.counters["texturesBaked"] = (double)host.composer.stats().texturesBaked;
+  state.counters["children"] = (double)count;
+  state.counters["texture_pixels"] = 256 * 256;
+  sigil::compose::bench::reportNodes(state, count + 2);
+  if (host.composer.stats().texturesBaked != 0)
+    state.SkipWithError("an unchanged draw replaced the held texture");
+}
+BENCHMARK(BM_Draw_HeldTexture_SubtreeScaling)
+    ->Apply(sigil::compose::bench::nodeLadder);

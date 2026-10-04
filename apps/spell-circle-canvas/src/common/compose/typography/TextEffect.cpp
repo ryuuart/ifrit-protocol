@@ -13,13 +13,10 @@
 #include <sigilmaterial/core/Material.h>
 
 #include <utility>
-#include "FillLowering.h"
+
+#include "paint/FillLowering.h"
 
 namespace sigil::compose {
-
-bool detail::samePass(const LoweredPass& first, const LoweredPass& second) {
-  return first.paint == second.paint;
-}
 
 TextEffect TextEffect::pass(material::Material material) {
   material::Paint lowered = material::skia::paint(material);
@@ -57,10 +54,13 @@ TextEffect TextEffect::pass(material::Material material) {
   // population for letters that are provably standing still. Whatever the
   // pass does with them, the layer is re-rendered every frame it runs.
   state->displaces = false;
-  state->pass =
-      std::make_shared<const material::Material>(std::move(material));
+  state->pass = std::make_shared<const material::Material>(std::move(material));
   state->lowered = std::make_shared<const detail::LoweredPass>(
       detail::LoweredPass{std::move(lowered)});
+  state->passEqual = [](const detail::LoweredPass& first,
+                        const detail::LoweredPass& second) {
+    return first.paint == second.paint;
+  };
   TextEffect out;
   out.m_state = std::move(state);
   return out;

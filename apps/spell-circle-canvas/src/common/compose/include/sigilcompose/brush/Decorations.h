@@ -41,10 +41,10 @@
 #include <sigilcompose/brush/Lines.h>  // cornerBrackets, cornerGaps
 #include <sigilcore/callable/Callable.h>
 #include <sigilgeometry/path/Stroke.h>
-#include <sigilmedia/core/Image.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/texture/Texture.h>
+#include <sigilmedia/core/Image.h>
 
 #include <algorithm>
 #include <memory>
@@ -52,7 +52,6 @@
 #include <utility>
 
 #include "sigilcompose/Compose.h"
-
 
 namespace sigil::compose {
 
@@ -186,8 +185,7 @@ struct PathFormat {
            (strokeFill.material() && strokeFill.material()->isRunning());
   }
   float phase() const {
-    return dashPhaseBinding ? dashPhaseBinding->value()
-                            : dashPhase;
+    return dashPhaseBinding ? dashPhaseBinding->value() : dashPhase;
   }
 
   void paint(draw::Pen& pen, const PaintContext& ctx) const;
@@ -375,8 +373,8 @@ struct ContourWalk {
  *  by recipe. A static wash prunes like any other decoration, and a wash
  *  over a live material declares itself animated so the node repaints.
  *
- *      .foreground(decorations::wash(material::noise(0.3f, {.octaves = 2, .grain = true}),
- *                                    material::BlendMode::SoftLight, 0.35f))
+ *      .foreground(decorations::wash(material::noise(0.3f, {.octaves = 2,
+ * .grain = true}), material::BlendMode::SoftLight, 0.35f))
  */
 struct Wash {
   material::Material material;
@@ -389,6 +387,7 @@ struct Wash {
     return material == o.material && blend == o.blend && amount == o.amount;
   }
   bool isRunning() const { return material.isRunning(); }
+  bool usesWorldSpace() const;
   /** A wash through anything but source-over reads what is under the node
    *  — which is the point of it, and why such a node cannot be baked. */
   bool blends() const { return blend != material::BlendMode::Normal; }
@@ -465,8 +464,7 @@ struct Border {
     return dashPhaseBinding && dashPhaseBinding->isRunning();
   }
   float phase() const {
-    return dashPhaseBinding ? dashPhaseBinding->value()
-                            : dashPhase;
+    return dashPhaseBinding ? dashPhaseBinding->value() : dashPhase;
   }
   float bleed() const {
     const float heaviest = std::max(width, cornerWidth);
@@ -545,14 +543,14 @@ inline DecorationStack doubleBorder(Border outer, Border inner) {
  *  signal) can wear all of it:
  *
  *      custom([&](draw::Pen& pen, const PaintContext& ctx) {
- *        decorations::paintOn(pen, ctx, ropePath(), lines::presets::cased(...));
+ *        decorations::paintOn(pen, ctx, ropePath(),
+ * lines::presets::cased(...));
  *      }).cache(Cache::None)
  *
  *  What live geometry inside `custom()` gives up is PRUNING, not the
  *  decoration vocabulary. */
 void paintOn(draw::Pen& pen, const PaintContext& ctx,
-             geometry::path::Outline outline,
-             const Decoration& decoration);
+             geometry::path::Outline outline, const Decoration& decoration);
 }  // namespace decorations
 
 }  // namespace sigil::compose

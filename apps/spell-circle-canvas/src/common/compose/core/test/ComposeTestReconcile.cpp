@@ -5,6 +5,7 @@
 // structural prune that needs no memo to reach it.
 
 #include <sigildraw/Pen.h>
+
 #include "support/CoreTestSupport.h"
 
 TEST(ComposeReconcile, MemoSkipsDescribe) {
@@ -50,6 +51,207 @@ TEST(ComposeReconcile, KeyedReorderKeepsInstances) {
   host.frame();
   EXPECT_EQ(host.pixel(20, 20), SK_ColorGREEN);  // reordered, not restyled
   EXPECT_EQ(host.composer.stats().instances, 3u);
+}
+
+TEST(ComposeReconcile, UnkeyedContainerCanBecomeText) {
+  Host host;
+  host.composer.render(stack().children(
+      {stack().children({box().key("old").width(20).height(20).fill(red())}),
+       text(u8"N", whiteStyle(20))}));
+  host.frame();
+
+  const Element next = stack().children({text(u8"N", whiteStyle(20))});
+  ASSERT_NO_THROW(host.composer.render(next));
+  host.frame();
+
+  Host fresh;
+  fresh.composer.render(next);
+  fresh.frame();
+  EXPECT_TRUE(identicalPixels(host, fresh, 200, 200));
+  EXPECT_EQ(host.composer.stats().instances, 2u);
+  EXPECT_EQ(host.composer.stats().yogaNodes, 2u);
+  EXPECT_FALSE(host.composer.bounds("old"));
+}
+
+TEST(ComposeReconcile, RootContainerCanBecomeText) {
+  Host host;
+  host.composer.render(box().key("root").children(
+      {box().key("old").width(20).height(20).fill(red())}));
+  host.frame();
+
+  ASSERT_NO_THROW(
+      host.composer.render(text(u8"N", whiteStyle(20)).key("root")));
+  host.frame();
+  EXPECT_NE(host.composer.paragraphLayout("root"), nullptr);
+  EXPECT_FALSE(host.composer.bounds("old"));
+  EXPECT_EQ(host.composer.stats().instances, 1u);
+}
+
+TEST(ComposeReconcile, SlotContentCanBecomeText) {
+  Host host;
+  host.composer.render(slot("content"));
+  host.composer.renderSlot(
+      "content", box().children({box().key("old").width(20).height(20)}));
+  host.frame();
+
+  ASSERT_NO_THROW(host.composer.renderSlot(
+      "content", text(u8"N", whiteStyle(20)).key("text")));
+  host.frame();
+  EXPECT_NE(host.composer.paragraphLayout("text"), nullptr);
+  EXPECT_FALSE(host.composer.bounds("old"));
+  EXPECT_EQ(host.composer.stats().instances, 2u);
+}
+
+TEST(ComposeReconcile, AContainerBecomingSlotRetiresItsAuthoredChildren) {
+  Host host;
+  host.composer.render(box().children({box().key("content").children(
+      {box().key("old").width(20).height(20).fill(red())})}));
+  host.frame();
+
+  host.composer.render(box().children({slot("content")}));
+  host.frame();
+  EXPECT_FALSE(host.composer.bounds("old"));
+  EXPECT_EQ(host.composer.stats().instances, 2u);
+  EXPECT_EQ(host.pixel(5, 5), SK_ColorBLACK);
+
+  host.composer.renderSlot("content",
+                           box().key("new").width(20).height(20).fill(blue()));
+  host.frame();
+  EXPECT_TRUE(host.composer.bounds("new"));
+  EXPECT_EQ(host.pixel(5, 5), SK_ColorBLUE);
+
+  host.composer.render(box().children({slot("content")}));
+  host.frame();
+  EXPECT_TRUE(host.composer.bounds("new"));
+  EXPECT_EQ(host.pixel(5, 5), SK_ColorBLUE);
+}
+
+TEST(ComposeReconcile, LeavingStackRestoresSurvivingChildFlow) {
+  Host host;
+  const Element a = box().key("a").width(20).height(20).fill(red());
+  const Element b = box().key("b").width(20).height(20).fill(blue());
+  const Element pinned =
+      box().key("pinned").absolute().left(70).top(30).width(10).height(10).fill(
+          green());
+  host.composer.render(stack().children({a, b, pinned}));
+  host.frame();
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("b")).left(), 0.0f);
+
+  host.composer.render(box().row().children({a, b, pinned}));
+  host.frame();
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("b")).left(), 20.0f);
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("pinned")).left(), 70.0f);
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("pinned")).top(), 30.0f);
+  EXPECT_EQ(host.pixel(25, 5), SK_ColorBLUE);
+}
+
+TEST(ComposeReconcile, LeavingTextClearsItsBaselineCallback) {
+  Host host;
+  const Element peer = text(u8"N", whiteStyle(20));
+  host.composer.render(
+      box()
+          .row()
+          .alignItems(Align::Baseline)
+          .children({text(u8"N", whiteStyle(30)).key("item"), peer}));
+  host.frame();
+
+  const Element next =
+      box()
+          .row()
+          .alignItems(Align::Baseline)
+          .children({box().key("item").width(20).height(40).fill(red()), peer});
+  host.composer.render(next);
+  host.frame();
+
+  Host fresh;
+  fresh.composer.render(next);
+  fresh.frame();
+  EXPECT_EQ(require(host.composer.bounds("item")),
+            require(fresh.composer.bounds("item")));
+  EXPECT_TRUE(identicalPixels(host, fresh, 200, 200));
+}
+
+TEST(ComposeReconcile, ChangingMemoPropertiesTypeDescribesTheNewComponent) {
+  struct Number {
+    int value;
+    bool operator==(const Number&) const = default;
+  };
+  struct Name {
+    std::string value;
+    bool operator==(const Name&) const = default;
+  };
+  Host host;
+  host.composer.render(memo(Number{7}, [](const Number&) {
+                         return box().width(20).height(20).fill(red());
+                       }).key("item"));
+  host.frame();
+
+  ASSERT_NO_THROW(host.composer.render(memo(Name{"ready"}, [](const Name&) {
+                                         return box().width(20).height(20).fill(
+                                             blue());
+                                       }).key("item")));
+  host.frame();
+  EXPECT_EQ(host.composer.stats().memoHits, 0u);
+  EXPECT_EQ(host.pixel(5, 5), SK_ColorBLUE);
+}
+
+TEST(ComposeReconcile, MemoShellCacheOverridesDoNotMutateSharedElements) {
+  const auto describe = [] {
+    return box().key("shared").width(20).height(20).fill(red()).cache(
+        Cache::Picture);
+  };
+  const Element shared = describe();
+  Host live;
+  live.composer.setProfiling(true);
+  live.composer.render(memo(0, [shared](int) { return shared; })
+                           .cache(Cache::None)
+                           .cacheScale(0.5f));
+  EXPECT_TRUE(sameDescription(shared, describe()));
+  live.frame();
+  const Composer::NodeCost* liveRow = requireRow(live.composer, "shared");
+  ASSERT_NE(liveRow, nullptr);
+  EXPECT_EQ(liveRow->cacheState, Composer::CacheState::Live);
+
+  Host cached;
+  cached.composer.setProfiling(true);
+  cached.composer.render(shared);
+  cached.frame();
+  cached.frame();
+  const Composer::NodeCost* cachedRow = requireRow(cached.composer, "shared");
+  ASSERT_NE(cachedRow, nullptr);
+  EXPECT_EQ(cachedRow->cacheState, Composer::CacheState::Picture);
+}
+
+namespace {
+
+struct CountArrangements {
+  std::shared_ptr<int> calls;
+  bool operator==(const CountArrangements&) const = default;
+  void arrange(Arrangement&) const { ++*calls; }
+};
+
+}  // namespace
+
+TEST(ComposeReconcile, AnUnchangedDescribeDoesNotRepeatLayout) {
+  Host host;
+  const auto calls = std::make_shared<int>(0);
+  auto describe = [&] {
+    return box()
+        .operators({CountArrangements{calls}})
+        .children({box().key("a").width(20).height(20),
+                   box().key("b").width(20).height(20)});
+  };
+  host.composer.render(describe());
+  host.frame();
+  ASSERT_GT(*calls, 0);
+  const int firstLayoutCalls = *calls;
+
+  host.composer.render(describe());
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+  host.frame();
+  EXPECT_EQ(*calls, firstLayoutCalls);
+  host.frame();
+  EXPECT_EQ(*calls, firstLayoutCalls);
 }
 
 // ---- the order the declared reads imply -------------------------------------
@@ -99,24 +301,25 @@ TEST(ComposeDerive, ABorrowOfAnAddedWireLandsOnTheFirstFrame) {
   // borrow resolved against the tree as it was AUTHORED finds nothing and
   // dresses an empty box for a whole frame, catching up only on the next
   // one.
-  Host host;
-  host.composer.render(
-      positioned()
-          .inset(0)
-          .children({box()
-                         .absolute()
-                         .inset(0)
-                         .foreground(Decoration(BorrowedStroke{"a->b"})),
-                     box().key("a").left(20).top(90).width(20).height(20),
-                     box().key("b").left(160).top(90).width(20).height(20)})
-          .operators({WireBetween{.from = "a", .to = "b"}}));
-  host.frame();  // THE FIRST frame — a pass behind is visible only here
-  // The route runs centre to centre along y=100, and the borrowed stroke
-  // is on it. A borrow that found nothing dresses its own box instead,
-  // whose edges are nowhere near the middle of the canvas.
-  EXPECT_EQ(host.pixel(100, 100), SK_ColorRED);
-  EXPECT_EQ(host.pixel(40, 100), SK_ColorRED);
-  EXPECT_EQ(host.pixel(100, 40), SK_ColorBLACK);
+  for (const bool stacked : {false, true}) {
+    SCOPED_TRACE(stacked);
+    Decoration mark = BorrowedStroke{"a->b"};
+    if (stacked) mark = DecorationStack{{mark}};
+    Host host;
+    host.composer.render(
+        positioned()
+            .inset(0)
+            .children({box().absolute().inset(0).foreground(mark),
+                       box().key("a").left(20).top(90).width(20).height(20),
+                       box().key("b").left(160).top(90).width(20).height(20)})
+            .operators({WireBetween{.from = "a", .to = "b"}}));
+    host.frame();
+    // Direct and stacked marks must both register the borrow before the
+    // first draw. An unresolved borrow has no path through these pixels.
+    EXPECT_EQ(host.pixel(100, 100), SK_ColorRED);
+    EXPECT_EQ(host.pixel(40, 100), SK_ColorRED);
+    EXPECT_EQ(host.pixel(100, 40), SK_ColorBLACK);
+  }
 }
 
 namespace {
@@ -374,7 +577,12 @@ TEST(ComposeReconcile, WiggledBindingsPruneOnlyWhenEveryParameterMatches) {
   auto tree = [](Rig r) {
     return box().children(
         {box().key("shaken").width(40).height(40).fill(red()).translateX(
-            motion::bind(phase, {.to = {-70.0f, 170.0f}, .wiggle = {.amount = r.amount, .frequency = r.frequency, .seed = r.seed, .octaves = r.octaves, .falloff = r.falloff}}))});
+            motion::bind(phase, {.to = {-70.0f, 170.0f},
+                                 .wiggle = {.amount = r.amount,
+                                            .frequency = r.frequency,
+                                            .seed = r.seed,
+                                            .octaves = r.octaves,
+                                            .falloff = r.falloff}}))});
   };
 
   Host host;
@@ -424,16 +632,20 @@ TEST(ComposeReconcile, TwoSeedsShakeIndependentlyOnScreen) {
              .width(8)
              .height(8)
              .fill(red())
-             .translateX(
-                 motion::bind(t, {.to = {100.0f, 100.0f}, .wiggle = {.amount = 40.0f, .frequency = 3.0f, .seed = 1}}))
+             .translateX(motion::bind(
+                 t,
+                 {.to = {100.0f, 100.0f},
+                  .wiggle = {.amount = 40.0f, .frequency = 3.0f, .seed = 1}}))
              .translateY(30.0f),
          box()
              .key("y")
              .width(8)
              .height(8)
              .fill(green())
-             .translateX(
-                 motion::bind(t, {.to = {100.0f, 100.0f}, .wiggle = {.amount = 40.0f, .frequency = 3.0f, .seed = 2}}))
+             .translateX(motion::bind(
+                 t,
+                 {.to = {100.0f, 100.0f},
+                  .wiggle = {.amount = 40.0f, .frequency = 3.0f, .seed = 2}}))
              .translateY(90.0f)});
   };
   host.composer.render(tree());

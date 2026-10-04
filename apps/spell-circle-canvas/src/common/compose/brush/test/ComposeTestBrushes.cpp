@@ -5,10 +5,12 @@
 
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/advanced/Skia.h>
-#include "../../core/StampCache.h"
+#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/skia/Paint.h>
+
 #include <utility>
 
+#include "cache/StampCache.h"
 #include "support/BrushTestSupport.h"
 
 namespace {
@@ -183,8 +185,7 @@ TEST(ComposeMaterials, QuantizeTimeStepsTheClock) {
       SkString("uniform float uTime; half4 main(float2 p) {"
                "  return half4(fract(uTime), 0, 0, 1); }"));
   ASSERT_TRUE(fx) << err.c_str();
-  material::Paint stepped =
-      material::skia::sksl(fx).quantizeTime(2.0f);
+  material::Paint stepped = material::skia::sksl(fx).quantizeTime(2.0f);
   auto sampleAt = [&](material::Paint& m, double seconds) {
     PaintContext ctx;
     ctx.size = {8, 8};
@@ -192,8 +193,8 @@ TEST(ComposeMaterials, QuantizeTimeStepsTheClock) {
     Fill f = resolveFill(material::skia::base(m), ctx);
     sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(4, 4));
     SkPaint p;
-    p.setShader(material::skia::staticShader(
-        material::skia::paint(*f.material())));
+    p.setShader(
+        material::skia::staticShader(material::skia::paint(*f.material())));
     s->getCanvas()->drawPaint(p);
     SkBitmap bm;
     bm.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
@@ -218,17 +219,16 @@ TEST(ComposeBrushes, AStampBakeSurvivesABrushRebuiltEveryDescribe) {
   static int bakes;
   bakes = 0;
   const Element art =  // stable: its node pointer is the cache key
-      box().width(8).height(8).children(
-          {custom([](sigil::draw::Pen& pen) {
-             SkCanvas& c = *pen.canvas();
-             ++bakes;
-             SkPaint p;
-             p.setColor(SK_ColorRED);
-             c.drawRect(SkRect::MakeWH(8, 8), p);
-           })
-               .width(8)
-               .height(8)
-               .cache(Cache::None)});
+      box().width(8).height(8).children({custom([](sigil::draw::Pen& pen) {
+                                           SkCanvas& c = *pen.canvas();
+                                           ++bakes;
+                                           SkPaint p;
+                                           p.setColor(SK_ColorRED);
+                                           c.drawRect(SkRect::MakeWH(8, 8), p);
+                                         })
+                                             .width(8)
+                                             .height(8)
+                                             .cache(Cache::None)});
   Host host;
   auto tree = [&] {
     brush::Scatter s;  // fresh VALUE: empty member cache, on purpose
@@ -424,6 +424,20 @@ struct BlendingMark {
   void paint(sigil::draw::Pen& pen, const PaintContext&) const {}
 };
 
+/** A mark whose pixels depend only on the inherited light's direction. */
+struct LitDirectionMark {
+  bool operator==(const LitDirectionMark&) const = default;
+  bool readsLighting() const { return true; }
+  void paint(sigil::draw::Pen& pen, const PaintContext& ctx) const {
+    const bool fromLeft =
+        ctx.lighting && !ctx.lighting->lights.empty() &&
+        ctx.lighting->lights.front().direction.value() > 90.0f;
+    SkPaint paint;
+    paint.setColor(fromLeft ? SK_ColorRED : SK_ColorGREEN);
+    pen.canvas()->drawRect(SkRect::MakeWH(ctx.size.x, ctx.size.y), paint);
+  }
+};
+
 /** The context a composer hands a node: a stamp store, a place in the
  *  root, and the root's size. */
 PaintContext nodeContext(StampCache& stamps) {
@@ -455,14 +469,17 @@ TEST(ComposeBrushes, ANestedBrushKeepsEverythingButTheOutline) {
   paintWithPen(brush::layers({woven}), canvas, ctx);
   paintWithPen(Brush{}.layer(layered), canvas, ctx);
   paintWithPen(brush::restyle(geometry::path::Shaper::incomparable(
-                                  [](const geometry::path::Outline& outline) { return outline; }),
+                                  [](const geometry::path::Outline& outline) {
+                                    return outline;
+                                  }),
                               restyled),
                canvas, ctx);
 
   for (const ContextProbe* probe : {&woven, &layered, &restyled}) {
     ASSERT_EQ(probe->seen->paints, 1);
     EXPECT_EQ(probe->seen->stamps, &stamps);
-    EXPECT_EQ(probe->seen->toRoot, geometry::path::Transform::translate({30, 40}));
+    EXPECT_EQ(probe->seen->toRoot,
+              geometry::path::Transform::translate({30, 40}));
     EXPECT_EQ(probe->seen->rootSize, glm::vec2(800, 600));
     EXPECT_DOUBLE_EQ(probe->seen->elapsedSeconds, 2.5);
     EXPECT_EQ(probe->seen->outline, SkRect::MakeWH(100, 60));
@@ -477,14 +494,63 @@ TEST(ComposeBrushes, ACompositeBlendsWhenAnythingInsideItDoes) {
   EXPECT_TRUE(Decoration(Brush{}.layer(BlendingMark{})).blends());
   EXPECT_TRUE(
       Decoration(brush::restyle(geometry::path::Shaper::incomparable(
-                                    [](const geometry::path::Outline& outline) { return outline; }),
+                                    [](const geometry::path::Outline& outline) {
+                                      return outline;
+                                    }),
                                 BlendingMark{}))
           .blends());
   EXPECT_TRUE(
       Decoration(onEdges(geometry::path::Edge::Top, BlendingMark{})).blends());
   EXPECT_TRUE(Decoration(inset(4, BlendingMark{})).blends());
+  EXPECT_TRUE(Decoration(DecorationStack{{BlendingMark{}}}).blends());
   // And a composite of marks that do not blend does not.
   EXPECT_FALSE(Decoration(brush::layers({ContextProbe{}})).blends());
+  EXPECT_FALSE(Decoration(DecorationStack{{ContextProbe{}}}).blends());
+}
+
+TEST(ComposeBrushes, ADecorationStackKeepsMarkWidthSeparateFromOverflow) {
+  PathFormat wide;
+  wide.width = 9.0f;
+  wide.align = PathFormat::Align::Inner;
+  PathFormat narrow = wide;
+  narrow.width = 3.0f;
+  const Decoration stack = DecorationStack{{wide, narrow}};
+  EXPECT_FLOAT_EQ(stack.bleed({100, 100}), 0.0f);
+  EXPECT_FLOAT_EQ(stack.reach({100, 100}), 9.0f);
+}
+
+TEST(ComposeBrushes, ACompositeRepaintsWhenItsInheritedLightMoves) {
+  const Decoration mark = LitDirectionMark{};
+  const auto unchangedOutline = geometry::path::Shaper::incomparable(
+      [](const geometry::path::Outline& outline) { return outline; });
+  const std::vector<std::pair<std::string, Decoration>> wrappers = {
+      {"stack", DecorationStack{{mark}}},
+      {"weave", brush::layers({mark})},
+      {"brush", Brush{}.layer(mark)},
+      {"restyled", brush::restyle(unchangedOutline, mark)},
+      {"edge slice", onEdges(geometry::path::Edge::Top, mark)},
+      {"inset", inset(4, mark)},
+  };
+  for (const auto& [name, wrapped] : wrappers) {
+    SCOPED_TRACE(name);
+    motion::Animatable<float> direction = motion::animatable(180.0f);
+    Host host;
+    host.composer.setAutoTexturePromotion(false);
+    host.composer.render(
+        box()
+            .lighting(material::studio({.direction = direction}))
+            .children({box()
+                           .width(80)
+                           .height(80)
+                           .cache(Cache::Picture)
+                           .foreground(wrapped)}));
+    host.frame();
+    EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
+    direction = 0.0f;
+    EXPECT_TRUE(host.composer.isRunning());
+    host.frame();
+    EXPECT_EQ(host.pixel(40, 40), SK_ColorGREEN);
+  }
 }
 
 // -------------------------------------------------------------------------

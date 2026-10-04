@@ -31,11 +31,12 @@
 // does and for the same reason: the accounting is against `kSlotSpecs`
 // itself, so a slot appended to the enum is a case that fails here.
 
+#include <sigilmotion/ease/Ease.h>
+
 #include <vector>
 
-#include "../ComposeRuntime.h"
+#include "runtime/ComposeRuntime.h"
 #include "support/CoreTestSupport.h"
-#include <sigilmotion/ease/Ease.h>
 
 namespace cd = sigil::compose::detail;
 
@@ -130,13 +131,12 @@ const SlotScene kSlotScenes[] = {
        e.absolute();
        e.rect(0, 0, 24, 24);
        e.fill(red());
-       e.travel({.path =
-                     skiaShape([](SkSize) {
-                       SkPathBuilder b;
-                       b.moveTo(20, 20);
-                       b.lineTo(170, 170);
-                       return b.detach();
-                     }),
+       e.travel({.path = skiaShape([](SkSize) {
+                   SkPathBuilder b;
+                   b.moveTo(20, 20);
+                   b.lineTo(170, 170);
+                   return b.detach();
+                 }),
                  .t = std::move(lane)});
        return e;
      }},
@@ -199,14 +199,20 @@ std::vector<uint32_t> pixels(Host& host, int w = 200, int h = 200) {
   return out;
 }
 
-const sigil::motion::Tween<float> kSecondFlat{.duration = 1000ms, .ease = sigil::motion::ease::linear};
+const sigil::motion::Tween<float> kSecondFlat{
+    .duration = 1000ms, .ease = sigil::motion::ease::linear};
 
 }  // namespace
 
 TEST(ComposeSlotConsumers, EveryLanePlaysItsEntranceThroughACachingAncestor) {
   for (const SlotScene& scene : kSlotScenes) {
     Host host(200, 200);
-    host.composer.render(grouped(scene.build(motion::animate({.from = scene.rest, .to = scene.moved, .duration = kSecondFlat.duration, .delay = kSecondFlat.delay, .ease = kSecondFlat.ease}))));
+    host.composer.render(
+        grouped(scene.build(motion::animate({.from = scene.rest,
+                                             .to = scene.moved,
+                                             .duration = kSecondFlat.duration,
+                                             .delay = kSecondFlat.delay,
+                                             .ease = kSecondFlat.ease}))));
     host.frame();  // the entrance stands at `rest`
     const std::vector<uint32_t> entering = pixels(host);
     host.frame(1.0);  // …and has arrived at `moved`
@@ -229,8 +235,11 @@ TEST(ComposeSlotConsumers, EveryLaneEasesToARedescribedEndpoint) {
     host.frame(1.0);  // settled at `rest`, with no motion running
     const std::vector<uint32_t> atRest = pixels(host);
 
-    host.composer.render(grouped(
-        scene.build(motion::animate({.to = scene.moved, .duration = kSecondFlat.duration, .delay = kSecondFlat.delay, .ease = kSecondFlat.ease}))));
+    host.composer.render(
+        grouped(scene.build(motion::animate({.to = scene.moved,
+                                             .duration = kSecondFlat.duration,
+                                             .delay = kSecondFlat.delay,
+                                             .ease = kSecondFlat.ease}))));
     host.frame(0.02);  // a fiftieth of the way: still beside `rest`
     const std::vector<uint32_t> justAfter = pixels(host);
     host.frame(2.0);  // settled at `moved`

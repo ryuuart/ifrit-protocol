@@ -6,22 +6,18 @@
  * Region value and the `parts::` selections are the kernel's.
  */
 
-#include <sigilgeometry/advanced/Skia.h>
 #include <include/core/SkPathBuilder.h>
+#include <sigilgeometry/advanced/Skia.h>
 
 #include <memory>
 #include <utility>
 #include <vector>
 
-#include "ComposeInternal.h"
 #include "SpanArithmetic.h"
-#include "sigilgeometry/path/Contour.h"
-#include "FillLowering.h"
+#include "description/ComposeInternal.h"
+#include "paint/FillLowering.h"
 
 namespace sigil::compose {
-
-using detail::ElementNode;
-using detail::Kind;
 
 // ---- the masking family ---------------------------------------------------
 
@@ -78,8 +74,7 @@ Gate alpha(material::Material coverage) {
   Gate g;
   g.resolver = detail::maskResolver();
   g.kind = Gate::Kind::Coverage;
-  g.coverage =
-      std::make_shared<const material::Material>(std::move(coverage));
+  g.coverage = std::make_shared<const material::Material>(std::move(coverage));
   return g;
 }
 Gate alphaOut(material::Material coverage) {
@@ -132,7 +127,7 @@ struct MaskEngine final : MaskResolverOperations {
     if (!gate.coverage) return {};
     const material::Paint mat = material::skia::paint(*gate.coverage);
     return (mat.isRunning() || mat.geometryDependent()) ? resolveFill(mat, ctx)
-                                                         : toFill(mat);
+                                                        : toFill(mat);
   }
 };
 

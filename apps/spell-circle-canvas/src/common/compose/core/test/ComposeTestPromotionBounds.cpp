@@ -5,9 +5,9 @@
 // dressed coverage that holds ink outside the box without moving the ink
 // inside it.
 
+#include <include/core/SkFontMetrics.h>
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/advanced/Skia.h>
-#include <include/core/SkFontMetrics.h>
 
 #include <vector>
 
@@ -520,4 +520,36 @@ TEST(ComposeCoverageBounds, InkInsideTheBoxTracesWhereItAlwaysDid) {
       << " pixels moved when a decoration reserved 13.5 px and drew nothing, "
          "so the raster's grid follows the paint bounds' own fraction rather "
          "than the node's steps";
+}
+
+TEST(ComposeCache, PaintBoundsBeyondIntegerCoordinatesFallBackToLive) {
+  const auto scene = [] {
+    return box()
+        .cache(Cache::None)
+        .children({box()
+                       .key("largeShape")
+                       .width(80)
+                       .height(80)
+                       .shape(skiaShape([] {
+                         SkPathBuilder path;
+                         path.addRect(SkRect::MakeLTRB(-1.0e20f, -1.0e20f,
+                                                       1.0e20f, 1.0e20f));
+                         return path.detach();
+                       }))
+                       .fill(red())});
+  };
+  Host plain, eager;
+  plain.composer.setAutoTexturePromotion(false);
+  eager.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Eager);
+  eager.composer.setProfiling(true);
+  plain.composer.render(scene());
+  eager.composer.render(scene());
+  plain.frame();
+  eager.frame();
+  EXPECT_TRUE(identicalPixels(plain, eager, 200, 200));
+  EXPECT_EQ(eager.pixel(40, 40), SK_ColorRED);
+  EXPECT_EQ(eager.composer.stats().texturesBaked, 0u);
+  const Composer::NodeCost* row = requireRow(eager.composer, "largeShape");
+  ASSERT_NE(row, nullptr);
+  EXPECT_EQ(row->cacheState, Composer::CacheState::Live);
 }

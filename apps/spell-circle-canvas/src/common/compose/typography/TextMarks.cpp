@@ -4,8 +4,8 @@
  * uses.
  */
 
-#include <sigilgeometry/advanced/Skia.h>
 #include <include/core/SkTypes.h>  // SkDebugf — the empty-selector diagnostic
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilweave/choreograph/Choreograph.h>
 
 #include <algorithm>
@@ -14,10 +14,10 @@
 #include <utility>
 #include <vector>
 
-#include "ComposeRuntime.h"
-#include "PaintInternal.h"
 #include "TextEngine.h"
 #include "TextPose.h"
+#include "paint/PaintInternal.h"
+#include "runtime/ComposeRuntime.h"
 
 namespace sigil::compose {
 
@@ -302,8 +302,8 @@ std::vector<Beat> detail::beatsOfTrack(Instance& inst, size_t trackIndex) {
   const sigil::weave::ParagraphLayout& layout = *schedule.layout;
 
   const HeldMotion* anim = trackIndex < inst.trackAnims.size()
-                                  ? inst.trackAnims[trackIndex].get()
-                                  : nullptr;
+                               ? inst.trackAnims[trackIndex].get()
+                               : nullptr;
   const float master =
       std::clamp(inst.resolveFloatAt(anim, track.progress), 0.0f, 1.0f);
 

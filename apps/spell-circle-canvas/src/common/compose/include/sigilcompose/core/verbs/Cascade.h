@@ -8,16 +8,16 @@
  * the three keywords. The font and the ink are the font family's.
  */
 
-#include <sigilmaterial/core/Lighting.h>
-#include <sigilmaterial/texture/Texture.h>
 #include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Declarations.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/LineSetting.h>
-#include <sigilcompose/core/PaintBox.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilcompose/core/PaintBox.h>
 #include <sigilcompose/core/Var.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/core/Lighting.h>
+#include <sigilmaterial/texture/Texture.h>
 #include <sigilweave/layout/ParagraphBlock.h>
 #include <sigilweave/style/Style.h>
 
@@ -116,6 +116,11 @@ class CascadeVerbs {
    *  strength re-runs only the lighting pass each frame: the colours
    *  beneath were lowered once and are not painted again. */
   Derived& lighting(material::Lighting lighting);
+  /** THE ENVIRONMENT A SCENE OWNS: reflected by its lit receivers, together
+   *  with the sources declared below it. A later call replaces it. This
+   *  applies to `scene()` only and is ignored on other node kinds. Nested
+   *  scenes start with no inherited environment. */
+  Derived& environment(material::Environment environment);
 
   /** @p property TAKES THE PARENT'S COMPUTED VALUE, whether or not it is
    *  one that inherits on its own: `inherit(Property::PaddingLeft)` gives

@@ -147,9 +147,13 @@ TEST(ComposeCaching, AGroupBakeUnderABoundAncestorSurvivesSubPixelMotion) {
                            .height(30)
                            .rotate(12.0f * (float)i)
                            .fill(i % 2 ? red() : green())});
-  host.composer.render(box().cache(Cache::None).children(
-      {box().cache(Cache::None).absolute().translateX(drift).children(
-          {std::move(assembly)})}));
+  host.composer.render(box()
+                           .cache(Cache::None)
+                           .children({box()
+                                          .cache(Cache::None)
+                                          .absolute()
+                                          .translateX(drift)
+                                          .children({std::move(assembly)})}));
   host.frame();
   host.frame(1.0 / 60.0);  // the group has a frame to compare with
   host.frame(1.0 / 60.0);
@@ -189,7 +193,8 @@ TEST(ComposeCaching, BakesUnderAHiddenFadeAreTakenBeforeItShows) {
     host.surface->readPixels(read.pixmap(), 0, 0);
     int inked = 0;
     for (int y = 0; y < 400; ++y)
-      for (int x = 0; x < 400; ++x) inked += read.getColor(x, y) != SK_ColorBLACK;
+      for (int x = 0; x < 400; ++x)
+        inked += read.getColor(x, y) != SK_ColorBLACK;
     return inked;
   };
   host.frame();
@@ -456,8 +461,7 @@ Element turnedRing(Cache mode, const motion::Animatable<float>& turn) {
  *  recording matrix-independent, which is what keeps the ring on the local
  *  bake — the tier the ink grid describes — and the recording is replayed
  *  under a matrix of its own, which is not the page's own space. */
-Element ringInASlidingPage(const motion::Animatable<float>& slide,
-                           Cache mode) {
+Element ringInASlidingPage(const motion::Animatable<float>& slide, Cache mode) {
   return profiledUnder(box()
                            .key("page")
                            .absolute()
@@ -520,7 +524,8 @@ TEST(ComposeCaching, ATurnedRingsBlitLosesNoneOfWhatItBaked) {
   // visible artwork may disappear at any angle.
   const int w = 680, h = 680, block = 16;
   for (float degrees : {0.0f, 7.0f, 45.0f, 90.0f, 137.0f, -60.0f}) {
-    motion::Animatable<float> turn = motion::animatable<float>(degrees / 360.0f);
+    motion::Animatable<float> turn =
+        motion::animatable<float>(degrees / 360.0f);
     Host cached(w, h), plain(w, h);
     cached.composer.render(turnedRing(Cache::Texture, turn));
     cached.frame();
@@ -566,7 +571,8 @@ TEST(ComposeCaching, ARecordedBakesBlitLosesNoneOfWhatItBaked) {
     canvas->restore();
   };
   Host cached(w, h), plain(w, h);
-  motion::Animatable<float> cachedSlide = motion::animatable(0.0f), plainSlide = motion::animatable(0.0f);
+  motion::Animatable<float> cachedSlide = motion::animatable(0.0f),
+                            plainSlide = motion::animatable(0.0f);
   for (Host* host : {&cached, &plain})
     host->composer.setSize({(float)w / view, (float)h / view});
   cached.composer.render(ringInASlidingPage(cachedSlide, Cache::Texture));

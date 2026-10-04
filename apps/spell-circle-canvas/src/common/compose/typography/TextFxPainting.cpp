@@ -6,15 +6,19 @@
  */
 
 #include <include/core/SkCanvas.h>
-#include <sigilmaterial/skia/Color.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPicture.h>
 #include <include/core/SkPictureRecorder.h>
 #include <include/core/SkShader.h>
 #include <sigilgeometry/path/Numeric.h>  // radians — the degree conversion
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Pass.h>
 #include <sigilweave/advanced/DecorationRects.h>
+#include <sigilweave/choreograph/GlyphBatches.h>
+#include <sigilweave/choreograph/GlyphDress.h>
+#include <sigilweave/choreograph/PlacedGlyph.h>
+#include <src/core/SkScopeExit.h>
 
 #include <algorithm>
 #include <cmath>
@@ -23,14 +27,14 @@
 #include <utility>
 #include <vector>
 
-#include "sigilweave/advanced/Skia.h"
-#include "sigilgeometry/advanced/Skia.h"
-#include "ComposeRuntime.h"
-#include "PaintInternal.h"
 #include "TextEngine.h"
 #include "TextPose.h"
 #include "TextSubstitution.h"
-#include "FillLowering.h"
+#include "paint/FillLowering.h"
+#include "paint/PaintInternal.h"
+#include "runtime/ComposeRuntime.h"
+#include "sigilgeometry/advanced/Skia.h"
+#include "sigilweave/advanced/Skia.h"
 
 namespace sigil::compose {
 
@@ -50,6 +54,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
                          SkSize size, const PaintContext& ctx) {
   if (!inst.paragraph) return;  // no content materialized: nothing to draw
   static thread_local std::vector<Track> joinedTracks;
+  const SkScopeExit releaseTracks([&] { joinedTracks.clear(); });
   const std::span<const Track> tracks = paintedTracksOf(inst, joinedTracks);
 
   // ONE COMPOSITION ORDER, stated here because everything below assumes it:
@@ -141,6 +146,15 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
   // per-glyph vectors' allocations, which is a fresh pair per track per
   // text node per frame on a page full of animated type.
   static thread_local std::vector<Resolved> resolved;
+  const SkScopeExit releaseResolved([&] {
+    for (Resolved& entry : resolved) {
+      entry.track = nullptr;
+      entry.selected = nullptr;
+      entry.pieces = nullptr;
+      entry.resolved.schedule.outerDistribution = {};
+      entry.resolved.schedule.innerDistribution = {};
+    }
+  });
   size_t used = 0;
   for (size_t i = 0; i < tracks.size(); ++i) {
     const Track& track = tracks[i];
@@ -175,6 +189,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
   // The phases mirror the batched draw a resting node takes: highlights go
   // under every glyph pass, and everything else flushes past them.
   static thread_local std::vector<std::pair<SkRect, SkPaint>> aboveBands;
+  const SkScopeExit releaseBands([&] { aboveBands.clear(); });
   aboveBands.clear();
   sigil::weave::detail::forEachDecorationRect(
       layout.runs, inst.paragraph->spans(), ink.override(),
@@ -212,6 +227,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
   std::vector<std::pair<BandKey, GlyphBand>> bandMemo;
 
   static thread_local sigil::weave::GlyphRSXformBatches batches;
+  const SkScopeExit releaseBatches([&] { batches.clear(); });
   batches.clear();
 
   // WHERE THIS RUN'S GLYPHS LAND MOVES FROM FRAME TO FRAME, which is what
@@ -241,17 +257,17 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
 
   const PoseContext poseCtx{&inst, &layout, onPath, ridesPath, phaseArc};
 
-  // AN INK THAT RESTARTS PER UNIT is laid on each unit where the unit
-  // stands at rest in THIS layout — on the curve for a path run. A letter
-  // in flight draws with its unit's paint, sampled where the letter is
-  // now: the field stays where its unit rests.
+  // Span inks keep their resolved foregrounds. Restarting ink maps onto
+  // each unit at rest in this layout, including its curve placement;
+  // a moving letter samples that field where the letter is now.
   static thread_local GlyphInk glyphInk;
-  const bool byUnit = ink.restarts();
-  if (byUnit) inkByUnit(layout, inst, structure, poseCtx, ink, glyphInk);
+  const SkScopeExit releaseGlyphs([&] { glyphInk.clear(); });
+  const bool byGlyph = ink.hasGlyphStyles();
+  if (byGlyph) resolveGlyphInk(layout, inst, structure, poseCtx, ink, glyphInk);
   const sigil::weave::PaintStyle* override = ink.override();
   const auto styleOf = [&](uint32_t g, const sigil::weave::PlacedGlyph& placed)
       -> const sigil::weave::PaintStyle& {
-    if (byUnit && g < glyphInk.styleOfGlyph.size() &&
+    if (byGlyph && g < glyphInk.styleOfGlyph.size() &&
         glyphInk.styleOfGlyph[g] < glyphInk.styles.size())
       return glyphInk.styles[glyphInk.styleOfGlyph[g]];
     return override ? *override : *placed.paint;
@@ -265,8 +281,8 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
         RestPose pose;
         if (!restPoseOf(poseCtx, placed, pose)) return;
         GlyphInfo info = structure.glyphs[g];
-        info.ink = material::skia::toColor(
-            styleOf(g, placed).foreground.getColor4f());
+        info.ink =
+            material::skia::toColor(styleOf(g, placed).foreground.getColor4f());
 
         // Every track that addresses this glyph, composed: offsets, shear
         // and rotations add, scale, alpha and the colour multiplier
@@ -287,8 +303,9 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
           // The unit's own place in its beat, then what the track's tween
           // says that place reads: from, to, curve and keyframes.
           const float t = r.track->unitProgress(
-              rc.schedule.localProgress(r.master, rc.outerUnit[g],
-                                        rc.innerUnit.empty() ? 0u : rc.innerUnit[g]),
+              rc.schedule.localProgress(
+                  r.master, rc.outerUnit[g],
+                  rc.innerUnit.empty() ? 0u : rc.innerUnit[g]),
               {info.unitIndex, info.unitCount});
           core::noise::Mix64Stream rng(detail::glyphSeed(info));
           detail::compose(modifier, r.track->effect(info, t, rng));
@@ -313,8 +330,8 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
           }
           lane.keys.push_back(key);
           lane.rects.push_back(box);
-          lane.locals.push_back(
-              rc.schedule.localProgress(lane.source->master, key.first, key.second));
+          lane.locals.push_back(rc.schedule.localProgress(
+              lane.source->master, key.first, key.second));
         };
         const auto noteBeatsAndDrop = [&] {
           for (const std::unique_ptr<PassLane>& lane : passes)
@@ -397,10 +414,10 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
         // keeps a stagger's shove tangential to the lettering it belongs
         // to. The rotations compose the same way: the track's angle turns
         // the glyph from wherever the baseline had already turned it.
-        const glm::vec2 centre = {pose.centre.x + pose.cosine * modifier.dx -
-                                    pose.sine * modifier.dy,
-                                pose.centre.y + pose.sine * modifier.dx +
-                                    pose.cosine * modifier.dy};
+        const glm::vec2 centre = {
+            pose.centre.x + pose.cosine * modifier.dx - pose.sine * modifier.dy,
+            pose.centre.y + pose.sine * modifier.dx +
+                pose.cosine * modifier.dy};
         const float turnCos = pose.cosine * cosv - pose.sine * sinv;
         const float turnSin = pose.sine * cosv + pose.cosine * sinv;
 
@@ -432,15 +449,15 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
         geometry::path::Transform transform;
         if (modifier.skewXDeg != 0 || modifier.skewYDeg != 0 ||
             modifier.scaleX != 1 || modifier.scaleY != 1) {
-          matrix.setAll(turnCos, -turnSin, centre.x, turnSin, turnCos,
-                        centre.y, 0, 0, 1);
+          matrix.setAll(turnCos, -turnSin, centre.x, turnSin, turnCos, centre.y,
+                        0, 0, 1);
           // CSS's `skewX(x) skewY(y)`, as the node's own skew lanes take
           // it: an x shear, then a y shear inside it, so a glyph naming
           // both widens by the product of the tangents exactly as a
           // browser's transform list does.
           if (modifier.skewXDeg != 0)
-            matrix.preSkew(
-                std::tan(geometry::path::radians(modifier.skewXDeg)), 0);
+            matrix.preSkew(std::tan(geometry::path::radians(modifier.skewXDeg)),
+                           0);
           if (modifier.skewYDeg != 0)
             matrix.preSkew(
                 0, std::tan(geometry::path::radians(modifier.skewYDeg)));
@@ -554,7 +571,8 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
     inputs.units = n;
     const material::Paint& passPaint =
         lane->source->track->effect.loweredPass()->paint;
-    sk_sp<SkShader> pass = material::skia::resolvePass(passPaint, inputs, frameOf(ctx));
+    sk_sp<SkShader> pass =
+        material::skia::resolvePass(passPaint, inputs, frameOf(ctx));
     if (!pass) {
       // The refusal already said why (no source, or it does not compile):
       // show resting letters rather than nothing, so the text survives
@@ -574,7 +592,6 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
   // storage outlives the frame.
   for (const auto& [rect, bandPaint] : aboveBands)
     canvas.drawRect(rect, bandPaint);
-  aboveBands.clear();
 }
 
 }  // namespace sigil::compose

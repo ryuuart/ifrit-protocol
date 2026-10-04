@@ -19,7 +19,6 @@
  * the key its author gave it.
  */
 
-#include <glm/vec2.hpp>
 #include <sigilcore/compute/Noise.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -28,6 +27,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <glm/vec2.hpp>
 #include <memory>
 #include <optional>
 #include <span>
@@ -41,9 +41,6 @@ namespace detail {
 /** A pass material as the executor lowered it, made once where the pass
  *  was built; defined where the runtime draws it. */
 struct LoweredPass;
-/** Whether two lowered passes are the same pass — the executor's own
- *  recipe equality, under which a live pass never compares equal. */
-bool samePass(const LoweredPass& first, const LoweredPass& second);
 }  // namespace detail
 
 /** What an effect sees for one glyph.
@@ -54,11 +51,11 @@ bool samePass(const LoweredPass& first, const LoweredPass& second);
  *  third letter of its word" or "everything on line two" without the
  *  author counting glyphs by hand. */
 struct GlyphInfo {
-  size_t index = 0;    ///< glyph position in the paragraph
-  size_t count = 1;    ///< total glyphs
+  size_t index = 0;      ///< glyph position in the paragraph
+  size_t count = 1;      ///< total glyphs
   glm::vec2 rest{0, 0};  ///< the glyph's laid-out origin (pen position)
-  float advance = 0;   ///< the glyph's advance width
-  float fontSize = 0;  ///< the glyph's font size (em-relative effects)
+  float advance = 0;     ///< the glyph's advance width
+  float fontSize = 0;    ///< the glyph's font size (em-relative effects)
 
   uint32_t glyphInWord = 0;     ///< index of this glyph within its word
   uint32_t wordGlyphCount = 1;  ///< glyphs in that word
@@ -95,11 +92,11 @@ struct GlyphInfo {
  *
  *  This is the type the composition algebra operates on: stacked tracks,
  *  `textFx::mix`, a `textFx::sequence` crossfade and a `textFx::tween`
- *  keyframe segment all combine GlyphModifiers the same way — dx/dy, rotateDeg, skewXDeg and
- *  skewYDeg ADD; scale, scaleX, scaleY, alpha and colorMultiplier MULTIPLY;
- *  colorAdd ADDS and colorScreen SCREENS, each channelwise; and the two
- *  SUBSTITUTIONS, `axis` and `codepoint`, are last-one-wins. Substitutions do
- *  not blend because there is no half-way glyph between two outlines: a later
+ *  keyframe segment all combine GlyphModifiers the same way — dx/dy, rotateDeg,
+ * skewXDeg and skewYDeg ADD; scale, scaleX, scaleY, alpha and colorMultiplier
+ * MULTIPLY; colorAdd ADDS and colorScreen SCREENS, each channelwise; and the
+ * two SUBSTITUTIONS, `axis` and `codepoint`, are last-one-wins. Substitutions
+ * do not blend because there is no half-way glyph between two outlines: a later
  *  track that names one replaces what an earlier one named, and a
  *  `textFx::sequence` crossfade cuts them at the middle of its window rather
  *  than lerping. (An axis coordinate is the exception inside a crossfade: two
@@ -241,8 +238,7 @@ class TextEffect {
    *  leaves every glyph on its pen position. */
   TextEffect(std::string name, std::vector<float> parameters,
              GlyphModifierFunction function, float reach,
-             std::vector<motion::Easing> curves = {},
-             bool displaces = true) {
+             std::vector<motion::Easing> curves = {}, bool displaces = true) {
     auto state = std::make_shared<State>();
     state->name = std::move(name);
     state->parameters = std::move(parameters);
@@ -327,7 +323,7 @@ class TextEffect {
     if ((m_state->pass != nullptr) != (other.m_state->pass != nullptr))
       return false;
     if (m_state->pass &&
-        !detail::samePass(*m_state->lowered, *other.m_state->lowered))
+        !m_state->passEqual(*m_state->lowered, *other.m_state->lowered))
       return false;
     if (m_state->curves.size() != other.m_state->curves.size()) return false;
     for (size_t i = 0; i < m_state->curves.size(); ++i)
@@ -451,6 +447,10 @@ class TextEffect {
     std::shared_ptr<const material::Material> pass;
     /** `pass` lowered, set with it. */
     std::shared_ptr<const detail::LoweredPass> lowered;
+    /** Set with the lowered pass by its factory. Structural comparison
+     *  can use the executor's recipe equality without knowing its state. */
+    bool (*passEqual)(const detail::LoweredPass&,
+                      const detail::LoweredPass&) = nullptr;
   };
   /** restsAt()'s one body: appends the phases to the pass's parameters — a
    *  pass carries no other parameters, so its parameters slot IS the rest

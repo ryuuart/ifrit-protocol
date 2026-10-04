@@ -4,13 +4,14 @@
 // resolved against, the store a node keeps its stamp bakes in, and the
 // value semantics of an Element that has already been rendered.
 
-#include "../StampCache.h"
 #include <sigilmaterial/skia/Paint.h>
+
 #include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
 
+#include "cache/StampCache.h"
 #include "support/CoreTestSupport.h"
 
 TEST(ComposeValues, ACacheModeSaysOneOfThreeThingsToTheProof) {
@@ -55,7 +56,8 @@ TEST(ComposeValues, TheFrameAPaintResolvesAgainstIsTheContextsOwn) {
   const material::FrameData frame = frameOf(ctx);
   EXPECT_EQ(frame.resolution, glm::vec2(40, 20));
   EXPECT_EQ(frame.rootResolution, glm::vec2(800, 600));
-  EXPECT_EQ(material::skia::toSkMatrix(frame.world), SkMatrix::Translate(30, 40));
+  EXPECT_EQ(material::skia::toSkMatrix(frame.world),
+            SkMatrix::Translate(30, 40));
   EXPECT_DOUBLE_EQ(frame.seconds, 2.5);
   EXPECT_FLOAT_EQ(frame.contentScale, 2.0f);
 }

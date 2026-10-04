@@ -29,18 +29,25 @@ box().children({each(services, serviceCard)})
 
 **The list is the order.** Each operator sees what the ones before it
 left: a `layouts::Jitter` after a `layouts::Radial` nudges what the ring
-placed. Every run of the arranging operators starts from the flex
-layout's own answer, so a run after a text reflow answers the same
-question the first did. Arranging operators are written before adding
-ones, because they run first whatever the list says; a list that says
+placed. Each settling round begins from the flex placement and no operator
+turn, so a modifier-only list can nudge that placement once. Arranging
+operators are written before
+adding ones, because they run first whatever the list says; a list that says
 otherwise is reported once.
 
 **An operator is a comparable value** with `arrange(Arrangement&)` or
 `add(Scope&)` and an equality, so an unchanged list over unchanged facts
 prunes; a value with no equality is the escape hatch that never does. A
-placement scheme, `place(LayoutInput)`, is an operator too,
-adapted when it is held; `layout(scheme)` is this verb under the
-shorter spelling.
+stock layout uses that same arranging call. `layout(scheme)` is this verb
+under the shorter spelling.
+
+**An arrangement borrows its child records.** `Arrangement::children` is a
+span whose count and order belong to the composer. Each record carries the
+child's measured size, baseline, cells, area and facts, together with its
+current `rect` and `turnDegrees`. An arranger writes `place`, `centreAt`
+and `turn` directly onto those records; keep no reference after the call.
+`Arrangement::Child::sizeIn` resolves stated percentages against the box
+that the arranger gives that child.
 
 **The scope is closed.** A node under this one with operators of its
 own is one node to them, with nothing under it; what it wants read from

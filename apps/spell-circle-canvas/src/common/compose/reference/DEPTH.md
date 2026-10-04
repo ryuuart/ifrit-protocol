@@ -84,8 +84,9 @@ space is drawn on, for a node in a space — and a point whose pre-image is
 at or behind the viewer, or off the plane's projection, misses; a host's
 children are tested nearest first.
 
-**What this is not.** Planes never intersect: a child that crosses
-another is drawn whole, in the order their centres sort. Nothing is lit,
-nothing casts, and a depth is not a position in a world. A scene with
-those is a set — SigilWorld — and this stays the retained 2D tree with
-CSS's model over it.
+**Rendering limits.** Planes never intersect: a child that crosses
+another is drawn whole, in the order their centres sort. Material lighting
+shades planar bump normals; the projected depth is not a geometric position
+used by the lighting executor, and planes cast no shadows. Positioned
+lights require affine receiver placement. A world scene belongs to
+SigilWorld; this remains a retained 2D tree with CSS's projection model.

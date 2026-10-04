@@ -1,5 +1,6 @@
 /** @file
- * THE INK RESTARTED ON EACH UNIT. An ink that names a unit of its
+ * THE INK EACH GLYPH DRAWS WITH. A span keeps its resolved foreground;
+ * an ink that names a unit of its
  * passage — a glyph, a cluster, a word, a line, a sentence — paints every
  * such unit afresh, its unit square on the text-metric box of that unit:
  * across the unit's advances, from the cap top down to the baseline. One
@@ -10,18 +11,21 @@
 
 #include <include/core/SkFontMetrics.h>
 #include <include/core/SkMatrix.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilweave/choreograph/Choreograph.h>  // forEachPlacedGlyph
 #include <sigilweave/fonts/Shaper.h>             // makeFont — the cap height
+#include <src/core/SkScopeExit.h>
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
 #include <utility>
 #include <vector>
 
-#include "sigilweave/advanced/Skia.h"
 #include "TextEngine.h"
 #include "TextPose.h"
+#include "sigilweave/advanced/Skia.h"
 
 namespace sigil::compose {
 
@@ -79,37 +83,47 @@ SkRect inkBoxOf(const sigil::weave::PlacedGlyph& placed, const RestPose& pose,
   return box;
 }
 
-/** One run of glyphs one ink paints afresh: the style it starts from, the
- *  paint on the unit square, and the box the glyphs cover. */
+/** One run of glyphs one ink paints afresh. Its mapping spans all styles
+ *  inside the unit, including font changes that split a word. */
 struct UnitGroup {
-  const sigil::weave::PaintStyle* base = nullptr;
-  sk_sp<SkShader> unitSquare;
+  sk_sp<SkShader> shader;
+  std::optional<material::Color> color;
+  bool mapped = false;
   SkRect box = SkRect::MakeEmpty();
   bool placed = false;
+  const detail::TextInk::Surface* surface = nullptr;
+};
+
+struct GroupStyle {
+  const sigil::weave::PaintStyle* base;
+  uint32_t group;
 };
 
 }  // namespace
 
-void detail::inkByUnit(const sigil::weave::ParagraphLayout& layout,
-                       const Instance& inst, const GlyphStructure& structure,
-                       const PoseContext& poses, const TextInk& ink,
-                       GlyphInk& glyphs) {
+void detail::resolveGlyphInk(const sigil::weave::ParagraphLayout& layout,
+                             const Instance& inst,
+                             const GlyphStructure& structure,
+                             const PoseContext& poses, const TextInk& ink,
+                             GlyphInk& glyphs) {
   glyphs.styles.clear();
   glyphs.styleOfGlyph.assign(structure.glyphs.size(), GlyphInk::kOwnPaint);
   if (!inst.paragraph) return;
-  const std::vector<SpanRestyle>* spans =
-      inst.description && inst.description->textData
-          ? &inst.description->textData->spanRestyles
-          : nullptr;
   static thread_local std::vector<UnitGroup> groups;
+  static thread_local std::vector<GroupStyle> styles;
   static thread_local std::vector<std::pair<BandKey, float>> caps;
+  const SkScopeExit releaseGroups([&] {
+    groups.clear();
+    styles.clear();
+  });
   groups.clear();
+  styles.clear();
   caps.clear();
 
   // A unit is a run of glyphs one ink restarts on, so a glyph opens a new
   // one where the ink painting it changes or its unit does. The leaf's
-  // own ink reaches every glyph; a span's reaches the glyphs whose paint
-  // is still its shader, which is exactly the text a later span left it.
+  // own ink reaches every glyph; a span's reaches the glyphs whose style
+  // still carries its material owner after later restyles.
   constexpr uint32_t kNone = ~0u;
   uint32_t openInk = kNone, openUnit = kNone;
   sigil::weave::forEachPlacedGlyph(
@@ -118,42 +132,44 @@ void detail::inkByUnit(const sigil::weave::ParagraphLayout& layout,
         if (ordinal >= structure.glyphs.size()) return;
         uint32_t whose = kNone;
         const sigil::weave::PaintStyle* base = nullptr;
-        sk_sp<SkShader> unitSquare;
-        sigil::weave::Unit unit = ink.unit;
-        if (ink.unitSquare && ink.passage) {
+        sk_sp<SkShader> shader;
+        std::optional<material::Color> color;
+        std::optional<sigil::weave::Unit> unit;
+        const TextInk::Surface* surface = nullptr;
+        if ((ink.unitSquare || ink.unitSurface) && ink.passage) {
           whose = 0;
           base = &*ink.passage;
-          unitSquare = ink.unitSquare;
-        } else if (ink.spanUnits && spans) {
-          const SkShader* painted = placed.paint->foreground.getShader();
-          for (size_t index = spans->size(); painted && index-- > 0;) {
-            const SpanRestyle& span = (*spans)[index];
-            const std::optional<sigil::weave::Unit> spanUnit =
-                textUnitOf(span.inkBox);
-            if (!spanUnit || !span.inkShader) continue;
-            sk_sp<SkShader> spanShader =
-                material::skia::staticShader(detail::paintOf(*span.inkShader));
-            if (spanShader.get() != painted) continue;
+          shader = ink.unitSquare;
+          unit = ink.unit;
+          if (ink.unitSurface) surface = &*ink.unitSurface;
+        } else if (placed.paint->foregroundMaterial) {
+          for (size_t index = ink.spans.size(); index-- > 0;) {
+            const TextInk::Span& span = ink.spans[index];
+            if (span.source != placed.paint->foregroundMaterial) continue;
             whose = (uint32_t)index + 1;
             base = placed.paint;
-            unitSquare = std::move(spanShader);
-            unit = *spanUnit;
+            shader = span.shader;
+            color = span.color;
+            unit = span.unit;
+            if (span.surface) surface = &*span.surface;
             break;
           }
         }
-        if (!base || (size_t)unit >= GlyphStructure::kUnits) {
+        if (!base || (unit && (size_t)*unit >= GlyphStructure::kUnits)) {
           openInk = kNone;
           return;
         }
-        const uint32_t unitIndex = structure.unitOf[(size_t)unit][ordinal];
-        if (whose != openInk || unitIndex != openUnit) {
-          groups.push_back({base, std::move(unitSquare)});
+        const uint32_t unitIndex =
+            unit ? structure.unitOf[(size_t)*unit][ordinal] : 0;
+        if (whose != openInk || unitIndex != openUnit || groups.empty()) {
+          groups.push_back({std::move(shader), color, unit.has_value()});
+          groups.back().surface = surface;
           openInk = whose;
           openUnit = unitIndex;
         }
         UnitGroup& group = groups.back();
         RestPose pose;
-        if (restPoseOf(poses, placed, pose)) {
+        if (unit && restPoseOf(poses, placed, pose)) {
           const SkRect box =
               inkBoxOf(placed, pose, capHeightOf(placed.shaped, caps));
           if (group.placed)
@@ -162,29 +178,58 @@ void detail::inkByUnit(const sigil::weave::ParagraphLayout& layout,
             group.box = box;
           group.placed = true;
         }
-        glyphs.styleOfGlyph[ordinal] = (uint32_t)groups.size() - 1;
+        const uint32_t groupIndex = (uint32_t)groups.size() - 1;
+        if (styles.empty() || styles.back().base != base ||
+            styles.back().group != groupIndex)
+          styles.push_back({base, groupIndex});
+        glyphs.styleOfGlyph[ordinal] = (uint32_t)styles.size() - 1;
       });
 
-  glyphs.styles.reserve(groups.size());
-  for (const UnitGroup& group : groups) {
-    sigil::weave::PaintStyle style = *group.base;
-    const SkRect box = group.placed ? group.box : SkRect::MakeWH(1, 1);
-    SkMatrix map = SkMatrix::Translate(box.left(), box.top());
-    map.preScale(std::max(box.width(), 1.0f), std::max(box.height(), 1.0f));
-    style.foreground.setShader(group.unitSquare->makeWithLocalMatrix(map));
+  for (UnitGroup& group : groups) {
+    if (group.mapped && (group.shader || group.surface)) {
+      const SkRect box = group.placed ? group.box : SkRect::MakeWH(1, 1);
+      SkMatrix map = SkMatrix::Translate(box.left(), box.top());
+      map.preScale(std::max(box.width(), 1.0f), std::max(box.height(), 1.0f));
+      if (group.surface)
+        group.shader = group.surface->inputs.shader(
+            group.surface->lighting, ink.frame, material::skia::toMatrix(map));
+      else
+        group.shader = group.shader->makeWithLocalMatrix(map);
+    }
+  }
+  // An ink that resolved to neither a shader nor a colour paints nothing
+  // of its own, so its glyphs keep the paint they would have drawn with
+  // anyway: the range keeps its own ink rather than vanishing. Every style
+  // that does paint is renumbered past the ones dropped.
+  static thread_local std::vector<uint32_t> renumbered;
+  renumbered.assign(styles.size(), GlyphInk::kOwnPaint);
+  glyphs.styles.reserve(styles.size());
+  for (size_t index = 0; index < styles.size(); ++index) {
+    const GroupStyle& entry = styles[index];
+    const UnitGroup& group = groups[entry.group];
+    if (!group.shader && !group.color) continue;
+    sigil::weave::PaintStyle style = *entry.base;
+    style.foregroundMaterial.reset();
+    style.foreground.setShader(group.shader);
+    if (!group.shader)
+      style.foreground.setColor4f(material::skia::toSkColor(*group.color),
+                                  nullptr);
+    renumbered[index] = (uint32_t)glyphs.styles.size();
     glyphs.styles.push_back(std::move(style));
   }
+  for (uint32_t& named : glyphs.styleOfGlyph)
+    if (named != GlyphInk::kOwnPaint) named = renumbered[named];
 }
 
-void detail::inkAtRestByUnit(Instance& inst, const TextInk& ink,
-                             GlyphInk& glyphs) {
+void detail::glyphInkAtRest(Instance& inst, const TextInk& ink,
+                            GlyphInk& glyphs) {
   glyphs.styles.clear();
   glyphs.styleOfGlyph.clear();
   if (!inst.paragraph) return;
   static thread_local GlyphStructure structure;
   structure.build(inst.textLayout, *inst.paragraph, scopeOf(inst));
   const PoseContext poses{.inst = &inst, .layout = &inst.textLayout};
-  inkByUnit(inst.textLayout, inst, structure, poses, ink, glyphs);
+  resolveGlyphInk(inst.textLayout, inst, structure, poses, ink, glyphs);
 }
 
 }  // namespace sigil::compose

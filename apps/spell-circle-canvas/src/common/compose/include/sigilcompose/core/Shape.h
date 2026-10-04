@@ -17,11 +17,11 @@
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcore/callable/Callable.h>
-#include <sigilgeometry/path/Outline.h>
 #include <sigilgeometry/advanced/Skia.h>
+#include <sigilgeometry/path/Outline.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/ease/Ease.h>
+#include <sigilmotion/values/Animatable.h>
 
 #include <algorithm>
 #include <any>
@@ -30,7 +30,6 @@
 #include <string>
 #include <type_traits>
 #include <vector>
-
 
 namespace sigil::compose {
 
@@ -348,6 +347,8 @@ struct MotionPath {
  *  outlines exactly where its layout put them. Every decoration already
  *  written then works on letters with no new preset, because a decoration
  *  was never about a box — it was about whatever outline it was handed.
+ *  A text leaf with no inked glyph — empty, or only spaces — hands over
+ *  an empty outline, so its decorations dress nothing rather than the box.
  *  On a node that is not text it means the node's shape.
  *
  *  `Coverage` is WHAT THE NODE ACTUALLY DREW: its rendered layer's alpha,
@@ -486,6 +487,15 @@ concept LitDecoration = requires(const D& d) {
   { d.readsLighting() } -> std::convertible_to<bool>;
 };
 
+/** Optional on a DecorationScheme: whether its paint samples a field
+ *  anchored to the composer root. A node or ancestor transform changes
+ *  those samples even when the decoration's own values remain unchanged.
+ *  Composite decorations must forward this dependency from their members. */
+template <class D>
+concept WorldSpaceDecoration = requires(const D& d) {
+  { d.usesWorldSpace() } -> std::convertible_to<bool>;
+};
+
 /** Optional on a DecorationScheme: element keys whose resolved PATHS this
  *  decoration needs (a weave's `strand::from(key)`). The element collects
  *  them at build time and the derive pass answers them into
@@ -524,6 +534,12 @@ class Decoration {
         m_readsLighting([&] {
           if constexpr (LitDecoration<D>)
             return scheme.readsLighting();
+          else
+            return false;
+        }()),
+        m_worldSpace([&] {
+          if constexpr (WorldSpaceDecoration<D>)
+            return scheme.usesWorldSpace();
           else
             return false;
         }()),
@@ -567,8 +583,7 @@ class Decoration {
       };
     else if constexpr (!ReachingDecoration<D> && SizedBleedingDecoration<D>)
       m_sizedReach = m_sizedBleed;
-    m_paint = [s = std::move(scheme)](draw::Pen& pen,
-                                      const PaintContext& ctx) {
+    m_paint = [s = std::move(scheme)](draw::Pen& pen, const PaintContext& ctx) {
       s.paint(pen, ctx);
     };
   }
@@ -599,6 +614,8 @@ class Decoration {
   bool blends() const { return m_blends; }
   /** Whether it is shaded under the lighting in force. */
   bool readsLighting() const { return m_readsLighting; }
+  /** Whether its paint samples a field anchored to the composer root. */
+  bool usesWorldSpace() const { return m_worldSpace; }
   /** Keyed elements whose resolved paths this decoration reads (see
    *  BorrowingDecoration). Empty for everything that borrows nothing. */
   const std::vector<std::string>& borrows() const { return m_borrows; }
@@ -621,6 +638,7 @@ class Decoration {
   bool m_animated = false;
   bool m_blends = false;
   bool m_readsLighting = false;
+  bool m_worldSpace = false;
   float m_bleed = 0.0f;
   float m_reach = 0.0f;
   std::function<float(glm::vec2)> m_sizedBleed;
@@ -643,10 +661,40 @@ struct DecorationStack {
       if (mark.isRunning()) return true;
     return false;
   }
+  bool blends() const {
+    for (const Decoration& mark : marks)
+      if (mark.blends()) return true;
+    return false;
+  }
+  bool readsLighting() const {
+    for (const Decoration& mark : marks)
+      if (mark.readsLighting()) return true;
+    return false;
+  }
+  bool usesWorldSpace() const {
+    for (const Decoration& mark : marks)
+      if (mark.usesWorldSpace()) return true;
+    return false;
+  }
   float bleed(glm::vec2 size) const {
     float most = 0;
-    for (const Decoration& mark : marks) most = std::max(most, mark.bleed(size));
+    for (const Decoration& mark : marks)
+      most = std::max(most, mark.bleed(size));
     return most;
+  }
+  float reach(glm::vec2 size) const {
+    float widest = 0;
+    for (const Decoration& mark : marks)
+      widest = std::max(widest, mark.reach(size));
+    return widest;
+  }
+  std::vector<std::string> borrows() const {
+    std::vector<std::string> keys;
+    for (const Decoration& mark : marks) {
+      const auto& borrowed = mark.borrows();
+      keys.insert(keys.end(), borrowed.begin(), borrowed.end());
+    }
+    return keys;
   }
   void paint(draw::Pen& pen, const PaintContext& context) const {
     for (const Decoration& mark : marks) mark.paint(pen, context);

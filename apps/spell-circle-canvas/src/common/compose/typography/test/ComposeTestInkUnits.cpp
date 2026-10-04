@@ -4,15 +4,25 @@
 // Each case sets a two-stop ramp and reads back where its two colours
 // landed on the letters.
 
-#include <sigilmaterial/paint/Bases.h>
+#include <include/core/SkImage.h>
+#include <include/core/SkPixmap.h>
+#include <include/effects/SkGradient.h>
 #include <include/utils/SkNoDrawCanvas.h>
+#include <sigilmaterial/advanced/FrameData.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/paint/Bases.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <src/text/GlyphRun.h>
 
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <memory>
+#include <stdexcept>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
-
-#include <thread>
 
 #include "support/TextTestSupport.h"
 
@@ -20,14 +30,22 @@ namespace {
 
 /** Red on the left of the unit square, blue on the right. */
 material::Material across() {
-  return material::linearGradient(
-      {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
+  return material::linearGradient({0, 0}, {1, 0},
+                                  {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
 }
 
 /** Red at the top of the unit square, blue at the bottom. */
 material::Material down() {
-  return material::linearGradient(
-      {0, 0}, {0, 1}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
+  return material::linearGradient({0, 0}, {0, 1},
+                                  {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
+}
+
+material::Material nativeAcross(float left, float right) {
+  const SkPoint ends[2] = {{left, 0}, {right, 0}};
+  const SkColor4f colors[2] = {{1, 0, 0, 1}, {0, 0, 1, 1}};
+  return material::skia::base(material::skia::paint(SkShaders::LinearGradient(
+      ends, SkGradient(SkGradient::Colors({colors, 2}, SkTileMode::kClamp),
+                       SkGradient::Interpolation()))));
 }
 
 bool inked(SkColor c) {
@@ -136,6 +154,30 @@ bool alike(SkColor a, SkColor b) {
   return near(SkColorGetR(a), SkColorGetR(b)) &&
          near(SkColorGetG(a), SkColorGetG(b)) &&
          near(SkColorGetB(a), SkColorGetB(b));
+}
+
+void expectSameInk(const Host& expected, const Host& actual) {
+  const SkBitmap reference = expected.pixels();
+  const SkBitmap pixels = actual.pixels();
+  ASSERT_EQ(pixels.width(), reference.width());
+  ASSERT_EQ(pixels.height(), reference.height());
+  int maximum = 0;
+  size_t changed = 0;
+  SkIRect bounds = SkIRect::MakeEmpty();
+  for (int y = 0; y < pixels.height(); ++y)
+    for (int x = 0; x < pixels.width(); ++x) {
+      const SkColor a = pixels.getColor(x, y), b = reference.getColor(x, y);
+      int delta = 0;
+      for (const int shift : {0, 8, 16, 24})
+        delta = std::max(
+            delta, std::abs(int((a >> shift) & 255) - int((b >> shift) & 255)));
+      maximum = std::max(maximum, delta);
+      changed += delta > 2;
+      if (delta > 2) bounds.join(SkIRect::MakeXYWH(x, y, 1, 1));
+    }
+  EXPECT_EQ(changed, 0u) << "largest channel difference: " << maximum
+                         << "; bounds: " << bounds.left() << "," << bounds.top()
+                         << "-" << bounds.right() << "," << bounds.bottom();
 }
 
 /** How many glyph draws reach the canvas, pictures played through it. */
@@ -332,6 +374,112 @@ TEST(ComposeInkUnits, ASpanRestartsItsInkOnEachUnitOfTheRangeItFinds) {
   }
 }
 
+TEST(ComposeInkUnits, AReusedFillKeepsEachSpansPaintDomain) {
+  Host expected(360, 120);
+  // At 64 px the instrument's glyph advances 38.4 px and its space
+  // advances 19.2 px. These two ramps are placed in passage coordinates.
+  expected.composer.render(box().padding(10).children(
+      {text(u8"HH HH HH", whiteStyle(64))
+           .span(sigil::weave::selectors::word(0),
+                 SpanStyle().ink(nativeAcross(0, 1)))
+           .span(sigil::weave::selectors::range({3, 4}),
+                 SpanStyle().ink(nativeAcross(96, 134.4f)))
+           .span(sigil::weave::selectors::range({4, 5}),
+                 SpanStyle().ink(nativeAcross(134.4f, 172.8f)))}));
+  expected.frame();
+
+  Host actual(360, 120);
+  const Fill shared = Fill::fromMaterial(nativeAcross(0, 1));
+  const auto describe = [&] {
+    return box().padding(10).children(
+        {text(u8"HH HH HH", whiteStyle(64))
+             .span(sigil::weave::selectors::word(0), SpanStyle().ink(shared))
+             .span(sigil::weave::selectors::word(1),
+                   SpanStyle().ink(shared, PaintBox::Glyph))});
+  };
+  actual.composer.render(describe());
+  actual.frame();
+  const auto letters = lettersAcross(actual, 360, 120);
+  ASSERT_EQ(letters.size(), 6u);
+  EXPECT_EQ(letters[0].left, SK_ColorBLUE);
+  EXPECT_EQ(letters[1].right, SK_ColorBLUE);
+  for (size_t index = 2; index < 4; ++index) {
+    EXPECT_TRUE(reddish(letters[index].left));
+    EXPECT_TRUE(bluish(letters[index].right));
+  }
+  EXPECT_EQ(letters[4].left, SK_ColorWHITE);
+  EXPECT_EQ(letters[5].right, SK_ColorWHITE);
+  expectSameInk(expected, actual);
+  actual.composer.render(describe());
+  EXPECT_EQ(actual.composer.stats().patchedNodes, 0u);
+  actual.frame();
+  expectSameInk(expected, actual);
+  EXPECT_EQ(actual.composer.stats().picturesRecorded, 0u);
+}
+
+// AN INK THAT LOWERS TO NO SHADER PAINTS NOTHING OF ITS OWN, so the range
+// it was stated on keeps the passage's own ink rather than vanishing, laid
+// across the passage or restarted on each letter alike.
+TEST(ComposeInkUnits, ASpanInkThatLowersToNoShaderKeepsThePassagesInk) {
+  // A ramp with no stops is a paint, but one Skia makes no shader of.
+  const material::Material blank =
+      material::skia::base(material::Paint::linearGradient(
+          {0, 0}, {1, 0}, material::ColorStops{},
+          {.units = material::GradientUnits::Pixels}));
+  const material::Paint lowered = material::skia::paint(blank);
+  ASSERT_FALSE(lowered.isNone());
+  ASSERT_EQ(material::skia::shader(lowered, material::FrameData{}), nullptr);
+  Host expected(480, 120);
+  expected.composer.render(
+      box().padding(10).children({text(u8"HH HH", whiteStyle(64))}));
+  expected.frame();
+  for (const PaintBox paintBox : {PaintBox::Element, PaintBox::Glyph}) {
+    SCOPED_TRACE(paintBox == PaintBox::Glyph ? "each letter" : "the passage");
+    Host actual(480, 120);
+    actual.composer.render(box().padding(10).children(
+        {text(u8"HH HH", whiteStyle(64))
+             .span(sigil::weave::selectors::word(1),
+                   SpanStyle().ink(blank, paintBox))}));
+    actual.frame();
+    const std::vector<Letter> letters = lettersAcross(actual, 480, 120);
+    ASSERT_EQ(letters.size(), 4u);
+    for (const Letter& letter : letters) {
+      EXPECT_EQ(letter.left, SK_ColorWHITE);
+      EXPECT_EQ(letter.right, SK_ColorWHITE);
+    }
+    expectSameInk(expected, actual);
+  }
+}
+
+TEST(ComposeInkUnits, AWordRampKeepsOneBoxAcrossFontSplits) {
+  Host expected(240, 150);
+  // The 64 px first glyph advances 38.4 px; the 96 px second advances
+  // 57.6 px. One directly placed ramp spans their combined 96 px word.
+  expected.composer.render(box().padding(10).children(
+      {text(u8"HH", whiteStyle(64))
+           .span(sigil::weave::selectors::range({1, 2}),
+                 SpanStyle().fontSize(96))
+           .span(sigil::weave::selectors::word(0),
+                 SpanStyle().ink(nativeAcross(0, 96)))}));
+  expected.frame();
+
+  Host actual(240, 150);
+  actual.composer.render(box().padding(10).children(
+      {text(u8"HH", whiteStyle(64))
+           .span(sigil::weave::selectors::word(0),
+                 SpanStyle().ink(nativeAcross(0, 1), PaintBox::Word))
+           .span(sigil::weave::selectors::range({1, 2}),
+                 SpanStyle().fontSize(96))}));
+  actual.frame();
+  const auto letters = lettersAcross(actual, 240, 150);
+  ASSERT_EQ(letters.size(), 2u);
+  EXPECT_TRUE(reddish(letters[0].left));
+  EXPECT_FALSE(bluish(letters[0].right));
+  EXPECT_FALSE(reddish(letters[1].left));
+  EXPECT_TRUE(bluish(letters[1].right));
+  expectSameInk(expected, actual);
+}
+
 TEST(ComposeInkUnits, APassageWithNoUnitDrawsItsGlyphsInOneDraw) {
   // The cost claim: a passage whose ink names no unit takes the one
   // batched draw it always took, and a unit costs one draw per unit.
@@ -358,13 +506,12 @@ TEST(ComposeInkUnits, ALetterUnderATextFxTrackDrawsWithItsUnitsPaint) {
     lower.dy = lowered ? 30.0f : 0.0f;
     Text leaf = text(u8"HH", whiteStyle(96)).ink(across(), PaintBox::Glyph);
     if (lowered)
-      leaf.textFx({.effect = textFx::effect(
-                       "lowered",
-                       [lower](const GlyphInfo&, float,
-                               sigil::core::noise::Mix64Stream&) {
-                         return lower;
-                       },
-                       /*reach=*/60.0f)});
+      leaf.textFx(
+          {.effect = textFx::effect(
+               "lowered",
+               [lower](const GlyphInfo&, float,
+                       sigil::core::noise::Mix64Stream&) { return lower; },
+               /*reach=*/60.0f)});
     host.composer.render(box().padding(20).children({std::move(leaf)}));
     host.frame();
   };
@@ -472,8 +619,7 @@ TEST(ComposeInkUnits, AUnitKeepsEveryOutlineUnderEveryFill) {
     for (int y = 0; y < 180; ++y)
       for (int x = 0; x < 360; ++x) {
         const SkColor c = host.pixel(x, y);
-        if (SkColorGetG(c) > 170 && SkColorGetR(c) < 60 &&
-            SkColorGetB(c) < 60)
+        if (SkColorGetG(c) > 170 && SkColorGetR(c) < 60 && SkColorGetB(c) < 60)
           ++outline;
       }
     EXPECT_GT(outline, 200) << "the outline was lost";
@@ -522,13 +668,12 @@ TEST(ComposeInkUnits, ARulesUnitLandingOnABoxDrawsAsTheVerbsDoes) {
     // ink stated by the box's own verb draws.
     ::testing::internal::CaptureStderr();
     Host ruled(320, 160);
-    ruled.composer.render(
-        box()
-            .padding(20)
-            .styleClass("chrome")
-            .applyStyleSheet(
-                StyleSheet{rule(".chrome").ink(across(), PaintBox::Glyph)})
-            .children({text(u8"HH", whiteStyle(96))}));
+    ruled.composer.render(box()
+                              .padding(20)
+                              .styleClass("chrome")
+                              .applyStyleSheet(StyleSheet{rule(".chrome").ink(
+                                  across(), PaintBox::Glyph)})
+                              .children({text(u8"HH", whiteStyle(96))}));
     const std::string log = ::testing::internal::GetCapturedStderr();
     EXPECT_NE(log.find("no passage"), std::string::npos) << log;
     ruled.frame();
@@ -577,10 +722,84 @@ TEST(ComposeInkUnits, AColourTakesABoxAndIgnoresIt) {
           .children({text(u8"HH", whiteStyle(96)).ink(red, PaintBox::Word)}));
   EXPECT_EQ(::testing::internal::GetCapturedStderr(), "")
       << "a box handed with a colour must not warn";
-  plain.composer.render(box().padding(20).ink(red.colorValue).children(
-      {text(u8"HH", whiteStyle(96)).ink(red.colorValue)}));
+  plain.composer.render(
+      box()
+          .padding(20)
+          .ink(red.colorValue)
+          .children({text(u8"HH", whiteStyle(96)).ink(red.colorValue)}));
   boxed.frame();
   plain.frame();
   EXPECT_TRUE(identicalPixels(boxed, plain, 320, 160));
   EXPECT_EQ(lettersAcross(boxed, 320, 160).size(), 2u);
 }
+
+namespace {
+
+enum class InkDrawExit { Resting, Dressed, Throwing };
+class InkScratchLifetime : public testing::TestWithParam<InkDrawExit> {};
+
+}  // namespace
+
+TEST_P(InkScratchLifetime, UnitInkReleasesImageBackingAfterItsOwnerGoes) {
+  using Pixels = std::array<SkColor, 4>;
+  std::weak_ptr<Pixels> backing;
+  {
+    auto pixels = std::make_shared<Pixels>();
+    pixels->fill(SK_ColorWHITE);
+    backing = pixels;
+    auto* owner = new std::shared_ptr<Pixels>(pixels);
+    const SkPixmap pixmap(SkImageInfo::MakeN32Premul(2, 2), pixels->data(), 8);
+    const auto image = SkImages::RasterFromPixmap(
+        pixmap,
+        [](const void*, void* context) {
+          delete static_cast<std::shared_ptr<Pixels>*>(context);
+        },
+        owner);
+    ASSERT_TRUE(image);
+    const auto fill =
+        material::skia::base(material::skia::paint(image->makeShader(
+            SkTileMode::kClamp, SkTileMode::kClamp, SkSamplingOptions{})));
+    Host host(160, 80);
+    auto lettering = text(u8"HH", whiteStyle(40))
+                         .absolute()
+                         .rect(10, 10, 140, 60)
+                         .ink(fill, PaintBox::Glyph)
+                         .cache(Cache::None);
+    if (GetParam() != InkDrawExit::Resting) {
+      const bool throws = GetParam() == InkDrawExit::Throwing;
+      lettering.textFx(Track{
+          .effect = textFx::effect(
+              "scratch-lifetime", [throws](const GlyphInfo& glyph, float,
+                                           sigil::core::noise::Mix64Stream&) {
+                if (throws && glyph.index == 1)
+                  throw std::runtime_error("glyph paint stopped");
+                return GlyphModifier{};
+              })});
+    }
+    host.composer.render(std::move(lettering));
+    if (GetParam() == InkDrawExit::Throwing) {
+      EXPECT_THROW(host.frame(), std::runtime_error);
+    } else {
+      host.frame();
+      const auto columns = inkedColumns(host, 160, 0, 80);
+      EXPECT_EQ(columns.size(), 2u);
+    }
+  }
+  EXPECT_TRUE(backing.expired());
+}
+
+INSTANTIATE_TEST_SUITE_P(ComposeInkUnits, InkScratchLifetime,
+                         testing::Values(InkDrawExit::Resting,
+                                         InkDrawExit::Dressed,
+                                         InkDrawExit::Throwing),
+                         [](const testing::TestParamInfo<InkDrawExit>& info) {
+                           switch (info.param) {
+                             case InkDrawExit::Resting:
+                               return "Resting";
+                             case InkDrawExit::Dressed:
+                               return "Dressed";
+                             case InkDrawExit::Throwing:
+                               return "Throwing";
+                           }
+                           return "Unknown";
+                         });

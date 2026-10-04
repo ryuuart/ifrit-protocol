@@ -3,11 +3,11 @@
  * each toolkit's edge was, in tones, depth, corner and softness.
  */
 
-#include <sigildraw/Pen.h>
-#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/kit/Chrome.h>
 #include <sigilcore/reconcile/Environment.h>
+#include <sigildraw/Pen.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/path/Edges.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/filter/Filter.h>
@@ -16,7 +16,7 @@
 #include <algorithm>
 #include <cmath>
 
-#include "MaterialEffects.h"
+#include "paint/MaterialEffects.h"
 
 namespace sigil::compose::kit {
 namespace {
@@ -65,13 +65,15 @@ void Bevel::paint(draw::Pen& pen, const PaintContext& ctx) const {
   if (!inner) return;
   PaintContext local = ctx;
   if (inner->gap != 0) {
-    local.outline = geometry::path::fromSk(geometry::path::insetOutline(geometry::path::toSk(ctx.outline), inner->gap));
+    local.outline = geometry::path::fromSk(geometry::path::insetOutline(
+        geometry::path::toSk(ctx.outline), inner->gap));
     // The shape a narrowed outline was cut from is concentric with it, so
     // the inner ring's clip moves in with its marks; leaving the outer
     // shape here would clip the inner ring against a boundary it no longer
     // stands on.
     if (!ctx.silhouette.empty())
-      local.silhouette = geometry::path::fromSk(geometry::path::insetOutline(geometry::path::toSk(ctx.silhouette), inner->gap));
+      local.silhouette = geometry::path::fromSk(geometry::path::insetOutline(
+          geometry::path::toSk(ctx.silhouette), inner->gap));
   }
   ring(pen, local, *this, inner->light, inner->shadow, inner->depth,
        inner->shadowDepth, sunken != inner->inverted, inner->edges,

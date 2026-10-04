@@ -3,54 +3,30 @@
  * node's content, and an element retained inside a pen's loop.
  */
 
-#include <sigildraw/Pen.h>
 #include <sigilcompose/draw/Draw.h>
+#include <sigildraw/Pen.h>
 
+#include <memory>
 #include <optional>
+#include <source_location>
 
 #include "support/Host.h"
+#include "support/Paper.h"
 
 namespace {
 
 using sigil::draw::Frame;
 using sigil::draw::Pen;
 
-/** A pen over a raster surface of its own, begun with the host's fonts. */
-struct Paper {
-  Paper() : surface(SkSurfaces::Raster(SkImageInfo::MakeN32Premul(100, 100))) {
-    surface->getCanvas()->clear(SK_ColorTRANSPARENT);
-  }
-  void begin(int count, bool withFonts = true) {
-    beginWith(count, withFonts ? &fonts() : nullptr);
-  }
-  void beginWith(int count, weave::FontContext& context) {
-    beginWith(count, &context);
-  }
-  void beginWith(int count, weave::FontContext* context) {
-    Frame frame;
-    frame.width = 100;
-    frame.height = 100;
-    frame.seconds = count / 60.0;
-    frame.deltaSeconds = 1.0 / 60.0;
-    frame.frameCount = count;
-    frame.fonts = context;
-    pen.begin(*surface->getCanvas(), frame);
-  }
-  SkColor pixel(int x, int y) {
-    SkBitmap bm;
-    bm.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
-    surface->readPixels(bm.pixmap(), x, y);
-    return bm.getColor(0, 0);
-  }
-  bool anyWhiteIn(SkIRect region) {
-    for (int y = region.top(); y < region.bottom(); ++y)
-      for (int x = region.left(); x < region.right(); ++x)
-        if (pixel(x, y) == SK_ColorWHITE) return true;
-    return false;
-  }
-  sk_sp<SkSurface> surface;
-  Pen pen;
-};
+using Paper = sigil::draw::testing::Paper;
+
+bool anyWhiteIn(Paper& paper, SkIRect region) {
+  const SkBitmap pixels = paper.pixels();
+  for (int y = region.top(); y < region.bottom(); ++y)
+    for (int x = region.left(); x < region.right(); ++x)
+      if (pixels.getColor(x, y) == SK_ColorWHITE) return true;
+  return false;
+}
 
 TEST(DrawNode, DrawWithHandsAProgramTheScopeAndPaintsOverIt) {
   // Two keyed boxes; the program draws a bar between their centres, read
@@ -58,7 +34,9 @@ TEST(DrawNode, DrawWithHandsAProgramTheScopeAndPaintsOverIt) {
   Host host;
   int runs = 0;
   auto tree = [&] {
-    return box().width(200).height(200)
+    return box()
+        .width(200)
+        .height(200)
         .children({box().key("a").left(20).top(90).width(20).height(20),
                    box().key("b").left(160).top(90).width(20).height(20)})
         .operators({drawWith("bar", [&](Pen& pen, const Scope& scope) {
@@ -149,7 +127,9 @@ TEST(DrawNode, ARetainedGuestRunsUnderItsHostsPromotionPolicy) {
   const Element penGuest = probe(byPen);
   const Element graphicsGuest = probe(byGraphics);
   host.composer.render(stack().children(
-      {pen([&](Pen& p) { p.element(penGuest, 0, 0, 40, 40); }).width(50).height(50),
+      {pen([&](Pen& p) { p.element(penGuest, 0, 0, 40, 40); })
+           .width(50)
+           .height(50),
        graphics([&](Pen& g) { g.element(graphicsGuest, 0, 0, 40, 40); })
            .width(50)
            .height(50)}));
@@ -301,7 +281,7 @@ TEST(DrawNode, TheTransformStartsAtTheBox) {
 TEST(RetainedElement, PaintsAtTheBoxAndKeepsItsComposer) {
   Paper paper;
   for (int frame = 1; frame <= 2; ++frame) {
-    paper.begin(frame);
+    paper.begin(frame, frame / 60.0);
     paper.pen.element(box().fill(red()), 10, 10, 30, 30);
     paper.pen.end();
   }
@@ -312,14 +292,32 @@ TEST(RetainedElement, PaintsAtTheBoxAndKeepsItsComposer) {
   EXPECT_EQ(paper.pen.retained().size(), 1u);
 }
 
+TEST(RetainedElement, UsesTheWholeStatedFrameDelta) {
+  Paper paper;
+  double seconds = -1.0;
+  const Element guest = custom("clock", [&](Pen&, const PaintContext& context) {
+                          seconds = context.elapsedSeconds;
+                        }).cache(Cache::None);
+  Frame frame;
+  frame.width = 100;
+  frame.height = 100;
+  frame.seconds = 0.5;
+  frame.deltaSeconds = 0.5;
+  frame.frameCount = 1;
+  frame.fonts = &fonts();
+  paper.pen.begin(*paper.surface->getCanvas(), frame);
+  paper.pen.element(guest, 0, 0, 100, 100);
+  paper.pen.end();
+  EXPECT_DOUBLE_EQ(seconds, 0.5);
+}
+
 TEST(RetainedElement, ShapesTextWithThePensFonts) {
   Paper paper;
   paper.begin(1);
-  paper.pen.element(text(u8"Hi", whiteStyle(24)),
-                    10, 10, 80, 40);
+  paper.pen.element(text(u8"Hi", whiteStyle(24)), 10, 10, 80, 40);
   paper.pen.end();
-  EXPECT_TRUE(paper.anyWhiteIn(SkIRect::MakeXYWH(10, 10, 80, 40)));
-  EXPECT_FALSE(paper.anyWhiteIn(SkIRect::MakeXYWH(0, 60, 100, 40)));
+  EXPECT_TRUE(anyWhiteIn(paper, SkIRect::MakeXYWH(10, 10, 80, 40)));
+  EXPECT_FALSE(anyWhiteIn(paper, SkIRect::MakeXYWH(0, 60, 100, 40)));
 }
 
 TEST(RetainedElement, FollowsThePensTransform) {
@@ -339,29 +337,77 @@ TEST(RetainedElement, AnotherFontContextGetsAComposerBuiltOnIt) {
   // against a context this pen does not hold, and one that has gone is a
   // dangling reference. The tree is the same, so what the case can see is
   // that the guest was remade and the drawing still lands.
-  Paper paper;
   weave::FontContext second(sigil::weave::ports::systemFontManager());
+  Paper paper;
   // ONE call site, so one slot and one kept guest — which is what makes
   // the second frame reach the composer the first frame built.
   for (int frame = 1; frame <= 2; ++frame) {
-    paper.beginWith(frame, frame == 1 ? &fonts() : &second);
-    paper.pen.element(text(u8"Hi", whiteStyle(24)),
-                      0, frame == 1 ? 0.0f : 50.0f, 90, 40);
+    paper.beginWith(frame, frame == 1 ? &fonts() : &second, frame / 60.0);
+    paper.pen.element(text(u8"Hi", whiteStyle(24)), 0,
+                      frame == 1 ? 0.0f : 50.0f, 90, 40);
     paper.pen.end();
   }
   EXPECT_EQ(paper.pen.retained().size(), 1u) << "one slot, one guest";
-  EXPECT_TRUE(paper.anyWhiteIn(SkIRect::MakeXYWH(0, 0, 90, 40)));
-  EXPECT_TRUE(paper.anyWhiteIn(SkIRect::MakeXYWH(0, 50, 90, 40)))
+  EXPECT_TRUE(anyWhiteIn(paper, SkIRect::MakeXYWH(0, 0, 90, 40)));
+  EXPECT_TRUE(anyWhiteIn(paper, SkIRect::MakeXYWH(0, 50, 90, 40)))
       << "the second context's text is shaped and drawn";
 }
 
 TEST(RetainedElement, PaintsNothingWithoutFonts) {
   Paper paper;
-  paper.begin(1, false);
+  paper.beginWith(1, nullptr);
   paper.pen.element(box().fill(red()), 10, 10, 30, 30);
   paper.pen.end();
   EXPECT_EQ(paper.pixel(20, 20), SK_ColorTRANSPARENT);
   EXPECT_EQ(paper.pen.retained().size(), 0u);
+}
+
+TEST(RetainedElement, RetirementReleasesTheComposerAndLeavesItsPeerRunning) {
+  Paper paper;
+  const auto where = std::source_location::current();
+  const auto drawGuest = [&](const Element& element, int index, float x) {
+    paper.pen.element(element, x, 0, 40, 40, index, where);
+  };
+  double firstTime = -1, peerTime = -1;
+  auto resource = std::make_shared<int>(42);
+  const std::weak_ptr<int> weak = resource;
+  Element first =
+      custom("first", [resource, &firstTime](Pen&, const PaintContext& ctx) {
+        if (*resource == 42) firstTime = ctx.elapsedSeconds;
+      }).cache(Cache::None);
+  const Element peer = custom("peer", [&](Pen&, const PaintContext& ctx) {
+                         peerTime = ctx.elapsedSeconds;
+                       }).cache(Cache::None);
+
+  paper.begin(1);
+  drawGuest(first, 1, 0);
+  drawGuest(peer, 2, 50);
+  paper.end();
+  resource.reset();
+  first = box();
+  ASSERT_FALSE(weak.expired());
+  EXPECT_NEAR(firstTime, 1.0 / 60.0, 1e-12);
+
+  paper.begin(2);
+  drawGuest(peer, 2, 50);
+  paper.end();
+  EXPECT_EQ(paper.pen.retained().size(), 2u);
+  EXPECT_NEAR(peerTime, 2.0 / 60.0, 1e-12);
+  ASSERT_TRUE(paper.pen.retained().erase(sigil::draw::Slot::at(where, 1)));
+  EXPECT_TRUE(weak.expired());
+  EXPECT_EQ(paper.pen.retained().size(), 1u);
+
+  const Element replacement =
+      custom("replacement", [&](Pen&, const PaintContext& ctx) {
+        firstTime = ctx.elapsedSeconds;
+      }).cache(Cache::None);
+  paper.begin(3);
+  drawGuest(replacement, 1, 0);
+  drawGuest(peer, 2, 50);
+  paper.end();
+  EXPECT_NEAR(firstTime, 1.0 / 60.0, 1e-12);
+  EXPECT_NEAR(peerTime, 3.0 / 60.0, 1e-12);
+  EXPECT_EQ(paper.pen.retained().size(), 2u);
 }
 
 }  // namespace

@@ -115,6 +115,31 @@ rule followed by a narrow exception reads in the order it is written — and
 comparable values, so a re-described list prunes and only a changed one
 re-resolves.
 
+A span's static material ink retains its full source through paragraph
+styling and binds it for the drawing destination when its glyphs are painted.
+Surface properties take the lighting in force at the text leaf; a material's
+own lighting replaces it. Inherited lights can move without reshaping the
+text or preparing its material inputs again.
+Ordinary span ink samples passage coordinates. An ink naming a text unit
+restarts over each unit's metric box; geometry-dependent ink is accepted
+there because that unit supplies its domain. Live paint and other
+geometry-dependent span ink belong on the whole text element instead.
+The static restriction includes surface maps and a material's own lighting.
+Changing destinations preserves the paragraph's shaped glyphs and layout.
+Height-derived normal ink keeps depth and sample step in logical pixels.
+A word uses one metric box across font splits; glyph ink uses each glyph's
+own box. Encoded normal images retain their authored slopes.
+
+```cpp
+auto gold = material::from(material::hexColor(0xd5ad63))
+                .surface({.metallic = 1.f, .roughness = .35f});
+scene().children({
+    light(material::studio({.elevation = 70.f, .intensity = .4f})),
+    text("Cast in gold").span(weave::selectors::word(2),
+                              SpanStyle().ink(gold, PaintBox::Word)),
+});
+```
+
 That rule holds **per dimension**. A reshaping span is laid over the whole
 style the range is set in, so it carries a paint whether or not its author
 stated one; over text an earlier paint-only span coloured, it applies its

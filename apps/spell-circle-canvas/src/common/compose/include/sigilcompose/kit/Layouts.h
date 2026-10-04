@@ -147,32 +147,30 @@ struct Diagonal {
    *  extent. */
   enum class Anchor : uint8_t { Start, End } anchor = Anchor::Start;
 
-  std::vector<geometry::path::Rect> place(const LayoutInput& in) const {
+  void arrange(Arrangement& arrangement) const {
     const float k = std::tan(skewDeg * geometry::path::kDegToRad);
-    std::vector<geometry::path::Rect> rects(in.childSizes.size());
     float y = 0.0f, minX = 0.0f, maxRight = 0.0f;
-    for (size_t i = 0; i < in.childSizes.size(); ++i) {
+    for (Arrangement::Child& child : arrangement.children) {
       const float x = k * y;
-      rects[i] = geometry::path::Rect::of({x, y}, in.childSizes[i]);
+      child.place(geometry::path::Rect::of({x, y}, child.size));
       minX = std::min(minX, x);
-      maxRight = std::max(maxRight, rects[i].max.x);
-      y += in.childSizes[i].y + gap;
+      maxRight = std::max(maxRight, child.rect.max.x);
+      y += child.size.y + gap;
     }
-    for (geometry::path::Rect& r : rects) {
-      r.min.x -= minX;
-      r.max.x -= minX;
+    for (Arrangement::Child& child : arrangement.children) {
+      child.rect.min.x -= minX;
+      child.rect.max.x -= minX;
     }
     if (anchor == Anchor::End) {
-      // Mirror horizontally: each row's RIGHT edge rides the shear line.
-      const float extent =
-          in.container.x > 0 ? in.container.x : maxRight - minX;
-      for (geometry::path::Rect& r : rects) {
-        const float shift = extent - r.max.x - r.min.x;
-        r.min.x += shift;
-        r.max.x += shift;
+      // Mirror horizontally: each row's right edge rides the shear line.
+      const float extent = arrangement.box.width() > 0 ? arrangement.box.width()
+                                                       : maxRight - minX;
+      for (Arrangement::Child& child : arrangement.children) {
+        const float shift = extent - child.rect.max.x - child.rect.min.x;
+        child.rect.min.x += shift;
+        child.rect.max.x += shift;
       }
     }
-    return rects;
   }
 };
 
@@ -189,24 +187,19 @@ struct BaselineGrid {
   float offset = 0.0f;   ///< grid phase
   float gap = 0.0f;      ///< extra space between children before snapping
 
-  std::vector<geometry::path::Rect> place(const LayoutInput& in) const {
-    std::vector<geometry::path::Rect> rects(in.childSizes.size());
+  void arrange(Arrangement& arrangement) const {
     const float step = std::max(rhythm, 1.0f);
     float flowY = 0.0f;
-    for (size_t i = 0; i < in.childSizes.size(); ++i) {
-      const glm::vec2 size = in.childSizes[i];
+    for (Arrangement::Child& child : arrangement.children) {
       const float anchor =
-          (i < in.childBaselines.size() && !std::isnan(in.childBaselines[i]))
-              ? in.childBaselines[i]
-              : size.y;
+          std::isnan(child.baseline) ? child.size.y : child.baseline;
       // Snap the anchor to the next grid line at or below its flow spot.
       const float line =
           offset + step * std::ceil((flowY + anchor - offset) / step - 1e-4f);
       const float top = line - anchor;
-      rects[i] = geometry::path::Rect::of({0, top}, size);
-      flowY = top + size.y + gap;
+      child.place(geometry::path::Rect::of({0, top}, child.size));
+      flowY = top + child.size.y + gap;
     }
-    return rects;
   }
 };
 
@@ -221,7 +214,7 @@ struct Jittered {
   uint32_t seed = 1;
   float jitter = 0.6f;  ///< 0 = regular grid, 1 = up to half a cell off
 
-  std::vector<geometry::path::Rect> place(const LayoutInput& in) const;
+  void arrange(Arrangement& arrangement) const;
 };
 
 }  // namespace sigil::compose::layouts

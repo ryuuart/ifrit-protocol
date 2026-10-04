@@ -47,18 +47,19 @@ class PaintVerbs {
    *  same path. Its effects dress the node's own layer — shadows and glows
    *  beneath the fill, strokes and bevels over it, a hard shadow as an
    *  echo of the fill and the text; passes that read pixels run over the
-   *  node and its subtree as `filter` does. The surface is a 3D renderer's
-   *  and is not painted here.
+   *  node and its subtree as `filter` does. A stated surface response is
+   *  shaded under the lighting in force at the node.
    *  @trap A fill does not inherit, so `Subtree` is `Element`, and a
    *  border here is a stroke dressing the boundary rather than a box
    *  lane, so `Padding` is `Element` too. A text unit is refused, said
    *  once, and read as `Element`. */
   Derived& fill(material::Material material, PaintBox box = PaintBox::Element);
-  /** A FILL, as a component property hands it on: a material in it is
-   *  placed over @p box exactly as `fill(material::Material, box)` places
-   *  it, and a colour, the ink in force or a custom property — which have
-   *  no unit square to place — is applied whole. A text unit is refused
-   *  and said once, whatever the fill. */
+  /** A FILL, as a component property hands it on: a material's base paint
+   *  and layers are placed over @p box, including authored shaders. Its
+   *  surface response and effects require the Material overload. A colour,
+   *  the ink in force or a custom property has no unit square to place and
+   *  is applied whole. A text unit is refused and said once, whatever the
+   *  fill. */
   Derived& fill(Fill fill, PaintBox box = PaintBox::Element);
 
   /** NEITHER A TILE NOR A PATTERN IS A FILL: a pattern's bake is its

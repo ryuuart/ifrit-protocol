@@ -34,13 +34,14 @@
 
 #include <boost/pfr/core.hpp>
 
-#include "../ComposeInternal.h"
+#include "description/ComposeInternal.h"
 #include "support/CoreTestSupport.h"
 
 // …and the RUNTIME header, for the kSlotSpecs walk at the bottom of the file.
 // It is the reason this target links yoga::yogacore (see CMakeLists.txt).
-#include "../ComposeRuntime.h"
 #include <sigilmotion/ease/Ease.h>
+
+#include "runtime/ComposeRuntime.h"
 
 namespace cd = sigil::compose::detail;
 
@@ -99,7 +100,8 @@ void perturb(Dimension& v) { v = Dimension(v.value + 1.0f); }
 void perturb(cd::LayoutProps& v) { v.gap = Dimension(v.gap.value + 1.0f); }
 
 void perturb(Shape& v) {
-  v = Shape(skiaShape([](SkSize) { return SkPath(); }));  // the raw-callable escape hatch
+  v = Shape(skiaShape(
+      [](SkSize) { return SkPath(); }));  // the raw-callable escape hatch
 }
 
 void perturb(std::optional<sigil::motion::Tween<float>>& v) {
@@ -126,6 +128,16 @@ void perturb(sigil::motion::Animatable<float>& v) {
 
 void perturb(std::optional<sigil::motion::Animatable<Fill>>& v) {
   v = sigil::motion::Animatable<Fill>(Fill::color(SkColor4f{1, 0, 0, 1}));
+}
+
+void perturb(std::optional<material::Light>& v) {
+  v = material::Light{.kind = material::LightKind::Point,
+                      .position = {24, 36, 120}};
+}
+
+void perturb(std::optional<material::Environment>& v) {
+  v = material::environment(material::Material(material::Color{1, 0, 0, 1}),
+                            {.intensity = 0.5f, .size = {32, 16}});
 }
 
 void perturb(std::vector<Decoration>& v) {
@@ -304,14 +316,86 @@ TEST(ComposeReconcile, EveryDepthDataFieldParticipatesInEquality) {
       kNames, kParticipates);
 }
 
+TEST(ComposeReconcile, EverySceneDataFieldParticipatesInEquality) {
+  static const char* const kNames[] = {"source", "environment"};
+  static const bool kParticipates[] = {true, true};
+  walkFields<cd::SceneData>(
+      [](const cd::SceneData& a, const cd::SceneData& b) {
+        cd::ElementNode na, nb;
+        na.sceneData.ensure() = a;
+        nb.sceneData.ensure() = b;
+        return cd::propertiesEqual(na, nb);
+      },
+      kNames, kParticipates);
+}
+
+TEST(ComposeReconcile, SceneSourceContentsParticipateInEquality) {
+  const material::Light source{.kind = material::LightKind::Point,
+                               .position = {24, 36, 120}};
+  const cd::ElementNode base(*sigil::compose::light(source).node());
+  const cd::ElementNode equal(*sigil::compose::light(source).node());
+  EXPECT_TRUE(cd::propertiesEqual(base, equal));
+  const auto changed = [&](const char* name, auto change) {
+    SCOPED_TRACE(name);
+    cd::ElementNode moved(base);
+    change(*moved.sceneData->source);
+    EXPECT_FALSE(cd::propertiesEqual(base, moved));
+  };
+  changed("direction", [](material::Light& light) { light.direction = 30; });
+  changed("elevation", [](material::Light& light) { light.elevation = 75; });
+  changed("color", [](material::Light& light) {
+    light.color = material::Color{0.2f, 1, 1, 1};
+  });
+  changed("intensity", [](material::Light& light) { light.intensity = 0.5f; });
+  changed("ambient", [](material::Light& light) { light.ambient = 0.1f; });
+  changed("kind", [](material::Light& light) {
+    light.kind = material::LightKind::Spot;
+  });
+  changed("position", [](material::Light& light) { light.position.x += 8; });
+  changed("range", [](material::Light& light) { light.range += 20; });
+  changed("innerAngle", [](material::Light& light) { light.innerAngle = 10; });
+  changed("outerAngle", [](material::Light& light) { light.outerAngle = 60; });
+}
+
+TEST(ComposeReconcile, SceneEnvironmentContentsParticipateInEquality) {
+  const auto make = [] {
+    return material::environment(
+        material::Material(material::Color{1, 1, 1, 1}),
+        {.intensity = 0.5f, .size = {32, 16}});
+  };
+  const cd::ElementNode base(
+      *sigil::compose::scene().environment(make()).node());
+  const cd::ElementNode equal(
+      *sigil::compose::scene().environment(make()).node());
+  // Independently described equal pictures must prune by value.
+  EXPECT_TRUE(cd::propertiesEqual(base, equal));
+  const auto changed = [&](const char* name, auto change) {
+    SCOPED_TRACE(name);
+    cd::ElementNode moved(base);
+    change(*moved.sceneData->environment);
+    EXPECT_FALSE(cd::propertiesEqual(base, moved));
+  };
+  changed("image", [](material::Environment& around) {
+    around = material::environment(
+        material::Material(material::Color{1, 0, 0, 1}), around.options);
+  });
+  changed("rotation",
+          [](material::Environment& around) { around.options.rotation = 45; });
+  changed("intensity", [](material::Environment& around) {
+    around.options.intensity = 0.8f;
+  });
+  changed("size",
+          [](material::Environment& around) { around.options.size.x = 64; });
+}
+
 TEST(ComposeReconcile, EveryBindingFieldParticipatesInEquality) {
   // Against Binding's equality directly. Every stage of a live value's
   // shaping is read at paint, so every one of them participates — including
   // the wiggle, the wrap and the envelope, which are easy to add to the
   // struct and forget in the comparator.
   static const char* const kNames[] = {
-      "from", "clampFrom", "alternate", "envelope", "ease",  "quantize",
-      "reverse", "to",     "wrap",      "wiggle",   "clamp"};
+      "from",    "clampFrom", "alternate", "envelope", "ease", "quantize",
+      "reverse", "to",        "wrap",      "wiggle",   "clamp"};
   static const bool kParticipates[] = {true, true, true, true, true, true,
                                        true, true, true, true, true};
   walkFields<sigil::motion::Binding>(
@@ -339,7 +423,7 @@ TEST(ComposeReconcile, EveryElementNodeFieldParticipatesInEquality) {
       "textData",   "imageData",      "customData",        "deriveData",
       "fxData",     "materialData",   "strokeData",        "memoData",
       "motionData", "depthData",      "cascadeData",       "operatorData",
-      "children"};
+      "sceneData",  "children"};
   static const bool kParticipates[] = {
       true,
       true,
@@ -369,6 +453,7 @@ TEST(ComposeReconcile, EveryElementNodeFieldParticipatesInEquality) {
               // properties a node declares for everything under it
       true,   // operatorData — the facts a node states and the operators
               // it runs; a present block with neither is still a change
+      true,   // sceneData — source and environment declarations
       false,  // children — reconciled by key, never compared
   };
   walkFields<cd::ElementNode>(cd::propertiesEqual, kNames, kParticipates);

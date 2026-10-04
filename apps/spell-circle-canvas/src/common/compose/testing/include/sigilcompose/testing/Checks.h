@@ -3,29 +3,13 @@
 /** @file
  * @ingroup compose-testing
  *
- * SigilCompose checks for GENERATED geometry — tilings, subdivisions,
- * lattices, pavings: the constructions whose correctness is a property of a
- * rule rather than of anything you can see at a glance — and for reading
- * back what was actually drawn.
+ * Geometric coverage, width and connectivity checks, plus raster readback.
+ * Coverage samples how many pieces claim each point: an overlap and a gap
+ * can cancel in a total-area check while both remain defects.
  *
- * Why point-sampled coverage rather than something cheaper: the two obvious
- * cheap checks both PASS on a subdivision that overlaps in one place and
- * gaps in another. Total-area conservation passes because an overlap and a
- * gap of equal area cancel exactly, and containment passes because every
- * child really does lie inside its parent. Sampling the region is what
- * separates them, because it asks each point how many pieces claim it.
- *
- * This header is for tests, sketches and verification passes, not for the
- * paint loop: a check indexes the figure it is given and then samples it
- * hundreds of thousands of times, and the rasterizing helpers allocate a
- * surface per call. Its target, SigilComposeTesting, is a separate one —
- * the checks here over the two indexes in Index.h beside them — so that a
- * shipping paint loop cannot reach a point-sampled coverage scan by
- * accident and so that `report()` may speak to a feed without the library
- * itself depending on one. The namespace is `checks`
- * rather than the target's name because GoogleTest owns `::testing`, and
- * a test that brings `sigil::compose` in with a using-directive must be
- * able to spell both without qualifying either.
+ * These helpers belong to SigilComposeTesting, in namespace test. They
+ * index and scan complete figures, and rasterize allocates a surface per
+ * call; use them for verification rather than the paint loop.
  */
 
 #include <include/core/SkBitmap.h>
@@ -40,11 +24,12 @@
 #include <include/pathops/SkPathOps.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
+#include <sigilcompose/core/Measure.h>
 #include <sigilcompose/kit/Feed.h>
 #include <sigilcompose/testing/Index.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/path/Contour.h>
 #include <sigilgeometry/path/Profile.h>
-#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmeasure/advanced/CheckFormat.h>
 #include <sigilmeasure/check/Check.h>
 
@@ -592,17 +577,16 @@ inline Raster rasterize(Element root, sigil::weave::FontContext& fonts,
   sk_sp<SkSurface> surface = SkSurfaces::Raster(info);
   if (!surface) return out;
   surface->getCanvas()->clear(background);
-  // snapshot() sizes by the root's CHILDREN and ignores the root's own
-  // dimensions, so the wrapper carries EXPLICIT dims and an explicit
-  // canvas size: without them an `absolute().inset(0)` child resolves
-  // against nothing and the read-back is of an empty surface.
-  if (sk_sp<SkPicture> picture =
-          snapshot(box()
-                       .width((float)size.width())
-                       .height((float)size.height())
-                       .children({std::move(root)}),
-                   fonts, {(float)size.width(), (float)size.height()}))
-    surface->getCanvas()->drawPicture(picture);
+  // Drawn straight onto the read-back surface, so a pixel bake inside the
+  // tree keeps its precision, and settled, so an entrance shows its
+  // destination rather than the `from` no clock would ever leave.
+  sigil::compose::detail::drawSettled(
+      box()
+          .width((float)size.width())
+          .height((float)size.height())
+          .children({std::move(root)}),
+      fonts, *surface->getCanvas(),
+      SkSize::Make((float)size.width(), (float)size.height()));
   out.bitmap.allocPixels(info);
   if (!surface->readPixels(out.bitmap.pixmap(), 0, 0)) out.bitmap.reset();
   return out;

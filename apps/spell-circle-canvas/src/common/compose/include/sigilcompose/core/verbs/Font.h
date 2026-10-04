@@ -10,8 +10,8 @@
 
 #include <sigilcompose/core/Declarations.h>
 #include <sigilcompose/core/FontStyle.h>
-#include <sigilcompose/core/PaintBox.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilcompose/core/PaintBox.h>
 #include <sigilcompose/core/Var.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilweave/style/Length.h>
@@ -80,11 +80,12 @@ class FontVerbs {
    *  standing and says so once. */
   Derived& ink(VarRef reference);
   /** THE INK AS A WHOLE PAINT — a ramp, a sprite, a recipe, a program —
-   *  as a `Fill`, which a `material::Material` converts to. A plain colour behaves as the
-   *  colour form above does; any other paint inherits the same way but
-   *  SNAPS under a transition rather than easing, as a fill does. @p box
-   *  is the rectangle the paint's unit square is stretched over:
-   *  `Element` by default, which for a passage is its text box;
+   *  as a `Fill`, carrying a material's base paint and layers. Its surface
+   *  response and effects require the Material overload. A plain colour
+   *  behaves as the colour form above does; any other paint inherits the
+   *  same way but SNAPS under a transition rather than easing, as a fill
+   *  does. @p box is the rectangle the paint's unit square is stretched
+   *  over: `Element` by default, which for a passage is its text box;
    *  `Subtree` or `Canvas` for one field the tree shows slices of; or a
    *  text unit, `Glyph` to `Sentence`, restarting the paint on each.
    *  @trap An empty fill clears an ancestor's ink paint and leaves the
@@ -93,9 +94,10 @@ class FontVerbs {
    *  passage, and `Padding` or `Content`, which are a fill's, read as
    *  `Element` and say so once. */
   Derived& ink(Fill paint, PaintBox box = PaintBox::Element);
-  /** THE INK AS A MATERIAL: its base and layers are the ink, as a paint
-   *  is, and its effects dress the node's own layer as `fill` places
-   *  them — a hard shadow echoes the text, as CSS `text-shadow` does. */
+  /** THE INK AS A MATERIAL: its base and layers paint the glyphs and its
+   *  surface responds to the lighting in force at each node it reaches.
+   *  Its effects dress the node's own layer as fill() places them — a hard
+   *  shadow echoes the text, as CSS `text-shadow` does. */
   Derived& ink(material::Material material, PaintBox box = PaintBox::Element);
 
  private:

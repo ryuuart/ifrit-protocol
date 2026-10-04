@@ -3,25 +3,11 @@
 /** @file
  * @ingroup compose-texture
  *
- * A compose scene as a `material::Texture` — the value a 3D surface, a
- * pattern or anything else that samples an image holds in a slot.
- *
- * There is no panel, no card and no "is this a scene" branch anywhere
- * downstream: what comes out of here is an ordinary texture, so every
- * sampling dial applies to it — the tiling per axis, the uv matrix, the
- * region cut from it, the filter — and an `Atlas` can be cut from it
- * like any other sheet.
- *
- * The scene behind the value keeps a composer, so the tree it is handed
- * is RECONCILED rather than rebuilt: a description that did not change
- * costs a comparison. It paints only when that reconcile (or a
- * transition still in flight) actually moved something, and the revision
- * it hands the texture counts the paints — so a consumer's material
- * compares EQUAL across a frame in which nothing was painted, and
- * unequal the frame something was.
+ * A retained Compose scene sampled through an ordinary material::Texture.
  */
 
 #include <include/core/SkImage.h>
+#include <include/core/SkImageInfo.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSize.h>
 #include <sigilcompose/core/Element.h>
@@ -49,28 +35,20 @@ namespace sigil::compose {
 
 class Composer;
 
-/** A COMPOSE SCENE THAT IS A TEXTURE: the composer, the surface its
- *  tree lands in, and the count of how many times that surface has been
- *  painted.
- *
- *  Hold one for as long as the picture is wanted and hand it a tree
- *  whenever the description changed. It is not copyable — it owns a
- *  retained tree and a surface — and it is reached through a shared
- *  pointer, because the texture values it hands out name it and must
- *  keep it standing.
- *
- *  TWO SURFACES ARE POSSIBLE and the choice is `useDevice`. Without one
- *  the scene paints into a raster surface, which is always available and
- *  is what a host with no device (a test, a plate, a machine with no
- *  GPU) reads. With one it paints into a texture on that device through
- *  Graphite, and a renderer standing on the SAME device binds those
- *  pixels rather than uploading a copy of them. */
+/** Owns a composer and an offscreen surface. Texture values keep the scene
+ *  alive; fonts and any adopted device/context must outlive those values. */
 class TextureScene : public std::enable_shared_from_this<TextureScene> {
  public:
-  /** A scene @p size pixels across, shaped by @p fonts — which is held,
-   *  not copied, and must outlive the scene — cleared to @p background
-   *  before each paint. */
+  /** An N32 premultiplied raster scene; dimensions are at least one pixel. */
   static std::shared_ptr<TextureScene> make(SkISize size,
+                                            sigil::weave::FontContext& fonts,
+                                            material::Color background = {
+                                                0, 0, 0, 0});
+  /** A premultiplied RGBA/BGRA byte, RGBA F16 or RGBA F32 raster scene,
+   *  retaining @p info's color space. Null for an unsupported format,
+   *  nonpositive dimensions or failed allocation. Cleared to @p background
+   *  before each paint. */
+  static std::shared_ptr<TextureScene> make(SkImageInfo info,
                                             sigil::weave::FontContext& fonts,
                                             material::Color background = {
                                                 0, 0, 0, 0});
@@ -79,54 +57,36 @@ class TextureScene : public std::enable_shared_from_this<TextureScene> {
   TextureScene(const TextureScene&) = delete;
   TextureScene& operator=(const TextureScene&) = delete;
 
-  /** ZERO COPY: the scene paints into a texture @p device names, wrapped
-   *  by Graphite on @p context, so a renderer on that same device
-   *  samples what compose painted with nothing crossing between them.
-   *
-   *  Answers false — and keeps the raster surface, so the scene still
-   *  draws — when the device refuses the texture or the wrap fails.
-   *  Whatever the scene has painted so far is dropped, because the
-   *  pixels are somewhere else now. */
+  /** Adopt a device surface of the scene's format and color space. The
+   *  context must use that device. F32 remains raster-only. Failure keeps
+   *  the current surface and pixels; success drops pixels and cache contents
+   *  so the next render paints the retained tree on the new surface. */
   bool useDevice(sigil::core::hardware::GpuDevice& device,
                  sigil::skia::GraphiteContext& context);
 
-  /** Reconciles @p root against the tree this scene already holds, at
-   *  scene time @p seconds, and paints when anything moved.
-   *
-   *  @p seconds is the scene's OWN clock, in seconds from whenever it
-   *  started, and it is what every time-reading material and every
-   *  transition in the tree is stepped to — so a caller stepping it in
-   *  fixed increments gets a picture that is a function of the number of
-   *  steps and never of how fast the machine ran. */
+  /** Reconcile @p root and paint when needed. The scene clock advances to
+   *  @p seconds; earlier or nonfinite readings leave it unchanged. */
   void render(const Element& root, double seconds = 0.0);
 
-  /** THE VALUE a slot holds. Every sampling dial rides the copy: tile
-   *  it, place it with `uv()`, cut a region out of it. Two values taken
-   *  either side of a frame that painted nothing compare equal. */
+  /** A sampling value retaining this scene and its current revision. */
   material::Texture texture() const;
 
   /** How many times this scene has painted. */
   uint64_t revision() const;
   SkISize size() const;
-  /** What the last paint left, whether it stands in host memory or on a
-   *  device; null before the first one. */
+  /** The latest image; null before a paint on the current surface. Device
+   *  images belong to their Graphite context and are not portable raster
+   *  readbacks. */
   sk_sp<SkImage> image() const;
   /** Where those pixels stand when they stand on a device; empty on the
-   *  raster surface. */
+   *  raster surface or before the first paint on the current surface. */
   material::DeviceImage deviceImage() const;
-  /** Whether the next render could paint a different picture: the tree
-   *  is dirty, or a transition is still running. A scene that answers
-   *  false has settled, and a consumer holding its texture may cache
-   *  whatever it made of it. */
+  /** Whether the retained tree needs another render. */
   bool isRunning() const;
 
-  /** The composer behind the scene — its stats and its queries, for a
-   *  caller verifying what a frame cost. */
+  /** The retained composer's statistics and queries. */
   const Composer& composer() const;
-  /** WHAT DECIDES A TEXTURE PROMOTION in that composer. A host taking a
-   *  capture that will be diffed pins it off, as it pins its own: a
-   *  promotion is a measured decision, and a measured decision is not a
-   *  function of the scene. */
+  /** Set the retained composer's texture-promotion policy. */
   void setAutoTexturePromotion(PromotionPolicy policy);
 
  private:
@@ -135,15 +95,8 @@ class TextureScene : public std::enable_shared_from_this<TextureScene> {
   std::unique_ptr<Impl> m_impl;
 };
 
-/** THE SOURCE a scene's texture carries: the scene, and the revision it
- *  had when the value was taken — a `media::PixelSource` built from a
- *  scene.
- *
- *  Two sources are equal when they name one scene that has painted the
- *  same number of times — which is what makes a material holding a
- *  scene texture prune across a still frame and patch across a painted
- *  one. The frame it answers is the last paint, standing in host memory
- *  or on the device the scene paints on. */
+/** Reads the scene's latest image and compares by scene plus captured
+ *  revision. It does not preserve historical pixels. */
 class SceneSource {
  public:
   SceneSource(std::shared_ptr<const TextureScene> scene, uint64_t revision)
@@ -166,12 +119,13 @@ class SceneSource {
   uint64_t m_revision = 0;
 };
 
-/** ONE TREE, ONE TEXTURE: a scene of its own, rendered once and held by
- *  the value. The scene lives as long as a copy of the texture does, and
- *  nothing can hand it a second tree — which is the whole difference
- *  from holding a `TextureScene`, and the right shape for a picture that
- *  is described once. */
+/** Render one tree into an N32 scene held by the returned texture. */
 material::Texture texture(const Element& root, SkISize size,
+                          sigil::weave::FontContext& fonts,
+                          material::Color background = {0, 0, 0, 0});
+/** Render one tree in @p info's format and color space. An invalid scene
+ *  allocation returns an empty texture. */
+material::Texture texture(const Element& root, SkImageInfo info,
                           sigil::weave::FontContext& fonts,
                           material::Color background = {0, 0, 0, 0});
 

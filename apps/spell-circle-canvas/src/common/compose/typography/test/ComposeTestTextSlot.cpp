@@ -4,6 +4,8 @@
 //
 // The text binary's share of the content suites, one file per subject.
 
+#include <sigilcompose/core/Operator.h>
+
 #include "DressedTypeProbes.h"
 
 namespace {
@@ -74,6 +76,46 @@ TEST(TextSlot, AChildPaintsInsideTheReservedRect) {
             20);
 }
 
+TEST(TextSlot, ArrangingOperatorsLeaveParagraphOwnedChildrenInTheirSlots) {
+  struct MoveSlots {
+    int* calls;
+    bool operator==(const MoveSlots&) const = default;
+    void arrange(Arrangement& arrangement) const {
+      ++*calls;
+      for (Arrangement::Child& child : arrangement.children)
+        child.centreAt({1000, 1000});
+    }
+  };
+  int calls = 0;
+  const auto describe = [&](float width, bool withArrangement) {
+    auto caption = text(sigil::weave::rich(coloredStyle(18, SK_ColorWHITE))
+                            .add(u8"press the archive key ")
+                            .slot("pill", {34, 16}, 4)
+                            .add(u8" to continue the long descent"))
+                       .key("caption")
+                       .children({box().key("pill").fill(red())});
+    if (withArrangement) caption.operators({MoveSlots{&calls}});
+    return box().padding(8).width(width).children({std::move(caption)});
+  };
+  Host reference(300, 200), arranged(300, 200);
+  for (float width : {280.0f, 120.0f}) {
+    reference.composer.render(describe(width, false));
+    arranged.composer.render(describe(width, true));
+    reference.frame();
+    arranged.frame();
+    const auto expected = reference.composer.bounds("pill");
+    const auto actual = arranged.composer.bounds("pill");
+    ASSERT_TRUE(expected && actual);
+    EXPECT_EQ(*actual, *expected);
+    EXPECT_FLOAT_EQ(actual->width(), 34);
+    EXPECT_FLOAT_EQ(actual->height(), 16);
+    EXPECT_EQ(arranged.pixel(static_cast<int>(actual->centre().x),
+                             static_cast<int>(actual->centre().y)),
+              SK_ColorRED);
+    EXPECT_EQ(calls, 0);
+  }
+}
+
 TEST(TextSlot, AVerticalChildReceivesThePhysicalSlotRect) {
   Host host(260, 300);
   host.composer.render(box().padding(12).children(
@@ -126,8 +168,10 @@ TEST(TextSlot, ATallSlotOpensItsLine) {
   shortPill.frame();
   tallPill.composer.render(pillCaption("pill", 280, {34, 60}));
   tallPill.frame();
-  const std::optional<geometry::path::Rect> a = shortPill.composer.bounds("caption");
-  const std::optional<geometry::path::Rect> b = tallPill.composer.bounds("caption");
+  const std::optional<geometry::path::Rect> a =
+      shortPill.composer.bounds("caption");
+  const std::optional<geometry::path::Rect> b =
+      tallPill.composer.bounds("caption");
   ASSERT_TRUE(a && b);
   EXPECT_GT(b->height(), a->height());
 }

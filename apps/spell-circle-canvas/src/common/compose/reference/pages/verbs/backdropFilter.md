@@ -44,8 +44,8 @@ depends on the live destination rather than on anything the node holds:
 such a node falls back to picture caching. That is the cost of the
 effect, and it is worth stating out loud when a whole panel wears one.
 
-**Nothing outside the node's bounds is read**, so the filter's reach is
-the node's box: a blur samples what lies under the box and stops there.
+**The result is clipped to the node's shape.** Input sampling follows the
+filter's bounded reach and can read the backdrop outside that shape.
 
 ## Examples
 

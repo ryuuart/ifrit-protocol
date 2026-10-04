@@ -18,7 +18,7 @@
 #include <vector>
 
 #include "sigilweave/advanced/Skia.h"
-#include "../FamilyList.h"
+#include "style/FamilyList.h"
 #include "support/CoreTestSupport.h"
 
 namespace {

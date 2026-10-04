@@ -1,14 +1,15 @@
 // What a leaf carries and what a composer is handed: a slot swapped under
-// undisturbed siblings, the declared input colour space, and the content
+// undisturbed siblings and the content
 // kinds a leaf draws from — a held path, a keyed shape, a replayed picture,
 // a figure with its own box, a keyed custom whose key must stay honest,
 // the sampling an image leaf is magnified with, the box a picture and
 // an atlas region meet, and what a paint program is handed.
 
-#include <sigilmaterial/paint/Bases.h>
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/advanced/Skia.h>
-#include <cstring>  // memcmp — for the no-conversion control
+#include <sigilmaterial/paint/Bases.h>
+
+#include <cstring>  // memcmp — equivalent UTF-8 inputs draw identical pixels
 #include <utility>
 
 #include "support/CoreTestSupport.h"
@@ -44,78 +45,6 @@ TEST(ComposeSlots, SlotUpdatesWithoutDisturbingSiblings) {
   // The sibling's paint program never re-ran across slot updates: its
   // own recording stayed valid even though ancestors re-recorded.
   EXPECT_EQ(staticRuns, 1);
-}
-
-TEST(ComposeComposer, DeclaredInputSpaceIsALoudDeclarationAndNothingElse) {
-  // declareInputSpace lets "I deliberately declared my colour space" and
-  // "nobody thought about colour at all" stop being the same tree. It is a
-  // QUESTION the library asks, never a conversion stage: compositing happens
-  // in encoded sRGB, so the whole response to a mismatched declaration is
-  // one precise warning and not a single changed pixel.
-  //
-  // All of it is one test because the warning fires once per process, which
-  // makes the order load-bearing: truthful controls first, the trap arm
-  // second, and the no-conversion pixel comparison last, where its own
-  // mismatched declarations are already silenced.
-  //
-  // Control 1: the default and an explicit truthful declaration are
-  // silent — they match reality, and a warning here would teach authors
-  // to ignore the real one.
-  ::testing::internal::CaptureStderr();
-  {
-    Host host;
-    EXPECT_EQ(host.composer.declaredInputSpace(),
-              Composer::InputSpace::EncodedSRGB);  // the default IS the truth
-    host.composer.declareInputSpace(Composer::InputSpace::EncodedSRGB);
-    host.composer.render(box().fill(red()));
-    host.frame();
-  }
-  EXPECT_EQ(::testing::internal::GetCapturedStderr(), "")
-      << "a truthful declaration must not warn";
-  // The trap arm: a mismatched declaration warns ONCE, naming the
-  // consequence — values treated as encoded sRGB, maths wrong at the
-  // edges — not merely that something is off.
-  ::testing::internal::CaptureStderr();
-  Host host;
-  host.composer.declareInputSpace(Composer::InputSpace::LinearSRGB);
-  EXPECT_EQ(host.composer.declaredInputSpace(),
-            Composer::InputSpace::LinearSRGB);
-  const std::string log = ::testing::internal::GetCapturedStderr();
-  EXPECT_NE(log.find("declareInputSpace"), std::string::npos) << log;
-  EXPECT_NE(log.find("TREATED as encoded sRGB"), std::string::npos) << log;
-  EXPECT_NE(log.find("no pixel"), std::string::npos) << log;
-  // Once per process: a second mismatch — even a DIFFERENT one — stays
-  // silent (renderSlot's unknown-name contract).
-  ::testing::internal::CaptureStderr();
-  host.composer.declareInputSpace(Composer::InputSpace::DisplayP3);
-  EXPECT_EQ(::testing::internal::GetCapturedStderr(), "")
-      << "the mismatch warning is once per process";
-  // Control 2 — THE control: the declaration participates in NOTHING.
-  // Two renders of one gradient tree under opposite declarations must be
-  // byte-identical; any conversion machinery that snuck in dies here,
-  // because a linear→encoded transfer moves every mid-gradient byte.
-  auto plate = [](Composer::InputSpace space) {
-    Host h;
-    h.composer.declareInputSpace(space);
-    h.composer.render(box().children({box().width(160).height(120).fill(
-        material::linearGradient(
-            {0, 0}, {160, 120},
-            {{0.0f, {1, 0, 0, 1}},
-             {0.5f, {0.25f, 0.5f, 0.25f, 0.8f}},
-             {1.0f, {0, 0, 1, 1}}},
-            {.units = material::GradientUnits::Pixels}))}));
-    h.frame();
-    SkBitmap bm;
-    bm.allocPixels(SkImageInfo::MakeN32Premul(200, 200));
-    h.surface->readPixels(bm.pixmap(), 0, 0);
-    return bm;
-  };
-  const SkBitmap a = plate(Composer::InputSpace::EncodedSRGB);
-  const SkBitmap b = plate(Composer::InputSpace::LinearSRGB);
-  ASSERT_EQ(a.computeByteSize(), b.computeByteSize());
-  EXPECT_EQ(0, std::memcmp(a.getPixels(), b.getPixels(), a.computeByteSize()))
-      << "the declaration must not touch a pixel: it performs no "
-         "conversion";
 }
 
 TEST(ComposeContent, EverySpellingOfOneTextDrawsTheSamePixels) {
@@ -155,9 +84,10 @@ TEST(ComposeContent, AHeldPathShapePrunesWhereALambdaNeverCan) {
   pb.addOval(SkRect::MakeXYWH(10, 10, 40, 40));
   const SkPath cooked = pb.detach();
   auto tree = [&cooked](bool held) {
-    return box().children(
-        {held ? box().width(60).height(60).shape(heldPath(geometry::path::fromSk(cooked)))
-              : box().width(60).height(60).shape(skiaShape([cooked] { return cooked; }))});
+    return box().children({held ? box().width(60).height(60).shape(
+                                      heldPath(geometry::path::fromSk(cooked)))
+                                : box().width(60).height(60).shape(
+                                      skiaShape([cooked] { return cooked; }))});
   };
   Host host;
   host.composer.render(tree(true));
@@ -171,14 +101,14 @@ TEST(ComposeContent, AHeldPathShapePrunesWhereALambdaNeverCan) {
   // is what lets a figure an operator attaches every frame settle.
   SkPathBuilder rebuilt;
   rebuilt.addOval(SkRect::MakeXYWH(10, 10, 40, 40));
-  host.composer.render(box().children(
-      {box().width(60).height(60).shape(heldPath(geometry::path::fromSk(rebuilt.detach())))}));
+  host.composer.render(box().children({box().width(60).height(60).shape(
+      heldPath(geometry::path::fromSk(rebuilt.detach())))}));
   EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
   // A DIFFERENT path is a change.
   SkPathBuilder moved;
   moved.addOval(SkRect::MakeXYWH(12, 12, 36, 36));
-  host.composer.render(box().children(
-      {box().width(60).height(60).shape(heldPath(geometry::path::fromSk(moved.detach())))}));
+  host.composer.render(box().children({box().width(60).height(60).shape(
+      heldPath(geometry::path::fromSk(moved.detach())))}));
   EXPECT_GE(host.composer.stats().patchedNodes, 1u);
   // The lambda spelling never settles.
   Host raw;
@@ -193,8 +123,8 @@ TEST(ComposeContent, AnOutlineThatIgnoresTheBoxNeedNotNameIt) {
   // that draws the same path whatever the box is names nothing, and keyed on
   // the value it closes over it compares and prunes exactly as a sized one.
   auto tree = [](float inset) {
-    return box().children(
-        {box().width(60).height(60).fill(red()).shape(inset, skiaShape([inset] {
+    return box().children({box().width(60).height(60).fill(red()).shape(
+        inset, skiaShape([inset] {
           SkPathBuilder pb;
           pb.addOval(
               SkRect::MakeXYWH(inset, inset, 60 - 2 * inset, 60 - 2 * inset));
@@ -295,7 +225,9 @@ TEST(ComposeContent, APathFigureCarriesItsOwnBox) {
   pb.addRect(SkRect::MakeXYWH(30, 40, 20, 10));
   Host host;
   host.composer.render(positioned().children(
-      {pathFigure(geometry::path::fromSk(pb.detach()), 4.0f).key("fig").fill(red())}));
+      {pathFigure(geometry::path::fromSk(pb.detach()), 4.0f)
+           .key("fig")
+           .fill(red())}));
   host.frame();
   const auto placed = host.composer.bounds("fig");
   ASSERT_TRUE(placed.has_value());
@@ -420,7 +352,8 @@ TEST(ComposeContent, APictureMeetsItsBoxTheWayTheFitSays) {
   Host bare;
   bare.composer.render(box().children({image(sk_sp<SkImage>()).key("none")}));
   bare.frame();
-  const std::optional<geometry::path::Rect> empty = bare.composer.bounds("none");
+  const std::optional<geometry::path::Rect> empty =
+      bare.composer.bounds("none");
   ASSERT_TRUE(empty.has_value());
   EXPECT_FLOAT_EQ(empty->height(), 0);
 }
@@ -428,14 +361,12 @@ TEST(ComposeContent, APictureMeetsItsBoxTheWayTheFitSays) {
 TEST(ComposeContent, ImageRegionDrawsAtlasCell) {
   Host host;
   auto atlas = twoCellAtlas();
-  host.composer.render(
-      box().row().children({image(atlas, material::Fit::Native)
-                                .imageRegion(geometry::path::Rect::of({16, 0}, {16, 16}))
-                                .width(50)
-                                .height(50),
-                            image(atlas, material::Fit::Native)
-                                .width(50)
-                                .height(50)}));
+  host.composer.render(box().row().children(
+      {image(atlas, material::Fit::Native)
+           .imageRegion(geometry::path::Rect::of({16, 0}, {16, 16}))
+           .width(50)
+           .height(50),
+       image(atlas, material::Fit::Native).width(50).height(50)}));
   host.frame();
   EXPECT_EQ(host.pixel(25, 25), SK_ColorGREEN);  // region: right cell only
   EXPECT_EQ(host.pixel(60, 25), SK_ColorRED);    // whole atlas: left half
@@ -456,7 +387,9 @@ TEST(ComposePaint, APaintProgramNamesOnlyTheParametersItReads) {
   glm::vec2 offered{0, 0};
   host.composer.render(box().row().children(
       {custom([&](sigil::draw::Pen& pen) {
-        SkCanvas& canvas = *pen.canvas(); square(canvas, SK_ColorGREEN); })
+         SkCanvas& canvas = *pen.canvas();
+         square(canvas, SK_ColorGREEN);
+       })
            .width(20)
            .height(20)
            .cache(Cache::None),
@@ -482,13 +415,13 @@ TEST(ComposePaint, APaintProgramNamesOnlyTheParametersItReads) {
 TEST(ComposePaint, ContentScaleReportsHostScale) {
   Host host;
   float seen = 0.0f;
-  host.composer.render(
-      box().children({custom([&seen](sigil::draw::Pen& pen, const PaintContext& ctx) {
-                        seen = ctx.contentScale;
-                      })
-                          .width(50)
-                          .height(50)
-                          .cache(Cache::None)}));
+  host.composer.render(box().children(
+      {custom([&seen](sigil::draw::Pen& pen, const PaintContext& ctx) {
+         seen = ctx.contentScale;
+       })
+           .width(50)
+           .height(50)
+           .cache(Cache::None)}));
   SkCanvas& canvas = *host.surface->getCanvas();
   canvas.save();
   canvas.scale(2.0f, 2.0f);
@@ -505,15 +438,15 @@ TEST(ComposePaint, AnimatingReportsTheEnginesState) {
   // this test is the only thing keeping the field wired up.
   Host host;
   bool seen = false;
-  host.composer.render(
-      box().children({box().width(40).height(40).fill(red()).opacity(
-                          motion::animate({.from = 0.0f, .to = 1.0f, .duration = 400ms})),
-                      custom([&seen](sigil::draw::Pen& pen, const PaintContext& ctx) {
-                        seen = ctx.animating;
-                      })
-                          .width(10)
-                          .height(10)
-                          .cache(Cache::None)}));
+  host.composer.render(box().children(
+      {box().width(40).height(40).fill(red()).opacity(
+           motion::animate({.from = 0.0f, .to = 1.0f, .duration = 400ms})),
+       custom([&seen](sigil::draw::Pen& pen, const PaintContext& ctx) {
+         seen = ctx.animating;
+       })
+           .width(10)
+           .height(10)
+           .cache(Cache::None)}));
   host.frame(0.016);
   EXPECT_TRUE(seen) << "an entrance is running: the engine is running";
   for (int i = 0; i < 40; ++i)

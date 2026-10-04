@@ -1,164 +1,18 @@
-// GPU-backend behavior tests: the raster suite proves semantics, THIS
-// suite proves the same pixels arrive on Graphite. Two classes of gap live
-// here: direct-image draws (drawImageLattice / drawAtlas) that bypass the
-// Recorder's ImageProvider and silently vanish (found as invisible
-// nine-slice frames and instance stamps in the GPU gallery), and
-// multi-pass glyph compositing (a blurred underlay beneath a stroked
-// foreground) that must land identically on both backends.
+// Graphite cases for draws a backend can lose without the raster suites
+// noticing: direct images and stamped atlases, batched glyph compositing
+// with a blurred underlay, and a text pass's reach.
 
-#include <sigilcompose/Compose.h>
-#include <sigilcompose/brush/Adaptors.h>
-#include <sigilcompose/brush/Decorations.h>
-#include <sigilcompose/core/Instances.h>
-#include <sigilcompose/typography/Presets.h>
-#include <sigilcompose/typography/Typography.h>
-#include <sigilgeometry/kit/Silhouettes.h>
+#include "support/GpuTestSupport.h"
 
-#include <sigilmaterial/advanced/Recipe.h>
-#include <sigilmaterial/core/Material.h>
-
-#include <sigilweave/choreograph/GlyphBatches.h>
-#include <sigilweave/choreograph/PlacedGlyph.h>
-#include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/layout/ParagraphLayout.h>
-#include <sigilweave/paint/Paint.h>
-#include <sigilweave/paragraph/Paragraph.h>
-#include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/query/Selector.h>
-#include <sigilweave/style/Decoration.h>
-#include <sigilweave/style/PaintLayer.h>
-#include <sigilweave/style/TextStyle.h>
-
-#include <sigilcore/hardware/GpuDevice.h>
-#include <sigilskia/graphite/GraphiteContext.h>
-
-#include <include/core/SkBitmap.h>
-#include <include/core/SkCanvas.h>
-#include <include/core/SkImage.h>
-#include <include/core/SkSurface.h>
-#include <include/gpu/graphite/Context.h>
-#include <include/gpu/graphite/Recorder.h>
-#include <include/gpu/graphite/Recording.h>
-#include <include/gpu/graphite/Surface.h>
-#include <sigilmedia/advanced/Skia.h>
-
-#include <gtest/gtest.h>
-
-#include <functional>
-#include <vector>
-
-#include "Fonts.h"
-
-using namespace sigil::compose;
-
-namespace geometry = sigil::geometry;
+using namespace sigil::compose::graphiteTesting;
 
 namespace {
-
-using sigil::test::fonts;
-
-sigil::skia::GraphiteContext *graphite() {
-  static std::unique_ptr<sigil::core::hardware::GpuDevice> device =
-      sigil::core::hardware::GpuDevice::createOwned();
-  static std::unique_ptr<sigil::skia::GraphiteContext> ctx =
-      device ? sigil::skia::GraphiteContext::create(*device) : nullptr;
-  return ctx.get();
-}
-
-/** Draws one composer frame on a Graphite surface and reads it back. */
-SkBitmap drawOnGpu(Composer &composer, int w, int h) {
-  SkBitmap bm;
-  sigil::skia::GraphiteContext *ctx = graphite();
-  if (!ctx) return bm;
-  const SkImageInfo info = SkImageInfo::MakeN32Premul(w, h);
-  sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(ctx->recorder(), info);
-  if (!surface) return bm;
-  surface->getCanvas()->clear(SK_ColorBLACK);
-  composer.draw(*surface->getCanvas());
-  if (auto recording = ctx->recorder()->snap()) {
-    skgpu::graphite::InsertRecordingInfo insert;
-    insert.fRecording = recording.get();
-    ctx->context()->insertRecording(insert);
-  }
-  struct Read {
-    std::unique_ptr<const SkImage::AsyncReadResult> result;
-    bool called = false;
-  } read;
-  ctx->context()->asyncRescaleAndReadPixels(
-      surface.get(), info, SkIRect::MakeWH(w, h), SkImage::RescaleGamma::kSrc,
-      SkImage::RescaleMode::kNearest,
-      [](SkImage::ReadPixelsContext c, std::unique_ptr<const SkImage::AsyncReadResult> r) {
-        auto *read = static_cast<Read *>(c);
-        read->result = std::move(r);
-        read->called = true;
-      },
-      &read);
-  skgpu::graphite::SubmitInfo submitInfo;
-  submitInfo.fSync = skgpu::graphite::SyncToCpu::kYes;
-  ctx->context()->submit(submitInfo);
-  for (int spin = 0; spin < 5000 && !read.called; ++spin)
-    ctx->context()->checkAsyncWorkCompletion();
-  if (!read.result) return bm;
-  bm.allocPixels(info);
-  const auto *src = static_cast<const uint8_t *>(read.result->data(0));
-  const size_t srcRB = read.result->rowBytes(0);
-  for (int y = 0; y < h; ++y)
-    std::memcpy(bm.pixmap().writable_addr(0, y), src + (size_t)y * srcRB,
-                std::min(srcRB, bm.rowBytes()));
-  return bm;
-}
-
-/** Reads a Graphite surface back to CPU pixels: snap, insert, async read. */
-SkBitmap readbackGpu(sigil::skia::GraphiteContext *ctx, SkSurface *surface,
-                     const SkImageInfo &info) {
-  SkBitmap bm;
-  if (auto recording = ctx->recorder()->snap()) {
-    skgpu::graphite::InsertRecordingInfo insert;
-    insert.fRecording = recording.get();
-    ctx->context()->insertRecording(insert);
-  }
-  struct Read {
-    std::unique_ptr<const SkImage::AsyncReadResult> result;
-    bool called = false;
-  } read;
-  ctx->context()->asyncRescaleAndReadPixels(
-      surface, info, SkIRect::MakeWH(info.width(), info.height()), SkImage::RescaleGamma::kSrc,
-      SkImage::RescaleMode::kNearest,
-      [](SkImage::ReadPixelsContext c, std::unique_ptr<const SkImage::AsyncReadResult> r) {
-        auto *read = static_cast<Read *>(c);
-        read->result = std::move(r);
-        read->called = true;
-      },
-      &read);
-  skgpu::graphite::SubmitInfo submitInfo;
-  submitInfo.fSync = skgpu::graphite::SyncToCpu::kYes;
-  ctx->context()->submit(submitInfo);
-  for (int spin = 0; spin < 5000 && !read.called; ++spin)
-    ctx->context()->checkAsyncWorkCompletion();
-  if (!read.result) return bm;
-  bm.allocPixels(info);
-  const auto *src = static_cast<const uint8_t *>(read.result->data(0));
-  const size_t srcRB = read.result->rowBytes(0);
-  for (int y = 0; y < info.height(); ++y)
-    std::memcpy(bm.pixmap().writable_addr(0, y), src + (size_t)y * srcRB,
-                std::min(srcRB, bm.rowBytes()));
-  return bm;
-}
 
 std::shared_ptr<const sigil::media::Image> whiteTile(int size) {
-  sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(size, size));
-  s->getCanvas()->clear(SK_ColorWHITE);
-  return sigil::media::Image::of(s->makeImageSnapshot());
+  sk_sp<SkSurface> surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(size, size));
+  surface->getCanvas()->clear(SK_ColorWHITE);
+  return sigil::media::Image::of(surface->makeImageSnapshot());
 }
-
-}  // namespace
-
-#define REQUIRE_GPU()                \
-  if (!graphite()) {                 \
-    GTEST_SKIP() << "no GPU device"; \
-  }
-
-namespace {
 
 /** A draw the Recorder's ImageProvider does not see -- a direct image
  *  draw or a stamped atlas -- and where its white must land. These are
@@ -183,12 +37,12 @@ TEST_P(DirectImageDraw, ItsPixelsArriveOnGraphite) {
   Composer composer(engine, fonts());
   composer.setSize({200, 200});
   composer.render(draw.describe());
-  SkBitmap bm = drawOnGpu(composer, 200, 200);
-  ASSERT_FALSE(bm.empty());
+  SkBitmap bitmap = drawOnGpu(composer, 200, 200);
+  ASSERT_FALSE(bitmap.empty());
   for (const SkIPoint &p : draw.lit)
-    EXPECT_EQ(bm.getColor(p.x(), p.y()), SK_ColorWHITE) << p.x() << "," << p.y();
+    EXPECT_EQ(bitmap.getColor(p.x(), p.y()), SK_ColorWHITE) << p.x() << "," << p.y();
   for (const SkIPoint &p : draw.dark)
-    EXPECT_EQ(bm.getColor(p.x(), p.y()), SK_ColorBLACK) << p.x() << "," << p.y();
+    EXPECT_EQ(bitmap.getColor(p.x(), p.y()), SK_ColorBLACK) << p.x() << "," << p.y();
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -265,11 +119,11 @@ sigil::weave::GlyphRSXformBatches batchAtRest(const sigil::weave::ParagraphLayou
 }
 
 /// Pixels within `tolerance` per channel of `color`.
-int countNear(const SkBitmap &bm, SkColor color, int tolerance) {
+int countNear(const SkBitmap &bitmap, SkColor color, int tolerance) {
   int count = 0;
-  for (int y = 0; y < bm.height(); ++y)
-    for (int x = 0; x < bm.width(); ++x) {
-      const SkColor c = bm.getColor(x, y);
+  for (int y = 0; y < bitmap.height(); ++y)
+    for (int x = 0; x < bitmap.width(); ++x) {
+      const SkColor c = bitmap.getColor(x, y);
       if (std::abs((int)SkColorGetR(c) - (int)SkColorGetR(color)) <= tolerance &&
           std::abs((int)SkColorGetG(c) - (int)SkColorGetG(color)) <= tolerance &&
           std::abs((int)SkColorGetB(c) - (int)SkColorGetB(color)) <= tolerance)
@@ -302,12 +156,12 @@ TEST(ComposeGpu, BatchedBlurredUnderlayStaysBeneathForeground) {
   cpu.allocPixels(info);
   ASSERT_TRUE(raster->readPixels(cpu, 0, 0));
 
-  sigil::skia::GraphiteContext *ctx = graphite();
-  sk_sp<SkSurface> gpuSurface = SkSurfaces::RenderTarget(ctx->recorder(), info);
+  sigil::skia::GraphiteContext *context = graphite();
+  sk_sp<SkSurface> gpuSurface = SkSurfaces::RenderTarget(context->recorder(), info);
   ASSERT_TRUE(gpuSurface);
   gpuSurface->getCanvas()->clear(SK_ColorBLACK);
   batches.draw(gpuSurface->getCanvas());
-  SkBitmap gpu = readbackGpu(ctx, gpuSurface.get(), info);
+  SkBitmap gpu = readbackGpu(*context, *gpuSurface, info);
   ASSERT_FALSE(gpu.empty());
 
   // The foreground stroke keeps its colour on both backends. A dimmed
@@ -341,23 +195,23 @@ TEST(ComposeGpu, FxTrackKeepsBlurredUnderlayBeneathForeground) {
   halo.setColor(0xA6000000);
   style.paint.underlays.push_back(PaintLayer::blurred(halo, 3.5f));
 
-  const int w = 420, h = 160;
+  const int width = 420, height = 160;
   auto tree = [&] {
-    return box().padding(20).children({text(u8"VERTIGO", style)
-                                           .key("word")
-                                           .textFx({.effect = textFx::enter(textFx::pop()),
-                                                    .tween = {.duration = std::chrono::milliseconds(480),
-                                                              .delay = sigil::motion::stagger(
-                                                                  std::chrono::milliseconds(30))},
-                                                    .progress = 0.55f})});
+    return box().padding(20).children(
+        {text(u8"VERTIGO", style)
+             .key("word")
+             .textFx({.effect = textFx::enter(textFx::pop()),
+                      .tween = {.duration = std::chrono::milliseconds(480),
+                                .delay = sigil::motion::stagger(std::chrono::milliseconds(30))},
+                      .progress = 0.55f})});
   };
 
   sigil::motion::Engine engine;
   Composer composer(engine, fonts());
-  composer.setSize({(float)w, (float)h});
+  composer.setSize({(float)width, (float)height});
   composer.render(tree());
 
-  const SkImageInfo info = SkImageInfo::MakeN32Premul(w, h);
+  const SkImageInfo info = SkImageInfo::MakeN32Premul(width, height);
   sk_sp<SkSurface> raster = SkSurfaces::Raster(info);
   raster->getCanvas()->clear(SK_ColorBLACK);
   composer.draw(*raster->getCanvas());
@@ -365,7 +219,7 @@ TEST(ComposeGpu, FxTrackKeepsBlurredUnderlayBeneathForeground) {
   cpu.allocPixels(info);
   ASSERT_TRUE(raster->readPixels(cpu, 0, 0));
 
-  SkBitmap gpu = drawOnGpu(composer, w, h);
+  SkBitmap gpu = drawOnGpu(composer, width, height);
   ASSERT_FALSE(gpu.empty());
 
   const int cpuStroke = countNear(cpu, kHollowForeground, 24);
@@ -403,26 +257,25 @@ TEST(ComposeGpu, TextPassReachKeepsContentInPlaceOnGraphite) {
         {text(u8"HOIST", style)
              .key("hoist")
              .textFx({.effect = lift})
-             .textFx({.effect = textFx::pass(sigil::material::Material(identity)),
-                      .reach = reach})});
+             .textFx(
+                 {.effect = textFx::pass(sigil::material::Material(identity)), .reach = reach})});
   };
-  const int w = 200, h = 200;
+  const int width = 200, height = 200;
   sigil::motion::Engine snugEngine;
   Composer snug(snugEngine, fonts());
-  snug.setSize({(float)w, (float)h});
+  snug.setSize({(float)width, (float)height});
   snug.render(describe(0.0f));
-  const SkBitmap snugPx = drawOnGpu(snug, w, h);
+  const SkBitmap snugPx = drawOnGpu(snug, width, height);
   ASSERT_FALSE(snugPx.empty());
   sigil::motion::Engine wideEngine;
   Composer wide(wideEngine, fonts());
-  wide.setSize({(float)w, (float)h});
+  wide.setSize({(float)width, (float)height});
   wide.render(describe(40.0f));
-  const SkBitmap widePx = drawOnGpu(wide, w, h);
+  const SkBitmap widePx = drawOnGpu(wide, width, height);
   ASSERT_FALSE(widePx.empty());
   const std::optional<geometry::path::Rect> laidOut = wide.bounds("hoist");
   ASSERT_TRUE(laidOut.has_value());
-  const SkRect box =
-      geometry::path::toSk(laidOut.value_or(geometry::path::Rect{}));
+  const SkRect box = geometry::path::toSk(laidOut.value_or(geometry::path::Rect{}));
 
   // Inside the box the two renders agree pixel for pixel (an AA-width
   // tolerance, same as every backend comparison here) — and glyph pixels

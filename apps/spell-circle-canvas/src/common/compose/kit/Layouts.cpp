@@ -8,10 +8,10 @@
 
 #include "sigilcompose/kit/Layouts.h"
 
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Contour.h>
 #include <sigilgeometry/path/Numeric.h>
-#include <sigilgeometry/advanced/Skia.h>
 
 #include <algorithm>
 #include <cmath>
@@ -32,12 +32,11 @@ void Radial::arrange(Arrangement& arrangement) const {
   // partial sweep includes both endpoints. The test is made in degrees,
   // the unit the author stated the sweep in.
   const bool closed = std::abs(std::abs(sweepDeg) - 360.0f) < 1e-3f;
-  geometry::arrange::Ring ring{
-      .center = {cx, cy},
-      .fromDegrees = startDeg,
-      .sweepDegrees = sweepDeg,
-      .turn = closed ? geometry::arrange::Turn::Closed
-                     : geometry::arrange::Turn::Open};
+  geometry::arrange::Ring ring{.center = {cx, cy},
+                               .fromDegrees = startDeg,
+                               .sweepDegrees = sweepDeg,
+                               .turn = closed ? geometry::arrange::Turn::Closed
+                                              : geometry::arrange::Turn::Open};
   const float count = divisions > 0 ? divisions : (float)n;
   for (size_t i = 0; i < n; ++i) {
     Arrangement::Child& child = arrangement.children[i];
@@ -94,30 +93,29 @@ void AlongPath::arrange(Arrangement& arrangement) const {
   }
 }
 
-std::vector<geometry::path::Rect> Jittered::place(const LayoutInput& in) const {
-  const size_t n = in.childSizes.size();
-  std::vector<geometry::path::Rect> rects(n);
-  if (n == 0) return rects;
+void Jittered::arrange(Arrangement& arrangement) const {
+  const size_t n = arrangement.children.size();
+  if (n == 0) return;
   const int cols = (int)std::ceil(std::sqrt((float)n));
   const int rows = (int)std::ceil((float)n / (float)cols);
   // The regular grid the jitter is measured against is the same grid a
   // modular layout lays down: gapless modules filling the container.
   const glm::vec2 module =
-      geometry::arrange::moduleSize(in.container, cols, rows);
+      geometry::arrange::moduleSize(arrangement.box.size(), cols, rows);
   for (size_t i = 0; i < n; ++i) {
-    const float jx = core::noise::hash(seed, (uint32_t)(i * 2)) * jitter *
-                     module.x / 2;
-    const float jy = core::noise::hash(seed, (uint32_t)(i * 2 + 1)) * jitter *
-                     module.y / 2;
+    const float jx =
+        core::noise::hash(seed, (uint32_t)(i * 2)) * jitter * module.x / 2;
+    const float jy =
+        core::noise::hash(seed, (uint32_t)(i * 2 + 1)) * jitter * module.y / 2;
     const glm::vec2 cell =
         geometry::arrange::cellRect(geometry::arrange::cellAt(i, cols), module)
             .centre();
     // Clamped into the container so jitter never clips children away.
-    rects[i] = heldInside(geometry::path::Rect::centredOn(
-                              {cell.x + jx, cell.y + jy}, in.childSizes[i]),
-                          in.container);
+    Arrangement::Child& child = arrangement.children[i];
+    child.place(heldInside(
+        geometry::path::Rect::centredOn({cell.x + jx, cell.y + jy}, child.size),
+        arrangement.box.size()));
   }
-  return rects;
 }
 
 }  // namespace sigil::compose::layouts

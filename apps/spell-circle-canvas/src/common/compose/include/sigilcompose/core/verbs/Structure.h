@@ -99,8 +99,8 @@ class StructureVerbs {
   Derived& attributes(Attributes facts);
   /** THE OPERATORS THIS NODE RUNS OVER ITS CHILDREN, in list order: each
    *  is handed the children measured, with their facts and where the
-   *  operators before it left them, and places or turns them. A
-   *  placement scheme, `place(LayoutInput)`, is an operator too. A later
+   *  operators before it left them, and places or turns them. Stock
+   *  layouts use this same arranging call. A later
    *  call appends to the list. What the operators do runs inside the
    *  layout's converging rounds, so what they place is what every pass
    *  after layout reads. */
@@ -168,7 +168,8 @@ class StructureVerbs {
    *  @{ */
   /** THE CHILDREN, AS ONE BLOCK: what is in the node, in order. A run
    *  of the block is an element or the list `each()` made from a range,
-   *  so a block mixes the two. A later call appends. */
+   *  so a block mixes the two. A later call appends. A light declaration
+   *  is a leaf; appending a child throws `std::invalid_argument`. */
   Derived& children(std::initializer_list<Children> runs);
   /** THE CHILDREN FROM A RANGE, appended in the range's own order — for
    *  a container whose whole content is a collection, where the braced

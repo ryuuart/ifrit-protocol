@@ -1,7 +1,8 @@
 /** @file
  * band() — the point on a band's spine, and the band factory, which
- * installs the engine that sweeps its width profile into a region. The rails of the band itself, and the region between them,
- * are SigilGeometry's (`geometry::path::bandRegion`).
+ * installs the engine that sweeps its width profile into a region. The rails of
+ * the band itself, and the region between them, are SigilGeometry's
+ * (`geometry::path::bandRegion`).
  */
 
 #include <include/core/SkPoint.h>
@@ -10,11 +11,11 @@
 #include <algorithm>
 #include <utility>
 
-#include "ComposeInternal.h"
 #include "SpanArithmetic.h"
 #include "SpanContours.h"
-#include "sigilgeometry/path/Contour.h"
+#include "description/ComposeInternal.h"
 #include "sigilgeometry/advanced/Skia.h"
+#include "sigilgeometry/path/Contour.h"
 
 namespace sigil::compose {
 

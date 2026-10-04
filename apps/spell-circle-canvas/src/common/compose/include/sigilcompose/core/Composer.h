@@ -12,7 +12,6 @@
 #include <include/core/SkPicture.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSize.h>
-#include <glm/vec2.hpp>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilmaterial/color/Color.h>
@@ -22,6 +21,7 @@
 #include <sigilmotion/time/Duration.h>
 
 #include <functional>
+#include <glm/vec2.hpp>
 #include <memory>
 #include <optional>
 #include <string>
@@ -43,6 +43,10 @@ namespace sigil::compose {
 
 namespace detail {
 struct Instance;
+// The one-shot draw at settled values, declared in
+// <sigilcompose/core/Measure.h>.
+void drawSettled(const Element& root, sigil::weave::FontContext& fonts,
+                 SkCanvas& canvas, SkSize viewport);
 }  // namespace detail
 
 // The typography vocabulary the text queries answer in, defined under
@@ -87,7 +91,9 @@ struct TextSettling {
  *  Element tree against the last one, keeps layout and cached rasters
  *  alive across frames for the parts that did not change, and paints
  *  into a canvas the caller owns — it creates no surface and takes over
- *  no rendering loop. */
+ *  no rendering loop. Its pixel caches keep the destination's precision
+ *  and colour space with premultiplied alpha; Compose performs no
+ *  input-space conversion or linear-light compositing. */
 class Composer {
  public:
   /** BOTH REFERENCES ARE HELD, not copied, and both must outlive the
@@ -137,40 +143,6 @@ class Composer {
    *  built, as an Effect, is taken as it stands. */
   void setView(const sigil::material::Material& view);
 
-  /** THE DECLARED INPUT SPACE — a declaration, NOT a conversion.
-   *
-   *  Compose composites in ENCODED sRGB and has no linear stage: every
-   *  surface it paints into is N32Premul with no SkColorSpace, so the
-   *  numbers an author writes are the numbers that land in the bytes. That
-   *  is not configurable, because every channel weighting in the library —
-   *  `by::luma`'s Rec. 601 coefficients first among them — is defined
-   *  against it.
-   *
-   *  What this adds is the ability to SAY what you believe your colour
-   *  values are, since "I deliberately author encoded sRGB" and "nobody
-   *  thought about colour at all" otherwise produce identical trees.
-   *  `EncodedSRGB`, the default, matches reality and is silent. Anything
-   *  else is a mismatch the library can see, and it says so once: your
-   *  values are still TREATED as encoded sRGB, so under a `LinearSRGB`
-   *  declaration every channel computation in the pipeline — blending,
-   *  `by::luma`, alpha compositing — runs on numbers it was not defined
-   *  for.
-   *
-   *  NO conversion is performed, ever, and the declaration participates in
-   *  nothing else: two renders under different declarations are
-   *  byte-identical. */
-  enum class InputSpace : uint8_t {
-    EncodedSRGB,  ///< display-encoded sRGB — the space compose composites in
-    LinearSRGB,   ///< linear-light sRGB — NOT compose's space; declaring warns
-    DisplayP3,    ///< display-encoded Display P3 — NOT compose's space; warns
-  };
-  /** States which colour space the colours in this tree's descriptions
-   *  are written in — see `InputSpace`, which says what declaring one
-   *  other than the default does and does not do. */
-  void declareInputSpace(InputSpace space);
-  /** The space last declared, `EncodedSRGB` when none was. */
-  InputSpace declaredInputSpace() const;
-
   /** THE DESCRIBE PATH: reconciles @p root against the retained tree,
    *  matching children by key and pruning where a memo hits or the
    *  description compares equal. Call it whenever your data changed —
@@ -183,11 +155,11 @@ class Composer {
    *  of the tree is untouched — which is the point: two data domains
    *  changing at different rates do not invalidate each other.
    *
-   *  A name that matches no slot does nothing, silently. */
+   *  A name that matches no slot leaves the tree unchanged and warns once. */
   void renderSlot(std::string_view name, const Element& content);
 
-  /** Content or layout changed since the last draw(). Redraw when
-   *  dirty() || engine.isRunning(). */
+  /** Content or layout changed since the last draw(). For a redraw gate
+   *  that also observes motions and external bindings, use isRunning(). */
   bool dirty() const;
 
   /** Whether another draw can produce different pixels: a description or
@@ -209,7 +181,7 @@ class Composer {
 
   /** @name Queries
    *  What the RESOLVED side answers about the tree it laid out. Each is
-   *  valid after a `render()` — or after any call that runs layout —
+   *  valid after a `draw()` — or after any call that runs layout —
    *  and each addresses a node by its `Element::key()`, which is the
    *  one identity the query side sees.
    *  @{ */
@@ -684,6 +656,8 @@ class Composer {
                                    SkSize, SnapshotOptions);
   friend SkSize intrinsicSize(const Element&, sigil::weave::FontContext&,
                               SkSize);
+  friend void detail::drawSettled(const Element&, sigil::weave::FontContext&,
+                                  SkCanvas&, SkSize);
   std::unique_ptr<Impl> m_impl;
 };
 

@@ -1,0 +1,722 @@
+/** @file
+ * Layout phase: Yoga's calculate pass and the bounded convergence loop
+ * that settles custom layout() containers and centre pins against the
+ * geometry Yoga produced. The text leaves it measures through are in
+ * LayoutText.cpp, the derive pass the loop drives in Derive.cpp, and the
+ * rects it all resolves to in Rects.cpp.
+ */
+
+#include <sigilgeometry/advanced/Skia.h>
+
+#include <algorithm>
+#include <cmath>
+#include <limits>
+#include <span>
+#include <utility>
+#include <variant>
+#include <vector>
+
+#include "runtime/ComposeRuntime.h"
+
+namespace sigil::compose {
+
+using namespace detail;
+
+// ---------------------------------------------------------------------------
+// Layout passes
+
+void Composer::Impl::calculateYoga() {
+  // The viewport is the root's containing block, so a percentage the root
+  // states is of the canvas; an intrinsic root has none to be of.
+  const float across = size.isEmpty() ? YGUndefined : size.width();
+  const float down = size.isEmpty() ? YGUndefined : size.height();
+  YGNodeCalculateLayout(root->yoga, across, down, YGDirectionLTR);
+}
+
+bool Composer::Impl::phaseYoga() {
+  calculateYoga();
+  return false;
+}
+
+bool Composer::Impl::phaseCustomLayouts() {
+  if (!hasCustomLayout) return false;
+  // An outer arrangement assigns the box that a nested arrangement's
+  // flex inputs must be measured in. Independent scopes at the same
+  // arranging depth can restore and measure those inputs together.
+  struct Scope {
+    Instance* owner;
+    SkRect previous;
+    size_t begin;
+    size_t end;
+  };
+  std::vector<Scope> scopes;
+  std::vector<PlacedChild> placed;
+  std::vector<std::vector<size_t>> levels;
+  const auto collect = [&](auto&& self, Instance& inst, size_t depth) -> void {
+    if (childrenCarryYoga(inst) && inst.description->arranges()) {
+      if (levels.size() <= depth) levels.resize(depth + 1);
+      levels[depth].push_back(scopes.size());
+      const size_t begin = placed.size();
+      // Hidden and operator-added children take no authored placement.
+      for (const auto& child : inst.children) {
+        if (child->computed.layout.display == Display::None ||
+            child->description->added() ||
+            child->description->kind == Kind::Light)
+          continue;
+        placed.push_back(
+            {.instance = child.get(),
+             .previous = instanceRect(*child),
+             .wasAbsolute = YGNodeStyleGetPositionType(child->yoga) ==
+                            YGPositionTypeAbsolute});
+      }
+      scopes.push_back({&inst, instanceRect(inst), begin, placed.size()});
+      ++depth;
+    }
+    for (const auto& child : inst.children) self(self, *child, depth);
+  };
+  collect(collect, *root, 0);
+  for (const auto& level : levels) {
+    const auto children = [&](size_t index) {
+      const Scope& scope = scopes[index];
+      return std::span<PlacedChild>(placed).subspan(scope.begin,
+                                                    scope.end - scope.begin);
+    };
+    for (size_t index : level)
+      for (PlacedChild& child : children(index))
+        // Pinned children keep their pin-owned geometry.
+        if (!child.instance->computed.layout.centerAt)
+          applyLayoutProps(*child.instance);
+    if (YGNodeIsDirty(root->yoga)) calculateYoga();
+    for (size_t index : level)
+      for (PlacedChild& child : children(index))
+        child.input = instanceRect(*child.instance);
+    for (size_t index : level)
+      applyCustomLayouts(*scopes[index].owner, children(index));
+  }
+  // Restoring flex inputs and applying placements can dirty styles even
+  // when the final geometry is unchanged. Settle these writes before the
+  // pin and derive phases, without treating temporary inputs as motion.
+  if (YGNodeIsDirty(root->yoga)) calculateYoga();
+  const auto moved = [](const SkRect& before, const SkRect& after) {
+    return std::abs(before.left() - after.left()) > 0.25f ||
+           std::abs(before.top() - after.top()) > 0.25f ||
+           std::abs(before.width() - after.width()) > 0.25f ||
+           std::abs(before.height() - after.height()) > 0.25f;
+  };
+  for (const Scope& scope : scopes)
+    if (moved(scope.previous, instanceRect(*scope.owner))) return true;
+  for (const PlacedChild& child : placed) {
+    // Leaving flex flow can change siblings even if this rect is stable.
+    if (!child.wasAbsolute && !child.instance->computed.layout.centerAt)
+      return true;
+    if (moved(child.previous, instanceRect(*child.instance))) return true;
+  }
+  return false;
+}
+
+bool Composer::Impl::phaseCenterPins() {
+  return hasCenterPins && applyCenterPins(*root);
+}
+
+bool Composer::Impl::phaseDerive() { return hasDerived() && resolveDerived(); }
+
+bool Composer::Impl::phasePathMarks() {
+  // textAttach() on a path-laid run resolves HERE, not in measure with the flow
+  // runs: the curve resolves against the node's final box, and only the
+  // finished layout knows that box. The path layout underneath is memoized
+  // against the box and the content; the mark walk itself is one pass over
+  // the run's glyphs per layout. Runs before syncLayoutRects so a
+  // mark-anchored child whose rect moved is seen by the same invalidation
+  // walk as everything else.
+  for (detail::Instance* marked : pathMarkInstances) resolveTextMarks(*marked);
+  return false;
+}
+
+bool Composer::Impl::phaseSyncRects() {
+  // Post-layout invalidation: recordings bake geometry (child offsets, text
+  // lines, geometry-material uResolution), so any rect that moved or resized
+  // must stale the recordings that captured it — even when NO prop changed
+  // (setSize, sibling growth, measured-text reflow). Runs only when layout
+  // ran; a stable layout is a no-op walk.
+  syncLayoutRects(*root);
+  return false;
+}
+
+void Composer::Impl::ensureLayout() {
+  // The cascade before layout, wherever layout is asked for — a frame, a
+  // bake, an intrinsic size: an inheriting leaf must be set in its font
+  // before it is measured, and a length in ems before Yoga reads it.
+  if (cascadeDirty) runCascade();
+  if (!root || (!needsLayout && !YGNodeIsDirty(root->yoga))) return;
+  // A length measured against the CANVAS is resolved into pixels before
+  // Yoga sees it, so a canvas of a new size means those styles are stale and
+  // nothing else would notice: a percent Yoga owns re-resolves itself, and
+  // one of these does not.
+  if (anyCanvasLengths && canvasLengthsAt != size) {
+    canvasLengthsAt = size;
+    reapplyCanvasLengths(*root);
+  }
+  // The root fills the viewport (the CSS-root rule) along any axis it
+  // states no size on; a width or a height the root states is its own, as
+  // CSS honours one on the root box. Under an empty setSize(), which means
+  // "intrinsic", the root sizes to its content (the snapshot()/stamp path).
+  const LayoutProps& stated = root->computed.layout;
+  const bool intrinsic = size.isEmpty();
+  if (stated.width.unit == Dimension::Unit::Auto)
+    YGNodeStyleSetWidth(root->yoga, intrinsic ? YGUndefined : size.width());
+  if (stated.height.unit == Dimension::Unit::Auto)
+    YGNodeStyleSetHeight(root->yoga, intrinsic ? YGUndefined : size.height());
+  // The runner walks `phases` in order: a non-converging phase runs once,
+  // and the converging phases form one contiguous group that repeats until
+  // a round changes nothing or the round cap is reached. Custom layout()
+  // placement, auto-sizing, centerAt pins and the derive phase all read
+  // RESOLVED geometry and then write back into Yoga out of band, so each
+  // can move what another already read: an auto-sized container changes the
+  // box a pin centres in, and a pinned node moves an anchor a rail routed
+  // through. Writers must report actual geometry changes so a settled
+  // round exits before reaching the cap.
+  const auto runLayoutPhases = [this] {
+    core::runPhases(*this, std::span<const core::Phase<Impl>>(phases),
+                    kConvergeRounds, [this] {
+                      calculateYoga();
+                      // Refresh routes after relayout, including a final
+                      // round that will not be followed by another pass.
+                      phaseDerive();
+                    });
+  };
+  runLayoutPhases();
+  // Then the ADDING OPERATORS over the settled tree. What they attach is
+  // laid out by one more run of the list — it stands beside the authored
+  // children and out of their flow, so nothing they measured moves, and
+  // the second run's additions equal the first's, which is the bound.
+  for (int pass = 0; pass < 2 && hasAdding(); ++pass) {
+    if (!phaseAdditions()) break;
+    runLayoutPhases();
+  }
+  needsLayout = false;
+}
+
+void Composer::Impl::reapplyCanvasLengths(Instance& inst) {
+  if (inst.canvasLengths) applyLayoutProps(inst);
+  if (originsFollowCanvas(inst.styled())) inst.markPaintDirtyUp();
+  for (auto& child : inst.children) reapplyCanvasLengths(*child);
+}
+
+void Composer::Impl::syncLayoutRects(Instance& inst, bool movedAbove) {
+  const SkRect r = instanceRect(inst);
+  const bool rectChanged = r != inst.lastLayoutRect;
+  if (rectChanged) {
+    const bool sizeChanged = r.width() != inst.lastLayoutRect.width() ||
+                             r.height() != inst.lastLayoutRect.height();
+    inst.lastLayoutRect = r;
+    if (sizeChanged)
+      inst.markPaintDirtyUp();  // own content baked the old bounds
+    else if (inst.parent)
+      // The parent's RECORDING baked this child's old offset; the parent's
+      // OWN paint did not — it never contained the child at all. The split
+      // bake (own paint baked, volatile children drawn live over the blit)
+      // is the cache tier that can tell those apart, and this is the case
+      // it exists for: passing ownPaint=true here would remake the parent's
+      // bake on every frame a child moves and the tier would silently never
+      // pay off.
+      inst.parent->markPaintDirtyUp(/*ownPaint=*/false);
+    contentDirty = true;
+  }
+  // A world-space material samples its field in ROOT coordinates, so the
+  // node's recording bakes the node-to-root matrix W. Any rect change at or
+  // above the node changes W and must stale that recording:
+  //   - its own move: the position-only branch above stales the PARENT, not
+  //     this node, which is right for ordinary content and wrong here;
+  //   - an ancestor's move: instanceRect is parent-relative, so this node's
+  //     own rect compares equal while W has changed underneath it.
+  // `movedAbove` carries any rect change, position or size, because a
+  // resized ancestor with a centred transform origin moves its descendants'
+  // W as surely as a repositioned one does.
+  if (inst.hasWorldSpaceMaterial && (movedAbove || rectChanged)) {
+    inst.markPaintDirtyUp();
+    contentDirty = true;
+  }
+  for (auto& child : inst.children)
+    syncLayoutRects(*child, movedAbove || rectChanged);
+}
+
+/** centerAt(): set the pinned node's left/top so its MEASURED box centres
+ *  on the point. Runs after measurement, since the box is what it centres.
+ *  Must stay idempotent — it reports a change only when the target position
+ *  actually moved — or the bounded loop in ensureLayout would never see a
+ *  quiet round and would burn its full round count every frame. */
+bool Composer::Impl::applyCenterPins(Instance& inst) {
+  bool applied = false;
+  if (inst.computed.layout.centerAt && inst.yoga) {
+    // Yoga rounds its answer to its configured pixel grid. A correction
+    // smaller than half a grid step cannot improve that answer and would
+    // feed rounding back into the style on every unrelated relayout.
+    const float scale = YGConfigGetPointScaleFactor(yogaConfig);
+    const float tolerance =
+        std::max(0.25f, scale > 0 ? 0.5f / scale : 0.0f) + 0.0001f;
+    const SkPoint p = *inst.computed.layout.centerAt;
+    // Correct by the observed layout delta rather than writing the target
+    // into the style directly — converges whatever reference box Yoga
+    // resolves absolute positions against (padding, borders).
+    const float dl = (p.x() - YGNodeLayoutGetWidth(inst.yoga) / 2) -
+                     YGNodeLayoutGetLeft(inst.yoga);
+    const float dt = (p.y() - YGNodeLayoutGetHeight(inst.yoga) / 2) -
+                     YGNodeLayoutGetTop(inst.yoga);
+    if (std::abs(dl) > tolerance || std::abs(dt) > tolerance) {
+      auto styleBase = [&](YGEdge edge) {
+        const YGValue v = YGNodeStyleGetPosition(inst.yoga, edge);
+        return v.unit == YGUnitPoint ? v.value : 0.0f;
+      };
+      YGNodeStyleSetPositionType(inst.yoga, YGPositionTypeAbsolute);
+      YGNodeStyleSetPosition(inst.yoga, YGEdgeLeft, styleBase(YGEdgeLeft) + dl);
+      YGNodeStyleSetPosition(inst.yoga, YGEdgeTop, styleBase(YGEdgeTop) + dt);
+      applied = true;
+    }
+  }
+  for (const auto& child : inst.children) applied |= applyCenterPins(*child);
+  return applied;
+}
+
+/** THE SMALLEST @p child CAN BE without its content spilling — what a
+ *  track-sizing rule floors a content-sized track at.
+ *
+ *  A text leaf is asked: laid out at a nil measure it wraps at every
+ *  opportunity, so what it reports back is the widest run it cannot break,
+ *  which is exactly the minimum. The measure it was standing at is then
+ *  restored, because the layout the rest of the pass reads must be the one
+ *  the node's own box produced and not this probe.
+ *
+ *  Everything else answers with what Yoga measured. A scheme does not
+ *  re-describe a box at a proposed width, so there is no honest
+ *  smaller number to give for a box: reporting zero would let a content
+ *  track collapse under content that cannot in fact shrink. */
+SkSize Composer::Impl::minimumSizeOf(Instance& child) {
+  const SkSize box{YGNodeLayoutGetWidth(child.yoga),
+                   YGNodeLayoutGetHeight(child.yoga)};
+  SkSize least = box;
+  if (!child.paragraph) return least;
+  const float wasWidth = child.measuredForWidth;
+  const float wasHeight = child.measuredForHeight;
+  layoutText(child, 0.0f, kUnbounded);
+  // The answer is a BOX, as every other minimum here is: the widest run the
+  // paragraph cannot break, standing inside the leaf's own padding.
+  least.fWidth = child.measuredSize.width + paddingOf(child).across();
+  // THE PROBE IS PUT BACK WHATEVER IT ANSWERED. A child that carries no
+  // previous measure — the first pass, or a layout that degraded — is
+  // laid out at the box it resolved to, because the alternative is
+  // leaving it wrapped at nil width for the frame the probe ran in.
+  if (wasWidth >= 0)
+    layoutText(child, wasWidth, wasHeight);
+  else
+    layoutTextInBox(child, box.width(), box.height());
+  return least;
+}
+
+namespace {
+
+/** The node whose flex line @p inst is an item of: its parent, or the
+ *  nearest ancestor above parents that have no box of their own. */
+const Instance* flexContainerOf(const Instance& inst) {
+  const Instance* container = inst.parent;
+  while (container && container->parent &&
+         container->computed.layout.display == Display::Contents)
+    container = container->parent;
+  return container;
+}
+
+bool constrainedAxis(const Instance& inst, bool horizontal) {
+  const LayoutProps& layout = inst.computed.layout;
+  const Dimension& size = horizontal ? layout.width : layout.height;
+  if (size.unit != Dimension::Unit::Auto) return true;
+  if (layout.hasInsets &&
+      (horizontal ? layout.insets.left : layout.insets.top).unit !=
+          Dimension::Unit::Auto &&
+      (horizontal ? layout.insets.right : layout.insets.bottom).unit !=
+          Dimension::Unit::Auto)
+    return true;
+  if (!inst.parent) return true;
+  const Instance& parent = *flexContainerOf(inst);
+  if (parent.description->arranges()) return true;
+  const LayoutProps& parentLayout = parent.computed.layout;
+  if (horizontal == mainAxisHorizontal(parentLayout.direction))
+    return layout.grow > 0 || layout.basis.unit != Dimension::Unit::Auto;
+  const Align alignment = layout.alignSelf == Align::Auto
+                              ? parentLayout.alignItems
+                              : layout.alignSelf;
+  return alignment == Align::Stretch && constrainedAxis(parent, horizontal);
+}
+
+// A stretched child still contributes its natural extent to an auto-sized
+// flex line. Once a scheme's children are placed absolutely, Yoga cannot
+// derive that contribution from them; the scheme supplies it instead.
+bool stretchedFromContent(const Instance& inst, bool horizontal) {
+  if (!inst.parent) return false;
+  const Instance& container = *flexContainerOf(inst);
+  const LayoutProps& layout = inst.computed.layout;
+  const LayoutProps& parent = container.computed.layout;
+  const Align alignment =
+      layout.alignSelf == Align::Auto ? parent.alignItems : layout.alignSelf;
+  return horizontal != mainAxisHorizontal(parent.direction) &&
+         alignment == Align::Stretch && !constrainedAxis(container, horizontal);
+}
+
+float boundInPixels(const Instance& inst, bool horizontal, YGValue value) {
+  if (value.unit == YGUnitPoint) return value.value;
+  if (value.unit == YGUnitPercent && inst.parent) {
+    const float parent = horizontal ? YGNodeLayoutGetWidth(inst.parent->yoga)
+                                    : YGNodeLayoutGetHeight(inst.parent->yoga);
+    return value.value * parent * 0.01f;
+  }
+  return YGUndefined;
+}
+
+float maximumMeasure(const Instance& inst, bool horizontal, float extent) {
+  const float maximum =
+      boundInPixels(inst, horizontal,
+                    horizontal ? YGNodeStyleGetMaxWidth(inst.yoga)
+                               : YGNodeStyleGetMaxHeight(inst.yoga));
+  if (std::isfinite(maximum) && maximum >= 0)
+    extent = std::min(extent, maximum);
+  return extent;
+}
+
+float naturalContribution(const Instance& inst, bool horizontal, float extent) {
+  extent = maximumMeasure(inst, horizontal, extent);
+  const YGEdge start = horizontal ? YGEdgeLeft : YGEdgeTop;
+  const YGEdge end = horizontal ? YGEdgeRight : YGEdgeBottom;
+  float insets = 0;
+  const Instance* child = &inst;
+  for (const Instance* parent = inst.parent; parent; parent = parent->parent) {
+    insets += YGNodeLayoutGetMargin(child->yoga, start) +
+              YGNodeLayoutGetMargin(child->yoga, end) +
+              YGNodeLayoutGetPadding(parent->yoga, start) +
+              YGNodeLayoutGetPadding(parent->yoga, end) +
+              YGNodeLayoutGetBorder(parent->yoga, start) +
+              YGNodeLayoutGetBorder(parent->yoga, end);
+    const float maximum = maximumMeasure(
+        *parent, horizontal, std::numeric_limits<float>::infinity());
+    if (std::isfinite(maximum))
+      extent = std::min(extent, std::max(maximum - insets, 0.0f));
+    // A maximum bounds an auto-sized flex line without fixing its size.
+    // Follow only the stretch chain that passes that bound to this child.
+    if (!stretchedFromContent(*parent, horizontal)) break;
+    child = parent;
+  }
+  return extent;
+}
+
+float constrainedMeasure(const Instance& inst, bool horizontal, float extent) {
+  extent = maximumMeasure(inst, horizontal, extent);
+  const float minimum =
+      boundInPixels(inst, horizontal,
+                    horizontal ? YGNodeStyleGetMinWidth(inst.yoga)
+                               : YGNodeStyleGetMinHeight(inst.yoga));
+  if (std::isfinite(minimum) && minimum >= 0)
+    extent = std::max(extent, minimum);
+  return extent;
+}
+
+}  // namespace
+
+void Composer::Impl::applyCustomLayouts(Instance& inst,
+                                        std::span<PlacedChild> placed) {
+  const ElementNode& node = *inst.description;
+  if (!placed.empty()) {
+    const OperatorData& operators = *node.operatorData;
+    Arrangement arrangement;
+    arrangement.box = geometry::path::Rect::of(
+        {0, 0},
+        {YGNodeLayoutGetWidth(inst.yoga), YGNodeLayoutGetHeight(inst.yoga)});
+    arrangement.minSizesMeasured = operators.readsChildMinSizes();
+    arrangement.percentagesResolved = operators.resolvesChildPercentages();
+    // One stated length for a scheme that resolves percentages itself: a
+    // percentage kept as a fraction of the box the scheme gives the child,
+    // every other unit in pixels, a custom property read on the way.
+    const auto statedLength = [&](const Instance& child, Dimension declared) {
+      if (declared.unit == Dimension::Unit::Var) {
+        const VarValue* value =
+            child.vars ? child.vars->find(declared.reference()) : nullptr;
+        const Dimension* length =
+            value ? std::get_if<Dimension>(value) : nullptr;
+        declared = length && length->unit != Dimension::Unit::Var
+                       ? *length
+                       : autoDimension();
+      }
+      StatedLength stated;
+      if (declared.unit == Dimension::Unit::Auto) return stated;
+      if (declared.unit == Dimension::Unit::Pct) {
+        stated.kind = StatedLength::Kind::Fraction;
+        stated.value = declared.value * 0.01f;
+        return stated;
+      }
+      bool relative = false;
+      const float pixels = resolveLength(child, declared, relative);
+      if (!std::isfinite(pixels)) return stated;
+      stated.kind = StatedLength::Kind::Pixels;
+      stated.value = pixels;
+      return stated;
+    };
+    std::vector<Arrangement::Child> records;
+    records.reserve(placed.size());
+    for (PlacedChild& placedChild : placed) {
+      Instance* child = placedChild.instance;
+      const ElementNode& description = *child->description;
+      Arrangement::Child record;
+      const SkRect input = placedChild.input;
+      record.size = {input.width(), input.height()};
+      // First-baseline offset from the child's top — measured text only
+      // (pass one measured it); everything else has no baseline.
+      if (!child->lines.empty()) {
+        const sigil::weave::LineMetrics& first = child->lines.front();
+        record.baseline = first.baseline - first.rect().top();
+      }
+      record.cells = child->computed.layout.cells;
+      // The region name is a rare field and lives in the child's derive
+      // block; a grid reads it beside the cell numbers.
+      if (description.deriveData)
+        record.area = description.deriveData->cellArea;
+      if (description.operatorData)
+        record.attributes = description.operatorData->attributes;
+      if (arrangement.minSizesMeasured)
+        record.minSize = geometry::path::fromSk(minimumSizeOf(*child));
+      if (arrangement.percentagesResolved) {
+        const LayoutProps& layout = child->computed.layout;
+        record.statedSize = {
+            .width = statedLength(*child, layout.width),
+            .height = statedLength(*child, layout.height),
+            .minWidth = statedLength(*child, layout.minWidth),
+            .minHeight = statedLength(*child, layout.minHeight),
+            .maxWidth = statedLength(*child, layout.maxWidth),
+            .maxHeight = statedLength(*child, layout.maxHeight),
+            .aspectRatio = layout.aspect > 0 ? layout.aspect : 0.0f};
+      }
+      // Where the child stands before the list runs: the flex layout's
+      // answer, which an operator that nudges rather than places reads.
+      record.rect = geometry::path::fromSk(input);
+      records.push_back(std::move(record));
+    }
+    arrangement.children = records;
+    // THE LIST RUNS FROM THE SAME START EVERY TIME: each run begins at the
+    // rects the flex layout gave and no turn, so a run after a text
+    // reflow answers the same question the first did rather than nudging
+    // what the first run left.
+    const auto run = [&] {
+      for (size_t i = 0; i < arrangement.children.size(); ++i) {
+        arrangement.children[i].rect = geometry::path::fromSk(placed[i].input);
+        arrangement.children[i].turnDegrees = 0.0f;
+      }
+      for (const Operator& op : operators.operators) op.arrange(arrangement);
+    };
+    run();
+    const size_t count = arrangement.children.size();
+    // Track placement supplies a text leaf's final reading measure. Its
+    // automatic cross extent must be measured at that width (or depth in
+    // vertical writing) before the operators size the other tracks. The
+    // preferred width remains an intrinsic contribution; only the wrapped
+    // extent changes. An authored extent or a threaded frame stays bounded.
+    for (int pass = 0; pass < 2; ++pass) {
+      bool reflowed = false;
+      for (size_t i = 0; i < count; ++i) {
+        Instance& child = *placed[i].instance;
+        Arrangement::Child& record = arrangement.children[i];
+        if (!child.paragraph || child.computed.layout.centerAt) continue;
+        const TextData* text = child.description->textData
+                                   ? &*child.description->textData
+                                   : nullptr;
+        if (text && text->onPath) continue;
+        const bool vertical = child.paragraph->writingMode() ==
+                              sigil::weave::WritingMode::kVerticalRL;
+        const bool frame =
+            child.threadedInto || (text && !text->threadTo.empty());
+        const float width =
+            constrainedMeasure(child, true, record.rect.width());
+        const float height =
+            vertical || frame
+                ? constrainedMeasure(child, false, record.rect.height())
+                : kUnbounded;
+        layoutTextInBox(child, width, height);
+        const LayoutProps& layout = child.computed.layout;
+        if (frame || (vertical ? layout.width : layout.height).unit !=
+                         Dimension::Unit::Auto)
+          continue;
+        const detail::Insets padding = paddingOf(child);
+        const float measured = constrainedMeasure(
+            child, vertical,
+            vertical ? child.measuredSize.width + padding.across()
+                     : child.measuredSize.height + padding.down());
+        float& extent = vertical ? record.size.x : record.size.y;
+        if (std::abs(extent - measured) <= 0.25f) continue;
+        extent = measured;
+        if (arrangement.minSizesMeasured) {
+          float& minimum = vertical ? record.minSize.x : record.minSize.y;
+          minimum = measured;
+        }
+        reflowed = true;
+      }
+      if (!reflowed) break;
+      run();
+    }
+    for (size_t i = 0; i < count; ++i) {
+      const Arrangement::Child& record = arrangement.children[i];
+      Instance& child = *placed[i].instance;
+      // A turn is paint-only: it moves no layout, so it counts toward no
+      // convergence round, and a changed one repaints the child.
+      if (std::abs(child.arrangedTurn - record.turnDegrees) > 1e-3f) {
+        child.arrangedTurn = record.turnDegrees;
+        child.markPaintDirtyUp();
+      }
+      // A centerAt() child opts OUT of the operators' placement — the pin
+      // wins (otherwise the placement and the pin fight in a period-2
+      // oscillation that never settles).
+      if (child.computed.layout.centerAt) continue;
+      const SkRect rect = geometry::path::toSk(record.rect);
+      YGNodeStyleSetPositionType(child.yoga, YGPositionTypeAbsolute);
+      YGNodeStyleSetPosition(child.yoga, YGEdgeLeft, rect.left());
+      YGNodeStyleSetPosition(child.yoga, YGEdgeTop, rect.top());
+      YGNodeStyleSetWidth(child.yoga, rect.width());
+      YGNodeStyleSetHeight(child.yoga, rect.height());
+      // A scheme that resolved the child's percentages against a box of
+      // its own answered its bounds in that rect. Left in the flex style,
+      // a percentage bound would be taken of this container instead and
+      // move the child off the rect it was placed at.
+      if (arrangement.percentagesResolved && record.statedSize.anyFraction()) {
+        const auto release = [&](YGValue (*get)(YGNodeConstRef),
+                                 void (*set)(YGNodeRef, float)) {
+          if (get(child.yoga).unit == YGUnitPercent)
+            set(child.yoga, YGUndefined);
+        };
+        release(&YGNodeStyleGetMinWidth, &YGNodeStyleSetMinWidth);
+        release(&YGNodeStyleGetMaxWidth, &YGNodeStyleSetMaxWidth);
+        release(&YGNodeStyleGetMinHeight, &YGNodeStyleSetMinHeight);
+        release(&YGNodeStyleGetMaxHeight, &YGNodeStyleSetMaxHeight);
+        // The rect already carries the proportions.
+        if (record.statedSize.aspectRatio > 0)
+          YGNodeStyleSetAspectRatio(child.yoga, YGUndefined);
+      }
+    }
+    // Auto-size an ABSOLUTE container from the placed extent, per axis,
+    // when the author left that axis open (no explicit dim, no
+    // opposing-inset pair) — an absolutely-positioned container has no flex
+    // parent to size it, so without this it would collapse and the scheme
+    // would place its children outside a zero box.
+    //
+    // A flex parent may assign an extent, or derive it from its children.
+    // Keep assigned sizes. Supply the placed extent when children leaving
+    // flow collapse the container, or when a content-sized flex line would
+    // otherwise derive its cross extent from only the remaining siblings.
+    const LayoutProps& l = inst.computed.layout;
+    SkRect extent = SkRect::MakeEmpty();
+    for (size_t i = 0; i < count; ++i)
+      extent.join(geometry::path::toSk(arrangement.children[i].rect));
+    const bool widthPinned = l.hasInsets &&
+                             l.insets.left.unit != Dimension::Unit::Auto &&
+                             l.insets.right.unit != Dimension::Unit::Auto;
+    const bool heightPinned = l.hasInsets &&
+                              l.insets.top.unit != Dimension::Unit::Auto &&
+                              l.insets.bottom.unit != Dimension::Unit::Auto;
+    const bool contentWidth = l.width.unit == Dimension::Unit::Auto &&
+                              !widthPinned && stretchedFromContent(inst, true);
+    const bool contentHeight = l.height.unit == Dimension::Unit::Auto &&
+                               !heightPinned &&
+                               stretchedFromContent(inst, false);
+    // A minimum contributes to an auto-sized flex line without disabling
+    // stretch beside a taller or wider sibling. Re-resolve the author's
+    // own minimum each time so content can also become smaller, and restore
+    // that minimum when the parent supplies a constrained extent instead.
+    const auto minimum = [&](bool horizontal, bool content, float extent) {
+      Dimension declared = horizontal ? l.minWidth : l.minHeight;
+      if (declared.unit == Dimension::Unit::Var) {
+        const VarValue* value =
+            inst.vars ? inst.vars->find(declared.reference()) : nullptr;
+        const Dimension* length =
+            value ? std::get_if<Dimension>(value) : nullptr;
+        declared = length && length->unit != Dimension::Unit::Var
+                       ? *length
+                       : Dimension(0.0f);
+      }
+      // A sum holding a percentage stands as auto in flex layout, as the
+      // style that wrote this minimum reported.
+      if (percentageSum(declared)) declared = autoDimension();
+      bool relative = false;
+      float value = resolveLength(inst, declared, relative);
+      YGUnit unit = declared.unit == Dimension::Unit::Auto  ? YGUnitUndefined
+                    : declared.unit == Dimension::Unit::Pct ? YGUnitPercent
+                                                            : YGUnitPoint;
+      if (content) {
+        if (unit == YGUnitPercent) {
+          const float parentExtent =
+              horizontal ? YGNodeLayoutGetWidth(inst.parent->yoga)
+                         : YGNodeLayoutGetHeight(inst.parent->yoga);
+          value *= parentExtent * 0.01f;
+        }
+        // The content contribution cannot raise an implicit minimum past
+        // an authored maximum. An explicit minimum keeps its own meaning.
+        value = std::max(naturalContribution(inst, horizontal, extent),
+                         std::isfinite(value) ? value : 0.0f);
+        unit = YGUnitPoint;
+      }
+      const YGValue before = horizontal ? YGNodeStyleGetMinWidth(inst.yoga)
+                                        : YGNodeStyleGetMinHeight(inst.yoga);
+      if (before.unit == unit &&
+          (unit == YGUnitUndefined || std::abs(before.value - value) <= 0.25f))
+        return;
+      if (horizontal) {
+        if (unit == YGUnitPercent)
+          YGNodeStyleSetMinWidthPercent(inst.yoga, value);
+        else
+          YGNodeStyleSetMinWidth(inst.yoga, value);
+      } else {
+        if (unit == YGUnitPercent)
+          YGNodeStyleSetMinHeightPercent(inst.yoga, value);
+        else
+          YGNodeStyleSetMinHeight(inst.yoga, value);
+      }
+    };
+    minimum(true, contentWidth, extent.right());
+    minimum(false, contentHeight, extent.bottom());
+    if (contentWidth && inst.schemeSizedWidth) {
+      YGNodeStyleSetWidth(inst.yoga, YGUndefined);
+      inst.schemeSizedWidth = false;
+    }
+    if (contentHeight && inst.schemeSizedHeight) {
+      YGNodeStyleSetHeight(inst.yoga, YGUndefined);
+      inst.schemeSizedHeight = false;
+    }
+    // An axis nothing assigns — no stated extent, no inset pair, no grow,
+    // no stretch from a sized parent — measured its extent from the
+    // children this pass has just taken out of flow. The scheme sizes it
+    // in the SAME round: left to the next Yoga pass, the container
+    // collapses to nothing, and every child bounded by a percentage of it
+    // is measured at zero, which the next round places as its size.
+    //
+    // The extent is WRITTEN even where this pass measured the same number,
+    // because what measured it is about to leave the flow.
+    //
+    // …and it keeps sizing an axis it once sized. WHICH IT REMEMBERS: the
+    // point width in the style is not evidence, because the placement loop
+    // above writes point widths on every child, so a scheme nested in a
+    // scheme would read its parent's placement as its own and override it.
+    const bool sizesWidth = l.absolute || !constrainedAxis(inst, true) ||
+                            YGNodeLayoutGetWidth(inst.yoga) <= 0.25f ||
+                            inst.schemeSizedWidth;
+    const bool sizesHeight = l.absolute || !constrainedAxis(inst, false) ||
+                             YGNodeLayoutGetHeight(inst.yoga) <= 0.25f ||
+                             inst.schemeSizedHeight;
+    if (!contentWidth && l.width.unit == Dimension::Unit::Auto &&
+        !widthPinned && sizesWidth && extent.right() > 0 &&
+        (!inst.schemeSizedWidth ||
+         std::abs(YGNodeLayoutGetWidth(inst.yoga) - extent.right()) > 0.25f)) {
+      YGNodeStyleSetWidth(inst.yoga, extent.right());
+      inst.schemeSizedWidth = true;
+    }
+    if (!contentHeight && l.height.unit == Dimension::Unit::Auto &&
+        !heightPinned && sizesHeight && extent.bottom() > 0 &&
+        (!inst.schemeSizedHeight || std::abs(YGNodeLayoutGetHeight(inst.yoga) -
+                                             extent.bottom()) > 0.25f)) {
+      YGNodeStyleSetHeight(inst.yoga, extent.bottom());
+      inst.schemeSizedHeight = true;
+    }
+  }
+}
+
+}  // namespace sigil::compose

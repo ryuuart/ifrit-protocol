@@ -1,0 +1,401 @@
+/** @file
+ * Transitions: the lanes a mounted node carries, enumerated by family;
+ * the retarget of every PROPERTY lane from its current value onto the
+ * style now computed for the node, the retarget of the positional lanes a
+ * patch brings, the ink lane's own retarget, and the mount that plays a
+ * declared entrance — all through SigilMotion's lane operations (one
+ * motion per (instance, property), retarget-from-current); and the
+ * per-frame reads of every animated lane a recording bakes.
+ *
+ * WHO CALLS WHICH. A property lane is retargeted wherever the computed
+ * style moves, which is the patch for a node whose own description
+ * changed and the CASCADE PASS for one that takes its answer from above;
+ * a positional lane lives in a block of the description and so moves only
+ * at a patch; an entrance belongs to the mount, where the fact "there is
+ * no previous value" lives.
+ *
+ * WHEN EACH BEGINS. A lane starts where the pass that found its change
+ * runs, and both passes belong to the DESCRIBE — the patch and then the
+ * cascade over it, one after the other, before the host's clock moves
+ * again. That is what keeps an ink and a fill of one duration on one node
+ * starting at one moment and settling on one frame.
+ */
+
+#include <sigilmaterial/color/Color.h>
+
+#include <chrono>
+
+#include "ComposeRuntime.h"
+#include "paint/PaintInternal.h"
+
+namespace sigil::compose {
+
+using namespace detail;
+
+float detail::Instance::resolveFloat(Slot slot,
+                                     const motion::Animatable<float>& v) const {
+  return motion::valueOf(anims[slot].get(), v);
+}
+
+float detail::Instance::resolveFloatAt(
+    const HeldMotion* anim, const motion::Animatable<float>& v) const {
+  return motion::valueOf(anim, v);
+}
+
+namespace {
+
+/** The vector holding a positional family's motions on the instance. */
+std::vector<std::unique_ptr<HeldMotion>>& familyAnims(Instance& inst,
+                                                      LaneFamily family) {
+  switch (family) {
+    case LaneFamily::Span:
+      return inst.spanAnims;
+    case LaneFamily::Gate:
+      return inst.maskAnims;
+    case LaneFamily::Track:
+      return inst.trackAnims;
+    case LaneFamily::Slot:
+      break;
+  }
+  SkASSERT(false);  // a Slot lane lives in the fixed array, not a vector
+  return inst.trackAnims;
+}
+
+/** Core's run-of-a-family read, over the lane list lanes() filled. */
+std::span<const Lane> familyLanes(const std::vector<Lane>& lanes,
+                                  LaneFamily family) {
+  return motion::familyLanes(std::span<const Lane>(lanes), family);
+}
+
+constexpr LaneFamily kPositionalFamilies[] = {
+    LaneFamily::Span, LaneFamily::Gate, LaneFamily::Track};
+
+/** Appends each term's endpoints in declaration order, continuing the
+ *  family's ordinal across stroke passes or masks. */
+void appendSpanLanes(const Spans& spans, LaneFamily family, size_t& ordinal,
+                     std::vector<Lane>& out) {
+  for (const Spans::Term& term : spans.terms) {
+    out.push_back({&term.begin, {family, ordinal++}, 0.0f});
+    out.push_back({&term.end, {family, ordinal++}, 0.0f});
+    out.push_back({&term.offset, {family, ordinal++}, 0.0f});
+  }
+}
+
+}  // namespace
+
+void Composer::Impl::lanes(StyledNode styled, std::vector<Lane>& out) {
+  const ElementNode& node = styled.node;
+  out.clear();
+  // One lane per fixed slot, including absent fields: a Bespoke row and a
+  // node without the block holding a slot both answer nullptr.
+  for (const SlotSpec& spec : kSlotSpecs)
+    out.push_back({slotValueOf(spec, styled),
+                   {LaneFamily::Slot, (size_t)spec.slot},
+                   spec.standing});
+  // Every animatable span endpoint of a node's stroke passes, in
+  // declaration order — the order Instance::spanAnims is indexed by, and
+  // the order SpanInput::values arrives in.
+  if (node.strokeData) {
+    size_t ordinal = 0;
+    for (const StrokePass& pass : node.strokeData->passes)
+      appendSpanLanes(pass.where, LaneFamily::Span, ordinal, out);
+  }
+  // Every animatable number a node's MASK GATES carry, in declaration order
+  // — the order Instance::maskAnims is indexed by. Three per Spans term,
+  // one per Edge fraction, none for Shape or Alpha.
+  //
+  // SEPARATE PER MASK, which is the point: three masks running at three
+  // rates each own their slots, so `animate({.to = x})` on the second retargets
+  // the second and nothing else.
+  if (node.fxData) {
+    size_t ordinal = 0;
+    for (const Mask& m : node.fxData->masks) {
+      if (m.with.kind == Gate::Kind::Spans)
+        appendSpanLanes(m.with.where, LaneFamily::Gate, ordinal, out);
+      else if (m.with.kind == Gate::Kind::Edge)
+        out.push_back({&m.with.fraction, {LaneFamily::Gate, ordinal++}, 0.0f});
+    }
+  }
+  // Every textFx() TRACK's master progress, in declaration order — the order
+  // Instance::trackAnims is indexed by.
+  //
+  // SEPARATE PER TRACK, which is the point: a rise and a loop on one text
+  // node run at their own rates, so `animate({.to = 1})` on the second
+  // retargets the second and leaves the first alone.
+  if (node.textData) {
+    size_t i = 0;
+    for (const Track& t : node.textData->tracks)
+      out.push_back({&t.progress, {LaneFamily::Track, i++}, 0.0f});
+  }
+}
+
+std::vector<Lane> Composer::Impl::lanes(StyledNode styled) {
+  std::vector<Lane> out;
+  lanes(styled, out);
+  return out;
+}
+
+/** Mount entrances: an animate({.from = a, .to = b}) value plays `from → value`
+ * when the node FIRST appears (there is no prev to diff against — this is the
+ * "prev" the author declared). Skipped for snapshot()/measure() (liveOnly: no
+ * live timeline — bakes render the settled value). */
+void Composer::Impl::applyMountTransitions(Instance& inst) {
+  if (liveOnly) return;
+
+  // Every entrance on the node resolves its staggered fields against the
+  // node's place among its siblings.
+  auto entranceAt = [&](std::unique_ptr<HeldMotion>& slotAnim,
+                        const motion::Animatable<float>& v) {
+    motion::enter(engine, slotAnim, v, inst.mountPlace);
+  };
+  // Every lane the node carries. A mount entrance asks nothing of a slot's
+  // ROLE: the description either declared a `from` or it did not.
+  // The positional families are entrances like any other —
+  //   span reveals: `.stroke(spans::upTo(animate(...)), brush)` — the
+  //   reveal is a property of the PASS, so its motions live in a
+  //   per-description vector rather than a slot;
+  //   mask gates: `.mask(by::spans(spans::upTo(animate(...))))` and
+  //   `.mask(by::edge(90, animate(...)))`;
+  //   textFx() tracks: `.textFx({.progress = animate(...)})`, each track owning
+  //   its slot.
+  // Each family's vector is sized to the description before its lanes run.
+  static thread_local std::vector<Lane> nodeLanes;
+  lanes(inst.styled(), nodeLanes);
+  for (const Lane& lane : familyLanes(nodeLanes, LaneFamily::Slot))
+    if (lane.value) entranceAt(inst.anims[lane.slot.index], *lane.value);
+  for (const LaneFamily family : kPositionalFamilies) {
+    const std::span<const Lane> members = familyLanes(nodeLanes, family);
+    std::vector<std::unique_ptr<HeldMotion>>& anims = familyAnims(inst, family);
+    anims.resize(members.size());
+    for (size_t i = 0; i < members.size(); ++i)
+      entranceAt(anims[i], *members[i].value);
+  }
+
+  // The kFillLerp row (SlotRole::Bespoke): from → to through a synthesized
+  // 0→1 progress, because the description holds an Animatable<Fill> and no
+  // float for the table to point at.
+  if (inst.computed.paint.fill) {
+    const motion::Tween<Fill>* described =
+        inst.computed.paint.fill->described();
+    const std::optional<motion::Tween<Fill>> tween =
+        described ? std::optional(described->resolved(inst.mountPlace))
+                  : std::nullopt;
+    const Fill rest = tween ? tween->rest() : Fill{};
+    const Fill from = tween && tween->from ? tween->from->value() : Fill{};
+    if (tween && tween->from && from.kind == Fill::Kind::Color &&
+        rest.kind == Fill::Kind::Color && !(from == rest)) {
+      inst.fillFrom = from;
+      inst.fillTo = rest;
+      motion::progress(engine, inst.anims[Instance::kFillLerp],
+                       motion::transitionOf(*tween, inst.mountPlace));
+    }
+  }
+}
+
+void Composer::Impl::retargetProperties(Instance& inst, StyledNode prev,
+                                        std::vector<Lane>& prevLanes,
+                                        std::vector<Lane>& nextLanes) {
+  const StyledNode next = inst.styled();
+  const auto& nd = inst.transitionInForce();
+  // Retarget every fixed slot regardless of its role. When a node gains
+  // or loses the block holding a slot, its declared default supplies the
+  // missing endpoint, just as for a missing positional lane.
+  lanes(prev, prevLanes);
+  lanes(next, nextLanes);
+  motion::retargetFixed(
+      engine, std::span<std::unique_ptr<HeldMotion>>(inst.anims),
+      familyLanes(prevLanes, LaneFamily::Slot),
+      familyLanes(nextLanes, LaneFamily::Slot), nd, inst.mountPlace);
+
+  // The kFillLerp row (SlotRole::Bespoke): color→color lerp via a
+  // synthesized progress output. A next fill with NO transition is a plain
+  // snap — disconnect any in-flight lerp so the description lands (the same
+  // shadow rule as the float slots).
+  bool nextFillTransitions = false;
+  if (next.style.paint.fill) {
+    ResolvedProperty<Fill> nf =
+        resolveProperty(*next.style.paint.fill, nd, inst.mountPlace);
+    // Only a COLOR target can continue a color lerp: a shader/none fill
+    // with a transition must still disconnect the running lerp, or the
+    // node keeps painting a color no description contains until the old
+    // motion self-expires (then pops).
+    nextFillTransitions = !nf.live && nf.transition.has_value() &&
+                          nf.target.kind == Fill::Kind::Color;
+  }
+  if (!nextFillTransitions) {
+    if (auto& anim = inst.anims[Instance::kFillLerp]; anim && anim->started) {
+      anim->stop();
+      anim->started = false;
+    }
+  }
+  if (prev.style.paint.fill && next.style.paint.fill) {
+    ResolvedProperty<Fill> prevFill =
+        resolveProperty(*prev.style.paint.fill, nd, inst.mountPlace);
+    ResolvedProperty<Fill> nextFill =
+        resolveProperty(*next.style.paint.fill, nd, inst.mountPlace);
+    if (!prevFill.live && !nextFill.live && nextFill.transition &&
+        prevFill.target.kind == Fill::Kind::Color &&
+        nextFill.target.kind == Fill::Kind::Color &&
+        !(prevFill.target == nextFill.target)) {
+      // Current visual color as the new "from" (retarget-from-current).
+      Fill from = prevFill.target;
+      auto& anim = inst.anims[Instance::kFillLerp];
+      if (anim && anim->started && anim->isRunning()) {
+        const float t = anim->value();
+        const material::Color& a = inst.fillFrom.colorValue;
+        const material::Color& b = inst.fillTo.colorValue;
+        from.colorValue = material::mixToward(a, b, t, a.a + (b.a - a.a) * t);
+      }
+      inst.fillFrom = std::move(from);
+      inst.fillTo = nextFill.target;
+      motion::progress(engine, anim, *nextFill.transition);
+    }
+  }
+}
+
+void Composer::Impl::retargetInk(
+    Instance& inst, const std::optional<material::Color>& target,
+    const std::optional<motion::Tween<float>>& nodeTransition,
+    bool recordOnly) {
+  const std::optional<material::Color> previous = inst.inkTarget;
+  inst.inkTarget = target;
+  auto& anim = inst.anims[Instance::kInkLerp];
+  // RECORDED AND NOTHING ELSE, for the node resolving its colour for the
+  // first time: there is no previous target to ease from, and the colour
+  // it settles on is simply the one it starts at. The target is still
+  // written, because it is what the NEXT resolution is compared against.
+  if (recordOnly) return;
+  if (!(inst.inkTarget && nodeTransition)) {
+    if (anim && anim->started) {
+      anim->stop();
+      anim->started = false;
+    }
+    return;
+  }
+  if (!previous || *previous == *inst.inkTarget) return;
+  // The colour on screen as the new "from": mid-easing, the value the
+  // ramp stands at, so a retarget never snaps back to the old endpoint.
+  material::Color from = *previous;
+  if (anim && anim->started && anim->isRunning()) {
+    const float t = anim->value();
+    const material::Color& a = inst.inkFrom;
+    const material::Color& b = *previous;
+    from = material::mixToward(a, b, t, a.a + (b.a - a.a) * t);
+  }
+  inst.inkFrom = from;
+  motion::progress(engine, anim,
+                   motion::transitionOf(*nodeTransition, inst.mountPlace));
+}
+
+void Composer::Impl::applyTransitions(Instance& inst, StyledNode prev) {
+  const StyledNode next = inst.styled();
+  const auto& nd = inst.transitionInForce();
+  // The two sides of the retarget, filled by the property half and read
+  // again by the positional half below, so a patch walks each description
+  // once between them. A lane holds a pointer INTO its description, so the
+  // lists may not outlive @p prev — they are scoped to the one call that
+  // has it, and reused across calls only because a patch's prev is an
+  // instance's own previous description.
+  static thread_local std::vector<Lane> prevLanes, nextLanes;
+  retargetProperties(inst, prev, prevLanes, nextLanes);
+
+  // The positional families, each by the same rule. The lane list is
+  // positional, so a description that changes the SHAPE of a family (a
+  // pass added, a term added, a mask or a track added or removed) drops the
+  // running motions rather than carrying them onto endpoints that now mean
+  // something else — the same rule keys enforce for whole nodes.
+  //
+  // Span reveals: settled values show through (resolveFloatAt falls back to
+  // the description); an ENTRANCE is a mount thing, and this node is not
+  // mounting.
+  //
+  // Mask gates: this is what makes the retarget case work. An element that
+  // writes ONE mask in both branches of an if/else keeps a stable slot
+  // index, so `animate({.to = span})` ramps from wherever the gate is now
+  // instead of mounting from scratch. Write two masks in one branch and one
+  // in the other and the shape changed — the motions drop, deliberately,
+  // rather than carrying onto a number that now means something else.
+  //
+  // textFx() tracks: an element that writes the same NUMBER of tracks in both
+  // branches of an if/else keeps stable slot indices, so `animate({.to = 1})`
+  // on the second track ramps from wherever that track's progress is now.
+  // Add or remove a track and the shape changed — the motions drop rather
+  // than carrying onto a progress that now drives a different effect.
+  for (const LaneFamily family : kPositionalFamilies)
+    motion::retargetPositional(
+        engine, familyAnims(inst, family), familyLanes(prevLanes, family),
+        familyLanes(nextLanes, family), nd, inst.mountPlace);
+}
+
+// ---------------------------------------------------------------------------
+// The lane reads: every animated number a recording can be baked with,
+// resolved for this frame by ONE body per lane. The volatility walk, the
+// released scan and the paint-side probe all call these, so the three
+// compares cannot drift apart.
+
+std::vector<float> detail::Instance::resolveGateValues() const {
+  std::vector<float> values;
+  const ElementNode& node = *description;
+  if (!node.hasMasks()) return values;
+  size_t slot = 0;
+  const auto push = [&](const motion::Animatable<float>& v) {
+    const HeldMotion* a =
+        slot < maskAnims.size() ? maskAnims[slot].get() : nullptr;
+    values.push_back(resolveFloatAt(a, v));
+    ++slot;
+  };
+  for (const Mask& m : node.fxData->masks) {
+    if (m.with.kind == Gate::Kind::Spans)
+      for (const Spans::Term& t : m.with.where.terms) {
+        push(t.begin);
+        push(t.end);
+        push(t.offset);
+      }
+    else if (m.with.kind == Gate::Kind::Edge)
+      push(m.with.fraction);
+  }
+  return values;
+}
+
+float detail::Instance::resolvePathAt() const {
+  if (!description || !description->textData) return 0.0f;
+  const std::optional<TextPath>& baseline = description->textData->onPath;
+  if (!baseline) return 0.0f;
+  return resolveFloat(kTextPathAt, baseline->at);
+}
+
+std::vector<float> detail::Instance::resolveTrackValues() const {
+  std::vector<float> values;
+  const std::span<const Track> tracks =
+      description->textData
+          ? std::span<const Track>(description->textData->tracks)
+          : std::span<const Track>();
+  values.reserve(tracks.size());
+  for (size_t i = 0; i < tracks.size(); ++i) {
+    const HeldMotion* a = i < trackAnims.size() ? trackAnims[i].get() : nullptr;
+    values.push_back(resolveFloatAt(a, tracks[i].progress));
+  }
+  return values;
+}
+
+Fill detail::Instance::resolveBoundFill() const {
+  if (computed.paint.fill && computed.paint.fill->identity())
+    return computed.paint.fill->value();
+  return {};
+}
+
+std::array<float, 2> detail::Instance::resolvePatternOffset() const {
+  // The lane carries a pan the memo can be RESPONSIBLE for, which is the
+  // one question a paint answers about its offset: a material whose pan is
+  // the whole of what it animates. Anything else — a live uniform beside
+  // the pan, a nested pan in a blend layer or a child slot — is on the
+  // opaque live path, where no memo reads these floats at all. All-zero
+  // otherwise, matching the ContentScalars guard, so a node without the
+  // channel compares equal to itself forever.
+  const material::Paint* m = liveMaterialOf(*this);
+  if (!m || !m->boundOffsetOnly()) return {};
+  const glm::vec2 pan = m->boundOffsetValue();
+  return {pan.x, pan.y};
+}
+
+}  // namespace sigil::compose

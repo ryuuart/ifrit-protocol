@@ -18,7 +18,7 @@
 
 #include <type_traits>
 
-#include "../ComputedStyle.h"
+#include "style/ComputedStyle.h"
 #include "support/CoreTestSupport.h"
 
 namespace cd = sigil::compose::detail;

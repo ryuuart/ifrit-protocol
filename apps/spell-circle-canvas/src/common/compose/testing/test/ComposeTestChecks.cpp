@@ -14,8 +14,8 @@
 // box, the arcs a contour leaves dangling, and the rasterized scene
 // every one of them is handed.
 
-#include <sigilgeometry/path/Contour.h>
 #include <sigilgeometry/advanced/Skia.h>
+#include <sigilgeometry/path/Contour.h>
 
 #include "support/CoreTestSupport.h"
 
@@ -438,4 +438,17 @@ TEST(ComposeDebug, RasterizeReadsBackWhatWasDrawn) {
   // Out of bounds is transparent rather than undefined.
   EXPECT_EQ(r.at(-1, 0).fA, 0.0f);
   EXPECT_EQ(r.at(0, 999).fA, 0.0f);
+
+  // A read-back is one frame no clock advances, so an entrance reads at
+  // the value it comes to rest at rather than at its `from`.
+  const auto entering = test::rasterize(
+      box()
+          .absolute()
+          .inset(0)
+          .fill(Fill::color({1, 1, 1, 1}))
+          .opacity(
+              motion::animate({.from = 0.0f, .to = 1.0f, .duration = 400ms})),
+      fonts(), {8, 8});
+  ASSERT_TRUE(entering.valid());
+  EXPECT_NEAR(entering.at(4, 4).fA, 1.0f, 0.01f);
 }

@@ -66,8 +66,7 @@ material::Material passOver(const char* source) {
   };
   static std::vector<Held> held;
   for (const Held& h : held)
-    if (h.source == source)
-      return sigil::material::Material(h.recipe);
+    if (h.source == source) return sigil::material::Material(h.recipe);
   auto recipe = std::make_shared<const sigil::material::Recipe>(
       sigil::material::Recipe::of<NoParameters>("test.pass")
           .body(sigil::material::Target::SkSL, source));
@@ -87,6 +86,11 @@ TEST(TextPass, RecipeMaterialsCompareByDefinition) {
   // And so do the pass effects wrapping them.
   EXPECT_TRUE(textFx::pass(a) == textFx::pass(b));
   EXPECT_FALSE(textFx::pass(a) == textFx::pass(passOver(kIdentitySksl)));
+  EXPECT_TRUE(textFx::mix(textFx::pass(a), textFx::pass(a)) ==
+              textFx::mix(textFx::pass(b), textFx::pass(b)));
+  EXPECT_FALSE(
+      textFx::mix(textFx::pass(a), textFx::pass(a)) ==
+      textFx::mix(textFx::pass(b), textFx::pass(passOver(kIdentitySksl))));
 }
 
 TEST(TextPass, NonRecipeMaterialRefusedAndGlyphsSurvive) {
@@ -113,7 +117,8 @@ TEST(TextPass, UnitRectAndPhaseAgreeWithBeatsOf) {
       {text(u8"ABC DEF", whiteStyle(30))
            .key("probe")
            .textFx({.effect = textFx::pass(passOver(kPhaseProbeSksl)),
-                    .tween = {.duration = 200ms, .delay = sigil::motion::stagger(90ms)},
+                    .tween = {.duration = 200ms,
+                              .delay = sigil::motion::stagger(90ms)},
                     .unit = sigil::weave::Unit::Cluster,
                     .progress = 0.55f})}));
   host.frame();
@@ -170,9 +175,11 @@ TEST(TextPass, ThePassFillsTheBoxGrownByItsReachAndNothingBeyond) {
            .textFx({.effect = textFx::pass(passOver(kFloodSksl)),
                     .reach = 12.0f})}));
   host.frame();
-  const std::optional<geometry::path::Rect> laidOut = host.composer.bounds("bounded");
+  const std::optional<geometry::path::Rect> laidOut =
+      host.composer.bounds("bounded");
   ASSERT_TRUE(laidOut.has_value());
-  const SkRect box = geometry::path::toSk(laidOut.value_or(geometry::path::Rect{}));
+  const SkRect box =
+      geometry::path::toSk(laidOut.value_or(geometry::path::Rect{}));
   const SkColor green = SkColorSetRGB(0, 255, 0);
   // Inside the box: flooded.
   EXPECT_EQ(host.pixel((int)box.centerX(), (int)box.centerY()), green);
@@ -215,9 +222,11 @@ TEST(TextPass, ReachGrowsBoundsWithoutMovingContent) {
   Host wide;
   wide.composer.render(describe(40.0f));
   wide.frame();
-  const std::optional<geometry::path::Rect> laidOut = wide.composer.bounds("hoist");
+  const std::optional<geometry::path::Rect> laidOut =
+      wide.composer.bounds("hoist");
   ASSERT_TRUE(laidOut.has_value());
-  const SkRect box = geometry::path::toSk(laidOut.value_or(geometry::path::Rect{}));
+  const SkRect box =
+      geometry::path::toSk(laidOut.value_or(geometry::path::Rect{}));
 
   // Inside the box, byte for byte the same picture: the reach must not
   // move, scale or resample what the glyphs painted. Probed per pixel —
@@ -258,10 +267,11 @@ TEST(TextPass, ProgressAdvancesWithCascadeAndSettles) {
         {text(u8"ABCD", whiteStyle(30))
              .key("run")
              .textFx({.effect = textFx::pass(passOver(kPhaseProbeSksl)),
-                      .tween = {.duration = 200ms, .delay = sigil::motion::stagger(60ms)}, 
+                      .tween = {.duration = 200ms,
+                                .delay = sigil::motion::stagger(60ms)},
                       .unit = sigil::weave::Unit::Cluster,
-                      .progress =
-                          motion::animate({.to = target, .duration = 200ms})})});
+                      .progress = motion::animate(
+                          {.to = target, .duration = 200ms})})});
   };
   host.composer.render(describe(0.0f));
   host.frame();
@@ -325,20 +335,23 @@ TEST(TextPass, RestsAtSkipsTheShaderWhenEveryUnitSitsOnADeclaredPhase) {
   // what makes the skip observable: at a phase covered by the declaration
   // the batches draw directly and the letters show, while any phase off
   // the declaration still runs the shader and erases them.
-  const auto lettersShow = [](TextEffect effect,
-                              const sigil::motion::Timing& timing,
-                              float master) {
-    Host host;
-    host.composer.render(box().padding(30).children(
-        {text(u8"REST", whiteStyle(40))
-             .key("t")
-             .textFx({.effect = std::move(effect),
-                      .tween = {.duration = timing.duration, .delay = timing.delay, .loop = timing.loop ? -1 : 0, .loopDelay = timing.loopDelay, .alternate = timing.alternate},
-                      .unit = sigil::weave::Unit::Cluster,
-                      .progress = master})}));
-    host.frame();
-    return anyWhiteIn(host, SkIRect::MakeXYWH(10, 10, 180, 180));
-  };
+  const auto lettersShow =
+      [](TextEffect effect, const sigil::motion::Timing& timing, float master) {
+        Host host;
+        host.composer.render(box().padding(30).children(
+            {text(u8"REST", whiteStyle(40))
+                 .key("t")
+                 .textFx({.effect = std::move(effect),
+                          .tween = {.duration = timing.duration,
+                                    .delay = timing.delay,
+                                    .loop = timing.loop ? -1 : 0,
+                                    .loopDelay = timing.loopDelay,
+                                    .alternate = timing.alternate},
+                          .unit = sigil::weave::Unit::Cluster,
+                          .progress = master})}));
+        host.frame();
+        return anyWhiteIn(host, SkIRect::MakeXYWH(10, 10, 180, 180));
+      };
   const sigil::motion::Timing oneShot{.delay = sigil::motion::stagger(60ms),
                                       .duration = 200ms};
   const TextEffect erase = textFx::pass(passOver(kEraseSksl));
@@ -364,7 +377,8 @@ TEST(TextPass, RestsAtSkipsTheShaderWhenEveryUnitSitsOnADeclaredPhase) {
   // any unit is mid-beat.
   const sigil::motion::Timing loop{.delay = sigil::motion::stagger(60ms),
                                    .duration = 100ms,
-                                   .loop = true, .loopDelay = 1000ms - 100ms};
+                                   .loop = true,
+                                   .loopDelay = 1000ms - 100ms};
   EXPECT_TRUE(lettersShow(erase.restsAt(1.0f), loop, 0.5f));
   EXPECT_FALSE(lettersShow(erase.restsAt(1.0f), loop, 0.05f));
 }
@@ -446,11 +460,12 @@ sk_sp<SkRuntimeEffect> wideUniformEffect() {
 
 TEST(TextPass, WideAndArrayUniformsBindByDeclaredSize) {
   Host host;
-  host.composer.render(box().children({box().width(60).height(60).fill(
-      material::skia::base(material::skia::sksl(wideUniformEffect())
-          .set("uPair", std::array<float, 2>{1, 0})
-          .set("uQuad", std::array<float, 4>{0, 1, 0, 0})
-          .set("uVals", std::vector<float>{0, 0, 1, 0})))}));
+  host.composer.render(
+      box().children({box().width(60).height(60).fill(material::skia::base(
+          material::skia::sksl(wideUniformEffect())
+              .set("uPair", std::array<float, 2>{1, 0})
+              .set("uQuad", std::array<float, 4>{0, 1, 0, 0})
+              .set("uVals", std::vector<float>{0, 0, 1, 0})))}));
   host.frame();
   EXPECT_EQ(host.pixel(30, 30), SK_ColorWHITE);  // all three lanes landed
 }
@@ -459,31 +474,25 @@ TEST(TextPass, MisSizedUniformsWarnOnceAndAreIgnored) {
   // An undeclared name, and a declared one at the wrong TOTAL size, are
   // both dropped at the door — so the material still equals one that never
   // made the call, and nothing was stored for the builder to refuse.
-  const material::Paint base =
-      material::skia::sksl(wideUniformEffect());
-  material::Paint wrong =
-      material::skia::sksl(wideUniformEffect());
+  const material::Paint base = material::skia::sksl(wideUniformEffect());
+  material::Paint wrong = material::skia::sksl(wideUniformEffect());
   wrong.set("uVals", std::vector<float>{1, 2, 3});       // [4] wants 4
   wrong.set("uNothing", std::vector<float>{1, 2, 3});    // undeclared
   wrong.set("uPair", std::array<float, 4>{1, 2, 3, 4});  // float2 slot
   EXPECT_TRUE(base == wrong);
 
-  material::Filter effect =
-      material::skia::program(wideUniformEffect());
-  material::Filter wrongEffect =
-      material::skia::program(wideUniformEffect());
+  material::Filter effect = material::skia::program(wideUniformEffect());
+  material::Filter wrongEffect = material::skia::program(wideUniformEffect());
   wrongEffect.set("uVals", std::vector<float>{1, 2, 3});
   wrongEffect.set("uNothing", 1.0f);
   EXPECT_TRUE(effect == wrongEffect);
 }
 
 TEST(TextPass, EffectConstantLanesParticipateInEquality) {
-  material::Filter a =
-      material::skia::program(wideUniformEffect());
+  material::Filter a = material::skia::program(wideUniformEffect());
   a.set("uPair", std::array<float, 2>{1, 0});
   a.set("uVals", std::vector<float>{1, 2, 3, 4});
-  material::Filter b =
-      material::skia::program(wideUniformEffect());
+  material::Filter b = material::skia::program(wideUniformEffect());
   b.set("uPair", std::array<float, 2>{1, 0});
   b.set("uVals", std::vector<float>{1, 2, 3, 4});
   EXPECT_TRUE(a == b);

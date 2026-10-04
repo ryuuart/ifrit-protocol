@@ -14,9 +14,9 @@
 #include <cstdio>  // std::snprintf — variationDrive's effect key
 #include <cstring>
 
-#include "sigilweave/advanced/Skia.h"
 #include "AxisGate.h"
 #include "TextEngine.h"
+#include "sigilweave/advanced/Skia.h"
 
 namespace sigil::compose {
 
@@ -24,19 +24,16 @@ using namespace detail;
 
 namespace {
 
-/** The once-per-process diagnostic behind a span stating an ink paint it
- *  has no one shader for, so a range left in its own ink is not mistaken
- *  for one the paint took. */
-void warnSpanInkHasNoOneShader() {
+/** The diagnostic for an authored ink outside the static span contract. */
+void warnUnsupportedSpanInk() {
   static thread_local bool warned = false;
   if (warned) return;
   warned = true;
   SkDebugf(
-      "[compose] span() states an ink paint that animates or is resolved "
-      "against a box, and a range has neither a frame nor a box of its own "
-      "to resolve it in — the paint was left out and the range keeps the "
-      "ink it is set in. State a colour or a static paint, or put the paint "
-      "on the leaf's own ink(). (warned once)\n");
+      "[compose] span() requires static material inputs; geometry-dependent "
+      "ink also requires a text-unit PaintBox. The unsupported ink was "
+      "omitted. Put animated material inputs on the text element's ink(). "
+      "(warned once)\n");
 }
 
 /** The engine as a TextPainterOperations: every operation forwards to the
@@ -50,9 +47,9 @@ struct TextEngine final : TextPainterOperations {
              const PaintContext& ctx) const override {
     paintTextFx(*inst.owner, inst, canvas, ink, onPath, size, ctx);
   }
-  void inkByUnit(Instance& inst, const TextInk& ink,
-                 GlyphInk& glyphs) const override {
-    inkAtRestByUnit(inst, ink, glyphs);
+  void glyphInk(Instance& inst, const TextInk& ink,
+                GlyphInk& glyphs) const override {
+    glyphInkAtRest(inst, ink, glyphs);
   }
   void marks(Instance& inst) const override {
     resolveTextMarks(*inst.owner, inst);
@@ -225,24 +222,31 @@ Derived& TextContentVerbs<Derived>::span(sigil::weave::Selector where,
     restyle.fontFamily = said.fontFamily;
     restyle.italic = said.italic;
     restyle.inkVar = said.inkVar;
-    // A static paint collapses to one fill: a flat colour is the ink's
-    // colour, anything else a shader over the range. A live paint has no
-    // one shader to give a range, and nor has a geometry-dependent one —
-    // unless it restarts per unit, when its box is the unit square the
-    // engine lays on each unit.
+    // Surface channels belong to the authored ink even when its base is
+    // a flat colour. Inherited lighting may move; the authored material
+    // itself must remain static.
     const bool restarts = textUnitOf(said.inkBox).has_value();
-    if (said.inkPaint && (said.inkPaint->isRunning() ||
-                          (said.inkPaint->geometryDependent() && !restarts))) {
-      warnSpanInkHasNoOneShader();
+    if (said.inkSurfaced &&
+        (said.inkSurfaced->isRunning() ||
+         (said.inkSurfaced->geometryDependent() && !restarts))) {
+      restyle.partial.color.reset();
+      warnUnsupportedSpanInk();
+    } else if (said.inkSurfaced) {
+      restyle.inkMaterial = said.inkSurfaced;
+      if (restarts) restyle.inkBox = said.inkBox;
+    } else if (said.inkPaint &&
+               (said.inkPaint->isRunning() ||
+                (said.inkPaint->geometryDependent() && !restarts))) {
+      // A paint stated after a colour supersedes that colour, so an
+      // omitted paint leaves the range its own ink, not the colour the
+      // paint replaced.
+      restyle.partial.color.reset();
+      warnUnsupportedSpanInk();
     } else if (said.inkPaint) {
-      PaintContext unitSquare;
-      unitSquare.size = {1.0f, 1.0f};
-      const Fill flat = restarts ? resolveFill(*said.inkPaint, unitSquare)
-                                 : toFill(*said.inkPaint);
-      if (flat.kind == Fill::Kind::Color) {
-        restyle.partial.color = flat.colorValue;
-      } else if (flat.kind == Fill::Kind::Paint) {
-        restyle.inkShader = flat;
+      if (said.inkPaint->isSolid()) {
+        restyle.partial.color = said.inkPaint->solidColor();
+      } else if (!said.inkPaint->isNone()) {
+        restyle.inkMaterial = material::skia::base(*said.inkPaint);
         if (restarts) restyle.inkBox = said.inkBox;
       }
     }

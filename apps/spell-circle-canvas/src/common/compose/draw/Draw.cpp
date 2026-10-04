@@ -3,13 +3,13 @@
  * canvas beside it, and a composer held by a pen.
  */
 
-#include <sigildraw/Pen.h>
 #include <include/core/SkCanvas.h>
 #include <sigilcompose/core/Composer.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Graphics.h>
-#include <sigilmaterial/skia/Color.h>
+#include <sigildraw/Pen.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmotion/clock/Engine.h>
 #include <src/core/SkScopeExit.h>
 
@@ -23,12 +23,8 @@ namespace sigil::compose {
 
 namespace {
 
-/** THE POLICY THE COMPOSER PAINTING A PEN RUNS UNDER, lent to the pen as
- *  what a host keeps for its guests: a retained element's composer is
- *  built below the paint program, where no context reaches, and takes it
- *  from here. It is lent to the pen a program draws with — for a
- *  graphics program the buffer's own pen, not the one the buffer is put
- *  down with. */
+/** Retained guests inherit policy from the pen executing the program,
+ *  including the graphics buffer's pen. */
 void lendPolicy(draw::Pen& pen, PromotionPolicy promotion) {
   pen.retained().host() = promotion;
 }
@@ -43,13 +39,13 @@ PromotionPolicy hostPolicy(draw::Pen& pen) {
 
 /** The pen a node draws with, and what the paint context does not
  *  carry: the step since the last frame and the count of frames. */
-struct Held {
+struct PenState {
   draw::Pen pen;
   double lastSeconds = -1.0;
   int frames = 0;
 
   /** The frame for a node of @p size, and the step since the last one. */
-  draw::Frame frameIn(const PaintContext& ctx) {
+  draw::Frame nextFrame(const PaintContext& ctx) {
     draw::Frame frame;
     frame.width = ctx.size.x;
     frame.height = ctx.size.y;
@@ -73,13 +69,14 @@ struct Held {
   }
 };
 
-PaintProgram over(PenProgram program) {
-  auto held = std::make_shared<Held>();
-  return [held, program = std::move(program)](draw::Pen& pen, const PaintContext& ctx) {
+PaintProgram penPainter(PenProgram program) {
+  auto held = std::make_shared<PenState>();
+  return [held, program = std::move(program)](draw::Pen& pen,
+                                              const PaintContext& ctx) {
     SkCanvas& canvas = *pen.canvas();
-    held->pen.begin(canvas, held->frameIn(ctx));
+    held->pen.begin(canvas, held->nextFrame(ctx));
     const SkScopeExit endFrame([&] { held->pen.end(); });
-    held->pen.inherit(material::skia::toSkColor(ctx.ink), ctx.font);
+    held->pen.inherit(ctx.ink, ctx.font);
     lendPolicy(held->pen, ctx.promotion);
     program(held->pen, ctx);
   };
@@ -88,8 +85,8 @@ PaintProgram over(PenProgram program) {
 /** The kept canvas a `graphics` node draws on, the pen that puts it down,
  *  and what p5's loop words are judged against: the time since the
  *  program last ran, and the slack a requested rate carries forward. */
-struct HeldGraphics {
-  Held host;
+struct GraphicsState {
+  PenState host;
   std::optional<draw::Graphics> surface;
   double sinceDraw = 0.0;
   double slack = 0.0;
@@ -104,7 +101,7 @@ struct HeldGraphics {
  *  asked for, and a requested frame rate has room for another draw. The
  *  surface is put down either way, which is what makes `noLoop` mean what
  *  p5 means by it. */
-bool shouldRun(draw::Pen& pen, HeldGraphics& held) {
+bool shouldRun(draw::Pen& pen, GraphicsState& held) {
   const bool asked = pen.takeRedraw();
   if (!pen.isLooping() && !asked) return false;
   if (asked) return true;
@@ -118,15 +115,17 @@ bool shouldRun(draw::Pen& pen, HeldGraphics& held) {
   return true;
 }
 
-PaintProgram onto(PenProgram program) {
-  auto held = std::make_shared<HeldGraphics>();
-  return [held, program = std::move(program)](draw::Pen& pen, const PaintContext& ctx) {
+PaintProgram graphicsPainter(PenProgram program) {
+  auto held = std::make_shared<GraphicsState>();
+  return [held, program = std::move(program)](draw::Pen& pen,
+                                              const PaintContext& ctx) {
     SkCanvas& canvas = *pen.canvas();
-    const draw::Frame frame = held->host.frameIn(ctx);
+    const draw::Frame frame = held->host.nextFrame(ctx);
     held->sinceDraw += frame.deltaSeconds;
     held->host.pen.begin(canvas, frame);
     const SkScopeExit endHost([&] { held->host.pen.end(); });
-    held->host.pen.inherit(material::skia::toSkColor(ctx.ink), ctx.font);
+    const material::Color inheritedInk = ctx.ink;
+    held->host.pen.inherit(inheritedInk, ctx.font);
     // The buffer is the node's box. It is formed on its first `begin`, at
     // the host pen's own density, and a box that has changed resizes it
     // with what it holds carried over rather than cleared.
@@ -141,7 +140,7 @@ PaintProgram onto(PenProgram program) {
     {
       draw::Pen& g = held->surface->begin(held->host.pen);
       const SkScopeExit endSurface([&] { held->surface->end(); });
-      g.inherit(material::skia::toSkColor(ctx.ink), ctx.font);
+      g.inherit(inheritedInk, ctx.font);
       lendPolicy(g, ctx.promotion);
       if (shouldRun(g, *held)) {
         // The program's own clock, as p5 keeps it: the count counts runs,
@@ -160,20 +159,14 @@ PaintProgram onto(PenProgram program) {
 
 /** What a pen keeps for one retained element: a composer with the engine
  *  it runs on, stepped by the pen and never by the wall. */
-struct Guest {
+struct RetainedGuest {
   motion::Engine engine;
-  /** The context the composer holds a REFERENCE to for its life, kept so
-   *  a pen arriving with a different one is answered with a composer
-   *  built on THAT one rather than with one measuring against a context
-   *  nobody holds any more. */
+  /** A changed borrowed font context requires a new composer. */
   weave::FontContext* fonts = nullptr;
   std::unique_ptr<Composer> composer;
-  /** The policy the composer was last told to run under, so it is told
-   *  again only when the host's moves: the composer's setter drops what
-   *  a policy turned off by walking the tree it holds, and would walk it
-   *  every frame otherwise. Empty for a composer nothing has told. */
+  /** Apply policy only when it changes; disabling it walks retained caches. */
   std::optional<PromotionPolicy> promotion;
-  explicit Guest(weave::FontContext& context) { adopt(context); }
+  explicit RetainedGuest(weave::FontContext& context) { adopt(context); }
   void adopt(weave::FontContext& context) {
     fonts = &context;
     composer = std::make_unique<Composer>(engine, context);
@@ -187,11 +180,11 @@ struct Guest {
 // node comes back covering, and a pen given a box of its own states that
 // box — an inset, a rect, or a size in a flow the node is put back into.
 Element pen(PenProgram program, Cache caching) {
-  return custom(over(std::move(program))).cache(caching).cover();
+  return custom(penPainter(std::move(program))).cache(caching).cover();
 }
 
 Element pen(std::string_view key, PenProgram program, Cache caching) {
-  return custom(key, over(std::move(program))).cache(caching).cover();
+  return custom(key, penPainter(std::move(program))).cache(caching).cover();
 }
 
 namespace {
@@ -214,11 +207,11 @@ struct DrawWith {
   void add(Scope& scope) const {
     // The program reads the scope at PAINT time, so it is handed a copy
     // taken now: the nodes as they stand, attaching nothing.
-    const PenProgram over = [snapshot = scope.snapshot(),
-                             program = program](draw::Pen& pen) {
+    const PenProgram drawScope = [snapshot = scope.snapshot(),
+                                  program = program](draw::Pen& pen) {
       if (program) program(pen, snapshot);
     };
-    scope.attach(key.empty() ? pen(over) : pen(key, over));
+    scope.attach(key.empty() ? pen(drawScope) : pen(key, drawScope));
   }
 };
 
@@ -233,11 +226,13 @@ Operator drawWith(std::string_view key, ScopeProgram program) {
 }
 
 Element graphics(PenProgram program, Cache caching) {
-  return custom(onto(std::move(program))).cache(caching).cover();
+  return custom(graphicsPainter(std::move(program))).cache(caching).cover();
 }
 
 Element graphics(std::string_view key, PenProgram program, Cache caching) {
-  return custom(key, onto(std::move(program))).cache(caching).cover();
+  return custom(key, graphicsPainter(std::move(program)))
+      .cache(caching)
+      .cover();
 }
 
 void paintRetained(draw::Pen& pen, const Element& element,
@@ -245,8 +240,8 @@ void paintRetained(draw::Pen& pen, const Element& element,
   SkCanvas* canvas = pen.canvas();
   weave::FontContext* fonts = pen.fonts();
   if (!canvas || !fonts) return;
-  Guest& guest = pen.retained().get<Guest>(
-      slot, [fonts] { return std::make_shared<Guest>(*fonts); });
+  RetainedGuest& guest = pen.retained().get<RetainedGuest>(
+      slot, [fonts] { return std::make_shared<RetainedGuest>(*fonts); });
   // A pen drawing with another font context gets a composer built on it:
   // the guest is kept across frames and the reference it holds is not
   // this pen's to assume.
@@ -260,9 +255,9 @@ void paintRetained(draw::Pen& pen, const Element& element,
     guest.composer->setAutoTexturePromotion(policy);
     guest.promotion = policy;
   }
-  // A pen's own step, held to the wall's stall clamp: a first frame or a
-  // resumed one does not jump the guest's motions forward by the stall.
-  const motion::Duration step(std::clamp(pen.deltaTime / 1000.0, 0.0, 0.25));
+  // The host has already chosen the frame's movement. A stated step is
+  // passed through unchanged, including a fixed-step capture's long frame.
+  const motion::Duration step(pen.deltaTime / 1000.0);
   guest.engine.advance(guest.engine.elapsed() + step);
   guest.composer->setSize({box.width(), box.height()});
   // THE TREE CASCADES FROM THE PEN: what the pen was told it inherits is

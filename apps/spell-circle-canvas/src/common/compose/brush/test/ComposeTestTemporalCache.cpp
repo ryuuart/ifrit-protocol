@@ -2,42 +2,18 @@
 // between its ticks, a continuous one stays live, and a held keyframe
 // segment repaints nothing.
 
-#include "support/BrushTestSupport.h"
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/ease/Ease.h>
 
+#include "support/BrushTestSupport.h"
+
 namespace {
-
-/** A host whose engine a material reads its injected uTime from, so the
- *  time a frame states is the time the material sees. */
-struct ClockedHost {
-  sigil::motion::Engine engine;
-  Composer composer{engine, fonts()};
-  sk_sp<SkSurface> surface;
-
-  ClockedHost(int w, int h) {
-    composer.setSize({(float)w, (float)h});
-    surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(w, h));
-  }
-  void frame(double dt) {
-    engine.advance(engine.elapsed() + sigil::motion::Duration(dt));
-    surface->getCanvas()->clear(SK_ColorBLACK);
-    composer.draw(*surface->getCanvas());
-  }
-  SkBitmap grab(int w, int h) {
-    SkBitmap bm;
-    bm.allocPixels(SkImageInfo::MakeN32Premul(w, h));
-    surface->readPixels(bm.pixmap(), 0, 0);
-    return bm;
-  }
-};
 
 Element timedLeaf(float quantizeHz) {
   material::Paint m = material::skia::sksl(heavyEffect(true));
   if (quantizeHz > 0) m.quantizeTime(quantizeHz);
-  return box().children(
-      {box().width(400).height(400).key("plasma").fill(
-          material::skia::base(std::move(m)))});
+  return box().children({box().width(400).height(400).key("plasma").fill(
+      material::skia::base(std::move(m)))});
 }
 
 }  // namespace
@@ -47,7 +23,7 @@ TEST(ComposeCache, AQuantizedMaterialIsCacheableBetweenItsTicks) {
   // second and the other 56 frames resolve to the SAME shader. Their pixels
   // are therefore identical to the last bake's — not similar, identical —
   // so the bake is still valid and the shader need not run.
-  ClockedHost host(400, 400);
+  Host host(400, 400);
   host.composer.setProfiling(true);
   host.composer.render(timedLeaf(4.0f));
   for (int i = 0; i < 24; ++i) host.frame(1.0 / 60.0);
@@ -62,7 +38,7 @@ TEST(ComposeCache, AContinuousMaterialStaysLive) {
   // than read off quantizeTime(): a material whose inputs really do change
   // every frame would re-bake every frame, which costs more than the replay
   // it replaced. Its stability rate never reaches the threshold.
-  ClockedHost host(400, 400);
+  Host host(400, 400);
   host.composer.setProfiling(true);
   host.composer.render(timedLeaf(0.0f));
   for (int i = 0; i < 24; ++i) host.frame(1.0 / 60.0);
@@ -77,7 +53,7 @@ TEST(ComposeCache, TemporalPromotionIsPixelIdenticalAcrossATick) {
   // straddles the quantizer's step: 4 Hz at 60 FPS steps on frames 15, 30
   // and 45, so frames 24..40 cover a full hold, the tick, and the hold
   // after it. Every frame must match the unpromoted render exactly.
-  ClockedHost promoted(400, 400), plain(400, 400);
+  Host promoted(400, 400), plain(400, 400);
   plain.composer.setAutoTexturePromotion(false);
   promoted.composer.render(timedLeaf(4.0f));
   plain.composer.render(timedLeaf(4.0f));
@@ -85,13 +61,8 @@ TEST(ComposeCache, TemporalPromotionIsPixelIdenticalAcrossATick) {
     promoted.frame(1.0 / 60.0);
     plain.frame(1.0 / 60.0);
     if (i < 24) continue;
-    SkBitmap a = plain.grab(400, 400), b = promoted.grab(400, 400);
-    size_t differing = 0;
-    for (int y = 0; y < 400; ++y)
-      for (int x = 0; x < 400; ++x)
-        differing += a.getColor(x, y) != b.getColor(x, y);
-    EXPECT_EQ(differing, 0u) << "frame " << i << ": " << differing
-                             << " pixels changed under temporal promotion";
+    ASSERT_TRUE(identicalPixels(plain, promoted, 400, 400))
+        << "frame " << i << " differs under temporal promotion";
   }
 }
 
@@ -111,8 +82,12 @@ Element gatedRing(Cache mode) {
                      .cache(mode)
                      .shape(geometry::shapes::circle())
                      .stroke(stroke(6.0f, Fill::color({1, 1, 1, 1})))
-                     .mask(by::spans(spans::upTo(
-                         motion::animate({.from = 0.0f, .keyframes = {{.to = 0.6f, .duration = 200ms}, {.to = 0.6f, .duration = 400ms}, {.to = 1.0f, .duration = 200ms}}, .ease = sigil::motion::ease::linear}))))});
+                     .mask(by::spans(spans::upTo(motion::animate(
+                         {.from = 0.0f,
+                          .keyframes = {{.to = 0.6f, .duration = 200ms},
+                                        {.to = 0.6f, .duration = 400ms},
+                                        {.to = 1.0f, .duration = 200ms}},
+                          .ease = sigil::motion::ease::linear}))))});
 }
 
 }  // namespace

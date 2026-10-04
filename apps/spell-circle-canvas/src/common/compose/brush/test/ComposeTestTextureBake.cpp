@@ -2,6 +2,10 @@
 // own, and a host perspective the bake either tracks or refuses.
 
 #include <sigilmaterial/paint/Bases.h>
+
+#include <limits>
+#include <stdexcept>
+
 #include "support/BrushTestSupport.h"
 
 namespace {
@@ -321,8 +325,7 @@ TEST(ComposeCache, SparseFurnitureSurvivesAFractionalCaptureScale) {
     return box()
         .inset(0)
         .cache(Cache::None)
-        .filter(
-            material::skia::filter(SkImageFilters::Blur(1, 1, nullptr)))
+        .filter(material::skia::filter(SkImageFilters::Blur(1, 1, nullptr)))
         .children({std::move(furniture)});
   };
   Host cached(1440, 1052), plain(1440, 1052);
@@ -350,4 +353,164 @@ TEST(ComposeCache, SparseFurnitureSurvivesAFractionalCaptureScale) {
     }
   EXPECT_GT(lit, 10000);
   EXPECT_EQ(lost, 0);
+}
+
+TEST(ComposeCache, AnOversizedLocalBakeReplacesADeviceBakeWithLivePaint) {
+  const auto scene = [](Cache cache) {
+    return box()
+        .cache(Cache::None)
+        .children({box()
+                       .key("large")
+                       .absolute()
+                       .left(30)
+                       .top(30)
+                       .width(5000)
+                       .height(5000)
+                       .fill(red())
+                       .opacity(0.6f)
+                       .cache(cache)
+                       .children({box().width(12).height(12).fill(blue())})});
+  };
+  Host plain, cached;
+  plain.composer.setAutoTexturePromotion(false);
+  cached.composer.setAutoTexturePromotion(false);
+  cached.composer.setProfiling(true);
+  plain.composer.render(scene(Cache::None));
+  cached.composer.render(scene(Cache::Texture));
+  plain.frame();
+  cached.frame();
+  ASSERT_EQ(cached.composer.stats().texturesBaked, 1u);
+
+  // The device bake holds only the clipped portion of the large node.
+  // Perspective requires a local bake of the whole node, beyond its area
+  // ceiling. Reusing the device image as local pixels would move its ink.
+  const SkMatrix camera = hostCamera(0.00001f);
+  frameUnder(plain, camera);
+  frameUnder(cached, camera);
+  EXPECT_TRUE(identicalPixels(plain, cached, 200, 200));
+  EXPECT_EQ(cached.composer.stats().texturesBaked, 0u);
+  const Composer::NodeCost* row = requireRow(cached.composer, "large");
+  ASSERT_NE(row, nullptr);
+  EXPECT_EQ(row->cacheState, Composer::CacheState::Live);
+}
+
+TEST(ComposeCache, UnrepresentableBakeDimensionsPaintLive) {
+  for (Cache cache : {Cache::Texture, Cache::Group}) {
+    Host host;
+    auto scale = motion::animatable(1.0f);
+    host.composer.setAutoTexturePromotion(false);
+    host.composer.setBakeDensity(std::numeric_limits<float>::max());
+    host.composer.render(box()
+                             .cache(Cache::None)
+                             .children({box()
+                                            .absolute()
+                                            .left(30)
+                                            .top(30)
+                                            .width(48)
+                                            .height(48)
+                                            .fill(red())
+                                            .scale(motion::bind(scale))
+                                            .cache(cache)}));
+    for (int i = 0; i < 3; ++i) {
+      host.frame();
+      EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
+      EXPECT_EQ(host.pixel(20, 40), SK_ColorBLACK);
+      EXPECT_EQ(host.composer.stats().texturesBaked, 0u);
+    }
+  }
+}
+
+TEST(ComposeCache, ABakeExceptionRestoresPromotionEligibility) {
+  for (Cache cache : {Cache::Texture, Cache::Picture}) {
+    Host host;
+    auto scale = motion::animatable(1.0f);
+    host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Eager);
+    host.composer.setProfiling(true);
+    Element failing = custom([] { throw std::runtime_error("paint failed"); })
+                          .width(80)
+                          .height(80)
+                          .cache(cache);
+    if (cache == Cache::Picture) failing.scale(motion::bind(scale));
+    host.composer.render(failing);
+    {
+      const SkAutoCanvasRestore restore(host.surface->getCanvas(), true);
+      EXPECT_THROW(host.frame(), std::runtime_error);
+    }
+
+    host.composer.render(
+        box()
+            .cache(Cache::None)
+            .children(
+                {box().key("recovered").width(80).height(80).fill(red())}));
+    host.frame();
+    const Composer::NodeCost* row = requireRow(host.composer, "recovered");
+    ASSERT_NE(row, nullptr);
+    EXPECT_EQ(row->cacheState, Composer::CacheState::Promoted);
+    EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
+  }
+}
+
+TEST(ComposeCache, AnInvisibleBakeExceptionRestoresCompositeCounting) {
+  Host host;
+  auto opacity = motion::animatable(0.0f);
+  host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Eager);
+  host.composer.setCompositeCounting(true);
+  host.composer.render(custom([] { throw std::runtime_error("paint failed"); })
+                           .width(80)
+                           .height(80)
+                           .opacity(motion::bind(opacity))
+                           .cache(Cache::Texture));
+  EXPECT_THROW(host.frame(), std::runtime_error);
+  host.composer.render(box()
+                           .cache(Cache::None)
+                           .children({box().width(80).height(80).fill(red())}));
+  host.frame();
+  const Composer::CompositePlane& plane = host.composer.compositePlane();
+  ASSERT_GT(plane.width, 40);
+  ASSERT_GT(plane.height, 40);
+  EXPECT_GT(plane.counts[40 * plane.width + 40], 0);
+  EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
+}
+
+TEST(ComposeCache, ACoverageExceptionRetriesTheTraceAndRestoresPromotion) {
+  Host host;
+  host.composer.setAutoTexturePromotion(false);
+  bool fail = false;
+  int paintRuns = 0;
+  host.composer.render(
+      custom([&](sigil::draw::Pen& pen) {
+        ++paintRuns;
+        if (fail) {
+          fail = false;
+          throw std::runtime_error("paint failed");
+        }
+        SkPaint paint;
+        paint.setColor(SK_ColorRED);
+        pen.canvas()->drawRect(SkRect::MakeLTRB(12, 12, 36, 36), paint);
+      })
+          .width(80)
+          .height(80)
+          .decorationOutline(Boundary::Coverage)
+          .foreground(decorations::border(2, Fill::color({1, 1, 1, 1})))
+          .cache(Cache::Texture));
+  host.frame();
+  fail = true;
+  host.surface->getCanvas()->scale(2, 2);
+  EXPECT_THROW(host.frame(), std::runtime_error);
+  const int beforeRetry = paintRuns;
+  EXPECT_NO_THROW(host.frame());
+  EXPECT_EQ(paintRuns, beforeRetry + 2);
+  EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeLTRB(20, 32, 28, 64)));
+
+  host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Eager);
+  host.composer.setProfiling(true);
+  host.composer.render(
+      box()
+          .cache(Cache::None)
+          .children({box().key("recovered").width(80).height(80).fill(red())}));
+  host.frame();
+  const Composer::NodeCost* row = requireRow(host.composer, "recovered");
+  ASSERT_NE(row, nullptr);
+  EXPECT_EQ(row->cacheState, Composer::CacheState::Promoted);
+  EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
 }

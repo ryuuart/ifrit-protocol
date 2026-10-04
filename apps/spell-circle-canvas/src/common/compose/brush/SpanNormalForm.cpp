@@ -7,16 +7,16 @@
 
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkRect.h>
-#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcore/compute/Intervals.h>
+#include <sigilgeometry/advanced/Skia.h>
 
 #include <algorithm>
 #include <cmath>
 #include <vector>
 
-#include "ComposeInternal.h"
 #include "SpanArithmetic.h"
 #include "SpanContours.h"
+#include "description/ComposeInternal.h"
 #include "sigilgeometry/path/Contour.h"
 
 namespace sigil::compose {

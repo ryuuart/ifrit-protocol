@@ -23,8 +23,8 @@ namespace sigil::compose {
  *  `rotateX() rotateY() rotateZ()` list, X outermost, with `rotate()`
  *  the turn about z.
  *
- *  What none of this is: a scene. Two planes never intersect and
- *  nothing is lit. */
+ *  Projection does not intersect planes or supply displaced receiver
+ *  positions to the planar lighting executor. */
 template <class Derived>
 class DepthVerbs {
  public:
@@ -34,9 +34,9 @@ class DepthVerbs {
   /** Turn the plane about its vertical axis, in degrees: positive tips
    *  the left edge toward the viewer — the card-flip lane. */
   Derived& rotateY(motion::Animatable<float> degrees);
-  /** Move the plane along the viewing axis, in px: positive is toward
-   *  the viewer. Invisible without a `perspective()` above it, since an
-   *  orthographic projection drops z. */
+  /** Move along the viewing axis, in px: positive is toward the viewer.
+   *  A plane needs perspective for this to change its projection. A light
+   *  source uses the resolved depth as its height above the page. */
   Derived& translateZ(motion::Animatable<float> px);
   /** Scale along the viewing axis, about the transform origin. Nothing
    *  in the node's own plane moves; what it scales is the depth of the

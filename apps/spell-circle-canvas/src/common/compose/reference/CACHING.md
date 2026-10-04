@@ -125,6 +125,14 @@ device space once all of them hold still. Automatic promotion is not this
 tier and is not changed by it: it takes device bakes only, remade whenever
 the matrix they stand under moves.
 
+A group needs two observations before holding its pixels. An eligible group
+inside a retained picture requests one follow-up draw, including after its
+content or destination format changes. The picture revisits it even when an
+ancestor moves; the settled local bake then follows that motion. The request
+keeps `Composer::isRunning` true until the visit completes. Empty, oversized,
+over-budget or memo-unsafe groups do not request repeated attempts. A group
+already enclosed in a pixel bake does not keep that outer bake awake.
+
 **A NODE ABOUT TO SHOW HOLDS ITS BAKE ALREADY.** A node at an opacity of
 0 draws nothing, and its subtree is not painted. When that opacity is
 declared to move — bound to a live value, or easing — the node will show,

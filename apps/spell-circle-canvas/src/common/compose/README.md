@@ -1,947 +1,526 @@
 # SigilCompose
 
-A C++20 static library that turns immutable, value-typed descriptions of a
-2D scene into pixels on an `SkCanvas` the caller owns. It runs flexbox
-layout through Yoga — with text leaves measured and drawn by SigilWeave,
-the sibling paragraph-layout library — diffs each new description against
-a retained tree to find what actually
-changed, paints in an explicit CSS-like stacking order, and automatically
-caches subtrees it can prove are not changing. Animation is SigilMotion's
-tweens and live values, run on an engine the host owns and advances.
+SigilCompose is a C++20 library for drawing a scene from application data.
+Build a tree of `Element` values, give it to a `Composer`, and draw it on
+an `SkCanvas`. The composer retains layout, animations and reusable paint
+between descriptions. Yoga handles flex layout; SigilWeave handles text;
+SigilMotion supplies the clock and animated values.
 
-It owns no window, no surface, no render loop and no thread. You call
-`Composer::render()` when your data changes and `Composer::draw()` inside
-whatever paint callback your application already has, and it honours the
-canvas's current matrix and clip like any other draw.
+The host owns the canvas, motion engine, font context and frame cadence.
+Compose works inside an existing paint callback and preserves the canvas's
+matrix and clip.
 
-The problem it exists for is the middle ground between a paragraph layout
-engine and a whole document engine: box-level composition of real
-typography and arbitrary Skia drawing, sized by flexbox rules with
-baseline alignment, layered with explicit z-order and blending, cached
-like a display list, animated at scene rate, and refreshed from data
-without rebuilding the world.
+## First drawing
 
-**`reference/` is the catalogue.** This page is the model — the phases,
-the write paths, the boundaries — and the chapters beside it carry the
-rest of it: the cascade, the depth lanes, the header map, the caching
-contract and the traps, each linked from the section it was written
-under. Beside them,
-`reference/ELEMENTS.md` lists every factory that starts a tree,
-`reference/VERBS.md` every verb an Element takes in fourteen concern
-groups, and `reference/VALUES.md` what those verbs accept and where one
-comes from, with a page and a drawn example per entity under
-`reference/pages/`.
+This complete program draws one frame into a raster bitmap. In a window,
+keep the engine, font context and composer alive and draw onto the canvas
+your paint callback receives instead.
 
-**`TYPOGRAPHY.md` is the type chapter.** Everything a passage of type can
-be told past `text(utf8, style)` — the per-glyph textFx tracks, a run on a
-path, span restyling, the paragraph controls, threaded frames over a
-`weave::Story`, readings beside the type, a passage whose measure moves, and
-vertical CJK — is indexed there, one chapter under `reference/` apiece,
-and every one of them is checked against the headers by the same probe
-this page is.
+```cpp
+#include <include/core/SkBitmap.h>
+#include <include/core/SkCanvas.h>
+#include <sigilcompose/core/Composer.h>
+#include <sigilcompose/core/Factories.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmotion/clock/Engine.h>
+#include <sigilweave/fonts/FontContext.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
----
+namespace compose = sigil::compose;
+namespace material = sigil::material;
+namespace motion = sigil::motion;
+namespace weave = sigil::weave;
 
-## Writing a document
+int main() {
+  weave::FontContext fonts(weave::ports::systemFontManager());
+  motion::Engine engine;
+  compose::Composer composer(engine, fonts);
+  SkBitmap bitmap;
+  if (!bitmap.tryAllocN32Pixels(480, 180)) return 1;
+  SkCanvas canvas(bitmap);
 
-`sigilcompose/kit/Document.h` supplies content components in
-`sigil::compose::document`. They return ordinary Elements with semantic
-roles and a default type hierarchy. A document can style every heading,
-paragraph or caption through one applied `compose::StyleSheet`, whose bare
-words name those roles:
+  composer.setSize({480, 180});
+  composer.render(
+      compose::box()
+          .padding(24)
+          .gap(12)
+          .fill(material::hexColor(0x101820))
+          .ink(material::hexColor(0xe6edf3))
+          .font({.size = 24})
+          .children({compose::text("Signal"),
+                     compose::text("A scene described from data.")
+                         .font({.size = 14})}));
+  composer.draw(canvas);
+  return 0;
+}
+```
+
+Link `SigilComposeCore` for the element runtime. This example also links
+`SigilWeavePorts` because it asks for the platform font manager:
+
+```cmake
+add_executable(example example.cpp)
+target_link_libraries(example PRIVATE SigilComposeCore SigilWeavePorts)
+```
+
+Include the headers that own the values you use. `sigilcompose/Compose.h`
+is the kernel umbrella; brush, typography, kit and hosted features have
+their own headers and targets.
+
+## Components and identity
+
+A component is an ordinary function from your data to an `Element`.
+Keep application state in your model; Compose needs no component base
+class or component lifecycle.
+
+```cpp
+#include <sigilcompose/core/Factories.h>
+#include <sigilmaterial/color/Color.h>
+
+#include <string>
+#include <vector>
+
+struct Channel {
+  std::string id;
+  std::string label;
+  bool alarm = false;
+  bool operator==(const Channel&) const = default;
+};
+
+compose::Element channelRow(const Channel& channel) {
+  return compose::box()
+      .row()
+      .padding(12)
+      .fill(material::hexColor(channel.alarm ? 0x602020 : 0x203040))
+      .children({compose::text(channel.label)});
+}
+
+compose::Element dashboard(const std::vector<Channel>& channels) {
+  return compose::box().gap(8).children({
+      compose::each(channels, [](const Channel& channel) {
+        return compose::memo(channel, channelRow).key(channel.id);
+      }),
+  });
+}
+```
+
+`children({…})` accepts elements, typed leaves and lists returned by
+`each`. A range can also be passed directly to `children`. Repeated calls
+append children in declaration order.
+
+A key preserves a child's retained identity across reordering and is the
+name used by queries. Keys must be unique among siblings; use unique keys
+across the tree for unambiguous keyed queries. Unkeyed siblings match by
+position. Keys on nodes are separate from a keyed drawing's comparison
+key and from local names on marks or stroke passes.
+
+`memo(props, describe)` skips the component call while the properties and
+captured environment compare equal. It is optional: ordinary value
+properties already compare structurally. Use memo when describing a
+subtree is expensive, and include every input the component reads in its
+properties or captured environment.
+
+An `Element` is a shared, copy-on-write description. Copying it is cheap;
+changing a shared copy clones its payload. It owns no Yoga node or paint
+cache. The composer owns the mutable retained instances behind those
+values.
+
+## Updating and drawing
+
+There are two update paths:
+
+| Change | What the host does |
+|---|---|
+| Structure, text, layout or discrete model state | Build the next tree and call `Composer::render`. |
+| A paint value that changes between descriptions | Keep a `motion::Animatable` in the model and put its live value or binding in the description. |
+
+Call `Composer::setSize` when the viewport changes. The root fills an axis
+on which it states no size; an explicit root size remains its own. An empty
+viewport requests intrinsic layout.
+
+On each animation frame, advance the motion engine once, then call
+`Composer::draw`. A host can use `Composer::isRunning` to decide whether
+another draw is needed. That query includes dirty layout/content, running
+motions and retained external bindings; `Composer::dirty` alone does not
+observe all of those inputs. The engine may be shared with other work, so
+its activity can keep the host drawing even when this tree is still.
+
+```cpp
+engine.advance();
+composer.draw(canvas);
+const bool requestAnotherFrame = composer.isRunning();
+```
+
+Describe-time transitions use `motion::animate`; the composer retargets
+from the current visual value when a new description changes the target.
+A live value avoids re-describing:
+
+```cpp
+#include <sigilmotion/values/Animatable.h>
+
+motion::Animatable<float> angle = motion::animatable(0.0f);
+auto marker = compose::box().width(20).height(20)
+    .fill(material::hexColor(0x80c0ff)).rotate(angle);
+// Keep angle alive in the model; assigning it changes the shared live cell.
+angle = 45.0f;
+```
+
+Paint bindings do not run layout. Change text or dimensions by describing
+again. Make a live cell once: making a new one on every description gives
+it a new identity and defeats pruning.
+
+For independently updated content, declare `slot("name")` and call
+`Composer::renderSlot` with its content. The slot integrates into the same
+layout and cascade. Its name is its key, so a later `.key()` renames it.
+An unknown slot name leaves the tree unchanged and warns once.
+
+The engine and font context must outlive the composer. Use the font
+context on its owning layout thread. On device loss, call
+`Composer::purgeCaches` before drawing through the replacement context.
+
+## Layout and resolved queries
+
+`box()` is a column by default; `.row()` changes its main axis. Dimensions,
+flex properties, gaps, padding, margins and baseline alignment describe
+layout. `stack()` overlaps its children and makes them absolute.
+`positioned()` accepts nested explicit rectangles and skips Yoga below
+that container; flex properties and geometry-reading layout features do
+not apply inside it.
+
+Text leaves measure their contents. A `custom()` program has no intrinsic
+size, so give it dimensions or absolute insets. Bare numbers are pixels;
+`pct()` reads the parent's extent. Font-relative lengths use SigilWeave's
+units, while canvas-relative lengths read the viewport.
+
+Layout runs when drawing needs it. Read `Composer::bounds`,
+`Composer::paragraphLayout` and `Composer::hitTest` after a draw or another
+operation that runs layout. Unknown keys return empty answers. The
+paragraph pointer is valid until the next layout. Bounds are layout boxes;
+hit testing also reads paint order, shapes and transforms. A keyed
+transparent container can receive hits over its whole box; disable its
+own hit region with `Element::hitTestable(false)` to keep its children
+interactive.
+
+`intrinsicSize` measures a tree without a persistent composer. `snapshot`
+records one into an `SkPicture`; bindings are sampled and transitions do
+not run. These trees inherit only from their own roots. Set their font and
+ink explicitly when they need the look of another tree.
+
+### Custom placement and generated elements
+
+`Element::attribute` puts typed facts on a node. `Element::operators`
+applies values that read those facts:
+
+- An arranging value implements `arrange(Arrangement&)` and places or
+  turns a container's direct layout children. Text slots and marks keep
+  their paragraph-owned placement.
+- An adding value implements `add(Scope&)` and attaches elements after
+  authored layout settles. Its scope exposes keys, facts, classes,
+  bounds and outlines; nested operator scopes remain closed.
+
+Arrangers run before adders; write them in that order. Comparable
+operators prune when their parameters and inputs are unchanged. A value
+without equality remains conservative and reruns when described.
+`layout(scheme)` is a shorter spelling of `box().operators({scheme})`.
+Stock layouts and custom arrangers use the same `Arrangement`: a borrowed
+span of child records with measured sizes, baselines, cells, named areas
+and facts. Write each child's `rect` with `place()` or `centreAt()`; use
+`turn()` for a paint-only rotation. The records are valid during the call.
+An operator declaring `readsChildMinSizes` receives content minima;
+`resolvesChildPercentages` supplies stated sizes. Each `Child` record
+resolves them with `sizeIn(box)` against the box the operator gives it.
+
+Each settlement round starts from authored flex placement at the current
+container size and no operator turn. Within a list, a modifier reads what
+the preceding arranger left; a modifier-only list reads the flex placement.
+Outer placements settle before a nested list reads its inputs. Operator
+output never becomes the next round's starting position.
+
+Additions are ordinary elements attached to their subject or their scope.
+They inherit and hit-test normally, stand after the authored children and
+stay out of their flow. They are excluded from operator input and
+structural child counts. A copied scope is a measurement snapshot and
+cannot attach to the original.
+
+
+## Styling and text
+
+Font, ink, paragraph settings, sheets, custom properties, image sampling
+and lighting inherit through the tree. Layout and paint declarations such
+as padding, fill and transform stay local. Inheritance follows where the
+node is mounted, independent of where its C++ value was built.
+
+`text(utf8)` inherits the font and ink; `text(utf8, weave::TextStyle)` uses
+a complete style. `font()` and `paragraph()` set partial overrides.
+`Element::applyStyleSheet` applies a sheet to a subtree: bare selectors
+match roles and `.name` selectors match classes. Role defaults are
+fallbacks, matched rules override them by specificity and order, and direct
+declarations override rules.
 
 ```cpp
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
 
-namespace compose = sigil::compose;
 namespace document = sigil::compose::document;
-namespace weave = sigil::weave;
-
-auto content = document::article({
-    document::eyebrow("FIELD NOTES"),
-    document::h1("A document has a voice"),
-    document::lead("The content describes its purpose; the sheet chooses its look."),
-    document::section({
-        document::h2("One rule, every paragraph"),
-        document::paragraph("This paragraph inherits the document's face and ink."),
-        document::quote("A quoted passage keeps its own semantic role."),
-        document::list({document::item("Headings establish the hierarchy."),
-                   document::item("Captions stay beside the material they describe.")}),
-    }),
-    document::footer("An ordinary Compose tree, ready for a window or a snapshot."),
+auto article = document::article({
+    document::h1("Field notes"),
+    document::paragraph("Content keeps its meaning while a sheet chooses its look."),
+    document::caption("One tree, one inherited style."),
 }).applyStyleSheet(compose::StyleSheet{
     compose::rule("h1").font({.size = 36}),
-    compose::rule("h2").font({.size = 24}),
-    compose::rule("paragraph").paragraph({.leading = weave::Leading::multiple(1.5f)}),
     compose::rule("caption").font({.size = 12}),
 });
 ```
 
-The roles are `article`, `section`, `h1` through `h6`, `paragraph`, `lead`,
-`caption`, `label`, `eyebrow`, `footer`, `code`, `quote`, `list`, `item`,
-`marker`, `figure` and `rule`. `heading(level, words)` accepts levels 1–6.
-`paragraph` also accepts a `weave::RichText`; inline runs stay in one shaped
-passage. `figure(body, note)` keeps a body and its caption together, and
-`item(body, marker)` accepts composed content for nested lists. Container
-factories take children directly or through the usual `children()` call.
+The document kit supplies roles and fallback type, including headings,
+paragraphs, lists, quotations and figures. Its measure, gaps and quote
+inset are inherited length properties that a theme can override.
 
-Roles are independent of class membership: a bare word in a selector names
-a role, `.name` a class. Resolution at each node is inherited type and
-block, then role defaults, the matched rules by CSS's specificity — so a
-rule for a class stands over a rule for a role — and finally direct
-`font()` and `paragraph()` declarations. A later `styleClass("warning")`
-therefore keeps the element's paragraph role; the `.warning` rule overrides
-only what it states. Relative sizes are resolved once against the inherited
-font. Content built before its parent still adopts that parent's rules,
-including after a retained theme update.
+[The cascade](reference/CASCADE.md) explains precedence, keywords and
+custom properties; [selectors](reference/SELECTORS.md) explains matching.
+[Typography](TYPOGRAPHY.md) covers rich spans, text effects, paths,
+threaded frames, readings and vertical text.
 
-`Element::role` is the underlying seam. It takes the role's name and the
-fallback type and block a component supplies for it, which every matching
-rule stands over. A role no rule speaks about is normal: the fallback
-remains in force. A class no rule of the sheets in force names reports
-itself once. The selector grammar — combinators, structural
-pseudo-classes, `:has()` — is [its own chapter](reference/SELECTORS.md).
+## Painting and reuse
 
-The document's layout uses inherited length properties: `document::measure`
-is the maximum article width, `document::gap` separates content blocks,
-`document::listGap` separates list items and a figure's caption, and
-`document::quoteInset` indents quotations. For example:
+Within a node, painting follows this order:
+
+```text
+backgrounds and background span passes
+fill and echoes
+overlays
+content
+children
+foregrounds and foreground span passes
+```
+
+Sibling order is `zIndex` then declaration order; a shared 3D space uses
+depth order. Transforms, compositing and layer effects form stacking
+contexts. A child's z-order remains inside that context.
+`overflow(Overflow::Clip)` clips fill, content and children; decorations
+dress the outline outside that clip.
+
+A fill accepts a colour, `Fill` or SigilMaterial material. Decorations are
+marks attached around a boundary; material effects supply surface looks
+such as shadows and bevels. `Element::decorationOutline` chooses the
+shape, placed glyph contours or rendered coverage. Coverage tracing uses
+a bounded raster, produces stepped edges, follows device scale and has an
+opacity threshold. It excludes the node's own decorations, includes its
+content and children, and falls back to the shape when empty.
+
+Point and spot lights place their source in root-page logical pixels, with
+positive z toward the viewer. A shared source lights each fill and ink where
+it sits; moving a node or its ancestor updates the response. The planar
+executor supports affine placement and bump normals, without displacement
+or self-shadowing.
+
+Use `scene()` when light sources should belong to the composition itself.
+It is an ordinary flex container whose `light()` leaves illuminate its own
+lit paint and descendants, regardless of sibling order. Light leaves take
+no layout space, paint nothing and receive no hits. Their positions are
+local; element transforms place them through their ancestors.
+`Display::None` on a source or its ancestor disables it; opacity and
+clipping leave its illumination active.
+Spot and directional axes turn with those transforms. Receivers transform
+their normals into the same root-page frame, so a turned surface catches
+the source from its new orientation. Out-of-plane source turns or perspective
+disable its direct contribution.
+
+Planar lighting is the whole of what Compose lights. The page is the
+surface and the viewer looks straight at it: a plane turned by the depth
+lanes keeps the lighting it has flat, and there is no camera, no emitter
+with an extent and no shadow one node casts on another. An interface lit
+as a body in space is a SigilWorld surface wearing the composition as a
+`material::Texture`, where the set's camera and lights shade it.
 
 ```cpp
-content.var(document::measure, sigil::compose::Dimension(640))
-       .var(document::gap, sigil::compose::Dimension(18));
+material::Light key{.kind = material::LightKind::Point,
+                    .position = {0, 0, 180}, .range = 800};
+auto panel = compose::box().width(140).height(100).fill(gold);
+auto composition = compose::scene().row().gap(12).children({
+    compose::light(key).translateX(120).translateY(60), panel, panel});
 ```
 
-The stock measure is 38 em and the flow gap is 1 em. These are configurable
-defaults, not a character-count guarantee; typefaces have different widths.
-An article also fits the width available from its parent. The defaults are
-carried through `Element::varDefaults`, below inherited and directly stated
-properties, so an outer theme can restyle components made elsewhere.
-Explicit zero lengths and direct layout overrides remain meaningful.
-Typography rules belong to SigilWeave; layout and document components belong
-to Compose. Existing paragraph, story, writing-mode and exclusion controls
-remain available on these Elements.
+Here `gold` is the caller's material. A source belongs to its nearest scene;
+a nested scene starts with no inherited sources or environment. Set a
+scene's reflected surroundings with `Element::environment`. A receiver's
+`Element::lighting` or its material's own lighting replaces the scene
+context. Attributes remain passive facts for their readers. Emissive
+appearance does not register an illuminating source.
 
-The specimen, page, panel and caption kits use this document vocabulary for
-their content. Their geometry still belongs to their own layout components;
-an existing specimen well does not become a prose column.
-
----
-
-## Writing a component
-
-A component is a free function from your data to an `Element`. There is no
-base class, no lifecycle, and no state inside the library — the state is
-the argument.
+Light color, intensity and applicable angles accept live values from
+SigilMotion. Keep the cells beside the application model, then update them
+without describing the tree again:
 
 ```cpp
-#include <sigilcompose/Compose.h>
-#include <sigilcompose/brush/Decorations.h>
-#include <sigilcompose/typography/Typography.h>
-#include <sigilmotion/values/Tween.h>
-
-#include <ranges>
-#include <vector>
-
-// Compose re-exports nothing: the motion words (`animate`, `Tween`,
-// `bind`) are SigilMotion's and the text style is
-// SigilWeave's, each spelled from its own library.
-using namespace sigil::compose;
-using namespace sigil::motion;
-using namespace std::chrono_literals;
-namespace motion = sigil::motion;
-namespace weave = sigil::weave;
-
-/// Your data. Copyable and equality-comparable — that is the whole contract.
-struct Channel {
-  std::string id;
-  std::u8string label;
-  float level = 0;     // 0..1
-  bool alarm = false;
-  bool operator==(const Channel &) const = default;
-};
-
-Element meter(const Channel &c) {
-  const material::Color ink =
-      c.alarm ? hexColor(0xff5252) : hexColor(0x8fd0ff);
-  return box()
-      .row()
-      .gap(10)
-      .padding(12)
-      .borderRadius({6})
-      .fill(hexColor(0x0e1218))
-      .alignItems(Align::Center)
-      // A mark on part of the boundary: L-brackets at every tangent break.
-      .stroke(spans::corners(12), stroke(1.5f, Fill::color(ink)))
-      .children({text(c.label, weave::textStyle({.size = 13, .color = ink})), box()
-                 .flexGrow()
-                 .height(6)
-                 .fill(ink)
-                 .transformOrigin(pct(0), pct(50))
-                 // The bar ramps because the DESCRIBED value moved. Nobody
-                 // steps it; the reconciler sees the change and starts a
-                 // motion that retargets from wherever the bar is now.
-                 .scaleX(motion::animate({.to = c.level, .duration = 220ms}))});
-}
-
-Element dashboard(const std::vector<Channel> &channels) {
-  return box()
-      .column()
-      .gap(8)
-      .padding(24)
-      .fill(hexColor(0x05070a))
-      .children(channels | std::views::transform([](const Channel &c) {
-                  // memo() skips the describe call entirely while the properties
-                  // compare equal. key() is what the reconciler matches on
-                  // across describes, so rows survive reordering.
-                  return memo(c, meter).key(c.id);
-                }));
-}
+auto keyColor = motion::animatable(material::Color{1, 0.8f, 0.6f, 1});
+auto strength = motion::animatable(1.0f);
+auto bearing = motion::animatable(120.0f);
+material::Light key{.direction = bearing, .color = keyColor,
+                    .intensity = strength, .ambient = 0.05f};
+auto source = compose::light(key);
+keyColor = material::Color{0.4f, 0.7f, 1, 1};
+strength = 0.6f;
+bearing = 30.0f;
 ```
 
-The children are one block after the verbs. `children({…})` takes what
-is in the node, in order — an element, or the list `each(range, make)`
-builds from a range, mixed as they come — so braces on a description
-mean children and nothing else:
+The host draws after changing a cell; `Composer::isRunning` observes a
+changed scene source even after its receivers settle into caches. Positions,
+range, cone and ambient values are ordinary fields. Animate source placement
+with its element's transforms, or describe again when those fields change.
+
+For a caller's material `gold`, ordinary `.ink(gold)` shades the glyphs
+under the lighting in force. Outline relief adds a bevel derived from
+the actual contours; its glyph foreground supplies the text paint, so
+set the ordinary ink transparent to avoid painting the glyphs twice.
+
+`relief(material, options)` shades a material over that outline, combining
+the contour bevel with any normal map in the material. Shoulder is measured
+in logical pixels; positive depth raises the outline and negative depth
+impresses it. Attach it as a shape background or a glyph foreground:
 
 ```cpp
-box().column().gap(8).children({
-    heading(),
-    each(channels, [](const Channel &c) { return memo(c, meter).key(c.id); }),
-    footer(),
-});
+#include <sigilcompose/brush/Relief.h>
+
+auto lettering = compose::text("AURUM").font({.size = 64})
+    .ink(material::Color{0, 0, 0, 0})
+    .decorationOutline(compose::Boundary::Glyphs)
+    .foreground(compose::relief(gold, {.shoulder = 2, .depth = 1}));
 ```
 
-A range goes into `children()` as it stands. An element that needs an
-identity of its own keys itself; the rest reconcile by position, as
-unkeyed siblings do.
-
-A surface is anything `fill` takes: a colour, a `Fill`, or a
-`material::Material` exactly as SigilMaterial builds it — a gradient,
-layers, an image, a program. A component whose caller chooses the surface
-declares one `Fill` property, which converts from a material,
-and passes it to `fill`, `ink` or `textStroke` as it stands:
-
-```cpp
-struct Card {
-  Fill ground = Fill::color(hexColor(0x0e1218));
-  bool operator==(const Card &) const = default;
-};
-
-Element card(const Card &props) { return box().padding(12).fill(props.ground); }
-
-card({.ground = material::field::grain(0.08f, 4, 3.0f)});  // a material, unwrapped
-box().fill(material::field::noise(0.05f, 4, 2.0f));        // and the verb takes one too
-```
-
-The host side is two objects — the engine and the composer — which the
-host owns and wires together:
-
-```cpp
-sigil::weave::FontContext fonts = /* yours */;
-motion::Engine engine;
-Composer composer(engine, fonts);       // both must outlive the composer
-composer.setSize({960, 540});
-composer.render(dashboard(model));
-
-engine.advance();                       // one frame: the wall clock's movement
-composer.draw(canvas);
-const bool again = composer.isRunning();
-```
-
-`Composer::isRunning()` is the whole gate: it answers `dirty()` — a
-description or a layout that changed — and, beyond it, whether a motion
-on the engine is running or a retained binding can still move without
-another `render()`, which is the one thing a host polling `dirty()` alone
-would miss on a scene driven from outside. The composer reads every
-motion's time off the engine it was built with, so there is no second
-clock to wire.
-
-SigilSketch bundles exactly those lines behind its own session, so a
-sketch declares a scene and never a loop. That is a convenience of a host
-and not of this library — spell the objects out when the engine is shared
-with something else.
-
-The other write path is a live value — a `motion::animatable` the host
-writes every frame, read straight out of paint with no `render()` call:
-
-```cpp
-motion::Animatable<float> spin = motion::animatable(0.0f);
-engine.timer([&] {
-  spin = motion::phase(engine.elapsed(), 6s);   // a wrapping [0,1) phase
-});
-
-box().rotate(motion::bind(spin, {.to = {0, 360}}));
-```
-
----
-
-## The mental model
-
-**An `Element` is a shared, copy-on-write description.** It is a value: you
-build one with fluent setters, copy it, compare it, throw it away. Copying
-an `Element` bumps a refcount; mutating one that is shared clones first, so
-a description already handed to the composer can never be altered behind
-its back. Hot fields live inline on the node; rare and kind-specific state
-is pushed into out-of-line value-semantic blocks, so an absent feature
-costs one null pointer.
-
-**An `Instance` is the retained counterpart**, and you never see it: parent
-and child pointers, the resolved description, a Yoga node, paint order,
-text layout state, animated value slots, derived geometry, and every cache
-slot. Elements are write-only. Reads target the composer, after layout —
-`Composer::bounds`, `Composer::paragraphLayout`, `Composer::hitTest`,
-`Composer::stats`, `Composer::profile`. Querying a
-description is not offered, because it would invent a second identity
-system next to keys.
-
-### The two write paths
-
-There are exactly two ways to change what is on screen, and both are
-*declared*:
-
-1. **Describe** — `Composer::render()` and `Composer::renderSlot()`. This
-   carries structure and discrete state. Children are reconciled by key,
-   falling back to position among unkeyed siblings; keyed reconciliation
-   *is* the child-swap API. There is no imperative node mutation, and that
-   absence is deliberate: it is the door that would make every cache
-   unsound.
-2. **Bind** — put a live `motion::animatable` value in the description
-   and write it per frame. Bound properties are paint-only by
-   contract. They never relayout, and the node's cached content replays
-   under the new transform or the new value.
-
-That split is the whole reason caching can be automatic. Volatility is
-*derived from the declarations*, not sniffed at runtime, so "does this
-subtree change" is a decidable property rather than a heuristic.
-
-### Phase order
-
-`render()` mounts or patches, as a recursive keyed reconcile. A memo
-compares its captured environment snapshot and then the author's properties
-comparator; a hit reuses the previous payload without describing at all.
-A structural equality check is the prune: equal means nothing is marked
-dirty and nothing is retargeted here, though children still reconcile.
-Unequal means dirty marking up the tree, a Yoga style write, a text
-content revision bump, and a retarget of the node's lanes. A pruned node
-whose answer moves anyway — a class, a rule or a value taken from above
-— is retargeted by the cascade pass instead, which is where that
-movement is found; a lane watches the value COMPUTED for the node, so
-the two routes to one change cannot disagree. Paint order among
-siblings is a stable sort by `zIndex` then declaration order. Then the key,
-slot and edge indices rebuild.
-
-`draw()` detects the backend and host scale, then runs layout: Yoga first,
-then up to three convergence rounds of the arranging operators,
-`centerAt` pins, and the derive phase, each of which may re-run Yoga.
-Recordings whose baked geometry moved are invalidated. Derive resolves text
-exclusions and borrowed geometry over flat lists, cycle-guarded.
-`Text::contentFlowAround` subtracts WHAT THE TARGET SAYS ITS EDGE IS,
-which is the one property the target already carries for its own decorations:
-`Element::decorationOutline`. Its glyph outlines under `Boundary::Glyphs`, so text
-flows around a word; the silhouette of what it DREW under
-`Boundary::Coverage`, at the coverage the same verb stated, so text
-flows around a photograph's alpha, a clipped subtree or a masked node; its
-`shape()` otherwise — a wire's routed path included, since a wire is a
-figure whose shape is that path — so text runs into a star's notches,
-through an annulus and around a cable; and its BOX when it declares
-none. One
-reading serves both, so a node cannot be dressed along one outline and
-flowed around along another. A round silhouette is subtracted analytically.
-
-The margin is a DISC — the set of points within that distance of the edge —
-so a diagonal stands the text off by exactly what was asked and a corner
-comes out round; it means the same in every case, and so does the writing
-mode: a column a target crosses is cut into a head and a foot exactly as a
-line is shortened beside it.
-
-Every derivation DECLARES WHAT IT READS, in the same statement that stores the
-key: `contentFlowAround`, `spans::fit`, `strand::from` and `textThreadTo` each
-record a `sigil::core::Read` — the node waited for, and which
-`sigil::core::Facet` of it is needed (a box, an outline, or the units a text
-produces). `sigil::core::orderByReads` turns those declarations into the order
-the derived nodes are resolved in, so a gate sized from a box that is itself
-borrowed, or a frame threaded from a frame written later, settles in the same
-pass instead of one behind. It is stable:
-derivations that read none of each other are resolved in exactly the order they
-were written in, which is nearly every tree. Nothing infers an edge from which
-fields a node carries, so a derivation added later is ordered by its own
-declaration and by no list that has to be found and extended.
-
-Released scalars are scanned and volatility computed in one walk. Then
-paint runs, selecting a cache tier per node.
-
-### Facts and operators
-
-A node STATES FACTS about itself and says nothing about how they are
-used: `Element::attribute` puts a typed value under a name, read back
-through `Attributes::get` in the type it was written in, and a fact
-nothing reads does nothing. `point()` is a node with no extent that
-exists to carry a key and facts — a port on a card, a station on a map —
-placed like any absolute node.
-
-An OPERATOR reads those facts. `Element::operators` takes a list of
-comparable values applied to the node's own children, in list order,
-and each one is handed an `Arrangement`: the node's box and one
-`Arrangement::Child` per direct child — its measured size, baseline,
-cells, area and facts, and where it stands so far — which the operator
-places, centres or turns. The list runs inside the layout's converging
-rounds, starting every run from the flex layout's own answer, so a
-later operator nudges what an earlier one placed and a run after a text
-reflow answers the same question the first did. A turn is paint-only:
-it rides the node's own rotation lane and moves no layout. An operator
-is a value with `arrange(Arrangement&)` and an equality, so an unchanged
-list over unchanged facts prunes; a value with no equality is the
-escape hatch that never does. A scheme of the older shape —
-`place(const LayoutInput&)` returning a rect per child, which is what
-`layouts::Grid` and its peers still are — is an `Operator` too, adapted
-when it is held, and `layout(scheme)` is `box().operators({scheme})`
-under the shorter spelling; `LayoutInput::childAttributes` hands such a
-scheme the same facts. A scheme that gives each child a box of its own
-says so with `resolvesChildPercentages`, and a child's percentages are
-then of that box rather than of the container, as CSS resolves a grid
-item's against its grid area: `layouts::Grid` sizes its columns, then its
-rows from each child's size in its columns (`LayoutInput::sizeIn`), and
-places the child at its size in its cells.
-
-An ADDING operator — a value with `add(Scope&)` — runs once layout has
-settled and builds elements from what it reads. It is handed a `Scope`:
-the node's box and every node under it as a `Scope::Node` — key, facts,
-classes, bounds and outline in the scope's coordinates — found by key,
-by a lane (`Scope::having`) or by class (`Scope::withClass`). THE SCOPE
-IS CLOSED: a node under it with operators of its own is one node here,
-with nothing under it, and what it wants read from outside it states as
-facts on its root. An addition belongs to what it is about — attached to
-one node (`attach` on the `Scope::Node`, in that node's coordinates,
-gone when it goes) or to the scope (`Scope::attach`) — and either way it is an
-ordinary element reconciled beside the owner's authored children, after
-them and out of their flow: it takes the cascade, a sheet dresses it, it
-hit-tests, and is arranged by nothing, counted by no structural pseudo-class,
-and read by no operator. Copies of a scope are snapshots of its measured
-nodes without attachments; attaching through those nodes does nothing.
-Whatever it attaches is laid out by one more run of the
-layout with the additions standing, which moves nothing that was
-authored, and an unchanged tree mounts its additions once. `zIndex` and
-`styleClass` on the `Operator` itself are what its additions paint at
-and are dressed by where they state none of their own, so
-`.zIndex(-1)` puts a whole operator's wires behind the nodes they join;
-`hitTestable`, `cache`, `cacheScale` and `transition` on it land on every
-addition that leaves that verb at a node's default, so
-`.hitTestable(false)` lets the pointer through a whole operator's marks.
-The arranging operators are written first in the list, since they run
-first whatever the list says; a list that says otherwise is reported.
-
-The stock adders are kit, over that seam and nothing else: `connect::`
-draws a wire between nodes — the pairing stated in the operator
-(`connect::Between`), a whole run of `Anchor` stops stated in it
-(`connect::Along`), or every pairing read off the nodes
-(`connect::ByLane`) — keyed by what it joins and dressed by a
-`connect::Dressing`: the mark, where on the wire that mark paints, the
-gate over it and a list of marks where one mark will not do; `pin::`
-hangs an element off every node stating a `pin::Request` — the element,
-the box it is given and a `Tether` for where — at the first place that
-fits; `outline::` builds from where nodes resolved their edges, a band
-along one node's outline (`outline::Around`) or the hull of a set
-(`outline::Hull`); `stamp::` makes one element per node stating a lane
-(`stamp::ByLane`), keyed to vouch for its maker as `custom(key)` does;
-and `drawWith` is the pen. A fact that carries an element compares by
-`sameDescription`, the structural prune's own comparison over a whole
-description, so a card stating the same callout every frame prunes.
-
-### Paint order inside a node
-
-Fixed, and worth memorising, because several traps are just this list:
-
-```
-backgrounds · background span passes │ fill · echoes │ overlays │
-content leaf │ children │ foregrounds · foreground span passes
-```
-
-Decorations dress the node's *outline*, so `overflow(Overflow::Clip)` does not clip them —
-it bounds the fill, the content leaf and the children. A stacking context
-forms on `zIndex`, opacity below 1, a blend mode, a transform, a clip, or a
-layer effect, and children cannot interleave outside it: a component cannot
-escape the z-order of the site it was composed into. The one order that is not
-tree order is a shared space's: the children of a node that opens one
-are painted back to front by depth, whatever order they are declared
-in.
-
-### Type
-
-`text(utf8)`, set in the font in force where it lands, `text(utf8, style)`, set
-in one whole style, and `text(weave::rich(base).add(…))` are the three content
-forms — the text a `std::u8string` or a plain string holding UTF-8, a literal
-either way — and everything a passage can be told past that — the per-glyph
-textFx tracks and their selectors, a run riding a path, span restyling, the
-paragraph controls, threaded frames over a `weave::Story`, readings set beside
-the type, a passage whose measure moves, and vertical CJK columns — is in
-**`TYPOGRAPHY.md`**, one file over, and the chapters it indexes. They are
-checked against the headers by the same probe this page is.
-
-The shape of it in one paragraph: a text leaf holds an ordered list of
-`textFx()` TRACKS, each `(selector, effect, timing, progress)` — which
-glyphs, what deviation from rest, how their start times spread, what
-drives it — where every motion inside a track, the timing, a keyframed
-deviation (`textFx::tween`), an entrance and a colour reveal alike, is
-one `motion::Tween` in Motion's one keyframe grammar, and the same
-`selectors::` vocabulary addresses glyphs for a track,
-characters for a `span`, and units for anything standing beside the
-passage. What a passage is SET like is `Text::paragraphStyles` and the
-layout setters beside it, which map onto
-`sigil::weave::ParagraphLayoutOptions` field by field.
-
-### What a decoration dresses
-
-Every decoration is drawn ACROSS AN OUTLINE, and the outline a node hands
-its decorations has always been its own shape — which on a text leaf is a
-rectangle, and is why a chrome style on a word bevelled a slab behind the
-word. `Element::decorationOutline` says otherwise:
-
-```cpp
-text(u8"CHROME", display).decorationOutline(Boundary::Glyphs)
-    .ink(material::from(chrome).effects(material::Filter::bevel()));
-```
-
-`Boundary::Glyphs` hands them the glyph contours the placement produced,
-so every material effect already written works on letters with no new preset
-and no second code path. The outline follows a wrapped line, a mixed-style
-run's size, a path run's curve and a vertical column's axis, because it is
-read off the placed glyphs.
-
-The three answers are three MECHANISMS, and the third one is the only one
-that looks at a pixel. `Boundary::Outline` is the node's SHAPE — its box,
-its `shape()`, a routed path, a band's swept region. `Boundary::Glyphs` is
-the PLACEMENT's contours. `Boundary::Coverage` is WHAT THE NODE DREW: its
-rendered layer is rasterised into an alpha surface of its own and the
-covered pixels are traced back into a path, which is the only answer that
-knows about an image's alpha cut-out, a clipped or masked subtree, or
-anything else whose visible silhouette is neither a shape nor a glyph run.
-
-```cpp
-image(logo).decorationOutline(Boundary::Coverage)
-    .fill(material::from(material::Color{0, 0, 0, 0})
-              .effects(material::Filter::shadow(white, {.blur = 8, .spread = 2})));
-image(photo).key("fig").decorationOutline(Boundary::Coverage, 0.35f);
-text(body, bodyStyle).contentFlowAround("fig", 12);
-```
-
-Tracing a raster has three consequences and all three show:
-
-- **The boundary is a staircase.** It is built from whole pixels, so its
-  edges are axis-aligned steps and a decoration that dresses it dresses
-  that staircase.
-- **The step is one device pixel.** The trace rasterises at the node's own
-  device scale, so the staircase is as fine as the edge the viewer is
-  looking at — which is the whole reason to trace pixels rather than a
-  shape — and a node that moves to a denser display is traced again. A
-  ceiling on the raster's longer side bounds what a very large node asks
-  for: past it the raster is scaled down to fit and the steps grow. So a
-  RECORDING THAT HOLDS ONE IS PINNED TO THAT SCALE: a picture replays
-  under whatever matrix it meets, which is sound for every other op in it,
-  and a traced boundary is one of the two answers inside that belong to
-  the scale it was taken at. A recording carries the WINDOW of host scales
-  everything in it is the same picture over — narrowed by its own nodes'
-  rasters and by those of every held picture replayed into it — and is
-  remade when the host leaves it, exactly as a recording holding a device
-  blit is remade when its matrix moves. A trace narrows that window to a
-  point, because one step per device pixel is as fine as a grid gets.
-- **How much paint counts as ink is a dial.** A pixel joins the boundary
-  when the node's paint reached the coverage `Element::decorationOutline` stated, a
-  fraction of full opacity. The default is half — the rule an unantialiased rasteriser
-  uses, which puts the traced edge where the drawn edge is — so a 30% wash
-  traces to nothing and its decorations have nothing to dress. Lower it and
-  the wash becomes silhouette; raise it and only the solid core does. It is
-  what a soft-edged photograph needs, and text flowing around that node
-  reads the same number.
-
-The node's OWN marks are not in the trace — they are what dresses it, and
-a mark that dressed itself would have no fixed point — while its fill, its
-content, its children and their marks are. WHAT THE RASTER COVERS IS THE
-NODE'S PAINT BOUNDS, not its box: the silhouette is the ink, so a declared
-shape resolved past the box it was handed, a decoration's bleed, a glyph's
-overhang and a routed path are all inside the traced surface and the
-boundary is never cut square at the box's edge. The raster's grid is
-placed on whole steps of the trace's own scale, so the pixels covering the
-box are the same pixels whichever carrier widened the rect around them,
-and the path comes back in the node's own space either way. A node that traced to nothing
-keeps its shape, exactly as a text leaf with no glyph outline does. The
-trace is re-run when the node's rendered layer is invalidated, which for a
-volatile subtree is every frame.
-
-`Boundary::Auto` is what a node that says nothing gets and means its own
-shape: a caption with a drop shadow means the caption's box, and neither a
-text leaf nor an image silently changes what it has always meant.
-
-## 3D, the CSS way
-
-The five depth lanes, the shared space `Element::preserve3d` opens, the
-backface, and how a hit test goes back through the projection are in
-[reference/DEPTH.md](reference/DEPTH.md).
-
----
-
-## The cascade
-
-What flows down the tree — the font, the ink, the block, the sheet and
-the custom properties — and how a role or a class resolves against a
-sheet are in [reference/CASCADE.md](reference/CASCADE.md).
-
----
-
-## The header map
-
-Every public header, feature by feature, with the names it owns, is in
-[reference/HEADERS.md](reference/HEADERS.md).
-
----
-
-## The declared-volatility contract
-
-What a value that changes without a re-describe must declare, and what
-a promoted node promises the live paint, are in
-[reference/CACHING.md](reference/CACHING.md).
-
----
-
-## Traps
-
-The silent no-ops, the lifetime and pruning rules and the ordering
-contracts are in [reference/TRAPS.md](reference/TRAPS.md).
-
----
-
-## Boundaries
-
-The kernel links `SigilCoreReconcile`, `SigilCoreCache`,
-`SigilCoreComparable`, `SigilCoreCompute`, `SigilGeometryPath`,
-`SigilMedia`, `SigilMaterial`, `SigilMeasure`, `SigilMotion`,
-`SigilSkiaDraw` (the direct draws the instanced leaf stamps through),
-`SigilDraw` (the pen every mark and program is drawn with),
-`SigilWeave` and Skia publicly, and Yoga and Boost's container and
-unordered targets privately. The brush tier adds `SigilGeometryKit`, the
-silhouette shelf a brush is applied to, and the typography tier, whose
-vocabulary its text decorations are spelled in; the kit tier links the
-brush tier — the arrow between those two points one way. Each tier also names, on its own link line,
-every library its headers include, so no tier reaches a library through
-the kernel's.
-
-**What compose IS, after all of those: the element runtime.** It
-reconciles a description against a retained tree, lays it out, paints it
-in a stated stacking order, caches what it can prove is still, and holds
-the text element and the marks that dress an outline. What it does not
-hold is any of the four vocabularies it draws with. A silhouette, a width
-law, a deviation, a band, a crossing and a figure's coordinate frame are
-`geometry::`; a paint, a post-processing effect, a signed-distance
-surface, a tile and a field are `material::`; a style, a face and a
-paragraph are `weave::`; an animatable, a transition and a stagger are
-`motion::`. Each is spelled at its own origin here — compose re-exports
-none of them. `SigilCoreReconcile` is the reconciler: the
-keyed and positional match, the memo, the identity prune, the
-`core::environment::` channel and the animation lane operations are its, and `Composer` is its
-host — the description comparators, Yoga, text and paint stay here.
-`SigilCoreCache` is the caching kernel, and `Composer` is its host too:
-the three-valued cache policy (`cachePolicy` maps this library's
-five-valued `Cache` onto it, keeping the TIER — picture, texture,
-group — on this side), the fold that turns one node's declarations and
-its children's verdicts into what a subtree promises, the stability
-release that proves a node declaring volatility is holding still, and the
-three-way bake decision are its. What every term MEANS is compose's: which
-Skia paint moves pixels off the describe clock, which of its lanes a value
-memo can compare, what a recording is and when it may be replayed.
-`SigilGeometryPath` supplies the contours, polylines, poses, seeded
-noise, width laws, shapers, bands and crossings that every outline walker
-here reads through, and compose adds no path geometry of its own. `travel()`'s motion path is the worked example:
-the curve is measured into that library's contours once per shape and
-size, and each frame's position is one pose read along them, walked as a
-single arc-length coordinate. What stays here is the
-POLICY the verb states — the fraction wraps on a closed curve and clamps
-on an open one, the tangent angle comes from a look-ahead chord, and the
-path outranks the translate lanes.
-
-**A NUMBER DRAWN AGAINST A FRAME WITH SCALES is not here either.** A
-domain, a range and the transform between them are ONE mapping value, and
-that value is SigilData's, which no tier of this library links: a plot
-whose two axes are those mappings is built where SigilData is in reach,
-and what this library supplies it is the keyed recording, the layout
-scheme a mark is placed by and the cascade the mark's colour is read out
-of. What stays here is the READING of a column that states no scale at
-all — `kit::bars`, N rows against an extent derived from the values,
-which is a row reading that sizes itself from its content and needs no
-box to be given.
-
-`SigilComposeTexture` is the one feature that owns a SURFACE, and it is
-the exception the bullet below states. `compose::TextureScene` keeps a
-composer and the surface it paints into, and hands the picture over as a
-SigilMaterial texture value: a consumer that samples an image samples
-that one with no knowledge that a composer made it, and nothing above has
-to learn what an `Element` is. `compose::texture` is the one-shot form,
-for a picture described once. The version the value carries counts
-PAINTS, not describes — a frame whose reconcile moved nothing leaves the
-value equal to the frame before's, which is what lets a consumer prune on
-it. The surface is a raster one by default and a texture on a GPU device
-when a host hands the scene one, so a renderer standing on that same
-device binds the pixels where they were painted rather than copying them.
-The arrow points one way: this feature links SigilMaterial's texture
-feature, SigilSkia's graphite feature and SigilCore's hardware device,
-and nothing that samples the value links compose.
-
-`SigilComposeDraw` is the feature that meets SigilDraw's pen, and the
-arrow between the two libraries points one way: this feature links
-SigilDraw, and SigilDraw names nothing of compose — the pen reaches a
-retained `Element` through a seam it declares for any guest,
-`paintRetained`, which this feature defines for `Element` in compose's
-own namespace. The clock is whoever steps the pen: a `compose::pen` or
-`compose::graphics` node's pen reads the composer's clock through the
-paint context, and a retained element's composer runs on an engine
-advanced by the pen's frame delta, advancing on the frames it is painted and
-standing still on the frames it is not. Neither side reads the wall,
-which is what keeps a plate with a pen in it reproducible. The cascade
-crosses in both directions too: a node's ink and resolved type seed the
-pen it hosts, and a retained element is seeded from the pen's own
-inherited pair. The same feature is the operator family's imperative
-door: `drawWith` is an adding operator that attaches one pen over the
-scope and hands a `ScopeProgram` the pen and the `Scope` as it stood
-when layout settled, so a program draws from the same table
-`connect::ByLane` reads; its output is pixels nothing downstream reads,
-and the keyed spelling is what lets the pen it attaches prune.
-
-Deliberately *not* linked: SigilMediaVideo and SigilScry (their live leaves are
-header-only adapters with their own targets), EnTT (the instancing header
-keeps the registry on your side), SigilGeometry beyond the path leaf and
-the mesh its silhouette shelf rests on (no camera, curve, point operator,
-renderer, codec or device), Diligent, and Qt — Qt identifiers are banned
-outright in exported headers.
-
-What it refuses to be:
-
-- **No markup, parser or external DSL.** Markup can only name
-  pre-registered values; the vocabulary here is C++ values and callables.
-  A serialization schema can be a *producer* of element values, never the
-  API.
-- **No imperative node mutation.** Describe or bind, and nothing else.
-- **No timeline object of its own.** Multi-beat choreography is the
-  engine's (`motion::Engine::timeline`), or bindings windowed over one
-  live phase (`motion::bind(phase, {.from = {low, high}, .clampFrom =
-  true})`).
-- **No surface, loop or thread ownership — outside `texture/`.** The
-  composer is a guest in someone else's canvas, and a host that wants
-  many surfaces makes many composers. `compose::TextureScene` is the one
-  place a surface is owned, because a picture another library samples has
-  to live somewhere and the alternative is every such consumer writing
-  the same three lines.
-- **No scene.** The depth lanes are CSS's model over the retained 2D
-  tree — a node is a plane, projected onto its parent's — and nothing
-  more: planes never intersect, nothing is lit or cast, and a depth is
-  not a position in a world. A camera over the whole picture is still
-  the host's matrix on the canvas — a recording is matrix-independent
-  by construction, so a moving camera invalidates nothing the library
-  holds — and the places that pin pixels to a device rect refuse a
-  perspective matrix explicitly, the host's or a plane's own.
-- **Compositing happens in encoded sRGB, with no linear stage.** Every
-  surface compose paints into is `N32Premul` with no colour space
-  attached, so the `material::Color` you write is the display-encoded number
-  that lands in the byte and a shader's channels are those same numbers.
-  Any weighting of colour channels inside the library uses coefficients
-  defined on encoded values. `Composer::declareInputSpace` lets you state
-  what you believe your values are; a mismatched declaration warns once
-  and performs **no** conversion, because a colour-managed surface would
-  be a breaking change rather than a setting.
-
-### Marks here, lines in SigilDraw, and the words both use
-
-**Compose is the MARK vocabulary; SigilDraw's brush is the LINE
-vocabulary.** What the brush tier's `compose::brush`, `lines::`,
-`styles::` and `decorations::` hold is a comparable value placed across a
-node's outline — a rule, a hatch, a wash, a border — that prunes, caches
-and cascades like any other declaration. What SigilDraw's brush holds is the hand: a tool, the
-dabs it deposits, the strokes and interiors it lays down on a pen. The
-two namespaces stay apart and no function is spelled in both, and where
-a mark wants a pattern's geometry it reads Geometry's.
-
-Every mark takes its ink as a material: `lines::Line`, `lines::Hatch`,
-`lines::RadialHatch`, `PathFormat` and `Border` take a `Fill` — a
-material or the ink in force — and `Shadow`, `styles::BevelPair`,
-`styles::Brackets` and `styles::TickRail` a `material::Material`; a
-colour converts to either. A LOOK laid over a node — an inner shadow, a
-glow, a bevel, scanlines, a stipple — is not a mark but the effects and
-layers of the material it is filled with, so after that a decoration
-names only WHERE a mark sits.
-
-Four words mean different things in neighbouring libraries, and each is
-kept because each is the right word where it stands:
-
-- `Hatch` — one pattern, `geometry::shapes::Hatch` (spacing, angle,
-  taper, origin, inset, cross); `lines::Hatch` strokes it in an ink at a
-  width across a node's outline, and SigilDraw's brush `Hatch` lays a
-  tool's marks along it with jitter.
-- `Line` — `lines::Line` is a patterned line value stroked along a run
-  (casings, waves, ties, markers, dashes); `kit::Line` is a rule element,
-  a box of one small dimension in the ink. SigilDraw names no line type:
-  a segment there is its two points.
-- `Wash` — `compose::Wash` floods a node's outline with a material
-  through a blend mode; SigilDraw's brush `Wash` is a wet pigment
-  deposit inside a polygon.
-- `Shape` — `compose::Shape` is a node's silhouette, an outline answered
-  for its box; `material::sdf::Shape` is the signed-distance silhouette a
-  material draws; SigilDraw's brush `Shape` is the artwork a tool stamps
-  at every dab.
-
----
-
-### Where Skia still shows
-
-Compose's public vocabulary is Geometry's, Material's, Media's, Weave's
-and Motion's: a box is a `geometry::path::Rect`, a point and a size a
-`glm::vec2`, a silhouette a `geometry::path::Outline` answered for a box,
-a fill a `material::Material`, a picture a `media::Image`. Skia is the
-executor behind them, and the crossing is spelled by
-`<sigilgeometry/advanced/Skia.h>` and Material's `skia::` helpers inside the
-library's sources, not in its headers.
-
-**The one door to the renderer is the pen's canvas.** A decoration, a
-`custom()` program and a contour walk's per-sample drawing are handed
-the draw executor's `draw::Pen`; a mark that draws past p5's verbs takes
-`pen.canvas()`, declared in SigilDraw's `Pen.h`. The painter begins a pen
-on its canvas for each mark and ends it after, so the canvas comes back
-as it was found. That is why the kernel links `SigilDraw`.
-
-What else the headers still spell, and why:
-
-- **The host's entrances.** `Composer::draw` takes the canvas a host owns;
-  `snapshot()` answers a recorded picture — `SnapshotOptions::sliceable`
-  records it behind a bounding-box hierarchy for `tiles::window` to slice —
-  and `intrinsicSize()` a Skia size; `picture()` and `image()` take a
-  recording or an image a host already holds; `texture()` and its scene
-  speak the host's image and pixel size. Each is where a host hands Skia
-  work in or takes it out.
-- **Seams the painter implements.** `TextPainter`, the stroke and span
-  resolvers in `Stroke.h` and `MaskResolverOperations::clipRegion` are the
-  interfaces between the kernel and its brush and typography tiers, and
-  they pass the Skia paths both sides draw with.
-- **Skia's own effects, offered as escapes.** `PathFormat::effect` holds
-  the renderer's path effect opaquely; it is built by `pathEffect()` in
-  `<sigilcompose/advanced/PathEffect.h>`, which a consumer includes by
-  name and no default header reaches.
-- **Bakes held inside values.** A stamp brush's
-  tiles, a ribbon's art and a brush's crossing cache keep the picture,
-  image or paths they were made from, so a rebuilt value finds its bake.
-- **The instanced leaf.** `Instances.h` is the sprite batch the direct
-  draw stamps through: its positions, sizes, windows and sheet are the
-  atlas call's own.
-- **Recipe bodies.** A material program's body is written in SkSL, and
-  `TextFx` names that language where a pass is authored.
-
-That list is the boundary, not a queue. Every other entrance speaks the
-libraries above: a fill, an ink, a mask's coverage, a text pass, a
-pattern's bake and a ribbon's surface are a `material::Material`; a
-retained guest's box is a `geometry::path::Rect`, a glyph's origin and a
-placer's points `glm::vec2`, the web view's sampling a
-`material::Sampling`. The executor's paint a material lowers to is the
-painter's own business, read in the sources and never in a header.
-`geometry::arrange`, whose rings, placements and cells the kit's layouts
-and placers step through, answers in `glm::vec2` and
-`geometry::path::Rect`. A brush's geometry pipeline holds
-`geometry::path::Shaper` values, which take and answer a
-`geometry::path::Outline`.
-
-## Build and test
-
-[docs/overview/testing.md](../../../docs/overview/testing.md) is the
-contract every library here is built, tested and measured under: one
-`compose_test` over every feature's `test/` and one `compose_bench` over
-every feature's `bench/`, ctest one entry per CASE, what a case may pin,
-and what a label promises. What is only true of SigilCompose:
-
-**The library is one feature target per directory, and a consumer links
-the tier it draws with**: `SigilComposeCore` (`core/` — the kernel:
-elements, layout, paint, transitions, text, the feed and the instanced
-leaf, as the host of SigilCore's reconciler), `SigilComposeTypography`
-(`typography/` — the text vocabulary, the entrance and the stock text
-effects as tween values, and the engine behind dressed type),
-`SigilComposeBrush` (`brush/` — decorations, lines, brushes, the
-stroke grammar's engine and the mask gates, with `kit/Plate.h` and
-`kit/Strokes.h`),
-`SigilComposeTexture` (`texture/` — a scene painted into a surface and
-handed out as a texture value, a `media::PixelSource` built from a scene),
-`SigilComposeWeb` (`web/` — present only with SigilScry),
-`SigilComposeDraw` (`draw/` — the door to SigilDraw's pen, both ways),
-`SigilComposeTesting` (`testing/`) and `SigilComposeKit` (`kit/` — the
-shelves: the silhouette catalog spelled for a node, the layout schemes
-and the grid, the routers, the placers and the typesetting furniture).
-Each directory holds the target's sources,
-its internal headers, its `test/` and its `bench/`; the public headers
-sit under `include/sigilcompose/<feature>/`. A harness several features
-compose against belongs to none of them, so the shared ones sit at the
-library root: `test/support/`, `test/assets/` and `bench/BenchSupport.h`.
-`SigilCompose` remains as the whole-library name for a consumer outside
-this tree, the way `SigilWeave`, `SigilMotion` and `SigilGeometry` each
-keep one: it is Kit, Brush and Typography, which between them reach
-Core, never the web leaf. The sketch library links it — a sketch draws
-with the whole vocabulary and names no tier — and every other consumer
-here names the feature targets it draws with.
-
-Where a suite sits is what locates it. The kernel's are in `core/test/`
-(elements, the reconciler, layout, paint, transitions, text at rest, the
-feed, the instanced leaf and the shelf it packs on, masks, the depth
-lanes and the shared space, tethers and the field walks); the text
-engine's in `typography/test/` (text data, the text pass, vertical
-writing, motion along paths, the paragraph controls, rich spans, the
-variation drive); the stroke and decoration engine's in `brush/test/`
-(decorations on shapes and on type, lines, the brush kinds and the
-engine under them, the stroke grammar, stamps and strips, the mask
-gates, the paint values this tier spells over SigilMaterial, the pixel
-styles and the kit's stroke presets); the kit's in `kit/test/` (the
-kit's own values, the grid, columns of one story, silhouettes and layout
-schemes, routers, placers, pixel art and its sheet, travel, and the
-queries, studio and instruments over them); and one apiece in
-`texture/test/` (textures as element content), `draw/test/` (a pen
-program hosted in a node), `video/test/` (video frames as element
-content) and `web/test/` (the Ultralight leaf, present only where the
-SDK was found). The library's own sit at the root: the generated probes
-over this page, `TYPOGRAPHY.md` and every chapter under `reference/`,
-and the GPU read-backs. `compose_header_self_test` stands beside them —
-every public header compiled first and alone, which is what makes "each
-header stands on its own" a build fact rather than a claim.
-
-The translation units share `test/support/Host.h` — the
-composer-in-a-raster-surface harness — through a support header of their
-own that includes only what they use. Committed test assets sit in
-`test/assets/`, and the faces more than one library asks of are the
-tree's, reached as `sigil::test::instrument::variable()` and its
-siblings.
-
-Labels are attached to the cases that need them rather than to the
-binary: `gpu` on `ComposeGpu`, `DirectImageDraw` and `ComposeTexture`,
-`ultralight` on `ComposeWeb`, and `fonts` on the two that ask the
-MACHINE for a face — the vertical suite, whose Japanese prose needs a
-whole CJK family, and the one case that asks the installed italics
-whether their ink overhangs the advance. Every other case sets its faces
-from the instruments this repository ships, so it answers the same on
-any machine.
-
-`compose_bench`'s arms sit in each feature's `bench/` over the shared
-`bench/BenchSupport.h`. **A claim about how a cost GROWS lives there
-rather than in a ctest wall-clock ceiling**, because a single size
-cannot show a rate.
-
-**Which node in a scene is slow** is a different question, and the
-painter answers it two ways. `Composer::setProfiling` fills
-`Composer::profile` with one row per node — its label, its total and self
-milliseconds, the cache tier it took and the promotion verdict — for a
-host that wants the table. `COMPOSE_PROF=<ms>` in the environment needs
-no host at all: every draw over that many milliseconds prints as it
-happens (a blit, a picture replay, a live paint, and the bakes those are
-bought with), which is how a headless run says where its time went. Any
-unparsable value means four milliseconds; unset, neither costs a clock
-read.
-
-**Everything the library says, it says through `SkDebugf`** — the
-profile lines above, and every one of the once-per-cause diagnostics a
-silent no-op carries, in every tier: the kernel, typography, brush and
-kit alike. One channel, so a host that redirects Skia's debug output
-captures the whole of what compose reports rather than half of it, and a
-tier that cannot reach the kernel's internal headers still reports
-through the same door. A warning is emitted at most once per distinct
-cause, guarded by `thread_local` state, because a description re-runs
-every frame and a mistake in one is a mistake in all of them.
+Here `gold` is the caller's material. Link `SigilComposeBrush`. Relief keeps
+its layers, effects and live surface channels. It is a decoration;
+ordinary material fills and inks remain available through `fill` and `ink`.
+
+A material Ribbon uses the same lighting and effect path over its swept
+band. `brush::ribbon(profile, material)` keeps the full material; its `Fill`
+overload paints only the colour stack. Layer brushes with `brush::layers`
+when several marks need to share one outline.
+
+Elements can also supply information to a material instead of appearing
+as separate visible layers. Bake an independent tree with `texture()` or
+hold a `TextureScene` for an editable tree. Paint white marks on an opaque
+black ground for a height map, including any blur that shapes their edges.
+Pass `material::image(scene->texture())` to
+`material::surface::normalFromHeight`, then put that result in the shared
+background material's normal channel. The same texture can mask colour,
+roughness or metallic changes. Lettering then changes how the background
+takes light, including where marks overlap. Link `SigilComposeTexture`
+and `SigilMaterialSurface` and include their own headers. Keep the source
+tree independent of the material consuming it to avoid a feedback loop.
+Retain the texture scene; its settled tree does not repaint as the final
+surface's lighting moves.
+
+Leave `Cache::Auto` in place for ordinary scenes. The composer records
+static content and chooses reuse from declared inputs. A custom paint
+program that reads time, input or external state without re-describing
+must use `Cache::None`. Custom decoration schemes must forward their
+animation, overflow, mark width, backdrop, lighting, root-space sampling and borrowing
+capabilities when composed; `DecorationStack` and the stock adaptors do
+that for their members. A scheme that samples root coordinates declares
+`usesWorldSpace()` so a moved ancestor invalidates its held paint.
+
+`Cache::Picture`, `Cache::Texture` and `Cache::Group` express explicit
+reuse choices. Global texture promotion is a separate measured policy,
+and bake density controls raster resolution. Those controls are useful
+when a profile identifies work to change; they are not needed to start a
+scene. `Composer::setProfiling` and `Composer::profile` report per-node
+paint cost and cache decisions. `PromotionPolicy::Eager` is a deterministic
+eligibility-testing mode, not a performance recommendation.
+
+[The caching contract](reference/CACHING.md) states the requirements for
+custom drawing and the reuse policies. [Traps](reference/TRAPS.md) covers
+silent misses, callable equality, lifetime and ordering. Comparable values
+prune automatically; raw callables remain conservative. A keyed callable
+asserts that one comparison key always names the same drawing, so include
+every parameter its body reads in that key.
+
+## Features and boundaries
+
+Link the feature you use:
+
+| Target | Provides |
+|---|---|
+| `SigilComposeCore` | Elements, Composer, layout, transitions, basic text and paint. |
+| `SigilComposeTypography` | Text effects, paths, readings and the text executor. |
+| `SigilComposeBrush` | Stroke and decoration execution, brushes and masks. |
+| `SigilComposeKit` | Stock layouts, components, document roles and drawing recipes. |
+| `SigilComposeDraw` | A SigilDraw pen hosted in a tree, and retained elements drawn by a pen. |
+| `SigilComposeTexture` | A composer and owned surface exposed as a texture value. |
+| `SigilComposeWeb` | Web content as a leaf, when the Ultralight SDK is available. |
+| `SigilComposeTesting` | Consumer test helpers. |
+| `SigilCompose` | Convenience target over Kit, Brush and Typography, including Core. |
+
+Hosted draw, texture and web features are explicit opt-ins. Public headers
+live under `include/sigilcompose/<feature>/`; the
+[header map](reference/HEADERS.md) lists their vocabulary. The
+[reference catalogue](reference/README.md) indexes factories, verbs and
+accepted values, with examples beside each entry.
+
+Values retain their library of origin: outlines and geometry are
+SigilGeometry's, paints and lighting SigilMaterial's, pixels SigilMedia's,
+text and paragraphs SigilWeave's, clocks and animated values SigilMotion's.
+SigilCore owns generic reconciliation and cache decisions. Compose owns
+their execution over Yoga, text state and Skia. It does not re-export
+those libraries' namespaces.
+
+The composer borrows a canvas and owns no window, surface or render loop.
+`TextureScene` owns an offscreen surface because its output must outlive a
+draw. Its size factory makes an N32 raster scene. Its `SkImageInfo` factory
+accepts premultiplied RGBA/BGRA byte, RGBA F16 and RGBA F32 formats and keeps
+the color space. F16 retains HDR values; F32 is raster-only. Device adoption
+keeps the requested format and profile, leaves the scene intact on failure,
+and clears its pixels and caches on success. Fonts, device and context must
+outlive the scene and its texture values. A device `image()` belongs to its
+Graphite context; it is not a portable raster readback. `SceneSource` reads
+the latest scene image and compares by its captured revision, rather than
+preserving historical pixels.
+
+The depth features project planes in a 2D tree; use SigilWorld for a
+world scene. [Depth](reference/DEPTH.md) explains projection and hit testing.
+
+Compose's pixel caches keep the borrowed canvas's color type and color space,
+with premultiplied alpha. Float destinations retain values above one through
+texture, group, atlas and brush-art bakes. Destination format changes invalidate
+the bakes and recordings that contain them. One-shot snapshots have no
+destination and default to N32 for embedded pixel bakes. Compose introduces no
+linear compositing stage or input-space conversion. `Composer::setView` applies
+a final output filter without changing the per-node caches.
+
+Skia remains at host and executor boundaries: borrowed canvases, recorded
+pictures, image inputs and the private paint seams. A paint program uses a
+SigilDraw pen and can reach its canvas when it needs lower-level drawing.
+A plot's domains and scale mappings belong to SigilData in its consumer;
+Compose supplies the layout and marks.
+
+## Working on the library
+
+[core/README.md](core/README.md) maps the private implementation's ownership
+and reading path. Feature targets are deliberate dependencies; the
+internal description, style, runtime, layout, paint and cache directories
+remain one kernel, not additional libraries.
+
+[The shared testing contract](../../../docs/overview/testing.md) describes
+builds, tests, labels and benchmarks. Compose has one `compose_test` and
+one `compose_bench` assembled from its feature directories. CTest selects
+individual cases. Public-header tests compile each exported header alone;
+each feature probe uses only its originating target's requirements.
+Documentation probes check names in this page and its registered chapters.
+The first program above is also a standalone consumer example and must
+compile with its stated link targets.
+
+For retained rendering tests, include
+`<sigilcompose/testing/Scene.h>` and link `SigilComposeTesting`.
+`test::Scene` takes a font context and raster dimensions. Describe through
+its composer, call `frame(seconds)` with an explicit time step, and inspect
+`pixel(x, y)` or an owned `pixels()` snapshot. It needs no window or GPU.
+Draw adapter cases reuse the pen's raster fixture and carry the
+`integration` label; native module tests configure and run a separate
+consumer without the product host.
+
+Committed test fonts keep ordinary cases independent of the machine.
+Device and platform-font cases carry labels for their dependencies.
+Use the benchmark for scaling and `Composer::profile` for a costly node;
+`COMPOSE_PROF=<ms>` reports slow paints through Skia's debug output when a
+host has not enabled profiling. Compose's warnings use that same output
+channel and suppress repeated causes.

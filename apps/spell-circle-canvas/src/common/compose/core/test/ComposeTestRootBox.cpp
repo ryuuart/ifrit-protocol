@@ -35,3 +35,39 @@ TEST(ComposeRootBox, ARootsPercentageIsOfTheCanvas) {
   EXPECT_FLOAT_EQ(root.width(), 60);
   EXPECT_FLOAT_EQ(root.height(), 15);
 }
+
+namespace {
+
+class RootSizePolicy : public ::testing::TestWithParam<int> {};
+
+}  // namespace
+
+TEST_P(RootSizePolicy, AnEmptyViewportRestoresIntrinsicUnstatedAxes) {
+  Host host(120, 60);
+  Element root = box().key("root").children({box().width(40).height(20)});
+  if (GetParam() & 1) root.width(70);
+  if (GetParam() & 2) root.height(35);
+  host.composer.render(root);
+  host.frame();
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("root")).width(),
+                  GetParam() & 1 ? 70 : 120);
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("root")).height(),
+                  GetParam() & 2 ? 35 : 60);
+
+  host.composer.setSize({0, 0});
+  host.frame();
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("root")).width(),
+                  GetParam() & 1 ? 70 : 40);
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("root")).height(),
+                  GetParam() & 2 ? 35 : 20);
+
+  host.composer.setSize({100, 50});
+  host.frame();
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("root")).width(),
+                  GetParam() & 1 ? 70 : 100);
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("root")).height(),
+                  GetParam() & 2 ? 35 : 50);
+}
+
+INSTANTIATE_TEST_SUITE_P(ComposeRootBox, RootSizePolicy,
+                         ::testing::Values(0, 1, 2, 3));

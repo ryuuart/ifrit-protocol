@@ -11,7 +11,7 @@
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 
-#include "FillLowering.h"
+#include "paint/FillLowering.h"
 
 namespace sigil::compose::detail {
 

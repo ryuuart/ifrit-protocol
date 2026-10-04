@@ -6,6 +6,7 @@
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Grid.h>
 
+#include <array>
 #include <string>
 #include <vector>
 
@@ -160,16 +161,17 @@ TEST(ComposeLayouts, AlongPathUsesTheSelectedContoursClosure) {
   for (bool firstClosed : {false, true}) {
     SCOPED_TRACE(firstClosed);
     layouts::AlongPath scheme{.path = skiaShape([firstClosed] {
-      SkPathBuilder path;
-      path.moveTo(0, 0).lineTo(100, 0);
-      if (firstClosed) path.close();
-      path.moveTo(0, 50).lineTo(100, 50);
-      if (!firstClosed) path.close();
-      return path.detach();
-    })};
+                                SkPathBuilder path;
+                                path.moveTo(0, 0).lineTo(100, 0);
+                                if (firstClosed) path.close();
+                                path.moveTo(0, 50).lineTo(100, 50);
+                                if (!firstClosed) path.close();
+                                return path.detach();
+                              })};
     Arrangement arrangement;
     arrangement.box = geometry::path::Rect::of({0, 0}, {100, 100});
-    arrangement.children.resize(2);
+    std::array<Arrangement::Child, 2> children;
+    arrangement.children = children;
     scheme.arrange(arrangement);
     const auto& placed = arrangement.children;
     EXPECT_FLOAT_EQ(placed[0].rect.centre().x, 0);
@@ -284,7 +286,8 @@ TEST(ComposeLayouts, RadialPlacesAnOblongRingToTheBit) {
   // a picture.
   Arrangement ring;
   ring.box = geometry::path::Rect::of({0, 0}, {300, 180});
-  ring.children.resize(7);
+  std::array<Arrangement::Child, 7> children;
+  ring.children = children;
   for (auto& child : ring.children) child.size = {10, 10};
   layouts::Radial{.facing = true}.arrange(ring);
   expectPlaced(ring, {{0x1.22p+7f, 0x1.ap+3f, 0x0p+0f},
@@ -307,7 +310,8 @@ TEST(ComposeLayouts, AlongPathTurnsWithTheCurveToTheBit) {
                           .facing = true};
   Arrangement curve;
   curve.box = geometry::path::Rect::of({0, 0}, {300, 180});
-  curve.children.resize(5);
+  std::array<Arrangement::Child, 5> children;
+  curve.children = children;
   for (auto& child : curve.children) child.size = {10, 10};
   walk.arrange(curve);
   expectPlaced(curve, {{-0x1.4p+2f, 0x1.7cp+6f, -0x1.0d8542p+5f},

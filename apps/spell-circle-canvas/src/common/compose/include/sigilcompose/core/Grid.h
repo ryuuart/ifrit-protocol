@@ -3,7 +3,7 @@
 /** @file
  * @ingroup compose-core
  *
- * The grid: ONE layout value over the LayoutScheme seam that divides a
+ * The grid: ONE layout value over the arranging seam that divides a
  * container into sized tracks, names rectangular regions of those tracks,
  * and places a child in a region by name.
  *
@@ -21,7 +21,7 @@
 #include <vector>
 
 /** THE PLACEMENT SCHEMES a container may be given instead of flex —
- *  values over the `LayoutScheme` seam that `Element::layout()` takes.
+ *  values over the `Arranging` seam that `Element::operators()` takes.
  *
  *  `Grid` is the general one: it divides the container into sized
  *  tracks, lets a picture of names claim rectangular regions of them,
@@ -153,7 +153,7 @@ struct Grid {
   Align across = Align::Stretch;
   Align down = Align::Stretch;
 
-  /** This scheme reads `LayoutInput::childMinSizes`: a `Content` floor is
+  /** This scheme reads each child's `minSize`: a `Content` floor is
    *  a child's minimum, not its measured size. */
   static constexpr bool readsChildMinSizes = true;
   /** A child's percentages are of the box its cells make, as CSS resolves
@@ -176,8 +176,8 @@ struct Grid {
     std::vector<float> columnX, rowY;
   };
 
-  [[nodiscard]] Resolved solve(const LayoutInput& in) const;
-  [[nodiscard]] std::vector<geometry::path::Rect> place(const LayoutInput& in) const;
+  [[nodiscard]] Resolved solve(const Arrangement& in) const;
+  void arrange(Arrangement& in) const;
 };
 
 }  // namespace sigil::compose::layouts

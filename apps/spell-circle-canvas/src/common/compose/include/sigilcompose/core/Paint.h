@@ -12,24 +12,25 @@
  * which the three lines below carry onto a node.
  */
 
-#include <glm/vec2.hpp>
-#include <sigilgeometry/path/Outline.h>
-#include <sigilgeometry/path/Transform.h>
+#include <include/core/SkImageInfo.h>
 #include <sigilcompose/core/PaintBox.h>
 #include <sigilcompose/core/Var.h>
 #include <sigilcore/callable/Callable.h>
+#include <sigilgeometry/path/Outline.h>
+#include <sigilgeometry/path/Transform.h>
+#include <sigilmaterial/advanced/FrameData.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Backface.h>
-#include <sigilmaterial/advanced/FrameData.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
-#include <concepts>
 #include <array>
 #include <cassert>
+#include <concepts>
 #include <cstdint>
 #include <functional>
+#include <glm/vec2.hpp>
 #include <memory>
 #include <optional>
 #include <span>
@@ -37,7 +38,6 @@
 #include <tuple>
 #include <utility>
 #include <vector>
-
 
 namespace sigil::weave {
 class FontContext;
@@ -97,8 +97,9 @@ struct Fill {
       : Fill(fromMaterial(material::Material(std::forward<Recipe>(recipe)))) {}
 
   /** A material as a fill: a flat colour stays the colour it is, anything
-   *  else is the paint it lowers to. Its effects and surface are not part
-   *  of a fill; `fill(material)` places them. */
+   *  else carries its base paint and layers, including authored shaders.
+   *  Pass the material directly to fill() or ink() to retain its effects
+   *  and surface response. */
   static Fill fromMaterial(const material::Material& material);
 
   static Fill color(material::Color c) {
@@ -236,6 +237,14 @@ struct PaintContext {
   geometry::path::Outline silhouette;
   double elapsedSeconds = 0.0;
   float contentScale = 1.0f;
+  /** Where a paint resolved for this node says that it read
+   *  `contentScale`, so what the composer keeps of the node is drawn
+   *  again when that scale changes. Null outside a composer. */
+  bool* contentScaleRead = nullptr;
+  /** The owning draw's pixel format, also available inside picture recordings
+   *  whose canvases have no image info. Pixel bakes keep its precision and
+   *  color space while using premultiplied alpha. */
+  SkImageInfo destination = SkImageInfo::MakeN32Premul(1, 1);
   /** THE RECORDER THE NODE IS DRAWN THROUGH when it is drawn straight
    *  onto a device canvas: a material texture whose pixels stand on that
    *  device — a cook on the GPU, a frame another application publishes —
@@ -265,8 +274,8 @@ struct PaintContext {
    *  below) so the element can register the keys without introspecting a
    *  type-erased value; the derive pass then resolves them on the same
    *  flat edge-store walk connectors and contentFlowAround ride. */
-  const std::vector<std::pair<std::string, geometry::path::Outline>>*
-      borrowed = nullptr;
+  const std::vector<std::pair<std::string, geometry::path::Outline>>* borrowed =
+      nullptr;
 
   /** The borrowed outline for `key`, or an empty one. */
   geometry::path::Outline borrowedPath(const std::string& key) const {
@@ -353,8 +362,7 @@ struct PaintContext {
  *  this library opens.
  *  Incomparable, like every callable — see `Decoration::operator==` for
  *  what that costs a node that carries one. */
-using PaintProgram =
-    core::Callable<void(draw::Pen&, const PaintContext&)>;
+using PaintProgram = core::Callable<void(draw::Pen&, const PaintContext&)>;
 
 /** A fill written as a REFERENCE — the ink in force, or a custom property —
  *  resolved against @p ctx into the colour it names; a fill written as a

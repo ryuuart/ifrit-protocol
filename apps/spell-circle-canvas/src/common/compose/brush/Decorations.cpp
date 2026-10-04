@@ -3,27 +3,28 @@
  * shadows, lattice slices, contour walks, washes and borders.
  */
 
-#include <sigilmaterial/skia/Texture.h>
-#include <sigildraw/Pen.h>
 #include <include/core/SkClipOp.h>
 #include <include/core/SkPathBuilder.h>
+#include <include/core/SkPicture.h>
 #include <include/effects/Sk1DPathEffect.h>
 #include <include/effects/SkDashPathEffect.h>
-#include <include/core/SkPicture.h>
 #include <sigilcompose/advanced/PathEffect.h>
 #include <sigilcompose/brush/Decorations.h>
+#include <sigildraw/Pen.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/path/Contour.h>
 #include <sigilgeometry/path/Edges.h>
 #include <sigilgeometry/path/Numeric.h>
-#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/skia/Texture.h>
 #include <sigilskia/draw/Direct.h>
 
 #include <cmath>
-#include "FillLowering.h"
+
 #include "Ink.h"
+#include "paint/FillLowering.h"
 
 namespace sigil::compose {
 
@@ -51,11 +52,11 @@ void Shadow::paint(draw::Pen& pen, const PaintContext& ctx) const {
   if (blur > 0)
     p.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, blur * 0.5f));
   canvas.save();
-  if (knockout) canvas.clipPath(geometry::path::toSk(ctx.outline), SkClipOp::kDifference, true);
-  canvas.translate(bindOffsetX ? bindOffsetX->value()
-                               : offset.x,
-                   bindOffsetY ? bindOffsetY->value()
-                               : offset.y);
+  if (knockout)
+    canvas.clipPath(geometry::path::toSk(ctx.outline), SkClipOp::kDifference,
+                    true);
+  canvas.translate(bindOffsetX ? bindOffsetX->value() : offset.x,
+                   bindOffsetY ? bindOffsetY->value() : offset.y);
   canvas.drawPath(geometry::path::toSk(ctx.outline), p);
   canvas.restore();
 }
@@ -80,8 +81,9 @@ void PathFormat::paint(draw::Pen& pen, const PaintContext& ctx) const {
 
   sk_sp<SkPathEffect> chosen = effect ? effect->skia : nullptr;
   if (!chosen && stampAdvance > 0 && !stampPath.empty())
-    chosen = SkPath1DPathEffect::Make(geometry::path::toSk(stampPath), stampAdvance, phase(),
-                                      SkPath1DPathEffect::kRotate_Style);
+    chosen =
+        SkPath1DPathEffect::Make(geometry::path::toSk(stampPath), stampAdvance,
+                                 phase(), SkPath1DPathEffect::kRotate_Style);
   if (!chosen && !dashIntervals.empty())
     chosen = SkDashPathEffect::Make(
         SkSpan(dashIntervals.data(), dashIntervals.size()), phase());
@@ -91,8 +93,7 @@ void PathFormat::paint(draw::Pen& pen, const PaintContext& ctx) const {
   const SkPath outline = geometry::path::toSk(ctx.outline);
   const SkPath* drawn = &outline;
   SkPath windowed;
-  const float off =
-      trimPhase ? trimPhase->value() : trimOffset;
+  const float off = trimPhase ? trimPhase->value() : trimOffset;
   const float s0 = trimStart + off, e0 = trimEnd + off;
   const float span = e0 - s0;
   if (span > 0.0f && span < 1.0f) {
@@ -109,7 +110,8 @@ void PathFormat::paint(draw::Pen& pen, const PaintContext& ctx) const {
         // A closed contour has a real seam, so joining both pieces avoids
         // doubled caps there. An open route has no seam: continuing without
         // a moveTo would invent a straight chord from its end to its start.
-        geometry::path::appendSegment(window, contour, 0, e * len, !contour.closed());
+        geometry::path::appendSegment(window, contour, 0, e * len,
+                                      !contour.closed());
       }
     }
     windowed = window.detach();
@@ -122,8 +124,9 @@ void PathFormat::paint(draw::Pen& pen, const PaintContext& ctx) const {
     // The alignment clips to what the SHAPE encloses, which is the outline
     // itself unless an adaptor narrowed the outline to runs that bound no
     // area and left the shape in `silhouette`.
-    const SkPath& shape =
-        ctx.silhouette.empty() ? geometry::path::toSk(ctx.outline) : geometry::path::toSk(ctx.silhouette);
+    const SkPath& shape = ctx.silhouette.empty()
+                              ? geometry::path::toSk(ctx.outline)
+                              : geometry::path::toSk(ctx.silhouette);
     canvas.save();
     canvas.clipPath(
         shape,
@@ -143,8 +146,7 @@ void Slice::paint(draw::Pen& pen, const PaintContext& ctx) const {
   if (!img) return;
   const SkRect dst = SkRect::MakeWH(ctx.size.x, ctx.size.y);
   skia::draw::drawLattice(canvas, std::move(img), xDivs, yDivs, dst,
-                          material::skia::toSkFilterMode(filter),
-                          density);
+                          material::skia::toSkFilterMode(filter), density);
 }
 
 /** The walk's replayed stamp and the node it was baked from. */
@@ -209,6 +211,10 @@ void ContourWalk::paint(draw::Pen& pen, const PaintContext& ctx) const {
   }
 }
 
+bool Wash::usesWorldSpace() const {
+  return material::skia::paint(material).usesWorldSpace();
+}
+
 void Wash::paint(draw::Pen& pen, const PaintContext& ctx) const {
   SkCanvas& canvas = *pen.canvas();
   const float a = amount < 0.0f ? 0.0f : (amount > 1.0f ? 1.0f : amount);
@@ -242,9 +248,9 @@ void Border::paint(draw::Pen& pen, const PaintContext& ctx) const {
   const float heaviest =
       mode == Mode::Weighted ? std::max(width, cornerWidth) : width;
   if (ctx.outline.empty() || heaviest <= 0) return;
-  const SkPath base = inset != 0
-                          ? geometry::path::insetOutline(geometry::path::toSk(ctx.outline), inset)
-                          : geometry::path::toSk(ctx.outline);
+  const SkPath base = inset != 0 ? geometry::path::insetOutline(
+                                       geometry::path::toSk(ctx.outline), inset)
+                                 : geometry::path::toSk(ctx.outline);
 
   // A fill written as the ink in force, or as a custom property, takes
   // its colour from the node the border is painted under.
@@ -272,17 +278,24 @@ void Border::paint(draw::Pen& pen, const PaintContext& ctx) const {
       strokeWith(base, width);
       break;
     case Mode::Bracket:
-      strokeWith(geometry::path::toSk(lines::cornerBrackets(geometry::path::fromSk(base), corner, cornerAngleDeg)), width);
+      strokeWith(geometry::path::toSk(lines::cornerBrackets(
+                     geometry::path::fromSk(base), corner, cornerAngleDeg)),
+                 width);
       break;
     case Mode::Gapped:
-      strokeWith(geometry::path::toSk(lines::cornerGaps(geometry::path::fromSk(base), corner, cornerAngleDeg)), width);
+      strokeWith(geometry::path::toSk(lines::cornerGaps(
+                     geometry::path::fromSk(base), corner, cornerAngleDeg)),
+                 width);
       break;
     case Mode::Weighted:
       // Two passes over complementary windows: the runs BETWEEN corners at
       // `width`, then the corners themselves at `cornerWidth` — a rule that
       // thickens where it turns.
-      strokeWith(geometry::path::toSk(lines::cornerGaps(geometry::path::fromSk(base), corner, cornerAngleDeg)), width);
-      strokeWith(geometry::path::toSk(lines::cornerBrackets(geometry::path::fromSk(base), corner, cornerAngleDeg)),
+      strokeWith(geometry::path::toSk(lines::cornerGaps(
+                     geometry::path::fromSk(base), corner, cornerAngleDeg)),
+                 width);
+      strokeWith(geometry::path::toSk(lines::cornerBrackets(
+                     geometry::path::fromSk(base), corner, cornerAngleDeg)),
                  cornerWidth > 0 ? cornerWidth : width);
       break;
   }

@@ -40,7 +40,9 @@ sound model; nothing below them changes kernel semantics.
   force, and `Fill::var`, a custom property — through `resolveRef`, which
   every consumer holding a `PaintContext` runs a fill through; the
   context carries the node's `PaintContext::ink`, `PaintContext::font`
-  and `PaintContext::vars` for it. What a colour BECOMES is
+  and `PaintContext::vars` for it. `PaintContext::destination` carries the
+  owning draw's pixel format through recordings and isolated mark passes.
+  What a colour BECOMES is
   SigilMaterial's vocabulary, spelled from it — `material::withAlpha`,
   `material::scale`, `material::lighten` and `material::mixLinear`.
 - `core/TextPainter.h` — the seam the kernel draws dressed type through:
@@ -65,12 +67,16 @@ sound model; nothing below them changes kernel semantics.
   `Mask`.
 - `core/Layout.h` — `Dimension` and its literals, `Edges`, `FlexDirection`,
   `FlexWrap`, `Display`, `BoxSizing`, `Align`, `Justify`, `Echo`, `Cache`,
-  `LayoutInput` / `LayoutScheme`, `CellSpan`, and the
+  `Arrangement`, `CellSpan`, `StatedLength`, `StatedSize`, `SizeInBox` and the
   `ComponentProperties` / `ComponentFunction` concepts. A `Dimension`
   also takes SigilWeave's `Length` (`em`, `rem`, `lh`) and a `VarRef`, the
   relative units the cascade resolves, with `pw` and `ph` — the canvas's own
-  width and height — resolved in the same pass. `LayoutInput::attribute`
-  reads a child's fact by index and name.
+  width and height — resolved in the same pass. `Arrangement::children`
+  borrows one span of `Arrangement::Child` records: measured sizes,
+  baselines, cells, area names and facts, plus mutable placements and turns.
+  Each child's `attribute` and `number` read its facts; `sizeIn` resolves
+  its stated percentages in a box; `place`, `centreAt` and `turn` write
+  operator output directly onto the record.
 - `core/FontStyle.h` — `FontStyle`, CSS's `font-style` as a value:
   `FontStyle::Normal`, `FontStyle::Italic` and `FontStyle::oblique`.
 - `core/LineSetting.h` — `TextWrap` and `TextJustify`, CSS's keywords
@@ -84,11 +90,8 @@ sound model; nothing below them changes kernel semantics.
 - `core/Operator.h` — the operator seam: `Operator`, the comparable value
   `Element::operators` holds, built from anything satisfying `Arranging`
   or `Adding` (with `ArrangingOperator` and `AddingOperator` the
-  comparable forms) or `LayoutScheme`, carrying the `zIndex` and
-  `styleClass` its additions take; `Arrangement` and
-  `Arrangement::Child`, what an arranging operator is handed — each
-  child's size, baseline, cells, area and facts, and `place`, `centreAt`
-  and `turn` to answer with; `Scope` and `Scope::Node`, what an adding
+  comparable forms), carrying the `zIndex` and `styleClass` its additions
+  take; `Scope` and `Scope::Node`, what an adding
   operator is handed — every settled node's key, facts, classes, bounds
   and outline, `find`, `having` and `withClass` to reach them, and
   `attach` on the scope or on a node to answer with; and
@@ -132,6 +135,7 @@ sound model; nothing below them changes kernel semantics.
 - `core/verbs/Cascade.h` — `CascadeVerbs`: `paragraph` and its longhands
   `lineHeight`, `textAlign`, `textIndent`, `writingMode`, `hyphens`,
   `textWrap`, `textJustify`, `var`, `varDefaults`, `imageRendering`, `lighting`,
+  `environment`,
   and the keywords `inherit`, `initial`, `unset` — what a node declares
   to everything under it.
 - `core/verbs/Paint.h` — `PaintVerbs`: `fill`, in every form a surface
@@ -174,7 +178,7 @@ sound model; nothing below them changes kernel semantics.
   by. This is the header a consumer includes: it brings
   every verb family and every kind of node with it, and a family's own
   header is for a value that inherits the family.
-- `core/Factories.h` — the functions that start one: `box`, `stack`,
+- `core/Factories.h` — the functions that start one: `box`, `scene`, `light`, `stack`,
   `positioned`, `text`, `frame`, `image` (an `media::Image`, or a
   raw `SkImage` with a `material::Fit` — `Stretch`, `Contain`,
   `Cover` or `Native` — which is
@@ -228,7 +232,8 @@ sound model; nothing below them changes kernel semantics.
   `kit::SpriteSheet` packs its sprites with.
 - `core/Instances.h` — the instanced sprite leaf: `instancing::Pool`,
   the struct-of-arrays store on your side of the seam; `instancing::CellSheet`,
-  the cells baked once from element trees; `instancing::instances`, the
+  the cells baked from element trees in the destination's pixel format,
+  keeping one format at a time; `instancing::instances`, the
   leaf that stamps the pool in one draw; and `instancing::pick`, the
   inverse of the stamp. The fillers that arrange a pool are the kit's
   (`kit/Placers.h`).
@@ -336,12 +341,11 @@ the value is unchanged: make it once and keep it.
 SigilGeometry's, spelled `geometry::shapes::` from
 `<sigilgeometry/kit/Silhouettes.h>`: a comparable `outline(glm::vec2)` value
 needs nothing of a component tree, and every one of them prunes a shaped
-node exactly as an unshaped one prunes. `kit/Layouts.h` holds the placement schemes for the `layout()`
-seam (`layouts::Radial`, `AlongPath`, `Diagonal`,
-`BaselineGrid`, `Jittered`) — each one a placement FUNCTION an author
-could have written out. `core/Table.h` stands beside the seam instead,
-because the auto table is an algorithm and not a formula, and so does
-`core/Grid.h`.
+node exactly as an unshaped one prunes. `kit/Layouts.h` holds stock
+arrangers (`layouts::Radial`, `AlongPath`, `Diagonal`, `BaselineGrid`,
+`Jittered`). `core/Table.h` and `core/Grid.h` hold track-solving algorithms.
+All implement `arrange(Arrangement&)` and can be passed to `layout()` or
+`Element::operators` without an adapter.
 
 `layouts::Grid` is the one arrangement a page divides into — equal
 shares, unequal columns sized by what is in them, a fixed rail beside a
@@ -389,34 +393,29 @@ a track nothing fills leaves no trace in the placed rects, so a study
 reproducing a printed page cannot read the grid back off them.
 
 A content floor is the second intrinsic contribution, and it is
-`LayoutInput::childMinSizes`: a text leaf's longest unbreakable run,
+`Arrangement::Child::minSize`: a text leaf's longest unbreakable run,
 measured at a nil width, and everything else's measured size. A scheme's
 placed width remeasures horizontal text before its content-sized rows settle;
 the placed depth does the same for vertical text and content-sized columns.
 The scheme does not re-describe children or infer a smaller intrinsic size
 for a box. The minimum is
 filled only for a scheme that declares `readsChildMinSizes` — the concept
-`SizesFromContentMinima` — because the text minimum costs a measure per
+`ReadsChildMinSizes` — because the text minimum costs a measure per
 child. THE ONE THING A CONTENT TRACK NEEDS FROM ITS CONTAINER is that the
 container range its children at their own size: a container that stretches
 them measures every one at its own width, so the track would be sized by
 the container the content is about to be fitted into and the two would
 chase each other.
 
-**A scheme sees one thing about a child it could not measure: what the
-child CLAIMED of it.** `LayoutInput` carries the container's size, every
-child's measured size and every child's first baseline — all facts a
-layout pass established — plus `LayoutInput::childCells`, one `CellSpan`
-per child, written by `Element::gridCells` and `Element::gridCellAlign`, and
-`LayoutInput::childAreas`, the region name `Element::gridArea` wrote, empty
-for a child that named none. The name sits beside the span rather than in
-it because a string on the properties of every node in the tree is what the
-node's size budget forbids, and a named region is rare. Both are on the
-CHILD and not in a list the scheme carries beside it, because a parallel list
-has nothing to check itself against: insert or reorder one child and
-every entry after it silently addresses the wrong one, taking another
-cell's span, alignment and origin, with no error and a picture that still
-looks plausible. `CellSpan::declared` is what a scheme reads to tell
+**A layout reads the child's claims beside its measurements.**
+`Arrangement` carries the container box and a borrowed span of child
+records. Each `Arrangement::Child` has its measured size, first baseline,
+`cells` written by `Element::gridCells` and `Element::gridCellAlign`, and
+`area` written by `Element::gridArea`, empty for a child that named none.
+These fields move with the child when it is inserted or reordered.
+Layouts write the child's rectangle directly onto the same record;
+ordinary schemes and custom operators share this call.
+`CellSpan::declared` is what a scheme reads to tell
 "cell (0,0)" from "wherever you like", so a table can flow the children
 that said nothing into the cells no child claimed. `layouts::Table` and
 `layouts::Grid` are placed entirely by it — the grid resolving a name to
@@ -443,7 +442,7 @@ which is what puts every column of a real page on a fractional pixel.
 
 A column is solved BETWEEN TWO WIDTHS and not from one. What its content
 wants is the widest thing in it; what its content needs is the narrowest
-that thing goes without spilling, which is `LayoutInput::childMinSizes`
+that thing goes without spilling, which is `Arrangement::Child::minSize`
 and is why the scheme declares `readsChildMinSizes`. Given less room than
 the columns want, each gives up the same fraction of the distance between
 its two widths, so a column with nothing to give up gives nothing;
@@ -783,8 +782,12 @@ layout, its shaping, its caches and its bindings carry from frame to
 frame, and seeded from the pen's inherited ink and font so the tree
 cascades from where the pen stands.
 
-**Testing — `testing/Checks.h`.** A separate target, `SigilComposeTesting`,
-which verifies generated geometry and reads back what was
+**Testing — `testing/Scene.h` and `testing/Checks.h`.** A separate target,
+`SigilComposeTesting`, supplies a retained raster scene and geometric checks.
+`test::Scene` owns an engine, composer and surface, with explicit frame steps
+and pixel readback under the caller's font context.
+
+`testing/Checks.h` checks generated geometry and reads back what was
 drawn, in `namespace test` (GoogleTest owns `::testing`): `test::coverage`, `test::widthAlong`, `test::endpointDegrees`,
 `test::rasterize` and the feed `test::report`. Both geometry checks ask
 one question of a figure hundreds of thousands of times, so both resolve

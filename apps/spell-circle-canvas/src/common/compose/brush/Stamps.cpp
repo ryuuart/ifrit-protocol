@@ -11,10 +11,10 @@
  * disagree about what a stamp at a sample means.
  */
 
-#include <sigildraw/Pen.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Stamps.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/path/Numeric.h>
 
 #include <algorithm>
@@ -25,9 +25,9 @@
 #include <vector>
 
 #include "BakedArt.h"
-#include "StampCache.h"
-#include "sigilgeometry/path/Contour.h"
+#include "cache/StampCache.h"
 #include "sigilgeometry/advanced/Skia.h"
+#include "sigilgeometry/path/Contour.h"
 
 namespace sigil::compose::brush {
 
@@ -58,9 +58,8 @@ std::vector<PathSample> placementSamples(const SkPath& path, const Placement& p,
                               : p.offset;
       auto sampleAt = [&](float d) {
         if (const auto sample = contour.at(d))
-          out.push_back({sample->position,
-                         sample->tangent, d,
-                         len > 0 ? d / len : 0});
+          out.push_back(
+              {sample->position, sample->tangent, d, len > 0 ? d / len : 0});
       };
       if (p.mode == Mode::CentralPoint) {
         sampleAt(len * 0.5f);
@@ -109,8 +108,9 @@ std::vector<PathSample> placementSamples(const SkPath& path, const Placement& p,
     switch (p.mode) {
       case Mode::Vertex:
         for (size_t i = 0; i < c.size(); ++i)
-          out.push_back(
-              {geometry::path::fromSk(c[i]), geometry::path::fromSk(tangentAt(i)), 0, n > 1 ? (float)i / (n - 1) : 0});
+          out.push_back({geometry::path::fromSk(c[i]),
+                         geometry::path::fromSk(tangentAt(i)), 0,
+                         n > 1 ? (float)i / (n - 1) : 0});
         break;
       case Mode::FirstVertex:
         out.push_back({geometry::path::fromSk(c.front()),
@@ -122,8 +122,9 @@ std::vector<PathSample> placementSamples(const SkPath& path, const Placement& p,
         break;
       case Mode::InnerVertices:
         for (size_t i = 1; i + 1 < c.size(); ++i)
-          out.push_back(
-              {geometry::path::fromSk(c[i]), geometry::path::fromSk(tangentAt(i)), 0, n > 1 ? (float)i / (n - 1) : 0});
+          out.push_back({geometry::path::fromSk(c[i]),
+                         geometry::path::fromSk(tangentAt(i)), 0,
+                         n > 1 ? (float)i / (n - 1) : 0});
         break;
       case Mode::SegmentCenter:
         for (size_t i = 0; i + 1 < c.size(); ++i) {
@@ -327,9 +328,7 @@ void Pattern::paint(draw::Pen& pen, const PaintContext& ctx) const {
         const float d = a + slot * ((float)i + 0.5f);
         if (const auto at = contour.at(d))
           sideSlots.push_back(
-              {{at->position,
-                at->tangent, d, len > 0 ? d / len : 0},
-               sx});
+              {{at->position, at->tangent, d, len > 0 ? d / len : 0}, sx});
       }
     }
 
@@ -347,21 +346,17 @@ void Pattern::paint(draw::Pen& pen, const PaintContext& ctx) const {
         // silent zero rotation. Fall back to the outgoing leg.
         if (dir.length() < 1e-3f || corner->align == CornerAlign::Outgoing)
           dir = geometry::path::toSk(hit.out);
-        caps.push_back({{at->position, geometry::path::fromSk(dir), hit.distance,
-                         len > 0 ? hit.distance / len : 0},
+        caps.push_back({{at->position, geometry::path::fromSk(dir),
+                         hit.distance, len > 0 ? hit.distance / len : 0},
                         cache->corner.get()});
       }
     if (!closed && cache->start) {
       if (const auto at = contour.at(head * 0.5f))
-        caps.push_back({{at->position,
-                         at->tangent, 0, 0},
-                        cache->start.get()});
+        caps.push_back({{at->position, at->tangent, 0, 0}, cache->start.get()});
     }
     if (!closed && cache->end) {
       if (const auto at = contour.at(len - tail * 0.5f))
-        caps.push_back({{at->position,
-                         at->tangent, len, 1},
-                        cache->end.get()});
+        caps.push_back({{at->position, at->tangent, len, 1}, cache->end.get()});
     }
   }
 

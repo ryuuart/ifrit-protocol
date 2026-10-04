@@ -1,0 +1,474 @@
+/** @file
+ * Recording bounds: the rect a node's own paint covers, the motion path a
+ * travelling node follows, and the subtree union a recording is culled by.
+ */
+
+#include <include/core/SkImageFilter.h>
+#include <include/core/SkPath.h>
+#include <sigilcompose/core/Measure.h>
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilgeometry/path/Contour.h>
+#include <sigilgeometry/path/Numeric.h>
+#include <sigilgeometry/path/Pose.h>
+
+#include <algorithm>
+#include <cmath>
+#include <memory>
+#include <optional>
+#include <utility>
+#include <variant>
+
+#include "PaintInternal.h"
+#include "runtime/ComposeRuntime.h"
+
+namespace sigil::compose {
+
+using namespace detail;
+
+// ---------------------------------------------------------------------------
+// Recording bounds
+
+namespace {
+
+/** HOW FAR OFF ITS BOX A NODE'S OWN PAINT REACHES, as one number: the
+ *  largest bleed any decoration, stroke pass, band profile, echo offset,
+ *  textFx track or material declares. Every carrier here answers the same
+ *  over-report-is-safe contract, because what this number is for is a
+ *  bounds — a layer, a cull, a bake — and under-reporting one truncates
+ *  ink with no diagnostic. */
+float declaredBleed(const Instance& inst, SkSize skiaSize) {
+  const glm::vec2 size{skiaSize.width(), skiaSize.height()};
+  const ElementNode& node = inst.painted();
+  float bleed = 0;
+
+  for (const Decoration& d : node.backgrounds)
+    bleed = std::max(bleed, d.bleed(size));
+  for (const Decoration& d : node.foregrounds)
+    bleed = std::max(bleed, d.bleed(size));
+  if (node.fxData)
+    for (const Decoration& d : node.fxData->overlays)
+      bleed = std::max(bleed, d.bleed(size));
+  if (node.strokeData)
+    for (const detail::StrokePass& pass : node.strokeData->passes)
+      bleed = std::max(bleed, pass.what.bleed(size));
+  // A band reaches profile.max() px off its spine, and a width profile is
+  // REQUIRED to be able to report that number — which is the whole reason
+  // `max()` is part of that interface. A width function that cannot state
+  // its own maximum can only be clipped silently.
+  if (const geometry::path::Profile* band = node.bandWidth())
+    bleed = std::max(bleed, band->max());
+  for (const Echo& e : echoesOf(node))
+    bleed =
+        std::max(bleed, std::max(std::abs(e.offset.x), std::abs(e.offset.y)));
+  // A textFx() track throws glyphs OUTSIDE the text's box — a rise starts
+  // below the line, a scatter starts anywhere in its disc — and a cull
+  // taken at the box truncates them at the cached picture or texture
+  // bounds, exactly as an under-reported decoration bleed does. Each track
+  // declares how far it reaches, the same over-report-is-safe contract
+  // `bleed()` and `reach()` carry.
+  for (const Track& t : tracksOf(node))
+    if (t.effect) bleed = std::max(bleed, t.reachPx());
+  // A Material can declare a reserve too: a fill whose own outline escapes
+  // the node's box is truncated at the cached picture or texture bounds
+  // otherwise, exactly as an under-reported decoration bleed is. Both
+  // carriers of the fill in force are checked — the live/geometry slot
+  // and the static recipe, the node's own or a matched rule's.
+  if (const MaterialData* slot = fillSlotOf(inst)) {
+    if (slot->live) bleed = std::max(bleed, slot->live->bleed());
+    if (slot->recipe) bleed = std::max(bleed, slot->recipe->bleed());
+  }
+  return bleed;
+}
+
+}  // namespace
+
+/** The rect this node's OWN paint covers, in its own local space — children
+ *  excluded; recordBounds() below adds the child union. The node's box,
+ *  grown by every declared bleed (decorations, stroke passes, echo offsets,
+ *  band width profiles, material reserves), then joined with what a layout
+ *  rect does not bound at all: the ink of the glyphs a text leaf placed, a
+ *  text run's path baseline, a band's spine, and the shape the node
+ *  declares, each outset by its own reach.
+ *
+ *  THIS IS THE ONE PLACE A NODE IS SIZED. Everything allocated from a
+ *  node's extent begins here — the recording cull and the child union over
+ *  it, the bounded saveLayer a group opacity or a layer effect opens, the
+ *  surface a lifted filter runs over, the local and device texture bakes,
+ *  the split bake's own half, and the alpha surface a coverage boundary is
+ *  traced off — so a carrier missing here is ink cut by every one of them,
+ *  and, in the trace's case, a silhouette cut square where the ink went
+ *  on. */
+SkRect Composer::Impl::ownPaintBounds(Instance& inst) {
+  const ElementNode& node = inst.painted();
+  if (node.kind == Kind::Light) return SkRect::MakeEmpty();
+  const SkRect rect = instanceRect(inst);
+  SkRect local = SkRect::MakeWH(rect.width(), rect.height());
+  // A GLYPH'S OUTLINE IS NOT ITS LINE BOX. A text leaf is measured to the
+  // band of its lines, and the ink a face draws stands outside that band
+  // wherever the face says it does — a comma's tail below the descent, an
+  // accent above the ascent — so the leaf paints past its own box by a
+  // fraction of a pixel on most faces and by more on a few. Joined here
+  // BEFORE the bleeds, so a track's reach and a decoration's bleed grow
+  // the ink as they grow the box; unioned rather than outset, because the
+  // layout already knows where the letters went and a guess would be a
+  // second opinion about it. Empty on every node that is not type.
+  local.join(inst.textInk);
+  const float bleed = declaredBleed(inst, {rect.width(), rect.height()});
+  if (bleed > 0) local.outset(bleed, bleed);
+  // A PATH BASELINE is the same problem once more. The baseline resolves
+  // against the node's own box, so a `shapes::` generator normally stays
+  // inside it — but nothing requires that: a Shape may return a curve well
+  // outside the box, and `TextPath::offset` rides the type further off it
+  // again. The glyphs then stand an ascent above that curve and a descent
+  // below it, plus whatever the tracks reach, so the cull holds the curve
+  // outset by the whole band. Over-reporting is safe here as everywhere;
+  // under-reporting truncates the run at the cached picture or texture
+  // bounds with no diagnostic.
+  if (node.textData && node.textData->onPath) {
+    const TextPath& spec = *node.textData->onPath;
+    const SkPath baseline =
+        skiaOutline(spec.path, SkSize{rect.width(), rect.height()});
+    if (!baseline.isEmpty()) {
+      const TextMetrics band = metrics(baseStyleOf(inst), fonts);
+      const float reach =
+          std::max(band.ascent, band.descent) + std::abs(spec.offset) + bleed;
+      SkRect curve = baseline.getBounds();
+      curve.outset(reach, reach);
+      local.join(curve);
+    }
+  }
+  // A BAND is the same problem: the bleed above covers the width axis, but
+  // nothing holds a SPINE inside this node's own box — a held path laid
+  // over a node's outline sits where that node is — so the cull has to
+  // hold the spine itself.
+  if (const geometry::path::Profile* band = node.bandWidth()) {
+    const SkPath spine = node.deriveData->bandSpine
+                             ? skiaOutline(node.deriveData->bandSpine,
+                                           SkSize{rect.width(), rect.height()})
+                             : SkPath();
+    if (!spine.isEmpty()) {
+      SkRect swept = spine.getBounds();
+      swept.outset(bleed + band->max(), bleed + band->max());
+      local.join(swept);
+    }
+  }
+  // THE SHAPE THE NODE DECLARES, which is the same problem a fourth time
+  // and the one a node names outright. A Shape is a function of a size and
+  // nothing holds what it returns inside the box that size came from: the
+  // surface is filled with that path and every decoration dresses it, so
+  // the ink is where the path is. A layer sized to less than that cuts the
+  // node's own drawing, exactly as an allocation sized to less does.
+  local.join(declaredShapeBounds(inst));
+  return local;
+}
+
+// ---------------------------------------------------------------------------
+// travel(): the motion path
+//
+// The animated lane is `t` — WHERE ALONG the curve the node sits — so the
+// whole bind() chain applies to the schedule while the Shape supplies the
+// geometry. A Shape is a function of a SIZE, and the curve is resolved
+// against the PARENT's box (the frame the node moves in), so a relayout
+// re-shapes the curve under a moving node. `t` is untouched by that: the
+// node slides to the same fraction of the new curve rather than jumping to
+// a different phase of its schedule.
+
+std::optional<std::pair<SkPoint, float>> Composer::Impl::motionPathSample(
+    Instance& inst, const SkSize& frame) {
+  const ElementNode& node = *inst.description;
+  if (!node.motionData || !(bool)node.motionData->path) return std::nullopt;
+  const MotionPath& spec = *node.motionData;
+
+  // The table, cached against the two inputs that determine it: the Shape
+  // VALUE and the size it was resolved at. No dirty flag — a comparable
+  // scheme keeps its table across describes, a raw callable re-measures
+  // (which is the escape hatch's documented cost, here as everywhere).
+  if (!inst.motion) inst.motion = std::make_unique<Instance::MotionCache>();
+  Instance::MotionCache& cache = *inst.motion;
+  if (!(cache.shape == spec.path) || cache.size.width() != frame.width() ||
+      cache.size.height() != frame.height()) {
+    cache.shape = spec.path;
+    cache.size = frame;
+    cache.contours = geometry::path::contoursOf(skiaOutline(spec.path, frame));
+    cache.total = geometry::path::totalLength(cache.contours);
+    cache.closed = geometry::path::closedThroughout(cache.contours);
+  }
+  if (!(cache.total > 0))
+    return std::nullopt;  // no measurable length ⇒ not engaged
+
+  // WRAP on a closed curve, CLAMP on an open one. The FRACTION is what
+  // wraps, so `t` past 1 is another lap of the whole curve rather than
+  // another lap of whichever contour it landed in; the pose read below
+  // then walks every contour as one arc-length coordinate.
+  const auto walk = [&](float u) {
+    const float w =
+        cache.closed ? u - std::floor(u) : std::clamp(u, 0.0f, 1.0f);
+    return geometry::path::toSk(
+        geometry::path::poseAlong(cache.contours, w * cache.total).position);
+  };
+
+  const float t = inst.resolveFloat(Instance::kMotionT, spec.t);
+  const SkPoint here = walk(t);
+  float orient = 0;
+  if (spec.lookAhead != 0.0f) {
+    SkVector chord = walk(t + spec.lookAhead) - here;
+    // At the end of an OPEN curve the forward chord collapses; hold the
+    // last good one rather than reading atan2(0, 0).
+    if (chord.length() <= 1e-6f) chord = here - walk(t - spec.lookAhead);
+    if (chord.length() > 1e-6f)
+      orient = geometry::path::degrees(std::atan2(chord.y(), chord.x()));
+  }
+  return std::make_pair(here, orient);
+}
+
+Pivot Composer::Impl::pivotOf(const Instance& inst, const Dimension& x,
+                              const Dimension& y, const Dimension* z) const {
+  // One axis: a percentage is a fraction of the box, auto is where an
+  // unstated origin stands, and every other unit is pixels for this node.
+  const auto resolve = [&](const Dimension& declared, float rest,
+                           float& fraction, float& offset) {
+    Dimension length = declared;
+    if (length.unit == Dimension::Unit::Var) {
+      const VarValue* value =
+          inst.vars ? inst.vars->find(length.reference()) : nullptr;
+      const Dimension* found = value ? std::get_if<Dimension>(value) : nullptr;
+      if (!found || found->unit == Dimension::Unit::Var) {
+        if (inst.cascadeResolved) warnNoSuchVar(length.reference(), false);
+        length = Dimension();
+      } else {
+        length = *found;
+      }
+    }
+    fraction = 0.0f;
+    offset = 0.0f;
+    if (length.unit == Dimension::Unit::Auto) {
+      fraction = rest;
+    } else if (length.unit == Dimension::Unit::Pct) {
+      // Divided, never multiplied by a hundredth: fifty percent is exactly
+      // the half a matrix was built about before it had a unit.
+      fraction = length.value / 100.0f;
+    } else {
+      // A sum's percentage is a fraction of the box like a percent's, and
+      // the rest of it the offset from there: `calc(100% - 12px)` is the
+      // far edge, twelve pixels in.
+      fraction = percentOf(length) / 100.0f;
+      bool relative = false;
+      offset = resolveLength(inst, length, relative, /*percentBasis=*/0.0f);
+    }
+  };
+  Pivot out;
+  resolve(x, 0.5f, out.fractionX, out.offsetX);
+  resolve(y, 0.5f, out.fractionY, out.offsetY);
+  if (z) {
+    // A depth has no box to be a percentage of, so one written as a
+    // percentage is no depth at all.
+    float fraction = 0.0f;
+    resolve(*z, 0.0f, fraction, out.depth);
+  }
+  return out;
+}
+
+NodeTransform Composer::Impl::transformOf(Instance& inst) {
+  const ElementNode& node = *inst.description;
+  const ComputedStyle& style = inst.computed;
+  NodeTransform out;
+  out.pivot = pivotOf(inst, style.paint.originX, style.paint.originY,
+                      node.depthData ? &node.depthData->originZ : nullptr);
+  // The turn an arranging operator gave the node rides the same lane as
+  // its own rotation, so every consumer of the transform sees one turn.
+  out.rot = inst.resolveFloat(Instance::kRotate, style.paint.rotate) +
+            inst.arrangedTurn;
+  out.scl = inst.resolveFloat(Instance::kScale, style.paint.scale);
+  out.sx = inst.resolveFloat(Instance::kScaleX, style.paint.scaleX);
+  out.sy = inst.resolveFloat(Instance::kScaleY, style.paint.scaleY);
+  out.skx = inst.resolveFloat(Instance::kSkewX, style.paint.skewX);
+  out.sky = inst.resolveFloat(Instance::kSkewY, style.paint.skewY);
+  // The depth lanes, on the nodes that carry the block; everyone else is
+  // at rest in all four and stays a 2D node in every consumer.
+  if (node.depthData) {
+    const DepthData& depth = *node.depthData;
+    out.rx = inst.resolveFloat(Instance::kRotateX, depth.rotateX);
+    out.ry = inst.resolveFloat(Instance::kRotateY, depth.rotateY);
+    out.tz = inst.resolveFloat(Instance::kTranslateZ, depth.translateZ);
+    out.sz = inst.resolveFloat(Instance::kScaleZ, depth.scaleZ);
+  }
+
+  const SkRect rect = instanceRect(inst);
+  // The curve is resolved in the frame the node MOVES in — its parent's
+  // box (a root node has none, so its own box, which is the canvas).
+  const SkRect frameRect = inst.parent ? instanceRect(*inst.parent) : rect;
+  if (std::optional<std::pair<SkPoint, float>> sample = motionPathSample(
+          inst, SkSize{frameRect.width(), frameRect.height()})) {
+    // The path replaces translation lanes and adds its tangent to rotation.
+    const SkPoint origin = out.pivot.at(rect.width(), rect.height());
+    out.tx = sample->first.x() - rect.left() - origin.x();
+    out.ty = sample->first.y() - rect.top() - origin.y();
+    out.rot += sample->second;
+    return out;
+  }
+  out.tx = inst.resolveFloat(Instance::kTx, style.paint.translateX);
+  out.ty = inst.resolveFloat(Instance::kTy, style.paint.translateY);
+  return out;
+}
+
+namespace {
+
+/** WHERE A LAYER EFFECT PUTS INK THE CONTENT UNDER IT DOES NOT COVER: the
+ *  rect grown to what the node's own filter answers for it — a blur's
+ *  skirt, a glow's halo, a shadow's offset — and left alone on a node that
+ *  carries no effect.
+ *
+ *  Asked of a node by whatever CONTAINS it, and only when the rect is
+ *  about to size a surface. The halo is drawn into that surface by the
+ *  child's own filtered paint, so a surface allocated to the unfiltered
+ *  content cuts the skirt off square wherever the effect reaches past it.
+ *  Where the same rect bounds a LAYER it must not be asked: Skia grows a
+ *  filtered saveLayer for its own filter already, and a bounds grown twice
+ *  is a layer composited over more ground than the picture stands on.
+ *
+ *  The filter is resolved without a frame, which is the effect as it was
+ *  declared: a blur states the largest sigma its binding will reach, so
+ *  the reach a bound parameter can ask for is already in the declaration.
+ *  Over-reporting only makes a surface larger. */
+SkRect filteredReach(const ElementNode& node, const SkRect& local,
+                     bool forBake) {
+  if (!forBake) return local;
+  const material::Filter* fx = layerEffectOf(node);
+  if (!fx) return local;
+  const sk_sp<SkImageFilter> filter =
+      material::skia::resolvedImageFilter(*fx, nullptr);
+  return filter ? filter->computeFastBounds(local) : local;
+}
+
+}  // namespace
+
+/** The rect a node's RECORDING must cover, in its own local space: its own
+ *  paint bounds (ownPaintBounds above), unioned with every child's bounds
+ *  mapped through that child's layout offset and static paint transforms.
+ *
+ *  WHAT THIS RECT DOES NOT DO, which is easy to assume it does:
+ *  SkPictureRecorder does NOT reject ops outside the cull rect at record
+ *  time. An op drawn wholly outside it is still recorded, even when the
+ *  cull rect is EMPTY, and a plain drawPicture replays it — the pixels
+ *  land. Culling against the cull rect happens only when a bounding-box
+ *  hierarchy is attached (SkRTreeFactory clips each op's bounds to the cull
+ *  rect as it builds the tree, so an outside op is dropped at PLAYBACK),
+ *  and no BBH is attached here, so the picture path never culls.
+ *
+ *  What the rect IS load-bearing for are this function's other three
+ *  consumers, all of which clip for real: the BOUNDED saveLayer opened for
+ *  a group opacity/blend and for a layer effect (saveLayer bounds ARE a
+ *  clip), the Cache::Texture bake surface, which is sized from this rect
+ *  mapped to device, and the dstIn coverage drawRect. A child translated
+ *  beyond its parent's box vanishes through THOSE if the child union below
+ *  is dropped.
+ *  Overflow is legal; the rect must hold it, the same way it must hold a
+ *  decoration's declared bleed.
+ *
+ *  Animated transforms are fine here: resolveFloat reads the record-time
+ *  value, and a RUNNING transform makes the subtree volatile, so nothing
+ *  records at all. A clipped node contributes only its own box, because its
+ *  children cannot escape it.
+ *
+ *  A child that has turned in depth projects its own bounds through its
+ *  flattened 4x4 — the same producer paint flattens — and a corner behind
+ *  the viewer is left out of the box rather than mapped to nowhere. A
+ *  node HOSTING a shared space answers in the plane that space is drawn
+ *  on: its own box through its own plane, and every child in the space
+ *  through the child's full matrix there, so the layer or bake an ancestor
+ *  sizes from this holds the faces of a cube wherever they have turned. */
+SkRect Composer::Impl::recordBounds(Instance& inst, const SkM44* space,
+                                    bool forBake) {
+  const ComputedStyle& style = inst.computed;
+  // A node with no box paints nothing, its decorations' reach included.
+  if (style.layout.display == Display::None) return SkRect::MakeEmpty();
+  SkRect local = ownPaintBounds(inst);
+  const bool hosts = hostsSpace(inst);
+  // The host's own 4x4 in the plane its space is drawn on — what every
+  // child's matrix begins with, and what the host's own box is seen
+  // through there.
+  std::optional<SkM44> own;
+  if (hosts) {
+    SkM44 m = depthMatrixOf(inst, transformOf(inst), instanceRect(inst));
+    if (space) m = SkM44(*space, m);
+    own = m;
+    local = projectRect(own->asM33(), local);
+  }
+  if (style.clipContent) return local;
+  // A CHILD'S contribution, grown by the reach its own layer effect
+  // filters over when this rect is about to size a surface. The node's own
+  // effect is not asked here: it is applied by this node's own paint,
+  // INSIDE whatever this rect allocates, and where it is deferred to the
+  // blit instead this rect is the frame the effect reads its own
+  // parameters in — a sigma map's unit square is the box the layout
+  // decided, so growing it would re-aim the effect rather than make room
+  // for it.
+  const auto childBounds = [&](Instance& kid, const SkM44* plane) {
+    return filteredReach(kid.painted(), recordBounds(kid, plane, forBake),
+                         forBake);
+  };
+  for (auto& child : inst.children) {
+    if (child->computed.layout.display == Display::None) continue;
+    const SkRect crect = instanceRect(*child);
+    const NodeTransform tf = transformOf(*child);
+    if (hosts) {
+      // In the space: a nested host answers in the same plane already; a
+      // flat child's own plane is projected there through its full matrix.
+      if (hostsSpace(*child)) {
+        local.join(childBounds(*child, &*own));
+      } else {
+        const SkM44 m(*own, depthMatrixOf(*child, tf, crect));
+        local.join(projectRect(m.asM33(), childBounds(*child, nullptr)));
+      }
+      continue;
+    }
+    if (hostsSpace(*child)) {
+      // The space the child hosts is drawn on THIS plane.
+      local.join(childBounds(*child, nullptr));
+      continue;
+    }
+    SkRect cb = childBounds(*child, nullptr);  // child-local
+    if (tf.spatial()) {
+      local.join(projectRect(depthMatrixOf(*child, tf, crect).asM33(), cb));
+      continue;
+    }
+    // The matrix comes from NodeTransform::matrix(), gate included, and not
+    // from a copy of that build written here. One resolver, three consumers
+    // — paint()'s matrix, this child union, and hitInstance()'s inverse —
+    // and the three must build the SAME matrix or a node draws where it
+    // cannot be hit. A hand-rolled gate here that omits a lane is
+    // invisible: a child whose only transform was a per-axis scale would
+    // contribute UNSCALED bounds, so its parent's effect layer, opacity
+    // layer and texture bake would all be sized to the unscaled box and
+    // truncate the overflow.
+    const SkMatrix m =
+        tf.matrix({crect.left(), crect.top()}, crect.width(), crect.height());
+    local.join(m.mapRect(cb));
+  }
+  return local;
+}
+
+/** …and the same union once more, for the rect a SURFACE is allocated to:
+ *  every layer effect in the subtree given the reach its own filter
+ *  answers, so a bake stands clear of the skirt a blur, a glow or a shadow
+ *  puts outside the content it filters. */
+SkRect Composer::Impl::bakeBounds(Instance& inst) {
+  return recordBounds(inst, nullptr, true);
+}
+
+SkRect Composer::Impl::declaredShapeBounds(Instance& inst) {
+  const ElementNode& node = *inst.description;
+  // A band's region is a shape too, and it already joins the paint bounds
+  // through its own instance; this is the other carrier, the one a node
+  // names outright with `shape()`.
+  if (!node.shapeFn || node.bandWidth()) return SkRect::MakeEmpty();
+  const SkRect rect = instanceRect(inst);
+  const SkPath& shape = resolveOutline(inst, {rect.width(), rect.height()});
+  if (shape.isEmpty()) return SkRect::MakeEmpty();
+  const float bleed = declaredBleed(inst, {rect.width(), rect.height()});
+  SkRect drawn = shape.getBounds();
+  drawn.outset(bleed, bleed);
+  return drawn;
+}
+
+}  // namespace sigil::compose

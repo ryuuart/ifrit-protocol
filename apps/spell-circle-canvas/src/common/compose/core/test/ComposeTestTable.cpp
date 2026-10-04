@@ -104,28 +104,33 @@ TEST(ComposeTable, WhatNoChildClaimedFlowsAndAlignsInsideItsCell) {
 }
 
 // ---------------------------------------------------------------------------
-// The scheme solved directly, from a LayoutInput built by hand: the numbers
+// The scheme solved directly, from child records built by hand: the numbers
 // a column resolves to are what a study of a published page diffs against,
 // and no placed rect carries them.
 
 namespace {
 
-/** What a scheme is handed: the container, the children's measured sizes,
- *  the cells they claimed, and the narrowest each can be set — which
- *  defaults to the measured size, as the composer fills it for every child
- *  that is not text. */
-LayoutInput given(glm::vec2 container, std::vector<glm::vec2> sizes,
-                  std::vector<CellSpan> cells = {},
-                  std::vector<glm::vec2> minima = {}) {
-  LayoutInput in;
-  in.container = container;
-  in.childSizes = std::move(sizes);
-  in.childBaselines.assign(in.childSizes.size(),
-                           std::numeric_limits<float>::quiet_NaN());
-  in.childCells = std::move(cells);
-  in.childCells.resize(in.childSizes.size());
-  in.childAreas.resize(in.childSizes.size());
-  in.childMinSizes = minima.empty() ? in.childSizes : std::move(minima);
+/** Owned records for direct layout tests; the public arrangement only
+ *  borrows them for a call. Non-text minima equal their measured sizes. */
+struct Given {
+  geometry::path::Rect box;
+  std::vector<Arrangement::Child> children;
+  operator Arrangement() {
+    return {.box = box, .children = children, .minSizesMeasured = true};
+  }
+};
+
+Given given(glm::vec2 container, std::vector<glm::vec2> sizes,
+            std::vector<CellSpan> cells = {},
+            std::vector<glm::vec2> minima = {}) {
+  Given in{geometry::path::Rect::of({0, 0}, container), {}};
+  for (size_t i = 0; i < sizes.size(); ++i) {
+    Arrangement::Child child;
+    child.size = sizes[i];
+    child.minSize = minima.empty() ? sizes[i] : minima[i];
+    if (i < cells.size()) child.cells = cells[i];
+    in.children.push_back(std::move(child));
+  }
   return in;
 }
 
@@ -139,7 +144,7 @@ CellSpan claims(int column, int row, int columns = 1, int rows = 1) {
 
 }  // namespace
 
-static_assert(sigil::compose::SizesFromContentMinima<Table>,
+static_assert(sigil::compose::ReadsChildMinSizes<Table>,
               "the auto rule is solved from the content minima");
 
 TEST(ComposeTable, ItResolvesTheGridAPageOfTheTableEraWasSetOn) {
@@ -201,10 +206,10 @@ TEST(ComposeTable, TooNarrowAndEveryColumnGivesUpTheSameFractionOfItsRoom) {
   // falls the same fraction of the way from what it wants to what it
   // needs, and the one that needs what it wants does not move at all.
   const Table table{.width = 170};
-  const Table::Grid grid =
-      table.solve(given({170, 100}, {{100, 20}, {60, 20}, {40, 20}},
-                        {claims(0, 0), claims(1, 0), claims(2, 0)},
-                        {glm::vec2{40, 20}, glm::vec2{60, 20}, glm::vec2{40, 20}}));
+  const Table::Grid grid = table.solve(
+      given({170, 100}, {{100, 20}, {60, 20}, {40, 20}},
+            {claims(0, 0), claims(1, 0), claims(2, 0)},
+            {glm::vec2{40, 20}, glm::vec2{60, 20}, glm::vec2{40, 20}}));
   ASSERT_EQ(grid.columnWidths.size(), 3u);
   EXPECT_NEAR(grid.columnWidths[0], 70, 0.01f)
       << "40 + half of the 60 it can give";
@@ -214,10 +219,10 @@ TEST(ComposeTable, TooNarrowAndEveryColumnGivesUpTheSameFractionOfItsRoom) {
   // Narrower than the content can be set at all: the columns stand at what
   // they need and the table overflows rather than dropping content.
   const Table pinched{.width = 60};
-  const Table::Grid tight =
-      pinched.solve(given({60, 100}, {{100, 20}, {60, 20}, {40, 20}},
-                          {claims(0, 0), claims(1, 0), claims(2, 0)},
-                          {glm::vec2{40, 20}, glm::vec2{60, 20}, glm::vec2{40, 20}}));
+  const Table::Grid tight = pinched.solve(
+      given({60, 100}, {{100, 20}, {60, 20}, {40, 20}},
+            {claims(0, 0), claims(1, 0), claims(2, 0)},
+            {glm::vec2{40, 20}, glm::vec2{60, 20}, glm::vec2{40, 20}}));
   EXPECT_NEAR(tight.columnWidths[0], 40, 0.01f);
   EXPECT_NEAR(tight.columnWidths[1], 60, 0.01f);
   EXPECT_NEAR(tight.columnWidths[2], 40, 0.01f);
@@ -241,9 +246,9 @@ TEST(ComposeTable, AShrinkToFitTableStopsAtWhatIsInIt) {
 
   // Shrink says nothing about a table with too little room: the columns
   // fall toward what they need either way.
-  const Table::Grid pinched =
-      shrink.solve(given({120, 100}, sizes, spans,
-                         {glm::vec2{30, 20}, glm::vec2{30, 20}, glm::vec2{30, 20}}));
+  const Table::Grid pinched = shrink.solve(
+      given({120, 100}, sizes, spans,
+            {glm::vec2{30, 20}, glm::vec2{30, 20}, glm::vec2{30, 20}}));
   EXPECT_LT(pinched.columnWidths[2], 90.0f);
   EXPECT_GE(pinched.columnWidths[2], 30.0f);
 }
@@ -340,5 +345,7 @@ TEST(ComposeTable, AColumnNothingFillsCollapsesAndLeavesTheRestAlone) {
   // none, and places nothing.
   const Table::Grid nothing = table.solve(given({300, 100}, {}));
   EXPECT_EQ(nothing.columnWidths.size(), 3u);
-  EXPECT_TRUE(table.place(given({300, 100}, {})).empty());
+  Arrangement empty{.box = geometry::path::Rect::of({0, 0}, {300, 100})};
+  table.arrange(empty);
+  EXPECT_TRUE(empty.children.empty());
 }

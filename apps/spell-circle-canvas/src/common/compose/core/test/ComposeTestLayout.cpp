@@ -7,13 +7,13 @@
 // the hit test that follows paint order and skew.
 
 #include <sigildraw/Pen.h>
+#include <sigilgeometry/advanced/Skia.h>
 
 #include <algorithm>
 #include <cmath>
 #include <numbers>
 
 #include "support/CoreTestSupport.h"
-#include <sigilgeometry/advanced/Skia.h>
 
 TEST(ComposeLayout, FlexRowPositionsAndFills) {
   Host host;
@@ -103,30 +103,22 @@ TEST(ComposeStacking, OpacityAndBlendComposite) {
 
 namespace {
 
-/** A lightweight grid, ~20 lines of user code. */
+/** A custom grid places directly into the borrowed child records. */
 struct Grid {
   int columns = 2;
   float gap = 8;
   float cellHeight = 40;
 
-  std::vector<geometry::path::Rect> place(const LayoutInput& in) const {
-
-    return rectanglesOf(placeSkia(in));
-
-  }
-
-  std::vector<SkRect> placeSkia(const LayoutInput& in) const {
-    std::vector<SkRect> rects;
+  void arrange(Arrangement& arrangement) const {
     const float cellWidth =
-        (in.container.x - gap * (float)(columns - 1)) / (float)columns;
-    for (size_t i = 0; i < in.childSizes.size(); ++i) {
+        (arrangement.box.width() - gap * (float)(columns - 1)) / (float)columns;
+    for (size_t i = 0; i < arrangement.children.size(); ++i) {
       const int col = (int)i % columns;
       const int row = (int)i / columns;
-      rects.push_back(SkRect::MakeXYWH((cellWidth + gap) * (float)col,
-                                       (cellHeight + gap) * (float)row,
-                                       cellWidth, cellHeight));
+      arrangement.children[i].place(geometry::path::Rect::of(
+          {(cellWidth + gap) * (float)col, (cellHeight + gap) * (float)row},
+          {cellWidth, cellHeight}));
     }
-    return rects;
   }
 };
 
@@ -210,11 +202,8 @@ TEST(ComposeTransform, AnOriginIsAPercentageOfTheBoxOrALengthInIt) {
   // the red lands says where the pivot stood.
   const auto shrunk = [](Element pivoted) {
     Host host(200, 200);
-    host.composer.render(
-        box().children({pivoted.absolute()
-                            .rect(60, 60, 80, 80)
-                            .fill(red())
-                            .scale(0.25f)}));
+    host.composer.render(box().children(
+        {pivoted.absolute().rect(60, 60, 80, 80).fill(red()).scale(0.25f)}));
     host.frame();
     SkIRect ink = SkIRect::MakeEmpty();
     for (int row = 0; row < 200; ++row)
@@ -338,7 +327,11 @@ TEST(ComposeLayout, ACoveringNodeGivenASizeStandsInTheFlowAgain) {
   // sheet asks for.
   Host host(400, 400);
   host.composer.render(box().column().gap(10).children(
-      {custom([](sigil::draw::Pen& pen) {}).cover().width(100).height(60).key("drawing"),
+      {custom([](sigil::draw::Pen& pen) {})
+           .cover()
+           .width(100)
+           .height(60)
+           .key("drawing"),
        box().key("after").width(100).height(20).fill(red())}));
   host.frame();
   const auto drawing = host.composer.bounds("drawing");
@@ -392,7 +385,8 @@ TEST(ComposePlacement, RectIsTheLonghandAndPrunesIdentically) {
                                .fill(red())});
   };
   auto terse = [&] {
-    return box().children({box().key("plate").rect(geometry::path::fromSk(r)).fill(red())});
+    return box().children(
+        {box().key("plate").rect(geometry::path::fromSk(r)).fill(red())});
   };
 
   host.composer.render(longhand());
@@ -422,8 +416,8 @@ TEST(ComposePlacement, RectIsTheLonghandAndPrunesIdentically) {
   // NEGATIVE CONTROL — without this the two assertions above pass on a
   // composer that never patches anything, which is exactly the vacuous
   // shape this program keeps finding. A different rect MUST patch.
-  host.composer.render(box().children(
-      {box().key("plate").rect(41, 60, 50, 30).fill(red())}));
+  host.composer.render(
+      box().children({box().key("plate").rect(41, 60, 50, 30).fill(red())}));
   host.frame();
   EXPECT_EQ(host.composer.stats().patchedNodes, 1u)
       << "the patch counter is not live, so the zeroes above prove nothing";
@@ -475,11 +469,8 @@ TEST(ComposePlacement, AtPinsTheCornerAndLeavesTheNodeToSizeItself) {
   // on a node that measures itself from its content.
   Host host(300, 200);
   auto longhand = [] {
-    return box().children({text(u8"Wm", styleAt(20))
-                               .key("cap")
-                               .absolute()
-                               .left(30)
-                               .top(40)});
+    return box().children(
+        {text(u8"Wm", styleAt(20)).key("cap").absolute().left(30).top(40)});
   };
   auto terse = [] {
     return box().children({text(u8"Wm", styleAt(20)).key("cap").at({30, 40})});
@@ -517,23 +508,13 @@ TEST(ComposeLayout, AnEdgeSetterMakesANodeAbsoluteAndAloneAbsoluteStillDoes) {
   Host host(200, 200);
 
   auto withRedundant = [] {
-    return box().children({box()
-                               .key("p")
-                               .absolute()
-                               .left(30)
-                               .top(30)
-                               .width(20)
-                               .height(20)
-                               .fill(red())});
+    return box().children(
+        {box().key("p").absolute().left(30).top(30).width(20).height(20).fill(
+            red())});
   };
   auto without = [] {
-    return box().children({box()
-                               .key("p")
-                               .left(30)
-                               .top(30)
-                               .width(20)
-                               .height(20)
-                               .fill(red())});
+    return box().children(
+        {box().key("p").left(30).top(30).width(20).height(20).fill(red())});
   };
   host.composer.render(withRedundant());
   host.frame();
@@ -580,11 +561,7 @@ TEST(ComposeLayout, PerEdgePaddingAndMargin) {
            .padding(20, 30, 40, 10)
            .key("outer")
            .children(
-               {box()
-                    .margin(6, 7, 8, 5)
-                    .width(50)
-                    .height(50)
-                    .key("inner")})}));
+               {box().margin(6, 7, 8, 5).width(50).height(50).key("inner")})}));
   host.frame();
   auto inner = host.composer.bounds("inner");
   ASSERT_TRUE(inner.has_value());
@@ -605,21 +582,21 @@ TEST(ComposeLayout, DimLiteralsResolvePercent) {
 
 TEST(ComposeQueries, HitTestRespectsPaintOrderAndKeys) {
   Host host;
-  host.composer.render(stack().children(
-      {box().key("under").inset(0).fill(red()),
-       box()
-           .key("over")
-           .width(60)
-           .height(60)
-           .inset(20, 120, 120, 20)
-           .absolute()
-           .fill(green()),
-       box()
-           .width(30)
-           .height(30)
-           .inset(150, 20, 20, 150)
-           .absolute()
-           .fill(blue())}));  // keyless → falls to root
+  host.composer.render(
+      stack().children({box().key("under").inset(0).fill(red()),
+                        box()
+                            .key("over")
+                            .width(60)
+                            .height(60)
+                            .inset(20, 120, 120, 20)
+                            .absolute()
+                            .fill(green()),
+                        box()
+                            .width(30)
+                            .height(30)
+                            .inset(150, 20, 20, 150)
+                            .absolute()
+                            .fill(blue())}));  // keyless → falls to root
   host.frame();
   EXPECT_EQ(host.composer.hitTest({50, 50}).value_or(""), "over");
   EXPECT_EQ(host.composer.hitTest({120, 120}).value_or(""), "under");
@@ -637,15 +614,14 @@ TEST(ComposeTransform, SkewLeansPaintAndHits) {
   // backwards, so a point that is inside the leaning card but outside its
   // unsheared box still hits it.
   Host host;
-  host.composer.render(box().children(
-      {box()
-           .key("card")
-           .width(40)
-           .height(40)
-           .inset(60, 100, 100, 60)
-           .absolute()
-           .fill(red())
-           .skewX(-12.0f)}));
+  host.composer.render(box().children({box()
+                                           .key("card")
+                                           .width(40)
+                                           .height(40)
+                                           .inset(60, 100, 100, 60)
+                                           .absolute()
+                                           .fill(red())
+                                           .skewX(-12.0f)}));
   host.frame();
   EXPECT_EQ(host.pixel(101, 64), SK_ColorRED);   // top leaned right
   EXPECT_EQ(host.pixel(61, 64), SK_ColorBLACK);  // vacated top-left
@@ -691,9 +667,9 @@ TEST(ComposeTransform, TwoSkewLanesComposeAsCssTransformList) {
   const double topRightX =
       centre + (1.0 + tangent * tangent) * 50.0 - tangent * -50.0 - 3.0;
   const double topRightY = centre - tangent * 50.0 + -50.0 + 2.0;
-  EXPECT_EQ(host.composer.hitTest({(float)topRightX, (float)topRightY})
-                .value_or(""),
-            "card");
+  EXPECT_EQ(
+      host.composer.hitTest({(float)topRightX, (float)topRightY}).value_or(""),
+      "card");
 }
 
 TEST(ComposeTransform, SkewXPositiveLeansTheTopTowardNegativeX) {
@@ -703,15 +679,14 @@ TEST(ComposeTransform, SkewXPositiveLeansTheTopTowardNegativeX) {
   // The sign is easy to state backwards, so the runtime's answer is
   // pinned here in pixels.
   Host host;
-  host.composer.render(box().children(
-      {box()
-           .key("card")
-           .width(40)
-           .height(40)
-           .inset(60, 100, 100, 60)
-           .absolute()
-           .fill(red())
-           .skewX(30.0f)}));
+  host.composer.render(box().children({box()
+                                           .key("card")
+                                           .width(40)
+                                           .height(40)
+                                           .inset(60, 100, 100, 60)
+                                           .absolute()
+                                           .fill(red())
+                                           .skewX(30.0f)}));
   host.frame();
   // The unsheared box is x in [60, 100], y in [60, 100], centre (80, 80).
   // At y = 64 (16 above centre) the shift is tan(30) * -16 ~ -9.2, so the

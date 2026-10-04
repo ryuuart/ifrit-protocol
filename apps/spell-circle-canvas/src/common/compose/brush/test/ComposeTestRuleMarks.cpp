@@ -17,16 +17,17 @@ Element framed(Element square, StyleSheet sheet = {}) {
   return box()
       .var("line", material::Color{1, 0, 0, 1})
       .applyStyleSheet(std::move(sheet))
-      .children({std::move(square).width(100).height(100).inset(50).absolute()});
+      .children(
+          {std::move(square).width(100).height(100).inset(50).absolute()});
 }
 
 }  // namespace
 
 TEST(ComposeRuleMarks, AClassStrokePaintsWhatTheElementsOwnStrokePaints) {
   Host byClass(kSide, kSide), byElement(kSide, kSide);
-  byClass.composer.render(framed(
-      box().styleClass("frame"),
-      StyleSheet{rule(".frame").stroke(stroke(4, Fill::var("line")))}));
+  byClass.composer.render(
+      framed(box().styleClass("frame"),
+             StyleSheet{rule(".frame").stroke(stroke(4, Fill::var("line")))}));
   byElement.composer.render(framed(box().stroke(stroke(4, Fill::var("line")))));
   byClass.frame();
   byElement.frame();
@@ -34,12 +35,13 @@ TEST(ComposeRuleMarks, AClassStrokePaintsWhatTheElementsOwnStrokePaints) {
   EXPECT_TRUE(identicalPixels(byClass, byElement, kSide, kSide));
 }
 
-TEST(ComposeRuleMarks, TheElementsOwnStrokePaintsOverTheClasssAsASecondCallWould) {
+TEST(ComposeRuleMarks,
+     TheElementsOwnStrokePaintsOverTheClasssAsASecondCallWould) {
   const auto blue = material::Color{0, 0, 1, 1};
   Host byClass(kSide, kSide), byElement(kSide, kSide);
-  byClass.composer.render(framed(
-      box().styleClass("frame").stroke(stroke(2, Fill::color(blue))),
-      StyleSheet{rule(".frame").stroke(stroke(8, Fill::var("line")))}));
+  byClass.composer.render(
+      framed(box().styleClass("frame").stroke(stroke(2, Fill::color(blue))),
+             StyleSheet{rule(".frame").stroke(stroke(8, Fill::var("line")))}));
   byElement.composer.render(framed(box()
                                        .stroke(stroke(8, Fill::var("line")))
                                        .stroke(stroke(2, Fill::color(blue)))));
@@ -57,10 +59,10 @@ TEST(ComposeRuleMarks, TwoMatchedRulesStrokeWeakerFirst) {
   Host byClasses(kSide, kSide), byElement(kSide, kSide);
   // `.frame.hot` weighs more than `.frame`, so its ring is the upper one
   // whatever order the sheet states them in.
-  byClasses.composer.render(framed(
-      box().styleClass("frame hot"),
-      StyleSheet{rule(".frame.hot").stroke(stroke(2, Fill::color(blue))),
-                 rule(".frame").stroke(stroke(8, Fill::var("line")))}));
+  byClasses.composer.render(
+      framed(box().styleClass("frame hot"),
+             StyleSheet{rule(".frame.hot").stroke(stroke(2, Fill::color(blue))),
+                        rule(".frame").stroke(stroke(8, Fill::var("line")))}));
   byElement.composer.render(framed(box()
                                        .stroke(stroke(8, Fill::var("line")))
                                        .stroke(stroke(2, Fill::color(blue)))));
@@ -79,10 +81,10 @@ TEST(ComposeRuleMarks, AClassThatStopsMatchingTakesItsKeylineWithIt) {
   host.frame();
   EXPECT_EQ(redInk(host), 0);
   // …and a sheet that states the keyline in another colour repaints it.
-  host.composer.render(framed(
-      box().styleClass("frame"),
-      StyleSheet{rule(".frame").stroke(
-          stroke(4, Fill::color(material::Color{0, 0, 1, 1})))}));
+  host.composer.render(
+      framed(box().styleClass("frame"),
+             StyleSheet{rule(".frame").stroke(
+                 stroke(4, Fill::color(material::Color{0, 0, 1, 1})))}));
   host.frame();
   EXPECT_EQ(redInk(host), 0);
   EXPECT_EQ(host.pixel(100, 50), SK_ColorBLUE);
@@ -95,9 +97,8 @@ TEST(ComposeRuleMarks, ARuleBackgroundStandsUnderTheFill) {
   byClass.composer.render(
       framed(box().styleClass("card").fill(material::Color{0, 0, 1, 1}),
              StyleSheet{rule(".card").background(offsetShadow)}));
-  byElement.composer.render(framed(box()
-                                       .background(offsetShadow)
-                                       .fill(material::Color{0, 0, 1, 1})));
+  byElement.composer.render(
+      framed(box().background(offsetShadow).fill(material::Color{0, 0, 1, 1})));
   byClass.frame();
   byElement.frame();
   EXPECT_GT(redInk(byClass), 100);
@@ -115,9 +116,9 @@ namespace {
  *  — one coverage step and one pass that reads pixels. */
 material::Material halation(material::Color shadowColour = {1, 0, 0, 1}) {
   return material::from(material::Color{1, 1, 1, 1})
-      .effects(material::Filter::shadow(shadowColour,
-                                        {.offset = {6, 6}, .blur = 4})
-                   .then(material::Filter::blur(1.5f)));
+      .effects(
+          material::Filter::shadow(shadowColour, {.blur = 4, .offset = {6, 6}})
+              .then(material::Filter::blur(1.5f)));
 }
 
 /** One word, keyed "word", under a root setting the type and applying
@@ -183,16 +184,16 @@ TEST(ComposeRuleMarks, ReplacingTheRuleReplacesTheEffectsItsInkCarried) {
 
 TEST(ComposeRuleMarks, TheLeafsOwnInkStandsWithItsOwnEffectsOverTheRules) {
   Host host(kSide, kSide);
-  host.composer.render(page(text(u8"Ag").styleClass("near").ink(
-                                material::Color{1, 1, 1, 1}),
-                            StyleSheet{rule(".near").ink(halation())}));
+  host.composer.render(
+      page(text(u8"Ag").styleClass("near").ink(material::Color{1, 1, 1, 1}),
+           StyleSheet{rule(".near").ink(halation())}));
   host.frame();
   EXPECT_EQ(redInk(host), 0);
   // …and a stronger rule's plain ink stands over a weaker rule's material.
-  host.composer.render(page(
-      text(u8"Ag").styleClass("near far"),
-      StyleSheet{rule(".near").ink(halation()),
-                 rule(".near.far").ink(material::Color{1, 1, 1, 1})}));
+  host.composer.render(
+      page(text(u8"Ag").styleClass("near far"),
+           StyleSheet{rule(".near").ink(halation()),
+                      rule(".near.far").ink(material::Color{1, 1, 1, 1})}));
   host.frame();
   EXPECT_EQ(redInk(host), 0);
 }
@@ -202,9 +203,9 @@ TEST(ComposeRuleMarks, ARulesFillMaterialDressesTheBoxAsItsOwnFillWould) {
   const material::Material card =
       material::from(material::Color{0, 0, 1, 1})
           .effects(material::Filter::shadow(material::Color{1, 0, 0, 1},
-                                            {.offset = {10, 10}, .blur = 2}));
-  byRule.composer.render(framed(box().styleClass("card"),
-                                StyleSheet{rule(".card").fill(card)}));
+                                            {.blur = 2, .offset = {10, 10}}));
+  byRule.composer.render(
+      framed(box().styleClass("card"), StyleSheet{rule(".card").fill(card)}));
   byElement.composer.render(framed(box().fill(card)));
   byRule.frame();
   byElement.frame();

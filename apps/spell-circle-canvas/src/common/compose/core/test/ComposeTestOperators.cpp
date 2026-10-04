@@ -2,11 +2,12 @@
 // back in the type it was written in and in no other, a table equal in any
 // order, an arranging operator placing children by a fact rather than an
 // index, a second operator in the list nudging what the first left, a turn
-// that reaches the paint, a scheme of the older shape applied through the
-// same list, a point that takes no room, and the prune a comparable
-// operator keeps and a fact change breaks.
+// that reaches the paint, a stock layout applied through the same list, a point
+// that takes no room, and the prune a comparable operator keeps and a fact
+// change breaks.
 
 #include <include/core/SkPathBuilder.h>
+#include <sigilcompose/core/Grid.h>
 #include <sigilgeometry/advanced/Skia.h>
 
 #include <cmath>
@@ -50,22 +51,14 @@ struct Nudge {
   }
 };
 
-/** A scheme of the older shape: every child at the same corner. */
+/** An arranging value: every child at the same corner. */
 struct AllAtCorner {
   float inset = 0.0f;
   bool operator==(const AllAtCorner&) const = default;
 
-  std::vector<geometry::path::Rect> place(const LayoutInput& in) const {
-
-    return rectanglesOf(placeSkia(in));
-
-  }
-
-  std::vector<SkRect> placeSkia(const LayoutInput& in) const {
-    std::vector<SkRect> rects;
-    for (const glm::vec2 size : in.childSizes)
-      rects.push_back(SkRect::MakeXYWH(inset, inset, size.x, size.y));
-    return rects;
+  void arrange(Arrangement& arrangement) const {
+    for (Arrangement::Child& child : arrangement.children)
+      child.place(geometry::path::Rect::of({inset, inset}, child.size));
   }
 };
 
@@ -89,7 +82,8 @@ TEST(ComposeOperators, AFactReadsBackInTheTypeItWasWrittenIn) {
   EXPECT_EQ(facts.get<int>("tier"), 2);
   EXPECT_FALSE(facts.get<float>("tier").has_value());  // an int is not a float
   EXPECT_EQ(facts.get<float>("weight"), 1.5f);
-  EXPECT_EQ(facts.get<std::string>("name"), "gateway");  // a literal is a string
+  EXPECT_EQ(facts.get<std::string>("name"),
+            "gateway");  // a literal is a string
   ASSERT_TRUE(facts.get<std::vector<std::string>>("calls").has_value());
   EXPECT_EQ(facts.get<std::vector<std::string>>("calls")->size(), 2u);
   EXPECT_FALSE(facts.has("missing"));
@@ -121,7 +115,10 @@ TEST(ComposeOperators, AnArrangingOperatorPlacesByAFactNotByIndex) {
   // whatever its position in the list, which layouts::Radial — told only
   // the index — could not do.
   Host host;
-  host.composer.render(box().width(200).height(200).operators({AroundRing{}})
+  host.composer.render(box()
+                           .width(200)
+                           .height(200)
+                           .operators({AroundRing{}})
                            .children({dot(6), dot(3), dot(12)}));
   host.frame();
   auto centre = [&](const char* key) {
@@ -138,12 +135,11 @@ TEST(ComposeOperators, AnArrangingOperatorPlacesByAFactNotByIndex) {
 
 TEST(ComposeOperators, ALaterOperatorSeesWhereTheEarlierOneLeftEachChild) {
   Host host;
-  host.composer.render(
-      box()
-          .width(200)
-          .height(200)
-          .operators({AroundRing{}, Nudge{.by = {7, -3}}})
-          .children({dot(3)}));
+  host.composer.render(box()
+                           .width(200)
+                           .height(200)
+                           .operators({AroundRing{}, Nudge{.by = {7, -3}}})
+                           .children({dot(3)}));
   host.frame();
   auto rect = host.composer.bounds("h3");
   ASSERT_TRUE(rect.has_value());
@@ -163,20 +159,26 @@ TEST(ComposeOperators, ATurnReachesThePaint) {
     }
   };
   host.composer.render(
-      box().width(200).height(200).operators({Quarter{}}).children(
-          {box().key("bar").left(95).top(40).width(10).height(120).fill(
-              red())}));
+      box()
+          .width(200)
+          .height(200)
+          .operators({Quarter{}})
+          .children(
+              {box().key("bar").left(95).top(40).width(10).height(120).fill(
+                  red())}));
   host.frame();
   EXPECT_EQ(host.pixel(100, 60), SK_ColorBLACK);  // where the bar stood
   EXPECT_EQ(host.pixel(60, 100), SK_ColorRED);    // where it turned to
   EXPECT_EQ(host.pixel(140, 100), SK_ColorRED);
 }
 
-TEST(ComposeOperators, ASchemeOfTheOlderShapeRunsThroughTheSameList) {
+TEST(ComposeOperators, ACustomLayoutRunsThroughTheSameOperatorList) {
   Host host;
-  host.composer.render(
-      box().width(200).height(200).operators({AllAtCorner{.inset = 30}})
-          .children({dot(1), dot(2)}));
+  host.composer.render(box()
+                           .width(200)
+                           .height(200)
+                           .operators({AllAtCorner{.inset = 30}})
+                           .children({dot(1), dot(2)}));
   host.frame();
   for (const char* key : {"h1", "h2"}) {
     auto rect = host.composer.bounds(key);
@@ -193,28 +195,114 @@ TEST(ComposeOperators, ASchemeOfTheOlderShapeRunsThroughTheSameList) {
   EXPECT_NEAR(host.composer.bounds("h1")->left(), 30, 0.5f);
 }
 
-TEST(ComposeOperators, AFactReachesASchemeOfTheOlderShape) {
+TEST(ComposeOperators, AModifierStartsFromFlexOnEveryLayoutRun) {
+  Host host(200, 200);
+  host.composer.render(
+      box()
+          .key("parent")
+          .width(200)
+          .height(200)
+          .operators({Nudge{.by = {10, 0}}})
+          .children({box().key("child").width(10).height(10).fill(red())}));
+  const auto expectPlacement = [&] {
+    host.frame();
+    EXPECT_EQ(require(host.composer.bounds("parent")),
+              SkRect::MakeXYWH(0, 0, 200, 200));
+    EXPECT_EQ(require(host.composer.bounds("child")),
+              SkRect::MakeXYWH(10, 0, 10, 10));
+    EXPECT_EQ(host.pixel(5, 5), SK_ColorBLACK);
+    EXPECT_EQ(host.pixel(15, 5), SK_ColorRED);
+    EXPECT_EQ(host.pixel(35, 5), SK_ColorBLACK);
+  };
+  expectPlacement();
+  expectPlacement();
+  host.composer.setSize({210, 200});
+  expectPlacement();
+}
+
+TEST(ComposeOperators, AModifierUsesFreshFlexInputsWhenTheContainerChanges) {
+  Host host(240, 200);
+  host.composer.setSize({200, 200});
+  host.composer.render(
+      box()
+          .row()
+          .justifyContent(Justify::End)
+          .operators({Nudge{.by = {-10, 0}}})
+          .children({box().key("child").width(20).height(20).fill(red())}));
+  host.frame();
+  EXPECT_NEAR(require(host.composer.bounds("child")).left(), 170, 0.25f);
+  EXPECT_EQ(host.pixel(175, 5), SK_ColorRED);
+  host.composer.setSize({240, 200});
+  host.frame();
+  EXPECT_NEAR(require(host.composer.bounds("child")).left(), 210, 0.25f);
+  EXPECT_EQ(host.pixel(175, 5), SK_ColorBLACK);
+  EXPECT_EQ(host.pixel(215, 5), SK_ColorRED);
+}
+
+TEST(ComposeOperators, ANestedModifierUsesFlexInputsAtItsPlacedContainerSize) {
+  struct CountedNudge {
+    int* calls;
+    bool operator==(const CountedNudge&) const = default;
+    void arrange(Arrangement& arrangement) const {
+      ++*calls;
+      Nudge{.by = {-10, 0}}.arrange(arrangement);
+    }
+  };
+  Host host(200, 200);
+  int calls = 0;
+  const auto describe = [&](float column) {
+    return layout(layouts::Grid{.columns = {layouts::px(column)},
+                                .rows = {layouts::px(40)}})
+        .width(200)
+        .height(80)
+        .children({box()
+                       .key("row")
+                       .row()
+                       .justifyContent(Justify::End)
+                       .operators({CountedNudge{&calls}})
+                       .children({box().key("child").width(20).height(20).fill(
+                           red())})});
+  };
+  host.composer.render(describe(100));
+  host.frame();
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("row")).width(), 100);
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("child")).left(), 70);
+  EXPECT_EQ(host.pixel(75, 5), SK_ColorRED);
+  EXPECT_EQ(host.pixel(175, 5), SK_ColorBLACK);
+  EXPECT_EQ(calls, 2);
+  calls = 0;
+  host.frame();
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("child")).left(), 70);
+  EXPECT_EQ(calls, 0);
+  host.composer.setSize({210, 200});
+  host.frame();
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("child")).left(), 70);
+  EXPECT_EQ(calls, 1);
+  calls = 0;
+  host.composer.render(describe(150));
+  host.frame();
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("row")).width(), 150);
+  EXPECT_FLOAT_EQ(require(host.composer.bounds("child")).left(), 120);
+  EXPECT_EQ(host.pixel(75, 5), SK_ColorBLACK);
+  EXPECT_EQ(host.pixel(125, 5), SK_ColorRED);
+  EXPECT_EQ(calls, 2);
+}
+
+TEST(ComposeOperators, AFactReachesACustomLayout) {
   struct ByTier {
     bool operator==(const ByTier&) const = default;
-    std::vector<geometry::path::Rect> place(const LayoutInput& in) const {
-      return rectanglesOf(placeSkia(in));
-    }
-    std::vector<SkRect> placeSkia(const LayoutInput& in) const {
-      std::vector<SkRect> rects;
-      for (size_t i = 0; i < in.childSizes.size(); ++i) {
-        const int tier = in.attribute<int>(i, "tier").value_or(0);
-        rects.push_back(SkRect::MakeXYWH(0, (float)tier * 50.0f,
-                                         in.childSizes[i].x,
-                                         in.childSizes[i].y));
+    void arrange(Arrangement& arrangement) const {
+      for (Arrangement::Child& child : arrangement.children) {
+        const int tier = child.attribute<int>("tier").value_or(0);
+        child.place(
+            geometry::path::Rect::of({0, (float)tier * 50.0f}, child.size));
       }
-      return rects;
     }
   };
   Host host;
-  host.composer.render(
-      layout(ByTier{}).width(200).height(200).children(
-          {box().key("a").attribute("tier", 2).width(10).height(10),
-           box().key("b").attribute("tier", 0).width(10).height(10)}));
+  host.composer.render(layout(ByTier{}).width(200).height(200).children(
+      {box().key("a").attribute("tier", 2).width(10).height(10),
+       box().key("b").attribute("tier", 0).width(10).height(10)}));
   host.frame();
   EXPECT_NEAR(host.composer.bounds("a")->top(), 100, 0.5f);
   EXPECT_NEAR(host.composer.bounds("b")->top(), 0, 0.5f);
@@ -236,18 +324,22 @@ TEST(ComposeOperators, APointTakesNoRoomAndStandsWhereItIsPinned) {
   EXPECT_NEAR(port->width(), 0, 0.5f);
   EXPECT_NEAR(port->height(), 0, 0.5f);
   // …and it answers no hit: the box under it does.
-  host.composer.render(box().children(
-      {box().key("under").width(200).height(200).fill(red()),
-       point().key("port").left(100).top(100)}));
+  host.composer.render(
+      box().children({box().key("under").width(200).height(200).fill(red()),
+                      point().key("port").left(100).top(100)}));
   host.frame();
-  EXPECT_EQ(host.composer.hitTest({100, 100}), std::optional<std::string>("under"));
+  EXPECT_EQ(host.composer.hitTest({100, 100}),
+            std::optional<std::string>("under"));
 }
 
 TEST(ComposeOperators, AComparableOperatorPrunesAndAFactChangeDoesNot) {
   Host host;
   auto tree = [](int hour) {
-    return box().width(200).height(200).operators({AroundRing{}}).children(
-        {dot(hour)});
+    return box()
+        .width(200)
+        .height(200)
+        .operators({AroundRing{}})
+        .children({dot(hour)});
   };
   host.composer.render(tree(3));
   host.frame();
@@ -262,6 +354,94 @@ TEST(ComposeOperators, AComparableOperatorPrunesAndAFactChangeDoesNot) {
   auto rect = host.composer.bounds("h6");
   ASSERT_TRUE(rect.has_value());
   EXPECT_NEAR(rect->centre().y, 180, 1);
+}
+
+TEST(ComposeOperators, ChangedArrangingParametersRerunWithoutYogaStyleChanges) {
+  Host host;
+  const auto tree = [](float radius) {
+    return box()
+        .width(200)
+        .height(200)
+        .operators({AroundRing{.radiusFraction = radius}})
+        .children({dot(3)});
+  };
+  host.composer.render(tree(0.8f));
+  host.frame();
+  EXPECT_NEAR(require(host.composer.bounds("h3")).centerX(), 180, 1);
+
+  // Only the arranging value changed. The root's Yoga style and the
+  // child's description are identical to the preceding frame.
+  host.composer.render(tree(0.4f));
+  host.frame();
+  EXPECT_NEAR(require(host.composer.bounds("h3")).centerX(), 140, 1);
+  EXPECT_EQ(host.pixel(140, 100), SK_ColorRED);
+  EXPECT_EQ(host.pixel(180, 100), SK_ColorBLACK);
+
+  host.composer.render(tree(0.4f));
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+  host.frame();
+  EXPECT_NEAR(require(host.composer.bounds("h3")).centerX(), 140, 1);
+}
+
+TEST(ComposeOperators, ChangedFactsRerunAnArrangementWithUnchangedYogaStyles) {
+  Host host;
+  const auto tree = [](int hour) {
+    return box()
+        .width(200)
+        .height(200)
+        .operators({AroundRing{}})
+        .children({box()
+                       .key("dot")
+                       .attribute("hour", hour)
+                       .absolute()
+                       .left(175)
+                       .top(95)
+                       .width(10)
+                       .height(10)
+                       .fill(red())});
+  };
+  // The authored rect matches the first arrangement's output, so a fact
+  // patch reapplies identical Yoga styles and carries no Yoga dirty bit.
+  host.composer.render(tree(3));
+  host.frame();
+  EXPECT_NEAR(require(host.composer.bounds("dot")).centerX(), 180, 1);
+  host.composer.render(tree(6));
+  host.frame();
+  const auto rect = host.composer.bounds("dot");
+  ASSERT_TRUE(rect.has_value());
+  EXPECT_NEAR(rect->centre().x, 100, 1);
+  EXPECT_NEAR(rect->centre().y, 180, 1);
+  EXPECT_EQ(host.pixel(100, 180), SK_ColorRED);
+  EXPECT_EQ(host.pixel(180, 100), SK_ColorBLACK);
+}
+
+TEST(ComposeOperators, ANonComparableArrangementRerunsOnEveryDescribe) {
+  struct ReadingOffset {
+    const float* offset;
+    void arrange(Arrangement& arrangement) const {
+      for (Arrangement::Child& child : arrangement.children)
+        child.place(geometry::path::Rect::of({*offset, 25}, child.size));
+    }
+  };
+  Host host;
+  float offset = 30;
+  const auto tree = [&] {
+    return box()
+        .width(200)
+        .height(200)
+        .operators({ReadingOffset{&offset}})
+        .children({box().key("dot").width(10).height(10).fill(red())});
+  };
+  host.composer.render(tree());
+  host.frame();
+  EXPECT_NEAR(require(host.composer.bounds("dot")).left(), 30, 0.5f);
+  offset = 110;
+  host.composer.render(tree());
+  EXPECT_GT(host.composer.stats().patchedNodes, 0u);
+  host.frame();
+  EXPECT_NEAR(require(host.composer.bounds("dot")).left(), 110, 0.5f);
+  EXPECT_EQ(host.pixel(115, 30), SK_ColorRED);
+  EXPECT_EQ(host.pixel(35, 30), SK_ColorBLACK);
 }
 
 // ---------------------------------------------------------------------------
@@ -296,8 +476,13 @@ TEST(ComposeOperators, CopiesCannotAttachBackIntoTheirSourceScope) {
 TEST(ComposeOperators, ALaterAdderReadsOnlyTheAuthoredNodes) {
   struct First {
     void add(Scope& scope) const {
-      scope.attach(box().key("addition").left(0).top(0)
-          .width(20).height(20).fill(red()));
+      scope.attach(box()
+                       .key("addition")
+                       .left(0)
+                       .top(0)
+                       .width(20)
+                       .height(20)
+                       .fill(red()));
     }
   };
   struct Second {
@@ -310,16 +495,20 @@ TEST(ComposeOperators, ALaterAdderReadsOnlyTheAuthoredNodes) {
   };
   bool sawAuthored = false, sawAddition = false;
   Host host(120, 120);
-  host.composer.render(box().width(120).height(120)
-      .children({box().key("authored").width(20).height(20)})
-      .operators({First{}, Second{&sawAuthored, &sawAddition}}));
+  host.composer.render(
+      box()
+          .width(120)
+          .height(120)
+          .children({box().key("authored").width(20).height(20)})
+          .operators({First{}, Second{&sawAuthored, &sawAddition}}));
   host.frame();
   EXPECT_TRUE(sawAuthored);
   EXPECT_FALSE(sawAddition);
   EXPECT_EQ(host.pixel(10, 10), SK_ColorRED);
 }
 
-TEST(ComposeOperators, MovingAScopeRebindsAttachmentsAndKeepsSnapshotsDetached) {
+TEST(ComposeOperators,
+     MovingAScopeRebindsAttachmentsAndKeepsSnapshotsDetached) {
   Scope source;
   Scope::Node node;
   node.key = "authored";
@@ -351,8 +540,13 @@ struct MarkEach {
   bool operator==(const MarkEach&) const = default;
   void add(Scope& scope) const {
     for (const Scope::Node& node : scope.nodes())
-      node.attach(box().key(node.key + "-mark").left(0).top(0).width(size)
-                      .height(size).fill(red()));
+      node.attach(box()
+                      .key(node.key + "-mark")
+                      .left(0)
+                      .top(0)
+                      .width(size)
+                      .height(size)
+                      .fill(red()));
   }
 };
 
@@ -369,8 +563,7 @@ struct SheetAt {
   int zIndex = 0;
   bool operator==(const SheetAt&) const = default;
   void add(Scope& scope) const {
-    scope.attach(
-        box().key("sheet").rect(scope.box).fill(red()).zIndex(zIndex));
+    scope.attach(box().key("sheet").rect(scope.box).fill(red()).zIndex(zIndex));
   }
 };
 
@@ -386,12 +579,12 @@ struct Wire {
     // dresses a path is the brush tier's business, not this seam's.
     const glm::vec2 start = a->bounds.centre();
     const glm::vec2 end = b->bounds.centre();
-    scope.attach(box()
-                     .key(from + "->" + to)
-                     .rect(geometry::path::Rect{
-                         {std::min(start.x, end.x), start.y - 2},
-                         {std::max(start.x, end.x), start.y + 2}})
-                     .fill(red()));
+    scope.attach(
+        box()
+            .key(from + "->" + to)
+            .rect(geometry::path::Rect{{std::min(start.x, end.x), start.y - 2},
+                                       {std::max(start.x, end.x), start.y + 2}})
+            .fill(red()));
   }
 };
 
@@ -399,10 +592,16 @@ struct Wire {
 
 TEST(ComposeOperators, AnAdditionOnTheScopeStandsBesideTheAuthoredChildren) {
   Host host;
-  host.composer.render(box().key("scope").width(200).height(200).children(
-      {box().key("a").left(20).top(90).width(20).height(20).fill(green()),
-       box().key("b").left(160).top(90).width(20).height(20).fill(green())})
-                           .operators({Wire{"a", "b"}}));
+  host.composer.render(
+      box()
+          .key("scope")
+          .width(200)
+          .height(200)
+          .children({box().key("a").left(20).top(90).width(20).height(20).fill(
+                         green()),
+                     box().key("b").left(160).top(90).width(20).height(20).fill(
+                         green())})
+          .operators({Wire{"a", "b"}}));
   host.frame();
   // The wire is a keyed element with bounds, painted between the boxes.
   auto wire = host.composer.bounds("a->b");
@@ -415,9 +614,13 @@ TEST(ComposeOperators, AnAdditionOnTheScopeStandsBesideTheAuthoredChildren) {
 
 TEST(ComposeOperators, AnAdditionOnANodeIsPlacedInThatNodesCoordinates) {
   Host host;
-  host.composer.render(box().width(200).height(200).children(
-      {box().key("a").left(50).top(60).width(40).height(40).fill(green())})
-                           .operators({MarkEach{}}));
+  host.composer.render(
+      box()
+          .width(200)
+          .height(200)
+          .children({box().key("a").left(50).top(60).width(40).height(40).fill(
+              green())})
+          .operators({MarkEach{}}));
   host.frame();
   auto mark = host.composer.bounds("a-mark");
   ASSERT_TRUE(mark.has_value());
@@ -429,9 +632,14 @@ TEST(ComposeOperators, AnAdditionOnANodeIsPlacedInThatNodesCoordinates) {
 
 TEST(ComposeOperators, TheOperatorsZIndexPutsItsAdditionsBehind) {
   Host host;
-  host.composer.render(box().width(200).height(200).children(
-      {box().key("a").left(50).top(50).width(100).height(100).fill(green())})
-                           .operators({Operator(Sheet{}).zIndex(-1)}));
+  host.composer.render(
+      box()
+          .width(200)
+          .height(200)
+          .children(
+              {box().key("a").left(50).top(50).width(100).height(100).fill(
+                  green())})
+          .operators({Operator(Sheet{}).zIndex(-1)}));
   host.frame();
   EXPECT_EQ(host.pixel(100, 100), SK_ColorGREEN);  // the child, over the sheet
   EXPECT_EQ(host.pixel(10, 10), SK_ColorRED);      // the sheet, everywhere else
@@ -441,21 +649,25 @@ TEST(ComposeOperators, AnAdditionsOwnZIndexStandsOverItsOperators) {
   // The addition states the default z-index, which is still a statement:
   // the operator's value is where it starts, and it states otherwise.
   Host host;
-  host.composer.render(box().width(200).height(200).children(
-      {box().key("a").left(50).top(50).width(100).height(100).fill(green())})
-                           .operators({Operator(SheetAt{0}).zIndex(-1)}));
+  host.composer.render(
+      box()
+          .width(200)
+          .height(200)
+          .children(
+              {box().key("a").left(50).top(50).width(100).height(100).fill(
+                  green())})
+          .operators({Operator(SheetAt{0}).zIndex(-1)}));
   host.frame();
   EXPECT_EQ(host.pixel(100, 100), SK_ColorRED);  // the sheet, over the child
 }
 
 TEST(ComposeOperators, AdditionsAreNeitherArrangedNorCountedAsSiblings) {
   Host host;
-  host.composer.render(
-      box()
-          .width(200)
-          .height(200)
-          .operators({AroundRing{}, MarkEach{}})
-          .children({dot(12), dot(6)}));
+  host.composer.render(box()
+                           .width(200)
+                           .height(200)
+                           .operators({AroundRing{}, MarkEach{}})
+                           .children({dot(12), dot(6)}));
   host.frame();
   // The dots are on the ring; the marks sit on the dots, not on the ring.
   auto dot12 = host.composer.bounds("h12");
@@ -470,26 +682,87 @@ TEST(ComposeOperators, AdditionsGoWhenTheirOperatorGoes) {
   Host host;
   auto tree = [](bool wired) {
     Element scope = box().width(200).height(200).children(
-        {box().key("a").left(20).top(90).width(20).height(20),
-         box().key("b").left(160).top(90).width(20).height(20)});
+        {box().key("a").left(20).top(90).width(20).height(20).fill(green()),
+         box().key("b").left(160).top(90).width(20).height(20).fill(green())});
     if (wired) scope.operators({Wire{"a", "b"}});
     return scope;
   };
   host.composer.render(tree(true));
   host.frame();
   ASSERT_TRUE(host.composer.bounds("a->b").has_value());
+  const SkRect aBounds = require(host.composer.bounds("a"));
+  const SkRect bBounds = require(host.composer.bounds("b"));
   host.composer.render(tree(false));
   host.frame();
   EXPECT_FALSE(host.composer.bounds("a->b").has_value());
   EXPECT_EQ(host.pixel(100, 100), SK_ColorBLACK);
+  EXPECT_EQ(require(host.composer.bounds("a")), aBounds);
+  EXPECT_EQ(require(host.composer.bounds("b")), bBounds);
+  EXPECT_EQ(host.pixel(25, 95), SK_ColorGREEN);
+  EXPECT_EQ(host.composer.stats().instances, 3u);
+
+  host.composer.render(tree(true));
+  host.frame();
+  EXPECT_TRUE(host.composer.bounds("a->b").has_value());
+  EXPECT_EQ(host.pixel(100, 100), SK_ColorRED);
+  EXPECT_EQ(host.composer.stats().instances, 4u);
+}
+
+TEST(ComposeOperators, AClassChangeRefreshesAnAddingOperatorsScope) {
+  struct MarkSelected {
+    bool operator==(const MarkSelected&) const = default;
+    void add(Scope& scope) const {
+      for (const Scope::Node& node : scope.nodes()) {
+        if (node.hasClass("selected"))
+          node.attach(box()
+                          .key(node.key + "-mark")
+                          .left(0)
+                          .top(0)
+                          .width(8)
+                          .height(8)
+                          .fill(red()));
+      }
+    }
+  };
+  Host host;
+  const auto tree = [](bool selected) {
+    return box()
+        .width(200)
+        .height(200)
+        .operators({MarkSelected{}})
+        .children({box()
+                       .key("item")
+                       .left(20)
+                       .top(20)
+                       .width(20)
+                       .height(20)
+                       .styleClass(selected ? "selected" : "")
+                       .fill(green())});
+  };
+  host.composer.render(tree(false));
+  host.frame();
+  ASSERT_FALSE(host.composer.bounds("item-mark").has_value());
+  ASSERT_EQ(host.pixel(25, 25), SK_ColorGREEN);
+
+  host.composer.render(tree(true));
+  host.frame();
+  EXPECT_TRUE(host.composer.bounds("item-mark").has_value());
+  EXPECT_EQ(host.pixel(25, 25), SK_ColorRED);
+
+  host.composer.render(tree(false));
+  host.frame();
+  EXPECT_FALSE(host.composer.bounds("item-mark").has_value());
+  EXPECT_EQ(host.pixel(25, 25), SK_ColorGREEN);
 }
 
 TEST(ComposeOperators, AnUnchangedTreeMountsItsAdditionsOnce) {
   Host host;
   auto tree = [] {
-    return box().width(200).height(200).children(
-        {box().key("a").left(20).top(90).width(20).height(20),
-         box().key("b").left(160).top(90).width(20).height(20)})
+    return box()
+        .width(200)
+        .height(200)
+        .children({box().key("a").left(20).top(90).width(20).height(20),
+                   box().key("b").left(160).top(90).width(20).height(20)})
         .operators({Wire{"a", "b"}});
   };
   host.composer.render(tree());
@@ -532,11 +805,19 @@ TEST(ComposeOperators, TwoScopesAttachingToOneNodeKeepBothTheirSlices) {
   // own, every frame.
   Host host;
   auto tree = [] {
-    return box().width(200).height(200)
-        .children({box().key("inner").left(50).top(50).width(100).height(100)
-                       .operators({MarkEach{.size = 4}})
-                       .children({box().key("leaf").left(20).top(20).width(10)
-                                      .height(10)})})
+    return box()
+        .width(200)
+        .height(200)
+        .children(
+            {box()
+                 .key("inner")
+                 .left(50)
+                 .top(50)
+                 .width(100)
+                 .height(100)
+                 .operators({MarkEach{.size = 4}})
+                 .children({box().key("leaf").left(20).top(20).width(10).height(
+                     10)})})
         .operators({MarkEach{.size = 8}});
   };
   host.composer.render(tree());
@@ -570,12 +851,18 @@ TEST(ComposeOperators, AnOutOfOrderListIsReportedByWhereItStands) {
   Host host;
   ::testing::internal::CaptureStderr();
   host.composer.render(
-      box().key("operator-order-scope").width(200).height(200).children(
-          {box().width(10).height(10),
-           box().width(200).height(100).children(
-               {box().key("order-a").width(20).height(20),
-                box().key("order-b").width(20).height(20)})
-               .operators({Wire{"order-a", "order-b"}, Nudge{{4, 0}}})}));
+      box()
+          .key("operator-order-scope")
+          .width(200)
+          .height(200)
+          .children(
+              {box().width(10).height(10),
+               box()
+                   .width(200)
+                   .height(100)
+                   .children({box().key("order-a").width(20).height(20),
+                              box().key("order-b").width(20).height(20)})
+                   .operators({Wire{"order-a", "order-b"}, Nudge{{4, 0}}})}));
   host.frame();
   const std::string report = ::testing::internal::GetCapturedStderr();
   EXPECT_EQ(report.find("on \"\""), std::string::npos) << report;
