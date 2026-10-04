@@ -151,6 +151,10 @@ mean, since such a normal's x and y are centred on a half and only its z
 reaches one. So white IS "no map here", exactly and with no threshold to
 pick — which is what lets a body tell a dressed slot from an undressed
 one, and what keeps a surface nobody dressed the picture it already was.
+A slot the device binds must hold an image texture. One filled with any
+other material — a normal derived from a height, two normals blended, a
+gradient — has nothing the device can sample: it is reported once,
+naming the slot, and reads as empty.
 
 **A body states what its surface IS.** The scaffold declares a set of
 variables a body writes and it reads: `gSurfaceNormal` in tangent space,

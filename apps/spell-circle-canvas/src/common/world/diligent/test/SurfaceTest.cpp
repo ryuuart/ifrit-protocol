@@ -19,6 +19,8 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
+#include <sigilmaterial/texture/Image.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilworld/diligent/Import.h>
 #include <sigilworld/diligent/Runtime.h>
 
@@ -29,7 +31,6 @@
 #include <vector>
 
 #include "DeviceSeams.h"
-#include <sigilmedia/advanced/Skia.h>
 
 using namespace sigil;
 using namespace sigil::world;
@@ -43,13 +44,14 @@ constexpr glm::ivec2 kExtent{120, 120};
  *  so two identical asks are one texture. */
 material::Texture drawnTexture(const std::string& key, int width, int height,
                                const std::function<void(SkCanvas&)>& paint) {
-  return material::Texture(sigil::media::PixelSource::produce(key, [width, height, paint] {
-    sk_sp<SkSurface> surface =
-        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(width, height));
-    surface->getCanvas()->clear(SK_ColorTRANSPARENT);
-    paint(*surface->getCanvas());
-    return surface->makeImageSnapshot();
-  }));
+  return material::Texture(
+      sigil::media::PixelSource::produce(key, [width, height, paint] {
+        sk_sp<SkSurface> surface =
+            SkSurfaces::Raster(SkImageInfo::MakeN32Premul(width, height));
+        surface->getCanvas()->clear(SK_ColorTRANSPARENT);
+        paint(*surface->getCanvas());
+        return surface->makeImageSnapshot();
+      }));
 }
 
 /** One flat colour, one texel. */
@@ -207,6 +209,40 @@ TEST(SurfaceSlots, ASlotDressedInWhiteIsTheSamePictureAsOneDressedInNothing) {
   const SkColor4f centre = at(bare, 0.5f, 0.5f);
   EXPECT_GT(centre.fR, centre.fG);
   EXPECT_GT(centre.fG, centre.fB);
+}
+
+TEST(SurfaceSlots, AChannelThatIsAMaterialReadsAsEmptyAndSaysSo) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+
+  // A normal DERIVED from a height is a material the device has no image
+  // of, so its slot binds the same white texel an undressed one does —
+  // the card is the plain card exactly — and the slot is named once on
+  // the diagnostic stream, because the picture alone would show a flat
+  // surface and no reason for it.
+  const material::Material height = material::image(
+      drawnTexture("world.test.height", 2, 1, [](SkCanvas& canvas) {
+        canvas.clear(SK_ColorWHITE);
+        SkPaint paint;
+        paint.setColor(SK_ColorBLACK);
+        canvas.drawRect(SkRect::MakeXYWH(0, 0, 1, 1), paint);
+      }));
+  const material::Color grey{0.8f, 0.8f, 0.8f, 1.0f};
+  const material::Material plain = material::from(grey).surface({});
+  const material::Material derived = material::from(grey).surface(
+      {.normal = material::surface::normalFromHeight(height, {.depth = 4})});
+
+  const SkBitmap bare = cardOn(plain, on.runtime);
+  testing::internal::CaptureStderr();
+  const SkBitmap dressed = cardOn(derived, on.runtime);
+  const std::string said = testing::internal::GetCapturedStderr();
+
+  EXPECT_GT(luma(at(dressed, 0.5f, 0.5f)), 0.05f) << "the card is drawn";
+  EXPECT_EQ(diligent::worstChannel(bare, dressed), 0);
+  EXPECT_NE(said.find(std::string(material::surface::kNormalSlot)),
+            std::string::npos)
+      << said;
+  EXPECT_NE(said.find("image texture"), std::string::npos) << said;
 }
 
 // ---- the door a foreign texture comes in by -------------------------

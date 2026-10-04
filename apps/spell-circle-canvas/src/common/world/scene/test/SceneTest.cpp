@@ -11,8 +11,9 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkImageInfo.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmotion/clock/Engine.h>
-#include <sigilmotion/values/Tween.h>
+#include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Tween.h>
 #include <sigilworld/advanced/Skia.h>
 #include <sigilworld/scene/Scene.h>
@@ -112,11 +113,13 @@ TEST_F(WorldScene, AVisibleBackfaceKeepsAPlaneUnderAnOrbit) {
   behind.eye.z = -320;
 
   scene.render(Element().key("root").children(
-      {Element().key("card").mesh(card(24)).backface(material::Backface::Hidden)}));
+      {Element().key("card").mesh(card(24)).backface(
+          material::Backface::Hidden)}));
   EXPECT_FALSE(hasInk(plate(scene, behind)));
 
   scene.render(Element().key("root").children(
-      {Element().key("card").mesh(card(24)).backface(material::Backface::Visible)}));
+      {Element().key("card").mesh(card(24)).backface(
+          material::Backface::Visible)}));
   EXPECT_TRUE(hasInk(plate(scene, behind)));
 }
 
@@ -320,8 +323,8 @@ TEST_F(WorldScene, AnEmitterDialReachesTheLightItScales) {
   std::vector<material::Light> lights = scene.lights();
   ASSERT_EQ(lights.size(), 1u);
   EXPECT_FLOAT_EQ(lights.front().intensity.value(), 0.25f);
-  EXPECT_FLOAT_EQ(lights.front().color.r, 1.0f);
-  EXPECT_FLOAT_EQ(lights.front().color.g, 0.5f);
+  EXPECT_FLOAT_EQ(lights.front().color.value().r, 1.0f);
+  EXPECT_FLOAT_EQ(lights.front().color.value().g, 0.5f);
 
   // A LANE, not a description: the value moves and the tree is unchanged.
   strength = 0.9f;
@@ -330,7 +333,7 @@ TEST_F(WorldScene, AnEmitterDialReachesTheLightItScales) {
   lights = scene.lights();
   ASSERT_EQ(lights.size(), 1u);
   EXPECT_FLOAT_EQ(lights.front().intensity.value(), 0.9f);
-  EXPECT_FLOAT_EQ(lights.front().color.r, 0.2f);
+  EXPECT_FLOAT_EQ(lights.front().color.value().r, 0.2f);
 }
 
 TEST_F(WorldScene, AnEmitterWithNoDialsShinesAsItWasDeclared) {
@@ -339,7 +342,141 @@ TEST_F(WorldScene, AnEmitterWithNoDialsShinesAsItWasDeclared) {
   const std::vector<material::Light> lights = scene.lights();
   ASSERT_EQ(lights.size(), 1u);
   EXPECT_FLOAT_EQ(lights.front().intensity.value(), 0.4f);
-  EXPECT_FLOAT_EQ(lights.front().color.b, 0.9f);
+  EXPECT_FLOAT_EQ(lights.front().color.value().b, 0.9f);
+}
+
+TEST_F(WorldScene, ALiveLightColorReachesRetainedBodiesWithoutRecooking) {
+  motion::Animatable<material::Color> color =
+      motion::animatable(material::Color{2, 0.125f, 0.0625f, 0.5f});
+  material::Light source = light::sun({0, 0, -1});
+  source.color = color;
+  const auto describe = [](const material::Light& lamp) {
+    return Element().key("root").children(
+        {Element().key("lamp").light(lamp),
+         Element().key("body").mesh(card(30)).fill(
+             paint({0.8f, 0.8f, 0.8f, 1}))});
+  };
+  const Element tree = describe(source);
+  for (int frame = 0; frame < 8; ++frame) scene.render(tree);
+  ASSERT_GT(scene.stats().replayed, 0);
+  const uint64_t handle = scene.handleOf("body");
+  const std::vector<uint8_t> before = plate(scene);
+  ASSERT_TRUE(hasInk(before));
+
+  const material::Color changed{0.0625f, 0.125f, 2, 0.75f};
+  color = changed;
+  scene.render(tree);
+  const std::vector<material::Light> lights = scene.lights();
+  ASSERT_EQ(lights.size(), 1u);
+  EXPECT_EQ(lights.front().color.value(), changed);
+  EXPECT_FALSE(lights.front().color.isRunning());
+  EXPECT_EQ(scene.handleOf("body"), handle);
+  EXPECT_EQ(scene.stats().cooked, 0);
+  EXPECT_EQ(scene.stats().resources, 1);
+  EXPECT_EQ(scene.referencesOf("body"), 1);
+  EXPECT_GT(scene.stats().replayed, 0);
+  const std::vector<uint8_t> after = plate(scene);
+  EXPECT_NE(before, after);
+
+  motion::Engine referenceEngine;
+  Scene reference(referenceEngine);
+  material::Light fixed = light::sun({0, 0, -1});
+  fixed.color = motion::Animatable<material::Color>(changed);
+  reference.render(describe(fixed));
+  EXPECT_EQ(after, plate(reference));
+}
+
+TEST_F(WorldScene, EmitterDialsDoNotWriteIntoTheirLiveSources) {
+  const material::Color initial{2, 3, 4, 0.5f};
+  motion::Animatable<material::Color> color = motion::animatable(initial);
+  motion::Animatable<float> strength = motion::animatable(0.75f);
+  material::Light source =
+      light::spot({2, 3, 4}, {0, 0, -1}, 47, 13, {}, 1, 987);
+  source.ambient = 0.125f;
+  source.color = color;
+  source.intensity = strength;
+  const Element tree =
+      Element().key("root").children({Element()
+                                          .key("lamp")
+                                          .light(source)
+                                          .emission(0.2f, 0.4f, 0.6f)
+                                          .intensity(0.25f)});
+  scene.render(tree);
+  EXPECT_EQ(color.value(), initial);
+  EXPECT_FLOAT_EQ(strength.value(), 0.75f);
+  std::vector<material::Light> lights = scene.lights();
+  ASSERT_EQ(lights.size(), 1u);
+  EXPECT_EQ(lights.front().color.value(),
+            (material::Color{0.2f, 0.4f, 0.6f, 0.5f}));
+  EXPECT_FLOAT_EQ(lights.front().intensity.value(), 0.25f);
+  EXPECT_FALSE(lights.front().color.isRunning());
+  EXPECT_FALSE(lights.front().intensity.isRunning());
+  EXPECT_EQ(lights.front().kind, material::LightKind::Spot);
+  EXPECT_EQ(lights.front().position, source.position);
+  EXPECT_FLOAT_EQ(lights.front().range, 987);
+  EXPECT_FLOAT_EQ(lights.front().innerAngle, 13);
+  EXPECT_FLOAT_EQ(lights.front().outerAngle, 47);
+  EXPECT_FLOAT_EQ(lights.front().ambient, 0.125f);
+
+  const material::Color changed{5, 6, 7, 0.8f};
+  color = changed;
+  strength = 1.5f;
+  scene.render(tree);
+  EXPECT_EQ(color.value(), changed);
+  EXPECT_FLOAT_EQ(strength.value(), 1.5f);
+  lights = scene.lights();
+  ASSERT_EQ(lights.size(), 1u);
+  EXPECT_EQ(lights.front().color.value(),
+            (material::Color{0.2f, 0.4f, 0.6f, 0.8f}));
+  EXPECT_FLOAT_EQ(lights.front().intensity.value(), 0.25f);
+  EXPECT_EQ(lights.front().kind, source.kind);
+  EXPECT_EQ(lights.front().position, source.position);
+  EXPECT_FLOAT_EQ(lights.front().range, source.range);
+  EXPECT_FLOAT_EQ(lights.front().innerAngle, source.innerAngle);
+  EXPECT_FLOAT_EQ(lights.front().outerAngle, source.outerAngle);
+  EXPECT_FLOAT_EQ(lights.front().ambient, source.ambient);
+}
+
+TEST_F(WorldScene, PlacingALightDoesNotWriteIntoItsLiveAngles) {
+  motion::Animatable<float> direction = motion::animatable(30.0f);
+  motion::Animatable<float> elevation = motion::animatable(45.0f);
+  material::Light source;
+  source.direction = direction;
+  source.elevation = elevation;
+  const auto describe = [](const material::Light& lamp) {
+    return Element().key("root").children(
+        {Element().key("rig").rotateY(60).children(
+            {Element().key("lamp").light(lamp)})});
+  };
+  const Element tree = describe(source);
+  motion::Engine referenceEngine;
+  Scene reference(referenceEngine);
+  for (int frame = 0; frame < 8; ++frame) {
+    const float bearing = frame < 4 ? 30.0f : 90.0f;
+    const float height = frame < 4 ? 45.0f : 25.0f;
+    if (frame == 4) {
+      direction = bearing;
+      elevation = height;
+    }
+    material::Light fixed;
+    fixed.direction = bearing;
+    fixed.elevation = height;
+    reference.render(describe(fixed));
+    scene.render(tree);
+    EXPECT_FLOAT_EQ(direction.value(), bearing);
+    EXPECT_FLOAT_EQ(elevation.value(), height);
+    const std::vector<material::Light> actual = scene.lights();
+    const std::vector<material::Light> expected = reference.lights();
+    ASSERT_EQ(actual.size(), 1u);
+    ASSERT_EQ(expected.size(), 1u);
+    EXPECT_FALSE(actual.front().direction.isRunning());
+    EXPECT_FALSE(actual.front().elevation.isRunning());
+    const glm::vec3 ray = light::travel(actual.front());
+    const glm::vec3 target = light::travel(expected.front());
+    EXPECT_NEAR(ray.x, target.x, 1e-6f);
+    EXPECT_NEAR(ray.y, target.y, 1e-6f);
+    EXPECT_NEAR(ray.z, target.z, 1e-6f);
+  }
 }
 
 TEST_F(WorldScene, RetiringANodeHandsBackItsEntityAndItsArtefact) {
@@ -407,14 +544,13 @@ TEST_F(WorldScene, APassSeesWhatExtractWroteAndNotTheTree) {
   std::vector<std::string> ancestors;
   std::vector<std::string> tags;
   Frame frame = framed(pair());
-  frame.pass(geometryPass("hand").writes("colour").body(
-      [&](const View& view) {
-        for (const Draw& draw : view.draws) {
-          keys.emplace_back(draw.key);
-          for (const std::string& word : draw.tags) tags.push_back(word);
-          for (const std::string& up : draw.ancestors) ancestors.push_back(up);
-        }
-      }));
+  frame.pass(geometryPass("hand").writes("colour").body([&](const View& view) {
+    for (const Draw& draw : view.draws) {
+      keys.emplace_back(draw.key);
+      for (const std::string& word : draw.tags) tags.push_back(word);
+      for (const std::string& up : draw.ancestors) ancestors.push_back(up);
+    }
+  }));
   scene.render(frame);
 
   ASSERT_EQ(keys.size(), 2u);

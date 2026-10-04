@@ -15,6 +15,7 @@
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilmaterial/advanced/Combine.h>
 #include <sigilmaterial/advanced/FrameData.h>
+#include <sigilmaterial/advanced/Program.h>  // reportOnce
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Parameters.h>
 #include <sigilmaterial/surface/Surface.h>
@@ -83,7 +84,7 @@ void premultiplied(SkColor4f colour, float* into) {
  *  resolved to, and whether the emitters reach it. */
 struct Surface {
   const material::slang::Compiled* program = nullptr;
-  std::span<const std::byte> bytes;
+  material::Material::Resolved upload;
   const material::Recipe* recipe = nullptr;
   bool lit = true;
 };
@@ -96,11 +97,12 @@ Surface surfaceOf(const material::Material* material, bool lit) {
     return out;
   }
   const material::Variant variant{lit ? kVariantLit : 0u};
-  const material::Material::Resolved resolved = material->resolve(
-      material::Target::Slang, material::FrameData{}, variant);
+  out.upload = material->resolve(material::Target::Slang, material::FrameData{},
+                                 variant);
   const auto* program =
-      resolved.program ? resolved.program->as<material::slang::SlangProgram>()
-                       : nullptr;
+      out.upload.program
+          ? out.upload.program->as<material::slang::SlangProgram>()
+          : nullptr;
   if (!program) {
     // The cache has already reported the recipe and the target; the body
     // it would have painted is drawn in the colour the frame extracted,
@@ -109,7 +111,6 @@ Surface surfaceOf(const material::Material* material, bool lit) {
     return out;
   }
   out.program = &program->compiled();
-  out.bytes = resolved.bytes;
   out.recipe = &material->recipe();
   return out;
 }
@@ -125,9 +126,9 @@ void writeMaterial(material::slang::Uniforms& uniforms,
   if (!surface.recipe) return;
   for (const material::Field& field : surface.recipe->layout().fields) {
     const size_t bytes = field.floats * sizeof(float);
-    if (field.offset + bytes > surface.bytes.size()) continue;
-    const auto* values =
-        reinterpret_cast<const float*>(surface.bytes.data() + field.offset);
+    if (field.offset + bytes > surface.upload.bytes.size()) continue;
+    const auto* values = reinterpret_cast<const float*>(
+        surface.upload.bytes.data() + field.offset);
     if (field.kind == material::ParameterType::Mat3) {
       float rows[9];
       for (int r = 0; r < 3; ++r)
@@ -145,8 +146,9 @@ void writeScaffold(material::slang::Uniforms& uniforms,
                    const material::slang::Compiled& program,
                    const glm::mat4& viewProj, const glm::mat4& view,
                    const glm::mat4& model, glm::vec4 baseColor,
-                   std::span<const material::Light> lights, const Environment& sky,
-                   const glm::mat3& orientation, int levels, bool lit) {
+                   std::span<const material::Light> lights,
+                   const Environment& sky, const glm::mat3& orientation,
+                   int levels, bool lit) {
   uniforms.set("uViewProj", viewProj);
   uniforms.set("uModel", model);
   uniforms.set("uBaseColor", baseColor.r, baseColor.g, baseColor.b,
@@ -286,12 +288,26 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
       continue;
     }
     if (!material) continue;
-    // …and every OTHER slot is the material's own. `kit::map` answers
-    // null for a slot still holding the neutral dressing a surface is
-    // built with, which is what keeps an undressed body reading the one
-    // white texel rather than a map that says nothing.
+    // …and every OTHER slot is the material's own. `material::surface::map`
+    // answers null for a slot still holding the neutral dressing a
+    // surface is built with, which is what keeps an undressed body
+    // reading the one white texel rather than a map that says nothing.
     const material::Texture* worn = material::surface::map(*material, slot);
-    if (worn && worn != map) textures[i] = gpu.maps.sample(*worn);
+    if (worn) {
+      if (worn != map) textures[i] = gpu.maps.sample(*worn);
+      continue;
+    }
+    // A slot filled with a MATERIAL rather than an image has nothing this
+    // device can sample, so it reads the same white texel — and says so,
+    // once per slot, since the picture alone would show a flat surface
+    // and no reason for it.
+    if (material->slot(slot))
+      material::reportOnce(
+          "world.diligent.slot:" + slot,
+          "surface slot \"" + slot +
+              "\" holds a material, and the device samples image textures "
+              "only; the slot reads as empty. Supply an image texture "
+              "there.");
   }
 
   dg::IDeviceContext* context = gpu.device->context();

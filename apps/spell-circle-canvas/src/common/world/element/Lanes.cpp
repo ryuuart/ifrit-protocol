@@ -3,6 +3,7 @@
  * patch ramps from or to where a description does not carry one.
  */
 
+#include <sigilmaterial/color/Color.h>
 #include <sigilworld/element/Lanes.h>
 
 #include <optional>
@@ -79,23 +80,23 @@ void lanesOf(const ElementNode& node, std::vector<Lane>& out) {
   // strength and colour rows — a panorama placed in a set is an emitter
   // of a kind, and its tint is the colour it shines in.
   const Environment* sky = node.environment ? &*node.environment : nullptr;
+  const material::Color lightColor =
+      node.light ? node.light->color.value() : material::Color{};
   const auto standing = [&](Slot slot, float fromLight, float fromSky) {
     if (node.light) return fromLight;
     if (sky) return fromSky;
     return standingValue(slot);
   };
-  pushEmitter(kIntensity, emission ? &emission->intensity : nullptr,
-              standing(kIntensity, node.light ? node.light->intensity.value() : 0,
-                       sky ? sky->intensity : 0));
+  pushEmitter(
+      kIntensity, emission ? &emission->intensity : nullptr,
+      standing(kIntensity, node.light ? node.light->intensity.value() : 0,
+               sky ? sky->intensity : 0));
   pushEmitter(kEmissionRed, emission ? &emission->red : nullptr,
-              standing(kEmissionRed, node.light ? node.light->color.r : 0,
-                       sky ? sky->tint.x : 0));
+              standing(kEmissionRed, lightColor.r, sky ? sky->tint.x : 0));
   pushEmitter(kEmissionGreen, emission ? &emission->green : nullptr,
-              standing(kEmissionGreen, node.light ? node.light->color.g : 0,
-                       sky ? sky->tint.y : 0));
+              standing(kEmissionGreen, lightColor.g, sky ? sky->tint.y : 0));
   pushEmitter(kEmissionBlue, emission ? &emission->blue : nullptr,
-              standing(kEmissionBlue, node.light ? node.light->color.b : 0,
-                       sky ? sky->tint.z : 0));
+              standing(kEmissionBlue, lightColor.b, sky ? sky->tint.z : 0));
 
   // The environment's own seven, standing where the environment stands.
   const SkyDials* dials = node.sky ? &*node.sky : nullptr;

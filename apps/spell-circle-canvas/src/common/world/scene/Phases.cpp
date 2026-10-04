@@ -8,15 +8,15 @@
 #include <sigilcore/cache/Cache.h>
 #include <sigilgeometry/mesh/curve/Pose.h>
 #include <sigilmaterial/advanced/Combine.h>
+#include <sigilmaterial/advanced/Program.h>  // reportOnce
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/surface/Surface.h>
-#include <sigilmotion/clock/Engine.h>
 #include <sigilmotion/advanced/Held.h>
+#include <sigilmotion/clock/Engine.h>
+#include <sigilworld/light/Light.h>
 
-#include <boost/unordered/unordered_flat_set.hpp>
-#include <cstdio>
 #include <cstring>
 #include <glm/gtc/matrix_inverse.hpp>
-#include <mutex>
 #include <optional>
 #include <string>
 #include <utility>
@@ -29,17 +29,6 @@ namespace sigil::world {
 namespace {
 
 namespace gm = ::sigil::geometry::mesh;
-
-/** Says @p message the first time it is said and never again. The walk
- *  this is called from visits every node of every frame, so a mistake
- *  standing in a scene would otherwise be reported at frame rate. */
-void reportOnce(const std::string& message) {
-  static std::mutex mutex;
-  static boost::unordered_flat_set<std::string> said;
-  const std::lock_guard lock(mutex);
-  if (!said.insert(message).second) return;
-  std::fprintf(stderr, "[sigil::world] %s\n", message.c_str());
-}
 
 /** The surface a node wears: its own, or the first of its per-face
  *  slots. */
@@ -154,9 +143,8 @@ void Scene::Impl::sampleLanes(Instance& inst) {
   lanesOf(node, laneScratch);
   const auto read = [this, &inst](Slot slot) {
     const Lane& lane = laneScratch[slot];
-    return lane.value
-               ? motion::valueOf(inst.anims[slot].get(), *lane.value)
-               : lane.standing;
+    return lane.value ? motion::valueOf(inst.anims[slot].get(), *lane.value)
+                      : lane.standing;
   };
   inst.values.translate = {read(kTranslateX), read(kTranslateY),
                            read(kTranslateZ)};
@@ -358,20 +346,26 @@ core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst) {
   // every node every frame — a bake replays a draw order, and a light
   // inside one must not go missing with it.
   if (node.light) {
-    material::Light emitter = *node.light;
+    // The colour and the strength are the node's sampled lanes, which
+    // the light's own values only seed; the opacity stays the light's.
+    material::Light emitter = light::held(*node.light);
+    emitter.color = material::Color{inst.emission.r, inst.emission.g,
+                                    inst.emission.b, emitter.color.value().a};
     emitter.intensity = inst.intensity;
-    emitter.color = {inst.emission.r, inst.emission.g, inst.emission.b,
-                     emitter.color.a};
-    lights.push_back(placeLight(emitter, inst.world));
+    lights.push_back(placeLight(std::move(emitter), inst.world));
   }
   if (node.environment) {
     if (environment.valid()) {
       // A SECOND SKY IS NOT A CHOICE THE FRAME CAN MAKE. The first in
       // tree order shades, and both keys are named, because a silent
       // no-op would be a set lit by whichever node happened to come
-      // last and no way to see which.
-      reportOnce("two environment maps in one frame: \"" + environmentKey +
-                 "\" shades and \"" + inst.description->key + "\" is ignored");
+      // last and no way to see which. The walk visits every node of
+      // every frame, so the pair is said once rather than at frame rate.
+      material::reportOnce("world.scene.environment:" + environmentKey + ":" +
+                               inst.description->key,
+                           "two environment maps in one frame: \"" +
+                               environmentKey + "\" shades and \"" +
+                               inst.description->key + "\" is ignored");
     } else {
       environment = *node.environment;
       environment.intensity = inst.intensity;
@@ -417,9 +411,9 @@ void Scene::Impl::writeComponents(Instance& inst) {
   // the same surface, the one at the bottom of whatever was stacked.
   const material::Material* readable =
       surface.material ? readableSurface(&*surface.material) : nullptr;
-  surface.texture =
-      readable ? material::surface::map(*readable, material::surface::kBaseColorSlot)
-               : nullptr;
+  surface.texture = readable ? material::surface::map(
+                                   *readable, material::surface::kBaseColorSlot)
+                             : nullptr;
   // …and so is the answer to whether light reaches it. A surface that is
   // its own light says so once, here, rather than being asked per pass.
   surface.lit = !(readable && material::surface::isUnlit(*readable));

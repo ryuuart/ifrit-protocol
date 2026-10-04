@@ -13,6 +13,7 @@
 #include <pxr/usd/usdLux/distantLight.h>
 #include <pxr/usd/usdLux/shapingAPI.h>
 #include <pxr/usd/usdLux/sphereLight.h>
+#include <sigilmaterial/color/Color.h>
 
 #include <glm/geometric.hpp>
 #include <optional>
@@ -23,11 +24,11 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 namespace sigil::usd {
 
-std::string Writer::light(std::string_view name,
-                          const material::Light& light,
+std::string Writer::light(std::string_view name, const material::Light& light,
                           std::string_view parent) {
   Impl& impl = *m_impl;
   if (!impl.stage) return {};
+  const material::Color color = light.color.value();
   const std::string path = impl.uniquePath(parent, name);
   if (light.kind != material::LightKind::Directional) {
     UsdLuxSphereLight sphere =
@@ -36,8 +37,7 @@ std::string Writer::light(std::string_view name,
         GfVec3d(light.position.x, light.position.y, light.position.z));
     sphere.CreateRadiusAttr().Set(1.0f);
     sphere.CreateIntensityAttr().Set(light.intensity.value());
-    sphere.CreateColorAttr().Set(
-        GfVec3f(light.color.r, light.color.g, light.color.b));
+    sphere.CreateColorAttr().Set(GfVec3f(color.r, color.g, color.b));
     sphere.GetPrim().SetCustomDataByKey(TfToken("sigil:range"),
                                         VtValue(light.range));
     if (light.kind == material::LightKind::Spot) {
@@ -48,7 +48,8 @@ std::string Writer::light(std::string_view name,
       // off — so any UsdLux reader shades the same spot.
       // A spot with no direction to speak of keeps the prim's default
       // orientation: a rotation from a zero vector is a NaN.
-      if (const std::optional<glm::vec3> d = aimedAlong(world::light::travel(light))) {
+      if (const std::optional<glm::vec3> d =
+              aimedAlong(world::light::travel(light))) {
         const GfRotation rot(GfVec3d(0, 0, -1), GfVec3d(d->x, d->y, d->z));
         sphere.AddOrientOp().Set(GfQuatf(rot.GetQuat()));
       }
@@ -66,13 +67,13 @@ std::string Writer::light(std::string_view name,
       UsdLuxDistantLight::Define(impl.stage, SdfPath(path));
   // A distant light shines down its -Z; aim -Z along the direction, and
   // leave a sun with no direction facing the way a distant light faces.
-  if (const std::optional<glm::vec3> d = aimedAlong(world::light::travel(light))) {
+  if (const std::optional<glm::vec3> d =
+          aimedAlong(world::light::travel(light))) {
     const GfRotation rot(GfVec3d(0, 0, -1), GfVec3d(d->x, d->y, d->z));
     distant.AddOrientOp().Set(GfQuatf(rot.GetQuat()));
   }
   distant.CreateIntensityAttr().Set(light.intensity.value());
-  distant.CreateColorAttr().Set(
-      GfVec3f(light.color.r, light.color.g, light.color.b));
+  distant.CreateColorAttr().Set(GfVec3f(color.r, color.g, color.b));
   return path;
 }
 

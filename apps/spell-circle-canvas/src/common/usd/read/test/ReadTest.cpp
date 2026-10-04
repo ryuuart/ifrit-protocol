@@ -51,7 +51,7 @@ Stage readAsset(const char* name) {
 }
 
 const material::Light* lightAt(const std::vector<usd::ReadLight>& lights,
-                                   const char* path) {
+                               const char* path) {
   for (const usd::ReadLight& read : lights)
     if (read.path == path) return &read.light;
   return nullptr;
@@ -352,7 +352,7 @@ TEST(UsdRead, ASunComesBackAimedWhereItWasPointedAndStandingNowhere) {
   EXPECT_NEAR(sigil::world::light::travel(*back).y, aim.y, 1e-5f);
   EXPECT_NEAR(sigil::world::light::travel(*back).z, aim.z, 1e-5f);
   EXPECT_FLOAT_EQ(back->intensity.value(), 2.5f);
-  EXPECT_FLOAT_EQ(back->color.g, 0.9f);
+  EXPECT_FLOAT_EQ(back->color.value().g, 0.9f);
 }
 
 TEST(UsdRead, APointLightComesBackWhereItStoodAndAsFarAsItReached) {
@@ -372,7 +372,7 @@ TEST(UsdRead, APointLightComesBackWhereItStoodAndAsFarAsItReached) {
   EXPECT_NEAR(back->position.z, -20.0f, 1e-4f);
   EXPECT_FLOAT_EQ(back->range, 250.0f);
   EXPECT_FLOAT_EQ(back->intensity.value(), 3.0f);
-  EXPECT_FLOAT_EQ(back->color.b, 1.0f);
+  EXPECT_FLOAT_EQ(back->color.value().b, 1.0f);
 }
 
 TEST(UsdRead, ASpotComesBackWithItsConeAndTheInnerEdgeTheSoftnessGivesIt) {
@@ -493,7 +493,7 @@ TEST(UsdRead, ReadsALightAndACameraAnotherToolAuthored) {
   EXPECT_FLOAT_EQ(key.outerAngle, 30.0f);
   EXPECT_FLOAT_EQ(key.innerAngle, 30.0f * (1.0f - 0.25f));
   EXPECT_FLOAT_EQ(key.intensity.value(), 3.0f);
-  EXPECT_FLOAT_EQ(key.color.b, 1.0f);
+  EXPECT_FLOAT_EQ(key.color.value().b, 1.0f);
   EXPECT_FLOAT_EQ(key.range, material::Light{}.range);
 
   const std::optional<std::vector<usd::ReadCamera>> cameras =

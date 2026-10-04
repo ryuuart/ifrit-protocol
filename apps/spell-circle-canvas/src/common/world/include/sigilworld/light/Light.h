@@ -30,21 +30,23 @@ glm::vec3 travel(const material::Light& light);
 /** Turns @p light to travel along @p direction (toward the scene). A
  *  direction of no length travels straight up. */
 void aim(material::Light& light, glm::vec3 direction);
+/** @p light with each animatable read once and held as that constant,
+ *  and every other field carried as it is: what a frame keeps of a light,
+ *  so nothing written to a live value afterwards reaches the copy. */
+material::Light held(const material::Light& light);
 
 /** A sun shining along @p direction (toward the scene). */
-material::Light sun(glm::vec3 direction,
-                    material::Color color = {1, 1, 1, 1},
+material::Light sun(glm::vec3 direction, material::Color color = {1, 1, 1, 1},
                     float intensity = 1);
 /** A point light at @p position reaching @p range. */
-material::Light point(glm::vec3 position,
-                      material::Color color = {1, 1, 1, 1},
+material::Light point(glm::vec3 position, material::Color color = {1, 1, 1, 1},
                       float intensity = 1, float range = 600);
 /** A spot at @p position aimed along @p direction, opening to
  *  @p outerAngle degrees and full within @p innerAngle. */
 material::Light spot(glm::vec3 position, glm::vec3 direction,
                      float outerAngle = 45, float innerAngle = 0,
-                     material::Color color = {1, 1, 1, 1},
-                     float intensity = 1, float range = 600);
+                     material::Color color = {1, 1, 1, 1}, float intensity = 1,
+                     float range = 600);
 
 /** How much of @p light reaches @p at, in [0, 1], before any surface
  *  term. A directional light reaches everything equally; a point light

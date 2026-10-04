@@ -44,7 +44,7 @@ library that is not here.
 | `frame/` | `SigilWorldFrame` | `sigil::world` | `Frame`, `Pass`, `Readback`, the `Targets` a frame's passes write, the `View` they read, and the `Runtime`/`Executor` seam with its CPU executor. No device, no retained state. |
 | `graph/` | `SigilWorldGraph` | `sigil::world::graph` | the `Plan`: the order the passes run in, the surfaces they share, the barriers between them, and how each selection is realised. It reads declarations and draws nothing. |
 | `scene/` | `SigilWorldScene` | `sigil::world` | the retained side: the reconcile host, the entity store, the content-keyed resource store, the declared phases, the execution of a frame's passes, and the draw. |
-| `light/` | `SigilWorldLight` | `sigil::world::light` | Material's `material::Light` placed in a set: its angles read as a world direction (`travel`, `aim`), a sun, a point light and a spot spelled by where they stand and aim, and their falloffs. The light value itself is Material's, one value for a surface in the plane and a body in a set; what stays here is only what a set in space adds. |
+| `light/` | `SigilWorldLight` | `sigil::world::light` | Material's `material::Light` placed in a set: its angles read as a world direction (`travel`, `aim`), a light with every animatable held as the constant it reads now (`held`), a sun, a point light and a spot spelled by where they stand and aim, and their falloffs. The light value itself is Material's, one value for a surface in the plane and a body in a set; what stays here is only what a set in space adds. |
 | `kit/` | `SigilWorldKit` | `sigil::world::kit` | presets that compose elements: a three-point rig, a turntable, and the lit set both make over a ground plane; and the rails a body rides — the turntable's ring, a loop that rises and falls, a winding round a shell. Nothing here decides a look. |
 | `diligent/` | `SigilWorldDiligent` | `sigil::world::diligent` | the programs this backend draws with — the scaffold, the sky and the post stages, compiled through SigilMaterial's Slang backend — the `Runtime` that performs a frame's passes on that device, and `importNative`, the door a foreign texture reaches a material slot by. What stands on the device beneath all of it is SigilGeometry's: `geometry::device::MeshResidency` and `TextureResidency` put a mesh and a map there, `PipelineCache` builds a pipeline out of a compiled program, and this feature asks them. So are the device executors of every seam it is not — the chain cook, the swept rings and the mesh painter each stand beside the CPU executor of their own seam. |
 | — | `SigilWorld` | — | the umbrella target: an interface over every feature above, so a consumer of the whole library names one link and includes the headers it spells. The device feature is in it where it was built. |
@@ -231,6 +231,13 @@ light whose strength lane is dropped ramps back to the strength
 rather than a second copy of it, and why a light a node emits is read
 at its declared values, the lanes animating it.
 
+The light's colour can itself follow a live `motion::Animatable<material::Color>`.
+Each render samples it for channels without an emission dial and preserves
+its alpha in the extracted light. Emission dials replace their channels.
+Extracted lights hold constant frame readings, so rendering never writes
+into the live colour, strength or angles the description follows. Light changes
+update shading while settled geometry and material resources remain held.
+
 **There are exactly two write paths**: `Scene::render`, and the live
 values a description's lanes are bound to. Nothing writes onto a retained
 node from outside, and there is no `entt::registry` accessor: EnTT is
@@ -414,6 +421,12 @@ is a texture value like any other, and the tiling and the placement reach
 it as they reach any other image — with one wrap for both axes, because a
 mesh's sampler has one and clamping the axis that was asked to repeat
 would drag one edge's pixels across a whole face.
+
+**A channel the device samples must be an image texture.** A surface
+channel filled with any other material — a normal derived from a height,
+two normals blended, a gradient — has nothing the device executor can
+sample: it reports the slot once and the slot reads as empty, so supply
+the channel as an image texture.
 
 **World does not link SigilCompose and no world header names a compose
 type.** The arrow runs the other way: `SigilComposeTexture` keeps a
