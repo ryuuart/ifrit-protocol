@@ -62,8 +62,8 @@ that its pixels match the original.
 | Study · Esoteric | 4 | 0 | 0 |
 | Study · Screens | 6 | 0 | 0 |
 | Study · Game UI | 11 | 0 | 0 |
-| Study · Materials | 16 | 0 | 0 |
-| **All** | **243** | **57** | **9** |
+| Study · Materials | 17 | 0 | 0 |
+| **All** | **244** | **57** | **9** |
 
 Every sketch in Draw, Draw · Generative, Draw · Observable reproductions, Draw
 · Procedural, Kit · Depth, Compose · Typography and Study · Paint is bound.
@@ -699,6 +699,7 @@ model, arithmetic and data become Python code and are not listed.
 | Sketch | Needs | Not yet bound |
 | --- | --- | --- |
 | `carved_marks` | Not yet audited | Not yet audited |
+| `carved_marks_set` | Not yet audited | Not yet audited |
 | `ceramic_glaze` | Not yet audited | Not yet audited |
 | `embossed_foil` | Not yet audited | Not yet audited |
 | `glass_atelier` | Not yet audited | Not yet audited |
