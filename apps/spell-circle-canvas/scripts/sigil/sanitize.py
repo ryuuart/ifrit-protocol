@@ -132,7 +132,7 @@ def configure_and_build(preset: str, args) -> int:
 
 
 def ctest(preset: str, args) -> int:
-    command = ["ctest", "--preset", preset, "-C", args.config]
+    command = ["ctest", "--preset", preset, "-C", args.config, "--no-tests=error"]
     if args.filter:
         command += ["-R", args.filter]
     return tree.run(command)

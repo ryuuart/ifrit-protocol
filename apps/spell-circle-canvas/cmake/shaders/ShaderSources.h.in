@@ -1,0 +1,23 @@
+#pragma once
+// Generated from the shader directory. Do not edit.
+
+#include <span>
+#include <string_view>
+
+namespace @SHADER_NAMESPACE@ {
+
+/** One stock shader: its path beneath this library's shader directory,
+ *  and its text, compiled into the archive. */
+struct ShaderSource {
+  std::string_view name;
+  std::string_view text;
+};
+
+/** The text of the stock shader @p name, or an empty view when this
+ *  library ships no such file. */
+std::string_view shaderSource(std::string_view name);
+
+/** Every stock shader this library ships, in name order. */
+std::span<const ShaderSource> shaderSources();
+
+}  // namespace @SHADER_NAMESPACE@

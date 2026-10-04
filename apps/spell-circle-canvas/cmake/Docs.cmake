@@ -1,49 +1,12 @@
-# Doxygen sites for the Sigil libraries. Included by Sigil.cmake, whose
-# sigil_library_root() calls sigil_add_docs() for every library.
-#
-# Each library root registers itself through sigil_add_docs(); the root
-# calls sigil_finalize_docs() once every subdirectory has been added,
-# which records the set as a manifest and adds the targets that read it.
-# Building the `docs` target writes one browsable site per library under
-# ${CMAKE_BINARY_DIR}/docs, plus an index linking them.
-#
-# The generation itself — the passes, the theme, the header, the layout,
-# the rendered Doxyfiles, the landing page — is the docs verb. What
-# stays here is what only CMake knows: whether Doxygen is installed,
-# where it is, and which libraries registered themselves.
-
-# Where Doxyfile.in and the container files sit, resolved while this file
-# is being read so the functions below do not have to assume where the
-# module was included from.
-get_filename_component(SIGIL_DOCS_TEMPLATE_DIR
-                       ${CMAKE_CURRENT_LIST_DIR}/../docs ABSOLUTE)
+# Libraries register the inputs for cross-linked Doxygen sites.
+# Finalization writes their manifest after every library has registered.
+# The docs command generates one site per library and a shared index.
 
 find_package(Doxygen OPTIONAL_COMPONENTS dot)
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 
-# The reference generator's own fixtures: a small tree carrying every
-# shape the three readers have to handle, so a reader that quietly stops
-# matching fails here rather than writing a thinner site that still
-# looks like a site. It reads neither the manifest nor the libraries
-# list and runs no Doxygen, so it is registered on every machine — the
-# checkout where Doxygen is missing is exactly the one where nothing
-# else would notice the generator breaking.
-function(sigil_add_reference_tests)
-  add_test(NAME reference_generator
-    COMMAND ${Python3_EXECUTABLE} -m unittest discover
-            -s ${CMAKE_SOURCE_DIR}/scripts/sigil/reference/test
-            -t ${CMAKE_SOURCE_DIR}/scripts
-            -p "test_*.py")
-endfunction()
-
 if(NOT DOXYGEN_FOUND)
   message(STATUS "Doxygen not found -- the `docs` target is unavailable")
-  function(sigil_add_docs)
-  endfunction()
-  function(sigil_finalize_docs)
-    sigil_add_reference_tests()
-  endfunction()
-  return()
 endif()
 
 option(SPELLCIRCLE_DOCS_WARN_UNDOCUMENTED
@@ -63,29 +26,21 @@ function(sigil_add_docs)
     message(FATAL_ERROR "sigil_add_docs(${ARG_NAME}): INPUT is required")
   endif()
 
-  # An input Doxygen cannot read is a chapter that silently never
-  # appears, and a relative one is read against Doxygen's own working
-  # directory rather than the library's. Both are configure errors: the
-  # site is generated long after the mistake was made, and a missing
-  # page looks exactly like a page nobody wrote. The same pass takes the
-  # `..` out of a path a caller composed, so that every path in the
-  # manifest is the one name for that file and a reader can match one
-  # against another.
+  # Doxygen resolves relative paths against its own working directory.
+  # Validate and normalize every path before writing the manifest.
   foreach(name IN ITEMS INPUT STRIP INCLUDE_ROOT MAINPAGE)
     set(checked)
     foreach(entry IN LISTS ARG_${name})
-      if(NOT IS_ABSOLUTE ${entry})
+      if(NOT IS_ABSOLUTE "${entry}")
         message(FATAL_ERROR
-          "sigil_add_docs(${ARG_NAME}): ${name} '${entry}' is relative. Name "
-          "it from the directory that owns it -- Doxygen resolves what it is "
-          "given against its own working directory.")
+          "sigil_add_docs(${ARG_NAME}): ${name} '${entry}' must be absolute")
       endif()
-      if(NOT EXISTS ${entry})
+      if(NOT EXISTS "${entry}")
         message(FATAL_ERROR
           "sigil_add_docs(${ARG_NAME}): ${name} '${entry}' does not exist")
       endif()
-      get_filename_component(entry ${entry} ABSOLUTE)
-      list(APPEND checked ${entry})
+      get_filename_component(entry "${entry}" ABSOLUTE)
+      list(APPEND checked "${entry}")
     endforeach()
     set(ARG_${name} ${checked})
   endforeach()
@@ -113,7 +68,15 @@ endfunction()
 
 # Writes the manifest and adds the targets that read it.
 function(sigil_finalize_docs)
-  sigil_add_reference_tests()
+  # Reference fixtures need neither Doxygen nor generated documentation.
+  add_test(NAME reference_generator
+    COMMAND ${Python3_EXECUTABLE} -m unittest discover
+            -s "${CMAKE_SOURCE_DIR}/scripts/sigil/reference/test"
+            -t "${CMAKE_SOURCE_DIR}/scripts"
+            -p "test_*.py")
+  if(NOT DOXYGEN_FOUND)
+    return()
+  endif()
 
   get_property(libraries GLOBAL PROPERTY SIGIL_DOCS_LIBRARIES)
   if(NOT libraries)
@@ -150,7 +113,9 @@ function(sigil_finalize_docs)
   string(APPEND manifest "declarations=${CMAKE_BINARY_DIR}/python/sigil\n")
   # Doxyfile.in, the stylesheet and the container files the verb renders
   # from.
-  string(APPEND manifest "templates=${SIGIL_DOCS_TEMPLATE_DIR}\n")
+  get_filename_component(templates
+    "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../docs" ABSOLUTE)
+  string(APPEND manifest "templates=${templates}\n")
 
   foreach(lib IN LISTS libraries)
     get_property(brief GLOBAL PROPERTY SIGIL_DOCS_${lib}_BRIEF)
@@ -166,18 +131,18 @@ function(sigil_finalize_docs)
     string(APPEND manifest "include_root=${include_root}\n")
   endforeach()
 
-  set(manifest_file ${CMAKE_BINARY_DIR}/docs-manifest.txt)
-  file(WRITE ${manifest_file} "${manifest}")
+  set(manifest_file "${CMAKE_BINARY_DIR}/docs-manifest.txt")
+  file(WRITE "${manifest_file}" "${manifest}")
 
-  set(build_docs ${CMAKE_SOURCE_DIR}/scripts/sigil.py docs)
+  set(build_docs "${CMAKE_SOURCE_DIR}/scripts/sigil.py")
   add_custom_target(docs
-    COMMAND ${Python3_EXECUTABLE} ${build_docs} --manifest ${manifest_file}
+    COMMAND "${Python3_EXECUTABLE}" "${build_docs}" docs --manifest "${manifest_file}"
     COMMENT "Writing the documentation to ${CMAKE_BINARY_DIR}/docs/index.html"
     VERBATIM)
 
   foreach(lib IN LISTS libraries)
     add_custom_target(docs-${lib}
-      COMMAND ${Python3_EXECUTABLE} ${build_docs} --manifest ${manifest_file}
+      COMMAND "${Python3_EXECUTABLE}" "${build_docs}" docs --manifest "${manifest_file}"
               --library ${lib}
       COMMENT "Writing the ${lib} documentation"
       VERBATIM)

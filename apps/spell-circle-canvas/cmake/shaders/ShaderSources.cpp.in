@@ -1,0 +1,22 @@
+// Generated from the shader directory. Do not edit.
+
+#include <sigilshaders/@NAME@.h>
+
+namespace @SHADER_NAMESPACE@ {
+
+namespace {
+
+constexpr ShaderSource kSources[] = {
+@_entries@};
+
+}  // namespace
+
+std::string_view shaderSource(std::string_view name) {
+  for (const ShaderSource& source : kSources)
+    if (source.name == name) return source.text;
+  return {};
+}
+
+std::span<const ShaderSource> shaderSources() { return kSources; }
+
+}  // namespace @SHADER_NAMESPACE@

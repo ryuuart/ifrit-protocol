@@ -157,8 +157,10 @@ library's own build module lives with the library
 (`src/common/material/cmake/Slang.cmake`,
 `src/sketch/cmake/SketchLinkSurface.cmake`); `cmake/` at the app root
 holds only what the whole tree shares: `cmake/Sigil.cmake`, the calls
-every Sigil library is built from, the overlay triplet and the Skia
-sanitizer pin.
+every Sigil library is built from, `cmake/EmbedShaders.cmake`, which
+embeds a feature's `shaders/` directory, `cmake/Docs.cmake`, the overlay
+triplet and the Skia sanitizer pin, with the helpers' own test under
+`cmake/test/`.
 
 ### Visual work
 

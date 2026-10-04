@@ -1,13 +1,5 @@
 # Building and testing a library
 
-Every library in this tree is built, tested and measured the same way.
-This page is that contract, written once. A library's own README states
-only what is true of it alone: which targets it builds, which suites its
-one test binary holds, which of them carry a label, and which fixtures
-are its own.
-
-## Configuring, building, running
-
 From `apps/spell-circle-canvas`:
 
 ```sh
@@ -16,162 +8,106 @@ cmake --build build --config Release --target <library>_test
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-`setup` discovers Qt and vcpkg and writes the uncommitted
-`CMakeUserPresets.json`; it is one of ten verbs over the build's
-administration, and `scripts/README.md` is the canon for all of them.
-Every workflow is also a mise task. Use a Release build for anything
-that is timed: the benchmarks and several sketches are deliberately
-stressful and a Debug timing says nothing.
+Each library has one GoogleTest binary, `<library>_test`, and one benchmark
+binary, `<library>_bench`. Feature directories contribute sources and links
+through `sigil_test()` and `sigil_bench()`. CTest discovers each native case
+by name, so `ctest -R '^Suite\.'` selects a suite without another target.
+Use Release for benchmarks and run them through `sigil.py bench`.
 
-## One test binary, one benchmark binary
+## Choose the smallest boundary
 
-A library has ONE test binary, `<library>_test`, built from every
-feature directory's `test/` and landing in `build/bin/<config>/tests/`,
-and ONE benchmark binary, `<library>_bench`, built from every feature
-directory's `bench/` into `build/bin/<config>/benches/`. The first
-`sigil_test()` or `sigil_bench()` call creates the binary and every later
-one adds its own sources to it, which is how a feature keeps declaring
-its cases beside the code they cover without a target per file.
+| Scope | Assert | Setup |
+|---|---|---|
+| Unit | A value, algorithm or ownership operation | Direct public values and deterministic inputs |
+| Integration | Libraries working together, such as a Compose node driving a Draw pen | The library's raster fixture or a separately linked consumer |
+| End to end | Registration, session, clock, rendering or module loading through a host | A native consumer fixture or the sketch host harness |
 
-ctest discovers one entry per CASE, so a suite is selected by name with
-no target behind it — `ctest -R '^Suite\.'` — and one case the same way,
-`ctest -R 'Suite.ACaseNamedAsAClaim'`. What locates a case is that a
-suite is named for the feature it covers and its file sits in that
-feature's directory.
+Keep pure cases free of host startup and rendering. Use one integration
+case for a complete cross-library behavior instead of rebuilding the same
+host setup in several unit cases. Add an end-to-end case when a product or
+build boundary can fail even though its parts pass. Preserve assertions on
+small contracts; a successful screenshot cannot establish resource release
+or a dependency declaration.
 
-The benchmarks are executables and never tests. They hang off the
-`benches` target and run through `sigil.py bench`, which runs each binary
-one at a time on a quiet machine and judges the median real time of each
-arm against the committed `bench/baseline_<config>.json`. Any number
-about how long something takes belongs to that ledger, and any claim
-about pixel identity to the plate ledger — never to prose.
+A case names one promised behavior. Repeated claims with one input varying
+use named parameters. Check values and layout relations directly. Raster
+comparisons compare two renderings of the same input, or an adopted plate
+under the platform and fonts it names. Timing belongs to benchmarks rather
+than unit-test thresholds.
 
-## What a case asserts
+## Reuse the existing fixtures
 
-A case asserts ONE behaviour the library promises through its public
-headers to a caller who has read only its README, and its name is that
-promise written as a sentence, so a failure line reads as the claim that
-broke.
+- Compose's `SigilComposeTesting` provides `sigil::compose::test::Scene` in
+  `sigilcompose/testing/Scene.h`: a composer, an explicit clock and a readable
+  raster. Supply the font context, describe through its composer, step a
+  frame and read pixels or an owned snapshot. Geometric checks remain in
+  `sigilcompose/testing/Checks.h`.
+- Draw's `test/support/Paper.h` provides a pen, raster and frame setup. It is
+  also used by the Compose drawing-adapter cases. A caller may supply a
+  different font context or none; individual pixel reads copy no surface.
+- Sketch's `SigilSketchTesting` provides the in-process host without a test
+  framework. `SigilSketchTestingHarness` adds the GoogleTest fixture in
+  `sigilsketch/testing/Harness.h`, with `open`, `clock`, `step`, `still` and
+  `compare`. Failed cases retain their artifacts and print the host's state.
+- Native plugin integration configures a separate consumer, builds modules
+  with CMake and loads the resulting artifacts through a native host. It
+  verifies compiler/configuration and consumed-library compatibility at
+  the loading boundary.
 
-It pins only what editing the code alone could falsify: a caching count,
-a closed form, a field walk, one description drawn two ways, two
-executors of one kernel agreeing bit for bit. It never pins what a
-rebuild, a font, a device or a clock could move — an anti-aliased byte, a
-fitted tolerance, a byte layout the compiler chose, elapsed time. A test
-that renders a picture to compare it is a plate — a case of its own,
-below, or a scene in the sketch library's plate ledger — and one that
-times a loop to bound it belongs to the bench ledger.
+A helper needed by one file stays in that file. Shared fixtures live in the
+owning library's `test/support/`; reusable consumer-facing verification
+headers live under its testing target. Avoid a fixture hierarchy when a
+plain value or one setup function is sufficient.
 
-A claim made N times with one thing varying is one `TEST_P` whose
-parameter is that thing, with its rows named. One file per subject, named
-for what it asserts, so a case is found by opening the file its subject
-names rather than by searching for its case name.
+The tree's `src/test/` supplies `Fonts.h`, `ScratchDir.h`, `GlyphCanvas.h`
+and `ShaderTable.h`. Instrument faces keep ordinary text tests independent
+of installed fonts. Assets specific to a library live in `test/assets/`
+and are reached through `SIGIL_TEST_ASSET_DIR`.
 
-## Labels
+## Select a run
 
-A case that skips on this machine is not coverage on this machine. What
-a case needs is said with a ctest label, attached to the suites that need
-it rather than to the whole binary wherever the binary holds cases that
-do not:
+```sh
+ctest --test-dir build -C Release -R '^Retained\.' --output-on-failure
+ctest --test-dir build -C Release -L integration --output-on-failure
+ctest --test-dir build -C Release -L e2e --output-on-failure
+```
 
-| label | what a runner must supply |
+Scope labels are attached to the integration and host suites that declare
+them; an unlabelled case does not by itself prove that it is a unit test.
+Other labels state required facilities:
+
+| Label | Required facility |
 |---|---|
-| `gpu` | a GPU: Metal on Apple, or a Vulkan runtime (`brew install molten-vk vulkan-loader`) |
-| `fonts` | the machine's own installed faces, because the machine's font set is what the case is about |
-| `network` | a route to the internet |
-| `oiio` | OpenImageIO, found at configure time |
-| `ocio` | OpenColorIO's view transforms |
-| `svg` | the SVG decode backend |
-| `usd` | OpenUSD's plugin registry |
-| `substance` | the Substance SDK's sample archives |
-| `ultralight` | the Ultralight SDK |
-| `plates` | the font set and platform a library's committed baseline images were adopted on |
-| `cocoa`, `window` | a window server, and for `window` a real window |
+| `gpu` | Metal on Apple, or a Vulkan runtime |
+| `fonts` | Installed platform fonts |
+| `network` | An internet route |
+| `oiio`, `ocio`, `svg`, `usd` | The named decode, color or scene backend |
+| `substance`, `ultralight` | The named licensed SDK or its fixtures |
+| `plates` | The adopted platform and font set |
+| `cocoa`, `window` | A window server, and a real window for `window` |
+| `protocol` | The protocol clients and host agents |
 
-`ctest -L <label>` is the run a verdict about that thing may be read out
-of; `ctest -LE <label>` is how a machine without it checks the rest.
+Use `ctest -LE <label>` to omit unavailable facilities. A skipped case is
+reported as skipped coverage. A baseline adoption uses `sigil.py plates
+--rebase` and records the intended visual change with the adopted images.
 
-## A library's own harness
+## Check consumer boundaries
 
-Every Sigil library gets a `<library>::testing` header — its own
-target, linked by test binaries and by nothing that ships — and each
-takes the same shape. SigilWeave's `weave::testing` is the only one so
-far: a passage laid, read back and plated.
+An aggregate test binary collects every feature's link requirements. It
+can conceal a missing dependency supplied by another feature. A public
+header probe therefore compiles against its originating feature target,
+and a consumer probe must link and run with only its stated requirements.
+Compose's standalone native fixture, `sketch_compose_consumer`, covers its
+basic Core drawing path without Sketchbook, Qt or another Compose feature
+target. It is filed under Sketch's `cmake/test/native` and is built only
+inside the separate native-library configure that
+`SketchSDK.NativeLibraryBoundary` drives; that case is registered only when
+`SIGIL_BUILD_APPS` is on, so a tree configured without the applications
+never runs it.
 
-- **Values in.** A case states what it sets up as the library's own
-  values, under a context it names — for `weave::testing`, the font
-  context a passage is laid under.
-- **Values out.** What the library computed comes back as plain values
-  that compare with `==` — the lines, runs and glyphs of a layout, the
-  samples of a curve — so a case states what it expects as a value
-  rather than walking the library's internals to find it.
-- **Images out, baselines as ctest cases.** Whatever the library draws
-  renders onto a CPU raster plate and is held against a PNG committed
-  beside the tests, one ctest case per plate, labelled `plates`. The bar
-  is identity, since the same input on the same machine rasterizes to
-  the same bytes; a refused render is written under the build tree and
-  the failure names both files. What the machine decides about an input
-  is recorded beside the baseline too — for a plate of text, the faces
-  it was drawn in — so a refusal names that seam rather than reading as
-  a moved picture. `sigil.py plates --rebase` adopts every render as its
-  baseline instead of judging it, for a move that was meant, committed
-  with its cause.
-
-A host that exposes the same subject to a client — an inspector, a
-script, an agent driving the application — mirrors these values as a
-protocol domain: an agent that answers with the library's values,
-mounted by the host. The library never learns of the protocol; its
-values are tested on their own, here.
-
-## Fixtures
-
-A fixture more than one file needs lives once, in the library's
-`test/support/`; a helper one file uses stays in that file. A fixture
-only one library asks for is committed under that library's
-`test/assets/` and reached through the `SIGIL_TEST_ASSET_DIR` compile
-definition, so a test and the benchmark beside it both run from any
-working directory.
-
-What more than one library asks for is the tree's own, under `src/test/`,
-on every test and bench binary's include path:
-
-- `Fonts.h` — `sigil::test::fonts()`, the one font context a process
-  shapes through, and `sigil::test::instrument::sans()` and its siblings,
-  the generated faces under `src/test/assets/` that carry one property
-  each, so a claim about a face is a claim about a face this repository
-  ships rather than about the machine.
-- `ScratchDir.h` — `sigil::test::ScratchDir`, a directory named for the
-  case and the process, emptied both ways, so two runs side by side never
-  read each other's files.
-- `GlyphCanvas.h` — the glyphs handed to Skia, captured with no device
-  and no rasterization behind them.
-- `ShaderTable.h` — the one question every embedded shader table is
-  asked: whether it holds the whole of the directory its library keeps
-  its shaders in, and each one's bytes.
-
-## The documentation's names
-
-Every library's README compiles, itself and its chapters.
-`sigil_doc_probes()` in `cmake/Sigil.cmake` reads the documents a library
-registers, extracts every qualified name an author could copy out of them
-— and the bare names of a bullet that opens with a header path — and
-generates a translation unit of probes that only builds if the headers
-still spell those names that way. A documented name no header declares
-fails the generator, so a rename the prose missed is a build break rather
-than a confident wrong answer.
-
-`sigil_header_self_test()` is the companion guard a library may add: one
-generated translation unit per public header, holding that header twice
-— the first line proving it stands alone, the second that it can be
-included again — which is what makes "each header stands on its own" a
-build fact rather than a claim.
-
-`apps/spell-circle-canvas/scripts/README.md` is the canon for what the
-probe guard checks and what it structurally cannot see.
-
-## Looking at it
-
-Everything renderable is a **sketch**, under `src/sketch/sketches/`, in
-one registry, drawn by one application. `src/sketch/README.md` is the
-canon for how one is written, run and hot-reloaded, and for the plate
-ledger that judges pixel identity.
+`sigil_header_self_test()` compiles each exported header first and twice.
+`sigil_doc_probes()` checks qualified API names and designated initializers
+in each registered README and chapter. These guards establish header and
+name consistency; they do not replace consumer link checks or executable
+examples. The exact guard behavior is documented in
+[the scripts guide](../../scripts/README.md).

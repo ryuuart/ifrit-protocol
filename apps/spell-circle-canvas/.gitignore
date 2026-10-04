@@ -2,6 +2,7 @@
 .cache/clangd/
 build/
 build-*/
+/buildslot/
 CMakeUserPresets.json
 dist/
 

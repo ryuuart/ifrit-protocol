@@ -1,0 +1,26 @@
+cmake_minimum_required(VERSION 3.31)
+project(SigilHelpersFixture LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+include("${SIGIL_MODULE_DIRECTORY}/Sigil.cmake")
+enable_testing()
+
+add_subdirectory(library)
+
+add_executable(compiled_consumer CompiledConsumer.cpp)
+target_link_libraries(compiled_consumer PRIVATE FixtureCompiled)
+add_executable(interface_consumer InterfaceConsumer.cpp)
+target_link_libraries(interface_consumer PRIVATE FixtureInterface)
+add_executable(shaded_consumer ShadedConsumer.cpp)
+target_link_libraries(shaded_consumer PRIVATE FixtureShaded)
+
+sigil_finalize_docs()
+if(TARGET docs OR TARGET docs-SigilHelpersFixture)
+  message(FATAL_ERROR "Documentation targets require Doxygen")
+endif()
+get_property(tests DIRECTORY PROPERTY TESTS)
+if(NOT reference_generator IN_LIST tests)
+  message(FATAL_ERROR "The reference generator test must remain available without Doxygen")
+endif()

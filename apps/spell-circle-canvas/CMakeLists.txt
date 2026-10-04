@@ -5,20 +5,23 @@ cmake_minimum_required(VERSION 3.31)
 
 project(SpellCircleCanvas VERSION 0.1 LANGUAGES CXX)
 
+option(SIGIL_BUILD_APPS "Build Qt applications and the bundled sketch catalogue" ON)
+option(SIGIL_BUILD_PYTHON "Build Python bindings and the Python package" ON)
+if(SIGIL_BUILD_APPS AND NOT SIGIL_BUILD_PYTHON)
+  message(FATAL_ERROR "The bundled applications require Python bindings; set SIGIL_BUILD_APPS=OFF for native libraries and plugins")
+endif()
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(QT_QML_GENERATE_QMLLS_INI ON) # the QMLLS language server's config
 
-# Off by default and turned on per target by sigil_qt_target(), which
-# says why. qt_standard_project_setup() leaves an answer already given.
+# Only targets that declare Qt types enable moc through sigil_qt_target().
 set(CMAKE_AUTOMOC OFF)
 set(CMAKE_AUTOUIC OFF)
 
-# Every directory searches for what it links, so one package is found
-# several times. Promoting the imported targets makes the second search
-# see what the first defined, instead of naming the same archive twice.
+# Feature directories share the imported targets their package searches find.
 set(CMAKE_FIND_PACKAGE_TARGETS_GLOBAL ON)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
@@ -32,13 +35,8 @@ if(APPLE)
   add_link_options("LINKER:-no_warn_duplicate_libraries")
 endif()
 
-# A plate is a function of the sources alone. A compiler may fuse a
-# multiply and an add within a statement or not, and which statements it
-# fuses follows what it inlined, which shifts with unrelated code in the
-# same translation unit — so a numerically heavy scene rendered one way
-# after one build and another way after the next. Contraction pinned off
-# for every target of this tree keeps the bits the same across builds;
-# the dependencies are imported already built and are not affected.
+# Keep multiply/add rounding independent of inlining by disabling contraction.
+# Imported dependencies keep their own settings.
 add_compile_options($<$<COMPILE_LANGUAGE:C,CXX,OBJC,OBJCXX>:-ffp-contract=off>)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
@@ -56,13 +54,30 @@ set(SIGIL_ASSET_DIR "${CMAKE_BINARY_DIR}/assets" CACHE PATH
     "Where fetch_assets writes downloaded demo assets")
 # workaround: vcpkg's Python wrapper selects its own development artifacts.
 # Keep the headers and embedding library matched to the build interpreter.
-if(VCPKG_TARGET_TRIPLET AND COMMAND _find_package)
-  _find_package(Python3 3.12 COMPONENTS Interpreter Development.Module Development.Embed REQUIRED)
+if(SIGIL_BUILD_PYTHON)
+  if(VCPKG_TARGET_TRIPLET AND COMMAND _find_package)
+    _find_package(Python3 3.12 COMPONENTS Interpreter Development.Module Development.Embed REQUIRED)
+  else()
+    find_package(Python3 3.12 COMPONENTS Interpreter Development.Module Development.Embed REQUIRED)
+  endif()
+  set(PYBIND11_FINDPYTHON ON)
+  find_package(pybind11 CONFIG REQUIRED)
 else()
-  find_package(Python3 3.12 COMPONENTS Interpreter Development.Module Development.Embed REQUIRED)
+  find_package(Python3 3.12 COMPONENTS Interpreter REQUIRED)
 endif()
-set(PYBIND11_FINDPYTHON ON)
-find_package(pybind11 CONFIG REQUIRED)
+add_test(NAME sigil_build_helpers
+  COMMAND ${Python3_EXECUTABLE}
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/test/SigilHelpersTest.py"
+    --cmake "${CMAKE_COMMAND}" --compiler "${CMAKE_CXX_COMPILER}")
+set_tests_properties(sigil_build_helpers PROPERTIES TIMEOUT 120
+  LABELS integration)
+# The build slot's cases run their jobs in a temporary state directory and
+# never touch the shared build tree.
+add_test(NAME sigil_build_slot
+  COMMAND ${Python3_EXECUTABLE}
+    "${CMAKE_CURRENT_SOURCE_DIR}/sketch-pass/test_buildslot.py")
+set_tests_properties(sigil_build_slot PROPERTIES TIMEOUT 120)
+
 add_custom_target(fetch_assets
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/scripts/sigil.py assets
           --out ${SIGIL_ASSET_DIR}
@@ -77,27 +92,17 @@ set(SIGIL_PYTHON_PACKAGE_DIR "${SIGIL_PYTHON_PACKAGE_DEFAULT}" CACHE PATH
   "Python package project containing sigil, its typing pass, and packaging rules")
 
 add_subdirectory(src)
-add_subdirectory("${SIGIL_PYTHON_PACKAGE_DIR}" "python-package")
+if(SIGIL_BUILD_PYTHON)
+  add_subdirectory("${SIGIL_PYTHON_PACKAGE_DIR}" "python-package")
+endif()
 
-# Every library root, every test binary and every hot-reload host has
-# registered by now: the first lets each Doxyfile name all the others,
-# the second lets a binary's ctest entries be written over its whole set
-# of cases, the third lets a host's force-load list be read off targets
-# defined after its own directory.
+# Finalization needs every library, test contribution and host target.
 sigil_finalize_docs()
 sigil_finalize_tests()
 
-# The files the checkout carries that derive from something else, each
-# rewritten by the Python generator that lives beside its source, in the
-# order one reads the other: the protocol's Python client and reference
-# pages from the description its definition's build wrote, the Python
-# package's modules from the extension, then its ledger from those
-# modules. Every generator's own
-# --check is the drift test that fails when a derived file was not
-# regenerated; scripts/README.md maps what derives from what. The ledger
-# describes an extension built with every licensed SDK, so on a tree
-# without one this target fails, saying PARITY.md was not written.
-if(SIGIL_TYPING_PYTHON)
+# Regenerate the protocol client, package modules and parity ledger in
+# dependency order. The ledger requires bindings for every licensed SDK.
+if(SIGIL_BUILD_PYTHON AND SIGIL_TYPING_PYTHON)
   add_custom_target(generate
     COMMAND ${Python3_EXECUTABLE}
             "${CMAKE_CURRENT_SOURCE_DIR}/src/common/protocol/definition/generate.py"
@@ -116,8 +121,10 @@ if(COMMAND sigil_finalize_sketch_link_surfaces)
 endif()
 
 include(GNUInstallDirs)
-install(TARGETS Seer
+if(TARGET Seer)
+  install(TARGETS Seer
     BUNDLE DESTINATION .
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-)
+  )
+endif()

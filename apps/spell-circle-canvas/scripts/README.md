@@ -23,25 +23,25 @@ refuses; `--help` on a verb is the canon for its flags.
 
 ## Tests
 
-A unit test asserts one behaviour a library promises through its public
-headers to a caller who has read only its README, and its name is that
-promise written as a sentence — `ASettledTreeBakesOnceAndReplaysAfter` — so a
-failure reads as the claim that broke. It pins only what editing the
-code alone could falsify: a caching count, a closed form, a field walk
-over whatever a type declares; never what a rebuild, a font, a device or
-a clock could move — exact pixels, byte layouts, hash permutations,
-elapsed time. A claim made N times with one thing varying is one
-`TEST_P` whose parameter is that thing, and a fixture two files need
-lives once in the library's `test/support/`. Pixel identity is the plate
-ledger's to judge and timing is the bench ledger's: a test that renders
-a picture to compare it, or times a loop to bound it, belongs to one of
-those instruments rather than to ctest. A case that skips on this
-machine is not coverage on this machine — say what it needs with a ctest
-label (`gpu`, `fonts`), and commit the instrument whenever one can be
-committed. For a face that is `src/test/assets/`, whose generated
-instruments carry one property each and are reached as
-`sigil::test::instrument::sans()` and its siblings; a fixture only one
-library asks for stays in that library's own `test/assets/`.
+A unit test asserts one behaviour through a library's public headers.
+Its name states that promise — `ASettledTreeBakesOnceAndReplaysAfter` — so
+a failure names the claim that broke. Use deterministic inputs and assert
+values, relations, work counts or ownership directly. Repeated claims
+with one input varying use a named `TEST_P` parameter.
+
+Rendering and cross-library behaviour belong in integration cases with a
+shared raster fixture. Registration, sessions, capture and plugin loading
+belong in host or native-consumer end-to-end cases. These cases may compare
+two renderings of the same input; adopted reference images belong to the
+plate ledger. Elapsed-time thresholds belong to benchmarks. Share setup
+between files in the owning library's `test/support/`, and use existing
+testing targets before creating another harness.
+
+Label cases that need a device, installed font or other facility (`gpu`,
+`fonts`), and report skips as skipped coverage. Prefer committed instrument
+assets: `src/test/assets/` contains generated faces with one property each,
+reached through `sigil::test::instrument::sans()` and its siblings. Assets
+needed by only one library stay in its own `test/assets/`.
 
 ### The documentation's names
 
@@ -153,7 +153,8 @@ as a script run with `-P` or a `configure_file`.
 | A sketch's own schema and SigilData's test schemas | `<stem>_values.h` in the build tree | `sigil_schema_values`, the C++ tool in `src/common/data/values` | a build product; `data_test` round-trips what it writes |
 | The Python sketch entries | `PythonSketches.cpp`, their registrations | `src/sketch/python/cmake/register_sketches.py` | a build product |
 | `compile_commands.json` | `sketch_flags.rsp`, the flags a hot-reloaded sketch compiles with | `src/sketch/cmake/SketchFlags.py` | a build product |
-| A library's `.sksl` and `.slang` sources | A header and translation unit carrying their text, under `build/generated/shaders` | `sigil_shader_sources()`, running `cmake/Sigil.cmake` with `-P`: not yet Python | a build product |
+| `compile_commands.json`, the native libraries' public headers and usage requirements, and the compiler | Under `build/sdk/<config>/`: `SigilSketchBuildIdentity.h`, the host's build and boundary identities; `boundaries.json`, each originating library's identity; `origin-inputs.json` and `inputs.sha256`, the digests a plugin build validates against; `native_flags.rsp`, the compile line a plugin uses; `SigilSketchSDKConfig.cmake`, the helper package's Sigil library targets | `src/sketch/cmake/SketchSDK.py`, through the `SigilSketchSDK` target | a build product |
+| A library's `.sksl` and `.slang` sources | A header and translation unit carrying their text, under `build/generated/shaders` | `sigil_shader_sources()`, running `cmake/EmbedShaders.cmake` with `-P` over the templates in `cmake/shaders`: not yet Python | a build product |
 | A Slang entry point's compiled SPIR-V | `<name>.spv.h`, carrying its words | `src/common/material/cmake/SlangEmbedSpirv.cmake`, with `-P`: not yet Python | a build product |
 | SigilScry's `UltralightShaders.metal` | `ShaderSource.h` in the build tree | `configure_file` over `metal/ShaderSource.h.in`: not yet Python | a build product |
 | Decided, not built: Compose's property table, beside the kernel | The property enumeration, the declared-field writers, the one-line verbs and their Python rows | Python beside the table | its `--check`, as a `*_drift` case |
@@ -668,8 +669,9 @@ and coverage-map formats agree, and elsewhere they come from
 `$LLVM_ROOT/bin` or `PATH`.
 
 The two sanitizer lanes take `--filter` / `--targets` / `--config` the
-same way. A sanitizer lane deletes its own tree once ctest has had its
-verdict and refuses to start while the other one's tree stands;
+same way. An empty test selection fails the run. A sanitizer lane deletes
+its own tree once ctest has had its verdict and refuses to start while the
+other one's tree stands;
 `--keep` holds a tree for a debugger. A configure or build failure
 leaves the tree standing, on purpose: only a finished ctest run is a
 verdict, and only a verdict makes the tree disposable. UBSan's default
