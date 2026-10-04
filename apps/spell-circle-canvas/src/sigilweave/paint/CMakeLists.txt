@@ -12,16 +12,20 @@ sigil_library(SigilWeavePaint
   PUBLIC SigilWeaveDecoration)
 
 # What reaches the canvas, one file per subject: the passes a layout draws
-# with, and the decoration bands beneath and above the glyphs. Where a band
+# with, the passes a material shades, and the decoration bands beneath and
+# above the glyphs. Where a band
 # lands is geometry and belongs to the decoration feature; only whether the
 # ink arrives is asked here. A pass carrying a material shades through a
 # resolver the host installs, so the Skia backend that shades the test's
-# own field is linked. The column band is drawn beside a Japanese
+# own field is linked, and two renders are held against each other by the
+# pixel difference. The column band is drawn beside a Japanese
 # run in whatever face the machine resolves for it, so that case alone
 # carries the label.
 sigil_test(weave_test
-  SOURCES test/PaintTest.cpp test/DecorationPaintTest.cpp
+  SOURCES test/PaintTest.cpp test/PaintMaterialTest.cpp
+          test/DecorationPaintTest.cpp
   LIBRARIES SigilWeavePaint SigilWeavePorts SigilWeaveKit SigilMaterialSkia
+            SigilMediaDifference
   LABELS fonts
   SUITES ColumnDecorationInk.AColumnDrawsItsBandBesideTheType)
 

@@ -11,6 +11,7 @@
 #include <include/core/SkSurface.h>
 #include <include/core/SkTileMode.h>
 #include <include/effects/SkGradient.h>
+#include <include/effects/SkRuntimeEffect.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/difference/Difference.h>
 #include <sigilweave/kit/PaintLayers.h>
@@ -21,8 +22,8 @@
 #include <string>
 #include <vector>
 
-#include "sigilweave/advanced/Skia.h"
 #include "sigilgeometry/advanced/Skia.h"
+#include "sigilweave/advanced/Skia.h"
 #include "support/ChoreographSupport.h"
 #include "support/Paints.h"
 #include "support/Pixels.h"
@@ -38,7 +39,8 @@ PaintStyle outlinedGradient(float left, float right) {
   style.foreground.setAntiAlias(true);
   style.foreground.setShader(
       horizontalGradient(left, right, SK_ColorRED, SK_ColorGREEN));
-  style.addUnderlay(sigil::weave::kit::outline(SkColor4f::FromColor(SK_ColorBLUE), 6.0f));
+  style.addUnderlay(
+      sigil::weave::kit::outline(SkColor4f::FromColor(SK_ColorBLUE), 6.0f));
   return style;
 }
 
@@ -293,7 +295,8 @@ TEST(GlyphBatches, ADrivenFaceIsItsOwnBucket) {
 
   const void* shapedFace = nullptr;
   forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
-    if (!shapedFace && glyph.shaped) shapedFace = glyph.shaped->typeface.identity();
+    if (!shapedFace && glyph.shaped)
+      shapedFace = glyph.shaped->typeface.identity();
   });
   ASSERT_NE(shapedFace, nullptr);
   // The committed instrument stands in for a varied clone: the bucket key
@@ -369,6 +372,162 @@ TEST(GlyphBatches, ClearKeepsBucketsButReleasesGlyphs) {
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(64, 32));
   EXPECT_EQ(batches.draw(surface->getCanvas()), 0)
       << "an emptied batch issues no draw";
+}
+
+TEST(GlyphBatches, ClearReleasesImageShadersAndReusesStorageForChangedPaint) {
+  const auto surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(2, 2));
+  ASSERT_NE(surface, nullptr);
+  surface->getCanvas()->clear(SK_ColorCYAN);
+  const auto shader =
+      surface->makeImageSnapshot()->makeShader(SkSamplingOptions{});
+  ASSERT_NE(shader, nullptr);
+  GlyphRSXformBatches batches;
+  size_t glyphCapacity = 0;
+  size_t transformCapacity = 0;
+  {
+    BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 100}));
+    auto [paragraph, layout] = laidOut(u8"retained image", 20.0f, flow);
+    PaintStyle style;
+    style.foreground.setShader(shader);
+    paragraph.setPaint(0, static_cast<uint32_t>(paragraph.text().size()),
+                       style);
+    batches = batchAtRest(layout, paragraph);
+    ASSERT_EQ(batches.batches.size(), 1u);
+    glyphCapacity = batches.batches[0].glyphs.capacity();
+    transformCapacity = batches.batches[0].transforms.capacity();
+    ASSERT_GT(glyphCapacity, 0u);
+  }
+  EXPECT_FALSE(shader->unique());
+  batches.clear();
+  EXPECT_TRUE(shader->unique());
+  ASSERT_EQ(batches.batches.size(), 1u);
+  EXPECT_EQ(batches.batches[0].typeface, nullptr);
+  EXPECT_EQ(batches.batches[0].paint.getShader(), nullptr);
+  EXPECT_EQ(batches.batches[0].glyphs.capacity(), glyphCapacity);
+  EXPECT_EQ(batches.batches[0].transforms.capacity(), transformCapacity);
+
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 100}));
+  auto [paragraph, layout] = laidOut(u8"new paint", 20.0f, flow);
+  for (int frame = 0; frame != 32; ++frame) {
+    PaintStyle style;
+    style.foreground.setColor4f({frame / 31.f, .25f, .5f, 1});
+    paragraph.setPaint(0, static_cast<uint32_t>(paragraph.text().size()),
+                       style);
+    forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
+      batches.addGlyph(glyph, glyph.rest + glm::vec2{glyph.advance * .5f, 0});
+    });
+    ASSERT_EQ(batches.batches.size(), 1u);
+    EXPECT_GE(batches.batches[0].glyphs.capacity(), glyphCapacity);
+    EXPECT_GE(batches.batches[0].transforms.capacity(), transformCapacity);
+    EXPECT_EQ(batches.batches[0].paint, style.foreground);
+    batches.clear();
+  }
+}
+
+TEST(GlyphBatches, AReusedBatchKeepsTheNewFramesOverlappingPassOrder) {
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {100, 100}));
+  auto [paragraph, layout] = laidOut(u8"H", 64.0f, flow);
+  const auto append = [&](GlyphRSXformBatches& batches, SkColor4f color) {
+    PaintStyle style;
+    style.foreground.setColor4f(color);
+    forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
+      batches.addGlyph(glyph.shaped, style, glyph.glyph, glyph.advance * .5f,
+                       {50, 75});
+    });
+  };
+  const SkColor4f red{1, 0, 0, .5f}, blue{0, 0, 1, .5f};
+  GlyphRSXformBatches reused, fresh;
+  append(reused, red);
+  append(reused, blue);
+  reused.clear();
+  append(reused, blue);
+  append(reused, red);
+  append(fresh, blue);
+  append(fresh, red);
+  const auto info = SkImageInfo::MakeN32Premul(100, 100);
+  const auto actual = SkSurfaces::Raster(info);
+  const auto expected = SkSurfaces::Raster(info);
+  ASSERT_NE(actual, nullptr);
+  ASSERT_NE(expected, nullptr);
+  actual->getCanvas()->clear(SK_ColorWHITE);
+  expected->getCanvas()->clear(SK_ColorWHITE);
+  EXPECT_EQ(reused.draw(actual->getCanvas()), 2);
+  EXPECT_EQ(fresh.draw(expected->getCanvas()), 2);
+  SkPixmap actualPixels, expectedPixels;
+  ASSERT_TRUE(actual->peekPixels(&actualPixels));
+  ASSERT_TRUE(expected->peekPixels(&expectedPixels));
+  EXPECT_EQ(sigil::media::difference(actualPixels, expectedPixels).worst, 0);
+  bool overlap = false;
+  for (int y = 0; y != 100; ++y)
+    for (int x = 0; x != 100; ++x) {
+      const auto color = expectedPixels.getColor4f(x, y);
+      overlap |= color.fR > color.fB + .1f && color.fG < .6f;
+    }
+  EXPECT_TRUE(overlap);
+}
+
+TEST(GlyphBatches, GrowingBucketsAcceptsAnExistingBucketsPaint) {
+  BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 100}));
+  auto [paragraph, layout] = laidOut(u8"H", 20.f, flow);
+  GlyphRSXformBatches batches;
+  batches.batches.reserve(1);
+  const auto shader = horizontalGradient(0, 100, SK_ColorRED, SK_ColorGREEN);
+  SkPaint paint;
+  paint.setShader(shader);
+  forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
+    (void)batches.batchForPass(glyph.shaped, {}, paint, {0, 0},
+                               GlyphRSXformBatches::PassBand::Foreground);
+    const auto& next =
+        batches.batchForPass(glyph.shaped, batches.batches.front().typeface,
+                             batches.batches.front().paint, {1, 0},
+                             GlyphRSXformBatches::PassBand::Overlay);
+    EXPECT_EQ(next.paint, paint);
+    EXPECT_EQ(next.paint.getShader(), shader.get());
+  });
+  EXPECT_EQ(batches.batches.size(), 2u);
+}
+
+TEST(GlyphBatches, TintedFilterImagesBelongToTheCallerAndBatch) {
+  const auto surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(2, 2));
+  ASSERT_NE(surface, nullptr);
+  surface->getCanvas()->clear(SK_ColorCYAN);
+  const auto shader =
+      surface->makeImageSnapshot()->makeShader(SkSamplingOptions{});
+  ASSERT_NE(shader, nullptr);
+  const auto effect = SkRuntimeEffect::MakeForColorFilter(
+      SkString("uniform shader child; half4 main(half4 c) { return "
+               "child.eval(float2(0)) * c; }"));
+  ASSERT_NE(effect.effect, nullptr) << effect.errorText.c_str();
+  GlyphRSXformBatches batches;
+  {
+    SkRuntimeColorFilterBuilder builder(effect.effect);
+    builder.child("child") = shader;
+    const auto under = builder.makeColorFilter();
+    ASSERT_NE(under, nullptr);
+    const auto tint = sigil::material::Color{.5f, .75f, 1, 1};
+    {
+      const auto result = tintFilter(tint, under);
+      ASSERT_NE(result, nullptr);
+      EXPECT_NE(result.get(), under.get());
+    }
+    BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {400, 100}));
+    auto [paragraph, layout] = laidOut(u8"many filtered letters", 20.f, flow);
+    PaintStyle style(SK_ColorWHITE);
+    style.foreground.setColorFilter(under);
+    paragraph.setPaint(0, static_cast<uint32_t>(paragraph.text().size()),
+                       style);
+    forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
+      batches.addGlyph(
+          glyph,
+          GlyphDress{.center = glyph.rest + glm::vec2{glyph.advance * .5f, 0},
+                     .colorMultiplier = tint});
+    });
+    ASSERT_EQ(batches.batches.size(), 1u);
+    EXPECT_GT(batches.batches[0].glyphs.size(), 10u);
+  }
+  EXPECT_FALSE(shader->unique());
+  batches.clear();
+  EXPECT_TRUE(shader->unique());
 }
 
 TEST(GlyphBatches, ACentreOffsetMovesThePivotOffTheAdvanceAxis) {

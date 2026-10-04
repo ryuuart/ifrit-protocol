@@ -19,10 +19,9 @@
 #include <include/core/SkPath.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTypeface.h>
+#include <sigilmaterial/color/Color.h>
 
 #include <memory>
-
-#include <sigilmaterial/color/Color.h>
 
 #include "sigilweave/style/Face.h"
 
@@ -65,10 +64,10 @@ FaceStyle fromSk(const SkFontStyle& style);
  *  @{ */
 /** Returns the colour filter that scales a pass's RED, GREEN and BLUE by
  * @p tint, adds @p add and screens @p screen, composed over @p under,
- * which runs first; alpha is left alone. MEMOIZED, the least recently
- * used entry evicted past the cap.
- * @trap The memo is a correctness requirement: a batch's key compares its
- * colour filter by POINTER, so quantize the tint or mint a bucket a glyph. */
+ * which runs first; alpha is left alone. The numeric matrix is memoized;
+ * the composed result retains @p under only while its caller holds it.
+ * Glyph batches reuse composed filters until clear(). Quantize a varying
+ * tint to keep neighbouring glyphs in the same paint bucket. */
 sk_sp<SkColorFilter> tintFilter(const material::Color& tint,
                                 sk_sp<SkColorFilter> under,
                                 const material::Color& add = {0, 0, 0, 0},

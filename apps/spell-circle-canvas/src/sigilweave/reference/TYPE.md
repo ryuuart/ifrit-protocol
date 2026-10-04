@@ -153,6 +153,19 @@ image filters may add backend-specific work beyond that. Updating any
 paint or shader through `Paragraph::setPaint` is visible to an existing
 `ParagraphLayout`.
 
+`PaintStyle::foregroundMaterial` optionally retains a SigilMaterial instance
+for the main glyph pass. The paint feature's `paint::setMaterialResolver`
+resolves it over the run or glyph bucket bounds and replaces only the foreground
+shader. Stroke, alpha, filters and the surrounding passes remain configured
+by the style. Without a resolver, or when it returns no shader, the original
+foreground draws. The batches a moving glyph is added to,
+`GlyphRSXformBatches`, consult no resolver: they draw the configured
+foreground and each layer's configured paint, so a span shaded by its
+material at rest draws unshaded while it moves. Material owners compare
+by pointer identity; copying a
+style retains its owner. An explicit colour in a `Type` overlay clears the
+foreground material, while an unstated colour inherits it.
+
 `PaintStyle::baselineShift` is how far this span's glyphs sit ABOVE their
 line's baseline, in pixels — negative sinks them below it. Superscripts,
 subscripts, an inline symbol lifted onto the x-height. It is placement
@@ -179,8 +192,8 @@ nothing is left out rather than set transparent.
 in place of the paint's own shader. It is held by pointer: the style
 feature links no renderer, so the material is resolved at draw time
 through the resolver the paint feature registers — a pass whose material
-has no resolver draws with the paint alone. It compares by identity, like
-every binding: two passes sharing one instance are one pass, and two
+has no resolver or resolved shader draws with its configured paint. It
+compares by identity, like every binding: two passes sharing one instance are one pass, and two
 equal instances held separately are two.
 
 ## Decoration: the bands

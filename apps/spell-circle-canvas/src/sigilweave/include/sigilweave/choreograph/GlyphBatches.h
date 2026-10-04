@@ -10,13 +10,17 @@
  */
 
 #include <include/core/SkCanvas.h>
+#include <include/core/SkColorFilter.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkRSXform.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTypeface.h>
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
+#include <unordered_map>
 #include <vector>
 
 #include "sigilweave/choreograph/GlyphDress.h"
@@ -34,6 +38,10 @@ namespace sigil::weave {
 /// its gradient, stroke, blend mode and mask filter. Batches draw BAND BY
 /// BAND rather than in creation order, which is what keeps every underlay
 /// beneath every foreground when per-glyph fades split one style.
+/// @silent a style's `foregroundMaterial` and its layers' `material`: the
+/// batches consult no material resolver and draw each pass's configured
+/// paint, where the paragraph draws shade it by the material. A span
+/// shaded at rest therefore draws unshaded while it moves.
 struct GlyphRSXformBatches {
   /// Which stratum of a PaintStyle a bucket's pass came from. The draw
   /// walks these in declaration order, so a bucket's band — not when it was
@@ -136,11 +144,9 @@ struct GlyphRSXformBatches {
     addGlyph(placed, dress, placed.glyph);
   }
 
-  /** Clears glyph data while retaining batch allocations for the next
-   * frame — except after a frame that minted a pathological number of
-   * buckets, which releases them, a retained bucket also retaining its
-   * paint and every shader and filter that paint references.
-   */
+  /** Releases glyphs, paints and font references. Up to 256 buckets keep
+   * their numeric array capacity for the next frame; larger sets release
+   * their inner arrays. A cleared batch retains no device resources. */
   void clear();
 
   /** Draws every batch — underlay buckets, then foreground buckets, then
@@ -149,6 +155,38 @@ struct GlyphRSXformBatches {
   int draw(SkCanvas* canvas) const;
 
  private:
+  /// A tint composed over a pass's own filter, keyed by the tint's terms
+  /// and the filter it composes over. The filter is held by the value, so
+  /// the address in the key names a live filter for as long as the entry
+  /// stands.
+  struct TintedFilterKey {
+    std::array<uint32_t, 9> tint{};
+    const SkColorFilter* under = nullptr;
+    bool operator==(const TintedFilterKey&) const = default;
+  };
+  struct TintedFilterHash {
+    size_t operator()(const TintedFilterKey& key) const noexcept {
+      size_t hash = std::hash<const SkColorFilter*>{}(key.under);
+      for (const uint32_t term : key.tint)
+        hash ^= std::hash<uint32_t>{}(term) + 0x9e3779b97f4a7c15ull +
+                (hash << 6) + (hash >> 2);
+      return hash;
+    }
+  };
+  struct TintedFilter {
+    sk_sp<SkColorFilter> under;
+    sk_sp<SkColorFilter> filter;
+  };
+  /// Every composed tint of the frame; a pass repeats the tint and the
+  /// filter of the glyph before it often enough that the last one found is
+  /// asked first.
+  std::unordered_map<TintedFilterKey, TintedFilter, TintedFilterHash>
+      tintedFilters;
+  TintedFilterKey recentTint;
+  sk_sp<SkColorFilter> recentTintFilter;
+  sk_sp<SkColorFilter> tintPass(const GlyphDress& dress,
+                                sk_sp<SkColorFilter> under);
+
   /** One bucket's draws: the shared RSXform lane, then its matrix lane. */
   static int drawBatch(SkCanvas* canvas, const Batch& batch, bool subpixel);
 };

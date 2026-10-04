@@ -35,7 +35,9 @@ add_subdirectory(choreograph)
 add_subdirectory(query)
 add_subdirectory(ports)
 add_subdirectory(kit)
-add_subdirectory(qt)
+if(SIGIL_BUILD_APPS)
+  add_subdirectory(qt)
+endif()
 add_subdirectory(testing)
 
 # The engine: every feature a consumer of the whole engine links.
@@ -122,4 +124,6 @@ sigil_doc_probes(weave
 
 # The interactive Qt gallery. The headless panels are the testing
 # feature's plate cases.
-add_subdirectory(examples/gallery)
+if(SIGIL_BUILD_APPS)
+  add_subdirectory(examples/gallery)
+endif()

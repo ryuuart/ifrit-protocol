@@ -420,7 +420,7 @@ own.
 | `SigilWeavePorts` | `ports::systemFontManager()` — CoreText on Apple; DirectWrite and Fontconfig slot into the same call — which answers CSS's generic names `serif`, `sans-serif`, `monospace` and `system-ui` with the first installed of the families `ports::genericFamilies()` names for each on the platform; `ports::pickTypeface()`, the first installed family of a fallback chain, and `ports::face()`, that resolution kept once per chain and style so every face compared by pointer compares equal. Both take the chain either spelled out where the call is written or as a span of names assembled at run time, and both spellings reach the one holder | Skia platform ports |
 | `SigilWeaveKit` | consumer-side discipline: rebuild/layout guards, glyph bucketing, label shorthand, sample content, the named OpenType feature presets, the three arrangements of a paint layer everyone writes, and the line-edge and hyphenation tables | SigilWeaveUnicode — private |
 | `SigilWeaveTesting` | the library's own harness, linked by test binaries alone: a passage laid under a stated font context (`testing::lay`), read back as values (`testing::read`), rendered on the CPU (`testing::Plate`) and held against a committed baseline (`testing::compareToBaseline`) | SigilMediaDifference (public: a comparison carries the `media::PixelDifference` it found); SigilMediaImageDecode, SigilMediaImageEncode and SigilIOSource for the baseline file — private |
-| `SigilWeaveQt` | interface target: `QFont` → `SkTypeface`, `QString` ↔ `Paragraph` with no transcoding | Qt6::Gui |
+| `SigilWeaveQt` | interface target: `QFont` → `SkTypeface`, `QString` ↔ `Paragraph` with no transcoding; defined only when the tree builds with `SIGIL_BUILD_APPS` | Qt6::Gui |
 
 Each feature links only the features beneath it — style, then fonts, then
 paragraph, then layout, with decoration, paint, choreograph and query
@@ -436,15 +436,20 @@ type only the paragraph feature sees, so the one Boost container inside
 a value type never reaches a consumer. The engine is Qt-free and carries
 no SkSL: shader presets are content, not engine.
 
-Install and export rules are generated, so an installed tree works with:
+In a CMake tree that defines the Sigil libraries, a consumer names the
+existing targets it uses:
 
 ```cmake
-find_package(SigilWeave CONFIG REQUIRED)                # engine, Qt-free
-find_package(SigilWeave CONFIG REQUIRED COMPONENTS Kit) # + SigilWeaveKit
-find_package(SigilWeave CONFIG REQUIRED COMPONENTS Qt)  # + SigilWeaveQt
-target_link_libraries(app PRIVATE
-  sigil::weave::SigilWeave sigil::weave::SigilWeavePorts)
+target_link_libraries(app PRIVATE SigilWeave SigilWeavePorts)
+target_link_libraries(app PRIVATE SigilWeaveKit) # when using the stock helpers
+# when using the Qt adapter, which exists only with SIGIL_BUILD_APPS on
+target_link_libraries(app PRIVATE SigilWeaveQt)
 ```
+
+The umbrella supplies the whole paragraph engine; a narrower consumer names
+the feature targets in the table above. Include headers from `sigilweave/`
+and spell the `sigil::weave` namespace. This build defines those targets in
+the tree; it does not generate an installed `SigilWeaveConfig.cmake` package.
 
 Everything compiles as standard C++20 with extensions disabled. Public APIs
 use `std::span` views, concept-constrained callbacks, and
@@ -517,10 +522,26 @@ Skia stays named where it is what the entrance is about:
 - **The paint.** A pass is a complete Skia paint — `PaintStyle::foreground`,
   `PaintLayer::paint`, a decoration's paint — so every stroke, blur,
   shader and blend a paint can state is reachable, and `tintFilter` is the
-  memoized colour filter a dressed glyph's pass is tinted through. A pass
-  is the renderer's paint and nothing more: the material that produced it
-  belongs to the layer above, which lowers a material to a paint and hands
-  the paint down, so a text look is stated there and never built here.
+  colour filter a dressed glyph's pass is tinted through. Numeric tint
+  matrices are memoized; composed filters belong to their glyph batches
+  and release their inputs when those batches are cleared.
+  `PaintStyle::foregroundMaterial` and `PaintLayer::material` can retain
+  SigilMaterial descriptions; the host's `paint::setMaterialResolver`
+  supplies their shaders over the glyph ink bounds of the run or the
+  `drawBatched` bucket, before layer offsets, strokes or filters.
+  `GlyphRSXformBatches` consults no resolver: a glyph added there draws
+  each pass's configured paint, so a span its material shades at rest
+  draws in its configured foreground while it moves. Transformed and unshaped blobs
+  use conservative bounds; whitespace may have empty bounds. Resolution
+  replaces only the configured paint's shader. Without a resolver or a returned shader,
+  the configured paint stands. All paragraph draws paint every underlay
+  before every foreground, then every overlay. Layers keep their declared
+  order within a band; blob draws keep run order, while batched draws keep
+  first-encounter order of buckets and transformed fallbacks.
+  `GlyphRSXformBatches::clear` releases paints and fonts while retaining
+  bounded numeric storage; the next frame establishes its own bucket order.
+  Weave owns text placement and pass order;
+  the host owns material execution and its drawing context.
 - **The font manager.** A `FontContext` is made over a Skia font manager
   and resolves fallback through it, and `ports::systemFontManager` is the
   platform's; a face is what either answers.

@@ -10,6 +10,7 @@
 #include <gtest/gtest.h>
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkPaint.h>
+#include <sigilmaterial/core/Material.h>
 #include <sigilweave/kit/PaintLayers.h>
 #include <sigilweave/style/Style.h>
 
@@ -47,9 +48,13 @@ TEST(TextStyle, TheFluentSugarAppendsInTheOrderItWasCalled) {
 
 TEST(PaintStyle, PaintLayersExposeCompletePaintAndExplicitOrder) {
   PaintStyle style(SK_ColorWHITE);
-  style.addUnderlay(sigil::weave::kit::dropShadow(SkColor4f::FromColor(0x66000000), {3, 4}, 2.0f))
-      .addUnderlay(sigil::weave::kit::glow(SkColor4f::FromColor(0x550000FF), 5.0f))
-      .addUnderlay(sigil::weave::kit::outline(SkColor4f::FromColor(SK_ColorBLACK), 3.0f));
+  style
+      .addUnderlay(sigil::weave::kit::dropShadow(
+          SkColor4f::FromColor(0x66000000), {3, 4}, 2.0f))
+      .addUnderlay(
+          sigil::weave::kit::glow(SkColor4f::FromColor(0x550000FF), 5.0f))
+      .addUnderlay(sigil::weave::kit::outline(
+          SkColor4f::FromColor(SK_ColorBLACK), 3.0f));
 
   SkPaint customOverlay;
   customOverlay.setAntiAlias(true);
@@ -73,6 +78,37 @@ TEST(PaintStyle, PaintLayersExposeCompletePaintAndExplicitOrder) {
   EXPECT_EQ(identical, style);
   identical.overlays[0].offset = {0, 0};
   EXPECT_FALSE(identical == style);
+}
+
+TEST(PaintStyle, ForegroundMaterialsCompareBySharedIdentity) {
+  PaintStyle style(SK_ColorWHITE);
+  style.foregroundMaterial = std::make_shared<const sigil::material::Material>(
+      sigil::material::Color{0, 0, 0, 1});
+  const PaintStyle copy = style;
+  EXPECT_EQ(copy, style);
+  PaintStyle separate = style;
+  separate.foregroundMaterial =
+      std::make_shared<const sigil::material::Material>(
+          *style.foregroundMaterial);
+  EXPECT_FALSE(separate == style);
+  separate.foregroundMaterial.reset();
+  EXPECT_FALSE(separate == style);
+  EXPECT_TRUE(copy.foregroundMaterial);
+}
+
+TEST(Type, ExplicitColorReplacesForegroundMaterialAndSilentFieldsKeepIt) {
+  TextStyle base;
+  base.paint.foregroundMaterial =
+      std::make_shared<const sigil::material::Material>(
+          sigil::material::Color{0, 0, 0, 1});
+  const auto owner = base.paint.foregroundMaterial;
+  EXPECT_EQ(overlay(base, Type{}).paint.foregroundMaterial, owner);
+  const TextStyle coloured =
+      overlay(base, {.color = sigil::material::Color{0, 1, 0, .5f}});
+  EXPECT_FALSE(coloured.paint.foregroundMaterial);
+  EXPECT_EQ(coloured.paint.foreground.getColor4f(), (SkColor4f{0, 1, 0, .5f}));
+  EXPECT_EQ(coloured.shaping, base.shaping);
+  EXPECT_EQ(base.paint.foregroundMaterial, owner);
 }
 
 TEST(TypeSheet, AClassResolvesThroughTheSheetAndAnAbsentNameAnswersTheBase) {

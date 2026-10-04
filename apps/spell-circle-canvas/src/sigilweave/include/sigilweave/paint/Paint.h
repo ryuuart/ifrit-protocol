@@ -28,23 +28,27 @@ class Material;
  *  functions, so a caller that holds a layout and a canvas needs nothing
  *  else. The batched form is the one a scene with many individually
  *  animated glyphs wants; the plain form resolves each run's ordered
- *  paint layers from the paragraph's current spans. Layout decides where
- *  the glyphs are, and nothing here moves them. */
+ *  paint layers from the paragraph's current spans. Every draw completes
+ *  all underlays, then all foregrounds, then all overlays. A style's layers
+ *  keep their declared order within a band. Layout decides where the glyphs
+ *  are, and nothing here moves them. */
 namespace sigil::weave::paint {
 
 /** Draws every run of @p layout, resolving its ordered paint layers from
  *  the paragraph's current spans; @p overridePaint replaces every span's
- *  paint. `ParagraphLayout::draw` as a free function. */
+ *  paint. Runs keep layout order within each paint band.
+ *  `ParagraphLayout::draw` as a free function. */
 inline void draw(SkCanvas* canvas, const ParagraphLayout& layout,
                  const Paragraph& paragraph,
                  const PaintStyle* overridePaint = nullptr) {
   layout.draw(canvas, paragraph, overridePaint);
 }
 
-/** Draws the same output with minimal draw calls: horizontal runs merged
+/** Draws a layout with horizontal runs merged
  *  into one drawGlyphs per (font, PaintStyle) bucket and pass, transformed
- *  runs from their baked blobs. `ParagraphLayout::drawBatched` as a free
- *  function. */
+ *  runs from their baked blobs. Within each paint band, buckets and blob
+ *  fallbacks draw in first-encounter order; each bucket includes all of its
+ *  matching runs. `ParagraphLayout::drawBatched` as a free function. */
 inline void drawBatched(
     SkCanvas* canvas, const ParagraphLayout& layout, const Paragraph& paragraph,
     const PaintStyle* overridePaint = nullptr,
@@ -52,13 +56,15 @@ inline void drawBatched(
   layout.drawBatched(canvas, paragraph, overridePaint, liveVariations);
 }
 
-/** Turns a pass's material into the shader its paint draws with, given
- *  the bounds of what the pass covers. Null draws the pass with its paint
- *  alone. */
+/** Turns a pass's material into its shader. Bounds cover the run's or
+ *  batch's glyph ink before layer offsets, strokes or filters; transformed
+ *  and unshaped blobs use their conservative bounds. Whitespace can have
+ *  empty bounds. Null draws the pass with its configured paint alone. */
 using MaterialResolver = std::function<sk_sp<SkShader>(
     const sigil::material::Material& material, const SkRect& bounds)>;
 
-/** Registers the resolver every PaintLayer::material is shaded through.
+/** Registers the resolver PaintStyle::foregroundMaterial and
+ *  PaintLayer::material are shaded through.
  *  The paint feature links no renderer, so the host that draws installs
  *  one — SigilMaterial's Skia backend, over the bounds of what the pass
  *  covers. Replaces any earlier resolver; an empty function clears. */

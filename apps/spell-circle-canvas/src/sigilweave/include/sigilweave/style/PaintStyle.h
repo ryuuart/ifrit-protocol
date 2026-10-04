@@ -12,6 +12,7 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkPaint.h>
 
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -29,6 +30,15 @@ namespace sigil::weave {
  */
 struct PaintStyle {
   SkPaint foreground;  ///< the main glyph pass, drawn between the layer lists
+  /// An optional material for the foreground, resolved over the run or
+  /// glyph bucket bounds by the paint feature's installed resolver. A shader
+  /// replaces only the foreground shader; absent a resolver or shader,
+  /// the configured foreground stands. Shared copies retain one source,
+  /// and separately held materials compare by identity.
+  /// @silent a glyph added to GlyphRSXformBatches: those batches consult
+  /// no resolver and draw the configured foreground, so a span shaded at
+  /// rest draws unshaded while it moves.
+  std::shared_ptr<const sigil::material::Material> foregroundMaterial;
   std::vector<PaintLayer> underlays;  ///< drawn in order beneath `foreground`
   std::vector<PaintLayer> overlays;   ///< drawn in order above `foreground`
   /// Line decorations in vector order — highlights beneath every glyph
@@ -71,10 +81,13 @@ struct PaintStyle {
     return *this;
   }
 
-  /** Compares complete paints, layer order, offsets, and decorations. */
+  /** Compares complete paints, material identity, layer order, offsets,
+   *  and decorations. */
   bool operator==(const PaintStyle& other) const {
-    return foreground == other.foreground && underlays == other.underlays &&
-           overlays == other.overlays && decorations == other.decorations &&
+    return foreground == other.foreground &&
+           foregroundMaterial == other.foregroundMaterial &&
+           underlays == other.underlays && overlays == other.overlays &&
+           decorations == other.decorations &&
            baselineShift == other.baselineShift;
   }
 };

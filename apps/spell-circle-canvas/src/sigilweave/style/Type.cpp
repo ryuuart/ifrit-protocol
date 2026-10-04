@@ -4,8 +4,9 @@
  * turns a relative size into pixels, and the TextStyle a total builds.
  */
 
-#include "sigilweave/advanced/Skia.h"
 #include "sigilweave/style/Type.h"
+
+#include "sigilweave/advanced/Skia.h"
 
 namespace sigil::weave {
 
@@ -292,8 +293,10 @@ TextStyle overlay(TextStyle base, const Type& over, float rootSizePx) {
         resolvePx(*over.track, base.shaping.fontSize, rootSizePx, 0.0f);
   if (over.condense) base.shaping.scaleX = *over.condense;
   if (over.aliased) base.shaping.aliased = *over.aliased;
-  if (over.color)
+  if (over.color) {
     setInk(base.paint.foreground, *over.color, over.color8.value_or(false));
+    base.paint.foregroundMaterial.reset();
+  }
   if (over.antiAlias) base.paint.foreground.setAntiAlias(*over.antiAlias);
   if (over.weight && *over.weight > 0) base.variation("wght", *over.weight);
   if (over.slant && *over.slant != 0) base.variation("slnt", *over.slant);

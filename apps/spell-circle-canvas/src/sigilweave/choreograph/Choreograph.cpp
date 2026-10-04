@@ -22,8 +22,8 @@
 #include <numbers>
 #include <utility>
 
-#include "sigilweave/advanced/Skia.h"
 #include "sigilgeometry/advanced/Skia.h"
+#include "sigilweave/advanced/Skia.h"
 #include "sigilweave/choreograph/GlyphBatches.h"
 #include "sigilweave/choreograph/GlyphDress.h"
 
@@ -60,11 +60,25 @@ void quantizeAngle(float angle, int steps, float& cosine, float& sine) {
   sine = std::sin(stepIndex * kTwoPi / steps);
 }
 
+namespace {
+std::array<uint32_t, 9> tintKey(const material::Color& tint,
+                                const material::Color& add,
+                                const material::Color& screen) {
+  return {std::bit_cast<uint32_t>(tint.r),   std::bit_cast<uint32_t>(tint.g),
+          std::bit_cast<uint32_t>(tint.b),   std::bit_cast<uint32_t>(add.r),
+          std::bit_cast<uint32_t>(add.g),    std::bit_cast<uint32_t>(add.b),
+          std::bit_cast<uint32_t>(screen.r), std::bit_cast<uint32_t>(screen.g),
+          std::bit_cast<uint32_t>(screen.b)};
+}
+}  // namespace
+
 sk_sp<SkColorFilter> tintFilter(const material::Color& tint,
                                 sk_sp<SkColorFilter> under,
                                 const material::Color& add,
                                 const material::Color& screen) {
-  using Key = std::pair<std::array<uint32_t, 9>, const void*>;
+  // Only numeric matrix filters belong in thread-local storage. A caller's
+  // filter can own device images and must be released with its draw owner.
+  using Key = std::array<uint32_t, 9>;
   struct Entry {
     Key key;
     sk_sp<SkColorFilter> filter;
@@ -75,17 +89,13 @@ sk_sp<SkColorFilter> tintFilter(const material::Color& tint,
   static thread_local boost::container::flat_map<Key,
                                                  std::list<Entry>::iterator>
       table;
-  const Key key{
-      {std::bit_cast<uint32_t>(tint.r), std::bit_cast<uint32_t>(tint.g),
-       std::bit_cast<uint32_t>(tint.b), std::bit_cast<uint32_t>(add.r),
-       std::bit_cast<uint32_t>(add.g), std::bit_cast<uint32_t>(add.b),
-       std::bit_cast<uint32_t>(screen.r), std::bit_cast<uint32_t>(screen.g),
-       std::bit_cast<uint32_t>(screen.b)},
-      (const void*)under.get()};
+  const Key key = tintKey(tint, add, screen);
   const auto found = table.find(key);
   if (found != table.end()) {
     order.splice(order.begin(), order, found->second);
-    return found->second->filter;
+    return under ? SkColorFilters::Compose(found->second->filter,
+                                           std::move(under))
+                 : found->second->filter;
   }
   // The one affine map: scale by tint·(1−screen), bias by add·(1−screen) +
   // screen. Translate rides the matrix in the same normalized [0,1] units
@@ -98,7 +108,6 @@ sk_sp<SkColorFilter> tintFilter(const material::Color& tint,
                       add.g * headroom[1] + screen.g,
                       add.b * headroom[2] + screen.b, 0.0f);
   sk_sp<SkColorFilter> filter = SkColorFilters::Matrix(scale);
-  if (under) filter = SkColorFilters::Compose(filter, std::move(under));
   constexpr size_t kTintCap = 512;
   if (table.size() >= kTintCap) {
     table.erase(order.back().key);
@@ -106,7 +115,29 @@ sk_sp<SkColorFilter> tintFilter(const material::Color& tint,
   }
   order.push_front({key, filter});
   table.emplace(key, order.begin());
-  return filter;
+  return under ? SkColorFilters::Compose(filter, std::move(under)) : filter;
+}
+
+sk_sp<SkColorFilter> GlyphRSXformBatches::tintPass(const GlyphDress& dress,
+                                                   sk_sp<SkColorFilter> under) {
+  if (!under)
+    return tintFilter(dress.colorMultiplier, nullptr, dress.colorAdd,
+                      dress.colorScreen);
+  const TintedFilterKey key{
+      tintKey(dress.colorMultiplier, dress.colorAdd, dress.colorScreen),
+      under.get()};
+  if (recentTintFilter && recentTint == key) return recentTintFilter;
+  auto found = tintedFilters.find(key);
+  if (found == tintedFilters.end()) {
+    sk_sp<SkColorFilter> filter = tintFilter(dress.colorMultiplier, under,
+                                             dress.colorAdd, dress.colorScreen);
+    found = tintedFilters
+                .emplace(key, TintedFilter{std::move(under), std::move(filter)})
+                .first;
+  }
+  recentTint = key;
+  recentTintFilter = found->second.filter;
+  return recentTintFilter;
 }
 
 GlyphRSXformBatches::Batch& GlyphRSXformBatches::batchForPass(
@@ -126,19 +157,26 @@ GlyphRSXformBatches::Batch& GlyphRSXformBatches::batchForPass(
       recentBatch = index;
       return batches[index];
     }
-  recentBatch = batches.size();
-  batches.push_back({resolved,
-                     font->fontSize,
-                     font->scaleX,
-                     font->aliased,
-                     paint,
-                     offset,
-                     band,
-                     {},
-                     {},
-                     {},
-                     {}});
-  return batches.back();
+  // clear() releases paint and font owners while keeping numeric storage.
+  // An unused bucket can take a different pass without losing that storage.
+  const auto unused = std::ranges::find_if(batches, [](const Batch& batch) {
+    return !batch.typeface && batch.glyphs.empty() &&
+           batch.matrixGlyphs.empty();
+  });
+  // The public entrance accepts a paint from an existing bucket. Copy it
+  // before vector growth can invalidate that reference.
+  SkPaint ownedPaint = paint;
+  recentBatch = static_cast<size_t>(unused - batches.begin());
+  if (unused == batches.end()) batches.emplace_back();
+  Batch& batch = batches[recentBatch];
+  batch.typeface = resolved;
+  batch.fontSize = font->fontSize;
+  batch.scaleX = font->scaleX;
+  batch.aliased = font->aliased;
+  batch.paint = std::move(ownedPaint);
+  batch.offset = offset;
+  batch.band = band;
+  return batch;
 }
 
 void GlyphRSXformBatches::addGlyph(const ShapedWord* font,
@@ -183,9 +221,7 @@ void GlyphRSXformBatches::addGlyph(const ShapedWord* font,
       // that colour. Same arithmetic both ways: multiply, add, clamp,
       // then screen.
       if (dressed.getShader() || dressed.getColorFilter()) {
-        dressed.setColorFilter(tintFilter(dress.colorMultiplier,
-                                          dressed.refColorFilter(),
-                                          dress.colorAdd, dress.colorScreen));
+        dressed.setColorFilter(tintPass(dress, dressed.refColorFilter()));
       } else {
         const auto channel = [&](float base, float mul, float add,
                                  float screen) {
@@ -208,17 +244,18 @@ void GlyphRSXformBatches::addGlyph(const ShapedWord* font,
   };
   for (const PaintLayer& layer : style.underlays)
     addPass(layer.resolvedPaint(style.foreground),
-            geometry::path::toSk(layer.offset),
-            PassBand::Underlay);
+            geometry::path::toSk(layer.offset), PassBand::Underlay);
   addPass(style.foreground, {0, 0}, PassBand::Foreground);
   for (const PaintLayer& layer : style.overlays)
     addPass(layer.resolvedPaint(style.foreground),
-            geometry::path::toSk(layer.offset),
-            PassBand::Overlay);
+            geometry::path::toSk(layer.offset), PassBand::Overlay);
 }
 
 void GlyphRSXformBatches::clear() {
   constexpr size_t kRetainedBucketCap = 256;
+  tintedFilters.clear();
+  recentTint = {};
+  recentTintFilter.reset();
   recentBatch = 0;
   // Back to whole-pixel origins: the motion declaration belongs to the run
   // that is about to be added, never to the one that just drew.
@@ -228,6 +265,8 @@ void GlyphRSXformBatches::clear() {
     return;
   }
   for (Batch& batch : batches) {
+    batch.paint = SkPaint{};
+    batch.typeface.reset();
     batch.glyphs.clear();
     batch.transforms.clear();
     batch.matrixGlyphs.clear();

@@ -289,8 +289,9 @@ a contour interval carries a `geometry::path::Contour`:
 - **`advanced/Skia.h`** — the library's one door to Skia: `toSk`,
   `fromSk` and `borrowSk` for a `Face` and a `FaceStyle`, the
   `FaceAdapter` over a Skia typeface, `flowshape::path` over a Skia
-  path, and `tintFilter()`, the memoized colour filter a dressed glyph's
-  pass is tinted through.
+  path, and `tintFilter()`, the colour filter a dressed glyph's pass is
+  tinted through: its numeric tint matrix is memoized, and a tint composed
+  over a pass's own filter belongs to the glyph batches that asked for it.
 - **`advanced/DecorationRects.h`** — the walk that turns a layout's
   decorations into Skia rectangles with their paint,
   `detail::forEachDecorationRect()`, run by both draws and by any painter
@@ -304,7 +305,8 @@ this archive.
 - **`paint/Paint.h`** — the feature's face: `paint::draw()` and
   `paint::drawBatched()`, the same draws as free functions over a layout,
   and `paint::setMaterialResolver()`, the seam a pass carrying a
-  SigilMaterial instance is shaded through. The archive links no renderer;
+  SigilMaterial instance in `PaintStyle::foregroundMaterial` or
+  `PaintLayer::material` is shaded through. The archive links no renderer;
   a host that wants materials shaded installs SigilMaterial's Skia backend
   there, with the pass's bounds as the material's resolution.
 
@@ -314,8 +316,8 @@ this archive.
   `forEachPlacedGlyph()`, which walks a layout's glyphs as rest pose, span
   paint, and where each sits in the text.
 - **`choreograph/GlyphDress.h`** — `GlyphDress` (placement, fade, tint,
-  face, matrix) and `quantizeAngle()`; the memoized `tintFilter()` its
-  tint is applied through is Skia's colour filter, so it stands in
+  face, matrix) and `quantizeAngle()`; the `tintFilter()` its tint is
+  applied through is Skia's colour filter, so it stands in
   `advanced/Skia.h`.
 - **`choreograph/GlyphBatches.h`** — `GlyphRSXformBatches`, which
   collapses thousands of animated letters into a few `drawGlyphsRSXform`
