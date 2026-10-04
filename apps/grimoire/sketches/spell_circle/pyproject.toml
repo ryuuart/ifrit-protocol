@@ -19,4 +19,4 @@ requires = ["uv_build>=0.12.7,<0.13.0"]
 build-backend = "uv_build"
 
 [tool.uv.sources]
-sigil-sketch = { path = "../../../../../python/sigil", editable = true }
+sigil-sketch = { path = "../../../python/sigil", editable = true }

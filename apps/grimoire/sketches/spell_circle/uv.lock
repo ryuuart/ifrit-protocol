@@ -5,7 +5,7 @@ requires-python = "==3.14.*"
 [[package]]
 name = "sigil-sketch"
 version = "0.1.0a9"
-source = { editable = "../../../../../python/sigil" }
+source = { editable = "../../../python/sigil" }
 
 [package.metadata]
 requires-dist = [{ name = "numpy", marker = "extra == 'studies'", specifier = ">=2.0" }]
@@ -26,4 +26,4 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "sigil-sketch", editable = "../../../../../python/sigil" }]
+requires-dist = [{ name = "sigil-sketch", editable = "../../../python/sigil" }]
