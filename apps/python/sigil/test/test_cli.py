@@ -27,7 +27,7 @@ class OpenCommand(unittest.TestCase):
         self.source = self.root / "project with spaces" / "scene.py"
         self.source.parent.mkdir()
         self.source.write_text('"""A launch fixture."""\n')
-        self.host = self.executable("native host/Sketchbook")
+        self.host = self.executable("native host/Grimoire")
         self.info = {
             "implementation": "cpython",
             "version": [sys.version_info.major, sys.version_info.minor],
@@ -85,7 +85,7 @@ class OpenCommand(unittest.TestCase):
             }
         )
         with patch.object(cli.sys, "executable", str(interpreter)):
-            binary, arguments, environment = self.launch("--sketchbook", str(self.host))
+            binary, arguments, environment = self.launch("--grimoire", str(self.host))
         self.assertEqual(binary, str(self.host))
         self.assertEqual(
             arguments,
@@ -123,7 +123,7 @@ class OpenCommand(unittest.TestCase):
             with self.subTest(field=field):
                 self.query.return_value.stdout = json.dumps(self.info | {field: value})
                 self.assert_error(
-                    ["open", str(self.source), "--sketchbook", str(self.host)],
+                    ["open", str(self.source), "--grimoire", str(self.host)],
                     f"{field}: host",
                 )
 
@@ -136,7 +136,7 @@ class OpenCommand(unittest.TestCase):
                 self.query.return_value.stdout = json.dumps(
                     self.info | {"machine": host}
                 )
-                self.launch("--sketchbook", str(self.host))
+                self.launch("--grimoire", str(self.host))
                 self.execute.reset_mock()
 
     def test_invalid_native_handshake_never_launches(self):
@@ -152,22 +152,22 @@ class OpenCommand(unittest.TestCase):
             with self.subTest(reply=reply):
                 self.query.return_value.stdout = reply
                 self.assert_error(
-                    ["open", str(self.source), "--sketchbook", str(self.host)],
-                    "Sketchbook returned invalid",
+                    ["open", str(self.source), "--grimoire", str(self.host)],
+                    "Grimoire returned invalid",
                 )
 
     def test_failed_or_timed_out_handshake_is_a_clean_error(self):
         for error, expected in (
             (
                 subprocess.CalledProcessError(2, [], stderr="unknown --python-info"),
-                "Could not query Sketchbook",
+                "Could not query Grimoire",
             ),
             (subprocess.TimeoutExpired([], 10), "within 10 seconds"),
         ):
             with self.subTest(error=error):
                 self.query.side_effect = error
                 self.assert_error(
-                    ["open", str(self.source), "--sketchbook", str(self.host)], expected
+                    ["open", str(self.source), "--grimoire", str(self.host)], expected
                 )
 
     def test_missing_source_fails_before_host_discovery(self):
@@ -178,45 +178,43 @@ class OpenCommand(unittest.TestCase):
         self.query.assert_not_called()
 
     def test_missing_host_explains_how_to_choose_one(self):
-        self.assert_error(
-            ["open", str(self.source)], "--sketchbook /path/to/Sketchbook"
-        )
+        self.assert_error(["open", str(self.source)], "--grimoire /path/to/Grimoire")
         self.query.assert_not_called()
 
     def test_explicit_host_precedes_environment_and_path(self):
-        os.environ["SIGIL_SKETCHBOOK"] = str(self.executable("environment/Sketchbook"))
-        self.which.return_value = str(self.executable("path/Sketchbook"))
-        binary, _, _ = self.launch("--sketchbook", str(self.host))
+        os.environ["SIGIL_GRIMOIRE"] = str(self.executable("environment/Grimoire"))
+        self.which.return_value = str(self.executable("path/Grimoire"))
+        binary, _, _ = self.launch("--grimoire", str(self.host))
         self.assertEqual(binary, str(self.host))
         self.which.assert_not_called()
 
     def test_invalid_explicit_host_does_not_fall_back(self):
-        os.environ["SIGIL_SKETCHBOOK"] = str(self.host)
+        os.environ["SIGIL_GRIMOIRE"] = str(self.host)
         self.assert_error(
-            ["open", str(self.source), "--sketchbook", str(self.root / "missing")],
-            "--sketchbook is not an executable file",
+            ["open", str(self.source), "--grimoire", str(self.root / "missing")],
+            "--grimoire is not an executable file",
         )
         self.query.assert_not_called()
 
     def test_environment_host_precedes_path(self):
-        os.environ["SIGIL_SKETCHBOOK"] = str(self.host)
-        self.which.return_value = str(self.executable("path/Sketchbook"))
+        os.environ["SIGIL_GRIMOIRE"] = str(self.host)
+        self.which.return_value = str(self.executable("path/Grimoire"))
         binary, _, _ = self.launch()
         self.assertEqual(binary, str(self.host))
         self.which.assert_not_called()
 
     def test_path_host_precedes_a_local_build(self):
         self.which.return_value = str(self.host)
-        self.executable("working/build/bin/Release/Sketchbook")
+        self.executable("working/build/bin/Release/Grimoire")
         binary, _, _ = self.launch()
         self.assertEqual(binary, str(self.host))
-        self.which.assert_called_once_with("Sketchbook")
+        self.which.assert_called_once_with("Grimoire")
 
     def test_local_build_lookup_checks_working_source_and_package_ancestors(self):
         names = (
-            "working/build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook",
-            "project with spaces/build/bin/Release/Sketchbook",
-            "package/build/bin/Release/Sketchbook",
+            "working/build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire",
+            "project with spaces/build/bin/Release/Grimoire",
+            "package/build/bin/Release/Grimoire",
         )
         hosts = [self.executable(name) for name in names]
         for host in hosts:
@@ -231,7 +229,7 @@ class OpenCommand(unittest.TestCase):
         package = checkout / "apps/python/sigil/sigil/cli.py"
         native = self.executable(
             "checkout/apps/spell-circle-canvas/build/bin/Release/"
-            "Sketchbook.app/Contents/MacOS/Sketchbook"
+            "Grimoire.app/Contents/MacOS/Grimoire"
         )
         with patch.object(cli, "__file__", str(package)):
             binary, _, _ = self.launch()
@@ -239,10 +237,8 @@ class OpenCommand(unittest.TestCase):
 
     def test_source_checkout_host_keeps_existing_discovery_precedence(self):
         package = self.root / "checkout/apps/python/sigil/sigil/cli.py"
-        self.executable(
-            "checkout/apps/spell-circle-canvas/build/bin/Release/Sketchbook"
-        )
-        local = self.executable("working/build/bin/Release/Sketchbook")
+        self.executable("checkout/apps/spell-circle-canvas/build/bin/Release/Grimoire")
+        local = self.executable("working/build/bin/Release/Grimoire")
         with patch.object(cli, "__file__", str(package)):
             for explicit, configured, path, expected in (
                 (self.host, self.host, self.host, self.host),
@@ -252,18 +248,18 @@ class OpenCommand(unittest.TestCase):
             ):
                 with self.subTest(explicit=explicit, configured=configured, path=path):
                     if configured:
-                        os.environ["SIGIL_SKETCHBOOK"] = str(configured)
+                        os.environ["SIGIL_GRIMOIRE"] = str(configured)
                     else:
-                        os.environ.pop("SIGIL_SKETCHBOOK", None)
+                        os.environ.pop("SIGIL_GRIMOIRE", None)
                     self.which.return_value = str(path) if path else None
-                    arguments = ["--sketchbook", str(explicit)] if explicit else []
+                    arguments = ["--grimoire", str(explicit)] if explicit else []
                     binary, _, _ = self.launch(*arguments)
                     self.assertEqual(binary, str(expected))
                     self.execute.reset_mock()
 
     def test_forwarded_native_flags_keep_the_current_environment_arguments(self):
         forwarded = ["--frame", "preview with spaces.png", "--at", "2.5"]
-        _, arguments, _ = self.launch("--sketchbook", str(self.host), "--", *forwarded)
+        _, arguments, _ = self.launch("--grimoire", str(self.host), "--", *forwarded)
         self.assertEqual(arguments[-len(forwarded) :], forwarded)
         self.assertEqual(arguments.count("--python-executable"), 1)
         self.assertEqual(arguments.count("--python-abi"), 1)
@@ -279,7 +275,7 @@ class OpenCommand(unittest.TestCase):
                     [
                         "open",
                         str(self.source),
-                        "--sketchbook",
+                        "--grimoire",
                         str(self.host),
                         "--",
                         argument,
@@ -292,7 +288,7 @@ class OpenCommand(unittest.TestCase):
         for name in ("Live Study", "scene.py", "--named", None):
             with self.subTest(name=name):
                 flag = f"--publish={name}" if name is not None else "--publish"
-                _, arguments, _ = self.launch("--sketchbook", str(self.host), flag)
+                _, arguments, _ = self.launch("--grimoire", str(self.host), flag)
                 self.assertEqual(arguments[-1], flag)
                 self.assertEqual(arguments[1], str(self.source))
                 self.assertEqual(arguments.count("--python-executable"), 1)
@@ -399,7 +395,9 @@ class ExampleCommands(unittest.TestCase):
     def test_an_unlisted_example_is_refused_by_name(self):
         stream = io.StringIO()
         with redirect_stderr(stream), self.assertRaises(SystemExit) as stopped:
-            cli.main(["render", "--example", "daylight", "-o", str(self.root / "x.png")])
+            cli.main(
+                ["render", "--example", "daylight", "-o", str(self.root / "x.png")]
+            )
         self.assertNotEqual(stopped.exception.code, 0)
         self.assertIn("unknown example 'daylight'", stream.getvalue())
 

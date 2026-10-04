@@ -176,7 +176,7 @@ These public modules are registered and export nothing yet:
 <!-- prose: hosting -->
 Reloading replaces instance state and restarts the scene clock, for C++ and
 Python sessions alike. A memo builder must be a pure function of its model and
-inherited environment in both languages. Each Sketchbook process uses one
+inherited environment in both languages. Each Grimoire process uses one
 Python environment.
 <!-- /prose -->
 
@@ -258,7 +258,7 @@ and texture maps do not reach a World pixel. An image set as
 | --- | --- | --- |
 | Data and assets | `Json`, `Column` and `Table` reshaping, `decodeCsv`, `Instant` and `Flag`, which compare, order and hash as their values do, a `Flag` against the boolean a cell reads as; `Interval` and `Scale`; SQLite and DuckDB `Database` values with owned writes and query views that refuse a writing statement through every method; `Schema` text and binary conversion; `decode` and `encode` over `Dialect` — JSON, OSC, MIDI, Art-Net, a FlatBuffer through its schema, CSV — `oscMessage` and `maxOscBundleDepth`; `json`, `csv` and `table` reading a file whole over a hub, a query over a CSV run as `source`; `registerDecoders`, which installs the database decoder beside the table and JSON ones; `connect` and `replay` answering a `Connection` — `latest`, `receive`, `on` with OSC address patterns, `otherwise`, `send` to one sender, `reply`, `record`, `state`, `close` — its `Message` and its `ConnectionState` | `FlatBuffer` roots and the generated value types; typed column spans |
 | IO | An owned or session `Hub`, made with `HubOptions` and `NetworkOptions`, with mounts, resolution, text, `read` for bytes, probes, selection, writes, polling, typed `load` for tables, JSON, databases and image assets, leases, preload and network policy; `Hub.problems`, one `Problem` per URI a reader could not make sense of; `Hub.advance`; `Feed` from `Hub.listen` with `ListenOptions`, with `receive`, `latest`, `state` as a `FeedState` and `ReadyState`, and `send` to a peer or `to` one sender; the `Inlet` a test delivers onto one through, from `io.testing.inletOf`; owned `Message`; recordings through `Feed.record` and its `Recording`, played back through `Hub.replay`; the UDP, WebSocket, shared memory, MIDI, serial, gRPC, QUIC and WebRTC transports; `Message.receivedAt` | `io::onAdvance`; `io::registerDecoder` for further types; custom feed and network transports; `io::NetworkCache`; hub image views with decode options, channels and probes; archives, byte sources and `writeBytes` |
-| Texture publication | `Hub.publish` and `Hub.subscribe` over `syphon://` and `spout://` URIs, with `io.frames.Frame` (native handles as integers), `Publisher.send` and `Subscription.latest`; Sketchbook publishes a Python canvas through its own publisher | publication listing and a `Device` of a named graphics API |
+| Texture publication | `Hub.publish` and `Hub.subscribe` over `syphon://` and `spout://` URIs, with `io.frames.Frame` (native handles as integers), `Publisher.send` and `Subscription.latest`; Grimoire publishes a Python canvas through its own publisher | publication listing and a `Device` of a named graphics API |
 | Measurement | `Stopwatch` and `timed`, every span in seconds; a run in hand: `summary` and `Summary`, `quantile`, and `Histogram` with `Histogram.over`, each reading any iterable through an optional `key`; a live stream: `Window` by count or span with its values for a sparkline, `Smoothed` with a weight, time constant or peak, and `Rate`; the check table: `check`, `finding`, `reading`, `heading`, `Check`, `Standing` and `CheckTable` with its printed lines | the advanced instruments: `FrameTimer` lanes, `Moments`, `quantiles`, `Rescale`, `lineFit`, `Laps`, `Counters` and the check formatter |
 
 <!-- prose: data-io -->
@@ -345,7 +345,7 @@ model, arithmetic and data become Python code and are not listed.
 
 | Sketch | Needs | Not yet bound | Python study |
 | --- | --- | --- | --- |
-| `alpha_ground` | Transparent canvas ground; keyed pen leaf drawing a turning ring; publication overlay | — | Port: [`python_alpha_ground.py`](../../spell-circle-canvas/src/sketch/sketches/python_alpha_ground.py) |
+| `alpha_ground` | Transparent canvas ground; keyed pen leaf drawing a turning ring; publication overlay | — | Port: [`python_alpha_ground.py`](../../grimoire/sketches/python_alpha_ground.py) |
 | `bristle_current` | Fixed-rate ticker; seeded noise field with detail; xorshift Chance stream; kept canvas; multiply blending; alpha colors | — |  |
 | `p5_hello` | Kept graphics canvas; translucent background trail; basic pen shapes | — |  |
 | `p5_mixed_forms` | Kit stage; radial material fill; inherited font and ink into pen; retained composition guest; unseeded pen noise; kept-canvas trail | — |  |
@@ -357,8 +357,8 @@ model, arithmetic and data become Python code and are not listed.
 | `p5_attractor_loom` | Kit stage; runtime shader with grain child slot; blended material ground; canvas-mapped stroke paint; batched canvas paths | — |  |
 | `p5_flow_field` | Runtime shader with noise child slot; canvas-mapped stroke; shape-fitted glow paint; grid module sizes; seeded noise detail | — |  |
 | `p5_fractal_garden` | Runtime shader with grain child slot; blended material ground; canvas-mapped stroke; batched canvas paths and points; shape-fitted glow | — |  |
-| `p5_liquid_layers` | Grid-line pattern tiles; blended ground paint; nib and stock brush tools; brush splines and lines; ring arrangement | — | Adaptation: [`python_liquid_layers.py`](../../spell-circle-canvas/src/sketch/sketches/python_liquid_layers.py) |
-| `p5_refractive_metaballs` | Runtime shaders; child shader slot; per-frame vector uniforms; canvas-mapped paints; additive blending; Bezier curves | — | Port: [`python_liquid_glass.py`](../../spell-circle-canvas/src/sketch/sketches/python_liquid_glass.py) |
+| `p5_liquid_layers` | Grid-line pattern tiles; blended ground paint; nib and stock brush tools; brush splines and lines; ring arrangement | — | Adaptation: [`python_liquid_layers.py`](../../grimoire/sketches/python_liquid_layers.py) |
+| `p5_refractive_metaballs` | Runtime shaders; child shader slot; per-frame vector uniforms; canvas-mapped paints; additive blending; Bezier curves | — | Port: [`python_liquid_glass.py`](../../grimoire/sketches/python_liquid_glass.py) |
 
 #### Draw · Observable reproductions
 
@@ -370,22 +370,22 @@ model, arithmetic and data become Python code and are not listed.
 | `observable_fibonacci_rectangles` | Pen clock; HSB color mode; transforms; rectangles | — |  |
 | `observable_flowfield_1` | Kit stage; pen clock; square caps; line grid | — |  |
 | `observable_flowfield_2` | Mix64 Chance stream; pen clock; stroke paint; batched canvas lines | — |  |
-| `observable_flowfield_3` | Kit stage; Mix64 Chance stream; pen clock; stroke paint; batched canvas lines | — | Port: [`python_observable_flowfield.py`](../../spell-circle-canvas/src/sketch/sketches/python_observable_flowfield.py) |
+| `observable_flowfield_3` | Kit stage; Mix64 Chance stream; pen clock; stroke paint; batched canvas lines | — | Port: [`python_observable_flowfield.py`](../../grimoire/sketches/python_observable_flowfield.py) |
 | `observable_grid` | Pen clock; degree angle mode; centre rectangle mode; transforms | — |  |
 | `observable_l_system` | Mix64 Chance ranges; pen clock; lines and circles | — |  |
-| `observable_l_system_tree` | Pen clock; transforms; grayscale lines | — | Port: [`python_observable_l_system.py`](../../spell-circle-canvas/src/sketch/sketches/python_observable_l_system.py) |
+| `observable_l_system_tree` | Pen clock; transforms; grayscale lines | — | Port: [`python_observable_l_system.py`](../../grimoire/sketches/python_observable_l_system.py) |
 | `observable_noise` | Seeded pen noise; Mix64 Chance stream; pen clock; polyline shapes | — |  |
 | `observable_noise_map` | Seeded three-dimensional pen noise; pen clock; grayscale rectangles | — |  |
 | `observable_random_walker` | Mix64 Chance bits; pen clock; distance-shaded circles | — |  |
-| `observable_reaction_diffusion` | Image from RGBA buffer; scaled image drawing | — | Port: [`python_observable_reaction_diffusion.py`](../../spell-circle-canvas/src/sketch/sketches/python_observable_reaction_diffusion.py) |
-| `observable_reynolds_steering` | Persistent model; seeded pen random; HSB color mode with alpha range; translucent trails on kept canvas; transforms; closed shapes | — | Port: [`python_observable_reynolds.py`](../../spell-circle-canvas/src/sketch/sketches/python_observable_reynolds.py) |
+| `observable_reaction_diffusion` | Image from RGBA buffer; scaled image drawing | — | Port: [`python_observable_reaction_diffusion.py`](../../grimoire/sketches/python_observable_reaction_diffusion.py) |
+| `observable_reynolds_steering` | Persistent model; seeded pen random; HSB color mode with alpha range; translucent trails on kept canvas; transforms; closed shapes | — | Port: [`python_observable_reynolds.py`](../../grimoire/sketches/python_observable_reynolds.py) |
 
 #### Draw · Procedural
 
 | Sketch | Needs | Not yet bound | Python study |
 | --- | --- | --- | --- |
 | `bristle_bloom` | Kit stage; seeded random, Gaussian and noise pen streams; screen and additive blending; Bezier curves; transforms | — |  |
-| `brush_botanical_study` | Engine state stack; pencil and charcoal tools; pressure splines, lines; polygon wash, bled fill, mass, hatch; engine circles; ellipse arrangement | — | Adaptation: [`python_botanical_study.py`](../../spell-circle-canvas/src/sketch/sketches/python_botanical_study.py) |
+| `brush_botanical_study` | Engine state stack; pencil and charcoal tools; pressure splines, lines; polygon wash, bled fill, mass, hatch; engine circles; ellipse arrangement | — | Adaptation: [`python_botanical_study.py`](../../grimoire/sketches/python_botanical_study.py) |
 | `brush_custom` | Image-tipped brush tools; shape spacing and scatter; grain images; pressure size response; RGBA-built images; document labels placed by pen | — |  |
 | `brush_dynamics` | Stylus input samples; dab sampling and deposit; tilt, barrel rotation and speed tool responses; flat pressure profile | — |  |
 | `brush_engine_atlas` | Brush engine catalogue; custom pen and image tips; pressure curve; field-warped bled fill; polygon mass and hatch arrays | — |  |
@@ -487,7 +487,7 @@ model, arithmetic and data become Python code and are not listed.
 
 | Sketch | Needs | Not yet bound | Python study |
 | --- | --- | --- | --- |
-| `document_styles` | Document kit roles; role stylesheets with block leading; inline rich run; specimen page, comparison and wells | — | Adaptation: [`python_document.py`](../../spell-circle-canvas/src/sketch/sketches/python_document.py) |
+| `document_styles` | Document kit roles; role stylesheets with block leading; inline rich run; specimen page, comparison and wells | — | Adaptation: [`python_document.py`](../../grimoire/sketches/python_document.py) |
 
 ### Specimen
 
@@ -809,8 +809,8 @@ The suites cover:
 - `test_capture.py`, `test_cli.py`, `test_environment.py`, `test_launch.py`
   and `test_workspace.py` cover capture moments, the launcher, project
   environments, interpreter compatibility and workspace discovery. The capture,
-  launch and workspace cases run only when `SIGIL_TEST_SKETCHBOOK` names a
-  Sketchbook.
+  launch and workspace cases run only when `SIGIL_TEST_GRIMOIRE` names a
+  Grimoire.
 
 The native `python_test` binary registers the common bindings without a
 sketch runtime and checks World engine, frame and pixel ownership, Weave layout

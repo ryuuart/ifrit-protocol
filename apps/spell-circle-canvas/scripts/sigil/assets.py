@@ -4,7 +4,7 @@
     sigil.py assets --out <dir>
     sigil.py assets --stage <archive>...     # into the vcpkg asset cache
 
-The studies in src/common/compose/gallery and sketch/sketches are
+The studies in src/common/compose/gallery and Grimoire's sketches/ are
 reference-grounded, and a reference set in whatever face the host OS
 happens to ship is only half-grounded. The fetch lane brings down the
 real open-licensed faces those studies want, so a study can name a

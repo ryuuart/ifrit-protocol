@@ -1,0 +1,465 @@
+// twoadvanced_equipment.cpp — 2Advanced Studios // Equipment.Modules
+// (2003): the v4-era merchandise store at /equipment/, an HTML 4.0
+// FRAMESET of Dreamweaver-exported tables, live today at
+// https://v4prophecy.2advanced.com/equipment/.
+//
+// REFERENCE — the page's own HTML and CSS, taken literally:
+//   · index.html: FRAMESET rows 103,*,15; the middle splits cols 262,*.
+//   · topframe.htm: ecom-topbar.gif 790×19; then a table row of
+//     ecom-logo.gif 262×78 and ecom-titleheader.gif 511×63; the four
+//     nav buttons (92/92/92/105 × 11) flow inline after the title image
+//     and wrap beneath it. MM_preloadImages names an -on.gif for each and
+//     MM_swapImage swaps src on mouseover; the archive never captured
+//     those states, so the hover cycle below approximates them.
+//   · leftframe-productselection.htm: ecom-productselectimage.jpg
+//     262×266, alone on white.
+//   · productselect.htm: ecom-productselection.gif 501×16, then per
+//     product a #7C252C header row 15 high (arrow 16×15, name in
+//     Verdana size=1 white, 3-dots 17×15 right), a 2 px seam, and a
+//     52-high body row (69×52 thumb, then a 416-wide #F0E7E8 cell:
+//     Verdana size=1 #7C252C copy padded 7, ecom-viewdetails.gif 84×16
+//     bottom-right), then a 6 px gap. Seven products, then
+//     ecom-breakerbar.gif 501×6 and ecom-copyright.gif 165×11 right.
+//     Body link colour #7C252C. The BODY styles the IE scrollbar:
+//     face #BBC0C9, track #E4E6EA, arrows #666666 — drawn here because
+//     the content (≈570 px) overflows the frame and the era showed it.
+//   · bottomframe.htm: ecom-bottombar.gif 790×11.
+//
+// Every bitmap above is fetched from the restoration host over
+// SigilIO's https path (disk-cached after the first run); a missing
+// fetch leaves a flat #7C252C or white stand-in so the sketch still
+// renders offline. But a stand-in page is not the page this header
+// describes, so `available()` asks SigilIO's cache first and stands
+// the sketch down BY NAME on a machine that has never fetched, rather
+// than publishing a second picture under the same one. The type is
+// Verdana at HTML size=1 — 10 px — which macOS ships.
+//
+// The page is STATIC; its only behaviours are the JS rollovers and the
+// frame's scrollbar, so those are the only motion here: a simulated
+// pointer walks the four top buttons, and the content frame auto-scrolls
+// its overflow with the thumb tracking in the styled scrollbar. The
+// rollover is a LIFT over the -off bitmap rather than a swap, because
+// the -on.gif files were only ever fetched on hover and the archive
+// therefore never captured one. Frame is drawn at ×2 of the 790×580
+// page: 1580×1160.
+//
+// EDIT THESE FIRST
+//   the 14 s scroll envelope's four corners — hold, glide, hold, glide
+//                       back. The declared moment sits in the first hold.
+//   the 8 s hover cycle and its 1 s dwell — when each of the four
+//                       buttons lights, and for how long.
+//   kProducts           — the seven rows. Everything below the header is
+//                       laid out from them.
+//   the palette block   — the page's own attribute colours.
+
+// TAGS: Interfaces/Web
+
+#include <sigilcompose/brush/Adaptors.h>
+#include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/core/Paint.h>
+#include <sigilcompose/kit/Frame.h>
+#include <sigilgeometry/path/Edges.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmotion/ease/Ease.h>
+#include <sigilmotion/values/Animatable.h>
+#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Scrollbar.h>
+
+#include <algorithm>
+#include <array>
+#include <boost/container/flat_map.hpp>
+#include <cmath>
+#include <string>
+
+#include "twoadvanced_v3/TwoAdvanced.h"
+
+namespace material = sigil::material;
+namespace sketch = sigil::sketch;
+namespace motion = sigil::motion;
+namespace path = sigil::geometry::path;
+namespace weave = sigil::weave;
+
+using namespace sigil::compose;
+using sigil::material::hexColor;
+// Absolute placement: this composition is pinned, so a node says
+// where it goes rather than a layout deciding.
+using sigil::compose::kit::at;
+
+namespace teq {
+using namespace twoadvanced;
+
+// The page's entire palette, straight from its attributes.
+constexpr material::Color kMaroon =
+    hexColor(0x7C252C);  // header rows, copy, links
+constexpr material::Color kRose = hexColor(0xF0E7E8);    // description cells
+constexpr material::Color kWhite = hexColor(0xFFFFFF);   // BODY bgColor
+constexpr material::Color kSbFace = hexColor(0xBBC0C9);  // SCROLLBAR-FACE-COLOR
+constexpr material::Color kSbTrack =
+    hexColor(0xE4E6EA);  // SCROLLBAR-TRACK-COLOR
+constexpr material::Color kSbArrow =
+    hexColor(0x666666);  // SCROLLBAR-ARROW-COLOR
+
+// Frameset geometry, in the page's own CSS pixels.
+constexpr float kPageW = 790, kPageH = 580;
+constexpr float kTopH = 103, kBottomH = 15;
+constexpr float kLeftW = 262;
+constexpr float kContentH = kPageH - kTopH - kBottomH;  // the * row
+constexpr float kSbW = 16;                              // IE scrollbar
+
+// The two behaviours, as the numbers they are made of.
+constexpr float kHoverCycle = 8.0f;    // the pointer's round of the four
+constexpr float kHoverFirst = 2.0f;    // when the first button lights
+constexpr float kHoverStep = 1.2f;     // and how far behind the next one is
+constexpr float kHoverDwell = 1.0f;    // how long each stays lit
+constexpr float kScrollCycle = 14.0f;  // hold, glide down, hold, glide back
+constexpr float kScrollRise = 3.0f, kScrollHold = 8.0f;
+constexpr float kScrollFall = 9.0f, kScrollRest = 13.0f;
+
+struct Product {
+  const char* name;
+  const char* thumb;  // productselect_files/ file name
+  const char* copy;
+};
+// The seven products, names and copy verbatim (typos included).
+constexpr Product kProducts[7] = {
+    {"\"Phiberglass\" T-Shirt", "ecom-sm_phiberglassshirt.gif",
+     "Our V.4 expeditionary media vehicle enabled t-shirt offering for "
+     "anti-media control applications."},
+    {"\"Operative\" T-Shirt", "ecom-sm_operativeshirt.gif",
+     "Graphical intelligence gear for the efficient outfitting of any "
+     "special design force operatives."},
+    {"\"Prophecy\" T-Shirt", "ecom-sm_prophecyshirt.gif",
+     "Version 4.0 underground media t-shirt, equipment ready for future "
+     "shock."},
+    {"\"Identity\" T-shirt", "ecom-sm_identityshirt.gif",
+     "100% Pure 2Advanced Studios Branded Tee - Taking Pride in Raw and "
+     "Unadulterated Simplicity. Available in White, Blue, and Black. All "
+     "sizes."},
+    {"\"Expansions\" T-shirt", "ecom-sm_expansionsshirt.gif",
+     "2Advanced Studios \"Expansions\" Tshirt [Limited V3 Site Release "
+     "Edition]. Available in Blue and Black. All sizes."},
+    {"\"Flash MX Magic\"", "ecom-productimage1.gif",
+     "Co-written by 2Advanced, Learn about XML Integration with Flash MX. "
+     "Complete with Sample FLAs. Pre-order an Autographed Copy Today!"},
+    {"\"Plat4m\" Poster by Eric Jordan & Probe3 of 2Advanced",
+     "ecom-productimage4.gif",
+     "High quality poster printed on 80 weight gloss coverstock for a true "
+     "thickness and quality. [18x27 inches]. Sponsored by Invicid."},
+};
+
+}  // namespace teq
+
+// ===========================================================================
+
+struct TwoAdvancedEquipment {
+  /** THE STORE'S BITMAPS ARE RUNTIME DATA, and a sketch over runtime data
+   *  a machine may not have says so rather than drawing a second picture
+   *  under the same name. Every GIF and JPEG on this frameset comes off
+   *  the restoration host through SigilIO's https path, which caches
+   *  on disk; `img()` keeps a flat maroon-or-white stand-in at every use
+   *  site, so a cold cache still renders — but it renders the STAND-IN
+   *  page, and the plate this sketch is judged on is then not the picture
+   *  the header describes.
+   *
+   *  Four files stand for the sixteen: the top bar and the logo carry the
+   *  masthead, the product-selection image is the whole left frame, and
+   *  the first thumbnail is the row art. A cache holding those was
+   *  written by a run that fetched them all. */
+  static bool available(std::string* why) {
+    return sketch::requireCached(
+        {"https://v4prophecy.2advanced.com/equipment/index_files/"
+         "topframe_files/ecom-topbar.gif",
+         "https://v4prophecy.2advanced.com/equipment/index_files/"
+         "topframe_files/ecom-logo.gif",
+         "https://v4prophecy.2advanced.com/equipment/index_files/"
+         "leftframe-productselection_files/ecom-productselectimage.jpg",
+         "https://v4prophecy.2advanced.com/equipment/index_files/"
+         "productselect_files/ecom-sm_phiberglassshirt.gif"},
+        why);
+  }
+
+  using ImagePtr = std::shared_ptr<const sigil::media::Image>;
+
+  // Keyed by file name under equipment/index_files/.
+  boost::container::flat_map<std::string, ImagePtr, std::less<>> art;
+
+  /** THE ONLY THING THE CLOCK WRITES. Both of the page's behaviours are
+   *  periodic shapes of the elapsed seconds, so each is declared as a
+   *  bound envelope off this one Output and nothing per-frame computes a
+   *  position. */
+  motion::Animatable<float> clock = motion::animatable(0.0f);
+
+  float contentOverflow = 0;
+
+  /** THE PAGE'S SCROLL, as one envelope: flat at the top, a glide down
+   *  over five seconds, a beat at the bottom, and four seconds back. The
+   *  corners are positions in the cycle; the quadratic ease rounds both
+   *  shoulders without moving them. */
+  sigil::motion::Animatable<float> scrollEnvelope() const {
+    using namespace teq;
+    return motion::bind(
+        clock, {.from = {0.0f, kScrollCycle},
+                .envelope = motion::envelope::trapezoid(
+                    kScrollRise / kScrollCycle, kScrollHold / kScrollCycle,
+                    kScrollFall / kScrollCycle, kScrollRest / kScrollCycle),
+                .ease = motion::ease::inOutQuad});
+  }
+
+  /** WHAT THE CONTENT FRAME SCROLLS, which is what the thumb's length and
+   *  its travel are read off — stated once, because the scrollbar draws
+   *  the thumb and the clock places it and the two disagreeing is a thumb
+   *  that slides off its own track. The frame is the window, the whole
+   *  list is the window plus what hangs below it, and the track is the
+   *  bar less its two arrow buttons. A list that fits keeps a pixel of
+   *  overflow, so the thumb is short of the track by a hair rather than
+   *  filling it: this frame is one the page always scrolls. */
+  sketch::kit::Scrolled scrolled() const {
+    using namespace teq;
+    return {.view = kContentH,
+            .content = kContentH + std::max(contentOverflow, 1.0f),
+            .track = kContentH - 2 * kSbW};
+  }
+
+  /** The bitmap at its own HTML display size, or a flat stand-in. An
+   *  IMG with WIDTH and HEIGHT stretches to them — the page states both
+   *  on every one of its bitmaps, and half of them are stated at
+   *  something other than the file's own size. */
+  Element img(const char* name, float w, float h,
+              material::Color fallback = teq::kMaroon) {
+    auto it = art.find(name);
+    if (it == art.end() || !it->second)
+      return box().width(w).height(h).flexShrink(0).fill(fallback);
+    return image(it->second, material::Fit::Native)
+        .width(w)
+        .height(h)
+        .flexShrink(0);
+  }
+
+  // ---- the three frames ---------------------------------------------------
+
+  Element topFrame() {
+    using namespace teq;
+    Element f = at(box(), 0, 0, kPageW, kTopH).overflow(Overflow::Clip);
+    f.children({at(img("ecom-topbar.gif", 790, 19), 0, 0, 790, 19),
+                at(img("ecom-logo.gif", 262, 78), 0, 19, 262, 78),
+                at(img("ecom-titleheader.gif", 511, 63), 262, 19, 511, 63)});
+    // The four rollover buttons wrap beneath the title image. The page
+    // preloads an -on.gif for each, but the archive never captured
+    // those states (they only fetched on hover), so the swap is
+    // approximated: the -off bitmap with a lift riding a bound opacity.
+    static const char* offs[4] = {
+        "ecom-button-shoppinginfo-of.gif", "ecom-button-checkout-off.gif",
+        "ecom-button-viewcart-off.gif", "ecom-button-questions-off.gif"};
+    float x = 262;
+    for (int i = 0; i < 4; ++i) {
+      const float w = i == 3 ? 105.0f : 92.0f;
+      f.children({at(img(offs[i], w, 11), x, 82, w, 11)});
+      // The dwell: one second lit out of every eight, the four starting
+      // 1.2 s apart, so the pointer walks the row.
+      const float on0 = teq::kHoverFirst + (float)i * teq::kHoverStep;
+      f.children(
+          {at(box().fill(material::withAlpha(kWhite, 0.4f)), x, 82, w, 11)
+               .opacity(motion::bind(
+                   clock, {.from = {on0, on0 + teq::kHoverCycle},
+                           .envelope = motion::envelope::square(
+                               teq::kHoverDwell / teq::kHoverCycle)}))});
+      x += w;
+    }
+    return f;
+  }
+
+  Element leftFrame() {
+    using namespace teq;
+    return at(box().fill(kWhite), 0, kTopH, kLeftW, kContentH)
+        .overflow(Overflow::Clip)
+        .children(
+            {at(img("ecom-productselectimage.jpg", 262, 266), 0, 0, 262, 266)});
+  }
+
+  /** One product: the maroon header row, the 2 px seam, the body row. */
+  Element product(const teq::Product& p) {
+    using namespace teq;
+    Element block = box().column().width(501);
+    block.children(
+        {box().height(15).row().children(
+             {box().width(13),
+              kit::centred()
+                  .width(16)
+                  .fill(kMaroon)
+
+                  .children({img("ecom-arrowbutton.gif", 16, 15)}),
+              box()
+                  .flexGrow(1)
+                  .fill(kMaroon)
+                  .row()
+                  .alignItems(Align::Center)
+                  .padding(0, 4)
+                  .children({t(p.name, {.color = kWhite})}),
+              kit::centred()
+                  .width(17)
+                  .fill(kMaroon)
+
+                  .children({img("ecom-3dots.gif", 17, 15)})}),
+         box().height(2),
+         box().row().children(
+             {box().width(13), img(p.thumb, 69, 52, hexColor(0xD8D0D0)),
+              box().width(3),
+              box().width(416).height(52).fill(kRose).column().children(
+                  {box().padding(7).children({t(p.copy, {.color = kMaroon})}),
+                   box().flexGrow(1),
+                   box()
+                       .row()
+                       .justifyContent(Justify::End)
+                       .children({img("ecom-viewdetails.gif", 84, 16)})})}),
+         box().height(6)});
+    return block;
+  }
+
+  // Content height from the HTML's own numbers: selection header + gap
+  // + seven 75 px product blocks + breaker + copyright row.
+  static constexpr float kListH = 1 + 16 + 6 + 7 * (15 + 2 + 52 + 6) + 6 + 11;
+
+  Element contentFrame() {
+    using namespace teq;
+    // The explicit height matters: the list overflows its frame, and a
+    // flex child left to its defaults would SHRINK to fit instead of
+    // scrolling — rows visibly compressing into one another.
+    Element list =
+        box()
+            .column()
+            .width(501)
+            .height(kListH)
+            .flexShrink(0)
+            .translateY(
+                motion::bind(scrollEnvelope(), {.to = {0, -contentOverflow}}))
+            .children(
+                {box().height(1),
+                 img("ecom-productselection.gif", 501, 16, kMaroon),
+                 box().height(6),
+                 each(kProducts,
+                      [this](const Product& p) { return product(p); }),
+                 img("ecom-breakerbar.gif", 501, 6, kMaroon),
+                 box()
+                     .height(11)
+                     .row()
+                     .alignItems(Align::Center)
+                     .children({box().flexGrow(1),
+                                img("ecom-copyright.gif", 165, 11, kWhite)})});
+
+    // The styled IE scrollbar: two arrow buttons and a proportional
+    // thumb, in exactly the BODY's SCROLLBAR-* colours.
+    auto sbButton = [&](bool up) {
+      return kit::centred()
+          .width(kSbW)
+          .height(kSbW)
+          .fill(kSbFace)
+          .foreground(
+              onEdges(path::Edge::Top | path::Edge::Left,
+                      stroke(1, Fill::color(kWhite), PathFormat::Align::Inner)))
+          .foreground(onEdges(path::Edge::Bottom | path::Edge::Right,
+                              stroke(1, Fill::color(hexColor(0x000000)),
+                                     PathFormat::Align::Inner)))
+
+          .children({t(up ? "▴" : "▾",
+                       {.face = verdanaFace(true), .color = kSbArrow})});
+    };
+    const sketch::kit::Scrolled frame = scrolled();
+    Element scrollbar =
+        sketch::kit::scrollbar(
+            {.leading = sbButton(true),
+             .trailing = sbButton(false),
+             .thumb = box().fill(kSbFace).foreground(onEdges(
+                 path::Edge::Top | path::Edge::Left,
+                 stroke(1, Fill::color(kWhite), PathFormat::Align::Inner))),
+             .scrolled = frame,
+             .position = motion::bind(scrollEnvelope(),
+                                      {.to = {0, frame.thumb().travel}}),
+             .track = Fill::color(kSbTrack)})
+            .width(kSbW);
+
+    return at(box().fill(kWhite), kLeftW, kTopH, kPageW - kLeftW, kContentH)
+        .overflow(Overflow::Clip)
+        .row()
+        .children({box().flexGrow(1).overflow(Overflow::Clip).children({list}),
+                   scrollbar});
+  }
+
+  Element bottomFrame() {
+    using namespace teq;
+    return at(box().fill(kWhite), 0, kPageH - kBottomH, kPageW, kBottomH)
+        .children({at(img("ecom-bottombar.gif", 790, 11), 0, 0, 790, 11)});
+  }
+
+  // =========================================================================
+
+  Element describe() {
+    using namespace teq;
+    // Verdana at HTML size=1: 10 px — the one register the whole store is
+    // set in, stated once on the page; a label names its colour, and the
+    // scrollbar's arrows the bold cut. Untracked, because an HTML table
+    // cell had no way to say otherwise.
+    Element page =
+        box()
+            .width(kPageW)
+            .height(kPageH)
+            .font({.face = verdanaFace(false), .size = 10})
+            .fill(kWhite)
+            .children({topFrame(), leftFrame(), contentFrame(), bottomFrame()});
+    return stack().children({at(std::move(page), 0, 0, kPageW, kPageH)
+                                 .scale(2.0f)
+                                 .transformOrigin(pct(0), pct(0))});
+  }
+
+  void setup(sketch::SketchContext& ctx) {
+    using namespace teq;
+    // The plate at exactly 2x. One page pixel is two canvas px and four
+    // device px, so the 10 px Verdana and every GIF edge land whole.
+    // Before the auto-scroll leaves the top and while the first button
+    // shows its rollover lift.
+    sketch::kit::stage(ctx, {.size = SkSize::Make(kPageW * 2, kPageH * 2),
+                             .captureAt = 2.5,
+                             .background = kWhite,
+                             .oversample = 2});
+
+    // --- every bitmap the frameset names, from the restoration host ------
+    {
+      sigil::io::Hub& hub = ctx.assets.hub();
+      const std::string base =
+          "https://v4prophecy.2advanced.com/equipment/index_files/";
+      auto fetch = [&](const char* dir, const char* name) {
+        art[name] = hub.load<sigil::media::Image>(base + dir + "/" + name);
+      };
+      for (const char* n :
+           {"ecom-topbar.gif", "ecom-logo.gif", "ecom-titleheader.gif",
+            "ecom-button-shoppinginfo-of.gif", "ecom-button-checkout-off.gif",
+            "ecom-button-viewcart-off.gif", "ecom-button-questions-off.gif"})
+        fetch("topframe_files", n);
+      fetch("leftframe-productselection_files", "ecom-productselectimage.jpg");
+      for (const char* n :
+           {"ecom-productselection.gif", "ecom-arrowbutton.gif",
+            "ecom-3dots.gif", "ecom-viewdetails.gif", "ecom-breakerbar.gif",
+            "ecom-copyright.gif", "ecom-sm_phiberglassshirt.gif",
+            "ecom-sm_operativeshirt.gif", "ecom-sm_prophecyshirt.gif",
+            "ecom-sm_identityshirt.gif", "ecom-sm_expansionsshirt.gif",
+            "ecom-productimage1.gif", "ecom-productimage4.gif"})
+        fetch("productselect_files", n);
+    }
+
+    contentOverflow = std::max(0.0f, kListH - kContentH);
+
+    // --- the clock ---------------------------------------------------
+    // Both behaviours are shapes of it, declared where they are drawn, so
+    // this is the whole per-frame side of the page.
+    ctx.engine.timer([this, &ticker = ctx.engine] {
+      const double tt = ticker.elapsed().count();
+      clock = (float)tt;
+    });
+
+    ctx.composer.render(describe());
+  }
+};
+
+SIGIL_SKETCH(TwoAdvancedEquipment, "Study · Screens",
+             "2Advanced's Equipment.Modules store (2003) — an HTML "
+             "frameset of Dreamweaver tables, bitmaps and all")

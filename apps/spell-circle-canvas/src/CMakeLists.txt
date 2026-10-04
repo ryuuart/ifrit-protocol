@@ -15,10 +15,10 @@
 #                compose/ (SigilCompose) last. Each library carries its
 #                own features as its own archives, and a build module
 #                only one library needs stands in that library's cmake/.
-#   sketch/      SigilSketch: every renderable thing in this repository as
-#                one sketch file, with the registry, the three runtimes a
-#                sketch may draw through, the live host and the headless
-#                renderer — and Sketchbook, the one live application
+#   sketch/      SigilSketch: the framework a scene is hosted through —
+#                the registry, the runtimes a sketch may draw through, the
+#                live host and the headless renderer; Grimoire, the
+#                application built on it, stands beside this tree
 #   sigilweave/  the Qt-free SigilWeave text layout engine, its companion
 #                libraries, tests, benchmarks, and examples/ (gallery, demo)
 #   spellcircle/ the SpellCircle receiver product: shared/ core embedded by

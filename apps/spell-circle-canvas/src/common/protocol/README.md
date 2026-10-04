@@ -1,7 +1,7 @@
 # SigilProtocol
 
 One protocol every Sigil host speaks and every client of one is generated
-from. A host — Sketchbook, Seer, the product receiver — is asked what it
+from. A host — Grimoire, Seer, the product receiver — is asked what it
 is, told how its clock moves, made to open a sketch and photograph it,
 and asked what its registry holds, all as commands of one definition;
 whatever asks, a test in the same process, a script over a socket or a
@@ -59,7 +59,7 @@ derived is kept by hand.
 ```
 
 Seven seams, in the order a message crosses them; the first six are
-built, and every host mounts the endpoint — Sketchbook and Seer by
+built, and every host mounts the endpoint — Grimoire and Seer by
 default, the product receiver when `--inspect` asks. Each promises
 something and refuses something, and a failure names the seam that
 refused.
@@ -220,9 +220,9 @@ telling each that enabled `host` that the endpoint is closing, through
 `host.detached` sent before the socket closes, and takes back the
 address file while it still names this endpoint. It is made on a hub and
 a dispatcher and let go before either, and before the agents mounted on
-that dispatcher, whose `onDetach` listeners its going runs. Sketchbook's
+that dispatcher, whose `onDetach` listeners its going runs. Grimoire's
 window and Seer put one on their dispatcher by default, a headless
-Sketchbook serves one when `--headless --inspect` asks, and the product
+Grimoire serves one when `--headless --inspect` asks, and the product
 receiver mounts one only when `--inspect` asks.
 
 **6. The clients** speak through a `sigil::protocol::Caller`: `call`
@@ -257,7 +257,7 @@ the package as it stands: `Envelopes`, a caller made of one exchange of
 envelope text; `connect`, which attaches to a host at its `ws://` address
 or through the state directory whose address file names it, reads the
 definition it serves at `/protocol` and refuses one whose breaking
-revision differs; and `launch`, which starts a headless Sketchbook under
+revision differs; and `launch`, which starts a headless Grimoire under
 a state directory and connects once its address file is written.
 
 **7. The panels** are Seer's, over the same clients, and come after the

@@ -441,7 +441,7 @@ void configureInterpreter(const std::filesystem::path& executable) {
   const std::lock_guard lock(configuration.mutex);
   if (Py_IsInitialized())
     throw std::runtime_error(
-        "Python is already initialized; open a new Sketchbook process to "
+        "Python is already initialized; open a new host process to "
         "select another environment");
   configuration.executable =
       executable.empty()

@@ -1,0 +1,246 @@
+#include <sigilmaterial/paint/Bases.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmedia/advanced/Skia.h>
+#include <sigilmotion/ease/Ease.h>
+
+#include "TwoAdvancedV4.h"
+
+auto TwoAdvancedV4::available(std::string* why) -> bool {
+  return sketch::requireCached(
+      {"https://v4prophecy.2advanced.com/images/leftsidepanel.gif",
+       "https://v4prophecy.2advanced.com/images/rightsidepanel.gif",
+       "https://v4prophecy.2advanced.com/images/sitebackground.gif",
+       "https://v4prophecy.2advanced.com/images/sitefooter.gif",
+       "https://v4prophecy.2advanced.com/images/2alogobug.svg"},
+      why);
+}
+
+auto TwoAdvancedV4::stretchFill(
+    const std::shared_ptr<const sigil::media::Image>& asset, float w, float h,
+    material::Repeat tx) -> material::Paint {
+  const sk_sp<SkImage>& img = asset->frames()[0].image;
+  return material::skia::image(
+      img, tx, material::Repeat::Pad,
+      SkMatrix::Scale(w / (float)img->width(), h / (float)img->height()),
+      SkSamplingOptions(SkFilterMode::kLinear));
+}
+
+auto TwoAdvancedV4::tickDots(int cluster, sigil::material::Color c) -> Element {
+  const auto dotAt = [this, cluster, c](int i) {
+    return box().width(5).height(5).fill(c).opacity(
+        dot[(size_t)cluster * 3 + (size_t)i]);
+  };
+  return box()
+      .row()
+      .gap(4)
+      .alignItems(Align::Center)
+      .children({each(3, dotAt)});
+}
+
+auto TwoAdvancedV4::radarSweep(int i, sigil::material::Color tint, float inner)
+    -> Element {
+  return box()
+      .inset(0)
+      .shape(shapes::sector(-100, 78, inner))
+      .fill(material::linearGradient(
+          {0, 0}, {1, 1},
+          {{0.0f, sigil::material::withAlpha(tint, 0.85f)},
+           {1.0f, sigil::material::withAlpha(tint, 0.05f)}}))
+      .rotate(gauge[(size_t)i])
+      .opacity(gaugeAlpha[(size_t)i]);
+}
+
+auto TwoAdvancedV4::statusBar() -> Element {
+  using namespace tav;
+  // Two segments meeting on a DIAGONAL seam, not a vertical edge. They
+  // drop in one after the other: teal leads, maroon follows 80 ms later.
+  Element teal =
+      bevelPanel(box()
+                     .left(0)
+                     .top(0)
+                     .width(560)
+                     .height(40)
+                     .shape(shapes::chamfered(40, shapes::Corner::BottomRight))
+                     .row()
+                     .alignItems(Align::Center)
+                     .padding(0, 10)
+                     .gap(8),
+                 kTealBar)
+          .translateY(motion::animate({.from = -46.0f,
+                                       .to = 0.0f,
+                                       .duration = 380ms,
+                                       .delay = 1450ms,
+                                       .ease = motion::ease::outQuint}))
+          .children(
+              {kit::centred()
+                   .width(22)
+                   .height(22)
+                   .borderRadius({5})
+                   .fill(material::radialGradient({0.5f, 0.42f}, 1.15f,
+                                                  {{0.0f, kCyanRing},
+                                                   {0.55f, kTealBar},
+                                                   {1.0f, hexColor(0x0C2A2C)}}))
+                   .stroke(stroke(
+                       1, Fill::color(sigil::material::withAlpha(kCyan, 0.7f)),
+                       PathFormat::Align::Inner))
+
+                   .children({box().width(9).height(9).borderRadius({5}).stroke(
+                       stroke(2, Fill::color(kCyan)))}),
+               // The teal segment's voice, verbatim from the interface
+               // capture: the boot callsign, then the two region labels the
+               // page hangs over its modules.
+               t("INITREQ 2A", micro(12, kNear, 240)),
+               kit::line({.length = Dimension(14),
+                          .column = true,
+                          .fill = Fill::color(
+                              sigil::material::withAlpha(kCyan, 0.4f))}),
+               t("› GLOBAL AMBIENCE",
+                 micro(11, sigil::material::withAlpha(kCyan, 0.9f), 240)),
+               box().flexGrow(1),
+               box().width(90).height(12).foreground(
+                   styles::TickRail{sigil::material::withAlpha(kNear, 0.45f), 6,
+                                    3, 8, 1, 3, 0.5f, path::Edge::Bottom}),
+               box().width(46)});
+
+  Element maroon =
+      bevelPanel(box()
+                     .left(548)
+                     .top(0)
+                     .width(1892.0f - 548.0f)
+                     .height(40)
+                     .shape(shapes::chamfered(40, shapes::Corner::TopLeft))
+                     .row()
+                     .alignItems(Align::Center)
+                     .padding(0, 14, 0, 58)
+                     .gap(10),
+                 kChrome)
+          .translateY(motion::animate({.from = -46.0f,
+                                       .to = 0.0f,
+                                       .duration = 380ms,
+                                       .delay = 1530ms,
+                                       .ease = motion::ease::outQuint}))
+          .children(
+              {t("› GLOBAL NAVIGATOR", micro(11, kDust, 260)),
+               box().flexGrow(1),
+               // V4.PROPHECY sits in its own hairline-outlined plate at
+               // the bar's right end — the one piece of type up here that
+               // is boxed rather than bare.
+               box()
+                   .height(24)
+                   .padding(0, 9)
+                   .stroke(stroke(
+                       1, Fill::color(sigil::material::withAlpha(kNear, 0.75f)),
+                       PathFormat::Align::Inner))
+                   .row()
+                   .alignItems(Align::Center)
+                   .children({t("V4.PROPHECY", heavy(14, kNear, 80))})});
+
+  return box().left(24).top(0).width(1892).height(40).children({maroon, teal});
+}
+
+auto TwoAdvancedV4::audioModule() -> Element {
+  using namespace tav;
+  // ONE ROW PER TRACK IN THE DOCUMENT'S PLAYLIST, the first of them
+  // playing: lit ground, cyan edge and a caret before the name.
+  const auto track = [](const sigil::data::Json& name, size_t i) {
+    const bool playing = i == 0;
+    return box()
+        .height(23)
+        .row()
+        .alignItems(Align::Center)
+        .padding(0, 6)
+        .gap(6)
+        .fill(playing ? kChromeHi
+                      : sigil::material::withAlpha(hexColor(0x2A0A0C), 0.85f))
+        .foreground(onEdges(
+            path::Edge::Left,
+            stroke(
+                2,
+                Fill::color(playing ? kCyan
+                                    : sigil::material::withAlpha(kDust, 0.35f)),
+                PathFormat::Align::Inner)))
+        .children({t(playing ? "▸" : " ", micro(11, kCyan, 0)),
+                   t(name, cut(blackFace(), 13, playing ? kNear : kHeadDim, 60,
+                               0.92f))});
+  };
+  Element list = box().column().width(268).gap(2).children(
+      {each(doc()["tracks"].array(), track)});
+
+  Element scope =
+      box()
+          .flexGrow(1)
+          .height(100)
+          .shape(shapes::chamfered(8, shapes::Corner::AntiDiagonal))
+          .fill(spectrum)
+          .foreground(decorations::wash(sigil::material::pattern::scanlines(
+              {.color = {0, 0, 0, 0.16f}, .period = 3, .on = 1})))
+          .foreground(styles::Brackets{sigil::material::withAlpha(kCyan, 0.6f),
+                                       10, 2, 3, shapes::Corner::All})
+          .foreground(
+              stroke(1, Fill::color(sigil::material::withAlpha(kCyan, 0.35f)),
+                     PathFormat::Align::Inner));
+
+  auto key = [&](const char* glyph, bool hot) {
+    return kit::centred()
+        .width(38)
+        .height(22)
+        .shape(shapes::chamfered(6, shapes::Corner::Diagonal))
+        .fill(
+            material::linearGradient({0, 0}, {0, 1},
+                                     {{0.0f, hot ? kCtaHi : hexColor(0x5A2226)},
+                                      {0.5f, hot ? kCta : hexColor(0x3A0F12)},
+                                      {1.0f, hexColor(0x240607)}}))
+        .stroke(stroke(1, Fill::color(sigil::material::withAlpha(kDust, 0.35f)),
+                       PathFormat::Align::Inner))
+
+        .children({t(glyph, micro(11, hot ? kNear : kDust, 0))});
+  };
+  auto meter = [&](float w, const motion::Animatable<float>& bind,
+                   sigil::material::Color c) {
+    return box()
+        .width(w)
+        .height(6)
+        .fill(hexColor(0x1B0708))
+        .children({box()
+                       .left(0)
+                       .top(0)
+                       .width(w)
+                       .height(6)
+                       .fill(c)
+                       .scaleX(bind)
+                       .transformOrigin(pct(0), pct(50))});
+  };
+
+  Element panel =
+      bevelPanel(box().column().padding(9).gap(6), hexColor(0x3E1013));
+  panel.key("audio")
+      .gridArea("audio")
+      .foreground(styles::Brackets{
+          kCyan, 18, 3, 4, shapes::Corner::TopLeft | shapes::Corner::TopRight})
+      .foreground(styles::TickRail{sigil::material::withAlpha(kDust, 0.45f), 7,
+                                   3, 6, 1, 4, 0.5f, path::Edge::Bottom})
+      .children(
+          {box().row().gap(8).height(100).children({list, scope}),
+           box()
+               .row()
+               .gap(5)
+               .alignItems(Align::Center)
+               .children(
+                   {key("◂◂", false), key("■", false), key("▸", true),
+                    key("▸▸", false), box().width(8),
+                    meter(64, vuLeft, sigil::material::withAlpha(kCyan, 0.85f)),
+                    box().flexGrow(1), t("VOL", micro(10, kDustDim, 200)),
+                    meter(56, vuRight,
+                          sigil::material::withAlpha(kCyanRing, 0.8f))}),
+           box()
+               .height(18)
+               .row()
+               .alignItems(Align::Center)
+               .padding(0, 6)
+               .fill(sigil::material::withAlpha(kChrome, 0.9f))
+               .children(
+                   {t("AUDIO PREFERENCES", micro(11, kDust, 240)),
+                    box().flexGrow(1),
+                    t("STREAM 128K · STEREO", micro(10, kDustDim, 200))})});
+  return panel;
+}

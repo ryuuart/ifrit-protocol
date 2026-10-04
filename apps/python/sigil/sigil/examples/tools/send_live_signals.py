@@ -1,6 +1,6 @@
 """Send JSON through native SigilIO and print the observatory's acknowledgments.
 
-Open python_live_signals.py in Sketchbook, then use an installed sigil package:
+Open python_live_signals.py in Grimoire, then use an installed sigil package:
   python -m sigil.examples.tools.send_live_signals --export reply.json
 
 Only --export writes a file: the last reply's exact bytes, through the native hub.
@@ -63,7 +63,8 @@ def main() -> int:
         if feed.state().error:
             raise RuntimeError(feed.state().error)
         print(
-            f"Sending to {feed.uri()}; replies arrive at {feed.state().localAddress}", flush=True
+            f"Sending to {feed.uri()}; replies arrive at {feed.state().localAddress}",
+            flush=True,
         )
         started = time.monotonic()
         sequence = 0

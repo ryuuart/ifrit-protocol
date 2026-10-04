@@ -106,10 +106,10 @@ run = "python3 scripts/sigil.py sanitize --lane coverage"
 description = "Plate sweep over the sketch registry in Release (args go to the plates verb)"
 dir = "apps/spell-circle-canvas"
 # The verb compares plate directories through the native extension the
-# build links, so the extension is built beside Sketchbook.
+# build links, so the extension is built beside Grimoire.
 run = '''
 set -e
-cmake --build build --config Release --target Sketchbook sigil_python
+cmake --build build --config Release --target Grimoire sigil_python
 python3 scripts/sigil.py plates
 '''
 
@@ -130,19 +130,19 @@ dir = "apps/spell-circle-canvas"
 # busy with something else is measured along with the sketch.
 run = '''
 set -e
-cmake --build build --config Release --target Sketchbook
+cmake --build build --config Release --target Grimoire
 python3 scripts/sigil.py bench --lane fps
 '''
 
 [tasks.sketch]
-description = "Launch Sketchbook, the live sketch host (args go to it, after --)"
+description = "Launch Grimoire, the live sketch host (args go to it, after --)"
 dir = "apps/spell-circle-canvas"
 # Where the binary sits inside its bundle is the build tree's arithmetic,
 # so the task asks the scripts' own door for it instead of spelling it.
 run = '''
 set -e
-cmake --build build --config Release --target Sketchbook
-exec "$(python3 -c 'import sys; sys.path.insert(0, "scripts"); from sigil import tree; print(tree.sketchbook("Release"))')"
+cmake --build build --config Release --target Grimoire
+exec "$(python3 -c 'import sys; sys.path.insert(0, "scripts"); from sigil import tree; print(tree.grimoire("Release"))')"
 '''
 
 # ---------------------------------------------------------------------------
@@ -198,7 +198,7 @@ dir = "apps/spell-circle-canvas"
 # hand, and every path it works on is named on the command line:
 #
 #     mise run flags -- --compdb build/compile_commands.json \
-#         --anchor src/sketch/sketches/Anchor.cpp --config Release \
+#         --anchor ../grimoire/sketches/Anchor.cpp --config Release \
 #         --out build/bin/Release/sketch_flags.rsp
 run = "python3 scripts/sigil.py flags"
 
@@ -214,5 +214,5 @@ description = "Scaffold a folder a sketch lives in, outside this tree (mise run 
 dir = "apps/spell-circle-canvas"
 # The folder is written anywhere on disk and nothing here is touched, so
 # this works without a configured build tree — though opening what it
-# writes wants a built Sketchbook.
+# writes wants a built Grimoire.
 run = "python3 scripts/sigil.py workspace"

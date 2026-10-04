@@ -41,7 +41,7 @@ void bindSketchCatalog(py::module_& module) {
       .def_readonly("external", &CatalogRow::external)
       .def_readonly("videoExportable", &CatalogRow::videoExportable)
       .def_readonly("source", &CatalogRow::source);
-  // The registry is the process's: in Sketchbook it holds every sketch the
+  // The registry is the process's: in a host it holds every sketch the
   // application was built with, and in a plain interpreter the extension
   // registers none.
   sketches.def("registryRows", &registryRows, py::arg("kind") = "");

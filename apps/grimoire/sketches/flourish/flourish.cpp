@@ -1,0 +1,641 @@
+/** @file
+ * flourish — a living gilt border round a parchment cartouche,
+ * deliberately maximal: it reaches across nearly the whole drawing
+ * surface in one scene.
+ */
+
+// "Aurelia" — a living flourish border: a gilt-on-oxblood ornamental frame
+// around a central parchment cartouche. It is deliberately maximal, reaching
+// across nearly the whole SigilCompose surface in one scene:
+//   PathFormat rule weights + bead stamps, a ContourWalk acanthus vine
+//   (element stamp, recursion L2) + an animatedWalk glow, a Slice
+//   nine-slice, onEdges crests, AlongPath/Radial/Scatter layouts, arc +
+//   orthogonal connectors, contentFlowAround, Blur/backdrop effects + SkSL
+//   fills, image().imageRegion(), a timeline draw-on entrance, with()
+//   transitions, and the Texture/Picture/None cache partition kept honest
+//   (every bound node is a sibling of the bake, never inside it).
+//
+// The live layers are the ones that carry the piece: spinning medallions,
+// the draw-on scrollwork, and the shimmer. Everything else is static, and
+// every bound node is a sibling of a bake rather than inside one.
+
+// TAGS: Drawing/Generative, Patterns/Ornament
+
+#include <include/core/SkImageInfo.h>
+#include <include/core/SkMatrix.h>
+#include <include/core/SkSurface.h>
+#include <include/effects/SkImageFilters.h>
+#include <include/effects/SkRuntimeEffect.h>
+#include <sigilcompose/brush/Adaptors.h>
+#include <sigilcompose/draw/Draw.h>
+#include <sigilcompose/kit/Connect.h>
+#include <sigilcompose/kit/Document.h>
+#include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/kit/Layouts.h>
+#include <sigilcompose/kit/Routers.h>
+#include <sigildraw/Pen.h>
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Edges.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/paint/Bases.h>
+#include <sigilmaterial/program/Shader.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Filter.h>
+#include <sigilmedia/advanced/Skia.h>
+#include <sigilmotion/ease/Ease.h>
+#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilweave/style/Type.h>
+
+#include <algorithm>
+#include <cmath>
+#include <string>
+#include <vector>
+
+#include "GiltBorder.h"
+#include "Ornament.h"
+
+namespace material = sigil::material;
+namespace sketch = sigil::sketch;
+namespace weave = sigil::weave;
+namespace shapes = sigil::geometry::shapes;
+namespace path = sigil::geometry::path;
+namespace motion = sigil::motion;
+
+using namespace sigil::compose;
+using sigil::draw::Pen;
+using sigil::material::Paint;
+using namespace std::chrono_literals;
+using namespace flourish;
+
+namespace {
+/** The canvas this piece was drawn against, which is also the default a
+ *  sketch gets when it declares none. */
+constexpr SkSize kSceneSize = {900, 640};
+
+void drawDiamond(SkCanvas& canvas, SkPoint centre, float radius,
+                 material::Color color) {
+  const SkPoint corners[] = {{centre.x(), centre.y() - radius},
+                             {centre.x() + radius, centre.y()},
+                             {centre.x(), centre.y() + radius},
+                             {centre.x() - radius, centre.y()}};
+  SkPaint paint;
+  paint.setAntiAlias(true);
+  paint.setColor4f(material::skia::toSkColor(color));
+  canvas.drawPath(SkPath::Polygon(corners, true), paint);
+}
+
+struct Flourish {
+  static constexpr float kW = 900.0f;  // kSceneSize.width()
+  static constexpr float kH = 640.0f;  // kSceneSize.height()
+  static constexpr float kFrameInset = 34.0f;
+  static constexpr float kMedD = 92.0f;
+
+  static constexpr int kRosettes = 44;
+  static constexpr int kPetals = 12;
+  static constexpr int kSparks = 30;
+  static constexpr int kMotes = 90;
+  static constexpr int kFriezeTiles = 16;
+
+  FlourishStyle st;
+
+  motion::Animatable<float> reveal = motion::animatable(0.0f);
+  motion::Animatable<float> titleDrop = motion::animatable(-18.0f);
+  motion::Animatable<float> titleFade = motion::animatable(0.0f);
+  motion::Animatable<float> sealBreathe = motion::animatable(1.0f);
+  sigil::motion::Animatable<float> spin[4];
+  sigil::motion::Animatable<float> breathe[4];
+  motion::Animatable<float> flare = motion::animatable(0.0f);
+
+  material::Material hatch = material::Color{0, 0, 0, 0};
+  material::Material engraved = material::Color{0, 0, 0, 0};
+  std::shared_ptr<const sigil::media::Image> carvedFrame, gemAtlas;
+  bool accent = false;
+  double nextAccent = 4.0;
+
+  // ---- helpers ------------------------------------------------------------
+
+  std::shared_ptr<const sigil::media::Image> makeGemAtlas() const {
+    sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(64, 16));
+    SkCanvas& c = *s->getCanvas();
+    c.clear(SK_ColorTRANSPARENT);
+    const material::Color gems[4] = {
+        st.rubric, {0.20f, 0.36f, 0.52f, 1}, st.leaf, st.goldBright};
+    for (int i = 0; i < 4; ++i) {
+      const float ox = (float)i * 16;
+      drawDiamond(c, {ox + 8, 8}, 6.0f, gems[i]);
+      material::Color hi = gems[i];
+      hi.r = std::min(1.f, hi.r + 0.3f);
+      hi.g = std::min(1.f, hi.g + 0.3f);
+      hi.b = std::min(1.f, hi.b + 0.3f);
+      drawDiamond(c, {ox + 7, 6}, 2.2f, hi);
+    }
+    return sigil::media::Image::of(s->makeImageSnapshot());
+  }
+
+  // ---- the static baked frame band ---------------------------------------
+
+  Element frameBand() const {
+    ContourWalk crestWalk;
+    crestWalk.spacing = 70.0f;
+    crestWalk.stamp = box()
+                          .width(16)
+                          .height(11)
+                          .shape(shapes::star(3, 0.5f))
+                          .fill(Fill::color(st.gold));
+
+    std::vector<Element> studs;
+    studs.reserve(kRosettes);
+    for (int i = 0; i < kRosettes; ++i)
+      studs.push_back(box()
+                          .width(11)
+                          .height(11)
+                          .shape(shapes::star(6, 0.5f))
+                          .fill(Fill::color(st.gold)));
+
+    auto innerRect = [](glm::vec2 s) {
+      return sigil::geometry::path::fromSk(SkPath::RRect(SkRRect::MakeRectXY(
+          SkRect::MakeLTRB(22, 22, s.x - 22, s.y - 22), 16, 16)));
+    };
+
+    return box()
+        .inset(kFrameInset)
+        .borderRadius({22})
+        .background(
+            sigil::compose::shadow(material::Color{0, 0, 0, 0.55f}, {0, 5}, 16))
+        .foreground(sigil::compose::stroke(2.6f, Fill::color(st.gold)))
+        .foreground(flourishVine(st, 17.0f, 24.0f, 17.0f))
+        .foreground(onEdges(path::Edge::Top | path::Edge::Bottom,
+                            Decoration(crestWalk)))
+        .cache(Cache::Texture)
+        .children({box()
+                       .inset(13)
+                       .borderRadius({15})
+                       .foreground(beadChain(st.goldBright, 13.0f, 2.3f))
+                       .foreground(giltDash(st.gold, 1.2f)),
+                   box().inset(22).foreground(
+                       sigil::compose::stroke(0.8f, Fill::color(st.bronze))),
+                   layout(layouts::AlongPath{innerRect})
+                       .inset(0)
+                       .children(std::move(studs))});
+  }
+
+  Element frameGlow() const {
+    ContourWalk glow;
+    glow.spacing = 26.0f;
+    glow.animatedWalk = true;
+    const material::Color g = st.goldBright;
+    glow.draw = [g](sigil::draw::Pen& pen, const PathSample& s,
+                    const PaintContext& ctx) {
+      SkCanvas& c = *pen.canvas();
+      SkPaint p;
+      p.setAntiAlias(true);
+      const float w = 0.5f + 0.5f * std::sin(s.fraction * 18.85f +
+                                             (float)ctx.elapsedSeconds * 2.4f);
+      p.setColor4f({g.r, g.g, g.b, 0.14f + 0.45f * w}, nullptr);
+      c.drawCircle(0, 0, 1.0f + 1.5f * w, p);
+    };
+    return box()
+        .inset(kFrameInset)
+        .borderRadius({22})
+        .foreground(glow)
+        .blendMode(material::BlendMode::PlusLighter)
+        .cache(Cache::None);
+  }
+
+  // ---- corner medallions --------------------------------------------------
+
+  struct MedProps {
+    int q;
+    bool accent;
+    bool operator==(const MedProps&) const = default;
+  };
+
+  Element medallion(MedProps mp) const {
+    const int q = mp.q;
+    const float cx = (q == 1 || q == 2) ? kW - kFrameInset : kFrameInset;
+    const float cy = (q >= 2) ? kH - kFrameInset : kFrameInset;
+
+    std::vector<Element> petals;
+    petals.reserve(kPetals);
+    for (int i = 0; i < kPetals; ++i)
+      petals.push_back(box()
+                           .width(13)
+                           .height(18)
+                           .shape(shapes::rounded(shapes::star(4, 0.36f), 2))
+                           .fill(Fill::color(st.goldBright))
+                           .foreground(sigil::compose::stroke(
+                               0.7f, Fill::color(st.bronze))));
+
+    Fill disc = engraved;
+
+    return box()
+        .key("med" + std::to_string(q))
+        .inset(cy - kMedD / 2, kW - (cx + kMedD / 2), kH - (cy + kMedD / 2),
+               cx - kMedD / 2)
+        .width(kMedD)
+        .height(kMedD)
+        .transformOrigin(pct(50), pct(50))
+        .rotate(spin[q])
+        .scale(breathe[q])
+        .cache(Cache::Picture)
+        .children(
+            {box()
+                 .inset(15)
+                 .shape(shapes::squircle(4.0f))
+                 .fill(disc)
+                 .foreground(sigil::compose::stroke(2.2f, Fill::color(st.gold)))
+                 .foreground(
+                     sigil::compose::stroke(0.7f, Fill::color(st.goldBright))),
+             layout(layouts::Radial{0.82f})
+                 .inset(0)
+                 .children(std::move(petals)),
+             box()
+                 .inset(kMedD / 2 - 9)
+                 .shape(shapes::star(8, 0.5f))
+                 .fill(Fill::color(mp.accent ? st.goldBright : st.gold))
+                 .opacity(flare)});
+  }
+
+  /** The filaments between the four medallions, as operators of the scene
+   *  that holds them: an arc around the rim between neighbours, a beaded
+   *  orthogonal run across the diagonals. */
+  std::vector<Operator> filaments() const {
+    PathFormat gild;
+    gild.width = 1.1f;
+    gild.strokeFill = Fill::color({st.gold.r, st.gold.g, st.gold.b, 0.7f});
+
+    SkPathBuilder dot;
+    dot.addCircle(0, 0, 1.3f);
+    PathFormat beaded;
+    beaded.width = 1.0f;
+    beaded.strokeFill = Fill::color(st.goldBright);
+    beaded.stampPath = sigil::geometry::path::fromSk(dot.detach());
+    beaded.stampAdvance = 11.0f;
+
+    const auto arc = [&](const char* a, const char* b) {
+      return Operator(connect::Between{.from = a,
+                                       .to = b,
+                                       .router = routers::arc(0.05f),
+                                       .wire = gild})
+          .zIndex(2);
+    };
+    const auto across = [&](const char* a, const char* b) {
+      return Operator(connect::Between{.from = a,
+                                       .to = b,
+                                       .router = routers::orthogonal(18.0f),
+                                       .wire = beaded})
+          .zIndex(2);
+    };
+    return {arc("med0", "med1"),    arc("med1", "med2"),
+            arc("med2", "med3"),    arc("med3", "med0"),
+            across("med0", "med2"), across("med1", "med3")};
+  }
+
+  // ---- the central cartouche (the box being framed) ----------------------
+
+  Element cartouche() const {
+    Slice carved = carvedFrameSlice(carvedFrame);
+
+    const Decoration hatchDeco =
+        decorations::wash(hatch, material::BlendMode::Normal, 0.6f);
+
+    std::vector<Element> sparks;
+    sparks.reserve(kSparks);
+    for (int i = 0; i < kSparks; ++i)
+      sparks.push_back(
+          box()
+              .width(3)
+              .height(3)
+              .shape(shapes::star(4, 0.4f))
+              .fill(Fill::color({st.bronze.r, st.bronze.g, st.bronze.b, 0.5f}))
+              .opacity(0.5f));
+
+    std::vector<Element> frieze;
+    frieze.reserve(kFriezeTiles);
+    for (int i = 0; i < kFriezeTiles; ++i)
+      frieze.push_back(image(gemAtlas, material::Fit::Native)
+                           .imageRegion(sigil::geometry::path::Rect::of(
+                               {(float)(i % 4) * 16, 0}, {16, 16}))
+                           .width(16)
+                           .height(16));
+
+    auto titleLayer = [this](material::Color color, bool bloom) {
+      auto t = document::h1(u8"AURELIA")
+                   .font({.size = 34, .track = 5.0f})
+                   .ink(color)
+                   .key(bloom ? "titleBloom" : "title")
+                   .opacity(titleFade);
+      if (bloom)
+        t.filter(
+             sigil::material::skia::filter(SkImageFilters::Blur(6, 6, nullptr)))
+            .blendMode(material::BlendMode::PlusLighter);
+      else
+        t.translateY(titleDrop);
+      return kit::centred()
+          .inset(0)
+          .column()
+
+          .children({std::move(t)});
+    };
+
+    // The cartouche is set in the style's ink; the title and the closing
+    // line name their own colours over it.
+    return box()
+        .key("cartouche")
+        .ink(st.ink)
+        .inset(188, 224)  // ~452×264 centered box
+        .borderRadius({16})
+        .zIndex(3)
+        .overflow(Overflow::Clip)
+        .backdropFilter(
+            sigil::material::skia::filter(SkImageFilters::Blur(8, 8, nullptr)))
+        .background(
+            sigil::compose::shadow(material::Color{0, 0, 0, 0.5f}, {0, 6}, 16))
+        .fill(flourishParchment(st))
+        .background(hatchDeco)
+        .background(carved)
+        .column()
+        .padding(26, 30)
+        .gap(9)
+        .alignItems(Align::Center)
+        .children(
+            {layout(layouts::Jittered{7, 0.7f})
+                 .inset(22)
+                 .children(std::move(sparks)),
+             stack()
+                 .width(258)
+                 .height(66)
+                 .shape(scallopOutline(12))
+                 .fill(Fill::color({st.parchment.r * 1.05f,
+                                    st.parchment.g * 1.05f,
+                                    st.parchment.b * 1.02f, 1}))
+                 .foreground(sigil::compose::stroke(1.3f, Fill::color(st.gold)))
+                 .children({titleLayer(st.goldBright, true),
+                            titleLayer({0.34f, 0.20f, 0.09f, 1}, false)}),
+             box()
+                 .key("seal")
+                 .width(42)
+                 .height(42)
+                 .transformOrigin(pct(50), pct(50))
+                 .scale(sealBreathe)
+                 .shape(shapes::star(12, 0.66f))
+                 .fill(motion::animate<Fill>(
+                     {.to = Fill::color(accent ? st.rubric : st.bronze),
+                      .duration = 600ms}))
+                 .foreground(
+                     sigil::compose::stroke(1.4f, Fill::color(st.goldBright))),
+             document::paragraph(
+                 u8"A vine draws itself around the frame. Turning "
+                 u8"medallions and drifting gold catch the light; three "
+                 u8"weights of rule hold the border still around a "
+                 u8"breathing seal.")
+                 .font({.size = 12.5f})
+                 .key("motto")
+                 .contentFlowAround("seal", 7),
+             box()
+                 .row()
+                 .gap(2)
+                 .justifyContent(Justify::Center)
+                 .children(std::move(frieze)),
+             document::footer(u8"Carved frame · moving gilt · living vine")
+                 .font({.size = 11})
+                 .ink(st.rubric)});
+  }
+
+  // ---- draw-on scrollwork sweeps (Cache::None, read reveal live) ----------
+
+  Element scrollworkCorner(int q) const {
+    // KEYLESS: the sweep reads the reveal live, at Cache::None.
+    return sigil::compose::pen([this, q](Pen& p) {
+             const float rev = reveal.value();
+             const float local =
+                 std::clamp((rev - (float)q * 0.16f) / 0.55f, 0.0f, 1.0f);
+             const bool right = (q == 1 || q == 2);
+             const bool bottom = (q >= 2);
+             // THE FOUR CORNERS ARE ONE DRAWING, MIRRORED: the sweep is
+             // written once for the top left and the other three are it
+             // turned over on one axis or both.
+             p.push();
+             if (right) {
+               p.translate(p.width, 0);
+               p.scale(-1, 1);
+             }
+             if (bottom) {
+               p.translate(0, p.height);
+               p.scale(1, -1);
+             }
+
+             const float armLen = 195.0f;
+             const float x0 = kFrameInset + 10, y0 = kFrameInset + 10;
+             auto sweep = [&](bool along) {
+               std::vector<glm::vec2> pts;
+               appendCubic(pts, {x0, y0}, {x0 + armLen * 0.16f, y0 - 22},
+                           {x0 + armLen * 0.44f, y0 - 8},
+                           {x0 + armLen * 0.62f, y0 + 6});
+               const glm::vec2 eye{x0 + armLen * 0.72f, y0 + 16};
+               appendSpiral(pts, eye, 12.0f, 1.2f, -1.7f, -1.7f + 7.6f, 32);
+               SkMatrix m;
+               if (along)
+                 m.setRotate(90, x0, y0);
+               else
+                 m.setIdentity();
+               for (auto& point : pts)
+                 point = path::fromSk(m.mapPoint(path::toSk(point)));
+               p.noStroke();
+               p.fill(st.gold);
+               p.shape(path::toSk(taperedStroke(revealed(pts, local), 5.0f)));
+               std::vector<glm::vec2> under;
+               appendCubic(under, {x0 + 4, y0 + 20},
+                           {x0 + armLen * 0.16f, y0 + 30},
+                           {x0 + armLen * 0.30f, y0 + 26},
+                           {x0 + armLen * 0.40f, y0 + 22});
+               appendSpiral(under, {x0 + armLen * 0.47f, y0 + 18}, 8.0f, 1.0f,
+                            2.4f, 2.4f - 6.6f, 28);
+               for (auto& point : under)
+                 point = path::fromSk(m.mapPoint(path::toSk(point)));
+               p.shape(path::toSk(taperedStroke(revealed(under, local), 2.6f)));
+               if (local > 0.85f) {
+                 const SkPoint e = m.mapPoint(path::toSk(eye));
+                 p.fill(st.goldBright);
+                 p.circle(e.x(), e.y(), 5.2f);
+               }
+             };
+             sweep(false);
+             sweep(true);
+             if (local > 0.98f)
+               drawDiamond(*p.canvas(), {x0, y0}, 4.5f, st.goldBright);
+             p.pop();
+           })
+        .inset(0)
+        .zIndex(4)
+        .cache(Cache::None);
+  }
+
+  // Truncate a point list to the leading `fraction` for the draw-on reveal.
+  static std::vector<glm::vec2> revealed(const std::vector<glm::vec2>& pts,
+                                         float fraction) {
+    const size_t keep = std::max<size_t>(
+        2, (size_t)std::lround((float)pts.size() *
+                               std::clamp(fraction, 0.f, 1.f)));
+    if (keep >= pts.size()) return pts;
+    return {pts.begin(), pts.begin() + (std::ptrdiff_t)keep};
+  }
+
+  // ---- live overlays ------------------------------------------------------
+
+  Element goldDust() const {
+    const material::Color g = st.goldBright;
+    // KEYLESS: every mote's place and alpha is a function of the paint's own
+    // clock, which no key can name.
+    return sigil::compose::pen([g](Pen& p) {
+             const float t = (float)p.millis() * 0.001f;
+             p.noStroke();
+             for (int i = 0; i < kMotes; ++i) {
+               const float fx = (float)i * 137.5f;
+               const float x =
+                   std::fmod(fx + t * (7.0f + (float)(i % 5)), p.width);
+               const float y = std::fmod(fx * 0.618f + 40.0f, p.height);
+               p.fill(
+                   {g.r, g.g, g.b,
+                    0.05f + 0.15f * (0.5f + 0.5f * std::sin(t * 1.6f +
+                                                            (float)i * 2.1f))});
+               p.circle(x, y + 10.0f * std::sin(t * 0.7f + (float)i),
+                        2.2f + (float)(i % 3));
+             }
+           })
+        .inset(0)
+        .zIndex(6)
+        .cache(Cache::None)
+        .blendMode(material::BlendMode::PlusLighter);
+  }
+
+  Element shimmer() const {
+    const material::Color g = st.goldBright;
+    // KEYLESS: the sweep's position is the paint's own clock.
+    return sigil::compose::pen([g](Pen& p) {
+             const float w = p.width, h = p.height;
+             const float t = (float)p.millis() * 0.001f;
+             const float sweep = std::fmod(t * 180.0f, w + h + 300.0f) - 150.0f;
+             // A BAND OF LIGHT CROSSING THE PLATE: a gradient the pen
+             // takes as its fill, in the pen's own space, so the sweep is
+             // one rect and no shader is spelled by hand.
+             p.noStroke();
+             p.fill(sigil::material::linearGradient(
+                 {sweep, 0}, {sweep + 130, h},
+                 {{0.0f, {1, 1, 1, 0}},
+                  {0.5f, {g.r, g.g, g.b, 0.22f}},
+                  {1.0f, {1, 1, 1, 0}}},
+                 {.units = material::GradientUnits::Pixels}));
+             p.rect(0, 0, w, h);
+           })
+        .inset(kFrameInset)
+        .zIndex(5)
+        .cache(Cache::None)
+        .blendMode(material::BlendMode::PlusLighter);
+  }
+
+  // ---- assembly -----------------------------------------------------------
+
+  Element describe() const {
+    return stack()
+        .fill(material::radialGradient(
+            {kW / 2, kH / 2}, 620, {st.velvetCore, st.velvetEdge},
+            {.units = material::GradientUnits::Pixels}))
+        .operators(filaments())
+        .children({frameBand(), frameGlow(),
+                   memo(MedProps{0, accent},
+                        [this](const MedProps& p) { return medallion(p); })
+                       .key("med0"),
+                   memo(MedProps{1, accent},
+                        [this](const MedProps& p) { return medallion(p); })
+                       .key("med1"),
+                   memo(MedProps{2, accent},
+                        [this](const MedProps& p) { return medallion(p); })
+                       .key("med2"),
+                   memo(MedProps{3, accent},
+                        [this](const MedProps& p) { return medallion(p); })
+                       .key("med3"),
+                   cartouche(), scrollworkCorner(0), scrollworkCorner(1),
+                   scrollworkCorner(2), scrollworkCorner(3), shimmer(),
+                   goldDust()});
+  }
+
+  void setup(sketch::SketchContext& ctx) {
+    for (auto& value : spin) value = sigil::motion::animatable(value.value());
+    for (auto& value : breathe)
+      value = sigil::motion::animatable(value.value());
+
+    sketch::kit::stage(ctx, {.size = kSceneSize,
+                             .captureAt = 6.0,
+                             .background = material::Color{0, 0, 0, 1}});
+    Composer& composer = ctx.composer;
+    sigil::motion::Engine& ticker = ctx.engine;
+    sceneTicker = &ticker;
+    hatch = material::shader(ctx.assets.hub(), ctx.local("hatch.sksl"));
+    engraved = material::shader(ctx.assets.hub(), ctx.local("engraved.sksl"));
+    carvedFrame = (makeCarvedFrame(toOrnamentPalette(st), 192));
+    gemAtlas = makeGemAtlas();
+
+    reveal = 0.0f;
+    titleDrop = -18.0f;
+    titleFade = 0.0f;
+    flare = 0.0f;
+    accent = false;
+    nextAccent = 4.0;
+    for (int q = 0; q < 4; ++q) {
+      spin[q] = 0.0f;
+      breathe[q] = 1.0f;
+    }
+
+    ticker.animate(reveal, {.to = 1.0f,
+                            .duration = sigil::motion::Duration(2.4f),
+                            .ease = motion::ease::outQuint});
+    ticker.animate(titleDrop, {.to = 0.0f,
+                               .duration = sigil::motion::Duration(1.0f),
+                               .ease = motion::ease::outQuint});
+    ticker.animate(titleFade, {.to = 1.0f,
+                               .duration = sigil::motion::Duration(1.2f),
+                               .ease = sigil::motion::ease::linear});
+    ticker.animate(flare, {.to = 1.0f,
+                           .duration = sigil::motion::Duration(1.3f),
+                           .ease = sigil::motion::ease::linear});
+
+    ticker.timer([this, &ticker] {
+      const double t = ticker.elapsed().count();
+      for (int q = 0; q < 4; ++q) {
+        const float dir = (q == 0 || q == 2) ? 1.0f : -1.0f;
+        spin[q] = (float)(t * 7.0) * dir;
+        breathe[q] = 1.0f + 0.05f * (float)std::sin(t * 1.3 + q * 1.5707963);
+      }
+      sealBreathe = 1.0f + 0.06f * (float)std::sin(t * 1.1);
+    });
+
+    composer.render(describe());
+  }
+
+  void update(double elapsed, sketch::SketchContext& ctx) {
+    Composer& composer = ctx.composer;
+    if (elapsed < nextAccent) return;
+    nextAccent = elapsed + 4.0;
+    accent = !accent;
+    // The rubric flare: each accent beat re-lights the medallion bosses,
+    // then settles back over 1.1 s.
+    if (sceneTicker) {
+      flare = 1.0f;
+      sceneTicker->animate(flare, {.to = 0.55f,
+                                   .duration = sigil::motion::Duration(1.1f),
+                                   .ease = motion::ease::outQuint});
+    }
+    composer.render(describe());
+  }
+
+  sigil::motion::Engine* sceneTicker = nullptr;
+};
+
+}  // namespace
+
+SIGIL_SKETCH_AS(Flourish, "flourish", "Catalog · Generative",
+                "the integration piece — one ornamental border reaching "
+                "across the whole compose surface")

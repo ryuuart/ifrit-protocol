@@ -80,7 +80,7 @@ Each example is a PAIR: `examples/<stem>.cpp`, a sketch-shaped C++ file,
 and `examples/<stem>.py`, the same picture in Python.
 
 ```sh
-build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
+build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire \
     src/common/compose/reference/examples/fill_verb.cpp --frame fill_verb.png
 sigil render src/common/compose/reference/examples/fill_verb.py \
     --output fill_verb.python.png

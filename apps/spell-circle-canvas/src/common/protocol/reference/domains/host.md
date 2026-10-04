@@ -67,7 +67,7 @@ Answers `VersionResult`: Which definition and which program answer.
 | Field | Type | Default | |
 | --- | --- | --- | --- |
 | `revision` | Revision (table), required | absent | The definition the host was built from. |
-| `program` | string | "" | The program: Sketchbook, Seer or the receiver. |
+| `program` | string | "" | The program: Grimoire, Seer or the receiver. |
 | `program_version` | string | "" | The program's own version. |
 
 ### host.enable

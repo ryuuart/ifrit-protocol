@@ -7,7 +7,7 @@ package, dependencies, examples, tests and build backend.
 | Project | Import | Purpose |
 | --- | --- | --- |
 | `ifrit-protocol-apps`, in `spellcircle/` | `SpellCircle` | Model and author vector scenes, encode FlatBuffers and exchange scene bytes |
-| `sigil-sketch`, in `sigil/` | `sigil` | Use native Sigil libraries, render Python sketches and launch Sketchbook |
+| `sigil-sketch`, in `sigil/` | `sigil` | Use native Sigil libraries, render Python sketches and launch Grimoire |
 
 ## SpellCircle transport
 

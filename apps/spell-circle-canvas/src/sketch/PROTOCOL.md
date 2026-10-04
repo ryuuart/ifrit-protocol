@@ -3,8 +3,10 @@
 The chapter on what this library answers when a client drives a sketch
 host through SigilProtocol: the agents for the `registry`, `session` and
 `clock` domains, the in-process host and the harness a test drives one
-through, and what Sketchbook mounts. `README.md` beside this file is the
-library; SigilProtocol's own README is the canon for the definition, the
+through. `README.md` beside this file is the library; what the stock
+host, Grimoire, mounts is [its running
+chapter's](../../../grimoire/RUNNING.md#what-grimoire-mounts).
+SigilProtocol's own README is the canon for the definition, the
 dispatcher, the endpoint and the clients, and this chapter spells nothing
 of theirs it does not need.
 
@@ -127,34 +129,7 @@ the generated domain classes exactly as `sigil.protocol.connect` is, and
 `sigil.sketch.render_file` is a harness session over one file: opened
 under Advance, stepped to its moment and photographed under that moving
 clock, which is the still `--frame` writes and the sweep's plate. `sigil.protocol.launch(state=…)` starts
-the served Sketchbook below and connects to it.
-
-## What Sketchbook mounts
-
-Sketchbook's command line carries two protocol flags: `--inspect`, with
-an optional `=PORT`, and `--state` with a directory.
-
-- **The window** mounts an endpoint on loopback whether or not it was
-  asked — any free port, or the one named — answering `host` and
-  `registry`, with `host.describe` listing the session the window shows.
-  Its event loop dispatches it; with no client attached a dispatch runs no
-  handler. The window's frames are its render thread's, so the session
-  and clock domains are not mounted there.
-- **`Sketchbook --headless --inspect`**, naming no plate directory, no
-  sketch and no kind, is a host a client drives: no window and no plates,
-  the three agents mounted, the address written to
-  `<state>/protocol-address` before the first frame, and a loop at the
-  window's rate until an interrupt or a termination signal.
-- **A sweep** with `--inspect` answers `host` and `registry` between its
-  sketches; nothing a plate holds depends on it.
-- **Every other lane refuses `--inspect`**: it ends once its output is
-  written, and a client would have nothing to drive.
-
-The state root is `--state`, or the platform's own location for
-Sketchbook. `--deterministic` and `--no-deterministic` name the clock
-policy a written still's session is opened for — Advance or the wall's —
-and a still is taken under Advance, a measurement under the wall's clock,
-when neither is given.
+a served Grimoire and connects to it.
 
 ## Headers
 

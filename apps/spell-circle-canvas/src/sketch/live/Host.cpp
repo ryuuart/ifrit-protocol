@@ -504,7 +504,7 @@ void Host::startCompile() {
           "framework headers are newer than this host (" + stale +
           ").\nA sketch built against them would load into a host whose "
           "structs have the old layout, so this build is refused: rebuild "
-          "Sketchbook and restart it.";
+          "the host and restart it.";
       m_status = "stale host — waiting for a rebuild";
       return;  // keep the previous sketch alive
     }

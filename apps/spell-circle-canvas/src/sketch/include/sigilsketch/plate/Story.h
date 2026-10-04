@@ -42,6 +42,8 @@ struct StoryOptions {
   int introFrames = 18;          ///< the hold before the first sketch
   int outroFrames = 18;          ///< the hold after the last
   int64_t bitRate = 12'000'000;  ///< the encoder's target, in bits per second
+  /// The card the montage opens on, before the first sketch.
+  std::string title = "SIGIL SKETCHES";
   /// Whether the encoder may use the machine's video hardware.
   media::HardwarePreference hardware = media::HardwarePreference::Preferred;
 };

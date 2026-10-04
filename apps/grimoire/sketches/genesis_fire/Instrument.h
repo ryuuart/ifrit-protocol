@@ -1,0 +1,93 @@
+#pragma once
+// The type chassis an INSTRUMENT PANEL is set in — the sidebar of numbers
+// a study puts beside its picture.
+//
+// Two faces and their bold cuts: a terminal face for everything measured,
+// and the system grotesque for everything named. A panel of readings is
+// set in exactly these registers whatever it is measuring, so the plate
+// beside a fire, a rig or an exposure fit reads as one instrument rather
+// than as three that happen to look alike.
+//
+// The registers only. Where a panel STANDS, what it is grounded in and
+// what it says are each study's own, and none of that belongs here.
+
+#include <include/core/SkColor.h>
+#include <include/core/SkRefCnt.h>
+#include <include/core/SkTypeface.h>
+#include <sigilcompose/core/Element.h>
+#include <sigilcompose/core/Factories.h>
+#include <sigilcompose/kit/Document.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Face.h>
+#include <sigilweave/style/Type.h>
+
+#include <string_view>
+#include <utility>
+
+namespace instrument {
+
+/** The measured face, and its bold cut. */
+inline sigil::weave::Face monoFace() {
+  return sigil::weave::ports::face({"Menlo"}, sigil::weave::FaceStyle{});
+}
+inline sigil::weave::Face monoBoldFace() {
+  return sigil::weave::ports::face({"Menlo"},
+                                   sigil::weave::FaceStyle{.weight = 700});
+}
+/** The named face, its bold cut, and the black cut a masthead takes. */
+inline sigil::weave::Face uiFace() {
+  return sigil::weave::ports::face({"Helvetica Neue"},
+                                   sigil::weave::FaceStyle{});
+}
+inline sigil::weave::Face uiBoldFace() {
+  return sigil::weave::ports::face({"Helvetica Neue"},
+                                   sigil::weave::FaceStyle{.weight = 700});
+}
+inline sigil::weave::Face heavyFace() {
+  return sigil::weave::ports::face({"Helvetica Neue", "Helvetica"}, 900);
+}
+
+/** A positional shorthand over the library's designated-init `textStyle`,
+ *  for the one display line that names its own face. */
+inline sigil::weave::TextStyle faced(sigil::weave::Face face, float size,
+                                     sigil::material::Color color,
+                                     float track = 0.0f) {
+  return sigil::weave::textStyle(
+      {.face = std::move(face), .size = size, .color = color, .track = track});
+}
+
+/** The registers a panel is set in. */
+inline sigil::weave::TextStyle mono(float size, sigil::material::Color color,
+                                    float track = 0.0f) {
+  return faced(monoFace(), size, color, track);
+}
+inline sigil::weave::TextStyle monoB(float size, sigil::material::Color color,
+                                     float track = 0.0f) {
+  return faced(monoBoldFace(), size, color, track);
+}
+inline sigil::weave::TextStyle ui(float size, sigil::material::Color color,
+                                  float track = 0.0f) {
+  return faced(uiFace(), size, color, track);
+}
+inline sigil::weave::TextStyle uiB(float size, sigil::material::Color color,
+                                   float track = 0.0f) {
+  return faced(uiBoldFace(), size, color, track);
+}
+
+/** One line of the panel — a word stated here or one read out of the
+ *  study's own document, which is text wherever text is taken. */
+inline sigil::compose::Element t(const sigil::compose::Utf8& line,
+                                 sigil::weave::TextStyle style) {
+  return sigil::compose::text(line, std::move(style)).role("paragraph");
+}
+
+/** The same register as a PEN's type, for the study that draws its panel
+ *  rather than describing it: a pen carries one type and one fill, so a
+ *  register is set on it rather than handed to a node. */
+inline sigil::weave::Type penType(const sigil::weave::Face& face, float size,
+                                  float track = 0.0f) {
+  return sigil::weave::Type{.face = face, .size = size, .track = track};
+}
+
+}  // namespace instrument

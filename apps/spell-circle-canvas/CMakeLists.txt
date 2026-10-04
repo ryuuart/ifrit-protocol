@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.31)
 
 project(SpellCircleCanvas VERSION 0.1 LANGUAGES CXX)
 
-option(SIGIL_BUILD_APPS "Build Qt applications and the bundled sketch catalogue" ON)
+option(SIGIL_BUILD_APPS "Build the Qt applications, Grimoire and its sketch catalogue among them" ON)
 option(SIGIL_BUILD_PYTHON "Build Python bindings and the Python package" ON)
 if(SIGIL_BUILD_APPS AND NOT SIGIL_BUILD_PYTHON)
   message(FATAL_ERROR "The bundled applications require Python bindings; set SIGIL_BUILD_APPS=OFF to build the native libraries alone")
@@ -92,13 +92,29 @@ set(SIGIL_PYTHON_PACKAGE_DIR "${SIGIL_PYTHON_PACKAGE_DEFAULT}" CACHE PATH
   "Python package project containing sigil, its typing pass, and packaging rules")
 
 add_subdirectory(src)
+
+# Grimoire, the stock host built on SigilSketch with this repository's
+# sketches, is an application of its own beside this tree and consumes
+# the framework through its public targets alone. Day to day it builds
+# here, in this tree's own binary directory; a project that is not the
+# top level leaves it out, because then it is Grimoire that brought this
+# tree in.
+get_filename_component(SIGIL_GRIMOIRE_DIR
+  "${CMAKE_CURRENT_SOURCE_DIR}/../grimoire" ABSOLUTE)
+if(SIGIL_BUILD_APPS AND PROJECT_IS_TOP_LEVEL)
+  add_subdirectory("${SIGIL_GRIMOIRE_DIR}" "${CMAKE_BINARY_DIR}/grimoire")
+endif()
+
 if(SIGIL_BUILD_PYTHON)
   add_subdirectory("${SIGIL_PYTHON_PACKAGE_DIR}" "python-package")
 endif()
 
-# Finalization needs every library, test contribution and host target.
-sigil_finalize_docs()
-sigil_finalize_tests()
+# Finalization needs every library, test contribution and host target,
+# so the top level makes it; under another project that project does.
+if(PROJECT_IS_TOP_LEVEL)
+  sigil_finalize_docs()
+  sigil_finalize_tests()
+endif()
 
 # Regenerate the protocol client, package modules and parity ledger in
 # dependency order. The ledger requires bindings for every licensed SDK.
@@ -111,12 +127,12 @@ if(SIGIL_BUILD_PYTHON AND SIGIL_TYPING_PYTHON)
             "${SIGIL_TYPING_PYTHON}" "${SIGIL_PYTHON_PACKAGE_DIR}/typing/generate.py"
     COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${SIGIL_PYTHON_ROOT}"
             "${SIGIL_TYPING_PYTHON}" "${SIGIL_PYTHON_PACKAGE_DIR}/typing/parity.py"
-            --sketches "${CMAKE_CURRENT_SOURCE_DIR}/src/sketch/sketches"
+            --sketches "${SIGIL_GRIMOIRE_DIR}/sketches"
     COMMENT "Regenerating the derived files the checkout carries"
     VERBATIM)
   add_dependencies(generate sigil_python SigilProtocolDefinition)
 endif()
-if(COMMAND sigil_finalize_sketch_link_surfaces)
+if(PROJECT_IS_TOP_LEVEL AND COMMAND sigil_finalize_sketch_link_surfaces)
   sigil_finalize_sketch_link_surfaces()
 endif()
 

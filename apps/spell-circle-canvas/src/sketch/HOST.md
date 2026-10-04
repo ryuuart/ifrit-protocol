@@ -7,8 +7,9 @@ and `sketch::Entry`), sessions (`sketch::Kind` opens a `sketch::Session`),
 the canvas and set runtimes those sessions draw through, the live host
 (`sketch::Host`) that compiles, loads and swaps sketches, and the
 workspace convention for sketches kept outside this repository.
-Sketchbook is one host built on that framework: the stock one, and an
-example of using it. It lists and runs the sketches it is pointed at —
+Grimoire, at `apps/grimoire/`, is one host built on that framework: the
+stock one, and an example of using it, which reaches the framework
+through its public headers and targets alone. It lists and runs the sketches it is pointed at —
 its compiled-in catalogue, a file, or a workspace — and a custom host
 links SigilSketch and drives `sketch::Host` in the same way.
 
@@ -17,8 +18,8 @@ links SigilSketch and drives `sketch::Host` in the same way.
 A sketch reaches a host in exactly three ways.
 
 1. **Compiled into the host.** A source the host's own build compiles
-   registers itself with `SIGIL_SKETCH`; Sketchbook's build compiles every
-   entry under `sketches/`. Such a sketch opens at once, with no compiler.
+   registers itself with `SIGIL_SKETCH`; Grimoire's build compiles every
+   entry of its catalogue, `apps/grimoire/sketches/`. Such a sketch opens at once, with no compiler.
    Editing its file afterwards rebuilds it as the second way does.
 2. **A C++ source file anywhere on disk.** The host compiles it against
    itself, caches the build, and swaps each successful build into the
@@ -42,9 +43,10 @@ only build that guarantees that is the host's own.
 
 So a C++ sketch outside the host is always compiled BY the host, with the
 compile line the host's build captured and against the headers that build
-read. Sketchbook's build lifts that line out of the compilation database
-from `sketches/Anchor.cpp`, a unit that includes what a sketch includes,
-into `sketch_flags.rsp` beside the executable (`Host::Options::flagsFile`).
+read. A host's build lifts that line out of the compilation database
+from an anchor unit of its own that includes what a sketch includes —
+Grimoire's is `apps/grimoire/sketches/Anchor.cpp` — into a response file
+beside the executable, `sketch_flags.rsp` (`Host::Options::flagsFile`).
 The sketch's library links with `-undefined dynamic_lookup` and resolves
 every framework symbol out of the running executable.
 
@@ -66,16 +68,17 @@ folder of C++ and Python sketches and the files they stand on.
 
 ```sh
 python3 scripts/sigil.py workspace new ~/sketches/aurora_drift
-Sketchbook --workspace ~/sketches/aurora_drift
-Sketchbook ~/sketches/aurora_drift/aurora_drift.cpp
+Grimoire --workspace ~/sketches/aurora_drift
+Grimoire ~/sketches/aurora_drift/aurora_drift.cpp
 ```
 
 `workspace new` writes an entry named for the folder, an `assets/`
 directory, `captures/` for what the window's Capture writes, and a README
-stating the contract. `Sketchbook --workspace <dir>` lists the
+stating the contract. `Grimoire --workspace <dir>` lists the
 folder's C++ and Python sketches in their own Workspace collection; a path
-opens one file directly. [RUNNING.md](RUNNING.md) covers discovery and the
-commands a file opened by path can be put through.
+opens one file directly. [Grimoire's running
+chapter](../../../grimoire/RUNNING.md) covers discovery and the commands a
+file opened by path can be put through.
 
 A workspace is bound to one host build. Its C++ sketches compile with that
 build's `sketch_flags.rsp`, against the headers of the checkout that build
@@ -89,7 +92,7 @@ framework symbol a sketch calls resolves out of the host, so a workspace
 reaches only the libraries its host already contains: those the host's
 build force-loaded into its executable. A sketch that needs a library the
 host does not contain needs a host that contains it — a library added to
-this tree and linked into Sketchbook, or a custom host whose own build
+this tree and linked into Grimoire, or a custom host whose own build
 carries it. A Python sketch's own packages come from the `pyproject.toml`
 beside it; Sigil itself always comes from the host.
 
@@ -129,12 +132,12 @@ sketch shares the `assets/` root above its own directory.
 `ctx.local("data/x.csv")` always names a file beside the entry.
 `--assets` chooses another resource root.
 
-Bundled entries open their compiled-in bodies before any source edit.
-Sketchbook keeps the last three selected sessions resident; returning to one
-reuses it, and a rebuild starts that session afresh. A custom host chooses
-its own residency policy. A file opened by path is photographed with
-`--frame` and measured with `--bench`; `--headless` walks the compiled-in
-registry.
+Compiled-in entries open their compiled-in bodies before any source
+edit. Grimoire keeps the last three selected sessions resident; returning
+to one reuses it, and a rebuild starts that session afresh. A custom host
+chooses its own residency policy. In Grimoire a file opened by path is
+photographed with `--frame` and measured with `--bench`, and `--headless`
+walks the compiled-in registry.
 
 ## Captures on the device
 
@@ -191,17 +194,25 @@ requirement, so a capture host can choose its backend after a successful load.
 `Host::status` reports progress, and `Host::errorLog` reports compiler,
 loader, setup and resource failures. Resources with problems may continue
 rendering their library's fallback; the host replaces only a successfully
-opened session. [RUNNING.md](RUNNING.md) defines the application commands.
+opened session. [Grimoire's running chapter](../../../grimoire/RUNNING.md)
+defines the stock host's commands.
 
 A custom executable must export the framework symbols its sketches call,
-and must contain every library they may reach. Sketchbook's build does
-both through `cmake/SketchLinkSurface.cmake`, which walks the framework
-archives in the sketch and host target closures, including private
-dependencies, force-loads them into the executable and re-exports them;
-symbol export requirements stay with the originating targets. A custom
-host captures its own flags file the same way, by running
-`cmake/SketchFlags.py` over the compile line of a unit that includes what
-its sketches may include. The host compiles every sketch with hidden
+and must contain every library they may reach. The framework's build
+defines the two functions a host's build calls for that, and Grimoire's
+calls both. `sigil_sketch_link_surface(<host> <catalogue> [EXTRA
+<target>…])`, from `cmake/SketchLinkSurface.cmake`, walks the framework
+archives in the catalogue's and the host's target closures, including
+private dependencies, and force-loads them into the executable, which
+the host links with its symbols exported; symbol export requirements stay with the originating
+targets, and the top-level project makes every recorded walk with
+`sigil_finalize_sketch_link_surfaces()` once every directory is added.
+`sigil_sketch_flags(<host> ANCHOR <source> OUTPUT <file>)`, from
+`cmake/SketchFlags.cmake`, captures the flags file by running
+`cmake/SketchFlags.py` over the compile line of the host's own anchor
+unit. `SigilSketchVocabulary` is every library a sketch may include, so a
+catalogue that links it, and an anchor compiled in that catalogue, sees
+what any sketch sees. The host compiles every sketch with hidden
 visibility, so each generation's factories, vtables and inline state stay
 in its own image; undefined framework references resolve from the host,
 and the registration exports remain visible. The reload tests exercise
@@ -209,5 +220,6 @@ symbols that compiled-in scenes might otherwise omit from the executable.
 
 A host that carries no applications or Python bindings configures the
 project with `-DSIGIL_BUILD_APPS=OFF -DSIGIL_BUILD_PYTHON=OFF` and builds
-`SigilSketch`; that path discovers no Qt or pybind11 package. Both options
-default to `ON`, and the bundled applications require the Python bindings.
+`SigilSketch`; that path discovers no Qt or pybind11 package and builds no
+Grimoire. Both options default to `ON`, and the applications require the
+Python bindings.

@@ -116,7 +116,7 @@ example, `runtime/ComposeRuntime.h` or `paint/PaintPass.h`.
 Brush and typography executors read the kernel's private seams; the bevel
 kit also uses its material lowering helpers. Hosted draw and texture
 features use public headers. The kernel does not include its kits,
-Sketchbook or a device backend. Geometry, materials, paragraph layout and
+Grimoire or a device backend. Geometry, materials, paragraph layout and
 motion remain values and services supplied by their originating libraries.
 
 ## Adding or changing a feature

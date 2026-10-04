@@ -16,8 +16,8 @@ namespace sigil::sketch {
 
 /** EVERY AGENT A SKETCH HOST MOUNTS: the registry's, the session's and
  *  the clock's, each wired on the host's one dispatcher as it is made.
- *  Sketchbook, a test's harness and Python's in-process host each hold
- *  one, so the three answer the same commands the same way.
+ *  An application host, a test's harness and Python's in-process host
+ *  each hold one, so the three answer the same commands the same way.
  *
  *  It is made after the dispatcher and let go before it, and after
  *  every client attached to it: the endpoint and the in-process clients

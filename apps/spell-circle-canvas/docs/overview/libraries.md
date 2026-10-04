@@ -134,9 +134,10 @@ application, window or interpreter startup in the target.
 
 **[SigilSketch](doxygen:SigilSketch)** — everything renderable as one
 sketch each: a file that declares a scene, an entry in one registry, and
-something Sketchbook opens live and hot-swaps on every save. Its kit is
+something a host opens live and hot-swaps on every save. Its kit is
 the sheet a sketch stands on — the theme, the page and the furniture a
-specimen is built out of — and its sketches are the reference studies.
+specimen is built out of. Grimoire, the stock host built on it, carries
+the reference studies as its catalogue of sketches.
 
 **[SigilSeer](doxygen:SigilSeer)** — every wire, and what is going down
 it: a tool that opens a wire, says what is coming down it and who is at

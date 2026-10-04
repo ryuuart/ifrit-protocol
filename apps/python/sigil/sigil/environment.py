@@ -168,16 +168,16 @@ def _compatible(executable, expected, root, environment):
             f"The project interpreter returned invalid compatibility JSON: {executable}"
         ) from error
     try:
-        mismatches = _compatibility_mismatches(info, expected, "project", "Sketchbook")
+        mismatches = _compatibility_mismatches(info, expected, "project", "Grimoire")
     except ValueError as error:
         raise ValueError(
             f"The project interpreter returned invalid compatibility fields: {executable}"
         ) from error
     if mismatches:
         raise ValueError(
-            f"The project Python interpreter is incompatible with Sketchbook: {executable} ("
+            f"The project Python interpreter is incompatible with Grimoire: {executable} ("
             + "; ".join(mismatches)
-            + "). Use a compatible project environment or a matching Sketchbook build."
+            + "). Use a compatible project environment or a matching Grimoire build."
         )
     return {"executable": str(executable), "abi": info["soabi"]}
 
@@ -219,9 +219,9 @@ def resolve(source, *, version, abi, machine, pointer_bits, boundary=None):
         )
         if simple and [int(part) for part in simple.groups()] != version:
             raise ValueError(
-                f"The project's {pin.name} requests Python {requested[0]}, but Sketchbook requires "
+                f"The project's {pin.name} requests Python {requested[0]}, but Grimoire requires "
                 + ".".join(map(str, version))
-                + ". Use a matching project environment or Sketchbook build."
+                + ". Use a matching project environment or Grimoire build."
             )
     uv = _uv(environment)
     if pin.is_file():

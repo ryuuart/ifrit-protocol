@@ -62,14 +62,15 @@ sk_sp<SkImage> makeLabelLayer(const Entry& entry, const sk_sp<SkTypeface>& face,
 }
 
 bool appendTitle(media::Encoder& encoder, SkSurface& surface,
-                 const sk_sp<SkTypeface>& face, int frames, bool outro) {
+                 const sk_sp<SkTypeface>& face, int frames,
+                 const std::string& card) {
   for (int frame = 0; frame < frames; ++frame) {
     SkCanvas& canvas = *surface.getCanvas();
     canvas.clear(kGround);
     const float scale =
         std::min(surface.width() / 1080.0f, surface.height() / 1920.0f);
-    drawLabel(canvas, face, outro ? "EVERY SKETCH" : "SIGIL SKETCHBOOK",
-              72.0f * scale, surface.height() * 0.5f, 72.0f * scale, kInk);
+    drawLabel(canvas, face, card, 72.0f * scale, surface.height() * 0.5f,
+              72.0f * scale, kInk);
     const sk_sp<SkImage> image = surface.makeImageSnapshot();
     if (!image || !encoder.append(image)) return false;
   }
@@ -136,7 +137,8 @@ int story(const StoryOptions& options, weave::FontContext& fonts,
     std::fprintf(stderr, "story could not resolve a display typeface\n");
     return 1;
   }
-  if (!appendTitle(encoder, *output, face, options.introFrames, false)) {
+  if (!appendTitle(encoder, *output, face, options.introFrames,
+                   options.title)) {
     std::fprintf(stderr, "story intro encode failed: %s\n",
                  encoder.error().c_str());
     return 1;
@@ -269,7 +271,8 @@ int story(const StoryOptions& options, weave::FontContext& fonts,
     std::fprintf(stderr, "story selection contained no renderable sketches\n");
     return 1;
   }
-  if (!appendTitle(encoder, *output, face, options.outroFrames, true)) {
+  if (!appendTitle(encoder, *output, face, options.outroFrames,
+                   "EVERY SKETCH")) {
     std::fprintf(stderr, "story outro encode failed: %s\n",
                  encoder.error().c_str());
     return 1;

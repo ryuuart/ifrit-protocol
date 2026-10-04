@@ -10,8 +10,9 @@ Syphon, where a VJ or compositing tool picks it up.
 
 Seer hosts the Qt receiver beside its wire inspector, sender, recorder and
 shared-texture viewer.
-The receiver accepts externally authored scenes; Sketchbook is the authoring
-application. Scenes may arrive at animation frame rates, so a sender can use
+The receiver accepts externally authored scenes; Grimoire, the stock sketch
+host built on SigilSketch beside this tree at
+[`apps/grimoire`](../grimoire/README.md), is the authoring application. Scenes may arrive at animation frame rates, so a sender can use
 the receiver as a live output surface.
 
 What you get on screen is a viewer and a control surface: a canvas you
@@ -103,7 +104,7 @@ tables yourself.
 For Python that draws directly through the native libraries, the same Python
 workspace contains the separate `sigil-sketch` distribution in `apps/python/sigil/`.
 It imports as `sigil`, renders headless with `sigil render`, and opens the live
-native application with `sigil open`. Sketchbook also opens Python sketches
+native application with `sigil open`. Grimoire also opens Python sketches
 directly through its file picker. Installing the SpellCircle transport package
 does not install these native bindings or change TouchDesigner's interpreter
 requirements.
@@ -253,14 +254,14 @@ The app is thin. Most of the code is in libraries under `src/common/`,
 | [SigilUsd](src/common/usd/README.md) | OpenUSD read and write, where the package is installed |
 | [SigilCompose](src/common/compose/README.md) | Data-driven drawable components — layout, caching, animation |
 | [SigilPython](src/common/python/README.md) | Reusable Python bindings over the native libraries; callback and value ownership shared with host integrations |
-| [SigilSketch](src/sketch/README.md) | Every renderable thing as one sketch, with Sketchbook over them |
+| [SigilSketch](src/sketch/README.md) | The framework a scene is hosted through: registration, sessions, the live host and plates |
 | [SigilWeave](src/sigilweave/README.md) | Text shaping and layout on HarfBuzz, ICU and Skia |
 
 ## Build and test
 
 The build requires Python 3.12 or newer with development headers and an
 embedding library. The dependency manifest supplies pybind11, and every
-Sketchbook build supports Python sketches alongside C++ sketches.
+Grimoire build supports Python sketches alongside C++ sketches.
 
 Reusable native bindings live in `src/common/python/`. The sketch-specific
 adapter lives in `src/sketch/python/`; the import package, type declarations,

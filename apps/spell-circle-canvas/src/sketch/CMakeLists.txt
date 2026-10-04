@@ -19,20 +19,11 @@
 # whatever it draws through.
 sigil_library_root(SigilSketch
   BRIEF "Sketches: one file per scene, one registry, one host"
-  DOCS ${CMAKE_CURRENT_LIST_DIR}/RUNNING.md
-       ${CMAKE_CURRENT_LIST_DIR}/REGISTRY.md
+  DOCS ${CMAKE_CURRENT_LIST_DIR}/REGISTRY.md
        ${CMAKE_CURRENT_LIST_DIR}/HOST.md
        ${CMAKE_CURRENT_LIST_DIR}/TESTING.md
        ${CMAKE_CURRENT_LIST_DIR}/kit/README.md
        ${CMAKE_CURRENT_LIST_DIR}/PROTOCOL.md)
-# Where the live host finds the file behind a registry entry, and what
-# mounts at res://: the demo assets a machine fetched (fonts, models,
-# textures), while a sketch's own files stand in its directory and reach
-# it through sketch://. Neither directory need exist: a missing asset
-# yields the placeholder and heals when a file appears.
-set(SIGIL_SKETCH_DIR ${CMAKE_CURRENT_LIST_DIR}/sketches)
-set(SIGIL_SKETCH_ASSET_DIR ${SIGIL_ASSET_DIR})
-
 # THE ARCHIVE LINKS NO DEVICE BACKEND AND NO QT. The runtime a session
 # draws through is a value the process installs — a machine with no
 # device runs every set on the CPU mesh executor — and the plate's
@@ -40,8 +31,8 @@ set(SIGIL_SKETCH_ASSET_DIR ${SIGIL_ASSET_DIR})
 # already carries, which is why SigilGeometryDevice is here and no
 # renderer is: a device of the plate's own would be a second set of
 # textures neither could read out of the other. The reload engine watches,
-# rebuilds and swaps without a window; book/ is the only place one
-# appears.
+# rebuilds and swaps without a window; a window is the hosting
+# application's, and no application stands in this directory.
 #
 # PUBLIC supplies the types and complete runtime values the library's own
 # headers name. Authoring kits, image codecs and device executors are
@@ -127,47 +118,50 @@ endif()
 # a seam and the house one is a stock value over it.
 add_subdirectory(kit)
 
-# The sketches themselves, compiled into whichever host links them.
-if(SIGIL_BUILD_APPS)
-  add_subdirectory(sketches)
+# What a host's build calls: the flags a sketch outside the host is
+# compiled with, lifted off the host's own anchor unit, and the archives
+# a hot-reloaded sketch resolves out of the host's executable. Each is a
+# function the host invokes with its own targets; the framework names no
+# host and no catalogue.
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/SketchFlags.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/SketchLinkSurface.cmake)
 
-# Sketchbook: the one live application.
-  add_subdirectory(book)
+# THE VOCABULARY A SKETCH IS WRITTEN IN, stated once: every library a
+# sketch may include, by its umbrella where the library has one and by
+# feature target where the umbrella leaves a feature out (compose's
+# texture, testing and draw leaves; weave's kit and ports) or would bring
+# a device with it (world's diligent feature, which only an application
+# installs). The sketch library stands first, its runtimes bringing
+# compose, world and the pen with them, and its kit beside it. A host's
+# catalogue links it and adds what its own sketches need beyond it; a
+# sketch reaches no library through a neighbour's link line.
+sigil_library(SigilSketchVocabulary
+  INTERFACE
+    SigilSketch SigilSketchKit
+    SigilDrawBrush
+    SigilCompose SigilComposeTexture SigilComposeTesting SigilComposeDraw
+    SigilGeometry SigilMaterial
+    SigilWeave SigilWeaveKit SigilWeavePorts
+    SigilWorldElement SigilWorldFrame SigilWorldScene SigilWorldKit
+    SigilCoreCompute SigilData SigilMedia SigilMotion SigilIO
+    SigilMeasure)
+
+# THE REFERENCE EXAMPLES. Each library's `reference/examples/<stem>.cpp` is
+# a sketch outside any registry, drawn for its reference page by opening
+# the file the way a hot-reloaded sketch is opened, so nothing else ever
+# compiles it. Compiled here against the vocabulary such a sketch sees and
+# never linked. The target is part of the default build, so an example
+# that stops compiling fails the build itself rather than the page that
+# shows it. No test case builds it, since a case that ran the build would
+# be one more builder on the tree the tests run beside. A library stands
+# one level under `src/` or two, so both depths are read.
+file(GLOB SIGIL_REFERENCE_EXAMPLES CONFIGURE_DEPENDS
+     ${CMAKE_CURRENT_LIST_DIR}/../*/reference/examples/*.cpp
+     ${CMAKE_CURRENT_LIST_DIR}/../*/*/reference/examples/*.cpp)
+if(SIGIL_REFERENCE_EXAMPLES)
+  add_library(SigilReferenceExamples OBJECT ${SIGIL_REFERENCE_EXAMPLES})
+  target_link_libraries(SigilReferenceExamples PRIVATE SigilSketchVocabulary)
 endif()
-
-# Every sketch stem a document names, resolved against the registry.
-# A README points its reader at the sketches that draw the feature beside
-# it and spells their stems by hand, so a rename in the registry leaves
-# prose pointing at a file that is not there with nothing to notice. This
-# is the registry's check — it is the registry the stems are resolved
-# against — so it lives here and reads every document in the tree.
-find_package(Python3 COMPONENTS Interpreter REQUIRED)
-file(GLOB_RECURSE SIGIL_SKETCH_STEM_DOCS CONFIGURE_DEPENDS
-     ${CMAKE_CURRENT_LIST_DIR}/../README.md
-     ${CMAKE_CURRENT_LIST_DIR}/../FEATURES.md
-     ${CMAKE_CURRENT_LIST_DIR}/../TYPOGRAPHY.md
-     ${CMAKE_CURRENT_LIST_DIR}/RUNNING.md
-     ${CMAKE_CURRENT_LIST_DIR}/REGISTRY.md
-     ${CMAKE_CURRENT_LIST_DIR}/HOST.md
-     ${CMAKE_CURRENT_LIST_DIR}/TESTING.md)
-set(SIGIL_SKETCH_STEM_DOC_ARGS)
-foreach(doc IN LISTS SIGIL_SKETCH_STEM_DOCS)
-  list(APPEND SIGIL_SKETCH_STEM_DOC_ARGS --doc ${doc})
-endforeach()
-add_test(NAME sketch_readme_stems
-  COMMAND ${Python3_EXECUTABLE}
-          ${CMAKE_CURRENT_LIST_DIR}/test/readme_sketch_stems.py
-          --sketch-dir ${SIGIL_SKETCH_DIR}
-          ${SIGIL_SKETCH_STEM_DOC_ARGS})
-
-# The checker's own fixtures: a stem must resolve, a misspelt one must
-# fail the run, a token outside a sketch paragraph must not be read as a
-# stem, and a count of a list must be refused. One Python invocation — and
-# the only check that notices the EXTRACTOR narrowing, since a checker that
-# silently resolves fewer stems still passes over the corpus.
-add_test(NAME sketch_readme_stems_self_test
-  COMMAND ${Python3_EXECUTABLE}
-          ${CMAKE_CURRENT_LIST_DIR}/test/readme_sketch_stems.py --self-test)
 
 # The web panel's page names the runtime probe SigilScry answers, which
 # is only there where the SDK was found.
@@ -189,19 +183,18 @@ else()
 endif()
 
 # Every API name the prose spells, compiled against the headers that own
-# it — README.md and its chapters, the protocol's page, the kit's page and
-# the studies' page, because each is canon for what it covers. This library composes every other, so every
+# it — README.md and its chapters, the protocol's page and the kit's page,
+# because each is canon for what it covers. This library composes every
+# other, so every
 # one it names is scanned and linked: a sketch's prose is written in the
 # whole vocabulary a sketch is written in.
 sigil_doc_probes(sketch
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/RUNNING.md
           ${CMAKE_CURRENT_SOURCE_DIR}/REGISTRY.md
           ${CMAKE_CURRENT_SOURCE_DIR}/HOST.md
           ${CMAKE_CURRENT_SOURCE_DIR}/TESTING.md
           ${CMAKE_CURRENT_SOURCE_DIR}/PROTOCOL.md
           ${CMAKE_CURRENT_SOURCE_DIR}/kit/README.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/sketches/README.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../common/core/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/data/include/sigildata
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/io/include/sigilio

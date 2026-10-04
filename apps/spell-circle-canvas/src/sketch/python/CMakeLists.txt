@@ -28,5 +28,8 @@ sigil_test(sketch_test
   SOURCES test/PythonTest.cpp
   LIBRARIES SigilSketchPython SigilPython)
 
+# The registry a host builds out of its own Python sketches.
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/PythonSketches.cmake)
+
 add_test(NAME sketch_python_registration
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/test/registration.py)

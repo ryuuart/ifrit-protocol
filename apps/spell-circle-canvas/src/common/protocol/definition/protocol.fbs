@@ -567,7 +567,7 @@ namespace sigil.protocol.host;
 table VersionResult {
   /// The definition the host was built from.
   revision: sigil.protocol.Revision (required);
-  /// The program: Sketchbook, Seer or the receiver.
+  /// The program: Grimoire, Seer or the receiver.
   program: string;
   /// The program's own version.
   program_version: string;

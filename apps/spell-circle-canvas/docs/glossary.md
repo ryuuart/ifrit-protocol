@@ -51,5 +51,5 @@ about those two is the commonest way to read a signature backwards.
 | --- | --- | --- |
 | **probe** | `cmake/Sigil.cmake` | The compile check over a document's prose: every qualified API name a README or a chapter spells must exist in a header, or the build fails. Headers win. |
 | **ledger** | `scripts/sigil.py` | A recorded set of numbers a run is compared against — plates, benchmarks, coverage. A ledger owns numbers so that comments and documents do not. |
-| **sweep** | Sketchbook | A headless pass over the whole sketch registry, rendering each one. A file outside the registry is photographed on its own and never enters it. |
+| **sweep** | Grimoire | A headless pass over the whole sketch registry, rendering each one. A file outside the registry is photographed on its own and never enters it. |
 | **tier** | plates, paints | A level a thing is judged or resolved at: the plate ledger's device and promotion tiers, and a paint's static, geometry and live tiers. |

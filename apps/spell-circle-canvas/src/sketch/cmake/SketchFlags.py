@@ -9,9 +9,10 @@ flags, sysroot, -std, vcpkg include directories — is something CMake
 exposes nowhere else, and a hand-maintained flag list would drift from
 the target graph that actually builds a sketch.
 
-Usage (invoked by the build; the paths are all absolute):
+Usage (a host's build invokes it through `sigil_sketch_flags`, with
+absolute paths):
   src/sketch/cmake/SketchFlags.py --compdb build/compile_commands.json \\
-      --anchor src/sketch/sketches/Anchor.cpp --config Release \\
+      --anchor ../grimoire/sketches/Anchor.cpp --config Release \\
       --out build/bin/Release/sketch_flags.rsp [--extra <link input>]
 """
 

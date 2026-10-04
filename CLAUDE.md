@@ -25,7 +25,9 @@ Every library under `apps/spell-circle-canvas/src/` has a `README.md`
 beside its code, some with `FEATURES.md`, `PARITY.md` or `TYPOGRAPHY.md`
 chapters beside it; `apps/spell-circle-canvas/scripts/README.md` covers
 `sigil.py`, and `docs/README.md` with `docs/REFERENCE.md` the API
-reference site.
+reference site. `apps/grimoire/README.md` covers Grimoire, the stock
+sketch host built on SigilSketch, with its catalogue of sketches and its
+chapters beside it; it builds inside the library tree's one build.
 
 Defects found while working go to `apps/spell-circle-canvas/FINDINGS.md`
 — create it when needed. Each entry states what the code does, what it
@@ -79,7 +81,7 @@ when memory ownership changed.
 
 **The sketches come last.** Library work is expected to break them, so
 a library pass builds the libraries and their tests, never
-`SigilSketches` or Sketchbook, and does not edit sketches to keep them
+`SigilSketches` or Grimoire, and does not edit sketches to keep them
 compiling; one final pass brings every sketch onto the new vocabulary.
 
 **Import the origin.** A consumer includes a library's own headers,
@@ -165,9 +167,12 @@ triplet and the Skia sanitizer pin, with the helpers' own test under
 ### Visual work
 
 Everything renderable is a **sketch**: one file (or one directory) under
-`src/sketch/sketches/`, addressed by its stem, in one registry;
-`src/sketch/README.md` is the canon. **Sketchbook** drives all of it; the
-`sketchbook` skill holds its flags for headless sweeps, stills, benches,
+`apps/grimoire/sketches/`, addressed by its stem, in one registry;
+`src/sketch/README.md` is the canon for the framework, SigilSketch, and
+`apps/grimoire/README.md` for **Grimoire**, the application built on it
+that carries the catalogue and drives all of it — a consumer of the
+framework's public targets and headers alone; the
+`grimoire` skill holds its flags for headless sweeps, stills, benches,
 video, plate comparison and thumbnails.
 
 ## Layout

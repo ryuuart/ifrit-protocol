@@ -73,7 +73,7 @@ and a plate rebase names the cause.
 
 ## A stack's programs cannot be stood up before the sketch wearing it is read
 
-Sketchbook stands its device programs up before the canvas draws: every
+Grimoire stands its device programs up before the canvas draws: every
 stock body is declared before the first Graphite context exists, the
 programs a run builds are written down under the platform cache
 location, and the next launch replays that set on a worker while the
@@ -143,7 +143,7 @@ neighbours are made on first use — so a key recorded by a run whose
 draws made one is a crash in a run whose draws have not yet, which is
 every second launch of a sketch that blurs.
 
-`src/sketch/book/PipelineWarm.cpp` works around it by keeping each key's
+`apps/grimoire/src/PipelineWarm.cpp` works around it by keeping each key's
 description beside it and reading the description back before replaying:
 a piece with no name reads back as a hole, the description differs, and
 the key is dropped. It carries a `workaround:` marker. The fix belongs
@@ -166,7 +166,7 @@ a test should build each from Python and assert its additions by key.
 
 ## A zoom that settles re-rasterises everything at once, and varied glyphs grow with the scale
 
-When the pane's zoom settles, `SketchbookRenderer` redraws the frame at
+When the pane's zoom settles, `GrimoireRenderer` redraws the frame at
 the new scale, and everything rasterised per device scale is redone in
 that frame: texture bakes on their coarse scale ladder, and every glyph
 at its new pixel size through the glyph atlas. A fast zoom in and out
@@ -845,7 +845,7 @@ across ordinary Compose fills, but starts the full gradient again inside
 each `compose::pen` leaf. Changing a pen leaf's width changes the gradient's
 scale even though the root canvas size is unchanged.
 
-Two native Python probes reproduce this in the loaded Sketchbook host. On
+Two native Python probes reproduce this in the loaded Grimoire host. On
 an 800-pixel-wide canvas, ordinary fills and Pen fills occupy matching
 x ranges, with Pen fills on a second row. At x406 the control pixel is
 (158, 97, 161) and the 310-pixel-wide Pen leaf is (251, 65, 68). A second
@@ -915,7 +915,7 @@ reader should not execute module code to discover either value.
 
 ## Authoring difficulty: C++ studies depend on the mutable library header set
 
-While another pass edits public library headers, an existing Sketchbook
+While another pass edits public library headers, an existing Grimoire
 host refuses to compile a new C++ study. `Host::startCompile` checks every
 public framework header against the running image's stamp; the refusal
 correctly prevents a new object layout from entering an older host. The
@@ -944,7 +944,7 @@ reviewed against the changed library without changing its lookup key.
 A live Python study renders correctly when supplied by path with `--frame`.
 The same file with `--video` is accepted by argument parsing and file
 validation, but `main.cpp` dispatches `runVideo` before the live-file lane.
-`src/sketch/book/VideoLane.cpp` selects only the registry index and category;
+`apps/grimoire/src/VideoLane.cpp` selects only the registry index and category;
 it never reads `Arguments::sketchFile`. Consequently the file does not
 select the output. A native probe using the macrodata terminal, one video
 frame and a small output size exits with the registry's set-rendering
@@ -1249,7 +1249,7 @@ is a capture contract issue, not a mapped-blur defect. Asking the file
 lane for a still at `--at 0.25` of any clock-driven Python sketch and
 logging its updates reproduces the extra step.
 
-The native window screenshot in `src/sketch/book/main.cpp` waits for a live
+The native window screenshot in `apps/grimoire/src/main.cpp` waits for a live
 session and warm-up frames, but does not consume the file lane's `--at`
 setting. A matching window composition currently needs a clearly
 identified fixed-time capture fixture or clock control outside that CLI
@@ -1270,7 +1270,7 @@ captures should not advance the scene unless advancement was requested.
 ## API request: the GPU window cannot expose its capture backend to a client
 
 The optical-record sequence draws successfully in the native Graphite
-window. `SketchbookRenderer::installCaptureBackend` gives its Host a
+window. `GrimoireRenderer::installCaptureBackend` gives its Host a
 Graphite surface, ordered canvas and device readback. The window's
 Inspection endpoint, however, mounts only host and registry agents.
 Its advertised domains agree with that restriction. Requests for
@@ -1900,7 +1900,7 @@ find the child's bake texture-backed.
 
 ## Study queue: the material studies are written around the libraries
 
-The sixteen `Study · Materials` sketches under `src/sketch/sketches/`
+The sixteen `Study · Materials` sketches under `apps/grimoire/sketches/`
 were written while the lighting vocabulary was growing and say with raw
 mechanism what the libraries now say directly. What a sketch pass should
 change, by kind:

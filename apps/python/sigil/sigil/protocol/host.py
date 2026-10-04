@@ -121,7 +121,7 @@ class VersionResult:
     """The definition the host was built from."""
 
     program: str = ""
-    """The program: Sketchbook, Seer or the receiver."""
+    """The program: Grimoire, Seer or the receiver."""
 
     program_version: str = ""
     """The program's own version."""

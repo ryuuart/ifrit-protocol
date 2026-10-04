@@ -1,197 +1,197 @@
 # Settle 2 keep-going build on main f3b40a945 (2026-09-28): 196 failing objects in the whole tree, all 196 in SigilSketches (168 sketches); first error each (file<TAB>first error). 84 objects stop at a missing header, so their first error hides the rest.
-src/sketch/sketches/aero_desktop/aero_desktop.cpp	src/sketch/sketches/aero_desktop/aero_desktop.cpp:36: 'sigilcompose/brush/LayerStyles.h' file not found
-src/sketch/sketches/annotated_margin.cpp	src/sketch/sketches/annotated_margin.cpp:38: 'sigilcompose/kit/Kinetic.h' file not found
-src/sketch/sketches/artnet_lights/artnet_lights.cpp	src/sketch/sketches/artnet_lights/artnet_lights.cpp:342: no member named 'apply' in 'sigil::motion::Timeline'
-src/sketch/sketches/astral_tome/astral_tome.cpp	src/sketch/sketches/astral_tome/astral_tome.cpp:5: 'sigilgeometry/path/Skia.h' file not found
-src/sketch/sketches/axis_ripple.cpp	src/sketch/sketches/axis_ripple.cpp:525: no member named 'add' in 'sigil::motion::Engine'
-src/sketch/sketches/beethoven.cpp	src/sketch/sketches/beethoven.cpp:43: 'sigilcompose/brush/LayerStyles.h' file not found
-src/sketch/sketches/bg3_dice_roll/bg3_dice_roll.cpp	src/sketch/sketches/bg3_dice_roll/bg3_dice_roll.cpp:28: 'sigilmotion/values/Transition.h' file not found
-src/sketch/sketches/black_watch/black_watch.cpp	src/sketch/sketches/black_watch/black_watch.cpp:19: 'sigilcompose/brush/LayerStyles.h' file not found
-src/sketch/sketches/blend_options.cpp	src/sketch/sketches/blend_options.cpp:173: no viable conversion from 'SkPath' to 'Outline'
-src/sketch/sketches/blur_falloff.cpp	src/sketch/sketches/blur_falloff.cpp:89: no member named 'shader' in 'sigil::material::Texture'
-src/sketch/sketches/border_weave.cpp	src/sketch/sketches/border_weave.cpp:151: no member named 'layerStyle' in 'sigil::compose::Element'
-src/sketch/sketches/bound_lane.cpp	src/sketch/sketches/bound_lane.cpp:60: 'sigilmotion/bind/BoundFloat.h' file not found
-src/sketch/sketches/bousen.cpp	src/sketch/sketches/bousen.cpp:44: 'sigilcompose/kit/Kinetic.h' file not found
-src/sketch/sketches/bristle_current.cpp	src/sketch/sketches/bristle_current.cpp:164: no member named 'addFixed' in 'sigil::motion::Engine'
-src/sketch/sketches/brush_botanical_study.cpp	src/sketch/sketches/brush_botanical_study.cpp:197: no viable conversion from 'const SkPoint' to 'glm::vec2' (aka 'vec<2, float, defaultp>')
-src/sketch/sketches/brush_engine_atlas.cpp	src/sketch/sketches/brush_engine_atlas.cpp:159: no matching member function for call to 'hatch'
-src/sketch/sketches/brush_live_tutorial.cpp	src/sketch/sketches/brush_live_tutorial.cpp:97: no viable conversion from 'const SkPoint' to 'glm::vec2' (aka 'vec<2, float, defaultp>')
-src/sketch/sketches/card_flip.cpp	src/sketch/sketches/card_flip.cpp:135: no member named 'add' in 'sigil::motion::Engine'
-src/sketch/sketches/cascade.cpp	src/sketch/sketches/cascade.cpp:242: no member named 'readout' in namespace 'sigil::sketch::kit'; did you mean 'sigil::compose::kit::readout'?
-src/sketch/sketches/cde_motif/cde_motif.cpp	src/sketch/sketches/cde_motif/Motif.h:391: no type named 'Stipple' in namespace 'sigil::compose::styles'
-src/sketch/sketches/channel_bind/channel_bind.cpp	src/sketch/sketches/channel_bind/channel_bind.cpp:221: no type named 'Bound' in namespace 'sigil::motion'
-src/sketch/sketches/chaucer_astrolabe/chaucer_astrolabe.cpp	src/sketch/sketches/chaucer_astrolabe/chaucer_astrolabe.cpp:16: 'sigilcompose/brush/LayerStyles.h' file not found
-src/sketch/sketches/chevreul_circle/chevreul_circle.cpp	src/sketch/sketches/chevreul_circle/chevreul_circle.cpp:103: no matching function for call to 'face'
-src/sketch/sketches/chladni_tab1/chladni_tab1.cpp	src/sketch/sketches/chladni_tab1/chladni_tab1.cpp:39: 'sigilcompose/brush/LayerStyles.h' file not found
-src/sketch/sketches/chrome_type.cpp	src/sketch/sketches/y2k_chrome/Aqua.h:19: 'sigilgeometry/path/Skia.h' file not found
-src/sketch/sketches/codec_roundtrip.cpp	src/sketch/sketches/codec_roundtrip.cpp:66: no viable conversion from 'Face' to 'const sk_sp<SkTypeface>'
-src/sketch/sketches/contour_poses.cpp	src/sketch/sketches/contour_poses.cpp:86: no member named 'path' in 'sigil::geometry::shapes::Radial'
-src/sketch/sketches/cosmati/Construction.cpp	src/sketch/sketches/cosmati/Construction.cpp:94: no viable conversion from returned value of type 'Outline' to function return type 'SkPath'
-src/sketch/sketches/cosmati/cosmati.cpp	src/sketch/sketches/cosmati/cosmati.cpp:32: 'sigilgeometry/path/Skia.h' file not found
-src/sketch/sketches/coverage_boundary.cpp	src/sketch/sketches/coverage_boundary.cpp:36: 'sigilcompose/brush/LayerStyles.h' file not found
-src/sketch/sketches/crossing_rule.cpp	src/sketch/sketches/crossing_rule.cpp:85: too many arguments to function call, expected 3, have 7
-src/sketch/sketches/crt_bloom/crt_bloom.cpp	src/sketch/sketches/crt_bloom/CrtOverlay.h:9: 'sigilmaterial/core/Recipe.h' file not found
-src/sketch/sketches/curve_shelf.cpp	src/sketch/sketches/curve_shelf.cpp:106: no matching function for call to 'parametric'
-src/sketch/sketches/daemon_console.cpp	src/sketch/sketches/daemon_console.cpp:66: 'sigilcompose/kit/Kinetic.h' file not found
-src/sketch/sketches/dart_flight.cpp	src/sketch/sketches/dart_flight.cpp:142: no viable conversion from 'float' to 'Duration' (aka 'duration<double>')
-src/sketch/sketches/data_sources/data_sources.cpp	src/sketch/sketches/data_sources/data_sources.cpp:46: no member named 'bars' in namespace 'sigil::sketch::kit'
-src/sketch/sketches/decay_step.cpp	src/sketch/sketches/decay_step.cpp:137: no member named 'spring' in namespace 'sigil::motion'; did you mean 'Spring'?
-src/sketch/sketches/draw_with_scope.cpp	src/sketch/sketches/draw_with_scope.cpp:113: no member named 'center' in 'sigil::geometry::path::Rect'
-src/sketch/sketches/ds2_bench/ds2_bench.cpp	src/sketch/sketches/ds2_bench/ds2_bench.cpp:18: 'sigilcompose/brush/LayerStyles.h' file not found
-src/sketch/sketches/dunhuang_star_chart/dunhuang_star_chart.cpp	src/sketch/sketches/dunhuang_star_chart/Board.h:10: 'sigilmaterial/core/Recipe.h' file not found
-src/sketch/sketches/elastic_type.cpp	src/sketch/sketches/elastic_type.cpp:194: no member named 'Key' in namespace 'sigil::compose::textFx'
-src/sketch/sketches/ember_decode/ember_decode.cpp	src/sketch/sketches/ember_decode/ember_decode.cpp:68: 'sigilcompose/kit/Kinetic.h' file not found
-src/sketch/sketches/encode_write.cpp	src/sketch/sketches/encode_write.cpp:100: no matching function for call to 'encode'
-src/sketch/sketches/env_faces.cpp	src/sketch/sketches/shapeworks_lab/Reflections.h:13: 'sigilmaterial/core/Recipe.h' file not found
-src/sketch/sketches/eva_magi_defense/eva_magi_defense.cpp	src/sketch/sketches/eva_magi_defense/eva_magi_defense.cpp:11: 'sigilgeometry/path/Skia.h' file not found
-src/sketch/sketches/eva_magi_deliberation.cpp	src/sketch/sketches/eva_magi_interior/Crt.h:12: 'sigilmaterial/core/Recipe.h' file not found
-src/sketch/sketches/eva_magi_interior/eva_magi_interior.cpp	src/sketch/sketches/eva_magi_interior/Crt.h:12: 'sigilmaterial/core/Recipe.h' file not found
-src/sketch/sketches/exact_tangent.cpp	src/sketch/sketches/exact_tangent.cpp:107: no member named 'image' in 'sigil::material::Texture'
-src/sketch/sketches/exr_channels.cpp	src/sketch/sketches/exr_channels.cpp:98: no matching function for call to 'encode'
-src/sketch/sketches/fallout2_charsheet/fallout2_charsheet.cpp	src/sketch/sketches/fallout2_charsheet/fallout2_charsheet.cpp:20: 'sigilcompose/brush/LayerStyles.h' file not found
-src/sketch/sketches/feed_events/feed_events.cpp	src/sketch/sketches/feed_events/feed_events.cpp:245: no member named 'apply' in 'sigil::motion::Timeline'
-src/sketch/sketches/feed_sky/feed_sky.cpp	src/sketch/sketches/feed_sky/feed_sky.cpp:248: unknown type name 'SurfacePaint'
-src/sketch/sketches/field_shelf.cpp	src/sketch/sketches/field_shelf.cpp:70: no viable conversion from '(lambda at /Users/long/REI/ifrit-protocol/apps/spell-circle-canvas/src/sketch/sketches/field_shelf.cpp:70:84)' to 'std::function<Picture ()>'
-src/sketch/sketches/first_light.cpp	src/sketch/sketches/first_light.cpp:72: no viable conversion from 'float' to 'Duration' (aka 'duration<double>')
-src/sketch/sketches/floating_panels.cpp	src/sketch/sketches/floating_panels.cpp:166: no viable conversion from 'const SkSize' to 'glm::vec2' (aka 'vec<2, float, defaultp>')
-src/sketch/sketches/flourish/GiltBorder.cpp	src/sketch/sketches/flourish/Ornament.h:68: no member named 'width' in 'glm::vec<2, int>'
-src/sketch/sketches/flourish/Ornament.cpp	src/sketch/sketches/flourish/Ornament.h:68: no member named 'width' in 'glm::vec<2, int>'
-src/sketch/sketches/flourish/flourish.cpp	src/sketch/sketches/flourish/flourish.cpp:24: 'sigilgeometry/path/Skia.h' file not found
-src/sketch/sketches/formation_bands.cpp	src/sketch/sketches/formation_bands.cpp:84: no member named 'path' in 'sigil::geometry::shapes::Radial'
-src/sketch/sketches/frame_grid.cpp	src/sketch/sketches/frame_grid.cpp:86: no member named 'fX' in 'glm::vec<2, float>'
-src/sketch/sketches/frame_inputs/frame_inputs.cpp	src/sketch/sketches/frame_inputs/frame_inputs.cpp:17: 'sigilmaterial/core/Recipe.h' file not found
-src/sketch/sketches/fx_scatter_mix.cpp	src/sketch/sketches/fx_scatter_mix.cpp:39: 'sigilcompose/kit/Kinetic.h' file not found
-src/sketch/sketches/genesis_fire/Panels.cpp	src/sketch/sketches/genesis_fire/Settings.h:17: 'sigilcompose/kit/Kinetic.h' file not found
-src/sketch/sketches/genesis_fire/Simulation.cpp	src/sketch/sketches/genesis_fire/Settings.h:17: 'sigilcompose/kit/Kinetic.h' file not found
-src/sketch/sketches/genesis_fire/Stage.cpp	src/sketch/sketches/genesis_fire/Settings.h:17: 'sigilcompose/kit/Kinetic.h' file not found
-src/sketch/sketches/genesis_fire/genesis_fire.cpp	src/sketch/sketches/genesis_fire/Settings.h:17: 'sigilcompose/kit/Kinetic.h' file not found
-src/sketch/sketches/geo_groups.cpp	src/sketch/sketches/geo_groups.cpp:120: no viable conversion from 'const std::shared_ptr<const media::Image>' to 'media::Picture'
-src/sketch/sketches/gerstner_grid.cpp	src/sketch/sketches/gerstner_grid.cpp:140: no viable conversion from 'float' to 'glm::vec2' (aka 'vec<2, float, defaultp>')
-src/sketch/sketches/gif_frames.cpp	src/sketch/sketches/gif_frames.cpp:90: no matching function for call to 'probe'
-src/sketch/sketches/glow_trail.cpp	src/sketch/sketches/glow_trail.cpp:68: no viable conversion from 'float' to 'Duration' (aka 'duration<double>')
-src/sketch/sketches/grid_layouts.cpp	src/sketch/sketches/grid_layouts.cpp:144: no member named 'readout' in namespace 'sigil::sketch::kit'; did you mean 'sigil::compose::kit::readout'?
-src/sketch/sketches/grpc_watch/grpc_watch.cpp	src/sketch/sketches/grpc_watch/grpc_watch.cpp:298: no member named 'apply' in 'sigil::motion::Timeline'
-src/sketch/sketches/guest_picture/guest_picture.cpp	src/sketch/sketches/guest_picture/guest_picture.cpp:175: no matching function for call to 'fitted'
-src/sketch/sketches/hello.cpp	src/sketch/sketches/hello.cpp:134: no member named 'add' in 'sigil::motion::Engine'
-src/sketch/sketches/hit_slots.cpp	src/sketch/sketches/hit_slots.cpp:70: 'sigilsketch/kit/Rows.h' file not found
-src/sketch/sketches/hitman_verlet/Panels.cpp	src/sketch/sketches/hitman_verlet/Settings.h:11: 'sigilcompose/kit/Kinetic.h' file not found
-src/sketch/sketches/hitman_verlet/Rigs.cpp	src/sketch/sketches/hitman_verlet/Settings.h:11: 'sigilcompose/kit/Kinetic.h' file not found
-src/sketch/sketches/hitman_verlet/Solver.cpp	src/sketch/sketches/hitman_verlet/Settings.h:11: 'sigilcompose/kit/Kinetic.h' file not found
-src/sketch/sketches/hitman_verlet/Stage.cpp	src/sketch/sketches/hitman_verlet/Settings.h:11: 'sigilcompose/kit/Kinetic.h' file not found
-src/sketch/sketches/hitman_verlet/hitman_verlet.cpp	src/sketch/sketches/hitman_verlet/Settings.h:11: 'sigilcompose/kit/Kinetic.h' file not found
-src/sketch/sketches/hub_reload.cpp	src/sketch/sketches/hub_reload.cpp:98: no matching function for call to 'encode'
-src/sketch/sketches/import_native.cpp	src/sketch/sketches/import_native.cpp:267: no matching conversion for functional-style cast from 'sk_sp<SkImage>' to 'material::Texture'
-src/sketch/sketches/ink_units.cpp	src/sketch/sketches/ink_units.cpp:44: no matching member function for call to 'ink'
-src/sketch/sketches/karaoke_wipe/karaoke_wipe.cpp	src/sketch/sketches/karaoke_wipe/karaoke_wipe.cpp:124: 'sigilcompose/kit/Kinetic.h' file not found
-src/sketch/sketches/key_light.cpp	src/sketch/sketches/key_light.cpp:73: no viable conversion from 'glm::vec2' (aka 'vec<2, float, defaultp>') to 'const SkPoint'
-src/sketch/sketches/kinetic_card.cpp	src/sketch/sketches/kinetic_card.cpp:52: 'sigilcompose/kit/Kinetic.h' file not found
-src/sketch/sketches/ksp_mapview/ksp_mapview.cpp	src/sketch/sketches/ksp_mapview/Globe.h:11: 'sigilmaterial/core/Recipe.h' file not found
-src/sketch/sketches/kumiko_asanoha/kumiko_asanoha.cpp	src/sketch/sketches/kumiko_asanoha/kumiko_asanoha.cpp:14: 'sigilcompose/brush/LayerStyles.h' file not found
-src/sketch/sketches/lain_navi/lain_navi.cpp	src/sketch/sketches/lain_navi/CrtBeam.h:10: 'sigilmaterial/core/Recipe.h' file not found
-src/sketch/sketches/lane_retarget.cpp	src/sketch/sketches/lane_retarget.cpp:83: no type named 'Transition' in namespace 'sigil::motion'
-src/sketch/sketches/lantern_room.cpp	src/sketch/sketches/lantern_room.cpp:149: no viable conversion from 'glm::vec2' (aka 'vec<2, float, defaultp>') to 'const SkPoint'
-src/sketch/sketches/live_settling.cpp	src/sketch/sketches/live_settling.cpp:85: no viable conversion from 'Face' to 'const sk_sp<SkTypeface>'
-src/sketch/sketches/loot_grid/loot_grid.cpp	src/sketch/sketches/loot_grid/Inventory.h:5: 'sigilcompose/brush/LayerStyles.h' file not found
-src/sketch/sketches/manuscript/Ornament.cpp	src/sketch/sketches/manuscript/Ornament.h:94: no matching constructor for initialization of 'material::Material'
-src/sketch/sketches/manuscript/manuscript.cpp	src/sketch/sketches/manuscript/Ornament.h:94: no matching constructor for initialization of 'material::Material'
-src/sketch/sketches/material_atlas.cpp	src/sketch/sketches/material_atlas.cpp:81: no viable conversion from 'path::Rect' to 'const SkRect'
-src/sketch/sketches/material_lab.cpp	src/sketch/sketches/material_lab.cpp:56: 'sigilmaterial/core/Combine.h' file not found
-src/sketch/sketches/material_slots/material_slots.cpp	src/sketch/sketches/material_slots/material_slots.cpp:54: 'sigilmaterial/core/Combine.h' file not found
-src/sketch/sketches/matrix_rain/matrix_rain.cpp	src/sketch/sketches/matrix_rain/matrix_rain.cpp:124: no viable conversion from 'unsigned int' to 'material::Color'
-src/sketch/sketches/matte_luma.cpp	src/sketch/sketches/matte_luma.cpp:161: no matching function for call to 'well'
-src/sketch/sketches/mawarikomi.cpp	src/sketch/sketches/tategaki/VerticalSpecimen.h:70: no viable conversion from returned value of type 'Face' to function return type 'sk_sp<SkTypeface>'
-src/sketch/sketches/mesh_generators.cpp	src/sketch/sketches/mesh_generators.cpp:134: no member named 'toSkColor' in namespace 'sigil::material::skia'; did you mean 'SkColor'?
-src/sketch/sketches/mesh_normal_bridge.cpp	src/sketch/sketches/shapeworks_lab/Reflections.h:13: 'sigilmaterial/core/Recipe.h' file not found
-src/sketch/sketches/midi_pads/midi_pads.cpp	src/sketch/sketches/midi_pads/midi_pads.cpp:304: no member named 'apply' in 'sigil::motion::Timeline'
-src/sketch/sketches/minard_1869/minard_1869.cpp	src/sketch/sketches/minard_1869/minard_1869.cpp:184: no matching function for call to 'face'
-src/sketch/sketches/net_policy.cpp	src/sketch/sketches/net_policy.cpp:60: no member named 'toSkColor' in namespace 'sigil::material::skia'; did you mean 'SkColor'?
-src/sketch/sketches/night_network.cpp	src/sketch/sketches/night_network.cpp:207: expected namespace name
-src/sketch/sketches/nightingale_coxcomb/nightingale_coxcomb.cpp	src/sketch/sketches/nightingale_coxcomb/nightingale_coxcomb.cpp:47: 'sigilcompose/brush/LayerStyles.h' file not found
-src/sketch/sketches/nine_slice/Ornament.cpp	src/sketch/sketches/nine_slice/Ornament.h:77: no member named 'width' in 'glm::vec<2, int>'
-src/sketch/sketches/nine_slice/nine_slice.cpp	src/sketch/sketches/nine_slice/Ornament.h:77: no member named 'width' in 'glm::vec<2, int>'
-src/sketch/sketches/noise_shelf.cpp	src/sketch/sketches/noise_shelf.cpp:98: no viable conversion from 'path::Rect' to 'const SkRect'
-src/sketch/sketches/ocio_view.cpp	src/sketch/sketches/ocio_view.cpp:89: no member named 'toSkColor' in namespace 'sigil::material::skia'; did you mean 'SkColor'?
-src/sketch/sketches/optical_kerning.cpp	src/sketch/sketches/optical_kerning.cpp:79: no viable conversion from 'Face' to 'const sk_sp<SkTypeface>'
-src/sketch/sketches/osc_desk/osc_desk.cpp	src/sketch/sketches/osc_desk/osc_desk.cpp:249: no member named 'apply' in 'sigil::motion::Timeline'
-src/sketch/sketches/over_under/over_under.cpp	src/sketch/sketches/over_under/over_under.cpp:41: 'sigilmaterial/core/Combine.h' file not found
-src/sketch/sketches/p5_attractor_loom/p5_attractor_loom.cpp	src/sketch/sketches/p5_attractor_loom/p5_attractor_loom.cpp:46: no matching function for call to 'from'
-src/sketch/sketches/p5_flow_field/p5_flow_field.cpp	src/sketch/sketches/p5_flow_field/p5_flow_field.cpp:87: no viable conversion from 'glm::vec2' (aka 'vec<2, float, defaultp>') to 'const SkSize'
-src/sketch/sketches/p5_fractal_garden/p5_fractal_garden.cpp	src/sketch/sketches/p5_fractal_garden/p5_fractal_garden.cpp:49: no matching function for call to 'from'
-src/sketch/sketches/p5_liquid_layers.cpp	src/sketch/sketches/p5_liquid_layers.cpp:50: no matching function for call to 'from'
-src/sketch/sketches/paint_boxes.cpp	src/sketch/sketches/paint_boxes.cpp:55: no matching member function for call to 'ink'
-src/sketch/sketches/paint_shelf.cpp	src/sketch/sketches/paint_shelf.cpp:95: no matching member function for call to 'fill'
-src/sketch/sketches/painter_gpu.cpp	src/sketch/sketches/painter_gpu.cpp:112: no viable conversion from 'const SkSize' to 'glm::vec2' (aka 'vec<2, float, defaultp>')
-src/sketch/sketches/paragraph_sheet.cpp	src/sketch/sketches/paragraph_sheet.cpp:93: no viable conversion from returned value of type 'Face' to function return type 'sk_sp<SkTypeface>'
-src/sketch/sketches/passive_tree/passive_tree.cpp	src/sketch/sketches/passive_tree/passive_tree.cpp:59: 'sigilcompose/brush/LayerStyles.h' file not found
-src/sketch/sketches/path_booleans.cpp	src/sketch/sketches/path_booleans.cpp:120: no matching function for call to object of type 'const operations::PathOperation' (aka 'const function<Outline (const Outline &)>')
-src/sketch/sketches/pattern_sequence.cpp	src/sketch/sketches/pattern_sequence.cpp:94: no matching function for call to 'well'
-src/sketch/sketches/penrose_paving/penrose_paving.cpp	src/sketch/sketches/penrose_paving/penrose_paving.cpp:16: 'sigilcompose/brush/LayerStyles.h' file not found
-src/sketch/sketches/persona_menu/persona_menu.cpp	src/sketch/sketches/persona_menu/persona_menu.cpp:51: 'sigilcompose/brush/LayerStyles.h' file not found
-src/sketch/sketches/phone_sky/phone_sky.cpp	src/sketch/sketches/phone_sky/phone_sky.cpp:310: no member named 'apply' in 'sigil::motion::Timeline'
-src/sketch/sketches/pixfont_dotsprite.cpp	src/sketch/sketches/pixfont_dotsprite.cpp:60: no viable conversion from 'Face' to 'const sk_sp<SkTypeface>'
-src/sketch/sketches/place_repeat_tiles.cpp	src/sketch/sketches/place_repeat_tiles.cpp:251: no viable conversion from 'const SkISize' to 'glm::vec2' (aka 'vec<2, float, defaultp>')
-src/sketch/sketches/pop_billboards.cpp	src/sketch/sketches/pop_billboards.cpp:138: no viable conversion from 'SkSize' to 'glm::vec2' (aka 'vec<2, float, defaultp>')
-src/sketch/sketches/pop_deform.cpp	src/sketch/sketches/pop_deform.cpp:95: no viable overloaded '='
-src/sketch/sketches/pop_order.cpp	src/sketch/sketches/pop_order.cpp:118: no viable conversion from 'const sk_sp<SkImage>' to 'media::Picture'
-src/sketch/sketches/pop_prims.cpp	src/sketch/sketches/pop_prims.cpp:189: no member named 'readout' in namespace 'sigil::sketch::kit'; did you mean 'sigil::compose::kit::readout'?
-src/sketch/sketches/pop_stamps.cpp	src/sketch/sketches/pop_stamps.cpp:141: no viable overloaded '='
-src/sketch/sketches/psx_doom_fire.cpp	src/sketch/sketches/psx_doom_fire.cpp:48: 'sigilcompose/kit/Kinetic.h' file not found
-src/sketch/sketches/rich_slot_reserve.cpp	src/sketch/sketches/rich_slot_reserve.cpp:41: no viable conversion from 'SkSize' to 'glm::vec2' (aka 'vec<2, float, defaultp>')
-src/sketch/sketches/rota_convocationis/rota_convocationis.cpp	src/sketch/sketches/rota_convocationis/rota_convocationis.cpp:22: 'sigilcompose/brush/LayerStyles.h' file not found
-src/sketch/sketches/ruby_kenten.cpp	src/sketch/sketches/tategaki/VerticalSpecimen.h:70: no viable conversion from returned value of type 'Face' to function return type 'sk_sp<SkTypeface>'
-src/sketch/sketches/scene_surfaces.cpp	src/sketch/sketches/scene_surfaces.cpp:333: no viable conversion from 'glm::vec2' (aka 'vec<2, float, defaultp>') to 'const SkPoint'
-src/sketch/sketches/set_stagger.cpp	src/sketch/sketches/set_stagger.cpp:84: no type named 'Spread' in namespace 'sigil::motion'
-src/sketch/sketches/shapeworks_lab/shapeworks_lab.cpp	src/sketch/sketches/shapeworks_lab/Reflections.h:13: 'sigilmaterial/core/Recipe.h' file not found
-src/sketch/sketches/shipping_forecast/shipping_forecast.cpp	src/sketch/sketches/shipping_forecast/shipping_forecast.cpp:55: 'sigilcompose/kit/Kinetic.h' file not found
-src/sketch/sketches/sigillum_aemeth/sigillum_aemeth.cpp	src/sketch/sketches/sigillum_aemeth/sigillum_aemeth.cpp:24: 'sigilcompose/brush/LayerStyles.h' file not found
-src/sketch/sketches/slang_portable/slang_portable.cpp	src/sketch/sketches/slang_portable/Stone.h:10: 'sigilmaterial/core/Recipe.h' file not found
-src/sketch/sketches/slitscan_2001/Exposure.cpp	src/sketch/sketches/slitscan_2001/Settings.h:27: 'sigilcompose/kit/Kinetic.h' file not found
-src/sketch/sketches/slitscan_2001/Panels.cpp	src/sketch/sketches/slitscan_2001/Settings.h:27: 'sigilcompose/kit/Kinetic.h' file not found
-src/sketch/sketches/slitscan_2001/Stage.cpp	src/sketch/sketches/slitscan_2001/Settings.h:27: 'sigilcompose/kit/Kinetic.h' file not found
-src/sketch/sketches/slitscan_2001/slitscan_2001.cpp	src/sketch/sketches/slitscan_2001/slitscan_2001.cpp:5: 'sigilgeometry/path/Skia.h' file not found
-src/sketch/sketches/spacejam_1996/spacejam_1996.cpp	src/sketch/sketches/spacejam_1996/Drawing.h:4: 'sigilgeometry/path/Skia.h' file not found
-src/sketch/sketches/spacing_passes.cpp	src/sketch/sketches/spacing_passes.cpp:79: no viable conversion from 'Face' to 'const sk_sp<SkTypeface>'
-src/sketch/sketches/sticker_collection.cpp	src/sketch/sketches/sticker_collection.cpp:85: use of undeclared identifier 'video'
-src/sketch/sketches/stock_materials.cpp	src/sketch/sketches/stock_materials.cpp:85: no matching member function for call to 'fill'
-src/sketch/sketches/stroke_atlas/stroke_atlas.cpp	src/sketch/sketches/stroke_atlas/Specimens.h:74: no viable conversion from returned value of type 'weave::Face' to function return type 'sk_sp<SkTypeface>'
-src/sketch/sketches/substance_swatches.cpp	src/sketch/sketches/substance_swatches.cpp:181: no viable conversion from 'Picture' to 'const sk_sp<SkImage>'
-src/sketch/sketches/surface_components.cpp	src/sketch/sketches/surface_components.cpp:17: 'sigilcompose/core/SurfacePaint.h' file not found
-src/sketch/sketches/tategaki/tategaki.cpp	src/sketch/sketches/tategaki/tategaki.cpp:41: 'sigilcompose/kit/Kinetic.h' file not found
-src/sketch/sketches/text_paints/text_paints.cpp	src/sketch/sketches/text_paints/../y2k_chrome/ChromeType.h:18: 'sigilgeometry/path/Skia.h' file not found
-src/sketch/sketches/text_wrap.cpp	src/sketch/sketches/text_wrap.cpp:58: no viable conversion from returned value of type 'Face' to function return type 'sk_sp<SkTypeface>'
-src/sketch/sketches/thaumonomicon/thaumonomicon.cpp	src/sketch/sketches/thaumonomicon/thaumonomicon.cpp:210: no matching member function for call to 'fill'
-src/sketch/sketches/threaded_story.cpp	src/sketch/sketches/threaded_story.cpp:88: no viable conversion from returned value of type 'Face' to function return type 'sk_sp<SkTypeface>'
-src/sketch/sketches/thunder_fulu/thunder_fulu.cpp	src/sketch/sketches/thunder_fulu/thunder_fulu.cpp:30: 'sigilgeometry/path/Skia.h' file not found
-src/sketch/sketches/ticker_lanes.cpp	src/sketch/sketches/ticker_lanes.cpp:142: no member named 'add' in 'sigil::motion::Engine'
-src/sketch/sketches/tile_map.cpp	src/sketch/sketches/tile_map.cpp:123: no viable conversion from 'sk_sp<SkImage>' to 'Picture'
-src/sketch/sketches/twoadvanced_equipment.cpp	src/sketch/sketches/twoadvanced_v3/TwoAdvanced.h:57: no viable conversion from returned value of type 'Face' to function return type 'sk_sp<SkTypeface>'
-src/sketch/sketches/twoadvanced_v3/Assets.cpp	src/sketch/sketches/twoadvanced_v3/Settings.h:16: 'sigilcompose/brush/LayerStyles.h' file not found
-src/sketch/sketches/twoadvanced_v3/Frame.cpp	src/sketch/sketches/twoadvanced_v3/Settings.h:16: 'sigilcompose/brush/LayerStyles.h' file not found
-src/sketch/sketches/twoadvanced_v3/Sections.cpp	src/sketch/sketches/twoadvanced_v3/Settings.h:16: 'sigilcompose/brush/LayerStyles.h' file not found
-src/sketch/sketches/twoadvanced_v3/twoadvanced_v3.cpp	src/sketch/sketches/twoadvanced_v3/Settings.h:16: 'sigilcompose/brush/LayerStyles.h' file not found
-src/sketch/sketches/twoadvanced_v4/Frame.cpp	src/sketch/sketches/twoadvanced_v4/Settings.h:6: 'sigilgeometry/path/Skia.h' file not found
-src/sketch/sketches/twoadvanced_v4/Hero.cpp	src/sketch/sketches/twoadvanced_v4/Settings.h:6: 'sigilgeometry/path/Skia.h' file not found
-src/sketch/sketches/twoadvanced_v4/Materials.cpp	src/sketch/sketches/twoadvanced_v4/Settings.h:6: 'sigilgeometry/path/Skia.h' file not found
-src/sketch/sketches/twoadvanced_v4/Modules.cpp	src/sketch/sketches/twoadvanced_v4/Settings.h:6: 'sigilgeometry/path/Skia.h' file not found
-src/sketch/sketches/twoadvanced_v4/twoadvanced_v4.cpp	src/sketch/sketches/twoadvanced_v4/Settings.h:6: 'sigilgeometry/path/Skia.h' file not found
-src/sketch/sketches/ui_particles/GiltBorder.cpp	src/sketch/sketches/ui_particles/Ornament.h:96: no member named 'width' in 'glm::vec<2, int>'
-src/sketch/sketches/ui_particles/Ornament.cpp	src/sketch/sketches/ui_particles/Ornament.h:96: no member named 'width' in 'glm::vec<2, int>'
-src/sketch/sketches/ui_particles/ui_particles.cpp	src/sketch/sketches/ui_particles/Ornament.h:96: no member named 'width' in 'glm::vec<2, int>'
-src/sketch/sketches/usd_roundtrip.cpp	src/sketch/sketches/usd_roundtrip.cpp:93: no type named 'LightKind' in namespace 'sigil::world::light'; did you mean 'sigil::material::LightKind'?
-src/sketch/sketches/vagrant_story_target.cpp	src/sketch/sketches/vagrant_story_target.cpp:409: no viable conversion from 'glm::vec2' (aka 'vec<2, float, defaultp>') to 'const SkPoint'
-src/sketch/sketches/vertigo_titles.cpp	src/sketch/sketches/vertigo_titles.cpp:136: 'sigilcompose/kit/Kinetic.h' file not found
-src/sketch/sketches/video_compose.cpp	src/sketch/sketches/video_compose.cpp:19: 'sigilcompose/video/Video.h' file not found
-src/sketch/sketches/video_compositing.cpp	src/sketch/sketches/video_compositing.cpp:82: use of undeclared identifier 'video'
-src/sketch/sketches/volatility_cost.cpp	src/sketch/sketches/volatility_cost.cpp:263: no member named 'add' in 'sigil::motion::Engine'
-src/sketch/sketches/warichu_placeholder.cpp	src/sketch/sketches/warichu_placeholder.cpp:80: no viable conversion from 'const SkSize' to 'glm::vec2' (aka 'vec<2, float, defaultp>')
-src/sketch/sketches/web_panel.cpp	src/sketch/sketches/web_panel.cpp:154: too many arguments to function call, expected 3, have 7
-src/sketch/sketches/webrtc_sky/webrtc_sky.cpp	src/sketch/sketches/webrtc_sky/webrtc_sky.cpp:360: no member named 'apply' in 'sigil::motion::Timeline'
-src/sketch/sketches/winamp_base/Equalizer.cpp	src/sketch/sketches/winamp_base/Settings.h:5: 'sigilgeometry/path/Skia.h' file not found
-src/sketch/sketches/winamp_base/Player.cpp	src/sketch/sketches/winamp_base/Settings.h:5: 'sigilgeometry/path/Skia.h' file not found
-src/sketch/sketches/winamp_base/Playlist.cpp	src/sketch/sketches/winamp_base/Settings.h:5: 'sigilgeometry/path/Skia.h' file not found
-src/sketch/sketches/winamp_base/Skin.cpp	src/sketch/sketches/winamp_base/Settings.h:5: 'sigilgeometry/path/Skia.h' file not found
-src/sketch/sketches/winamp_base/winamp_base.cpp	src/sketch/sketches/winamp_base/Settings.h:5: 'sigilgeometry/path/Skia.h' file not found
-src/sketch/sketches/world_hud/world_hud.cpp	src/sketch/sketches/world_hud/Hud.h:6: 'sigilcompose/brush/LayerStyles.h' file not found
-src/sketch/sketches/y2k_chrome/y2k_chrome.cpp	src/sketch/sketches/y2k_chrome/y2k_chrome.cpp:33: 'sigilcompose/brush/LayerStyles.h' file not found
-src/sketch/sketches/yarn_marquee.cpp	src/sketch/sketches/yarn_marquee.cpp:180: no viable conversion from 'const SkSize' to 'glm::vec2' (aka 'vec<2, float, defaultp>')
-src/sketch/sketches/zellige/zellige.cpp	src/sketch/sketches/zellige/zellige.cpp:33: 'sigilcompose/brush/LayerStyles.h' file not found
+apps/grimoire/sketches/aero_desktop/aero_desktop.cpp	apps/grimoire/sketches/aero_desktop/aero_desktop.cpp:36: 'sigilcompose/brush/LayerStyles.h' file not found
+apps/grimoire/sketches/annotated_margin.cpp	apps/grimoire/sketches/annotated_margin.cpp:38: 'sigilcompose/kit/Kinetic.h' file not found
+apps/grimoire/sketches/artnet_lights/artnet_lights.cpp	apps/grimoire/sketches/artnet_lights/artnet_lights.cpp:342: no member named 'apply' in 'sigil::motion::Timeline'
+apps/grimoire/sketches/astral_tome/astral_tome.cpp	apps/grimoire/sketches/astral_tome/astral_tome.cpp:5: 'sigilgeometry/path/Skia.h' file not found
+apps/grimoire/sketches/axis_ripple.cpp	apps/grimoire/sketches/axis_ripple.cpp:525: no member named 'add' in 'sigil::motion::Engine'
+apps/grimoire/sketches/beethoven.cpp	apps/grimoire/sketches/beethoven.cpp:43: 'sigilcompose/brush/LayerStyles.h' file not found
+apps/grimoire/sketches/bg3_dice_roll/bg3_dice_roll.cpp	apps/grimoire/sketches/bg3_dice_roll/bg3_dice_roll.cpp:28: 'sigilmotion/values/Transition.h' file not found
+apps/grimoire/sketches/black_watch/black_watch.cpp	apps/grimoire/sketches/black_watch/black_watch.cpp:19: 'sigilcompose/brush/LayerStyles.h' file not found
+apps/grimoire/sketches/blend_options.cpp	apps/grimoire/sketches/blend_options.cpp:173: no viable conversion from 'SkPath' to 'Outline'
+apps/grimoire/sketches/blur_falloff.cpp	apps/grimoire/sketches/blur_falloff.cpp:89: no member named 'shader' in 'sigil::material::Texture'
+apps/grimoire/sketches/border_weave.cpp	apps/grimoire/sketches/border_weave.cpp:151: no member named 'layerStyle' in 'sigil::compose::Element'
+apps/grimoire/sketches/bound_lane.cpp	apps/grimoire/sketches/bound_lane.cpp:60: 'sigilmotion/bind/BoundFloat.h' file not found
+apps/grimoire/sketches/bousen.cpp	apps/grimoire/sketches/bousen.cpp:44: 'sigilcompose/kit/Kinetic.h' file not found
+apps/grimoire/sketches/bristle_current.cpp	apps/grimoire/sketches/bristle_current.cpp:164: no member named 'addFixed' in 'sigil::motion::Engine'
+apps/grimoire/sketches/brush_botanical_study.cpp	apps/grimoire/sketches/brush_botanical_study.cpp:197: no viable conversion from 'const SkPoint' to 'glm::vec2' (aka 'vec<2, float, defaultp>')
+apps/grimoire/sketches/brush_engine_atlas.cpp	apps/grimoire/sketches/brush_engine_atlas.cpp:159: no matching member function for call to 'hatch'
+apps/grimoire/sketches/brush_live_tutorial.cpp	apps/grimoire/sketches/brush_live_tutorial.cpp:97: no viable conversion from 'const SkPoint' to 'glm::vec2' (aka 'vec<2, float, defaultp>')
+apps/grimoire/sketches/card_flip.cpp	apps/grimoire/sketches/card_flip.cpp:135: no member named 'add' in 'sigil::motion::Engine'
+apps/grimoire/sketches/cascade.cpp	apps/grimoire/sketches/cascade.cpp:242: no member named 'readout' in namespace 'sigil::sketch::kit'; did you mean 'sigil::compose::kit::readout'?
+apps/grimoire/sketches/cde_motif/cde_motif.cpp	apps/grimoire/sketches/cde_motif/Motif.h:391: no type named 'Stipple' in namespace 'sigil::compose::styles'
+apps/grimoire/sketches/channel_bind/channel_bind.cpp	apps/grimoire/sketches/channel_bind/channel_bind.cpp:221: no type named 'Bound' in namespace 'sigil::motion'
+apps/grimoire/sketches/chaucer_astrolabe/chaucer_astrolabe.cpp	apps/grimoire/sketches/chaucer_astrolabe/chaucer_astrolabe.cpp:16: 'sigilcompose/brush/LayerStyles.h' file not found
+apps/grimoire/sketches/chevreul_circle/chevreul_circle.cpp	apps/grimoire/sketches/chevreul_circle/chevreul_circle.cpp:103: no matching function for call to 'face'
+apps/grimoire/sketches/chladni_tab1/chladni_tab1.cpp	apps/grimoire/sketches/chladni_tab1/chladni_tab1.cpp:39: 'sigilcompose/brush/LayerStyles.h' file not found
+apps/grimoire/sketches/chrome_type.cpp	apps/grimoire/sketches/y2k_chrome/Aqua.h:19: 'sigilgeometry/path/Skia.h' file not found
+apps/grimoire/sketches/codec_roundtrip.cpp	apps/grimoire/sketches/codec_roundtrip.cpp:66: no viable conversion from 'Face' to 'const sk_sp<SkTypeface>'
+apps/grimoire/sketches/contour_poses.cpp	apps/grimoire/sketches/contour_poses.cpp:86: no member named 'path' in 'sigil::geometry::shapes::Radial'
+apps/grimoire/sketches/cosmati/Construction.cpp	apps/grimoire/sketches/cosmati/Construction.cpp:94: no viable conversion from returned value of type 'Outline' to function return type 'SkPath'
+apps/grimoire/sketches/cosmati/cosmati.cpp	apps/grimoire/sketches/cosmati/cosmati.cpp:32: 'sigilgeometry/path/Skia.h' file not found
+apps/grimoire/sketches/coverage_boundary.cpp	apps/grimoire/sketches/coverage_boundary.cpp:36: 'sigilcompose/brush/LayerStyles.h' file not found
+apps/grimoire/sketches/crossing_rule.cpp	apps/grimoire/sketches/crossing_rule.cpp:85: too many arguments to function call, expected 3, have 7
+apps/grimoire/sketches/crt_bloom/crt_bloom.cpp	apps/grimoire/sketches/crt_bloom/CrtOverlay.h:9: 'sigilmaterial/core/Recipe.h' file not found
+apps/grimoire/sketches/curve_shelf.cpp	apps/grimoire/sketches/curve_shelf.cpp:106: no matching function for call to 'parametric'
+apps/grimoire/sketches/daemon_console.cpp	apps/grimoire/sketches/daemon_console.cpp:66: 'sigilcompose/kit/Kinetic.h' file not found
+apps/grimoire/sketches/dart_flight.cpp	apps/grimoire/sketches/dart_flight.cpp:142: no viable conversion from 'float' to 'Duration' (aka 'duration<double>')
+apps/grimoire/sketches/data_sources/data_sources.cpp	apps/grimoire/sketches/data_sources/data_sources.cpp:46: no member named 'bars' in namespace 'sigil::sketch::kit'
+apps/grimoire/sketches/decay_step.cpp	apps/grimoire/sketches/decay_step.cpp:137: no member named 'spring' in namespace 'sigil::motion'; did you mean 'Spring'?
+apps/grimoire/sketches/draw_with_scope.cpp	apps/grimoire/sketches/draw_with_scope.cpp:113: no member named 'center' in 'sigil::geometry::path::Rect'
+apps/grimoire/sketches/ds2_bench/ds2_bench.cpp	apps/grimoire/sketches/ds2_bench/ds2_bench.cpp:18: 'sigilcompose/brush/LayerStyles.h' file not found
+apps/grimoire/sketches/dunhuang_star_chart/dunhuang_star_chart.cpp	apps/grimoire/sketches/dunhuang_star_chart/Board.h:10: 'sigilmaterial/core/Recipe.h' file not found
+apps/grimoire/sketches/elastic_type.cpp	apps/grimoire/sketches/elastic_type.cpp:194: no member named 'Key' in namespace 'sigil::compose::textFx'
+apps/grimoire/sketches/ember_decode/ember_decode.cpp	apps/grimoire/sketches/ember_decode/ember_decode.cpp:68: 'sigilcompose/kit/Kinetic.h' file not found
+apps/grimoire/sketches/encode_write.cpp	apps/grimoire/sketches/encode_write.cpp:100: no matching function for call to 'encode'
+apps/grimoire/sketches/env_faces.cpp	apps/grimoire/sketches/shapeworks_lab/Reflections.h:13: 'sigilmaterial/core/Recipe.h' file not found
+apps/grimoire/sketches/eva_magi_defense/eva_magi_defense.cpp	apps/grimoire/sketches/eva_magi_defense/eva_magi_defense.cpp:11: 'sigilgeometry/path/Skia.h' file not found
+apps/grimoire/sketches/eva_magi_deliberation.cpp	apps/grimoire/sketches/eva_magi_interior/Crt.h:12: 'sigilmaterial/core/Recipe.h' file not found
+apps/grimoire/sketches/eva_magi_interior/eva_magi_interior.cpp	apps/grimoire/sketches/eva_magi_interior/Crt.h:12: 'sigilmaterial/core/Recipe.h' file not found
+apps/grimoire/sketches/exact_tangent.cpp	apps/grimoire/sketches/exact_tangent.cpp:107: no member named 'image' in 'sigil::material::Texture'
+apps/grimoire/sketches/exr_channels.cpp	apps/grimoire/sketches/exr_channels.cpp:98: no matching function for call to 'encode'
+apps/grimoire/sketches/fallout2_charsheet/fallout2_charsheet.cpp	apps/grimoire/sketches/fallout2_charsheet/fallout2_charsheet.cpp:20: 'sigilcompose/brush/LayerStyles.h' file not found
+apps/grimoire/sketches/feed_events/feed_events.cpp	apps/grimoire/sketches/feed_events/feed_events.cpp:245: no member named 'apply' in 'sigil::motion::Timeline'
+apps/grimoire/sketches/feed_sky/feed_sky.cpp	apps/grimoire/sketches/feed_sky/feed_sky.cpp:248: unknown type name 'SurfacePaint'
+apps/grimoire/sketches/field_shelf.cpp	apps/grimoire/sketches/field_shelf.cpp:70: no viable conversion from '(lambda at /Users/long/REI/ifrit-protocol/apps/grimoire/sketches/field_shelf.cpp:70:84)' to 'std::function<Picture ()>'
+apps/grimoire/sketches/first_light.cpp	apps/grimoire/sketches/first_light.cpp:72: no viable conversion from 'float' to 'Duration' (aka 'duration<double>')
+apps/grimoire/sketches/floating_panels.cpp	apps/grimoire/sketches/floating_panels.cpp:166: no viable conversion from 'const SkSize' to 'glm::vec2' (aka 'vec<2, float, defaultp>')
+apps/grimoire/sketches/flourish/GiltBorder.cpp	apps/grimoire/sketches/flourish/Ornament.h:68: no member named 'width' in 'glm::vec<2, int>'
+apps/grimoire/sketches/flourish/Ornament.cpp	apps/grimoire/sketches/flourish/Ornament.h:68: no member named 'width' in 'glm::vec<2, int>'
+apps/grimoire/sketches/flourish/flourish.cpp	apps/grimoire/sketches/flourish/flourish.cpp:24: 'sigilgeometry/path/Skia.h' file not found
+apps/grimoire/sketches/formation_bands.cpp	apps/grimoire/sketches/formation_bands.cpp:84: no member named 'path' in 'sigil::geometry::shapes::Radial'
+apps/grimoire/sketches/frame_grid.cpp	apps/grimoire/sketches/frame_grid.cpp:86: no member named 'fX' in 'glm::vec<2, float>'
+apps/grimoire/sketches/frame_inputs/frame_inputs.cpp	apps/grimoire/sketches/frame_inputs/frame_inputs.cpp:17: 'sigilmaterial/core/Recipe.h' file not found
+apps/grimoire/sketches/fx_scatter_mix.cpp	apps/grimoire/sketches/fx_scatter_mix.cpp:39: 'sigilcompose/kit/Kinetic.h' file not found
+apps/grimoire/sketches/genesis_fire/Panels.cpp	apps/grimoire/sketches/genesis_fire/Settings.h:17: 'sigilcompose/kit/Kinetic.h' file not found
+apps/grimoire/sketches/genesis_fire/Simulation.cpp	apps/grimoire/sketches/genesis_fire/Settings.h:17: 'sigilcompose/kit/Kinetic.h' file not found
+apps/grimoire/sketches/genesis_fire/Stage.cpp	apps/grimoire/sketches/genesis_fire/Settings.h:17: 'sigilcompose/kit/Kinetic.h' file not found
+apps/grimoire/sketches/genesis_fire/genesis_fire.cpp	apps/grimoire/sketches/genesis_fire/Settings.h:17: 'sigilcompose/kit/Kinetic.h' file not found
+apps/grimoire/sketches/geo_groups.cpp	apps/grimoire/sketches/geo_groups.cpp:120: no viable conversion from 'const std::shared_ptr<const media::Image>' to 'media::Picture'
+apps/grimoire/sketches/gerstner_grid.cpp	apps/grimoire/sketches/gerstner_grid.cpp:140: no viable conversion from 'float' to 'glm::vec2' (aka 'vec<2, float, defaultp>')
+apps/grimoire/sketches/gif_frames.cpp	apps/grimoire/sketches/gif_frames.cpp:90: no matching function for call to 'probe'
+apps/grimoire/sketches/glow_trail.cpp	apps/grimoire/sketches/glow_trail.cpp:68: no viable conversion from 'float' to 'Duration' (aka 'duration<double>')
+apps/grimoire/sketches/grid_layouts.cpp	apps/grimoire/sketches/grid_layouts.cpp:144: no member named 'readout' in namespace 'sigil::sketch::kit'; did you mean 'sigil::compose::kit::readout'?
+apps/grimoire/sketches/grpc_watch/grpc_watch.cpp	apps/grimoire/sketches/grpc_watch/grpc_watch.cpp:298: no member named 'apply' in 'sigil::motion::Timeline'
+apps/grimoire/sketches/guest_picture/guest_picture.cpp	apps/grimoire/sketches/guest_picture/guest_picture.cpp:175: no matching function for call to 'fitted'
+apps/grimoire/sketches/hello.cpp	apps/grimoire/sketches/hello.cpp:134: no member named 'add' in 'sigil::motion::Engine'
+apps/grimoire/sketches/hit_slots.cpp	apps/grimoire/sketches/hit_slots.cpp:70: 'sigilsketch/kit/Rows.h' file not found
+apps/grimoire/sketches/hitman_verlet/Panels.cpp	apps/grimoire/sketches/hitman_verlet/Settings.h:11: 'sigilcompose/kit/Kinetic.h' file not found
+apps/grimoire/sketches/hitman_verlet/Rigs.cpp	apps/grimoire/sketches/hitman_verlet/Settings.h:11: 'sigilcompose/kit/Kinetic.h' file not found
+apps/grimoire/sketches/hitman_verlet/Solver.cpp	apps/grimoire/sketches/hitman_verlet/Settings.h:11: 'sigilcompose/kit/Kinetic.h' file not found
+apps/grimoire/sketches/hitman_verlet/Stage.cpp	apps/grimoire/sketches/hitman_verlet/Settings.h:11: 'sigilcompose/kit/Kinetic.h' file not found
+apps/grimoire/sketches/hitman_verlet/hitman_verlet.cpp	apps/grimoire/sketches/hitman_verlet/Settings.h:11: 'sigilcompose/kit/Kinetic.h' file not found
+apps/grimoire/sketches/hub_reload.cpp	apps/grimoire/sketches/hub_reload.cpp:98: no matching function for call to 'encode'
+apps/grimoire/sketches/import_native.cpp	apps/grimoire/sketches/import_native.cpp:267: no matching conversion for functional-style cast from 'sk_sp<SkImage>' to 'material::Texture'
+apps/grimoire/sketches/ink_units.cpp	apps/grimoire/sketches/ink_units.cpp:44: no matching member function for call to 'ink'
+apps/grimoire/sketches/karaoke_wipe/karaoke_wipe.cpp	apps/grimoire/sketches/karaoke_wipe/karaoke_wipe.cpp:124: 'sigilcompose/kit/Kinetic.h' file not found
+apps/grimoire/sketches/key_light.cpp	apps/grimoire/sketches/key_light.cpp:73: no viable conversion from 'glm::vec2' (aka 'vec<2, float, defaultp>') to 'const SkPoint'
+apps/grimoire/sketches/kinetic_card.cpp	apps/grimoire/sketches/kinetic_card.cpp:52: 'sigilcompose/kit/Kinetic.h' file not found
+apps/grimoire/sketches/ksp_mapview/ksp_mapview.cpp	apps/grimoire/sketches/ksp_mapview/Globe.h:11: 'sigilmaterial/core/Recipe.h' file not found
+apps/grimoire/sketches/kumiko_asanoha/kumiko_asanoha.cpp	apps/grimoire/sketches/kumiko_asanoha/kumiko_asanoha.cpp:14: 'sigilcompose/brush/LayerStyles.h' file not found
+apps/grimoire/sketches/lain_navi/lain_navi.cpp	apps/grimoire/sketches/lain_navi/CrtBeam.h:10: 'sigilmaterial/core/Recipe.h' file not found
+apps/grimoire/sketches/lane_retarget.cpp	apps/grimoire/sketches/lane_retarget.cpp:83: no type named 'Transition' in namespace 'sigil::motion'
+apps/grimoire/sketches/lantern_room.cpp	apps/grimoire/sketches/lantern_room.cpp:149: no viable conversion from 'glm::vec2' (aka 'vec<2, float, defaultp>') to 'const SkPoint'
+apps/grimoire/sketches/live_settling.cpp	apps/grimoire/sketches/live_settling.cpp:85: no viable conversion from 'Face' to 'const sk_sp<SkTypeface>'
+apps/grimoire/sketches/loot_grid/loot_grid.cpp	apps/grimoire/sketches/loot_grid/Inventory.h:5: 'sigilcompose/brush/LayerStyles.h' file not found
+apps/grimoire/sketches/manuscript/Ornament.cpp	apps/grimoire/sketches/manuscript/Ornament.h:94: no matching constructor for initialization of 'material::Material'
+apps/grimoire/sketches/manuscript/manuscript.cpp	apps/grimoire/sketches/manuscript/Ornament.h:94: no matching constructor for initialization of 'material::Material'
+apps/grimoire/sketches/material_atlas.cpp	apps/grimoire/sketches/material_atlas.cpp:81: no viable conversion from 'path::Rect' to 'const SkRect'
+apps/grimoire/sketches/material_lab.cpp	apps/grimoire/sketches/material_lab.cpp:56: 'sigilmaterial/core/Combine.h' file not found
+apps/grimoire/sketches/material_slots/material_slots.cpp	apps/grimoire/sketches/material_slots/material_slots.cpp:54: 'sigilmaterial/core/Combine.h' file not found
+apps/grimoire/sketches/matrix_rain/matrix_rain.cpp	apps/grimoire/sketches/matrix_rain/matrix_rain.cpp:124: no viable conversion from 'unsigned int' to 'material::Color'
+apps/grimoire/sketches/matte_luma.cpp	apps/grimoire/sketches/matte_luma.cpp:161: no matching function for call to 'well'
+apps/grimoire/sketches/mawarikomi.cpp	apps/grimoire/sketches/tategaki/VerticalSpecimen.h:70: no viable conversion from returned value of type 'Face' to function return type 'sk_sp<SkTypeface>'
+apps/grimoire/sketches/mesh_generators.cpp	apps/grimoire/sketches/mesh_generators.cpp:134: no member named 'toSkColor' in namespace 'sigil::material::skia'; did you mean 'SkColor'?
+apps/grimoire/sketches/mesh_normal_bridge.cpp	apps/grimoire/sketches/shapeworks_lab/Reflections.h:13: 'sigilmaterial/core/Recipe.h' file not found
+apps/grimoire/sketches/midi_pads/midi_pads.cpp	apps/grimoire/sketches/midi_pads/midi_pads.cpp:304: no member named 'apply' in 'sigil::motion::Timeline'
+apps/grimoire/sketches/minard_1869/minard_1869.cpp	apps/grimoire/sketches/minard_1869/minard_1869.cpp:184: no matching function for call to 'face'
+apps/grimoire/sketches/net_policy.cpp	apps/grimoire/sketches/net_policy.cpp:60: no member named 'toSkColor' in namespace 'sigil::material::skia'; did you mean 'SkColor'?
+apps/grimoire/sketches/night_network.cpp	apps/grimoire/sketches/night_network.cpp:207: expected namespace name
+apps/grimoire/sketches/nightingale_coxcomb/nightingale_coxcomb.cpp	apps/grimoire/sketches/nightingale_coxcomb/nightingale_coxcomb.cpp:47: 'sigilcompose/brush/LayerStyles.h' file not found
+apps/grimoire/sketches/nine_slice/Ornament.cpp	apps/grimoire/sketches/nine_slice/Ornament.h:77: no member named 'width' in 'glm::vec<2, int>'
+apps/grimoire/sketches/nine_slice/nine_slice.cpp	apps/grimoire/sketches/nine_slice/Ornament.h:77: no member named 'width' in 'glm::vec<2, int>'
+apps/grimoire/sketches/noise_shelf.cpp	apps/grimoire/sketches/noise_shelf.cpp:98: no viable conversion from 'path::Rect' to 'const SkRect'
+apps/grimoire/sketches/ocio_view.cpp	apps/grimoire/sketches/ocio_view.cpp:89: no member named 'toSkColor' in namespace 'sigil::material::skia'; did you mean 'SkColor'?
+apps/grimoire/sketches/optical_kerning.cpp	apps/grimoire/sketches/optical_kerning.cpp:79: no viable conversion from 'Face' to 'const sk_sp<SkTypeface>'
+apps/grimoire/sketches/osc_desk/osc_desk.cpp	apps/grimoire/sketches/osc_desk/osc_desk.cpp:249: no member named 'apply' in 'sigil::motion::Timeline'
+apps/grimoire/sketches/over_under/over_under.cpp	apps/grimoire/sketches/over_under/over_under.cpp:41: 'sigilmaterial/core/Combine.h' file not found
+apps/grimoire/sketches/p5_attractor_loom/p5_attractor_loom.cpp	apps/grimoire/sketches/p5_attractor_loom/p5_attractor_loom.cpp:46: no matching function for call to 'from'
+apps/grimoire/sketches/p5_flow_field/p5_flow_field.cpp	apps/grimoire/sketches/p5_flow_field/p5_flow_field.cpp:87: no viable conversion from 'glm::vec2' (aka 'vec<2, float, defaultp>') to 'const SkSize'
+apps/grimoire/sketches/p5_fractal_garden/p5_fractal_garden.cpp	apps/grimoire/sketches/p5_fractal_garden/p5_fractal_garden.cpp:49: no matching function for call to 'from'
+apps/grimoire/sketches/p5_liquid_layers.cpp	apps/grimoire/sketches/p5_liquid_layers.cpp:50: no matching function for call to 'from'
+apps/grimoire/sketches/paint_boxes.cpp	apps/grimoire/sketches/paint_boxes.cpp:55: no matching member function for call to 'ink'
+apps/grimoire/sketches/paint_shelf.cpp	apps/grimoire/sketches/paint_shelf.cpp:95: no matching member function for call to 'fill'
+apps/grimoire/sketches/painter_gpu.cpp	apps/grimoire/sketches/painter_gpu.cpp:112: no viable conversion from 'const SkSize' to 'glm::vec2' (aka 'vec<2, float, defaultp>')
+apps/grimoire/sketches/paragraph_sheet.cpp	apps/grimoire/sketches/paragraph_sheet.cpp:93: no viable conversion from returned value of type 'Face' to function return type 'sk_sp<SkTypeface>'
+apps/grimoire/sketches/passive_tree/passive_tree.cpp	apps/grimoire/sketches/passive_tree/passive_tree.cpp:59: 'sigilcompose/brush/LayerStyles.h' file not found
+apps/grimoire/sketches/path_booleans.cpp	apps/grimoire/sketches/path_booleans.cpp:120: no matching function for call to object of type 'const operations::PathOperation' (aka 'const function<Outline (const Outline &)>')
+apps/grimoire/sketches/pattern_sequence.cpp	apps/grimoire/sketches/pattern_sequence.cpp:94: no matching function for call to 'well'
+apps/grimoire/sketches/penrose_paving/penrose_paving.cpp	apps/grimoire/sketches/penrose_paving/penrose_paving.cpp:16: 'sigilcompose/brush/LayerStyles.h' file not found
+apps/grimoire/sketches/persona_menu/persona_menu.cpp	apps/grimoire/sketches/persona_menu/persona_menu.cpp:51: 'sigilcompose/brush/LayerStyles.h' file not found
+apps/grimoire/sketches/phone_sky/phone_sky.cpp	apps/grimoire/sketches/phone_sky/phone_sky.cpp:310: no member named 'apply' in 'sigil::motion::Timeline'
+apps/grimoire/sketches/pixfont_dotsprite.cpp	apps/grimoire/sketches/pixfont_dotsprite.cpp:60: no viable conversion from 'Face' to 'const sk_sp<SkTypeface>'
+apps/grimoire/sketches/place_repeat_tiles.cpp	apps/grimoire/sketches/place_repeat_tiles.cpp:251: no viable conversion from 'const SkISize' to 'glm::vec2' (aka 'vec<2, float, defaultp>')
+apps/grimoire/sketches/pop_billboards.cpp	apps/grimoire/sketches/pop_billboards.cpp:138: no viable conversion from 'SkSize' to 'glm::vec2' (aka 'vec<2, float, defaultp>')
+apps/grimoire/sketches/pop_deform.cpp	apps/grimoire/sketches/pop_deform.cpp:95: no viable overloaded '='
+apps/grimoire/sketches/pop_order.cpp	apps/grimoire/sketches/pop_order.cpp:118: no viable conversion from 'const sk_sp<SkImage>' to 'media::Picture'
+apps/grimoire/sketches/pop_prims.cpp	apps/grimoire/sketches/pop_prims.cpp:189: no member named 'readout' in namespace 'sigil::sketch::kit'; did you mean 'sigil::compose::kit::readout'?
+apps/grimoire/sketches/pop_stamps.cpp	apps/grimoire/sketches/pop_stamps.cpp:141: no viable overloaded '='
+apps/grimoire/sketches/psx_doom_fire.cpp	apps/grimoire/sketches/psx_doom_fire.cpp:48: 'sigilcompose/kit/Kinetic.h' file not found
+apps/grimoire/sketches/rich_slot_reserve.cpp	apps/grimoire/sketches/rich_slot_reserve.cpp:41: no viable conversion from 'SkSize' to 'glm::vec2' (aka 'vec<2, float, defaultp>')
+apps/grimoire/sketches/rota_convocationis/rota_convocationis.cpp	apps/grimoire/sketches/rota_convocationis/rota_convocationis.cpp:22: 'sigilcompose/brush/LayerStyles.h' file not found
+apps/grimoire/sketches/ruby_kenten.cpp	apps/grimoire/sketches/tategaki/VerticalSpecimen.h:70: no viable conversion from returned value of type 'Face' to function return type 'sk_sp<SkTypeface>'
+apps/grimoire/sketches/scene_surfaces.cpp	apps/grimoire/sketches/scene_surfaces.cpp:333: no viable conversion from 'glm::vec2' (aka 'vec<2, float, defaultp>') to 'const SkPoint'
+apps/grimoire/sketches/set_stagger.cpp	apps/grimoire/sketches/set_stagger.cpp:84: no type named 'Spread' in namespace 'sigil::motion'
+apps/grimoire/sketches/shapeworks_lab/shapeworks_lab.cpp	apps/grimoire/sketches/shapeworks_lab/Reflections.h:13: 'sigilmaterial/core/Recipe.h' file not found
+apps/grimoire/sketches/shipping_forecast/shipping_forecast.cpp	apps/grimoire/sketches/shipping_forecast/shipping_forecast.cpp:55: 'sigilcompose/kit/Kinetic.h' file not found
+apps/grimoire/sketches/sigillum_aemeth/sigillum_aemeth.cpp	apps/grimoire/sketches/sigillum_aemeth/sigillum_aemeth.cpp:24: 'sigilcompose/brush/LayerStyles.h' file not found
+apps/grimoire/sketches/slang_portable/slang_portable.cpp	apps/grimoire/sketches/slang_portable/Stone.h:10: 'sigilmaterial/core/Recipe.h' file not found
+apps/grimoire/sketches/slitscan_2001/Exposure.cpp	apps/grimoire/sketches/slitscan_2001/Settings.h:27: 'sigilcompose/kit/Kinetic.h' file not found
+apps/grimoire/sketches/slitscan_2001/Panels.cpp	apps/grimoire/sketches/slitscan_2001/Settings.h:27: 'sigilcompose/kit/Kinetic.h' file not found
+apps/grimoire/sketches/slitscan_2001/Stage.cpp	apps/grimoire/sketches/slitscan_2001/Settings.h:27: 'sigilcompose/kit/Kinetic.h' file not found
+apps/grimoire/sketches/slitscan_2001/slitscan_2001.cpp	apps/grimoire/sketches/slitscan_2001/slitscan_2001.cpp:5: 'sigilgeometry/path/Skia.h' file not found
+apps/grimoire/sketches/spacejam_1996/spacejam_1996.cpp	apps/grimoire/sketches/spacejam_1996/Drawing.h:4: 'sigilgeometry/path/Skia.h' file not found
+apps/grimoire/sketches/spacing_passes.cpp	apps/grimoire/sketches/spacing_passes.cpp:79: no viable conversion from 'Face' to 'const sk_sp<SkTypeface>'
+apps/grimoire/sketches/sticker_collection.cpp	apps/grimoire/sketches/sticker_collection.cpp:85: use of undeclared identifier 'video'
+apps/grimoire/sketches/stock_materials.cpp	apps/grimoire/sketches/stock_materials.cpp:85: no matching member function for call to 'fill'
+apps/grimoire/sketches/stroke_atlas/stroke_atlas.cpp	apps/grimoire/sketches/stroke_atlas/Specimens.h:74: no viable conversion from returned value of type 'weave::Face' to function return type 'sk_sp<SkTypeface>'
+apps/grimoire/sketches/substance_swatches.cpp	apps/grimoire/sketches/substance_swatches.cpp:181: no viable conversion from 'Picture' to 'const sk_sp<SkImage>'
+apps/grimoire/sketches/surface_components.cpp	apps/grimoire/sketches/surface_components.cpp:17: 'sigilcompose/core/SurfacePaint.h' file not found
+apps/grimoire/sketches/tategaki/tategaki.cpp	apps/grimoire/sketches/tategaki/tategaki.cpp:41: 'sigilcompose/kit/Kinetic.h' file not found
+apps/grimoire/sketches/text_paints/text_paints.cpp	apps/grimoire/sketches/text_paints/../y2k_chrome/ChromeType.h:18: 'sigilgeometry/path/Skia.h' file not found
+apps/grimoire/sketches/text_wrap.cpp	apps/grimoire/sketches/text_wrap.cpp:58: no viable conversion from returned value of type 'Face' to function return type 'sk_sp<SkTypeface>'
+apps/grimoire/sketches/thaumonomicon/thaumonomicon.cpp	apps/grimoire/sketches/thaumonomicon/thaumonomicon.cpp:210: no matching member function for call to 'fill'
+apps/grimoire/sketches/threaded_story.cpp	apps/grimoire/sketches/threaded_story.cpp:88: no viable conversion from returned value of type 'Face' to function return type 'sk_sp<SkTypeface>'
+apps/grimoire/sketches/thunder_fulu/thunder_fulu.cpp	apps/grimoire/sketches/thunder_fulu/thunder_fulu.cpp:30: 'sigilgeometry/path/Skia.h' file not found
+apps/grimoire/sketches/ticker_lanes.cpp	apps/grimoire/sketches/ticker_lanes.cpp:142: no member named 'add' in 'sigil::motion::Engine'
+apps/grimoire/sketches/tile_map.cpp	apps/grimoire/sketches/tile_map.cpp:123: no viable conversion from 'sk_sp<SkImage>' to 'Picture'
+apps/grimoire/sketches/twoadvanced_equipment.cpp	apps/grimoire/sketches/twoadvanced_v3/TwoAdvanced.h:57: no viable conversion from returned value of type 'Face' to function return type 'sk_sp<SkTypeface>'
+apps/grimoire/sketches/twoadvanced_v3/Assets.cpp	apps/grimoire/sketches/twoadvanced_v3/Settings.h:16: 'sigilcompose/brush/LayerStyles.h' file not found
+apps/grimoire/sketches/twoadvanced_v3/Frame.cpp	apps/grimoire/sketches/twoadvanced_v3/Settings.h:16: 'sigilcompose/brush/LayerStyles.h' file not found
+apps/grimoire/sketches/twoadvanced_v3/Sections.cpp	apps/grimoire/sketches/twoadvanced_v3/Settings.h:16: 'sigilcompose/brush/LayerStyles.h' file not found
+apps/grimoire/sketches/twoadvanced_v3/twoadvanced_v3.cpp	apps/grimoire/sketches/twoadvanced_v3/Settings.h:16: 'sigilcompose/brush/LayerStyles.h' file not found
+apps/grimoire/sketches/twoadvanced_v4/Frame.cpp	apps/grimoire/sketches/twoadvanced_v4/Settings.h:6: 'sigilgeometry/path/Skia.h' file not found
+apps/grimoire/sketches/twoadvanced_v4/Hero.cpp	apps/grimoire/sketches/twoadvanced_v4/Settings.h:6: 'sigilgeometry/path/Skia.h' file not found
+apps/grimoire/sketches/twoadvanced_v4/Materials.cpp	apps/grimoire/sketches/twoadvanced_v4/Settings.h:6: 'sigilgeometry/path/Skia.h' file not found
+apps/grimoire/sketches/twoadvanced_v4/Modules.cpp	apps/grimoire/sketches/twoadvanced_v4/Settings.h:6: 'sigilgeometry/path/Skia.h' file not found
+apps/grimoire/sketches/twoadvanced_v4/twoadvanced_v4.cpp	apps/grimoire/sketches/twoadvanced_v4/Settings.h:6: 'sigilgeometry/path/Skia.h' file not found
+apps/grimoire/sketches/ui_particles/GiltBorder.cpp	apps/grimoire/sketches/ui_particles/Ornament.h:96: no member named 'width' in 'glm::vec<2, int>'
+apps/grimoire/sketches/ui_particles/Ornament.cpp	apps/grimoire/sketches/ui_particles/Ornament.h:96: no member named 'width' in 'glm::vec<2, int>'
+apps/grimoire/sketches/ui_particles/ui_particles.cpp	apps/grimoire/sketches/ui_particles/Ornament.h:96: no member named 'width' in 'glm::vec<2, int>'
+apps/grimoire/sketches/usd_roundtrip.cpp	apps/grimoire/sketches/usd_roundtrip.cpp:93: no type named 'LightKind' in namespace 'sigil::world::light'; did you mean 'sigil::material::LightKind'?
+apps/grimoire/sketches/vagrant_story_target.cpp	apps/grimoire/sketches/vagrant_story_target.cpp:409: no viable conversion from 'glm::vec2' (aka 'vec<2, float, defaultp>') to 'const SkPoint'
+apps/grimoire/sketches/vertigo_titles.cpp	apps/grimoire/sketches/vertigo_titles.cpp:136: 'sigilcompose/kit/Kinetic.h' file not found
+apps/grimoire/sketches/video_compose.cpp	apps/grimoire/sketches/video_compose.cpp:19: 'sigilcompose/video/Video.h' file not found
+apps/grimoire/sketches/video_compositing.cpp	apps/grimoire/sketches/video_compositing.cpp:82: use of undeclared identifier 'video'
+apps/grimoire/sketches/volatility_cost.cpp	apps/grimoire/sketches/volatility_cost.cpp:263: no member named 'add' in 'sigil::motion::Engine'
+apps/grimoire/sketches/warichu_placeholder.cpp	apps/grimoire/sketches/warichu_placeholder.cpp:80: no viable conversion from 'const SkSize' to 'glm::vec2' (aka 'vec<2, float, defaultp>')
+apps/grimoire/sketches/web_panel.cpp	apps/grimoire/sketches/web_panel.cpp:154: too many arguments to function call, expected 3, have 7
+apps/grimoire/sketches/webrtc_sky/webrtc_sky.cpp	apps/grimoire/sketches/webrtc_sky/webrtc_sky.cpp:360: no member named 'apply' in 'sigil::motion::Timeline'
+apps/grimoire/sketches/winamp_base/Equalizer.cpp	apps/grimoire/sketches/winamp_base/Settings.h:5: 'sigilgeometry/path/Skia.h' file not found
+apps/grimoire/sketches/winamp_base/Player.cpp	apps/grimoire/sketches/winamp_base/Settings.h:5: 'sigilgeometry/path/Skia.h' file not found
+apps/grimoire/sketches/winamp_base/Playlist.cpp	apps/grimoire/sketches/winamp_base/Settings.h:5: 'sigilgeometry/path/Skia.h' file not found
+apps/grimoire/sketches/winamp_base/Skin.cpp	apps/grimoire/sketches/winamp_base/Settings.h:5: 'sigilgeometry/path/Skia.h' file not found
+apps/grimoire/sketches/winamp_base/winamp_base.cpp	apps/grimoire/sketches/winamp_base/Settings.h:5: 'sigilgeometry/path/Skia.h' file not found
+apps/grimoire/sketches/world_hud/world_hud.cpp	apps/grimoire/sketches/world_hud/Hud.h:6: 'sigilcompose/brush/LayerStyles.h' file not found
+apps/grimoire/sketches/y2k_chrome/y2k_chrome.cpp	apps/grimoire/sketches/y2k_chrome/y2k_chrome.cpp:33: 'sigilcompose/brush/LayerStyles.h' file not found
+apps/grimoire/sketches/yarn_marquee.cpp	apps/grimoire/sketches/yarn_marquee.cpp:180: no viable conversion from 'const SkSize' to 'glm::vec2' (aka 'vec<2, float, defaultp>')
+apps/grimoire/sketches/zellige/zellige.cpp	apps/grimoire/sketches/zellige/zellige.cpp:33: 'sigilcompose/brush/LayerStyles.h' file not found

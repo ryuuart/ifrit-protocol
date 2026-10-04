@@ -61,7 +61,7 @@ A sketch is C++ or Python, and the two spell the same API:
 
 ```sh
 # open a C++ or Python sketch live, hot-swapping on save
-build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook path/to/sketch.cpp
+build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire path/to/sketch.cpp
 
 # render one still, headless
 sigil render sketch.py --output preview.png --at 2

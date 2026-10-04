@@ -6,11 +6,11 @@
 to the listeners of its method. Whatever carries the text — a socket, or a
 host in the same process — speaks it the same way.
 
-``connect(address)`` attaches to a running host — Sketchbook, Seer, the
+``connect(address)`` attaches to a running host — Grimoire, Seer, the
 receiver — at ``ws://127.0.0.1:PORT/sigil`` or through the state directory
 whose ``protocol-address`` names it, reads the definition the host serves at
 ``/protocol``, and refuses a host built from a definition that breaks this
-client. ``launch(state=…)`` starts a headless Sketchbook serving the protocol
+client. ``launch(state=…)`` starts a headless Grimoire serving the protocol
 under a state directory and connects to it; closing the connection ends the
 process.
 """
@@ -339,17 +339,15 @@ def launch(
     port: int = 0,
     timeout: float = 120.0,
 ) -> Connection:
-    """Starts a headless Sketchbook serving the protocol under @p state — a
+    """Starts a headless Grimoire serving the protocol under @p state — a
     directory of its own where none is named — and connects to it once its
-    address file is written. @p executable is Sketchbook's own, or the one
-    ``SIGIL_SKETCHBOOK`` or the path names. Closing the connection ends the
+    address file is written. @p executable is Grimoire's own, or the one
+    ``SIGIL_GRIMOIRE`` or the path names. Closing the connection ends the
     process."""
-    program = (
-        executable or os.environ.get("SIGIL_SKETCHBOOK") or shutil.which("Sketchbook")
-    )
+    program = executable or os.environ.get("SIGIL_GRIMOIRE") or shutil.which("Grimoire")
     if not program:
         raise FileNotFoundError(
-            "Sketchbook was not found: pass executable=, or set SIGIL_SKETCHBOOK"
+            "Grimoire was not found: pass executable=, or set SIGIL_GRIMOIRE"
         )
     root = (
         pathlib.Path(state)
@@ -369,14 +367,12 @@ def launch(
     while not (address_file.exists() and address_file.read_text().strip()):
         if process.poll() is not None:
             raise ConnectionError(
-                f"Sketchbook ended with status {process.returncode} before it listened"
+                f"Grimoire ended with status {process.returncode} before it listened"
             )
         if time.monotonic() > deadline:
             process.kill()
             process.wait()
-            raise TimeoutError(
-                f"Sketchbook wrote no address under {root} in {timeout} s"
-            )
+            raise TimeoutError(f"Grimoire wrote no address under {root} in {timeout} s")
         time.sleep(0.05)
     try:
         return Connection(

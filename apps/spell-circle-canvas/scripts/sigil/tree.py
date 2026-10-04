@@ -1,7 +1,7 @@
 """Where the build tree is, and how a verb talks to it.
 
 Every verb needs some of the same arithmetic — which directory a preset
-builds into, where a configuration's binaries land, where Sketchbook is
+builds into, where a configuration's binaries land, where Grimoire is
 inside its bundle, what Qt prefix the presets recorded, what tests a
 configured tree registers — and a copy per verb is a copy that can
 disagree. This is that arithmetic, once. It is a module, not a verb: it
@@ -35,9 +35,9 @@ USER_PRESETS = PROJECT_DIR / "CMakeUserPresets.json"
 # downloads normally.
 ASSET_CACHE_DIR = Path.home() / ".local" / "opt" / "vcpkg-assets"
 
-# Sketchbook is an app bundle, so every headless run goes through the
+# Grimoire is an app bundle, so every headless run goes through the
 # binary inside it rather than the bundle.
-SKETCHBOOK_IN_BUNDLE = "Sketchbook.app/Contents/MacOS/Sketchbook"
+GRIMOIRE_IN_BUNDLE = "Grimoire.app/Contents/MacOS/Grimoire"
 
 CONFIGURATIONS = ["Debug", "Release", "RelWithDebInfo"]
 
@@ -61,15 +61,15 @@ def benches_dir(configuration: str) -> Path:
     return bin_dir(configuration) / "benches"
 
 
-def sketchbook(configuration: str, required: bool = True) -> Path | None:
-    """The Sketchbook binary. When it is not built, a caller that requires
+def grimoire(configuration: str, required: bool = True) -> Path | None:
+    """The Grimoire binary. When it is not built, a caller that requires
     it is refused with the target to build, and one that can carry on
     without it is answered None."""
-    path = bin_dir(configuration) / SKETCHBOOK_IN_BUNDLE
+    path = bin_dir(configuration) / GRIMOIRE_IN_BUNDLE
     if not path.exists():
         if not required:
             return None
-        fail(f"no Sketchbook at {path} — build the Sketchbook target first")
+        fail(f"no Grimoire at {path} — build the Grimoire target first")
     return path
 
 

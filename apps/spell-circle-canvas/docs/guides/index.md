@@ -6,7 +6,7 @@ languages. They are the way in. The
 signature asks for a value and you want to know what makes one.
 
 Every guide runs against a **sketch** — one file that declares a scene,
-which Sketchbook opens and hot-swaps on every save. Nothing here needs
+which Grimoire opens and hot-swaps on every save. Nothing here needs
 the product, a window server or a network.
 
 ## Start here

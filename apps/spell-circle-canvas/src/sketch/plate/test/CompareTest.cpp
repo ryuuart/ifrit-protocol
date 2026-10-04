@@ -79,7 +79,7 @@ TEST(SketchCompare, IdenticalPlatesStandNoDistanceApart) {
   EXPECT_EQ(probe.worst, 0);
 }
 
-/** The printed row is the value, spelled: the line Sketchbook's
+/** The printed row is the value, spelled: the line a host's
  *  `--compare` writes opens with the word that says what it is. */
 TEST(SketchCompare, PrintsEachRowAsTheLineItsWordOpens) {
   const ScratchDir scratch("compare_printed");

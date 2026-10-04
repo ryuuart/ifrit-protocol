@@ -30,7 +30,7 @@ class CatalogRows(unittest.TestCase):
             self.assertEqual(rows.index(unbuilt), unbuilt.index)
 
     def test_a_plain_interpreter_registers_no_sketch(self):
-        # The registry is the process's: Sketchbook's holds every sketch it
+        # The registry is the process's: Grimoire's holds every sketch it
         # was built with, and the extension alone registers none.
         self.assertEqual(registryRows(), [])
         self.assertEqual(registryRows("canvas"), [])

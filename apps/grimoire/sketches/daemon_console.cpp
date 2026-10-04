@@ -1,0 +1,874 @@
+/** @file
+ * daemon console — a log feed that scrolls itself: generated rows fed
+ * into a ring of STRUCTURED rows, with severity dressing and a cursor
+ * that keeps up.
+ */
+
+// A security-operations console — WARDNET, the ward-perimeter watch — built
+// entirely out of composition. One panel carries four registers of type and
+// three panes of chrome, and the whole surface is priced by the feed idiom:
+//
+//   scrollback ..... feed::Ring<LogRow> + feed(). A row is a value with
+//                    fields, not a line of text, and rows are keyed by
+//                    sequence id — so an append reconciles as ONE row mount
+//                    and every row already on screen keeps its cached
+//                    picture, whatever the ring's capacity.
+//   rows ........... each row is a stripe, a chip band and ONE weave::rich()
+//   text
+//                    leaf: tabular-timestamp, channel tag and payload each in
+//                    their own named style, with an optional cipher field.
+//                    Severity is encoded in form as well as colour — the
+//                    stripe, the tag's ink, and a wash behind a breach line.
+//   entrances ...... chosen PER SEVERITY, and every one SETTLES: traces fade,
+//                    info types on, warnings rise glyph by glyph, breaches
+//                    slam in whole with a screened flash that decays to the
+//                    ink's own red. A cipher field is vetoed by textFx::hold
+//                    until its beat opens, churns hex, and resolves. The
+//                    frame a track ends, its row is a cached static leaf
+//                    again.
+//   fade-out ....... a panel-coloured gradient laid over the top of the
+//                    well, so the oldest rows dim without any row node
+//                    being re-patched
+//   rail ........... channel meters as bars on BOUND outputs (paint-only
+//                    volatility, no describes), severity counters and the
+//                    uplink lamp patched only when an append re-describes
+//   prompt ......... a caret that behaves like one: solid while the console
+//                    types a command, blinking while idle, and always sitting
+//                    at the end of the typed text because it is the next
+//                    sibling in the row
+//   chrome ......... an SDF roundBox panel (fill, border, glow in one pass),
+//                    hairline rules, and the tube: a scanline tile crept by
+//                    a bound pan and a refresh band baked once and slid by
+//                    a bound translate — no per-pixel program runs per frame
+//   grade .......... the finished frame read back through an exponent, as
+//                    the composer's output view rather than as a node
+//
+// The scene is re-rendered on every append and every prompt keystroke, and
+// reconciliation touches a constant handful of nodes for each: the new row's
+// mount plus the few chrome leaves whose text actually changed. The retained
+// instance tree is what makes that work; there is no virtualizer.
+//
+// EDIT THESE FIRST
+//   the Ring's capacity  — how much scrollback is retained. Rows past it
+//                          leave; nothing on screen is re-patched when
+//                          they do.
+//   LogGen's roll table  — the mix of severities, and therefore which
+//                          entrances the page is a specimen of.
+//   kCommands            — what the console types at its own prompt.
+//   the palette block    — the whole surface is dressed out of it, and
+//                          severity is encoded in ink as well as in form.
+
+// TAGS: Interfaces/Game
+
+#include <include/core/SkPaint.h>
+#include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/kit/Feed.h>
+#include <sigilcompose/typography/Presets.h>
+#include <sigilcompose/typography/Typography.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/ocio/Ocio.h>
+#include <sigilmaterial/paint/Bases.h>
+#include <sigilmaterial/sdf/Sdf.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/ease/Ease.h>
+#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Meter.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilweave/kit/Features.h>
+#include <sigilweave/paragraph/RichText.h>
+#include <sigilweave/paragraph/Unit.h>
+#include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Face.h>
+#include <sigilweave/style/Type.h>
+
+#include <cmath>
+#include <format>
+#include <random>
+#include <string>
+
+namespace material = sigil::material;
+namespace sketch = sigil::sketch;
+namespace ocio = sigil::material::ocio;
+namespace sdf = sigil::material::sdf;
+namespace weave = sigil::weave;
+namespace motion = sigil::motion;
+
+using namespace sigil::compose;
+using sigil::material::hexColor;
+using sigil::material::Paint;
+using namespace std::chrono_literals;
+
+namespace {
+/** The canvas this piece was drawn against, which is also the default a
+ *  sketch gets when it declares none. */
+constexpr SkSize kSceneSize = {900, 640};
+
+namespace daemon_console {
+
+constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
+
+// ---- palette: graphite steel, phosphor accents ----------------------------
+constexpr material::Color kVoid = hexColor(0x04060B);
+constexpr material::Color kGroundTop = hexColor(0x0A101A);
+constexpr material::Color kPanel = hexColor(0x0C121C, 0.97f);
+constexpr material::Color kRule = hexColor(0x22344A);
+constexpr material::Color kAccent = hexColor(0x59CBE3);
+constexpr material::Color kBone = hexColor(0xE8EFF6);
+constexpr material::Color kChrome = hexColor(0x8296AE);
+constexpr material::Color kDim = hexColor(0x49596D);
+constexpr material::Color kBody = hexColor(0xAFC8BB);
+constexpr material::Color kOk = hexColor(0x49D6A2);
+constexpr material::Color kWarn = hexColor(0xF2B04E);
+constexpr material::Color kCrit = hexColor(0xFF5752);
+constexpr material::Color kCritText = hexColor(0xFF7A73);
+constexpr material::Color kMeterBed = hexColor(0x16202E);
+
+// ---- severities -----------------------------------------------------------
+enum Sev : int { kTrace = 0, kInfo, kSeal, kFlux, kBreach, kSevCount };
+
+/** How one severity dresses its row: the stripe's ink, the channel tag's
+ *  and the payload's named styles. The tag NAMES the channel; its COLOUR is
+ *  the severity — two dimensions on one four-letter word. */
+struct SevDress {
+  material::Color stripe;
+  const char* tagStyle;
+  const char* bodyStyle;
+};
+inline const SevDress& dress(int sev) {
+  static const SevDress kDress[kSevCount] = {
+      {material::withAlpha(kDim, 0.55f), "tag-trace", "trace"},
+      {material::withAlpha(kChrome, 0.6f), "tag-info", ""},
+      {kOk, "tag-seal", "seal"},
+      {kWarn, "tag-flux", "flux"},
+      {kCrit, "tag-breach", "breach"},
+  };
+  return kDress[sev];
+}
+
+/** One log row: mission time, severity, a four-letter channel tag, the
+ *  payload, and an optional cipher field that decodes on arrival. */
+struct LogRow {
+  double t = 0.0;
+  int sev = kInfo;
+  std::string tag;
+  std::string body;
+  std::string cipher;
+  bool operator==(const LogRow&) const = default;
+};
+
+/** THE TUBE, in two pieces whose only per-frame input is a phase — so
+ *  neither runs a program per pixel per frame.
+ *
+ *  The scanline field is a sine over y, and a field that is periodic in y
+ *  is a TILE: ten periods baked once into a strip, repeated across the
+ *  panel, and crept by the bound pan the tile's material carries. The
+ *  strip holds a whole number of pixels, so its period lands a hair off
+ *  the sine's own; the eye reads a 3.7 px scanline either way. */
+constexpr float kScanPeriods = 10.0f;
+constexpr float kScanTileH = 37.0f;        // ten periods of 2pi / 1.7 px, whole
+constexpr float kScanCreep = 9.0f / 1.7f;  // px per second, downward
+constexpr material::Color kTubeInk{0.55f, 0.85f, 0.95f, 1.0f};
+
+inline Pattern scanlineTile() {
+  return Pattern::tile(
+      {4.0f, kScanTileH}, [](SkCanvas& canvas, SkSize size, uint32_t) {
+        SkPaint row;
+        for (int y = 0; y < (int)size.height(); ++y) {
+          const float phase =
+              ((float)y + 0.5f) / size.height() * kScanPeriods * 6.2831853f;
+          const float a = 0.028f * (0.5f + 0.5f * std::sin(phase));
+          row.setColor4f({kTubeInk.r, kTubeInk.g, kTubeInk.b, a});
+          canvas.drawRect(SkRect::MakeXYWH(0, (float)y, size.width(), 1), row);
+        }
+      });
+}
+
+/** The refresh band: a 128 px tent, brightest at its centre, that sweeps
+ *  down the panel — one gradient, baked once, slid by a bound translate. */
+constexpr float kRefreshH = 128.0f;
+constexpr float kRefreshSpeed = 90.0f;  // px per second
+constexpr float kRefreshWrap = 820.0f;  // the sweep's period, in px
+inline sigil::material::Material refreshBand() {
+  return sigil::material::linearGradient(
+      {0, 0}, {0, kRefreshH},
+      {{0.0f, {kTubeInk.r, kTubeInk.g, kTubeInk.b, 0.0f}},
+       {0.5f, {kTubeInk.r, kTubeInk.g, kTubeInk.b, 0.045f}},
+       {1.0f, {kTubeInk.r, kTubeInk.g, kTubeInk.b, 0.0f}}},
+      {.units = material::GradientUnits::Pixels});
+}
+
+/** THE TUBE'S GRADE: the whole composited console read back through an
+ *  exponent, the way a phosphor's own response bends the midtones before
+ *  a camera ever sees them. It is the COMPOSER'S OUTPUT VIEW rather than
+ *  a node — one stage over the finished frame, after every cache, so no
+ *  part of the tree knows it is there and nothing in the tree pays for
+ *  it twice.
+ *
+ *  Its channels are independent, and that is what makes it affordable: a
+ *  transform each of whose output channels depends only on the same
+ *  input channel carries no more than one response curve per channel, so
+ *  it bakes to a row of samples and spends as a colour table on the
+ *  eight-bit surface the console is composited into. A view that mixed
+ *  channels would need the volume and a full-canvas program per frame. */
+constexpr float kGrade = 1.08f;
+
+/** Seeded pseudo-log: plausible ward-perimeter chatter with severities and
+ *  running counters for the rail. */
+struct LogGen {
+  // a fixed seed; the scene must render the same on every run
+  // NOLINTNEXTLINE(bugprone-random-generator-seed)
+  std::mt19937 rng{2077};
+  int packet = 41210;
+  unsigned seals = 0, warns = 0, breaches = 0;
+  uint64_t events = 0;
+
+  uint64_t emitRow(sigil::compose::feed::Ring<LogRow>& ring, double t) {
+    ++events;
+    packet += (int)(rng() % 97);
+    const int roll = (int)(rng() % 100);
+    if (roll < 8) {
+      ++breaches;
+      LogRow row{t, kBreach, "WARD",
+                 std::format("BREACH sector {:02} · rerouting gate {}",
+                             (unsigned)(rng() % 13), (unsigned)(rng() % 7))};
+      if (rng() % 2)
+        row.cipher = std::format("{:04x}·{:04x}", (unsigned)(rng() % 0xffff),
+                                 (unsigned)(rng() % 0xffff));
+      return ring.append(std::move(row));
+    }
+    if (roll < 22) {
+      ++warns;
+      return ring.append({t, kFlux, "FLUX",
+                          std::format("sigil flux {:.2f} mS over damping floor",
+                                      0.4 + (double)(rng() % 90) / 100.0)});
+    }
+    if (roll < 32) {
+      ++seals;
+      return ring.append({t, kSeal, "SEAL",
+                          std::format("ward seal reforged · sector {:02} "
+                                      "holding",
+                                      (unsigned)(rng() % 13))});
+    }
+    if (roll < 62)
+      return ring.append({t, kTrace, "LATT",
+                          std::format("lattice sweep {:06x} · {} pts ok",
+                                      packet, (unsigned)(64 + rng() % 900))});
+    return ring.append(
+        {t, kInfo, "AUTH",
+         std::format("daemon[{}] bound :6{:03} · handshake",
+                     (unsigned)(rng() % 9), (unsigned)(rng() % 1000)),
+         std::format("{:04x}·{:04x}", (unsigned)(rng() % 0xffff),
+                     (unsigned)(rng() % 0xffff))});
+  }
+};
+
+/** The commands the console runs at its own prompt, cycled in order. */
+inline const char* kCommands[] = {
+    "trace --lattice --deep", "reseal sector 07", "route gate 4 --drain",
+    "damp flux 0.60",         "audit auth ring",
+};
+constexpr int kCommandCount = 5;
+
+}  // namespace daemon_console
+
+struct DaemonConsole {
+  sigil::compose::feed::Ring<daemon_console::LogRow> ring{256};
+  daemon_console::LogGen gen;
+
+  // Bound outputs: the only values volatile forever, all paint-only.
+  // The caret's clock, in seconds: the square() binding on the caret turns
+  // it into the blink, and the prompt machine REBASES it — held at 0 (the
+  // pulse's ON phase) while a command types, released to the mission clock
+  // while the console waits.
+  motion::Animatable<float> caretClock = motion::animatable(0.0f);
+  motion::Animatable<float> lamp = motion::animatable(1.0f);
+  sigil::motion::Animatable<float> meter[4] = {{0.5f}, {0.5f}, {0.5f}, {0.5f}};
+  // The tube's two phases: where the scanline tile has crept to, and
+  // where the refresh band's top stands.
+  motion::Animatable<float> scanCreep = motion::animatable(0.0f);
+  motion::Animatable<float> refreshSweep = motion::animatable(0.0f);
+  // The scanline strip: held here because its bake is its identity.
+  Pattern scanlines;
+
+  // The prompt's typing machine.
+  enum class Prompt { Idle, Typing, Hold };
+  Prompt prompt = Prompt::Idle;
+  int commandIndex = 0;
+  size_t shown = 0;
+  double promptAt = 2.6;
+  int burst = 0;
+
+  double nextAppend = 0.0;
+  double clockNow = 0.0;
+
+  sigil::weave::Face faceMono, faceMonoMed, faceChrome, faceChromeMed;
+
+  // The window full: seals, warnings and a breach on screen, a cipher still
+  // churning, the refresh band mid-panel and the prompt mid-command.
+
+  /** Mission clock: the timestamp voice every row and the header speak. */
+  static double mission(double t) { return 412.0 + t; }
+
+  /** Session health for the rail's hero stat, derived from the counters so
+   *  it moves only when an append re-describes anyway. */
+  double integrity() const {
+    return std::max(92.0, 99.8 - 0.22 * gen.breaches + 0.04 * gen.seals);
+  }
+
+  /** The row voices, named once and resolved by name from every weave::rich()
+   *  span, as partials over the font the well is rooted in: timestamps and
+   *  tags are monospaced so the columns align by construction. The chrome
+   *  (header, rail, counters) is proportional with tabular numerals asked
+   *  of it where digits must sit in columns. */
+  sigil::weave::TypeSheet rowStyles() const {
+    namespace dc = daemon_console;
+    sigil::weave::TypeSheet s;
+    // Every entry is a PARTIAL over the well's font: the payload voices
+    // change the colour alone, the timestamp one size down with it, and
+    // only the tags name a face of their own.
+    s.set("ts", weave::Type{.size = 11, .color = dc::kDim});
+    s.set("trace", weave::Type{.color = dc::kDim});
+    s.set("seal", weave::Type{.color = hexColor(0x8FE5C4)});
+    s.set("flux", weave::Type{.color = dc::kWarn});
+    s.set("breach", weave::Type{.color = dc::kCritText});
+    s.set("cipher", weave::Type{.color = dc::kAccent});
+    auto tag = [&](material::Color color) {
+      return weave::Type{.face = faceMonoMed, .size = 11, .color = color};
+    };
+    s.set("tag-trace", tag(material::withAlpha(dc::kDim, 0.8f)));
+    s.set("tag-info", tag(dc::kChrome));
+    s.set("tag-seal", tag(dc::kOk));
+    s.set("tag-flux", tag(dc::kWarn));
+    s.set("tag-breach", tag(dc::kCrit));
+    return s;
+  }
+
+  /** A chrome register — the proportional voice of the enclosure, which
+   *  the panel is rooted in, so a line names only its size, colour and
+   *  tracking; `medium` names the heavier cut. Tabular numerals so a
+   *  ticking clock or a counter never jitters sideways. */
+  weave::Type chrome(float size, material::Color color, float track = 0,
+                     bool medium = false, bool tabular = false) const {
+    weave::Type t{.size = size, .color = color, .track = track};
+    if (medium) t.face = faceChromeMed;
+    if (tabular) t.features = {weave::features::tabularNumbers};
+    return t;
+  }
+
+  /** The theme's registers and the two lines the rail and the prompt name
+   *  by class: `label`, the tracked small capitals a rail section is headed
+   *  by, and `fine`, the print under a figure, with tabular numerals. Both
+   *  name their face: `fine` also stands in the prompt row, which is rooted
+   *  in the monospaced voice. */
+  sigil::compose::StyleSheet classes() const {
+    namespace dc = daemon_console;
+    sigil::compose::StyleSheet s =
+        look.styleSheet() +
+        sigil::compose::StyleSheet{
+            sigil::compose::rule("label, .label")
+                .font({.face = faceChromeMed,
+                       .size = 9.5f,
+                       .color = dc::kDim,
+                       .track = 2.4f}),
+            sigil::compose::rule(".fine").font(
+                {.face = faceChrome,
+                 .size = 9.5f,
+                 .color = dc::kDim,
+                 .track = 0.8f,
+                 .features = {{weave::features::tabularNumbers}}})};
+    return s;
+  }
+
+  void setup(sketch::SketchContext& ctx) {
+    for (auto& value : meter) value = sigil::motion::animatable(value.value());
+
+    sketch::kit::stage(ctx, {.size = kSceneSize,
+                             .captureAt = 9.0,
+                             .background = material::Color{0, 0, 0, 1}});
+    Composer& composer = ctx.composer;
+    sigil::motion::Engine& ticker = ctx.engine;
+    namespace dc = daemon_console;
+    caretClock = 0.0f;
+    lamp = 1.0f;
+    prompt = Prompt::Idle;
+    commandIndex = 0;
+    shown = 0;
+    promptAt = 2.6;
+    burst = 0;
+    nextAppend = 0.0;
+    clockNow = 0.0;
+    ring.clear();  // scenes re-activate; seq ids stay monotonic
+    gen = dc::LogGen{};
+    scanCreep = 0.0f;
+    refreshSweep = 0.0f;
+    scanlines = dc::scanlineTile();
+
+    faceMono = weave::ports::face({"SF Mono", "Menlo", "Monaco"}, 400);
+    faceMonoMed = weave::ports::face({"SF Mono", "Menlo", "Monaco"}, 700);
+    faceChrome = weave::ports::face({"Helvetica Neue", "Arial"}, 400);
+    faceChromeMed = weave::ports::face({"Helvetica Neue", "Arial"}, 600);
+
+    // The output view. Asked for rather than assumed: a build that found
+    // no OpenColorIO answers the same empty material from the same
+    // factory, and an empty view would be a stage that costs a layer and
+    // changes nothing.
+    if (ocio::available()) composer.setView(ocio::exponent(dc::kGrade));
+
+    look = sketch::kit::houseTheme();
+    look.type.mono = faceMono;
+    look.type.captionNote = {.size = 10, .track = 0.6f, .mono = true};
+    look.palette.ash = dc::kChrome;
+    look.palette.cellGround = dc::kMeterBed;
+    look.palette.figure = dc::kAccent;
+    look.spacing.captionNoteGap = 4;
+
+    for (int i = 0; i < 9; ++i)  // history at boot, timestamped in the past
+      gen.emitRow(ring, mission(-4.5 + 0.5 * i));
+
+    // The data-side drive. Appends and keystrokes re-render; reconciliation
+    // prices each at the new row's mount plus the chrome leaves whose text
+    // changed. Meters, lamp and caret ride bound outputs and never
+    // re-describe anything.
+    ticker.timer([this, &composer, &ticker] {
+      const double t = ticker.elapsed().count();
+      clockNow = t;
+      meter[0] = 0.62f + 0.26f * (float)std::sin(t * 0.83 + 0.4);
+      meter[1] = 0.48f + 0.30f * (float)std::sin(t * 1.31 + 2.1);
+      meter[2] = 0.55f + 0.34f * (float)std::sin(t * 0.57 + 4.4) *
+                             (float)std::sin(t * 1.9);
+      meter[3] = 0.70f + 0.22f * (float)std::sin(t * 1.07 + 1.2);
+      lamp = 0.55f + 0.45f * (float)std::sin(t * 2.4);
+      // The tube: the scanlines creep, and the refresh band sweeps from
+      // above the panel's top edge to below its foot and wraps.
+      scanCreep = (float)(t * dc::kScanCreep);
+      refreshSweep = (float)std::fmod(t * dc::kRefreshSpeed, dc::kRefreshWrap);
+      // A caret blinks while the console waits and holds solid while it
+      // types. The waveform lives on the caret's square() binding; what
+      // the machine owns is the PHASE — parked at 0, the pulse's ON
+      // instant, for as long as a command is typing.
+      caretClock = prompt == Prompt::Typing ? 0.0f : (float)t;
+      bool dirty = false;
+      const char* command = daemon_console::kCommands[commandIndex];
+      switch (prompt) {
+        case Prompt::Idle:
+          if (t >= promptAt) {
+            prompt = Prompt::Typing;
+            shown = 0;
+            promptAt = t;
+          }
+          break;
+        case Prompt::Typing:
+          while (t >= promptAt && shown < std::string(command).size()) {
+            ++shown;
+            promptAt += 0.055;
+            dirty = true;
+          }
+          if (shown >= std::string(command).size()) {
+            prompt = Prompt::Hold;
+            promptAt = t + 0.5;
+          }
+          break;
+        case Prompt::Hold:
+          if (t >= promptAt) {
+            // The command lands in the log and answers arrive as a burst.
+            ring.append({mission(t), daemon_console::kInfo, "EXEC",
+                         std::string("$ ") + command});
+            ++gen.events;
+            burst = 2 + (int)(gen.rng() % 3);
+            nextAppend = t + 0.10;
+            prompt = Prompt::Idle;
+            shown = 0;
+            commandIndex = (commandIndex + 1) % daemon_console::kCommandCount;
+            promptAt = t + 3.2 + (double)(gen.rng() % 200) / 100.0;
+            dirty = true;
+          }
+          break;
+      }
+      if (t >= nextAppend) {
+        nextAppend =
+            t + (burst > 0 ? 0.09 : 0.14 + (double)(gen.rng() % 200) / 1000.0);
+        if (burst > 0) --burst;
+        gen.emitRow(ring, mission(t));
+        dirty = true;
+      }
+      if (dirty) composer.render(describe());
+    });
+
+    composer.render(describe());
+  }
+
+  /** One log row: the severity's stripe, then a single weave::rich() leaf whose
+   *  runs speak in the named voices — timestamp, channel tag, payload,
+   *  cipher. Every entrance SETTLES: while a track runs the row paints
+   *  live, and the frame it ends the row goes back to being a cached
+   *  static leaf like every row above it. */
+  Element logRow(const daemon_console::LogRow& r,
+                 const sigil::weave::TypeSheet& styles) const {
+    namespace dc = daemon_console;
+    const dc::SevDress& d = dc::dress(r.sev);
+
+    auto line = weave::rich()
+                    .styles(styles)
+                    .add(std::format("{:07.2f}  ", r.t), "ts")
+                    .add(std::format("{:<6}", r.tag), d.tagStyle)
+                    .add(r.body, d.bodyStyle);
+    if (!r.cipher.empty()) line.add("  " + r.cipher, "cipher");
+
+    const auto bootDelay = std::chrono::duration<double, std::milli>(
+        r.t < mission(0) ? (r.t - mission(-4.5)) * 52.0 : 0.0);
+    Text leaf = text(std::move(line));
+    switch (r.sev) {
+      case dc::kTrace:
+        // A trace merely surfaces: one quiet fade, no cascade.
+        leaf.textFx(
+            {.effect = textFx::tween(
+                 {.from = GlyphModifier{.alpha = 0},
+                  .keyframes = {{.to = GlyphModifier{}, .duration = 1000ms}},
+                  .duration = std::chrono::seconds(1)}),
+             .progress = motion::animate({.from = 0.0f,
+                                          .to = 1.0f,
+                                          .duration = 180ms,
+                                          .delay = bootDelay,
+                                          .ease = motion::ease::linear})});
+        break;
+      case dc::kFlux:
+        // A warning rises glyph by glyph — more insistent than type-on,
+        // still a sweep the eye can follow.
+        leaf.textFx(
+            {.effect = textFx::enter(textFx::rise(6)),
+             .tween = {.duration = 120ms, .delay = motion::stagger(4ms)},
+             .progress = motion::animate({.from = 0.0f,
+                                          .to = 1.0f,
+                                          .duration = 300ms,
+                                          .delay = bootDelay,
+                                          .ease = motion::ease::linear})});
+        break;
+      case dc::kBreach:
+        // A breach does not type: the whole line slams in at once, wide and
+        // flat, FLASHES hot at impact, and settles to its own red as it
+        // snaps to rest. The flash is a SCREEN term, not an add: the ink is
+        // already at the red primary, so an added flash could only clip
+        // that channel and shove the hue — where a screen lifts each
+        // channel by its headroom, so the line blooms toward white and
+        // decays back through its own colour, which is this console's
+        // phosphor idiom (the glow underlays, the screen-blended scanline
+        // pass) spoken per glyph.
+        leaf.textFx(
+            {.effect = textFx::tween(
+                 {.from = GlyphModifier{.alpha = 0,
+                                        .colorScreen = {0.9f, 0.85f, 0.8f, 0},
+                                        .scaleX = 1.45f,
+                                        .scaleY = 0.62f},
+                  .keyframes = {{.to =
+                                     GlyphModifier{
+                                         .colorScreen = {0.4f, 0.28f, 0.22f, 0},
+                                         .scaleX = 0.97f},
+                                 .duration = 350ms},
+                                {.to = GlyphModifier{}, .duration = 650ms}},
+                  .duration = std::chrono::seconds(1)}),
+             .progress = motion::animate({.from = 0.0f,
+                                          .to = 1.0f,
+                                          .duration = 240ms,
+                                          .delay = bootDelay,
+                                          .ease = motion::ease::outQuad})});
+        break;
+      default:
+        // Info and seals type on — the terminal's own voice.
+        leaf.textFx(
+            {.effect = textFx::enter(textFx::typeOn()),
+             .tween = {.duration = 40ms, .delay = motion::stagger(6ms)},
+             .progress = motion::animate({.from = 0.0f,
+                                          .to = 1.0f,
+                                          .duration = 320ms,
+                                          .delay = bootDelay,
+                                          .ease = motion::ease::linear})});
+        break;
+    }
+    if (!r.cipher.empty())
+      // The cipher decodes on its own clock: held to NOTHING until each
+      // glyph's beat opens (an unheld scramble would show wrong letters out
+      // of turn), then hex churn, resolved by the end of the beat.
+      leaf.textFx(
+          {.where = selectors::style("cipher"),
+           .effect = textFx::hold(textFx::scramble("0123456789abcdef", 10)),
+           .tween = {.duration = 340ms, .delay = motion::stagger(30ms)},
+           .unit = weave::Unit::Cluster,
+           .progress = motion::animate({.from = 0.0f,
+                                        .to = 1.0f,
+                                        .duration = 750ms,
+                                        .delay = bootDelay,
+                                        .ease = motion::ease::linear})});
+
+    Element row =
+        box()
+            .row()
+            .gap(8)
+            .padding(1, 6)
+            .borderRadius({2})
+            .alignItems(Align::Center)
+            .children({box().width(3).height(12).borderRadius({1.5f}).fill(
+                           Fill::color(d.stripe)),
+                       std::move(leaf)});
+    // Severity in form as well as ink: a breach line carries its own wash.
+    if (r.sev == dc::kBreach)
+      row.fill(Fill::color(material::withAlpha(dc::kCrit, 0.09f)));
+    return row;
+  }
+
+  /** A rail meter: a named channel and a bar riding a bound output —
+   *  paint-only volatility over a cached bed, which is what the
+   *  component's `level` is. The bed, the fill and the register the
+   *  channel is named in are this console's, carried down by its theme. */
+  Element meterRow(const char* label, motion::Animatable<float>& level) {
+    sketch::kit::Meter bar{
+        .label = label, .height = Dimension(4), .corners = 2};
+    bar.level = level;
+    return sketch::kit::meter(bar);
+  }
+
+  /** NOT `kit::labelRow`. Its figure is set with TABULAR NUMERALS, which
+   *  is how a count that changes every second stops the row from twitching,
+   *  and a theme's register names a face and a size and cannot ask for a
+   *  font feature. The row is otherwise the component's, mark and all. */
+  Element counterRow(const char* label, material::Color chip, unsigned n) {
+    namespace dc = daemon_console;
+    return box()
+        .row()
+        .gap(8)
+        .alignItems(Align::Center)
+        .children({box().width(6).height(6).borderRadius({1.5f}).fill(
+                       Fill::color(chip)),
+                   text(label).font(chrome(10, dc::kChrome, 1.6f)),
+                   box().flexGrow(1),
+                   text(std::format("{}", n))
+                       .font(chrome(12, dc::kBone, 0, true, true))});
+  }
+
+  Element rule(float marginTop, float marginBottom) {
+    return box()
+        .height(1)
+        .margin(marginTop, 0, marginBottom, 0)
+        .fill(Fill::color(daemon_console::kRule));
+  }
+
+  /** THE CONSOLE'S OWN LOOK, for the components on its rail: the quiet
+   *  register a channel is named in, the bed a meter is drawn on and the
+   *  cyan its bar is filled with. Built in setup, because the register is
+   *  set in a face the port has to resolve first. */
+  sketch::kit::Theme look;
+
+  Element describe() {
+    namespace dc = daemon_console;
+    namespace feed = sigil::compose::feed;
+    // Bound where the tree is DESCRIBED: this sketch describes again on
+    // every appended row, outside whatever scope setup opened.
+    const sketch::kit::Provide dress(look);
+
+    // Panel chrome: one-pass SDF (fill + border + glow), cached between
+    // layouts. The style reserves its glow's reach INSIDE the box, so the
+    // drawn border sits sdf::pad() in from the node edge — the content
+    // padding is that reserve plus the designed inset, read off the style
+    // rather than restated as a number that drifts.
+    const sdf::Style panelStyle{.fill = dc::kPanel,
+                                .borderWidth = 1.0f,
+                                .borderColor = hexColor(0x3B5474, 0.95f),
+                                .glowRadius = 6,
+                                .glowColor = hexColor(0x3EC2DC, 0.22f)};
+    material::Material panel = sdf::material(sdf::roundBox(12), panelStyle);
+    const float padX = sdf::pad(panelStyle) + 17.0f;
+    const float padY = sdf::pad(panelStyle) + 12.0f;
+
+    // Fade the OLDEST rows: a panel-coloured gradient over the top of the
+    // well — zero row nodes touched, fully cached.
+    sigil::material::Material fade = sigil::material::linearGradient(
+        {0, 0}, {0, 64},
+        {{0.0f, {dc::kPanel.r, dc::kPanel.g, dc::kPanel.b, 1.0f}},
+         {1.0f, {dc::kPanel.r, dc::kPanel.g, dc::kPanel.b, 0.0f}}},
+        {.units = material::GradientUnits::Pixels});
+
+    // NOT `kit::console`. That component sets N rings of ONE monospaced
+    // voice on one plate; this scrollback's ring carries a VALUE per row —
+    // a stamp, a severity, a subject and a body, each in its own style,
+    // with a wash behind a breach and an entrance chosen by severity.
+    feed::Options window;
+    window.visible = 22;
+    window.gap = 3;
+    // The boot history cascades in; each live append is the only new mount
+    // in its patch, so it enters the instant it arrives.
+
+    // Built once per describe; the rows compare it by value, so identical
+    // styles prune and only genuinely new rows mount.
+    const sigil::weave::TypeSheet styles = rowStyles();
+    Element well =
+        box()
+            .flexGrow(1)
+            .overflow(Overflow::Clip)
+            // The scrollback's voice, stated once: every row is set in it
+            // and its named runs are partials over it.
+            .font({.face = faceMono, .size = 12.5f, .color = dc::kBody})
+            .children({feed::feed(ring, window,
+                                  [&](const dc::LogRow& r) {
+                                    return logRow(r, styles);
+                                  })
+                           .zIndex(1),
+                       box().inset(0).fill(fade).zIndex(2).hitTestable(false)});
+
+    // ---- header band ------------------------------------------------------
+    Element header =
+        box()
+            .row()
+            .gap(10)
+            .alignItems(Align::Center)
+            .children(
+                {box().width(9).height(9).borderRadius({2}).rotate(45.0f).fill(
+                     Fill::color(dc::kAccent)),
+                 text("WARDNET").font(chrome(15, dc::kBone, 3.5f, true)),
+                 text("PERIMETER WATCH").font(chrome(10.5f, dc::kChrome, 3.5f)),
+                 box().flexGrow(1),
+                 text("NODE 07 · flooded-causeway")
+                     .font(chrome(10.5f, dc::kDim, 0.8f)),
+                 box()
+                     .width(6)
+                     .height(6)
+                     .borderRadius({3})
+                     .fill(Fill::color(dc::kOk))
+                     .opacity(lamp),
+                 text(std::format("T+{:07.2f}", mission(clockNow)))
+                     .font(chrome(11.5f, dc::kAccent, 0.6f, true, true))});
+
+    // ---- rail -------------------------------------------------------------
+    Element rail =
+        box()
+            .column()
+            .width(172)
+            .gap(9)
+            .children(
+                {text("CHANNELS").styleClass("label"),
+                 meterRow("LATT", meter[0]), meterRow("GATE", meter[1]),
+                 meterRow("FLUX", meter[2]), meterRow("AUTH", meter[3]),
+                 rule(6, 2), text("SEVERITY · SESSION").styleClass("label"),
+                 counterRow("SEALS", dc::kOk, gen.seals),
+                 counterRow("FLUX WARNS", dc::kWarn, gen.warns),
+                 counterRow("BREACHES", dc::kCrit, gen.breaches), rule(6, 2),
+                 text("UPLINK").styleClass("label"),
+                 box()
+                     .row()
+                     .gap(8)
+                     .alignItems(Align::Center)
+                     .children(
+                         {text("latency").font(chrome(10, dc::kChrome, 0.8f)),
+                          box().flexGrow(1),
+                          text(std::format(
+                                   "{:2.0f} mS",
+                                   11.0 + 3.0 * std::sin(clockNow * 0.7)))
+                              .font(chrome(11, dc::kBone, 0, true, true))})})
+            // The hero stat anchors the rail's foot: session health as one
+            // number, amber the moment the breach count says it should be.
+            .children(
+                {box().flexGrow(1), rule(6, 2),
+                 text("WARD INTEGRITY").styleClass("label"),
+                 box()
+                     .row()
+                     .gap(4)
+                     .alignItems(Align::Baseline)
+                     .children(
+                         {text(std::format("{:.1f}", integrity()))
+                              .font(chrome(
+                                  24,
+                                  integrity() >= 96.0 ? dc::kBone : dc::kWarn,
+                                  0, true, true)),
+                          text("%").font(chrome(12, dc::kChrome))}),
+                 text(std::format("{} breach{} this session", gen.breaches,
+                                  gen.breaches == 1 ? "" : "es"))
+                     .styleClass("fine")});
+
+    // ---- prompt -----------------------------------------------------------
+    const char* command = dc::kCommands[commandIndex];
+    Element promptLine =
+        box()
+            .row()
+            .gap(2)
+            .alignItems(Align::Center)
+            // The prompt's own voice: the host name is set in it, the
+            // sigil in the heavier cut, and the typed command a half size up.
+            .font({.face = faceMono, .size = 12, .color = dc::kDim})
+            .children(
+                {text(weave::rich().add("wardnet").add(
+                     " $ ",
+                     weave::Type{.face = faceMonoMed, .color = dc::kAccent})),
+                 text(std::string(command).substr(0, shown))
+                     .font({.size = 12.5f, .color = dc::kBone}),
+                 box()
+                     .width(7)
+                     .height(13)
+                     .margin(0, 0, 0, 3)
+                     .fill(Fill::color(dc::kAccent))
+                     // The blink is the pulse waveform itself: on for
+                     // 0.62 s of every 1.06 s cycle, resting dim rather
+                     // than vanishing. Phase 0 is ON, so the caret the
+                     // typing machine parks at 0 sits solid.
+                     .opacity(motion::bind(
+                         caretClock,
+                         {.from = {0.0f, 1.06f},
+                          .envelope = motion::envelope::square(0.62f / 1.06f),
+                          .to = {0.1f, 1.0f}}))
+                     .key("caret"),
+                 box().flexGrow(1),
+                 text(std::format("ring 256 · {} events",
+                                  (unsigned long long)gen.events))
+                     .styleClass("fine")});
+
+    return stack()
+        .applyStyleSheet(classes())
+        .fill(sigil::material::linearGradient(
+            {0, 0}, {0, dc::kH}, {{0.0f, dc::kGroundTop}, {1.0f, dc::kVoid}},
+            {.units = material::GradientUnits::Pixels}))
+        .children({box()
+                       .column()
+                       .inset(22, 26)
+                       .fill(panel)
+                       .overflow(Overflow::Clip)
+                       .padding(padY, padX)
+                       // The enclosure's face, inherited by every chrome line;
+                       // the well and the prompt root their own monospaced
+                       // voice under it.
+                       .font({.face = faceChrome})
+                       .children({header, rule(9, 8),
+                                  box()
+                                      .row()
+                                      .flexGrow(1)
+                                      .gap(16)
+                                      .overflow(Overflow::Clip)
+                                      .children({std::move(well),
+                                                 box().width(1).fill(
+                                                     Fill::color(dc::kRule)),
+                                                 std::move(rail)}),
+                                  rule(8, 7), promptLine})})
+        // the living surface: the scanline tile, crept by its bound pan
+        .children({box()
+                       .inset(0)
+                       .zIndex(3)
+                       .hitTestable(false)
+                       .fill(Pattern(scanlines)
+                                 .offset(std::nullopt, scanCreep)
+                                 .material())
+                       .blendMode(material::BlendMode::Screen)})
+        // …and the refresh band, baked once and slid down the panel. Its
+        // rest position puts the tent's centre 90 px above the top edge,
+        // so the sweep enters from above and leaves below the foot.
+        .children(
+            {box()
+                 .rect(0, -90.0f - dc::kRefreshH * 0.5f, dc::kW, dc::kRefreshH)
+                 .zIndex(4)
+                 .hitTestable(false)
+                 .fill(dc::refreshBand())
+                 .translateY(refreshSweep)
+                 .cache(Cache::Texture)
+                 .blendMode(material::BlendMode::Screen)});
+  }
+};
+
+}  // namespace
+
+SIGIL_SKETCH_AS(DaemonConsole, "daemon console", "Catalog · Game UI",
+                "feed::Ring<LogRow>, with an entrance per severity")

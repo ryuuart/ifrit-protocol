@@ -2230,7 +2230,7 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "Sketchbook publishes a Python canvas through its own publisher"
+bound = "Grimoire publishes a Python canvas through its own publisher"
 
 [[section.surface.item]]
 native = "publication listing and a `Device` of a named graphics API"

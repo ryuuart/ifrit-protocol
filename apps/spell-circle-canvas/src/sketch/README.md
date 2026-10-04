@@ -5,9 +5,10 @@ directly by including its own headers, spelling its namespace and linking its
 target. SigilSketch is the framework a scene is hosted through: registration,
 sessions, the canvas and set runtimes, the live host that compiles and swaps
 sketches, and the workspace convention for sketches kept outside this
-repository. The drawing libraries do not depend on it. Sketchbook is one host
-built on SigilSketch — the stock one — that lists and runs the sketches it is
-pointed at.
+repository. The drawing libraries do not depend on it. Grimoire, at
+`apps/grimoire/`, is one application built on SigilSketch — the stock host,
+and an example of using the framework — that lists and runs the sketches it
+is pointed at and carries this repository's catalogue of them.
 
 A sketch is a plain C++ type that describes a canvas or a lit set, or a
 Python class doing the same. The host supplies the clock, assets and
@@ -49,19 +50,21 @@ host compiles the file with its own flags and swaps every saved build in:
 
 ```sh
 python3 scripts/sigil.py workspace new ~/sketches/hello
-Sketchbook ~/sketches/hello/hello.cpp
-Sketchbook ~/sketches/hello/hello.cpp --frame out.png
-Sketchbook --workspace ~/sketches/hello
+Grimoire ~/sketches/hello/hello.cpp
+Grimoire ~/sketches/hello/hello.cpp --frame out.png
+Grimoire --workspace ~/sketches/hello
 ```
 
 A folder of sketches outside this repository is a workspace. [HOST.md](HOST.md) covers the
 three ways a sketch reaches a host, why a C++ sketch is always compiled by
 its host, what binds a workspace to one host build, and custom hosts.
-[RUNNING.md](RUNNING.md) covers window, capture and benchmark commands.
+[Grimoire's running chapter](../../../grimoire/RUNNING.md) covers its
+window, capture and benchmark commands.
 
-For the bundled catalogue, put one entry under `sketches/`; the build discovers
-it by its file stem. `SIGIL_SKETCH` supplies the collection and description;
-`SIGIL_SKETCH_AS` supplies an explicit filed name when needed.
+A sketch compiled into a host is one entry in that host's catalogue, which
+its build discovers by file stem; Grimoire's is `apps/grimoire/sketches/`.
+`SIGIL_SKETCH` supplies the collection and description; `SIGIL_SKETCH_AS`
+supplies an explicit filed name when needed.
 [REGISTRY.md](REGISTRY.md) covers names, tags and plates.
 
 ## Canvas, set and pen
@@ -231,7 +234,8 @@ through the same URI that a window listens to.
 
 ## Files and reusable helpers
 
-A bundled C++ sketch can be one file or a directory named for its entry:
+A C++ sketch can be one file or a directory named for its entry, whether
+it stands in a host's catalogue or in a workspace:
 
 ```text
 sketches/
@@ -253,7 +257,8 @@ General-purpose helpers belong to the library that owns their purpose.
 Specimen furniture belongs to SigilSketchKit. Sharing an owner's helper
 header does not register or compile that owner's scene.
 
-A bundled directory sketch may carry `<stem>.fbs`. Its build generates
+A directory sketch in a host's catalogue may carry `<stem>.fbs`. The
+host's build generates
 `<stem>_generated.h` for C++ or `<stem>.bfbs` for Python; generated files are
 not edited by hand. A Python sketch reads the binary schema with
 `data::Schema::fromBinarySchema`.
@@ -273,8 +278,8 @@ it is not rerun from scratch merely to increase capture density.
 `ctx.deterministic` distinguishes a reproducible capture from a live window.
 A value measured from the sketch's own execution can vary between runs;
 `ctx.measured(value, pinned)` supplies a stable readout during a deterministic
-capture. [RUNNING.md](RUNNING.md) defines stills, sweeps, video, comparisons
-and benchmark commands.
+capture. [Grimoire's running chapter](../../../grimoire/RUNNING.md) defines
+its stills, sweeps, video, comparisons and benchmark commands.
 
 ## Pictures between runtimes
 
@@ -303,6 +308,40 @@ one for a particular kind. Without a device runtime, the CPU executor is used.
 texture import; a sketch needing it supplies a CPU fallback or an availability
 probe.
 
+### Another application's picture
+
+A host may publish what its canvas draws to other applications on the
+machine — Grimoire's `--publish` does — and `sigil::sketch::Guest`, from
+`<sigilsketch/canvas/Guest.h>`, is the same door read from the inside of
+a sketch: made from the context a sketch was handed — a page's
+`SketchContext` or a set's `SetContext` — and the name a publication
+announces, it answers with the newest frame two ways.
+`sigil::sketch::Guest::frame` is the frame as an image on the recorder
+the canvas is being drawn on, one per frame that arrived and null while
+nothing is publishing; `guest_picture` is the page that wears one. The
+frame arrives with its first row at the image's BOTTOM — the order the
+surface a publication is carried on is written and read — so it is drawn
+once into a target of its own on that recorder and what comes back is
+upright, which is the one thing done to it on the way in — the
+subscription's own doing, since a subscription is a `media::PixelSource`
+whose frames are turned as they are bound. It takes the
+`SkCanvas` as well as the recorder, so a caller inside a paint program
+asks with what it is already holding and names Graphite nowhere.
+`sigil::sketch::Guest::texture` is the same frame as a
+`material::Texture`, which is what a surface's base-colour slot takes, so
+a body in a set wears the publication the way it wears any other picture;
+`guest_body` is the set that turns one under a light. That one reads the
+pixels back into host memory, because the renderer that shades a body
+does not stand where a publication arrives — a frame is a Metal texture
+and the world draws through Vulkan — and a slot that works on every tier
+is worth a copy where no handle can cross.
+`sigil::sketch::Guest::publishing` and
+`sigil::sketch::Guest::application` are what a scene says about the
+publication it is wearing. A capture subscribes to nothing at all: what
+another application happens to be offering while a still is taken is not
+a function of the sketch that took it, so a plate of such a scene is what
+it draws with nobody publishing.
+
 ## Optional authoring features
 
 ### Specimen sheets
@@ -330,9 +369,9 @@ Reference studies keep their subject's own typography and geometry.
 
 A sketch may declare `static bool available(std::string* why)`.
 The registry and host use that probe to report missing runtime data instead
-of opening an incomplete session. Bundled sketches needing an optional target
-also appear in the stem-to-target table in `sketches/CMakeLists.txt`, so an
-absent build dependency excludes their source.
+of opening an incomplete session. A host's build leaves out a compiled-in
+sketch whose optional target is absent; Grimoire's catalogue states those in
+the stem-to-target table of `apps/grimoire/sketches/CMakeLists.txt`.
 
 `sketch::requireCached(urls, why)` checks cached network assets without
 fetching them. Use it when a capture requires the real art rather than the
@@ -369,14 +408,16 @@ is still arriving. Do not block the window's rendering callback.
 
 ### Python
 
-Sketchbook opens a `.py` module declaring a `@sketch` class in the same native
-session system. Saving imports a fresh body without compiling C++.
-`uv run sigil open sketch.py` launches Sketchbook with that project's Python
+A host opens a `.py` module declaring a `@sketch` class in the same native
+session system; Grimoire is one that does. Saving imports a fresh body without compiling C++.
+`uv run sigil open sketch.py` launches Grimoire with that project's Python
 dependencies. A `pyproject.toml` configures the environment; it does not select
 the entry module. Helpers remain ordinary imports.
 
 Reusable bindings belong to SigilPython. SigilSketchPython adds sketch sessions
-and kit support without adding Python to the core library.
+and kit support without adding Python to the core library, and its
+`sigil_python_sketches()` turns a host's Python sketches into registry
+entries of that host's build.
 [The Python authoring guide](../../../../apps/python/sigil/README.md) describes
 the package, typing and environment contract.
 
@@ -401,8 +442,9 @@ against its own headers, and refuses to when those headers are newer than
 the running image, because the boundary between a sketch and the libraries is
 their whole C++ vocabulary; it imports a Python sketch through its importer.
 Either way it adopts a replacement only once the replacement's session opens.
-Sketchbook is one host over it and owns its windows, Python environments and
-navigation. The exported framework symbols, the libraries a sketch can reach,
+Grimoire is one host over it and owns its windows, Python environments and
+navigation; it reaches the framework through the public headers and
+targets alone, as any custom host would. The exported framework symbols, the libraries a sketch can reach,
 workspaces and mapped-code lifetime are defined in [HOST.md](HOST.md). The protocol API is in [PROTOCOL.md](PROTOCOL.md).
 
 ## Source layout and targets
@@ -414,16 +456,24 @@ workspaces and mapped-code lifetime are defined in [HOST.md](HOST.md). The proto
 | `live/` | watching, compilation, the build cache, adoption and residency |
 | `plate/` | captures, sweeps, comparisons and thumbnails |
 | `kit/`, `scry/` | specimen furniture and optional web integration |
-| `book/` | Sketchbook's application and headless entry point |
-| `cmake/` | the captured sketch flags and the exported link surface |
+| `python/` | the Python adapter and a host's Python sketch registry |
+| `cmake/` | the captured sketch flags and the exported link surface a host's build calls |
 | `testing/`, `test/support/` | host harnesses and shared test fixtures |
-| `sketches/` | bundled scene entries |
 
 `SigilSketch` is the runtime archive. `SigilSketchKit` supplies specimen
 components; `SigilSketchRegistryAgent` and `SigilSketchSessionAgent` supply
 protocol agents. `SigilSketchTesting` and `SigilSketchTestingHarness` supply
-test support. `SigilSketches` is the bundled scenes' object library, and
-`Sketchbook` is their application host.
+test support. `SigilSketchVocabulary` names every library a sketch may
+include, so a host's catalogue links it and adds what its own sketches need
+beyond it. This directory holds no sketch and no application: Grimoire's
+`SigilSketches` is its catalogue's object library and `Grimoire` its host.
+
+A host's build calls two functions the framework defines.
+`sigil_sketch_flags(<host> ANCHOR <source> OUTPUT <file>)` lifts the compile
+line of the host's own anchor unit into the response file its live host
+compiles a sketch with, and `sigil_sketch_link_surface(<host> <catalogue>)`
+force-loads and re-exports every Sigil archive a hot-reloaded sketch
+resolves out of the executable; [HOST.md](HOST.md) says why each is needed.
 
 `SigilSketch` builds with `SIGIL_BUILD_APPS=OFF` and `SIGIL_BUILD_PYTHON=OFF`
 for a host that carries no applications or Python bindings.

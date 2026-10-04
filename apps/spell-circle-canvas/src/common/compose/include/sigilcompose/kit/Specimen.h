@@ -271,8 +271,7 @@ struct Caption {
   // is absent must leave no space behind it.
   int placed = 0;
   const auto place = [&](Element part, float before) {
-    if (placed > 0)
-      part.margin(before, 0, 0, 0);
+    if (placed > 0) part.margin(before, 0, 0, 0);
     column.children({std::move(part)});
     ++placed;
   };
@@ -431,7 +430,7 @@ struct PanelGrid {
  *
  *      kit::sheet({.title = "THE BLOCK CONTROLS",
  *                  .subtitle = "one text leaf per panel",
- *                  .footer = "Sketchbook · paragraph_sheet",
+ *                  .footer = "Grimoire · paragraph_sheet",
  *                  .marginX = 64, .marginTop = 64,
  *                  .marginBottom = 34, .ground = Fill::color(kPaper),
  *                  .rule = Fill::color(kFaint)},
@@ -490,7 +489,8 @@ struct Sheet {
     if (!page.key.empty()) part.key(page.key + "-" + which);
     return part;
   };
-  Element root = box().column().padding(page.marginTop, page.marginX, page.marginBottom, page.marginX);
+  Element root = box().column().padding(page.marginTop, page.marginX,
+                                        page.marginBottom, page.marginX);
   if (page.ground.kind != Fill::Kind::None) root.fill(page.ground);
 
   const bool ruled = page.rule.kind != Fill::Kind::None;
@@ -499,13 +499,12 @@ struct Sheet {
   const float half = std::max(
       0.0f, (page.contentGap - (ruled ? page.ruleWidth : 0.0f)) * 0.5f);
   const auto rule = [&](const char* which) {
-    return named(
-        box()
-            .height(Dimension(page.ruleWidth))
-            .alignSelf(Align::Stretch)
-            .fill(page.rule)
-            .margin(half, 0),
-        which);
+    return named(box()
+                     .height(Dimension(page.ruleWidth))
+                     .alignSelf(Align::Stretch)
+                     .fill(page.rule)
+                     .margin(half, 0),
+                 which);
   };
 
   const bool hasTitle = !page.title.empty();
@@ -521,8 +520,7 @@ struct Sheet {
           named(page.subtitleLine ? page.subtitleLine(page.subtitle, page)
                                   : sheetSubtitle(page.subtitle),
                 "subtitle");
-      if (hasTitle)
-        subtitle.margin(page.subtitleGap, 0, 0, 0);
+      if (hasTitle) subtitle.margin(page.subtitleGap, 0, 0, 0);
       header.children({std::move(subtitle)});
     }
     root.children({std::move(header)});

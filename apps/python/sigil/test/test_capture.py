@@ -14,7 +14,7 @@ from sigil.sketch import render_file
 
 
 @unittest.skipUnless(
-    os.environ.get("SIGIL_TEST_SKETCHBOOK"), "native Sketchbook not supplied"
+    os.environ.get("SIGIL_TEST_GRIMOIRE"), "native Grimoire not supplied"
 )
 class CaptureParity(unittest.TestCase):
     def test_declared_zero_explicit_zero_and_fractional_moments_match(self):
@@ -58,8 +58,8 @@ class CaptureParity(unittest.TestCase):
                         "sigil",
                         "open",
                         str(source),
-                        "--sketchbook",
-                        os.environ["SIGIL_TEST_SKETCHBOOK"],
+                        "--grimoire",
+                        os.environ["SIGIL_TEST_GRIMOIRE"],
                         "--",
                         "--frame",
                         str(native),

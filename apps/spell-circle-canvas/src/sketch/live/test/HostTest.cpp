@@ -714,7 +714,7 @@ TEST(SketchHost, KeepsRefusingAfterTheBinaryOnDiskIsReplaced) {
   std::ofstream(flags) << "-I" << root.generic_string() << "\n";
 
   // The image this host is part of, as it stood when the process started.
-  const std::filesystem::path binary = file.dir.path / "Sketchbook";
+  const std::filesystem::path binary = file.dir.path / "host";
   std::ofstream(binary) << "the host\n";
   std::filesystem::last_write_time(binary, now);
 
@@ -939,7 +939,7 @@ TEST(SketchHostBuildDirectory, TwoHostsInOneProcessNeverLinkOverEachOther) {
   // fails and each host keeps the session it started with, which is
   // exactly the state a host beside a building one is in. That a real
   // guest loads and draws its own file is what the sketch_reload_* ctest
-  // entries put through a whole Sketchbook.
+  // entries put through a whole host.
   EXPECT_EQ(square.canvasSize(), SkSize::Make(120, 90));
   EXPECT_EQ(wide.canvasSize(), SkSize::Make(200, 100));
 }

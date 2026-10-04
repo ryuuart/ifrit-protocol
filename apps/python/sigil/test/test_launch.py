@@ -15,14 +15,14 @@ import sigil
 
 
 @unittest.skipUnless(
-    os.environ.get("SIGIL_TEST_SKETCHBOOK"), "native Sketchbook not supplied"
+    os.environ.get("SIGIL_TEST_GRIMOIRE"), "native Grimoire not supplied"
 )
 class NativeLaunch(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory(prefix="sigil native launch ")
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name).resolve()
-        self.host = Path(os.environ["SIGIL_TEST_SKETCHBOOK"]).resolve(strict=True)
+        self.host = Path(os.environ["SIGIL_TEST_GRIMOIRE"]).resolve(strict=True)
         self.environment = os.environ.copy()
         for name in (
             "PYTHONHOME",
@@ -123,7 +123,7 @@ class EnvironmentSketch:
                 "sigil",
                 "open",
                 source,
-                "--sketchbook",
+                "--grimoire",
                 self.host,
                 "--",
                 "--frame",

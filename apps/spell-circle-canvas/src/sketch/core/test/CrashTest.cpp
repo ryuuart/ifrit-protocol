@@ -122,7 +122,7 @@ TEST(SketchCrash, FallsBackToThePathWhenNoEntryIsNamed) {
 
 TEST(SketchCrash, HostFaultDoesNotBlameASketch) {
   const Faulted report = faultIn([] {
-    installCrashReporter("/somewhere/Sketchbook");
+    installCrashReporter("/somewhere/host");
     {
       PhaseMark mark(Phase::Setup);
     }

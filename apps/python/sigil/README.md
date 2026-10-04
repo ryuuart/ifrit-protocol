@@ -1,7 +1,7 @@
 # Python sketches
 
 Python is an alternative authoring language for the native canvas session,
-included in every Sketchbook build.
+included in every Grimoire build.
 A saved `.py` file is imported into a fresh sketch instance without a C++
 compile or link. Composition, layout, text, motion and drawing still run
 through the same native libraries as a C++ canvas sketch.
@@ -14,8 +14,8 @@ standalone Python interpreter, including headless file rendering.
 ## Quick start: a sketch project whose editor stays current
 
 Two things read a sketch, and they take `sigil` from different places.
-**Sketchbook runs it** with the bindings compiled into the application, so
-a sketch is as current as the Sketchbook that opens it, whatever the
+**Grimoire runs it** with the bindings compiled into the application, so
+a sketch is as current as the Grimoire that opens it, whatever the
 project's environment holds. **The editor and a standalone `uv run` type
 and import it** from the `sigil-sketch` installed in the project's `.venv`,
 so that copy is the one to keep in step with the checkout.
@@ -45,11 +45,11 @@ editor's interpreter at the project's `.venv/bin/python`.
 
 What to run after a change:
 
-| What changed | Running side (Sketchbook) | Editor side (the project's `.venv`) |
+| What changed | Running side (Grimoire) | Editor side (the project's `.venv`) |
 | --- | --- | --- |
 | The sketch or its helpers | nothing: saving hot reloads | nothing |
 | Python files of the `sigil` package | reopen the sketch: a build from this checkout imports the package from `apps/python/sigil` | nothing: an editable install reads them from the checkout |
-| C++ bindings | `mise run python:native` refreshes the package's own modules, which are committed; then rebuild Sketchbook | `uv sync --reinstall-package sigil-sketch` in the project, then restart the language server |
+| C++ bindings | `mise run python:native` refreshes the package's own modules, which are committed; then rebuild Grimoire | `uv sync --reinstall-package sigil-sketch` in the project, then restart the language server |
 
 `uv sync` alone never picks up a binding change: the package's version did
 not move, so uv sees nothing to install. The same holds for a project
@@ -223,7 +223,7 @@ The optional `studies` extra adds NumPy for the vectorized examples. The
 base package has no third-party Python runtime dependencies.
 
 The installed command renders directly through the native canvas session.
-It needs no Sketchbook window, display server, `PYTHONPATH`, or source
+It needs no Grimoire window, display server, `PYTHONPATH`, or source
 checkout. `python -m sigil render ...` is the same command. The Python API
 is also available from the installed environment:
 
@@ -235,7 +235,7 @@ render_file("sketch.py", "preview.png", at=2.0)
 
 The renderer accepts strings and `pathlib.Path` objects. Omitting `at`
 uses the capture moment declared by the sketch, or 1.5 seconds if none is
-declared. Sketchbook and standalone Python step alike: whole steps at 60
+declared. Grimoire and standalone Python step alike: whole steps at 60
 FPS followed by the fractional remainder, then the picture is taken as a
 plate is, under the moving clock: a canvas draws one more frame to take
 it, so the picture is the scene one sixtieth of a second past the moment
@@ -247,14 +247,14 @@ in a capture. A fraction of a pixel is dropped, as a plate drops it.
 The CLI creates output directories as needed and
 returns a nonzero status when import, setup or rendering fails.
 
-What Sketchbook's browser and its plate ledger know about sketches is
+What Grimoire's browser and its plate ledger know about sketches is
 available as values too. `catalog(files=[], sketchDirectory=None,
 workspace=None)` answers one `CatalogRow` per file — its key, the runtime
 it draws through (a Python file always a canvas, a C++ file none until it
 has been built), its entry path and what its opening comment says in
 `source` — after one row per registry entry, whose files it looks for
 under `sketchDirectory`; `registryRows(kind="")` answers the registry
-alone, which is empty outside Sketchbook because this package compiles no
+alone, which is empty outside Grimoire because this package compiles no
 sketch in.
 `sigil examples` lists the packaged examples from `catalog`. `compare(first,
 second)` differences two directories of `plate_<name>.png` files, as a
@@ -273,7 +273,7 @@ can drive one itself, by either of two routes that answer the same
 generated domain classes. `sigil.testing.InProcess(state)` is a sketch
 host in this process — the registry, session and clock agents, with every
 command answered before it returns — and `sigil.protocol.launch(state=…)`
-starts a headless Sketchbook serving the protocol and connects to it over
+starts a headless Grimoire serving the protocol and connects to it over
 its socket, as `sigil.protocol.connect(address)` attaches to any host
 already running at a `ws://` address or through the state directory that
 names one:
@@ -292,8 +292,8 @@ print(Session(host).still(density=2).path)   # written under state/
 
 Under Advance nothing moves but by a step, and a still taken then is the
 plate a sweep writes of that moment; a paused clock photographs the
-frame it holds. `sigil.protocol.launch` finds Sketchbook through its
-`executable` argument, `SIGIL_SKETCHBOOK` or the path, and closing the
+frame it holds. `sigil.protocol.launch` finds Grimoire through its
+`executable` argument, `SIGIL_GRIMOIRE` or the path, and closing the
 connection ends the process.
 
 ## Build a wheel
@@ -316,9 +316,9 @@ It does not depend on the sketch runtime. The `SigilSketchPython` leaf adapter
 under `src/sketch/python/` adds embedding, native sketch sessions and SketchKit;
 the `SigilSketch` core does not link Python. A native live host opts in by
 supplying its Python loader
-through `Host::Options::pythonLoader`. Sketchbook and the standalone
+through `Host::Options::pythonLoader`. Grimoire and the standalone
 renderer always supply that function. Both use the same module registration
-and canvas-session implementation. Sketchbook initializes the interpreter
+and canvas-session implementation. Grimoire initializes the interpreter
 when it loads a Python sketch or checks a declared Python package requirement.
 
 A source build needs the native dependencies and toolchain configured for
@@ -442,9 +442,9 @@ drift is checked when the configured interpreter or one of those local
 environments has the pinned stub generator and matches the extension's
 Python version.
 
-## Develop with Sketchbook
+## Develop with Grimoire
 
-Use Sketchbook's **Open → Open Sketch…** or **Open → Open Workspace…**
+Use Grimoire's **Open → Open Sketch…** or **Open → Open Workspace…**
 picker to open sources outside the bundled catalogue. The app remembers
 recent files, workspace folders and each workspace's selected sketch; a
 normal launch shows Welcome with recent locations and Browse Examples.
@@ -481,15 +481,15 @@ spell_circle/
 
 Open the outer `spell_circle` directory as the workspace. `pyproject.toml`
 does not select an entry, and `[project.scripts]` defines terminal commands
-that Sketchbook does not invoke. Several `.py` entries can share the same
+that Grimoire does not invoke. Several `.py` entries can share the same
 project and package. Adding an entry requires reopening the workspace;
 editing an already open entry reloads its running sketch.
 
-For a Python project, Sketchbook finds its nearest `pyproject.toml` or
+For a Python project, Grimoire finds its nearest `pyproject.toml` or
 `.venv`. It uses uv to synchronize a project's dependencies, or reuses an
 existing plain virtual environment. Preparation reports progress and errors
 in the opening window. Standalone sketches use the host's default Python.
-The project does not need to install `sigil-sketch` to draw in Sketchbook:
+The project does not need to install `sigil-sketch` to draw in Grimoire:
 the native application supplies its matching bindings and authoring code.
 An incompatible Python interpreter is rejected before the sketch runs.
 
@@ -508,7 +508,7 @@ reads metadata without executing the sketch; every session imports current
 source, including thumbnail and headless sessions.
 
 The bundled catalogue shares the uv project and lockfile under
-`apps/spell-circle-canvas/src/sketch/sketches/`. Browse Examples prepares its
+`apps/grimoire/sketches/`. Browse Examples prepares its
 interpreter and declared dependencies, including NumPy, automatically before
 opening the catalogue. Direct file opens and headless rendering use that same
 project. Independent sketches still use their nearest project or virtual
@@ -526,17 +526,17 @@ The application's normal build setup includes Python support. From
 `apps/spell-circle-canvas`, build the host and standalone extension:
 
 ```sh
-cmake --build build --config Release --target Sketchbook sigil_python
+cmake --build build --config Release --target Grimoire sigil_python
 ```
 
 Open either example by path:
 
 ```sh
-build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
-  src/sketch/sketches/python_orbits.py
+build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire \
+  ../grimoire/sketches/python_orbits.py
 
-build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
-  src/sketch/sketches/python_dashboard.py
+build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire \
+  ../grimoire/sketches/python_dashboard.py
 ```
 
 For terminal launching and standalone Python rendering, install the
@@ -549,14 +549,14 @@ cd my-sketches
 uv python pin 3.14
 uv add /path/to/sigil_sketch-0.1.0a9-cp314-cp314-macosx_26_0_arm64.whl
 uv add numpy
-uv run sigil open sketch.py --sketchbook /path/to/Sketchbook
+uv run sigil open sketch.py --grimoire /path/to/Grimoire
 ```
 
-Use the actual wheel filename and the Python version it targets. Sketchbook
+Use the actual wheel filename and the Python version it targets. Grimoire
 is built or installed separately; the wheel provides the bindings,
-headless renderer and launcher. `--sketchbook` names the executable inside
-the application bundle on macOS. It can be omitted when `SIGIL_SKETCHBOOK`
-names that executable, `Sketchbook` is on `PATH`, or the native build is
+headless renderer and launcher. `--grimoire` names the executable inside
+the application bundle on macOS. It can be omitted when `SIGIL_GRIMOIRE`
+names that executable, `Grimoire` is on `PATH`, or the native build is
 under a parent of the working directory or sketch. The launcher also checks
 the macOS Applications folders.
 
@@ -741,7 +741,7 @@ It is a local byte sink, not an HTTP upload or a database transaction.
 Export in response to an explicit action or output configuration; ordinary
 rendering and catalogue thumbnails should not write application data.
 
-Standalone Python uses the same bindings without a Sketchbook process:
+Standalone Python uses the same bindings without a Grimoire process:
 
 ```python
 from sigil.io import Hub, registerTransports
@@ -782,7 +782,7 @@ uv run python -m sigil.examples.tools.send_live_signals --export output/readings
 
 ### Publish the rendered canvas
 
-Python sketches use Sketchbook's existing frame output. In a matching Python
+Python sketches use Grimoire's existing frame output. In a matching Python
 environment, open the sketch with a named publication:
 
 ```sh
@@ -796,7 +796,7 @@ around it. `--publish` without a name publishes under the sketch file's stem.
 Ctrl-P toggles output in the window, and the status line shows the publication
 name. Drawing with either Python or C++ uses this same path.
 
-Seer, the wire and texture reader built beside Sketchbook, is the client to
+Seer, the wire and texture reader built beside Grimoire, is the client to
 check it with: `Seer --list-textures` names what is being offered,
 `Seer --texture "Live Sketch"` opens a window on it, and
 `Seer --texture "Live Sketch" --grab frame.png` writes its newest frame to a
@@ -818,7 +818,7 @@ directory is the example.
 
 Frame publication belongs to the host that owns the GPU. SigilIO handles
 resource and data bytes; it does not turn image bytes into a Syphon stream.
-Sketchbook must be running on its Metal/Graphite backend to publish. The
+Grimoire must be running on its Metal/Graphite backend to publish. The
 standalone `sigil render` command remains a headless PNG renderer and does
 not start a persistent GPU publisher.
 

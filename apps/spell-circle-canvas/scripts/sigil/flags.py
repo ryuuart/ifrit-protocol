@@ -1,14 +1,14 @@
 """Verb: flags — the sketch compile line, lifted into a response file.
 
     sigil.py flags --compdb build/compile_commands.json \\
-        --anchor src/sketch/sketches/Anchor.cpp --config Release \\
+        --anchor ../grimoire/sketches/Anchor.cpp --config Release \\
         --out build/bin/Release/sketch_flags.rsp [--extra <link input>]
 
-The step itself is src/sketch/cmake/SketchFlags.py, beside the sketch
-host whose build runs it — the response file is how the live host
-compiles a sketch, so it belongs to SigilSketch rather than to the app's
-administration. This is the front door for running it by hand; the build
-calls the file directly.
+The step itself is src/sketch/cmake/SketchFlags.py, which a host's build
+runs through the framework's `sigil_sketch_flags` with its own anchor
+unit — the response file is how the live host compiles a sketch, so it
+belongs to SigilSketch rather than to the tree's administration. This is
+the front door for running it by hand.
 """
 
 import runpy

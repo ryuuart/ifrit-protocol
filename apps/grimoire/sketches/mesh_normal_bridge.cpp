@@ -1,0 +1,249 @@
+/** @file
+ * mesh_normal_bridge — A 3D BODY SHADED BY A 2D SURFACE RECIPE, and the
+ * other source of the map it reads.
+ *
+ * The material layer shades a NORMAL MAP: hand it a picture whose pixels
+ * encode surface directions and an environment to look those directions
+ * up in, and it returns a shader. Where that normal map comes from is not
+ * its business, and this sheet stands the two sources side by side.
+ *
+ *   FROM A MESH. `MeshStyle::Mode::Normals` rasterises the interpolated
+ *     surface normal per pixel instead of a lit colour — a G-buffer, in
+ *     one pass, on the same executor that would have drawn the body.
+ *   FROM AN OUTLINE. `bevelNormals(path, bevelPx)` derives a rounded
+ *     shoulder from a flat path's coverage. No mesh exists anywhere in
+ *     that panel; the shoulder is a distance field over the silhouette.
+ *
+ * Both encode device-space normals as rgb = n·0.5 + 0.5, and both feed
+ * the SAME recipe with the SAME environment and the same parameters — so
+ * what the third panel shows is that the two encodings agree, and a
+ * recipe cannot tell which one it was handed.
+ *
+ * THE THREE PASSES, per meshed body:
+ *   1. NORMALS. The mesh is drawn into an offscreen surface in Normals
+ *      mode. The clear colour is the FLAT normal (0,0,1) encoded, so
+ *      pixels outside the silhouette read as facing the viewer rather
+ *      than as garbage.
+ *   2. RECIPE. `shapeworks_lab::chrome` / `shapeworks_lab::gold` over that
+ *      map and an environment. Nothing in the recipe knows it is looking
+ *      at a mesh.
+ *   3. COVERAGE. The mesh is rasterised a second time in any opaque mode
+ *      to lay down its silhouette, and the shader is painted over it
+ *      through kSrcIn — so the recipe reaches exactly the body's pixels.
+ * The bevelled panel needs no pass 1 and no pass 3: a path is its own
+ * coverage, so the shader is painted straight through `drawPath`.
+ *
+ * WHY CURVATURE, NOT FLATNESS. Both meshed bodies curve in every
+ * direction. An extruded cap would present one normal over its whole face
+ * and sample the environment at one point, which is a flat colour and
+ * says nothing about the bridge.
+ *
+ * EDIT THESE FIRST
+ *   the superellipsoid's exponent — rounder bodies sweep more of the
+ *                 environment across the silhouette.
+ *   kBevelPx      — the shoulder's width on the third panel, px. Wide
+ *                 enough and the squircle reads as the same kind of body
+ *                 the mesh on the left is; narrow, and its interior is a
+ *                 flat face sampling the sky at one point.
+ *   the environments — studio and sunset are differently coloured skies,
+ *                 and chrome shows the difference hardest.
+ */
+
+// TAGS: Geometry/Meshes, Materials/Lighting
+
+#include <include/core/SkColor.h>
+#include <include/core/SkSurface.h>
+#include <sigilcompose/kit/Document.h>
+#include <sigildraw/Pen.h>
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/kit/Solids.h>
+#include <sigilgeometry/mesh/Mesh.h>
+#include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilgeometry/mesh/render/Painter.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Bevel.h>
+#include <sigilmaterial/skia/Draw.h>
+#include <sigilmaterial/skia/SkiaCompiler.h>
+#include <sigilmaterial/skia/Texture.h>
+#include <sigilmaterial/texture/EnvironmentMap.h>
+#include <sigilmedia/advanced/Skia.h>
+#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilweave/style/Type.h>
+
+#include "shapeworks_lab/Environments.h"
+#include "shapeworks_lab/Reflections.h"
+
+namespace sketch = sigil::sketch;
+namespace shapes = sigil::geometry::shapes;
+namespace weave = sigil::weave;
+
+using namespace sigil::compose;
+namespace mesh = sigil::geometry::mesh;
+namespace camera = sigil::geometry::mesh::camera;
+namespace render = sigil::geometry::mesh::render;
+namespace material = sigil::material;
+
+namespace {
+
+constexpr SkSize kCanvas = {1320, 720};
+/** The bevelled panel's shoulder, px. */
+constexpr float kBevelPx = 118.0f;
+/** Where the three bodies stand across the canvas. */
+constexpr float kStations[3] = {-320, 0, 380};
+
+constexpr material::Color kInk{0.90f, 0.93f, 0.97f, 1};
+constexpr material::Color kDim{0.56f, 0.61f, 0.72f, 1};
+
+/** The third panel's silhouette: a squircle, in CANVAS coordinates,
+ *  because `bevelNormals` places its map so a shader's device xy reads
+ *  the normal under it. */
+SkPath squircle() {
+  const float side = 300;
+  return sigil::geometry::path::toSk(
+             shapes::squircle(3.4f).outline({side, side}))
+      .makeTransform(SkMatrix::Translate(
+          kCanvas.width() * 0.5f + kStations[2] - side * 0.5f,
+          kCanvas.height() * 0.5f - side * 0.5f));
+}
+
+}  // namespace
+
+struct MeshNormalBridge {
+  material::EnvironmentMap studio, sunset;
+  mesh::Mesh blob, ring;
+
+  /** The G-buffer pass: the body's normals, into an offscreen surface
+   *  the size of the canvas so the shader's coordinates and the drawn
+   *  silhouette's agree pixel for pixel. */
+  static sk_sp<SkImage> normalPass(const mesh::Mesh& body,
+                                   const glm::mat4& model,
+                                   const camera::Camera& view) {
+    sk_sp<SkSurface> surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
+        (int)kCanvas.width(), (int)kCanvas.height()));
+    surface->getCanvas()->clear(SkColorSetARGB(255, 128, 128, 255));
+    render::drawMesh(*surface->getCanvas(), body, model, view,
+                     sigil::geometry::path::fromSk(kCanvas),
+                     {.mode = render::MeshStyle::Mode::Normals});
+    return surface->makeImageSnapshot();
+  }
+
+  static void shadeThroughCoverage(SkCanvas& canvas, const mesh::Mesh& body,
+                                   const glm::mat4& model,
+                                   const camera::Camera& view,
+                                   const sk_sp<SkShader>& shader) {
+    canvas.saveLayer(nullptr, nullptr);
+    render::drawMesh(canvas, body, model, view,
+                     sigil::geometry::path::fromSk(kCanvas),
+                     {.mode = render::MeshStyle::Mode::Uv});
+    SkPaint shade;
+    shade.setShader(shader);
+    shade.setBlendMode(SkBlendMode::kSrcIn);
+    canvas.drawPaint(shade);
+    canvas.restore();
+  }
+
+  void draw(SkCanvas& canvas) const {
+    const camera::Camera view{.eye = {0, 90, 820}, .target = {0, 0, 0}};
+
+    {
+      const glm::mat4 model = camera::place({kStations[0], 0, 0}, 24, -10, -8);
+      shadeThroughCoverage(
+          canvas, blob, model, view,
+          material::skia::shader(
+              shapeworks_lab::chrome(
+                  material::Texture(normalPass(blob, model, view)), sunset,
+                  {.contrast = 1.35f}),
+              {}));
+    }
+    {
+      const glm::mat4 model = camera::place({kStations[1], 0, -40}, 0, -30, 18);
+      shadeThroughCoverage(
+          canvas, ring, model, view,
+          material::skia::shader(
+              shapeworks_lab::gold(
+                  material::Texture(normalPass(ring, model, view)), studio,
+                  {.crinkle = 0.12f}),
+              {}));
+    }
+    // THE OTHER SOURCE. No mesh, no G-buffer, no coverage pass: the map
+    // is derived from the path's own coverage and the path is its own
+    // stencil, so one drawPath is the whole panel.
+    {
+      const SkPath outline = squircle();
+      SkPaint shade;
+      shade.setAntiAlias(true);
+      shade.setShader(material::skia::shader(
+          shapeworks_lab::chrome(
+              material::skia::bevelNormals(outline, kBevelPx), sunset,
+              {.contrast = 1.35f}),
+          {}));
+      canvas.drawPath(outline, shade);
+    }
+  }
+
+  void setup(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide presentation(
+        sketch::kit::featureTheme(sketch::kit::Density::Spacious));
+    sketch::kit::stage(ctx,
+                       {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
+                        .captureAt = 1.0,
+                        .background = sketch::kit::theme().palette.ground});
+    studio = shapeworks_lab::studioEnvironment();
+    sunset = shapeworks_lab::sunsetEnvironment();
+    blob = mesh::superellipsoid({150, 138, 90}, 2.6f, 64, 48);
+    ring = mesh::torus(116, 40);
+    const auto caption = [&](const char* call, const char* note, float x) {
+      return box()
+          .column()
+          .gap(4)
+          .width(370)
+          .absolute()
+          .inset(kCanvas.height() - 92, 0, 0, x)
+          .children(
+              {document::label(call), document::caption(note).width(370)});
+    };
+    ctx.composer.render(
+        // Every line is set in the bright ink unless it says otherwise;
+        // the quiet notes name the dim one.
+        stack()
+            .applyStyleSheet(sketch::kit::theme().styleSheet())
+            .ink(sketch::kit::theme().palette.ink)
+            // Keyed on the sink's own name: everything `draw` reads is
+            // cooked above, in this setup, and nothing after it moves.
+            .children(
+                {custom("mesh.normal.bridge",
+                        [this](sigil::draw::Pen& pen) {
+                          SkCanvas& canvas = *pen.canvas();
+                          draw(canvas);
+                        })
+                     .inset(0),
+                 sketch::kit::page(
+                     {.title = "Normal maps: two sources, one recipe",
+                      .subtitle = "Compare mesh normals with the bevel of a "
+                                  "flat silhouette.",
+                      .footer =
+                          "Both encode device-space normals as rgb = n·0.5 + "
+                          "0.5; the recipe accepts either source.",
+                      .ground = Fill::none()},
+                     box()),
+                 caption("A mesh in chrome",
+                         "The superellipsoid supplies its surface normals. A "
+                         "sunset environment supplies the reflection.",
+                         30),
+                 caption("The same bridge in gold",
+                         "A torus supplies the normals. A gold recipe reflects "
+                         "a studio environment.",
+                         462),
+                 caption("A flat outline in chrome",
+                         "A bevel supplies the normals, using the same chrome "
+                         "recipe and sunset as the first body.",
+                         894)}));
+  }
+};
+
+SIGIL_SKETCH(MeshNormalBridge, "Kit · API",
+             "two sources for one normal map — a mesh's own "
+             "normals through Mode::Normals, and a flat path's shoulder "
+             "through bevelNormals, under the same surface recipes")

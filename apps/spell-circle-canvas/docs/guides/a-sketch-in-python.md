@@ -16,7 +16,7 @@ uv pip install --python .venv/bin/python dist/sigil_sketch-*.whl
 ```
 
 The installed command renders through the native canvas session. It
-needs no Sketchbook window, no display server, no `PYTHONPATH` and no
+needs no Grimoire window, no display server, no `PYTHONPATH` and no
 source checkout.
 
 ## The whole file

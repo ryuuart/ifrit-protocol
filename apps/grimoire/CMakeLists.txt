@@ -1,0 +1,526 @@
+# Grimoire — the stock host built on SigilSketch, and this repository's
+# catalogue of sketches: an application of the framework that consumes it
+# through its public targets and headers alone.
+#
+# The app lists every sketch, live-edits any of them, and draws a set
+# sketch through an orbitable viewport. `--headless` is the renderer
+# every plate-ledger tier drives. The browser's rows (SketchCatalog, a
+# QObject model over the registry and the files a run was pointed at)
+# are the executable's own; the thumbnail store they fill is the
+# framework's.
+#
+# Built two ways. Day to day it is a directory of the library tree's
+# build: apps/spell-circle-canvas adds it, with its own binary directory
+# inside that tree, wherever the tree builds its applications. Alone, as
+# the top-level project, it declares its own project and brings the
+# library tree in as a subdirectory, with the vcpkg manifest and overlay
+# triplets that tree's build is configured with.
+get_filename_component(GRIMOIRE_LIBRARY_TREE
+  "${CMAKE_CURRENT_LIST_DIR}/../spell-circle-canvas" ABSOLUTE)
+set(GRIMOIRE_STANDALONE OFF)
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+  set(GRIMOIRE_STANDALONE ON)
+  # The floor is the library tree's, whose build this one contains.
+  cmake_minimum_required(VERSION 3.31)
+  # The manifest and the triplets the libraries are resolved against
+  # stand with the library tree; the vcpkg toolchain reads both when the
+  # project is declared, so they are set before it.
+  set(VCPKG_MANIFEST_DIR "${GRIMOIRE_LIBRARY_TREE}" CACHE PATH
+      "The vcpkg manifest the library tree is built against")
+  set(VCPKG_OVERLAY_TRIPLETS "${GRIMOIRE_LIBRARY_TREE}/cmake/triplets"
+      CACHE PATH "The library tree's overlay triplets")
+  project(Grimoire VERSION 0.1 LANGUAGES CXX)
+  # What the library tree's top level sets for its own targets, set again
+  # for this one's: these are read per directory and per target.
+  set(CMAKE_CXX_STANDARD 20)
+  set(CMAKE_CXX_STANDARD_REQUIRED ON)
+  set(CMAKE_CXX_EXTENSIONS OFF)
+  set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+  set(CMAKE_AUTOMOC OFF)
+  set(CMAKE_AUTOUIC OFF)
+  set(CMAKE_FIND_PACKAGE_TARGETS_GLOBAL ON)
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+  set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+  set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+  set(QT_QML_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/qml")
+  if(APPLE)
+    add_link_options("LINKER:-no_warn_duplicate_libraries")
+  endif()
+  add_compile_options(
+    $<$<COMPILE_LANGUAGE:C,CXX,OBJC,OBJCXX>:-ffp-contract=off>)
+  enable_testing()
+  add_subdirectory("${GRIMOIRE_LIBRARY_TREE}" spell-circle-canvas)
+endif()
+
+# Where the live host finds the file behind a registry entry, and what
+# mounts at res://: the demo assets a machine fetched (fonts, models,
+# textures), while a sketch's own files stand in its directory and reach
+# it through sketch://. Neither directory need exist: a missing asset
+# yields the placeholder and heals when a file appears.
+set(SIGIL_SKETCH_DIR ${CMAKE_CURRENT_LIST_DIR}/sketches)
+set(SIGIL_SKETCH_ASSET_DIR ${SIGIL_ASSET_DIR})
+
+# The catalogue, compiled into this host.
+add_subdirectory(sketches)
+
+find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 QuickDialogs2
+                                     GuiPrivate)
+qt_standard_project_setup(REQUIRES 6.11)
+find_package(unofficial-skia CONFIG REQUIRED)
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+
+qt_add_executable(Grimoire
+  src/main.cpp
+  src/Arguments.cpp src/Arguments.h
+  src/CanvasView.cpp src/CanvasView.h
+  src/CatalogRowMap.cpp src/CatalogRowMap.h
+  src/PythonEnvironment.cpp src/PythonEnvironment.h
+  src/Workspace.cpp src/Workspace.h
+  src/FrameLane.cpp src/FrameLane.h
+  src/Inspection.cpp src/Inspection.h
+  src/Keys.cpp src/Keys.h
+  src/PipelineStore.cpp src/PipelineStore.h
+  src/PipelineWarm.cpp src/PipelineWarm.h
+  src/GrimoireRenderer.cpp src/GrimoireRenderer.h
+  src/ServeLane.cpp src/ServeLane.h
+  src/GrimoireProgram.h
+  src/Startup.cpp src/Startup.h
+  src/SweepLane.cpp src/SweepLane.h
+  src/ThumbnailWarm.cpp src/ThumbnailWarm.h
+  src/VideoLane.cpp src/VideoLane.h
+  src/WindowBench.cpp src/WindowBench.h
+)
+sigil_qt_target(Grimoire)
+
+add_test(NAME sketch_browser
+  COMMAND Qt6::qmltestrunner
+    -input ${CMAKE_CURRENT_LIST_DIR}/test/tst_browser.qml
+    -platform offscreen)
+set_tests_properties(sketch_browser PROPERTIES
+  ENVIRONMENT "QT_QUICK_BACKEND=software" TIMEOUT 30)
+
+add_test(NAME sketch_publication_controls
+  COMMAND qt_qml_test
+    -input ${CMAKE_CURRENT_LIST_DIR}/test/tst_publication.qml
+    -platform offscreen)
+set_tests_properties(sketch_publication_controls PROPERTIES
+  ENVIRONMENT "QT_QUICK_BACKEND=software" TIMEOUT 30)
+
+add_test(NAME sketch_workspace_controls
+  COMMAND qt_qml_test
+    -input ${CMAKE_CURRENT_LIST_DIR}/test/tst_workspace.qml
+    -platform offscreen)
+set_tests_properties(sketch_workspace_controls PROPERTIES
+  ENVIRONMENT "QT_QUICK_BACKEND=software" TIMEOUT 30)
+
+# A real .app: a bare Mach-O in bin/ gets no bundle identity, so macOS
+# gives it the executable's name in the menu bar and treats activation as
+# a plain process. `--headless` still works through the inner binary
+# (bin/<config>/Grimoire.app/Contents/MacOS).
+set_target_properties(Grimoire PROPERTIES
+  MACOSX_BUNDLE_GUI_IDENTIFIER "dev.sigil.Grimoire"
+  MACOSX_BUNDLE_BUNDLE_NAME "Grimoire"
+  MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
+  MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
+  MACOSX_BUNDLE TRUE
+)
+
+# A file kept in qml/ is imported by NAME, so it is aliased to the
+# module root beside the generated qmldir — which is what lets one of
+# these files reach the singleton below without importing its own
+# module. Both properties are read when the module is declared, so
+# they are set before it.
+foreach(grimoire_qml IN ITEMS
+    Main Welcome CanvasPane WorkspaceWelcome Browser GroupTree TopBar SketchList SketchGallery PlateThumb Inspector
+    StatusStrip)
+  set_source_files_properties(src/qml/${grimoire_qml}.qml
+    PROPERTIES QT_RESOURCE_ALIAS ${grimoire_qml}.qml)
+endforeach()
+set_source_files_properties(src/qml/Groups.js PROPERTIES QT_RESOURCE_ALIAS Groups.js)
+qt_add_qml_module(Grimoire
+  URI Sigil.Grimoire
+  VERSION 1.0
+  QML_FILES
+    src/qml/Main.qml
+    src/qml/Welcome.qml
+    src/qml/CanvasPane.qml
+    src/qml/WorkspaceWelcome.qml
+    src/qml/Browser.qml
+    src/qml/GroupTree.qml
+    src/qml/Groups.js
+    src/qml/TopBar.qml
+    src/qml/SketchList.qml
+    src/qml/SketchGallery.qml
+    src/qml/PlateThumb.qml
+    src/qml/Inspector.qml
+    src/qml/StatusStrip.qml
+  SOURCES
+    src/GrimoireView.cpp src/GrimoireView.h
+    src/SketchCatalog.cpp src/SketchCatalog.h
+    src/SketchActions.cpp src/SketchActions.h
+)
+# The browser's thumbnails are THIS APP'S OWN, kept under the platform
+# cache location and filled on demand — nothing else writes them, so
+# there are no compiled-in store directories. A run that names a state
+# root with `--state` keeps them under it instead.
+target_include_directories(Grimoire PRIVATE ${CMAKE_CURRENT_LIST_DIR}/src)
+# The protocol: the agents a served host mounts and the endpoint every run
+# that answers one listens through, and the version host.describe names.
+target_compile_definitions(Grimoire PRIVATE
+  SIGIL_GRIMOIRE_VERSION="${PROJECT_VERSION}")
+target_link_libraries(Grimoire PRIVATE
+  SigilSketch SigilSketchPython SigilSketches SigilSketchesPython
+  SigilSketchSessionAgent SigilProtocolEndpoint
+  SigilMeasure SigilWeavePorts SigilMaterial
+  IfritQt IfritQtplugin Qt6::Gui Qt6::GuiPrivate Qt6::Quick Qt6::QuickControls2
+  Qt6::QuickDialogs2)
+
+# The application's own cases, in its one test binary: the command line,
+# the workspace a folder makes, the pipeline store, the pane's view and
+# the browser's rows. Its fixtures are its own, under test/.
+sigil_test(grimoire_test
+  SOURCES src/Arguments.cpp src/Workspace.cpp src/PipelineStore.cpp
+          src/CanvasView.cpp src/CatalogRowMap.cpp
+          test/ArgumentsTest.cpp test/WorkspaceTest.cpp
+          test/PipelineStoreTest.cpp test/CanvasViewTest.cpp
+          test/CatalogRowMapTest.cpp
+  LIBRARIES SigilSketch SigilWeavePorts Qt6::Core)
+
+# The endpoint the window and a sweep mount, under the protocol's one
+# label: host and registry answered, session and clock not mounted.
+sigil_test(grimoire_test
+  SOURCES src/Inspection.cpp test/InspectionTest.cpp
+  LIBRARIES SigilSketchRegistryAgent SigilProtocolEndpoint SigilIOHub Qt6::Core
+  DEFINITIONS SIGIL_GRIMOIRE_VERSION="${PROJECT_VERSION}"
+  SUITES GrimoireInspection LABELS protocol)
+# The test includes Qt headers without moc, so it turns Qt's keyword
+# macros off itself; the libraries own identifiers they would rewrite.
+target_compile_definitions(grimoire_test PRIVATE QT_NO_KEYWORDS)
+
+# WHAT A FRAME OF THE PANE COSTS AS THE READER ZOOMS, over a fixture
+# scene the bench declares itself, so no sketch the owner edits moves it
+# and no library pass that leaves a sketch behind stops it building.
+sigil_bench(grimoire_bench
+  SOURCES src/CanvasView.cpp bench/PaneBench.cpp
+  LIBRARIES SigilSketch SigilComposeDraw SigilWeavePorts)
+
+target_compile_definitions(Grimoire PRIVATE
+  SIGIL_PYTHON_EXECUTABLE="${Python3_EXECUTABLE}"
+  SIGIL_PYTHON_ENVIRONMENT_SCRIPT="${SIGIL_PYTHON_PACKAGE_DIR}/sigil/environment.py")
+
+# Sharing the sole Ultralight renderer is an opt-in property of this host,
+# separate from SigilScry's ordinary explicitly owned WebEngine path.
+if(TARGET SigilScry)
+  target_compile_definitions(Grimoire PRIVATE SIGIL_GRIMOIRE_SCRY)
+endif()
+
+# The device lane for set sketches: a flag that asked for the device
+# answers with the device or with nothing, never with a fallback. The
+# frame runtime is the world's; the mesh painter's device executor
+# stands beside its CPU twin in SigilGeometry, so both are named.
+target_link_libraries(Grimoire PRIVATE SigilWorldDiligent
+                                         SigilGeometryMeshRenderDevice)
+
+# Draw straight into QQuickRhiItem's texture through the shared Skia
+# Graphite context when the active QRhi backend supports it; the
+# CPU-raster/upload path in GrimoireView.cpp stands beside it for the
+# backends that do not. Single-source and module captures can own a native
+# hardware context independently of the World executor.
+target_link_libraries(Grimoire PRIVATE SigilSkiaQt SigilSkiaGraphite
+                                         SigilCoreHardware)
+target_compile_definitions(Grimoire PRIVATE SIGIL_GRIMOIRE_GPU)
+
+# THE DOOR A DRAWN FRAME LEAVES BY: `--publish` offers the texture this
+# window drew into to other applications on the machine. The seam knows
+# no Qt, and the one host that publishes is the one that links it — no
+# consumer of the library gets a publication protocol it never asked for.
+target_link_libraries(Grimoire PRIVATE SigilIOFrames)
+
+# THE HOT-RELOAD LINK SURFACE. A sketch dylib links with `-undefined
+# dynamic_lookup` and resolves the framework's symbols out of this
+# executable, so the host exports them and force-loads every Sigil
+# archive in its own and SigilSketches' link closure, read off the
+# targets rather than listed a second time — the walk is the framework's,
+# which defines `sigil_sketch_link_surface`. Skia is the one vendored
+# archive a sketch calls directly, and it is named.
+if(APPLE)
+  target_link_options(Grimoire PRIVATE "LINKER:-export_dynamic")
+  sigil_sketch_link_surface(Grimoire SigilSketches
+    EXTRA unofficial::skia::skia)
+else()
+  target_link_options(Grimoire PRIVATE "LINKER:--export-dynamic")
+endif()
+
+# The web engine reads its ICU tables and certificate bundle from a
+# folder beside the binary, so every executable that links it stages one.
+if(TARGET SigilScry)
+  ultralight_copy_resources(Grimoire)
+endif()
+
+# THE FLAGS A SKETCH OUTSIDE THE HOST IS COMPILED WITH: the compile line
+# of the catalogue's anchor unit, which includes what a sketch includes,
+# lifted into a response file beside the executable by the framework's
+# `sigil_sketch_flags`.
+#
+# No link input rides along: the host force-loads Skia and re-exports it,
+# so a sketch resolves Skia through -undefined dynamic_lookup like the rest
+# of the framework. Linking the archive into the sketch's library instead
+# would put two Skia images in one process, whose objects cannot be
+# exchanged.
+sigil_sketch_flags(Grimoire
+  ANCHOR ${SIGIL_SKETCH_DIR}/Anchor.cpp
+  OUTPUT "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/sketch_flags.rsp")
+
+# THE ONE TEST THAT LOOKS AT WHOSE CODE RAN, and the reason every other
+# reload test below can pass while the live host is dead.
+#
+# A registry sketch is compiled into this executable as well as into the
+# dylib an edit produces, so both images carry the same weak symbols for
+# it — the sketch's vtable and typeinfo when its virtuals are all inline,
+# and the function templates the registration macro takes the address of.
+# Weak definitions coalesce across a flat namespace onto whichever image
+# came first, and the executable is always first, so a guest compiled at
+# default visibility hands back an Entry whose factory is the HOST'S. The
+# build reports, the dlopen succeeds, the picture comes out — and it is
+# the picture of the file as it stood when the host was built.
+#
+# So this drives a difference through: a copy of a registry sketch with
+# its ground colour replaced, and the corner pixel of what `--frame`
+# writes must be that colour, with the registry's own copy of the same
+# sketch drawn as the control.
+add_test(NAME sketch_reload_runs_the_file
+  COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_LIST_DIR}/test/reload_runs_the_file.py
+    --grimoire $<TARGET_FILE:Grimoire>
+    --source ${SIGIL_SKETCH_DIR}/crossing_rule.cpp
+    --work ${CMAKE_BINARY_DIR}/sketch_reload_runs_the_file)
+
+# A GROUND WITH NO COVERAGE, which nothing else here can catch. Every
+# other sketch grounds itself in an opaque colour, so a clear that
+# dropped the ground's alpha — or a surface allocated without one —
+# would draw exactly the same picture as a correct one everywhere but
+# here. It is also what a publication carries, at the level a window is
+# not needed to reach it: the still is the declared canvas at one pixel
+# per canvas unit, and its untouched pixels carry no colour and no
+# coverage. Twice, because the raster path and the device path allocate
+# and clear their own surfaces.
+add_test(NAME sketch_transparent_ground
+  COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_LIST_DIR}/test/transparent_ground.py
+    --grimoire $<TARGET_FILE:Grimoire>
+    --sketch alpha_ground
+    --work ${CMAKE_BINARY_DIR}/sketch_transparent_ground)
+
+add_test(NAME sketch_transparent_ground_device
+  COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_LIST_DIR}/test/transparent_ground.py
+    --grimoire $<TARGET_FILE:Grimoire>
+    --sketch alpha_ground
+    --work ${CMAKE_BINARY_DIR}/sketch_transparent_ground_device
+    --gpu)
+set_tests_properties(sketch_transparent_ground_device PROPERTIES
+  LABELS gpu TIMEOUT 300)
+
+# Paints one of every stock material, so a material that cannot compile
+# or draw fails here rather than in someone's sketch.
+add_test(NAME sketch_reload_materials
+  COMMAND Grimoire
+    ${SIGIL_SKETCH_DIR}/stock_materials.cpp
+    --frame ${CMAKE_BINARY_DIR}/sketch_reload_materials.png)
+
+# THE LINK-SURFACE GUARD, and the reason it is a third test rather than a
+# case in either of the two above: what it watches is not a compile and
+# not a pixel, it is the force-load list.
+#
+# A missing archive there is invisible everywhere else. Every sketch
+# still compiles (the include surface is a different list) and every
+# compiled-in sketch still runs (a host that links the object library
+# resolves nothing dynamically) — and the hot-reloaded one fails at
+# dlopen. So this test must go through the DYNAMIC path, which `--frame`
+# does: it compiles the file with the response file, dlopens the result,
+# runs it, and exits nonzero when the load fails. shapeworks_lab is the
+# widest surface of the sketches that name geometry and material symbols,
+# so it is the one most likely to catch a partial regression too; neither
+# hello nor stock_materials can, because neither names one.
+add_test(NAME sketch_reload_surface
+  COMMAND Grimoire
+    ${SIGIL_SKETCH_DIR}/shapeworks_lab/shapeworks_lab.cpp
+    --frame ${CMAKE_BINARY_DIR}/sketch_reload_surface.png)
+
+# The video leaf reaches both an adapter header and codec archives that no
+# geometry-heavy sketch names. Its dynamic run proves the generated compile
+# surface carries SigilMediaVideo's include root and the host exports decode and
+# encode for the guest after a Release configure as well as a Debug one.
+add_test(NAME sketch_reload_surface_video
+  COMMAND Grimoire
+    ${SIGIL_SKETCH_DIR}/video_compose.cpp
+    --frame ${CMAKE_BINARY_DIR}/sketch_reload_surface_video.png)
+
+# …and the same guard for the other runtime: a set sketch names world
+# symbols no canvas sketch does, so a world archive missing from the list
+# above shows up here and nowhere else.
+add_test(NAME sketch_reload_surface_set
+  COMMAND Grimoire
+    ${SIGIL_SKETCH_DIR}/first_light.cpp
+    --frame ${CMAKE_BINARY_DIR}/sketch_reload_surface_set.png)
+
+# …and for the archives only the HOST links. A device backend is not in
+# the sketch target's closure — a bare consumer of that target must not
+# be made to link a renderer — so its symbols reach a compiled-in sketch
+# through the host's own link line and reach a reloaded one only if the
+# force-load list covers that line too. Nothing in the registry names
+# one, so the case is a probe file beside this list rather than a sketch:
+# what it asserts is a dlopen, not a picture.
+add_test(NAME sketch_reload_surface_device
+  COMMAND Grimoire
+    ${CMAKE_CURRENT_LIST_DIR}/test/device_import_probe.cpp
+    --frame ${CMAKE_BINARY_DIR}/sketch_reload_surface_device.png)
+
+# …and once more for each optional SDK, on the machines that have one.
+# These name symbols nothing else in the registry names, so an SDK
+# archive missing from the force-load list shows up here alone. A machine
+# whose SDK is installed but whose runtime data is not still passes: the
+# sketch draws what it is missing rather than failing to load.
+if(TARGET SigilComposeWeb AND TARGET SigilScry)
+  add_test(NAME sketch_reload_surface_web
+    COMMAND Grimoire
+      ${SIGIL_SKETCH_DIR}/web_panel.cpp
+      --frame ${CMAKE_BINARY_DIR}/sketch_reload_surface_web.png)
+endif()
+if(SUBSTANCE_SDK_DIR)
+  add_test(NAME sketch_reload_surface_substance
+    COMMAND Grimoire
+      ${SIGIL_SKETCH_DIR}/substance_swatches.cpp
+      --frame ${CMAKE_BINARY_DIR}/sketch_reload_surface_substance.png)
+endif()
+
+# The OTHER registration form. A sketch filed under a name of its own
+# takes SIGIL_SKETCH_AS, whose dylib expansion differs from
+# SIGIL_SKETCH's — and nothing above compiles one, so a break in it would
+# only show up the first time someone edited one of the sketches that use
+# it.
+add_test(NAME sketch_reload_named
+  COMMAND Grimoire
+    ${SIGIL_SKETCH_DIR}/world_hud/world_hud.cpp
+    --frame ${CMAKE_BINARY_DIR}/sketch_reload_named.png)
+
+# THE DIRECTORY FORM. A sketch that is a directory goes through the host
+# as several translation units compiled apart and linked once, which
+# nothing above exercises: every entry there is one file. This one is
+# the entry of a directory sketch whose catalogue stands in a unit
+# beside it, so a break in the unit list, the object cache or the link
+# line shows up here and nowhere else.
+add_test(NAME sketch_reload_directory
+  COMMAND Grimoire
+    ${SIGIL_SKETCH_DIR}/dunhuang_star_chart/dunhuang_star_chart.cpp
+    --frame ${CMAKE_BINARY_DIR}/sketch_reload_directory.png)
+
+add_test(NAME sketch_capture_viewport
+  COMMAND Grimoire
+    ${CMAKE_CURRENT_LIST_DIR}/test/capture_viewport_probe.cpp
+    --frame ${CMAKE_BINARY_DIR}/sketch_capture_viewport.png
+    --frames 3 --scale 1.6666667 --at 0.05)
+
+# WHICH WAY UP THE CANVAS IS PRESENTED, which only a window can say.
+# The item never runs a QRhi render pass, so the mirror Qt applies for a
+# y-up backend compensates nothing and has to be asked for a second time
+# — and no still can catch it, because `--frame` opens no window. This
+# photographs one on the backend that is y-up, with the still of the same
+# probe as its control. It wants a window server and an OpenGL RHI, hence
+# the label.
+add_test(NAME sketch_window_orientation
+  COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_LIST_DIR}/test/window_orientation.py
+    --grimoire $<TARGET_FILE:Grimoire>
+    --probe ${CMAKE_CURRENT_LIST_DIR}/test/orientation_probe.cpp
+    --work ${CMAKE_BINARY_DIR}/sketch_window_orientation)
+set_tests_properties(sketch_window_orientation PROPERTIES
+  LABELS window TIMEOUT 300)
+
+add_test(NAME sketch_window_bench_file
+  COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_LIST_DIR}/test/window_orientation.py
+    --benchmark
+    --grimoire $<TARGET_FILE:Grimoire>
+    --probe ${CMAKE_CURRENT_LIST_DIR}/test/orientation_probe.cpp
+    --work ${CMAKE_BINARY_DIR}/sketch_window_bench_file)
+set_tests_properties(sketch_window_bench_file PROPERTIES
+  LABELS window TIMEOUT 300)
+
+# WHAT A SECOND OPEN NO LONGER BUILDS, which only a window can say. The
+# device program a draw waits for is built by the context behind the
+# presented canvas, so neither a still nor a headless sweep reaches it:
+# this opens the real window twice over one recorded set and reads the
+# tally each run closes with. A machine with no device behind the window
+# reports so and passes, having measured nothing.
+add_test(NAME sketch_pipeline_warmup
+  COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_LIST_DIR}/test/pipeline_warmup.py
+    --grimoire $<TARGET_FILE:Grimoire>
+    --sketch crt_bloom
+    --work ${CMAKE_BINARY_DIR}/sketch_pipeline_warmup)
+set_tests_properties(sketch_pipeline_warmup PROPERTIES
+  LABELS "window;gpu" TIMEOUT 300)
+
+# WHAT A BATCH LANE LEAVES BEHIND, which needs no window: a headless
+# sweep on the device draws the programs an open window draws, so it
+# writes them down for a machine whose store stands empty — and only
+# then, because a run that drew a selection knows less about the next
+# launch than a window run that drew one sketch. Two sweeps over one
+# store: the first seeds it, the second records its own and writes none.
+add_test(NAME sketch_pipeline_cold_store
+  COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_LIST_DIR}/test/pipeline_cold_store.py
+    --grimoire $<TARGET_FILE:Grimoire>
+    --first crt_bloom
+    --second chrome_type
+    --work ${CMAKE_BINARY_DIR}/sketch_pipeline_cold_store)
+set_tests_properties(sketch_pipeline_cold_store PROPERTIES
+  LABELS gpu TIMEOUT 300)
+
+# Every sketch stem a document names, resolved against this catalogue.
+# A README points its reader at the sketches that draw the feature beside
+# it and spells their stems by hand, so a rename here leaves prose
+# pointing at a file that is not there with nothing to notice. The stems
+# are this catalogue's, so the check is this application's, and it reads
+# every document that names one: the library tree's READMEs and chapters,
+# the framework's, this application's and the catalogue's own.
+file(GLOB_RECURSE GRIMOIRE_STEM_DOCS CONFIGURE_DEPENDS
+     ${GRIMOIRE_LIBRARY_TREE}/src/README.md
+     ${GRIMOIRE_LIBRARY_TREE}/src/FEATURES.md
+     ${GRIMOIRE_LIBRARY_TREE}/src/TYPOGRAPHY.md
+     ${GRIMOIRE_LIBRARY_TREE}/src/sketch/REGISTRY.md
+     ${GRIMOIRE_LIBRARY_TREE}/src/sketch/HOST.md
+     ${GRIMOIRE_LIBRARY_TREE}/src/sketch/TESTING.md
+     ${CMAKE_CURRENT_LIST_DIR}/README.md)
+list(APPEND GRIMOIRE_STEM_DOCS
+     ${CMAKE_CURRENT_LIST_DIR}/RUNNING.md
+     ${CMAKE_CURRENT_LIST_DIR}/BROWSER.md
+     ${CMAKE_CURRENT_LIST_DIR}/TESTING.md)
+set(GRIMOIRE_STEM_DOC_ARGS)
+foreach(doc IN LISTS GRIMOIRE_STEM_DOCS)
+  list(APPEND GRIMOIRE_STEM_DOC_ARGS --doc ${doc})
+endforeach()
+add_test(NAME sketch_readme_stems
+  COMMAND ${Python3_EXECUTABLE}
+          ${CMAKE_CURRENT_LIST_DIR}/test/readme_sketch_stems.py
+          --sketch-dir ${SIGIL_SKETCH_DIR}
+          ${GRIMOIRE_STEM_DOC_ARGS})
+
+# The checker's own fixtures: a stem must resolve, a misspelt one must
+# fail the run, a token outside a sketch paragraph must not be read as a
+# stem, and a count of a list must be refused. One Python invocation — and
+# the only check that notices the EXTRACTOR narrowing, since a checker that
+# silently resolves fewer stems still passes over the corpus.
+add_test(NAME sketch_readme_stems_self_test
+  COMMAND ${Python3_EXECUTABLE}
+          ${CMAKE_CURRENT_LIST_DIR}/test/readme_sketch_stems.py --self-test)
+
+# Alone, this project is the top level, so the finalization the library
+# tree's top level would make once every directory had contributed is
+# made here, after this one's own.
+if(GRIMOIRE_STANDALONE)
+  sigil_finalize_docs()
+  sigil_finalize_tests()
+  sigil_finalize_sketch_link_surfaces()
+endif()

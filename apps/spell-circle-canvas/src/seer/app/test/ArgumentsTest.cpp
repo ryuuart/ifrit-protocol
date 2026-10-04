@@ -43,10 +43,10 @@ TEST(SeerArguments, ANameOnItsOwnOpensTheWindow) {
 
 TEST(SeerArguments, TheApplicationNarrowsOneName) {
   const std::optional<Arguments> window =
-      parse({"--texture", "smoke", "--app", "Sketchbook"});
+      parse({"--texture", "smoke", "--app", "Grimoire"});
   ASSERT_TRUE(window);
   EXPECT_EQ(window->texture, "smoke");
-  EXPECT_EQ(window->application, "Sketchbook");
+  EXPECT_EQ(window->application, "Grimoire");
 }
 
 TEST(SeerArguments, AGrabNamesItsFileAndHowLongItWaits) {
@@ -105,7 +105,7 @@ TEST(SeerArguments, CaptureRejectsWindowOptionsAndInvalidCounts) {
   EXPECT_FALSE(parse(
       {"--texture", "Canvas", "--grab", "frame.png", "--timeout", "nan"}));
   EXPECT_FALSE(parse({"--grab", "frame.png"}));
-  EXPECT_FALSE(parse({"--app", "Sketchbook"}));
+  EXPECT_FALSE(parse({"--app", "Grimoire"}));
 }
 
 TEST(SeerArguments, InspectTakesAnOptionalPortAndTheStateRootOneDirectory) {

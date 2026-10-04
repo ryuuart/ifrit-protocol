@@ -2,7 +2,7 @@
 
     sigil.py workspace new <dir>
 
-A sketch does not have to live in this repository: Sketchbook takes a
+A sketch does not have to live in this repository: Grimoire takes a
 `.cpp` path wherever it stands, compiles it with the flags this build
 captured, and hot-swaps it on every save. What such a folder holds is a
 convention and nothing more — this writes that convention once, so a
@@ -12,7 +12,7 @@ directory.
 It writes files and nothing else: no build tree, no CMake package, no
 install step. The folder is bound to THIS checkout at this build time,
 because the flags the sketch compiles with are the ones beside the
-Sketchbook binary.
+Grimoire binary.
 """
 
 import argparse
@@ -27,7 +27,7 @@ from sigil import tree
 SKETCH = """// @STEM@.cpp — a sketch that lives beside its own files, outside the
 // repository that compiles it. Open it:
 //
-//     Sketchbook @STEM@.cpp
+//     Grimoire @STEM@.cpp
 //
 // Then edit and save: the canvas rebuilds and swaps in a couple of
 // seconds, and the last good build stays on screen while a build is
@@ -92,7 +92,7 @@ README = """# @STEM@ — a sketch and the files it stands on
 
 This folder is one sketch. It is not part of the repository that
 compiles it, and it needs nothing from that repository but a built
-Sketchbook.
+Grimoire.
 
 ```
 @STEM@/
@@ -102,7 +102,7 @@ Sketchbook.
 ## Opening it
 
 ```sh
-@SKETCHBOOK@ \\
+@GRIMOIRE@ \\
     @STEM@.cpp
 ```
 
@@ -116,17 +116,17 @@ compiled into the same sketch.
 
 **The folder is bound to one checkout at one build time.** What it
 compiles against are the flags that build captured, in `sketch_flags.rsp`
-beside the Sketchbook binary; after rebuilding that checkout's libraries,
-restart Sketchbook before opening this again.
+beside the Grimoire binary; after rebuilding that checkout's libraries,
+restart Grimoire before opening this again.
 
 ## What it can be asked for
 
 ```sh
-Sketchbook @STEM@.cpp                      # the window, live
-Sketchbook @STEM@.cpp --frame out.png      # one still
+Grimoire @STEM@.cpp                      # the window, live
+Grimoire @STEM@.cpp --frame out.png      # one still
       [--at <sec>] [--scale <n>] [--frames <n>] [--gpu]
-Sketchbook @STEM@.cpp --bench              # the frame-time gate
-Sketchbook @STEM@.cpp --gpu --publish      # the frames, to other applications
+Grimoire @STEM@.cpp --bench              # the frame-time gate
+Grimoire @STEM@.cpp --gpu --publish      # the frames, to other applications
 ```
 
 `--publish` offers every frame this canvas draws to other applications
@@ -191,18 +191,18 @@ def new(directory: Path) -> int:
 
     for folder in (directory, directory / "assets", directory / "captures"):
         folder.mkdir(parents=True, exist_ok=True)
-    sketchbook = tree.bin_dir("Release") / tree.SKETCHBOOK_IN_BUNDLE
+    grimoire = tree.bin_dir("Release") / tree.GRIMOIRE_IN_BUNDLE
     entry.write_text(SKETCH.replace("@STEM@", stem).replace("@NAME@", name))
     readme.write_text(
         README.replace("@TREE@", tree_block(stem))
-        .replace("@SKETCHBOOK@", str(sketchbook))
+        .replace("@GRIMOIRE@", str(grimoire))
         .replace("@STEM@", stem)
     )
 
     print(f"wrote {directory}")
     for written in (entry.name, "assets/", "captures/", readme.name):
         print(f"  {written}")
-    print(f"\nopen it with:\n  {sketchbook} {entry}")
+    print(f"\nopen it with:\n  {grimoire} {entry}")
     return 0
 
 

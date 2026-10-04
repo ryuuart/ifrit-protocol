@@ -44,7 +44,7 @@ SIGIL_SKETCH(FirstBox, "Guide", "a coloured rounded box")
 Open it:
 
 ```sh
-build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook first_box.cpp
+build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire first_box.cpp
 ```
 
 It compiles in a couple of seconds and opens on the picture. Edit the

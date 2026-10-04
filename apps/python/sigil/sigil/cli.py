@@ -59,15 +59,15 @@ def _executable(path, label):
     return path
 
 
-def _sketchbook(source, explicit):
+def _grimoire(source, explicit):
     if explicit is not None:
-        return _executable(explicit, "--sketchbook")
-    configured = os.environ.get("SIGIL_SKETCHBOOK")
+        return _executable(explicit, "--grimoire")
+    configured = os.environ.get("SIGIL_GRIMOIRE")
     if configured:
-        return _executable(configured, "SIGIL_SKETCHBOOK")
-    found = shutil.which("Sketchbook")
+        return _executable(configured, "SIGIL_GRIMOIRE")
+    found = shutil.which("Grimoire")
     if found:
-        return _executable(found, "Sketchbook on PATH")
+        return _executable(found, "Grimoire on PATH")
 
     package = Path(__file__).resolve().parent
     origins = [Path.cwd(), source.parent, package]
@@ -80,26 +80,26 @@ def _sketchbook(source, explicit):
                 continue
             seen.add(directory)
             for relative in (
-                "build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook",
-                "build/bin/Release/Sketchbook",
+                "build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire",
+                "build/bin/Release/Grimoire",
             ):
                 candidate = directory / relative
                 if candidate.is_file() and os.access(candidate, os.X_OK):
                     return candidate
     if sys.platform == "darwin":
         for directory in (Path("/Applications"), Path.home() / "Applications"):
-            candidate = directory / "Sketchbook.app/Contents/MacOS/Sketchbook"
+            candidate = directory / "Grimoire.app/Contents/MacOS/Grimoire"
             if candidate.is_file() and os.access(candidate, os.X_OK):
                 return candidate
     raise FileNotFoundError(
-        "Sketchbook was not found. Build or install the native Sketchbook app, "
-        "then pass --sketchbook /path/to/Sketchbook or set SIGIL_SKETCHBOOK."
+        "Grimoire was not found. Build or install the native Grimoire app, "
+        "then pass --grimoire /path/to/Grimoire or set SIGIL_GRIMOIRE."
     )
 
 
 def _compatible_python(host, environment):
     if sys.implementation.name != "cpython":
-        raise ValueError("Sketchbook requires a CPython environment.")
+        raise ValueError("Grimoire requires a CPython environment.")
     abi = sysconfig.get_config_var("SOABI")
     if not isinstance(abi, str) or not abi:
         raise ValueError("The current Python interpreter does not report its SOABI.")
@@ -121,31 +121,31 @@ def _compatible_python(host, environment):
         )
     except subprocess.TimeoutExpired as error:
         raise RuntimeError(
-            f"Sketchbook did not answer --python-info within 10 seconds: {host}"
+            f"Grimoire did not answer --python-info within 10 seconds: {host}"
         ) from error
     except subprocess.CalledProcessError as error:
         detail = (error.stderr or "").strip()
         raise RuntimeError(
-            f"Could not query Sketchbook's Python compatibility: {host}. "
+            f"Could not query Grimoire's Python compatibility: {host}. "
             "Use a host with --python-info support." + (f" {detail}" if detail else "")
         ) from error
     try:
         info = json.loads(result.stdout)
     except json.JSONDecodeError as error:
         raise RuntimeError(
-            f"Sketchbook returned invalid --python-info JSON: {host}"
+            f"Grimoire returned invalid --python-info JSON: {host}"
         ) from error
     try:
         mismatches = _compatibility_mismatches(info, expected, "host", "current Python")
     except ValueError as error:
         raise RuntimeError(
-            f"Sketchbook returned invalid Python compatibility fields: {host}"
+            f"Grimoire returned invalid Python compatibility fields: {host}"
         ) from error
     if mismatches:
         raise ValueError(
-            "Sketchbook and the current Python environment are incompatible ("
+            "Grimoire and the current Python environment are incompatible ("
             + "; ".join(mismatches)
-            + "). Use a Sketchbook built for this interpreter, or run sigil "
+            + "). Use a Grimoire built for this interpreter, or run sigil "
             "with a matching Python environment."
         )
     return abi
@@ -168,7 +168,7 @@ def _open(source, explicit, forwarded):
         raise ValueError(f"sigil open requires a Python .py sketch: {source}")
     if not os.access(source, os.R_OK):
         raise PermissionError(f"Python sketch is not readable: {source}")
-    host = _sketchbook(source, explicit)
+    host = _grimoire(source, explicit)
     if not sys.executable:
         raise ValueError("The current Python interpreter has no executable path.")
     executable = _executable(sys.executable, "Current Python interpreter")
@@ -215,9 +215,9 @@ def main(argv=None):
         type=_seconds,
         help="scene seconds; defaults to the sketch's capture time",
     )
-    live = commands.add_parser("open", help="open a sketch in the live Sketchbook host")
+    live = commands.add_parser("open", help="open a sketch in the live Grimoire host")
     live.add_argument("source", type=Path, help="Python sketch file")
-    live.add_argument("--sketchbook", type=Path, help="native Sketchbook executable")
+    live.add_argument("--grimoire", type=Path, help="native Grimoire executable")
     live.add_argument(
         "--publish",
         nargs="?",
@@ -249,7 +249,7 @@ def main(argv=None):
                     if options.publish is True
                     else f"--publish={options.publish}"
                 )
-            _open(options.source, options.sketchbook, forwarded)
+            _open(options.source, options.grimoire, forwarded)
         except (OSError, RuntimeError, ValueError) as error:
             parser.exit(1, f"sigil: {error}\n")
         return 0

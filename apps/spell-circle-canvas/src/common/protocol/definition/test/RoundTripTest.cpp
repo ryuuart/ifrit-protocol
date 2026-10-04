@@ -112,7 +112,7 @@ void everySample(Visit&& visit) {
   visit.template operator()<protocol::host::values::DescribeResult>(
       "sigil.protocol.host.DescribeResult",
       R"({"version": {"revision": {"breaking": 0, "compatible": 2},
-                      "program": "Sketchbook"},
+                      "program": "Grimoire"},
           "domains": ["host", "clock"],
           "clock": "PauseWhileLoading",
           "state_root": "/tmp/state",

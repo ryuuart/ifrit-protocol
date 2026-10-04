@@ -1,0 +1,168 @@
+/** @file
+ * dart_flight — a body riding a curve, aimed by the curve.
+ *
+ * One winding closed loop, swept into a rail; a chrome dart flying it;
+ * and a line of gates standing on the same loop at fixed distances, so
+ * the dart's travel can be read against something that does not move.
+ *
+ * EVERYTHING HERE IS `along()`. A node given a spline and a distance
+ * stands at that distance and is TURNED ONTO THE CURVE'S OWN FRAME — the
+ * tangent is its up axis, so a body modelled nose-up flies nose-first
+ * without a matrix being written anywhere. The distance is a lane like
+ * any other: the dart's is a function of the scene time, the gates' are
+ * constants, and one verb serves both. The gates each add a turn of
+ * their own INSIDE that frame, which is what the composition rule means
+ * — `along()` replaces the translation and the axis turn, and the three
+ * rotation lanes still apply after it.
+ *
+ * The rail is `pop::sweep` over the same spline the dart rides, so
+ * there is exactly one curve in this file and both the picture and the
+ * flight are read off it. The curve itself is the world kit's winding:
+ * this file says how many gates stand on it and how fast the dart flies
+ * it, and nothing about where it goes.
+ */
+
+// TAGS: Geometry/Meshes, Motion/Trajectories
+
+#include <sigilgeometry/kit/Sections.h>
+#include <sigilgeometry/kit/Solids.h>
+#include <sigilgeometry/mesh/Mesh.h>
+#include <sigilgeometry/mesh/curve/Curve.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/surface/Surface.h>
+#include <sigilmotion/values/Time.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/set/Set.h>
+#include <sigilworld/kit/Kit.h>
+
+#include <cmath>
+#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
+#include <ranges>
+#include <string>
+#include <vector>
+
+namespace sketch = sigil::sketch;
+namespace world = sigil::world;
+namespace material = sigil::material;
+namespace motion = sigil::motion;
+namespace gm = sigil::geometry::mesh;
+namespace sections = sigil::geometry::sections;
+
+namespace {
+
+/** How many gates stand on the loop, and how fast the dart flies it —
+ *  loops per second, so one number says both how long a lap takes and
+ *  how far apart two frames are. */
+constexpr int kGates = 9;
+constexpr float kLapsPerSecond = 0.11f;
+
+/** THE FLIGHT LOOP: the kit's winding round a shell, which leaves its
+ *  own plane, so the rail crosses in front of and behind itself and a
+ *  body riding it is seen from every side of the frame during one lap.
+ *  The rise-and-fall count and the turn count share no factor, which is
+ *  what keeps a later wrap from retracing an earlier one. */
+gm::curve::Spline3 flight() {
+  return world::kit::winding(
+      {.shell = {230.0f, 120.0f, 190.0f}, .wraps = 3.0f, .turns = 2.0f});
+}
+
+/** The dart: a profile revolved about its own up axis, nose at the top.
+ *  `along()` puts the tangent where that axis is, so this is the whole
+ *  of aiming it. */
+gm::Mesh dart() {
+  const std::vector<glm::vec2> profile = {
+      {0, 52}, {12, 18}, {17, -9}, {9, -26}, {0, -30}};
+  return gm::revolve(profile, {.segments = 20});
+}
+
+/** A gate: a hexagonal ring the rail passes through, its hole about the
+ *  same axis the dart's nose points along — so the curve's own frame
+ *  stands it ACROSS the flight and nothing here has to say so. Six sides
+ *  rather than round, because a round ring's roll about the rail is a
+ *  turn with nothing to see and a hexagon's is the point. */
+gm::Mesh gate() { return gm::torus(26.0f, 3.0f, 6, 10); }
+
+}  // namespace
+
+namespace {
+
+struct DartFlight {
+  void setup(sketch::SetContext& ctx) {
+    sketch::kit::stage(
+        ctx, {.size = {880, 600},
+              .captureAt = 1.5,
+              .background = material::Color{0.028f, 0.032f, 0.046f, 1.0f}});
+  }
+
+  world::Frame describe(float seconds) {
+    const gm::curve::Spline3 loop = flight();
+    const float lap = loop.length();
+
+    const gm::Mesh rail =
+        gm::pop::sweep(loop, sections::circle(12),
+                       {.segments = 260,
+                        .scale = 3.4f,
+                        .normals = gm::pop::SweepOptions::Normals::Radial});
+
+    const material::Material chrome = material::surface::program(
+        {.baseColor = {0.90f, 0.93f, 1.0f, 1.0f}, .roughness = 0.12f});
+    const material::Material wire = material::surface::program(
+        {.baseColor = {0.38f, 0.44f, 0.60f, 1.0f}, .roughness = 0.5f});
+    const material::Material brass = material::surface::program(
+        {.baseColor = {0.86f, 0.62f, 0.28f, 1.0f}, .roughness = 0.35f});
+
+    // The gates: one node per station, each standing at a constant
+    // distance along the loop and ROLLED about the rail inside the frame
+    // the curve put it in — which is `along()` composing with the
+    // rotation lanes rather than replacing them.
+    const auto gateAt = [&](int i) {
+      return world::Element()
+          .key("gate" + std::to_string(i))
+          .along(loop, lap * ((float)i / (float)kGates))
+          .rotateY((float)i * 11.0f)
+          .mesh(gate())
+          .fill(brass)
+          .tag("gate");
+    };
+
+    world::Element subject =
+        world::Element()
+            .key("flight")
+            .children({world::Element().key("rail").mesh(rail).fill(wire).tag(
+                "rail")})
+            .children(std::views::iota(0, kGates) |
+                      std::views::transform(gateAt))
+            // …and the dart, on the same curve, at a distance that is a
+            // function of the moment and of nothing else.
+            .children(
+                {world::Element()
+                     .key("dart")
+                     .along(loop, motion::phase(
+                                      motion::Duration(seconds),
+                                      motion::Duration(1.0 / kLapsPerSecond)) *
+                                      lap)
+                     .mesh(dart())
+                     .fill(chrome)
+                     .tag("dart")});
+
+    const world::kit::Set set{.rig = {.extent = 220.0f,
+                                      .bearing = -30.0f,
+                                      .elevation = 32.0f,
+                                      .intensity = 1.1f},
+                              .table = {.radius = 700.0f,
+                                        .height = 300.0f,
+                                        .period = 18.0f,
+                                        .fovYDeg = 42.0f},
+                              .ground = 4.0f,
+                              .drop = 0.85f};
+    return world::Frame(world::kit::litSet(std::move(subject), set, seconds));
+  }
+};
+
+}  // namespace
+
+SIGIL_SKETCH(DartFlight, "Set",
+             "A dart flying a closed loop — one curve, swept into "
+             "a rail and ridden by everything on it, each node aimed by the "
+             "curve's own frame")

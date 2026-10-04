@@ -8,7 +8,7 @@
 
 `build` runs `cmake --build build --config Release --target ...` from the
 application root. `run` runs any other command that writes into the build
-tree or needs it quiet (ctest, a headless Sketchbook sweep, stub generation).
+tree or needs it quiet (ctest, a headless Grimoire sweep, stub generation).
 A job that runs past --limit seconds (5400 for build, 1500 for run) is stopped
 with everything it launched and exits 124. A job whose leader exits while
 processes it launched still hold its output is given a short grace, then

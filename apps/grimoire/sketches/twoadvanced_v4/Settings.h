@@ -1,0 +1,267 @@
+#pragma once
+
+// Construction data and drawing primitives owned by this study.
+
+#include <include/core/SkFontMgr.h>
+#include <include/core/SkMaskFilter.h>
+#include <include/core/SkPathBuilder.h>
+#include <include/core/SkString.h>
+#include <include/effects/SkImageFilters.h>
+#include <include/effects/SkRuntimeEffect.h>
+#include <sigilcompose/brush/Adaptors.h>
+#include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/brush/PixelStyles.h>
+#include <sigilcompose/core/Grid.h>
+#include <sigilcompose/core/Instances.h>
+#include <sigilcompose/core/Paint.h>
+#include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/kit/Chrome.h>
+#include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/kit/Placers.h>
+#include <sigilcompose/kit/Specimen.h>
+#include <sigilcompose/typography/Presets.h>
+#include <sigilcompose/typography/Typography.h>
+#include <sigildata/decode/Json.h>
+#include <sigildraw/Pen.h>
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilgeometry/kit/Corners.h>
+#include <sigilgeometry/kit/Generators.h>
+#include <sigilgeometry/kit/Solids.h>
+#include <sigilgeometry/mesh/Mesh.h>
+#include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilgeometry/path/Edges.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/sdf/Sdf.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Filter.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/surface/Surface.h>
+#include <sigilmotion/values/Tween.h>
+#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Scrollbar.h>
+#include <sigilweave/style/Face.h>
+#include <sigilworld/frame/Frame.h>
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
+#include <ranges>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
+#include "../twoadvanced_v3/TwoAdvanced.h"
+#include "../y2k_chrome/Gloss.h"
+
+namespace material = sigil::material;
+namespace sketch = sigil::sketch;
+namespace world = sigil::world;
+namespace camera = sigil::geometry::mesh::camera;
+namespace field = sigil::material::field;
+namespace motion = sigil::motion;
+namespace path = sigil::geometry::path;
+namespace shapes = sigil::geometry::shapes;
+namespace styles = sigil::compose::styles;
+namespace weave = sigil::weave;
+
+using namespace sigil::compose;
+using sigil::material::hexColor;
+// Absolute placement: this composition is pinned, so a node says
+// where it goes rather than a layout deciding.
+using sigil::compose::kit::at;
+using namespace std::chrono_literals;
+
+namespace tav {
+using namespace twoadvanced;
+
+// ---------------------------------------------------------------------------
+// Palette — every value sampled from one of the reference artefacts above,
+// never picked by eye.
+
+constexpr material::Color kBgTop = hexColor(0x4A100F);  // page gradient, top
+constexpr material::Color kBgMid = hexColor(0x1A0001);
+constexpr material::Color kBgBot = hexColor(0x0A0000);   // …faded to near-black
+constexpr material::Color kChrome = hexColor(0x571119);  // THE chrome maroon
+constexpr material::Color kChromeHi = hexColor(0x6A1B21);
+constexpr material::Color kD1 = hexColor(0x180707);  // footer-dock HUD darks
+constexpr material::Color kD2 = hexColor(0x260909);
+constexpr material::Color kD3 = hexColor(0x370C0D);
+constexpr material::Color kD4 = hexColor(0x400E0F);
+constexpr material::Color kD5 = hexColor(0x4C1010);
+constexpr material::Color kD6 = hexColor(0x7A2626);  // dock hairline/label ink
+constexpr material::Color kD7 = hexColor(0xA34040);  // dock title ink
+constexpr material::Color kCyan = hexColor(0x7BDAD6);  // logo wordmark core
+constexpr material::Color kCyanRing = hexColor(0x95C9CC);
+constexpr material::Color kDust =
+    hexColor(0x8D7777);  // the dusty-rose third neutral
+constexpr material::Color kDustDim = hexColor(0x735757);
+constexpr material::Color kTealBar = hexColor(0x2C7B80);  // status-bar segment
+constexpr material::Color kGlow = hexColor(0x01D0D5);   // MAINFRAME portal core
+constexpr material::Color kPanel = hexColor(0x579797);  // monitor-panel body
+constexpr material::Color kPanelHi = hexColor(0x84B8B6);
+constexpr material::Color kPanelSh = hexColor(0x3C8282);
+constexpr material::Color kCta = hexColor(0x700000);  // LAUNCH / ARCHIVES core
+constexpr material::Color kCtaHi = hexColor(0xB27E82);
+constexpr material::Color kNear = hexColor(0xF3F3F3);
+constexpr material::Color kBody = hexColor(0xC9DEDD);
+constexpr material::Color kDate = hexColor(0x1C4040);
+constexpr material::Color kHeadDim = hexColor(0xB8A0A0);
+
+/** The shadow tone: the complement spelling of `material::scale()`, because a
+ * bevel is authored as "how much darker" rather than as a surviving fraction.
+ */
+inline material::Color dark(material::Color c, float k) {
+  return material::scale(c, 1 - k);
+}
+
+// ---------------------------------------------------------------------------
+// Type — the studio's chassis (the faces, the 1/1000-em tracking unit and
+// the text alias) plus THIS artefact's own register: Helvetica
+// CondensedBlack is the whole chrome voice, Arial Black is the headline
+// weight, and Arial is the only thing prose is ever set in. The chrome's
+// face and its condensation are the page's own font, stated once on its
+// root; a chrome label says only its size, colour and tracking, and the
+// other three registers restate what they change — a tighter
+// condensation, the headline face, the uncondensed prose face.
+
+/** The chrome register: tracking quoted in 1/1000 em of @p size. */
+inline sigil::weave::Type micro(float size, material::Color c, float tr = 200) {
+  return {.size = size, .color = c, .track = size * tr / 1000.0f};
+}
+/** The chrome, condensed further: the section labels. */
+inline sigil::weave::Type label(float size, material::Color c, float tr = 100) {
+  return {.size = size,
+          .color = c,
+          .track = size * tr / 1000.0f,
+          .condense = 0.88f};
+}
+/** The headline weight. */
+inline sigil::weave::Type heavy(float size, material::Color c, float tr = 40) {
+  return {.face = blackFace(),
+          .size = size,
+          .color = c,
+          .track = size * tr / 1000.0f,
+          .condense = 0.94f};
+}
+/** A CUT OF ITS OWN: the face, size, colour, tracking and condensation a
+ *  line names for itself where none of the four registers is it — the
+ *  same fields the registers set, as a PARTIAL, so the line still
+ *  inherits everything it does not name. */
+inline sigil::weave::Type cut(const sigil::weave::Face& face, float size,
+                              material::Color c, float tr,
+                              float condense = 1.0f) {
+  return {.face = face,
+          .size = size,
+          .color = c,
+          .track = size * tr / 1000.0f,
+          .condense = condense};
+}
+/** The prose register: untracked, uncondensed. */
+inline sigil::weave::Type prose(float size, material::Color c) {
+  return {.face = arial(), .size = size, .color = c, .condense = 1.0f};
+}
+
+// ---------------------------------------------------------------------------
+// Geometry vocabulary — chamfers, not radii. Nothing on this interface is
+// round; every corner that is not square is cut at 45°.
+
+/** An OPEN hairline across the node — the trim() reveal primitive: a
+ *  stroked open outline draws itself on when trim's end ramps 0→1. */
+inline Shape ray(float dirX, float dirY) {
+  return keyedShape(std::pair{dirX, dirY}, [dirX, dirY](glm::vec2 s) {
+    SkPathBuilder b;
+    b.moveTo(dirX < 0 ? s.x : 0, dirY < 0 ? s.y : 0);
+    b.lineTo(dirX < 0 ? 0 : s.x, dirY < 0 ? 0 : s.y);
+    return sigil::geometry::path::fromSk(b.detach());
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Decoration vocabulary — the hairline kit the whole idiom runs on. All
+// value schemes, so a static bracketed panel prunes with no memo.
+
+/** The rail flare tick read off leftsidepanel.gif: a near-vertical
+ *  hairline ending in a small flag, with a soft highlight travelling down
+ *  it once per `period`. The rail is 24 px wide at this ×2 scale, so a
+ *  90 px flare has to lean about 8° off VERTICAL to fit inside it. */
+struct RailFlares {
+  material::Color color = hexColor(0x99AAAA);
+  float period = 6.0f, phase = 0.0f;
+
+  bool operator==(const RailFlares&) const = default;
+  bool isRunning() const { return true; }
+  void paint(sigil::draw::Pen& pen, const PaintContext& ctx) const {
+    SkCanvas& c = *pen.canvas();
+    const float w = ctx.size.x, h = ctx.size.y;
+    const float ys[3] = {h * 0.167f, h * 0.5f, h * 0.833f};
+    const float len = 90.0f, lean = 12.6f;
+    const double tt = ctx.elapsedSeconds + phase;
+    const float scan = (float)std::fmod(tt, (double)period) / period;
+    SkPaint p;
+    p.setAntiAlias(true);
+    p.setStyle(SkPaint::kStroke_Style);
+    p.setStrokeWidth(2);
+    for (float y : ys) {
+      const float y0 = y - len * 0.5f;
+      const float x0 = w * 0.5f - lean * 0.5f;
+      SkPathBuilder b;
+      b.moveTo(x0, y0);
+      b.lineTo(x0 + lean, y0 + len);
+      const SkPath path = b.detach();
+      p.setColor4f(material::skia::toSkColor(material::withAlpha(color, 0.55f)),
+                   nullptr);
+      c.drawPath(path, p);
+      SkPaint f;
+      f.setAntiAlias(true);
+      f.setColor4f(material::skia::toSkColor(material::withAlpha(color, 0.8f)),
+                   nullptr);
+      c.drawRect(SkRect::MakeXYWH(x0 + lean - 3, y0 + len, 6, 3), f);
+      SkPaint g;
+      g.setAntiAlias(true);
+      g.setStyle(SkPaint::kStroke_Style);
+      g.setStrokeWidth(2);
+      g.setColor4f(material::skia::toSkColor(material::withAlpha(
+                       kCyan, 0.9f * (1.0f - std::abs(scan - 0.5f) * 2))),
+                   nullptr);
+      SkPathBuilder hb;
+      hb.moveTo(x0 + lean * scan, y0 + len * scan);
+      const float s2 = std::min(1.0f, scan + 0.16f);
+      hb.lineTo(x0 + lean * s2, y0 + len * s2);
+      c.drawPath(hb.detach(), g);
+    }
+  }
+};
+
+// ---------------------------------------------------------------------------
+
+/** THE TWO PANEL CLASSES the SWF's symbol table names — FSingleBevelPanel
+ *  and FDoubleBevelPanel — as one function over the era's token set. The
+ *  base fill, a lifted top/left highlight over a darkened bottom/right
+ *  shadow (three px against two, because the SWF's were), and — where a
+ *  @p gap is asked for — the same pair again fainter that far in.
+ *  MAINFRAME, FEATURE SYSTEM and PRESS UPDATES wear the doubled one;
+ *  everything smaller is single.
+ *
+ *  Both tones come off the face, which is why the two classes were one
+ *  component with a flag in 2Advanced's own kit and are one call here.
+ *  The pair is kept INSIDE the silhouette, so a chamfered panel wears its
+ *  bevel on the chamfers with nothing said about corners, and the inner
+ *  ring rides OVER the content because at a three-pixel gap on a
+ *  three-pixel padding it stands exactly on the padding line. */
+inline Element bevelPanel(Element e, material::Color base, float gap = 0) {
+  e.fill(base);
+  kit::bevelled(e, kit::bevels::flash(base, gap));
+  return e;
+}
+
+}  // namespace tav
+
+// ===========================================================================

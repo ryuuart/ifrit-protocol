@@ -30,7 +30,7 @@ SplitView {
             }
             Label {
                 Layout.fillWidth: true
-                text: "Shared frames from Sketchbook, SpellCircle and other Syphon applications appear here."
+                text: "Shared frames from Grimoire, SpellCircle and other Syphon applications appear here."
                 wrapMode: Text.WordWrap
                 color: Ui.Theme.secondaryText
                 font.pixelSize: Ui.Theme.bodySize

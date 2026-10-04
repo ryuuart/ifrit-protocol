@@ -13,7 +13,7 @@
     sigil.py plates --tier promotion   # …and with the promoter let go
     sigil.py plates compare <a> <b>    # two plate directories, differenced
 
-Renders every sketch through `Sketchbook --headless --ledger` (the
+Renders every sketch through `Grimoire --headless --ledger` (the
 benchmark-free exact-stepped capture), N at a time, hashes the plates,
 and compares against a stored baseline manifest. One binary renders all
 three tiers; what separates them is which rasteriser a sketch draws
@@ -153,7 +153,7 @@ def registry(binary, kinds):
 
     Read as values — the catalog's rows, one JSON object each, which carry
     every entry's filed name, runtime and availability. The registry is
-    compiled into Sketchbook and into nothing a script can import, so its
+    compiled into Grimoire and into nothing a script can import, so its
     rows cross the process as data. A sketch this machine cannot run is a
     row like any other, with the reason: a sketch dropped from the rows
     and a sketch deleted from the tree would read exactly alike, and the
@@ -653,7 +653,7 @@ def main(argv: list) -> int:
     )
     args = ap.parse_args(argv)
 
-    binary = str(tree.sketchbook(args.config))
+    binary = str(tree.grimoire(args.config))
     manifest = str(tree.build_dir() / f"plate_baseline_{args.config}.sha256")
 
     kinds = (args.kind,) if args.kind else KINDS

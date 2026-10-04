@@ -516,7 +516,7 @@ class Examples:
         out = self.build.root / "examples"
         out.mkdir(parents=True, exist_ok=True)
         drawn = out / f"{stem}.png"
-        if source is not None and not self._sketchbook(source, drawn):
+        if source is not None and not self._grimoire(source, drawn):
             return '<div class="placeholder">This example did not render</div>'
         if twin is not None:
             self._python(stem, twin, out)
@@ -524,10 +524,10 @@ class Examples:
             f'<img src="{links.to(f"examples/{stem}.png")}" alt="{html.escape(stem)}">'
         )
 
-    def _sketchbook(self, source: Path, out: Path) -> bool:
-        binary = tree.sketchbook("Release", required=False)
+    def _grimoire(self, source: Path, out: Path) -> bool:
+        binary = tree.grimoire("Release", required=False)
         if binary is None:
-            self.failures.append((source.stem, "Sketchbook is not built"))
+            self.failures.append((source.stem, "Grimoire is not built"))
             return False
         finished = subprocess.run(
             [str(binary), str(source), "--frame", str(out)],

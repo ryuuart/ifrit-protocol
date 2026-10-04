@@ -1,10 +1,10 @@
 """Both routes to a sketch host: in this process through sigil.testing, and
-over a socket to a headless Sketchbook through sigil.protocol.launch.
+over a socket to a headless Grimoire through sigil.protocol.launch.
 
 The same generated domain classes speak through either, so a case written
 for one reads as a script for the other. Run under the protocol's label as
-python_protocol_routes, with the Sketchbook to launch named by
-SIGIL_TEST_SKETCHBOOK; the socket route is the served lane's own case —
+python_protocol_routes, with the Grimoire to launch named by
+SIGIL_TEST_GRIMOIRE; the socket route is the served lane's own case —
 its address written before its first frame and taken back as it ends —
 and, end to end, a registry sketch stepped a second and photographed over
 the socket is the plate the sweep takes of it at that moment, and so is
@@ -106,7 +106,7 @@ class InProcessRoute(unittest.TestCase):
         self.assertIn(still.path, self.host.readout())
 
 
-@unittest.skipUnless(os.environ.get("SIGIL_TEST_SKETCHBOOK"), "no Sketchbook to launch")
+@unittest.skipUnless(os.environ.get("SIGIL_TEST_GRIMOIRE"), "no Grimoire to launch")
 class SocketRoute(unittest.TestCase):
     SCENE = "cascade"
     """A registry sketch the plate sample carries."""
@@ -115,14 +115,14 @@ class SocketRoute(unittest.TestCase):
         folder = tempfile.TemporaryDirectory(prefix="sigil_launch_")
         self.addCleanup(folder.cleanup)
         self.root = Path(folder.name)
-        self.sketchbook = os.environ["SIGIL_TEST_SKETCHBOOK"]
+        self.grimoire = os.environ["SIGIL_TEST_GRIMOIRE"]
 
     def plate(self, at):
         """The sweep's plate of the scene at @p at seconds."""
         plates = self.root / "plates"
         subprocess.run(
             [
-                self.sketchbook,
+                self.grimoire,
                 "--headless",
                 str(plates),
                 "--ledger",
@@ -136,16 +136,16 @@ class SocketRoute(unittest.TestCase):
         )
         return plates / f"plate_{self.SCENE}.png"
 
-    def test_a_launched_sketchbook_is_driven_over_its_socket_and_ends_with_it(self):
+    def test_a_launched_grimoire_is_driven_over_its_socket_and_ends_with_it(self):
         state = self.root / "state"
-        host = launch(executable=self.sketchbook, state=state)
+        host = launch(executable=self.grimoire, state=state)
         with host:
             # The address was written before the first frame: nothing is
             # open and the clock has not moved.
             self.assertTrue((state / "protocol-address").is_file())
             self.assertTrue(host.definition)
             described = Host(host).describe()
-            self.assertEqual(described.version.program, "Sketchbook")
+            self.assertEqual(described.version.program, "Grimoire")
             self.assertEqual(
                 described.domains, ("clock", "host", "registry", "session")
             )
@@ -164,7 +164,7 @@ class SocketRoute(unittest.TestCase):
         plate = self.plate(1.0)
         expected = media.load(plate).frameAt(0).image
         state = self.root / "state"
-        with launch(executable=self.sketchbook, state=state) as host:
+        with launch(executable=self.grimoire, state=state) as host:
             Clock(host).set_policy(policy=Policy.Advance)
             # Baked on the plate's grid from the first frame, as the sweep
             # bakes: zero pins the density a plate is photographed at.
@@ -178,20 +178,22 @@ class SocketRoute(unittest.TestCase):
             self.assertEqual(
                 (still.width, still.height), (expected.width(), expected.height())
             )
-            self.assertEqual(media.load(still.path).frameAt(0).image.rgba(), expected.rgba())
+            self.assertEqual(
+                media.load(still.path).frameAt(0).image.rgba(), expected.rgba()
+            )
 
     def test_a_written_still_is_the_sweeps_plate_and_the_sockets_still(self):
         plate = self.plate(1.0)
         expected = media.load(plate).frameAt(0).image
         source = (
             Path(__file__).resolve().parents[3]
-            / "spell-circle-canvas/src/sketch/sketches"
+            / "grimoire/sketches"
             / f"{self.SCENE}.cpp"
         )
         written = self.root / "written.png"
         subprocess.run(
             [
-                self.sketchbook,
+                self.grimoire,
                 str(source),
                 "--frame",
                 str(written),
@@ -205,7 +207,7 @@ class SocketRoute(unittest.TestCase):
             timeout=600,
         )
         state = self.root / "state"
-        with launch(executable=self.sketchbook, state=state) as host:
+        with launch(executable=self.grimoire, state=state) as host:
             Clock(host).set_policy(policy=Policy.Advance)
             Session(host).pin_density(density=2)
             Session(host).open(sketch=self.SCENE)

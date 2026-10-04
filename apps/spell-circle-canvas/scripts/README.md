@@ -11,7 +11,7 @@ python3 scripts/sigil.py <verb> --help
 `flags`, `flatbuffers`, `workspace`. Each is a module in `scripts/sigil/`, over two
 shared ones: `tree.py` is where the build tree is and how to talk to it —
 which directory a preset builds into, where a configuration's binaries
-land, where Sketchbook sits inside its bundle, what tests a configured
+land, where Grimoire sits inside its bundle, what tests a configured
 tree registers — and `baseline.py` is how a ledger reads, merges, writes
 and judges what it keeps, in both spellings a baseline comes in. A verb
 never re-derives either.
@@ -151,8 +151,8 @@ as a script run with `-P` or a `configure_file`.
 | `apps/python/sigil/test/assets/coverage.fbs` | `coverage.bfbs` beside it, committed | none: `flatc -b --schema`, by hand | none yet |
 | `SpellCircle.fbs`, a sketch's `<stem>/<stem>.fbs`, and the test schemas of SigilData and Seer | `<stem>_generated.h` in the build tree, with the binary schema beside it and embedded in it wherever a reader needs one; for a Python entry, only `<stem>.bfbs`, beside the entry, which git ignores | `flatc`, from the CMakeLists beside each schema | a build product |
 | A sketch's own schema and SigilData's test schemas | `<stem>_values.h` in the build tree | `sigil_schema_values`, the C++ tool in `src/common/data/values` | a build product; `data_test` round-trips what it writes |
-| The Python sketch entries | `PythonSketches.cpp`, their registrations | `src/sketch/python/cmake/register_sketches.py` | a build product |
-| `compile_commands.json` | `sketch_flags.rsp`, the flags a hot-reloaded sketch compiles with | `src/sketch/cmake/SketchFlags.py` | a build product |
+| A host's Python sketch entries | `<target>.cpp`, their registrations | `src/sketch/python/cmake/register_sketches.py`, through `sigil_python_sketches()` | a build product |
+| `compile_commands.json` | `sketch_flags.rsp`, the flags a hot-reloaded sketch compiles with | `src/sketch/cmake/SketchFlags.py`, through `sigil_sketch_flags()` with the host's anchor | a build product |
 | A library's `.sksl` and `.slang` sources | A header and translation unit carrying their text, under `build/generated/shaders` | `sigil_shader_sources()`, running `cmake/EmbedShaders.cmake` with `-P` over the templates in `cmake/shaders`: not yet Python | a build product |
 | A Slang entry point's compiled SPIR-V | `<name>.spv.h`, carrying its words | `src/common/material/cmake/SlangEmbedSpirv.cmake`, with `-P`: not yet Python | a build product |
 | SigilScry's `UltralightShaders.metal` | `ShaderSource.h` in the build tree | `configure_file` over `metal/ShaderSource.h.in`: not yet Python | a build product |
@@ -312,8 +312,8 @@ size and the clip and rasterises nothing, so the body runs, the tree is
 reconciled, laid out and painted exactly as it would be, and only the
 fill is skipped. It is byte-neutral by construction and was shown to be:
 `chaucer_astrolabe` fell from 259 s to 3.6 s with the same hash. The ledger renders plates for the verdict and
-nothing else: Sketchbook owns the thumbnails it shows, rendering them on
-demand into its own cache and warming them with `Sketchbook
+nothing else: Grimoire owns the thumbnails it shows, rendering them on
+demand into its own cache and warming them with `Grimoire
 --thumbnails`.
 
 Every render a hash judges carries `--no-promotion`. Automatic texture
@@ -336,7 +336,7 @@ A sketch this machine cannot render is skipped by name. A sketch written
 over an optional SDK is only compiled in where that SDK was found, and
 the data it needs at run time can still be absent on the machine running
 the binary. The registry answers for that rather than the sweep
-guessing: its rows, read from `Sketchbook --catalog` as one JSON object
+guessing: its rows, read from `Grimoire --catalog` as one JSON object
 each, mark such a sketch unavailable with what it is missing, the tier
 prints SKIPPED and the reason, and no plate is rendered, hashed or
 judged. A skip is not a failure and not a mover — and the plates for
@@ -534,7 +534,7 @@ which the `benches` target builds — one at a time on a quiet machine and
 compares medians against `bench/baseline_<config>.json`, keyed by
 `binary:arm`. `sigil.py bench --lane fps` (`mise run fps`) presents each
 sketch in the real window at a stated size and device pixel ratio through
-Sketchbook's `--window-bench` and judges the presented rate against
+Grimoire's `--window-bench` and judges the presented rate against
 `bench/app_fps_<config>.json`, keyed by the sketch's stem. Two window
 sweeps cannot share one display, so the fps lane runs alone; that is why
 the two stay separate lanes rather than one command, and everything that
@@ -709,7 +709,7 @@ startup before any test runs.
 python3 scripts/sigil.py workspace new <dir>
 ```
 
-A sketch does not have to live in this repository: Sketchbook takes a
+A sketch does not have to live in this repository: Grimoire takes a
 `.cpp` path wherever it stands, compiles it with the flags this build
 captured and hot-swaps it on every save. What such a folder holds is a
 convention — the sketch named for the folder, `assets/` for what mounts
@@ -721,11 +721,11 @@ directory.
 It writes FILES AND NOTHING ELSE: no build tree, no CMake package, no
 install step, and nothing is added to this repository. The folder is
 bound to one checkout at one build time, because the flags the sketch
-compiles with are the ones in `sketch_flags.rsp` beside the Sketchbook
+compiles with are the ones in `sketch_flags.rsp` beside the Grimoire
 binary — which is what the README it writes says, along with the lanes a
 file opened by path can and cannot be put through. Nothing compiled travels
 with it either: a sketch resolves every framework symbol out of the host,
-so it reaches only the libraries that Sketchbook already contains.
+so it reaches only the libraries that Grimoire already contains.
 
 The folder's own name is the sketch's: it names the entry file, the key
 the sketch's files are reached under, and the C++ type the registration
@@ -809,8 +809,10 @@ its art.
 
 `sigil.py flags` lifts the sketch compile command out of the compilation
 database into the flags file the live host uses. The step itself is
-`src/sketch/cmake/SketchFlags.py`, beside the sketch host whose build
-runs it, and the verb is the front door for running it by hand. The
+`src/sketch/cmake/SketchFlags.py`, which a host's build runs through the
+framework's `sigil_sketch_flags()` over its own anchor unit — Grimoire's
+is `apps/grimoire/sketches/Anchor.cpp` — and the verb is the front door
+for running it by hand. The
 single
 source of truth for how a sketch builds is the target graph itself, not
 a hand-maintained flag list, and the fully composed compile line —

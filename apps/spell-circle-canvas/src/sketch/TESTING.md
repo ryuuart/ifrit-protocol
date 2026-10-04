@@ -19,8 +19,7 @@ and where a sketch stands on disk; `canvas/test/` and
 host, the resident set and the cadence a window sweep keeps;
 `plate/test/` the sweep, the comparison
 of two directories of plates and the montage MP4 exporter;
-`book/test/` the reload path and the catalog's rows, each through the
-`Sketchbook` binary as a script; and `scry/test/` the shared web engine
+and `scry/test/` the shared web engine
 beside the case that
 takes a page's still — two cases that must not meet in one process because
 the engine allows one renderer per process and the shared-engine case
@@ -57,21 +56,13 @@ file is what only that runtime does: a canvas re-renders for its still
 and so takes one more step, a set is formed at the resolution of the
 canvas it is handed rather than magnified onto it.
 
-Two of the entries run no C++ at all. `sketch_readme_stems` resolves every
-sketch stem the documents in this tree name against the registry: a
-backticked snake_case token in a paragraph that is talking about
-sketches, studies or a study must name a file under `sketches/`, and one
-that does not is either exempted by name and reason in
-`test/readme_sketch_stems.py` or fails the run. It refuses a count of a
-list too — a cardinal qualifying "studies", "sketches" or "scenes"
-beside a named stem, when it claims the list's own length, is maintained
-by hand in lockstep with the list and goes stale the moment the list
-grows, so the count is deleted and the list is the count. It is the
-registry's check, which is why it is here rather than beside each
-document. `sketch_readme_stems_self_test` runs the checker's own
-fixtures, and is the only thing that would notice the extractor
-narrowing: a checker that silently resolves fewer stems still passes over
-the corpus.
+Nothing here compiles or opens a sketch of any catalogue: every case
+registers the fixture sketches it drives itself, so the library's tests
+stand without an application. What only a whole host can show — a
+sketch compiled by the host and loaded into it, and the documents' sketch
+stems resolved against a catalogue — is the hosting application's to
+test, and [Grimoire's testing chapter](../../../grimoire/TESTING.md) is
+where the stock host does.
 
 Fixtures live in `test/support/`, reached as `"support/<name>.h"`, and
 nothing is written twice. `Fixtures.h` is the one asset store a process
@@ -104,45 +95,13 @@ and a header is saved by hand a moment before the sketch is; a test that
 edits a header and polls sets it to zero, so the edit is seen when it is
 made rather than whenever the cadence next comes round.
 
-## Three ways a sketch is put through a host, and why they are all here
+## Three ways a sketch is put through a host
 
-The `sketch_reload_*` entries in `book/CMakeLists.txt` run
-`Sketchbook <file.cpp> --frame out.png`, which compiles the file with the
-captured response file, dlopens the result and runs it — the DYNAMIC
-path, and the only one that can see a missing archive in the force-load
-list. The plate cases call `sweep()` IN PROCESS against fixture
-sketches its own binary registered. `scripts/sigil.py plates` runs
-`Sketchbook --headless --ledger` over the COMPILED-IN registry and judges
-plate hashes. Three different things, and none of them stands in for
-another.
-
-Within the dynamic entries, one per distinct surface: `shapeworks_lab`
-and `first_light` are the widest canvas and set sketches by the symbols
-they name, `stock_materials` paints one of every stock material,
-`video_compose` reaches the decoder and encoder archives no
-geometry-heavy sketch names, `world_hud` is the other registration form,
-`dunhuang_star_chart` is the directory form — several units compiled
-apart and linked once — and the entries behind an optional SDK name
-symbols nothing else does. The archives only the HOST links, a device
-backend among them, stand behind a probe file beside that list rather
-than behind a sketch, because nothing in the registry names one and what
-it asserts is a dlopen and not a picture. A starter sketch that names
-none of those adds no entry of its own: anything that stops it compiling
-and loading stops the wide ones too.
-
-Every one of those judges a compile and a load, and none of them judges
-WHOSE code drew: a host that quietly ran its own copy of the sketch
-passes all of them. `sketch_reload_runs_the_file` is the one that looks,
-by rendering a copy of a registry sketch whose ground colour has been
-replaced and reading the corner pixel back, with the registry's own copy
-of the same sketch as the control.
-
-## A host over one sketch while the rest are broken
-
-The sketches come last: library work is expected to break them, and a
-host links every sketch it carries, so in the middle of a library pass
-no Sketchbook links at all. `-DSIGIL_SKETCH_ONLY=stem;stem` at configure
-time narrows the registry a tree compiles to those stems — the directory
-is still the only list of what a sketch IS; this says which of them one
-tree carries — so a pass over the host can be looked at through the one
-sketch it is studying. Leave it empty, the default, for every sketch.
+The plate cases call `sweep()` IN PROCESS against fixture sketches their
+own binary registered. A host application runs the DYNAMIC path — a file
+compiled with the captured response file, dlopened and run — which is the
+only one that can see a missing archive in the host's force-load list,
+and a sweep over its COMPILED-IN registry, which the plate ledger judges.
+Three different things, and none of them stands in for another; the
+other two are Grimoire's, in [its testing
+chapter](../../../grimoire/TESTING.md).

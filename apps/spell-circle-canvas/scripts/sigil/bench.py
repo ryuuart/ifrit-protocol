@@ -12,7 +12,7 @@ TWO LANES, ONE BODY. The `bench` lane (the default) runs every `*_bench`
 binary the build produced under bin/<config>/benches with Google
 Benchmark's JSON reporter and takes the median real time of each
 benchmark. The `fps` lane presents each sketch in the real window through
-Sketchbook's `--window-bench` and takes the presented frame rate. They
+Grimoire's `--window-bench` and takes the presented frame rate. They
 measure different things — the frame-time gate cannot see the host's own
 overhead, and the window lane needs an unlocked screen and exclusive use
 of the machine — so they stay two lanes rather than one command; what they share
@@ -395,12 +395,12 @@ def run_window(binary, args):
         # as likely to be a codec announcing its version as anything to
         # do with the failure; quoting it as the reason printed a line
         # that read like a measurement nobody took.
-        return result.stdout, f"Sketchbook exited {result.returncode}"
+        return result.stdout, f"Grimoire exited {result.returncode}"
     return result.stdout, None
 
 
 def fps_lane(args) -> int:
-    binary = str(tree.sketchbook(args.config))
+    binary = str(tree.grimoire(args.config))
     baseline_path = str(tree.PROJECT_DIR / "bench" / f"app_fps_{args.config}.json")
 
     if screen_is_locked():

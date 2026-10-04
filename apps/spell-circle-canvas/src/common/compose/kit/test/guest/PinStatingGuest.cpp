@@ -4,7 +4,7 @@
  * sketch: the fact is written with this image's own identity for the
  * type, and the pin operator that reads it runs in the test binary. The
  * library resolves out of the test binary as a sketch resolves it out of
- * Sketchbook.
+ * Grimoire.
  */
 
 #include <sigilcompose/core/Factories.h>
@@ -19,9 +19,10 @@ extern "C" __attribute__((visibility("default"))) void sigilGuestStatePin(
   using namespace sigil::compose;
   card->attribute(
       "label",
-      pin::Request{.element = box().fill(Fill::color({1, 0, 0, 1})),
-                   .size = {40, 20},
-                   .where = {.on = {1, 0.5f}, .at = {0, 0.5f}, .offset = {10, 0}}});
+      pin::Request{
+          .element = box().fill(Fill::color({1, 0, 0, 1})),
+          .size = {40, 20},
+          .where = {.on = {1, 0.5f}, .at = {0, 0.5f}, .offset = {10, 0}}});
 }
 
 /** The identity this image holds for the request's type. */

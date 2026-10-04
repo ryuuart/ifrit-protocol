@@ -859,7 +859,8 @@ A leaf may not invent what an ancestor should own.
 ## Boundaries
 
 It draws nothing and holds no kernel state, and nothing links it back —
-`SigilSketches` links it, and no library below does. It LINKS THE SKETCH
+`SigilSketchVocabulary` names it for every sketch, and no library below
+links it. It LINKS THE SKETCH
 ARCHIVE, because `stage()` writes a sketch's `CanvasSpecification` through the
 canvas runtime's own context: no device backend and no window come with
 that, but the reload engine and the headless renderer stand in the same

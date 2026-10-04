@@ -33,9 +33,9 @@ std::optional<Answer<DescribeResult>> describe(
   return answered;
 }
 
-protocol::Program sketchbook() {
+protocol::Program grimoire() {
   protocol::Program program;
-  program.name = "Sketchbook";
+  program.name = "Grimoire";
   program.version = "0.1";
   program.stateRoot = "/state";
   program.clockPolicy = [] { return protocol::clock::Policy_Advance; };
@@ -68,7 +68,7 @@ TEST(ProtocolDescribe, IsAnsweredOnADispatcherNoAgentWasMountedOn) {
 }
 
 TEST(ProtocolDescribe, AnswersWhatTheProgramAndTheDispatcherEachKnow) {
-  protocol::Dispatcher dispatcher(sketchbook());
+  protocol::Dispatcher dispatcher(grimoire());
   protocol::test::ClockUnderTest clock(dispatcher);
   const protocol::InProcess first(dispatcher);
   const protocol::InProcess second(dispatcher);
@@ -76,7 +76,7 @@ TEST(ProtocolDescribe, AnswersWhatTheProgramAndTheDispatcherEachKnow) {
   const std::optional<Answer<DescribeResult>> described = describe(second);
   ASSERT_TRUE(described && *described);
   const DescribeResult& result = described->result();
-  EXPECT_EQ(result.version.program, "Sketchbook");
+  EXPECT_EQ(result.version.program, "Grimoire");
   EXPECT_EQ(result.version.program_version, "0.1");
   EXPECT_EQ(result.domains, (std::vector<std::string>{"clock", "host"}));
   EXPECT_EQ(result.clock, protocol::clock::Policy_Advance);
@@ -90,7 +90,7 @@ TEST(ProtocolDescribe, AnswersWhatTheProgramAndTheDispatcherEachKnow) {
 }
 
 TEST(ProtocolDescribe, VersionAndStateRootAnswerTheirPartsAlone) {
-  protocol::Dispatcher dispatcher(sketchbook());
+  protocol::Dispatcher dispatcher(grimoire());
   const protocol::InProcess client(dispatcher);
   const protocol::host::HostClient host(client.caller());
 
@@ -105,7 +105,7 @@ TEST(ProtocolDescribe, VersionAndStateRootAnswerTheirPartsAlone) {
     ASSERT_TRUE(answer) << answer.error().message;
     program = answer.result().program;
   });
-  EXPECT_EQ(program, "Sketchbook");
+  EXPECT_EQ(program, "Grimoire");
 }
 
 }  // namespace

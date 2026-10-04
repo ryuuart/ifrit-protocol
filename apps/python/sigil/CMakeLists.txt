@@ -43,7 +43,7 @@ set(SIGIL_PYTHON_DECLARATIONS "${SIGIL_PYTHON_ROOT}/sigil")
 set(SIGIL_TYPING_PYTHON "${SIGIL_TYPING_PYTHON}" PARENT_SCOPE)
 set(SIGIL_PYTHON_ROOT "${SIGIL_PYTHON_ROOT}" PARENT_SCOPE)
 
-# The same registration code is a built-in module in Sketchbook and an
+# The same registration code is a built-in module in Grimoire and an
 # extension in ordinary Python. Each process loads one native implementation.
 pybind11_add_module(sigil_python NO_EXTRAS "${PROJECT_SOURCE_DIR}/src/sketch/python/Module.cpp")
 target_link_libraries(sigil_python PRIVATE SigilPython SigilSketchPython)
@@ -107,7 +107,7 @@ if(SIGIL_TYPING_PYTHON)
     PATTERN "__pycache__" EXCLUDE)
 endif()
 file(GLOB SIGIL_PYTHON_EXAMPLES CONFIGURE_DEPENDS
-  "${PROJECT_SOURCE_DIR}/src/sketch/sketches/python_*.py")
+  "${SIGIL_GRIMOIRE_DIR}/sketches/python_*.py")
 install(FILES ${SIGIL_PYTHON_EXAMPLES}
   DESTINATION sigil/examples COMPONENT SigilPython)
 if(DEFINED VCPKG_INSTALLED_DIR AND DEFINED VCPKG_TARGET_TRIPLET)
@@ -124,18 +124,18 @@ endif()
 add_test(NAME python_authoring
   COMMAND ${CMAKE_COMMAND} -E env
     "PYTHONPATH=${SIGIL_PYTHON_ROOT}"
-    "SIGIL_TEST_SKETCHBOOK=$<TARGET_FILE:Sketchbook>"
+    "SIGIL_TEST_GRIMOIRE=$<TARGET_FILE:Grimoire>"
     ${Python3_EXECUTABLE} -m unittest discover
       -s "${CMAKE_CURRENT_SOURCE_DIR}/test" -p "test_*.py")
 
 # BOTH ROUTES TO A SKETCH HOST, under the protocol's one label: a host in
-# this process through sigil.testing, and a headless Sketchbook launched
+# this process through sigil.testing, and a headless Grimoire launched
 # and driven over its socket, whose still of a registry sketch is the
 # sweep's plate of it.
 add_test(NAME python_protocol_routes
   COMMAND ${CMAKE_COMMAND} -E env
     "PYTHONPATH=${SIGIL_PYTHON_ROOT}"
-    "SIGIL_TEST_SKETCHBOOK=$<TARGET_FILE:Sketchbook>"
+    "SIGIL_TEST_GRIMOIRE=$<TARGET_FILE:Grimoire>"
     ${Python3_EXECUTABLE} -m unittest discover
       -s "${CMAKE_CURRENT_SOURCE_DIR}/test" -p "protocol_routes.py")
 set_tests_properties(python_protocol_routes PROPERTIES LABELS protocol)
@@ -160,7 +160,7 @@ if(SIGIL_TYPING_PYTHON)
       "PYTHONPATH=${SIGIL_PYTHON_ROOT}"
       "${SIGIL_TYPING_PYTHON}"
       "${CMAKE_CURRENT_SOURCE_DIR}/typing/parity.py" --check
-      --sketches "${PROJECT_SOURCE_DIR}/src/sketch/sketches")
+      --sketches "${SIGIL_GRIMOIRE_DIR}/sketches")
   # An extension built without a licensed SDK cannot judge the ledger, and
   # the check exits with this status to be counted as skipped, not passed.
   set_tests_properties(python_parity_drift PROPERTIES SKIP_RETURN_CODE 77)
@@ -175,13 +175,13 @@ if(SIGIL_TYPING_PYTHON)
         "${CMAKE_CURRENT_SOURCE_DIR}/test/typing/check.py"
         --python "${Python3_EXECUTABLE}" --checker "${SIGIL_BASEDPYRIGHT}"
         --extra-path "${SIGIL_PYTHON_ROOT}"
-        --example "${PROJECT_SOURCE_DIR}/src/sketch/sketches/python_hello.py"
-        --example "${PROJECT_SOURCE_DIR}/src/sketch/sketches/python_hello_compose.py"
-        --example "${PROJECT_SOURCE_DIR}/src/sketch/sketches/python_compose_stamps.py"
-        --example "${PROJECT_SOURCE_DIR}/src/sketch/sketches/python_live_signals.py"
-        --example "${PROJECT_SOURCE_DIR}/src/sketch/sketches/python_type_atelier.py"
-        --example "${PROJECT_SOURCE_DIR}/src/sketch/sketches/python_document.py"
-        --example "${PROJECT_SOURCE_DIR}/src/sketch/sketches/python_world_study.py"
+        --example "${SIGIL_GRIMOIRE_DIR}/sketches/python_hello.py"
+        --example "${SIGIL_GRIMOIRE_DIR}/sketches/python_hello_compose.py"
+        --example "${SIGIL_GRIMOIRE_DIR}/sketches/python_compose_stamps.py"
+        --example "${SIGIL_GRIMOIRE_DIR}/sketches/python_live_signals.py"
+        --example "${SIGIL_GRIMOIRE_DIR}/sketches/python_type_atelier.py"
+        --example "${SIGIL_GRIMOIRE_DIR}/sketches/python_document.py"
+        --example "${SIGIL_GRIMOIRE_DIR}/sketches/python_world_study.py"
         --example "${CMAKE_CURRENT_SOURCE_DIR}/sigil/examples/tools/send_live_signals.py")
   endif()
 endif()

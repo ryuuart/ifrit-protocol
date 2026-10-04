@@ -22,7 +22,7 @@ build/bin/Release/Seer.app/Contents/MacOS/Seer udp://:27020
 build/bin/Release/Seer.app/Contents/MacOS/Seer --receiver udp://:27015
 build/bin/Release/Seer.app/Contents/MacOS/Seer --textures
 build/bin/Release/Seer.app/Contents/MacOS/Seer --list-textures
-build/bin/Release/Seer.app/Contents/MacOS/Seer --texture "Live Canvas" --app Sketchbook
+build/bin/Release/Seer.app/Contents/MacOS/Seer --texture "Live Canvas" --app Grimoire
 build/bin/Release/Seer.app/Contents/MacOS/Seer --texture "Live Canvas" --grab frame.png --timeout 10
 build/bin/Release/Seer.app/Contents/MacOS/Seer osc://:27050 ws://:27060/sky
 build/bin/Release/Seer.app/Contents/MacOS/Seer midi://in/Launchpad artnet://:6454

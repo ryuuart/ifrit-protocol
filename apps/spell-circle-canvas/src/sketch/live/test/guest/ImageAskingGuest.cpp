@@ -1,6 +1,6 @@
 /** @file
  * A GUEST IMAGE THAT LOADS A PICTURE THROUGH THE HOST'S HUB, built beside
- * the test binary as a rebuilt sketch is built beside Sketchbook and
+ * the test binary as a rebuilt sketch is built beside its host and
  * compiled hidden as the host compiles a guest — so its `media::Image`
  * is a type identity of its own, and the one thing it shares with the
  * decoder the host registered is the meaning's name.

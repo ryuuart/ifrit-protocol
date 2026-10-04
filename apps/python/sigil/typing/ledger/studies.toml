@@ -1,4 +1,4 @@
-# The bundled Python studies under src/sketch/sketches, one record each:
+# The bundled Python studies under Grimoire's sketches/, one record each:
 # what the study combines and, where it ports or adapts a registered C++
 # sketch, which one. Every python_*.py file there needs a record.
 

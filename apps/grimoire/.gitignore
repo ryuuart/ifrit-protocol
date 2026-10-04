@@ -1,0 +1,7 @@
+## The binary schema a Python sketch reads its own messages through. It
+## is written beside the entry because that is where the sketch reaches
+## it, and the build writes it from the .fbs every time.
+sketches/*/*.bfbs
+
+## Qt
+.qmlls.ini

@@ -19,14 +19,14 @@ about how a frame is photographed. `src/sketch/README.md` is the canon
 for the registry, the live host and the plates.
 
 ```sh
-build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
+build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire \
     --headless <outdir> --kind set [--sketch <name>] [--gpu]
-build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook --list --kind set
+build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire --list --kind set
 ```
 
 `--sketch` takes a case-insensitive substring, which is the loop for
 visual iteration. A study joins the registry by being a file in
-`src/sketch/sketches/`.
+`apps/grimoire/sketches/`.
 
 `--gpu` renders every study through the device runtime instead. A study
 that declared no passes is wrapped in one geometry pass clearing to its

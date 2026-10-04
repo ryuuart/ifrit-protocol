@@ -1,0 +1,295 @@
+pragma ComponentBehavior: Bound
+
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import Ifrit.Qt 1.0 as Ui
+import Sigil.Grimoire
+
+Ui.Panel {
+    id: pane
+    padding: 0
+
+    property var sketch: ({})
+    property string workspacePath: ""
+    property int workspaceSketchCount: 0
+    property var selectedSketch: ({})
+    readonly property bool choosingEntry: workspacePath.length > 0 && sketchIndex < 0
+    property alias sketchIndex: view.sketchIndex
+    property alias paused: view.paused
+    property alias publishing: view.publishing
+    readonly property string publicationError: view.publicationError
+    property alias timeScale: view.timeScale
+    readonly property var metrics: view.metrics
+    readonly property string hostState: view.state
+    readonly property string status: view.status
+    readonly property bool orbitable: view.orbitable
+    readonly property bool canvasFocused: view.activeFocus
+    signal captureReady(string path)
+    signal thumbnailCaptured(int index)
+    signal openRequested(int index)
+    signal openFileRequested
+    signal revealRequested
+    signal revealEntryRequested
+
+    function capture() {
+        view.capture();
+    }
+    function replay() {
+        view.replay();
+    }
+
+    contentItem: ColumnLayout {
+        spacing: 0
+        Ui.PanelHeading {
+            Layout.fillWidth: true
+            Layout.margins: Ui.Theme.sectionSpacing
+            title: pane.choosingEntry ? "Workspace" : (pane.metrics.sketch ?? "Open a sketch").replace(/_/g, " ")
+            detail: pane.choosingEntry ? "No entry loaded" : [pane.sketch.folder ?? "", pane.sketch.path ? (pane.sketch.path.endsWith(".py") ? "Python" : "C++") : "", (pane.metrics.canvas ?? "").replace("x", " × ")].filter(value => value.length > 0).join(" · ")
+            Ui.IconButton {
+                visible: !pane.choosingEntry
+                text: "Fit"
+                tooltip: "Fit the whole sketch in the canvas"
+                onClicked: canvasViewport.fitView()
+            }
+            Ui.IconButton {
+                visible: !pane.choosingEntry
+                text: Math.round(canvasViewport.viewScale * 100) + "%"
+                tooltip: "View at actual size (100%)"
+                onClicked: canvasViewport.zoomToActualSize()
+            }
+        }
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.leftMargin: Ui.Theme.sectionSpacing
+            Layout.rightMargin: Ui.Theme.sectionSpacing
+            Layout.bottomMargin: Ui.Theme.spacing
+            visible: (pane.sketch.path ?? "").length > 0
+            Ui.FactRow {
+                objectName: "canvasEntryPath"
+                Layout.fillWidth: true
+                label: "Entry file"
+                labelWidth: 56
+                value: pane.sketch.entryPath ?? pane.sketch.path ?? ""
+            }
+            Ui.IconButton {
+                text: "Show file"
+                tooltip: "Reveal the entry file on the canvas"
+                onClicked: pane.revealEntryRequested()
+            }
+        }
+        WorkspaceWelcome {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            visible: pane.choosingEntry
+            workspacePath: pane.workspacePath
+            sketchCount: pane.workspaceSketchCount
+            selectedSketch: pane.selectedSketch
+            onOpenRequested: index => pane.openRequested(index)
+            onOpenFileRequested: pane.openFileRequested()
+            onRevealRequested: pane.revealRequested()
+        }
+        Ui.GlassPanel {
+            visible: !pane.choosingEntry
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.margins: Ui.Theme.sectionSpacing
+            Layout.topMargin: 0
+            radius: Ui.Theme.cornerRadius
+            Ui.PanZoomCanvas {
+                id: canvasViewport
+
+                anchors.fill: parent
+                showOverlays: false
+                canvasWidth: {
+                    const dimensions = (view.metrics.canvas ?? "").split("x");
+                    const value = Number(dimensions[0]);
+                    return dimensions.length === 2 && value > 0 ? value : 900;
+                }
+                canvasHeight: {
+                    const dimensions = (view.metrics.canvas ?? "").split("x");
+                    const value = Number(dimensions[1]);
+                    return dimensions.length === 2 && value > 0 ? value : 640;
+                }
+                checkerboardVisible: false
+                // The view below draws the canvas under the zoom itself,
+                // so it stays the size of the pane and its texture never
+                // grows with the zoom.
+                contentFillsViewport: true
+                // WHAT A SKETCH KEEPS AT THE SCALE IT IS DRAWN AT STILL
+                // GROWS WITH THE ZOOM: a graphics() buffer is formed at
+                // the canvas's size times that scale, and the zoom is
+                // part of it. So the deepest zoom is the one at which a
+                // buffer the canvas's size, on this screen, still fits
+                // the 16384-pixel texture edge devices commonly allow —
+                // never short of actual size, never past the viewport's
+                // own ceiling.
+                maximumScale: Math.max(1.0, Math.min(16.0, 16384 / (Math.max(canvasViewport.canvasWidth, canvasViewport.canvasHeight) * Screen.devicePixelRatio)))
+                panButtons: Qt.MiddleButton
+                showPanCursor: false
+                // A set sketch owns the ordinary wheel for camera
+                // distance. Ctrl-wheel still reaches zoom below.
+                mouseWheelZoomEnabled: !view.orbitable
+
+                // The canvas's own dark, under the view: what shows in
+                // the canvas's place while no sketch is live and the view
+                // covers nothing. A live frame covers it.
+                Rectangle {
+                    x: canvasViewport.canvasRect.x
+                    y: canvasViewport.canvasRect.y
+                    width: canvasViewport.canvasRect.width
+                    height: canvasViewport.canvasRect.height
+                    color: "#0b0a14"
+                }
+
+                GrimoireView {
+                    id: view
+
+                    anchors.fill: parent
+                    canvasScale: canvasViewport.viewScale
+                    canvasOffset: canvasViewport.canvasOffset
+                    // Captures run on the render thread; the saved path
+                    // (or an empty string on failure) arrives
+                    // asynchronously.
+                    onCaptureReady: path => pane.captureReady(path)
+                    onThumbnailCaptured: index => pane.thumbnailCaptured(index)
+
+                    // Orbit, for the sketches that have a viewpoint to
+                    // move. A drag is yaw and pitch; the wheel is
+                    // distance. A sketch with no viewpoint gets no
+                    // handler at all, so a drag over a drawn tree does
+                    // nothing rather than something invisible.
+                    //
+                    // EVERY GESTURE STARTS FROM WHERE THE SKETCH STANDS,
+                    // read off the view at the moment it begins, so an
+                    // untouched sketch is seen from the camera it
+                    // declared and the first drag moves that camera
+                    // rather than replacing it.
+                    property real yaw: 0
+                    property real pitch: 0
+                    property real distance: 0
+
+                    // THE CANVAS'S OWN PART OF THE VIEW. The view fills
+                    // the pane, but orbiting, the wheel's distance and
+                    // the click that takes the keyboard belong to the
+                    // canvas: off it, a drag, a wheel and a touchpad
+                    // scroll reach the pasteboard beneath, as they do
+                    // around any canvas.
+                    Item {
+                        id: canvasArea
+
+                        x: canvasViewport.canvasRect.x
+                        y: canvasViewport.canvasRect.y
+                        width: canvasViewport.canvasRect.width
+                        height: canvasViewport.canvasRect.height
+
+                        DragHandler {
+                            enabled: view.orbitable
+                            target: null
+                            property real startYaw: 0
+                            property real startPitch: 0
+                            onActiveChanged: {
+                                if (active) {
+                                    startYaw = view.orbitYaw;
+                                    startPitch = view.orbitPitch;
+                                    view.distance = view.orbitDistance;
+                                }
+                            }
+                            onTranslationChanged: {
+                                view.yaw = startYaw - translation.x * 0.4;
+                                view.pitch = startPitch + translation.y * 0.3;
+                                view.orbit(view.yaw, view.pitch, view.distance);
+                            }
+                        }
+                        WheelHandler {
+                            enabled: view.orbitable
+                            onWheel: event => {
+                                if (event.modifiers & Qt.ControlModifier) {
+                                    const point = canvasArea.mapToItem(canvasViewport, event.x, event.y);
+                                    const factor = Math.pow(1.4, event.angleDelta.y / 120.0);
+                                    canvasViewport.zoomAt(factor, point.x, point.y);
+                                    return;
+                                }
+                                view.yaw = view.orbitYaw;
+                                view.pitch = view.orbitPitch;
+                                view.distance = Math.max(40, view.orbitDistance - event.angleDelta.y * 0.5);
+                                view.orbit(view.yaw, view.pitch, view.distance);
+                            }
+                        }
+                        TapHandler {
+                            onTapped: view.forceActiveFocus()
+                        }
+                    }
+
+                    // The pointer and the keys, for the sketches that
+                    // read them. Neither handler takes the grab, so the
+                    // orbit above still drags a set; a sketch with
+                    // nothing for a pointer to do ignores what arrives.
+                    // The hover reports where the pointer stands with
+                    // no button down, the point handler while one is,
+                    // and a click gives this canvas the keyboard — so
+                    // the keys go to the sketch after it is clicked and
+                    // back to the list when the list is.
+                    HoverHandler {
+                        id: hover
+                        onPointChanged: {
+                            if (!press.active)
+                                view.pointer(point.position.x, point.position.y, false);
+                        }
+                    }
+                    PointHandler {
+                        id: press
+                        acceptedButtons: Qt.LeftButton
+                        onActiveChanged: view.pointer(point.position.x, point.position.y, active)
+                        onPointChanged: {
+                            if (active)
+                                view.pointer(point.position.x, point.position.y, true);
+                        }
+                    }
+                    Keys.onPressed: event => {
+                        view.key(event.key, event.text, true);
+                        event.accepted = true;
+                    }
+                    Keys.onReleased: event => {
+                        view.key(event.key, event.text, false);
+                        event.accepted = true;
+                    }
+                }
+            }
+        }
+
+        Ui.Notice {
+            Layout.fillWidth: true
+            Layout.margins: Ui.Theme.spacing
+            visible: pane.publicationError.length > 0
+            text: pane.publicationError
+            tone: "error"
+        }
+
+        // Compile-error overlay: the last good sketch keeps
+        // running underneath.
+        Rectangle {
+            Layout.fillWidth: true
+            visible: view.errorLog.length > 0
+            color: Ui.Theme.solidPanelBackground
+            Layout.preferredHeight: Math.min(errorText.implicitHeight + 20, pane.height * 0.4)
+            ScrollView {
+                id: errorScroll
+
+                anchors.fill: parent
+                anchors.margins: 10
+                Text {
+                    id: errorText
+
+                    text: view.errorLog
+                    color: Ui.Theme.errorText
+                    font.family: Ui.Theme.monospaceFontFamily
+                    font.pixelSize: 12
+                    textFormat: Text.PlainText
+                    wrapMode: Text.WrapAnywhere
+                    width: errorScroll.width - 20
+                }
+            }
+        }
+    }
+}

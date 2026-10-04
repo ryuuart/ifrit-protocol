@@ -146,7 +146,7 @@ class ProjectEnvironment(unittest.TestCase):
         interpreter = self.venv()
         original = interpreter.read_bytes()
         self.info["version"] = [3, 13]
-        with self.assertRaisesRegex(ValueError, "incompatible with Sketchbook"):
+        with self.assertRaisesRegex(ValueError, "incompatible with Grimoire"):
             self.resolve()
         self.which.assert_not_called()
         self.assertEqual(len(self.syncs()), 0)

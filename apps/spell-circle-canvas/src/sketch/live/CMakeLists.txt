@@ -13,7 +13,7 @@ sigil_test(sketch_test
 # GUEST IMAGES the host's cases adopt, so a case reaches the path a
 # rebuilt workspace sketch takes without compiling one: built here, never
 # by the host's compiler, and resolving the framework out of the test
-# binary as a sketch resolves it out of Sketchbook. Compiled hidden, as the
+# binary as a sketch resolves it out of its host. Compiled hidden, as the
 # host compiles a guest, so its inline definitions join no coalescing set
 # and every type it names is an identity of its own. The image guest loads
 # a picture through the host's hub; the throwing guests throw from the

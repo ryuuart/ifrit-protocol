@@ -12,7 +12,7 @@ SigilMeasure, SigilMedia (SigilImage and SigilVideo joined), SigilGeometry, Sigi
 and SigilCompose in library links that, by the tree's rule, never built the sketches. Every
 library, test, bench, doc probe and `SigilReferenceExamples` builds and passes. The keep-going
 whole-tree build fails in `SigilSketches` only: **196 objects in 168 sketches** (of 147 single-file
-sketches and 78 directory sketches). `Sketchbook` cannot link until they compile. This pass brings
+sketches and 78 directory sketches). `Grimoire` cannot link until they compile. This pass brings
 EVERY sketch — C++ and `python_*.py` — onto the new vocabulary in one go, then rebases only the
 plates named below, each with its cause in the commit.
 
@@ -23,9 +23,9 @@ plates named below, each with its cause in the commit.
   `README.md` beside its code is the canon for the names in the tables below; when this brief and
   a README disagree, the README (compile-checked against the headers) wins.
 - **Iterate with the live compiler**, no registry rebuild needed:
-  `build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook src/sketch/sketches/<stem>[/<stem>].cpp --frame out.png`.
-  If it refuses with "framework headers are newer than this host", rebuild Sketchbook once. Until
-  Sketchbook links, compile one object with the tree's syntax check
+  `build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire apps/grimoire/sketches/<stem>[/<stem>].cpp --frame out.png`.
+  If it refuses with "framework headers are newer than this host", rebuild Grimoire once. Until
+  Grimoire links, compile one object with the tree's syntax check
   (`python3 apps/spell-circle-canvas/sketch-pass/syntaxcheck.py <file>`,
   no build-tree write) or build `SigilSketches` with `-- -k 0`.
 - **Build through the slot**, never `cmake --build` directly, and never a Debug build:
@@ -48,7 +48,7 @@ plates named below, each with its cause in the commit.
 ## (b) The vocabulary map, old → new, one table per library
 
 Libraries are ordered by how many retired spellings the sketches still hold; rows within a library
-by their sites. **Sites** are a grep over `src/sketch/sketches/` (C++ and Python, the ignored
+by their sites. **Sites** are a grep over `apps/grimoire/sketches/` (C++ and Python, the ignored
 `.venv` excluded) for the old spelling: a heuristic that over-counts where the old name is also a
 valid one (`sk_sp<SkImage>` compiles once Media's door is included; `SkSize` literals still convert
 where a braced `{w, h}` is taken) and reads 0 where a sweep already carried the rename or the old
@@ -468,7 +468,7 @@ Most frequent compiler kinds (objects hitting each): missing header <sigilgeomet
 | `fallout2_charsheet/fallout2_charsheet.cpp` | **stops at** missing header <sigilcompose/brush/LayerStyles.h> | material::Paint in Compose ×8; layer styles/marks → material effects ×7; Skia geometry types ×2; Assets::json → hub ×1 |
 | `feed_events/feed_events.cpp` | gone: motion::Timeline::apply; type 'motion::Animatable<float>' does not provide a call operator | ch:: → motion:: ×2; Skia geometry types ×1 |
 | `feed_sky/feed_sky.cpp` | unknown type name 'SurfacePaint'; gone: motion::Engine::add; no viable conversion from returned value of type 'Paint' to function r | material::Paint in Compose ×1; Skia geometry types ×1 |
-| `field_shelf.cpp` | conversion: (lambda at /Users/long/REI/ifrit-protocol/apps/spell-circle-canvas/src/sketch/sketches/field_shelf.cpp:70:84) → std::function<Picture ()> | Skia geometry types ×2; Skia colours ×2 |
+| `field_shelf.cpp` | conversion: (lambda at /Users/long/REI/ifrit-protocol/apps/grimoire/sketches/field_shelf.cpp:70:84) → std::function<Picture ()> | Skia geometry types ×2; Skia colours ×2 |
 | `first_light.cpp` | conversion: float → Duration |  |
 | `floating_panels.cpp` | conversion: SkSize → glm::vec2; conversion: sk_sp<SkImage> → media::Picture; gone: glm::vec<2, float>::width; gone: glm::vec<2, float>::height | Skia geometry types ×2 |
 | `flourish/GiltBorder.cpp` | gone: glm::vec<2, int>::width; missing header <sigilgeometry/path/Skia.h> | Skia geometry types ×36; Skia colours ×10; ch:: → motion:: ×7; geometry door include ×3; material::Paint in Compose ×2; Skia blend/tile/sampling ×2; engine/timeline ×1; shape protocol → Outline(glm::vec2) ×1 |
@@ -527,7 +527,7 @@ Most frequent compiler kinds (objects hitting each): missing header <sigilgeomet
 | `nine_slice/Ornament.cpp` | gone: glm::vec<2, int>::width; missing header <sigilgeometry/path/Skia.h> | Skia geometry types ×8; Skia colours ×6; Skia blend/tile/sampling ×2; geometry door include ×1 |
 | `nine_slice/nine_slice.cpp` | gone: glm::vec<2, int>::width; conversion: int → std::chrono::duration<double>; conversion: Picture → sk_sp<SkImage> | Skia geometry types ×8; Skia colours ×6; Skia blend/tile/sampling ×2; geometry door include ×1 |
 | `noise_shelf.cpp` | conversion: path::Rect → SkRect | Skia geometry types ×2 |
-| `ocio_view.cpp` | gone: material::skia::toSkColor; conversion: (lambda at /Users/long/REI/ifrit-protocol/apps/spell-circle-canvas/src/sketch/sketches/ocio_view.cpp:68:82) → std::function<Picture ()> | Spread/ramp/through → Tween/stagger ×7; Skia geometry types ×5; Skia colours ×2; Skia blend/tile/sampling ×1 |
+| `ocio_view.cpp` | gone: material::skia::toSkColor; conversion: (lambda at /Users/long/REI/ifrit-protocol/apps/grimoire/sketches/ocio_view.cpp:68:82) → std::function<Picture ()> | Spread/ramp/through → Tween/stagger ×7; Skia geometry types ×5; Skia colours ×2; Skia blend/tile/sampling ×1 |
 | `optical_kerning.cpp` | conversion: Face → sk_sp<SkTypeface>; conversion: sk_sp<SkTypeface> → std::optional<Face>; gone: sketch::kit::Reading; template argument for template type parameter must be a type; gone: sketch::kit::readout | Skia geometry types ×1; Skia faces → weave::Face ×1 |
 | `osc_desk/osc_desk.cpp` | gone: motion::Timeline::apply | ch:: → motion:: ×3; Skia geometry types ×1 |
 | `over_under/over_under.cpp` | **stops at** missing header <sigilmaterial/core/Combine.h> | shader → material::shader ×8; Skia geometry types ×4; Spread/ramp/through → Tween/stagger ×2; Skia colours ×1; Skia blend/tile/sampling ×1; shape protocol → Outline(glm::vec2) ×1 |
@@ -680,10 +680,10 @@ Rebase these only, each with the cause named in the commit; every other plate st
 
 ## (f) Verification (once, at the end)
 
-1. `buildslot.py build SigilSketches Sketchbook --who <name>` — both link.
+1. `buildslot.py build SigilSketches Grimoire --who <name>` — both link.
 2. `ctest --test-dir build -C Release --output-on-failure` through `buildslot.py run`. The reds
-   that exist today only because Sketchbook is stale turn green once it is rebuilt:
-   `python_authoring`, `python_protocol_routes`, and the Sketchbook host lanes
+   that exist today only because Grimoire is stale turn green once it is rebuilt:
+   `python_authoring`, `python_protocol_routes`, and the Grimoire host lanes
    `sketch_reload_runs_the_file`, `sketch_reload_materials`, `sketch_reload_surface`,
    `sketch_reload_surface_{video,set,device,web,substance}`, `sketch_reload_named`,
    `sketch_reload_directory`, `sketch_capture_viewport`, `sketch_window_orientation` (each refuses

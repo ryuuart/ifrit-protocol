@@ -1,0 +1,119 @@
+#pragma once
+
+/** @file
+ * What this process stands up once, before any sketch draws and whatever
+ * lane is running: the one web engine a page sketch borrows, the stock
+ * materials, the font context and the asset store every session is handed,
+ * the compile flags a reloaded sketch is built with, and the one device a
+ * set is lit on.
+ */
+
+#include <sigilmaterial/advanced/Program.h>
+#include <sigilmaterial/core/Material.h>
+#ifdef SIGIL_GRIMOIRE_SCRY
+#include <sigilsketch/scry/SharedEngine.h>
+#endif
+
+#include <filesystem>
+#include <future>
+#include <span>
+#include <string>
+
+namespace sigil::sketch {
+class Assets;
+}
+
+namespace sigil::weave {
+class FontContext;
+}
+
+#ifdef SIGIL_GRIMOIRE_SCRY
+/** THIS HOST OPTS INTO ONE LAZY WEB ENGINE for every sketch it opens.
+ *
+ * SigilScry's ordinary path remains explicit caller ownership through
+ * WebEngine::create(config). Grimoire is the exceptional host whose live
+ * and resident sketches must borrow one renderer across selection and reload,
+ * so it chooses that renderer's configuration before any sketch can ask for
+ * it and releases it after every session is gone — which ends the engine and
+ * leaves the process's renderer standing. */
+class SharedWebEngineScope {
+ public:
+  SharedWebEngineScope() {
+    if (!sigil::sketch::scry::configureSharedEngine({}))
+      std::fprintf(stderr,
+                   "[grimoire] shared web engine was already configured\n");
+  }
+  ~SharedWebEngineScope() { sigil::sketch::scry::shutdownSharedEngine(); }
+
+  SharedWebEngineScope(const SharedWebEngineScope&) = delete;
+  SharedWebEngineScope& operator=(const SharedWebEngineScope&) = delete;
+
+  void shutdown() { sigil::sketch::scry::shutdownSharedEngine(); }
+};
+#else
+class SharedWebEngineScope {
+ public:
+  void shutdown() {}
+};
+#endif
+
+/** THE PROCESS'S ONE LIST OF STOCK RECIPES, built on the first ask and
+ *  held: the surface programs the library ships and every lit body draws
+ *  with — lit by the split sum, lit additively, and unlit. A look belongs
+ *  to the sketch that wears it and compiles when that sketch first draws.
+ *  The warm-up compiles this list, and a later pass walks the same list
+ *  to reach each compiled program — building it a second time would
+ *  answer with recipes equal to the first lot without being the same
+ *  objects. */
+std::span<const sigil::material::Material> stockRecipes();
+
+/** THE STOCK MATERIALS, COMPILED BEFORE THE FIRST SKETCH DRAWS: the
+ *  material library's warm-up over the list above, through the backend
+ *  this host draws with. */
+sigil::material::WarmupResult warmStockMaterials();
+
+/** Waits for that warm-up and says on stderr how much of it landed. */
+void finishMaterialWarmup(std::future<sigil::material::WarmupResult>& loading);
+
+/** The compiler line the build captured, which lands beside the binaries
+ *  rather than inside the bundle: a macOS application is a directory, and
+ *  its executable sits three levels down inside it. */
+std::filesystem::path flagsFileNear(
+    const std::filesystem::path& executableDirectory);
+
+/** The directory this binary stands in, whatever the path it was invoked
+ *  through. */
+std::filesystem::path executableDirectory(const char* argv0);
+
+/** THE PROCESS'S ONE FONT CONTEXT, shaped through the system's fonts:
+ *  every session, still and headless lane shares it, so the shaping and
+ *  glyph caches are filled once. */
+sigil::weave::FontContext& fonts();
+
+/** THE PROCESS'S ONE ASSET STORE, rooted at this repository's own
+ *  sketch assets. A sketch opened from anywhere else mounts `assets/`
+ *  beside its own file instead, which is the host's option and not this
+ *  store. */
+sigil::sketch::Assets& assets();
+
+/** Puts every set sketch on the device, and says whether it could. The
+ *  sweep treats a false answer as fatal because drawing the CPU's
+ *  picture under a name that asked for the device's would put two
+ *  different pictures under one name; the live host carries on, because
+ *  a window can say which tier it is showing. */
+bool useDevice();
+
+/** Lets the device go while the process is still running. It outlives
+ *  every frame that used it and must go BEFORE the process does:
+ *  released after its own queue, the textures and pipelines it made take
+ *  their teardown into static destruction, where the locks they want no
+ *  longer exist. */
+void releaseDevice();
+
+/** True when the selection holds a sketch that draws through a device.
+ *  The kind answers for itself, so a runtime added later is not a name
+ *  this has to learn. It is not what decides whether a device is brought
+ *  up — a `--gpu` run brings one up whatever it holds, because the
+ *  surface a canvas is photographed on comes off that same device — but
+ *  it is what a montage asks before spending one. */
+bool selectionNeedsDevice(int only, const std::string& kind);
