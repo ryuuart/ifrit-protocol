@@ -28,7 +28,7 @@ from sigil.compose import Composer, box, slot
 from sigil.sketch import render_file
 
 # Every name this package nests inside the class it reports about.
-NESTED = ("CacheState", "CompositePlane", "InputSpace", "NodeCost", "Promotion")
+NESTED = ("CacheState", "CompositePlane", "NodeCost", "Promotion")
 
 # The calls a sketch's composer answered while the sketch adapter owned
 # the class, which the one class still answers.
@@ -51,8 +51,6 @@ GROWN = (
     "bakeDensity",
     "compositeCounting",
     "compositePlane",
-    "declareInputSpace",
-    "declaredInputSpace",
     "draw",
     "profile",
     "profiling",
@@ -92,10 +90,6 @@ class Spellings(unittest.TestCase):
         self.assertEqual(set(policy.__members__), {"Off", "ByCost", "Eager"})
 
     def test_the_nested_enumerations_carry_the_native_values(self):
-        self.assertEqual(
-            list(Composer.InputSpace.__members__),
-            ["EncodedSRGB", "LinearSRGB", "DisplayP3"],
-        )
         self.assertEqual(
             list(Composer.CacheState.__members__),
             ["Live", "Picture", "Texture", "Promoted", "SplitOwn", "Group"],
@@ -207,13 +201,6 @@ class Owned(unittest.TestCase):
         self.assertEqual(composer.bakeDensity(), 0)
         composer.setBakeDensity(devicePixelsPerUnit=2.0)
         self.assertEqual(composer.bakeDensity(), 2.0)
-
-    def test_the_input_space_is_a_declaration_that_reads_back(self):
-        composer = Composer()
-        space = Composer.InputSpace
-        self.assertEqual(composer.declaredInputSpace(), space.EncodedSRGB)
-        composer.declareInputSpace(space=space.DisplayP3)
-        self.assertEqual(composer.declaredInputSpace(), space.DisplayP3)
 
     def test_promotion_takes_a_policy_or_a_truth_value(self):
         policy = native.PromotionPolicy
@@ -440,19 +427,6 @@ class Frames(Session):
         self.assertEqual(reds(plain), 0)
         self.assertGreater(reds(inked), 0)
 
-    def test_declaring_an_input_space_moves_no_pixel(self):
-        drawing = """
-            pen.background('#000000')
-            probe = Composer()
-            probe.setSize((48, 32))
-            probe.declareInputSpace(Composer.InputSpace.{space})
-            probe.render(box().children([plate().opacity(0.5)]))
-            probe.draw(pen.canvas())
-        """
-        encoded = self.render(drawing.format(space="EncodedSRGB")).rgba()
-        linear = self.render(drawing.format(space="LinearSRGB")).rgba()
-        self.assertEqual(bytes(encoded), bytes(linear))
-
     def test_a_profiled_frame_is_rows_worst_first_with_a_reason_each(self):
         self.render("""
             pen.background('#000000')
@@ -610,7 +584,6 @@ class Lent(Session):
                 composer.setBakeDensity(1.0)
                 composer.setPointer((4, 4), False)
                 composer.setKey('a', 65, True)
-                composer.declareInputSpace(Composer.InputSpace.EncodedSRGB)
                 composer.render(box().key('root').children([plate()]))
             """,
             update="""

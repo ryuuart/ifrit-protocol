@@ -70,11 +70,12 @@ python = ["sketch.SketchContext.textureScene", "sketch.SketchContext.fonts"]
 
 [[section.surface.item]]
 native = "`SketchContext::bakeSet`, `canvas(CanvasSpecification)` and `key`"
-bound_text = "`bakeSet`, `canvas` over a `CanvasSpecification` and `key` on the context"
+bound_text = "`bakeSet`, `canvas` over a `CanvasSpecification` (whose `paintDiscardedFrames` lets unobserved capture steps go unpainted) and `key` on the context"
 python = [
   "sketch.SketchContext.bakeSet",
   "sketch.SketchContext.canvas",
   "sketch.CanvasSpecification",
+  "sketch.CanvasSpecification.paintDiscardedFrames",
   "sketch.SketchContext.key",
 ]
 
@@ -140,12 +141,11 @@ python = [
 ]
 
 [[section.surface.item]]
-native = "`setInherited`, `setView` and `declareInputSpace`"
-bound_text = "`setInherited`, `setView` and `declareInputSpace`"
+native = "`setInherited` and `setView`"
+bound_text = "`setInherited` and `setView`"
 python = [
   "compose.Composer.setInherited",
   "compose.Composer.setView",
-  "compose.Composer.declareInputSpace",
 ]
 
 [[section.surface.item]]
@@ -268,6 +268,10 @@ python = [
 [[section.surface.item]]
 bound = "`point`, the node with no extent that carries a key and facts"
 python = ["compose.point"]
+
+[[section.surface.item]]
+bound = "`scene` owns planar lighting; nonvisual `light` leaves contribute sources independently of sibling order; `Element.environment` supplies the scene's reflected surroundings"
+python = ["compose.scene", "compose.light", "compose.Element.environment"]
 
 [[section.surface.item]]
 bound = "`drawWith`, keyed or not, over a Python program handed one pen and the settled scope"
@@ -395,9 +399,6 @@ python = ["compose.Pattern"]
 [[section.surface.item]]
 native = "`Table`"
 python = ["compose.layouts.Table"]
-
-[[section.surface.item]]
-native = "a Python placement scheme, `place(LayoutInput)` answering one rectangle per child, which an arranging operator stands in for"
 
 [[section.surface.item]]
 native = "shader fills"
@@ -542,6 +543,10 @@ python = [
   "compose.Element.fill",
   "material.Filter.shadow",
 ]
+
+[[section.surface.item]]
+bound = "`relief`, a material shaded over the rounded relief of the outline it decorates, with its `shoulder` and `depth`"
+python = ["compose.relief"]
 
 [[section.surface.item]]
 bound = "overlay, background, foreground and stroke layers"
@@ -902,9 +907,10 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "`PaintStyle`, `PaintLayer`, `Decoration` and the kit shadow, glow and outline layers"
+bound = "`PaintStyle` with its `foregroundMaterial`, `PaintLayer`, `Decoration` and the kit shadow, glow and outline layers"
 python = [
   "weave.PaintStyle",
+  "weave.PaintStyle.foregroundMaterial",
   "weave.PaintLayer",
   "weave.Decoration",
   "weave.kit.dropShadow",
@@ -1625,6 +1631,22 @@ prose = "material-geometry-world"
 name = "Material"
 
 [[section.surface.item]]
+bound = "`Light` directional, point and spot values with animatable direction, elevation, colour and strength; `Lighting` holds several sources and an optional reflected `Environment`; all three copy and deep-copy as values"
+python = [
+  "material.Light",
+  "material.LightKind",
+  "material.LightingFrame",
+  "material.Lighting.lights",
+  "material.Lighting.environment",
+  "material.Lighting.frame",
+  "material.studio",
+  "material.environment",
+  "material.Light.__deepcopy__",
+  "material.Environment.__deepcopy__",
+  "material.Lighting.__deepcopy__",
+]
+
+[[section.surface.item]]
 bound = "Colors with OKLab, OKLCH, CIELAB and linear conversions, gamut fitting and difference; ramps, palettes and extraction, harmonies and dither"
 python = [
   "material.Color",
@@ -1655,6 +1677,15 @@ python = [
   "material.surface.SurfaceParameters",
   "material.surface.program",
   "material.surface.unlit",
+]
+
+[[section.surface.item]]
+bound = "`surface.normalFromHeight` over `HeightNormalOptions`, which differentiates a grayscale height into encoded normals, and `surface.blendNormals` over `NormalBlendOptions`, which reorients a detail normal map into a base one"
+python = [
+  "material.surface.normalFromHeight",
+  "material.surface.HeightNormalOptions",
+  "material.surface.blendNormals",
+  "material.surface.NormalBlendOptions",
 ]
 
 [[section.surface.item]]
@@ -1692,7 +1723,7 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "`Filter` (blur, `dropShadow` over `ShadowOptions`, glow, `bloom` over `BloomOptions`, `phosphorBloom`, the colour functions `brightness`, `contrast`, `saturate` and `hueRotate`, the light stages `dilate`, `deepen` and `whiten` joined by `emit` and `then`, `of` a recipe, `program` over SkSL, slots, and `set` and `bind` parameters driven by motion)"
+bound = "`Filter` (blur, `dropShadow` over `ShadowOptions`, glow, `bloom` over `BloomOptions`, `glass` refraction over `GlassOptions`, `phosphorBloom`, the colour functions `brightness`, `contrast`, `saturate` and `hueRotate`, the light stages `dilate`, `deepen` and `whiten` joined by `emit` and `then`, `of` a recipe, `program` over SkSL, slots, and `set` and `bind` parameters driven by motion)"
 python = [
   "material.Filter.blur",
   "material.Filter.dropShadow",
@@ -1700,6 +1731,8 @@ python = [
   "material.Filter.glow",
   "material.Filter.bloom",
   "material.BloomOptions",
+  "material.Filter.glass",
+  "material.GlassOptions",
   "material.Filter.phosphorBloom",
   "material.Filter.brightness",
   "material.Filter.contrast",
@@ -1730,7 +1763,15 @@ bound = "a recipe `Material` stands where a paint does, on an element's fills an
 python = ["material.Material"]
 
 [[section.surface.item]]
-native = "`Material` equality and editing"
+bound = "`Material` equality and editing: `layer`, `surface` (lit by a `Lighting`, a `Light` or an `Environment`), `effects`, and `set` and `bind` parameters, where `bind` takes a number or any colour spelling, animatable or not"
+python = [
+  "material.Material.__eq__",
+  "material.Material.layer",
+  "material.Material.surface",
+  "material.Material.effects",
+  "material.Material.set",
+  "material.Material.bind",
+]
 
 [[section.surface.item]]
 native = "`Recipe` authoring with frame inputs, `UniformBlock` and banks"

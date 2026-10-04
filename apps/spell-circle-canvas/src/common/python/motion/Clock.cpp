@@ -7,6 +7,7 @@
 
 #include <pybind11/functional.h>
 #include <pybind11/stl.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmotion/advanced/ClockPolicy.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilpython/Bindings.h>
@@ -40,10 +41,10 @@ std::vector<motion::Animatable<T>> liveRun(const py::sequence& targets) {
   return run;
 }
 
-motion::Tween<SkColor4f> colorTween(py::handle value) {
-  if (!py::isinstance<motion::Tween<SkColor4f>>(value))
+motion::Tween<material::Color> colorTween(py::handle value) {
+  if (!py::isinstance<motion::Tween<material::Color>>(value))
     throw py::type_error("A motion on a colour needs a ColorTween.");
-  return py::cast<motion::Tween<SkColor4f>>(value);
+  return py::cast<motion::Tween<material::Color>>(value);
 }
 }  // namespace
 
@@ -63,7 +64,8 @@ motion::Engine& EngineHandle::get() const {
   // the host's own words, and a second check here would answer the first
   // of those questions with the wrong one.
   if (!m_owner) {
-    if (!m_access) throw std::runtime_error("This engine has no clock behind it");
+    if (!m_access)
+      throw std::runtime_error("This engine has no clock behind it");
     return m_access();
   }
   if (m_thread != std::this_thread::get_id())
@@ -164,8 +166,8 @@ motion::Duration timelineTime(motion::Duration value, const char* what) {
 template <class Kind, class... Options>
 void bindPlaybackVerbs(py::class_<Kind, Options...>& type) {
   constexpr auto fluent = py::return_value_policy::reference;
-  const auto verb = [&](const char* name, motion::Playback& (motion::Playback::*
-                                                               member)(),
+  const auto verb = [&](const char* name,
+                        motion::Playback& (motion::Playback::*member)(),
                         const char* doc) {
     type.def(
         name,
@@ -323,17 +325,17 @@ void bindMotionClock(py::module_& root) {
       .def(
           "add",
           [](motion::Timeline& self, motion::Animatable<float>& target,
-             py::handle tween, const motion::Position& when)
-              -> motion::Timeline& {
+             py::handle tween,
+             const motion::Position& when) -> motion::Timeline& {
             return self.add(target, motionTween(tween), when);
           },
           py::arg("target"), py::arg("tween"),
           py::arg("position") = motion::afterEnd(), fluent)
       .def(
           "add",
-          [](motion::Timeline& self, motion::Animatable<SkColor4f>& target,
-             py::handle tween, const motion::Position& when)
-              -> motion::Timeline& {
+          [](motion::Timeline& self,
+             motion::Animatable<material::Color>& target, py::handle tween,
+             const motion::Position& when) -> motion::Timeline& {
             return self.add(target, colorTween(tween), when);
           },
           py::arg("target"), py::arg("tween"),
@@ -355,8 +357,7 @@ void bindMotionClock(py::module_& root) {
             return self.call(notification(retainCallback(std::move(callback))),
                              when);
           },
-          py::arg("callback"), py::arg("position") = motion::afterEnd(),
-          fluent)
+          py::arg("callback"), py::arg("position") = motion::afterEnd(), fluent)
       .def(
           "label",
           [](motion::Timeline& self, std::string name,
@@ -383,8 +384,8 @@ void bindMotionClock(py::module_& root) {
           "value it holds if it is not one.")
       .def(
           "animate",
-          [](const EngineHandle& handle, motion::Animatable<SkColor4f>& target,
-             py::handle tween) {
+          [](const EngineHandle& handle,
+             motion::Animatable<material::Color>& target, py::handle tween) {
             return handle.get().animate(target, colorTween(tween));
           },
           py::arg("target"), py::arg("tween"),
@@ -408,9 +409,9 @@ void bindMotionClock(py::module_& root) {
           "A timeline, running from now.")
       .def(
           "timer",
-          [](const EngineHandle& handle, py::function callback,
-             double stepRate, double frameRate, int catchUp,
-             motion::Duration duration, motion::Duration delay) {
+          [](const EngineHandle& handle, py::function callback, double stepRate,
+             double frameRate, int catchUp, motion::Duration duration,
+             motion::Duration delay) {
             if (!std::isfinite(stepRate) || stepRate < 0 ||
                 !std::isfinite(frameRate) || frameRate < 0 || catchUp <= 0)
               throw py::value_error(
@@ -486,8 +487,9 @@ void bindMotionClock(py::module_& root) {
           "setSpeed",
           [](const EngineHandle& handle, double speed) {
             if (!std::isfinite(speed) || speed < 0)
-              throw py::value_error("An engine's speed must be finite and "
-                                    "nonnegative.");
+              throw py::value_error(
+                  "An engine's speed must be finite and "
+                  "nonnegative.");
             handle.ownedEngine(kHostMoves).setSpeed(speed);
           },
           py::arg("speed"))

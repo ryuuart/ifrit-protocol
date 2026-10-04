@@ -74,12 +74,13 @@ material::Paint& setParameter(material::Paint& paint, const std::string& name,
                               py::handle value) {
   if (py::isinstance<py::int_>(value) || py::isinstance<py::float_>(value))
     return paint.set(name, py::cast<float>(value));
-  // A colour is four floats, written as the colour class or as a CSS
-  // string, and a live scalar is what makes an sksl paint animate — the
-  // same two readings an effect's uniform takes, so one uniform is
-  // written the same way whichever of the two seams it is set on.
+  // Explicit colors are four components; numeric sequences keep their
+  // array meaning. Typed motion values retain their shared cells.
   if (py::isinstance<material::Color>(value) || py::isinstance<py::str>(value))
     return paint.set(name, color(value));
+  if (py::isinstance<motion::Animatable<material::Color>>(value) ||
+      py::isinstance<motion::Tween<material::Color>>(value))
+    return paint.bind(name, motionInk(value));
   if (py::isinstance<motion::Animatable<float>>(value) ||
       py::isinstance<motion::Tween<float>>(value))
     return paint.bind(name, motionAnimatable(value));
@@ -95,8 +96,8 @@ material::Paint& setParameter(material::Paint& paint, const std::string& name,
 material::Paint sksl(py::handle effect, py::dict uniforms) {
   auto paint =
       material::skia::sksl(py::isinstance<py::str>(effect)
-                             ? runtimeEffect(py::cast<std::string>(effect))
-                             : py::cast<sk_sp<SkRuntimeEffect>>(effect));
+                               ? runtimeEffect(py::cast<std::string>(effect))
+                               : py::cast<sk_sp<SkRuntimeEffect>>(effect));
   for (const auto& [name, value] : uniforms)
     setParameter(paint, py::cast<std::string>(name), value);
   return paint;
@@ -178,18 +179,29 @@ void bindMaterialPaintEffect(py::module_& module) {
       .def_readwrite("dilation", &material::BloomOptions::dilation)
       .def_readwrite("deepening", &material::BloomOptions::deepening)
       .def_readwrite("maximumOpacity", &material::BloomOptions::maximumOpacity);
+  bindRecord<material::GlassOptions>(nativePaint, "GlassOptions",
+                                     "Unknown GlassOptions field: ")
+      .def_readwrite("ior", &material::GlassOptions::ior)
+      .def_readwrite("thickness", &material::GlassOptions::thickness)
+      .def_readwrite("sampleRadius", &material::GlassOptions::sampleRadius)
+      .def_readwrite("normal", &material::GlassOptions::normal)
+      .def_readwrite("normalDirectX", &material::GlassOptions::normalDirectX);
 
   py::class_<material::Filter>(nativePaint, "Filter")
       .def(py::init<>())
-      .def_static("of", [](const material::Material& program) {
-        return material::Filter::of(program);
-      }, py::arg("program"))
+      .def_static(
+          "of",
+          [](const material::Material& program) {
+            return material::Filter::of(program);
+          },
+          py::arg("program"))
       .def_static(
           "program",
           [](py::handle effect, py::dict parameters) {
             std::vector<std::pair<std::string, float>> values;
             for (const auto& [name, value] : parameters)
-              values.emplace_back(py::cast<std::string>(name), py::cast<float>(value));
+              values.emplace_back(py::cast<std::string>(name),
+                                  py::cast<float>(value));
             return material::skia::program(
                 py::isinstance<py::str>(effect)
                     ? runtimeEffect(py::cast<std::string>(effect))
@@ -225,7 +237,10 @@ void bindMaterialPaintEffect(py::module_& module) {
                   py::arg("options") = material::BevelOptions{})
       .def_static("bloom", &material::Filter::bloom,
                   py::arg("options") = material::BloomOptions{})
-      .def_static("brightness", &material::Filter::brightness, py::arg("amount"))
+      .def_static("glass", &material::Filter::glass,
+                  py::arg("options") = material::GlassOptions{})
+      .def_static("brightness", &material::Filter::brightness,
+                  py::arg("amount"))
       .def_static("contrast", &material::Filter::contrast, py::arg("amount"))
       .def_static("saturate", &material::Filter::saturate, py::arg("amount"))
       .def_static("hueRotate", &material::Filter::hueRotate, py::arg("degrees"))
@@ -238,9 +253,10 @@ void bindMaterialPaintEffect(py::module_& module) {
       .def_static("directionalBlur", &material::Filter::directionalBlur,
                   py::arg("sigma"), py::arg("angleDegrees"),
                   py::arg("across") = 0.0f)
-      .def_static("blur",
-                  py::overload_cast<material::Paint, float>(&material::Filter::blur),
-                  py::arg("sigmaMap"), py::arg("maximumSigma"))
+      .def_static(
+          "blur",
+          py::overload_cast<material::Paint, float>(&material::Filter::blur),
+          py::arg("sigmaMap"), py::arg("maximumSigma"))
       .def_static("blur", py::overload_cast<float>(&material::Filter::blur),
                   py::arg("sigma"))
       .def_static("dilate", &material::Filter::dilate, py::arg("pixels"))
@@ -259,9 +275,8 @@ void bindMaterialPaintEffect(py::module_& module) {
             if (py::isinstance<material::Color>(value) ||
                 py::isinstance<py::str>(value)) {
               const SkColor4f tint = color(value);
-              return self.set(
-                  name,
-                  std::array<float, 4>{tint.fR, tint.fG, tint.fB, tint.fA});
+              return self.set(name, std::array<float, 4>{tint.fR, tint.fG,
+                                                         tint.fB, tint.fA});
             }
             if (py::isinstance<py::list>(value) ||
                 py::isinstance<py::tuple>(value))
@@ -333,16 +348,14 @@ void bindMaterialPaintEffect(py::module_& module) {
       .def("copy", [](const material::Paint& paint) { return paint; })
       .def_static(
           "solid",
-          [](py::handle value) {
-            return material::Paint::solid(color(value));
-          },
+          [](py::handle value) { return material::Paint::solid(color(value)); },
           py::arg("color"))
       .def_static(
           "linearGradient",
           [](py::handle start, py::handle end, py::handle stops,
              const material::GradientOptions& options) {
-            return material::Paint::linearGradient(
-                vector(start), vector(end), colorStops(stops), options);
+            return material::Paint::linearGradient(vector(start), vector(end),
+                                                   colorStops(stops), options);
           },
           py::arg("start"), py::arg("end"), py::arg("stops"),
           py::arg("options") = material::GradientOptions{})
@@ -350,8 +363,8 @@ void bindMaterialPaintEffect(py::module_& module) {
           "radialGradient",
           [](py::handle center, float radius, py::handle stops,
              const material::GradientOptions& options) {
-            return material::Paint::radialGradient(
-                vector(center), radius, colorStops(stops), options);
+            return material::Paint::radialGradient(vector(center), radius,
+                                                   colorStops(stops), options);
           },
           py::arg("center"), py::arg("radius"), py::arg("stops"),
           py::arg("options") = material::GradientOptions{})
@@ -359,8 +372,8 @@ void bindMaterialPaintEffect(py::module_& module) {
           "conicGradient",
           [](py::handle center, py::handle stops,
              const material::GradientOptions& options) {
-            return material::Paint::conicGradient(
-                vector(center), colorStops(stops), options);
+            return material::Paint::conicGradient(vector(center),
+                                                  colorStops(stops), options);
           },
           py::arg("center"), py::arg("stops"),
           py::arg("options") = material::GradientOptions{})
@@ -368,8 +381,8 @@ void bindMaterialPaintEffect(py::module_& module) {
           "image",
           [](sk_sp<SkImage> image, material::Repeat horizontal,
              material::Repeat vertical, const SkMatrix& local) {
-            return material::skia::image(std::move(image), horizontal,
-                                         vertical, local);
+            return material::skia::image(std::move(image), horizontal, vertical,
+                                         local);
           },
           py::arg("image"), py::arg("horizontal") = material::Repeat::Pad,
           py::arg("vertical") = material::Repeat::Pad,
@@ -383,18 +396,26 @@ void bindMaterialPaintEffect(py::module_& module) {
           "bind",
           [](material::Paint& self, const std::string& name,
              py::object value) -> material::Paint& {
+            // A bound number is a single value, so every sequence here is
+            // a colour's three or four channels, as is a CSS string.
+            if (py::isinstance<material::Color>(value) ||
+                py::isinstance<py::str>(value) ||
+                py::isinstance<py::tuple>(value) ||
+                py::isinstance<py::list>(value) ||
+                py::isinstance<motion::Animatable<material::Color>>(value) ||
+                py::isinstance<motion::Tween<material::Color>>(value))
+              return self.bind(name, motionInk(value));
             return self.bind(name, motionAnimatable(value));
           },
           py::arg("name"), py::arg("value"), fluent)
-      .def("slot", &material::Paint::slot, py::arg("name"),
-           py::arg("paint"), fluent)
+      .def("slot", &material::Paint::slot, py::arg("name"), py::arg("paint"),
+           fluent)
       .def("amount", &material::Paint::amount, py::arg("amount"), fluent)
       .def("fit", &material::Paint::fit, py::arg("fit"), fluent)
-      .def("worldSpace",
-           py::overload_cast<bool>(&material::Paint::worldSpace),
+      .def("worldSpace", py::overload_cast<bool>(&material::Paint::worldSpace),
            py::arg("on") = true, fluent)
-      .def("quantizeTime", &material::Paint::quantizeTime,
-           py::arg("rate"), fluent)
+      .def("quantizeTime", &material::Paint::quantizeTime, py::arg("rate"),
+           fluent)
       .def("isRunning", &material::Paint::isRunning)
       .def("isNone", &material::Paint::isNone)
       .def(py::self == py::self);

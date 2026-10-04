@@ -6,12 +6,12 @@
  */
 
 #include <include/core/SkCanvas.h>
-#include <sigilgeometry/advanced/Skia.h>
 #include <include/core/SkSize.h>
 #include <pybind11/stl.h>
 #include <sigilcompose/core/Composer.h>
 #include <sigilcompose/typography/TextUnit.h>
 #include <sigilcompose/typography/Track.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmotion/clock/Engine.h>
@@ -162,20 +162,15 @@ bool registered() {
 py::buffer_info planeBuffer(Composer::CompositePlane& plane) {
   const auto width = static_cast<py::ssize_t>(plane.width);
   const auto height = static_cast<py::ssize_t>(plane.height);
-  return py::buffer_info(plane.counts.data(), sizeof(std::uint8_t),
-                         py::format_descriptor<std::uint8_t>::format(), 2,
-                         {height, width},
-                         {width * static_cast<py::ssize_t>(sizeof(std::uint8_t)),
-                          static_cast<py::ssize_t>(sizeof(std::uint8_t))},
-                         true);
+  return py::buffer_info(
+      plane.counts.data(), sizeof(std::uint8_t),
+      py::format_descriptor<std::uint8_t>::format(), 2, {height, width},
+      {width * static_cast<py::ssize_t>(sizeof(std::uint8_t)),
+       static_cast<py::ssize_t>(sizeof(std::uint8_t))},
+      true);
 }
 
 void bindReports(py::class_<ComposerHandle>& composer) {
-  py::enum_<Composer::InputSpace>(composer, "InputSpace")
-      .value("EncodedSRGB", Composer::InputSpace::EncodedSRGB)
-      .value("LinearSRGB", Composer::InputSpace::LinearSRGB)
-      .value("DisplayP3", Composer::InputSpace::DisplayP3);
-
   py::enum_<Composer::CacheState>(composer, "CacheState")
       .value("Live", Composer::CacheState::Live)
       .value("Picture", Composer::CacheState::Picture)
@@ -229,14 +224,12 @@ void bindReports(py::class_<ComposerHandle>& composer) {
       .def_property_readonly(
           "counts",
           [](const Composer::CompositePlane& value) {
-            return py::bytes(
-                reinterpret_cast<const char*>(value.counts.data()),
-                value.counts.size());
+            return py::bytes(reinterpret_cast<const char*>(value.counts.data()),
+                             value.counts.size());
           },
           "One saturating count per device pixel, row-major, copied.")
       .def("at", &Composer::CompositePlane::at, py::arg("x"), py::arg("y"))
-      .def("copy",
-           [](const Composer::CompositePlane& value) { return value; })
+      .def("copy", [](const Composer::CompositePlane& value) { return value; })
       .def_buffer(&planeBuffer);
   copyProtocol(plane);
 }
@@ -277,16 +270,6 @@ void bindDescribePath(py::class_<ComposerHandle>& composer) {
             self.get().setView(view);
           },
           py::arg("view"))
-      .def(
-          "declareInputSpace",
-          [](const ComposerHandle& self, Composer::InputSpace space) {
-            self.get().declareInputSpace(space);
-          },
-          py::arg("space"))
-      .def("declaredInputSpace",
-           [](const ComposerHandle& self) {
-             return self.get().declaredInputSpace();
-           })
       .def(
           "render",
           [](const ComposerHandle& self, const compose::Element& root) {
@@ -359,9 +342,8 @@ void bindQueries(py::class_<ComposerHandle>& composer) {
     composer.def(
         "units",
         [](const ComposerHandle& self, const std::string& key,
-           const weave::Selector& selector, weave::Unit unit) {
-          return self.get().units(key, selector, unit);
-        },
+           const weave::Selector& selector,
+           weave::Unit unit) { return self.get().units(key, selector, unit); },
         py::arg("key"), py::arg("selector"), py::arg("unit"));
 }
 
@@ -439,8 +421,7 @@ void bindSettings(py::class_<ComposerHandle>& composer) {
            [](const ComposerHandle& self) { return self.get().bakeDensity(); })
       .def(
           "setPointer",
-          [](const ComposerHandle& self, py::handle canvasPoint,
-             bool pressed) {
+          [](const ComposerHandle& self, py::handle canvasPoint, bool pressed) {
             const SkPoint at = canvasPosition(canvasPoint);
             self.get().setPointer(geometry::path::fromSk(at), pressed);
           },

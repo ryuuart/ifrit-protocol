@@ -51,6 +51,7 @@ class HostContextSurface(unittest.TestCase):
                         background="#204080",
                         captureSeconds=0,
                         oversample=1,
+                        paintDiscardedFrames=False,
                         plateOnly=True,
                         nonlinearPicture=True,
                     )
@@ -73,6 +74,8 @@ class HostContextSurface(unittest.TestCase):
         self.assertEqual((wanted.size.width(), wanted.size.height()), (64, 48))
         self.assertEqual(wanted.captureSeconds, 0)
         self.assertEqual(wanted.oversample, 1)
+        self.assertFalse(wanted.paintDiscardedFrames)
+        self.assertTrue(CanvasSpecification().paintDiscardedFrames)
         self.assertTrue(wanted.plateOnly)
         self.assertTrue(wanted.nonlinearPicture)
         self.assertEqual(copied.background, wanted.background)

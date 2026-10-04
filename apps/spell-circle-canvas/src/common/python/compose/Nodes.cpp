@@ -7,10 +7,7 @@
  */
 
 #include <pybind11/operators.h>
-#include <sigilgeometry/advanced/Skia.h>
 #include <pybind11/stl.h>
-
-#include <type_traits>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Factories.h>
@@ -18,6 +15,7 @@
 #include <sigilcompose/typography/Annotation.h>
 #include <sigilcompose/typography/Selector.h>
 #include <sigilcompose/typography/TextPath.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/compose/Convert.h>
 #include <sigilpython/compose/Nodes.h>
@@ -32,6 +30,7 @@
 #include <initializer_list>
 #include <optional>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -324,8 +323,9 @@ void bindDeclarationVerbs(py::class_<Node>& element) {
           [](Node& self, const std::string& name, py::object value) -> Node& {
             return std::visit(
                 [&](const auto& converted) -> Node& {
-                  if constexpr (std::is_same_v<std::decay_t<decltype(converted)>,
-                                               compose::Fill>)
+                  if constexpr (std::is_same_v<
+                                    std::decay_t<decltype(converted)>,
+                                    compose::Fill>)
                     return self.var(name, *converted.material());
                   else
                     return self.var(name, converted);
@@ -363,6 +363,7 @@ void bindDeclarationVerbs(py::class_<Node>& element) {
             return self.lighting(lighting);
           },
           py::arg("lighting"), fluent)
+      .def("environment", &Node::environment, py::arg("environment"), fluent)
       .def("inherit", &Node::inherit, py::arg("property"), fluent)
       .def("initial", &Node::initial, py::arg("property"), fluent)
       .def("unset", &Node::unset, py::arg("property"), fluent)

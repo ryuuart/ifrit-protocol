@@ -167,6 +167,18 @@ void bindWeave(py::module_& module) {
       .def(py::init(
           [](py::kwargs fields) { return keywordValue<PaintStyle>(fields); }))
       .def_readwrite("foreground", &PaintStyle::foreground)
+      .def_property(
+          "foregroundMaterial",
+          [](const PaintStyle& style) -> std::optional<material::Material> {
+            if (style.foregroundMaterial) return *style.foregroundMaterial;
+            return {};
+          },
+          [](PaintStyle& style, std::optional<material::Material> value) {
+            style.foregroundMaterial =
+                value ? std::make_shared<const material::Material>(
+                            std::move(*value))
+                      : nullptr;
+          })
       .def_readwrite("baselineShift", &PaintStyle::baselineShift)
       .def_readwrite("underlays", &PaintStyle::underlays)
       .def_readwrite("overlays", &PaintStyle::overlays)

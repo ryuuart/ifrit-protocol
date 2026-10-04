@@ -113,6 +113,22 @@ class Typography(unittest.TestCase):
             (font.underlays[0].offset.x, font.underlays[0].offset.y), (2, 3)
         )
 
+    def test_a_paint_style_holds_its_foreground_material_and_its_copies_share_it(self):
+        style = weave.PaintStyle()
+        self.assertIsNone(style.foregroundMaterial)
+        gold = material.Material("#d4a017")
+        style.foregroundMaterial = gold
+        self.assertEqual(style.foregroundMaterial, gold)
+        self.assertEqual(
+            weave.PaintStyle(foregroundMaterial=gold).foregroundMaterial, gold
+        )
+        copied = style.copy()
+        self.assertEqual(copied, style)
+        style.foregroundMaterial = None
+        self.assertIsNone(style.foregroundMaterial)
+        self.assertEqual(copied.foregroundMaterial, gold)
+        self.assertNotEqual(copied, style)
+
     def test_vector_fields_read_back_the_point_they_were_given(self):
         def pair(point):
             return (point.x, point.y)
@@ -214,8 +230,10 @@ class Scene:
         )
         ends = [line.textEnd for line in layout.lineMetrics(paragraph)]
         self.assertTrue(
-            any(0 < end < len(words) and words[end - 1] != " " and words[end] != " "
-                for end in ends),
+            any(
+                0 < end < len(words) and words[end - 1] != " " and words[end] != " "
+                for end in ends
+            ),
             "no line ended inside a word",
         )
 
@@ -259,7 +277,8 @@ class Scene:
             else:
                 bands.append([y, y])
         for top, bottom in bands:
-            def column(x):
+
+            def column(x, top=top, bottom=bottom):
                 return [y for y in range(top, bottom + 1) if lit(x, y)]
 
             right = max(x for x in range(width) if column(x))
@@ -269,8 +288,11 @@ class Scene:
             marked = [y for x in range(left, right + 1) for y in column(x)]
             markHeight = max(marked) - min(marked) + 1
             markWidth = right - left + 1
-            if (markWidth >= 2 * markHeight and min(marked) > top + 2
-                    and max(marked) < bottom - 2):
+            if (
+                markWidth >= 2 * markHeight
+                and min(marked) > top + 2
+                and max(marked) < bottom - 2
+            ):
                 return True
         return False
 

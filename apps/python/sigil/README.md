@@ -87,13 +87,52 @@ panel = row(mark, caption).gap(8).alignItems("center")
 
 There is one element type and no separate Python node model to keep in
 sync. `box`, `text`, `frame`, `image`, `picture`, `pathFigure`, `slot`, `pen`,
-`graphics`, `memo`, `layout`, `stack` and `positioned` are direct bound
+`graphics`, `memo`, `layout`, `stack`, `positioned`, `scene` and `light` are direct bound
 factories; `PARITY.md` names the native overloads and factories not yet bound.
 `_sigil` is the compiled extension. It ships as a bare shared object with
 no declarations beside it, so a type checker cannot resolve a name through
 it and an editor offers each name once, under the module an author imports
 it from. A bound class reports that module too: `material.Color` reads as
 `sigil.material.Color` in a repr and in `pydoc`.
+
+For composition-owned lighting, put nonvisual `compose.light` leaves inside
+`compose.scene`. The scene is an ordinary layout container; its lights take
+no layout space and affect its lit materials independently of sibling order.
+A nested scene starts with no inherited light or environment. A scene's
+`environment` supplies reflected surroundings, while a receiver's `lighting`
+replaces the complete lighting context.
+Scene sources and receiver normals share the root-page axes: rotating a
+receiver changes which side catches the light. Source transforms place
+point emitters and turn spot or directional axes through their ancestors.
+Out-of-plane source turns or perspective disable its direct contribution.
+
+```python
+from sigil import compose, material
+
+key = material.Light(kind=material.LightKind.Point, position=(0, 0, 180), range=800)
+steel = material.Material("#aab0bb").surface(metallic=1, roughness=0.35)
+panel = compose.box().width(140).height(100).fill(steel)
+composition = compose.scene(compose.light(key).translateX(120), panel)
+lighting = material.Lighting(lights=[key, material.studio(intensity=0.2)])
+```
+
+Manual `Lighting` values default to `LightingFrame.Surface`, preserving
+surface-relative directional and environment shading. Use
+`frame=material.LightingFrame.Scene` for those sources in root-page axes;
+Compose supplies this frame for collected scene sources automatically.
+A material's `surface(lighting=...)` takes a `Light`, an `Environment` or a
+`Lighting`, as a node's `lighting()` does. All three answer `copy.copy` and
+`copy.deepcopy`, so a memo model can hold one; a copied light keeps reading
+the live cells it was built with.
+
+`compose.relief(material, shoulder=2, depth=1)` is a decoration that shades
+a material over the rounded relief of the outline it decorates: attach it
+with `background()` for a shape, or with `foreground()` and
+`decorationOutline(compose.Boundary.Glyphs)` for type. `shoulder` is the
+width of the rounded edge in logical pixels and `depth` its height relative
+to that width; a negative depth impresses the outline. The material's own
+normal map is reoriented into the relief, and with no lighting in force the
+material paints flat.
 
 Both Python surfaces target the capabilities needed to reproduce the native
 sketch catalog. Coverage is still incomplete; `PARITY.md` lists the outstanding
@@ -1121,6 +1160,8 @@ colour or a fill — and every copy of it reads and writes one cell, so a
 property handed it follows whatever writes `.value` next, from model logic
 or an engine timer. Descriptions share that cell, so collecting the Python
 wrapper leaves nothing dangling in a retained tree.
+Material's `Light(color=...)` and `studio(color=...)` take those same color
+cells; their read-only `color` property returns the current Color sample.
 `bind(source, from_=(a, b), alternate=..., envelope=..., ease=...,
 quantize=..., reverse=..., to=(c, d), wrap=..., wiggle=Wiggle(...),
 clamp=(e, f))` follows a live number through those stages, which run in
@@ -1237,7 +1278,9 @@ content through several frames. `textFirstBaseline`, `textVerticalAlign`,
 `textOverflow` use the native layout controls.
 
 Glyph underlays, overlays and line decorations belong to `PaintStyle` or a
-partial `Type`. `PaintLayer` accepts a configured Skia paint and an offset;
+partial `Type`; a `PaintStyle`'s `foregroundMaterial` is an optional
+material for the main glyph pass, which its copies share.
+`PaintLayer` accepts a configured Skia paint and an offset;
 `Decoration` describes an underline, overline, strike or highlight. Optional
 records and array properties are copies: edit and assign them back. A rich
 value's `runs()` and a story's `blocks()` return independent snapshots.
@@ -1246,9 +1289,10 @@ motion values for progress.
 
 Direct editable paragraphs, font contexts, native flow geometry and annotation
 values are available. Per-glyph effect tracks and custom Python implementations
-of flow/hyphenation remain unfinished. A paint layer holds an optional native
-material value, but no host installs the resolver that shades it, so the layer
-draws with its Skia paint. The parity table tracks the remaining work
+of flow/hyphenation remain unfinished. A paint layer's `material` and a paint
+style's `foregroundMaterial` are shaded over the glyphs their pass covers by
+the resolver a sketch session installs; drawn where no resolver is installed,
+the pass keeps its Skia paint. The parity table tracks the remaining work
 independently of which native libraries are linked.
 
 ## Data values and native resources
@@ -1334,6 +1378,12 @@ recipes, shader programs and layered blends. Compile a shader once in setup
 and change a copy's uniforms when re-describing it. Native `uTime`,
 `uResolution` and `uContentScale` retain their frame meanings. A child paint
 fills a shader input through `slot`; it is the native material graph.
+`Filter` is the effects stage over a rendered layer — blurs, shadows, glow,
+`bloom(BloomOptions(...))` and `glass(GlassOptions(ior=..., thickness=...,
+sampleRadius=..., normal=..., normalDirectX=...))`, which refracts the layer
+through an encoded normal map while keeping its alpha; `ior` and
+`thickness` take `set` and `bind`, and `sampleRadius` is fixed when the
+filter is made.
 
 A custom SkSL paint can also be authored in Python. Compile a shader through
 `sigil.skia.RuntimeEffect.MakeForShader`, keep that effect, and make paint
@@ -1347,11 +1397,29 @@ The native `sigil.material.surface.SurfaceParameters` record and its
 response, emission and transmission. The CPU executor, the only one Python
 reaches, shades from base color and metallic response; emission and
 transmission do not reach its pixels. The returned `sigil.material.Material`
-is the same value a World element accepts. The full recipe-definition API,
-uniform blocks, SDF catalogue, texture maps and environment maps remain
-unbound. Material values support copying and conversion into a paint or effect. Paint uniform
-setters currently take constant values; native frame uniforms animate
-shader paints, while effect uniforms can also take bound motion values.
+is the same value a World element accepts. `surface.normalFromHeight(height,
+HeightNormalOptions(depth=..., step=..., directX=...))` differentiates a
+grayscale height into an encoded normal map, and `surface.blendNormals(base,
+detail, NormalBlendOptions(...))` reorients a detail normal map into a base
+one, each map's green-axis convention stated on the options. The full
+recipe-definition API, uniform blocks, SDF catalogue, texture maps and
+environment maps remain unbound. Material values support copying and
+conversion into a paint or effect.
+Material and paint `bind` takes a number, an `Animatable` or a `Tween` for a
+scalar uniform, and for a colour uniform any colour spelling — a `Color`, a
+CSS string, an RGB or RGBA tuple or list — or a `ColorAnimatable` or
+`ColorTween`. A bound value is one number or one colour, so every sequence
+`bind` is given is read as a colour. `ColorAnimatable` retains its shared
+cell through copies; a constant colour writes a constant four-component
+binding. Paint's `set` and `sksl` uniform dictionaries accept typed color
+motion values too; there numeric tuples and lists keep their array meaning,
+and a colour is the colour class or a CSS string. Native frame uniforms retain their time,
+resolution and content-scale meanings; effect bindings accept scalar motion.
+The `material.shader` parameter dictionary or named tuple also accepts
+scalar and color motion values. Its field layout follows their sampled
+types, and the constructed material retains their live cells. CSS strings
+declare color fields; numeric four-tuples declare ordinary four-component
+vector fields.
 New backend-neutral recipes and unbound material catalogues still require
 C++ bindings.
 

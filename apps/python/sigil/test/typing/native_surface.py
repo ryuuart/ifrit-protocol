@@ -1,8 +1,8 @@
 """Representative direct binding contracts, checked without running sketches."""
 
 from array import array
-from datetime import timedelta
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import assert_type
 
 from sigil import (
@@ -32,6 +32,26 @@ tree = (
     compose.memo(Model(3), describe).width("100%").padding(horizontal=12, vertical=16)
 )
 assert_type(tree, compose.Element)
+key = material.Light(
+    kind=material.LightKind.Point, position=(0, 0, 180), intensity=motion.animatable(1)
+)
+assert_type(compose.light(source=key).translateX(12), compose.Element)
+assert_type(compose.scene([compose.light(key), compose.text("Lit")]), compose.Element)
+assert_type(compose.scene(compose.light(key), compose.text("Lit")), compose.Element)
+lighting = material.Lighting(lights=(key, material.studio()))
+assert_type(lighting, material.Lighting)
+assert_type(lighting.frame, material.LightingFrame)
+assert_type(
+    material.Lighting(key, frame=material.LightingFrame.Scene), material.Lighting
+)
+tree.lighting(key)
+tree.lighting(lighting)
+around = material.environment(material.Material("#ffffff"), size=(32, 16))
+assert_type(compose.scene().environment(around), compose.Element)
+assert_type(
+    material.Lighting(around, frame=material.LightingFrame.Scene), material.Lighting
+)
+tree.lighting(around)
 assert_type(
     tree.padding(all=8).margin(left=1, top=2, right=3, bottom=4), compose.Element
 )
@@ -67,6 +87,38 @@ outline = compose.stroke(2, ink)
 outline.strokeFill = ink
 outline.trimPhase = None
 outline.dashPhaseBinding = motion.animatable(0)
+assert_type(shader.bind("gain", 0.25), material.Paint)
+
+glass = material.Filter.glass(
+    material.GlassOptions(ior=1.33, thickness=24, normal=material.Material("#8080ff"))
+)
+assert_type(glass, material.Filter)
+height = material.Material("#808080")
+dented = material.surface.normalFromHeight(
+    height, material.surface.HeightNormalOptions(depth=-2, step=0.5)
+)
+assert_type(dented, material.Material)
+assert_type(
+    material.surface.blendNormals(
+        height, dented, material.surface.NormalBlendOptions(detailDirectX=True)
+    ),
+    material.Material,
+)
+tinted = material.Material("#c0c0c0")
+assert_type(tinted.bind("tint", "#ff8040"), material.Material)
+assert_type(tinted.bind("tint", (1, 0.5, 0.25)), material.Material)
+assert_type(tinted.bind("tint", motion.animatable("#ff8040")), material.Material)
+finish = material.Material("#c0c0c0")
+assert_type(finish.surface(roughness=0.4, lighting=key), material.Material)
+assert_type(finish.surface(lighting=around), material.Material)
+assert_type(finish.surface(lighting=lighting), material.Material)
+assert_type(compose.relief(finish, shoulder=3, depth=-0.5), compose.Decoration)
+assert_type(tree.background(compose.relief(finish)), compose.Element)
+glyphs = weave.PaintStyle(foregroundMaterial=finish)
+assert_type(glyphs.foregroundMaterial, material.Material | None)
+assert_type(
+    sketch.CanvasSpecification(paintDiscardedFrames=False).paintDiscardedFrames, bool
+)
 
 style = weave.Type(size=weave.Length(16), features=[weave.FontFeature("liga", 1)])
 label = compose.text("Native", weave.textStyle(style))
@@ -104,7 +156,9 @@ def paint(pen: draw.Pen) -> None:
     pen.stroke(ink, draw.SHAPE)
     pen.background(ink)
     pen.background(material.surface.unlit(material.surface.SurfaceParameters()))
-    pen.fill(material.surface.unlit(material.surface.SurfaceParameters(baseColor="#e75a31")))
+    pen.fill(
+        material.surface.unlit(material.surface.SurfaceParameters(baseColor="#e75a31"))
+    )
 
     class Squircle:
         def path(self, size: tuple[float, float]) -> skia.Path:

@@ -72,9 +72,10 @@ void bindCanvasSpecification(py::module_& sketches) {
   field(declared, "background", &CanvasSpecification::background);
   field(declared, "captureSeconds", &CanvasSpecification::captureSeconds);
   field(declared, "oversample", &CanvasSpecification::oversample);
+  field(declared, "paintDiscardedFrames",
+        &CanvasSpecification::paintDiscardedFrames);
   field(declared, "plateOnly", &CanvasSpecification::plateOnly);
-  field(declared, "nonlinearPicture",
-        &CanvasSpecification::nonlinearPicture);
+  field(declared, "nonlinearPicture", &CanvasSpecification::nonlinearPicture);
 }
 
 void bindContext(py::module_& module) {
@@ -239,9 +240,8 @@ void bindGuest(py::module_& sketches) {
           py::arg("pen"))
       .def("publishing", &Guest::publishing)
       .def("name", [](const Guest& guest) { return std::string(guest.name()); })
-      .def("application", [](const Guest& guest) {
-        return std::string(guest.application());
-      });
+      .def("application",
+           [](const Guest& guest) { return std::string(guest.application()); });
 }
 
 void bindCachedArt(py::module_& sketches) {

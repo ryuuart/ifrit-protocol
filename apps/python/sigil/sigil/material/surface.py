@@ -2,15 +2,23 @@
 # typing/additions, not this file.
 
 from _sigil.material.surface import (
+    HeightNormalOptions,
+    NormalBlendOptions,
     Reflection,
     SurfaceParameters,
+    blendNormals,
+    normalFromHeight,
     program,
     unlit,
 )
 
 __all__ = [
+    "HeightNormalOptions",
+    "NormalBlendOptions",
     "Reflection",
     "SurfaceParameters",
+    "blendNormals",
+    "normalFromHeight",
     "program",
     "unlit",
 ]

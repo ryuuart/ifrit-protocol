@@ -64,30 +64,33 @@ void bindMaterialBuilder(py::module_& module) {
              material::Channel roughness, material::Channel occlusion,
              std::optional<material::Material> normal, float normalScale,
              bool normalDirectX, const material::Color& emission,
-             float emissionStrength, std::optional<material::Material> emissionMap,
-             float alphaCutoff, float clearcoat, float transmission, float ior,
-             float thickness, const material::Color& absorption,
-             float reflectionWeight, bool unlit,
-             std::optional<material::Lighting> lighting) -> material::Material& {
-            return self.surface(
-                {std::move(metallic), std::move(roughness), std::move(occlusion),
-                 std::move(normal), normalScale, normalDirectX, emission,
-                 emissionStrength, std::move(emissionMap), alphaCutoff,
-                 clearcoat, transmission, ior, thickness, absorption,
-                 reflectionWeight, unlit, std::move(lighting)});
+             float emissionStrength,
+             std::optional<material::Material> emissionMap, float alphaCutoff,
+             float clearcoat, float transmission, float ior, float thickness,
+             const material::Color& absorption, float reflectionWeight,
+             bool unlit, std::optional<material::Lighting> lighting)
+              -> material::Material& {
+            return self.surface({std::move(metallic), std::move(roughness),
+                                 std::move(occlusion), std::move(normal),
+                                 normalScale, normalDirectX, emission,
+                                 emissionStrength, std::move(emissionMap),
+                                 alphaCutoff, clearcoat, transmission, ior,
+                                 thickness, absorption, reflectionWeight, unlit,
+                                 std::move(lighting)});
           },
-          py::kw_only(),
-          py::arg_v("metallic", material::Channel(0.0f), "0.0"),
+          py::kw_only(), py::arg_v("metallic", material::Channel(0.0f), "0.0"),
           py::arg_v("roughness", material::Channel(0.5f), "0.5"),
           py::arg_v("occlusion", material::Channel(1.0f), "1.0"),
           py::arg("normal") = py::none(), py::arg("normalScale") = 1.0f,
           py::arg("normalDirectX") = false,
-          py::arg_v("emission", material::Color{0, 0, 0, 1}, "Color(0, 0, 0, 1)"),
+          py::arg_v("emission", material::Color{0, 0, 0, 1},
+                    "Color(0, 0, 0, 1)"),
           py::arg("emissionStrength") = 0.0f,
           py::arg("emissionMap") = py::none(), py::arg("alphaCutoff") = 0.0f,
           py::arg("clearcoat") = 0.0f, py::arg("transmission") = 0.0f,
           py::arg("ior") = 1.5f, py::arg("thickness") = 40.0f,
-          py::arg_v("absorption", material::Color{0, 0, 0, 1}, "Color(0, 0, 0, 1)"),
+          py::arg_v("absorption", material::Color{0, 0, 0, 1},
+                    "Color(0, 0, 0, 1)"),
           py::arg("reflectionWeight") = 1.0f, py::arg("unlit") = false,
           py::arg("lighting") = py::none(), fluent)
       .def(
@@ -104,6 +107,15 @@ void bindMaterialBuilder(py::module_& module) {
           "bind",
           [](material::Material& self, const std::string& name,
              py::object value) -> material::Material& {
+            // A bound number is a single value, so every sequence here is
+            // a colour's three or four channels, as is a CSS string.
+            if (py::isinstance<material::Color>(value) ||
+                py::isinstance<py::str>(value) ||
+                py::isinstance<py::tuple>(value) ||
+                py::isinstance<py::list>(value) ||
+                py::isinstance<motion::Animatable<material::Color>>(value) ||
+                py::isinstance<motion::Tween<material::Color>>(value))
+              return self.bind(name, motionInk(value));
             return self.bind(name, motionAnimatable(value));
           },
           py::arg("name"), py::arg("value"), fluent)
@@ -129,8 +141,8 @@ void bindMaterialBuilder(py::module_& module) {
       "noise",
       [](float frequency, int octaves, float seed, bool turbulence, bool grain,
          float contrast, float stretch) {
-        return material::noise(frequency, {octaves, seed, turbulence, grain,
-                                           contrast, stretch});
+        return material::noise(
+            frequency, {octaves, seed, turbulence, grain, contrast, stretch});
       },
       py::arg("frequency"), py::arg("octaves") = 4, py::arg("seed") = 1.0f,
       py::arg("turbulence") = false, py::arg("grain") = false,

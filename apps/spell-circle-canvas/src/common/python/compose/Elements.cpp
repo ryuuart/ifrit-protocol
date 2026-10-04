@@ -1,7 +1,7 @@
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
-#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/brush/Relief.h>
 #include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Composer.h>
 #include <sigilcompose/core/Factories.h>
@@ -11,6 +11,7 @@
 #include <sigilcompose/typography/Annotation.h>
 #include <sigilcompose/typography/Selector.h>
 #include <sigilcompose/typography/TextPath.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/compose/Convert.h>
 #include <sigilpython/compose/Nodes.h>
@@ -535,10 +536,8 @@ void bindCompose(py::module_& module) {
   composition.def(
       "stroke",
       [](float width, py::object paint, PathFormat::Align align) {
-        return compose::stroke(width,
-                               paint.is_none() ? Fill::currentInk()
-                                               : fill(paint),
-                               align);
+        return compose::stroke(
+            width, paint.is_none() ? Fill::currentInk() : fill(paint), align);
       },
       py::arg("width"), py::arg("paint") = py::none(),
       py::arg("align") = PathFormat::Align::Center);
@@ -573,6 +572,19 @@ void bindCompose(py::module_& module) {
       .def(py::self == py::self);
   py::implicitly_convertible<PathFormat, Decoration>();
   py::implicitly_convertible<Shadow, Decoration>();
+  composition.def(
+      "relief",
+      [](const material::Material& source, float shoulder,
+         float depth) -> Decoration {
+        return compose::relief(source, {.shoulder = shoulder, .depth = depth});
+      },
+      py::arg("material"), py::kw_only(), py::arg("shoulder") = 2.0f,
+      py::arg("depth") = 1.0f,
+      "A material shaded over the rounded relief of the outline it decorates: "
+      "a background for a shape, or a foreground with "
+      "decorationOutline(Boundary.Glyphs) for type. shoulder is the width in "
+      "logical pixels and depth the height relative to it; negative depth "
+      "impresses the outline.");
   py::class_<Spans>(composition, "Spans")
       .def(
           "__or__", [](const Spans& a, const Spans& b) { return a | b; },
@@ -661,6 +673,10 @@ void bindCompose(py::module_& module) {
   composition.def("box", [](py::args children) {
     return compose::box().children(elements(children));
   });
+  composition.def("scene", [](py::args children) {
+    return compose::scene().children(elements(children));
+  });
+  composition.def("light", &compose::light, py::arg("source"));
   composition.def(
       "text",
       [](const std::string& value, py::object size, py::object ink) {

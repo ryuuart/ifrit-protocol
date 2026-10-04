@@ -18,6 +18,35 @@ appends in order and returns the same element; all inputs are converted before
 any are appended. Container factories accept the same child forms; `layout`
 takes its scheme before its children.
 
+Compose's `scene` and nonvisual `light` factories use the native lighting
+scope. The scene's `environment` verb supplies reflected surroundings;
+`lighting` replaces the complete context. Material's `Lighting` accepts a
+collection through `lights` and an optional `environment`. A single `Light`
+or `Environment` also converts where a lighting context is accepted, a
+material's `surface(lighting=...)` among them. `Light`, `Environment` and
+`Lighting` answer the copy protocol, so a memo model can hold one.
+`LightingFrame.Surface` is the default for manual lighting values;
+`LightingFrame.Scene` evaluates shared directions against normals in the
+root-page axes. Compose selects that frame for its collected scene sources.
+`Light` and `studio` accept a constant color, a `ColorAnimatable` or a
+`ColorTween`. The `color` property reads the sampled Color; copied sources
+share a live color cell with the value that drives it.
+`Material.bind` and `Paint.bind` take a number, an `Animatable` or a
+`Tween` for a scalar uniform, and for a four-component uniform any colour
+spelling — a `Color`, a CSS string, an RGB or RGBA tuple or list — or these
+typed color motion values. A bound value is never an array, so every
+sequence `bind` is given is read as a colour. In `Paint.set` and the
+uniform dictionaries numeric sequences retain their array meaning.
+Shader initializer dictionaries and named tuples accept scalar and color
+motion values, retain their bindings and derive the field layout from their
+current readings. CSS strings declare color fields.
+
+Material's `Filter.glass` refracts a layer over a `GlassOptions` record, and
+`surface.normalFromHeight` and `surface.blendNormals` make and reorient
+encoded normal maps over `HeightNormalOptions` and `NormalBlendOptions`.
+Compose's `relief(material, shoulder=, depth=)` is a `Decoration` that
+shades a material over the rounded relief of the outline it decorates.
+
 ## Layout
 
 ONE DIRECTORY PER NATIVE LIBRARY, ONE FILE PER SUBJECT. Every binding
@@ -396,7 +425,8 @@ remain explicit rather than being silently reinterpreted as Python indices.
 Material colors preserve the native color-space calculations and pass through
 the shared color conversion used by drawing, composition and paint uniforms.
 Palettes provide Python indexing and iteration beside the native clamped `at`.
-Optional paint-layer materials copy native values across the Python boundary.
+Optional paint-layer materials and a paint style's `foregroundMaterial` copy
+native values across the Python boundary.
 
 Owned database connections expose writes; cached and byte-backed database
 views reject every writing statement, through query as well as through

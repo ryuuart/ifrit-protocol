@@ -7,13 +7,14 @@
 
 #include <pybind11/functional.h>
 #include <pybind11/stl.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilmotion/values/Tween.h>
-#include <sigilmotion/values/Tween.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/compose/Convert.h>
+#include <sigilpython/material/Convert.h>
 #include <sigilpython/motion/Convert.h>
 #include <sigilpython/motion/Registration.h>
 
@@ -76,15 +77,17 @@ struct Family<float> {
 };
 
 template <>
-struct Family<SkColor4f> {
-  static SkColor4f read(py::handle value) { return color(value); }
-  static motion::Staggered<SkColor4f> readStaggered(py::handle value) {
-    return color(value);
+struct Family<material::Color> {
+  static material::Color read(py::handle value) { return materialColor(value); }
+  static motion::Staggered<material::Color> readStaggered(py::handle value) {
+    return materialColor(value);
   }
-  static py::object reading(const motion::Staggered<SkColor4f>& value) {
+  static py::object reading(const motion::Staggered<material::Color>& value) {
     return py::cast(value.value());
   }
-  static py::object reading(const SkColor4f& value) { return py::cast(value); }
+  static py::object reading(const material::Color& value) {
+    return py::cast(value);
+  }
 };
 
 template <>
@@ -112,9 +115,9 @@ motion::Keyframe<T> keyframe(py::handle value) {
  *  where the author named nothing and the default stands. */
 template <class T>
 motion::Tween<T> tweenOf(py::handle from, py::handle to, py::handle keyframes,
-                         py::handle duration, py::handle delay,
-                         py::handle ease, int loop, motion::Duration loopDelay,
-                         bool alternate, motion::Composition composition) {
+                         py::handle duration, py::handle delay, py::handle ease,
+                         int loop, motion::Duration loopDelay, bool alternate,
+                         motion::Composition composition) {
   motion::Tween<T> tween;
   if (!from.is_none()) tween.from = Family<T>::readStaggered(from);
   if (!to.is_none()) tween.to = Family<T>::readStaggered(to);
@@ -141,20 +144,21 @@ py::class_<motion::Keyframe<T>> bindKeyframe(py::module_& module,
                        py::handle ease) {
              Keyframe step{Family<T>::read(to), std::nullopt, {}};
              if (duration)
-               step.duration = animationTime(*duration, "A keyframe's duration");
+               step.duration =
+                   animationTime(*duration, "A keyframe's duration");
              if (!ease.is_none()) step.ease = motionEase(ease);
              return step;
            }),
            py::arg("to"), py::arg("duration") = py::none(),
            py::arg("ease") = py::none())
       .def_property(
-          "to", [](const Keyframe& step) { return Family<T>::reading(step.to); },
+          "to",
+          [](const Keyframe& step) { return Family<T>::reading(step.to); },
           [](Keyframe& step, py::handle value) {
             step.to = Family<T>::read(value);
           })
       .def_property(
-          "duration",
-          [](const Keyframe& step) { return step.duration; },
+          "duration", [](const Keyframe& step) { return step.duration; },
           [](Keyframe& step, std::optional<motion::Duration> value) {
             if (value) animationTime(*value, "A keyframe's duration");
             step.duration = value;
@@ -226,7 +230,8 @@ py::class_<motion::Tween<T>> bindTween(py::module_& module, const char* name,
           "keyframes",
           [](const Tween& tween) {
             py::list steps;
-            for (const auto& step : tween.keyframes) steps.append(py::cast(step));
+            for (const auto& step : tween.keyframes)
+              steps.append(py::cast(step));
             return steps;
           },
           [](Tween& tween, py::handle steps) {
@@ -248,7 +253,9 @@ py::class_<motion::Tween<T>> bindTween(py::module_& module, const char* name,
           })
       .def_property(
           "ease", [](const Tween& tween) { return Easing{tween.easing()}; },
-          [](Tween& tween, py::handle value) { tween.ease = motionEase(value); })
+          [](Tween& tween, py::handle value) {
+            tween.ease = motionEase(value);
+          })
       .def_readwrite("loop", &Tween::loop)
       .def_property(
           "loopDelay", [](const Tween& tween) { return tween.loopDelay; },
@@ -257,7 +264,8 @@ py::class_<motion::Tween<T>> bindTween(py::module_& module, const char* name,
           })
       .def_readwrite("alternate", &Tween::alternate)
       .def_readwrite("composition", &Tween::composition)
-      .def("rest", [](const Tween& tween) { return Family<T>::reading(tween.rest()); })
+      .def("rest",
+           [](const Tween& tween) { return Family<T>::reading(tween.rest()); })
       .def("resolved", &Tween::resolved, py::arg("place"))
       .def("isStaggered", &Tween::isStaggered)
       .def("isEntrance", &Tween::isEntrance)
@@ -285,7 +293,9 @@ py::class_<motion::Animatable<T>> bindAnimatable(
            py::arg("value"))
       .def_property(
           "value",
-          [](const Animatable& value) { return Family<T>::reading(value.value()); },
+          [](const Animatable& value) {
+            return Family<T>::reading(value.value());
+          },
           [](Animatable& value, py::handle next) {
             value = Family<T>::read(next);
           },
@@ -297,9 +307,10 @@ py::class_<motion::Animatable<T>> bindAnimatable(
             value = Family<T>::read(next);
           },
           py::arg("value"))
-      .def("__call__", [](const Animatable& value) {
-        return Family<T>::reading(value.value());
-      })
+      .def("__call__",
+           [](const Animatable& value) {
+             return Family<T>::reading(value.value());
+           })
       .def("isRunning", &Animatable::isRunning)
       .def_property_readonly("form",
                              [](const Animatable& value) {
@@ -322,7 +333,8 @@ py::class_<motion::Animatable<T>> bindAnimatable(
   return type;
 }
 
-motion::Tween<compose::Fill> fillTween(const motion::Tween<SkColor4f>& tween) {
+motion::Tween<compose::Fill> fillTween(
+    const motion::Tween<material::Color>& tween) {
   motion::Tween<compose::Fill> result;
   if (tween.from) result.from = compose::Fill::color(tween.from->value());
   if (tween.to) result.to = compose::Fill::color(tween.to->value());
@@ -404,12 +416,12 @@ motion::Animatable<float> motionAnimatable(py::handle value) {
   return py::cast<float>(value);
 }
 
-motion::Animatable<SkColor4f> motionInk(py::handle value) {
-  if (py::isinstance<motion::Animatable<SkColor4f>>(value))
-    return py::cast<motion::Animatable<SkColor4f>>(value);
-  if (py::isinstance<motion::Tween<SkColor4f>>(value))
-    return motion::animate(py::cast<motion::Tween<SkColor4f>>(value));
-  return color(value);
+motion::Animatable<material::Color> motionInk(py::handle value) {
+  if (py::isinstance<motion::Animatable<material::Color>>(value))
+    return py::cast<motion::Animatable<material::Color>>(value);
+  if (py::isinstance<motion::Tween<material::Color>>(value))
+    return motion::animate(py::cast<motion::Tween<material::Color>>(value));
+  return materialColor(value);
 }
 
 motion::Animatable<compose::Fill> motionFill(py::handle value) {
@@ -417,10 +429,11 @@ motion::Animatable<compose::Fill> motionFill(py::handle value) {
     return py::cast<motion::Animatable<compose::Fill>>(value);
   if (py::isinstance<motion::Tween<compose::Fill>>(value))
     return motion::animate(py::cast<motion::Tween<compose::Fill>>(value));
-  if (py::isinstance<motion::Tween<SkColor4f>>(value))
-    return motion::animate(fillTween(py::cast<motion::Tween<SkColor4f>>(value)));
-  if (py::isinstance<motion::Animatable<SkColor4f>>(value)) {
-    const auto ink = py::cast<motion::Animatable<SkColor4f>>(value);
+  if (py::isinstance<motion::Tween<material::Color>>(value))
+    return motion::animate(
+        fillTween(py::cast<motion::Tween<material::Color>>(value)));
+  if (py::isinstance<motion::Animatable<material::Color>>(value)) {
+    const auto ink = py::cast<motion::Animatable<material::Color>>(value);
     if (const auto* tween = ink.described())
       return motion::animate(fillTween(*tween));
     if (const auto* constant = ink.constant())
@@ -525,12 +538,13 @@ void bindMotion(py::module_& root) {
       "change. from_, to, duration and delay each take a plain value or a "
       "stagger().";
   tween.def(
-      "at", [](const motion::Tween<float>& value, motion::Duration time) {
+      "at",
+      [](const motion::Tween<float>& value, motion::Duration time) {
         return value.at(time);
       },
       py::arg("time"),
       "The value this long after the motion starts, read with no engine.");
-  bindTween<SkColor4f>(module, "ColorTween", "ColorKeyframe");
+  bindTween<material::Color>(module, "ColorTween", "ColorKeyframe");
   bindTween<compose::Fill>(module, "FillTween", "FillKeyframe");
 
   py::enum_<motion::Animatable<float>::Form>(module, "AnimatableForm")
@@ -544,22 +558,21 @@ void bindMotion(py::module_& root) {
       "a live value somebody writes, or a live value followed through a "
       "Binding. Every copy of a live value reads and writes one cell.");
   number
-      .def_property_readonly("binding",
-                             [](const motion::Animatable<float>& value)
-                                 -> py::object {
-                               const auto* stages = value.binding();
-                               if (!stages) return py::none();
-                               return py::cast(*stages);
-                             })
-      .def_property_readonly("source",
-                             [](const motion::Animatable<float>& value)
-                                 -> py::object {
-                               const auto* source = value.source();
-                               if (!source) return py::none();
-                               return py::cast(*source);
-                             });
-  bindAnimatable<SkColor4f>(module, "ColorAnimatable", &motionInk,
-                            "A colour that can change over time.");
+      .def_property_readonly(
+          "binding",
+          [](const motion::Animatable<float>& value) -> py::object {
+            const auto* stages = value.binding();
+            if (!stages) return py::none();
+            return py::cast(*stages);
+          })
+      .def_property_readonly(
+          "source", [](const motion::Animatable<float>& value) -> py::object {
+            const auto* source = value.source();
+            if (!source) return py::none();
+            return py::cast(*source);
+          });
+  bindAnimatable<material::Color>(module, "ColorAnimatable", &motionInk,
+                                  "A colour that can change over time.");
   bindAnimatable<compose::Fill>(module, "FillAnimatable", &motionFill,
                                 "A fill that can change over time.");
 
@@ -570,7 +583,7 @@ void bindMotion(py::module_& root) {
           return py::cast(motion::animatable(py::cast<float>(value)));
         if (py::isinstance<compose::Fill>(value))
           return py::cast(motion::animatable(fill(value)));
-        return py::cast(motion::animatable(color(value)));
+        return py::cast(motion::animatable(materialColor(value)));
       },
       py::arg("value"),
       "A live value starting at the value given: write it, hand it to a "
@@ -584,9 +597,9 @@ void bindMotion(py::module_& root) {
         if (py::isinstance<motion::Tween<float>>(described))
           return py::cast(
               motion::animate(py::cast<motion::Tween<float>>(described)));
-        if (py::isinstance<motion::Tween<SkColor4f>>(described))
-          return py::cast(
-              motion::animate(py::cast<motion::Tween<SkColor4f>>(described)));
+        if (py::isinstance<motion::Tween<material::Color>>(described))
+          return py::cast(motion::animate(
+              py::cast<motion::Tween<material::Color>>(described)));
         if (py::isinstance<motion::Tween<compose::Fill>>(described))
           return py::cast(motion::animate(
               py::cast<motion::Tween<compose::Fill>>(described)));
@@ -601,24 +614,24 @@ void bindMotion(py::module_& root) {
         }
         if (first.is_none())
           throw py::value_error("animate() needs from_, to or keyframes.");
-        const py::object length = duration.is_none()
-                                      ? py::object(py::float_(0.25))
-                                      : py::reinterpret_borrow<py::object>(duration);
+        const py::object length =
+            duration.is_none() ? py::object(py::float_(0.25))
+                               : py::reinterpret_borrow<py::object>(duration);
         switch (kindOf(first)) {
           case Kind::Number:
             return py::cast(motion::animate(
                 tweenOf<float>(from, to, frames, length, delay, easing, loop,
                                loopDelay, alternate, composition)));
           case Kind::Fill:
-            return py::cast(motion::animate(
-                tweenOf<compose::Fill>(from, to, frames, length, delay,
-                                       easing, loop, loopDelay, alternate, composition)));
+            return py::cast(motion::animate(tweenOf<compose::Fill>(
+                from, to, frames, length, delay, easing, loop, loopDelay,
+                alternate, composition)));
           case Kind::Colour:
             break;
         }
         return py::cast(motion::animate(
-            tweenOf<SkColor4f>(from, to, frames, length, delay, easing, loop,
-                               loopDelay, alternate, composition)));
+            tweenOf<material::Color>(from, to, frames, length, delay, easing,
+                                     loop, loopDelay, alternate, composition)));
       },
       py::arg("tween") = py::none(), py::kw_only(),
       py::arg("from_") = py::none(), py::arg("to") = py::none(),

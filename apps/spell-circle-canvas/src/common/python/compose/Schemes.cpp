@@ -9,7 +9,6 @@
  */
 
 #include <include/core/SkPath.h>
-#include <sigilgeometry/advanced/Skia.h>
 #include <include/core/SkPoint.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkSize.h>
@@ -23,6 +22,7 @@
 #include <sigilcompose/kit/Connect.h>
 #include <sigilcompose/kit/Layouts.h>
 #include <sigildraw/Pen.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/compose/Convert.h>
@@ -34,6 +34,7 @@
 #include <cstddef>
 #include <memory>
 #include <optional>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -142,7 +143,8 @@ class ArrangementChild {
       : m_arrangement(std::move(arrangement)), m_index(index) {}
 
   Arrangement::Child& get() const {
-    std::vector<Arrangement::Child>& children = m_arrangement->get().children;
+    const std::span<Arrangement::Child> children =
+        m_arrangement->get().children;
     if (m_index >= children.size())
       throw std::runtime_error("This child is no longer in the arrangement.");
     return children[m_index];
@@ -527,8 +529,10 @@ void bindArrangement(py::module_& composition) {
       "an operator that nudges reads the rect and one that places "
       "overwrites it.");
   child
-      .def_property_readonly(
-          "size", [](const ArrangementChild& self) { return geometry::path::toSkSize(self.get().size); })
+      .def_property_readonly("size",
+                             [](const ArrangementChild& self) {
+                               return geometry::path::toSkSize(self.get().size);
+                             })
       .def_property_readonly(
           "baseline",
           [](const ArrangementChild& self) { return self.get().baseline; },
@@ -600,11 +604,10 @@ void bindArrangement(py::module_& composition) {
           "transform origin. The turn is paint-only and moves no layout.");
 
   arrangement
-      .def_property_readonly(
-          "box",
-          [](const BorrowedArrangement& self) {
-            return geometry::path::toSk(self.get().box);
-          })
+      .def_property_readonly("box",
+                             [](const BorrowedArrangement& self) {
+                               return geometry::path::toSk(self.get().box);
+                             })
       .def_property_readonly(
           "children",
           [](const std::shared_ptr<BorrowedArrangement>& self) {
@@ -692,11 +695,10 @@ void bindScope(py::module_& composition) {
           "when it goes.");
 
   scope
-      .def_property_readonly(
-          "box",
-          [](const BorrowedScope& self) {
-            return geometry::path::toSk(self.get().box);
-          })
+      .def_property_readonly("box",
+                             [](const BorrowedScope& self) {
+                               return geometry::path::toSk(self.get().box);
+                             })
       .def("nodes",
            [](const std::shared_ptr<BorrowedScope>& self) {
              py::list nodes;

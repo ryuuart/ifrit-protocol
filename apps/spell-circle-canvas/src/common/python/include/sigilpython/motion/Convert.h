@@ -6,7 +6,6 @@
  * easing or a transition from the shapes Python spells them as.
  */
 
-#include <include/core/SkColor.h>
 #include <pybind11/pybind11.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilmaterial/color/Color.h>
@@ -16,24 +15,10 @@
 #include <sigilmotion/time/Duration.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Tween.h>
-#include <sigilmotion/values/Tween.h>
 
 #include <functional>
 #include <memory>
 #include <thread>
-
-/** THE LINE A COLOUR ANIMATED FROM PYTHON TAKES: Python's colour
- *  animatable holds Skia's four floats, and its line between two of them
- *  is Material's, so the engine moves it exactly as it moves a
- *  `material::Color`. Declared beside the type's own namespace, where the
- *  engine's `interpolate()` finds it. */
-inline SkColor4f interpolate(const SkColor4f& start, const SkColor4f& end,
-                             float amount) {
-  const sigil::material::Color mixed = sigil::material::interpolate(
-      {start.fR, start.fG, start.fB, start.fA},
-      {end.fR, end.fG, end.fB, end.fA}, amount);
-  return {mixed.r, mixed.g, mixed.b, mixed.a};
-}
 
 namespace sigil::python {
 
@@ -87,7 +72,7 @@ class EngineHandle {
  *  or a plain number that stands still. */
 motion::Animatable<float> motionAnimatable(pybind11::handle value);
 /** An animatable colour read from @p value, on the same terms. */
-motion::Animatable<SkColor4f> motionInk(pybind11::handle value);
+motion::Animatable<material::Color> motionInk(pybind11::handle value);
 /** An animatable fill read from @p value, on the same terms; a colour
  *  animatable or tween is read as the fill of that colour. */
 motion::Animatable<compose::Fill> motionFill(pybind11::handle value);
@@ -115,6 +100,7 @@ motion::Staggered<motion::Duration> staggeredDuration(pybind11::handle value);
  *  same for every child, the `Staggered` otherwise. */
 pybind11::object staggeredReading(const motion::Staggered<float>& value);
 /** @p value as Python reads it back, in seconds. */
-pybind11::object staggeredReading(const motion::Staggered<motion::Duration>& value);
+pybind11::object staggeredReading(
+    const motion::Staggered<motion::Duration>& value);
 
 }  // namespace sigil::python

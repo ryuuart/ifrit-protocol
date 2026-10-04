@@ -23,6 +23,12 @@ def register(table: Table) -> None:
         registerNode(table, node)
     registerDeclarations(_Returning(table, RULE), RULE)
     registerFont(_Returning(table, SPAN_STYLE), SPAN_STYLE)
+    for node in (*NODES, RULE):
+        _Returning(table, node).declares(
+            node,
+            "lighting",
+            "def lighting(self, lighting: _sigil.material.Lighting | _sigil.material.Light | _sigil.material.Environment) -> Element: ...",
+        )
     # A glyph outline is the text leaf's alone, and the region of a source
     # is the image leaf's.
     # The glyph OUTLINE is one comparable Fill on the node, measured with no
@@ -168,7 +174,9 @@ def rect(self, x: _t.DimensionLike, y: _t.DimensionLike, width: _t.DimensionLike
         "transformOrigin",
         f"def transformOrigin(self, x: {origin}, y: {origin}, z: {origin} | None = None) -> Element: ...",
     )
-    table.erased(node, "var", "_t.DimensionLike | _t.ColorLike | _sigil.material.Material")
+    table.erased(
+        node, "var", "_t.DimensionLike | _t.ColorLike | _sigil.material.Material"
+    )
     # Four arities in CSS's order, each with its own names, and each name
     # usable as a keyword; beside them the named-sides form, any subset.
     for edge in ("padding", "margin"):
@@ -199,7 +207,7 @@ def registerValues(table: Table) -> None:
     """The refinements that speak about a value rather than a node."""
     table.erased("_sigil.compose.TextPath", "path", "_t.ShapeLike")
     table.erased("_sigil.compose.TextPath", "at", "_t.ScalarLike")
-    for factory in ("box", "stack", "positioned"):
+    for factory in ("box", "scene", "stack", "positioned"):
         table.declares(
             "_sigil.compose",
             factory,
@@ -227,7 +235,8 @@ def layout(scheme: _t.OperatorLike, children: collections.abc.Iterable[_t.NodeLi
     table.erased("_sigil.compose.Dimension", "__init__", "_t.DimensionLike")
     # A length is added to anything a length is written as.
     table.erased(
-        "_sigil.compose.Dimension", "__add__ __radd__ __sub__ __rsub__",
+        "_sigil.compose.Dimension",
+        "__add__ __radd__ __sub__ __rsub__",
         "_t.DimensionLike",
     )
     table.erased("_sigil.compose.Fill", "color", "_t.ColorLike")

@@ -4,9 +4,8 @@
  * through a hub. The parameters are a dict or a NamedTuple whose fields are
  * the body's uniforms, in the order given: a number is a float, a pair a
  * float2, a `Color` a colour, four numbers a float4, nine a float3x3 and
- * any other count an array. Their values are then written and followed
- * with the Material's own `set` and `bind`, as a Substance graph's inputs
- * are.
+ * any other count an array. Typed motion values declare a scalar or color
+ * field and keep their binding through construction and copies.
  */
 
 #include <include/core/SkImage.h>
@@ -20,13 +19,16 @@
 #include <sigilmedia/core/Image.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/io/Hub.h>
+#include <sigilpython/material/Convert.h>
 #include <sigilpython/material/Registration.h>
+#include <sigilpython/motion/Convert.h>
 #include <sigilpython/skia/Values.h>
 
 #include <memory>
 #include <optional>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace sigil::python {
@@ -35,17 +37,34 @@ namespace py = pybind11;
 
 namespace {
 
-/** One uniform read off a Python value: its field and its floats. */
+/** One uniform's layout, initial components and optional typed binding. */
 struct Uniform {
   material::Field field;
   std::vector<float> floats;
+  std::variant<std::monostate, motion::Animatable<float>,
+               motion::Animatable<material::Color>>
+      binding;
 };
 
 Uniform uniformOf(const std::string& name, py::handle value) {
   Uniform out;
   out.field.name = name;
-  if (py::isinstance<material::Color>(value)) {
-    const auto color = value.cast<material::Color>();
+  if (py::isinstance<motion::Animatable<material::Color>>(value) ||
+      py::isinstance<motion::Tween<material::Color>>(value)) {
+    const auto binding = motionInk(value);
+    const auto color = binding.value();
+    out.field.kind = material::ParameterType::Color;
+    out.floats = {color.r, color.g, color.b, color.a};
+    out.binding = binding;
+  } else if (py::isinstance<motion::Animatable<float>>(value) ||
+             py::isinstance<motion::Tween<float>>(value)) {
+    const auto binding = motionAnimatable(value);
+    out.field.kind = material::ParameterType::Float;
+    out.floats = {binding.value()};
+    out.binding = binding;
+  } else if (py::isinstance<material::Color>(value) ||
+             py::isinstance<py::str>(value)) {
+    const auto color = materialColor(value);
     out.field.kind = material::ParameterType::Color;
     out.floats = {color.r, color.g, color.b, color.a};
   } else if (py::isinstance<py::bool_>(value) ||
@@ -54,12 +73,21 @@ Uniform uniformOf(const std::string& name, py::handle value) {
     out.field.kind = material::ParameterType::Float;
     out.floats = {value.cast<float>()};
   } else {
-    for (py::handle item : py::iter(value)) out.floats.push_back(item.cast<float>());
+    for (py::handle item : py::iter(value))
+      out.floats.push_back(item.cast<float>());
     switch (out.floats.size()) {
-      case 2: out.field.kind = material::ParameterType::Vec2; break;
-      case 4: out.field.kind = material::ParameterType::Vec4; break;
-      case 9: out.field.kind = material::ParameterType::Mat3; break;
-      default: out.field.kind = material::ParameterType::FloatArray; break;
+      case 2:
+        out.field.kind = material::ParameterType::Vec2;
+        break;
+      case 4:
+        out.field.kind = material::ParameterType::Vec4;
+        break;
+      case 9:
+        out.field.kind = material::ParameterType::Mat3;
+        break;
+      default:
+        out.field.kind = material::ParameterType::FloatArray;
+        break;
     }
   }
   out.field.floats = out.floats.size();
@@ -98,8 +126,8 @@ material::ShaderOptions optionsOf(const std::string& key,
                                   std::optional<material::Target> target,
                                   std::optional<material::Sampling> sampling,
                                   py::object textures) {
-  material::ShaderOptions options{.key = key, .target = target,
-                                  .sampling = sampling};
+  material::ShaderOptions options{
+      .key = key, .target = target, .sampling = sampling};
   if (!textures.is_none())
     for (const auto& [name, pixels] : textures.cast<py::dict>())
       options.textures.push_back({name.cast<std::string>(), pixelsOf(pixels)});
@@ -111,8 +139,16 @@ material::Material instanced(std::shared_ptr<const material::Recipe> definition,
                              const material::ShaderOptions& options) {
   if (!definition) return material::Color{0, 0, 0, 0};
   material::Material made(std::move(definition));
-  for (const Uniform& uniform : uniforms)
+  for (const Uniform& uniform : uniforms) {
     made.set(uniform.field.name, std::span<const float>(uniform.floats));
+    if (const auto* scalar =
+            std::get_if<motion::Animatable<float>>(&uniform.binding))
+      made.bind(uniform.field.name, *scalar);
+    else if (const auto* color =
+                 std::get_if<motion::Animatable<material::Color>>(
+                     &uniform.binding))
+      made.bind(uniform.field.name, *color);
+  }
   return material::detail::withTextures(std::move(made), options);
 }
 
