@@ -28,6 +28,8 @@
  *                                              its session is opened for:
  *                                              Advance (the default) or
  *                                              the wall's
+ *   Sketchbook --plugin <module> --headless [<outdir>] [--gpu] [--kind <k>]
+ *                                              one prebuilt module
  *   Sketchbook <file.cpp> --bench [--bench-frames <n>]
  *              [--jitter-dt [<amplitude>]] [--at <s>] [--scale <n>]
  *              [--fps <n>] [--gpu]
@@ -94,6 +96,7 @@
  * `assets/` beside its own file.
  */
 
+#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilsketch/core/Crash.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Sources.h>
@@ -101,6 +104,7 @@
 #include <sigilsketch/live/Host.h>
 #include <sigilsketch/plate/Compare.h>
 #include <sigilsketch/python/Python.h>
+#include <sigilskia/graphite/GraphiteContext.h>
 #include <unistd.h>
 
 #include <QtCore/QCoreApplication>
@@ -123,7 +127,9 @@
 #include <exception>
 #include <filesystem>
 #include <future>
+#include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -378,7 +384,7 @@ int main(int argc, char* argv[]) {
   // sweep mounts it between its sketches; the window mounts it unasked.
   if (args.inspectPort &&
       (args.list || args.catalog || args.warmThumbnails ||
-       !args.compareOptions.first.empty() ||
+       (args.plugin && args.headless) || !args.compareOptions.first.empty() ||
        !args.storyOptions.outputPath.empty() ||
        !args.capture.outputPath.empty() || args.capture.bench)) {
     std::fprintf(stderr,
@@ -478,7 +484,8 @@ int main(int argc, char* argv[]) {
     return runServe(args, flagsFileNear(executableDirectory(argv[0])),
                     materialWarmup);
 
-  if (args.headless) return runSweep(args, chosen, materialWarmup);
+  if (args.headless && !args.plugin)
+    return runSweep(args, chosen, materialWarmup);
 
   // ---- one file, live or measured -------------------------------------
   const std::filesystem::path sketchDirectory = SIGIL_SKETCH_DIR;
@@ -500,7 +507,8 @@ int main(int argc, char* argv[]) {
   // a measurement and the live host keep the wall's clock and their real
   // numbers, which is where they are wanted.
   options.clock = args.clockPolicy.value_or(
-      !args.capture.outputPath.empty() && !args.capture.bench
+      (!args.capture.outputPath.empty() || (args.plugin && args.headless)) &&
+              !args.capture.bench
           ? sigil::motion::ClockPolicy::Advance
           : sigil::motion::ClockPolicy::Wall);
   // WHAT MOUNTS AT res:// unless `--assets` says otherwise: for a sketch
@@ -515,7 +523,8 @@ int main(int argc, char* argv[]) {
   options.sketchesDirectory = sketchDirectory;
   options.flagsFile = flagsFileNear(executableDirectory(argv[0]));
 
-  if (!args.capture.outputPath.empty() || args.capture.bench) {
+  if (!args.capture.outputPath.empty() || args.capture.bench ||
+      (args.plugin && args.headless)) {
     if (args.sketchFile.empty() || !std::filesystem::exists(args.sketchFile)) {
       std::fprintf(
           stderr,
@@ -524,39 +533,84 @@ int main(int argc, char* argv[]) {
           "         [--frames <count>] [--fps <n>] [--bench] "
           "[--bench-frames <n>]\n"
           "         [--gpu] [--jitter-dt [amplitude]] "
-          "[--deterministic | --no-deterministic]\n");
+          "[--deterministic | --no-deterministic]\n"
+          "       Sketchbook --plugin <module> [--frame <out.png> | --bench | "
+          "--headless [<outdir>]]\n"
+          "         [--at <sec>] [--scale <n>] [--kind <k>] [--gpu]\n");
       return 2;
     }
-    if (args.sketchFile.extension() != ".py" &&
+    if (!args.plugin && args.sketchFile.extension() != ".py" &&
         !std::filesystem::exists(options.flagsFile)) {
       std::fprintf(stderr, "missing %s (rebuild Sketchbook)\n",
                    options.flagsFile.string().c_str());
       return 2;
     }
     options.sketchPath = std::filesystem::absolute(args.sketchFile);
+    if (args.plugin) options.pluginPath = options.sketchPath;
     // Installed before the guest can ever run: without it, a fault
     // inside a sketch is a bare signal with nothing printed.
     sketch::installCrashReporter(options.sketchPath);
-    // `--gpu` PUTS THIS RUN ON THE DEVICE, exactly as it does for a
-    // sweep: a set draws its frame there, and a canvas sketch's mesh
-    // painter rasterises there. Fatal when the device will not come up,
-    // because a run that asked for the device and quietly gave the CPU's
-    // picture puts two different pictures under one name — which is the
-    // one thing a capture must never do.
-    // NO PIPELINE WARM-UP ON THIS LANE, unlike the sweep's. A capture
-    // photographs a canvas on a raster surface so its picture is
-    // reproducible, and a set is drawn by the device's own renderer, so
-    // this run builds no Graphite program at all — there is nothing
-    // here to record and nothing a later launch could replay.
-    if (args.gpu && !useDevice()) return 1;
-    SharedWebEngineScope sharedWebEngine;
     finishMaterialWarmup(materialWarmup);
+    if (args.gpu) {
+      options.prepareSession = [&](const sketch::Kind& kind) {
+        if (args.plugin && !args.kind.empty() && args.kind != kind->runtime())
+          throw std::runtime_error("plugin runtime is " +
+                                   std::string(kind->runtime()) +
+                                   ", not the requested " + args.kind);
+#ifdef __APPLE__
+        if (!kind->needsDevice()) return;
+#else
+        // Geometry owns the Vulkan device Graphite adopts on this platform.
+        (void)kind;
+#endif
+        if (!useDevice())
+          throw std::runtime_error(
+              "the sketch's device executor could not open");
+      };
+    }
+    SharedWebEngineScope sharedWebEngine;
+    // Sessions release their retained GPU resources before their context.
+    std::unique_ptr<sigil::core::hardware::GpuDevice> canvasDevice;
+    std::unique_ptr<sigil::skia::GraphiteContext> canvasGraphite;
     int result = 0;
     {
       sketch::Host host(std::move(options), fonts());
-      result = args.capture.bench
-                   ? runBench(host, args.capture, host.sketchPath())
-                   : runFrames(host, args.capture);
+      if (!awaitFirstBuild(host,
+                           args.plugin ? args.kind : std::string_view{})) {
+        result = 1;
+      }
+#ifdef __APPLE__
+      if (!result && args.gpu && !args.capture.bench && !host.needsDevice()) {
+        std::string error;
+        canvasDevice = sigil::core::hardware::GpuDevice::createOwned(&error);
+        if (!canvasDevice) {
+          std::fprintf(stderr, "capture: no canvas GPU device (%s)\n",
+                       error.c_str());
+          result = 1;
+        } else {
+          canvasGraphite = sigil::skia::GraphiteContext::create(*canvasDevice);
+          if (!canvasGraphite) {
+            std::fprintf(stderr,
+                         "capture: the device has no Graphite context\n");
+            result = 1;
+          }
+        }
+      }
+#endif
+      if (!result && args.capture.bench) {
+        result = runBench(host, args.capture, host.sketchPath(),
+                          args.plugin ? args.kind : std::string_view{});
+      } else if (!result && args.plugin && args.headless) {
+        auto sweep = args.sweepOptions;
+        sweep.kind = args.kind;
+        sweep.gpu = args.gpu;
+        result =
+            runPluginSweep(host, sweep, args.capture, canvasGraphite.get());
+      } else if (!result) {
+        result = runFrames(host, args.capture, args.gpu,
+                           args.plugin ? args.kind : std::string_view{},
+                           canvasGraphite.get());
+      }
     }
     // The session goes before the device does: it holds textures and
     // pipelines the device made, and releasing the device first takes

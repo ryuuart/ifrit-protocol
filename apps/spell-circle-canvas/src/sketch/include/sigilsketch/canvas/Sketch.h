@@ -47,8 +47,8 @@
 
 #include <include/core/SkImage.h>
 #include <include/core/SkRefCnt.h>
-#include <sigilcompose/Compose.h>
-#include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/core/Composer.h>
+#include <sigilcompose/core/Measure.h>
 #include <sigilgeometry/mesh/render/Runtime.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/core/Assets.h>
@@ -282,6 +282,11 @@ struct SketchContext {
   void captureAt(double seconds) {
     if (specification) specification->captureSeconds = seconds;
   }
+  /** Whether unobserved capture steps paint. False requires capture
+   *  state to advance entirely through the engine, feeds and update(). */
+  void paintDiscardedFrames(bool paint) {
+    if (specification) specification->paintDiscardedFrames = paint;
+  }
   /** Declare how many device pixels per canvas pixel a PLATE of this
    *  sketch is taken at — a whole number, at least one, honoured
    *  exactly rather than fitted to the host's width budget. It changes
@@ -400,13 +405,17 @@ class CanvasBodyOf final : public CanvasBody {
 class CanvasKind final : public KindOperations {
  public:
   using Factory = CanvasBody* (*)();
-  explicit CanvasKind(Factory factory) : m_factory(factory) {}
+  /** @p needsDevice declares body work that uses the host's device, such as
+   *  compute, foreign textures or the device mesh painter. */
+  explicit CanvasKind(Factory factory, bool needsDevice = false)
+      : m_factory(factory), m_needsDevice(needsDevice) {}
   /** Written out rather than defaulted: the operations a kind answers
    *  are an abstract base, and a defaulted comparison would try to
    *  compare that. What identifies a kind is the body it opens and the
-   *  painter it opens it on. */
+   *  painter it opens it on, including its device requirement. */
   bool operator==(const CanvasKind& other) const {
-    return m_factory == other.m_factory && m_painter == other.m_painter;
+    return m_factory == other.m_factory && m_painter == other.m_painter &&
+           m_needsDevice == other.m_needsDevice;
   }
 
   /** THIS KIND, OPENING ITS SESSIONS ON @p painter — an empty one being
@@ -428,12 +437,19 @@ class CanvasKind final : public KindOperations {
 
   [[nodiscard]] std::string_view runtime() const override { return "canvas"; }
 
+  [[nodiscard]] bool needsDevice() const override {
+    return m_needsDevice ||
+           (m_painter && *m_painter &&
+            *m_painter != geometry::mesh::render::Runtime::cpu());
+  }
+
   [[nodiscard]] std::unique_ptr<Session> open(
       weave::FontContext& fonts, Assets& assets, bool deterministic,
       std::string_view key) const override;
 
  private:
   Factory m_factory;
+  bool m_needsDevice = false;
   /** Unset is the process's own — the painter a host installed once. */
   std::optional<geometry::mesh::render::Runtime> m_painter;
 };
@@ -493,11 +509,18 @@ template <class SketchType>
 
 /** The kind a 2D sketch draws through. SIGIL_SKETCH resolves this from
  *  the type it is handed, so a file that includes this header registers
- *  for the compose runtime and cannot register for another. */
+ *  for the compose runtime and cannot register for another. A body that
+ *  uses the host's device declares `static constexpr bool needsDevice = true`.
+ *  Ordinary 2D drawing needs no device executor. */
 template <class SketchType>
   requires CanvasSketch<SketchType>
 [[nodiscard]] Kind kindOf() {
-  return CanvasKind{&makeCanvasBody<SketchType>};
+  if constexpr (requires {
+                  { SketchType::needsDevice } -> std::convertible_to<bool>;
+                })
+    return CanvasKind{&makeCanvasBody<SketchType>, SketchType::needsDevice};
+  else
+    return CanvasKind{&makeCanvasBody<SketchType>};
 }
 
 }  // namespace sigil::sketch

@@ -5,14 +5,15 @@
  * is a type identity of its own, and the one thing it shares with the
  * decoder the host registered is the meaning's name.
  *
- * Its one kind opens a session whose canvas is the size of `mark.png`
- * standing beside the sketch, asked for whenever it declares itself, or
- * one pixel square when the load answered nothing: the size is how a
- * case reads, from outside the guest, what the guest's load found.
+ * Its canvas reports the size of `mark.png`, loaded beside the sketch
+ * first and from its resource root when the local load fails. Without
+ * an image, it reports the module-local declaration count by one pixel.
+ * The size exposes both resource mounting and module isolation.
+ * A local warn-on-missing-picture file opts into resource diagnostics.
  */
 
+#include <sigilio/advanced/Problems.h>
 #include <sigilio/hub/Hub.h>
-#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/core/Image.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/CanvasSpecification.h>
@@ -29,7 +30,7 @@ namespace {
 
 namespace sketch = sigil::sketch;
 
-/** Loads `mark.png` beside the sketch each time it declares itself. */
+/** Loads the local or resource `mark.png` each time it declares itself. */
 class PictureSession final : public sketch::Session {
  public:
   PictureSession(sketch::Assets& assets, std::string key)
@@ -48,10 +49,20 @@ class PictureSession final : public sketch::Session {
 
  private:
   void declare() {
-    const std::shared_ptr<const sigil::media::Image> picture =
+    static int declarations = 0;
+    ++declarations;
+    std::shared_ptr<const sigil::media::Image> picture =
         m_assets.hub().load<sigil::media::Image>("sketch://" + m_key +
                                                  "/mark.png");
-    m_canvas.size = picture ? SkSize::Make((float)picture->size().x, (float)picture->size().y) : SkSize{1, 1};
+    if (!picture)
+      picture = m_assets.hub().load<sigil::media::Image>("res://mark.png");
+    if (!picture &&
+        m_assets.hub().read("sketch://" + m_key + "/warn-on-missing-picture"))
+      sigil::io::reportProblem(
+          m_assets.hub(), {"res://mark.png", "the picture is unavailable", {}});
+    m_canvas.size = picture ? SkSize::Make((float)picture->size().x,
+                                           (float)picture->size().y)
+                            : SkSize{(float)declarations, 1};
   }
 
   sketch::Assets& m_assets;

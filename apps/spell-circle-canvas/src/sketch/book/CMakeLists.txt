@@ -164,8 +164,10 @@ target_link_libraries(Sketchbook PRIVATE SigilWorldDiligent
 # Draw straight into QQuickRhiItem's texture through the shared Skia
 # Graphite context when the active QRhi backend supports it; the
 # CPU-raster/upload path in SketchbookView.cpp stands beside it for the
-# backends that do not.
-target_link_libraries(Sketchbook PRIVATE SigilSkiaQt)
+# backends that do not. Single-source and module captures can own a native
+# hardware context independently of the World executor.
+target_link_libraries(Sketchbook PRIVATE SigilSkiaQt SigilSkiaGraphite
+                                         SigilCoreHardware)
 target_compile_definitions(Sketchbook PRIVATE SIGILSKETCH_BOOK_GPU)
 
 # THE DOOR A DRAWN FRAME LEAVES BY: `--publish` offers the texture this
@@ -195,29 +197,22 @@ if(TARGET SigilScry)
   ultralight_copy_resources(Sketchbook)
 endif()
 
-# The response file is a tracked build output (not POST_BUILD): deleting
-# it or reconfiguring — the compilation database is rewritten at generate
-# time — regenerates it, independent of whether the executable relinks.
-add_custom_command(
-  OUTPUT ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/sketch_flags.rsp
-  COMMAND ${Python3_EXECUTABLE}
-    ${CMAKE_SOURCE_DIR}/src/sketch/cmake/SketchFlags.py
-    --compdb ${CMAKE_BINARY_DIR}/compile_commands.json
-    --anchor ${SIGIL_SKETCH_DIR}/Anchor.cpp
-    --config $<CONFIG>
-    --out ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/sketch_flags.rsp
-    # No --extra: the host force-loads Skia and re-exports it, so a
-    # sketch resolves Skia through -undefined dynamic_lookup like the
-    # rest of the SDK. Linking the archive into the dylib instead would
-    # put two Skia images in one process, whose objects cannot be
-    # exchanged.
-  DEPENDS ${CMAKE_BINARY_DIR}/compile_commands.json
-          ${CMAKE_SOURCE_DIR}/src/sketch/cmake/SketchFlags.py
-  COMMENT "Extracting sketch compile flags from compile_commands.json"
+# Source convenience mode retains the bundled catalogue's authoring surface.
+# Native module metadata uses the runtime library's independent surface.
+set(source_flags "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/sketch_flags.rsp")
+add_custom_command(OUTPUT "${source_flags}"
+  COMMAND ${Python3_EXECUTABLE} "${CMAKE_CURRENT_LIST_DIR}/../cmake/SketchFlags.py"
+    --compdb "${CMAKE_BINARY_DIR}/compile_commands.json"
+    --anchor "${SIGIL_SKETCH_DIR}/Anchor.cpp" --config "$<CONFIG>" --out "${source_flags}"
+  DEPENDS "${CMAKE_BINARY_DIR}/compile_commands.json"
+          "${CMAKE_CURRENT_LIST_DIR}/../cmake/SketchFlags.py"
   VERBATIM)
-add_custom_target(sketch_flags
-  DEPENDS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/sketch_flags.rsp)
-add_dependencies(Sketchbook sketch_flags)
+add_custom_target(sketch_source_flags DEPENDS "${source_flags}")
+add_dependencies(sketch_flags sketch_source_flags)
+add_dependencies(Sketchbook sketch_source_flags)
+if(TARGET sketch_test)
+  add_dependencies(sketch_test sketch_source_flags)
+endif()
 
 # THE ONE TEST THAT LOOKS AT WHOSE CODE RAN, and the reason every other
 # reload test below can pass while the live host is dead.
@@ -362,6 +357,36 @@ add_test(NAME sketch_reload_directory
   COMMAND Sketchbook
     ${SIGIL_SKETCH_DIR}/dunhuang_star_chart/dunhuang_star_chart.cpp
     --frame ${CMAKE_BINARY_DIR}/sketch_reload_directory.png)
+
+# A regular external CMake module reaches the same capture backend in the
+# frame and headless lanes. The GPU case asserts a Graphite recorder inside
+# the module with Vulkan unavailable, so neither a raster fallback nor World
+# device startup can satisfy it. A Set module must fail before its body opens.
+get_target_property(plugin_sdk_directory SigilSketch SIGIL_SKETCH_SDK_DIRECTORY)
+foreach(backend IN ITEMS cpu gpu)
+  if(backend STREQUAL gpu AND NOT APPLE)
+    continue()
+  endif()
+  set(plugin_capture_device)
+  set(plugin_capture_labels "integration;e2e;fonts")
+  if(backend STREQUAL gpu)
+    set(plugin_capture_device --gpu)
+    list(APPEND plugin_capture_labels gpu)
+  endif()
+  add_test(NAME sketch_plugin_capture_${backend}
+    COMMAND ${Python3_EXECUTABLE}
+      ${CMAKE_CURRENT_LIST_DIR}/test/plugin_capture.py
+      --cmake "${CMAKE_COMMAND}" --compiler "${CMAKE_CXX_COMPILER}"
+      --sdk "${plugin_sdk_directory}" --config "$<CONFIG>"
+      --sketchbook $<TARGET_FILE:Sketchbook>
+      --probe ${CMAKE_CURRENT_LIST_DIR}/test/plugin_capture.cpp
+      --set-probe ${CMAKE_CURRENT_LIST_DIR}/test/plugin_set_capture.cpp
+      --work ${CMAKE_BINARY_DIR}/sketch_plugin_capture_${backend}
+      ${plugin_capture_device})
+  set_tests_properties(sketch_plugin_capture_${backend} PROPERTIES
+    LABELS "${plugin_capture_labels}" TIMEOUT 300 RUN_SERIAL TRUE
+    SKIP_RETURN_CODE 77)
+endforeach()
 
 add_test(NAME sketch_capture_viewport
   COMMAND Sketchbook

@@ -2,9 +2,10 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkRect.h>
 #include <sigilcompose/core/Factories.h>
+#include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
-#include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/advanced/Skia.h>
+#include <sigilgeometry/kit/Generators.h>
 #include <sigilsketch/kit/Chart.h>
 
 #include <algorithm>
@@ -16,18 +17,10 @@
 namespace sigil::sketch::kit::detail {
 
 using compose::Align;
+using compose::Arrangement;
 using compose::Element;
-using compose::LayoutInput;
 
 namespace {
-
-/** The placed rects as the layout's own rectangles. */
-std::vector<geometry::path::Rect> rectanglesOf(const std::vector<SkRect>& rects) {
-  std::vector<geometry::path::Rect> out;
-  out.reserve(rects.size());
-  for (const SkRect& rect : rects) out.push_back(geometry::path::fromSk(rect));
-  return out;
-}
 
 /** Degrees as radians, for Skia's canvas angles. */
 float radians(double degrees) {
@@ -77,19 +70,21 @@ struct Anchored {
   std::vector<Datum> data;
   Anchor anchor;
 
-  std::vector<geometry::path::Rect> place(const LayoutInput& in) const {
-    const SkSize container = geometry::path::toSkSize(in.container);
-    std::vector<SkRect> rects(in.childSizes.size());
-    for (std::size_t i = 0; i < rects.size() && i < data.size(); ++i) {
+  void arrange(Arrangement& arrangement) const {
+    const SkSize container = geometry::path::toSkSize(arrangement.box.size());
+    for (auto& child : arrangement.children) child.rect = {};
+    for (std::size_t i = 0; i < arrangement.children.size() && i < data.size();
+         ++i) {
       const SkPoint point =
           nudged(frame, frame.at(data[i].x, data[i].y, container), data[i],
                  anchor.offset);
-      const SkSize size = geometry::path::toSkSize(in.childSizes[i]);
-      rects[i] = SkRect::MakeXYWH(edge(anchor.across, point.fX, size.width()),
-                                  edge(anchor.down, point.fY, size.height()),
-                                  size.width(), size.height());
+      const SkSize size =
+          geometry::path::toSkSize(arrangement.children[i].size);
+      arrangement.children[i].place(geometry::path::fromSk(
+          SkRect::MakeXYWH(edge(anchor.across, point.fX, size.width()),
+                           edge(anchor.down, point.fY, size.height()),
+                           size.width(), size.height())));
     }
-    return rectanglesOf(rects);
   }
 };
 
@@ -161,20 +156,21 @@ struct Spanned {
   double base = 0.0;
   Axis along = Axis::X;
 
-  std::vector<geometry::path::Rect> place(const LayoutInput& in) const {
-    const SkSize container = geometry::path::toSkSize(in.container);
-    std::vector<SkRect> rects(in.childSizes.size());
+  void arrange(Arrangement& arrangement) const {
+    const SkSize container = geometry::path::toSkSize(arrangement.box.size());
+    for (auto& child : arrangement.children) child.rect = {};
     if (frame.polar) {
       const SkPoint hub = frame.centre(container);
       const float outer = frame.radius(container);
-      for (std::size_t i = 0; i < rects.size() && i < data.size(); ++i) {
+      for (std::size_t i = 0;
+           i < arrangement.children.size() && i < data.size(); ++i) {
         const float r = (float)frame.radiusFraction(data[i].y) * outer;
         const SkRect unit = i < units.size() ? units[i] : SkRect::MakeEmpty();
-        rects[i] = SkRect::MakeLTRB(
+        arrangement.children[i].place(geometry::path::fromSk(SkRect::MakeLTRB(
             hub.fX + unit.fLeft * r, hub.fY + unit.fTop * r,
-            hub.fX + unit.fRight * r, hub.fY + unit.fBottom * r);
+            hub.fX + unit.fRight * r, hub.fY + unit.fBottom * r)));
       }
-      return rectanglesOf(rects);
+      return;
     }
     // The scale the bands run along hands out the band; the other one
     // carries the value, and the base is a value on THAT one.
@@ -183,20 +179,22 @@ struct Spanned {
         frame.scale(along == Axis::X ? Axis::Y : Axis::X, container);
     const float width = (float)bandOf(banding);
     const float from = (float)valued.apply(base);
-    for (std::size_t i = 0; i < rects.size() && i < data.size(); ++i) {
+    for (std::size_t i = 0; i < arrangement.children.size() && i < data.size();
+         ++i) {
       const float start =
           (float)banding.apply(along == Axis::X ? data[i].x : data[i].y);
       const float to =
           (float)valued.apply(along == Axis::X ? data[i].y : data[i].x);
-      rects[i] = along == Axis::X
-                     ? SkRect::MakeLTRB(
-                           std::min(start, start + width), std::min(from, to),
-                           std::max(start, start + width), std::max(from, to))
-                     : SkRect::MakeLTRB(
-                           std::min(from, to), std::min(start, start + width),
-                           std::max(from, to), std::max(start, start + width));
+      const SkRect rect =
+          along == Axis::X
+              ? SkRect::MakeLTRB(
+                    std::min(start, start + width), std::min(from, to),
+                    std::max(start, start + width), std::max(from, to))
+              : SkRect::MakeLTRB(
+                    std::min(from, to), std::min(start, start + width),
+                    std::max(from, to), std::max(start, start + width));
+      arrangement.children[i].place(geometry::path::fromSk(rect));
     }
-    return rectanglesOf(rects);
   }
 };
 
@@ -223,20 +221,20 @@ struct Between {
   Plot frame;
   std::vector<Datum> ends;  ///< two per child, in order
 
-  std::vector<geometry::path::Rect> place(const LayoutInput& in) const {
-    const SkSize container = geometry::path::toSkSize(in.container);
-    std::vector<SkRect> rects(in.childSizes.size());
-    for (std::size_t i = 0; i < rects.size() && 2 * i + 1 < ends.size(); ++i) {
+  void arrange(Arrangement& arrangement) const {
+    const SkSize container = geometry::path::toSkSize(arrangement.box.size());
+    for (auto& child : arrangement.children) child.rect = {};
+    for (std::size_t i = 0;
+         i < arrangement.children.size() && 2 * i + 1 < ends.size(); ++i) {
       const SkPoint from = frame.at(ends[2 * i].x, ends[2 * i].y, container);
       const SkPoint to =
           frame.at(ends[2 * i + 1].x, ends[2 * i + 1].y, container);
       // A segment along an axis still needs a box to be stroked in, so
       // neither side is allowed to close to nothing.
-      rects[i] = SkRect::MakeLTRB(
+      arrangement.children[i].place(geometry::path::fromSk(SkRect::MakeLTRB(
           std::min(from.fX, to.fX), std::min(from.fY, to.fY),
-          std::max(from.fX, to.fX) + 0.01f, std::max(from.fY, to.fY) + 0.01f);
+          std::max(from.fX, to.fX) + 0.01f, std::max(from.fY, to.fY) + 0.01f)));
     }
-    return rectanglesOf(rects);
   }
 };
 

@@ -10,6 +10,7 @@
 #define SIGIL_SKETCH_STATIC "sweep_bench_probe"
 
 #include <benchmark/benchmark.h>
+#include <sigilcompose/core/Factories.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/plate/Sweep.h>
 #include <sigilweave/fonts/FontContext.h>

@@ -14,6 +14,7 @@
 #include <include/gpu/graphite/Surface.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilskia/graphite/PaintOrder.h>
+#include <sigilskia/graphite/Readback.h>
 #include <sigilskia/qt/QtInterop.h>
 #endif
 
@@ -36,19 +37,16 @@
 
 #include <QtCore/QByteArray>
 #include <QtCore/QMetaObject>
-#include <QtCore/QString>
 #include <QtCore/QMutexLocker>
+#include <QtCore/QString>
 #include <QtQuick/QQuickWindow>
 #include <algorithm>
 #include <atomic>
-#include <chrono>
 #include <cmath>
 #include <cstdio>
-#include <cstring>
 #include <future>
 #include <mutex>
 #include <string>
-#include <thread>
 #include <utility>
 
 #include "CanvasView.h"
@@ -220,9 +218,12 @@ std::unique_ptr<sketch::Host> SketchbookRenderer::openSketch(int index) {
         sketch::sourceOf(SketchCatalog::sketchDirectory, entries[index].key);
   } else if (const int external = externalAt(index);
              external >= 0 && external < (int)SketchCatalog::externals.size()) {
-    // A file this binary does not carry has to be built to be seen, so
-    // it opens on the compiler rather than on an entry.
+    // An external source opens through compilation; a native module
+    // opens through artifact validation and adoption.
     options.sketchPath = SketchCatalog::externals[external];
+    const auto extension = options.sketchPath.extension();
+    if (extension == ".dylib" || extension == ".so" || extension == ".bundle")
+      options.pluginPath = options.sketchPath;
   } else {
     return nullptr;
   }
@@ -302,7 +303,8 @@ void SketchbookRenderer::installCaptureBackend(sketch::Host& host) {
          return SkSurfaces::RenderTarget(m_graphiteContext->recorder(), info);
        },
        [this](SkSurface& surface, const SkPixmap& out) {
-         return readbackGraphite(surface, out);
+         return m_graphiteContext &&
+                sigil::skia::readbackPixels(*m_graphiteContext, surface, out);
        },
        [this](SkSurface& surface) -> SkCanvas* {
          if (!m_graphiteContext) return nullptr;
@@ -524,10 +526,10 @@ void SketchbookRenderer::drawSketch(SkCanvas& canvas, QSize pixelSize,
     m_heldSession = host->session();
   }
   const float drawnScale =
-      published ? 0.0f
-                : m_zoomHold.drawnScale(
-                      placeCanvas(canvasSize, pane, view).scale,
-                      ZoomHold::Clock::now());
+      published
+          ? 0.0f
+          : m_zoomHold.drawnScale(placeCanvas(canvasSize, pane, view).scale,
+                                  ZoomHold::Clock::now());
   // The SKETCH's own canvas is placed on the pane and never stretched to
   // it: a sketch declares its own dimensions and they do not share an
   // aspect ratio, so stretching one to fill would distort what it shows.
@@ -617,7 +619,8 @@ void SketchbookRenderer::reportWrittenThumbnails() {
   if (written.empty() || !m_view) return;
   for (int index : written)
     QMetaObject::invokeMethod(
-        m_view, [view = m_view, index] { Q_EMIT view->thumbnailCaptured(index); },
+        m_view,
+        [view = m_view, index] { Q_EMIT view->thumbnailCaptured(index); },
         Qt::QueuedConnection);
 }
 
@@ -652,53 +655,11 @@ void SketchbookRenderer::runPendingCaptures() {
     }
     if (m_view)
       QMetaObject::invokeMethod(
-          m_view, [view = m_view, result] { Q_EMIT view->captureReady(result); },
+          m_view,
+          [view = m_view, result] { Q_EMIT view->captureReady(result); },
           Qt::QueuedConnection);
   }
 }
-
-#ifdef SIGILSKETCH_BOOK_GPU
-bool SketchbookRenderer::readbackGraphite(SkSurface& surface,
-                                          const SkPixmap& out) {
-  if (!m_graphiteContext) return false;
-  if (auto recording = m_graphiteContext->recorder()->snap()) {
-    skgpu::graphite::InsertRecordingInfo info;
-    info.fRecording = recording.get();
-    m_graphiteContext->context()->insertRecording(info);
-  }
-  struct ReadContext {
-    std::unique_ptr<const SkImage::AsyncReadResult> result;
-    bool called = false;
-  } readContext;
-  m_graphiteContext->context()->asyncRescaleAndReadPixels(
-      &surface, out.info(), SkIRect::MakeWH(surface.width(), surface.height()),
-      SkImage::RescaleGamma::kSrc, SkImage::RescaleMode::kNearest,
-      [](SkImage::ReadPixelsContext context,
-         std::unique_ptr<const SkImage::AsyncReadResult> result) {
-        auto* read = static_cast<ReadContext*>(context);
-        read->result = std::move(result);
-        read->called = true;
-      },
-      &readContext);
-  skgpu::graphite::SubmitInfo submitInfo;
-  submitInfo.fSync = skgpu::graphite::SyncToCpu::kYes;
-  m_graphiteContext->context()->submit(submitInfo);
-  const auto deadline =
-      std::chrono::steady_clock::now() + std::chrono::seconds(5);
-  while (!readContext.called && std::chrono::steady_clock::now() < deadline) {
-    m_graphiteContext->context()->checkAsyncWorkCompletion();
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-  }
-  if (!readContext.result) return false;
-  const auto* src = static_cast<const uint8_t*>(readContext.result->data(0));
-  const size_t srcRowBytes = readContext.result->rowBytes(0);
-  const size_t copyBytes = std::min(srcRowBytes, out.rowBytes());
-  for (int y = 0; y < out.height(); ++y)
-    std::memcpy(out.writable_addr(0, y), src + (size_t)y * srcRowBytes,
-                copyBytes);
-  return true;
-}
-#endif
 
 void SketchbookRenderer::startPublishing() {
   if (m_publisher) return;
@@ -706,9 +667,8 @@ void SketchbookRenderer::startPublishing() {
   // Only the Graphite frame path submits a texture to the publisher.
 #ifdef SIGILSKETCH_BOOK_GPU
   if (m_graphiteContext)
-    m_publisher =
-        ifrit::qt::createPublisher(m_publicationHub, m_rhi,
-                                   SketchbookView::publishName);
+    m_publisher = ifrit::qt::createPublisher(m_publicationHub, m_rhi,
+                                             SketchbookView::publishName);
 #endif
   if (m_publisher) {
     std::fprintf(stderr, "[sketchbook] publishing as \"%s\"\n",
@@ -846,7 +806,8 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
         drawSketch(*canvas, pixelSize, published.get());
         const sigil::measure::Stopwatch submitWatch;
         surface.submit();
-        const double submitMs = sigil::measure::Milliseconds(submitWatch.elapsed()).count();
+        const double submitMs =
+            sigil::measure::Milliseconds(submitWatch.elapsed()).count();
         m_submitMsAverage = m_submitMsAverage == 0.0
                                 ? submitMs
                                 : m_submitMsAverage * 0.95 + submitMs * 0.05;
@@ -932,7 +893,8 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
   QRhiTextureSubresourceUploadDescription sub(uploadBytes);
   batch->uploadTexture(texture, QRhiTextureUploadDescription({0, 0, sub}));
   commandBuffer->resourceUpdate(batch);
-  const double submitMs = sigil::measure::Milliseconds(submitWatch.elapsed()).count();
+  const double submitMs =
+      sigil::measure::Milliseconds(submitWatch.elapsed()).count();
   m_submitMsAverage = m_submitMsAverage == 0.0
                           ? submitMs
                           : m_submitMsAverage * 0.95 + submitMs * 0.05;

@@ -6,7 +6,11 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
+#include <sigilcompose/core/Factories.h>
+#include <sigildraw/Pen.h>
 #include <sigilsketch/live/Host.h>
+#include <sigilsketch/set/Set.h>
+#include <sigilworld/frame/Frame.h>
 #include <signal.h>
 #include <unistd.h>
 
@@ -109,6 +113,172 @@ TEST(SketchHost, FailedSetupPreservesTheRunningSession) {
   EXPECT_NE(host.errorLog().find("setup rejected"), std::string::npos);
   EXPECT_TRUE(host.restartSession());
   EXPECT_TRUE(host.errorLog().empty());
+}
+
+std::vector<std::string> preparationOrder;
+bool executorReady = false;
+bool preparationProbeFails = false;
+
+struct PreparedCanvas {
+  static constexpr bool needsDevice = true;
+  PreparedCanvas() { preparationOrder.emplace_back("body"); }
+  void setup(SketchContext& ctx) {
+    preparationOrder.emplace_back("setup");
+    ctx.canvas(120, 90);
+  }
+};
+
+Kind preparedCanvasKind() {
+  preparationOrder.emplace_back("kind");
+  return kindOf<PreparedCanvas>();
+}
+
+bool preparedAvailable(std::string* why) {
+  preparationOrder.emplace_back("probe");
+  if (executorReady && !preparationProbeFails) return true;
+  if (why) *why = "the executor is unavailable";
+  return false;
+}
+
+TEST(SketchHost, PreparesBeforeAvailabilityAndSetupOnOpenAndRestart) {
+  const Watched file("sigil_sketch_prepared");
+  const Entry entry{"prepared", "prepared",          "Test",
+                    "",         &preparedCanvasKind, &preparedAvailable};
+  auto opts = options(file.path);
+  opts.compiledIn = &entry;
+  executorReady = false;
+  preparationProbeFails = false;
+  preparationOrder.clear();
+  bool refuse = false;
+  opts.prepareSession = [&](const Kind& kind) {
+    EXPECT_TRUE(kind->needsDevice());
+    preparationOrder.emplace_back("prepare");
+    if (refuse) throw std::runtime_error("the executor preparation failed");
+    executorReady = true;
+  };
+  Host host(std::move(opts), fonts());
+  ASSERT_TRUE(host.live()) << host.errorLog();
+  EXPECT_TRUE(host.needsDevice());
+  EXPECT_EQ(
+      preparationOrder,
+      (std::vector<std::string>{"kind", "prepare", "probe", "body", "setup"}));
+  Session* accepted = host.session();
+
+  preparationOrder.clear();
+  refuse = true;
+  EXPECT_FALSE(host.restartSession());
+  EXPECT_EQ(preparationOrder, (std::vector<std::string>{"prepare"}));
+  EXPECT_EQ(host.session(), accepted);
+  EXPECT_NE(host.errorLog().find("preparation failed"), std::string::npos);
+
+  preparationOrder.clear();
+  refuse = false;
+  preparationProbeFails = true;
+  EXPECT_FALSE(host.restartSession());
+  EXPECT_EQ(preparationOrder, (std::vector<std::string>{"prepare", "probe"}));
+  EXPECT_EQ(host.session(), accepted);
+
+  preparationOrder.clear();
+  preparationProbeFails = false;
+  EXPECT_TRUE(host.restartSession());
+  EXPECT_EQ(preparationOrder,
+            (std::vector<std::string>{"prepare", "probe", "body", "setup"}));
+}
+
+struct PreparedSet {
+  static inline int bodies = 0;
+  static inline int setups = 0;
+  PreparedSet() { ++bodies; }
+  void setup(SetContext&) { ++setups; }
+  sigil::world::Frame describe() { return {}; }
+};
+
+Kind preparedSetKind() { return kindOf<PreparedSet>(); }
+
+TEST(SketchHost, ARequiredDeviceFailurePrecedesSetBodyConstruction) {
+  const Watched file("sigil_sketch_required_device");
+  const Entry entry{"prepared_set", "prepared_set", "Test", "",
+                    &preparedSetKind};
+  auto opts = options(file.path);
+  opts.compiledIn = &entry;
+  PreparedSet::bodies = 0;
+  PreparedSet::setups = 0;
+  opts.prepareSession = [](const Kind& kind) {
+    EXPECT_TRUE(kind->needsDevice());
+    throw std::runtime_error("the required device is unavailable");
+  };
+  Host host(std::move(opts), fonts());
+  EXPECT_FALSE(host.live());
+  EXPECT_EQ(PreparedSet::bodies, 0);
+  EXPECT_EQ(PreparedSet::setups, 0);
+  EXPECT_NE(host.errorLog().find("required device"), std::string::npos);
+}
+
+TEST(SketchHost, ARejectedSetReplacementKeepsTheCanvasAndCaptureBackend) {
+  const Watched file("sigil_sketch_candidate_device");
+  auto python = file.path;
+  python.replace_extension(".py");
+  std::ofstream(python) << "source handled by importer\n";
+  auto opts = options(python);
+  opts.compiledIn = nullptr;
+  static bool requestSet = false;
+  requestSet = false;
+  opts.pythonLoader = [](const std::filesystem::path&) {
+    return requestSet ? kindOf<PreparedSet>() : kindOf<Restarted>();
+  };
+  std::vector<bool> requirements;
+  opts.prepareSession = [&](const Kind& kind) {
+    requirements.push_back(kind->needsDevice());
+    if (kind->needsDevice())
+      throw std::runtime_error("the candidate device is unavailable");
+  };
+  Restarted::failSetup = false;
+  PreparedSet::bodies = 0;
+  PreparedSet::setups = 0;
+  Host host(std::move(opts), fonts());
+  host.poll();
+  ASSERT_TRUE(host.live()) << host.errorLog();
+  EXPECT_FALSE(host.needsDevice());
+  Session* accepted = host.session();
+  int captures = 0;
+  host.setCaptureBackend({[&](const SkImageInfo& info) {
+    ++captures;
+    return SkSurfaces::Raster(info);
+  }});
+
+  requestSet = true;
+  std::filesystem::last_write_time(
+      python,
+      std::filesystem::last_write_time(python) + std::chrono::seconds(1));
+  host.poll();
+  EXPECT_EQ(requirements, (std::vector<bool>{false, true}));
+  EXPECT_EQ(host.session(), accepted);
+  EXPECT_EQ(host.kind(), "canvas");
+  EXPECT_FALSE(host.needsDevice());
+  EXPECT_EQ(PreparedSet::bodies, 0);
+  EXPECT_EQ(PreparedSet::setups, 0);
+  EXPECT_FALSE(host.still().drawsNothing());
+  EXPECT_EQ(captures, 1);
+  EXPECT_TRUE(host.restartSession());
+  EXPECT_EQ(requirements, (std::vector<bool>{false, true, false}));
+  EXPECT_FALSE(host.still().drawsNothing());
+  EXPECT_EQ(captures, 2);
+}
+
+TEST(SketchHost, UnknownPreparationFailuresPreserveTheAcceptedSession) {
+  const Watched file("sigil_sketch_unknown_preparation");
+  auto opts = options(file.path);
+  bool refuse = false;
+  opts.prepareSession = [&](const Kind&) {
+    if (refuse) throw 7;
+  };
+  Host host(std::move(opts), fonts());
+  ASSERT_TRUE(host.live());
+  Session* accepted = host.session();
+  refuse = true;
+  EXPECT_FALSE(host.restartSession());
+  EXPECT_EQ(host.session(), accepted);
+  EXPECT_NE(host.errorLog().find("unknown exception"), std::string::npos);
 }
 
 struct FailingFrame {
@@ -259,9 +429,21 @@ TEST(SketchHost, StillRefusesFailedReadback) {
 struct CaptureClock {
   static inline std::vector<double> updates;
   static inline bool resize = false;
+  static inline bool paintDiscarded = true;
+  static inline int paints = 0;
   void setup(SketchContext& ctx) {
     ctx.canvas(120, 90);
     ctx.captureAt(0);
+    ctx.paintDiscardedFrames(paintDiscarded);
+    ctx.composer.render(sigil::compose::custom("capture-clock",
+                                               [](sigil::draw::Pen& pen) {
+                                                 ++paints;
+                                                 pen.canvas()->clear(
+                                                     SK_ColorGREEN);
+                                               })
+                            .cache(sigil::compose::Cache::None)
+                            .width(120)
+                            .height(90));
   }
   void update(double elapsed, SketchContext& ctx) {
     updates.push_back(elapsed);
@@ -271,6 +453,44 @@ struct CaptureClock {
 Kind captureClockKind() { return kindOf<CaptureClock>(); }
 const Entry kCaptureClock{"capture_clock", "capture_clock", "Test", "",
                           &captureClockKind};
+
+TEST(SketchHost,
+     OptedInCaptureStepsUpdateWithoutPaintingButObservedFramesDraw) {
+  const Watched file("sigil_sketch_capture_without_paint");
+  auto opts = options(file.path);
+  opts.compiledIn = &kCaptureClock;
+  CaptureClock::paintDiscarded = false;
+  Host host(std::move(opts), fonts());
+  CaptureClock::paintDiscarded = true;
+  CaptureClock::updates.clear();
+  CaptureClock::paints = 0;
+
+  EXPECT_EQ(host.prepareCapture(), 0);
+  ASSERT_EQ(CaptureClock::updates.size(), 1u);
+  EXPECT_EQ(CaptureClock::updates.back(), 0);
+  EXPECT_EQ(CaptureClock::paints, 0);
+  EXPECT_EQ(host.prepareCapture(.025), .025);
+  ASSERT_EQ(CaptureClock::updates.size(), 3u);
+  EXPECT_DOUBLE_EQ(CaptureClock::updates.back(), .025);
+  EXPECT_EQ(CaptureClock::paints, 0);
+  EXPECT_FALSE(host.frameTimes().work().empty());
+  EXPECT_EQ(host.drawTimes().mean(), sigil::measure::Duration::zero());
+
+  const auto surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(120, 90));
+  ASSERT_TRUE(host.frame(*surface->getCanvas(), 1.0 / 60.0));
+  EXPECT_EQ(CaptureClock::paints, 1);
+  ASSERT_TRUE(host.frame(1.0 / 60.0));
+  EXPECT_EQ(CaptureClock::paints, 1);
+  EXPECT_EQ(host.session()->timing().drawMs, 0);
+
+  EXPECT_FALSE(host.photograph().isNull());
+  EXPECT_EQ(CaptureClock::paints, 2);
+  EXPECT_NEAR(CaptureClock::updates.back(), .025 + 3.0 / 60.0, 1e-9);
+  const size_t updates = CaptureClock::updates.size();
+  EXPECT_FALSE(host.still().isNull());
+  EXPECT_EQ(CaptureClock::paints, 3);
+  EXPECT_EQ(CaptureClock::updates.size(), updates);
+}
 
 TEST(SketchHost, CaptureMomentIncludesZeroAndTheFractionalStep) {
   const Watched file("sigil_sketch_capture_clock");
@@ -553,6 +773,25 @@ TEST(SketchHostBuildDirectory, StandsWhileTheHostLivesAndGoesWithIt) {
     EXPECT_TRUE(std::filesystem::is_directory(dir));
   }
   EXPECT_FALSE(std::filesystem::exists(dir));
+}
+
+TEST(SketchHostBuildDirectory, AThrowingFactoryReturnsItsDirectoryReference) {
+  const Watched file("sigil_sketch_host_throwing_factory");
+  const Entry throwing{
+      "throwing", "throwing", "Test", "", []() -> Kind {
+        throw std::runtime_error("the built-in factory failed");
+      }};
+  auto failed = options(file.path);
+  failed.compiledIn = &throwing;
+  EXPECT_THROW(Host(std::move(failed), fonts()), std::runtime_error);
+
+  std::filesystem::path directory;
+  {
+    Host host(options(file.path), fonts());
+    directory = host.buildDirectory();
+    ASSERT_TRUE(std::filesystem::is_directory(directory));
+  }
+  EXPECT_FALSE(std::filesystem::exists(directory));
 }
 
 TEST(SketchHostBuildDirectory, SweepsAGoneProcessAndLeavesALiveOneStanding) {

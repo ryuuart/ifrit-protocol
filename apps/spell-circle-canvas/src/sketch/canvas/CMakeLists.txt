@@ -6,10 +6,10 @@
 # the scene, and the world it bakes.
 sigil_test(sketch_test
   SOURCES test/CanvasSessionTest.cpp test/GuestTest.cpp
-  LIBRARIES SigilSketch SigilComposeTexture SigilWorldElement
+  LIBRARIES SigilSketch SigilComposeTexture SigilComposeDraw SigilWorldElement
             SigilWorldFrame SigilGeometryKit SigilMaterialSurface
             SigilWeavePorts)
 
 sigil_bench(sketch_bench
   SOURCES bench/CanvasSessionBench.cpp
-  LIBRARIES SigilSketch)
+  LIBRARIES SigilSketch SigilWeavePorts)

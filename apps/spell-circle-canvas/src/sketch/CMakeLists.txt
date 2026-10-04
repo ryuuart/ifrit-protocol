@@ -33,8 +33,6 @@ sigil_library_root(SigilSketch
 set(SIGIL_SKETCH_DIR ${CMAKE_CURRENT_LIST_DIR}/sketches)
 set(SIGIL_SKETCH_ASSET_DIR ${SIGIL_ASSET_DIR})
 
-find_package(EnTT CONFIG REQUIRED)
-
 # THE ARCHIVE LINKS NO DEVICE BACKEND AND NO QT. The runtime a session
 # draws through is a value the process installs — a machine with no
 # device runs every set on the CPU mesh executor — and the plate's
@@ -45,23 +43,17 @@ find_package(EnTT CONFIG REQUIRED)
 # rebuilds and swaps without a window; book/ is the only place one
 # appears.
 #
-# PUBLIC is what the headers spell: the resource hub, the comparable
-# erasure the kind seam is built on, the one prefix search a sketch's own
-# members are called through, the instruments every runtime times
-# itself with, the camera the viewpoint seam is spelled in, and the two
-# runtimes' own vocabularies — compose for a canvas, world for a set,
-# with the pen among compose's because a pen program is a node. The two
-# doors between runtimes (a compose tree painted into a texture, a world
-# frame baked to an image) name the other side by forward declaration
-# alone. What a session reads in its own source —
-# the byte writer a plate is saved through, the Graphite handle, the
-# decoders and encoders — is PRIVATE.
+# PUBLIC supplies the types and complete runtime values named by the native
+# headers. Authoring kits, image codecs and device executors are consumers'
+# own dependencies. The two doors between runtimes name the other side by
+# forward declaration; their texture and scene executors are PRIVATE, beside
+# the codecs and Graphite handles the implementation uses.
 set(SIGIL_SKETCH_SOURCES
   core/Assets.cpp core/Catalog.cpp core/Crash.cpp core/Device.cpp
   core/Registry.cpp core/Sources.cpp core/State.cpp
   canvas/Context.cpp canvas/Guest.cpp canvas/Session.cpp
   set/Context.cpp set/Session.cpp
-  live/BuildDirectory.cpp live/BuildCache.cpp live/Host.cpp live/Residency.cpp live/SkewGuard.cpp
+  live/BuildDirectory.cpp live/BuildCache.cpp live/Host.cpp live/Plugin.cpp live/Residency.cpp live/SkewGuard.cpp
   plate/Compare.cpp plate/Graphite.cpp plate/Story.cpp plate/Sweep.cpp
   plate/ThumbnailQueue.cpp plate/Thumbnails.cpp plate/ThumbnailWriter.cpp)
 set(SIGIL_SKETCH_HEADERS
@@ -77,22 +69,16 @@ set(SIGIL_SKETCH_HEADERS
   plate/ThumbnailWriter.h)
 set(SIGIL_SKETCH_PUBLIC
   SigilCoreCallable SigilCoreComparable
-  SigilGeometryMeshCamera SigilMediaCore SigilIO
-  SigilMediaVideoDecode SigilMediaCore SigilMediaImageEncode SigilMeasure
+  SigilGeometryMeshCamera SigilGeometryMeshRender SigilMediaCore
+  SigilIOHub SigilIOFrames SigilMeasure SigilMaterialColor SigilMaterialTexture
   SigilMotionClock
-  SigilComposeCore SigilComposeKit SigilComposeBrush SigilComposeTypography
-  SigilComposeTexture SigilComposeTesting SigilComposeDraw
-  SigilGeometry SigilMaterial
-  SigilMaterialSurface SigilWeaveKit SigilWeavePorts
-  SigilWorldScene SigilWorldKit SigilWorldFrame SigilWorldElement
-  SigilWorldLight
-  SigilDraw EnTT::EnTT)
+  SigilComposeCore SigilWorldFrame SigilWorldElement)
 set(SIGIL_SKETCH_PRIVATE
   # The door a frame arrives by. A canvas can wear another application's
   # picture, so the archive that draws reaches the subscription — the
   # publisher beside it is still nobody's but the host's, and neither
   # protocol reaches a header.
-  SigilIOFrames
+  SigilComposeTexture SigilWorldScene SigilMaterialSkia SigilWeavePaint
   SigilDataDecode
   SigilDataQuery
   SigilDataRead
@@ -100,7 +86,8 @@ set(SIGIL_SKETCH_PRIVATE
   # A sketch opens network feeds through its assets, so the host is the
   # consumer that links the transports.
   SigilIOTransport
-  SigilGeometryDevice SigilSkiaGraphite SigilMediaVideoEncode SigilWeaveFonts)
+  SigilGeometryDevice SigilSkiaGraphite SigilMediaVideoDecode
+  SigilMediaImageEncode SigilMediaVideoEncode SigilWeaveFonts)
 # The one WebEngine Ultralight permits in a process, lent to every sketch
 # that asks for it. SigilScry itself keeps explicit caller ownership as
 # its ordinary path; a host that configures the shared engine opts in.
@@ -118,7 +105,14 @@ sigil_library(SigilSketch
   PUBLIC ${SIGIL_SKETCH_PUBLIC}
   PRIVATE ${SIGIL_SKETCH_PRIVATE})
 
-add_subdirectory(python)
+# Native modules consume the existing SDK targets and share the runtime's
+# metadata. The configuration's identity files are generated before build.
+include("${CMAKE_CURRENT_LIST_DIR}/cmake/SketchSDK.cmake")
+sigil_sketch_sdk()
+
+if(SIGIL_BUILD_PYTHON)
+  add_subdirectory(python)
+endif()
 
 # Each directory's cases and benchmarks, declared beside the code they
 # cover, in the library's one test binary and one bench binary.
@@ -139,10 +133,15 @@ endif()
 add_subdirectory(kit)
 
 # The sketches themselves, compiled into whichever host links them.
-add_subdirectory(sketches)
+if(SIGIL_BUILD_APPS)
+  add_subdirectory(sketches)
 
 # Sketchbook: the one live application.
-add_subdirectory(book)
+  add_subdirectory(book)
+endif()
+if(TARGET sketch_test)
+  add_subdirectory(cmake/test)
+endif()
 
 # Every sketch stem a document names, resolved against the registry.
 # A README points its reader at the sketches that draw the feature beside
@@ -248,4 +247,6 @@ sigil_doc_probes(sketch
   FLOORS 50,10,10,0,0
   LIBRARIES SigilSketch SigilIOFrames SigilDataDecode SigilDataScale
             SigilSketchSessionAgent SigilSketchTestingHarness
-            SigilMaterialSubstance)
+            SigilMaterialSubstance SigilComposeKit SigilComposeBrush
+            SigilComposeTypography SigilComposeDraw SigilComposeTesting
+            SigilGeometry SigilWorldDiligent SigilWeaveKit SigilWeavePorts)

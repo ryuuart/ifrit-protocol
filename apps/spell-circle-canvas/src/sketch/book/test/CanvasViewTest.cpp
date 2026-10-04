@@ -8,6 +8,7 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
+#include <sigilcompose/core/Factories.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 
@@ -34,13 +35,13 @@ struct CornerMark {
   void setup(SketchContext& ctx) {
     ctx.canvas(200, 100);
     ctx.background({0, 0, 1, 1});
-    ctx.composer.render(box().inset(0).children({box()
-                                                     .alignSelf(Align::Start)
-                                                     .flexShrink(0)
-                                                     .width(10)
-                                                     .height(10)
-                                                     .fill(Fill::color(
-                                                         {1, 0, 0, 1}))}));
+    ctx.composer.render(
+        box().inset(0).children({box()
+                                     .alignSelf(Align::Start)
+                                     .flexShrink(0)
+                                     .width(10)
+                                     .height(10)
+                                     .fill(Fill::color({1, 0, 0, 1}))}));
   }
 };
 
@@ -101,15 +102,14 @@ TEST(SketchbookPane, AZoomedFrameStaysThePaneAndShowsWhereTheViewSays) {
                               (int)(corner.y() + 3.0f)),
               kGround);
     // Above and to the left of the canvas the pane has no coverage.
-    EXPECT_EQ(SkColorGetA(pixels.getColor((int)corner.x() - 5,
-                                          (int)corner.y() - 5)),
-              0u);
+    EXPECT_EQ(
+        SkColorGetA(pixels.getColor((int)corner.x() - 5, (int)corner.y() - 5)),
+        0u);
 
     // A pointer is read back through the same placement: the pane's
     // point at the corner is the canvas's origin, and a point one zoom
     // further on is one canvas unit further on.
-    const Placement placement =
-        placeCanvas(canvas, SkSize::Make(kPane), view);
+    const Placement placement = placeCanvas(canvas, SkSize::Make(kPane), view);
     const SkPoint origin = canvasPointAt(placement, corner);
     EXPECT_NEAR(origin.x(), 0.0f, 1e-4f);
     EXPECT_NEAR(origin.y(), 0.0f, 1e-4f);
@@ -162,9 +162,9 @@ TEST(SketchbookPane, AHeldScaleDrawsTheSketchThereAndShowsItWhereTheViewSays) {
     EXPECT_EQ(pixels.getColor((int)(corner.x() + markEnd + 3.0f),
                               (int)(corner.y() + 3.0f)),
               kGround);
-    EXPECT_EQ(SkColorGetA(pixels.getColor((int)corner.x() - 5,
-                                          (int)corner.y() - 5)),
-              0u);
+    EXPECT_EQ(
+        SkColorGetA(pixels.getColor((int)corner.x() - 5, (int)corner.y() - 5)),
+        0u);
   }
 }
 
@@ -256,9 +256,8 @@ TEST(SketchbookPane, WhatASketchLeavesUncoveredShowsTheMatte) {
   ASSERT_TRUE(surface);
   // Half the canvas's size, centred: a band of pane on every side.
   drawPane(*surface->getCanvas(), SkSize::Make(kPane), SkSize::Make(200, 100),
-           {0.5f, {0, 0}}, [](SkCanvas& into) {
-             into.clear(SK_ColorTRANSPARENT);
-           });
+           {0.5f, {0, 0}},
+           [](SkCanvas& into) { into.clear(SK_ColorTRANSPARENT); });
   const SkBitmap pixels = plateOf(*surface);
   ASSERT_FALSE(pixels.isNull());
   EXPECT_EQ(pixels.getColor(100, 50), kPaneMatte);

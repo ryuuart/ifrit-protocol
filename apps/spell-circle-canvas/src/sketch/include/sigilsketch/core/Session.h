@@ -64,6 +64,14 @@ class Session {
    *  standing in for. */
   virtual void frame(SkCanvas& canvas, double dt) = 0;
 
+  /** Advance a frame whose output will not be kept. The default paints
+   *  through @p canvas because drawing may advance persistent state.
+   *  A runtime may omit painting only when the sketch declares that its
+   *  capture state advances completely without draw callbacks. */
+  virtual void discardedFrame(SkCanvas& canvas, double dt) {
+    frame(canvas, dt);
+  }
+
   /** Draw the state the last frame left, WITHOUT advancing it — what a
    *  host repaints with when only its window changed. */
   virtual void repaint(SkCanvas& canvas) = 0;

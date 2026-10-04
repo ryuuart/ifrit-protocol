@@ -46,6 +46,24 @@ TEST(SketchbookArguments, ASweepTakesItsMomentFromTheStillsTimeFlag) {
   EXPECT_FALSE(parse({"--headless", "plates", "--timing-json", "t.json"}));
 }
 
+TEST(SketchbookArguments, TheScaleFlagSetsBothStillAndSweepDensity) {
+  const auto defaults = parse({"--headless"});
+  ASSERT_TRUE(defaults);
+  EXPECT_EQ(defaults->capture.scale, 1.0f);
+  EXPECT_EQ(defaults->sweepOptions.density, 0.0f);
+  for (const char* value : {"0.5", "2"}) {
+    const auto args =
+        parse({"--headless", "plates", "--gpu", "--scale", value});
+    ASSERT_TRUE(args);
+    EXPECT_TRUE(args->gpu);
+    EXPECT_EQ(args->capture.scale, std::stof(value));
+    EXPECT_EQ(args->sweepOptions.density, args->capture.scale);
+    const auto reversed = parse({"--scale", value, "--headless", "plates"});
+    ASSERT_TRUE(reversed);
+    EXPECT_EQ(reversed->sweepOptions.density, args->capture.scale);
+  }
+}
+
 TEST(SketchbookArguments, AStateRootIsOneDirectoryNamedOnce) {
   const auto args = parse({"--state", "scratch/state", "--sketch", "cascade"});
   ASSERT_TRUE(args);
@@ -186,6 +204,47 @@ TEST(SketchbookArguments, ExplicitPublicationNamesCannotBecomeSketchPaths) {
     EXPECT_EQ(args->sketchFile, "selected.py");
   }
   EXPECT_FALSE(parse({"selected.py", "--publish="}));
+}
+
+TEST(SketchbookArguments, NativePluginSelectsTheWindowOrCaptureFile) {
+  const auto args =
+      parse({"--plugin", "build/scene.dylib", "--frame", "out.png"});
+  ASSERT_TRUE(args);
+  EXPECT_TRUE(args->plugin);
+  EXPECT_EQ(args->sketchFile, "build/scene.dylib");
+  EXPECT_EQ(args->capture.outputPath, "out.png");
+  const auto positional = parse({"build/scene.so"});
+  ASSERT_TRUE(positional);
+  EXPECT_TRUE(positional->plugin);
+  EXPECT_FALSE(parse({"--plugin"}));
+  EXPECT_FALSE(parse({"--plugin", ""}));
+  EXPECT_FALSE(parse({"--plugin", "scene.cpp"}));
+  EXPECT_FALSE(parse({"scene.cpp", "--plugin", "scene.dylib"}));
+  EXPECT_FALSE(parse({"--plugin", "scene.dylib", "--plugin", "other.dylib"}));
+  EXPECT_FALSE(parse({"--plugin", "scene.dylib", "--workspace", "sketches"}));
+  EXPECT_FALSE(parse({"--plugin", "scene.dylib", "--sketch", "scene"}));
+}
+
+TEST(SketchbookArguments, NativePluginSelectsOneHeadlessCaptureLane) {
+  const auto args =
+      parse({"--plugin", "scene.dylib", "--headless", "plates", "--gpu", "--at",
+             "0.25", "--scale", "0.5", "--promotion", "--kind", "canvas"});
+  ASSERT_TRUE(args);
+  EXPECT_TRUE(args->plugin);
+  EXPECT_TRUE(args->headless);
+  EXPECT_TRUE(args->gpu);
+  EXPECT_EQ(args->capture.at, 0.25);
+  EXPECT_EQ(args->sweepOptions.density, 0.5f);
+  EXPECT_TRUE(args->sweepOptions.promotion);
+  EXPECT_EQ(args->kind, "canvas");
+  EXPECT_FALSE(parse({"--plugin", "scene.dylib", "--headless", "plates",
+                      "--frame", "frame.png"}));
+  EXPECT_FALSE(parse({"--plugin", "scene.dylib", "--headless", "--bench"}));
+  EXPECT_FALSE(parse({"--plugin", "scene.dylib", "--headless", "--ledger"}));
+  EXPECT_FALSE(parse({"--plugin", "scene.dylib", "--headless", "plates",
+                      "--timing-json", "timing.json"}));
+  EXPECT_FALSE(parse(
+      {"--plugin", "scene.dylib", "--headless", "plates", "--stability"}));
 }
 
 }  // namespace

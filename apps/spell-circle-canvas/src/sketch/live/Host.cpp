@@ -1,6 +1,6 @@
 /** @file
- * The reload loop: watch, compile, dlopen, swap — and keep the last good
- * sketch running while a build is broken.
+ * Watch sources or native artifacts, adopt a compatible replacement,
+ * and keep the last good sketch running while a replacement fails.
  */
 
 #include "sigilsketch/live/Host.h"
@@ -8,39 +8,35 @@
 #include <dlfcn.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
-#include <include/core/SkData.h>
 #include <include/core/SkSurface.h>
 #include <include/utils/SkNoDrawCanvas.h>
 #include <sigilcore/schedule/ConcurrentIo.h>
-#include <sigilmedia/advanced/Skia.h>
-#include <sigilmedia/image/Encode.h>
 #include <sigilio/advanced/Problems.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/source/Sink.h>
-#include <sigilmeasure/time/Stopwatch.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
+#include <sigilmeasure/time/Stopwatch.h>
+#include <sigilmedia/advanced/Skia.h>
+#include <sigilmedia/image/Encode.h>
 #include <sigilsketch/core/Sources.h>
 #include <sigilsketch/plate/Sweep.h>
-#include <signal.h>
-#include <unistd.h>
 
 #include <algorithm>
-#include <atomic>
 #include <cctype>
-#include <cerrno>
 #include <cmath>
 #include <cstdio>
-#include <cstdlib>
+#include <exception>
 #include <fstream>
+#include <iterator>
 #include <limits>
-#include <mutex>
 #include <sstream>
 #include <stdexcept>
 #include <string_view>
 
 #include "BuildCache.h"
 #include "BuildDirectory.h"
+#include "SigilSketchBuildIdentity.h"
 #include "SkewGuard.h"
 #include "sigilsketch/core/Crash.h"
 
@@ -59,16 +55,18 @@ std::optional<SkISize> captureExtent(SkSize size, float scale = 1.0f) {
 }
 
 Host::Options withDefaults(Host::Options options) {
+  if (!options.pluginPath.empty()) {
+    options.sketchPath = options.pluginPath;
+    options.compiledIn = nullptr;
+  }
   // A sketch this binary carries takes the root the process stated; only
   // a file opened by path defaults to the assets beside it.
   if (options.assetsDirectory.empty() && !options.compiledIn) {
-    // A SKETCH THAT IS A DIRECTORY keeps its other units beside its
-    // entry, so the assets are NOT beside the entry: they are one level
-    // further up, in the directory every sketch shares. The entry's stem
-    // naming its own directory is what says which of the two forms this
-    // is, and it is the same rule that decides what compiles with it.
+    // A directory source sketch shares an assets root with its sibling
+    // sketches. A module's assets root always stands beside the module.
     std::filesystem::path beside = options.sketchPath.parent_path();
-    if (beside.filename() == options.sketchPath.stem())
+    if (options.pluginPath.empty() &&
+        beside.filename() == options.sketchPath.stem())
       beside = beside.parent_path();
     options.assetsDirectory = beside / "assets";
   }
@@ -252,7 +250,26 @@ std::string linkLine(const Host::Options& options,
 
 constexpr CanvasSpecification kUnloaded{};
 
+/** Returns this process's build directory reference when the constructor
+ *  that took it exits by an exception: a constructor that fails runs no
+ *  destructor to return it. */
+class BuildDirectoryRollback {
+ public:
+  BuildDirectoryRollback() = default;
+  BuildDirectoryRollback(const BuildDirectoryRollback&) = delete;
+  BuildDirectoryRollback& operator=(const BuildDirectoryRollback&) = delete;
+  ~BuildDirectoryRollback() {
+    if (std::uncaught_exceptions() > m_exceptionsOnEntry)
+      releaseBuildDirectory();
+  }
+
+ private:
+  int m_exceptionsOnEntry = std::uncaught_exceptions();
+};
+
 }  // namespace
+
+std::string_view hostBuildIdentity() { return SIGIL_SKETCH_BUILD_ID; }
 
 Host::Host(Options options, weave::FontContext& fonts)
     : m_options(withDefaults(std::move(options))),
@@ -264,7 +281,12 @@ Host::Host(Options options, weave::FontContext& fonts)
   // before this host existed, and this host walks nothing.
   if (claimSweep()) sweepAbandonedBuildDirectories();
   m_buildDirectory = acquireBuildDirectory();
+  const BuildDirectoryRollback rollbackDirectory;
   m_hostId = nextHostId();
+  if (!m_options.pluginPath.empty()) {
+    loadPlugin();
+    return;
+  }
   // Registered native bodies open directly. Python entries use the source
   // loader and record their input stamps before opening, so the first poll
   // does not import the same generation twice.
@@ -274,8 +296,8 @@ Host::Host(Options options, weave::FontContext& fonts)
       loadPython();
       return;
     }
-    m_kind = m_options.compiledIn->kind();
-    if (!openSession(m_kind)) return;
+    if (!openSession(m_options.compiledIn->kind(), m_options.compiledIn->probe))
+      return;
     if (const auto stamp = sourceStamp()) {
       m_compiledMtime = *stamp;
       m_everCompiled = true;
@@ -286,9 +308,8 @@ Host::Host(Options options, weave::FontContext& fonts)
 
 Host::~Host() {
   if (m_compile.valid()) m_compile.wait();
-  // A session's retained descriptions and running motions may point into
-  // sketch-owned state; release it before the libraries it came from.
-  // Loaded dylibs intentionally remain mapped.
+  // Release retained descriptions and motions while their modules remain
+  // mapped for values and callbacks that escaped this host.
   m_session.reset();
   // …and the files behind them go with the last host in this process.
   // An unlinked file that is mapped stays readable until the last
@@ -297,11 +318,15 @@ Host::~Host() {
   releaseBuildDirectory();
 }
 
-bool Host::openSession(const Kind& kind) {
+bool Host::openSession(const Kind& kind, bool (*available)(std::string*)) {
   if (!kind) return false;
   const measure::Stopwatch opened;
   try {
     PhaseMark mark(Phase::Setup);
+    if (m_options.prepareSession) m_options.prepareSession(kind);
+    std::string unavailable;
+    if (available && !available(&unavailable))
+      throw std::runtime_error("the sketch is unavailable: " + unavailable);
     // A compiled-in sketch is keyed by its entry; a workspace sketch by
     // its file's stem, with the files beside that file mounted as its own.
     std::string key;
@@ -319,6 +344,7 @@ bool Host::openSession(const Kind& kind) {
     if (!candidate) throw std::runtime_error("the sketch opened no session");
     m_session = std::move(candidate);
     m_kind = kind;
+    m_available = available;
   } catch (const std::exception& error) {
     m_errorLog = error.what();
     m_status =
@@ -326,8 +352,17 @@ bool Host::openSession(const Kind& kind) {
     std::fprintf(stderr, "[sketch] %s\n%s\n", m_status.c_str(),
                  m_errorLog.c_str());
     return false;
+  } catch (...) {
+    m_errorLog =
+        "session preparation, availability or setup threw an unknown exception";
+    m_status =
+        live() ? "setup failed — keeping previous sketch" : "setup failed";
+    std::fprintf(stderr, "[sketch] %s\n%s\n", m_status.c_str(),
+                 m_errorLog.c_str());
+    return false;
   }
-  std::fprintf(stderr, "[sketch] set up in %.0f ms\n", measure::Milliseconds(opened.elapsed()).count());
+  std::fprintf(stderr, "[sketch] set up in %.0f ms\n",
+               measure::Milliseconds(opened.elapsed()).count());
   m_runtimeFailed = false;
   m_errorLog.clear();
   m_problemLog.clear();
@@ -373,7 +408,7 @@ void Host::noteProblems() {
 
 bool Host::restartSession() {
   if (!m_kind) return false;
-  if (!openSession(m_kind)) return false;
+  if (!openSession(m_kind, m_available)) return false;
   // The new Session owns its own fresh engine. Reset the host-side clock as
   // well so asset polling and crash-report frame coordinates describe the
   // same new run, not the session that was just released.
@@ -561,39 +596,96 @@ void Host::startCompile() {
       });
 }
 
-void Host::adopt(const std::filesystem::path& library) {
+bool Host::adopt(const std::filesystem::path& library,
+                 std::string_view pluginIdentity) {
+  const bool prebuilt = !pluginIdentity.empty();
+  // A refused image that is no longer mapped leaves its per-generation
+  // file in the build directory with nothing to load it again.
+  // A compiled build's output stays: the build directory owns it.
+  const auto discardLibrary = [&library, prebuilt] {
+    if (!prebuilt) return;
+    std::error_code ignored;
+    std::filesystem::remove(library, ignored);
+  };
   void* handle = dlopen(library.c_str(), RTLD_NOW | RTLD_LOCAL);
   if (!handle) {
-    m_errorLog = dlerror();
-    m_status = "load failed";
-    return;
+    const char* reason = dlerror();
+    m_errorLog = reason ? reason : "the module could not be opened";
+    m_status = live() ? "load failed — keeping previous sketch" : "load failed";
+    discardLibrary();
+    return false;
   }
   auto abi = reinterpret_cast<unsigned (*)()>(dlsym(handle, "sigilSketchAbi"));
   auto exported =
       reinterpret_cast<const Entry* (*)()>(dlsym(handle, "sigilSketchEntry"));
-  // A REFUSED IMAGE IS CLOSED. Nothing in it is referenced — no session
-  // was opened, no vtable and no string literal of its is held — which
-  // is what separates it from the images below, none of which is ever
-  // closed.
-  if (!abi || !exported || abi() != kAbiVersion) {
+  auto identity =
+      reinterpret_cast<const char* (*)()>(dlsym(handle, "sigilSketchBuild"));
+  // A module without the required exports has supplied no callbacks or
+  // retained state, so it can be closed immediately.
+  if (!abi || !exported) {
     dlclose(handle);
+    discardLibrary();
     m_errorLog =
         "sketch ABI mismatch — is SIGIL_SKETCH(...) present? "
         "(after framework changes, restart the host)";
-    m_status = "load failed";
-    return;
+    m_status = live() ? "load failed — keeping previous sketch" : "load failed";
+    return false;
   }
-
-  const Entry* entry = exported();
-  if (!entry || !entry->kind) {
-    dlclose(handle);
-    m_errorLog = "the sketch exported no kind";
-    m_status = "load failed";
-    return;
+  try {
+    if (abi() != kAbiVersion) {
+      dlclose(handle);
+      discardLibrary();
+      m_errorLog = "sketch ABI mismatch — rebuild the plugin for this host";
+      m_status =
+          live() ? "load failed — keeping previous sketch" : "load failed";
+      return false;
+    }
+    const char* compiledIdentity = prebuilt && identity ? identity() : nullptr;
+    if (prebuilt && (!compiledIdentity || compiledIdentity != pluginIdentity)) {
+      dlclose(handle);
+      discardLibrary();
+      m_errorLog =
+          "plugin build identity mismatch — rebuild with this host's "
+          "SigilSketchSDK";
+      m_status =
+          live() ? "load failed — keeping previous sketch" : "load failed";
+      return false;
+    }
+  } catch (const std::exception& error) {
+    // The exception's what(), destructor or type information may live in
+    // this image. Keep it mapped through exception destruction and any
+    // callback-owned state that escaped while querying the metadata.
+    m_errorLog = error.what();
+    m_status = live() ? "load failed — keeping previous sketch" : "load failed";
+    return false;
+  } catch (...) {
+    m_errorLog = "plugin metadata callback threw an unknown exception";
+    m_status = live() ? "load failed — keeping previous sketch" : "load failed";
+    return false;
   }
-  m_libraries.push_back(handle);
-  // An open that succeeded has already cleared the log.
-  if (!openSession(entry->kind())) return;
+  // Accepted images remain mapped even when a C++ callback fails: code a
+  // callback retained elsewhere must remain callable after that failure.
+  try {
+    const Entry* entry = exported();
+    if (!entry || !entry->kind)
+      throw std::runtime_error("the sketch exported no kind");
+    if (!openSession(entry->kind(), entry->probe)) return false;
+  } catch (const std::exception& error) {
+    m_errorLog = error.what();
+    m_status = live() ? "load failed — keeping previous sketch" : "load failed";
+    return false;
+  } catch (...) {
+    m_errorLog = "plugin entry or factory threw an unknown exception";
+    m_status = live() ? "load failed — keeping previous sketch" : "load failed";
+    return false;
+  }
+  if (prebuilt) {
+    // A plugin's generation counts adopted modules, not attempts.
+    ++m_generation;
+    m_status = "live · plugin " + std::to_string(m_generation);
+    std::fprintf(stderr, "[sketch] %s\n", m_status.c_str());
+    return true;
+  }
   const double seconds = std::chrono::duration<double>(
                              std::chrono::steady_clock::now() - m_compileStart)
                              .count();
@@ -607,6 +699,7 @@ void Host::adopt(const std::filesystem::path& library) {
                   m_generation, seconds);
   m_status = line;
   std::fprintf(stderr, "[sketch] %s\n", m_status.c_str());
+  return true;
 }
 
 bool Host::pythonChanged() {
@@ -667,8 +760,12 @@ void Host::loadPython() {
 }
 
 void Host::sessionFailed(const std::exception& error) {
+  sessionFailed(std::string(error.what()));
+}
+
+void Host::sessionFailed(std::string message) {
   m_runtimeFailed = true;
-  m_errorLog = error.what();
+  m_errorLog = std::move(message);
   m_status = "sketch failed — waiting for an edit";
   std::fprintf(stderr, "[sketch] %s\n%s\n", m_status.c_str(),
                m_errorLog.c_str());
@@ -682,9 +779,9 @@ void Host::poll() {
     if (result.ok) {
       m_unitsCompiled = result.compiled;
       m_unitsTotal = result.units;
-      adopt(result.library);
+      const bool adopted = adopt(result.library);
       if (result.cached) {
-        if (m_errorLog.empty()) {
+        if (adopted) {
           m_status = "live · cached build";
           std::fprintf(stderr, "[sketch] %s\n", m_status.c_str());
         } else {
@@ -707,7 +804,9 @@ void Host::poll() {
   }
 
   // Source changed (or never built) → kick a compile.
-  if (m_options.sketchPath.extension() == ".py") {
+  if (!m_options.pluginPath.empty()) {
+    loadPlugin();
+  } else if (m_options.sketchPath.extension() == ".py") {
     if (pythonChanged()) loadPython();
   } else if (!m_compile.valid()) {
     if (const auto stamp = sourceStamp();
@@ -729,6 +828,10 @@ void Host::poll() {
           m_session->redeclare();
         } catch (const std::exception& error) {
           sessionFailed(error);
+        } catch (...) {
+          sessionFailed(
+              "the sketch threw an unknown exception while "
+              "declaring its resources");
         }
       }
     }
@@ -739,6 +842,10 @@ void Host::poll() {
 }
 
 bool Host::frame(SkCanvas& canvas, double fixedDt) {
+  return runFrame(canvas, fixedDt, false);
+}
+
+bool Host::runFrame(SkCanvas& canvas, double fixedDt, bool discarded) {
   if (!m_session || m_runtimeFailed) return false;
   m_frameTimes.begin();
   // A stated step and a wall-clock one are the same clock here as
@@ -753,9 +860,15 @@ bool Host::frame(SkCanvas& canvas, double fixedDt) {
   {
     PhaseMark mark(Phase::Update);
     try {
-      m_session->frame(canvas, fixedDt);
+      if (discarded)
+        m_session->discardedFrame(canvas, fixedDt);
+      else
+        m_session->frame(canvas, fixedDt);
     } catch (const std::exception& error) {
       sessionFailed(error);
+      return false;
+    } catch (...) {
+      sessionFailed("the sketch threw an unknown exception during a frame");
       return false;
     }
   }
@@ -771,7 +884,7 @@ bool Host::frame(double fixedDt) {
     return false;
   }
   SkNoDrawCanvas scratch(extent->width(), extent->height());
-  if (!frame(scratch, fixedDt)) return false;
+  if (!runFrame(scratch, fixedDt, true)) return false;
   if (!captureExtent(canvasSize())) {
     m_errorLog = "Canvas dimensions are invalid";
     return false;
@@ -830,6 +943,11 @@ SkBitmap Host::drawStill(SkISize extent, float scale, const SkColor4f& ground,
     draw(canvas);
   } catch (const std::exception& error) {
     sessionFailed(error);
+    return {};
+  } catch (...) {
+    sessionFailed(
+        "the sketch threw an unknown exception while drawing a "
+        "still");
     return {};
   }
   SkBitmap bitmap;

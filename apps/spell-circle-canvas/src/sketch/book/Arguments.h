@@ -27,6 +27,8 @@
  *  what it draws to other applications. */
 struct Arguments {
   std::filesystem::path sketchFile;
+  /** The selected file is a native artifact compiled outside the host. */
+  bool plugin = false;
   std::filesystem::path workspace;
   std::filesystem::path assetsOverride;
   /** A launcher chooses one Python environment before any sketch is probed.

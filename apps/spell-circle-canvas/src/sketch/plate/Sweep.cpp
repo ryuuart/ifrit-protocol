@@ -15,13 +15,13 @@
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
 #include <include/utils/SkNoDrawCanvas.h>
-#include <sigilmedia/advanced/Skia.h>
-#include <sigilmedia/image/Encode.h>
-#include <sigilio/source/Sink.h>
 #include <sigilio/advanced/Problems.h>
+#include <sigilio/source/Sink.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmeasure/advanced/FrameTimer.h>
+#include <sigilmedia/advanced/Skia.h>
+#include <sigilmedia/image/Encode.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/Crash.h>
 #include <sigilsketch/core/Registry.h>
@@ -29,6 +29,7 @@
 #include <sigilsketch/plate/Graphite.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/PaintOrder.h>
+#include <sigilskia/graphite/Readback.h>
 
 #include <algorithm>
 #include <cmath>
@@ -108,6 +109,10 @@ float plateDensity(const Session& session) {
 
 int sweep(const SweepOptions& options, weave::FontContext& fonts,
           Assets& assets) {
+  if (!std::isfinite(options.density) || options.density < 0) {
+    std::fprintf(stderr, "plate density must be zero or finite and positive\n");
+    return 1;
+  }
   if (options.promotion && options.noPromotion) {
     std::fprintf(stderr,
                  "--promotion and --no-promotion ask for opposite runs; "
@@ -226,8 +231,8 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       if (problems.empty()) return;
       ++failed;
       for (const io::Problem& problem : problems)
-        std::fprintf(stderr, "sketch %s resource error: %s: %s\n",
-                     entry.key, problem.uri.c_str(), problem.message.c_str());
+        std::fprintf(stderr, "sketch %s resource error: %s: %s\n", entry.key,
+                     problem.uri.c_str(), problem.message.c_str());
     };
     std::unique_ptr<Session> session;
     {
@@ -254,10 +259,25 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     // Every size below comes off the session: a sketch declares its own
     // canvas from inside its own setup, which opening has just run.
     const SkSize size = session->canvas().size;
+    const float scale =
+        options.density > 0 ? options.density : plateDensity(*session);
+    if (options.density > 0) session->setBakeDensity(scale);
+    // A held 3D frame is formed at the stepping canvas's density. An
+    // explicit capture density therefore applies before its first frame.
+    const float frameScale = options.density > 0 ? scale : 1.0f;
+    const PlateExtent frameExtent =
+        plateExtent(size.width(), size.height(), frameScale);
+    const PlateExtent extent = plateExtent(size.width(), size.height(), scale);
+    if (frameExtent.width <= 0 || frameExtent.height <= 0 ||
+        extent.width <= 0 || extent.height <= 0) {
+      std::fprintf(stderr, "could not form a plate at this density for %s\n",
+                   entry.name);
+      return 1;
+    }
     const SkColor4f clearColor =
         sigil::material::skia::toSkColor(session->canvas().background);
     const SkImageInfo info =
-        SkImageInfo::MakeN32Premul((int)size.width(), (int)size.height());
+        SkImageInfo::MakeN32Premul(frameExtent.width, frameExtent.height);
     sk_sp<SkSurface> surface;
     std::function<void()> flushHook;
     if (graphite) {
@@ -282,15 +302,15 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     if (graphite) ordered.emplace(*graphite, surface->getCanvas());
     SkCanvas* const frameCanvas =
         ordered ? static_cast<SkCanvas*>(&*ordered) : surface->getCanvas();
+    frameCanvas->scale(frameScale, frameScale);
 
     // REACHING THE CAPTURE MOMENT COSTS THE SKETCH'S OWN WORK, NOT THE
     // RASTERISER'S. Every frame before the captured one is thrown away, so
     // those are described onto a canvas that keeps the size and the clip
-    // and rasterises nothing: the body runs, the tree is reconciled, laid
-    // out and painted exactly as it would be, and only the fill of pixels
-    // nobody will read is skipped. A scene whose declared moment is many
-    // seconds out spends its whole render there.
-    SkNoDrawCanvas discarded((int)size.width(), (int)size.height());
+    // and discards its pixels. Drawing still advances persistent paint
+    // state unless the sketch declares its capture updates sufficient.
+    SkNoDrawCanvas discarded(frameExtent.width, frameExtent.height);
+    discarded.scale(frameScale, frameScale);
 
     // The three lanes a frame is judged by, the same instrument the live
     // host and the product renderer read theirs from.
@@ -310,7 +330,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     const auto advanceOne = [&] {
       discarded.clear(clearColor);
       PhaseMark mark(Phase::Update);
-      session->frame(discarded, kStep);
+      session->discardedFrame(discarded, kStep);
     };
 
     // Warm past the entrance choreography so the table reports STEADY
@@ -382,7 +402,6 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     // what that cannot survive, so a declaration outranks the ceiling
     // and every tier honours it alike: two plates of one sketch are
     // comparable only if they were photographed on the same grid.
-    const float scale = plateDensity(*session);
     // A MOMENT THE RUN NAMED outranks the sketch's own, and zero is one:
     // the still is then the scene's first frame.
     const bool named = options.at >= 0;
@@ -418,6 +437,10 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       // declaration is re-formed only when its node describes again.
       session->setBakeDensity(scale);
       const int captureFrame = (int)std::lround(declared * kRate);
+      // A still that presents a held frame needs that frame to exist,
+      // including when the requested moment advances no time.
+      if (captureFrame == 0 && session->stillStep() == 0)
+        session->discardedFrame(discarded, 0);
       for (int f = 0; f < captureFrame; ++f) advanceOne();
     } else {
       const int stepped = kProbeFrames + warmFrames + sampleFrames;
@@ -442,7 +465,6 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       std::printf("\n");
     }
 
-    const PlateExtent extent = plateExtent(size.width(), size.height(), scale);
     const SkImageInfo plateInfo =
         SkImageInfo::MakeN32Premul(extent.width, extent.height);
     const std::string path = options.outputDirectory + "/" +
@@ -465,46 +487,11 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       orderedPlate.clear(clearColor);
       orderedPlate.scale(scale, scale);
       session->still(orderedPlate);
-      if (auto recording = graphite->recorder()->snap()) {
-        skgpu::graphite::InsertRecordingInfo insert;
-        insert.fRecording = recording.get();
-        graphite->context()->insertRecording(insert);
-      }
-      struct ReadContext {
-        std::unique_ptr<const SkImage::AsyncReadResult> result;
-        bool called = false;
-      } read;
-      graphite->context()->asyncRescaleAndReadPixels(
-          plate.get(), plateInfo,
-          SkIRect::MakeWH(plateInfo.width(), plateInfo.height()),
-          SkImage::RescaleGamma::kSrc, SkImage::RescaleMode::kNearest,
-          [](SkImage::ReadPixelsContext context,
-             std::unique_ptr<const SkImage::AsyncReadResult> result) {
-            auto* r = static_cast<ReadContext*>(context);
-            r->result = std::move(result);
-            r->called = true;
-          },
-          &read);
-      skgpu::graphite::SubmitInfo submitInfo;
-      submitInfo.fSync = skgpu::graphite::SyncToCpu::kYes;
-      graphite->context()->submit(submitInfo);
-      for (int spin = 0; spin < 5000 && !read.called; ++spin)
-        graphite->context()->checkAsyncWorkCompletion();
-      if (!read.result) {
-        // A PLATE THAT WAS NOT READ BACK IS A PLATE THAT WAS NOT WRITTEN,
-        // and the run's answer is that every selected sketch rendered:
-        // carrying on would leave the name with no picture under it and
-        // still exit as though it had one.
+      if (!skia::readbackPixels(*graphite, *plate, bitmap.pixmap())) {
         std::fprintf(stderr, "could not read back the device plate for %s\n",
                      entry.name);
         return 1;
       }
-      const auto* src = static_cast<const uint8_t*>(read.result->data(0));
-      const size_t srcRowBytes = read.result->rowBytes(0);
-      for (int y = 0; y < plateInfo.height(); ++y)
-        std::memcpy(bitmap.pixmap().writable_addr(0, y),
-                    src + (size_t)y * srcRowBytes,
-                    std::min(srcRowBytes, bitmap.rowBytes()));
       if (!writePlate(bitmap.pixmap(), path)) return 1;
       reportProblems();
       ++plates;
@@ -547,7 +534,8 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
                 options.outputDirectory.c_str());
   }
   if (failed)
-    std::fprintf(stderr, "%zu sketches rendered with resource errors\n", failed);
+    std::fprintf(stderr, "%zu sketches rendered with resource errors\n",
+                 failed);
   return failed ? 1 : 0;
 }
 

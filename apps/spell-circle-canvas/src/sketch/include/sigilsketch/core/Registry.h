@@ -192,7 +192,7 @@ struct RegistryRow {
  *  pointer that kind opens a session on. A host refuses a dylib built
  *  against another version rather than letting a stale binary corrupt
  *  it. */
-inline constexpr unsigned kAbiVersion = 9;
+inline constexpr unsigned kAbiVersion = 10;
 
 }  // namespace sigil::sketch
 

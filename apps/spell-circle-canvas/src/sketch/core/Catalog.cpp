@@ -27,7 +27,8 @@ void describeFile(CatalogRow& row, const fs::path& file,
   const fs::path relative = file.lexically_relative(root);
   row.entryPath =
       !relative.empty() && *relative.begin() != ".." ? relative : file;
-  row.source = sourceMetadata(file);
+  if (file.extension() == ".cpp" || file.extension() == ".py")
+    row.source = sourceMetadata(file);
 }
 
 /** The group a file opened by path stands under: the workspace, and the

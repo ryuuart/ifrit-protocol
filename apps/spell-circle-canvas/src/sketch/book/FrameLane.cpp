@@ -7,6 +7,7 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
+#include <include/gpu/graphite/Surface.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmeasure/advanced/Quantiles.h>
 #include <sigilmeasure/stats/Summary.h>
@@ -14,11 +15,17 @@
 #include <sigilsketch/core/Crash.h>
 #include <sigilsketch/core/Session.h>
 #include <sigilsketch/live/Host.h>
+#include <sigilsketch/plate/Graphite.h>
+#include <sigilsketch/plate/Sweep.h>
+#include <sigilskia/graphite/GraphiteContext.h>
+#include <sigilskia/graphite/PaintOrder.h>
+#include <sigilskia/graphite/Readback.h>
 
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <memory>
 #include <span>
 #include <string>
 #include <thread>
@@ -43,11 +50,13 @@ std::string numberedPath(const std::string& path, int index) {
              : path.substr(0, dot) + suffix + path.substr(dot);
 }
 
+}  // namespace
+
 /** Blocks until the first build lands (or fails); false = never got
  *  live. */
-bool awaitFirstBuild(sketch::Host& host) {
+bool awaitFirstBuild(sketch::Host& host, std::string_view runtime) {
   using namespace std::chrono_literals;
-  for (int i = 0; i < 1200; ++i) {
+  for (int i = 0; !host.live() && i < 1200; ++i) {
     host.poll();
     if (host.live() || !host.errorLog().empty()) break;
     std::this_thread::sleep_for(50ms);
@@ -57,10 +66,14 @@ bool awaitFirstBuild(sketch::Host& host) {
                  host.errorLog().c_str());
     return false;
   }
+  if (!runtime.empty() && runtime != host.kind()) {
+    std::fprintf(stderr, "plugin runtime is %.*s, not the requested %.*s\n",
+                 (int)host.kind().size(), host.kind().data(),
+                 (int)runtime.size(), runtime.data());
+    return false;
+  }
   return true;
 }
-
-}  // namespace
 
 /** The frame-time gate, measured on the sketch's REAL canvas.
  *
@@ -76,8 +89,8 @@ bool awaitFirstBuild(sketch::Host& host) {
  *  one over budget. It exits 0 whenever it measured; a sketch that never
  *  built, or a surface that could not be allocated, exits 1. */
 int runBench(sketch::Host& host, const CaptureOptions& options,
-             const std::filesystem::path& path) {
-  if (!awaitFirstBuild(host)) return 1;
+             const std::filesystem::path& path, std::string_view runtime) {
+  if (!awaitFirstBuild(host, runtime)) return 1;
   const SkSize canvas = host.canvasSize();
   const int width = std::max(1, (int)(canvas.width() * options.scale));
   const int height = std::max(1, (int)(canvas.height() * options.scale));
@@ -215,8 +228,7 @@ int runBench(sketch::Host& host, const CaptureOptions& options,
       "mean=%.2fms max=%.2fms fps50=%.1f VERDICT=%s\n",
       path.stem().string().c_str(), width, height, (int)frames.size(),
       options.jitterDt > 0.0 ? "jittered" : "fixed", p50, p95, p99,
-      frameSummary.mean(), frameSummary.max(),
-      p50 > 0 ? 1000.0 / p50 : 0.0,
+      frameSummary.mean(), frameSummary.max(), p50 > 0 ? 1000.0 / p50 : 0.0,
       plateOnly ? "PLATE" : (pass ? "PASS" : "FAIL"));
   std::printf("  phases (mean ms): update %.2f · draw %.2f", mean(updates),
               mean(draws));
@@ -266,8 +278,45 @@ int runBench(sketch::Host& host, const CaptureOptions& options,
   return 0;
 }
 
-int runFrames(sketch::Host& host, const CaptureOptions& options) {
-  if (!awaitFirstBuild(host)) return 1;
+int runFrames(sketch::Host& host, const CaptureOptions& options, bool gpu,
+              std::string_view runtime,
+              sigil::skia::GraphiteContext* canvasGraphite) {
+  if (!awaitFirstBuild(host, runtime)) return 1;
+  struct CaptureScope {
+    sketch::Host* host = nullptr;
+    std::unique_ptr<sigil::skia::PaintOrderCanvas> canvas;
+    ~CaptureScope() {
+      if (host) host->setCaptureBackend({});
+    }
+  } capture;
+  if (gpu) {
+    sigil::skia::GraphiteContext* graphite = nullptr;
+#ifdef __APPLE__
+    graphite = host.needsDevice() ? sketch::deviceGraphite() : canvasGraphite;
+#else
+    graphite = sketch::deviceGraphite();
+#endif
+    if (!graphite) {
+      std::fprintf(stderr, "capture: the device has no Graphite context\n");
+      return 1;
+    }
+    capture.host = &host;
+    host.setCaptureBackend(
+        {[graphite](const SkImageInfo& info) {
+           return SkSurfaces::RenderTarget(graphite->recorder(), info);
+         },
+         [graphite](SkSurface& surface, const SkPixmap& pixels) {
+           return sigil::skia::readbackPixels(*graphite, surface, pixels);
+         },
+         [graphite, &capture](SkSurface& surface) -> SkCanvas* {
+           capture.canvas = std::make_unique<sigil::skia::PaintOrderCanvas>(
+               *graphite, surface.getCanvas());
+           return capture.canvas.get();
+         }});
+  }
+  std::printf("backend: %s, runtime: %.*s\n",
+              gpu ? "Graphite GPU" : "CPU raster", (int)host.kind().size(),
+              host.kind().data());
   const double declared = host.captureSeconds();
   double at;
   try {
@@ -284,8 +333,7 @@ int runFrames(sketch::Host& host, const CaptureOptions& options) {
   // much nearer already; a rate faster than that step spaces its frames
   // at the step.
   const double dt = 1.0 / options.fps;
-  const double stillStep =
-      host.session() ? host.session()->stillStep() : 0.0;
+  const double stillStep = host.session() ? host.session()->stillStep() : 0.0;
 
   for (int index = 0; index < options.frames; ++index) {
     const std::string path = options.frames > 1
@@ -315,4 +363,39 @@ int runFrames(sketch::Host& host, const CaptureOptions& options) {
       host.generation(),
       sigil::measure::Milliseconds(host.frameTimes().work().mean()).count());
   return 0;
+}
+
+int runPluginSweep(sketch::Host& host, const sketch::SweepOptions& sweep,
+                   CaptureOptions capture,
+                   sigil::skia::GraphiteContext* canvasGraphite) {
+  if (!awaitFirstBuild(host, sweep.kind)) return 1;
+  if (sweep.promotion && sweep.noPromotion) {
+    std::fprintf(stderr,
+                 "--promotion and --no-promotion ask for opposite runs\n");
+    return 2;
+  }
+  if (sweep.countPlane) {
+    std::fprintf(stderr,
+                 "--composites is unavailable for a native plugin capture\n");
+    return 2;
+  }
+  sketch::Session* session = host.session();
+  session->setAutoPromotion(sweep.promotion ? sketch::Session::Promotion::Eager
+                                            : sketch::Session::Promotion::Off);
+  if (sweep.promotion && session->canvas().nonlinearPicture)
+    std::printf("plugin: declared nonlinear\n");
+  capture.scale =
+      sweep.density > 0 ? sweep.density : sketch::plateDensity(*session);
+  std::error_code error;
+  std::filesystem::create_directories(sweep.outputDirectory, error);
+  if (error) {
+    std::fprintf(stderr, "could not create plate directory: %s\n",
+                 error.message().c_str());
+    return 1;
+  }
+  capture.outputPath = (std::filesystem::path(sweep.outputDirectory) /
+                        (std::string(sketch::kPlatePrefix) +
+                         host.sketchPath().stem().string() + ".png"))
+                           .string();
+  return runFrames(host, capture, sweep.gpu, {}, canvasGraphite);
 }

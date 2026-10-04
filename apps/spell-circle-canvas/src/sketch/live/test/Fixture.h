@@ -7,6 +7,7 @@
  * binary with.
  */
 
+#include <sigilcompose/core/Factories.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/live/Host.h>

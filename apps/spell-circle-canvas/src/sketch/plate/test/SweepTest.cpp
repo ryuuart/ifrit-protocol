@@ -13,21 +13,29 @@
 
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
+#include <sigilcompose/core/Factories.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Pen.h>
+#include <sigilgeometry/mesh/Mesh.h>
+#include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/program/Shader.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/image/Decode.h>
 #include <sigilmedia/video/Video.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/plate/Story.h>
 #include <sigilsketch/plate/Sweep.h>
+#include <sigilsketch/set/Set.h>
+#include <sigilworld/element/Element.h>
+#include <sigilworld/frame/Frame.h>
 
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <span>
 #include <string>
 #include <vector>
@@ -65,15 +73,60 @@ struct Probe {
  *  Story tests can distinguish an honest pre-roll from an early loading cut,
  *  and can measure whether editorial motion shifted its frame. */
 struct StoryMomentProbe {
+  static inline int updates = 0, paints = 0;
+  static inline double firstPaintSeconds = -1, lastUpdateSeconds = -1;
+  double seconds = 0;
+
   void setup(SketchContext& ctx) {
     ctx.canvas(64, 48);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(2.0);
+    ctx.paintDiscardedFrames(false);
+    ctx.composer.render(
+        pen(
+            "story_moment_probe.paint",
+            [this](sigil::draw::Pen& pen) {
+              if (paints == 0) firstPaintSeconds = seconds;
+              ++paints;
+              pen.noStroke();
+              pen.fill(seconds > 1.9 ? sigil::material::Color{0, 1, 0, 1}
+                                     : sigil::material::Color{1, 0, 0, 1});
+              pen.rect(0, 0, 64, 48);
+            },
+            Cache::None)
+            .width(64)
+            .height(48));
   }
-  void update(double elapsed, SketchContext& ctx) {
-    ctx.composer.render(box().width(64).height(48).fill(
-        Fill::color(elapsed > 1.9 ? sigil::material::Color{0, 1, 0, 1}
-                                  : sigil::material::Color{1, 0, 0, 1})));
+  void update(double elapsed) {
+    ++updates;
+    seconds = lastUpdateSeconds = elapsed;
+  }
+};
+
+/** A retained set whose initial scene is green and every later scene is
+ *  red. Repainting its held frame must keep the initial scene time. */
+struct InitialSetProbe {
+  static inline float describedSeconds = -1;
+
+  void setup(SetContext& ctx) {
+    ctx.canvas(64, 48);
+    ctx.background({0, 0, 0, 1});
+    ctx.captureAt(0.5);
+    sigil::geometry::mesh::camera::Camera lens;
+    lens.eye = {0, 0, 200};
+    lens.target = {0, 0, 0};
+    ctx.camera(lens);
+  }
+
+  sigil::world::Frame describe(float seconds) {
+    describedSeconds = seconds;
+    const sigil::material::Color color =
+        seconds == 0 ? sigil::material::Color{0, 1, 0, 1}
+                     : sigil::material::Color{1, 0, 0, 1};
+    return sigil::world::Element()
+        .key("initial_set")
+        .mesh(sigil::geometry::mesh::quad(120, 90))
+        .fill(sigil::material::surface::unlit({.baseColor = color}));
   }
 };
 
@@ -128,6 +181,27 @@ struct WidePlateAtTwo {
   }
 };
 
+/** Each opened session records its first frame's bake density. */
+struct DensityPlate {
+  static inline std::vector<float> firstDensities;
+  bool firstFrame = true;
+
+  void setup(SketchContext& ctx) {
+    ctx.canvas(64, 48);
+    ctx.background({0, 0, 0, 1});
+    ctx.oversample(3);
+    ctx.composer.render(box().width(64).height(48).children(
+        {box().absolute().left(8).top(8).width(16).height(16).fill(
+            Fill::color({0, 1, 0, 1}))}));
+  }
+
+  void update(double, SketchContext& ctx) {
+    if (!firstFrame) return;
+    firstDensities.push_back(ctx.composer.bakeDensity());
+    firstFrame = false;
+  }
+};
+
 /** A sketch over something this machine does not have. The probe is a
  *  static member, which is how a sketch states its own requirement. */
 struct Ungrounded {
@@ -146,9 +220,8 @@ struct MissingShader {
   void setup(SketchContext& ctx) {
     ctx.canvas(64, 48);
     ctx.captureAt(0.05);
-    ctx.composer.render(box().width(64).height(48).fill(
-        sigil::material::shader(ctx.assets.hub(),
-                                "res://missing_sweep_program.sksl")));
+    ctx.composer.render(box().width(64).height(48).fill(sigil::material::shader(
+        ctx.assets.hub(), "res://missing_sweep_program.sksl")));
   }
 };
 
@@ -352,13 +425,37 @@ TEST(Sweep, AMomentTheRunNamesOutranksTheOneTheSketchDeclared) {
             bytesOf(first.path / "plate_sweep_probe.png"));
 }
 
+TEST(Sweep, AZeroMomentDescribesTheInitialSetAndKeepsItsTime) {
+  const ScratchDir out("sigil_sweep_initial_set");
+  SweepOptions options = ledgerRun(out.path);
+  options.only = find("initial_set_probe");
+  options.at = 0.0;
+  ASSERT_GE(options.only, 0);
+  InitialSetProbe::describedSeconds = -1;
+  ASSERT_EQ(0, sweep(options, fonts(), assets()));
+  EXPECT_EQ(InitialSetProbe::describedSeconds, 0.0f);
+
+  const sk_sp<SkImage> image =
+      plateImage(out.path / "plate_initial_set_probe.png");
+  ASSERT_TRUE(image);
+  const PixelBounds bounds = greenBounds(*image);
+  EXPECT_GT(bounds.right, bounds.left);
+  EXPECT_GT(bounds.bottom, bounds.top);
+  EXPECT_GT(bounds.left, 0);
+  EXPECT_GT(bounds.top, 0);
+  EXPECT_LT(bounds.right, image->width() - 1);
+  EXPECT_LT(bounds.bottom, image->height() - 1);
+}
+
 TEST(Sweep, SelectsByRuntime) {
   const ScratchDir out("sigil_sweep_runtime");
   SweepOptions options = ledgerRun(out.path);
   options.only = -1;
-  options.kind = "set";  // nothing in this binary draws through one
+  options.kind = "set";
   ASSERT_EQ(0, sweep(options, fonts(), assets()));
   EXPECT_FALSE(std::filesystem::exists(out.path / "plate_sweep_probe.png"));
+  EXPECT_TRUE(
+      std::filesystem::exists(out.path / "plate_initial_set_probe.png"));
 }
 
 TEST(Sweep, PassesOverASketchWhoseProbeSaysThisMachineCannotDrawIt) {
@@ -403,6 +500,48 @@ TEST(Sweep, KeepsTheWidthCeilingForASketchThatDeclaresNoOversample) {
   EXPECT_EQ(plate.width, (unsigned)kPlateWidthCeiling);
 }
 
+TEST(Sweep, AnExplicitDensitySizesThePlateAndPinsEverySessionsFirstFrame) {
+  for (const float density : {0.5f, 2.0f}) {
+    SCOPED_TRACE(density);
+    const ScratchDir out("sigil_sweep_density");
+    SweepOptions options = ledgerRun(out.path);
+    options.only = find("density_plate");
+    options.density = density;
+    options.at = 0;
+    // Exercise the measured session and the fresh capture session.
+    options.ledger = false;
+    ASSERT_GE(options.only, 0);
+    DensityPlate::firstDensities.clear();
+    ASSERT_EQ(0, sweep(options, fonts(), assets()));
+    ASSERT_EQ(DensityPlate::firstDensities.size(), 2u);
+    for (const float observed : DensityPlate::firstDensities)
+      EXPECT_EQ(observed, density);
+
+    const sk_sp<SkImage> image =
+        plateImage(out.path / "plate_density_plate.png");
+    ASSERT_TRUE(image);
+    EXPECT_EQ(image->width(), (int)(64 * density));
+    EXPECT_EQ(image->height(), (int)(48 * density));
+    const PixelBounds bounds = greenBounds(*image);
+    EXPECT_EQ(bounds.left, (int)(8 * density));
+    EXPECT_EQ(bounds.top, (int)(8 * density));
+    EXPECT_EQ(bounds.right, (int)(24 * density) - 1);
+    EXPECT_EQ(bounds.bottom, (int)(24 * density) - 1);
+  }
+}
+
+TEST(Sweep, InvalidOrOverflowingDensityIsRefusedBeforeAllocatingAPlate) {
+  const ScratchDir out("sigil_sweep_invalid_density");
+  for (const float density : {-1.0f, std::numeric_limits<float>::infinity(),
+                              std::numeric_limits<float>::quiet_NaN(), 1e20f}) {
+    SCOPED_TRACE(density);
+    SweepOptions options = ledgerRun(out.path);
+    options.density = density;
+    EXPECT_EQ(1, sweep(options, fonts(), assets()));
+  }
+  EXPECT_FALSE(std::filesystem::exists(out.path / "plate_sweep_probe.png"));
+}
+
 TEST(Story, EncodesASelectedSketchAsVerticalMp4) {
   const ScratchDir out("sigil_story_selected");
   StoryOptions options;
@@ -417,7 +556,14 @@ TEST(Story, EncodesASelectedSketchAsVerticalMp4) {
   options.bitRate = 500'000;
   options.hardware = sigil::media::HardwarePreference::Disabled;
   ASSERT_GE(options.only, 0);
+  StoryMomentProbe::updates = StoryMomentProbe::paints = 0;
+  StoryMomentProbe::firstPaintSeconds = StoryMomentProbe::lastUpdateSeconds =
+      -1;
   ASSERT_EQ(0, story(options, fonts(), assets()));
+  EXPECT_GE(StoryMomentProbe::updates, 120 + options.framesPerSketch);
+  EXPECT_EQ(StoryMomentProbe::paints, options.framesPerSketch);
+  EXPECT_NEAR(StoryMomentProbe::firstPaintSeconds, 2.0, 1e-9);
+  EXPECT_NEAR(StoryMomentProbe::lastUpdateSeconds, 2.2, 1e-9);
 
   const std::vector<char> encoded = bytesOf(options.outputPath);
   ASSERT_FALSE(encoded.empty());
@@ -435,7 +581,8 @@ TEST(Story, EncodesASelectedSketchAsVerticalMp4) {
       options.outputPath);
   ASSERT_TRUE(clip);
   const sigil::media::Frame first = clip->decodeAt({});
-  const sigil::media::Frame last = clip->decodeAt(std::chrono::duration<double>(0.2));
+  const sigil::media::Frame last =
+      clip->decodeAt(std::chrono::duration<double>(0.2));
   ASSERT_TRUE(first.image);
   ASSERT_TRUE(last.image);
   const PixelBounds firstBounds = greenBounds(*sigil::media::toSk(first.image));
@@ -505,6 +652,12 @@ TEST(Story, AKeptCanvasSurvivesThePreRoll) {
     add("story_moment_probe", nullptr, "Test",
         "a late capture moment held in a fixed video frame",
         &kindOf<StoryMomentProbe>);
+[[maybe_unused]] const bool initialSetRegistered =
+    add("initial_set_probe", nullptr, "Test", "a retained scene at time zero",
+        &kindOf<InitialSetProbe>);
+[[maybe_unused]] const bool densityPlateRegistered =
+    add("density_plate", nullptr, "Test", "the first frame's capture density",
+        &kindOf<DensityPlate>);
 
 }  // namespace
 

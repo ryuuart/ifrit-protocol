@@ -51,6 +51,12 @@ struct CanvasSpecification {
   double captureSeconds = -1.0;
   int oversample = 0;
 
+  /** Paint unobserved capture steps. False lets a Canvas session advance
+   *  its clock, feeds and update callback without painting. Declare false
+   *  only when draw callbacks neither accumulate pixels nor advance state
+   *  needed by the final image. Real frames and stills always paint. */
+  bool paintDiscardedFrames = true;
+
   /** A PLATE, NOT A LIVE SCENE. A sketch whose subject is the size of the
    *  sheet it draws — a large document over an expensive material stack —
    *  is judged on the cost of the still it is photographed as, not on

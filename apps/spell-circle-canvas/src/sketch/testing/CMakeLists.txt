@@ -17,12 +17,11 @@ sigil_library(SigilSketchTestingHarness
   HEADERS Harness.h
   PUBLIC SigilSketchTesting GTest::gtest)
 
-# The harness's own seams, under the protocol's one label: the hooks in
-# their order, and the host's account printed ahead of a case's first
-# failure. Beside them, end to end, a still the harness takes is the
-# plate the sweep writes of the same scene at the same moment.
+# Fixture contracts use protocol clients; scene cases exercise the complete
+# registry, session, clock and still-capture path.
 sigil_test(sketch_test
   SOURCES test/HarnessTest.cpp
   LIBRARIES SigilSketchTestingHarness
-  SUITES HarnessHooks HarnessFailure Harness.TheReadoutIsDescribeTheClockAndTheLastStill
+  SUITES HarnessHooks HarnessFailure
   LABELS protocol)
+sigil_test(sketch_test SUITES Harness LABELS protocol e2e)

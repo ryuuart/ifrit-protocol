@@ -6,6 +6,7 @@
 #include <benchmark/benchmark.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
+#include <sigilcompose/core/Factories.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -35,11 +36,12 @@ struct Grid {
     for (int i = 0; i < 64; ++i) {
       const int column = i % 8;
       const int row = i / 8;
-      root = root.children({box()
-                                .width(60)
-                                .height(40)
-                                .inset((float)row * 58.0f, 0, 0, (float)column * 78.0f)
-                                .fill(Fill::color({0.2f, 0.4f, 0.8f, 1}))});
+      root = root.children(
+          {box()
+               .width(60)
+               .height(40)
+               .inset((float)row * 58.0f, 0, 0, (float)column * 78.0f)
+               .fill(Fill::color({0.2f, 0.4f, 0.8f, 1}))});
     }
     ctx.composer.render(root);
   }

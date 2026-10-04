@@ -4,9 +4,10 @@
  * that a walk let go answers without finishing.
  */
 
-#include <sigildraw/Pen.h>
 #include <gtest/gtest.h>
 #include <include/core/SkCanvas.h>
+#include <sigilcompose/core/Factories.h>
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/render/Runtime.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -155,7 +156,8 @@ struct Standing {
     // The painter is read where a sketch reads it: from inside the body,
     // as it declares.
     ctx.composer.render(box().width(32).height(24).children(
-        {custom("mesh", [painter = painterRuntime()](sigil::draw::Pen& pen, const PaintContext& paint) {
+        {custom("mesh", [painter = painterRuntime()](
+                            sigil::draw::Pen& pen, const PaintContext& paint) {
           SkCanvas& canvas = *pen.canvas();
           const sigil::geometry::mesh::camera::Camera camera;
           painter.get()->drawPanel(canvas, glm::mat4(1.0f), camera,

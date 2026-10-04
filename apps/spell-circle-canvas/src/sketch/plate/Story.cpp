@@ -1,6 +1,5 @@
 /** @file The vertical sketch montage and its video edit. */
 
-#include "sigilweave/advanced/Skia.h"
 #include "sigilsketch/plate/Story.h"
 
 #include <include/core/SkCanvas.h>
@@ -12,8 +11,8 @@
 #include <include/core/SkSurface.h>
 #include <sigilio/source/Sink.h>
 #include <sigilmaterial/skia/Color.h>
-#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/advanced/Formats.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/video/Encoder.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/Crash.h>
@@ -29,6 +28,8 @@
 #include <memory>
 #include <string>
 #include <vector>
+
+#include "sigilweave/advanced/Skia.h"
 
 namespace sigil::sketch {
 
@@ -208,22 +209,23 @@ int story(const StoryOptions& options, weave::FontContext& fonts,
       const double captureMoment = declaredMoment > 0.0 ? declaredMoment : 1.5;
       const double frameStep = 1.0 / options.framesPerSecond;
       const double preRollStep = 1.0 / std::max(60, options.framesPerSecond);
-      // REACHING THE MOMENT COSTS THE SKETCH'S WORK, NOT THE RASTERISER'S:
-      // every frame before the captured one is described onto a surface
-      // nobody reads. A tree that keeps a canvas of its own between
-      // frames keeps it here too — the canvas is the node's, not this
-      // one's — so what accumulates survives the pre-roll.
+      // Persistent draw state still paints on discarded steps; update-only
+      // sketches can omit drawing until the output frame.
       const sk_sp<SkSurface> scratch =
           SkSurfaces::Raster(SkImageInfo::MakeN32Premul(8, 8));
       if (!scratch) {
         std::fprintf(stderr, "story could not allocate its pre-roll surface\n");
         return 1;
       }
-      const auto step = [&](SkCanvas& canvas, float scale, double dt) {
+      const auto step = [&](SkCanvas& canvas, float scale, double dt,
+                            bool discarded = false) {
         canvas.clear(material::skia::toSkColor(session->canvas().background));
         canvas.save();
         canvas.scale(scale, scale);
-        session->frame(canvas, dt);
+        if (discarded)
+          session->discardedFrame(canvas, dt);
+        else
+          session->frame(canvas, dt);
         canvas.restore();
       };
 
@@ -234,10 +236,10 @@ int story(const StoryOptions& options, weave::FontContext& fonts,
       double elapsed = 0.0;
       SkCanvas& preRollCanvas = *scratch->getCanvas();
       while (elapsed + preRollStep < captureMoment) {
-        step(preRollCanvas, 1.0f, preRollStep);
+        step(preRollCanvas, 1.0f, preRollStep, true);
         elapsed += preRollStep;
       }
-      step(preRollCanvas, 1.0f, captureMoment - elapsed);
+      step(preRollCanvas, 1.0f, captureMoment - elapsed, true);
       // The final state, formed once at the output extent.
       step(sourceCanvas, sourceScale, 0.0);
 

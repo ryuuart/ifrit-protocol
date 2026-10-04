@@ -18,6 +18,7 @@
  * code ran.
  */
 
+#include <sigilcompose/core/Factories.h>
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/device/Device.h>
 #include <sigilmaterial/texture/Texture.h>
@@ -35,6 +36,7 @@ using sigil::material::hexColor;
 namespace {
 
 struct DeviceImportProbe {
+  static constexpr bool needsDevice = true;
   bool imported = false;
 
   void setup(sketch::SketchContext& ctx) {

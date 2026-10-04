@@ -30,6 +30,7 @@
 #include <cstdio>
 #include <memory>
 #include <system_error>
+#include <utility>
 #include <vector>
 
 namespace sketch = sigil::sketch;
@@ -41,8 +42,7 @@ std::span<const sigil::material::Material> stockRecipes() {
   namespace surface = sigil::material::surface;
   static const auto* recipes = new std::vector<sigil::material::Material>{
       surface::program({}, surface::Reflection::SplitSum),
-      surface::program({}, surface::Reflection::Additive),
-      surface::unlit()};
+      surface::program({}, surface::Reflection::Additive), surface::unlit()};
   return *recipes;
 }
 
@@ -104,18 +104,22 @@ std::unique_ptr<sigil::geometry::device::Device> g_device;
  *  different pictures under one name; the live host carries on, because
  *  a window can say which tier it is showing. */
 bool useDevice() {
+  if (g_device) return true;
   std::string error;
   const sigil::geometry::device::DeviceConfig config;
-  g_device = sigil::geometry::device::Device::create(config, &error);
-  if (!g_device) {
+  auto candidate = sigil::geometry::device::Device::create(config, &error);
+  if (!candidate) {
     std::fprintf(stderr, "no device runtime (%s)\n", error.c_str());
     return false;
   }
-  sketch::useRuntime(sigil::world::diligent::runtime(*g_device));
+  const auto frameRuntime = sigil::world::diligent::runtime(*candidate);
+  const auto meshRuntime =
+      sigil::geometry::mesh::render::deviceRuntime(*candidate);
+  g_device = std::move(candidate);
+  sketch::useRuntime(frameRuntime);
   // …and the 2D twin: a canvas sketch that stands a mesh up in space
   // reaches the same device through sketch::painterRuntime().
-  sketch::usePainterRuntime(
-      sigil::geometry::mesh::render::deviceRuntime(*g_device));
+  sketch::usePainterRuntime(meshRuntime);
   // …and the device itself, for the calls no runtime can stand in for:
   // a foreign texture entering a material slot names the device it
   // already stands on.
@@ -146,10 +150,8 @@ void releaseDevice() {}
 
 /** True when the selection holds a sketch that draws through a device.
  *  The kind answers for itself, so a runtime added later is not a name
- *  this has to learn. It is not what decides whether a device is brought
- *  up — a `--gpu` run brings one up whatever it holds, because the
- *  surface a canvas is photographed on comes off that same device — but
- *  it is what a montage asks before spending one. */
+ *  this has to learn. Registry sweeps and montages ask before bringing
+ *  up their shared device. */
 bool selectionNeedsDevice(int only, const std::string& kind) {
   const auto& entries = sketch::registry();
   for (int index : sketch::selection(only, kind)) {

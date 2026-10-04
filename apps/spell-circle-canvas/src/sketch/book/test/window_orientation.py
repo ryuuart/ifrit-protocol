@@ -178,8 +178,16 @@ def benchmark_file(sketchbook: Path, probe: Path, work: Path, environment: dict)
             )
         )
         output = run(
-            [str(sketchbook), str(fixture), "--state", str(work / "state"),
-             "--window-bench", "0.3", "--window-size", "900x700"],
+            [
+                str(sketchbook),
+                str(fixture),
+                "--state",
+                str(work / "state"),
+                "--window-bench",
+                "0.3",
+                "--window-size",
+                "900x700",
+            ],
             environment,
         )
         rows = [line for line in output.splitlines() if line.startswith("WINDOW ")]
@@ -189,10 +197,9 @@ def benchmark_file(sketchbook: Path, probe: Path, work: Path, environment: dict)
         ):
             sys.exit(f"the window benchmark did not measure the current file: {rows}")
 
-    (work / "broken.sksl").write_text(
-        "half4 main(float2 xy) { return missingColour; }"
-    )
-    fixture.write_text('''#include <sigilsketch/canvas/Sketch.h>
+    (work / "broken.sksl").write_text("half4 main(float2 xy) { return missingColour; }")
+    fixture.write_text("""#include <sigilcompose/core/Factories.h>
+#include <sigilsketch/canvas/Sketch.h>
 #include <sigilmaterial/program/Shader.h>
 struct BrokenShader {
   void setup(sigil::sketch::SketchContext& ctx) {
@@ -202,11 +209,20 @@ struct BrokenShader {
   }
 };
 SIGIL_SKETCH(BrokenShader, "Test", "a shader fallback fails the benchmark")
-''')
+""")
     output = run(
-        [str(sketchbook), str(fixture), "--state", str(work / "state"),
-         "--window-bench", "0.3", "--window-size", "900x700"],
-        environment, expected_exit=1,
+        [
+            str(sketchbook),
+            str(fixture),
+            "--state",
+            str(work / "state"),
+            "--window-bench",
+            "0.3",
+            "--window-size",
+            "900x700",
+        ],
+        environment,
+        expected_exit=1,
     )
     rows = [line for line in output.splitlines() if line.startswith("WINDOW ")]
     if rows != [f"WINDOW {fixture.stem} FAILED resource or runtime error"]:

@@ -29,9 +29,9 @@ inline constexpr std::string_view kPlatePrefix = "plate_";
 inline constexpr std::string_view kCountPrefix = "counts_";
 
 /** HOW WIDE A PLATE MAY BE before the oversample gives way rather than
- *  the pixel count. It bounds what a HOST chose; a sketch that declares
- *  an oversample of its own is rendered at exactly that, because the
- *  reason to declare one is a grid a fractional scale would destroy.
+ *  the pixel count. It bounds the default host density; an explicit
+ *  density or a sketch's declared oversample is rendered exactly as
+ *  requested, preserving grids a fractional scale would destroy.
  *
  *  Out here because it is the width a plate on disk comes out at, which
  *  is a fact about the file rather than about the sweep's arithmetic:
@@ -77,6 +77,10 @@ struct SweepOptions {
   /** Draw on the device: a Graphite surface for the sketches that paint
    *  onto a canvas, the device runtime for the ones that light a set. */
   bool gpu = false;
+  /** Device pixels per canvas unit, overriding the declared oversample
+   *  and width ceiling. Zero uses plateDensity(); positive values apply
+   *  from the first frame, including the rasters formed before capture. */
+  float density = 0.0f;
   /** One registry entry, or -1 for the whole registry. Asking for ONE
    *  means you want that sketch's real number, so the per-sketch time
    *  budget that keeps a whole sweep to a few minutes does not apply. */

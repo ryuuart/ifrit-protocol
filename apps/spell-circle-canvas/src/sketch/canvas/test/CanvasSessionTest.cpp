@@ -6,10 +6,14 @@
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
+#include <include/core/SkPaint.h>
 #include <include/core/SkShader.h>
 #include <include/core/SkSurface.h>
-#include <sigilmaterial/skia/Color.h>
+#include <include/utils/SkNoDrawCanvas.h>
+#include <sigilcompose/core/Factories.h>
+#include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/texture/Texture.h>
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/render/Runtime.h>
@@ -17,7 +21,9 @@
 #include <sigilio/hub/Hub.h>
 #include <sigilio/hub/Recording.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/surface/Surface.h>
+#include <sigilmotion/clock/Engine.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/paint/Paint.h>
 #include <sigilweave/style/PaintLayer.h>
@@ -30,6 +36,7 @@
 #include <cstddef>
 #include <cstring>
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <numbers>
 #include <string>
@@ -37,8 +44,8 @@
 #include <utility>
 #include <vector>
 
-#include "TextFields.h"
 #include "ScratchDir.h"
+#include "TextFields.h"
 #include "support/Fixtures.h"
 #include "support/Pixels.h"
 #include "support/Sessions.h"
@@ -78,7 +85,8 @@ world::Frame cardFrame() {
       {world::Element()
            .key("card")
            .mesh(gm::quad(kCardW, kCardH))
-           .fill(sigil::material::surface::unlit({.baseColor = {1, 1, 1, 1}}))}));
+           .fill(
+               sigil::material::surface::unlit({.baseColor = {1, 1, 1, 1}}))}));
 }
 
 gm::camera::Camera cardCamera(float eyeZ) {
@@ -157,9 +165,76 @@ struct Listening {
   void setup(SketchContext& ctx) {
     ctx.canvas(64, 48);
     sigil::io::Hub& hub = ctx.assets.hub();
-    if (ctx.deterministic)
-      hub.replay(kSkyPort, ctx.local("data/sky.feed"));
+    if (ctx.deterministic) hub.replay(kSkyPort, ctx.local("data/sky.feed"));
     sky = hub.listen(kSkyPort);
+  }
+};
+
+struct CaptureProgress {
+  int updates = 0;
+  int timerCalls = 0;
+  int paints = 0;
+  uint64_t arrivals = 0;
+  double elapsed = 0;
+};
+
+/** Capture state advances in update and a timer; paint builds only the
+ *  current image on a separate surface. */
+struct UpdateDrivenCapture {
+  static inline std::shared_ptr<CaptureProgress> next;
+  std::shared_ptr<CaptureProgress> progress = next;
+  sigil::motion::Timer timer;
+  sigil::io::Feed feed;
+
+  void setup(SketchContext& ctx) {
+    ctx.canvas(64, 48);
+    ctx.paintDiscardedFrames(false);
+    ctx.assets.hub().replay(kSkyPort, ctx.local("data/sky.feed"));
+    feed = ctx.assets.hub().listen(kSkyPort);
+    timer = ctx.engine.timer([this] { ++progress->timerCalls; });
+    ctx.composer.render(
+        custom("update-driven-capture",
+               [this](sigil::draw::Pen& pen) {
+                 ++progress->paints;
+                 const auto working =
+                     SkSurfaces::Raster(SkImageInfo::MakeN32Premul(64, 48));
+                 working->getCanvas()->clear(SK_ColorBLACK);
+                 SkPaint ink;
+                 ink.setColor4f({float(progress->elapsed),
+                                 float(progress->arrivals) / 3, .5f, 1});
+                 working->getCanvas()->drawRect(
+                     SkRect::MakeXYWH(float(progress->timerCalls) / 3, 8, 8,
+                                      12),
+                     ink);
+                 pen.canvas()->drawImage(working->makeImageSnapshot(), 0, 0);
+               })
+            .cache(Cache::None)
+            .width(64)
+            .height(48));
+  }
+
+  void update(double elapsed) {
+    ++progress->updates;
+    progress->elapsed = elapsed;
+    progress->arrivals = feed.state().revision;
+  }
+};
+
+/** The default capture path must preserve pixels accumulated by a pen. */
+struct AccumulatingCapture {
+  static inline int paints = 0;
+  int drawn = 0;
+  void setup(SketchContext& ctx) {
+    ctx.canvas(64, 48);
+    ctx.composer.render(graphics("accumulating-capture",
+                                 [this](sigil::draw::Pen& pen) {
+                                   ++paints;
+                                   pen.noStroke();
+                                   pen.fill(0, 255, 0);
+                                   pen.rect(float(drawn++ * 2), 8, 2, 12);
+                                 })
+                            .absolute()
+                            .inset(0));
   }
 };
 
@@ -251,6 +326,106 @@ TEST_F(CanvasSession,
   EXPECT_EQ(Declaring::updates, stepped + 1);
 }
 
+TEST(CanvasCapture, UpdateOnlyPreRollPreservesTimersFeedsAndTheFinalStill) {
+  sigil::test::ScratchDir dir("sketch_update_only_capture");
+  std::filesystem::create_directories(dir.path / "data");
+  {
+    sigil::io::RecordingWriter writer(dir.path / "data" / "sky.feed");
+    ASSERT_TRUE(writer.good());
+    ASSERT_TRUE(writer.append(sigil::io::Message(
+        recorded("dawn"), {}, std::chrono::duration<double>(0), 1)));
+    ASSERT_TRUE(writer.append(sigil::io::Message(
+        recorded("noon"), {}, std::chrono::duration<double>(0.5), 2)));
+    ASSERT_TRUE(writer.append(sigil::io::Message(
+        recorded("dusk"), {}, std::chrono::duration<double>(5), 3)));
+  }
+  const auto take = [&](bool discard) {
+    SCOPED_TRACE(discard ? "discarded pre-roll" : "painted reference");
+    Assets store("");
+    store.mountSketch("capture", dir.path);
+    UpdateDrivenCapture::next = std::make_shared<CaptureProgress>();
+    const auto progress = UpdateDrivenCapture::next;
+    const auto session =
+        kindOf<UpdateDrivenCapture>()->open(fonts(), store, true, "capture");
+    const auto target = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(64, 48));
+    SkNoDrawCanvas discarded(64, 48);
+    for (int frame = 0; frame < 36; ++frame) {
+      if (discard)
+        session->discardedFrame(discarded, 1.0 / 60.0);
+      else
+        session->frame(*target->getCanvas(), 1.0 / 60.0);
+    }
+    EXPECT_EQ(progress->updates, 36);
+    EXPECT_EQ(progress->timerCalls, 36);
+    EXPECT_EQ(progress->arrivals, 2u);
+    EXPECT_NEAR(progress->elapsed, .6, 1e-9);
+    EXPECT_EQ(progress->paints, discard ? 0 : 36);
+
+    session->setProfiling(true);
+    session->setCompositeCounting(true);
+    session->still(*target->getCanvas());
+    const SkBitmap result = sigil::sketch::test::plateOf(*target);
+    EXPECT_EQ(progress->updates, 37);
+    EXPECT_EQ(progress->timerCalls, 37);
+    EXPECT_EQ(progress->paints, discard ? 1 : 37);
+    EXPECT_NEAR(progress->elapsed, 37.0 / 60.0, 1e-9);
+    EXPECT_NE(result.getColor(14, 12), SK_ColorBLACK);
+    EXPECT_FALSE(session->costs(8).empty());
+    EXPECT_FALSE(session->compositeCounts().counts.empty());
+
+    // Repaint still draws, without advancing the body or its timer.
+    session->repaint(*target->getCanvas());
+    EXPECT_EQ(progress->updates, 37);
+    EXPECT_EQ(progress->timerCalls, 37);
+    EXPECT_EQ(progress->paints, discard ? 2 : 38);
+    EXPECT_TRUE(samePicture(result, sigil::sketch::test::plateOf(*target)));
+
+    // An omitted draw must not retain the preceding frame's paint costs.
+    const int painted = progress->paints;
+    session->discardedFrame(discarded, 1.0 / 60.0);
+    EXPECT_EQ(progress->updates, 38);
+    EXPECT_EQ(progress->paints, painted);
+    EXPECT_EQ(session->timing().drawMs, 0);
+    for (const LaneCost& lane : session->lanes()) EXPECT_EQ(lane.ms, 0);
+    EXPECT_TRUE(session->costs(8).empty());
+    EXPECT_TRUE(session->compositeCounts().counts.empty());
+    session->repaint(*target->getCanvas());
+    EXPECT_FALSE(session->costs(8).empty());
+    EXPECT_FALSE(session->compositeCounts().counts.empty());
+    return result;
+  };
+  const SkBitmap reference = take(false);
+  const SkBitmap skipped = take(true);
+  EXPECT_TRUE(samePicture(reference, skipped));
+}
+
+TEST(CanvasCapture, DefaultDiscardedFramesPreserveAccumulatedBrushPixels) {
+  const auto take = [](bool discard) {
+    AccumulatingCapture::paints = 0;
+    const auto session = kindOf<AccumulatingCapture>()->open(fonts(), assets());
+    const auto target = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(64, 48));
+    SkNoDrawCanvas discarded(64, 48);
+    EXPECT_TRUE(session->canvas().paintDiscardedFrames);
+    for (int frame = 0; frame < 8; ++frame) {
+      if (discard)
+        session->discardedFrame(discarded, 1.0 / 60.0);
+      else
+        session->frame(*target->getCanvas(), 1.0 / 60.0);
+    }
+    EXPECT_EQ(AccumulatingCapture::paints, 8);
+    target->getCanvas()->clear(SK_ColorBLACK);
+    session->still(*target->getCanvas());
+    EXPECT_EQ(AccumulatingCapture::paints, 9);
+    const SkBitmap result = sigil::sketch::test::plateOf(*target);
+    EXPECT_EQ(result.getColor(1, 12), SK_ColorGREEN);
+    EXPECT_EQ(result.getColor(15, 12), SK_ColorGREEN);
+    EXPECT_EQ(result.getColor(17, 12), SK_ColorGREEN);
+    EXPECT_EQ(result.getColor(24, 12), SK_ColorBLACK);
+    return result;
+  };
+  EXPECT_TRUE(samePicture(take(false), take(true)));
+}
+
 /** The 2D session's answers to what every session promises. */
 struct CanvasTraits {
   static Kind kind() { return kindOf<Declaring>(); }
@@ -330,17 +505,16 @@ world::Frame enteringFrame() {
   const auto card = [](const char* key, float x) {
     return world::Element()
         .key(key)
-        .translateX(sigil::motion::animate({.from = x - kSlideIn,
-                                            .to = x,
-                                            .duration = kEnter,
-                                            .delay = sigil::motion::stagger(kStagger)}))
+        .translateX(
+            sigil::motion::animate({.from = x - kSlideIn,
+                                    .to = x,
+                                    .duration = kEnter,
+                                    .delay = sigil::motion::stagger(kStagger)}))
         .mesh(gm::quad(kCardW * 0.4f, kCardH))
         .fill(sigil::material::surface::unlit({.baseColor = {1, 1, 1, 1}}));
   };
-  return world::Frame(
-      world::Element()
-          .key("set")
-          .children({card("left", -40.0f), card("right", 40.0f)}));
+  return world::Frame(world::Element().key("set").children(
+      {card("left", -40.0f), card("right", 40.0f)}));
 }
 
 /** A sketch that bakes the entering card at three moments: before it
@@ -553,9 +727,12 @@ TEST(CanvasDoors, CarriesAMountedRecordingToTheSceneTimeTheFramesReach) {
   {
     sigil::io::RecordingWriter writer(dir.path / "data" / "sky.feed");
     ASSERT_TRUE(writer.good());
-    ASSERT_TRUE(writer.append(sigil::io::Message(recorded("dawn"), {}, std::chrono::duration<double>(0.0), 1)));
-    ASSERT_TRUE(writer.append(sigil::io::Message(recorded("noon"), {}, std::chrono::duration<double>(0.5), 2)));
-    ASSERT_TRUE(writer.append(sigil::io::Message(recorded("dusk"), {}, std::chrono::duration<double>(5.0), 3)));
+    ASSERT_TRUE(writer.append(sigil::io::Message(
+        recorded("dawn"), {}, std::chrono::duration<double>(0.0), 1)));
+    ASSERT_TRUE(writer.append(sigil::io::Message(
+        recorded("noon"), {}, std::chrono::duration<double>(0.5), 2)));
+    ASSERT_TRUE(writer.append(sigil::io::Message(
+        recorded("dusk"), {}, std::chrono::duration<double>(5.0), 3)));
   }
   Assets store("");
   store.mountSketch("listening", dir.path);
@@ -604,8 +781,8 @@ struct Shaded {
     sigil::weave::PaintLayer pass(SK_ColorWHITE);
     if (carriesMaterial)
       pass.material = std::make_shared<const sigil::material::Material>(
-          text_fields::meshGradient(
-              SkRect::MakeWH(kShadedWidth, kShadedHeight), 0.0f));
+          text_fields::meshGradient(SkRect::MakeWH(kShadedWidth, kShadedHeight),
+                                    0.0f));
     sigil::weave::Type type;
     type.face = sigil::test::instrument::sans();
     type.size = 56.0f;
@@ -697,6 +874,34 @@ TEST(CanvasDoors, AMaterialPassNeedsNoHostToShade) {
       kindOf<Bare>()->open(fonts(), assets());
   ASSERT_TRUE(session);
   EXPECT_TRUE(sigil::weave::paint::hasMaterialResolver());
+}
+
+struct DeviceCanvas : Bare {
+  static constexpr bool needsDevice = true;
+};
+
+class SuppliedPainter final : public gm::render::Executor {
+ public:
+  bool operator==(const SuppliedPainter&) const { return true; }
+  void drawMesh(SkCanvas&, const gm::Mesh&, const glm::mat4&,
+                const gm::camera::Camera&, glm::vec2,
+                const gm::render::MeshStyle&) const override {}
+  void drawPanel(SkCanvas&, const glm::mat4&, const gm::camera::Camera&,
+                 glm::vec2,
+                 const std::function<void(SkCanvas&)>&) const override {}
+};
+
+TEST(CanvasKinds, DeviceRequirementsFollowTheBodyOrSuppliedPainter) {
+  const Kind ordinary = kindOf<Bare>();
+  EXPECT_FALSE(ordinary->needsDevice());
+  EXPECT_TRUE(kindOf<DeviceCanvas>()->needsDevice());
+  EXPECT_FALSE(onPainterRuntime(ordinary, {})->needsDevice());
+  EXPECT_FALSE(
+      onPainterRuntime(ordinary, gm::render::Runtime::cpu())->needsDevice());
+  EXPECT_TRUE(onPainterRuntime(ordinary, gm::render::Runtime{SuppliedPainter{}})
+                  ->needsDevice());
+  EXPECT_TRUE(onPainterRuntime(kindOf<DeviceCanvas>(), {})->needsDevice());
+  EXPECT_FALSE(ordinary == Kind(CanvasKind{&makeCanvasBody<Bare>, true}));
 }
 
 }  // namespace

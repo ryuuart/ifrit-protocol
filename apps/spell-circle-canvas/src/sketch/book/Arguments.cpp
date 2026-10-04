@@ -21,7 +21,8 @@ constexpr double kDefaultJitter = 0.35;
 
 bool isSketchPath(const std::string& text) {
   const auto extension = std::filesystem::path(text).extension();
-  return extension == ".cpp" || extension == ".py";
+  return extension == ".cpp" || extension == ".py" || extension == ".dylib" ||
+         extension == ".so" || extension == ".bundle";
 }
 
 }  // namespace
@@ -56,6 +57,21 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
       args.list = true;
     } else if (arg == "--catalog") {
       args.catalog = true;
+    } else if (arg == "--plugin") {
+      if (i + 1 >= argc || argv[i + 1][0] == '\0' || argv[i + 1][0] == '-' ||
+          !args.sketchFile.empty()) {
+        std::fprintf(stderr, "--plugin requires one native module path\n");
+        return std::nullopt;
+      }
+      args.sketchFile = argv[++i];
+      const auto extension = args.sketchFile.extension();
+      if (extension != ".dylib" && extension != ".so" &&
+          extension != ".bundle") {
+        std::fprintf(stderr,
+                     "--plugin requires a .dylib, .so or .bundle module\n");
+        return std::nullopt;
+      }
+      args.plugin = true;
     } else if (arg == "--workspace") {
       if (i + 1 >= argc || argv[i + 1][0] == '\0' || argv[i + 1][0] == '-' ||
           !args.workspace.empty()) {
@@ -189,6 +205,7 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
         std::fprintf(stderr, "--scale requires a finite positive value\n");
         return std::nullopt;
       }
+      args.sweepOptions.density = args.capture.scale;
     } else if (arg == "--frames" && i + 1 < argc) {
       args.capture.frames = std::max(1, std::stoi(argv[++i]));
     } else if (arg == "--fps" && i + 1 < argc) {
@@ -223,10 +240,28 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
       }
     } else if (args.sketchFile.empty() && isSketchPath(arg)) {
       args.sketchFile = arg;
+      const auto extension = args.sketchFile.extension();
+      args.plugin = extension != ".cpp" && extension != ".py";
     } else {
       std::fprintf(stderr, "unknown argument \"%s\"\n", arg.c_str());
       return std::nullopt;
     }
+  }
+  if (args.plugin && (!args.workspace.empty() || !args.selected.empty())) {
+    std::fprintf(stderr,
+                 "--plugin selects one module and cannot be combined with "
+                 "--workspace or --sketch\n");
+    return std::nullopt;
+  }
+  // A module capture takes one session's photographs and has no benchmark
+  // phases for --ledger to skip, so a flag it would not honour is refused.
+  if (args.plugin && args.headless &&
+      (!args.capture.outputPath.empty() || args.capture.bench ||
+       args.sweepOptions.ledger)) {
+    std::fprintf(stderr,
+                 "--plugin --headless cannot be combined with --frame, "
+                 "--bench or --ledger\n");
+    return std::nullopt;
   }
   if (args.pythonInfo && argc != 2) {
     std::fprintf(stderr, "--python-info must be used on its own\n");

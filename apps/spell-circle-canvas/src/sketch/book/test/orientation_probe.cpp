@@ -2,6 +2,7 @@
  *  that no encoder rounds, with the declared ground between them, so a
  *  photograph of the window says which end of the texture reached the
  *  top of the item. */
+#include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Pen.h>
 #include <sigilsketch/canvas/Sketch.h>
 
@@ -17,18 +18,17 @@ struct Orientation {
   void setup(sigil::sketch::SketchContext& ctx) {
     using namespace sigil::compose;
     ctx.canvas(kWidth, kHeight);
-    ctx.composer.render(
-        custom("bands",
-               [](sigil::draw::Pen& pen, const PaintContext&) {
-                 pen.background(0);
-                 pen.noStroke();
-                 pen.fill(255, 0, 0);
-                 pen.rect(0, 0, kWidth, kBand);
-                 pen.fill(0, 0, 255);
-                 pen.rect(0, kHeight - kBand, kWidth, kBand);
-               })
-            .inset(0)
-            .cache(Cache::None));
+    ctx.composer.render(pen("bands",
+                            [](sigil::draw::Pen& pen, const PaintContext&) {
+                              pen.background(0);
+                              pen.noStroke();
+                              pen.fill(255, 0, 0);
+                              pen.rect(0, 0, kWidth, kBand);
+                              pen.fill(0, 0, 255);
+                              pen.rect(0, kHeight - kBand, kWidth, kBand);
+                            })
+                            .inset(0)
+                            .cache(Cache::None));
   }
 };
 

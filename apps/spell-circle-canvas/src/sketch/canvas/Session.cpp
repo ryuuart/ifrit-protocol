@@ -6,6 +6,7 @@
 #include <sigilcompose/core/Composer.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/mesh/render/Runtime.h>
+#include <sigilio/advanced/Time.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmeasure/advanced/Laps.h>
 #include <sigilmotion/clock/Engine.h>
@@ -20,7 +21,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include <sigilio/advanced/Time.h>
 
 namespace sigil::sketch {
 
@@ -139,8 +139,8 @@ class CanvasSession final : public Session {
     // TWO SIZINGS, deliberately: a sketch may lay out during setup, so
     // it needs a canvas before it runs, and it declares its own from
     // inside setup. The second call is a no-op when they agree.
-    m_composer->setSize(glm::vec2{m_specification.size.width(),
-                                  m_specification.size.height()});
+    m_composer->setSize(
+        glm::vec2{m_specification.size.width(), m_specification.size.height()});
     SketchContext ctx = context();
     m_sketch->setup(ctx);
     applySize();
@@ -157,48 +157,16 @@ class CanvasSession final : public Session {
     return m_specification;
   }
 
-  void frame(SkCanvas& canvas, double dt) override {
-    const PainterScope on(m_painter);
-    m_laps.reset();
-    // A STATED step and a wall-clock frame move the same engine, so a
-    // stepped run and a live one differ in where the number came from and
-    // in nothing else; coming back to the wall after a sweep, the engine
-    // counts from its next reading rather than catching up on the sweep.
-    if (dt >= 0.0)
-      m_engine.advance(m_engine.elapsed() + motion::Duration(dt));
-    else
-      m_engine.advance();
-    // A recording plays back as a function of the scene time, so the
-    // feeds the body reads are moved by the same engine, and moved before
-    // the body reads them: what a frame sees is everything that had
-    // arrived by the moment it draws.
-    const double seconds = m_engine.elapsed().count();
-    io::advance(m_assets.hub(), std::chrono::duration<double>(seconds));
-    {
-      SketchContext ctx = context();
-      m_sketch->update(seconds, ctx);
-    }
-    applySize();  // a sketch may resize itself mid-run, p5 style
-    m_timing.updateMs = measure::Milliseconds(m_laps.mark("update")).count();
-    // The phase turns over where the sketch's own body ends and its
-    // runtime's painting begins, so a fault reads the same whichever
-    // host drove the frame: one call in, two phases.
-    {
-      PhaseMark mark(Phase::Draw);
-      m_composer->draw(canvas);
-    }
-    m_timing.drawMs = measure::Milliseconds(m_laps.mark("draw")).count();
-    m_timing.totalMs = measure::Milliseconds(m_laps.total()).count();
-    const compose::Composer::Stats& stats = m_composer->stats();
-    m_lanes = {LaneCost{"recon", stats.reconcileMs},
-               LaneCost{"layout", stats.layoutMs},
-               LaneCost{"volat", stats.volatileMs},
-               LaneCost{"paint", stats.paintMs}};
+  void frame(SkCanvas& canvas, double dt) override { step(canvas, dt, false); }
+
+  void discardedFrame(SkCanvas& canvas, double dt) override {
+    step(canvas, dt, true);
   }
 
   void repaint(SkCanvas& canvas) override {
     const PainterScope on(m_painter);
     m_composer->draw(canvas);
+    m_paintSkipped = false;
   }
 
   /** One more stepped frame, at the capture's own scale: a bake re-runs
@@ -277,6 +245,7 @@ class CanvasSession final : public Session {
   }
 
   [[nodiscard]] CompositeCounts compositeCounts() const override {
+    if (m_paintSkipped) return {};
     const compose::Composer::CompositePlane& plane =
         m_composer->compositePlane();
     return {plane.width, plane.height, plane.counts};
@@ -301,6 +270,7 @@ class CanvasSession final : public Session {
    *  other reason after it, because a first-match verdict costs an
    *  author one iteration per hidden refusal. */
   [[nodiscard]] std::vector<std::string> costs(size_t limit) const override {
+    if (m_paintSkipped) return {};
     using Cache = compose::Composer::CacheState;
     using Prom = compose::Composer::Promotion;
     std::vector<std::string> lines;
@@ -345,12 +315,60 @@ class CanvasSession final : public Session {
   }
 
  private:
+  void step(SkCanvas& canvas, double dt, bool discarded) {
+    const PainterScope on(m_painter);
+    m_laps.reset();
+    // A STATED step and a wall-clock frame move the same engine, so a
+    // stepped run and a live one differ in where the number came from and
+    // in nothing else; coming back to the wall after a sweep, the engine
+    // counts from its next reading rather than catching up on the sweep.
+    if (dt >= 0.0)
+      m_engine.advance(m_engine.elapsed() + motion::Duration(dt));
+    else
+      m_engine.advance();
+    // A recording plays back as a function of the scene time, so the
+    // feeds the body reads are moved by the same engine, and moved before
+    // the body reads them: what a frame sees is everything that had
+    // arrived by the moment it draws.
+    const double seconds = m_engine.elapsed().count();
+    io::advance(m_assets.hub(), std::chrono::duration<double>(seconds));
+    {
+      SketchContext ctx = context();
+      m_sketch->update(seconds, ctx);
+    }
+    applySize();  // a sketch may resize itself mid-run, p5 style
+    m_timing.updateMs = measure::Milliseconds(m_laps.mark("update")).count();
+    if (discarded && !m_specification.paintDiscardedFrames) {
+      m_paintSkipped = true;
+      m_timing.drawMs = 0;
+      m_timing.totalMs = measure::Milliseconds(m_laps.total()).count();
+      m_lanes = {LaneCost{"recon", 0}, LaneCost{"layout", 0},
+                 LaneCost{"volat", 0}, LaneCost{"paint", 0}};
+      return;
+    }
+    // The phase turns over where the sketch's own body ends and its
+    // runtime's painting begins, so a fault reads the same whichever
+    // host drove the frame: one call in, two phases.
+    {
+      PhaseMark mark(Phase::Draw);
+      m_composer->draw(canvas);
+    }
+    m_paintSkipped = false;
+    m_timing.drawMs = measure::Milliseconds(m_laps.mark("draw")).count();
+    m_timing.totalMs = measure::Milliseconds(m_laps.total()).count();
+    const compose::Composer::Stats& stats = m_composer->stats();
+    m_lanes = {LaneCost{"recon", stats.reconcileMs},
+               LaneCost{"layout", stats.layoutMs},
+               LaneCost{"volat", stats.volatileMs},
+               LaneCost{"paint", stats.paintMs}};
+  }
+
   /** The declared canvas, applied when it moved. Tracked here because a
    *  composer is told its size and never asked for it. */
   void applySize() {
     if (m_applied == m_specification.size) return;
-    m_composer->setSize(glm::vec2{m_specification.size.width(),
-                                  m_specification.size.height()});
+    m_composer->setSize(
+        glm::vec2{m_specification.size.width(), m_specification.size.height()});
     m_applied = m_specification.size;
   }
 
@@ -381,6 +399,7 @@ class CanvasSession final : public Session {
   // lays cost no allocation inside the span they are timing.
   measure::Laps m_laps;
   std::array<LaneCost, 4> m_lanes{};
+  bool m_paintSkipped = false;
   SkSize m_applied = m_specification.size;  // what the composer was last told
   geometry::mesh::render::Runtime m_painter;
   bool m_deterministic;

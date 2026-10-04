@@ -7,14 +7,14 @@
  */
 
 #include <include/core/SkRefCnt.h>
+#include <sigilio/frames/Publisher.h>
+#include <sigilio/hub/Hub.h>
+#include <sigilmotion/clock/Engine.h>
 
 #include <QtCore/QPointF>
 #include <QtCore/QSize>
 #include <QtCore/QSizeF>
 #include <QtQuick/QQuickRhiItem>
-#include <sigilio/frames/Publisher.h>
-#include <sigilio/hub/Hub.h>
-#include <sigilmotion/clock/Engine.h>
 #include <cstdint>
 #include <future>
 #include <memory>
@@ -122,7 +122,6 @@ class SketchbookRenderer final : public QQuickRhiItemRenderer {
   void installCaptureBackend(sigil::sketch::Host& host);
 
 #ifdef SIGILSKETCH_BOOK_GPU
-  bool readbackGraphite(SkSurface& surface, const SkPixmap& out);
   std::unique_ptr<sigil::skia::GraphiteContext> m_graphiteContext;
   /** THE DEVICE PROGRAMS STOOD UP BEFORE THE FIRST SKETCH DRAWS, off
    *  this thread — building one costs exactly what waiting for it
