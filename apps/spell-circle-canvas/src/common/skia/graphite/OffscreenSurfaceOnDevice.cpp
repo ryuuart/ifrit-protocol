@@ -8,6 +8,8 @@
 // to destroy one.
 #include <sigilskia/graphite/PaintOrder.h>
 
+#include <utility>
+
 namespace sigil::skia {
 
 namespace {
@@ -16,7 +18,8 @@ namespace {
  *  a handle. An empty export — what a stale or null handle yields — has
  *  no texture in it, so the wrap fails and `canvas()` stays null. */
 OffscreenSurface wrapNative(GraphiteContext& context,
-                            const core::hardware::NativeTexture& native) {
+                            const core::hardware::NativeTexture& native,
+                            sk_sp<SkColorSpace> colorSpace) {
   if (native.backend == core::hardware::Backend::Vulkan) {
     VulkanImage image;
     image.image = native.vkImage;
@@ -24,15 +27,15 @@ OffscreenSurface wrapNative(GraphiteContext& context,
     image.format = native.vkFormat;
     image.width = native.width;
     image.height = native.height;
-    return OffscreenSurface(context, image);
+    return OffscreenSurface(context, image, std::move(colorSpace));
   }
 #ifdef __APPLE__
   return OffscreenSurface(context, native.mtlTexture, native.width,
-                          native.height);
+                          native.height, std::move(colorSpace));
 #else
   // A Metal texture cannot exist here, and an empty Vulkan image is the
   // one wrap that is always available to fail with.
-  return OffscreenSurface(context, VulkanImage{});
+  return OffscreenSurface(context, VulkanImage{}, std::move(colorSpace));
 #endif
 }
 
@@ -40,8 +43,10 @@ OffscreenSurface wrapNative(GraphiteContext& context,
 
 OffscreenSurface::OffscreenSurface(GraphiteContext& context,
                                    core::hardware::GpuDevice& device,
-                                   core::hardware::TextureHandle texture)
-    : OffscreenSurface(wrapNative(context, device.exportNative(texture))) {}
+                                   core::hardware::TextureHandle texture,
+                                   sk_sp<SkColorSpace> colorSpace)
+    : OffscreenSurface(wrapNative(context, device.exportNative(texture),
+                                  std::move(colorSpace))) {}
 
 core::hardware::FenceValue OffscreenSurface::submit(
     core::hardware::GpuDevice& device, core::hardware::FenceHandle fence) {

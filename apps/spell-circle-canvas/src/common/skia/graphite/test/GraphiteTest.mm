@@ -12,8 +12,8 @@
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
-#include <include/core/SkImage.h>
 #include <include/core/SkData.h>
+#include <include/core/SkImage.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkRect.h>
@@ -30,6 +30,7 @@
 #include <sigilskia/draw/Direct.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
+#include <sigilskia/graphite/Readback.h>
 #include <sigilskia/graphite/TextureImage.h>
 
 #include <array>
@@ -208,6 +209,28 @@ TEST(SigilSkiaGraphite, RenderTargetClearsAndReadsBack) {
   ASSERT_FALSE(pixels.empty());
   EXPECT_EQ(pixels.getColor(0, 0), SkColorSetARGB(255, 0, 255, 0));
   EXPECT_EQ(pixels.getColor(7, 7), SkColorSetARGB(255, 0, 255, 0));
+}
+
+TEST(SigilSkiaGraphite, ReadbackRescalesPixelsAndPreservesRowPadding) {
+  SKIP_WITHOUT_METAL();
+  GraphiteContext *ctx = graphite();
+  const auto surface = SkSurfaces::RenderTarget(ctx->recorder(), SkImageInfo::MakeN32Premul(4, 6));
+  ASSERT_NE(surface, nullptr);
+  surface->getCanvas()->clear(SK_ColorGREEN);
+  SkPaint paint;
+  paint.setColor(SK_ColorBLUE);
+  surface->getCanvas()->drawRect(SkRect::MakeXYWH(2, 0, 2, 6), paint);
+  std::array<uint8_t, 48> storage;
+  storage.fill(0xa7);
+  const SkPixmap output(SkImageInfo::MakeN32Premul(2, 3), storage.data(), 16);
+  ASSERT_TRUE(sigil::skia::readbackPixels(*ctx, *surface, output));
+  for (int y = 0; y < 3; ++y) {
+    EXPECT_EQ(output.getColor(0, y), SK_ColorGREEN);
+    EXPECT_EQ(output.getColor(1, y), SK_ColorBLUE);
+    for (int byte = 8; byte < 16; ++byte) EXPECT_EQ(storage[size_t(y) * 16 + size_t(byte)], 0xa7);
+  }
+  const SkPixmap invalid(output.info(), nullptr, 16);
+  EXPECT_FALSE(sigil::skia::readbackPixels(*ctx, *surface, invalid));
 }
 
 TEST(SigilSkiaGraphite, DirectDrawsReuseTheImageProvidersTexture) {
@@ -544,6 +567,34 @@ TEST(SigilSkiaGraphite, WrapsATextureNamedByHandle) {
   dev->destroy(handle);
 }
 
+// THE COLOUR MEANING IS THE CALLER'S. A texture's format says how its
+// pixels are stored and nothing about which colours they are, so a
+// half-float target made to hold linear light carries the colour space
+// it was wrapped with, and every draw into it is converted to that.
+TEST(SigilSkiaGraphite, AHalfFloatWrapCarriesTheColourSpaceItWasGiven) {
+  SKIP_WITHOUT_METAL();
+  GraphiteContext *ctx = graphite();
+  GpuDevice *dev = adoptedDevice();
+  ASSERT_NE(dev, nullptr);
+
+  TextureDescription desc;
+  desc.width = 8;
+  desc.height = 8;
+  desc.format = TextureFormat::RGBA16Float;
+  const TextureHandle handle = dev->createTexture(desc);
+  ASSERT_TRUE(dev->isValid(handle));
+  const sk_sp<SkColorSpace> linear = SkColorSpace::MakeSRGBLinear();
+  {
+    OffscreenSurface surface(*ctx, *dev, handle, linear);
+    ASSERT_NE(surface.surface(), nullptr);
+    const SkImageInfo info = surface.surface()->imageInfo();
+    EXPECT_EQ(info.colorType(), kRGBA_F16_SkColorType);
+    ASSERT_NE(info.colorSpace(), nullptr);
+    EXPECT_TRUE(SkColorSpace::Equals(info.colorSpace(), linear.get()));
+  }
+  dev->destroy(handle);
+}
+
 TEST(SigilSkiaGraphite, SubmitSignalsAFence) {
   SKIP_WITHOUT_METAL();
   GraphiteContext *ctx = graphite();
@@ -695,8 +746,7 @@ namespace {
  *  lock. */
 class PipelineLog final : public GraphiteContext::PipelineReporter {
  public:
-  void added(const std::string &, std::uint32_t, bool fromPrecompile,
-             sk_sp<SkData> key) override {
+  void added(const std::string &, std::uint32_t, bool fromPrecompile, sk_sp<SkData> key) override {
     const std::lock_guard<std::mutex> lock(m_mutex);
     ++m_added;
     if (fromPrecompile) ++m_addedAhead;
@@ -746,10 +796,10 @@ class PipelineLog final : public GraphiteContext::PipelineReporter {
 /** A RUNTIME EFFECT, which is what a sketch's effect stages are made of
  *  and what makes each stage its own device program. */
 sk_sp<SkRuntimeEffect> tintingEffect() {
-  static SkRuntimeEffect::Result compiled = SkRuntimeEffect::MakeForShader(
-      SkString("half4 main(float2 position) {"
-               "  return half4(half(position.x / 32), 0.25, 0.5, 1);"
-               "}"));
+  static SkRuntimeEffect::Result compiled =
+      SkRuntimeEffect::MakeForShader(SkString("half4 main(float2 position) {"
+                                              "  return half4(half(position.x / 32), 0.25, 0.5, 1);"
+                                              "}"));
   return compiled.effect;
 }
 
@@ -778,8 +828,7 @@ bool drawTheTintedScene(GraphiteContext &ctx) {
  *  have been installed — and a reporter only reaches contexts built
  *  after it. */
 std::unique_ptr<GraphiteContext> watchedContext() {
-  return GraphiteContext::createMetal((__bridge void *)device(),
-                                      (__bridge void *)queue());
+  return GraphiteContext::createMetal((__bridge void *)device(), (__bridge void *)queue());
 }
 
 }  // namespace

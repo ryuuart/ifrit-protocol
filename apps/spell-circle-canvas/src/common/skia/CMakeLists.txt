@@ -22,10 +22,19 @@ sigil_library_root(SigilSkia
 # Dependencies point up this list.
 add_subdirectory(draw)
 add_subdirectory(graphite)
-add_subdirectory(qt)
+if(SIGIL_BUILD_APPS)
+  add_subdirectory(qt)
+endif()
 
 sigil_library(SigilSkia
   INTERFACE SigilSkiaGraphite SigilSkiaDraw)
+set(skia_qt_probe_exclude)
+set(skia_qt_probe_skip)
+if(NOT SIGIL_BUILD_APPS)
+  set(skia_qt_probe_skip QtInterop.h)
+  set(skia_qt_probe_exclude
+    "sigil::skia::createGraphiteContext=the Qt adapter is not configured")
+endif()
 
 # Every API name the prose spells, compiled against the headers that own
 # it — README.md and every entity page under reference/, because a page
@@ -48,7 +57,9 @@ sigil_doc_probes(skia
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
   PRELUDES "<sigilcore/hardware/GpuDevice.h>"
            "<include/gpu/ganesh/SkSurfaceGanesh.h>"
+  SKIP_HEADERS ${skia_qt_probe_skip}
   EXCLUDE "Qt6::Core=a CMake target name, not a C++ name"
           "Qt6::GuiPrivate=a CMake target name, not a C++ name"
+          ${skia_qt_probe_exclude}
   FLOORS 20,5,32,12,0
   LIBRARIES SigilSkia SigilCoreHardware)

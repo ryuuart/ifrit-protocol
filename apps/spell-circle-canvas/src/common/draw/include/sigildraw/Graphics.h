@@ -27,14 +27,18 @@ class Graphics {
  public:
   /** @p width by @p height in canvas units — the units the buffer's pen
    *  draws in and the units `image` places it by, whatever density it
-   *  ends up formed at. */
+   *  ends up formed at. Finite dimensions are clamped to at least one;
+   *  nonfinite dimensions throw std::invalid_argument. */
   Graphics(float width, float height);
   Graphics(const Graphics&) = delete;
   Graphics& operator=(const Graphics&) = delete;
 
   /** Opens a frame on the buffer and hands back its pen. The buffer is
    *  formed here on first use, transparent, and the host pen's clock,
-   *  fonts, pointer and keys are read onto it. */
+   *  fonts, pointer and keys are read onto it. An open frame is closed
+   *  before the next one begins. A pixel extent outside the integer
+   *  range throws std::length_error; failed allocation throws
+   *  std::bad_alloc. Both leave the previous surface available. */
   Pen& begin(Pen& host);
   /** Closes it. The pen's style survives; the pixels stand. */
   void end();
@@ -43,14 +47,17 @@ class Graphics {
    *  constructor took — what a host whose box has changed calls. The
    *  pixels are kept: the replacement surface is formed at the next
    *  `begin` with what this one holds drawn into it, scaled to the new
-   *  extent. The same size again does nothing. */
+   *  extent. The same size again does nothing. Nonfinite dimensions
+   *  throw std::invalid_argument without changing the size. */
   void resize(float width, float height);
   /** A FLOOR ON THE DENSITY the buffer is formed at, in device pixels per
    *  canvas unit. The buffer is formed at the host's own density or this,
    *  whichever is greater, so a picture a host means to photograph finer
    *  than it steps it is drawn finer from its first frame rather than
    *  magnified at the still. Zero, the default, is the host's density
-   *  alone. A change takes effect at the next `begin`, pixels kept. */
+   *  alone. A change takes effect at the next `begin`, pixels kept.
+   *  Nonfinite values throw std::invalid_argument; negative values
+   *  are clamped to zero. */
   void setDensityFloor(float devicePixelsPerUnit);
 
   /** What has been drawn on it, as an image — what `pen.image` takes,
@@ -75,7 +82,7 @@ class Graphics {
   SkISize m_extent = SkISize::MakeEmpty();
   float m_width;
   float m_height;
-  float m_scale = 1.0f;
+  SkSize m_scale = {1.0f, 1.0f};
   float m_densityFloor = 0.0f;
   bool m_open = false;
 };

@@ -9,6 +9,8 @@
 // to destroy one.
 #include <sigilskia/graphite/PaintOrder.h>
 
+#include <utility>
+
 #ifdef SK_VULKAN
 
 #include <include/core/SkColorSpace.h>
@@ -22,7 +24,8 @@
 namespace sigil::skia {
 
 OffscreenSurface::OffscreenSurface(GraphiteContext& context,
-                                   const VulkanImage& image)
+                                   const VulkanImage& image,
+                                   sk_sp<SkColorSpace> colorSpace)
     : m_context(&context) {
   if (!image.image) return;
 
@@ -62,7 +65,7 @@ OffscreenSurface::OffscreenSurface(GraphiteContext& context,
           skgpu::VulkanAlloc{});
 
   m_surface = SkSurfaces::WrapBackendTexture(context.recorder(), backendTexture,
-                                             /*colorSpace=*/nullptr,
+                                             std::move(colorSpace),
                                              /*props=*/nullptr);
 }
 
@@ -74,7 +77,8 @@ namespace sigil::skia {
 
 // A Skia without the Vulkan backend never made a context to wrap on;
 // the surface stays empty and canvas() null.
-OffscreenSurface::OffscreenSurface(GraphiteContext& context, const VulkanImage&)
+OffscreenSurface::OffscreenSurface(GraphiteContext& context, const VulkanImage&,
+                                   sk_sp<SkColorSpace>)
     : m_context(&context) {}
 
 }  // namespace sigil::skia

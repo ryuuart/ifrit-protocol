@@ -14,6 +14,7 @@
 
 #include <cmath>
 #include <memory>
+#include <stdexcept>
 #include <vector>
 
 #include "support/Paper.h"
@@ -42,6 +43,33 @@ TEST(Pen, OnDrawsOneFrameOverACanvasSomebodyElseHolds) {
   paper.surface->getCanvas()->restore();
   EXPECT_EQ(paper.pixel(15, 15), SK_ColorRED);
   EXPECT_NE(paper.pixel(50, 50), SK_ColorRED);
+}
+
+TEST(Pen, OnRestoresTheCanvasWhenTheProgramThrows) {
+  Paper paper;
+  SkCanvas* canvas = paper.surface->getCanvas();
+  canvas->save();
+  canvas->translate(3, 4);
+  const int saves = canvas->getSaveCount();
+  const SkMatrix transform = canvas->getTotalMatrix();
+  EXPECT_THROW(on(*canvas, {100, 100},
+                  [](Pen& pen) {
+                    pen.push();
+                    pen.translate(40, 40);
+                    throw std::runtime_error("Drawing program failed.");
+                  }),
+               std::runtime_error);
+  EXPECT_EQ(canvas->getSaveCount(), saves);
+  EXPECT_EQ(canvas->getTotalMatrix(), transform);
+
+  on(*canvas, {100, 100}, [](Pen& pen) {
+    pen.noStroke();
+    pen.fill(255, 0, 0);
+    pen.rect(0, 0, 10, 10);
+  });
+  canvas->restore();
+  EXPECT_EQ(paper.pixel(5, 6), SK_ColorRED);
+  EXPECT_EQ(paper.pixel(45, 46), SK_ColorTRANSPARENT);
 }
 
 TEST(Pen, AMarkTakesAPointWhereEveryOtherVerbDoes) {

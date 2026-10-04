@@ -8,9 +8,11 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
+#include <sigilmedia/advanced/Skia.h>
 
 #include <cmath>
 #include <glm/gtc/matrix_transform.hpp>
+#include <limits>
 
 #include "sigilgeometry/mesh/Mesh.h"
 #include "sigilgeometry/mesh/render/Painter.h"
@@ -19,6 +21,168 @@
 using namespace sigil::geometry::mesh;
 
 using sigil::geometry::test::splitQuad;
+
+namespace {
+
+camera::Camera clippingCamera() {
+  camera::Camera camera;
+  camera.eye = {0, 0, 0};
+  camera.target = {0, 0, -1};
+  camera.fovYDeg = 90;
+  camera.zNear = 10;
+  camera.zFar = 30;
+  return camera;
+}
+
+// The camera's homogeneous planes locate a boundary even when its
+// projection centre differs from the eye. The fixture crosses that
+// boundary symmetrically, so its new edge is exactly halfway along each
+// side in world space.
+float boundaryDepth(const camera::Camera& camera, bool near) {
+  const glm::mat4 projection = camera.projection(1);
+  const float sign = near ? 1.0f : -1.0f;
+  return -(sign * projection[3][3] - projection[3][2]) /
+         (projection[2][2] - sign * projection[2][3]);
+}
+
+SkBitmap clippingPlate(const Mesh& mesh, const camera::Camera& camera,
+                       const render::MeshStyle& style, float density = 1) {
+  const int extent = int(200 * density);
+  const auto surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(extent, extent));
+  surface->getCanvas()->clear(SK_ColorBLACK);
+  surface->getCanvas()->scale(density, density);
+  render::drawMesh(*surface->getCanvas(), mesh, glm::mat4(1), camera,
+                   {200, 200}, style);
+  SkBitmap bitmap;
+  bitmap.allocPixels(surface->imageInfo());
+  EXPECT_TRUE(surface->readPixels(bitmap.pixmap(), 0, 0));
+  return bitmap;
+}
+
+}  // namespace
+
+TEST(Render, TrianglesOutsideTheCameraDepthRangeLeaveNoPixels) {
+  const auto camera = clippingCamera();
+  render::MeshStyle style;
+  style.lit = false;
+  style.baseColor = {1, 0, 0, 1};
+  for (float depth : {boundaryDepth(camera, true) - 2,
+                      boundaryDepth(camera, false) + 2, -1.0f}) {
+    SCOPED_TRACE(depth);
+    Mesh mesh;
+    mesh.positions = {{-8, -8, -depth}, {8, -8, -depth}, {0, 8, -depth}};
+    mesh.indices = {0, 1, 2};
+    const SkBitmap bitmap = clippingPlate(mesh, camera, style);
+    for (int y = 0; y < bitmap.height(); ++y)
+      for (int x = 0; x < bitmap.width(); ++x)
+        ASSERT_EQ(bitmap.getColor(x, y), SK_ColorBLACK);
+  }
+}
+
+TEST(Render, DepthClippingPreservesTheVisiblePartAndItsWinding) {
+  const auto camera = clippingCamera();
+  render::MeshStyle style;
+  style.lit = false;
+  style.baseColor = {1, 0, 0, 1};
+  for (bool near : {true, false}) {
+    const float boundary = boundaryDepth(camera, near);
+    const float outside = boundary + (near ? -5 : 5);
+    const float inside = boundary + (near ? 5 : -5);
+    Mesh mesh;
+    mesh.positions = {{0, 8, -outside}, {-8, -8, -inside}, {8, -8, -inside}};
+    mesh.indices = {0, 1, 2};
+    for (float density : {0.5f, 1.0f, 2.0f}) {
+      SCOPED_TRACE(::testing::Message() << near << ":" << density);
+      const auto bitmap = clippingPlate(mesh, camera, style, density);
+      EXPECT_EQ(bitmap.getColor(int(100 * density), int(80 * density)),
+                SK_ColorBLACK);
+      EXPECT_EQ(bitmap.getColor(int(100 * density), int(112 * density)),
+                SK_ColorRED);
+      std::swap(mesh.indices[1], mesh.indices[2]);
+      const auto reversed = clippingPlate(mesh, camera, style, density);
+      EXPECT_EQ(reversed.getColor(int(100 * density), int(112 * density)),
+                SK_ColorBLACK);
+      style.backfaceCull = false;
+      const auto twoSided = clippingPlate(mesh, camera, style, density);
+      EXPECT_EQ(twoSided.getColor(int(100 * density), int(112 * density)),
+                SK_ColorRED);
+      style.backfaceCull = true;
+      std::swap(mesh.indices[1], mesh.indices[2]);
+    }
+  }
+}
+
+TEST(Render, DepthClippingInterpolatesTextureAndColourLanes) {
+  const auto camera = clippingCamera();
+  render::MeshStyle style;
+  style.lit = false;
+  style.baseColor = {1, 1, 1, 1};
+  style.primitiveColorLane = "Color";
+  SkBitmap texture;
+  texture.allocN32Pixels(2, 2);
+  *texture.getAddr32(0, 0) = SK_ColorWHITE;
+  *texture.getAddr32(1, 0) = SK_ColorRED;
+  *texture.getAddr32(0, 1) = SK_ColorGREEN;
+  *texture.getAddr32(1, 1) = SK_ColorBLUE;
+  style.texture = texture.asImage();
+  for (bool near : {true, false}) {
+    SCOPED_TRACE(near);
+    const float boundary = boundaryDepth(camera, near);
+    const float outside = boundary + (near ? -5 : 5);
+    const float inside = boundary + (near ? 5 : -5);
+    Mesh crossing;
+    crossing.positions = {
+        {0, 8, -outside}, {-8, -8, -inside}, {8, -8, -inside}};
+    crossing.indices = {0, 1, 2};
+    crossing.uvs = {{0.5f, 0}, {0, 1}, {1, 1}};
+    crossing.colors = {{1, 0, 0, 1}, {0, 1, 0, 1}, {0, 0, 1, 1}};
+    crossing.primitive("Color")[0] = {0.8f, 0.6f, 0.4f, 1};
+
+    // This independently authored trapezoid is the retained lower half
+    // of the triangle. Its new vertices carry the halfway UV and tint.
+    Mesh retained;
+    retained.positions = {{4, 0, -boundary},
+                          {-4, 0, -boundary},
+                          {-8, -8, -inside},
+                          {8, -8, -inside}};
+    retained.indices = {0, 1, 2, 0, 2, 3};
+    retained.uvs = {{0.75f, 0.5f}, {0.25f, 0.5f}, {0, 1}, {1, 1}};
+    retained.colors = {
+        {0.5f, 0, 0.5f, 1}, {0.5f, 0.5f, 0, 1}, {0, 1, 0, 1}, {0, 0, 1, 1}};
+    for (auto& color : retained.primitive("Color"))
+      color = crossing.primitive("Color")[0];
+    const auto actual = clippingPlate(crossing, camera, style);
+    const auto expected = clippingPlate(retained, camera, style);
+    for (int y = 0; y < actual.height(); ++y)
+      for (int x = 0; x < actual.width(); ++x) {
+        const SkColor a = actual.getColor(x, y), b = expected.getColor(x, y);
+        ASSERT_NEAR(SkColorGetR(a), SkColorGetR(b), 2);
+        ASSERT_NEAR(SkColorGetG(a), SkColorGetG(b), 2);
+        ASSERT_NEAR(SkColorGetB(a), SkColorGetB(b), 2);
+      }
+  }
+}
+
+TEST(Render, ClippingDiscardsNonfiniteVerticesAndHandlesBothPlanes) {
+  const auto camera = clippingCamera();
+  render::MeshStyle style;
+  style.lit = false;
+  style.baseColor = {1, 0, 0, 1};
+  Mesh mesh;
+  mesh.positions = {{0, 8, -1}, {-8, -8, -20}, {8, -8, -50}};
+  mesh.indices = {0, 1, 2};
+  const auto both = clippingPlate(mesh, camera, style);
+  EXPECT_GT(SkColorGetR(both.getColor(100, 110)), 0u);
+  for (float invalid : {std::numeric_limits<float>::infinity(),
+                        std::numeric_limits<float>::quiet_NaN()}) {
+    mesh.positions[0].x = invalid;
+    const auto bitmap = clippingPlate(mesh, camera, style);
+    for (int y = 0; y < bitmap.height(); ++y)
+      for (int x = 0; x < bitmap.width(); ++x)
+        ASSERT_EQ(bitmap.getColor(x, y), SK_ColorBLACK);
+  }
+}
 
 TEST(Render, AMeshDrawnThroughTheCameraLandsInsideItsViewport) {
   sk_sp<SkSurface> surface =

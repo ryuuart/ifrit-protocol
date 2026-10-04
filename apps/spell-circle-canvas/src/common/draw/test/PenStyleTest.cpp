@@ -11,12 +11,13 @@
 #include <include/core/SkVertices.h>
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilshaders/Draw.h>
 
 #include <cmath>
 #include <memory>
+#include <stdexcept>
 #include <vector>
 
 #include "ShaderTable.h"
@@ -221,6 +222,34 @@ TEST(Pen, ClipKeepsOnlyWhatTheShapeCovered) {
   EXPECT_EQ(paper.pixel(55, 55), SK_ColorRED);
   EXPECT_EQ(SkColorGetA(paper.pixel(10, 10)), 0u);
   EXPECT_EQ(SkColorGetA(paper.pixel(30, 80)), 0u);
+}
+
+TEST(Pen, ClipExceptionRestoresDrawingAndAllowsTheNextClip) {
+  Paper paper;
+  paper.begin();
+  paper.pen.noStroke();
+  EXPECT_THROW(paper.pen.clip([&] {
+    paper.pen.rect(20, 20, 40, 40);
+    throw std::runtime_error("Clip shape failed.");
+  }),
+               std::runtime_error);
+  EXPECT_EQ(paper.pixel(30, 30), SK_ColorTRANSPARENT);
+  paper.pen.fill(255, 0, 0);
+  paper.pen.rect(0, 0, 100, 100);
+  paper.end();
+  EXPECT_EQ(paper.pixel(5, 5), SK_ColorRED);
+  EXPECT_EQ(paper.pixel(30, 30), SK_ColorRED);
+
+  paper.begin(2);
+  paper.pen.fill(0, 255, 0);
+  paper.pen.rect(0, 0, 10, 10);
+  paper.pen.clip([&] { paper.pen.rect(60, 20, 20, 20); });
+  paper.pen.fill(0, 0, 255);
+  paper.pen.rect(0, 0, 100, 100);
+  paper.end();
+  EXPECT_EQ(paper.pixel(5, 5), SK_ColorGREEN);
+  EXPECT_EQ(paper.pixel(30, 30), SK_ColorRED);
+  EXPECT_EQ(paper.pixel(65, 25), SK_ColorBLUE);
 }
 
 TEST(Pen, NothingTheClipShapeDrawsLandsOnTheCanvas) {

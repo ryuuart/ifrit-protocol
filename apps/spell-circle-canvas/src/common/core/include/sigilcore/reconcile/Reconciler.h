@@ -182,6 +182,7 @@ class Reconciler {
 
     size_t unkeyedCursor = 0;
     size_t mountOrdinal = 0;  // order among children mounted THIS patch
+    bool structureChanged = false;
     for (const auto& childElement : newChildren) {
       const Description& node = m_host.descriptionOf(childElement);
       std::unique_ptr<Node> match;
@@ -201,6 +202,7 @@ class Reconciler {
         // it: say so rather than leaning on the moved-from pointer's value.
         match = nullptr;
         m_stats.retired++;
+        structureChanged = true;
       }
 
       if (match) {
@@ -212,13 +214,14 @@ class Reconciler {
             m_host.create(node, &inst, mountOrdinal, newChildren.size()));
         m_stats.mounted++;
         ++mountOrdinal;
+        structureChanged = true;
       }
     }
 
     // Mounts, unmounts, and reorders change what this node paints even
     // when every surviving child is identical — the structural prune must
     // not swallow them.
-    bool structureChanged = oldOrder.size() != inst.children.size();
+    structureChanged |= oldOrder.size() != inst.children.size();
     if (!structureChanged)
       for (size_t i = 0; i < oldOrder.size(); ++i)
         if (oldOrder[i] != inst.children[i].get()) {
@@ -256,7 +259,8 @@ class Reconciler {
     // first described under.
     if (existing && existing->memoShell) {
       const auto* previous = m_host.memoOf(existing->memoShell);
-      if (previous && previous->environment == memo->environment &&
+      if (previous && previous->properties.type() == memo->properties.type() &&
+          previous->environment == memo->environment &&
           previous->equal(previous->properties, memo->properties)) {
         m_stats.memoHits++;
         described = false;

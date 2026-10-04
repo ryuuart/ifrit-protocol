@@ -33,10 +33,10 @@ find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilSkiaGraphite
   SOURCES GraphiteContext.cpp GraphiteContextVulkan.cpp GraphiteOnDevice.cpp
           OffscreenSurface.cpp OffscreenSurfaceOnDevice.cpp
-          OffscreenSurfaceVulkan.cpp PaintOrder.cpp Pixels.cpp
+          OffscreenSurfaceVulkan.cpp PaintOrder.cpp Pixels.cpp Readback.cpp
           ${SIGIL_SKIA_GRAPHITE_METAL_SOURCES}
   HEADERS GraphiteContext.h OffscreenSurface.h PaintOrder.h
-          Pixels.h TextureImage.h
+          Pixels.h Readback.h TextureImage.h
   PUBLIC unofficial::skia::skia SigilCoreHardware
   PRIVATE Vulkan::Headers Boost::unordered)
 if(APPLE)

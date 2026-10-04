@@ -1,30 +1,11 @@
-# SigilDraw — an immediate-mode canvas with p5's brevity: a Pen over an
-# SkCanvas carrying p5's verbs with p5's names, held as one value so two
-# pens draw side by side and nothing is global.
-#
-# The pen is one static target, with the brush library — procedural tools,
-# dabs, strokes, fields and natural-media interiors — as a second target
-# over it. What the verbs draw WITH is this repository's: SigilMaterial's
-# Skia paint as a fill or a stroke, SigilWeave's shaping and paragraph
-# engine for text, SigilCore's mixers for the seeded random stream and
-# the noise field. Nothing here knows about the sketch runtime that steps
-# a pen or the compose tree that may host one — both stand above this
-# library and reach down to it.
 sigil_library_root(SigilDraw
   BRIEF "An immediate-mode canvas with p5's verbs, over Skia, material paints and shaped text"
   DOCS ${CMAKE_CURRENT_SOURCE_DIR}/docs/Groups.dox
        ${CMAKE_CURRENT_SOURCE_DIR}/reference/GRAPHICS.md)
 
-set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
+set(draw_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
 
-# The material's Skia paint is what a fill is; the weave targets are what
-# text is shaped, laid out and painted by; the core mixer is what the
-# random stream and the noise field are seeded through; the geometry kit
-# is where the silhouette concept the shape verb takes is declared, so a
-# generator written for the kit's wrappers is a value the pen draws, and
-# the geometry path library names the cap and the join a stroke ends and
-# turns with; a media frame is what a picture source answers at a time.
-# All public: the pen's header spells each of their types.
+# Public links supply the types named in the pen's headers.
 find_package(boost_container_hash CONFIG REQUIRED)
 find_package(boost_unordered CONFIG REQUIRED)
 sigil_library(SigilDraw
@@ -36,48 +17,44 @@ sigil_library(SigilDraw
   PUBLIC SigilMaterialSkia SigilMediaCore SigilCoreCompute SigilGeometryKit
          SigilGeometryPath SigilWeaveStyle SigilWeaveParagraph SigilWeaveLayout SigilWeavePaint
          SigilWeaveFonts Boost::container_hash Boost::unordered)
-sigil_shader_sources(SigilDraw DIR ${_shaders} NAMESPACE sigil::draw)
+sigil_shader_sources(SigilDraw DIR ${draw_shaders} NAMESPACE sigil::draw)
 
 add_subdirectory(brush)
 
-# The pen's tests link the system font manager, which is both what loads
-# the instrument face every text case sets in and what resolves a family
-# when no face is named. Only the case that names none reads the
-# machine's own families, so it alone carries the `fonts` label.
 sigil_test(draw_test
   SOURCES test/PenShapeTest.cpp test/PenStyleTest.cpp
           test/PenTransformTest.cpp test/PenImageTest.cpp
           test/PenValuesTest.cpp test/GraphicsTest.cpp
           test/DrawTextTest.cpp test/PenInheritTest.cpp
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
-  DEFINITIONS SIGIL_DRAW_SHADER_DIR="${_shaders}"
-  # The surface program is a recipe instance the ground verbs take, which
-  # the library itself needs no part of: the pen holds the paint value
-  # and never a recipe of its own.
+  DEFINITIONS SIGIL_DRAW_SHADER_DIR="${draw_shaders}"
+  # The surface recipe is a test fixture supplied through the paint seam.
   LIBRARIES SigilDraw SigilWeavePorts SigilMaterialSurface)
+# Default-family lookup needs machine fonts; instrument-face cases do not.
 sigil_test(draw_test
   SUITES PenMachineFace
   LABELS fonts)
+
+# The device case builds wherever Graphite does and skips where the
+# machine offers no device of its own.
+sigil_test(draw_test
+  SOURCES test/GraphicsHeightGpuTest.cpp
+  LIBRARIES SigilSkiaGraphite
+  SUITES GraphicsHeightGpu LABELS gpu integration)
 
 sigil_bench(draw_bench
   SOURCES bench/DrawBench.cpp
   LIBRARIES SigilDraw SigilWeavePorts)
 
-# Every API name the prose spells, compiled against the headers that own
-# it — README.md and the brush chapter beside it. The libraries this one
-# stands on are scanned so a name it borrows resolves where it lives: the
-# paint value, the noise and chance streams, the polyline vocabulary and
-# the paragraph.
-#
-# The names it borrows from ABOVE are exempted instead. Resolving one
-# would mean this library's test binary linking the libraries that stand
-# on it, which is the dependency the tiering exists to prevent.
+# Probe borrowed names against their originating headers. Names belonging
+# to consumers above this library are excluded to keep dependency direction.
 sigil_doc_probes(draw
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
           ${CMAKE_CURRENT_SOURCE_DIR}/brush/README.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/GRAPHICS.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Pen.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../geometry/include/sigilgeometry/path
+           ${CMAKE_CURRENT_SOURCE_DIR}/../geometry/include/sigilgeometry/kit
            ${CMAKE_CURRENT_SOURCE_DIR}/../material/include/sigilmaterial/skia
            ${CMAKE_CURRENT_SOURCE_DIR}/../media/include/sigilmedia/core
            ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
@@ -90,7 +67,9 @@ sigil_doc_probes(draw
           "sigil::compose=SigilCompose stands on this library, so its names are named and not probed"
           "sketch::SetSketch=SigilSketch stands on this library, so its names are named and not probed"
           "sketch::SketchContext=SigilSketch stands on this library, so its names are named and not probed"
-                    "compose::pen=SigilCompose stands on this library, so its names are named and not probed"
+          "sigil::compose::Element=SigilCompose is a consumer of this library, and the guest helper names its public type"
+          "std::source_location::current=The standard library is outside the scanner's include roots"
+          "compose::pen=SigilCompose stands on this library, so its names are named and not probed"
           "compose::graphics=SigilCompose stands on this library, so its names are named and not probed"
   FLOORS 28,10,40,0,6
   LIBRARIES SigilDraw SigilDrawBrush SigilIOSource SigilWeavePorts)

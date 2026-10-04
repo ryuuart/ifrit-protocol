@@ -14,7 +14,10 @@
 #include <sigildraw/Retained.h>
 #include <sigilmaterial/color/Color.h>
 
+#include <any>
 #include <cmath>
+#include <memory>
+#include <source_location>
 #include <vector>
 
 #include "support/Paper.h"
@@ -30,14 +33,23 @@ struct Seen {
   sigil::geometry::path::Rect box;
 };
 
+Seen& cardState(sigil::draw::Pen& pen, sigil::draw::Slot slot) {
+  return pen.retained().get<Seen>(slot,
+                                  [] { return std::make_shared<Seen>(); });
+}
+
 void paintRetained(sigil::draw::Pen& pen, const Card& card,
                    const sigil::geometry::path::Rect& box,
                    sigil::draw::Slot slot) {
-  Seen& seen =
-      pen.retained().get<Seen>(slot, [] { return std::make_shared<Seen>(); });
+  Seen& seen = cardState(pen, slot);
   ++seen.paints;
   seen.box = box;
   (void)card;
+}
+
+void cardAt(sigil::draw::Pen& pen, const Card& card, int index = 0,
+            std::source_location where = std::source_location::current()) {
+  pen.element(card, 10, 10, 30, 20, index, where);
 }
 
 }  // namespace probe
@@ -46,6 +58,12 @@ namespace {
 
 using namespace sigil::draw;
 using sigil::draw::testing::Paper;
+
+std::shared_ptr<int> trackedValue(std::weak_ptr<int>& lifetime, int value) {
+  auto resource = std::make_shared<int>(value);
+  lifetime = resource;
+  return resource;
+}
 
 // The pen reads a colour's text through the library that owns colour, so
 // a palette in a words file means one colour to a pen and to a material.
@@ -128,8 +146,7 @@ TEST(Pen, AGuestIsRetainedPerCallSite) {
   for (int frame = 1; frame <= 3; ++frame) {
     paper.begin(frame);
     paper.pen.element(card, 10, 10, 30, 20);
-    for (int i = 0; i < 2; ++i)
-      paper.pen.element(card, 0, 0, 5, 5, i);
+    for (int i = 0; i < 2; ++i) paper.pen.element(card, 0, 0, 5, 5, i);
     paper.end();
   }
   // One slot for the single call, one per index for the loop.
@@ -150,6 +167,82 @@ TEST(Pen, TheRetainedStoreKeepsAValueByItsSlot) {
   EXPECT_NE(&store.get<int>(other, [] { return std::make_shared<int>(2); }),
             &first);
   EXPECT_EQ(store.size(), 2u);
+}
+
+TEST(Pen, RetiringAStoredGuestReleasesOnlyThatGuest) {
+  Retained store;
+  const auto where = std::source_location::current();
+  const Slot retired = Slot::at(where, 0);
+  const Slot kept = Slot::at(where, 1);
+  std::weak_ptr<int> retiredResource;
+  std::weak_ptr<int> keptResource;
+  store.get<int>(retired, [&] { return trackedValue(retiredResource, 5); });
+  int& survivor =
+      store.get<int>(kept, [&] { return trackedValue(keptResource, 9); });
+  store.host() = 42;
+
+  EXPECT_TRUE(store.erase(retired));
+  EXPECT_TRUE(retiredResource.expired());
+  ASSERT_FALSE(keptResource.expired());
+  EXPECT_EQ(store.size(), 1u);
+  EXPECT_EQ(&survivor, keptResource.lock().get());
+  EXPECT_EQ(survivor, 9);
+  EXPECT_EQ(std::any_cast<int>(store.host()), 42);
+  EXPECT_FALSE(store.erase(retired));
+  EXPECT_EQ(store.size(), 1u);
+}
+
+TEST(Pen, RepeatedGuestRetirementKeepsTheStoreBounded) {
+  Retained store;
+  const auto where = std::source_location::current();
+  const Slot kept = Slot::at(where, -1);
+  std::weak_ptr<int> keptResource;
+  int& survivor =
+      store.get<int>(kept, [&] { return trackedValue(keptResource, 9); });
+  std::weak_ptr<int> transientResource;
+
+  for (int index = 0; index < 1000; ++index) {
+    const Slot transient = Slot::at(where, index);
+    store.get<int>(transient,
+                   [&] { return trackedValue(transientResource, index); });
+    ASSERT_EQ(store.size(), 2u);
+    EXPECT_FALSE(transientResource.expired());
+    EXPECT_TRUE(store.erase(transient));
+    EXPECT_TRUE(transientResource.expired());
+    ASSERT_EQ(store.size(), 1u);
+  }
+  EXPECT_EQ(&survivor, keptResource.lock().get());
+  EXPECT_EQ(survivor, 9);
+}
+
+TEST(Pen, RetiringAForwardedGuestPreservesAHiddenPeer) {
+  Paper paper;
+  const probe::Card card;
+  const auto where = std::source_location::current();
+  const Slot retired = Slot::at(where, 0);
+  const Slot hidden = Slot::at(where, 1);
+  paper.begin(1);
+  probe::cardAt(paper.pen, card, 0, where);
+  probe::cardAt(paper.pen, card, 1, where);
+  paper.end();
+  const probe::Seen* survivor = &probe::cardState(paper.pen, hidden);
+  EXPECT_EQ(survivor->paints, 1);
+  EXPECT_EQ(paper.pen.retained().size(), 2u);
+
+  paper.begin(2);
+  EXPECT_TRUE(paper.pen.retained().erase(retired));
+  paper.end();
+  EXPECT_EQ(paper.pen.retained().size(), 1u);
+  EXPECT_EQ(probe::cardState(paper.pen, hidden).paints, 1);
+
+  paper.begin(3);
+  probe::cardAt(paper.pen, card, 0, where);
+  probe::cardAt(paper.pen, card, 1, where);
+  paper.end();
+  EXPECT_EQ(probe::cardState(paper.pen, retired).paints, 1);
+  EXPECT_EQ(&probe::cardState(paper.pen, hidden), survivor);
+  EXPECT_EQ(probe::cardState(paper.pen, hidden).paints, 2);
+  EXPECT_EQ(paper.pen.retained().size(), 2u);
 }
 
 }  // namespace

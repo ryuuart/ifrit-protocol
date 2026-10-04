@@ -29,7 +29,7 @@ directory, and links only what it needs.
 
 | Feature | Target | Headers | What it holds |
 |---|---|---|---|
-| graphite | `SigilSkiaGraphite` | `<sigilskia/graphite/GraphiteContext.h>`, `<sigilskia/graphite/OffscreenSurface.h>`, `<sigilskia/graphite/PaintOrder.h>`, `<sigilskia/graphite/TextureImage.h>`, `<sigilskia/graphite/Pixels.h>` | the context over a native device and queue, the surface over a texture, the image over one — wrapped where it stands or read back into host memory — the canvas that keeps a scene's painting order, and the pixel reads a device upload takes; Metal and Vulkan as parallel paths, and the entry points that read a `GpuDevice` — `GraphiteContext::create`, the `OffscreenSurface` wrap over a `TextureHandle`, the submit that signals a `FenceHandle` |
+| graphite | `SigilSkiaGraphite` | `<sigilskia/graphite/GraphiteContext.h>`, `<sigilskia/graphite/OffscreenSurface.h>`, `<sigilskia/graphite/PaintOrder.h>`, `<sigilskia/graphite/TextureImage.h>`, `<sigilskia/graphite/Pixels.h>`, `<sigilskia/graphite/Readback.h>` | the context over a native device and queue, the surface over a texture, the image over one — wrapped where it stands or read back into host memory — the canvas that keeps a scene's painting order, the pixel reads a device upload takes and the synchronous surface readback; Metal and Vulkan as parallel paths, and the entry points that read a `GpuDevice` — `GraphiteContext::create`, the `OffscreenSurface` wrap over a `TextureHandle`, the submit that signals a `FenceHandle` |
 | qt | `SigilSkiaQt` | `<sigilskia/qt/QtInterop.h>` | the adapters that unwrap a `QRhi`'s native handles and forward to graphite |
 | draw | `SigilSkiaDraw` | `<sigilskia/draw/Direct.h>` | the two `SkCanvas` ops Graphite leaves unimplemented, decomposed into ones every backend performs |
 
@@ -96,6 +96,20 @@ a `GpuDevice` hands the handle over instead and names no API at all.
 construct it fresh each time rather than caching it. If you need the
 underlying objects, `graphite->context()`, `graphite->recorder()` and
 `surface.surface()` hand them out.
+Its optional color space defines the texture's color meaning; null keeps
+the ordinary untagged path. The native texture supplies its format, including
+half-float RGBA, so the wrap preserves its range without a pixel conversion.
+
+### Reading a rendered surface
+
+Include `<sigilskia/graphite/Readback.h>` and call
+`sigil::skia::readbackPixels(*graphite, surface, pixmap)` on the context's
+recording thread. It submits pending draws, reads the whole surface into the
+caller's pixmap and holds the context lock through completion. The pixmap's
+format and dimensions select the output; differing dimensions use nearest
+rescaling. Padding bytes are preserved. False means invalid output, failed
+submission or failed readback; no raster fallback is performed. Callback state
+survives a timeout until Graphite completes or cancels the request.
 
 ### Sampling a texture someone else painted
 

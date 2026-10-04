@@ -280,7 +280,9 @@ lives in the struct.
 **A draw runs on a `Runtime`, and the runtime is a value.**
 `render::MeshStyle` carries one, defaulting to `render::Runtime::cpu()`
 — the built-in executor that transforms, shades, sorts and emits on the
-CPU. A feature that owns a GPU device supplies its own executor as a
+CPU. Mesh triangles are clipped against the camera's near and far planes
+before projection; the cut edges retain interpolated UVs and vertex colors.
+A feature that owns a GPU device supplies its own executor as a
 value and assigns it to the style; the call, the geometry and the
 vocabulary do not change, and nothing here learns what a device is. Two
 runtimes compare equal when they hold the same model with the same

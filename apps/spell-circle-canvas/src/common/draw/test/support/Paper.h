@@ -12,10 +12,12 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
+#include <include/core/SkPixmap.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkSurface.h>
 #include <include/core/SkTypeface.h>
 #include <sigildraw/Pen.h>
+#include <sigilweave/fonts/FontContext.h>
 
 #include "Fonts.h"
 
@@ -37,15 +39,21 @@ struct Paper {
    *  a third, so what the ink measures is arithmetic rather than whatever
    *  face the machine has installed. */
   void begin(int frame = 1, double seconds = 0.0) {
+    beginWith(frame, &fonts(), seconds);
+    pen.textFont(sigil::test::instrument::sans());
+  }
+
+  /** Opens the frame with the given font context, or without text when
+   *  @p context is null. The pen's selected text style is left intact. */
+  void beginWith(int frame, weave::FontContext* context, double seconds = 0.0) {
     Frame f;
     f.width = (float)width;
     f.height = (float)height;
     f.seconds = seconds;
     f.deltaSeconds = 1.0 / 60.0;
     f.frameCount = frame;
-    f.fonts = &fonts();
+    f.fonts = context;
     pen.begin(*surface->getCanvas(), f);
-    pen.textFont(sigil::test::instrument::sans());
   }
 
   /** Takes the instrument back off, leaving the pen naming no face at
@@ -65,7 +73,18 @@ struct Paper {
     return bitmap;
   }
 
-  SkColor pixel(int x, int y) { return pixels().getColor(x, y); }
+  SkColor pixel(int x, int y) {
+    SkPixmap raster;
+    if (!surface->peekPixels(&raster)) {
+      ADD_FAILURE() << "Raster pixels are unavailable.";
+      return SK_ColorTRANSPARENT;
+    }
+    if (!raster.bounds().contains(x, y)) {
+      ADD_FAILURE() << "Pixel coordinate is outside the surface.";
+      return SK_ColorTRANSPARENT;
+    }
+    return raster.getColor(x, y);
+  }
 
   /** The columns and rows that hold any ink at all. */
   SkIRect inked() {

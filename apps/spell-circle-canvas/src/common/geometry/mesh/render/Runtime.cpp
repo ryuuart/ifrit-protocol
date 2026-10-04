@@ -11,13 +11,14 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkShader.h>
 #include <include/core/SkVertices.h>
+#include <sigilmedia/advanced/Skia.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/mat3x3.hpp>
 #include <numeric>
-#include <sigilmedia/advanced/Skia.h>
 
 #include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/mesh/Vec.h"
@@ -62,6 +63,70 @@ SkColor toColor(glm::vec3 rgb, float a) {
   return c.toSkColor();
 }
 
+// SkVertices accepts two-dimensional positions, so camera clipping must
+// happen here before the perspective divide. Skia's projection puts near
+// at z = w and far at z = -w; the viewport changes only x and y.
+struct ClipVertex {
+  SkV4 position;
+  float viewZ;
+  glm::vec4 color;
+  glm::vec2 uv;
+};
+
+double clipDistance(SkV4 position, int plane) {
+  switch (plane) {
+    case 0:
+      return double(position.w) - position.z;
+    case 1:
+      return double(position.w) + position.z;
+    default:
+      return position.w - 1e-4f;
+  }
+}
+
+uint8_t clipCode(SkV4 position) {
+  if (!std::isfinite(position.x) || !std::isfinite(position.y) ||
+      !std::isfinite(position.z) || !std::isfinite(position.w))
+    return 8;
+  uint8_t code = 0;
+  for (int plane = 0; plane < 3; ++plane)
+    if (clipDistance(position, plane) < 0) code |= uint8_t(1 << plane);
+  return code;
+}
+
+ClipVertex interpolate(const ClipVertex& a, const ClipVertex& b, float t) {
+  const float rest = 1 - t;
+  return {a.position * rest + b.position * t, a.viewZ * rest + b.viewZ * t,
+          a.color * rest + b.color * t, a.uv * rest + b.uv * t};
+}
+
+// Clipping a convex triangle by three planes adds at most three vertices.
+// The polygon itself uses two fixed buffers.
+size_t clipTriangle(std::array<ClipVertex, 6>& polygon, uint8_t planes) {
+  size_t count = 3;
+  std::array<ClipVertex, 6> output;
+  for (int plane = 0; plane < 3 && count != 0; ++plane) {
+    if (!(planes & (1 << plane))) continue;
+    size_t written = 0;
+    ClipVertex previous = polygon[count - 1];
+    double previousDistance = clipDistance(previous.position, plane);
+    for (size_t i = 0; i < count; ++i) {
+      const ClipVertex current = polygon[i];
+      const double distance = clipDistance(current.position, plane);
+      if ((previousDistance >= 0) != (distance >= 0)) {
+        const float t = float(previousDistance / (previousDistance - distance));
+        output[written++] = interpolate(previous, current, t);
+      }
+      if (distance >= 0) output[written++] = current;
+      previous = current;
+      previousDistance = distance;
+    }
+    std::copy_n(output.begin(), written, polygon.begin());
+    count = written;
+  }
+  return count;
+}
+
 /** The built-in executor. It holds nothing, so every instance is the
  *  same value — which is what lets two default MeshStyles compare
  *  equal. */
@@ -97,22 +162,18 @@ struct CpuExecutor : Executor {
     std::vector<SkPoint> screen(n);
     std::vector<float> viewZ(n);
     std::vector<glm::vec4> shaded(n);
-    std::vector<bool> valid(n, true);
+    std::vector<uint8_t> clipCodes(n);
+    std::vector<glm::vec2> clippedUvs;
     const bool hasNormals = mesh.normals.size() == n;
     const bool hasUvs = mesh.uvs.size() == n;
 
     for (size_t i = 0; i < n; ++i) {
       const glm::vec3& p = mesh.positions[i];
       const SkV4 clip = full * SkV4{p.x, p.y, p.z, 1};
-      if (clip.w <= 1e-4f) {
-        valid[i] = false;
-        screen[i] = {0, 0};
-        viewZ[i] = 0;
-      } else {
-        screen[i] = {clip.x / clip.w, clip.y / clip.w};
-        const SkV4 vp4 = viewModel * SkV4{p.x, p.y, p.z, 1};
-        viewZ[i] = vp4.z;
-      }
+      clipCodes[i] = clipCode(clip);
+      if (clipCodes[i] == 0) screen[i] = {clip.x / clip.w, clip.y / clip.w};
+      const SkV4 vp4 = viewModel * SkV4{p.x, p.y, p.z, 1};
+      viewZ[i] = vp4.z;
 
       switch (style.mode) {
         case MeshStyle::Mode::Normals: {
@@ -132,7 +193,6 @@ struct CpuExecutor : Executor {
         }
         case MeshStyle::Mode::Lit:
         default: {
-          const SkV4 vp4 = viewModel * SkV4{p.x, p.y, p.z, 1};
           const glm::vec3 posView = {vp4.x, vp4.y, vp4.z};
           const glm::vec3 N = hasNormals ? normalized(normalM * mesh.normals[i])
                                          : glm::vec3{0, 0, 1};
@@ -219,7 +279,7 @@ struct CpuExecutor : Executor {
     if (primColor && primColor->size() != mesh.triangleCount())
       primColor = nullptr;
 
-    // Assemble triangles: near-plane reject, backface cull, depth sort.
+    // Assemble triangles: camera clipping, backface cull, depth sort.
     struct Tri {
       uint32_t i0, i1, i2;
       float depth;
@@ -227,6 +287,19 @@ struct CpuExecutor : Executor {
     };
     std::vector<Tri> tris;
     tris.reserve(mesh.indices.size() / 3);
+    const auto appendTriangle = [&](uint32_t i0, uint32_t i1, uint32_t i2,
+                                    uint32_t primitive) {
+      if (style.backfaceCull) {
+        const SkPoint a = screen[i0], b = screen[i1], c = screen[i2];
+        const float area2 =
+            (b.fX - a.fX) * (c.fY - a.fY) - (b.fY - a.fY) * (c.fX - a.fX);
+        // Front faces wind CCW in y-up space, so they arrive CW (negative
+        // area) after the viewport's y flip.
+        if (area2 >= 0) return;
+      }
+      tris.push_back(
+          {i0, i1, i2, (viewZ[i0] + viewZ[i1] + viewZ[i2]) / 3.0f, primitive});
+    };
     for (size_t t = 0; t + 2 < mesh.indices.size(); t += 3) {
       const uint32_t i0 = mesh.indices[t], i1 = mesh.indices[t + 1],
                      i2 = mesh.indices[t + 2];
@@ -235,17 +308,38 @@ struct CpuExecutor : Executor {
       // caller built or an importer read, and the arrays below are sized
       // to the vertex count alone.
       if (i0 >= n || i1 >= n || i2 >= n) continue;
-      if (!valid[i0] || !valid[i1] || !valid[i2]) continue;
-      if (style.backfaceCull) {
-        const SkPoint a = screen[i0], b = screen[i1], c = screen[i2];
-        const float area2 =
-            (b.fX - a.fX) * (c.fY - a.fY) - (b.fY - a.fY) * (c.fX - a.fX);
-        // Front faces wind CCW in y-up space, so they arrive CW (negative
-        // area) after the viewport's y flip.
-        if (area2 >= 0) continue;
+      const uint8_t planes = clipCodes[i0] | clipCodes[i1] | clipCodes[i2];
+      if ((planes & 8) || (clipCodes[i0] & clipCodes[i1] & clipCodes[i2]) != 0)
+        continue;
+      if (planes == 0) {
+        appendTriangle(i0, i1, i2, uint32_t(t / 3));
+        continue;
       }
-      tris.push_back({i0, i1, i2, (viewZ[i0] + viewZ[i1] + viewZ[i2]) / 3.0f,
-                      (uint32_t)(t / 3)});
+      std::array<ClipVertex, 6> polygon;
+      size_t corner = 0;
+      for (uint32_t i : {i0, i1, i2}) {
+        const glm::vec3& p = mesh.positions[i];
+        polygon[corner++] = {full * SkV4{p.x, p.y, p.z, 1}, viewZ[i], shaded[i],
+                             hasUvs ? mesh.uvs[i] : glm::vec2{0, 0}};
+      }
+      const size_t count = clipTriangle(polygon, planes);
+      if (count < 3) continue;
+      if (std::any_of(polygon.begin(), polygon.begin() + count,
+                      [](const ClipVertex& vertex) {
+                        return (clipCode(vertex.position) & 8) != 0;
+                      }))
+        continue;
+      const uint32_t first = uint32_t(screen.size());
+      for (size_t i = 0; i < count; ++i) {
+        const ClipVertex& vertex = polygon[i];
+        screen.push_back({vertex.position.x / vertex.position.w,
+                          vertex.position.y / vertex.position.w});
+        viewZ.push_back(vertex.viewZ);
+        shaded.push_back(vertex.color);
+        if (hasUvs) clippedUvs.push_back(vertex.uv);
+      }
+      for (uint32_t i = 1; i + 1 < count; ++i)
+        appendTriangle(first, first + i, first + i + 1, uint32_t(t / 3));
     }
     if (style.depthSort)
       std::sort(tris.begin(), tris.end(),
@@ -291,8 +385,9 @@ struct CpuExecutor : Executor {
           const glm::vec4 c = primColor ? shaded[idx] * flat : shaded[idx];
           col.push_back(toColor({c.x, c.y, c.z}, c.w));
           if (textured) {
-            const SkPoint uv =
-                uvTransform.mapPoint({mesh.uvs[idx].x, mesh.uvs[idx].y});
+            const glm::vec2 mapped =
+                idx < n ? mesh.uvs[idx] : clippedUvs[idx - n];
+            const SkPoint uv = uvTransform.mapPoint({mapped.x, mapped.y});
             tex.push_back({uv.fX * texW, uv.fY * texH});
           }
         }

@@ -1,31 +1,28 @@
 /** @file
  * The pen itself: what a frame begins and ends, the style it carries and
  * resolves into paints, p5's colour model, the modes a verb reads, and
- * the seeded random stream. What it DRAWS is beside this — PenShapes.cpp,
- * PenClip.cpp, PenImage.cpp and PenTransform.cpp.
+ * the seeded random stream. Shape, clip, image and transform operations
+ * have separate translation units.
  */
 
 #include <include/core/SkBlendMode.h>
-#include <include/core/SkClipOp.h>
+#include <include/core/SkCanvas.h>
 #include <include/core/SkMatrix.h>
-#include <include/core/SkPathBuilder.h>
-#include <include/core/SkRRect.h>
-#include <include/core/SkSamplingOptions.h>
 #include <include/core/SkShader.h>
-#include <include/core/SkVertices.h>
 #include <include/effects/SkDashPathEffect.h>
 #include <sigildraw/Math.h>
 #include <sigildraw/Pen.h>
-#include <sigilmaterial/color/Color.h>
 #include <sigilgeometry/advanced/Skia.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
+#include <src/core/SkScopeExit.h>
 
 #include <algorithm>
 #include <cmath>
 #include <functional>
-#include <initializer_list>
-#include <string>
+#include <span>
 #include <string_view>
+#include <vector>
 
 #include "PenInternal.h"
 
@@ -179,16 +176,13 @@ sk_sp<SkShader> Pen::fittedShader(const material::Paint& paint,
   material::FrameData frame = paintFrame();
   frame.resolution = {box.width(), box.height()};
   frame.rootResolution = {width, height};
-  frame.world = material::skia::toMatrix(SkMatrix::Translate(box.left(), box.top()));
+  frame.world =
+      material::skia::toMatrix(SkMatrix::Translate(box.left(), box.top()));
   sk_sp<SkShader> shader = material::skia::shader(paint, frame);
   if (!shader) return nullptr;
   return shader->makeWithLocalMatrix(
       SkMatrix::Translate(box.left(), box.top()));
 }
-
-/** Whether @p box is a unit square a material can be measured against: a
- *  horizontal line and a zero-radius circle are not, and asking a material
- *  to divide by their extent is how a fitted fill turns into nothing. */
 
 const SkPaint* Pen::fillPaint(const SkRect* box) {
   if (!m_style.doFill) return nullptr;
@@ -197,7 +191,8 @@ const SkPaint* Pen::fillPaint(const SkRect* box) {
     m_fillPaint.setShader(fittedShader(m_style.fill, *box));
     return &m_fillPaint;
   }
-  if (m_fillLive) m_fillPaint.setShader(material::skia::shader(m_style.fill, paintFrame()));
+  if (m_fillLive)
+    m_fillPaint.setShader(material::skia::shader(m_style.fill, paintFrame()));
   return &m_fillPaint;
 }
 
@@ -209,7 +204,8 @@ const SkPaint* Pen::strokePaint(const SkRect* box) {
     return &m_strokePaint;
   }
   if (m_strokeLive)
-    m_strokePaint.setShader(material::skia::shader(m_style.stroke, paintFrame()));
+    m_strokePaint.setShader(
+        material::skia::shader(m_style.stroke, paintFrame()));
   return &m_strokePaint;
 }
 
@@ -303,9 +299,7 @@ void Pen::fill(float v1, float v2, float v3, float alpha) {
   fill(color(v1, v2, v3, alpha));
 }
 void Pen::fill(std::string_view css) { fill(parseColor(css)); }
-void Pen::fill(material::Color color) {
-  fill(material::Paint::solid(color));
-}
+void Pen::fill(material::Color color) { fill(material::Paint::solid(color)); }
 void Pen::fill(const material::Paint& paint) {
   m_style.fill = paint;
   // The fit belongs to the material it was set with, so a fill set without
@@ -455,8 +449,8 @@ void on(SkCanvas& canvas, SkSize size, const std::function<void(Pen&)>& program,
   frame.frameCount = 1;
   frame.fonts = fonts;
   pen.begin(canvas, frame);
+  const SkScopeExit endFrame([&] { pen.end(); });
   program(pen);
-  pen.end();
 }
 
 }  // namespace sigil::draw

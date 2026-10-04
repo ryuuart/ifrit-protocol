@@ -1,14 +1,24 @@
 # SigilDraw — an immediate-mode canvas with p5's brevity
 
-A **pen** over an `SkCanvas`, carrying p5's verbs with p5's names,
-argument orders and defaults, so a sketch written for p5 pastes in and
-runs. Compose is the declarative way to draw here; this is the
-imperative way beside it, and the two open onto each other.
+A **pen** draws on a borrowed `SkCanvas` with p5's names, argument
+orders and defaults. Its style, random streams and retained guests live
+with the pen. The host supplies the canvas, clock, fonts and input.
 
-Namespace `sigil::draw`, with the `SigilDraw` pen and the `SigilDrawBrush`
-procedural tools over it under `sigil::draw::brush`. Every public header
-is under `include/sigildraw/`, and `<sigildraw/brush/Brush.h>` gathers
-the brush feature's.
+Include `<sigildraw/Pen.h>` and link `SigilDraw` for `sigil::draw`.
+Natural-media tools live in `sigil::draw::brush`: include
+`<sigildraw/brush/Brush.h>` and link `SigilDrawBrush`.
+
+| What you need | Use | What persists |
+|---|---|---|
+| Draw once on a canvas | `draw::on(canvas, size, program)` | Nothing after the call |
+| Draw frames in your own host | `Pen::begin` / `Pen::end` | Pen style and guests; the host owns the pixels |
+| Accumulate pixels in an offscreen buffer | `Graphics` | Buffer pixels and pen style |
+| Run a program inside a Compose node | `compose::pen` | Pen style and guests |
+| Accumulate pixels inside a Compose node | `compose::graphics` | Buffer pixels and pen style |
+
+The Compose forms belong to `SigilComposeDraw`, through
+`<sigilcompose/draw/Draw.h>`. They manage pen frames and borrow the
+composers' clock, fonts and input.
 
 ## A p5 sketch, pasted in
 
@@ -71,29 +81,17 @@ struct Bounce {
 SIGIL_SKETCH(Bounce, "Draw", "The bouncing ball, pasted from p5.")
 ```
 
-`createCanvas`, `loadImage` and the moment a plate is taken belong to
-whoever steps the pen — here a `compose::graphics` node filling the
-canvas of a canvas sketch, whose canvas is KEPT between frames, which
-is what makes the translucent ground a trail. The program is the p5
-`draw`, run once per frame with the node's own pen, and it honours
-`noLoop`, `redraw` and `frameRate` as p5 does. What a p5 `setup` would
-have set on the canvas — a style, a seed, a drawing made once — is the
-program's first frame, which `pen.frameCount == 1` names; the size, the
-ground and the capture moment are declared to the sketch's own context.
-Everything else is the pen.
-
-**The one deliberate departure is the pen itself.** p5's verbs are
-globals over one canvas; here they are members of a value that holds the
-style, the transform, the seeded streams and what it keeps between
-frames. Two pens draw side by side, a pen draws inside a compose node,
-and nothing in a process is global.
+`compose::graphics` keeps the canvas between frames, so the translucent
+background leaves a trail. It honours `noLoop`, `redraw` and `frameRate`.
+Use `pen.frameCount == 1` for drawing setup. Canvas size, asset loading
+and capture belong to the host. Each pen has its own state.
 
 ## The pen alone
 
-The pen needs a canvas and a frame; who supplies them is not its
-concern. Between `begin` and `end` every verb draws; between frames the
-style holds, as it does in p5, and the transform starts over at whatever
-the canvas carried when the frame began.
+Use `begin` and `end` when you own the frame loop. Style survives across
+frames; transforms start from the canvas's matrix at `begin`, and `end`
+restores that canvas. Pair the calls even when drawing throws. Hosted
+Compose programs and `draw::on` close the frame for you.
 
 ```cpp
 #include <sigildraw/Pen.h>
@@ -120,11 +118,11 @@ pen.end();
 `Frame` also carries the pointer and the keys a host fed, which the pen
 reads into `mouseX`, `mouseY`, `pmouseX`, `pmouseY`, `mouseIsPressed`,
 `keyIsPressed`, `key` and `keyCode`, and answers `keyIsDown(code)`
-from. A pen begun with no fonts draws no text.
+from. Keep the font context alive while the pen uses it for text drawing
+or measurement. A pen begun with no fonts draws no text.
 
-**A picture baked ONCE is `on`.** `draw::on(canvas, size, program)` is
-those five lines for a drawing that has no clock — an offscreen surface
-filled and handed on as bytes, a texture a scene will wear:
+For a one-shot drawing, `draw::on(canvas, size, program)` manages a
+temporary pen:
 
 ```cpp
 on(*surface->getCanvas(), {120, 80}, [&](Pen& pen) {
@@ -133,10 +131,8 @@ on(*surface->getCanvas(), {120, 80}, [&](Pen& pen) {
 });
 ```
 
-The pen lives for the call and nothing is kept between bakes, which is
-what separates it from `Graphics`; `millis()` and `deltaTime` read zero,
-because a picture drawn once has no time in it. `frameCount` is one, so
-first-frame drawing setup runs on a bake as it does on a live pen.
+Its `millis()` and `deltaTime` are zero and `frameCount` is one. Pass a
+font context as the fourth argument when the drawing contains text.
 
 ## p5's semantics, kept
 
@@ -160,41 +156,33 @@ default.
 | the loop | `frameCount`, `deltaTime` (milliseconds), `millis()`, `frameRate()`, `frameRate(fps)`, `noLoop`, `loop`, `redraw` |
 | constants | `PI`, `TWO_PI`, `TAU`, `HALF_PI`, `QUARTER_PI`, and every word above, in `sigil::draw` |
 
-The details p5 states and this pen keeps: `arc` draws clockwise from
-`start` to `stop` in the current angle mode, fills the pie unless the
-mode is `CHORD`, and strokes the arc alone under `OPEN`, closed by its
-chord under `CHORD`, closed through the centre under `PIE`; an ellipse's
-arc angles are corrected from the geometric angle a sketch means to the
-parametric one the ellipse is traced by, as p5 corrects them. `bezier`
-and `curve` fill as well as stroke, the way an open shape does.
-`background` covers the whole canvas whatever the transform stands at
-and blends when it carries alpha, which is what makes a trail.
-`noSmooth` turns off antialiasing AND image smoothing, so a small source
-blown up is blocks rather than a blur, and `smooth` puts both back. A
-shape whose corners were added under DIFFERENT fills is filled as a
-triangle mesh with the colour interpolated across it — a ramp along a
-streak, a lit facet, a heat gradient, without one shape per band — while
-its stroke still follows the outline; one fill across the shape is one
-path, as before, and only the triangle and quad kinds have a mesh. Text is
-black until a fill is set and stroked only once a stroke is, so a fresh
-pen's text is ink; a fill a host seeded through `inherit` counts as set,
-so text under an inherited ink is set in that ink. `point` is a disc of the stroke weight in the stroke
-colour. `textSize` sets the leading to five quarters of the size until
-`textLeading` says otherwise. `push` saves the style and the transform
-together and `pop` restores both; a push left open at the end of a frame
-is closed there, back to the style that stood when it opened. `clip`
-runs the function it is given with the shape verbs RECORDED rather than
-drawn — each in the space it was called in, so a transform inside the
-function moves the mask with it — and confines everything drawn after to
-what those shapes covered, until the matching `pop()` or the end of the
-frame; the verbs that carry no outline, a `line`, an `image`, a `text`,
-a `background`, add nothing to a mask. The blend mode is style like any
-other, so `push` and `pop` carry it, and it
-reaches every verb that puts pixels down — a fill, a stroke, a glyph, an
-image, the triangle mesh a per-corner shape is drawn as, and the ground a
-`background` lays. `SUBTRACT` takes the source's colour out of the
-canvas's and leaves the canvas's alpha alone, so an opaque ground goes
-dark rather than transparent.
+These details affect a ported sketch:
+
+- `arc` runs clockwise in the current angle mode. It fills a pie unless
+  `CHORD` is selected; its stroke follows the arc under `OPEN`, closes
+  across the chord under `CHORD`, and closes through the centre under
+  `PIE`. Ellipse angles describe geometric directions. `bezier` and
+  `curve` can fill as well as stroke.
+- `background` covers the whole canvas regardless of the transform.
+  Its alpha blends with the existing picture, which makes trails.
+  `noSmooth` disables both antialiasing and image smoothing; `smooth`
+  restores them.
+- Changing `fill` between vertices interpolates corner colours for
+  triangle and quad shapes. Their stroke still follows the outline.
+  A shape with one fill uses a path. `point` is a disc of the stroke
+  colour and weight.
+- Text starts black, gains the selected or inherited fill, and gains a
+  stroke only when one is selected. `textSize` sets leading to five
+  quarters of the size until `textLeading` overrides it.
+- `push` saves style and transform; `pop` restores both. `end` closes
+  unmatched pushes. Blend mode belongs to the style and reaches every
+  drawing verb. `SUBTRACT` subtracts source colour while preserving
+  destination alpha.
+- `clip` records the callback's shape outlines in their current spaces
+  and clips subsequent drawing until the matching `pop` or `end`.
+  Lines, images, text and backgrounds add no outline to the mask. A
+  throwing callback installs no clip and leaves the pen able to draw;
+  any style or transform changes made by the callback still apply.
 
 The pure calculations — `map`, `lerp`, `constrain`, `dist`, `mag`,
 `norm`, `sq`, `radians`, `degrees` — are free functions in
@@ -204,163 +192,91 @@ library's.
 
 ## Where ours differs
 
-Each of these is an ADDED overload on the same verb, or a value standing
-beside the verbs, never a renamed one.
+The pen adds material, geometry and text overloads to the p5 verbs.
 
-* **A material is a fill.** `fill(material::Paint)` and
-  `stroke(material::Paint)` take this repository's paint value —
-  a gradient, an image, an SkSL effect, a blend — and
-  `fill(material::Material)` takes a recipe instance as a shader. The
-  ground takes the same set, `background(material::Paint)` and
-  `background(material::Material)`, so the three verbs that put a
-  colour down accept one vocabulary between them. A
-  static paint resolves once, when set; a live one, and one that reads
-  the box it paints, is resolved against the pen's clock and canvas on
-  every draw. A paint's coordinates are the pen's current space, so a
-  gradient authored in pixels follows the transform.
-* **A material can be fitted to the shape.** `fill(paint, SHAPE)` and
-  `stroke(paint, SHAPE)` measure the material against the BOUNDS OF EACH
-  SHAPE the pen draws — the box's top-left is the material's origin and
-  the box is its unit square — so a box-unit `linearGradient` or
-  `radialGradient` and anything else reading `uResolution` land on the
-  shape. `CANVAS` is
-  the default and measures against the frame. A compose leaf has this and
-  needs no word for it, because a node paints inside its own laid-out box;
-  a pen has one canvas and many shapes, so which one a material is a unit
-  of has to be said — and it is said on the fill, because it is a fact
-  about that material. A fill set without the word goes back to the
-  canvas. Every verb that fills a shape wears it, and a `line` and a
-  `point` on the stroke side; text, images and `background` are always the
-  canvas, and a box with no width or no height falls back to it rather
-  than dividing by zero. It is style, so `push` and `pop` carry it.
-* **A mesh is a shape.** `vertices(sk_sp<SkVertices>)` draws a mesh built
-  somewhere else — a triangulated field, a lit strip, a deformed grid, a
-  marching-squares contour — with the pen's fill, blend, clip and
-  transform, so it lands in the same place and the same order as the pen's
-  own verbs and nothing has to go through `canvas()` to put one down.
-  Where the mesh carries its own corner colours and the fill is a plain
-  colour, the corners paint it, which is the rule `vertex()` follows when
-  the corners disagree; where the fill is a material, the material paints
-  the whole mesh, and `fill(paint, SHAPE)` makes its unit square the
-  mesh's own bounds. A mesh has no outline, so it is not stroked and it
-  adds nothing to a clip mask. Building it is Skia's business.
-* **A stroke can dash.** `strokeDash({on, off, ...}[, phase])` and
-  `noDash()` stand beside `strokeWeight`, `strokeCap` and `strokeJoin`,
-  because p5 has no word for a dashed stroke and reaches through to
-  `drawingContext.setLineDash`. An odd run repeats itself, so `{6}` is
-  six drawn and six skipped; the phase starts the run partway in, which
-  is what marches the ants; the lengths are the pen's own units measured
-  along the path, so a dashed shape under a `scale` dashes at the scaled
-  length. Every stroked verb wears it — a line, a rect, an ellipse, an
-  arc, a `beginShape` outline, the outline of a per-corner mesh, a
-  glyph's stroke — except `point`, which is a disc and not a stroke.
-* **A silhouette is a shape.** `shape(silhouette, x, y, w, h)` fits any
-  comparable value with `path(SkSize)` — the geometry kit's `star`,
-  `polygon`, `squircle`, `blob`, `annulus`, or one of your own — to the
-  box the rect mode reads from the four numbers, and `shape(SkPath)`
-  draws a path as it stands. The concept a value answers is the geometry
-  kit's, declared beside the generators, and it asks for comparability
-  because an empty closure's compiler-written equality is vacuously true
-  and would call two different drawings the same one. p5's primitives
-  themselves go straight to the
-  canvas: a circle is `drawOval`, a rounded rect is an `SkRRect`, an arc
-  is `drawArc`, and nothing here re-derives what Skia already draws.
-* **Text is shaped.** `text` goes through SigilWeave — kerned, itemised,
-  with fallback faces where the face lacks a glyph, and wrapped by the
-  paragraph engine in the boxed form. `textFont(family)` matches a
-  family through the font context's manager, `textFont(sk_sp<SkTypeface>)`
-  takes a face, and `textFont(weave::Type)` takes a whole type: size,
-  tracking, condensation and variable axes at once. The fill colours the
-  glyphs whatever the type's own colour says. In the boxed form the BOX
-  IS THE EXTENT the vertical alignment distributes over, so CENTER seats
-  the passage on half the room it left over and BOTTOM on all of it; in
-  the unboxed form there is no room to distribute and the alignment
-  places the block against the point instead.
-* **`noise` is a field over core's mixer.** It has p5's shape — octaves
-  at doubling frequency, a falloff between them, a cosine blend, a value
-  in [0, 1) — but every lattice corner is core's `lattice` word rather
-  than a permutation table, so a pasted sketch draws with p5's character
-  and not p5's exact pixels. `NoiseField` is the value behind it.
-* **`random` is a seeded stream.** Every pen starts on the same seed and
-  `randomSeed` moves off it, so a sketch stepped from zero draws the
-  same picture on every run and every machine; p5 seeds from the wall.
-* **The clock is the caller's.** `millis`, `deltaTime` and `frameRate()`
-  read the frame the pen was begun with — a stepped clock on a plate,
-  the wall in a window — and the pen never reads the wall itself.
-  `frameRate(fps)` is a request the runtime honours by skipping draws,
-  since the runtime owns the clock.
-* **Colour strings are a short list.** Hex in its four lengths and the
-  named colours a sketch reaches for; anything else reads as black.
-* **`beginShape()` with no kind is `POLYGON`**, the one word p5 does not
-  spell, and no sketch needs to.
-* **The canvas is reachable.** `pen.canvas()` is the `SkCanvas` the pen
-  paints on, carrying the pen's current transform — p5's
-  `drawingContext`, and the door out of p5's vocabulary. Another
-  library's drawing takes an `SkCanvas&`, and this is the one to hand
-  it, beside `pen.fillPaint()` and `pen.strokePaint()` for the style the
-  pen stands at and `pen.contentScale()` for the device pixels one
-  canvas unit covers. What is drawn through it lands in the same place
-  and the same order as the pen's own verbs, since there is one canvas;
-  leave the transform and the clip as they were found. **Both paints are
-  null where there is nothing to hand over** — `fillPaint()` under
-  `noFill()`, `strokePaint()` under `noStroke()` or a zero weight — because
-  that is what those words mean, so a caller checks before it dereferences
-  exactly as every verb in the class does. The pen's blend, its
-  antialiasing and its dash ride these paints, so under `noFill()` there
-  is nowhere to read them from either: take them off the stroke, or set a
-  fill.
-* **The pen can be told what it inherits.** `inherit(ink, font)` is what a
-  host calls after `begin` each frame, and it seeds ONLY THE STYLE THE
-  PROGRAM HAS NOT SET: the fill and the stroke take the ink until a `fill`
-  or a `stroke` is called — the glyphs with them, since a seeded fill is
-  a fill as far as text is concerned — and the text type takes the
-  `weave::Type` until a `textFont`, a `textSize` or a `textStyle` is. After that the program's
-  own choice holds from frame to frame the way every other p5 style does,
-  and the inherited pair stops reaching it. Nothing else is touched, so a
-  `noFill()` still means no fill whatever the ink is, and the inherited
-  size seats the leading on the same five-quarters rule `textSize` does.
-  The pair is remembered — `inheritedInk()` and `inheritedFont()`, black
-  and `weave::initialType()` on a pen that was never told one — so
-  whatever else a frame seeds reads it off the pen rather than keeping a
-  copy of its own. **A pen nobody calls this on keeps p5's own defaults**:
-  a white fill, a black stroke, text at twelve pixels. What has such a
-  pair to hand over is a host with a cascade — a declarative tree where
-  every node carries a resolved colour and a resolved type.
-* **`createGraphics` is a value, not a call.** `Graphics buffer{w, h}`
-  is p5's offscreen canvas — a surface with a pen of its own, kept by
-  whoever declares it, because it lives across frames. `buffer.begin(pen)`
-  opens a frame on it and hands back its pen, `buffer.end()` closes it,
-  `pen.image(buffer, x, y)` puts it down and `buffer.image()` is what it
-  holds as an `SkImage`. It is formed at the host pen's own density or
-  the floor `buffer.setDensityFloor(px)` names, whichever is greater,
-  through the host's canvas so it lives where the host draws, and placed
-  by its CANVAS size rather than its pixel count; its clock and fonts
-  are the host's, and its style and its pixels hold between frames as a
-  pen's and a canvas's do. `resize(w, h)` gives it another canvas size,
-  and A SURFACE THAT HAS TO BE REPLACED KEEPS THE PICTURE: when the
-  density moves or the size does, what the old surface held is drawn into
-  the replacement scaled to its extent rather than cleared out of it — a
-  buffer is where earlier frames accumulate, and growing one must not
-  erase them.
+* **Materials.** `fill(material::Paint)`, `stroke(material::Paint)` and
+  `background(material::Paint)` accept gradients, images, effects and
+  blends. `fill(material::Material)` and
+  `background(material::Material)` accept recipe instances. Static
+  paints resolve when set; live paints and paints that read their box
+  resolve for each draw against the pen's clock and canvas. Coordinates
+  follow the pen's current transform.
+* **Material space.** `CANVAS`, the default, measures paint against the
+  frame. `fill(paint, SHAPE)` and `stroke(paint, SHAPE)` measure against
+  each shape's bounds: the top-left is the origin and the bounds are the
+  unit square. This applies to shape fills and strokes, including lines
+  and points. Text, images and backgrounds use the canvas, as do shapes
+  with a zero width or height. A later fill or stroke without `SHAPE`
+  restores canvas space. `push` and `pop` save this choice.
+* **Meshes.** `vertices(sk_sp<SkVertices>)` draws a mesh with the pen's
+  fill, blend, clip and transform. Corner colours supply a plain colour
+  fill; a material fill paints the whole mesh. `SHAPE` uses the mesh's
+  bounds. Meshes have no stroked outline and add nothing to a clip mask.
+* **Dashes.** `strokeDash({on, off, ...}[, phase])` and `noDash()` apply
+  to every stroke except `point`. An odd run repeats itself, so `{6}`
+  means six drawn and six skipped. Lengths and phase use the pen's units
+  along the path and follow its scale.
+* **Silhouettes.** `shape(silhouette, x, y, w, h)` fits a
+  `geometry::shapes::Silhouette` to the box read by `rectMode`. The
+  comparable value supplies `outline(glm::vec2)`, as the geometry kit's
+  `star`, `polygon`, `squircle`, `blob` and `annulus` do.
+  `shape(SkPath)` draws a path directly. Primitive shapes use Skia's
+  native drawing operations.
+* **Shaped text.** SigilWeave provides kerning, itemisation, fallback
+  faces and boxed paragraph layout. `textFont` accepts a family name,
+  an `sk_sp<SkTypeface>` or a `weave::Type` with size, tracking,
+  condensation and variable axes. The pen's fill supplies glyph colour.
+  Boxed vertical alignment distributes the space left by the passage;
+  unboxed alignment places the block against the given point.
+* **Noise and random values.** `NoiseField` provides p5's octave shape
+  and values in [0, 1), using core's mixer for lattice corners. Its
+  output differs from p5's permutation table. Every pen starts on the
+  same random seed; `randomSeed` selects another reproducible stream.
+* **Host clock.** `millis`, `deltaTime` and `frameRate()` read the supplied
+  frame. `frameRate(fps)` requests a draw rate from the host, which owns
+  scheduling.
+* **Small compatibility differences.** Colour strings accept hex in its
+  four lengths and the supported named colours; unknown strings become
+  black. `beginShape()` defaults to `POLYGON`.
+* **Direct canvas access.** `pen.canvas()` supplies the current
+  `SkCanvas`, carrying the pen's transform and clip, during an open frame.
+  Restore both after direct drawing. `pen.contentScale()` reports device
+  pixels per canvas unit. `pen.fillPaint()` and `pen.strokePaint()` carry
+  blend, antialiasing and dash settings, but return null under `noFill`,
+  `noStroke` or a zero stroke weight. Check before dereferencing them.
+* **Inherited style.** A host calls `inherit(ink, font)` after `begin` to
+  seed fill, stroke and text type until the program selects its own.
+  `noFill` remains effective, and selected styles persist across frames.
+  `inheritedInk()` and `inheritedFont()` expose the host's pair for guests;
+  their defaults are black and `weave::initialType()`. A pen with no
+  inherited style keeps a white fill, black stroke and twelve-pixel text.
+* **Offscreen pixels.** Keep `Graphics buffer{w, h}` across frames.
+  `buffer.begin(pen)` borrows the host's clock and fonts and returns its
+  own pen; pair it with `buffer.end()`. `pen.image(buffer, x, y)` places
+  it in canvas units, and `buffer.image()` exposes the `SkImage`.
+  Density is the greater of the host's density and
+  `buffer.setDensityFloor(px)`. Style and pixels persist. `resize(w, h)`
+  or a density change scales the previous picture into the replacement
+  surface. Dimensions clamp to at least one canvas unit and must be
+  finite, as must the density floor. Invalid inputs throw
+  `std::invalid_argument` without changing them. `begin` throws
+  `std::length_error` for an unrepresentable pixel extent or
+  `std::bad_alloc` for allocation failure; the previous image remains
+  available in either case.
 
 ## The brush library
 
 Natural media — device input, dabs, tools, fields and the interiors a
 polygon receives — is `SigilDrawBrush`, a target of its own over the pen.
-Its chapter is `brush/README.md` beside the code: the five parts, the
-stock tools, the dynamics a stylus drives, the surfaces, and the brush
-formats a tool is imported from and written back to.
+[brush/README.md](brush/README.md) owns the tools, dynamics, surfaces and
+brush formats. Link `SigilDrawBrushFormat` when importing or exporting a
+brush.
 
-**The brush is the LINE vocabulary; SigilCompose's brush tier is the MARK
-vocabulary.** A tool, its dabs, a stroke and the interiors a polygon
-receives are laid down here, on a pen, by a hand. What SigilCompose calls
-a brush, a line, a style or a decoration is a comparable value it places
-across an element's outline. The two namespaces stay
-apart and no function is spelled in both. Three words are shared with a
-different meaning: here `Hatch` lays a tool's marks along SigilGeometry's
-hatch pattern, `Wash` is a wet pigment deposit, and `Shape` is the artwork
-a tool stamps; SigilCompose's are a stroked hatch, a material flood and a
-node's silhouette. A segment here is its two points, not a type.
+Draw's brush feature paints strokes and pigment with a tool. Compose's
+brush feature decorates an element's outline. Their similar words refer
+to different values: Draw's `Hatch` places tool marks, `Wash` deposits
+pigment and `Shape` supplies stamp artwork; Compose uses those words for
+a stroked hatch, a material flood and a node's silhouette.
 
 ## Not provided
 
@@ -380,12 +296,10 @@ vectors), `tint`, `filter`, `erase`/`noErase`, `beginClip`/`endClip`
 under it (`box`, `sphere`, `rotateX`, `camera`, `lights`) — a lit set is
 a `sketch::SetSketch`.
 
-## The other way through the door: a retained guest
+## Retained guests
 
-A pen program is imperative; what it paints each frame is gone the
-moment the frame is. Some things are worth keeping between frames — a
-compose element tree with its layout, its text shaping, its bindings and
-its caches — and the pen paints those as **guests**:
+A pen can host a retained value, such as a Compose tree with layout,
+shaped text, bindings and caches:
 
 ```cpp
 pen.element(card, 40, 40, 320, 180);  // one card
@@ -393,203 +307,106 @@ for (int i = 0; i < 3; ++i)
   pen.element(row(i), 40, 260 + i * 60, 320, 50, i);
 ```
 
-A guest is told apart by the CALL SITE — file, line and column — and by
-the index a loop adds; the pen keeps one retained value per slot, in
-`Retained`, and hands it back next frame. What a guest is and how it is
-painted is its own library's business: that library declares
-`paintRetained(Pen&, const Guest&, const geometry::path::Rect&, Slot)` in
-the guest's own namespace, argument lookup finds it, and this library names no
-guest. SigilCompose declares it for `Element`, in its `draw` feature,
-which is also where `compose::pen(program)` hosts a pen program inside
-a node — the same door from the other side.
+A `Slot` identifies a guest by file, line, column and an integer index.
+`Retained` keeps its state for the next call to the same slot. Use a
+stable index for each logical item in a loop; use a position only when
+state should follow that position. Generating new IDs every frame
+accumulates guests. Skipping a slot preserves its state; the store has
+no automatic retirement. Call `pen.retained().erase(slot)` when a guest
+is permanently removed. It releases that entry, returns whether one was
+removed, and preserves all other entries and host state. Drawing the
+same slot later creates a fresh guest. References returned by `get` for
+an erased entry must no longer be used. `pen.retained().clear()` releases
+every guest; use it when all retained state should restart.
 
-**The clock is the runtime's.** A guest's own clock is stepped by the
-pen's frame delta on the frames the guest is painted and stands still on
-the frames it is not; nothing a guest holds ever reads the wall, which
-is what keeps a plate with a guest in it reproducible.
+A helper wrapping `pen.element` must forward the caller's location, or
+all calls through the helper share its internal call site:
 
-**The guest begins in the pen's ink and font.** What a guest cascades from
-is the pair the pen was told it inherits, read off `inheritedInk()` and
-`inheritedFont()` by whoever wrote the `paintRetained` for it — so a tree
-painted inside a pen program starts in the same colour and the same type
-the pen's own verbs do, and a pen nobody told seeds it with black and the
-initial type.
+```cpp
+#include <source_location>
 
-## Layout
-
+void cardAt(sigil::draw::Pen& pen, const sigil::compose::Element& card,
+            float x, float y, int index = 0,
+            std::source_location where = std::source_location::current()) {
+  pen.element(card, x, y, 320, 180, index, where);
+}
 ```
-src/common/draw/
-  include/sigildraw/
-    Pen.h         the pen
-    PenTypes.h    Frame, ClipOptions, and the Retainable concept
-    Constants.h   p5's words and angles
-    Color.h       ColorMode, colorFrom(), parseColor()
-    Noise.h       NoiseField
-    Retained.h    Slot and Retained
-    Graphics.h    the offscreen buffer, p5's createGraphics
-    Math.h        the pure calculations
-    brush/
-      Brush.h     the feature's headers at once
-      Tool.h      Tool, Tip, Rotation, the stock tools, prepareStroke, spacingOf
-      Shape.h     Shape and ImageMask, the shape source
-      Grain.h     Grain and GrainSpace, the grain source
-      Dynamics.h  Curve, Drive, Response, Dynamics
-      Pressure.h  the pressure envelope
-      Catalogue.h named tools and the stock catalogue
-      Choice.h    weightedChoice
-      Dab.h       Input and Dab
-      Sampler.h   the live sampler and dabs()
-      Deposit.h   deposit, paint, line, spline, flowLine
-      Stroke.h    Sample, Stroke, segment, spline
-      Field.h     Direction, DirectionField, trace, warp
-      Fields.h    Curl, Vortex, Wave, stockFields
-      Hatch.h     Hatch and hatch
-      Wash.h      Wash and wash
-      Mass.h      Mass and mass
-      Polygon.h   Polygon, hatchArray, massArray
-      Plot.h      Plot and PlacedPlot
-      Position.h  the cursor
-      Engine.h    the engine
-      format/
-        Load.h       assembleBrush, decodeBrush, encodeBrush, BrushDecoder,
-                     loadBrush over any byte source
-        Photoshop.h  the .abr reader and what it honours
-        Procreate.h  the .brush reader and what it honours
-  Pen.cpp         the frame, the style, the colour model, the modes, the
-                  random stream
-  PenShapes.cpp   every shape, and the dash the outlines wear
-  PenClip.cpp     the clip
-  PenImage.cpp    images in p5's image modes
-  PenTransform.cpp  translate, rotate, scale, shear, push, pop
-  PenInternal.h   what more than one of those reads (PenInternal.cpp)
-  Graphics.cpp    the offscreen buffer
-  Text.cpp        text through SigilWeave
-  Color.cpp       the colour models and the CSS string
-  Noise.cpp       the layered field
-  brush/          one source per header above that has a body to compile
-                  (Shape.h, Dab.h, Field.h and Brush.h are declarations
-                  alone); the executors (Stamps, Fibres,
-                  Tips, Grain) and the engine's strokes and surfaces in their
-                  own files; the private seams DabStyle.h, Executors.h,
-                  HatchLines.h, PenUnits.h, PolygonMath.h; test/ and bench/
-  brush/format/   the native reader and writer (Native), the two importers
-                  (Photoshop, Procreate), and the private Import; test/
-  shaders/        Subtract.sksl, the ground SUBTRACT is laid with
-  test/           the pen's cases, one file per subject, and the Paper
-                  fixture in support/
-  bench/          draw_bench
+
+Save a location with the owner's state and pass it on every draw that
+should use that slot:
+
+```cpp
+const auto cardSite = std::source_location::current();
+cardAt(pen, card, 40, 40, cardId, cardSite);
 ```
+
+When that card is permanently removed, retire exactly the same identity:
+
+```cpp
+pen.retained().erase(sigil::draw::Slot::at(cardSite, cardId));
+```
+
+The guest's library declares
+`paintRetained(Pen&, const Guest&, const geometry::path::Rect&, Slot)`
+in its own namespace; argument lookup selects it. SigilCompose provides
+the implementation for `Element` in `SigilComposeDraw`. Include
+`<sigilcompose/draw/Draw.h>` and link that target when using Compose
+guests. Draw itself depends on no guest library.
+
+A Compose guest advances by the pen's frame delta only when painted. It
+starts with `inheritedInk()` and `inheritedFont()`, which are black and
+the initial type when the host supplies neither. Captures in a retained
+callback must remain valid for as long as that callback can run.
+
+## Headers and implementation
+
+| header under `include/sigildraw/` | purpose |
+| --- | --- |
+| `Pen.h` | drawing verbs and frame lifecycle |
+| `PenTypes.h` | `Frame`, `ClipOptions` and the `Retainable` concept |
+| `Constants.h` | p5 mode words and angles |
+| `Graphics.h` | an offscreen surface with its own pen |
+| `Retained.h` | `Slot` identity and guest storage |
+| `Color.h` | `ColorMode`, `colorFrom` and `parseColor` |
+| `Noise.h` | `NoiseField` |
+| `Math.h` | calculations that read no pen |
+
+The implementation separates frame/style state (`Pen.cpp`), shapes
+(`PenShapes.cpp`), clipping (`PenClip.cpp`), images (`PenImage.cpp`),
+transforms (`PenTransform.cpp`) and shaped text (`Text.cpp`). Brush
+implementations, tests and benchmarks live under `brush/`; importers and
+their tests live under `brush/format/`.
 
 ## Boundaries
 
-* **Links material's Skia paint, weave's shaping, layout and paint, and
-  core's mixers.** A fill IS `material::Paint`; text IS a
-  `weave::Paragraph` laid out and drawn; the random stream and the noise
-  corners ARE `core::noise`. None of that is re-spelled here.
-* **Boost.Unordered and Boost's hash fold are in public headers.** The
-  call-site store a retained mark is keyed in (`Retained.h`), the brush
-  engine's direction registry (`brush/Engine.h`) and the brush catalogue
-  (`brush/Catalogue.h`) each hold a Boost table or fold one of its keys,
-  so a consumer of those headers compiles against Boost. Both are
-  header-only and declared PUBLIC where they are named — `SigilDraw`
-  takes both, `SigilDrawBrush` takes the table — and the keys live
-  inside one run, which is why Boost's fold rather than the pinned one.
-* **Knows no runtime and no compose.** The pen is handed a canvas and a
-  frame; the sketch runtime that steps it and the compose feature that
-  hosts it both stand above this library. A guest reaches the pen
-  through the `paintRetained` seam, never through a type named here.
-* **The brush library reaches down to the pen, and to SigilSkia's direct
-  drawing for one thing.** Its tools, hatches, washes and masses are
-  arrangements of paths and points over the pen's public verbs, its
-  strokes are plain data, and its fields are callable values; the sprite
-  batch a round tip goes down as is `sigilskia/draw/Direct.h`'s. A
-  consumer with its own tools links `SigilDraw` without `SigilDrawBrush`.
-* **The geometry under a mark is SigilGeometryPath's.** The walk that
-  spaces dabs along a stroke is `path::Stride`, the centrelines are
-  `path::subdivide` and `path::catmullRom` over a `path::Polyline` whose
-  lane is the pressure, and what a surface's interior is filled and
-  tested with is `path::lattice` and `path::containsEvenOdd`. What stays
-  here is what a device and a tool know and geometry does not: pressure,
-  tilt and speed, the pen's random stream, the grain and the pigment.
-* **A brush is decoded where the brush lives, and only from bytes.**
-  `SigilDrawBrushFormat` is a target of its own beside the tools, so a
-  consumer that paints links `SigilDrawBrush` alone. It speaks
-  SigilIOSource's byte vocabulary, which is what lets a loader run
-  against a fixture and behind a hub unchanged, and it hands the
-  artwork inside a brush to SigilMedia. Where the bytes came from —
-  URIs, mounts, caching, reload — is SigilIO's, and no file is opened
-  here in either direction.
+* **Import the origin.** Fills use `material::Paint`, text uses
+  `weave::Paragraph`, and random/noise calculations use `core::noise`.
+  Include those libraries' headers when using their values.
+* **The host owns execution.** Draw receives a canvas and frame. Sketch
+  runtimes and Compose adapters sit above it; `paintRetained` connects a
+  guest without making Draw depend on its library.
+* **Brush features are optional.** `SigilDrawBrush` consumes the pen,
+  SigilGeometryPath and SigilSkia's sprite batching. It owns device/tool
+  behaviour: pressure, tilt, speed, grain and pigment. Consumers with
+  their own tools can link `SigilDraw` alone.
+* **Formats consume bytes.** `SigilDrawBrushFormat` uses SigilIOSource
+  and hands artwork to SigilMedia. SigilIO owns access, caching and
+  reload; the brush format feature opens no files.
+* **Public storage exposes Boost.** `Retained.h`, `brush/Engine.h` and
+  `brush/Catalogue.h` use Boost tables or hash folding. Their originating
+  targets propagate the header-only Boost dependencies to consumers.
+
 ## Build and test
 
-[docs/overview/testing.md](../../../docs/overview/testing.md) is the
-contract every library here is built, tested and measured under: one
-`draw_test` over every feature's `test/` and one `draw_bench`, ctest one
-entry per CASE, what a case may pin, and what a label promises. Targets:
-`SigilDraw`, `SigilDrawBrush` and `SigilDrawBrushFormat`, one per
-feature directory (`.`, `brush/`, `brush/format/`). What is only true of
-SigilDraw:
-
-`draw_test` holds p5's semantics to the pen — a rect at
-`rectMode(CENTER)` lands where p5 says, `push`/`pop` restores fill and
-transform, an arc fills the pie unless `CHORD`, one seed gives one
-sequence on every pen and a draw lands inside the range it was asked
-for, `noise` at a lattice corner is the corner the field names,
-`noSmooth` sampling an image nearest-neighbour, a `fill` between two
-vertices colouring the corners either side of it — and this library's
-own: a material as a fill, a silhouette as a shape, a guest retained per
-call site, the canvas carrying the pen's transform, an offscreen buffer
-formed at the host's density or a declared floor and put down in canvas
-units and keeping what it held across a resize, a pen beginning in an
-inherited ink and font and dropping both for whatever the program set
-itself, a unit-space material ramping across the frame under `CANVAS`
-and across each box under `SHAPE`, a built `SkVertices` drawn with the
-pen's fill and moved by the pen's transform, and both paints answering
-null where the style says there is nothing to draw with. The text cases
-hold text shaped and centred by its alignment, seated by its box, black
-until a fill is set and in the ink once one was seeded; they shape
-against the tree's instrument face, so they pin relations rather than
-pixels.
-
-The brush cases are one file per subject: the sampler's spacing across
-uneven events and the first dab's heading; segment and spline pressure;
-the envelope, the per-stroke roll and the weighted choice; the stock
-catalogue and lookup by view; every tip, the stylus dynamics, the sprite
-batch, a stored path's zero speed and the custom tip's contract — with
-batching stated as a growth claim, five times the dabs recorded in
-fewer than twice the ops, rather than as an op-count ceiling; hatches
-inside their polygon, even-odd across a collection, and the default
-angle under a pen in degrees; the wash's interior and its closed layer;
-the mass inside its surface, with holes, under the engine's clip; the
-polygon's edges derived from its vertices; relative plots placed and
-scaled by the caller; the cursor through its field and inside its
-bounds; the stamp's spacing as a fraction of its width, its scatter in
-both axes and the angle jitter on top of the heading; the grain standing
-still in the pen's space or riding the stamp, and how much of the canvas
-its depth may take; the trace that follows any callable direction, the
-stock fields as values with the vortex turning clockwise, and the warp
-that closes its path; and the engine — selection and state, the pen's
-units and clock, one clip over every interior and the outline, a closed
-shape's outline on its bent interior, plots placed where they were
-drawn, live input across event batches, the first live dab's heading,
-and cancel.
-
-The brush-format cases build every fixture in memory — a tip drawn and
-encoded to PNG, a zip written entry by entry, an `.abr` written field by
-field — so no case reads a file this repository ships: a native
-directory through a table and through a hub, the packed archive, the
-`.brush` giving up its two pictures, the `.abr` giving up both its
-sampled tips at either subversion, and bytes that are no brush answering
-nothing.
-
-The cases that put pixels down draw on one fixture,
-`test/support/Paper.h` — a pen over a raster surface with the pixels
-readable back. The one case that names no face reads the machine's own
-families, and it alone — the `PenMachineFace` suite — carries the
+The feature targets are `SigilDraw`, `SigilDrawBrush` and
+`SigilDrawBrushFormat`. One `draw_test` collects their cases and one
+`draw_bench` collects their benchmarks. Tests live beside the feature
+they exercise. Pixel cases use `test/support/Paper.h`, a pen over a
+readable raster surface; text cases use the instrument face and assert
+layout relations. `PenMachineFace` uses installed fonts and carries the
 `fonts` label.
 
-`draw_bench` times ten thousand circles filled and stroked, ten thousand
-rects, a screen of text, a translucent background and a thousand noise
-samples per frame; its brush arms measure sampling, a field-traced
-watercolor mark, hatching, a curved dry mass, a pigment wash, and one
-stroke of an imported brush — the shape stamped per dab, alone and under
-each of the two grain spaces.
+Build `draw_test` and `draw_bench` from the app's build directory. Ctest
+discovers each case, so `ctest -R '^Pen\.'` selects the pen suite.
+[The testing guide](../../../docs/overview/testing.md) describes the
+shared commands, labels and benchmark workflow.

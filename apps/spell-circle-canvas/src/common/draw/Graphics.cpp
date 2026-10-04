@@ -9,25 +9,51 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
+#include <new>
+#include <stdexcept>
 
 namespace sigil::draw {
+namespace {
+
+float canvasDimension(float value) {
+  if (!std::isfinite(value))
+    throw std::invalid_argument("Graphics dimensions must be finite");
+  return std::max(1.0f, value);
+}
+
+int pixelDimension(float units, float density) {
+  const double pixels = std::round(static_cast<double>(units) * density);
+  if (!std::isfinite(pixels) || pixels > std::numeric_limits<int>::max())
+    throw std::length_error("Graphics pixel extent exceeds its integer range");
+  return static_cast<int>(std::max(1.0, pixels));
+}
+
+}  // namespace
 
 Graphics::Graphics(float width, float height)
-    : m_width(std::max(1.0f, width)), m_height(std::max(1.0f, height)) {}
+    : m_width(canvasDimension(width)), m_height(canvasDimension(height)) {}
 
 void Graphics::setDensityFloor(float devicePixelsPerUnit) {
+  if (!std::isfinite(devicePixelsPerUnit))
+    throw std::invalid_argument("Graphics density must be finite");
   m_densityFloor = std::max(0.0f, devicePixelsPerUnit);
 }
 
 void Graphics::form(Pen& host) {
   const float density = std::max(host.contentScale(), m_densityFloor);
-  const SkISize extent{std::max(1, (int)std::lround(m_width * density)),
-                       std::max(1, (int)std::lround(m_height * density))};
+  if (!std::isfinite(density) || density < 0)
+    throw std::invalid_argument(
+        "Graphics host density must be finite and nonnegative");
+  const SkISize extent{pixelDimension(m_width, density),
+                       pixelDimension(m_height, density)};
+  const SkSize scale{(float)extent.width() / m_width,
+                     (float)extent.height() / m_height};
   if (m_surface && m_extent == extent) {
     // The units the buffer's pen draws in are its canvas size whatever
     // extent the surface was formed at, so a `resize` too small to move
     // the rounded extent still moves the scale.
-    m_scale = (float)extent.width() / m_width;
+    m_scale = scale;
     return;
   }
   const SkImageInfo info = SkImageInfo::MakeN32Premul(extent);
@@ -37,6 +63,7 @@ void Graphics::form(Pen& host) {
   sk_sp<SkSurface> surface =
       host.canvas() ? host.canvas()->makeSurface(info) : nullptr;
   if (!surface) surface = SkSurfaces::Raster(info);
+  if (!surface) throw std::bad_alloc();
   SkCanvas& target = *surface->getCanvas();
   target.clear(SK_ColorTRANSPARENT);
   // A REPLACEMENT CARRIES THE PICTURE OVER, scaled from the extent it was
@@ -51,12 +78,12 @@ void Graphics::form(Pen& host) {
   }
   m_surface = std::move(surface);
   m_extent = extent;
-  m_scale = (float)extent.width() / m_width;
+  m_scale = scale;
 }
 
 void Graphics::resize(float width, float height) {
-  const float w = std::max(1.0f, width);
-  const float h = std::max(1.0f, height);
+  const float w = canvasDimension(width);
+  const float h = canvasDimension(height);
   if (w == m_width && h == m_height) return;
   m_width = w;
   m_height = h;
@@ -66,12 +93,13 @@ void Graphics::resize(float width, float height) {
 }
 
 Pen& Graphics::begin(Pen& host) {
+  end();
   form(host);
   SkCanvas* canvas = m_surface->getCanvas();
   canvas->save();
   // The buffer's pen draws in canvas units whatever density the surface
   // was formed at, so a sketch writes one set of numbers.
-  canvas->scale(m_scale, m_scale);
+  canvas->scale(m_scale.width(), m_scale.height());
   Frame frame;
   frame.width = m_width;
   frame.height = m_height;

@@ -30,8 +30,8 @@
 #include <sigildraw/Noise.h>
 #include <sigildraw/PenTypes.h>
 #include <sigildraw/Retained.h>
-#include <sigilgeometry/kit/Corners.h>
 #include <sigilgeometry/advanced/Skia.h>
+#include <sigilgeometry/kit/Corners.h>
 #include <sigilgeometry/path/Stroke.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -372,11 +372,19 @@ class Pen {
    *  `push`; a clip inside a clip keeps only what falls in both.
    *  @trap NOTHING @p shape DRAWS LANDS ON THE CANVAS: its shape verbs
    *  are recorded into one path instead, and a verb with no outline —
-   *  a `line`, an `image`, a `text`, a `background` — adds nothing. */
+   *  a `line`, an `image`, a `text`, a `background` — adds nothing.
+   *  If the callable throws, its partial mask is discarded and shape
+   *  recording stops; its style and transform changes still apply. */
   template <class Shape>
   void clip(Shape&& shape, ClipOptions options = {}) {
     recordClip();
-    shape();
+    try {
+      shape();
+    } catch (...) {
+      m_clipRecording = false;
+      m_clipBuilder.reset();
+      throw;
+    }
     applyClip(options);
   }
   /** @} */

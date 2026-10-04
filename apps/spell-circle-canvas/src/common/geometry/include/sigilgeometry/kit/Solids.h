@@ -63,14 +63,18 @@ struct LoftOptions {
   int segmentsBetween = 0;
   /** Skin the last section back to the first — a ring of sections. */
   bool closed = false;
-  /** Close the first and last sections with a fan from their centres. */
+  /** Close the first and last sections with a fan from their centres.
+   *  Caps have separate vertices, keeping planar ends flat-shaded. */
   bool capEnds = true;
 };
 
 /** A SKIN THROUGH SECTIONS: each section a closed ring of points in 3D,
  *  the rings joined in order by quads. Sections of different counts are
  *  resampled by arc length to the largest count, so a square can be
- *  lofted into a circle. UVs: u around a ring, v along the sections. */
+ *  lofted into a circle. Wall UVs: u around a ring, v along the sections.
+ *  Each cap projects UVs into its own plane and normalizes both axes to
+ *  the projected bounds; a collapsed axis remains finite. Fewer than two
+ *  sections or a section with fewer than three points answers an empty mesh. */
 Mesh loft(const std::vector<std::vector<glm::vec3>>& sections,
           const LoftOptions& options = {});
 

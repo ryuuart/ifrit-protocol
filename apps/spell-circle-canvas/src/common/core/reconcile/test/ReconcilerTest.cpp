@@ -158,6 +158,7 @@ TEST(Reconciler, ARemountRuleRetiresTheMatchAndMountsAfresh) {
   FakeHost host;
   host.render(description("root", 0, {description("a", 1)}));
   const int idA = host.child(0)->id;
+  host.log.clear();
   auto positioned = description("root", 0, {description("a", 1)});
   positioned->positioned = true;
   host.render(positioned);
@@ -166,6 +167,8 @@ TEST(Reconciler, ARemountRuleRetiresTheMatchAndMountsAfresh) {
   EXPECT_NE(host.child(0)->id, idA);
   EXPECT_TRUE(host.child(0)->positionedMode);
   EXPECT_EQ(host.reconciler.stats().mounted, 1);
+  ASSERT_TRUE(host.first(Op::Reorder, "root"));
+  EXPECT_TRUE(host.first(Op::Reorder, "root")->structureChanged);
 }
 
 namespace {
@@ -210,6 +213,33 @@ TEST(Reconciler, AMemoHitsOnEqualPropsAndMissesOnChangedOnes) {
   EXPECT_EQ(calls, 2);
   EXPECT_EQ(host.reconciler.stats().memoHits, 0);
   EXPECT_EQ(host.child(0)->description->value, 8);
+}
+
+TEST(Reconciler, AMemoWithDifferentPropertiesTypeMissesBeforeComparing) {
+  FakeHost host;
+  int calls = 0;
+  host.render(description("root", 0, {memoOf("m", 7, &calls)}));
+
+  auto shell = description("m");
+  Memo<Description> memo;
+  memo.properties = std::string("ready");
+  memo.equal = [](const std::any& a, const std::any& b) {
+    return std::any_cast<const std::string&>(a) ==
+           std::any_cast<const std::string&>(b);
+  };
+  memo.invoke = [&calls](const std::any&) {
+    ++calls;
+    return description("m", 42);
+  };
+  shell->memo = std::move(memo);
+  ASSERT_NO_THROW(host.render(description("root", 0, {shell})));
+  EXPECT_EQ(calls, 2);
+  EXPECT_EQ(host.child(0)->description->value, 42);
+  EXPECT_EQ(host.reconciler.stats().memoHits, 0);
+
+  host.render(description("root", 0, {shell}));
+  EXPECT_EQ(calls, 2);
+  EXPECT_EQ(host.reconciler.stats().memoHits, 1);
 }
 
 TEST(Reconciler, AMemoIsKeyedByItsEnvironmentToo) {

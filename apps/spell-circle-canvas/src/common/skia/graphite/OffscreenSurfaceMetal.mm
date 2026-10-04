@@ -16,10 +16,12 @@
 // to destroy one.
 #include <sigilskia/graphite/PaintOrder.h>
 
+#include <utility>
+
 namespace sigil::skia {
 
 OffscreenSurface::OffscreenSurface(GraphiteContext &context, void *mtlTexture, int width,
-                                   int height)
+                                   int height, sk_sp<SkColorSpace> colorSpace)
     : m_context(&context) {
   if (!mtlTexture) return;
 
@@ -27,9 +29,9 @@ OffscreenSurface::OffscreenSurface(GraphiteContext &context, void *mtlTexture, i
       skgpu::graphite::BackendTextures::MakeMetal(SkISize::Make(width, height),
                                                   static_cast<CFTypeRef>(mtlTexture));
 
-  m_surface = SkSurfaces::WrapBackendTexture(context.recorder(), backendTexture,
-                                             /*colorSpace=*/nullptr,
-                                             /*props=*/nullptr);
+  m_surface =
+      SkSurfaces::WrapBackendTexture(context.recorder(), backendTexture, std::move(colorSpace),
+                                     /*props=*/nullptr);
 }
 
 }  // namespace sigil::skia

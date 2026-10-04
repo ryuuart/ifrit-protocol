@@ -6,6 +6,7 @@
  * drawing, with the fences that say when the device may have it back.
  */
 
+#include <include/core/SkColorSpace.h>
 #include <include/core/SkRefCnt.h>
 // The names a device gives its resources. Handles and fence values are
 // plain values with no device code behind them; the entry points here
@@ -50,15 +51,17 @@ class OffscreenSurface {
  public:
 #ifdef __APPLE__
   /** Metal wrap: @p mtlTexture is an id<MTLTexture> bridged to void*,
-   *  created on the same device @p context was built from. */
+   *  created on the same device @p context was built from. Its format
+   *  supplies the color type; @p colorSpace supplies the color meaning. */
   OffscreenSurface(GraphiteContext& context, void* mtlTexture, int width,
-                   int height);
+                   int height, sk_sp<SkColorSpace> colorSpace = nullptr);
 #endif
 
   /** Vulkan wrap of an image created on the same device @p context was
    *  built from. Leaves `canvas()` null when the build's Skia carries no
    *  Vulkan backend. */
-  OffscreenSurface(GraphiteContext& context, const VulkanImage& image);
+  OffscreenSurface(GraphiteContext& context, const VulkanImage& image,
+                   sk_sp<SkColorSpace> colorSpace = nullptr);
 
   /** The texture @p texture names on @p device, whichever API that
    *  device is: the wrap a host holding a GpuDevice reaches for, in
@@ -69,7 +72,8 @@ class OffscreenSurface {
    *  undefined for one nothing has drawn into, so its contents before
    *  the first draw are not preserved. */
   OffscreenSurface(GraphiteContext& context, core::hardware::GpuDevice& device,
-                   core::hardware::TextureHandle texture);
+                   core::hardware::TextureHandle texture,
+                   sk_sp<SkColorSpace> colorSpace = nullptr);
 
   /** Moves the wrap. A moved-from surface holds neither the surface nor
    *  the context: `canvas()` and `surface()` are null and every `submit()`

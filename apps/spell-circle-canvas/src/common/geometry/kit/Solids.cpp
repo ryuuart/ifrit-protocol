@@ -11,11 +11,11 @@
 #include <cmath>
 #include <limits>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/mesh/Vec.h"
 #include "sigilgeometry/path/Direction.h"
 #include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Polyline.h"
-#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Triangulate.h"
 
 namespace sigil::geometry::mesh {
@@ -192,8 +192,10 @@ Mesh loft(const std::vector<std::vector<glm::vec3>>& sections,
   Mesh out;
   if (sections.size() < 2) return out;
   size_t count = 0;
-  for (const auto& section : sections) count = std::max(count, section.size());
-  if (count < 3) return out;
+  for (const auto& section : sections) {
+    if (section.size() < 3) return out;
+    count = std::max(count, section.size());
+  }
   std::vector<std::vector<glm::vec3>> even;
   for (const auto& section : sections) even.push_back(evenRing(section, count));
   // The rings between two sections, in order, the last section included
@@ -222,8 +224,7 @@ Mesh loft(const std::vector<std::vector<glm::vec3>>& sections,
   const uint32_t stride = (uint32_t)count + 1;
   for (uint32_t r = 0; r + 1 < (uint32_t)rows; ++r)
     for (uint32_t k = 0; k < (uint32_t)count; ++k) {
-      const uint32_t a = r * stride + k, b = a + 1, c = a + stride,
-                     d = c + 1;
+      const uint32_t a = r * stride + k, b = a + 1, c = a + stride, d = c + 1;
       out.indices.insert(out.indices.end(), {a, c, b, b, c, d});
     }
   if (options.capEnds && !options.closed) {
@@ -232,14 +233,38 @@ Mesh loft(const std::vector<std::vector<glm::vec3>>& sections,
       glm::vec3 centre{0};
       for (const glm::vec3& p : ring) centre += p;
       centre /= (float)count;
+      glm::vec3 area{0};
+      for (size_t k = 0; k < count; ++k)
+        area += cross(ring[k] - centre, ring[(k + 1) % count] - centre);
+      glm::vec3 x, y, z;
+      basisFor(first ? area : -area, {0, 1, 0}, &x, &y, &z);
+      const auto project = [&](glm::vec3 p) {
+        const glm::vec3 fromCentre = p - centre;
+        return glm::vec2{dot(fromCentre, x), dot(fromCentre, y)};
+      };
+      glm::vec2 lo{std::numeric_limits<float>::max()}, hi{-lo};
+      for (const glm::vec3& p : ring) {
+        const glm::vec2 uv = project(p);
+        lo = glm::min(lo, uv);
+        hi = glm::max(hi, uv);
+      }
+      const glm::vec2 span = glm::max(hi - lo, glm::vec2{1e-6f});
+      // Caps have their own vertices so normal averaging cannot round
+      // a planar end into its walls. Their UVs cover the cap's own plane.
+      const uint32_t rim = (uint32_t)out.positions.size();
+      for (const glm::vec3& p : ring) {
+        out.positions.push_back(p);
+        out.uvs.push_back((project(p) - lo) / span);
+      }
       const uint32_t hub = (uint32_t)out.positions.size();
       out.positions.push_back(centre);
-      out.uvs.emplace_back(0.5f, first ? 0.0f : 1.0f);
-      const uint32_t row = first ? 0 : (uint32_t)(rows - 1) * stride;
-      for (uint32_t k = 0; k < (uint32_t)count; ++k)
-        first ? out.indices.insert(out.indices.end(), {hub, row + k + 1, row + k})
-              : out.indices.insert(out.indices.end(),
-                                   {hub, row + k, row + k + 1});
+      out.uvs.push_back(-lo / span);
+      for (uint32_t k = 0; k < (uint32_t)count; ++k) {
+        const uint32_t current = rim + k;
+        const uint32_t next = rim + (k + 1) % (uint32_t)count;
+        first ? out.indices.insert(out.indices.end(), {hub, current, next})
+              : out.indices.insert(out.indices.end(), {hub, next, current});
+      }
     }
   }
   out.computeNormals();
