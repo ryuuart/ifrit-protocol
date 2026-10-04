@@ -10,6 +10,8 @@
 #include <sigilworld/frame/View.h>
 #include <sigilworld/light/Light.h>
 
+#include <algorithm>
+
 namespace sigil::world {
 
 Sampling samplingOf(const material::Texture& texture) {
@@ -31,7 +33,8 @@ Sampling samplingOf(const material::Texture& texture) {
   const SkISize size = out.image ? media::toSk(out.image.size())
                                  : SkISize::Make(where.width, where.height);
   SkMatrix lookup;
-  if (size.isEmpty() || !material::skia::toSkMatrix(texture.uv()).invert(&lookup))
+  if (size.isEmpty() ||
+      !material::skia::toSkMatrix(texture.uv()).invert(&lookup))
     return out;
   SkMatrix uv =
       SkMatrix::Scale(1.0f / (float)size.width(), 1.0f / (float)size.height());
@@ -45,7 +48,8 @@ Subject subjectOf(const Draw& draw) {
   return Subject{draw.key, draw.tags, draw.ancestors, draw.material};
 }
 
-::sigil::geometry::mesh::render::Light painterLight(const material::Light& light) {
+::sigil::geometry::mesh::render::Light painterLight(
+    const material::Light& light) {
   const light::Directional value = light::directional(light);
   ::sigil::geometry::mesh::render::Light out;
   out.direction = value.direction;
@@ -69,6 +73,12 @@ void dress(::sigil::geometry::mesh::render::MeshStyle& style,
   const SurfaceTerms terms = surfaceTermsOf(body.material);
   style.metallic = terms.metallic;
   style.roughness = terms.roughness;
+  // The light a surface gives off of its own is laid over the shading,
+  // where neither the emitters nor the base-colour map reach it.
+  style.emissionMap = body.emissive && body.lit
+                          ? samplingOf(*body.emissive).image
+                          : media::Picture{};
+  style.emission = terms.emission;
 }
 
 SurfaceTerms surfaceTermsOf(const ::sigil::material::Material* material) {
@@ -85,6 +95,14 @@ SurfaceTerms surfaceTermsOf(const ::sigil::material::Material* material) {
   scalar("transmission", terms.transmission);
   scalar("ior", terms.ior);
   scalar("thickness", terms.thickness);
+  const material::Field* emissive = parameters.find("emissive");
+  if (emissive && emissive->kind == material::ParameterType::Color) {
+    float strength = 0;
+    scalar("emissiveStrength", strength);
+    const glm::vec4 value = material->get<glm::vec4>("emissive");
+    terms.emission =
+        glm::vec3{value.r, value.g, value.b} * std::max(strength, 0.0f);
+  }
   const material::Field* absorb = parameters.find("absorption");
   if (absorb && absorb->kind == material::ParameterType::Color) {
     const glm::vec4 value = material->get<glm::vec4>("absorption");

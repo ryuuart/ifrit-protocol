@@ -435,6 +435,14 @@ A host that owns both — a study, an application — makes the scene, hands
 it the tree each frame, and puts the value it returns in a material slot.
 That is the whole handoff.
 
+**A page the set lights arrives as a texture set.** Compose can paint one
+tree as the maps of a surface — base colour, normal, roughness, metallic,
+occlusion and emissive — which `material::surface::program(maps)` puts in
+a surface's slots like any texture set an authoring tool exported. The
+set's lights, environment and camera then shade the page; its unlit
+content arrives in the emissive map over a black base and shows as it was
+painted, on both tiers.
+
 **The device reaches those pixels through one narrow value.** A
 texture's `media::PixelSource` may answer a frame standing on a device,
 which the texture reads as a `DeviceImage`: the device that owns the
@@ -531,12 +539,17 @@ per vertex, so:
 
 - a `material::Material` is carried and compared in full, and the tier
   reads its `baseColor` field when the recipe declares one, plus the
-  `material::Texture` in its base-colour map slot. A recipe's body is a
+  `material::Texture` in its base-colour and emissive map slots. A recipe's body is a
   program, and the CPU tier has no compiler to run one.
 - a STACK of surfaces — `material::over` — reaches this tier as the
   surface at the BOTTOM of it, because the mask that decides where the
   top shows is a program too. Both the colour and the map are read
   there.
+- an EMISSIVE map is read beside the base-colour one, times the surface's
+  `emissive` colour and strength, and added over the shaded, textured
+  body, reached by neither the emitters nor the base-colour map — so a
+  surface with a black base still shows the light it gives off, as it
+  does on the device.
 - a sun reaches the shading as itself; a point or spot light reaches it
   as the direction from where it stands toward the origin, at the
   strength it has there. The full falloff is `light::attenuation`.

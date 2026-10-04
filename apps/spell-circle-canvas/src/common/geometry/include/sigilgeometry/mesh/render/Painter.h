@@ -110,6 +110,12 @@ struct MeshStyle {
   float rim = 0.25f;      ///< rim light strength
   /** Optional texture: uvs sample this image, modulated by lighting. */
   media::Picture texture;
+  /** Optional EMISSION texture: the light the surface gives off of its
+   *  own, sampled at the same uvs and placement as `texture`, multiplied by
+   *  `emission` and ADDED over the shaded, textured result — reached by
+   *  neither the lights nor the texture. Lit mode only. */
+  media::Picture emissionMap;
+  glm::vec3 emission{0, 0, 0};
   /** Texture PLACEMENT in uv space, applied before the lookup —
    *  translate to scroll (a marquee riding a ribbon), scale to repeat,
    *  rotate to spin. Identity = the image spans uv [0,1] once. */
@@ -159,8 +165,8 @@ void drawPanel(SkCanvas& canvas, const glm::mat4& model,
 
 /** Convenience: an image mapped onto a width x height panel at
  *  @p model (image stretched to the panel rect, centered). */
-void drawImagePanel(SkCanvas& canvas, const media::Picture& image,
-                    float width, float height, const glm::mat4& model,
+void drawImagePanel(SkCanvas& canvas, const media::Picture& image, float width,
+                    float height, const glm::mat4& model,
                     const camera::Camera& camera, glm::vec2 viewport,
                     float opacity = 1, const Runtime& runtime = Runtime::cpu());
 

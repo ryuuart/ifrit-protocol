@@ -188,6 +188,11 @@ static float3 gSurfaceAbsorption = float3(0.0, 0.0, 0.0);
  *  where the surface's own reflectance and its Fresnel decide; at or
  *  above zero, that much environment added with neither. */
 static float gSurfaceReflection = -1.0;
+/** The light this pixel gives off of its own. It is laid over the
+ *  finished colour — past the emitters, the tone curve and the base-colour
+ *  map — so a surface whose base is black still shows it, at the value it
+ *  was authored. */
+static float3 gSurfaceEmission = float3(0.0, 0.0, 0.0);
 /** Did the body find a MAP that varies the surface across the face?
  *  Nothing is re-evaluated until one does, so a body dressed with no
  *  such map costs nothing and changes nothing. The values above are
@@ -250,7 +255,8 @@ float4 surfaceFlat(float2 uv) { return uBaseColor; }
  *  would have to carry and every generator would have to fill.
  *
  *  @p n must already be unit length. The two axes come back unnormalised
- *  but at one scale, which is all a perturbation needs. */
+ *  but at one scale, which is all a perturbation needs: `t` along which
+ *  u increases, `b` up the picture, the way a map's green points. */
 void tangentAxes(float3 n, float3 p, float2 uv, out float3 t, out float3 b) {
   let dpx = ddx(p);
   let dpy = ddy(p);
@@ -260,6 +266,13 @@ void tangentAxes(float3 n, float3 p, float2 uv, out float3 t, out float3 b) {
   let py = cross(n, dpx);
   t = px * duvx.x + py * duvy.x;
   b = px * duvx.y + py * duvy.y;
+  // Those are the gradients of u and v scaled by the screen's own
+  // orientation, which flips with the direction the framebuffer's rows run;
+  // its sign puts them back to u increasing and v increasing, and a map's
+  // green points UP the picture, against v.
+  let orientation = dotP(dpx, cross(dpy, n)) < 0.0 ? -1.0 : 1.0;
+  t = t * orientation;
+  b = -b * orientation;
   let scale = max(dotP(t, t), dotP(b, b));
   let inv = scale > 0.0 ? 1.0 / sqrtP(scale) : 0.0;
   t = t * inv;
@@ -401,7 +414,7 @@ float4 shade(float4 surface, VSOut input) {
   let map = uBaseColorMap.Sample(mapUv);
   let rgb = shaded * map.rgb;
   let a = saturateP(straight.a) * map.a;
-  return float4(rgb * a, a);
+  return float4(rgb * a + gSurfaceEmission, a);
 }
 
 [shader("fragment")]

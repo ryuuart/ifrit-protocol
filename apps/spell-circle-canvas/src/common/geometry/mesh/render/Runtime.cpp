@@ -6,6 +6,7 @@
 #include "sigilgeometry/mesh/render/Runtime.h"
 
 #include <include/core/SkCanvas.h>
+#include <include/core/SkColorFilter.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkM44.h>
 #include <include/core/SkPaint.h>
@@ -365,6 +366,25 @@ struct CpuExecutor : Executor {
     }
     const float texW = textured ? (float)texture->width() : 1;
     const float texH = textured ? (float)texture->height() : 1;
+    // THE LIGHT THE SURFACE GIVES OFF OF ITS OWN is laid over what was
+    // shaded, added rather than modulated, so neither the lights nor the
+    // base texture reach it.
+    const sk_sp<SkImage> glow = style.emissionMap;
+    const bool glows =
+        glow && hasUvs && style.mode == MeshStyle::Mode::Lit &&
+        (style.emission.x > 0 || style.emission.y > 0 || style.emission.z > 0);
+    SkPaint glowPaint;
+    if (glows) {
+      const SkTileMode tile =
+          style.tileTexture ? SkTileMode::kRepeat : SkTileMode::kClamp;
+      glowPaint.setShader(glow->makeShader(tile, tile, sampling));
+      glowPaint.setColorFilter(SkColorFilters::Blend(
+          SkColor4f{style.emission.x, style.emission.y, style.emission.z, 1},
+          nullptr, SkBlendMode::kModulate));
+      glowPaint.setBlendMode(SkBlendMode::kPlus);
+    }
+    const float glowW = glows ? (float)glow->width() : 1;
+    const float glowH = glows ? (float)glow->height() : 1;
     const SkMatrix uvTransform = path::toSk(style.uvTransform);
 
     const size_t maxTrisPerChunk = 65535 / 3;
@@ -373,6 +393,8 @@ struct CpuExecutor : Executor {
       std::vector<SkPoint> pos;
       std::vector<SkPoint> tex;
       std::vector<SkColor> col;
+      std::vector<SkPoint> glowTex;
+      if (glows) glowTex.reserve(count * 3);
       pos.reserve(count * 3);
       col.reserve(count * 3);
       if (textured) tex.reserve(count * 3);
@@ -390,6 +412,12 @@ struct CpuExecutor : Executor {
             const SkPoint uv = uvTransform.mapPoint({mapped.x, mapped.y});
             tex.push_back({uv.fX * texW, uv.fY * texH});
           }
+          if (glows) {
+            const glm::vec2 mapped =
+                idx < n ? mesh.uvs[idx] : clippedUvs[idx - n];
+            const SkPoint uv = uvTransform.mapPoint({mapped.x, mapped.y});
+            glowTex.push_back({uv.fX * glowW, uv.fY * glowH});
+          }
         }
       }
       sk_sp<SkVertices> vertices = SkVertices::MakeCopy(
@@ -398,6 +426,12 @@ struct CpuExecutor : Executor {
       canvas.drawVertices(vertices,
                           textured ? SkBlendMode::kModulate : SkBlendMode::kDst,
                           paint);
+      if (glows)
+        canvas.drawVertices(
+            SkVertices::MakeCopy(SkVertices::kTriangles_VertexMode,
+                                 (int)pos.size(), pos.data(), glowTex.data(),
+                                 nullptr, 0, nullptr),
+            SkBlendMode::kDst, glowPaint);
     }
   }
 

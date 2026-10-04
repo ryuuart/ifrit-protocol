@@ -161,7 +161,8 @@ variables a body writes and it reads: `gSurfaceNormal` in tangent space,
 `gSurfaceGloss` as a Blinn exponent, `gSurfaceMetal`, `gSurfaceRoughness`,
 the three glass terms `gSurfaceTransmission`, `gSurfaceIor` and
 `gSurfaceThickness` with `gSurfaceAbsorption` beside them, and
-`gSurfaceReflection` for how an environment reaches the surface. Those
+`gSurfaceReflection` for how an environment reaches the surface, and
+`gSurfaceEmission`, the light the surface gives off of its own. Those
 are the surface's standing whether or not a map varies them — a mirror
 carrying no maps still has to reflect, and only the surface knows how
 rough it is.
@@ -297,7 +298,10 @@ and a rim term that nothing scales. So:
   than where the mask says.
 - the occlusion, emissive and opacity maps reach the pixels through the
   kit's own body: occlusion darkens the albedo at its strength, emission
-  is added at its own colour and strength, and `alphaCutoff` turns the
+  is laid over the finished colour at its own colour and strength — past
+  the emitters, the tone curve and the base-colour map, so a surface whose
+  base is black still shows the light it gives off, as authored — and
+  `alphaCutoff` turns the
   opacity map into a CUTOUT — below the threshold the surface is absent
   rather than translucent.
 - the normal map perturbs the shading, and the shading is evaluated again

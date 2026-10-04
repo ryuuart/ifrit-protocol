@@ -417,6 +417,9 @@ void Scene::Impl::writeComponents(Instance& inst) {
   // …and so is the answer to whether light reaches it. A surface that is
   // its own light says so once, here, rather than being asked per pass.
   surface.lit = !(readable && material::surface::isUnlit(*readable));
+  surface.emissive = readable ? material::surface::map(
+                                    *readable, material::surface::kEmissiveSlot)
+                              : nullptr;
   if (node.tags.empty())
     registry.remove<component::Tagged>(inst.entity);
   else

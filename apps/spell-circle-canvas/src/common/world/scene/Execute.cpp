@@ -70,6 +70,7 @@ void Scene::Impl::collectBodies(const geometry::mesh::camera::Camera& eye,
         .material = surface.material ? &*surface.material : nullptr,
         .lit = surface.lit,
         .texture = surface.texture,
+        .emissive = surface.emissive,
     });
   }
 }

@@ -58,6 +58,10 @@ struct Draw {
    *  off the material once per frame, so an executor does not walk a
    *  material tree per draw. */
   const ::sigil::material::Texture* texture = nullptr;
+  /** THE LIGHT THE SURFACE GIVES OFF OF ITS OWN: the emissive texture the
+   *  body's material carries, or null when it carries none. Read beside
+   *  the base-colour map, for a tier that paints it over the shading. */
+  const ::sigil::material::Texture* emissive = nullptr;
 };
 
 /** A TEXTURE AS A MESH SAMPLES IT: the image, where it is read at over
@@ -92,6 +96,9 @@ struct SurfaceTerms {
   float ior = 1.5f;
   float thickness = 0;
   glm::vec3 absorption{0, 0, 0};
+  /** The emissive colour times its strength: what the emissive map is
+   *  multiplied by. Zero for a surface that gives off nothing. */
+  glm::vec3 emission{0, 0, 0};
 };
 /** The shading terms @p material carries, or the ones that leave the
  *  shading where it was when it carries none. */
@@ -99,7 +106,8 @@ SurfaceTerms surfaceTermsOf(const ::sigil::material::Material* material);
 
 /** AN EMITTER AS THE MESH PAINTER TAKES IT: the one directional reading
  *  every tier that shades without a per-pixel position works from. */
-::sigil::geometry::mesh::render::Light painterLight(const material::Light& light);
+::sigil::geometry::mesh::render::Light painterLight(
+    const material::Light& light);
 
 /** The map @p body is dressed with and whether the emitters reach it,
  *  put on @p style — and taken off it again for a body carrying

@@ -26,6 +26,7 @@
 
 #include <cstring>
 #include <functional>
+#include <glm/geometric.hpp>
 #include <string>
 #include <utility>
 #include <vector>
@@ -123,6 +124,80 @@ TEST(SurfaceSlots, AnEmissiveMapCarriesItsOwnColour) {
   const SkColor4f lit = at(cardOn(glowing, on.runtime), 0.5f, 0.5f);
   EXPECT_GT(lit.fR, bare.fR + 0.3f) << "the emission reaches the pixels";
   EXPECT_GT(lit.fR, lit.fG + 0.3f) << "and it is the MAP\'s colour";
+}
+
+namespace {
+
+/** A surface whose base is black and whose light is all its own, as a
+ *  page of content that takes no light arrives: the emission is what the
+ *  surface shows, at the value the map holds. */
+material::Material glowingOnBlack() {
+  material::texture::TextureMaps maps;
+  maps.maps.emplace(material::texture::Role::BaseColor,
+                    flat("world.test.black-base", {0, 0, 0, 1}));
+  maps.maps.emplace(material::texture::Role::Emissive,
+                    flat("world.test.own-light", {0.7f, 0.2f, 0.1f, 1}));
+  return material::surface::program(maps);
+}
+
+void expectOwnLight(const SkColor4f& centre) {
+  EXPECT_NEAR(centre.fR, 0.7f, 0.03f);
+  EXPECT_NEAR(centre.fG, 0.2f, 0.03f);
+  EXPECT_NEAR(centre.fB, 0.1f, 0.03f);
+}
+
+}  // namespace
+
+TEST(SurfaceSlots, EmissionShowsOverABlackBaseAsAuthoredOnTheDevice) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // Past the sun, the ambient, the tone curve and the base-colour map:
+  // none of them reaches the light the surface gives off of its own.
+  expectOwnLight(at(cardOn(glowingOnBlack(), on.runtime), 0.5f, 0.5f));
+}
+
+TEST(SurfaceSlots, EmissionShowsOverABlackBaseAsAuthoredOnTheHost) {
+  expectOwnLight(at(cardOn(glowingOnBlack(), Runtime::cpu()), 0.5f, 0.5f));
+}
+
+namespace {
+
+/** A grey card facing the camera, its normal map one texel tilted 45
+ *  degrees toward @p tilt (x right, y up the picture, green up), lit by
+ *  one sun shining from @p from. */
+float tiltedBrightness(glm::vec2 tilt, glm::vec3 from, const Runtime& runtime) {
+  const glm::vec3 n = glm::normalize(glm::vec3{tilt.x, tilt.y, 1});
+  material::Material surface =
+      material::surface::program({.baseColor = {.8f, .8f, .8f, 1}});
+  surface.slot(material::surface::kNormalSlot,
+               flat("world.test.tilt." + std::to_string(tilt.x) + "." +
+                        std::to_string(tilt.y),
+                    {n.x * .5f + .5f, n.y * .5f + .5f, n.z * .5f + .5f, 1}));
+  Element root = Element().key("set").children(
+      {Element().key("sun").light(light::sun(-from)),
+       Element()
+           .key("card")
+           .mesh(::sigil::geometry::mesh::quad(120, 120))
+           .fill(surface)});
+  Frame frame(root);
+  frame.extent(kExtent)
+      .camera(diligent::levelEye())
+      .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack));
+  return luma(at(plateOf(frame, runtime), .5f, .5f));
+}
+
+}  // namespace
+
+TEST(SurfaceSlots, ANormalMapTurnsTowardTheLightItIsTiltedToward) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // Red is right and green is up the picture: a face tilted toward the
+  // side a light shines from takes more of it than one tilted away.
+  const glm::vec3 right{1, 0, .6f}, above{0, 1, .6f};
+  EXPECT_GT(tiltedBrightness({1, 0}, right, on.runtime),
+            tiltedBrightness({-1, 0}, right, on.runtime) + .05f);
+  EXPECT_GT(tiltedBrightness({0, 1}, above, on.runtime),
+            tiltedBrightness({0, -1}, above, on.runtime) + .05f);
 }
 
 TEST(SurfaceSlots, AnOpacityCutoutDropsTexelsOutright) {
