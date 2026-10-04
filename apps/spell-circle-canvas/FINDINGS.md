@@ -1957,7 +1957,9 @@ change, by kind:
   `reflection_lobe`, `luminous_layers` and `light_table` describe their
   whole page inside a pen callback under `Cache::None`, and
   `metal_instrument` rebuilds its materials in `describe`. The tree is
-  the composer's, described when state changes.
+  the composer's, described when state changes. `painted_fields` does
+  not reach its capture moment on the CPU plate tier inside the sweep's
+  per-scene ceiling.
 - **Hand-rolled controls.** `carved_marks`, `light_table`,
   `luminous_layers` and `reflection_lobe` hit-test hard-coded rectangles;
   `sketch::kit::Controls` and `Meter` answer the pointer.
