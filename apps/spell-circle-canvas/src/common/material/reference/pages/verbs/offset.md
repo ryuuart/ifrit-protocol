@@ -44,8 +44,8 @@ paints, not a hint.
 
 Yes covers the constant pan as well as the moving one — a placed tile is
 a pan whose value happens not to change — because the consumer reads the
-same two floats either way. What it excludes is a live uniform, `uTime`,
-`uContentScale` and any animated slot or blend layer, including a NESTED
+same two floats either way. What it excludes is a live uniform, `uTime`
+and any animated slot or blend layer, including a NESTED
 pan, which the layer-local channel cannot reach.
 
 `Paint::boundOffsetValue` is the pan as of NOW: what each axis's

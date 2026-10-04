@@ -27,8 +27,8 @@
 #include <sigilmaterial/skia/Pass.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/Texture.h>
-#include <sigilmotion/values/Animatable.h>
 #include <sigilmedia/advanced/Skia.h>
+#include <sigilmotion/values/Animatable.h>
 
 #include <chrono>
 #include <filesystem>
@@ -119,13 +119,33 @@ TEST(MaterialShader, ReadsTheFrameInputsItsBodySpells) {
   EXPECT_FALSE(shader(kFlat, Flat{}).isRunning());
 }
 
+TEST(MaterialShader, PixelSamplingTransformIsInferredUnlessAuthorDeclared) {
+  const Material sampled = shader(
+      "half4 main(float2 p) { return half4("
+      "(uLocalToSample * float3(1, 0, 0)).xy, 0, 1); }");
+  EXPECT_TRUE(sampled.recipe().reads(FrameInput::LocalToSample));
+  EXPECT_TRUE(sampled.geometryDependent());
+  EXPECT_FALSE(sampled.isRunning());
+  ASSERT_NE(sampled.recipe().layout().find("uLocalToSample"), nullptr);
+  EXPECT_EQ(sampled.recipe().layout().find("uLocalToSample")->kind,
+            ParameterType::Mat3);
+  struct Authored {
+    glm::vec4 uLocalToSample{1, 0, 0, 1};
+  };
+  const Material declared = shader(
+      "half4 main(float2 p) { return half4(uLocalToSample); }", Authored{});
+  EXPECT_FALSE(declared.recipe().reads(FrameInput::LocalToSample));
+  EXPECT_FALSE(declared.geometryDependent());
+  EXPECT_EQ(declared.recipe().layout().fields.size(), 1u);
+}
+
 TEST(MaterialShader, ABoundFieldMakesItsPassLiveAndOnlyItsPass) {
   struct Level {
     float level = 0;
   };
   sigil::motion::Animatable<float> dial = sigil::motion::animatable(0.0f);
-  Material base = shader(
-      "half4 main(float2 p) { return half4(level, 0, 0, 1); }", Level{});
+  Material base =
+      shader("half4 main(float2 p) { return half4(level, 0, 0, 1); }", Level{});
   base.bind("level", dial);
   const Material still = shader(kFlat, Flat{{0, 0, 1, 0.5f}});
   const Material dressed =
@@ -162,8 +182,9 @@ TEST(MaterialShader, SamplesATextureByTheNameItsBodyReads) {
 
 TEST(MaterialShader, AFileIsReadThroughAHub) {
   const ScratchDir scratch("material_shader");
-  scratch.write("tint.sksl",
-                "half4 main(float2 xy) { return half4(amount, 0, uTime, 1); }\n");
+  scratch.write(
+      "tint.sksl",
+      "half4 main(float2 xy) { return half4(amount, 0, uTime, 1); }\n");
   sigil::io::Hub hub;
   sigil::io::mount(hub, "res://", scratch.path);
 
@@ -204,14 +225,17 @@ TEST(MaterialShader, ABrokenEditKeepsTheLastProgramThatCompiled) {
   sigil::io::Hub hub;
   sigil::io::mount(hub, "res://", scratch.path);
   const Material green = shader(hub, "res://fill.sksl");
-  EXPECT_EQ(SK_ColorGREEN, drawn(skia::shader(green, frameOf(4))).getColor(2, 2));
+  EXPECT_EQ(SK_ColorGREEN,
+            drawn(skia::shader(green, frameOf(4))).getColor(2, 2));
   EXPECT_TRUE(hub.problems().empty());
 
   edit(scratch, "fill.sksl", kBroken, 2);
   ASSERT_TRUE(sigil::io::poll(hub));
   const Material kept = shader(hub, "res://fill.sksl");
-  EXPECT_EQ(green, kept) << "the broken text did not replace the one that compiled";
-  EXPECT_EQ(SK_ColorGREEN, drawn(skia::shader(kept, frameOf(4))).getColor(2, 2));
+  EXPECT_EQ(green, kept)
+      << "the broken text did not replace the one that compiled";
+  EXPECT_EQ(SK_ColorGREEN,
+            drawn(skia::shader(kept, frameOf(4))).getColor(2, 2));
   const std::vector<sigil::io::Problem> said = hub.problems();
   ASSERT_EQ(said.size(), 1u);
   EXPECT_EQ(said[0].uri, "res://fill.sksl");
@@ -224,7 +248,39 @@ TEST(MaterialShader, ABrokenEditKeepsTheLastProgramThatCompiled) {
   ASSERT_TRUE(sigil::io::poll(hub));
   const Material blue = shader(hub, "res://fill.sksl");
   EXPECT_EQ(SK_ColorBLUE, drawn(skia::shader(blue, frameOf(4))).getColor(2, 2));
-  EXPECT_TRUE(hub.problems().empty()) << "a text that compiles takes the word back";
+  EXPECT_TRUE(hub.problems().empty())
+      << "a text that compiles takes the word back";
+}
+
+TEST(MaterialShader, UnitPassRetainsPlacementAndPixelSamplingFrame) {
+  Material material = shader(R"(
+half4 main(float2 xy) {
+  return uContent.eval(xy) * half(uUnitPhase[kUnitCount - 1].x) *
+      half4(uLocalToSample[0][0] / 8, uWorld[2][0] / 64,
+            uResolution.x / 128, 1);
+}
+)");
+  const FrameData frame{
+      .resolution = {32, 16},
+      .rootResolution = {128, 64},
+      .world = glm::mat3{2, 0, 0, 0, 3, 0, 16, 8, 1},
+      .localToSample = glm::mat3{.25f, 0, 0, 0, .5f, 0, 0, 0, 1}};
+  const float rects[] = {0, 0, 4, 4}, phases[] = {1, 0};
+  skia::PassInputs inputs;
+  inputs.content = SkShaders::Color(SK_ColorWHITE);
+  inputs.units = 1;
+  inputs.rects = rects;
+  inputs.phases = phases;
+  for (bool anchored : {false, true}) {
+    material.worldSpace(anchored);
+    const auto pass = skia::resolvePass(skia::paint(material), inputs, frame);
+    ASSERT_TRUE(pass);
+    const auto pixel = drawn(pass).getColor(2, 2);
+    EXPECT_NEAR(SkColorGetR(pixel), anchored ? 16 : 8, 1);
+    EXPECT_NEAR(SkColorGetG(pixel), 64, 1);
+    EXPECT_NEAR(SkColorGetB(pixel), anchored ? 255 : 64, 1);
+    EXPECT_EQ(SkColorGetA(pixel), 255u);
+  }
 }
 
 TEST(MaterialShader, AFilePassValidatesWithUnitsAndKeepsItsLastGoodBody) {
@@ -257,7 +313,8 @@ TEST(MaterialShader, AFilePassValidatesWithUnitsAndKeepsItsLastGoodBody) {
 
   edit(scratch, "pass.sksl",
        "half4 main(float2 xy) {\n"
-       "  return uContent.eval(xy) * missingLevel;\n}\n", 2);
+       "  return uContent.eval(xy) * missingLevel;\n}\n",
+       2);
   ASSERT_TRUE(sigil::io::poll(hub));
   const Material kept = shader(hub, "res://pass.sksl");
   EXPECT_EQ(kept, good);

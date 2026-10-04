@@ -1,7 +1,7 @@
 /** @file
  * The bevel normal map, differentiated from an outline's blurred
  * coverage: the shape is drawn white, blurred by the shoulder width,
- * smoothstepped into a height field and Sobel-filtered into normals.
+ * smoothstepped into a height field and differentiated into normals.
  */
 
 #include "sigilmaterial/skia/Bevel.h"
@@ -49,7 +49,7 @@ sk_sp<SkImage> bevelImage(const SkPath& path, SkIRect bounds, float bevelPx,
   ramp.allocPixels(SkImageInfo::MakeN32Premul(w, h));
   if (!surface->readPixels(ramp.pixmap(), 0, 0)) return nullptr;
 
-  // Height with a smoothstep shoulder, then Sobel -> normals.
+  // Height with a smoothstep shoulder, then central differences -> normals.
   std::vector<float> height((size_t)w * h);
   for (int y = 0; y < h; ++y) {
     const uint32_t* row = ramp.getAddr32(0, y);

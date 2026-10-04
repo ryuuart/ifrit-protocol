@@ -11,9 +11,10 @@
 #include <include/core/SkSurface.h>
 #include <sigilmaterial/advanced/Program.h>
 #include <sigilmaterial/skia/Color.h>
-#include <sigilshaders/MaterialSurface.h>
 #include <sigilmedia/advanced/Skia.h>
+#include <sigilshaders/MaterialSurface.h>
 
+#include <cmath>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -78,8 +79,8 @@ Texture flat(const char* key, material::Color color) {
   return Texture(media::PixelSource::produce(
                      std::string(kFillPrefix) + key,
                      [color]() -> sk_sp<SkImage> {
-                       sk_sp<SkSurface> s = SkSurfaces::Raster(
-                           SkImageInfo::MakeN32Premul(1, 1));
+                       sk_sp<SkSurface> s =
+                           SkSurfaces::Raster(SkImageInfo::MakeN32Premul(1, 1));
                        if (!s) return nullptr;
                        s->getCanvas()->clear(skia::toSkColor(color));
                        return s->makeImageSnapshot();
@@ -103,6 +104,50 @@ Material dress(Material m) {
 }
 
 }  // namespace
+
+Material blendNormals(Material base, Material detail,
+                      NormalBlendOptions options) {
+  struct Parameters {
+    float baseGreen, detailGreen, outputGreen;
+  };
+  // The surface program takes one map. Reorient the fine relief into
+  // the coarse normal's tangent frame before supplying that channel.
+  static const auto recipe = std::make_shared<const Recipe>(
+      Recipe::of<Parameters>("surface.blendNormals")
+          .slot("baseNormal")
+          .slot("detailNormal")
+          .body(Target::SkSL, std::string(shaderSource("BlendNormals.sksl")))
+          .body(Target::Slang,
+                std::string(shaderSource("BlendNormals.slang"))));
+  Material result(recipe, Parameters{options.baseDirectX ? -1.0f : 1.0f,
+                                     options.detailDirectX ? -1.0f : 1.0f,
+                                     options.outputDirectX ? -1.0f : 1.0f});
+  result.slot("baseNormal", std::move(base));
+  result.slot("detailNormal", std::move(detail));
+  return result;
+}
+
+Material normalFromHeight(Material height, HeightNormalOptions options) {
+  if (!std::isfinite(options.depth) || options.depth == 0 ||
+      !std::isfinite(options.step) || options.step <= 0 ||
+      !std::isfinite(options.depth / options.step))
+    return Color{0.5f, 0.5f, 1, 1};
+  struct Parameters {
+    float depth, sampleDistance, green;
+  };
+  // Skia's contour bevel accepts a path. A sampled height can instead come
+  // from an image, a composed material or a consumer's rendered element tree.
+  static const auto recipe = std::make_shared<const Recipe>(
+      Recipe::of<Parameters>("surface.normalFromHeight")
+          .frame(FrameInput::LocalToSample)
+          .slot("height")
+          .body(Target::SkSL,
+                std::string(shaderSource("NormalFromHeight.sksl"))));
+  Material result(recipe, Parameters{options.depth, options.step,
+                                     options.directX ? -1.0f : 1.0f});
+  result.slot("height", std::move(height));
+  return result;
+}
 
 const std::shared_ptr<const Recipe>& surfaceRecipe(Reflection reflection) {
   static const std::shared_ptr<const Recipe> splitSum =
@@ -140,7 +185,9 @@ bool isSurface(const Material& material) {
          material.recipePointer() == unlitRecipe();
 }
 
-bool isUnlit(const Material& material) { return material.recipePointer() == unlitRecipe(); }
+bool isUnlit(const Material& material) {
+  return material.recipePointer() == unlitRecipe();
+}
 
 const Texture* map(const Material& material, std::string_view slot) {
   const auto* texture = dynamic_cast<const Texture*>(material.leaf(slot));

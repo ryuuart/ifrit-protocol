@@ -30,6 +30,7 @@ enum class FrameInput : uint8_t {
   Resolution = 2,      ///< `uniform float2 uResolution`, the node's pixels
   ContentScale = 4,    ///< `uniform float uContentScale`
   WorldTransform = 8,  ///< `uniform float3x3 uWorld`, local to root
+  LocalToSample = 16,  ///< `uniform float3x3 uLocalToSample`, pixel offsets
 };
 
 /** WHAT AN EXECUTOR MAKES A SLOT OUT OF THE LAYER. A recipe run over a

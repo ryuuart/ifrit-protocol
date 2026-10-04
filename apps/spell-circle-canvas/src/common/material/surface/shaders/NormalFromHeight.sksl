@@ -1,0 +1,30 @@
+// A normal derived from a sampled height: luminance read as height at
+// one logical-pixel step either side along each axis, the central
+// differences scaled by depth over the step. A projective or non-finite
+// sampling step answers the flat normal.
+float heightValue(float4 colour) {
+  float value = dot(colour.rgb, float3(0.2126, 0.7152, 0.0722));
+  return value >= 0 ? min(value, 1.0) : 0;
+}
+float4 heightNormal(float left, float right, float above, float below) {
+  float slope = (depth / sampleDistance) * 0.5;
+  float3 n = float3((left - right) * slope,
+                   (below - above) * slope * green, 1);
+  n /= max(max(abs(n.x), abs(n.y)), 1.0);
+  n /= sqrt(dot(n, n));
+  return float4(n * 0.5 + 0.5, 1);
+}
+half4 main(float2 p) {
+  float2 dx = uLocalToSample[0].xy * sampleDistance;
+  float2 dy = uLocalToSample[1].xy * sampleDistance;
+  if (uLocalToSample[0].z != 0 || uLocalToSample[1].z != 0 ||
+      uLocalToSample[2].z != 1 ||
+      !(abs(dx.x) <= 3.402823466e38 && abs(dx.y) <= 3.402823466e38 &&
+        abs(dy.x) <= 3.402823466e38 && abs(dy.y) <= 3.402823466e38))
+    return half4(0.5, 0.5, 1, 1);
+  return half4(heightNormal(
+      heightValue(height.eval(p - dx)),
+      heightValue(height.eval(p + dx)),
+      heightValue(height.eval(p - dy)),
+      heightValue(height.eval(p + dy))));
+}

@@ -6,16 +6,18 @@
  */
 
 #include <gtest/gtest.h>
-#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/advanced/Program.h>
 #include <sigilmaterial/advanced/Recipe.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Target.h>
 #include <sigilshaders/MaterialCore.h>
 
 #include <atomic>
+#include <barrier>
 #include <functional>
 #include <future>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -55,6 +57,21 @@ class DroppingProgram : public Program {
 
  private:
   std::string m_drop;
+};
+
+class ThrowingReflectionProgram : public Program {
+ public:
+  ThrowingReflectionProgram(std::shared_ptr<const Recipe> recipe,
+                            Variant variant, std::function<void()> before = {})
+      : Program(std::move(recipe), Target::Slang, variant),
+        m_before(std::move(before)) {}
+  bool keeps(std::string_view) const override {
+    if (m_before) m_before();
+    throw std::runtime_error("uniform reflection failed");
+  }
+
+ private:
+  std::function<void()> m_before;
 };
 
 /** Everything the cache writes to stderr while @p fn runs. */
@@ -187,6 +204,86 @@ TEST(ProgramCache, CompileFailureIsNullAndRetriedAfterClear) {
   EXPECT_EQ(calls, 1);
 }
 
+TEST(ProgramCache, ReflectionExceptionLeavesTheKeyRetryable) {
+  ProgramCache cache;
+  int calls = 0;
+  cache.registerCompiler(
+      Target::Slang,
+      [&](std::shared_ptr<const Recipe> recipe, Variant variant,
+          std::string&) -> std::shared_ptr<Program> {
+        if (++calls == 1)
+          return std::make_shared<ThrowingReflectionProgram>(std::move(recipe),
+                                                             variant);
+        return std::make_shared<Program>(std::move(recipe), Target::Slang,
+                                         variant);
+      });
+  const auto recipe = std::make_shared<const Recipe>(
+      Recipe::of<TwoParameters>("reflection-retry").body(Target::Slang, "x"));
+  EXPECT_THROW(cache.program(recipe, Target::Slang), std::runtime_error);
+  EXPECT_EQ(cache.size(), 0u);
+  const auto repaired = cache.program(recipe, Target::Slang);
+  ASSERT_TRUE(repaired);
+  EXPECT_EQ(cache.program(recipe, Target::Slang), repaired);
+  EXPECT_EQ(calls, 2);
+  EXPECT_EQ(cache.size(), 1u);
+}
+
+TEST(ProgramCache, ReflectionFailureSettlesOverlappingRequests) {
+  constexpr size_t kRequests = 4;
+  ProgramCache cache;
+  std::atomic_size_t calls = 0;
+  std::promise<void> reflectionStarted;
+  auto started = reflectionStarted.get_future();
+  std::promise<void> releaseReflection;
+  const auto release = releaseReflection.get_future().share();
+  cache.registerCompiler(
+      Target::Slang,
+      [&](std::shared_ptr<const Recipe> recipe, Variant variant,
+          std::string&) -> std::shared_ptr<Program> {
+        if (calls.fetch_add(1) == 0)
+          return std::make_shared<ThrowingReflectionProgram>(
+              std::move(recipe), variant, [&] {
+                reflectionStarted.set_value();
+                release.wait();
+              });
+        return std::make_shared<Program>(std::move(recipe), Target::Slang,
+                                         variant);
+      });
+  const auto recipe = std::make_shared<const Recipe>(
+      Recipe::of<TwoParameters>("reflection-overlap").body(Target::Slang, "x"));
+  const auto request = [&] {
+    try {
+      const auto compiled = cache.program(recipe, Target::Slang);
+      return compiled && compiled->recipe().name() == recipe->name() ? 0 : 2;
+    } catch (const std::runtime_error& error) {
+      return std::string_view(error.what()) == "uniform reflection failed" ? 1
+                                                                           : 2;
+    } catch (...) {
+      return 2;
+    }
+  };
+  auto owner = std::async(std::launch::async, request);
+  started.wait();
+  std::barrier callers(static_cast<std::ptrdiff_t>(kRequests + 1));
+  std::vector<std::future<int>> requests;
+  for (size_t i = 0; i < kRequests; ++i)
+    requests.push_back(std::async(std::launch::async, [&] {
+      callers.arrive_and_wait();
+      return request();
+    }));
+  callers.arrive_and_wait();
+  releaseReflection.set_value();
+  EXPECT_EQ(owner.get(), 1);
+  // A caller joins the failed flight or starts the successful retry.
+  // Neither path may retain an abandoned promise or lose the exception.
+  for (auto& request : requests) EXPECT_LE(request.get(), 1);
+  const auto compiled = cache.program(recipe, Target::Slang);
+  ASSERT_TRUE(compiled);
+  EXPECT_EQ(cache.program(recipe, Target::Slang), compiled);
+  EXPECT_EQ(calls.load(), 2u);
+  EXPECT_EQ(cache.size(), 1u);
+}
+
 TEST(ProgramCache, UnreadParametersFieldIsNamedOnce) {
   ProgramCache cache;
   cache.registerCompiler(
@@ -216,8 +313,6 @@ TEST(ProgramCache, UnreadParametersFieldIsNamedOnce) {
       captureStderr([&] { clean.program(r, Target::Slang); });
   EXPECT_EQ(quiet, "") << quiet;
 }
-
-// ---- the embedded shader table --------------------------------------------
 
 // ---- the embedded shader table --------------------------------------------
 

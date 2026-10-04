@@ -10,11 +10,13 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
+#include <sigilmaterial/texture/Image.h>
 #include <sigilmaterial/texture/Texture.h>
-#include <sigilshaders/MaterialSkia.h>
 #include <sigilmedia/advanced/Skia.h>
+#include <sigilshaders/MaterialSkia.h>
 
 #include <memory>
 #include <string>
@@ -35,6 +37,16 @@ struct TwoParameters {
 
 constexpr const char* kBody =
     "half4 main(float2 p) { return half4(uColor * uScale); }";
+
+Material childSampler(Material child) {
+  static const auto recipe = std::make_shared<const Recipe>(
+      Recipe::of<TwoParameters>("compiler.composed-child")
+          .slot("uSrc")
+          .body(Target::SkSL, "half4 main(float2 p) { return uSrc.eval(p); }"));
+  Material sampler(recipe);
+  sampler.slot("uSrc", std::move(child));
+  return sampler;
+}
 
 }  // namespace
 
@@ -87,6 +99,71 @@ TEST(SkiaCompiler, ChildSlotSamplesAnotherMaterial) {
   ASSERT_NE(shader, nullptr);
   const SkBitmap bm = render(shader);
   EXPECT_EQ(bm.getColor(2, 2), 0xff00ff00u);
+}
+
+TEST(SkiaCompiler, AChildSlotSamplesColorsAndLayers) {
+  const auto red = skia::shader(childSampler(Color{1, 0, 0, 1}), {});
+  ASSERT_NE(red, nullptr);
+  EXPECT_EQ(render(red).getColor(2, 2), SK_ColorRED);
+
+  Material layered(Color{1, 0, 0, 1});
+  layered.layer(Color{0, 0, 1, 1}, {.opacity = 0.5f});
+  const Paint held = skia::paint(childSampler(std::move(layered)));
+  const auto first = skia::shader(held, FrameData{});
+  ASSERT_NE(first, nullptr);
+  const SkColor mixed = render(first).getColor(2, 2);
+  EXPECT_NEAR(SkColorGetR(mixed), 128, 1);
+  EXPECT_EQ(SkColorGetG(mixed), 0);
+  EXPECT_NEAR(SkColorGetB(mixed), 128, 1);
+  EXPECT_EQ(SkColorGetA(mixed), 255);
+  EXPECT_FALSE(held.isRunning());
+  EXPECT_EQ(skia::shader(held, FrameData{.seconds = 2}), first);
+}
+
+TEST(SkiaCompiler, AComposedChildLayerReadsTheCurrentFrameThroughAHeldPaint) {
+  const auto recipe = std::make_shared<const Recipe>(
+      Recipe::of<TwoParameters>("compiler.live-child-layer")
+          .frame(FrameInput::Time)
+          .body(Target::SkSL,
+                "half4 main(float2 p) { return uTime < 1.0 ? "
+                "half4(1, 0, 0, 1) : half4(0, 0, 1, 1); }"));
+  Material child(Color{0, 1, 0, 1});
+  child.layer(Material(recipe));
+  const Paint held = skia::paint(childSampler(std::move(child)));
+  ASSERT_TRUE(held.isRunning());
+  const auto first = skia::shader(held, FrameData{.seconds = 0});
+  const auto second = skia::shader(held, FrameData{.seconds = 2});
+  ASSERT_NE(first, nullptr);
+  ASSERT_NE(second, nullptr);
+  EXPECT_EQ(render(first).getColor(2, 2), SK_ColorRED);
+  EXPECT_EQ(render(second).getColor(2, 2), SK_ColorBLUE);
+  EXPECT_EQ(render(skia::shader(held, FrameData{.seconds = 0})).getColor(2, 2),
+            SK_ColorRED);
+}
+
+TEST(SkiaCompiler, AComposedChildPaintUsesTheCurrentBoxThroughAHeldPaint) {
+  const Paint held = skia::paint(childSampler(
+      linearGradient({0, 0}, {1, 0}, {Color{1, 0, 0, 1}, Color{0, 0, 1, 1}})));
+  ASSERT_TRUE(held.geometryDependent());
+  const auto narrow = skia::shader(held, FrameData{.resolution = {4, 4}});
+  const auto wide = skia::shader(held, FrameData{.resolution = {8, 4}});
+  ASSERT_NE(narrow, nullptr);
+  ASSERT_NE(wide, nullptr);
+  const SkColor atNarrow = render(narrow, 8, 4).getColor(2, 2);
+  const SkColor atWide = render(wide, 8, 4).getColor(2, 2);
+  EXPECT_GT(SkColorGetB(atNarrow), SkColorGetR(atNarrow));
+  EXPECT_GT(SkColorGetR(atWide), SkColorGetB(atWide));
+  EXPECT_LT(SkColorGetB(atWide), SkColorGetB(atNarrow));
+}
+
+TEST(SkiaCompiler, AComposedChildExceedingTheImageSamplerLimitIsRefused) {
+  Material layered(Color{0, 0, 0, 0});
+  for (int i = 0; i < 17; ++i)
+    layered.layer(image(Texture(
+        test::solid(SkColorSetARGB(255, i * 7, 255 - i * 7, i * 11), 8, 8))));
+  const Material sampler = childSampler(std::move(layered));
+  EXPECT_EQ(skia::samplerCount(sampler), 17);
+  EXPECT_EQ(skia::shader(sampler, {}), nullptr);
 }
 
 TEST(SkiaCompiler, ABodyThatDoesNotCompileResolvesToNoProgram) {
@@ -185,7 +262,8 @@ TEST(SkiaShaderTable, HoldsEveryFileTheShaderDirectoryDoes) {
       sigil::material::skia::shaderSources(), SIGIL_MATERIAL_SKIA_SHADER_DIR);
 }
 
-TEST(SkiaCompiler, ALayerSlotNothingFilledRefusesRatherThanShadingAnEmptyChild) {
+TEST(SkiaCompiler,
+     ALayerSlotNothingFilledRefusesRatherThanShadingAnEmptyChild) {
   // A slot an executor fills from the layer has no source at all when
   // the material is painted as an ordinary fill: there is no layer and
   // no caller leaving the name. Refused by name here, because a child

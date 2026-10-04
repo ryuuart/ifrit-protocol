@@ -7,11 +7,11 @@
 uniform float uDeepening;
 
 half4 main(half4 color) {
-  float a = max(float(color.a), 1e-4);
-  float3 straight = float3(color.rgb) / a;
-  float peak = max(max(straight.r, straight.g), straight.b);
-  float3 hue = straight / max(peak, 1e-4);
+  if (color.a <= 0) return half4(0, 0, 0, color.a);
+  float3 positive = max(float3(color.rgb), float3(0));
+  float peak = max(max(positive.r, positive.g), positive.b);
+  float3 hue = peak > 0 ? positive / peak : float3(0);
   float exponent = 1.0 + uDeepening * (1.0 - clamp(float(color.a), 0.0, 1.0));
-  float3 deep = clamp(pow(hue, float3(exponent)) * peak, 0.0, 1.0);
-  return half4(half3(deep * float(color.a)), color.a);
+  float3 deep = pow(hue, float3(exponent)) * peak;
+  return half4(half3(deep), color.a);
 }

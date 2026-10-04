@@ -17,6 +17,7 @@
 namespace sigil::material {
 
 using skia::PaintAccess;
+using skia::UniformType;
 using skia::validUniform;
 
 const Material* Paint::recipeMaterial() const {
@@ -60,6 +61,8 @@ bool Paint::operator==(const Paint& other) const {
            m_live->constants2 == other.m_live->constants2 &&
            m_live->constants4 == other.m_live->constants4 &&
            m_live->constantArrays == other.m_live->constantArrays &&
+           m_live->binds == other.m_live->binds &&
+           m_live->childAnchorsToRoot == other.m_live->childAnchorsToRoot &&
            m_live->slots == other.m_live->slots;
   }
   if ((m_recipe != nullptr) != (other.m_recipe != nullptr)) return false;
@@ -77,6 +80,8 @@ bool Paint::operator==(const Paint& other) const {
 void Paint::detachLive() {
   if (m_live && m_live.use_count() > 1)
     m_live = std::make_shared<Live>(*m_live);
+  else if (m_live)
+    for (auto& memo : m_live->memo) memo.clear();
 }
 
 Paint& Paint::amount(float fraction) {
@@ -109,10 +114,8 @@ bool Paint::boundOffsetLive() const {
 }
 
 glm::vec2 Paint::boundOffsetValue() const {
-  return {m_boundOffset[0] ? m_boundOffset[0]->value()
-                           : 0.0f,
-          m_boundOffset[1] ? m_boundOffset[1]->value()
-                           : 0.0f};
+  return {m_boundOffset[0] ? m_boundOffset[0]->value() : 0.0f,
+          m_boundOffset[1] ? m_boundOffset[1]->value() : 0.0f};
 }
 
 bool Paint::hasFit() const { return m_recipe && m_recipe->fit != Fit::Native; }
@@ -134,15 +137,25 @@ Paint& Paint::fit(Fit how) {
 }
 
 Paint& Paint::worldSpace(bool on) {
+  if (m_worldSpace == on) return *this;
+  if (m_backed) {
+    detachBacked();
+    m_backed->material.worldSpace(on);
+  }
+  if (m_live && m_live->childAnchorsToRoot) {
+    detachLive();
+    for (auto& [name, child] : m_live->slots) child.worldSpace(on);
+  }
   m_worldSpace = on;  // recipe, like amount()/bleed(): joins operator==
   return *this;
 }
 
 bool Paint::usesWorldSpace() const {
-  if (m_worldSpace) return true;
-  // The FLAG is layer-local (never inherited), but the reconcile walk
-  // needs to see a flagged layer anywhere below: a blend whose second
-  // layer anchors still needs its node W-invalidated.
+  if (m_worldSpace || (m_live && m_live->usesWorld)) return true;
+  if (m_backed && skia::detail::paintUsesWorldSpace(m_backed->material))
+    return true;
+  // Root anchoring is layer-local, but placement invalidation must also
+  // reach a layer or slot that reads the transform directly.
   if (m_live)
     for (const auto& [name, child] : m_live->slots)
       if (child.usesWorldSpace()) return true;
@@ -169,7 +182,7 @@ Paint& Paint::quantizeTime(float rate) {
         "uTime\n");
     return *this;
   }
-  if (!validUniform(m_live->effect, "uTime", sizeof(float))) {
+  if (!validUniform(m_live->effect, "uTime", UniformType::kFloat)) {
     SkDebugf(
         "Paint::quantizeTime: ignored — the effect does not declare "
         "`uniform float uTime`\n");
@@ -198,15 +211,14 @@ bool Paint::animatedBeyondBoundOffset() const {
   // A bound UniformBlock is a bind whose value is a table: the material
   // re-resolves per frame (the resolve memo reads the revision), and its
   // node is declared volatile so a cache cannot freeze the array.
-  if (m_live &&
-      (!m_live->blocks.empty() || m_live->usesTime || m_live->usesScale))
-    return true;
-  // A scalar bind counts only while it is LIVE: one holding a plain
-  // number is a value written into the uniform, and a node does not
+  if (m_live && (!m_live->blocks.empty() || m_live->usesTime)) return true;
+  // A binding counts only while it is LIVE: one holding a constant
+  // is a value written into the uniform, and a node does not
   // repaint forever for a constant.
   if (m_live)
     for (const auto& [name, out] : m_live->binds)
-      if (out.isRunning()) return true;
+      if (std::visit([](const auto& value) { return value.isRunning(); }, out))
+        return true;
   // A slot's volatility is the parent's: the parent samples it, so a
   // live child that did not lift the parent to the live path would be
   // resolved once and frozen into the parent's cache. A NESTED bound
@@ -236,7 +248,11 @@ bool Paint::geometryDependent() const {
   // is answered: when the node records, and again when layout moves it.
   if (hasFit()) return true;
   if (m_backed && m_backed->material.geometryDependent()) return true;
-  if (m_live && m_live->usesGeometry) return true;
+  // The content scale is the destination's, as the box is the node's: it
+  // is read when the node records and again when the scale changes.
+  if (m_live && (m_live->usesGeometry || m_live->usesWorld ||
+                 m_live->usesSampling || m_live->usesScale))
+    return true;
   if (m_live)
     for (const auto& [name, child] : m_live->slots)
       if (child.geometryDependent()) return true;

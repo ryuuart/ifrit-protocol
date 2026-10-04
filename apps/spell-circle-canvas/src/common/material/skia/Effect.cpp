@@ -12,13 +12,14 @@
 #include <include/core/SkTypes.h>  // SkDebugf — the slot diagnostics
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilmaterial/skia/Texture.h>
 #include <sigilmaterial/advanced/Program.h>  // reportOnce
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
+#include <sigilmaterial/skia/Texture.h>
 #include <sigilmaterial/texture/Texture.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <optional>
@@ -145,9 +146,8 @@ Effect Effect::recipe(const Material& material, float sampleRadius) {
       leave.size() == 1
           ? filter(SkImageFilters::RuntimeShader(*built, reach, leave[0],
                                                  inputs[0]))
-          : filter(SkImageFilters::RuntimeShader(*built, reach, leave.data(),
-                                                 inputs.data(),
-                                                 (int)leave.size()));
+          : filter(SkImageFilters::RuntimeShader(
+                *built, reach, leave.data(), inputs.data(), (int)leave.size()));
   if (!effect.m_filter) return {};
   std::optional<Material> comparable;
   if (!material.isRunning()) comparable = material;
@@ -228,9 +228,9 @@ Effect Effect::dropShadow(material::Color color, float offsetX, float offsetY,
   const float soft = std::max(0.0f, sigma);
   Effect effect = filter(SkImageFilters::DropShadow(
       offsetX, offsetY, soft, soft, toSkColor(color).toSkColor(), nullptr));
-  effect.m_stock = Stock{.pass = Stock::Pass::DropShadow,
-                         .numbers = {color.r, color.g, color.b, color.a,
-                                     offsetX, offsetY, soft}};
+  effect.m_stock = Stock{
+      .pass = Stock::Pass::DropShadow,
+      .numbers = {color.r, color.g, color.b, color.a, offsetX, offsetY, soft}};
   return effect;
 }
 
@@ -238,16 +238,11 @@ Effect Effect::shader(sk_sp<SkRuntimeEffect> effect,
                       std::vector<std::pair<std::string, float>> uniforms) {
   Effect e;
   if (!effect) return e;
-  // Material's guardrail, and for the same reason: SkRuntimeShaderBuilder
-  // answers a name the effect does not declare — or one whose declared size
-  // is not four bytes, which is every float2, float4 and array — with a
-  // debug abort and no write, and this Skia is built without SK_DEBUG, so
-  // the value is dropped and the effect paints with a zeroed uniform. Drop
-  // the entry here instead, loudly, and keep the recipe free of anything
-  // buildFilter would have to re-check.
+  // The builder copies bytes without converting the declared type.
+  // Initial scalar values require one float, never an integer or array;
+  // rejected entries leave the uniform at its zero-initialized value.
   std::erase_if(uniforms, [&](const std::pair<std::string, float>& entry) {
-    if (detail::declaresUniform(effect, entry.first, sizeof(float)))
-      return false;
+    if (validUniform(effect, entry.first, UniformType::kFloat)) return false;
     warnUndeclaredEffectUniform("skia::program", entry.first);
     return true;
   });
@@ -259,9 +254,28 @@ Effect Effect::shader(sk_sp<SkRuntimeEffect> effect,
   return e;
 }
 
-Effect Effect::colorProgram(sk_sp<SkRuntimeEffect> program,
-                            std::vector<std::pair<std::string, float>>
-                                uniforms) {
+Effect Effect::shader(sk_sp<SkRuntimeEffect> program,
+                      std::vector<std::pair<std::string, float>> uniforms,
+                      float sampleRadius) {
+  if (!std::isfinite(sampleRadius) || sampleRadius < 0) {
+    SkDebugf(
+        "[material] Filter sampling radius must be finite and "
+        "nonnegative; ignored\n");
+    return {};
+  }
+  Effect result = shader(std::move(program), std::move(uniforms));
+  if (!result.m_effect) return result;
+  result.m_sampleRadius = sampleRadius;
+  std::erase_if(result.m_uniforms, [&](const auto& entry) {
+    return !result.writableUniform(entry.first);
+  });
+  result.m_filter = result.buildFilter(nullptr);
+  return result;
+}
+
+Effect Effect::colorProgram(
+    sk_sp<SkRuntimeEffect> program,
+    std::vector<std::pair<std::string, float>> uniforms) {
   Effect e;
   if (!program) return e;
   // shader()'s guardrail, for shader()'s reason: the builder answers an
@@ -269,8 +283,7 @@ Effect Effect::colorProgram(sk_sp<SkRuntimeEffect> program,
   // built without SK_DEBUG, so the value would be dropped and the map
   // would run with a zeroed uniform.
   std::erase_if(uniforms, [&](const std::pair<std::string, float>& entry) {
-    if (detail::declaresUniform(program, entry.first, sizeof(float)))
-      return false;
+    if (validUniform(program, entry.first, UniformType::kFloat)) return false;
     warnUndeclaredEffectUniform("Filter colour function", entry.first);
     return true;
   });
@@ -380,8 +393,7 @@ sk_sp<SkImageFilter> Effect::buildFilter(const PaintFrame* paintFrame) const {
     // so the layer beside it keeps the device's own pixels.
     SkRuntimeColorFilterBuilder map(m_effect);
     for (const auto& [name, value] : m_uniforms) map.uniform(name) = value;
-    for (const auto& [name, out] : m_bound)
-      map.uniform(name) = out.value();
+    for (const auto& [name, out] : m_bound) map.uniform(name) = out.value();
     return SkImageFilters::ColorFilter(map.makeColorFilter(), nullptr);
   }
   SkRuntimeShaderBuilder builder(m_effect);
@@ -390,10 +402,10 @@ sk_sp<SkImageFilter> Effect::buildFilter(const PaintFrame* paintFrame) const {
   for (const auto& [name, value] : m_uniforms4) builder.uniform(name) = value;
   for (const auto& [name, values] : m_uniformArrays)
     builder.uniform(name).set(values.data(), (int)values.size());
-  for (const auto& [name, out] : m_bound)
-    builder.uniform(name) = out.value();
+  for (const auto& [name, out] : m_bound) builder.uniform(name) = out.value();
   for (const auto& [name, block] : m_blocks)
-    builder.uniform(name).set(block->values().data(), (int)block->size());
+    builder.uniform(name).set(block->committedValues().data(),
+                              (int)block->size());
   // The slots, against the painting node's box (Paint::slot's
   // contract: a source sees the SAME frame, because there is one node).
   // "content" is the library's and is filled by the factory below.
@@ -410,10 +422,15 @@ sk_sp<SkImageFilter> Effect::buildFilter(const PaintFrame* paintFrame) const {
       if (name == "uRadius") radius = value;
     for (const auto& [name, out] : m_bound)
       if (name == "uRadius") radius = out.value();
-    return makePhosphorBloom(builder, composite, radius,
-                             paintFrame ? paintFrame->size : SkSize::MakeEmpty());
+    return makePhosphorBloom(
+        builder, composite, radius,
+        paintFrame ? paintFrame->size : SkSize::MakeEmpty());
   }
-  return SkImageFilters::RuntimeShader(builder, "content", nullptr);
+  if (m_sampleRadius &&
+      validUniform(m_effect, "_sampleRadius", UniformType::kFloat))
+    builder.uniform("_sampleRadius") = *m_sampleRadius;
+  return SkImageFilters::RuntimeShader(builder, m_sampleRadius.value_or(0.0f),
+                                       "content", nullptr);
 }
 
 bool Effect::isRunning() const {
@@ -465,6 +482,7 @@ static bool slotsEqual(
 bool Effect::operator==(const Effect& other) const {
   if (isRunning() || other.isRunning())
     return false;  // live never prunes — the material rule
+  if (m_bound != other.m_bound) return false;
   // A retained chain whose sides need only geometry carries no filter of
   // its own, so it compares by its sides and how they join.
   if (m_chainA || other.m_chainA)
@@ -496,8 +514,10 @@ bool Effect::operator==(const Effect& other) const {
     return m_directionalBlur ==
            other.m_directionalBlur;  // re-described equal one prunes
   if (m_effect || other.m_effect)
-    return m_effect == other.m_effect && m_gatheredHalo == other.m_gatheredHalo &&
+    return m_effect == other.m_effect &&
+           m_gatheredHalo == other.m_gatheredHalo &&
            m_colorProgram == other.m_colorProgram &&
+           m_sampleRadius == other.m_sampleRadius &&
            m_uniforms == other.m_uniforms && m_uniforms2 == other.m_uniforms2 &&
            m_uniforms4 == other.m_uniforms4 &&
            m_uniformArrays == other.m_uniformArrays &&

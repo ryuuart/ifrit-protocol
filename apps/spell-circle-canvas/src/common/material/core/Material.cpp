@@ -15,10 +15,27 @@
 #include <sigilmotion/values/Time.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstring>
+#include <mutex>
 
 namespace sigil::material {
+
+namespace {
+
+template <class Predicate>
+bool surfaceChannelsMatch(const SurfaceOptions& surface, Predicate matches) {
+  for (const Channel* channel :
+       {&surface.metallic, &surface.roughness, &surface.occlusion})
+    if (const auto* material = std::get_if<Material>(channel);
+        material && matches(*material))
+      return true;
+  return (surface.normal && matches(*surface.normal)) ||
+         (surface.emissionMap && matches(*surface.emissionMap));
+}
+
+}  // namespace
 
 /** Everything beyond a bare program: the base when it is not a program,
  *  the layer stack, the surface and the effects. */
@@ -28,6 +45,23 @@ struct Material::Composition {
   std::vector<Layer> layers;
   std::optional<SurfaceOptions> surface;
   std::shared_ptr<const detail::Part> effects;
+};
+
+/** The sampled upload belongs to its readers. Only an upload held by
+ *  this cache alone can be rewritten; outstanding results keep their
+ *  bytes while another frame is resolved. */
+struct Material::ResolveState {
+  struct Upload {
+    bool valid = false;
+    Target target{};
+    Variant variant{};
+    std::shared_ptr<std::vector<std::byte>> bytes;
+    std::shared_ptr<Program> program;
+  };
+  std::mutex mutex;
+  std::vector<std::byte> scratch;
+  std::array<Upload, 2> uploads;
+  size_t latest = 0;
 };
 
 namespace {
@@ -53,13 +87,16 @@ Material::Material(std::shared_ptr<const detail::Part> source) {
 }
 
 Material::Material(const MaterialParts& parts) : Material(parts.base) {
-  for (const Layer& layer : parts.layers) this->layer(layer.source, layer.options);
+  for (const Layer& layer : parts.layers)
+    this->layer(layer.source, layer.options);
   if (parts.surface) surface(*parts.surface);
   if (parts.effects.part()) placeEffects(parts.effects.part());
 }
 
 Material::Material(std::shared_ptr<const Recipe> recipe)
-    : m_recipe(std::move(recipe)), m_bytes(m_recipe->parameters().byteSize) {}
+    : m_recipe(std::move(recipe)),
+      m_bytes(m_recipe->parameters().byteSize),
+      m_resolve(std::make_shared<ResolveState>()) {}
 
 const Recipe& Material::recipe() const {
   if (m_recipe) return *m_recipe;
@@ -169,7 +206,7 @@ Material Material::withRecipe(std::shared_ptr<const Recipe> recipe) const {
   // The memo keys on the bytes, the target and the variant — not on the
   // recipe — so a specialization that inherited it would hand back the
   // other definition's program.
-  out.m_memo = {};
+  out.m_resolve = std::make_shared<ResolveState>();
   return out;
 }
 
@@ -283,6 +320,25 @@ Material& Material::bind(std::string_view name,
   return *this;
 }
 
+Material& Material::bind(std::string_view name,
+                         motion::Animatable<Color> value) {
+  if (refuseWithoutProgram(m_recipe, "bind", name)) return *this;
+  const Field* f = m_recipe->parameters().find(name);
+  if (!f || f->kind != ParameterType::Color || f->floats != 4) {
+    reportOnce("bind:" + m_recipe->name() + ":" + std::string(name),
+               "recipe \"" + m_recipe->name() + "\" has no color field \"" +
+                   std::string(name) + "\" to bind a value to");
+    return *this;
+  }
+  if (Binding* b = binding(name)) {
+    b->value = std::move(value);
+    b->block = nullptr;
+    return *this;
+  }
+  m_bindings.push_back({std::string(name), std::move(value), nullptr});
+  return *this;
+}
+
 Material& Material::unbind(std::string_view name) {
   std::erase_if(m_bindings, [&](const Binding& x) { return x.name == name; });
   return *this;
@@ -315,8 +371,7 @@ Material& Material::bind(std::string_view name,
                     [&](const Binding& x) { return x.name == name; });
     return *this;
   }
-  if (block)
-    m_bindings.push_back({std::string(name), 0.0f, std::move(block)});
+  if (block) m_bindings.push_back({std::string(name), 0.0f, std::move(block)});
   return *this;
 }
 
@@ -393,14 +448,21 @@ bool Material::isRunning() const {
   // bound animatable is live exactly when SigilMotion says it is: a
   // plain number written into a uniform every resolve moves nothing.
   for (const Binding& b : m_bindings)
-    if (b.block || b.value.isRunning()) return true;
-  if (m_recipe && (m_recipe->reads(FrameInput::Time) ||
-                   m_recipe->reads(FrameInput::ContentScale)))
-    return true;
+    if (b.block ||
+        std::visit([](const auto& value) { return value.isRunning(); },
+                   b.value))
+      return true;
+  if (m_recipe && m_recipe->reads(FrameInput::Time)) return true;
   if (m_composition) {
     const Composition& parts = *m_composition;
     if (parts.source && parts.source->isRunning()) return true;
     if (parts.effects && parts.effects->isRunning()) return true;
+    if (parts.surface &&
+        (surfaceChannelsMatch(
+             *parts.surface,
+             [](const Material& material) { return material.isRunning(); }) ||
+         (parts.surface->lighting && parts.surface->lighting->isRunning())))
+      return true;
     for (const Layer& layer : parts.layers)
       if (layer.source.isRunning() ||
           (layer.options.mask && layer.options.mask->source.isRunning()))
@@ -414,21 +476,31 @@ bool Material::isRunning() const {
 }
 
 bool Material::geometryDependent() const {
+  if (m_worldSpace) return true;
   if (m_recipe && (m_recipe->reads(FrameInput::Resolution) ||
-                   m_recipe->reads(FrameInput::WorldTransform)))
+                   m_recipe->reads(FrameInput::WorldTransform) ||
+                   m_recipe->reads(FrameInput::LocalToSample) ||
+                   m_recipe->reads(FrameInput::ContentScale)))
     return true;
   if (m_composition) {
     const Composition& parts = *m_composition;
     if (parts.source && parts.source->geometryDependent()) return true;
     if (parts.effects && parts.effects->geometryDependent()) return true;
+    if (parts.surface &&
+        surfaceChannelsMatch(*parts.surface, [](const Material& material) {
+          return material.geometryDependent();
+        }))
+      return true;
     for (const Layer& layer : parts.layers)
       if (layer.source.geometryDependent() ||
           (layer.options.mask &&
            layer.options.mask->source.geometryDependent()))
         return true;
   }
-  for (const auto& [slot, s] : m_slots)
+  for (const auto& [slot, s] : m_slots) {
     if (s.material && s.material->geometryDependent()) return true;
+    if (s.leaf && s.leaf->geometryDependent()) return true;
+  }
   return false;
 }
 
@@ -452,8 +524,7 @@ bool Material::operator==(const Material& other) const {
     const Binding* b = nullptr;
     for (const Binding& x : other.m_bindings)
       if (x.name == a.name) b = &x;
-    if (!b || !motion::propertyEqual(a.value, b->value) || a.block != b->block)
-      return false;
+    if (!b || a.value != b->value || a.block != b->block) return false;
   }
   for (size_t i = 0; i < m_slots.size(); ++i) {
     const auto& [slot, s] = m_slots[i];
@@ -470,29 +541,36 @@ bool Material::operator==(const Material& other) const {
 Material::Resolved Material::resolve(Target target, const FrameData& frame,
                                      Variant variant) const {
   if (!m_recipe) return {};
+  ResolveState& state = *m_resolve;
+  const std::lock_guard lock(state.mutex);
+  std::vector<std::byte>& scratch = state.scratch;
   const Schema& layout = m_recipe->layout();
-  m_scratch.assign(layout.byteSize, std::byte{0});
+  scratch.assign(layout.byteSize, std::byte{0});
   if (!m_bytes.empty())
-    std::memcpy(m_scratch.data(), m_bytes.data(), m_bytes.size());
+    std::memcpy(scratch.data(), m_bytes.data(), m_bytes.size());
   for (const Binding& b : m_bindings) {
     const Field* f = m_recipe->parameters().find(b.name);
     if (!f) continue;
     if (b.block) {
-      const std::span<const float> values = b.block->values();
-      std::memcpy(m_scratch.data() + f->offset, values.data(),
+      const std::span<const float> values = b.block->committedValues();
+      std::memcpy(scratch.data() + f->offset, values.data(),
                   values.size() * sizeof(float));
     } else {
       // No held motion: a material has no ticker, so what an animatable
       // reads here is its binding (shaped, where the chain shapes it) or
       // its plain number.
-      const float v = b.value.value();
-      std::memcpy(m_scratch.data() + f->offset, &v, sizeof(float));
+      std::visit(
+          [&](const auto& source) {
+            const auto value = source.value();
+            std::memcpy(scratch.data() + f->offset, &value, sizeof(value));
+          },
+          b.value);
     }
   }
   const auto put = [&](FrameInput input, const void* floats, size_t count) {
     if (!m_recipe->reads(input)) return;
     const Field* f = layout.find(uniformName(input));
-    std::memcpy(m_scratch.data() + f->offset, floats, count * sizeof(float));
+    std::memcpy(scratch.data() + f->offset, floats, count * sizeof(float));
   };
   const float seconds =
       motion::quantizeTime((float)frame.seconds, m_quantizeHz);
@@ -500,16 +578,34 @@ Material::Resolved Material::resolve(Target target, const FrameData& frame,
   put(FrameInput::Resolution, &frame.resolution, 2);
   put(FrameInput::ContentScale, &frame.contentScale, 1);
   put(FrameInput::WorldTransform, &frame.world, 9);
+  put(FrameInput::LocalToSample, &frame.localToSample, 9);
 
-  if (m_memo.valid && m_memo.target == target && m_memo.variant == variant &&
-      m_memo.bytes == m_scratch && m_memo.program)
-    return {m_memo.program, m_memo.bytes};
-  m_memo.valid = true;
-  m_memo.target = target;
-  m_memo.variant = variant;
-  m_memo.bytes.swap(m_scratch);
-  m_memo.program = program(m_recipe, target, variant);
-  return {m_memo.program, m_memo.bytes};
+  for (size_t i = 0; i < state.uploads.size(); ++i) {
+    ResolveState::Upload& upload = state.uploads[i];
+    if (upload.valid && upload.target == target && upload.variant == variant &&
+        *upload.bytes == scratch && upload.program) {
+      state.latest = i;
+      return {upload.program, upload.bytes};
+    }
+  }
+
+  const auto compiled = program(m_recipe, target, variant);
+  const size_t spare = 1 - state.latest;
+  const size_t index =
+      !state.uploads[spare].bytes || state.uploads[spare].bytes.use_count() == 1
+          ? spare
+          : state.latest;
+  ResolveState::Upload& upload = state.uploads[index];
+  if (!upload.bytes || upload.bytes.use_count() != 1)
+    upload.bytes = std::make_shared<std::vector<std::byte>>(scratch);
+  else
+    upload.bytes->assign(scratch.begin(), scratch.end());
+  upload.valid = true;
+  upload.target = target;
+  upload.variant = variant;
+  upload.program = compiled;
+  state.latest = index;
+  return {upload.program, upload.bytes};
 }
 
 }  // namespace sigil::material

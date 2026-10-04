@@ -4,33 +4,31 @@
  * @ingroup material-core
  *
  * THE LIGHT A LIT SURFACE IS SHADED UNDER, in 2D as in 3D: one
- * directional light and an environment, each optional, as one value a
+ * set of lights and an optional environment, as one value a
  * scene states once and everything under it inherits — `studio()` for
  * the light, `environment()` for the picture around the surface that it
- * reflects. Every angle and strength is an animatable, so a bound light
- * turns the relief of a normal map frame by frame while the colours
- * beneath it stay as they were painted.
+ * reflects. Colour, angles and strength take animatables, so a bound light
+ * changes the surface response frame by frame while the colours beneath
+ * it stay as they were painted.
  */
 
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/values/Animatable.h>
 
+#include <cstdint>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
-
-#include <cstdint>
-
 #include <memory>
 #include <optional>
 #include <utility>
+#include <vector>
 
 namespace sigil::material {
 
 class Material;
 
-/** What an emitter is. A surface lit in the plane answers to the
- *  directional reading alone; a set in three dimensions also places the
- *  other two where they stand. */
+/** What an emitter is. Planar surfaces and three-dimensional sets read
+ *  the same kinds in their own scene coordinate frames. */
 enum class LightKind : uint8_t {
   Directional,  ///< a direction only: a key light, the sun
   Point,        ///< a position, falling off to nothing at a range
@@ -44,29 +42,37 @@ enum class LightKind : uint8_t {
  *  keep their defaults and are ignored. */
 struct Light {
   /** Where the light comes FROM on the page, in degrees counter-clockwise
-   *  from three o'clock: 120 is the upper left a bevel is lit from. */
+   *  from three o'clock: 120 is the upper left a bevel is lit from.
+   *  For a spot this is the source-facing axis; its light travels oppositely.
+   */
   motion::Animatable<float> direction = 120.0f;
   /** How far above the page it stands, in degrees: 90 is straight on,
    *  0 grazes the surface. */
   motion::Animatable<float> elevation = 45.0f;
-  Color color = {1, 1, 1, 1};
+  /** The illumination's RGB colour, including values above one. */
+  motion::Animatable<Color> color = Color{1, 1, 1, 1};
   motion::Animatable<float> intensity = 1.0f;
   /** The light every point receives whichever way it faces, as a share of
    *  the surface's own colour. */
   float ambient = 0.3f;
   /** Directional by default: every point is lit from one direction. */
   LightKind kind = LightKind::Directional;
-  /** Point and spot: where the emitter stands, in the scene's units. */
+  /** Point and spot: where the emitter stands, in the scene's units.
+   *  In 2D, root-page logical pixels: X right, Y down, Z toward the viewer. */
   glm::vec3 position = {0, 0, 0};
   /** Point and spot: the distance at which the light has fallen to
-   *  nothing. */
+   *  nothing, using a squared distance window rather than inverse-square
+   *  radiance. In 2D, a nonpositive/nonfinite range or nonfinite position
+   *  disables direct illumination. */
   float range = 600;
   /** Spot: full strength within this many degrees of where it aims, dark
-   *  beyond `outerAngle`, and smoothly between. */
+   *  beyond `outerAngle`, and linearly interpolated in cosine between.
+   *  In 2D the angles are clamped to [0, 180], inner at most outer;
+   *  nonfinite angles become zero, and equal angles form a hard cutoff. */
   float innerAngle = 0;
   float outerAngle = 45;
 
-  /** Whether an angle or the strength is moving. */
+  /** Whether the colour, strength or an angle read by this kind is moving. */
   bool isRunning() const;
   bool operator==(const Light&) const = default;
 };
@@ -106,27 +112,52 @@ struct Environment {
  *  beside the image base takes a picture directly. */
 Environment environment(Material image, EnvironmentOptions options = {});
 
-/** THE LIGHT IN FORCE: a directional light, an environment, or both.
+/** Directional sources in Surface read node-local normals. Its environment
+ *  reads page normals when a positioned source is present, local normals
+ *  otherwise. Scene carries all normals through affine node-to-root placement.
+ *  Positioned sources always read root-page coordinates. */
+enum class LightingFrame : uint8_t {
+  Surface,
+  Scene,
+};
+
+/** THE LIGHTING IN FORCE: direct lights, an environment, or both.
  *  A light converts, and so does an environment, so either is written
  *  where a lighting is taken. */
 struct Lighting {
-  std::optional<Light> light;
+  /** Each source adds direct illumination. Their ambient shares add;
+   *  an environment with no direct sources supplies a full ambient share,
+   *  and with direct sources their summed shares scale the environment's
+   *  diffuse light.
+   *  The environment, emission and coating attenuation are evaluated once. */
+  std::vector<Light> lights;
+  LightingFrame frame = LightingFrame::Surface;
   std::optional<Environment> environment;
 
   Lighting() = default;
   // NOLINTNEXTLINE(google-explicit-constructor)
-  Lighting(Light key) : light(std::move(key)) {}
+  Lighting(Light key) : lights{std::move(key)} {}
   // NOLINTNEXTLINE(google-explicit-constructor)
   Lighting(Environment around) : environment(std::move(around)) {}
   Lighting(Light key, Environment around)
-      : light(std::move(key)), environment(std::move(around)) {}
+      : lights{std::move(key)}, environment(std::move(around)) {}
+  explicit Lighting(std::vector<Light> sources) : lights(std::move(sources)) {}
+  Lighting(std::vector<Light> sources, Environment around)
+      : lights(std::move(sources)), environment(std::move(around)) {}
 
-  /** Whether anything lights at all. */
+  /** Whether anything lights at all. An environment with no picture
+   *  lights nothing. */
   explicit operator bool() const {
-    return light.has_value() || environment.has_value();
+    return !lights.empty() || (environment && environment->image);
   }
-  /** Whether the light or the environment is moving. */
+  /** Whether a light or the environment is moving. */
   bool isRunning() const;
+  /** Whether shading under this lighting depends on where the node stands
+   *  on the page: a point or a spot is placed in root-page coordinates,
+   *  and the Scene frame carries every normal through the node's
+   *  placement. Read from the sources and the frame alone, so an empty
+   *  Scene-frame lighting still answers true. */
+  bool dependsOnPlacement() const;
   bool operator==(const Lighting&) const = default;
 };
 

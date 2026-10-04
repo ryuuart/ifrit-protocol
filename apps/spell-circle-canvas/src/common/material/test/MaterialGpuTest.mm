@@ -26,12 +26,12 @@
 #include <sigilmaterial/advanced/Combine.h>
 #include <sigilmaterial/advanced/Terms.h>
 #include <sigilmaterial/field/Field.h>
-#include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/ocio/Ocio.h>
 #include <sigilmaterial/sdf/Sdf.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 
 #include <include/core/SkCanvas.h>
@@ -170,6 +170,8 @@ Material termsMaterial() {
         float acc = atan2P(l.y, l.x) + acosP(n.z)
                   + roughnessLevel(0.3, 6.0)
                   + lambert(n, l) + blinn(n, l, v, 32.0)
+                  + blinnNormalized(max(dot(n, l), 0.0), roughnessGloss(0.4))
+                  + coatHighlight(max(dot(n, l), 0.0), n.z, 0.9, 0.2)
                   + occlusion(0.7, 0.8) + luminance(radiance);
         float2 uv = equirectangularUv(l);
         float3 dir = equirectangularDirection(uv);
@@ -206,15 +208,13 @@ std::vector<std::pair<std::string, Material>> everyMaterial() {
   dressed.shadowOffset = {2, 3};
   dressed.shadowBlur = 4;
   dressed.shadowColor = {0, 0, 0, 0.5f};
-  add({sdf::material(sdf::roundBox(8), dressed),
-       sdf::material(sdf::circle(), dressed),
+  add({sdf::material(sdf::roundBox(8), dressed), sdf::material(sdf::circle(), dressed),
        sdf::material(sdf::star(5, 3), dressed)});
   Material warp = field::ripple(4, 32);
   warp.slot("content", maskConstant(1.0f));
-  add({field::halftoneRamp(8, 1, 3, {1, 1, 1, 1}, 15.0f, 0.1f, 0.9f),
-       field::noise(0.03f), std::move(warp)});
-  for (int octaves = 1; octaves <= 4; ++octaves)
-    add({field::grain(0.05f, octaves)});
+  add({field::halftoneRamp(8, 1, 3, {1, 1, 1, 1}, 15.0f, 0.1f, 0.9f), field::noise(0.03f),
+       std::move(warp)});
+  for (int octaves = 1; octaves <= 4; ++octaves) add({field::grain(0.05f, octaves)});
   add({termsMaterial()});
 
   // The stacks: one per blend, over operands the surface feature supplies. A stack is
@@ -224,8 +224,7 @@ std::vector<std::pair<std::string, Material>> everyMaterial() {
   red.baseColor = {1, 0.2f, 0.1f, 1};
   surface::SurfaceParameters blue;
   blue.baseColor = {0.1f, 0.3f, 1, 1};
-  for (const BlendMode blend :
-       {BlendMode::Normal, BlendMode::PlusLighter, BlendMode::Multiply})
+  for (const BlendMode blend : {BlendMode::Normal, BlendMode::PlusLighter, BlendMode::Multiply})
     add({over(surface::unlit(red), surface::unlit(blue), maskConstant(0.5f), blend)});
 
   if (ocio::available()) add({ocio::exponent(2.2f)});
@@ -276,8 +275,7 @@ TEST(MaterialGpu, TheErrorSinkCollectsWholeReportsFromEveryThreadAtOnce) {
   for (int t = 0; t < kThreads; ++t)
     threads.emplace_back([t] {
       const std::string report(kReportLength, (char)('a' + t));
-      for (int i = 0; i < kReportsEach; ++i)
-        sink().compileError("shader", report.c_str(), false);
+      for (int i = 0; i < kReportsEach; ++i) sink().compileError("shader", report.c_str(), false);
     });
   for (std::thread& thread : threads) thread.join();
 

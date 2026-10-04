@@ -1,0 +1,21 @@
+// Fine relief reoriented into a coarse normal's tangent frame, so one
+// normal map carries both: each encoded map is decoded with its own green
+// direction, the detail is turned onto the base, and the result is
+// encoded with the output's green direction.
+float3 normalUnit(float3 n) {
+  float squared = dot(n, n);
+  return squared > 0.000001 ? n / sqrt(squared) : float3(0, 0, 1);
+}
+float3 blendNormal(float3 a, float3 b) {
+  a = normalUnit((a * 2 - 1) * float3(1, baseGreen, 1));
+  b = normalUnit((b * 2 - 1) * float3(1, detailGreen, 1));
+  float3 t = a + float3(0, 0, 1);
+  float3 u = b * float3(-1, -1, 1);
+  float3 n = normalUnit(t * (dot(t, u) / max(t.z, 0.0001)) - u);
+  n.y *= outputGreen;
+  return n * 0.5 + 0.5;
+}
+float4 surface(float2 uv) {
+  return float4(blendNormal(baseNormal.Sample(uv).rgb,
+                           detailNormal.Sample(uv).rgb), 1);
+}

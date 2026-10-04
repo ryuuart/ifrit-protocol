@@ -4,12 +4,12 @@
  */
 
 #include <gtest/gtest.h>
-#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/advanced/Bank.h>
 #include <sigilmaterial/advanced/Combine.h>
-#include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/advanced/Program.h>
 #include <sigilmaterial/advanced/Recipe.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Target.h>
 
 #include <cstddef>
@@ -152,6 +152,26 @@ TEST(Stacking, TheCompositionIsHeldUnderItsOperandsAndNotUnderTheirAddresses) {
   EXPECT_EQ(bodyC->find("bee"), std::string::npos);
 }
 
+TEST(Stacking, CompositionCarriesItsOperandsPixelSamplingTransform) {
+  registerCompiler(Target::Slang, slangStandIn);
+  const auto pixel = std::make_shared<const Recipe>(
+      Recipe::of<TwoParameters>("stack.pixel-sampling")
+          .frame(FrameInput::LocalToSample)
+          .body(Target::Slang,
+                "float4 surface(float2 p) { return float4("
+                "(uLocalToSample * float3(1, 0, 0)).xy, 0, 1); }"));
+  const auto plain = markedRecipe("stack.pixel-plain", "plain");
+  const Material stacked = over(marked(plain), marked(pixel), marked(plain));
+  EXPECT_TRUE(stacked.recipe().reads(FrameInput::LocalToSample));
+  EXPECT_TRUE(stacked.geometryDependent());
+  EXPECT_FALSE(stacked.isRunning());
+  const Field* matrix = stacked.recipe().layout().find("uLocalToSample");
+  ASSERT_NE(matrix, nullptr);
+  EXPECT_EQ(matrix->kind, ParameterType::Mat3);
+  EXPECT_EQ(matrix->floats, 9u);
+  EXPECT_EQ(stacked.recipe().layout().find("top_uLocalToSample"), nullptr);
+}
+
 TEST(Stacking, OneCompositionServesEveryStackOverTheSameThreeDefinitions) {
   registerCompiler(Target::Slang, slangStandIn);
   const std::shared_ptr<const Recipe> base = markedRecipe("stack.one.a", "aye");
@@ -167,7 +187,8 @@ TEST(Stacking, OneCompositionServesEveryStackOverTheSameThreeDefinitions) {
 
   // The blend and each operand are all in the key.
   EXPECT_NE(
-      over(marked(base), marked(top), marked(mask), BlendMode::PlusLighter).recipePointer(),
+      over(marked(base), marked(top), marked(mask), BlendMode::PlusLighter)
+          .recipePointer(),
       first.recipePointer());
   const std::shared_ptr<const Recipe> other = markedRecipe("stack.one.o", "oh");
   EXPECT_NE(over(marked(base), marked(other), marked(mask)).recipePointer(),

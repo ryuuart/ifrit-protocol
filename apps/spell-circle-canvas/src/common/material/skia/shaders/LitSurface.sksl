@@ -1,6 +1,6 @@
 // A surface lit in 2D: the colour stack beneath it as painted, a normal
 // map for relief, roughness, metallic and occlusion as numbers or maps,
-// shaded under one directional light and a latitude-longitude
+// shaded under direct lights and a latitude-longitude
 // environment. The page is the surface: x runs right, y runs down, and z
 // comes out of the page toward the viewer, who looks straight at it.
 uniform shader uColor;
@@ -9,7 +9,7 @@ uniform shader uRoughnessMap;
 uniform shader uMetallicMap;
 uniform shader uOcclusionMap;
 uniform shader uEmissionMap;
-uniform shader uEnvironment;
+uniform shader uEnvironmentFiltered;
 
 uniform float uHasNormal;
 uniform float uNormalScale;
@@ -24,32 +24,64 @@ uniform float uHasEmissionMap;
 uniform float4 uEmission;
 uniform float uEmissionStrength;
 uniform float uReflection;
+uniform float uClearcoat;
 
-uniform float uHasLight;
-uniform float uDirection;  // degrees counter-clockwise from three o'clock
-uniform float uElevation;  // degrees above the page
-uniform float4 uLightColor;
-uniform float uIntensity;
 uniform float uAmbient;
+// SIGIL_LIGHT_DECLARATIONS
 
 uniform float uHasEnvironment;
 uniform float uEnvironmentRotation;  // degrees about the vertical axis
 uniform float uEnvironmentIntensity;
-uniform float2 uEnvironmentSize;
+uniform float uHasEnvironmentFiltered;
 
-const float kPi = 3.14159265;
+// The coat is a clear dielectric layer of index 1.5 and fixed roughness
+// over the whole surface, sharing its shaded normal: a GGX highlight
+// under each direct light and its own reflection lobe of the
+// environment, weighted by its Fresnel term over what lies beneath.
+const float kCoatRoughness = 0.2;
 
-// The environment in direction d (page frame), read by latitude and
-// longitude with +y up the picture.
-float3 around(float3 d) {
+void illuminate(float3 n, float3 l, float3 h, float3 radiance,
+                float3 diffuse, float3 f0, float roughness,
+                inout float3 lit, inout float3 coating) {
+  float facing = clamp(dot(n, l), 0.0, 1.0);
+  float towardHalf = clamp(dot(n, h), 0.0, 1.0);
+  float highlight = blinnNormalized(towardHalf, roughnessGloss(roughness));
+  lit += (diffuse + f0 * highlight) * facing * radiance;
+  if (uClearcoat > 0.0) {
+    float towardView = clamp(n.z, 0.0, 1.0);
+    coating += coatHighlight(facing, towardView, towardHalf, kCoatRoughness)
+               * radiance;
+  }
+}
+
+float3 environmentLevel(float3 direction, float level) {
+  if (level < 0.5) return environmentRadiance(direction);
+  float3 band = environmentBand(level);
+  float2 uv = equirectangularUv(direction);
+  float2 pixel = float2(fract(uv.x) * band.x + 1.0,
+                        clamp(uv.y, 0.0, 1.0) * band.y + band.z + 1.0);
+  return float3(uEnvironmentFiltered.eval(pixel).rgb);
+}
+
+// The environment in page direction d, with +y up its panorama.
+// Framed draws reuse the prepared bands. Frameless shaders evaluate the
+// same convolution directly, without allocating an intermediate surface.
+float3 around(float3 d, float roughness, bool diffuse) {
   float3 up = float3(d.x, -d.y, d.z);
   float turn = radians(uEnvironmentRotation);
   float c = cos(turn), s = sin(turn);
   up = float3(c * up.x + s * up.z, up.y, -s * up.x + c * up.z);
-  float longitude = atan(up.x, -up.z) / (2.0 * kPi) + 0.5;
-  float latitude = acos(clamp(up.y, -1.0, 1.0)) / kPi;
-  half4 picked = uEnvironment.eval(float2(longitude, latitude) * uEnvironmentSize);
-  return float3(picked.rgb) * uEnvironmentIntensity;
+  float3 picked;
+  if (uHasEnvironmentFiltered > 0.5) {
+    if (diffuse) picked = environmentLevel(up, 9.0);
+    else {
+      float level = roughnessLevel(roughness, 9.0);
+      float low = floor(level), high = min(low + 1.0, 8.0);
+      picked = mix(environmentLevel(up, low), environmentLevel(up, high),
+                   level - low);
+    }
+  } else picked = environmentConvolve(up, roughness, diffuse);
+  return picked * uEnvironmentIntensity;
 }
 
 half4 main(float2 xy) {
@@ -66,44 +98,51 @@ half4 main(float2 xy) {
     // green-down; the page's y runs down.
     n = normalize(float3(t.x, uNormalDirectX > 0.5 ? t.y : -t.y, max(t.z, 0.001)));
   }
+  float3 localNormal = n;
+  if (kPositionedLight) n = pageNormal(n);
   float roughness = uRoughness;
   if (uHasRoughnessMap > 0.5) roughness *= float(uRoughnessMap.eval(xy).r);
   roughness = clamp(roughness, 0.03, 1.0);
   float metallic = uMetallic;
   if (uHasMetallicMap > 0.5) metallic *= float(uMetallicMap.eval(xy).r);
   metallic = clamp(metallic, 0.0, 1.0);
-  float occlusion = uOcclusion;
-  if (uHasOcclusionMap > 0.5) occlusion *= float(uOcclusionMap.eval(xy).r);
+  float ambientOcclusion = uOcclusion;
+  if (uHasOcclusionMap > 0.5)
+    ambientOcclusion *= float(uOcclusionMap.eval(xy).r);
 
   float3 view = float3(0, 0, 1);
+  // Normalization can round past one; every angular response stays in
+  // its unit interval before a power is evaluated.
+  float towardView = clamp(dot(n, view), 0.0, 1.0);
   float3 diffuse = albedo * (1.0 - metallic);
-  float3 f0 = mix(float3(0.04), albedo, metallic);
+  float3 f0 = specularColor(albedo, metallic);
   float3 ambientTint = float3(1);
-  if (uHasEnvironment > 0.5) ambientTint = around(n);
+  if (uHasEnvironment > 0.5) ambientTint = around(n, 1.0, true);
   // The ambient share reaches a metal too, at the colour it reflects.
-  float3 lit = uAmbient * (diffuse + f0 * metallic) * ambientTint * occlusion;
+  float3 lit = uAmbient * (diffuse + f0 * metallic) * ambientTint
+              * ambientOcclusion;
+  float3 coating = float3(0);
+  float3 environmentCoating = float3(0);
 
-  if (uHasLight > 0.5) {
-    float azimuth = radians(uDirection), height = radians(uElevation);
-    float3 l = normalize(float3(cos(height) * cos(azimuth),
-                                -cos(height) * sin(azimuth), sin(height)));
-    float facing = max(dot(n, l), 0.0);
-    float3 h = normalize(l + view);
-    float r4 = roughness * roughness * roughness * roughness;
-    float shininess = min(2.0 / max(r4, 0.0001) - 2.0, 4096.0);
-    float highlight = pow(max(dot(n, h), 0.0), shininess) * (shininess + 8.0) / (8.0 * kPi);
-    float3 radiance = uLightColor.rgb * uIntensity;
-    lit += (diffuse + f0 * highlight) * facing * radiance;
-  }
+  // SIGIL_DIRECT_LIGHTS
   if (uHasEnvironment > 0.5) {
     float3 r = reflect(-view, n);
-    float grazing = pow(1.0 - max(dot(n, view), 0.0), 5.0);
-    float3 fresnel = f0 + (1.0 - f0) * grazing;
-    float sharp = (1.0 - roughness) * (1.0 - roughness);
-    lit += around(r) * fresnel * sharp * uReflection * occlusion;
+    float3 reflected = around(r, roughness, false);
+    lit += environmentSpecular(reflected, f0, roughness, towardView)
+           * uReflection * ambientOcclusion;
+    if (uClearcoat > 0.0)
+      environmentCoating = environmentSpecular(
+          around(r, kCoatRoughness, false), float3(0.04),
+          kCoatRoughness, towardView) * uReflection * ambientOcclusion;
   }
   float3 emitted = uEmission.rgb * uEmissionStrength;
   if (uHasEmissionMap > 0.5) emitted *= float3(uEmissionMap.eval(xy).rgb);
   lit += emitted;
+  if (uClearcoat > 0.0) {
+    float coatReflectance = fresnel(float3(0.04), towardView).x;
+    float weight = uClearcoat * coatReflectance;
+    lit = lit * (1.0 - weight) + coating * weight
+          + environmentCoating * uClearcoat;
+  }
   return half4(half3(lit * alpha), half(alpha));
 }

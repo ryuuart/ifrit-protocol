@@ -1,0 +1,71 @@
+uniform shader content;
+uniform shader normal;
+uniform float ior;
+uniform float thickness;
+uniform float normalDirectX;
+uniform float _sampleRadius;
+
+// Skia's displacement filter scales encoded channels linearly. Refraction
+// needs a normalized normal and keeps coverage at the output pixel.
+bool finiteValue(float value) {
+  return abs(value) <= 3.4028234e38;
+}
+
+bool finiteColor(float3 value) {
+  return finiteValue(value.x) && finiteValue(value.y) && finiteValue(value.z);
+}
+
+// Bound the quotient before dividing, so a grazing ray and a large depth
+// cannot overflow the displacement. The limit is per coordinate axis.
+float boundedOffset(float direction, float depth, float forward, float radius) {
+  if (direction == 0) return 0;
+  float travel = abs(direction) * depth;
+  float allowed = radius * forward;
+  if (!finiteValue(travel) || travel >= allowed)
+    return direction < 0 ? -radius : radius;
+  float result = travel / forward;
+  return direction < 0 ? -result : result;
+}
+
+half4 main(float2 p) {
+  half4 incoming = content.eval(p);
+  if (incoming.a <= 0 || !finiteValue(ior) || ior <= 1 ||
+      !finiteValue(thickness) || thickness <= 0 ||
+      !finiteValue(_sampleRadius) || _sampleRadius <= 0 ||
+      !finiteValue(normalDirectX))
+    return incoming;
+
+  half4 encoded = normal.eval(p);
+  if (encoded.a != 1 || !finiteValue(float(encoded.a)) ||
+      !finiteColor(float3(encoded.rgb)))
+    return incoming;
+  float3 n = float3(encoded.rgb) * 2.0 - 1.0;
+  float squaredLength = dot(n, n);
+  if (n.z < 0 || !finiteValue(squaredLength) || squaredLength <= 1e-12)
+    return incoming;
+  n /= sqrt(squaredLength);
+  if (normalDirectX <= 0.5) n.y = -n.y;
+
+  // The incident ray points into the page; the encoded normal points out.
+  float eta = 1.0 / ior;
+  float facing = clamp(n.z, 0.0, 1.0);
+  float k = max(1.0 - eta * eta * (1.0 - facing * facing), 0.0);
+  float3 ray = float3(0, 0, -eta) - (sqrt(k) - eta * facing) * n;
+  float forward = -ray.z;
+  if (!finiteValue(forward) || forward <= 0) return incoming;
+  float2 offset = float2(
+      boundedOffset(ray.x, thickness, forward, _sampleRadius),
+      boundedOffset(ray.y, thickness, forward, _sampleRadius));
+  if (offset.x == 0 && offset.y == 0) return incoming;
+  float2 location = p + offset;
+  if (!finiteValue(location.x) || !finiteValue(location.y)) return incoming;
+
+  half4 displaced = content.eval(location);
+  if (displaced.a <= 0 || !finiteValue(float(displaced.a))) return incoming;
+  // Refraction moves straight color; the existing backdrop retains its
+  // coverage. A transparent sample has no color to borrow.
+  float3 color = float3(displaced.rgb) / float(displaced.a) * float(incoming.a);
+  if (!finiteColor(color) || max(max(abs(color.r), abs(color.g)), abs(color.b)) > 65504)
+    return incoming;
+  return half4(half3(color), incoming.a);
+}

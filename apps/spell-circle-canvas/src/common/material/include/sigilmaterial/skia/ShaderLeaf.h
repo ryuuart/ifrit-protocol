@@ -23,9 +23,9 @@ class ShaderLeaf : public Leaf {
  public:
   /** The shader bound into the slot; null binds nothing. */
   virtual sk_sp<SkShader> shader() const = 0;
-  /** The shader bound into the slot of a material drawn at @p frame — a
-   *  leaf whose pixels move with time answers the frame standing at
-   *  `frame.seconds`; every other leaf answers `shader()`. */
+  /** The shader bound into a material drawn at @p frame. Override for
+   *  time, geometry or recorder-dependent sources; the default returns
+   *  `shader()`. */
   virtual sk_sp<SkShader> shaderAt(const FrameData& frame) const {
     (void)frame;
     return shader();

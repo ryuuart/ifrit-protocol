@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cstddef>
 #include <memory>
 #include <mutex>
@@ -84,15 +85,21 @@ Paint Paint::recipe(Material material) {
   // A material built up from a base and layers is folded into one paint;
   // a bare program is held as the instance it is.
   if (material.isComposed()) return skia::paint(material);
-  Paint m;
-  m.m_backed = std::make_shared<Backed>(Backed{std::move(material), {}});
-  m.m_shader = PaintAccess::hold(PaintAccess::buildBacked(m, nullptr));
-  return m;
+  Paint paint = PaintAccess::unresolvedRecipe(std::move(material));
+  paint.m_shader = PaintAccess::hold(PaintAccess::buildBacked(paint, nullptr));
+  return paint;
 }
 
 }  // namespace sigil::material
 
 namespace sigil::material::skia {
+
+Paint PaintAccess::unresolvedRecipe(Material material) {
+  Paint paint;
+  paint.m_worldSpace = std::as_const(material).worldSpace();
+  paint.m_backed = std::make_shared<Paint::Backed>(std::move(material));
+  return paint;
+}
 
 namespace {
 
@@ -138,14 +145,15 @@ Paint Paint::linearGradient(glm::vec2 startPoint, glm::vec2 endPoint,
   if (options.units == GradientUnits::Box) {
     if (options.repeat == Repeat::Pad)
       return skia::detail::unitRamp(start, end, stops.stops(), false);
-    return boxGradient(
-        linearGradient(startPoint, endPoint, std::move(stops), inPixels(options)), {0, 0},
-        false);
+    return boxGradient(linearGradient(startPoint, endPoint, std::move(stops),
+                                      inPixels(options)),
+                       {0, 0}, false);
   }
   const SkTileMode tile = toSkTileMode(options.repeat);
   RampArrays arrays = split(stops);
   const SkPoint pts[2] = {start, end};
-  Paint m = PaintAccess::wrap(SkShaders::LinearGradient(pts, makeGradient(arrays, tile)));
+  Paint m = PaintAccess::wrap(
+      SkShaders::LinearGradient(pts, makeGradient(arrays, tile)));
   auto rec = std::make_shared<Recipe>();
   rec->kind = Recipe::Kind::Linear;
   rec->p0 = start;
@@ -167,14 +175,15 @@ Paint Paint::radialGradient(glm::vec2 centerPoint, float radius,
       const float scaled = options.extent == RadialExtent::ClosestSide
                                ? radius * 0.70710678f
                                : radius;
-      return skia::detail::unitRamp(center, {scaled, scaled}, stops.stops(), true);
+      return skia::detail::unitRamp(center, {scaled, scaled}, stops.stops(),
+                                    true);
     }
     const float unit = extentOf(options.extent);
     GradientOptions unitOptions = inPixels(options);
     unitOptions.focusRadius *= unit;
-    return boxGradient(
-        radialGradient(centerPoint, radius * unit, std::move(stops), unitOptions),
-        {0, 0}, false);
+    return boxGradient(radialGradient(centerPoint, radius * unit,
+                                      std::move(stops), unitOptions),
+                       {0, 0}, false);
   }
   const SkTileMode tile = toSkTileMode(options.repeat);
   RampArrays r = split(stops);
@@ -218,9 +227,8 @@ Paint Paint::conicGradient(glm::vec2 centerPoint, ColorStops stops,
   // first stop's flat colour, silently. The numbers only meet here, so
   // this is where the diagnostic lives — once per process.
   if (startDegrees < 0.0f || endDegrees > 360.0f) {
-    static bool warnedSweepWindow = false;
-    if (!warnedSweepWindow) {
-      warnedSweepWindow = true;
+    static std::atomic_bool warnedSweepWindow{false};
+    if (!warnedSweepWindow.exchange(true, std::memory_order_relaxed)) {
       SkDebugf(
           "[material] material::Paint::conicGradient(start %.1f, end %.1f): "
           "angles outside [0, 360] CLAMP, they do not wrap — no canvas angle "
@@ -232,8 +240,8 @@ Paint Paint::conicGradient(glm::vec2 centerPoint, ColorStops stops,
   }
   const SkTileMode tile = toSkTileMode(options.repeat);
   RampArrays r = split(stops);
-  Paint m = PaintAccess::wrap(SkShaders::SweepGradient(center, startDegrees, endDegrees,
-                                            makeGradient(r, tile)));
+  Paint m = PaintAccess::wrap(SkShaders::SweepGradient(
+      center, startDegrees, endDegrees, makeGradient(r, tile)));
   auto rec = std::make_shared<Recipe>();
   rec->kind = Recipe::Kind::Sweep;
   rec->p0 = center;
@@ -253,7 +261,8 @@ Paint PaintAccess::image(sk_sp<SkImage> image, SkTileMode horizontalTile,
                          SkTileMode verticalTile, const SkMatrix& local,
                          SkSamplingOptions sampling) {
   if (!image) return {};
-  Paint m = wrap(SkShaders::Image(image, horizontalTile, verticalTile, sampling, &local));
+  Paint m = wrap(
+      SkShaders::Image(image, horizontalTile, verticalTile, sampling, &local));
   auto rec = std::make_shared<Paint::Recipe>();
   rec->kind = Paint::Recipe::Kind::Image;
   rec->image = std::move(image);
@@ -271,9 +280,11 @@ Paint PaintAccess::buffer(std::shared_ptr<PixelBuffer> source,
   if (!source) return {};
   sk_sp<SkImage> snapshot = source->image();
   if (!snapshot) return {};
-  Paint m = wrap(SkShaders::Image(snapshot, horizontalTile, verticalTile, sampling, &local));
+  Paint m = wrap(SkShaders::Image(snapshot, horizontalTile, verticalTile,
+                                  sampling, &local));
   auto rec = std::make_shared<Paint::Recipe>();
   rec->kind = Paint::Recipe::Kind::Buffer;
+  rec->image = std::move(snapshot);
   rec->revision = source->revision();
   rec->source = std::move(source);
   rec->tx = horizontalTile;
@@ -303,9 +314,8 @@ SkBitmap& PixelBuffer::bitmap() { return m_state->bitmap; }
 SkCanvas& PixelBuffer::canvas() { return *m_state->canvas; }
 sk_sp<SkImage> PixelBuffer::image() {
   if (m_snapshotRevision != m_revision) {
-    // A COPY, once per commit: the user's bitmap stays mutable while the
-    // snapshot the shader holds is immutable — no torn frames, and a
-    // pruned describe never reaches this line.
+    // Copy on the first request after a commit. The bitmap stays mutable
+    // while paints retain the immutable snapshot of their own revision.
     m_snapshot = SkImages::RasterFromBitmap(m_state->bitmap);
     m_snapshotRevision = m_revision;
   }
@@ -392,41 +402,50 @@ Paint unitRamp(SkPoint a, SkPoint b, std::vector<ColorStop> stops,
 
 }  // namespace detail
 
-Paint PaintAccess::sksl(sk_sp<SkRuntimeEffect> effect,
-                        std::vector<std::pair<std::string, float>> constants) {
-  Paint m;
+Paint PaintAccess::unresolvedSksl(sk_sp<SkRuntimeEffect> effect) {
+  Paint paint;
   if (!effect) {
     // A material that fails to build must be loud. The usual route here is
     // `MakeForShader` returning null on a shader compile error and the
     // caller passing that null straight in: the material resolves to NONE,
     // the node paints nothing, and the compile error is long gone from the
     // log by the time anyone looks. Say it at BUILD, where the mistake is.
-    static bool warnedNullEffect = false;
-    if (!warnedNullEffect) {
-      warnedNullEffect = true;
+    static std::atomic_bool warnedNullEffect{false};
+    if (!warnedNullEffect.exchange(true, std::memory_order_relaxed)) {
       SkDebugf(
           "[material] material::skia::sksl(null effect): the paint is NONE "
           "and its node will paint nothing. Check the error string "
           "MakeForShader returned next to the effect. (warned once)\n");
     }
-    return m;
+    return paint;
   }
-  m.m_live = std::make_shared<Paint::Live>();
-  m.m_live->effect = std::move(effect);
+  paint.m_live = std::make_shared<Paint::Live>();
+  paint.m_live->effect = std::move(effect);
+  paint.m_live->usesTime =
+      validUniform(paint.m_live->effect, "uTime", UniformType::kFloat);
+  paint.m_live->usesScale =
+      validUniform(paint.m_live->effect, "uContentScale", UniformType::kFloat);
+  paint.m_live->usesGeometry =
+      validUniform(paint.m_live->effect, "uResolution", UniformType::kFloat2);
+  paint.m_live->usesWorld = validWorldUniform(paint.m_live->effect);
+  paint.m_live->usesSampling = validUniform(
+      paint.m_live->effect, "uLocalToSample", UniformType::kFloat3x3);
+  return paint;
+}
+
+Paint PaintAccess::sksl(sk_sp<SkRuntimeEffect> effect,
+                        std::vector<std::pair<std::string, float>> constants) {
+  Paint paint = unresolvedSksl(std::move(effect));
+  if (!paint.m_live) return paint;
   for (auto& [name, value] : constants) {
-    if (!validUniform(m.m_live->effect, name, sizeof(float))) {
+    if (!validUniform(paint.m_live->effect, name, UniformType::kFloat)) {
       warnUnknownUniform("sksl", name);
       continue;
     }
-    putByName(m.m_live->constants, std::move(name), value);
+    putByName(paint.m_live->constants, std::move(name), value);
   }
-  m.m_live->usesTime = validUniform(m.m_live->effect, "uTime", sizeof(float));
-  m.m_live->usesScale =
-      validUniform(m.m_live->effect, "uContentScale", sizeof(float));
-  m.m_live->usesGeometry =
-      validUniform(m.m_live->effect, "uResolution", 2 * sizeof(float));
-  m.m_shader = hold(build(*m.m_live, nullptr));  // static snapshot (constants only)
-  return m;
+  refresh(paint);
+  return paint;
 }
 
 Paint image(sk_sp<SkImage> image, Repeat horizontal, Repeat vertical,
@@ -436,7 +455,8 @@ Paint image(sk_sp<SkImage> image, Repeat horizontal, Repeat vertical,
 }
 
 Paint buffer(std::shared_ptr<PixelBuffer> source, Repeat horizontal,
-             Repeat vertical, const SkMatrix& local, SkSamplingOptions sampling) {
+             Repeat vertical, const SkMatrix& local,
+             SkSamplingOptions sampling) {
   return PaintAccess::buffer(std::move(source), toSkTileMode(horizontal),
                              toSkTileMode(vertical), local, sampling);
 }
@@ -446,6 +466,8 @@ Paint sksl(sk_sp<SkRuntimeEffect> effect,
   return PaintAccess::sksl(std::move(effect), std::move(constants));
 }
 
-Paint paint(sk_sp<SkShader> shader) { return PaintAccess::wrap(std::move(shader)); }
+Paint paint(sk_sp<SkShader> shader) {
+  return PaintAccess::wrap(std::move(shader));
+}
 
 }  // namespace sigil::material::skia

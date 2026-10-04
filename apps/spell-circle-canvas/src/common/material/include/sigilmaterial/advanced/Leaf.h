@@ -29,6 +29,9 @@ class Leaf {
    *  material holding it — a frame sequence, a live surface. */
   virtual bool animated() const { return false; }
 
+  /** Whether this leaf depends on the painted box or its placement. */
+  virtual bool geometryDependent() const { return false; }
+
   bool operator==(const Leaf& other) const {
     return typeid(*this) == typeid(other) && equals(other);
   }

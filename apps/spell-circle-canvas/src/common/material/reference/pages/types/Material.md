@@ -32,8 +32,11 @@ value whose kind does not match the field, is reported once and ignored.
 
 BINDINGS replace a field's bytes at every resolve. `Material::bind` takes
 a `motion::Animatable<float>` for a float field or a
-`shared_ptr<const UniformBlock>` for an array field; `Material::unbind`
-drops one, leaving whatever was last written. A field bound to a LIVE
+`shared_ptr<const UniformBlock>` for an array field. A block's `values()`
+edits its draft; `commit()` publishes the whole array without re-description,
+and resolves read only `committedValues()`. The initial published values are
+zero. `Material::unbind` drops a binding, leaving whatever was last written
+with `set`. A field bound to a LIVE
 animatable is live; one bound to a plain number is a value like any
 other. A material holds no clock, so an animatable carrying its own
 transition has nothing to run it and reads as its target.

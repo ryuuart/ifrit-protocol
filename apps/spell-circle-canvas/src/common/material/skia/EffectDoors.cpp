@@ -44,7 +44,8 @@ Effect& Effect::slot(std::string name, Paint source) {
   if (m_parametricBlur) {
     if (name != "sigma") {
       SkDebugf(
-          "[material] Filter::slot(\"%s\") on a Filter::blur(map, …) — its one slot "
+          "[material] Filter::slot(\"%s\") on a Filter::blur(map, …) — its one "
+          "slot "
           "is \"sigma\", the map; ignored\n",
           name.c_str());
       return *this;
@@ -111,7 +112,18 @@ sk_sp<SkShader> Effect::childShaderFor(std::string_view name,
   return nullptr;
 }
 
+bool Effect::writableUniform(std::string_view name) const {
+  if (m_sampleRadius && name == "_sampleRadius") {
+    SkDebugf(
+        "[material] Filter sampling radius is fixed at construction; "
+        "ignored\n");
+    return false;
+  }
+  return true;
+}
+
 Effect& Effect::bind(std::string name, motion::Animatable<float> value) {
+  if (!writableUniform(name)) return *this;
   // Every dropped binding says so — Material's guardrail: warn and ignore,
   // never a debug abort (one sketch typo must not kill the hot-reload
   // host). A silent drop here loses an animation with no diagnostic.
@@ -145,7 +157,7 @@ Effect& Effect::bind(std::string name, motion::Animatable<float> value) {
     // all, which also means it declares no volatility: an ignored binding
     // that still marked the node live would cost a repaint every frame
     // forever, for a value nothing reads.
-    if (!detail::declaresUniform(m_effect, name, sizeof(float))) {
+    if (!validUniform(m_effect, name, UniformType::kFloat)) {
       warnUndeclaredEffectUniform("Filter::bind", name);
       return *this;
     }
@@ -163,11 +175,10 @@ Effect& Effect::bind(std::string name, motion::Animatable<float> value) {
 
 namespace {
 /** The gate every constant-uniform door on Effect shares: only a shader()
- *  effect has named declarations to fill, and a name it does not declare
- *  at the value's size warns once and is ignored — Material's rule. */
-bool effectTakesConstant(const char* door,
-                         const sk_sp<SkRuntimeEffect>& effect,
-                         const std::string& name, size_t bytes,
+ *  effect has named declarations to fill. An incompatible declaration
+ *  warns once and retains its previous input. */
+bool effectTakesConstant(const char* door, const sk_sp<SkRuntimeEffect>& effect,
+                         const std::string& name, bool matches,
                          bool otherKind) {
   if (otherKind || !effect) {
     SkDebugf(
@@ -178,7 +189,7 @@ bool effectTakesConstant(const char* door,
         door, name.c_str());
     return false;
   }
-  if (!detail::declaresUniform(effect, name, bytes)) {
+  if (!matches) {
     warnUndeclaredEffectUniform(door, name);
     return false;
   }
@@ -187,7 +198,9 @@ bool effectTakesConstant(const char* door,
 }  // namespace
 
 Effect& Effect::set(std::string name, float value) {
-  if (!effectTakesConstant("Filter::set", m_effect, name, sizeof(float),
+  if (!writableUniform(name) ||
+      !effectTakesConstant("Filter::set", m_effect, name,
+                           validUniform(m_effect, name, UniformType::kFloat),
                            m_directionalBlur || m_parametricBlur))
     return *this;
   putByName(m_uniforms, std::move(name), value);
@@ -196,7 +209,9 @@ Effect& Effect::set(std::string name, float value) {
 }
 
 Effect& Effect::set(std::string name, std::array<float, 2> value) {
-  if (!effectTakesConstant("Filter::set", m_effect, name, 2 * sizeof(float),
+  if (!writableUniform(name) ||
+      !effectTakesConstant("Filter::set", m_effect, name,
+                           validUniform(m_effect, name, UniformType::kFloat2),
                            m_directionalBlur || m_parametricBlur))
     return *this;
   putByName(m_uniforms2, std::move(name), value);
@@ -205,7 +220,9 @@ Effect& Effect::set(std::string name, std::array<float, 2> value) {
 }
 
 Effect& Effect::set(std::string name, std::array<float, 4> value) {
-  if (!effectTakesConstant("Filter::set", m_effect, name, 4 * sizeof(float),
+  if (!writableUniform(name) ||
+      !effectTakesConstant("Filter::set", m_effect, name,
+                           validUniform(m_effect, name, UniformType::kFloat4),
                            m_directionalBlur || m_parametricBlur))
     return *this;
   putByName(m_uniforms4, std::move(name), value);
@@ -214,9 +231,11 @@ Effect& Effect::set(std::string name, std::array<float, 4> value) {
 }
 
 Effect& Effect::set(std::string name, std::vector<float> values) {
-  // An array validates by TOTAL float count — all the builder checks, and
-  // the builder refuses a partial write, so the count must be exact.
-  if (!effectTakesConstant("Filter::set", m_effect, name, values.size() * sizeof(float),
+  // Flat packets fill the complete floating declaration, including
+  // vectors, matrices and arrays.
+  if (!writableUniform(name) ||
+      !effectTakesConstant("Filter::set", m_effect, name,
+                           validFloatPacket(m_effect, name, values.size()),
                            m_directionalBlur || m_parametricBlur))
     return *this;
   putByName(m_uniformArrays, std::move(name), std::move(values));
@@ -225,7 +244,7 @@ Effect& Effect::set(std::string name, std::vector<float> values) {
 }
 
 Effect& Effect::bind(std::string name,
-                        std::shared_ptr<const UniformBlock> block) {
+                     std::shared_ptr<const UniformBlock> block) {
   if (!block) {
     SkDebugf(
         "[material] Filter::bind(\"%s\", block): null UniformBlock — "
@@ -233,7 +252,9 @@ Effect& Effect::bind(std::string name,
         name.c_str());
     return *this;
   }
-  if (!effectTakesConstant("Filter::bind", m_effect, name, block->size() * sizeof(float),
+  if (!writableUniform(name) ||
+      !effectTakesConstant("Filter::bind", m_effect, name,
+                           validFloatPacket(m_effect, name, block->size()),
                            m_directionalBlur || m_parametricBlur))
     return *this;
   // A rejected block is not recorded, so it declares no volatility —

@@ -3,9 +3,9 @@
 /** @file
  * @ingroup material-skia
  *
- * THE CALLER-OWNED RASTER a material can sample: a bitmap one owner
- * writes into and publishes with `commit()`, so content changes without a
- * re-describe. `Paint::buffer()` is the door that turns one into a fill.
+ * The caller-owned raster a material can sample. Write its pixels, call
+ * `commit()`, then construct a fresh `skia::buffer()` paint and re-describe
+ * its consumer to publish the edit.
  */
 
 #include <include/core/SkRefCnt.h>
@@ -19,14 +19,15 @@ class SkImage;
 
 namespace sigil::material::skia {
 
-/** The caller-owned raster behind `Paint::buffer()`: draw into
- *  `bitmap()`, or through `canvas()`, then `commit()` to publish.
+/** The caller-owned raster behind `skia::buffer()`: draw into `bitmap()`,
+ *  or through `canvas()`, then call `commit()` and construct a fresh paint.
  *
- *  The material's recipe carries (source, revision), so an identical
- *  re-describe between commits prunes and nothing repaints, and the first
- *  describe after a commit patches exactly once. `image()` snapshots
- *  lazily and caches per revision, so a describe that prunes copies no
- *  pixels at all.
+ *  Each paint captures (source, revision) and that revision's image.
+ *  Re-describing with a fresh paint between commits compares equal; a
+ *  fresh paint after a commit carries the new pixels and compares unequal.
+ *  Existing paints keep their captured pixels, including while fitted or
+ *  panned. `image()` copies on the first request after each commit and
+ *  reuses that snapshot on subsequent requests.
  *
  *  Not thread-safe, deliberately: one owner, one writer. */
 class PixelBuffer {
@@ -40,11 +41,11 @@ class PixelBuffer {
   SkBitmap& bitmap();
   /** A raster canvas over the same pixels — the convenient writer. */
   SkCanvas& canvas();
-  /** PUBLISH the edit: the next describe carries the new revision and
-   *  the reconciler repaints the material's node exactly once. */
+  /** Advances the revision. A fresh `skia::buffer()` paint captures the
+   *  edited pixels; existing paints retain their previous snapshot. */
   void commit() { ++m_revision; }
   uint64_t revision() const { return m_revision; }
-  /** The current snapshot (copied from the bitmap once per revision). */
+  /** The current snapshot, copied on the first request after a commit. */
   sk_sp<SkImage> image();
 
  private:

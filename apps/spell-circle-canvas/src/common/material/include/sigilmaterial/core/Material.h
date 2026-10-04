@@ -94,12 +94,12 @@ class Part {
  *  composition. The base is a colour, a program (an instance of a
  *  recipe), or a source only a renderer can supply (a gradient, an
  *  image); `layer()` stacks further materials over it, `surface()` adds
- *  the lit response a 3D renderer reads, and `effects()` a filter chain
+ *  the lighting response, and `effects()` a filter chain
  *  over the painted layer's coverage. A `Color` converts implicitly, so
  *  every place that takes a material takes a colour.
  *
- *  A PROGRAM base is a recipe instance: the VALUES as the bytes the shader receives, the
- *  BINDINGS that replace a field's bytes at every resolve, and the
+ *  A PROGRAM base is a recipe instance: the VALUES as the bytes the shader
+ * receives, the BINDINGS that replace a field's bytes at every resolve, and the
  *  CHILDREN that fill the recipe's declared slots. A live binding or a
  *  live child makes the whole instance live. EQUALITY is by value —
  *  recipe identity, bytes, bindings, children and settings — so two
@@ -239,7 +239,8 @@ class Material {
    *  animatable reads as now. A `motion::animatable(…)` value is the live
    *  case, a shaped `motion::bind(phase, {.envelope = …, .to = {…}})` is
    *  the same case with the arithmetic moved next to the uniform it feeds,
-   *  and a plain number is a value written once per resolve. `unbind()` clears it.
+   *  and a plain number is a value written once per resolve. `unbind()` clears
+   * it.
    *
    *  A material holds no clock, so an animatable carrying its OWN
    *  transition has nothing to run it and reads as its target. Motion
@@ -248,12 +249,17 @@ class Material {
    *  On a material whose base is a part that takes inputs of its own,
    *  the part's input @p name follows @p value instead. */
   Material& bind(std::string_view name, motion::Animatable<float> value);
+  /** Binds a color field to @p value, uploading its four straight sRGB
+   *  components without clamping. Constant and live values follow the
+   *  same resolve and equality rules as scalar bindings. */
+  Material& bind(std::string_view name, motion::Animatable<Color> value);
   /** Drops the binding on @p name, leaving whatever `set()` last wrote in
    *  the field. Unknown names are ignored. */
   Material& unbind(std::string_view name);
   /** Binds an array field to @p block, whose size must equal the field's
-   *  float count: each resolve uploads the block's current values. Null
-   *  clears the binding. */
+   *  float count. Each resolve uploads its last committed values; draft
+   *  edits remain hidden even when another input changes. Null clears the
+   *  binding. */
   Material& bind(std::string_view name,
                  std::shared_ptr<const UniformBlock> block);
   /** Whether @p name carries a binding — an animatable or a block —
@@ -304,12 +310,12 @@ class Material {
   bool worldSpace() const { return m_worldSpace; }
 
   /** Whether the upload can change between frames with no edit to the
-   *  material: a bound output or block, a recipe reading time or content
-   *  scale, or an animated child. */
+   *  material: a bound output or block, a recipe reading time, or an
+   *  animated child. */
   bool isRunning() const;
-  /** Whether the upload depends on where and how large the node is: a
-   *  recipe reading the resolution or the world transform, or a
-   *  geometry-dependent child. */
+  /** Whether the upload depends on where and how large the node is, or
+   *  on the scale it is drawn at: a recipe reading the resolution, the
+   *  world transform or the content scale, or a geometry-dependent child. */
   bool geometryDependent() const;
 
   bool operator==(const Material& other) const;
@@ -317,15 +323,28 @@ class Material {
   /** What a renderer uploads: the program for the target and variant,
    *  and the bytes in the recipe's `layout()`. The program is null when
    *  the recipe has no compiled form for the target, which the cache has
-   *  already reported. */
+   *  already reported. The bytes stay unchanged while this result or a
+   *  copy of it is held, including across later resolves. */
   struct Resolved {
+    Resolved() = default;
     std::shared_ptr<Program> program;
     std::span<const std::byte> bytes;
+
+   private:
+    friend class Material;
+    Resolved(std::shared_ptr<Program> compiled,
+             std::shared_ptr<const std::vector<std::byte>> storage)
+        : program(std::move(compiled)),
+          bytes(*storage),
+          m_storage(std::move(storage)) {}
+    std::shared_ptr<const std::vector<std::byte>> m_storage;
   };
   /** Samples the bindings, injects the declared frame inputs, and looks
    *  up the program. Memoised: when the sampled bytes, target and variant
    *  equal the previous call's, the previous result is returned without a
-   *  cache lookup. */
+   *  cache lookup. Resolving an unchanged material and its copies is
+   *  synchronized; authoring edits and writes to live inputs require
+   *  external synchronization. */
   Resolved resolve(Target target, const FrameData& frame,
                    Variant variant = {}) const;
 
@@ -335,9 +354,10 @@ class Material {
  private:
   struct Binding {
     std::string name;
-    /** One or the other: an array field carries the block, a float field
-     *  carries the animatable. The block is what tells the two apart. */
-    motion::Animatable<float> value{0.0f};
+    /** An array field carries the block; scalar and color fields carry
+     *  an animatable of their value type. */
+    std::variant<motion::Animatable<float>, motion::Animatable<Color>> value{
+        motion::Animatable<float>(0.0f)};
     std::shared_ptr<const UniformBlock> block;
   };
   Material(std::shared_ptr<const Recipe> recipe, const void* parameters,
@@ -372,15 +392,8 @@ class Material {
    *  material costs a program no more than a pointer. */
   std::shared_ptr<const Composition> m_composition;
 
-  struct Memo {
-    bool valid = false;
-    Target target{};
-    Variant variant{};
-    std::vector<std::byte> bytes;
-    std::shared_ptr<Program> program;
-  };
-  mutable Memo m_memo;
-  mutable std::vector<std::byte> m_scratch;
+  struct ResolveState;
+  std::shared_ptr<ResolveState> m_resolve;
 };
 
 /** What a layer's mask reads from its source material. */
@@ -431,7 +444,10 @@ using Channel = std::variant<float, Material>;
  *  or a stroke filled with it is shaded under the lighting in force
  *  where it stands — Compose's inherited `lighting()`, or `lighting`
  *  here, which overrides it — reading the normal map for relief; with no
- *  lighting in force it is painted as its colours, flat. */
+ *  lighting in force it is painted as its colours, flat. The Skia executor
+ *  implements reflected surface lighting and clearcoat; it ignores
+ *  transmission, ior, thickness and absorption. Refraction in 2D is
+ *  Filter::glass, which refracts the layer it is attached to. */
 struct SurfaceOptions {
   Channel metallic = 0.0f;
   Channel roughness = 0.5f;
@@ -445,7 +461,8 @@ struct SurfaceOptions {
   Color emission = {0, 0, 0, 1};
   float emissionStrength = 0;
   std::optional<Material> emissionMap;
-  /** Alpha below this is cut out; zero blends. */
+  /** Alpha below a positive threshold is cut out; zero blends. In Skia,
+   *  surviving colour-stack samples retain their premultiplied alpha. */
   float alphaCutoff = 0;
   float clearcoat = 0;
   float transmission = 0;
@@ -481,7 +498,7 @@ class EffectsStage {
  *  the lit response and the effects stage, each optional but the base.
  *  Written through `from()`, so one pair of braces holds it:
  *  `from({.base = hexColor(0xB8BDC4), .layers = {{noise(0.4f)}},
- *  .surface = {{.metallic = 1}}, .effects = Filter::shadow(black)})`. */
+ *  .surface = {{.metallic = 1.f}}, .effects = Filter::shadow(black)})`. */
 struct MaterialParts {
   Material base = Color{0, 0, 0, 0};
   std::vector<Layer> layers;

@@ -31,9 +31,20 @@ struct FrameData {
   glm::vec2 rootResolution{0.0f, 0.0f};
   /** Device pixels per logical pixel; the `uContentScale` uniform. */
   float contentScale = 1.0f;
+  /** Set true by an executor that hands `contentScale` to a program. A
+   *  consumer that keeps what it drew points this at a flag of its own and
+   *  draws again when the scale it drew at changes. Null asks nothing. */
+  bool* contentScaleRead = nullptr;
   /** The node's local space to the root, column-major; the `uWorld`
-   *  uniform. Identity when the material is not anchored to the root. */
+   *  uniform. Identity is the default for a standalone frame. Hosts supply
+   *  the node-to-root transform even when the paint samples local coordinates.
+   */
   glm::mat3 world{1.0f};
+  /** Logical node offsets to current sampling offsets; `uLocalToSample`.
+   *  The linear part of an affine map acts on vectors with homogeneous w=0;
+   *  translation is ignored. Identity means sampling coordinates are pixels.
+   *  It supplies pixel-sized taps without changing encoded normal slopes. */
+  glm::mat3 localToSample{1.0f};
   /** The recorder the frame is drawn through, where it is drawn on a
    *  device: a texture whose pixels stand on that device is bound there
    *  as it stands. Null — a raster canvas, a recording kept to replay —

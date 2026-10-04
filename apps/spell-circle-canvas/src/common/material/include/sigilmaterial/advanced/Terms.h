@@ -32,9 +32,10 @@ const std::string& termsSource(Target target);
 std::string skSLFromSlang(std::string_view slang);
 
 /** The names the terms answer to, so a composition can be read without
- *  opening the source: `lambert`, `blinn`, `specularColor`, `fresnel`,
+ *  opening the source: `lambert`, `blinn`, `roughnessGloss`,
+ *  `blinnNormalized`, `coatHighlight`, `specularColor`, `fresnel`,
  *  `fresnelRough`, `environmentBrdf`, `environmentSpecular`,
- *  `environmentReflection`, `refraction`, `absorption`, `emission`,
+ *  `environmentReflection`, `refraction`, `attenuate`, `emission`,
  *  `occlusion`, the display transform every lit sum ends at —
  *  `luminance`, `toneMap` — and the panorama's own geometry:
  *  `equirectangularUv`, `equirectangularDirection`, `roughnessLevel`, `atan2P`,

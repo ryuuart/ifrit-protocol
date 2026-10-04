@@ -17,6 +17,8 @@
 
 namespace sigil::material {
 
+class Texture;
+
 /** How an image meets the region it paints. */
 struct ImageOptions {
   /** What is painted past the image's edges, horizontally — and
@@ -28,6 +30,10 @@ struct ImageOptions {
 
 /** @p pixels as a material, at their own size from the region's origin. */
 Material image(media::PixelSource pixels, ImageOptions options = {});
+
+/** @p texture as a material, preserving its placement, region, tiling
+ *  and sampling. The same value can fill a shape or a surface channel. */
+Material image(Texture texture);
 
 /** @p pixels, a latitude-longitude (equirectangular) picture, as the
  *  environment a lit surface reflects — read across the picture's own

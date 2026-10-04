@@ -7,9 +7,9 @@
  * model the authoring tools export for. One parameter struct is its ABI
  * and one slot per map, so a discovered texture set drops straight in,
  * under two recipes: one takes light, the other is its own light. The
- * bodies are composed from the library's shading TERMS. What a 2D paint
- * can answer is bounded — no surface normal, no view vector, no light —
- * so those parameters are Slang-only.
+ * bodies are composed from the library's shading TERMS. Its renderer
+ * supplies geometry normals, the view and lighting. Planar lighting is
+ * a separate Skia pass over SurfaceOptions and does not run this program.
  *
  * A material states its response with `Material::surface(SurfaceOptions)`;
  * `lower()` is the step that turns that statement into this program, and
@@ -17,9 +17,9 @@
  * writer that reads its slots.
  */
 
+#include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilmaterial/texture/TextureSet.h>
 
@@ -28,6 +28,40 @@
 #include <string_view>
 
 namespace sigil::material::surface {
+
+/** The green-axis convention of each encoded normal map. */
+struct NormalBlendOptions {
+  bool baseDirectX = false;
+  bool detailDirectX = false;
+  bool outputDirectX = false;
+  bool operator==(const NormalBlendOptions&) const = default;
+};
+
+/** Reorient @p detail into @p base's tangent frame. Both are opaque RGB
+ *  maps encoding unit normals as (normal + 1) / 2. The result uses the
+ *  requested output convention; a flat map leaves the other unchanged.
+ *  Base normals must face outward (z >= 0). */
+Material blendNormals(Material base, Material detail,
+                      NormalBlendOptions options = {});
+
+struct HeightNormalOptions {
+  /** Height of white relative to black, in logical pixels. Negative dents. */
+  float depth = 1;
+  /** Central-difference sample distance in logical pixels. Must be positive. */
+  float step = 1;
+  /** Encode green down the image rather than the OpenGL green-up convention. */
+  bool directX = false;
+  bool operator==(const HeightNormalOptions&) const = default;
+};
+
+/** A Skia program differentiating grayscale height into opaque encoded normals.
+ *  Premultiplied RGB luminance supplies height, clamped to [0, 1], so
+ *  transparent input is zero. Smooth hard coverage before supplying it
+ *  when a rounded shoulder is wanted. Sampling follows the input's placement
+ *  and repeat settings. Zero/nonfinite depth or an invalid step yields flat
+ *  normals. The input's colour stack is sampled; its surface/effects are not.
+ */
+Material normalFromHeight(Material height, HeightNormalOptions options = {});
 
 /** The slots the surface recipes declare, one per map a texture
  *  set carries. Each takes a `Texture` (or any leaf a renderer binds);
@@ -97,7 +131,6 @@ struct SurfaceParameters {
    *  The split-sum composition ignores it: there the weight IS the
    *  surface's reflectance and its Fresnel. */
   float reflectionWeight = 1;
-
 };
 
 /** HOW THE ENVIRONMENT REACHES A SURFACE, which is a choice about the

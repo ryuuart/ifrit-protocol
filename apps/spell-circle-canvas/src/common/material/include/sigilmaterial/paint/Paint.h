@@ -16,11 +16,11 @@
  * renderer's executor: <sigilmaterial/skia/Paint.h> for Skia.
  */
 
+#include <sigilmaterial/advanced/UniformBlock.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/BlendMode.h>
 #include <sigilmaterial/core/Gradient.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/advanced/UniformBlock.h>
 #include <sigilmotion/values/Animatable.h>
 
 #include <array>
@@ -130,17 +130,19 @@ class Paint {
   /** A constant two-float parameter (`float2`) — offsets, margins,
    *  direction vectors. */
   Paint& set(std::string name, std::array<float, 2> value);
-  /** A constant four-float parameter set from a colour (straight, not
+  /** A constant `float4` parameter set from a colour (straight, not
    *  premultiplied). */
   Paint& set(std::string name, Color value);
-  /** A constant four-float parameter from plain numbers — a rect, a
+  /** A constant `float4` parameter from plain numbers — a rect, a
    *  quaternion, anything that is not a colour. */
   Paint& set(std::string name, std::array<float, 4> value);
-  /** A CONSTANT ARRAY, stored flat and matched against the declared
-   *  parameter's TOTAL float count — 12 floats fill `float4 uRect[3]`,
-   *  `float2 uPts[6]` and `float uWeights[12]` alike.
-   *  @silent the count is not the declaration's; a partial write is
-   *  refused, so the whole array must be supplied. */
+  /** A complete floating uniform, stored flat and matched against its
+   *  TOTAL float count. Vectors, matrices and arrays are accepted — 12
+   *  floats fill `float4 uRect[3]`, `float2 uPts[6]` and
+   *  `float uWeights[12]` alike.
+   *  @silent the declaration is integer or the count differs; a partial
+   *  write is refused. Typed scalar, float2 and float4 uploads above
+   *  require their matching non-array declarations. */
   Paint& set(std::string name, std::vector<float> values);
   /** A LIVE SCALAR, read at every paint, so the paint is live and its
    *  node volatile for as long as the binding moves. An animatable, so
@@ -149,10 +151,15 @@ class Paint {
    *  @trap A paint holds no instance, so a value carrying its own
    *  TRANSITION has nothing to run it and reads as its target. */
   Paint& bind(std::string name, motion::Animatable<float> value);
-  /** A LIVE ARRAY — a `UniformBlock` the caller owns, writes and
-   *  commit()s, read at every paint. The paint becomes LIVE exactly as a
-   *  bound scalar makes it, and the resolve memo reads the block's
-   *  REVISION, so an uncommitted frame reuses the built result.
+  /** A COLOUR UNIFORM: four straight sRGB components, without clamping,
+   *  read at every paint. A constant keeps the paint static; a live colour
+   *  keeps it live. A described motion reads its resting value. */
+  Paint& bind(std::string name, motion::Animatable<Color> value);
+  /** A LIVE FLOATING UNIFORM — a `UniformBlock` the caller owns, writes
+   *  and commit()s, matched by the complete float count like the flat
+   *  constant overload. Each paint reads the last committed values, and
+   *  the resolve memo reads its revision. Draft edits remain hidden when
+   *  another input rebuilds the shader. The binding makes the paint live.
    *  @trap The binding compares by block identity and the values never
    *  prune; hold the block beside your model, not in the describe. */
   Paint& bind(std::string name, std::shared_ptr<const UniformBlock> block);
@@ -206,9 +213,9 @@ class Paint {
   Paint& fit(Fit how);
   /** Is THIS paint flagged world-space (the layer-local flag)? */
   bool worldSpace() const { return m_worldSpace; }
-  /** Does this paint — or any blend() layer or slot below it — anchor to
-   *  the root? The reconcile walk asks this to flag the instance for
-   *  W-invalidation; authors want worldSpace() above. */
+  /** Does this paint — or any blend() layer or slot below it — read or
+   *  anchor to root coordinates? The reconcile walk uses this dependency
+   *  to invalidate retained pixels after placement changes. */
   bool usesWorldSpace() const;
 
   /** THE BOUND PAN: move an image-backed paint LIVE, in the node's own
@@ -222,8 +229,8 @@ class Paint {
   /** IS THIS PAINT'S OWN PAN THE WHOLE OF WHAT IT ANIMATES? A PARTITION
    *  of the animated paints, not a hint: yes is two floats a consumer
    *  reads back and prunes by, no is opaque. A constant pan answers yes;
-   *  a live parameter, uTime, uContentScale and any animated slot,
-   *  blend() layer or NESTED pan answer no. */
+   *  a live parameter, uTime and any animated slot, blend() layer or
+   *  NESTED pan answer no. */
   bool boundOffsetOnly() const {
     return hasBoundOffset() && !animatedBeyondBoundOffset();
   }
@@ -244,19 +251,18 @@ class Paint {
    *  @{ */
   /** THE VOLATILITY DECLARATION — the same word every value in this tree
    *  answers with. True once any animatable parameter is bound or the
-   *  program reads uTime or uContentScale: the paint re-resolves per
-   *  frame and its node stays volatile. A blend() inherits it from its
-   *  layers. */
+   *  program reads uTime: the paint re-resolves per frame and its node
+   *  stays volatile. A blend() inherits it from its layers. */
   bool isRunning() const;
-  /** True when the paint needs the node's layout size to resolve — a
-   *  program declaring uResolution, a stated fit(), worldSpace(). It
-   *  resolves when its node records, CACHES between layouts, and
-   *  re-records on size change. A blend() inherits it from its
-   *  layers. */
+  /** True when the paint needs the frame it is drawn in to resolve — a
+   *  program declaring uResolution or uContentScale, a stated fit(),
+   *  worldSpace(). It resolves when its node records, CACHES between
+   *  layouts, and re-records when the size or the destination's scale
+   *  changes. A blend() inherits it from its layers. */
   bool geometryDependent() const;
 
   bool isNone() const {
-    return !m_isSolid && !m_shader && !m_live && !m_backed;
+    return !m_isSolid && !m_shader && !m_live && !m_backed && !m_recipe;
   }
   bool isSolid() const { return m_isSolid; }
   Color solidColor() const { return m_solid; }
@@ -287,7 +293,7 @@ class Paint {
    *  live path forever. */
   bool boundOffsetLive() const;
   /** Everything isRunning() reports EXCEPT this paint's own bound
-   *  offset: live parameter bindings, uTime/uContentScale, and any
+   *  offset: live parameter bindings, uTime, and any
    *  animated slot or blend() layer — including a NESTED bound offset,
    *  which the node-level scalar lane cannot reach. */
   bool animatedBeyondBoundOffset() const;

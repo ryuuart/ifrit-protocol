@@ -14,9 +14,9 @@
 #include <include/core/SkPixmap.h>
 #include <include/core/SkSurface.h>
 #include <sigilgeometry/mesh/render/Shading.h>
-#include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/advanced/Terms.h>
+#include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 
 #include <cmath>
@@ -117,6 +117,28 @@ const ClosedForm kClosedForms[] = {
      "blinn(float3(0.0, 0.0, 1.0), normalize(float3(1.0, 0.0, 1.0)), "
      "float3(0.0, 0.0, 1.0), 4.0)",
      kBlinnAt22Point5, 3e-3f},
+    // A ROUGHNESS AS AN EXPONENT: 2 / r^4 - 2, so half rough is thirty,
+    // fully rough is no exponent at all, and a mirror is held at 4096.
+    {"HalfRoughnessIsAGlossOfThirty", "roughnessGloss(0.5)", 30.0f, 2e-3f},
+    {"FullRoughnessHasNoGloss", "roughnessGloss(1.0)", 0.0f, 2e-3f},
+    {"AMirrorsGlossIsHeldAtItsCeiling", "roughnessGloss(0.0)", 4096.0f, 2e-3f},
+    // THE NORMALISED HIGHLIGHT is its peak times (gloss + 8) / 8 pi: one
+    // over pi with no exponent, two over pi at an exponent of eight, and a
+    // quarter of ten over 8 pi at a cosine of a half squared.
+    {"AHighlightWithNoGlossIsOneOverPi", "blinnNormalized(1.0, 0.0)",
+     0.31830989f, 2e-3f},
+    {"ANormalizedHighlightAtItsPeakIsItsScale", "blinnNormalized(1.0, 8.0)",
+     0.63661977f, 2e-3f},
+    {"ANormalizedHighlightOffItsPeak", "blinnNormalized(0.5, 2.0)", 0.09947184f,
+     2e-3f},
+    // THE COAT seen and lit head on is 1 / (4 pi a^2) with a = roughness
+    // squared — one over pi where a is a half — and nothing from behind.
+    {"TheCoatHeadOnIsOneOverFourPiASquared",
+     "coatHighlight(1.0, 1.0, 1.0, 0.70710678)", 0.31830989f, 2e-3f},
+    {"TheCoatHeadOnWhenFullyRough", "coatHighlight(1.0, 1.0, 1.0, 1.0)",
+     0.07957747f, 2e-3f},
+    {"TheCoatIsDarkWhereTheLightIsBehind", "coatHighlight(0.0, 1.0, 1.0, 0.2)",
+     0.0f, 2e-3f},
     // FRESNEL: a dielectric's four per cent head on, and white at the rim.
     {"FresnelHeadOn", "fresnel(float3(0.04, 0.04, 0.04), 1.0).r", 0.04f, 2e-3f},
     {"FresnelAtTheRim", "fresnel(float3(0.04, 0.04, 0.04), 0.0).r", 1.0f,

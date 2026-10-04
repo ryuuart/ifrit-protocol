@@ -14,6 +14,7 @@
 #include "sigilmaterial/skia/SkiaCompiler.h"
 
 #include <include/core/SkString.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/ShaderLeaf.h>
 #include <sigilmaterial/skia/Texture.h>
 
@@ -26,7 +27,7 @@
 #include <utility>
 
 #include "../core/ProgramInternal.h"
-#include "PaintDetail.h"
+#include "PaintInternal.h"
 
 namespace sigil::material::skia {
 
@@ -191,8 +192,8 @@ std::shared_ptr<Program> compile(std::shared_ptr<const Recipe> recipe,
         const size_t end = error.find(':', start);
         if (end == std::string::npos) break;
         const std::string digits = error.substr(start, end - start);
-        if (digits.empty() || digits.find_first_not_of("0123456789") !=
-                                  std::string::npos)
+        if (digits.empty() ||
+            digits.find_first_not_of("0123456789") != std::string::npos)
           continue;
         error.replace(start, end - start,
                       std::to_string(std::max(1, std::stoi(digits) - added)));
@@ -204,22 +205,26 @@ std::shared_ptr<Program> compile(std::shared_ptr<const Recipe> recipe,
                                        std::move(effect));
 }
 
-void ensureCompiler() {
+}  // namespace
+
+void detail::ensureCompiler() {
   static std::once_flag once;
   std::call_once(once, [] {
     material::detail::CompilerDefaults::registerIfAbsent(Target::SkSL, compile);
   });
 }
 
-}  // namespace
-
 WarmupResult warmup(std::span<const Material> materials, Variant variant) {
-  ensureCompiler();
+  detail::ensureCompiler();
   return material::warmup(materials, Target::SkSL, variant);
 }
 
 int samplerCount(const Material& material) {
   int count = 0;
+  for (const Layer& layer : material.layers()) {
+    count += samplerCount(layer.source);
+    if (layer.options.mask) count += samplerCount(layer.options.mask->source);
+  }
   for (const auto& [slot, child] : material.slots()) {
     if (!material.recipe().samples(Target::SkSL, slot)) continue;
     if (child.material) {
@@ -242,7 +247,7 @@ int samplerCount(const Material& material) {
 std::unique_ptr<SkRuntimeShaderBuilder> builder(
     const Material& material, const FrameData& frame, Variant variant,
     std::span<const std::string_view> leave) {
-  ensureCompiler();
+  detail::ensureCompiler();
   // REFUSED HERE, LOUDLY, RATHER THAN ON THE DEVICE, QUIETLY. Past the
   // limit the driver rejects the pipeline the shader is inlined into,
   // the pass is dropped and the draw paints nothing; the material that
@@ -282,6 +287,7 @@ std::unique_ptr<SkRuntimeShaderBuilder> builder(
   if (!program) return nullptr;
   auto b = std::make_unique<SkRuntimeShaderBuilder>(program->effect());
   program->upload(*b, resolved.bytes);
+  const PaintFrame paintFrame = paintFrameOf(frame);
   for (const auto& [slot, child] : material.slots()) {
     bool skip = false;
     for (std::string_view name : leave) skip |= name == slot;
@@ -289,7 +295,13 @@ std::unique_ptr<SkRuntimeShaderBuilder> builder(
     SkRuntimeShaderBuilder::BuilderChild c = b->child(slot);
     if (!c.fChild) continue;
     if (child.material) {
-      c = shader(*child.material, frame, variant);
+      // A colour or layer stack has no recipe body of its own. Fold it
+      // through the paint executor, which also resolves source paints
+      // against this frame. Bare programs retain their variant.
+      c = child.material->isComposed()
+              ? detail::childShader(
+                    PaintAccess::prepareMaterial(*child.material), &paintFrame)
+              : shader(*child.material, frame, variant);
     } else if (const auto* texture =
                    dynamic_cast<const Texture*>(child.leaf.get())) {
       c = skia::shader(*texture, frame);
@@ -303,8 +315,14 @@ std::unique_ptr<SkRuntimeShaderBuilder> builder(
 
 sk_sp<SkShader> shader(const Material& material, const FrameData& frame,
                        Variant variant) {
-  std::unique_ptr<SkRuntimeShaderBuilder> b = builder(material, frame, variant);
-  return b ? b->makeShader() : nullptr;
+  const FrameData resolvedFrame =
+      material.worldSpace() ? rootSamplingFrame(frame) : frame;
+  std::unique_ptr<SkRuntimeShaderBuilder> b =
+      builder(material, resolvedFrame, variant);
+  sk_sp<SkShader> shader = b ? b->makeShader() : nullptr;
+  return material.worldSpace()
+             ? anchorToRoot(std::move(shader), paintFrameOf(frame))
+             : shader;
 }
 
 }  // namespace sigil::material::skia

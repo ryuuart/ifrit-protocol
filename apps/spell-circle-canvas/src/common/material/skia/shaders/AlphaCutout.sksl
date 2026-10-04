@@ -1,0 +1,9 @@
+// Alpha cutoff over a completed colour stack: a sample whose alpha is
+// below the threshold is removed, and one at or above it keeps its colour
+// and alpha.
+uniform shader uColor;
+uniform float uAlphaCutoff;
+half4 main(float2 xy) {
+  half4 color = uColor.eval(xy);
+  return float(color.a) < uAlphaCutoff ? half4(0) : color;
+}

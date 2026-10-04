@@ -22,7 +22,8 @@ const std::shared_ptr<const Recipe>& imageRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<ImageParameters>("material.image")
           .slot("image")
-          .body(Target::SkSL, "half4 main(float2 xy) { return image.eval(xy); }\n")
+          .body(Target::SkSL,
+                "half4 main(float2 xy) { return image.eval(xy); }\n")
           .body(Target::Slang,
                 "float4 surface(float2 uv) { return image.Sample(uv); }\n"));
   return recipe;
@@ -33,6 +34,10 @@ const std::shared_ptr<const Recipe>& imageRecipe() {
 Material image(media::PixelSource pixels, ImageOptions options) {
   Texture texture(std::move(pixels));
   texture.tile(options.repeat, options.repeatY.value_or(options.repeat));
+  return image(std::move(texture));
+}
+
+Material image(Texture texture) {
   Material material(imageRecipe(), ImageParameters{});
   material.slot("image", std::move(texture));
   return material;
@@ -42,8 +47,8 @@ Environment environment(media::PixelSource pixels, EnvironmentOptions options) {
   if (options.size.x <= 0 || options.size.y <= 0) {
     options.size = glm::vec2(pixels.size());
   }
-  return environment(image(std::move(pixels), {.repeat = Repeat::Repeat,
-                                               .repeatY = Repeat::Pad}),
+  return environment(image(std::move(pixels),
+                           {.repeat = Repeat::Repeat, .repeatY = Repeat::Pad}),
                      std::move(options));
 }
 

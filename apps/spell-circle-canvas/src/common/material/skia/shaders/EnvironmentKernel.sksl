@@ -1,0 +1,59 @@
+uniform shader uEnvironment;
+uniform float2 uEnvironmentSize;
+
+float2 environmentSample(int index, int count) {
+  float digits = float(index), reverse = 0.0, place = 0.5;
+  for (int bit = 0; bit < 9; ++bit) {
+    reverse += mod(digits, 2.0) * place;
+    digits = floor(digits * 0.5);
+    place *= 0.5;
+  }
+  return float2((float(index) + 0.5) / float(count), reverse);
+}
+
+float3 environmentRadiance(float3 direction) {
+  float2 uv = equirectangularUv(direction);
+  uv.x = fract(uv.x);
+  return float3(uEnvironment.eval(uv * uEnvironmentSize).rgb);
+}
+
+// GGX importance samples use the reflection direction for N and V.
+// Positive N.L weights are normalized, preserving constant skies.
+// The diffuse branch samples a cosine-weighted hemisphere instead.
+float3 environmentConvolve(float3 n, float roughness, bool diffuse) {
+  if (!diffuse && roughness <= 0.0) return environmentRadiance(n);
+  bool cosineWeighted = diffuse || roughness >= 1.0;
+  float3 axis = abs(n.y) < 0.999 ? float3(0, 1, 0) : float3(1, 0, 0);
+  float3 tangent = normalize(cross(axis, n));
+  float3 bitangent = cross(n, tangent);
+  float a2 = roughness * roughness * roughness * roughness;
+  float3 sum = float3(0);
+  float weight = 0.0;
+  int count = cosineWeighted || roughness >= 0.5 ? 512 : 64;
+  for (int i = 0; i < 512; ++i) {
+    if (i >= count) break;
+    float2 xi = environmentSample(i, count);
+    float phi = 6.28318548 * xi.x;
+    float cosine = cosineWeighted ? sqrt(max(1.0 - xi.y, 0.0))
+        : sqrt(max((1.0 - xi.y) / (1.0 + (a2 - 1.0) * xi.y), 0.0));
+    float sine = sqrt(max(1.0 - cosine * cosine, 0.0));
+    float3 h = tangent * (cos(phi) * sine) +
+               bitangent * (sin(phi) * sine) + n * cosine;
+    float3 l = cosineWeighted ? h : 2.0 * dot(n, h) * h - n;
+    float facing = cosineWeighted ? 1.0 : max(dot(n, l), 0.0);
+    if (facing > 0.0) {
+      sum += environmentRadiance(l) * facing;
+      weight += facing;
+    }
+  }
+  return sum / max(weight, 0.000001);
+}
+
+// Eight specular bands shrink to a 32x16 floor; a ninth band holds
+// diffuse light. One texel of periodic/clamped padding surrounds each.
+float3 environmentBand(float level) {
+  if (level < 1.5) return float3(256, 128, 0);
+  if (level < 2.5) return float3(128, 64, 130);
+  if (level < 3.5) return float3(64, 32, 196);
+  return float3(32, 16, 230 + (level - 4.0) * 18.0);
+}

@@ -72,8 +72,7 @@ bool firstUse(Entry entry) {
               .slot("content")
               .body(Target::SkSL,
                     "half4 main(float2 p) { return content.eval(p); }")));
-      return skia::resolvedImageFilter(Filter::of(effect), nullptr) !=
-             nullptr;
+      return skia::resolvedImageFilter(Filter::of(effect), nullptr) != nullptr;
     }
     case Entry::Pass: {
       const Material pass(std::make_shared<const Recipe>(
@@ -101,7 +100,7 @@ class SkiaFirstUse : public testing::TestWithParam<Entry> {};
 TEST_P(SkiaFirstUse, DrawsWithoutCompilerSetup) {
   GTEST_FLAG_SET(death_test_style, "threadsafe");
   EXPECT_EXIT(std::_Exit(firstUse(GetParam()) ? 0 : 1),
-              testing::ExitedWithCode(0), "");
+              testing::ExitedWithCode(0), "^$");
 }
 
 std::string entryName(const testing::TestParamInfo<Entry>& info) {
@@ -195,8 +194,7 @@ bool passProgramsAreReused() {
           .body(Target::SkSL,
                 "half4 main(float2 p) { return half4(0, "
                 "half(uUnitRect[kUnitCount - 1].x * level), 0, 1); }"));
-  const Paint paint =
-      Paint::recipe(Material(authored, Parameters{}));
+  const Paint paint = Paint::recipe(Material(authored, Parameters{}));
   std::array<float, 12> three{};
   std::array<float, 20> five{};
   three[8] = 1;

@@ -13,14 +13,20 @@
 #include <sigilmaterial/advanced/Combine.h>
 #include <sigilmaterial/advanced/Program.h>
 #include <sigilmaterial/mask/Mask.h>
+#include <sigilmaterial/program/Shader.h>
 #include <sigilmaterial/skia/Draw.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmaterial/texture/Texture.h>
-#include <sigilshaders/MaterialSurface.h>
 #include <sigilmedia/advanced/Skia.h>
+#include <sigilshaders/MaterialSurface.h>
 
+#include <array>
+#include <cmath>
+#include <glm/geometric.hpp>
+#include <limits>
 #include <memory>
 #include <string>
 
@@ -35,7 +41,8 @@ TEST(Surface, BothRecipesCompileAndShade) {
   parameters.baseColor = {0.2f, 0.6f, 0.9f, 1};
   parameters.emissive = {1, 0.5f, 0, 1};
   parameters.emissiveStrength = 0.5f;
-  for (const Material& m : {surface::program(parameters), surface::unlit(parameters)}) {
+  for (const Material& m :
+       {surface::program(parameters), surface::unlit(parameters)}) {
     EXPECT_TRUE(skia::shader(m, {}));
     // Every declared slot is dressed, so no body evaluates an unbound
     // child.
@@ -46,6 +53,297 @@ TEST(Surface, BothRecipesCompileAndShade) {
   EXPECT_TRUE(surface::isUnlit(surface::unlit(parameters)));
   EXPECT_EQ(surface::program(parameters), surface::program(parameters));
   EXPECT_FALSE(surface::program(parameters) == surface::unlit(parameters));
+}
+
+TEST(Surface, NormalCompositionKeepsFlatIdentityAndConventions) {
+  const Material flat = Color{0.5f, 0.5f, 1, 1};
+  for (bool baseDirectX : {false, true})
+    for (bool detailDirectX : {false, true})
+      for (bool outputDirectX : {false, true}) {
+        const surface::NormalBlendOptions options{baseDirectX, detailDirectX,
+                                                  outputDirectX};
+        const Material base = Color{0.5f, baseDirectX ? 0.2f : 0.8f, 0.9f, 1};
+        const Material detail =
+            Color{0.5f, detailDirectX ? 0.2f : 0.8f, 0.9f, 1};
+        for (const Material& combined :
+             {surface::blendNormals(base, flat, options),
+              surface::blendNormals(flat, detail, options)}) {
+          const auto bitmap = sigil::material::test::render(combined, 2, 2);
+          const SkColor pixel = bitmap.getColor(0, 0);
+          EXPECT_NEAR(SkColorGetR(pixel), 128, 1);
+          EXPECT_NEAR(SkColorGetG(pixel), outputDirectX ? 51 : 204, 1);
+          EXPECT_NEAR(SkColorGetB(pixel), 230, 1);
+          EXPECT_EQ(SkColorGetA(pixel), 255u);
+        }
+      }
+}
+
+TEST(Surface, NormalCompositionReorientsDetailIntoTheBaseFrame) {
+  const Material combined = surface::blendNormals(Color{0.8f, 0.5f, 0.9f, 1},
+                                                  Color{0.5f, 0.8f, 0.9f, 1});
+  const auto bitmap = sigil::material::test::render(combined, 2, 2);
+  const SkColor pixel = bitmap.getColor(0, 0);
+  // A 0.6 tangent component and 0.8 outward component on each input
+  // compose to (0.48, 0.6, 0.64), still a unit normal.
+  EXPECT_NEAR(SkColorGetR(pixel), 189, 1);
+  EXPECT_NEAR(SkColorGetG(pixel), 204, 1);
+  EXPECT_NEAR(SkColorGetB(pixel), 209, 1);
+  EXPECT_EQ(combined, surface::blendNormals(Color{0.8f, 0.5f, 0.9f, 1},
+                                            Color{0.5f, 0.8f, 0.9f, 1}));
+}
+
+namespace {
+
+Material heightRamp(glm::vec2 slope, float alpha = 1) {
+  struct Ramp {
+    glm::vec2 slope;
+    float alpha;
+  };
+  return shader(R"(
+half4 main(float2 p) {
+  float height = 0.5 + dot(p - float2(8.5), slope);
+  return half4(half3(height * alpha), half(alpha));
+})",
+                Ramp{slope, alpha});
+}
+
+void expectHeightNormal(SkColor pixel, float x = 0, float y = 0) {
+  const float length = std::sqrt(x * x + y * y + 1);
+  EXPECT_NEAR(SkColorGetR(pixel), (x / length * 0.5f + 0.5f) * 255, 1);
+  EXPECT_NEAR(SkColorGetG(pixel), (y / length * 0.5f + 0.5f) * 255, 1);
+  EXPECT_NEAR(SkColorGetB(pixel), (1 / length * 0.5f + 0.5f) * 255, 1);
+  EXPECT_EQ(SkColorGetA(pixel), 255u);
+}
+
+}  // namespace
+
+TEST(Surface, HeightNormalsKeepFlatInputAndInvalidOptionsFlat) {
+  const Material flat = Color{0.5f, 0.5f, 1, 1};
+  for (float value : {0.0f, 0.35f, 1.0f})
+    expectHeightNormal(
+        test::render(surface::normalFromHeight(Color{value, value, value, 1}),
+                     16, 16)
+            .getColor(8, 8));
+
+  constexpr float infinity = std::numeric_limits<float>::infinity();
+  constexpr float nan = std::numeric_limits<float>::quiet_NaN();
+  const std::array invalid{
+      surface::HeightNormalOptions{.depth = 0},
+      surface::HeightNormalOptions{.depth = nan},
+      surface::HeightNormalOptions{.depth = infinity},
+      surface::HeightNormalOptions{.depth = -infinity},
+      surface::HeightNormalOptions{.step = 0},
+      surface::HeightNormalOptions{.step = -1},
+      surface::HeightNormalOptions{.step = nan},
+      surface::HeightNormalOptions{.step = infinity},
+      surface::HeightNormalOptions{.depth = std::numeric_limits<float>::max(),
+                                   .step = 0.25f}};
+  for (const auto options : invalid) {
+    const Material normal =
+        surface::normalFromHeight(heightRamp({0.02f, 0.03f}), options);
+    EXPECT_EQ(normal, flat);
+    const auto built = skia::shader(skia::paint(normal));
+    ASSERT_NE(built, nullptr);
+    expectHeightNormal(test::render(built, 16, 16).getColor(8, 8));
+  }
+  expectHeightNormal(
+      test::render(surface::normalFromHeight(
+                       heightRamp({0.02f, 0}),
+                       {.depth = std::numeric_limits<float>::max()}),
+                   16, 16)
+          .getColor(8, 8),
+      -1.0e10f);
+}
+
+TEST(Surface, HeightNormalsPreserveSignedSlopesConventionsAndLogicalStep) {
+  const Material height = heightRamp({0.02f, 0.03f});
+  for (float depth : {-10.0f, 10.0f})
+    for (float step : {0.25f, 1.0f, 4.0f})
+      for (bool directX : {false, true}) {
+        const auto options = surface::HeightNormalOptions{depth, step, directX};
+        const Material normal = surface::normalFromHeight(height, options);
+        EXPECT_EQ(normal, surface::normalFromHeight(height, options));
+        for (float scale : {0.5f, 2.0f}) {
+          const auto built = skia::shader(
+              normal, {.resolution = {16, 16}, .contentScale = scale});
+          ASSERT_NE(built, nullptr);
+          expectHeightNormal(test::render(built, 16, 16).getColor(8, 8),
+                             -depth * 0.02f,
+                             depth * 0.03f * (directX ? -1 : 1));
+        }
+      }
+  EXPECT_NE(surface::normalFromHeight(height),
+            surface::normalFromHeight(height, {.depth = -1}));
+  EXPECT_NE(surface::normalFromHeight(height),
+            surface::normalFromHeight(height, {.step = 2}));
+  EXPECT_NE(surface::normalFromHeight(height),
+            surface::normalFromHeight(height, {.directX = true}));
+}
+
+TEST(Surface, HeightNormalsFollowLogicalPixelStepsThroughComposedInputs) {
+  const glm::vec2 slope{.02f, .03f};
+  const Material height = heightRamp(slope);
+  const std::array metrics{glm::mat3{1}, glm::mat3{.5f, 0, 0, 0, 2, 0, 0, 0, 1},
+                           glm::mat3{0, .5f, 0, -2, 0, 0, 0, 0, 1},
+                           glm::mat3{-.5f, .2f, 0, .3f, 1, 0, 0, 0, 1}};
+  for (float depth : {-4.0f, 4.0f})
+    for (float step : {.25f, 1.0f, 4.0f})
+      for (bool directX : {false, true}) {
+        const Material normal = surface::normalFromHeight(
+            height, {.depth = depth, .step = step, .directX = directX});
+        const Material composed = surface::blendNormals(
+            normal, Color{.5f, .5f, 1, 1},
+            {.baseDirectX = directX, .outputDirectX = directX});
+        for (const auto& metric : metrics) {
+          FrameData frame{.resolution = {16, 16}};
+          frame.localToSample = metric;
+          const float x = -depth * glm::dot(slope, glm::vec2(metric[0]));
+          const float y = depth * glm::dot(slope, glm::vec2(metric[1])) *
+                          (directX ? -1 : 1);
+          for (const Material& source : {normal, composed}) {
+            for (const auto& built :
+                 {skia::shader(source, frame),
+                  skia::shader(skia::paint(source), frame)}) {
+              ASSERT_TRUE(built);
+              expectHeightNormal(test::render(built, 16, 16).getColor(8, 8), x,
+                                 y);
+            }
+          }
+        }
+      }
+}
+
+TEST(Surface,
+     HeightNormalMetricsInvalidateHeldPaintWithoutChangingEncodedNormals) {
+  const Material derived =
+      surface::normalFromHeight(heightRamp({.02f, .03f}), {.depth = 4});
+  const Paint held = skia::paint(derived);
+  EXPECT_TRUE(held.geometryDependent());
+  EXPECT_FALSE(held.isRunning());
+  FrameData frame{.resolution = {16, 16}};
+  const auto first = skia::shader(held, frame);
+  ASSERT_TRUE(first);
+  EXPECT_EQ(first, skia::shader(held, frame));
+  frame.localToSample[0][0] = .25f;
+  const auto changed = skia::shader(held, frame);
+  ASSERT_TRUE(changed);
+  EXPECT_NE(first, changed);
+  EXPECT_EQ(changed, skia::shader(held, frame));
+  expectHeightNormal(test::render(changed, 16, 16).getColor(8, 8), -.02f, .12f);
+  const Material encoded =
+      surface::blendNormals(Color{.8f, .5f, .9f, 1}, Color{.5f, .5f, 1, 1});
+  const auto control = skia::shader(encoded, {});
+  EXPECT_TRUE(
+      test::identical(test::render(control, 16, 16),
+                      test::render(skia::shader(encoded, frame), 16, 16)));
+}
+
+TEST(Surface, NonAffineAndNonfiniteHeightMetricsHaveFlatNormals) {
+  const Material normal =
+      surface::normalFromHeight(heightRamp({.02f, .03f}), {.depth = 4});
+  for (float invalid : {.01f, std::numeric_limits<float>::infinity(),
+                        std::numeric_limits<float>::quiet_NaN()}) {
+    FrameData frame{.resolution = {16, 16}};
+    frame.localToSample[0][2] = invalid;
+    expectHeightNormal(
+        test::render(skia::shader(normal, frame), 16, 16).getColor(8, 8));
+  }
+  for (float invalid : {std::numeric_limits<float>::infinity(),
+                        std::numeric_limits<float>::quiet_NaN()}) {
+    FrameData frame{.resolution = {16, 16}};
+    frame.localToSample[0][0] = invalid;
+    expectHeightNormal(
+        test::render(skia::shader(normal, frame), 16, 16).getColor(8, 8));
+  }
+  for (float translation : {200.f, std::numeric_limits<float>::infinity(),
+                            std::numeric_limits<float>::quiet_NaN()}) {
+    FrameData frame{.resolution = {16, 16}};
+    frame.localToSample[2][0] = translation;
+    frame.localToSample[2][1] = translation;
+    expectHeightNormal(
+        test::render(skia::shader(normal, frame), 16, 16).getColor(8, 8), -.08f,
+        .12f);
+  }
+}
+
+TEST(Surface, HeightNormalsUsePremultipliedHeightAndClampItsRange) {
+  for (float alpha : {0.0f, 0.25f, 1.0f})
+    expectHeightNormal(
+        test::render(surface::normalFromHeight(heightRamp({0.2f, 0}, alpha),
+                                               {.depth = 2}),
+                     16, 16)
+            .getColor(8, 8),
+        -0.4f * alpha);
+  const auto clamped = test::render(
+      surface::normalFromHeight(heightRamp({0.2f, 0}), {.depth = 2}), 16, 16);
+  expectHeightNormal(clamped.getColor(0, 8));
+  expectHeightNormal(clamped.getColor(15, 8));
+  const Material redHeight = shader(R"(
+half4 main(float2 p) { return half4(0.5 + 0.2 * (p.x - 8.5), 0, 0, 1); }
+)");
+  expectHeightNormal(
+      test::render(surface::normalFromHeight(redHeight, {.depth = 2}), 16, 16)
+          .getColor(8, 8),
+      -0.4f * 0.2126f);
+}
+
+TEST(Surface, HeightNormalsPreserveTexturePlacementAndPaddedEdges) {
+  SkBitmap pixels;
+  pixels.allocN32Pixels(8, 8, true);
+  for (int y = 0; y < 8; ++y)
+    for (int x = 0; x < 8; ++x) {
+      const unsigned height = 40 + 12 * x + 8 * y;
+      *pixels.getAddr32(x, y) = SkPreMultiplyARGB(255, height, height, height);
+    }
+  pixels.setImmutable();
+  glm::mat3 placement(1);
+  placement[0][0] = 2;
+  placement[1][1] = 4;
+  placement[2][0] = 4;
+  placement[2][1] = 3;
+  const Material height = image(Texture(pixels.asImage())
+                                    .uv(placement)
+                                    .tile(Repeat::Pad)
+                                    .sampling(Sampling::Linear));
+  const Material normal = surface::normalFromHeight(height, {.depth = 8});
+  const auto built = skia::shader(normal, {.resolution = {32, 48}});
+  ASSERT_NE(built, nullptr);
+  const auto bitmap = test::render(built, 32, 48);
+  // Adjacent texels rise by 12 and 8 code values. Their placed distances
+  // are two and four logical pixels, respectively.
+  constexpr float xSlope = -8.0f * 12 / (255 * 2);
+  constexpr float ySlope = 8.0f * 8 / (255 * 4);
+  expectHeightNormal(bitmap.getColor(10, 15), xSlope, ySlope);
+  expectHeightNormal(bitmap.getColor(1, 15), 0, ySlope);
+  expectHeightNormal(bitmap.getColor(24, 15), 0, ySlope);
+  expectHeightNormal(bitmap.getColor(10, 2), xSlope, 0);
+  expectHeightNormal(bitmap.getColor(10, 40), xSlope, 0);
+  expectHeightNormal(bitmap.getColor(1, 40));
+}
+
+TEST(Surface, HeightNormalsRetainLiveComposedInputThroughAHeldPaint) {
+  const Material live = shader(R"(
+half4 main(float2 p) {
+  float height = 0.25 + uTime * 0.32 * p.x / max(uResolution.x, 1.0);
+  return half4(half3(height), 1);
+})");
+  const Material height =
+      from(Color{0, 0, 0, 1}).layer(live, {.opacity = 0.5f});
+  const Material normal = surface::normalFromHeight(height, {.depth = 8});
+  const Paint held = skia::paint(normal);
+  ASSERT_TRUE(held.isRunning());
+  ASSERT_TRUE(held.geometryDependent());
+  const std::array frames{FrameData{.seconds = 0, .resolution = {16, 16}},
+                          FrameData{.seconds = 2, .resolution = {16, 16}},
+                          FrameData{.seconds = 2, .resolution = {32, 16}},
+                          FrameData{.seconds = 0, .resolution = {16, 16}}};
+  for (const FrameData& frame : frames) {
+    const auto built = skia::shader(held, frame);
+    ASSERT_NE(built, nullptr);
+    expectHeightNormal(
+        test::render(built, 16, 16).getColor(8, 8),
+        static_cast<float>(-frame.seconds * 1.28 / frame.resolution.x));
+  }
 }
 
 TEST(Surface, AnAuthoredColourAndAMapTexelAreOneNumber) {
@@ -69,11 +367,10 @@ TEST(Surface, AnAuthoredColourAndAMapTexelAreOneNumber) {
   surface::SurfaceParameters white;
   white.baseColor = {1, 1, 1, 1};
   Material sampled = surface::unlit(white);
-  sampled.slot(
-      surface::kBaseColorSlot,
-      Texture(media::PixelSource(
-                  test::solid(SkColorSetARGB(255, code, code, code), 4, 4)))
-          .tile(Repeat::Pad));
+  sampled.slot(surface::kBaseColorSlot,
+               Texture(media::PixelSource(test::solid(
+                           SkColorSetARGB(255, code, code, code), 4, 4)))
+                   .tile(Repeat::Pad));
   const SkColor fromParameter =
       test::shade(surface::unlit(authored), 4, 4).getColor(1, 1);
   const SkColor fromMap = test::shade(sampled, 4, 4).getColor(1, 1);
@@ -90,8 +387,8 @@ TEST(Surface, AnAuthoredColourAndAMapTexelAreOneNumber) {
 }
 
 TEST(Surface, EveryColourFieldReachesTheUniformAsItWasWritten) {
-  surface::SurfaceParameters p{.roughness = 0.02f, .transmission = 1,
-                               .thickness = 0.35f};
+  surface::SurfaceParameters p{
+      .roughness = 0.02f, .transmission = 1, .thickness = 0.35f};
   p.baseColor = {0.9f, 0.4f, 0.1f, 1};
   p.emissive = {0.2f, 0.3f, 0.4f, 1};
   // The Beer-Lambert coefficient is taken per unit of thickness, so a
@@ -129,7 +426,8 @@ TEST(Surface, DressesADecodedSet) {
   EXPECT_FLOAT_EQ(m.get<float>("metallic"), 1.0f);
   EXPECT_FLOAT_EQ(m.get<float>("normalDirectX"), 1.0f);
   EXPECT_FLOAT_EQ(m.get<float>("emissiveStrength"), 1.0f);
-  const auto* base = dynamic_cast<const Texture*>(m.leaf(surface::kBaseColorSlot));
+  const auto* base =
+      dynamic_cast<const Texture*>(m.leaf(surface::kBaseColorSlot));
   ASSERT_NE(base, nullptr);
   EXPECT_EQ(base->source(), media::PixelSource(image));
   // A set with no normal map still leaves the slot dressed flat.
@@ -157,7 +455,8 @@ TEST(Over, StacksTopOverBaseWhereTheMaskSays) {
   const Material stack = over(surface::unlit(red), surface::unlit(blue),
                               maskConstant(1.0f), BlendMode::Multiply);
   EXPECT_EQ(stackDepth(stack), 1);
-  EXPECT_EQ(stackDepth(over(stack, surface::unlit(red), maskConstant(1.0f))), 2);
+  EXPECT_EQ(stackDepth(over(stack, surface::unlit(red), maskConstant(1.0f))),
+            2);
   EXPECT_EQ(*under(stack), surface::unlit(red));
   EXPECT_TRUE(skia::shader(stack, {}));
 }
@@ -213,8 +512,8 @@ TEST(Over, AStackAsksForItsOperandsSamplersAndNoMore) {
   EXPECT_EQ(declaredSlots(unlit), 2u);
   EXPECT_EQ(skia::samplerCount(unlit), 2);
 
-  const Material stack =
-      over(surface::unlit(), surface::unlit(), maskConstant(0.5f), BlendMode::Normal);
+  const Material stack = over(surface::unlit(), surface::unlit(),
+                              maskConstant(0.5f), BlendMode::Normal);
   // The composed recipe declares a slot per operand's own slot, because
   // the language it was composed for reaches no child material.
   EXPECT_GT(stack.recipe().slots().size(), 3u);
@@ -230,8 +529,8 @@ TEST(Over, AStackAsksForItsOperandsSamplersAndNoMore) {
     deep = over(std::move(deep), surface::unlit(), maskConstant(0.5f));
   EXPECT_EQ(stackDepth(deep), 2);
   EXPECT_EQ(declaredSlots(deep), 3u);
-  EXPECT_EQ(skia::samplerCount(deep),
-            skia::samplerCount(surface::program()) + 2 * skia::samplerCount(unlit));
+  EXPECT_EQ(skia::samplerCount(deep), skia::samplerCount(surface::program()) +
+                                          2 * skia::samplerCount(unlit));
   EXPECT_LE(skia::samplerCount(deep), skia::kSamplerLimit);
   EXPECT_TRUE(skia::shader(deep, {}));
 }
@@ -260,8 +559,9 @@ TEST(Over, ATreeOverTheSamplerBudgetIsRefusedRatherThanDrawn) {
 // ---- the lowering ----------------------------------------------------------
 
 TEST(Surface, LowersAColourAndItsResponseIntoTheProgram) {
-  const Material lowered = surface::lower(
-      from(Color{0.2f, 0.4f, 0.6f, 1}).surface({.metallic = 0.3f, .roughness = 0.85f}));
+  const Material lowered =
+      surface::lower(from(Color{0.2f, 0.4f, 0.6f, 1})
+                         .surface({.metallic = 0.3f, .roughness = 0.85f}));
   ASSERT_TRUE(surface::isSurface(lowered));
   EXPECT_FALSE(surface::isUnlit(lowered));
   EXPECT_EQ(lowered.get<Color>("baseColor"), (Color{0.2f, 0.4f, 0.6f, 1}));

@@ -1,0 +1,16 @@
+// Directions every lit variant takes, ahead of the variant itself.
+
+// The unit vector along v, or the fallback where v has no direction.
+// Scaled by its largest component first, so a very short or very long v
+// normalizes without underflowing or overflowing its squared length.
+float3 unitOr(float3 v, float3 fallback) {
+  float scale = max(max(abs(v.x), abs(v.y)), abs(v.z));
+  return scale > 0.0 ? normalize(v / scale) : fallback;
+}
+
+// The half vector between the light and the eye. A light directly behind
+// the page opposes the eye and has no half vector; it falls back to the
+// eye, where it adds no highlight because it lights nothing.
+float3 halfDirection(float3 l, float3 view) {
+  return unitOr(l + view, view);
+}

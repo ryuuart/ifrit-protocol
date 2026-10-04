@@ -13,9 +13,9 @@ namespace sigil::material {
 
 namespace {
 
-constexpr FrameInput kFrameInputs[] = {FrameInput::Time, FrameInput::Resolution,
-                                       FrameInput::ContentScale,
-                                       FrameInput::WorldTransform};
+constexpr FrameInput kFrameInputs[] = {
+    FrameInput::Time, FrameInput::Resolution, FrameInput::ContentScale,
+    FrameInput::WorldTransform, FrameInput::LocalToSample};
 
 /** Whether @p body spells @p name as a WHOLE IDENTIFIER, so a `low`
  *  inside `lowEdge` is a different name. */
@@ -44,6 +44,8 @@ Field frameField(FrameInput input) {
       return {"uContentScale", ParameterType::Float, 1, 0};
     case FrameInput::WorldTransform:
       return {"uWorld", ParameterType::Mat3, 9, 0};
+    case FrameInput::LocalToSample:
+      return {"uLocalToSample", ParameterType::Mat3, 9, 0};
   }
   return {"", ParameterType::Float, 1, 0};
 }
@@ -60,6 +62,8 @@ std::string_view uniformName(FrameInput input) {
       return "uContentScale";
     case FrameInput::WorldTransform:
       return "uWorld";
+    case FrameInput::LocalToSample:
+      return "uLocalToSample";
   }
   return "";
 }
@@ -74,11 +78,10 @@ Recipe Recipe::of(std::string name, const Schema& parameters) {
 }
 
 Recipe& Recipe::body(Target target, std::string source) {
-  const auto at = std::lower_bound(
-      m_bodies.begin(), m_bodies.end(), target,
-      [](const std::pair<Target, std::string>& held, Target wanted) {
-        return held.first < wanted;
-      });
+  const auto at =
+      std::lower_bound(m_bodies.begin(), m_bodies.end(), target,
+                       [](const std::pair<Target, std::string>& held,
+                          Target wanted) { return held.first < wanted; });
   if (at != m_bodies.end() && at->first == target)
     at->second = std::move(source);
   else

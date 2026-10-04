@@ -15,12 +15,11 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilmaterial/filter/Filter.h>
 
-#include "Effect.h"
-
 #include <memory>
 #include <string>
 #include <vector>
 
+#include "Effect.h"
 #include "PaintDetail.h"
 
 namespace sigil::material::skia {
@@ -45,6 +44,7 @@ enum class EffectProgram {
   CoreWhitening,      ///< a lit source moving toward white at its own peak
   ParametricBlurMix,  ///< the mix between the fixed levels of a blur pyramid
   ColorAdjust,        ///< CSS's brightness, contrast, saturate and hue-rotate
+  Glass,              ///< bounded orthographic refraction of its layer
   Count,
 };
 
@@ -106,9 +106,8 @@ inline void warnUndeclaredEffectUniform(const char* door,
   // rather than once ever.
   if (seen.size() < 16) seen.push_back(name);
   SkDebugf(
-      "[material] %s(\"%s\"): the program declares no uniform by "
-      "that name at this value's size — ignored (warned once; an array "
-      "must supply the declared total float count exactly)\n",
+      "[material] %s(\"%s\"): the uniform does not match this value's "
+      "floating type and complete float count — ignored (warned once)\n",
       door, name.c_str());
 }
 

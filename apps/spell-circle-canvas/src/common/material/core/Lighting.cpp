@@ -1,19 +1,22 @@
 /** @file
  * The light a lit surface is shaded under: what moves, what compares
- * equal, and an environment made from any material.
+ * equal, what depends on placement, and an environment made from any
+ * material.
  */
 
 #include "sigilmaterial/core/Lighting.h"
 
 #include <sigilmaterial/core/Material.h>
 
+#include <algorithm>
 #include <utility>
 
 namespace sigil::material {
 
 bool Light::isRunning() const {
-  return direction.isRunning() || elevation.isRunning() ||
-         intensity.isRunning();
+  return color.isRunning() || intensity.isRunning() ||
+         (kind != LightKind::Point &&
+          (direction.isRunning() || elevation.isRunning()));
 }
 
 bool Environment::isRunning() const {
@@ -32,8 +35,15 @@ Environment environment(Material image, EnvironmentOptions options) {
 }
 
 bool Lighting::isRunning() const {
-  return (light && light->isRunning()) ||
+  return std::ranges::any_of(lights, &Light::isRunning) ||
          (environment && environment->isRunning());
+}
+
+bool Lighting::dependsOnPlacement() const {
+  return frame == LightingFrame::Scene ||
+         std::ranges::any_of(lights, [](const Light& light) {
+           return light.kind != LightKind::Directional;
+         });
 }
 
 }  // namespace sigil::material

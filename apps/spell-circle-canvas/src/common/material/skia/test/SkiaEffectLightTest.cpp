@@ -15,15 +15,26 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkPaint.h>
+#include <include/core/SkPixmap.h>
+#include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSurface.h>
 #include <sigilmaterial/skia/Filter.h>
-#include <sigilmaterial/skia/Filter.h>
+
+#if defined(__APPLE__)
+#include <include/gpu/graphite/Surface.h>
+#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilskia/graphite/GraphiteContext.h>
+#include <sigilskia/graphite/Readback.h>
+#endif
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <memory>
 #include <span>
+#include <string>
+#include <tuple>
 #include <vector>
 
 #include "support/EffectRead.h"
@@ -188,8 +199,7 @@ TEST(SkiaEffect, TheBrightPassIsComparableByItsThresholdAndKnee) {
   EXPECT_FALSE(Filter::brightPass().isRunning());
   // A knee that would run past one is cut there, so the two spellings of
   // "everything above the threshold" are one effect.
-  EXPECT_TRUE(Filter::brightPass(0.9f, 0.2f) ==
-              Filter::brightPass(0.9f, 4.0f));
+  EXPECT_TRUE(Filter::brightPass(0.9f, 0.2f) == Filter::brightPass(0.9f, 4.0f));
   // The pass is a colour map, so a consumer hangs it on a paint rather
   // than running it as a pass of its own.
   EXPECT_EQ(skia::imageFilter(Filter::brightPass()), nullptr);
@@ -210,9 +220,138 @@ TEST(SkiaEffect, TheLightStagesCompareByTheirParameters) {
   EXPECT_TRUE(Filter::deepen(0) == Filter{});
 }
 
+namespace {
+
+struct DeepeningSample {
+  const char* name;
+  std::array<float, 4> input;
+  float amount;
+  std::array<float, 4> expected;
+};
+
+constexpr std::array kDeepeningSamples{
+    DeepeningSample{"SignedHalf",
+                    {-.125f, .375f, .125f, .5f},
+                    1,
+                    {0, .375f, .07216878f, .5f}},
+    DeepeningSample{
+        "AllNegative", {-.25f, -.125f, -.375f, .5f}, 1, {0, 0, 0, .5f}},
+    DeepeningSample{
+        "SignedOpaque", {-.25f, .75f, .25f, 1}, 3, {0, .75f, .25f, 1}},
+    DeepeningSample{"PositiveHalf",
+                    {.25f, .125f, .03125f, .5f},
+                    1,
+                    {.25f, .08838835f, .01104854f, .5f}},
+    DeepeningSample{
+        "PositiveOpaque", {.5f, .25f, .0625f, 1}, 3, {.5f, .25f, .0625f, 1}},
+    DeepeningSample{"ZeroAmount",
+                    {-.125f, .375f, .125f, .5f},
+                    0,
+                    {-.125f, .375f, .125f, .5f}},
+    DeepeningSample{"NegativeAmount",
+                    {-.125f, .375f, .125f, .5f},
+                    -1,
+                    {-.125f, .375f, .125f, .5f}},
+    DeepeningSample{"Transparent", {0, 0, 0, 0}, 1, {0, 0, 0, 0}},
+    DeepeningSample{"OpaqueHDR", {4, 2, 1, 1}, 3, {4, 2, 1, 1}},
+    DeepeningSample{
+        "FractionalHDR", {2, 1, .5f, .5f}, 1, {2, .70710678f, .25f, .5f}},
+    DeepeningSample{"ZeroAmountHDR", {2, 1, .5f, .5f}, 0, {2, 1, .5f, .5f}},
+    DeepeningSample{"TiedHDRPeaks", {2, 2, .5f, .5f}, 1, {2, 2, .25f, .5f}},
+    DeepeningSample{"LowAlphaHDR",
+                    {0x1p-12f, 0x1p-13f, 0x1p-14f, 0x1p-14f},
+                    1,
+                    {0x1p-12f, .00006103773868f, .00001526008021f, 0x1p-14f}}};
+
+void paintDeepening(SkCanvas& canvas, const DeepeningSample& sample) {
+  const auto info =
+      SkImageInfo::Make(1, 1, kRGBA_F32_SkColorType, kPremul_SkAlphaType);
+  auto source = SkSurfaces::Raster(info);
+  ASSERT_TRUE(source);
+  ASSERT_TRUE(source->getCanvas()->writePixels(info, sample.input.data(),
+                                               sizeof(float) * 4, 0, 0));
+  std::array<float, 4> retained{};
+  ASSERT_TRUE(
+      source->readPixels(info, retained.data(), sizeof(float) * 4, 0, 0));
+  ASSERT_EQ(retained, sample.input);
+  SkPaint paint;
+  paint.setColorFilter(skia::colorFilter(Filter::deepen(sample.amount)));
+  canvas.clear(SK_ColorTRANSPARENT);
+  canvas.drawImage(source->makeImageSnapshot(), 0, 0, SkSamplingOptions(),
+                   &paint);
+}
+
+void expectDeepening(const std::array<float, 4>& result,
+                     const DeepeningSample& sample) {
+  for (size_t channel = 0; channel < result.size(); ++channel) {
+    ASSERT_TRUE(std::isfinite(result[channel])) << channel;
+    const float tolerance =
+        .001f * std::abs(sample.expected[channel]) + 0x1p-24f;
+    EXPECT_NEAR(result[channel], sample.expected[channel], tolerance)
+        << channel;
+  }
+  EXPECT_FLOAT_EQ(result[3], sample.input[3]);
+  if (sample.amount > 0)
+    EXPECT_FLOAT_EQ(
+        std::max({result[0], result[1], result[2]}),
+        std::max({sample.input[0], sample.input[1], sample.input[2], 0.0f}));
+}
+
+class SkiaDeepening
+    : public testing::TestWithParam<std::tuple<SkColorType, DeepeningSample>> {
+};
+
+TEST_P(SkiaDeepening, PreservesFiniteFloatChannelsAndCoverage) {
+  const auto& [format, sample] = GetParam();
+  const auto info = SkImageInfo::Make(1, 1, format, kPremul_SkAlphaType);
+  auto target = SkSurfaces::Raster(info);
+  ASSERT_TRUE(target);
+  paintDeepening(*target->getCanvas(), sample);
+  std::array<float, 4> result{};
+  ASSERT_TRUE(target->readPixels(info.makeColorType(kRGBA_F32_SkColorType),
+                                 result.data(), sizeof(float) * 4, 0, 0));
+  expectDeepening(result, sample);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    FloatTargets, SkiaDeepening,
+    testing::Combine(testing::Values(kRGBA_F16_SkColorType,
+                                     kRGBA_F32_SkColorType),
+                     testing::ValuesIn(kDeepeningSamples)),
+    [](const testing::TestParamInfo<SkiaDeepening::ParamType>& info) {
+      return std::string(std::get<0>(info.param) == kRGBA_F16_SkColorType
+                             ? "F16"
+                             : "F32") +
+             std::get<1>(info.param).name;
+    });
+
+}  // namespace
+
+#if defined(__APPLE__)
+TEST(MaterialGpu, HaloDeepeningPreservesFiniteSignedFloatChannelsAndCoverage) {
+  auto device = sigil::core::hardware::GpuDevice::createOwned();
+  if (!device) GTEST_SKIP() << "no GPU device";
+  auto graphite = sigil::skia::GraphiteContext::create(*device);
+  if (!graphite) GTEST_SKIP() << "no Graphite context";
+  const auto info =
+      SkImageInfo::Make(1, 1, kRGBA_F16_SkColorType, kPremul_SkAlphaType);
+  for (const auto& sample : kDeepeningSamples) {
+    SCOPED_TRACE(sample.name);
+    auto target = SkSurfaces::RenderTarget(graphite->recorder(), info);
+    ASSERT_TRUE(target);
+    paintDeepening(*target->getCanvas(), sample);
+    std::array<float, 4> result{};
+    const auto read = info.makeColorType(kRGBA_F32_SkColorType);
+    ASSERT_TRUE(sigil::skia::readbackPixels(
+        *graphite, *target, SkPixmap(read, result.data(), sizeof(float) * 4)));
+    expectDeepening(result, sample);
+  }
+}
+#endif
+
 TEST(SkiaEffect, OpticalBloomSpreadsColourBeyondTheSourceAndSoftensIt) {
-  const auto glow = Filter::bloom({.sigma = 3, .strength = 1,
-                                 .spread = 5, .tail = 2});
+  const auto glow =
+      Filter::bloom({.sigma = 3, .strength = 1, .spread = 5, .tail = 2});
   ASSERT_NE(skia::imageFilter(glow), nullptr);
   EXPECT_TRUE(glow == Filter(glow));
   const auto pixels = bloomThrough(skia::imageFilter(glow), {1, 0, 0, 1});
@@ -221,7 +360,8 @@ TEST(SkiaEffect, OpticalBloomSpreadsColourBeyondTheSourceAndSoftensIt) {
   EXPECT_FLOAT_EQ(texel(pixels, 8, 32)[1], 0);
   EXPECT_FLOAT_EQ(texel(pixels, 32, 32)[0], 1);
   const auto soft = bloomThrough(
-      skia::imageFilter(Filter::bloom({.strength = 0, .tail = 0, .softness = 2})),
+      skia::imageFilter(
+          Filter::bloom({.strength = 0, .tail = 0, .softness = 2})),
       {1, 0, 0, 1});
   EXPECT_GT(texel(soft, 19, 32)[0], 0);
   EXPECT_LT(texel(soft, 20, 32)[0], 1);
@@ -229,8 +369,7 @@ TEST(SkiaEffect, OpticalBloomSpreadsColourBeyondTheSourceAndSoftensIt) {
 
 namespace {
 
-std::vector<float> bloomHalo(BloomOptions parameters,
-                             SkColor4f colour) {
+std::vector<float> bloomHalo(BloomOptions parameters, SkColor4f colour) {
   return bloomThrough(skia::imageFilter(Filter::bloom(parameters)), colour);
 }
 
@@ -244,9 +383,9 @@ float overRed(const float* rgba, int channel) {
 
 }  // namespace
 
-TEST(SkiaEffect, OpticalBloomDeepeningSinksAFadingHaloTowardItsStrongestChannel) {
-  const BloomOptions broad{.sigma = 3, .strength = 0, .spread = 5,
-                                    .tail = 1};
+TEST(SkiaEffect,
+     OpticalBloomDeepeningSinksAFadingHaloTowardItsStrongestChannel) {
+  const BloomOptions broad{.sigma = 3, .strength = 0, .spread = 5, .tail = 1};
   auto deep = broad;
   deep.deepening = 2;
   // Orange deepens toward red with its red channel held.
@@ -267,8 +406,8 @@ TEST(SkiaEffect, OpticalBloomDeepeningSinksAFadingHaloTowardItsStrongestChannel)
             overRed(texel(deepOrange, 12, 32), 1));
   // A single channel has nothing weaker to lose.
   const auto red = bloomHalo(deep, {1, 0, 0, 1});
-  EXPECT_NEAR(texel(red, 8, 32)[0], texel(bloomHalo(broad, {1, 0, 0, 1}), 8, 32)[0],
-              1e-3f);
+  EXPECT_NEAR(texel(red, 8, 32)[0],
+              texel(bloomHalo(broad, {1, 0, 0, 1}), 8, 32)[0], 1e-3f);
   EXPECT_FLOAT_EQ(texel(red, 8, 32)[1], 0);
 }
 
@@ -301,30 +440,34 @@ TEST(SkiaEffect, OpticalBloomDilationCarriesTheColourPastTheSource) {
 }
 
 TEST(SkiaEffect, OpticalBloomIsTheCompositionOfItsStages) {
-  const BloomOptions p{.sigma = 2, .strength = 1.2f, .spread = 3,
-                                .tail = 0.8f, .softness = 1,
-                                .whitening = 0.3f, .dilation = 2,
-                                .deepening = 1.5f, .maximumOpacity = 0.7f};
+  const BloomOptions p{.sigma = 2,
+                       .strength = 1.2f,
+                       .spread = 3,
+                       .tail = 0.8f,
+                       .softness = 1,
+                       .whitening = 0.3f,
+                       .dilation = 2,
+                       .deepening = 1.5f,
+                       .maximumOpacity = 0.7f};
   const auto gain = [](float alpha) {
-    const float m[20] = {1, 0, 0, 0, 0, 0, 1, 0, 0, 0,
+    const float m[20] = {1, 0, 0, 0, 0, 0, 1, 0, 0,     0,
                          0, 0, 1, 0, 0, 0, 0, 0, alpha, 0};
     return skia::filter(SkColorFilters::Matrix(m));
   };
   std::array<uint8_t, 256> ceiling{};
   for (int i = 0; i < 256; ++i)
     ceiling[i] = static_cast<uint8_t>(std::min(i, int(0.7f * 255)));
-  const auto light = Filter::brightPass(p.threshold, p.knee)
-                         .then(Filter::dilate(p.dilation));
+  const auto light =
+      Filter::brightPass(p.threshold, p.knee).then(Filter::dilate(p.dilation));
   const auto rung = [&](float sigma, float strength) {
     return light.then(Filter::blur(sigma))
         .then(Filter::deepen(p.deepening))
         .then(gain(strength));
   };
-  const auto halo =
-      rung(2, 1.2f)
-          .emit(rung(6, 0.8f), BlendMode::PlusLighter)
-          .then(skia::filter(SkColorFilters::TableARGB(
-              ceiling.data(), nullptr, nullptr, nullptr)));
+  const auto halo = rung(2, 1.2f)
+                        .emit(rung(6, 0.8f), BlendMode::PlusLighter)
+                        .then(skia::filter(SkColorFilters::TableARGB(
+                            ceiling.data(), nullptr, nullptr, nullptr)));
   const auto composed = Filter::blur(1)
                             .then(Filter::whiten(0.3f, p.threshold, p.knee))
                             .emit(halo);
@@ -352,7 +495,7 @@ TEST(SkiaEffect, DilateGrowsEdgesByItsDistanceWithRoundCorners) {
 
 TEST(SkiaEffect, EmitStacksLightsOfTheLayerAndKeepsItWhereTheyAreDark) {
   const auto dim = [](float alpha) {
-    const float m[20] = {1, 0, 0, 0, 0, 0, 1, 0, 0, 0,
+    const float m[20] = {1, 0, 0, 0, 0, 0, 1, 0, 0,     0,
                          0, 0, 1, 0, 0, 0, 0, 0, alpha, 0};
     return skia::filter(SkColorFilters::Matrix(m));
   };
@@ -360,15 +503,15 @@ TEST(SkiaEffect, EmitStacksLightsOfTheLayerAndKeepsItWhereTheyAreDark) {
   const auto wide = Filter::blur(6).then(dim(0.3f));
   const SkColor4f red{1, 0, 0, 1};
   const auto layer = bloomThrough(nullptr, red);
-  const auto withNear =
-      bloomThrough(skia::imageFilter(Filter().emit(near, BlendMode::PlusLighter)), red);
-  const auto withWide =
-      bloomThrough(skia::imageFilter(Filter().emit(wide, BlendMode::PlusLighter)), red);
-  const auto both = bloomThrough(
-      skia::imageFilter(Filter()
-                            .emit(near, BlendMode::PlusLighter)
-                            .emit(wide, BlendMode::PlusLighter)),
-      red);
+  const auto withNear = bloomThrough(
+      skia::imageFilter(Filter().emit(near, BlendMode::PlusLighter)), red);
+  const auto withWide = bloomThrough(
+      skia::imageFilter(Filter().emit(wide, BlendMode::PlusLighter)), red);
+  const auto both =
+      bloomThrough(skia::imageFilter(Filter()
+                                         .emit(near, BlendMode::PlusLighter)
+                                         .emit(wide, BlendMode::PlusLighter)),
+                   red);
   // Outside the block the layer is black, so each light adds alone and
   // the second reads the layer, not the first light.
   for (int x : {12, 15, 18})

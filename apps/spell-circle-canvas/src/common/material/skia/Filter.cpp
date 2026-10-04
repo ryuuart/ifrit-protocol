@@ -42,7 +42,7 @@ struct FilterAccess {
    *  of none, so the two spellings of "nothing" compare equal. */
   static Filter wrap(Effect effect, std::vector<CoverageEffect> coverage = {}) {
     if (effect == Effect{} && coverage.empty()) return {};
-    return Filter(std::make_shared<const Filter::Node>(
+    return Filter(std::make_shared<Filter::Node>(
         Filter::Node{std::move(effect), std::move(coverage)}));
   }
   static Effect& edit(Filter& filter) { return filter.edit().effect; }
@@ -109,16 +109,18 @@ using skia::FilterAccess;
 
 Filter::Node& Filter::edit() {
   if (!m_node) {
-    m_node = std::make_shared<const Node>();
+    m_node = std::make_shared<Node>();
   } else if (m_node.use_count() > 1) {
-    m_node = std::make_shared<const Node>(*m_node);
+    m_node = std::make_shared<Node>(*m_node);
   }
   // The node is held const so copies share it; this filter is its only
   // holder once the lines above have run.
   return const_cast<Node&>(*m_node);
 }
 
-Filter Filter::blur(float sigma) { return FilterAccess::wrap(Effect::blur(sigma)); }
+Filter Filter::blur(float sigma) {
+  return FilterAccess::wrap(Effect::blur(sigma));
+}
 
 Filter Filter::blur(Paint sigmaMap, float maximumSigma) {
   return FilterAccess::wrap(Effect::blur(std::move(sigmaMap), maximumSigma));
@@ -129,7 +131,24 @@ Filter Filter::blur(const Material& sigmaMap, float maximumSigma) {
 }
 
 Filter Filter::directionalBlur(float sigma, float angleDegrees, float across) {
-  return FilterAccess::wrap(Effect::directionalBlur(sigma, angleDegrees, across));
+  return FilterAccess::wrap(
+      Effect::directionalBlur(sigma, angleDegrees, across));
+}
+
+Filter Filter::glass(GlassOptions options) {
+  const sk_sp<SkRuntimeEffect>& program =
+      skia::effectProgram(skia::EffectProgram::Glass);
+  if (!program) return {};
+  Effect effect =
+      Effect::shader(program,
+                     {{"ior", options.ior},
+                      {"thickness", options.thickness},
+                      {"normalDirectX", options.normalDirectX ? 1.0f : 0.0f}},
+                     options.sampleRadius);
+  if (effect == Effect{}) return {};
+  effect.slot("normal", skia::paint(options.normal.value_or(
+                            Material(Color{0.5f, 0.5f, 1.0f, 1.0f}))));
+  return FilterAccess::wrap(std::move(effect));
 }
 
 Filter Filter::dropShadow(Color color, ShadowOptions options) {
@@ -269,14 +288,12 @@ Filter Filter::emit(const Filter& light, BlendMode mode) const {
   if (!light.m_node) return *this;
   const Effect none;
   const Effect& self = m_node ? m_node->effect : none;
-  return FilterAccess::wrap(self.emit(light.m_node->effect, mode),
-                            m_node ? m_node->coverage
-                                   : std::vector<CoverageEffect>{});
+  return FilterAccess::wrap(
+      self.emit(light.m_node->effect, mode),
+      m_node ? m_node->coverage : std::vector<CoverageEffect>{});
 }
 
-bool Filter::isRunning() const {
-  return m_node && m_node->effect.isRunning();
-}
+bool Filter::isRunning() const { return m_node && m_node->effect.isRunning(); }
 
 bool Filter::usesWorldSpace() const {
   return m_node && m_node->effect.usesWorldSpace();

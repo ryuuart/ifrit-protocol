@@ -18,8 +18,8 @@
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkShader.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/advanced/UniformBlock.h>
+#include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Animatable.h>
 
@@ -116,8 +116,7 @@ class Effect {
    *  above @p threshold, faded in over @p knee, it moves @p amount of
    *  the way toward white at that peak, as an overexposed core does.
    *  Colour below the threshold is untouched. */
-  static Effect whiten(float amount, float threshold = 0.2f,
-                       float knee = 0.2f);
+  static Effect whiten(float amount, float threshold = 0.2f, float knee = 0.2f);
   /** Display bloom over the completed layer, the sharp source retained
    *  on top. @p radius is the outer kernel radius in px, @p intensity
    *  its additive energy, @p chroma the spectral separation in 0..1,
@@ -138,6 +137,14 @@ class Effect {
   static Effect shader(
       sk_sp<SkRuntimeEffect> effect,
       std::vector<std::pair<std::string, float>> uniforms = {});
+  /** A bounded program: @p sampleRadius is the finite nonnegative
+   *  maximum absolute offset in either local-coordinate axis. It is
+   *  fixed across parameter and child updates. When the program declares
+   *  "_sampleRadius", the executor fills that uniform and rejects writes
+   *  or bindings to it. */
+  static Effect shader(sk_sp<SkRuntimeEffect> effect,
+                       std::vector<std::pair<std::string, float>> uniforms,
+                       float sampleRadius);
   /** A blur that smears ALONG one direction: @p sigma along the axis at
    *  @p angleDegrees (degrees, screen sense — 0 horizontal, 90 vertical, 45
    *  down-right), @p across perpendicular to it, 0 by default for a pure
@@ -146,7 +153,8 @@ class Effect {
    *  uniform.
    *  @trap A spatial filter, not motion blur: it knows nothing about how
    *  the node moved. */
-  static Effect directionalBlur(float sigma, float angleDegrees, float across = 0);
+  static Effect directionalBlur(float sigma, float angleDegrees,
+                                float across = 0);
   /** A blur whose SIGMA VARIES ACROSS THE NODE — a depth-of-field
    *  falloff, a lens edge, a tube's curvature. @p sigmaMap is a paint
    *  read as a NUMBER: its RED channel at a pixel, times @p maxSigma, is
@@ -171,25 +179,26 @@ class Effect {
    *  blur() ("maxSigma").
    *  @trap An effect holds no instance, so a value carrying its own
    *  TRANSITION has nothing to run it and reads as its target.
-   *  @silent the name is not one the effect declares, or its kind takes
-   *  no uniform (warned once; no volatility is declared either). */
+   *  @silent the declaration is not one non-array float, or this effect
+   *  kind takes no uniform (warned once; no volatility is declared either). */
   Effect& bind(std::string name, motion::Animatable<float> value);
   /** CONSTANT uniforms after construction, for the sizes the shader()
    *  constructor list cannot carry: the float2 and float4 forms fill
-   *  those declarations, and the vector form fills a declared ARRAY
-   *  matched by TOTAL float count. They join operator==, so an equal
+   *  non-array declarations, and the vector form fills a complete floating
+   *  scalar, vector, matrix or array matched by total float count.
+   *  They join operator==, so an equal
    *  re-described effect prunes.
    *  @silent the paint is not a shader() effect, the name is
-   *  undeclared, or its declared size is not the value's (warned
+   *  undeclared, or its floating type or count is incompatible (warned
    *  once). */
   Effect& set(std::string name, float value);
   Effect& set(std::string name, std::array<float, 2> value);
   Effect& set(std::string name, std::array<float, 4> value);
   Effect& set(std::string name, std::vector<float> values);
-  /** A LIVE ARRAY — a `UniformBlock` the caller owns, writes and
-   *  commit()s, read at every paint. It declares volatility as a bound
-   *  scalar does, and is size-checked at store against the declared
-   *  array's total float count.
+  /** A LIVE FLOATING UNIFORM — a `UniformBlock` the caller owns, writes
+   *  and commit()s. Each paint reads its last committed values, never draft
+   *  edits. It declares volatility and matches the complete float count of
+   *  a floating scalar, vector, matrix or array.
    *  @trap The binding compares by block identity; the values belong to
    *  the system and never prune. */
   Effect& bind(std::string name, std::shared_ptr<const UniformBlock> block);
@@ -252,7 +261,6 @@ class Effect {
     bool operator==(const ParametricBlur&) const = default;
   };
 
-
   /** The comparable source and compiled program of one recipe()
    *  snapshot. Live sources are not retained: the filter owns their
    *  sampled values and compares by identity. */
@@ -271,6 +279,9 @@ class Effect {
   // The shader recipe (kept so bound uniforms can rebuild per paint and
   // so equality can compare structurally).
   sk_sp<SkRuntimeEffect> m_effect;
+  // A bounded program owns its sampling declaration and internal radius
+  // uniform. Absence preserves the ordinary program's uniform namespace.
+  std::optional<float> m_sampleRadius;
   std::vector<std::pair<std::string, float>> m_uniforms;
   // The wider constant shapes, one lane per declared size the builder
   // distinguishes; arrays are stored flat and matched by total float count.
@@ -332,8 +343,11 @@ class Effect {
    *  for the same reason: a static child's snapshot is already correct,
    *  and a context-needing one must be rebuilt per paint or it freezes. */
   bool anyChildNeedsContext() const;
+  /** Reject writes to the executor-owned radius of a bounded program. */
+  bool writableUniform(std::string_view name) const;
   /** resolvedImageFilter() at a frame already crossed into Skia's terms. */
-  sk_sp<SkImageFilter> resolvedImageFilterAt(const PaintFrame* paintFrame) const;
+  sk_sp<SkImageFilter> resolvedImageFilterAt(
+      const PaintFrame* paintFrame) const;
   /** The slot @p name as a shader, resolved against @p paintFrame. */
   sk_sp<SkShader> childShaderFor(std::string_view name,
                                  const PaintFrame* paintFrame) const;
@@ -354,23 +368,25 @@ class Effect {
    *  what to decide. The state is private, so the decomposition lives
    *  inside the class. */
   static void fieldPin(Effect& pinned) {
-    auto& [filter, colorFilter, recipeSnapshot, effect, uniforms, uniforms2,
-           uniforms4, uniformArrays, bound, blocks, directionalBlur,
+    auto& [filter, colorFilter, recipeSnapshot, effect, sampleRadius, uniforms,
+           uniforms2, uniforms4, uniformArrays, bound, blocks, directionalBlur,
            parametricBlur, blurLevels, gatheredHalo, colorProgram, children,
            chainA, chainB, chainBlend, composedA, composedB, stock] = pinned;
     static_assert(
         std::tuple_size_v<decltype(std::tie(
-                filter, colorFilter, recipeSnapshot, effect, uniforms,
-                uniforms2, uniforms4, uniformArrays, bound, blocks,
+                filter, colorFilter, recipeSnapshot, effect, sampleRadius,
+                uniforms, uniforms2, uniforms4, uniformArrays, bound, blocks,
                 directionalBlur, parametricBlur, blurLevels, gatheredHalo,
                 colorProgram, children, chainA, chainB, chainBlend, composedA,
-                composedB, stock))> == 22,
+                composedB, stock))> == 23,
         "Effect gained or lost a member — rule on it in "
         "Effect::operator==, then bump this count. "
         "(m_colorFilter compares by pointer, like m_filter, an "
         "already-built SkColorFilter carrying no recipe either; "
         "m_recipeSnapshot compares material value and compiled program, "
         "or m_filter identity when its source has live inputs; "
+        "m_sampleRadius is an immutable sampling declaration compared "
+        "beside the program; "
         "m_filter is EXCLUDED on the shader, directionalBlur and "
         "blur paths because it is derived from m_effect + the "
         "constant lanes / m_directionalBlur / m_parametricBlur + m_slots, "

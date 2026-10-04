@@ -18,7 +18,7 @@ sigil_library(SigilMaterialSkia
           Paint.cpp PaintBlend.cpp PaintBuild.cpp
           PaintDetail.cpp PaintResolve.cpp PaintSources.cpp
           PaintUniforms.cpp Painted.cpp Palette.cpp Ramp.cpp SkiaCompiler.cpp Texture.cpp
-          Lit.cpp
+          Lit.cpp Environment.cpp
   HEADERS ../filter/Filter.h ../paint/Bases.h ../paint/Paint.h Bevel.h Color.h Draw.h Filter.h Lit.h Paint.h
           Painted.h Pass.h PixelBuffer.h
           Palette.h Ramp.h ShaderLeaf.h SkiaCompiler.h Texture.h
@@ -31,14 +31,32 @@ sigil_shader_sources(SigilMaterialSkia
 # embedded table holds every file in it.
 sigil_test(material_test
   SOURCES test/SkiaCompilerTest.cpp test/SkiaFirstUseTest.cpp test/SkiaColorTest.cpp
-          test/SkiaPaintTest.cpp test/SkiaMaterialTest.cpp test/SkiaEffectTest.cpp
+          test/SkiaPaintUniformTest.cpp test/SkiaPaintWorldTest.cpp
+          test/SkiaPaintBlendTest.cpp test/SkiaPaintSourcesTest.cpp
+          test/SkiaPaintConcurrencyTest.cpp test/SkiaPaintGpuTest.cpp
+          test/SkiaMaterialTest.cpp test/SkiaEffectTest.cpp
           test/SkiaEffectBlurTest.cpp test/SkiaEffectPhosphorTest.cpp
           test/SkiaEffectLightTest.cpp test/SkiaEffectSlotTest.cpp
-          test/SkiaRampTest.cpp test/PaletteTest.cpp test/SkiaLitTest.cpp
+          test/SkiaEffectGlassTest.cpp
+          test/SkiaRampTest.cpp test/PaletteTest.cpp
+          test/SkiaLitRigTest.cpp test/SkiaLitPreparedTest.cpp
+          test/SkiaLitCoatingTest.cpp test/SkiaLitPositionedTest.cpp
+          test/SkiaLitGpuTest.cpp
+          test/SkiaEnvironmentTest.cpp
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
   DEFINITIONS SIGIL_MATERIAL_SKIA_SHADER_DIR="${_shaders}"
-  LIBRARIES SigilMaterialSkia)
+  LIBRARIES SigilMaterialSkia SigilMaterialProgram)
+
+if(APPLE)
+  sigil_test(material_test
+    LIBRARIES SigilSkiaGraphite
+    SUPPORT_DIRS ${SIGIL_SKIA_GRAPHITE_TEST_SUPPORT_DIR}
+    SUITES SkiaLitGpu SkiaEnvironmentGpu SkiaPaintGpu
+           "*/SkiaPaintGpuDeviceSources" "*/SkiaPaintGpuSourceReplacement"
+    LABELS gpu)
+endif()
 
 sigil_bench(material_bench
-  SOURCES bench/SkiaBench.cpp
-  LIBRARIES SigilMaterialSkia)
+  SOURCES bench/SkiaBench.cpp bench/LitRasterBench.cpp
+  LIBRARIES SigilMaterialSkia SigilMaterialProgram SigilMaterialSurface
+            SigilMediaCore)

@@ -10,13 +10,14 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
-#include <sigilmedia/advanced/Skia.h>
-#include <sigilmedia/image/Decode.h>
-#include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/advanced/Recipe.h>
+#include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/skia/Texture.h>
+#include <sigilmaterial/texture/Image.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilmaterial/texture/TextureSet.h>
+#include <sigilmedia/advanced/Skia.h>
+#include <sigilmedia/image/Decode.h>
 
 #include <algorithm>
 #include <filesystem>
@@ -102,8 +103,7 @@ TEST(Texture, RegionCutsAndPlacementMoves) {
   bm.setImmutable();
   const sk_sp<SkImage> sheet = bm.asImage();
 
-  const Texture right =
-      Texture(sheet).region({2, 0, 2, 2});
+  const Texture right = Texture(sheet).region({2, 0, 2, 2});
   EXPECT_EQ(right.size(), glm::ivec2(2, 2));
   EXPECT_EQ(pixelOf(skia::shader(right), 0, 0), SK_ColorBLUE);
   // The cut is kept: the same image comes back for the same source.
@@ -112,6 +112,66 @@ TEST(Texture, RegionCutsAndPlacementMoves) {
   const Texture moved = Texture(sheet).at({-2, 0});
   EXPECT_EQ(pixelOf(skia::shader(moved), 0, 0), SK_ColorBLUE);
   EXPECT_EQ(pixelOf(skia::shader(Texture(sheet)), 0, 0), SK_ColorRED);
+}
+
+TEST(Texture, AnImageMaterialPreservesTexturePlacementAndSampling) {
+  SkBitmap bitmap;
+  bitmap.allocN32Pixels(4, 2);
+  bitmap.eraseColor(SK_ColorRED);
+  bitmap.erase(SK_ColorBLUE, SkIRect::MakeXYWH(2, 0, 1, 2));
+  bitmap.erase(SK_ColorGREEN, SkIRect::MakeXYWH(3, 0, 1, 2));
+  bitmap.setImmutable();
+  const Texture texture = Texture(bitmap.asImage())
+                              .region({2, 0, 2, 2})
+                              .at({1, 1})
+                              .tile(Repeat::Mirror, Repeat::Pad)
+                              .sampling(Sampling::Nearest);
+  const Material material = image(texture);
+  for (float density : {0.5f, 1.0f, 2.0f}) {
+    SCOPED_TRACE(density);
+    const int width = int(16 * density), height = int(8 * density);
+    const auto draw = [&](const sk_sp<SkShader>& shader) {
+      SkBitmap drawn;
+      drawn.allocN32Pixels(width, height);
+      SkCanvas canvas(drawn);
+      canvas.clear(SK_ColorTRANSPARENT);
+      canvas.scale(density, density);
+      SkPaint paint;
+      paint.setShader(shader);
+      canvas.drawRect(SkRect::MakeWH(16, 8), paint);
+      return drawn;
+    };
+    const SkBitmap expected = draw(skia::shader(texture));
+    const SkBitmap actual = draw(skia::shader(
+        material, {.resolution = {16, 8}, .contentScale = density}));
+    EXPECT_TRUE(sigil::material::test::identical(actual, expected));
+  }
+  EXPECT_EQ(material, image(texture));
+  EXPECT_NE(material, image(Texture(texture).at({0, 0})));
+}
+
+namespace {
+
+struct ChangingImage {
+  sk_sp<SkImage> first = solid(SK_ColorRED, 2, 2);
+  sk_sp<SkImage> second = solid(SK_ColorBLUE, 2, 2);
+  sigil::media::Frame frameAt(std::chrono::duration<double> time) const {
+    return {.image = time.count() < 1 ? first : second, .time = time};
+  }
+  bool isRunning() const { return true; }
+  bool operator==(const ChangingImage&) const = default;
+};
+
+}  // namespace
+
+TEST(Texture, AnImageMaterialReadsTheLiveSourceAtTheFrameTime) {
+  const Material material =
+      image(Texture(sigil::media::PixelSource(ChangingImage{})));
+  EXPECT_TRUE(material.isRunning());
+  const auto first = skia::shader(material, {.seconds = 0});
+  const auto second = skia::shader(material, {.seconds = 2});
+  EXPECT_EQ(pixelOf(first, 0, 0), SK_ColorRED);
+  EXPECT_EQ(pixelOf(second, 0, 0), SK_ColorBLUE);
 }
 
 TEST(Texture, FillsAMaterialSlotAsALeaf) {

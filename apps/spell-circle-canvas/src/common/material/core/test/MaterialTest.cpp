@@ -6,19 +6,22 @@
  */
 
 #include <gtest/gtest.h>
-#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/advanced/FrameData.h>
 #include <sigilmaterial/advanced/Leaf.h>
-#include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/advanced/Program.h>
 #include <sigilmaterial/advanced/Recipe.h>
-#include <sigilmaterial/core/Target.h>
 #include <sigilmaterial/advanced/UniformBlock.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/core/Material.h>
+#include <sigilmaterial/core/Target.h>
 
 #include <array>
 #include <cstring>
 #include <functional>
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
 #include <memory>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -231,6 +234,99 @@ TEST(Material, TiersFollowBindingsFrameInputsAndChildren) {
   EXPECT_FALSE(parent == same);
 }
 
+TEST(Material, SurfaceChannelsDeclareTheirTimeAndGeometryInputs) {
+  const auto timed = std::make_shared<const Recipe>(
+      Recipe::of<TwoParameters>("surface.time").frame(FrameInput::Time));
+  const auto sized = std::make_shared<const Recipe>(
+      Recipe::of<TwoParameters>("surface.size").frame(FrameInput::Resolution));
+  for (int channel = 0; channel < 5; ++channel) {
+    for (bool live : {false, true}) {
+      SurfaceOptions response;
+      const Material source(live ? timed : sized);
+      switch (channel) {
+        case 0:
+          response.metallic = source;
+          break;
+        case 1:
+          response.roughness = source;
+          break;
+        case 2:
+          response.occlusion = source;
+          break;
+        case 3:
+          response.normal = source;
+          break;
+        case 4:
+          response.emissionMap = source;
+          break;
+      }
+      const Material material = from(Color{1, 1, 1, 1}).surface(response);
+      EXPECT_EQ(material.isRunning(), live) << channel;
+      EXPECT_EQ(material.geometryDependent(), !live) << channel;
+    }
+  }
+  const auto direction = sigil::motion::animatable(0.0f);
+  const Material ownLight =
+      from(Color{1, 1, 1, 1})
+          .surface({.lighting = studio({.direction = direction})});
+  EXPECT_TRUE(ownLight.isRunning());
+  EXPECT_FALSE(
+      from(Color{1, 1, 1, 1}).surface({.lighting = studio()}).isRunning());
+}
+
+TEST(Material, LightKindsReadOnlyTheirApplicableBindings) {
+  for (LightKind kind :
+       {LightKind::Directional, LightKind::Point, LightKind::Spot}) {
+    for (bool elevation : {false, true}) {
+      Light light;
+      light.kind = kind;
+      const auto angle = sigil::motion::animatable(45.0f);
+      if (elevation)
+        light.elevation = angle;
+      else
+        light.direction = angle;
+      const bool readsAngle = kind != LightKind::Point;
+      EXPECT_EQ(light.isRunning(), readsAngle);
+      EXPECT_EQ(Lighting(light).isRunning(), readsAngle);
+      EXPECT_EQ(
+          from(Color{1, 1, 1, 1}).surface({.lighting = light}).isRunning(),
+          readsAngle);
+    }
+    Light light;
+    light.kind = kind;
+    light.intensity = sigil::motion::animatable(1.0f);
+    EXPECT_TRUE(light.isRunning());
+    EXPECT_TRUE(Lighting(light).isRunning());
+  }
+}
+
+TEST(Material, LightColorConstantsCompareByValueAndLiveColorsByIdentity) {
+  const Color red{2, 0, 0, 1};
+  const Light constant{.color = red};
+  EXPECT_FALSE(constant.isRunning());
+  EXPECT_EQ(constant, (Light{.color = red}));
+  EXPECT_NE(constant, (Light{.color = Color{0, 0, 2, 1}}));
+  auto color = sigil::motion::animatable(red);
+  for (LightKind kind :
+       {LightKind::Directional, LightKind::Point, LightKind::Spot}) {
+    color = red;
+    const Light light{.color = color, .kind = kind};
+    const Light copied = light;
+    const Light separate{.color = sigil::motion::animatable(color.value()),
+                         .kind = kind};
+    EXPECT_TRUE(light.isRunning());
+    EXPECT_TRUE(Lighting(light).isRunning());
+    EXPECT_TRUE(
+        from(Color{1, 1, 1, 1}).surface({.lighting = light}).isRunning());
+    EXPECT_EQ(light, copied);
+    EXPECT_NE(light, separate);
+    EXPECT_NE(light, (Light{.color = color.value(), .kind = kind}));
+    color = Color{0, 0, 2, 1};
+    EXPECT_EQ(copied.color.value(), color.value());
+    EXPECT_EQ(light, copied);
+  }
+}
+
 TEST(Material, AFieldSaysWhetherItCarriesABindingAtAll) {
   struct Table {
     float uScale;
@@ -266,6 +362,93 @@ TEST(Material, AFieldSaysWhetherItCarriesABindingAtAll) {
   const std::string said = captureStderr([&] { m.bind("uTable", out); });
   EXPECT_NE(said.find("\"uTable\""), std::string::npos) << said;
   EXPECT_FALSE(m.isBound("uTable"));
+}
+
+TEST(Material, ColorBindingsReadStraightComponentsAndCheckFieldKinds) {
+  struct Parameters {
+    Color uColor;
+    float uScale;
+    glm::vec4 uVector;
+    std::array<float, 4> uTable;
+  };
+  const auto recipe =
+      std::make_shared<const Recipe>(Recipe::of<Parameters>("color.binding"));
+  Material material(recipe);
+  auto color = sigil::motion::animatable(Color{2, .5f, .25f, 1});
+  for (const char* name : {"uScale", "uVector", "uTable", "missing"}) {
+    const std::string said = captureStderr([&] { material.bind(name, color); });
+    EXPECT_NE(said.find(name), std::string::npos) << said;
+    EXPECT_FALSE(material.isBound(name));
+    EXPECT_FALSE(material.isRunning());
+  }
+  material.bind("uColor", color);
+  EXPECT_TRUE(material.isBound("uColor"));
+  EXPECT_TRUE(material.isRunning());
+  const Material copied = material;
+  Material separate(recipe);
+  separate.bind("uColor", sigil::motion::animatable(color.value()));
+  EXPECT_NE(material, separate);
+  const auto resolved = [&] {
+    const auto upload = material.resolve(Target::SkSL, {});
+    Color value;
+    std::memcpy(&value,
+                upload.bytes.data() + recipe->layout().find("uColor")->offset,
+                sizeof(value));
+    return value;
+  };
+  EXPECT_EQ(resolved(), color.value());
+  color = Color{.25f, 3, .5f, .75f};
+  EXPECT_EQ(resolved(), color.value());
+  EXPECT_EQ(material, copied);
+  material.bind("uColor", Color{.5f, .25f, 2, 1});
+  EXPECT_FALSE(material.isRunning());
+  EXPECT_EQ(resolved(), (Color{.5f, .25f, 2, 1}));
+  material.unbind("uColor");
+  EXPECT_FALSE(material.isBound("uColor"));
+  EXPECT_EQ(resolved(), (Color{0, 0, 0, 0}));
+}
+
+TEST(Material, PixelSamplingTransformChangesUploadAndGeometryWithoutMotion) {
+  registerCompiler(Target::Slang, countingCompiler);
+  struct Nothing {};
+  const auto recipe = std::make_shared<const Recipe>(
+      Recipe::of<Nothing>("material.pixel-sampling")
+          .frame(FrameInput::LocalToSample)
+          .body(Target::Slang,
+                "float4 surface(float2 p) { return float4("
+                "uLocalToSample[0].xy, 0, 1); }"));
+  const Material material(recipe);
+  EXPECT_TRUE(material.geometryDependent());
+  EXPECT_FALSE(material.isRunning());
+  const Material parent =
+      from(Color{0, 0, 0, 1}).layer(material, {.opacity = .5f});
+  EXPECT_TRUE(parent.geometryDependent());
+  EXPECT_FALSE(parent.isRunning());
+  FrameData frame;
+  const auto matrix = [&](const Material::Resolved& resolved) {
+    std::array<float, 9> values{};
+    EXPECT_EQ(resolved.bytes.size(), values.size() * sizeof(float));
+    if (resolved.bytes.size() != sizeof(values)) return values;
+    std::memcpy(values.data(), resolved.bytes.data(), sizeof(values));
+    return values;
+  };
+  const Material::Resolved identity = material.resolve(Target::Slang, frame);
+  ASSERT_TRUE(identity.program);
+  const std::array expectedIdentity{1.f, 0.f, 0.f, 0.f, 1.f,
+                                    0.f, 0.f, 0.f, 1.f};
+  EXPECT_EQ(matrix(identity), expectedIdentity);
+  const std::byte* held = identity.bytes.data();
+  EXPECT_EQ(material.resolve(Target::Slang, frame).bytes.data(), held);
+  frame.localToSample = glm::mat3{0, .25f, 0, -.125f, 0, 0, 8, 12, 1};
+  const Material::Resolved rotated = material.resolve(Target::Slang, frame);
+  const std::array expectedRotated{0.f, .25f, 0.f,  -.125f, 0.f,
+                                   0.f, 8.f,  12.f, 1.f};
+  EXPECT_EQ(matrix(rotated), expectedRotated);
+  EXPECT_EQ(rotated.program, identity.program);
+  EXPECT_EQ(material.resolve(Target::Slang, frame).bytes.data(),
+            rotated.bytes.data());
+  const glm::vec3 offset = frame.localToSample * glm::vec3{2, 0, 0};
+  EXPECT_EQ(offset, (glm::vec3{0, .5f, 0}));
 }
 
 TEST(Material, ResolveSamplesBindingsInjectsFrameAndMemoises) {
@@ -308,13 +491,23 @@ TEST(Material, ResolveSamplesBindingsInjectsFrameAndMemoises) {
   EXPECT_EQ(a.bytes.data(), b.bytes.data());
   EXPECT_EQ(a.program, b.program);
 
-  // The block wrote without committing — a resolve still reads the current
-  // values, because the block is live.
+  // Draft edits stay hidden while scalar and frame inputs update.
   block->values()[0] = 7.0f;
   Material::Resolved c = m.resolve(Target::Slang, frame);
-  EXPECT_EQ(at(c, "uTable"), 7.0f);
+  EXPECT_EQ(at(c, "uTable"), 0.0f);
+  EXPECT_EQ(c.bytes.data(), b.bytes.data());
   out = 6.0f;
-  EXPECT_EQ(at(m.resolve(Target::Slang, frame), "uScale"), 6.0f);
+  Material::Resolved scalarChanged = m.resolve(Target::Slang, frame);
+  EXPECT_EQ(at(scalarChanged, "uScale"), 6.0f);
+  EXPECT_EQ(at(scalarChanged, "uTable"), 0.0f);
+  frame.seconds = 1.75;
+  frame.resolution = {32, 16};
+  Material::Resolved frameChanged = m.resolve(Target::Slang, frame);
+  EXPECT_EQ(at(frameChanged, "uTime"), 1.75f);
+  EXPECT_EQ(at(frameChanged, "uResolution"), 32.0f);
+  EXPECT_EQ(at(frameChanged, "uTable"), 0.0f);
+  block->commit();
+  EXPECT_EQ(at(m.resolve(Target::Slang, frame), "uTable"), 7.0f);
 
   // Quantised time snaps to the step, so within one step the memo holds.
   m.quantizeTime(4.0f);
@@ -332,6 +525,105 @@ TEST(Material, ResolveSamplesBindingsInjectsFrameAndMemoises) {
   EXPECT_EQ(none.bytes.size(), r->layout().byteSize);
 }
 
+TEST(Material, ResolvedUploadsRetainBytesAcrossFramesAndMaterialLifetime) {
+  registerCompiler(Target::Slang, countingCompiler);
+  struct Parameters {
+    float uScale;
+    std::array<float, 2> uTable;
+  };
+  const auto recipe = std::make_shared<const Recipe>(
+      Recipe::of<Parameters>("material.owned-upload")
+          .frame(FrameInput::Time)
+          .body(Target::Slang, "uScale uTable uTime"));
+  const auto at = [&](const Material::Resolved& upload, const char* name) {
+    float value = 0;
+    std::memcpy(&value,
+                upload.bytes.data() + recipe->layout().find(name)->offset,
+                sizeof(value));
+    return value;
+  };
+  Material::Resolved retained;
+  {
+    sigil::motion::Animatable<float> scale = sigil::motion::animatable(2.f);
+    auto table = std::make_shared<UniformBlock>(2);
+    table->values()[0] = 3;
+    table->commit();
+    Material material(recipe, Parameters{1, {0, 0}});
+    material.bind("uScale", scale).bind("uTable", table);
+    retained = material.resolve(Target::Slang, {.seconds = 1});
+    const std::vector<std::byte> original(retained.bytes.begin(),
+                                          retained.bytes.end());
+    EXPECT_EQ(material.resolve(Target::Slang, {.seconds = 1}).bytes.data(),
+              retained.bytes.data());
+    std::array<Material::Resolved, 3> later;
+    for (size_t i = 0; i < later.size(); ++i) {
+      scale = 4.f + static_cast<float>(i);
+      table->values()[0] = 8.f + static_cast<float>(i);
+      table->commit();
+      later[i] = material.resolve(Target::Slang, {.seconds = 2.0 + i});
+      EXPECT_EQ(at(later[i], "uScale"), 4.f + i);
+      EXPECT_EQ(at(later[i], "uTable"), 8.f + i);
+      EXPECT_EQ(at(later[i], "uTime"), 2.f + i);
+    }
+    EXPECT_EQ(
+        std::vector<std::byte>(retained.bytes.begin(), retained.bytes.end()),
+        original);
+    for (size_t i = 0; i < later.size(); ++i)
+      EXPECT_EQ(at(later[i], "uTime"), 2.f + i);
+  }
+  ASSERT_TRUE(retained.program);
+  EXPECT_EQ(at(retained, "uScale"), 2.f);
+  EXPECT_EQ(at(retained, "uTable"), 3.f);
+  EXPECT_EQ(at(retained, "uTime"), 1.f);
+  const Material::Resolved copy = retained;
+  retained = {};
+  EXPECT_EQ(at(copy, "uTime"), 1.f);
+}
+
+TEST(Material, CopiedResolveStateSeparatesParametersVariantsAndRecipes) {
+  registerCompiler(Target::Slang, countingCompiler);
+  const auto recipe = std::make_shared<const Recipe>(
+      Recipe::of<TwoParameters>("material.resolve-copies")
+          .body(Target::Slang, "uScale uColor"));
+  const Material original(recipe, TwoParameters{2, {1, 0, 0, 1}});
+  Material copy = original;
+  const Material::Resolved first = original.resolve(Target::Slang, {});
+  EXPECT_EQ(copy.resolve(Target::Slang, {}).bytes.data(), first.bytes.data());
+  copy.set("uScale", 7.f);
+  copy.set("uColor", Color{0, 1, 0, 1});
+  const Material::Resolved edited = copy.resolve(Target::Slang, {});
+  const auto parameters = [](const Material::Resolved& upload) {
+    TwoParameters values{};
+    std::memcpy(&values, upload.bytes.data(), sizeof(values));
+    return values;
+  };
+  EXPECT_EQ(parameters(edited).uScale, 7.f);
+  EXPECT_EQ(parameters(edited).uColor, (Color{0, 1, 0, 1}));
+  EXPECT_EQ(parameters(first).uScale, 2.f);
+  EXPECT_EQ(parameters(first).uColor, (Color{1, 0, 0, 1}));
+  EXPECT_EQ(original.resolve(Target::Slang, {}).bytes.data(),
+            first.bytes.data());
+  EXPECT_EQ(edited.program, first.program);
+
+  const Material::Resolved variant = original.resolve(Target::Slang, {}, {3});
+  ASSERT_TRUE(variant.program);
+  EXPECT_NE(variant.program, first.program);
+  const auto replacement = std::make_shared<const Recipe>(
+      Recipe::of<TwoParameters>("material.resolve-specialization")
+          .frame(FrameInput::Time)
+          .body(Target::Slang, "uColor uScale uTime"));
+  const Material specialized = original.withRecipe(replacement);
+  const Material::Resolved changed =
+      specialized.resolve(Target::Slang, {.seconds = 6});
+  ASSERT_TRUE(changed.program);
+  EXPECT_NE(changed.program, first.program);
+  EXPECT_EQ(changed.program->recipe().name(), replacement->name());
+  EXPECT_EQ(changed.bytes.size(), replacement->layout().byteSize);
+  EXPECT_EQ(first.bytes.size(), recipe->layout().byteSize);
+  EXPECT_EQ(parameters(changed).uScale, 2.f);
+  EXPECT_EQ(original.resolve(Target::Slang, {}).program, first.program);
+}
+
 TEST(UniformBlock, RevisionAdvancesOnCommitOnly) {
   UniformBlock block(3);
   EXPECT_EQ(block.size(), 3u);
@@ -345,4 +637,26 @@ TEST(UniformBlock, RevisionAdvancesOnCommitOnly) {
   const UniformBlock& ro = block;
   EXPECT_EQ(ro.values()[1], 2.0f);
   EXPECT_EQ(ro.values()[0], 0.0f);
+}
+
+TEST(UniformBlock, HeldDraftSpansPublishOnlyOnCommit) {
+  UniformBlock block(3);
+  const std::span<float> draft = block.values();
+  const std::span<const float> published = block.committedValues();
+  EXPECT_EQ(published[1], 0.0f);
+  draft[1] = 2.0f;
+  EXPECT_EQ(published[1], 0.0f);
+  block.commit();
+  EXPECT_EQ(published[1], 2.0f);
+  EXPECT_EQ(block.values().data(), draft.data());
+  EXPECT_EQ(block.committedValues().data(), published.data());
+
+  draft[1] = 9.0f;
+  const UniformBlock& readOnly = block;
+  EXPECT_EQ(readOnly.values()[1], 9.0f);
+  EXPECT_EQ(readOnly.committedValues()[1], 2.0f);
+  block.commit();
+  EXPECT_EQ(published[1], 9.0f);
+  EXPECT_EQ(block.values().data(), draft.data());
+  EXPECT_EQ(block.committedValues().data(), published.data());
 }

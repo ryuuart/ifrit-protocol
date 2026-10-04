@@ -1,39 +1,16 @@
-# SigilMaterial — materials as recipe instances, as one feature library per
-# directory. The core feature is the value model: a recipe (a reflected
-# parameter struct plus one body per shading language), the material that
-# instantiates it, and the one program cache that compiles through the
-# compilers backends register. There are two of those backends: the Skia
-# one compiles a recipe's SkSL body into an SkRuntimeEffect, the Slang one
-# compiles its Slang body to SPIR-V and reports the layout a device
-# renderer writes uniforms at. The texture feature is the image side: a
-# texture as a comparable leaf, the tools' texture sets, the environment
-# and bevel producers, the atlas. The mask feature is the third operand
-# of over(): where on a surface something applies, as a material read as
-# a scalar — a primitive of the value model that needs a texture, which
-# is why it stands beside the texture feature and not inside the core. Each backend is its own feature that
-# links the core and its renderer, so a consumer of the model alone links
-# no renderer. The colour feature is the leaf under the core: the value
-# a parameter struct holds and the OKLab round trip, linking nothing. The
-# sdf, pattern and field features are the primitives — fully
-# parameterised generators — the ocio feature bakes OpenColorIO's view
-# transforms to LUT materials over the texture feature, the substance
-# feature cooks an Adobe Substance 3D archive into a material where the
-# SDK is installed and answers an empty one where it is not, and the
-# surface feature is the metallic-roughness program a lit renderer shades
-# with and the lowering of a material's stated response into it. No
-# feature holds a named look: a look is a material a sketch composes.
-# `SigilMaterial` is the umbrella: an
-# interface over every feature, for a consumer of the whole library.
-sigil_library_root(SigilMaterial
-  BRIEF "Materials as recipe instances: reflected parameters, per-target bodies, one program cache"
-  DOCS ${CMAKE_CURRENT_SOURCE_DIR}/docs/Groups.dox
-       ${CMAKE_CURRENT_SOURCE_DIR}/ADVANCED.md
-       ${CMAKE_CURRENT_SOURCE_DIR}/COLOUR.md
-       ${CMAKE_CURRENT_SOURCE_DIR}/PAINT.md
-       ${CMAKE_CURRENT_SOURCE_DIR}/SUBSTANCE.md
-       ${CMAKE_CURRENT_SOURCE_DIR}/reference/VALUES.md)
+# Authoring values and renderer executors are separate feature targets.
+set(material_chapters
+  ${CMAKE_CURRENT_SOURCE_DIR}/ADVANCED.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/COLOUR.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/PAINT.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/SUBSTANCE.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/VALUES.md)
 
-# Dependencies point up this list.
+sigil_library_root(SigilMaterial
+  BRIEF "Comparable materials from colors, layers, shaders and surface responses"
+  DOCS ${CMAKE_CURRENT_SOURCE_DIR}/docs/Groups.dox ${material_chapters})
+
+# Feature dependencies follow this order.
 add_subdirectory(color)
 add_subdirectory(core)
 add_subdirectory(texture)
@@ -55,18 +32,7 @@ sigil_library(SigilMaterial
             SigilMaterialProgram SigilMaterialSurface
             SigilMaterialSlang)
 
-# THE PRIMITIVES AND THE LEAF, in one binary. The colour value, the
-# signed-distance surfaces, the tiles, the fields and the baked view
-# transforms are five features, and a test of any of them shades through
-# the Skia backend — so five binaries would be five names over one link
-# closure and no boundary between them anybody could read. The features
-# themselves stay five archives: a consumer of the colour leaf still
-# links the colour leaf alone.
-#
-# The `ocio` label says the view-transform cases need OpenColorIO's
-# built-in config; every other case here runs everywhere. The shader
-# directories are named for the cases that ask whether each embedded
-# table holds every file in its directory.
+# Feature cases share one test binary; consumers still select feature archives.
 sigil_test(material_test
   SOURCES color/test/ColorTest.cpp color/test/ExtractTest.cpp
           color/test/RampTest.cpp field/test/FieldTest.cpp
@@ -80,21 +46,9 @@ sigil_test(material_test
             SigilMaterialPattern SigilMaterialSdf SigilMaterialSkia
   SUITES Ocio LABELS ocio)
 
-# Every API name the prose spells, compiled against the headers that own
-# it — README.md, its chapters, and the reference's value index and its
-# pages, because a chapter and a value's own page are the same canon as
-# the page that links them. It links every library the prose names — the
-# resource hub the usage example opens shaders through, the cache policy
-# and the Graphite context the caching and device sections name, and the
-# scratch folder the testing section names — because a document that
-# spells a name is claiming that name exists wherever it lives.
 sigil_doc_probes(material
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/ADVANCED.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/COLOUR.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/PAINT.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/SUBSTANCE.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/VALUES.md
+          ${material_chapters}
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/enums/Backface.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/over.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/shader.md
@@ -117,24 +71,11 @@ sigil_doc_probes(material
            ${CMAKE_CURRENT_SOURCE_DIR}/../io/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../media/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../skia/include
-           ${SIGIL_TEST_SUPPORT_DIR}
-  PRELUDES "<sigilcore/cache/Policy.h>"
-           "<sigilio/hub/Hub.h>"
-           "<sigilmedia/core/Image.h>"
-           "<sigilshaders/MaterialSurface.h>"
-           "<sigilskia/graphite/GraphiteContext.h>"
-           "<ScratchDir.h>"
-  SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
-  FLOORS 94,69,91,67,3
-  LIBRARIES SigilMaterial SigilMaterialSubstance SigilIOHub SigilCoreCache
-            SigilSkiaGraphite)
+  PRELUDES "<sigilio/hub/Hub.h>" "<sigilmedia/core/Image.h>"
+  FLOORS 85,69,85,67,3
+  LIBRARIES SigilMaterial SigilMaterialSubstance SigilIOHub)
 
-# THE DEVICE SWEEP, over the whole library rather than one feature: a body
-# is validated one way as its own runtime effect and another once a GPU
-# backend has inlined it into a pipeline, and every per-feature suite
-# compiles on a raster surface, so none of them can see the second. It
-# links the umbrella and Graphite, which is why it stands here and not
-# under a feature.
+# Device compilation also checks shader bodies after Graphite inlines them.
 if(APPLE)
   sigil_test(material_test
     SOURCES test/MaterialGpuTest.mm

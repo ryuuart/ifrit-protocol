@@ -1,0 +1,14 @@
+half4 main(float2 xy) {
+  float level;
+  if (xy.y < 130.0) level = 1.0;
+  else if (xy.y < 196.0) level = 2.0;
+  else if (xy.y < 230.0) level = 3.0;
+  else level = 4.0 + floor((xy.y - 230.0) / 18.0);
+  float3 band = environmentBand(level);
+  if (xy.x >= band.x + 2.0) return half4(0, 0, 0, 1);
+  float2 uv = float2(fract((xy.x - 1.0) / band.x),
+                    clamp((xy.y - band.z - 1.0) / band.y, 0.0, 1.0));
+  float3 radiance = environmentConvolve(equirectangularDirection(uv),
+                                        level / 8.0, level > 8.5);
+  return half4(half3(radiance), 1);
+}

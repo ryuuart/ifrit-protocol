@@ -20,7 +20,8 @@ namespace sigil::material::skia {
 
 /** A rounded-bevel normal map derived from a path's coverage, placed so
  *  a shader's device xy reads the normal under it. The map covers
- *  @p bounds (device px); pixels outside the shape encode flat (0,0,1).
+ *  @p bounds (device px), including the blurred shoulder outside the path.
+ *  Beyond that shoulder the field approaches a flat (0,0,1) normal.
  *  @p bevelPx is the shoulder width; @p heightScale steepens the bevel
  *  (1 = bevel as deep as wide). */
 Texture bevelNormals(const SkPath& path, SkIRect bounds, float bevelPx,

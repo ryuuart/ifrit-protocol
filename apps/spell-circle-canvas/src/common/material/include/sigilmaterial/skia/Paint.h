@@ -24,7 +24,6 @@
 #include <sigilmaterial/skia/PixelBuffer.h>  // the source buffer() takes
 
 #include <glm/mat3x3.hpp>
-
 #include <memory>
 #include <string>
 #include <utility>
@@ -41,22 +40,26 @@ namespace sigil::material::skia {
  *  @p horizontal and @p vertical say; @p local maps source px into the
  *  node's space (a sprite's atlas sub-rect is a translate and a scale). */
 Paint image(sk_sp<SkImage> image, Repeat horizontal = Repeat::Pad,
-            Repeat vertical = Repeat::Pad, const SkMatrix& local = SkMatrix::I(),
+            Repeat vertical = Repeat::Pad,
+            const SkMatrix& local = SkMatrix::I(),
             SkSamplingOptions sampling = {});
-/** CONTENT THAT CHANGES WITHOUT RE-DESCRIBING: a caller-owned raster the
- *  paint samples — a simulation, a decoded video frame, a paint surface,
- *  a scrollback. Own the PixelBuffer, draw into it, `commit()`. The
- *  recipe compares by (source, revision), so an identical re-describe
- *  between commits PRUNES and the first describe after a commit patches
- *  exactly once. */
-Paint buffer(std::shared_ptr<PixelBuffer> source, Repeat horizontal = Repeat::Pad,
-             Repeat vertical = Repeat::Pad, const SkMatrix& local = SkMatrix::I(),
+/** A caller-owned raster captured as a paint. Own the PixelBuffer, write
+ *  into it, call `commit()`, then construct a fresh `buffer()` paint and
+ *  re-describe its consumer. Paints compare by source and captured revision,
+ *  so fresh paints compare equal between commits and unequal after one.
+ *  A held paint keeps its captured pixels, including while fitted or
+ *  panned; committing the source alone does not update that paint. */
+Paint buffer(std::shared_ptr<PixelBuffer> source,
+             Repeat horizontal = Repeat::Pad, Repeat vertical = Repeat::Pad,
+             const SkMatrix& local = SkMatrix::I(),
              SkSamplingOptions sampling = {});
 /** An SkSL runtime effect as a paint. @p constants set named float
  *  parameters once; `Paint::bind` binds live ones and `Paint::slot`
  *  fills declared `uniform shader` sockets. The body's own reads set the
- *  tier: `uTime` or `uContentScale` is LIVE, `uResolution` alone is the
- *  cheaper GEOMETRY tier.
+ *  tier: `uTime` is LIVE, and `uResolution`, `uContentScale` or
+ *  `uLocalToSample` — the box, the destination's device scale, the
+ *  logical-pixel sampling steps as a float3x3 — is the cheaper GEOMETRY
+ *  tier, built when its consumer draws and again when one of them changes.
  *  @trap A null effect — a failed `MakeForShader` passed straight in —
  *  is a paint of nothing, said once. */
 Paint sksl(sk_sp<SkRuntimeEffect> effect,
@@ -65,7 +68,8 @@ Paint sksl(sk_sp<SkRuntimeEffect> effect,
 Paint paint(sk_sp<SkShader> shader);
 /** A MATERIAL AS ONE PAINT: its base, with each layer blended over the
  *  accumulation, mixed back by its opacity and applied through its mask.
- *  The surface and the effects are not part of a paint. */
+ *  A surface's alpha cutoff removes samples of the completed stack;
+ *  lighting channels and effects are consumed by their own executors. */
 Paint paint(const Material& material);
 /** A PAINT AS A MATERIAL'S BASE — the bridge for a source only this
  *  executor supplies (an image, a caller-owned buffer, a runtime effect)
@@ -82,7 +86,9 @@ Material base(Paint paint);
 sk_sp<SkShader> shader(const Paint& paint);
 /** THE PER-DRAW SHADER: for a live paint, rebuilt from the bound values
  *  and @p frame; for a geometry-dependent one, built against the frame's
- *  box; for a static one, exactly `staticShader(paint)`.
+ *  box. Static paints with sampled device sources resolve against the
+ *  frame's recorder, keeping raster and device shaders separate; other
+ *  static paints return `staticShader(paint)`.
  *  @trap Null for a solid and for nothing — ask `isSolid()` and
  *  `isNone()` first. */
 sk_sp<SkShader> shader(const Paint& paint, const FrameData& frame);

@@ -14,22 +14,23 @@
 
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPoint.h>
-#include <include/core/SkSize.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkShader.h>
+#include <include/core/SkSize.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/advanced/FrameData.h>
 #include <sigilmaterial/advanced/Recipe.h>
+#include <sigilmaterial/color/Color.h>
 
-#include <glm/mat3x3.hpp>
-
+#include <cstddef>
 #include <cstdint>
+#include <glm/mat3x3.hpp>
 #include <memory>
 #include <string_view>
 #include <vector>
 
 namespace sigil::material {
+class Material;
 class Paint;
 }  // namespace sigil::material
 
@@ -46,10 +47,14 @@ struct PaintFrame {
   SkSize rootSize = SkSize::MakeEmpty();
   /** The box's local space to the root. Identity outside a composite. */
   SkMatrix toRoot = SkMatrix::I();
+  /** Logical-node offsets expressed in the paint's sampling coordinates. */
+  SkMatrix localToSample = SkMatrix::I();
   /** Seconds on the consumer's clock; the `uTime` uniform. */
   double seconds = 0.0;
   /** Device pixels per logical pixel; the `uContentScale` uniform. */
   float contentScale = 1.0f;
+  /** Set true where `contentScale` is handed to a program; may be null. */
+  bool* contentScaleRead = nullptr;
   /** The recorder the paint is drawn through; a texture standing on its
    *  device is bound there. Null reads such a texture back. */
   skgpu::graphite::Recorder* recorder = nullptr;
@@ -57,9 +62,69 @@ struct PaintFrame {
 
 /** @p frame in Skia's terms. */
 PaintFrame paintFrameOf(const FrameData& frame);
+FrameData frameDataOf(const PaintFrame& frame);
 
+/** A root-anchored body and its children sample in root coordinates. */
+FrameData rootSamplingFrame(FrameData frame);
+PaintFrame rootSamplingFrame(PaintFrame frame);
+
+/** World-space anchoring, the ONE construction every resolve path
+ *  shares: a root-coordinate shader is sampled through the inverse of the
+ *  node's node-to-root matrix W, so a local drawing coordinate p evaluates
+ *  the field at W·p — the root-frame point the node actually occupies.
+ *  That is what lets two separate nodes sample one continuous field.
+ *
+ *  An identity W — outside a composer, or a root-level node with no
+ *  transform — wraps nothing, because node-local and root-local are then
+ *  the same frame. */
+inline sk_sp<SkShader> anchorToRoot(sk_sp<SkShader> shader,
+                                    const PaintFrame& frame) {
+  if (!shader || frame.toRoot.isIdentity()) return shader;
+  SkMatrix inverse;
+  if (!frame.toRoot.invert(&inverse)) return shader;
+  return shader->makeWithLocalMatrix(inverse);
+}
+
+using UniformType = SkRuntimeEffect::Uniform::Type;
+
+// Skia copies uniform bytes without converting their type. Typed values
+// require the matching non-array declaration; flat float packets may fill
+// any floating declaration, but must supply its whole reflected size.
+inline bool validUniform(const sk_sp<SkRuntimeEffect>& effect,
+                         std::string_view name, UniformType type) {
+  const auto* uniform = effect ? effect->findUniform(name) : nullptr;
+  return uniform && uniform->type == type && !uniform->isArray();
+}
+
+inline bool validFloatPacket(const sk_sp<SkRuntimeEffect>& effect,
+                             std::string_view name, size_t count) {
+  const auto* uniform = effect ? effect->findUniform(name) : nullptr;
+  if (!uniform) return false;
+  switch (uniform->type) {
+    case UniformType::kFloat:
+    case UniformType::kFloat2:
+    case UniformType::kFloat3:
+    case UniformType::kFloat4:
+    case UniformType::kFloat2x2:
+    case UniformType::kFloat3x3:
+    case UniformType::kFloat4x4:
+      return uniform->sizeInBytes() / sizeof(float) == count;
+    case UniformType::kInt:
+    case UniformType::kInt2:
+    case UniformType::kInt3:
+    case UniformType::kInt4:
+      return false;
+  }
+  return false;
+}
 
 namespace detail {
+
+void ensureCompiler();
+
+/** Root-coordinate reads in a material's paint tree, without resolving sources.
+ *  Surface and effect dependencies belong to their executors. */
+bool paintUsesWorldSpace(const Material& material);
 
 /** The unit-square ramp a box-unit linear or radial gradient compiles to: one
  *  SkSL pass that divides by uResolution, so the gradient's coordinates are
@@ -85,19 +150,6 @@ sk_sp<SkShader> childShader(const Paint& source, const PaintFrame* frame);
  *  process down. */
 bool declaresShaderChild(const sk_sp<SkRuntimeEffect>& effect,
                          std::string_view name);
-
-/** Does @p effect declare @p name as a uniform of exactly @p bytes? The
- *  same guardrail one paragraph up, for the other kind of slot: assigning
- *  an undeclared uniform — or one whose declared size is not the caller's,
- *  which is every mismatched float2, float4 and array — aborts a debug
- *  build and drops
- *  the value silently in a release one. Every door that takes a uniform
- *  name from an author validates here at STORE time, so the builder is
- *  never handed an entry it would refuse. An ARRAY validates by its TOTAL
- *  byte size, which is all the builder checks: 12 floats fill
- *  `float4 uRect[3]` and `float uWeights[12]` alike. */
-bool declaresUniform(const sk_sp<SkRuntimeEffect>& effect,
-                     std::string_view name, size_t bytes);
 
 /** THE PASS SPECIALIZATION of @p authored at @p units: a recipe with the
  *  same parameters ABI whose SkSL body is the runtime's declarations —

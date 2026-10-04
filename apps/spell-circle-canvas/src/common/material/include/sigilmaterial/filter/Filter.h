@@ -12,16 +12,17 @@
  * executor (<sigilmaterial/skia/Filter.h>) turns one into an image filter.
  */
 
+#include <sigilmaterial/advanced/UniformBlock.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/BlendMode.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/advanced/UniformBlock.h>
 #include <sigilmaterial/paint/Paint.h>
 #include <sigilmotion/values/Animatable.h>
 
 #include <array>
 #include <glm/vec2.hpp>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <type_traits>
@@ -132,6 +133,26 @@ struct BloomOptions {
   float maximumOpacity = 0.65f;
 };
 
+/** Orthographic refraction in node-local logical pixels. Diffusion and
+ *  surface reflection are separate operations. */
+struct GlassOptions {
+  /** Air-to-glass index. One or less produces no displacement. */
+  float ior = 1.5f;
+  /** Propagation depth along the page's z axis, in logical pixels.
+   *  Zero or less produces no displacement. */
+  float thickness = 12;
+  /** Finite nonnegative ceiling on each sampling-offset component.
+   *  Fixed at construction; set() and bind() cannot change it. */
+  float sampleRadius = 32;
+  /** Opaque RGB encoding (normal + 1) / 2, sampled in node-local pixels.
+   *  Normalized before use, facing the viewer with z >= 0. Absent,
+   *  nonopaque, invalid or back-facing samples cause no displacement.
+   *  Only the material's color stack is sampled. */
+  std::optional<Material> normal;
+  /** Green points down the image when true, up when false. */
+  bool normalDirectX = false;
+};
+
 /** A filter over a rendered layer. The default filter is none: the layer
  *  passes through untouched. */
 class Filter {
@@ -162,6 +183,15 @@ class Filter {
    *  the node moved. */
   static Filter directionalBlur(float sigma, float angleDegrees,
                                 float across = 0);
+  /** Refract the layer this filter is attached to: its color is
+   *  displaced while its incoming alpha at each output pixel is kept. The
+   * scalar names "ior", "thickness" and "normalDirectX" take set() and bind();
+   * the "normal" slot resolves against the current node frame. The sampling
+   * ceiling is immutable. A transparent or invalid shifted lookup retains the
+   * original pixel. Index <= 1, depth <= 0 and radius 0 are identity; nonfinite
+   * index or depth also preserves the original. A negative or nonfinite radius
+   * is reported and returns no filter. */
+  static Filter glass(GlassOptions options = {});
   /** The layer's shadow in @p color beneath it — CSS `drop-shadow()`. */
   static Filter dropShadow(Color color, ShadowOptions options = {});
   /** The layer re-emitted blurred beneath itself in @p color — a drop
@@ -217,13 +247,15 @@ class Filter {
    *  brightness as its own coverage — the first half of a bloom. */
   static Filter brightPass(float threshold = 0.68f, float knee = 0.30f);
   /** FAINT LIGHT LOSES ITS WEAKER CHANNELS FIRST: the straight colour,
-   *  normalised to its peak, is raised to 1 + @p amount × (1 − coverage). */
+   *  normalised to its peak, is raised to 1 + @p amount × (1 − coverage).
+   *  Positive amounts clamp negative RGB to zero while preserving the
+   *  positive peak, including values above one, and alpha. Zero or less
+   *  leaves the input unchanged. */
   static Filter deepen(float amount);
   /** Where the straight colour's peak is above @p threshold, faded in over
    *  @p knee, it moves @p amount of the way toward white at that peak, as
    *  an overexposed core does. */
-  static Filter whiten(float amount, float threshold = 0.2f,
-                       float knee = 0.2f);
+  static Filter whiten(float amount, float threshold = 0.2f, float knee = 0.2f);
   /** @} */
 
   /** THE ROUNDED SPREAD: every edge grown outward by @p pixels, so the
@@ -235,8 +267,8 @@ class Filter {
   /** A PROGRAM OVER THE LAYER: @p program runs with the rendered layer in
    *  its slot named `content`. @p sampleRadius bounds the largest
    *  local-coordinate offset the body samples the layer at.
-   *  @trap The material's bindings are read ONCE, at construction, so
-   *  animate by re-describing or through `bind` on the filter. */
+   *  @trap The material's bindings and frame inputs are captured at
+   *  construction. Re-describe to sample live inputs again. */
   static Filter of(const Material& program);
   static Filter of(const Material& program, float sampleRadius);
   /** An enumeration names a mode, never a distance to sample. */
@@ -254,10 +286,11 @@ class Filter {
    *  @silent the program declares no such slot (warned once). */
   Filter& slot(std::string name, Paint source);
   /** Constant parameters, joining equality, so an equal re-described
-   *  filter prunes. The array form fills a declared array matched by TOTAL
-   *  float count.
-   *  @silent the name is undeclared or its size is not the value's
-   *  (warned once). */
+   *  filter prunes. Typed values require matching non-array float, float2
+   *  or float4 declarations. The flat vector fills a complete floating
+   *  scalar, vector, matrix or array, matched by total float count.
+   *  @silent an absent or incompatible declaration retains its previous
+   *  input (warned once). */
   Filter& set(std::string name, float value);
   Filter& set(std::string name, std::array<float, 2> value);
   Filter& set(std::string name, std::array<float, 4> value);
@@ -265,12 +298,14 @@ class Filter {
   /** A LIVE parameter, read at every paint, so the node repaints every
    *  frame while the filter is attached. A program's float parameters, a
    *  directional blur's "sigma", "angle" and "across", a varying blur's
-   *  "maxSigma".
+   *  "maxSigma". A raw program requires one float, never an array or integer.
    *  @trap A filter holds no instance, so a value carrying its own
    *  TRANSITION has nothing to run it and reads as its target. */
   Filter& bind(std::string name, motion::Animatable<float> value);
-  /** A LIVE ARRAY — a `UniformBlock` the caller owns, writes and
-   *  commit()s, read at every paint. */
+  /** A LIVE FLOATING UNIFORM — a `UniformBlock` the caller owns, writes
+   *  and commit()s, matched by the complete float count like the flat
+   *  constant overload. Each paint reads its last committed values; draft
+   *  edits stay hidden even when another input changes. */
   Filter& bind(std::string name, std::shared_ptr<const UniformBlock> block);
   /** THIS FILTER, THEN @p next over its result. Static chains compose once;
    *  a chain with a live side re-composes at each paint. */

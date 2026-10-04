@@ -90,9 +90,9 @@ std::shared_ptr<const Recipe> define(std::string name, std::string_view source,
   for (const std::string& texture : std::get<4>(key)) recipe.slot(texture);
   // A frame input the parameter struct already declares is the author's
   // own uniform, and declaring it twice would not compile.
-  for (FrameInput input : {FrameInput::Time, FrameInput::Resolution,
-                           FrameInput::ContentScale,
-                           FrameInput::WorldTransform})
+  for (FrameInput input :
+       {FrameInput::Time, FrameInput::Resolution, FrameInput::ContentScale,
+        FrameInput::WorldTransform, FrameInput::LocalToSample})
     if (!parameters.find(uniformName(input)) &&
         spells(text, uniformName(input)))
       recipe.frame(input);
@@ -255,12 +255,11 @@ std::shared_ptr<const Recipe> shaderFileDefinition(
     io::reportProblem(hub, *file.problem);
     // A compile that failed was said by the program cache already.
     if (file.verdict != ReadFile::Verdict::Failed || !text)
-      reportOnce("shader-problem:" + std::string(uri) + ":" +
-                     file.problem->message,
-                 "shader \"" + std::string(uri) + "\": " +
-                     file.problem->message +
-                     (file.compiled ? "; the last program that compiled paints"
-                                    : "; the placeholder paints"));
+      reportOnce(
+          "shader-problem:" + std::string(uri) + ":" + file.problem->message,
+          "shader \"" + std::string(uri) + "\": " + file.problem->message +
+              (file.compiled ? "; the last program that compiled paints"
+                             : "; the placeholder paints"));
   } else {
     io::clearProblem(hub, uri);
   }

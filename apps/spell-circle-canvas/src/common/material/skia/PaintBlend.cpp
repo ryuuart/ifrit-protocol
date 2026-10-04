@@ -10,6 +10,7 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilshaders/MaterialSkia.h>
 
+#include <cstddef>
 #include <functional>
 #include <span>
 #include <utility>
@@ -62,7 +63,8 @@ sk_sp<SkShader> PaintAccess::foldLayers(
     // toward the accumulation — Photoshop layer opacity, not src-alpha
     // thinning (the two differ on every non-porter-duff mode).
     const float amt = layer.m_amount;
-    sk_sp<SkShader> blended = SkShaders::Blend(toSkBlendMode(mode), acc, std::move(src));
+    sk_sp<SkShader> blended =
+        SkShaders::Blend(toSkBlendMode(mode), acc, std::move(src));
     acc = amt >= 1.0f ? std::move(blended)
                       : mixShaders(std::move(acc), std::move(blended), amt);
   }
@@ -76,32 +78,62 @@ namespace sigil::material {
 using skia::PaintAccess;
 
 Paint Paint::blend(std::vector<std::pair<Paint, BlendMode>> layers) {
-  if (layers.empty()) return {};
-  Paint m = PaintAccess::wrap(PaintAccess::foldLayers(
-      layers, [](const Paint& layer) { return PaintAccess::asShader(layer); }));
-  // Keep the layer materials as the comparable recipe (recursive equality) —
-  // a blend containing a live layer compares by that layer's identity, so it
-  // stays conservatively un-pruned, as it must (the snapshot sampled Outputs).
-  auto rec = std::make_shared<Recipe>();
-  rec->kind = Recipe::Kind::Blend;
-  rec->layers = std::move(layers);
-  m.m_recipe = std::move(rec);
-  return m;
+  Paint paint = PaintAccess::unresolvedBlend(std::move(layers));
+  PaintAccess::retainSnapshot(paint);
+  return paint;
 }
 
 }  // namespace sigil::material
 
 namespace sigil::material::skia {
 
-/** THE BLEND FOLD, in one place because it has two callers that must agree:
- *  `paintFrame` non-null is resolve()'s per-frame form, null is asShader()'s
- *  context-free one. Either way the LAYERS are re-read here rather than the
- *  flattened snapshot blend() built, which is the whole point — a live layer
- *  contributes its current value per call. */
-sk_sp<SkShader> PaintAccess::foldBlend(const Paint& self, const PaintFrame* paintFrame) {
-  return foldLayers(self.m_recipe->layers, [paintFrame](const Paint& layer) {
-    return detail::childShader(layer, paintFrame);
-  });
+Paint PaintAccess::unresolvedBlend(
+    std::vector<std::pair<Paint, BlendMode>> layers) {
+  if (layers.empty()) return {};
+  // Keep the layer materials as the comparable recipe (recursive equality) —
+  // a blend containing a live layer compares by that layer's identity, so it
+  // stays conservatively un-pruned, as it must (the snapshot sampled Outputs).
+  auto recipe = std::make_shared<Paint::Recipe>();
+  recipe->kind = Paint::Recipe::Kind::Blend;
+  recipe->layers = std::move(layers);
+  recipe->solidLayers.reserve(recipe->layers.size());
+  for (const auto& [layer, mode] : recipe->layers)
+    recipe->solidLayers.push_back(layer.isSolid() ? asShader(layer) : nullptr);
+  Paint paint;
+  paint.m_recipe = std::move(recipe);
+  return paint;
+}
+
+/** Resolve every child before testing the framed memo, so live values and
+ *  geometry changes remain visible. The retained child references prevent
+ *  shader address reuse from making a changed source match an old fold. */
+sk_sp<SkShader> PaintAccess::foldBlend(const Paint& self,
+                                       const PaintFrame* paintFrame) {
+  const auto& recipe = *self.m_recipe;
+  if (!paintFrame)
+    return foldLayers(recipe.layers, [](const Paint& layer) {
+      return detail::childShader(layer, nullptr);
+    });
+
+  Paint::Recipe::BlendInputs inputs;
+  const PaintFrame childFrame =
+      self.m_worldSpace ? rootSamplingFrame(*paintFrame) : *paintFrame;
+  inputs.shaders.reserve(recipe.layers.size());
+  for (size_t i = 0; i < recipe.layers.size(); ++i)
+    inputs.shaders.push_back(
+        recipe.solidLayers[i]
+            ? recipe.solidLayers[i]
+            : detail::childShader(recipe.layers[i].first, &childFrame));
+  inputs.worldSpace = self.m_worldSpace;
+  if (inputs.worldSpace) inputs.toRoot = paintFrame->toRoot;
+  if (auto held = recipe.blendMemo.hit(inputs)) return held;
+
+  size_t next = 0;
+  auto built = foldLayers(recipe.layers,
+                          [&](const Paint&) { return inputs.shaders[next++]; });
+  if (inputs.worldSpace) built = anchorToRoot(std::move(built), *paintFrame);
+  recipe.blendMemo.store(std::move(inputs), built);
+  return built;
 }
 
 }  // namespace sigil::material::skia

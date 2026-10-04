@@ -7,12 +7,14 @@
  */
 
 #include "PaintDetail.h"
-#include "PaintInternal.h"
 
 #include <include/core/SkShader.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
+#if defined(SK_GRAPHITE)
+#include <src/gpu/graphite/RecorderPriv.h>
+#endif
 
 #include <algorithm>
 #include <memory>
@@ -21,7 +23,29 @@
 #include <string_view>
 #include <vector>
 
+#include "PaintInternal.h"
+
 namespace sigil::material::skia {
+
+uint32_t PaintAccess::recorderId(skgpu::graphite::Recorder* recorder) {
+#if defined(SK_GRAPHITE)
+  return recorder ? recorder->priv().uniqueID() : 0;
+#else
+  (void)recorder;
+  return 0;
+#endif
+}
+
+bool PaintAccess::usesRecorder(const Paint& paint) {
+  if (paint.m_backed) return sampledSources(*paint.m_backed)->usesRecorder;
+  if (paint.m_live)
+    for (const auto& [name, child] : paint.m_live->slots)
+      if (usesRecorder(child)) return true;
+  if (paint.m_recipe && paint.m_recipe->kind == Paint::Recipe::Kind::Blend)
+    for (const auto& [child, mode] : paint.m_recipe->layers)
+      if (usesRecorder(child)) return true;
+  return false;
+}
 
 namespace detail {
 
@@ -34,16 +58,6 @@ bool declaresShaderChild(const sk_sp<SkRuntimeEffect>& effect,
   if (!effect) return false;
   const SkRuntimeEffect::Child* c = effect->findChild(name);
   return c && c->type == SkRuntimeEffect::ChildType::kShader;
-}
-
-// The uniform half of the same guardrail, shared with Effect::shader and
-// Effect::uniform so the two doors that take an author's uniform name cannot
-// disagree about what the effect will accept.
-bool declaresUniform(const sk_sp<SkRuntimeEffect>& effect,
-                     std::string_view name, size_t bytes) {
-  if (!effect) return false;
-  const SkRuntimeEffect::Uniform* u = effect->findUniform(name);
-  return u && u->sizeInBytes() == bytes;
 }
 
 bool isPassBody(const sigil::material::Recipe& recipe) {
@@ -110,8 +124,10 @@ sk_sp<SkShader> childShader(const Paint& source, const PaintFrame* paintFrame) {
   if (!paintFrame)
     return PaintAccess::asShader(source);  // turns a solid into a colour shader
   if (source.isNone()) return nullptr;
-  if (source.isSolid())
+  if (source.isSolid()) {
+    if (const auto& held = PaintAccess::snapshot(source)) return held;
     return SkShaders::Color(toSkColor(source.solidColor()), nullptr);
+  }
   return PaintAccess::shaderFor(source, *paintFrame);
 }
 

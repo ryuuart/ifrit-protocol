@@ -23,8 +23,8 @@ against. `Filter` takes the same two verbs.
   how a material animates.
 
 Additionally `uTime` (float seconds), `uResolution` (float2 px) and
-`uContentScale` (float) are auto-injected each frame IF the effect
-declares them, at the matching size.
+`uContentScale` (float) are supplied by the frame IF the effect
+declares them, at the matching size. Only `uTime` makes the paint live.
 
 **The shapes.** A float2 uniform takes offsets, margins and direction
 vectors. A float4 takes a colour — straight, not premultiplied, which is
@@ -38,11 +38,12 @@ all the builder distinguishes. The whole array must be supplied — the
 builder refuses a partial write, so a count that is not the
 declaration's warns once and is ignored.
 
-**A live array** is a `UniformBlock` the caller owns, writes and
-commits, read at every paint. It makes the paint live exactly as a bound
-scalar does: re-resolved per frame, its node declared volatile, no cache
-able to freeze the table — and the resolve memo reads the block's
-REVISION, so an uncommitted frame reuses the built shader. The binding
+**A live array** is a `UniformBlock` the caller owns. Its initial published
+values are zero; `values()` exposes a draft and `commit()` publishes the
+whole array. Paints read `committedValues()`, so scalar, clock or geometry
+changes cannot expose draft edits. The bound paint is live and the resolve
+memo tracks the block's revision; committing requires no re-description.
+The binding
 compares by block identity and the values never prune; hold the block
 beside your model, not in the describe. It is size-checked at store
 against the declared array's total float count.

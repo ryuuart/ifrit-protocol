@@ -5,10 +5,10 @@
  */
 
 #include <gtest/gtest.h>
-#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/advanced/FrameData.h>
-#include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/advanced/Recipe.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Target.h>
 
 #include <memory>
@@ -69,6 +69,28 @@ TEST(Recipe, LayoutAppendsFrameInputsAndDeclarationsListChildren) {
   EXPECT_EQ(r.source(Target::SkSL),
             r.declarations(Target::SkSL) +
                 "half4 main(float2 p) { return half4(1); }");
+}
+
+TEST(Recipe, PixelSamplingTransformAppendsAColumnMajorMatrix) {
+  Recipe recipe = Recipe::of<TwoParameters>("recipe.pixel-sampling");
+  recipe.frame(FrameInput::LocalToSample)
+      .frame(FrameInput::WorldTransform)
+      .frame(FrameInput::Time);
+  ASSERT_EQ(recipe.layout().fields.size(), 5u);
+  EXPECT_EQ(recipe.layout().fields[2].name, "uTime");
+  EXPECT_EQ(recipe.layout().fields[3].name, "uWorld");
+  const Field& sampling = recipe.layout().fields[4];
+  EXPECT_EQ(sampling.name, "uLocalToSample");
+  EXPECT_EQ(sampling.kind, ParameterType::Mat3);
+  EXPECT_EQ(sampling.floats, 9u);
+  EXPECT_EQ(sampling.offset, 60u);
+  EXPECT_EQ(recipe.layout().byteSize, 96u);
+  EXPECT_EQ(uniformName(FrameInput::LocalToSample), "uLocalToSample");
+  EXPECT_NE(recipe.declarations(Target::SkSL)
+                .find("uniform float3x3 uLocalToSample;"),
+            std::string::npos);
+  EXPECT_NE(recipe.declarations(Target::Slang).find("float3x3 uLocalToSample;"),
+            std::string::npos);
 }
 
 TEST(Recipe, ASlotOneTargetsBodyNeverSamplesIsNotDeclaredToIt) {

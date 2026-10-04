@@ -206,25 +206,48 @@ the default variant is the plain build.
 **Bindings are live, and equality is by identity.** `bind(name, animatable)`
 makes a float field read a `motion::Animatable<float>`'s current value at
 every resolve;
-`bind(name, shared_ptr<UniformBlock>)` does the same for an array field
-and a caller-owned table. A bound material `isRunning()`;
+`bind(name, shared_ptr<UniformBlock>)` reads the committed values of a
+caller-owned array. A block binding makes the material `isRunning()`;
 `isBound(name)` is the other question — whether a field carries a binding
 at all, a live value or a number or a block, rather than only the bytes
 `set()` last wrote. Two materials
 bound to the same live value or block compare equal; bound to different ones,
 unequal; the values behind them never enter the comparison. A `UniformBlock`
-carries a revision (`commit()` advances it) so a caller can tell an edited
-frame from an untouched one, and its values are read live whether or not
-they were committed.
+starts with published zeros. `values()` exposes the editable draft;
+`commit()` copies the whole draft into the published array and advances its
+revision. Renderers read `committedValues()`, including when another binding
+or frame input changes. A commit reaches the bound material without
+re-description; the block's size is fixed for its lifetime.
+
+**Resolved uploads own their bytes.** `Material::resolve()` returns a
+`Material::Resolved` whose byte span stays unchanged while that result or
+a copy is held. Keep the result through the renderer's upload; retaining
+only its span does not retain the bytes. Equal sampled inputs share the
+same upload. The cache retains two reusable byte buffers and reuses a
+buffer only after its readers release it. Results still held by callers
+can retain additional buffers.
+
+Resolution of an unchanged material and its copies is synchronized,
+including shared recipe children. Sampling and publication finish before
+a renderer uploads or recursively lowers a child. Authoring edits and
+writes to live values or uniform blocks require external synchronization.
 
 **Frame inputs are declared, then injected.** `Recipe::frame(FrameInput)`
-declares that the body reads `uTime`, `uResolution`, `uContentScale` or
-`uWorld`; the declaration adds the uniform after the parameters and
-`resolve()` fills it from the `FrameData`. Time and content scale make a
-material `isRunning()`; resolution and the world transform make it
-`geometryDependent()`. `quantizeTime(rate)` snaps the time a material sees
-to a step, so a material that need not move every frame resolves only
+declares that the body reads `uTime`, `uResolution`, `uContentScale`,
+`uWorld` or `uLocalToSample`; the declaration adds the uniform after the
+parameters and `resolve()` fills it from the `FrameData`. Time makes a
+material `isRunning()`; resolution, content scale, the world transform and
+the sampling transform make it `geometryDependent()`. `quantizeTime(rate)` snaps the
+time a material sees to a step, so a material that need not move every frame resolves only
 when the snapped clock advances.
+
+`FrameData::localToSample` maps logical node offsets into the material's
+current sampling coordinates. Its default is identity. Recipes reading
+`FrameInput::LocalToSample` receive `float3x3 uLocalToSample`; pixel offsets
+use homogeneous `w=0`, so translation does not change their length or
+direction.
+This affine differential supplies logical-pixel sample steps independently
+from the node-to-root placement and from encoded normal-map slopes.
 
 **Slots ride everything.** A recipe declares slots (`slot("uSrc")`,
 exposed to SkSL as `uniform shader uSrc`); a material fills them with other
@@ -268,7 +291,8 @@ into a pipeline the driver silently rejects.
 **A leaf is a child no recipe computes.** `Leaf` is the core's seam for
 an image with its sampling, a rendered frame, anything a backend binds
 into a slot directly: it compares by value (same dynamic type, then the
-type's own equality) and says whether it moves between frames.
+type's own equality) and reports time and geometry dependencies separately
+through `animated()` and `geometryDependent()`.
 `Texture` is the leaf every renderer binds: the Skia executor as the
 image shader `skia::shader(texture, frame)` builds, a device renderer as
 a texture. `skia::ShaderLeaf` is the Skia-facing refinement for

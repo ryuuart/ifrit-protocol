@@ -359,10 +359,11 @@ declarations to fill — and an undeclared name, or one whose declared
 size is not the value's, warns once and is IGNORED. Constants
 participate in equality, so a re-described equal effect prunes.
 
-A LIVE ARRAY is a `UniformBlock` the caller owns, writes and commits,
-read at every paint. It declares volatility exactly as a bound scalar
-does: the node paints live while the effect is attached, and no cache
-can freeze the table. The binding compares by block identity; the values
+A LIVE ARRAY is a `UniformBlock` the caller owns. Its published array starts
+at zero. Edit the draft through `values()`, then call `commit()` to publish
+the whole array without re-description. Each paint reads `committedValues()`;
+changing scalar bindings or frame inputs cannot expose draft edits. A block
+binding makes the effect live. The binding compares by block identity; the values
 belong to the system and never prune. It is size-checked at store time
 against the declared array's total float count, because the builder
 refuses a partial array write.

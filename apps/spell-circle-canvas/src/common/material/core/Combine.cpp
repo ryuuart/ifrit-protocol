@@ -189,7 +189,7 @@ std::shared_ptr<const Recipe> composeRecipe(Blend blend,
       recipe.slot(std::string(kOperands[i].prefix) + slot);
     for (FrameInput input :
          {FrameInput::Time, FrameInput::Resolution, FrameInput::ContentScale,
-          FrameInput::WorldTransform})
+          FrameInput::WorldTransform, FrameInput::LocalToSample})
       if (operands[i]->reads(input)) recipe.frame(input);
   }
   recipe.body(Target::SkSL, std::string(shaderSource(skslFile(blend))));

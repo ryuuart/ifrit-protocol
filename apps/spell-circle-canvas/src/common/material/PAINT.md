@@ -1,19 +1,11 @@
 # SigilMaterial — the Skia paint
 
-The chapter on what a `Material` becomes on a Skia canvas, and on
-`Filter`. Tier 1 is the material: a base, `layer()`s, a `surface()` and
-`effects()`, written as `README.md` shows, and every Compose, Draw and
-World verb takes it. What follows is TIER 3 — the executor: `Paint`, the
-lowering `material::skia::paint(material)` folds a material's base and
-layers into (each layer blended over the accumulation, mixed back by its
-opacity, through its mask where it has one), and `material::skia::base`,
-the bridge a paint takes back into the model; the three volatility tiers
-a paint declares by what it reads; the gradients and their box units;
-the buffer a caller writes into; and the post-processing recipe over a
-layer that is already rendered, which is also a material's effects stage
-(`Filter::shadow`, `Filter::stroke` and `Filter::bevel` are the steps
-that read a layer's coverage rather than its pixels). `README.md` beside
-this file is the library; `COLOUR.md` is the colour leaf underneath it.
+This chapter covers direct Skia drawing and filter execution. Most callers
+build a `Material` and pass it to their host. A renderer uses
+`material::skia::paint` to lower its base and layers into a `Paint`, or
+`material::skia::base` to wrap a paint as a material. `Filter` operates on
+rendered coverage or pixels. The remaining sections describe their frame,
+equality and cache contracts.
 
 ## The Skia paint
 
@@ -31,23 +23,32 @@ READS.** Three tiers, and nothing chooses between them by hand:
   effect with only constant uniforms. It resolves eagerly, so
   `isSolid()`/`solidColor()` or `staticShader()` answer with no frame at
   all and a consumer caches and prunes it like any other value.
-- GEOMETRY — an effect declaring `uResolution`, a `worldSpace()` flag, or
-  an image or buffer carrying a `fit()`. It depends on the box, not on the
+- GEOMETRY — an effect declaring `uResolution`, `uWorld`,
+  `uLocalToSample` or `uContentScale`, a `worldSpace()` flag, or an image
+  or buffer carrying a `fit()`. It depends on the box and the destination's scale, not on the
   clock: `geometryDependent()` is true, and `shaderFor(frame)` answers
-  against the box the frame names.
+  against the box and the scale the frame names.
 - LIVE — an effect with a uniform bound to a live value, or one reading
-  `uTime` or `uContentScale`. `isRunning()` is true and the paint is
+  `uTime`. `isRunning()` is true and the paint is
   rebuilt every draw; a live CHILD or blend layer makes its parent live,
   which is what stops a cache from freezing the parameter.
 
 **A TABLE AND A SECOND SOURCE ARE BOTH DOORS ON `sksl`.**
 `slot(name, Paint)` fills a `uniform shader NAME` slot with another whole
 paint — an index texture, a mask, a noise field, a second gradient — and
-`uniform(name, std::vector<float>)` fills a declared array, matched
-against its TOTAL float count, so 1024 floats fill `float4 uPal[256]` and
-a count that is not the declaration's is refused whole rather than
-written partly. `uniform(name, shared_ptr<const UniformBlock>)` is the
-live form of the same array, re-read every paint. Together they are what
+`set(name, std::vector<float>)` fills a complete floating declaration,
+matched against its TOTAL float count, so 1024 floats fill
+`float4 uPal[256]` and a count that is not the declaration's is refused whole
+rather than written partly. `bind(name, shared_ptr<const UniformBlock>)`
+reads the uniform's published values at each paint. Both flat uploads also support
+floating scalars, vectors and matrices; integer declarations are refused.
+Typed scalar, float2 and float4 setters require the matching non-array
+declaration. The last accepted constant replaces earlier typed or packet
+constants with the same name; live bindings still override constants.
+A rejected upload retains the previous input. The block
+starts with published zeros; `values()` edits a draft and `commit()`
+publishes the whole array without re-description. Scalar, clock and
+geometry changes retain the last committed array. Together they are what
 a FIXED PALETTE needs: the picture is one channel of indices and the
 table is one uniform array, or — when the lookup is dynamic, which is the
 usual case, since the index is a pixel value — one 256 x 1 image
@@ -56,18 +57,42 @@ baked per palette. A slot rides the volatility tier and the prune
 signature: a live source makes the parent live, and two paints with
 different sources never compare equal.
 
-**A LIT SURFACE IS ONE MORE `sksl` PAINT OVER THE COLOURS.**
-`material::skia::lit(material, lighting)` lowers the colour stack once, as
-`paint(material)` does, and hands it to a lighting pass as its `uColor`
-slot beside the normal, roughness, metallic, occlusion and emission maps
-the surface states; the light's direction, elevation and strength and the
-environment's rotation are uniforms BOUND to their animatables. So the
-pass is LIVE exactly while the light moves, and each rebuild re-uses the
-colours' own static snapshot: the stack beneath is never lowered or
-sampled again for a moved light. With no lighting, or a surface stated
-`unlit`, the answer is the colour stack itself.
-`material::skia::lightingFor` is the rule a surface's own `lighting`
-stands over the scene's by.
+**Lit surfaces shade a material's colour stack.**
+`material::skia::lit(material, lighting)` combines that stack with its normal,
+roughness, metallic, occlusion and emission maps. Live light bindings and
+surface channels resolve when drawn. With no lighting, or a surface stated
+`unlit`, the result is the colour stack. `material::skia::lightingFor` selects
+the surface's own lighting when stated, otherwise the inherited lighting.
+Direct contributions and ambient shares add; environment, emission and
+coating attenuation run once per pixel. Shader variants use the exact source
+kinds and count, with bounded reuse and no fixed light-count ceiling.
+
+Retain `material::skia::LitSurface` while the material stays the same. Copies
+share its prepared inputs and most recent lighting setup. Construction
+retains sources without reading pixels; each draw resolves live inputs and
+binds sources to its destination. Changing a light reuses preparation, but
+the resulting shader still evaluates its inputs at each painted pixel.
+`material::skia::LitSurface::under` returns an ordinary paint with a frameless
+snapshot, including source reads. A different material needs a different
+prepared surface. The current environment's lowered image is retained
+independently; rotation, intensity and size reuse that source, while a
+different image replaces it.
+For a unit-mapped input, `material::skia::LitSurface::shader` takes the
+node's frame and a unit-square-to-node matrix. It maps color and surface
+channels independently from lighting: positioned sources use the actual
+node coordinates, normal slopes follow the node's placement, and
+root-anchored inputs stay in root coordinates. Copies share the prepared
+inputs; the resulting shader samples node coordinates for this draw.
+Height-derived normals take logical-pixel steps through the mapping;
+encoded normals keep their slopes. Projective mappings flatten derived
+height relief because a constant sampling metric cannot describe them.
+Framed draws retain one raster and one device atlas for the resolved environment,
+its extent and recorder. Roughness selects and interpolates spherical reflection lobes;
+coating uses its own lobe, and ambient light uses a cosine-weighted hemisphere.
+Changing rotation or intensity reuses the atlas. A changed source, extent or
+recorder replaces the affected atlas. Framed draws blend the two prepared
+bands nearest a pixel's roughness; frameless snapshots convolve the
+environment at the exact roughness instead, without preparing a raster atlas.
 
 **A TEXTURE STANDING ON A DEVICE is bound where it stands** when the frame
 a paint resolves against names the recorder drawing it
@@ -97,6 +122,25 @@ root's size, the box→root matrix, the clock and the device scale. A
 against the root and every flagged box samples it where it actually sits,
 through its own transform — and with an identity matrix it degrades to
 box-local rather than answering wrongly.
+The same flag on a `Material` survives paint lowering, including a layer stack;
+its root resolution is the canvas extent. A flagged child in a local material
+keeps its root placement. `skia::usesWorldSpace` inspects these dependencies
+without fetching image sources.
+
+A raw `sksl` effect can declare `uniform float4x4 uWorld` to read the
+node-local → root transform while keeping its input coordinates node-local.
+The frame injects a column-major homogeneous matrix; multiply it by
+`float4(p, 0, 1)` to obtain the root position. It is geometry-dependent and
+placement-sensitive, and unchanged placement reuses the shader. This does not
+set `worldSpace()` or anchor the shader a second time. Recipe-backed materials
+receive their declared `float3x3 uWorld` from the same frame transform.
+
+An explicit `set("uWorld", std::vector<float>{…})` with sixteen column-major
+floats, or a sixteen-float `UniformBlock` binding, owns the raw matrix and
+disables frame injection. A block reads only committed values. Other raw
+`uWorld` types and arrays are not automatically injected. No transform enters
+the raw shader's resolve key when the matrix is caller-supplied, unless the
+paint separately requests `worldSpace()` anchoring.
 
 **Equality is the RECIPE, and it is load-bearing.** Two paints built from
 the same values compare equal though each minted a fresh `SkShader`,

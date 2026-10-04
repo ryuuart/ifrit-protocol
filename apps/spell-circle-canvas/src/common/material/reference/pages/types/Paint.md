@@ -31,8 +31,8 @@ what it is made of rather than declared:
 | Tier | What puts it there | What it costs |
 | --- | --- | --- |
 | static | a solid, a gradient ramp, an image or sprite, a blend of static layers, an SkSL effect with only constant uniforms | resolves once; answers its colour or its shader with no frame, so a consumer caches and prunes it like any other value |
-| geometry | an effect declaring only `uResolution`, a stated `Paint::fit`, `Paint::worldSpace` | resolves when the node RECORDS and caches between layouts — it depends on the box, not on the clock |
-| live | a bound uniform, an effect reading `uTime` or `uContentScale`, a live child | re-resolved every frame; its node is declared volatile and no cache can freeze it |
+| geometry | an effect declaring `uResolution` or `uContentScale`, a stated `Paint::fit`, `Paint::worldSpace` | resolves when the node RECORDS and caches between layouts and while the destination's scale holds — it depends on the box and that scale, not on the clock |
+| live | a bound uniform, an effect reading `uTime`, a live child | re-resolved every frame; its node is declared volatile and no cache can freeze it |
 
 `Paint::isRunning` and `Paint::geometryDependent` are how the tier is
 asked, and a blend or a slot INHERITS the tier of what it holds.
@@ -148,15 +148,16 @@ alternative — a custom leaf at no caching — gives up both.
 **`skia::sksl` decides its own tier by what the body reads.**
 `constants` set named float uniforms once; bind live ones with
 `Paint::bind` and fill declared `uniform shader` slots with
-`Paint::slot`. Declaring `uTime` or `uContentScale` takes the LIVE path,
-re-resolved each frame — the clock ticks and the host's zoom changes
-independently of the node, so reading them IS the volatility
-declaration. Declaring only `uResolution` takes the cheaper GEOMETRY
-tier, resolved when the node records and cached between layouts.
+`Paint::slot`. Declaring `uTime` takes the LIVE path,
+re-resolved each frame — the clock ticks
+independently of the node, so reading it IS the volatility
+declaration. Declaring `uResolution` or `uContentScale` takes the cheaper
+GEOMETRY tier, resolved when the node records and cached between layouts
+while the destination's scale holds.
 
 **`Paint::recipe` is a `Material` instance as the paint.** The recipe's
 declared frame inputs set the tier exactly as an SkSL effect's uniforms
-do — time or content scale is LIVE, the resolution is GEOMETRY — and
+do — time is LIVE, the resolution and the content scale are GEOMETRY — and
 its bindings make it live. `Paint::set`, `Paint::bind` and `Paint::slot` reach the
 instance's fields and slots; equality is the instance's, so two paints
 built from equal instances prune. `Paint::recipeMaterial` hands the
