@@ -2,8 +2,9 @@ float4 surface(float2 uv) {
   float4 c = baseColor * baseColorMap.Sample(uv);
   float occ = occlusion(chanS(occlusionMap.Sample(uv), occlusionChannel),
                         occlusionStrength);
-  float3 rgb = c.rgb * occ + emission(emissive.rgb, emissiveStrength,
-                                      emissiveMap.Sample(uv).rgb);
+  float3 rgb = c.rgb * occ;
+  gSurfaceEmission = emission(emissive.rgb, emissiveStrength,
+                              emissiveMap.Sample(uv).rgb);
   float a = cutS(c.a * chanS(opacityMap.Sample(uv), opacityChannel));
 
   float4 rm = roughnessMap.Sample(uv);

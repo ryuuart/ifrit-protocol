@@ -176,8 +176,11 @@ A Slang body may also say what a colour cannot carry. A renderer that
 shades declares four variables the body MAY write —
 `gSurfaceNormal` (tangent space), `gSurfaceGloss` (a Blinn exponent),
 `gSurfaceMetal`, and `gSurfacePerPixel` to say it wrote any of them —
-and evaluates its shading again where those can be seen. A body that
-writes none of them costs nothing and changes nothing. It is an
+and evaluates its shading again where those can be seen. A fifth,
+`gSurfaceEmission`, is the light the pixel gives off of its own; the
+renderer lays it over the finished colour, past its lighting and the
+base-colour map, which is where the stock surface body puts its emission.
+A body that writes none of them costs nothing and changes nothing. It is an
 OPTIONAL half of the contract: a body that says only a colour is a
 complete body, and the four exist because a MAP that varies a surface
 across a face is a per-pixel answer no per-vertex shading can carry. A

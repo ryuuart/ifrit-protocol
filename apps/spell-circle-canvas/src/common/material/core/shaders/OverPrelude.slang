@@ -3,6 +3,7 @@ struct OverTerms {
   float gloss;
   float metal;
   bool perPixel;
+  float3 emission;
 };
 
 /** The per-pixel variables back at what "said nothing" means, so each
@@ -13,6 +14,7 @@ void overClear() {
   gSurfaceGloss = -1.0;
   gSurfaceMetal = 0.0;
   gSurfacePerPixel = false;
+  gSurfaceEmission = float3(0.0, 0.0, 0.0);
 }
 
 OverTerms overTaken() {
@@ -21,6 +23,7 @@ OverTerms overTaken() {
   out.gloss = gSurfaceGloss;
   out.metal = gSurfaceMetal;
   out.perPixel = gSurfacePerPixel;
+  out.emission = gSurfaceEmission;
   return out;
 }
 
@@ -43,6 +46,9 @@ float4 overMixed(float4 a, float4 b, float t) { return a + (b - a) * t; }
  *  their colours, so a top wearing a normal map bumps the surface only
  *  where the mask lets the top show. */
 void overSay(OverTerms a, OverTerms b, float t) {
+  // What each operand gives off of its own mixes by the same coverage; a
+  // composition that combines colours otherwise says so after this.
+  gSurfaceEmission = a.emission + (b.emission - a.emission) * t;
   if (!a.perPixel && !b.perPixel) return;
   gSurfaceNormal = normalizeP(a.normal + (b.normal - a.normal) * t);
   gSurfaceGloss = overGloss(a.gloss, b.gloss, t);

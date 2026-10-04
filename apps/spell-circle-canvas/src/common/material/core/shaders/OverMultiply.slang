@@ -10,5 +10,6 @@ float4 surface(float2 uv) {
   overClear();
   float cov = min(max(k.r * amount, 0.0), 1.0);
   overSay(under, upper, cov);
+  gSurfaceEmission = under.emission * (1.0 + (t.rgb - 1.0) * cov);
   return overMixed(b, b * t, cov);
 }

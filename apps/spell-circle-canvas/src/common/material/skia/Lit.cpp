@@ -3,7 +3,9 @@
  * flat, and the lighting pass over it — a runtime effect whose children
  * are that stack and the surface's maps, and whose uniforms are the
  * surface's numbers and the lighting's, the moving ones bound so the
- * pass re-resolves on its own while its children stay put.
+ * pass re-resolves on its own while its children stay put. The same
+ * children read back unshaded, one surface map per pass, are what a
+ * renderer bringing its own lights is dressed with.
  */
 
 #include "sigilmaterial/skia/Lit.h"
@@ -155,6 +157,40 @@ sk_sp<SkRuntimeEffect> litEffect(const Lighting& lighting) {
   return effect;
 }
 
+/** The one program every surface map is read through; its role is a
+ *  uniform, so a surface's six maps share one compiled effect. */
+const sk_sp<SkRuntimeEffect>& surfaceMapEffect() {
+  static const sk_sp<SkRuntimeEffect> effect = [] {
+    auto [built, error] = SkRuntimeEffect::MakeForShader(
+        SkString(std::string(shaderSource("SurfaceMap.sksl")).c_str()));
+    if (!built)
+      SkDebugf("sigilmaterial surface map shader: %s\n", error.c_str());
+    return built;
+  }();
+  return effect;
+}
+
+/** The position of @p role among the maps a surface map pass answers, or
+ *  none for a role it does not. */
+std::optional<size_t> surfaceMapIndex(texture::Role role) {
+  switch (role) {
+    case texture::Role::BaseColor:
+      return 0;
+    case texture::Role::Normal:
+      return 1;
+    case texture::Role::Roughness:
+      return 2;
+    case texture::Role::Metallic:
+      return 3;
+    case texture::Role::Occlusion:
+      return 4;
+    case texture::Role::Emissive:
+      return 5;
+    default:
+      return std::nullopt;
+  }
+}
+
 /** A channel into the pass: its map in the slot and a factor of one, or
  *  its number with no map. */
 void channel(Paint& pass, const Channel& value,
@@ -208,6 +244,8 @@ struct LitSurface::PassCache {
   std::mutex passMutex;
   std::optional<Lighting> lighting;
   Paint pass;
+  /** One unshaded pass per surface map role, made on first request. */
+  std::array<std::optional<Paint>, 6> maps;
 
   Paint lower(const Material& image) {
     const std::lock_guard lock(environmentMutex);
@@ -285,6 +323,23 @@ Paint LitSurface::under(const Lighting& lighting) const {
 sk_sp<SkShader> LitSurface::shader(const Lighting& lighting,
                                    const FrameData& nodeFrame,
                                    const glm::mat3& paintToLocal) const {
+  if (!isLit(m_inputs->material) || !lighting)
+    return placed(nullptr, nodeFrame, paintToLocal);
+  const Paint pass = lightingPass(lighting);
+  return placed(&pass, nodeFrame, paintToLocal);
+}
+
+sk_sp<SkShader> LitSurface::mapShader(texture::Role role,
+                                      const FrameData& nodeFrame,
+                                      const glm::mat3& paintToLocal) const {
+  const Paint pass = mapPass(role);
+  if (pass.isNone()) return nullptr;
+  return placed(&pass, nodeFrame, paintToLocal);
+}
+
+sk_sp<SkShader> LitSurface::placed(const Paint* pass,
+                                   const FrameData& nodeFrame,
+                                   const glm::mat3& paintToLocal) const {
   const SkMatrix mapping = toSkMatrix(paintToLocal);
   SkMatrix inverse;
   if (!mapping.isFinite() || !mapping.invert(&inverse)) return nullptr;
@@ -306,9 +361,7 @@ sk_sp<SkShader> LitSurface::shader(const Lighting& lighting,
     if (!result || input.isSolid()) return result;
     return result->makeWithLocalMatrix(mapping);
   };
-  if (!isLit(m_inputs->material) || !lighting) return mapped(m_inputs->colours);
-  Paint pass = lightingPass(lighting);
-  if (pass.isNone()) return mapped(m_inputs->colours);
+  if (!pass || pass->isNone()) return mapped(m_inputs->colours);
   std::array<PaintAccess::ChildOverride, 6> children;
   size_t count = 0;
   const auto input = [&](const char* name, const Paint& lowered) {
@@ -321,8 +374,84 @@ sk_sp<SkShader> LitSurface::shader(const Lighting& lighting,
   if (m_inputs->occlusion) input("uOcclusionMap", *m_inputs->occlusion);
   if (m_inputs->emission) input("uEmissionMap", *m_inputs->emission);
   const PaintFrame frame = paintFrameOf(nodeFrame);
-  return PaintAccess::build(*PaintAccess::live(pass), &frame, false,
+  return PaintAccess::build(*PaintAccess::live(*pass), &frame, false,
                             std::span(children).first(count));
+}
+
+Color surfaceMapGround(texture::Role role) {
+  switch (role) {
+    case texture::Role::Normal:
+      return {0.5f, 0.5f, 1, 1};
+    case texture::Role::Roughness:
+    case texture::Role::Occlusion:
+      return {1, 1, 1, 1};
+    case texture::Role::Metallic:
+    case texture::Role::Emissive:
+      return {0, 0, 0, 1};
+    default:
+      return {0, 0, 0, 0};
+  }
+}
+
+bool isSurfaceMapRole(texture::Role role) {
+  return surfaceMapIndex(role).has_value();
+}
+
+Paint asMap(const Material& material, texture::Role role) {
+  return LitSurface(material).asMap(role);
+}
+
+Paint LitSurface::asMap(texture::Role role) const {
+  Paint pass = mapPass(role);
+  if (pass.isNone()) return pass;
+  PaintAccess::refresh(pass);
+  return pass;
+}
+
+Paint LitSurface::mapPass(texture::Role role) const {
+  const std::optional<size_t> index = surfaceMapIndex(role);
+  if (!index) return {};
+  {
+    const std::lock_guard lock(m_pass->passMutex);
+    if (const std::optional<Paint>& held = m_pass->maps[*index]) return *held;
+  }
+  const sk_sp<SkRuntimeEffect>& effect = surfaceMapEffect();
+  if (!effect) return {};
+  const Material& material = m_inputs->material;
+  Paint pass = PaintAccess::unresolvedSksl(effect);
+  PaintAccess::storeSlot(pass, "uColor", m_inputs->colours);
+  PaintAccess::storeUniform(pass, "uRole", float(*index));
+  const bool unlit = !isLit(material);
+  PaintAccess::storeUniform(pass, "uUnlit", unlit ? 1.0f : 0.0f);
+  // What a lit surface reads where it states nothing is what the stock
+  // surface options say; a material with no surface takes them too, and
+  // the unlit branch of the program never reads them.
+  static const SurfaceOptions stock;
+  const SurfaceOptions& surface = unlit ? stock : *material.surface();
+  PaintAccess::storeUniform(pass, "uHasNormal",
+                            !unlit && surface.normal ? 1.0f : 0.0f);
+  if (m_inputs->normal)
+    PaintAccess::storeSlot(pass, "uNormal", *m_inputs->normal);
+  PaintAccess::storeUniform(pass, "uNormalScale", surface.normalScale);
+  PaintAccess::storeUniform(pass, "uNormalDirectX",
+                            surface.normalDirectX ? 1.0f : 0.0f);
+  channel(pass, surface.roughness, m_inputs->roughness, "uRoughnessMap",
+          "uHasRoughnessMap", "uRoughness");
+  channel(pass, surface.metallic, m_inputs->metallic, "uMetallicMap",
+          "uHasMetallicMap", "uMetallic");
+  channel(pass, surface.occlusion, m_inputs->occlusion, "uOcclusionMap",
+          "uHasOcclusionMap", "uOcclusion");
+  PaintAccess::storeUniform(pass, "uHasEmissionMap",
+                            !unlit && surface.emissionMap ? 1.0f : 0.0f);
+  if (m_inputs->emission)
+    PaintAccess::storeSlot(pass, "uEmissionMap", *m_inputs->emission);
+  PaintAccess::storeUniform(pass, "uEmission", surface.emission);
+  PaintAccess::storeUniform(pass, "uEmissionStrength",
+                            surface.emissionStrength);
+  const std::lock_guard lock(m_pass->passMutex);
+  std::optional<Paint>& held = m_pass->maps[*index];
+  if (!held) held = std::move(pass);
+  return *held;
 }
 
 Paint LitSurface::lightingPass(const Lighting& lighting) const {

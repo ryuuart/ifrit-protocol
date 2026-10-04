@@ -1,0 +1,79 @@
+// One map of a surface, read unshaded: the colour stack and the surface's
+// maps the lighting pass shades, handed back as the texture a
+// metallic-roughness surface of that role is dressed with. Every role
+// carries the colour stack's alpha as its coverage, premultiplied.
+//
+// uRole: 0 base colour, 1 normal, 2 roughness, 3 metallic, 4 occlusion,
+// 5 emission. A surface that takes no light is its own colour: emission
+// is the colour stack, the base is black, the normal faces the viewer,
+// roughness and occlusion are one and metallic is zero.
+uniform shader uColor;
+uniform shader uNormal;
+uniform shader uRoughnessMap;
+uniform shader uMetallicMap;
+uniform shader uOcclusionMap;
+uniform shader uEmissionMap;
+
+uniform float uRole;
+uniform float uUnlit;
+uniform float uHasNormal;
+uniform float uNormalScale;
+uniform float uNormalDirectX;
+uniform float uHasRoughnessMap;
+uniform float uRoughness;
+uniform float uHasMetallicMap;
+uniform float uMetallic;
+uniform float uHasOcclusionMap;
+uniform float uOcclusion;
+uniform float uHasEmissionMap;
+uniform float4 uEmission;
+uniform float uEmissionStrength;
+
+half4 main(float2 xy) {
+  half4 painted = uColor.eval(xy);
+  float alpha = float(painted.a);
+  if (alpha <= 0.0) return half4(0);
+  bool unlit = uUnlit > 0.5;
+  if (uRole < 0.5) return unlit ? half4(0, 0, 0, painted.a) : painted;
+  float3 value;
+  if (uRole < 1.5) {
+    // Green points up the picture in what comes out, whichever way the
+    // stated map was authored.
+    float3 n = float3(0, 0, 1);
+    if (!unlit && uHasNormal > 0.5) {
+      float3 t = float3(uNormal.eval(xy).rgb) * 2.0 - 1.0;
+      t.xy *= uNormalScale;
+      n = normalize(float3(t.x, uNormalDirectX > 0.5 ? -t.y : t.y,
+                           max(t.z, 0.001)));
+    }
+    value = n * 0.5 + 0.5;
+  } else if (uRole < 2.5) {
+    float roughness = 1.0;
+    if (!unlit) {
+      roughness = uRoughness;
+      if (uHasRoughnessMap > 0.5)
+        roughness *= float(uRoughnessMap.eval(xy).r);
+    }
+    value = float3(clamp(roughness, 0.0, 1.0));
+  } else if (uRole < 3.5) {
+    float metallic = 0.0;
+    if (!unlit) {
+      metallic = uMetallic;
+      if (uHasMetallicMap > 0.5) metallic *= float(uMetallicMap.eval(xy).r);
+    }
+    value = float3(clamp(metallic, 0.0, 1.0));
+  } else if (uRole < 4.5) {
+    float occlusion = 1.0;
+    if (!unlit) {
+      occlusion = uOcclusion;
+      if (uHasOcclusionMap > 0.5)
+        occlusion *= float(uOcclusionMap.eval(xy).r);
+    }
+    value = float3(clamp(occlusion, 0.0, 1.0));
+  } else {
+    if (unlit) return painted;
+    value = uEmission.rgb * uEmissionStrength;
+    if (uHasEmissionMap > 0.5) value *= float3(uEmissionMap.eval(xy).rgb);
+  }
+  return half4(half3(value * alpha), half(alpha));
+}

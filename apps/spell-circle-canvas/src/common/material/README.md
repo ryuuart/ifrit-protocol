@@ -239,6 +239,21 @@ convolve the environment at that exact roughness instead, without
 preparing an atlas, so the two agree closely but not exactly.
 `material::skia::lit` remains the one-call spelling.
 
+A renderer that brings its own lights reads the same prepared inputs
+UNSHADED, one surface map at a time: `LitSurface::asMap(role)` and the
+one-call `material::skia::asMap(material, role)` answer the base colour,
+normal, roughness, metallic, occlusion or emissive map, keyed by
+`texture::Role`, as the texture of that role encodes it. The normal comes
+back as `(n + 1) / 2` with green up the picture whatever convention the
+material stated, including a height-derived or blended normal; a scalar
+comes back grey, its number times its map; a role a material states
+nothing for reads the stock `SurfaceOptions` number. Every map carries the
+colour stack's alpha as its coverage. A material with no surface, or an
+`unlit` one, is its own colour: emissive is the colour stack, the base is
+black, the normal faces the viewer, roughness and occlusion are one and
+metallic is zero. `LitSurface::mapShader` places the maps for one draw the
+way `shader()` places the lit pass.
+
 ## Backdrop glass
 
 `Filter::glass` refracts an already rendered layer using a normal material.

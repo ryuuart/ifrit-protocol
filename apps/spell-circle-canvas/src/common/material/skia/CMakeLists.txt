@@ -39,7 +39,7 @@ sigil_test(material_test
           test/SkiaEffectLightTest.cpp test/SkiaEffectSlotTest.cpp
           test/SkiaEffectGlassTest.cpp
           test/SkiaRampTest.cpp test/PaletteTest.cpp
-          test/SkiaLitRigTest.cpp test/SkiaLitPreparedTest.cpp
+          test/SkiaLitRigTest.cpp test/SkiaLitPreparedTest.cpp test/SkiaLitMapTest.cpp
           test/SkiaLitCoatingTest.cpp test/SkiaLitPositionedTest.cpp
           test/SkiaLitGpuTest.cpp
           test/SkiaEnvironmentTest.cpp
