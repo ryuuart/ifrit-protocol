@@ -28,8 +28,9 @@ namespace sigil::weave {
 class FontContext;
 }
 namespace sigil::compose {
+class SurfaceScene;
 class TextureScene;
-}
+}  // namespace sigil::compose
 
 namespace sigil::sketch {
 
@@ -48,6 +49,9 @@ struct SetContext {
   /** Host-owned: the texture scenes `textureScene()` handed out, kept
    *  for the session's life. */
   std::vector<std::shared_ptr<compose::TextureScene>>* scenes = nullptr;
+  /** Host-owned: the surface scenes `surfaceScene()` handed out, kept for
+   *  the session's life. */
+  std::vector<std::shared_ptr<compose::SurfaceScene>>* surfaces = nullptr;
 
   /** A COMPOSE SCENE PAINTED INTO A TEXTURE, @p size pixels across and
    *  cleared to @p background — a 2D screen a body wears. Ask for it
@@ -67,6 +71,17 @@ struct SetContext {
    *  piece begins where an earlier one left off. */
   [[nodiscard]] std::shared_ptr<compose::TextureScene> textureScene(
       SkISize size, sigil::material::Color background = {0, 0, 0, 0});
+
+  /** A COMPOSE SCENE PAINTED AS THE MAPS OF A SURFACE, @p size pixels
+   *  across — a page the set's own lights shade. Ask for it here, hold the
+   *  pointer, and in `describe` hand it the tree at the scene time with
+   *  `render()` and dress a surface with
+   *  `material::surface::program(scene->maps())`. Its own words are
+   *  SigilCompose's, from `<sigilcompose/texture/SurfaceScene.h>`.
+   *  The session keeps it for as long as it runs, as it keeps a
+   *  `textureScene()`, and for the same reason. */
+  [[nodiscard]] std::shared_ptr<compose::SurfaceScene> surfaceScene(
+      SkISize size);
 
   /** Declare the plate's size in pixels. */
   void canvas(int width, int height) {

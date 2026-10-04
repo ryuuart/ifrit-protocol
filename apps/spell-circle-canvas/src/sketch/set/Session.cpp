@@ -4,7 +4,9 @@
  */
 
 #include <include/core/SkCanvas.h>
+#include <sigilcompose/texture/SurfaceScene.h>
 #include <sigilcompose/texture/Texture.h>
+#include <sigilio/advanced/Time.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmeasure/advanced/Laps.h>
@@ -25,7 +27,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include <sigilio/advanced/Time.h>
 
 namespace sigil::sketch {
 
@@ -110,8 +111,8 @@ class SetSession final : public Session {
     m_specification.size = {900, 640};
     m_specification.background = {0.04f, 0.045f, 0.06f, 1.0f};
     m_specification.captureSeconds = 1.0;
-    SetContext ctx{assets,    fonts,     &m_specification,
-                   &m_camera, &m_scenes, deterministic};
+    SetContext ctx{assets,    fonts,       &m_specification, &m_camera,
+                   &m_scenes, &m_surfaces, deterministic};
     m_set->setup(ctx);
     m_declared = m_camera;
     m_window.whole = {(int)m_specification.size.width(),
@@ -221,9 +222,10 @@ class SetSession final : public Session {
                   (long long)stats.resources, (long long)stats.passes);
     // …and the screens the set asked for at setup, which no counter of
     // the retained scene's can see.
-    if (m_scenes.empty()) return line;
+    const size_t screens = m_scenes.size() + m_surfaces.size();
+    if (screens == 0) return line;
     char held[48];
-    std::snprintf(held, sizeof held, "   screens %zu", m_scenes.size());
+    std::snprintf(held, sizeof held, "   screens %zu", screens);
     return std::string(line) + held;
   }
 
@@ -363,6 +365,7 @@ class SetSession final : public Session {
    *  retained scene, so they outlive both: a texture a body wears is
    *  still standing when its wearer goes. */
   std::vector<std::shared_ptr<compose::TextureScene>> m_scenes;
+  std::vector<std::shared_ptr<compose::SurfaceScene>> m_surfaces;
   std::unique_ptr<SetBody> m_set;
   /** What the set reaches for that it did not generate. Held for the
    *  session's life rather than only for the setup that declared it,

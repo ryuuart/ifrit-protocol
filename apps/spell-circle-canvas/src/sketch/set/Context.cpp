@@ -1,8 +1,9 @@
 /** @file
  * What a set's context hands it beyond its declarations: a compose scene
- * kept as a texture, for a body to wear.
+ * kept as a texture, or as the maps of a surface, for a body to wear.
  */
 
+#include <sigilcompose/texture/SurfaceScene.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/set/Set.h>
@@ -22,6 +23,16 @@ std::shared_ptr<compose::TextureScene> SetContext::textureScene(
   // at setup and gone by the first frame, and the scene has to stand for
   // as long as a body wears it.
   if (scenes) scenes->push_back(scene);
+  return scene;
+}
+
+std::shared_ptr<compose::SurfaceScene> SetContext::surfaceScene(SkISize size) {
+  // A page painted as maps takes no pixel bake, so a capture that will be
+  // diffed has no promotion decision to pin. Kept by the session, as a
+  // texture scene is.
+  std::shared_ptr<compose::SurfaceScene> scene =
+      compose::SurfaceScene::make(size, fonts);
+  if (scene && surfaces) surfaces->push_back(scene);
   return scene;
 }
 

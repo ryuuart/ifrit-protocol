@@ -289,12 +289,19 @@ A canvas and a set can exchange pictures without sharing their runtime:
 | --- | --- |
 | `ctx.textureScene(size, background)` | a Compose scene painted into a texture |
 | `ctx.bakeSet(frame, camera, size, background, seconds)` | one World frame baked into an image on a canvas |
+| set `ctx.surfaceScene(size)` | a Compose page painted as a surface's maps, for the set's lights to shade |
 
 The session retains texture scenes until the body declares again. Create one
 in `setup()`, keep the returned pointer, and update it at the scene's forward
 time. Creating one every frame keeps every such scene until redeclaration.
 Include `<sigilcompose/texture/Texture.h>` for its `render()`, `image()` and
 `texture()` operations.
+
+A set's `surfaceScene` is held the same way. Its `maps()`, from
+`<sigilcompose/texture/SurfaceScene.h>`, dress a surface through
+SigilMaterial's surface `program(maps)`: Compose paints each lit material's maps
+and the page's flat content as its own colour, and the set's lights,
+environment and camera shade the page.
 
 A set bake uses its own clock, so sampling an entrance at `seconds` does not
 advance the surrounding canvas sketch. It uses the CPU mesh executor for a

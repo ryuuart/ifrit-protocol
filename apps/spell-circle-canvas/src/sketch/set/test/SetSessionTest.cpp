@@ -7,6 +7,7 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <sigilcompose/Compose.h>
+#include <sigilcompose/texture/SurfaceScene.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
@@ -89,6 +90,44 @@ struct Screened {
     surface.slot(sigil::material::surface::kBaseColorSlot, screen->texture());
     return world::Element().key("set").children(
         {world::Element().key("card").mesh(gm::quad(120, 90)).fill(surface)});
+  }
+};
+
+/** A set that paints a compose page as a surface's maps the session keeps
+ *  — a lit panel under an unlit green label — and wears it on one card
+ *  under a sun. */
+struct Surfaced {
+  std::shared_ptr<sigil::compose::SurfaceScene> page;
+  void setup(SetContext& ctx) {
+    ctx.canvas(160, 120);
+    ctx.background({0, 0, 0, 1});
+    sigil::geometry::mesh::camera::Camera lens;
+    lens.eye = {0, 0, 200};
+    lens.target = {0, 0, 0};
+    ctx.camera(lens);
+    page = ctx.surfaceScene({64, 64});
+  }
+  world::Frame describe(float seconds) {
+    using namespace sigil::compose;
+    namespace material = sigil::material;
+    page->render(box()
+                     .width(64)
+                     .height(64)
+                     .fill(material::from(material::Color{.6f, .6f, .6f, 1})
+                               .surface({.roughness = .9f}))
+                     .children({box()
+                                    .absolute()
+                                    .rect(16, 16, 32, 32)
+                                    .fill(material::Color{0, 1, 0, 1})}),
+                 seconds);
+    return world::Element().key("set").children(
+        {world::Element().key("sun").light(
+             world::light::sun({0, 0, -1}, {1, 1, 1, 1}, 1.0f)),
+         world::Element()
+             .key("card")
+             .mesh(gm::quad(120, 90))
+             .fill(material::surface::program(page->maps(),
+                                              {.baseColor = {1, 1, 1, 1}}))});
   }
 };
 
@@ -299,6 +338,20 @@ TEST(SetDoors, PaintsATextureSceneOntoABody) {
   EXPECT_LT(SkColorGetB(centre), 40u);
 }
 
+TEST(SetDoors, PaintsASurfaceSceneThatTheSetLights) {
+  std::unique_ptr<Session> session =
+      kindOf<Surfaced>()->open(fonts(), assets());
+  const SkBitmap picture = oneFrame(*session);
+  // The unlit label comes out as it was painted, its own light; the lit
+  // panel around it is grey under the sun.
+  const SkColor label = picture.getColor(80, 60);
+  EXPECT_GT(SkColorGetG(label), 200u);
+  EXPECT_LT(SkColorGetR(label), 50u);
+  const SkColor panel = picture.getColor(48, 60);
+  EXPECT_GT(SkColorGetR(panel), 15u);
+  EXPECT_NEAR(int(SkColorGetR(panel)), int(SkColorGetG(panel)), 12);
+}
+
 /** A body on a turntable, performed through a pass the set declares
  *  itself and asked back, so a case can read how many pixels the frame
  *  was formed at — which is what a host zooming into a piece of it pays
@@ -324,8 +377,9 @@ struct Measured {
              .rotateY(seconds * 90.0f)
              .mesh(gm::superellipsoid({60, 60, 60}, 2.0f, 24, 16))
              .fill(sigil::material::surface::program())}));
-    frame.pass(world::geometryPass("colour").writes("colour").clear(
-                   sigil::material::Color{0.05f, 0.05f, 0.08f, 1}))
+    frame
+        .pass(world::geometryPass("colour").writes("colour").clear(
+            sigil::material::Color{0.05f, 0.05f, 0.08f, 1}))
         .readback(world::readback("colour").then(
             [](const world::Readback::Result& result) {
               formed = result.image.size();
