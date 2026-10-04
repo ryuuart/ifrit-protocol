@@ -27,6 +27,7 @@
 #include <functional>
 
 #include "ComposeRuntime.h"
+#include "paint/SurfaceMap.h"
 
 namespace sigil::compose {
 
@@ -182,6 +183,15 @@ bool Composer::isRunning() const {
 void Composer::draw(SkCanvas& canvas) {
   Impl& impl = *m_impl;
   if (!impl.root) return;
+  // A page painted as a surface map is drawn through the canvas that turns
+  // content that is its own colour into the map's reading of it.
+  if (impl.surfaceMap && !impl.drawingSurfaceMap) {
+    detail::SurfaceMapCanvas mapped(canvas, *impl.surfaceMap);
+    impl.drawingSurfaceMap = true;
+    draw(mapped);
+    impl.drawingSurfaceMap = false;
+    return;
+  }
   const SkAutoCanvasRestore restore(&canvas, true);
 
   const SkImageInfo destination = canvas.imageInfo();
@@ -484,6 +494,28 @@ const char* Composer::promotionReason(Promotion p) {
 
 const std::vector<Composer::NodeCost>& Composer::profile() const {
   return m_impl->profileRows;
+}
+
+void Composer::setSurfaceMap(std::optional<material::texture::Role> role) {
+  Impl& impl = *m_impl;
+  if (impl.surfaceMap == role) return;
+  impl.surfaceMap = role;
+  purgeCaches();
+  // Every paint a lit site resolved for the map before is for that map;
+  // the cascade resolves the ink again and the fill is keyed by the map.
+  if (impl.root) {
+    std::function<void(Instance&)> walk = [&walk](Instance& inst) {
+      inst.inkPaint.paint.reset();
+      inst.litFill.reset();
+      for (auto& child : inst.children) walk(*child);
+    };
+    walk(*impl.root);
+  }
+  impl.cascadeDirty = true;
+}
+
+std::optional<material::texture::Role> Composer::surfaceMap() const {
+  return m_impl->surfaceMap;
 }
 
 void Composer::purgeCaches() {

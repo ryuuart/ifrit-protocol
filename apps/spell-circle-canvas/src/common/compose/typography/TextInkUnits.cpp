@@ -25,6 +25,7 @@
 
 #include "TextEngine.h"
 #include "TextPose.h"
+#include "paint/SurfaceMap.h"
 #include "sigilweave/advanced/Skia.h"
 
 namespace sigil::compose {
@@ -92,6 +93,8 @@ struct UnitGroup {
   SkRect box = SkRect::MakeEmpty();
   bool placed = false;
   const detail::TextInk::Surface* surface = nullptr;
+  /** The group's paint already is a surface map of its material. */
+  bool surfaceMap = false;
 };
 
 struct GroupStyle {
@@ -136,12 +139,14 @@ void detail::resolveGlyphInk(const sigil::weave::ParagraphLayout& layout,
         std::optional<material::Color> color;
         std::optional<sigil::weave::Unit> unit;
         const TextInk::Surface* surface = nullptr;
+        bool surfaceMap = false;
         if ((ink.unitSquare || ink.unitSurface) && ink.passage) {
           whose = 0;
           base = &*ink.passage;
           shader = ink.unitSquare;
           unit = ink.unit;
           if (ink.unitSurface) surface = &*ink.unitSurface;
+          surfaceMap = surface && surface->map;
         } else if (placed.paint->foregroundMaterial) {
           for (size_t index = ink.spans.size(); index-- > 0;) {
             const TextInk::Span& span = ink.spans[index];
@@ -152,6 +157,7 @@ void detail::resolveGlyphInk(const sigil::weave::ParagraphLayout& layout,
             color = span.color;
             unit = span.unit;
             if (span.surface) surface = &*span.surface;
+            surfaceMap = span.surfaceMap;
             break;
           }
         }
@@ -164,6 +170,7 @@ void detail::resolveGlyphInk(const sigil::weave::ParagraphLayout& layout,
         if (whose != openInk || unitIndex != openUnit || groups.empty()) {
           groups.push_back({std::move(shader), color, unit.has_value()});
           groups.back().surface = surface;
+          groups.back().surfaceMap = surfaceMap;
           openInk = whose;
           openUnit = unitIndex;
         }
@@ -191,8 +198,8 @@ void detail::resolveGlyphInk(const sigil::weave::ParagraphLayout& layout,
       SkMatrix map = SkMatrix::Translate(box.left(), box.top());
       map.preScale(std::max(box.width(), 1.0f), std::max(box.height(), 1.0f));
       if (group.surface)
-        group.shader = group.surface->inputs.shader(
-            group.surface->lighting, ink.frame, material::skia::toMatrix(map));
+        group.shader =
+            group.surface->shader(ink.frame, material::skia::toMatrix(map));
       else
         group.shader = group.shader->makeWithLocalMatrix(map);
     }
@@ -214,6 +221,7 @@ void detail::resolveGlyphInk(const sigil::weave::ParagraphLayout& layout,
     if (!group.shader)
       style.foreground.setColor4f(material::skia::toSkColor(*group.color),
                                   nullptr);
+    if (group.surfaceMap) detail::markSurfaceMap(style.foreground);
     renumbered[index] = (uint32_t)glyphs.styles.size();
     glyphs.styles.push_back(std::move(style));
   }

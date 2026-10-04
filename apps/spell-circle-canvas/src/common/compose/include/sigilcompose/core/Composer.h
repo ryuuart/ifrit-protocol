@@ -17,6 +17,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/texture/TextureSet.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilmotion/time/Duration.h>
 
@@ -178,6 +179,22 @@ class Composer {
    *  images minted by a dead context must not replay onto the next
    *  canvas. The retained tree, layout, and animations are untouched. */
   void purgeCaches();
+
+  /** PAINT THE PAGE AS ONE MAP OF ITS SURFACE, for a renderer that lights
+   *  it: @p role names the map (`texture::Role::BaseColor`, `Normal`,
+   *  `Roughness`, `Metallic`, `Occlusion` or `Emissive`), and none paints
+   *  the page as it is seen. Every fill, ink, stroke and relief whose
+   *  material states a lit surface paints that map of its surface, through
+   *  the same sites that shade it otherwise, whether or not a lighting is
+   *  in force; everything else is content that is its own colour — its
+   *  colour in the emissive map, and in the others what an unlit surface
+   *  reads there, at the coverage it painted. Draw onto a canvas cleared to
+   *  the role's ground, which is what an unlit surface reads too. Pixel
+   *  bakes are not taken while a map is painted, and a change of map drops
+   *  every cache and every paint held for the previous one. */
+  void setSurfaceMap(std::optional<material::texture::Role> role);
+  /** The map the page is painted as; none for the page as it is seen. */
+  std::optional<material::texture::Role> surfaceMap() const;
 
   /** @name Queries
    *  What the RESOLVED side answers about the tree it laid out. Each is

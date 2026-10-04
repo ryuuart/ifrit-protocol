@@ -22,6 +22,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Backface.h>
 #include <sigilmaterial/core/Material.h>
+#include <sigilmaterial/texture/TextureSet.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
@@ -256,6 +257,14 @@ struct PaintContext {
    *  stroke whose material states a lit surface is shaded under. Null
    *  where none is stated, or outside a composer. */
   const material::Lighting* lighting = nullptr;
+  /** THE SURFACE MAP the composer paints the page as
+   *  (`Composer::setSurfaceMap`), or none where it paints the page as it
+   *  is seen. A mark whose material states a lit surface paints that map
+   *  of it (`material::skia::asMap`) in place of its shading, and marks
+   *  its paint with the kernel's surface-map mark so the canvas passes it
+   *  through; any other paint is treated as content that is its own
+   *  colour. */
+  std::optional<material::texture::Role> surfaceMap;
   /** Is the composer's engine running anything at all this frame, as
    *  read by a node that REPAINTS this frame (a cached node replays its
    *  recording and keeps its last-read value) — the

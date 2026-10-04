@@ -116,7 +116,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   // blitted under, and the blits are discarded. Once none waits, the
   // subtree is skipped as before. A node whose opacity is 0 and declared
   // still never shows, so nothing is taken ahead for it.
-  const bool bakeAhead = opacity <= 0.0f && !liveOnly &&
+  const bool bakeAhead = opacity <= 0.0f && bakesPixels() &&
                          opacityDeclaredLive(inst) && bakeAwaitedUnder(inst);
   if (bakeAhead && !paintingUnseen) {
     UnseenCanvas unseen(canvas);
@@ -494,7 +494,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   // that fails the entry keeps the layer, so nothing can lose its blend.
   const bool deferBlendToBlit =
       (opacity < 1.0f || style.paint.blendMode != SkBlendMode::kSrcOver) &&
-      !leafDirectBlend && !liveOnly && cacheHolds &&
+      !leafDirectBlend && bakesPixels() && cacheHolds &&
       node.cacheMode == Cache::Texture && !backdropEffectOf(node);
   const bool needsLayer =
       (opacity < 1.0f || style.paint.blendMode != SkBlendMode::kSrcOver) &&
@@ -579,7 +579,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   if (paintSplitBake(pass)) return;
   if (paintGroupBake(pass)) return;
 
-  if (!liveOnly && cacheHolds &&
+  if (bakesPixels() && cacheHolds &&
       (node.cacheMode == Cache::Texture || pass.deferEffect) &&
       !backdropEffectOf(node)) {
     if (paintTextureBake(pass)) return;

@@ -1,7 +1,8 @@
 /** @file
  * A fill whose material states a lit surface, shaded under the lighting
- * in force. The prepared material inputs stand while lighting changes;
- * only the pass above them is replaced.
+ * in force — or, on a page painted as a surface map, read as that map. The
+ * prepared material inputs stand while lighting changes; only the pass
+ * above them is replaced.
  */
 
 #include <sigilmaterial/skia/Lit.h>
@@ -70,6 +71,15 @@ const material::Paint* Instance::litFillOf(const MaterialData& slot) const {
     litMaterial = from;
     litFillInputs.reset();
     litFill.reset();
+  }
+  // A page painted as a surface map paints the fill as that map of its
+  // surface, lit or not where it stands; the held paint is dropped when the
+  // map changes.
+  if (owner && owner->surfaceMap && material::skia::isLit(from)) {
+    if (!litFillInputs) litFillInputs.emplace(from);
+    if (!litFill) litFill = litFillInputs->asMap(*owner->surfaceMap);
+    litUnder.reset();
+    return &*litFill;
   }
   const material::Lighting under = material::skia::lightingFor(
       from, lighting ? *lighting : material::Lighting{});

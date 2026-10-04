@@ -216,6 +216,15 @@ struct Composer::Impl {
   bool hasCustomLayout = false;
   bool hasCenterPins = false;  // any centerAt() in the tree
   bool liveOnly = false;       // snapshot(): skip per-node caches
+  // Composer::setSurfaceMap: the one map of their surface every node paints
+  // as, or none for the page as it is seen.
+  std::optional<material::texture::Role> surfaceMap;
+  // True while draw() runs through the surface map canvas it made.
+  bool drawingSurfaceMap = false;
+  // A pixel bake holds what was painted as pixels, which a surface map
+  // canvas cannot tell lit content in from content that is its own colour,
+  // so a page painted as a map keeps recordings and takes no pixel bake.
+  bool bakesPixels() const { return !liveOnly && !surfaceMap; }
   material::Filter view;  // output view transform (no filter = pass-through)
   // The view as its author described it, when they described a Material.
   // Kept because how a Material LOWERS depends on the surface it lands

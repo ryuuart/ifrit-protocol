@@ -333,6 +333,38 @@ with an extent and no shadow one node casts on another. An interface lit
 as a body in space is a SigilWorld surface wearing the composition as a
 `material::Texture`, where the set's camera and lights shade it.
 
+**A set lights a page through its surface maps.** `SurfaceScene` renders
+one retained tree as the maps of a surface — base colour, normal,
+roughness, metallic, occlusion and emissive — and `maps()` answers them as
+a `material::texture::TextureMaps`. Hand that to
+`material::surface::program(maps, parameters)` and put the result on a
+World surface: the set's lights, environment and camera shade the page,
+and Compose shades nothing. Every lit fill, ink (Glyph and Word units
+included), material stroke and relief paints the map its material states,
+lit or not where it stands; content that takes no light is its own
+colour — its colour in the emissive map over a black base, a normal facing
+the viewer, roughness and occlusion one and metallic zero — so flat text
+and fills come out of the set looking as painted. Where nothing paints,
+every map reads that same ground with a transparent base colour, and an
+antialiased edge composites each map by its coverage, normals included as
+their encoding. Normals are encoded green up the picture.
+
+```cpp
+#include <sigilcompose/texture/SurfaceScene.h>
+
+auto page = compose::SurfaceScene::make({1024, 640}, fonts);
+page->render(tree, seconds);
+material::Material worn = material::surface::program(page->maps());
+```
+
+Here `tree`, `fonts` and `seconds` are the caller's. Each map is its own
+`TextureScene` over the tree, so nothing a composer recorded for one map
+is replayed for another, and a still tree paints none of them again. The
+mode underneath is `Composer::setSurfaceMap`; a `TextureScene` takes one
+map through `setSurfaceMap` too. A page painted as a map takes no pixel
+bakes. A layer effect that makes colour of its own over lit content — a
+shadow or glow filter on a group — writes that colour into every map.
+
 ```cpp
 material::Light key{.kind = material::LightKind::Point,
                     .position = {0, 0, 180}, .range = 800};
@@ -446,7 +478,7 @@ Link the feature you use:
 | `SigilComposeBrush` | Stroke and decoration execution, brushes and masks. |
 | `SigilComposeKit` | Stock layouts, components, document roles and drawing recipes. |
 | `SigilComposeDraw` | A SigilDraw pen hosted in a tree, and retained elements drawn by a pen. |
-| `SigilComposeTexture` | A composer and owned surface exposed as a texture value. |
+| `SigilComposeTexture` | A composer and owned surface exposed as a texture value, and a tree rendered as a surface's maps. |
 | `SigilComposeWeb` | Web content as a leaf, when the Ultralight SDK is available. |
 | `SigilComposeTesting` | Consumer test helpers. |
 | `SigilCompose` | Convenience target over Kit, Brush and Typography, including Core. |

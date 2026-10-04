@@ -18,6 +18,7 @@
 #include <chrono>
 #include <cstdint>
 #include <memory>
+#include <optional>
 
 namespace sigil::weave {
 class FontContext;
@@ -88,6 +89,10 @@ class TextureScene : public std::enable_shared_from_this<TextureScene> {
   const Composer& composer() const;
   /** Set the retained composer's texture-promotion policy. */
   void setAutoTexturePromotion(PromotionPolicy policy);
+  /** Paint the tree as one map of its surface (`Composer::setSurfaceMap`),
+   *  cleared to that map's ground in place of the background; none paints
+   *  it as it is seen, over the background again. The next render paints. */
+  void setSurfaceMap(std::optional<material::texture::Role> role);
 
  private:
   TextureScene();

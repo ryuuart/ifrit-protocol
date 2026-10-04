@@ -813,13 +813,23 @@ void Composer::Impl::resolveCascade(
   // A LIT INK is shaded under the lighting in force HERE, which may be
   // other than where it was stated; the paint lit last time stands while
   // neither the ink's material nor the lighting has moved.
+  // A page painted as a surface map paints a lit ink as that map of it,
+  // lit or not where it stands; the paint held for one map is dropped
+  // with every other when the map changes.
   if (inkPaint.surfaced) {
     const bool sameMaterial = inst.inkPaint.surfaced == inkPaint.surfaced;
     if (!sameMaterial) inst.litInkInputs.reset();
     const bool sameLight =
         lighting == inst.lighting ||
         (lighting && inst.lighting && *lighting == *inst.lighting);
-    if (!first && sameLight && inst.inkPaint.paint && sameMaterial) {
+    if (surfaceMap && material::skia::isLit(*inkPaint.surfaced)) {
+      if (!first && sameMaterial && inst.inkPaint.paint) {
+        inkPaint.paint = inst.inkPaint.paint;
+      } else {
+        if (!inst.litInkInputs) inst.litInkInputs.emplace(*inkPaint.surfaced);
+        inkPaint.paint = inst.litInkInputs->asMap(*surfaceMap);
+      }
+    } else if (!first && sameLight && inst.inkPaint.paint && sameMaterial) {
       inkPaint.paint = inst.inkPaint.paint;
     } else {
       const material::Lighting under = material::skia::lightingFor(

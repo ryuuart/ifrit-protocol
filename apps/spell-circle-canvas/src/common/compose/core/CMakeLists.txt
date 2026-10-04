@@ -113,6 +113,8 @@ sigil_library(SigilComposeCore
     paint/PenOnCanvas.h
     paint/RecordingState.h
     paint/StackingPainter.cpp
+    paint/SurfaceMap.cpp
+    paint/SurfaceMap.h
     paint/TextInk.cpp
     paint/TextPainter.cpp
     paint/Tiles.cpp

@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <cmath>
 
+#include "SurfaceMap.h"
 #include "description/ComposeInternal.h"
 
 namespace sigil::compose::detail {
@@ -173,6 +174,20 @@ void MaterialStroke::paint(draw::Pen& pen, const PaintContext& context) const {
   SkCanvas& canvas = *pen.canvas();
   SkPaint stroke;
   stroke.setAntiAlias(true);
+  // On a page painted as a surface map the keyline paints that map of its
+  // surface, from the same prepared inputs it is shaded from.
+  if (surfaced && context.surfaceMap) {
+    if (!cache || cache->material != *surfaced)
+      cache = std::make_shared<MaterialStrokeCache>(*surfaced);
+    const sk_sp<SkShader> shader = material::skia::shader(
+        cache->prepared.asMap(*context.surfaceMap), frameOf(context));
+    if (!shader) return;
+    stroke.setShader(shader);
+    markSurfaceMap(stroke);
+    strokeSide(canvas, context, std::move(stroke), options.width,
+               options.position);
+    return;
+  }
   const material::Lighting under =
       surfaced ? material::skia::lightingFor(
                      *surfaced, context.lighting ? *context.lighting

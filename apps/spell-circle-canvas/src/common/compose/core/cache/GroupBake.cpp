@@ -139,7 +139,7 @@ bool paintGroupBake(PaintPass& pass) {
   SkCanvas& canvas = pass.canvas;
   const SkMatrix& totalM = pass.totalM;
 
-  if (!impl.liveOnly && inst.groupRootOK) {
+  if (impl.bakesPixels() && inst.groupRootOK) {
     // Gather, compare, and become last frame — in that order. The swap is
     // what makes a settled group allocate nothing: `groupScratch` comes back
     // holding the vector that was `groupPrev`, at the right capacity.

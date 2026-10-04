@@ -36,6 +36,7 @@
 
 #include "PaintInternal.h"
 #include "PenOnCanvas.h"
+#include "SurfaceMap.h"
 #include "runtime/ComposeRuntime.h"
 
 namespace sigil::compose {
@@ -452,6 +453,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       .destination = outputInfo,
       .recorder = paintDestination(canvas).recorder(),
       .lighting = inst.lighting.get(),
+      .surfaceMap = surfaceMap,
       .animating = engine.isRunning(),
       .fonts = &fonts,
       .borrowed = inst.borrowedPaths.empty() ? nullptr : &inst.borrowedPaths,
@@ -850,6 +852,10 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       paint.setColor4f(material::skia::toSkColor(fill.colorValue), nullptr);
     else
       paint.setShader(material::skia::staticShader(detail::paintOf(fill)));
+    // A lit fill on a page painted as a surface map already is the map.
+    if (surfaceMap)
+      if (const MaterialData* slot = fillSlotOf(inst); slot && slot->surfaced)
+        markSurfaceMap(paint);
     // Leaf fast path: paint() proved a layer is unnecessary and routed the
     // node's blend/opacity straight onto the fill.
     paint.setBlendMode(leafBlend);

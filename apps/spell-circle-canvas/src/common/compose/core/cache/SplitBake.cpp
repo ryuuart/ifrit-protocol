@@ -44,7 +44,7 @@ bool paintSplitBake(PaintPass& pass) {
   using Prom = Composer::Promotion;
 
   const bool splitCandidate =
-      !pass.optedOut && !impl.liveOnly && inst.subtreeVolatile &&
+      !pass.optedOut && impl.bakesPixels() && inst.subtreeVolatile &&
       !inst.ownContentVolatile &&  // the CHILDREN are what block this node
       !inst.children.empty() && !inst.ownReadsBackdrop &&
       !layerEffectOf(node) && leafBlend == SkBlendMode::kSrcOver &&

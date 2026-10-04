@@ -13,6 +13,7 @@
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Lit.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilskia/graphite/GraphiteContext.h>
@@ -57,7 +58,10 @@ struct TextureScene::Impl {
   }
 
   SkImageInfo info;
+  /** What the surface is cleared to: the stated background, or the
+   *  ground of the surface map the tree is painted as. */
   material::Color background{0, 0, 0, 0};
+  material::Color statedBackground{0, 0, 0, 0};
   motion::Engine engine;
   std::unique_ptr<Composer> composer;
 
@@ -123,6 +127,7 @@ std::shared_ptr<TextureScene> TextureScene::make(SkImageInfo info,
   impl.raster = SkSurfaces::Raster(impl.info);
   if (!impl.raster) return nullptr;
   impl.background = background;
+  impl.statedBackground = background;
   impl.composer = std::make_unique<Composer>(impl.engine, fonts);
   impl.composer->setSize(
       glm::vec2{(float)impl.info.width(), (float)impl.info.height()});
@@ -173,6 +178,16 @@ bool TextureScene::useDevice(core::hardware::GpuDevice& device,
   // by a surface that is no longer the one being painted into.
   impl.composer->purgeCaches();
   return true;
+}
+
+void TextureScene::setSurfaceMap(std::optional<material::texture::Role> role) {
+  Impl& impl = *m_impl;
+  if (impl.composer->surfaceMap() == role) return;
+  impl.composer->setSurfaceMap(role);
+  impl.background =
+      role ? material::skia::surfaceMapGround(*role) : impl.statedBackground;
+  // What stands in the surface was painted for the other map.
+  impl.painted = false;
 }
 
 void TextureScene::render(const Element& root, double seconds) {

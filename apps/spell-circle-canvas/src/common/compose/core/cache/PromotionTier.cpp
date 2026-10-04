@@ -150,7 +150,7 @@ void decidePromotion(PaintPass& pass) {
                               impl.bakeDepth == 0 &&
                               (impl.recording.depth == 0 || pass.matrixStable);
   const bool promotable =
-      why == Prom::Cheap && !impl.liveOnly && deviceBakeable;
+      why == Prom::Cheap && impl.bakesPixels() && deviceBakeable;
   if (!promotable)
     inst.autoTexture = false;
   else if (eager)

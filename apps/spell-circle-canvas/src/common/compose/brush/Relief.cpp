@@ -27,6 +27,7 @@
 #include <vector>
 
 #include "paint/MaterialEffects.h"
+#include "paint/SurfaceMap.h"
 
 namespace sigil::compose {
 
@@ -193,13 +194,24 @@ void Relief::paint(draw::Pen& pen, const PaintContext& context) const {
     cache.lighting.reset();
   }
   detail::ReliefEntry& cache = *found;
-  const material::Lighting under = material::skia::lightingFor(
-      cache.surfaced,
-      context.lighting ? *context.lighting : material::Lighting{});
-  if (!cache.lighting || *cache.lighting != under) {
-    cache.lighting = under;
-    cache.paint = cache.prepared->under(under);
+  // On a page painted as a surface map the relief paints that map of its
+  // surface — the bevel's normals among them — rather than its shading;
+  // the shaded paint held for the lighting is left as it stands.
+  const bool asMap =
+      context.surfaceMap && material::skia::isLit(cache.surfaced);
+  material::Paint mapped;
+  if (asMap) {
+    mapped = cache.prepared->asMap(*context.surfaceMap);
+  } else {
+    const material::Lighting under = material::skia::lightingFor(
+        cache.surfaced,
+        context.lighting ? *context.lighting : material::Lighting{});
+    if (!cache.lighting || *cache.lighting != under) {
+      cache.lighting = under;
+      cache.paint = cache.prepared->under(under);
+    }
   }
+  const material::Paint& drawn = asMap ? mapped : cache.paint;
   SkCanvas& canvas = *pen.canvas();
   const material::FrameData frame = frameOf(context);
   const material::Filter* effects = m_material.effects();
@@ -222,13 +234,13 @@ void Relief::paint(draw::Pen& pen, const PaintContext& context) const {
   }
   SkPaint paint;
   paint.setAntiAlias(true);
-  if (cache.paint.isSolid())
-    paint.setColor4f(material::skia::toSkColor(cache.paint.solidColor()),
-                     nullptr);
-  else if (sk_sp<SkShader> shader = material::skia::shader(cache.paint, frame))
+  if (drawn.isSolid())
+    paint.setColor4f(material::skia::toSkColor(drawn.solidColor()), nullptr);
+  else if (sk_sp<SkShader> shader = material::skia::shader(drawn, frame))
     paint.setShader(std::move(shader));
   else
     return;
+  if (asMap) detail::markSurfaceMap(paint);
   canvas.drawPath(outline, paint);
   if (effects)
     for (const material::CoverageEffect& step : effects->coverage())
