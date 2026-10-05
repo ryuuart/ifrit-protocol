@@ -1494,8 +1494,8 @@ should change, by kind:
 - **Lighting.** A study's lighting goes through a set: its page is worn
   as surface maps (`compose::SurfaceScene`) by a World surface under the
   set's lights, as `carved_marks_set` does. Until then its lit materials
-  paint their colours flat. Emitters with an extent, anisotropy and a
-  turned plane are a set's too.
+  paint their colours flat. Emitters with an extent and a turned plane
+  are a set's too.
 - **Checks that throw while painting.** `carved_marks`,
   `layered_material_type` and `luminous_layers` verify revisions each
   frame and throw from `update` or `paint`; `light_table` and
@@ -1678,3 +1678,47 @@ Wanted: the decoded part carrying each texture's stated space, and
 `texture::fromUsageMap` honouring it. A regression should round-trip a
 material whose base colour is stated `raw` and read it back as data.
 
+## The USD reader drops the optional lobes the writer keeps
+
+`usd/write/Material.cpp` keeps a surface's sheen, brushing, thin film and
+specular in the material prim's custom data (`sigil:sheenColor`,
+`sigil:anisotropy`, `sigil:iridescenceThickness`, `sigil:specular` and
+their siblings), because UsdPreviewSurface has no input for them.
+`usd/read/Material.cpp` reads `sigil:transmission` back and none of
+these: `geometry::mesh::codec::decode::Part` has no field for them, so a
+stage written and read back loses every lobe.
+
+Wanted: the decoded part carrying the lobes and the reader filling them,
+and the part's lowering into a material stating them. A regression should
+write a sheened, brushed surface and read it back with the same lobes.
+
+## A stack does not mix the optional lobes by its mask
+
+`material::over` mixes each operand's per-pixel surface terms by the
+coverage between them (`core/shaders/OverPrelude.slang`: `overClear`,
+`overTaken`, `overSay`), and none of the sheen, brushing, film or
+specular variables are among them. A stack whose operand states a lobe
+compiles the lobe in, and the variables stand as whichever operand wrote
+them last, over the whole face rather than where the mask lets that
+operand show.
+
+Wanted: the lobe variables cleared, taken and mixed with the others,
+without making every stack carry every lobe — the composed body could
+write a lobe's variables only when an operand's body does. A test should
+stack a sheened surface over a plain one under a half mask and read the
+sheen at half its strength.
+
+## A brushed highlight shows a coarse mesh's facets and a uv pole
+
+The tangent a brushing runs along is read off the screen derivatives of
+the position and the uv (`world/diligent/shaders/Surface.slang`,
+`tangentAxes`), which are constant across each triangle, so a strongly
+brushed highlight on a coarse mesh steps at the triangle edges; on a
+generated sphere the uv's poles pinch the brushing into a knot. No mesh
+lane carries an authored tangent (`geometry/device/residency/Meshes.cpp`
+packs position, normal, uv and colour).
+
+Wanted: an optional tangent lane — a mesh primitive the generators fill
+and the vertex layout carries when present — read in preference to the
+derivative frame. A device test should brush a sphere of few segments and
+assert the highlight varies smoothly across a triangle edge.

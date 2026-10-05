@@ -61,8 +61,39 @@ std::optional<size_t> surfaceMapIndex(texture::Role role) {
       return 6;
     case texture::Role::Clearcoat:
       return 7;
+    case texture::Role::Sheen:
+      return 8;
+    case texture::Role::SheenSpecular:
+      return 9;
+    case texture::Role::SpecularColor:
+      return 10;
+    case texture::Role::Anisotropy:
+      return 11;
+    case texture::Role::Iridescence:
+      return 12;
     default:
       return std::nullopt;
+  }
+}
+
+/** The number of roles a surface map pass answers. */
+constexpr size_t kSurfaceMapRoles = 13;
+
+/** The listener standing on this thread, innermost first. */
+thread_local LobeListener* tCurrentListener = nullptr;
+
+/** A colour channel into the pass: its map in the slot and white, or its
+ *  colour with no map. */
+void colorChannel(Paint& pass, const ColorInput& value,
+                  const std::optional<Paint>& lowered, const char* map,
+                  const char* hasMap, const char* colour) {
+  if (lowered) {
+    PaintAccess::storeSlot(pass, map, *lowered);
+    PaintAccess::storeUniform(pass, hasMap, 1.0f);
+    PaintAccess::storeUniform(pass, colour, Color{1, 1, 1, 1});
+  } else {
+    PaintAccess::storeUniform(pass, hasMap, 0.0f);
+    PaintAccess::storeUniform(pass, colour, std::get<Color>(value));
   }
 }
 
@@ -87,7 +118,8 @@ struct SurfaceMaps::Inputs {
   Material material;
   Paint colours;
   std::optional<Paint> normal, roughness, metallic, occlusion, emission,
-      clearcoat, clearcoatRoughness;
+      clearcoat, clearcoatRoughness, sheenColor, sheenRoughness, specular,
+      specularColor, anisotropyDirection, iridescence, iridescenceThickness;
 
   static Paint prepare(const Material& material) {
     Paint paint = PaintAccess::prepareMaterial(material);
@@ -110,13 +142,46 @@ struct SurfaceMaps::Inputs {
     if (surface.emissionMap) emission = prepare(*surface.emissionMap);
     clearcoat = lower(surface.clearcoat);
     clearcoatRoughness = lower(surface.clearcoatRoughness);
+    const auto lowerColour =
+        [](const ColorInput& value) -> std::optional<Paint> {
+      if (const auto* map = std::get_if<Material>(&value)) return prepare(*map);
+      return std::nullopt;
+    };
+    sheenColor = lowerColour(surface.sheenColor);
+    sheenRoughness = lower(surface.sheenRoughness);
+    specular = lower(surface.specular);
+    specularColor = lowerColour(surface.specularColor);
+    if (surface.anisotropyDirection)
+      anisotropyDirection = prepare(*surface.anisotropyDirection);
+    iridescence = lower(surface.iridescence);
+    if (surface.iridescenceThicknessMap)
+      iridescenceThickness = prepare(*surface.iridescenceThicknessMap);
+    // A page painted as a surface's maps learns from here which of the
+    // optional lobes its materials state.
+    LobeListener::hear(lobes(surface));
   }
 };
+
+LobeListener::LobeListener() : m_outer(tCurrentListener) {
+  tCurrentListener = this;
+}
+
+LobeListener::~LobeListener() { tCurrentListener = m_outer; }
+
+void LobeListener::hear(const Lobes& lobes) {
+  for (LobeListener* listener = tCurrentListener; listener;
+       listener = listener->m_outer) {
+    listener->m_heard.sheen |= lobes.sheen;
+    listener->m_heard.anisotropy |= lobes.anisotropy;
+    listener->m_heard.iridescence |= lobes.iridescence;
+    listener->m_heard.specular |= lobes.specular;
+  }
+}
 
 struct SurfaceMaps::MapCache {
   std::mutex mutex;
   /** One unshaded pass per surface map role, made on first request. */
-  std::array<std::optional<Paint>, 8> maps;
+  std::array<std::optional<Paint>, kSurfaceMapRoles> maps;
 };
 
 SurfaceMaps::SurfaceMaps(const Material& material)
@@ -137,10 +202,19 @@ bool usesWorldSpace(const Material& material) {
   if (!surface || surface->unlit) return false;
   for (const Channel* channel :
        {&surface->metallic, &surface->roughness, &surface->occlusion,
-        &surface->clearcoat, &surface->clearcoatRoughness})
+        &surface->clearcoat, &surface->clearcoatRoughness,
+        &surface->sheenRoughness, &surface->specular, &surface->iridescence})
     if (const auto* map = std::get_if<Material>(channel);
         map && detail::paintUsesWorldSpace(*map))
       return true;
+  for (const ColorInput* channel :
+       {&surface->sheenColor, &surface->specularColor})
+    if (const auto* map = std::get_if<Material>(channel);
+        map && detail::paintUsesWorldSpace(*map))
+      return true;
+  for (const std::optional<Material>* map :
+       {&surface->anisotropyDirection, &surface->iridescenceThicknessMap})
+    if (*map && detail::paintUsesWorldSpace(**map)) return true;
   return (surface->normal && detail::paintUsesWorldSpace(*surface->normal)) ||
          (surface->emissionMap &&
           detail::paintUsesWorldSpace(*surface->emissionMap));
@@ -172,7 +246,7 @@ sk_sp<SkShader> SurfaceMaps::mapShader(texture::Role role,
     if (!result || input.isSolid()) return result;
     return result->makeWithLocalMatrix(mapping);
   };
-  std::array<PaintAccess::ChildOverride, 8> children;
+  std::array<PaintAccess::ChildOverride, 16> children;
   size_t count = 0;
   const auto input = [&](const char* name, const Paint& lowered) {
     children[count++] = {name, mapped(lowered)};
@@ -186,6 +260,17 @@ sk_sp<SkShader> SurfaceMaps::mapShader(texture::Role role,
   if (m_inputs->clearcoat) input("uClearcoatMap", *m_inputs->clearcoat);
   if (m_inputs->clearcoatRoughness)
     input("uClearcoatRoughnessMap", *m_inputs->clearcoatRoughness);
+  if (m_inputs->sheenColor) input("uSheenColorMap", *m_inputs->sheenColor);
+  if (m_inputs->sheenRoughness)
+    input("uSheenRoughnessMap", *m_inputs->sheenRoughness);
+  if (m_inputs->specular) input("uSpecularMap", *m_inputs->specular);
+  if (m_inputs->specularColor)
+    input("uSpecularColorMap", *m_inputs->specularColor);
+  if (m_inputs->anisotropyDirection)
+    input("uAnisotropyMap", *m_inputs->anisotropyDirection);
+  if (m_inputs->iridescence) input("uIridescenceMap", *m_inputs->iridescence);
+  if (m_inputs->iridescenceThickness)
+    input("uIridescenceThicknessMap", *m_inputs->iridescenceThickness);
   const PaintFrame frame = paintFrameOf(nodeFrame);
   return PaintAccess::build(*PaintAccess::live(pass), &frame, false,
                             std::span(children).first(count));
@@ -204,6 +289,15 @@ Color surfaceMapGround(texture::Role role) {
       return {0, 0, 0, 1};
     case texture::Role::Packed:
       return {1, 1, 0, 1};
+    case texture::Role::Sheen:
+    case texture::Role::Iridescence:
+      return {0, 0, 0, 1};
+    case texture::Role::SheenSpecular:
+      return {0, 1, 0, 1};
+    case texture::Role::SpecularColor:
+      return {1, 1, 1, 1};
+    case texture::Role::Anisotropy:
+      return {1, 0.5f, 0, 1};
     default:
       return {0, 0, 0, 0};
   }
@@ -269,6 +363,35 @@ Paint SurfaceMaps::mapPass(texture::Role role) const {
   channel(pass, surface.clearcoatRoughness, m_inputs->clearcoatRoughness,
           "uClearcoatRoughnessMap", "uHasClearcoatRoughnessMap",
           "uClearcoatRoughness");
+  colorChannel(pass, surface.sheenColor, m_inputs->sheenColor, "uSheenColorMap",
+               "uHasSheenColorMap", "uSheenColor");
+  channel(pass, surface.sheenRoughness, m_inputs->sheenRoughness,
+          "uSheenRoughnessMap", "uHasSheenRoughnessMap", "uSheenRoughness");
+  channel(pass, surface.specular, m_inputs->specular, "uSpecularMap",
+          "uHasSpecularMap", "uSpecular");
+  colorChannel(pass, surface.specularColor, m_inputs->specularColor,
+               "uSpecularColorMap", "uHasSpecularColorMap", "uSpecularColor");
+  PaintAccess::storeUniform(pass, "uAnisotropy", surface.anisotropy);
+  PaintAccess::storeUniform(pass, "uAnisotropyRotation",
+                            surface.anisotropyRotation);
+  PaintAccess::storeUniform(pass, "uHasAnisotropyMap",
+                            m_inputs->anisotropyDirection ? 1.0f : 0.0f);
+  if (m_inputs->anisotropyDirection)
+    PaintAccess::storeSlot(pass, "uAnisotropyMap",
+                           *m_inputs->anisotropyDirection);
+  channel(pass, surface.iridescence, m_inputs->iridescence, "uIridescenceMap",
+          "uHasIridescenceMap", "uIridescence");
+  PaintAccess::storeUniform(
+      pass, "uIridescenceThickness",
+      surface.iridescenceThickness / texture::kIridescenceThicknessRange);
+  PaintAccess::storeUniform(pass, "uIridescenceThicknessMinimum",
+                            surface.iridescenceThicknessMinimum /
+                                texture::kIridescenceThicknessRange);
+  PaintAccess::storeUniform(pass, "uHasIridescenceThicknessMap",
+                            m_inputs->iridescenceThickness ? 1.0f : 0.0f);
+  if (m_inputs->iridescenceThickness)
+    PaintAccess::storeSlot(pass, "uIridescenceThicknessMap",
+                           *m_inputs->iridescenceThickness);
   const std::lock_guard lock(m_maps->mutex);
   std::optional<Paint>& held = m_maps->maps[*index];
   if (!held) held = std::move(pass);

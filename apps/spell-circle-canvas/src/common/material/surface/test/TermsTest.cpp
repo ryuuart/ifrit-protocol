@@ -293,6 +293,89 @@ const ClosedForm kClosedForms[] = {
      "srgbFromLinear(linearFromSrgb(float3(0.3, 0.6, 0.9))).g", 0.6f, 2e-3f},
     {"TheEncodingHoldsNothingAboveWhite", "srgbFromLinearChannel(4.0)", 1.0f,
      2e-3f},
+    // THE SHEEN'S DISTRIBUTION is brightest with the half vector along the
+    // surface: (2 + 1/a) / 2pi there, a = 0.25 at a roughness of one half,
+    // and next to nothing along the normal.
+    {"TheSheenDistributionAlongTheSurface", "distributionSheen(0.0, 0.5)",
+     6.0f / 6.2831853f, 2e-3f},
+    {"TheSheenDistributionAlongTheNormalIsNearlyNothing",
+     "distributionSheen(1.0, 0.5) * 100.0", 0.00583f, 2e-3f},
+    // THE SHEEN NEVER SHOWS MORE THAN ITS FIBRES SEND: its visibility is
+    // held to one even at a grazing pair of cosines.
+    {"TheSheenVisibilityIsHeldToOne", "visibilitySheen(0.001, 0.001, 0.3)",
+     1.0f, 2e-3f},
+    // WHAT A SHEEN LEAVES BENEATH IT: a white sheen whose albedo is a
+    // quarter at the eye and a half at the light takes the larger half.
+    {"TheSheenTakesTheLargerOfItsTwoLosses",
+     "sheenScaling(float3(1.0), 0.25, 0.5)", 0.5f, 2e-3f},
+    {"NoSheenTakesNothing", "sheenScaling(float3(0.0), 0.9, 0.9)", 1.0f, 2e-3f},
+    {"AColouredSheenTakesByItsStrongestChannel",
+     "sheenScaling(float3(0.2, 0.8, 0.4), 0.5, 0.25)", 0.6f, 2e-3f},
+    {"TheSheenOfLightFromEverywhere",
+     "environmentSheen(float3(2.0), float3(0.5), 0.25).r", 0.25f, 2e-3f},
+    // THE ANISOTROPIC DISTRIBUTION with its two widths equal is the
+    // isotropic one: at a half vector 30 degrees off the normal, a = 0.25.
+    {"AnisotropicGgxWithEqualWidthsIsGgx",
+     "distributionGgxAnisotropic(0.8660254, 0.5, 0.0, 0.25, 0.25) - "
+     "distributionGgx(0.8660254, 0.5)",
+     0.0f, 2e-3f},
+    {"AnisotropicSmithWithEqualWidthsIsSmith",
+     "visibilityGgxAnisotropic(0.6, 0.8, 0.8, 0.0, 0.0, 0.6, 0.25, 0.25) - "
+     "visibilityGgx(0.6, 0.8, 0.5)",
+     0.0f, 2e-3f},
+    {"NoBrushingWidensNothing", "anisotropicWidth(0.5, 0.0)", 0.25f, 2e-3f},
+    {"AFullBrushingWidensToOne", "anisotropicWidth(0.5, 1.0)", 1.0f, 2e-3f},
+    {"AnUnbrushedSurfaceMirrorsAboutItsOwnNormal",
+     "anisotropicBentNormal(float3(0.0, 0.0, 1.0), float3(1.0, 0.0, 0.0), "
+     "normalize(float3(0.3, 0.2, 1.0)), 0.4, 0.0).z",
+     1.0f, 2e-3f},
+    // THE BRUSHING'S TANGENT, turned a quarter turn from u, runs along the
+    // surface's other axis.
+    {"AQuarterTurnBrushesAlongTheOtherAxis",
+     "anisotropyTangent(float3(0.0, 0.0, 1.0), float3(1.0, 0.0, 0.0), "
+     "float3(0.0, 1.0, 0.0), float2(1.0, 0.0), 90.0, "
+     "float3(1.0, 0.0, 0.0)).y",
+     1.0f, 2e-3f},
+    {"ACollapsedFrameBrushesAlongTheFallback",
+     "anisotropyTangent(float3(0.0, 0.0, 1.0), float3(0.0), float3(0.0), "
+     "float2(1.0, 0.0), 0.0, float3(0.0, 1.0, 0.0)).y",
+     1.0f, 2e-3f},
+    // SCHLICK BACKWARD: the reflectance that rises to the one asked about.
+    {"FresnelRunBackwardFindsItsStart",
+     "fresnelToF0(0.5, fresnelSchlick(float3(0.2), float3(1.0), 0.5), "
+     "float3(1.0)).r",
+     0.2f, 2e-3f},
+    {"GlassAgainstAirReflectsFourPerCent", "reflectanceFromIor(1.5, 1.0)",
+     0.04f, 2e-3f},
+    // A FILM OF NO WEIGHT OR NO THICKNESS IS NO FILM.
+    {"AFilmOfNoWeightLeavesTheReflectance",
+     "iridescentF0(float3(0.04), 0.7, 0.0, 1.3, 400.0).r", 0.04f, 1e-5f},
+    {"AFilmOfNoThicknessLeavesTheReflectance",
+     "iridescentF0(float3(0.04), 0.7, 1.0, 1.3, 0.0).r", 0.04f, 1e-5f},
+    // THE DIELECTRIC'S SPECULAR at its stock strength and colour is the
+    // four per cent every dielectric here reflects, rising to white, with
+    // the diffuse side the plain terms give it; at no strength it reflects
+    // nothing at any angle.
+    {"StockSpecularIsFourPerCent",
+     "specularColorFrom(float3(0.5), 0.0, "
+     "dielectricReflectance(float3(1.0), 1.0)).g",
+     0.04f, 1e-6f},
+    {"StockSpecularRisesToWhite", "reflectance90From(0.0, 1.0).g", 1.0f, 1e-6f},
+    {"StockSpecularLeavesTheDiffuseItHad",
+     "diffuseColorFrom(float3(0.5), 0.3, "
+     "dielectricReflectance(float3(1.0), 1.0)).r - "
+     "diffuseColor(float3(0.5), 0.3).r",
+     0.0f, 1e-6f},
+    {"NoSpecularReflectsNothingHeadOn",
+     "dielectricReflectance(float3(1.0), 0.0).r", 0.0f, 1e-6f},
+    {"NoSpecularReflectsNothingAtTheRim", "reflectance90From(0.0, 0.0).r", 0.0f,
+     1e-6f},
+    {"AMetalIgnoresTheDielectricsSpecular",
+     "specularColorFrom(float3(0.9, 0.6, 0.3), 1.0, "
+     "dielectricReflectance(float3(1.0), 0.0)).g",
+     0.6f, 1e-6f},
+    {"ATintedSpecularIsTinted",
+     "dielectricReflectance(float3(1.0, 0.5, 0.25), 1.0).b", 0.01f, 1e-6f},
 };
 
 }  // namespace
@@ -510,6 +593,178 @@ TEST(Terms, AWhiteMetalInAWhiteFurnaceReturnsTheLightItWasLitBy) {
       EXPECT_LE(dielectric.x, 1.005f) << at;
       EXPECT_GT(dielectric.x, 0.9f) << at;
     }
+}
+
+namespace {
+
+/** THE SHEEN'S DIRECTIONAL ALBEDO, integrated in the shading language:
+ *  `directSheen` itself for a white sheen of @p sheenRoughness seen at
+ *  @p nDotV, out of a uniform white surround, over an even n-by-n grid of
+ *  the hemisphere weighted by solid angle. */
+double sheenAlbedoIntegrated(float sheenRoughness, float nDotV, int n) {
+  const std::string cells = std::to_string(n) + ".0";
+  const std::string body =
+      "half4 main(float2 xy) {\n"
+      "  float theta = 1.57079633 * xy.y / " +
+      cells +
+      ";\n"
+      "  float phi = 6.28318531 * xy.x / " +
+      cells +
+      ";\n"
+      "  float s = sin(theta);\n"
+      "  float3 l = float3(s * cos(phi), s * sin(phi), cos(theta));\n"
+      "  float nv = " +
+      std::to_string(nDotV) +
+      ";\n"
+      "  float3 v = float3(sqrt(1.0 - nv * nv), 0.0, nv);\n"
+      "  float3 f = directSheen(float3(0.0, 0.0, 1.0), l, v, float3(1.0), " +
+      std::to_string(sheenRoughness) +
+      ");\n"
+      "  return half4(half(f.r * s), 0.0, 0.0, 1.0);\n"
+      "}\n";
+  double sum = 0;
+  for (const SkColor4f& cell : evaluated(body, n)) sum += cell.fR;
+  return sum * 1.5707963267948966 * 6.283185307179586 / ((double)n * (double)n);
+}
+
+}  // namespace
+
+TEST(Terms, TheSheenTableIsTheIntegralOfTheLobeTheLightsShadeWith) {
+  // The table is integrated on the host; here it is held to the sheen
+  // integrated through `directSheen` itself, in the shading language.
+  for (const float roughness : {0.2f, 0.5f, 0.8f, 1.0f})
+    for (const float nDotV : {0.2f, 0.5f, 0.8f, 1.0f}) {
+      const double integrated = sheenAlbedoIntegrated(roughness, nDotV, 256);
+      EXPECT_NEAR(sheenAlbedo(roughness, nDotV), integrated, 0.01)
+          << roughness << " " << nDotV;
+    }
+  const std::vector<float>& table = sheenAlbedoTable();
+  ASSERT_EQ(table.size(), (size_t)kEnvironmentBrdfSize * kEnvironmentBrdfSize);
+  for (const float value : table) {
+    EXPECT_GE(value, 0.0f);
+    EXPECT_LE(value, 1.0f);
+  }
+  // Away from grazing the sheen's albedo is under one without the hold.
+  for (const float roughness : {0.0f, 0.25f, 0.5f, 0.75f, 1.0f})
+    for (const float nDotV : {0.1f, 0.3f, 0.6f, 1.0f})
+      EXPECT_LE(sheenAlbedo(roughness, nDotV), 1.0f)
+          << roughness << " " << nDotV;
+}
+
+TEST(Terms, ASheenOverAWhiteSurfaceInAWhiteFurnaceReturnsNoMoreThanItGot) {
+  // A white sheen reflects its albedo of a uniform white surround and the
+  // white surface beneath gives up that share: the two together never
+  // exceed what arrived, within the table's own rounding, at any
+  // roughness of either or any angle.
+  for (const float sheenRoughness : {0.0f, 0.3f, 0.6f, 1.0f})
+    for (const float roughness : {0.0f, 0.5f, 1.0f})
+      for (const float nDotV : {0.1f, 0.5f, 1.0f}) {
+        const float albedo = sheenAlbedo(sheenRoughness, nDotV);
+        const std::string at = std::to_string(roughness) + ", " +
+                               std::to_string(nDotV) + ", " +
+                               brdfAt(roughness, nDotV);
+        const std::string scaled =
+            "sheenScaling(float3(1.0), " + std::to_string(albedo) + ", 0.0)";
+        const glm::vec3 total =
+            shaded("environmentSheen(float3(1.0), float3(1.0), " +
+                   std::to_string(albedo) +
+                   ") + (environmentSpecular(float3(1.0), "
+                   "float3(0.04), " +
+                   at +
+                   ") + environmentDiffuse(float3(1.0), "
+                   "float3(0.96), float3(0.04), " +
+                   at + ")) * " + scaled);
+        EXPECT_LE(total.x, 1.005f) << sheenRoughness << " " << at;
+        EXPECT_GT(total.x, 0.85f) << sheenRoughness << " " << at;
+      }
+}
+
+TEST(Terms, ASheenBrightensTheRimMoreThanTheFace) {
+  // Lit from behind the eye, a sheen sends back more at a grazing view
+  // than head on: that is the soft edge velvet shows.
+  const float face = scalar(
+      "directSheen(float3(0.0, 0.0, 1.0), float3(0.0, 0.0, 1.0), "
+      "float3(0.0, 0.0, 1.0), float3(1.0), 0.5).r");
+  const float rim = scalar(
+      "directSheen(float3(0.0, 0.0, 1.0), normalize(float3(1.0, 0.0, 0.25)), "
+      "normalize(float3(1.0, 0.0, 0.25)), float3(1.0), 0.5).r");
+  EXPECT_GT(rim, face * 2.0f);
+}
+
+TEST(Terms, AnUnbrushedHighlightIsTheIsotropicOne) {
+  // At no strength the brushed specular is `directSpecular` exactly,
+  // whichever way the tangent lies.
+  for (const char* tangent :
+       {"float3(1.0, 0.0, 0.0)", "normalize(float3(1.0, 1.0, 0.0))"})
+    for (const char* light : {"normalize(float3(0.4, 0.1, 1.0))",
+                              "normalize(float3(-0.6, 0.5, 0.7))"}) {
+      const std::string common =
+          std::string("float3(0.0, 0.0, 1.0), ") + "%T" + light +
+          ", normalize(float3(0.1, -0.3, 1.0)), float3(0.04), float3(1.0), "
+          "0.35";
+      std::string brushed = "directSpecularAnisotropic(" + common + ", 0.0)";
+      std::string plain = "directSpecular(" + common + ")";
+      brushed.replace(brushed.find("%T"), 2, std::string(tangent) + ", ");
+      plain.replace(plain.find("%T"), 2, "");
+      EXPECT_NEAR(scalar(brushed + ".r"), scalar(plain + ".r"), 1e-4f)
+          << tangent << " " << light;
+    }
+}
+
+TEST(Terms, ABrushedHighlightStretchesAlongItsTangent) {
+  // The half vector tipped toward the tangent stays in the highlight long
+  // after the same tip toward the bitangent has left it.
+  const std::string a = "anisotropicWidth(0.3, 0.8), microfacetWidth(0.3)";
+  const float alongTangent = scalar(
+      "distributionGgxAnisotropic(0.9396926, 0.3420201, 0.0, " + a + ")");
+  const float alongBitangent = scalar(
+      "distributionGgxAnisotropic(0.9396926, 0.0, 0.3420201, " + a + ")");
+  EXPECT_GT(alongTangent, alongBitangent * 4.0f);
+}
+
+TEST(Terms, AFilmChangesItsColourWithItsThicknessAndTheAngle) {
+  // The film tints a dielectric's reflection, and the tint is not the
+  // same at two thicknesses or at two angles.
+  const glm::vec3 thin =
+      shaded("iridescenceFresnel(1.3, 0.9, 250.0, float3(0.04))");
+  const glm::vec3 thick =
+      shaded("iridescenceFresnel(1.3, 0.9, 500.0, float3(0.04))");
+  const glm::vec3 grazing =
+      shaded("iridescenceFresnel(1.3, 0.3, 250.0, float3(0.04))");
+  const auto hue = [](const glm::vec3& c) {
+    return glm::vec3(c.x, c.y, c.z) / std::fmax(c.x + c.y + c.z, 1e-6f);
+  };
+  const auto apart = [&](const glm::vec3& a, const glm::vec3& b) {
+    const glm::vec3 d = hue(a) - hue(b);
+    return std::fabs(d.x) + std::fabs(d.y) + std::fabs(d.z);
+  };
+  EXPECT_GT(apart(thin, thick), 0.05f);
+  EXPECT_GT(apart(thin, grazing), 0.05f);
+  for (const glm::vec3& c : {thin, thick, grazing}) {
+    EXPECT_GE(std::fmin(c.x, std::fmin(c.y, c.z)), 0.0f);
+    EXPECT_LE(std::fmax(c.x, std::fmax(c.y, c.z)), 1.0f);
+  }
+}
+
+TEST(Terms, NoSpecularRemovesTheDielectricHighlight) {
+  // A dielectric at no specular strength shows no highlight under a light
+  // at any angle, and at its stock strength the plain one.
+  const std::string vectors =
+      "float3(0.0, 0.0, 1.0), normalize(float3(0.5, 0.0, 1.0)), "
+      "normalize(float3(-0.5, 0.0, 1.0)), ";
+  EXPECT_NEAR(scalar("directSpecular(" + vectors +
+                     "specularColorFrom(float3(0.5), 0.0, "
+                     "dielectricReflectance(float3(1.0), 0.0)), "
+                     "reflectance90From(0.0, 0.0), 0.3).g"),
+              0.0f, 1e-6f);
+  EXPECT_NEAR(scalar("directSpecular(" + vectors +
+                     "specularColorFrom(float3(0.5), 0.0, "
+                     "dielectricReflectance(float3(1.0), 1.0)), "
+                     "reflectance90From(0.0, 1.0), 0.3).g"),
+              scalar("directSpecular(" + vectors +
+                     "specularColor(float3(0.5), 0.0), "
+                     "reflectance90(specularColor(float3(0.5), 0.0)), 0.3).g"),
+              1e-6f);
 }
 
 TEST(Terms, TheLightARoughMetalScattersMoreThanOnceIsPutBack) {

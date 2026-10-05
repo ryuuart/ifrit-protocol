@@ -27,12 +27,21 @@ namespace {
 template <class Predicate>
 bool surfaceChannelsMatch(const SurfaceOptions& surface, Predicate matches) {
   for (const Channel* channel :
-       {&surface.metallic, &surface.roughness, &surface.occlusion})
+       {&surface.metallic, &surface.roughness, &surface.occlusion,
+        &surface.sheenRoughness, &surface.iridescence, &surface.specular})
     if (const auto* material = std::get_if<Material>(channel);
         material && matches(*material))
       return true;
-  return (surface.normal && matches(*surface.normal)) ||
-         (surface.emissionMap && matches(*surface.emissionMap));
+  for (const ColorInput* channel :
+       {&surface.sheenColor, &surface.specularColor})
+    if (const auto* material = std::get_if<Material>(channel);
+        material && matches(*material))
+      return true;
+  for (const std::optional<Material>* map :
+       {&surface.normal, &surface.emissionMap, &surface.anisotropyDirection,
+        &surface.iridescenceThicknessMap})
+    if (*map && matches(**map)) return true;
+  return false;
 }
 
 }  // namespace
@@ -605,6 +614,33 @@ Material::Resolved Material::resolve(Target target, const FrameData& frame,
   upload.program = compiled;
   state.latest = index;
   return {upload.program, upload.bytes};
+}
+
+Lobes lobes(const SurfaceOptions& options) {
+  if (options.unlit) return {};
+  const auto mapped = [](const auto& channel) {
+    return std::holds_alternative<Material>(channel);
+  };
+  const auto number = [](const Channel& channel) {
+    const float* value = std::get_if<float>(&channel);
+    return value ? *value : 1.0f;
+  };
+  const auto colour = [](const ColorInput& channel) {
+    const Color* value = std::get_if<Color>(&channel);
+    return value ? *value : Color{1, 1, 1, 1};
+  };
+  Lobes out;
+  const Color sheen = colour(options.sheenColor);
+  out.sheen = mapped(options.sheenColor) || sheen.r != 0 || sheen.g != 0 ||
+              sheen.b != 0;
+  out.anisotropy = options.anisotropy != 0;
+  out.iridescence =
+      mapped(options.iridescence) || number(options.iridescence) != 0;
+  const Color tint = colour(options.specularColor);
+  out.specular = mapped(options.specular) || mapped(options.specularColor) ||
+                 number(options.specular) != 1 || tint.r != 1 || tint.g != 1 ||
+                 tint.b != 1;
+  return out;
 }
 
 }  // namespace sigil::material

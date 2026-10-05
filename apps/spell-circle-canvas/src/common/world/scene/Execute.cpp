@@ -42,6 +42,27 @@ void eachTexture(const material::Material& material, Visit&& visit) {
 
 }  // namespace
 
+void Scene::Impl::restate(const TextureProducerOperations& producer) {
+  // `view.draws` is a window onto `draws`, so a body restated here is the
+  // body the view draws.
+  for (Draw& body : draws) {
+    if (!body.material) continue;
+    bool wears = false;
+    eachTexture(*body.material, [&](const material::Texture& texture) {
+      wears = wears || producer.paints(texture);
+    });
+    if (!wears) continue;
+    std::optional<material::Material> restated =
+        producer.restated(*body.material);
+    // The vector was sized for every body, so a restatement never moves
+    // one made before it.
+    if (!restated || restatedMaterials.size() == restatedMaterials.capacity())
+      continue;
+    restatedMaterials.push_back(std::move(*restated));
+    body.material = &restatedMaterials.back();
+  }
+}
+
 geometry::mesh::camera::Camera Scene::Impl::viewpoint() const {
   if (frame.cameraOverride()) return *frame.cameraOverride();
   return camera ? camera->lens : frame.defaultCamera();
@@ -229,6 +250,8 @@ bool Scene::Impl::phaseExecute() {
     return false;
   }
   runtime->beginFrame(targets);
+  restatedMaterials.clear();
+  restatedMaterials.reserve(draws.size());
   for (const PassWork& work : plan.steps()) {
     ++stats.passes;
     // A TEXTURE PASS PAINTS WITH ITS OWN PRODUCER, at the frame's time,
@@ -240,6 +263,7 @@ bool Scene::Impl::phaseExecute() {
         ++stats.texturesPainted;
       else
         ++stats.texturesSkipped;
+      restate(*work.pass->producer());
       continue;
     }
     runtime->execute(work, view, targets);

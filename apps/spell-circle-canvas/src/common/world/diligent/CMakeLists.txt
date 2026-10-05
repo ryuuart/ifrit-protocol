@@ -85,14 +85,14 @@ sigil_shader_sources(SigilWorldDiligent
 sigil_test(world_test
   SOURCES test/RuntimeTest.cpp test/StackTest.cpp
           test/SurfaceTest.cpp test/LightingTest.cpp test/EffectsTest.cpp
-          test/InstancingTest.cpp
+          test/InstancingTest.cpp test/LobesTest.cpp
           test/DeviceSeams.h
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
                ${SIGIL_GEOMETRY_DEVICE_TEST_SUPPORT_DIR}
   DEFINITIONS SIGIL_WORLD_SHADER_DIR="${_shaders}"
   LIBRARIES SigilWorldDiligent SigilMaterialSurface SigilGeometryKit
   SUITES Blending Bloom DataTexture DepthFade DeviceFrame Environment Facing
-         FinalStage Flipbook GpuRuntime Lighting Programs Stack
+         FinalStage Flipbook GpuRuntime Lighting Lobes Programs Stack
          SurfaceProgram SurfaceSlots
   LABELS gpu)
 

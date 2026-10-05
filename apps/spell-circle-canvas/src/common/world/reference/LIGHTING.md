@@ -13,7 +13,9 @@ Every lit pixel is shaded on its own, in linear light. Each light reaches
 the pixel at the falloff its distance and cone give there; the surface
 answers through a microfacet model — a Lambert diffuse and a GGX specular
 lobe, split by metalness and Fresnel — with a clear coat as a second lobe
-over it; light arriving from everywhere (the environment, ambient and
+over it, and, where a surface states them, a sheen, a brushing that
+stretches the highlight, a thin film that tints the reflectance, and a
+dielectric's own specular strength and colour; light arriving from everywhere (the environment, ambient and
 hemisphere lights) adds its diffuse and mirrored share with the energy a
 rough surface scatters more than once put back, darkened by occlusion;
 emission adds its own light; and the sum is written as light into a
@@ -80,6 +82,14 @@ delivers at the subject.
 | `environmentDiffuse` | the diffuse share of light from everywhere, with the energy lost to single scattering put back |
 | `hemisphereIrradiance` | the exact cosine-weighted blend of two half-spaces |
 | `clearcoatTransmittance` | what a coat of a weight lets through to the surface beneath |
+| `distributionSheen`, `visibilitySheen` | the sheen's sideways-standing fibres, and how they shadow one another |
+| `directSheen`, `environmentSheen` | one light's sheen, and the sheen of light from everywhere |
+| `sheenScaling` | what the surface beneath a sheen keeps |
+| `distributionGgxAnisotropic`, `visibilityGgxAnisotropic` | the GGX lobe and its visibility with a width of their own along the brushing |
+| `directSpecularAnisotropic`, `anisotropicBentNormal` | one light's brushed highlight, and the normal light from everywhere is mirrored about |
+| `anisotropyTangent` | the direction the brushing runs, turned and made square to the normal |
+| `iridescenceFresnel`, `iridescentF0` | a thin film's reflectance, and the head-on reflectance it leaves |
+| `dielectricReflectance`, `specularColorFrom`, `reflectance90From`, `diffuseColorFrom` | a dielectric's reflectance at its own strength and colour, and the diffuse side it leaves |
 
 **Roughness drives the highlight**: there is no scene-wide gloss or
 specular strength. A smooth surface concentrates a light into a small,
@@ -111,14 +121,78 @@ gives up the share that passed through.
 **Both sides.** A body whose back face is drawn is lit as the side it
 shows.
 
+## The optional lobes
+
+Each is compiled into a surface's program only when the surface states
+it (`material::Lobes`): a surface stating none is shaded by the plain
+program, sampling no map and evaluating no term of theirs.
+
+**Sheen.** `sheenColor` (black is none) and `sheenRoughness` describe a
+layer of fibres standing sideways off the surface, as velvet, felt and
+dust show. Their distribution is brightest with the half vector along the
+surface, so a sheen shows at the rim and toward a light behind it, and it
+has no Fresnel: its colour is how much it reflects at every angle. Under
+every light it adds `directSheen`; from everywhere it adds the radiance
+along the mirrored ray, read at the sheen's roughness, times its colour
+and its directional albedo at the eye's cosine. The surface beneath gives
+up what the sheen took: each light's base is scaled by `sheenScaling` at
+the eye's and the light's cosines, and light from everywhere by the same
+at the eye's. The directional albedo is a table SigilMaterial integrates
+from the same distribution and visibility (`material::sheenAlbedoTable`),
+packed in the split sum's table's blue, so a sheen costs no texture of
+its own. A white sheen over a white surface in a uniform white surround
+returns no more than it was lit by; within a few degrees of grazing the
+fitted visibility would let the albedo pass one, and the table holds it
+there.
+
+**Anisotropy.** `anisotropy` (0 to 1) widens the GGX lobe along the
+brushing toward one, by the square of the strength, and leaves it at the
+roughness's own width across it, so a highlight is drawn out along the
+way the surface was brushed. The brushing runs along the surface's u,
+turned by `anisotropyRotation` degrees counter-clockwise toward the way a
+normal map's green points, and further by an `anisotropyDirection` map.
+Light from everywhere is mirrored about a normal bent across the
+brushing, which smears the panorama along it. At zero strength every
+term is the isotropic one.
+
+**The tangent frame** is the surface's own uv, read off the screen
+derivatives of the position and the uv at each pixel — the frame a
+tangent-space normal map is authored against. No mesh lane carries an
+authored tangent, so a mesh says how it is brushed through its uv layout:
+on a generated sphere u runs around the equator and a brushing at zero
+turns runs around it, converging at the poles. Where the uv does not vary
+across the pixel there is no frame to read, and the brushing runs around
+the body's own up axis instead. The frame is read per triangle, so a
+coarse mesh shows its facets in a strongly brushed highlight.
+
+**Iridescence.** `iridescence` (a weight), `iridescenceIor` and
+`iridescenceThickness` in nanometres describe a thin film over the
+surface: light reflected off the film's top and off the surface beneath
+interferes, and what comes back is tinted by the path between them, which
+changes with the thickness and the angle. The film moves the head-on
+reflectance toward the one whose Schlick curve reaches the film's
+reflectance at the eye's cosine; every light and the light from
+everywhere read the moved reflectance. A film of no weight or no
+thickness is no film.
+
+**Specular.** `specular` and `specularColor` move a dielectric's
+head-on reflectance — four per cent tinted by the colour, scaled by the
+strength — and its grazing one, which is the strength; the diffuse side
+keeps what the reflection does not. At strength one and white this is
+the four per cent every dielectric reflects; at zero a dielectric
+reflects nothing at any angle. A metal reflects its base colour and
+ignores both.
+
 ## Colour
 
 - Colours an author types — base colour, emission, light colours, a
   hemisphere's ground — and colour textures — base colour and emissive
   maps, a page's base colour — are ENCODED, and are decoded into linear
   light before any light touches them.
-- Data textures — normal, roughness, metallic, occlusion, clear coat —
-  are read as stored.
+- Data textures — normal, roughness, metallic, occlusion, clear coat,
+  the sheen's roughness, the brushing, the film, the specular strength —
+  are read as stored; the sheen's and the specular's colours are colours
+  and are decoded.
 - The base colour is part of the lit sum: it multiplies before the curve.
 - Emission is linear light added to the sum before the exposure, so a
   strength above one is brighter than white and the curve holds it.
@@ -149,6 +223,8 @@ backdrop and the same sun reflected in a body are one brightness.
 
 ## What it does not do
 
-No shadows between bodies, no sheen, anisotropy or iridescence, no area
-lights, and the environment's prefiltered chain is a set of wrap-aware
-blurs rather than a GGX convolution of the panorama.
+No shadows between bodies, no area lights, and the environment's
+prefiltered chain is a set of wrap-aware blurs rather than a GGX
+convolution of the panorama — the sheen reads the same chain rather than
+one filtered for its own lobe. A sheen, a brushing and a film are
+single-scattering terms with no energy put back of their own.

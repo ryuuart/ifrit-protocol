@@ -213,8 +213,27 @@ and three.js use: `metallic`, `roughness` and `occlusion` (each a number
 or a material), a tangent-space `normal`, `emission` with its strength
 and map, a clear coat — `clearcoat`, `clearcoatRoughness` and its own
 `clearcoatNormal` — and glass (`transmission`, `ior`, `thickness`,
-`absorption`). Colours in it are encoded as an author types them;
-occlusion darkens only light arriving from everywhere. SigilMaterial shades nothing: a renderer that shades a set
+`absorption`). Four further lobes take glTF's names:
+
+- a sheen — `sheenColor` (a colour or a material; black is none) and
+  `sheenRoughness` — a soft reflection at the rim, as cloth shows;
+- anisotropy — `anisotropy` (0 to 1), `anisotropyRotation` in degrees
+  counter-clockwise from the way the surface's u runs, and an
+  `anisotropyDirection` map (red and green the direction, blue a scale on
+  the strength) — a highlight stretched along a brushing;
+- iridescence — `iridescence` (a weight), `iridescenceIor`, and
+  `iridescenceThickness` in nanometres, which with an
+  `iridescenceThicknessMap` is the thickness at white over
+  `iridescenceThicknessMinimum` at black — a thin film's interference;
+- a dielectric's own `specular` strength and `specularColor`.
+
+Emission above white is `emissionStrength` past one. Colours in it are
+encoded as an author types them; occlusion darkens only light arriving
+from everywhere. A surface carries only the lobes it states
+(`material::lobes(SurfaceOptions)`, `material::Lobes`): the surface program
+lowered from one that states no sheen has no sheen in its body and samples
+none of the sheen's maps, and the program's own recipe says which it
+carries (`surface::lobes(Material)`). SigilMaterial shades nothing: a renderer that shades a set
 shades a material's surface under the set's own lights, and a 2D painter
 paints the material's colour stack flat. `material::skia::paint` lowers
 that colour stack whether or not the material states a surface.
@@ -225,14 +244,22 @@ SigilWorld's, which names them itself.
 The shading terms a renderer composes a lit surface from — the GGX
 lobe, Fresnel, the falloffs, the tone curves and the colour encoding —
 are one text, `material::termsSource`, with the split sum's table beside
-it (`material::environmentBrdfTable`).
+it (`material::environmentBrdfTable`) and the sheen's directional albedo
+over the same square (`material::sheenAlbedoTable`).
 
 A renderer that brings its own lights reads a surface UNSHADED, one surface
 map at a time: `material::skia::asMap(material, role)` answers the base
 colour, normal, roughness, metallic, occlusion or emissive map, the three
-scalars packed in glTF's order (`texture::Role::Packed`) or the clear coat's
-weight and roughness (`texture::Role::Clearcoat`), keyed by
-`texture::Role`, as the texture of that role encodes it. The normal comes
+scalars packed in glTF's order (`texture::Role::Packed`), the clear coat's
+weight and roughness (`texture::Role::Clearcoat`), or one of the optional
+lobes' — the sheen's colour (`Sheen`), the sheen's roughness with the
+specular strength (`SheenSpecular`), the specular colour
+(`SpecularColor`), the brushing's direction and strength (`Anisotropy`)
+and the film's weight and thickness (`Iridescence`) — keyed by
+`texture::Role`, as the texture of that role encodes it.
+`material::skia::LobeListener` hears which lobes the surfaces read as maps
+on its thread state, which is how a page learns which of those maps it
+needs. The normal comes
 back as `(n + 1) / 2` with green up the picture whatever convention the
 material stated, including a height-derived or blended normal; a scalar
 comes back grey, its number times its map; a role a material states

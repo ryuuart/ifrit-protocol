@@ -34,7 +34,8 @@ namespace sigil::material::texture {
  *  roughness (G), metallic (B) image — glTF's layout, and what
  *  Substance's glTF template, Poly Haven's `_arm` and the common
  *  `_orm` write. Clearcoat is glTF's clear coat in one image: its weight
- *  in red and its roughness in green. */
+ *  in red and its roughness in green. The roles after it are the optional
+ *  lobes a page paints when its materials state them. */
 enum class Role {
   Unknown,
   BaseColor,
@@ -48,7 +49,25 @@ enum class Role {
   Opacity,
   Specular,
   Clearcoat,
+  /** A sheen's colour. */
+  Sheen,
+  /** The sheen's roughness in red and a dielectric's specular strength in
+   *  green. */
+  SheenSpecular,
+  /** A dielectric's specular colour. */
+  SpecularColor,
+  /** The direction a highlight stretches along in red and green, encoded
+   *  as a normal map is, and its strength in blue — glTF's layout. */
+  Anisotropy,
+  /** A thin film's weight in red and its thickness in green, over the
+   *  range a surface reading it states — glTF's layout. */
+  Iridescence,
 };
+
+/** The thickness, in nanometres, an `Iridescence` image reaches at white
+ *  in green when the surface it dresses states no range of its own; black
+ *  is no film. */
+inline constexpr float kIridescenceThicknessRange = 1000;
 
 /** The role's name as messages and keys spell it. */
 std::string_view name(Role role);

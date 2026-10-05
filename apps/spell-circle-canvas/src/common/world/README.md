@@ -477,7 +477,11 @@ never the picture presented. Nothing paints unless its pass is on the
 frame: a body wearing a texture whose pass is missing — a texture marked
 with `produced(texture, pass)` — is an error naming the body and the
 pass, and a texture pass that found nothing changed is counted in
-`SceneStats::texturesSkipped` beside `SceneStats::texturesPainted`.
+`SceneStats::texturesSkipped` beside `SceneStats::texturesPainted`. A
+producer whose painting decides what a body wearing its textures needs —
+a page that learned which maps its content states — answers
+`TextureProducerOperations::restated`, asked once it has painted, and the
+body is drawn wearing that material this frame.
 
 **The order comes off the declarations.** Every resource has versions —
 one per pass that writes it, in declaration order — and three edges
@@ -648,7 +652,8 @@ shaders come from and the one device it all stands on.
 on its own page: what each light delivers and how it falls off — the
 inverse square, a range's smooth window, a spot's cone, stated through
 `world::intensityAt` — the surface's microfacet terms, the clear coat,
-light from everywhere, how colour is decoded and encoded, and the
+the sheen, the brushing, the thin film and a dielectric's specular, light
+from everywhere, how colour is decoded and encoded, and the
 camera's tone curves.
 
 ## A 2D scene as a texture
@@ -678,7 +683,9 @@ That is the whole handoff.
 
 **A page the set lights is a texture pass.** Compose can paint one tree
 as the maps of a surface — base colour, normal, roughness, metallic,
-occlusion and emissive — and a host that links both libraries puts that
+occlusion and emissive, the clear coat, and the maps of whichever of the
+sheen, the brushing, the thin film and the specular its materials state —
+and a host that links both libraries puts that
 paint on the frame as a texture pass and the surface it makes in a
 body's material, its textures marked as that pass's. The set's lights,
 environment and camera then shade the page; its unlit content arrives in

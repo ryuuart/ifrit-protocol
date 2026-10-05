@@ -503,12 +503,12 @@ Texture texel(int key) {
 TEST(Over, AStackAsksForItsOperandsSamplersAndNoMore) {
   registerCompiler(Target::Slang, slangStandIn);
 
-  // An undressed surface fills all ten of its slots so no body ever
+  // An undressed surface fills all seventeen of its slots so no body ever
   // evaluates an unbound child, and the SkSL body samples two of them.
-  // The eight it never reads are not declared to that program and so
+  // The fifteen it never reads are not declared to that program and so
   // cost it no sampler.
   const Material unlit = surface::unlit();
-  EXPECT_EQ(unlit.slots().size(), 10u);
+  EXPECT_EQ(unlit.slots().size(), 17u);
   EXPECT_EQ(declaredSlots(unlit), 2u);
   EXPECT_EQ(skia::samplerCount(unlit), 2);
 
@@ -597,6 +597,97 @@ TEST(Surface, LowersAnImageChannelIntoItsMapSlot) {
   const Texture* base = surface::map(based, surface::kBaseColorSlot);
   ASSERT_NE(base, nullptr);
   EXPECT_EQ(base->source(), media::PixelSource(grey));
+}
+
+// ---- the optional lobes ----------------------------------------------------
+
+namespace {
+
+/** The Slang text a program's recipe hands a renderer. */
+std::string slangOf(const Material& program) {
+  return program.recipe().source(Target::Slang);
+}
+
+}  // namespace
+
+TEST(Surface, ASurfaceStatingNoLobeCarriesNoneOfTheirText) {
+  // The body a renderer compiles names no lobe's map and no lobe's
+  // variable, so it declares no sampler for them and compiles no term.
+  const Material plain = surface::lower(
+      from(Color{0.5f, 0.5f, 0.5f, 1}).surface({.roughness = 0.4f}));
+  EXPECT_EQ(surface::lobes(plain), Lobes{});
+  const std::string text = slangOf(plain);
+  for (const char* absent :
+       {"sheenColorMap", "anisotropyMap", "iridescenceMap", "specularMap",
+        "specularColorMap", "gSurfaceSheen", "gSurfaceAnisotropy",
+        "gSurfaceIridescence", "gSurfaceSpecular"})
+    EXPECT_EQ(text.find(absent), std::string::npos) << absent;
+  // It is built on the plain recipe, the one a surface stating no lobe is.
+  EXPECT_EQ(plain.recipePointer(), surface::surfaceRecipe());
+}
+
+TEST(Surface, EachStatedLobeCarriesItsOwnTextAndNoOther) {
+  const Material sheen = surface::lower(
+      from(Color{0.3f, 0.1f, 0.1f, 1})
+          .surface({.sheenColor = Color{1, 1, 1, 1}, .sheenRoughness = 0.4f}));
+  EXPECT_EQ(surface::lobes(sheen), (Lobes{.sheen = true}));
+  EXPECT_NE(slangOf(sheen).find("sheenColorMap"), std::string::npos);
+  EXPECT_EQ(slangOf(sheen).find("anisotropyMap"), std::string::npos);
+  EXPECT_FLOAT_EQ(sheen.get<float>("sheenRoughness"), 0.4f);
+
+  const Material brushed =
+      surface::lower(from(Color{0.8f, 0.8f, 0.8f, 1})
+                         .surface({.metallic = 1.0f,
+                                   .anisotropy = 0.7f,
+                                   .anisotropyRotation = 90}));
+  EXPECT_EQ(surface::lobes(brushed), (Lobes{.anisotropy = true}));
+  EXPECT_FLOAT_EQ(brushed.get<float>("anisotropyRotation"), 90.0f);
+
+  const Material film = surface::lower(
+      from(Color{0.1f, 0.1f, 0.1f, 1})
+          .surface({.iridescence = 1.0f, .iridescenceThickness = 300}));
+  EXPECT_EQ(surface::lobes(film), (Lobes{.iridescence = true}));
+
+  const Material dull = surface::lower(
+      from(Color{0.5f, 0.5f, 0.5f, 1}).surface({.specular = 0.0f}));
+  EXPECT_EQ(surface::lobes(dull), (Lobes{.specular = true}));
+  EXPECT_FLOAT_EQ(dull.get<float>("specular"), 0.0f);
+
+  // Every one of them is still a surface program.
+  for (const Material* m : {&sheen, &brushed, &film, &dull})
+    EXPECT_TRUE(surface::isSurface(*m));
+}
+
+TEST(Surface, ALobeStatedOnlyByAMapIsCarriedAndItsMapPlaced) {
+  const sk_sp<SkImage> grey = test::solid(SK_ColorGRAY, 2, 2);
+  const Material lowered = surface::lower(
+      from(Color{1, 1, 1, 1})
+          .surface({.specularColor = image(media::PixelSource(grey))}));
+  EXPECT_TRUE(surface::lobes(lowered).specular);
+  const Texture* map = surface::map(lowered, surface::kSpecularColorSlot);
+  ASSERT_NE(map, nullptr);
+  EXPECT_EQ(map->source(), media::PixelSource(grey));
+}
+
+TEST(Surface, ASetsLobeImagesAreCarriedAndPlaced) {
+  using texture::Role;
+  const Texture grey(test::solid(SK_ColorGRAY, 2, 2));
+  texture::TextureMaps maps;
+  maps.maps.emplace(Role::BaseColor, grey);
+  maps.maps.emplace(Role::Sheen, grey);
+  maps.maps.emplace(Role::SheenSpecular, grey);
+  maps.maps.emplace(Role::Anisotropy, grey);
+  const Material dressed = surface::program(maps);
+  EXPECT_EQ(surface::lobes(dressed),
+            (Lobes{.sheen = true, .anisotropy = true}));
+  EXPECT_NE(surface::map(dressed, surface::kSheenColorSlot), nullptr);
+  EXPECT_NE(surface::map(dressed, surface::kSheenRoughnessSlot), nullptr);
+  EXPECT_NE(surface::map(dressed, surface::kAnisotropySlot), nullptr);
+  EXPECT_EQ(surface::map(dressed, surface::kIridescenceSlot), nullptr);
+  // The factors the maps multiply start at one.
+  EXPECT_EQ(dressed.get<Color>("sheenColor"), (Color{1, 1, 1, 1}));
+  EXPECT_FLOAT_EQ(dressed.get<float>("anisotropy"), 1.0f);
+  EXPECT_FLOAT_EQ(dressed.get<float>("sheenRoughnessChannel"), 0.0f);
 }
 
 // ---- the embedded shader table --------------------------------------------

@@ -20,7 +20,9 @@ void bindMaterialEnvironment(py::module_& module) {
            std::pair<const char*, material::Color Parameters::*>>{
            {"baseColor", &Parameters::baseColor},
            {"emissive", &Parameters::emissive},
-           {"absorption", &Parameters::absorption}}) {
+           {"absorption", &Parameters::absorption},
+           {"sheenColor", &Parameters::sheenColor},
+           {"specularColorFactor", &Parameters::specularColorFactor}}) {
     parameters.def_property(
         name,
         // A colour answers as the colour class rather than as four bare
@@ -53,7 +55,22 @@ void bindMaterialEnvironment(py::module_& module) {
       .def_readwrite("clearcoatRoughness", &Parameters::clearcoatRoughness)
       .def_readwrite("clearcoatChannel", &Parameters::clearcoatChannel)
       .def_readwrite("clearcoatRoughnessChannel",
-                     &Parameters::clearcoatRoughnessChannel);
+                     &Parameters::clearcoatRoughnessChannel)
+      .def_readwrite("sheenRoughness", &Parameters::sheenRoughness)
+      .def_readwrite("sheenRoughnessChannel",
+                     &Parameters::sheenRoughnessChannel)
+      .def_readwrite("anisotropy", &Parameters::anisotropy)
+      .def_readwrite("anisotropyRotation", &Parameters::anisotropyRotation)
+      .def_readwrite("iridescence", &Parameters::iridescence)
+      .def_readwrite("iridescenceIor", &Parameters::iridescenceIor)
+      .def_readwrite("iridescenceThickness", &Parameters::iridescenceThickness)
+      .def_readwrite("iridescenceThicknessMinimum",
+                     &Parameters::iridescenceThicknessMinimum)
+      .def_readwrite("iridescenceChannel", &Parameters::iridescenceChannel)
+      .def_readwrite("iridescenceThicknessChannel",
+                     &Parameters::iridescenceThicknessChannel)
+      .def_readwrite("specular", &Parameters::specular)
+      .def_readwrite("specularChannel", &Parameters::specularChannel);
   py::enum_<material::surface::Reflection>(surface, "Reflection")
       .value("SplitSum", material::surface::Reflection::SplitSum)
       .value("Additive", material::surface::Reflection::Additive);

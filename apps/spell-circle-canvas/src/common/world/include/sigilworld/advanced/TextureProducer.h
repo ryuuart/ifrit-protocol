@@ -17,6 +17,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -39,6 +40,17 @@ class TextureProducerOperations {
   virtual bool produce(std::chrono::duration<double> time) const = 0;
   /** Whether @p texture is one of the textures this producer paints. */
   [[nodiscard]] virtual bool paints(const material::Texture& texture) const = 0;
+  /** WHAT A BODY WEARING THESE TEXTURES WEARS once they are painted, asked
+   *  after `produce` of every body whose material samples one of them: a
+   *  producer whose painting decides what the material needs — a page
+   *  that learned which maps its content states — answers the material
+   *  restated, and the body is drawn wearing that this frame. None leaves
+   *  @p worn as it was described. */
+  [[nodiscard]] virtual std::optional<material::Material> restated(
+      const material::Material& worn) const {
+    (void)worn;
+    return std::nullopt;
+  }
 };
 
 /** A producer carried as a comparable value. */

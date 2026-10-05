@@ -63,8 +63,8 @@ that its pixels match the original.
 | Study · Screens | 6 | 0 | 0 |
 | Study · Game UI | 11 | 0 | 0 |
 | Study · Effects | 1 | 0 | 0 |
-| Study · Materials | 17 | 0 | 0 |
-| **All** | **245** | **57** | **9** |
+| Study · Materials | 18 | 0 | 0 |
+| **All** | **246** | **57** | **9** |
 
 Every sketch in Draw, Draw · Generative, Draw · Observable reproductions, Draw
 · Procedural, Kit · Depth, Compose · Typography and Study · Paint is bound.
@@ -723,6 +723,7 @@ model, arithmetic and data become Python code and are not listed.
 | `reflection_lobe` | Not yet audited | Not yet audited |
 | `stone_relief` | Not yet audited | Not yet audited |
 | `struck_metal` | Not yet audited | Not yet audited |
+| `surface_lobes` | Not yet audited | Not yet audited |
 | `wet_glass_console` | Not yet audited | Not yet audited |
 
 ## Translating a C++ source

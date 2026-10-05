@@ -63,8 +63,34 @@ class SurfaceMaps {
 };
 
 /** Whether `asMap` answers a map for @p role: base colour, normal,
- *  roughness, metallic, occlusion, emissive, packed and clearcoat. */
+ *  roughness, metallic, occlusion, emissive, packed and clearcoat, and the
+ *  optional lobes' sheen, sheen-and-specular, specular colour, anisotropy
+ *  and iridescence. */
 bool isSurfaceMapRole(texture::Role role);
+
+/** WHICH OPTIONAL LOBES THE SURFACES READ AS MAPS STATE, heard while one
+ *  of these stands on the thread that reads them. A painter that paints
+ *  a page as a surface's maps stands one over the paint, and so learns
+ *  which lobe maps the page needs without walking what it paints: every
+ *  `SurfaceMaps` made on the thread while it stands adds the lobes its
+ *  material states. Listeners nest; each hears what is made inside it. */
+class LobeListener {
+ public:
+  LobeListener();
+  ~LobeListener();
+  LobeListener(const LobeListener&) = delete;
+  LobeListener& operator=(const LobeListener&) = delete;
+
+  /** The lobes heard so far. */
+  [[nodiscard]] Lobes heard() const { return m_heard; }
+
+  /** @private what a `SurfaceMaps` reports its material's lobes through. */
+  static void hear(const Lobes& lobes);
+
+ private:
+  LobeListener* m_outer = nullptr;
+  Lobes m_heard;
+};
 
 /** @p material's surface as THE MAP OF @p role that a metallic-roughness
  *  surface wears, unshaded — for a renderer that brings its own lights.
@@ -80,8 +106,14 @@ bool isSurfaceMapRole(texture::Role role);
  *  with the stock numbers `SurfaceOptions` starts at (roughness one half,
  *  metallic zero, occlusion one); the emission colour times its
  *  strength and its map, black where it states none; `Packed` as those
- *  three in red, green and blue, glTF's order; and `Clearcoat` as the
- *  coat's weight in red and its roughness in green.
+ *  three in red, green and blue, glTF's order; `Clearcoat` as the
+ *  coat's weight in red and its roughness in green; `Sheen` as the sheen's
+ *  colour; `SheenSpecular` as the sheen's roughness in red and the
+ *  specular strength in green; `SpecularColor` as the specular colour;
+ *  `Anisotropy` as the direction the highlight stretches along, turned by
+ *  `anisotropyRotation`, encoded in red and green as a normal map is, and
+ *  its strength in blue; and `Iridescence` as the film's weight in red and
+ *  its thickness in green over `texture::kIridescenceThicknessRange`.
  *
  *  A material that states no surface, or states one `unlit`, is ITS OWN
  *  COLOUR: the colour stack is its emission, its base colour is black,
@@ -95,7 +127,8 @@ Paint asMap(const Material& material, texture::Role role);
 /** What a surface map of @p role reads where nothing is painted: the map
  *  of a surface that is its own colour at no coverage — a transparent
  *  black base colour, a normal facing the viewer, roughness and occlusion
- *  one, metallic, emission and the coat zero. Every map but the base colour is
+ *  one, metallic, emission and the coat zero, no sheen, a white specular
+ *  at full strength, no brushing and no film. Every map but the base colour is
  *  opaque, so a lit renderer reads the base colour's alpha as where the
  *  surface is. Transparent black for a role `asMap` answers nothing for. */
 Color surfaceMapGround(texture::Role role);

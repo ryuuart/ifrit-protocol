@@ -202,6 +202,46 @@ struct CoatedPage {
   }
 };
 
+/** A PAGE WHOSE CONTENT STATES AN OPTIONAL LOBE, on a card under a lamp
+ *  standing between it and the eye: a dielectric whose specular strength is
+ *  @p Specular, brushed along the page's width at @p Brushed tenths. */
+template <int Specular, int Brushed>
+struct LobedPage {
+  Page page;
+  void setup(SetContext& ctx) {
+    ctx.canvas(160, 120);
+    ctx.background({0, 0, 0, 1});
+    page = ctx.page({64, 64});
+  }
+  world::Frame describe(sigil::motion::Duration) {
+    using namespace sigil::compose;
+    namespace material = sigil::material;
+    sigil::geometry::mesh::camera::Camera lens;
+    lens.eye = {0, 0, 200};
+    lens.target = {0, 0, 0};
+    const bool metal = Brushed > 0;
+    return world::Frame(
+               world::group(
+                   {world::camera(lens, {.toneCurve = world::ToneCurve::Linear})
+                        .key("camera"),
+                    world::pointLight({.intensity = world::intensityAt(
+                                           metal ? 0.5f : 1.0f, 150.0f)})
+                        .key("lamp")
+                        .at({0, 0, 150}),
+                    world::mesh(gm::quad(120, 90))
+                        .key("card")
+                        .fill(page.surface())})
+                   .key("set"))
+        .pass(page.render(box().width(64).height(64).fill(
+            material::from(metal ? material::Color{.9f, .9f, .9f, 1}
+                                 : material::Color{.3f, .3f, .35f, 1})
+                .surface({.metallic = metal ? 1.0f : 0.0f,
+                          .roughness = 0.35f,
+                          .anisotropy = Brushed / 10.0f,
+                          .specular = (float)Specular}))));
+  }
+};
+
 /** THE CAMERA A SET DECLARES IN ITS OWN TREE — nowhere near the
  *  fallback its host hands in, and looking at a point that is not the
  *  origin, so that a viewpoint pivoting on the wrong one of the two is
@@ -432,6 +472,31 @@ TEST_F(SetDoors, APagesClearcoatReachesTheShaderThroughItsSurface) {
   // A little way off the spot the two pages are nearly alike.
   EXPECT_NEAR(withCoat.getColor4f(40, 60).fG, without.getColor4f(40, 60).fG,
               0.08f);
+}
+
+TEST_F(SetDoors, APagesSpecularReachesTheShaderThroughItsSurface) {
+  // The page learns its content states a specular while it paints, after
+  // the frame was described; the first frame already shades with it.
+  const SkBitmap stock =
+      oneFrame(*kindOf<LobedPage<1, 0>>()->open(fonts(), assets()));
+  const SkBitmap none =
+      oneFrame(*kindOf<LobedPage<0, 0>>()->open(fonts(), assets()));
+  EXPECT_GT(stock.getColor4f(80, 60).fG, none.getColor4f(80, 60).fG + 0.1f)
+      << "with no specular the page's dielectric shows no highlight";
+}
+
+TEST_F(SetDoors, APagesBrushingReachesTheShaderThroughItsSurface) {
+  const SkBitmap round =
+      oneFrame(*kindOf<LobedPage<1, 1>>()->open(fonts(), assets()));
+  const SkBitmap brushed =
+      oneFrame(*kindOf<LobedPage<1, 9>>()->open(fonts(), assets()));
+  // Barely brushed, the highlight is nearly round; brushed hard, it runs
+  // out along the page's width and not up it.
+  EXPECT_NEAR(round.getColor4f(80 + 18, 60).fG,
+              round.getColor4f(80, 60 + 18).fG, 0.03f);
+  const float along = brushed.getColor4f(80 + 18, 60).fG;
+  const float across = brushed.getColor4f(80, 60 + 18).fG;
+  EXPECT_GT(along, across + 0.05f);
 }
 
 /** A body on a turntable, performed through a pass the set declares

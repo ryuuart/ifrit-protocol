@@ -84,12 +84,15 @@ bool isEnvironmentSlot(std::string_view slot) {
 }
 
 /** THE SPLIT SUM'S TABLE as a texture: SigilMaterial's integral of the
- *  lobe, scale in red and bias in green, made once for the process. Eight
- *  bits a channel hold it to well under what the shading can show. */
+ *  lobe, scale in red and bias in green, and beside them in blue the
+ *  sheen's directional albedo over the same square — so a sheen costs no
+ *  table of its own — made once for the process. Eight bits a channel hold
+ *  it to well under what the shading can show. */
 const material::Texture& brdfTable() {
   static const material::Texture table = [] {
     const int size = material::kEnvironmentBrdfSize;
     const std::vector<glm::vec2>& values = material::environmentBrdfTable();
+    const std::vector<float>& sheen = material::sheenAlbedoTable();
     SkBitmap bitmap;
     bitmap.allocPixels(SkImageInfo::Make(size, size, kRGBA_8888_SkColorType,
                                          kPremul_SkAlphaType));
@@ -99,7 +102,8 @@ const material::Texture& brdfTable() {
         uint8_t* texel = (uint8_t*)bitmap.getAddr32(x, y);
         texel[0] = (uint8_t)std::lround(std::clamp(ab.x, 0.0f, 1.0f) * 255.0f);
         texel[1] = (uint8_t)std::lround(std::clamp(ab.y, 0.0f, 1.0f) * 255.0f);
-        texel[2] = 0;
+        texel[2] = (uint8_t)std::lround(
+            std::clamp(sheen[(size_t)y * size + x], 0.0f, 1.0f) * 255.0f);
         texel[3] = 255;
       }
     bitmap.setImmutable();

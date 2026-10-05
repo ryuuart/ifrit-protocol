@@ -8,6 +8,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <pxr/base/gf/vec3f.h>
 #include <pxr/base/vt/array.h>
 #include <pxr/usd/usd/prim.h>
 #include <pxr/usd/usd/stage.h>
@@ -161,6 +162,50 @@ TEST(UsdWrite, TheSameMaterialBindsOnePrimAndWritesOneImageFile) {
   for (const auto& entry : std::filesystem::directory_iterator(textures))
     pngs += entry.path().extension() == ".png";
   EXPECT_EQ(pngs, 1);
+}
+
+TEST(UsdWrite, KeepsTheLobesASurfaceCarriesInItsMaterialsCustomData) {
+  SKIP_WITHOUT_USD();
+  const std::filesystem::path file = scratch("lobes.usdc");
+  material::surface::SurfaceParameters velvet;
+  velvet.sheenColor = {1, 0.5f, 0.25f, 1};
+  velvet.sheenRoughness = 0.4f;
+  velvet.anisotropy = 0.7f;
+  velvet.anisotropyRotation = 30;
+  const geometry::mesh::Mesh plate = geometry::mesh::quad(4, 4);
+  usd::Writer writer(file);
+  const std::string lobed = writer.mesh("lobed", plate, glm::mat4(1.0f),
+                                        material::surface::program(velvet));
+  const std::string plain = writer.mesh("plain", plate, glm::mat4(1.0f),
+                                        material::surface::program());
+  std::string error;
+  ASSERT_TRUE(writer.save(&error)) << error;
+
+  UsdStageRefPtr stage = UsdStage::Open(file.string());
+  ASSERT_TRUE(stage);
+  const auto materialOf = [&](const std::string& path) {
+    return UsdShadeMaterialBindingAPI(stage->GetPrimAtPath(SdfPath(path)))
+        .ComputeBoundMaterial()
+        .GetPrim();
+  };
+  const UsdPrim lobedMaterial = materialOf(lobed);
+  ASSERT_TRUE(lobedMaterial);
+  const VtValue sheen =
+      lobedMaterial.GetCustomDataByKey(TfToken("sigil:sheenColor"));
+  ASSERT_TRUE(sheen.IsHolding<GfVec3f>());
+  EXPECT_FLOAT_EQ(sheen.Get<GfVec3f>()[1], 0.5f);
+  EXPECT_FLOAT_EQ(
+      lobedMaterial.GetCustomDataByKey(TfToken("sigil:anisotropyRotation"))
+          .Get<float>(),
+      30.0f);
+  // A lobe the surface does not carry is not written, and a plain surface
+  // carries none.
+  EXPECT_TRUE(
+      lobedMaterial.GetCustomDataByKey(TfToken("sigil:iridescence")).IsEmpty());
+  const UsdPrim plainMaterial = materialOf(plain);
+  ASSERT_TRUE(plainMaterial);
+  EXPECT_TRUE(
+      plainMaterial.GetCustomDataByKey(TfToken("sigil:sheenColor")).IsEmpty());
 }
 
 TEST(UsdWrite, WritesStampsAsAPointInstancerOverOnePrototype) {

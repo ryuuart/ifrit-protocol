@@ -19,6 +19,7 @@
 #include <sigilworld/advanced/Node.h>
 #include <sigilworld/advanced/Runtime.h>
 #include <sigilworld/advanced/Skia.h>
+#include <sigilworld/advanced/TextureProducer.h>
 #include <sigilworld/scene/Scene.h>
 
 #include <array>
@@ -206,6 +207,10 @@ struct Scene::Impl {
    *  pass sees of them. */
   std::vector<Draw> draws;
   View view;
+  /** What the texture passes restated the bodies wearing their textures
+   *  as, this frame; a restated body in `draws` points into it. Sized once per
+   * frame before anything is restated, so no pointer into it moves. */
+  std::vector<material::Material> restatedMaterials;
   /** The readbacks taken at the end of the last frame, handed over at
    *  the start of the next one. */
   std::vector<
@@ -316,6 +321,9 @@ struct Scene::Impl {
   /** The extracted bodies, sorted back to front by view depth from
    *  @p camera — stably, so two at one depth stand in tree order. It is
    *  the one place components become the values a draw reads. */
+  /** Every body in the view wearing a texture @p producer paints, drawn
+   *  this frame wearing what the producer restates its material as. */
+  void restate(const TextureProducerOperations& producer);
   void collectBodies(const geometry::mesh::camera::Camera& camera,
                      std::vector<Draw>& into) const;
   /** Hands over what the frame before read back. */

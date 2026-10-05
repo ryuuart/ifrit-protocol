@@ -20,6 +20,29 @@ namespace {
 
 using material::slang::Compiled;
 
+/** THE LOBES A BODY STATES, as the definitions that compile the scaffold's
+ *  terms for them in: a body that writes a lobe's variable states that
+ *  lobe, and one that writes none of them is compiled against exactly the
+ *  scaffold every other body is. The variables are the scaffold's, so this
+ *  is the one place that knows which name opens which lobe. */
+std::string lobeDefinitions(std::string_view body) {
+  struct Lobe {
+    std::string_view variable;
+    std::string_view definition;
+  };
+  static constexpr Lobe kLobes[] = {
+      {"gSurfaceSheenColor", "#define SIGIL_SHEEN 1\n"},
+      {"gSurfaceAnisotropy", "#define SIGIL_ANISOTROPY 1\n"},
+      {"gSurfaceIridescence", "#define SIGIL_IRIDESCENCE 1\n"},
+      {"gSurfaceSpecular", "#define SIGIL_SPECULAR 1\n"},
+  };
+  std::string out;
+  for (const Lobe& lobe : kLobes)
+    if (body.find(lobe.variable) != std::string_view::npos)
+      out += lobe.definition;
+  return out;
+}
+
 }  // namespace
 
 const Compiled& scaffold(bool lit) {
@@ -89,9 +112,11 @@ void installSlangCompiler() {
           // before the recipe's text; the recipe's declarations and body
           // next; the fragment entry that calls the body last, because
           // `surface` is not visible until the body has defined it.
-          std::string source(shaderSource("Surface.slang"));
+          const std::string body = recipe->source(material::Target::Slang);
+          std::string source = lobeDefinitions(body);
+          source += shaderSource("Surface.slang");
           source += '\n';
-          source += recipe->source(material::Target::Slang);
+          source += body;
           source += shaderSource("MaterialEntry.slang");
           Compiled built;
           if (!material::slang::compileModule(source, "vsMain", "fsMaterial",

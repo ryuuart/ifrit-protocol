@@ -53,6 +53,20 @@ inline constexpr int kEnvironmentBrdfSize = 32;
  *  visibility, missed it by a fifth at a rough surface's rim. */
 const std::vector<glm::vec2>& environmentBrdfTable();
 
+/** THE SHEEN'S DIRECTIONAL ALBEDO for a sheen of @p sheenRoughness seen at
+ *  the cosine @p nDotV: the terms' own sheen distribution and visibility —
+ *  `distributionSheen`, `visibilitySheen` — integrated over the hemisphere
+ *  for a white sheen under a uniform white surround. It is both what the
+ *  sheen reflects of light from everywhere and the share it takes from the
+ *  layer beneath (`sheenScaling`). */
+float sheenAlbedo(float sheenRoughness, float nDotV);
+
+/** `sheenAlbedo` over the same square as `environmentBrdfTable` — row y the
+ *  sheen roughness y / (size - 1), column x the cosine — held to one, which
+ *  it passes only within a few degrees of grazing; a renderer packs it
+ *  beside the split sum and reads it at the same `environmentBrdfUv`. */
+const std::vector<float>& sheenAlbedoTable();
+
 /** The names the terms answer to, so a composition can be read without
  *  opening the source: `lambert`, `blinn`, `specularColor`,
  *  `diffuseColor`, `fresnel`, `fresnelSchlick`, `fresnelRough`,
@@ -61,7 +75,16 @@ const std::vector<glm::vec2>& environmentBrdfTable();
  *  `clearcoatTransmittance`, `distanceFalloff`, `coneFalloff`,
  *  `hemisphereIrradiance`, `environmentBrdfUv`, `environmentSpecular`,
  *  `environmentDiffuse`, `environmentReflection`, `refraction`,
- *  `attenuate`, `emission`, `occlusion`; the display transform every lit
+ *  `attenuate`, `emission`, `occlusion`;
+ *  the optional lobes — `distributionSheen`,
+ *  `visibilitySheen`, `directSheen`, `sheenScaling`, `environmentSheen`,
+ *  `distributionGgxAnisotropic`, `visibilityGgxAnisotropic`,
+ *  `anisotropicWidth`, `directSpecularAnisotropic`,
+ *  `anisotropicBentNormal`, `anisotropyTangent`,
+ *  `iridescenceFresnel`, `iridescentF0`, `fresnelToF0`,
+ *  `reflectanceFromIor`, `interferenceColor`, `dielectricReflectance`,
+ *  `specularColorFrom`, `reflectance90From`, `diffuseColorFrom`;
+ *  the display transform every lit
  *  sum ends at — `luminance`, `toneMap`, `toneMapNeutral`,
  *  `toneMapLinear`, `toneCurve`, the same four backward —
  *  `toneMapInverse`, `toneMapNeutralInverse`, `toneMapLinearInverse`,

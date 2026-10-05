@@ -50,6 +50,12 @@ float factor(const Channel& channel) {
   return number ? *number : 1.0f;
 }
 
+/** A colour channel's colour, or white when a map carries it. */
+Color factor(const ColorInput& channel) {
+  const Color* colour = std::get_if<Color>(&channel);
+  return colour ? *colour : Color{1, 1, 1, 1};
+}
+
 }  // namespace
 
 Material lower(const Material& material) {
@@ -92,6 +98,26 @@ Material lower(const Material& material) {
   // by its red as every other channel here is.
   if (std::holds_alternative<Material>(stated.clearcoatRoughness))
     parameters.clearcoatRoughnessChannel = 0;
+  // THE OPTIONAL LOBES. A channel given as a material is read through its
+  // own slot by its red, as every other channel here is; a lobe whose
+  // only statement is a map is carried because the map states it.
+  parameters.sheenColor = factor(stated.sheenColor);
+  parameters.sheenRoughness = factor(stated.sheenRoughness);
+  if (std::holds_alternative<Material>(stated.sheenRoughness))
+    parameters.sheenRoughnessChannel = 0;
+  parameters.anisotropy = stated.anisotropy;
+  parameters.anisotropyRotation = stated.anisotropyRotation;
+  parameters.iridescence = factor(stated.iridescence);
+  parameters.iridescenceIor = stated.iridescenceIor;
+  parameters.iridescenceThickness = stated.iridescenceThickness;
+  parameters.iridescenceThicknessMinimum = stated.iridescenceThicknessMinimum;
+  if (stated.iridescenceThicknessMap)
+    parameters.iridescenceThicknessChannel = 0;
+  parameters.specular = factor(stated.specular);
+  if (std::holds_alternative<Material>(stated.specular))
+    parameters.specularChannel = 0;
+  parameters.specularColorFactor = factor(stated.specularColor);
+  const Lobes carried = lobes(stated);
   if (stated.emissionMap && parameters.emissiveStrength <= 0)
     parameters.emissiveStrength = 1;
   parameters.blend = (float)stated.blend;
@@ -99,7 +125,10 @@ Material lower(const Material& material) {
       stated.depthWrite ? (*stated.depthWrite ? 1.0f : 0.0f) : -1.0f;
   parameters.depthFade = stated.depthFade;
 
-  Material out = stated.unlit ? unlit(parameters) : program(parameters);
+  Material out = stated.unlit
+                     ? unlit(parameters)
+                     : program(parameters, Reflection::SplitSum, carried);
+  const Lobes carriedNow = lobes(out);
   if (!colour) place(out, kBaseColorSlot, flat(material));
   const auto channel = [&](std::string_view slot, const Channel& value) {
     if (const Material* map = std::get_if<Material>(&value))
@@ -114,6 +143,23 @@ Material lower(const Material& material) {
   if (stated.clearcoatNormal)
     place(out, kClearcoatNormalSlot, *stated.clearcoatNormal);
   if (stated.emissionMap) place(out, kEmissiveSlot, *stated.emissionMap);
+  if (carriedNow.sheen) {
+    if (const Material* map = std::get_if<Material>(&stated.sheenColor))
+      place(out, kSheenColorSlot, *map);
+    channel(kSheenRoughnessSlot, stated.sheenRoughness);
+  }
+  if (carriedNow.anisotropy && stated.anisotropyDirection)
+    place(out, kAnisotropySlot, *stated.anisotropyDirection);
+  if (carriedNow.iridescence) {
+    channel(kIridescenceSlot, stated.iridescence);
+    if (stated.iridescenceThicknessMap)
+      place(out, kIridescenceThicknessSlot, *stated.iridescenceThicknessMap);
+  }
+  if (carriedNow.specular) {
+    channel(kSpecularSlot, stated.specular);
+    if (const Material* map = std::get_if<Material>(&stated.specularColor))
+      place(out, kSpecularColorSlot, *map);
+  }
   return out;
 }
 

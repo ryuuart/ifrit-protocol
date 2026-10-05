@@ -179,6 +179,16 @@ std::string_view name(Role role) {
       return "specular";
     case Role::Clearcoat:
       return "clearcoat";
+    case Role::Sheen:
+      return "sheen";
+    case Role::SheenSpecular:
+      return "sheenSpecular";
+    case Role::SpecularColor:
+      return "specularColor";
+    case Role::Anisotropy:
+      return "anisotropy";
+    case Role::Iridescence:
+      return "iridescence";
   }
   return "?";
 }

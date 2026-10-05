@@ -241,6 +241,38 @@ SdfPath Writer::Impl::material(const material::Material& top,
   if (transmission > 0)
     material.GetPrim().SetCustomDataByKey(TfToken("sigil:transmission"),
                                           VtValue(transmission));
+  // THE OPTIONAL LOBES have no input on UsdPreviewSurface — its specular
+  // colour belongs to the specular workflow, which would replace the
+  // metallic one — so each a surface carries is kept in the material's
+  // custom data under its own name, as transmission is.
+  const material::Lobes lobes = material::surface::lobes(m);
+  const auto keep = [&](const char* key, const VtValue& value) {
+    material.GetPrim().SetCustomDataByKey(TfToken(key), value);
+  };
+  const auto colour = [](material::Color c) { return GfVec3f(c.r, c.g, c.b); };
+  if (lobes.sheen) {
+    keep("sigil:sheenColor",
+         VtValue(colour(tint(m, "sheenColor", {0, 0, 0, 1}))));
+    keep("sigil:sheenRoughness", VtValue(scalar(m, "sheenRoughness", 0)));
+  }
+  if (lobes.anisotropy) {
+    keep("sigil:anisotropy", VtValue(scalar(m, "anisotropy", 0)));
+    keep("sigil:anisotropyRotation",
+         VtValue(scalar(m, "anisotropyRotation", 0)));
+  }
+  if (lobes.iridescence) {
+    keep("sigil:iridescence", VtValue(scalar(m, "iridescence", 0)));
+    keep("sigil:iridescenceIor", VtValue(scalar(m, "iridescenceIor", 1.3f)));
+    keep("sigil:iridescenceThickness",
+         VtValue(scalar(m, "iridescenceThickness", 400)));
+    keep("sigil:iridescenceThicknessMinimum",
+         VtValue(scalar(m, "iridescenceThicknessMinimum", 100)));
+  }
+  if (lobes.specular) {
+    keep("sigil:specular", VtValue(scalar(m, "specular", 1)));
+    keep("sigil:specularColor",
+         VtValue(colour(tint(m, "specularColorFactor", {1, 1, 1, 1}))));
+  }
   if (depth > 0)
     material.GetPrim().SetCustomDataByKey(TfToken("sigil:layers"),
                                           VtValue(depth));

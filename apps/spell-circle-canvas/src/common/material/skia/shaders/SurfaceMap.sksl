@@ -5,10 +5,15 @@
 //
 // uRole: 0 base colour, 1 normal, 2 roughness, 3 metallic, 4 occlusion,
 // 5 emission, 6 occlusion, roughness and metallic packed into red, green
-// and blue, 7 the clear coat's weight in red and its roughness in green.
+// and blue, 7 the clear coat's weight in red and its roughness in green,
+// 8 the sheen's colour, 9 the sheen's roughness in red and the specular
+// strength in green, 10 the specular colour, 11 the brushing's direction
+// in red and green, encoded as a normal is, and its strength in blue,
+// 12 the thin film's weight in red and its thickness in green.
 // A surface that takes no light is its own colour: emission is the colour
 // stack, the base is black, the normal faces the viewer, roughness and
-// occlusion are one, metallic and the coat zero.
+// occlusion are one, metallic and the coat zero, no sheen, a white
+// specular at full strength, no brushing and no film.
 uniform shader uColor;
 uniform shader uNormal;
 uniform shader uRoughnessMap;
@@ -17,6 +22,13 @@ uniform shader uOcclusionMap;
 uniform shader uEmissionMap;
 uniform shader uClearcoatMap;
 uniform shader uClearcoatRoughnessMap;
+uniform shader uSheenColorMap;
+uniform shader uSheenRoughnessMap;
+uniform shader uSpecularMap;
+uniform shader uSpecularColorMap;
+uniform shader uAnisotropyMap;
+uniform shader uIridescenceMap;
+uniform shader uIridescenceThicknessMap;
 
 uniform float uRole;
 uniform float uUnlit;
@@ -36,6 +48,22 @@ uniform float uHasClearcoatMap;
 uniform float uClearcoat;
 uniform float uHasClearcoatRoughnessMap;
 uniform float uClearcoatRoughness;
+uniform float uHasSheenColorMap;
+uniform float4 uSheenColor;
+uniform float uHasSheenRoughnessMap;
+uniform float uSheenRoughness;
+uniform float uHasSpecularMap;
+uniform float uSpecular;
+uniform float uHasSpecularColorMap;
+uniform float4 uSpecularColor;
+uniform float uAnisotropy;
+uniform float uAnisotropyRotation;
+uniform float uHasAnisotropyMap;
+uniform float uHasIridescenceMap;
+uniform float uIridescence;
+uniform float uIridescenceThickness;
+uniform float uIridescenceThicknessMinimum;
+uniform float uHasIridescenceThicknessMap;
 
 float roughnessAt(float2 xy, bool unlit) {
   if (unlit) return 1.0;
@@ -89,6 +117,66 @@ half4 main(float2 xy) {
   } else if (uRole < 6.5) {
     value = float3(occlusionAt(xy, unlit), roughnessAt(xy, unlit),
                    metallicAt(xy, unlit));
+  } else if (uRole > 7.5) {
+    if (uRole < 8.5) {
+      value = float3(0.0);
+      if (!unlit) {
+        value = uSheenColor.rgb;
+        if (uHasSheenColorMap > 0.5) value *= float3(uSheenColorMap.eval(xy).rgb);
+      }
+    } else if (uRole < 9.5) {
+      float sheenRoughness = 0.0;
+      float specular = 1.0;
+      if (!unlit) {
+        sheenRoughness = uSheenRoughness;
+        if (uHasSheenRoughnessMap > 0.5)
+          sheenRoughness *= float(uSheenRoughnessMap.eval(xy).r);
+        specular = uSpecular;
+        if (uHasSpecularMap > 0.5) specular *= float(uSpecularMap.eval(xy).r);
+      }
+      value = float3(clamp(sheenRoughness, 0.0, 1.0), clamp(specular, 0.0, 1.0),
+                     0.0);
+    } else if (uRole < 10.5) {
+      value = float3(1.0);
+      if (!unlit) {
+        value = uSpecularColor.rgb;
+        if (uHasSpecularColorMap > 0.5)
+          value *= float3(uSpecularColorMap.eval(xy).rgb);
+      }
+    } else if (uRole < 11.5) {
+      float2 direction = float2(1.0, 0.0);
+      float strength = 0.0;
+      if (!unlit) {
+        strength = uAnisotropy;
+        if (uHasAnisotropyMap > 0.5) {
+          float3 m = float3(uAnisotropyMap.eval(xy).rgb);
+          direction = m.rg * 2.0 - 1.0;
+          strength *= m.b;
+        }
+        // The turn is baked into the direction, so a page whose letters
+        // brush different ways carries each one's own.
+        float angle = radians(uAnisotropyRotation);
+        float c = cos(angle);
+        float s = sin(angle);
+        direction = float2(direction.x * c - direction.y * s,
+                           direction.x * s + direction.y * c);
+        float len = length(direction);
+        direction = len > 0.0 ? direction / len : float2(1.0, 0.0);
+      }
+      value = float3(direction * 0.5 + 0.5, clamp(strength, 0.0, 1.0));
+    } else {
+      float weight = 0.0;
+      float thickness = 0.0;
+      if (!unlit) {
+        weight = uIridescence;
+        if (uHasIridescenceMap > 0.5) weight *= float(uIridescenceMap.eval(xy).r);
+        thickness = uIridescenceThickness;
+        if (uHasIridescenceThicknessMap > 0.5)
+          thickness = mix(uIridescenceThicknessMinimum, uIridescenceThickness,
+                          float(uIridescenceThicknessMap.eval(xy).r));
+      }
+      value = float3(clamp(weight, 0.0, 1.0), clamp(thickness, 0.0, 1.0), 0.0);
+    }
   } else {
     float coat = 0.0;
     float coatRoughness = 0.0;

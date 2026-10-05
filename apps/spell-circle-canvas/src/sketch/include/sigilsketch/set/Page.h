@@ -47,7 +47,11 @@ class Page {
 
   /** THE ONE MATERIAL a body wears to show this page, lit by the set. It
    *  is the extension point for what a page can say: what it is built from
-   *  is this page's business, and nothing that wears it depends on that. */
+   *  is this page's business, and nothing that wears it depends on that.
+   *  The maps of an optional lobe — a sheen, a brushing, a film, a
+   *  specular — are part of it once the page's content states the lobe;
+   *  the page learns that while it paints, after the frame was described,
+   *  and a body wearing this is drawn with them from that same frame. */
   [[nodiscard]] material::Material surface() const;
 
   /** The name the page's pass goes by, and that an error names. */

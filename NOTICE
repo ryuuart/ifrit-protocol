@@ -11,7 +11,10 @@ height-correlated Smith visibility, Schlick Fresnel with a grazing
 reflectance, the Lambert diffuse split by Fresnel and metalness, the
 multiple-scattering composition of image-based lighting, the clear-coat
 layering, the punctual-light record with its inverse-square falloff and
-spot cone, and the PBR Neutral tone curve (which DiligentFX carries from
+spot cone, the sheen distribution with its visibility and the sheen's
+albedo scaling of the layer beneath, the anisotropic GGX distribution and
+visibility with the bent normal for image-based lighting, the thin-film
+interference of iridescence, and the PBR Neutral tone curve (which DiligentFX carries from
 the Khronos Group, also under the Apache License, Version 2.0). They live, transcribed into
 Slang, in apps/spell-circle-canvas/src/common/material/core/shaders/Shading.slang
 and apps/spell-circle-canvas/src/common/world/diligent/shaders/Surface.slang.

@@ -36,6 +36,51 @@ float4 surface(float2 uv) {
           (dressedS(crm) ? chanS(crm, clearcoatRoughnessChannel) : 1.0),
       0.0, 1.0);
 
+  // THE OPTIONAL LOBES, each between its two marks: a program that does
+  // not carry a lobe has the text between them struck out, so it neither
+  // samples the lobe's maps nor says anything the renderer would shade.
+  // sheen {
+  float4 sm = sheenColorMap.Sample(uv);
+  float4 srm = sheenRoughnessMap.Sample(uv);
+  gSurfaceSheenColor = linearFromSrgb(sheenColor.rgb) * linearFromSrgb(sm.rgb);
+  gSurfaceSheenRoughness = clamp(
+      sheenRoughness * (dressedS(srm) ? chanS(srm, sheenRoughnessChannel) : 1.0),
+      0.0, 1.0);
+  // } sheen
+  // anisotropy {
+  float4 am = anisotropyMap.Sample(uv);
+  float2 direction = float2(1.0, 0.0);
+  float strength = 1.0;
+  if (dressedS(am)) {
+    direction = am.rg * 2.0 - 1.0;
+    strength = am.b;
+  }
+  gSurfaceAnisotropy = clamp(anisotropy * strength, 0.0, 1.0);
+  gSurfaceAnisotropyDirection = direction;
+  gSurfaceAnisotropyRotation = anisotropyRotation;
+  // } anisotropy
+  // iridescence {
+  float4 im = iridescenceMap.Sample(uv);
+  float4 itm = iridescenceThicknessMap.Sample(uv);
+  gSurfaceIridescence = clamp(
+      iridescence * (dressedS(im) ? chanS(im, iridescenceChannel) : 1.0), 0.0,
+      1.0);
+  gSurfaceIridescenceIor = max(iridescenceIor, 1.0);
+  gSurfaceIridescenceThickness =
+      dressedS(itm)
+          ? mixS(iridescenceThicknessMinimum, iridescenceThickness,
+                 chanS(itm, iridescenceThicknessChannel))
+          : iridescenceThickness;
+  // } iridescence
+  // specular {
+  float4 spm = specularMap.Sample(uv);
+  float4 scm = specularColorMap.Sample(uv);
+  gSurfaceSpecular = max(
+      specular * (dressedS(spm) ? chanS(spm, specularChannel) : 1.0), 0.0);
+  gSurfaceSpecularColor = linearFromSrgb(specularColorFactor.rgb) *
+                          linearFromSrgb(scm.rgb);
+  // } specular
+
   float4 nm = normalMap.Sample(uv);
   if (dressedS(nm)) {
     float3 tn = nm.rgb * 2.0 - 1.0;

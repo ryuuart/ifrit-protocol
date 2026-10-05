@@ -5,9 +5,11 @@
 #include "sigilcompose/texture/SurfaceScene.h"
 
 #include <sigilcompose/core/Composer.h>
+#include <sigilmaterial/skia/SurfaceMaps.h>
 
 #include <array>
 #include <utility>
+#include <vector>
 
 namespace sigil::compose {
 
@@ -22,6 +24,20 @@ using material::texture::Role;
 constexpr std::array kRoles{Role::BaseColor, Role::Normal, Role::Packed,
                             Role::Emissive, Role::Clearcoat};
 
+/** THE MAPS AN OPTIONAL LOBE NEEDS, painted only once a material on the
+ *  page states the lobe: the sheen's colour and its roughness beside the
+ *  specular strength, the specular colour with that same shared image, the
+ *  brushing's direction and strength, the film's weight and thickness. */
+std::vector<Role> lobeRoles(const material::Lobes& lobes) {
+  std::vector<Role> out;
+  if (lobes.sheen) out.push_back(Role::Sheen);
+  if (lobes.sheen || lobes.specular) out.push_back(Role::SheenSpecular);
+  if (lobes.specular) out.push_back(Role::SpecularColor);
+  if (lobes.anisotropy) out.push_back(Role::Anisotropy);
+  if (lobes.iridescence) out.push_back(Role::Iridescence);
+  return out;
+}
+
 }  // namespace
 
 SurfaceScene::SurfaceScene() = default;
@@ -30,13 +46,22 @@ SurfaceScene::~SurfaceScene() = default;
 std::shared_ptr<SurfaceScene> SurfaceScene::make(SkISize size,
                                                  weave::FontContext& fonts) {
   std::shared_ptr<SurfaceScene> surface(new SurfaceScene());
-  for (Role role : kRoles) {
-    std::shared_ptr<TextureScene> scene = TextureScene::make(size, fonts);
-    if (!scene) return nullptr;
-    scene->setSurfaceMap(role);
-    surface->m_scenes.emplace(role, std::move(scene));
-  }
+  surface->m_size = size;
+  surface->m_fonts = &fonts;
+  for (Role role : kRoles)
+    if (!surface->add(role)) return nullptr;
   return surface;
+}
+
+bool SurfaceScene::add(Role role) {
+  if (m_scenes.count(role)) return true;
+  std::shared_ptr<TextureScene> scene = TextureScene::make(m_size, *m_fonts);
+  if (!scene) return false;
+  scene->setSurfaceMap(role);
+  // A map added after the scene adopted a device stands there too.
+  if (m_device && !scene->useDevice(*m_device, *m_context)) return false;
+  m_scenes.emplace(role, std::move(scene));
+  return true;
 }
 
 bool SurfaceScene::useDevice(core::hardware::GpuDevice& device,
@@ -45,18 +70,38 @@ bool SurfaceScene::useDevice(core::hardware::GpuDevice& device,
   // places would be sampled from both.
   for (auto& [role, scene] : m_scenes)
     if (!scene->useDevice(device, context)) return false;
+  m_device = &device;
+  m_context = &context;
   return true;
 }
 
 void SurfaceScene::render(const Element& root, double seconds) {
   bool painted = false;
-  for (auto& [role, scene] : m_scenes) {
-    const uint64_t before = scene->revision();
-    scene->render(root, seconds);
-    painted |= scene->revision() != before;
+  // The materials painted as maps say which optional lobes they state; a
+  // lobe heard for the first time gets its maps, painted in this same
+  // render, and keeps them for as long as the scene lives.
+  material::skia::LobeListener listener;
+  const auto paint = [&](TextureScene& scene) {
+    const uint64_t before = scene.revision();
+    scene.render(root, seconds);
+    painted |= scene.revision() != before;
+  };
+  for (auto& [role, scene] : m_scenes) paint(*scene);
+  const material::Lobes heard = listener.heard();
+  m_lobes.sheen |= heard.sheen;
+  m_lobes.anisotropy |= heard.anisotropy;
+  m_lobes.iridescence |= heard.iridescence;
+  m_lobes.specular |= heard.specular;
+  for (Role role : lobeRoles(m_lobes)) {
+    if (m_scenes.count(role)) continue;
+    if (!add(role)) continue;
+    paint(*m_scenes.at(role));
+    painted = true;
   }
   if (painted) ++m_revision;
 }
+
+material::Lobes SurfaceScene::lobes() const { return m_lobes; }
 
 material::texture::TextureMaps SurfaceScene::maps() const {
   material::texture::TextureMaps maps;

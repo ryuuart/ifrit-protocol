@@ -86,6 +86,21 @@ inline constexpr std::string_view kClearcoatRoughnessSlot =
 inline constexpr std::string_view kClearcoatNormalSlot =
     "clearcoatNormalMap";  ///< tangent space, the coat's own; read like
                            ///< `normalMap`
+inline constexpr std::string_view kSheenColorSlot =
+    "sheenColorMap";  ///< a colour, multiplied by `sheenColor`
+inline constexpr std::string_view kSheenRoughnessSlot =
+    "sheenRoughnessMap";  ///< the channel `sheenRoughnessChannel` names
+inline constexpr std::string_view kAnisotropySlot =
+    "anisotropyMap";  ///< red and green the direction, blue the strength
+inline constexpr std::string_view kIridescenceSlot =
+    "iridescenceMap";  ///< the channel `iridescenceChannel` names
+inline constexpr std::string_view kIridescenceThicknessSlot =
+    "iridescenceThicknessMap";  ///< `iridescenceThicknessChannel`, from the
+                                ///< minimum at black to the thickness at white
+inline constexpr std::string_view kSpecularSlot =
+    "specularMap";  ///< the channel `specularChannel` names
+inline constexpr std::string_view kSpecularColorSlot =
+    "specularColorMap";  ///< a colour, multiplied by `specularColor`
 
 /** The metallic-roughness ABI. Its colours are FACTORS ON THE MAPS in
  *  their slots — `baseColor` on `baseColorMap`, `emissive` on
@@ -150,6 +165,36 @@ struct SurfaceParameters {
    *  red and the roughness in green, so one image fills both slots. */
   float clearcoatChannel = 0;
   float clearcoatRoughnessChannel = 1;
+  /** SHEEN: its colour — a colour as an author types it, black none —
+   *  and its roughness, each multiplied by the map in its slot. glTF packs
+   *  the roughness in the colour image's alpha. */
+  Color sheenColor = {0, 0, 0, 1};
+  float sheenRoughness = 0;
+  float sheenRoughnessChannel = 3;
+  /** ANISOTROPY: its strength, multiplied by the blue of the map in its
+   *  slot, and the turn of its direction in degrees counter-clockwise from
+   *  the surface's u; the map's red and green turn it further. */
+  float anisotropy = 0;
+  float anisotropyRotation = 0;
+  /** IRIDESCENCE: the film's weight, its index of refraction, and its
+   *  thickness in nanometres — the map in the thickness slot runs it from
+   *  `iridescenceThicknessMinimum` to `iridescenceThickness`. glTF packs
+   *  the weight in red and the thickness in green. */
+  float iridescence = 0;
+  float iridescenceIor = 1.3f;
+  float iridescenceThickness = 400;
+  float iridescenceThicknessMinimum = 100;
+  float iridescenceChannel = 0;
+  float iridescenceThicknessChannel = 1;
+  /** SPECULAR: a dielectric's reflection strength and colour, each
+   *  multiplied by the map in its slot. glTF packs the strength in the
+   *  colour image's alpha. The colour carries glTF's own name for it,
+   *  because `specularColor` is the term that answers a surface's head-on
+   *  reflectance, and a parameter compiled beside a term of its name would
+   *  be an ambiguous reference. */
+  float specular = 1;
+  Color specularColorFactor = {1, 1, 1, 1};
+  float specularChannel = 3;
   /** HOW THE SURFACE COMPOSITES, as `SurfaceOptions` states it: the blend
    *  mode by its enumerator, whether it writes depth — 1 yes, 0 no, below
    *  zero unstated — and the distance it fades over where it meets what
@@ -192,16 +237,32 @@ enum class Reflection : uint8_t {
   Additive,
 };
 
-/** The lit recipe for @p reflection, defined once per model; it declares
- *  every map slot above. */
+/** The lobes @p parameters state by their numbers: a sheen colour other
+ *  than black, an anisotropy or an iridescence other than zero, a specular
+ *  strength other than one or a colour other than white. */
+Lobes lobes(const SurfaceParameters& parameters);
+
+/** The lobes @p material carries: none for anything that is not a lit
+ *  surface program. */
+Lobes lobes(const Material& material);
+
+/** The lit recipe for @p reflection carrying @p carried, defined once per
+ *  model and set of lobes; it declares every map slot above, and its
+ *  bodies sample only the slots of the lobes it carries. */
 const std::shared_ptr<const Recipe>& surfaceRecipe(
-    Reflection reflection = Reflection::SplitSum);
+    Reflection reflection = Reflection::SplitSum, Lobes carried = {});
 
 /** A lit metallic-roughness surface: its base colour, emission, normal,
- *  roughness, metalness, occlusion, clear coat and transmission, handed to
- *  whatever renderer shades it. */
+ *  roughness, metalness, occlusion, clear coat, transmission and whichever
+ *  optional lobes its numbers state, handed to whatever renderer shades
+ *  it. */
 Material program(const SurfaceParameters& parameters = {},
                  Reflection reflection = Reflection::SplitSum);
+/** …carrying @p carried as well as the lobes the numbers state: what a
+ *  surface whose lobe lives in a map, with its factor left at the stock
+ *  value, is built with. */
+Material program(const SurfaceParameters& parameters, Reflection reflection,
+                 Lobes carried);
 /** A surface that is its own light: no shading, no shadow terms. */
 Material unlit(const SurfaceParameters& parameters = {});
 

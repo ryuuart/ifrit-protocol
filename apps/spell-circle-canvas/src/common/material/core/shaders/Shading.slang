@@ -238,6 +238,370 @@ public float clearcoatTransmittance(float weight, float nDotV) {
   return 1.0 - min(max(weight, 0.0), 1.0) * f;
 }
 
+// ---- the optional lobes ------------------------------------------------
+// Four further ways a surface answers light, each one a surface states or
+// does not: a soft retro-reflective SHEEN over the base, as cloth and dust
+// show; a highlight stretched along one direction of the surface, which is
+// ANISOTROPY, as brushed metal shows; a thin film whose interference tints
+// the reflectance by angle and thickness, which is IRIDESCENCE, as soap and
+// oil show; and a dielectric's own SPECULAR strength and colour. Each is a
+// pure term like the rest; a surface that states none of them is shaded
+// exactly as if they were not here.
+
+/** THE SHEEN DISTRIBUTION: microfacets standing mostly sideways, as the
+ *  fibres of a cloth do, so the lobe is brightest where the half vector
+ *  lies along the surface — at the rim, toward a light behind the cloth.
+ *  @p sheenRoughness widens it; zero is held off, where the lobe would be a
+ *  line no pixel could sample. */
+public float distributionSheen(float nDotH, float sheenRoughness) {
+  float r = max(min(sheenRoughness, 1.0), 1e-3);
+  float a = r * r;
+  float inverse = 1.0 / a;
+  float c = min(max(nDotH, 0.0), 1.0);
+  float s2 = max(1.0 - c * c, 0.0078125);
+  return (2.0 + inverse) * pow(s2, inverse * 0.5) / 6.28318531;
+}
+
+/** The shadowing a sheen's fibres cast on one another along one direction
+ *  at the cosine @p cosTheta, for the squared roughness @p alpha, as the
+ *  exponent of a fitted curve: two fits, one for each roughness extreme,
+ *  blended by how smooth the sheen is. Above a cosine of one half the
+ *  curve is mirrored about that point, which is where the fit holds. */
+public float sheenLambdaExponent(float x, float alpha) {
+  float smooth = (1.0 - alpha) * (1.0 - alpha);
+  float a = 21.5473 + (25.32450 - 21.5473) * smooth;
+  float b = 3.82987 + (3.32435 - 3.82987) * smooth;
+  float c = 0.19823 + (0.16801 - 0.19823) * smooth;
+  float d = -1.97760 + (-1.27393 + 1.97760) * smooth;
+  float e = -4.32054 + (-4.85967 + 4.32054) * smooth;
+  return a / (1.0 + b * pow(max(x, 0.0), c)) + d * x + e;
+}
+
+public float sheenLambda(float cosTheta, float alpha) {
+  float c = abs(cosTheta);
+  if (c < 0.5) return exp(sheenLambdaExponent(c, alpha));
+  return exp(2.0 * sheenLambdaExponent(0.5, alpha) -
+             sheenLambdaExponent(1.0 - c, alpha));
+}
+
+/** THE SHEEN'S VISIBILITY over the four cosines its reflection is divided
+ *  by, held to one: the lobe never shows more than the fibres facing the
+ *  light can send. */
+public float visibilitySheen(float nDotL, float nDotV, float sheenRoughness) {
+  float r = max(min(sheenRoughness, 1.0), 1e-3);
+  float alpha = r * r;
+  float l = max(nDotL, 0.0);
+  float v = max(nDotV, 0.0);
+  float denominator = (1.0 + sheenLambda(v, alpha) + sheenLambda(l, alpha)) *
+                      max(4.0 * v * l, 5e-8);
+  return min(max(1.0 / denominator, 0.0), 1.0);
+}
+
+/** THE SHEEN OF ONE LIGHT: its colour times distribution times visibility,
+ *  times the cosine the light arrives at. A sheen has no Fresnel: its
+ *  colour is how much it reflects at every angle. Multiply by the light's
+ *  radiance at the surface. */
+public float3 directSheen(float3 n, float3 l, float3 v, float3 sheenColor,
+                          float sheenRoughness) {
+  float nl = max(n.x * l.x + n.y * l.y + n.z * l.z, 0.0);
+  if (nl <= 0.0) return float3(0.0, 0.0, 0.0);
+  float nv = max(n.x * v.x + n.y * v.y + n.z * v.z, 0.0);
+  float3 h = l + v;
+  float len = sqrt(h.x * h.x + h.y * h.y + h.z * h.z);
+  h = len > 0.0 ? h / len : n;
+  float nh = n.x * h.x + n.y * h.y + n.z * h.z;
+  return sheenColor * (distributionSheen(nh, sheenRoughness) *
+                       visibilitySheen(nl, nv, sheenRoughness) * nl);
+}
+
+/** WHAT THE SHEEN LEAVES THE SURFACE BENEATH IT: the base layer dimmed by
+ *  the share the sheen reflected, seen from the eye at @p albedoView and
+ *  from the light at @p albedoLight — each the sheen's directional albedo
+ *  at that cosine, read from the table — and the larger of the two losses
+ *  taken. Its brightest channel stands for the colour, so a coloured sheen
+ *  does not tint what lies under it. */
+public float sheenScaling(float3 sheenColor, float albedoView,
+                          float albedoLight) {
+  float strongest = max(sheenColor.x, max(sheenColor.y, sheenColor.z));
+  return min(max(min(1.0 - strongest * albedoView,
+                     1.0 - strongest * albedoLight),
+                 0.0),
+             1.0);
+}
+
+/** THE SHEEN OF LIGHT FROM EVERYWHERE: the radiance arriving along the
+ *  normal times the sheen's colour and its directional albedo at the eye's
+ *  cosine. The broad lobe reads the panorama where a rough surface would,
+ *  so no chain filtered for it is needed. */
+public float3 environmentSheen(float3 radiance, float3 sheenColor,
+                               float albedo) {
+  return radiance * sheenColor * albedo;
+}
+
+/** THE ANISOTROPIC GGX DISTRIBUTION: the isotropic one with a width of its
+ *  own along the tangent @p alphaT and the bitangent @p alphaB, at the
+ *  half vector's cosines to the normal, the tangent and the bitangent.
+ *  With the two widths equal it is `distributionGgx` exactly. */
+public float distributionGgxAnisotropic(float nDotH, float tDotH, float bDotH,
+                                        float alphaT, float alphaB) {
+  float a2 = alphaT * alphaB;
+  float3 w = float3(alphaB * tDotH, alphaT * bDotH, a2 * nDotH);
+  float w2 = w.x * w.x + w.y * w.y + w.z * w.z;
+  float s = a2 / max(w2, 1e-6);
+  return a2 * s * s * 0.31830989;
+}
+
+/** THE ANISOTROPIC SMITH VISIBILITY, height-correlated: `visibilityGgx`
+ *  with each direction's spread measured along the tangent and the
+ *  bitangent at their own widths. */
+public float visibilityGgxAnisotropic(float nDotL, float nDotV, float tDotL,
+                                      float tDotV, float bDotL, float bDotV,
+                                      float alphaT, float alphaB) {
+  float l = max(nDotL, 0.0);
+  float v = max(nDotV, 0.0);
+  float3 sv = float3(alphaT * tDotV, alphaB * bDotV, v);
+  float3 sl = float3(alphaT * tDotL, alphaB * bDotL, l);
+  float lambdaV = l * max(sqrt(sv.x * sv.x + sv.y * sv.y + sv.z * sv.z), 1e-3);
+  float lambdaL = v * max(sqrt(sl.x * sl.x + sl.y * sl.y + sl.z * sl.z), 1e-3);
+  return 0.5 / max(lambdaV + lambdaL, 1e-7);
+}
+
+/** The width along the brushing for a @p roughness and an @p anisotropy
+ *  strength: the roughness's own at zero, rising to one at full strength.
+ *  Across the brushing the width stays the roughness's own. */
+public float anisotropicWidth(float roughness, float anisotropy) {
+  float a = microfacetWidth(roughness);
+  float s = min(max(anisotropy, 0.0), 1.0);
+  return a + (1.0 - a) * s * s;
+}
+
+/** THE SPECULAR SIDE OF ONE LIGHT ON A BRUSHED SURFACE: `directSpecular`
+ *  with the highlight stretched along the unit tangent @p t, square to the
+ *  normal, by @p anisotropy. At zero strength it is `directSpecular`. */
+public float3 directSpecularAnisotropic(float3 n, float3 t, float3 l,
+                                        float3 v, float3 f0, float3 f90,
+                                        float roughness, float anisotropy) {
+  float nl = max(n.x * l.x + n.y * l.y + n.z * l.z, 0.0);
+  if (nl <= 0.0) return float3(0.0, 0.0, 0.0);
+  float nv = max(n.x * v.x + n.y * v.y + n.z * v.z, 0.0);
+  float3 b = float3(n.y * t.z - n.z * t.y, n.z * t.x - n.x * t.z,
+                    n.x * t.y - n.y * t.x);
+  float3 h = l + v;
+  float len = sqrt(h.x * h.x + h.y * h.y + h.z * h.z);
+  h = len > 0.0 ? h / len : n;
+  float nh = n.x * h.x + n.y * h.y + n.z * h.z;
+  float vh = v.x * h.x + v.y * h.y + v.z * h.z;
+  float alphaT = anisotropicWidth(roughness, anisotropy);
+  float alphaB = microfacetWidth(roughness);
+  float d = distributionGgxAnisotropic(nh, t.x * h.x + t.y * h.y + t.z * h.z,
+                                       b.x * h.x + b.y * h.y + b.z * h.z,
+                                       alphaT, alphaB);
+  float vis = visibilityGgxAnisotropic(
+      nl, nv, t.x * l.x + t.y * l.y + t.z * l.z,
+      t.x * v.x + t.y * v.y + t.z * v.z, b.x * l.x + b.y * l.y + b.z * l.z,
+      b.x * v.x + b.y * v.y + b.z * v.z, alphaT, alphaB);
+  return fresnelSchlick(f0, f90, vh) * (d * vis * nl);
+}
+
+/** WHERE A BRUSHED SURFACE MIRRORS LIGHT FROM EVERYWHERE: a normal bent
+ *  away from @p n toward the one that faces the eye across the brushing,
+ *  by how strong the brushing is and how smooth the surface — the
+ *  reflected ray read along it smears the panorama along the brushing.
+ *  @p t is the unit tangent the highlight stretches along. At zero
+ *  strength it is @p n. */
+public float3 anisotropicBentNormal(float3 n, float3 t, float3 v,
+                                    float roughness, float anisotropy) {
+  float3 b = float3(n.y * t.z - n.z * t.y, n.z * t.x - n.x * t.z,
+                    n.x * t.y - n.y * t.x);
+  float3 across = float3(b.y * v.z - b.z * v.y, b.z * v.x - b.x * v.z,
+                         b.x * v.y - b.y * v.x);
+  float3 facing = float3(across.y * b.z - across.z * b.y,
+                         across.z * b.x - across.x * b.z,
+                         across.x * b.y - across.y * b.x);
+  float s = min(max(anisotropy, 0.0), 1.0);
+  float r = min(max(roughness, 0.0), 1.0);
+  float bend = 1.0 - s * (1.0 - r);
+  float bend4 = bend * bend * bend * bend;
+  float3 bent = facing + (n - facing) * bend4;
+  float len = sqrt(bent.x * bent.x + bent.y * bent.y + bent.z * bent.z);
+  return len > 0.0 ? bent / len : n;
+}
+
+/** THE TANGENT A BRUSHING RUNS ALONG: the direction @p direction — x
+ *  along @p t, y along @p b, the surface's own frame — turned by
+ *  @p rotationDegrees counter-clockwise from t, and made square to the
+ *  normal @p n. A frame that has collapsed answers @p fallback, which
+ *  must already be square to @p n and unit length. */
+public float3 anisotropyTangent(float3 n, float3 t, float3 b,
+                                float2 direction, float rotationDegrees,
+                                float3 fallback) {
+  float angle = rotationDegrees * 0.01745329;
+  float c = cos(angle);
+  float s = sin(angle);
+  float2 d = float2(direction.x * c - direction.y * s,
+                    direction.x * s + direction.y * c);
+  float3 along = t * d.x + b * d.y;
+  float nd = n.x * along.x + n.y * along.y + n.z * along.z;
+  along = along - n * nd;
+  float len = sqrt(along.x * along.x + along.y * along.y + along.z * along.z);
+  return len > 1e-6 ? along / len : fallback;
+}
+
+/** Where a Schlick reflectance that rises to @p f90 must start head on to
+ *  reach @p f at the cosine @p cosTheta: Schlick run backward. */
+public float3 fresnelToF0(float cosTheta, float3 f, float3 f90) {
+  float x = 1.0 - min(max(cosTheta, 0.0), 1.0);
+  float x2 = x * x;
+  float x5 = min(max(x2 * x2 * x, 0.0), 0.9999);
+  return (f - f90 * x5) / (1.0 - x5);
+}
+
+/** The head-on reflectance between two media of these indices. */
+public float reflectanceFromIor(float transmitted, float incident) {
+  float r = (transmitted - incident) / (transmitted + incident);
+  return r * r;
+}
+
+/** THE COLOUR A PATH DIFFERENCE MAKES: two paths @p opd nanometres apart,
+ *  at the phase shift @p shift each channel picked up along them, mapped
+ *  through the eye's colour sensitivity — Gaussian fits of the matching
+ *  functions over wavelength — into the linear display primaries. */
+public float3 interferenceColor(float opd, float3 shift) {
+  float phase = 6.28318531 * opd * 1.0e-9;
+  float3 value = float3(5.4856e-13, 4.4201e-13, 5.2481e-13);
+  float3 position = float3(1.6810e+06, 1.7953e+06, 2.2084e+06);
+  float3 spread = float3(4.3278e+09, 9.3046e+09, 6.6121e+09);
+  float p2 = phase * phase;
+  float3 xyz = float3(
+      value.x * sqrt(6.28318531 * spread.x) * cos(position.x * phase + shift.x) *
+          exp(-p2 * spread.x),
+      value.y * sqrt(6.28318531 * spread.y) * cos(position.y * phase + shift.y) *
+          exp(-p2 * spread.y),
+      value.z * sqrt(6.28318531 * spread.z) * cos(position.z * phase + shift.z) *
+          exp(-p2 * spread.z));
+  xyz.x = xyz.x + 9.7470e-14 * sqrt(6.28318531 * 4.5282e+09) *
+                      cos(2.2399e+06 * phase + shift.x) *
+                      exp(-4.5282e+09 * p2);
+  xyz = xyz / 1.0685e-7;
+  return float3(3.2404542 * xyz.x - 1.5371385 * xyz.y - 0.4985314 * xyz.z,
+                -0.9692660 * xyz.x + 1.8760108 * xyz.y + 0.0415560 * xyz.z,
+                0.0556434 * xyz.x - 0.2040259 * xyz.y + 1.0572252 * xyz.z);
+}
+
+/** THE REFLECTANCE OF A SURFACE UNDER A THIN FILM: light reflected off the
+ *  film's top and off the surface beneath interferes, so what comes back
+ *  is tinted by the path between them — by the film's index @p filmIor,
+ *  its @p thicknessNanometres and the cosine @p cosTheta the eye meets it
+ *  at — over the head-on reflectance @p baseF0 of what lies under it. The
+ *  outside is air. Past total internal reflection in the film the answer
+ *  is white. */
+public float3 iridescenceFresnel(float filmIor, float cosTheta,
+                                 float thicknessNanometres, float3 baseF0) {
+  float outside = 1.0;
+  float t = min(max(thicknessNanometres / 0.03, 0.0), 1.0);
+  float eased = t * t * (3.0 - 2.0 * t);
+  float film = outside + (filmIor - outside) * eased;
+  float c1 = min(max(cosTheta, 0.0), 1.0);
+  float ratio = outside / film;
+  float sin2 = ratio * ratio * (1.0 - c1 * c1);
+  float cos2Squared = 1.0 - sin2;
+  if (cos2Squared < 0.0) return float3(1.0, 1.0, 1.0);
+  float c2 = sqrt(cos2Squared);
+
+  // The film's top, from outside: one reflectance for every channel.
+  float r0 = reflectanceFromIor(film, outside);
+  float x1 = 1.0 - c1;
+  float x1Squared = x1 * x1;
+  float r12 = r0 + (1.0 - r0) * x1Squared * x1Squared * x1;
+  float t121 = 1.0 - r12;
+  float phi12 = film < outside ? 3.14159274 : 0.0;
+  float phi21 = 3.14159274 - phi12;
+
+  // The surface beneath, from inside the film: the index its own
+  // reflectance stands for, per channel.
+  float3 f0 = min(max(baseF0, float3(0.0, 0.0, 0.0)),
+                  float3(0.9999, 0.9999, 0.9999));
+  float3 root = float3(sqrt(f0.x), sqrt(f0.y), sqrt(f0.z));
+  float3 baseIor = (float3(1.0, 1.0, 1.0) + root) /
+                   (float3(1.0, 1.0, 1.0) - root);
+  float3 r1 = float3(reflectanceFromIor(baseIor.x, film),
+                     reflectanceFromIor(baseIor.y, film),
+                     reflectanceFromIor(baseIor.z, film));
+  float x2 = 1.0 - c2;
+  float x2Squared = x2 * x2;
+  float3 r23 = r1 + (float3(1.0, 1.0, 1.0) - r1) * (x2Squared * x2Squared * x2);
+  float3 phi23 = float3(baseIor.x < film ? 3.14159274 : 0.0,
+                        baseIor.y < film ? 3.14159274 : 0.0,
+                        baseIor.z < film ? 3.14159274 : 0.0);
+
+  float opd = 2.0 * film * thicknessNanometres * c2;
+  float3 phi = float3(phi21, phi21, phi21) + phi23;
+  float3 r123 = min(max(r23 * r12, float3(1e-5, 1e-5, 1e-5)),
+                    float3(0.9999, 0.9999, 0.9999));
+  float3 rootR123 = float3(sqrt(r123.x), sqrt(r123.y), sqrt(r123.z));
+  float3 rs = r23 * (t121 * t121) / (float3(1.0, 1.0, 1.0) - r123);
+
+  // The reflectance with no interference, then the first two orders of it.
+  float3 result = rs + float3(r12, r12, r12);
+  float3 cm = rs - float3(t121, t121, t121);
+  cm = cm * rootR123;
+  result = result + cm * (interferenceColor(opd, phi) * 2.0);
+  cm = cm * rootR123;
+  result = result + cm * (interferenceColor(2.0 * opd, phi * 2.0) * 2.0);
+  return max(result, float3(0.0, 0.0, 0.0));
+}
+
+/** THE HEAD-ON REFLECTANCE A FILM OF @p weight LEAVES: @p f0 moved toward
+ *  the one whose Schlick curve reaches the film's reflectance at the eye's
+ *  cosine, by the weight. A film of no thickness or no weight is no film:
+ *  the answer is @p f0. Every light and the light from everywhere read the
+ *  moved reflectance, so the film colours both. */
+public float3 iridescentF0(float3 f0, float nDotV, float weight, float filmIor,
+                           float thicknessNanometres) {
+  float w = thicknessNanometres > 0.0 ? min(max(weight, 0.0), 1.0) : 0.0;
+  if (w <= 0.0) return f0;
+  float3 film = iridescenceFresnel(filmIor, nDotV, thicknessNanometres, f0);
+  float3 filmF0 = fresnelToF0(nDotV, film, float3(1.0, 1.0, 1.0));
+  return f0 + (filmF0 - f0) * w;
+}
+
+/** A DIELECTRIC'S HEAD-ON REFLECTANCE AT A STRENGTH AND A COLOUR: four per
+ *  cent tinted by the linear @p color, held under one, scaled by
+ *  @p strength. At strength one and white it is the four per cent every
+ *  dielectric here reflects; at zero it reflects nothing. */
+public float3 dielectricReflectance(float3 color, float strength) {
+  float s = max(strength, 0.0);
+  return min(color * 0.04, float3(1.0, 1.0, 1.0)) * s;
+}
+
+/** THE HEAD-ON REFLECTANCE of a surface whose dielectric side reflects
+ *  @p dielectric: that, mixed toward the base colour as the surface turns
+ *  metal. */
+public float3 specularColorFrom(float3 baseColor, float metal,
+                                float3 dielectric) {
+  float m = min(max(metal, 0.0), 1.0);
+  return dielectric * (1.0 - m) + baseColor * m;
+}
+
+/** …the grazing reflectance it rises to: the dielectric's own @p strength,
+ *  mixed toward white as the surface turns metal. */
+public float3 reflectance90From(float metal, float strength) {
+  float m = min(max(metal, 0.0), 1.0);
+  float r = min(max(strength, 0.0), 1.0) * (1.0 - m) + m;
+  return float3(r, r, r);
+}
+
+/** …and the colour its diffuse side reflects: the base colour less what
+ *  the dielectric reflects head on at its strongest channel, and none of
+ *  it for a metal. With the four per cent every dielectric here reflects it
+ *  is `diffuseColor`. */
+public float3 diffuseColorFrom(float3 baseColor, float metal,
+                               float3 dielectric) {
+  float m = min(max(metal, 0.0), 1.0);
+  float strongest = max(dielectric.x, max(dielectric.y, dielectric.z));
+  return baseColor * ((1.0 - min(strongest, 1.0)) * (1.0 - m));
+}
+
 // ---- how a light reaches a point ---------------------------------------
 
 /** HOW A POSITIONED LIGHT FALLS OFF over @p distance: the inverse square,

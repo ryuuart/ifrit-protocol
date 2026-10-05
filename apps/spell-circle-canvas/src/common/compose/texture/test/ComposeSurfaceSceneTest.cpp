@@ -208,6 +208,55 @@ TEST(ComposeSurfaceScene, EachMapReadsWhatTheTreePaintedThere) {
   expectNear(pixelsOf(*scene, Role::Clearcoat).getColor4f(10, 10), 0, 0, 0);
 }
 
+TEST(ComposeSurfaceScene, AStatedLobeAddsItsMapsInTheRenderThatStatesIt) {
+  const auto scene = SurfaceScene::make({kWidth, kHeight}, fonts());
+  ASSERT_NE(scene, nullptr);
+  // A page whose materials state no optional lobe paints the five maps
+  // and nothing else.
+  scene->render(page());
+  EXPECT_EQ(scene->maps().maps.size(), 5u);
+  EXPECT_EQ(scene->lobes(), material::Lobes{});
+
+  // A sheened, brushed plate: the render that paints it adds the sheen's
+  // two maps and the brushing's, and paints them at once.
+  const Element lobed = box().width(kWidth).height(kHeight).children({
+      box()
+          .absolute()
+          .rect(0, 0, 64, 48)
+          .fill(material::from(material::Color{.3f, .1f, .1f, 1})
+                    .surface({.sheenColor = material::Color{.8f, .6f, .4f, 1},
+                              .sheenRoughness = .5f})),
+      box()
+          .absolute()
+          .rect(64, 0, 64, 48)
+          .fill(material::from(material::Color{.9f, .9f, .9f, 1})
+                    .surface({.metallic = 1.0f,
+                              .anisotropy = .75f,
+                              .anisotropyRotation = 90})),
+  });
+  scene->render(lobed);
+  EXPECT_EQ(scene->lobes(),
+            (material::Lobes{.sheen = true, .anisotropy = true}));
+  const material::texture::TextureMaps maps = scene->maps();
+  EXPECT_EQ(maps.maps.size(), 8u);
+  EXPECT_NE(maps.map(Role::Sheen), nullptr);
+  EXPECT_NE(maps.map(Role::SheenSpecular), nullptr);
+  EXPECT_NE(maps.map(Role::Anisotropy), nullptr);
+  EXPECT_EQ(maps.map(Role::Iridescence), nullptr);
+  expectNear(pixelsOf(*scene, Role::Sheen).getColor4f(20, 20), .8f, .6f, .4f);
+  // The sheen's roughness in red, the stock specular strength in green.
+  expectNear(pixelsOf(*scene, Role::SheenSpecular).getColor4f(20, 20), .5f, 1,
+             0);
+  // A quarter turn from the page's width: the direction (0, 1), encoded,
+  // and the strength in blue; where nothing brushes, no strength.
+  const SkBitmap brushing = pixelsOf(*scene, Role::Anisotropy);
+  expectNear(brushing.getColor4f(96, 20), .5f, 1, .75f);
+  expectNear(brushing.getColor4f(5, 105), 1, .5f, 0);
+  // The maps stay once added, though the next tree states no lobe.
+  scene->render(page());
+  EXPECT_EQ(scene->maps().maps.size(), 8u);
+}
+
 TEST(ComposeSurfaceScene, AStillTreeSettlesAndAChangedMaterialPaintsAgain) {
   const auto scene = SurfaceScene::make({kWidth, kHeight}, fonts());
   ASSERT_NE(scene, nullptr);

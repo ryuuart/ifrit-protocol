@@ -456,12 +456,18 @@ struct Layer {
  *  texture, a noise), as a node graph connects an input. */
 using Channel = std::variant<float, Material>;
 
-/** THE LIT RESPONSE — metallic-roughness with transmission and
- *  clearcoat. The base colour is the material's own base and stack of
- *  layers; every channel here takes a number or a material. It DESCRIBES
- *  a surface and shades nothing itself: a renderer that shades a set
- *  shades it under the set's lights, and a 2D painter paints the colours
- *  flat, or reads the channels out as surface maps
+/** A surface colour channel: a colour as an author types it, or a material
+ *  whose colour is read there, as a colour input of a node graph takes
+ *  either a swatch or a map. */
+using ColorInput = std::variant<Color, Material>;
+
+/** THE LIT RESPONSE — metallic-roughness with transmission, clearcoat,
+ *  sheen, anisotropy, iridescence and a dielectric's specular strength and
+ *  colour; the names are the glTF physical material's. The base colour is the
+ * material's own base and stack of layers; every channel here takes a number or
+ * a material. It DESCRIBES a surface and shades nothing itself: a renderer that
+ * shades a set shades it under the set's lights, and a 2D painter paints the
+ * colours flat, or reads the channels out as surface maps
  *  (`skia::asMap`). Refraction in 2D is Filter::glass, which refracts the
  *  layer it is attached to. */
 struct SurfaceOptions {
@@ -495,6 +501,40 @@ struct SurfaceOptions {
    *  lies smooth over the surface's geometry whatever the surface's own
    *  normal map does. */
   std::optional<Material> clearcoatNormal;
+  /** SHEEN: a soft reflection standing over the surface at the rim and
+   *  toward a light behind it, as velvet, felt and dust show; black is
+   *  none. The surface beneath gives up what the sheen reflects.
+   *  `sheenRoughness`, 0 to 1, is how wide the sheen spreads. */
+  ColorInput sheenColor = Color{0, 0, 0, 1};
+  Channel sheenRoughness = 0.0f;
+  /** ANISOTROPY: the highlight stretched along one direction of the
+   *  surface, as brushed metal and spun discs show — 0 none to 1 a
+   *  highlight drawn into a line. `anisotropyRotation` turns that direction,
+   *  in degrees counter-clockwise, from the way the surface's u coordinate
+   *  runs. `anisotropyDirection` is a map of the direction across the
+   *  surface: red and green the direction in the surface's own frame,
+   *  encoded as a normal map is, blue a scale on the strength. */
+  float anisotropy = 0;
+  float anisotropyRotation = 0;
+  std::optional<Material> anisotropyDirection;
+  /** IRIDESCENCE: a thin film over the surface — soap, oil, a tempered
+   *  metal's oxide — whose interference tints the reflection by the angle
+   *  it is seen at; 0 none to 1 a full film. `iridescenceIor` is the film's
+   *  index of refraction. `iridescenceThickness` is the film's thickness in
+   *  nanometres; with `iridescenceThicknessMap` stated, the map runs the
+   *  thickness from `iridescenceThicknessMinimum` at black to
+   *  `iridescenceThickness` at white. */
+  Channel iridescence = 0.0f;
+  float iridescenceIor = 1.3f;
+  float iridescenceThickness = 400;
+  float iridescenceThicknessMinimum = 100;
+  std::optional<Material> iridescenceThicknessMap;
+  /** SPECULAR: how strongly a dielectric reflects, 0 none to 1 the four per
+   *  cent every dielectric reflects head on, and the colour that reflection
+   *  is tinted with. A metal's reflection is its base colour and ignores
+   *  both. */
+  Channel specular = 1.0f;
+  ColorInput specularColor = Color{1, 1, 1, 1};
   float transmission = 0;
   float ior = 1.5f;
   float thickness = 40;
@@ -521,6 +561,25 @@ struct SurfaceOptions {
   float depthFade = 0;
   bool operator==(const SurfaceOptions&) const = default;
 };
+
+/** WHICH OF THE OPTIONAL LOBES a surface carries — sheen, anisotropy,
+ *  iridescence, a dielectric's own specular. A surface carries only the
+ *  lobes it states: one that states no sheen samples none of the sheen's
+ *  maps and is shaded by a renderer that compiles no sheen term for it, so
+ *  a surface pays for exactly what it says. */
+struct Lobes {
+  bool sheen = false;
+  bool anisotropy = false;
+  bool iridescence = false;
+  bool specular = false;
+  bool operator==(const Lobes&) const = default;
+};
+
+/** The lobes @p options state: a sheen colour that is a map or other than
+ *  black, an anisotropy other than zero, an iridescence that is a map or
+ *  other than zero, a specular strength or colour that is a map or other
+ *  than one and white. An unlit surface states none. */
+Lobes lobes(const SurfaceOptions& options);
 
 /** A FILTER CHAIN AS THE EFFECTS STAGE of the designated form: any
  *  `Filter` converts. Empty for no effects. */

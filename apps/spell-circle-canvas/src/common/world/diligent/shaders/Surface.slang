@@ -23,10 +23,13 @@
 // dressed: the slot an unmapped body leaves empty reads one white texel,
 // and the map multiplies the surface's colour before any light does.
 //
-// SIGIL_LIT is the one axis the source is specialised on. Defined, the
+// SIGIL_LIT is the axis the source is specialised on. Defined, the
 // lights, the environment and the camera's curve reach the surface;
 // undefined, the surface colour stands as it is and the lighting, its
-// uniforms and its loop are not in the program at all.
+// uniforms and its loop are not in the program at all. Within the lit
+// build each optional lobe is an axis of its own, defined by the
+// compiler when the body it is compiled with writes that lobe's
+// variables below.
 //
 // THE LIT BUILD SHADES EVERY PIXEL, in view space and in LINEAR light:
 //
@@ -40,10 +43,17 @@
 //      ambient and hemisphere lights — adds its diffuse and its mirrored
 //      share, with the energy a rough surface scatters more than once put
 //      back, darkened by the surface's occlusion and by nothing else;
-//   4. a clear coat, where the surface has one, reflects a second,
+//   4. the optional lobes a surface states — a sheen over the base, a
+//      highlight stretched along a brushing, a thin film tinting the
+//      reflectance, a dielectric's own specular strength and colour — are
+//      each compiled in only when the body this text is compiled with
+//      states them (SIGIL_SHEEN, SIGIL_ANISOTROPY, SIGIL_IRIDESCENCE,
+//      SIGIL_SPECULAR), so a body that states none compiles to the program
+//      it would be if the lobes were not in this text;
+//   5. a clear coat, where the surface has one, reflects a second,
 //      colourless lobe over all of that and dims it by what it reflected;
-//   5. emission adds its own light;
-//   6. the sum is written as LIGHT, premultiplied, into a target that
+//   6. emission adds its own light;
+//   7. the sum is written as LIGHT, premultiplied, into a target that
 //      holds light: the camera's exposure and tone curve read it once, in
 //      the final stage, after every body and every pass over the picture.
 //
@@ -263,6 +273,24 @@ static float gSurfaceReflection = -1.0;
  *  the lit sum before the exposure and the curve, so a strength above one
  *  is brighter than white and the curve, not the target, holds it. */
 static float3 gSurfaceEmission = float3(0.0, 0.0, 0.0);
+/** A SHEEN: its colour, in linear light — black is none — and how wide
+ *  it spreads. */
+static float3 gSurfaceSheenColor = float3(0.0, 0.0, 0.0);
+static float gSurfaceSheenRoughness = 0.0;
+/** A BRUSHING: how strongly the highlight stretches, along which
+ *  direction in the surface's own frame — x the way u runs, y the way a
+ *  normal map's green points — and turned how many degrees from it. */
+static float gSurfaceAnisotropy = 0.0;
+static float2 gSurfaceAnisotropyDirection = float2(1.0, 0.0);
+static float gSurfaceAnisotropyRotation = 0.0;
+/** A THIN FILM: its weight, its index of refraction and its thickness in
+ *  nanometres. */
+static float gSurfaceIridescence = 0.0;
+static float gSurfaceIridescenceIor = 1.3;
+static float gSurfaceIridescenceThickness = 0.0;
+/** A DIELECTRIC'S SPECULAR: its strength, and its colour in linear light. */
+static float gSurfaceSpecular = 1.0;
+static float3 gSurfaceSpecularColor = float3(1.0, 1.0, 1.0);
 /** The distance, in scene units, over which the surface fades out as it
  *  nears the opaque surface behind it; zero does not fade. */
 static float gSurfaceDepthFade = 0.0;
@@ -460,11 +488,54 @@ float3 shadeLit(VSOut input, float3 base) {
 
   let metal = saturateP(gSurfaceMetal);
   let rough = gSurfaceRoughness < 0.0 ? 0.5 : saturateP(gSurfaceRoughness);
-  let diffuse = diffuseColor(base, metal);
-  let f0 = specularColor(base, metal);
-  let f90 = reflectance90(f0);
+  var diffuse = diffuseColor(base, metal);
+  var f0 = specularColor(base, metal);
+  var f90 = reflectance90(f0);
+#ifdef SIGIL_SPECULAR
+  // A dielectric's own strength and colour move its head-on and grazing
+  // reflectance, and its diffuse side keeps what the reflection does not.
+  let dielectric = dielectricReflectance(gSurfaceSpecularColor, gSurfaceSpecular);
+  diffuse = diffuseColorFrom(base, metal, dielectric);
+  f0 = specularColorFrom(base, metal, dielectric);
+  f90 = reflectance90From(metal, gSurfaceSpecular);
+#endif
   let nDotV = max(dotP(n, v), 0.0);
-  let r = n * (2.0 * nDotV) - v;
+#ifdef SIGIL_IRIDESCENCE
+  // A thin film moves the head-on reflectance by what its interference
+  // makes of it at the angle the eye meets it, for every light alike.
+  f0 = iridescentF0(f0, nDotV, gSurfaceIridescence, gSurfaceIridescenceIor,
+                    gSurfaceIridescenceThickness);
+#endif
+  var r = n * (2.0 * nDotV) - v;
+#ifdef SIGIL_ANISOTROPY
+  // THE BRUSHING'S TANGENT, in the surface's own frame. Where the uv does
+  // not vary across the pixel there is no frame to read, and the brushing
+  // runs around the body's own up axis instead.
+  let bodyUp = mul(uModelView, float4(0.0, 1.0, 0.0, 0.0)).xyz;
+  var around = bodyUp - n * dotP(bodyUp, n);
+  if (dotP(around, around) < 1e-8) around = float3(1.0, 0.0, 0.0) - n * n.x;
+  around = normalizeP(cross(around, n));
+  let brushed = anisotropyTangent(n, t, b, gSurfaceAnisotropyDirection,
+                                  gSurfaceAnisotropyRotation, around);
+  let anisotropy = saturateP(gSurfaceAnisotropy);
+  // Light from everywhere is mirrored about a normal bent across the
+  // brushing, which smears the panorama along it.
+  let bent = anisotropicBentNormal(n, brushed, v, rough, anisotropy);
+  r = bent * (2.0 * max(dotP(bent, v), 0.0)) - v;
+#endif
+  let tableSize = uLightCount.y;
+#ifdef SIGIL_SHEEN
+  let sheenColor = max(gSurfaceSheenColor, float3(0.0, 0.0, 0.0));
+  let sheenRough = saturateP(gSurfaceSheenRoughness);
+  // The sheen's directional albedo rides in the split sum's table, blue.
+  let sheenAlbedoView =
+      uEnvironmentBrdf
+          .SampleLevel(environmentBrdfUv(sheenRough, nDotV, tableSize), 0.0)
+          .b;
+  let plainR = n * (2.0 * nDotV) - v;
+  float3 sheenDirect = float3(0.0, 0.0, 0.0);
+  float3 aroundSheen = float3(0.0, 0.0, 0.0);
+#endif
 
   let coat = saturateP(gSurfaceClearcoat);
   let coatRough = saturateP(gSurfaceClearcoatRoughness);
@@ -501,12 +572,20 @@ float3 shadeLit(VSOut input, float3 base) {
       aroundCoat = aroundCoat +
                    mixP(hemisphereIrradiance(coatR, up, colour, ground),
                         facing, coatRough);
+#ifdef SIGIL_SHEEN
+      aroundSheen = aroundSheen +
+                    mixP(hemisphereIrradiance(plainR, up, colour, ground),
+                         facing, sheenRough);
+#endif
       continue;
     }
     if (kind > 2.5) {
       aroundIrradiance = aroundIrradiance + colour;
       aroundMirrored = aroundMirrored + colour;
       aroundCoat = aroundCoat + colour;
+#ifdef SIGIL_SHEEN
+      aroundSheen = aroundSheen + colour;
+#endif
       continue;
     }
     float3 l = -normalizeP(uLightDirection[i].xyz);
@@ -523,10 +602,31 @@ float3 shadeLit(VSOut input, float3 base) {
     }
     if (reach <= 0.0) continue;
     let radiance = colour * reach;
-    directDiffuseSum =
-        directDiffuseSum + radiance * directDiffuse(n, l, v, diffuse, f0, f90);
-    directSpecularSum =
-        directSpecularSum + radiance * directSpecular(n, l, v, f0, f90, rough);
+    var diffuseOne = radiance * directDiffuse(n, l, v, diffuse, f0, f90);
+#ifdef SIGIL_ANISOTROPY
+    var specularOne = radiance * directSpecularAnisotropic(n, brushed, l, v, f0,
+                                                           f90, rough,
+                                                           anisotropy);
+#else
+    var specularOne = radiance * directSpecular(n, l, v, f0, f90, rough);
+#endif
+#ifdef SIGIL_SHEEN
+    // The base beneath a sheen gives up what the sheen reflected, seen
+    // from the eye and from this light.
+    let sheenAlbedoLight =
+        uEnvironmentBrdf
+            .SampleLevel(environmentBrdfUv(sheenRough, max(dotP(n, l), 0.0),
+                                           tableSize),
+                         0.0)
+            .b;
+    let scaling = sheenScaling(sheenColor, sheenAlbedoView, sheenAlbedoLight);
+    diffuseOne = diffuseOne * scaling;
+    specularOne = specularOne * scaling;
+    sheenDirect = sheenDirect +
+                  radiance * directSheen(n, l, v, sheenColor, sheenRough);
+#endif
+    directDiffuseSum = directDiffuseSum + diffuseOne;
+    directSpecularSum = directSpecularSum + specularOne;
     if (coat > 0.0)
       coatDirect = coatDirect + radiance * directSpecular(coatNormal, l, v,
                                                           coatF0, white,
@@ -545,15 +645,26 @@ float3 shadeLit(VSOut input, float3 base) {
     if (coat > 0.0) coatMirrored = coatMirrored + environmentAt(coatR, coatRough);
   }
   let occluded = saturateP(gSurfaceOcclusion);
-  let tableSize = uLightCount.y;
   let brdf = uEnvironmentBrdf
                  .SampleLevel(environmentBrdfUv(rough, nDotV, tableSize), 0.0)
                  .rg;
-  let aroundDiffuse =
+  var aroundDiffuse =
       environmentDiffuse(irradiance, diffuse, f0, rough, nDotV, brdf) *
       occluded;
-  let aroundSpecular =
+  var aroundSpecular =
       environmentSpecular(mirrored, f0, rough, nDotV, brdf) * occluded;
+#ifdef SIGIL_SHEEN
+  // From everywhere the base gives up what the sheen reflects toward the
+  // eye, so a white sheen over a white surface in a uniform surround
+  // returns no more than it was lit by.
+  let aroundScaling = sheenScaling(sheenColor, sheenAlbedoView, 0.0);
+  aroundDiffuse = aroundDiffuse * aroundScaling;
+  aroundSpecular = aroundSpecular * aroundScaling;
+  float3 sheenRadiance = aroundSheen;
+  if (sky) sheenRadiance = sheenRadiance + environmentAt(plainR, sheenRough);
+  let sheenAround =
+      environmentSheen(sheenRadiance, sheenColor, sheenAlbedoView) * occluded;
+#endif
 
   // …AND WHAT PASSES THROUGH IT. The refracted ray reads the same
   // panorama, attenuated by what the medium takes out of it over the
@@ -571,6 +682,9 @@ float3 shadeLit(VSOut input, float3 base) {
   }
   float3 colour = (directDiffuseSum + aroundDiffuse) * (1.0 - transmit) +
                   directSpecularSum + aroundSpecular + through;
+#ifdef SIGIL_SHEEN
+  colour = colour + sheenDirect + sheenAround;
+#endif
 
   // THE COAT lies over all of it: what it reflects is added, and what it
   // reflected is what the surface beneath no longer receives or shows.

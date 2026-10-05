@@ -16,6 +16,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <map>
+#include <mutex>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -24,12 +27,40 @@ namespace sigil::material::surface {
 
 namespace {
 
-/** The lit body for @p reflection: the shared text with the one line
- *  that says how the environment enters filled in. A negative weight is
- *  the split sum — the surface's own reflectance and its Fresnel decide
- *  — and a weight at or above zero is that much environment, added. */
-std::string slangSurface(Reflection reflection) {
+/** The text between `// <name> {` and `// } <name>`, its two marking
+ *  lines included, taken out of @p body: a lobe the program does not
+ *  carry is not in its body at all, so its maps are never declared to the
+ *  program and nothing downstream compiles its term. */
+void strike(std::string& body, std::string_view name) {
+  const std::string open = "// " + std::string(name) + " {";
+  const std::string close = "// } " + std::string(name);
+  for (size_t at = body.find(open); at != std::string::npos;
+       at = body.find(open, at)) {
+    const size_t start = body.rfind('\n', at);
+    const size_t end = body.find(close, at);
+    if (end == std::string::npos) {
+      reportOnce("surface.lobe:" + std::string(name),
+                 "the Slang surface body opens the " + std::string(name) +
+                     " lobe and never closes it; the body keeps it");
+      return;
+    }
+    const size_t after = body.find('\n', end);
+    const size_t from = start == std::string::npos ? 0 : start;
+    body.erase(from, (after == std::string::npos ? body.size() : after) - from);
+  }
+}
+
+/** The lit body for @p reflection carrying @p carried: the shared text
+ *  with the one line that says how the environment enters filled in and
+ *  every lobe it does not carry struck out. A negative weight is the split
+ *  sum — the surface's own reflectance and its Fresnel decide — and a
+ *  weight at or above zero is that much environment, added. */
+std::string slangSurface(Reflection reflection, Lobes carried) {
   std::string body(shaderSource("Surface.slang"));
+  if (!carried.sheen) strike(body, "sheen");
+  if (!carried.anisotropy) strike(body, "anisotropy");
+  if (!carried.iridescence) strike(body, "iridescence");
+  if (!carried.specular) strike(body, "specular");
   const std::string_view mark = "REFLECTION_WEIGHT";
   const size_t at = body.find(mark);
   // A body with no mark in it is a body the reflection cannot be written
@@ -62,6 +93,13 @@ Recipe define(std::string name, std::string_view bodyFile,
       .slot(std::string(kClearcoatSlot))
       .slot(std::string(kClearcoatRoughnessSlot))
       .slot(std::string(kClearcoatNormalSlot))
+      .slot(std::string(kSheenColorSlot))
+      .slot(std::string(kSheenRoughnessSlot))
+      .slot(std::string(kAnisotropySlot))
+      .slot(std::string(kIridescenceSlot))
+      .slot(std::string(kIridescenceThicknessSlot))
+      .slot(std::string(kSpecularSlot))
+      .slot(std::string(kSpecularColorSlot))
       .body(Target::SkSL, std::string(shaderSource("SurfacePrelude.sksl"))
                               .append(shaderSource(bodyFile)))
       // THE TERMS ARE NOT PREPENDED HERE. A Slang renderer loads them
@@ -108,6 +146,10 @@ Material dress(Material m) {
   m.slot(kClearcoatRoughnessSlot, white);
   m.slot(kClearcoatNormalSlot,
          flat("normal", material::Color{0.5f, 0.5f, 1.0f, 1.0f}));
+  for (std::string_view slot :
+       {kSheenColorSlot, kSheenRoughnessSlot, kAnisotropySlot, kIridescenceSlot,
+        kIridescenceThicknessSlot, kSpecularSlot, kSpecularColorSlot})
+    m.slot(slot, white);
   return m;
 }
 
@@ -157,15 +199,81 @@ Material normalFromHeight(Material height, HeightNormalOptions options) {
   return result;
 }
 
-const std::shared_ptr<const Recipe>& surfaceRecipe(Reflection reflection) {
-  static const std::shared_ptr<const Recipe> splitSum =
-      std::make_shared<const Recipe>(define(
-          "surface", "Surface.sksl", slangSurface(Reflection::SplitSum)));
-  static const std::shared_ptr<const Recipe> additive =
-      std::make_shared<const Recipe>(
-          define("surface.additive", "Surface.sksl",
-                 slangSurface(Reflection::Additive)));
-  return reflection == Reflection::SplitSum ? splitSum : additive;
+namespace {
+
+/** Every lit recipe made so far, one per model and set of lobes, made on
+ *  first asking and kept for the process. */
+struct SurfaceRecipes {
+  std::mutex mutex;
+  std::map<int, std::shared_ptr<const Recipe>> made;
+};
+
+SurfaceRecipes& surfaceRecipes() {
+  static SurfaceRecipes recipes;
+  return recipes;
+}
+
+int lobeBits(Lobes carried) {
+  return (carried.sheen ? 1 : 0) | (carried.anisotropy ? 2 : 0) |
+         (carried.iridescence ? 4 : 0) | (carried.specular ? 8 : 0);
+}
+
+Lobes lobesOfBits(int bits) {
+  return {(bits & 1) != 0, (bits & 2) != 0, (bits & 4) != 0, (bits & 8) != 0};
+}
+
+/** The lit recipe a material is an instance of, by its key — the model
+ *  times sixteen plus the lobe bits — or none. */
+std::optional<int> surfaceKey(const Material& material) {
+  SurfaceRecipes& recipes = surfaceRecipes();
+  const std::lock_guard lock(recipes.mutex);
+  for (const auto& [key, recipe] : recipes.made)
+    if (material.recipePointer() == recipe) return key;
+  return std::nullopt;
+}
+
+}  // namespace
+
+const std::shared_ptr<const Recipe>& surfaceRecipe(Reflection reflection,
+                                                   Lobes carried) {
+  const int key =
+      (reflection == Reflection::SplitSum ? 0 : 16) | lobeBits(carried);
+  SurfaceRecipes& recipes = surfaceRecipes();
+  const std::lock_guard lock(recipes.mutex);
+  std::shared_ptr<const Recipe>& recipe = recipes.made[key];
+  if (!recipe) {
+    // A plain recipe is named for its model alone; one carrying a lobe
+    // says which.
+    std::string name =
+        reflection == Reflection::SplitSum ? "surface" : "surface.additive";
+    if (carried.sheen) name += ".sheen";
+    if (carried.anisotropy) name += ".anisotropy";
+    if (carried.iridescence) name += ".iridescence";
+    if (carried.specular) name += ".specular";
+    recipe = std::make_shared<const Recipe>(define(
+        std::move(name), "Surface.sksl", slangSurface(reflection, carried)));
+  }
+  return recipe;
+}
+
+Lobes lobes(const SurfaceParameters& parameters) {
+  Lobes out;
+  out.sheen = parameters.sheenColor.r != 0 || parameters.sheenColor.g != 0 ||
+              parameters.sheenColor.b != 0;
+  out.anisotropy = parameters.anisotropy != 0;
+  out.iridescence = parameters.iridescence != 0;
+  const SurfaceParameters stock;
+  out.specular =
+      parameters.specular != stock.specular ||
+      parameters.specularColorFactor.r != stock.specularColorFactor.r ||
+      parameters.specularColorFactor.g != stock.specularColorFactor.g ||
+      parameters.specularColorFactor.b != stock.specularColorFactor.b;
+  return out;
+}
+
+Lobes lobes(const Material& material) {
+  const std::optional<int> key = surfaceKey(material);
+  return key ? lobesOfBits(*key & 15) : Lobes{};
 }
 
 namespace {
@@ -180,7 +288,17 @@ const std::shared_ptr<const Recipe>& unlitRecipe() {
 }  // namespace
 
 Material program(const SurfaceParameters& parameters, Reflection reflection) {
-  return dress(Material(surfaceRecipe(reflection), parameters));
+  return program(parameters, reflection, {});
+}
+
+Material program(const SurfaceParameters& parameters, Reflection reflection,
+                 Lobes carried) {
+  const Lobes stated = lobes(parameters);
+  carried.sheen |= stated.sheen;
+  carried.anisotropy |= stated.anisotropy;
+  carried.iridescence |= stated.iridescence;
+  carried.specular |= stated.specular;
+  return dress(Material(surfaceRecipe(reflection, carried), parameters));
 }
 
 Material unlit(const SurfaceParameters& parameters) {
@@ -188,9 +306,8 @@ Material unlit(const SurfaceParameters& parameters) {
 }
 
 bool isSurface(const Material& material) {
-  return material.recipePointer() == surfaceRecipe(Reflection::SplitSum) ||
-         material.recipePointer() == surfaceRecipe(Reflection::Additive) ||
-         material.recipePointer() == unlitRecipe();
+  return material.recipePointer() == unlitRecipe() ||
+         surfaceKey(material).has_value();
 }
 
 Compositing compositing(const Material& material) {
@@ -262,8 +379,46 @@ Material program(const texture::TextureMaps& maps, SurfaceParameters base) {
     base.clearcoatChannel = 0;
     base.clearcoatRoughnessChannel = 1;
   }
+  // THE OPTIONAL LOBES a set carries, each starting its factors at one as
+  // the maps above do, and carried by the program because a map states
+  // them. The sheen's roughness and the specular strength share one image
+  // in red and green; a thin film's thickness runs over the whole range
+  // the image can say unless the base moved it.
+  Lobes carried;
+  const Texture* sheen = maps.map(Role::Sheen);
+  const Texture* sheenSpecular = maps.map(Role::SheenSpecular);
+  const Texture* specularColor = maps.map(Role::SpecularColor);
+  const Texture* anisotropy = maps.map(Role::Anisotropy);
+  const Texture* iridescence = maps.map(Role::Iridescence);
+  if (sheen) {
+    carried.sheen = true;
+    if (base.sheenColor == stock.sheenColor) base.sheenColor = {1, 1, 1, 1};
+    if (sheenSpecular) {
+      if (base.sheenRoughness == stock.sheenRoughness) base.sheenRoughness = 1;
+      base.sheenRoughnessChannel = 0;
+    }
+  }
+  if (specularColor) {
+    carried.specular = true;
+    if (sheenSpecular) base.specularChannel = 1;
+  }
+  if (anisotropy) {
+    carried.anisotropy = true;
+    if (base.anisotropy == stock.anisotropy) base.anisotropy = 1;
+  }
+  if (iridescence) {
+    carried.iridescence = true;
+    if (base.iridescence == stock.iridescence) base.iridescence = 1;
+    base.iridescenceChannel = 0;
+    base.iridescenceThicknessChannel = 1;
+    if (base.iridescenceThickness == stock.iridescenceThickness &&
+        base.iridescenceThicknessMinimum == stock.iridescenceThicknessMinimum) {
+      base.iridescenceThicknessMinimum = 0;
+      base.iridescenceThickness = texture::kIridescenceThicknessRange;
+    }
+  }
 
-  Material m = program(base);
+  Material m = program(base, Reflection::SplitSum, carried);
   const auto place = [&](std::string_view slot, const Texture* t) {
     if (t) m.slot(slot, *t);
   };
@@ -285,6 +440,17 @@ Material program(const texture::TextureMaps& maps, SurfaceParameters base) {
   data(kOpacitySlot, maps.map(Role::Opacity));
   data(kClearcoatSlot, coat);
   data(kClearcoatRoughnessSlot, coat);
+  if (sheen) {
+    place(kSheenColorSlot, sheen);
+    data(kSheenRoughnessSlot, sheenSpecular);
+  }
+  if (specularColor) {
+    place(kSpecularColorSlot, specularColor);
+    data(kSpecularSlot, sheenSpecular);
+  }
+  data(kAnisotropySlot, anisotropy);
+  data(kIridescenceSlot, iridescence);
+  data(kIridescenceThicknessSlot, iridescence);
   return m;
 }
 
