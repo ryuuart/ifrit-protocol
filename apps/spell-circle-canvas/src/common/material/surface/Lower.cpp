@@ -87,10 +87,13 @@ Material lower(const Material& material) {
   parameters.emissive = stated.emission;
   parameters.emissiveStrength = stated.emissionStrength;
   parameters.alphaCutoff = stated.alphaCutoff;
-  parameters.transmission = stated.transmission;
+  parameters.transmission = factor(stated.transmission);
   parameters.ior = stated.ior;
-  parameters.thickness = stated.thickness;
-  parameters.absorption = stated.absorption;
+  parameters.thickness = factor(stated.thickness);
+  parameters.attenuationColor = stated.attenuationColor;
+  parameters.attenuationDistance = stated.attenuationDistance;
+  parameters.dispersion = stated.dispersion;
+  parameters.distortionStrength = stated.distortionStrength;
   parameters.reflectionWeight = stated.reflectionWeight;
   parameters.clearcoat = factor(stated.clearcoat);
   parameters.clearcoatRoughness = factor(stated.clearcoatRoughness);
@@ -155,6 +158,12 @@ Material lower(const Material& material) {
     if (stated.iridescenceThicknessMap)
       place(out, kIridescenceThicknessSlot, *stated.iridescenceThicknessMap);
   }
+  if (carriedNow.transmission) {
+    channel(kTransmissionSlot, stated.transmission);
+    channel(kThicknessSlot, stated.thickness);
+  }
+  if (carriedNow.distortion && stated.distortion)
+    place(out, kDistortionSlot, *stated.distortion);
   if (carriedNow.specular) {
     channel(kSpecularSlot, stated.specular);
     if (const Material* map = std::get_if<Material>(&stated.specularColor))

@@ -11,6 +11,7 @@
 
 #include <Graphics/GraphicsEngine/interface/GraphicsTypesX.hpp>
 #include <Graphics/GraphicsTools/interface/MapHelper.hpp>
+#include <algorithm>
 #include <cstring>
 #include <memory>
 #include <span>
@@ -49,6 +50,7 @@ void Gpu::resize(SkISize size) {
   depth.Release();
   opaqueDepthView.Release();
   opaqueDepth.Release();
+  sceneColor.Release();
   display.Release();
   scratch.clear();
   if (extent.isEmpty() || !device->renderDevice()) return;
@@ -137,6 +139,29 @@ dg::ITexture* Gpu::depthForReading() {
   opaqueDepth->CreateView(view, &opaqueDepthView);
   if (!opaqueDepthView) opaqueDepth.Release();
   return opaqueDepth;
+}
+
+dg::ITexture* Gpu::sceneColorForReading() {
+  if (sceneColor || extent.isEmpty() || !device->renderDevice())
+    return sceneColor;
+  dg::TextureDesc desc;
+  desc.Name = "world scene colour";
+  desc.Type = dg::RESOURCE_DIM_TEX_2D;
+  desc.Width = (dg::Uint32)extent.width();
+  desc.Height = (dg::Uint32)extent.height();
+  desc.Format = kRadianceFormat;
+  // Every level down to one texel, so the roughest surface reads the
+  // average of the whole picture.
+  dg::Uint32 levels = 1;
+  for (int side = std::max(extent.width(), extent.height()); side > 1;
+       side /= 2)
+    ++levels;
+  desc.MipLevels = levels;
+  desc.BindFlags = dg::BIND_SHADER_RESOURCE | dg::BIND_RENDER_TARGET;
+  desc.MiscFlags = dg::MISC_TEXTURE_FLAG_GENERATE_MIPS;
+  desc.Usage = dg::USAGE_DEFAULT;
+  device->renderDevice()->CreateTexture(desc, nullptr, &sceneColor);
+  return sceneColor;
 }
 
 sk_sp<SkImage> Gpu::read(std::string_view name) {

@@ -20,7 +20,7 @@ void bindMaterialEnvironment(py::module_& module) {
            std::pair<const char*, material::Color Parameters::*>>{
            {"baseColor", &Parameters::baseColor},
            {"emissive", &Parameters::emissive},
-           {"absorption", &Parameters::absorption},
+           {"attenuationColor", &Parameters::attenuationColor},
            {"sheenColor", &Parameters::sheenColor},
            {"specularColorFactor", &Parameters::specularColorFactor}}) {
     parameters.def_property(
@@ -28,9 +28,7 @@ void bindMaterialEnvironment(py::module_& module) {
         // A colour answers as the colour class rather than as four bare
         // numbers, so a parameter taken off one surface is a value the
         // next one accepts. Nothing is converted either way: the colours
-        // are held as the author typed them and decoded by the renderer,
-        // and `absorption` is a coefficient that runs past one, so a
-        // transfer function here would change what the author wrote.
+        // are held as the author typed them and decoded by the renderer.
         [member](const Parameters& self) { return self.*member; },
         [member](Parameters& self, py::handle value) {
           self.*member = material::Color(color(value));
@@ -50,6 +48,9 @@ void bindMaterialEnvironment(py::module_& module) {
       .def_readwrite("transmission", &Parameters::transmission)
       .def_readwrite("ior", &Parameters::ior)
       .def_readwrite("thickness", &Parameters::thickness)
+      .def_readwrite("attenuationDistance", &Parameters::attenuationDistance)
+      .def_readwrite("dispersion", &Parameters::dispersion)
+      .def_readwrite("distortionStrength", &Parameters::distortionStrength)
       .def_readwrite("reflectionWeight", &Parameters::reflectionWeight)
       .def_readwrite("clearcoat", &Parameters::clearcoat)
       .def_readwrite("clearcoatRoughness", &Parameters::clearcoatRoughness)

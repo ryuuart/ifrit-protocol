@@ -61,6 +61,8 @@ std::string slangSurface(Reflection reflection, Lobes carried) {
   if (!carried.anisotropy) strike(body, "anisotropy");
   if (!carried.iridescence) strike(body, "iridescence");
   if (!carried.specular) strike(body, "specular");
+  if (!carried.transmission) strike(body, "transmission");
+  if (!carried.distortion) strike(body, "distortion");
   const std::string_view mark = "REFLECTION_WEIGHT";
   const size_t at = body.find(mark);
   // A body with no mark in it is a body the reflection cannot be written
@@ -100,6 +102,9 @@ Recipe define(std::string name, std::string_view bodyFile,
       .slot(std::string(kIridescenceThicknessSlot))
       .slot(std::string(kSpecularSlot))
       .slot(std::string(kSpecularColorSlot))
+      .slot(std::string(kTransmissionSlot))
+      .slot(std::string(kThicknessSlot))
+      .slot(std::string(kDistortionSlot))
       .body(Target::SkSL, std::string(shaderSource("SurfacePrelude.sksl"))
                               .append(shaderSource(bodyFile)))
       // THE TERMS ARE NOT PREPENDED HERE. A Slang renderer loads them
@@ -148,7 +153,8 @@ Material dress(Material m) {
          flat("normal", material::Color{0.5f, 0.5f, 1.0f, 1.0f}));
   for (std::string_view slot :
        {kSheenColorSlot, kSheenRoughnessSlot, kAnisotropySlot, kIridescenceSlot,
-        kIridescenceThicknessSlot, kSpecularSlot, kSpecularColorSlot})
+        kIridescenceThicknessSlot, kSpecularSlot, kSpecularColorSlot,
+        kTransmissionSlot, kThicknessSlot, kDistortionSlot})
     m.slot(slot, white);
   return m;
 }
@@ -213,17 +219,23 @@ SurfaceRecipes& surfaceRecipes() {
   return recipes;
 }
 
+/** One bit per lobe below the model's. */
+constexpr int kLobeBits = 63;
+constexpr int kAdditiveBit = 64;
+
 int lobeBits(Lobes carried) {
   return (carried.sheen ? 1 : 0) | (carried.anisotropy ? 2 : 0) |
-         (carried.iridescence ? 4 : 0) | (carried.specular ? 8 : 0);
+         (carried.iridescence ? 4 : 0) | (carried.specular ? 8 : 0) |
+         (carried.transmission ? 16 : 0) | (carried.distortion ? 32 : 0);
 }
 
 Lobes lobesOfBits(int bits) {
-  return {(bits & 1) != 0, (bits & 2) != 0, (bits & 4) != 0, (bits & 8) != 0};
+  return {(bits & 1) != 0, (bits & 2) != 0,  (bits & 4) != 0,
+          (bits & 8) != 0, (bits & 16) != 0, (bits & 32) != 0};
 }
 
-/** The lit recipe a material is an instance of, by its key — the model
- *  times sixteen plus the lobe bits — or none. */
+/** The lit recipe a material is an instance of, by its key — the model's
+ *  bit and the lobe bits — or none. */
 std::optional<int> surfaceKey(const Material& material) {
   SurfaceRecipes& recipes = surfaceRecipes();
   const std::lock_guard lock(recipes.mutex);
@@ -236,8 +248,8 @@ std::optional<int> surfaceKey(const Material& material) {
 
 const std::shared_ptr<const Recipe>& surfaceRecipe(Reflection reflection,
                                                    Lobes carried) {
-  const int key =
-      (reflection == Reflection::SplitSum ? 0 : 16) | lobeBits(carried);
+  const int key = (reflection == Reflection::SplitSum ? 0 : kAdditiveBit) |
+                  lobeBits(carried);
   SurfaceRecipes& recipes = surfaceRecipes();
   const std::lock_guard lock(recipes.mutex);
   std::shared_ptr<const Recipe>& recipe = recipes.made[key];
@@ -250,6 +262,8 @@ const std::shared_ptr<const Recipe>& surfaceRecipe(Reflection reflection,
     if (carried.anisotropy) name += ".anisotropy";
     if (carried.iridescence) name += ".iridescence";
     if (carried.specular) name += ".specular";
+    if (carried.transmission) name += ".transmission";
+    if (carried.distortion) name += ".distortion";
     recipe = std::make_shared<const Recipe>(define(
         std::move(name), "Surface.sksl", slangSurface(reflection, carried)));
   }
@@ -268,12 +282,13 @@ Lobes lobes(const SurfaceParameters& parameters) {
       parameters.specularColorFactor.r != stock.specularColorFactor.r ||
       parameters.specularColorFactor.g != stock.specularColorFactor.g ||
       parameters.specularColorFactor.b != stock.specularColorFactor.b;
+  out.transmission = parameters.transmission != 0;
   return out;
 }
 
 Lobes lobes(const Material& material) {
   const std::optional<int> key = surfaceKey(material);
-  return key ? lobesOfBits(*key & 15) : Lobes{};
+  return key ? lobesOfBits(*key & kLobeBits) : Lobes{};
 }
 
 namespace {
@@ -298,6 +313,7 @@ Material program(const SurfaceParameters& parameters, Reflection reflection,
   carried.anisotropy |= stated.anisotropy;
   carried.iridescence |= stated.iridescence;
   carried.specular |= stated.specular;
+  carried.transmission |= stated.transmission;
   return dress(Material(surfaceRecipe(reflection, carried), parameters));
 }
 

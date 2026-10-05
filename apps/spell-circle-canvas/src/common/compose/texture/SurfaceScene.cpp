@@ -5,6 +5,7 @@
 #include "sigilcompose/texture/SurfaceScene.h"
 
 #include <sigilcompose/core/Composer.h>
+#include <sigilmaterial/advanced/Program.h>  // reportOnce
 #include <sigilmaterial/skia/SurfaceMaps.h>
 
 #include <array>
@@ -92,6 +93,15 @@ void SurfaceScene::render(const Element& root, double seconds) {
   m_lobes.anisotropy |= heard.anisotropy;
   m_lobes.iridescence |= heard.iridescence;
   m_lobes.specular |= heard.specular;
+  // TRANSMISSION AND DISTORTION read the scene behind the surface they
+  // sit on, which a page's flat maps cannot carry: a material that needs
+  // its own shading crosses to the set as itself, and until it can, the
+  // page is drawn without them.
+  if (heard.transmission || heard.distortion)
+    material::reportOnce(
+        "compose.surface.transmission",
+        "a material on a page states transmission or distortion, which a "
+        "page's surface maps cannot carry; the page is drawn without them");
   for (Role role : lobeRoles(m_lobes)) {
     if (m_scenes.count(role)) continue;
     if (!add(role)) continue;

@@ -640,6 +640,10 @@ Lobes lobes(const SurfaceOptions& options) {
   out.specular = mapped(options.specular) || mapped(options.specularColor) ||
                  number(options.specular) != 1 || tint.r != 1 || tint.g != 1 ||
                  tint.b != 1;
+  out.transmission =
+      mapped(options.transmission) || number(options.transmission) != 0;
+  out.distortion =
+      options.distortion.has_value() && options.distortionStrength != 0;
   return out;
 }
 

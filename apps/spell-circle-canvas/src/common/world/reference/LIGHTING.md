@@ -114,9 +114,51 @@ under every light and from everywhere, with the surface beneath dimmed by
 what the coat reflects. Without its own normal the coat lies smooth over
 the geometry.
 
-**Transmission** reads the panorama along the refracted ray, attenuated
-over the thickness, where the set has an environment; the diffuse side
-gives up the share that passed through.
+**Transmission.** `SurfaceOptions::transmission` (weight, a number or a
+map), `ior`, `thickness` (scene units, a number or a map; zero is a thin
+wall), `attenuationColor` with `attenuationDistance`, and `dispersion`
+describe light passing THROUGH the surface, in the glTF physical
+material's terms. It is an optional lobe (`Lobes::transmission`): only a
+surface that states it compiles it. Per pixel:
+
+- the eye's ray is bent at the surface by `ior` (`refraction`), carried
+  `thickness` scene units along the bent direction (`refractedTravel`),
+  and projected back onto the picture, where the frame's **copy of the
+  scene behind** is read — the lit colour as it stood once every body that
+  does not see through itself was drawn. At an index of one, or through a
+  thin wall, the ray carries straight on and what is behind is seen where
+  it stands;
+- where the bent ray lands off the picture, or on something the depth says
+  stands nearer the eye than the surface, the panorama along the bent ray
+  stands in; with no panorama, the nearest part of the picture;
+- a rough surface reads a blurrier level of the copy — its roughness
+  scattered by how strongly it bends (`transmissionRoughness`), so an
+  index of one blurs nothing;
+- with `dispersion` above zero the three colours are bent by three
+  indices spread about `ior` (`dispersedIors`) and read at three places,
+  so an edge seen through the glass fringes, red bent least;
+- what comes through is tinted by the base colour and dimmed by the
+  VOLUME: light that has crossed `attenuationDistance` of the medium has
+  become `attenuationColor`, farther deeper still, over the length the
+  bent ray travelled (`volumeTransmittance`); a distance of zero takes
+  nothing out;
+- energy: what passes is the share the reflection did not take
+  (`transmittedShare` of the split sum's specular albedo), times the
+  weight; the diffuse side gives up that weight, and a metal transmits
+  nothing — so reflected and transmitted light never exceed what arrived.
+
+**One layer of refraction.** One copy of the scene is taken per frame, so
+a transmissive body never sees another through itself: glass behind glass
+shows what stood behind both. Nothing is cast through a transmissive body
+either — no caustic, and it shadows nothing differently from an opaque one.
+
+**Distortion.** `distortion` (a two-channel DATA map, half-grey still)
+with `distortionStrength` (scene units at the surface) displaces what
+stands behind the surface, read from the same copy, with no light
+involved: the surface's own lit colour is laid over the displaced picture
+by its alpha, so an invisible surface is the displacement alone — heat
+haze, a shockwave. It is the lobe `Lobes::distortion`, carried only with a
+map at a strength other than zero; an unlit surface does not carry it.
 
 **Both sides.** A body whose back face is drawn is lit as the side it
 shows.

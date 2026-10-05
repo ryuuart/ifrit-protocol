@@ -58,8 +58,14 @@ def register(table: Table) -> None:
         "iridescenceThicknessMap: Material | None = None, "
         "specular: typing.SupportsFloat | Material = 1.0, "
         "specularColor: _t.ColorLike | Material = ..., "
-        "transmission: typing.SupportsFloat = 0.0, ior: typing.SupportsFloat = 1.5, "
-        "thickness: typing.SupportsFloat = 40.0, absorption: _t.ColorLike = ..., "
+        "transmission: typing.SupportsFloat | Material = 0.0, "
+        "ior: typing.SupportsFloat = 1.5, "
+        "thickness: typing.SupportsFloat | Material = 0.0, "
+        "attenuationColor: _t.ColorLike = ..., "
+        "attenuationDistance: typing.SupportsFloat = 0.0, "
+        "dispersion: typing.SupportsFloat = 0.0, "
+        "distortion: Material | None = None, "
+        "distortionStrength: typing.SupportsFloat = 0.0, "
         "reflectionWeight: typing.SupportsFloat = 1.0, unlit: bool = False"
         ") -> Material: ...\n",
     )

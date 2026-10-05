@@ -165,6 +165,61 @@ const ClosedForm kClosedForms[] = {
      "length(refraction(normalize(float3(1.0, 0.0, -0.05)), "
      "float3(0.0, 0.0, 1.0), 1.6))",
      0.0f, 2e-3f},
+    // THE PATH THROUGH A VOLUME. Seen at forty-five degrees through a
+    // face of index one and a half, the ray leaves Snell's law's sine —
+    // the sine of forty-five degrees over one and a half — across the
+    // face per unit carried; at an index of one it carries straight on,
+    // and through no thickness it goes nowhere.
+    {"TheRayThroughGlassBendsBySnellsLaw",
+     "-refractedTravel(normalize(float3(1.0, 0.0, 1.0)), "
+     "float3(0.0, 0.0, 1.0), 1.5, 1.0).x",
+     0.70710678f / 1.5f, 2e-3f},
+    {"TheRayThroughIndexOneCarriesStraightOn",
+     "-refractedTravel(normalize(float3(1.0, 0.0, 1.0)), "
+     "float3(0.0, 0.0, 1.0), 1.0, 2.0).x",
+     2.0f * 0.70710678f, 2e-3f},
+    {"TheRayThroughNoThicknessGoesNowhere",
+     "length(refractedTravel(normalize(float3(1.0, 0.0, 1.0)), "
+     "float3(0.0, 0.0, 1.0), 1.5, 0.0))",
+     0.0f, 2e-3f},
+    // A THICKER PATH bends further across at the same index.
+    {"ThreeUnitsOfGlassCarryThreeTimesAsFarAcross",
+     "refractedTravel(normalize(float3(1.0, 0.0, 1.0)), "
+     "float3(0.0, 0.0, 1.0), 1.5, 3.0).x / "
+     "refractedTravel(normalize(float3(1.0, 0.0, 1.0)), "
+     "float3(0.0, 0.0, 1.0), 1.5, 1.0).x",
+     3.0f, 2e-3f},
+    // THE VOLUME: nothing is taken over no distance, the stated colour is
+    // what is left at the stated distance, its square at twice it, and a
+    // distance of zero takes nothing at all.
+    {"NoAttenuationOverNoDistance",
+     "volumeTransmittance(float3(0.2, 0.5, 0.8), 3.0, 0.0).r", 1.0f, 2e-3f},
+    {"TheAttenuationColourAtTheAttenuationDistance",
+     "volumeTransmittance(float3(0.2, 0.5, 0.8), 3.0, 3.0).g", 0.5f, 2e-3f},
+    {"TheSquareOfTheColourAtTwiceTheDistance",
+     "volumeTransmittance(float3(0.2, 0.5, 0.8), 3.0, 6.0).b", 0.64f, 2e-3f},
+    {"AZeroDistanceTakesNothing",
+     "volumeTransmittance(float3(0.2, 0.5, 0.8), 0.0, 10.0).r", 1.0f, 2e-3f},
+    // ENERGY: the transmitted share is what the reflection left, at the
+    // weight stated, and the two never sum past one.
+    {"AFullWeightTransmitsWhatTheReflectionLeft",
+     "transmittedShare(float3(0.04, 0.04, 0.04), 1.0).r", 0.96f, 2e-3f},
+    {"ReflectedAndTransmittedSumToOneAtFullWeight",
+     "0.3 + transmittedShare(float3(0.3, 0.3, 0.3), 1.0).r", 1.0f, 2e-3f},
+    {"AHalfWeightTransmitsHalfOfWhatWasLeft",
+     "transmittedShare(float3(0.2, 0.2, 0.2), 0.5).r", 0.4f, 2e-3f},
+    {"NoWeightTransmitsNothing",
+     "transmittedShare(float3(0.2, 0.2, 0.2), 0.0).r", 0.0f, 2e-3f},
+    // DISPERSION: no strength bends every colour alike; a strength spreads
+    // red below green and blue above it by a fortieth of the excess.
+    {"NoDispersionBendsRedAsGreen", "dispersedIors(1.5, 0.0).r", 1.5f, 1e-4f},
+    {"NoDispersionBendsBlueAsGreen", "dispersedIors(1.5, 0.0).b", 1.5f, 1e-4f},
+    {"DispersionBendsRedLeast", "dispersedIors(1.5, 1.0).r", 1.4875f, 1e-4f},
+    {"DispersionBendsBlueMost", "dispersedIors(1.5, 1.0).b", 1.5125f, 1e-4f},
+    // A ROUGH SURFACE OF INDEX ONE blurs nothing behind it.
+    {"IndexOneBlursNothing", "transmissionRoughness(0.6, 1.0)", 0.0f, 1e-4f},
+    {"GlassBlursByItsRoughness", "transmissionRoughness(0.6, 1.5)", 0.6f,
+     1e-4f},
     // THE PANORAMA'S CONVENTION: v = 0 is the zenith.
     {"TheZenithIsAtTheTopOfThePanorama",
      "equirectangularUv(float3(0.0, 1.0, 0.0)).y", 0.0f, 2e-3f},
@@ -520,6 +575,30 @@ double specularAlbedo(float roughness, float nDotV, float f0, int n) {
 }
 
 }  // namespace
+
+TEST(Terms, ReflectedAndTransmittedLightNeverExceedWhatArrived) {
+  for (const float reflected : {0.0f, 0.04f, 0.3f, 0.9f, 1.0f})
+    for (const float weight : {0.0f, 0.25f, 1.0f, 1.5f}) {
+      const std::string expression =
+          std::to_string(reflected) + " + transmittedShare(float3(" +
+          std::to_string(reflected) + ", 0.0, 0.0), " + std::to_string(weight) +
+          ").r";
+      EXPECT_LE(scalar(expression), 1.0f + 2e-3f) << expression;
+    }
+}
+
+TEST(Terms, DispersionOrdersTheThreeOffsetsAcrossAnEdge) {
+  // Seen obliquely through dispersing glass, red is carried across least
+  // and blue most, so the three channels land in order beside one another.
+  const auto across = [](const char* channel) {
+    return scalar(std::string("-refractedTravel(normalize(float3(1.0, 0.0, "
+                              "1.0)), float3(0.0, 0.0, 1.0), dispersedIors("
+                              "1.5, 1.0).") +
+                  channel + ", 1.0).x");
+  };
+  EXPECT_GT(across("r"), across("g"));
+  EXPECT_GT(across("g"), across("b"));
+}
 
 TEST(Terms, TheSpecularLobeNeverReflectsMoreThanItReceives) {
   // The single-bounce lobe loses light as it roughens — what leaves after

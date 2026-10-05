@@ -203,15 +203,13 @@ class World(unittest.TestCase):
         )
         for written, built in zip(parameters.baseColor, metal.baseColor):
             self.assertAlmostEqual(written, built, places=4)
-        # Absorption is taken per unit of thickness rather than looked
-        # at, so a dense channel is a number above one and the field
-        # answers it as written. A sequence is the colour spelling and
-        # keeps a colour's range; the class carries any four floats.
-        parameters.absorption = Color(4.0, 0.5, 0.25)
-        for channel, expected in zip(parameters.absorption, (4.0, 0.5, 0.25)):
+        # The attenuation colour is a colour like the others: what is
+        # written is what is read back.
+        parameters.attenuationColor = Color(0.25, 0.5, 0.75)
+        for channel, expected in zip(parameters.attenuationColor, (0.25, 0.5, 0.75)):
             self.assertAlmostEqual(channel, expected, places=4)
-        with self.assertRaises(ValueError):
-            parameters.absorption = (4.0, 0.5, 0.25)
+        parameters.attenuationDistance = 2.0
+        self.assertAlmostEqual(parameters.attenuationDistance, 2.0, places=4)
 
     def test_scene_rejects_wrong_thread_and_invalid_sizes_or_steps(self):
         scene = world.Scene()

@@ -108,7 +108,11 @@ sorted back to front by view depth — stably, so two at one depth stand in
 tree order — because that is the order a blended body has to be drawn
 in over what stands behind it, and sorting once per frame rather than
 once per pass is what keeps two passes over one view drawing the same
-picture.
+picture. A geometry pass draws them in three phases over that order —
+the bodies laid over normally; then, after the picture so far is copied,
+the bodies that see through themselves (transmission, distortion), which
+read that copy; then the blended ones — and a frame with nothing that
+sees through itself copies nothing.
 
 `View::environment` is THE SET'S ENVIRONMENT MAP, oriented: the panorama
 every lit body samples for what reaches it from every direction, with an

@@ -535,10 +535,42 @@ struct SurfaceOptions {
    *  both. */
   Channel specular = 1.0f;
   ColorInput specularColor = Color{1, 1, 1, 1};
-  float transmission = 0;
+  /** TRANSMISSION: light passing THROUGH the surface — glass, liquid,
+   *  tinted plastic — as the glTF physical material says it. `transmission`
+   *  is how much of what stands behind comes through, 0 none to 1 clear;
+   *  what does not reflect passes, so a fully transmissive surface keeps
+   *  only its reflection and loses its diffuse side. It is bent by `ior`,
+   *  the index of refraction, across a volume `thickness` scene units deep
+   *  — zero is a thin wall, which bends nothing — and tinted by the base
+   *  colour. A renderer that holds a picture of the scene shows that scene
+   *  through it, displaced by the bend and blurred by the roughness; one
+   *  that holds only the environment shows the environment. */
+  Channel transmission = 0.0f;
   float ior = 1.5f;
-  float thickness = 40;
-  Color absorption = {0, 0, 0, 1};
+  Channel thickness = 0.0f;
+  /** VOLUME: what the medium takes out of the light it carries. Light that
+   *  has travelled `attenuationDistance` scene units through it has become
+   *  `attenuationColor`; farther, deeper still — so a thick slab of tinted
+   *  glass is darker and more coloured than a thin one. Zero distance
+   *  takes nothing out. */
+  Color attenuationColor = {1, 1, 1, 1};
+  float attenuationDistance = 0;
+  /** DISPERSION: the index of refraction varying across the colours, so
+   *  each of red, green and blue is bent by its own amount and an edge
+   *  seen through the glass fringes; 0 none. A strength of one spreads the
+   *  index by a fortieth of its excess over one on either side of green. */
+  float dispersion = 0;
+  /** DISTORTION, for an authored effect rather than a material: what
+   *  stands behind the surface is displaced by a two-channel DATA map —
+   *  red across, green up, half-grey still — by `distortionStrength` scene
+   *  units at the surface, as heat haze and a shockwave bend what is seen
+   *  through them. No light is involved in the displacement: the
+   *  surface's own lit colour is laid over the displaced picture by its
+   *  alpha, so a fully transparent surface is the displacement alone. An
+   *  unlit surface does not carry it. Without a map, or at zero strength,
+   *  nothing moves. */
+  std::optional<Material> distortion;
+  float distortionStrength = 0;
   float reflectionWeight = 1;
   /** No lighting: the base colour as it is. */
   bool unlit = false;
@@ -563,22 +595,30 @@ struct SurfaceOptions {
 };
 
 /** WHICH OF THE OPTIONAL LOBES a surface carries — sheen, anisotropy,
- *  iridescence, a dielectric's own specular. A surface carries only the
- *  lobes it states: one that states no sheen samples none of the sheen's
- *  maps and is shaded by a renderer that compiles no sheen term for it, so
- *  a surface pays for exactly what it says. */
+ *  iridescence, a dielectric's own specular, transmission, distortion. A
+ * surface carries only the lobes it states: one that states no sheen samples
+ * none of the sheen's maps and is shaded by a renderer that compiles no sheen
+ * term for it, so a surface pays for exactly what it says. */
 struct Lobes {
   bool sheen = false;
   bool anisotropy = false;
   bool iridescence = false;
   bool specular = false;
+  /** Transmission with its volume and dispersion, which read the picture
+   *  of the scene behind the surface. */
+  bool transmission = false;
+  /** A displacement of what stands behind, which reads that picture
+   *  too. */
+  bool distortion = false;
   bool operator==(const Lobes&) const = default;
 };
 
 /** The lobes @p options state: a sheen colour that is a map or other than
  *  black, an anisotropy other than zero, an iridescence that is a map or
  *  other than zero, a specular strength or colour that is a map or other
- *  than one and white. An unlit surface states none. */
+ *  than one and white, a transmission that is a map or other than zero, a
+ *  distortion map at a strength other than zero. An unlit surface states
+ *  none. */
 Lobes lobes(const SurfaceOptions& options);
 
 /** A FILTER CHAIN AS THE EFFECTS STAGE of the designated form: any

@@ -63,8 +63,8 @@ that its pixels match the original.
 | Study · Screens | 6 | 0 | 0 |
 | Study · Game UI | 11 | 0 | 0 |
 | Study · Effects | 1 | 0 | 0 |
-| Study · Materials | 18 | 0 | 0 |
-| **All** | **246** | **57** | **9** |
+| Study · Materials | 19 | 0 | 0 |
+| **All** | **247** | **57** | **9** |
 
 Every sketch in Draw, Draw · Generative, Draw · Observable reproductions, Draw
 · Procedural, Kit · Depth, Compose · Typography and Study · Paint is bound.
@@ -712,6 +712,7 @@ model, arithmetic and data become Python code and are not listed.
 | `ceramic_glaze` | Not yet audited | Not yet audited |
 | `embossed_foil` | Not yet audited | Not yet audited |
 | `glass_atelier` | Not yet audited | Not yet audited |
+| `glass_forms` | Not yet audited | Not yet audited |
 | `layered_material_type` | Not yet audited | Not yet audited |
 | `light_table` | Not yet audited | Not yet audited |
 | `luminous_layers` | Not yet audited | Not yet audited |

@@ -35,6 +35,8 @@ std::string lobeDefinitions(std::string_view body) {
       {"gSurfaceAnisotropy", "#define SIGIL_ANISOTROPY 1\n"},
       {"gSurfaceIridescence", "#define SIGIL_IRIDESCENCE 1\n"},
       {"gSurfaceSpecular", "#define SIGIL_SPECULAR 1\n"},
+      {"gSurfaceTransmission", "#define SIGIL_TRANSMISSION 1\n"},
+      {"gSurfaceDistortion", "#define SIGIL_DISTORTION 1\n"},
   };
   std::string out;
   for (const Lobe& lobe : kLobes)

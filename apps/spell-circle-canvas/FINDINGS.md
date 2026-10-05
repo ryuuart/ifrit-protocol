@@ -1685,19 +1685,56 @@ specular in the material prim's custom data (`sigil:sheenColor`,
 `sigil:anisotropy`, `sigil:iridescenceThickness`, `sigil:specular` and
 their siblings), because UsdPreviewSurface has no input for them.
 `usd/read/Material.cpp` reads `sigil:transmission` back and none of
-these: `geometry::mesh::codec::decode::Part` has no field for them, so a
-stage written and read back loses every lobe.
+these, nor the transmission lobe's `sigil:thickness`,
+`sigil:attenuationColor`, `sigil:attenuationDistance` and
+`sigil:dispersion`: `geometry::mesh::codec::decode::Part` has no field for
+them, so a stage written and read back loses every lobe but the
+transmission weight.
 
 Wanted: the decoded part carrying the lobes and the reader filling them,
 and the part's lowering into a material stating them. A regression should
-write a sheened, brushed surface and read it back with the same lobes.
+write a sheened, brushed surface and a tinted glass and read them back
+with the same lobes.
+
+## A decoded part's transmission reaches no material
+
+`geometry::mesh::codec::decode::Part` carries `transmission` and `ior`,
+which the glTF reader (`mesh/codec/Gltf.cpp`, from
+`KHR_materials_transmission` and `KHR_materials_ior`) and the USD reader
+fill, but nothing that lowers a decoded part into a material reads them,
+so an imported glass model draws opaque. The glTF reader reads neither
+the volume (`KHR_materials_volume`: thickness, attenuation colour and
+distance) nor `KHR_materials_dispersion`. Intended: a part states the
+whole transmission lobe and its lowering states it on
+`SurfaceOptions`. A test should import a glTF glass cube with a volume and
+find `material::lobes` of the lowered material carrying transmission at
+the file's thickness and attenuation.
+
+## A page's surface maps cannot carry transmission or distortion
+
+A Compose page reaches a set as a surface's MAPS
+(`compose/texture/SurfaceScene.cpp`, `material::skia::asMap`), one image
+per role; transmission and distortion read the scene behind the surface,
+which a flat map cannot hold, and a page whose content states either is
+drawn without it, reported once (`compose.surface.transmission`). The
+route for a material that needs its own shading is for it to cross to
+the set as ITSELF with a coverage mask, stacked through `material::over`
+onto the page's surface, rather than flattened into maps — which also
+needs the stack to mix the transmission and distortion variables by its
+mask (the entry below). A test should hang a page with a glass panel over
+half of it in front of a half-black, half-white backdrop and find the
+edge bent behind the panel's half and straight behind the other.
 
 ## A stack does not mix the optional lobes by its mask
 
 `material::over` mixes each operand's per-pixel surface terms by the
 coverage between them (`core/shaders/OverPrelude.slang`: `overClear`,
-`overTaken`, `overSay`), and none of the sheen, brushing, film or
-specular variables are among them. A stack whose operand states a lobe
+`overTaken`, `overSay`), and none of the sheen, brushing, film,
+specular, transmission or distortion variables are among them. A stack
+whose operand transmits is also drawn among the bodies laid over, not
+those that see through themselves (`world/diligent/Geometry.cpp`,
+`seesThrough` asks `surface::lobes`, which answers nothing for a composed
+recipe), so it reads no copy of the scene and refracts the panorama only. A stack whose operand states a lobe
 compiles the lobe in, and the variables stand as whichever operand wrote
 them last, over the whole face rather than where the mask lets that
 operand show.

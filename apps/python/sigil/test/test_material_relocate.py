@@ -5,11 +5,10 @@ before is the spelling they have now, on the same module, reading the
 same inputs. These cases are that promise, said out loud.
 """
 
-import copy
 import unittest
 
 import _sigil
-from sigil import material, skia
+from sigil import material
 
 # The submodules of the material library, each registered from its own
 # file and each re-exported by the package.
@@ -44,9 +43,12 @@ MOVED_NAMES = {
 # is written by keyword, and the verbs and factories a value answers.
 MOVED_MEMBERS = {
     ("surface", "SurfaceParameters"): (
-        "absorption",
         "alphaCutoff",
+        "attenuationColor",
+        "attenuationDistance",
         "baseColor",
+        "dispersion",
+        "distortionStrength",
         "emissive",
         "emissiveStrength",
         "ior",
@@ -208,7 +210,14 @@ class MovedNames(unittest.TestCase):
                 if member.startswith("_"):
                     continue
                 self.assertTrue(hasattr(published, member), f"{name}.{member}")
-        for name in ("BlendMode", "BloomOptions", "Filter", "Fit", "Paint", "ShadowOptions"):
+        for name in (
+            "BlendMode",
+            "BloomOptions",
+            "Filter",
+            "Fit",
+            "Paint",
+            "ShadowOptions",
+        ):
             self.assertIs(
                 getattr(material, name), getattr(_sigil.material.skia, name), name
             )
@@ -253,7 +262,8 @@ class MovedInventories(unittest.TestCase):
         recipe = material.field.noise(0.02)
         self.assertIsInstance(material.Filter.blur(recipe, 4.0), material.Filter)
         self.assertIsInstance(
-            material.Paint.blend([(recipe, material.BlendMode.Multiply)]), material.Paint
+            material.Paint.blend([(recipe, material.BlendMode.Multiply)]),
+            material.Paint,
         )
 
     def test_a_surface_colour_goes_back_out_the_way_it_came_in(self):
@@ -322,7 +332,7 @@ class TheColourSubject(unittest.TestCase):
         palette = material.Palette(["#000000", "#ffffff"])
         self.assertEqual(len(palette), 2)
         self.assertEqual(palette[-1], material.Color(1, 1, 1, 1))
-        self.assertEqual(list(palette)[0], material.Color(0, 0, 0, 1))
+        self.assertEqual(next(iter(palette)), material.Color(0, 0, 0, 1))
 
 
 class PublicNaming(unittest.TestCase):

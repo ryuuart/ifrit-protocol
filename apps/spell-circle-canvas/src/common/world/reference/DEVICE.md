@@ -29,11 +29,23 @@ and nothing of the engine.
   material's own `Target::Slang` body, into a half-float target holding
   linear light. It draws the bodies laid over normally first, in the
   back-to-front order the extracted view carries, writing depth for an
-  opaque one only; then the blended ones — added, multiplied, screened,
-  writing no depth by their own say, or fading into the scene — back to
-  front over them, each in the blend state its surface names. The order
-  and the depth buffer agree wherever the view's centroid sort is right,
-  and where it is not the depth buffer is the one telling the truth.
+  opaque one only; then, in a frame holding a body that SEES THROUGH
+  ITSELF — one whose surface transmits or distorts — it copies the lit
+  colour, deriving a chain of smaller levels each the average of the one
+  above, and the depth, and draws those bodies back to front reading that
+  one copy; then the blended ones — added, multiplied, screened, writing
+  no depth by their own say, or fading into the scene — back to front
+  over them all, each in the blend state its surface names. A body that
+  fades reads the depth copied for the bodies that see through
+  themselves, or copies it itself before the first of them when no such
+  body is in the frame. So the phases are: laid over; copy; seen through;
+  blended — and a frame with nothing that sees through itself copies
+  nothing and draws laid over, then blended, as it would without the
+  middle phase. A transmissive body sees the opaque scene, never another
+  transmissive body nor a blended one; a glow standing behind glass is
+  not seen through it. The order and the depth buffer agree wherever the
+  view's centroid sort is right, and where it is not the depth buffer is
+  the one telling the truth.
 - a **compute pass** cooks its chain on the DEVICE when the whole of it
   can be, and on the host when it cannot. A pass carries the host runtime
   until it is given another, so a pass that named one of its own keeps
@@ -173,10 +185,15 @@ it is reported once, naming the slot, and reads as empty.
 variables a body writes and it reads: `gSurfaceNormal` in tangent space,
 `gSurfaceMetal`, `gSurfaceRoughness`, `gSurfaceOcclusion`, the clear
 coat's `gSurfaceClearcoat`, `gSurfaceClearcoatRoughness` and
-`gSurfaceClearcoatNormal`, the three glass terms `gSurfaceTransmission`,
-`gSurfaceIor` and `gSurfaceThickness` with `gSurfaceAbsorption` beside
-them, and `gSurfaceEmission`, the light the surface gives off of its own,
-in linear radiance. The colour a body returns is ENCODED, as an author
+`gSurfaceClearcoatNormal`, the transmission terms `gSurfaceTransmission`,
+`gSurfaceIor`, `gSurfaceThickness`, `gSurfaceAttenuationColor`,
+`gSurfaceAttenuationDistance` and `gSurfaceDispersion`, the displacement
+`gSurfaceDistortion`, and `gSurfaceEmission`, the light the surface gives
+off of its own, in linear radiance. A body that writes a lobe's variable
+states the lobe, and only then is the lobe's term compiled into its
+program — `SIGIL_TRANSMISSION` and `SIGIL_DISTORTION` beside the sheen's,
+the brushing's, the film's and the specular's — so a body that writes none
+of them compiles to the scaffold every other body does. The colour a body returns is ENCODED, as an author
 types it; the scaffold decodes it.
 
 **Every lit pixel is shaded on its own.** The tangent frame a normal map
@@ -333,12 +350,11 @@ adds to it:
 
 ## What the environment map does not reach
 
-- **Glass refracts the world and not what is behind it.** A refracted
-  ray reads the panorama and never the colour target, which is right for
-  a body with sky behind it and wrong for one with another body behind
-  it. Screen-space refraction wants the colour target as it stood before
-  the body was drawn, which is a pass that reads what another pass wrote
-  — an order the frame graph can express.
+- **What a bent ray leaves the picture to see.** Glass reads the copy of
+  the scene behind it, and where its bent ray lands off the picture or on
+  something nearer than itself it reads the panorama along that ray
+  instead — the one place a transmissive body still sees the world rather
+  than what is behind it on screen.
 
 ## Where the shaders come from
 

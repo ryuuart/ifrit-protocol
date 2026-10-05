@@ -212,8 +212,7 @@ shading one. `SurfaceOptions` is the metallic-roughness description glTF
 and three.js use: `metallic`, `roughness` and `occlusion` (each a number
 or a material), a tangent-space `normal`, `emission` with its strength
 and map, a clear coat — `clearcoat`, `clearcoatRoughness` and its own
-`clearcoatNormal` — and glass (`transmission`, `ior`, `thickness`,
-`absorption`). Four further lobes take glTF's names:
+`clearcoatNormal`. Six further lobes take glTF's names:
 
 - a sheen — `sheenColor` (a colour or a material; black is none) and
   `sheenRoughness` — a soft reflection at the rim, as cloth shows;
@@ -225,7 +224,22 @@ and map, a clear coat — `clearcoat`, `clearcoatRoughness` and its own
   `iridescenceThickness` in nanometres, which with an
   `iridescenceThicknessMap` is the thickness at white over
   `iridescenceThicknessMinimum` at black — a thin film's interference;
-- a dielectric's own `specular` strength and `specularColor`.
+- a dielectric's own `specular` strength and `specularColor`;
+- transmission — `transmission` (a weight, a number or a material),
+  `ior`, `thickness` in scene units (a number or a material; zero a thin
+  wall), the volume's `attenuationColor` and `attenuationDistance` (light
+  that has crossed the distance has become the colour; zero takes
+  nothing), and `dispersion` (the index spread across the three colours,
+  zero none) — glass, liquid, tinted plastic; a map is read by its red;
+- distortion — a two-channel DATA map `distortion` (red across, green up,
+  half-grey still) and `distortionStrength` in scene units at the surface:
+  what stands behind displaced, with no light involved, for heat haze and
+  shockwaves; carried only with a map at a strength other than zero.
+
+What a renderer makes of the last two is its own: SigilWorld reads a copy
+of the scene behind the surface, one layer deep. A page's surface maps
+carry neither — a page whose content states them is drawn without them,
+said once.
 
 Emission above white is `emissionStrength` past one. Colours in it are
 encoded as an author types them; occlusion darkens only light arriving

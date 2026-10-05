@@ -125,6 +125,12 @@ struct Gpu {
   /** …read through a view of the depth format itself, which every device
    *  samples, rather than the colour format the engine would choose. */
   dg::RefCntAutoPtr<dg::ITextureView> opaqueDepthView;
+  /** THE SCENE BEHIND A SURFACE THAT SEES THROUGH ITSELF: the frame's lit
+   *  colour as it stood once every body that does not was drawn, with the
+   *  full chain of smaller levels below it, each the average of the one
+   *  above, so a rough surface reads a blurrier picture. Made on the first
+   *  frame that holds such a surface. */
+  dg::RefCntAutoPtr<dg::ITexture> sceneColor;
   /** What a display reads: the final stage's eight-bit picture of the
    *  resource last read, made on the first ask. */
   dg::RefCntAutoPtr<dg::ITexture> display;
@@ -176,6 +182,9 @@ struct Gpu {
   /** The copy of the depth buffer a blended body reads, made on the
    *  first ask; null where the device refused it. */
   dg::ITexture* depthForReading();
+  /** The copy of the lit colour a surface that sees through itself
+   *  reads, made on the first ask; null where the device refused it. */
+  dg::ITexture* sceneColorForReading();
 };
 
 /** The number the programs read a tone curve by. */

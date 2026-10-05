@@ -11,20 +11,28 @@
  * drawn in the order its instances stand in; they are not sorted among
  * themselves.
  *
- * THE ORDER: LAID OVER FIRST, THEN BLENDED. Bodies arrive sorted back to
- * front by where each one's own origin stands from the camera. Every body
- * laid over normally is drawn first, in that order — an opaque one
- * testing and writing depth, a translucent one testing it only — and then
- * every BLENDED one — a surface that adds, multiplies or screens, one that
- * says it writes no depth, one that fades into the scene — back to front
- * over all of them, testing depth and writing it only where its material
- * says. So a blended body is hidden by whatever opaque body stands in
- * front of it, including a card whose texture is transparent in places
- * but which writes depth everywhere it covers: such a card states that it
- * writes no depth. The sort is per body, not per triangle: two blended
- * bodies that pass through each other, or one body whose own triangles
- * overlap, are drawn in whatever order their origins and their triangles
- * give, which an additive surface does not mind and a translucent one
+ * THE ORDER: LAID OVER FIRST, THEN SEEN THROUGH, THEN BLENDED. Bodies
+ * arrive sorted back to front by where each one's own origin stands from
+ * the camera. Every body laid over normally is drawn first, in that order
+ * — an opaque one testing and writing depth, a translucent one testing it
+ * only. Then, in a frame that holds a body that SEES THROUGH ITSELF — one
+ * whose surface transmits or distorts — the lit colour and the depth are
+ * copied, the colour with its chain of blurrier levels, and every such
+ * body is drawn back to front reading that one copy: so a transmissive
+ * body shows the opaque scene behind it, and never another transmissive
+ * body, which is one layer of refraction. Last, every BLENDED one — a
+ * surface that adds, multiplies or screens, one that says it writes no
+ * depth, one that fades into the scene — back to front over all of them,
+ * testing depth and writing it only where its material says; so a glow is
+ * not seen through glass standing in front of it. A frame with nothing
+ * that sees through itself copies nothing and draws exactly the two
+ * phases it would without the middle one. So a blended body is hidden by
+ * whatever opaque body stands in front of it, including a card whose texture is
+ * transparent in places but which writes depth everywhere it covers: such a
+ * card states that it writes no depth. The sort is per body, not per triangle:
+ * two blended bodies that pass through each other, or one body whose own
+ * triangles overlap, are drawn in whatever order their origins and their
+ * triangles give, which an additive surface does not mind and a translucent one
  * laid over may.
  *
  * Every body writes LIGHT into a target holding light; the camera's
@@ -367,7 +375,9 @@ device::MapForm formFor(std::string_view slot, const material::Texture& map) {
       slot == surface::kMetallicSlot || slot == surface::kOcclusionSlot ||
       slot == surface::kOpacitySlot || slot == surface::kClearcoatSlot ||
       slot == surface::kClearcoatRoughnessSlot ||
-      slot == surface::kClearcoatNormalSlot;
+      slot == surface::kClearcoatNormalSlot ||
+      slot == surface::kTransmissionSlot || slot == surface::kThicknessSlot ||
+      slot == surface::kDistortionSlot;
   device::MapForm form;
   form.colorSpace = map.colorSpace().value_or(
       surfaceData ? media::ColorSpace::Data : media::ColorSpace::Srgb);
@@ -393,6 +403,8 @@ bool surfaceSlot(std::string_view slot) {
 
 /** The scaffold's slot the opaque depth is read through. */
 constexpr std::string_view kSceneDepthSlot = "uSceneDepth";
+/** …and the one the scene behind a surface that sees through itself is. */
+constexpr std::string_view kSceneColorSlot = "uSceneColor";
 
 /** What one body is drawn as: its mesh, the artefact number its buffers
  *  are held under, and the instances it is repeated at — null for one
@@ -405,13 +417,15 @@ struct Shape {
 };
 
 /** One body, drawn. @p map is the texture it is dressed with, or null;
- *  @p sceneDepth the copy of the opaque depth, or null. */
+ *  @p sceneDepth the copy of the opaque depth, or null; @p sceneColor the
+ *  copy of the scene a body that sees through itself reads, or null. */
 void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
               const Shape& shape, const glm::mat4& model, glm::vec4 baseColor,
               const material::Material* worn, const material::Texture* map,
               std::span<const PlacedLight* const> lights,
               const Environment& sky, bool lit, const Blending& blending,
-              bool cull, dg::ITexture* sceneDepth) {
+              bool cull, dg::ITexture* sceneDepth,
+              dg::ITexture* sceneColor = nullptr) {
   const MeshBuffers* buffers = gpu.meshes.upload(shape.artefact, *shape.mesh);
   if (!buffers) return;
   const device::InstanceBuffers* instances =
@@ -452,6 +466,14 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
   writeInstancing(uniforms, view, shape.instances ? shape.facing : Facing::None,
                   *instances);
   writeMaterial(uniforms, surface);
+  // THE SCENE BEHIND, for a body that sees through itself: its size, its
+  // levels, and the projection that carries a point onto it.
+  uniforms.set("uSceneColorDials",
+               gpu.extent.width() ? 1.0f / (float)gpu.extent.width() : 0.0f,
+               gpu.extent.height() ? 1.0f / (float)gpu.extent.height() : 0.0f,
+               sceneColor ? (float)sceneColor->GetDesc().MipLevels : 0.0f,
+               sceneColor ? 1.0f : 0.0f);
+  uniforms.set("uProjection", viewProj * glm::inverse(view));
 
   // THE SAMPLED SLOTS, bound by NAME rather than by position, because a
   // material's body declares slots of its own and the compiler is free
@@ -485,6 +507,13 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
       if (map)
         textures[i] = gpu.maps.sample(
             *map, formFor(material::surface::kBaseColorSlot, *map));
+      continue;
+    }
+    // …the scene behind is the frame's, read between its texels and
+    // across its levels…
+    if (slot == kSceneColorSlot) {
+      textures[i] = sceneColor;
+      samplers[i] = gpu.shared.samplerFor(SkFilterMode::kLinear, false);
       continue;
     }
     // …the scene's depth is the frame's, read texel by texel…
@@ -664,11 +693,42 @@ bool blended(const Draw& body, const Blending& blending, bool flat) {
          stated.depthWrite == false;
 }
 
+/** Whether @p body's surface sees through itself: it transmits or
+ *  distorts, and so reads the copy of the scene behind it. A flat colour
+ *  drawn over the body never does. */
+bool seesThrough(const Draw& body, bool flat) {
+  if (flat || !body.material) return false;
+  const material::Lobes carried = material::surface::lobes(*body.material);
+  return carried.transmission || carried.distortion;
+}
+
+/** The phases a frame's bodies are drawn in, in order. */
+enum class Phase : uint8_t { LaidOver, SeenThrough, Blended };
+
+/** Copies @p from into @p into, both on the device. The caller binds its
+ *  target again afterwards: a copy ends the drawing that was under way. */
+void copyForReading(Gpu& gpu, dg::ITexture* from, dg::ITexture* into) {
+  // The target is let go of first: a copy cannot read what is bound to be
+  // drawn into.
+  gpu.device->context()->SetRenderTargets(
+      0, nullptr, nullptr, dg::RESOURCE_STATE_TRANSITION_MODE_NONE);
+  dg::CopyTextureAttribs attribs;
+  attribs.pSrcTexture = from;
+  attribs.SrcTextureTransitionMode =
+      dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION;
+  attribs.pDstTexture = into;
+  attribs.DstTextureTransitionMode =
+      dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION;
+  gpu.device->context()->CopyTexture(attribs);
+}
+
 /** The frame's bodies, or the ones a collection leaves: the ones laid
- *  over normally first, then the blended ones over them, each phase back
- *  to front. A
- *  blended body that fades into the scene reads the opaque bodies' depth,
- *  copied once before the first of them is drawn. */
+ *  over normally first, then the ones that see through themselves over
+ *  them, then the blended ones, each phase back to front. A body that
+ *  sees through itself reads the lit colour and the depth as they stood
+ *  once the first phase was down, copied before the first of them is
+ *  drawn; a blended body that fades into the scene reads that same depth,
+ *  or copies it before the first of them when nothing copied it yet. */
 void drawBodies(Gpu& gpu, const View& view, const glm::mat4& viewProj,
                 const glm::mat4& viewMatrix, const Collection* only, bool lit,
                 const glm::vec4* flat, dg::ITexture* target) {
@@ -685,27 +745,44 @@ void drawBodies(Gpu& gpu, const View& view, const glm::mat4& viewProj,
   // is not a picture and is drawn unlit; a variant surface is a colour
   // laid over the bodies a collection names and stands under the pass's
   // lights like any other.
-  for (const bool secondPhase : {false, true}) {
+  dg::ITexture* sceneColor = nullptr;
+  for (const Phase phase :
+       {Phase::LaidOver, Phase::SeenThrough, Phase::Blended}) {
     for (const Draw& body : view.draws) {
       if (!body.mesh) continue;
       const Member member = memberOf(body);
       if (only && !only->contains(member)) continue;
       const glm::vec4 colour = flat ? *flat : body.baseColor;
       const Blending blending = blendingOf(body, colour, flat != nullptr);
-      if (blended(body, blending, flat != nullptr) != secondPhase) continue;
+      const Phase own = seesThrough(body, flat != nullptr) ? Phase::SeenThrough
+                        : blended(body, blending, flat != nullptr)
+                            ? Phase::Blended
+                            : Phase::LaidOver;
+      if (own != phase) continue;
+      // THE SCENE BEHIND, copied once every body that does not see
+      // through itself is laid over and before the first that does: the
+      // lit colour with its blurrier levels derived from it, and the depth
+      // beside it, which says where what was copied stands.
+      if (phase == Phase::SeenThrough && !sceneColor) {
+        if (dg::ITexture* copy = gpu.sceneColorForReading()) {
+          copyForReading(gpu, target, copy);
+          gpu.device->context()->GenerateMips(
+              copy->GetDefaultView(dg::TEXTURE_VIEW_SHADER_RESOURCE));
+          sceneColor = copy;
+        }
+        if (!sceneDepth && gpu.depth)
+          if (dg::ITexture* depthCopy = gpu.depthForReading()) {
+            copyForReading(gpu, gpu.depth, depthCopy);
+            sceneDepth = depthCopy;
+          }
+        resumeTarget(gpu, target, true);
+      }
       // THE OPAQUE DEPTH, copied once the last opaque body is down and
       // before the first body that fades into it, with the target bound
       // again afterwards: a copy ends the drawing that was under way.
       if (blending.fades && !sceneDepth && gpu.depth) {
         if (dg::ITexture* copy = gpu.depthForReading()) {
-          dg::CopyTextureAttribs attribs;
-          attribs.pSrcTexture = gpu.depth;
-          attribs.SrcTextureTransitionMode =
-              dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION;
-          attribs.pDstTexture = copy;
-          attribs.DstTextureTransitionMode =
-              dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION;
-          gpu.device->context()->CopyTexture(attribs);
+          copyForReading(gpu, gpu.depth, copy);
           resumeTarget(gpu, target, true);
           sceneDepth = copy;
         }
@@ -718,13 +795,15 @@ void drawBodies(Gpu& gpu, const View& view, const glm::mat4& viewProj,
       // A BODY THAT IS ITS OWN LIGHT is drawn unlit whatever the pass
       // says, because that is what its surface is and not how this pass
       // reads it — a variant laid over it included.
-      drawBody(gpu, viewProj, viewMatrix,
-               Shape{body.geometry, body.mesh, body.instances, body.facing},
-               body.world, colour, flat ? nullptr : body.material,
-               flat ? nullptr : body.texture, reaching, view.environment,
-               lit && body.lit, blending,
-               /*cull=*/body.backface == material::Backface::Hidden,
-               blending.fades ? sceneDepth : nullptr);
+      drawBody(
+          gpu, viewProj, viewMatrix,
+          Shape{body.geometry, body.mesh, body.instances, body.facing},
+          body.world, colour, flat ? nullptr : body.material,
+          flat ? nullptr : body.texture, reaching, view.environment,
+          lit && body.lit, blending,
+          /*cull=*/body.backface == material::Backface::Hidden,
+          blending.fades || phase == Phase::SeenThrough ? sceneDepth : nullptr,
+          phase == Phase::SeenThrough ? sceneColor : nullptr);
     }
   }
 }

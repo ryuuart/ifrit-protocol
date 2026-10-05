@@ -101,6 +101,12 @@ inline constexpr std::string_view kSpecularSlot =
     "specularMap";  ///< the channel `specularChannel` names
 inline constexpr std::string_view kSpecularColorSlot =
     "specularColorMap";  ///< a colour, multiplied by `specularColor`
+inline constexpr std::string_view kTransmissionSlot =
+    "transmissionMap";  ///< red, multiplied by `transmission`
+inline constexpr std::string_view kThicknessSlot =
+    "thicknessMap";  ///< red, multiplied by `thickness`
+inline constexpr std::string_view kDistortionSlot =
+    "distortionMap";  ///< red across and green up, half-grey still
 
 /** The metallic-roughness ABI. Its colours are FACTORS ON THE MAPS in
  *  their slots — `baseColor` on `baseColorMap`, `emissive` on
@@ -139,18 +145,24 @@ struct SurfaceParameters {
   /** Above 0 the opacity is a CUTOUT: below the threshold the surface is
    *  absent rather than translucent. */
   float alphaCutoff = 0;
-  /** GLASS: how much of what lies behind the surface shows through it —
-   *  0 an ordinary surface, 1 clear glass — refracted by `ior` and read
-   *  `thickness` units into the surface. */
+  /** TRANSMISSION: how much of what lies behind the surface shows
+   *  through it — 0 an ordinary surface, 1 clear glass — bent by `ior`
+   *  across a volume `thickness` scene units deep, zero a thin wall; each
+   *  multiplied by the red of the map in its slot. */
   float transmission = 0;
   float ior = 1.5f;
-  float thickness = 40;
-  /** GLASS: what the medium takes out of the light per unit of
-   *  thickness, per channel — the Beer-Lambert coefficient rather than
-   *  a colour anyone looks at, so nothing holds it inside the unit
-   *  range. Zero is water-clear; a little in red and blue is what makes
-   *  thick glass green at its edge and clear across its face. */
-  Color absorption = {0, 0, 0, 1};
+  float thickness = 0;
+  /** VOLUME: light that has crossed `attenuationDistance` scene units of
+   *  the medium has become `attenuationColor`, a colour as an author types
+   *  it; zero distance takes nothing out. */
+  Color attenuationColor = {1, 1, 1, 1};
+  float attenuationDistance = 0;
+  /** DISPERSION: how far the index spreads across the three colours,
+   *  0 none. */
+  float dispersion = 0;
+  /** DISTORTION: how many scene units at the surface the map in its slot
+   *  displaces what stands behind; 0 none. */
+  float distortionStrength = 0;
   /** How much environment an ADDITIVE reflection puts on the surface.
    *  The split-sum composition ignores it: there the weight IS the
    *  surface's reflectance and its Fresnel. */
@@ -239,7 +251,9 @@ enum class Reflection : uint8_t {
 
 /** The lobes @p parameters state by their numbers: a sheen colour other
  *  than black, an anisotropy or an iridescence other than zero, a specular
- *  strength other than one or a colour other than white. */
+ *  strength other than one or a colour other than white, a transmission
+ *  other than zero. A distortion needs its map, so it is stated by
+ *  carrying it. */
 Lobes lobes(const SurfaceParameters& parameters);
 
 /** The lobes @p material carries: none for anything that is not a lit
@@ -253,8 +267,8 @@ const std::shared_ptr<const Recipe>& surfaceRecipe(
     Reflection reflection = Reflection::SplitSum, Lobes carried = {});
 
 /** A lit metallic-roughness surface: its base colour, emission, normal,
- *  roughness, metalness, occlusion, clear coat, transmission and whichever
- *  optional lobes its numbers state, handed to whatever renderer shades
+ *  roughness, metalness, occlusion, clear coat and whichever optional
+ *  lobes its numbers state, handed to whatever renderer shades
  *  it. */
 Material program(const SurfaceParameters& parameters = {},
                  Reflection reflection = Reflection::SplitSum);

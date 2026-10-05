@@ -29,10 +29,9 @@
  * sum for what it mirrors — so a sphere, whose normal turns continuously,
  * reads as a curve, and glass is the sky bent through it.
  *
- * NO SCREEN-SPACE REFRACTION. Glass here refracts the WORLD — the
- * environment map behind it — and not the other bodies in the row. What
- * lies behind a body on screen is a backdrop pass, and that is a
- * frame-graph subject rather than a shading one.
+ * GLASS SEES THE SET BEHIND IT, one layer deep: the sky and the ball
+ * beside it, bent across the ball's own depth, and the sky alone where
+ * the bent ray leaves the picture.
  */
 
 // TAGS: Materials/Lighting
@@ -58,6 +57,9 @@ namespace gm = sigil::geometry::mesh;
 
 namespace {
 
+constexpr float kRadius = 52.0f;
+constexpr float kGap = 132.0f;
+
 /** A polished mirror: metal, and rough enough to be a real object. Steel
  *  is not a mirror and not white: a slight cool bias. */
 material::Material chrome() {
@@ -79,21 +81,21 @@ material::Material dielectric(material::Color base, float roughness) {
       {.metallic = 0.0f, .roughness = roughness});
 }
 
-/** Clear glass: what is behind it, refracted, with a reflection over the
- *  top, and a faint green cast in a thick edge, which is what soda-lime
- *  glass does and what tells an eye it is glass rather than a hole. */
+/** Clear glass: what is behind it, refracted across the ball's depth,
+ *  with a reflection over the top, and a faint green cast where the light
+ *  has crossed the most of it, which is what soda-lime glass does and
+ *  what tells an eye it is glass rather than a hole. */
 material::Material glass() {
   return material::from(material::Color{1, 1, 1, 1})
       .surface({.metallic = 0.0f,
                 .roughness = 0.02f,
-                .transmission = 1,
+                .transmission = 1.0f,
                 .ior = 1.5f,
-                .thickness = 0.35f,
-                .absorption = {0.55f, 0.12f, 0.35f, 1}});
+                .thickness = 2.0f * kRadius,
+                .attenuationColor = {0.90f, 0.98f, 0.94f, 1},
+                .attenuationDistance = 2.0f * kRadius});
 }
 
-constexpr float kRadius = 52.0f;
-constexpr float kGap = 132.0f;
 /** How finely the spheres are tessellated: enough that the silhouette of
  *  a mirror reads as a ball rather than a polygon. */
 constexpr int kMeridians = 64;

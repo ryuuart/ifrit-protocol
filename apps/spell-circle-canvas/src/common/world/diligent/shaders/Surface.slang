@@ -50,10 +50,17 @@
 //      states them (SIGIL_SHEEN, SIGIL_ANISOTROPY, SIGIL_IRIDESCENCE,
 //      SIGIL_SPECULAR), so a body that states none compiles to the program
 //      it would be if the lobes were not in this text;
-//   5. a clear coat, where the surface has one, reflects a second,
+//   5. a surface that states TRANSMISSION (SIGIL_TRANSMISSION) gives up
+//      its diffuse side to what passes through it: the eye's ray is bent
+//      at the surface, carried across the stated thickness, projected back
+//      onto the picture and read from the frame's copy of the scene behind
+//      — a blurrier level of it for a rougher surface, one reading per
+//      colour where the index disperses — tinted by the base colour,
+//      dimmed by the volume, and weighted by what the reflection left;
+//   6. a clear coat, where the surface has one, reflects a second,
 //      colourless lobe over all of that and dims it by what it reflected;
-//   6. emission adds its own light;
-//   7. the sum is written as LIGHT, premultiplied, into a target that
+//   7. emission adds its own light;
+//   8. the sum is written as LIGHT, premultiplied, into a target that
 //      holds light: the camera's exposure and tone curve read it once, in
 //      the final stage, after every body and every pass over the picture.
 //
@@ -73,6 +80,13 @@
 // A SURFACE THAT FADES WHERE IT MEETS THE SCENE reads the depth of what
 // is opaque behind it, which the renderer copies once the opaque bodies
 // are drawn, and loses its coverage over the distance it named.
+//
+// A SURFACE THAT SEES THROUGH ITSELF — one that transmits, one that
+// distorts (SIGIL_DISTORTION) — reads the frame's lit colour as it stood
+// once every body that does not was drawn, which the renderer copies with
+// its chain of smaller, blurrier levels beside the depth. One copy serves
+// every such surface in the frame, so one does not see another through
+// itself.
 
 import Portable;
 import Shading;
@@ -110,6 +124,21 @@ uniform Sampler2D uSceneDepth;
 /** x, y: one over the target's width and height; z: one when the depth
  *  above is the scene's, zero when nothing was copied. */
 uniform float4 uDepthFade;
+
+#if defined(SIGIL_TRANSMISSION) || defined(SIGIL_DISTORTION)
+/** THE SCENE BEHIND, for a surface that sees through itself: the lit
+ *  colour of every body that does not, as LIGHT, with a chain of smaller
+ *  levels each the average of the one above — a blurrier picture per
+ *  level — read with `SampleLevel`. */
+uniform Sampler2D uSceneColor;
+/** x, y: one over the target's width and height; z: how many levels the
+ *  chain has; w: one when the picture above is the scene's, zero when
+ *  nothing was copied. */
+uniform float4 uSceneColorDials;
+/** The camera's projection, which carries a point in front of the eye
+ *  onto the picture. */
+uniform float4x4 uProjection;
+#endif
 
 /** The camera's view, which carries a point of the world into the space
  *  the shading is written in. */
@@ -259,13 +288,20 @@ static float gSurfaceOcclusion = 1.0;
 static float gSurfaceClearcoat = 0.0;
 static float gSurfaceClearcoatRoughness = 0.0;
 static float3 gSurfaceClearcoatNormal = float3(0.0, 0.0, 1.0);
-/** How much of what is behind the surface comes through it, at what
- *  index of refraction, through what thickness of a medium that takes
- *  `gSurfaceAbsorption` out of the light per unit of it. */
+/** TRANSMISSION: how much of what is behind the surface comes through
+ *  it, at what index of refraction, across how many scene units of a
+ *  medium in which `gSurfaceAttenuationDistance` units leave
+ *  `gSurfaceAttenuationColor` (linear; a distance of zero takes nothing),
+ *  and how far the index spreads across the colours. */
 static float gSurfaceTransmission = 0.0;
 static float gSurfaceIor = 1.5;
 static float gSurfaceThickness = 0.0;
-static float3 gSurfaceAbsorption = float3(0.0, 0.0, 0.0);
+static float3 gSurfaceAttenuationColor = float3(1.0, 1.0, 1.0);
+static float gSurfaceAttenuationDistance = 0.0;
+static float gSurfaceDispersion = 0.0;
+/** DISTORTION: how far, in scene units at the surface, what stands behind
+ *  is displaced — across and up the picture. */
+static float2 gSurfaceDistortion = float2(0.0, 0.0);
 /** What a body states for an additive reflection. Nothing here reads it:
  *  the environment reaches every surface through its own reflectance. */
 static float gSurfaceReflection = -1.0;
@@ -391,6 +427,30 @@ float instanceAttribute(float key) {
   return 0.0;
 }
 
+/** How far in front of the eye a depth at @p uv on the target stands. */
+float eyeDistance(float2 uv, float depth) {
+  let at = mul(uInvProj,
+               float4(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0, depth, 1.0));
+  return at.w != 0.0 ? -at.z / at.w : 0.0;
+}
+
+#if defined(SIGIL_TRANSMISSION) || defined(SIGIL_DISTORTION)
+/** Where on the target, in its own uv, a point in front of the eye is
+ *  seen. */
+float2 screenUvOf(float3 p) {
+  let clip = mul(uProjection, float4(p, 1.0));
+  let ndc = clip.w != 0.0 ? clip.xy / clip.w : float2(0.0, 0.0);
+  return float2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5);
+}
+
+/** …and the point in front of the eye a depth at @p uv stands at. */
+float3 viewPointAt(float2 uv, float depth) {
+  let at = mul(uInvProj,
+               float4(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0, depth, 1.0));
+  return at.w != 0.0 ? at.xyz / at.w : float3(0.0, 0.0, 0.0);
+}
+#endif
+
 /** Makes this pixel's instance what the readers above answer. Every
  *  fragment entry calls it before the surface is asked. */
 void enterInstance(VSOut input) {
@@ -457,6 +517,34 @@ float3 irradianceAt(float3 normal) {
   let b = uIrradianceNext.SampleLevel(uv, 0.0).rgb;
   return mixP(a, b, uEnvTint.a) * uEnvTint.rgb * uEnvDials.x;
 }
+
+#ifdef SIGIL_TRANSMISSION
+/** WHAT IS SEEN THROUGH THE SURFACE at @p p, facing @p n and seen from
+ *  @p v, along a medium of index @p ior: the eye's ray bent and carried
+ *  across the thickness, projected back onto the picture and read from
+ *  the scene behind at @p level. Where that lands off the picture, or on
+ *  something nearer the eye than the surface itself — which cannot be
+ *  behind it — the panorama along the bent ray stands in, or, with no
+ *  panorama, the picture at the nearest place it has. */
+float3 seenThrough(float3 p, float3 v, float3 n, float ior, float rough,
+                   float level, float2 here) {
+  let travel = refractedTravel(v, n, ior, gSurfaceThickness);
+  if (uSceneColorDials.w > 0.5) {
+    let uv = screenUvOf(p + travel);
+    var landed = uv.x >= 0.0 && uv.x <= 1.0 && uv.y >= 0.0 && uv.y <= 1.0;
+    if (landed && uDepthFade.z > 0.5) {
+      let behind = uSceneDepth.SampleLevel(uv, 0.0).r;
+      landed = eyeDistance(uv, behind) >= -p.z;
+    }
+    if (landed) return uSceneColor.SampleLevel(uv, level).rgb;
+  }
+  if (uEnvDials.w > 0.0)
+    return environmentAt(refraction(-v, n, 1.0 / max(ior, 1.0)), rough);
+  if (uSceneColorDials.w > 0.5)
+    return uSceneColor.SampleLevel(here, level).rgb;
+  return float3(0.0, 0.0, 0.0);
+}
+#endif
 
 /** THE LIT SUM at one pixel, in linear radiance, for a surface whose
  *  decoded colour is @p base. Emission is the caller's. */
@@ -666,22 +754,41 @@ float3 shadeLit(VSOut input, float3 base) {
       environmentSheen(sheenRadiance, sheenColor, sheenAlbedoView) * occluded;
 #endif
 
-  // …AND WHAT PASSES THROUGH IT. The refracted ray reads the same
-  // panorama, attenuated by what the medium takes out of it over the
-  // thickness it crossed, and Fresnel decides how much of the light went
-  // that way rather than bouncing; the diffuse side gives up the share
-  // that passed through. This is glass against the WORLD; what stands
-  // behind a body on screen is a backdrop pass and not a shading term.
-  let transmit = sky ? saturateP(gSurfaceTransmission) : 0.0;
-  float3 through = float3(0.0, 0.0, 0.0);
-  if (transmit > 0.0) {
-    let bent = refraction(-v, n, 1.0 / max(gSurfaceIor, 1.0));
-    through = attenuate(environmentAt(bent, rough), gSurfaceAbsorption,
-                        gSurfaceThickness) *
-              (white - fresnel(f0, nDotV)) * transmit;
+#ifdef SIGIL_TRANSMISSION
+  // …AND WHAT PASSES THROUGH IT: the scene behind, seen along the bent
+  // ray — one reading per colour where the index disperses — tinted by
+  // the base colour and dimmed by the volume it crossed. What the
+  // reflection took is not transmitted, and the diffuse side gives up
+  // the share that passed through, so reflected and transmitted light
+  // together never exceed what arrived. A metal transmits nothing.
+  let transmit = saturateP(gSurfaceTransmission) * (1.0 - metal);
+  let ior = max(gSurfaceIor, 1.0);
+  let level = roughnessLevel(transmissionRoughness(rough, ior),
+                             uSceneColorDials.z);
+  let here = input.position.xy * uSceneColorDials.xy;
+  float3 seen;
+  if (gSurfaceDispersion > 0.0) {
+    let iors = dispersedIors(ior, gSurfaceDispersion);
+    seen = float3(
+        seenThrough(input.viewPos, v, n, iors.x, rough, level, here).r,
+        seenThrough(input.viewPos, v, n, iors.y, rough, level, here).g,
+        seenThrough(input.viewPos, v, n, iors.z, rough, level, here).b);
+  } else {
+    seen = seenThrough(input.viewPos, v, n, ior, rough, level, here);
   }
+  let travelled = lengthP(refractedTravel(v, n, ior, gSurfaceThickness));
+  let reflected = fresnelRough(f0, nDotV, rough) * brdf.x +
+                  float3(brdf.y, brdf.y, brdf.y);
+  let through = seen * base *
+                volumeTransmittance(gSurfaceAttenuationColor,
+                                    gSurfaceAttenuationDistance, travelled) *
+                transmittedShare(reflected, transmit);
   float3 colour = (directDiffuseSum + aroundDiffuse) * (1.0 - transmit) +
                   directSpecularSum + aroundSpecular + through;
+#else
+  float3 colour =
+      directDiffuseSum + aroundDiffuse + directSpecularSum + aroundSpecular;
+#endif
 #ifdef SIGIL_SHEEN
   colour = colour + sheenDirect + sheenAround;
 #endif
@@ -704,13 +811,6 @@ float3 shadeLit(VSOut input, float3 base) {
   return colour;
 }
 #endif
-
-/** How far in front of the eye a depth at @p uv on the target stands. */
-float eyeDistance(float2 uv, float depth) {
-  let at = mul(uInvProj,
-               float4(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0, depth, 1.0));
-  return at.w != 0.0 ? -at.z / at.w : 0.0;
-}
 
 /** HOW MUCH OF THE SURFACE STANDS at the pixel @p position: all of it, or
  *  where it fades into the scene, the share of its fade distance that
@@ -741,6 +841,22 @@ float4 shade(float4 surface, VSOut input) {
   // range a display holds.
   let radiance = toneCurveInverse(linearFromSrgb(saturateP(colour)), uTone.x,
                                   uTone.y);
+#endif
+#ifdef SIGIL_DISTORTION
+  // A DISTORTING SURFACE is drawn over what stands behind it AS what
+  // stands behind it, displaced across the picture by the map at the
+  // surface's own depth; its own colour is laid over that by its alpha.
+  if (uSceneColorDials.w > 0.5) {
+    let here = input.position.xy * uSceneColorDials.xy;
+    let at = viewPointAt(here, input.position.z);
+    let moved = screenUvOf(at + float3(gSurfaceDistortion, 0.0));
+    let behind = uSceneColor
+                     .SampleLevel(clamp(moved, float2(0.0, 0.0),
+                                        float2(1.0, 1.0)),
+                                  0.0)
+                     .rgb;
+    return float4(radiance * a + behind * (1.0 - a), 1.0);
+  }
 #endif
   return float4(radiance * a, a);
 }

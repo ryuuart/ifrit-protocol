@@ -142,7 +142,7 @@ def radiance(self, value: _t.Vec3Like) -> None: ...
         "_sigil.world.kit.environmentMap", zenith="_t.Vec3Like", nadir="_t.Vec3Like"
     )
     surface = "_sigil.material.surface.SurfaceParameters"
-    table.erased(surface, "baseColor emissive absorption", "_t.ColorLike")
+    table.erased(surface, "baseColor emissive attenuationColor", "_t.ColorLike")
     # workaround: stubgen interprets this class as the legacy typing.Set alias.
     table.declares(
         "_sigil.world.kit.Set",

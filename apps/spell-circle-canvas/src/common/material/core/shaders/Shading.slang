@@ -719,17 +719,74 @@ public float3 refraction(float3 i, float3 n, float eta) {
 
 /** ATTENUATION, Beer-Lambert: what is left of a radiance after it has
  *  travelled @p thickness through a medium that takes @p absorb out of
- *  it per unit. This is what makes thick glass green at its edge and
- *  clear across its face.
- *
- *  It is not called `absorption`, because a surface's own absorption is
- *  a uniform of that name and a term compiled beside one would be an
- *  ambiguous reference. A term's name has to survive being read in the
- *  same scope as every material parameter there is. */
+ *  it per unit — the coefficient form of `volumeTransmittance`. A term's
+ *  name has to survive being read in the same scope as every material
+ *  parameter there is, so none of these is named for a parameter. */
 public float3 attenuate(float3 radiance, float3 absorb, float thickness) {
   float t = max(thickness, 0.0);
   return radiance * float3(exp(-absorb.x * t), exp(-absorb.y * t),
                            exp(-absorb.z * t));
+}
+
+// ---- transmission ----------------------------------------------------
+// Light passing through a surface: bent at the surface by the index of
+// refraction, carried across a volume of a stated thickness, coloured and
+// dimmed by what the medium takes out of it, and split from the light the
+// surface reflects so that the two together never exceed what arrived.
+
+/** THE PATH THROUGH A VOLUME: the eye's ray, travelling toward the
+ *  surface opposite @p v, bent at a surface facing @p n into a medium of
+ *  index @p ior, and carried @p thickness units along the bent direction.
+ *  At an index of one it is the eye's ray itself, so whatever is behind
+ *  is seen where it stands; at zero thickness it goes nowhere. */
+public float3 refractedTravel(float3 v, float3 n, float ior, float thickness) {
+  float3 bent = refraction(-v, n, 1.0 / max(ior, 1.0));
+  float span = sqrt(bent.x * bent.x + bent.y * bent.y + bent.z * bent.z);
+  if (span <= 0.0) return float3(0.0, 0.0, 0.0);
+  return bent * (max(thickness, 0.0) / span);
+}
+
+/** THE INDEX EACH COLOUR IS BENT BY, red, green and blue: @p ior for
+ *  green, and red and blue spread below and above it by a fortieth of the
+ *  index's excess over one at a @p strength of one. A strength of zero
+ *  bends every colour alike; otherwise red bends least and blue most. */
+public float3 dispersedIors(float ior, float strength) {
+  float spread = (ior - 1.0) * 0.025 * max(strength, 0.0);
+  return float3(ior - spread, ior, ior + spread);
+}
+
+/** WHAT IS LEFT OF LIGHT that has travelled @p travelled units through a
+ *  medium in which @p distance units leave @p color of it: the colour
+ *  raised to the number of distances crossed, which is Beer-Lambert's law
+ *  stated by what it looks like rather than by its coefficient. Nothing is
+ *  taken over no distance, and a @p distance of zero takes nothing at
+ *  all. */
+public float3 volumeTransmittance(float3 color, float distance,
+                                  float travelled) {
+  if (distance <= 0.0) return float3(1.0, 1.0, 1.0);
+  float crossed = max(travelled, 0.0) / distance;
+  return float3(pow(max(color.x, 0.0001), crossed),
+                pow(max(color.y, 0.0001), crossed),
+                pow(max(color.z, 0.0001), crossed));
+}
+
+/** HOW MUCH PASSES THROUGH: of the light the surface does not reflect —
+ *  one less @p reflected, the share its specular side already took — the
+ *  share @p weight says is transmitted. Reflected and transmitted together
+ *  never exceed one. */
+public float3 transmittedShare(float3 reflected, float weight) {
+  float w = min(max(weight, 0.0), 1.0);
+  float3 kept = min(max(reflected, float3(0.0, 0.0, 0.0)),
+                    float3(1.0, 1.0, 1.0));
+  return (float3(1.0, 1.0, 1.0) - kept) * w;
+}
+
+/** HOW BLURRED what is seen through a rough surface is, in the units a
+ *  roughness is read in: a surface's roughness scattered by how strongly
+ *  it bends, so an index of one — which bends nothing — blurs nothing,
+ *  and an index of one and a half or more blurs by the roughness itself. */
+public float transmissionRoughness(float roughness, float ior) {
+  return roughness * min(max(ior * 2.0 - 2.0, 0.0), 1.0);
 }
 
 /** EMISSION: a surface's own light, which no shading scales. */

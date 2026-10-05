@@ -391,19 +391,16 @@ TEST(Surface, EveryColourFieldReachesTheUniformAsItWasWritten) {
       .roughness = 0.02f, .transmission = 1, .thickness = 0.35f};
   p.baseColor = {0.9f, 0.4f, 0.1f, 1};
   p.emissive = {0.2f, 0.3f, 0.4f, 1};
-  // The Beer-Lambert coefficient is taken per unit of thickness, so a
-  // dense channel is a number above one: what would be out of range for
-  // a colour is in range for this, and nothing may hold it under one.
-  p.absorption = {4.0f, 0.5f, 0.25f, 1};
+  p.attenuationColor = {0.8f, 0.5f, 0.25f, 1};
   const Material m = surface::program(p);
   const Color baseColor = m.get<Color>("baseColor");
   const Color emissive = m.get<Color>("emissive");
-  const Color absorption = m.get<Color>("absorption");
+  const Color attenuation = m.get<Color>("attenuationColor");
   EXPECT_FLOAT_EQ(baseColor.r, 0.9f);
   EXPECT_FLOAT_EQ(baseColor.b, 0.1f);
   EXPECT_FLOAT_EQ(emissive.g, 0.3f);
-  EXPECT_FLOAT_EQ(absorption.r, 4.0f);
-  EXPECT_FLOAT_EQ(absorption.g, 0.5f);
+  EXPECT_FLOAT_EQ(attenuation.r, 0.8f);
+  EXPECT_FLOAT_EQ(attenuation.g, 0.5f);
 }
 
 TEST(Surface, DressesADecodedSet) {
@@ -503,12 +500,12 @@ Texture texel(int key) {
 TEST(Over, AStackAsksForItsOperandsSamplersAndNoMore) {
   registerCompiler(Target::Slang, slangStandIn);
 
-  // An undressed surface fills all seventeen of its slots so no body ever
+  // An undressed surface fills all twenty of its slots so no body ever
   // evaluates an unbound child, and the SkSL body samples two of them.
-  // The fifteen it never reads are not declared to that program and so
+  // The eighteen it never reads are not declared to that program and so
   // cost it no sampler.
   const Material unlit = surface::unlit();
-  EXPECT_EQ(unlit.slots().size(), 17u);
+  EXPECT_EQ(unlit.slots().size(), 20u);
   EXPECT_EQ(declaredSlots(unlit), 2u);
   EXPECT_EQ(skia::samplerCount(unlit), 2);
 
@@ -619,8 +616,9 @@ TEST(Surface, ASurfaceStatingNoLobeCarriesNoneOfTheirText) {
   const std::string text = slangOf(plain);
   for (const char* absent :
        {"sheenColorMap", "anisotropyMap", "iridescenceMap", "specularMap",
-        "specularColorMap", "gSurfaceSheen", "gSurfaceAnisotropy",
-        "gSurfaceIridescence", "gSurfaceSpecular"})
+        "specularColorMap", "transmissionMap", "thicknessMap", "distortionMap",
+        "gSurfaceSheen", "gSurfaceAnisotropy", "gSurfaceIridescence",
+        "gSurfaceSpecular", "gSurfaceTransmission", "gSurfaceDistortion"})
     EXPECT_EQ(text.find(absent), std::string::npos) << absent;
   // It is built on the plain recipe, the one a surface stating no lobe is.
   EXPECT_EQ(plain.recipePointer(), surface::surfaceRecipe());
@@ -653,8 +651,36 @@ TEST(Surface, EachStatedLobeCarriesItsOwnTextAndNoOther) {
   EXPECT_EQ(surface::lobes(dull), (Lobes{.specular = true}));
   EXPECT_FLOAT_EQ(dull.get<float>("specular"), 0.0f);
 
+  const Material glass =
+      surface::lower(from(Color{1, 1, 1, 1})
+                         .surface({.transmission = 1.0f,
+                                   .ior = 1.4f,
+                                   .thickness = 2.0f,
+                                   .attenuationColor = {0.5f, 0.8f, 0.9f, 1},
+                                   .attenuationDistance = 3,
+                                   .dispersion = 0.5f}));
+  EXPECT_EQ(surface::lobes(glass), (Lobes{.transmission = true}));
+  EXPECT_NE(slangOf(glass).find("gSurfaceTransmission"), std::string::npos);
+  EXPECT_EQ(slangOf(glass).find("gSurfaceDistortion"), std::string::npos);
+  EXPECT_FLOAT_EQ(glass.get<float>("thickness"), 2.0f);
+  EXPECT_FLOAT_EQ(glass.get<float>("attenuationDistance"), 3.0f);
+  EXPECT_FLOAT_EQ(glass.get<float>("dispersion"), 0.5f);
+
+  // A distortion is carried only with its map and a strength.
+  const Material still = surface::lower(
+      from(Color{1, 1, 1, 0})
+          .surface({.distortion = from(Color{0.5f, 0.5f, 0.5f, 1})}));
+  EXPECT_EQ(surface::lobes(still), Lobes{});
+  const sk_sp<SkImage> grey = test::solid(SK_ColorGRAY, 2, 2);
+  const Material haze = surface::lower(
+      from(Color{1, 1, 1, 0})
+          .surface({.distortion = image(media::PixelSource(grey)),
+                    .distortionStrength = 0.2f}));
+  EXPECT_EQ(surface::lobes(haze), (Lobes{.distortion = true}));
+  EXPECT_NE(surface::map(haze, surface::kDistortionSlot), nullptr);
+
   // Every one of them is still a surface program.
-  for (const Material* m : {&sheen, &brushed, &film, &dull})
+  for (const Material* m : {&sheen, &brushed, &film, &dull, &glass, &haze})
     EXPECT_TRUE(surface::isSurface(*m));
 }
 

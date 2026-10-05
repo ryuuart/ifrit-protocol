@@ -237,14 +237,11 @@ SdfPath Writer::Impl::material(const material::Material& top,
       .Set(scalar(m, "ior", 1.5f));
   surface.CreateInput(TfToken("useSpecularWorkflow"), SdfValueTypeNames->Int)
       .Set(0);
-  const float transmission = scalar(m, "transmission", 0);
-  if (transmission > 0)
-    material.GetPrim().SetCustomDataByKey(TfToken("sigil:transmission"),
-                                          VtValue(transmission));
   // THE OPTIONAL LOBES have no input on UsdPreviewSurface — its specular
   // colour belongs to the specular workflow, which would replace the
-  // metallic one — so each a surface carries is kept in the material's
-  // custom data under its own name, as transmission is.
+  // metallic one, and it has no transmission, volume or dispersion at all —
+  // so each a surface carries is kept in the material's custom data under
+  // its own name.
   const material::Lobes lobes = material::surface::lobes(m);
   const auto keep = [&](const char* key, const VtValue& value) {
     material.GetPrim().SetCustomDataByKey(TfToken(key), value);
@@ -267,6 +264,15 @@ SdfPath Writer::Impl::material(const material::Material& top,
          VtValue(scalar(m, "iridescenceThickness", 400)));
     keep("sigil:iridescenceThicknessMinimum",
          VtValue(scalar(m, "iridescenceThicknessMinimum", 100)));
+  }
+  if (lobes.transmission) {
+    keep("sigil:transmission", VtValue(scalar(m, "transmission", 0)));
+    keep("sigil:thickness", VtValue(scalar(m, "thickness", 0)));
+    keep("sigil:attenuationColor",
+         VtValue(colour(tint(m, "attenuationColor", {1, 1, 1, 1}))));
+    keep("sigil:attenuationDistance",
+         VtValue(scalar(m, "attenuationDistance", 0)));
+    keep("sigil:dispersion", VtValue(scalar(m, "dispersion", 0)));
   }
   if (lobes.specular) {
     keep("sigil:specular", VtValue(scalar(m, "specular", 1)));

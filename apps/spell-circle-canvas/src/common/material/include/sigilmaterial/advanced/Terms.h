@@ -76,6 +76,8 @@ const std::vector<float>& sheenAlbedoTable();
  *  `hemisphereIrradiance`, `environmentBrdfUv`, `environmentSpecular`,
  *  `environmentDiffuse`, `environmentReflection`, `refraction`,
  *  `attenuate`, `emission`, `occlusion`;
+ *  transmission — `refractedTravel`, `dispersedIors`,
+ *  `volumeTransmittance`, `transmittedShare`, `transmissionRoughness`;
  *  the optional lobes — `distributionSheen`,
  *  `visibilitySheen`, `directSheen`, `sheenScaling`, `environmentSheen`,
  *  `distributionGgxAnisotropic`, `visibilityGgxAnisotropic`,

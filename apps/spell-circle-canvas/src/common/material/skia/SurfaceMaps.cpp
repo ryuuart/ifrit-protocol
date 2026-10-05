@@ -175,6 +175,8 @@ void LobeListener::hear(const Lobes& lobes) {
     listener->m_heard.anisotropy |= lobes.anisotropy;
     listener->m_heard.iridescence |= lobes.iridescence;
     listener->m_heard.specular |= lobes.specular;
+    listener->m_heard.transmission |= lobes.transmission;
+    listener->m_heard.distortion |= lobes.distortion;
   }
 }
 

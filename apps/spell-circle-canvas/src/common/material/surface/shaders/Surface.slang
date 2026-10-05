@@ -21,10 +21,6 @@ float4 surface(float2 uv) {
       roughness * (dressedS(rm) ? chanS(rm, roughnessChannel) : 1.0), 0.0, 1.0);
   gSurfaceMetal = clamp(
       metallic * (dressedS(mm) ? chanS(mm, metallicChannel) : 1.0), 0.0, 1.0);
-  gSurfaceTransmission = clamp(transmission, 0.0, 1.0);
-  gSurfaceIor = max(ior, 1.0);
-  gSurfaceThickness = max(thickness, 0.0);
-  gSurfaceAbsorption = absorption.rgb;
   gSurfaceReflection = REFLECTION_WEIGHT;
 
   float4 cm = clearcoatMap.Sample(uv);
@@ -80,6 +76,25 @@ float4 surface(float2 uv) {
   gSurfaceSpecularColor = linearFromSrgb(specularColorFactor.rgb) *
                           linearFromSrgb(scm.rgb);
   // } specular
+  // transmission {
+  float4 tm = transmissionMap.Sample(uv);
+  float4 thm = thicknessMap.Sample(uv);
+  gSurfaceTransmission =
+      clamp(transmission * (dressedS(tm) ? tm.r : 1.0), 0.0, 1.0);
+  gSurfaceIor = max(ior, 1.0);
+  gSurfaceThickness = max(thickness * (dressedS(thm) ? thm.r : 1.0), 0.0);
+  // The attenuation colour is a colour as it was typed, decoded like the
+  // base colour before any light passes through it.
+  gSurfaceAttenuationColor = linearFromSrgb(attenuationColor.rgb);
+  gSurfaceAttenuationDistance = max(attenuationDistance, 0.0);
+  gSurfaceDispersion = max(dispersion, 0.0);
+  // } transmission
+  // distortion {
+  // The map is DATA: half-grey is still, and each channel runs one unit
+  // either way of it.
+  float4 dm = distortionMap.Sample(uv);
+  gSurfaceDistortion = (dm.rg * 2.0 - 1.0) * distortionStrength;
+  // } distortion
 
   float4 nm = normalMap.Sample(uv);
   if (dressedS(nm)) {
