@@ -59,7 +59,7 @@ sigil_library(SigilWorldDiligent
   SOURCES Geometry.cpp Gpu.cpp Gpu.h Import.cpp Post.cpp
           Programs.cpp Programs.h Runtime.cpp
           ${SIGIL_WORLD_SURFACE_PROOF} ${SIGIL_WORLD_POST_PROOF}
-  HEADERS Import.h Runtime.h
+  HEADERS Import.h Runtime.h ../advanced/Diligent.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}
                   ${SIGIL_GEOMETRY_DEVICE_PRIVATE_DIR}
                   ${SIGIL_GEOMETRY_DEVICE_RESIDENCY_PRIVATE_DIR}

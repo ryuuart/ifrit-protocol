@@ -3,10 +3,9 @@
  * comparison a declaration is pruned by.
  */
 
-#include <sigilworld/frame/Pass.h>
-#include <sigilworld/advanced/Skia.h>
-
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilworld/advanced/Skia.h>
+#include <sigilworld/frame/Pass.h>
 
 #include <algorithm>
 #include <utility>
@@ -52,10 +51,14 @@ Pass& Pass::previous(std::string name) {
   return *this;
 }
 
-Pass& Pass::only(Selector selector) {
-  m_selector = std::move(selector);
+Pass& Pass::only(Collection bodies) {
+  m_collection = std::move(bodies);
   m_narrowed = true;
   return *this;
+}
+
+Pass& Pass::only(std::string name) {
+  return only(Collection{.include = {std::move(name)}});
 }
 
 Pass& Pass::variant(::sigil::material::Material surface) {
@@ -73,10 +76,9 @@ Pass& Pass::clear(material::Color colour) {
   return *this;
 }
 
-Pass& Pass::chain(geometry::mesh::pop::Chain c,
-                  geometry::mesh::pop::Runtime runtime) {
-  m_chain = std::move(c);
-  m_popRuntime = std::move(runtime);
+Pass& Pass::chain(geometry::mesh::pop::Chain points, ChainOptions options) {
+  m_chain = std::move(points);
+  m_popRuntime = std::move(options.runtime);
   return *this;
 }
 
@@ -90,13 +92,13 @@ Pass& Pass::blur(float sigma) {
   return *this;
 }
 
-Pass& Pass::levels(float gain, float lift, material::Color tint) {
-  m_operation = Levels{gain, lift, tint};
+Pass& Pass::levels(Levels grade) {
+  m_operation = grade;
   return *this;
 }
 
-Pass& Pass::composite(material::BlendMode mode, float opacity) {
-  m_operation = Composite{mode, opacity};
+Pass& Pass::composite(Composite layering) {
+  m_operation = layering;
   return *this;
 }
 
@@ -113,12 +115,12 @@ Pass& Pass::body(core::Callable<void(const View&, Targets&)> fn) {
 bool Pass::operator==(const Pass& other) const {
   return m_stage == other.m_stage && m_name == other.m_name &&
          m_reads == other.m_reads && m_writes == other.m_writes &&
-         m_previous == other.m_previous && m_selector == other.m_selector &&
+         m_previous == other.m_previous && m_collection == other.m_collection &&
          m_narrowed == other.m_narrowed && m_variant == other.m_variant &&
          m_realisation == other.m_realisation && m_clear == other.m_clear &&
          m_chain == other.m_chain && m_popRuntime == other.m_popRuntime &&
          m_stamp == other.m_stamp && m_operation == other.m_operation &&
-         m_body == other.m_body;
+         m_body == other.m_body && m_producer == other.m_producer;
 }
 
 Pass geometryPass(std::string name) {
@@ -130,6 +132,12 @@ Pass computePass(std::string name) {
 }
 
 Pass postPass(std::string name) { return Pass(Stage::Post, std::move(name)); }
+
+Pass texturePass(std::string name, TextureProducer producer) {
+  Pass pass(Stage::Texture, std::move(name));
+  pass.m_producer = std::move(producer);
+  return pass;
+}
 
 SkBlendMode toSk(material::BlendMode mode) {
   return material::skia::toSkBlendMode(mode);

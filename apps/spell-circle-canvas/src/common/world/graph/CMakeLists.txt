@@ -7,7 +7,7 @@ find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilWorldGraph
   SOURCES Barriers.cpp Claims.cpp Order.cpp Plan.cpp Realise.cpp
           Resources.cpp Build.h
-  HEADERS Plan.h
+  HEADERS ../advanced/Plan.h
   PUBLIC SigilWorldFrame
   PRIVATE Boost::container)
 

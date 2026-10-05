@@ -40,6 +40,7 @@ sigil_doc_probes(usd
            ${CMAKE_CURRENT_SOURCE_DIR}/../world/include/sigilworld
   PRELUDES "<sigilgeometry/mesh/Mesh.h>"
            "<sigilgeometry/mesh/camera/Camera.h>"
-           "<sigilworld/light/Light.h>"
+           "<sigilworld/advanced/Light.h>"
+           "<sigilworld/World.h>"
   FLOORS 8,0,0,0,0
-  LIBRARIES SigilUsd SigilGeometry SigilWorldLight)
+  LIBRARIES SigilUsd SigilGeometry SigilWorldNode SigilWorldKit)

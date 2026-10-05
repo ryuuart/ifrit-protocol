@@ -8,10 +8,11 @@
 
 #include <gtest/gtest.h>
 #include <sigilgeometry/mesh/Mesh.h>
+#include <sigilworld/advanced/Node.h>
+#include <sigilworld/advanced/Runtime.h>
 #include <sigilworld/advanced/Skia.h>
-#include <sigilworld/element/Node.h>
 #include <sigilworld/frame/Frame.h>
-#include <sigilworld/frame/Runtime.h>
+#include <sigilworld/node/Group.h>
 
 #include <glm/vec3.hpp>
 #include <string>
@@ -41,8 +42,8 @@ TEST(WorldFrame, APassComparesFieldByField) {
   EXPECT_EQ(a, b);
   EXPECT_NE(a, geometryPass("main").writes("colour"));
   EXPECT_NE(a, computePass("main").writes("colour", "depth"));
-  EXPECT_NE(geometryPass("main").only(selectors::tag("glow")),
-            geometryPass("main").only(selectors::tag("lit")));
+  EXPECT_NE(geometryPass("main").only("glow"),
+            geometryPass("main").only("lit"));
   EXPECT_EQ(postPass("bloom").reads("colour").blur(4.0f),
             postPass("bloom").reads("colour").blur(4.0f));
   EXPECT_NE(postPass("bloom").reads("colour").blur(4.0f),
@@ -144,12 +145,12 @@ TEST(WorldFrame, AnImageIsWhatTheExecutorHoldingItAnswers) {
 }
 
 TEST(WorldFrame, AFrameNamesNoRuntimeUntilItIsGivenOne) {
-  const Frame frame = Element().key("set");
+  const Frame frame = group().key("set");
   EXPECT_FALSE(frame.runtime());
 }
 
 TEST(WorldFrame, AFrameWithNoPassesIsItsScene) {
-  const Frame frame = Element().key("set");
+  const Frame frame = group().key("set");
   EXPECT_TRUE(frame.passes().empty());
   EXPECT_EQ(frame.scene().node()->key, "set");
 }

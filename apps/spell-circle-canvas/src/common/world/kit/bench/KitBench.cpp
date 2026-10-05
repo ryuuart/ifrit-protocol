@@ -6,7 +6,7 @@
  */
 
 #include <benchmark/benchmark.h>
-#include <sigilworld/kit/Kit.h>
+#include <sigilworld/World.h>
 
 namespace {
 
@@ -22,20 +22,19 @@ void ThreePoint(benchmark::State& state) {
 /** The rail is redrawn per frame, so its cost is a per-frame cost. */
 void Turntable(benchmark::State& state) {
   const kit::Turntable table;
-  float seconds = 0.0f;
+  motion::Duration now{};
   for ([[maybe_unused]] auto iteration : state) {
-    seconds += 1.0f / 60.0f;
-    benchmark::DoNotOptimize(kit::turntable(table, seconds));
+    now += motion::Duration(1.0 / 60.0);
+    benchmark::DoNotOptimize(kit::turntable(table, now));
   }
 }
 
 void LitSet(benchmark::State& state) {
   const kit::Set set;
-  float seconds = 0.0f;
+  motion::Duration now{};
   for ([[maybe_unused]] auto iteration : state) {
-    seconds += 1.0f / 60.0f;
-    benchmark::DoNotOptimize(
-        kit::litSet(Element().key("subject"), set, seconds));
+    now += motion::Duration(1.0 / 60.0);
+    benchmark::DoNotOptimize(kit::litSet(group().key("subject"), set, now));
   }
 }
 

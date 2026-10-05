@@ -271,7 +271,7 @@ TEST_F(SkiaPaintGpu,
     binding->resetReads();
     normals->resetReads();
     material.surface({.roughness = 1.f, .normal = normal});
-    const skia::LitSurface prepared(material);
+    const skia::SurfaceMaps prepared(material);
     EXPECT_EQ(binding->frameReads, 0);
     EXPECT_EQ(normals->frameReads, 0);
     EXPECT_EQ(binding->rasterReads, 0);

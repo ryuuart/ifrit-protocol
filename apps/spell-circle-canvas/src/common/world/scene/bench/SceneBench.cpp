@@ -8,6 +8,7 @@
 
 #include <benchmark/benchmark.h>
 #include <sigilmotion/clock/Engine.h>
+#include <sigilworld/World.h>
 #include <sigilworld/advanced/Skia.h>
 #include <sigilworld/scene/Scene.h>
 
@@ -31,20 +32,18 @@ geometry::mesh::Mesh triangle() {
 
 /** One geometry for the whole tree, so the store's dedup is what the
  *  ladder measures rather than the cook. */
-Element describeTree(int nodes, const geometry::mesh::Mesh& body, float phase) {
-  Element root;
-  root.key("root");
-  for (int i = 0; i < nodes; ++i) {
-    const int column = i % 32;
-    const int row = i / 32;
-    root.children({Element()
-                       .key("n" + std::to_string(i))
-                       .mesh(body)
-                       .at({(float)column * 12.0f - 180.0f,
-                            (float)row * 12.0f - 90.0f, 0.0f})
-                       .rotateY(phase + (float)i)});
-  }
-  return root;
+Group describeTree(int nodes, const geometry::mesh::Mesh& body, float phase) {
+  return group(each((size_t)nodes,
+                    [&](size_t i) {
+                      const int column = (int)i % 32;
+                      const int row = (int)i / 32;
+                      return mesh(body)
+                          .key("n" + std::to_string(i))
+                          .at({(float)column * 12.0f - 180.0f,
+                               (float)row * 12.0f - 90.0f, 0.0f})
+                          .rotateY(phase + (float)i);
+                    }))
+      .key("root");
 }
 
 void MountTree(benchmark::State& state) {
@@ -83,7 +82,7 @@ void PrunedFrame(benchmark::State& state) {
   const geometry::mesh::Mesh body = triangle();
   motion::Engine engine;
   Scene scene(engine);
-  const Element still = describeTree(nodes, body, 0.0f);
+  const Group still = describeTree(nodes, body, 0.0f);
   for (int warm = 0; warm < 8; ++warm) scene.render(still);
   for ([[maybe_unused]] auto iteration : state) {
     scene.render(still);
@@ -114,15 +113,16 @@ void OrderedFrame(benchmark::State& state) {
   lens.eye = {0, 0, 620};
   const auto describe = [&](float at) {
     Frame frame(describeTree(nodes, body, at));
-    frame.extent({256, 256}).camera(lens).runtime(Runtime{Idle{}});
+    frame.extent({256, 256}).defaultCamera(lens).runtime(Runtime{Idle{}});
     frame.pass(geometryPass("main").writes("colour"))
         .pass(postPass("half").reads("colour").writes("half").blur(4.0f))
         .pass(postPass("hot").reads("half").writes("hot").levels(
-            1.4f, 0.02f, {1.0f, 0.9f, 0.8f, 1.0f}))
+            {.gain = 1.4f, .lift = 0.02f, .tint = {1.0f, 0.9f, 0.8f, 1.0f}}))
         .pass(postPass("picture")
                   .reads("colour", "hot")
                   .writes("picture")
-                  .composite(material::BlendMode::PlusLighter, 0.7f));
+                  .composite({.mode = material::BlendMode::PlusLighter,
+                              .opacity = 0.7f}));
     return frame;
   };
   for ([[maybe_unused]] auto iteration : state) {

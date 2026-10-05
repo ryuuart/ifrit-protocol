@@ -25,6 +25,7 @@
 #include <sigilmotion/clock/Engine.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
+#include <sigilworld/World.h>
 #include <sigilworld/advanced/Skia.h>
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/scene/Scene.h>
@@ -77,15 +78,14 @@ inline geometry::mesh::camera::Camera levelEye() {
 
 /** A card facing the camera, wearing @p surface, lit by one sun. */
 inline Frame card(const material::Material& surface, glm::ivec2 extent) {
-  Element root = Element().key("set").children(
-      {Element().key("sun").light(light::sun({-0.2f, -0.3f, -1.0f})),
-       Element()
-           .key("card")
-           .mesh(::sigil::geometry::mesh::quad(120, 120))
-           .fill(surface)});
+  const Group root = group({directionalLight({-0.2f, -0.3f, -1.0f}).key("sun"),
+                            mesh(::sigil::geometry::mesh::quad(120, 120))
+                                .key("card")
+                                .fill(surface)})
+                         .key("set");
   Frame frame(root);
   frame.extent(extent)
-      .camera(levelEye())
+      .defaultCamera(levelEye())
       .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack));
   return frame;
 }

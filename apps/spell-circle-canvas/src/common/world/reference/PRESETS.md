@@ -1,15 +1,17 @@
 # SigilWorld — the presets and the rails
 
-The chapter on the kit: elements composed out of the verbs a tree is
+The chapter on the kit: nodes composed out of the verbs a tree is
 already written in — a three-point rig, a turntable, and a set with both
-over a ground plane — and the rails a body rides: the turntable's ring, a
-loop that rises and falls, and a winding round a shell. `README.md`
-beside the library is the front page.
+over a ground plane — the rails a body rides: the turntable's ring, a
+loop that rises and falls, and a winding round a shell — and an
+environment map baked from a gradient and soft boxes. `README.md` beside
+the library is the front page.
 
 ## Nothing here decides a look
 
-Each preset returns an ordinary `Element` whose every field the caller
-can read, replace or ignore — or a plain spline a tree rides — and the
+Each preset returns an ordinary node whose every field the caller can
+read, replace or ignore — or a plain spline a tree rides, or a panorama a
+frame stands in — and the
 only constants in it are the geometry of the arrangement: where a key
 light stands relative to a subject, how a rail circles it, plus one
 neutral grey for a ground plane that was given no surface.
@@ -26,8 +28,7 @@ thumbnail and a room: `Rig::extent` is how far across the subject is and
 every distance is a multiple of it. `Rig::bearing` turns the whole rig
 about the subject's up axis, so a set is re-lit by turning one number.
 
-`Rig::distance` is how far the key stands from the subject, in extents.
-`Rig::bearing` and `Rig::elevation` are the key's bearing round the
+The key stands two and a fifth extents from the subject. `Rig::bearing` and `Rig::elevation` are the key's bearing round the
 subject and its height above it, in degrees; the fill stands a quarter
 turn the other way and lower, and the back light stands opposite and
 higher.
@@ -35,18 +36,22 @@ higher.
 `Rig::fill` and `Rig::back` are those two as fractions of the key's
 strength. The key is what a subject is read by; the other two are what
 keeps it from being read by the key alone. `Rig::intensity` and
-`Rig::color` are the key's own strength and colour, and the other two
-take the same colour, scaled.
+`Rig::color` are the key's own strength and colour, both
+`motion::Animatable`, so a live value dims and tints the key without the
+rig being made again; the other two take the colour and the strength
+those hold when the rig is made, scaled.
 
-`threePoint` is THE RIG, as one element with three keyed children — the
-key, the fill and the back — each standing where the arrangement puts it
-and carrying one emitter.
+`threePoint` is THE RIG, as one group with three keyed point lights — the
+key, the fill and the back — each standing where the arrangement puts
+it. The rig stands at the origin of the group it returns, so `.at()` on
+the group moves it with its subject.
 
 ## Turntable: a camera circling a subject
 
 How far out the camera stands, how high, and how long one turn takes.
-`Turntable::period` is seconds for one full turn, and zero or less parks
-the camera at its first station. `Turntable::stations` is how many points
+`Turntable::period` is the time one full turn takes, and zero or less
+parks the camera at its first station. `Turntable::fieldOfView` is the
+lens's vertical field of view, in degrees. `Turntable::stations` is how many points
 the rail is drawn through: more is rounder, and the count is there
 because it decides the curve and therefore the pixels, not because it is
 a dial worth turning. Fewer than three is three, because a closed loop
@@ -55,7 +60,7 @@ needs three points to be one.
 `rail` is THE RAIL a turntable rides: a closed loop of stations round the
 subject, at the table's radius and height.
 
-`turntable` is THE CAMERA at a given scene time, as one element riding
+`turntable` is THE CAMERA at a given scene time, as one camera riding
 that rail and looking at the subject from wherever it has reached. The
 viewpoint is written in the rail's own moving frame, which is what makes
 the aim independent of how far the camera has travelled: the frame's
@@ -106,6 +111,21 @@ because grey is the right answer.
 with the children ground, rig, camera and subject, in that order — a
 caller who wants one of them alone builds it alone.
 
+## An environment map from a gradient and soft boxes
+
+`environmentMap` bakes a panorama out of data rather than out of a
+function a set writes by hand: a vertical gradient from
+`EnvironmentMapOptions::zenith` straight up to
+`EnvironmentMapOptions::nadir` straight down — the zenith's share at a
+height being `(1 - v)` raised to `EnvironmentMapOptions::exponent` — and
+`EnvironmentMapOptions::softBoxes` added over it. A `SoftBox` is an
+elliptical glow whose radiance falls off as a Gaussian about
+`SoftBox::centre`, in the map's `(u, v)` — u round the horizon, wrapping,
+v from the zenith at 0 to the nadir at 1 — with `SoftBox::size` the
+spread along each. A studio is a graded room and two or three boxes; a
+window-lit room is a dim gradient and one wide box. Empty options bake a
+black map, because nothing here states a look.
+
 ## See also
 
-`reference/ELEMENTS.md` for the verbs these presets are composed out of.
+`reference/NODES.md` for the verbs these presets are composed out of.

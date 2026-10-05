@@ -74,18 +74,18 @@ exercise every feature this library has:
 - **`reflection_lab`** — what a body sees when it looks past the lights.
   Four spheres in a row under a sky — chrome, a rough metal, a
   dielectric and glass — each legible only because of the environment
-  map; the sky is a node whose `rotateY` turns the reflections while the
-  lights and bodies stand still, and the row stands under a held
-  crossfade of two panoramas.
+  map; the frame's environment turns by its `rotation`, which turns the
+  reflections while the lights and bodies stand still, and the row stands
+  under a held crossfade of two panoramas.
 - **`set_stagger`** — the entrances of a set's children, staggered, and
-  the two selectors that address a subtree afterwards. Two rows differ
+  the collection that addresses a subtree afterwards. Two rows differ
   only in their stagger's origin, so at one moment they hold different
-  shapes of the same run; `selectors::under` and `selectors::material` narrow a
-  pass to one of them.
-- **`key_light`** — the emitter's dials. One still set under the kit's
-  three-point rig, with the key light's strength and colour bound to live
-  values: nothing about the description changes from frame to frame, and
-  what moves is what the lanes are bound to.
+  shapes of the same run; a `Collection` naming one row's subtree by its
+  key narrows a pass to it.
+- **`key_light`** — a light bound to live values. One still set under the
+  kit's three-point rig, with the key light's strength and colour bound
+  to live values: nothing about the description changes from frame to
+  frame, and what moves is what the light's values are bound to.
 - **`dart_flight`** — `along()`, and nothing else. One winding closed
   loop swept into a rail, a dart flying it at a distance that is a
   function of the scene time, and gates standing on the same loop at
@@ -104,30 +104,29 @@ exercise every feature this library has:
   it are pushed out along their own normals, and inverting the same
   region turns everything outside it about the up axis. The chain is a
   value the node carries and the frame's runtime cooks it.
-- **`lantern_room`** — the three emitters together. Four unlit lantern
-  shells each carrying a coloured point light, a spot opening downward
-  onto the cluster between them, and a sun faint enough to be an
-  outline. An emitter stands where its node stands and carries no
-  geometry, so a lantern here is two siblings sharing a placement.
+- **`lantern_room`** — the three lights together. Four unlit lantern
+  shells each with a coloured point light, a spot opening downward onto
+  the cluster between them, and a directional light faint enough to be an
+  outline. A light stands where its node stands and carries no geometry,
+  so a lantern here is two siblings sharing a placement.
 - **`compute_variant`**, **`import_native`**, **`vagrant_story_target`**
   and **`world_hud`** — the pass verbs that draw nothing by themselves
   (cooking points, re-drawing a selection, asking for a resource back),
   the zero-copy import door, and two studies that hang a compose overlay
   on an unlit quad filling the frustum over a lit set.
 
-Most of them are built out of `kit/`: `kit::threePoint` puts three
-emitters round a subject in its own extents, `kit::turntable` rides a
-closed rail looking inward, and `kit::litSet` is both over a ground
-plane. Every one returns an ordinary `Element`, which is why `key_light`
-can take the rig the preset returned and put lanes on its key light
-without the preset offering a hook for it — and why `lantern_room`,
-which lights its own room, takes the turntable alone and leaves the rest
-of the preset behind rather than describing a second room over the top
-of its own.
+Most of them are built out of `kit/`: `kit::threePoint` puts three point
+lights round a subject in its own extents, with the key's strength and
+colour bindable — which is all `key_light` asks of it — `kit::turntable`
+rides a closed rail looking inward, and `kit::litSet` is both over a
+ground plane. Every one returns an ordinary node, which is why
+`lantern_room`, which lights its own room, takes the turntable alone and
+leaves the rest of the preset behind rather than describing a second room
+over the top of its own.
 
-A study returns a `Frame`, and an `Element` is one with no passes, so a
-study about the scene says nothing about passes at all. The host writes
-the plate's size and its viewpoint into whichever it was handed.
+A study returns a `Frame`, and any node is one with no passes, so a study
+about the scene says nothing about passes at all. The host writes the
+plate's size and its camera into whichever it was handed.
 
 ## The plate ledger over the studies
 

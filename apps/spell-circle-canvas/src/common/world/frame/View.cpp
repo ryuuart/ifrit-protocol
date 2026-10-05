@@ -1,12 +1,12 @@
 /** @file
- * A body as a selector reads it, a texture as a mesh samples it, and the
+ * A body as a collection reads it, a texture as a mesh samples it, and the
  * crop that carries a whole picture onto the part of it a frame forms.
  */
 
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/Texture.h>
 #include <sigilworld/advanced/Skia.h>
-#include <sigilworld/frame/View.h>
+#include <sigilworld/advanced/View.h>
 
 namespace sigil::world {
 
@@ -40,8 +40,8 @@ Sampling samplingOf(const material::Texture& texture) {
   return out;
 }
 
-Subject subjectOf(const Draw& draw) {
-  return Subject{draw.key, draw.tags, draw.ancestors, draw.material};
+Member memberOf(const Draw& draw) {
+  return Member{draw.key, draw.collections, draw.ancestors};
 }
 
 bool isPart(const ViewOffset& offset, glm::ivec2 extent) {

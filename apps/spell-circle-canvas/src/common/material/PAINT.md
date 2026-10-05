@@ -64,13 +64,13 @@ of one `texture::Role`, for a renderer that brings its own lights; live
 surface channels resolve when drawn. An ordinary `material::skia::paint` of
 the same material is its colour stack alone.
 
-Retain `material::skia::LitSurface` while the material stays the same. Copies
+Retain `material::skia::SurfaceMaps` while the material stays the same. Copies
 share its prepared inputs and the map passes made so far. Construction
 retains sources without reading pixels; each draw resolves live inputs and
-binds sources to its destination. `material::skia::LitSurface::asMap`
+binds sources to its destination. `material::skia::SurfaceMaps::asMap`
 returns an ordinary paint, and a different material needs a different
 prepared surface.
-For a unit-mapped input, `material::skia::LitSurface::mapShader` takes the
+For a unit-mapped input, `material::skia::SurfaceMaps::mapShader` takes the
 node's frame and a unit-square-to-node matrix. It maps colour and surface
 channels through that matrix, and root-anchored inputs stay in root
 coordinates. The resulting shader samples node coordinates for this draw.

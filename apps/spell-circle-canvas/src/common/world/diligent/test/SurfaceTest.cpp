@@ -21,6 +21,7 @@
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmedia/advanced/Skia.h>
+#include <sigilworld/World.h>
 #include <sigilworld/diligent/Import.h>
 #include <sigilworld/diligent/Runtime.h>
 
@@ -169,15 +170,14 @@ float tiltedBrightness(glm::vec2 tilt, glm::vec3 from, const Runtime& runtime) {
                flat("world.test.tilt." + std::to_string(tilt.x) + "." +
                         std::to_string(tilt.y),
                     {n.x * .5f + .5f, n.y * .5f + .5f, n.z * .5f + .5f, 1}));
-  Element root = Element().key("set").children(
-      {Element().key("sun").light(light::sun(-from)),
-       Element()
-           .key("card")
-           .mesh(::sigil::geometry::mesh::quad(120, 120))
-           .fill(surface)});
+  const Group root = group({directionalLight(-from).key("sun"),
+                            mesh(::sigil::geometry::mesh::quad(120, 120))
+                                .key("card")
+                                .fill(surface)})
+                         .key("set");
   Frame frame(root);
   frame.extent(kExtent)
-      .camera(diligent::levelEye())
+      .defaultCamera(diligent::levelEye())
       .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack));
   return luma(at(plateOf(frame, runtime), .5f, .5f));
 }
@@ -425,14 +425,15 @@ material::EnvironmentMap hemispheres(SkColor4f above, SkColor4f below) {
           {info, pixels.data(), (size_t)kWidth * 4 * sizeof(float)}));
 }
 
-/** A set carrying @p sky and nothing else — no body, no emitter — so
- *  what a plate of it shows is the backdrop alone. */
-Frame skyAlone(const world::Environment& sky) {
-  Element root =
-      Element().key("set").children({Element().key("sky").environmentMap(sky)});
-  Frame frame(root);
+/** A set standing in @p map read under @p sky and holding nothing else —
+ *  no body, no light — so what a plate of it shows is the panorama shown
+ *  behind it alone. */
+Frame skyAlone(const world::EnvironmentMap& map,
+               const world::EnvironmentOptions& sky) {
+  Frame frame(group().key("set"));
+  frame.environment(map, sky);
   frame.extent(kExtent)
-      .camera(diligent::levelEye())
+      .defaultCamera(diligent::levelEye())
       .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack));
   return frame;
 }
@@ -447,10 +448,11 @@ TEST(Environment, TheBackdropPutsTheZenithAtTheTopOfTheFrame) {
   // sky read with its second axis the wrong way round puts the ground
   // where the zenith is and every reflection in the set with it, and
   // nothing about a smooth panorama would show that.
-  world::Environment sky;
-  sky.map = hemispheres({0.9f, 0.1f, 0.1f, 1}, {0.1f, 0.1f, 0.9f, 1});
-  sky.backdrop.intensity = 1.0f;
-  const SkBitmap plate = plateOf(skyAlone(sky), on.runtime);
+  world::EnvironmentOptions sky;
+  world::EnvironmentMap map;
+  map = hemispheres({0.9f, 0.1f, 0.1f, 1}, {0.1f, 0.1f, 0.9f, 1});
+  sky.shown = 1.0f;
+  const SkBitmap plate = plateOf(skyAlone(map, sky), on.runtime);
 
   const SkColor4f top = at(plate, 0.5f, 0.08f);
   const SkColor4f bottom = at(plate, 0.5f, 0.92f);
@@ -468,12 +470,13 @@ TEST(Environment, APartOfTheSkyIsThatPartOfTheWholeSky) {
   // reads there, and its horizon stands on the whole picture's row.
   constexpr glm::ivec2 kWhole{kExtent.x * 4, kExtent.y * 4};
   constexpr glm::ivec2 kCorner{100, 180};
-  world::Environment sky;
-  sky.map = hemispheres({0.9f, 0.1f, 0.1f, 1}, {0.1f, 0.1f, 0.9f, 1});
-  sky.backdrop.intensity = 1.0f;
-  Frame whole = skyAlone(sky);
+  world::EnvironmentOptions sky;
+  world::EnvironmentMap map;
+  map = hemispheres({0.9f, 0.1f, 0.1f, 1}, {0.1f, 0.1f, 0.9f, 1});
+  sky.shown = 1.0f;
+  Frame whole = skyAlone(map, sky);
   whole.extent(kWhole);
-  Frame part = skyAlone(sky);
+  Frame part = skyAlone(map, sky);
   part.viewOffset({kWhole, kCorner});
   const SkIRect region =
       SkIRect::MakeXYWH(kCorner.x, kCorner.y, kExtent.x, kExtent.y);
@@ -496,9 +499,10 @@ TEST(Environment, ABackdropAtZeroStrengthDrawsNothing) {
   // The strength is also the switch, so there is no flag that can
   // disagree with it: a set that carries a panorama and shows none of it
   // stands against whatever the pass cleared to.
-  world::Environment sky;
-  sky.map = hemispheres({0.9f, 0.1f, 0.1f, 1}, {0.1f, 0.1f, 0.9f, 1});
-  const SkBitmap plate = plateOf(skyAlone(sky), on.runtime);
+  world::EnvironmentOptions sky;
+  world::EnvironmentMap map;
+  map = hemispheres({0.9f, 0.1f, 0.1f, 1}, {0.1f, 0.1f, 0.9f, 1});
+  const SkBitmap plate = plateOf(skyAlone(map, sky), on.runtime);
   EXPECT_LT(luma(at(plate, 0.5f, 0.08f)), 0.02f);
   EXPECT_LT(luma(at(plate, 0.5f, 0.92f)), 0.02f);
 }
@@ -509,16 +513,17 @@ TEST(Environment, AGroundProjectedBackdropMovesTheHorizonWithTheEye) {
   // At infinity a sky is the same picture from everywhere; projected
   // onto a ground sphere, an eye that rises above the sphere's centre
   // sees more ground and the horizon drops down the frame.
-  world::Environment sky;
-  sky.map = hemispheres({0.9f, 0.1f, 0.1f, 1}, {0.1f, 0.1f, 0.9f, 1});
-  sky.backdrop.intensity = 1.0f;
+  world::EnvironmentOptions sky;
+  world::EnvironmentMap map;
+  map = hemispheres({0.9f, 0.1f, 0.1f, 1}, {0.1f, 0.1f, 0.9f, 1});
+  sky.shown = 1.0f;
 
   const auto horizonRow = [&](float height) {
     geometry::mesh::camera::Camera camera;
     camera.eye = {0, height, 0};
     camera.target = {0, height, -100};
-    Frame frame = skyAlone(sky);
-    frame.camera(camera);
+    Frame frame = skyAlone(map, sky);
+    frame.defaultCamera(camera);
     const SkBitmap plate = diligent::photograph(frame, on.runtime, kExtent);
     for (int y = 0; y < plate.height(); ++y) {
       const SkColor4f c = plate.getColor4f(plate.width() / 2, y);
@@ -533,7 +538,7 @@ TEST(Environment, AGroundProjectedBackdropMovesTheHorizonWithTheEye) {
   EXPECT_EQ(atInfinityLow, atInfinityHigh)
       << "a sky at infinity does not move with the eye";
 
-  sky.backdrop.groundRadius = 100.0f;
+  sky.groundRadius = 100.0f;
   const int projectedCentre = horizonRow(0.0f);
   const int projectedHigh = horizonRow(20.0f);
   EXPECT_EQ(projectedCentre, atInfinityLow)
@@ -553,19 +558,18 @@ TEST(Environment, AMirrorWearsTheSkyAndAMatteSurfaceIsLitByIt) {
   // A NEUTRAL sky, so what the matte surface shows is its own albedo:
   // under a coloured one a green surface reads by the product of the
   // two, which is a fact about multiplication and not about the tier.
-  world::Environment sky;
-  sky.map = hemispheres({0.8f, 0.8f, 0.8f, 1}, {0.8f, 0.8f, 0.8f, 1});
+  world::EnvironmentOptions sky;
+  world::EnvironmentMap map;
+  map = hemispheres({0.8f, 0.8f, 0.8f, 1}, {0.8f, 0.8f, 0.8f, 1});
 
   const auto photographWith = [&](const material::Material& surface) {
-    Element root = Element().key("set").children(
-        {Element().key("sky").environmentMap(sky),
-         Element()
-             .key("card")
-             .mesh(::sigil::geometry::mesh::quad(120, 120))
-             .fill(surface)});
-    Frame frame(root);
+    Frame frame(group({mesh(::sigil::geometry::mesh::quad(120, 120))
+                           .key("card")
+                           .fill(surface)})
+                    .key("set"));
+    frame.environment(map, sky);
     frame.extent(kExtent)
-        .camera(diligent::levelEye())
+        .defaultCamera(diligent::levelEye())
         .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack));
     return plateOf(frame, on.runtime);
   };

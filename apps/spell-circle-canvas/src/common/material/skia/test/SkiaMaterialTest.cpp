@@ -18,8 +18,8 @@
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/program/Shader.h>
 #include <sigilmaterial/skia/Color.h>
-#include <sigilmaterial/skia/Lit.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/skia/SurfaceMaps.h>
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilmotion/values/Animatable.h>

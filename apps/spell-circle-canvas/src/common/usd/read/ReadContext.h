@@ -14,7 +14,7 @@
 #include <pxr/usd/usdShade/material.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/codec/Model.h>
-#include <sigilworld/light/Light.h>
+#include <sigilworld/advanced/Light.h>
 
 #include <filesystem>
 #include <optional>
@@ -50,8 +50,8 @@ void readInstancer(const pxr::UsdPrim& prim, ReadContext& context,
  *  light — a spot when the prim carries an authored shaping cone. The
  *  prim's local-to-world places it and aims its -Z; nullopt for a prim
  *  that is neither. */
-std::optional<material::Light> readLight(const pxr::UsdPrim& prim,
-                                             ReadContext& context);
+std::optional<world::PlacedLight> readLight(const pxr::UsdPrim& prim,
+                                            ReadContext& context);
 
 /** A UsdGeomCamera as a Camera: the prim's local-to-world as the
  *  camera-to-world, the focal length against the vertical aperture as

@@ -15,6 +15,7 @@
 #include <sigilusd/read/Reader.h>
 #include <sigilusd/runtime/Runtime.h>
 #include <sigilusd/write/Writer.h>
+#include <sigilworld/World.h>
 
 #include <cstdio>
 #include <filesystem>
@@ -56,13 +57,23 @@ std::filesystem::path emitterStage(int lights) {
     const glm::vec3 at((float)i, 100.0f, 0.0f);
     switch (i % 3) {
       case 0:
-        writer.light(name, world::light::sun({-0.45f, -0.75f, -0.5f}));
+        writer.light(
+            name, world::PlacedLight{
+                      .light = world::directionalLight({-0.45f, -0.75f, -0.5f})
+                                   .description()});
         break;
       case 1:
-        writer.light(name, world::light::point(at));
+        writer.light(
+            name, world::PlacedLight{.light = world::pointLight().description(),
+                                     .position = at});
         break;
       default:
-        writer.light(name, world::light::spot(at, {0, -1, 0}, 40.0f, 28.0f));
+        writer.light(name, world::PlacedLight{
+                               .light = world::spotLight({0, -1, 0},
+                                                         {.innerAngle = 28.0f,
+                                                          .outerAngle = 40.0f})
+                                            .description(),
+                               .position = at});
         break;
     }
   }

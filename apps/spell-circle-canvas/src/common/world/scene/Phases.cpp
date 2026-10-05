@@ -8,12 +8,11 @@
 #include <sigilcore/cache/Cache.h>
 #include <sigilgeometry/mesh/curve/Pose.h>
 #include <sigilmaterial/advanced/Combine.h>
-#include <sigilmaterial/advanced/Program.h>  // reportOnce
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmotion/advanced/Held.h>
 #include <sigilmotion/clock/Engine.h>
-#include <sigilworld/light/Light.h>
+#include <sigilworld/advanced/Light.h>
 
 #include <cstring>
 #include <glm/gtc/matrix_inverse.hpp>
@@ -32,7 +31,7 @@ namespace gm = ::sigil::geometry::mesh;
 
 /** The surface a node wears: its own, or the first of its per-face
  *  slots. */
-const material::Material* surfaceOf(const ElementNode& node) {
+const material::Material* surfaceOf(const NodeDescription& node) {
   if (node.material) return &*node.material;
   return node.slots.empty() ? nullptr : &node.slots.front();
 }
@@ -63,17 +62,21 @@ glm::vec4 baseColorOf(const material::Material* material) {
   return material->get<glm::vec4>("baseColor");
 }
 
-/** The emitter, carried by the placement of the node that declared it.
- *  A direction is not carried the way a point is: under a non-uniform
- *  scale the basis tilts it off the surfaces it was aimed at, and the
- *  normal transform is what keeps the angle. */
-material::Light placeLight(material::Light light, const glm::mat4& world) {
+/** The light, carried by the placement of the node that declared it and
+ *  held still for the frame. A direction is not carried the way a point
+ *  is: under a non-uniform scale the basis tilts it off the surfaces it
+ *  was aimed at, and the normal transform is what keeps the angle. */
+PlacedLight placeLight(const LightDescription& light, const glm::mat4& world,
+                       const std::string& key) {
+  PlacedLight placed{held(light), glm::vec3(world[3]), key};
   const glm::mat3 basis = glm::inverseTranspose(glm::mat3(world));
-  const glm::vec3 carried = basis * light::travel(light);
-  if (glm::dot(carried, carried) > 0.0f) light::aim(light, carried);
-  const glm::vec4 position = world * glm::vec4(light.position, 1.0f);
-  light.position = glm::vec3(position);
-  return light;
+  const glm::vec3 aim = glm::dot(light.direction, light.direction) > 0.0f
+                            ? glm::normalize(light.direction)
+                            : glm::vec3(0.0f, -1.0f, 0.0f);
+  const glm::vec3 carried = basis * aim;
+  placed.light.direction =
+      glm::dot(carried, carried) > 0.0f ? glm::normalize(carried) : aim;
+  return placed;
 }
 
 /** The viewpoint, carried the same way. */
@@ -138,7 +141,7 @@ bool Scene::Impl::phaseDescribe() {
 // ---- lanes -----------------------------------------------------------------
 
 void Scene::Impl::sampleLanes(Instance& inst) {
-  const ElementNode& node = *inst.description;
+  const NodeDescription& node = *inst.description;
   lanesOf(node, laneScratch);
   const auto read = [this, &inst](Slot slot) {
     const Lane& lane = laneScratch[slot];
@@ -155,16 +158,6 @@ void Scene::Impl::sampleLanes(Instance& inst) {
   inst.alongDistance = read(kAlongDistance);
   inst.windowHead = read(kWindowHead);
   inst.windowSpan = read(kWindowSpan);
-  inst.intensity = read(kIntensity);
-  inst.emission = {read(kEmissionRed), read(kEmissionGreen),
-                   read(kEmissionBlue)};
-  inst.envDiffuse = read(kEnvironmentDiffuse);
-  inst.envSpecular = read(kEnvironmentSpecular);
-  inst.envRoughness = read(kEnvironmentRoughness);
-  inst.envCrossfade = read(kEnvironmentCrossfade);
-  inst.envExposure = read(kEnvironmentExposure);
-  inst.backdrop = read(kBackdrop);
-  inst.backdropBlur = read(kBackdropBlur);
   for (std::unique_ptr<Instance>& child : inst.children) sampleLanes(*child);
 }
 
@@ -177,7 +170,7 @@ bool Scene::Impl::phaseLanes() {
 
 void Scene::Impl::deriveInto(Instance& inst, const glm::mat4& parentWorld,
                              bool* changed) {
-  const ElementNode& node = *inst.description;
+  const NodeDescription& node = *inst.description;
   glm::mat4 local(1.0f);
   if (node.transform.matrix) {
     local = *node.transform.matrix;
@@ -235,7 +228,7 @@ void Scene::Impl::rescanMoved(Instance& inst) {
 // ---- the geometry slot's resource -------------------------------------------
 
 Geometry Scene::Impl::effectiveGeometry(const Instance& inst) const {
-  const ElementNode& node = *inst.description;
+  const NodeDescription& node = *inst.description;
   if (!node.window) return node.geometry;
   const Chained* chained = std::get_if<Chained>(&node.geometry);
   if (!chained || chained->chain.empty()) return node.geometry;
@@ -273,19 +266,21 @@ void Scene::Impl::ensureResource(Instance& inst) {
 
 // ---- extract ---------------------------------------------------------------
 
-core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst) {
-  // THE VIEWPOINT IS THE FIRST IN TREE ORDER, so a node's own camera is
-  // read BEFORE its children's: a host that hangs a set under a node
-  // carrying its own camera is seen from that camera, whatever the set
-  // declared beneath it.
-  if (inst.description->camera && !camera)
-    camera = placeCamera(*inst.description->camera, inst.world);
+core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst, bool hidden) {
+  const NodeDescription& node = *inst.description;
+  hidden = hidden || !node.visible;
+  // THE CAMERAS IN TREE ORDER, a node's own before its children's: the
+  // frame chooses among them once the walk is done.
+  if (node.camera && !hidden)
+    cameras.push_back({.key = node.key,
+                       .exposure = node.camera->exposure.value(),
+                       .toneCurve = node.camera->toneCurve,
+                       .lens = placeCamera(node.camera->lens, inst.world)});
 
   core::ChildVolatility childVolatility;
   for (std::unique_ptr<Instance>& child : inst.children)
-    childVolatility.add(foldVolatility(*child));
+    childVolatility.add(foldVolatility(*child, hidden));
 
-  const ElementNode& node = *inst.description;
   lanesOf(node, laneScratch);
   bool movingPlacement = false;
   bool movingContent = false;
@@ -299,23 +294,12 @@ core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst) {
     // could never be told so would hold the whole subtree volatile for
     // the rest of the scene's life.
     if (!motion::isRunning(inst.anims[i].get(), *lane.value)) continue;
-    // A window drives what the node IS MADE OF; the emitter's dials
-    // drive what the frame is LIT BY and nothing about any node; every
-    // other lane drives only where the node stands.
-    if (i == kWindowHead || i == kWindowSpan) {
+    // A window drives what the node IS MADE OF; every other lane drives
+    // only where the node stands.
+    if (i == kWindowHead || i == kWindowSpan)
       movingContent = true;
-    } else if (i == kIntensity || i == kEmissionRed || i == kEmissionGreen ||
-               i == kEmissionBlue || i == kEnvironmentDiffuse ||
-               i == kEnvironmentSpecular || i == kEnvironmentRoughness ||
-               i == kEnvironmentCrossfade || i == kEnvironmentExposure ||
-               i == kBackdrop || i == kBackdropBlur) {
-      // The emitters are gathered on the walk below, which visits every
-      // node every frame, and a bake holds a draw order and no light —
-      // so a lamp that ramps stales nothing.
-      continue;
-    } else {
+    else
       movingPlacement = true;
-    }
   }
   if (node.material && node.material->isRunning()) movingContent = true;
   for (const material::Material& slot : node.slots)
@@ -348,54 +332,46 @@ core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst) {
   inst.declaration = self;
   inst.verdict = core::foldSubtree(self, childVolatility);
 
-  // Emitters are gathered on this walk, which visits every node every
+  // Lights are gathered on this walk, which visits every node every
   // frame — a bake replays a draw order, and a light inside one must not
-  // go missing with it.
-  if (node.light) {
-    // The colour and the strength are the node's sampled lanes, which
-    // the light's own values only seed; the opacity stays the light's.
-    material::Light emitter = light::held(*node.light);
-    emitter.color = material::Color{inst.emission.r, inst.emission.g,
-                                    inst.emission.b, emitter.color.value().a};
-    emitter.intensity = inst.intensity;
-    lights.push_back(placeLight(std::move(emitter), inst.world));
-  }
-  if (node.environment) {
-    if (environment.valid()) {
-      // A SECOND SKY IS NOT A CHOICE THE FRAME CAN MAKE. The first in
-      // tree order shades, and both keys are named, because a silent
-      // no-op would be a set lit by whichever node happened to come
-      // last and no way to see which. The walk visits every node of
-      // every frame, so the pair is said once rather than at frame rate.
-      material::reportOnce("world.scene.environment:" + environmentKey + ":" +
-                               inst.description->key,
-                           "two environment maps in one frame: \"" +
-                               environmentKey + "\" shades and \"" +
-                               inst.description->key + "\" is ignored");
-    } else {
-      environment = *node.environment;
-      environment.intensity = inst.intensity;
-      environment.tint = inst.emission;
-      environment.diffuse = inst.envDiffuse;
-      environment.specular = inst.envSpecular;
-      environment.roughnessBias = inst.envRoughness;
-      environment.crossfade = inst.envCrossfade;
-      environment.exposure = inst.envExposure;
-      environment.backdrop.intensity = inst.backdrop;
-      environment.backdrop.blur = inst.backdropBlur;
-      // THE NODE'S TRANSFORM ORIENTS THE SKY. A panorama is sampled by
-      // a direction, so only the rotation of the placement means
-      // anything to it; the inverse of that rotation is what carries a
-      // world-space direction into the panorama's own frame.
-      environmentOrientation = glm::inverse(glm::mat3(inst.world));
-      environmentKey = inst.description->key;
-    }
-  }
+  // go missing with it. A light's colour and strength are read here, so
+  // one bound to a live value changes the shading without staling any
+  // bake.
+  if (node.light && !hidden)
+    lights.push_back(placeLight(*node.light, inst.world, node.key));
   return inst.verdict;
 }
 
+void Scene::Impl::chooseCamera() {
+  camera.reset();
+  const std::string& named = frame.camera();
+  if (!named.empty()) {
+    for (const FoundCamera& found : cameras)
+      if (found.key == named) {
+        camera = found;
+        return;
+      }
+    error = "the frame looks through the camera \"" + named +
+            "\", and no camera in the tree answers to that key";
+    return;
+  }
+  if (cameras.size() == 1) {
+    camera = cameras.front();
+    return;
+  }
+  if (cameras.size() > 1) {
+    std::string keys;
+    for (const FoundCamera& found : cameras)
+      keys += (keys.empty() ? "\"" : ", \"") + found.key + "\"";
+    error = "the tree holds " + std::to_string(cameras.size()) + " cameras (" +
+            keys +
+            ") and the frame names none of them: name the one to look "
+            "through with Frame::camera(key)";
+  }
+}
+
 void Scene::Impl::writeComponents(Instance& inst) {
-  const ElementNode& node = *inst.description;
+  const NodeDescription& node = *inst.description;
   registry.get<component::Placement>(inst.entity).world = inst.world;
   const geometry::mesh::Mesh* mesh =
       inst.resource && !inst.resource->cooked.mesh.indices.empty()
@@ -422,23 +398,27 @@ void Scene::Impl::writeComponents(Instance& inst) {
   // …and so is the answer to whether light reaches it. A surface that is
   // its own light says so once, here, rather than being asked per pass.
   surface.lit = !(readable && material::surface::isUnlit(*readable));
-  if (node.tags.empty())
-    registry.remove<component::Tagged>(inst.entity);
+  if (node.collections.empty())
+    registry.remove<component::Joined>(inst.entity);
   else
-    registry.emplace_or_replace<component::Tagged>(inst.entity, node.tags);
+    registry.emplace_or_replace<component::Joined>(inst.entity,
+                                                   node.collections);
   registry.emplace_or_replace<component::Named>(inst.entity, node.key,
                                                 ancestry);
 }
 
 void Scene::Impl::extractInto(Instance& inst, std::vector<entt::entity>& into,
                               bool recording) {
+  // A HIDDEN NODE IS NOT IN THE SCENE, and nothing under it is: its
+  // subtree contributes no body to the order.
+  if (!inst.description->visible) return;
   ensureResource(inst);
   writeComponents(inst);
   ++stats.extracted;
   if (registry.all_of<component::Body>(inst.entity))
     into.push_back(inst.entity);
 
-  // The ancestry a selector reads is the keys standing above the node,
+  // The ancestry a collection reads is the keys standing above the node,
   // which is exactly this walk's own stack.
   ancestry.push_back(inst.description->key);
   for (std::unique_ptr<Instance>& child : inst.children) {
@@ -477,13 +457,12 @@ void Scene::Impl::extractInto(Instance& inst, std::vector<entt::entity>& into,
 bool Scene::Impl::phaseExtract() {
   order.clear();
   lights.clear();
-  environment = {};
-  environmentOrientation = glm::mat3(1.0f);
-  environmentKey.clear();
+  cameras.clear();
   camera.reset();
   ancestry.clear();
   if (!root) return false;
-  foldVolatility(*root);
+  foldVolatility(*root, false);
+  chooseCamera();
   BakeTarget target{this, root.get(), &order};
   const core::BakeState state{
       .cacheable = !root->verdict.volatileAbove,

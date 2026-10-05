@@ -12,6 +12,7 @@
 #include "sigilworld/diligent/Runtime.h"
 
 #include <sigilgeometry/mesh/pop/device/Cook.h>
+#include <sigilworld/advanced/Diligent.h>
 #include <sigilworld/advanced/Skia.h>
 
 #include <memory>
@@ -69,6 +70,11 @@ class GpuExecutor : public Executor {
         return;
       case Stage::Post:
         applyPost(*m_gpu, work);
+        return;
+      // A texture pass paints with its own producer, which the scene runs
+      // before it hands a step to an executor; nothing of it is the
+      // device's.
+      case Stage::Texture:
         return;
     }
   }

@@ -15,6 +15,7 @@
 #include <sigilmaterial/advanced/FrameData.h>
 #include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/surface/Surface.h>
+#include <sigilworld/advanced/Diligent.h>
 #include <sigilworld/advanced/Skia.h>
 #include <sigilworld/diligent/Runtime.h>
 

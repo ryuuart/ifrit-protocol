@@ -1,0 +1,121 @@
+#pragma once
+
+/** @file
+ * @ingroup world-graph
+ * The frame graph: the order a frame's passes run in, derived from what
+ * they declared they read and write; the surfaces two resources share
+ * when their live ranges do not overlap; the barriers between them; and
+ * how each pass's selection is realised. Nothing here draws and nothing
+ * here names a backend.
+ */
+
+#include <sigilworld/frame/Frame.h>
+
+#include <cstddef>
+#include <cstdint>
+#include <span>
+#include <string>
+#include <string_view>
+#include <vector>
+
+/** WHAT A FRAME WILL DO, WORKED OUT BEFORE ANY OF IT IS RECORDED: the
+ *  passes in an order that respects what each reads and writes, the
+ *  resources they need placed, and the barriers between them. Reach for
+ *  it to see or check a frame's shape without a device; an executor
+ *  reads the plan rather than the passes. */
+namespace sigil::world::graph {
+
+/** Which way a step touches a resource. */
+enum class Access : uint8_t { Read, Write };
+
+/** What a resource holds, taken from the stage that writes it: a
+ *  compute pass writes points, a texture pass writes textures that hold
+ *  their own pixels outside the frame, and everything else writes the
+ *  frame's own images. */
+enum class ResourceKind : uint8_t { Image, Points, Texture };
+
+/** ONE HAZARD between two steps over one resource, stated without
+ *  naming a backend: what must finish, what may then begin, and which
+ *  way each of them touched it. A device turns each entry into the
+ *  transition it needs. */
+struct Barrier {
+  std::string resource;
+  size_t after = 0;   ///< the step that must finish
+  size_t before = 0;  ///< the step that may then begin
+  Access from = Access::Write;
+  Access to = Access::Read;
+  bool operator==(const Barrier&) const = default;
+};
+
+/** ONE RESOURCE the frame's passes named, and its life. */
+struct Resource {
+  std::string name;
+  ResourceKind kind = ResourceKind::Image;
+  /** The step that first writes it, and the last that touches it, in
+   *  execution order. */
+  size_t first = 0;
+  size_t last = 0;
+  /** The surface it was given; -1 for a resource that holds no surface
+   *  or holds one of its own. */
+  int slot = -1;
+  /** It outlives the frame — read back, read as a previous, or the one
+   *  the picture is presented from — so it is never aliased. */
+  bool persistent = false;
+  /** It was given a surface another resource also uses. */
+  bool aliased = false;
+};
+
+/** THE ORDERING, READ OFF THE DECLARATIONS: a step runs after every
+ *  step that writes what it reads, after every step that reads what it
+ *  writes, and after every earlier step that writes what it writes,
+ *  with ties going to the one declared first. A cycle is an error naming
+ *  the passes on it and produces no plan.
+ *  @trap A plan points at the passes it was built from, so it stands
+ *  only as long as they do; `Pass::previous` orders nothing. */
+class Plan {
+ public:
+  /** The passes in execution order, each with what the ordering decided
+   *  about it. Empty when the plan failed. */
+  [[nodiscard]] std::span<const PassWork> steps() const { return m_steps; }
+  /** The hazards between the steps, in execution order. */
+  [[nodiscard]] std::span<const Barrier> barriers() const { return m_barriers; }
+  /** Every resource any pass named, with what the ordering decided
+   *  about it. */
+  [[nodiscard]] std::span<const Resource> resources() const {
+    return m_resources;
+  }
+  /** How many surfaces the image resources need once the transients
+   *  whose live ranges never overlap have been given the same one. */
+  [[nodiscard]] int surfaces() const { return m_surfaces; }
+  /** How many resources were given a surface another one also uses. */
+  [[nodiscard]] int aliased() const;
+  /** The resource @p name, or null when no pass named it. */
+  [[nodiscard]] const Resource* resource(std::string_view name) const;
+  /** The resource the finished picture is in; empty when no pass wrote
+   *  an image. */
+  [[nodiscard]] const std::string& present() const { return m_present; }
+  /** The resources whose images must be kept for the frame after. */
+  [[nodiscard]] std::span<const std::string> kept() const { return m_kept; }
+
+  /** What stopped the plan being built, naming the passes. Empty when
+   *  it was built. */
+  [[nodiscard]] const std::string& error() const { return m_error; }
+  /** Whether the plan was built at all. */
+  explicit operator bool() const { return m_error.empty(); }
+
+ private:
+  friend Plan build(const Frame& frame);
+
+  std::vector<PassWork> m_steps;
+  std::vector<Barrier> m_barriers;
+  std::vector<Resource> m_resources;
+  std::vector<std::string> m_kept;
+  std::string m_present;
+  std::string m_error;
+  int m_surfaces = 0;
+};
+
+/** Read @p frame's declarations into a plan. */
+Plan build(const Frame& frame);
+
+}  // namespace sigil::world::graph

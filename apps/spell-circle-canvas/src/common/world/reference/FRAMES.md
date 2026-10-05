@@ -4,15 +4,45 @@ The chapter on how a picture is made: what a frame declares, what one
 pass touches, what the ordering reads off those declarations, what a
 pass is handed and what it writes into, and the two executors that
 perform it. `README.md` beside the library is the front page; the
-description a frame is made from is `reference/ELEMENTS.md`.
+description a frame is made from is `reference/NODES.md`.
 
 ## Frame: one frame, declared
 
-A `Frame` is built fresh every frame and thrown away, the way an
-`Element` is: it holds no surfaces, no order and no device. A frame with
-no passes IS its scene — the bodies are drawn straight from the viewpoint
-the tree declared — so an author reaches for passes only when there is
-something to say about how the picture is made.
+A `Frame` is built fresh every frame and thrown away, the way a node is:
+it holds no surfaces, no order and no device. A frame with no passes IS
+its scene — reconciled and extracted, its bodies, lights and camera — so
+an author reaches for passes only when there is something to say about
+how the picture is made.
+
+`Frame::environment` is THE ENVIRONMENT THE SET STANDS IN: a panorama
+every lit body samples by its normal for what falls on it from all
+around, and by its reflected view vector for what it mirrors. It is the
+frame's because it surrounds everything rather than standing anywhere,
+and a frame holds one. `EnvironmentOptions` is what of it is believed:
+`EnvironmentOptions::intensity` over everything it contributes,
+`EnvironmentOptions::diffuse` and `EnvironmentOptions::specular` for its
+two sides apart — pushing one and not the other is a look, not a physical
+claim — `EnvironmentOptions::roughnessBias` added to every surface's
+roughness before it picks a prefiltered level, a second panorama
+`EnvironmentOptions::next` crossfaded over the first by
+`EnvironmentOptions::crossfade`, and its turn about the up axis,
+`EnvironmentOptions::rotation`. What it lights and what it shows are two
+questions: `EnvironmentOptions::shown` is how strongly the panorama is
+drawn behind the set — zero draws none of it, so the dial is also the
+switch — blurred by `EnvironmentOptions::blur` in the roughness units a
+reflection reads, and projected onto a ground sphere of
+`EnvironmentOptions::groundRadius` where that is past zero. Every dial is
+a `motion::Animatable`, read once a frame into an `Environment`, which is
+what an executor reads and a USD stage stores. `EnvironmentMap` is the
+panorama itself: SigilMaterial's type, because SigilGeometry's device
+residency uploads it and Geometry stands beneath this library.
+
+`Frame::camera` names the camera the frame looks through by its key; a
+tree holding one camera needs no name, and one holding several with none
+named is an error.
+
+`readback` names the resource handed back the frame after it was
+written.
 
 `readback` names the resource handed back the frame after it was
 written.
@@ -27,7 +57,9 @@ frame BEFORE, which is how a feedback effect declares itself without
 asking anything to run before it has run.
 
 `geometryPass` rasterises bodies, `computePass` cooks points and writes
-no pixels, and `postPass` reads targets and writes one.
+no pixels, `postPass` reads targets and writes one, and `texturePass`
+paints the textures a body wears with a `TextureProducer`, before every
+geometry pass.
 
 `PassBody` is a body carried as a comparable value. A model with `==`
 declares its own identity; a model without one — the lambda door —
@@ -37,7 +69,7 @@ compares equal to nothing but its own copies.
 behind it: the resource it goes into, and whose coverage it is. Two
 masked passes behind the same producer asking for the same selection
 share one entry; asking for different selections gets one entry each,
-because a coverage answers for exactly one selector.
+because a coverage answers for exactly one collection.
 
 `PassWork` is WHAT THE ORDERING DECIDED about one pass, in terms an
 execution can act on without knowing how the decision was made. It points
@@ -180,7 +212,7 @@ drawn in the colour the frame extracted instead.
 specialises a program on. A recipe compiles once per variant, so a bit
 belongs there only when it changes the PROGRAM, and this one does:
 without it the lighting, the uniforms it reads and the loop over the
-emitters are not in the compiled shader at all.
+lights are not in the compiled shader at all.
 
 Two things a backend might be expected to specialise on are not bits,
 because neither changes a program. The mesh vertex layout is one: every
@@ -219,4 +251,4 @@ texture is missing or belongs to another API.
 
 ## See also
 
-`reference/ELEMENTS.md` for the description a frame is made from.
+`reference/NODES.md` for the description a frame is made from.

@@ -24,7 +24,7 @@
 #include <sigilmaterial/core/BlendMode.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilmedia/advanced/Skia.h>
-#include <sigilworld/element/Geometry.h>
+#include <sigilworld/advanced/Geometry.h>
 
 #include <boost/container/map.hpp>
 #include <cstdint>

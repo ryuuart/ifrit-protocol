@@ -14,11 +14,11 @@
 #include <sigilcore/reconcile/Memo.h>
 #include <sigilcore/reconcile/Node.h>
 #include <sigilcore/reconcile/Reconciler.h>
-#include <sigilmaterial/core/Lighting.h>
+#include <sigilworld/advanced/Lanes.h>
+#include <sigilworld/advanced/Light.h>
+#include <sigilworld/advanced/Node.h>
+#include <sigilworld/advanced/Runtime.h>
 #include <sigilworld/advanced/Skia.h>
-#include <sigilworld/element/Lanes.h>
-#include <sigilworld/element/Node.h>
-#include <sigilworld/frame/Runtime.h>
 #include <sigilworld/scene/Scene.h>
 
 #include <array>
@@ -41,7 +41,7 @@ class Engine;
 namespace sigil::world {
 
 /** WHAT AN ENTITY CARRIES. Written by extract, read by the draw, and by
- *  nothing else — which is what makes "execution never reads the Element
+ *  nothing else — which is what makes "execution never reads the node
  *  tree" a property of the code rather than a promise. */
 namespace component {
 
@@ -61,8 +61,7 @@ struct Body {
 };
 
 /** What the surface is: the colour a tier with no compiler to run a
- *  recipe's body can read, and the material itself, for a selector
- *  asking which surface a body wears. */
+ *  recipe's body can read, and the material itself. */
 struct Surface {
   glm::vec4 baseColor{0.8f, 0.8f, 0.85f, 1.0f};
   std::optional<::sigil::material::Material> material;
@@ -70,20 +69,20 @@ struct Surface {
    *  extract. It addresses a leaf the material above holds, so it stands
    *  exactly as long as this component does. */
   const ::sigil::material::Texture* texture = nullptr;
-  /** Do the frame's emitters reach this surface? False for one that is
+  /** Do the frame's lights reach this surface? False for one that is
    *  its own light. Read off the same surface the colour and the map are
    *  read off — the one at the bottom of whatever was stacked. */
   bool lit = true;
 };
 
-/** The words this node answers to. */
-struct Tagged {
-  std::vector<std::string> words;
+/** The collections this node joined. */
+struct Joined {
+  std::vector<std::string> collections;
 };
 
-/** What a selector addresses this node by: its own key, and the keys
- *  from the root down to its parent. Extract writes them, so a pass
- *  narrowing on a key never reaches for the description. */
+/** What a collection term addresses this node by: its own key, and the
+ *  keys from the root down to its parent. Extract writes them, so a pass
+ *  narrowing on a subtree never reaches for the description. */
 struct Named {
   std::string key;
   std::vector<std::string> ancestors;
@@ -94,7 +93,7 @@ struct Named {
 /** ONE RETAINED NODE. The key, the lanes and their motions, the entity
  *  and the resource reference — the three lifetimes, met in one place
  *  and each free of the others. */
-struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
+struct Instance : core::Node<Instance, std::shared_ptr<NodeDescription>> {
   entt::entity entity = entt::null;
   /** One motion slot per fixed lane row, so a lane keeps its meaning
    *  across a patch that changed what the node holds. */
@@ -108,20 +107,6 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   float alongDistance = 0.0f;
   float windowHead = 1.0f;
   float windowSpan = 1.0f;
-  /** What the emitter's dials resolved to, for a node carrying one:
-   *  the strength it shines at and the colour it shines in. */
-  float intensity = 1.0f;
-  glm::vec3 emission{1.0f, 1.0f, 1.0f};
-  /** …and what an environment map's own dials resolved to, for a node
-   *  placing one. Its strength and tint are the two rows above: a
-   *  panorama placed in a set is an emitter of a kind. */
-  float envDiffuse = 1.0f;
-  float envSpecular = 1.0f;
-  float envRoughness = 0.0f;
-  float envCrossfade = 0.0f;
-  float envExposure = 1.0f;
-  float backdrop = 0.0f;
-  float backdropBlur = 0.0f;
 
   /** The artefact this node's geometry slot resolved, and the window
    *  values it was resolved at — a moving window is moving geometry, so
@@ -164,7 +149,7 @@ inline constexpr int kConvergeRounds = 8;
 /** THE HOST. It implements the ReconcileHost operations on itself and
  *  holds the reconciler over its own node and description types. */
 struct Scene::Impl {
-  using Description = std::shared_ptr<ElementNode>;
+  using Description = std::shared_ptr<NodeDescription>;
 
   /** What one bake decision acts on: the node whose subtree is being
    *  decided, the host that walks it, and the order the result lands
@@ -187,19 +172,24 @@ struct Scene::Impl {
   /** What `render()` was handed, held for the describe phase — the
    *  phase list is declared over member functions, and this is the one
    *  argument describe needs. */
-  Element pending;
+  Node pending;
 
   core::Reconciler<Impl, Instance, Description>::KeyIndex byKey;
   /** The extracted draw order, in tree order. */
   std::vector<entt::entity> order;
-  std::vector<material::Light> lights;
-  /** The one environment map the frame described, with its dials
-   *  resolved and the node's placement folded into its orientation. A
-   *  frame holds one; a second is a warning naming both keys. */
-  Environment environment;
-  glm::mat3 environmentOrientation{1.0f};
-  std::string environmentKey;
-  std::optional<geometry::mesh::camera::Camera> camera;
+  std::vector<PlacedLight> lights;
+  /** ONE CAMERA THE TREE HOLDS, in tree order: its key, how the picture
+   *  it takes is read, and its lens carried by its node's placement. */
+  struct FoundCamera {
+    std::string key;
+    float exposure = 1.0f;
+    ToneCurve toneCurve = ToneCurve::Reinhard;
+    geometry::mesh::camera::Camera lens;
+  };
+  std::vector<FoundCamera> cameras;
+  /** The camera the frame looks through, where the tree holds one the
+   *  rule can choose. */
+  std::optional<FoundCamera> camera;
 
   std::vector<Lane> laneScratch;
   std::vector<Lane> prevLaneScratch;
@@ -235,11 +225,11 @@ struct Scene::Impl {
     return propertiesEqual(*a, *b);
   }
   static bool reconcilesChildren(const Description&) { return true; }
-  static const std::vector<Element>& children(const Instance&,
-                                              const Description& description) {
+  static const std::vector<Node>& children(const Instance&,
+                                           const Description& description) {
     return description->children;
   }
-  static const Description& descriptionOf(const Element& child) {
+  static const Description& descriptionOf(const Node& child) {
     return child.node();
   }
   static const Memo* memoOf(const Description& description) {
@@ -252,8 +242,8 @@ struct Scene::Impl {
   std::unique_ptr<Instance> create(const Description& description,
                                    Instance* parent, size_t ordinal,
                                    size_t count);
-  void onPatched(Instance& inst, const ElementNode* prev,
-                 const ElementNode& next);
+  void onPatched(Instance& inst, const NodeDescription* prev,
+                 const NodeDescription& next);
   void reorder(Instance& parent, bool structureChanged);
   /** False, always: nothing a node retains is welded to what its slots
    *  hold. A geometry slot that changes its value type resolves new
@@ -302,7 +292,16 @@ struct Scene::Impl {
 
   void sampleLanes(Instance& inst);
   void deriveInto(Instance& inst, const glm::mat4& parentWorld, bool* changed);
-  core::SubtreeVerdict foldVolatility(Instance& inst);
+  /** @p hidden is whether a node above @p inst is hidden, which hides
+   *  its lights and cameras as well as its bodies. */
+  core::SubtreeVerdict foldVolatility(Instance& inst, bool hidden);
+  /** The camera the frame looks through, by the rule: the one the frame
+   *  names, else the only one the tree holds. Writes what stops the frame
+   *  when the rule cannot choose. */
+  void chooseCamera();
+  /** What stops the frame when a body wears a texture whose pass is not
+   *  on it, naming both; empty when every such texture has its pass. */
+  [[nodiscard]] std::string missingTexturePass() const;
   /** Writes @p inst's subtree into @p into. @p recording is true while
    *  a bake is being taken: the artefact is ONE order for the whole
    *  settled subtree, so nothing inside it takes an artefact of its
@@ -311,8 +310,8 @@ struct Scene::Impl {
                    bool recording = false);
   void writeComponents(Instance& inst);
 
-  /** The viewpoint the passes execute from: the tree's, or the frame's
-   *  where the tree declared none. */
+  /** The lens the passes execute from: the frame's override, else the
+   *  chosen camera's, else the frame's default. */
   [[nodiscard]] geometry::mesh::camera::Camera viewpoint() const;
   /** The extracted bodies, sorted back to front by view depth from
    *  @p camera — stably, so two at one depth stand in tree order. It is

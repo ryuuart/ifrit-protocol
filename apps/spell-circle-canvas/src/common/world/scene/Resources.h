@@ -6,7 +6,7 @@
  * when the last of them lets go.
  */
 
-#include <sigilworld/element/Geometry.h>
+#include <sigilworld/advanced/Geometry.h>
 
 #include <cstddef>
 #include <cstdint>

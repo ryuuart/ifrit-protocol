@@ -23,6 +23,8 @@
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilshaders/WorldDiligent.h>
+#include <sigilworld/World.h>
+#include <sigilworld/advanced/Diligent.h>
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/scene/Scene.h>
 
@@ -31,6 +33,7 @@
 #include <cmath>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -49,22 +52,20 @@ constexpr glm::ivec2 kExtent{160, 120};
 
 /** A cube, a plate under it and a sun: enough for a depth test and a
  *  lit surface to have something to say. */
-Element set() {
+Group set() {
   namespace gm = ::sigil::geometry::mesh;
-  return Element().key("set").children(
-      {Element().key("sun").light(light::sun({-0.4f, -0.8f, -0.4f})),
-       Element()
-           .key("plate")
-           .at({0, -40, 0})
-           .rotateX(-90.0f)
-           .mesh(gm::quad(300, 300))
-           .fill(slangPaint({0.15f, 0.16f, 0.2f, 1.0f}))
-           .tag("ground"),
-       Element()
-           .key("body")
-           .mesh(gm::superellipsoid({40, 40, 40}, 2.0f, 24, 16))
-           .fill(slangPaint({0.8f, 0.6f, 0.3f, 1.0f}))
-           .tag("glow")});
+  return group({directionalLight({-0.4f, -0.8f, -0.4f}).key("sun"),
+                mesh(gm::quad(300, 300))
+                    .key("plate")
+                    .at({0, -40, 0})
+                    .rotateX(-90.0f)
+                    .fill(slangPaint({0.15f, 0.16f, 0.2f, 1.0f}))
+                    .collection("ground"),
+                mesh(gm::superellipsoid({40, 40, 40}, 2.0f, 24, 16))
+                    .key("body")
+                    .fill(slangPaint({0.8f, 0.6f, 0.3f, 1.0f}))
+                    .collection("glow")})
+      .key("set");
 }
 
 /** One frame, rendered on @p runtime and photographed from above and in
@@ -76,7 +77,7 @@ SkBitmap photograph(const Frame& frame, const Runtime& runtime) {
 Frame lit() {
   Frame frame(set());
   frame.extent(kExtent)
-      .camera(diligent::raisedEye())
+      .defaultCamera(diligent::raisedEye())
       .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack));
   return frame;
 }
@@ -135,7 +136,7 @@ TEST(GpuRuntime, ACookedChainMatchesTheHostCook) {
     Scene scene(engine);
     Frame frame(set());
     frame.extent(kExtent)
-        .camera(diligent::raisedEye())
+        .defaultCamera(diligent::raisedEye())
         .runtime(runtime)
         .pass(computePass("cook").chain(chain).writes("points"))
         .pass(geometryPass("colour").reads("points").writes("colour").stamp(
@@ -184,19 +185,16 @@ TEST(GpuRuntime, AMaskedPassReachesOnlyTheSelection) {
   if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
   Frame frame(set());
   frame.extent(kExtent)
-      .camera(diligent::raisedEye())
+      .defaultCamera(diligent::raisedEye())
       .runtime(on.runtime)
       .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack))
-      .pass(postPass("hot")
-                .reads("colour")
-                .writes("hot")
-                .only(selectors::tag("glow"))
-                .levels(4.0f, 0.0f, {1, 1, 1, 1}));
+      .pass(postPass("hot").reads("colour").writes("hot").only("glow").levels(
+          {.gain = 4.0f}));
   const SkBitmap masked = photograph(frame, on.runtime);
 
   Frame plain(set());
   plain.extent(kExtent)
-      .camera(diligent::raisedEye())
+      .defaultCamera(diligent::raisedEye())
       .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack));
   const SkBitmap unmasked = photograph(plain, on.runtime);
 
@@ -239,15 +237,15 @@ material::Material dressed(material::Texture map) {
 /** One quad facing the camera, filling most of the frame. */
 Frame dressedQuad(material::Material surface) {
   namespace gm = ::sigil::geometry::mesh;
-  Frame frame(Element().key("set").children(
-      {Element().key("sun").light(
-           light::sun({0.0f, 0.0f, -1.0f}, {1, 1, 1, 1}, 1.0f)),
-       Element()
-           .key("card")
-           .mesh(gm::quad(200, 150))
-           .fill(std::move(surface))}));
+  Frame frame(
+      group({directionalLight(
+                 {0.0f, 0.0f, -1.0f},
+                 {.color = material::Color{1, 1, 1, 1}, .intensity = 1.0f})
+                 .key("sun"),
+             mesh(gm::quad(200, 150)).key("card").fill(std::move(surface))})
+          .key("set"));
   frame.extent(kExtent)
-      .camera(diligent::raisedEye())
+      .defaultCamera(diligent::raisedEye())
       .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack));
   return frame;
 }
@@ -305,10 +303,10 @@ geometry::mesh::camera::Camera squareOn() {
 }
 
 /** One frame holding @p element, cleared to the ground colour. */
-Frame squareFrame(Element element) {
+Frame squareFrame(Node element) {
   Frame frame(std::move(element));
   frame.extent(kExtent)
-      .camera(squareOn())
+      .defaultCamera(squareOn())
       .pass(geometryPass("colour").writes("colour").clear(kGround));
   return frame;
 }
@@ -368,10 +366,8 @@ Frame mappedCard(material::Texture map) {
       material::surface::unlit({.baseColor = {1, 1, 1, 1}});
   surface.slot(material::surface::kBaseColorSlot, std::move(map));
   return squareFrame(
-      Element().key("set").children({Element()
-                                         .key("card")
-                                         .mesh(gm::quad(200, 140))
-                                         .fill(std::move(surface))}));
+      group({mesh(gm::quad(200, 140)).key("card").fill(std::move(surface))})
+          .key("set"));
 }
 
 /** The red channel across the card, at the fractions of its width
@@ -464,22 +460,19 @@ Frame litAndUnlitCards() {
   const material::surface::SurfaceParameters parameters{
       .baseColor = {kBodyColour.r, kBodyColour.g, kBodyColour.b, 1.0f}};
   return squareFrame(
-      Element()
-          .key("set")
-          // Travelling away from the camera, so it lands on the
-          // far side of both cards and neither is diffusely lit.
-          .children({Element().key("sun").light(
-                         light::sun({0.0f, 0.0f, 1.0f}, {1, 1, 1, 1}, 1.0f)),
-                     Element()
-                         .key("lit")
-                         .at({-70, 0, 0})
-                         .mesh(gm::quad(110, 110))
-                         .fill(material::surface::program(parameters)),
-                     Element()
-                         .key("unlit")
-                         .at({70, 0, 0})
-                         .mesh(gm::quad(110, 110))
-                         .fill(material::surface::unlit(parameters))}));
+      group({directionalLight(
+                 {0.0f, 0.0f, 1.0f},
+                 {.color = material::Color{1, 1, 1, 1}, .intensity = 1.0f})
+                 .key("sun"),
+             mesh(gm::quad(110, 110))
+                 .key("lit")
+                 .at({-70, 0, 0})
+                 .fill(material::surface::program(parameters)),
+             mesh(gm::quad(110, 110))
+                 .key("unlit")
+                 .at({70, 0, 0})
+                 .fill(material::surface::unlit(parameters))})
+          .key("set"));
 }
 
 /** The two cards' middles: the left run is the lit one and the right is
@@ -546,11 +539,11 @@ TEST_F(DeviceFrame, AVariantReDrawStandsUnderThePassesLights) {
   // too. An overlay drawn flat would be one white from edge to edge.
   Frame frame(set());
   frame.extent(kExtent)
-      .camera(diligent::raisedEye())
+      .defaultCamera(diligent::raisedEye())
       .pass(geometryPass("colour")
                 .writes("colour")
                 .clear(SkColors::kBlack)
-                .only(selectors::tag("glow"))
+                .only("glow")
                 .variant(
                     material::surface::program({.baseColor = {1, 1, 1, 1}})));
   const SkBitmap plate = photograph(frame, runtime);
@@ -620,39 +613,73 @@ int litIn(const SkBitmap& plate, bool leftHalf) {
 
 /** One plain card on the left and one tagged "glow" on the right, square
  *  on to the camera under a sun behind it. */
-Element twoCards() {
+Group twoCards() {
   namespace gm = ::sigil::geometry::mesh;
-  return Element().key("set").children(
-      {Element().key("sun").light(light::sun({0.0f, 0.0f, -1.0f})),
-       Element()
-           .key("left")
-           .at({-60, 0, 0})
-           .mesh(gm::quad(80, 80))
-           .fill(slangPaint({0.8f, 0.6f, 0.3f, 1.0f}))
-           .tag("plain"),
-       Element()
-           .key("right")
-           .at({60, 0, 0})
-           .mesh(gm::quad(80, 80))
-           .fill(slangPaint({0.3f, 0.6f, 0.8f, 1.0f}))
-           .tag("glow")});
+  return group({directionalLight({0.0f, 0.0f, -1.0f}).key("sun"),
+                mesh(gm::quad(80, 80))
+                    .key("left")
+                    .at({-60, 0, 0})
+                    .fill(slangPaint({0.8f, 0.6f, 0.3f, 1.0f}))
+                    .collection("plain"),
+                mesh(gm::quad(80, 80))
+                    .key("right")
+                    .at({60, 0, 0})
+                    .fill(slangPaint({0.3f, 0.6f, 0.8f, 1.0f}))
+                    .collection("glow")})
+      .key("set");
 }
 
 }  // namespace
+
+TEST_F(DeviceFrame, ALightLinkLightsOnlyTheBodiesItNames) {
+  // Two cards square on to the camera under a sun that reaches them both;
+  // linked to the "plain" collection, it reaches the left card alone and
+  // the right one is left with the ambient a body with no light keeps.
+  const auto photographWith = [&](std::optional<Collection> link) {
+    Light sun = directionalLight({0.0f, 0.0f, -1.0f}).key("sun");
+    if (link) sun.lightLink(*link);
+    const Group set = group({sun,
+                             mesh(::sigil::geometry::mesh::quad(80, 80))
+                                 .key("left")
+                                 .at({-60, 0, 0})
+                                 .fill(slangPaint({0.8f, 0.8f, 0.8f, 1.0f}))
+                                 .collection("plain"),
+                             mesh(::sigil::geometry::mesh::quad(80, 80))
+                                 .key("right")
+                                 .at({60, 0, 0})
+                                 .fill(slangPaint({0.8f, 0.8f, 0.8f, 1.0f}))
+                                 .collection("glow")})
+                          .key("set");
+    return photograph(squareFrame(set), runtime);
+  };
+  const auto middleOf = [](const SkBitmap& plate, size_t card) {
+    const std::vector<std::pair<int, int>> runs = cardsAcrossTheMiddle(plate);
+    if (runs.size() != 2) return SkColor4f{-1, -1, -1, -1};
+    return plate.getColor4f((runs[card].first + runs[card].second) / 2,
+                            plate.height() / 2);
+  };
+  const SkBitmap everything = photographWith(std::nullopt);
+  const SkBitmap linked = photographWith(Collection{.include = {"plain"}});
+  ASSERT_GE(middleOf(everything, 0).fR, 0.0f);
+  ASSERT_GE(middleOf(linked, 1).fR, 0.0f);
+  // The card the link names is lit as it was…
+  EXPECT_NEAR(middleOf(linked, 0).fR, middleOf(everything, 0).fR, 1.0f / 255);
+  // …and the one it leaves out is not.
+  EXPECT_LT(middleOf(linked, 1).fR, middleOf(everything, 1).fR - 0.1f);
+}
 
 TEST_F(DeviceFrame, AVisibleBackfaceKeepsAPlaneUnderAnOrbit) {
   namespace gm = ::sigil::geometry::mesh;
   geometry::mesh::camera::Camera behind = squareOn();
   behind.eye.z = -240;
   const auto fromBehind = [&](material::Backface backface) {
-    Frame frame(Element().key("set").children(
-        {Element().key("sun").light(light::sun({0.0f, 0.0f, 1.0f})),
-         Element()
-             .key("card")
-             .mesh(gm::quad(120, 120))
-             .fill(slangPaint({0.9f, 0.6f, 0.2f, 1.0f}))
-             .backface(backface)}));
-    frame.extent(kExtent).camera(behind).pass(
+    Frame frame(group({directionalLight({0.0f, 0.0f, 1.0f}).key("sun"),
+                       mesh(gm::quad(120, 120))
+                           .key("card")
+                           .fill(slangPaint({0.9f, 0.6f, 0.2f, 1.0f}))
+                           .backface(backface)})
+                    .key("set"));
+    frame.extent(kExtent).defaultCamera(behind).pass(
         geometryPass("colour").writes("colour").clear(SkColors::kBlack));
     const SkBitmap plate = photograph(frame, runtime);
     return litIn(plate, true) + litIn(plate, false);
@@ -664,11 +691,9 @@ TEST_F(DeviceFrame, AVisibleBackfaceKeepsAPlaneUnderAnOrbit) {
 TEST_F(DeviceFrame, ACulledGeometryPassDrawsOnlyItsSelection) {
   Frame frame(twoCards());
   frame.extent(kExtent)
-      .camera(squareOn())
-      .pass(geometryPass("glow")
-                .only(selectors::tag("glow"))
-                .writes("colour")
-                .clear(SkColors::kBlack));
+      .defaultCamera(squareOn())
+      .pass(geometryPass("glow").only("glow").writes("colour").clear(
+          SkColors::kBlack));
   const SkBitmap plate = photograph(frame, runtime);
   EXPECT_EQ(litIn(plate, /*leftHalf=*/true), 0);
   EXPECT_GT(litIn(plate, /*leftHalf=*/false), 0);
@@ -677,14 +702,15 @@ TEST_F(DeviceFrame, ACulledGeometryPassDrawsOnlyItsSelection) {
 TEST_F(DeviceFrame, APreviousReadIsWhatStoodAtTheEndOfTheFrameBefore) {
   Frame frame(twoCards());
   frame.extent(kExtent)
-      .camera(squareOn())
+      .defaultCamera(squareOn())
       .runtime(runtime)
       .pass(geometryPass("main").writes("colour").clear(SkColors::kBlack))
       .pass(postPass("trail")
                 .reads("colour")
                 .previous("trail")
                 .writes("trail")
-                .composite(material::BlendMode::PlusLighter, 1.0f))
+                .composite({.mode = material::BlendMode::PlusLighter,
+                            .opacity = 1.0f}))
       .present("trail");
   motion::Engine engine;
   Scene scene(engine);
@@ -715,7 +741,7 @@ TEST_F(DeviceFrame, ADeclaredBodyRunsInPlaceOfItsStage) {
   size_t seen = 0;
   Frame frame(twoCards());
   frame.extent(kExtent)
-      .camera(squareOn())
+      .defaultCamera(squareOn())
       .runtime(runtime)
       .pass(geometryPass("hand").writes("colour").body([&](const View& view) {
         ++ran;

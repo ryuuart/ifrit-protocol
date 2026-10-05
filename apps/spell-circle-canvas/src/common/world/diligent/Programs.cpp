@@ -7,6 +7,7 @@
 #include "Programs.h"
 
 #include <sigilshaders/WorldDiligent.h>
+#include <sigilworld/advanced/Diligent.h>
 #include <sigilworld/diligent/Runtime.h>
 
 #include <mutex>

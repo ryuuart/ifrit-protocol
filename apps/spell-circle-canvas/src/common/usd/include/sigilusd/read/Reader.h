@@ -9,8 +9,8 @@
 
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/codec/Model.h>
-#include <sigilworld/element/Environment.h>
-#include <sigilworld/light/Light.h>
+#include <sigilworld/advanced/Light.h>
+#include <sigilworld/frame/Environment.h>
 
 #include <filesystem>
 #include <optional>
@@ -48,15 +48,15 @@ std::optional<geometry::mesh::codec::decode::Model> readModel(
     const std::filesystem::path& file, ReadInfo* info,
     std::string* error = nullptr);
 
-/** One emitter read from a stage, with the path of the prim it came
- *  from — the same string the Writer returned for it. */
+/** One light read from a stage, as a frame keeps one, with the path of
+ *  the prim it came from — the same string the Writer returned for it. */
 struct ReadLight {
   std::string path;
-  material::Light light;
+  world::PlacedLight light;
 };
 
-/** ONE ENVIRONMENT MAP read from a stage: its dials, where the panorama
- *  is oriented, and the name of the file holding it. The panorama is NOT
+/** ONE ENVIRONMENT read from a stage: its dials, where the panorama is
+ *  oriented, and the name of the file holding it. The panorama is NOT
  *  decoded — this library opens no image, the way it opens no texture
  *  for a material either — so `environment.map` is empty and `texture`
  *  is the path, relative to the stage, that a caller decodes and hands
@@ -65,7 +65,6 @@ struct ReadEnvironment {
   std::string path;
   std::string texture;
   world::Environment environment;
-  glm::mat3 orientation{1.0f};
 };
 
 /** One camera read from a stage, with the path of the prim it came
@@ -75,14 +74,14 @@ struct ReadCamera {
   geometry::mesh::camera::Camera camera;
 };
 
-/** Every emitter on the stage, in traversal order: a UsdLuxDistantLight
- *  as a sun aimed along the prim's -Z, a UsdLuxSphereLight as a point
- *  light where the prim stands — or as a spot when the prim carries an
- *  authored shaping cone, whose angle is the outer half-angle and whose
- *  softness is how much of it the falloff eats. `sigil:range` gives the
- *  range; a light authored without it keeps the Light default. Other
- *  UsdLux shapes are skipped. nullopt when the stage cannot be
- *  opened. */
+/** Every light on the stage, in traversal order: a UsdLuxDistantLight
+ *  as a directional light aimed along the prim's -Z, a UsdLuxSphereLight
+ *  as a point light where the prim stands — or as a spot when the prim
+ *  carries an authored shaping cone, whose angle is the outer half-angle
+ *  and whose softness is how much of it the falloff eats. `sigil:range`
+ *  gives the range, and `sigil:lightLink` and `sigil:shadowLink` the
+ *  links; a light authored without them keeps the defaults. Other UsdLux
+ *  shapes are skipped. nullopt when the stage cannot be opened. */
 std::optional<std::vector<ReadLight>> readLights(
     const std::filesystem::path& file, std::string* error = nullptr);
 

@@ -12,7 +12,6 @@
 #include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/advanced/UniformBlock.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Target.h>
 
@@ -265,51 +264,6 @@ TEST(Material, SurfaceChannelsDeclareTheirTimeAndGeometryInputs) {
       EXPECT_EQ(material.isRunning(), live) << channel;
       EXPECT_EQ(material.geometryDependent(), !live) << channel;
     }
-  }
-}
-
-TEST(Material, LightKindsReadOnlyTheirApplicableBindings) {
-  for (LightKind kind :
-       {LightKind::Directional, LightKind::Point, LightKind::Spot}) {
-    for (bool elevation : {false, true}) {
-      Light light;
-      light.kind = kind;
-      const auto angle = sigil::motion::animatable(45.0f);
-      if (elevation)
-        light.elevation = angle;
-      else
-        light.direction = angle;
-      const bool readsAngle = kind != LightKind::Point;
-      EXPECT_EQ(light.isRunning(), readsAngle);
-    }
-    Light light;
-    light.kind = kind;
-    light.intensity = sigil::motion::animatable(1.0f);
-    EXPECT_TRUE(light.isRunning());
-  }
-}
-
-TEST(Material, LightColorConstantsCompareByValueAndLiveColorsByIdentity) {
-  const Color red{2, 0, 0, 1};
-  const Light constant{.color = red};
-  EXPECT_FALSE(constant.isRunning());
-  EXPECT_EQ(constant, (Light{.color = red}));
-  EXPECT_NE(constant, (Light{.color = Color{0, 0, 2, 1}}));
-  auto color = sigil::motion::animatable(red);
-  for (LightKind kind :
-       {LightKind::Directional, LightKind::Point, LightKind::Spot}) {
-    color = red;
-    const Light light{.color = color, .kind = kind};
-    const Light copied = light;
-    const Light separate{.color = sigil::motion::animatable(color.value()),
-                         .kind = kind};
-    EXPECT_TRUE(light.isRunning());
-    EXPECT_EQ(light, copied);
-    EXPECT_NE(light, separate);
-    EXPECT_NE(light, (Light{.color = color.value(), .kind = kind}));
-    color = Color{0, 0, 2, 1};
-    EXPECT_EQ(copied.color.value(), color.value());
-    EXPECT_EQ(light, copied);
   }
 }
 

@@ -13,6 +13,7 @@
 #include <sigilusd/read/Reader.h>
 #include <sigilusd/runtime/Runtime.h>
 #include <sigilusd/write/Writer.h>
+#include <sigilworld/World.h>
 
 #include <cmath>
 #include <cstring>
@@ -50,8 +51,8 @@ Stage readAsset(const char* name) {
   return stage;
 }
 
-const material::Light* lightAt(const std::vector<usd::ReadLight>& lights,
-                               const char* path) {
+const world::PlacedLight* lightAt(const std::vector<usd::ReadLight>& lights,
+                                  const char* path) {
   for (const usd::ReadLight& read : lights)
     if (read.path == path) return &read.light;
   return nullptr;
@@ -64,17 +65,34 @@ const geometry::mesh::codec::decode::Part* named(
   return nullptr;
 }
 
-material::Light sunLight() {
-  return world::light::sun({-0.45f, -0.75f, -0.5f}, {1, 0.9f, 0.8f, 1}, 2.5f);
+/** @p light standing at @p position, as a frame keeps one. */
+world::PlacedLight placed(const world::Light& light,
+                          glm::vec3 position = {0, 0, 0}) {
+  return {world::held(light.description()), position, ""};
 }
 
-material::Light lampLight() {
-  return world::light::point({10, 100, -20}, {0.2f, 0.4f, 1, 1}, 3.0f, 250.0f);
+world::PlacedLight sunLight() {
+  return placed(world::directionalLight(
+      {-0.45f, -0.75f, -0.5f},
+      {.color = material::Color{1, 0.9f, 0.8f, 1}, .intensity = 2.5f}));
 }
 
-material::Light beamLight() {
-  return world::light::spot({0, 80, 0}, {0, -1, 0}, 40.0f, 28.0f,
-                            {1, 0.5f, 0, 1}, 4.0f, 500.0f);
+world::PlacedLight lampLight() {
+  return placed(world::pointLight({.color = material::Color{0.2f, 0.4f, 1, 1},
+                                   .intensity = 3.0f,
+                                   .range = 250.0f}),
+                {10, 100, -20});
+}
+
+world::PlacedLight beamLight() {
+  world::Light beam =
+      world::spotLight({0, -1, 0}, {.color = material::Color{1, 0.5f, 0, 1},
+                                    .intensity = 4.0f,
+                                    .range = 500.0f,
+                                    .innerAngle = 28.0f,
+                                    .outerAngle = 40.0f});
+  beam.lightLink(world::Collection{.include = {"props"}, .exclude = {"/rig"}});
+  return placed(beam, {0, 80, 0});
 }
 
 geometry::mesh::camera::Camera eyeCamera() {
@@ -113,20 +131,6 @@ material::EnvironmentMap overbrightSky() {
   });
 }
 
-world::Environment writtenSky() {
-  world::Environment sky;
-  sky.map = overbrightSky();
-  sky.intensity = kSkyIntensity;
-  sky.tint = {0.9f, 0.95f, 1.0f};
-  sky.diffuse = 0.7f;
-  sky.specular = 1.3f;
-  sky.roughnessBias = 0.05f;
-  sky.backdrop.intensity = 0.8f;
-  sky.backdrop.blur = 0.2f;
-  sky.backdrop.groundRadius = 400.0f;
-  return sky;
-}
-
 /** A quarter turn about the vertical, as a frame carries it: the matrix
  *  that takes a world direction INTO the panorama's frame. */
 glm::mat3 quarterTurn() {
@@ -134,10 +138,23 @@ glm::mat3 quarterTurn() {
       glm::rotate(glm::mat4(1.0f), -1.5707963f, glm::vec3(0, 1, 0)));
 }
 
+world::Environment writtenSky() {
+  world::Environment sky;
+  sky.map = overbrightSky();
+  sky.intensity = kSkyIntensity;
+  sky.diffuse = 0.7f;
+  sky.specular = 1.3f;
+  sky.roughnessBias = 0.05f;
+  sky.shown = 0.8f;
+  sky.blur = 0.2f;
+  sky.groundRadius = 400.0f;
+  sky.orientation = quarterTurn();
+  return sky;
+}
+
 void authorSky(const std::filesystem::path& file) {
   usd::Writer writer(file);
-  ASSERT_EQ(writer.environmentMap("sky", writtenSky(), quarterTurn()),
-            "/World/sky");
+  ASSERT_EQ(writer.environmentMap("sky", writtenSky()), "/World/sky");
   std::string error;
   ASSERT_TRUE(writer.save(&error)) << error;
 }
@@ -344,15 +361,15 @@ TEST(UsdRead, ASunComesBackAimedWhereItWasPointedAndStandingNowhere) {
 
   // The sun keeps its direction (normalized on the way out) and nothing
   // else: a distant light stands nowhere.
-  const material::Light* back = lightAt(*lights, "/World/sun");
+  const world::PlacedLight* back = lightAt(*lights, "/World/sun");
   ASSERT_TRUE(back);
-  EXPECT_EQ(back->kind, material::LightKind::Directional);
-  const glm::vec3 aim = sigil::world::light::travel(sunLight());
-  EXPECT_NEAR(sigil::world::light::travel(*back).x, aim.x, 1e-5f);
-  EXPECT_NEAR(sigil::world::light::travel(*back).y, aim.y, 1e-5f);
-  EXPECT_NEAR(sigil::world::light::travel(*back).z, aim.z, 1e-5f);
-  EXPECT_FLOAT_EQ(back->intensity.value(), 2.5f);
-  EXPECT_FLOAT_EQ(back->color.value().g, 0.9f);
+  EXPECT_EQ(back->light.kind, world::LightKind::Directional);
+  const glm::vec3 aim = glm::normalize(sunLight().light.direction);
+  EXPECT_NEAR(back->light.direction.x, aim.x, 1e-5f);
+  EXPECT_NEAR(back->light.direction.y, aim.y, 1e-5f);
+  EXPECT_NEAR(back->light.direction.z, aim.z, 1e-5f);
+  EXPECT_FLOAT_EQ(back->light.intensity.value(), 2.5f);
+  EXPECT_FLOAT_EQ(back->light.color.value().g, 0.9f);
 }
 
 TEST(UsdRead, APointLightComesBackWhereItStoodAndAsFarAsItReached) {
@@ -364,15 +381,17 @@ TEST(UsdRead, APointLightComesBackWhereItStoodAndAsFarAsItReached) {
       usd::readLights(file, &error);
   ASSERT_TRUE(lights) << error;
 
-  const material::Light* back = lightAt(*lights, "/World/lamp");
+  const world::PlacedLight* back = lightAt(*lights, "/World/lamp");
   ASSERT_TRUE(back);
-  EXPECT_EQ(back->kind, material::LightKind::Point);
+  EXPECT_EQ(back->light.kind, world::LightKind::Point);
   EXPECT_NEAR(back->position.x, 10.0f, 1e-4f);
   EXPECT_NEAR(back->position.y, 100.0f, 1e-4f);
   EXPECT_NEAR(back->position.z, -20.0f, 1e-4f);
-  EXPECT_FLOAT_EQ(back->range, 250.0f);
-  EXPECT_FLOAT_EQ(back->intensity.value(), 3.0f);
-  EXPECT_FLOAT_EQ(back->color.value().b, 1.0f);
+  EXPECT_FLOAT_EQ(back->light.range, 250.0f);
+  EXPECT_FLOAT_EQ(back->light.intensity.value(), 3.0f);
+  EXPECT_FLOAT_EQ(back->light.color.value().b, 1.0f);
+  // An unlinked light reaches everything, and comes back so.
+  EXPECT_TRUE(back->light.lightLink.everything());
 }
 
 TEST(UsdRead, ASpotComesBackWithItsConeAndTheInnerEdgeTheSoftnessGivesIt) {
@@ -386,15 +405,17 @@ TEST(UsdRead, ASpotComesBackWithItsConeAndTheInnerEdgeTheSoftnessGivesIt) {
 
   // The inner edge travels as the fraction of the cone the falloff eats,
   // so it comes back through that arithmetic rather than as itself.
-  const material::Light* back = lightAt(*lights, "/World/beam");
+  const world::PlacedLight* back = lightAt(*lights, "/World/beam");
   ASSERT_TRUE(back);
-  EXPECT_EQ(back->kind, material::LightKind::Spot);
-  EXPECT_NEAR(sigil::world::light::travel(*back).y, -1.0f, 1e-5f);
+  EXPECT_EQ(back->light.kind, world::LightKind::Spot);
+  EXPECT_NEAR(back->light.direction.y, -1.0f, 1e-5f);
   EXPECT_NEAR(back->position.y, 80.0f, 1e-4f);
-  EXPECT_FLOAT_EQ(back->outerAngle, 40.0f);
+  EXPECT_FLOAT_EQ(back->light.outerAngle, 40.0f);
   const float softness = 1.0f - 28.0f / 40.0f;
-  EXPECT_FLOAT_EQ(back->innerAngle, 40.0f * (1.0f - softness));
-  EXPECT_FLOAT_EQ(back->range, 500.0f);
+  EXPECT_FLOAT_EQ(back->light.innerAngle, 40.0f * (1.0f - softness));
+  EXPECT_FLOAT_EQ(back->light.range, 500.0f);
+  // Its light link comes back term for term.
+  EXPECT_EQ(back->light.lightLink, beamLight().light.lightLink);
 }
 
 TEST(UsdRead, ACameraComesBackSeeingWhatItSaw) {
@@ -449,13 +470,12 @@ TEST(UsdRead, ADomeLightsPanoramaIsAFileBesideTheStageAndItsDialsComeBack) {
   // comes back is brighter than what went out by exactly that factor,
   // and the radiance the set is lit at is the same either way.
   EXPECT_GT(back.environment.intensity, kSkyIntensity);
-  EXPECT_FLOAT_EQ(back.environment.tint.x, 0.9f);
   EXPECT_FLOAT_EQ(back.environment.diffuse, 0.7f);
   EXPECT_FLOAT_EQ(back.environment.specular, 1.3f);
   EXPECT_FLOAT_EQ(back.environment.roughnessBias, 0.05f);
-  EXPECT_FLOAT_EQ(back.environment.backdrop.intensity, 0.8f);
-  EXPECT_FLOAT_EQ(back.environment.backdrop.blur, 0.2f);
-  EXPECT_FLOAT_EQ(back.environment.backdrop.groundRadius, 400.0f);
+  EXPECT_FLOAT_EQ(back.environment.shown, 0.8f);
+  EXPECT_FLOAT_EQ(back.environment.blur, 0.2f);
+  EXPECT_FLOAT_EQ(back.environment.groundRadius, 400.0f);
 }
 
 TEST(UsdRead, ADomeLightsOrientationTakesAWorldDirectionIntoTheSameFrame) {
@@ -471,7 +491,8 @@ TEST(UsdRead, ADomeLightsOrientationTakesAWorldDirectionIntoTheSameFrame) {
   const glm::mat3 orientation = quarterTurn();
   for (int c = 0; c < 3; ++c)
     for (int r = 0; r < 3; ++r)
-      EXPECT_NEAR(read->front().orientation[c][r], orientation[c][r], 1e-4f)
+      EXPECT_NEAR(read->front().environment.orientation[c][r],
+                  orientation[c][r], 1e-4f)
           << c << "," << r;
 }
 
@@ -483,18 +504,19 @@ TEST(UsdRead, ReadsALightAndACameraAnotherToolAuthored) {
   ASSERT_TRUE(lights) << error;
   ASSERT_EQ(lights->size(), 1u);
   EXPECT_EQ(lights->front().path, "/World/rig/key");
-  const material::Light& key = lights->front().light;
+  const world::LightDescription& key = lights->front().light.light;
+  const glm::vec3 position = lights->front().light.position;
   // A shaping cone and no sigil data: a spot whose range is the default,
   // standing where its parent Xform puts it and aimed by its own
   // rotation.
-  EXPECT_EQ(key.kind, material::LightKind::Spot);
-  EXPECT_NEAR(key.position.y, 200.0f, 1e-4f);
-  EXPECT_NEAR(sigil::world::light::travel(key).y, -1.0f, 1e-5f);
+  EXPECT_EQ(key.kind, world::LightKind::Spot);
+  EXPECT_NEAR(position.y, 200.0f, 1e-4f);
+  EXPECT_NEAR(key.direction.y, -1.0f, 1e-5f);
   EXPECT_FLOAT_EQ(key.outerAngle, 30.0f);
   EXPECT_FLOAT_EQ(key.innerAngle, 30.0f * (1.0f - 0.25f));
   EXPECT_FLOAT_EQ(key.intensity.value(), 3.0f);
   EXPECT_FLOAT_EQ(key.color.value().b, 1.0f);
-  EXPECT_FLOAT_EQ(key.range, material::Light{}.range);
+  EXPECT_FLOAT_EQ(key.range, world::LightDescription{}.range);
 
   const std::optional<std::vector<usd::ReadCamera>> cameras =
       usd::readCameras(asset("foreign.usda"), &error);

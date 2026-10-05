@@ -2,17 +2,17 @@
 
 /** @file
  * @ingroup world-scene
- * The retained side of a 3D scene: the tree an Element description is
+ * The retained side of a 3D scene: the tree a node description is
  * reconciled onto, the store that cooks a geometry slot once per
  * distinct value, the phases that settle it, and the draw that reads
  * what those phases extracted.
  */
 
-#include <sigilmaterial/core/Lighting.h>
-#include <sigilworld/element/Element.h>
+#include <sigilworld/advanced/Light.h>
+#include <sigilworld/advanced/Node.h>
+#include <sigilworld/advanced/Plan.h>
+#include <sigilworld/advanced/Stats.h>
 #include <sigilworld/frame/Frame.h>
-#include <sigilworld/graph/Plan.h>
-#include <sigilworld/scene/Stats.h>
 
 #include <cstdint>
 #include <glm/mat4x4.hpp>
@@ -28,7 +28,7 @@ class Engine;
 
 namespace sigil::world {
 
-/** A 3D SCENE, retained: an author hands it a fresh Element tree every
+/** A 3D SCENE, retained: an author hands it a fresh node tree every
  *  frame and it reconciles that onto what it already holds, so only what
  *  changed is touched. A node lives as long as its key is in the tree, a
  *  cooked resource lives reference-counted in a content-keyed store, and
@@ -56,12 +56,13 @@ class Scene {
    *  @trap Execution reads the extracted state and never the tree. */
   void render(const Frame& frame);
 
-  /** The viewpoint the tree declared, carried by its node's placement —
-   *  the first one in tree order when there are several. */
+  /** The lens of the camera the last frame looked through, carried by its
+   *  node's placement: the one the frame named, or the only one the tree
+   *  holds. Empty when the tree holds none the rule could choose. */
   [[nodiscard]] std::optional<geometry::mesh::camera::Camera> camera() const;
-  /** The emitters the tree declared, each carried by its node's
-   *  placement. */
-  [[nodiscard]] std::vector<material::Light> lights() const;
+  /** The lights the tree declared, each carried by its node's placement
+   *  and read once. */
+  [[nodiscard]] std::vector<PlacedLight> lights() const;
 
   /** THE HOST HANDLE of the node addressed by @p key, opaque and
    *  non-zero; 0 when no node answers to that key. It is the pin on a

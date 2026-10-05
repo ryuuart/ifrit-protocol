@@ -1,8 +1,8 @@
 /** @file
  * The environment map as a UsdLuxDomeLight: the panorama written beside
  * the stage, named on `inputs:texture:file` and declared lat-long, the
- * strength and the tint on the light's own attributes, and the node's
- * orientation as the prim's transform.
+ * strength on the light's own attribute, and the environment's turn as
+ * the prim's transform.
  *
  * A dome light is the one UsdLux shape whose payload is a picture, and
  * this is the one place in the writer where the format of that picture
@@ -30,9 +30,9 @@
 #include <pxr/base/vt/value.h>
 #include <pxr/usd/sdf/assetPath.h>
 #include <pxr/usd/usdLux/domeLight.h>
+#include <sigilio/source/Sink.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/image/Encode.h>
-#include <sigilio/source/Sink.h>
 
 #include <algorithm>
 #include <cmath>
@@ -74,7 +74,8 @@ float writePanorama(const sk_sp<SkImage>& image,
   // The pixmap door, not the image one: the sixteen bits a channel this
   // function exists to keep are the caller's choice, and a readback
   // would pick eight.
-  const std::vector<std::byte> png = media::encode(bm.pixmap(), media::Format::Png);
+  const std::vector<std::byte> png =
+      media::encode(bm.pixmap(), media::Format::Png);
   if (png.empty() || !io::writeBytes(path, png.data(), png.size())) return 0;
   return peak;
 }
@@ -83,7 +84,6 @@ float writePanorama(const sk_sp<SkImage>& image,
 
 std::string Writer::environmentMap(std::string_view name,
                                    const world::Environment& environment,
-                                   const glm::mat3& orientation,
                                    std::string_view parent) {
   Impl& impl = *m_impl;
   if (!impl.stage || !environment.valid()) return {};
@@ -99,7 +99,8 @@ std::string Writer::environmentMap(std::string_view name,
   }
   const std::string leaf =
       std::to_string(++impl.textureCounter) + "_environment.png";
-  const float peak = writePanorama(environment.map.texture(0).frameAt().image, dir / leaf);
+  const float peak =
+      writePanorama(environment.map.texture(0).frameAt().image, dir / leaf);
   if (peak > 0)
     dome.CreateTextureFileAttr().Set(
         SdfAssetPath((impl.textureDirectory() / leaf).generic_string()));
@@ -109,14 +110,12 @@ std::string Writer::environmentMap(std::string_view name,
   dome.CreateTextureFormatAttr().Set(TfToken("latlong"));
   dome.CreateIntensityAttr().Set(environment.intensity *
                                  (peak > 0 ? peak : 1.0f));
-  dome.CreateColorAttr().Set(
-      GfVec3f(environment.tint.x, environment.tint.y, environment.tint.z));
 
   // The ROTATION of the placement is the whole of what a panorama can be
   // told: it is sampled by a direction, so a translation means nothing
   // to it. What the frame carries is the inverse — world into the
   // panorama's frame — and a prim's transform runs the other way.
-  const glm::mat3 place = glm::inverse(orientation);
+  const glm::mat3 place = glm::inverse(environment.orientation);
   const GfMatrix3d basis(place[0][0], place[0][1], place[0][2], place[1][0],
                          place[1][1], place[1][2], place[2][0], place[2][1],
                          place[2][2]);
@@ -135,9 +134,9 @@ std::string Writer::environmentMap(std::string_view name,
   note("sigil:diffuse", environment.diffuse);
   note("sigil:specular", environment.specular);
   note("sigil:roughnessBias", environment.roughnessBias);
-  note("sigil:backdrop", environment.backdrop.intensity);
-  note("sigil:backdropBlur", environment.backdrop.blur);
-  note("sigil:groundRadius", environment.backdrop.groundRadius);
+  note("sigil:shown", environment.shown);
+  note("sigil:blur", environment.blur);
+  note("sigil:groundRadius", environment.groundRadius);
   return path;
 }
 

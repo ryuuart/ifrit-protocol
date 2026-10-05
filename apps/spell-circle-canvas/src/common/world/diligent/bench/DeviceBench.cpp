@@ -20,10 +20,12 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/pop/device/Cook.h>
 #include <sigilmaterial/advanced/Program.h>
-#include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/advanced/Recipe.h>
+#include <sigilmaterial/core/Material.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilmotion/clock/Engine.h>
+#include <sigilworld/World.h>
+#include <sigilworld/advanced/Diligent.h>
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/scene/Scene.h>
 
@@ -113,29 +115,29 @@ void BM_FrameOnDevice(benchmark::State& state) {
   Scene scene(engine);
 
   const std::shared_ptr<const material::Recipe> recipe = freshRecipe();
-  Element set;
-  set.key("set").children(
-      {Element().key("sun").light(light::sun({-0.4f, -0.8f, -0.4f}))});
   // A four-by-four grid, so the row and the column are counted rather
   // than divided out inside a float expression.
-  for (int i = 0; i < 16; ++i) {
-    const int column = i % 4;
-    const int row = i / 4;
-    set.children(
-        {Element()
-             .key("body" + std::to_string(i))
-             .at({(float)column * 60.0f - 90.0f, 0.0f,
-                  (float)row * 60.0f - 90.0f})
-             .mesh(gm::superellipsoid({20, 20, 20}, 2.0f, 16, 12))
-             .fill(material::Material(recipe, Paint{{0.7f, 0.6f, 0.4f, 1}}))
-             .tag("lit")});
-  }
+  const Group set =
+      group({directionalLight({-0.4f, -0.8f, -0.4f}).key("sun"),
+             each(16,
+                  [&](size_t i) {
+                    const int column = (int)i % 4;
+                    const int row = (int)i / 4;
+                    return mesh(gm::superellipsoid({20, 20, 20}, 2.0f, 16, 12))
+                        .key("body" + std::to_string(i))
+                        .at({(float)column * 60.0f - 90.0f, 0.0f,
+                             (float)row * 60.0f - 90.0f})
+                        .fill(material::Material(recipe,
+                                                 Paint{{0.7f, 0.6f, 0.4f, 1}}))
+                        .collection("lit");
+                  })})
+          .key("set");
 
   geometry::mesh::camera::Camera camera;
   camera.eye = {0, 160, 320};
   Frame frame(set);
   frame.extent({640, 480})
-      .camera(camera)
+      .defaultCamera(camera)
       .runtime(runtime)
       .pass(geometryPass("colour").writes("colour"))
       .pass(postPass("bloom").reads("colour").writes("bloom").blur(7.0f));

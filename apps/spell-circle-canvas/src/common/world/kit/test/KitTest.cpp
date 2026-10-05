@@ -7,8 +7,8 @@
 #include <gtest/gtest.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilmaterial/surface/Surface.h>
-#include <sigilworld/element/Node.h>
-#include <sigilworld/kit/Kit.h>
+#include <sigilworld/World.h>
+#include <sigilworld/advanced/Node.h>
 
 #include <cmath>
 #include <string>
@@ -19,7 +19,7 @@ using namespace sigil::world;
 
 namespace {
 
-const ElementNode& nodeOf(const Element& element) { return *element.node(); }
+const NodeDescription& nodeOf(const Node& node) { return *node.node(); }
 
 /** A lane's constant, for a preset that puts no motion on one. */
 float constantOf(const motion::Animatable<float>& lane) {
@@ -27,47 +27,55 @@ float constantOf(const motion::Animatable<float>& lane) {
   return constant ? *constant : 0.0f;
 }
 
-const ElementNode* childOf(const Element& element, const std::string& key) {
-  for (const Element& child : nodeOf(element).children)
+const NodeDescription* childOf(const Node& node, const std::string& key) {
+  for (const Node& child : nodeOf(node).children)
     if (child.node()->key == key) return child.node().get();
   return nullptr;
 }
 
-/** The emitter a keyed child of @p element carries, or null. Reached
- *  as a pointer so a case that asserts on one says so first. */
-const material::Light* lightOf(const Element& element, const std::string& key) {
-  const ElementNode* node = childOf(element, key);
-  return node && node->light ? &*node->light : nullptr;
+/** The light a keyed child of @p node carries, or null. Reached as a
+ *  pointer so a case that asserts on one says so first. */
+const LightDescription* lightOf(const Node& node, const std::string& key) {
+  const NodeDescription* child = childOf(node, key);
+  return child && child->light ? &*child->light : nullptr;
+}
+
+/** Where a keyed child of @p node stands, read off its translation. */
+glm::vec3 positionOf(const Node& node, const std::string& key) {
+  const NodeDescription* child = childOf(node, key);
+  if (!child) return glm::vec3(0.0f);
+  return {constantOf(child->transform.translateX),
+          constantOf(child->transform.translateY),
+          constantOf(child->transform.translateZ)};
 }
 
 /** …and the surface, on the same terms. */
-const material::Material* surfaceOf(const Element& element,
-                                    const std::string& key) {
-  const ElementNode* node = childOf(element, key);
-  return node && node->material ? &*node->material : nullptr;
+const material::Material* surfaceOf(const Node& node, const std::string& key) {
+  const NodeDescription* child = childOf(node, key);
+  return child && child->material ? &*child->material : nullptr;
 }
 
 /** …and the ride along a curve. */
-const Along* alongOf(const Element& element) {
-  const ElementNode& node = nodeOf(element);
-  return node.along ? &*node.along : nullptr;
+const Along* alongOf(const Node& node) {
+  const NodeDescription& described = nodeOf(node);
+  return described.along ? &*described.along : nullptr;
 }
 
-std::vector<std::string> keysOf(const Element& element) {
+std::vector<std::string> keysOf(const Node& node) {
   std::vector<std::string> keys;
-  for (const Element& child : nodeOf(element).children)
+  for (const Node& child : nodeOf(node).children)
     keys.push_back(child.node()->key);
   return keys;
 }
 
-TEST(WorldKit, TheRigIsThreeKeyedEmitters) {
-  const Element rig = kit::threePoint();
+TEST(WorldKit, TheRigIsThreeKeyedLights) {
+  const Group rig = kit::threePoint();
   EXPECT_EQ(nodeOf(rig).key, "rig");
   EXPECT_EQ(keysOf(rig), (std::vector<std::string>{"key", "fill", "back"}));
 
-  const material::Light* key = lightOf(rig, "key");
-  const material::Light* fill = lightOf(rig, "fill");
-  const material::Light* back = lightOf(rig, "back");
+  const LightDescription* key = lightOf(rig, "key");
+  const LightDescription* fill = lightOf(rig, "fill");
+  const LightDescription* back = lightOf(rig, "back");
   ASSERT_NE(key, nullptr);
   ASSERT_NE(fill, nullptr);
   ASSERT_NE(back, nullptr);
@@ -87,12 +95,12 @@ TEST(WorldKit, TheRigIsStatedInTheSubjectsOwnExtents) {
   small.extent = 10.0f;
   kit::Rig large;
   large.extent = 1000.0f;
-  const Element close = kit::threePoint(small);
-  const Element wide = kit::threePoint(large);
+  const Group close = kit::threePoint(small);
+  const Group wide = kit::threePoint(large);
   ASSERT_NE(lightOf(close, "key"), nullptr);
   ASSERT_NE(lightOf(wide, "key"), nullptr);
-  const glm::vec3 near = lightOf(close, "key")->position;
-  const glm::vec3 far = lightOf(wide, "key")->position;
+  const glm::vec3 near = positionOf(close, "key");
+  const glm::vec3 far = positionOf(wide, "key");
   // One arrangement, two sizes: the far lamp stands a hundred times out.
   EXPECT_NEAR(glm::length(far), glm::length(near) * 100.0f, 1e-2f);
 
@@ -100,9 +108,9 @@ TEST(WorldKit, TheRigIsStatedInTheSubjectsOwnExtents) {
   kit::Rig turned;
   turned.bearing = small.bearing + 180.0f;
   turned.extent = small.extent;
-  const Element other = kit::threePoint(turned);
+  const Group other = kit::threePoint(turned);
   ASSERT_NE(lightOf(other, "key"), nullptr);
-  const glm::vec3 opposite = lightOf(other, "key")->position;
+  const glm::vec3 opposite = positionOf(other, "key");
   EXPECT_NEAR(opposite.x, -near.x, 1e-3f);
   EXPECT_NEAR(opposite.z, -near.z, 1e-3f);
   EXPECT_NEAR(opposite.y, near.y, 1e-3f);
@@ -114,32 +122,31 @@ TEST(WorldKit, TheTurntableRidesOneClosedRail) {
   EXPECT_TRUE(track.closed);
   EXPECT_EQ((int)track.points.size(), table.stations);
 
-  const Element start = kit::turntable(table, 0.0f);
+  const Camera start = kit::turntable(table, motion::Duration{});
   EXPECT_EQ(nodeOf(start).key, "camera");
   EXPECT_TRUE(nodeOf(start).camera.has_value());
   ASSERT_NE(alongOf(start), nullptr);
   EXPECT_FLOAT_EQ(constantOf(alongOf(start)->distance), 0.0f);
 
   // A whole turn is where it started, and half of one is halfway along.
-  const Element round = kit::turntable(table, table.period);
+  const Camera round = kit::turntable(table, table.period);
   ASSERT_NE(alongOf(round), nullptr);
   EXPECT_NEAR(constantOf(alongOf(round)->distance), 0.0f, 1e-3f);
-  const Element half = kit::turntable(table, table.period * 0.5f);
+  const Camera half = kit::turntable(table, table.period * 0.5);
   ASSERT_NE(alongOf(half), nullptr);
   EXPECT_NEAR(constantOf(alongOf(half)->distance), track.length() * 0.5f,
               1e-2f);
 
   // A parked table stands at its first station whatever the clock says.
   kit::Turntable parked = table;
-  parked.period = 0.0f;
-  const Element still = kit::turntable(parked, 4.0f);
+  parked.period = motion::Duration{};
+  const Camera still = kit::turntable(parked, motion::Duration(4.0));
   ASSERT_NE(alongOf(still), nullptr);
   EXPECT_FLOAT_EQ(constantOf(alongOf(still)->distance), 0.0f);
 }
 
 TEST(WorldKit, TheSetIsAGroundARigACameraAndTheSubject) {
-  const Element set =
-      kit::litSet(Element().key("body").mesh(geometry::mesh::quad(10, 10)));
+  const Group set = kit::litSet(mesh(geometry::mesh::quad(10, 10)).key("body"));
   EXPECT_EQ(nodeOf(set).key, "set");
   EXPECT_EQ(keysOf(set),
             (std::vector<std::string>{"ground", "rig", "camera", "subject"}));
@@ -154,9 +161,9 @@ TEST(WorldKit, TheSetIsAGroundARigACameraAndTheSubject) {
 
   // A ground the caller made is the ground.
   kit::Set own;
-  own.surface =
-      ::sigil::material::surface::program({.baseColor = {0.9f, 0.1f, 0.1f, 1.0f}});
-  const Element painted = kit::litSet(Element().key("body"), own);
+  own.surface = ::sigil::material::surface::program(
+      {.baseColor = {0.9f, 0.1f, 0.1f, 1.0f}});
+  const Group painted = kit::litSet(group().key("body"), own);
   ASSERT_NE(surfaceOf(painted, "ground"), nullptr);
   EXPECT_FLOAT_EQ(surfaceOf(painted, "ground")->get<glm::vec4>("baseColor").r,
                   0.9f);
@@ -164,23 +171,22 @@ TEST(WorldKit, TheSetIsAGroundARigACameraAndTheSubject) {
   // …and a set with no ground has none.
   kit::Set bare;
   bare.ground = 0.0f;
-  EXPECT_EQ(keysOf(kit::litSet(Element().key("body"), bare)),
+  EXPECT_EQ(keysOf(kit::litSet(group().key("body"), bare)),
             (std::vector<std::string>{"rig", "camera", "subject"}));
 }
 
 TEST(WorldKit, ARigWithNoExtentStandsAtTheSubject) {
   // Every distance in the arrangement is a multiple of the extent, so a
   // subject nothing across puts all three lamps where it stands. The
-  // tree is still three keyed emitters: a degenerate number narrows the
+  // tree is still three keyed lights: a degenerate number narrows the
   // arrangement rather than dropping a light out of it.
   kit::Rig flat;
   flat.extent = 0.0f;
-  const Element rig = kit::threePoint(flat);
+  const Group rig = kit::threePoint(flat);
   EXPECT_EQ(keysOf(rig), (std::vector<std::string>{"key", "fill", "back"}));
   for (const std::string& key : {"key", "fill", "back"}) {
-    const material::Light* lamp = lightOf(rig, key);
-    ASSERT_NE(lamp, nullptr) << key;
-    EXPECT_NEAR(glm::length(lamp->position - flat.at), 0.0f, 1e-4f) << key;
+    ASSERT_NE(lightOf(rig, key), nullptr) << key;
+    EXPECT_NEAR(glm::length(positionOf(rig, key)), 0.0f, 1e-4f) << key;
   }
 }
 
@@ -262,6 +268,36 @@ TEST(WorldKit, AWindingStaysOnItsShellAndCrossesItsOwnPlane) {
   }
   EXPECT_EQ(crossings, 2 * (int)shape.wraps);
   EXPECT_NEAR(turned / 6.283185307179586f, -shape.turns, 1e-3f);
+}
+
+TEST(WorldKit, TheKeysStrengthAndColourAreBindable) {
+  motion::Animatable<float> strength = motion::animatable(0.5f);
+  const Group rig = kit::threePoint({.fill = 0.5f, .intensity = strength});
+  ASSERT_NE(lightOf(rig, "key"), nullptr);
+  ASSERT_NE(lightOf(rig, "fill"), nullptr);
+  EXPECT_FLOAT_EQ(lightOf(rig, "fill")->intensity.value(), 0.25f);
+  // The key reads the live value; the fill took its share when the rig
+  // was made.
+  strength = 2.0f;
+  EXPECT_FLOAT_EQ(lightOf(rig, "key")->intensity.value(), 2.0f);
+  EXPECT_FLOAT_EQ(lightOf(rig, "fill")->intensity.value(), 0.25f);
+}
+
+TEST(WorldKit, AnEnvironmentMapIsAGradientAndSoftBoxes) {
+  // A black map: nothing here states a look.
+  EXPECT_TRUE(kit::environmentMap({}).valid());
+  const kit::EnvironmentMapOptions room{
+      .width = 64,
+      .zenith = {1.0f, 1.0f, 1.0f},
+      .nadir = {0.0f, 0.0f, 0.0f},
+      .softBoxes = {{.centre = {0.25f, 0.5f},
+                     .size = {0.05f, 0.1f},
+                     .radiance = {10.0f, 0.0f, 0.0f}}}};
+  const EnvironmentMap map = kit::environmentMap(room);
+  ASSERT_TRUE(map.valid());
+  EXPECT_EQ(map.size(), glm::ivec2(64, 32));
+  // The box shows red where it stands and leaves the rest grey.
+  EXPECT_GT(map.average().r, map.average().g);
 }
 
 }  // namespace

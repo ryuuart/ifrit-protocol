@@ -19,9 +19,10 @@
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Parameters.h>
 #include <sigilmaterial/surface/Surface.h>
+#include <sigilworld/advanced/Diligent.h>
+#include <sigilworld/advanced/Light.h>
 #include <sigilworld/advanced/Skia.h>
 #include <sigilworld/diligent/Runtime.h>
-#include <sigilworld/light/Light.h>
 
 #include <algorithm>
 #include <cstring>
@@ -71,6 +72,34 @@ constexpr std::string_view kMapUv = "uBaseColorMapUv";
  *  content key — which is what makes a set that has not moved answer
  *  with the artefact it was already uploaded under. */
 constexpr uint64_t kStampArtefact = 1ull << 63u;
+
+/** A LIGHT AS ONE DIRECTION, one colour and one strength, which is what
+ *  this shading model answers to. A directional light already is one. A
+ *  light that STANDS somewhere is read as the direction from where it
+ *  stands toward the world origin, at the strength its falloff has
+ *  there. */
+struct Directional {
+  glm::vec3 direction{0, -1, 0};
+  glm::vec3 radiance{1, 1, 1};
+};
+
+Directional directionalOf(const PlacedLight& placed) {
+  const LightDescription& light = placed.light;
+  const material::Color color = light.color.value();
+  Directional out;
+  out.radiance = glm::vec3(color.r, color.g, color.b) * light.intensity.value();
+  if (light.kind == LightKind::Directional) {
+    out.direction = light.direction;
+    return out;
+  }
+  const glm::vec3 toward = -placed.position;
+  out.direction = glm::dot(toward, toward) > 0.0f ? glm::normalize(toward)
+                                                  : light.direction;
+  out.radiance =
+      glm::vec3(color.r, color.g, color.b) *
+      (light.intensity.value() * attenuation(placed, glm::vec3(0.0f)));
+  return out;
+}
 
 /** The colour a clear is given, premultiplied — which is what a target
  *  holding premultiplied pixels must receive. */
@@ -147,9 +176,9 @@ void writeScaffold(material::slang::Uniforms& uniforms,
                    const material::slang::Compiled& program,
                    const glm::mat4& viewProj, const glm::mat4& view,
                    const glm::mat4& model, glm::vec4 baseColor,
-                   std::span<const material::Light> lights,
-                   const Environment& sky, const glm::mat3& orientation,
-                   int levels, bool lit) {
+                   std::span<const PlacedLight* const> lights,
+                   const Environment& sky, float exposure, int levels,
+                   bool lit) {
   uniforms.set("uViewProj", viewProj);
   uniforms.set("uModel", model);
   uniforms.set("uBaseColor", baseColor.r, baseColor.g, baseColor.b,
@@ -167,30 +196,29 @@ void writeScaffold(material::slang::Uniforms& uniforms,
   // that carries none keeps the stock constant.
   uniforms.set("uAmbient", kAmbient, 4);
   const bool hasSky = levels > 0;
-  uniforms.set("uEnvTint", sky.tint.x * sky.intensity,
-               sky.tint.y * sky.intensity, sky.tint.z * sky.intensity,
+  uniforms.set("uEnvTint", sky.intensity, sky.intensity, sky.intensity,
                std::clamp(sky.crossfade, 0.0f, 1.0f));
   uniforms.set("uEnvDials", hasSky ? sky.diffuse : 0.0f,
                hasSky ? sky.specular : 0.0f, sky.roughnessBias,
                hasSky ? (float)levels : 0.0f);
-  // The exposure the lit sum is read at, which stands whether or not
-  // there is a panorama: a set with no sky still ends at the curve.
-  uniforms.set("uTone", sky.exposure, 0.0f, 0.0f, 0.0f);
+  // The exposure the lit sum is read at — the camera's — which stands
+  // whether or not there is a panorama: a set with no sky still ends at
+  // the curve.
+  uniforms.set("uTone", exposure, 0.0f, 0.0f, 0.0f);
   // The shading is written in view space and a panorama is of the world,
   // so a direction goes out through the view's inverse and then into the
-  // frame the node that placed the sky put it in.
-  uniforms.set(
-      "uEnvMatrix",
-      glm::mat4(orientation * glm::transpose(glm::mat3(
-                                  glm::inverseTranspose(glm::mat3(view))))));
+  // panorama's own frame, which its turn put it in.
+  uniforms.set("uEnvMatrix",
+               glm::mat4(sky.orientation *
+                         glm::transpose(glm::mat3(
+                             glm::inverseTranspose(glm::mat3(view))))));
   const size_t count = std::min(lights.size(), kLights);
   for (size_t i = 0; i < count; ++i) {
-    const light::Directional value = light::directional(lights[i]);
+    const Directional value = directionalOf(*lights[i]);
     const float direction[4] = {value.direction.x, value.direction.y,
                                 value.direction.z, 0.0f};
-    const float colour[4] = {value.color.r * value.intensity,
-                             value.color.g * value.intensity,
-                             value.color.b * value.intensity, 1.0f};
+    const float colour[4] = {value.radiance.r, value.radiance.g,
+                             value.radiance.b, 1.0f};
     uniforms.setElement("uLightDir", i, direction, 4);
     uniforms.setElement("uLightColor", i, colour, 4);
   }
@@ -202,8 +230,8 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
               uint64_t artefact, const geometry::mesh::Mesh& mesh,
               const glm::mat4& model, glm::vec4 baseColor,
               const material::Material* material, const material::Texture* map,
-              std::span<const material::Light> lights, const Environment& sky,
-              const glm::mat3& orientation, bool lit, bool depthWrite,
+              std::span<const PlacedLight* const> lights,
+              const Environment& sky, float exposure, bool lit, bool depthWrite,
               bool cull) {
   const MeshBuffers* buffers = gpu.meshes.upload(artefact, mesh);
   if (!buffers) return;
@@ -233,7 +261,7 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
 
   material::slang::Uniforms uniforms(*surface.program);
   writeScaffold(uniforms, *surface.program, viewProj, view, model, baseColor,
-                lights, sky, orientation, levels, lit);
+                lights, sky, exposure, levels, lit);
   writeMaterial(uniforms, surface);
 
   // THE SAMPLED SLOTS, bound by NAME rather than by position, because a
@@ -336,7 +364,7 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
 void drawBackdrop(Gpu& gpu, const View& view, const glm::mat4& projection,
                   const glm::mat4& viewMatrix) {
   const Environment& sky = view.environment;
-  if (!sky.valid() || sky.backdrop.intensity <= 0) return;
+  if (!sky.valid() || sky.shown <= 0) return;
   const material::slang::Compiled& program = backdropProgram();
   if (program.empty()) return;
   dg::ITexture* panorama = gpu.maps.environment(sky.map);
@@ -354,23 +382,20 @@ void drawBackdrop(Gpu& gpu, const View& view, const glm::mat4& projection,
   if (!pipeline) return;
 
   material::slang::Uniforms uniforms(program);
-  uniforms.set("uEnvTint", sky.tint.x * sky.intensity,
-               sky.tint.y * sky.intensity, sky.tint.z * sky.intensity,
+  uniforms.set("uEnvTint", sky.intensity, sky.intensity, sky.intensity,
                std::clamp(sky.crossfade, 0.0f, 1.0f));
   uniforms.set("uEnvDials", sky.diffuse, sky.specular, sky.roughnessBias,
                (float)panorama->GetDesc().MipLevels);
-  uniforms.set("uTone", sky.exposure, 0.0f, 0.0f, 0.0f);
-  uniforms.set("uBackdrop", sky.backdrop.intensity,
-               std::clamp(sky.backdrop.blur, 0.0f, 1.0f), 0.0f, 0.0f);
-  // The ground sphere's centre is carried into the space the ray is
-  // found in, where the eye is the origin — so the eye's own position
-  // is never stated twice.
-  const glm::vec3 centre =
-      glm::vec3(viewMatrix * glm::vec4(sky.backdrop.projectionCenter, 1.0f));
-  uniforms.set("uGround", centre.x, centre.y, centre.z,
-               sky.backdrop.groundRadius);
+  uniforms.set("uTone", view.exposure, 0.0f, 0.0f, 0.0f);
+  uniforms.set("uBackdrop", sky.shown, std::clamp(sky.blur, 0.0f, 1.0f), 0.0f,
+               0.0f);
+  // The ground sphere stands at the world origin, carried into the space
+  // the ray is found in, where the eye is the origin — so the eye's own
+  // position is never stated twice.
+  const glm::vec3 centre = glm::vec3(viewMatrix * glm::vec4(0, 0, 0, 1.0f));
+  uniforms.set("uGround", centre.x, centre.y, centre.z, sky.groundRadius);
   uniforms.set("uEnvMatrix",
-               glm::mat4(view.orientation *
+               glm::mat4(sky.orientation *
                          glm::transpose(glm::mat3(
                              glm::inverseTranspose(glm::mat3(viewMatrix))))));
   uniforms.set("uInvProj", glm::inverse(projection));
@@ -398,27 +423,39 @@ void drawBackdrop(Gpu& gpu, const View& view, const glm::mat4& projection,
   context->Draw(draw);
 }
 
-/** The frame's bodies, or the ones a selector leaves. */
+/** The frame's bodies, or the ones a collection leaves. */
 void drawBodies(Gpu& gpu, const View& view, const glm::mat4& viewProj,
-                const glm::mat4& viewMatrix, const Selector* only, bool lit,
+                const glm::mat4& viewMatrix, const Collection* only, bool lit,
                 const glm::vec4* flat) {
+  // THE LIGHTS EACH BODY IS REACHED BY: every light, unless its light
+  // link leaves the body out. Asked per body, against the same member a
+  // pass's collection reads, so a light link and a pass narrow on one
+  // vocabulary.
+  std::vector<const PlacedLight*> reaching;
+  reaching.reserve(view.lights.size());
   // A FLAT colour replaces the body's own AND its material: coverage and
   // a variant re-draw are about where a body is, not what it is made of.
   // Whether the flat colour is then SHADED is the pass's call — coverage
   // is not a picture and is drawn unlit; a variant surface is a colour
-  // laid over the bodies a selector names and stands under the pass's
+  // laid over the bodies a collection names and stands under the pass's
   // lights like any other.
   for (const Draw& body : view.draws) {
     if (!body.mesh) continue;
-    if (only && !only->matches(subjectOf(body))) continue;
+    const Member member = memberOf(body);
+    if (only && !only->contains(member)) continue;
+    reaching.clear();
+    for (const PlacedLight& light : view.lights)
+      if (light.light.lightLink.everything() ||
+          light.light.lightLink.contains(member))
+        reaching.push_back(&light);
     const glm::vec4 colour = flat ? *flat : body.baseColor;
     // A BODY THAT IS ITS OWN LIGHT is drawn unlit whatever the pass
     // says, because that is what its surface is and not how this pass
     // reads it — a variant laid over it included.
     drawBody(gpu, viewProj, viewMatrix, body.geometry, *body.mesh, body.world,
              colour, flat ? nullptr : body.material,
-             flat ? nullptr : body.texture, view.lights, view.environment,
-             view.orientation, lit && body.lit,
+             flat ? nullptr : body.texture, reaching, view.environment,
+             view.exposure, lit && body.lit,
              /*depthWrite=*/colour.a >= 1.0f,
              /*cull=*/body.backface == material::Backface::Hidden);
   }
@@ -446,7 +483,7 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
     const float clearNothing[4] = {0, 0, 0, 0};
     openTarget(gpu, colour, clearNothing, true);
     const glm::vec4 white{1, 1, 1, 1};
-    drawBodies(gpu, view, viewProj, viewMatrix, &pass.selector(),
+    drawBodies(gpu, view, viewProj, viewMatrix, &pass.collection(),
                /*lit=*/false, &white);
     return;
   }
@@ -459,13 +496,20 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
   // bodies' positions answering to one camera.
   drawBackdrop(gpu, view, viewProj * glm::inverse(viewMatrix), viewMatrix);
   const bool cull = work.realisation == Selection::Cull;
-  drawBodies(gpu, view, viewProj, viewMatrix, cull ? &pass.selector() : nullptr,
-             /*lit=*/true, nullptr);
+  drawBodies(gpu, view, viewProj, viewMatrix,
+             cull ? &pass.collection() : nullptr, /*lit=*/true, nullptr);
 
   // The stamps of every point set the pass reads. A compute pass writes
   // points; this is what makes them visible, and a pass with no stamp
   // draws none of them.
   if (!pass.stamp().positions.empty()) {
+    // A pass's stamps belong to no node: they joined no collection and
+    // stand under no key, so a light reaches them unless its link
+    // includes only what they are not.
+    std::vector<const PlacedLight*> everyLight;
+    for (const PlacedLight& light : view.lights)
+      if (light.light.lightLink.contains(Member{}))
+        everyLight.push_back(&light);
     // A STAMPING IS AN ARTEFACT LIKE ANY OTHER: formed once per distinct
     // (cloud, stamp) in the store, and uploaded once under the number
     // that pair folds to. A set that has not moved between two frames is
@@ -485,8 +529,8 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
       // store's key is carried in the rest of it.
       const uint64_t artefact = kStampArtefact | (key >> 1u);
       drawBody(gpu, viewProj, viewMatrix, artefact, *stamped, glm::mat4(1.0f),
-               {0.9f, 0.9f, 0.95f, 1.0f}, nullptr, nullptr, view.lights,
-               view.environment, view.orientation,
+               {0.9f, 0.9f, 0.95f, 1.0f}, nullptr, nullptr, everyLight,
+               view.environment, view.exposure,
                /*lit=*/true, /*depthWrite=*/true, /*cull=*/true);
     }
   }
@@ -499,7 +543,7 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
     const glm::vec4 colour = field && field->floats == 4
                                  ? pass.variant()->get<glm::vec4>("baseColor")
                                  : glm::vec4{1, 1, 1, 1};
-    drawBodies(gpu, view, viewProj, viewMatrix, &pass.selector(),
+    drawBodies(gpu, view, viewProj, viewMatrix, &pass.collection(),
                /*lit=*/true, &colour);
   }
 

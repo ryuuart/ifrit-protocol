@@ -46,9 +46,10 @@ void lives(std::span<const PassWork> steps, const Frame& frame,
 
   for (size_t step = 0; step < steps.size(); ++step) {
     const Touches touches = touchesOf(steps[step]);
-    const ResourceKind kind = steps[step].pass->stage() == Stage::Compute
-                                  ? ResourceKind::Points
-                                  : ResourceKind::Image;
+    const Stage stage = steps[step].pass->stage();
+    const ResourceKind kind = stage == Stage::Compute   ? ResourceKind::Points
+                              : stage == Stage::Texture ? ResourceKind::Texture
+                                                        : ResourceKind::Image;
     for (const std::string& name : touches.writes)
       touch(name, step, kind, /*written=*/true);
     for (const std::string& name : touches.reads)
@@ -73,7 +74,8 @@ void lives(std::span<const PassWork> steps, const Frame& frame,
   } else {
     for (size_t step = steps.size(); step-- > 0;) {
       const Touches touches = touchesOf(steps[step]);
-      if (steps[step].pass->stage() == Stage::Compute) continue;
+      const Stage stage = steps[step].pass->stage();
+      if (stage == Stage::Compute || stage == Stage::Texture) continue;
       if (touches.writes.empty()) continue;
       present = touches.writes.front();
       break;

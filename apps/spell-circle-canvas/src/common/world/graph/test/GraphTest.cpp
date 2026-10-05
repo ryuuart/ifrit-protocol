@@ -6,8 +6,8 @@
 
 #include <gtest/gtest.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
+#include <sigilworld/advanced/Plan.h>
 #include <sigilworld/advanced/Skia.h>
-#include <sigilworld/graph/Plan.h>
 
 #include <algorithm>
 #include <memory>
@@ -273,8 +273,7 @@ std::string realisationName(const testing::TestParamInfo<Realisation>& info) {
 const Realisation kRealisations[] = {
     {"ANarrowedGeometryPassIsCulled",
      [] {
-       return framed().pass(
-           geometryPass("glow").only(selectors::tag("glow")).writes("colour"));
+       return framed().pass(geometryPass("glow").only("glow").writes("colour"));
      },
      "glow", Selection::Cull},
     {"APassThatNarrowsNothingAddressesEveryBody",
@@ -285,23 +284,21 @@ const Realisation kRealisations[] = {
        return framed()
            .pass(geometryPass("main").writes("colour"))
            .pass(postPass("bloom").reads("colour").writes("lit").only(
-               selectors::tag("glow")));
+               Collection{.include = {"glow"}}));
      },
      "bloom", Selection::Mask},
     {"ANarrowedGeometryPassCarryingASurfaceIsRedrawnInIt",
      [] {
-       return framed().pass(geometryPass("main")
-                                .writes("colour")
-                                .only(selectors::tag("glow"))
-                                .variant(paint({1, 1, 1, 1})));
+       return framed().pass(
+           geometryPass("main").writes("colour").only("glow").variant(
+               paint({1, 1, 1, 1})));
      },
      "main", Selection::Variant},
     {"APassThatSaysHowItWantsToBeRealisedOverridesTheRule",
      [] {
-       return framed().pass(geometryPass("cover")
-                                .writes("mask")
-                                .only(selectors::tag("glow"))
-                                .realise(Selection::Mask));
+       return framed().pass(
+           geometryPass("cover").writes("mask").only("glow").realise(
+               Selection::Mask));
      },
      "cover", Selection::Mask},
 };
@@ -327,7 +324,7 @@ TEST(WorldGraph, AMaskedPassReadsTheCoverageThePassAheadOfItWrites) {
       framed()
           .pass(geometryPass("main").writes("colour"))
           .pass(postPass("bloom").reads("colour").writes("lit").only(
-              selectors::tag("glow")));
+              Collection{.include = {"glow"}}));
   const graph::Plan plan = graph::build(frame);
   ASSERT_TRUE((bool)plan);
   const PassWork* bloom = stepNamed(plan, "bloom");
@@ -337,7 +334,7 @@ TEST(WorldGraph, AMaskedPassReadsTheCoverageThePassAheadOfItWrites) {
   EXPECT_FALSE(bloom->coverageIn.empty());
   ASSERT_EQ(main->coverageOut.size(), 1u);
   EXPECT_EQ(main->coverageOut.front().name, bloom->coverageIn);
-  EXPECT_EQ(main->coverageOut.front().of, selectors::tag("glow"));
+  EXPECT_EQ(main->coverageOut.front().of, Collection{.include = {"glow"}});
   // …and the coverage is a resource of the frame like any other.
   EXPECT_NE(plan.resource(bloom->coverageIn), nullptr);
 }
@@ -347,9 +344,9 @@ TEST(WorldGraph, TwoMaskedPassesEachReadTheirOwnCoverage) {
       framed()
           .pass(geometryPass("main").writes("colour"))
           .pass(postPass("bloom").reads("colour").writes("lit").only(
-              selectors::tag("glow")))
+              Collection{.include = {"glow"}}))
           .pass(postPass("blur").reads("lit").writes("final").only(
-              selectors::tag("soft")));
+              Collection{.include = {"soft"}}));
   const graph::Plan plan = graph::build(frame);
   ASSERT_TRUE((bool)plan) << plan.error();
   const PassWork* main = stepNamed(plan, "main");
@@ -365,9 +362,9 @@ TEST(WorldGraph, TwoMaskedPassesEachReadTheirOwnCoverage) {
   for (const Coverage& painted : main->coverageOut) {
     EXPECT_NE(plan.resource(painted.name), nullptr);
     if (painted.name == bloom->coverageIn)
-      EXPECT_EQ(painted.of, selectors::tag("glow"));
+      EXPECT_EQ(painted.of, Collection{.include = {"glow"}});
     else if (painted.name == blur->coverageIn)
-      EXPECT_EQ(painted.of, selectors::tag("soft"));
+      EXPECT_EQ(painted.of, Collection{.include = {"soft"}});
     else
       ADD_FAILURE() << "a coverage no masked pass reads: " << painted.name;
   }
@@ -378,9 +375,9 @@ TEST(WorldGraph, TwoMasksOfTheSameSelectionShareOneCoverage) {
       framed()
           .pass(geometryPass("main").writes("colour"))
           .pass(postPass("bloom").reads("colour").writes("lit").only(
-              selectors::tag("glow")))
+              Collection{.include = {"glow"}}))
           .pass(postPass("blur").reads("lit").writes("final").only(
-              selectors::tag("glow")));
+              Collection{.include = {"glow"}}));
   const graph::Plan plan = graph::build(frame);
   ASSERT_TRUE((bool)plan) << plan.error();
   const PassWork* main = stepNamed(plan, "main");
@@ -396,7 +393,7 @@ TEST(WorldGraph, TwoMasksOfTheSameSelectionShareOneCoverage) {
 TEST(WorldGraph, AMaskWithNothingPaintingBodiesAheadOfItIsAnError) {
   const Frame frame =
       framed().pass(postPass("bloom").reads("colour").writes("lit").only(
-          selectors::tag("glow")));
+          Collection{.include = {"glow"}}));
   const graph::Plan plan = graph::build(frame);
   EXPECT_FALSE((bool)plan);
   EXPECT_NE(plan.error().find("bloom"), std::string::npos);
@@ -427,4 +424,34 @@ TEST(WorldGraph, AFrameWithNoPassesHasNoPlanAndNoError) {
   EXPECT_TRUE((bool)plan);
   EXPECT_TRUE(plan.steps().empty());
   EXPECT_TRUE(plan.present().empty());
+}
+
+namespace {
+
+/** A producer that paints nothing, for a texture pass whose order is the
+ *  question. */
+struct Painting : TextureProducerOperations {
+  bool produce(std::chrono::duration<double>) const override { return true; }
+  bool paints(const material::Texture&) const override { return false; }
+};
+
+}  // namespace
+
+TEST(WorldGraph, ATexturePassRunsBeforeEveryPassThatDrawsBodies) {
+  // Declared last, it still runs first: the bodies the geometry pass draws
+  // wear what it paints, and wearing names no resource.
+  const Frame frame = framed()
+                          .pass(geometryPass("main").writes("colour"))
+                          .pass(texturePass("page", TextureProducer(Painting{}))
+                                    .writes("page.maps"));
+  const graph::Plan plan = graph::build(frame);
+  ASSERT_TRUE((bool)plan);
+  const std::vector<std::string> expected = {"page", "main"};
+  EXPECT_EQ(namesOf(plan), expected);
+  ASSERT_NE(plan.resource("page.maps"), nullptr);
+  EXPECT_EQ(plan.resource("page.maps")->kind, graph::ResourceKind::Texture);
+  // What a texture pass writes holds its own pixels: no surface, and never
+  // the picture presented.
+  EXPECT_EQ(plan.resource("page.maps")->slot, -1);
+  EXPECT_EQ(plan.present(), "colour");
 }

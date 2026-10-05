@@ -28,8 +28,8 @@
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilworld/advanced/Skia.h>
+#include <sigilworld/advanced/View.h>
 #include <sigilworld/frame/Pass.h>
-#include <sigilworld/frame/View.h>
 
 #include <Common/interface/RefCntAutoPtr.hpp>
 #include <boost/container/map.hpp>

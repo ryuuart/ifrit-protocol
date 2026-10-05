@@ -1,8 +1,8 @@
 /** @file
  * The presets: where three lights stand round a subject, the rail a
- * turntable rides, the set both of them make with a ground plane, and
- * the two other rails — a loop that rises and falls, and a winding round
- * a shell.
+ * turntable rides, the set both of them make with a ground plane, the
+ * two other rails — a loop that rises and falls, and a winding round a
+ * shell — and an environment map baked from a gradient and soft boxes.
  */
 
 #include <sigilgeometry/kit/Solids.h>
@@ -10,10 +10,14 @@
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilworld/kit/Kit.h>
+#include <sigilworld/node/Light.h>
+#include <sigilworld/node/Mesh.h>
 
+#include <algorithm>
 #include <cmath>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 namespace sigil::world::kit {
 
@@ -24,6 +28,9 @@ constexpr float kTwoPi = 6.283185307179586f;
 
 /** At least three stations: a closed loop needs three points to be one. */
 int atLeastThree(int stations) { return stations < 3 ? 3 : stations; }
+
+/** How far the key stands from the subject, in the rig's extents. */
+constexpr float kKeyDistance = 2.2f;
 
 /** The one colour this library states: a ground plane that was given no
  *  surface. Mid grey, so that what stands on it is what is read. */
@@ -40,37 +47,45 @@ glm::vec3 station(glm::vec3 at, float distance, float bearing,
                         flat * std::cos(yaw));
 }
 
-/** One emitter of the rig: a lamp standing at @p position, reaching far
- *  enough past the subject that its falloff is not what the arrangement
- *  is about. */
-Element lamp(std::string_view key, glm::vec3 position, glm::vec4 color,
-             float intensity, float reach) {
-  return Element().key(key).light(
-      light::point(position, {color.r, color.g, color.b, color.a}, intensity, reach));
+/** One light of the rig: a point light standing at @p position, reaching
+ *  far enough past the subject that its falloff is not what the
+ *  arrangement is about. */
+Light lamp(std::string_view key, glm::vec3 position,
+           motion::Animatable<material::Color> color,
+           motion::Animatable<float> intensity, float reach) {
+  return pointLight({.color = std::move(color),
+                     .intensity = std::move(intensity),
+                     .range = reach})
+      .key(key)
+      .at(position);
 }
 
 }  // namespace
 
-Element threePoint(const Rig& rig) {
-  const float distance = rig.distance * rig.extent;
+Group threePoint(const Rig& rig) {
+  const glm::vec3 centre{0.0f, 0.0f, 0.0f};
+  const float distance = kKeyDistance * rig.extent;
   const float reach = distance * 4.0f;
-  return Element()
-      .key("rig")
-      .children(
-          {lamp("key", station(rig.at, distance, rig.bearing, rig.elevation),
-                rig.color, rig.intensity, reach)})
-      // A quarter turn the other way and lower: the fill is what keeps
-      // the side the key does not reach from being black.
-      .children({lamp(
-          "fill",
-          station(rig.at, distance, rig.bearing + 90.0f, rig.elevation * 0.4f),
-          rig.color, rig.intensity * rig.fill, reach)})
-      // Opposite and higher: the back light is what separates the
-      // subject from what stands behind it.
-      .children({lamp(
-          "back",
-          station(rig.at, distance, rig.bearing + 180.0f, rig.elevation * 1.6f),
-          rig.color, rig.intensity * rig.back, reach)});
+  const material::Color color = rig.color.value();
+  const float strength = rig.intensity.value();
+  return group({
+                   lamp("key",
+                        station(centre, distance, rig.bearing, rig.elevation),
+                        rig.color, rig.intensity, reach),
+                   // A quarter turn the other way and lower: the fill is what
+                   // keeps the side the key does not reach from being black.
+                   lamp("fill",
+                        station(centre, distance, rig.bearing + 90.0f,
+                                rig.elevation * 0.4f),
+                        color, strength * rig.fill, reach),
+                   // Opposite and higher: the back light is what separates the
+                   // subject from what stands behind it.
+                   lamp("back",
+                        station(centre, distance, rig.bearing + 180.0f,
+                                rig.elevation * 1.6f),
+                        color, strength * rig.back, reach),
+               })
+      .key("rig");
 }
 
 geometry::mesh::curve::Spline3 rail(const Turntable& table) {
@@ -123,25 +138,22 @@ geometry::mesh::curve::Spline3 winding(const Winding& winding) {
   return spline;
 }
 
-Element turntable(const Turntable& table, float seconds) {
+Camera turntable(const Turntable& table, motion::Duration now) {
   const geometry::mesh::curve::Spline3 track = rail(table);
   geometry::mesh::camera::Camera lens;
   lens.eye = {0.0f, 0.0f, 0.0f};
   lens.target = {table.radius, -table.height, 0.0f};
-  lens.fovYDeg = table.fovYDeg;
+  lens.fovYDeg = table.fieldOfView;
 
   // One turn per period, as a wrapping phase along the rail. A
   // non-positive period is a still camera, which is what the phase
   // answers 0 for.
-  const float travelled =
-      motion::phase(motion::Duration(seconds), motion::Duration(table.period)) *
-      track.length();
-  return Element().key("camera").along(track, travelled).camera(lens);
+  const float travelled = motion::phase(now, table.period) * track.length();
+  return camera(lens).key("camera").along(track, travelled);
 }
 
-Element litSet(Element subject, const Set& set, float seconds) {
-  Element root;
-  root.key("set");
+Group litSet(Node subject, const Set& set, motion::Duration now) {
+  std::vector<Node> children;
   if (set.ground > 0.0f) {
     const float side = set.ground * set.rig.extent;
     material::Material surface =
@@ -149,21 +161,40 @@ Element litSet(Element subject, const Set& set, float seconds) {
                     : material::surface::program(
                           {.baseColor = {kNeutralGround.r, kNeutralGround.g,
                                          kNeutralGround.b, kNeutralGround.a}});
-    root.children(
-        {Element()
-             .key("ground")
-             .at({set.rig.at.x, set.rig.at.y - set.drop * set.rig.extent,
-                  set.rig.at.z})
-             // A quad stands up; a ground plane is one laid down.
-             .rotateX(-90.0f)
-             .mesh(geometry::mesh::quad(side, side))
-             .fill(std::move(surface))
-             .tag("ground")});
+    children.push_back(mesh(geometry::mesh::quad(side, side))
+                           .key("ground")
+                           .at({0.0f, -set.drop * set.rig.extent, 0.0f})
+                           // A quad stands up; a ground plane is one laid
+                           // down.
+                           .rotateX(-90.0f)
+                           .fill(std::move(surface))
+                           .collection("ground"));
   }
-  root.children({threePoint(set.rig)});
-  root.children({turntable(set.table, seconds)});
-  root.children({Element().key("subject").children({std::move(subject)})});
-  return root;
+  children.push_back(threePoint(set.rig));
+  children.push_back(turntable(set.table, now));
+  children.push_back(group({std::move(subject)}).key("subject"));
+  return group(children).key("set");
+}
+
+EnvironmentMap environmentMap(const EnvironmentMapOptions& options) {
+  return EnvironmentMap::baked(
+      options.width, [options](float u, float v) -> glm::vec3 {
+        const float share = options.exponent == 1.0f
+                                ? 1.0f - v
+                                : std::pow(1.0f - v, options.exponent);
+        glm::vec3 radiance =
+            options.nadir + (options.zenith - options.nadir) * share;
+        for (const SoftBox& box : options.softBoxes) {
+          // Round the horizon the map wraps, so the nearer way round is
+          // the distance a box falls off over.
+          const float apart = std::abs(u - box.centre.x);
+          const float across = std::min(apart, 1.0f - apart) / box.size.x;
+          const float down = (v - box.centre.y) / box.size.y;
+          radiance +=
+              box.radiance * std::exp(-0.5f * (across * across + down * down));
+        }
+        return radiance;
+      });
 }
 
 }  // namespace sigil::world::kit

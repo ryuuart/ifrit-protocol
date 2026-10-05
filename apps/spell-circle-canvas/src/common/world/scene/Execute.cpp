@@ -4,9 +4,13 @@
  * and the execution, which performs those steps on the runtime the
  * frame carries and takes what the caller asked to read back.
  *
- * Both read the components extract wrote. Neither can reach the Element
+ * Both read the components extract wrote. Neither can reach the node
  * tree, and that is the point.
  */
+
+#include <sigilmaterial/texture/Texture.h>
+#include <sigilmotion/clock/Engine.h>
+#include <sigilworld/advanced/TextureProducer.h>
 
 #include <algorithm>
 #include <string>
@@ -19,13 +23,49 @@ namespace sigil::world {
 
 namespace {
 
-/** An empty span of words, for a body carrying no tags. */
-constexpr std::span<const std::string> kNoWords;
+/** An empty span of names, for a body that joined no collection. */
+constexpr std::span<const std::string> kNoNames;
+
+/** Calls @p visit with every texture @p material samples, its slots'
+ *  materials included. */
+template <class Visit>
+void eachTexture(const material::Material& material, Visit&& visit) {
+  for (const auto& [name, slot] : material.slots()) {
+    if (slot.material) eachTexture(*slot.material, visit);
+    if (const auto* texture =
+            dynamic_cast<const material::Texture*>(slot.leaf.get()))
+      visit(*texture);
+  }
+}
 
 }  // namespace
 
 geometry::mesh::camera::Camera Scene::Impl::viewpoint() const {
-  return camera ? *camera : frame.camera();
+  if (frame.cameraOverride()) return *frame.cameraOverride();
+  return camera ? camera->lens : frame.defaultCamera();
+}
+
+std::string Scene::Impl::missingTexturePass() const {
+  for (const Draw& body : draws) {
+    if (!body.material) continue;
+    std::string missing;
+    eachTexture(*body.material, [&](const material::Texture& texture) {
+      if (!missing.empty()) return;
+      const std::string pass = producingPass(texture);
+      if (pass.empty()) return;
+      for (const Pass& candidate : frame.passes())
+        if (candidate.stage() == Stage::Texture && candidate.producer() &&
+            candidate.producer()->paints(texture))
+          return;
+      missing = pass;
+    });
+    if (!missing.empty())
+      return "the body \"" + std::string(body.key) +
+             "\" wears a texture the pass \"" + missing +
+             "\" paints, and that pass is not on the frame: add it with "
+             "Frame::pass";
+  }
+  return {};
 }
 
 void Scene::Impl::collectBodies(const geometry::mesh::camera::Camera& eye,
@@ -56,8 +96,8 @@ void Scene::Impl::collectBodies(const geometry::mesh::camera::Camera& eye,
     const component::Surface& surface =
         registry.get<component::Surface>(entity);
     const component::Named& named = registry.get<component::Named>(entity);
-    const component::Tagged* tagged =
-        registry.try_get<component::Tagged>(entity);
+    const component::Joined* joined =
+        registry.try_get<component::Joined>(entity);
     into.push_back(Draw{
         .world = registry.get<component::Placement>(entity).world,
         .mesh = body.mesh,
@@ -65,7 +105,9 @@ void Scene::Impl::collectBodies(const geometry::mesh::camera::Camera& eye,
         .geometry = body.id,
         .baseColor = surface.baseColor,
         .key = named.key,
-        .tags = tagged ? std::span<const std::string>(tagged->words) : kNoWords,
+        .collections = joined
+                           ? std::span<const std::string>(joined->collections)
+                           : kNoNames,
         .ancestors = named.ancestors,
         .material = surface.material ? &*surface.material : nullptr,
         .lit = surface.lit,
@@ -88,7 +130,7 @@ bool Scene::Impl::phaseGraph() {
   plan = graph::Plan();
   view = View{};
   draws.clear();
-  if (frame.passes().empty()) return false;
+  if (frame.passes().empty() || !error.empty()) return false;
 
   if (frame.extent().x <= 0 || frame.extent().y <= 0) {
     error = "the frame declares passes and no extent to run them at";
@@ -103,11 +145,17 @@ bool Scene::Impl::phaseGraph() {
   targets.extent(frame.extent());
 
   collectBodies(viewpoint(), draws);
+  if (std::string missing = missingTexturePass(); !missing.empty()) {
+    error = std::move(missing);
+    return false;
+  }
   view.draws = draws;
   view.lights = lights;
-  view.environment = environment;
-  view.orientation = environmentOrientation;
+  view.environment =
+      environmentOf(frame.environmentMap(), frame.environmentOptions());
   view.camera = viewpoint();
+  view.exposure = camera ? camera->exposure : 1.0f;
+  view.toneCurve = camera ? camera->toneCurve : ToneCurve::Reinhard;
   view.extent = frame.extent();
   view.offset = frame.viewOffset();
 
@@ -128,8 +176,19 @@ bool Scene::Impl::phaseExecute() {
   }
   runtime->beginFrame(targets);
   for (const PassWork& work : plan.steps()) {
-    runtime->execute(work, view, targets);
     ++stats.passes;
+    // A TEXTURE PASS PAINTS WITH ITS OWN PRODUCER, at the frame's time,
+    // and nothing of it is an executor's. One that found nothing changed
+    // is counted, so skipped work is as visible as work done.
+    if (work.pass->stage() == Stage::Texture) {
+      if (!work.pass->producer()) continue;
+      if (work.pass->producer()->produce(engine.elapsed()))
+        ++stats.texturesPainted;
+      else
+        ++stats.texturesSkipped;
+      continue;
+    }
+    runtime->execute(work, view, targets);
   }
 
   for (const Readback& back : frame.readbacks()) {

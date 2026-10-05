@@ -8,7 +8,7 @@
  * nothing to the frame.
  */
 
-#include <sigilworld/graph/Plan.h>
+#include <sigilworld/advanced/Plan.h>
 
 #include <cstddef>
 #include <span>

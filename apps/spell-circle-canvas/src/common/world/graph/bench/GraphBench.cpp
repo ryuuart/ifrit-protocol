@@ -5,8 +5,8 @@
  */
 
 #include <benchmark/benchmark.h>
+#include <sigilworld/advanced/Plan.h>
 #include <sigilworld/advanced/Skia.h>
-#include <sigilworld/graph/Plan.h>
 
 #include <string>
 

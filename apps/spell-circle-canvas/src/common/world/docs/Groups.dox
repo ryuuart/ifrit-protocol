@@ -2,14 +2,15 @@
 // library's headers, declared where no header has to include another to
 // reach them.
 
-/** @defgroup world-element The element model
- *  One node of a 3D scene as a value: where it stands, what it is made
- *  of, the body it carries, and the children under it.
+/** @defgroup world-node The nodes
+ *  The kinds of node a 3D scene is made of — group, mesh, points, light
+ *  and camera — as values over one description: where each stands, what
+ *  a body is made of, what a light reaches, and the children of a group.
  *  @{ */
 /** @} */
 
 /** @defgroup world-scene Scenes
- *  The retained tree a described element tree is reconciled into, and
+ *  The retained tree a described node tree is reconciled into, and
  *  what it cost to keep.
  *  @{ */
 /** @} */
@@ -26,11 +27,6 @@
  *  @{ */
 /** @} */
 
-/** @defgroup world-light Lights
- *  The emitters a set is lit by.
- *  @{ */
-/** @} */
-
 /** @defgroup world-diligent The Diligent runtime
  *  The device executor: passes recorded on Diligent Engine, and the
  *  geometry brought across to it.
@@ -38,6 +34,6 @@
 /** @} */
 
 /** @defgroup world-kit The kit
- *  Stock values over the element model, composed rather than decided.
+ *  Stock values over the node kinds, composed rather than decided.
  *  @{ */
 /** @} */

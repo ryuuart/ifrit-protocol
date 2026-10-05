@@ -10,18 +10,13 @@
 sigil_library_root(SigilWorld
   BRIEF "3D scenes as values, executed on a GPU over a shared device"
   DOCS docs/Groups.dox reference/DEVICE.md reference/STUDIES.md
-       reference/ELEMENTS.md reference/FRAMES.md reference/PRESETS.md)
+       reference/NODES.md reference/FRAMES.md reference/PRESETS.md)
 
-# The light feature stands alone: emitter VALUES over glm, with no
-# device and no registry, so a consumer that only needs to say where the
-# lights are links it without anything that draws.
-add_subdirectory(light)
-
-# The description: one node of a 3D scene as a comparable value. It
-# stands on the vocabularies beneath it and on the reconciler's kernels,
-# and holds nothing retained, so a consumer that only authors trees links
-# this and the light feature above.
-add_subdirectory(element)
+# The description: one node of a 3D scene as a comparable value, in its
+# five kinds, and the light values a light node carries. It stands on the
+# vocabularies beneath it and on the reconciler's kernels, and holds
+# nothing retained, so a consumer that only authors trees links this.
+add_subdirectory(node)
 
 # A frame as three declared things — the scene, an ordered list of
 # passes and the readbacks — the resources those passes write, and the
@@ -43,16 +38,17 @@ add_subdirectory(scene)
 # tests skip, and say so, on a machine with no Vulkan runtime.
 add_subdirectory(diligent)
 
-# The presets: elements composed out of the verbs above — a three-point
-# rig, a turntable, a lit set. It stands on the description and on
-# SigilMaterial's kit, and nothing here draws or retains.
+# The presets: nodes composed out of the verbs above — a three-point rig,
+# a turntable, a lit set, a panorama — and the front door every set
+# includes. It stands on the description and the frame, and nothing here
+# draws or retains.
 add_subdirectory(kit)
 
 # The umbrella, for a consumer that takes the library rather than a
 # feature of it.
 sigil_library(SigilWorld
-  INTERFACE SigilWorldElement SigilWorldFrame SigilWorldGraph SigilWorldScene
-            SigilWorldLight SigilWorldKit SigilWorldDiligent)
+  INTERFACE SigilWorldNode SigilWorldFrame SigilWorldGraph SigilWorldScene
+            SigilWorldKit SigilWorldDiligent)
 
 # Every API name the prose spells, compiled against the headers that own
 # it — the README and both chapters under reference/, because a chapter
@@ -68,7 +64,7 @@ sigil_doc_probes(world
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/DEVICE.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/STUDIES.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/ELEMENTS.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/NODES.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/FRAMES.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/PRESETS.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../geometry/include/sigilgeometry

@@ -21,6 +21,7 @@
 #include <pxr/usd/usdShade/tokens.h>
 #include <sigilgeometry/mesh/pop/Points.h>
 #include <sigilusd/write/Writer.h>
+#include <sigilworld/World.h>
 
 #include <filesystem>
 #include <fstream>
@@ -203,9 +204,15 @@ TEST(UsdWrite, ADirectionOfNoLengthLeavesTheDefaultOrientationStanding) {
     writer.stamps("sparks", cloud, geometry::mesh::quad(1, 1), glm::mat4(1.0f),
                   material::surface::program());
     // A sun and a spot with no direction either.
-    writer.light("sun", world::light::sun({0, 0, 0}));
+    writer.light(
+        "sun", world::PlacedLight{
+                   .light = world::directionalLight({0, 0, 0}).description()});
     writer.light("beam",
-                 world::light::spot({0, 80, 0}, {0, 0, 0}, 40.0f, 28.0f));
+                 world::PlacedLight{
+                     .light = world::spotLight({0, 0, 0}, {.innerAngle = 28.0f,
+                                                           .outerAngle = 40.0f})
+                                  .description(),
+                     .position = {0, 80, 0}});
     ASSERT_TRUE(writer.save());
   }
   UsdStageRefPtr stage = UsdStage::Open(file.string());
@@ -263,13 +270,25 @@ TEST(UsdWrite, WritesAsciiWhenTheExtensionAsksForIt) {
   const std::filesystem::path file = scratch("scene.usda");
   {
     usd::Writer writer(file);
-    EXPECT_EQ(writer.light("lamp", world::light::point({0, 100, 0})),
+    EXPECT_EQ(writer.light(
+                  "lamp",
+                  world::PlacedLight{.light = world::pointLight().description(),
+                                     .position = {0, 100, 0}}),
               "/World/lamp");
-    EXPECT_EQ(writer.light("beam", world::light::spot({0, 80, 0}, {0, -1, 0},
-                                                      40.0f, 28.0f)),
+    EXPECT_EQ(writer.light("beam",
+                           world::PlacedLight{
+                               .light = world::spotLight({0, -1, 0},
+                                                         {.innerAngle = 28.0f,
+                                                          .outerAngle = 40.0f})
+                                            .description(),
+                               .position = {0, 80, 0}}),
               "/World/beam");
-    EXPECT_EQ(writer.light("sun", world::light::sun({-0.45f, -0.75f, -0.5f})),
-              "/World/sun");
+    EXPECT_EQ(
+        writer.light("sun",
+                     world::PlacedLight{.light = world::directionalLight(
+                                                     {-0.45f, -0.75f, -0.5f})
+                                                     .description()}),
+        "/World/sun");
     geometry::mesh::camera::Camera camera;
     camera.eye = {0, 0, 300};
     EXPECT_EQ(writer.camera("eye", camera), "/World/eye");

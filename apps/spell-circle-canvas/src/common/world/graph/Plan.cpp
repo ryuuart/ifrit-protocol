@@ -4,7 +4,7 @@
  * because half an order is worse than none.
  */
 
-#include <sigilworld/graph/Plan.h>
+#include <sigilworld/advanced/Plan.h>
 
 #include <cstddef>
 #include <string>

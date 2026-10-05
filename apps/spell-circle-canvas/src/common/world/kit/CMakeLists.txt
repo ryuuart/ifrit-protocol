@@ -1,7 +1,9 @@
-# The kit feature: presets that compose elements — a three-point rig, a
-# turntable, and the set both make over a ground plane. Everything here
-# returns an ordinary Element built out of the verbs a tree is already
-# written in, so a caller reads, replaces or ignores any part of one.
+# The kit feature: presets that compose nodes — a three-point rig, a
+# turntable, the set both make over a ground plane, and an environment
+# map baked from a gradient and soft boxes — and the front door a set
+# includes. Everything here returns an ordinary value built out of the
+# verbs a tree is already written in, so a caller reads, replaces or
+# ignores any part of one.
 #
 # It links the description and SigilMaterial's surface program, because a ground
 # plane given no surface has to be made of something; it defines no
@@ -11,8 +13,8 @@
 # so the retained side's own headers are unreachable from kit code.
 sigil_library(SigilWorldKit
   SOURCES Kit.cpp
-  HEADERS Kit.h
-  PUBLIC SigilWorldElement SigilMaterialSurface SigilGeometryKit
+  HEADERS Kit.h ../World.h
+  PUBLIC SigilWorldNode SigilWorldFrame SigilMaterialSurface SigilGeometryKit
   PRIVATE SigilMotionValues)
 
 # Links only the library it exercises, so a link edge that pulled the

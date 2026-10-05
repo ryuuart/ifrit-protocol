@@ -5,7 +5,8 @@
  * runs after the write before it, and a write runs after every read of
  * the version it replaces. Among the passes whose dependencies are all
  * met, the one declared first runs first, so an order is a function of
- * the declarations and never of the machine.
+ * the declarations and never of the machine. A texture pass runs before
+ * every geometry pass, because the bodies those draw wear what it paints.
  */
 
 #include <algorithm>
@@ -110,6 +111,15 @@ std::string order(std::span<const Pass> passes, std::vector<size_t>& into) {
     }
     for (size_t version = 1; version < touchers.writers.size(); ++version)
       edge(touchers.writers[version - 1], touchers.writers[version]);
+  }
+
+  // A TEXTURE PASS PAINTS WHAT BODIES WEAR, and a body is drawn by a
+  // geometry pass that names none of those textures as a read: wearing is
+  // the dependency, so every geometry pass waits on every texture pass.
+  for (size_t producer = 0; producer < passes.size(); ++producer) {
+    if (passes[producer].stage() != Stage::Texture) continue;
+    for (size_t drawer = 0; drawer < passes.size(); ++drawer)
+      if (passes[drawer].stage() == Stage::Geometry) edge(producer, drawer);
   }
 
   boost::container::flat_set<size_t> ready;

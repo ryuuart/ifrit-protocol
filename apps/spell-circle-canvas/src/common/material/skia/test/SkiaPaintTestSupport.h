@@ -25,9 +25,9 @@
 #include <sigilmaterial/advanced/UniformBlock.h>
 #include <sigilmaterial/core/Parameters.h>
 #include <sigilmaterial/program/Shader.h>
-#include <sigilmaterial/skia/Lit.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
+#include <sigilmaterial/skia/SurfaceMaps.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmotion/values/Animatable.h>
 

@@ -2,58 +2,66 @@
 
 /** @file
  * @ingroup world-kit
- * Presets: elements composed out of the verbs a tree is already written
- * in — a three-point rig, a turntable, and a set with both over a
- * ground plane — and the rails a body rides. NOTHING HERE DECIDES A
- * LOOK: each returns an ordinary value whose every field the caller can
- * read, replace or ignore, and the only constants in it are the geometry
- * of the arrangement plus one neutral grey for an unsurfaced ground.
+ * Presets: nodes composed out of the verbs a tree is already written in
+ * — a three-point rig, a turntable, and a set with both over a ground
+ * plane — the rails a body rides, and an environment map made from a
+ * gradient and soft boxes. NOTHING HERE DECIDES A LOOK: each returns an
+ * ordinary value whose every part the caller can read, replace or
+ * ignore, and the only constants in it are the geometry of the
+ * arrangement plus one neutral grey for an unsurfaced ground.
  */
 
+#include <sigilgeometry/mesh/curve/Curve.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilworld/element/Element.h>
+#include <sigilmotion/time/Duration.h>
+#include <sigilmotion/values/Animatable.h>
+#include <sigilworld/frame/Environment.h>
+#include <sigilworld/node/Camera.h>
+#include <sigilworld/node/Group.h>
 
+#include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
-#include <glm/vec4.hpp>
 #include <optional>
+#include <vector>
 
-/** STOCK ARRANGEMENTS OVER THE ELEMENT MODEL: values that compose the
- *  same verbs an author would write, so a set is described in one call
+/** STOCK ARRANGEMENTS OVER THE NODE KINDS: values that compose the same
+ *  verbs an author would write, so a set is described in one call
  *  instead of a dozen. Reach for it for a lighting rig or another
- *  well-worn arrangement. Nothing here decides anything the element
- *  model does not already say. */
+ *  well-worn arrangement. Nothing here decides anything the node kinds
+ *  do not already say. */
 namespace sigil::world::kit {
 
 /** WHERE THREE LIGHTS STAND ROUND A SUBJECT, stated relative to the
  *  subject so one rig serves a thumbnail and a room: `extent` is how far
  *  across the subject is and every distance is a multiple of it, and
- *  `bearing` turns the whole rig about its up axis. */
+ *  `bearing` turns the whole rig about its up axis. The rig stands at
+ *  the origin of the group it returns, so `.at()` on that group moves it
+ *  with its subject. */
 struct Rig {
-  /** Where the subject stands, and how far across it is. */
-  glm::vec3 at{0.0f, 0.0f, 0.0f};
+  /** How far across the subject is. */
   float extent = 100.0f;
-  /** How far the key stands from the subject, in extents. */
-  float distance = 2.2f;
   /** The key's bearing round the subject and its height above it, in
    *  degrees. The fill stands a quarter turn the other way and lower;
    *  the back light stands opposite and higher. */
   float bearing = -35.0f;
   float elevation = 28.0f;
-  /** The fill and the back light as fractions of the key's strength.
-   *  The key is what a subject is read by; the other two are what keeps
-   *  it from being read by the key alone. */
+  /** The fill and the back light as fractions of the key's strength,
+   *  read when the rig is made. The key is what a subject is read by;
+   *  the other two are what keeps it from being read by the key alone. */
   float fill = 0.35f;
   float back = 0.55f;
-  /** The key's own strength and colour; the other two take the same
-   *  colour, scaled. */
-  float intensity = 1.0f;
-  glm::vec4 color{1.0f, 1.0f, 1.0f, 1.0f};
+  /** The key's own strength and colour — bindable, so a live value dims
+   *  and tints the key without the rig being made again. The other two
+   *  take the colour and the strength these hold when the rig is made,
+   *  scaled. */
+  motion::Animatable<float> intensity{1.0f};
+  motion::Animatable<material::Color> color = material::Color{1, 1, 1, 1};
 };
 
-/** THE RIG, as one element with three keyed children — `key`, `fill`
- *  and `back` — each standing where the arrangement puts it and
- *  carrying one emitter. */
-Element threePoint(const Rig& rig = {});
+/** THE RIG, as one group with three keyed point lights — `key`, `fill`
+ *  and `back` — each standing where the arrangement puts it. */
+Group threePoint(const Rig& rig = {});
 
 /** A CAMERA CIRCLING A SUBJECT: how far out it stands, how high, and
  *  how long one turn takes. */
@@ -61,10 +69,11 @@ struct Turntable {
   glm::vec3 at{0.0f, 0.0f, 0.0f};
   float radius = 420.0f;
   float height = 170.0f;
-  /** Seconds for one full turn. Zero or less parks the camera at its
+  /** The time one full turn takes. Zero or less parks the camera at its
    *  first station. */
-  float period = 8.0f;
-  float fovYDeg = 42.0f;
+  motion::Duration period{8.0};
+  /** The lens's vertical field of view, in degrees. */
+  float fieldOfView = 42.0f;
   /** How many points the rail is drawn through; more is rounder. Fewer
    *  than three is three, a closed loop needing three points to be
    *  one. */
@@ -118,11 +127,11 @@ struct Winding {
 /** THE WINDING as a closed spline through its stations. */
 geometry::mesh::curve::Spline3 winding(const Winding& winding = {});
 
-/** THE CAMERA at scene time @p seconds, as one element riding that rail
- *  and looking at the subject from wherever it has reached. The
- *  viewpoint is written in the rail's own moving frame, which makes the
+/** THE CAMERA at scene time @p now, as one camera keyed `camera` riding
+ *  that rail and looking at the subject from wherever it has reached.
+ *  The lens is written in the rail's own moving frame, which makes the
  *  aim independent of how far the camera has travelled. */
-Element turntable(const Turntable& table, float seconds);
+Camera turntable(const Turntable& table, motion::Duration now);
 
 /** A LIT SET: a ground plane, a rig over it, a turntable round it, and
  *  whatever is being looked at. */
@@ -140,9 +149,39 @@ struct Set {
   std::optional<material::Material> surface;
 };
 
-/** The set, with @p subject standing on it. The tree is `set` with the
- *  children `ground`, `rig`, `camera` and `subject`, in that order — a
- *  caller who wants one of them alone builds it alone. */
-Element litSet(Element subject, const Set& set = {}, float seconds = 0.0f);
+/** The set at scene time @p now, with @p subject standing on it. The
+ *  tree is `set` with the children `ground`, `rig`, `camera` and
+ *  `subject`, in that order — a caller who wants one of them alone
+ *  builds it alone. */
+Group litSet(Node subject, const Set& set = {},
+             motion::Duration now = motion::Duration{});
+
+/** ONE SOFT BOX in an environment map: an elliptical glow whose radiance
+ *  falls off as a Gaussian, centred at `centre` in the map's `(u, v)` —
+ *  u round the horizon from 0 to 1, wrapping, v from the zenith at 0 to
+ *  the nadir at 1 — with `size` the Gaussian's spread along each. */
+struct SoftBox {
+  glm::vec2 centre{0.5f, 0.5f};
+  glm::vec2 size{0.05f, 0.2f};
+  glm::vec3 radiance{1.0f, 1.0f, 1.0f};
+};
+
+/** An environment map made of a vertical gradient and soft boxes. */
+struct EnvironmentMapOptions {
+  /** How many pixels round the panorama; the map is half as tall. */
+  int width = 256;
+  /** The radiance straight up and straight down. Between them the
+   *  zenith's share at a height is `(1 - v)` raised to `exponent`. */
+  glm::vec3 zenith{0.0f, 0.0f, 0.0f};
+  glm::vec3 nadir{0.0f, 0.0f, 0.0f};
+  float exponent = 1.0f;
+  /** The soft boxes, added over the gradient. */
+  std::vector<SoftBox> softBoxes;
+};
+
+/** AN ENVIRONMENT MAP from a gradient and soft boxes — a studio, a
+ *  window-lit room, a sky — baked once. Empty options bake a black map;
+ *  nothing here states a look. */
+EnvironmentMap environmentMap(const EnvironmentMapOptions& options);
 
 }  // namespace sigil::world::kit

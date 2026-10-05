@@ -8,7 +8,7 @@ saves it as binary crate (`.usdc`, the default), ASCII (`.usda`), or a
 `.usdz` package. In: `readModel()` pours a USD stage's meshes, point
 instancers and materials into `geometry::mesh::codec::decode::Model`,
 the same currency every other format lands in, and `readLights()`,
-`readEnvironments()` and `readCameras()` hand back its emitters,
+`readEnvironments()` and `readCameras()` hand back its lights,
 environment maps and cameras as the same values
 the writer took — so a stage this library authors round-trips whole.
 
@@ -25,7 +25,7 @@ a consumer uses; every public header lives under
 |--------|---------|-------|
 | `SigilUsdRuntime` | `runtime/Runtime.h` | `usd::available()` — whether the USD file-format plugins are present in this process |
 | `SigilUsdWrite`   | `write/Writer.h`    | `WriteOptions` and `Writer` — a stage built from values and saved: `mesh()`, `stamps()`, `light()`, `environmentMap()` (a panorama written beside the stage as a `UsdLuxDomeLight`), `camera()`, `save()` |
-| `SigilUsdRead`    | `read/Reader.h`     | `ReadInfo` and `readModel()` — a stage read into a `Model`; `readLights()`, `readEnvironments()` and `readCameras()` — its emitters, environment maps and cameras as values, as `ReadLight`, `ReadEnvironment` (the dials, the orientation, and the panorama's path — this library decodes no image) and `ReadCamera` |
+| `SigilUsdRead`    | `read/Reader.h`     | `ReadInfo` and `readModel()` — a stage read into a `Model`; `readLights()`, `readEnvironments()` and `readCameras()` — its lights, environments and cameras as values, as `ReadLight` (a `world::PlacedLight`), `ReadEnvironment` (a `world::Environment` — the dials and the orientation — and the panorama's path: this library decodes no image) and `ReadCamera` |
 
 `SigilUsd` is the umbrella target over all three. Write and read are
 independent of each other; neither links the other.
@@ -40,13 +40,14 @@ usd::Writer writer("shots/lab.usdc");
 writer.mesh("floor", floorMesh, glm::mat4(1.0f), plate);
 writer.mesh("torus", torus, place({420, 20, 0}), {plate, rubber});  // slots
 writer.stamps("sparks", cloud, geometry::mesh::quad(4, 4), glm::mat4(1.0f), glow);
-writer.light("sun", world::light::sun({-0.45f, -0.75f, -0.5f}));
+writer.light("sun", {.light = world::directionalLight({-0.45f, -0.75f, -0.5f})
+                                  .description()});
 writer.camera("camera", camera);
 std::string error;
 if (!writer.save(&error)) std::fprintf(stderr, "%s\n", error.c_str());
 
 auto back = usd::readModel("shots/lab.usdc");      // decode::Model
-auto lamps = usd::readLights("shots/lab.usdc");    // ReadLight: path + Light
+auto lamps = usd::readLights("shots/lab.usdc");    // ReadLight: path + PlacedLight
 auto lenses = usd::readCameras("shots/lab.usdc");  // ReadCamera: path + Camera
 ```
 
@@ -55,7 +56,7 @@ auto lenses = usd::readCameras("shots/lab.usdc");  // ReadCamera: path + Camera
 **Values in, a stage out.** The writer never looks inside a renderer — the
 GPU has the meshes, not the CPU — it takes the same values you placed:
 `geometry::mesh::Mesh`, `glm::mat4`, `material::Material` (or a slot
-list), `geometry::mesh::Cloud`, `material::Light`,
+list), `geometry::mesh::Cloud`, `world::PlacedLight`, `world::Environment`,
 `geometry::mesh::camera::Camera`. Keep those around and writing the
 scene is one call per prop.
 
@@ -69,8 +70,9 @@ scene is one call per prop.
 | a `Material` | `UsdPreviewSurface` under `/World/Materials`, the surface recipe's parameters read by name and its map slots as `UsdUVTexture` nodes reading `st`, wrap by each texture's own tiling, sRGB/raw by role, normal maps remapped through the node's `scale`/`bias` (the DirectX param flips green); the channel parameters select the output of a packed map; `alphaCutoff` → `opacityThreshold`; `ior` |
 | what UsdPreviewSurface has no word for | custom data on the prim: `sigil:transmission`, `sigil:layers` (the stack depth), `sigil:unlit`, `sigil:baseColorFactor` |
 | stamps | `UsdGeomPointInstancer` with the stamp as its one prototype: positions, `size` → scales, `dir`/`normal` → orientations (the stamp's +z along it), `tint` → `displayColor`/`displayOpacity` |
-| a point light or a spot / a sun | `UsdLuxSphereLight` (translated, `sigil:range`; a spot oriented -Z along its direction, cone as `shaping:cone:angle` with the inner edge as `shaping:cone:softness`) / `UsdLuxDistantLight` (oriented, -Z along the direction) |
-| an environment map | `UsdLuxDomeLight`: the panorama beside the stage as a sixteen-bit PNG on `inputs:texture:file`, `textureFormat` `latlong`, the strength and the tint on `intensity` and `color`, the orientation as the prim's transform, and the dials UsdLux has no word for as `sigil:diffuse`, `sigil:specular`, `sigil:roughnessBias`, `sigil:backdrop`, `sigil:backdropBlur`, `sigil:groundRadius` |
+| a point light or a spot / a directional light | `UsdLuxSphereLight` (translated, `sigil:range`; a spot oriented -Z along its direction, cone as `shaping:cone:angle` with the inner edge as `shaping:cone:softness`) / `UsdLuxDistantLight` (oriented, -Z along the direction) |
+| a light's light link and shadow link | `sigil:lightLink` and `sigil:shadowLink` custom data, each an `include` and an `exclude` list of terms — a link names collections and keys, which no prim of the written stage stands for, so a `UsdCollectionAPI` could not hold it |
+| an environment | `UsdLuxDomeLight`: the panorama beside the stage as a sixteen-bit PNG on `inputs:texture:file`, `textureFormat` `latlong`, the strength on `intensity`, the orientation as the prim's transform, and the dials UsdLux has no word for as `sigil:diffuse`, `sigil:specular`, `sigil:roughnessBias`, `sigil:shown`, `sigil:blur`, `sigil:groundRadius` |
 | the camera | `UsdGeomCamera`, camera-to-world from the view's inverse, a 24 mm vertical aperture and the focal length that gives the vertical fov, the clipping range, and the distance to the target as `focusDistance` |
 
 **A panorama is written scaled and the scale rides the intensity.** A
@@ -88,14 +90,15 @@ live composition; `UsdPreviewSurface` cannot hold it, and this library
 does not bake. The depth rides as `sigil:layers` so a consumer knows
 something is missing.
 
-**Emitters and cameras read back as values, not parts.** A
-`UsdLuxDistantLight` is a sun aimed along the prim's -Z, a
+**Lights and cameras read back as values, not parts.** A
+`UsdLuxDistantLight` is a directional light aimed along the prim's -Z, a
 `UsdLuxSphereLight` a point light where the prim stands — a spot when
 the prim carries an *authored* shaping cone, whose angle is the outer
 half-angle and whose softness gives the inner edge back as `outer × (1 -
 softness)`. `sigil:range` is the range when the stage has it and the
-`Light` default when it does not, so a light another tool authored still
-reads. A camera comes back from the prim's local-to-world, with its
+`world::LightDescription` default when it does not, so a light another
+tool authored still reads; a dome light's own colour is not read, since
+an environment holds no tint. A camera comes back from the prim's local-to-world, with its
 field of view from the focal length against the vertical aperture; its
 target rides the view direction at the focus distance, one unit ahead
 when the stage names none — a camera sees the same thing wherever along
@@ -166,8 +169,8 @@ authored by hand must spell it.
 ## Boundary
 
 Public: SigilMaterialSurface for the surface program a preview surface is written
-from, SigilWorldLight for the emitters, SigilWorldElement for the
-environment map a dome light carries, and the geometry features each
+from, SigilWorldNode for the lights and SigilWorldFrame for the
+environment a dome light carries, and the geometry features each
 door takes values from (mesh, pop and camera for the writer; codec, mesh
 and camera for the reader), plus Skia. Private: OpenUSD core (`usd`, `usdGeom`, `usdShade`, `usdLux`,
 `usdUtils`, `ar`, `sdf`, `tf`, `gf`, `vt`) — no imaging, no MaterialX, and no public

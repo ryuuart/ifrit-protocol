@@ -95,7 +95,7 @@ parameters and the scaffold's own — is written at the offset the compiler
 REPORTED for it, so a body that declares one more parameter moves nothing
 a renderer has to be told about. The variant axis is one bit, `kVariantLit`:
 without it the lighting, the uniforms it reads and the loop over the
-emitters are not in the compiled program. Which build a body is drawn
+lights are not in the compiled program. Which build a body is drawn
 with is the body's own answer as much as the pass's — a surface that is
 its own light takes the unlit one whatever the pass asked for. The mesh vertex layout is not a
 variant axis, because there is one — position, normal, uv and tint, with
@@ -162,7 +162,7 @@ rough it is.
 **A body may ask to be shaded again, per pixel.** The scaffold shades
 per VERTEX, and one thing cannot survive that: a MAP that varies the
 surface across a face. A body dressed with one raises
-`gSurfacePerPixel`, and the emitter loop runs again where those values
+`gSurfacePerPixel`, and the light loop runs again where those values
 can be seen. A body that raises nothing keeps the terms the vertex stage
 interpolated, down to the bit. The tangent frame a normal map is authored against is
 read off the screen derivatives of the view position and the uv, because
@@ -263,7 +263,12 @@ term that nothing scales. So:
   extracted.
 - a sun reaches the shading as itself; a point or spot light reaches it
   as the direction from where it stands toward the origin, at the
-  strength it has there. The full falloff is `light::attenuation`.
+  strength it has there. The full falloff is `world::attenuation`.
+- **a light reaches only the bodies its light link names.** Each body is
+  drawn under the lights whose `Light::lightLink` contains it, asked of
+  the same member a pass's collection reads; an unlinked light reaches
+  every body. The shadow link is stored and reaches nothing, since no
+  body casts a shadow.
 - a surface that says light does not reach it — `material::surface::unlit`
   — is drawn with the unlit build: what it shows is its base colour and
   the mesh's own tint. The answer is read off the material once at
@@ -291,7 +296,7 @@ term that nothing scales. So:
 - the occlusion, emissive and opacity maps reach the pixels through the
   kit's own body: occlusion darkens the albedo at its strength, emission
   is laid over the finished colour at its own colour and strength — past
-  the emitters, the tone curve and the base-colour map, so a surface whose
+  the lights, the tone curve and the base-colour map, so a surface whose
   base is black still shows the light it gives off, as authored — and
   `alphaCutoff` turns the
   opacity map into a CUTOUT — below the threshold the surface is absent
@@ -319,14 +324,15 @@ term that nothing scales. So:
   and Fresnel decides how much of the light went that way. That is glass
   against the WORLD; what stands behind a body ON SCREEN is a backdrop
   pass and not a shading term, and there is none.
-- **the lit sum ends at a TONE CURVE, at the set's exposure.** A
+- **the lit sum ends at a TONE CURVE, at the camera's exposure.** A
   panorama holds values far above one — that is what makes a sun a sun
   rather than a white disc — and every lit sum carries them through, so
   cutting it off at one would flatten every highlight to the same white
   and lose exactly the range the map is kept in floating point to hold.
   `material::termsSource`'s `toneMap` is what runs instead, on a body and
-  on the sky pass alike: the radiance times the environment's `exposure`,
-  divided by one plus its own luminance. A surface that is its own light
+  on the sky pass alike: the radiance times the camera's
+  `CameraOptions::exposure`, divided by one plus its own luminance —
+  `ToneCurve::Reinhard`. A surface that is its own light
   and a coverage mask are drawn with the unlit build and are not curved:
   their colour is authored, not integrated.
 - **it is still not a path tracer's answer and this page does not call it
@@ -343,15 +349,16 @@ term that nothing scales. So:
   host image at all, so a renderer on another device draws the body
   undressed rather than something it invented.
 
-- **the sky SHOWN behind the set is `Backdrop`**, drawn as one triangle over the target with each pixel reading the panorama
-  along the ray the eye looks through it, at the backdrop's strength and
-  blur. Past a `groundRadius` of zero the panorama is projected onto a
-  sphere of that radius centred at `projectionCenter`: the pixel reads
+- **the panorama SHOWN behind the set is `EnvironmentOptions::shown`**,
+  drawn as one triangle over the target with each pixel reading the
+  panorama along the ray the eye looks through it, at that strength and
+  `EnvironmentOptions::blur`. Past a `groundRadius` of zero the panorama
+  is projected onto a sphere of that radius centred at the world origin: the pixel reads
   where its ray leaves the sphere, along the direction from the centre
   to that point, so an eye moving through the set sees the horizon shift
   the way it would outdoors. An eye at the centre, or on or outside the
   sphere, reads by direction — the sky at infinity, which is what a
-  radius of zero means. The projection reaches the backdrop alone: what a
+  radius of zero means. The projection reaches what is shown alone: what a
   surface mirrors stays at infinity.
 
 ## What the environment map does not reach

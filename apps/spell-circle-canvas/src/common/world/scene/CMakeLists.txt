@@ -18,7 +18,7 @@ find_package(EnTT CONFIG REQUIRED)
 sigil_library(SigilWorldScene
   SOURCES Draw.cpp Execute.cpp Host.cpp Phases.cpp Resources.cpp Scene.cpp
           Resources.h SceneImpl.h
-  HEADERS Scene.h Stats.h
+  HEADERS Scene.h ../advanced/Stats.h
   PUBLIC SigilWorldGraph SigilMotionClock
          SigilMotionSchedule SigilCoreReconcile SigilMeasure
   PRIVATE EnTT::EnTT SigilMaterialSurface SigilCoreCache SigilGeometryMeshCurve

@@ -4,17 +4,19 @@
  * @ingroup world-frame
  * A PASS: one stage of making a frame, declared as a comparable value —
  * what it reads, what it writes, which bodies it addresses, and the work
- * it does. A pass is never a scene child: it is a step of turning the
- * scene into pixels, not a thing standing in the world.
+ * it does — paint bodies, cook points, process what was painted, or
+ * paint the textures a body wears. A pass is never a scene child: it is a step
+ * of turning the scene into pixels, not a thing standing in the world.
  */
 
 #include <sigilcore/callable/Callable.h>
 #include <sigilcore/comparable/Erased.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/BlendMode.h>
-#include <sigilworld/element/Geometry.h>
-#include <sigilworld/element/Selector.h>
-#include <sigilworld/frame/View.h>
+#include <sigilworld/advanced/Geometry.h>
+#include <sigilworld/advanced/TextureProducer.h>
+#include <sigilworld/advanced/View.h>
+#include <sigilworld/node/Collection.h>
 
 #include <concepts>
 #include <cstdint>
@@ -34,6 +36,7 @@ enum class Stage : uint8_t {
   Geometry,  ///< paints bodies into a target
   Compute,   ///< cooks points, writing no pixels
   Post,      ///< reads targets and writes one
+  Texture,   ///< paints textures a body wears, before anything draws bodies
 };
 
 /** HOW A PASS'S SELECTION REACHES THE PIXELS.
@@ -47,6 +50,13 @@ enum class Selection : uint8_t {
   Cull,     ///< only the selected bodies are drawn
   Mask,     ///< every pixel is drawn, the selected ones through coverage
   Variant,  ///< the selection is drawn again in the variant surface
+};
+
+/** How a compute pass's chain is cooked. */
+struct ChainOptions {
+  /** The executor the chain is cooked on; every one produces the same
+   *  points from the same chain. */
+  geometry::mesh::pop::Runtime runtime = geometry::mesh::pop::Runtime::cpu();
 };
 
 /** Soften what the pass reads. */
@@ -144,7 +154,9 @@ class Pass {
    *  @{ */
   /** The bodies this pass addresses. A pass that narrows nothing
    *  addresses every one of them. */
-  Pass& only(Selector selector);
+  Pass& only(Collection bodies);
+  /** …the members of the one collection called @p name. */
+  Pass& only(std::string name);
   /** …drawn again in @p surface, which is what makes the selection
    *  visible where the pass paints everything. */
   Pass& variant(::sigil::material::Material surface);
@@ -158,11 +170,9 @@ class Pass {
    *  @{ */
   /** What a geometry pass clears its target to before it paints. */
   Pass& clear(material::Color colour);
-  /** The points a compute pass cooks, and the executor it cooks them
-   *  on. They land in the pass's first written resource. */
-  Pass& chain(geometry::mesh::pop::Chain c,
-              geometry::mesh::pop::Runtime runtime =
-                  geometry::mesh::pop::Runtime::cpu());
+  /** The points a compute pass cooks, and how. They land in the pass's
+   *  first written resource. */
+  Pass& chain(geometry::mesh::pop::Chain points, ChainOptions options = {});
   /** The body a geometry pass stands at every point of every point set
    *  it reads. */
   Pass& stamp(geometry::mesh::Mesh body);
@@ -170,10 +180,10 @@ class Pass {
    *  replaces whatever `levels` or `composite` set. */
   Pass& blur(float sigma);
   /** Grade what the pass reads, replacing any other post operation. */
-  Pass& levels(float gain, float lift, material::Color tint = {1, 1, 1, 1});
+  Pass& levels(Levels grade);
   /** Lay what the pass reads one layer over another, replacing any other
    *  post operation. */
-  Pass& composite(material::BlendMode mode, float opacity = 1.0f);
+  Pass& composite(Composite layering);
   /** THE ESCAPE, as a comparable seam value. */
   Pass& body(PassBody b);
   /** …and as a callable, which compares equal to nothing but its own
@@ -198,8 +208,8 @@ class Pass {
   [[nodiscard]] std::span<const std::string> previous() const {
     return m_previous;
   }
-  /** The selector the pass narrows by; meaningless unless it narrowed. */
-  [[nodiscard]] const Selector& selector() const { return m_selector; }
+  /** The bodies the pass narrows to; meaningless unless it narrowed. */
+  [[nodiscard]] const Collection& collection() const { return m_collection; }
   /** Whether the pass narrowed at all, rather than addressing every
    *  body. */
   [[nodiscard]] bool narrowed() const { return m_narrowed; }
@@ -227,6 +237,8 @@ class Pass {
   [[nodiscard]] const PostOperation& operation() const { return m_operation; }
   /** The escape body the pass runs instead of its stage's work. */
   [[nodiscard]] const PassBody& body() const { return m_body; }
+  /** What a texture pass paints with; empty on every other stage. */
+  [[nodiscard]] const TextureProducer& producer() const { return m_producer; }
   /** @} */
 
   /** Value equality, field by field. A pass carrying a lambda body is
@@ -242,7 +254,7 @@ class Pass {
   std::vector<std::string> m_reads;
   std::vector<std::string> m_writes;
   std::vector<std::string> m_previous;
-  Selector m_selector;
+  Collection m_collection;
   bool m_narrowed = false;
   std::optional<::sigil::material::Material> m_variant;
   Selection m_realisation = Selection::Auto;
@@ -253,6 +265,9 @@ class Pass {
   geometry::mesh::Mesh m_stamp;
   PostOperation m_operation;
   PassBody m_body;
+  TextureProducer m_producer;
+
+  friend Pass texturePass(std::string name, TextureProducer producer);
 };
 
 /** A pass that paints bodies into a target. */
@@ -261,14 +276,19 @@ Pass geometryPass(std::string name);
 Pass computePass(std::string name);
 /** A pass that reads targets and writes one. */
 Pass postPass(std::string name);
+/** A PASS THAT PAINTS TEXTURES a body wears, with @p producer, at the
+ *  frame's time. It runs before every pass that draws bodies, and a body
+ *  wearing what it paints is an error while it is missing from the
+ *  frame. */
+Pass texturePass(std::string name, TextureProducer producer);
 
 /** ONE COVERAGE a geometry pass paints for a masked pass behind it: the
  *  resource it goes into, and whose coverage it is. Two masked passes
  *  asking the same producer for the same selection share one entry,
- *  a coverage answering for exactly one selector. */
+ *  a coverage answering for exactly one collection. */
 struct Coverage {
   std::string name;
-  Selector of;
+  Collection of;
 };
 
 /** WHAT THE ORDERING DECIDED about one pass, in terms an execution can

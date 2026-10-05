@@ -13,7 +13,6 @@
 #include <sigilmotion/schedule/Stagger.h>
 
 #include <algorithm>
-
 #include <span>
 #include <utility>
 #include <vector>
@@ -40,8 +39,8 @@ std::unique_ptr<Instance> Scene::Impl::create(const Description& description,
   return inst;
 }
 
-void Scene::Impl::onPatched(Instance& inst, const ElementNode* prev,
-                            const ElementNode& next) {
+void Scene::Impl::onPatched(Instance& inst, const NodeDescription* prev,
+                            const NodeDescription& next) {
   lanesOf(next, laneScratch);
   if (prev) {
     lanesOf(*prev, prevLaneScratch);
@@ -54,7 +53,7 @@ void Scene::Impl::onPatched(Instance& inst, const ElementNode* prev,
     for (const Lane& lane : laneScratch)
       if (lane.value)
         motion::enter(engine, inst.anims[lane.slot.index], *lane.value,
-                              inst.mountPlace);
+                      inst.mountPlace);
   }
 
   // The geometry slot's value type is the node's kind, so a change of

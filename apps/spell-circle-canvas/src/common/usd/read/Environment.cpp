@@ -37,16 +37,13 @@ std::optional<std::vector<ReadEnvironment>> readEnvironments(
       read.texture = asset.GetAssetPath();
 
     dome.GetIntensityAttr().Get(&read.environment.intensity);
-    GfVec3f rgb(1, 1, 1);
-    dome.GetColorAttr().Get(&rgb);
-    read.environment.tint = {rgb[0], rgb[1], rgb[2]};
 
     // The prim's placement puts the panorama in the world; what a frame
     // carries is the inverse, which is what takes a world direction into
     // the panorama's own frame.
     const glm::mat4 world =
         fromGf(context.xforms.GetLocalToWorldTransform(prim));
-    read.orientation = glm::inverse(glm::mat3(world));
+    read.environment.orientation = glm::inverse(glm::mat3(world));
 
     // The dials UsdLux has no word for. A dome light authored by
     // anything else keeps the defaults rather than reaching nowhere.
@@ -57,9 +54,9 @@ std::optional<std::vector<ReadEnvironment>> readEnvironments(
     note("sigil:diffuse", read.environment.diffuse);
     note("sigil:specular", read.environment.specular);
     note("sigil:roughnessBias", read.environment.roughnessBias);
-    note("sigil:backdrop", read.environment.backdrop.intensity);
-    note("sigil:backdropBlur", read.environment.backdrop.blur);
-    note("sigil:groundRadius", read.environment.backdrop.groundRadius);
+    note("sigil:shown", read.environment.shown);
+    note("sigil:blur", read.environment.blur);
+    note("sigil:groundRadius", read.environment.groundRadius);
     out.push_back(std::move(read));
   }
   return out;

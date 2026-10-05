@@ -59,10 +59,11 @@ void Scene::render(const Frame& frame) {
 }
 
 std::optional<geometry::mesh::camera::Camera> Scene::camera() const {
-  return m_impl->camera;
+  if (!m_impl->camera) return std::nullopt;
+  return m_impl->camera->lens;
 }
 
-std::vector<material::Light> Scene::lights() const { return m_impl->lights; }
+std::vector<PlacedLight> Scene::lights() const { return m_impl->lights; }
 
 uint64_t Scene::handleOf(std::string_view key) const {
   const auto it = m_impl->byKey.find(key);

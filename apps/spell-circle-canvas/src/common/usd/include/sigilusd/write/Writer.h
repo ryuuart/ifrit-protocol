@@ -20,8 +20,8 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/pop/Points.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilworld/element/Environment.h>
-#include <sigilworld/light/Light.h>
+#include <sigilworld/advanced/Light.h>
+#include <sigilworld/frame/Environment.h>
 
 #include <filesystem>
 #include <memory>
@@ -79,16 +79,19 @@ class Writer {
                      const geometry::mesh::Mesh& stamp, const glm::mat4& model,
                      const material::Material& material,
                      std::string_view parent = "/World");
-  /** An emitter: distant for a sun, sphere for a point light or for a
-   *  spot, whose cone is UsdLux shaping about the prim's -Z. The range,
-   *  which UsdLux has no word for, rides as `sigil:range`. */
-  std::string light(std::string_view name, const material::Light& light,
+  /** A light, as a frame keeps it: distant for a directional light,
+   *  sphere for a point light or for a spot, whose cone is UsdLux shaping
+   *  about the prim's -Z. The range, which UsdLux has no word for, rides
+   *  as `sigil:range`; the light and shadow links, whose collection terms
+   *  name collections and keys rather than this stage's prims, ride as
+   *  `sigil:lightLink` and `sigil:shadowLink` custom data. */
+  std::string light(std::string_view name, const world::PlacedLight& light,
                     std::string_view parent = "/World");
-  /** THE SET'S ENVIRONMENT MAP, as a UsdLuxDomeLight: the panorama
-   *  written beside the stage and declared lat-long, the strength and
-   *  the tint on the light's own attributes, and @p orientation — the
-   *  matrix a frame carries, taking a world direction into the
-   *  panorama's frame — inverted back into the prim's transform.
+  /** THE SET'S ENVIRONMENT, as a UsdLuxDomeLight: the panorama written
+   *  beside the stage and declared lat-long, the strength on the light's
+   *  own attribute, and the environment's orientation — the matrix a
+   *  frame carries, taking a world direction into the panorama's frame —
+   *  inverted back into the prim's transform.
    *
    *  A panorama holds values above one and no encoder in this tree
    *  writes a floating-point image, so it is divided by its peak,
@@ -98,7 +101,6 @@ class Writer {
    *  word for ride as `sigil:` custom data. */
   std::string environmentMap(std::string_view name,
                              const world::Environment& environment,
-                             const glm::mat3& orientation = glm::mat3(1.0f),
                              std::string_view parent = "/World");
   /** The camera, as UsdGeomCamera: camera-to-world, the focal length
    *  that gives its vertical field of view against a 24 mm vertical

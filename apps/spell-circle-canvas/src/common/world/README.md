@@ -1,27 +1,197 @@
 # SigilWorld
 
-SigilWorld describes a 3D scene as comparable values, turns those values
-into a frame — a scene, an ordered list of passes and the readbacks the
-caller asked for — and executes that frame on a device. A set is drawn
-on a device and nowhere else: there is no CPU executor, and a frame whose
-passes carry no device runtime runs none of them and says so. It owns
-three things and
-nothing else: the 3D scene description, the frame graph that orders
-passes from their declared inputs and outputs, and the execution of that
-graph. It holds no window, no swapchain, no clock of its own — its motion
-runs on the `motion::Engine` its caller hands the `Scene` — and no second
-copy of anything a library beneath it already defines: meshes, point
-operators, splines, cameras — including the clip-space view a device
-draws with, which is `camera::Camera::clipProjection()` — and the
-residency that puts a mesh's buffers and a map's texture on a device are
-SigilGeometry's;
-materials, recipes and programs are SigilMaterial's; the reconciler, its
-phases and the caching proof are SigilCore's, as are the erased value a
-`Generator` and a `PassBody` take, the field pin every hand-written
-comparator here sits under, and the fold a geometry signature accumulates
-with; the device and its handles are SigilCoreHardware's, and Graphite is
-SigilSkia's; animation is SigilMotion's; counters and timers are
-SigilMeasure's.
+SigilWorld describes a 3D scene as comparable values — a tree of nodes
+built fresh every frame — turns it into a frame of passes, and draws that
+frame on a device. Its words are the ones 3D graphics already uses: USD,
+Blender, three.js and glTF are the references for every name here.
+
+```cpp
+#include <sigilworld/World.h>
+
+namespace world = sigil::world;
+
+world::Frame describe(sigil::motion::Duration now) {
+  return world::Frame(
+             world::group({
+                 world::directionalLight({-0.45f, -0.8f, -0.4f},
+                                         {.intensity = 0.95f}),
+                 world::pointLight({.range = 900}).at({180, 150, 220}),
+                 world::kit::turntable({.radius = 470, .height = 190}, now),
+                 world::mesh(geometry::mesh::quad(900, 900))
+                     .at({0, -150, 0})
+                     .rotateX(-90)
+                     .fill(material::Color{0.10f, 0.11f, 0.14f, 1})
+                     .collection("ground"),
+                 world::mesh(tube).key("tube").fill(steel),
+             }))
+      .environment(studio, {.intensity = 1.4f, .diffuse = 0.5f});
+}
+```
+
+## Three rules
+
+1. **What flows down the tree is placement and visibility, and nothing
+   else.** A child stands where its parent's placement puts it, and
+   nothing under a hidden node is in the scene. A surface belongs to the
+   body that wears it; a group says nothing about what its children are
+   made of.
+2. **A light lights every body in the scene, wherever it stands in the
+   tree.** Its node places and aims it; it never narrows what it reaches.
+   A light that must leave bodies out says so with its light link — a
+   `Collection` of the bodies it reaches — and never by nesting.
+3. **A frame looks through one camera.** With one camera in the tree it
+   is that one; with several, the frame names which by key with
+   `Frame::camera`, and several with none named is an error that names
+   them all.
+
+## The front page
+
+Everything a set says, from `<sigilworld/World.h>`:
+
+```cpp
+// the nodes — every kind places, keys and joins collections
+Group  group({child, child, …});              // the one kind with children
+Mesh   mesh(geometry::mesh::Mesh triangles);
+Points points(geometry::mesh::pop::Chain chain, geometry::mesh::Mesh stamp,
+              PointsOptions = {});
+Light  directionalLight(glm::vec3 direction, DirectionalLightOptions = {});
+Light  pointLight(PointLightOptions = {});
+Light  spotLight(glm::vec3 direction, SpotLightOptions = {});
+Camera camera(geometry::mesh::camera::Camera lens, CameraOptions = {});
+std::vector<Node> each(range or count, make);  // children a range describes
+
+// every kind
+.key(name)  .collection(name)  .at(position)  .rotateX/Y/Z(degrees)
+.scale(factor)  .along(rail, distance)  .visible(shown)
+// a mesh and points
+.fill(material::Material surface)   // a material::Color is lit at the stock response
+.backface(material::Backface)
+// a light
+.lightLink(Collection)  .shadowLink(Collection)
+
+// the frame
+Frame(Node scene);
+Frame& environment(EnvironmentMap map, EnvironmentOptions = {});
+Frame& camera(std::string key);
+Frame& pass(Pass);
+
+// the kit
+kit::threePoint(kit::Rig = {});
+kit::turntable(kit::Turntable, motion::Duration now);
+kit::environmentMap(kit::EnvironmentMapOptions);
+```
+
+**The node kinds.** A `Group` is the one kind that holds children, and it
+takes them as its argument: a braced list mixing every kind, and the
+lists `each()` makes. A `Mesh` is one body wearing a surface. `Points`
+stand a stamp at every point a chain cooks or a cloud holds, wearing the
+node's surface. A `Light` is one node type made by three factories — a
+directional light, the same everywhere; a point light, shining every way
+from where its node stands; a spot light, within a cone — each aimed by
+the direction it travels, which its node's rotation turns. A `Camera` is
+Geometry's lens standing where its node does, with the exposure and the
+tone curve the picture is read at. Every kind places itself with the same
+verbs, answers to a key and joins collections; each adds only the verbs
+that mean something for it, so `fill` on a light does not compile.
+
+**A collection** is how a set names a set of nodes. A node joins named
+collections with `collection("props")`; a `Collection` value includes and
+excludes terms, a plain name being the members of that collection and a
+term beginning with `/` being the node with that key and everything under
+it, the way a USD collection includes a prim's path. A pass narrows to
+one with `Pass::only`, a light reaches only one with `Light::lightLink`,
+and a light's shadow link waits for shadows with `Light::shadowLink`.
+
+**The frame** holds what is not a node: the environment the set stands
+in, the camera it is seen through when the tree holds several, and the
+passes that draw it. A frame with no passes is its scene — reconciled and
+extracted, and drawn by nothing.
+
+## Tier two: one options struct per verb
+
+Each factory and frame verb above takes one options struct as its last
+argument, written with designated initialisers; every field is defaulted
+and a field no consumer sets does not exist.
+
+- `DirectionalLightOptions` — `color` and `intensity`, both
+  `motion::Animatable`, so a light bound to a live value changes the
+  shading frame by frame without the tree being described again.
+- `PointLightOptions` — the same and the `range` it falls to nothing at.
+- `SpotLightOptions` — the same and the cone: `innerAngle`, within which
+  it is full, and `outerAngle`, beyond which it is dark, in degrees.
+- `CameraOptions` — the `exposure` every radiance is multiplied by before
+  the tone curve, animatable, and the `toneCurve`, `ToneCurve::Reinhard`.
+- `EnvironmentOptions` — what of the panorama reaches a surface
+  (`intensity`, `diffuse`, `specular`, `roughnessBias`), a second
+  panorama crossfaded over the first (`next`, `crossfade`), its turn about
+  the up axis (`rotation`), how much of it is shown behind the set and how
+  blurred (`shown`, `blur`), and a ground the shown panorama is projected
+  onto (`groundRadius`). Every dial is animatable and read once a frame.
+- `PointsOptions` — a `Window` into the loop the chain carries, its
+  `head` and `span` animatable, and the `runtime` the chain is cooked on.
+- `kit::Rig`, `kit::Turntable`, `kit::Set` and `kit::EnvironmentMapOptions`
+  — the presets', in `reference/PRESETS.md`.
+
+The passes are the frame's second tier: `geometryPass`, `computePass`,
+`postPass` and the verbs that declare what each reads, writes, narrows
+to and does, in **[reference/FRAMES.md](reference/FRAMES.md)**. The
+placement verbs a set reaches for less often — `translateX/Y/Z`,
+`scaleX/Y/Z`, `rotate(axis, degrees)`, `transformOrigin`, the matrix
+escape `transform`, and `cache` and `transition` — are on every kind
+beside the ones above, in **[reference/NODES.md](reference/NODES.md)**.
+
+## Tier three: `advanced/`
+
+What a host, an executor or a test reaches for, and a set never does —
+each header under `sigilworld/advanced/`:
+
+- `advanced/Node.h` — `Node`, the type-erased handle every
+  kind converts to; `NodeDescription`, every field of one node;
+  `propertiesEqual`, the structural prune over it; `memo`; and
+  `Along`, `Window`, `CameraDescription` and `ToneCurve`.
+- `advanced/Light.h` — `LightKind`, `LightDescription`,
+  `PlacedLight`, `held`, `attenuation` and `radiance`: a light as values.
+- `advanced/Lanes.h` — `LaneFamily`, `Slot`, `lanesOf` and
+  `standingValue`: a node's animation lanes.
+- `advanced/Geometry.h` — `Stamped`, `Chained`, `Generator`,
+  `Geometry`, `Cooked`, `cook`, `stampKey` and `signature`: the geometry
+  slot and its cook.
+- `advanced/View.h` — `Draw`, `Sampling`, `samplingOf`,
+  `ViewOffset`, `View`, `memberOf`, `clipProjection`: what a pass sees.
+- `advanced/Runtime.h` — `Executor` and `Runtime`, the seam a
+  pass is performed through.
+- `advanced/TextureProducer.h` — the seam a texture pass
+  paints through.
+- `advanced/Plan.h`, `sigilworld/advanced/Stats.h` — the
+  ordering a frame derived, and what the frame did, counted.
+- `advanced/Diligent.h` — the device executor's compiler and
+  program variants.
+- `advanced/Skia.h` — the one door to Skia, below.
+
+`Scene`, in `sigilworld/scene/Scene.h`, is the retained side a host
+renders frames into; `diligent::runtime(device)`, in
+`sigilworld/diligent/Runtime.h`, the executor that draws them.
+
+## What it owns
+
+It owns three things and nothing else: the 3D scene description, the
+frame graph that orders passes from their declared inputs and outputs,
+and the execution of that graph. A set is drawn on a device and nowhere
+else: there is no CPU executor, and a frame whose passes carry no device
+runtime runs none of them and says so. It holds no window, no swapchain,
+no clock of its own — its motion runs on the `motion::Engine` its caller
+hands the `Scene` — and no second copy of anything a library beneath it
+already defines: meshes, point operators, splines, cameras — including
+the clip-space view a device draws with, which is
+`camera::Camera::clipProjection()` — and the residency that puts a mesh's
+buffers and a map's texture on a device are SigilGeometry's; materials,
+recipes, programs and the panorama type itself are SigilMaterial's; the
+reconciler, its phases and the caching proof are SigilCore's, as are the
+erased value a `Generator`, a `PassBody` and a `TextureProducer` take, the
+field pin every hand-written comparator here sits under, and the fold a
+geometry signature accumulates with; the device and its handles are
+SigilCoreHardware's, and Graphite is SigilSkia's; animation is
+SigilMotion's; counters and timers are SigilMeasure's.
 
 A frame's colours and blends are Material's (`material::Color`,
 `material::BlendMode`), a picture a readback hands back is Media's
@@ -35,110 +205,83 @@ header is still an include every consumer pays for.
 Namespace `sigil::world`, headers under `include/sigilworld/`. Each
 feature is its own static archive with its own tests and benchmark, and
 links only the features beneath it; **`SigilWorld`** is the umbrella over
-them, so a consumer of the whole library names only that. This page says
-which features are built and which are not, rather than describing a
-library that is not here.
-
-## What is here
+them, so a consumer of the whole library names only that.
 
 | directory | target | namespace | holds |
 |---|---|---|---|
-| `element/` | `SigilWorldElement` | `sigil::world` | `Element` and its verbs, the transform lanes, the geometry slot, tags, `Selector` and the `Generator` seam — with `each`, the children a range or a COUNT describes, the spelling a compose tree uses on this side of the seam, so a ring of N posts is one `children` block and not a loop of appends. No device, no retained state. |
-| `frame/` | `SigilWorldFrame` | `sigil::world` | `Frame`, `Pass`, `Readback`, the `Targets` a frame's passes write, the `View` they read, and the `Runtime`/`Executor` seam the device's executor is handed through. No device, no retained state. |
+| `node/` | `SigilWorldNode` | `sigil::world` | the five node kinds over one description, the verb families they share, the transform lanes, the geometry slot, collections, the light values and the `Generator` seam. No device, no retained state. |
+| `frame/` | `SigilWorldFrame` | `sigil::world` | `Frame`, `Environment`, `Pass`, `Readback`, the `Targets` a frame's passes write, the `View` they read, the `Runtime`/`Executor` seam the device's executor is handed through, and the `TextureProducer` seam a texture pass paints through. No device, no retained state. |
 | `graph/` | `SigilWorldGraph` | `sigil::world::graph` | the `Plan`: the order the passes run in, the surfaces they share, the barriers between them, and how each selection is realised. It reads declarations and draws nothing. |
 | `scene/` | `SigilWorldScene` | `sigil::world` | the retained side: the reconcile host, the entity store, the content-keyed resource store, the declared phases, the execution of a frame's passes, and the draw. |
-| `light/` | `SigilWorldLight` | `sigil::world::light` | Material's `material::Light` placed in a set: its angles read as a world direction (`travel`, `aim`), a light with every animatable held as the constant it reads now (`held`), a sun, a point light and a spot spelled by where they stand and aim, and their falloffs. The light value itself is Material's, one value for a surface in the plane and a body in a set; what stays here is only what a set in space adds. |
-| `kit/` | `SigilWorldKit` | `sigil::world::kit` | presets that compose elements: a three-point rig, a turntable, and the lit set both make over a ground plane; and the rails a body rides — the turntable's ring, a loop that rises and falls, a winding round a shell. Nothing here decides a look. |
+| `kit/` | `SigilWorldKit` | `sigil::world::kit` | presets that compose nodes — a three-point rig, a turntable, the lit set both make over a ground plane, and an environment map baked from a gradient and soft boxes — the rails a body rides, and `World.h`, the front door. Nothing here decides a look. |
 | `diligent/` | `SigilWorldDiligent` | `sigil::world::diligent` | the programs this backend draws with — the scaffold, the sky and the post stages, compiled through SigilMaterial's Slang backend — the `Runtime` that performs a frame's passes on that device, and `importNative`, the door a foreign texture reaches a material slot by. What stands on the device beneath all of it is SigilGeometry's: `geometry::device::MeshResidency` and `TextureResidency` put a mesh and a map there, `PipelineCache` builds a pipeline out of a compiled program, and this feature asks them. So are the device executors of every seam it is not — the chain cook and the swept rings each stand beside the CPU executor of their own seam. |
 | — | `SigilWorld` | — | the umbrella target: an interface over every feature above, so a consumer of the whole library names one link and includes the headers it spells. The device feature is in it where it was built. |
 
-## Writing a scene
+## Rendering a scene
 
-An author builds a fresh `Element` tree every frame and hands it to a
-`Scene`, which reconciles it onto what it already holds.
+An author builds a fresh tree every frame and hands it to a `Scene`,
+which reconciles it onto what it already holds:
 
 ```cpp
+#include <sigilworld/World.h>
+#include <sigilworld/advanced/Skia.h>
+#include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/scene/Scene.h>
 
-using namespace sigil;
-using namespace sigil::world;
-
 motion::Engine engine;
-Scene scene(engine);
+world::Scene scene(engine);
 
-motion::Animatable<float> spin = motion::animatable(0.0f);   // written by whatever drives it
-
-scene.render(
-    Element()
-        .key("set")
-        .children({
-            Element().key("sun").light(light::sun({-0.4f, -0.8f, -0.4f})),
-            Element().key("eye").along(rail, travelled).camera(lens),
-            Element()
-                .key("tube")
-                .mesh(geometry::mesh::pop::sweep(loop, profile))
-                .fill(surface)
-                .rotateY(spin)
-                .tag("lit"),
-            Element()
-                .key("comet")
-                .chain(points)
-                .stamp(bead)
-                .window(head, 0.28f)
-                .tag("glow"),
-        }));
-```
-
-A tree handed to `render()` is a `Frame` with no passes, which is why the
-call above compiles: the scene is reconciled and extracted — its bodies,
-its emitters, its viewpoint — and nothing is drawn, because a picture is
-what a pass writes and a pass runs on a device. A frame that is to be
-seen says how in passes, and names the device runtime they run on:
-
-```cpp
-Frame frame(model);
-frame.extent({1280, 720})
-     .camera(lens)
-     .runtime(diligent::runtime(device))
-     .pass(geometryPass("main").writes("colour"))
-     .pass(postPass("bloom")
+world::Frame frame(model);
+frame.environment(studio, {.shown = 0.6f})
+     .extent({1280, 720})
+     .runtime(world::diligent::runtime(device))
+     .pass(world::geometryPass("main").writes("colour"))
+     .pass(world::postPass("bloom")
                .reads("colour")
                .writes("lit")
-               .only(selectors::tag("glow"))
+               .only("glow")
                .blur(9.0f))
-     .pass(postPass("trail")
+     .pass(world::postPass("trail")
                .reads("lit")
                .previous("trail")
                .writes("trail")
-               .composite(material::BlendMode::PlusLighter, 0.88f))
-     .readback(readback("trail").then(observe));
+               .composite({.mode = material::BlendMode::PlusLighter,
+                           .opacity = 0.88f}))
+     .readback(world::readback("trail").then(observe));
 
 scene.render(frame);
-draw(scene, canvas);  // what the passes wrote — advanced/Skia.h
+world::draw(scene, canvas);  // what the passes wrote — advanced/Skia.h
 ```
+
+A host states what the set does not: the extent the targets are made
+at, `Frame::defaultCamera` for a tree holding no camera, and
+`Frame::cameraOverride` — a lens that wins over the chosen camera's while
+that camera still says how the picture is read — for a host that has
+taken hold of the viewpoint.
 
 ### Presets
 
 `kit/` is a handful of trees someone would otherwise write by hand:
 
 ```cpp
-#include <sigilworld/kit/Kit.h>
-
 world::kit::Set set;
-set.rig.extent = 140.0f;   // how far across the subject is
-set.table.period = 12.0f;  // seconds for one turn of the camera
+set.rig.extent = 140.0f;                     // how far across the subject is
+set.table.period = std::chrono::seconds(12);  // one turn of the camera
 
-scene.render(world::kit::litSet(model, set, seconds));
+scene.render(world::kit::litSet(model, set, now));
 ```
 
-`kit::threePoint(rig)` is three emitters round a subject, stated in the
-subject's own extents so one rig serves a thumbnail and a room;
-`kit::turntable(table, seconds)` is a camera riding a closed rail and
-looking inward, with `kit::rail(table)` the curve itself; `kit::litSet`
-is both over a ground plane, with the subject under it.
+`kit::threePoint(rig)` is three point lights round a subject, stated in
+the subject's own extents so one rig serves a thumbnail and a room, with
+the key's strength and colour animatable; `kit::turntable(table, now)` is
+a camera riding a closed rail and looking inward, with `kit::rail(table)`
+the curve itself; `kit::litSet` is both over a ground plane, with the
+subject under it; `kit::environmentMap(options)` bakes a panorama from a
+vertical gradient and soft boxes — a studio, a window-lit room, a sky —
+as data rather than as a function a set writes by hand.
 
 Two more rails stand beside the turntable's, each a plain `Spline3` a
-tree rides with `along()`, scatters a comet on or sweeps a band over.
+node rides with `along()`, scatters a comet on or sweeps a band over.
 `kit::wave(w)` is a closed loop that RISES AND FALLS: its stations
 alternate between an outer radius standing high and an inner one
 standing low, so a tube swept along it or a comet riding it reads as a
@@ -150,28 +293,17 @@ retraces another and the loop crosses in front of and behind itself. A
 sketch that draws one of these names its own radii, heights and shell,
 and the preset states nothing but the arrangement.
 
-**Nothing here decides a look.** Each returns an ordinary `Element` whose
-every field the caller can read, replace or ignore, and the only
-constants in one are the geometry of the arrangement plus a single
-neutral grey for a ground plane that was given no surface. A preset is
-worth having only for as long as that stays true — which is why a study
-that wants lanes on the rig's key light takes the tree the preset
-returned and rebuilds it with that child replaced, rather than the preset
-growing a hook.
+**Nothing here decides a look.** Each returns an ordinary value whose
+every part the caller can read, replace or ignore, and the only constants
+in one are the geometry of the arrangement plus a single neutral grey for
+a ground plane that was given no surface. A preset is worth having only
+for as long as that stays true.
 
-Where a concept exists in two dimensions this spells it the way
-SigilCompose spells it — `key`, `children`, `memo`, `at`,
-`scale`, `transformOrigin`, `fill`, `cache`, `bind`, `animate`, and the
-`Selector` combinators `|`, `&` and `!`. The new spellings are the ones a
-plane does not have: `translateZ`/`rotateX`/`rotateY`/`rotateZ`/`scaleZ`
-and `rotate(axis, degrees)`, the geometry slot (`mesh`, `cloud`, `chain`,
-`stamp`, `generate`), `window`, `along`, `tag`, `light`, the emitter's
-dials `intensity` and `emission`, and `camera`.
-
-A closed solid keeps its reverse-wound triangles hidden by default. A sheet,
-screen or other open surface that must remain visible as the viewpoint passes
-behind it declares `backface(material::Backface::Visible)`; the choice reaches the
-device pipeline's cull state.
+A closed solid keeps its reverse-wound triangles hidden by default. A
+sheet, screen or other open surface that must remain visible as the
+viewpoint passes behind it declares
+`backface(material::Backface::Visible)`; the choice reaches the device
+pipeline's cull state.
 
 ## Where Skia still shows
 
@@ -195,17 +327,22 @@ sampling's image, uv and filter — speaks Material, Media and glm.
 
 ## Mental model
 
-**A description is a value; a node is what it became.** `Element` is
-copy-on-write and comparable. `propertiesEqual` rules on every one of its
-fields, pinned by a field count that fails the build when the struct
+**A description is a value; a retained node is what it became.** Every
+kind is a copy-on-write handle on one `NodeDescription`, and comparable.
+`propertiesEqual` rules on every one of its fields, pinned by a field count that fails the build when the struct
 changes, and answers false for anything it cannot compare — a field left
 out of the comparison does not produce a wrong answer where the mistake
 is, it produces a node that never patches on that field again.
 
-**There is no kind field.** The geometry slot's VALUE TYPE is the kind: a
-node holding a `Mesh` and a node holding a `Chained` are told apart by
-what they hold. So `remountRequired` answers false, always, and a node
-that changes from one to the other resolves new resources in place while
+**The kinds are one model underneath.** A `Group`, a `Mesh`, `Points`,
+a `Light` and a `Camera` are typed handles over one description, so the
+reconciler, the prune and the keys see one node whatever made it, and a
+group's children are held as `Node`, the type-erased handle every kind
+converts to. Which factory made a node decides which fields it ever
+writes, and there is no kind field: a mesh and points are told apart by
+the geometry slot's VALUE TYPE — a `geometry::mesh::Mesh` against a
+`Chained` — so `remountRequired` answers false, always, and a key that
+describes one and then the other resolves new resources in place while
 its entity and its lanes stand.
 
 **Three lifetimes, and none of them is the others'.** A node — its key,
@@ -224,38 +361,35 @@ it once.
 
 **Lanes are addressed by where the motion lives.** One fixed row per lane
 per node — the nine placement lanes, the three origin lanes, the axis
-turn, the along-distance, the window's head and span, the emitter's
-strength and three colour channels, and the environment's seven
-(`diffuse`, `specular`, `roughnessBias`, `crossfade`, `exposure`,
-`backdrop` and its blur) — so a ramp survives a patch that changed what
-the node holds. The four EMITTER rows and the seven ENVIRONMENT rows
-stand at their own value's fields rather than at a fixed default: a
-light whose strength lane is dropped ramps back to the strength
-`light()` declared, which is what makes the lanes dials on a value
-rather than a second copy of it, and why a light a node emits is read
-at its declared values, the lanes animating it.
+turn, the along-distance, and the window's head and span — so a ramp
+survives a patch that changed what the node holds.
 
-The light's colour can itself follow a live `motion::Animatable<material::Color>`.
-Each render samples it for channels without an emission dial and preserves
-its alpha in the extracted light. Emission dials replace their channels.
-Extracted lights hold constant frame readings, so rendering never writes
-into the live colour, strength or angles the description follows. Light changes
-update shading while settled geometry and material resources remain held.
+**A light's dials and the environment's are values, not lanes.** A
+light's colour and strength, a camera's exposure and every environment
+dial are `motion::Animatable` fields read once a frame, so one bound to a
+live value changes the shading frame by frame while the tree stands
+still. What a frame keeps of a light is held — each animatable read and
+kept as a constant — so rendering never writes into the live values a
+description follows, and a light that changes stales no bake: lights are
+gathered on the walk that visits every node every frame, and settled
+geometry and material resources stay held.
 
 **There are exactly two write paths**: `Scene::render`, and the live
 values a description's lanes are bound to. Nothing writes onto a retained
 node from outside, and there is no `entt::registry` accessor: EnTT is
 internal to `scene/` the way Yoga is internal to SigilCompose.
 
-**Execution never reads the Element tree.** Extract is the one crossing:
+**Execution never reads the node tree.** Extract is the one crossing:
 it writes an entity's components — its placement, the mesh to draw, the
-surface, its key and ancestry, its tags — and the draw and every pass
-read those and nothing else. What a pass is handed is a `View`: a span
-of `Draw` values, the lights, the viewpoint and the extent.
+surface, its key and ancestry, its collections — and the draw and every
+pass read those and nothing else. What a pass is handed is a `View`: a
+span of `Draw` values, the lights, the environment, the camera and how
+its picture is read, and the extent.
 
 **A pass is never a scene child.** It is a stage of making the frame, not
 a thing standing in the world, so it is declared on the `Frame` and never
-under an `Element`.
+under a node. Nor is the environment, which surrounds everything rather
+than standing anywhere.
 
 **Nothing states an order.** A pass declares what it `reads` and what it
 `writes`, and the graph derives the sequence, the barriers and the shared
@@ -263,33 +397,45 @@ surfaces from those declarations alone.
 
 ## Frames, passes and the ordering
 
-A `Frame` is three declared things: the scene, an ordered list of passes,
-and the readbacks — plus the dials that say where the picture lands.
+A `Frame` declares the scene, its environment, the camera it names, a
+list of passes and the readbacks — plus the dials that say where the
+picture lands.
 `extent(size)` is what its targets are made at, and a frame declaring
 passes needs one; `viewOffset(ViewOffset)` makes those targets a part of
 a larger picture — `whole` pixels across, the part's corner at `origin` —
 formed through the whole picture's projection carried off-centre, so a
 host showing a magnified piece of a set forms only the piece and draws it
-where it stands; `camera(c)` is the viewpoint for a tree that declares
-none of its own; `present(name)` names the resource the finished picture
+where it stands; `defaultCamera(lens)` is the lens for a tree that holds
+no camera, and `cameraOverride(lens)` the one a host that has taken hold
+of the viewpoint states; `present(name)` names the resource the finished picture
 is in, and an unset one means the last image any pass wrote.
 
-`geometryPass(name)`, `computePass(name)` and `postPass(name)` each open
-a pass, and each is a comparable value — a frame prunes on a pass the way
+`geometryPass(name)`, `computePass(name)`, `postPass(name)` and
+`texturePass(name, producer)` each open a pass, and each is a comparable value — a frame prunes on a pass the way
 a tree prunes on a node.
 
 | verb | what it declares |
 |---|---|
 | `reads(names…)` / `writes(names…)` | the resources this pass touches, by name. The first name it writes is what its stage paints into |
 | `previous(name)` | that resource AS IT STOOD at the end of the frame before. It orders nothing, which is how a feedback loop is declared without a cycle |
-| `only(Selector)` | which bodies the pass addresses — `selectors::tag`, `selectors::key`, `selectors::under`, `selectors::material`, composed with `\|`, `&` and `!` |
+| `only(Collection)` / `only(name)` | which bodies the pass addresses — a `Collection`, or the members of one named collection |
 | `variant(Material)` | …drawn again in that surface |
 | `realise(Selection)` | override how the selection reaches the pixels |
 | `clear(material::Color)` | what a geometry pass clears its target to |
-| `chain(geometry::mesh::pop::Chain, geometry::mesh::pop::Runtime)` | the points a compute pass cooks, into the point set it writes |
+| `chain(geometry::mesh::pop::Chain, ChainOptions)` | the points a compute pass cooks, into the point set it writes, and the runtime they are cooked on |
 | `stamp(geometry::mesh::Mesh)` | the body a geometry pass stands at every point of every point set it reads |
-| `blur(sigma)` / `levels(gain, lift, tint)` / `composite(mode, opacity)` | what a post pass does to what it reads |
+| `blur(sigma)` / `levels(Levels)` / `composite(Composite)` | what a post pass does to what it reads |
 | `body(…)` | THE ESCAPE: a callable offered the extracted `View` and the frame's `Targets` — naming the ones it reads — which runs instead of the stage's own work and keeps its declarations. The comparable `PassBody` beside it is the form a frame prunes on; a callable compares equal to nothing but its own copies |
+
+**A texture pass paints what bodies wear.** `texturePass(name, producer)`
+runs its `TextureProducer` at the frame's time, before every geometry
+pass, since wearing a texture names no resource a geometry pass could
+read. What it writes holds its own pixels, so it takes no surface and is
+never the picture presented. Nothing paints unless its pass is on the
+frame: a body wearing a texture whose pass is missing — a texture marked
+with `produced(texture, pass)` — is an error naming the body and the
+pass, and a texture pass that found nothing changed is counted in
+`SceneStats::texturesSkipped` beside `SceneStats::texturesPainted`.
 
 **The order comes off the declarations.** Every resource has versions —
 one per pass that writes it, in declaration order — and three edges
@@ -336,11 +482,11 @@ cannot be tested.
 | `variant(surface)` | `Variant` — the selection is drawn again in that surface | it is a re-draw by definition |
 | `realise(…)` | exactly that | a pass that knows better says so |
 
-A coverage answers for ONE selector, so a producer paints one per
+A coverage answers for ONE collection, so a producer paints one per
 selection asked of it: two masked passes behind one geometry pass each
 read their own, and two asking the same question share the one already
 there. `PassWork::coverageOut` is therefore a list of `Coverage`, each a
-resource name and the selector it holds, and `PassWork::coverageIn` is
+resource name and the collection it holds, and `PassWork::coverageIn` is
 the one resource a masked pass reads.
 
 A narrowed post pass with nothing painting bodies ahead of it is an error
@@ -354,8 +500,9 @@ resources and their surfaces — and `Scene::error()` is what stopped it.
 An executor sees a frame through `View` and `Targets` and nothing else,
 and these are the names it reads them with:
 
-- `subjectOf(draw)` is a body as a `Selector` asks about it, which is
-  how a pass realises a `Cull` or paints a coverage;
+- `memberOf(draw)` is a body as a `Collection` asks about it, which is
+  how a pass realises a `Cull`, paints a coverage, and leaves a body out
+  of what a linked light reaches;
 - `samplingOf(texture)` answers a `Sampling` — the image, where it is
   read at over the mesh's own uvs, whether it repeats and how it is
   filtered;
@@ -421,13 +568,14 @@ A host that owns both — a study, an application — makes the scene, hands
 it the tree each frame, and puts the value it returns in a material slot.
 That is the whole handoff.
 
-**A page the set lights arrives as a texture set.** Compose can paint one
-tree as the maps of a surface — base colour, normal, roughness, metallic,
-occlusion and emissive — which `material::surface::program(maps)` puts in
-a surface's slots like any texture set an authoring tool exported. The
-set's lights, environment and camera then shade the page; its unlit
-content arrives in the emissive map over a black base and shows as it was
-painted.
+**A page the set lights is a texture pass.** Compose can paint one tree
+as the maps of a surface — base colour, normal, roughness, metallic,
+occlusion and emissive — and a host that links both libraries puts that
+paint on the frame as a texture pass and the surface it makes in a
+body's material, its textures marked as that pass's. The set's lights,
+environment and camera then shade the page; its unlit content arrives in
+the emissive map over a black base and shows as it was painted. The
+sketch framework's page is that host's door.
 
 **The device reaches those pixels through one narrow value.** A
 texture's `media::PixelSource` may answer a frame standing on a device,
@@ -450,9 +598,9 @@ itself. Operation by operation:
 | core operation | what this host does |
 |---|---|
 | `keyOf` | the description's `key` |
-| `equal` | `propertiesEqual` — every field of `ElementNode`, with the geometry slot's variant equality standing in for a kind comparison |
+| `equal` | `propertiesEqual` — every field of `NodeDescription`, with the geometry slot's variant equality standing in for a kind comparison |
 | `reconcilesChildren` | true: children are described, never filled by another path |
-| `children` / `descriptionOf` | the description's `children`, and the node handle off each `Element` |
+| `children` / `descriptionOf` | the description's `children`, and the description off each `Node` |
 | `memoOf` / `produce` | the description's `Memo`, and the deferred describe run under the environment its author had |
 | `create` | a node, an entity with a `Placement`, and the first patch — with the child's place among the siblings mounting with it, which every staggered tween on it resolves against |
 | `onPatched` | retargets the lanes (mounting entrances on the first patch, each resolved at the child's place), marks the geometry slot for resolution when it or its window changed, and stales every bake above |
@@ -477,7 +625,7 @@ it wait out the whole list.
 `retargetFixed`, `enter`, `isRunning` and the comparators that decide
 two animatable slots are the same live in `<sigilmotion/advanced/Held.h>`
 and `<sigilmotion/values/…>`; this
-library names the FAMILY (`LaneFamily::Slot`), the 27 rows, and what each
+library names the FAMILY (`LaneFamily::Slot`), the 16 rows, and what each
 row's standing value is when a description does not carry the block that
 holds it.
 
@@ -546,21 +694,19 @@ SigilGeometry's `quad()` rather than building one, and the one
 hand-built mesh left is a single TRIANGLE, kept because a stamp standing
 at every point of a cloud is counted in triangles.
 
-`element/test/` covers the description: copy-on-write, the structural
-prune **field by field as one `TEST_P` whose parameter is the field**,
-each said two ways, so every row shows a field to tell two values apart
-as well as to be in the comparison at all — the geometry slot's value
-type standing in for a kind, the lane list including the emitter rows
-standing where the emitter stands, the cook, the selectors, and the
-emitter values themselves: what each factory fixes, the windowed falloff
-reaching exactly zero at the range, and the spot's cone. The emitters
-are here rather than in a binary of their own because this target links
-the light feature — every target that reaches the emitters reaches the
-description too, so there is no boundary for a second binary to draw.
+`node/test/` covers the description: copy-on-write, a group taking every
+kind in one braced list, the structural prune **field by field as one
+`TEST_P` whose parameter is the field**, each said two ways on the kind
+that carries it, so every row shows a field to tell two values apart as
+well as to be in the comparison at all — the geometry slot's value type
+standing in for a kind, the lane list, the cook, collections, and the
+light values: what each factory fixes, the windowed falloff reaching
+exactly zero at the range, the spot's cone, and a light held still.
 
 `kit/test/` covers the presets: what tree each returns, that the rig is
 stated in the subject's own extents and puts every lamp at the subject
-when there are none, that a whole turn of the turntable is where it
+when there are none, that its key's strength is bindable, that an
+environment map is made from a gradient and soft boxes, that a whole turn of the turntable is where it
 started and a rail asked for fewer than three stations is still a closed
 loop, that the wave alternates between its two radii and two heights
 round its centre and the winding stays on its shell while crossing its
@@ -571,8 +717,14 @@ header is unreachable from kit code — which is what makes "the kit sees
 public headers only" a property of the build rather than a convention.
 
 `scene/test/` covers the retained side, every case over one fixture
-holding an engine and a scene running on it: an emitter dial reaching the
-light it scales while the tree stands still, identity across a keyed
+holding an engine and a scene running on it: a light bound to a live
+value reaching retained bodies while the tree stands still, lights and
+cameras riding their nodes' placement, the camera rule — one camera, a
+named one, several and none named an error, an override keeping the
+camera's exposure — a hidden node taking its subtree out, a body wearing
+a texture whose pass is missing being a named error and a texture pass
+that painted nothing counted as skipped, the environment read once a
+frame, identity across a keyed
 reorder, the three lifetimes pulling apart under a geometry-slot change,
 the store sharing one cooked artefact, a lane ramping a placement, the
 bake taken once and lost to a driven lane below it, a readback handed
@@ -633,7 +785,8 @@ host's cook exactly, a readback that arrives the frame after, a masked
 pass that lifts the selection and leaves the ground where it stood, the
 mip rule, a map whose pixels already stand on this device being bound
 where they are, a culled pass drawing only its selection, a visible
-backface keeping a plane seen from behind, a `previous()` read carrying
+backface keeping a plane seen from behind, a light link lighting only
+the bodies it names, a `previous()` read carrying
 the frame before, a declared body running in place of its stage, the map
 a body is dressed with reaching the pixels, a nearest-filtered map being
 two colours and one edge, a linear one being a gradient, a map asked to

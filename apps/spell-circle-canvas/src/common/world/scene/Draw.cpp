@@ -2,7 +2,7 @@
  * The draw: what the last render left, put on a canvas. A frame that
  * declared passes has already run them and the picture is one of its
  * resources, so the draw is a blit. It reads the plan and the targets —
- * the Element tree is not reachable from here.
+ * the node tree is not reachable from here.
  */
 
 #include <include/core/SkCanvas.h>

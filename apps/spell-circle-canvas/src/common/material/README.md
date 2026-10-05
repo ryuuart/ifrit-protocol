@@ -137,19 +137,8 @@ shades a material's surface under the set's own lights, and a 2D painter
 paints the material's colour stack flat. `material::skia::paint` lowers
 that colour stack whether or not the material states a surface.
 
-`Light` describes one emitter for such a renderer: its `LightKind`, its
-direction and elevation, its colour and strength, and for a point or a
-spot its position, range and cone. Colour, strength and applicable angles
-can be bound to motion values; the rest are plain settings.
-
-```cpp
-#include <sigilmaterial/core/Lighting.h>
-#include <sigilmotion/values/Animatable.h>
-
-auto tint = sigil::motion::animatable(material::Color{1, 0.8f, 0.6f, 1});
-material::Light key{.direction = 30, .elevation = 35, .color = tint};
-tint = material::Color{0.6f, 0.8f, 1, 1};
-```
+The lights a surface is shaded under are the renderer's: a set's are
+SigilWorld's, which names them itself.
 
 A renderer that brings its own lights reads a surface UNSHADED, one surface
 map at a time: `material::skia::asMap(material, role)` answers the base
@@ -162,9 +151,9 @@ nothing for reads the stock `SurfaceOptions` number. Every map carries the
 colour stack's alpha as its coverage. A material with no surface, or an
 `unlit` one, is its own colour: emissive is the colour stack, the base is
 black, the normal faces the viewer, roughness and occlusion are one and
-metallic is zero. `material::skia::LitSurface` prepares a material's colour
+metallic is zero. `material::skia::SurfaceMaps` prepares a material's colour
 stack and channels once and answers every map from them; its `asMap()`
-holds one pass per role, and `LitSurface::mapShader` places a map for one
+holds one pass per role, and `SurfaceMaps::mapShader` places a map for one
 draw whose unit square maps into the node. Construct another when the
 material changes. Clearcoat and `reflectionWeight` have no map.
 
