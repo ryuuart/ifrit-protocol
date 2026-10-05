@@ -1238,27 +1238,6 @@ requested times in a canvas and a set, assert those times and frame count,
 and compare fresh direct seeks at several densities. Paused stills should
 remain held and repeatable.
 
-## Rendering gap: CPU body ordering hides a foreground instrument meter
-
-The metal study's display is a quad in front of its faceplate, filled with
-an unlit surface whose base-color slot is the live Compose meter texture.
-The CPU facing, hero and exploded plates hide that meter; native GPU plates
-show its luminous bars and text at the same moments. Base-color textures
-and unlit shading are supported by the CPU tier, so their documented
-shading limits do not explain the missing foreground content. World's
-`scene/Execute.cpp` orders whole bodies by their transformed origins;
-triangle sorting within one body cannot repair overlaps between bodies.
-This is an ordering candidate, not a reduced proof of the cause. Reproduce with
-`metal_instrument` at zero, 2.4 and nine seconds, comparing World's CPU
-tier with its native GPU device at each time.
-
-Wanted: preserve the foreground textured display's visibility against the
-enclosure and its thin cover. Reduce the set to a large opaque faceplate,
-a smaller unlit textured quad placed slightly forward, and an optional
-transparent cover. A regression should retain the display pixels under
-front, pitched and yawed cameras, and distinguish depth ordering from
-texture readiness before changing the executor.
-
 ## Authoring ergonomics: outline relief is a decoration rather than a fill or ink
 
 Compose's material fills and inks paint their existing coverage. The shared
