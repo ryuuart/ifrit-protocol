@@ -93,30 +93,6 @@ half4 main(float2 p) {
 }
 )";
 
-// A latitude-longitude studio field: broad cool surround, two soft boxes,
-// a warm sun strip and a subdued blue planet rim. It rotates as one light.
-inline constexpr std::string_view kEnvironment = R"(
-float gaussian(float value) { return exp(-value * value); }
-half4 main(float2 p) {
-    float2 uv = p / float2(512, 256);
-    float longitude = uv.x * 6.2831853;
-    float latitude = (uv.y - 0.5) * 3.14159265;
-    float a = gaussian(sin((longitude - 1.0) * 0.5) / 0.32) *
-              gaussian((latitude + 0.29) / 0.70);
-    float b = gaussian(sin((longitude - 4.6) * 0.5) / 0.42) *
-              gaussian((latitude - 0.21) / 0.80);
-    float horizon = gaussian((latitude - 0.18) / 0.065);
-    float sun = gaussian(sin((longitude - 2.9) * 0.5) / 0.034) *
-                gaussian((latitude + 0.65) / 0.09);
-    float3 color = float3(0.62, 0.67, 0.75) +
-                   float3(1.18, 1.27, 1.43) * a +
-                   float3(1.22, 1.08, 0.89) * b +
-                   float3(0.06, 0.19, 0.35) * horizon +
-                   float3(1.4, 1.15, 0.73) * sun;
-    return half4(half3(color), 1);
-}
-)";
-
 inline constexpr std::string_view kTelemetry = R"(
 half4 main(float2 p) {
     float2 size = max(uResolution, float2(1));

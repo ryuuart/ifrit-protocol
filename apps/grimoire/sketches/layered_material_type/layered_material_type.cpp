@@ -12,15 +12,12 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/advanced/Skia.h>
-#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/surface/Surface.h>
-#include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmaterial/texture/Texture.h>
-#include <sigilmotion/values/Animatable.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilweave/query/Selector.h>
@@ -39,7 +36,6 @@
 
 namespace compose = sigil::compose;
 namespace material = sigil::material;
-namespace motion = sigil::motion;
 namespace path = sigil::geometry::path;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
@@ -50,7 +46,6 @@ namespace {
 constexpr int kWidth = 1440, kHeight = 1100, kBakeWidth = 900,
               kBakeHeight = 350;
 constexpr int kInkWidth = 384, kInkHeight = 96;
-constexpr float kPi = 3.14159265358979323846f;
 constexpr material::Color kPaper = hexColor(0xf2ecdf);
 constexpr material::Color kInk = hexColor(0x302b26);
 constexpr material::Color kMuted = hexColor(0x756b5d);
@@ -59,17 +54,11 @@ constexpr material::Color kWhite{1, 1, 1, 1}, kBlack{0, 0, 0, 1};
 
 // Edit heldPhase (-1 cycles) and the six material states to compare endpoints.
 constexpr int heldPhase = -1;
-struct LiveControls {
-  float intensity = .28f;
-  float ambient = .18f;
+struct MetalInkControls {
   float roughness = .44f;
   float normalStrength = .6f;
-  float range = 650;
-  float elevation = 84;
-  float innerAngle = 18;
-  float outerAngle = 42;
 };
-constexpr LiveControls kLive;
+constexpr MetalInkControls kMetalInk;
 struct Controls {
   float depth, roughness, normalStrength, coating, overprint, blur;
 };
@@ -79,8 +68,9 @@ constexpr std::array kStates{
     Controls{-12, .32f, 1, .4f, .58f, 1.8f}, Controls{6, .2f, 1, .7f, 0, .6f},
 };
 constexpr std::array<std::string_view, 6> kNames{
-    "01 / GLAZED IMPRESSION", "02 / FLAT · MIRROR",     "03 / RAW · MATTE",
-    "04 / RAKING · RAISED",   "05 / COPPER · INTAGLIO", "06 / COUNTERS · CUT"};
+    "01 / GLAZED IMPRESSION", "02 / FLAT · MIRROR",
+    "03 / RAW · MATTE",       "04 / RAISED",
+    "05 / COPPER · INTAGLIO", "06 / COUNTERS · CUT"};
 
 Controls state(int phase) {
   Controls c = kStates[phase];
@@ -143,17 +133,10 @@ struct LayeredMaterialType {
   std::shared_ptr<compose::TextureScene> inkScene;
   std::shared_ptr<compose::TextureScene> normalScene;
   material::Material passageInk{kBlack}, unitInk{kBlack};
-  material::Material liveInk{kBlack};
+  material::Material metalInk{kBlack};
   uint64_t inkRevision = 0;
   uint64_t normalRevision = 0;
   std::array<path::Outline, 3> bands;
-  material::EnvironmentMap studio;
-  motion::Animatable<float> bearing = motion::animatable(116.f);
-  motion::Animatable<float> reflection = motion::animatable(0.f);
-  motion::Animatable<float> sourceX = motion::animatable(90.f);
-  motion::Animatable<float> sourceY = motion::animatable(95.f);
-  motion::Animatable<float> sourceZ = motion::animatable(276.f);
-  motion::Animatable<float> sourceAxis = motion::animatable(-116.f);
   int phase = -1;
 
   void bakeInk() {
@@ -173,10 +156,10 @@ struct LayeredMaterialType {
                             .uv(unitPlacement)
                             .sampling(material::Sampling::Linear)
                             .tile(material::Repeat::Pad));
-    liveInk = gold().surface({.metallic = .6f,
-                              .roughness = kLive.roughness,
-                              .normal = encodedNormal,
-                              .normalScale = kLive.normalStrength});
+    metalInk = gold().surface({.metallic = .6f,
+                               .roughness = kMetalInk.roughness,
+                               .normal = encodedNormal,
+                               .normalScale = kMetalInk.normalStrength});
     const auto finish =
         material::linearGradient({0, 0}, {1, 0},
                                  {{0, hexColor(0x985132)},
@@ -185,14 +168,8 @@ struct LayeredMaterialType {
                                   {.73f, hexColor(0xe9d09a)},
                                   {1, hexColor(0x985132)}})
             .surface({.metallic = .85f, .roughness = .38f, .normal = normal});
-    inkScene->render(compose::box()
-                         .width(kInkWidth)
-                         .height(kInkHeight)
-                         .fill(finish)
-                         .lighting(material::studio({.direction = 155.f,
-                                                     .elevation = 84.f,
-                                                     .intensity = .12f,
-                                                     .ambient = .24f})));
+    inkScene->render(
+        compose::box().width(kInkWidth).height(kInkHeight).fill(finish));
     inkRevision = inkScene->revision();
 
     const auto sampledInk = [&](float width, float height) {
@@ -215,7 +192,7 @@ struct LayeredMaterialType {
         inkScene->revision() != inkRevision || passageInk.isRunning() ||
         unitInk.isRunning() || !normalScene || !normalScene->image() ||
         normalScene->isRunning() || normalScene->revision() != normalRevision ||
-        liveInk.isRunning())
+        metalInk.isRunning())
       throw std::runtime_error(
           "Material lettering requires a settled ink texture");
   }
@@ -243,31 +220,8 @@ struct LayeredMaterialType {
         .children({label(caption, 0, 1, 284, 9), phrase});
   }
 
-  Element liveSpecimen(std::string_view caption, std::string key, float x,
-                       material::LightKind kind,
-                       compose::PaintBox domain) const {
-    const bool frontal = kind == material::LightKind::Directional;
-    material::Light source{.direction = bearing,
-                           .elevation = frontal ? kLive.elevation : 90.f,
-                           .intensity = kLive.intensity,
-                           .ambient = kLive.ambient,
-                           .kind = kind,
-                           .range = kLive.range,
-                           .innerAngle = kLive.innerAngle,
-                           .outerAngle = kLive.outerAngle};
-    auto lamp = compose::light(source).key(key + "-source");
-    auto marker =
-        compose::kit::at(132, 90, 20, 1.5f).fill(kCopper).rotate(sourceAxis);
-    if (!frontal) {
-      lamp.translateX(sourceX).translateY(sourceY).translateZ(sourceZ);
-      // The dot marks the positioned source's XY projection; its Z stays
-      // in the lighting model and does not project the type into 3D.
-      marker = compose::kit::at(-3, -3, 6, 6)
-                   .fill(kCopper)
-                   .borderRadius(3)
-                   .translateX(sourceX)
-                   .translateY(sourceY);
-    }
+  Element metalSpecimen(std::string_view caption, std::string key, float x,
+                        compose::PaintBox domain) const {
     auto phrase = compose::kit::at(compose::text("cast / FOIL"), 0, 35, 284, 64)
                       .key(std::move(key))
                       .cache(compose::Cache::Picture)
@@ -283,23 +237,10 @@ struct LayeredMaterialType {
                       .span(weave::selectors::text(u8"I"),
                             compose::SpanStyle().fontSize(44))
                       .span(weave::selectors::text(u8"FOIL"),
-                            compose::SpanStyle().ink(liveInk, domain));
-    char values[100];
-    if (frontal)
-      std::snprintf(values, sizeof(values),
-                    "FRONT %.0f° · GAIN %.2f · AMBIENT %.2f", kLive.elevation,
-                    kLive.intensity, kLive.ambient);
-    else if (kind == material::LightKind::Point)
-      std::snprintf(values, sizeof(values), "GAIN %.2f · Z 240±36 · RANGE %.0f",
-                    kLive.intensity, kLive.range);
-    else
-      std::snprintf(values, sizeof(values),
-                    "CONE %.0f°/%.0f° · Z 240±36 · RANGE %.0f",
-                    kLive.innerAngle, kLive.outerAngle, kLive.range);
-    return compose::kit::at(compose::scene(), x, 912, 284, 120)
+                            compose::SpanStyle().ink(metalInk, domain));
+    return compose::kit::at(compose::box(), x, 912, 284, 120)
         .cache(compose::Cache::Picture)
-        .children({lamp, label(caption, 0, 0, 284, 9, kInk), marker, phrase,
-                   label(values, 0, 108, 284, 9)});
+        .children({label(caption, 0, 0, 284, 9, kInk), phrase});
   }
 
   Element heightTree(const Controls& c) const {
@@ -408,25 +349,15 @@ struct LayeredMaterialType {
              "Opaque grayscale · real glyphs\nBlurred shoulders · signed depth",
              0, 464, 330, 13),
          counters,
-         label("Counters remain unprinted.\nLight moves; the bake is held.", 0,
+         label("Counters remain unprinted.\nThe bake is held per state.", 0,
                593, 324, 13)});
     return compose::kit::at(side, 1044, 225, 332, 650);
   }
 
   Element describe(const Controls& c) const {
-    const material::Lighting lighting(
-        material::studio({.direction = bearing,
-                          .elevation = phase == 3 ? 12.f : 38.f,
-                          .intensity = .45f,
-                          .ambient = .50f}),
-        material::environment(studio.texture().source(),
-                              {.rotation = reflection, .intensity = .75f}));
-    Element page = compose::stack()
-                       .width(kWidth)
-                       .height(kHeight)
-                       .fill(kPaper)
-                       .fontFamily("Inter, Helvetica Neue, sans-serif")
-                       .lighting(lighting);
+    Element page =
+        compose::stack().width(kWidth).height(kHeight).fill(kPaper).fontFamily(
+            "Inter, Helvetica Neue, sans-serif");
     auto title = label("TYPE / MATTER", 62, 47, 775, 58, kInk)
                      .fontFamily("Georgia, Times New Roman, serif")
                      .ink(copper(.38f));
@@ -456,16 +387,12 @@ struct LayeredMaterialType {
          inkSpecimen("Across the word", "ink-word", 680,
                      compose::PaintBox::Word),
          rule(64, 890, 1312, 1, copper(.36f)),
-         liveSpecimen("LIVE / DIRECTIONAL · EACH LETTER", "live-glyph", 64,
-                      material::LightKind::Directional,
-                      compose::PaintBox::Glyph),
-         liveSpecimen("LIVE / POINT · ACROSS THE WORD", "live-point", 372,
-                      material::LightKind::Point, compose::PaintBox::Word),
-         liveSpecimen("LIVE / SPOT · ACROSS THE WORD", "live-spot", 680,
-                      material::LightKind::Spot, compose::PaintBox::Word),
-         label("STATIC MATERIAL / LIVE LIGHT\nColour ramp + held grain normal\n"
-               "Roughness .44 · metal .60\nPrefixes stay unlit.\n"
-               "The three scenes isolate their sources.",
+         metalSpecimen("GOLD INK · EACH LETTER", "metal-glyph", 64,
+                       compose::PaintBox::Glyph),
+         metalSpecimen("GOLD INK · ACROSS THE WORD", "metal-word", 372,
+                       compose::PaintBox::Word),
+         label("STATIC MATERIAL\nColour ramp + held grain normal\n"
+               "Roughness .44 · metal .60\nPrefixes keep the page ink.",
                1044, 914, 332, 13, kInk),
          rule(64, 1039, 1312, 1, copper(.36f)),
          label("24 s · 02 GLAZED / 06 FLAT / 10 MATTE / 14 RAISED / 18 "
@@ -486,16 +413,6 @@ struct LayeredMaterialType {
     if (!heightScene || !inkScene || !normalScene)
       throw std::runtime_error("Material type requires a font context");
     bakeInk();
-    studio = material::EnvironmentMap::baked(256, [](float u, float v) {
-      const float window =
-          std::exp(-std::pow(std::sin((u - .02f) * kPi) / .36f, 2.f) -
-                   std::pow((v - .34f) / .24f, 2.f));
-      const float strip = std::exp(-std::pow((u - .82f) / .035f, 2.f) -
-                                   std::pow((v - .46f) / .32f, 2.f));
-      return glm::vec3(.68f, .70f, .73f) +
-             window * glm::vec3(1.5f, 1.3f, 1.0f) +
-             strip * glm::vec3(.65f, .80f, 1.1f);
-    });
     for (int i = 0; i < 3; ++i) {
       SkPathBuilder spine;
       const float y = 290 + i * 12.f;
@@ -515,12 +432,6 @@ struct LayeredMaterialType {
     checkInk();
     const float t = static_cast<float>(
         std::fmod(std::isfinite(elapsed) ? std::max(0., elapsed) : 0., 24.));
-    bearing = 116 + 70 * std::sin(t * 2 * kPi / 24);
-    reflection = 36 * std::sin(t * 2 * kPi / 24 + .5f);
-    sourceX = 90 + 78 * std::sin(t * 2 * kPi / 24);
-    sourceY = 90 + 5 * std::cos(t * 2 * kPi / 12);
-    sourceZ = 240 + 36 * std::cos(t * 2 * kPi / 24);
-    sourceAxis = -(116 + 70 * std::sin(t * 2 * kPi / 24));
     const int next = heldPhase < 0 ? std::min(5, static_cast<int>(t / 4))
                                    : std::clamp(heldPhase, 0, 5);
     if (next == phase) return;

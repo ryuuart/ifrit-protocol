@@ -2,7 +2,7 @@
  * Metallic linework — a silver and copper routing instrument.
  * EDIT THESE FIRST: Controls, heldPhase, circuit(), and finish().
  */
-// TAGS: Materials/Metal, Materials/Lighting, Drawing/Brushes,
+// TAGS: Materials/Metal, Drawing/Brushes,
 // Geometry/Lines, Typography/Material ink, Composition/Layers
 
 #include <include/core/SkPathUtils.h>
@@ -12,11 +12,9 @@
 #include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Through.h>
-#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/program/Shader.h>
-#include <sigilmotion/values/Animatable.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <algorithm>
@@ -29,7 +27,6 @@
 
 namespace sketch = sigil::sketch;
 namespace material = sigil::material;
-namespace motion = sigil::motion;
 namespace path = sigil::geometry::path;
 namespace shapes = sigil::geometry::shapes;
 using namespace sigil::compose;
@@ -42,12 +39,9 @@ constexpr material::Color kMuted{0.42f, 0.49f, 0.49f, 1};
 constexpr material::Color kRule{0.14f, 0.20f, 0.20f, 1};
 constexpr material::Color kAmber{0.83f, 0.52f, 0.26f, 1};
 constexpr material::Color kTeal{0.32f, 0.66f, 0.61f, 1};
-constexpr std::array kPhases{
-    "CONDUCTOR / NOMINAL",     "PIGMENT / METALLIC ZERO",
-    "POLISH / ROUGHNESS ZERO", "OXIDE / ROUGHNESS ONE",
-    "GRAZE / KEY SIX DEGREES", "OVERPRINT / HALF OPACITY",
-    "KEY / LIVE RGB SWEEP",    "KEY / HDR WHITE FOUR",
-    "KEY / BLACK DIRECT"};
+constexpr std::array kPhases{"CONDUCTOR / NOMINAL", "PIGMENT / METALLIC ZERO",
+                             "POLISH / ROUGHNESS ZERO", "OXIDE / ROUGHNESS ONE",
+                             "OVERPRINT / HALF OPACITY"};
 
 struct Controls {
   float metallic = 1;
@@ -55,7 +49,6 @@ struct Controls {
   float normalStrength = 0.24f;
   float depth = 0.85f;
   float shoulder = 1.6f;
-  float elevation = 32;
   float overlay = 0.82f;
 };
 
@@ -79,25 +72,6 @@ half4 main(float2 p) {
   float scuff = 0.70 + 0.30 * sin(p.x * 0.013 + sin(p.y * 0.042));
   return half4(half3(band * scuff), 1);
 })";
-constexpr std::string_view kEnvironment = R"(
-half4 main(float2 p) {
-  float2 uv = p / float2(512, 256);
-  float longitude = uv.x * 6.2831853;
-  float latitude = (uv.y - 0.5) * 3.14159265;
-  float coolX = sin((longitude - 1.2) * 0.5) / 0.36;
-  float coolY = (latitude + 0.25) / 0.74;
-  float warmX = sin((longitude - 4.4) * 0.5) / 0.32;
-  float warmY = (latitude - 0.18) / 0.55;
-  float stripeY = (latitude - 0.11) / 0.06;
-  float cool = exp(-coolX * coolX - coolY * coolY);
-  float warm = exp(-warmX * warmX - warmY * warmY);
-  float stripe = exp(-stripeY * stripeY);
-  float3 color = float3(0.41, 0.45, 0.48) +
-      float3(1.3, 1.5, 1.65) * cool + float3(1.2, 0.94, 0.67) * warm +
-      float3(0.05, 0.19, 0.17) * stripe;
-  return half4(half3(color), 1);
-})";
-
 Element label(std::string_view content, float x, float y, float width,
               float size = 11, material::Color ink = kMuted,
               float weight = 500) {
@@ -180,50 +154,14 @@ struct MetalLinework {
   std::array<path::Outline, 3> caps;
   std::array<path::Outline, 5> hairlines;
   path::Outline pressure;
-  motion::Animatable<float> bearing = motion::animatable(122.0f);
-  motion::Animatable<float> environmentTurn = motion::animatable(10.0f);
-  motion::Animatable<material::Color> keyColor =
-      motion::animatable(material::Color{0.98f, 0.95f, 0.87f, 1});
 
   Controls state(int phase) const {
     Controls c = controls;
     if (phase == 1) c.metallic = 0;
     if (phase == 2) c.roughness = 0;
     if (phase == 3) c.roughness = 1;
-    if (phase == 4) c.elevation = 6;
-    if (phase == 5) c.overlay = 0.5f;
-    if (phase >= 6) c.elevation = 90;
+    if (phase == 4) c.overlay = 0.5f;
     return c;
-  }
-  material::Lighting light(const Controls& c, bool diagnostic) const {
-    const auto key = material::studio({.direction = bearing,
-                                       .elevation = c.elevation,
-                                       .color = keyColor,
-                                       .intensity = 0.35f,
-                                       .ambient = diagnostic ? 0.f : 0.35f});
-    if (diagnostic) return key;
-    return {key, material::environment(material::shader(kEnvironment),
-                                       {.rotation = environmentTurn,
-                                        .intensity = 1.65f,
-                                        .size = {512, 256}})};
-  }
-  void aim(double seconds, int phase) {
-    if (phase >= 6) {
-      bearing = 122.f;
-      if (phase == 6)
-        keyColor = material::hsv(
-            static_cast<float>(std::fmod(seconds, 4.0) * 90.0), 1, 1);
-      else
-        keyColor = phase == 7 ? material::Color{4, 4, 4, 1}
-                              : material::Color{0, 0, 0, 1};
-      return;
-    }
-    const double cycle = heldPhase < 0 ? std::fmod(seconds, 36.0) : seconds;
-    const float angle =
-        static_cast<float>(std::fmod(cycle, 24.0) / 24.0 * 6.2831853);
-    bearing = 122 + 48 * std::sin(angle);
-    environmentTurn = 10 + 58 * std::sin(angle);
-    keyColor = material::Color{0.98f, 0.95f, 0.87f, 1};
   }
   void circuit() {
     for (int i = 0; i < 6; ++i) {
@@ -330,27 +268,25 @@ struct MetalLinework {
     std::vector<Element> parts{
         label("B / SURFACE RESPONSE", 0, 0, 318, 11, kAmber),
         label(kPhases[phase], 0, 30, 318, 19, kInk, 600), rule(0, 82, 318)};
-    const std::array<std::string_view, 4> names{
-        "METALLIC", "ROUGHNESS", "KEY ELEVATION", "MASK OPACITY"};
-    const std::array<float, 4> values{c.metallic, c.roughness, c.elevation,
-                                      c.overlay};
-    for (int i = 0; i < 4; ++i) {
+    const std::array<std::string_view, 3> names{"METALLIC", "ROUGHNESS",
+                                                "MASK OPACITY"};
+    const std::array<float, 3> values{c.metallic, c.roughness, c.overlay};
+    for (int i = 0; i < 3; ++i) {
       std::array<char, 24> value{};
       std::snprintf(value.data(), value.size(), "%.2f",
                     static_cast<double>(values[i]));
       parts.push_back(label(names[i], 0, 107 + i * 79, 205, 10));
       parts.push_back(label(value.data(), 214, 101 + i * 79, 104, 22, kInk));
       parts.push_back(rule(0, 146 + i * 79, 318));
-      parts.push_back(rule(0, 145 + i * 79, 318 * values[i] / (i == 2 ? 90 : 1),
-                           2, kAmber));
+      parts.push_back(rule(0, 145 + i * 79, 318 * values[i], 2, kAmber));
     }
     parts.push_back(label("THREE VISIBLE LAYERS", 0, 442, 318, 11, kTeal, 600));
     parts.push_back(
         label("01  Matte insulating substrate\n02  Brushed silver / copper "
-              "contour\n03  Masked plating and shoulder light",
+              "contour\n03  Masked plating overprint",
               0, 473, 318, 11));
     parts.push_back(
-        label("36 S / NINE STATES / SOURCE CONTROLS", 0, 565, 318, 9));
+        label("20 S / FIVE STATES / SOURCE CONTROLS", 0, 565, 318, 9));
     return box().width(318).height(592).children(std::move(parts));
   }
   Element specimens(const Controls& c) const {
@@ -396,7 +332,6 @@ struct MetalLinework {
         .fill(material::linearGradient({0, 0}, {0.4f, 1},
                                        {{0, {0.052f, 0.065f, 0.066f, 1}},
                                         {1, {0.014f, 0.022f, 0.026f, 1}}}))
-        .lighting(light(c, phase >= 6))
         .children(
             {label("MATERIAL WRITING / 03", 40, 26, 590, 11, kAmber, 600),
              lettering("METAL / LINEWORK", 34, 46, 1030, 68, c, true),
@@ -418,17 +353,15 @@ struct MetalLinework {
     ctx.background(kGround);
     ctx.captureAt(2);
     circuit();
-    phaseIndex = heldPhase < 0 ? 0 : std::clamp(heldPhase, 0, 8);
-    aim(0, phaseIndex);
+    phaseIndex = heldPhase < 0 ? 0 : std::clamp(heldPhase, 0, 4);
     ctx.composer.render(describe(phaseIndex));
   }
   void update(double elapsed, sketch::SketchContext& ctx) {
     const double seconds =
         std::isfinite(elapsed) ? std::max(0.0, elapsed) : 0.0;
     const int next = heldPhase < 0
-                         ? static_cast<int>(std::fmod(seconds / 4, 9.0))
-                         : std::clamp(heldPhase, 0, 8);
-    aim(seconds, next);
+                         ? static_cast<int>(std::fmod(seconds / 4, 5.0))
+                         : std::clamp(heldPhase, 0, 4);
     if (next != phaseIndex) {
       phaseIndex = next;
       ctx.composer.render(describe(next));

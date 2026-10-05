@@ -1,7 +1,6 @@
 #pragma once
 
 #include <sigilmaterial/advanced/UniformBlock.h>
-#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/program/Shader.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/Image.h>

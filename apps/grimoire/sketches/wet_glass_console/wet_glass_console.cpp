@@ -3,18 +3,17 @@
  *
  * EDIT THESE FIRST
  *   Controls — wetness, bead size, bounded bend, cap relief and coating.
- *   heldPhase — hold one of the nine states; -1 advances every four seconds.
+ *   heldPhase — hold one of the eight states; -1 advances every four seconds.
  *   kDrops — authored bead placement over the live Compose display.
  */
 
-// TAGS: Materials/Glass, Materials/Water, Materials/Lighting,
-// Composition/Layers, Composition/Instrumentation
+// TAGS: Materials/Glass, Materials/Water, Composition/Layers,
+// Composition/Instrumentation
 
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilgeometry/kit/Generators.h>
-#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/paint/Bases.h>
@@ -56,7 +55,6 @@ struct Controls {
   float roughness = 0.035f;
   float coatingOpacity = 0.42f;
   float filmAmount = 0.10f;
-  float lightElevation = 38;
   float driftPixels = 7;
   bool overlap = false;
 };
@@ -72,7 +70,6 @@ constexpr std::array kPhases{
     Phase{"WET / FILM", "Spread water, streaks and shallow rivulets"},
     Phase{"MICRO / DENSITY", "Small caps and the same bounded optics"},
     Phase{"MACRO / LENS", "Large beads magnify type and the live trace"},
-    Phase{"GRAZING / RELIEF", "Low light reveals the analytic cap normals"},
     Phase{"OVERLAP / CLIP", "Stacked beads cross a rounded display edge"},
     Phase{"COATING / ZERO", "Zero coating and zero optical displacement"},
     Phase{"COATING / ONE", "Opaque coating endpoint; not clear water"},
@@ -279,7 +276,6 @@ struct WetGlassConsole {
   Controls controls;
   int heldPhase = -1;
   int phaseIndex = 0;
-  motion::Animatable<float> lightDirection = motion::animatable(132.0f);
   std::array<motion::Animatable<float>, kDrops.size()> dropX;
   std::array<motion::Animatable<float>, kDrops.size()> dropY;
   Shape circle = shapes::circle();
@@ -315,18 +311,15 @@ struct WetGlassConsole {
         state.bendPixels = 18;
         break;
       case 5:
-        state.lightElevation = 6;
-        break;
-      case 6:
         state.wetness = 1;
         state.overlap = true;
         state.bendPixels = 18;
         break;
-      case 7:
+      case 6:
         state.coatingOpacity = 0;
         state.wetness = 1;
         break;
-      case 8:
+      case 7:
         state.coatingOpacity = 1;
         state.wetness = 1;
         break;
@@ -411,8 +404,6 @@ struct WetGlassConsole {
               c.capHeight / 1.3f),
         meter("COATING OPACITY", number(c.coatingOpacity),
               "0 absent / 1 covered", 348, c.coatingOpacity, kAmber),
-        meter("LIGHT ELEVATION", number(c.lightElevation, 0), "degrees", 427,
-              c.lightElevation / 90),
         label("LIVE TRACE  /  FIXED LOCAL OPTICS", 0, 518, 332, 10, kTeal, 600),
         label("Drops drift; the display remains a Compose tree", 0, 539, 332,
               10),
@@ -477,12 +468,6 @@ struct WetGlassConsole {
         .fill(material::linearGradient({0, 0}, {0.25f, 1},
                                        {{0, {0.035f, 0.071f, 0.093f, 1}},
                                         {1, {0.011f, 0.026f, 0.038f, 1}}}))
-        .lighting(material::Lighting{
-            material::studio({.direction = lightDirection,
-                              .elevation = c.lightElevation,
-                              .color = material::Color{0.77f, 0.91f, 1, 1},
-                              .intensity = 0.58f,
-                              .ambient = 0.44f})})
         .children(
             {label("FIELD / 08   •   SURFACE OPTICS", 40, 26, 706, 11, kTeal,
                    600),
@@ -524,15 +509,13 @@ struct WetGlassConsole {
     ctx.oversample(1);
     ctx.background({0.011f, 0.026f, 0.038f, 1});
     ctx.captureAt(2);
-    phaseIndex = heldPhase < 0 ? 0 : std::clamp(heldPhase, 0, 8);
+    phaseIndex = heldPhase < 0 ? 0 : std::clamp(heldPhase, 0, 7);
     ctx.composer.render(describe(phaseIndex));
   }
 
   void update(double elapsed, sketch::SketchContext& ctx) {
     const double seconds =
         std::isfinite(elapsed) ? std::max(0.0, elapsed) : 0.0;
-    lightDirection =
-        132.0f + 34.0f * static_cast<float>(std::sin(seconds * 0.29));
     for (std::size_t i = 0; i < kDrops.size(); ++i) {
       const float seed = static_cast<float>(i) * 1.73f;
       dropX[i] = controls.driftPixels * 0.22f *
@@ -546,7 +529,7 @@ struct WetGlassConsole {
         heldPhase < 0
             ? static_cast<int>(std::fmod(seconds / kPhaseSeconds,
                                          static_cast<double>(kPhases.size())))
-            : std::clamp(heldPhase, 0, 8);
+            : std::clamp(heldPhase, 0, 7);
     if (next != phaseIndex) {
       phaseIndex = next;
       ctx.composer.render(describe(phaseIndex));

@@ -5,8 +5,8 @@ a live environmental instrument. The dark console, telemetry, lettering and
 calibration strip are invented.
 
 The metal frame, title ink, glass cover and water caps are material surfaces
-under a moving shared light, and two waveform materials animate beneath the
-glass. The droplets move through Compose transforms; each one's optical profile
+that paint their colour stacks flat, since the page carries no light, and two
+waveform materials animate beneath the glass. The droplets move through Compose transforms; each one's optical profile
 stays fixed and samples whatever is currently beneath it. Rounded display
 clipping and the separate layers stay visible in the overlap state.
 
@@ -23,9 +23,9 @@ belongs to the material beneath.
 ## Controls and states
 
 `Controls` holds wetness, bead scale, bend in local pixels, cap height,
-roughness, coating opacity, film amount, light elevation and drift amplitude.
-`WetGlassConsole::heldPhase` holds a state from 0 to 8; its default of −1
-advances every four seconds through a 36-second loop.
+roughness, coating opacity, film amount and drift amplitude.
+`WetGlassConsole::heldPhase` holds a state from 0 to 7; its default of −1
+advances every four seconds through a 32-second loop.
 
 | Seconds | State | What changes |
 | --- | --- | --- |
@@ -34,10 +34,9 @@ advances every four seconds through a 36-second loop.
 | 8–12 | Wet | Shallow film, smears and elongated trails |
 | 12–16 | Micro | Smaller caps and lower displacement |
 | 16–20 | Macro | Larger clipped lenses over text and traces |
-| 20–24 | Grazing | Six-degree light over the cap normals |
-| 24–28 | Overlap | Stacked lenses crossing the display boundary |
-| 28–32 | Zero | No coating and no displacement |
-| 32–36 | One | An opaque coating, deliberately unlike water |
+| 20–24 | Overlap | Stacked lenses crossing the display boundary |
+| 24–28 | Zero | No coating and no displacement |
+| 28–32 | One | An opaque coating, deliberately unlike water |
 
 The fixed strip compares dry and wet versions of the same chart, 3–12-pixel
 beads, a large clipped lens, roughness one, opacity zero and one, and zero- and

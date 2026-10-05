@@ -1,7 +1,6 @@
 #pragma once
 
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/paint/Bases.h>
@@ -15,8 +14,7 @@ struct MetalRelief {
   float fold = 0.58f;
 };
 
-// Surface supplies the reflection model; these fields describe the shaped
-// sheet and the softboxes it reflects, which are choices of this material.
+// The shaped sheet's normal field, a choice of this material.
 inline constexpr std::string_view kMetalNormal = R"(
 half4 main(float2 p) {
     float2 uv = p / max(uResolution, float2(1));
@@ -27,41 +25,13 @@ half4 main(float2 p) {
 }
 )";
 
-inline constexpr std::string_view kMetalStudio = R"(
-half4 main(float2 p) {
-    float2 uv = p / float2(512, 256);
-    float panels = smoothstep(0.47, 0.64, 0.5 + 0.5 * cos(uv.x * 12.56637));
-    float ceiling = smoothstep(0.08, 0.32, uv.y) *
-                    (1.0 - smoothstep(0.67, 0.91, uv.y));
-    float stripDistance = (uv.y - 0.46) / 0.035;
-    float bounceDistance = (uv.y - 0.79) / 0.08;
-    float strip = exp(-stripDistance * stripDistance);
-    float bounce = exp(-bounceDistance * bounceDistance);
-    float3 color = mix(float3(0.060, 0.075, 0.095),
-                       float3(1.15, 1.20, 1.28), panels);
-    color *= 0.15 + 0.85 * ceiling;
-    color += float3(0.32, 0.38, 0.45) * strip;
-    color += float3(0.15, 0.16, 0.18) * bounce;
-    return half4(half3(color), 1);
-}
-)";
-
-/** A polished sheet with a folded face and a broad studio reflection. */
+/** A polished sheet with a folded face; on a page it paints its silver flat. */
 inline material::Material liquidMetal(float fold = 0.58f,
                                       float roughness = 0.16f) {
-  const material::Lighting lighting{
-      material::studio({.direction = 118,
-                        .elevation = 58,
-                        .intensity = 0.30f,
-                        .ambient = 0.18f}),
-      material::environment(
-          material::shader(kMetalStudio),
-          {.rotation = 26, .intensity = 1.14f, .size = {512, 256}})};
   return material::from(material::hexColor(0xE1E7EF))
       .surface({.metallic = 1.0f,
                 .roughness = roughness,
-                .normal = material::shader(kMetalNormal, MetalRelief{fold}),
-                .lighting = lighting});
+                .normal = material::shader(kMetalNormal, MetalRelief{fold})});
 }
 
 /** A dark, translucent-looking instrument inset with a reflected upper lip. */

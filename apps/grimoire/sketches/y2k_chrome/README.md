@@ -7,17 +7,15 @@ beside the deeper gel treatment.
 
 The interface references are Apple's [Aqua introduction](https://www.apple.com/newsroom/2000/01/05Apple-Unveils-Mac-OS-X/)
 and the [Mac OS X 10.0.4 appearance and QuickTime screenshots](https://guidebookgallery.org/screenshots/macosx100/).
-The chrome uses a shaped normal field reflecting broad studio light
-panels. It is an authored material study, not a reconstruction of one
+The chrome states a metallic surface with a shaped normal field; the page
+carries no light, so it paints its silver flat. It is an authored material study, not a reconstruction of one
 operating system screen.
 
 The material recipes are shared with the chrome lettering, text paints
 and surface components sketches:
 
-- `Metal.h` supplies the reflective silver, brushed housing and smoked
-  inset. Silver carries its own lighting, so fills, strokes and glyph
-  inks receive the same studio environment. Fold depth and roughness
-  control its shape and polish.
+- `Metal.h` supplies the silver, brushed housing and smoked inset. Fold
+  depth and roughness set the silver's surface normal and polish.
 - `ChromeType.h` adds a cast shadow, bevel and keyline to the silver
   face. Its sunset finish remains a separate painted horizon.
 - `Aqua.h` supplies the opaque gel body, lower caustic, narrow rim and

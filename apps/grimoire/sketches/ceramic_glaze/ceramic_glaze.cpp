@@ -1,7 +1,6 @@
 // Ceramic fills and inks with seeded crazing, pores, rounded shoulders and
-// apparent formed relief. Lighting changes the normals; the planes stay flat.
-// TAGS: Materials/Ceramics, Materials/Lighting, Compose/Layers,
-// Interfaces/Controls
+// apparent formed relief. The normals carry the relief; the planes stay flat.
+// TAGS: Materials/Ceramics, Compose/Layers, Interfaces/Controls
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
@@ -16,15 +15,12 @@
 #include <sigilgeometry/path/Polyline.h>
 #include <sigilgeometry/path/Triangulate.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/program/Shader.h>
-#include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilmedia/advanced/Skia.h>
-#include <sigilmotion/values/Animatable.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <algorithm>
@@ -41,7 +37,6 @@
 namespace compose = sigil::compose;
 namespace material = sigil::material;
 namespace media = sigil::media;
-namespace motion = sigil::motion;
 namespace sketch = sigil::sketch;
 namespace path = sigil::geometry::path;
 namespace noise = sigil::core::noise;
@@ -50,8 +45,8 @@ namespace kit = sigil::compose::kit;
 namespace {
 
 constexpr int kWidth = 1440, kHeight = 1000, kMapSize = 768;
-constexpr float kPi = 3.14159265358979323846f;
-constexpr float kLoopSeconds = 36;
+constexpr float kLoopSeconds = 28;
+constexpr int kLastPhase = 6;
 
 struct Controls {
   float roughness = 0.17f;
@@ -60,7 +55,6 @@ struct Controls {
   float porosity = 0.75f;
   float crackStrength = 0.72f;
   float reliefDepth = 3.4f;
-  float lightSpeed = 10;
 };
 constexpr Controls kControls;
 
@@ -80,8 +74,7 @@ std::string number(float value, int precision = 2) {
 
 struct Moment {
   float roughness = 0.17f, normal = 1, glaze = 1, depth = 3.4f;
-  float elevation = 46;
-  bool scalarRoughness = false, unlit = false;
+  bool scalarRoughness = false;
   int phase = 0;
   const char* name = "GLAZED / WORKING";
   const char* note =
@@ -100,7 +93,7 @@ Moment moment(int phase) {
       m.glaze = 1;
       m.scalarRoughness = true;
       m.name = "ROUGHNESS / ZERO";
-      m.note = "Scalar zero; a moving softbox follows the normal field";
+      m.note = "Scalar zero; normals and coating retained";
       break;
     case 2:
       m.roughness = 1;
@@ -127,16 +120,6 @@ Moment moment(int phase) {
           "Clearcoat disabled; the colored body retains its roughness and maps";
       break;
     case 6:
-      m.elevation = 9;
-      m.name = "RAKING / STUDIO LIGHT";
-      m.note = "Low directional light reveals shallow shoulders and lettering";
-      break;
-    case 7:
-      m.unlit = true;
-      m.name = "COLOR / NO ILLUMINATION";
-      m.note = "Color stack alone; the fixed coupons retain their studio";
-      break;
-    case 8:
       m.depth = 0;
       m.name = "PROFILE / ZERO HEIGHT";
       m.note = "Macro-height removed; fine finish maps remain connected";
@@ -322,39 +305,9 @@ material::Material ceramic(const CeramicMaps& maps, material::Color color,
                        .clearcoat = m.glaze});
 }
 
-material::EnvironmentMap studio() {
-  return material::EnvironmentMap::baked(512, [](float u, float v) {
-    const auto strip = [u, v](float center, float width, float elevation,
-                              float height) {
-      const float du = std::min(std::abs(u - center), 1 - std::abs(u - center));
-      const float x = du / width, y = (v - elevation) / height;
-      return std::exp(-.5f * (x * x + y * y));
-    };
-    glm::vec3 radiance{.66f, .64f, .60f};
-    radiance += glm::vec3{4.8f, 4.6f, 4.2f} * strip(.12f, .04f, .40f, .24f);
-    radiance += glm::vec3{2.1f, 2.8f, 3.4f} * strip(.65f, .10f, .42f, .18f);
-    radiance += glm::vec3{1.9f, 1.6f, 1.3f} * strip(.96f, .03f, .50f, .25f);
-    return radiance;
-  });
-}
-
 struct CeramicGlaze {
   CeramicMaps porcelain, stoneware, crazing;
-  material::EnvironmentMap environment;
-  motion::Animatable<float> bearing = motion::animatable(118.0f);
-  motion::Animatable<float> reflectionTurn = motion::animatable(0.0f);
   int phaseIndex = 0;
-
-  material::Lighting lighting(float elevation = 46) const {
-    return {
-        material::studio({.direction = bearing,
-                          .elevation = elevation,
-                          .color = material::Color{.99f, .97f, .91f, 1},
-                          .intensity = .62f,
-                          .ambient = .42f}),
-        material::environment(environment.texture().source(),
-                              {.rotation = reflectionTurn, .intensity = .52f})};
-  }
 
   compose::Element tile(float x, float y, float width, float height,
                         const CeramicMaps& maps, material::Color color,
@@ -414,7 +367,7 @@ struct CeramicGlaze {
     face.children({std::move(plate)});
 
     // These are stacked Compose planes. The profile lives in the normals,
-    // so rotating a lamp changes it without moving a silhouette.
+    // so it changes without moving a silhouette.
     face.children(
         {tile(491, 82, 226, 226, stoneware, ink(0x8e9079), body,
               {.radius = 113, .shoulder = 15, .circular = 1}),
@@ -446,7 +399,6 @@ struct CeramicGlaze {
       face.children({std::move(pad)});
     }
     slab.children({std::move(face)});
-    slab.lighting(m.unlit ? material::Lighting{} : lighting(m.elevation));
     return slab;
   }
 
@@ -456,12 +408,11 @@ struct CeramicGlaze {
     auto out = kit::at(1050, 229, 338, 516);
     out.children({label("SURFACE PARAMETERS", 0, 0, 338, 13, dark, 600),
                   label("Body + dielectric coating", 0, 27, 338, 12, muted)});
-    const std::array<std::string, 5> values{
-        number(m.roughness), number(m.normal), number(m.glaze), number(m.depth),
-        number(m.elevation, 0) + "°"};
-    const std::array<const char*, 5> names{"ROUGHNESS", "NORMAL STRENGTH",
-                                           "GLAZE WEIGHT", "PROFILE HEIGHT",
-                                           "LIGHT ELEVATION"};
+    const std::array<std::string, 4> values{number(m.roughness),
+                                            number(m.normal), number(m.glaze),
+                                            number(m.depth)};
+    const std::array<const char*, 4> names{"ROUGHNESS", "NORMAL STRENGTH",
+                                           "GLAZE WEIGHT", "PROFILE HEIGHT"};
     for (size_t i = 0; i < values.size(); ++i) {
       const float y = 70 + float(i) * 78;
       out.children(
@@ -471,8 +422,8 @@ struct CeramicGlaze {
            rule(0, y + 61, 320, ink(0xb4bdae))});
     }
     out.children(
-        {label("36 s / NINE DETERMINISTIC STATES", 0, 475, 335, 10, green)});
-    for (int i = 0; i < 9; ++i)
+        {label("28 s / SEVEN DETERMINISTIC STATES", 0, 475, 335, 10, green)});
+    for (int i = 0; i <= kLastPhase; ++i)
       out.children({kit::at(i * 34.5f, 498, 26, 5)
                         .borderRadius(2.5f)
                         .fill(i == m.phase ? green : ink(0xcdd1c1))});
@@ -480,7 +431,7 @@ struct CeramicGlaze {
   }
 
   compose::Element specimens() const {
-    auto out = kit::at(55, 814, 1334, 151).lighting(lighting());
+    auto out = kit::at(55, 814, 1334, 151);
     const std::array<const char*, 6> titles{"PORCELAIN",      "STONEWARE",
                                             "CRAZED CELADON", "GLAZE 0",
                                             "GLAZE 1",        "NORMAL 0 / 3"};
@@ -538,8 +489,8 @@ struct CeramicGlaze {
         .fontFamily("Inter, Helvetica Neue, sans-serif")
         .children(
             {label("KILN / 04", 52, 38, 785, 57, dark, 500),
-             label("CERAMIC GLAZE / A STUDY OF FORMED COLOR AND LIGHT", 55, 118,
-                   970, 12, muted, 550),
+             label("CERAMIC GLAZE / A STUDY OF FORMED COLOR", 55, 118, 970, 12,
+                   muted, 550),
              label("SPECIMEN LABORATORY", 1060, 43, 325, 11, dark, 600),
              label("PORCELAIN / STONEWARE / GLAZE", 1060, 68, 325, 10, muted),
              label("Compose fills + material inks", 1060, 93, 325, 10, muted),
@@ -547,11 +498,10 @@ struct CeramicGlaze {
              label(m.name, 55, 178, 980, 20, ink(0x317f6f), 600),
              label(m.note, 55, 208, 1015, 12, muted), bench(m), parameters(m),
              label("FIXED FINISH COUPONS", 55, 777, 690, 13, dark, 600),
-             label("ENDPOINTS / ONE SHARED STUDIO", 1027, 779, 364, 10, muted),
-             specimens(),
+             label("ENDPOINTS", 1027, 779, 364, 10, muted), specimens(),
              label(
-                 "36 s LOOP   /   02 GLAZED · 06 R0 · 10 R1 · 14 N0 · 18 N3 · "
-                 "22 COAT0 · 26 RAKE · 30 UNLIT · 34 ZERO HEIGHT",
+                 "28 s LOOP   /   02 GLAZED · 06 R0 · 10 R1 · 14 N0 · 18 N3 · "
+                 "22 COAT0 · 26 ZERO HEIGHT",
                  55, 975, 1338, 10, muted)});
   }
 
@@ -564,16 +514,13 @@ struct CeramicGlaze {
     porcelain = finishMaps(41, .035f, false);
     stoneware = finishMaps(107, porosity, false);
     crazing = finishMaps(317, porosity * .21f, true);
-    environment = studio();
     ctx.composer.render(describe(0));
   }
   void update(double elapsed, sketch::SketchContext& ctx) {
     const double seconds = std::isfinite(elapsed) ? std::max(0.0, elapsed) : 0;
     const float t =
         static_cast<float>(std::fmod(seconds, double(kLoopSeconds)));
-    bearing = 118 + 43 * std::sin(t * 2 * kPi / kLoopSeconds);
-    reflectionTurn = t * bounded(kControls.lightSpeed, -60, 60, 10);
-    const int next = std::min(8, static_cast<int>(t / 4));
+    const int next = std::min(kLastPhase, static_cast<int>(t / 4));
     if (next != phaseIndex) {
       phaseIndex = next;
       ctx.composer.render(describe(next));
@@ -585,4 +532,4 @@ struct CeramicGlaze {
 
 SIGIL_SKETCH(CeramicGlaze, "Study · Materials",
              "Crazed celadon, porcelain and stoneware material fills and inks "
-             "under a moving studio with fixed finish comparisons");
+             "with fixed finish comparisons");

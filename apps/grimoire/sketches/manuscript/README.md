@@ -6,12 +6,13 @@ the Short Hours of the Holy Spirit. Its silver script, gold lettering,
 green initials, blue border, flowers, foliage and marginal winged devil
 come from the actual digitized leaf.
 
-This is a photographic facsimile with selective material relighting, not
+This is a photographic facsimile with a selective gold material, not
 newly typeset medieval lettering or a vector reconstruction. The source
 image preserves the exact hand, border proportions, ruling and wear.
 `gold.sksl` selects warm yellow chroma while excluding neutral silver and
-blue pigment. A metallic native surface and a beaten normal field give the
-selected regions a moving gold-leaf response. The material is an artistic
+blue pigment. A metallic native surface with a beaten normal field paints
+the selected regions as gold leaf; on the page its colour paints flat. The
+material is an artistic
 interpretation: the scan does not supply measured normals or reflectance.
 
 The local image keeps the sketch usable offline. `data/black-hours-019v.png`
@@ -25,11 +26,10 @@ underlying manuscript is a public-domain work.
 - [Source TIFF](https://ica.themorgan.org/zoom/images/4/m493.019v.zif)
 - [The Black Hours collection](https://www.themorgan.org/collection/Black-Hours)
 
-Open `manuscript.cpp` in Grimoire. The declared still is at 3 seconds;
-the light completes its sweep without moving the page or its script.
+Open `manuscript.cpp` in Grimoire. The declared still is at 3 seconds.
 
 The source image and gold coverage are retained at the displayed page
-resolution. Native material lighting shades a smaller gold surface. The image
-compositor stretches that smooth lighting field through the full-resolution
-coverage mask, preserving fine edges and wear without a full-page per-pixel
-lighting shader.
+resolution. The gold material fills a smaller surface. The image compositor
+stretches that smooth gold field through the full-resolution coverage mask,
+preserving fine edges and wear without a full-page per-pixel material
+shader.

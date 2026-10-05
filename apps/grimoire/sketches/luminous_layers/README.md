@@ -20,21 +20,20 @@ values.
 The values are encoded working RGB; nothing here is a scene-linear space,
 calibrated radiance or display luminance. The normal maps describe planar
 relief. Colour layers are overprints, not separate films, and the glass cover
-is a 2D backdrop refraction. Emission does not light its neighbours: two moving
-Point sources and a modest environment supply the surface lighting, so at the
-default exposure the zero-emission state is dark and its relief subtle.
+is a 2D backdrop refraction. Emission does not light its neighbours, and every
+material paints its colour stack flat.
 
 ## Controls and states
 
 Drag the gain, opacity and exposure sliders. **SHOULDER / CLIP**, **DISPLAY
 BLOOM** and **DEPTH** switch their effects. **STATE** alternates AUTO and HELD;
 **PREVIOUS / NEXT** select a held state. Returning to AUTO clears the gain and
-opacity overrides. The lights and the RGB sweep keep moving in a held state.
+opacity overrides. The RGB sweep keeps moving in a held state.
 
 | Seconds | State |
 | --- | --- |
 | 0–4 | Warm and cyan luminous alloy |
-| 4–8 | Zero emission, with surface lighting retained |
+| 4–8 | Zero emission |
 | 8–12 | Live RGB colour sweep |
 | 12–16 | White emission at gain sixteen |
 | 16–20 | Quarter-opacity marks and an overlap comparison |
@@ -44,16 +43,15 @@ opacity overrides. The lights and the RGB sweep keep moving in a held state.
 
 ## Fixed specimens
 
-The calibration rail isolates white emission in its own scene, under a
-zero-strength, zero-ambient source. Its columns are gains 0, 1, 4 and 16; its
-rows are alphas 0, 0.01, 0.25, 0.5 and 1, so each cell's centre holds
-premultiplied RGB `gain × alpha` and that alpha. Narrow rotated lines and
-quarter-opacity O8 glyphs show antialiased coverage. The rail gets the same
-display pass, without bloom.
+The calibration rail isolates white emission in its own container. Its columns
+are gains 0, 1, 4 and 16; its rows are alphas 0, 0.01, 0.25, 0.5 and 1, so each
+cell's centre holds premultiplied RGB `gain × alpha` and that alpha. Narrow
+rotated lines and quarter-opacity O8 glyphs show antialiased coverage. The rail
+gets the same display pass, without bloom.
 
 The lower-left specimens hold the same half-opacity copper O8, pressure ribbon
 and painted bristles at emission gain four in an 8-bit, a half-float and a
 float texture. A white square in each isolates that gain at half opacity,
 ideally `(2, 2, 2, 0.5)` premultiplied: the 8-bit texture clips it, while both
 float textures keep the values above one until the shared display pass. These
-three stay fixed while the hero's controls and lights change.
+three stay fixed while the hero's controls change.

@@ -1,9 +1,9 @@
 #pragma once
 
 // Porous limestone, rounded shoulders and the cut faces of shaped letters.
-// Height changes the normals; the shared material executor supplies the light.
+// Height changes the normals; the page carries no light, so the colour paints
+// flat.
 
-#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/program/Shader.h>
 

@@ -16,11 +16,9 @@ from sigil.material import (
     BlendMode,
     BloomOptions,
     Filter,
-    Lighting,
     Material,
     Paint,
     noise,
-    studio,
 )
 from sigil.motion import animatable, bind, envelope
 from sigil.sketch import SketchContext, sketch
@@ -413,17 +411,6 @@ class MacrodataRefinement:
         hardware = (
             box()
             .inset(0)
-            .lighting(
-                Lighting(
-                    studio(
-                        direction=128,
-                        elevation=65,
-                        color="#EDF7FF",
-                        intensity=0.68,
-                        ambient=0.74,
-                    )
-                )
-            )
             .children(
                 [
                     pen("mdr.desk.support", support, Cache.Texture),

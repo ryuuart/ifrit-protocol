@@ -47,7 +47,7 @@ or a functional reproduction of the fictional application.
 ## Native craft
 
 The cabinet uses native gradient materials, a subtle stock noise layer,
-rough surfaces, stock bevel filters and native studio lighting. Separate
+rough surfaces that paint flat on the unlit page and stock bevel filters. Separate
 outer ivory, navy front and screen molding silhouettes give the case its
 depth. Cached native pen geometry supplies recessed hardware, transfer
 marks, the support, keyboard case, sculpted keycaps and trackball sphere.

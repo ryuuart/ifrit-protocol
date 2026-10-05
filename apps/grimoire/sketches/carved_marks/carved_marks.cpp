@@ -1,7 +1,7 @@
 /** Real Compose letters and layered brush marks shape stone and chased copper.
  */
 // TAGS: Compose/Materials, Materials/Stone, Materials/Metal,
-// Typography/Material ink, Brushes/Layered, Materials/Lighting
+// Typography/Material ink, Brushes/Layered
 
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/Ribbons.h>
@@ -12,13 +12,10 @@
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/path/Profile.h>
-#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/surface/Surface.h>
-#include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmaterial/texture/Texture.h>
-#include <sigilmotion/values/Animatable.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilweave/query/Selector.h>
@@ -40,7 +37,6 @@
 namespace compose = sigil::compose;
 namespace draw = sigil::draw;
 namespace material = sigil::material;
-namespace motion = sigil::motion;
 namespace path = sigil::geometry::path;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
@@ -51,7 +47,7 @@ using compose::Element;
 using material::hexColor;
 constexpr int kWidth = 1440, kHeight = 1120;
 constexpr int kFieldWidth = 620, kFieldHeight = 292;
-constexpr float kLoop = 24, kPi = 3.14159265358979323846f;
+constexpr float kLoop = 16;
 constexpr auto kPaper = hexColor(0xeee9dc);
 constexpr auto kInk = hexColor(0x28372f);
 constexpr auto kMuted = hexColor(0x697468);
@@ -59,18 +55,16 @@ constexpr auto kRule = hexColor(0xc0c5b6);
 constexpr auto kCopper = hexColor(0xb16d46);
 constexpr auto kGold = hexColor(0xe6bb70);
 constexpr material::Color kWhite{1, 1, 1, 1}, kBlack{0, 0, 0, 1};
-constexpr std::array<std::string_view, 6> kNames{
-    "01 / FRONT · CUT & CHASE",  "02 / RAKE FROM LEFT",
-    "03 / RAKE FROM RIGHT",      "04 / ZERO MACRO · GRAIN REMAINS",
-    "05 / HALF GILT · INK WIPE", "06 / UNITS · SPLIT & MIRROR"};
+constexpr std::array<std::string_view, 4> kNames{
+    "01 / CUT & CHASE", "02 / ZERO MACRO · GRAIN REMAINS",
+    "03 / HALF GILT · INK WIPE", "04 / UNITS · SPLIT & MIRROR"};
+constexpr int kPhaseCount = static_cast<int>(kNames.size());
 
 struct Controls {
   float depth = -2.8f;
   float detail = .35f;
   float roughness = .52f;
   float gilding = .72f;
-  float bearing = 132;
-  float elevation = 84;
   bool normals = true;
 };
 
@@ -83,19 +77,16 @@ struct Finish {
 struct State {
   int phase = 0;
   Finish finish;
-  float bearing = 132, elevation = 84;
 };
 
 struct Slider {
   std::string_view name;
   float low, high;
 };
-constexpr std::array<Slider, 6> kSliders{{{"CUT DEPTH / PX", -5, 5},
+constexpr std::array<Slider, 4> kSliders{{{"CUT DEPTH / PX", -5, 5},
                                           {"GRAIN / PX", 0, 1},
                                           {"COPPER ROUGHNESS", 0, 1},
-                                          {"GILT / OPACITY", 0, 1},
-                                          {"LIGHT BEARING / DEG", 0, 360},
-                                          {"LIGHT ELEVATION / DEG", 0, 90}}};
+                                          {"GILT / OPACITY", 0, 1}}};
 
 float bounded(float value, float low, float high, float fallback) {
   return std::clamp(std::isfinite(value) ? value : fallback, low, high);
@@ -168,8 +159,6 @@ struct CarvedMarks {
   weave::FontContext* fonts = nullptr;
   std::shared_ptr<compose::TextureScene> heightScene, normalScene;
   uint64_t heightRevision = 0, normalRevision = 0;
-  material::EnvironmentMap room;
-  material::Environment surroundings;
   material::Material height{carved_marks::kBlack};
   material::Material stoneFace{carved_marks::kPaper};
   material::Material copperFace{carved_marks::kCopper};
@@ -180,31 +169,17 @@ struct CarvedMarks {
   Element heightTree = compose::stack();
   Element tree = compose::stack();
   path::Outline pressure, fibre, crossing;
-  motion::Animatable<float> bearing = motion::animatable(132.f);
-  motion::Animatable<float> elevation = motion::animatable(84.f);
-  motion::Animatable<float> reflection = motion::animatable(0.f);
-  motion::Animatable<float> sourceX = motion::animatable(220.f);
-  motion::Animatable<float> sourceY = motion::animatable(198.f);
-  motion::Animatable<float> sourceZ = motion::animatable(260.f);
 
   State state() const {
     using namespace carved_marks;
     State value;
-    value.phase = heldPhase < 0 ? std::min(5, int(seconds / 4))
-                                : std::clamp(heldPhase, 0, 5);
+    value.phase = heldPhase < 0 ? std::min(kPhaseCount - 1, int(seconds / 4))
+                                : std::clamp(heldPhase, 0, kPhaseCount - 1);
     value.finish = {controls.depth, controls.detail, controls.roughness,
                     controls.gilding, controls.normals};
-    value.bearing = controls.bearing;
-    value.elevation = controls.elevation;
     if (value.phase == 1) {
-      value.bearing = 150;
-      value.elevation = 18;
-    } else if (value.phase == 2) {
-      value.bearing = 30;
-      value.elevation = 18;
-    } else if (value.phase == 3) {
       value.finish.depth = 0;
-    } else if (value.phase == 4) {
+    } else if (value.phase == 2) {
       value.finish.gilding = .5f;
     }
     if (manual) value = *manual;
@@ -212,8 +187,6 @@ struct CarvedMarks {
     value.finish.detail = bounded(value.finish.detail, 0, 1, .35f);
     value.finish.roughness = bounded(value.finish.roughness, 0, 1, .52f);
     value.finish.gilding = bounded(value.finish.gilding, 0, 1, .72f);
-    value.bearing = bounded(value.bearing, 0, 360, 132);
-    value.elevation = bounded(value.elevation, 0, 90, 84);
     return value;
   }
 
@@ -419,8 +392,8 @@ struct CarvedMarks {
          compose::kit::at(24, 56, kFieldWidth, kFieldHeight)
              .fill(copper ? copperFace : stoneFace)
              .borderRadius(3),
-         label(copper ? "ALBEDO / BEFORE LIGHT" : "H / COMPOSE HEIGHT", 24, 353,
-               150, 8, copper ? kPaper : kInk),
+         label(copper ? "ALBEDO" : "H / COMPOSE HEIGHT", 24, 353, 150, 8,
+               copper ? kPaper : kInk),
          label(copper ? "SHARED MARKS" : "N / FIXED −2.8 PX", 168, 353, 150, 8,
                copper ? kPaper : kInk),
          compose::kit::at(24, 364, 120, 40)
@@ -445,29 +418,6 @@ struct CarvedMarks {
     constexpr std::array captions{"ELEMENT / PIXEL FIELD",
                                   "GLYPH / PIXEL DEPTH", "WORD / FONT SPLIT"};
     const float x = 40 + index * 462.f;
-    const auto kind = index == 0   ? material::LightKind::Directional
-                      : index == 1 ? material::LightKind::Point
-                                   : material::LightKind::Spot;
-    material::Light source{.direction = bearing,
-                           .elevation = index == 0 ? 84.f : 90.f,
-                           .color = material::Color{1, .96f, .87f, 1},
-                           .intensity = .25f,
-                           .ambient = .35f,
-                           .kind = kind,
-                           .range = 780,
-                           .innerAngle = 18,
-                           .outerAngle = 42};
-    auto lamp =
-        compose::light(source).key("unit-source-" + std::to_string(index));
-    auto marker =
-        compose::kit::at(190, 179, 22, 1.5f).fill(kCopper).rotate(bearing);
-    if (index != 0) {
-      lamp.translateX(sourceX).translateY(sourceY).translateZ(sourceZ);
-      marker = compose::kit::ring(
-                   {0, 0}, 5, compose::stroke(1, compose::Fill::color(kCopper)))
-                   .translateX(sourceX)
-                   .translateY(sourceY);
-    }
     auto words =
         compose::kit::at(compose::text("cut / WIDE OB8"), 18, 54, 396, 82)
             .key("unit-type-" + std::to_string(index))
@@ -493,25 +443,19 @@ struct CarvedMarks {
                 compose::SpanStyle().fontSize(32))
           .span(weave::selectors::text(u8"B"),
                 compose::SpanStyle().fontSize(57));
-    if (value.phase == 5 && index == 1)
+    if (value.phase == 3 && index == 1)
       words.scaleX(-.82f).scaleY(1.12f).transformOrigin(compose::pct(50),
                                                         compose::pct(50));
     char channel[100];
-    std::snprintf(
-        channel, sizeof(channel),
-        "HEIGHT %+.2f PX · STEP .75 PX\n%s / STATIC INPUTS · LIVE LIGHT",
-        value.finish.depth,
-        index == 0   ? "FRONT 84°"
-        : index == 1 ? "POINT / Z 260±24"
-                     : "SPOT / 18°–42°");
-    return compose::kit::at(compose::scene(), x, 724, 436, 220)
-        .environment(surroundings)
+    std::snprintf(channel, sizeof(channel),
+                  "HEIGHT %+.2f PX · STEP .75 PX\nSTATIC INPUTS",
+                  value.finish.depth);
+    return compose::kit::at(compose::box(), x, 724, 436, 220)
         .fill(hexColor(0xf7f0e0))
         .borderRadius(5)
         .stroke(compose::stroke(1, compose::Fill::color(kRule)))
-        .children({lamp, label(captions[index], 18, 17, 400, 11, kInk), words,
-                   rule(18, 149, 400), label(channel, 18, 158, 390, 9),
-                   marker});
+        .children({label(captions[index], 18, 17, 400, 11, kInk), words,
+                   rule(18, 149, 400), label(channel, 18, 158, 390, 9)});
   }
 
   Element coupons(const State& value) const {
@@ -574,13 +518,11 @@ half4 main(float2 p) {
                  button("NEXT", 376, 100, false),
                  button("NORMALS", 488, 112, f.normals),
                  label(kNames[value.phase], 652, 584, 748, 15, kInk),
-                 label("Light moves while the finish is held. Drag a rail to "
-                       "edit; AUTO restores presets.",
-                       40, 620, 1240, 10)});
-    const std::array<float, 6> values{f.depth,       f.detail,
-                                      f.roughness,   f.gilding,
-                                      value.bearing, value.elevation};
-    for (int i = 0; i < 6; ++i) {
+                 label("Drag a rail to edit; AUTO restores presets.", 40, 620,
+                       1240, 10)});
+    const std::array<float, 4> values{f.depth, f.detail, f.roughness,
+                                      f.gilding};
+    for (int i = 0; i < 4; ++i) {
       const float x = 40 + i * 230.f;
       char reading[80];
       std::snprintf(reading, sizeof(reading), "%s  %s%.2f",
@@ -604,28 +546,16 @@ half4 main(float2 p) {
   Element describe(const State& value) const {
     using namespace carved_marks;
     char source[140];
-    std::snprintf(
-        source, sizeof(source),
-        "%s / KEY BASE %.0f° · ELEV %.0f°\nHELD HEIGHT %.2f× / N32 DATA",
-        manual          ? "MANUAL"
-        : heldPhase < 0 ? "AUTO"
-                        : "HELD",
-        value.bearing, value.elevation, fieldDensity);
-    auto page = compose::scene()
-                    .width(kWidth)
-                    .height(kHeight)
-                    .fill(kPaper)
-                    .fontFamily("Inter, Helvetica Neue, sans-serif")
-                    .environment(surroundings);
+    std::snprintf(source, sizeof(source), "%s\nHELD HEIGHT %.2f× / N32 DATA",
+                  manual          ? "MANUAL"
+                  : heldPhase < 0 ? "AUTO"
+                                  : "HELD",
+                  fieldDensity);
+    auto page =
+        compose::box().width(kWidth).height(kHeight).fill(kPaper).fontFamily(
+            "Inter, Helvetica Neue, sans-serif");
     page.children(
-        {compose::light(
-             material::studio({.direction = bearing,
-                               .elevation = elevation,
-                               .color = material::Color{1, .96f, .88f, 1},
-                               .intensity = .36f,
-                               .ambient = .72f}))
-             .key("atelier-key"),
-         label("CARVED / MARKS", 40, 26, 1050, 47, kInk)
+        {label("CARVED / MARKS", 40, 26, 1050, 47, kInk)
              .fontFamily("Georgia, Times New Roman, serif"),
          label("A MATERIAL ATELIER / LETTERS, PRESSURE & FIBRE BECOME THE "
                "SURFACE",
@@ -651,15 +581,14 @@ half4 main(float2 p) {
                "span. No lit colour is baked here.",
                40, 956, 1260, 11),
          coupons(value),
-         label("24 S / FRONT · LEFT RAKE · RIGHT RAKE · ZERO MACRO · HALF GILT "
-               "· UNIT MAPPING",
-               40, 1096, 1180, 9),
+         label("16 S / CUT & CHASE · ZERO MACRO · HALF GILT · UNIT MAPPING", 40,
+               1096, 1180, 9),
          label("STUDY / 11", 1294, 1094, 106, 11, kInk)});
     return page;
   }
 
   void selectPhase(int phase) {
-    heldPhase = (phase + 6) % 6;
+    heldPhase = (phase + carved_marks::kPhaseCount) % carved_marks::kPhaseCount;
     manual.reset();
     treeDirty = true;
   }
@@ -671,7 +600,7 @@ half4 main(float2 p) {
       return;
     }
     if (pressed && y >= 650 && y <= 687) {
-      for (int i = 0; i < 6; ++i) {
+      for (int i = 0; i < 4; ++i) {
         const float left = 40 + i * 230.f;
         if (x < left || x > left + 210) continue;
         State edit = state();
@@ -684,12 +613,8 @@ half4 main(float2 p) {
           edit.finish.detail = value;
         else if (i == 2)
           edit.finish.roughness = value;
-        else if (i == 3)
-          edit.finish.gilding = value;
-        else if (i == 4)
-          edit.bearing = value;
         else
-          edit.elevation = value;
+          edit.finish.gilding = value;
         heldPhase = edit.phase;
         manual = edit;
         treeDirty = true;
@@ -703,7 +628,7 @@ half4 main(float2 p) {
         heldPhase = -1;
         manual.reset();
       } else if (x >= 264 && x <= 364) {
-        selectPhase(before.phase + 5);
+        selectPhase(before.phase + kPhaseCount - 1);
       } else if (x >= 376 && x <= 476) {
         selectPhase(before.phase + 1);
       } else if (x >= 488 && x <= 600) {
@@ -723,13 +648,6 @@ half4 main(float2 p) {
                   ? float(std::fmod(std::max(0., elapsed), double(kLoop)))
                   : 0.f;
     const State value = state();
-    const float turn = seconds * 2 * kPi / kLoop;
-    bearing = value.bearing + 18 * std::sin(turn);
-    elevation = value.elevation;
-    reflection = 12 * std::sin(turn + .4f);
-    sourceX = 220 + 115 * std::sin(turn);
-    sourceY = 198 + 4 * std::cos(turn * 2);
-    sourceZ = 260 + 24 * std::cos(turn);
     if (describedPhase != value.phase) treeDirty = true;
     if (heightScene) checkFields();
   }
@@ -757,19 +675,6 @@ half4 main(float2 p) {
     ctx.paintDiscardedFrames(false);
     fonts = ctx.fonts;
     prepareArt();
-    room = material::EnvironmentMap::baked(256, [](float u, float v) {
-      const float wx = std::sin((u - .025f) * kPi) / .43f;
-      const float wy = (v - .37f) / .28f;
-      const float sx = std::sin((u - .84f) * kPi) / .085f;
-      const float sy = (v - .44f) / .30f;
-      const float window = std::exp(-wx * wx - wy * wy);
-      const float strip = std::exp(-sx * sx - sy * sy);
-      return glm::vec3(.65f, .70f, .74f) + window * glm::vec3(1.2f, 1.1f, .9f) +
-             strip * glm::vec3(.3f, .6f, .8f);
-    });
-    surroundings = material::environment(
-        material::image(room.texture()),
-        {.rotation = reflection, .intensity = .55f, .size = {256, 128}});
     update(0);
     ctx.composer.render(compose::pen(
                             "carved-marks",

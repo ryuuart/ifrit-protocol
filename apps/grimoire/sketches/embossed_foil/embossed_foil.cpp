@@ -2,24 +2,22 @@
  * embossed_foil — a foil-clad orbital thermal-control console.
  *
  * EDIT THESE FIRST
- *   Controls — crinkle strength, roughness, relief and lighting balance.
- *   heldPhase — -1 cycles; 0–8 holds one authored material state.
+ *   Controls — crinkle strength, roughness, relief and amber layer.
+ *   heldPhase — -1 cycles; 0–6 holds one authored material state.
  *   blanket — the fitted foil silhouette, seams and folded corner.
  */
 
-// TAGS: Materials/Metal, Materials/Foil, Materials/Lighting,
-// Typography/Material ink, Composition/Instrumentation
+// TAGS: Materials/Metal, Materials/Foil, Typography/Material ink,
+// Composition/Instrumentation
 
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/Relief.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilgeometry/kit/Generators.h>
-#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/paint/Bases.h>
-#include <sigilmotion/values/Animatable.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <algorithm>
@@ -35,7 +33,6 @@
 
 namespace sketch = sigil::sketch;
 namespace material = sigil::material;
-namespace motion = sigil::motion;
 namespace shapes = sigil::geometry::shapes;
 using namespace sigil::compose;
 
@@ -55,9 +52,6 @@ struct Controls {
   float metallic = 1;
   float reliefDepth = 1.05f;
   float shoulder = 1.8f;
-  float keyElevation = 36;
-  float keyIntensity = 0.38f;
-  float environmentIntensity = 0.62f;
   float amberLayer = 0.76f;
   bool maskStress = false;
 };
@@ -69,14 +63,14 @@ struct Phase {
 constexpr std::array kPhases{
     Phase{"ORBIT / NOMINAL", "Creased foil, raised controls and material ink"},
     Phase{"NORMAL / ZERO", "Flat foil normal; contour shoulders remain"},
-    Phase{"CRINKLE / STRONG", "Stronger folds under the same moving lights"},
-    Phase{"ROUGHNESS / ZERO", "Sharp reflected studio field"},
-    Phase{"ROUGHNESS / ONE", "Diffuse foil endpoint"},
-    Phase{"KEY / FRONTAL", "Face-on light with reduced key exposure"},
-    Phase{"KEY / GRAZING", "Low light reveals the shoulder and folds"},
+    Phase{"CRINKLE / STRONG", "Larger crease amplitude in the foil normal"},
+    Phase{"ROUGHNESS / ZERO", "Sharp roughness endpoint"},
+    Phase{"ROUGHNESS / ONE", "Diffuse roughness endpoint"},
     Phase{"DIE / RECESSED", "Signed depth reverses the contour relief"},
     Phase{"LAYERS / MASK", "Perforated overprint, shaped holes and clipping"},
 };
+
+constexpr int kLastPhase = static_cast<int>(kPhases.size()) - 1;
 
 Element label(std::string_view words, float x, float y, float width,
               float size = 12, material::Color color = kMuted,
@@ -300,8 +294,6 @@ struct EmbossedFoil {
   Controls controls;
   int heldPhase = -1;
   int phaseIndex = 0;
-  motion::Animatable<float> bearing = motion::animatable(125.0f);
-  motion::Animatable<float> environmentTurn = motion::animatable(18.0f);
   Shape blanketOutline = shapes::svg(
       "M1 4 L11 0 L35 3 L63 0 L96 4 L100 12 L98 30 L100 58 "
       "L98 86 L100 96 L87 100 L62 98 L33 100 L12 98 L0 94 "
@@ -324,16 +316,9 @@ struct EmbossedFoil {
         c.roughness = 1;
         break;
       case 5:
-        c.keyElevation = 90;
-        c.keyIntensity = 0.17f;
-        break;
-      case 6:
-        c.keyElevation = 5;
-        break;
-      case 7:
         c.reliefDepth = -1.05f;
         break;
-      case 8:
+      case 6:
         c.maskStress = true;
         c.amberLayer = 1;
         break;
@@ -341,22 +326,6 @@ struct EmbossedFoil {
         break;
     }
     return c;
-  }
-
-  material::Lighting light(const Controls& c, bool moving = true) const {
-    return material::Lighting{
-        material::studio(
-            {.direction = moving ? bearing : motion::Animatable<float>(125),
-             .elevation = c.keyElevation,
-             .color = material::Color{0.95f, 0.94f, 0.88f, 1},
-             .intensity = c.keyIntensity,
-             .ambient = 0.34f}),
-        material::environment(
-            material::shader(embossed_foil::kEnvironment),
-            {.rotation =
-                 moving ? environmentTurn : motion::Animatable<float>(18),
-             .intensity = c.environmentIntensity,
-             .size = {512, 256}})};
   }
 
   Element controlsPanel(int index, const Controls& c) const {
@@ -370,49 +339,37 @@ struct EmbossedFoil {
               193, c.roughness),
         meter("SIGNED RELIEF", number(c.reliefDepth), "raised / recessed", 272,
               std::abs(c.reliefDepth) / 1.5f),
-        meter("KEY ELEVATION", number(c.keyElevation, 0), "degrees", 351,
-              c.keyElevation / 90),
-        meter("ENVIRONMENT", number(c.environmentIntensity), "shared surround",
-              430, c.environmentIntensity),
-        label("DIRECTIONAL + ENVIRONMENT", 0, 525, 316, 10, kBlue, 600),
         label("Material fills / material ink / outline relief", 0, 548, 316,
               10),
         rule(0, 578, 316)};
-    for (int i = 0; i < 9; ++i)
+    for (int i = 0; i < static_cast<int>(kPhases.size()); ++i)
       parts.push_back(rule(i * 36.0f, 592, 27, 5, i == index ? kGold : kRule));
     return box().width(316).height(600).children(std::move(parts));
   }
 
   Element specimen(int index) const {
-    constexpr std::array names{"NORMAL 0", "NORMAL +",   "ROUGH 0",
-                               "ROUGH 1",  "FRONT",      "GRAZE",
-                               "DIE ±",    "MASK / HOLE"};
-    constexpr std::array details{
-        "Flat cap", "Strong folds", "Sharp field",   "Diffuse field",
-        "Key 90°",  "Key 5°",       "Raised / sunk", "Layers / counters"};
+    constexpr std::array names{"NORMAL 0", "NORMAL +", "ROUGH 0",
+                               "ROUGH 1",  "DIE ±",    "MASK / HOLE"};
+    constexpr std::array details{"Flat cap",      "Strong folds",
+                                 "Roughness 0",   "Roughness 1",
+                                 "Raised / sunk", "Layers / counters"};
     Controls c = controls;
     c.crinkle = 0.8f;
     if (index == 0) c.crinkle = 0;
     if (index == 1) c.crinkle = 1.45f;
     if (index == 2) c.roughness = 0;
     if (index == 3) c.roughness = 1;
-    if (index == 4) {
-      c.keyElevation = 90;
-      c.keyIntensity = 0.17f;
-    }
-    if (index == 5) c.keyElevation = 5;
-    if (index == 7) c.maskStress = true;
+    if (index == 5) c.maskStress = true;
     Element sample = kit::at(0, 25, 153, 91)
                          .borderRadius({10})
                          .overflow(Overflow::Clip)
-                         .fill(foil(c, index % 2 != 0, 19))
-                         .lighting(light(c, false));
-    if (index == 6) {
+                         .fill(foil(c, index % 2 != 0, 19));
+    if (index == 4) {
       c.reliefDepth = 1.05f;
       sample.children({embossed("O", 7, 14, 67, 46, foil(c, true), c)});
       c.reliefDepth = -1.05f;
       sample.children({embossed("8", 78, 14, 68, 46, foil(c, true), c)});
-    } else if (index == 7) {
+    } else if (index == 5) {
       sample.children(
           {kit::at(8, 15, 60, 60)
                .shape(shapes::annulus(0.56f))
@@ -431,21 +388,20 @@ struct EmbossedFoil {
   Element describe(int index) const {
     const Controls c = stateFor(index);
     std::vector<Element> samples;
-    for (int i = 0; i < 8; ++i) samples.push_back(specimen(i));
+    for (int i = 0; i < 6; ++i) samples.push_back(specimen(i));
     return box()
         .width(1440)
         .height(1040)
         .fontFamily("Inter, Helvetica Neue, sans-serif")
         .fill(material::linearGradient(
             {0, 0}, {0.3f, 1}, {{0, {0.035f, 0.062f, 0.081f, 1}}, {1, kDark}}))
-        .lighting(light(c))
         .children(
             {label("FIELD / 09  •  METALLIZED SURFACES", 40, 25, 807, 11, kGold,
                    600),
              label("THERMAL / O08", 35, 47, 1002, 61, kInk, 650)
                  .ink(foil(c, false, 32)),
              label("AN ORBITAL CONTROL CONSOLE  /  EMBOSSED LETTERING · "
-                   "CRINKLED FOIL · SCOPED LIGHT",
+                   "CRINKLED FOIL",
                    40, 126, 1024, 10),
              label("ORBITAL MATERIALS LAB", 1085, 33, 315, 11, kInk, 600),
              label("GOLD / SILVER  •  BLANKET 04", 1085, 58, 315, 10),
@@ -458,7 +414,7 @@ struct EmbossedFoil {
                    kGold, 600),
              label("Fictional readings / no thermal simulation", 620, 807, 463,
                    10),
-             label("36 S / NINE STATES", 1248, 807, 152, 10),
+             label("28 S / SEVEN STATES", 1248, 807, 152, 10),
              rule(40, 835, 1360),
              label("FIXED MATERIAL AND OUTLINE SPECIMENS", 40, 855, 755, 10,
                    kMuted, 600),
@@ -473,21 +429,18 @@ struct EmbossedFoil {
     ctx.oversample(1);
     ctx.background(kDark);
     ctx.captureAt(2);
-    phaseIndex = heldPhase < 0 ? 0 : std::clamp(heldPhase, 0, 8);
+    phaseIndex = heldPhase < 0 ? 0 : std::clamp(heldPhase, 0, kLastPhase);
     ctx.composer.render(describe(phaseIndex));
   }
 
   void update(double elapsed, sketch::SketchContext& ctx) {
     const double seconds =
         std::isfinite(elapsed) ? std::max(0.0, elapsed) : 0.0;
-    bearing = 125.0f + 37.0f * static_cast<float>(std::sin(seconds * 0.24));
-    environmentTurn =
-        18.0f + 51.0f * static_cast<float>(std::sin(seconds * 0.13));
     const int next =
         heldPhase < 0
             ? static_cast<int>(std::fmod(seconds / kPhaseSeconds,
                                          static_cast<double>(kPhases.size())))
-            : std::clamp(heldPhase, 0, 8);
+            : std::clamp(heldPhase, 0, kLastPhase);
     if (next != phaseIndex) {
       phaseIndex = next;
       ctx.composer.render(describe(phaseIndex));

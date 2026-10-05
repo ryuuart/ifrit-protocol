@@ -9,14 +9,15 @@ the manuscript's circle on page 123.
 
 This is a composed interpretation of those pages. Enlarged type, extra ruled
 divisions, the outer divine-name ring, red ink, gilding, the marginal rose and
-moving illumination are additions. It is not a diplomatic transcription or a
+the walking highlight are additions. It is not a diplomatic transcription or a
 facsimile of a single leaf. The source uses brown ink on paper; its pentacle is
 not gilded.
 
 All artwork is native geometry, shaped text and material. The paper and fixed
-ink are retained together. A small lit surface supplies the moving reflection,
-painted directly on the gilded contours in page coordinates. A short highlight
-walks both square contours by arc length while the inscriptions remain fixed.
+ink are retained together. A small metallic gold surface, whose colour paints
+flat, is painted directly on the gilded contours in page coordinates. A short
+highlight walks both square contours by arc length while the inscriptions
+remain fixed.
 The title uses Snell Roundhand, supporting text Baskerville, and zodiac symbols
 Apple Symbols, with explicit fallbacks.
 

@@ -1,5 +1,6 @@
 /** A drawn grimoire plate: a cross within two interlocking squares,
- *  concentric divine names, a zodiac limb and light moving over gilding. */
+ *  concentric divine names, a zodiac limb and a highlight walking the
+ *  gilded squares. */
 // TAGS: Studies/Manuscripts, Geometry/Diagrams, Typography/Lettering,
 // Materials/Metal, Patterns/Ornament
 
@@ -10,7 +11,6 @@
 #include <sigilcompose/typography/TextPath.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Outline.h>
-#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/paint/Bases.h>
@@ -151,11 +151,9 @@ void smallCircle(std::vector<Element>& page, glm::vec2 c) {
 }  // namespace
 
 struct Clavicula {
-  std::shared_ptr<TextureScene> lightScene;
-  Element lightField, fixedPage, trace;
+  std::shared_ptr<TextureScene> goldScene;
+  Element goldField, fixedPage, trace;
   geometry::path::Outline gildedRules;
-  motion::Animatable<float> direction = motion::animatable(125.0f);
-  motion::Animatable<float> elevation = motion::animatable(47.0f);
   motion::Animatable<float> traceStart = motion::animatable(0.0f);
   motion::Animatable<float> traceEnd = motion::animatable(0.06f);
 
@@ -345,14 +343,9 @@ struct Clavicula {
             .surface({.metallic = 1.0f,
                       .roughness = 0.4f,
                       .normal = material::image(normal->texture().source())});
-    lightScene = ctx.textureScene({130, 160});
-    lightField = box().width(130).height(160).fill(gold).lighting(
-        material::studio({.direction = direction,
-                          .elevation = elevation,
-                          .color = material::Color{1, 0.96f, 0.83f, 1},
-                          .intensity = 0.9f,
-                          .ambient = 0.75f}));
-    lightScene->render(lightField);
+    goldScene = ctx.textureScene({130, 160});
+    goldField = box().width(130).height(160).fill(gold);
+    goldScene->render(goldField);
     gildedRules = geometry::path::Outline::svg(gilt.path.str());
     Rules traced;
     traced.polygon(347, 4, -90);
@@ -364,25 +357,24 @@ struct Clavicula {
 
   Element describe() {
     // Taking the scene's texture after rendering carries its current revision.
-    // Its UV matrix places the small light field in page coordinates, directly
+    // Its UV matrix places the small gold field in page coordinates, directly
     // on the native contours without a page-sized coverage layer.
     glm::mat3 pageScale(1.0f);
     pageScale[0][0] = 10.0f;
     pageScale[1][1] = 10.0f;
-    auto light = lightScene->texture();
-    auto reflection = material::image(light.source());
-    reflection.slot("image", light.uv(pageScale));
-    reflection = material::from(material::Color{0, 0, 0, 0})
-                     .layer(reflection, {.opacity = 0.66f})
-                     .worldSpace();
+    auto field = goldScene->texture();
+    auto gilding = material::image(field.source());
+    gilding.slot("image", field.uv(pageScale));
+    gilding = material::from(material::Color{0, 0, 0, 0})
+                  .layer(gilding, {.opacity = 0.66f})
+                  .worldSpace();
     auto liveGold = positioned().width(kWidth).height(kHeight).children(
-        {ring(kCentre, 516, 2.0f, reflection),
-         ring(kCentre, 237, 0.8f, reflection),
-         centralCross(kGold).fill(reflection),
+        {ring(kCentre, 516, 2.0f, gilding), ring(kCentre, 237, 0.8f, gilding),
+         centralCross(kGold).fill(gilding),
          kit::at(0, 0, kWidth, kHeight)
              .shape(heldPath(gildedRules))
              .fill(Fill::none())
-             .stroke(stroke(1.8f, Fill::fromMaterial(reflection)))});
+             .stroke(stroke(1.8f, Fill::fromMaterial(gilding)))});
     return positioned().width(kWidth).height(kHeight).children({
         fixedPage,
         liveGold,
@@ -392,15 +384,13 @@ struct Clavicula {
 
   void update(double elapsed, sketch::SketchContext& ctx) {
     const float t = float(elapsed);
-    direction = 115.0f + 80.0f * std::sin(t * 0.42f);
-    elevation = 38.0f + 20.0f * std::sin(t * 0.42f + 0.8f);
     traceStart = t / 18.0f;
     traceEnd = t / 18.0f + 0.065f;
-    lightScene->render(lightField, elapsed);
+    goldScene->render(goldField, elapsed);
     ctx.composer.render(describe());
   }
 };
 
 SIGIL_SKETCH(Clavicula, "Study · Esoteric",
              "A grand pentacle after Wellcome MS 4659: interlocking squares, "
-             "eight gates, zodiac lettering and moving gold-leaf illumination")
+             "eight gates, zodiac lettering and gold leaf")

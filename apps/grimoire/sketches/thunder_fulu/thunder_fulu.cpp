@@ -49,7 +49,6 @@
 #include <sigilgeometry/path/Band.h>
 #include <sigilgeometry/path/Polyline.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/pattern/Patterns.h>
@@ -463,10 +462,9 @@ struct ThunderFulu {
          })});
   }
 
-  /** THE PLATE'S FACE: iron darkening away from the lamp, dented all over
-   *  by the hammer that beat it flat, each dent a shallow bowl that turns
-   *  its far wall to the lamp and its near wall away. The lamp is low, warm
-   *  and to the upper left, as the ink's own shadows say. */
+  /** THE PLATE'S FACE: iron darkening away from the lamp, carrying the
+   *  hammer's dents as its surface normal. The lamp is low, warm and to the
+   *  upper left, as the ink's own shadows say. */
   material::Material beatenIron() const {
     return material::from(
                material::linearGradient({0.10f, -0.06f}, {0.96f, 1.0f},
@@ -475,14 +473,7 @@ struct ThunderFulu {
                                          {0.46f, hexColor(0x3f3a34)},
                                          {0.78f, hexColor(0x272423)},
                                          {1.0f, hexColor(0x1a1918)}}))
-        .surface({.metallic = 0.55f,
-                  .roughness = 0.46f,
-                  .normal = dents,
-                  .lighting = material::studio({.direction = 128,
-                                                .elevation = 34,
-                                                .color = hexColor(0xffd2a0),
-                                                .intensity = 1.05f,
-                                                .ambient = 0.40f})});
+        .surface({.metallic = 0.55f, .roughness = 0.46f, .normal = dents});
   }
 
   /** HAMMERED IRON: a plate whose edge is what a hammer leaves rather than

@@ -1,6 +1,6 @@
 /** Material lettering and painted marks retained in a float working image. */
-// TAGS: Compose/Materials, Materials/Lighting, Materials/Color,
-// Typography/Material ink, Brushes/Painted data, Composition/Layers
+// TAGS: Compose/Materials, Materials/Color, Typography/Material ink,
+// Brushes/Painted data, Composition/Layers
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImageInfo.h>
@@ -18,7 +18,6 @@
 #include <sigildraw/brush/Tool.h>
 #include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/path/Profile.h>
-#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/program/Shader.h>
@@ -55,7 +54,6 @@ namespace luminous_layers {
 
 using compose::Element;
 constexpr int kWidth = 1440, kHeight = 1080;
-constexpr float kLoop = 32, kPi = 3.14159265358979323846f;
 constexpr auto kPaper = material::hexColor(0xece8de);
 constexpr auto kInk = material::hexColor(0x283b3b);
 constexpr auto kMuted = material::hexColor(0x647875);
@@ -114,17 +112,6 @@ half4 main(float2 p) {
               * exp(-step * .18);
   float3 n = normalize(float3(.018 * sin(p.x * .13), slope, 1));
   return half4(n * .5 + .5, 1);
-})";
-
-constexpr std::string_view kRoom = R"(
-half4 main(float2 p) {
-  float2 uv = p / float2(512, 256);
-  float a = (uv.x - .5) * 6.2831853;
-  float b = uv.y * 3.14159265;
-  float3 d = float3(sin(b) * sin(a), cos(b), -sin(b) * cos(a));
-  float2 offset = float2((d.x + .25) / .48, (d.y - .18) / .58);
-  float box = exp(-dot(offset, offset)) * step(0, d.z);
-  return half4(float3(.18, .22, .25) + box * float3(.8, .9, 1), 1);
 })";
 
 // Display exposure follows the float image; it never changes its contents.
@@ -196,10 +183,6 @@ struct LuminousLayers {
       motion::animatable(material::Color{.06f, .66f, .9f, 1});
   motion::Animatable<float> gain = motion::animatable(1.4f);
   motion::Animatable<float> markOpacity = motion::animatable(1.f);
-  motion::Animatable<float> keyX = motion::animatable(480.f);
-  motion::Animatable<float> keyY = motion::animatable(130.f);
-  motion::Animatable<float> fillX = motion::animatable(1180.f);
-  motion::Animatable<float> fillY = motion::animatable(600.f);
   std::unique_ptr<draw::Graphics> coverage =
       std::make_unique<draw::Graphics>(964, 128);
   std::unique_ptr<compose::Composer> rawComposer;
@@ -282,11 +265,6 @@ struct LuminousLayers {
                ? material::hsv(std::fmod(hue * 360 + 180, 360.f), 1, 1)
            : value.phase == 3 ? material::Color{1, 1, 1, 1}
                               : material::Color{.06f, .66f, .9f, 1};
-    const float t = float(seconds) * 2 * kPi / kLoop;
-    keyX = 480 + 235 * std::sin(t);
-    keyY = 130 + 65 * std::cos(t * 2);
-    fillX = 1150 - 165 * std::sin(t + .7f);
-    fillY = 600 + 65 * std::cos(t * 2 + .3f);
     if (textureWitnesses[0]) checkTextureWitnesses();
   }
 
@@ -414,7 +392,7 @@ struct LuminousLayers {
                                  .emission = material::Color{1, .24f, .07f, 1},
                                  .emissionStrength = 4});
     const auto specimen =
-        compose::scene()
+        compose::box()
             .width(kTextureWidth)
             .height(kTextureHeight)
             .children(
@@ -432,12 +410,8 @@ struct LuminousLayers {
                                       compose::Dimension(0))
                      .opacity(.5f),
                  compose::kit::at(70, 17, 118, 15).fill(painted).opacity(.5f),
-                 compose::light(
-                     material::studio({.intensity = .12f, .ambient = 0})),
-                 compose::kit::at(compose::scene(), 180, 0, 8, 8)
-                     .children({compose::light(material::studio(
-                                    {.intensity = 0, .ambient = 0})),
-                                compose::kit::at(0, 0, 8, 8)
+                 compose::kit::at(compose::box(), 180, 0, 8, 8)
+                     .children({compose::kit::at(0, 0, 8, 8)
                                     .fill(emitted(4))
                                     .opacity(.5f)})});
     std::array<std::shared_ptr<compose::TextureScene>, 3> prepared;
@@ -523,9 +497,7 @@ struct LuminousLayers {
 
   Element calibration() const {
     using namespace luminous_layers;
-    Element out = compose::scene().width(kWidth).height(kHeight).children(
-        {compose::light(material::studio({.intensity = 0, .ambient = 0}))
-             .key("emission-only")});
+    Element out = compose::box().width(kWidth).height(kHeight);
     for (int column = 0; column < 4; ++column)
       for (int row = 0; row < 5; ++row)
         out.children(
@@ -605,16 +577,6 @@ struct LuminousLayers {
               .stroke(compose::stroke(
                   1.5f, compose::Fill::color({.5f, .75f, .8f, .6f}))));
     }
-    parts.push_back(
-        compose::light(material::studio({.color = warm,
-                                         .intensity = .16f,
-                                         .ambient = .09f,
-                                         .kind = material::LightKind::Point,
-                                         .position = {0, 0, 360},
-                                         .range = 1500}))
-            .key("warm-key")
-            .translateX(keyX)
-            .translateY(keyY));
     return compose::kit::at(compose::stack(), 352, 184, 1032, 604)
         .key("material-panel")
         .fill(ground)
@@ -626,23 +588,11 @@ struct LuminousLayers {
 
   Element describe(const luminous_layers::State& value) const {
     using namespace luminous_layers;
-    return compose::scene()
+    return compose::box()
         .width(kWidth)
         .height(kHeight)
         .fontFamily("Inter, Helvetica Neue, sans-serif")
-        .environment(material::environment(
-            material::shader(kRoom), {.intensity = .24f, .size = {512, 256}}))
-        .children({hero(value), calibration(),
-                   compose::light(
-                       material::studio({.color = cool,
-                                         .intensity = .09f,
-                                         .ambient = .06f,
-                                         .kind = material::LightKind::Point,
-                                         .position = {0, 0, 420},
-                                         .range = 1500}))
-                       .key("cool-fill")
-                       .translateX(fillX)
-                       .translateY(fillY)});
+        .children({hero(value), calibration()});
   }
 
   void drawRaw(SkCanvas& canvas, float density = 1) {
@@ -769,8 +719,8 @@ struct LuminousLayers {
         label("FLOAT WORKING RGB / RAW PROBES PRECEDE EXPOSURE, SHOULDER "
               "AND DISPLAY BLOOM",
               352, 1022, 1032, 10, kInk),
-        label("PLANAR NORMALS / AUTHORED LIGHTS / NO EMISSIVE LIGHT TRANSPORT",
-              352, 1043, 1032, 9)};
+        label("PLANAR NORMALS / NO EMISSIVE LIGHT TRANSPORT", 352, 1043, 1032,
+              9)};
     const std::array<float, 3> levels{
         currentGain / 16, currentOpacity,
         (bounded(controls.exposure, -3, 3, 0) + 3) / 6};
@@ -798,18 +748,6 @@ struct LuminousLayers {
     for (size_t i = 0; i < kTextureNames.size(); ++i)
       parts.push_back(label(kTextureNames[i], 56,
                             kTextureY + i * kTextureStride + 10, 44, 10, kInk));
-    parts.push_back(
-        compose::kit::at(compose::stack(), 352, 184, 1032, 604)
-            .children({compose::kit::ring(
-                           {0, 0}, 13,
-                           compose::stroke(1, compose::Fill::color(kWarm)))
-                           .translateX(keyX)
-                           .translateY(keyY)}));
-    parts.push_back(
-        compose::kit::ring({0, 0}, 13,
-                           compose::stroke(1, compose::Fill::color(kCool)))
-            .translateX(fillX)
-            .translateY(fillY));
     return compose::stack()
         .width(kWidth)
         .height(kHeight)

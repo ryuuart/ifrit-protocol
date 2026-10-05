@@ -6,7 +6,7 @@
  *   heldPhase — -1 cycles; 0–5 holds one material state.
  *   ribbon() — pressure profile and the native brush's sampling step.
  */
-// TAGS: Materials/Pigment, Materials/Lighting, Brushes/Layered,
+// TAGS: Materials/Pigment, Brushes/Layered,
 // Typography/Material ink, Composition/Editorial
 
 #include <sigilcompose/brush/Brushes.h>
@@ -16,11 +16,9 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Profile.h>
-#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/program/Shader.h>
-#include <sigilmotion/values/Animatable.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <algorithm>
@@ -34,7 +32,6 @@
 
 namespace sketch = sigil::sketch;
 namespace material = sigil::material;
-namespace motion = sigil::motion;
 namespace geometry = sigil::geometry;
 namespace shapes = sigil::geometry::shapes;
 using namespace sigil::compose;
@@ -51,7 +48,7 @@ constexpr std::array kPhases{"01 / LOADED BRISTLES", "02 / NORMAL ZERO",
                              "05 / OVERPRINT ZERO",  "06 / OVERPRINT ONE"};
 constexpr std::array kDetails{"Wet blue / dry red / metallic overprint",
                               "Same colors and layers, flat tangent normals",
-                              "Gloss endpoint under a moving raking light",
+                              "Gloss endpoint; coverage stays intact",
                               "Matte endpoint; the ridge field stays present",
                               "Metal pass absent; lower strokes remain",
                               "Opaque metal pass, tight clip and counters"};
@@ -93,16 +90,6 @@ half4 main(float2 p) {
   float a = smoothstep(.91,.975,v)*.65;
   return half4(.06*a,.07*a,.07*a,a);
 })";
-constexpr std::string_view kEnvironment = R"(
-half4 main(float2 p) {
-  float2 uv = p/float2(512,256);
-  float stripDistance = (uv.x-.26)/.065;
-  float softDistance = (uv.x-.68)/.20;
-  float strip = exp(-stripDistance*stripDistance);
-  float soft = exp(-softDistance*softDistance);
-  return half4(float3(.62,.65,.68)+strip*float3(.8,.84,.86)+soft*float3(.32,.23,.12),1);
-})";
-
 Element label(std::string_view words, float x, float y, float w,
               float size = 11, material::Color ink = kMuted,
               float weight = 500) {
@@ -167,8 +154,6 @@ struct PigmentBrushes {
   Controls controls;
   int heldPhase = -1;
   int phaseIndex = 0;
-  motion::Animatable<float> bearing = motion::animatable(140.0f);
-  motion::Animatable<float> surround = motion::animatable(0.0f);
 
   Controls stateFor(int phase) const {
     Controls c = controls;
@@ -178,19 +163,6 @@ struct PigmentBrushes {
     if (phase == 4) c.overprint = 0;
     if (phase == 5) c.overprint = 1;
     return c;
-  }
-  material::Lighting light(bool moving = true) const {
-    return material::Lighting{
-        material::studio(
-            {.direction = moving ? bearing : motion::Animatable<float>(140),
-             .elevation = 23,
-             .intensity = .72f,
-             .ambient = .52f}),
-        material::environment(
-            material::shader(kEnvironment),
-            {.rotation = moving ? surround : motion::Animatable<float>(0),
-             .intensity = 1.05f,
-             .size = {512, 256}})};
   }
   Element hero(const Controls& c) const {
     auto gold = kGold;
@@ -270,8 +242,7 @@ struct PigmentBrushes {
     if (i == 3) ink.a = .48f;
     Element sample = kit::at(0, 28, 254, 156)
                          .overflow(Overflow::Clip)
-                         .fill(material::Color{.86f, .82f, .72f, 1})
-                         .lighting(light(false));
+                         .fill(material::Color{.86f, .82f, .72f, 1});
     sample.children(
         {mark(-23, 49, 288, 46, "M0 55 C32 0 65 90 100 20", i == 4 ? 9 : 58,
               paint(ink, c, i > 1, i == 0, 11 + i))});
@@ -298,7 +269,6 @@ struct PigmentBrushes {
         .height(1080)
         .fontFamily("Inter, Helvetica Neue, sans-serif")
         .fill(kPaper)
-        .lighting(light())
         .children(
             {label("ATELIER / 07  •  PIGMENT, BODY & TRACE", 40, 24, 930, 11,
                    kRed, 650),
@@ -310,7 +280,7 @@ struct PigmentBrushes {
              kit::at(inspector(phase, c), 1037, 162, 355, 610),
              label("THE SAME VOCABULARY, AT SMALLER MEASURES", 40, 801, 998, 10,
                    kInk, 650),
-             label("FIXED COMPARISONS / IDENTICAL LIGHT", 1085, 801, 315, 9),
+             label("FIXED COMPARISONS / IDENTICAL FINISH", 1085, 801, 315, 9),
              rule(40, 827, 1359),
              kit::at(box().width(1358).height(213).children(std::move(samples)),
                      40, 844, 1358, 213)});
@@ -325,9 +295,6 @@ struct PigmentBrushes {
   void update(double elapsed, sketch::SketchContext& ctx) {
     const double t = std::isfinite(elapsed) ? std::max(0.0, elapsed) : 0;
     const double loop = std::fmod(t, 24.0);
-    bearing =
-        140 + 32 * static_cast<float>(std::sin(loop * 6.28318530718 / 24));
-    surround = 20 * static_cast<float>(std::sin(loop * 6.28318530718 / 24));
     const int next = heldPhase < 0 ? static_cast<int>(loop / 4)
                                    : std::clamp(heldPhase, 0, 5);
     if (next != phaseIndex) {
@@ -339,5 +306,5 @@ struct PigmentBrushes {
 }  // namespace
 
 SIGIL_SKETCH(PigmentBrushes, "Study · Materials",
-             "Layered pigment brushes, metallic lines and material lettering "
-             "under a moving light.")
+             "Layered pigment brushes, metallic lines and material "
+             "lettering.")

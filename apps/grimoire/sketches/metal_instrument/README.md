@@ -23,8 +23,8 @@ transmission, which only the device renderer provides.
 
 The lower-right specimen is a Compose plane with real perspective, depth
 translation and backface hiding, deliberately smaller than the instrument:
-Compose lights the plane in page space, while World shades the meshes by their
-transformed normals. At the reverse moment the Compose plane disappears while
+the plane's material paints its colour flat, while World shades the meshes by
+their transformed normals. At the reverse moment the Compose plane disappears while
 the closed instrument still shows its rear face.
 
 ## Timeline

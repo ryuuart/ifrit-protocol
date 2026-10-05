@@ -1,20 +1,18 @@
 /** @file
  * A limestone control tablet: porous faces, rounded raised bands, worn
- * recesses and shaped lettering under a moving conservation lamp.
+ * recesses and shaped lettering.
  * The surface treatment follows carved stone; the instrument and its
  * inscriptions are authored, with fixed comparison islands beside it.
  */
 
-// TAGS: Materials/Lighting, Materials/Surfaces, Interfaces/Controls,
+// TAGS: Materials/Surfaces, Interfaces/Controls,
 // Compose/Layers
 
 #include <sigilcompose/brush/Relief.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/paint/Bases.h>
-#include <sigilmotion/values/Animatable.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilweave/fonts/FontContext.h>
@@ -32,7 +30,6 @@
 #include "Stone.h"
 
 namespace sketch = sigil::sketch;
-namespace motion = sigil::motion;
 namespace weave = sigil::weave;
 namespace material = sigil::material;
 namespace compose = sigil::compose;
@@ -49,18 +46,14 @@ constexpr float kTabletWidth = 1050, kTabletHeight = 780;
 constexpr material::Color kStone{0.79f, 0.73f, 0.62f, 1};
 constexpr material::Color kDust{0.60f, 0.53f, 0.41f, 1};
 constexpr material::Color kIncision{0.38f, 0.32f, 0.23f, 1};
-constexpr std::array<std::string_view, 9> kPhases{
-    "GRAZING / WEST", "GRAZING / EAST", "FRONTAL LIGHT",
-    "NO LIGHT",       "ZERO RELIEF",    "DEEP RELIEF",
-    "POLISHED",       "CHALK ROUGH",    "GREEN-DOWN"};
+constexpr std::array<std::string_view, 6> kPhases{"NOMINAL",     "ZERO RELIEF",
+                                                  "DEEP RELIEF", "POLISHED",
+                                                  "CHALK ROUGH", "GREEN-DOWN"};
 
 /** Editable scene data. A nonnegative phase pins the corresponding
  *  two-second comparison; -1 follows the scene clock. */
 struct Controls {
   int phase = -1;
-  bool moveLight = true;
-  float lightBearing = 128;
-  float lightElevation = 16;
   float relief = 2.6f;
   float roughness = 0.68f;
   float wear = 0.65f;
@@ -72,7 +65,6 @@ struct Controls {
 struct State {
   Finish finish;
   int phase = 0;
-  bool noLight = false;
   bool operator==(const State&) const = default;
 };
 
@@ -172,12 +164,11 @@ Element channel(std::string_view title, std::string_view unit, float value,
 }
 
 Element tablet(const State& state, const Controls& controls,
-               const weave::Face& serif, const weave::Face& mono,
-               const material::Lighting& lighting) {
+               const weave::Face& serif, const weave::Face& mono) {
   const Finish& finish = state.finish;
   Element out =
       stone(40, 118, kTabletWidth, kTabletHeight, finish, 1.8f, kStone, 14);
-  out.key("tablet").lighting(state.noLight ? material::Lighting{} : lighting);
+  out.key("tablet");
   out.children(
       {stone(23, 22, 1004, 736, finish, -0.13f, kStone, 8),
        placed(inscription("FIELD STATION  /  IV", 14, mono, finish), 40, 38,
@@ -226,15 +217,6 @@ Element sample(const Finish& finish, float width = 76, float height = 78) {
   return out;
 }
 
-material::Lighting lamp(float direction, float elevation,
-                        float intensity = 1.5f) {
-  return material::studio({.direction = direction,
-                           .elevation = elevation,
-                           .color = material::Color{1.0f, 0.95f, 0.86f, 1},
-                           .intensity = intensity,
-                           .ambient = 0.42f});
-}
-
 Element comparisonRail(const State& state, const weave::Face& mono) {
   const auto label = [&](std::string_view words, float x, float y,
                          float size = 11.0f) {
@@ -242,17 +224,7 @@ Element comparisonRail(const State& state, const weave::Face& mono) {
                   270 - x, 25);
   };
   Element rail = placed(box(), 1132, 127, 270, 770);
-  rail.children({label("LIGHT REVEALS THE CUT", 0, 0, 13),
-                 label("Same stone / same relief", 0, 28),
-                 label("WEST", 0, 152), label("FRONT", 90, 152),
-                 label("NONE", 180, 152)});
   Finish fixed{.relief = 2.6f, .roughness = 0.68f, .wear = 0.65f};
-  for (int i = 0; i < 3; ++i) {
-    Element tile = placed(sample(fixed), i * 90.0f, 66, 76, 78);
-    tile.lighting(i == 2 ? material::Lighting{}
-                         : lamp(128, i == 1 ? 90 : 16, i == 1 ? 0.55f : 1.5f));
-    rail.children({std::move(tile)});
-  }
   rail.children({label("SHOULDER DEPTH", 0, 207, 13)});
   constexpr std::array<float, 3> relief{0, 6, -6};
   constexpr std::array<std::string_view, 3> names{"FLAT", "RAISED", "SUNK"};
@@ -260,25 +232,22 @@ Element comparisonRail(const State& state, const weave::Face& mono) {
     Finish varied = fixed;
     varied.relief = relief[i];
     varied.wear = i == 0 ? 0.0f : fixed.wear;
-    rail.children(
-        {placed(sample(varied).lighting(lamp(128, 16)), i * 90.0f, 243, 76, 78),
-         label(names[i], i * 90.0f, 331)});
+    rail.children({placed(sample(varied), i * 90.0f, 243, 76, 78),
+                   label(names[i], i * 90.0f, 331)});
   }
   rail.children({label("STONE / POLISH", 0, 383, 13)});
   for (int i = 0; i < 2; ++i) {
     Finish varied = fixed;
     varied.roughness = (float)i;
-    rail.children(
-        {placed(sample(varied, 120, 78).lighting(lamp(122, 55, 0.62f)),
-                i * 135.0f, 419, 120, 78),
-         label(i == 0 ? "ROUGH 0" : "ROUGH 1", i * 135.0f, 507)});
+    rail.children({placed(sample(varied, 120, 78), i * 135.0f, 419, 120, 78),
+                   label(i == 0 ? "ROUGH 0" : "ROUGH 1", i * 135.0f, 507)});
   }
   rail.children({label("NORMAL CONVENTIONS", 0, 556, 13)});
   for (int i = 0; i < 3; ++i) {
     Finish varied = fixed;
     varied.directX = i == 1;
     varied.mismatchedNormals = i == 2;
-    Element tile = sample(varied).lighting(lamp(90, 18));
+    Element tile = sample(varied);
     rail.children({placed(std::move(tile), i * 90.0f, 592, 76, 78),
                    label(i == 0   ? "UP"
                          : i == 1 ? "DOWN"
@@ -290,7 +259,7 @@ Element comparisonRail(const State& state, const weave::Face& mono) {
 }
 
 Element edges(const Finish& finish, const weave::Face& mono) {
-  Element out = placed(box().lighting(lamp(128, 16)), 40, 917, 1050, 60);
+  Element out = placed(box(), 40, 917, 1050, 60);
   out.children(
       {placed(note("EDGE CONDITIONS", 11, hexColor(0xA49A85), mono, 1), 0, 18,
               184, 24),
@@ -306,45 +275,37 @@ Element edges(const Finish& finish, const weave::Face& mono) {
        placed(note("CLIPPED", 11, hexColor(0xA49A85), mono), 472, 20, 114, 24),
        stone(595, 20, 116, 1, finish, -0.25f, kDust, 0),
        placed(note("1 px CUT", 11, hexColor(0xA49A85), mono), 736, 20, 142, 24),
-       placed(note("POROUS / LIT", 11, hexColor(0xA49A85), mono), 898, 20, 170,
-              24)});
+       placed(note("POROUS", 11, hexColor(0xA49A85), mono), 898, 20, 170, 24)});
   return out;
 }
 
 struct StoneRelief {
   Controls controls;
-  motion::Animatable<float> bearing = motion::animatable(128.0f);
-  motion::Animatable<float> elevation = motion::animatable(16.0f);
   weave::Face serif;
   weave::Face mono;
   std::optional<State> described;
 
   State at(float seconds) const {
     const int clockPhase =
-        (int)std::floor(std::fmod(std::max(seconds, 0.0f), 18.0f) / 2.0f);
+        (int)std::floor(std::fmod(std::max(seconds, 0.0f), 12.0f) / 2.0f);
     State state{
         .finish = {.relief = std::clamp(controls.relief, 0.0f, 10.0f),
                    .roughness = std::clamp(controls.roughness, 0.0f, 1.0f),
                    .wear = std::clamp(controls.wear, 0.0f, 1.0f)},
         .phase =
-            controls.phase < 0 ? clockPhase : std::clamp(controls.phase, 0, 8)};
-    state.noLight = state.phase == 3;
-    if (state.phase == 4) {
+            controls.phase < 0 ? clockPhase : std::clamp(controls.phase, 0, 5)};
+    if (state.phase == 1) {
       state.finish.relief = 0;
       state.finish.wear = 0;
     }
-    if (state.phase == 5) state.finish.relief = 8;
-    if (state.phase == 6) state.finish.roughness = 0;
-    if (state.phase == 7) state.finish.roughness = 1;
-    state.finish.directX = state.phase == 8;
+    if (state.phase == 2) state.finish.relief = 8;
+    if (state.phase == 3) state.finish.roughness = 0;
+    if (state.phase == 4) state.finish.roughness = 1;
+    state.finish.directX = state.phase == 5;
     return state;
   }
 
   void describe(const State& state, sketch::SketchContext& ctx) {
-    material::Lighting lighting = lamp(128, 16);
-    lighting.lights.front().direction = bearing;
-    lighting.lights.front().elevation = elevation;
-    if (state.phase == 2) lighting.lights.front().intensity = 0.55f;
     Element page =
         box().width(kWidth).height(kHeight).fill(material::linearGradient(
             {0, 0}, {1, 1}, {hexColor(0x282923), hexColor(0x101511)}));
@@ -360,9 +321,9 @@ struct StoneRelief {
                     .fill({0, 0, 0, 0.8f})
                     .filter(material::Filter::blur(14)),
                 50, 134, kTabletWidth, kTabletHeight),
-         tablet(state, controls, serif, mono, lighting),
-         comparisonRail(state, mono), edges(state.finish, mono),
-         placed(note("LIGHT " + std::string(kPhases[state.phase]) +
+         tablet(state, controls, serif, mono), comparisonRail(state, mono),
+         edges(state.finish, mono),
+         placed(note("STATE " + std::string(kPhases[state.phase]) +
                          "   /   RELIEF " + decimal(state.finish.relief, 1) +
                          "   /   ROUGHNESS " + decimal(state.finish.roughness),
                      11, hexColor(0xCBBE9F), mono, 0.6f),
@@ -387,9 +348,6 @@ struct StoneRelief {
 
   void update(float seconds, sketch::SketchContext& ctx) {
     const State state = at(seconds);
-    const float sweep = controls.moveLight ? std::sin(seconds * 0.7f) * 12 : 0;
-    bearing = (state.phase == 1 ? 52.0f : controls.lightBearing) + sweep;
-    elevation = state.phase == 2 ? 90.0f : controls.lightElevation;
     if (!described || *described != state) describe(state, ctx);
   }
 };
@@ -397,5 +355,5 @@ struct StoneRelief {
 }  // namespace stone_relief
 
 SIGIL_SKETCH(stone_relief::StoneRelief, "Study · Materials",
-             "Limestone relief controls, engraved type and porous normal maps "
-             "under a moving raking lamp.")
+             "Limestone relief controls, engraved type and porous normal "
+             "maps.")

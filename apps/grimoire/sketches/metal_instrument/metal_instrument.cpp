@@ -10,7 +10,6 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/path/Polyline.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Image.h>
@@ -481,14 +480,14 @@ struct MetalInstrument {
                    label("BRUSHED", 700, 805, 180, 14, white),
                    label("BLASTED", 903, 805, 180, 14, white),
                    label("COMPOSE PLANE", 1110, 683, 250, 18, white),
-                   label("Projection rotates; lighting remains page-normal.",
-                         1095, 861, 295, 14, muted),
+                   label("Projection rotates; its colour paints flat.", 1095,
+                         861, 295, 14, muted),
                    label("24 s LOOP    /    02.4 HERO · 06 GRAZE · 09 DEPTH · "
                          "12 CLIP · 15 REVERSE · 18 THIN",
                          64, 903, 1300, 14, muted)});
 
-    // This is actual Compose perspective. Its page-space lighting is an
-    // intentional comparison with the scene's normal-aware mesh lighting.
+    // This is actual Compose perspective. Its material paints its colour
+    // flat, beside the scene's normal-aware mesh lighting.
     material::Material planePaint = material::image(maps.color.source());
     planePaint.surface(
         {.metallic = 1.0f,
@@ -504,16 +503,6 @@ struct MetalInstrument {
             .height(104)
             .perspective(perspective)
             .preserve3d()
-            .lighting(material::Lighting{
-                material::studio({.direction = 110,
-                                  .elevation = 65,
-                                  .intensity = 0.8f,
-                                  .ambient = 0.2f}),
-                material::environment(
-                    environment.texture().source(),
-                    {.rotation =
-                         m.t * bounded(kControls.lightSpeed, -60, 60, 8),
-                     .intensity = 0.9f})})
             .children(
                 {compose::positioned()
                      .key("depth-plane")

@@ -8,8 +8,8 @@
  *   outlineOf — the six cut contours shared by refraction and surface paint.
  */
 
-// TAGS: Materials/Glass, Materials/Lighting, Typography/Material ink,
-// Geometry/Contours, Compose/Layers, Interfaces/Controls
+// TAGS: Materials/Glass, Typography/Material ink, Geometry/Contours,
+// Compose/Layers, Interfaces/Controls
 
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
@@ -18,7 +18,6 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Operations.h>
 #include <sigilgeometry/path/Transform.h>
-#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/pattern/Patterns.h>
@@ -35,8 +34,6 @@
 #include <string>
 #include <string_view>
 #include <utility>
-
-#include "../shapeworks_lab/Environments.h"
 
 namespace compose = sigil::compose;
 namespace geometry = sigil::geometry;
@@ -186,8 +183,6 @@ struct GlassAtelier {
   int phaseIndex = 0;
   motion::Animatable<float> ior = motion::animatable(kControls.ior);
   motion::Animatable<float> depth = motion::animatable(kControls.thickness);
-  motion::Animatable<float> bearing = motion::animatable(120.0f);
-  motion::Animatable<float> reflection = motion::animatable(0.0f);
   motion::Animatable<float> paneX = motion::animatable(0.0f);
   motion::Animatable<float> paneY = motion::animatable(0.0f);
   motion::Animatable<float> paneTurn = motion::animatable(-8.0f);
@@ -196,7 +191,6 @@ struct GlassAtelier {
   motion::Animatable<float> orbitY = motion::animatable(0.0f);
   std::array<Cut, 6> small;
   Cut hero, compactHero, ring, crescent, emptyCut, onePixel;
-  material::EnvironmentMap studio;
   material::Material graph = kPaper;
   material::Material alphaGrid = kPaper;
   material::Material narrowGrid = kPaper;
@@ -450,18 +444,10 @@ struct GlassAtelier {
     const Controls c = state(phase);
     ior = c.ior;
     depth = c.thickness;
-    const material::Lighting lighting(
-        material::studio({.direction = bearing,
-                          .elevation = 38,
-                          .intensity = 0.70f,
-                          .ambient = 0.26f}),
-        material::environment(material::image(studio.texture()),
-                              {.rotation = reflection, .intensity = 0.35f}));
     Element page = compose::stack()
                        .width(kWidth)
                        .height(kHeight)
                        .fontFamily("Inter, Helvetica Neue, sans-serif")
-                       .lighting(lighting)
                        .fill(hexColor(0xf5f5ef));
     page.children({label("FORM", 27, 21, 120, 28, kInk, 720).ink(typeMetal()),
                    label("GLASS ATELIER", 151, 27, 395, 16, kInk, 500),
@@ -492,7 +478,6 @@ struct GlassAtelier {
     ring = cutOf(2, {204, 204}, shoulder * 0.6f);
     crescent = cutOf(4, {244, 244}, shoulder);
     onePixel = cutOf(0, {1, 72}, 2);
-    studio = shapeworks_lab::studioEnvironment(256);
     auto paper = material::from(hexColor(0xdfe9e4));
     paper.layer(material::image(
         material::pattern::gridLines(24, 0.8f, {0.13f, 0.32f, 0.31f, 0.24f})
@@ -520,8 +505,6 @@ struct GlassAtelier {
         static_cast<float>(std::fmod(seconds, double(kLoopSeconds)));
     const float angle = t * 2 * kPi / kLoopSeconds;
     const float amplitude = finite(kControls.motion, 0, 2, 1);
-    bearing = 120 + 65 * std::sin(angle);
-    reflection = 32 * std::sin(angle - 0.5f);
     paneX = 14 * amplitude * std::sin(angle);
     paneY = 8 * amplitude * std::sin(angle * 2);
     paneTurn = -8 + 3 * amplitude * std::sin(angle);
@@ -542,4 +525,4 @@ struct GlassAtelier {
 
 SIGIL_SKETCH(GlassAtelier, "Study · Materials",
              "A glass material editor with cut contours, live destination "
-             "refraction, lit material inks and bounded optical endpoints")
+             "refraction, material inks and bounded optical endpoints")

@@ -17,14 +17,14 @@ through `material::Filter::of`. Index and thickness scale its displacement,
 roughness samples a small diffuse neighbourhood, and opacity sets the coating
 and its optical share. It is a planar approximation, not light transport
 through the material. The liquid's absorption gradient, moving caustic bands
-and reflections are authored too. The metal uses shared material layers,
-normal-map shading and an inherited studio light. The high index is an
+and reflections are authored too. The metal paints its shared material layers
+flat; the page carries no light. The high index is an
 intentionally strong endpoint, not a named glass.
 
 ## States
 
 `Controls` and `kPhases` hold the values. Six four-second states repeat over 24
-seconds; the light, reflections and liquid keep moving within each state. The
+seconds; the reflections and liquid keep moving within each state. The
 fixed bottom specimens keep the endpoint comparisons visible throughout. The
 opacity value drives the clear panes; the narrow smoked cover has its own
 stronger coating and stays faintly visible in the exposed state.

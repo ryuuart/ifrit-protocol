@@ -4,28 +4,28 @@ A 1440 × 960 fictional optical-material editor made entirely from Compose
 elements. Its working surface carries moving lettering, coloured rules,
 circular figures and calibration paper; three cut panes refract that live
 destination. A library rail applies the same glass to a squircle, disc,
-annulus, rounded star, crescent and four-lobed contour. Material gradients and
-surface lighting supply the title, readouts, controls and optical coating.
+annulus, rounded star, crescent and four-lobed contour. Material gradients
+supply the title, readouts, controls and optical coating; every material paints
+its colour stack flat.
 
 ## What is drawn
 
 The glass is `material::Filter::glass` in an element's backdrop slot, with
 normals that `material::skia::bevelNormals` derives from the same outline that
 clips the pane. Index and thickness follow retained motion values; the sample
-reach is a fixed bound in logical pixels. A lit, translucent coating is a
-separate fill over the refracted destination.
+reach is a fixed bound in logical pixels. A translucent coating is a separate
+fill over the refracted destination.
 
 The refraction is a planar displacement: it samples the colour behind the pane,
 keeps the destination's alpha and never reaches past the declared bound. There
 is no light transport through a volume, dispersion, caustics, absorption or
-automatic legibility adjustment. Reflections and highlights on the coating
-belong to its surface lighting. A checker rail is real content beneath the
+automatic legibility adjustment. A checker rail is real content beneath the
 glass, so coverage, open holes and coating changes read against exposed cells.
 The saturated state and the nested clip deliberately exceed ordinary interface
 use, and strong displacement shows small steps along curved shoulders.
 
 Between states the ancestors translate, the panes rotate, and the coloured
-content and lighting move, all without rebuilding the tree. The compact state
+content moves, all without rebuilding the tree. The compact state
 changes the actual layout dimensions, and the refraction follows the new
 geometry.
 
@@ -45,7 +45,7 @@ ranges before they reach the filter. The loop is eight four-second states over
 | 12–16 | Reach zero | No neighbour sampling despite the stated index and depth. |
 | 16–20 | Saturated | Index 2.4, depth 56 px, reach 16 px; the displacement stays bounded. |
 | 20–24 | Coated overlap | Coating alpha 0.22; overlapping panes inside an extra rounded clip. |
-| 24–28 | Reversed normal | Back-facing normals leave the destination intact; the coating stays lit. |
+| 24–28 | Reversed normal | Back-facing normals leave the destination intact; the coating remains. |
 | 28–32 | Compact layout | Workbench and main pane narrow; refraction follows their geometry. |
 
 Fixed references stay visible in every state: index one, reach zero, a

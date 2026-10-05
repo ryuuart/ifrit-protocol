@@ -2,27 +2,23 @@
  * optical_liquid — a layered glass and liquid measuring instrument.
  *
  * The optical filter displaces the destination already beneath each pane.
- * Metal relief is shaded by the shared material surface and inherited light.
+ * Metal relief paints its shared material layers flat.
  * Six held parameter sets expose the endpoints without rebuilding each frame.
  *
  * EDIT THESE FIRST
  *   Controls — glass index, edge thickness, roughness, opacity and liquid fill.
  *   kPhases — the six four-second capture states.
- *   lightDirection — the moving studio light shared by the metal surfaces.
  */
 
-// TAGS: Materials/Glass, Materials/Liquid, Materials/Lighting,
-// Composition/Layers
+// TAGS: Materials/Glass, Materials/Liquid, Composition/Layers
 
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/program/Shader.h>
-#include <sigilmotion/values/Animatable.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <algorithm>
@@ -37,7 +33,6 @@
 
 namespace sketch = sigil::sketch;
 namespace material = sigil::material;
-namespace motion = sigil::motion;
 using namespace sigil::compose;
 
 namespace {
@@ -470,8 +465,6 @@ Element controlsPanel(int phaseIndex) {
               c.opacity),
       readout("LIQUID FILL", number(c.liquidFill * 100, 0), "% of reservoir",
               434, c.liquidFill),
-      label("LIGHT IN MOTION", 0, 526, 160, 10, kInk, 600),
-      label("Relief and reflections move continuously", 0, 546, 300, 10),
       rule(0, 578, 302, 1)};
   for (int index = 0; index < static_cast<int>(kPhases.size()); ++index) {
     const float x = index * 51.0f;
@@ -507,7 +500,6 @@ Element specimen(int index, std::string_view title, std::string_view detail,
 }
 
 struct OpticalLiquid {
-  motion::Animatable<float> lightDirection = motion::animatable(118.0f);
   int phaseIndex = 0;
 
   Element describe(int index) const {
@@ -516,12 +508,6 @@ struct OpticalLiquid {
         .width(1440)
         .height(1000)
         .fontFamily("Inter, Helvetica Neue, sans-serif")
-        .lighting(material::Lighting{
-            material::studio({.direction = lightDirection,
-                              .elevation = 52,
-                              .color = material::Color{0.98f, 1, 0.94f, 1},
-                              .intensity = 0.54f,
-                              .ambient = 0.52f})})
         .children({
             label("FIELD / 07", 50, 30, 160, 11, kTeal, 600),
             label("OPTICAL / LIQUID", 47, 52, 955, 57, kInk, 500),
@@ -569,8 +555,6 @@ struct OpticalLiquid {
   void update(double elapsed, sketch::SketchContext& ctx) {
     const double seconds =
         std::isfinite(elapsed) ? std::max(0.0, elapsed) : 0.0;
-    lightDirection =
-        118.0f + 43.0f * std::sin(static_cast<float>(seconds) * 0.37f);
     const int next = static_cast<int>(std::fmod(
         seconds / kPhaseSeconds, static_cast<double>(kPhases.size())));
     if (next != phaseIndex) {
@@ -582,6 +566,5 @@ struct OpticalLiquid {
 
 }  // namespace
 
-SIGIL_SKETCH(
-    OpticalLiquid, "Study · Materials",
-    "thick glass, liquid meniscus, moving light and nested optical layers")
+SIGIL_SKETCH(OpticalLiquid, "Study · Materials",
+             "thick glass, liquid meniscus and nested optical layers")

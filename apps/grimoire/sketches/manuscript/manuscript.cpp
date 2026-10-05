@@ -1,5 +1,5 @@
 /** A material facsimile of an illuminated leaf. The digitized hand and
- *  ornament remain registered while a moving light catches only gold. */
+ *  ornament remain registered under a gold-leaf material on the gilding. */
 // TAGS: Studies/Manuscripts, Typography/Calligraphy, Materials/Metal,
 // Media/Images
 
@@ -7,21 +7,17 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilio/advanced/Decoding.h>
-#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/program/Shader.h>
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmedia/advanced/Resource.h>
 #include <sigilmedia/core/Image.h>
-#include <sigilmotion/values/Animatable.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
-#include <cmath>
 #include <string>
 
 namespace material = sigil::material;
 namespace media = sigil::media;
-namespace motion = sigil::motion;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 using namespace sigil::compose;
@@ -40,10 +36,8 @@ Text caption(std::string words, float size) {
 }  // namespace
 
 struct Manuscript {
-  motion::Animatable<float> direction = motion::animatable(120.0f);
-  motion::Animatable<float> elevation = motion::animatable(56.0f);
-  std::shared_ptr<TextureScene> lightScene;
-  Element lightField;
+  std::shared_ptr<TextureScene> leafScene;
+  Element leafField;
   Element pageFrame;
   material::Material coverage = material::Color{0, 0, 0, 0};
 
@@ -66,17 +60,11 @@ struct Manuscript {
                 {.metallic = 1.0f,
                  .roughness = 0.43f,
                  .normal = material::image(normalScene->texture().source())});
-    const auto light =
-        material::studio({.direction = direction,
-                          .elevation = elevation,
-                          .color = material::Color{1.0f, 0.96f, 0.82f, 1.0f},
-                          .intensity = 0.8f,
-                          .ambient = 0.84f});
     // The full-resolution image and coverage preserve the script and
-    // worn foil. Only the smooth illumination needs a smaller surface.
-    lightScene = ctx.textureScene({114, 161});
-    lightField = box().width(114).height(161).fill(response).lighting(light);
-    lightScene->render(lightField);
+    // worn foil. Only the smooth gold field needs a smaller surface.
+    leafScene = ctx.textureScene({114, 161});
+    leafField = box().width(114).height(161).fill(response);
+    leafScene->render(leafField);
     coverage = material::image(goldScene->texture().source());
     pageFrame = positioned().width(1000).height(1430).children(
         {kit::at(image(page), 45, 34, 910, 1288),
@@ -90,19 +78,17 @@ struct Manuscript {
   Element describe() {
     return positioned().width(1000).height(1430).children(
         {pageFrame,
-         kit::at(image(lightScene->texture().source(), material::Fit::Stretch)
+         kit::at(image(leafScene->texture().source(), material::Fit::Stretch)
                      .mask(by::alpha(coverage)),
                  45, 34, 910, 1288)});
   }
 
   void update(double elapsed, sketch::SketchContext& ctx) {
-    direction = 120.0f + 70.0f * std::sin(float(elapsed) * 0.36f);
-    elevation = 55.0f + 17.0f * std::sin(float(elapsed) * 0.36f + 1.0f);
-    lightScene->render(lightField, elapsed);
+    leafScene->render(leafField, elapsed);
     ctx.composer.render(describe());
   }
 };
 
 SIGIL_SKETCH_AS(Manuscript, "manuscript", "Study · Type",
                 "The Black Hours, Morgan MS M.493 fol. 19v: a faithful "
-                "facsimile with selectively relit gold leaf")
+                "facsimile with a gold-leaf material on the gilding")

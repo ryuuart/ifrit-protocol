@@ -1,7 +1,7 @@
 /** Painted height and wetness shared by stone, steel and bronze Compose panels.
  */
 // TAGS: Compose/Texture, Materials/Stone, Materials/Metal, Brushes/Painted
-// data, Typography/Material ink, Materials/Lighting
+// data, Typography/Material ink
 
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
@@ -22,7 +22,6 @@
 #include <string_view>
 
 #include "Fields.h"
-#include "Lights.h"
 #include "Surfaces.h"
 
 namespace compose = sigil::compose;
@@ -33,7 +32,6 @@ using compose::Element;
 using material::hexColor;
 using painted_fields::Controls;
 using painted_fields::Finish;
-using painted_fields::Source;
 
 namespace {
 constexpr int kWidth = 1440, kHeight = 1040;
@@ -43,7 +41,6 @@ constexpr material::Color kInk = hexColor(0x293c37);
 constexpr material::Color kMuted = hexColor(0x6d7972);
 constexpr material::Color kAccent = hexColor(0xb6683d);
 constexpr int heldPhase = -1;
-constexpr int heldSource = -1;
 constexpr std::array<Controls, 8> kStates{{
     {11, .8f, .82f, .13f},
     {0, .8f, .82f, .13f},
@@ -77,28 +74,6 @@ Element tickScale(float x, float y, float width) {
     out.children({rule(i * width / 32, 0, 1, i % 8 == 0 ? 13 : 5)});
   return out;
 }
-Element sourceMarker(std::string_view name, glm::vec3 position,
-                     material::Color ink) {
-  return compose::kit::at(compose::stack(), position.x - 22, position.y - 22,
-                          44, 44)
-      .children({compose::kit::at(compose::custom(name,
-                                                  [ink](draw::Pen& pen) {
-                                                    pen.push();
-                                                    pen.ellipseMode(
-                                                        draw::CENTER);
-                                                    pen.noFill();
-                                                    pen.stroke(ink);
-                                                    pen.strokeWeight(1.2f);
-                                                    pen.circle(22, 22, 44);
-                                                    pen.line(22, 0, 22, 8);
-                                                    pen.line(22, 36, 22, 44);
-                                                    pen.line(0, 22, 8, 22);
-                                                    pen.line(36, 22, 44, 22);
-                                                    pen.pop();
-                                                  }),
-                                  0, 0, 44, 44),
-                 label(name, 0, -17, 64, 9, ink)});
-}
 }  // namespace
 
 struct PaintedFields {
@@ -108,8 +83,6 @@ struct PaintedFields {
                        painted_fields::kFieldHeight};
   std::shared_ptr<material::UniformBlock> wetness =
       std::make_shared<material::UniformBlock>(1);
-  painted_fields::Lights lights;
-  Source source = Source::Point;
   Controls controls;
   int phase = 0;
   int paintedPhase = -1;
@@ -161,28 +134,12 @@ struct PaintedFields {
          label("WETNESS UNIFORM", 56, 716, 218, 10),
          rule(56, 743, 218, 5, hexColor(0xcdd3c9)),
          rule(56, 743, std::max(1.f, 218 * pulse), 5, kAccent),
-         rule(56, 912, 218), label("32 SEC / 8 STATES", 56, 934, 218, 10)});
-    if (source >= Source::Softbox && source <= Source::Ring) {
-      out.children({label("D / SOURCE SHAPE (UNROTATED)", 56, 774, 218, 10),
-                    compose::kit::at(56, 797, 218, 109)
-                        .fill(lights.preview(source, {218, 109}))
-                        .borderRadius(2)});
-    } else if (source == Source::Rig) {
-      out.children(
-          {label("KEY / WARM   FILL / COOL", 56, 774, 218, 10, kInk),
-           label("Two sources share one scene.\nKey inside the cached steel\n"
-                 "panel.",
-                 56, 797, 218, 12, kInk),
-           label("Colored reticles show each\nsource's projected position.", 56,
-                 865, 218, 11)});
-    } else {
-      out.children(
-          {label("A brush writes coverage.\nThe surface interprets it.", 56,
-                 774, 218, 14, kInk),
-           label("Same pixels in every finish.\nStone absorbs; metal "
-                 "reflects.",
-                 56, 836, 218, 11)});
-    }
+         rule(56, 912, 218), label("32 SEC / 8 STATES", 56, 934, 218, 10),
+         label("A brush writes coverage.\nThe surface interprets it.", 56, 774,
+               218, 14, kInk),
+         label("Same pixels in every finish.\nWet stone darkens; metal does "
+               "not.",
+               56, 836, 218, 11)});
     return out;
   }
 
@@ -197,24 +154,6 @@ struct PaintedFields {
   }
 
   Element describe() const {
-    std::array<char, 80> sourceLabel{};
-    if (source == Source::Sun)
-      std::snprintf(sourceLabel.data(), sourceLabel.size(),
-                    "GRAZING SUN\n12 DEG ELEVATION");
-    else if (source == Source::Point || source == Source::Spot)
-      std::snprintf(sourceLabel.data(), sourceLabel.size(),
-                    "FRONT %s LIGHT\nZ %.0f px / ROOT PAGE",
-                    source == Source::Point ? "POINT" : "SPOT",
-                    lights.position.z);
-    else if (source == Source::Rig)
-      std::snprintf(sourceLabel.data(), sourceLabel.size(),
-                    "SCOPED KEY + FILL\nTWO COLORED POINTS");
-    else {
-      const auto name = painted_fields::kSourceNames[static_cast<int>(source)];
-      std::snprintf(sourceLabel.data(), sourceLabel.size(),
-                    "%.*s REFLECTION\nENVIRONMENT / DISTANT",
-                    static_cast<int>(name.size()), name.data());
-    }
     Element panel = compose::kit::at(compose::stack(), 320, 225, 1064, 432)
                         .fill(finish(Finish::Steel, 1064, 432))
                         .borderRadius(7)
@@ -228,71 +167,29 @@ struct PaintedFields {
         panel.children({compose::kit::at(x - 3, y - 3, 6, 6)
                             .borderRadius(3)
                             .fill(finish(Finish::Steel, 6, 6))});
-    if (source == Source::Rig) {
-      panel.cache(compose::Cache::Texture);
-      panel.children({compose::light(lights.rigSources()[0])
-                          .key("rig-key")
-                          .translateX(lights.rigKeyX)
-                          .translateY(lights.rigKeyY)
-                          .cache(compose::Cache::None)});
-    }
     Element page =
         compose::stack().width(kWidth).height(kHeight).fill(kGround).fontFamily(
             "Inter, Helvetica Neue, sans-serif");
-    if (source != Source::Rig) page.lighting(lights.lighting(source));
     page.children({label("FIELDWORK", 56, 38, 900, 58, kInk)
                        .fontFamily("Georgia, Times New Roman, serif"),
                    label("MATERIAL CANVASES\nPAINT / IMPRESSION / WATER", 1112,
                          52, 272, 11, kInk),
                    rule(56, 130, 1328, 1.3f, kAccent),
-                   label(kNames[phase], 320, 174, 760, 12, kInk),
-                   label(sourceLabel.data(), 1180, 168, 204, 10), sidebar(),
+                   label(kNames[phase], 320, 174, 760, 12, kInk), sidebar(),
                    panel, tickScale(320, 676, 1064),
                    label("Paint becomes the surface.", 320, 700, 740, 24, kInk)
                        .fontFamily("Georgia, Times New Roman, serif"),
-                   label("HEIGHT + COVERAGE → LIGHT", 1112, 711, 272, 10),
+                   label("HEIGHT + COVERAGE → SURFACE", 1112, 711, 272, 10),
                    coupon(Finish::Stone, "01 / ABSORBENT STONE",
-                          "Darkened pores · softer dry reflection", 320),
+                          "Darkened pores where wet", 320),
                    coupon(Finish::Steel, "02 / BRUSHED STEEL",
                           "No absorption darkening · directional grooves", 684),
                    coupon(Finish::Bronze, "03 / BRONZE ALLOY",
                           "Same maps · warm conductor response", 1048),
                    rule(320, 958, 1064, 1, kAccent),
-                   label("PAINTED HEIGHT / LIVE WETNESS / MOVING LIGHT / CLIP "
-                         "& ERASE / CLEAR",
+                   label("PAINTED HEIGHT / LIVE WETNESS / CLIP & ERASE / CLEAR",
                          320, 984, 1050, 10, kInk)});
-    if (source == Source::Point || source == Source::Spot) {
-      page.children({compose::kit::at(
-          compose::custom("point-source",
-                          [](draw::Pen& pen) {
-                            pen.push();
-                            pen.colorMode(draw::RGB);
-                            pen.ellipseMode(draw::CENTER);
-                            pen.noFill();
-                            pen.stroke(182, 104, 61, 255);
-                            pen.strokeWeight(1.2f);
-                            pen.circle(22, 22, 44);
-                            pen.line(22, 0, 22, 8);
-                            pen.line(22, 36, 22, 44);
-                            pen.line(0, 22, 8, 22);
-                            pen.line(36, 22, 44, 22);
-                            pen.pop();
-                          }),
-          lights.position.x - 22, lights.position.y - 22, 44, 44)});
-    }
-    if (source != Source::Rig) return page;
-    page.children(
-        {sourceMarker("KEY", lights.position, kAccent),
-         sourceMarker("FILL", lights.fillPosition, hexColor(0x2b7385))});
-    return compose::scene()
-        .width(kWidth)
-        .height(kHeight)
-        .environment(lights.rigEnvironment())
-        .children({page, compose::light(lights.rigSources()[1])
-                             .key("rig-fill")
-                             .translateX(lights.rigFillX)
-                             .translateY(lights.rigFillY)
-                             .cache(compose::Cache::None)});
+    return page;
   }
 
   void paint(draw::Pen& pen) {
@@ -319,7 +216,6 @@ struct PaintedFields {
     ctx.canvas(kWidth, kHeight);
     ctx.background(kGround);
     ctx.captureAt(2);
-    lights.setup();
     update(0, ctx);
     ctx.composer.render(compose::custom("painted-fields",
                                         [this](draw::Pen& pen) { paint(pen); })
@@ -331,18 +227,9 @@ struct PaintedFields {
   void update(double elapsed, sketch::SketchContext&) {
     const double seconds = std::isfinite(elapsed) ? std::max(0., elapsed) : 0.;
     const float t = static_cast<float>(std::fmod(seconds, 32.));
-    const int lightCount =
-        static_cast<int>(painted_fields::kSourceNames.size());
-    source = static_cast<Source>(
-        heldSource < 0
-            ? std::min(
-                  lightCount - 1,
-                  static_cast<int>(std::fmod(seconds, 32. * lightCount) / 32))
-            : std::clamp(heldSource, 0, lightCount - 1));
     phase = heldPhase < 0 ? std::min(7, static_cast<int>(t / 4))
                           : std::clamp(heldPhase, 0, 7);
     controls = kStates[phase];
-    lights.update(t);
     pulse = controls.wetness;
     if (phase < 3 || phase == 6)
       pulse *= .82f + .18f * std::sin(t * 2 * kPi / 8);
