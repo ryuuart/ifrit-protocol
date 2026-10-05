@@ -456,7 +456,7 @@ requires = [
 ]
 
 [sketch.env_lanes]
-needs = "World environment node dials; studio and sunset panoramas; world frames baked to images; PBR surfaces"
+needs = "World environment dials and camera exposure; studio and sunset panoramas; world frames baked to images; PBR surfaces"
 requires = ["kit-section-header", "environment-maps", "world-environment"]
 
 [sketch.eva_magi_defense]
@@ -554,7 +554,7 @@ needs = "Shader field recipes; slotted child texture; custom canvas drawing; spe
 requires = ["kit-section-header"]
 
 [sketch.first_light]
-needs = "Set hosting; kit wave and rail curves; pose along; swept tube; windowed stamp chain; sun and point lights; turntable"
+needs = "Set hosting; kit wave and rail curves; pose along; swept tube; windowed stamp chain; directional and point lights; turntable"
 requires = [
   "set-sketches",
   "point-operators",
@@ -645,7 +645,7 @@ requires = [
 ]
 
 [sketch.glow_trail]
-needs = "Set hosting with camera; kit wave curve; windowed stamp chain; tagged geometry and post passes with previous-frame feedback"
+needs = "Set hosting with camera; kit wave curve; windowed stamp chain; collection-joined geometry and post passes with previous-frame feedback"
 requires = [
   "set-sketches",
   "point-operators",
@@ -727,7 +727,7 @@ needs = "Rich stories; paragraph keeps; threaded frames; first-baseline and dist
 requires = []
 
 [sketch.key_light]
-needs = "Set hosting; preset tree inspection; emitter intensity and emission bound to outputs; three-point rig; lit set"
+needs = "Set hosting; a key light's strength and colour bound to live values; three-point rig; lit set"
 requires = ["set-sketches", "world-placement"]
 
 [sketch.kinetic_card]
@@ -1203,7 +1203,7 @@ needs = "Serial line Connection; recording replay; instrument page; transformed 
 requires = ["kit-instrument", "connection"]
 
 [sketch.set_stagger]
-needs = "Set hosting with camera; world child stagger by spread; entrance transitions; selector-narrowed passes; three-point rig"
+needs = "Set hosting with camera; world child stagger by spread; entrance transitions; collection-narrowed passes; three-point rig"
 requires = ["set-sketches", "schedules", "world-placement"]
 
 [sketch.shape_tour]

@@ -1,1 +1,1 @@
-"""Native retained 3D scenes and the CPU frame executor."""
+"""Native retained 3D scenes: their nodes, lights, cameras and frames."""

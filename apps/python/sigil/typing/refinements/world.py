@@ -1,11 +1,11 @@
-"""Conversion seams of the retained 3D scene, its lights and surface presets."""
+"""Conversion seams of the retained 3D scene, its nodes, lights and presets."""
 
 from __future__ import annotations
 
 from .table import Table
 
-ELEMENT = "_sigil.world.Element"
-LIGHT = "_sigil.world.light"
+WORLD = "_sigil.world"
+KINDS = ("Group", "Mesh", "Light", "Camera")
 # A light's tint is four numbers as the renderer stores them, so a light
 # brighter than white stays writable, and it is also a colour, so the
 # spellings every other colour accepts reach it.
@@ -14,24 +14,49 @@ TINT = "_t.ColorLike | _t.Vec4Like"
 
 def register(table: Table) -> None:
     table.declares(
-        ELEMENT,
-        "children",
+        WORLD,
+        "group",
         """@typing.overload
-def children(self, children: collections.abc.Iterable[Element], /) -> Element: ...
+def group(children: collections.abc.Iterable[Node], /) -> Group: ...
 @typing.overload
-def children(self, *children: Element) -> Element: ...
+def group(*children: Node) -> Group: ...
 """,
     )
-    table.erased(
-        ELEMENT,
-        "translateX translateY translateZ rotateX rotateY rotateZ scale scaleX scaleY scaleZ intensity exposure rotate",
-        "_t.ScalarLike",
+    for kind in KINDS:
+        node = f"{WORLD}.{kind}"
+        table.erased(
+            node,
+            "translateX translateY translateZ rotateX rotateY rotateZ scale scaleX scaleY scaleZ rotate",
+            "_t.ScalarLike",
+        )
+        table.erased(node, "transition", "_sigil.motion.Tween | _t.DurationLike")
+        table.parameters(node + ".at", position="_t.Vec3Like")
+        table.parameters(node + ".transformOrigin", origin="_t.Vec3Like")
+        table.parameters(node + ".rotate", axis="_t.Vec3Like")
+    for name in ("lightLink", "shadowLink"):
+        table.erased(f"{WORLD}.Light", name, "str | Collection")
+    table.erased(f"{WORLD}.Pass", "only", "str | Collection")
+    table.erased(WORLD, "directionalLight pointLight spotLight", TINT, "_t.ScalarLike")
+    table.parameters(WORLD + ".directionalLight", direction="_t.Vec3Like")
+    table.parameters(WORLD + ".spotLight", direction="_t.Vec3Like")
+    table.erased(WORLD, "camera", "_t.ScalarLike")
+    table.erased(f"{WORLD}.Frame", "environment", *(["_t.ScalarLike"] * 8))
+    table.declares(
+        f"{WORLD}.LightDescription",
+        "direction",
+        """@property
+def direction(self) -> _t.Vec3: ...
+""",
     )
-    table.erased(ELEMENT, "emission", "_t.ScalarLike", "_t.ScalarLike", "_t.ScalarLike")
-    table.erased(ELEMENT, "transition", "_sigil.motion.Tween | _t.DurationLike")
-    table.parameters(ELEMENT + ".at", position="_t.Vec3Like")
-    table.parameters(ELEMENT + ".transformOrigin", origin="_t.Vec3Like")
-    table.parameters(ELEMENT + ".rotate", axis="_t.Vec3Like")
+    table.declares(
+        f"{WORLD}.PlacedLight",
+        "position",
+        """@property
+def position(self) -> _t.Vec3: ...
+""",
+    )
+    table.parameters(WORLD + ".attenuation", at="_t.Vec3Like")
+    table.returns(WORLD, "radiance", "_t.Vec3")
     for name in ("reads", "writes"):
         table.declares(
             "_sigil.world.Pass",
@@ -42,33 +67,57 @@ def {name}(self, resources: collections.abc.Iterable[str], /) -> Pass: ...
 def {name}(self, *resources: str) -> Pass: ...
 """,
         )
-    table.erased("_sigil.world.Pass", "clear levels", "_t.ColorLike")
-    for record, fields in (
-        ("_sigil.world.kit.Rig", {"at": 3, "color": 4}),
-        ("_sigil.world.kit.Turntable", {"at": 3}),
-    ):
-        for name, dimension in fields.items():
-            written = TINT if name == "color" else f"_t.Vec{dimension}Like"
-            table.declares(
-                record,
-                name,
-                f"""@property
-def {name}(self) -> _t.Vec{dimension}: ...
-@{name}.setter
-def {name}(self, value: {written}) -> None: ...
+    table.erased("_sigil.world.Pass", "clear", "_t.ColorLike")
+    table.parameters("_sigil.world.Pass.levels", tint="_t.ColorLike")
+    table.declares(
+        "_sigil.world.kit.Rig",
+        "color",
+        f"""@property
+def color(self) -> _sigil.material.Color: ...
+@color.setter
+def color(self, value: {TINT}) -> None: ...
 """,
-            )
-    table.parameters(LIGHT + ".sun", direction="_t.Vec3Like", color=TINT)
-    table.parameters(LIGHT + ".point", position="_t.Vec3Like", color=TINT)
-    table.parameters(
-        LIGHT + ".spot",
-        position="_t.Vec3Like",
-        direction="_t.Vec3Like",
-        color=TINT,
     )
-    table.parameters(LIGHT + ".attenuation", at="_t.Vec3Like")
-    table.returns(LIGHT, "radiance", "_t.Vec3")
-    table.returns(LIGHT, "travel", "_t.Vec3")
+    table.declares(
+        "_sigil.world.kit.Rig",
+        "intensity",
+        """@property
+def intensity(self) -> float: ...
+@intensity.setter
+def intensity(self, value: _t.ScalarLike) -> None: ...
+""",
+    )
+    table.declares(
+        "_sigil.world.kit.Turntable",
+        "at",
+        """@property
+def at(self) -> _t.Vec3: ...
+@at.setter
+def at(self, value: _t.Vec3Like) -> None: ...
+""",
+    )
+    for name in ("centre", "size"):
+        table.declares(
+            "_sigil.world.kit.SoftBox",
+            name,
+            f"""@property
+def {name}(self) -> _t.Vec2: ...
+@{name}.setter
+def {name}(self, value: _t.Vec2Like) -> None: ...
+""",
+        )
+    table.declares(
+        "_sigil.world.kit.SoftBox",
+        "radiance",
+        """@property
+def radiance(self) -> _t.Vec3: ...
+@radiance.setter
+def radiance(self, value: _t.Vec3Like) -> None: ...
+""",
+    )
+    table.parameters(
+        "_sigil.world.kit.environmentMap", zenith="_t.Vec3Like", nadir="_t.Vec3Like"
+    )
     surface = "_sigil.material.surface.SurfaceParameters"
     table.erased(surface, "baseColor emissive absorption", "_t.ColorLike")
     # workaround: stubgen interprets this class as the legacy typing.Set alias.
@@ -81,6 +130,6 @@ def {name}(self, value: {written}) -> None: ...
     table.declares(
         "_sigil.world.kit",
         "litSet",
-        "def litSet(subject: _sigil.world.Element, set: Set = ..., "
-        "seconds: _t.FloatLike = 0) -> _sigil.world.Element: ...",
+        "def litSet(subject: _sigil.world.Node, set: Set = ..., "
+        "now: _t.FloatLike = 0) -> _sigil.world.Group: ...",
     )

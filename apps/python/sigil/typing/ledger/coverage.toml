@@ -61,7 +61,7 @@ bound = "`render_file` through the native host"
 python = ["sketch.render_file"]
 
 [[section.surface.item]]
-native = "Set sketches: `sketch::SetContext` and `describe(seconds)` returning a `world::Frame`"
+native = "Set sketches: `sketch::SetContext` and `describe(now)` returning a `world::Frame`"
 python = ["sketch.SetContext"]
 
 [[section.surface.item]]
@@ -1627,14 +1627,6 @@ prose = "material-geometry-world"
 name = "Material"
 
 [[section.surface.item]]
-bound = "`Light` directional, point and spot values with animatable direction, elevation, colour and strength, copied and deep-copied as values"
-python = [
-  "material.Light",
-  "material.LightKind",
-  "material.Light.__deepcopy__",
-]
-
-[[section.surface.item]]
 bound = "Colors with OKLab, OKLCH, CIELAB and linear conversions, gamut fitting and difference; ramps, palettes and extraction, harmonies and dither"
 python = [
   "material.Color",
@@ -1951,24 +1943,27 @@ python = ["geometry.device.Handle"]
 name = "World"
 
 [[section.surface.item]]
-bound = "Keyed `world.Element` with transforms, meshes, fills, lights, cameras, tags and animatable lanes"
+bound = "Typed nodes — `world.group`, `world.mesh`, the three light factories and `world.camera` — with keys, collections, transforms, fills, visibility and animatable lanes"
 python = [
-  "world.Element",
-  "world.Element.transform",
-  "world.Element.mesh",
-  "world.Element.fill",
-  "world.Element.light",
-  "world.Element.camera",
-  "world.Element.tag",
+  "world.group",
+  "world.Group",
+  "world.mesh",
+  "world.Mesh.fill",
+  "world.Mesh.transform",
+  "world.Mesh.collection",
+  "world.Mesh.visible",
+  "world.camera",
 ]
 
 [[section.surface.item]]
-bound = "selectors; geometry and post passes; `Frame`"
+bound = "collections; geometry and post passes; `Frame` with its camera and environment"
 python = [
-  "world.selectors.tag",
+  "world.Collection",
   "world.geometryPass",
   "world.postPass",
   "world.Frame",
+  "world.Frame.camera",
+  "world.Frame.environment",
 ]
 
 [[section.surface.item]]
@@ -1982,43 +1977,38 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "`light` sun, point and spot; the `kit` rig, turntable and lit set"
+bound = "directional, point and spot lights with light and shadow links; the `kit` rig, turntable, lit set and environment map"
 python = [
-  "world.light.sun",
-  "world.light.point",
-  "world.light.spot",
+  "world.directionalLight",
+  "world.pointLight",
+  "world.spotLight",
+  "world.Light.lightLink",
   "world.kit.Rig",
   "world.kit.turntable",
   "world.kit.litSet",
+  "world.kit.environmentMap",
 ]
-
-[[section.surface.item]]
-native = "Environment lighting through `environmentMap`, `crossfade` and `backdrop`"
-python = ["world.Element.environmentMap"]
 
 [[section.surface.item]]
 native = "`along` with `kit::rail`, `wave` and `winding`"
 python = [
-  "world.Element.along",
+  "world.Mesh.along",
   "world.kit.rail",
   "world.kit.wave",
   "world.kit.winding",
 ]
 
 [[section.surface.item]]
-native = "`cloud`, `chain`, `stamp`, `window` and `generate`"
+native = "`points` over a cloud or a chain, with its window, and `mesh` over a generator"
 python = [
-  "world.Element.cloud",
-  "world.Element.chain",
-  "world.Element.stamp",
-  "world.Element.window",
-  "world.Element.generate",
+  "world.points",
+  "world.Points",
 ]
 
 [[section.surface.item]]
 native = "`cache` and `world::memo`"
 python = [
-  "world.Element.cache",
+  "world.Mesh.cache",
   "world.memo",
 ]
 
@@ -2039,12 +2029,12 @@ native = "the device runtimes and `importNative`"
 python = ["world.importNative"]
 
 [[section.surface.item]]
-native = "`light::directional`"
-python = ["world.light.directional"]
+native = "texture passes and `sketch::Page`"
+python = ["world.texturePass"]
 
 [[section.surface.item]]
-native = "selector inspection and `Element::node` tree read-back"
-python = ["world.Element.node"]
+native = "`Node::node` tree read-back"
+python = ["world.Node.node"]
 
 [[section.surface.item]]
 native = "`Pass` equality"

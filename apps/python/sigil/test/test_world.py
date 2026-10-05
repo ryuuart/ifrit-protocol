@@ -2,8 +2,8 @@
 
 A set is drawn on a device and nowhere else, and a Python process brings
 none up, so what is asked here is what the retained scene holds: the
-nodes, their placements, the emitters and the viewpoint, and the refusals
-a frame meets before anything is drawn.
+nodes, their placements, the lights and the camera, and the refusals a
+frame meets before anything is drawn.
 """
 
 import gc
@@ -25,11 +25,10 @@ def camera() -> mesh.camera.Camera:
     return result
 
 
-def body() -> world.Element:
+def body() -> world.Mesh:
     return (
-        world.Element()
+        world.mesh(mesh.box((-65, -35, -20), (65, 35, 20)))
         .key("body")
-        .mesh(mesh.box((-65, -35, -20), (65, 35, 20)))
         .fill(surfaces.unlit(surfaces.SurfaceParameters(baseColor="#e75a31")))
     )
 
@@ -37,34 +36,22 @@ def body() -> world.Element:
 class World(unittest.TestCase):
     def test_headless_scene_retains_native_geometry(self):
         scene = world.Scene()
-        scene.render(world.Frame(body()).camera(camera()))
+        scene.render(world.Frame(body()).defaultCamera(camera()))
         self.assertEqual(scene.stats.nodes, 1)
         self.assertNotEqual(scene.handleOf("body"), 0)
         self.assertEqual(scene.referencesOf("body"), 1)
 
-    def test_children_forms_append_and_reordering_preserves_native_identity(self):
+    def test_group_forms_and_reordering_preserve_native_identity(self):
         shared = mesh.box((-10, -10, -10), (10, 10, 10))
-        root = world.Element().key("root")
-        for key, form in (
-            ("a", "single"),
-            ("b", "list"),
-            ("c", "tuple"),
-            ("d", "generator"),
-        ):
-            node = world.Element().key(key).mesh(shared)
-            children = (
-                node
-                if form == "single"
-                else [node]
-                if form == "list"
-                else (node,)
-                if form == "tuple"
-                else (item for item in [node])
-            )
-            self.assertIs(root.children(children), root)
-        root.children(world.Element().key("e"), world.Element().key("f"))
+        children = [world.mesh(shared).key(key) for key in "abcd"]
+        # A group takes its children as its argument: nodes, or one
+        # iterable of them.
+        root = world.group(children + [world.group().key("e"), world.group().key("f")])
+        self.assertIsInstance(root.key("root"), world.Group)
+        self.assertIsInstance(world.group(*children), world.Group)
+        self.assertIsInstance(world.group(node for node in children), world.Group)
         with self.assertRaises(TypeError):
-            root.children(world.Element().key("uncommitted"), "wrong type")
+            world.group(world.group().key("uncommitted"), "wrong type")
         scene = world.Scene()
         scene.render(root)
         handles = {key: scene.handleOf(key) for key in "abcdef"}
@@ -72,19 +59,40 @@ class World(unittest.TestCase):
         self.assertEqual(scene.handleOf("uncommitted"), 0)
         self.assertEqual(scene.referencesOf("a"), 4)
         scene.render(
-            world.Element()
-            .key("root")
-            .children(world.Element().key(key).mesh(shared) for key in "dcba")
+            world.group(world.mesh(shared).key(key) for key in "dcba").key("root")
         )
         for key in "abcd":
             self.assertEqual(scene.handleOf(key), handles[key])
         self.assertEqual(scene.handleOf("e"), 0)
 
+    def test_every_kind_places_itself_and_a_light_links_to_a_collection(self):
+        lamp = (
+            world.pointLight(color=(2, 1, 0.5, 1), intensity=0.5, range=300)
+            .key("lamp")
+            .at((10, 20, 30))
+            .lightLink("props")
+        )
+        self.assertIsInstance(lamp, world.Light)
+        self.assertEqual(lamp.description.kind, world.LightKind.Point)
+        self.assertEqual(lamp.description.lightLink.include, ["props"])
+        spot = world.spotLight((0, -1, 0), innerAngle=10, outerAngle=30)
+        self.assertEqual(spot.description.outerAngle, 30)
+        eye = world.camera(camera(), exposure=1.5).key("eye")
+        scene = world.Scene()
+        scene.render(world.group(lamp, eye, body().collection("props")))
+        self.assertEqual(len(scene.lights), 1)
+        self.assertEqual(tuple(scene.lights[0].position), (10, 20, 30))
+        self.assertEqual(scene.lights[0].key, "lamp")
+        self.assertIsNotNone(scene.camera)
+        # Several cameras with none named is refused, naming them.
+        with self.assertRaisesRegex(ValueError, "eye"):
+            scene.render(world.group(eye, world.camera(camera()).key("other")))
+
     def test_frame_passes_need_a_device_and_report_native_graph_errors(self):
         scene = world.Scene()
         base = (
             world.Frame(body())
-            .camera(camera())
+            .defaultCamera(camera())
             .extent((96, 96))
             .pass_(world.geometryPass("main").writes(("color",)))
         )
@@ -104,14 +112,14 @@ class World(unittest.TestCase):
         no_extent = world.Frame(body()).pass_(world.geometryPass("main").writes("out"))
         with self.assertRaises(ValueError):
             scene.render(no_extent)
-        scene.render(world.Frame(body()).camera(camera()))
+        scene.render(world.Frame(body()).defaultCamera(camera()))
         self.assertEqual(scene.error, "")
 
     def test_motion_is_sampled_and_keeps_a_live_value_alive(self):
         angle = animatable(0)
         reference = weakref.ref(angle)
         scene = world.Scene()
-        scene.render(world.Frame(body().rotateZ(angle)).camera(camera()))
+        scene.render(world.Frame(body().rotateZ(angle)).defaultCamera(camera()))
         start = scene.transformOf("body")
         angle.value = 90
         scene.advance(0)
@@ -138,17 +146,17 @@ class World(unittest.TestCase):
         setup.surface = None
         self.assertIsInstance(saved, Material)
         scene = world.Scene()
-        scene.render(world.kit.litSet(body(), setup, seconds=0))
+        scene.render(world.kit.litSet(body(), setup, now=0))
         self.assertEqual(len(scene.lights), 3)
         self.assertIsNotNone(scene.camera)
         owned_camera, owned_lights, stats = scene.camera, scene.lights, scene.stats
-        scene.render(world.Element())
+        scene.render(world.group())
         self.assertEqual(scene.lights, [])
         self.assertEqual(len(owned_lights), 3)
         self.assertGreater(stats.nodes, scene.stats.nodes)
         del scene
         self.assertIsNotNone(owned_camera)
-        self.assertGreater(owned_lights[0].intensity, 0)
+        self.assertGreater(owned_lights[0].light.intensity, 0)
 
     def test_surface_colours_round_trip_through_the_space_they_are_typed_in(self):
         parameters = surfaces.SurfaceParameters()

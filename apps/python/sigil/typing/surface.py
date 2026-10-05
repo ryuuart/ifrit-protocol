@@ -130,8 +130,6 @@ PUBLIC_MODULES: dict[str, str] = {
     "_sigil.world.diligent": "sigil.world.diligent",
     "_sigil.world.graph": "sigil.world.graph",
     "_sigil.world.kit": "sigil.world.kit",
-    "_sigil.world.light": "sigil.world.light",
-    "_sigil.world.selectors": "sigil.world.selectors",
 }
 
 # Public module -> the raw spelling an author never types, and what they type

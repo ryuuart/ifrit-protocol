@@ -6,13 +6,16 @@
 #include <sigilpython/motion/Convert.h>
 #include <sigilpython/skia/Values.h>
 #include <sigilpython/world/Registration.h>
-#include <sigilworld/kit/Kit.h>
+#include <sigilworld/World.h>
+#include <sigilworld/advanced/Light.h>
+#include <sigilworld/advanced/Stats.h>
 #include <sigilworld/scene/Scene.h>
 
 #include <array>
 #include <cmath>
 #include <optional>
 #include <stdexcept>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -21,19 +24,20 @@ namespace py = pybind11;
 
 namespace {
 
-std::vector<world::Element> worldChildren(py::args values) {
+/** A group's children: nodes of any kind, or one iterable of them. */
+std::vector<world::Node> worldChildren(py::args values) {
   try {
     if (values.size() == 1 && (py::isinstance<py::str>(values[0]) ||
                                py::isinstance<py::bytes>(values[0])))
       throw py::cast_error();
     const py::tuple children =
-        values.size() == 1 && !py::isinstance<world::Element>(values[0])
+        values.size() == 1 && !py::isinstance<world::Node>(values[0])
             ? py::tuple(values[0])
             : py::tuple(values);
-    return children.cast<std::vector<world::Element>>();
+    return children.cast<std::vector<world::Node>>();
   } catch (const py::cast_error&) {
     throw py::type_error(
-        "children expects World Elements or one iterable of World Elements");
+        "group expects World nodes or one iterable of World nodes");
   }
 }
 
@@ -95,79 +99,301 @@ class Scene {
 
 /** A light's tint. Four numbers are taken as written, because a light may
  *  be brighter than white and a colour's channels are read as unit
- *  values; every other spelling is a colour. */
-material::Color lightColor(py::handle value) {
+ *  values; an animatable colour is kept live; every other spelling is a
+ *  colour. */
+motion::Animatable<material::Color> lightColor(py::handle value) {
   if (!py::isinstance<py::str>(value) && py::isinstance<py::sequence>(value) &&
       py::len(value) == 4) {
     const glm::vec4 tint = py::cast<glm::vec4>(value);
-    return {tint.x, tint.y, tint.z, tint.w};
+    return material::Color{tint.x, tint.y, tint.z, tint.w};
   }
-  const SkColor4f tint = color(value);
-  return {tint.fR, tint.fG, tint.fB, tint.fA};
+  return motionInk(value);
 }
 
-void bindLight(py::module_& module) {
-  auto light = module.def_submodule("light");
-  light.def("travel", &world::light::travel, py::arg("light"),
-            "The unit direction a light travels, toward the scene.");
-  light.def(
-      "sun",
-      [](const glm::vec3& direction, py::handle tint, float intensity) {
-        return world::light::sun(direction, lightColor(tint), intensity);
+/** A collection read from a name, or from the `Collection` value. */
+world::Collection collectionOf(py::handle value) {
+  if (py::isinstance<py::str>(value))
+    return world::Collection{.include = {py::cast<std::string>(value)}};
+  return py::cast<world::Collection>(value);
+}
+
+constexpr auto fluent = py::return_value_policy::reference_internal;
+
+/** The verbs every kind shares: where it stands, whether it is there,
+ *  what it is called and which collections it joins. */
+template <class Kind>
+void bindNodeVerbs(py::class_<Kind, world::Node>& kind) {
+  kind.def("copy", [](const Kind& self) { return self; })
+      .def(
+          "key",
+          [](Kind& self, const std::string& name) -> Kind& {
+            return self.key(name);
+          },
+          py::arg("key"), fluent)
+      .def(
+          "collection",
+          [](Kind& self, std::string name) -> Kind& {
+            return self.collection(std::move(name));
+          },
+          py::arg("name"), fluent)
+      .def(
+          "at",
+          [](Kind& self, glm::vec3 position) -> Kind& {
+            return self.at(position);
+          },
+          py::arg("position"), fluent)
+      .def(
+          "transformOrigin",
+          [](Kind& self, glm::vec3 origin) -> Kind& {
+            return self.transformOrigin(origin);
+          },
+          py::arg("origin"), fluent)
+      .def(
+          "transform",
+          [](Kind& self, const glm::mat4& matrix) -> Kind& {
+            return self.transform(matrix);
+          },
+          py::arg("matrix"), fluent)
+      .def(
+          "visible",
+          [](Kind& self, bool shown) -> Kind& { return self.visible(shown); },
+          py::arg("shown"), fluent)
+      .def(
+          "rotate",
+          [](Kind& self, glm::vec3 axis, py::handle degrees) -> Kind& {
+            return self.rotate(axis, motionAnimatable(degrees));
+          },
+          py::arg("axis"), py::arg("degrees"), fluent)
+      .def(
+          "transition",
+          [](Kind& self, py::handle how) -> Kind& {
+            return self.transition(motionTransition(how));
+          },
+          py::arg("transition"), fluent,
+          "The node's default transition for the plain values on it: a "
+          "Tween, whose from_ and to are not read, or a number of seconds "
+          "for one of that duration.");
+  using Lane =
+      Kind& (world::PlacementVerbs<Kind>::*)(motion::Animatable<float>);
+  for (const auto& [name, member] :
+       std::initializer_list<std::pair<const char*, Lane>>{
+           {"translateX", &world::PlacementVerbs<Kind>::translateX},
+           {"translateY", &world::PlacementVerbs<Kind>::translateY},
+           {"translateZ", &world::PlacementVerbs<Kind>::translateZ},
+           {"rotateX", &world::PlacementVerbs<Kind>::rotateX},
+           {"rotateY", &world::PlacementVerbs<Kind>::rotateY},
+           {"rotateZ", &world::PlacementVerbs<Kind>::rotateZ},
+           {"scale", &world::PlacementVerbs<Kind>::scale},
+           {"scaleX", &world::PlacementVerbs<Kind>::scaleX},
+           {"scaleY", &world::PlacementVerbs<Kind>::scaleY},
+           {"scaleZ", &world::PlacementVerbs<Kind>::scaleZ}}) {
+    kind.def(
+        name,
+        [member](Kind& self, py::handle value) -> Kind& {
+          return (self.*member)(motionAnimatable(value));
+        },
+        py::arg("value"), fluent);
+  }
+}
+
+/** …and what a body is made of. */
+template <class Kind>
+void bindSurfaceVerbs(py::class_<Kind, world::Node>& kind) {
+  kind.def(
+          "fill",
+          [](Kind& self, material::Material surface) -> Kind& {
+            return self.fill(std::move(surface));
+          },
+          py::arg("material"), fluent)
+      .def(
+          "fill",
+          [](Kind& self, const std::vector<material::Material>& materials)
+              -> Kind& { return self.fill(materials); },
+          py::arg("materials"), fluent)
+      .def(
+          "backface",
+          [](Kind& self, material::Backface facing) -> Kind& {
+            return self.backface(facing);
+          },
+          py::arg("facing"), fluent);
+}
+
+void bindLights(py::module_& module) {
+  py::enum_<world::LightKind>(module, "LightKind")
+      .value("Directional", world::LightKind::Directional)
+      .value("Point", world::LightKind::Point)
+      .value("Spot", world::LightKind::Spot);
+  bindRecord<world::Collection>(module, "Collection",
+                                "Unknown collection field: ")
+      .def_readwrite("include", &world::Collection::include)
+      .def_readwrite("exclude", &world::Collection::exclude)
+      .def("everything", &world::Collection::everything)
+      .def(py::self == py::self);
+  py::class_<world::LightDescription>(module, "LightDescription")
+      .def_readonly("kind", &world::LightDescription::kind)
+      .def_readonly("direction", &world::LightDescription::direction)
+      .def_property_readonly("color",
+                             [](const world::LightDescription& light) {
+                               return light.color.value();
+                             })
+      .def_property_readonly("intensity",
+                             [](const world::LightDescription& light) {
+                               return light.intensity.value();
+                             })
+      .def_readonly("range", &world::LightDescription::range)
+      .def_readonly("innerAngle", &world::LightDescription::innerAngle)
+      .def_readonly("outerAngle", &world::LightDescription::outerAngle)
+      .def_readonly("lightLink", &world::LightDescription::lightLink)
+      .def_readonly("shadowLink", &world::LightDescription::shadowLink);
+  py::class_<world::PlacedLight>(module, "PlacedLight")
+      .def_readonly("light", &world::PlacedLight::light)
+      .def_readonly("position", &world::PlacedLight::position)
+      .def_readonly("key", &world::PlacedLight::key);
+  module.def("attenuation", &world::attenuation, py::arg("light"),
+             py::arg("at"));
+  module.def("radiance", &world::radiance, py::arg("light"));
+}
+
+void bindKinds(py::module_& module) {
+  py::class_<world::Node>(module, "Node")
+      .def("copy", [](const world::Node& self) { return self; });
+
+  auto group = py::class_<world::Group, world::Node>(module, "Group");
+  bindNodeVerbs(group);
+  module.def(
+      "group",
+      [](py::args children) {
+        const std::vector<world::Node> nodes = worldChildren(children);
+        return world::group(nodes);
+      },
+      "A group of the nodes given, in order: nodes of any kind, or one "
+      "iterable of them.");
+
+  auto mesh = py::class_<world::Mesh, world::Node>(module, "Mesh");
+  bindNodeVerbs(mesh);
+  bindSurfaceVerbs(mesh);
+  module.def(
+      "mesh",
+      [](geometry::mesh::Mesh triangles) {
+        return world::mesh(std::move(triangles));
+      },
+      py::arg("mesh"));
+
+  auto light = py::class_<world::Light, world::Node>(module, "Light");
+  bindNodeVerbs(light);
+  light
+      .def(
+          "lightLink",
+          [](world::Light& self, py::handle bodies) -> world::Light& {
+            return self.lightLink(collectionOf(bodies));
+          },
+          py::arg("bodies"), fluent)
+      .def(
+          "shadowLink",
+          [](world::Light& self, py::handle blockers) -> world::Light& {
+            return self.shadowLink(collectionOf(blockers));
+          },
+          py::arg("blockers"), fluent)
+      .def_property_readonly("description", &world::Light::description);
+  module.def(
+      "directionalLight",
+      [](const glm::vec3& direction, py::handle tint, py::handle intensity) {
+        return world::directionalLight(
+            direction, {.color = lightColor(tint),
+                        .intensity = motionAnimatable(intensity)});
       },
       py::arg("direction"), py::arg("color") = glm::vec4(1),
       py::arg("intensity") = 1);
-  light.def(
-      "point",
-      [](const glm::vec3& position, py::handle tint, float intensity,
-         float range) {
-        return world::light::point(position, lightColor(tint), intensity,
-                                   range);
+  module.def(
+      "pointLight",
+      [](py::handle tint, py::handle intensity, float range) {
+        return world::pointLight({.color = lightColor(tint),
+                                  .intensity = motionAnimatable(intensity),
+                                  .range = range});
       },
-      py::arg("position"), py::arg("color") = glm::vec4(1),
-      py::arg("intensity") = 1, py::arg("range") = 600);
-  light.def(
-      "spot",
-      [](const glm::vec3& position, const glm::vec3& direction,
-         float outerAngle, float innerAngle, py::handle tint, float intensity,
-         float range) {
-        return world::light::spot(position, direction, outerAngle, innerAngle,
-                                  lightColor(tint), intensity, range);
+      py::arg("color") = glm::vec4(1), py::arg("intensity") = 1,
+      py::arg("range") = 600);
+  module.def(
+      "spotLight",
+      [](const glm::vec3& direction, py::handle tint, py::handle intensity,
+         float range, float innerAngle, float outerAngle) {
+        return world::spotLight(direction,
+                                {.color = lightColor(tint),
+                                 .intensity = motionAnimatable(intensity),
+                                 .range = range,
+                                 .innerAngle = innerAngle,
+                                 .outerAngle = outerAngle});
       },
-      py::arg("position"), py::arg("direction"), py::arg("outerAngle") = 45,
-      py::arg("innerAngle") = 0, py::arg("color") = glm::vec4(1),
-      py::arg("intensity") = 1, py::arg("range") = 600);
-  light.def("attenuation", &world::light::attenuation, py::arg("light"),
-            py::arg("at"));
-  light.def("radiance", &world::light::radiance, py::arg("light"));
+      py::arg("direction"), py::arg("color") = glm::vec4(1),
+      py::arg("intensity") = 1, py::arg("range") = 600,
+      py::arg("innerAngle") = 0, py::arg("outerAngle") = 45);
+
+  py::enum_<world::ToneCurve>(module, "ToneCurve")
+      .value("Reinhard", world::ToneCurve::Reinhard);
+  auto camera = py::class_<world::Camera, world::Node>(module, "Camera");
+  bindNodeVerbs(camera);
+  module.def(
+      "camera",
+      [](const geometry::mesh::camera::Camera& lens, py::handle exposure,
+         world::ToneCurve toneCurve) {
+        return world::camera(lens, {.exposure = motionAnimatable(exposure),
+                                    .toneCurve = toneCurve});
+      },
+      py::arg("lens"), py::arg("exposure") = 1,
+      py::arg("toneCurve") = world::ToneCurve::Reinhard);
 }
 
-void bindWorldKit(py::module_& module) {
-  auto kit = module.def_submodule("kit");
+void bindEnvironment(py::module_& module, py::module_& kit) {
+  py::class_<world::EnvironmentMap>(module, "EnvironmentMap")
+      .def("valid", &world::EnvironmentMap::valid);
+  bindRecord<world::kit::SoftBox>(kit, "SoftBox", "Unknown soft box field: ")
+      .def_readwrite("centre", &world::kit::SoftBox::centre)
+      .def_readwrite("size", &world::kit::SoftBox::size)
+      .def_readwrite("radiance", &world::kit::SoftBox::radiance);
+  kit.def(
+      "environmentMap",
+      [](const glm::vec3& zenith, const glm::vec3& nadir, float exponent,
+         const std::vector<world::kit::SoftBox>& softBoxes, int width) {
+        return world::kit::environmentMap({.width = width,
+                                           .zenith = zenith,
+                                           .nadir = nadir,
+                                           .exponent = exponent,
+                                           .softBoxes = softBoxes});
+      },
+      py::arg("zenith") = glm::vec3(0), py::arg("nadir") = glm::vec3(0),
+      py::arg("exponent") = 1,
+      py::arg("softBoxes") = std::vector<world::kit::SoftBox>{},
+      py::arg("width") = 256);
+}
+
+void bindWorldKit(py::module_& kit) {
   using Rig = world::kit::Rig;
   using Turntable = world::kit::Turntable;
   using Set = world::kit::Set;
   bindRecord<Rig>(kit, "Rig", "Unknown rig field: ")
-      .def_readwrite("at", &Rig::at)
       .def_readwrite("extent", &Rig::extent)
-      .def_readwrite("distance", &Rig::distance)
       .def_readwrite("bearing", &Rig::bearing)
       .def_readwrite("elevation", &Rig::elevation)
       .def_readwrite("fill", &Rig::fill)
       .def_readwrite("back", &Rig::back)
-      .def_readwrite("intensity", &Rig::intensity)
       .def_property(
-          "color", [](const Rig& self) { return self.color; },
+          "intensity", [](const Rig& self) { return self.intensity.value(); },
           [](Rig& self, py::handle value) {
-            const material::Color tint = lightColor(value);
-            self.color = {tint.r, tint.g, tint.b, tint.a};
-          });
+            self.intensity = motionAnimatable(value);
+          })
+      .def_property(
+          "color", [](const Rig& self) { return self.color.value(); },
+          [](Rig& self, py::handle value) { self.color = lightColor(value); });
   bindRecord<Turntable>(kit, "Turntable", "Unknown turntable field: ")
       .def_readwrite("at", &Turntable::at)
       .def_readwrite("radius", &Turntable::radius)
       .def_readwrite("height", &Turntable::height)
-      .def_readwrite("period", &Turntable::period)
-      .def_readwrite("fovYDeg", &Turntable::fovYDeg)
+      .def_property(
+          "period", [](const Turntable& self) { return self.period.count(); },
+          [](Turntable& self, double seconds) {
+            self.period = motion::Duration(seconds);
+          })
+      .def_readwrite("fieldOfView", &Turntable::fieldOfView)
       .def_readwrite("stations", &Turntable::stations);
   bindRecord<Set>(kit, "Set", "Unknown set field: ")
       .def_readwrite("rig", &Set::rig)
@@ -180,116 +406,28 @@ void bindWorldKit(py::module_& module) {
             self.surface = std::move(value);
           });
   kit.def("threePoint", &world::kit::threePoint, py::arg("rig") = Rig{});
-  kit.def("turntable", &world::kit::turntable, py::arg("table"),
-          py::arg("seconds"));
-  kit.def("litSet", &world::kit::litSet, py::arg("subject"),
-          py::arg("set") = Set{}, py::arg("seconds") = 0);
+  kit.def(
+      "turntable",
+      [](const Turntable& table, double now) {
+        return world::kit::turntable(table, motion::Duration(now));
+      },
+      py::arg("table"), py::arg("now"));
+  kit.def(
+      "litSet",
+      [](const world::Node& subject, const Set& set, double now) {
+        return world::kit::litSet(subject, set, motion::Duration(now));
+      },
+      py::arg("subject"), py::arg("set") = Set{}, py::arg("now") = 0);
 }
 
 }  // namespace
 
 void bindWorld(py::module_& root) {
   auto module = root.def_submodule("world");
-  bindLight(module);
-  constexpr auto fluent = py::return_value_policy::reference_internal;
-  auto element =
-      py::class_<world::Element>(module, "Element")
-          .def(py::init<>())
-          .def("copy", [](const world::Element& self) { return self; })
-          .def("key", &world::Element::key, py::arg("key"), fluent)
-          .def(
-              "children",
-              [](world::Element& self, py::args children) -> world::Element& {
-                return self.children(worldChildren(children));
-              },
-              fluent)
-          .def("at", &world::Element::at, py::arg("position"), fluent)
-          .def("transformOrigin", &world::Element::transformOrigin,
-               py::arg("origin"), fluent)
-          .def("transform", &world::Element::transform, py::arg("matrix"),
-               fluent)
-          .def("mesh", &world::Element::mesh, py::arg("mesh"), fluent)
-          .def("fill",
-               py::overload_cast<material::Material>(&world::Element::fill),
-               py::arg("material"), fluent)
-          .def(
-              "fill",
-              [](world::Element& self,
-                 const std::vector<material::Material>& materials)
-                  -> world::Element& { return self.fill(materials); },
-              py::arg("materials"), fluent)
-          .def("backface", &world::Element::backface, py::arg("facing"), fluent)
-          .def("tag", &world::Element::tag, py::arg("tag"), fluent)
-          .def("light", &world::Element::light, py::arg("light"), fluent)
-          .def("camera", &world::Element::camera, py::arg("camera"), fluent)
-          .def(
-              "transition",
-              [](world::Element& self, py::handle how) -> world::Element& {
-                return self.transition(motionTransition(how));
-              },
-              py::arg("transition"), fluent,
-              "The node's default transition for the plain values on it: a "
-              "Tween, whose from_ and to are not read, or a number of "
-              "seconds for one of that duration.");
-  using Lane = world::Element& (world::Element::*)(motion::Animatable<float>);
-  for (const auto& [name, member] :
-       std::initializer_list<std::pair<const char*, Lane>>{
-           {"translateX", &world::Element::translateX},
-           {"translateY", &world::Element::translateY},
-           {"translateZ", &world::Element::translateZ},
-           {"rotateX", &world::Element::rotateX},
-           {"rotateY", &world::Element::rotateY},
-           {"rotateZ", &world::Element::rotateZ},
-           {"scale", &world::Element::scale},
-           {"scaleX", &world::Element::scaleX},
-           {"scaleY", &world::Element::scaleY},
-           {"scaleZ", &world::Element::scaleZ},
-           {"intensity", &world::Element::intensity},
-           {"exposure", &world::Element::exposure}}) {
-    element.def(
-        name,
-        [member](world::Element& self, py::handle value) -> world::Element& {
-          return (self.*member)(motionAnimatable(value));
-        },
-        py::arg("value"), fluent);
-  }
-  element.def(
-      "rotate",
-      [](world::Element& self, glm::vec3 axis,
-         py::handle degrees) -> world::Element& {
-        return self.rotate(axis, motionAnimatable(degrees));
-      },
-      py::arg("axis"), py::arg("degrees"), fluent);
-  element.def(
-      "emission",
-      [](world::Element& self, py::handle red, py::handle green,
-         py::handle blue) -> world::Element& {
-        return self.emission(motionAnimatable(red), motionAnimatable(green),
-                             motionAnimatable(blue));
-      },
-      py::arg("red"), py::arg("green"), py::arg("blue"), fluent);
-
-  py::class_<world::Selector>(module, "Selector")
-      .def(py::init<>())
-      .def(
-          "__or__",
-          [](world::Selector self, world::Selector other) {
-            return std::move(self) | std::move(other);
-          },
-          py::arg("other"), py::is_operator())
-      .def(
-          "__and__",
-          [](world::Selector self, world::Selector other) {
-            return std::move(self) & std::move(other);
-          },
-          py::arg("other"), py::is_operator())
-      .def("__invert__", [](world::Selector self) { return !std::move(self); })
-      .def(py::self == py::self);
-  auto selectors = module.def_submodule("selectors");
-  selectors.def("tag", &world::selectors::tag, py::arg("tag"));
-  selectors.def("key", &world::selectors::key, py::arg("key"));
-  selectors.def("under", &world::selectors::under, py::arg("key"));
-  selectors.def("material", &world::selectors::material, py::arg("material"));
+  auto kit = module.def_submodule("kit");
+  bindLights(module);
+  bindKinds(module);
+  bindEnvironment(module, kit);
   py::enum_<world::Selection>(module, "Selection")
       .value("Auto", world::Selection::Auto)
       .value("All", world::Selection::None)
@@ -316,7 +454,12 @@ void bindWorld(py::module_& root) {
           fluent)
       .def("previous", py::overload_cast<std::string>(&world::Pass::previous),
            py::arg("resource"), fluent)
-      .def("only", &world::Pass::only, py::arg("selector"), fluent)
+      .def(
+          "only",
+          [](world::Pass& self, py::handle bodies) -> world::Pass& {
+            return self.only(collectionOf(bodies));
+          },
+          py::arg("bodies"), fluent)
       .def("variant",
            py::overload_cast<material::Material>(&world::Pass::variant),
            py::arg("material"), fluent)
@@ -330,17 +473,27 @@ void bindWorld(py::module_& root) {
       .def("blur", &world::Pass::blur, py::arg("sigma"), fluent)
       .def(
           "levels",
-          [](world::Pass& self, float gain, float lift, py::handle tint)
-              -> world::Pass& { return self.levels(gain, lift, color(tint)); },
-          py::arg("gain"), py::arg("lift"), py::arg("tint") = "#ffffff", fluent)
-      .def("composite", &world::Pass::composite, py::arg("mode"),
-           py::arg("opacity") = 1, fluent);
+          [](world::Pass& self, float gain, float lift,
+             py::handle tint) -> world::Pass& {
+            return self.levels(
+                {.gain = gain, .lift = lift, .tint = color(tint)});
+          },
+          py::arg("gain") = 1, py::arg("lift") = 0, py::arg("tint") = "#ffffff",
+          fluent)
+      .def(
+          "composite",
+          [](world::Pass& self, material::BlendMode mode,
+             float opacity) -> world::Pass& {
+            return self.composite({.mode = mode, .opacity = opacity});
+          },
+          py::arg("mode") = material::BlendMode::PlusLighter,
+          py::arg("opacity") = 1, fluent);
   module.def("geometryPass", &world::geometryPass, py::arg("name"));
   module.def("postPass", &world::postPass, py::arg("name"));
   py::class_<world::Frame>(module, "Frame")
-      .def(py::init<world::Element>(), py::arg("scene") = world::Element{})
+      .def(py::init<world::Node>(), py::arg("scene") = world::Node{})
       .def("copy", [](const world::Frame& self) { return self; })
-      .def("scene", py::overload_cast<world::Element>(&world::Frame::scene),
+      .def("scene", py::overload_cast<world::Node>(&world::Frame::scene),
            py::arg("scene"), fluent)
       .def(
           "extent",
@@ -349,10 +502,48 @@ void bindWorld(py::module_& root) {
             return self.extent(glm::ivec2(pixels.width(), pixels.height()));
           },
           py::arg("size"), fluent)
-      .def("camera",
-           py::overload_cast<geometry::mesh::camera::Camera>(
-               &world::Frame::camera),
-           py::arg("camera"), fluent)
+      .def(
+          "camera",
+          [](world::Frame& self, std::string key) -> world::Frame& {
+            return self.camera(std::move(key));
+          },
+          py::arg("key"), fluent)
+      .def(
+          "defaultCamera",
+          [](world::Frame& self, const geometry::mesh::camera::Camera& lens)
+              -> world::Frame& { return self.defaultCamera(lens); },
+          py::arg("lens"), fluent)
+      .def(
+          "cameraOverride",
+          [](world::Frame& self, const geometry::mesh::camera::Camera& lens)
+              -> world::Frame& { return self.cameraOverride(lens); },
+          py::arg("lens"), fluent)
+      .def(
+          "environment",
+          [](world::Frame& self, world::EnvironmentMap map,
+             py::handle intensity, py::handle diffuse, py::handle specular,
+             py::handle roughnessBias,
+             std::optional<world::EnvironmentMap> next, py::handle crossfade,
+             py::handle rotation, py::handle shown, py::handle blur,
+             float groundRadius) -> world::Frame& {
+            return self.environment(
+                std::move(map),
+                {.intensity = motionAnimatable(intensity),
+                 .diffuse = motionAnimatable(diffuse),
+                 .specular = motionAnimatable(specular),
+                 .roughnessBias = motionAnimatable(roughnessBias),
+                 .next = next.value_or(world::EnvironmentMap{}),
+                 .crossfade = motionAnimatable(crossfade),
+                 .rotation = motionAnimatable(rotation),
+                 .shown = motionAnimatable(shown),
+                 .blur = motionAnimatable(blur),
+                 .groundRadius = groundRadius});
+          },
+          py::arg("map"), py::arg("intensity") = 1, py::arg("diffuse") = 1,
+          py::arg("specular") = 1, py::arg("roughnessBias") = 0,
+          py::arg("next") = py::none(), py::arg("crossfade") = 0,
+          py::arg("rotation") = 0, py::arg("shown") = 0, py::arg("blur") = 0,
+          py::arg("groundRadius") = 0, fluent)
       .def("pass_", &world::Frame::pass, py::arg("pass_"), fluent)
       .def("present", py::overload_cast<std::string>(&world::Frame::present),
            py::arg("resource"), fluent);
@@ -370,14 +561,16 @@ void bindWorld(py::module_& root) {
            {"passes", &world::SceneStats::passes},
            {"barriers", &world::SceneStats::barriers},
            {"aliased", &world::SceneStats::aliased},
-           {"surfaces", &world::SceneStats::surfaces}})
+           {"surfaces", &world::SceneStats::surfaces},
+           {"texturesPainted", &world::SceneStats::texturesPainted},
+           {"texturesSkipped", &world::SceneStats::texturesSkipped}})
     stats.def_readonly(name, member);
   py::class_<Scene>(module, "Scene")
       .def(py::init<>())
       .def("render", &Scene::render, py::arg("frame"))
       .def(
           "render",
-          [](Scene& self, world::Element root) {
+          [](Scene& self, world::Node root) {
             self.render(world::Frame(std::move(root)));
           },
           py::arg("scene"))
@@ -408,7 +601,7 @@ void bindWorld(py::module_& root) {
                              [](Scene& self) { return self.get().stats(); })
       .def_property_readonly("error",
                              [](Scene& self) { return self.get().error(); });
-  bindWorldKit(module);
+  bindWorldKit(kit);
 }
 
 }  // namespace sigil::python

@@ -160,9 +160,8 @@ class HostContextSurface(unittest.TestCase):
                     lens.eye = (0, 0, 320)
                     lens.target = (0, 0, 0)
                     body = (
-                        world.Element()
+                        world.mesh(mesh.box((-65, -35, -20), (65, 35, 20)))
                         .key("body")
-                        .mesh(mesh.box((-65, -35, -20), (65, 35, 20)))
                         .fill(
                             surfaces.unlit(
                                 surfaces.SurfaceParameters(baseColor="#e75a31")
@@ -170,23 +169,25 @@ class HostContextSurface(unittest.TestCase):
                         )
                     )
                     frame = world.Frame(body)
-                    still = ctx.bakeSet(frame, lens, (64, 64), background="#101820")
+                    still = ctx.bakeSet(
+                        frame, (64, 64), camera=lens, background="#101820"
+                    )
                     later = ctx.bakeSet(
                         frame=frame,
-                        camera=lens,
                         size=(64, 64),
+                        camera=lens,
                         background="#101820",
-                        seconds=0.5,
+                        at=0.5,
                     )
-                    wider = ctx.bakeSet(frame, lens, (48, 32))
+                    wider = ctx.bakeSet(frame, (48, 32), camera=lens)
                     refusals = []
                     for bad in ((0, 8), (8, -1)):
                         try:
-                            ctx.bakeSet(frame, lens, bad)
+                            ctx.bakeSet(frame, bad, camera=lens)
                         except ValueError as error:
                             refusals.append(str(error))
                     try:
-                        ctx.bakeSet(frame, lens, (8, 8), seconds=-1)
+                        ctx.bakeSet(frame, (8, 8), camera=lens, at=-1)
                     except ValueError as error:
                         refusals.append(str(error))
                     builtins._sigil_host_context = (still, later, wider, refusals)

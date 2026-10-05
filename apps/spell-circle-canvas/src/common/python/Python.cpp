@@ -5,9 +5,9 @@
 #include <sigilpython/draw/Registration.h>
 #include <sigilpython/geometry/Registration.h>
 #include <sigilpython/io/Registration.h>
-#include <sigilpython/media/Registration.h>
 #include <sigilpython/material/Registration.h>
 #include <sigilpython/measure/Registration.h>
+#include <sigilpython/media/Registration.h>
 #include <sigilpython/motion/Registration.h>
 #include <sigilpython/scry/Registration.h>
 #include <sigilpython/skia/Registration.h>
@@ -54,8 +54,6 @@ void bindLibraries(pybind11::module_& module) {
   // stock draw and every pen verb answer one, so it stands ahead of
   // them rather than at the end of its own library.
   bindMaterialPaintEffect(module);
-  // The light stands before the builder, whose surface() takes one.
-  bindMaterialLighting(module);
   // The builder names the blend modes and filters the paint effects bind.
   bindMaterialBuilder(module);
   bindMaterialTexture(module);

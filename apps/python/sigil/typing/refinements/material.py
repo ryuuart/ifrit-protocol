@@ -8,7 +8,6 @@ from __future__ import annotations
 from .table import Table
 
 PAINT = "_sigil.material.skia.Paint"
-COLOR_MOTION = "_t.ColorLike | _sigil.motion.ColorAnimatable | _sigil.motion.ColorTween"
 BOUND_UNIFORM = "_t.ScalarLike | _sigil.material.Color | _sigil.motion.ColorAnimatable | _sigil.motion.ColorTween"
 UNIFORM_VALUE = (
     "_t.UniformValue | _sigil.motion.ColorAnimatable | _sigil.motion.ColorTween"
@@ -31,14 +30,6 @@ def register(table: Table) -> None:
         "_sigil.material.Material | _sigil.material.skia.Paint | _t.ColorLike",
     )
     table.parameters("_sigil.material.sbsar.describe", hub="_sigil.io.Hub")
-    table.parameters(
-        "_sigil.material.Light.__init__",
-        direction="_t.ScalarLike",
-        elevation="_t.ScalarLike",
-        color=COLOR_MOTION,
-        intensity="_t.ScalarLike",
-        position="_t.Vec3Like",
-    )
     # The whole declaration is stated, each channel as a number or a
     # material.
     table.declares(
@@ -57,14 +48,6 @@ def register(table: Table) -> None:
         "thickness: typing.SupportsFloat = 40.0, absorption: _t.ColorLike = ..., "
         "reflectionWeight: typing.SupportsFloat = 1.0, unlit: bool = False"
         ") -> Material: ...\n",
-    )
-    # Where a point or a spot stands is three numbers, read back as a vector.
-    table.declares(
-        "_sigil.material.Light",
-        "position",
-        """@property
-def position(self) -> _t.Vec3: ...
-""",
     )
     table.parameters(
         "_sigil.material.substance",

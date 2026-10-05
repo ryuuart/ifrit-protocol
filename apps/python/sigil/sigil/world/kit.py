@@ -4,7 +4,9 @@
 from _sigil.world.kit import (
     Rig,
     Set,
+    SoftBox,
     Turntable,
+    environmentMap,
     litSet,
     threePoint,
     turntable,
@@ -13,7 +15,9 @@ from _sigil.world.kit import (
 __all__ = [
     "Rig",
     "Set",
+    "SoftBox",
     "Turntable",
+    "environmentMap",
     "litSet",
     "threePoint",
     "turntable",

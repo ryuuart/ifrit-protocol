@@ -34,7 +34,6 @@ sigil_library(SigilPython
     material/Environment.cpp material/Field.cpp
     material/PaintEffect.cpp material/Pattern.cpp
     material/Shader.cpp material/Shading.cpp material/Substance.cpp
-    material/Lighting.cpp
     material/Texture.cpp
     material/TextureSets.cpp measure/Measure.cpp motion/AnimatableForms.cpp
     motion/Clock.cpp motion/Lanes.cpp motion/Particles.cpp motion/Physics.cpp
@@ -82,8 +81,8 @@ sigil_library(SigilPython
     SigilMotionSchedule SigilSkiaDraw SigilSkiaGraphite
     SigilWeaveChoreograph SigilWeaveFonts SigilWeaveKit
     SigilWeaveLayout SigilWeavePaint SigilWeaveParagraph SigilWeavePorts
-    SigilWeaveQuery SigilWeaveStyle SigilWeaveUnicode SigilWorldElement
-    SigilWorldFrame SigilWorldGraph SigilWorldKit SigilWorldLight
+    SigilWeaveQuery SigilWeaveStyle SigilWeaveUnicode SigilWorldNode
+    SigilWorldFrame SigilWorldGraph SigilWorldKit
     SigilWorldScene)
 
 # A library whose SDK this build may not carry. The target's absence

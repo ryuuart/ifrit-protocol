@@ -907,25 +907,21 @@ library = "Scry"
 python = ["compose.web"]
 
 [requirement.world-chains]
-native = "`world::Element::chain`, `stamp` and `window`"
+native = "`world::points` over a chain, with its stamp and window"
 library = "World"
-python = [
-  "world.Element.chain",
-  "world.Element.stamp",
-  "world.Element.window",
-]
+python = ["world.points", "world.PointsOptions"]
 
 [requirement.world-environment]
-native = "`world::Environment` and `Element::environmentMap`"
+native = "`world::Frame::environment` and `world::kit::environmentMap`"
 library = "World"
-python = ["world.Environment", "world.Element.environmentMap"]
+python = ["world.Frame.environment", "world.kit.environmentMap"]
 
 [requirement.world-placement]
-native = "`world::Element::along` and `node`"
+native = "`world::PlacementVerbs::along` and the node read-back"
 library = "World"
 python = [
-  "world.Element.along",
-  "world.Element.node",
+  "world.Mesh.along",
+  "world.Node.node",
 ]
 
 [requirement.world-rails]

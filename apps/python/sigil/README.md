@@ -1457,10 +1457,9 @@ display or GPU.
 `sigil.world` exposes native retained scene declarations. A set is drawn on
 a device and nowhere else, and a Python process brings none up, so a
 `world.Scene` holds and reconciles a description — its nodes, placements,
-emitters and viewpoint — and draws nothing. A sketch that shows a set bakes
-it with `ctx.bakeSet(frame, camera, size, background, seconds)`, which
-draws on the device the host brought up and answers `None` where there is
-none. Import meshes and cameras from `sigil.geometry.mesh`, materials from
+lights and camera — and draws nothing. A sketch that shows a set bakes it
+with `ctx.bakeSet(frame, size, camera=…, background=…, at=…)`, which draws
+on the device the host brought up and answers `None` where there is none. Import meshes and cameras from `sigil.geometry.mesh`, materials from
 `sigil.material`, and animation values from `sigil.motion`. These are the
 same values used by the direct bindings.
 
@@ -1478,41 +1477,50 @@ class Vessel:
         finish = surfaces.program(
             surfaces.SurfaceParameters(baseColor="#87b9ad", roughness=0.45)
         )
-        model = (world.Element().key("vessel")
-                 .mesh(mesh.torus(65, 20)).fill(finish).rotateX(25))
+        model = (world.mesh(mesh.torus(65, 20)).key("vessel")
+                 .fill(finish).rotateX(25))
         lens = mesh.camera.Camera()
         lens.eye = (0, 120, 420)
         frame = world.Frame(world.kit.litSet(model, world.kit.Set(ground=0),
-                                             seconds=1))
-        still = ctx.bakeSet(frame, lens, (640, 480), background="#141d25")
+                                             now=1))
+        still = ctx.bakeSet(frame, (640, 480), camera=lens,
+                            background="#141d25")
         ctx.render(image(still) if still is not None else box())
 ```
 
-An `Element` supports keyed children, mesh and material values, tags,
-transforms, cameras and lights. `children` takes variadic elements or one
-iterable, including a tuple. Re-describing keyed nodes preserves native
-identity and shares equal mesh resources. Scalar lanes accept animatables,
+A scene is typed nodes: `world.group(...)` holds children, given as
+variadic nodes or one iterable, including a tuple; `world.mesh(m)` is a body
+that takes `fill` and `backface`; `world.directionalLight`,
+`world.pointLight` and `world.spotLight` make a `Light`, which takes
+`lightLink` and `shadowLink`; `world.camera(lens, exposure=…)` makes a
+`Camera`. Every kind takes `key`, `collection`, `at`, the rotation and scale
+lanes and `visible`. Re-describing keyed nodes preserves native identity and
+shares equal mesh resources. Scalar lanes accept animatables,
 bindings and tweens; `scene.advance(seconds)` moves the owned engine and
 samples the retained frame. Use it from an update callback
 when the scene includes timed transitions. Explicit time can instead drive
 fresh descriptions, as it does in `python_world_study`.
 
-A `Frame` supplies a camera, pixel extent and passes. `geometryPass` writes
-named resources; `postPass` can read, blur, grade and composite them. Add a
-pass with `frame.pass_(pass_value)` and choose the image with
+A `Frame` names its camera by key, its environment —
+`frame.environment(map, intensity=…, shown=…)` over a map
+`world.kit.environmentMap(...)` bakes from a gradient and soft boxes — a
+pixel extent and passes. `geometryPass` writes named resources; `postPass`
+can read, blur, grade and composite them. Add a pass with
+`frame.pass_(pass_value)` and choose the image with
 `frame.present("resource")`. Pass `reads` and `writes` accept variadic names
-or one iterable. Selectors combine with `|`, `&` and `~`; `Selection.All`
-disables selection filtering. Invalid frame graphs raise `ValueError`, and so
+or one iterable; `only` takes a collection's name or a `world.Collection`,
+whose `include` and `exclude` hold collection names and `/key` subtrees;
+`Selection.All` disables selection filtering. Invalid frame graphs raise `ValueError`, and so
 does a frame that declares passes to a `Scene`, which has no device to run
 them on.
 
 A scene stays on its creating thread and owns the engine its native
 reconciler borrows. Camera,
 light and statistics getters return copies. The three-point rig, turntable
-and lit-set kit compose ordinary native elements. Light and rig colors are
-linear RGBA sequences, matching the native light records.
+and lit-set kit compose ordinary native nodes. Light and rig colors are
+linear RGBA sequences, matching the native light values.
 
-The device runtime itself, environment lighting, texture-map authoring,
+The device runtime itself, texture-map authoring, points, curve rides,
 point-operator pipelines, custom pass callbacks and readbacks remain
 unbound; the Python API does not claim GPU PBR parity.
 

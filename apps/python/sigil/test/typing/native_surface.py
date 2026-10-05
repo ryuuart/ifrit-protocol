@@ -16,6 +16,7 @@ from sigil import (
     sketch,
     skia,
     weave,
+    world,
 )
 
 
@@ -32,10 +33,8 @@ tree = (
     compose.memo(Model(3), describe).width("100%").padding(horizontal=12, vertical=16)
 )
 assert_type(tree, compose.Element)
-key = material.Light(
-    kind=material.LightKind.Point, position=(0, 0, 180), intensity=motion.animatable(1)
-)
-assert_type(key, material.Light)
+key = world.pointLight(intensity=motion.animatable(1)).at((0, 0, 180))
+assert_type(key, world.Light)
 assert_type(
     tree.padding(all=8).margin(left=1, top=2, right=3, bottom=4), compose.Element
 )
