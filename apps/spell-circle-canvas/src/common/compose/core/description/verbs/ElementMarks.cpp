@@ -6,8 +6,8 @@
  */
 
 #include <sigilcompose/core/StyleSheet.h>
-#include <sigilmaterial/skia/Lit.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/skia/SurfaceMaps.h>
 
 #include <algorithm>
 

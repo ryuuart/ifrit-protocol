@@ -15,8 +15,8 @@
 #include <sigilmaterial/skia/Bevel.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Filter.h>
-#include <sigilmaterial/skia/Lit.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/skia/SurfaceMaps.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/Image.h>
 
@@ -39,7 +39,7 @@ struct ReliefEntry {
   float density = 0;
   size_t normalPixels = 0;
   material::Material surfaced = material::Color{0, 0, 0, 0};
-  std::optional<material::skia::LitSurface> prepared;
+  std::optional<material::skia::SurfaceMaps> prepared;
 };
 
 struct ReliefCache {

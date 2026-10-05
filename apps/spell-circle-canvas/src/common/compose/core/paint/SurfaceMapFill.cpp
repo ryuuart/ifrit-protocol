@@ -5,7 +5,7 @@
  * flat, through the fill beneath.
  */
 
-#include <sigilmaterial/skia/Lit.h>
+#include <sigilmaterial/skia/SurfaceMaps.h>
 
 #include "PaintInternal.h"
 #include "runtime/Instance.h"
@@ -30,24 +30,26 @@ bool Instance::inkUsesWorldSpace() const {
   return false;
 }
 
-const material::Paint* Instance::litFillOf(const MaterialData& slot) const {
+const material::Paint* Instance::surfaceMapFillOf(
+    const MaterialData& slot) const {
   if (!slot.surfaced) return nullptr;
   const material::Material& from = *slot.surfaced;
-  if (!litMaterial || *litMaterial != from) {
-    litMaterial = from;
-    litFillInputs.reset();
-    litFill.reset();
+  if (!surfaceMapMaterial || *surfaceMapMaterial != from) {
+    surfaceMapMaterial = from;
+    surfaceMapFillInputs.reset();
+    surfaceMapFill.reset();
   }
   // A page painted as a surface map paints the fill as that map of its
   // surface; the held paint is dropped when the map changes. Every other
   // draw paints the fill beneath, the material's colours flat.
   if (!owner || !owner->surfaceMap || !material::skia::isLit(from)) {
-    litFill.reset();
+    surfaceMapFill.reset();
     return nullptr;
   }
-  if (!litFillInputs) litFillInputs.emplace(from);
-  if (!litFill) litFill = litFillInputs->asMap(*owner->surfaceMap);
-  return &*litFill;
+  if (!surfaceMapFillInputs) surfaceMapFillInputs.emplace(from);
+  if (!surfaceMapFill)
+    surfaceMapFill = surfaceMapFillInputs->asMap(*owner->surfaceMap);
+  return &*surfaceMapFill;
 }
 
 }  // namespace sigil::compose::detail

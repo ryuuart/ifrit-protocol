@@ -504,7 +504,7 @@ void Composer::setSurfaceMap(std::optional<material::texture::Role> role) {
   if (impl.root) {
     std::function<void(Instance&)> walk = [&walk](Instance& inst) {
       inst.inkPaint.paint.reset();
-      inst.litFill.reset();
+      inst.surfaceMapFill.reset();
       for (auto& child : inst.children) walk(*child);
     };
     walk(*impl.root);

@@ -13,7 +13,7 @@
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/skia/Lit.h>
+#include <sigilmaterial/skia/SurfaceMaps.h>
 
 #include <array>
 #include <optional>

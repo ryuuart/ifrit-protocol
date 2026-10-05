@@ -10,7 +10,7 @@
 #include <include/core/SkShader.h>
 #include <sigilmaterial/advanced/FrameData.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/skia/Lit.h>
+#include <sigilmaterial/skia/SurfaceMaps.h>
 #include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/style/PaintStyle.h>
 
@@ -26,7 +26,7 @@ struct TextInk {
   /** A lit ink on a page painted as a surface map, resolved once its box
    *  is known: read as `map`. */
   struct Surface {
-    material::skia::LitSurface inputs;
+    material::skia::SurfaceMaps inputs;
     material::texture::Role map;
     /** The ink over the unit square @p paintToLocal places in the node. */
     sk_sp<SkShader> shader(const material::FrameData& frame,

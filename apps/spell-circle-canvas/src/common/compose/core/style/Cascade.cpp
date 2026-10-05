@@ -7,7 +7,7 @@
  */
 
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/skia/Lit.h>
+#include <sigilmaterial/skia/SurfaceMaps.h>
 #include <sigilweave/fonts/Shaper.h>
 #include <sigilweave/style/Type.h>
 
@@ -437,12 +437,13 @@ void Composer::Impl::resolveCascade(
   }
   // Prepared inputs belong to the effective surfaced fill. Dropping or
   // replacing that fill releases them even when the node does not paint.
-  if (inst.litMaterial) {
+  if (inst.surfaceMapMaterial) {
     const MaterialData* fill = fillSlotOf(inst);
-    if (!fill || !fill->surfaced || *fill->surfaced != *inst.litMaterial) {
-      inst.litFill.reset();
-      inst.litFillInputs.reset();
-      inst.litMaterial.reset();
+    if (!fill || !fill->surfaced ||
+        *fill->surfaced != *inst.surfaceMapMaterial) {
+      inst.surfaceMapFill.reset();
+      inst.surfaceMapFillInputs.reset();
+      inst.surfaceMapMaterial.reset();
     }
   }
   // THE MARKS THE MATCHED RULES STATE, laid under the node's own on the
@@ -797,17 +798,18 @@ void Composer::Impl::resolveCascade(
   // made last time stands while the ink's material has not moved.
   if (inkPaint.surfaced) {
     const bool sameMaterial = inst.inkPaint.surfaced == inkPaint.surfaced;
-    if (!sameMaterial) inst.litInkInputs.reset();
+    if (!sameMaterial) inst.surfaceMapInkInputs.reset();
     if (!first && sameMaterial && inst.inkPaint.paint) {
       inkPaint.paint = inst.inkPaint.paint;
     } else if (surfaceMap && material::skia::isLit(*inkPaint.surfaced)) {
-      if (!inst.litInkInputs) inst.litInkInputs.emplace(*inkPaint.surfaced);
-      inkPaint.paint = inst.litInkInputs->asMap(*surfaceMap);
+      if (!inst.surfaceMapInkInputs)
+        inst.surfaceMapInkInputs.emplace(*inkPaint.surfaced);
+      inkPaint.paint = inst.surfaceMapInkInputs->asMap(*surfaceMap);
     } else {
       inkPaint.paint = material::skia::paint(*inkPaint.surfaced);
     }
   } else {
-    inst.litInkInputs.reset();
+    inst.surfaceMapInkInputs.reset();
   }
   const bool shapeChanged = first || !sameFontButColour(font, inst.font);
   const bool inkChanged =
@@ -979,7 +981,7 @@ void Composer::Impl::refreshInheritedInk(Instance& inst) {
         next.paint.foregroundMaterial = previous;
       } else {
         retained.ink.reset();
-        retained.litInputs.reset();
+        retained.surfaceMapInputs.reset();
       }
       retained.style = std::move(next);
       retained.inkDeclared = text.spanRestyles[i].inkMaterial.has_value();

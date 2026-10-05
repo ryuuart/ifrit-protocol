@@ -11,7 +11,7 @@
  */
 
 #include <include/core/SkTypes.h>  // SkDebugf — the ignored-shell warning
-#include <sigilmaterial/skia/Lit.h>
+#include <sigilmaterial/skia/SurfaceMaps.h>
 
 #include <algorithm>
 #include <boost/unordered/unordered_flat_set.hpp>

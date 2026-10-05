@@ -14,8 +14,8 @@
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/skia/Color.h>
-#include <sigilmaterial/skia/Lit.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/skia/SurfaceMaps.h>
 
 #include <algorithm>
 #include <cmath>
@@ -30,7 +30,7 @@ struct MaterialStrokeCache {
       : material(input), prepared(input) {}
 
   material::Material material;
-  material::skia::LitSurface prepared;
+  material::skia::SurfaceMaps prepared;
 };
 
 namespace {

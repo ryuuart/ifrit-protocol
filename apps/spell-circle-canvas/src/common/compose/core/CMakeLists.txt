@@ -100,7 +100,7 @@ sigil_library(SigilComposeCore
     paint/GlyphInk.h
     paint/InstanceStamp.h
     paint/Instances.cpp
-    paint/LitSurface.cpp
+    paint/SurfaceMapFill.cpp
     paint/MaterialEffects.cpp
     paint/MaterialEffects.h
     paint/PaintContent.cpp

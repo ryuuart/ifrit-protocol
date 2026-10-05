@@ -45,7 +45,7 @@ inline const MaterialData* fillSlotOf(const Instance& inst) {
 inline const material::Paint* liveMaterialOf(const Instance& inst) {
   const MaterialData* slot = fillSlotOf(inst);
   if (slot && slot->surfaced)
-    if (const material::Paint* lit = inst.litFillOf(*slot)) return lit;
+    if (const material::Paint* lit = inst.surfaceMapFillOf(*slot)) return lit;
   return slot && slot->live ? &*slot->live : nullptr;
 }
 /** THE INK IN FORCE AS A PAINT at this instance, or null where the ink

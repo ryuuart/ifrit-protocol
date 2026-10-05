@@ -11,7 +11,7 @@
 #include <sigilcore/cache/Settle.h>
 #include <sigilcore/reconcile/Node.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/skia/Lit.h>
+#include <sigilmaterial/skia/SurfaceMaps.h>
 #include <sigilmotion/advanced/Held.h>
 #include <yoga/Yoga.h>
 
@@ -218,7 +218,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   InkInForce inkPaint;
   // Prepared ink inputs for the surface maps of a lit ink, kept while its
   // material stands.
-  std::optional<material::skia::LitSurface> litInkInputs;
+  std::optional<material::skia::SurfaceMaps> surfaceMapInkInputs;
   // Whether THIS node is the one that stated that paint — the box an
   // ink anchored to a declaring box maps onto.
   bool inkPaintOrigin = false;
@@ -243,13 +243,13 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   std::optional<SkSamplingOptions> sampling;
   // Prepared fill inputs for the surface maps of a lit fill, kept while
   // its material stands; the map paint is replaced when the map changes.
-  mutable std::optional<material::Paint> litFill;
-  mutable std::optional<material::Material> litMaterial;
-  mutable std::optional<material::skia::LitSurface> litFillInputs;
+  mutable std::optional<material::Paint> surfaceMapFill;
+  mutable std::optional<material::Material> surfaceMapMaterial;
+  mutable std::optional<material::skia::SurfaceMaps> surfaceMapFillInputs;
   /** The fill in force as the surface map the composer paints the page
    *  as, or null where the fill is not lit or no map is selected — where
    *  the fill beneath paints the material's colours flat. */
-  const material::Paint* litFillOf(const MaterialData& slot) const;
+  const material::Paint* surfaceMapFillOf(const MaterialData& slot) const;
   /** Whether the ink in force here, or a span's, samples root
    *  coordinates. */
   bool inkUsesWorldSpace() const;

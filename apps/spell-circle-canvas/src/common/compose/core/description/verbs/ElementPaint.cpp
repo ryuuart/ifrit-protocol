@@ -6,8 +6,8 @@
 #include <include/core/SkTypes.h>  // SkDebugf — the fill box's diagnostic
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilmaterial/filter/Filter.h>
-#include <sigilmaterial/skia/Lit.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/skia/SurfaceMaps.h>
 
 #include <optional>
 #include <type_traits>

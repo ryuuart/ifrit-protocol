@@ -8,7 +8,7 @@
 
 #include <include/core/SkPoint.h>
 #include <include/core/SkSize.h>
-#include <sigilmaterial/skia/Lit.h>
+#include <sigilmaterial/skia/SurfaceMaps.h>
 #include <sigilweave/layout/ParagraphLayout.h>
 #include <sigilweave/paragraph/Paragraph.h>
 
@@ -93,7 +93,7 @@ struct TextState {
     // The style owns the full source. The flat paint and the prepared
     // surface map inputs survive an equal replacement of the description.
     std::optional<material::Paint> ink;
-    std::optional<material::skia::LitSurface> litInputs;
+    std::optional<material::skia::SurfaceMaps> surfaceMapInputs;
 
     bool paints(const sigil::weave::Paragraph& paragraph) const;
     /** The span's ink as its colours, flat; null where it states none. */

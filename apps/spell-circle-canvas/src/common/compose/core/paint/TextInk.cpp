@@ -70,15 +70,15 @@ detail::TextInk Composer::Impl::textInkOf(Instance& inst,
       // On a page painted as a surface map a lit span paints that map of
       // its material; every other draw paints its colours flat.
       const bool asMap = surfaceMap && material::skia::isLit(*span.source);
-      if (asMap && !retained.litInputs)
-        retained.litInputs.emplace(*span.source);
+      if (asMap && !retained.surfaceMapInputs)
+        retained.surfaceMapInputs.emplace(*span.source);
       span.surfaceMap = asMap;
       if (asMap && span.unit) {
         span.surface =
-            detail::TextInk::Surface{*retained.litInputs, *surfaceMap};
+            detail::TextInk::Surface{*retained.surfaceMapInputs, *surfaceMap};
       } else {
         std::optional<material::Paint> mapped;
-        if (asMap) mapped = retained.litInputs->asMap(*surfaceMap);
+        if (asMap) mapped = retained.surfaceMapInputs->asMap(*surfaceMap);
         const material::Paint* paint = mapped ? &*mapped : retained.flatInk();
         if (!paint) continue;
         PaintContext context = paintCtx;
@@ -184,8 +184,8 @@ detail::TextInk Composer::Impl::textInkOf(Instance& inst,
   PaintContext metricCtx = paintCtx;
   metricCtx.size = {1.0f, 1.0f};
   std::optional<detail::TextInk::Surface> surface;
-  if (inst.litInkInputs && inst.inkPaint.surfaced && surfaceMap)
-    surface = detail::TextInk::Surface{*inst.litInkInputs, *surfaceMap};
+  if (inst.surfaceMapInkInputs && inst.inkPaint.surfaced && surfaceMap)
+    surface = detail::TextInk::Surface{*inst.surfaceMapInkInputs, *surfaceMap};
   const Fill f = surface ? Fill::none() : resolveFill(*metricMat, metricCtx);
   // AN INK THAT RESTARTS PER UNIT keeps its paint on the unit square: the
   // text engine lays it on each unit's own box. The passage mapping below

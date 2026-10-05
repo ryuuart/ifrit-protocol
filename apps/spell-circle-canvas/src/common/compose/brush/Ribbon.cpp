@@ -16,8 +16,8 @@
 #include <sigilgeometry/path/Band.h>
 #include <sigilgeometry/path/Numeric.h>
 #include <sigilmaterial/skia/Color.h>
-#include <sigilmaterial/skia/Lit.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/skia/SurfaceMaps.h>
 
 #include <cmath>
 
