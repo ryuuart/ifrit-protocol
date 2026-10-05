@@ -23,6 +23,10 @@ combines = "Native table sorting and domain scales over one illustrative CSV dat
 combines = "One document under two inherited role stylesheets"
 adapts = "document_styles"
 
+[study.python_flipbook_fire]
+combines = "A generated flame sheet played as a flipbook, coals moving along a flow map, embers each showing their own cell, a flickering light and bloom, baked on the device"
+ports = "flipbook_fire"
+
 [study.python_hello]
 combines = "A greeting and a moving circle, with two constants to edit"
 

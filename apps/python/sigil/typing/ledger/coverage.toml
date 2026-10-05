@@ -1762,9 +1762,30 @@ native = "`over` stacks and masks"
 python = ["material.over"]
 
 [[section.surface.item]]
-native = "`Texture`, texture discovery, `Atlas`, `EnvironmentMap` and `bevelNormals`"
+bound = "`Texture` over a Skia image, a `media.Image` or a `media.Video`, with `tile`, `uv`, `at`, `region` over a `PixelRect`, `sampling`, `colorSpace`, `mipmaps`, `size`, `frameAt` and equality; `image` over a texture, or over pixels with `ImageOptions`; `flipbook` over `FlipbookOptions`, whose `frame` and `progress` bind motion values, whose `frameAttribute` names an instance scalar and whose `motionVectors` push the blend; `flowmap` over `FlowmapOptions`; `instanceAttributeKey`"
 python = [
   "material.Texture",
+  "material.Texture.tile",
+  "material.Texture.uv",
+  "material.Texture.at",
+  "material.Texture.region",
+  "material.Texture.sampling",
+  "material.Texture.colorSpace",
+  "material.Texture.mipmaps",
+  "material.Texture.frameAt",
+  "material.PixelRect",
+  "material.image",
+  "material.ImageOptions",
+  "material.flipbook",
+  "material.FlipbookOptions",
+  "material.flowmap",
+  "material.FlowmapOptions",
+  "material.instanceAttributeKey",
+]
+
+[[section.surface.item]]
+native = "texture discovery, `Atlas`, `EnvironmentMap` and `bevelNormals`"
+python = [
   "material.Atlas",
   "material.EnvironmentMap",
   "material.bevelNormals",
@@ -1924,7 +1945,18 @@ native = "`mesh::curve` splines and frames"
 python = ["geometry.mesh.curve.Spline3"]
 
 [[section.surface.item]]
-native = "point clouds, `mesh::points` and the `mesh::pop` operators and sweeps"
+bound = "the `mesh.pop` chain: `on` a closed loop, a formed model's faces or another chain, the `Builder` verbs `count`, `window`, `spread`, `seed`, `jitter`, `noise`, `vary`, `fade`, `tint`, `lookAt`, `move`, `fill`, `atlas`, `rampBy`, `order`, `orderBy`, `promote`, `smooth`, `relax`, `cluster`, `select` over `Select.Shape` and `Select.Combine`, `masked`, `peak`, `twist`, `taper`, `bend`, `mix`, `mixBy`, `copy`, `drop`, `keep` and `normal` over lanes named by `Attribute` or a string, and the sinks `instances` and `stamps`, cooked on the CPU executor"
+python = [
+  "geometry.mesh.pop.on",
+  "geometry.mesh.pop.Builder",
+  "geometry.mesh.pop.Builder.instances",
+  "geometry.mesh.pop.Builder.stamps",
+  "geometry.mesh.pop.Attribute",
+  "geometry.mesh.pop.Select",
+]
+
+[[section.surface.item]]
+native = "point clouds, `mesh::points`, the raw `mesh::pop` operations, `affine`, `orient` and `transfer`, the `cloud`, `sweep` and `billboards` sinks, sweeps and runtimes other than the CPU executor"
 python = [
   "geometry.mesh.Cloud",
   "geometry.mesh.points.stamp",

@@ -4,7 +4,9 @@ Material by name, a colour bound in any spelling, the body painting what it
 returns, and a program file with no text that compiled answering the
 placeholder and standing on the hub's problems. Beside it, the stock
 programs written over options records: glass refraction, and normals made
-from a height or reoriented into a base."""
+from a height or reoriented into a base; and textures: an image and how it
+is sampled, played as a flipbook showing the cell its frame names, or moved
+along a flow map."""
 
 import tempfile
 import textwrap
@@ -283,6 +285,132 @@ class StockPrograms(unittest.TestCase):
         self.assertIsInstance(
             material.surface.blendNormals(base=flat, detail=dented), material.Material
         )
+
+
+SHEET = """from sigil import material, media
+from sigil.compose import box
+from sigil.sketch import sketch
+
+# Two by two cells of four pixels: red, green, blue and white.
+CELLS = ((255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 255))
+
+
+def sheet():
+    pixels = bytearray()
+    for y in range(8):
+        for x in range(8):
+            pixels += bytes(CELLS[(y // 4) * 2 + x // 4] + (255,))
+    return material.Texture(media.fromRgba(bytes(pixels), 8, 8)).sampling(
+        material.Sampling.Nearest
+    )
+
+
+@sketch(size=(8, 8), background="#000000", capture_at=0)
+class Scene:
+    def setup(self, ctx):
+        options = material.FlipbookOptions(columns=2, rows=2, framesPerSecond=0, frame=FRAME)
+        ctx.render(box().width(8).height(8).fill(material.flipbook(sheet(), options)))
+"""
+
+
+def blank_texture(width=4, height=4):
+    return material.Texture(media.fromRgba(bytes(width * height * 4), width, height))
+
+
+class Texture(unittest.TestCase):
+    def test_a_texture_states_its_sampling_and_reads_it_back(self):
+        plain = blank_texture()
+        self.assertTrue(plain.valid())
+        self.assertEqual(tuple(plain.size()), (4, 4))
+        self.assertEqual(plain.tileX(), material.Repeat.Pad)
+        self.assertIsNone(plain.region())
+        self.assertIsNone(plain.colorSpace())
+        self.assertIsNone(plain.mipmaps())
+        self.assertEqual(plain.sampling(), material.Sampling.Linear)
+        cut = (
+            plain.copy()
+            .tile(material.Repeat.Repeat)
+            .region(material.PixelRect(x=1, y=1, width=2, height=2))
+            .sampling(material.Sampling.Nearest)
+            .colorSpace(media.ColorSpace.Data)
+            .mipmaps(False)
+        )
+        self.assertEqual(cut.tileY(), material.Repeat.Repeat)
+        self.assertEqual(cut.region(), material.PixelRect(x=1, y=1, width=2, height=2))
+        self.assertEqual(tuple(cut.size()), (2, 2))
+        self.assertEqual(cut.colorSpace(), media.ColorSpace.Data)
+        self.assertFalse(cut.mipmaps())
+        self.assertEqual(cut, cut.copy())
+        self.assertNotEqual(cut, plain)
+        self.assertFalse(material.Texture().valid())
+
+    def test_a_flipbook_records_every_field_and_binds_a_frame(self):
+        vectors = blank_texture()
+        options = material.FlipbookOptions(
+            columns=4,
+            rows=2,
+            frames=6,
+            framesPerSecond=12,
+            loop=False,
+            blendFrames=True,
+            startFrame=3,
+            frame=motion.animatable(2.5),
+            frameAttribute="cell",
+            motionVectors=vectors,
+            motionStrength=0.5,
+        )
+        self.assertEqual((options.columns, options.rows, options.frames), (4, 2, 6))
+        self.assertFalse(options.loop)
+        self.assertTrue(options.blendFrames)
+        self.assertEqual(options.frameAttribute, "cell")
+        self.assertEqual(options.motionVectors, vectors)
+        self.assertIsNotNone(options.frame)
+        self.assertIsNone(options.progress)
+        options.progress = 0.5
+        self.assertIsNotNone(options.progress)
+        options.frame = None
+        self.assertIsNone(options.frame)
+        with self.assertRaises(TypeError):
+            material.FlipbookOptions(cells=4)
+        sheet = blank_texture()
+        self.assertEqual(
+            material.flipbook(sheet, material.FlipbookOptions(columns=2)),
+            material.flipbook(sheet, material.FlipbookOptions(columns=2)),
+        )
+        self.assertNotEqual(material.instanceAttributeKey("cell"), 0)
+        self.assertEqual(
+            material.instanceAttributeKey("cell"), material.instanceAttributeKey("cell")
+        )
+
+    def test_an_image_and_a_flow_map_are_materials(self):
+        flow = blank_texture().colorSpace(media.ColorSpace.Data)
+        source = material.image(blank_texture())
+        self.assertIsInstance(source, material.Material)
+        tiled = material.image(
+            media.fromRgba(bytes(16), 2, 2),
+            material.ImageOptions(repeat=material.Repeat.Repeat),
+        )
+        self.assertIsInstance(tiled, material.Material)
+        options = material.FlowmapOptions(flow=flow, strength=0.2, speed=0.25)
+        self.assertEqual(options.flow, flow)
+        self.assertIsInstance(material.flowmap(source, options), material.Material)
+
+    def test_a_flipbook_shows_the_cell_its_frame_names(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder) / "scene.py"
+            output = Path(folder) / "scene.png"
+            for frame, expected in (
+                (0, (255, 0, 0)),
+                (2, (0, 0, 255)),
+                (3, (255, 255, 255)),
+            ):
+                with self.subTest(frame=frame):
+                    source.write_text(SHEET.replace("FRAME", str(frame)))
+                    render_file(source, output, at=0)
+                    pixels = media.load(output).frameAt(0).image.rgba()
+                    offset = (4 * 8 + 4) * 4
+                    for actual, channel in zip(pixels[offset : offset + 3], expected):
+                        self.assertAlmostEqual(actual, channel, delta=1)
 
 
 if __name__ == "__main__":

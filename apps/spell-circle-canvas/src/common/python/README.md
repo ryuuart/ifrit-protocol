@@ -38,6 +38,19 @@ encoded normal maps over `HeightNormalOptions` and `NormalBlendOptions`.
 Compose's `relief(material, shoulder=, depth=)` is a `Decoration` that
 shades a material over the rounded relief of the outline it decorates.
 
+Material's `Texture` is built over a Skia image, a `media.Image` or a
+`media.Video` — the three picture kinds Python holds become the native
+pixel source — and its sampling verbs answer the texture for chaining;
+the same verb with no argument reads the dial back, since a Python name
+cannot be both a method and a property. `FlipbookOptions.frame` and
+`progress` go through the motion conversion, so a number, an `Animatable`
+or a `Tween` binds them and `None` hands the frame back to the clock.
+
+Geometry's `pop.Builder` verbs take a lane as a `pop.Attribute` or a
+string, which is the native attribute reference. `Builder.copy` with no
+arguments copies the chain; with a source and a destination it is the
+native lane copy. The builder's sinks cook on the CPU executor.
+
 ## Layout
 
 ONE DIRECTORY PER NATIVE LIBRARY, ONE FILE PER SUBJECT. Every binding

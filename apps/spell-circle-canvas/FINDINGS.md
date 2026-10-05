@@ -1850,3 +1850,18 @@ a node's scale does not resize a sized light. A test should assert that a
 brushed plate under a long strip light aligned with the brushing shows a
 longer highlight than one across it, and that a sheen under a wide panel
 grazing a cloth plate spreads over the panel's width.
+
+## API gap: a lane a point chain fills does not reach its instances
+
+`pop::Builder::instances(stamp, attributes)` in SigilGeometry carries a
+named lane to the instances only when the cooked points hold it as one
+scalar per point. The lanes a chain itself creates — `fill`, `cluster`,
+`select` — hold four numbers per point, so naming one in `attributes`
+carries nothing, and a chain cannot feed a flipbook's `frameAttribute`.
+`flipbook_fire` and its Python port build their `Instances` by hand for
+that reason.
+
+A lane the chain filled should reach each instance as the scalar the
+material asks for, by its first number. A test should assert that
+`pop::on(loop).fill("cell", {3, 0, 0, 0}).instances(quad, {"cell"})`
+answers 3 for every instance's `"cell"`.

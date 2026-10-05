@@ -13,6 +13,7 @@ import weakref
 
 from sigil import world
 from sigil.geometry import mesh
+from sigil.geometry.mesh import pop
 from sigil.material import Color, Material
 from sigil.material import surface as surfaces
 from sigil.motion import animatable
@@ -136,6 +137,35 @@ class World(unittest.TestCase):
         self.assertEqual(tuple(scene.camera.target), (5, 6, 7))
         with self.assertRaisesRegex(ValueError, "nowhere"):
             scene.render(world.group(world.camera(camera()).lookAt("nowhere")))
+
+    def test_a_point_chain_ends_in_instances_a_body_wears(self):
+        loop = [(0, 0, 0), (100, 0, 0), (100, 100, 0), (0, 100, 0)]
+        chain = (
+            pop.on(loop)
+            .count(24)
+            .spread(4)
+            .jitter(1.5)
+            .vary(0.3)
+            .fade((1, 0.5, 0, 1), (1, 1, 1, 1))
+            .select("top", pop.Select.Shape.Box, (50, 90, 0), (200, 40, 200))
+            .keep("top")
+        )
+        sparks = chain.instances(mesh.quad(4, 4))
+        self.assertGreater(len(sparks), 0)
+        self.assertLess(len(sparks), 24)
+        self.assertEqual(len(sparks.colors), len(sparks))
+        every = pop.on(loop).count(24).instances(mesh.quad(4, 4))
+        self.assertEqual(len(every), 24)
+        self.assertEqual(
+            len(pop.on(pop.on(loop).count(24)).count(5).instances(mesh.quad(1, 1))), 5
+        )
+        surface = pop.on(mesh.box((-50, -50, -50), (50, 50, 50)), 40).fill(
+            "heat", (1, 0, 0, 0)
+        )
+        self.assertEqual(len(surface.instances(mesh.quad(2, 2))), 40)
+        scene = world.Scene()
+        scene.render(world.group(world.mesh(sparks).key("sparks")))
+        self.assertNotEqual(scene.handleOf("sparks"), 0)
 
     def test_frame_passes_need_a_device_and_report_native_graph_errors(self):
         scene = world.Scene()

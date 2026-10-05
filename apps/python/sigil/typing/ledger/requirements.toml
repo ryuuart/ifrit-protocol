@@ -594,7 +594,7 @@ python = [
 [requirement.point-operators]
 native = "`geometry::mesh::pop` point-operator chains"
 library = "Geometry"
-python = ["geometry.mesh.pop.Chain"]
+python = ["geometry.mesh.pop.on", "geometry.mesh.pop.Builder"]
 
 [requirement.polylines]
 native = "`geometry::path::Polyline` resampling and smoothing"

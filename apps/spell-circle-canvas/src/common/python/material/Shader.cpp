@@ -159,9 +159,6 @@ void bindMaterialShader(py::module_& module) {
   py::enum_<material::Target>(materials, "Target")
       .value("SkSL", material::Target::SkSL)
       .value("Slang", material::Target::Slang);
-  py::enum_<material::Sampling>(materials, "Sampling")
-      .value("Nearest", material::Sampling::Nearest)
-      .value("Linear", material::Sampling::Linear);
   materials.def(
       "shader",
       [](const HubHandle& hub, const std::string& uri, py::object parameters,

@@ -40,11 +40,12 @@ void bindMaterialSubstance(pybind11::module_& module);
  *  transforms, and the Slang compiler on @p module. */
 void bindMaterialShading(pybind11::module_& module);
 /** Registers `material.shader`, a shader from its source or a file over
- *  the parameters a dict or a NamedTuple states, with `Target` and
- *  `Sampling`, on @p module. */
+ *  the parameters a dict or a NamedTuple states, with `Target`, on
+ *  @p module. */
 void bindMaterialShader(pybind11::module_& module);
-/** Registers textures, their three sources, leaves in material slots,
- *  bevel normals and masks on @p module. */
+/** Registers the texture — a picture, an image or a video and how it is
+ *  sampled — its sampling and pixel-rectangle values, the image leaf, the
+ *  flipbook, the flow map and the instance attribute key on @p module. */
 void bindMaterialTexture(pybind11::module_& module);
 /** Registers the authoring tools' texture folders by role, and the
  *  sprite atlas on @p module. */

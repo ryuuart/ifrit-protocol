@@ -1452,6 +1452,13 @@ to update the native mesh.
 The mesh painter runs on its native CPU executor and works without a
 display or GPU.
 
+`mesh.pop` builds point-operator chains: `pop.on(loop)`, `pop.on(model,
+count)` or `pop.on(chain)` enters points, each verb (`count`, `spread`,
+`window`, `jitter`, `vary`, `fade`, `select`, `masked`, `keep`, `twist`, …)
+appends one operation over lanes named by `pop.Attribute` or a string, and
+`chain.instances(stamp, attributes)` or `chain.stamps(stamp)` cooks it on the
+CPU executor into the `mesh.Instances` or `mesh.Mesh` a World body wears.
+
 ## Retained 3D scenes
 
 `sigil.world` exposes native retained scene declarations. A set is drawn on
@@ -1521,8 +1528,18 @@ light and statistics getters return copies. The three-point rig, turntable
 and lit-set kit compose ordinary native nodes. Light and rig colors are
 linear RGBA sequences, matching the native light values.
 
-The device runtime itself, texture-map authoring, points, curve rides,
-point-operator pipelines, custom pass callbacks and readbacks remain
+A surface's maps take textures: `material.Texture(picture)` over a Skia
+image, a `media.Image` or a `media.Video`, with `tile`, `region`,
+`sampling`, `colorSpace` and `mipmaps`; `material.image(texture)` is it as
+a material, `material.flipbook(sheet, material.FlipbookOptions(...))` plays
+a sheet of frames — on the clock, at a bound `frame` or `progress`, or at
+the scalar each instance carries under `frameAttribute` — and
+`material.flowmap(source, material.FlowmapOptions(flow=…))` moves a
+material along a texture of directions. `python_flipbook_fire` wears all
+three.
+
+The device runtime itself, texture-map sets, point clouds, curve rides,
+sweeps, a set's `Page`, custom pass callbacks and readbacks remain
 unbound; the Python API does not claim GPU PBR parity.
 
 ## Example gallery
@@ -1542,6 +1559,7 @@ Render one with `sigil render --example NAME -o preview.png`.
 | `python_data_garden` | Native CSV tables, sorting, and linear, band and square-root scales |
 | `python_mesh_observatory` | Parametric 3D knot, lathed vessel, regular solid, camera, native lighting |
 | `python_world_study` | Retained keyed 3D scene, shared vessel mesh, material finishes and moving native light rig |
+| `python_flipbook_fire` | Generated textures: a flame sheet played as a flipbook, a flow map, embers reading a per-instance cell, bloom |
 | `python_liquid_glass` | Shader-driven refraction, nested shader inputs, moving field uniforms, Bezier filaments |
 | `python_botanical_study` | Layered natural media, native hatching and dry pigment |
 | `python_liquid_layers` | Pressure-shaped ribbons, wet fibres, pigment blooms and pattern materials |

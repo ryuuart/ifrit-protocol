@@ -273,6 +273,7 @@ build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire \
 | `python_compose_stamps` | Retain · Python composition | Cached preview |
 | `python_dashboard` | Retain · Python composition | Cached preview |
 | `python_data_garden` | Retain · Python composition | Cached preview |
+| `python_flipbook_fire` | New · Python authoring study | Reviewed native and standalone plates |
 | `python_hello` | Retain · Python composition | Cached preview |
 | `python_hello_compose` | Retain · Python composition | Cached preview |
 | `python_kit_specimen` | Retain · Python composition | Cached preview |

@@ -66,7 +66,10 @@ def register(table: Table) -> None:
         "dispersion: typing.SupportsFloat = 0.0, "
         "distortion: Material | None = None, "
         "distortionStrength: typing.SupportsFloat = 0.0, "
-        "reflectionWeight: typing.SupportsFloat = 1.0, unlit: bool = False"
+        "reflectionWeight: typing.SupportsFloat = 1.0, unlit: bool = False, "
+        "blend: _sigil.material.skia.BlendMode = ..., "
+        "depthWrite: bool | None = None, "
+        "depthFade: typing.SupportsFloat = 0.0"
         ") -> Material: ...\n",
     )
     table.parameters(

@@ -182,6 +182,7 @@ if(SIGIL_TYPING_PYTHON)
         --example "${SIGIL_GRIMOIRE_DIR}/sketches/python_type_atelier.py"
         --example "${SIGIL_GRIMOIRE_DIR}/sketches/python_document.py"
         --example "${SIGIL_GRIMOIRE_DIR}/sketches/python_world_study.py"
+        --example "${SIGIL_GRIMOIRE_DIR}/sketches/python_flipbook_fire.py"
         --example "${CMAKE_CURRENT_SOURCE_DIR}/sigil/examples/tools/send_live_signals.py")
   endif()
 endif()
