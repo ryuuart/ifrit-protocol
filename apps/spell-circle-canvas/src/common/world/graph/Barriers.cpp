@@ -1,11 +1,10 @@
 /** @file
  * The barriers, as a plan rather than as an API call: between two
  * consecutive touches of one resource where either of them writes, and
- * between the resources that were handed one surface. The CPU executor
- * performs the steps in order and needs none of them; the plan is built
- * and checked all the same, because an ordering that only states its
- * hazards where a device is present states them where they cannot be
- * tested.
+ * between the resources that were handed one surface. The plan is built
+ * and checked whether or not a device runs it, because an ordering that
+ * only states its hazards where a device is present states them where
+ * they cannot be tested.
  */
 
 #include <algorithm>

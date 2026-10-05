@@ -6,15 +6,7 @@
  * to the bit, a readback arrives the frame after, a mask reaches the
  * selection and leaves the ground where it stood, a filter reads between
  * texels or does not, a surface that is its own light stands at its base
- * colour. A claim a picture makes whichever rasteriser drew it is
- * written once and answered on both tiers, with the tier as the
- * parameter.
- *
- * HOW FAR THE TWO TIERS STAND APART IS NOT ASKED HERE. Two rasterisers
- * are not the same picture bit for bit, the distance between them is a
- * different number per subject, and it moves with the scene rather than
- * with this code — so it is judged over the whole registry, against a
- * committed baseline, by the plate ledger's device tier.
+ * colour. Every case SKIPS where there is no Vulkan runtime to ask.
  */
 
 #include <gtest/gtest.h>
@@ -24,15 +16,15 @@
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
-#include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/advanced/Recipe.h>
-#include <sigilmaterial/surface/Surface.h>
+#include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/slang/SlangCompiler.h>
+#include <sigilmaterial/surface/Surface.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilshaders/WorldDiligent.h>
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/scene/Scene.h>
-#include <sigilmedia/advanced/Skia.h>
 
 #include <algorithm>
 #include <chrono>
@@ -78,7 +70,7 @@ Element set() {
 /** One frame, rendered on @p runtime and photographed from above and in
  *  front. */
 SkBitmap photograph(const Frame& frame, const Runtime& runtime) {
-  return diligent::photograph(frame, runtime, kExtent, diligent::raisedEye());
+  return diligent::photograph(frame, runtime, kExtent);
 }
 
 Frame lit() {
@@ -89,28 +81,19 @@ Frame lit() {
   return frame;
 }
 
-/** THE TWO TIERS, AS A PARAMETER. A claim a picture has to make
- *  whichever rasteriser drew it is written once and answered twice: on
- *  the host, which needs nothing, and on the device, which SKIPS where
- *  there is no Vulkan runtime to ask. */
-enum class Tier { Host, Device };
-
-class EitherTier : public testing::TestWithParam<Tier> {
+/** A CASE ASKED OF THE DEVICE, which SKIPS where there is no Vulkan
+ *  runtime to ask. */
+class DeviceFrame : public testing::Test {
  protected:
   void SetUp() override {
-    if (GetParam() == Tier::Host) return;
     on = diligent::onDevice();
     if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
     runtime = on.runtime;
   }
 
   diligent::OnDevice on;
-  Runtime runtime = Runtime::cpu();
+  Runtime runtime;
 };
-
-std::string tierName(const testing::TestParamInfo<Tier>& info) {
-  return info.param == Tier::Host ? "Host" : "Device";
-}
 
 }  // namespace
 
@@ -162,7 +145,8 @@ TEST(GpuRuntime, ACookedChainMatchesTheHostCook) {
     return points ? points->positions : std::vector<glm::vec3>{};
   };
 
-  const std::vector<glm::vec3> host = cooked(Runtime::cpu());
+  const std::vector<glm::vec3> host =
+      gm::pop::cook(chain, gm::pop::Runtime::cpu()).positions;
   const std::vector<glm::vec3> graphics = cooked(on.runtime);
   ASSERT_FALSE(host.empty());
   ASSERT_EQ(host.size(), graphics.size());
@@ -293,13 +277,12 @@ struct StandingSource {
 
 }  // namespace
 
-TEST_P(EitherTier, TheMapABodyIsDressedWithReachesThePixels) {
+TEST_F(DeviceFrame, TheMapABodyIsDressedWithReachesThePixels) {
   const SkBitmap plate = photograph(
       dressedQuad(dressed(flatMap({0.2f, 0.8f, 0.35f, 1.0f}))), runtime);
   // The map, not the surface: a white surface under a green map is
   // green wherever the card stands.
-  const SkColor4f centre =
-      plate.getColor4f(kExtent.x / 2, kExtent.y / 2);
+  const SkColor4f centre = plate.getColor4f(kExtent.x / 2, kExtent.y / 2);
   EXPECT_GT(centre.fG, centre.fR + 0.15f);
   EXPECT_GT(centre.fG, centre.fB + 0.15f);
 }
@@ -332,7 +315,7 @@ Frame squareFrame(Element element) {
 
 /** One frame, rendered on @p runtime and photographed square on. */
 SkBitmap photographSquare(const Frame& frame, const Runtime& runtime) {
-  return diligent::photograph(frame, runtime, kExtent, squareOn());
+  return diligent::photograph(frame, runtime, kExtent);
 }
 
 /** Is this pixel a card's rather than the ground's? Every card below is
@@ -353,8 +336,8 @@ std::vector<std::pair<int, int>> cardsAcrossTheMiddle(const SkBitmap& plate) {
     const bool card = onACard(plate.getColor4f(x, y));
     if (card && start < 0) start = x;
     if (!card && start >= 0) {
-      // Two columns in from either edge, so no run keeps the pixels two
-      // rasterisers antialias differently.
+      // Two columns in from either edge, so no run keeps the pixels the
+      // card's edge antialiases.
       if (x - 1 - start > 4) runs.emplace_back(start + 2, x - 3);
       start = -1;
     }
@@ -415,10 +398,11 @@ const std::vector<float>& quarters() {
 
 }  // namespace
 
-TEST_P(EitherTier, ANearestFilteredMapIsTwoColoursAndOneEdge) {
+TEST_F(DeviceFrame, ANearestFilteredMapIsTwoColoursAndOneEdge) {
   const std::vector<float> across = acrossTheCard(
-      photographSquare(mappedCard(twoTexelMap().sampling(material::Sampling::Nearest)),
-                       runtime),
+      photographSquare(
+          mappedCard(twoTexelMap().sampling(material::Sampling::Nearest)),
+          runtime),
       quarters());
   ASSERT_EQ(across.size(), quarters().size());
   // The samples either side of the middle agree exactly, and the pair
@@ -428,10 +412,11 @@ TEST_P(EitherTier, ANearestFilteredMapIsTwoColoursAndOneEdge) {
   EXPECT_GT(std::abs(across[1] - across[2]), 0.5f);
 }
 
-TEST_P(EitherTier, ALinearFilteredMapIsAGradientBetweenTwoTexels) {
+TEST_F(DeviceFrame, ALinearFilteredMapIsAGradientBetweenTwoTexels) {
   const std::vector<float> across = acrossTheCard(
-      photographSquare(mappedCard(twoTexelMap().sampling(material::Sampling::Linear)),
-                       runtime),
+      photographSquare(
+          mappedCard(twoTexelMap().sampling(material::Sampling::Linear)),
+          runtime),
       quarters());
   ASSERT_EQ(across.size(), quarters().size());
   // Every step along the card moves, because every sample is read
@@ -441,20 +426,19 @@ TEST_P(EitherTier, ALinearFilteredMapIsAGradientBetweenTwoTexels) {
   EXPECT_LT(across[2], across[3]);
 }
 
-TEST_P(EitherTier, AMapAskedToRepeatIsAsManyOfItselfAsItWasAsked) {
+TEST_F(DeviceFrame, AMapAskedToRepeatIsAsManyOfItselfAsItWasAsked) {
   // A map asked to repeat, over a card four of itself wide, is four of
   // itself. Clamping instead is not a near miss: past the image's own
   // edge one row of texels is dragged across the whole rest of the face,
   // so a floor whose repeat is what says how large a room is says
   // nothing at all — and every pixel of it still looks like a surface.
   constexpr float kTimes = 4.0f;
-  const Frame frame =
-      mappedCard(twoTexelMap()
-                     .sampling(material::Sampling::Nearest)
-                     .tile(material::Repeat::Repeat)
-                     .uv(glm::mat3(glm::vec3(1.0f / kTimes, 0, 0),
-                                   glm::vec3(0, 1.0f / kTimes, 0),
-                                   glm::vec3(0, 0, 1))));
+  const Frame frame = mappedCard(
+      twoTexelMap()
+          .sampling(material::Sampling::Nearest)
+          .tile(material::Repeat::Repeat)
+          .uv(glm::mat3(glm::vec3(1.0f / kTimes, 0, 0),
+                        glm::vec3(0, 1.0f / kTimes, 0), glm::vec3(0, 0, 1))));
   // The middle of each half of each repeat, so no sample lands on a
   // seam: eight of them, alternating dark and light all the way across.
   std::vector<float> at(8);
@@ -510,7 +494,7 @@ bool cardCentres(const SkBitmap& plate, int* lit, int* unlit) {
 
 }  // namespace
 
-TEST_P(EitherTier, AnUnlitSurfaceIsItsOwnLight) {
+TEST_F(DeviceFrame, AnUnlitSurfaceIsItsOwnLight) {
   const SkBitmap plate = photographSquare(litAndUnlitCards(), runtime);
   int litAt = 0, unlitAt = 0;
   ASSERT_TRUE(cardCentres(plate, &litAt, &unlitAt));
@@ -549,14 +533,13 @@ TEST(GpuRuntime, AMapAlreadyOnThisDeviceIsBoundWhereItStands) {
   const SkBitmap graphics =
       photograph(dressedQuad(dressed(material::Texture(StandingSource{where}))),
                  on.runtime);
-  const SkColor4f centre =
-      graphics.getColor4f(kExtent.x / 2, kExtent.y / 2);
+  const SkColor4f centre = graphics.getColor4f(kExtent.x / 2, kExtent.y / 2);
   EXPECT_GT(centre.fB, centre.fR + 0.15f);
   EXPECT_GT(centre.fB, centre.fG + 0.15f);
   on.device->gpu()->destroy(painted.handle);
 }
 
-TEST_P(EitherTier, AVariantReDrawStandsUnderThePassesLights) {
+TEST_F(DeviceFrame, AVariantReDrawStandsUnderThePassesLights) {
   // A variant surface is a colour laid over the bodies a selector names,
   // and it is shaded by the pass's own lights the way any body is: the
   // side of the sphere facing away from the sun is darker in the overlay
@@ -568,7 +551,8 @@ TEST_P(EitherTier, AVariantReDrawStandsUnderThePassesLights) {
                 .writes("colour")
                 .clear(SkColors::kBlack)
                 .only(selectors::tag("glow"))
-                .variant(material::surface::program({.baseColor = {1, 1, 1, 1}})));
+                .variant(
+                    material::surface::program({.baseColor = {1, 1, 1, 1}})));
   const SkBitmap plate = photograph(frame, runtime);
   // The sphere stands at the centre of the frame; the sun travels toward
   // -x, so its +x side is the lit one.
@@ -587,7 +571,7 @@ TEST_P(EitherTier, AVariantReDrawStandsUnderThePassesLights) {
   EXPECT_LT(luma(shaded), luma(sunlit) - 0.1f);
 }
 
-TEST_P(EitherTier, APartOfThePictureIsThatPartOfTheWhole) {
+TEST_F(DeviceFrame, APartOfThePictureIsThatPartOfTheWhole) {
   // A frame whose targets are a part of a larger picture is formed
   // through the whole picture's projection carried off-centre, so each
   // pixel of the part is the pixel the whole picture holds there — and
@@ -598,10 +582,8 @@ TEST_P(EitherTier, APartOfThePictureIsThatPartOfTheWhole) {
   whole.extent(kWhole);
   Frame part = lit();
   part.viewOffset({kWhole, kCorner});
-  const SkBitmap all =
-      diligent::photograph(whole, runtime, kWhole, diligent::raisedEye());
-  const SkBitmap piece =
-      diligent::photograph(part, runtime, kWhole, diligent::raisedEye());
+  const SkBitmap all = diligent::photograph(whole, runtime, kWhole);
+  const SkBitmap piece = diligent::photograph(part, runtime, kWhole);
 
   const SkIRect region =
       SkIRect::MakeXYWH(kCorner.x, kCorner.y, kExtent.x, kExtent.y);
@@ -616,10 +598,136 @@ TEST_P(EitherTier, APartOfThePictureIsThatPartOfTheWhole) {
   EXPECT_EQ(piece.getColor(kCorner.x - 4, kWhole.y / 2), SK_ColorBLACK);
 }
 
-INSTANTIATE_TEST_SUITE_P(Tiers, EitherTier,
-                         testing::Values(Tier::Host, Tier::Device), tierName);
-
 // ---- the embedded shader table --------------------------------------------
+
+// ---- what a pass draws -----------------------------------------------------
+
+namespace {
+
+/** How many pixels of one half of @p plate hold anything brighter than
+ *  the black every photograph stands on. */
+int litIn(const SkBitmap& plate, bool leftHalf) {
+  int count = 0;
+  const int mid = plate.width() / 2;
+  for (int y = 0; y < plate.height(); ++y)
+    for (int x = 0; x < plate.width(); ++x) {
+      if (leftHalf != (x < mid)) continue;
+      const SkColor4f c = plate.getColor4f(x, y);
+      if (std::max({c.fR, c.fG, c.fB}) > 4.0f / 255.0f) ++count;
+    }
+  return count;
+}
+
+/** One plain card on the left and one tagged "glow" on the right, square
+ *  on to the camera under a sun behind it. */
+Element twoCards() {
+  namespace gm = ::sigil::geometry::mesh;
+  return Element().key("set").children(
+      {Element().key("sun").light(light::sun({0.0f, 0.0f, -1.0f})),
+       Element()
+           .key("left")
+           .at({-60, 0, 0})
+           .mesh(gm::quad(80, 80))
+           .fill(slangPaint({0.8f, 0.6f, 0.3f, 1.0f}))
+           .tag("plain"),
+       Element()
+           .key("right")
+           .at({60, 0, 0})
+           .mesh(gm::quad(80, 80))
+           .fill(slangPaint({0.3f, 0.6f, 0.8f, 1.0f}))
+           .tag("glow")});
+}
+
+}  // namespace
+
+TEST_F(DeviceFrame, AVisibleBackfaceKeepsAPlaneUnderAnOrbit) {
+  namespace gm = ::sigil::geometry::mesh;
+  geometry::mesh::camera::Camera behind = squareOn();
+  behind.eye.z = -240;
+  const auto fromBehind = [&](material::Backface backface) {
+    Frame frame(Element().key("set").children(
+        {Element().key("sun").light(light::sun({0.0f, 0.0f, 1.0f})),
+         Element()
+             .key("card")
+             .mesh(gm::quad(120, 120))
+             .fill(slangPaint({0.9f, 0.6f, 0.2f, 1.0f}))
+             .backface(backface)}));
+    frame.extent(kExtent).camera(behind).pass(
+        geometryPass("colour").writes("colour").clear(SkColors::kBlack));
+    const SkBitmap plate = photograph(frame, runtime);
+    return litIn(plate, true) + litIn(plate, false);
+  };
+  EXPECT_EQ(fromBehind(material::Backface::Hidden), 0);
+  EXPECT_GT(fromBehind(material::Backface::Visible), 0);
+}
+
+TEST_F(DeviceFrame, ACulledGeometryPassDrawsOnlyItsSelection) {
+  Frame frame(twoCards());
+  frame.extent(kExtent)
+      .camera(squareOn())
+      .pass(geometryPass("glow")
+                .only(selectors::tag("glow"))
+                .writes("colour")
+                .clear(SkColors::kBlack));
+  const SkBitmap plate = photograph(frame, runtime);
+  EXPECT_EQ(litIn(plate, /*leftHalf=*/true), 0);
+  EXPECT_GT(litIn(plate, /*leftHalf=*/false), 0);
+}
+
+TEST_F(DeviceFrame, APreviousReadIsWhatStoodAtTheEndOfTheFrameBefore) {
+  Frame frame(twoCards());
+  frame.extent(kExtent)
+      .camera(squareOn())
+      .runtime(runtime)
+      .pass(geometryPass("main").writes("colour").clear(SkColors::kBlack))
+      .pass(postPass("trail")
+                .reads("colour")
+                .previous("trail")
+                .writes("trail")
+                .composite(material::BlendMode::PlusLighter, 1.0f))
+      .present("trail");
+  motion::Engine engine;
+  Scene scene(engine);
+  const auto picture = [&] {
+    SkBitmap bitmap;
+    bitmap.allocPixels(SkImageInfo::MakeN32Premul(kExtent.x, kExtent.y));
+    SkCanvas canvas(bitmap);
+    canvas.clear(SK_ColorBLACK);
+    draw(scene, canvas);
+    return bitmap;
+  };
+
+  // The first frame has no previous, so the trail is only the picture;
+  // the second adds last frame's trail to it, and a card only brightens.
+  scene.render(frame);
+  ASSERT_TRUE(scene.error().empty()) << scene.error();
+  const SkBitmap once = picture();
+  scene.render(frame);
+  const SkBitmap twice = picture();
+  const SkColor4f first = once.getColor4f(kExtent.x / 4, kExtent.y / 2);
+  const SkColor4f second = twice.getColor4f(kExtent.x / 4, kExtent.y / 2);
+  EXPECT_GT(first.fR, 0.05f) << "the card is not where the case looks";
+  EXPECT_GT(second.fR, first.fR + 0.05f);
+}
+
+TEST_F(DeviceFrame, ADeclaredBodyRunsInPlaceOfItsStage) {
+  int ran = 0;
+  size_t seen = 0;
+  Frame frame(twoCards());
+  frame.extent(kExtent)
+      .camera(squareOn())
+      .runtime(runtime)
+      .pass(geometryPass("hand").writes("colour").body([&](const View& view) {
+        ++ran;
+        seen = view.draws.size();
+      }));
+  motion::Engine engine;
+  Scene scene(engine);
+  scene.render(frame);
+  ASSERT_TRUE(scene.error().empty()) << scene.error();
+  EXPECT_EQ(ran, 1);
+  EXPECT_EQ(seen, 2u);
+}
 
 TEST(Programs, TheShaderTableHoldsEveryFileTheDirectoryDoes) {
   sigil::test::expectShaderTableIsWholeDirectory(diligent::shaderSources(),

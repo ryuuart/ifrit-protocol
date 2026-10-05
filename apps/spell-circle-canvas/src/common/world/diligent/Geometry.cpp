@@ -38,8 +38,9 @@ namespace sigil::world::diligent {
 
 namespace {
 
-/** The shading terms the CPU tier holds in its style, so that the two
- *  tiers answer the same question of the same scene. */
+/** The stock shading terms every lit body is drawn with: the flat
+ *  ambient a set with no sky stands in, and the highlight and rim that no
+ *  surface parameter reaches. */
 constexpr float kAmbient[4] = {0.12f, 0.12f, 0.15f, 1.0f};
 constexpr float kSpecular = 0.5f;
 constexpr float kShininess = 48.0f;
@@ -163,8 +164,7 @@ void writeScaffold(material::slang::Uniforms& uniforms,
                glm::mat4(glm::inverseTranspose(glm::mat3(view))));
   // THE AMBIENT CONSTANT, and what replaces it. A set carrying a
   // panorama reads what actually falls on a surface facing each way; one
-  // that carries none keeps the single value both tiers hold, so its
-  // picture is what it was.
+  // that carries none keeps the stock constant.
   uniforms.set("uAmbient", kAmbient, 4);
   const bool hasSky = levels > 0;
   uniforms.set("uEnvTint", sky.tint.x * sky.intensity,
@@ -257,11 +257,9 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
   for (size_t i = 0; i < textures.size(); ++i) {
     const std::string& slot = surface.program->textures[i];
     // THE BASE COLOUR MAP IS THE SCAFFOLD'S, and only the scaffold's. It
-    // multiplies the SHADED colour rather than the surface before it,
-    // because the host tier's rasteriser can only modulate a texture
-    // against the colour it already shaded — so the body's own base
-    // colour slot is left reading white and the map lands once, on the
-    // side of the lighting both tiers put it.
+    // multiplies the SHADED colour rather than the surface before it, so
+    // the body's own base colour slot is left reading white and the map
+    // lands once, after the lighting.
     if (slot == kMapSlot) {
       // Asked of the device and not of the host image: a source whose
       // pixels stand on this device has no host image to check for.
@@ -409,8 +407,7 @@ void drawBodies(Gpu& gpu, const View& view, const glm::mat4& viewProj,
   // Whether the flat colour is then SHADED is the pass's call — coverage
   // is not a picture and is drawn unlit; a variant surface is a colour
   // laid over the bodies a selector names and stands under the pass's
-  // lights like any other, which is the same reading the host tier makes
-  // of it.
+  // lights like any other.
   for (const Draw& body : view.draws) {
     if (!body.mesh) continue;
     if (only && !only->matches(subjectOf(body))) continue;

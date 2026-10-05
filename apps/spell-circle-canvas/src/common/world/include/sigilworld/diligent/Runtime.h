@@ -2,8 +2,8 @@
 
 /** @file
  * @ingroup world-diligent
- * The GPU executor, as a VALUE: the same Frame, the same passes and the
- * same declarations, performed on a device instead of on the CPU.
+ * The GPU executor, as a VALUE: the one that performs a frame's passes,
+ * on a device.
  */
 
 #include <sigilworld/frame/Runtime.h>

@@ -58,13 +58,10 @@ uniform float4x4 uViewProj;
 uniform float4x4 uModel;
 /** The colour a body wears when its material has no program to run. */
 uniform float4 uBaseColor;
-/** THE MAP the body is dressed with, multiplied into the SHADED colour.
- *  Not into the surface before the lighting: the host tier's rasteriser
- *  can only modulate a texture against the colour it already shaded, and
- *  a map that landed on one side of the lighting here and the other side
- *  there would make the two tiers different pictures. A body given no
- *  map reads one white texel, so a colour multiplied by a map it does
- *  not have is that colour. */
+/** THE MAP the body is dressed with, multiplied into the SHADED colour
+ *  rather than into the surface before the lighting. A body given no map
+ *  reads one white texel, so a colour multiplied by a map it does not
+ *  have is that colour. */
 uniform Sampler2D uBaseColorMap;
 /** Where that map is read at, over the mesh's own uv coordinates: the
  *  identity reads the image once across them. */
@@ -328,8 +325,8 @@ void shadeAgain(VSOut input, float3 albedo, out float3 outMul,
 
   // WHAT REACHES THE SURFACE FROM EVERYWHERE. With a panorama that is
   // what the panorama says, direction by direction; without one it is
-  // the single constant both tiers hold. Either way a metal takes no
-  // light into its diffuse.
+  // the stock constant. Either way a metal takes no light into its
+  // diffuse.
   float3 ambient = sky ? irradianceAt(n) : uAmbient.rgb;
   float3 factor = ambient * (1.0 - metal);
   float3 term = float3(0.0, 0.0, 0.0);

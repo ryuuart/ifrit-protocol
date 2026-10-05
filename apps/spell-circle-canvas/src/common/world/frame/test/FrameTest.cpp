@@ -1,23 +1,19 @@
 /** @file
- * The frame's declarations and the CPU executor that performs them: a
- * pass compares as a value, a geometry pass paints what its realisation
- * leaves it, a post pass reads what stands and what stood last frame, a
- * compute pass cooks, and a declared body is handed the extracted view.
+ * The frame's declarations and the resources its passes leave: a pass
+ * compares as a value, a body compares only with its own copies, a
+ * stamped point set is formed once while it stands still, and a frame
+ * with no passes is its scene. What an executor draws is the device's,
+ * and its cases stand beside it.
  */
 
 #include <gtest/gtest.h>
-#include <include/core/SkBitmap.h>
-#include <include/core/SkCanvas.h>
-#include <include/core/SkColor.h>
-#include <include/core/SkImageInfo.h>
-#include <sigilgeometry/mesh/pop/Pop.h>
+#include <sigilgeometry/mesh/Mesh.h>
 #include <sigilworld/advanced/Skia.h>
 #include <sigilworld/element/Node.h>
 #include <sigilworld/frame/Frame.h>
 #include <sigilworld/frame/Runtime.h>
 
-#include <glm/gtc/matrix_transform.hpp>
-#include <memory>
+#include <glm/vec3.hpp>
 #include <string>
 #include <vector>
 
@@ -25,93 +21,16 @@
 
 using namespace sigil;
 using namespace sigil::world;
-using namespace sigil::world::test;
 
 namespace {
 
-constexpr glm::ivec2 kExtent{80, 80};
-
-/** Two squares side by side, the right one tagged "glow". */
-struct Bodies {
-  geometry::mesh::Mesh mesh = geometry::mesh::quad(80.0f, 80.0f);
-  std::vector<std::string> none;
-  std::vector<std::string> glow = {"glow"};
-  std::vector<Draw> draws;
-  std::vector<material::Light> lights;
-
-  Bodies() {
-    Draw left;
-    left.mesh = &mesh;
-    left.world = glm::translate(glm::mat4(1.0f), {-52.0f, 0.0f, 0.0f});
-    left.baseColor = {0.2f, 0.4f, 0.9f, 1.0f};
-    left.key = "left";
-    left.tags = none;
-    Draw right = left;
-    right.world = glm::translate(glm::mat4(1.0f), {52.0f, 0.0f, 0.0f});
-    right.baseColor = {0.9f, 0.5f, 0.2f, 1.0f};
-    right.key = "right";
-    right.tags = glow;
-    draws = {left, right};
-  }
-
-  View view() const {
-    View v;
-    v.draws = draws;
-    v.lights = lights;
-    v.camera = frontCamera(260.0f);
-    v.extent = kExtent;
-    return v;
-  }
-};
-
-/** WHAT A PASS WROTE, brought back as pixels. An empty bitmap where
- *  there was nothing to read, so a case that expected a target and got
- *  none reads as no ink rather than as a crash. */
-SkBitmap read(const sk_sp<SkImage>& image) {
-  SkBitmap plate;
-  if (!image) return plate;
-  plate.allocPixels(
-      SkImageInfo::MakeN32Premul(image->width(), image->height()));
-  if (!image->readPixels(plate.pixmap(), 0, 0)) plate.reset();
-  return plate;
-}
-
-/** …and the resource @p targets holds under @p name. */
-SkBitmap read(Targets& targets, const char* name) {
-  return read(targets.image(name));
-}
-
-/** How much ink stands in one half of what a pass wrote. */
-int inkIn(const sk_sp<SkImage>& image, bool leftHalf) {
-  return test::paintedIn(read(image), leftHalf);
-}
-
-/** …and over the whole of it. */
-int inkOver(const sk_sp<SkImage>& image) {
-  const SkBitmap plate = read(image);
-  return test::paintedIn(plate, true) + test::paintedIn(plate, false);
-}
-
-/** THE COMPUTE PASS the cases below cook the same point set with: 48
- *  motes spread along one closed path. */
-Pass cookMotes() {
-  const std::vector<glm::vec3> path = {
-      {-40, 0, 0}, {0, 30, 0}, {40, 0, 0}, {0, -30, 0}};
-  return computePass("cook").writes("motes").chain(
-      geometry::mesh::pop::on(path).count(48).spread(3.0f));
-}
-
-PassWork workOf(const Pass& pass, Selection realisation = Selection::None) {
-  PassWork work;
-  work.pass = &pass;
-  work.realisation = realisation;
-  return work;
-}
-
-Targets targetsAt(glm::ivec2 extent) {
-  Targets targets;
-  targets.extent(extent);
-  return targets;
+/** 48 motes spread along one closed path, as a point set a compute pass
+ *  would have written. */
+geometry::mesh::Cloud motes() {
+  geometry::mesh::Cloud cloud;
+  for (int i = 0; i < 48; ++i)
+    cloud.positions.push_back({(float)i * 2.0f - 48.0f, (float)(i % 7), 0.0f});
+  return cloud;
 }
 
 }  // namespace
@@ -143,16 +62,26 @@ TEST(WorldFrame, ABodyNamesOnlyWhatItReadsAndTheValueFormStillCompares) {
   // seam value is untouched by that — it is still the form a frame prunes
   // on, and a callable still compares equal to nothing but its own copies.
   int ran = 0;
-  Bodies bodies;
-  Targets targets = targetsAt(kExtent);
+  const geometry::mesh::Mesh mesh = geometry::mesh::quad(80.0f, 80.0f);
+  std::vector<Draw> draws(2);
+  for (Draw& draw : draws) draw.mesh = &mesh;
+  View view;
+  view.draws = draws;
+  Targets targets;
   const Pass bare = geometryPass("bare").body([&ran] { ++ran; });
-  Runtime::cpu()->execute(workOf(bare), bodies.view(), targets);
+  bare.body()->run(view, targets);
   EXPECT_EQ(ran, 1);
-  size_t draws = 0;
+  size_t seen = 0;
   const Pass viewed = geometryPass("viewed").body(
-      [&draws](const View& view) { draws = view.draws.size(); });
-  Runtime::cpu()->execute(workOf(viewed), bodies.view(), targets);
-  EXPECT_EQ(draws, bodies.view().draws.size());
+      [&seen](const View& handed) { seen = handed.draws.size(); });
+  viewed.body()->run(view, targets);
+  EXPECT_EQ(seen, 2u);
+  const Pass both =
+      geometryPass("both").body([&seen](const View& handed, Targets& into) {
+        seen = handed.draws.size() + (into.points("motes") ? 1 : 0);
+      });
+  both.body()->run(view, targets);
+  EXPECT_EQ(seen, 3u);
   EXPECT_NE(bare, geometryPass("bare").body([&ran] { ++ran; }));
   EXPECT_EQ(bare, Pass(bare));
 }
@@ -162,154 +91,18 @@ TEST(WorldFrame, ADeclaredNameIsNamedOnce) {
   EXPECT_EQ(pass.writes().size(), 1u);
 }
 
-TEST(WorldFrame, AGeometryPassPaintsEveryBody) {
-  Bodies bodies;
-  Targets targets = targetsAt(kExtent);
-  const Pass pass = geometryPass("main").writes("colour");
-  Runtime::cpu()->execute(workOf(pass), bodies.view(), targets);
-
-  const sk_sp<SkImage> colour = targets.image("colour");
-  EXPECT_GT(inkIn(colour, /*leftHalf=*/true), 0);
-  EXPECT_GT(inkIn(colour, /*leftHalf=*/false), 0);
-}
-
-TEST(WorldFrame, AMaskRealisationPaintsCoverageAndNothingElse) {
-  Bodies bodies;
-  Targets targets = targetsAt(kExtent);
-  const Pass pass =
-      geometryPass("cover").only(selectors::tag("glow")).writes("mask");
-  Runtime::cpu()->execute(workOf(pass, Selection::Mask), bodies.view(),
-                          targets);
-
-  const sk_sp<SkImage> mask = targets.image("mask");
-  EXPECT_EQ(inkIn(mask, /*leftHalf=*/true), 0);
-  EXPECT_GT(inkIn(mask, /*leftHalf=*/false), 0);
-}
-
-TEST(WorldFrame, AVariantRealisationDrawsTheSelectionAgain) {
-  Bodies bodies;
-  Targets plain = targetsAt(kExtent);
-  Targets varied = targetsAt(kExtent);
-
-  const material::Material white = paint({1, 1, 1, 1});
-
-  const Pass ordinary = geometryPass("main").writes("colour");
-  Runtime::cpu()->execute(workOf(ordinary), bodies.view(), plain);
-  const Pass over = geometryPass("main")
-                        .writes("colour")
-                        .only(selectors::tag("glow"))
-                        .variant(white);
-  Runtime::cpu()->execute(workOf(over, Selection::Variant), bodies.view(),
-                          varied);
-
-  // The left body is untouched and the right one is repainted.
-  EXPECT_EQ(inkIn(plain.image("colour"), true),
-            inkIn(varied.image("colour"), true));
-  const SkBitmap a = read(plain, "colour");
-  const SkBitmap b = read(varied, "colour");
-  const int x = kExtent.x * 3 / 4;
-  const int y = kExtent.y / 2;
-  EXPECT_NE(a.getColor(x, y), b.getColor(x, y));
-}
-
-TEST(WorldFrame, APostPassGradesWhatItReads) {
-  Bodies bodies;
-  Targets targets = targetsAt(kExtent);
-  const Pass main = geometryPass("main").writes("colour");
-  Runtime::cpu()->execute(workOf(main), bodies.view(), targets);
-
-  const Pass dark =
-      postPass("dark").reads("colour").writes("graded").levels(0.25f, 0.0f);
-  Runtime::cpu()->execute(workOf(dark), bodies.view(), targets);
-
-  const SkBitmap before = read(targets, "colour");
-  const SkBitmap after = read(targets, "graded");
-  const int x = kExtent.x / 4;
-  const int y = kExtent.y / 2;
-  EXPECT_GT(
-      SkColorGetR(before.getColor(x, y)) + SkColorGetG(before.getColor(x, y)) +
-          SkColorGetB(before.getColor(x, y)),
-      SkColorGetR(after.getColor(x, y)) + SkColorGetG(after.getColor(x, y)) +
-          SkColorGetB(after.getColor(x, y)));
-}
-
-TEST(WorldFrame, APreviousReadIsWhatStoodAtTheEndOfTheFrameBefore) {
-  Bodies bodies;
-  Targets targets = targetsAt(kExtent);
-  targets.bind("colour", -1);
-  targets.bind("trail", -1);
-  targets.keep("trail");
-
-  const Pass main = geometryPass("main").writes("colour");
-  const Pass trail = postPass("trail")
-                         .reads("colour")
-                         .previous("trail")
-                         .writes("trail")
-                         .composite(material::BlendMode::PlusLighter, 1.0f);
-
-  // The first frame has no previous, so the trail is only the picture.
-  Runtime::cpu()->execute(workOf(main), bodies.view(), targets);
-  Runtime::cpu()->execute(workOf(trail), bodies.view(), targets);
-  const int first = inkOver(targets.image("trail"));
-  targets.endFrame();
-
-  // The second adds last frame's trail to it, and the ink can only grow.
-  Runtime::cpu()->execute(workOf(main), bodies.view(), targets);
-  Runtime::cpu()->execute(workOf(trail), bodies.view(), targets);
-  EXPECT_GE(inkOver(targets.image("trail")), first);
-
-  const SkBitmap once = read(targets.previous("trail"));
-  const SkBitmap twice = read(targets, "trail");
-  const int x = kExtent.x / 4;
-  const int y = kExtent.y / 2;
-  EXPECT_NE(once.getColor(x, y), twice.getColor(x, y));
-}
-
-TEST(WorldFrame, AComputePassCooksItsChainIntoThePointSetItWrites) {
-  Bodies bodies;
-  Targets targets = targetsAt(kExtent);
-  const Pass cook = cookMotes();
-  Runtime::cpu()->execute(workOf(cook), bodies.view(), targets);
-
-  const geometry::mesh::Cloud* motes = targets.points("motes");
-  ASSERT_NE(motes, nullptr);
-  EXPECT_EQ(motes->size(), 48u);
-}
-
-TEST(WorldFrame, AGeometryPassStampsThePointSetsItReads) {
-  Bodies bodies;
-  Targets targets = targetsAt(kExtent);
-  const Pass cook = cookMotes();
-  Runtime::cpu()->execute(workOf(cook), bodies.view(), targets);
-
-  View empty = bodies.view();
-  empty.draws = {};
-  const Pass beads =
-      geometryPass("beads").reads("motes").writes("colour").stamp(
-          geometry::mesh::quad(6.0f, 6.0f));
-  Runtime::cpu()->execute(workOf(beads), empty, targets);
-  EXPECT_GT(inkOver(targets.image("colour")), 0);
-}
-
 // A STAMPED SET IS FORMED ONCE per distinct (cloud, stamp). A pass
 // draws the stamps of the sets it reads every frame, and a set that has
 // not moved between two of them must not be instanced a second time —
 // the whole cloud times the stamp's vertices is what forming one costs,
 // and paying it per frame is paying it for nothing.
 TEST(WorldFrame, AStillPointSetIsStampedOnceHoweverManyFramesDrawIt) {
-  Bodies bodies;
-  Targets targets = targetsAt(kExtent);
-  const Pass cook = cookMotes();
-  Runtime::cpu()->execute(workOf(cook), bodies.view(), targets);
-
-  View empty = bodies.view();
-  empty.draws = {};
-  const Pass beads =
-      geometryPass("beads").reads("motes").writes("colour").stamp(
-          geometry::mesh::quad(6.0f, 6.0f));
+  Targets targets;
+  geometry::mesh::Cloud cloud = motes();
+  const geometry::mesh::Mesh bead = geometry::mesh::quad(6.0f, 6.0f);
 
   for (int frame = 0; frame < 3; ++frame) {
-    Runtime::cpu()->execute(workOf(beads), empty, targets);
+    ASSERT_NE(targets.stamped(cloud, bead), nullptr);
     EXPECT_EQ(targets.stampings(), 1u) << "after frame " << frame;
     targets.endFrame();
   }
@@ -317,44 +110,42 @@ TEST(WorldFrame, AStillPointSetIsStampedOnceHoweverManyFramesDrawIt) {
   // …and a set that HAS moved is a second stamping, which is what makes
   // the first assertion a statement about the content and not about the
   // cache never missing.
-  geometry::mesh::Cloud* motes = targets.points("motes");
-  ASSERT_NE(motes, nullptr);
-  motes->positions.front().x += 1.0f;
-  Runtime::cpu()->execute(workOf(beads), empty, targets);
+  cloud.positions.front().x += 1.0f;
+  ASSERT_NE(targets.stamped(cloud, bead), nullptr);
   EXPECT_EQ(targets.stampings(), 2u);
 }
 
-TEST(WorldFrame, ADeclaredBodyIsHandedTheExtractedViewAndTheTargets) {
-  Bodies bodies;
-  Targets targets = targetsAt(kExtent);
-  size_t seen = 0;
-  std::string firstKey;
-  glm::ivec2 extent{0, 0};
-  const Pass hand = geometryPass("hand").writes("colour").body(
-      [&](const View& view, Targets& into) {
-        seen = view.draws.size();
-        if (!view.draws.empty()) firstKey = std::string(view.draws.front().key);
-        extent = view.extent;
-        if (SkCanvas* canvas = into.canvas("colour"))
-          canvas->clear(SkColor4f{1.0f, 0.0f, 0.0f, 1.0f});
-      });
-  Runtime::cpu()->execute(workOf(hand), bodies.view(), targets);
-
-  EXPECT_EQ(seen, 2u);
-  EXPECT_EQ(firstKey, "left");
-  EXPECT_EQ(extent, kExtent);
-  EXPECT_EQ(inkOver(targets.image("colour")),
-            kExtent.x * kExtent.y);
+TEST(WorldFrame, AStampingNoFrameAsksForIsLetGo) {
+  Targets targets;
+  const geometry::mesh::Cloud cloud = motes();
+  const geometry::mesh::Mesh bead = geometry::mesh::quad(6.0f, 6.0f);
+  uint64_t first = 0;
+  ASSERT_NE(targets.stamped(cloud, bead, &first), nullptr);
+  targets.endFrame();
+  // A frame that drew no stamps lets the stamping go, so the next ask
+  // forms it again under the same number.
+  targets.endFrame();
+  uint64_t again = 0;
+  ASSERT_NE(targets.stamped(cloud, bead, &again), nullptr);
+  EXPECT_EQ(targets.stampings(), 2u);
+  EXPECT_EQ(again, first);
 }
 
-TEST(WorldFrame, TwoNamesOnOneSlotShareTheSurface) {
-  Targets targets = targetsAt(kExtent);
-  targets.bind("first", 0);
-  targets.bind("second", 0);
-  targets.canvas("first")->clear(SkColor4f{0.0f, 1.0f, 0.0f, 1.0f});
-  EXPECT_EQ(targets.surfaces(), 1);
-  EXPECT_EQ(inkOver(targets.image("second")),
-            kExtent.x * kExtent.y);
+TEST(WorldFrame, AnImageIsWhatTheExecutorHoldingItAnswers) {
+  Targets targets;
+  EXPECT_EQ(targets.image("colour"), nullptr);
+  std::string asked;
+  targets.source([&asked](std::string_view name) {
+    asked = std::string(name);
+    return sk_sp<SkImage>();
+  });
+  EXPECT_EQ(targets.image("colour"), nullptr);
+  EXPECT_EQ(asked, "colour");
+}
+
+TEST(WorldFrame, AFrameNamesNoRuntimeUntilItIsGivenOne) {
+  const Frame frame = Element().key("set");
+  EXPECT_FALSE(frame.runtime());
 }
 
 TEST(WorldFrame, AFrameWithNoPassesIsItsScene) {

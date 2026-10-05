@@ -70,7 +70,6 @@ void Scene::Impl::collectBodies(const geometry::mesh::camera::Camera& eye,
         .material = surface.material ? &*surface.material : nullptr,
         .lit = surface.lit,
         .texture = surface.texture,
-        .emissive = surface.emissive,
     });
   }
 }
@@ -102,12 +101,6 @@ bool Scene::Impl::phaseGraph() {
   }
 
   targets.extent(frame.extent());
-  targets.unbind();
-  for (const graph::Resource& resource : plan.resources()) {
-    if (resource.kind != graph::ResourceKind::Image) continue;
-    targets.bind(resource.name, resource.slot);
-  }
-  for (const std::string& name : plan.kept()) targets.keep(name);
 
   collectBodies(viewpoint(), draws);
   view.draws = draws;
@@ -128,7 +121,9 @@ bool Scene::Impl::phaseExecute() {
   if (frame.passes().empty() || !error.empty()) return false;
   const Runtime& runtime = frame.runtime();
   if (!runtime) {
-    error = "the frame carries no executor to perform its passes on";
+    error =
+        "the frame declares passes and carries no runtime to perform them "
+        "on: a pass is drawn on a device";
     return false;
   }
   runtime->beginFrame(targets);

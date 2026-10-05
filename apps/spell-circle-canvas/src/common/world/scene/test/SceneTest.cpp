@@ -2,14 +2,19 @@
  * The retained side: identity across a reorder, the three lifetimes
  * pulling apart under a geometry-slot change, the store sharing one
  * cooked artefact, lanes moving a placement, the bake taken once and
- * lost to a driven lane below it, and a draw that is a function of the
- * description alone.
+ * lost to a driven lane below it, and what a pass is handed being a
+ * function of the description alone.
+ *
+ * NOTHING HERE DRAWS. What a pass is handed is read back through an
+ * executor that keeps it as values, so the retained side is asked its
+ * questions without a device; what a device does with what it is handed
+ * is asked beside the device's executor.
  */
 
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
-#include <include/core/SkColor.h>
+#include <include/core/SkImage.h>
 #include <include/core/SkImageInfo.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/clock/Engine.h>
@@ -23,6 +28,7 @@
 #include <chrono>
 #include <cstdint>
 #include <limits>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -52,25 +58,69 @@ geometry::mesh::pop::Chain cometChain() {
       .spread(6.0f);
 }
 
-/** The bytes a scene draws into, at a fixed size, on the CPU. */
-std::vector<uint8_t> plate(Scene& scene,
-                           const geometry::mesh::camera::Camera& camera) {
-  SkBitmap bitmap;
-  bitmap.allocPixels(SkImageInfo::MakeN32Premul(96, 96));
-  bitmap.eraseColor(SK_ColorTRANSPARENT);
-  SkCanvas canvas(bitmap);
-  draw(scene, canvas, camera);
-  const uint8_t* pixels = (const uint8_t*)bitmap.getPixels();
-  return {pixels, pixels + bitmap.computeByteSize()};
-}
+/** WHAT A PASS WAS HANDED, as values: every body's key, placement,
+ *  colour and backface in the order the view lists them, and every
+ *  emitter's colour and strength. Two of these compare equal exactly when
+ *  two frames handed their passes the same scene. */
+struct Seen {
+  std::vector<std::string> keys;
+  std::vector<glm::mat4> worlds;
+  std::vector<glm::vec4> colours;
+  std::vector<material::Backface> backfaces;
+  std::vector<material::Color> lightColours;
+  std::vector<float> lightStrengths;
+  std::vector<Selection> realisations;
+  bool operator==(const Seen&) const = default;
+};
 
-std::vector<uint8_t> plate(Scene& scene) {
-  return plate(scene, frontCamera(320.0f));
-}
+/** AN EXECUTOR THAT DRAWS NOTHING AND KEEPS WHAT IT WAS HANDED. A
+ *  declared body is run, as every executor runs one, and every image it
+ *  is asked for is one transparent pixel, so a readback has something to
+ *  carry. */
+struct Recording : Executor {
+  std::shared_ptr<Seen> seen = std::make_shared<Seen>();
+  void beginFrame(Targets& targets) const override {
+    *seen = Seen{};
+    targets.source([](std::string_view) {
+      SkBitmap pixel;
+      pixel.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
+      pixel.eraseColor(SK_ColorTRANSPARENT);
+      pixel.setImmutable();
+      return pixel.asImage();
+    });
+  }
+  void execute(const PassWork& work, const View& view,
+               Targets& targets) const override {
+    if (!work.pass) return;
+    if (work.pass->body()) {
+      work.pass->body()->run(view, targets);
+      return;
+    }
+    seen->realisations.push_back(work.realisation);
+    for (const Draw& draw : view.draws) {
+      seen->keys.emplace_back(draw.key);
+      seen->worlds.push_back(draw.world);
+      seen->colours.push_back(draw.baseColor);
+      seen->backfaces.push_back(draw.backface);
+    }
+    for (const material::Light& light : view.lights) {
+      seen->lightColours.push_back(light.color.value());
+      seen->lightStrengths.push_back(light.intensity.value());
+    }
+  }
+  bool operator==(const Recording& other) const { return seen == other.seen; }
+};
 
-bool hasInk(const std::vector<uint8_t>& pixels) {
-  return std::any_of(pixels.begin(), pixels.end(),
-                     [](uint8_t value) { return value != 0; });
+/** @p tree as a frame with one geometry pass, performed on @p recorder. */
+Frame recorded(
+    Element tree, const Recording& recorder,
+    const geometry::mesh::camera::Camera& camera = frontCamera(320.0f)) {
+  Frame frame(std::move(tree));
+  frame.extent({96, 96})
+      .camera(camera)
+      .runtime(Runtime{recorder})
+      .pass(geometryPass("colour").writes("colour"));
+  return frame;
 }
 
 /** A CLOCK AND A SCENE READING IT — what nearly every case below opens
@@ -108,19 +158,23 @@ TEST_F(WorldScene, AKeyedReorderKeepsEveryNodesHandle) {
   EXPECT_EQ(scene.stats().reconcile.retired, 0);
 }
 
-TEST_F(WorldScene, AVisibleBackfaceKeepsAPlaneUnderAnOrbit) {
-  geometry::mesh::camera::Camera behind = frontCamera(320.0f);
-  behind.eye.z = -320;
+TEST_F(WorldScene, ABodysBackfaceReachesThePassThatDrawsIt) {
+  const Recording recorder;
+  const auto describe = [](material::Backface backface) {
+    return Element().key("root").children(
+        {Element().key("card").mesh(card(24)).backface(backface)});
+  };
+  scene.render(recorded(describe(material::Backface::Hidden), recorder));
+  ASSERT_EQ(recorder.seen->backfaces.size(), 1u);
+  EXPECT_EQ(recorder.seen->backfaces.front(), material::Backface::Hidden);
 
-  scene.render(Element().key("root").children(
-      {Element().key("card").mesh(card(24)).backface(
-          material::Backface::Hidden)}));
-  EXPECT_FALSE(hasInk(plate(scene, behind)));
-
-  scene.render(Element().key("root").children(
-      {Element().key("card").mesh(card(24)).backface(
-          material::Backface::Visible)}));
-  EXPECT_TRUE(hasInk(plate(scene, behind)));
+  // The description changed and the node did not: the same body is handed
+  // over with the face it now declares.
+  const uint64_t handle = scene.handleOf("card");
+  scene.render(recorded(describe(material::Backface::Visible), recorder));
+  EXPECT_EQ(scene.handleOf("card"), handle);
+  ASSERT_EQ(recorder.seen->backfaces.size(), 1u);
+  EXPECT_EQ(recorder.seen->backfaces.front(), material::Backface::Visible);
 }
 
 TEST_F(WorldScene, AGeometrySlotChangeKeepsTheNodeAndItsLanes) {
@@ -247,41 +301,46 @@ TEST_F(WorldScene, AStillChildInsideAMovingRigIsDrawnWhereItNowStands) {
             {Element().key("body").mesh(card(20))})});
   };
 
+  const Recording held;
   // `body` declares no motion of its own, so its draw order is recorded on
   // the first frame — before any hold has warmed up, and while `rig`, whose
   // lane is live, is still painting live around it.
-  scene.render(describe(pan));
+  scene.render(recorded(describe(pan), held));
 
   // The lane is then assigned from OUTSIDE. Nothing about `body`'s own
   // description changed — only the matrix above it — and the order it
-  // recorded carries the placement it was recorded with, so a replay draws
-  // it where it used to stand.
+  // recorded carries the placement it was recorded with, so a replay would
+  // hand it over where it used to stand.
   pan = 30.0f;
-  scene.render(describe(pan));
+  scene.render(recorded(describe(pan), held));
   EXPECT_EQ(scene.stats().replayed, 0);
 
-  // …and it lands where a scene that has held nothing draws it.
+  // …and it is handed over where a scene that has held nothing puts it.
   Scene fresh(engine);
+  const Recording nothingHeld;
   motion::Animatable<float> panned = motion::animatable(30.0f);
-  fresh.render(describe(panned));
-  EXPECT_EQ(plate(scene), plate(fresh));
+  fresh.render(recorded(describe(panned), nothingHeld));
+  ASSERT_FALSE(held.seen->worlds.empty());
+  EXPECT_EQ(*held.seen, *nothingHeld.seen);
 }
 
-TEST_F(WorldScene, ADrawIsAFunctionOfTheDescriptionAlone) {
+TEST_F(WorldScene, WhatAPassIsHandedIsAFunctionOfTheDescriptionAlone) {
   Scene second(engine);
   const auto describe = [] {
     return Element().key("root").children(
         {Element().key("sun").light(light::sun({-0.4f, -0.7f, -0.6f})),
          Element().key("body").mesh(card(60)).rotateY(20.0f)});
   };
-  scene.render(describe());
-  second.render(describe());
+  const Recording first;
+  const Recording other;
+  scene.render(recorded(describe(), first));
+  second.render(recorded(describe(), other));
 
-  const std::vector<uint8_t> a = plate(scene);
-  const std::vector<uint8_t> b = plate(second);
-  EXPECT_EQ(a, b);
-  // …and it drew something, so the comparison is not two empty plates.
-  EXPECT_NE(a, std::vector<uint8_t>(a.size(), 0));
+  EXPECT_EQ(*first.seen, *other.seen);
+  // …and something was handed over, so the comparison is not two empty
+  // readings.
+  EXPECT_EQ(first.seen->keys.size(), 1u);
+  EXPECT_EQ(first.seen->lightColours.size(), 1u);
 }
 
 TEST_F(WorldScene, EmittersAndViewpointsRideTheirNodesPlacement) {
@@ -304,6 +363,21 @@ TEST_F(WorldScene, EmittersAndViewpointsRideTheirNodesPlacement) {
   ASSERT_EQ(lights.size(), 1u);
   EXPECT_FLOAT_EQ(lights.front().position.x, 50.0f);
   EXPECT_FLOAT_EQ(lights.front().position.y, 20.0f);
+}
+
+TEST_F(WorldScene, TheFirstViewpointInTreeOrderIsTheOneSeenFrom) {
+  // A host that takes hold of a set's viewpoint hangs the set under a node
+  // carrying its own camera; that camera stands before every camera the
+  // set declared beneath it, so it is the one the frame is seen from.
+  geometry::mesh::camera::Camera host;
+  host.eye = {0, 0, 700};
+  geometry::mesh::camera::Camera declared;
+  declared.eye = {0, 0, 100};
+  scene.render(Element().camera(host).children({Element().key("set").children(
+      {Element().key("lens").camera(declared)})}));
+  const std::optional<geometry::mesh::camera::Camera> camera = scene.camera();
+  ASSERT_TRUE(camera.has_value());
+  EXPECT_FLOAT_EQ(camera->eye.z, 700.0f);
 }
 
 TEST_F(WorldScene, AnEmitterDialReachesTheLightItScales) {
@@ -356,12 +430,13 @@ TEST_F(WorldScene, ALiveLightColorReachesRetainedBodiesWithoutRecooking) {
          Element().key("body").mesh(card(30)).fill(
              paint({0.8f, 0.8f, 0.8f, 1}))});
   };
-  const Element tree = describe(source);
+  const Recording recorder;
+  const Frame tree = recorded(describe(source), recorder);
   for (int frame = 0; frame < 8; ++frame) scene.render(tree);
   ASSERT_GT(scene.stats().replayed, 0);
   const uint64_t handle = scene.handleOf("body");
-  const std::vector<uint8_t> before = plate(scene);
-  ASSERT_TRUE(hasInk(before));
+  const Seen before = *recorder.seen;
+  ASSERT_EQ(before.keys.size(), 1u);
 
   const material::Color changed{0.0625f, 0.125f, 2, 0.75f};
   color = changed;
@@ -375,15 +450,18 @@ TEST_F(WorldScene, ALiveLightColorReachesRetainedBodiesWithoutRecooking) {
   EXPECT_EQ(scene.stats().resources, 1);
   EXPECT_EQ(scene.referencesOf("body"), 1);
   EXPECT_GT(scene.stats().replayed, 0);
-  const std::vector<uint8_t> after = plate(scene);
+  const Seen after = *recorder.seen;
   EXPECT_NE(before, after);
+  ASSERT_EQ(after.lightColours.size(), 1u);
+  EXPECT_EQ(after.lightColours.front(), changed);
 
   motion::Engine referenceEngine;
   Scene reference(referenceEngine);
   material::Light fixed = light::sun({0, 0, -1});
   fixed.color = motion::Animatable<material::Color>(changed);
-  reference.render(describe(fixed));
-  EXPECT_EQ(after, plate(reference));
+  const Recording referenceRecorder;
+  reference.render(recorded(describe(fixed), referenceRecorder));
+  EXPECT_EQ(after, *referenceRecorder.seen);
 }
 
 TEST_F(WorldScene, EmitterDialsDoNotWriteIntoTheirLiveSources) {
@@ -498,7 +576,7 @@ namespace {
 constexpr glm::ivec2 kFrameExtent{96, 96};
 
 /** A set with one plain body on the left and one tagged "glow" on the
- *  right, so a selection is visible as which half is painted. */
+ *  right. */
 Element pair() {
   return Element().key("root").children(
       {Element().key("left").at({-46, 0, 0}).mesh(card(34)).tag("plain"),
@@ -522,21 +600,28 @@ SkBitmap present(Scene& scene) {
   return bitmap;
 }
 
-/** …and how much ink stands in one half of it. */
-int inkIn(Scene& scene, bool leftHalf) {
-  return test::paintedIn(present(scene), leftHalf);
-}
-
 }  // namespace
 
-TEST_F(WorldScene, AFrameWithNoPassesDrawsTheSceneItIs) {
-  scene.render(framed(pair()));
+TEST_F(WorldScene, AFrameWithNoPassesIsExtractedAndFormsNoPicture) {
+  scene.render(framed(
+      pair().children({Element().key("sun").light(light::sun({0, 0, -1}))})));
   EXPECT_TRUE(scene.error().empty());
   EXPECT_EQ(scene.stats().passes, 0);
-  // Nothing ran, and both bodies are there: a frame that declares no pass
-  // is its scene rather than an empty picture.
-  EXPECT_GT(inkIn(scene, /*leftHalf=*/true), 0);
-  EXPECT_GT(inkIn(scene, /*leftHalf=*/false), 0);
+  // The scene is there — its emitters and its bodies are extracted — and
+  // nothing drew it, because a picture is what a pass writes.
+  EXPECT_EQ(scene.lights().size(), 1u);
+  EXPECT_NE(scene.handleOf("left"), 0u);
+  const SkBitmap picture = present(scene);
+  EXPECT_EQ(test::paintedIn(picture, true) + test::paintedIn(picture, false),
+            0);
+}
+
+TEST_F(WorldScene, AFrameThatDeclaresPassesAndNoRuntimeSaysSo) {
+  Frame frame = framed(pair());
+  frame.pass(geometryPass("main").writes("colour"));
+  scene.render(frame);
+  EXPECT_FALSE(scene.error().empty());
+  EXPECT_EQ(scene.stats().passes, 0);
 }
 
 TEST_F(WorldScene, APassSeesWhatExtractWroteAndNotTheTree) {
@@ -544,13 +629,14 @@ TEST_F(WorldScene, APassSeesWhatExtractWroteAndNotTheTree) {
   std::vector<std::string> ancestors;
   std::vector<std::string> tags;
   Frame frame = framed(pair());
-  frame.pass(geometryPass("hand").writes("colour").body([&](const View& view) {
-    for (const Draw& draw : view.draws) {
-      keys.emplace_back(draw.key);
-      for (const std::string& word : draw.tags) tags.push_back(word);
-      for (const std::string& up : draw.ancestors) ancestors.push_back(up);
-    }
-  }));
+  frame.runtime(Runtime{Recording{}})
+      .pass(geometryPass("hand").writes("colour").body([&](const View& view) {
+        for (const Draw& draw : view.draws) {
+          keys.emplace_back(draw.key);
+          for (const std::string& word : draw.tags) tags.push_back(word);
+          for (const std::string& up : draw.ancestors) ancestors.push_back(up);
+        }
+      }));
   scene.render(frame);
 
   ASSERT_EQ(keys.size(), 2u);
@@ -561,44 +647,16 @@ TEST_F(WorldScene, APassSeesWhatExtractWroteAndNotTheTree) {
   EXPECT_EQ(ancestors.front(), "root");
 }
 
-TEST_F(WorldScene, ACulledGeometryPassDrawsOnlyItsSelection) {
+TEST_F(WorldScene, ASelectingGeometryPassIsHandedItsRealisation) {
+  const Recording recorder;
   Frame frame = framed(pair());
-  frame.pass(
-      geometryPass("glow").only(selectors::tag("glow")).writes("colour"));
+  frame.runtime(Runtime{recorder})
+      .pass(geometryPass("glow").only(selectors::tag("glow")).writes("colour"));
   scene.render(frame);
 
   ASSERT_TRUE(scene.error().empty());
-  EXPECT_EQ(inkIn(scene, /*leftHalf=*/true), 0);
-  EXPECT_GT(inkIn(scene, /*leftHalf=*/false), 0);
-}
-
-TEST_F(WorldScene, ANarrowedPostPassReachesOnlyItsCoverage) {
-  Scene& plain = scene;
-  Scene masked(engine);
-  Frame flat = framed(pair());
-  flat.pass(geometryPass("main").writes("colour"));
-  plain.render(flat);
-
-  Frame graded = framed(pair());
-  graded.pass(geometryPass("main").writes("colour"))
-      .pass(postPass("dim")
-                .reads("colour")
-                .writes("dim")
-                .only(selectors::tag("glow"))
-                .levels(0.2f, 0.0f));
-  masked.render(graded);
-  ASSERT_TRUE(masked.error().empty());
-
-  // The unselected half is byte for byte what it was; the selected half
-  // is not.
-  EXPECT_EQ(inkIn(plain, true), inkIn(masked, true));
-  const SkBitmap before = present(plain);
-  const SkBitmap after = present(masked);
-  const int y = kFrameExtent.y / 2;
-  EXPECT_EQ(before.getColor(kFrameExtent.x / 4, y),
-            after.getColor(kFrameExtent.x / 4, y));
-  EXPECT_NE(before.getColor(kFrameExtent.x * 3 / 4, y),
-            after.getColor(kFrameExtent.x * 3 / 4, y));
+  ASSERT_EQ(recorder.seen->realisations.size(), 1u);
+  EXPECT_EQ(recorder.seen->realisations.front(), Selection::Cull);
 }
 
 TEST_F(WorldScene, AReadbackIsHandedOverTheFrameAfter) {
@@ -607,7 +665,8 @@ TEST_F(WorldScene, AReadbackIsHandedOverTheFrameAfter) {
   bool hadImage = false;
   const auto describe = [&] {
     Frame frame = framed(pair());
-    frame.pass(geometryPass("main").writes("colour"))
+    frame.runtime(Runtime{Recording{}})
+        .pass(geometryPass("main").writes("colour"))
         .readback(readback("colour").then([&](const Readback::Result& result) {
           ++calls;
           at = result.frame;
@@ -629,7 +688,8 @@ TEST_F(WorldScene, AReadbackIsHandedOverTheFrameAfter) {
 
 TEST_F(WorldScene, ACycleInThePassesIsAnErrorAndNothingRuns) {
   Frame frame = framed(pair());
-  frame.pass(postPass("a").reads("second").writes("first"))
+  frame.runtime(Runtime{Recording{}})
+      .pass(postPass("a").reads("second").writes("first"))
       .pass(postPass("b").reads("first").writes("second"));
   scene.render(frame);
 
@@ -639,7 +699,8 @@ TEST_F(WorldScene, ACycleInThePassesIsAnErrorAndNothingRuns) {
 
 TEST_F(WorldScene, AFrameThatDeclaresPassesAndNoExtentSaysSo) {
   Frame frame(pair());
-  frame.pass(geometryPass("main").writes("colour"));
+  frame.runtime(Runtime{Recording{}})
+      .pass(geometryPass("main").writes("colour"));
   scene.render(frame);
   EXPECT_FALSE(scene.error().empty());
   EXPECT_EQ(scene.stats().passes, 0);
@@ -647,7 +708,8 @@ TEST_F(WorldScene, AFrameThatDeclaresPassesAndNoExtentSaysSo) {
 
 TEST_F(WorldScene, TheOrderingsCountsAreOnTheFramesTally) {
   Frame frame = framed(pair());
-  frame.pass(geometryPass("main").writes("colour"))
+  frame.runtime(Runtime{Recording{}})
+      .pass(geometryPass("main").writes("colour"))
       .pass(postPass("half").reads("colour").writes("half"))
       .pass(postPass("quarter").reads("half").writes("quarter"))
       .pass(postPass("eighth").reads("quarter").writes("eighth"));
@@ -660,7 +722,4 @@ TEST_F(WorldScene, TheOrderingsCountsAreOnTheFramesTally) {
       << "this frame reuses no surface, so the tally says nothing";
   EXPECT_EQ(scene.stats().aliased, scene.plan().aliased());
   EXPECT_GT(scene.stats().barriers, 0);
-  // …and the surfaces the ordering asked for are the surfaces that were
-  // made.
-  EXPECT_EQ(scene.targets().surfaces(), scene.plan().surfaces());
 }

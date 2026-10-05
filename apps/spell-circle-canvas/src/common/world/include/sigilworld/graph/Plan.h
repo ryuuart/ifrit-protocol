@@ -34,8 +34,8 @@ enum class ResourceKind : uint8_t { Image, Points };
 
 /** ONE HAZARD between two steps over one resource, stated without
  *  naming a backend: what must finish, what may then begin, and which
- *  way each of them touched it. On the CPU executor the list is a
- *  no-op; a device turns each entry into the transition it needs. */
+ *  way each of them touched it. A device turns each entry into the
+ *  transition it needs. */
 struct Barrier {
   std::string resource;
   size_t after = 0;   ///< the step that must finish

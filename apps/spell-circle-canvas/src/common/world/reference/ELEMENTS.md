@@ -279,18 +279,16 @@ from outside.
 
 `Scene::render` is ONE FRAME: describe, sample the lanes, derive the
 placements, extract, order the passes and execute them. A frame with no
-passes is its scene — nothing is executed and the draw paints the bodies
-extract left. A frame WITH passes has already been performed when it
-returns, into the resources the ordering gave it, and the draw presents
-what they wrote. Execution reads the extracted state and never the
-Element tree.
+passes is its scene — it is reconciled and extracted, nothing is
+executed and nothing is drawn. A frame WITH passes has already been
+performed when it returns, on the device runtime it carries and into the
+resources the ordering gave it, and the draw presents what they wrote.
+Execution reads the extracted state and never the Element tree.
 
-`draw(scene, canvas)`, in `advanced/Skia.h`, presents what the last render produced. A frame that
-declared passes has already run them, so the camera and the runtime
-arguments are the ones the passes already used and do not enter into it.
-The overload with no camera draws from the viewpoint the tree declared; a
-tree with no camera draws from the frame's, and a frame that named none
-from the default.
+`draw(scene, canvas)`, in `advanced/Skia.h`, presents the picture the last
+render's passes wrote, from the viewpoint they were performed from. A
+frame with no passes, or whose passes did not run, formed no picture and
+draws nothing.
 
 `Scene::handleOf` is THE HOST HANDLE of the node addressed by a key,
 opaque and non-zero, and 0 when no node answers to that key. It is the

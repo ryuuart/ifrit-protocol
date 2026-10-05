@@ -90,13 +90,13 @@ inline Frame card(const material::Material& surface, glm::ivec2 extent) {
   return frame;
 }
 
-/** ONE FRAME, rendered on @p runtime and photographed from @p camera at
- *  @p extent. The clock is stepped once, so a plate is a function of the
- *  declaration and not of how long anything took. */
+/** ONE FRAME, rendered on @p executor and photographed at @p extent,
+ *  from the viewpoint the frame declares. The clock is stepped once, so a
+ *  plate is a function of the declaration and not of how long anything
+ *  took. */
 inline SkBitmap photograph(const Frame& frame,
                            const ::sigil::world::Runtime& executor,
-                           glm::ivec2 extent,
-                           const geometry::mesh::camera::Camera& camera) {
+                           glm::ivec2 extent) {
   motion::Engine engine;
   Scene scene(engine);
   Frame copy = frame;
@@ -105,11 +105,10 @@ inline SkBitmap photograph(const Frame& frame,
   scene.render(copy);
 
   SkBitmap bitmap;
-  bitmap.allocPixels(
-      SkImageInfo::MakeN32Premul(extent.x, extent.y));
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(extent.x, extent.y));
   SkCanvas canvas(bitmap);
   canvas.clear(SK_ColorBLACK);
-  draw(scene, canvas, camera);
+  draw(scene, canvas);
   return bitmap;
 }
 
@@ -120,11 +119,9 @@ inline SkBitmap photograph(const Frame& frame,
  *  It is read as an INEQUALITY and never as a tolerance. What a case here
  *  asks of two pictures is whether an operation reached the pixels AT
  *  ALL, which is a lower bound on the disagreement and is false only if
- *  the operation did nothing. How CLOSE two rasterisers stand is a
- *  different question — its answer is a different number per subject, it
- *  moves with the scene rather than with this code, and it is asked of
- *  the whole registry against a committed baseline by the plate ledger's
- *  device tier. */
+ *  the operation did nothing. Whether a whole picture held still is a
+ *  different question, asked of the whole registry by the plate ledger's
+ *  device tier against the plates it keeps. */
 inline int worstChannel(const SkBitmap& a, const SkBitmap& b) {
   if (a.width() != b.width() || a.height() != b.height()) return 255;
   int worst = 0;
@@ -158,10 +155,9 @@ inline int pixelsApart(const SkBitmap& a, const SkBitmap& b,
     for (int x = region.left(); x < region.right(); ++x) {
       const SkColor4f left = a.getColor4f(x, y);
       const SkColor4f right = b.getColor4f(x, y);
-      const float worst = std::max({std::abs(left.fR - right.fR),
-                                    std::abs(left.fG - right.fG),
-                                    std::abs(left.fB - right.fB),
-                                    std::abs(left.fA - right.fA)});
+      const float worst = std::max(
+          {std::abs(left.fR - right.fR), std::abs(left.fG - right.fG),
+           std::abs(left.fB - right.fB), std::abs(left.fA - right.fA)});
       if ((int)std::lround(worst * 255.0f) > levels) ++apart;
     }
   }

@@ -25,10 +25,9 @@ namespace sigil::world {
 
 /** A RESOURCE THE CALLER WANTS BACK, and what to do with it.
  *
- *  The callback runs THE FRAME AFTER the one that produced the content
- *  — which is the only honest answer where reading a device's memory
- *  costs a wait, and is therefore what the CPU executor promises too, so
- *  a caller cannot write code that only works without a device. */
+ *  The callback runs THE FRAME AFTER the one that produced the content,
+ *  because reading a device's memory costs a wait and a frame does not
+ *  stop to pay it. */
 class Readback {
  public:
   /** What a readback hands over. Exactly one of `image` and `points` is
@@ -71,12 +70,13 @@ Readback readback(std::string name);
 
 /** ONE FRAME, DECLARED: built fresh every frame and thrown away, the
  *  way an Element is, holding no surfaces, no order and no device. A
- *  frame with no passes IS its scene — the bodies are drawn straight
- *  from the viewpoint the tree declared. */
+ *  frame with no passes IS its scene: it is reconciled and extracted —
+ *  its bodies, its emitters and its viewpoint — and forms no picture,
+ *  because a picture is what a pass writes. */
 class Frame {
  public:
   Frame() = default;
-  /** A frame that is nothing but @p scene, drawn from the viewpoint the
+  /** A frame that is nothing but @p scene, seen from the viewpoint the
    *  tree declares. */
   Frame(Element scene)  // NOLINT: a frame with no passes IS its scene
       : m_scene(std::move(scene)) {}
@@ -88,8 +88,8 @@ class Frame {
   Frame& extent(glm::ivec2 size);
   /** WHERE THE TARGETS STAND IN A LARGER PICTURE: they are the part of
    *  a picture `offset.whole` pixels across whose top-left corner is at
-   *  `offset.origin`, so the extent is the part's size and every projection is the whole
-   *  picture's, carried off-centre onto it. Unset, the targets are the
+   *  `offset.origin`, so the extent is the part's size and every projection is
+   * the whole picture's, carried off-centre onto it. Unset, the targets are the
    *  picture. */
   Frame& viewOffset(ViewOffset offset);
   /** The viewpoint, for a tree that declares none of its own. */
@@ -99,7 +99,8 @@ class Frame {
   Frame& pass(Pass p);
   /** Asks for a resource back once the frame has made it. */
   Frame& readback(Readback r);
-  /** The executor the passes run on. */
+  /** The executor the passes run on. A frame that declares passes and
+   *  names none runs none of them, and the scene says so. */
   Frame& runtime(Runtime r);
   /** The resource the finished picture is in. Unset means the last
    *  image any pass wrote. */
@@ -134,7 +135,7 @@ class Frame {
   geometry::mesh::camera::Camera m_camera;
   std::vector<Pass> m_passes;
   std::vector<Readback> m_readbacks;
-  Runtime m_runtime = Runtime::cpu();
+  Runtime m_runtime;
   std::string m_present;
 };
 

@@ -302,9 +302,9 @@ TEST(Painter, AStyleAndItsLightsAreValues) {
   EXPECT_NE(style, same);
   EXPECT_NE(render::Light{}, same.lights[1]);
 
-  // The runtime takes part: two styles that would draw on different
-  // executors are not the same style however their dials read.
-  render::MeshStyle rough = style;
-  rough.roughness = style.roughness + 0.25f;
-  EXPECT_NE(style, rough);
+  // Every dial takes part: a style that shades differently is not the
+  // same style.
+  render::MeshStyle glossier = style;
+  glossier.shininess = style.shininess + 8.0f;
+  EXPECT_NE(style, glossier);
 }

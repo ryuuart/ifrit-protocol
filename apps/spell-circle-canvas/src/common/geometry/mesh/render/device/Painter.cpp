@@ -26,8 +26,8 @@
 #include <sigilmaterial/advanced/Program.h>
 #include <sigilmaterial/slang/SlangCompiler.h>
 #include <sigilmaterial/texture/Texture.h>
-#include <sigilshaders/GeometryMeshRenderDevice.h>
 #include <sigilmedia/advanced/Skia.h>
+#include <sigilshaders/GeometryMeshRenderDevice.h>
 
 #include <algorithm>
 #include <cmath>
@@ -84,14 +84,6 @@ glm::mat4 mapMatrix(const path::Transform& uv) {
   out[0] = {m[0][0], m[0][1], 0.0f, 0.0f};
   out[1] = {m[1][0], m[1][1], 0.0f, 0.0f};
   out[3] = {m[2][0], m[2][1], 0.0f, 1.0f};
-  return out;
-}
-
-/** A panorama's levels as the residency uploads them. */
-std::vector<sk_sp<SkImage>> imagesOf(const std::vector<media::Picture>& levels) {
-  std::vector<sk_sp<SkImage>> out;
-  out.reserve(levels.size());
-  for (const media::Picture& level : levels) out.push_back(level);
   return out;
 }
 
@@ -223,40 +215,22 @@ class PainterExecutor : public Executor {
     const float clear[4] = {0, 0, 0, 0};
     device::openTarget(*state.device, colour, state.depth, clear);
 
-    // THE SKY, where the style carries one: the prefiltered chain a
-    // reflection reads and the cosine convolution the ambient term
-    // reads, each crossing once and held by the residency. What is
-    // bound decides what the shading does, so the two counts are handed
-    // to the uniforms rather than re-derived there.
-    const Environment& sky = style.environment;
-    const bool lit = style.mode == MeshStyle::Mode::Lit && style.lit;
-    dg::ITexture* chain =
-        lit && !sky.levels.empty() ? state.maps.panorama(imagesOf(sky.levels))
-                                   : nullptr;
-    dg::ITexture* lobe = lit && sky.irradiance
-                             ? state.maps.convolution(sky.irradiance)
-                             : nullptr;
-    const float levels = chain ? (float)chain->GetDesc().MipLevels : 0.0f;
-
     material::slang::Uniforms uniforms(program);
-    writeUniforms(uniforms, model, cam, extent, style, levels, lobe != nullptr);
+    writeUniforms(uniforms, model, cam, extent, style);
 
     std::vector<dg::ITexture*> textures(program.textures.size(), nullptr);
     dg::ITexture* sampled =
         style.texture ? state.maps.sample(material::Texture(style.texture))
                       : nullptr;
-    for (size_t i = 0; i < textures.size(); ++i) {
+    for (size_t i = 0; i < textures.size(); ++i)
       if (program.textures[i] == "uTexture") textures[i] = sampled;
-      if (program.textures[i] == "uEnvironment") textures[i] = chain;
-      if (program.textures[i] == "uIrradiance") textures[i] = lobe;
-    }
 
     dg::IDeviceContext* context = state.device->context();
     context->SetPipelineState(pipeline->state);
     device::bindDraw(state.shared, *pipeline, program, uniforms, textures,
                      style.filter == Sampling::Nearest ? SkFilterMode::kNearest
                                                        : SkFilterMode::kLinear,
-                     style.tileTexture, isPanoramaSlot);
+                     style.tileTexture);
     dg::IBuffer* vertices = buffers->vertices;
     const dg::Uint64 offset = 0;
     context->SetVertexBuffers(0, 1, &vertices, &offset,
@@ -299,22 +273,11 @@ class PainterExecutor : public Executor {
   }
 
  private:
-  /** Which of the program's sampled slots is an equirect panorama: the
-   *  two that hold a sky, which repeat in azimuth, clamp at the poles
-   *  and are read linearly across their prefiltered levels. */
-  static bool isPanoramaSlot(std::string_view name) {
-    return name == "uEnvironment" || name == "uIrradiance";
-  }
-
   /** Every field of the style the program reads, at the offsets the
-   *  compiler reported for them. @p environmentLevels is how many levels
-   *  the sky's chain was bound with and zero when none was, and
-   *  @p irradiance says whether a cosine convolution stands beside it —
-   *  what is bound is what the shading may read. */
+   *  compiler reported for them. */
   static void writeUniforms(material::slang::Uniforms& uniforms,
                             const glm::mat4& model, const camera::Camera& cam,
-                            SkISize extent, const MeshStyle& style,
-                            float environmentLevels, bool irradiance) {
+                            SkISize extent, const MeshStyle& style) {
     const glm::mat4 view = cam.view();
     const glm::mat4 modelView = view * model;
     uniforms.set("uViewProj",
@@ -327,8 +290,8 @@ class PainterExecutor : public Executor {
                  glm::mat4(glm::inverseTranspose(glm::mat3(view))));
     uniforms.set("uBaseColor", style.baseColor.r, style.baseColor.g,
                  style.baseColor.b, style.baseColor.a);
-    uniforms.set("uAmbient", style.ambient.r, style.ambient.g,
-                 style.ambient.b, style.ambient.a);
+    uniforms.set("uAmbient", style.ambient.r, style.ambient.g, style.ambient.b,
+                 style.ambient.a);
     const float mode = style.mode == MeshStyle::Mode::Uv        ? 2.0f
                        : style.mode == MeshStyle::Mode::Normals ? 1.0f
                                                                 : 0.0f;
@@ -348,30 +311,6 @@ class PainterExecutor : public Executor {
     }
     uniforms.set("uShading", style.specular, style.shininess, style.rim,
                  (float)count);
-    // The exposure the lit sum is read at, which stands whether or not
-    // the style carries a panorama.
-    uniforms.set("uTone", style.environment.exposure, 0.0f, 0.0f, 0.0f);
-    uniforms.set("uSurface", std::clamp(style.metallic, 0.0f, 1.0f),
-                 std::clamp(style.roughness, 0.0f, 1.0f),
-                 style.environment.roughnessBias, 0.0f);
-
-    // THE SKY'S FRAME, folded once. The shading is written in view space
-    // and a panorama is a map of the WORLD, so a direction goes back out
-    // through the inverse of the rotation that brought it in — the
-    // transpose, for the rotation part of a rigid placement — and then
-    // into the panorama's own frame, so that turning the node that
-    // placed the sky turns the reflection.
-    const Environment& sky = style.environment;
-    const glm::mat3 worldM =
-        glm::transpose(glm::inverseTranspose(glm::mat3(view)));
-    uniforms.set("uEnvMatrix", glm::mat4(sky.orientation * worldM));
-    const glm::vec3 weight = sky.tint * sky.intensity;
-    const glm::vec3 diffuse = weight * sky.diffuse;
-    const glm::vec3 specular = weight * sky.specular;
-    uniforms.set("uEnvDiffuse", diffuse.x, diffuse.y, diffuse.z,
-                 irradiance ? 1.0f : 0.0f);
-    uniforms.set("uEnvSpecular", specular.x, specular.y, specular.z,
-                 environmentLevels);
   }
 
   std::shared_ptr<PainterState> m_state;

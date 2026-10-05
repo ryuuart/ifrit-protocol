@@ -1,13 +1,12 @@
 /** @file
  * What a frame costs: describing and reconciling a tree at several node
- * counts, the steady frame that follows, the draw, and a whole frame of
- * passes ordered and executed.
+ * counts, the steady frame that follows, and a whole frame of passes
+ * ordered and handed to an executor that draws nothing — so what is
+ * measured is the retained side and the ordering, and what a device
+ * costs is the device bench's.
  */
 
 #include <benchmark/benchmark.h>
-#include <include/core/SkBitmap.h>
-#include <include/core/SkCanvas.h>
-#include <include/core/SkImageInfo.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilworld/advanced/Skia.h>
 #include <sigilworld/scene/Scene.h>
@@ -95,10 +94,17 @@ void PrunedFrame(benchmark::State& state) {
 }
 BENCHMARK(PrunedFrame)->Arg(64)->Arg(512)->Arg(2048);
 
-/** A whole frame: describe, extract, order the passes and execute them.
- *  The chain is deliberately one every pass depends on, so the ordering
- *  has work to do and the transients take turns on their surfaces. */
-void FramePasses(benchmark::State& state) {
+/** An executor that is handed every step and draws nothing. */
+struct Idle : Executor {
+  void execute(const PassWork&, const View&, Targets&) const override {}
+  bool operator==(const Idle&) const { return true; }
+};
+
+/** A whole frame: describe, extract, order the passes and hand each one
+ *  to an executor. The chain is deliberately one every pass depends on,
+ *  so the ordering has work to do and the transients take turns on their
+ *  surfaces. */
+void OrderedFrame(benchmark::State& state) {
   const int nodes = (int)state.range(0);
   const geometry::mesh::Mesh body = triangle();
   motion::Engine engine;
@@ -108,7 +114,7 @@ void FramePasses(benchmark::State& state) {
   lens.eye = {0, 0, 620};
   const auto describe = [&](float at) {
     Frame frame(describeTree(nodes, body, at));
-    frame.extent({256, 256}).camera(lens);
+    frame.extent({256, 256}).camera(lens).runtime(Runtime{Idle{}});
     frame.pass(geometryPass("main").writes("colour"))
         .pass(postPass("half").reads("colour").writes("half").blur(4.0f))
         .pass(postPass("hot").reads("half").writes("hot").levels(
@@ -127,22 +133,6 @@ void FramePasses(benchmark::State& state) {
   }
   state.SetItemsProcessed(state.iterations() * nodes);
 }
-BENCHMARK(FramePasses)->Arg(64)->Arg(512);
-
-void DrawFrame(benchmark::State& state) {
-  const int nodes = (int)state.range(0);
-  const geometry::mesh::Mesh body = triangle();
-  motion::Engine engine;
-  Scene scene(engine);
-  scene.render(describeTree(nodes, body, 0.0f));
-  SkBitmap bitmap;
-  bitmap.allocPixels(SkImageInfo::MakeN32Premul(320, 240));
-  SkCanvas canvas(bitmap);
-  geometry::mesh::camera::Camera camera;
-  camera.eye = {0, 0, 480};
-  for ([[maybe_unused]] auto iteration : state) draw(scene, canvas, camera);
-  state.SetItemsProcessed(state.iterations() * nodes);
-}
-BENCHMARK(DrawFrame)->Arg(64)->Arg(512);
+BENCHMARK(OrderedFrame)->Arg(64)->Arg(512);
 
 }  // namespace

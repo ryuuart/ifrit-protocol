@@ -73,9 +73,10 @@ The rules, in full:
 
 `View` is handed to every pass that runs over a frame. The bodies arrive
 sorted back to front by view depth — stably, so two at one depth stand in
-tree order — because that is the order a rasteriser with no depth buffer
-must draw them in, and sorting once per frame rather than once per pass
-is what keeps two passes over one view drawing the same picture.
+tree order — because that is the order a blended body has to be drawn
+in over what stands behind it, and sorting once per frame rather than
+once per pass is what keeps two passes over one view drawing the same
+picture.
 
 `View::environment` is THE SET'S ENVIRONMENT MAP, oriented: the panorama
 every lit body samples for what reaches it from every direction, with an
@@ -91,15 +92,12 @@ INTO the sampled space, and a lookup goes the other way — and taken
 through the image's size, so a placement and a scale mean the same thing
 and point the same way on a mesh as they do in a plane.
 
-`paintedEnvironment` is the prefiltered map, the cosine convolution and
-the orientation that carries a world direction into the panorama's frame;
-an invalid environment answers an empty one, which is a surface keeping
-the flat ambient it had.
+## Targets: what a pass wrote
 
-## Targets: where a pass writes
-
-`Targets::previous` is a resource as it stood at the end of the frame
-before — null on the first frame, and for a name no one asked to keep.
+`Targets::image` is a resource the frame's passes wrote, as an image,
+answered by the executor that holds its pixels. What a resource was at
+the end of the frame before is that executor's to keep, and a post pass
+reads it through `Pass::previous`.
 
 `Targets::stamped` is a cloud STAMPED with a mesh, formed once per
 distinct pair and kept while both stand, and null when there is nothing
@@ -107,42 +105,37 @@ to stamp.
 
 A geometry pass draws the stamps of every point set it reads, every
 frame. Forming them in the draw would re-stamp a set that has not moved —
-the whole cloud times the stamp's vertices, on both tiers, however still
-the frame is — so the answer is held here under `stampKey`, which is a
+the whole cloud times the stamp's vertices, however still the frame is — so the answer is held here under `stampKey`, which is a
 fold over the two VALUES. The fold buckets the lookup and the pair itself
 decides it, so two pairs that fold to one number are two stampings under
 two numbers and neither is ever served the other's mesh. A frame that
 asks for one it already has pays the fold and the confirmation and
-nothing else, and the device tier keys its upload by the number this
+nothing else, and the device keys its upload by the number this
 answers, so a still set is neither formed twice nor uploaded twice.
 
 What is not asked for in a frame is let go at the end of it. The optional
-key receives the number a stamping is held under, for a tier that keys an
-upload by the same one, so that the fold is paid once per frame and not
-twice.
+key receives the number a stamping is held under, for an executor that
+keys an upload by the same one, so that the fold is paid once per frame
+and not twice.
 
 `Targets::stampings` is how many stamped meshes have been FORMED, over
 the store's whole life. A frame drawing a set that has not moved must not
 move that number.
 
-`Targets::ImageSource` is WHERE AN IMAGE COMES FROM when the frame's
-passes did not paint it here — an executor that performed them somewhere
-else, on a device. It answers for one name at a time, so only the
-resources something actually asks for cost the crossing back. Installing
-one hands that executor "what stood at the end of the frame before" as
-well: `Targets::previous` answers null and the end-of-frame keep keeps
-nothing, because the executor that owns where the pixels are owns what
-last frame means for them. `Targets::sourced` is whether one is
-installed, which is also whether those two have stopped answering for
-themselves.
+`Targets::ImageSource` is WHERE AN IMAGE COMES FROM: the executor that
+performed the frame's passes on a device, installed by it at the start of
+every frame it runs. It answers for one name at a time, so only the
+resources something actually asks for cost the crossing back. With none
+installed, `Targets::image` answers null.
 
 ## Runtime: the seam a pass executes through
 
 `Runtime` holds an executor — the one operation a pass is performed by —
-so the same frame, the same passes and the same declarations run on
-whichever executor the caller carries. One executor ships with this
-library, the CPU one; a feature that owns a device supplies its own as a
-value, which keeps every dependency pointing down and duplicates no file.
+as a value, so the frame, the ordering and the retained scene name no
+device and link none. The executor is the device's, supplied as a value
+by the feature that owns a device, which keeps every dependency pointing
+down. An empty runtime is no executor: a frame that declares passes and
+carries one runs none of them, and `Scene::error` says so.
 
 What an executor must reproduce: a geometry pass paints the bodies its
 realisation leaves it into the first image it writes, from the view's
@@ -153,8 +146,7 @@ instead, given the view and the targets.
 
 ## The GPU executor
 
-The GPU executor is the same frame, the same passes and the same
-declarations, performed on a device instead of on the CPU, and it is a
+The GPU executor performs a frame's passes on a device, and it is a
 VALUE.
 
 WHAT RUNS WHERE. A geometry pass rasterises, depth-tested, into a device

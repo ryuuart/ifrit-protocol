@@ -13,8 +13,8 @@
 #include <gtest/gtest.h>
 #include <sigilmaterial/advanced/Combine.h>
 #include <sigilmaterial/advanced/FrameData.h>
-#include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/mask/Mask.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilworld/advanced/Skia.h>
 #include <sigilworld/diligent/Runtime.h>
 
@@ -32,8 +32,7 @@ constexpr glm::ivec2 kExtent{80, 80};
 SkColor4f centreOfCard(const material::Material& surface,
                        const Runtime& runtime) {
   return diligent::at(
-      diligent::photograph(diligent::card(surface, kExtent), runtime, kExtent,
-                           diligent::levelEye()),
+      diligent::photograph(diligent::card(surface, kExtent), runtime, kExtent),
       0.5f, 0.5f);
 }
 
@@ -54,7 +53,8 @@ TEST(Stack, ComposesIntoABodyThisTargetCanCompile) {
 
   const material::Material stack =
       material::over(red(), blue(), material::maskConstant(0.5f));
-  EXPECT_EQ(stack.recipe().name(), material::stackName(material::BlendMode::Normal));
+  EXPECT_EQ(stack.recipe().name(),
+            material::stackName(material::BlendMode::Normal));
   ASSERT_TRUE(stack.recipe().has(material::Target::Slang))
       << "a stack whose operands all have a body for the target has one too";
 

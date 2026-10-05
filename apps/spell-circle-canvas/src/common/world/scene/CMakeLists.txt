@@ -19,7 +19,7 @@ sigil_library(SigilWorldScene
   SOURCES Draw.cpp Execute.cpp Host.cpp Phases.cpp Resources.cpp Scene.cpp
           Resources.h SceneImpl.h
   HEADERS Scene.h Stats.h
-  PUBLIC SigilWorldGraph SigilGeometryMeshRender SigilMotionClock
+  PUBLIC SigilWorldGraph SigilMotionClock
          SigilMotionSchedule SigilCoreReconcile SigilMeasure
   PRIVATE EnTT::EnTT SigilMaterialSurface SigilCoreCache SigilGeometryMeshCurve
           SigilMotionValues)

@@ -39,9 +39,8 @@ const material::Material* surfaceOf(const ElementNode& node) {
 
 /** THE SURFACE AT THE BOTTOM OF A STACK. A stack is a base, a top and a
  *  mask that decides where the top shows, and a mask is a program — so
- *  what a tier with no compiler can honestly state about a stack is the
- *  surface everything else was laid over. Any other material is
- *  itself. */
+ *  what can be read off a stack without running it is the surface
+ *  everything else was laid over. Any other material is itself. */
 const material::Material* readableSurface(const material::Material* material) {
   while (material) {
     const material::Material* base = material::under(*material);
@@ -51,10 +50,10 @@ const material::Material* readableSurface(const material::Material* material) {
   return material;
 }
 
-/** What the CPU tier shades a surface with. A recipe declaring a
- *  four-float `baseColor` is read for it; anything else takes the mesh
- *  painter's own default, because a recipe's body is a program and the
- *  CPU tier has no compiler to run one. */
+/** THE COLOUR A BODY IS EXTRACTED WITH: what a pass draws it in where
+ *  its recipe carries no program the device can compile, and what a
+ *  selection reads. A recipe declaring a four-float `baseColor` is read
+ *  for it; anything else takes a neutral grey. */
 glm::vec4 baseColorOf(const material::Material* material) {
   constexpr glm::vec4 kDefault{0.8f, 0.8f, 0.85f, 1.0f};
   if (!material) return kDefault;
@@ -275,6 +274,13 @@ void Scene::Impl::ensureResource(Instance& inst) {
 // ---- extract ---------------------------------------------------------------
 
 core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst) {
+  // THE VIEWPOINT IS THE FIRST IN TREE ORDER, so a node's own camera is
+  // read BEFORE its children's: a host that hangs a set under a node
+  // carrying its own camera is seen from that camera, whatever the set
+  // declared beneath it.
+  if (inst.description->camera && !camera)
+    camera = placeCamera(*inst.description->camera, inst.world);
+
   core::ChildVolatility childVolatility;
   for (std::unique_ptr<Instance>& child : inst.children)
     childVolatility.add(foldVolatility(*child));
@@ -342,9 +348,9 @@ core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst) {
   inst.declaration = self;
   inst.verdict = core::foldSubtree(self, childVolatility);
 
-  // Emitters and viewpoints are gathered on this walk, which visits
-  // every node every frame — a bake replays a draw order, and a light
-  // inside one must not go missing with it.
+  // Emitters are gathered on this walk, which visits every node every
+  // frame — a bake replays a draw order, and a light inside one must not
+  // go missing with it.
   if (node.light) {
     // The colour and the strength are the node's sampled lanes, which
     // the light's own values only seed; the opacity stays the light's.
@@ -385,7 +391,6 @@ core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst) {
       environmentKey = inst.description->key;
     }
   }
-  if (node.camera && !camera) camera = placeCamera(*node.camera, inst.world);
   return inst.verdict;
 }
 
@@ -417,9 +422,6 @@ void Scene::Impl::writeComponents(Instance& inst) {
   // …and so is the answer to whether light reaches it. A surface that is
   // its own light says so once, here, rather than being asked per pass.
   surface.lit = !(readable && material::surface::isUnlit(*readable));
-  surface.emissive = readable ? material::surface::map(
-                                    *readable, material::surface::kEmissiveSlot)
-                              : nullptr;
   if (node.tags.empty())
     registry.remove<component::Tagged>(inst.entity);
   else

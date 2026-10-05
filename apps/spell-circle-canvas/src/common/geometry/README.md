@@ -512,13 +512,13 @@ Outside that header one Skia type is named, and only by declaration:
 **the host's canvas**, which is the painter boundary. Everything a draw
 lands on is a canvas the host owns, so the drawing entrances take one —
 `render::drawMesh`, `render::drawPanel` (whose panel-local body is
-handed the same canvas), `render::drawImagePanel`, `render::drawBackdrop`
-and the `render::Runtime` seam the CPU and device painters implement;
+handed the same canvas), `render::drawImagePanel` and the
+`render::Runtime` seam the CPU and device painters implement;
 `points::drawBillboards`, `pop::cookBillboards` and
 `pop::Builder::billboards`; and `blend::draw`. Every other parameter and
 field beside that canvas is the library's own value or Media's picture:
 a viewport is a `glm::vec2`, a colour a `glm::vec4` of straight sRGB, a
-texture, a sprite or a panorama a `media::Picture`, a texture's
+texture or a sprite a `media::Picture`, a texture's
 placement a `path::Transform`, and how it is read a `render::Sampling`.
 
 ## Build and test
@@ -543,13 +543,13 @@ Targets — one static library per feature: `SigilGeometryPath`,
 | `mesh/test/` — `MeshTest`, `FacesTest`, `CameraTest`, `TransformTest` | the mesh currency, its faces and the camera that places it, and the order a 3D placement's parts apply in: the sheet's coherent lanes, transform and append with every lane kept sized to its elements, the primitive bake, a fanned polygon read as one face with one plane and one centroid, the face-up rotation, and the view-projection and billboard transforms carried through to viewport pixels |
 | `kit/test/` — `SilhouettesTest`, `ShapersTest`, `HatchesTest`, `DivisionsTest`, `SolidsTest` | the shelves: every silhouette inscribed in its box and equal values drawing equal paths (the contract a caching consumer prunes on), every shaper answering the deviation seam and moving the mark, the hatch door taking an outline and giving one back, a tick ladder and a chord fan as one multi-contour path at their frame's convention, and a path lifted with its hole intact, a profile lathed, the named surfaces closed and unit-normalled, and each regular solid counted by its own faces, closed on itself (V - E + F = 2), equal-edged and stood on a chosen face |
 | `mesh/curve/test/CurveTest` | splines, the two rails, the pose read along them, and the projection to a 2D path |
-| `mesh/render/test/` — `PainterTest`, `RuntimeTest`, `ShadingTest` | the mesh draw's pixels and the normals G-buffer's encoding; the draw's runtime seam; and each shading term against the closed form a device shader's own spelling of it is held to |
+| `mesh/render/test/` — `PainterTest`, `RuntimeTest` | the mesh draw's pixels and the normals G-buffer's encoding, and the draw's runtime seam |
 | `mesh/pop/test/` — `PointsTest`, `PopChainsTest`, `PopFiltersTest`, `PopLanesTest`, `PopNeighboursTest`, `PopSelectionTest`, `PopSinksTest`, `PopFieldsTest`, `RuntimeTest`, `SweepTest`, `SweptShapesTest` | point clouds and the chains over them: the generators' conventional lanes, the modifiers that move points exactly as the operators of the same name do, the splat as one canvas draw however many points and however many cells the cloud carries — keeping the back-to-front order, each point's own tint, size and atlas cell with no neighbouring cell bleeding into it, the requested blend where two splats overlap, and every splat across the batch's chunk boundary — the lanes a chain carries and the dials that address them by name, the operators that read points they do not own, each declined by name on a device runtime, the sinks a chain reaches by its own verb, the cook's and the sweep's runtime seams, and what a profile carried along a rail forms. Links the codec to seed chains from an imported model |
 | `mesh/codec/test/` — `ObjTest`, `GltfTest`, `StlTest`, `PlyTest`, `AlembicTest`, `GeoTest`, `ModelTest`, `EncodeTest` | one file per format, plus the Model operations over whatever reader made it and both writers' return leg. The only binary linking Alembic |
 | `device/test/DeviceTest` | one device end to end: Graphite draws on the very queue Diligent submits through, the adopted device names every Vulkan handle, and Diligent still drives it afterwards |
 | `device/residency/test/ResidencyTest` | what the device keeps between draws: a named mesh crossing once and drawn from after, a nameless one written through the streaming pair, the depth of an uploaded map's chain, and the letting go that keeps a scene from holding everything it ever cooked |
 | `mesh/pop/device/test/` — `DeviceCookTest`, `DeviceStampTest`, `DeviceSweepTest` | the CONFORMANCE of the device executors: every chain, stamping and sweep they say they can do compared with the host's bit for bit, the operators they decline by name, and a cook that reads back and cooks again with the backend's diagnostics collected |
-| `mesh/render/device/test/PainterTest` | the mesh painter's device executor: the runtime as a value, the style's own answers read the same way on either executor, and a panel as the same BYTES on both — which it is because a panel's content is Skia's to rasterise whichever executor holds it. How far two rasterisers stand apart on everything else is a picture, judged against a committed baseline rather than here |
+| `mesh/render/device/test/PainterTest` | the mesh painter's device executor: the runtime as a value, the style's own answers read the same way on either executor, the lit shading standing within a shading distance of the host's, and a panel as the same BYTES on both — which it is because a panel's content is Skia's to rasterise whichever executor holds it |
 
 | Label | On | Means |
 | --- | --- | --- |
@@ -557,7 +557,7 @@ Targets — one static library per feature: `SigilGeometryPath`,
 
 Every case in the device suites brings a Vulkan device up and skips,
 naming what is missing, where the machine has none, so `ctest -LE gpu`
-checks the whole host tier. Nothing else here needs a device, a font or
+checks everything that runs without a device. Nothing else here needs a device, a font or
 a network.
 
 Fixtures live in one place per audience. `test/support/` at the library

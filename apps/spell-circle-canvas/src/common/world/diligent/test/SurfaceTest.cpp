@@ -63,7 +63,7 @@ material::Texture flat(const std::string& key, SkColor4f colour) {
 
 /** One frame, rendered on @p runtime and photographed square on. */
 SkBitmap plateOf(const Frame& frame, const Runtime& runtime) {
-  return diligent::photograph(frame, runtime, kExtent, diligent::levelEye());
+  return diligent::photograph(frame, runtime, kExtent);
 }
 
 /** …and a card wearing @p surface, on the same terms. */
@@ -148,16 +148,12 @@ void expectOwnLight(const SkColor4f& centre) {
 
 }  // namespace
 
-TEST(SurfaceSlots, EmissionShowsOverABlackBaseAsAuthoredOnTheDevice) {
+TEST(SurfaceSlots, EmissionShowsOverABlackBaseAsAuthored) {
   const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;
   // Past the sun, the ambient, the tone curve and the base-colour map:
   // none of them reaches the light the surface gives off of its own.
   expectOwnLight(at(cardOn(glowingOnBlack(), on.runtime), 0.5f, 0.5f));
-}
-
-TEST(SurfaceSlots, EmissionShowsOverABlackBaseAsAuthoredOnTheHost) {
-  expectOwnLight(at(cardOn(glowingOnBlack(), Runtime::cpu()), 0.5f, 0.5f));
 }
 
 namespace {
@@ -464,12 +460,12 @@ TEST(Environment, TheBackdropPutsTheZenithAtTheTopOfTheFrame) {
 }
 
 TEST(Environment, APartOfTheSkyIsThatPartOfTheWholeSky) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
   // The sky is a fill over every pixel of the target, read through the
   // projection a pixel turns into a ray with — so a frame whose targets
   // are a part of a larger picture reads the rays the whole picture
-  // reads there, and its horizon stands on the whole picture's row. It
-  // is asked of the host, which always answers, and of the device where
-  // there is one.
+  // reads there, and its horizon stands on the whole picture's row.
   constexpr glm::ivec2 kWhole{kExtent.x * 4, kExtent.y * 4};
   constexpr glm::ivec2 kCorner{100, 180};
   world::Environment sky;
@@ -482,23 +478,16 @@ TEST(Environment, APartOfTheSkyIsThatPartOfTheWholeSky) {
   const SkIRect region =
       SkIRect::MakeXYWH(kCorner.x, kCorner.y, kExtent.x, kExtent.y);
 
-  std::vector<Runtime> runtimes{Runtime::cpu()};
-  const auto on = diligent::onDevice();
-  if (on) runtimes.push_back(on.runtime);
-  for (const Runtime& runtime : runtimes) {
-    const SkBitmap all =
-        diligent::photograph(whole, runtime, kWhole, diligent::levelEye());
-    const SkBitmap piece =
-        diligent::photograph(part, runtime, kWhole, diligent::levelEye());
-    // The part straddles the horizon, so both hemispheres are in it.
-    const SkColor4f top = piece.getColor4f(kCorner.x + 8, kCorner.y + 2);
-    const SkColor4f bottom =
-        piece.getColor4f(kCorner.x + 8, kCorner.y + kExtent.y - 2);
-    EXPECT_GT(top.fR, top.fB);
-    EXPECT_GT(bottom.fB, bottom.fR);
-    EXPECT_LE(diligent::pixelsApart(all, piece, region, 2),
-              kExtent.x * kExtent.y / 500);
-  }
+  const SkBitmap all = diligent::photograph(whole, on.runtime, kWhole);
+  const SkBitmap piece = diligent::photograph(part, on.runtime, kWhole);
+  // The part straddles the horizon, so both hemispheres are in it.
+  const SkColor4f top = piece.getColor4f(kCorner.x + 8, kCorner.y + 2);
+  const SkColor4f bottom =
+      piece.getColor4f(kCorner.x + 8, kCorner.y + kExtent.y - 2);
+  EXPECT_GT(top.fR, top.fB);
+  EXPECT_GT(bottom.fB, bottom.fR);
+  EXPECT_LE(diligent::pixelsApart(all, piece, region, 2),
+            kExtent.x * kExtent.y / 500);
 }
 
 TEST(Environment, ABackdropAtZeroStrengthDrawsNothing) {
@@ -530,8 +519,7 @@ TEST(Environment, AGroundProjectedBackdropMovesTheHorizonWithTheEye) {
     camera.target = {0, height, -100};
     Frame frame = skyAlone(sky);
     frame.camera(camera);
-    const SkBitmap plate =
-        diligent::photograph(frame, on.runtime, kExtent, camera);
+    const SkBitmap plate = diligent::photograph(frame, on.runtime, kExtent);
     for (int y = 0; y < plate.height(); ++y) {
       const SkColor4f c = plate.getColor4f(plate.width() / 2, y);
       if (c.fB > c.fR) return y;

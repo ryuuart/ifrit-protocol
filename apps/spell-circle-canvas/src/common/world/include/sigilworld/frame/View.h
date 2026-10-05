@@ -8,8 +8,8 @@
  * not reachable from a pass.
  */
 
-#include <sigilgeometry/mesh/render/Painter.h>
-#include <sigilgeometry/mesh/render/Shading.h>
+#include <sigilgeometry/mesh/Mesh.h>
+#include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilmaterial/core/Backface.h>
 #include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/texture/Texture.h>
@@ -59,10 +59,6 @@ struct Draw {
    *  off the material once per frame, so an executor does not walk a
    *  material tree per draw. */
   const ::sigil::material::Texture* texture = nullptr;
-  /** THE LIGHT THE SURFACE GIVES OFF OF ITS OWN: the emissive texture the
-   *  body's material carries, or null when it carries none. Read beside
-   *  the base-colour map, for a tier that paints it over the shading. */
-  const ::sigil::material::Texture* emissive = nullptr;
 };
 
 /** A TEXTURE AS A MESH SAMPLES IT: the image, where it is read at over
@@ -85,42 +81,6 @@ struct Sampling {
 /** @p texture as a mesh samples it. An empty texture answers an empty
  *  Sampling, whose null image is a body that is simply not dressed. */
 Sampling samplingOf(const ::sigil::material::Texture& texture);
-
-/** WHAT A SURFACE IS BEYOND ITS COLOUR, as an executor reads it: how
- *  metallic, how rough, and the three glass terms. Read off the
- *  material's parameters by name, so a material built from some other recipe
- *  answers the values that leave the shading where it was. */
-struct SurfaceTerms {
-  float metallic = 0;
-  float roughness = 0.5f;
-  float transmission = 0;
-  float ior = 1.5f;
-  float thickness = 0;
-  glm::vec3 absorption{0, 0, 0};
-  /** The emissive colour times its strength: what the emissive map is
-   *  multiplied by. Zero for a surface that gives off nothing. */
-  glm::vec3 emission{0, 0, 0};
-};
-/** The shading terms @p material carries, or the ones that leave the
- *  shading where it was when it carries none. */
-SurfaceTerms surfaceTermsOf(const ::sigil::material::Material* material);
-
-/** AN EMITTER AS THE MESH PAINTER TAKES IT: the one directional reading
- *  every tier that shades without a per-pixel position works from. */
-::sigil::geometry::mesh::render::Light painterLight(
-    const material::Light& light);
-
-/** The map @p body is dressed with and whether the emitters reach it,
- *  put on @p style — and taken off it again for a body carrying
- *  neither, since one style is reused across a whole list of them. */
-void dress(::sigil::geometry::mesh::render::MeshStyle& style, const Draw& body);
-
-/** THE ENVIRONMENT AS A MESH PAINTER TAKES IT: the prefiltered chain,
- *  the cosine convolution, and the orientation that carries a world
- *  direction into the panorama's frame. An invalid environment answers
- *  an empty one, which is a surface keeping the flat ambient it had. */
-::sigil::geometry::mesh::render::Environment paintedEnvironment(
-    const Environment& environment, const glm::mat3& orientation);
 
 /** WHERE A FRAME'S TARGETS STAND IN A LARGER PICTURE: one `whole` pixels
  *  across, of which the targets are the part whose top-left corner is at
@@ -153,8 +113,8 @@ struct ViewOffset {
 
 /** WHAT ONE FRAME EXTRACTED, handed to every pass that runs over it.
  *  The bodies arrive sorted back to front by view depth, stably, so two
- *  at one depth stand in tree order — the order a rasteriser with no
- *  depth buffer must draw them in. */
+ *  at one depth stand in tree order — the order a blended body has to be
+ *  drawn in over what stands behind it. */
 struct View {
   std::span<const Draw> draws;
   std::span<const material::Light> lights;

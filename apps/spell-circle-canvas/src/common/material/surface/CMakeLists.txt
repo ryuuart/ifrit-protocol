@@ -18,16 +18,13 @@ sigil_shader_sources(SigilMaterialSurface
   NAMESPACE sigil::material::surface)
 
 # The test draws, so it links the Skia backend beside the feature. The
-# terms suite links SigilGeometryMeshRender for the one case that asks
-# whether the C++ a host tier shades with answers what this library's
-# shader text answers — two spellings of one arithmetic cannot be
-# compared from inside one of them. The shader directory is named for
-# the case that asks whether the embedded table holds every file in it.
+# shader directory is named for the case that asks whether the embedded
+# table holds every file in it.
 sigil_test(material_test
   SOURCES test/SurfaceTest.cpp test/TermsTest.cpp
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
   DEFINITIONS SIGIL_MATERIAL_SURFACE_SHADER_DIR="${SIGIL_MATERIAL_SURFACE_SHADER_DIR}"
-  LIBRARIES SigilMaterialSurface SigilMaterialSkia SigilGeometryMeshRender)
+  LIBRARIES SigilMaterialSurface SigilMaterialSkia)
 
 sigil_bench(material_bench
   SOURCES bench/SurfaceBench.cpp

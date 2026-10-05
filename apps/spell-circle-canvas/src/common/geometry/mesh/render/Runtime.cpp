@@ -6,7 +6,6 @@
 #include "sigilgeometry/mesh/render/Runtime.h"
 
 #include <include/core/SkCanvas.h>
-#include <include/core/SkColorFilter.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkM44.h>
 #include <include/core/SkPaint.h>
@@ -56,6 +55,18 @@ glm::mat3 normalMatrix(const glm::mat4& m) {
  *  afterwards is a different answer, and one lane must not mean two
  *  colours. */
 glm::vec4 rgba(glm::vec3 rgb, float a) { return {rgb.x, rgb.y, rgb.z, a}; }
+
+/** WHERE A LIT SUM ENDS: Reinhard's operator on luminance, the radiance
+ *  divided by one plus its own luminance, so a highlight past white keeps
+ *  its shape instead of clipping and hue and saturation survive the
+ *  compression. It is the material kit's `toneMap` at an exposure of one,
+ *  which is what the device painter runs. */
+glm::vec3 toneMapped(glm::vec3 radiance) {
+  const glm::vec3 scaled = glm::max(radiance, glm::vec3(0.0f));
+  const float luminance =
+      scaled.x * 0.212671f + scaled.y * 0.715160f + scaled.z * 0.072169f;
+  return scaled / (1.0f + luminance);
+}
 
 SkColor toColor(glm::vec3 rgb, float a) {
   const SkColor4f c = {
@@ -149,15 +160,6 @@ struct CpuExecutor : Executor {
     full.preConcat(toSkM44(model));
     const glm::mat3 normalM = normalMatrix(camera.view() * model);
     const glm::mat3 lightM = normalMatrix(camera.view());
-    // The shading is written in view space and an environment map is a
-    // panorama of the WORLD, so a direction goes back out through the
-    // inverse of the rotation that brought it in — which, for the
-    // rotation part of a rigid placement, is its transpose.
-    const glm::mat3 worldM = glm::transpose(lightM);
-    const Environment& environment = style.environment;
-    const bool sky = environment.valid();
-    const float metal = std::clamp(style.metallic, 0.0f, 1.0f);
-    const float rough = std::clamp(style.roughness, 0.0f, 1.0f);
 
     // Project + shade every vertex once.
     std::vector<SkPoint> screen(n);
@@ -213,45 +215,23 @@ struct CpuExecutor : Executor {
             shaded[i] = rgba(base, alpha);
             break;
           }
-          // WHAT A METAL IS: the light stops reaching the diffuse and
-          // the highlight takes the surface's own colour. At metal zero
-          // — every surface that says nothing — this is the arithmetic
-          // that was already here, term for term.
-          const glm::vec3 albedo = base * (1.0f - metal);
-          const glm::vec3 f0 = specularColor(base, metal);
-          const glm::vec3 highlight =
-              glm::vec3(1.0f) + (base - glm::vec3(1.0f)) * metal;
-          // THE AMBIENT TERM IS THE ENVIRONMENT where there is one: what
-          // actually falls on a surface facing this way from every
-          // direction, rather than one constant for the whole set.
-          const glm::vec3 ambient =
-              sky ? environmentIrradiance(environment, worldM * N)
-                  : glm::vec3{style.ambient.r, style.ambient.g,
-                              style.ambient.b};
-          glm::vec3 accum = albedo * ambient;
+          const glm::vec3 ambient = {style.ambient.r, style.ambient.g,
+                                     style.ambient.b};
+          glm::vec3 accum = base * ambient;
           for (const Light& light : style.lights) {
             const glm::vec3 L = normalized(lightM * (light.direction * -1.0f));
             const float diff = std::max(glm::dot(N, L), 0.0f);
             const glm::vec3 lc = {light.color.r * light.intensity,
                                   light.color.g * light.intensity,
                                   light.color.b * light.intensity};
-            accum += albedo * lc * diff;
+            accum += base * lc * diff;
             if (style.specular > 0 && diff > 0) {
               const glm::vec3 H = normalized(L + V);
               const float spec =
                   std::pow(std::max(glm::dot(N, H), 0.0f), style.shininess) *
                   style.specular;
-              accum += lc * spec * highlight;
+              accum += lc * spec;
             }
-          }
-          // …and what the surface MIRRORS, off the reflected view
-          // vector, at the level its roughness picks.
-          if (sky) {
-            const float nDotV = std::max(glm::dot(N, V), 0.0f);
-            const glm::vec3 R = N * (2.0f * nDotV) - V;
-            accum += environmentSpecular(
-                environmentRadiance(environment, worldM * R, rough), f0, rough,
-                nDotV);
           }
           if (style.rim > 0) {
             const float rim =
@@ -259,12 +239,11 @@ struct CpuExecutor : Executor {
                 style.rim;
             accum += glm::vec3{rim, rim, rim};
           }
-          // WHERE THE LIT SUM ENDS: a radiance, read at the set's
-          // exposure and compressed onto what a display can hold. Only
-          // here — a surface that is its own light returned above with
-          // an authored colour, and the two buffer modes are not
-          // pictures at all.
-          shaded[i] = rgba(toneMap(accum, style.environment.exposure), alpha);
+          // WHERE THE LIT SUM ENDS: compressed onto what a display can
+          // hold. Only here — a surface that is its own light returned
+          // above with an authored colour, and the two buffer modes are
+          // not pictures at all.
+          shaded[i] = rgba(toneMapped(accum), alpha);
           break;
         }
       }
@@ -366,25 +345,6 @@ struct CpuExecutor : Executor {
     }
     const float texW = textured ? (float)texture->width() : 1;
     const float texH = textured ? (float)texture->height() : 1;
-    // THE LIGHT THE SURFACE GIVES OFF OF ITS OWN is laid over what was
-    // shaded, added rather than modulated, so neither the lights nor the
-    // base texture reach it.
-    const sk_sp<SkImage> glow = style.emissionMap;
-    const bool glows =
-        glow && hasUvs && style.mode == MeshStyle::Mode::Lit &&
-        (style.emission.x > 0 || style.emission.y > 0 || style.emission.z > 0);
-    SkPaint glowPaint;
-    if (glows) {
-      const SkTileMode tile =
-          style.tileTexture ? SkTileMode::kRepeat : SkTileMode::kClamp;
-      glowPaint.setShader(glow->makeShader(tile, tile, sampling));
-      glowPaint.setColorFilter(SkColorFilters::Blend(
-          SkColor4f{style.emission.x, style.emission.y, style.emission.z, 1},
-          nullptr, SkBlendMode::kModulate));
-      glowPaint.setBlendMode(SkBlendMode::kPlus);
-    }
-    const float glowW = glows ? (float)glow->width() : 1;
-    const float glowH = glows ? (float)glow->height() : 1;
     const SkMatrix uvTransform = path::toSk(style.uvTransform);
 
     const size_t maxTrisPerChunk = 65535 / 3;
@@ -393,8 +353,6 @@ struct CpuExecutor : Executor {
       std::vector<SkPoint> pos;
       std::vector<SkPoint> tex;
       std::vector<SkColor> col;
-      std::vector<SkPoint> glowTex;
-      if (glows) glowTex.reserve(count * 3);
       pos.reserve(count * 3);
       col.reserve(count * 3);
       if (textured) tex.reserve(count * 3);
@@ -412,12 +370,6 @@ struct CpuExecutor : Executor {
             const SkPoint uv = uvTransform.mapPoint({mapped.x, mapped.y});
             tex.push_back({uv.fX * texW, uv.fY * texH});
           }
-          if (glows) {
-            const glm::vec2 mapped =
-                idx < n ? mesh.uvs[idx] : clippedUvs[idx - n];
-            const SkPoint uv = uvTransform.mapPoint({mapped.x, mapped.y});
-            glowTex.push_back({uv.fX * glowW, uv.fY * glowH});
-          }
         }
       }
       sk_sp<SkVertices> vertices = SkVertices::MakeCopy(
@@ -426,12 +378,6 @@ struct CpuExecutor : Executor {
       canvas.drawVertices(vertices,
                           textured ? SkBlendMode::kModulate : SkBlendMode::kDst,
                           paint);
-      if (glows)
-        canvas.drawVertices(
-            SkVertices::MakeCopy(SkVertices::kTriangles_VertexMode,
-                                 (int)pos.size(), pos.data(), glowTex.data(),
-                                 nullptr, 0, nullptr),
-            SkBlendMode::kDst, glowPaint);
     }
   }
 

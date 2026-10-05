@@ -5,14 +5,14 @@
 # seam is a comparable erased value, which is SigilCoreComparable's shape.
 find_package(boost_unordered CONFIG REQUIRED)
 sigil_library(SigilGeometryMeshRender
-  SOURCES Painter.cpp Runtime.cpp Shading.cpp
-  HEADERS Painter.h Runtime.h Shading.h
+  SOURCES Painter.cpp Runtime.cpp
+  HEADERS Painter.h Runtime.h
   PUBLIC SigilGeometryMesh SigilGeometryMeshCamera SigilCoreComparable
          SigilMediaCore
   PRIVATE Boost::unordered)
 
 sigil_test(geometry_test
-  SOURCES test/PainterTest.cpp test/RuntimeTest.cpp test/ShadingTest.cpp
+  SOURCES test/PainterTest.cpp test/RuntimeTest.cpp
   LIBRARIES SigilGeometryMeshRender)
 
 sigil_bench(geometry_bench

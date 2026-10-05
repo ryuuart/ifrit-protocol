@@ -1,16 +1,12 @@
 /** @file
- * A body as a selector reads it, what its surface is beyond its colour,
- * and the environment as a mesh painter takes it.
+ * A body as a selector reads it, a texture as a mesh samples it, and the
+ * crop that carries a whole picture onto the part of it a frame forms.
  */
 
-#include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/Texture.h>
 #include <sigilworld/advanced/Skia.h>
 #include <sigilworld/frame/View.h>
-#include <sigilworld/light/Light.h>
-
-#include <algorithm>
 
 namespace sigil::world {
 
@@ -46,108 +42,6 @@ Sampling samplingOf(const material::Texture& texture) {
 
 Subject subjectOf(const Draw& draw) {
   return Subject{draw.key, draw.tags, draw.ancestors, draw.material};
-}
-
-::sigil::geometry::mesh::render::Light painterLight(
-    const material::Light& light) {
-  const light::Directional value = light::directional(light);
-  ::sigil::geometry::mesh::render::Light out;
-  out.direction = value.direction;
-  out.color = glm::vec4{value.color.r, value.color.g, value.color.b, 1.0f};
-  out.intensity = value.intensity;
-  return out;
-}
-
-void dress(::sigil::geometry::mesh::render::MeshStyle& style,
-           const Draw& body) {
-  const Sampling sampling =
-      body.texture ? samplingOf(*body.texture) : Sampling{};
-  style.texture = sampling.image;
-  style.uvTransform = ::sigil::geometry::path::Transform{sampling.uv};
-  style.tileTexture = sampling.tile;
-  style.filter = sampling.filter == material::Sampling::Nearest
-                     ? ::sigil::geometry::mesh::render::Sampling::Nearest
-                     : ::sigil::geometry::mesh::render::Sampling::Linear;
-  style.lit = body.lit;
-  style.backfaceCull = body.backface == material::Backface::Hidden;
-  const SurfaceTerms terms = surfaceTermsOf(body.material);
-  style.metallic = terms.metallic;
-  style.roughness = terms.roughness;
-  // The light a surface gives off of its own is laid over the shading,
-  // where neither the emitters nor the base-colour map reach it.
-  style.emissionMap = body.emissive && body.lit
-                          ? samplingOf(*body.emissive).image
-                          : media::Picture{};
-  style.emission = terms.emission;
-}
-
-SurfaceTerms surfaceTermsOf(const ::sigil::material::Material* material) {
-  SurfaceTerms terms;
-  if (!material) return terms;
-  const material::Schema& parameters = material->recipe().parameters();
-  const auto scalar = [&](std::string_view name, float& into) {
-    const material::Field* field = parameters.find(name);
-    if (field && field->kind == material::ParameterType::Float)
-      into = material->get<float>(name);
-  };
-  scalar("metallic", terms.metallic);
-  scalar("roughness", terms.roughness);
-  scalar("transmission", terms.transmission);
-  scalar("ior", terms.ior);
-  scalar("thickness", terms.thickness);
-  const material::Field* emissive = parameters.find("emissive");
-  if (emissive && emissive->kind == material::ParameterType::Color) {
-    float strength = 0;
-    scalar("emissiveStrength", strength);
-    const glm::vec4 value = material->get<glm::vec4>("emissive");
-    terms.emission =
-        glm::vec3{value.r, value.g, value.b} * std::max(strength, 0.0f);
-  }
-  const material::Field* absorb = parameters.find("absorption");
-  if (absorb && absorb->kind == material::ParameterType::Color) {
-    const glm::vec4 value = material->get<glm::vec4>("absorption");
-    terms.absorption = {value.r, value.g, value.b};
-  }
-  return terms;
-}
-
-::sigil::geometry::mesh::render::Environment paintedEnvironment(
-    const Environment& environment, const glm::mat3& orientation) {
-  namespace render = ::sigil::geometry::mesh::render;
-  render::Environment out;
-  // THE EXPOSURE CROSSES FIRST, before the panorama is asked for: it is
-  // the one dial that means something in a set carrying no map at all,
-  // because a lit sum ends at the tone curve whether or not there is a
-  // sky over it.
-  out.exposure = environment.exposure;
-  if (!environment.valid()) return out;
-  // The chain and the convolution are baked once per panorama and kept
-  // by the value, so asking for them every frame is a lookup.
-  const auto images = [](const std::vector<material::Texture>& levels) {
-    std::vector<media::Picture> out;
-    out.reserve(levels.size());
-    for (const material::Texture& level : levels)
-      out.push_back(material::skia::image(level));
-    return out;
-  };
-  out.levels = images(environment.map.chain());
-  out.irradiance = material::skia::image(environment.map.irradiance());
-  if (environment.next.valid()) {
-    out.nextLevels = images(environment.next.chain());
-    out.nextIrradiance = material::skia::image(environment.next.irradiance());
-  }
-  out.crossfade = environment.crossfade;
-  out.orientation = orientation;
-  out.tint = environment.tint;
-  out.intensity = environment.intensity;
-  out.diffuse = environment.diffuse;
-  out.specular = environment.specular;
-  out.roughnessBias = environment.roughnessBias;
-  out.backdrop = environment.backdrop.intensity;
-  out.backdropBlur = environment.backdrop.blur;
-  out.groundRadius = environment.backdrop.groundRadius;
-  out.projectionCenter = environment.backdrop.projectionCenter;
-  return out;
 }
 
 bool isPart(const ViewOffset& offset, glm::ivec2 extent) {

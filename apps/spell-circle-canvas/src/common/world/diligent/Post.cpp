@@ -3,15 +3,12 @@
  * fragment stage per layer, so a blur, a grade and a composite are
  * shader passes rather than a crossing back to the host.
  *
- * WHAT IS NOT THE SAME AS THE HOST'S ANSWER. A blur here is a separable
- * Gaussian, three sigma wide and normalised over the taps it takes; a
- * raster blur is a box approximation of one. They are the same effect
- * and not the same kernel, which is why the tier that compares them
- * states a tolerance rather than asking for identical bytes.
+ * A blur here is a separable Gaussian, three sigma wide and normalised
+ * over the taps it takes.
  */
 
-#include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/advanced/Skia.h>
+#include <sigilworld/diligent/Runtime.h>
 
 #include <cstdint>
 #include <string>
@@ -100,8 +97,7 @@ void applyOperation(Gpu& gpu, const PostOperation& operation,
     material::slang::Uniforms uniforms =
         baseUniforms(programs.levels, gpu.extent, 0.0f, 1.0f);
     uniforms.set("uGrade", levels->gain, levels->lift, 1.0f, 0.0f);
-    uniforms.set("uTint", levels->tint.r, levels->tint.g, levels->tint.b,
-                 1.0f);
+    uniforms.set("uTint", levels->tint.r, levels->tint.g, levels->tint.b, 1.0f);
     drawStage(gpu, programs.levels, into, blend, uniforms, {source}, clear);
     return;
   }
@@ -116,8 +112,9 @@ void applyOperation(Gpu& gpu, const PostOperation& operation,
 SkBlendMode compositeBlend(const PostOperation& operation) {
   const Composite* composite = std::get_if<Composite>(&operation);
   if (!composite) return SkBlendMode::kSrcOver;
-  return composite->mode == material::BlendMode::PlusLighter ? SkBlendMode::kPlus
-                                               : SkBlendMode::kSrcOver;
+  return composite->mode == material::BlendMode::PlusLighter
+             ? SkBlendMode::kPlus
+             : SkBlendMode::kSrcOver;
 }
 
 float compositeOpacity(const PostOperation& operation) {

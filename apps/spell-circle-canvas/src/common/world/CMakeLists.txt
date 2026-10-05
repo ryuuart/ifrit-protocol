@@ -25,8 +25,8 @@ add_subdirectory(element)
 
 # A frame as three declared things — the scene, an ordered list of
 # passes and the readbacks — the resources those passes write, and the
-# seam a pass is performed through. No device: the executor that ships
-# here is the CPU one.
+# seam a pass is performed through. No device: the executor that draws is
+# supplied by the device feature below, as a value.
 add_subdirectory(frame)
 
 # The ordering: what runs when, which resources share a surface, the
@@ -35,8 +35,8 @@ add_subdirectory(frame)
 add_subdirectory(graph)
 
 # The retained side: the reconcile host, the entity store, the resource
-# store and the declared phases, drawing through SigilGeometry's mesh
-# runtime and executing a frame's passes on the runtime it carries.
+# store and the declared phases, executing a frame's passes on the
+# runtime it carries.
 add_subdirectory(scene)
 
 # The frame executor on the device SigilGeometryDevice creates. Its

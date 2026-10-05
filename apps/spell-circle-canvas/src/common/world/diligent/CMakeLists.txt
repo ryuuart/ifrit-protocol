@@ -39,10 +39,9 @@ sigil_slang_module(NAME Post SOURCE ${_shaders}/Post.slang
 # whether a slot is bound or left reading one white texel. Diligent
 # arrives through SigilGeometryDevice, which links it PUBLIC, and is
 # never named again here: that target's archive must come first on the
-# link line. The hardware device a native import names and the
-# mesh-renderer seam a frame's bodies are styled through are PUBLIC
-# because the headers spell them; the Graphite pixel reads an
-# environment upload takes are PRIVATE. The mesh painter's own device
+# link line. The hardware device a native import names is PUBLIC because
+# the headers spell it; the Graphite pixel reads an environment upload
+# takes are PRIVATE. The mesh painter's own device
 # executor is not here: it draws no frame, so it stands beside its CPU
 # twin in SigilGeometry.
 #
@@ -66,7 +65,6 @@ sigil_library(SigilWorldDiligent
                   ${SIGIL_GEOMETRY_DEVICE_RESIDENCY_PRIVATE_DIR}
   PUBLIC SigilGeometryDevice SigilWorldScene SigilMaterialSlang
          SigilGeometryMeshPop SigilGeometryMeshPopDevice SigilCoreHardware
-         SigilGeometryMeshRender
   PRIVATE SigilGeometryDeviceResidency SigilMaterialSurface SigilSkiaGraphite
           Boost::container)
 sigil_shader_sources(SigilWorldDiligent
@@ -91,7 +89,7 @@ sigil_test(world_test
                ${SIGIL_GEOMETRY_DEVICE_TEST_SUPPORT_DIR}
   DEFINITIONS SIGIL_WORLD_SHADER_DIR="${_shaders}"
   LIBRARIES SigilWorldDiligent SigilMaterialSurface SigilGeometryKit
-  SUITES EitherTier Environment GpuRuntime Programs Stack SurfaceProgram
+  SUITES DeviceFrame Environment GpuRuntime Programs Stack SurfaceProgram
          SurfaceSlots
   LABELS gpu)
 

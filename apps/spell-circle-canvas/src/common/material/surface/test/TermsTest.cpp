@@ -1,9 +1,7 @@
 /** @file
  * THE SHADING TERMS, evaluated: each meets its closed form, the
  * environment falls off with roughness, the panorama's middle is
- * straight ahead, the exposure multiplies before the curve — and the
- * arithmetic a host tier transcribes in C++ answers what this text
- * answers, term for term.
+ * straight ahead, and the exposure multiplies before the curve.
  */
 
 #include <gtest/gtest.h>
@@ -13,7 +11,6 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkPixmap.h>
 #include <include/core/SkSurface.h>
-#include <sigilgeometry/mesh/render/Shading.h>
 #include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/advanced/Terms.h>
 #include <sigilmaterial/core/Material.h>
@@ -258,76 +255,3 @@ glm::vec3 shaded(const std::string& expression) {
 }
 
 }  // namespace
-
-TEST(Terms, TheHostTiersTranscriptionAnswersWhatTheShaderTextAnswers) {
-  // A host tier has no shading language, so the same arithmetic is
-  // written twice: once here as the text every shader compiles, once in
-  // C++ where a vertex-shaded mesh evaluates it. Two spellings of one
-  // piece of arithmetic drift silently — a constant edited on one side
-  // only — and what stops that is asking both the same questions.
-  //
-  // The tolerance is the shader's: the transcendentals in this text are
-  // polynomials, and the C++ side writes the same polynomials, so what
-  // is left is the float precision of a half-precision return.
-  namespace host = sigil::geometry::mesh::render;
-  constexpr float kTol = 2e-3f;
-
-  for (float metal : {0.0f, 0.35f, 1.0f}) {
-    const glm::vec3 base{0.9f, 0.6f, 0.2f};
-    const glm::vec3 want = host::specularColor(base, metal);
-    const glm::vec3 got = shaded("specularColor(float3(0.9, 0.6, 0.2), " +
-                                 std::to_string(metal) + ")");
-    EXPECT_NEAR(got.x, want.x, kTol) << metal;
-    EXPECT_NEAR(got.y, want.y, kTol) << metal;
-    EXPECT_NEAR(got.z, want.z, kTol) << metal;
-  }
-
-  for (float rough : {0.0f, 0.5f, 1.0f})
-    for (float cosTheta : {0.05f, 0.5f, 1.0f}) {
-      const glm::vec3 f0{0.04f, 0.04f, 0.04f};
-      const glm::vec3 want = host::fresnelRough(f0, cosTheta, rough);
-      const glm::vec3 got =
-          shaded("fresnelRough(float3(0.04, 0.04, 0.04), " +
-                 std::to_string(cosTheta) + ", " + std::to_string(rough) + ")");
-      EXPECT_NEAR(got.x, want.x, kTol) << rough << " " << cosTheta;
-      EXPECT_NEAR(got.y, want.y, kTol) << rough << " " << cosTheta;
-    }
-
-  for (float rough : {0.1f, 0.6f, 1.0f})
-    for (float nDotV : {0.1f, 0.75f}) {
-      const glm::vec2 want = host::environmentBrdf(rough, nDotV);
-      const SkColor4f got = term("environmentBrdf(" + std::to_string(rough) +
-                                 ", " + std::to_string(nDotV) + "), 0.0, 1.0");
-      EXPECT_NEAR(got.fR, want.x, kTol) << rough << " " << nDotV;
-      EXPECT_NEAR(got.fG, want.y, kTol) << rough << " " << nDotV;
-    }
-
-  for (float rough : {0.2f, 0.9f}) {
-    const glm::vec3 radiance{0.8f, 0.5f, 0.3f};
-    const glm::vec3 f0{0.9f, 0.6f, 0.2f};
-    const glm::vec3 want = host::environmentSpecular(radiance, f0, rough, 0.6f);
-    const glm::vec3 got = shaded(
-        "environmentSpecular(float3(0.8, 0.5, 0.3), "
-        "float3(0.9, 0.6, 0.2), " +
-        std::to_string(rough) + ", 0.6)");
-    EXPECT_NEAR(got.x, want.x, kTol) << rough;
-    EXPECT_NEAR(got.y, want.y, kTol) << rough;
-    EXPECT_NEAR(got.z, want.z, kTol) << rough;
-  }
-
-  for (float thickness : {0.0f, 0.5f, 2.0f}) {
-    const glm::vec3 want =
-        host::attenuate({1.0f, 1.0f, 1.0f}, {0.2f, 0.6f, 1.2f}, thickness);
-    const glm::vec3 got = shaded(
-        "attenuate(float3(1.0, 1.0, 1.0), "
-        "float3(0.2, 0.6, 1.2), " +
-        std::to_string(thickness) + ")");
-    EXPECT_NEAR(got.x, want.x, kTol) << thickness;
-    EXPECT_NEAR(got.y, want.y, kTol) << thickness;
-    EXPECT_NEAR(got.z, want.z, kTol) << thickness;
-  }
-
-  const glm::vec3 colour{0.3f, 0.7f, 0.9f};
-  EXPECT_NEAR(scalar("luminance(float3(0.3, 0.7, 0.9))"),
-              host::luminance(colour), kTol);
-}

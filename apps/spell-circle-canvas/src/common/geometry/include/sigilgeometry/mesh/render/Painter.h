@@ -11,8 +11,8 @@
  *    needs. Panels are the zero-copy path: any picture (a compose
  *    scene, a web view, an SVG) lands on a plane in space.
  *
- *  - drawMesh(): transform, per-vertex lighting, back-to-front triangle
- *    sort and emission for Mesh solids. MeshStyle::Mode::Normals
+ *  - drawMesh(): transform, per-vertex lighting and back-to-front
+ *    triangle sort for Mesh solids. MeshStyle::Mode::Normals
  *    renders a device-space normal G-buffer — +y down, matching the
  *    canvas — instead of lit colour; feed that surface to a surface
  *    recipe and per-pixel chrome, gold or glass lands on true 3D
@@ -38,7 +38,6 @@
 #include "sigilgeometry/mesh/Mesh.h"
 #include "sigilgeometry/mesh/camera/Camera.h"
 #include "sigilgeometry/mesh/render/Runtime.h"
-#include "sigilgeometry/mesh/render/Shading.h"
 #include "sigilgeometry/path/Transform.h"
 
 /** DRAWING A MESH OR A PANEL ONTO AN ORDINARY CANVAS — no GPU device,
@@ -77,7 +76,7 @@ enum class Sampling : uint8_t {
 struct MeshStyle {
   /** Which of the three shading modes the draw runs. */
   enum class Mode : uint8_t {
-    Lit,      ///< per-vertex Lambert + Blinn specular + rim
+    Lit,      ///< per-vertex Lambert + Blinn specular + rim, toned
     Normals,  ///< device-space normal G-buffer, +y down — the convention
               ///< surface recipes read (rgb = (n.x, -n.y, n.z)*0.5+0.5), unlit
     Uv,       ///< uv debug ramp
@@ -92,30 +91,13 @@ struct MeshStyle {
   bool lit = true;
   glm::vec4 baseColor = {0.8f, 0.8f, 0.85f, 1};
   std::vector<Light> lights = {{}};
+  /** The light every surface receives before any emitter reaches it. */
   glm::vec4 ambient = {0.12f, 0.12f, 0.15f, 1};
-  /** THE PANORAMA THE SURFACE SEES PAST THE LIGHTS. Carrying one
-   *  replaces the flat `ambient` above with what actually falls on the
-   *  surface from each direction, and gives it something to mirror; an
-   *  empty one leaves the constant standing, which is what keeps a set
-   *  described without a sky the picture it already was. */
-  Environment environment;
-  /** How much of a metal the surface is, and how rough — the two the
-   *  environment terms need that a Blinn highlight had no use for. Both
-   *  are one number over the whole surface here: this tier has no map
-   *  and no per-pixel half. */
-  float metallic = 0;
-  float roughness = 0.5f;
   float specular = 0.5f;  ///< Blinn specular strength
   float shininess = 48;   ///< Blinn exponent
   float rim = 0.25f;      ///< rim light strength
   /** Optional texture: uvs sample this image, modulated by lighting. */
   media::Picture texture;
-  /** Optional EMISSION texture: the light the surface gives off of its
-   *  own, sampled at the same uvs and placement as `texture`, multiplied by
-   *  `emission` and ADDED over the shaded, textured result — reached by
-   *  neither the lights nor the texture. Lit mode only. */
-  media::Picture emissionMap;
-  glm::vec3 emission{0, 0, 0};
   /** Texture PLACEMENT in uv space, applied before the lookup —
    *  translate to scroll (a marquee riding a ribbon), scale to repeat,
    *  rotate to spin. Identity = the image spans uv [0,1] once. */

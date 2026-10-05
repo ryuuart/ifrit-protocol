@@ -3,10 +3,11 @@
 /** @file
  * @ingroup world-frame
  * The seam a pass executes through, as a VALUE. `Runtime` holds an
- * `Executor` — the one operation a pass is performed by — so the same
- * Frame, the same passes and the same declarations run on whichever
- * executor the caller carries. One executor ships here, the CPU one; a
- * feature that owns a device supplies its own as a value.
+ * `Executor` — the one operation a pass is performed by — so the frame,
+ * the ordering and the retained scene name no device and link none. The
+ * executor that draws is the device's, which the feature that owns a
+ * device supplies as a value; a frame carrying no runtime runs none of
+ * its passes and says so.
  */
 
 #include <sigilcore/comparable/Erased.h>
@@ -51,7 +52,9 @@ class Executor {
   virtual void endFrame(Targets&) const {}
 };
 
-/** The executor a frame runs on, carried as a comparable value. */
+/** The executor a frame runs on, carried as a comparable value. An
+ *  empty one is no executor at all: a frame carrying it describes and
+ *  extracts, and runs none of its passes. */
 class Runtime : public core::Erased<Executor> {
  public:
   using core::Erased<Executor>::Erased;
@@ -59,11 +62,6 @@ class Runtime : public core::Erased<Executor> {
   /** A runtime standing for @p erased, which IS the executor it holds. */
   Runtime(core::Erased<Executor> erased)  // NOLINT: a Runtime IS its value
       : core::Erased<Executor>(std::move(erased)) {}
-
-  /** The built-in executor: everything on the CPU, painting into raster
-   *  surfaces. Every call returns the same value, so two frames that did
-   *  not name a runtime compare equal on it. */
-  static Runtime cpu();
 };
 
 }  // namespace sigil::world

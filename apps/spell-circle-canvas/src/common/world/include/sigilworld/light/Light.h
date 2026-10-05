@@ -70,9 +70,7 @@ struct Directional {
 
 /** @p light as a direction. A directional light already is one. A light
  *  that STANDS somewhere reaches this reading as the direction from where
- *  it stands toward the origin, at the strength it has there — so a
- *  renderer that shades per vertex and one that shades per pixel disagree
- *  about where a lamp falls off, and agree about where it is. The full
+ *  it stands toward the origin, at the strength it has there. The full
  *  falloff is `attenuation`. */
 Directional directional(const material::Light& light);
 

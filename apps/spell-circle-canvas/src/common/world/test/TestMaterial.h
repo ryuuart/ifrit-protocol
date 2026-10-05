@@ -7,18 +7,17 @@
  * A test that needs a surface needs one it can compare and one it can
  * tell from another, and nothing more: no shading model, no catalog, no
  * second copy of what the material kit already states. So there is one
- * recipe here carrying one colour, in two builds, because a tier with a
- * compiler and a tier without ask different things of a material.
- * `paint()` is the colour alone, which is all a tier that reads a base
- * colour can use; `slangPaint()` carries a body, which is what a tier
- * that compiles one runs.
+ * recipe here carrying one colour, in two builds: `paint()` is the colour
+ * alone, which a frame extracts and a device draws a body in when there is
+ * no program to run; `slangPaint()` carries a body, which is what the
+ * device compiles and runs.
  */
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkColor.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
-#include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/advanced/Recipe.h>
+#include <sigilmaterial/core/Material.h>
 #include <sigilworld/advanced/Skia.h>
 
 #include <glm/vec4.hpp>
@@ -50,7 +49,7 @@ inline const std::shared_ptr<const material::Recipe>& paintRecipe() {
   return recipe;
 }
 
-/** …and the same colour with a body, for a tier that compiles one. The
+/** …and the same colour with a body, for the device to compile. The
  *  body returns the recipe's own parameter, so what reaches the pixels
  *  says whether the parameter reached the program. */
 inline const std::shared_ptr<const material::Recipe>& slangPaintRecipe() {
@@ -62,12 +61,12 @@ inline const std::shared_ptr<const material::Recipe>& slangPaintRecipe() {
   return recipe;
 }
 
-/** A surface of @p colour that no tier compiles. */
+/** A surface of @p colour with no program to compile. */
 inline material::Material paint(glm::vec4 colour) {
   return material::Material(paintRecipe(), Paint{colour});
 }
 
-/** …and one that a tier with a compiler runs. */
+/** …and one the device compiles and runs. */
 inline material::Material slangPaint(glm::vec4 colour) {
   return material::Material(slangPaintRecipe(), Paint{colour});
 }

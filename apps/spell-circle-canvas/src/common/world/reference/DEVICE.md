@@ -1,12 +1,11 @@
 # SigilWorld — the device executor
 
-The chapter on the tier that rasterises on a GPU: what the executor
-does with each pass, what a material reaches the device as, the three
-seams below this library whose device executors stand beside their CPU
-ones, what this tier can and cannot say about a shaded scene, where its
+The chapter on the executor a set is drawn by, which rasterises on a
+GPU: what it does with each pass, what a material reaches the device as,
+the two seams below this library whose device executors stand beside
+their CPU ones, what a shaded scene can and cannot say there, where its
 shaders come from, and the one device it all stands on. `README.md`
-beside the library is the front page, and its CPU-tier paragraph is the
-twin of the one here.
+beside the library is the front page.
 
 ## The device executor
 
@@ -22,7 +21,7 @@ because a frame's passes ARE engine calls. `Import.h` and `Runtime.h`,
 the two headers a consumer reads, spell a device, a scene and a runtime
 and nothing of the engine.
 
-`diligent::runtime(device)` performs the same passes on the device the
+`diligent::runtime(device)` performs a frame's passes on the device the
 `diligent/` feature brought up. What it does with each:
 
 - a **geometry pass** rasterises the bodies its realisation leaves it
@@ -51,8 +50,7 @@ and nothing of the engine.
   picture is copied first and the operation reaches it through the coverage.
   A device cannot sample an image it is drawing into, so every stage that
   reads and writes at once takes a working target of its own — including
-  a pass that declares it writes what it reads, which on the host is
-  answered by taking the layers as snapshots first.
+  a pass that declares it writes what it reads.
 
 **A cooked artefact is named by a NUMBER, not by its address.** A
 renderer holding buffers per geometry keys on `Draw::geometry`, which the
@@ -69,7 +67,7 @@ not moved between two frames is neither instanced again nor re-uploaded.
 `Targets::stamped()` is where it is formed and held;
 `world::stampKey()` is the number the two values fold to, read from
 their CONTENT because that is what "the same stamping" means — an
-address cannot say it and a shape cannot — and the device tier keys its
+address cannot say it and a shape cannot — and the device keys its
 upload by that same number. The fold BUCKETS the lookup and the pair
 itself decides it: an entry holds the cloud and the stamp it was formed
 from, so two pairs that happen to fold together are two stampings under
@@ -82,14 +80,12 @@ frame is let go at the end of it.
 textures for as long as the runtime lives, and nothing crosses back until
 something asks for a resource BY NAME — a declared `readback`, whose
 `then` offers the result to a callback that names it or not, or the
-picture being presented. That is what `Targets::source` is: a runtime
-that executed elsewhere answers for one name at a time, so a frame that
-reads nothing back pays for no crossing at all. With a source installed
-`Targets::previous()` answers null and `endFrame()` keeps nothing,
-because the executor that owns where the pixels are owns what last frame
-means for them — the device executor keeps each resource's previous
-texture beside its current one and exchanges the two when the next frame
-opens.
+picture being presented. That is what `Targets::source` is: the
+executor answers for one name at a time, so a frame that reads nothing
+back pays for no crossing at all. What last frame means is the
+executor's too: it keeps each resource's previous texture beside its
+current one and exchanges the two when the next frame opens, which is
+what a pass's `previous()` reads.
 
 **What a material reaches the device as.** A recipe's Slang body is one
 function, `float4 surface(float2 uv)`, returning the surface's own colour
@@ -118,23 +114,19 @@ strictly, so that a body redrawn over itself does not lose to the depth
 it wrote the first time.
 
 A material whose recipe has no Slang body is painted in the colour the
-frame extracted — the same reading the CPU tier makes — and the program
-cache has already reported the recipe and the target once.
+frame extracted, and the program cache has already reported the recipe
+and the target once.
 
 **The map a body is dressed with** is the `material::Texture` in its
-surface's base-colour slot, and both tiers sample it. It is read off the
+surface's base-colour slot. It is read off the
 material ONCE, at extract, so an execution reading a body never walks a
 material tree; a mesh carries normalised uvs and a texture states its
 placement in the image's own pixels, so the placement is carried across
 rather than copied — inverted, because a texture's matrix puts the image
 INTO the space it is sampled in and a lookup goes the other way, and
 taken through the image's size, so a scale and an `at()` mean the same
-thing and point the same way on a mesh as they do in a plane. On the
-device the map multiplies the SHADED colour rather than the surface
-before it, because the host tier's rasteriser can only modulate a texture
-against the colour it already shaded, and a map that landed on one side
-of the lighting here and the other side there would make the two tiers
-different pictures.
+thing and point the same way on a mesh as they do in a plane. The map
+multiplies the SHADED colour rather than the surface before it.
 
 The map is read through the sampler its texture asked for — one per
 filter, made once with the device and picked per draw. Everything with no
@@ -176,16 +168,6 @@ interpolated, down to the bit. The tangent frame a normal map is authored agains
 read off the screen derivatives of the view position and the uv, because
 a mesh carries no tangent lane and every generator would have to fill
 one.
-
-## The mesh painter on the device
-
-It is not here. `geometry::mesh::render::deviceRuntime(device)` draws a
-mesh onto a canvas on the device, and it stands beside the CPU executor
-of that seam, in SigilGeometry — a mesh draw has no pass, no named
-resources and no material, so nothing about it is a frame. SigilGeometry's
-README is canon for what it does and how far it stands from its host
-twin. A host that brought a device up installs it beside the frame
-runtime below, from the same device.
 
 ## The swept rings on the device
 
@@ -269,29 +251,39 @@ with `setenv(..., overwrite=0)`, so a process that has already put
 asked for — which is the way to buy the faster device back, at the cost
 of a device pop cook that no longer answers what the host answers.
 
-## What the DEVICE tier can and cannot say
+## What a lit set can and cannot say
 
-The twin of `README.md`'s CPU-tier paragraph, for the same scene shaded on
-a device. The lighting is directional, per vertex, and the model is
-ambient plus Lambert scaling the surface colour, plus a Blinn highlight
-and a rim term that nothing scales. So:
+The lighting is directional, per vertex, and the model is ambient plus
+Lambert scaling the surface colour, plus a Blinn highlight and a rim
+term that nothing scales. So:
 
-- a recipe's `Target::Slang` body IS run, which is the whole difference
-  from the CPU tier: the parameters, the sampled slots and the arithmetic
-  a material describes reach the pixels. A recipe with no Slang body is
-  painted in the colour the frame extracted, the same reading the CPU
-  tier makes.
+- a recipe's `Target::Slang` body IS run: the parameters, the sampled
+  slots and the arithmetic a material describes reach the pixels. A
+  recipe with no Slang body is painted in the colour the frame
+  extracted.
+- a sun reaches the shading as itself; a point or spot light reaches it
+  as the direction from where it stands toward the origin, at the
+  strength it has there. The full falloff is `light::attenuation`.
+- a surface that says light does not reach it — `material::surface::unlit`
+  — is drawn with the unlit build: what it shows is its base colour and
+  the mesh's own tint. The answer is read off the material once at
+  extract, beside the map, so it is a property of the BODY and not of the
+  pass that draws it.
+- a texture states how it is read BETWEEN texels and the device honours
+  it. Nearest keeps a texel's edge hard and takes no mip level with it,
+  because blending two levels is the same bleed arriving by the other
+  door; linear reads between texels and between levels.
 - a STACK of surfaces SHADES as a stack. `material::over` composes one
   Slang body out of its three operands' own bodies, so both surfaces are
   evaluated and their colours mixed by the mask, and what each of them
   said per pixel — a normal, a Blinn exponent, a metal weight — is mixed
   by the same coverage, so a top wearing a normal map bumps the surface
   only where the mask lets the top show. A stack whose operands do not
-  all have a Slang body is not composed and reaches this tier as the
-  surface at the bottom of it, the way the CPU tier reads one.
+  all have a Slang body is not composed and is drawn as the surface at
+  the bottom of it.
 - **a stack running its own body owns every map in it.** The frame
   extracts the map of the material at the bottom of a stack, because
-  that is what a tier with no compiler can answer with; where the
+  that is what can be read off a stack without running it; where the
   composed body IS run it samples both operands' maps itself, through
   slots of its own, and the scaffold is handed no map at all — otherwise
   the bottom's would land a second time and over the whole face rather
@@ -332,8 +324,8 @@ and a rim term that nothing scales. So:
   rather than a white disc — and every lit sum carries them through, so
   cutting it off at one would flatten every highlight to the same white
   and lose exactly the range the map is kept in floating point to hold.
-  `material::termsSource`'s `toneMap` is what runs instead, on both tiers and on the
-  sky pass alike: the radiance times the environment's `exposure`,
+  `material::termsSource`'s `toneMap` is what runs instead, on a body and
+  on the sky pass alike: the radiance times the environment's `exposure`,
   divided by one plus its own luminance. A surface that is its own light
   and a coverage mask are drawn with the unlit build and are not curved:
   their colour is authored, not integrated.
@@ -351,8 +343,7 @@ and a rim term that nothing scales. So:
   host image at all, so a renderer on another device draws the body
   undressed rather than something it invented.
 
-- **the sky SHOWN behind the set is `Backdrop`**, drawn on both tiers as
-  one triangle over the target with each pixel reading the panorama
+- **the sky SHOWN behind the set is `Backdrop`**, drawn as one triangle over the target with each pixel reading the panorama
   along the ray the eye looks through it, at the backdrop's strength and
   blur. Past a `groundRadius` of zero the panorama is projected onto a
   sphere of that radius centred at `projectionCenter`: the pixel reads
@@ -427,9 +418,10 @@ that device:
 ```cpp
 #include <sigilworld/diligent/Runtime.h>
 
-world::Scene scene(world::diligent::runtime(*device));
+frame.runtime(world::diligent::runtime(*device));
 ```
 
 There is no Metal path here, because Diligent has no Metal backend:
-`create` fails on a machine with no Vulkan runtime, and the answer for
-such a machine is the CPU executor, not a second GPU path.
+`create` fails on a machine with no Vulkan runtime, and such a machine
+draws no set — a frame whose passes carry no runtime runs none of them
+and `Scene::error()` says so.

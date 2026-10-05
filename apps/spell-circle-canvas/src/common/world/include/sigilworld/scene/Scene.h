@@ -8,7 +8,6 @@
  * what those phases extracted.
  */
 
-#include <sigilgeometry/mesh/render/Runtime.h>
 #include <sigilmaterial/core/Lighting.h>
 #include <sigilworld/element/Element.h>
 #include <sigilworld/frame/Frame.h>
@@ -52,7 +51,8 @@ class Scene {
   /** ONE FRAME: describe, sample the lanes, derive the placements,
    *  extract, order the passes and execute them. A frame WITH passes has
    *  already been performed when this returns, and the draw presents what
-   *  they wrote; a frame with no passes is its scene.
+   *  they wrote; a frame with no passes is its scene, extracted and not
+   *  drawn.
    *  @trap Execution reads the extracted state and never the tree. */
   void render(const Frame& frame);
 
