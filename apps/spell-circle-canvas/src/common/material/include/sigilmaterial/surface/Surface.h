@@ -8,8 +8,7 @@
  * and one slot per map, so a discovered texture set drops straight in,
  * under two recipes: one takes light, the other is its own light. The
  * bodies are composed from the library's shading TERMS. Its renderer
- * supplies geometry normals, the view and lighting. Planar lighting is
- * a separate Skia pass over SurfaceOptions and does not run this program.
+ * supplies geometry normals, the view and lighting.
  *
  * A material states its response with `Material::surface(SurfaceOptions)`;
  * `lower()` is the step that turns that statement into this program, and

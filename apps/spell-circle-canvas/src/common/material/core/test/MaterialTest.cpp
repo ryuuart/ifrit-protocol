@@ -12,6 +12,7 @@
 #include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/advanced/UniformBlock.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Target.h>
 
@@ -265,13 +266,6 @@ TEST(Material, SurfaceChannelsDeclareTheirTimeAndGeometryInputs) {
       EXPECT_EQ(material.geometryDependent(), !live) << channel;
     }
   }
-  const auto direction = sigil::motion::animatable(0.0f);
-  const Material ownLight =
-      from(Color{1, 1, 1, 1})
-          .surface({.lighting = studio({.direction = direction})});
-  EXPECT_TRUE(ownLight.isRunning());
-  EXPECT_FALSE(
-      from(Color{1, 1, 1, 1}).surface({.lighting = studio()}).isRunning());
 }
 
 TEST(Material, LightKindsReadOnlyTheirApplicableBindings) {
@@ -287,16 +281,11 @@ TEST(Material, LightKindsReadOnlyTheirApplicableBindings) {
         light.direction = angle;
       const bool readsAngle = kind != LightKind::Point;
       EXPECT_EQ(light.isRunning(), readsAngle);
-      EXPECT_EQ(Lighting(light).isRunning(), readsAngle);
-      EXPECT_EQ(
-          from(Color{1, 1, 1, 1}).surface({.lighting = light}).isRunning(),
-          readsAngle);
     }
     Light light;
     light.kind = kind;
     light.intensity = sigil::motion::animatable(1.0f);
     EXPECT_TRUE(light.isRunning());
-    EXPECT_TRUE(Lighting(light).isRunning());
   }
 }
 
@@ -315,9 +304,6 @@ TEST(Material, LightColorConstantsCompareByValueAndLiveColorsByIdentity) {
     const Light separate{.color = sigil::motion::animatable(color.value()),
                          .kind = kind};
     EXPECT_TRUE(light.isRunning());
-    EXPECT_TRUE(Lighting(light).isRunning());
-    EXPECT_TRUE(
-        from(Color{1, 1, 1, 1}).surface({.lighting = light}).isRunning());
     EXPECT_EQ(light, copied);
     EXPECT_NE(light, separate);
     EXPECT_NE(light, (Light{.color = color.value(), .kind = kind}));

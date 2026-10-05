@@ -106,7 +106,10 @@ void expectPremul(const SkBitmap& pixels, int x, int y,
         << "pixel " << x << "," << y << ", channel " << channel;
 }
 
-Lighting ambientLighting() { return Light{.intensity = 0.0f, .ambient = 1.0f}; }
+/** @p material's colour stack as the base colour map of its surface. */
+Paint baseColorMap(const Material& material) {
+  return skia::asMap(material, texture::Role::BaseColor);
+}
 
 }  // namespace
 
@@ -190,11 +193,10 @@ TEST(SkiaMaterial, AlphaCutoffRetainsItsBoundaryAndPremultipliedAlpha) {
   const Material zero = from(plain).surface({.alphaCutoff = 0});
   EXPECT_EQ(skia::paint(plain), skia::paint(zero));
   EXPECT_TRUE(skia::paint(zero).isSolid());
-  for (const bool lit : {false, true}) {
+  for (const bool map : {false, true}) {
     const auto draw = [&](float cutoff) {
       const Material material = from(plain).surface({.alphaCutoff = cutoff});
-      return drawnFloat(lit ? skia::lit(material, ambientLighting())
-                            : skia::paint(material));
+      return drawnFloat(map ? baseColorMap(material) : skia::paint(material));
     };
     expectPremul(draw(0.5f), 8, 8, {0.375f, 0.25f, 0.125f, 0.5f});
     expectPremul(draw(0.25f), 8, 8, {0.375f, 0.25f, 0.125f, 0.5f});
@@ -210,18 +212,17 @@ TEST(SkiaMaterial, AlphaCutoffFollowsTheCompleteMaskedLayerStack) {
               {.opacity = 0.5f, .mask = Mask{.source = Color{0, 0, 0, 0.5f}}});
   // SrcOver gives alpha .625; mask and layer opacity mix one quarter of it
   // into the base, whose alpha is .25.
-  for (const bool lit : {false, true}) {
+  for (const bool map : {false, true}) {
     const auto draw = [&](float cutoff) {
       const Material material = from(stack).surface({.alphaCutoff = cutoff});
-      return drawnFloat(lit ? skia::lit(material, ambientLighting())
-                            : skia::paint(material));
+      return drawnFloat(map ? baseColorMap(material) : skia::paint(material));
     };
     expectPremul(draw(0.34375f), 8, 8, {0.125f, 0, 0.21875f, 0.34375f});
     expectPremul(draw(0.344f), 8, 8, {0, 0, 0, 0});
   }
 }
 
-TEST(SkiaMaterial, AlphaCutoffUsesImageAlphaInLitAndFlatPaints) {
+TEST(SkiaMaterial, AlphaCutoffUsesImageAlphaInMapsAndFlatPaints) {
   SkBitmap imagePixels;
   imagePixels.allocPixels(
       SkImageInfo::Make(16, 16, kRGBA_F32_SkColorType, kPremul_SkAlphaType));
@@ -239,9 +240,10 @@ TEST(SkiaMaterial, AlphaCutoffUsesImageAlphaInLitAndFlatPaints) {
   for (int mode = 0; mode < 3; ++mode) {
     const Material material =
         from(base).surface({.alphaCutoff = 0.5f, .unlit = mode == 2});
-    const SkBitmap pixels =
-        drawnFloat(mode == 0 ? skia::paint(material)
-                             : skia::lit(material, ambientLighting()));
+    const SkBitmap pixels = drawnFloat(
+        mode == 0   ? skia::paint(material)
+        : mode == 1 ? baseColorMap(material)
+                    : skia::asMap(material, texture::Role::Emissive));
     for (int y = 0; y < 16; ++y)
       for (int x = 0; x < 16; ++x) {
         const float alpha = x < 8 ? 0.0f : float(x / 4) * 0.25f;
@@ -259,20 +261,16 @@ TEST(SkiaMaterial, AlphaCutoffPrecedesStrokeAndGlyphCoverage) {
   imagePixels.setImmutable();
   const Material base = image(imagePixels.asImage());
   for (const Geometry geometry : {Geometry::Stroke, Geometry::Glyph}) {
-    for (const bool lit : {false, true}) {
+    for (const bool map : {false, true}) {
       const Material unchanged = from(base).surface({.alphaCutoff = 0});
       const Material retained = from(base).surface({.alphaCutoff = 0.5f});
       const Material removed = from(base).surface({.alphaCutoff = 0.5001f});
-      const SkBitmap reference =
-          drawnFloat(lit ? skia::lit(unchanged, ambientLighting())
-                         : skia::paint(unchanged),
-                     geometry);
+      const SkBitmap reference = drawnFloat(
+          map ? baseColorMap(unchanged) : skia::paint(unchanged), geometry);
       const SkBitmap kept = drawnFloat(
-          lit ? skia::lit(retained, ambientLighting()) : skia::paint(retained),
-          geometry);
+          map ? baseColorMap(retained) : skia::paint(retained), geometry);
       const SkBitmap cut = drawnFloat(
-          lit ? skia::lit(removed, ambientLighting()) : skia::paint(removed),
-          geometry);
+          map ? baseColorMap(removed) : skia::paint(removed), geometry);
       int partial = 0, full = 0;
       for (int y = 0; y < 16; ++y)
         for (int x = 0; x < 16; ++x) {
@@ -297,10 +295,9 @@ TEST(SkiaMaterial, AlphaCutoffFollowsLiveColorStackAlpha) {
       "half4 main(float2 p) { return half4(float3(.75,.5,.25)*alpha,alpha); }",
       Parameters{0.25f});
   material.bind("alpha", alpha).surface({.alphaCutoff = 0.5f});
-  for (const bool lit : {false, true}) {
+  for (const bool map : {false, true}) {
     alpha = 0.25f;
-    const Paint paint =
-        lit ? skia::lit(material, ambientLighting()) : skia::paint(material);
+    const Paint paint = map ? baseColorMap(material) : skia::paint(material);
     ASSERT_TRUE(paint.isRunning());
     expectPremul(drawnFloat(paint), 8, 8, {0, 0, 0, 0});
     alpha = 0.5f;

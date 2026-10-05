@@ -18,7 +18,7 @@ sigil_library(SigilMaterialSkia
           Paint.cpp PaintBlend.cpp PaintBuild.cpp
           PaintDetail.cpp PaintResolve.cpp PaintSources.cpp
           PaintUniforms.cpp Painted.cpp Palette.cpp Ramp.cpp SkiaCompiler.cpp Texture.cpp
-          Lit.cpp Environment.cpp
+          Lit.cpp
   HEADERS ../filter/Filter.h ../paint/Bases.h ../paint/Paint.h Bevel.h Color.h Draw.h Filter.h Lit.h Paint.h
           Painted.h Pass.h PixelBuffer.h
           Palette.h Ramp.h ShaderLeaf.h SkiaCompiler.h Texture.h
@@ -39,10 +39,7 @@ sigil_test(material_test
           test/SkiaEffectLightTest.cpp test/SkiaEffectSlotTest.cpp
           test/SkiaEffectGlassTest.cpp
           test/SkiaRampTest.cpp test/PaletteTest.cpp
-          test/SkiaLitRigTest.cpp test/SkiaLitPreparedTest.cpp test/SkiaLitMapTest.cpp
-          test/SkiaLitCoatingTest.cpp test/SkiaLitPositionedTest.cpp
-          test/SkiaLitGpuTest.cpp
-          test/SkiaEnvironmentTest.cpp
+          test/SkiaLitMapTest.cpp
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
   DEFINITIONS SIGIL_MATERIAL_SKIA_SHADER_DIR="${_shaders}"
   LIBRARIES SigilMaterialSkia SigilMaterialProgram)
@@ -51,12 +48,12 @@ if(APPLE)
   sigil_test(material_test
     LIBRARIES SigilSkiaGraphite
     SUPPORT_DIRS ${SIGIL_SKIA_GRAPHITE_TEST_SUPPORT_DIR}
-    SUITES SkiaLitGpu SkiaEnvironmentGpu SkiaPaintGpu
+    SUITES SkiaPaintGpu
            "*/SkiaPaintGpuDeviceSources" "*/SkiaPaintGpuSourceReplacement"
     LABELS gpu)
 endif()
 
 sigil_bench(material_bench
-  SOURCES bench/SkiaBench.cpp bench/LitRasterBench.cpp
+  SOURCES bench/SkiaBench.cpp
   LIBRARIES SigilMaterialSkia SigilMaterialProgram SigilMaterialSurface
             SigilMediaCore)

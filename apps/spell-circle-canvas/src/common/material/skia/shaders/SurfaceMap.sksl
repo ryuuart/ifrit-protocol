@@ -1,6 +1,6 @@
 // One map of a surface, read unshaded: the colour stack and the surface's
-// maps the lighting pass shades, handed back as the texture a
-// metallic-roughness surface of that role is dressed with. Every role
+// channels, handed back as the texture a metallic-roughness surface of
+// that role is dressed with. Every role
 // carries the colour stack's alpha as its coverage, premultiplied.
 //
 // uRole: 0 base colour, 1 normal, 2 roughness, 3 metallic, 4 occlusion,

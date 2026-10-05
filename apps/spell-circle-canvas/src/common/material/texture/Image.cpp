@@ -43,13 +43,4 @@ Material image(Texture texture) {
   return material;
 }
 
-Environment environment(media::PixelSource pixels, EnvironmentOptions options) {
-  if (options.size.x <= 0 || options.size.y <= 0) {
-    options.size = glm::vec2(pixels.size());
-  }
-  return environment(image(std::move(pixels),
-                           {.repeat = Repeat::Repeat, .repeatY = Repeat::Pad}),
-                     std::move(options));
-}
-
 }  // namespace sigil::material

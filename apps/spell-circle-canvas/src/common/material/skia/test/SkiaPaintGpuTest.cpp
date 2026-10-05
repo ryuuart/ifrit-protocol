@@ -267,7 +267,6 @@ TEST_F(SkiaPaintGpu,
       sigil::material::shader("half4 main(float2 p) { return source.eval(p); }",
                               ShaderOptions{.textures = {{"source", {}}}});
   sampled.slot("source", layered);
-  const Lighting lighting(Light{.intensity = 0, .ambient = 1});
   for (Material material : {pixels, layered, sampled}) {
     binding->resetReads();
     normals->resetReads();
@@ -277,8 +276,8 @@ TEST_F(SkiaPaintGpu,
     EXPECT_EQ(normals->frameReads, 0);
     EXPECT_EQ(binding->rasterReads, 0);
     EXPECT_EQ(normals->rasterReads, 0);
-    const auto shader =
-        prepared.shader(lighting, frame(first.get()), unitToNode);
+    const auto shader = prepared.mapShader(texture::Role::BaseColor,
+                                           frame(first.get()), unitToNode);
     ASSERT_TRUE(shader);
     expectTile(shader, kFirstDeviceColor, first.get());
     EXPECT_GT(binding->devices[0].reads, 0);
@@ -287,13 +286,14 @@ TEST_F(SkiaPaintGpu,
     EXPECT_EQ(normals->rasterReads, 0);
     const int colorReads = binding->devices[0].reads;
     const int normalReads = normals->devices[0].reads;
-    expectTile(prepared.shader(lighting, frame(first.get()), unitToNode),
+    expectTile(prepared.mapShader(texture::Role::BaseColor, frame(first.get()),
+                                  unitToNode),
                kFirstDeviceColor, first.get());
     EXPECT_EQ(binding->devices[0].reads, colorReads);
     EXPECT_EQ(normals->devices[0].reads, normalReads);
     EXPECT_EQ(binding->rasterReads, 0);
     EXPECT_EQ(normals->rasterReads, 0);
-    const Paint snapshot = prepared.under(lighting);
+    const Paint snapshot = prepared.asMap(texture::Role::BaseColor);
     ASSERT_TRUE(skia::staticShader(snapshot));
     expectTile(skia::staticShader(snapshot)->makeWithLocalMatrix(
                    skia::toSkMatrix(unitToNode)),
@@ -302,7 +302,7 @@ TEST_F(SkiaPaintGpu,
     EXPECT_GT(normals->rasterReads, 0);
     const int rasterColorReads = binding->rasterReads;
     const int rasterNormalReads = normals->rasterReads;
-    prepared.under(lighting);
+    prepared.asMap(texture::Role::BaseColor);
     EXPECT_EQ(binding->rasterReads, rasterColorReads);
     EXPECT_EQ(normals->rasterReads, rasterNormalReads);
   }

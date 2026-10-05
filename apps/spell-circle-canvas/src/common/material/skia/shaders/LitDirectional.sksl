@@ -1,3 +1,0 @@
-// A directional key uses node-local normals without a placement input.
-const bool kPositionedLight = false;
-float3 pageNormal(float3 n) { return n; }

@@ -18,7 +18,6 @@
 
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/BlendMode.h>
-#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/core/Parameters.h>
 #include <sigilmaterial/core/Target.h>
 #include <sigilmotion/values/Animatable.h>
@@ -94,7 +93,7 @@ class Part {
  *  composition. The base is a colour, a program (an instance of a
  *  recipe), or a source only a renderer can supply (a gradient, an
  *  image); `layer()` stacks further materials over it, `surface()` adds
- *  the lighting response, and `effects()` a filter chain
+ *  the surface a renderer shades, and `effects()` a filter chain
  *  over the painted layer's coverage. A `Color` converts implicitly, so
  *  every place that takes a material takes a colour.
  *
@@ -439,15 +438,12 @@ using Channel = std::variant<float, Material>;
 
 /** THE LIT RESPONSE — metallic-roughness with transmission and
  *  clearcoat. The base colour is the material's own base and stack of
- *  layers; every channel here takes a number or a material. A 3D
- *  renderer shades it under its own lights. In 2D a box, a line of type
- *  or a stroke filled with it is shaded under the lighting in force
- *  where it stands — Compose's inherited `lighting()`, or `lighting`
- *  here, which overrides it — reading the normal map for relief; with no
- *  lighting in force it is painted as its colours, flat. The Skia executor
- *  implements reflected surface lighting and clearcoat; it ignores
- *  transmission, ior, thickness and absorption. Refraction in 2D is
- *  Filter::glass, which refracts the layer it is attached to. */
+ *  layers; every channel here takes a number or a material. It DESCRIBES
+ *  a surface and shades nothing itself: a renderer that shades a set
+ *  shades it under the set's lights, and a 2D painter paints the colours
+ *  flat, or reads the channels out as surface maps
+ *  (`skia::asMap`). Refraction in 2D is Filter::glass, which refracts the
+ *  layer it is attached to. */
 struct SurfaceOptions {
   Channel metallic = 0.0f;
   Channel roughness = 0.5f;
@@ -472,9 +468,6 @@ struct SurfaceOptions {
   float reflectionWeight = 1;
   /** No lighting: the base colour as it is. */
   bool unlit = false;
-  /** The light this surface is shaded under in 2D, over whatever lighting
-   *  the scene states where it stands. */
-  std::optional<Lighting> lighting;
   bool operator==(const SurfaceOptions&) const = default;
 };
 

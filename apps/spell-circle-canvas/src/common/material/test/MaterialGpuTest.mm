@@ -170,11 +170,8 @@ Material termsMaterial() {
         float acc = atan2P(l.y, l.x) + acosP(n.z)
                   + roughnessLevel(0.3, 6.0)
                   + lambert(n, l) + blinn(n, l, v, 32.0)
-                  + blinnNormalized(max(dot(n, l), 0.0), roughnessGloss(0.4))
-                  + coatHighlight(max(dot(n, l), 0.0), n.z, 0.9, 0.2)
                   + occlusion(0.7, 0.8) + luminance(radiance);
         float2 uv = equirectangularUv(l);
-        float3 dir = equirectangularDirection(uv);
         float2 ab = environmentBrdf(0.3, max(dot(n, v), 0.0));
         float3 lit = fresnel(f0, max(dot(n, v), 0.0))
                    + fresnelRough(f0, max(dot(n, v), 0.0), 0.3)
@@ -183,7 +180,7 @@ Material termsMaterial() {
                    + refraction(-v, n, 0.66)
                    + attenuate(radiance, float3(0.1, 0.02, 0.05), 2.0)
                    + emission(radiance, 0.5, float3(1.0, 1.0, 1.0))
-                   + dir + float3(ab.x, ab.y, acc);
+                   + float3(uv.x + ab.x, uv.y + ab.y, acc);
         return half4(half3(toneMap(lit, 1.0)), 1.0);
       }
     )"));

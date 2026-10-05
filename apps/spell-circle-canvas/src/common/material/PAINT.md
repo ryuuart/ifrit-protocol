@@ -57,42 +57,26 @@ baked per palette. A slot rides the volatility tier and the prune
 signature: a live source makes the parent live, and two paints with
 different sources never compare equal.
 
-**Lit surfaces shade a material's colour stack.**
-`material::skia::lit(material, lighting)` combines that stack with its normal,
-roughness, metallic, occlusion and emission maps. Live light bindings and
-surface channels resolve when drawn. With no lighting, or a surface stated
-`unlit`, the result is the colour stack. `material::skia::lightingFor` selects
-the surface's own lighting when stated, otherwise the inherited lighting.
-Direct contributions and ambient shares add; environment, emission and
-coating attenuation run once per pixel. Shader variants use the exact source
-kinds and count, with bounded reuse and no fixed light-count ceiling.
+**A surface's channels read back as maps, unshaded.**
+`material::skia::asMap(material, role)` reads a material's colour stack and
+its normal, roughness, metallic, occlusion and emission channels as the map
+of one `texture::Role`, for a renderer that brings its own lights; live
+surface channels resolve when drawn. An ordinary `material::skia::paint` of
+the same material is its colour stack alone.
 
 Retain `material::skia::LitSurface` while the material stays the same. Copies
-share its prepared inputs and most recent lighting setup. Construction
+share its prepared inputs and the map passes made so far. Construction
 retains sources without reading pixels; each draw resolves live inputs and
-binds sources to its destination. Changing a light reuses preparation, but
-the resulting shader still evaluates its inputs at each painted pixel.
-`material::skia::LitSurface::under` returns an ordinary paint with a frameless
-snapshot, including source reads. A different material needs a different
-prepared surface. The current environment's lowered image is retained
-independently; rotation, intensity and size reuse that source, while a
-different image replaces it.
-For a unit-mapped input, `material::skia::LitSurface::shader` takes the
-node's frame and a unit-square-to-node matrix. It maps color and surface
-channels independently from lighting: positioned sources use the actual
-node coordinates, normal slopes follow the node's placement, and
-root-anchored inputs stay in root coordinates. Copies share the prepared
-inputs; the resulting shader samples node coordinates for this draw.
+binds sources to its destination. `material::skia::LitSurface::asMap`
+returns an ordinary paint, and a different material needs a different
+prepared surface.
+For a unit-mapped input, `material::skia::LitSurface::mapShader` takes the
+node's frame and a unit-square-to-node matrix. It maps colour and surface
+channels through that matrix, and root-anchored inputs stay in root
+coordinates. The resulting shader samples node coordinates for this draw.
 Height-derived normals take logical-pixel steps through the mapping;
 encoded normals keep their slopes. Projective mappings flatten derived
 height relief because a constant sampling metric cannot describe them.
-Framed draws retain one raster and one device atlas for the resolved environment,
-its extent and recorder. Roughness selects and interpolates spherical reflection lobes;
-coating uses its own lobe, and ambient light uses a cosine-weighted hemisphere.
-Changing rotation or intensity reuses the atlas. A changed source, extent or
-recorder replaces the affected atlas. Framed draws blend the two prepared
-bands nearest a pixel's roughness; frameless snapshots convolve the
-environment at the exact roughness instead, without preparing a raster atlas.
 
 **A TEXTURE STANDING ON A DEVICE is bound where it stands** when the frame
 a paint resolves against names the recorder drawing it

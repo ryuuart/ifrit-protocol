@@ -458,10 +458,9 @@ bool Material::isRunning() const {
     if (parts.source && parts.source->isRunning()) return true;
     if (parts.effects && parts.effects->isRunning()) return true;
     if (parts.surface &&
-        (surfaceChannelsMatch(
-             *parts.surface,
-             [](const Material& material) { return material.isRunning(); }) ||
-         (parts.surface->lighting && parts.surface->lighting->isRunning())))
+        surfaceChannelsMatch(*parts.surface, [](const Material& material) {
+          return material.isRunning();
+        }))
       return true;
     for (const Layer& layer : parts.layers)
       if (layer.source.isRunning() ||

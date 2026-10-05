@@ -35,11 +35,4 @@ Material image(media::PixelSource pixels, ImageOptions options = {});
  *  and sampling. The same value can fill a shape or a surface channel. */
 Material image(Texture texture);
 
-/** @p pixels, a latitude-longitude (equirectangular) picture, as the
- *  environment a lit surface reflects — read across the picture's own
- *  size unless `options.size` says otherwise, and repeating round the
- *  horizon. */
-Environment environment(media::PixelSource pixels,
-                        EnvironmentOptions options = {});
-
 }  // namespace sigil::material

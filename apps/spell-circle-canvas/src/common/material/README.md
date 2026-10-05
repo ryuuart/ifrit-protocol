@@ -2,7 +2,7 @@
 
 SigilMaterial describes the appearance of a region or surface. A `Material`
 is a comparable value: a color, gradient, image or shader, optionally built
-up with layers, lighting properties and effects. Compose, Draw and World
+up with layers, surface properties and effects. Compose, Draw and World
 consume the same value. The library owns no window, render loop or asset
 store.
 
@@ -41,7 +41,7 @@ The four parts have distinct jobs:
 |---|---|
 | Base | The initial appearance: a color, gradient, image, shader or another material. |
 | `layer()` | Blend another material over the accumulation, with optional opacity and mask. |
-| `surface()` | State the lighting response: roughness, metallic, normals and related channels. |
+| `surface()` | Describe the surface a renderer shades: roughness, metallic, normals and related channels. |
 | `effects()` | Apply a filter chain to rendered coverage: shadows, glows, strokes or bevels. |
 
 A layer mask takes a material source, a channel, a `[low, high]` range and
@@ -129,120 +129,31 @@ The texture feature also provides:
 These values describe images and sampling. The backend operations under
 `sigilmaterial/skia/` convert them into Skia images and shaders.
 
-## Lighting
+## Surfaces and light
 
-A surface response is optional. In Compose, put the lighting on a parent
-and let its children inherit it:
+A surface response is optional, and it describes a surface rather than
+shading one. SigilMaterial shades nothing: a renderer that shades a set
+shades a material's surface under the set's own lights, and a 2D painter
+paints the material's colour stack flat. `material::skia::paint` lowers
+that colour stack whether or not the material states a surface.
+
+`Light` describes one emitter for such a renderer: its `LightKind`, its
+direction and elevation, its colour and strength, and for a point or a
+spot its position, range and cone. Colour, strength and applicable angles
+can be bound to motion values; the rest are plain settings.
 
 ```cpp
 #include <sigilmaterial/core/Lighting.h>
-#include <vector>
-
-scene.lighting(material::studio({.direction = 30, .elevation = 35}));
-```
-
-`scene` is the caller's Compose element. `studio()` supplies a directional
-light; `environment()` supplies reflected and ambient light from a
-panorama. `Lighting::lights` holds the direct sources, alongside one
-environment. A single light still converts to a lighting value; use a vector
-for a rig:
-
-```cpp
-material::Lighting rig(std::vector<material::Light>{
-    material::studio({.direction = 30, .elevation = 35, .ambient = 0.1f}),
-    material::studio({.direction = 160, .elevation = 60, .ambient = 0.1f}),
-});
-scene.lighting(rig);
-```
-
-The direct contributions add. Their ambient shares also add; an environment
-with no direct sources supplies a full ambient share. With direct sources
-present, their summed `ambient` shares scale the environment's diffuse
-light instead. An environment with no image is no environment. Environment reflection,
-emission and coating attenuation run once over the sum. A material's own
-`SurfaceOptions::lighting` overrides the inherited lighting.
-
-The Skia executor also reads `LightKind::Point` and `LightKind::Spot`.
-`Light::position` uses root-page logical pixels: X right, Y down, Z toward
-the viewer. The page stays flat at Z=0; normals change response without
-displacement or shadows. The authored range falloff is
-`(1 - distance²/range²)²`, zero beyond range; spots also interpolate their cone
-in cosine about the source-facing direction/elevation axis. Positioned lights
-depend on affine node-to-root placement, with inverse-transpose XY normals;
-perspective or degenerate transforms disable their direct light. Directional
-lighting uses node-local normals under the default `LightingFrame::Surface`.
-That frame's environment uses page normals when a source is positioned,
-local normals otherwise. `LightingFrame::Scene` instead carries normals
-through affine node-to-root placement for every source and the environment.
-Positioned sources use root-page coordinates in either frame. Scene-frame
-lighting therefore follows receiver placement even with only a directional
-source or environment.
-
-In 2D, the lighting pass reads the material's color stack and surface
-channels. With no lighting, or with `unlit` set, it paints the colors flat.
-In World, the renderer supplies its own lights. Effects require rendered
-coverage and are ignored by a renderer that has none.
-
-In Skia, a positive `SurfaceOptions::alphaCutoff` removes color-stack samples
-whose alpha is below the threshold, with or without lighting. Samples at or
-above the threshold keep their color and alpha; shape antialiasing still
-applies afterward. Zero preserves ordinary blending.
-
-The Skia 2D executor reads `SurfaceOptions::clearcoat` as a dielectric coating
-weight, clamped to `[0, 1]`; nonfinite weights disable it. The coating has fixed
-roughness 0.2 and index 1.5, shares the surface's shaded normal and adds a neutral
-GGX highlight under direct light. Its environment reflection uses its own
-roughness lobe, independent of the base roughness. Its Fresnel weight attenuates the
-underlying lighting and emission. Environment reflection respects occlusion
-and `reflectionWeight`. Zero coating preserves the uncoated response.
-
-Environment reflections spread with scalar or mapped roughness. The executor
-prepares spherical GGX samples at eight roughness levels and interpolates them
-per pixel; ambient light uses a cosine-weighted hemisphere. This is a finite-sample
-approximation, so very narrow sources can alias. A fully rough surface still
-reflects its environment. Direct base lighting retains its approximate model.
-This 2D model has no separate coating roughness or normal channel, refraction
-or scattering between layers. World
-surface lowering does not implement clearcoat and reports a nonzero request.
-Without lighting, and for an unlit surface, the coating does not alter colors.
-
-Light direction is in degrees counter-clockwise from three o'clock;
-elevation is above the page. Light color, strength and applicable angles
-can be bound to motion values. Point lights ignore direction and elevation.
-Ambient, kind, position, range and cone angles are plain settings.
-An environment's rotation can be bound; its intensity and extent are plain
-settings. A material has no motion clock: a described tween reads its resting
-value here. Run it into a live cell on the host's motion engine to animate it.
-Advancing a bound value updates the lighting pass while retaining the color
-stack below it:
-
-```cpp
 #include <sigilmotion/values/Animatable.h>
 
 auto tint = sigil::motion::animatable(material::Color{1, 0.8f, 0.6f, 1});
-material::Light key{.color = tint};
-scene.lighting(key);
+material::Light key{.direction = 30, .elevation = 35, .color = tint};
 tint = material::Color{0.6f, 0.8f, 1, 1};
 ```
 
-Skia hosts that replace the lighting value each frame retain a
-`material::skia::LitSurface` for the material and call its `under()` with
-the lighting in force. It shares the lowered colour stack and surface maps
-across changes to source position, kinds, count or frame. Construct another
-when the material changes. A shared one-entry cache retains the current
-environment image across rotation, intensity and size changes. Framed draws
-also retain one raster and one device reflection atlas for the resolved image,
-extent and recorder. Rotation and intensity change sampling; a changed image,
-extent or recorder replaces the affected atlas. Framed draws blend the two
-prepared roughness bands nearest a pixel's roughness; frameless shaders
-convolve the environment at that exact roughness instead, without
-preparing an atlas, so the two agree closely but not exactly.
-`material::skia::lit` remains the one-call spelling.
-
-A renderer that brings its own lights reads the same prepared inputs
-UNSHADED, one surface map at a time: `LitSurface::asMap(role)` and the
-one-call `material::skia::asMap(material, role)` answer the base colour,
-normal, roughness, metallic, occlusion or emissive map, keyed by
+A renderer that brings its own lights reads a surface UNSHADED, one surface
+map at a time: `material::skia::asMap(material, role)` answers the base
+colour, normal, roughness, metallic, occlusion or emissive map, keyed by
 `texture::Role`, as the texture of that role encodes it. The normal comes
 back as `(n + 1) / 2` with green up the picture whatever convention the
 material stated, including a height-derived or blended normal; a scalar
@@ -251,8 +162,19 @@ nothing for reads the stock `SurfaceOptions` number. Every map carries the
 colour stack's alpha as its coverage. A material with no surface, or an
 `unlit` one, is its own colour: emissive is the colour stack, the base is
 black, the normal faces the viewer, roughness and occlusion are one and
-metallic is zero. `LitSurface::mapShader` places the maps for one draw the
-way `shader()` places the lit pass.
+metallic is zero. `material::skia::LitSurface` prepares a material's colour
+stack and channels once and answers every map from them; its `asMap()`
+holds one pass per role, and `LitSurface::mapShader` places a map for one
+draw whose unit square maps into the node. Construct another when the
+material changes. Clearcoat and `reflectionWeight` have no map.
+
+In Skia, a positive `SurfaceOptions::alphaCutoff` removes color-stack samples
+whose alpha is below the threshold, in a flat paint and in every map.
+Samples at or above the threshold keep their color and alpha; shape
+antialiasing still applies afterward. Zero preserves ordinary blending.
+World surface lowering does not implement clearcoat and reports a nonzero
+request. Effects require rendered coverage and are ignored by a renderer
+that has none.
 
 ## Backdrop glass
 
@@ -404,10 +326,10 @@ library; smaller consumers can select these targets:
 | Target | Purpose |
 |---|---|
 | `SigilMaterialColor` | Color values, conversions, ramps, palettes and dithering. |
-| `SigilMaterialCore` | Material values, layers, surface declarations, lighting and parameter reflection. |
+| `SigilMaterialCore` | Material values, layers, surface declarations, the emitter description and parameter reflection. |
 | `SigilMaterialTexture` | Pixel sources, sampling, texture sets, environment maps and atlases. |
 | `SigilMaterialProgram` | Shader source and resource factories. |
-| `SigilMaterialSkia` | Skia paints, gradients, filters, shader compilation and lighting execution. |
+| `SigilMaterialSkia` | Skia paints, gradients, filters, shader compilation and surface maps. |
 | `SigilMaterialSlang` | Slang compilation and reflected uniform layouts. |
 | `SigilMaterialSurface` | Surface programs and lowering for lit renderers. |
 | `SigilMaterialMask` | Mask generators and transformations. |

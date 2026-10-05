@@ -31,25 +31,9 @@
 #include <utility>
 #include <vector>
 
-#include "Environment.h"
 #include "PaintInternal.h"
 
 namespace sigil::material::skia {
-
-SkSize PaintAccess::environmentDomain(const Paint::Live& live) {
-  SkSize size = SkSize::MakeEmpty();
-  for (const auto& [name, value] : live.constants2)
-    if (name == "uEnvironmentSize") size = {value[0], value[1]};
-  for (const auto& [name, value] : live.constantArrays)
-    if (name == "uEnvironmentSize" && value.size() == 2)
-      size = {value[0], value[1]};
-  for (const auto& [name, block] : live.blocks)
-    if (name == "uEnvironmentSize" && block) {
-      const auto value = block->committedValues();
-      size = {value[0], value[1]};
-    }
-  return size;
-}
 
 namespace {
 
@@ -229,26 +213,6 @@ sk_sp<SkShader> PaintAccess::build(const Paint::Live& live,
           ? paintFrame->rootSize
           : (paintFrame ? paintFrame->size : SkSize::MakeEmpty());
 
-  // Resolve the authored panorama once before the parent memo. Its source
-  // and recorder may change without changing the surface's scalar inputs.
-  sk_sp<SkShader> environmentSource;
-  sk_sp<SkShader> environmentFiltered;
-  bool validEnvironmentDomain = true;
-  if (live.environment) {
-    const SkSize domain = environmentDomain(live);
-    validEnvironmentDomain = std::isfinite(domain.width()) &&
-                             std::isfinite(domain.height()) &&
-                             domain.width() >= 0 && domain.height() >= 0;
-    for (const auto& [name, child] : live.slots)
-      if (name == "uEnvironment") {
-        environmentSource = detail::childShader(child, paintFrame);
-        break;
-      }
-    if (paintFrame)
-      environmentFiltered = live.environment->shader(environmentSource, domain,
-                                                     paintFrame->recorder);
-  }
-
   // The varying-input digest (constants are fixed per recipe; injected
   // values participate only when actually injected).
   Paint::Live::Inputs key;
@@ -264,13 +228,6 @@ sk_sp<SkShader> PaintAccess::build(const Paint::Live& live,
     if (recorderSensitive) {
       key.recorder = paintFrame->recorder;
       key.recorderId = recorderId(key.recorder);
-    }
-    if (live.environment) {
-      const uint64_t identity =
-          reinterpret_cast<uintptr_t>(environmentFiltered.get());
-      inputs.push_back(float(identity & 0xffffffu));
-      inputs.push_back(float((identity >> 24u) & 0xffffffu));
-      inputs.push_back(float((identity >> 48u) & 0xffffu));
     }
     inputs.reserve(4 * live.binds.size() + 2 * live.blocks.size() + 14);
     // Copies share this memo but can wrap coordinates differently with
@@ -391,16 +348,9 @@ sk_sp<SkShader> PaintAccess::build(const Paint::Live& live,
     const auto replacement =
         std::find_if(children.begin(), children.end(),
                      [&](const auto& input) { return input.name == name; });
-    b.child(name) = replacement != children.end() ? replacement->shader
-                    : live.environment && name == "uEnvironment"
-                        ? environmentSource
+    b.child(name) = replacement != children.end()
+                        ? replacement->shader
                         : detail::childShader(child, paintFrame);
-  }
-  if (live.environment) {
-    b.child("uEnvironmentFiltered") = environmentFiltered;
-    b.uniform("uHasEnvironmentFiltered") = environmentFiltered ? 1.0f : 0.0f;
-    if (!validEnvironmentDomain || (paintFrame && !environmentFiltered))
-      b.uniform("uHasEnvironment") = 0.0f;
   }
   if (injectSampling) {
     const glm::mat3 metric =

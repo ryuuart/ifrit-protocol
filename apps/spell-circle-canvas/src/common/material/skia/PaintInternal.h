@@ -38,8 +38,6 @@
 
 namespace sigil::material::skia {
 
-class EnvironmentPreparation;
-
 struct CapturedLeaf {
   std::shared_ptr<const Leaf> description;
   std::shared_ptr<const Leaf> sampled;
@@ -123,9 +121,6 @@ struct Paint::Live {
   // A coordinate-preserving wrapper leaves its sole child's node frame and
   // root anchoring intact instead of establishing another sampling boundary.
   bool childAnchorsToRoot = false;
-  // Prepared lighting keeps the authored panorama in its ordinary slot;
-  // framed resolution replaces only the private filtered child.
-  std::shared_ptr<skia::EnvironmentPreparation> environment;
   /** An authored input owns its uniform instead of a frame injection. */
   bool ownsUniform(std::string_view name) const {
     for (const auto& [uniform, value] : constants)
@@ -355,16 +350,6 @@ struct PaintAccess {
     if (paint.m_isSolid)
       paint.m_shader = hold(detail::childShader(paint, nullptr));
   }
-  static void prepareEnvironment(
-      Paint& paint, std::shared_ptr<EnvironmentPreparation> preparation) {
-    paint.m_live->environment = std::move(preparation);
-    paint.m_live->usesGeometry = true;
-  }
-  static std::shared_ptr<EnvironmentPreparation> environmentPreparation(
-      const Paint& paint) {
-    return paint.m_live ? paint.m_live->environment : nullptr;
-  }
-  static SkSize environmentDomain(const Paint::Live& live);
   /** Sampled sources may bind different images for each recorder. */
   static bool usesRecorder(const Paint& paint);
   static uint32_t recorderId(skgpu::graphite::Recorder* recorder);

@@ -68,15 +68,6 @@ public float2 equirectangularUv(float3 d) {
                 acosP(u.y) * 0.31830989);
 }
 
-/** The unit direction a panorama coordinate stands for — the inverse of
- *  `equirectangularUv`. */
-public float3 equirectangularDirection(float2 uv) {
-  float theta = uv.y * 3.14159274;
-  float phi = (uv.x - 0.5) * 6.28318548;
-  float s = sin(theta);
-  return float3(s * sin(phi), cos(theta), -s * cos(phi));
-}
-
 /** Which prefiltered level a roughness reads, over a chain of @p levels.
  *  Linear in roughness because that is how the chain was filtered. */
 public float roughnessLevel(float roughness, float levels) {
@@ -100,44 +91,6 @@ public float blinn(float3 n, float3 l, float3 v, float gloss) {
   h = h / len;
   float nh = max(n.x * h.x + n.y * h.y + n.z * h.z, 0.0);
   return pow(nh, gloss);
-}
-
-/** The Blinn exponent a roughness stands for: a mirror's narrowest
- *  highlight at a roughness of zero, held at 4096 so a power stays
- *  finite, and an exponent of zero — light in every direction — at a
- *  roughness of one. */
-public float roughnessGloss(float roughness) {
-  float r4 = roughness * roughness * roughness * roughness;
-  return min(2.0 / max(r4, 0.0001) - 2.0, 4096.0);
-}
-
-/** BLINN, ENERGY-NORMALISED: the highlight from the cosine between the
- *  normal and the half vector, scaled by (gloss + 8) / 8 pi so a narrow
- *  highlight is brighter at its peak by as much as it is smaller. A
- *  gloss of zero answers the scale alone, because zero to the power zero
- *  has no value a shading language agrees on. */
-public float blinnNormalized(float nDotH, float gloss) {
-  float c = min(max(nDotH, 0.0), 1.0);
-  float response = gloss == 0.0 ? 1.0 : pow(c, gloss);
-  return response * (gloss + 8.0) / (8.0 * 3.14159274);
-}
-
-/** THE COAT'S HIGHLIGHT: a GGX microfacet distribution times the
- *  height-correlated Smith visibility, times the cosine toward the
- *  light — the specular lobe of a clear dielectric layer over a surface,
- *  before its Fresnel weight. Takes the cosines of the normal with the
- *  light, the eye and the half vector, and the coat's own roughness. */
-public float coatHighlight(float nDotL, float nDotV, float nDotH,
-                           float roughness) {
-  if (nDotL <= 0.0) return 0.0;
-  float a = roughness * roughness;
-  float a2 = a * a;
-  float d = nDotH * nDotH * (a2 - 1.0) + 1.0;
-  float distribution = a2 / (3.14159274 * d * d);
-  float maskingView = nDotL * sqrt(nDotV * nDotV * (1.0 - a2) + a2);
-  float maskingLight = nDotV * sqrt(nDotL * nDotL * (1.0 - a2) + a2);
-  float visibility = 0.5 / max(maskingView + maskingLight, 0.000001);
-  return distribution * visibility * nDotL;
 }
 
 /** The reflectance a surface shows head on: 4% for a dielectric, the
