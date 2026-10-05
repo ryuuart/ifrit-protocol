@@ -14,8 +14,10 @@ world::Frame describe(sigil::motion::Duration now) {
   return world::Frame(
              world::group({
                  world::directionalLight({-0.45f, -0.8f, -0.4f},
-                                         {.intensity = 0.95f}),
-                 world::pointLight({.range = 900}).at({180, 150, 220}),
+                                         {.intensity = 2.4f}),
+                 world::pointLight({.intensity = world::intensityAt(1.8f, 320)})
+                     .at({180, 150, 220}),
+                 world::ambientLight({.intensity = 0.07f}),
                  world::kit::turntable({.radius = 470, .height = 190}, now),
                  world::mesh(geometry::mesh::quad(900, 900))
                      .at({0, -150, 0})
@@ -57,6 +59,9 @@ Points points(geometry::mesh::pop::Chain chain, geometry::mesh::Mesh stamp,
 Light  directionalLight(glm::vec3 direction, DirectionalLightOptions = {});
 Light  pointLight(PointLightOptions = {});
 Light  spotLight(glm::vec3 direction, SpotLightOptions = {});
+Light  ambientLight(AmbientLightOptions = {});
+Light  hemisphereLight(HemisphereLightOptions = {});
+float  intensityAt(float strength, float distance);  // inverse square, stated
 Camera camera(geometry::mesh::camera::Camera lens, CameraOptions = {});
 std::vector<Node> each(range or count, make);  // children a range describes
 
@@ -85,10 +90,13 @@ kit::environmentMap(kit::EnvironmentMapOptions);
 takes them as its argument: a braced list mixing every kind, and the
 lists `each()` makes. A `Mesh` is one body wearing a surface. `Points`
 stand a stamp at every point a chain cooks or a cloud holds, wearing the
-node's surface. A `Light` is one node type made by three factories — a
+node's surface. A `Light` is one node type made by five factories — a
 directional light, the same everywhere; a point light, shining every way
-from where its node stands; a spot light, within a cone — each aimed by
-the direction it travels, which its node's rotation turns. A `Camera` is
+from where its node stands and falling off with the square of the
+distance; a spot light, within a cone; an ambient light, the same from
+every direction; a hemisphere light, a sky from above and a ground from
+below — each aimed by the direction it travels, which its node's
+rotation turns. Nothing lights a set that the set did not state. A `Camera` is
 Geometry's lens standing where its node does, with the exposure and the
 tone curve the picture is read at. Every kind places itself with the same
 verbs, answers to a key and joins collections; each adds only the verbs
@@ -116,11 +124,17 @@ and a field no consumer sets does not exist.
 - `DirectionalLightOptions` — `color` and `intensity`, both
   `motion::Animatable`, so a light bound to a live value changes the
   shading frame by frame without the tree being described again.
-- `PointLightOptions` — the same and the `range` it falls to nothing at.
+- `PointLightOptions` — the same, the intensity being what it delivers
+  at one unit, and the `range` a smooth window brings it to nothing at;
+  zero reaches everywhere.
 - `SpotLightOptions` — the same and the cone: `innerAngle`, within which
   it is full, and `outerAngle`, beyond which it is dark, in degrees.
+- `AmbientLightOptions` — `color` and `intensity`.
+- `HemisphereLightOptions` — the sky's `color`, the `groundColor` and
+  the `intensity`.
 - `CameraOptions` — the `exposure` every radiance is multiplied by before
-  the tone curve, animatable, and the `toneCurve`, `ToneCurve::Reinhard`.
+  the tone curve, animatable, and the `toneCurve`: `ToneCurve::Reinhard`,
+  `ToneCurve::Neutral` or `ToneCurve::Linear`.
 - `EnvironmentOptions` — what of the panorama reaches a surface
   (`intensity`, `diffuse`, `specular`, `roughnessBias`), a second
   panorama crossfaded over the first (`next`, `crossfade`), its turn about
@@ -150,7 +164,8 @@ each header under `sigilworld/advanced/`:
   `propertiesEqual`, the structural prune over it; `memo`; and
   `Along`, `Window`, `CameraDescription` and `ToneCurve`.
 - `advanced/Light.h` — `LightKind`, `LightDescription`,
-  `PlacedLight`, `held`, `attenuation` and `radiance`: a light as values.
+  `PlacedLight`, `held`, `attenuation`, `radiance`, `linearColor` and
+  `encodedColor`: a light as values.
 - `advanced/Lanes.h` — `LaneFamily`, `Slot`, `lanesOf` and
   `standingValue`: a node's animation lanes.
 - `advanced/Geometry.h` — `Stamped`, `Chained`, `Generator`,
@@ -272,8 +287,9 @@ scene.render(world::kit::litSet(model, set, now));
 ```
 
 `kit::threePoint(rig)` is three point lights round a subject, stated in
-the subject's own extents so one rig serves a thumbnail and a room, with
-the key's strength and colour animatable; `kit::turntable(table, now)` is
+the subject's own extents and by what each delivers at the subject so one
+rig serves a thumbnail and a room, with the key's strength and colour
+animatable and an ambient light when the rig states one; `kit::turntable(table, now)` is
 a camera riding a closed rail and looking inward, with `kit::rail(table)`
 the curve itself; `kit::litSet` is both over a ground plane, with the
 subject under it; `kit::environmentMap(options)` bakes a panorama from a
@@ -544,6 +560,12 @@ executor: what it does with each pass, what a material reaches the
 device as, what a lit set can and cannot say there, the seams below this
 library whose device executors stand beside their CPU ones, where its
 shaders come from and the one device it all stands on.
+**[reference/LIGHTING.md](reference/LIGHTING.md)** is the lighting model
+on its own page: what each light delivers and how it falls off — the
+inverse square, a range's smooth window, a spot's cone, stated through
+`world::intensityAt` — the surface's microfacet terms, the clear coat,
+light from everywhere, how colour is decoded and encoded, and the
+camera's tone curves.
 
 ## A 2D scene as a texture
 

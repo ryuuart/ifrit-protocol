@@ -369,7 +369,7 @@ TEST(UsdRead, ASunComesBackAimedWhereItWasPointedAndStandingNowhere) {
   EXPECT_NEAR(back->light.direction.y, aim.y, 1e-5f);
   EXPECT_NEAR(back->light.direction.z, aim.z, 1e-5f);
   EXPECT_FLOAT_EQ(back->light.intensity.value(), 2.5f);
-  EXPECT_FLOAT_EQ(back->light.color.value().g, 0.9f);
+  EXPECT_NEAR(back->light.color.value().g, 0.9f, 1e-5f);
 }
 
 TEST(UsdRead, APointLightComesBackWhereItStoodAndAsFarAsItReached) {
@@ -388,8 +388,8 @@ TEST(UsdRead, APointLightComesBackWhereItStoodAndAsFarAsItReached) {
   EXPECT_NEAR(back->position.y, 100.0f, 1e-4f);
   EXPECT_NEAR(back->position.z, -20.0f, 1e-4f);
   EXPECT_FLOAT_EQ(back->light.range, 250.0f);
-  EXPECT_FLOAT_EQ(back->light.intensity.value(), 3.0f);
-  EXPECT_FLOAT_EQ(back->light.color.value().b, 1.0f);
+  EXPECT_NEAR(back->light.intensity.value(), 3.0f, 1e-5f);
+  EXPECT_NEAR(back->light.color.value().b, 1.0f, 1e-5f);
   // An unlinked light reaches everything, and comes back so.
   EXPECT_TRUE(back->light.lightLink.everything());
 }
@@ -496,6 +496,47 @@ TEST(UsdRead, ADomeLightsOrientationTakesAWorldDirectionIntoTheSameFrame) {
           << c << "," << r;
 }
 
+TEST(UsdRead, AnAmbientAndAHemisphereLightComeBackAsUntexturedDomes) {
+  SKIP_WITHOUT_USD();
+  const std::filesystem::path file = scratch("domes.usdc");
+  {
+    usd::Writer writer(file);
+    ASSERT_EQ(
+        writer.light("fill", placed(world::ambientLight({.intensity = 0.4f}))),
+        "/World/fill");
+    ASSERT_EQ(
+        writer.light("sky",
+                     placed(world::hemisphereLight(
+                         {.color = material::Color{0.6f, 0.7f, 1, 1},
+                          .groundColor = material::Color{0.3f, 0.2f, 0.1f, 1},
+                          .intensity = 0.8f}))),
+        "/World/sky");
+    std::string error;
+    ASSERT_TRUE(writer.save(&error)) << error;
+  }
+  std::string error;
+  const std::optional<std::vector<usd::ReadLight>> lights =
+      usd::readLights(file, &error);
+  ASSERT_TRUE(lights) << error;
+  ASSERT_EQ(lights->size(), 2u);
+  const world::PlacedLight* fill = lightAt(*lights, "/World/fill");
+  ASSERT_TRUE(fill);
+  EXPECT_EQ(fill->light.kind, world::LightKind::Ambient);
+  EXPECT_FLOAT_EQ(fill->light.intensity.value(), 0.4f);
+  const world::PlacedLight* sky = lightAt(*lights, "/World/sky");
+  ASSERT_TRUE(sky);
+  EXPECT_EQ(sky->light.kind, world::LightKind::Hemisphere);
+  EXPECT_FLOAT_EQ(sky->light.intensity.value(), 0.8f);
+  EXPECT_NEAR(sky->light.color.value().g, 0.7f, 1e-5f);
+  EXPECT_NEAR(sky->light.groundColor.value().r, 0.3f, 1e-5f);
+  EXPECT_NEAR(sky->light.direction.y, 1.0f, 1e-5f);
+  // Neither is an environment: a dome with no picture is light, not a sky.
+  const std::optional<std::vector<usd::ReadEnvironment>> skies =
+      usd::readEnvironments(file, &error);
+  ASSERT_TRUE(skies) << error;
+  EXPECT_TRUE(skies->empty());
+}
+
 TEST(UsdRead, ReadsALightAndACameraAnotherToolAuthored) {
   SKIP_WITHOUT_USD();
   std::string error;
@@ -514,8 +555,10 @@ TEST(UsdRead, ReadsALightAndACameraAnotherToolAuthored) {
   EXPECT_NEAR(key.direction.y, -1.0f, 1e-5f);
   EXPECT_FLOAT_EQ(key.outerAngle, 30.0f);
   EXPECT_FLOAT_EQ(key.innerAngle, 30.0f * (1.0f - 0.25f));
-  EXPECT_FLOAT_EQ(key.intensity.value(), 3.0f);
-  EXPECT_FLOAT_EQ(key.color.value().b, 1.0f);
+  // Its surface radiance of three over a sphere of radius one delivers
+  // three pi at a distance of one, and its linear blue is blue.
+  EXPECT_NEAR(key.intensity.value(), 3.0f * 3.14159265f, 1e-4f);
+  EXPECT_NEAR(key.color.value().b, 1.0f, 1e-5f);
   EXPECT_FLOAT_EQ(key.range, world::LightDescription{}.range);
 
   const std::optional<std::vector<usd::ReadCamera>> cameras =

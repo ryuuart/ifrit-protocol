@@ -46,21 +46,33 @@ struct Rig {
    *  the back light stands opposite and higher. */
   float bearing = -35.0f;
   float elevation = 28.0f;
-  /** The fill and the back light as fractions of the key's strength,
-   *  read when the rig is made. The key is what a subject is read by;
-   *  the other two are what keeps it from being read by the key alone. */
-  float fill = 0.35f;
-  float back = 0.55f;
-  /** The key's own strength and colour — bindable, so a live value dims
-   *  and tints the key without the rig being made again. The other two
-   *  take the colour and the strength these hold when the rig is made,
-   *  scaled. */
-  motion::Animatable<float> intensity{1.0f};
+  /** THE KEY'S STRENGTH — what it delivers at the subject, which the
+   *  rig turns into an intensity at the distance the key stands — and its
+   *  colour. Both bindable, so a live value dims and tints the key
+   *  without the rig being made again. A white matte surface square to it
+   *  shows one over pi of the strength. */
+  motion::Animatable<float> intensity{3.0f};
   motion::Animatable<material::Color> color = material::Color{1, 1, 1, 1};
+  /** The fill's and the back light's own strengths and colours, delivered
+   *  at the subject the same way. Neither follows the key: a key that
+   *  dims leaves the shadow side and the rim as they were stated. */
+  float fillIntensity = 1.0f;
+  material::Color fillColor = material::Color{1, 1, 1, 1};
+  float backIntensity = 1.6f;
+  material::Color backColor = material::Color{1, 1, 1, 1};
+  /** Past zero, an ambient light of this strength and colour joins the
+   *  rig, keyed `ambient`: light arriving equally from everywhere, which
+   *  is what keeps a shadow from being black in a set with no
+   *  environment. Zero adds none. */
+  float ambientIntensity = 0.0f;
+  material::Color ambientColor = material::Color{1, 1, 1, 1};
 };
 
 /** THE RIG, as one group with three keyed point lights — `key`, `fill`
- *  and `back` — each standing where the arrangement puts it. */
+ *  and `back` — each standing where the arrangement puts it, falling off
+ *  with the square of the distance and stated by what it delivers at the
+ *  subject, and the `ambient` light when the rig states one. Nothing else
+ *  lights the shadows. */
 Group threePoint(const Rig& rig = {});
 
 /** A CAMERA CIRCLING A SUBJECT: how far out it stands, how high, and

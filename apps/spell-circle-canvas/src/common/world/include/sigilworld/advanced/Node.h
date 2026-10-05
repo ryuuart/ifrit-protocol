@@ -81,11 +81,22 @@ struct Window {
 };
 
 /** What the tone curve is that compresses a lit sum onto what a display
- *  can hold. */
+ *  can hold. It runs last, after the exposure, on linear light, and its
+ *  answer is what is encoded for the display. */
 enum class ToneCurve : uint8_t {
   /** Reinhard's operator over luminance: each colour divided by one plus
-   *  its luminance, after the exposure scales it. */
+   *  its luminance. Never reaches white, and halves a white surface lit to
+   *  show its own colour — a soft, low-contrast reading. */
   Reinhard,
+  /** The neutral curve: below a shoulder near 0.8 it changes nothing but
+   *  a small offset of four hundredths, eased to nothing toward black, so
+   *  a surface lit to show its own colour shows very nearly that colour
+   *  and a page reads as painted; above it a smooth compression brings any
+   *  brightness under one, desaturating a highlight only as much as its
+   *  brightness needs. */
+  Neutral,
+  /** No curve: the exposed radiance, cut off at one by the target. */
+  Linear,
 };
 
 /** WHAT A CAMERA NODE DESCRIBES: Geometry's lens, and how the picture it

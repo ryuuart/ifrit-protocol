@@ -113,6 +113,24 @@ SkBitmap pixelsOf(const SurfaceScene& scene, Role role) {
   return pixels;
 }
 
+/** One channel of the packed occlusion-roughness-metallic map, as the
+ *  grey map that scalar would have been on its own: 0 occlusion, 1
+ *  roughness, 2 metallic. */
+SkBitmap channelOf(const SurfaceScene& scene, int channel) {
+  const SkBitmap packed = pixelsOf(scene, Role::Packed);
+  SkBitmap grey;
+  if (packed.empty()) return grey;
+  grey.allocN32Pixels(packed.width(), packed.height());
+  for (int y = 0; y < packed.height(); ++y)
+    for (int x = 0; x < packed.width(); ++x) {
+      const SkColor4f c = packed.getColor4f(x, y);
+      const float v = channel == 0 ? c.fR : channel == 1 ? c.fG : c.fB;
+      grey.erase(SkColor4f{v, v, v, c.fA}.toSkColor(),
+                 SkIRect::MakeXYWH(x, y, 1, 1));
+    }
+  return grey;
+}
+
 void expectNear(const SkColor4f& actual, float red, float green, float blue,
                 float alpha = 1, float tolerance = .012f) {
   EXPECT_NEAR(actual.fR, red, tolerance);
@@ -129,9 +147,9 @@ TEST(ComposeSurfaceScene, EachMapReadsWhatTheTreePaintedThere) {
   scene->render(page());
   const SkBitmap base = pixelsOf(*scene, Role::BaseColor);
   const SkBitmap normal = pixelsOf(*scene, Role::Normal);
-  const SkBitmap roughness = pixelsOf(*scene, Role::Roughness);
-  const SkBitmap metallic = pixelsOf(*scene, Role::Metallic);
-  const SkBitmap occlusion = pixelsOf(*scene, Role::Occlusion);
+  const SkBitmap roughness = channelOf(*scene, 1);
+  const SkBitmap metallic = channelOf(*scene, 2);
+  const SkBitmap occlusion = channelOf(*scene, 0);
   const SkBitmap emissive = pixelsOf(*scene, Role::Emissive);
   ASSERT_FALSE(base.empty());
 
@@ -180,9 +198,14 @@ TEST(ComposeSurfaceScene, EachMapReadsWhatTheTreePaintedThere) {
   expectNear(emissive.getColor4f(5, 105), 0, 0, 0);
 
   const material::texture::TextureMaps maps = scene->maps();
-  EXPECT_EQ(maps.maps.size(), 6u);
+  // Five maps: the three scalars share one and the coat's two another.
+  EXPECT_EQ(maps.maps.size(), 5u);
   EXPECT_FALSE(maps.normalDirectX);
   EXPECT_NE(maps.map(Role::Emissive), nullptr);
+  EXPECT_NE(maps.map(Role::Packed), nullptr);
+  EXPECT_NE(maps.map(Role::Clearcoat), nullptr);
+  // A plate stating no coat has none.
+  expectNear(pixelsOf(*scene, Role::Clearcoat).getColor4f(10, 10), 0, 0, 0);
 }
 
 TEST(ComposeSurfaceScene, AStillTreeSettlesAndAChangedMaterialPaintsAgain) {
@@ -292,7 +315,7 @@ TEST(ComposeSurfaceScene, APageDrawPaintsAStatedSurfaceAsItsColoursFlat) {
   EXPECT_GT(*roughnessReads, 0);
   const SkBitmap base = pixelsOf(*scene, Role::BaseColor);
   const SkBitmap normal = pixelsOf(*scene, Role::Normal);
-  const SkBitmap metallic = pixelsOf(*scene, Role::Metallic);
+  const SkBitmap metallic = channelOf(*scene, 2);
   const SkBitmap emissive = pixelsOf(*scene, Role::Emissive);
   ASSERT_FALSE(base.empty());
   expectNear(base.getColor4f(20, 20), 77 / 255.f, 140 / 255.f, 204 / 255.f);

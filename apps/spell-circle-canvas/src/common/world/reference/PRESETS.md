@@ -33,13 +33,22 @@ subject and its height above it, in degrees; the fill stands a quarter
 turn the other way and lower, and the back light stands opposite and
 higher.
 
-`Rig::fill` and `Rig::back` are those two as fractions of the key's
-strength. The key is what a subject is read by; the other two are what
-keeps it from being read by the key alone. `Rig::intensity` and
-`Rig::color` are the key's own strength and colour, both
-`motion::Animatable`, so a live value dims and tints the key without the
-rig being made again; the other two take the colour and the strength
-those hold when the rig is made, scaled.
+Every light of the rig is STATED BY WHAT IT DELIVERS AT THE SUBJECT:
+the rig turns each strength into the intensity that the inverse square
+brings back to that strength at the distance the lamp stands
+(`world::intensityAt`), so the numbers read the same for a thumbnail and
+a room. A white matte surface square to a lamp shows one over pi of its
+strength. `Rig::intensity` and `Rig::color` are the key's strength and
+colour, both `motion::Animatable`, so a live value dims and tints the key
+without the rig being made again. `Rig::fillIntensity`,
+`Rig::fillColor`, `Rig::backIntensity` and `Rig::backColor` are the
+other two's own: neither follows the key, so a key that dims leaves the
+shadow side and the rim as they were stated. The key is what a subject
+is read by; the other two are what keeps it from being read by the key
+alone. `Rig::ambientIntensity` and `Rig::ambientColor`, past zero, add an
+ambient light to the rig, keyed `ambient`; nothing else lights the
+shadows, so a rig stating none over a set with no environment leaves
+them black.
 
 `threePoint` is THE RIG, as one group with three keyed point lights — the
 key, the fill and the back — each standing where the arrangement puts

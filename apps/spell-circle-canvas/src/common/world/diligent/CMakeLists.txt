@@ -84,13 +84,13 @@ sigil_shader_sources(SigilWorldDiligent
 # it is a run nobody should read a device verdict out of.
 sigil_test(world_test
   SOURCES test/RuntimeTest.cpp test/StackTest.cpp
-          test/SurfaceTest.cpp test/DeviceSeams.h
+          test/SurfaceTest.cpp test/LightingTest.cpp test/DeviceSeams.h
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
                ${SIGIL_GEOMETRY_DEVICE_TEST_SUPPORT_DIR}
   DEFINITIONS SIGIL_WORLD_SHADER_DIR="${_shaders}"
   LIBRARIES SigilWorldDiligent SigilMaterialSurface SigilGeometryKit
-  SUITES DeviceFrame Environment GpuRuntime Programs Stack SurfaceProgram
-         SurfaceSlots
+  SUITES DeviceFrame Environment GpuRuntime Lighting Programs Stack
+         SurfaceProgram SurfaceSlots
   LABELS gpu)
 
 sigil_bench(world_bench

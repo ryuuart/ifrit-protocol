@@ -81,10 +81,16 @@ class Writer {
                      std::string_view parent = "/World");
   /** A light, as a frame keeps it: distant for a directional light,
    *  sphere for a point light or for a spot, whose cone is UsdLux shaping
-   *  about the prim's -Z. The range, which UsdLux has no word for, rides
-   *  as `sigil:range`; the light and shadow links, whose collection terms
-   *  name collections and keys rather than this stage's prims, ride as
-   *  `sigil:lightLink` and `sigil:shadowLink` custom data. */
+   *  about the prim's -Z, and an untextured dome for an ambient or a
+   *  hemisphere light, the hemisphere's ground colour riding as
+   *  `sigil:groundColor` and its up as the dome's +Y. Colours are written
+   *  in linear light, as UsdLux states them; a sphere is a point of radius
+   *  one whose surface radiance is the light's intensity over pi, which is
+   *  what delivers that intensity at a distance of one. The range, which
+   *  UsdLux has no word for, rides as `sigil:range`; the light and shadow
+   *  links, whose collection terms name collections and keys rather than
+   *  this stage's prims, ride as `sigil:lightLink` and `sigil:shadowLink`
+   *  custom data. */
   std::string light(std::string_view name, const world::PlacedLight& light,
                     std::string_view parent = "/World");
   /** THE SET'S ENVIRONMENT, as a UsdLuxDomeLight: the panorama written

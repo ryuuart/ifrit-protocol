@@ -1,8 +1,9 @@
 /** @file
- * A light held still, its falloffs, and the three factories that make a
- * light node.
+ * A light held still, its falloffs, the factories that make a light node,
+ * and the intensity that delivers a strength at a distance.
  */
 
+#include <sigilmotion/bind/Binding.h>
 #include <sigilworld/advanced/Light.h>
 #include <sigilworld/node/Light.h>
 
@@ -40,33 +41,72 @@ LightDescription held(const LightDescription& light) {
   // the source's included.
   out.color = motion::Animatable<material::Color>(light.color.value());
   out.intensity = motion::Animatable<float>(light.intensity.value());
+  out.groundColor =
+      motion::Animatable<material::Color>(light.groundColor.value());
   return out;
 }
 
 float attenuation(const PlacedLight& placed, const glm::vec3& at) {
   const LightDescription& light = placed.light;
-  if (light.kind == LightKind::Directional) return 1.0f;
+  if (light.kind != LightKind::Point && light.kind != LightKind::Spot)
+    return 1.0f;
   const glm::vec3 toLight = placed.position - at;
-  const float distance = std::max(glm::length(toLight), 1e-4f);
-  const float reach =
-      std::clamp(distance / std::max(light.range, 1e-3f), 0.0f, 1.0f);
-  const float window = 1.0f - reach * reach;
-  float falloff = window * window;
+  // The same arithmetic the device's `distanceFalloff` and `coneFalloff`
+  // do, so a host reading of a light and the shaded picture agree.
+  const float distance = std::max(glm::length(toLight), 1e-2f);
+  float falloff = 1.0f / (distance * distance);
+  if (light.range > 0.0f) {
+    const float reach = distance / light.range;
+    const float window =
+        std::clamp(1.0f - reach * reach * reach * reach, 0.0f, 1.0f);
+    falloff *= window * window;
+  }
   if (light.kind == LightKind::Spot) {
     const float cosAngle = glm::dot(unit(light.direction), unit(-toLight));
-    const float outer =
-        std::cos(glm::radians(std::max(light.outerAngle, 0.0f)));
-    const float inner = std::cos(glm::radians(
-        std::clamp(light.innerAngle, 0.0f, std::max(light.outerAngle, 0.0f))));
-    const float span = std::max(inner - outer, 1e-4f);
-    falloff *= std::clamp((cosAngle - outer) / span, 0.0f, 1.0f);
+    const float outer = std::max(light.outerAngle, 0.0f);
+    const float cosOuter = std::cos(glm::radians(outer));
+    const float cosInner =
+        std::cos(glm::radians(std::clamp(light.innerAngle, 0.0f, outer)));
+    const float span = std::max(cosInner - cosOuter, 1e-4f);
+    const float t = std::clamp((cosAngle - cosOuter) / span, 0.0f, 1.0f);
+    falloff *= t * t;
   }
   return falloff;
 }
 
+glm::vec3 linearColor(const material::Color& color) {
+  const auto decode = [](float c) {
+    const float x = std::max(c, 0.0f);
+    return x <= 0.04045f ? x / 12.92f : std::pow((x + 0.055f) / 1.055f, 2.4f);
+  };
+  return {decode(color.r), decode(color.g), decode(color.b)};
+}
+
+material::Color encodedColor(const glm::vec3& linear) {
+  const auto encode = [](float l) {
+    const float x = std::max(l, 0.0f);
+    return x <= 0.0031308f ? x * 12.92f
+                           : 1.055f * std::pow(x, 1.0f / 2.4f) - 0.055f;
+  };
+  return {encode(linear.r), encode(linear.g), encode(linear.b), 1.0f};
+}
+
 glm::vec3 radiance(const PlacedLight& placed) {
-  const material::Color color = placed.light.color.value();
-  return glm::vec3(color.r, color.g, color.b) * placed.light.intensity.value();
+  return linearColor(placed.light.color.value()) *
+         placed.light.intensity.value();
+}
+
+float intensityAt(float strength, float distance) {
+  return strength * distance * distance;
+}
+
+motion::Animatable<float> intensityAt(motion::Animatable<float> strength,
+                                      float distance) {
+  const float scale = distance * distance;
+  if (const float* constant = strength.constant()) return *constant * scale;
+  // A moving strength is followed through a linear stage that takes
+  // [0, 1] to [0, d²] — the scale, applied to every sample it reads.
+  return motion::bind(strength, motion::Binding{.to = {0.0f, scale}});
 }
 
 Light directionalLight(glm::vec3 direction, DirectionalLightOptions options) {
@@ -91,6 +131,20 @@ Light spotLight(glm::vec3 direction, SpotLightOptions options) {
                     .range = options.range,
                     .innerAngle = options.innerAngle,
                     .outerAngle = options.outerAngle});
+}
+
+Light ambientLight(AmbientLightOptions options) {
+  return lightNode({.kind = LightKind::Ambient,
+                    .color = std::move(options.color),
+                    .intensity = std::move(options.intensity)});
+}
+
+Light hemisphereLight(HemisphereLightOptions options) {
+  return lightNode({.kind = LightKind::Hemisphere,
+                    .direction = {0, 1, 0},
+                    .color = std::move(options.color),
+                    .intensity = std::move(options.intensity),
+                    .groundColor = std::move(options.groundColor)});
 }
 
 Light& Light::lightLink(Collection bodies) {

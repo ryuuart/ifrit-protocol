@@ -309,7 +309,14 @@ A set's page is held the same way. It is two calls in `describe`:
 surface at the frame's time, put on the frame with `pass`, and
 `Page::surface()` is the one material a body wears to show it. Compose paints
 each lit material's maps and the page's flat content as its own colour, and
-the set's lights, environment and camera shade the page. Nothing paints
+the set's lights, environment and camera shade the page — every lit
+material's base colour, normal, roughness, metalness, occlusion, emission
+and clear coat (its weight and roughness; a coat's own normal is not
+carried yet) reach the set's shading through `Page::surface()`, and which
+maps carry them is the page's business. Flat content on a page is its own
+light and goes through the camera's exposure and tone curve like any
+other light, so a page meant to read as painted is seen through
+`world::ToneCurve::Neutral`. Nothing paints
 unless its pass is on the frame: a body wearing a page whose pass is missing
 is an error naming both, and a page whose tree has not changed paints nothing
 and is counted as skipped.

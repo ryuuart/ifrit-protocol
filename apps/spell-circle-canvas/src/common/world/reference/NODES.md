@@ -124,15 +124,19 @@ whole stamped mesh.
 
 ### Lights
 
-A light is one node type made by three factories. `directionalLight` is
+A light is one node type made by five factories. `directionalLight` is
 a light the same everywhere, travelling along a direction toward what it
 lights: it stands nowhere. `pointLight` shines every way from where its
-node stands and falls to nothing at its range. `spotLight` is a point
-light narrowed to a cone about its direction, full strength inside
+node stands, falling off with the square of the distance and, past a
+`range` of zero, brought smoothly to nothing at it. `spotLight` is a
+point light narrowed to a cone about its direction, full strength inside
 `SpotLightOptions::innerAngle` and dark outside
-`SpotLightOptions::outerAngle`. A light is aimed by the direction it
-travels, and its node's rotation turns that direction, so a light placed
-under a turned group turns with it.
+`SpotLightOptions::outerAngle`. `ambientLight` arrives equally from every
+direction, and `hemisphereLight` from a sky above the horizon and a
+ground below it, about its node's up. A light is aimed by the direction
+it travels, and its node's rotation turns that direction — and a
+hemisphere light's up — so a light placed under a turned group turns
+with it.
 
 A light lights every body in the scene wherever it stands in the tree.
 `Light::lightLink` narrows that to a `Collection` — USD's light link —
@@ -141,19 +145,21 @@ collection that blocks it, stored and written out; nothing casts a
 shadow yet.
 
 `LightDescription` is what a light node carries: its `LightKind`, the
-direction, the colour and the strength — both `motion::Animatable`, so a
-light bound to a live value dims and tints while the tree stands still —
-the range, the cone and the two links. `PlacedLight` is what a frame
-keeps of one: its description with every animatable `held`, its
-direction carried into the world, and where its node stands.
+direction, the colour, the strength and a hemisphere's ground colour —
+all `motion::Animatable`, so a light bound to a live value dims and
+tints while the tree stands still — the range, the cone and the two
+links. `PlacedLight` is what a frame keeps of one: its description with
+every animatable `held`, its direction carried into the world, and where
+its node stands.
 
-Colours are LINEAR. `attenuation` is how much of a light reaches a point,
-in [0, 1], before any surface term. A directional light reaches
-everything equally. A point light falls off on a window — one minus the
-squared distance ratio, squared — rather than an inverse square, and
-reaches exactly zero at its range rather than trailing off forever. A
-spot multiplies that by its cone. `radiance` is the colour scaled by the
-strength, what a renderer uploads as one value.
+A light's colour is typed as an author types any colour and decoded into
+linear light (`linearColor`). `attenuation` is how much of a light's
+intensity reaches a point before any surface term: the inverse square,
+windowed by the range, times a spot's cone, and one for a light that
+stands nowhere. `radiance` is the decoded colour scaled by the strength,
+what a renderer uploads as one value, and `intensityAt` the intensity
+that delivers a strength at a distance. What each kind delivers and how
+a surface answers it is **[LIGHTING.md](LIGHTING.md)**.
 
 ### Cameras
 
@@ -162,10 +168,11 @@ the lens's eye and target are carried by the node's placement, so a
 camera riding a rail looks from wherever it has reached.
 `CameraOptions::exposure` is what every radiance is multiplied by before
 the tone curve compresses it onto what a display can hold — doubling it
-is one stop — and it means something in a set carrying no panorama at
-all, because a lit sum ends at the curve either way.
-`CameraOptions::toneCurve` is that curve; `ToneCurve::Reinhard` divides a
-colour by one plus its luminance.
+is one stop. `CameraOptions::toneCurve` is that curve:
+`ToneCurve::Reinhard` divides a colour by one plus its luminance,
+`ToneCurve::Neutral` leaves a colour lit to show itself very nearly as
+it is and compresses only above a shoulder, and `ToneCurve::Linear`
+applies none.
 
 A frame looks through one camera: the only one in the tree, or the one
 `Frame::camera` names by key. Several with none named is an error naming

@@ -35,6 +35,9 @@ std::optional<std::vector<ReadEnvironment>> readEnvironments(
     SdfAssetPath asset;
     if (dome.GetTextureFileAttr().Get(&asset))
       read.texture = asset.GetAssetPath();
+    // A dome with no picture on it is uniform light from everywhere,
+    // which `readLights` answers as an ambient or a hemisphere light.
+    if (read.texture.empty()) continue;
 
     dome.GetIntensityAttr().Get(&read.environment.intensity);
 

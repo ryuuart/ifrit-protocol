@@ -38,39 +38,6 @@ above zero and has no separate tube-light pass after it. The phosphor
 treatment before the tube is a separate stage and stays. The approved
 plates should hold the chosen radius, strength and order.
 
-## A surface is lit in light and presented as though it never was
-
-No body on either surface path applies a transfer function in either
-direction. `src/common/material/kit/shaders/Unlit.sksl` and
-`Surface.sksl` multiply `baseColor` by the sample of `baseColorMap` and
-return the product; the raster surfaces they are drawn onto carry no
-colour space, so Skia transforms neither the texel on the way in nor the
-product on the way out. `src/common/world/diligent/shaders/Surface.slang`
-multiplies by the same map, compresses the sum through
-`material::toneMap` on luminance, and writes to a UNORM target; no
-texture and no target in `src/common/world` or `src/common/geometry/device`
-is created in an sRGB format. Every number on the path is therefore the
-number an image stores and a display shows.
-
-Two things in the tree say the path was meant to carry light. `toneMap`
-states that what it takes is a radiance read at the set's exposure and
-compressed onto what a display can hold, and a radiance is linear;
-`SurfaceParameters::gold()` and `chrome()` carry measured reflectances,
-and gold's `(1.0, 0.766, 0.336)` is its linear value — the same colour
-encoded is near `(1.0, 0.894, 0.625)`. So a lit surface integrates a
-measured quantity against map samples that are display numbers and hands
-the result to a target that takes it for a display number, and the metals
-the kit ships read duller than the metals they were measured from.
-
-The bodies should linearise the samples they multiply and encode what
-they return, and the tone map should then stand between two quantities
-of light. A test should assert that a mid-grey texel over a white base
-colour comes back the mid-grey it went in as; that doubling a light moves
-a mid-grey by a stop rather than by doubling its code; and that gold's
-measured reflectance under a white environment presents at the code that
-colour presents at. Every plate carrying a lit or unlit surface moves,
-and a plate rebase names the cause.
-
 ## A stack's programs cannot be stood up before the sketch wearing it is read
 
 Grimoire stands its device programs up before the canvas draws: every
@@ -1166,21 +1133,6 @@ unchanged frame, a viewport change and a changed outer track. Deterministic
 layout-pass counters should establish fewer redundant passes; retain the
 benchmark for timing rather than using a machine-specific unit threshold.
 
-## Renderer gap: World's surfaces do not implement clearcoat
-
-`SurfaceOptions` carries a clearcoat weight beside transmission, refractive
-index, thickness and absorption. World's device surface lowering
-(`surface::lower`, `src/common/material/surface/Lower.cpp`) passes
-transmission, index, thickness and absorption on to the device program,
-but does not implement clearcoat; it reports a nonzero clearcoat request
-once and draws the surface uncoated.
-
-Wanted: a coating lobe in World's surface program, with the report kept
-until it exists. A regression should shade one surface with and without a
-clearcoat under one light, assert the coated highlight differs and the
-uncoated one is unchanged, and assert the report is made once while the
-lobe is missing.
-
 ## Renderer limitation: Skia's CPU image-filter layer is eight-bit, so raster filters quantize coverage, clip HDR and step contour normals
 
 The pinned Skia CPU bitmap device selects N32 for a layer whose paint has
@@ -1612,3 +1564,55 @@ in the workspace's own `assets/` is not found.
 A workspace should mount the `assets/` folder it was written with. A test
 should make a workspace, put a file in its `assets/`, open the entry and
 read the file through `res://`.
+
+## World reads no additive reflection
+
+`SurfaceOptions::reflectionWeight` and `surface::Reflection::Additive`
+lower into the surface program, whose body writes the weight into
+`gSurfaceReflection` (`src/common/material/surface/Lower.cpp`,
+`surface/shaders/Surface.slang`). World's scaffold
+(`src/common/world/diligent/shaders/Surface.slang`) declares the variable
+and reads nothing from it: every surface mirrors the environment through
+its own reflectance and Fresnel, so the additive recipe draws exactly as
+the split-sum one does.
+
+The additive recipe was evidently meant to add `reflectionWeight` of the
+environment with no Fresnel, as its header says. Either the scaffold
+honours it — a term `environmentReflection` already exists — or the
+choice and the field go. A test should shade one card under one
+environment with each recipe and assert the additive one differs by the
+weight, or, if the field goes, that no consumer spells it.
+
+## A stack of two surface programs cannot be drawn on the device
+
+A surface program declares ten sampled slots
+(`src/common/material/surface/Surface.cpp`) and World's scaffold six of
+its own (the base-colour map, two panoramas, two convolutions and the
+split sum's table), which is the sixteen a fragment program may declare.
+`material::over` of two surface programs asks for twenty-six and is
+reported over budget, so a stacked surface is drawn as its bottom.
+
+A stack of two lit surfaces was evidently meant to shade as a stack
+(`reference/DEVICE.md`). Wanted: slots an operand never reads left out of
+the composed program, or the scalar maps packed into one texture per
+surface as a page's are. A test should compose two surface programs with
+`over`, compile it for the device and assert it stays within the budget
+and draws both operands.
+
+## The environment's prefiltered chain is a box blur, not the lobe it is read by
+
+`EnvironmentMap::chain` (`src/common/material/texture/EnvironmentMap.cpp`)
+builds each roughness level by three wrap-aware box blurs whose radius is
+a fixed function of the level, in panorama texels — the same width at the
+poles as at the horizon — while the device reads it as the GGX lobe of
+that roughness and weights it by a split sum integrated from that lobe.
+A rough surface's reflection is therefore narrower or wider than the
+energy the table assigns it, by an amount that changes with latitude.
+
+Evidently intended: each level the panorama convolved with the GGX lobe of
+its roughness, importance-sampled in direction rather than in texels.
+A test should bake a panorama with one bright texel, prefilter it, and
+assert the lobe's angular width at each level matches the width the
+distribution gives that roughness, within a stated bound, at the horizon
+and near a pole alike.
+

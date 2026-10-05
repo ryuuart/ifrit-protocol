@@ -78,14 +78,21 @@ struct ReadCamera {
  *  as a directional light aimed along the prim's -Z, a UsdLuxSphereLight
  *  as a point light where the prim stands — or as a spot when the prim
  *  carries an authored shaping cone, whose angle is the outer half-angle
- *  and whose softness is how much of it the falloff eats. `sigil:range`
- *  gives the range, and `sigil:lightLink` and `sigil:shadowLink` the
- *  links; a light authored without them keeps the defaults. Other UsdLux
- *  shapes are skipped. nullopt when the stage cannot be opened. */
+ *  and whose softness is how much of it the falloff eats — with the
+ *  sphere's surface radiance times pi r squared as its intensity, and a
+ *  UsdLuxDomeLight with no picture as an ambient light, or a hemisphere
+ *  light about the dome's +Y where it carries `sigil:groundColor`. Colours
+ *  are linear in UsdLux and are encoded as a light's colour is typed.
+ *  `sigil:range` gives the range, and `sigil:lightLink` and
+ *  `sigil:shadowLink` the links; a light authored without them keeps the
+ *  defaults. Other UsdLux shapes are skipped. nullopt when the stage
+ *  cannot be opened. */
 std::optional<std::vector<ReadLight>> readLights(
     const std::filesystem::path& file, std::string* error = nullptr);
 
-/** Every UsdLuxDomeLight on the stage, in traversal order. The
+/** Every UsdLuxDomeLight with a picture on it on the stage, in traversal
+ *  order; one with none is an ambient or a hemisphere light, which
+ *  `readLights` answers. The
  *  intensity read back carries the factor the writer divided the
  *  panorama by, so a stage written and read again lights a set at the
  *  radiance it was described with. nullopt when the stage cannot be

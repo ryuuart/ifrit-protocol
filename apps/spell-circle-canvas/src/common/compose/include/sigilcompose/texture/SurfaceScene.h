@@ -4,8 +4,8 @@
  * @ingroup compose-texture
  *
  * A retained Compose scene rendered as THE MAPS OF A SURFACE — base
- * colour, normal, roughness, metallic, occlusion and emissive — for a
- * renderer that lights the page itself.
+ * colour, normal, occlusion-roughness-metallic packed in one, emissive and
+ * the clear coat — for a renderer that lights the page itself.
  */
 
 #include <include/core/SkSize.h>
@@ -37,8 +37,11 @@ namespace sigil::compose {
  *  (`material::skia::asMap`) at the coverage it paints; content that takes
  *  no light is its own colour — its colour in the emissive map, a black
  *  base, a normal facing the viewer, roughness and occlusion one, metallic
- *  zero. Where nothing paints, each map reads that same ground, with a
- *  transparent base colour. Normals are encoded green up the picture.
+ *  and the coat zero. Where nothing paints, each map reads that same
+ *  ground, with a transparent base colour. Normals are encoded green up
+ *  the picture; occlusion, roughness and metallic share the `Packed` map
+ *  in red, green and blue, and the coat's weight and roughness share the
+ *  `Clearcoat` map in red and green.
  *
  *  `maps()` hands the set to `material::surface::program`, which dresses a
  *  surface a lit renderer shades, so the page is lit by the renderer's own

@@ -164,6 +164,44 @@ struct Surfaced {
   }
 };
 
+/** A page whose one panel states a clear coat of weight @p Coat over a
+ *  rough grey base, worn on a card under a lamp standing between the card
+ *  and the eye — where a coat mirrors the lamp into a spot and a rough
+ *  base spreads it evenly. */
+template <int Coat>
+struct CoatedPage {
+  Page page;
+  void setup(SetContext& ctx) {
+    ctx.canvas(160, 120);
+    ctx.background({0, 0, 0, 1});
+    page = ctx.page({64, 64});
+  }
+  world::Frame describe(sigil::motion::Duration) {
+    using namespace sigil::compose;
+    namespace material = sigil::material;
+    sigil::geometry::mesh::camera::Camera lens;
+    lens.eye = {0, 0, 200};
+    lens.target = {0, 0, 0};
+    return world::Frame(
+               world::group({world::camera(
+                                 lens, {.toneCurve = world::ToneCurve::Neutral})
+                                 .key("camera"),
+                             world::pointLight({.intensity = world::intensityAt(
+                                                    3.0f, 150.0f)})
+                                 .key("lamp")
+                                 .at({0, 0, 150}),
+                             world::mesh(gm::quad(120, 90))
+                                 .key("card")
+                                 .fill(page.surface())})
+                   .key("set"))
+        .pass(page.render(box().width(64).height(64).fill(
+            material::from(material::Color{.3f, .3f, .35f, 1})
+                .surface({.roughness = 1.0f,
+                          .clearcoat = (float)Coat,
+                          .clearcoatRoughness = .08f}))));
+  }
+};
+
 /** THE CAMERA A SET DECLARES IN ITS OWN TREE — nowhere near the
  *  fallback its host hands in, and looking at a point that is not the
  *  origin, so that a viewpoint pivoting on the wrong one of the two is
@@ -377,6 +415,23 @@ TEST_F(SetDoors, PaintsASurfaceSceneThatTheSetLights) {
   const SkColor panel = picture.getColor(48, 60);
   EXPECT_GT(SkColorGetR(panel), 15u);
   EXPECT_NEAR(int(SkColorGetR(panel)), int(SkColorGetG(panel)), 12);
+}
+
+TEST_F(SetDoors, APagesClearcoatReachesTheShaderThroughItsSurface) {
+  std::unique_ptr<Session> coated =
+      kindOf<CoatedPage<1>>()->open(fonts(), assets());
+  std::unique_ptr<Session> bare =
+      kindOf<CoatedPage<0>>()->open(fonts(), assets());
+  const SkBitmap withCoat = oneFrame(*coated);
+  const SkBitmap without = oneFrame(*bare);
+  // The coat the page painted mirrors the lamp where the reflection meets
+  // the eye; the bare page shows only its rough base there.
+  const SkColor4f centreCoated = withCoat.getColor4f(80, 60);
+  const SkColor4f centreBare = without.getColor4f(80, 60);
+  EXPECT_GT(centreCoated.fG, centreBare.fG + 0.15f);
+  // A little way off the spot the two pages are nearly alike.
+  EXPECT_NEAR(withCoat.getColor4f(40, 60).fG, without.getColor4f(40, 60).fG,
+              0.08f);
 }
 
 /** A body on a turntable, performed through a pass the set declares

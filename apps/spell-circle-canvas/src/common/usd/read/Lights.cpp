@@ -1,18 +1,28 @@
 /** @file
  * Lights read back: a UsdLuxDistantLight as a directional light, a
  * UsdLuxSphereLight as a point light or — when the prim carries an
- * authored shaping cone — as a spot. The prim's local-to-world says where
- * it stands and aims its -Z, which is the axis UsdLux opens a cone
- * around; `sigil:range` gives the range a UsdLux light has no word for,
- * and `sigil:lightLink` and `sigil:shadowLink` the links.
+ * authored shaping cone — as a spot, and a UsdLuxDomeLight with no
+ * picture on it as an ambient light, or a hemisphere light where it
+ * carries `sigil:groundColor`. The prim's local-to-world says where it
+ * stands and aims its -Z, which is the axis UsdLux opens a cone around,
+ * and a dome's +Y, which is a hemisphere's up; `sigil:range` gives the
+ * range a UsdLux light has no word for, and `sigil:lightLink` and
+ * `sigil:shadowLink` the links.
+ *
+ * UsdLux colour is linear and is encoded on the way in, as a light's
+ * colour is typed; a sphere light's intensity is the radiance of its
+ * surface, which a sphere of radius r delivers times pi r squared at a
+ * distance of one — the point light's intensity.
  */
 
 #include <pxr/base/gf/vec3f.h>
 #include <pxr/base/tf/token.h>
 #include <pxr/base/vt/array.h>
 #include <pxr/base/vt/value.h>
+#include <pxr/usd/sdf/assetPath.h>
 #include <pxr/usd/usd/primRange.h>
 #include <pxr/usd/usdLux/distantLight.h>
+#include <pxr/usd/usdLux/domeLight.h>
 #include <pxr/usd/usdLux/lightAPI.h>
 #include <pxr/usd/usdLux/shapingAPI.h>
 #include <pxr/usd/usdLux/sphereLight.h>
@@ -28,6 +38,8 @@ PXR_NAMESPACE_USING_DIRECTIVE
 namespace sigil::usd {
 
 namespace {
+
+constexpr float kPi = 3.14159265358979323846f;
 
 /** The terms of a collection a light link stored as custom data, or the
  *  whole scene where the prim stores none. */
@@ -50,7 +62,17 @@ world::Collection linkOf(const UsdPrim& prim, const char* key) {
 std::optional<world::PlacedLight> readLight(const UsdPrim& prim,
                                             ReadContext& context) {
   const bool distant = prim.IsA<UsdLuxDistantLight>();
-  if (!distant && !prim.IsA<UsdLuxSphereLight>()) return std::nullopt;
+  const bool sphere = prim.IsA<UsdLuxSphereLight>();
+  // A dome WITH a picture is an environment, read by `readEnvironments`;
+  // one without is light arriving equally from everywhere.
+  bool dome = false;
+  if (prim.IsA<UsdLuxDomeLight>()) {
+    SdfAssetPath picture;
+    const UsdAttribute file = UsdLuxDomeLight(prim).GetTextureFileAttr();
+    dome = !(file && file.HasAuthoredValue() && file.Get(&picture) &&
+             !picture.GetAssetPath().empty());
+  }
+  if (!distant && !sphere && !dome) return std::nullopt;
 
   const glm::mat4 world = fromGf(context.xforms.GetLocalToWorldTransform(prim));
   // A UsdLux light shines down its -Z; the third basis vector of the
@@ -69,8 +91,22 @@ std::optional<world::PlacedLight> readLight(const UsdPrim& prim,
   light.intensity = intensity;
   GfVec3f rgb(1, 1, 1);
   api.GetColorAttr().Get(&rgb);
-  light.color = material::Color(rgb[0], rgb[1], rgb[2], 1);
+  light.color = world::encodedColor({rgb[0], rgb[1], rgb[2]});
   light.direction = direction;
+
+  if (dome) {
+    const VtValue ground =
+        prim.GetCustomDataByKey(TfToken("sigil:groundColor"));
+    if (!ground.IsHolding<GfVec3f>()) {
+      light.kind = world::LightKind::Ambient;
+      return placed;
+    }
+    const GfVec3f g = ground.UncheckedGet<GfVec3f>();
+    light.kind = world::LightKind::Hemisphere;
+    light.groundColor = world::encodedColor({g[0], g[1], g[2]});
+    light.direction = glm::normalize(glm::vec3(world[1]));
+    return placed;
+  }
 
   if (distant) {
     light.kind = world::LightKind::Directional;
@@ -78,6 +114,9 @@ std::optional<world::PlacedLight> readLight(const UsdPrim& prim,
   }
 
   placed.position = glm::vec3(world[3]);
+  float radius = 1.0f;
+  UsdLuxSphereLight(prim).GetRadiusAttr().Get(&radius);
+  light.intensity = intensity * kPi * radius * radius;
   // The range is ours: a light authored by anything else keeps the
   // default rather than reaching nowhere.
   const VtValue stored = prim.GetCustomDataByKey(TfToken("sigil:range"));

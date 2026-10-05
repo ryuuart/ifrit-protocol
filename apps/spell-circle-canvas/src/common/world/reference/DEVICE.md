@@ -150,24 +150,20 @@ naming the slot, and reads as empty.
 
 **A body states what its surface IS.** The scaffold declares a set of
 variables a body writes and it reads: `gSurfaceNormal` in tangent space,
-`gSurfaceGloss` as a Blinn exponent, `gSurfaceMetal`, `gSurfaceRoughness`,
-the three glass terms `gSurfaceTransmission`, `gSurfaceIor` and
-`gSurfaceThickness` with `gSurfaceAbsorption` beside them, and
-`gSurfaceReflection` for how an environment reaches the surface, and
-`gSurfaceEmission`, the light the surface gives off of its own. Those
-are the surface's standing whether or not a map varies them — a mirror
-carrying no maps still has to reflect, and only the surface knows how
-rough it is.
+`gSurfaceMetal`, `gSurfaceRoughness`, `gSurfaceOcclusion`, the clear
+coat's `gSurfaceClearcoat`, `gSurfaceClearcoatRoughness` and
+`gSurfaceClearcoatNormal`, the three glass terms `gSurfaceTransmission`,
+`gSurfaceIor` and `gSurfaceThickness` with `gSurfaceAbsorption` beside
+them, and `gSurfaceEmission`, the light the surface gives off of its own,
+in linear radiance. The colour a body returns is ENCODED, as an author
+types it; the scaffold decodes it.
 
-**A body may ask to be shaded again, per pixel.** The scaffold shades
-per VERTEX, and one thing cannot survive that: a MAP that varies the
-surface across a face. A body dressed with one raises
-`gSurfacePerPixel`, and the light loop runs again where those values
-can be seen. A body that raises nothing keeps the terms the vertex stage
-interpolated, down to the bit. The tangent frame a normal map is authored against is
-read off the screen derivatives of the view position and the uv, because
-a mesh carries no tangent lane and every generator would have to fill
-one.
+**Every lit pixel is shaded on its own.** The tangent frame a normal map
+is authored against is read off the screen derivatives of the view
+position and the uv, because a mesh carries no tangent lane and every
+generator would have to fill one. What the shading is — the lights'
+falloff, the microfacet terms, the clear coat, light from everywhere,
+colour and the tone curve — is **[LIGHTING.md](LIGHTING.md)**.
 
 ## The swept rings on the device
 
@@ -253,27 +249,23 @@ of a device pop cook that no longer answers what the host answers.
 
 ## What a lit set can and cannot say
 
-The lighting is directional, per vertex, and the model is ambient plus
-Lambert scaling the surface colour, plus a Blinn highlight and a rim
-term that nothing scales. So:
+The lighting model is **[LIGHTING.md](LIGHTING.md)**. What the device
+adds to it:
 
 - a recipe's `Target::Slang` body IS run: the parameters, the sampled
   slots and the arithmetic a material describes reach the pixels. A
   recipe with no Slang body is painted in the colour the frame
   extracted.
-- a sun reaches the shading as itself; a point or spot light reaches it
-  as the direction from where it stands toward the origin, at the
-  strength it has there. The full falloff is `world::attenuation`.
 - **a light reaches only the bodies its light link names.** Each body is
   drawn under the lights whose `Light::lightLink` contains it, asked of
   the same member a pass's collection reads; an unlinked light reaches
   every body. The shadow link is stored and reaches nothing, since no
-  body casts a shadow.
+  body casts a shadow. A draw carries at most sixteen lights.
 - a surface that says light does not reach it — `material::surface::unlit`
   — is drawn with the unlit build: what it shows is its base colour and
-  the mesh's own tint. The answer is read off the material once at
-  extract, beside the map, so it is a property of the BODY and not of the
-  pass that draws it.
+  the mesh's own tint, as authored. The answer is read off the material
+  once at extract, beside the map, so it is a property of the BODY and
+  not of the pass that draws it.
 - a texture states how it is read BETWEEN texels and the device honours
   it. Nearest keeps a texel's edge hard and takes no mip level with it,
   because blending two levels is the same bleed arriving by the other
@@ -281,11 +273,11 @@ term that nothing scales. So:
 - a STACK of surfaces SHADES as a stack. `material::over` composes one
   Slang body out of its three operands' own bodies, so both surfaces are
   evaluated and their colours mixed by the mask, and what each of them
-  said per pixel — a normal, a Blinn exponent, a metal weight — is mixed
-  by the same coverage, so a top wearing a normal map bumps the surface
-  only where the mask lets the top show. A stack whose operands do not
-  all have a Slang body is not composed and is drawn as the surface at
-  the bottom of it.
+  said per pixel — a normal, a roughness, a metal weight, an occlusion,
+  a coat — is mixed by the same coverage, so a top wearing a normal map
+  bumps the surface only where the mask lets the top show. A stack whose
+  operands do not all have a Slang body is not composed and is drawn as
+  the surface at the bottom of it.
 - **a stack running its own body owns every map in it.** The frame
   extracts the map of the material at the bottom of a stack, because
   that is what can be read off a stack without running it; where the
@@ -293,56 +285,13 @@ term that nothing scales. So:
   slots of its own, and the scaffold is handed no map at all — otherwise
   the bottom's would land a second time and over the whole face rather
   than where the mask says.
-- the occlusion, emissive and opacity maps reach the pixels through the
-  kit's own body: occlusion darkens the albedo at its strength, emission
-  is laid over the finished colour at its own colour and strength — past
-  the lights, the tone curve and the base-colour map, so a surface whose
-  base is black still shows the light it gives off, as authored — and
-  `alphaCutoff` turns the
-  opacity map into a CUTOUT — below the threshold the surface is absent
-  rather than translucent.
-- the normal map perturbs the shading, and the shading is evaluated again
-  per pixel **where a map varies the surface across a face, or where the
-  set carries an ENVIRONMENT MAP**. The first is not a shortcut: a
-  surface whose roughness is one number over the whole of it is already
-  what a per-vertex shading says it is. The second is not optional: a
-  reflection is a function of the view vector, which turns under every
-  pixel of a curved body, and a per-vertex one reads as facets. Where the
-  shading is evaluated again, roughness sets the Blinn exponent — the
-  mirror end of the range a narrow highlight, the rough end a wide one —
-  and metallic takes the light out of the diffuse term and puts the
-  surface's own colour into the highlight.
-- **with an environment map the model has a Fresnel and an environment
-  term**, composed from the material library's shading terms: the flat
-  ambient constant is replaced by the panorama's cosine convolution
-  sampled by the normal, and the split sum — prefiltered radiance times
-  the surface's own reflectance and its Fresnel — is added for what the
-  surface mirrors, off the reflected view vector at the level its
-  roughness picks. `transmission`, `ior`, `thickness` and the medium's
-  absorption reach the shading too: the refracted ray reads the same
-  panorama, attenuated by Beer-Lambert over the thickness it crossed,
-  and Fresnel decides how much of the light went that way. That is glass
-  against the WORLD; what stands behind a body ON SCREEN is a backdrop
-  pass and not a shading term, and there is none.
-- **the lit sum ends at a TONE CURVE, at the camera's exposure.** A
-  panorama holds values far above one — that is what makes a sun a sun
-  rather than a white disc — and every lit sum carries them through, so
-  cutting it off at one would flatten every highlight to the same white
-  and lose exactly the range the map is kept in floating point to hold.
-  `material::termsSource`'s `toneMap` is what runs instead, on a body and
-  on the sky pass alike: the radiance times the camera's
-  `CameraOptions::exposure`, divided by one plus its own luminance —
-  `ToneCurve::Reinhard`. A surface that is its own light
-  and a coverage mask are drawn with the unlit build and are not curved:
-  their colour is authored, not integrated.
-- **it is still not a path tracer's answer and this page does not call it
-  one.** There is no importance sampling, no multiple scattering and no
-  shadowing between bodies; the prefilter is nine box-blurred levels
-  rather than a GGX convolution, and the split sum is an analytic fit of
-  the integral rather than a lookup table. What is implemented is the
-  arithmetic above, and a metallic-roughness texture set therefore reads
-  as a plausible surface rather than as the one a renderer with those
-  three would produce from the same parameters.
+- `alphaCutoff` turns the opacity map into a CUTOUT — below the
+  threshold the surface is absent rather than translucent.
+- a surface program declares ten sampled slots and the scaffold six of
+  its own — the base-colour map, the two panoramas and their two
+  convolutions, and the split sum's table — which is the sixteen a
+  fragment program may declare. A stack of two surface programs is over
+  that budget and is reported as such.
 - a foreign texture — one another engine, a decoder or a capture painted
   with the graphics API — reaches a slot through
   `diligent::importNative`, and is bound where it stands. It answers no

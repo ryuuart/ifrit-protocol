@@ -49,9 +49,9 @@
 
 namespace sigil::world::diligent {
 
-/** How many emitters one draw carries: the array every program here
- *  declares. A description naming more is drawn with the first eight. */
-constexpr size_t kLights = 8;
+/** How many lights one draw carries: the array every program here
+ *  declares. A description naming more is drawn with the first sixteen. */
+constexpr size_t kLights = 16;
 
 // The device every executor here stands on is SigilGeometry's — it is
 // the one point in the tree that can create a Diligent device — and this

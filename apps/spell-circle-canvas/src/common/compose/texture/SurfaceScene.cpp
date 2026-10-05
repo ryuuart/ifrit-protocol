@@ -15,8 +15,12 @@ namespace {
 
 using material::texture::Role;
 
-constexpr std::array kRoles{Role::BaseColor, Role::Normal,    Role::Roughness,
-                            Role::Metallic,  Role::Occlusion, Role::Emissive};
+/** The maps a page is painted as. The three scalars a lit surface reads
+ *  share one image, occlusion, roughness and metallic in glTF's order, and
+ *  the coat's two share another, so a page costs five paints rather than
+ *  eight. */
+constexpr std::array kRoles{Role::BaseColor, Role::Normal, Role::Packed,
+                            Role::Emissive, Role::Clearcoat};
 
 }  // namespace
 

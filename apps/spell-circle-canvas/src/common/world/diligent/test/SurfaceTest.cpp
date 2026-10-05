@@ -3,7 +3,7 @@
  * comes in by.
  *
  * WHAT EACH TEST HOLDS THE DEVICE TO is what its slot MEANS, not a
- * plate: an occlusion map darkens, an emissive map lights, a cutout
+ * plate: an emissive map lights, a cutout
  * drops texels outright, and a normal map tilts the shading — each read
  * off the pixels of the same card rendered with and without the map, so
  * what is asserted is the map's effect and not a number a rasteriser
@@ -76,35 +76,6 @@ float luma(SkColor4f c) { return c.fR * 0.3f + c.fG * 0.59f + c.fB * 0.11f; }
 
 }  // namespace
 
-TEST(SurfaceSlots, AnOcclusionMapDarkensWhereItIsDark) {
-  const auto on = diligent::onDevice();
-  if (!on) GTEST_SKIP() << on.error;
-
-  material::Material plain =
-      material::surface::program({.baseColor = {0.9f, 0.9f, 0.9f, 1.0f}});
-  material::Material occluded = plain;
-  // Two texels: the left half black, the right half white.
-  occluded.slot(
-      material::surface::kOcclusionSlot,
-      drawnTexture("world.test.occlusion", 2, 1, [](SkCanvas& canvas) {
-        canvas.clear(SK_ColorWHITE);
-        SkPaint paint;
-        paint.setColor(SK_ColorBLACK);
-        canvas.drawRect(SkRect::MakeXYWH(0, 0, 1, 1), paint);
-      }));
-
-  const SkBitmap bare = cardOn(plain, on.runtime);
-  const SkBitmap dressed = cardOn(occluded, on.runtime);
-  // The map's dark half darkens and its white half does not. The two
-  // points sit at the OUTER edges and not either side of the middle: a
-  // two-texel map read linearly blends the halves across everything
-  // between their centres, so a point just past the middle carries some
-  // of the dark texel and darkens a little with it.
-  EXPECT_LT(luma(at(dressed, 0.15f, 0.5f)), luma(at(bare, 0.15f, 0.5f)) * 0.5f);
-  EXPECT_NEAR(luma(at(dressed, 0.85f, 0.5f)), luma(at(bare, 0.85f, 0.5f)),
-              0.02f);
-}
-
 TEST(SurfaceSlots, AnEmissiveMapCarriesItsOwnColour) {
   const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;
@@ -152,9 +123,21 @@ void expectOwnLight(const SkColor4f& centre) {
 TEST(SurfaceSlots, EmissionShowsOverABlackBaseAsAuthored) {
   const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;
-  // Past the sun, the ambient, the tone curve and the base-colour map:
-  // none of them reaches the light the surface gives off of its own.
-  expectOwnLight(at(cardOn(glowingOnBlack(), on.runtime), 0.5f, 0.5f));
+  // With nothing lighting it, a camera that reads the picture with no
+  // curve shows the light the surface gives off of its own at the value
+  // it was authored. (Under a light, a black dielectric still reflects
+  // its few per cent.)
+  const Group root =
+      group({mesh(::sigil::geometry::mesh::quad(120, 120))
+                 .key("card")
+                 .fill(glowingOnBlack()),
+             camera(diligent::levelEye(), {.toneCurve = ToneCurve::Linear})
+                 .key("camera")})
+          .key("set");
+  Frame plain(root);
+  plain.extent(kExtent).pass(
+      geometryPass("colour").writes("colour").clear(SkColors::kBlack));
+  expectOwnLight(at(plateOf(plain, on.runtime), 0.5f, 0.5f));
 }
 
 namespace {

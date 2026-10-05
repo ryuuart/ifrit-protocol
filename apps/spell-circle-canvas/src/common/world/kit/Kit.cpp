@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <glm/geometric.hpp>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -47,15 +48,14 @@ glm::vec3 station(glm::vec3 at, float distance, float bearing,
                         flat * std::cos(yaw));
 }
 
-/** One light of the rig: a point light standing at @p position, reaching
- *  far enough past the subject that its falloff is not what the
- *  arrangement is about. */
+/** One light of the rig: a point light standing at @p position, with no
+ *  range, at the intensity that delivers @p strength at the subject. */
 Light lamp(std::string_view key, glm::vec3 position,
            motion::Animatable<material::Color> color,
-           motion::Animatable<float> intensity, float reach) {
+           motion::Animatable<float> strength) {
   return pointLight({.color = std::move(color),
-                     .intensity = std::move(intensity),
-                     .range = reach})
+                     .intensity = intensityAt(std::move(strength),
+                                              glm::length(position))})
       .key(key)
       .at(position);
 }
@@ -65,27 +65,26 @@ Light lamp(std::string_view key, glm::vec3 position,
 Group threePoint(const Rig& rig) {
   const glm::vec3 centre{0.0f, 0.0f, 0.0f};
   const float distance = kKeyDistance * rig.extent;
-  const float reach = distance * 4.0f;
-  const material::Color color = rig.color.value();
-  const float strength = rig.intensity.value();
-  return group({
-                   lamp("key",
-                        station(centre, distance, rig.bearing, rig.elevation),
-                        rig.color, rig.intensity, reach),
-                   // A quarter turn the other way and lower: the fill is what
-                   // keeps the side the key does not reach from being black.
-                   lamp("fill",
-                        station(centre, distance, rig.bearing + 90.0f,
-                                rig.elevation * 0.4f),
-                        color, strength * rig.fill, reach),
-                   // Opposite and higher: the back light is what separates the
-                   // subject from what stands behind it.
-                   lamp("back",
-                        station(centre, distance, rig.bearing + 180.0f,
-                                rig.elevation * 1.6f),
-                        color, strength * rig.back, reach),
-               })
-      .key("rig");
+  std::vector<Node> lights{
+      lamp("key", station(centre, distance, rig.bearing, rig.elevation),
+           rig.color, rig.intensity),
+      // A quarter turn the other way and lower: the fill is what
+      // keeps the side the key does not reach from being black.
+      lamp("fill",
+           station(centre, distance, rig.bearing + 90.0f, rig.elevation * 0.4f),
+           rig.fillColor, rig.fillIntensity),
+      // Opposite and higher: the back light is what separates the
+      // subject from what stands behind it.
+      lamp(
+          "back",
+          station(centre, distance, rig.bearing + 180.0f, rig.elevation * 1.6f),
+          rig.backColor, rig.backIntensity),
+  };
+  if (rig.ambientIntensity > 0.0f)
+    lights.push_back(ambientLight({.color = rig.ambientColor,
+                                   .intensity = rig.ambientIntensity})
+                         .key("ambient"));
+  return group(lights).key("rig");
 }
 
 geometry::mesh::curve::Spline3 rail(const Turntable& table) {

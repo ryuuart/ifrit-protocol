@@ -270,17 +270,42 @@ TEST(WorldKit, AWindingStaysOnItsShellAndCrossesItsOwnPlane) {
   EXPECT_NEAR(turned / 6.283185307179586f, -shape.turns, 1e-3f);
 }
 
-TEST(WorldKit, TheKeysStrengthAndColourAreBindable) {
+TEST(WorldKit, TheKeysStrengthAndColourAreBindableAndTheOthersAreTheirOwn) {
   motion::Animatable<float> strength = motion::animatable(0.5f);
-  const Group rig = kit::threePoint({.fill = 0.5f, .intensity = strength});
+  motion::Animatable<material::Color> tint =
+      motion::animatable(material::Color{1, 0.5f, 0.25f, 1});
+  const kit::Rig stated{.extent = 100.0f,
+                        .intensity = strength,
+                        .color = tint,
+                        .fillIntensity = 0.8f,
+                        .fillColor = material::Color{0.6f, 0.7f, 1, 1}};
+  const Group rig = kit::threePoint(stated);
   ASSERT_NE(lightOf(rig, "key"), nullptr);
   ASSERT_NE(lightOf(rig, "fill"), nullptr);
-  EXPECT_FLOAT_EQ(lightOf(rig, "fill")->intensity.value(), 0.25f);
-  // The key reads the live value; the fill took its share when the rig
-  // was made.
+  ASSERT_NE(lightOf(rig, "back"), nullptr);
+  // Each lamp is stated by what it delivers at the subject: its
+  // intensity is that strength times its distance squared.
+  const float distance = 2.2f * stated.extent;
+  const float square = distance * distance;
+  EXPECT_NEAR(lightOf(rig, "key")->intensity.value(), 0.5f * square,
+              1e-2f * square);
+  EXPECT_NEAR(lightOf(rig, "fill")->intensity.value(), 0.8f * square,
+              1e-2f * square);
+  EXPECT_NEAR(lightOf(rig, "back")->intensity.value(),
+              stated.backIntensity * square, 1e-2f * square);
+  // The key reads the live values; the fill and the back keep their own
+  // stated strength and colour whatever the key does.
   strength = 2.0f;
-  EXPECT_FLOAT_EQ(lightOf(rig, "key")->intensity.value(), 2.0f);
-  EXPECT_FLOAT_EQ(lightOf(rig, "fill")->intensity.value(), 0.25f);
+  tint = material::Color{0.2f, 0.2f, 1, 1};
+  EXPECT_NEAR(lightOf(rig, "key")->intensity.value(), 2.0f * square,
+              1e-2f * square);
+  EXPECT_EQ(lightOf(rig, "key")->color.value(),
+            (material::Color{0.2f, 0.2f, 1, 1}));
+  EXPECT_NEAR(lightOf(rig, "fill")->intensity.value(), 0.8f * square,
+              1e-2f * square);
+  EXPECT_EQ(lightOf(rig, "fill")->color.value(),
+            (material::Color{0.6f, 0.7f, 1, 1}));
+  EXPECT_EQ(lightOf(rig, "back")->color.value(), (material::Color{1, 1, 1, 1}));
 }
 
 TEST(WorldKit, AnEnvironmentMapIsAGradientAndSoftBoxes) {

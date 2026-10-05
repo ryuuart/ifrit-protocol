@@ -113,12 +113,12 @@ TEST(SurfaceProgram, APipelineComesOffARecipeBody) {
   ASSERT_NE(slang->compiled().uniform("baseColor"), nullptr);
   EXPECT_EQ(slang->compiled().uniform("baseColor")->bytes, 16u);
   // The lit build carries the shading the unlit one does not.
-  EXPECT_NE(slang->compiled().uniform("uShading"), nullptr);
+  EXPECT_NE(slang->compiled().uniform("uLightCount"), nullptr);
   const std::shared_ptr<material::Program> unlit =
       material::program(slangPaintRecipe(), material::Target::Slang);
   ASSERT_NE(unlit, nullptr);
   EXPECT_EQ(unlit->as<material::slang::SlangProgram>()->compiled().uniform(
-                "uShading"),
+                "uLightCount"),
             nullptr);
 }
 
