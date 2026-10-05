@@ -32,14 +32,6 @@ def register(table: Table) -> None:
     )
     table.parameters("_sigil.material.sbsar.describe", hub="_sigil.io.Hub")
     table.parameters(
-        "_sigil.material.studio",
-        direction="_t.ScalarLike",
-        elevation="_t.ScalarLike",
-        color=COLOR_MOTION,
-        intensity="_t.ScalarLike",
-    )
-    table.parameters("_sigil.material.environment", rotation="_t.ScalarLike")
-    table.parameters(
         "_sigil.material.Light.__init__",
         direction="_t.ScalarLike",
         elevation="_t.ScalarLike",
@@ -47,14 +39,8 @@ def register(table: Table) -> None:
         intensity="_t.ScalarLike",
         position="_t.Vec3Like",
     )
-    table.parameters(
-        "_sigil.material.Lighting.__init__",
-        lights="collections.abc.Iterable[_sigil.material.Light]",
-    )
-    # The binding takes the lighting itself, and a light or an environment
-    # converts into one at the call; the generated annotation names only
-    # the lighting, so the whole declaration is stated, as a node's
-    # `lighting()` is.
+    # The whole declaration is stated, each channel as a number or a
+    # material.
     table.declares(
         "_sigil.material.Material",
         "surface",
@@ -69,8 +55,8 @@ def register(table: Table) -> None:
         "clearcoat: typing.SupportsFloat = 0.0, "
         "transmission: typing.SupportsFloat = 0.0, ior: typing.SupportsFloat = 1.5, "
         "thickness: typing.SupportsFloat = 40.0, absorption: _t.ColorLike = ..., "
-        "reflectionWeight: typing.SupportsFloat = 1.0, unlit: bool = False, "
-        "lighting: Lighting | Light | Environment | None = None) -> Material: ...\n",
+        "reflectionWeight: typing.SupportsFloat = 1.0, unlit: bool = False"
+        ") -> Material: ...\n",
     )
     # Where a point or a spot stands is three numbers, read back as a vector.
     table.declares(

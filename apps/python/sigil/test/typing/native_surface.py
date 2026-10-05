@@ -35,23 +35,7 @@ assert_type(tree, compose.Element)
 key = material.Light(
     kind=material.LightKind.Point, position=(0, 0, 180), intensity=motion.animatable(1)
 )
-assert_type(compose.light(source=key).translateX(12), compose.Element)
-assert_type(compose.scene([compose.light(key), compose.text("Lit")]), compose.Element)
-assert_type(compose.scene(compose.light(key), compose.text("Lit")), compose.Element)
-lighting = material.Lighting(lights=(key, material.studio()))
-assert_type(lighting, material.Lighting)
-assert_type(lighting.frame, material.LightingFrame)
-assert_type(
-    material.Lighting(key, frame=material.LightingFrame.Scene), material.Lighting
-)
-tree.lighting(key)
-tree.lighting(lighting)
-around = material.environment(material.Material("#ffffff"), size=(32, 16))
-assert_type(compose.scene().environment(around), compose.Element)
-assert_type(
-    material.Lighting(around, frame=material.LightingFrame.Scene), material.Lighting
-)
-tree.lighting(around)
+assert_type(key, material.Light)
 assert_type(
     tree.padding(all=8).margin(left=1, top=2, right=3, bottom=4), compose.Element
 )
@@ -109,9 +93,7 @@ assert_type(tinted.bind("tint", "#ff8040"), material.Material)
 assert_type(tinted.bind("tint", (1, 0.5, 0.25)), material.Material)
 assert_type(tinted.bind("tint", motion.animatable("#ff8040")), material.Material)
 finish = material.Material("#c0c0c0")
-assert_type(finish.surface(roughness=0.4, lighting=key), material.Material)
-assert_type(finish.surface(lighting=around), material.Material)
-assert_type(finish.surface(lighting=lighting), material.Material)
+assert_type(finish.surface(roughness=0.4), material.Material)
 assert_type(compose.relief(finish, shoulder=3, depth=-0.5), compose.Decoration)
 assert_type(tree.background(compose.relief(finish)), compose.Element)
 glyphs = weave.PaintStyle(foregroundMaterial=finish)

@@ -87,7 +87,7 @@ panel = row(mark, caption).gap(8).alignItems("center")
 
 There is one element type and no separate Python node model to keep in
 sync. `box`, `text`, `frame`, `image`, `picture`, `pathFigure`, `slot`, `pen`,
-`graphics`, `memo`, `layout`, `stack`, `positioned`, `scene` and `light` are direct bound
+`graphics`, `memo`, `layout`, `stack` and `positioned` are direct bound
 factories; `PARITY.md` names the native overloads and factories not yet bound.
 `_sigil` is the compiled extension. It ships as a bare shared object with
 no declarations beside it, so a type checker cannot resolve a name through
@@ -95,44 +95,21 @@ it and an editor offers each name once, under the module an author imports
 it from. A bound class reports that module too: `material.Color` reads as
 `sigil.material.Color` in a repr and in `pydoc`.
 
-For composition-owned lighting, put nonvisual `compose.light` leaves inside
-`compose.scene`. The scene is an ordinary layout container; its lights take
-no layout space and affect its lit materials independently of sibling order.
-A nested scene starts with no inherited light or environment. A scene's
-`environment` supplies reflected surroundings, while a receiver's `lighting`
-replaces the complete lighting context.
-Scene sources and receiver normals share the root-page axes: rotating a
-receiver changes which side catches the light. Source transforms place
-point emitters and turn spot or directional axes through their ancestors.
-Out-of-plane source turns or perspective disable its direct contribution.
-
-```python
-from sigil import compose, material
-
-key = material.Light(kind=material.LightKind.Point, position=(0, 0, 180), range=800)
-steel = material.Material("#aab0bb").surface(metallic=1, roughness=0.35)
-panel = compose.box().width(140).height(100).fill(steel)
-composition = compose.scene(compose.light(key).translateX(120), panel)
-lighting = material.Lighting(lights=[key, material.studio(intensity=0.2)])
-```
-
-Manual `Lighting` values default to `LightingFrame.Surface`, preserving
-surface-relative directional and environment shading. Use
-`frame=material.LightingFrame.Scene` for those sources in root-page axes;
-Compose supplies this frame for collected scene sources automatically.
-A material's `surface(lighting=...)` takes a `Light`, an `Environment` or a
-`Lighting`, as a node's `lighting()` does. All three answer `copy.copy` and
+Compose shades nothing. A material that states a `surface(...)` paints its
+colours on a page, flat, as a material without one does; light belongs to a
+World set, which lights a page through its surface maps. `material.Light`
+describes one emitter for that set and answers `copy.copy` and
 `copy.deepcopy`, so a memo model can hold one; a copied light keeps reading
 the live cells it was built with.
 
-`compose.relief(material, shoulder=2, depth=1)` is a decoration that shades
+`compose.relief(material, shoulder=2, depth=1)` is a decoration that puts
 a material over the rounded relief of the outline it decorates: attach it
 with `background()` for a shape, or with `foreground()` and
 `decorationOutline(compose.Boundary.Glyphs)` for type. `shoulder` is the
 width of the rounded edge in logical pixels and `depth` its height relative
 to that width; a negative depth impresses the outline. The material's own
-normal map is reoriented into the relief, and with no lighting in force the
-material paints flat.
+normal map is reoriented into the relief, in the normal map a World set
+lights the page by; on a page the material paints its colours flat.
 
 Both Python surfaces target the capabilities needed to reproduce the native
 sketch catalog. Coverage is still incomplete; `PARITY.md` lists the outstanding
@@ -1160,8 +1137,8 @@ colour or a fill — and every copy of it reads and writes one cell, so a
 property handed it follows whatever writes `.value` next, from model logic
 or an engine timer. Descriptions share that cell, so collecting the Python
 wrapper leaves nothing dangling in a retained tree.
-Material's `Light(color=...)` and `studio(color=...)` take those same color
-cells; their read-only `color` property returns the current Color sample.
+Material's `Light(color=...)` takes those same color cells; its read-only
+`color` property returns the current Color sample.
 `bind(source, from_=(a, b), alternate=..., envelope=..., ease=...,
 quantize=..., reverse=..., to=(c, d), wrap=..., wiggle=Wiggle(...),
 clamp=(e, f))` follows a live number through those stages, which run in

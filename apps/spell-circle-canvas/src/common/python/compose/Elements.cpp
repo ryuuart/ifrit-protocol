@@ -332,8 +332,7 @@ void bindCompose(py::module_& module) {
       .value("Paragraph", Property::Paragraph)
       .value("Ink", Property::Ink)
       .value("CustomProperties", Property::CustomProperties)
-      .value("ImageRendering", Property::ImageRendering)
-      .value("Lighting", Property::Lighting);
+      .value("ImageRendering", Property::ImageRendering);
   composition.def("inheritsByDefault", &inheritsByDefault, py::arg("property"))
       .def("propertyName", &propertyName, py::arg("property"));
   py::enum_<FlexDirection>(composition, "FlexDirection")
@@ -673,10 +672,6 @@ void bindCompose(py::module_& module) {
   composition.def("box", [](py::args children) {
     return compose::box().children(elements(children));
   });
-  composition.def("scene", [](py::args children) {
-    return compose::scene().children(elements(children));
-  });
-  composition.def("light", &compose::light, py::arg("source"));
   composition.def(
       "text",
       [](const std::string& value, py::object size, py::object ink) {

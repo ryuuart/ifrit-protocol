@@ -18,19 +18,10 @@ appends in order and returns the same element; all inputs are converted before
 any are appended. Container factories accept the same child forms; `layout`
 takes its scheme before its children.
 
-Compose's `scene` and nonvisual `light` factories use the native lighting
-scope. The scene's `environment` verb supplies reflected surroundings;
-`lighting` replaces the complete context. Material's `Lighting` accepts a
-collection through `lights` and an optional `environment`. A single `Light`
-or `Environment` also converts where a lighting context is accepted, a
-material's `surface(lighting=...)` among them. `Light`, `Environment` and
-`Lighting` answer the copy protocol, so a memo model can hold one.
-`LightingFrame.Surface` is the default for manual lighting values;
-`LightingFrame.Scene` evaluates shared directions against normals in the
-root-page axes. Compose selects that frame for its collected scene sources.
-`Light` and `studio` accept a constant color, a `ColorAnimatable` or a
-`ColorTween`. The `color` property reads the sampled Color; copied sources
-share a live color cell with the value that drives it.
+Material's `Light` answers the copy protocol, so a memo model can hold one.
+It accepts a constant color, a `ColorAnimatable` or a `ColorTween`. The
+`color` property reads the sampled Color; copied lights share a live color
+cell with the value that drives it.
 `Material.bind` and `Paint.bind` take a number, an `Animatable` or a
 `Tween` for a scalar uniform, and for a four-component uniform any colour
 spelling — a `Color`, a CSS string, an RGB or RGBA tuple or list — or these

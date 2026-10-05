@@ -68,15 +68,13 @@ void bindMaterialBuilder(py::module_& module) {
              std::optional<material::Material> emissionMap, float alphaCutoff,
              float clearcoat, float transmission, float ior, float thickness,
              const material::Color& absorption, float reflectionWeight,
-             bool unlit, std::optional<material::Lighting> lighting)
-              -> material::Material& {
-            return self.surface({std::move(metallic), std::move(roughness),
-                                 std::move(occlusion), std::move(normal),
-                                 normalScale, normalDirectX, emission,
-                                 emissionStrength, std::move(emissionMap),
-                                 alphaCutoff, clearcoat, transmission, ior,
-                                 thickness, absorption, reflectionWeight, unlit,
-                                 std::move(lighting)});
+             bool unlit) -> material::Material& {
+            return self.surface(
+                {std::move(metallic), std::move(roughness),
+                 std::move(occlusion), std::move(normal), normalScale,
+                 normalDirectX, emission, emissionStrength,
+                 std::move(emissionMap), alphaCutoff, clearcoat, transmission,
+                 ior, thickness, absorption, reflectionWeight, unlit});
           },
           py::kw_only(), py::arg_v("metallic", material::Channel(0.0f), "0.0"),
           py::arg_v("roughness", material::Channel(0.5f), "0.5"),
@@ -91,8 +89,7 @@ void bindMaterialBuilder(py::module_& module) {
           py::arg("ior") = 1.5f, py::arg("thickness") = 40.0f,
           py::arg_v("absorption", material::Color{0, 0, 0, 1},
                     "Color(0, 0, 0, 1)"),
-          py::arg("reflectionWeight") = 1.0f, py::arg("unlit") = false,
-          py::arg("lighting") = py::none(), fluent)
+          py::arg("reflectionWeight") = 1.0f, py::arg("unlit") = false, fluent)
       .def(
           "effects",
           [](material::Material& self, const material::Filter& chain)

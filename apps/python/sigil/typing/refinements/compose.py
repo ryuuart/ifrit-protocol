@@ -23,12 +23,6 @@ def register(table: Table) -> None:
         registerNode(table, node)
     registerDeclarations(_Returning(table, RULE), RULE)
     registerFont(_Returning(table, SPAN_STYLE), SPAN_STYLE)
-    for node in (*NODES, RULE):
-        _Returning(table, node).declares(
-            node,
-            "lighting",
-            "def lighting(self, lighting: _sigil.material.Lighting | _sigil.material.Light | _sigil.material.Environment) -> Element: ...",
-        )
     # A glyph outline is the text leaf's alone, and the region of a source
     # is the image leaf's.
     # The glyph OUTLINE is one comparable Fill on the node, measured with no
@@ -207,7 +201,7 @@ def registerValues(table: Table) -> None:
     """The refinements that speak about a value rather than a node."""
     table.erased("_sigil.compose.TextPath", "path", "_t.ShapeLike")
     table.erased("_sigil.compose.TextPath", "at", "_t.ScalarLike")
-    for factory in ("box", "scene", "stack", "positioned"):
+    for factory in ("box", "stack", "positioned"):
         table.declares(
             "_sigil.compose",
             factory,

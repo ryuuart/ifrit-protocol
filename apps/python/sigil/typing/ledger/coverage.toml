@@ -270,10 +270,6 @@ bound = "`point`, the node with no extent that carries a key and facts"
 python = ["compose.point"]
 
 [[section.surface.item]]
-bound = "`scene` owns planar lighting; nonvisual `light` leaves contribute sources independently of sibling order; `Element.environment` supplies the scene's reflected surroundings"
-python = ["compose.scene", "compose.light", "compose.Element.environment"]
-
-[[section.surface.item]]
 bound = "`drawWith`, keyed or not, over a Python program handed one pen and the settled scope"
 python = ["compose.drawWith"]
 
@@ -545,7 +541,7 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "`relief`, a material shaded over the rounded relief of the outline it decorates, with its `shoulder` and `depth`"
+bound = "`relief`, a material over the rounded relief of the outline it decorates, with its `shoulder` and `depth`"
 python = ["compose.relief"]
 
 [[section.surface.item]]
@@ -1631,19 +1627,11 @@ prose = "material-geometry-world"
 name = "Material"
 
 [[section.surface.item]]
-bound = "`Light` directional, point and spot values with animatable direction, elevation, colour and strength; `Lighting` holds several sources and an optional reflected `Environment`; all three copy and deep-copy as values"
+bound = "`Light` directional, point and spot values with animatable direction, elevation, colour and strength, copied and deep-copied as values"
 python = [
   "material.Light",
   "material.LightKind",
-  "material.LightingFrame",
-  "material.Lighting.lights",
-  "material.Lighting.environment",
-  "material.Lighting.frame",
-  "material.studio",
-  "material.environment",
   "material.Light.__deepcopy__",
-  "material.Environment.__deepcopy__",
-  "material.Lighting.__deepcopy__",
 ]
 
 [[section.surface.item]]
@@ -1763,7 +1751,7 @@ bound = "a recipe `Material` stands where a paint does, on an element's fills an
 python = ["material.Material"]
 
 [[section.surface.item]]
-bound = "`Material` equality and editing: `layer`, `surface` (lit by a `Lighting`, a `Light` or an `Environment`), `effects`, and `set` and `bind` parameters, where `bind` takes a number or any colour spelling, animatable or not"
+bound = "`Material` equality and editing: `layer`, `surface`, `effects`, and `set` and `bind` parameters, where `bind` takes a number or any colour spelling, animatable or not"
 python = [
   "material.Material.__eq__",
   "material.Material.layer",
