@@ -99,6 +99,22 @@ enum class ToneCurve : uint8_t {
   Linear,
 };
 
+/** WHICH WAY A BODY TURNS TO FACE THE CAMERA, whatever its node's own
+ *  rotation says — the billboard a sprite, a flame or a glint is drawn on.
+ *  The body keeps where it stands and its scale; its own +z is turned
+ *  toward the camera. */
+enum class Facing : uint8_t {
+  /** As placed: the node's rotation stands. */
+  None,
+  /** Square on to the camera: its x along the picture's right, its y up
+   *  the picture. */
+  Camera,
+  /** Turned toward the camera about the world's up axis only, standing
+   *  upright — a tree, a flame or a column of smoke that must not lean
+   *  back as the camera rises over it. */
+  CameraUpright,
+};
+
 /** WHAT A CAMERA NODE DESCRIBES: Geometry's lens, and how the picture it
  *  takes is read — the exposure a radiance is multiplied by before the
  *  tone curve, and the curve. */
@@ -126,6 +142,8 @@ struct NodeDescription {
   std::optional<Window> window;
   Geometry geometry;
   material::Backface backface = material::Backface::Hidden;
+  /** Whether a body turns to face the camera. */
+  Facing facing = Facing::None;
   /** The one surface. */
   std::optional<::sigil::material::Material> material;
   /** …or the per-face slots, in slot order. A node carries one form or

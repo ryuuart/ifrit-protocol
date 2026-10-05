@@ -18,11 +18,11 @@
 #include <pxr/usd/usdShade/material.h>
 #include <pxr/usd/usdShade/output.h>
 #include <pxr/usd/usdShade/shader.h>
-#include <sigilmedia/advanced/Skia.h>
-#include <sigilmedia/image/Encode.h>
 #include <sigilio/source/Sink.h>
 #include <sigilmaterial/advanced/Combine.h>
 #include <sigilmaterial/surface/Surface.h>
+#include <sigilmedia/advanced/Skia.h>
+#include <sigilmedia/image/Encode.h>
 
 #include <cmath>
 
@@ -131,7 +131,8 @@ SdfPath Writer::Impl::material(const material::Material& top,
                            const char* channel, bool srgb) -> bool {
     const material::Texture* map = material::surface::map(m, slot);
     if (!map) return false;
-    const std::optional<std::string> asset = textureAsset(map->frameAt().image, role);
+    const std::optional<std::string> asset =
+        textureAsset(map->frameAt().image, role);
     if (!asset) return false;
     const bool repeat = map->tileX() == material::Repeat::Repeat;
     UsdShadeShader node = UsdShadeShader::Define(
@@ -144,9 +145,12 @@ SdfPath Writer::Impl::material(const material::Material& top,
     node.CreateInput(TfToken("wrapS"), SdfValueTypeNames->Token)
         .Set(TfToken(repeat ? "repeat" : "clamp"));
     node.CreateInput(TfToken("wrapT"), SdfValueTypeNames->Token)
-        .Set(TfToken(map->tileY() == material::Repeat::Repeat ? "repeat" : "clamp"));
+        .Set(TfToken(map->tileY() == material::Repeat::Repeat ? "repeat"
+                                                              : "clamp"));
     node.CreateInput(TfToken("sourceColorSpace"), SdfValueTypeNames->Token)
-        .Set(TfToken(srgb ? "sRGB" : "raw"));
+        .Set(TfToken(srgb && map->colorSpace() != media::ColorSpace::Data
+                         ? "sRGB"
+                         : "raw"));
     node.CreateOutput(TfToken(channel), type);
     surface.CreateInput(TfToken(input), type)
         .ConnectToSource(node.ConnectableAPI(), TfToken(channel));

@@ -43,8 +43,18 @@
 //   4. a clear coat, where the surface has one, reflects a second,
 //      colourless lobe over all of that and dims it by what it reflected;
 //   5. emission adds its own light;
-//   6. the sum is read at the camera's exposure, through the camera's
-//      tone curve, and encoded for the display target — last, once.
+//   6. the sum is written as LIGHT, premultiplied, into a target that
+//      holds light: the camera's exposure and tone curve read it once, in
+//      the final stage, after every body and every pass over the picture.
+//
+// THE UNLIT BUILD is a surface drawn as authored: its colour is what a
+// display shows, so it is written as the light the camera's reading turns
+// back into exactly that colour — the curve run backward. A surface that
+// must shine brighter than white is lit and states its emission.
+//
+// A SURFACE THAT FADES WHERE IT MEETS THE SCENE reads the depth of what
+// is opaque behind it, which the renderer copies once the opaque bodies
+// are drawn, and loses its coverage over the distance it named.
 
 import Portable;
 import Shading;
@@ -67,6 +77,21 @@ uniform Sampler2D uBaseColorMap;
 /** Where that map is read at, over the mesh's own uv coordinates: the
  *  identity reads the image once across them. */
 uniform float4x4 uBaseColorMapUv;
+
+/** THE CAMERA'S READING of the picture. x: the exposure every radiance
+ *  is multiplied by before the curve; y: which curve — 0 Reinhard on
+ *  luminance, 1 the neutral curve, 2 none. A lit body does not apply it —
+ *  the final stage does — and an unlit one runs it backward. */
+uniform float4 uTone;
+/** The projection's inverse, which turns a point on the near plane into
+ *  the direction the eye is looking through it, and a depth into how far
+ *  in front of the eye it stands. */
+uniform float4x4 uInvProj;
+/** THE DEPTH OF WHAT IS OPAQUE BEHIND, for a surface that fades into it. */
+uniform Sampler2D uSceneDepth;
+/** x, y: one over the target's width and height; z: one when the depth
+ *  above is the scene's, zero when nothing was copied. */
+uniform float4 uDepthFade;
 
 #ifdef SIGIL_LIT
 /** view * model, for the position the shading is written in. */
@@ -132,17 +157,10 @@ uniform float4 uBackdrop;
  *  — where the eye is the origin; w: its radius, and zero is a sky at
  *  infinity. */
 uniform float4 uGround;
-/** The projection's inverse, which turns a point on the near plane into
- *  the direction the eye is looking through it. */
-uniform float4x4 uInvProj;
 /** x: the diffuse side's own scale; y: the specular side's;
  *  z: added to every surface's roughness; w: how many levels the chain
  *  has — and zero, which is a frame with no environment at all. */
 uniform float4 uEnvDials;
-/** THE CAMERA'S READING of the picture. x: the exposure every radiance
- *  is multiplied by before the curve; y: which curve — 0 Reinhard on
- *  luminance, 1 the neutral curve, 2 none. */
-uniform float4 uTone;
 #endif
 
 struct VSIn {
@@ -200,6 +218,9 @@ static float gSurfaceReflection = -1.0;
  *  the lit sum before the exposure and the curve, so a strength above one
  *  is brighter than white and the curve, not the target, holds it. */
 static float3 gSurfaceEmission = float3(0.0, 0.0, 0.0);
+/** The distance, in scene units, over which the surface fades out as it
+ *  nears the opaque surface behind it; zero does not fade. */
+static float gSurfaceDepthFade = 0.0;
 
 [shader("vertex")]
 VSOut vsMain(VSIn input) {
@@ -434,25 +455,44 @@ float3 shadeLit(VSOut input, float3 base) {
 }
 #endif
 
-/** The shaded colour, PREMULTIPLIED — which is what a target holding
- *  premultiplied pixels must receive, and what the blend the renderer
- *  sets expects. */
+/** How far in front of the eye a depth at @p uv on the target stands. */
+float eyeDistance(float2 uv, float depth) {
+  let at = mul(uInvProj,
+               float4(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0, depth, 1.0));
+  return at.w != 0.0 ? -at.z / at.w : 0.0;
+}
+
+/** HOW MUCH OF THE SURFACE STANDS at the pixel @p position: all of it, or
+ *  where it fades into the scene, the share of its fade distance that
+ *  still lies between it and the opaque surface behind. */
+float depthFadeAt(float4 position) {
+  if (gSurfaceDepthFade <= 0.0 || uDepthFade.z < 0.5) return 1.0;
+  let uv = position.xy * uDepthFade.xy;
+  let behind = uSceneDepth.SampleLevel(uv, 0.0).r;
+  let gap = eyeDistance(uv, behind) - eyeDistance(uv, position.z);
+  return saturateP(gap / gSurfaceDepthFade);
+}
+
+/** The shaded colour as LIGHT, PREMULTIPLIED — which is what a target
+ *  holding premultiplied radiance must receive, and what the blend the
+ *  renderer sets expects. */
 float4 shade(float4 surface, VSOut input) {
   let mapUv = mul(uBaseColorMapUv, float4(input.uv, 0.0, 1.0)).xy;
   let map = uBaseColorMap.Sample(mapUv);
   let colour = surface.rgb * input.tint.rgb * map.rgb;
-  let a = saturateP(surface.a * input.tint.a) * map.a;
+  let fade = depthFadeAt(input.position);
+  let a = saturateP(surface.a * input.tint.a) * map.a * fade;
 #ifdef SIGIL_LIT
-  // THE LIT SUM, in light, then read the way the camera reads it: exposed,
-  // compressed by its curve onto what a display can hold, and encoded.
+  // THE LIT SUM, in light. The camera reads it later, once.
   let radiance = shadeLit(input, linearFromSrgb(colour)) + gSurfaceEmission;
-  let rgb = srgbFromLinear(toneCurve(radiance, uTone.x, uTone.y));
 #else
-  // The unlit build has no radiance to compress — its colour is authored,
-  // not integrated — so it stands as it was typed, cut to the unit range.
-  let rgb = saturateP(colour);
+  // The unlit build's colour is authored, not integrated: it is written as
+  // the light the camera's reading turns back into it, cut to the unit
+  // range a display holds.
+  let radiance = toneCurveInverse(linearFromSrgb(saturateP(colour)), uTone.x,
+                                  uTone.y);
 #endif
-  return float4(rgb * a, a);
+  return float4(radiance * a, a);
 }
 
 [shader("fragment")]
@@ -512,13 +552,11 @@ float4 fsBackdrop(BackdropOut input) : SV_Target {
   }
   let sky = environmentAt(ray, uBackdrop.y) * uBackdrop.x;
   // The specular dial belongs to what a surface mirrors and not to what
-  // the sky IS, so it is divided back out here.
+  // the sky IS, so it is divided back out here. The sky is light like a
+  // lit surface's, read by the same final stage, so a sun in the backdrop
+  // and the same sun reflected in a body standing in front of it are the
+  // same brightness.
   let scale = uEnvDials.y > 0.0 ? 1.0 / uEnvDials.y : 0.0;
-  // …and the sky ends at the same curve at the same exposure a surface
-  // does, and is encoded the same way, so a sun in the backdrop and the
-  // same sun reflected in a body standing in front of it are the same
-  // brightness.
-  let rgb = srgbFromLinear(toneCurve(sky * scale, uTone.x, uTone.y));
-  return float4(rgb, 1.0);
+  return float4(sky * scale, 1.0);
 }
 #endif

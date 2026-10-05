@@ -116,7 +116,7 @@ bool materialsEqual(const NodeDescription& a, const NodeDescription& b) {
 }  // namespace
 
 static_assert(
-    core::kFieldCount<NodeDescription> == 16,
+    core::kFieldCount<NodeDescription> == 17,
     "A field of NodeDescription appeared or vanished. Rule on it in "
     "propertiesEqual() below — participate, or a stated reason not to "
     "— then bump this count. A miss is silent: the node prunes, "
@@ -136,6 +136,7 @@ bool propertiesEqual(const NodeDescription& a, const NodeDescription& b) {
   // node carrying one re-patches rather than pruning into a stale cook.
   if (!(a.geometry == b.geometry)) return false;
   if (a.backface != b.backface) return false;
+  if (a.facing != b.facing) return false;
   if (!materialsEqual(a, b)) return false;
   if (a.collections != b.collections) return false;
   if (!lightEqual(a.light, b.light)) return false;

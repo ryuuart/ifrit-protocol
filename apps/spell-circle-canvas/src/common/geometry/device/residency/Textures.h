@@ -18,10 +18,10 @@
  */
 
 #include <Graphics/GraphicsEngine/interface/Texture.h>
+#include <include/core/SkImage.h>
 #include <sigilgeometry/device/Device.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Texture.h>
-#include <include/core/SkImage.h>
 
 #include <Common/interface/RefCntAutoPtr.hpp>
 #include <boost/container/map.hpp>
@@ -50,6 +50,25 @@ namespace sigil::geometry::device {
  */
 int mapMipLevels(int width, int height);
 
+/** HOW A MAP IS PUT ON THE DEVICE, decided by whoever binds it from what
+ *  the texture states and what the slot it fills is for.
+ *
+ *  COLOUR is uploaded as eight bits a channel with its alpha multiplied
+ *  in. DATA is uploaded exactly: its alpha kept out of the other three
+ *  channels, no colour conversion, and at the image's own precision —
+ *  floating point as floating point, sixteen bits as sixteen — save that
+ *  thirty-two-bit floats a device cannot filter are uploaded as half
+ *  floats when the map is to be read between its texels. */
+struct MapForm {
+  media::ColorSpace colorSpace = media::ColorSpace::Srgb;
+  /** Whether the smaller copies are made. */
+  bool mipmaps = true;
+  /** Whether the map is read between its texels, which decides only
+   *  whether a format the device cannot filter may be used. */
+  bool filtered = true;
+  bool operator==(const MapForm&) const = default;
+};
+
 /** A MAP ON THE DEVICE: either an image uploaded from host memory, or a
  *  texture someone else painted on THIS device, wrapped without a copy.
  *  `used` is the frame it was last drawn with, so a map no draw names
@@ -73,9 +92,11 @@ class TextureResidency {
   explicit TextureResidency(Device& device);
 
   /** THE MAP @p map IS, on this device — wrapped where its pixels
-   *  already stand, or brought over once and held. Null when the texture
-   *  yields no image or the device refused it. */
-  Diligent::ITexture* sample(const material::Texture& map);
+   *  already stand, or brought over once in @p form and held. Null when
+   *  the texture yields no image or the device refused it. One image put
+   *  on the device in two forms is two textures. */
+  Diligent::ITexture* sample(const material::Texture& map,
+                             const MapForm& form = {});
 
   /** THE PANORAMA on the device: one texture whose levels are the map's
    *  prefiltered chain, uploaded once per map and kept.
@@ -110,8 +131,8 @@ class TextureResidency {
    *  API gave them. Nothing is copied for one of these. */
   boost::container::map<uint64_t, SampledImage> m_wrapped;
   /** …and maps that had to be brought over, under the id of the image
-   *  they were brought from. */
-  boost::container::map<uint32_t, SampledImage> m_uploaded;
+   *  they were brought from and the form they were brought in. */
+  boost::container::map<uint64_t, SampledImage> m_uploaded;
   /** Prefiltered panoramas, under the id of the panorama they were built
    *  from, and the cosine convolutions under the same key. */
   boost::container::map<uint32_t, SampledImage> m_environments;

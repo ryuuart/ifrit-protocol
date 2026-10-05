@@ -58,6 +58,10 @@ struct Body {
   const geometry::mesh::Mesh* mesh = nullptr;
   uint64_t id = 0;
   material::Backface backface = material::Backface::Hidden;
+  /** Whether the body turns to face the camera, which only the frame's
+   *  viewpoint can settle — so it is applied where the draws are
+   *  collected, not here. */
+  Facing facing = Facing::None;
 };
 
 /** What the surface is: the colour a tier with no compiler to run a

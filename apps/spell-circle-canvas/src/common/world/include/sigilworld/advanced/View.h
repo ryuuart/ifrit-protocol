@@ -18,6 +18,7 @@
 #include <sigilworld/frame/Environment.h>
 #include <sigilworld/node/Collection.h>
 
+#include <chrono>
 #include <glm/mat3x3.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec2.hpp>
@@ -134,6 +135,9 @@ struct View {
   ToneCurve toneCurve = ToneCurve::Reinhard;
   /** The size the frame's targets are made at. */
   glm::ivec2 extent{0, 0};
+  /** THE FRAME'S TIME: the scene time the tree was described at, which a
+   *  material reading the clock — a flipbook, a flow — is shown at. */
+  std::chrono::duration<double> time{};
   /** Where the targets stand in the picture the camera frames; the
    *  targets are the whole of it unless this says otherwise. */
   ViewOffset offset;

@@ -102,6 +102,11 @@ Pass& Pass::composite(Composite layering) {
   return *this;
 }
 
+Pass& Pass::bloom(Bloom glow) {
+  m_operation = glow;
+  return *this;
+}
+
 Pass& Pass::body(PassBody b) {
   m_body = std::move(b);
   return *this;
@@ -132,6 +137,10 @@ Pass computePass(std::string name) {
 }
 
 Pass postPass(std::string name) { return Pass(Stage::Post, std::move(name)); }
+
+Pass bloom(Bloom glow) {
+  return postPass("bloom").reads("colour").writes("colour").bloom(glow);
+}
 
 Pass texturePass(std::string name, TextureProducer producer) {
   Pass pass(Stage::Texture, std::move(name));

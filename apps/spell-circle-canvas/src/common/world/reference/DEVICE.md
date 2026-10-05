@@ -26,12 +26,14 @@ and nothing of the engine.
 
 - a **geometry pass** rasterises the bodies its realisation leaves it
   into a device texture, DEPTH-TESTED, from a pipeline built out of each
-  material's own `Target::Slang` body. It draws in the back-to-front
-  order the extracted view already carries and writes depth for an opaque
-  body only, so a blended one is laid over what stands behind it; the
-  order and the depth buffer agree wherever the view's centroid sort is
-  right, and where it is not the depth buffer is the one telling the
-  truth.
+  material's own `Target::Slang` body, into a half-float target holding
+  linear light. It draws the bodies laid over normally first, in the
+  back-to-front order the extracted view carries, writing depth for an
+  opaque one only; then the blended ones — added, multiplied, screened,
+  writing no depth by their own say, or fading into the scene — back to
+  front over them, each in the blend state its surface names. The order
+  and the depth buffer agree wherever the view's centroid sort is right,
+  and where it is not the depth buffer is the one telling the truth.
 - a **compute pass** cooks its chain on the DEVICE when the whole of it
   can be, and on the host when it cannot. A pass carries the host runtime
   until it is given another, so a pass that named one of its own keeps
@@ -105,7 +107,10 @@ build, which is the blend and depth state a pipeline is created with.
 A pipeline is assembled through the engine's own create-info builder,
 and its blend and rasterizer states are the engine's named ones — a
 premultiplied-alpha blend, an additive one, and blending off for a draw
-that replaces what stands; solid fill culling back faces at the
+that replaces what stands — beside three written out for a body's
+multiply, screen and modulate, exact over premultiplied light wherever
+what stands behind is opaque; a mode no blend state can express would
+need to read its own target and is laid over normally, said once; solid fill culling back faces at the
 counter-clockwise winding, or culling none. Two things stay written out.
 The mapping from an `SkBlendMode` to one of those states is ours because
 `SkBlendMode` is Skia's word and no Diligent type names it. And the depth
@@ -143,10 +148,13 @@ mean, since such a normal's x and y are centred on a half and only its z
 reaches one. So white IS "no map here", exactly and with no threshold to
 pick — which is what lets a body tell a dressed slot from an undressed
 one, and what keeps a surface nobody dressed the picture it already was.
-A slot the device binds must hold an image texture. One filled with any
-other material — a normal derived from a height, two normals blended, a
-gradient — has nothing the device can sample: it is reported once,
-naming the slot, and reads as empty.
+A slot the device binds holds an image texture, put on the device as
+colour or as data by what the texture states or the slot is for, or a
+material whose Slang body `material::inlined` writes into the body that
+reads it. A slot a child material brought is read with its own texture's
+sampler; the surface program's own slots share the base-colour map's. A
+material with no Slang body in a slot has nothing the device can compile:
+it is reported once, naming the slot, and reads as empty.
 
 **A body states what its surface IS.** The scaffold declares a set of
 variables a body writes and it reads: `gSurfaceNormal` in tangent space,

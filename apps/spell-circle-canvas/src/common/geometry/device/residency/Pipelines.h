@@ -36,8 +36,11 @@ namespace sigil::geometry::device {
  *  both share one pipeline. */
 struct PipelineKey {
   const material::slang::Compiled* program = nullptr;
-  /** kSrcOver for a body, kPlus for a composite that adds, and kSrc for
-   *  a draw that replaces what stands. */
+  /** kSrcOver for a body laid over what stands, kPlus for one that adds,
+   *  kMultiply, kScreen and kModulate for the modes a blend state can
+   *  express over premultiplied colour, and kSrc for a draw that replaces
+   *  what stands. Any other mode would need to read the target it draws
+   *  into and is laid over instead. */
   SkBlendMode blend = SkBlendMode::kSrcOver;
   bool depth = false;
   bool depthWrite = false;
@@ -51,6 +54,8 @@ struct PipelineKey {
   /** Are back faces dropped? A draw the caller asked to keep them for
    *  is a different pipeline and not a different program. */
   bool cull = true;
+  /** The format of the target it draws into. */
+  Diligent::TEXTURE_FORMAT target = kColorFormat;
   auto operator<=>(const PipelineKey&) const = default;
 };
 
@@ -79,8 +84,12 @@ class PipelineCache {
 
 /** Binds @p pipeline's uniform buffer to @p values and its sampled slots
  *  to @p textures, in the program's declared order, read through
- *  @p filter, then commits. A slot with no texture reads @p shared's one
- *  white texel.
+ *  @p filter — or through the sampler @p samplers names at the same
+ *  position, for a slot whose texture states how it is read — then
+ *  commits. A view @p views names at a slot's position is bound in place
+ *  of its texture's own: a depth texture is read through a view of its
+ *  own format, which some devices will not reinterpret. A slot with no texture
+ * reads @p shared's one white texel.
  *
  *  @p panoramaSlot names the slots that are read as an equirect map
  *  instead: one wrap on each axis, and linearly across the prefiltered
@@ -91,7 +100,9 @@ void bindDraw(Resources& shared, const Pipeline& pipeline,
               const material::slang::Uniforms& values,
               std::span<Diligent::ITexture* const> textures,
               SkFilterMode filter = SkFilterMode::kLinear, bool tile = false,
-              bool (*panoramaSlot)(std::string_view) = nullptr);
+              bool (*panoramaSlot)(std::string_view) = nullptr,
+              std::span<Diligent::ISampler* const> samplers = {},
+              std::span<Diligent::ITextureView* const> views = {});
 
 /** Binds @p colour as a stage's target, with @p depth when there is one
  *  to write, and clears both. */

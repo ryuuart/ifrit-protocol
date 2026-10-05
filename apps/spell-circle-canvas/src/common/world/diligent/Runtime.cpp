@@ -53,6 +53,11 @@ class GpuExecutor : public Executor {
                Targets& targets) const override {
     if (!work.pass) return;
     const Pass& pass = *work.pass;
+    // How the frame's picture is read and when it stands, for every stage
+    // here and for the final stage a resource leaves the frame through.
+    m_gpu->exposure = view.exposure;
+    m_gpu->toneCurve = view.toneCurve;
+    m_gpu->seconds = view.time.count();
     // A declared body replaces the stage's own work and keeps the
     // stage's declarations, so the ordering around it is unchanged. It
     // is handed the same view and the same targets whichever executor is

@@ -1218,26 +1218,20 @@ ordinary ink a second time. Cover inherited parent ink, explicit and cleared
 child ink, repeated assignment, current-ink marks, rich spans, independent
 decorations, paint-box mapping and animated or path-placed glyphs.
 
-## Renderer gap: composed material channels are not bound by World
+## Renderer gap: a material channel with no Slang body is not bound by World
 
-`surface::blendNormals` produces a sampled Material with two children, and
-the surface lowering accepts it as a normal channel. World's device binder
-retrieves channel slots through `surface::map`, which returns direct Texture
-leaves. It does not evaluate a non-image material channel, so the composed
-normal field is absent. Compose's Skia executor evaluates the composition.
+World's device binder writes a child material in a surface slot into the
+body that reads it (`material::inlined`), so `surface::blendNormals`, a
+flipbook or a flow map plays as a channel. `surface::normalFromHeight` has
+an SkSL body only, so the device cannot compile it: the slot is reported
+once and reads as empty. Compose's Skia executor evaluates it.
 
-Wanted: either evaluate general material channel programs in the device
-executor or reject them with an explicit capability diagnostic. A regression
-should compare two direct normal textures with their composed normal field
-under the same lighting, preserving UV placement, normal convention and
-live inputs. Until then, a World study must supply a direct texture slot.
-
-The marks a composition bakes into a height texture reach a World surface
-as its normal channel through `surface::normalFromHeight`, which is such a
-program. With it unbound, such a texture dresses a World surface's base
-colour and nothing else; a page rendered as surface maps by
-`compose::SurfaceScene` reaches the set with its normal map as an image,
-which the binder does read.
+Wanted: a Slang body for `normalFromHeight` (a central difference over the
+height slot at a texel step the recipe states), or a bake of its output into
+a texture before it reaches a body. A regression should compare a height
+texture's derived normal on a World card with the same normal supplied as a
+texture, under one raking light. Until then a page reaches a set through
+`compose::SurfaceScene`, whose normal map is an image the binder reads.
 
 ## Bug: flow exclusions can read fixed-size glyphs before text layout
 
@@ -1615,4 +1609,72 @@ A test should bake a panorama with one bright texel, prefilter it, and
 assert the lobe's angular width at each level matches the width the
 distribution gives that roughness, within a stated bound, at the horizon
 and near a pole alike.
+
+## Translucent authored content is mixed with the scene in light
+
+A surface drawn as authored (`material::surface::unlit`) is written into a
+frame's half-float target as the light the final stage turns back into its
+colour, so where it is opaque it leaves exactly as authored. Where it is
+translucent — the antialiased edge of a wire, a half-transparent HUD panel
+on a quad at the near plane — it is blended with what is behind it in
+light, before the tone curve, where a page composited over a picture is
+blended in display values. `vagrant_story_target`'s reach sphere and HUD
+plates and `metal_instrument`'s overlay differ from their earlier plates by
+up to 32 levels along such edges.
+
+Wanted: a frame overlay — a page laid over the finished picture after the
+final stage, in display values — for content that is about the picture
+rather than standing in the set, as the kit's planned frame overlay would
+be. A regression should lay a half-transparent grey panel over a bright set
+both ways and assert the overlay matches a Skia composite of the same
+panel over the same picture to within a level.
+
+## Bloom blurs at full resolution and stops widening past a radius
+
+`world::bloom` thresholds and blurs at the frame's own size, through the
+post stage's separable Gaussian, whose taps stop at sixty-four a side. The
+widest spread is therefore a sigma near twenty-one pixels, and a
+`Bloom::radius` much past seventy pixels is drawn as that. A large frame
+pays for every tap at full resolution.
+
+Wanted: a chain of half-resolution targets, blurred and added back up, so
+the radius is a property of the chain rather than of one blur. A regression
+should bloom a small emitter at two radii past the current limit and assert
+the wider one reaches farther, and a bench should hold the cost at a
+1440 × 960 frame.
+
+## Python cannot build a flipbook or a flow map
+
+`material::flipbook` and `material::flowmap` take a `material::Texture`,
+which Python does not bind (an image reaches Python materials only through
+`image(...)`). `material.channel`, the surface's `blend`, `depthWrite` and
+`depthFade`, `world.bloom`, `world.Facing` and `Mesh.facing` and
+`media.decode(..., colorSpace=)` are bound.
+
+Wanted: a Python `Texture` with `colorSpace`, `mipmaps`, `sampling` and
+tiling, and the two factories over it. A Python test should play a 2 × 2
+sheet at two times on a page and read the two cells.
+
+## A World body reads an animated texture at its first frame
+
+`geometry::device::TextureResidency::sample` reads `Texture::frameAt()` with
+no time, and `Texture::deviceImage` reads its source at time zero, so a video
+or an animated image worn by a World body shows its first frame whatever
+the frame's time. A flipbook advances because its clock is a uniform, not a
+new image.
+
+Wanted: the residency handed the frame's time and keyed by the image the
+source answers then. A device test should wear a two-frame animated image
+and read each frame at its own time.
+
+## The USD reader ignores a texture's stated colour space
+
+`usd/read/Material.cpp` fetches each `UsdUVTexture`'s file and drops its
+`sourceColorSpace`; the role a map fills decides colour or data afterwards.
+A texture authored `raw` in a colour role, or `sRGB` in a data role, is read
+by its role. The writer states the colour space it read.
+
+Wanted: the decoded part carrying each texture's stated space, and
+`texture::fromUsageMap` honouring it. A regression should round-trip a
+material whose base colour is stated `raw` and read it back as data.
 

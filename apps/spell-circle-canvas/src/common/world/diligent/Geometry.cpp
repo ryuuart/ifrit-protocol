@@ -5,11 +5,24 @@
  * the point sets it reads; and the coverage a masked pass downstream
  * reads its selection from.
  *
- * THE ORDER IS THE VIEW'S. Bodies arrive sorted back to front, and they
- * are drawn in that order with the depth buffer read and — for an opaque
- * body — written. The two agree wherever the sort is right, and where a
- * centroid sort ranks two bodies the wrong way round the depth buffer is
- * the one telling the truth.
+ * THE ORDER: LAID OVER FIRST, THEN BLENDED. Bodies arrive sorted back to
+ * front by where each one's own origin stands from the camera. Every body
+ * laid over normally is drawn first, in that order — an opaque one
+ * testing and writing depth, a translucent one testing it only — and then
+ * every BLENDED one — a surface that adds, multiplies or screens, one that
+ * says it writes no depth, one that fades into the scene — back to front
+ * over all of them, testing depth and writing it only where its material
+ * says. So a blended body is hidden by whatever opaque body stands in
+ * front of it, including a card whose texture is transparent in places
+ * but which writes depth everywhere it covers: such a card states that it
+ * writes no depth. The sort is per body, not per triangle: two blended
+ * bodies that pass through each other, or one body whose own triangles
+ * overlap, are drawn in whatever order their origins and their triangles
+ * give, which an additive surface does not mind and a translucent one
+ * laid over may.
+ *
+ * Every body writes LIGHT into a target holding light; the camera's
+ * reading is the final stage's.
  */
 
 #include <include/core/SkBitmap.h>
@@ -32,6 +45,7 @@
 #include <cstring>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/trigonometric.hpp>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -118,19 +132,6 @@ float kindNumber(LightKind kind) {
   return 0.0f;
 }
 
-/** The number the scaffold reads a tone curve by. */
-float curveNumber(ToneCurve curve) {
-  switch (curve) {
-    case ToneCurve::Reinhard:
-      return 0.0f;
-    case ToneCurve::Neutral:
-      return 1.0f;
-    case ToneCurve::Linear:
-      return 2.0f;
-  }
-  return 0.0f;
-}
-
 /** ONE LIGHT AS THE SCAFFOLD READS IT: its record's four rows, carried
  *  into the space the shading is written in by @p view, every colour
  *  decoded and scaled by the intensity. */
@@ -159,15 +160,6 @@ void writeLight(material::slang::Uniforms& uniforms, size_t index,
   uniforms.setElement("uLightGround", index, rowGround, 4);
 }
 
-/** The colour a clear is given, premultiplied — which is what a target
- *  holding premultiplied pixels must receive. */
-void premultiplied(SkColor4f colour, float* into) {
-  into[0] = colour.fR * colour.fA;
-  into[1] = colour.fG * colour.fA;
-  into[2] = colour.fB * colour.fA;
-  into[3] = colour.fA;
-}
-
 /** What one body is drawn with: its program, the bytes its material
  *  resolved to, and whether the emitters reach it. */
 struct Surface {
@@ -177,7 +169,8 @@ struct Surface {
   bool lit = true;
 };
 
-Surface surfaceOf(const material::Material* material, bool lit) {
+Surface surfaceOf(const material::Material* material, bool lit,
+                  double seconds) {
   Surface out;
   out.lit = lit;
   if (!material) {
@@ -185,8 +178,11 @@ Surface surfaceOf(const material::Material* material, bool lit) {
     return out;
   }
   const material::Variant variant{lit ? kVariantLit : 0u};
-  out.upload = material->resolve(material::Target::Slang, material::FrameData{},
-                                 variant);
+  // THE FRAME'S CLOCK reaches the body: a material that reads time — a
+  // flipbook, a flow — is shown at the time the frame was described at.
+  material::FrameData frame;
+  frame.seconds = seconds;
+  out.upload = material->resolve(material::Target::Slang, frame, variant);
   const auto* program =
       out.upload.program
           ? out.upload.program->as<material::slang::SlangProgram>()
@@ -231,16 +227,24 @@ void writeMaterial(material::slang::Uniforms& uniforms,
 /** Everything a draw's scaffold needs: where the body stands, where the
  *  camera is, what is shining on it, and how the camera reads it. */
 void writeScaffold(material::slang::Uniforms& uniforms,
-                   const material::slang::Compiled& program,
+                   const material::slang::Compiled& program, const Gpu& gpu,
                    const glm::mat4& viewProj, const glm::mat4& view,
                    const glm::mat4& model, glm::vec4 baseColor,
                    std::span<const PlacedLight* const> lights,
-                   const Environment& sky, float exposure, ToneCurve curve,
-                   int levels, bool lit) {
+                   const Environment& sky, int levels, bool lit,
+                   bool depthReadable) {
   uniforms.set("uViewProj", viewProj);
   uniforms.set("uModel", model);
   uniforms.set("uBaseColor", baseColor.r, baseColor.g, baseColor.b,
                baseColor.a);
+  // The camera's reading, which an unlit body runs backward, and what a
+  // body fading into the scene reads the scene's depth with.
+  uniforms.set("uTone", gpu.exposure, curveNumber(gpu.toneCurve), 0.0f, 0.0f);
+  uniforms.set("uInvProj", glm::inverse(viewProj * glm::inverse(view)));
+  uniforms.set("uDepthFade",
+               gpu.extent.width() ? 1.0f / (float)gpu.extent.width() : 0.0f,
+               gpu.extent.height() ? 1.0f / (float)gpu.extent.height() : 0.0f,
+               depthReadable ? 1.0f : 0.0f, 0.0f);
   if (!lit || !program.uniform("uLightCount")) return;
 
   const glm::mat4 modelView = view * model;
@@ -253,9 +257,6 @@ void writeScaffold(material::slang::Uniforms& uniforms,
   uniforms.set("uEnvDials", hasSky ? sky.diffuse : 0.0f,
                hasSky ? sky.specular : 0.0f, sky.roughnessBias,
                hasSky ? (float)levels : 0.0f);
-  // The exposure the lit sum is read at and the curve it is read through
-  // — the camera's — which stand whether or not there is a panorama.
-  uniforms.set("uTone", exposure, curveNumber(curve), 0.0f, 0.0f);
   // The shading is written in view space and a panorama is of the world,
   // so a direction goes out through the view's inverse and then into the
   // panorama's own frame, which its turn put it in.
@@ -271,26 +272,106 @@ void writeScaffold(material::slang::Uniforms& uniforms,
                (float)material::kEnvironmentBrdfSize, 0.0f, 0.0f);
 }
 
-/** One body, drawn. @p map is the texture it is dressed with, or null. */
+/** HOW ONE BODY COMPOSITES: its blend, whether it writes depth, and
+ *  whether it fades into the scene behind it. */
+struct Blending {
+  SkBlendMode blend = SkBlendMode::kSrcOver;
+  bool depthWrite = true;
+  bool fades = false;
+};
+
+/** THE BLEND STATE @p mode IS on this device. The modes a blend state can
+ *  express over premultiplied light are taken as they are; every other
+ *  one would have to read the target it draws into, and is laid over
+ *  instead, said once. */
+SkBlendMode deviceBlend(material::BlendMode mode) {
+  switch (mode) {
+    case material::BlendMode::Normal:
+      return SkBlendMode::kSrcOver;
+    case material::BlendMode::PlusLighter:
+      return SkBlendMode::kPlus;
+    case material::BlendMode::Multiply:
+      return SkBlendMode::kMultiply;
+    case material::BlendMode::Screen:
+      return SkBlendMode::kScreen;
+    case material::BlendMode::Modulate:
+      return SkBlendMode::kModulate;
+    default:
+      material::reportOnce(
+          std::string("world.diligent.blend:") +
+              std::string(material::name(mode)),
+          "a body composited \"" + std::string(material::name(mode)) +
+              "\" would need to read the picture it is drawn over, which a "
+              "blend state cannot; it is laid over normally");
+      return SkBlendMode::kSrcOver;
+  }
+}
+
+/** WHAT A SLOT HOLDS when its texture does not say: a surface's normal,
+ *  roughness, metalness, occlusion, opacity and clear-coat maps are data,
+ *  and keep their smaller copies because a surface's map is shrunk on
+ *  screen like any other; its base colour and emission are colour; and
+ *  anything else — the slots a flipbook or a flow map brought with it — is
+ *  colour unless its texture says otherwise, with smaller copies only for
+ *  colour. */
+device::MapForm formFor(std::string_view slot, const material::Texture& map) {
+  namespace surface = material::surface;
+  const bool surfaceData =
+      slot == surface::kNormalSlot || slot == surface::kRoughnessSlot ||
+      slot == surface::kMetallicSlot || slot == surface::kOcclusionSlot ||
+      slot == surface::kOpacitySlot || slot == surface::kClearcoatSlot ||
+      slot == surface::kClearcoatRoughnessSlot ||
+      slot == surface::kClearcoatNormalSlot;
+  device::MapForm form;
+  form.colorSpace = map.colorSpace().value_or(
+      surfaceData ? media::ColorSpace::Data : media::ColorSpace::Srgb);
+  form.mipmaps = map.mipmaps().value_or(
+      surfaceData || form.colorSpace == media::ColorSpace::Srgb);
+  form.filtered = map.sampling() == material::Sampling::Linear;
+  return form;
+}
+
+/** Whether @p slot is one of the surface program's own — read through
+ *  the sampler the base-colour map decides — rather than one a child
+ *  material brought, which is read the way its own texture says. */
+bool surfaceSlot(std::string_view slot) {
+  namespace surface = material::surface;
+  for (std::string_view own :
+       {surface::kBaseColorSlot, surface::kNormalSlot, surface::kRoughnessSlot,
+        surface::kMetallicSlot, surface::kOcclusionSlot, surface::kEmissiveSlot,
+        surface::kOpacitySlot, surface::kClearcoatSlot,
+        surface::kClearcoatRoughnessSlot, surface::kClearcoatNormalSlot})
+    if (slot == own) return true;
+  return false;
+}
+
+/** The scaffold's slot the opaque depth is read through. */
+constexpr std::string_view kSceneDepthSlot = "uSceneDepth";
+
+/** One body, drawn. @p map is the texture it is dressed with, or null;
+ *  @p sceneDepth the copy of the opaque depth, or null. */
 void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
               uint64_t artefact, const geometry::mesh::Mesh& mesh,
               const glm::mat4& model, glm::vec4 baseColor,
-              const material::Material* material, const material::Texture* map,
+              const material::Material* worn, const material::Texture* map,
               std::span<const PlacedLight* const> lights,
-              const Environment& sky, float exposure, ToneCurve curve, bool lit,
-              bool depthWrite, bool cull) {
+              const Environment& sky, bool lit, const Blending& blending,
+              bool cull, dg::ITexture* sceneDepth) {
   const MeshBuffers* buffers = gpu.meshes.upload(artefact, mesh);
   if (!buffers) return;
-  const Surface surface = surfaceOf(material, lit);
+  // A CHILD MATERIAL IN A SLOT is written into the body, so the device
+  // compiles one program that plays it; a material holding none is
+  // itself.
+  const std::optional<material::Material> inlined =
+      worn ? std::optional<material::Material>(material::inlined(*worn))
+           : std::nullopt;
+  const material::Material* material = inlined ? &*inlined : nullptr;
+  const Surface surface = surfaceOf(material, lit, gpu.seconds);
   if (!surface.program || surface.program->empty()) return;
 
-  const PipelineKey key{surface.program,
-                        SkBlendMode::kSrcOver,
-                        true,
-                        depthWrite,
-                        false,
-                        false,
-                        cull};
+  PipelineKey key{surface.program, blending.blend, true, blending.depthWrite,
+                  false,           false,          cull};
+  key.target = kRadianceFormat;
   const Pipeline* pipeline = gpu.pipelines.pipeline(key);
   if (!pipeline) return;
 
@@ -306,8 +387,8 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
   const int levels = panorama ? (int)panorama->GetDesc().MipLevels : 0;
 
   material::slang::Uniforms uniforms(*surface.program);
-  writeScaffold(uniforms, *surface.program, viewProj, view, model, baseColor,
-                lights, sky, exposure, curve, levels, lit);
+  writeScaffold(uniforms, *surface.program, gpu, viewProj, view, model,
+                baseColor, lights, sky, levels, lit, sceneDepth != nullptr);
   writeMaterial(uniforms, surface);
 
   // THE SAMPLED SLOTS, bound by NAME rather than by position, because a
@@ -318,14 +399,17 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
   // so a body can tell an undressed slot from a dressed one exactly.
   std::vector<dg::ITexture*> textures(surface.program->textures.size(),
                                       nullptr);
+  std::vector<dg::ISampler*> samplers(surface.program->textures.size(),
+                                      nullptr);
+  std::vector<dg::ITextureView*> views(surface.program->textures.size(),
+                                       nullptr);
   // A STACK RUNNING ITS OWN BODY OWNS EVERY MAP IN IT. The frame extracts
   // the map of the material at the bottom of a stack, because that is
   // what a tier with no compiler can answer with; a composed body samples
   // both operands' maps itself, through slots of its own, so handing the
   // scaffold the bottom's map as well would land it a second time and
   // over the whole face rather than where the mask says.
-  if (material && surface.recipe && material::stackDepth(*material) > 0)
-    map = nullptr;
+  if (worn && surface.recipe && material::stackDepth(*worn) > 0) map = nullptr;
   const Sampling sampling = map ? samplingOf(*map) : Sampling{};
   uniforms.set(kMapUv, mapMatrix(toSk(sampling.uv)));
   for (size_t i = 0; i < textures.size(); ++i) {
@@ -336,7 +420,16 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
     if (slot == kMapSlot) {
       // Asked of the device and not of the host image: a source whose
       // pixels stand on this device has no host image to check for.
-      if (map) textures[i] = gpu.maps.sample(*map);
+      if (map)
+        textures[i] = gpu.maps.sample(
+            *map, formFor(material::surface::kBaseColorSlot, *map));
+      continue;
+    }
+    // …the scene's depth is the frame's, read texel by texel…
+    if (slot == kSceneDepthSlot) {
+      textures[i] = sceneDepth;
+      if (sceneDepth) views[i] = gpu.opaqueDepthView;
+      samplers[i] = gpu.shared.samplerFor(SkFilterMode::kNearest, false);
       continue;
     }
     // …and the four panorama slots are the FRAME'S, not any material's:
@@ -367,31 +460,38 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
     // answers null for a slot still holding the neutral dressing a
     // surface is built with, which is what keeps an undressed body
     // reading the one white texel rather than a map that says nothing.
-    const material::Texture* worn = material::surface::map(*material, slot);
-    if (worn) {
-      if (worn != map) textures[i] = gpu.maps.sample(*worn);
+    const material::Texture* own = material::surface::map(*material, slot);
+    if (own) {
+      if (own != map) textures[i] = gpu.maps.sample(*own, formFor(slot, *own));
+      // A slot a child material brought is read the way its own texture
+      // asks — a flipbook's sheet held at its edge, a flow map repeating.
+      if (!surfaceSlot(slot)) {
+        const Sampling read = samplingOf(*own);
+        samplers[i] = gpu.shared.samplerFor(toSk(read.filter), read.tile);
+      }
       continue;
     }
-    // A slot filled with a MATERIAL rather than an image has nothing this
-    // device can sample, so it reads the same white texel — and says so,
-    // once per slot, since the picture alone would show a flat surface
-    // and no reason for it.
+    // A slot filled with a MATERIAL with no body this device can compile
+    // has nothing to sample, so it reads the same white texel — and says
+    // so, once per slot, since the picture alone would show a flat
+    // surface and no reason for it.
     if (material->slot(slot))
       material::reportOnce(
           "world.diligent.slot:" + slot,
           "surface slot \"" + slot +
-              "\" holds a material, and the device samples image textures "
-              "only; the slot reads as empty. Supply an image texture "
-              "there.");
+              "\" holds a material with no body the device can compile; "
+              "the slot reads as empty. Supply an image texture there, or "
+              "a material with a Slang body.");
   }
 
   dg::IDeviceContext* context = gpu.device->context();
   context->SetPipelineState(pipeline->state);
   // The WRAP is the map's own, not a default: one wrap serves both axes
-  // and every slot bound here, and clamping an axis that was asked to
-  // repeat drags one edge's texels across the whole face.
+  // and every surface slot bound here, and clamping an axis that was
+  // asked to repeat drags one edge's texels across the whole face.
   device::bindDraw(gpu.shared, *pipeline, *surface.program, uniforms, textures,
-                   toSk(sampling.filter), sampling.tile, &isEnvironmentSlot);
+                   toSk(sampling.filter), sampling.tile, &isEnvironmentSlot,
+                   samplers, views);
   dg::IBuffer* vertices = buffers->vertices;
   const dg::Uint64 offset = 0;
   context->SetVertexBuffers(0, 1, &vertices, &offset,
@@ -426,7 +526,8 @@ void drawBackdrop(Gpu& gpu, const View& view, const glm::mat4& projection,
 
   // The sky is opaque and stands behind everything, so it writes no
   // depth and takes none: whatever is drawn after it covers it.
-  const PipelineKey key{&program, SkBlendMode::kSrc, false, false, true};
+  PipelineKey key{&program, SkBlendMode::kSrc, false, false, true};
+  key.target = kRadianceFormat;
   const Pipeline* pipeline = gpu.pipelines.pipeline(key);
   if (!pipeline) return;
 
@@ -435,7 +536,7 @@ void drawBackdrop(Gpu& gpu, const View& view, const glm::mat4& projection,
                std::clamp(sky.crossfade, 0.0f, 1.0f));
   uniforms.set("uEnvDials", sky.diffuse, sky.specular, sky.roughnessBias,
                (float)panorama->GetDesc().MipLevels);
-  uniforms.set("uTone", view.exposure, curveNumber(view.toneCurve), 0.0f, 0.0f);
+  uniforms.set("uTone", gpu.exposure, curveNumber(gpu.toneCurve), 0.0f, 0.0f);
   uniforms.set("uBackdrop", sky.shown, std::clamp(sky.blur, 0.0f, 1.0f), 0.0f,
                0.0f);
   // The ground sphere stands at the world origin, carried into the space
@@ -472,41 +573,95 @@ void drawBackdrop(Gpu& gpu, const View& view, const glm::mat4& projection,
   context->Draw(draw);
 }
 
-/** The frame's bodies, or the ones a collection leaves. */
+/** HOW @p body COMPOSITES, off its material: the blend its surface
+ *  states, and depth written by an opaque body composited normally and by
+ *  nothing else unless the surface says. A flat colour drawn over the body
+ *  — a coverage, a variant — composites by its own alpha. */
+Blending blendingOf(const Draw& body, glm::vec4 colour, bool flat) {
+  Blending out;
+  const material::surface::Compositing stated =
+      !flat && body.material ? material::surface::compositing(*body.material)
+                             : material::surface::Compositing{};
+  out.blend = deviceBlend(stated.blend);
+  const bool opaque = stated.blend == material::BlendMode::Normal &&
+                      colour.a >= 1.0f && stated.depthFade <= 0.0f;
+  out.depthWrite = stated.depthWrite.value_or(opaque);
+  out.fades = stated.depthFade > 0.0f;
+  return out;
+}
+
+/** Whether @p body draws in the second phase, over every body laid over
+ *  normally: one that does not composite normally, fades into the scene,
+ *  or states that it writes no depth. */
+bool blended(const Draw& body, const Blending& blending, bool flat) {
+  const material::surface::Compositing stated =
+      !flat && body.material ? material::surface::compositing(*body.material)
+                             : material::surface::Compositing{};
+  return blending.blend != SkBlendMode::kSrcOver || blending.fades ||
+         stated.depthWrite == false;
+}
+
+/** The frame's bodies, or the ones a collection leaves: the ones laid
+ *  over normally first, then the blended ones over them, each phase back
+ *  to front. A
+ *  blended body that fades into the scene reads the opaque bodies' depth,
+ *  copied once before the first of them is drawn. */
 void drawBodies(Gpu& gpu, const View& view, const glm::mat4& viewProj,
                 const glm::mat4& viewMatrix, const Collection* only, bool lit,
-                const glm::vec4* flat) {
+                const glm::vec4* flat, dg::ITexture* target) {
   // THE LIGHTS EACH BODY IS REACHED BY: every light, unless its light
   // link leaves the body out. Asked per body, against the same member a
   // pass's collection reads, so a light link and a pass narrow on one
   // vocabulary.
   std::vector<const PlacedLight*> reaching;
   reaching.reserve(view.lights.size());
+  dg::ITexture* sceneDepth = nullptr;
   // A FLAT colour replaces the body's own AND its material: coverage and
   // a variant re-draw are about where a body is, not what it is made of.
   // Whether the flat colour is then SHADED is the pass's call — coverage
   // is not a picture and is drawn unlit; a variant surface is a colour
   // laid over the bodies a collection names and stands under the pass's
   // lights like any other.
-  for (const Draw& body : view.draws) {
-    if (!body.mesh) continue;
-    const Member member = memberOf(body);
-    if (only && !only->contains(member)) continue;
-    reaching.clear();
-    for (const PlacedLight& light : view.lights)
-      if (light.light.lightLink.everything() ||
-          light.light.lightLink.contains(member))
-        reaching.push_back(&light);
-    const glm::vec4 colour = flat ? *flat : body.baseColor;
-    // A BODY THAT IS ITS OWN LIGHT is drawn unlit whatever the pass
-    // says, because that is what its surface is and not how this pass
-    // reads it — a variant laid over it included.
-    drawBody(gpu, viewProj, viewMatrix, body.geometry, *body.mesh, body.world,
-             colour, flat ? nullptr : body.material,
-             flat ? nullptr : body.texture, reaching, view.environment,
-             view.exposure, view.toneCurve, lit && body.lit,
-             /*depthWrite=*/colour.a >= 1.0f,
-             /*cull=*/body.backface == material::Backface::Hidden);
+  for (const bool secondPhase : {false, true}) {
+    for (const Draw& body : view.draws) {
+      if (!body.mesh) continue;
+      const Member member = memberOf(body);
+      if (only && !only->contains(member)) continue;
+      const glm::vec4 colour = flat ? *flat : body.baseColor;
+      const Blending blending = blendingOf(body, colour, flat != nullptr);
+      if (blended(body, blending, flat != nullptr) != secondPhase) continue;
+      // THE OPAQUE DEPTH, copied once the last opaque body is down and
+      // before the first body that fades into it, with the target bound
+      // again afterwards: a copy ends the drawing that was under way.
+      if (blending.fades && !sceneDepth && gpu.depth) {
+        if (dg::ITexture* copy = gpu.depthForReading()) {
+          dg::CopyTextureAttribs attribs;
+          attribs.pSrcTexture = gpu.depth;
+          attribs.SrcTextureTransitionMode =
+              dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION;
+          attribs.pDstTexture = copy;
+          attribs.DstTextureTransitionMode =
+              dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION;
+          gpu.device->context()->CopyTexture(attribs);
+          resumeTarget(gpu, target, true);
+          sceneDepth = copy;
+        }
+      }
+      reaching.clear();
+      for (const PlacedLight& light : view.lights)
+        if (light.light.lightLink.everything() ||
+            light.light.lightLink.contains(member))
+          reaching.push_back(&light);
+      // A BODY THAT IS ITS OWN LIGHT is drawn unlit whatever the pass
+      // says, because that is what its surface is and not how this pass
+      // reads it — a variant laid over it included.
+      drawBody(gpu, viewProj, viewMatrix, body.geometry, *body.mesh, body.world,
+               colour, flat ? nullptr : body.material,
+               flat ? nullptr : body.texture, reaching, view.environment,
+               lit && body.lit, blending,
+               /*cull=*/body.backface == material::Backface::Hidden,
+               blending.fades ? sceneDepth : nullptr);
+    }
   }
 }
 
@@ -523,21 +678,23 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
   const glm::mat4 viewProj = clipProjection(view);
   const glm::mat4 viewMatrix = view.camera.view();
 
-  float clear[4];
-  premultiplied(toSk(pass.clear()), clear);
+  const float clearNothing[4] = {0, 0, 0, 0};
   const bool asCoverage = work.realisation == Selection::Mask;
   if (asCoverage) {
     // Coverage is where the selection is, not what it looks like: flat
     // white, and nothing else reaches it.
-    const float clearNothing[4] = {0, 0, 0, 0};
     openTarget(gpu, colour, clearNothing, true);
     const glm::vec4 white{1, 1, 1, 1};
     drawBodies(gpu, view, viewProj, viewMatrix, &pass.collection(),
-               /*lit=*/false, &white);
+               /*lit=*/false, &white, colour);
     return;
   }
 
-  openTarget(gpu, colour, clear, true);
+  // THE CLEAR IS AN AUTHORED COLOUR, so it is filled as the light the
+  // final stage turns back into it, and the depth is cleared beside it.
+  openTarget(gpu, colour, clearNothing, true);
+  fillTarget(gpu, colour, pass.clear());
+  resumeTarget(gpu, colour, true);
   // The PROJECTION alone is what turns a pixel into a ray, and it is the
   // clip transform with the view taken back out of it — the clip
   // transform is where the target's aspect and the depth convention
@@ -546,7 +703,8 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
   drawBackdrop(gpu, view, viewProj * glm::inverse(viewMatrix), viewMatrix);
   const bool cull = work.realisation == Selection::Cull;
   drawBodies(gpu, view, viewProj, viewMatrix,
-             cull ? &pass.collection() : nullptr, /*lit=*/true, nullptr);
+             cull ? &pass.collection() : nullptr, /*lit=*/true, nullptr,
+             colour);
 
   // The stamps of every point set the pass reads. A compute pass writes
   // points; this is what makes them visible, and a pass with no stamp
@@ -579,8 +737,8 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
       const uint64_t artefact = kStampArtefact | (key >> 1u);
       drawBody(gpu, viewProj, viewMatrix, artefact, *stamped, glm::mat4(1.0f),
                {0.9f, 0.9f, 0.95f, 1.0f}, nullptr, nullptr, everyLight,
-               view.environment, view.exposure, view.toneCurve,
-               /*lit=*/true, /*depthWrite=*/true, /*cull=*/true);
+               view.environment, /*lit=*/true, Blending{}, /*cull=*/true,
+               nullptr);
     }
   }
 
@@ -589,11 +747,11 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
   if (work.realisation == Selection::Variant && pass.variant()) {
     const material::Field* field =
         pass.variant()->recipe().parameters().find("baseColor");
-    const glm::vec4 colour = field && field->floats == 4
-                                 ? pass.variant()->get<glm::vec4>("baseColor")
-                                 : glm::vec4{1, 1, 1, 1};
+    const glm::vec4 variant = field && field->floats == 4
+                                  ? pass.variant()->get<glm::vec4>("baseColor")
+                                  : glm::vec4{1, 1, 1, 1};
     drawBodies(gpu, view, viewProj, viewMatrix, &pass.collection(),
-               /*lit=*/true, &colour);
+               /*lit=*/true, &variant, colour);
   }
 
   // One coverage per masked pass behind this one, each holding the
@@ -601,11 +759,10 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
   for (const Coverage& painted : work.coverageOut) {
     dg::ITexture* coverage = gpu.target(painted.name);
     if (!coverage) continue;
-    const float clearNothing[4] = {0, 0, 0, 0};
     openTarget(gpu, coverage, clearNothing, true);
     const glm::vec4 white{1, 1, 1, 1};
     drawBodies(gpu, view, viewProj, viewMatrix, &painted.of, /*lit=*/false,
-               &white);
+               &white, coverage);
   }
 }
 

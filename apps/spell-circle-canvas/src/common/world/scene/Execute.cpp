@@ -13,6 +13,8 @@
 #include <sigilworld/advanced/TextureProducer.h>
 
 #include <algorithm>
+#include <glm/geometric.hpp>
+#include <glm/mat3x3.hpp>
 #include <string>
 #include <utility>
 #include <vector>
@@ -68,6 +70,51 @@ std::string Scene::Impl::missingTexturePass() const {
   return {};
 }
 
+namespace {
+
+/** @p world TURNED TO FACE @p eye as @p facing says: where it stands and
+ *  its scale along each of its axes kept, its rotation replaced so its +z
+ *  faces the camera — square on to the picture, or about the world's up
+ *  axis only. */
+glm::mat4 faced(const glm::mat4& world, Facing facing,
+                const geometry::mesh::camera::Camera& eye) {
+  if (facing == Facing::None) return world;
+  const glm::vec3 at(world[3]);
+  const glm::vec3 scale{glm::length(glm::vec3(world[0])),
+                        glm::length(glm::vec3(world[1])),
+                        glm::length(glm::vec3(world[2]))};
+  glm::vec3 right, up, toward;
+  if (facing == Facing::Camera) {
+    // The camera's own axes: the view is rigid, so its transpose carries
+    // the picture's right, up and backward into the world.
+    const glm::mat3 axes = glm::transpose(glm::mat3(eye.view()));
+    right = axes[0];
+    up = axes[1];
+    toward = axes[2];
+  } else {
+    up = {0.0f, 1.0f, 0.0f};
+    toward = eye.eye - at;
+    toward.y = 0.0f;
+    // Straight above or below, the camera's own backward direction on the
+    // ground decides which way the body stands turned.
+    if (glm::dot(toward, toward) < 1e-8f) {
+      toward = eye.eye - eye.target;
+      toward.y = 0.0f;
+    }
+    toward = glm::dot(toward, toward) > 1e-8f ? glm::normalize(toward)
+                                              : glm::vec3(0.0f, 0.0f, 1.0f);
+    right = glm::cross(up, toward);
+  }
+  glm::mat4 out(1.0f);
+  out[0] = glm::vec4(right * scale.x, 0.0f);
+  out[1] = glm::vec4(up * scale.y, 0.0f);
+  out[2] = glm::vec4(toward * scale.z, 0.0f);
+  out[3] = world[3];
+  return out;
+}
+
+}  // namespace
+
 void Scene::Impl::collectBodies(const geometry::mesh::camera::Camera& eye,
                                 std::vector<Draw>& into) const {
   into.clear();
@@ -99,7 +146,8 @@ void Scene::Impl::collectBodies(const geometry::mesh::camera::Camera& eye,
     const component::Joined* joined =
         registry.try_get<component::Joined>(entity);
     into.push_back(Draw{
-        .world = registry.get<component::Placement>(entity).world,
+        .world = faced(registry.get<component::Placement>(entity).world,
+                       body.facing, eye),
         .mesh = body.mesh,
         .backface = body.backface,
         .geometry = body.id,
@@ -158,6 +206,7 @@ bool Scene::Impl::phaseGraph() {
   view.toneCurve = camera ? camera->toneCurve : ToneCurve::Reinhard;
   view.extent = frame.extent();
   view.offset = frame.viewOffset();
+  view.time = engine.elapsed();
 
   stats.barriers = (int64_t)plan.barriers().size();
   stats.aliased = plan.aliased();

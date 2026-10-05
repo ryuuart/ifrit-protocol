@@ -73,7 +73,9 @@ constexpr float kCardW = 100.0f;
 constexpr float kCardH = 60.0f;
 constexpr float kEyeZ = 300.0f;
 constexpr SkISize kBakeSize{128, 96};
-constexpr material::Color kGround{0.1f, 0.1f, 0.1f, 1};
+/** The ground a bake is cleared to: a colour eight bits hold exactly, so
+ *  the picture can be compared with it to the byte. */
+constexpr material::Color kGround{26.0f / 255, 26.0f / 255, 26.0f / 255, 1};
 /** The entrance the bake's moment is read against: how far a card slides
  *  in, how long one card's own motion lasts, and how far apart the
  *  cascade starts the two of them. */

@@ -65,12 +65,15 @@ namespace dg = Diligent;
 // every draw below reaches into it; nothing is re-exported.
 namespace device = ::sigil::geometry::device;
 
-/** The formats every target here holds are the device's own — one format
- *  for every resource is what lets two resources whose lives do not
- *  overlap be handed one texture, exactly as the ordering hands two
- *  names one surface. */
+/** THE FORMATS. Every resource a frame's passes write holds LINEAR
+ *  RADIANCE, premultiplied, in half floats — one format for every
+ *  resource is what lets two resources whose lives do not overlap be
+ *  handed one texture, exactly as the ordering hands two names one
+ *  surface. What a display reads is eight bits a channel, written by the
+ *  final stage when a resource leaves the frame. */
 using ::sigil::geometry::device::kColorFormat;
 using ::sigil::geometry::device::kDepthFormat;
+using ::sigil::geometry::device::kRadianceFormat;
 
 /** ONE NAMED IMAGE on the device: what this frame wrote, and what the
  *  frame before it wrote. `previous()` is answered from the second, and
@@ -114,6 +117,25 @@ struct Gpu {
 
   boost::container::map<std::string, DeviceImage, std::less<>> images;
   dg::RefCntAutoPtr<dg::ITexture> depth;
+  /** THE DEPTH OF WHAT IS OPAQUE, copied once the opaque bodies of a pass
+   *  are drawn, so a blended body can read how far behind it the scene
+   *  stands while the depth buffer itself is still being tested against.
+   *  Made on the first ask. */
+  dg::RefCntAutoPtr<dg::ITexture> opaqueDepth;
+  /** …read through a view of the depth format itself, which every device
+   *  samples, rather than the colour format the engine would choose. */
+  dg::RefCntAutoPtr<dg::ITextureView> opaqueDepthView;
+  /** What a display reads: the final stage's eight-bit picture of the
+   *  resource last read, made on the first ask. */
+  dg::RefCntAutoPtr<dg::ITexture> display;
+  /** HOW THE FRAME'S PICTURE IS READ: the camera's exposure and tone
+   *  curve, which the final stage applies when a resource leaves the
+   *  frame, and which a surface drawn as authored is written through in
+   *  reverse so it leaves exactly as it was authored. */
+  float exposure = 1.0f;
+  ToneCurve toneCurve = ToneCurve::Reinhard;
+  /** The frame's time, the clock a material reading time is shown at. */
+  double seconds = 0.0;
   /** TARGETS NO RESOURCE NAMES, made on the first ask and kept for the
    *  extent's life. A device cannot sample an image it is drawing into,
    *  so every stage that reads and writes at once — one direction of a
@@ -148,9 +170,28 @@ struct Gpu {
    *  nothing has written it. */
   sk_sp<SkImage> read(std::string_view name);
 
-  /** A texture of this frame's size and format. */
-  dg::RefCntAutoPtr<dg::ITexture> makeColor(const char* label);
+  /** A texture of this frame's size in @p format. */
+  dg::RefCntAutoPtr<dg::ITexture> makeColor(
+      const char* label, dg::TEXTURE_FORMAT format = kRadianceFormat);
+  /** The copy of the depth buffer a blended body reads, made on the
+   *  first ask; null where the device refused it. */
+  dg::ITexture* depthForReading();
 };
+
+/** The number the programs read a tone curve by. */
+float curveNumber(ToneCurve curve);
+
+/** THE FINAL STAGE: @p radiance, exposed, compressed by the frame's tone
+ *  curve and encoded for a display, written into @p display. */
+void finalStage(Gpu& gpu, dg::ITexture* radiance, dg::ITexture* display);
+
+/** Fills the whole of @p into with @p colour, an authored colour, as the
+ *  light the final stage turns back into it. */
+void fillTarget(Gpu& gpu, dg::ITexture* into, const material::Color& colour);
+
+/** Binds @p colour as this frame's target again, with the frame's depth
+ *  buffer when one is wanted, keeping what both hold. */
+void resumeTarget(Gpu& gpu, dg::ITexture* colour, bool withDepth);
 
 /** THE FRAME STATE every runtime here stands on, over the device's own
  *  resources. Every runtime makes one of these and shares it among the

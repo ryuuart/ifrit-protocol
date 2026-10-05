@@ -379,7 +379,7 @@ void Scene::Impl::writeComponents(Instance& inst) {
           : nullptr;
   if (mesh)
     registry.emplace_or_replace<component::Body>(
-        inst.entity, mesh, inst.resource->id, node.backface);
+        inst.entity, mesh, inst.resource->id, node.backface, node.facing);
   else
     registry.remove<component::Body>(inst.entity);
   const material::Material* worn = surfaceOf(node);

@@ -97,16 +97,36 @@ world::Frame formedAgain(const world::Frame& frame) {
 
 /** A set about the SCENE, made into one a runtime can perform: one
  *  geometry pass clearing to the declared background and painting every
- *  body. A set that already declares a pass forming a picture is left
- *  alone — an executor is only reached through passes — and one whose
- *  only passes paint the textures its bodies wear is still a set about
- *  the scene. */
+ *  body into `colour`. A set whose passes already form a picture — a
+ *  geometry pass, or a body doing its own work — is left alone, since an
+ *  executor is only reached through passes; one whose passes only paint
+ *  the textures its bodies wear, or only work on the picture — a bloom
+ *  over `colour` — is still a set about the scene, and has the stock pass
+ *  put FIRST, so a post pass reading `colour` reads what it painted. */
 void throughPasses(world::Frame& frame,
                    const sigil::material::Color& background) {
   for (const world::Pass& pass : frame.passes())
-    if (pass.stage() != world::Stage::Texture) return;
-  frame.pass(world::geometryPass("colour").writes("colour").clear(
-      sigil::material::skia::toSkColor(background)));
+    if (pass.stage() == world::Stage::Geometry || pass.body()) return;
+  world::Pass stock = world::geometryPass("colour").writes("colour").clear(
+      sigil::material::skia::toSkColor(background));
+  if (frame.passes().empty()) {
+    frame.pass(std::move(stock));
+    return;
+  }
+  world::Frame first(frame.scene());
+  first.environment(frame.environmentMap(), frame.environmentOptions())
+      .extent(frame.extent())
+      .viewOffset(frame.viewOffset())
+      .defaultCamera(frame.defaultCamera())
+      .runtime(frame.runtime());
+  if (!frame.camera().empty()) first.camera(frame.camera());
+  if (frame.cameraOverride()) first.cameraOverride(*frame.cameraOverride());
+  first.pass(std::move(stock));
+  for (const world::Pass& pass : frame.passes()) first.pass(pass);
+  if (!frame.present().empty()) first.present(frame.present());
+  for (const world::Readback& readback : frame.readbacks())
+    first.readback(readback);
+  frame = std::move(first);
 }
 
 /** ONE 3D SKETCH, RUNNING. */

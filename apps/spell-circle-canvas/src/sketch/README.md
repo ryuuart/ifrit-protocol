@@ -332,6 +332,13 @@ struct Plate {
 };
 ```
 
+A set's frame is painted into `colour` by a geometry pass the host puts on
+it, clearing to the declared background, unless one of the set's own passes
+forms the picture — a geometry pass, or a body doing its own work. A set
+whose passes only paint textures, or only work on the picture, keeps the
+stock pass, put first: `world::Frame(scene).pass(world::bloom({}))` is the
+scene with a bloom over it.
+
 A set bake uses its own clock, so sampling an entrance at `BakeSetOptions::at` does not
 advance the surrounding canvas sketch. It draws on the device runtime the host
 installed and answers null where there is none, so a canvas sketch that bakes

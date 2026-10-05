@@ -85,8 +85,24 @@ struct Composite {
   bool operator==(const Composite&) const = default;
 };
 
-/** WHAT A POST PASS DOES to what it reads. An empty operation copies. */
-using PostOperation = std::variant<std::monostate, Blur, Levels, Composite>;
+/** LIGHT SPREADING PAST WHAT IS BRIGHT: what a pixel holds above
+ *  @c threshold, by luminance, blurred out to about @c radius pixels and
+ *  added back at @c intensity. It reads the scene's light before the
+ *  camera's exposure and tone curve, so a flame or an emissive surface
+ *  stated brighter than white glows and a surface lit to its own colour
+ *  does not; where nothing passes the threshold it adds nothing. */
+struct Bloom {
+  float threshold = 1.0f;
+  float intensity = 0.6f;
+  float radius = 24.0f;
+  bool operator==(const Bloom&) const = default;
+};
+
+/** WHAT A POST PASS DOES to what it reads. An empty operation copies.
+ *  Every one of them runs on light, before the camera's reading; a grade
+ *  states its numbers as a display reads a colour and is applied there. */
+using PostOperation =
+    std::variant<std::monostate, Blur, Levels, Composite, Bloom>;
 
 /** THE PASS ESCAPE: a body that does the work itself, given what the
  *  frame extracted and the frame's targets. A pass carrying one runs it
@@ -184,6 +200,9 @@ class Pass {
   /** Lay what the pass reads one layer over another, replacing any other
    *  post operation. */
   Pass& composite(Composite layering);
+  /** Spread what is brighter than a threshold over what the pass reads,
+   *  replacing any other post operation. */
+  Pass& bloom(Bloom glow);
   /** THE ESCAPE, as a comparable seam value. */
   Pass& body(PassBody b);
   /** …and as a callable, which compares equal to nothing but its own
@@ -276,6 +295,12 @@ Pass geometryPass(std::string name);
 Pass computePass(std::string name);
 /** A pass that reads targets and writes one. */
 Pass postPass(std::string name);
+/** A BLOOM OVER THE PICTURE: a post pass that reads the frame's stock
+ *  `colour` and writes it back with the light above @p glow's threshold
+ *  spread over it — `Frame(scene).pass(world::bloom({.threshold = 1}))`.
+ *  A frame that states no geometry pass of its own still has its scene
+ *  painted into `colour` first. */
+Pass bloom(Bloom glow = {});
 /** A PASS THAT PAINTS TEXTURES a body wears, with @p producer, at the
  *  frame's time. It runs before every pass that draws bodies, and a body
  *  wearing what it paints is an error while it is missing from the

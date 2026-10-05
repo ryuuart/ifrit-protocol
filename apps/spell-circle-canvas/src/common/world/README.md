@@ -71,6 +71,8 @@ std::vector<Node> each(range or count, make);  // children a range describes
 // a mesh and points
 .fill(material::Material surface)   // a material::Color is lit at the stock response
 .backface(material::Backface)
+// a mesh
+.facing(Facing)                     // Facing::Camera, Facing::CameraUpright
 // a light
 .lightLink(Collection)  .shadowLink(Collection)
 
@@ -79,6 +81,7 @@ Frame(Node scene);
 Frame& environment(EnvironmentMap map, EnvironmentOptions = {});
 Frame& camera(std::string key);
 Frame& pass(Pass);
+Pass   bloom(Bloom = {});            // threshold, intensity, radius
 
 // the kit
 kit::threePoint(kit::Rig = {});
@@ -555,6 +558,64 @@ the frame stopped needing.
 A pass carrying a body runs that body instead of the stage's work, and
 the declarations around it are unchanged.
 
+### Drawing a frame: order, light and the final stage
+
+**The order is laid over first, then blended.** Bodies arrive sorted back
+to front by where each one's origin stands from the camera. Every body
+whose surface composites normally is drawn first, in that order — an
+opaque one testing and writing depth, a translucent one testing it only —
+then every blended one: a surface that adds, multiplies or screens
+(`SurfaceOptions::blend`), one that says it writes no depth
+(`SurfaceOptions::depthWrite`), one that fades into the scene
+(`SurfaceOptions::depthFade`), back to front over all of them, testing
+depth and writing it only where its surface says. The sort is per body,
+not per triangle: two blended bodies passing through each other are drawn
+in whatever order their origins give, which an additive surface does not
+mind. A card whose texture is transparent in places writes depth wherever
+it covers; one standing in front of blended bodies states
+`depthWrite = false`.
+
+**A blended body fading into the scene** reads the depth of what is opaque
+behind it: once the opaque bodies are drawn the depth buffer is copied, and
+the copy is read through a view of its own depth format, which Metal
+(through MoltenVK) and Vulkan both sample.
+
+**Every target holds light.** A pass writes linear radiance, premultiplied,
+in half floats, so a value above white — an emissive surface, a flame, a
+sun in the panorama — survives to whatever reads it next. The camera's
+exposure and tone curve are applied ONCE, by the final stage, when a
+resource leaves the frame — presented, or read back — and encoded for a
+display. A surface drawn as authored (`material::surface::unlit`, a page
+overlay, a pass's clear colour) is written as the light the final stage
+turns back into exactly its colour — the curve run backward — so where it
+is opaque it leaves as it was authored, to the byte for a colour eight bits
+hold. Where it is translucent it is mixed with what is behind it in light,
+before the reading, as anything translucent in a lit scene is.
+
+**Post passes run on light.** A blur, a composite and a bloom spread and
+add the light as it stands; a grade (`Levels`) states its gain, lift and
+tint as a display reads a colour, so it reads the picture through the
+camera's curve, grades it there and writes the result back through the
+curve run backward.
+
+**Bloom** is an ordinary post pass: `Frame(scene).pass(world::bloom({...}))`
+reads `colour` and writes it back with what passes `Bloom::threshold`, by
+luminance, blurred out to about `Bloom::radius` pixels and added at
+`Bloom::intensity`. `Pass::bloom` is the same operation on a pass naming
+its own resources. Where nothing passes the threshold it adds nothing.
+
+**The clock.** Every body's material is resolved at the frame's time —
+`View::time`, the scene time the tree was described at — so a recipe that
+reads time (a flipbook, a flow map) plays on a 3D body, is counted as
+moving content, and a still taken at a stated time is the same picture
+every time.
+
+**Facing.** `Mesh::facing(Facing::Camera)` turns a body square on to the
+frame's camera, keeping where it stands and its scale;
+`Facing::CameraUpright` turns it about the world's up axis only. The turn
+is made where the draws are collected, against the camera the frame looks
+through, and replaces the node's own rotation.
+
 **[reference/DEVICE.md](reference/DEVICE.md)** is the chapter on that
 executor: what it does with each pass, what a material reaches the
 device as, what a lit set can and cannot say there, the seams below this
@@ -577,11 +638,13 @@ it as they reach any other image — with one wrap for both axes, because a
 mesh's sampler has one and clamping the axis that was asked to repeat
 would drag one edge's pixels across a whole face.
 
-**A channel the device samples must be an image texture.** A surface
-channel filled with any other material — a normal derived from a height,
-two normals blended, a gradient — has nothing the device executor can
-sample: it reports the slot once and the slot reads as empty, so supply
-the channel as an image texture.
+**A channel the device samples is an image texture or a material with a
+Slang body.** A material in a slot is written into the body it fills
+(`material::inlined`), so a flipbook, a flow map or one channel of a
+packed texture plays on a body as it does on a page. A channel filled with
+a material that has no Slang body — a normal derived from a height, a
+gradient — has nothing the device can compile: it reports the slot once
+and the slot reads as empty.
 
 **World does not link SigilCompose and no world header names a compose
 type.** The arrow runs the other way: `SigilComposeTexture` keeps a
@@ -797,7 +860,17 @@ painted with the graphics API on this device coming in through
 `importNative` with no host image at all — so a picture carrying its
 colour cannot have come from a copy — standing where a raster one of the
 same colour would, and an import of nothing answering no texture rather
-than one that lies. `StackTest.cpp` is what `material::over` composes
+than one that lies. `EffectsTest.cpp` is what an authored effect needs: a float, a sixteen-bit and an
+eight-bit data texel reaching a shader as stored and a colour texel still
+premultiplied, a normal map's alpha saying nothing about its normal, an
+additive card adding over a grey plate in either order, a card that writes
+no depth hiding nothing drawn after it, a flipbook showing the cell the
+clock stands at, blending halfway, looping or holding, and giving way to a
+bound frame, light twice white surviving to the final stage and an unlit
+colour leaving it to the byte under every curve, a bloom spreading only
+what passes its threshold, a card fading where it meets a wall, and a
+card facing the camera the same shape from two places.
+`StackTest.cpp` is what `material::over` composes
 for this target: that the composed recipe compiles, and that what it
 shades where the mask is half is a picture neither operand alone
 produces. `RuntimeTest.cpp` covers the frame: a pipeline off a recipe's

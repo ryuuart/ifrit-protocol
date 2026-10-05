@@ -69,6 +69,9 @@ const PostPrograms& postPrograms() {
     one("fsBlur", &built.blur);
     one("fsLevels", &built.levels);
     one("fsMasked", &built.masked);
+    one("fsFinal", &built.final);
+    one("fsFill", &built.fill);
+    one("fsThreshold", &built.threshold);
     return built;
   }();
   return programs;

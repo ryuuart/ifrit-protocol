@@ -35,11 +35,40 @@ namespace {
  *  This mapping is the one thing here the engine cannot spell: an
  *  `SkBlendMode` is Skia's word and no Diligent type names it. */
 const dg::BlendStateDesc& blendFor(SkBlendMode mode) {
+  // Three more the engine has no name for, each exact over premultiplied
+  // colour wherever what stands behind is opaque: MULTIPLY keeps what is
+  // behind times the source plus what the source leaves uncovered;
+  // SCREEN adds the source and takes away what the two share; MODULATE
+  // is the product of the two premultiplied colours.
+  static const dg::BlendStateDesc multiply = [] {
+    dg::BlendStateDesc desc = dg::BS_PremultipliedAlphaBlend;
+    desc.RenderTargets[0].SrcBlend = dg::BLEND_FACTOR_DEST_COLOR;
+    return desc;
+  }();
+  static const dg::BlendStateDesc screen = [] {
+    dg::BlendStateDesc desc = dg::BS_PremultipliedAlphaBlend;
+    desc.RenderTargets[0].DestBlend = dg::BLEND_FACTOR_INV_SRC_COLOR;
+    return desc;
+  }();
+  static const dg::BlendStateDesc modulate = [] {
+    dg::BlendStateDesc desc = dg::BS_PremultipliedAlphaBlend;
+    desc.RenderTargets[0].SrcBlend = dg::BLEND_FACTOR_ZERO;
+    desc.RenderTargets[0].DestBlend = dg::BLEND_FACTOR_SRC_COLOR;
+    desc.RenderTargets[0].SrcBlendAlpha = dg::BLEND_FACTOR_ZERO;
+    desc.RenderTargets[0].DestBlendAlpha = dg::BLEND_FACTOR_SRC_ALPHA;
+    return desc;
+  }();
   switch (mode) {
     case SkBlendMode::kSrc:
       return dg::BS_Default;
     case SkBlendMode::kPlus:
       return dg::BS_AdditiveBlend;
+    case SkBlendMode::kMultiply:
+      return multiply;
+    case SkBlendMode::kScreen:
+      return screen;
+    case SkBlendMode::kModulate:
+      return modulate;
     default:
       return dg::BS_PremultipliedAlphaBlend;
   }
@@ -90,7 +119,7 @@ const Pipeline* PipelineCache::pipeline(const PipelineKey& key) {
       dg::SHADER_RESOURCE_VARIABLE_TYPE_DYNAMIC;
   info.AddShader(vs)
       .AddShader(ps)
-      .AddRenderTarget(kColorFormat)
+      .AddRenderTarget(key.target)
       .SetDepthFormat(key.depth ? kDepthFormat : dg::TEX_FORMAT_UNKNOWN)
       .SetPrimitiveTopology(dg::PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
       .SetBlendDesc(blendFor(key.blend));
@@ -134,7 +163,9 @@ void bindDraw(Resources& shared, const Pipeline& pipeline,
               const material::slang::Compiled& program,
               const material::slang::Uniforms& values,
               std::span<dg::ITexture* const> textures, SkFilterMode filter,
-              bool tile, bool (*panoramaSlot)(std::string_view)) {
+              bool tile, bool (*panoramaSlot)(std::string_view),
+              std::span<dg::ISampler* const> samplers,
+              std::span<dg::ITextureView* const> views) {
   dg::IDeviceContext* context = shared.device().context();
   dg::IBuffer* buffer = shared.uniformBuffer(program.uniformBytes);
   if (buffer && !values.bytes().empty()) {
@@ -157,7 +188,9 @@ void bindDraw(Resources& shared, const Pipeline& pipeline,
     if (!texture) texture = shared.white();
     if (!texture) continue;
     dg::ITextureView* view =
-        texture->GetDefaultView(dg::TEXTURE_VIEW_SHADER_RESOURCE);
+        i < views.size() && views[i]
+            ? views[i]
+            : texture->GetDefaultView(dg::TEXTURE_VIEW_SHADER_RESOURCE);
     if (!view) continue;
     // A combined sampler reaches the shader through the view, which is
     // why the filter is set on the view here rather than through a
@@ -170,7 +203,9 @@ void bindDraw(Resources& shared, const Pipeline& pipeline,
     // across rather than a filtering aid.
     const bool panorama = panoramaSlot && panoramaSlot(program.textures[i]) &&
                           shared.panoramaSampler() != nullptr;
+    dg::ISampler* own = i < samplers.size() ? samplers[i] : nullptr;
     view->SetSampler(panorama ? shared.panoramaSampler()
+                     : own    ? own
                               : shared.samplerFor(filter, tile));
     // BOTH STAGES, the way the uniform buffer is bound to both: a
     // program that shades per VERTEX reads its maps there, and a slot

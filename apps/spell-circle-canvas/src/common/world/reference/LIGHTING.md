@@ -16,8 +16,11 @@ lobe, split by metalness and Fresnel — with a clear coat as a second lobe
 over it; light arriving from everywhere (the environment, ambient and
 hemisphere lights) adds its diffuse and mirrored share with the energy a
 rough surface scatters more than once put back, darkened by occlusion;
-emission adds its own light; and the sum is exposed, passed through the
-camera's tone curve, and encoded for the display — last, once. Nothing
+emission adds its own light; and the sum is written as light into a
+half-float target. Every pass over the picture — a blur, a composite, a
+bloom — works on that light, and the final stage exposes it, passes it
+through the camera's tone curve and encodes it for the display — last,
+once, when the picture leaves the frame. Nothing
 lights a set that the set did not state: a set with no ambient light and
 no environment has black shadows.
 
@@ -121,13 +124,19 @@ shows.
   strength above one is brighter than white and the curve holds it.
 - An environment map is linear radiance.
 - A surface that is its own light (`material::surface::unlit`) is drawn
-  as authored: no exposure, no curve.
+  as authored: it is written as the light the final stage turns back into
+  its colour, so where it is opaque the exposure and the curve leave it as
+  it was authored.
+- A data texture (`media::ColorSpace::Data`) is never decoded or
+  premultiplied; a surface's normal, roughness, metalness, occlusion and
+  clear-coat maps are data by their role.
 
 ## The camera's reading
 
-`CameraOptions::exposure` multiplies the sum; doubling it is one stop.
-`CameraOptions::toneCurve` then compresses it, and the result is encoded
-for the display target:
+`CameraOptions::exposure` multiplies the light a pass wrote; doubling it
+is one stop. `CameraOptions::toneCurve` then compresses it, and the result
+is encoded for the display — in the final stage, after every body and
+every post pass:
 
 | curve | reads |
 |---|---|

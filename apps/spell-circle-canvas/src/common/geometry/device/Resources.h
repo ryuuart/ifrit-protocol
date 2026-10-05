@@ -30,6 +30,12 @@ namespace sigil::geometry::device {
  *  be handed one texture. */
 inline constexpr Diligent::TEXTURE_FORMAT kColorFormat =
     Diligent::TEX_FORMAT_RGBA8_UNORM;
+/** THE FORMAT LIGHT IS HELD IN before it is read for a display: half
+ *  floats, which keep a radiance far above white — a flame, a sun, an
+ *  emissive surface — for a later stage to spread or compress rather than
+ *  cutting it at one where it is drawn. */
+inline constexpr Diligent::TEXTURE_FORMAT kRadianceFormat =
+    Diligent::TEX_FORMAT_RGBA16_FLOAT;
 inline constexpr Diligent::TEXTURE_FORMAT kDepthFormat =
     Diligent::TEX_FORMAT_D32_FLOAT;
 

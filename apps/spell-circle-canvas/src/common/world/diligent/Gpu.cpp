@@ -7,6 +7,7 @@
 #include "Gpu.h"
 
 #include <Graphics/GraphicsTools/interface/CommonlyUsedStates.h>
+#include <sigilworld/advanced/Skia.h>
 
 #include <Graphics/GraphicsEngine/interface/GraphicsTypesX.hpp>
 #include <Graphics/GraphicsTools/interface/MapHelper.hpp>
@@ -16,34 +17,8 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include <sigilworld/advanced/Skia.h>
 
 namespace sigil::world::diligent {
-
-namespace {
-
-/** HOW A MODE BLENDS, as the engine's own named states.
- *
- *  Colour arrives PREMULTIPLIED — its alpha is already in it — so the
- *  source is taken whole and the mode is decided entirely by what
- *  multiplies the destination, which is exactly the distinction the
- *  three states below draw. A draw that replaces what stands blends
- *  nothing at all, and the default state is the one with blending off.
- *
- *  This mapping is the one thing here the engine cannot spell: an
- *  `SkBlendMode` is Skia's word and no Diligent type names it. */
-const dg::BlendStateDesc& blendFor(SkBlendMode mode) {
-  switch (mode) {
-    case SkBlendMode::kSrc:
-      return dg::BS_Default;
-    case SkBlendMode::kPlus:
-      return dg::BS_AdditiveBlend;
-    default:
-      return dg::BS_PremultipliedAlphaBlend;
-  }
-}
-
-}  // namespace
 
 Gpu::~Gpu() {
   // Everything below borrows the device's queue; nothing may be
@@ -51,7 +26,8 @@ Gpu::~Gpu() {
   if (device && device->context()) device->context()->Flush();
 }
 
-dg::RefCntAutoPtr<dg::ITexture> Gpu::makeColor(const char* label) {
+dg::RefCntAutoPtr<dg::ITexture> Gpu::makeColor(const char* label,
+                                               dg::TEXTURE_FORMAT format) {
   dg::RefCntAutoPtr<dg::ITexture> texture;
   if (extent.isEmpty() || !device->renderDevice()) return texture;
   dg::TextureDesc desc;
@@ -59,7 +35,7 @@ dg::RefCntAutoPtr<dg::ITexture> Gpu::makeColor(const char* label) {
   desc.Type = dg::RESOURCE_DIM_TEX_2D;
   desc.Width = (dg::Uint32)extent.width();
   desc.Height = (dg::Uint32)extent.height();
-  desc.Format = kColorFormat;
+  desc.Format = format;
   desc.BindFlags = dg::BIND_RENDER_TARGET | dg::BIND_SHADER_RESOURCE;
   desc.Usage = dg::USAGE_DEFAULT;
   device->renderDevice()->CreateTexture(desc, nullptr, &texture);
@@ -71,6 +47,9 @@ void Gpu::resize(SkISize size) {
   extent = size;
   images.clear();
   depth.Release();
+  opaqueDepthView.Release();
+  opaqueDepth.Release();
+  display.Release();
   scratch.clear();
   if (extent.isEmpty() || !device->renderDevice()) return;
   dg::TextureDesc desc;
@@ -139,10 +118,38 @@ void Gpu::endFrame() {
   maps.endFrame();
 }
 
+dg::ITexture* Gpu::depthForReading() {
+  if (opaqueDepth || extent.isEmpty() || !device->renderDevice())
+    return opaqueDepth;
+  dg::TextureDesc desc;
+  desc.Name = "world opaque depth";
+  desc.Type = dg::RESOURCE_DIM_TEX_2D;
+  desc.Width = (dg::Uint32)extent.width();
+  desc.Height = (dg::Uint32)extent.height();
+  desc.Format = kDepthFormat;
+  desc.BindFlags = dg::BIND_SHADER_RESOURCE;
+  desc.Usage = dg::USAGE_DEFAULT;
+  device->renderDevice()->CreateTexture(desc, nullptr, &opaqueDepth);
+  if (!opaqueDepth) return nullptr;
+  dg::TextureViewDesc view;
+  view.ViewType = dg::TEXTURE_VIEW_SHADER_RESOURCE;
+  view.Format = kDepthFormat;
+  opaqueDepth->CreateView(view, &opaqueDepthView);
+  if (!opaqueDepthView) opaqueDepth.Release();
+  return opaqueDepth;
+}
+
 sk_sp<SkImage> Gpu::read(std::string_view name) {
   dg::ITexture* texture = current(name);
   if (!texture) texture = previous(name);
-  return shared.read(texture);
+  if (!texture) return nullptr;
+  // A RESOURCE LEAVES THE FRAME THROUGH THE FINAL STAGE: what the passes
+  // hold is light, and what a display or a readback is handed is that
+  // light as the camera reads it.
+  if (!display) display = makeColor("world display", kColorFormat);
+  if (!display) return nullptr;
+  finalStage(*this, texture, display);
+  return shared.read(display);
 }
 
 glm::mat4 mapMatrix(const SkMatrix& uv) {
@@ -151,6 +158,29 @@ glm::mat4 mapMatrix(const SkMatrix& uv) {
   out[1] = {uv.getSkewX(), uv.getScaleY(), 0.0f, 0.0f};
   out[3] = {uv.getTranslateX(), uv.getTranslateY(), 0.0f, 1.0f};
   return out;
+}
+
+void resumeTarget(Gpu& gpu, dg::ITexture* colour, bool withDepth) {
+  dg::ITextureView* rtv =
+      colour->GetDefaultView(dg::TEXTURE_VIEW_RENDER_TARGET);
+  dg::ITextureView* dsv =
+      withDepth && gpu.depth
+          ? gpu.depth->GetDefaultView(dg::TEXTURE_VIEW_DEPTH_STENCIL)
+          : nullptr;
+  gpu.device->context()->SetRenderTargets(
+      1, &rtv, dsv, dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+}
+
+float curveNumber(ToneCurve curve) {
+  switch (curve) {
+    case ToneCurve::Reinhard:
+      return 0.0f;
+    case ToneCurve::Neutral:
+      return 1.0f;
+    case ToneCurve::Linear:
+      return 2.0f;
+  }
+  return 0.0f;
 }
 
 void openTarget(Gpu& gpu, dg::ITexture* colour, const float* clear,

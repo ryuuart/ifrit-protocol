@@ -19,6 +19,14 @@ class Mesh : public Node,
              public SurfaceVerbs<Mesh> {
  public:
   Mesh() = default;
+  /** TURNS THE BODY TO FACE THE CAMERA the frame looks through, keeping
+   *  where it stands and its scale: `Facing::Camera` square on to the
+   *  picture, `Facing::CameraUpright` about the world's up axis only. The
+   *  node's own rotation is replaced; the body's +z faces the camera. */
+  Mesh& facing(Facing turned) {
+    edit().facing = turned;
+    return *this;
+  }
 };
 
 /** A body of @p triangles, lit at the stock surface until it is

@@ -15,8 +15,10 @@
 // clang-format on
 
 #include <include/core/SkBitmap.h>
+#include <include/core/SkColorSpace.h>
 #include <include/core/SkImageInfo.h>
 #include <sigilcore/hardware/GpuDevice.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilskia/graphite/Pixels.h>
 
 #include <Graphics/GraphicsAccessories/interface/GraphicsAccessories.hpp>
@@ -25,7 +27,6 @@
 #include <vector>
 
 #include "Resources.h"
-#include <sigilmedia/advanced/Skia.h>
 
 namespace sigil::geometry::device {
 
@@ -70,6 +71,56 @@ dg::TextureDesc uploadedMapDesc(const char* label, int width, int height) {
   return desc;
 }
 
+/** WHAT AN IMAGE BECOMES ON THE DEVICE in one form: the device's format,
+ *  the host layout its pixels are read into for it, and whether the device
+ *  can derive smaller copies of it. */
+struct Layout {
+  dg::TEXTURE_FORMAT format = kColorFormat;
+  SkColorType colorType = kRGBA_8888_SkColorType;
+  SkAlphaType alpha = kPremul_SkAlphaType;
+  bool derivable = true;
+};
+
+/** Whether @p format can be read between its texels on @p device. */
+bool filterable(Device& device, dg::TEXTURE_FORMAT format) {
+  return device.renderDevice()->GetTextureFormatInfoExt(format).Filterable;
+}
+
+/** THE LAYOUT @p image TAKES IN @p form. Colour is eight bits a channel,
+ *  premultiplied. Data keeps its alpha straight and its precision: a
+ *  thirty-two-bit float image stays thirty-two bits unless it is to be
+ *  filtered where the device cannot filter that format, a half-float one
+ *  stays half, sixteen-bit integers stay sixteen-bit, and everything else
+ *  is eight bits a channel. */
+Layout layoutFor(const SkImage& image, const MapForm& form, Device& device) {
+  Layout out;
+  if (form.colorSpace == media::ColorSpace::Srgb) return out;
+  out.alpha = kUnpremul_SkAlphaType;
+  switch (image.colorType()) {
+    case kRGBA_F32_SkColorType:
+      if (!form.filtered || filterable(device, dg::TEX_FORMAT_RGBA32_FLOAT)) {
+        out.format = dg::TEX_FORMAT_RGBA32_FLOAT;
+        out.colorType = kRGBA_F32_SkColorType;
+        out.derivable = filterable(device, dg::TEX_FORMAT_RGBA32_FLOAT);
+        return out;
+      }
+      out.format = dg::TEX_FORMAT_RGBA16_FLOAT;
+      out.colorType = kRGBA_F16_SkColorType;
+      return out;
+    case kRGBA_F16_SkColorType:
+    case kRGBA_F16Norm_SkColorType:
+      out.format = dg::TEX_FORMAT_RGBA16_FLOAT;
+      out.colorType = kRGBA_F16_SkColorType;
+      return out;
+    case kR16G16B16A16_unorm_SkColorType:
+      out.format = dg::TEX_FORMAT_RGBA16_UNORM;
+      out.colorType = kR16G16B16A16_unorm_SkColorType;
+      return out;
+    default:
+      return out;
+  }
+}
+
 /** One level of a half-float panorama, as the device takes it. */
 dg::TextureSubResData halfFloatLevel(const std::vector<uint16_t>& pixels,
                                      int width) {
@@ -88,7 +139,8 @@ int mapMipLevels(int width, int height) {
 
 TextureResidency::TextureResidency(Device& device) : m_device(&device) {}
 
-dg::ITexture* TextureResidency::sample(const material::Texture& map) {
+dg::ITexture* TextureResidency::sample(const material::Texture& map,
+                                       const MapForm& form) {
   if (!m_device->renderDevice()) return nullptr;
 
   // ZERO COPY: the pixels already stand on this very device, so what a
@@ -115,14 +167,18 @@ dg::ITexture* TextureResidency::sample(const material::Texture& map) {
 
   const sk_sp<SkImage> image = map.frameAt().image;
   if (!image) return nullptr;
-  SampledImage& held = m_uploaded[image->uniqueID()];
+  const Layout layout = layoutFor(*image, form, *m_device);
+  const uint64_t key = ((uint64_t)image->uniqueID() << 8u) |
+                       ((uint64_t)layout.format << 1u) |
+                       (form.mipmaps ? 1u : 0u);
+  SampledImage& held = m_uploaded[key];
   held.used = m_frame;
   if (held.texture) return held.texture;
 
   SkBitmap bytes;
   if (!bytes.tryAllocPixels(SkImageInfo::Make(image->width(), image->height(),
-                                              kRGBA_8888_SkColorType,
-                                              kPremul_SkAlphaType)))
+                                              layout.colorType, layout.alpha,
+                                              nullptr)))
     return nullptr;
   if (!image->readPixels(nullptr, bytes.pixmap(), 0, 0)) return nullptr;
 
@@ -130,9 +186,15 @@ dg::ITexture* TextureResidency::sample(const material::Texture& map) {
   // it has levels or the device refuses it, and only level zero is
   // known here. It is written after the fact and whatever levels stand
   // under it derived from it, once, on the frame the map first appears.
-  m_device->renderDevice()->CreateTexture(
-      uploadedMapDesc("sampled map", image->width(), image->height()), nullptr,
-      &held.texture);
+  dg::TextureDesc desc =
+      uploadedMapDesc("sampled map", image->width(), image->height());
+  desc.Format = layout.format;
+  if (!form.mipmaps || !layout.derivable) {
+    desc.MipLevels = 1;
+    desc.BindFlags = dg::BIND_SHADER_RESOURCE;
+    desc.MiscFlags = dg::MISC_TEXTURE_FLAG_NONE;
+  }
+  m_device->renderDevice()->CreateTexture(desc, nullptr, &held.texture);
   if (!held.texture) return nullptr;
 
   dg::TextureSubResData level;
