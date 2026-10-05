@@ -5,7 +5,7 @@ from __future__ import annotations
 from .table import Table
 
 WORLD = "_sigil.world"
-KINDS = ("Group", "Mesh", "Light", "Camera")
+KINDS = ("Group", "Null", "Mesh", "Light", "Camera")
 # A light's tint is four numbers as the renderer stores them, so a light
 # brighter than white stays writable, and it is also a colour, so the
 # spellings every other colour accepts reach it.

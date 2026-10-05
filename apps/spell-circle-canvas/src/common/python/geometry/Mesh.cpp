@@ -1,8 +1,9 @@
-#include <pybind11/stl.h>
 #include <include/core/SkPath.h>
-#include <sigilgeometry/kit/Solids.h>
+#include <pybind11/stl.h>
 #include <sigilgeometry/advanced/Skia.h>
+#include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Faces.h>
+#include <sigilgeometry/mesh/Instances.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/Vec.h>
 #include <sigilpython/Bindings.h>
@@ -67,10 +68,8 @@ void bindGeometryMesh(py::module_& module) {
       // would otherwise appear to be writable and quietly write nothing.
       .def(
           "primitive",
-          [](mesh::Mesh& value, const std::string& name,
-             glm::vec4 fill) -> std::vector<glm::vec4> {
-            return value.primitive(name, fill);
-          },
+          [](mesh::Mesh& value, const std::string& name, glm::vec4 fill)
+              -> std::vector<glm::vec4> { return value.primitive(name, fill); },
           py::arg("name"), py::arg("fill") = glm::vec4{1, 1, 1, 1})
       .def(
           "primitiveIf",
@@ -90,11 +89,11 @@ void bindGeometryMesh(py::module_& module) {
             // is checked here rather than discovered as a mesh that
             // draws untinted.
             if (values.size() != value.triangleCount())
-              throw py::value_error(
-                  "The primitive lane " + name +
-                  " holds one value per triangle: " +
-                  std::to_string(value.triangleCount()) + " wanted, " +
-                  std::to_string(values.size()) + " given.");
+              throw py::value_error("The primitive lane " + name +
+                                    " holds one value per triangle: " +
+                                    std::to_string(value.triangleCount()) +
+                                    " wanted, " +
+                                    std::to_string(values.size()) + " given.");
             value.primitive(name) = values;
           },
           py::arg("name"), py::arg("values"))
@@ -102,6 +101,69 @@ void bindGeometryMesh(py::module_& module) {
       .def(
           "__eq__",
           [](const mesh::Mesh& value, const mesh::Mesh& other) {
+            return value == other;
+          },
+          py::arg("other"), py::is_operator());
+
+  // INSTANCED GEOMETRY: one stamp, and per instance a placement and its
+  // attributes. A turn is four numbers, x y z w, as a quaternion's parts;
+  // a named scalar is read and written as two verbs, as a primitive lane
+  // is, because the native lane lives in a map Python cannot hold into.
+  bindRecord<mesh::Instances>(meshes, "Instances",
+                              "Instanced geometry has no field named ")
+      .def_readwrite("stamp", &mesh::Instances::stamp)
+      .def_readwrite("positions", &mesh::Instances::positions)
+      .def_property(
+          "orientations",
+          [](const mesh::Instances& value) {
+            std::vector<glm::vec4> out;
+            out.reserve(value.orientations.size());
+            for (const glm::quat& q : value.orientations)
+              out.emplace_back(q.x, q.y, q.z, q.w);
+            return out;
+          },
+          [](mesh::Instances& value, const std::vector<glm::vec4>& turns) {
+            value.orientations.clear();
+            for (const glm::vec4& q : turns)
+              value.orientations.emplace_back(q.w, q.x, q.y, q.z);
+          })
+      .def_readwrite("scales", &mesh::Instances::scales)
+      .def_readwrite("colors", &mesh::Instances::colors)
+      .def_readwrite("textureWindows", &mesh::Instances::textureWindows)
+      .def("size", &mesh::Instances::size)
+      .def("__len__", &mesh::Instances::size)
+      .def("placement", &mesh::Instances::placement, py::arg("index"))
+      .def(
+          "attribute",
+          [](const mesh::Instances& value,
+             std::string_view name) -> std::optional<std::vector<float>> {
+            const std::vector<float>* lane = value.attributeIf(name);
+            if (lane == nullptr) return std::nullopt;
+            return *lane;
+          },
+          py::arg("name"))
+      .def(
+          "setAttribute",
+          [](mesh::Instances& value, const std::string& name,
+             const std::vector<float>& values) {
+            if (values.size() != value.size())
+              throw py::value_error("The attribute " + name +
+                                    " holds one value per instance: " +
+                                    std::to_string(value.size()) + " wanted, " +
+                                    std::to_string(values.size()) + " given.");
+            value.attributes[name] = values;
+          },
+          py::arg("name"), py::arg("values"))
+      .def("attributeNames",
+           [](const mesh::Instances& value) {
+             std::vector<std::string> names;
+             for (const auto& [name, values] : value.attributes)
+               names.push_back(name);
+             return names;
+           })
+      .def(
+          "__eq__",
+          [](const mesh::Instances& value, const mesh::Instances& other) {
             return value == other;
           },
           py::arg("other"), py::is_operator());
@@ -254,12 +316,11 @@ void bindGeometryMesh(py::module_& module) {
       },
       py::arg("sections"), py::arg("segmentsBetween") = 0,
       py::arg("closed") = false, py::arg("capEnds") = true);
-  meshes.def("revolve",
-             static_cast<mesh::Mesh (*)(const std::vector<glm::vec2>&,
-                                        const mesh::RevolveOptions&)>(
-                 &mesh::revolve),
-             py::arg("profile"),
-             py::arg("options") = mesh::RevolveOptions{});
+  meshes.def(
+      "revolve",
+      static_cast<mesh::Mesh (*)(const std::vector<glm::vec2>&,
+                                 const mesh::RevolveOptions&)>(&mesh::revolve),
+      py::arg("profile"), py::arg("options") = mesh::RevolveOptions{});
   meshes.def(
       "revolve",
       [](const std::vector<glm::vec2>& profile, int segments, float sweepDeg,
@@ -289,8 +350,7 @@ void bindGeometryMesh(py::module_& module) {
       py::arg("direction"), py::arg("up"));
 
   meshes.def("faceCount", &mesh::faceCount, py::arg("mesh"));
-  meshes.def("faceNormal", &mesh::faceNormal, py::arg("mesh"),
-             py::arg("face"));
+  meshes.def("faceNormal", &mesh::faceNormal, py::arg("mesh"), py::arg("face"));
   meshes.def("faceCentroid", &mesh::faceCentroid, py::arg("mesh"),
              py::arg("face"));
   meshes.def("opposedFace", &mesh::opposedFace, py::arg("mesh"),

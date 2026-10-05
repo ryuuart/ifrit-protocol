@@ -1,4 +1,4 @@
-"""Primitive lanes, faces, extrusion caps and the normal grid.
+"""Primitive lanes, faces, extrusion caps, the normal grid and instances.
 
 Input contracts for the erased signatures of the
 geometry-mesh/mesh-currency package, and nothing else: a fragment is one
@@ -16,6 +16,7 @@ from .table import Table
 
 MESH = "_sigil.geometry.mesh"
 MESH_CLASS = MESH + ".Mesh"
+INSTANCES = MESH + ".Instances"
 
 
 def register(table: Table) -> None:
@@ -43,6 +44,20 @@ def register(table: Table) -> None:
         table.returns(MESH_CLASS, name, f"list[_t.Vec{dimension}]")
         table.parameters(
             MESH_CLASS + "." + name,
+            value=f"collections.abc.Sequence[_t.Vec{dimension}Like]",
+        )
+    # An instance's lanes are vectors too, and a turn is four numbers —
+    # a quaternion's x, y, z and w.
+    for name, dimension in (
+        ("colors", 4),
+        ("orientations", 4),
+        ("positions", 3),
+        ("scales", 3),
+        ("textureWindows", 4),
+    ):
+        table.returns(INSTANCES, name, f"list[_t.Vec{dimension}]")
+        table.parameters(
+            INSTANCES + "." + name,
             value=f"collections.abc.Sequence[_t.Vec{dimension}Like]",
         )
     table.returns(MESH_CLASS, "primitive", "list[_t.Vec4]")

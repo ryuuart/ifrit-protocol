@@ -305,6 +305,19 @@ void bindKinds(py::module_& module) {
         return world::mesh(std::move(triangles));
       },
       py::arg("mesh"));
+  module.def(
+      "mesh",
+      [](geometry::mesh::Instances instances) {
+        return world::mesh(std::move(instances));
+      },
+      py::arg("instances"),
+      "A body of instanced geometry: its stamp drawn once per instance.");
+
+  auto null = py::class_<world::Null, world::Node>(module, "Null");
+  bindNodeVerbs(null);
+  module.def("null", &world::null,
+             "A placement with a key and nothing else, there to be referred "
+             "to: a pivot, or what a light or a camera looks at.");
 
   auto light = py::class_<world::Light, world::Node>(module, "Light");
   bindNodeVerbs(light);
@@ -321,6 +334,7 @@ void bindKinds(py::module_& module) {
             return self.shadowLink(collectionOf(blockers));
           },
           py::arg("blockers"), fluent)
+      .def("lookAt", &world::Light::lookAt, py::arg("key"), fluent)
       .def_property_readonly("description", &world::Light::description);
   module.def(
       "directionalLight",
@@ -378,6 +392,7 @@ void bindKinds(py::module_& module) {
       .value("Linear", world::ToneCurve::Linear);
   auto camera = py::class_<world::Camera, world::Node>(module, "Camera");
   bindNodeVerbs(camera);
+  camera.def("lookAt", &world::Camera::lookAt, py::arg("key"), fluent);
   module.def(
       "camera",
       [](const geometry::mesh::camera::Camera& lens, py::handle exposure,

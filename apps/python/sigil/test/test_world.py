@@ -88,6 +88,31 @@ class World(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "eye"):
             scene.render(world.group(eye, world.camera(camera()).key("other")))
 
+    def test_instanced_geometry_is_a_mesh_and_a_null_is_looked_at(self):
+        sparks = mesh.Instances()
+        sparks.stamp = mesh.quad(4, 4)
+        sparks.positions = [(0, 0, 0), (10, 0, 0)]
+        sparks.orientations = [(0, 0, 0, 1), (0, 0, 0, 1)]
+        sparks.setAttribute("age", [0.25, 0.75])
+        self.assertEqual(len(sparks), 2)
+        self.assertEqual(sparks.attribute("age"), [0.25, 0.75])
+        self.assertEqual(sparks.attributeNames(), ["age"])
+        with self.assertRaises(ValueError):
+            sparks.setAttribute("phase", [0.5])
+        eye = world.camera(camera()).key("eye").lookAt("pivot")
+        scene = world.Scene()
+        scene.render(
+            world.group(
+                world.mesh(sparks).key("sparks"),
+                world.null().key("pivot").at((5, 6, 7)),
+                eye,
+            )
+        )
+        self.assertNotEqual(scene.handleOf("sparks"), 0)
+        self.assertEqual(tuple(scene.camera.target), (5, 6, 7))
+        with self.assertRaisesRegex(ValueError, "nowhere"):
+            scene.render(world.group(world.camera(camera()).lookAt("nowhere")))
+
     def test_frame_passes_need_a_device_and_report_native_graph_errors(self):
         scene = world.Scene()
         base = (

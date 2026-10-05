@@ -1999,10 +1999,19 @@ python = [
 ]
 
 [[section.surface.item]]
-native = "`points` over a cloud or a chain, with its window, and `mesh` over a generator"
+native = "`mesh` over instanced geometry, `null`, and `lookAt` on a light or a camera"
 python = [
-  "world.points",
-  "world.Points",
+  "geometry.mesh.Instances",
+  "world.null",
+  "world.Null",
+  "world.Light.lookAt",
+  "world.Camera.lookAt",
+]
+
+[[section.surface.item]]
+native = "`mesh` over a generator"
+python = [
+  "world.Generator",
 ]
 
 [[section.surface.item]]

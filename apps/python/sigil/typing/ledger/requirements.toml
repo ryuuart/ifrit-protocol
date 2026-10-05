@@ -907,9 +907,9 @@ library = "Scry"
 python = ["compose.web"]
 
 [requirement.world-chains]
-native = "`world::points` over a chain, with its stamp and window"
+native = "`world::mesh` over instanced geometry a chain ends in, with its stamp and window"
 library = "World"
-python = ["world.points", "world.PointsOptions"]
+python = ["world.mesh", "geometry.mesh.Instances"]
 
 [requirement.world-environment]
 native = "`world::Frame::environment` and `world::kit::environmentMap`"
