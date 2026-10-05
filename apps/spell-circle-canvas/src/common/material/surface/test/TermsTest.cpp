@@ -1,7 +1,10 @@
 /** @file
  * THE SHADING TERMS, evaluated: each meets its closed form, the
  * environment falls off with roughness, the panorama's middle is
- * straight ahead, and the exposure multiplies before the curve.
+ * straight ahead, the exposure multiplies before the curve, the specular
+ * lobe neither makes light nor — once the light it scatters more than
+ * once is put back — loses it, and the split-sum fit stands within a
+ * stated distance of the lobe's own integral.
  */
 
 #include <gtest/gtest.h>
@@ -21,6 +24,7 @@
 #include <glm/vec3.hpp>
 #include <memory>
 #include <string>
+#include <vector>
 
 using namespace sigil::material;
 
@@ -124,12 +128,18 @@ const ClosedForm kClosedForms[] = {
      "specularColor(float3(0.9, 0.6, 0.3), 1.0).g", 0.6f, 2e-3f},
     {"ADielectricsReflectanceIsFourPerCent",
      "specularColor(float3(0.9, 0.6, 0.3), 0.0).g", 0.04f, 2e-3f},
-    // THE SPLIT SUM at its one exact point: a mirror seen head on returns
-    // the radiance it was handed, scale plus bias summing to one.
+    // THE SPLIT SUM at its one exact point: a mirror seen head on, whose
+    // table reads a scale of one and no bias, returns the radiance it was
+    // handed.
     {"TheSplitSumIsExactForAMirrorSeenHeadOn",
      "environmentSpecular(float3(1.0, 1.0, 1.0), float3(1.0, 1.0, 1.0), "
-     "0.0, 1.0).r",
+     "0.0, 1.0, float2(1.0, 0.0)).r",
      1.0f, 3e-3f},
+    // The table is read at its texel centres, its edges included.
+    {"TheTableIsReadAtItsFirstCentre", "environmentBrdfUv(0.0, 0.0, 32.0).x",
+     0.5f / 32.0f, 1e-4f},
+    {"TheTableIsReadAtItsLastCentre", "environmentBrdfUv(1.0, 1.0, 32.0).y",
+     31.5f / 32.0f, 2e-4f},
     // ADDITIVE reflection is the radiance at its weight and nothing else.
     {"AdditiveReflectionIsTheRadianceAtItsWeight",
      "environmentReflection(float3(0.5, 0.5, 0.5), 0.6).r", 0.3f, 2e-3f},
@@ -184,6 +194,105 @@ const ClosedForm kClosedForms[] = {
      "toneMap(float3(100.0, 100.0, 100.0), 1.0).r", 100.0f / 101.0f, 2e-3f},
     {"ANegativeRadianceAnswersBlack",
      "toneMap(float3(-1.0, -1.0, -1.0), 1.0).r", 0.0f, 2e-3f},
+    // THE GGX DISTRIBUTION at its peak is one over pi times the width
+    // squared, and at full roughness it is flat at one over pi.
+    {"TheDistributionPeaksAtOneOverPiAlphaSquared", "distributionGgx(1.0, 0.5)",
+     1.0f / (3.14159265f * 0.0625f), 5e-3f},
+    {"AtFullRoughnessTheDistributionIsFlat", "distributionGgx(0.3, 1.0)",
+     1.0f / 3.14159265f, 2e-3f},
+    // THE CORRELATED SMITH VISIBILITY: at full roughness one half over the
+    // two cosines' sum, and for a mirror one over four times their product.
+    {"VisibilityAtFullRoughness", "visibilityGgx(1.0, 1.0, 1.0)", 0.25f, 2e-3f},
+    {"VisibilityOfAMirrorIsOneOverFourCosines", "visibilityGgx(0.5, 0.5, 0.0)",
+     1.0f, 3e-3f},
+    // FRESNEL between two reflectances: the first head on, the second at
+    // the grazing angle, a thirty-second of the way at sixty degrees.
+    {"SchlickHeadOnIsTheHeadOnReflectance",
+     "fresnelSchlick(float3(0.04), float3(1.0), 1.0).r", 0.04f, 2e-3f},
+    {"SchlickAtTheGrazingAngleIsTheGrazingReflectance",
+     "fresnelSchlick(float3(0.04), float3(0.5), 0.0).r", 0.5f, 2e-3f},
+    {"SchlickAtSixtyDegrees", "fresnelSchlick(float3(0.0), float3(1.0), 0.5).r",
+     1.0f / 32.0f, 2e-3f},
+    {"EveryRealMaterialReachesWhiteAtTheRim", "reflectance90(float3(0.04)).r",
+     1.0f, 2e-3f},
+    {"AReflectanceUnderTwoPerCentFallsShortOfWhite",
+     "reflectance90(float3(0.01)).r", 0.5f, 2e-3f},
+    {"ADielectricsDiffuseIsWhatHeadOnFresnelLeaves",
+     "diffuseColor(float3(1.0), 0.0).r", 0.96f, 2e-3f},
+    {"AMetalHasNoDiffuse", "diffuseColor(float3(1.0), 1.0).r", 0.0f, 2e-3f},
+    // ONE LIGHT HEAD ON, a white matte dielectric: what the four per cent
+    // Fresnel leaves of the diffuse colour, over pi.
+    {"AWhiteMatteSurfaceHeadOnShowsItsDiffuseOverPi",
+     "directDiffuse(float3(0.0, 0.0, 1.0), float3(0.0, 0.0, 1.0), "
+     "float3(0.0, 0.0, 1.0), float3(0.96), float3(0.04), float3(1.0)).r",
+     0.96f * 0.96f / 3.14159265f, 2e-3f},
+    {"NoLightReachesFromBehind",
+     "directSpecular(float3(0.0, 0.0, 1.0), float3(0.0, 0.0, -1.0), "
+     "float3(0.0, 0.0, 1.0), float3(1.0), float3(1.0), 0.5).r",
+     0.0f, 2e-3f},
+    // THE INVERSE SQUARE at two distances, the window at its range.
+    {"AtTwiceTheDistanceAQuarter", "distanceFalloff(2.0, 0.0)", 0.25f, 2e-3f},
+    {"AtTenTimesTheDistanceAHundredth", "distanceFalloff(10.0, 0.0) * 100.0",
+     1.0f, 2e-3f},
+    {"HalfWayToTheRangeTheWindowIsFifteenSixteenthsSquared",
+     "distanceFalloff(50.0, 100.0) * 2500.0", (15.0f / 16) * (15.0f / 16),
+     3e-3f},
+    {"AtTheRangeNothing", "distanceFalloff(100.0, 100.0)", 0.0f, 1e-6f},
+    {"PastTheRangeNothing", "distanceFalloff(150.0, 100.0)", 0.0f, 1e-6f},
+    // THE CONE'S EDGES: everything at the inner cosine, nothing at the
+    // outer, the square of where it stands between.
+    {"InsideTheInnerConeEverything", "coneFalloff(0.99, 0.8, 0.95)", 1.0f,
+     2e-3f},
+    {"AtTheOuterConeNothing", "coneFalloff(0.8, 0.8, 0.95)", 0.0f, 2e-3f},
+    {"HalfWayBetweenTheConesAQuarter", "coneFalloff(0.875, 0.8, 0.95)", 0.25f,
+     2e-3f},
+    // THE HEMISPHERE: all sky facing up, all ground facing down, half of
+    // each at the horizon.
+    {"FacingUpTheHemisphereIsTheSky",
+     "hemisphereIrradiance(float3(0.0, 1.0, 0.0), float3(0.0, 1.0, 0.0), "
+     "float3(0.8), float3(0.2)).r",
+     0.8f, 2e-3f},
+    {"FacingDownTheHemisphereIsTheGround",
+     "hemisphereIrradiance(float3(0.0, -1.0, 0.0), float3(0.0, 1.0, 0.0), "
+     "float3(0.8), float3(0.2)).r",
+     0.2f, 2e-3f},
+    {"AtTheHorizonTheHemisphereIsHalfOfEach",
+     "hemisphereIrradiance(float3(1.0, 0.0, 0.0), float3(0.0, 1.0, 0.0), "
+     "float3(0.8), float3(0.2)).r",
+     0.5f, 2e-3f},
+    // A COAT passes all but its head-on four per cent, and no coat passes
+    // everything.
+    {"AFullCoatHeadOnPassesNinetySixPerCent",
+     "clearcoatTransmittance(1.0, 1.0)", 0.96f, 2e-3f},
+    {"NoCoatPassesEverything", "clearcoatTransmittance(0.0, 0.3)", 1.0f, 2e-3f},
+    // THE NEUTRAL CURVE: black stays black, a mid value loses only its
+    // offset, and a hundred times white lands just under one.
+    {"TheNeutralCurveLeavesBlackBlack", "toneMapNeutral(float3(0.0), 1.0).r",
+     0.0f, 2e-3f},
+    {"TheNeutralCurveTakesOnlyItsOffsetOffAMidValue",
+     "toneMapNeutral(float3(0.5), 1.0).r", 0.46f, 2e-3f},
+    {"TheNeutralCurveHoldsAHundredTimesWhiteUnderOne",
+     "toneMapNeutral(float3(100.0), 1.0).r", 0.9994f, 2e-3f},
+    {"NoCurveIsTheExposedRadiance", "toneMapLinear(float3(0.25), 2.0).r", 0.5f,
+     2e-3f},
+    {"NoCurveAnswersANegativeRadianceWithBlack",
+     "toneMapLinear(float3(-1.0), 1.0).r", 0.0f, 2e-3f},
+    {"CurveZeroIsReinhard", "toneCurve(float3(1.0), 1.0, 0.0).r", 0.5f, 2e-3f},
+    {"CurveOneIsNeutral", "toneCurve(float3(0.5), 1.0, 1.0).r", 0.46f, 2e-3f},
+    {"CurveTwoIsNone", "toneCurve(float3(0.5), 1.0, 2.0).r", 0.5f, 2e-3f},
+    // THE DISPLAY ENCODING: a mid code is a fifth of the light, the
+    // straight segment near black, and the two directions undo each other.
+    {"AMidCodeIsAFifthOfTheLight", "linearFromSrgbChannel(0.5)", 0.2140411f,
+     2e-3f},
+    {"NearBlackTheEncodingIsStraight", "linearFromSrgbChannel(0.02) * 100.0",
+     2.0f / 12.92f, 2e-3f},
+    {"WhiteDecodesToWhite", "linearFromSrgbChannel(1.0)", 1.0f, 2e-3f},
+    {"AFifthOfTheLightEncodesToAMidCode", "srgbFromLinearChannel(0.2140411)",
+     0.5f, 2e-3f},
+    {"EncodingAndDecodingUndoEachOther",
+     "srgbFromLinear(linearFromSrgb(float3(0.3, 0.6, 0.9))).g", 0.6f, 2e-3f},
+    {"TheEncodingHoldsNothingAboveWhite", "srgbFromLinearChannel(4.0)", 1.0f,
+     2e-3f},
 };
 
 }  // namespace
@@ -196,11 +305,24 @@ TEST_P(ShadingTerm, MeetsItsClosedForm) {
 INSTANTIATE_TEST_SUITE_P(EveryTerm, ShadingTerm,
                          testing::ValuesIn(kClosedForms), closedFormOf);
 
+namespace {
+
+/** The split sum's table at @p roughness and @p nDotV, spelled as the
+ *  argument a term takes it as. */
+std::string brdfAt(float roughness, float nDotV) {
+  const glm::vec2 ab = environmentBrdf(roughness, nDotV);
+  return "float2(" + std::to_string(ab.x) + ", " + std::to_string(ab.y) + ")";
+}
+
+}  // namespace
+
 TEST(Terms, ARoughSurfaceTakesLessOfTheEnvironmentThanASmoothOne) {
   EXPECT_LT(scalar("environmentSpecular(float3(1.0, 1.0, 1.0), "
-                   "float3(0.04, 0.04, 0.04), 1.0, 1.0).r"),
+                   "float3(0.04, 0.04, 0.04), 1.0, 1.0, " +
+                   brdfAt(1.0f, 1.0f) + ").r"),
             scalar("environmentSpecular(float3(1.0, 1.0, 1.0), "
-                   "float3(0.04, 0.04, 0.04), 0.0, 1.0).r"));
+                   "float3(0.04, 0.04, 0.04), 0.0, 1.0, " +
+                   brdfAt(0.0f, 1.0f) + ").r"));
 }
 
 TEST(Terms, LookingAlongMinusZIsTheMiddleOfThePanorama) {
@@ -255,3 +377,154 @@ glm::vec3 shaded(const std::string& expression) {
 }
 
 }  // namespace
+
+namespace {
+
+/** EVERY PIXEL OF ONE BODY over an @p n by @p n float surface, row by
+ *  row: what a term answers at each of n² arguments the body reads off
+ *  its pixel's coordinates. */
+std::vector<SkColor4f> evaluated(const std::string& body, int n) {
+  static int serial = 0;
+  const auto recipe = std::make_shared<const Recipe>(
+      Recipe::of<NoParameters>("terms.grid." + std::to_string(serial++))
+          .body(Target::SkSL, termsSource(Target::SkSL) + body));
+  sk_sp<SkShader> shader = skia::shader(Material(recipe, NoParameters{}), {});
+  EXPECT_TRUE(shader) << body;
+  std::vector<SkColor4f> out((size_t)n * n, SkColor4f{0, 0, 0, 0});
+  if (!shader) return out;
+  const SkImageInfo info =
+      SkImageInfo::Make(n, n, kRGBA_F32_SkColorType, kPremul_SkAlphaType);
+  sk_sp<SkSurface> surface = SkSurfaces::Raster(info);
+  SkPaint paint;
+  paint.setShader(shader);
+  paint.setBlendMode(SkBlendMode::kSrc);
+  surface->getCanvas()->drawPaint(paint);
+  EXPECT_TRUE(surface->readPixels(
+      SkPixmap(info, out.data(), (size_t)n * sizeof(SkColor4f)), 0, 0));
+  return out;
+}
+
+/** THE SPECULAR LOBE'S DIRECTIONAL ALBEDO, integrated: the light a
+ *  surface of @p roughness reflects toward an eye at @p nDotV out of a
+ *  uniform white surround, through `directSpecular` itself, with Fresnel
+ *  running from @p f0 to one. The hemisphere is cut into n² cells even in
+ *  the polar angle and the azimuth, each weighted by the solid angle it
+ *  covers, which keeps a narrow lobe several cells wide. */
+double specularAlbedo(float roughness, float nDotV, float f0, int n) {
+  const std::string cells = std::to_string(n) + ".0";
+  const std::string body =
+      "half4 main(float2 xy) {\n"
+      "  float theta = 1.57079633 * xy.y / " +
+      cells +
+      ";\n"
+      "  float phi = 6.28318531 * xy.x / " +
+      cells +
+      ";\n"
+      "  float s = sin(theta);\n"
+      "  float3 l = float3(s * cos(phi), s * sin(phi), cos(theta));\n"
+      "  float nv = " +
+      std::to_string(nDotV) +
+      ";\n"
+      "  float3 v = float3(sqrt(1.0 - nv * nv), 0.0, nv);\n"
+      "  float3 f = directSpecular(float3(0.0, 0.0, 1.0), l, v, float3(" +
+      std::to_string(f0) + "), float3(1.0), " + std::to_string(roughness) +
+      ");\n"
+      "  return half4(half(f.r * s), 0.0, 0.0, 1.0);\n"
+      "}\n";
+  double sum = 0;
+  for (const SkColor4f& cell : evaluated(body, n)) sum += cell.fR;
+  return sum * 1.5707963267948966 * 6.283185307179586 / ((double)n * (double)n);
+}
+
+}  // namespace
+
+TEST(Terms, TheSpecularLobeNeverReflectsMoreThanItReceives) {
+  // The single-bounce lobe loses light as it roughens — what leaves after
+  // a second bounce is not in it — and it never makes any.
+  for (const float roughness : {0.35f, 0.6f, 1.0f})
+    for (const float nDotV : {0.25f, 0.6f, 1.0f}) {
+      const double albedo = specularAlbedo(roughness, nDotV, 1.0f, 512);
+      EXPECT_LE(albedo, 1.01) << roughness << " " << nDotV;
+      EXPECT_GT(albedo, 0.25) << roughness << " " << nDotV;
+    }
+}
+
+TEST(Terms, TheSplitSumTableIsTheIntegralOfTheLobeTheLightsShadeWith) {
+  // The table is integrated on the host by importance sampling; here it
+  // is held to the same lobe integrated through `directSpecular` itself,
+  // evaluated in the shading language over the whole hemisphere. Its
+  // scale plus bias is the light a white surface of that roughness keeps
+  // in one bounce, and its bias alone what a black one keeps at its rim.
+  for (const float roughness : {0.35f, 0.5f, 0.75f, 1.0f})
+    for (const float nDotV : {0.2f, 0.5f, 0.8f, 1.0f}) {
+      const glm::vec2 table = environmentBrdf(roughness, nDotV);
+      const double white = specularAlbedo(roughness, nDotV, 1.0f, 512);
+      const double black = specularAlbedo(roughness, nDotV, 0.0f, 512);
+      EXPECT_NEAR(table.x + table.y, white, 0.015) << roughness << " " << nDotV;
+      EXPECT_NEAR(table.y, black, 0.015) << roughness << " " << nDotV;
+    }
+  // A mirror seen head on keeps everything and adds nothing at its rim.
+  EXPECT_NEAR(environmentBrdf(0.0f, 1.0f).x, 1.0f, 0.01f);
+  EXPECT_NEAR(environmentBrdf(0.0f, 1.0f).y, 0.0f, 0.01f);
+}
+
+TEST(Terms, TheTableReadBetweenItsTexelsStaysWithinTwoHundredthsOfTheIntegral) {
+  // Read halfway between texels — the worst place for a bilinear reading —
+  // the table still stands within two hundredths of the integral.
+  const std::vector<glm::vec2>& table = environmentBrdfTable();
+  const int size = kEnvironmentBrdfSize;
+  ASSERT_EQ(table.size(), (size_t)size * size);
+  const float last = (float)(size - 1);
+  for (const int y : {3, 10, 20, 29})
+    for (const int x : {1, 6, 15, 27}) {
+      const glm::vec2 read =
+          (table[(size_t)y * size + x] + table[(size_t)y * size + x + 1] +
+           table[(size_t)(y + 1) * size + x] +
+           table[(size_t)(y + 1) * size + x + 1]) *
+          0.25f;
+      const glm::vec2 exact =
+          environmentBrdf(((float)y + 0.5f) / last, ((float)x + 0.5f) / last);
+      EXPECT_NEAR(read.x, exact.x, 0.02f) << x << " " << y;
+      EXPECT_NEAR(read.y, exact.y, 0.02f) << x << " " << y;
+    }
+}
+
+TEST(Terms, AWhiteMetalInAWhiteFurnaceReturnsTheLightItWasLitBy) {
+  // With the light it scatters more than once put back, a white metal
+  // under a uniform white surround returns all of it at every roughness
+  // and every angle, and a white dielectric no more than that.
+  for (const float roughness : {0.0f, 0.4f, 0.7f, 1.0f})
+    for (const float nDotV : {0.2f, 0.6f, 1.0f}) {
+      const std::string at = std::to_string(roughness) + ", " +
+                             std::to_string(nDotV) + ", " +
+                             brdfAt(roughness, nDotV);
+      const glm::vec3 metal = shaded(
+          "environmentSpecular(float3(1.0), float3(1.0), " + at +
+          ") + environmentDiffuse(float3(1.0), float3(0.0), float3(1.0), " +
+          at + ")");
+      EXPECT_NEAR(metal.x, 1.0f, 5e-3f) << at;
+      const glm::vec3 dielectric = shaded(
+          "environmentSpecular(float3(1.0), float3(0.04), " + at +
+          ") + environmentDiffuse(float3(1.0), float3(0.96), float3(0.04), " +
+          at + ")");
+      EXPECT_LE(dielectric.x, 1.005f) << at;
+      EXPECT_GT(dielectric.x, 0.9f) << at;
+    }
+}
+
+TEST(Terms, TheLightARoughMetalScattersMoreThanOnceIsPutBack) {
+  // One bounce alone darkens a rough white metal; the composition puts
+  // back what it lost, and a mirror loses nothing to put back.
+  const float oneBounce =
+      scalar("environmentSpecular(float3(1.0), float3(1.0), 1.0, 0.5, " +
+             brdfAt(1.0f, 0.5f) + ").r");
+  const float putBack = scalar(
+      "environmentDiffuse(float3(1.0), float3(0.0), float3(1.0), 1.0, 0.5, " +
+      brdfAt(1.0f, 0.5f) + ").r");
+  EXPECT_LT(oneBounce, 0.9f);
+  EXPECT_NEAR(oneBounce + putBack, 1.0f, 5e-3f);
+  EXPECT_LT(scalar("environmentDiffuse(float3(1.0), float3(0.0), "
+                   "float3(1.0), 0.0, 1.0, " +
+                   brdfAt(0.0f, 1.0f) + ").r"),
+            0.02f);
+}

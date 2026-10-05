@@ -60,20 +60,13 @@ Material lower(const Material& material) {
                "effects on a material drawn as a surface are not drawn");
   // A program base with nothing but effects around it is still that
   // program.
-  if (material.hasProgram() && material.layers().empty() &&
-      !material.surface())
+  if (material.hasProgram() && material.layers().empty() && !material.surface())
     return material.base();
 
   const SurfaceOptions stated =
       material.surface() ? *material.surface() : SurfaceOptions{.unlit = true};
-  if (stated.clearcoat != 0)
-    reportOnce("surface.lower.clearcoat",
-               "the surface program has no clearcoat term; a clearcoat is "
-               "not drawn");
-
   SurfaceParameters parameters;
-  const Color* colour =
-      material.layers().empty() ? material.color() : nullptr;
+  const Color* colour = material.layers().empty() ? material.color() : nullptr;
   parameters.baseColor = colour ? *colour : Color{1, 1, 1, 1};
   parameters.metallic = factor(stated.metallic);
   parameters.roughness = factor(stated.roughness);
@@ -93,6 +86,12 @@ Material lower(const Material& material) {
   parameters.thickness = stated.thickness;
   parameters.absorption = stated.absorption;
   parameters.reflectionWeight = stated.reflectionWeight;
+  parameters.clearcoat = factor(stated.clearcoat);
+  parameters.clearcoatRoughness = factor(stated.clearcoatRoughness);
+  // A coat roughness given as a material is read through its own slot,
+  // by its red as every other channel here is.
+  if (std::holds_alternative<Material>(stated.clearcoatRoughness))
+    parameters.clearcoatRoughnessChannel = 0;
   if (stated.emissionMap && parameters.emissiveStrength <= 0)
     parameters.emissiveStrength = 1;
 
@@ -105,7 +104,11 @@ Material lower(const Material& material) {
   channel(kMetallicSlot, stated.metallic);
   channel(kRoughnessSlot, stated.roughness);
   channel(kOcclusionSlot, stated.occlusion);
+  channel(kClearcoatSlot, stated.clearcoat);
+  channel(kClearcoatRoughnessSlot, stated.clearcoatRoughness);
   if (stated.normal) place(out, kNormalSlot, *stated.normal);
+  if (stated.clearcoatNormal)
+    place(out, kClearcoatNormalSlot, *stated.clearcoatNormal);
   if (stated.emissionMap) place(out, kEmissiveSlot, *stated.emissionMap);
   return out;
 }

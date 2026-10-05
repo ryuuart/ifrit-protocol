@@ -132,7 +132,13 @@ These values describe images and sampling. The backend operations under
 ## Surfaces and light
 
 A surface response is optional, and it describes a surface rather than
-shading one. SigilMaterial shades nothing: a renderer that shades a set
+shading one. `SurfaceOptions` is the metallic-roughness description glTF
+and three.js use: `metallic`, `roughness` and `occlusion` (each a number
+or a material), a tangent-space `normal`, `emission` with its strength
+and map, a clear coat — `clearcoat`, `clearcoatRoughness` and its own
+`clearcoatNormal` — and glass (`transmission`, `ior`, `thickness`,
+`absorption`). Colours in it are encoded as an author types them;
+occlusion darkens only light arriving from everywhere. SigilMaterial shades nothing: a renderer that shades a set
 shades a material's surface under the set's own lights, and a 2D painter
 paints the material's colour stack flat. `material::skia::paint` lowers
 that colour stack whether or not the material states a surface.
@@ -140,9 +146,16 @@ that colour stack whether or not the material states a surface.
 The lights a surface is shaded under are the renderer's: a set's are
 SigilWorld's, which names them itself.
 
+The shading terms a renderer composes a lit surface from — the GGX
+lobe, Fresnel, the falloffs, the tone curves and the colour encoding —
+are one text, `material::termsSource`, with the split sum's table beside
+it (`material::environmentBrdfTable`).
+
 A renderer that brings its own lights reads a surface UNSHADED, one surface
 map at a time: `material::skia::asMap(material, role)` answers the base
-colour, normal, roughness, metallic, occlusion or emissive map, keyed by
+colour, normal, roughness, metallic, occlusion or emissive map, the three
+scalars packed in glTF's order (`texture::Role::Packed`) or the clear coat's
+weight and roughness (`texture::Role::Clearcoat`), keyed by
 `texture::Role`, as the texture of that role encodes it. The normal comes
 back as `(n + 1) / 2` with green up the picture whatever convention the
 material stated, including a height-derived or blended normal; a scalar
@@ -155,14 +168,13 @@ metallic is zero. `material::skia::SurfaceMaps` prepares a material's colour
 stack and channels once and answers every map from them; its `asMap()`
 holds one pass per role, and `SurfaceMaps::mapShader` places a map for one
 draw whose unit square maps into the node. Construct another when the
-material changes. Clearcoat and `reflectionWeight` have no map.
+material changes. The coat's normal and `reflectionWeight` have no map.
 
 In Skia, a positive `SurfaceOptions::alphaCutoff` removes color-stack samples
 whose alpha is below the threshold, in a flat paint and in every map.
 Samples at or above the threshold keep their color and alpha; shape
 antialiasing still applies afterward. Zero preserves ordinary blending.
-World surface lowering does not implement clearcoat and reports a nonzero
-request. Effects require rendered coverage and are ignored by a renderer
+Effects require rendered coverage and are ignored by a renderer
 that has none.
 
 ## Backdrop glass

@@ -58,6 +58,9 @@ Recipe define(std::string name, std::string_view bodyFile,
       .slot(std::string(kOcclusionSlot))
       .slot(std::string(kEmissiveSlot))
       .slot(std::string(kOpacitySlot))
+      .slot(std::string(kClearcoatSlot))
+      .slot(std::string(kClearcoatRoughnessSlot))
+      .slot(std::string(kClearcoatNormalSlot))
       .body(Target::SkSL, std::string(shaderSource("SurfacePrelude.sksl"))
                               .append(shaderSource(bodyFile)))
       // THE TERMS ARE NOT PREPENDED HERE. A Slang renderer loads them
@@ -100,6 +103,10 @@ Material dress(Material m) {
   m.slot(kOcclusionSlot, white);
   m.slot(kEmissiveSlot, white);
   m.slot(kOpacitySlot, white);
+  m.slot(kClearcoatSlot, white);
+  m.slot(kClearcoatRoughnessSlot, white);
+  m.slot(kClearcoatNormalSlot,
+         flat("normal", material::Color{0.5f, 0.5f, 1.0f, 1.0f}));
   return m;
 }
 
@@ -228,6 +235,16 @@ Material program(const texture::TextureMaps& maps, SurfaceParameters base) {
     if (base.emissive == stock.emissive) base.emissive = {1, 1, 1, 1};
   }
   base.normalDirectX = maps.normalDirectX ? 1.0f : 0.0f;
+  // A clear coat image carries the weight in red and the roughness in
+  // green, so it fills both of the coat's slots.
+  const Texture* coat = maps.map(Role::Clearcoat);
+  if (coat) {
+    if (base.clearcoat == stock.clearcoat) base.clearcoat = 1;
+    if (base.clearcoatRoughness == stock.clearcoatRoughness)
+      base.clearcoatRoughness = 1;
+    base.clearcoatChannel = 0;
+    base.clearcoatRoughnessChannel = 1;
+  }
 
   Material m = program(base);
   const auto place = [&](std::string_view slot, const Texture* t) {
@@ -240,6 +257,8 @@ Material program(const texture::TextureMaps& maps, SurfaceParameters base) {
   place(kOcclusionSlot, occlusion);
   place(kEmissiveSlot, maps.map(Role::Emissive));
   place(kOpacitySlot, maps.map(Role::Opacity));
+  place(kClearcoatSlot, coat);
+  place(kClearcoatRoughnessSlot, coat);
   return m;
 }
 

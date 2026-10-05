@@ -33,7 +33,8 @@ namespace sigil::material::texture {
 /** What a map is FOR. Packed is a three-channel occlusion (R),
  *  roughness (G), metallic (B) image — glTF's layout, and what
  *  Substance's glTF template, Poly Haven's `_arm` and the common
- *  `_orm` write. */
+ *  `_orm` write. Clearcoat is glTF's clear coat in one image: its weight
+ *  in red and its roughness in green. */
 enum class Role {
   Unknown,
   BaseColor,
@@ -46,6 +47,7 @@ enum class Role {
   Height,
   Opacity,
   Specular,
+  Clearcoat,
 };
 
 /** The role's name as messages and keys spell it. */
@@ -93,8 +95,7 @@ struct TextureSet {
 std::vector<TextureSet> discover(const std::filesystem::path& directory);
 
 /** Decodes a path into pixels; an empty source when it cannot. */
-using Decoder =
-    std::function<media::PixelSource(const std::filesystem::path&)>;
+using Decoder = std::function<media::PixelSource(const std::filesystem::path&)>;
 
 /** A set decoded: one repeating texture per role that decoded, and the
  *  normal convention the set declared. */

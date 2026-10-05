@@ -53,6 +53,25 @@ TEST(SkiaSurfaceMap, EachRoleOfAMaterialWithMapsReadsBackThatMap) {
               1);
 }
 
+TEST(SkiaSurfaceMap, ThePackedAndCoatMapsCarryTheirScalarsInGltfsChannels) {
+  const Material material =
+      from(Color{.5f, .5f, .5f, 1})
+          .surface({.metallic = .25f,
+                    .roughness = solidImage(SkColorSetRGB(153, 0, 0)),
+                    .occlusion = .9f,
+                    .clearcoat = .8f,
+                    .clearcoatRoughness = solidImage(SkColorSetRGB(51, 0, 0))});
+  const skia::SurfaceMaps prepared(material);
+  // Occlusion in red, roughness in green, metallic in blue…
+  expectPixel(sampled(prepared.asMap(Role::Packed)), .9f, .6f, .25f, 1);
+  // …and the coat's weight in red and its roughness in green.
+  expectPixel(sampled(prepared.asMap(Role::Clearcoat)), .8f, .2f, 0, 1);
+  // A surface stating no coat has none.
+  expectPixel(sampled(skia::asMap(from(Color{.5f, .5f, .5f, 1}).surface({}),
+                                  Role::Clearcoat)),
+              0, 0, 0, 1);
+}
+
 TEST(SkiaSurfaceMap, ANormalAuthoredGreenDownComesBackGreenUp) {
   const Material material =
       from(Color{.5f, .5f, .5f, 1})
@@ -159,10 +178,12 @@ TEST(SkiaSurfaceMap, AMapPlacedForOneDrawMatchesTheMapOverTheSameBox) {
 
 TEST(SkiaSurfaceMap, ARoleWithNoMapPaintsNothing) {
   const Material material = from(Color{.2f, .4f, .6f, 1}).surface({});
-  for (Role role : {Role::Unknown, Role::Packed, Role::Height, Role::Opacity,
-                    Role::Specular}) {
+  for (Role role :
+       {Role::Unknown, Role::Height, Role::Opacity, Role::Specular}) {
     EXPECT_FALSE(skia::isSurfaceMapRole(role));
     EXPECT_TRUE(skia::asMap(material, role).isNone());
   }
   EXPECT_TRUE(skia::isSurfaceMapRole(Role::Emissive));
+  EXPECT_TRUE(skia::isSurfaceMapRole(Role::Packed));
+  EXPECT_TRUE(skia::isSurfaceMapRole(Role::Clearcoat));
 }

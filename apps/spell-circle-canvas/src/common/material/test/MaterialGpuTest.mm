@@ -172,16 +172,32 @@ Material termsMaterial() {
                   + lambert(n, l) + blinn(n, l, v, 32.0)
                   + occlusion(0.7, 0.8) + luminance(radiance);
         float2 uv = equirectangularUv(l);
-        float2 ab = environmentBrdf(0.3, max(dot(n, v), 0.0));
-        float3 lit = fresnel(f0, max(dot(n, v), 0.0))
-                   + fresnelRough(f0, max(dot(n, v), 0.0), 0.3)
-                   + environmentSpecular(radiance, f0, 0.3, max(dot(n, v), 0.0))
+        float nv = max(dot(n, v), 0.0);
+        float2 ab = environmentBrdfUv(0.3, nv, 32.0);
+        float3 diffuse = diffuseColor(float3(0.9, 0.8, 0.4), 0.7);
+        float3 f90 = reflectance90(f0);
+        float3 lit = fresnel(f0, nv)
+                   + fresnelRough(f0, nv, 0.3)
+                   + fresnelSchlick(f0, f90, nv)
+                   + environmentSpecular(radiance, f0, 0.3, nv, ab)
+                   + environmentDiffuse(radiance, diffuse, f0, 0.3, nv, ab)
+                   + directDiffuse(n, l, v, diffuse, f0, f90)
+                   + directSpecular(n, l, v, f0, f90, 0.3)
+                   + hemisphereIrradiance(n, v, radiance, f0)
                    + environmentReflection(radiance, 0.5)
                    + refraction(-v, n, 0.66)
                    + attenuate(radiance, float3(0.1, 0.02, 0.05), 2.0)
                    + emission(radiance, 0.5, float3(1.0, 1.0, 1.0))
-                   + float3(uv.x + ab.x, uv.y + ab.y, acc);
-        return half4(half3(toneMap(lit, 1.0)), 1.0);
+                   + linearFromSrgb(radiance)
+                   + toneMapNeutral(radiance, 1.0)
+                   + toneCurve(radiance, 1.0, 2.0)
+                   + float3(uv.x + ab.x, uv.y + ab.y, acc
+                            + distributionGgx(nv, 0.4)
+                            + visibilityGgx(nv, nv, 0.4)
+                            + distanceFalloff(3.0, 10.0)
+                            + coneFalloff(nv, 0.5, 0.9)
+                            + clearcoatTransmittance(0.5, nv));
+        return half4(half3(srgbFromLinear(toneMap(lit, 1.0))), 1.0);
       }
     )"));
   return Material(recipe, NoParameters{});

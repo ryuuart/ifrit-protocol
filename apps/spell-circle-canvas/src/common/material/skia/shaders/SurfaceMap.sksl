@@ -4,15 +4,19 @@
 // carries the colour stack's alpha as its coverage, premultiplied.
 //
 // uRole: 0 base colour, 1 normal, 2 roughness, 3 metallic, 4 occlusion,
-// 5 emission. A surface that takes no light is its own colour: emission
-// is the colour stack, the base is black, the normal faces the viewer,
-// roughness and occlusion are one and metallic is zero.
+// 5 emission, 6 occlusion, roughness and metallic packed into red, green
+// and blue, 7 the clear coat's weight in red and its roughness in green.
+// A surface that takes no light is its own colour: emission is the colour
+// stack, the base is black, the normal faces the viewer, roughness and
+// occlusion are one, metallic and the coat zero.
 uniform shader uColor;
 uniform shader uNormal;
 uniform shader uRoughnessMap;
 uniform shader uMetallicMap;
 uniform shader uOcclusionMap;
 uniform shader uEmissionMap;
+uniform shader uClearcoatMap;
+uniform shader uClearcoatRoughnessMap;
 
 uniform float uRole;
 uniform float uUnlit;
@@ -28,6 +32,31 @@ uniform float uOcclusion;
 uniform float uHasEmissionMap;
 uniform float4 uEmission;
 uniform float uEmissionStrength;
+uniform float uHasClearcoatMap;
+uniform float uClearcoat;
+uniform float uHasClearcoatRoughnessMap;
+uniform float uClearcoatRoughness;
+
+float roughnessAt(float2 xy, bool unlit) {
+  if (unlit) return 1.0;
+  float value = uRoughness;
+  if (uHasRoughnessMap > 0.5) value *= float(uRoughnessMap.eval(xy).r);
+  return clamp(value, 0.0, 1.0);
+}
+
+float metallicAt(float2 xy, bool unlit) {
+  if (unlit) return 0.0;
+  float value = uMetallic;
+  if (uHasMetallicMap > 0.5) value *= float(uMetallicMap.eval(xy).r);
+  return clamp(value, 0.0, 1.0);
+}
+
+float occlusionAt(float2 xy, bool unlit) {
+  if (unlit) return 1.0;
+  float value = uOcclusion;
+  if (uHasOcclusionMap > 0.5) value *= float(uOcclusionMap.eval(xy).r);
+  return clamp(value, 0.0, 1.0);
+}
 
 half4 main(float2 xy) {
   half4 painted = uColor.eval(xy);
@@ -48,32 +77,29 @@ half4 main(float2 xy) {
     }
     value = n * 0.5 + 0.5;
   } else if (uRole < 2.5) {
-    float roughness = 1.0;
-    if (!unlit) {
-      roughness = uRoughness;
-      if (uHasRoughnessMap > 0.5)
-        roughness *= float(uRoughnessMap.eval(xy).r);
-    }
-    value = float3(clamp(roughness, 0.0, 1.0));
+    value = float3(roughnessAt(xy, unlit));
   } else if (uRole < 3.5) {
-    float metallic = 0.0;
-    if (!unlit) {
-      metallic = uMetallic;
-      if (uHasMetallicMap > 0.5) metallic *= float(uMetallicMap.eval(xy).r);
-    }
-    value = float3(clamp(metallic, 0.0, 1.0));
+    value = float3(metallicAt(xy, unlit));
   } else if (uRole < 4.5) {
-    float occlusion = 1.0;
-    if (!unlit) {
-      occlusion = uOcclusion;
-      if (uHasOcclusionMap > 0.5)
-        occlusion *= float(uOcclusionMap.eval(xy).r);
-    }
-    value = float3(clamp(occlusion, 0.0, 1.0));
-  } else {
+    value = float3(occlusionAt(xy, unlit));
+  } else if (uRole < 5.5) {
     if (unlit) return painted;
     value = uEmission.rgb * uEmissionStrength;
     if (uHasEmissionMap > 0.5) value *= float3(uEmissionMap.eval(xy).rgb);
+  } else if (uRole < 6.5) {
+    value = float3(occlusionAt(xy, unlit), roughnessAt(xy, unlit),
+                   metallicAt(xy, unlit));
+  } else {
+    float coat = 0.0;
+    float coatRoughness = 0.0;
+    if (!unlit) {
+      coat = uClearcoat;
+      if (uHasClearcoatMap > 0.5) coat *= float(uClearcoatMap.eval(xy).r);
+      coatRoughness = uClearcoatRoughness;
+      if (uHasClearcoatRoughnessMap > 0.5)
+        coatRoughness *= float(uClearcoatRoughnessMap.eval(xy).r);
+    }
+    value = float3(clamp(coat, 0.0, 1.0), clamp(coatRoughness, 0.0, 1.0), 0.0);
   }
   return half4(half3(value * alpha), half(alpha));
 }

@@ -5,8 +5,9 @@
  *
  * A SURFACE'S MAPS IN 2D through Skia: a material whose `surface()`
  * states a response, read back UNSHADED one surface map at a time —
- * base colour, normal, roughness, metallic, occlusion, emissive — for a
- * renderer that does its own lighting. Its colour stack and channel
+ * base colour, normal, roughness, metallic, occlusion, emissive, the
+ * three scalars packed, and the clear coat — for a renderer that does its
+ * own lighting. Its colour stack and channel
  * inputs are prepared once and shared by every map.
  */
 
@@ -62,7 +63,7 @@ class SurfaceMaps {
 };
 
 /** Whether `asMap` answers a map for @p role: base colour, normal,
- *  roughness, metallic, occlusion and emissive. */
+ *  roughness, metallic, occlusion, emissive, packed and clearcoat. */
 bool isSurfaceMapRole(texture::Role role);
 
 /** @p material's surface as THE MAP OF @p role that a metallic-roughness
@@ -77,21 +78,24 @@ bool isSurfaceMapRole(texture::Role role);
  *  and facing the viewer where it states none; roughness, metallic and
  *  occlusion as grey, each its number times its map's red, in `[0, 1]`,
  *  with the stock numbers `SurfaceOptions` starts at (roughness one half,
- *  metallic zero, occlusion one); and the emission colour times its
- *  strength and its map, black where it states none.
+ *  metallic zero, occlusion one); the emission colour times its
+ *  strength and its map, black where it states none; `Packed` as those
+ *  three in red, green and blue, glTF's order; and `Clearcoat` as the
+ *  coat's weight in red and its roughness in green.
  *
  *  A material that states no surface, or states one `unlit`, is ITS OWN
  *  COLOUR: the colour stack is its emission, its base colour is black,
  *  its normal faces the viewer, its roughness and occlusion are one and
  *  its metallic zero — so a renderer that shades the set shows it as it
  *  was painted. A role outside `isSurfaceMapRole` paints nothing.
- *  Clearcoat and reflection weight have no map and are not read. */
+ *  The coat's normal and the reflection weight have no map and are not
+ *  read. */
 Paint asMap(const Material& material, texture::Role role);
 
 /** What a surface map of @p role reads where nothing is painted: the map
  *  of a surface that is its own colour at no coverage — a transparent
  *  black base colour, a normal facing the viewer, roughness and occlusion
- *  one, metallic and emission zero. Every map but the base colour is
+ *  one, metallic, emission and the coat zero. Every map but the base colour is
  *  opaque, so a lit renderer reads the base colour's alpha as where the
  *  surface is. Transparent black for a role `asMap` answers nothing for. */
 Color surfaceMapGround(texture::Role role);

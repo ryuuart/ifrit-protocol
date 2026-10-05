@@ -1,0 +1,17 @@
+Ifrit Protocol
+Copyright the Ifrit Protocol authors.
+
+This product includes shading functions adapted from DiligentFX
+(https://github.com/DiligentGraphics/DiligentFX), part of Diligent Engine,
+Copyright Diligent Graphics LLC, licensed under the Apache License,
+Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0).
+
+The adapted functions are the GGX normal distribution, the
+height-correlated Smith visibility, Schlick Fresnel with a grazing
+reflectance, the Lambert diffuse split by Fresnel and metalness, the
+multiple-scattering composition of image-based lighting, the clear-coat
+layering, the punctual-light record with its inverse-square falloff and
+spot cone, and the PBR Neutral tone curve (which DiligentFX carries from
+the Khronos Group, also under the Apache License, Version 2.0). They live, transcribed into
+Slang, in apps/spell-circle-canvas/src/common/material/core/shaders/Shading.slang
+and apps/spell-circle-canvas/src/common/world/diligent/shaders/Surface.slang.

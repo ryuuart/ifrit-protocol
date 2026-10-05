@@ -36,6 +36,7 @@ struct Word {
 };
 constexpr Word kWords[] = {
     // packed occlusion / roughness / metallic
+    {"clearcoat", Role::Clearcoat, false},
     {"occlusionroughnessmetallic", Role::Packed, false},
     {"orm", Role::Packed, false},
     {"arm", Role::Packed, false},
@@ -176,6 +177,8 @@ std::string_view name(Role role) {
       return "opacity";
     case Role::Specular:
       return "specular";
+    case Role::Clearcoat:
+      return "clearcoat";
   }
   return "?";
 }

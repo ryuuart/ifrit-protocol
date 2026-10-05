@@ -446,7 +446,12 @@ using Channel = std::variant<float, Material>;
  *  layer it is attached to. */
 struct SurfaceOptions {
   Channel metallic = 0.0f;
+  /** How rough, 0 a mirror to 1 fully diffuse: it sets how wide the
+   *  highlight spreads and how blurred a reflection is. */
   Channel roughness = 0.5f;
+  /** How much of the light arriving from everywhere — the environment
+   *  and ambient light — reaches the surface past its own creases. A
+   *  light from one direction is not occluded by it. */
   Channel occlusion = 1.0f;
   /** A tangent-space normal map. */
   std::optional<Material> normal;
@@ -460,7 +465,16 @@ struct SurfaceOptions {
   /** Alpha below a positive threshold is cut out; zero blends. In Skia,
    *  surviving colour-stack samples retain their premultiplied alpha. */
   float alphaCutoff = 0;
-  float clearcoat = 0;
+  /** A CLEAR COAT over the surface: a second, colourless reflection of
+   *  this weight, 0 none to 1 a full coat, with its own roughness and its
+   *  own normal — lacquer over wood, varnish over paint. The surface
+   *  beneath is seen through it, dimmed by what the coat reflects. */
+  Channel clearcoat = 0.0f;
+  Channel clearcoatRoughness = 0.0f;
+  /** A tangent-space normal map for the coat alone; without one the coat
+   *  lies smooth over the surface's geometry whatever the surface's own
+   *  normal map does. */
+  std::optional<Material> clearcoatNormal;
   float transmission = 0;
   float ior = 1.5f;
   float thickness = 40;

@@ -57,6 +57,10 @@ std::optional<size_t> surfaceMapIndex(texture::Role role) {
       return 4;
     case texture::Role::Emissive:
       return 5;
+    case texture::Role::Packed:
+      return 6;
+    case texture::Role::Clearcoat:
+      return 7;
     default:
       return std::nullopt;
   }
@@ -82,7 +86,8 @@ void channel(Paint& pass, const Channel& value,
 struct SurfaceMaps::Inputs {
   Material material;
   Paint colours;
-  std::optional<Paint> normal, roughness, metallic, occlusion, emission;
+  std::optional<Paint> normal, roughness, metallic, occlusion, emission,
+      clearcoat, clearcoatRoughness;
 
   static Paint prepare(const Material& material) {
     Paint paint = PaintAccess::prepareMaterial(material);
@@ -103,13 +108,15 @@ struct SurfaceMaps::Inputs {
     metallic = lower(surface.metallic);
     occlusion = lower(surface.occlusion);
     if (surface.emissionMap) emission = prepare(*surface.emissionMap);
+    clearcoat = lower(surface.clearcoat);
+    clearcoatRoughness = lower(surface.clearcoatRoughness);
   }
 };
 
 struct SurfaceMaps::MapCache {
   std::mutex mutex;
   /** One unshaded pass per surface map role, made on first request. */
-  std::array<std::optional<Paint>, 6> maps;
+  std::array<std::optional<Paint>, 8> maps;
 };
 
 SurfaceMaps::SurfaceMaps(const Material& material)
@@ -129,7 +136,8 @@ bool usesWorldSpace(const Material& material) {
   const SurfaceOptions* surface = material.surface();
   if (!surface || surface->unlit) return false;
   for (const Channel* channel :
-       {&surface->metallic, &surface->roughness, &surface->occlusion})
+       {&surface->metallic, &surface->roughness, &surface->occlusion,
+        &surface->clearcoat, &surface->clearcoatRoughness})
     if (const auto* map = std::get_if<Material>(channel);
         map && detail::paintUsesWorldSpace(*map))
       return true;
@@ -164,7 +172,7 @@ sk_sp<SkShader> SurfaceMaps::mapShader(texture::Role role,
     if (!result || input.isSolid()) return result;
     return result->makeWithLocalMatrix(mapping);
   };
-  std::array<PaintAccess::ChildOverride, 6> children;
+  std::array<PaintAccess::ChildOverride, 8> children;
   size_t count = 0;
   const auto input = [&](const char* name, const Paint& lowered) {
     children[count++] = {name, mapped(lowered)};
@@ -175,6 +183,9 @@ sk_sp<SkShader> SurfaceMaps::mapShader(texture::Role role,
   if (m_inputs->metallic) input("uMetallicMap", *m_inputs->metallic);
   if (m_inputs->occlusion) input("uOcclusionMap", *m_inputs->occlusion);
   if (m_inputs->emission) input("uEmissionMap", *m_inputs->emission);
+  if (m_inputs->clearcoat) input("uClearcoatMap", *m_inputs->clearcoat);
+  if (m_inputs->clearcoatRoughness)
+    input("uClearcoatRoughnessMap", *m_inputs->clearcoatRoughness);
   const PaintFrame frame = paintFrameOf(nodeFrame);
   return PaintAccess::build(*PaintAccess::live(pass), &frame, false,
                             std::span(children).first(count));
@@ -189,7 +200,10 @@ Color surfaceMapGround(texture::Role role) {
       return {1, 1, 1, 1};
     case texture::Role::Metallic:
     case texture::Role::Emissive:
+    case texture::Role::Clearcoat:
       return {0, 0, 0, 1};
+    case texture::Role::Packed:
+      return {1, 1, 0, 1};
     default:
       return {0, 0, 0, 0};
   }
@@ -250,6 +264,11 @@ Paint SurfaceMaps::mapPass(texture::Role role) const {
   PaintAccess::storeUniform(pass, "uEmission", surface.emission);
   PaintAccess::storeUniform(pass, "uEmissionStrength",
                             surface.emissionStrength);
+  channel(pass, surface.clearcoat, m_inputs->clearcoat, "uClearcoatMap",
+          "uHasClearcoatMap", "uClearcoat");
+  channel(pass, surface.clearcoatRoughness, m_inputs->clearcoatRoughness,
+          "uClearcoatRoughnessMap", "uHasClearcoatRoughnessMap",
+          "uClearcoatRoughness");
   const std::lock_guard lock(m_maps->mutex);
   std::optional<Paint>& held = m_maps->maps[*index];
   if (!held) held = std::move(pass);

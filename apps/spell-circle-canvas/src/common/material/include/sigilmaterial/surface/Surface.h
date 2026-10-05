@@ -78,15 +78,22 @@ inline constexpr std::string_view kEmissiveSlot =
     "emissiveMap";  ///< multiplied by `emissive` and `emissiveStrength`
 inline constexpr std::string_view kOpacitySlot =
     "opacityMap";  ///< `opacityChannel`; `alphaCutoff` turns it into a cutout
+inline constexpr std::string_view kClearcoatSlot =
+    "clearcoatMap";  ///< the channel `clearcoatChannel` names
+inline constexpr std::string_view kClearcoatRoughnessSlot =
+    "clearcoatRoughnessMap";  ///< the channel `clearcoatRoughnessChannel` names
+inline constexpr std::string_view kClearcoatNormalSlot =
+    "clearcoatNormalMap";  ///< tangent space, the coat's own; read like
+                           ///< `normalMap`
 
 /** The metallic-roughness ABI. Its colours are FACTORS ON THE MAPS in
  *  their slots — `baseColor` on `baseColorMap`, `emissive` on
- *  `emissiveMap` — and neither body transforms either side of that
- *  multiply or the product it hands on: a map is sampled as the numbers
- *  the image stores, and what comes out reaches the target as it is. So
- *  a colour is held here exactly as it is typed, in the encoding the
- *  images beside it are in, and a surface whose map is the white one
- *  `program()` dresses it with shows the colour it was given.
+ *  `emissiveMap` — and both are COLOURS as an author types them and an
+ *  image stores them: encoded for display, and decoded into linear light
+ *  before any light touches them, so a surface whose map is the white one
+ *  `program()` dresses it with and that is lit to show its own colour
+ *  shows the colour it was given. Every other map is DATA, read as the
+ *  numbers the image stores.
  *
  *  Each scalar is multiplied by the map in the matching slot, so a set
  *  that ships a metallic map wants `metallic = 1` for the map's values
@@ -108,7 +115,9 @@ struct SurfaceParameters {
   float roughnessChannel = 0;
   float metallicChannel = 0;
   float occlusionChannel = 0;
-  /** How far the occlusion map darkens the ambient term; 0 ignores it. */
+  /** How far the occlusion map darkens the light arriving from
+   *  everywhere — the environment and ambient light, never a light from
+   *  one direction; 0 ignores it. */
   float occlusionStrength = 1;
   float opacityChannel = 0;
   /** Above 0 the opacity is a CUTOUT: below the threshold the surface is
@@ -130,6 +139,16 @@ struct SurfaceParameters {
    *  The split-sum composition ignores it: there the weight IS the
    *  surface's reflectance and its Fresnel. */
   float reflectionWeight = 1;
+  /** A CLEAR COAT: a colourless second reflection of this weight over the
+   *  surface, at its own roughness and, when `clearcoatNormalMap` is
+   *  dressed, its own normal; without one the coat follows the geometry.
+   *  Each is multiplied by the map in its slot. */
+  float clearcoat = 0;
+  float clearcoatRoughness = 0;
+  /** Which channel of the coat's maps is read: glTF packs the weight in
+   *  red and the roughness in green, so one image fills both slots. */
+  float clearcoatChannel = 0;
+  float clearcoatRoughnessChannel = 1;
 };
 
 /** HOW THE ENVIRONMENT REACHES A SURFACE, which is a choice about the
@@ -153,9 +172,9 @@ enum class Reflection : uint8_t {
 const std::shared_ptr<const Recipe>& surfaceRecipe(
     Reflection reflection = Reflection::SplitSum);
 
-/** A lit metallic-roughness surface, composed from the shading terms:
- *  occlusion over the albedo, emission added, and the surface's PBR
- *  standing handed to whatever renderer shades it. */
+/** A lit metallic-roughness surface: its base colour, emission, normal,
+ *  roughness, metalness, occlusion, clear coat and transmission, handed to
+ *  whatever renderer shades it. */
 Material program(const SurfaceParameters& parameters = {},
                  Reflection reflection = Reflection::SplitSum);
 /** A surface that is its own light: no shading, no shadow terms. */
@@ -194,8 +213,7 @@ Material program(const texture::TextureMaps& maps, SurfaceParameters base = {});
  *  material that states no response at all is its base, unlit.
  *
  *  A surface has no coverage for an effects stage to read, so effects on
- *  @p material are dropped and said once; so is a clearcoat, which the
- *  program has no term for. */
+ *  @p material are dropped and said once. */
 Material lower(const Material& material);
 
 }  // namespace sigil::material::surface
