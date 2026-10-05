@@ -25,11 +25,10 @@ void bindMaterialEnvironment(py::module_& module) {
         name,
         // A colour answers as the colour class rather than as four bare
         // numbers, so a parameter taken off one surface is a value the
-        // next one accepts. Nothing is converted either way: these
-        // fields are factors on the maps beside them and `absorption`
-        // is a coefficient that runs past one, so a transfer function
-        // here would change what the author wrote and clip what does
-        // not belong inside the unit range.
+        // next one accepts. Nothing is converted either way: the colours
+        // are held as the author typed them and decoded by the renderer,
+        // and `absorption` is a coefficient that runs past one, so a
+        // transfer function here would change what the author wrote.
         [member](const Parameters& self) { return self.*member; },
         [member](Parameters& self, py::handle value) {
           self.*member = material::Color(color(value));
@@ -49,7 +48,12 @@ void bindMaterialEnvironment(py::module_& module) {
       .def_readwrite("transmission", &Parameters::transmission)
       .def_readwrite("ior", &Parameters::ior)
       .def_readwrite("thickness", &Parameters::thickness)
-      .def_readwrite("reflectionWeight", &Parameters::reflectionWeight);
+      .def_readwrite("reflectionWeight", &Parameters::reflectionWeight)
+      .def_readwrite("clearcoat", &Parameters::clearcoat)
+      .def_readwrite("clearcoatRoughness", &Parameters::clearcoatRoughness)
+      .def_readwrite("clearcoatChannel", &Parameters::clearcoatChannel)
+      .def_readwrite("clearcoatRoughnessChannel",
+                     &Parameters::clearcoatRoughnessChannel);
   py::enum_<material::surface::Reflection>(surface, "Reflection")
       .value("SplitSum", material::surface::Reflection::SplitSum)
       .value("Additive", material::surface::Reflection::Additive);

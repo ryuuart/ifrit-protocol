@@ -97,10 +97,11 @@ class Scene {
   std::optional<world::Frame> m_frame;
 };
 
-/** A light's tint. Four numbers are taken as written, because a light may
- *  be brighter than white and a colour's channels are read as unit
- *  values; an animatable colour is kept live; every other spelling is a
- *  colour. */
+/** A light's tint, as an author types it: encoded for display and
+ *  decoded into light by the renderer. Four numbers are taken as written,
+ *  because a light may be brighter than white and a colour's channels are
+ *  read as unit values; an animatable colour is kept live; every other
+ *  spelling is a colour. */
 motion::Animatable<material::Color> lightColor(py::handle value) {
   if (!py::isinstance<py::str>(value) && py::isinstance<py::sequence>(value) &&
       py::len(value) == 4) {
@@ -222,7 +223,9 @@ void bindLights(py::module_& module) {
   py::enum_<world::LightKind>(module, "LightKind")
       .value("Directional", world::LightKind::Directional)
       .value("Point", world::LightKind::Point)
-      .value("Spot", world::LightKind::Spot);
+      .value("Spot", world::LightKind::Spot)
+      .value("Ambient", world::LightKind::Ambient)
+      .value("Hemisphere", world::LightKind::Hemisphere);
   bindRecord<world::Collection>(module, "Collection",
                                 "Unknown collection field: ")
       .def_readwrite("include", &world::Collection::include)
@@ -240,6 +243,10 @@ void bindLights(py::module_& module) {
                              [](const world::LightDescription& light) {
                                return light.intensity.value();
                              })
+      .def_property_readonly("groundColor",
+                             [](const world::LightDescription& light) {
+                               return light.groundColor.value();
+                             })
       .def_readonly("range", &world::LightDescription::range)
       .def_readonly("innerAngle", &world::LightDescription::innerAngle)
       .def_readonly("outerAngle", &world::LightDescription::outerAngle)
@@ -252,6 +259,21 @@ void bindLights(py::module_& module) {
   module.def("attenuation", &world::attenuation, py::arg("light"),
              py::arg("at"));
   module.def("radiance", &world::radiance, py::arg("light"));
+  module.def(
+      "intensityAt",
+      [](py::handle strength, float distance) -> py::object {
+        // A number answers a number; a live value answers a value that
+        // follows it, scaled the same way.
+        if (py::isinstance<py::float_>(strength) ||
+            py::isinstance<py::int_>(strength))
+          return py::cast(
+              world::intensityAt(py::cast<float>(strength), distance));
+        return py::cast(
+            world::intensityAt(motionAnimatable(strength), distance));
+      },
+      py::arg("strength"), py::arg("distance"),
+      "The intensity a point or spot light needs to deliver `strength` at "
+      "`distance`: the strength times the distance squared.");
 }
 
 void bindKinds(py::module_& module) {
@@ -312,7 +334,7 @@ void bindKinds(py::module_& module) {
                                   .range = range});
       },
       py::arg("color") = glm::vec4(1), py::arg("intensity") = 1,
-      py::arg("range") = 600);
+      py::arg("range") = 0);
   module.def(
       "spotLight",
       [](const glm::vec3& direction, py::handle tint, py::handle intensity,
@@ -325,11 +347,30 @@ void bindKinds(py::module_& module) {
                                  .outerAngle = outerAngle});
       },
       py::arg("direction"), py::arg("color") = glm::vec4(1),
-      py::arg("intensity") = 1, py::arg("range") = 600,
-      py::arg("innerAngle") = 0, py::arg("outerAngle") = 45);
+      py::arg("intensity") = 1, py::arg("range") = 0, py::arg("innerAngle") = 0,
+      py::arg("outerAngle") = 45);
+  module.def(
+      "ambientLight",
+      [](py::handle tint, py::handle intensity) {
+        return world::ambientLight({.color = lightColor(tint),
+                                    .intensity = motionAnimatable(intensity)});
+      },
+      py::arg("color") = glm::vec4(1), py::arg("intensity") = 1);
+  module.def(
+      "hemisphereLight",
+      [](py::handle tint, py::handle ground, py::handle intensity) {
+        return world::hemisphereLight(
+            {.color = lightColor(tint),
+             .groundColor = lightColor(ground),
+             .intensity = motionAnimatable(intensity)});
+      },
+      py::arg("color") = glm::vec4(1),
+      py::arg("groundColor") = glm::vec4(0, 0, 0, 1), py::arg("intensity") = 1);
 
   py::enum_<world::ToneCurve>(module, "ToneCurve")
-      .value("Reinhard", world::ToneCurve::Reinhard);
+      .value("Reinhard", world::ToneCurve::Reinhard)
+      .value("Neutral", world::ToneCurve::Neutral)
+      .value("Linear", world::ToneCurve::Linear);
   auto camera = py::class_<world::Camera, world::Node>(module, "Camera");
   bindNodeVerbs(camera);
   module.def(
@@ -374,8 +415,24 @@ void bindWorldKit(py::module_& kit) {
       .def_readwrite("extent", &Rig::extent)
       .def_readwrite("bearing", &Rig::bearing)
       .def_readwrite("elevation", &Rig::elevation)
-      .def_readwrite("fill", &Rig::fill)
-      .def_readwrite("back", &Rig::back)
+      .def_readwrite("fillIntensity", &Rig::fillIntensity)
+      .def_property(
+          "fillColor", [](const Rig& self) { return self.fillColor; },
+          [](Rig& self, py::handle value) {
+            self.fillColor = material::Color(color(value));
+          })
+      .def_readwrite("ambientIntensity", &Rig::ambientIntensity)
+      .def_property(
+          "ambientColor", [](const Rig& self) { return self.ambientColor; },
+          [](Rig& self, py::handle value) {
+            self.ambientColor = material::Color(color(value));
+          })
+      .def_readwrite("backIntensity", &Rig::backIntensity)
+      .def_property(
+          "backColor", [](const Rig& self) { return self.backColor; },
+          [](Rig& self, py::handle value) {
+            self.backColor = material::Color(color(value));
+          })
       .def_property(
           "intensity", [](const Rig& self) { return self.intensity.value(); },
           [](Rig& self, py::handle value) {

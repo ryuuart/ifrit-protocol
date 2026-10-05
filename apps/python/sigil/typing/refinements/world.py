@@ -36,7 +36,20 @@ def group(*children: Node) -> Group: ...
     for name in ("lightLink", "shadowLink"):
         table.erased(f"{WORLD}.Light", name, "str | Collection")
     table.erased(f"{WORLD}.Pass", "only", "str | Collection")
-    table.erased(WORLD, "directionalLight pointLight spotLight", TINT, "_t.ScalarLike")
+    table.erased(
+        WORLD,
+        "directionalLight pointLight spotLight ambientLight",
+        TINT,
+        "_t.ScalarLike",
+    )
+    table.erased(WORLD, "hemisphereLight", TINT, TINT, "_t.ScalarLike")
+    # A number answers a number and a live value a value following it.
+    table.declares(
+        WORLD,
+        "intensityAt",
+        "def intensityAt(strength: _t.ScalarLike, distance: typing.SupportsFloat)"
+        " -> float | _sigil.motion.Animatable: ...\n",
+    )
     table.parameters(WORLD + ".directionalLight", direction="_t.Vec3Like")
     table.parameters(WORLD + ".spotLight", direction="_t.Vec3Like")
     table.erased(WORLD, "camera", "_t.ScalarLike")
@@ -78,6 +91,16 @@ def color(self) -> _sigil.material.Color: ...
 def color(self, value: {TINT}) -> None: ...
 """,
     )
+    for name in ("fillColor", "backColor", "ambientColor"):
+        table.declares(
+            "_sigil.world.kit.Rig",
+            name,
+            f"""@property
+def {name}(self) -> _sigil.material.Color: ...
+@{name}.setter
+def {name}(self, value: _t.ColorLike) -> None: ...
+""",
+        )
     table.declares(
         "_sigil.world.kit.Rig",
         "intensity",
