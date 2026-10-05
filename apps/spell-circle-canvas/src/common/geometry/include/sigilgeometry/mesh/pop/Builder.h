@@ -345,6 +345,12 @@ class Builder {
   /** The chain cooked and @p stamp placed at every point — pop::cookMesh
    *  on this builder's chain. */
   Mesh stamps(const Mesh& stamp, const Runtime& runtime = Runtime::cpu()) const;
+  /** The chain cooked and @p stamp standing at every point as instanced
+   *  geometry, each scalar lane @p attributes names carried per instance
+   *  — pop::cookInstances on this builder's chain. */
+  Instances instances(const Mesh& stamp,
+                      std::vector<std::string> attributes = {},
+                      const Runtime& runtime = Runtime::cpu()) const;
   /** The chain cooked into a spine and @p profile carried along it —
    *  pop::cookSweep on this builder's chain. */
   Mesh sweep(const path::Polyline& profile, bool closed = false,
@@ -390,6 +396,11 @@ inline Cloud pop::Builder::cloud(const Runtime& runtime) const {
 inline Mesh pop::Builder::stamps(const Mesh& stamp,
                                  const Runtime& runtime) const {
   return pop::cookMesh(m_chain, stamp, runtime);
+}
+inline Instances pop::Builder::instances(const Mesh& stamp,
+                                         std::vector<std::string> attributes,
+                                         const Runtime& runtime) const {
+  return pop::cookInstances(m_chain, stamp, std::move(attributes), runtime);
 }
 inline void pop::Builder::billboards(SkCanvas& canvas,
                                      const camera::Camera& camera,

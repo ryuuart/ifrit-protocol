@@ -31,9 +31,9 @@ find_package(boost_pfr CONFIG REQUIRED)
 find_package(boost_unordered CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 sigil_library(SigilMaterialCore
-  SOURCES BlendMode.cpp Combine.cpp Gradient.cpp Inline.cpp Material.cpp Parameters.cpp Program.cpp Recipe.cpp Terms.cpp
+  SOURCES BlendMode.cpp Combine.cpp Gradient.cpp Inline.cpp Instance.cpp Material.cpp Parameters.cpp Program.cpp Recipe.cpp Terms.cpp
           ${SIGIL_MATERIAL_SHADING_PROOF}
-  HEADERS Backface.h BlendMode.h Gradient.h Material.h
+  HEADERS Backface.h BlendMode.h Gradient.h Instance.h Material.h
           Parameters.h Target.h
           ../advanced/Bank.h ../advanced/Combine.h ../advanced/FrameData.h
           ../advanced/Leaf.h ../advanced/Program.h ../advanced/Recipe.h

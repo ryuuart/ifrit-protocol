@@ -4,7 +4,9 @@
 // Which frame stands is a pure function of the clock and the values the
 // material was made with: a bound `frame` wins, then a bound `progress`
 // over the whole run, then the clock at `framesPerSecond` — each moved on
-// by `startFrame`, and wrapped round or held at the last frame. Between
+// by `startFrame`, and wrapped round or held at the last frame. On an
+// instanced body whose instances carry the scalar `frameAttribute` names,
+// that scalar is the frame, so each copy shows its own. Between
 // two frames the sheet is read twice and the two cells mixed when
 // `blendFrames` says so, and with a motion-vector sheet each read is
 // pushed along the motion first, so the mix is of two pictures that have
@@ -32,6 +34,8 @@ float flipbookFrame() {
   float shown = uTime * framesPerSecond;
   if (progress >= 0.0) shown = progress * count;
   if (frame >= 0.0) shown = frame;
+  if (frameAttribute != 0.0 && instanceCarries(frameAttribute))
+    shown = instanceAttribute(frameAttribute);
   shown = shown + startFrame;
   if (loop > 0.5) return shown - floor(shown / count) * count;
   return clamp(shown, 0.0, count - 1.0);

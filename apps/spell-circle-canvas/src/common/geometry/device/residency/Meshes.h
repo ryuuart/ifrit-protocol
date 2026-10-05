@@ -16,6 +16,7 @@
 #include <Graphics/GraphicsEngine/interface/Buffer.h>
 #include <Graphics/GraphicsEngine/interface/InputLayout.h>
 #include <sigilgeometry/device/Device.h>
+#include <sigilgeometry/mesh/Instances.h>
 #include <sigilgeometry/mesh/Mesh.h>
 
 #include <Common/interface/RefCntAutoPtr.hpp>
@@ -49,13 +50,45 @@ struct MeshVertex {
   float primitive[4];
 };
 
+/** ONE INSTANCE, as an instanced draw reads it from a second buffer that
+ *  steps once per instance: where the copy stands, how it is turned (a
+ *  quaternion, x y z w), how it is scaled, the colour it multiplies the
+ *  stamp's by, the texture window its uv is remapped through, and its
+ *  four named scalars in the order the instanced geometry names them. */
+struct InstanceVertex {
+  float position[4];
+  float orientation[4];
+  float scale[4];
+  float color[4];
+  float textureWindow[4];
+  float attributes[4];
+};
+
+/** The input number the first instance element is read at; the five
+ *  after it follow in `InstanceVertex`'s order. */
+inline constexpr unsigned kFirstInstanceInput = 5;
+
 /** THE LAYOUT A PIPELINE DECLARES over these buffers, in the order the
  *  elements are numbered, with the fifth — the primitive lane — present
  *  only when @p withPrimitiveLane. Every vertex carries one either way,
  *  because it is the same buffer, so the stride is a whole `MeshVertex`
  *  in both answers and a program that does not read the lane is simply
- *  not given an attribute it never declared. */
-std::span<const Diligent::LayoutElement> meshLayout(bool withPrimitiveLane);
+ *  not given an attribute it never declared. With @p instanced the six
+ *  `InstanceVertex` elements follow from `kFirstInstanceInput`, read from
+ *  the second buffer once per instance. */
+std::span<const Diligent::LayoutElement> meshLayout(bool withPrimitiveLane,
+                                                    bool instanced = false);
+
+/** INSTANCED GEOMETRY'S INSTANCES UPLOADED, under the number of the
+ *  artefact they came from, as `MeshBuffers` are. */
+struct InstanceBuffers {
+  Diligent::RefCntAutoPtr<Diligent::IBuffer> instances;
+  uint32_t count = 0;
+  /** The names of the four scalars each instance carries, in the order
+   *  they were packed; an empty name is a scalar nobody named. */
+  std::string attributeNames[4];
+  uint64_t used = 0;
+};
 
 /** A MESH UPLOADED, held under the number the caller gave the artefact
  *  it came from. NOT under its address: an artefact that is dropped
@@ -114,6 +147,18 @@ class MeshResidency {
   const MeshBuffers* stream(const mesh::Mesh& mesh,
                             std::string_view primitiveColorLane = {});
 
+  /** @p instances' instances, uploaded the first time @p artefact is
+   *  asked for and kept as a mesh is. The stamp is uploaded apart, under
+   *  its own number. Null when there are no instances or the device
+   *  refused the buffer. */
+  const InstanceBuffers* instances(uint64_t artefact,
+                                   const mesh::Instances& instances);
+
+  /** ONE NEUTRAL INSTANCE — standing at the origin, unturned, unscaled
+   *  and white — which is how a mesh that is not instanced is drawn
+   *  through a program that reads an instance. Made on the first ask. */
+  const InstanceBuffers* single();
+
   /** Closes the frame: what no draw has named lately is released. */
   void endFrame();
 
@@ -121,6 +166,8 @@ class MeshResidency {
   Device* m_device = nullptr;
   uint64_t m_frame = 0;
   boost::container::map<uint64_t, MeshBuffers> m_meshes;
+  boost::container::map<uint64_t, InstanceBuffers> m_instances;
+  InstanceBuffers m_single;
   /** THE ONE PAIR OF BUFFERS a streamed mesh is written into. The two
    *  below own the storage and the growth; `m_streamed` carries the
    *  counts of THIS draw, which are not the buffers'. Each is made on

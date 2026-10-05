@@ -56,6 +56,11 @@ struct PipelineKey {
   bool cull = true;
   /** The format of the target it draws into. */
   Diligent::TEXTURE_FORMAT target = kColorFormat;
+  /** Does the vertex layout declare the INSTANCE elements, read from a
+   *  second buffer once per instance? A program whose vertex stage reads
+   *  an instance is drawn with one bound, a single neutral one for a
+   *  mesh that is not instanced. */
+  bool instanced = false;
   auto operator<=>(const PipelineKey&) const = default;
 };
 

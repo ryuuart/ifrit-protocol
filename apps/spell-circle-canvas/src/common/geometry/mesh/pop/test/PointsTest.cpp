@@ -13,8 +13,8 @@
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
-#include <include/core/SkSurface.h>
 #include <include/core/SkImage.h>
+#include <include/core/SkSurface.h>
 #include <include/utils/SkNoDrawCanvas.h>
 #include <sigilmedia/advanced/Skia.h>
 
@@ -640,4 +640,62 @@ TEST(Points, TheStampingOptionsAndItsDescriptionAreValues) {
   twice.args.code.y += 1;
   EXPECT_NE(once.args, twice.args);
   EXPECT_NE(once, twice);
+}
+
+// ---- instanced geometry --------------------------------------------------
+
+TEST(Points, InstancesCarryTheStampOnceAndOnePlacementPerPoint) {
+  Cloud cloud;
+  cloud.positions = {{0, 0, 0}, {10, 0, 0}, {0, 5, 0}};
+  cloud.scalar("size") = {1.0f, 2.0f, 0.5f};
+  cloud.color("tint") = {{1, 0, 0, 1}, {0, 1, 0, 1}, {0, 0, 1, 1}};
+  cloud.vector("dir") = {{0, 0, 1}, {1, 0, 0}, {0, 0, 1}};
+  cloud.scalar("age") = {0.1f, 0.2f, 0.3f};
+  cloud.scalar("unused") = {9, 9, 9};
+  const Mesh stamp = mesh::quad(2, 2);
+  points::InstanceOptions options = points::stampOptions(cloud);
+  options.attributes = {"age", "absent"};
+  const Instances instances = points::instances(cloud, stamp, options);
+
+  EXPECT_EQ(instances.size(), 3u);
+  EXPECT_EQ(instances.stamp, stamp);
+  EXPECT_EQ(instances.positions, cloud.positions);
+  ASSERT_EQ(instances.scales.size(), 3u);
+  EXPECT_EQ(instances.scales[1], glm::vec3(2.0f));
+  ASSERT_EQ(instances.colors.size(), 3u);
+  EXPECT_EQ(instances.colors[2], glm::vec4(0, 0, 1, 1));
+  ASSERT_EQ(instances.attributes.size(), 1u) << "only the lanes asked for";
+  ASSERT_NE(instances.attributeIf("age"), nullptr);
+  EXPECT_FLOAT_EQ((*instances.attributeIf("age"))[2], 0.3f);
+  EXPECT_EQ(instances.attributeIf("unused"), nullptr);
+
+  // Each copy placed as the merged stamping places it: the same vertices,
+  // up to the rounding a turn written as a quaternion adds.
+  const Mesh merged = points::instance(cloud, stamp, options);
+  for (size_t i = 0; i < instances.size(); ++i)
+    for (size_t v = 0; v < stamp.positions.size(); ++v) {
+      const glm::vec3 placed = glm::vec3(instances.placement(i) *
+                                         glm::vec4(stamp.positions[v], 1.0f));
+      const glm::vec3 formed = merged.positions[i * stamp.positions.size() + v];
+      EXPECT_NEAR(placed.x, formed.x, 1e-4f) << i << ", " << v;
+      EXPECT_NEAR(placed.y, formed.y, 1e-4f) << i << ", " << v;
+      EXPECT_NEAR(placed.z, formed.z, 1e-4f) << i << ", " << v;
+    }
+}
+
+TEST(Points, AChainEndsInInstancesThroughItsOwnWindow) {
+  const std::vector<glm::vec3> loop = {
+      {0, 0, 0}, {100, 0, 0}, {100, 100, 0}, {0, 100, 0}};
+  const Instances whole = pop::on(loop).count(40).instances(mesh::quad(1, 1));
+  const Instances windowed =
+      pop::on(loop).count(40).window(0.5f, 0.25f).instances(mesh::quad(1, 1));
+  EXPECT_EQ(whole.size(), 40u);
+  EXPECT_EQ(windowed.size(), 40u)
+      << "the window moves the points, not their number";
+  EXPECT_NE(whole.positions, windowed.positions);
+  // …and the same chain makes the same instances, which is what lets a
+  // renderer keep what it uploaded.
+  EXPECT_EQ(
+      windowed,
+      pop::on(loop).count(40).window(0.5f, 0.25f).instances(mesh::quad(1, 1)));
 }

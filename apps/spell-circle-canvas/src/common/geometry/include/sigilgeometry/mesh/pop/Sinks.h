@@ -67,6 +67,15 @@ std::vector<glm::uvec2> connectAdjacent(const Cloud& cloud,
 Mesh cookMesh(const Chain& chain, const Mesh& stamp,
               const Runtime& runtime = Runtime::cpu());
 
+/** THE INSTANCING SINK — instance on points: cook @p chain and stand
+ *  @p stamp at every point as instanced geometry, placed and coloured by
+ *  the same lanes `cookMesh` reads, each scalar lane @p attributes names
+ *  carried per instance under its name. A window the chain's loop entry
+ *  carries selects which points stand, as it does for every sink. */
+Instances cookInstances(const Chain& chain, const Mesh& stamp,
+                        std::vector<std::string> attributes = {},
+                        const Runtime& runtime = Runtime::cpu());
+
 /** The swept sink: the chain's cooked points become the PATH — a
  *  Catmull-Rom through P in chain order, closed by @p closed, so
  *  Jitter/Noise/Math edits BEND the sweep — and pop::sweep carries

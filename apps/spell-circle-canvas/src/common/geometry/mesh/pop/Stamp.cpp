@@ -13,8 +13,10 @@
 #include <sigilcore/schedule/Parallel.h>
 #include <sigilslang/Stamp.spv.h>
 
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <glm/gtc/quaternion.hpp>
 #include <utility>
 #include <vector>
 
@@ -255,6 +257,70 @@ Mesh instance(const Cloud& cloud, const Mesh& stamp,
   for (size_t i = 0; i < cloud.size(); ++i) {
     const uint32_t base = (uint32_t)(i * stampVerts);
     for (uint32_t idx : stamp.indices) out.indices.push_back(base + idx);
+  }
+  return out;
+}
+
+Instances instances(const Cloud& cloud, const Mesh& stamp,
+                    const InstanceOptions& options) {
+  Instances out;
+  out.stamp = stamp;
+  const size_t points = cloud.size();
+  if (points == 0) return out;
+  const std::vector<float>* scaleLane =
+      options.scaleLane.empty() ? nullptr : cloud.scalarIf(options.scaleLane);
+  const std::vector<glm::vec4>* tintLane =
+      options.tintLane.empty() ? nullptr : cloud.colorIf(options.tintLane);
+  const std::vector<glm::vec3>* orientLane =
+      options.orientLane.empty() ? nullptr : cloud.vectorIf(options.orientLane);
+  const std::vector<glm::vec4>* textureLane = cloud.colorIf("Tex");
+
+  out.positions = cloud.positions;
+  out.scales.reserve(points);
+  for (size_t i = 0; i < points; ++i) {
+    const float scale =
+        options.scale *
+        (scaleLane && i < scaleLane->size() ? (*scaleLane)[i] : 1.0f);
+    out.scales.emplace_back(scale);
+  }
+  if (orientLane) {
+    // THE KERNEL'S OWN BASIS, written as a turn: +z along the direction,
+    // x across the seeded up, y completing it, and a second seed where
+    // the two are parallel — so a copy stands as the merged stamp does.
+    out.orientations.reserve(points);
+    for (size_t i = 0; i < points; ++i) {
+      const glm::vec3 direction =
+          i < orientLane->size() ? (*orientLane)[i] : glm::vec3{0, 0, 1};
+      const float length = std::sqrt(glm::dot(direction, direction));
+      const glm::vec3 z =
+          length < 1e-12f ? glm::vec3{0, 0, 1} : direction * (1.0f / length);
+      glm::vec3 side = glm::cross(options.up, z);
+      if (glm::dot(side, side) < 1e-8f) side = glm::cross({1, 0, 0}, z);
+      const float sideLength = std::sqrt(glm::dot(side, side));
+      const glm::vec3 x =
+          sideLength < 1e-12f ? glm::vec3{0, 0, 1} : side * (1.0f / sideLength);
+      const glm::vec3 y = glm::cross(z, x);
+      out.orientations.push_back(glm::quat_cast(glm::mat3(x, y, z)));
+    }
+  }
+  if (tintLane) {
+    out.colors.reserve(points);
+    for (size_t i = 0; i < points; ++i)
+      out.colors.push_back(i < tintLane->size() ? (*tintLane)[i]
+                                                : glm::vec4{1, 1, 1, 1});
+  }
+  if (textureLane) {
+    out.textureWindows.reserve(points);
+    for (size_t i = 0; i < points; ++i)
+      out.textureWindows.push_back(
+          i < textureLane->size() ? (*textureLane)[i] : glm::vec4{0, 0, 1, 1});
+  }
+  for (const std::string& name : options.attributes) {
+    const std::vector<float>* lane = cloud.scalarIf(name);
+    if (!lane) continue;
+    std::vector<float>& values = out.attributes[name];
+    values.assign(lane->begin(), lane->end());
+    values.resize(points, 0.0f);
   }
   return out;
 }

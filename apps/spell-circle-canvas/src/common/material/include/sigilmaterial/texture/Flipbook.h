@@ -16,6 +16,7 @@
 #include <sigilmotion/values/Animatable.h>
 
 #include <optional>
+#include <string>
 
 namespace sigil::material {
 
@@ -44,6 +45,12 @@ struct FlipbookOptions {
    *  one past the last, bound in place of the clock. `frame` wins where
    *  both are bound. */
   std::optional<motion::Animatable<float>> progress;
+  /** THE FRAME SHOWN BY EACH INSTANCE: the name of a scalar every
+   *  instance of instanced geometry carries — an age, a cell — read as a
+   *  number of frames, so each copy of a stamp shows its own. It wins over
+   *  `frame`, `progress` and the clock wherever the body is instanced and
+   *  its instances carry the name; anywhere else they decide as before. */
+  std::string frameAttribute;
   /** A SECOND SHEET OF THE SAME GRID whose red and green say how each
    *  pixel moves from its frame to the next — along u and along v, in the
    *  units of one cell, each encoded from zero to one around one half. With

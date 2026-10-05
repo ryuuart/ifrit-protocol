@@ -3,8 +3,8 @@
 # what a mesh holds its primitive lanes in.
 find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilGeometryMesh
-  SOURCES Faces.cpp Generators.cpp Mesh.cpp Transform.cpp
-  HEADERS Faces.h Mesh.h Transform.h Vec.h
+  SOURCES Faces.cpp Generators.cpp Instances.cpp Mesh.cpp Transform.cpp
+  HEADERS Faces.h Instances.h Mesh.h Transform.h Vec.h
   PUBLIC SigilGeometryPath SigilCoreCallable Boost::container)
 
 # ONE BINARY over the currency and the camera that places it. A camera is

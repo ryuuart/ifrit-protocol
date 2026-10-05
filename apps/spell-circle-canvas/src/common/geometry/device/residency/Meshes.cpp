@@ -81,25 +81,88 @@ void fillVertices(const mesh::Mesh& mesh, std::string_view primitiveColorLane,
 
 }  // namespace
 
-std::span<const dg::LayoutElement> meshLayout(bool withPrimitiveLane) {
+std::span<const dg::LayoutElement> meshLayout(bool withPrimitiveLane,
+                                              bool instanced) {
   // THE STRIDE IS STATED rather than derived from the elements, because
   // a vertex carries the primitive lane whether or not the program that
   // reads the others declares it: a layout of four elements over these
   // vertices still steps a whole one.
-  static const dg::LayoutElement elements[] = {
-      dg::LayoutElement{0, 0, 3, dg::VT_FLOAT32, dg::False,
-                        dg::LAYOUT_ELEMENT_AUTO_OFFSET, sizeof(MeshVertex)},
-      dg::LayoutElement{1, 0, 3, dg::VT_FLOAT32, dg::False,
-                        dg::LAYOUT_ELEMENT_AUTO_OFFSET, sizeof(MeshVertex)},
-      dg::LayoutElement{2, 0, 2, dg::VT_FLOAT32, dg::False,
-                        dg::LAYOUT_ELEMENT_AUTO_OFFSET, sizeof(MeshVertex)},
-      dg::LayoutElement{3, 0, 4, dg::VT_FLOAT32, dg::False,
-                        dg::LAYOUT_ELEMENT_AUTO_OFFSET, sizeof(MeshVertex)},
-      dg::LayoutElement{4, 0, 4, dg::VT_FLOAT32, dg::False,
-                        dg::LAYOUT_ELEMENT_AUTO_OFFSET, sizeof(MeshVertex)},
+  const auto vertex = [](dg::Uint32 input, dg::Uint32 components) {
+    return dg::LayoutElement{input,
+                             0,
+                             components,
+                             dg::VT_FLOAT32,
+                             dg::False,
+                             dg::LAYOUT_ELEMENT_AUTO_OFFSET,
+                             sizeof(MeshVertex)};
   };
-  return {elements, withPrimitiveLane ? 5u : 4u};
+  // …and the instance elements step once per instance through the second
+  // buffer, a whole `InstanceVertex` at a time.
+  const auto instance = [](dg::Uint32 input) {
+    return dg::LayoutElement{input,
+                             1,
+                             4,
+                             dg::VT_FLOAT32,
+                             dg::False,
+                             dg::LAYOUT_ELEMENT_AUTO_OFFSET,
+                             sizeof(InstanceVertex),
+                             dg::INPUT_ELEMENT_FREQUENCY_PER_INSTANCE};
+  };
+  const auto build = [&](bool primitive, bool instances) {
+    std::vector<dg::LayoutElement> elements = {vertex(0, 3), vertex(1, 3),
+                                               vertex(2, 2), vertex(3, 4)};
+    if (primitive) elements.push_back(vertex(4, 4));
+    if (instances)
+      for (dg::Uint32 i = 0; i < 6; ++i)
+        elements.push_back(instance(kFirstInstanceInput + i));
+    return elements;
+  };
+  static const std::vector<dg::LayoutElement> layouts[4] = {
+      build(false, false), build(true, false), build(false, true),
+      build(true, true)};
+  const std::vector<dg::LayoutElement>& chosen =
+      layouts[(withPrimitiveLane ? 1 : 0) + (instanced ? 2 : 0)];
+  return {chosen.data(), chosen.size()};
 }
+
+namespace {
+
+/** One instance as the device reads it. */
+InstanceVertex instanceAt(const mesh::Instances& instances, size_t i,
+                          const std::string (&names)[4]) {
+  InstanceVertex out{};
+  const glm::vec3 p = instances.positions[i];
+  out.position[0] = p.x;
+  out.position[1] = p.y;
+  out.position[2] = p.z;
+  const glm::quat q = i < instances.orientations.size()
+                          ? instances.orientations[i]
+                          : glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+  out.orientation[0] = q.x;
+  out.orientation[1] = q.y;
+  out.orientation[2] = q.z;
+  out.orientation[3] = q.w;
+  const glm::vec3 s =
+      i < instances.scales.size() ? instances.scales[i] : glm::vec3(1.0f);
+  out.scale[0] = s.x;
+  out.scale[1] = s.y;
+  out.scale[2] = s.z;
+  const glm::vec4 c =
+      i < instances.colors.size() ? instances.colors[i] : glm::vec4(1.0f);
+  for (int k = 0; k < 4; ++k) out.color[k] = c[k];
+  const glm::vec4 w = i < instances.textureWindows.size()
+                          ? instances.textureWindows[i]
+                          : glm::vec4(0.0f, 0.0f, 1.0f, 1.0f);
+  for (int k = 0; k < 4; ++k) out.textureWindow[k] = w[k];
+  for (int k = 0; k < 4; ++k) {
+    const std::vector<float>* lane =
+        names[k].empty() ? nullptr : instances.attributeIf(names[k]);
+    out.attributes[k] = lane && i < lane->size() ? (*lane)[i] : 0.0f;
+  }
+  return out;
+}
+
+}  // namespace
 
 MeshResidency::MeshResidency(Device& device) : m_device(&device) {}
 
@@ -194,8 +257,60 @@ const MeshBuffers* MeshResidency::stream(const mesh::Mesh& mesh,
   return &m_streamed;
 }
 
+const InstanceBuffers* MeshResidency::instances(
+    uint64_t artefact, const mesh::Instances& instances) {
+  if (instances.positions.empty()) return nullptr;
+  InstanceBuffers& buffers = m_instances[artefact];
+  buffers.used = m_frame;
+  if (buffers.instances) return &buffers;
+
+  // The first four names in the attributes' own order; the rest are not
+  // drawn.
+  size_t k = 0;
+  for (const auto& [name, values] : instances.attributes) {
+    if (k == 4) break;
+    buffers.attributeNames[k++] = name;
+  }
+  std::vector<InstanceVertex> packed;
+  packed.reserve(instances.size());
+  for (size_t i = 0; i < instances.size(); ++i)
+    packed.push_back(instanceAt(instances, i, buffers.attributeNames));
+
+  dg::BufferDesc desc;
+  desc.Name = "instances";
+  desc.Size = packed.size() * sizeof(InstanceVertex);
+  desc.BindFlags = dg::BIND_VERTEX_BUFFER;
+  desc.Usage = dg::USAGE_IMMUTABLE;
+  dg::BufferData data{packed.data(), desc.Size};
+  m_device->renderDevice()->CreateBuffer(desc, &data, &buffers.instances);
+  buffers.count = (uint32_t)packed.size();
+  return buffers.instances ? &buffers : nullptr;
+}
+
+const InstanceBuffers* MeshResidency::single() {
+  if (m_single.instances) return &m_single;
+  mesh::Instances one;
+  one.positions.emplace_back(0.0f);
+  const InstanceVertex neutral = instanceAt(one, 0, m_single.attributeNames);
+  dg::BufferDesc desc;
+  desc.Name = "one neutral instance";
+  desc.Size = sizeof(InstanceVertex);
+  desc.BindFlags = dg::BIND_VERTEX_BUFFER;
+  desc.Usage = dg::USAGE_IMMUTABLE;
+  dg::BufferData data{&neutral, desc.Size};
+  m_device->renderDevice()->CreateBuffer(desc, &data, &m_single.instances);
+  m_single.count = 1;
+  return m_single.instances ? &m_single : nullptr;
+}
+
 void MeshResidency::endFrame() {
   ++m_frame;
+  for (auto it = m_instances.begin(); it != m_instances.end();) {
+    if (m_frame - it->second.used > kMeshLifetime)
+      it = m_instances.erase(it);
+    else
+      ++it;
+  }
   for (auto it = m_meshes.begin(); it != m_meshes.end();) {
     if (m_frame - it->second.used > kMeshLifetime)
       it = m_meshes.erase(it);

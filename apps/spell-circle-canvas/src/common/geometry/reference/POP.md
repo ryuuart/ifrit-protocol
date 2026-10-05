@@ -64,12 +64,16 @@ with the same expression.
 the mask on the filter just added — and the builder converts to a
 `Chain`, so you can reach into any operator afterwards and re-cook. Sinks
 end a chain: `cook()` to a `Cloud`, `cookMesh()` to one mesh of stamps,
-`cookSweep()` reading the cooked points as the path `pop::sweep()`
+`cookInstances()` to the same stamps as instanced geometry — the stamp
+once and an instance per point, carrying the scalar lanes it is asked
+for — `cookSweep()` reading the cooked points as the path `pop::sweep()`
 carries a profile along, and `cookBillboards()` splatting them onto a
 canvas as camera-facing sprites — the one sink that forms no geometry,
 because a billboard faces the eye and so is answered where the eye is
-rather than in the world. The builder reaches all four as `cloud()`,
-`stamps()`, `sweep()` and `billboards()`.
+rather than in the world. The builder reaches all five as `cloud()`,
+`stamps()`, `instances()`, `sweep()` and `billboards()`. A loop entry's
+`window(head, span)` is part of the chain like any operator, so a
+moving window is a chain described afresh.
 
 
 ## The pop family, and where each member runs
@@ -119,6 +123,7 @@ And the sinks, which stand on the cooked cloud:
 | --- | --- | --- | --- |
 | `cook()` | the `Cloud` itself | yes | the chain dispatched, read back once |
 | `cookMesh()` / `points::instance()` | the stamp placed at every point | yes | the vertices dispatched, read back once |
+| `cookInstances()` / `points::instances()` | the stamp once and an instance per point, as `Instances` | yes | the chain's cook as for `cook()`; the instances are what a renderer draws |
 | `cookSweep()` / `pop::sweep()` | the profile carried along the cooked points | yes | the ring vertices dispatched, read back once |
 | `cookBillboards()` / `points::drawBillboards()` | camera-facing sprites on a canvas | yes | — |
 

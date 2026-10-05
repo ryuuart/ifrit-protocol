@@ -7,6 +7,7 @@
 #include "sigilmaterial/texture/Flipbook.h"
 
 #include <sigilmaterial/advanced/Recipe.h>
+#include <sigilmaterial/core/Instance.h>
 #include <sigilshaders/MaterialTexture.h>
 
 #include <algorithm>
@@ -33,6 +34,8 @@ struct FlipbookParameters {
   float progress = -1;
   float motionStrength = 0;
   float straight = 0;
+  /** The number the per-instance frame's name folds to; zero for none. */
+  float frameAttribute = 0;
   glm::vec2 sheetSize{1, 1};
   glm::vec2 motionSize{1, 1};
 };
@@ -71,6 +74,7 @@ Material flipbook(Texture sheet, FlipbookOptions options) {
   parameters.loop = options.loop ? 1.0f : 0.0f;
   parameters.blendFrames = options.blendFrames ? 1.0f : 0.0f;
   parameters.startFrame = options.startFrame;
+  parameters.frameAttribute = instanceAttributeKey(options.frameAttribute);
   parameters.straight =
       sheet.colorSpace() == media::ColorSpace::Data ? 1.0f : 0.0f;
   // A smaller copy of a sheet averages neighbouring cells into one texel,

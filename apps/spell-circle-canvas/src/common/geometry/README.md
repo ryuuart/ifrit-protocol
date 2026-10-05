@@ -277,6 +277,20 @@ move values from the point class to the primitive class.
 upload directly to a GPU renderer downstream. Nothing renderer-shaped
 lives in the struct.
 
+**`Instances` is a mesh repeated.** Instanced geometry — USD's point
+instancer, three.js's instanced mesh, a geometry-node system's instances
+— is the stamp once and, per instance, a position, an orientation (a
+quaternion), a scale, a colour, a texture window and up to
+`mesh::kInstanceAttributes` named scalars a material reads by name: an
+age, a phase, a cell. It is geometry like a mesh is: a renderer draws it as
+one instanced draw. A point-operator chain ends in it —
+`pop::on(loop).count(600).window(head, 0.2f).instances(stamp, {"age"})`,
+`pop::cookInstances()` spelled out — and a cloud reaches it through
+`points::instances()`, which places each copy by the same table
+`points::instance()` forms merged stamps by, so the two agree vertex for
+vertex up to the rounding a quaternion adds. `Instances::placement` is one
+instance's matrix.
+
 **A draw runs on a `Runtime`, and the runtime is a value.**
 `render::MeshStyle` carries one, defaulting to `render::Runtime::cpu()`
 — the built-in executor that transforms, shades, sorts and emits on the

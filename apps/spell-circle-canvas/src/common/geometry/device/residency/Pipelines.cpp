@@ -147,7 +147,7 @@ const Pipeline* PipelineCache::pipeline(const PipelineKey& key) {
   // draw declares none: it reads no vertex buffer.
   if (!key.fullscreen) {
     const std::span<const dg::LayoutElement> elements =
-        meshLayout(key.primitive);
+        meshLayout(key.primitive, key.instanced);
     info.SetInputLayout(
         dg::InputLayoutDesc{elements.data(), (dg::Uint32)elements.size()});
   }

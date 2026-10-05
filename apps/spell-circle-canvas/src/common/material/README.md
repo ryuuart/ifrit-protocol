@@ -185,7 +185,14 @@ material::Material streaming = material::flowmap(
   pixel moves to the next frame — pushes each of the two reads along the
   motion first, scaled by `motionStrength`. Each cell covers the region it
   paints: a mesh's uv square, a node's box. Which frame stands is a pure
-  function of the clock and these values.
+  function of the clock and these values. On a body drawn as instanced
+  geometry, `frameAttribute` names a scalar each instance carries, read
+  as its frame, so every copy of one stamp plays its own cell.
+- `material::instanceAttributeKey(name)` is the number a device program
+  asks an instance's named scalar for by — a program cannot hold a name.
+  The program a body is compiled into answers `instanceColor()`,
+  `instanceIndex()` and `instanceAttribute(key)` for the instance a pixel
+  belongs to: white, zero and zero on a body that is not instanced.
 - `material::flowmap(source, FlowmapOptions)` reads `source` through a
   texture of directions (`flow`, data) moving with the clock: two reads half
   a cycle apart slide `strength` along the flow each cycle, `speed` cycles a

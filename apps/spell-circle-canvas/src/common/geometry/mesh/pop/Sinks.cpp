@@ -21,6 +21,15 @@ namespace sigil::geometry::mesh {
 using curve::Spline3;
 using path::Polyline;
 
+Instances pop::cookInstances(const pop::Chain& chain, const Mesh& stamp,
+                             std::vector<std::string> attributes,
+                             const pop::Runtime& runtime) {
+  const Cloud cloud = cook(chain, runtime);
+  points::InstanceOptions options = points::stampOptions(cloud);
+  options.attributes = std::move(attributes);
+  return points::instances(cloud, stamp, options);
+}
+
 Mesh pop::cookMesh(const pop::Chain& chain, const Mesh& stamp,
                    const pop::Runtime& runtime) {
   const Cloud cloud = cook(chain, runtime);
