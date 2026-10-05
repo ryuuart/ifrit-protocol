@@ -4,7 +4,6 @@
  */
 
 #include <include/core/SkTypes.h>  // SkDebugf
-#include <sigilmaterial/skia/Lit.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/core/Image.h>
 
@@ -21,9 +20,6 @@ using namespace detail;
 core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
                                                      Above above) {
   const ElementNode& node = inst.painted();
-  // Sources are sampled before paint, including transforms inside cached
-  // groups. A nonvisual leaf has no recording whose stability can settle.
-  if (node.kind == Kind::Light) return {.memoSafe = true};
   const ComputedStyle& style = inst.computed;
   const bool movingAbove = above.moving;
 
@@ -31,9 +27,8 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
                             const motion::Animatable<float>& v) {
     return motion::isRunning(inst.anims[slot].get(), v);
   };
-  const bool lightMoves = inst.lighting && inst.lighting->isRunning();
-  const auto decorationMoves = [&](const Decoration& mark) {
-    return mark.isRunning() || (lightMoves && mark.readsLighting());
+  const auto decorationMoves = [](const Decoration& mark) {
+    return mark.isRunning();
   };
   // Span passes: an animated reveal rebuilds the pass's geometry, and an
   // animated brush repaints it. Both are CONTENT volatility, and both are
@@ -194,25 +189,18 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // exactly as a live fill material does.
   const material::Paint* inkLive = inkPaintOf(inst);
   const bool metricLive = inkLive && inkLive->isRunning();
-  // A visible span surface reads the light effective for its own material.
-  // Its light inputs are not among the node's scalar memo inputs.
+  // A visible span's material ink moves with its own material, which is
+  // not among the node's scalar memo inputs.
   const bool spanInkLive = [&] {
     if (inkLive || !inst.textState || !inst.paragraph) return false;
-    for (const TextState::Restyle& restyle : inst.textState->restyles) {
-      if (!restyle.paints(*inst.paragraph)) continue;
-      const material::Material& source =
-          *restyle.style.paint.foregroundMaterial;
-      if (source.isRunning() ||
-          material::skia::lightingFor(
-              source, inst.lighting ? *inst.lighting : material::Lighting{})
-              .isRunning())
+    for (const TextState::Restyle& restyle : inst.textState->restyles)
+      if (restyle.paints(*inst.paragraph) &&
+          restyle.style.paint.foregroundMaterial->isRunning())
         return true;
-    }
     return false;
   }();
   const bool cacheNone = node.cacheMode == Cache::None;
-  // A decoration shaded under the lighting in force repaints while that
-  // lighting moves, though nothing of its own does.
+  // A decoration that moves repaints its node.
   const bool decorLive = [&] {
     bool live = false;
     for (const Decoration& d : node.backgrounds) live |= decorationMoves(d);

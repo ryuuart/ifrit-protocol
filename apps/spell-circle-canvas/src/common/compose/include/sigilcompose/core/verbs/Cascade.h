@@ -16,7 +16,6 @@
 #include <sigilcompose/core/PaintBox.h>
 #include <sigilcompose/core/Var.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilweave/layout/ParagraphBlock.h>
 #include <sigilweave/style/Style.h>
@@ -107,21 +106,6 @@ class CascadeVerbs {
    *  every pixel grid, and inherited as CSS inherits `image-rendering`,
    *  so a panel of pixel art states nearest once. */
   Derived& imageRendering(material::Sampling sampling);
-  /** THE LIGHT A LIT SURFACE UNDER THIS NODE IS SHADED UNDER — a
-   *  `material::studio()` light, a `material::environment()`, or both —
-   *  inherited as the ink is, so a page states it once. A fill, an ink or
-   *  a stroke whose material states a `surface()` is lit by it, reading
-   *  its normal map for relief; a surface's own `lighting` stands over
-   *  it. With none in force a surface is painted flat. A bound angle or
-   *  strength re-runs only the lighting pass each frame: the colours
-   *  beneath were lowered once and are not painted again. */
-  Derived& lighting(material::Lighting lighting);
-  /** THE ENVIRONMENT A SCENE OWNS: reflected by its lit receivers, together
-   *  with the sources declared below it. A later call replaces it. This
-   *  applies to `scene()` only and is ignored on other node kinds. Nested
-   *  scenes start with no inherited environment. */
-  Derived& environment(material::Environment environment);
-
   /** @p property TAKES THE PARENT'S COMPUTED VALUE, whether or not it is
    *  one that inherits on its own: `inherit(Property::PaddingLeft)` gives
    *  this node the padding its parent ended up with. On a property that

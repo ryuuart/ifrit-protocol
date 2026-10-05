@@ -50,7 +50,6 @@ struct EdgeSlice {
    *  its own and resolve against transparent black instead of the page
    *  (BlendingDecoration). */
   bool blends() const { return inner.blends(); }
-  bool readsLighting() const { return inner.readsLighting(); }
   bool usesWorldSpace() const { return inner.usesWorldSpace(); }
 
   void paint(draw::Pen& pen, const PaintContext& ctx) const;
@@ -98,7 +97,6 @@ struct Inset {
   float reach(glm::vec2 size) const { return inner.reach(size); }
   /** Forwarded, for the reason EdgeSlice forwards it. */
   bool blends() const { return inner.blends(); }
-  bool readsLighting() const { return inner.readsLighting(); }
   bool usesWorldSpace() const { return inner.usesWorldSpace(); }
 
   void paint(draw::Pen& pen, const PaintContext& ctx) const;

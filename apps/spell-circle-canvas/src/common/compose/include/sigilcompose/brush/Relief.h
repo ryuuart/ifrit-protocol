@@ -3,7 +3,9 @@
 /** @file
  * @ingroup compose-brush
  *
- * A material shaded over the rounded relief of the outline being painted.
+ * A material over the rounded relief of the outline being painted: the
+ * relief's normals reach the surface maps a set lights the page by, and
+ * an ordinary draw paints the material's colours flat.
  */
 
 #include <sigilcompose/core/Shape.h>
@@ -31,8 +33,10 @@ struct ReliefOptions {
  *  or `foreground()` and `decorationOutline(Boundary::Glyphs)` for type.
  *  The supplied material keeps its base, layers, effects and surface
  *  settings; its normal map is reoriented into the outline's generated
- *  relief, preserving the finish detail on the shoulder and interior.
- *  With no lighting in force it paints the material's colours flat.
+ *  relief, preserving the finish detail on the shoulder and interior. On
+ *  a page painted as a surface map (`Composer::setSurfaceMap`) it paints
+ *  that map of the relieved surface; every other draw paints the
+ *  material's colours flat over the outline.
  *  Invalid options or an outline too large to bake leave the contour flat.
  *  At most sixteen million normal pixels are retained by one brush. */
 class Relief {
@@ -44,7 +48,6 @@ class Relief {
     return m_material == other.m_material && m_options == other.m_options;
   }
   bool isRunning() const;
-  bool readsLighting() const;
   bool usesWorldSpace() const;
   float bleed(glm::vec2 size) const;
   void paint(draw::Pen& pen, const PaintContext& context) const;
@@ -56,7 +59,8 @@ class Relief {
   mutable std::shared_ptr<detail::ReliefCache> m_cache;
 };
 
-/** Shade @p material over the actual outline supplied to its decoration.
+/** @p material over the actual outline supplied to its decoration, its
+ *  relief carried in the surface maps.
  *  Set a text node's ordinary ink transparent when relief supplies its
  *  glyph foreground, so the two paints do not overlap. */
 inline Relief relief(material::Material material, ReliefOptions options = {}) {

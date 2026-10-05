@@ -253,17 +253,13 @@ struct PaintContext {
    *  replay or drawn on a raster canvas, which reads such a texture back
    *  into host memory once. */
   skgpu::graphite::Recorder* recorder = nullptr;
-  /** THE LIGHTING IN FORCE at this node (`Element::lighting`), which a
-   *  stroke whose material states a lit surface is shaded under. Null
-   *  where none is stated, or outside a composer. */
-  const material::Lighting* lighting = nullptr;
   /** THE SURFACE MAP the composer paints the page as
    *  (`Composer::setSurfaceMap`), or none where it paints the page as it
    *  is seen. A mark whose material states a lit surface paints that map
-   *  of it (`material::skia::asMap`) in place of its shading, and marks
+   *  of it (`material::skia::asMap`) in place of its colours, and marks
    *  its paint with the kernel's surface-map mark so the canvas passes it
    *  through; any other paint is treated as content that is its own
-   *  colour. */
+   *  colour. With none, every mark paints its material's colours flat. */
   std::optional<material::texture::Role> surfaceMap;
   /** Is the composer's engine running anything at all this frame, as
    *  read by a node that REPAINTS this frame (a cached node replays its

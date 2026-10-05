@@ -5,7 +5,6 @@
  */
 
 #include <memory>
-#include <stdexcept>
 
 #include "ComposeInternal.h"
 
@@ -16,8 +15,6 @@ using detail::ElementNode;
 detail::Declaring::Declaring() : m_node(std::make_shared<ElementNode>()) {}
 
 void detail::Declaring::append(Element child) {
-  if (m_node.value && m_node.value->kind == detail::Kind::Light)
-    throw std::invalid_argument("a light declaration cannot contain children");
   m_node->children.push_back(std::move(child));
 }
 

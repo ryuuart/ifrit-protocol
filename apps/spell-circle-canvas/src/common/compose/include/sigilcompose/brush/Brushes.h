@@ -189,11 +189,6 @@ struct Weave {
       if (s.brush.blends()) return true;
     return false;
   }
-  bool readsLighting() const {
-    for (const Strand& s : strands)
-      if (s.brush.readsLighting()) return true;
-    return false;
-  }
   bool usesWorldSpace() const {
     for (const Strand& s : strands)
       if (s.brush.usesWorldSpace()) return true;
@@ -307,11 +302,6 @@ struct Brush {
       if (l.decoration.blends()) return true;
     return false;
   }
-  bool readsLighting() const {
-    for (const Layer& l : layers)
-      if (l.decoration.readsLighting()) return true;
-    return false;
-  }
   bool usesWorldSpace() const {
     for (const Layer& l : layers)
       if (l.decoration.usesWorldSpace()) return true;
@@ -376,7 +366,6 @@ struct Restyled {
   bool isRunning() const { return inner.isRunning(); }
   /** Forwarded, for the reason a weave forwards it. */
   bool blends() const { return inner.blends(); }
-  bool readsLighting() const { return inner.readsLighting(); }
   bool usesWorldSpace() const { return inner.usesWorldSpace(); }
   float bleed(glm::vec2 size) const { return inner.bleed(size) + extraBleed; }
   float reach(glm::vec2 size) const { return inner.reach(size); }

@@ -44,7 +44,7 @@ def ink(self, value: ElementInkLike, box: PaintBox = ...) -> Element: ...
 | `material::Color` | The colour outright. | `hexColor(0xRRGGBB)`, or the four channels |
 | `VarRef` | The custom property to read it from: `ink(var("accent"))`. | [`VarRef`](../../VALUES.md#the-custom-properties), through `compose::var` |
 | `Fill` | A colour or a material's base paint and layers, including authored shaders. | [`Fill`](../types/Fill.md) |
-| `material::Material` | Its base and layers paint the glyphs, its surface responds to the lighting in force, and its effects dress the node's layer. | A gradient, an image, a program, or `material::from(base).surface(…).effects(…)` |
+| `material::Material` | Its base and layers paint the glyphs, its surface paints its maps on a page painted as surface maps, and its effects dress the node's layer. | A gradient, an image, a program, or `material::from(base).surface(…).effects(…)` |
 | `PaintBox` | The rectangle a paint's unit square is stretched over: the element's own, the subtree's, the canvas, or each unit of a passage. | [`PaintBox`](../types/PaintBox.md): `Element`, `Subtree`, `Canvas`, `Glyph`, `Cluster`, `Word`, `Line`, `Sentence` |
 
 A `Fill` holding one colour is that colour, and a box handed with it is

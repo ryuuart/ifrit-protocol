@@ -90,15 +90,14 @@ struct TextState {
     bool paintOnly = false;
     bool inkDeclared = false;
     PaintBox inkBox = PaintBox::Element;
-    // The style owns the full source. These prepared inputs survive a
-    // lighting change and an equal replacement of the description.
+    // The style owns the full source. The flat paint and the prepared
+    // surface map inputs survive an equal replacement of the description.
     std::optional<material::Paint> ink;
     std::optional<material::skia::LitSurface> litInputs;
-    std::optional<material::Lighting> litUnder;
-    std::optional<material::Paint> litPaint;
 
     bool paints(const sigil::weave::Paragraph& paragraph) const;
-    const material::Paint* paintUnder(const material::Lighting& lighting);
+    /** The span's ink as its colours, flat; null where it states none. */
+    const material::Paint* flatInk();
   };
   std::vector<Restyle> restyles;
 };

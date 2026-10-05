@@ -39,8 +39,8 @@ struct Ribbon {
   Fill fill = Fill::color({1, 1, 1, 1});
   /** Material paint for the swept band, taking precedence over `fill`.
    *  Retains layers, surface response, effects and live inputs. A live
-   *  material repaints without re-describing; a lit surface reads the
-   *  inherited lighting. */
+   *  material repaints without re-describing; a lit surface paints its
+   *  colours flat, and its maps on a page painted as surface maps. */
   std::optional<material::Material> fillMaterial;
   float widthStart = 10.0f, widthEnd = 2.0f;
   float nibAngleDeg = -1.0f;  ///< ≥0 → calligraphic (widthStart = full)
@@ -114,7 +114,6 @@ struct Ribbon {
                                                : w;
   }
   bool isRunning() const;
-  bool readsLighting() const;
   bool usesWorldSpace() const;
   float bleed(glm::vec2 size) const;
   bool operator==(const Ribbon& o) const {

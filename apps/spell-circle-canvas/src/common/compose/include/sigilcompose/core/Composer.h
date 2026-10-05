@@ -185,8 +185,8 @@ class Composer {
    *  `Roughness`, `Metallic`, `Occlusion` or `Emissive`), and none paints
    *  the page as it is seen. Every fill, ink, stroke and relief whose
    *  material states a lit surface paints that map of its surface, through
-   *  the same sites that shade it otherwise, whether or not a lighting is
-   *  in force; everything else is content that is its own colour — its
+   *  the same sites that paint its colours flat otherwise; everything else
+   *  is content that is its own colour — its
    *  colour in the emissive map, and in the others what an unlit surface
    *  reads there, at the coverage it painted. Draw onto a canvas cleared to
    *  the role's ground, which is what an unlit surface reads too. Pixel

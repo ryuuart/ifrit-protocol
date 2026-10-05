@@ -60,8 +60,7 @@ bool Composer::Impl::phaseCustomLayouts() {
       // Hidden and operator-added children take no authored placement.
       for (const auto& child : inst.children) {
         if (child->computed.layout.display == Display::None ||
-            child->description->added() ||
-            child->description->kind == Kind::Light)
+            child->description->added())
           continue;
         placed.push_back(
             {.instance = child.get(),

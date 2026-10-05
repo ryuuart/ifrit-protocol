@@ -75,7 +75,7 @@ void Composer::Impl::collectScope(Instance& from, SkPoint origin, Scope& scope,
     const ElementNode& node = *child->description;
     // A node an operator added is nobody's to read: an operator reads
     // what was authored and builds on it.
-    if (node.added() || node.kind == Kind::Light) continue;
+    if (node.added()) continue;
     Scope::Node record;
     record.key = node.key;
     if (node.operatorData) record.attributes = node.operatorData->attributes;

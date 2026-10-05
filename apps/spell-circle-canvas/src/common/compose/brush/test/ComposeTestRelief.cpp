@@ -3,7 +3,6 @@
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/Relief.h>
 #include <sigilgeometry/kit/Generators.h>
-#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmaterial/texture/Texture.h>
@@ -37,14 +36,25 @@ void expectGlyphCoverage(const Host& ordinary, const Host& dressed, int width,
   EXPECT_LT(outsideGlyphs, solidGlyphs * 0.1f);
 }
 
+/** A context over @p outline, painting the page as @p map: the normal
+ *  map, where a relief's shoulders show, unless it says otherwise. */
 PaintContext contextFor(const SkPath& outline,
-                        const material::Lighting* lighting = nullptr) {
+                        std::optional<material::texture::Role> map =
+                            material::texture::Role::Normal) {
   PaintContext context;
   context.size = {128, 100};
   context.outline = geometry::path::fromSk(outline);
-  context.lighting = lighting;
+  context.surfaceMap = map;
   return context;
 }
+
+/** A flat normal, facing the viewer, as the normal map encodes it. */
+constexpr SkColor kFacingTheViewer = SkColorSetRGB(128, 128, 255);
+
+/** A normal's encoded slope across the picture, right positive. */
+int across(SkColor normal) { return static_cast<int>(SkColorGetR(normal)); }
+/** A normal's encoded slope up the picture, up positive. */
+int upward(SkColor normal) { return static_cast<int>(SkColorGetG(normal)); }
 
 SkPath rectangle(float left = 20, float top = 20, float right = 100,
                  float bottom = 80) {
@@ -117,9 +127,7 @@ TEST(ComposeRelief, SignedDepthTurnsTheActualOffsetOutlineAndPreservesHoles) {
   SkPathBuilder ring;
   ring.addRect(SkRect::MakeLTRB(20, 20, 100, 80));
   ring.addRect(SkRect::MakeLTRB(40, 40, 80, 60), SkPathDirection::kCCW);
-  const material::Lighting light = material::studio(
-      {.direction = 90.0f, .elevation = 25.0f, .ambient = 0.1f});
-  const PaintContext context = contextFor(ring.detach(), &light);
+  const PaintContext context = contextFor(ring.detach());
   Host raised(128, 100), impressed(128, 100), flat(128, 100);
   paintWithPen(relief(greySurface(), {.shoulder = 6, .depth = 1}),
                *raised.surface->getCanvas(), context);
@@ -127,17 +135,16 @@ TEST(ComposeRelief, SignedDepthTurnsTheActualOffsetOutlineAndPreservesHoles) {
                *impressed.surface->getCanvas(), context);
   paintWithPen(relief(greySurface(), {.shoulder = 6, .depth = 0}),
                *flat.surface->getCanvas(), context);
-  EXPECT_GT(brightness(raised.pixel(60, 22)),
-            brightness(raised.pixel(60, 77)) + 30);
-  EXPECT_GT(brightness(impressed.pixel(60, 77)),
-            brightness(impressed.pixel(60, 22)) + 30);
+  EXPECT_GT(upward(raised.pixel(60, 22)), upward(raised.pixel(60, 77)) + 30);
+  EXPECT_GT(upward(impressed.pixel(60, 77)),
+            upward(impressed.pixel(60, 22)) + 30);
   EXPECT_EQ(flat.pixel(60, 22), flat.pixel(60, 77));
   EXPECT_EQ(raised.pixel(60, 50), SK_ColorBLACK);
   EXPECT_EQ(impressed.pixel(60, 50), SK_ColorBLACK);
   EXPECT_EQ(raised.pixel(10, 50), SK_ColorBLACK);
 }
 
-TEST(ComposeRelief, ASharedBrushKeepsDistinctOutlineBakesWhileItsLightMoves) {
+TEST(ComposeRelief, ASharedBrushKeepsDistinctOutlineBakesAcrossRepaints) {
   auto reads = std::make_shared<int>(0);
   const auto sampled = [&](SkColor colour) {
     return material::image(
@@ -148,56 +155,34 @@ TEST(ComposeRelief, ASharedBrushKeepsDistinctOutlineBakesWhileItsLightMoves) {
                  .surface({.roughness = sampled(SkColorSetRGB(204, 204, 204)),
                            .normal = sampled(SkColorSetRGB(128, 128, 255))}),
              {.shoulder = 6});
-  motion::Animatable<float> direction = motion::animatable(180.0f);
-  const material::Lighting light = material::studio(
-      {.direction = direction, .elevation = 25.0f, .ambient = 0.1f});
-  const PaintContext first = contextFor(rectangle(10, 10, 60, 90), &light);
-  const PaintContext second = contextFor(rectangle(80, 30, 120, 70), &light);
+  const PaintContext first = contextFor(rectangle(10, 10, 60, 90));
+  const PaintContext second = contextFor(rectangle(80, 30, 120, 70));
   Host host(128, 100);
   const auto paintBoth = [&] {
     host.surface->getCanvas()->clear(SK_ColorBLACK);
     paintWithPen(mark, *host.surface->getCanvas(), first);
     paintWithPen(mark, *host.surface->getCanvas(), second);
   };
-  paintBoth();
-  const int firstReads = *reads;
-  ASSERT_GT(firstReads, 0);
-  EXPECT_GT(brightness(host.pixel(12, 50)),
-            brightness(host.pixel(57, 50)) + 30);
-  EXPECT_GT(brightness(host.pixel(82, 50)),
-            brightness(host.pixel(117, 50)) + 30);
-  direction = 0.0f;
-  paintBoth();
-  EXPECT_GT(brightness(host.pixel(57, 50)),
-            brightness(host.pixel(12, 50)) + 30);
-  EXPECT_GT(brightness(host.pixel(117, 50)),
-            brightness(host.pixel(82, 50)) + 30);
-  EXPECT_EQ(*reads, firstReads);
-  for (const float angle : {180.0f, 0.0f}) {
-    const material::Lighting snapshot = material::studio(
-        {.direction = angle, .elevation = 25.0f, .ambient = 0.1f});
-    PaintContext firstSnapshot = first, secondSnapshot = second;
-    firstSnapshot.lighting = secondSnapshot.lighting = &snapshot;
-    host.surface->getCanvas()->clear(SK_ColorBLACK);
-    paintWithPen(mark, *host.surface->getCanvas(), firstSnapshot);
-    paintWithPen(mark, *host.surface->getCanvas(), secondSnapshot);
-    const int lit = angle == 180.0f ? 12 : 57;
-    const int dark = angle == 180.0f ? 57 : 12;
-    EXPECT_GT(brightness(host.pixel(lit, 50)),
-              brightness(host.pixel(dark, 50)) + 30);
-    EXPECT_EQ(*reads, firstReads);
+  for (int pass = 0; pass < 3; ++pass) {
+    paintBoth();
+    // Each outline keeps its own shoulders: its left edge faces left and
+    // its right edge right.
+    EXPECT_GT(across(host.pixel(57, 50)), across(host.pixel(12, 50)) + 30);
+    EXPECT_GT(across(host.pixel(117, 50)), across(host.pixel(82, 50)) + 30);
   }
+  ASSERT_GT(*reads, 0);
+  const int firstReads = *reads;
+  paintBoth();
+  EXPECT_EQ(*reads, firstReads);
 }
 
 TEST(ComposeRelief, AuthoredNormalDetailAndItsConventionSurviveTheShoulder) {
-  const material::Lighting light = material::studio(
-      {.direction = 90.0f, .elevation = 25.0f, .ambient = 0.1f});
   const material::Material finish =
       material::from(material::Color{0.6f, 0.6f, 0.6f, 1})
           .surface({.roughness = 0.8f,
                     .normal = material::Color{0.5f, 0.8f, 0.9f, 1},
                     .normalDirectX = false});
-  const PaintContext context = contextFor(rectangle(), &light);
+  const PaintContext context = contextFor(rectangle());
   Host detailOnly(128, 100), combined(128, 100), noDetail(128, 100);
   paintWithPen(relief(finish, {.shoulder = 6, .depth = 0}),
                *detailOnly.surface->getCanvas(), context);
@@ -205,52 +190,43 @@ TEST(ComposeRelief, AuthoredNormalDetailAndItsConventionSurviveTheShoulder) {
                *combined.surface->getCanvas(), context);
   paintWithPen(relief(greySurface(), {.shoulder = 6, .depth = 0}),
                *noDetail.surface->getCanvas(), context);
-  EXPECT_GT(brightness(detailOnly.pixel(60, 50)),
-            brightness(noDetail.pixel(60, 50)) + 30);
-  EXPECT_NEAR(brightness(combined.pixel(60, 50)),
-              brightness(detailOnly.pixel(60, 50)), 12);
-  EXPECT_GT(brightness(combined.pixel(60, 22)),
-            brightness(combined.pixel(60, 77)) + 30);
+  EXPECT_GT(upward(detailOnly.pixel(60, 50)),
+            upward(noDetail.pixel(60, 50)) + 30);
+  EXPECT_NEAR(upward(combined.pixel(60, 50)), upward(detailOnly.pixel(60, 50)),
+              4);
+  EXPECT_GT(upward(combined.pixel(60, 22)),
+            upward(combined.pixel(60, 77)) + 30);
 }
 
 TEST(ComposeRelief, BakeDensityKeepsLogicalShouldersAndOutlinePlacement) {
-  const material::Lighting light = material::studio(
-      {.direction = 90.0f, .elevation = 25.0f, .ambient = 0.1f});
   const Relief mark = relief(greySurface(), {.shoulder = 6});
   for (const float density : {0.5f, 1.0f, 2.0f}) {
     Host host(128, 100);
-    PaintContext context = contextFor(rectangle(), &light);
+    PaintContext context = contextFor(rectangle());
     context.bakeDensity = density;
     paintWithPen(mark, *host.surface->getCanvas(), context);
-    EXPECT_GT(brightness(host.pixel(60, 22)),
-              brightness(host.pixel(60, 77)) + 30);
+    EXPECT_GT(upward(host.pixel(60, 22)), upward(host.pixel(60, 77)) + 30);
     EXPECT_EQ(host.pixel(10, 50), SK_ColorBLACK);
     EXPECT_GT(brightness(host.pixel(60, 50)), 0);
   }
 }
 
-TEST(ComposeRelief, AComposerTracksInheritedLightingWithoutAnotherDescribe) {
-  motion::Animatable<float> direction = motion::animatable(180.0f);
+TEST(ComposeRelief,
+     AComposerPaintsTheShouldersIntoTheNormalMapAndFlatOtherwise) {
   Host host(120, 100);
-  host.composer.render(
-      box()
-          .lighting(material::studio(
-              {.direction = direction, .elevation = 25.0f, .ambient = 0.1f}))
-          .children({box()
-                         .absolute()
-                         .left(20)
-                         .top(20)
-                         .width(80)
-                         .height(60)
-                         .background(relief(greySurface(), {.shoulder = 6}))}));
+  const Element tree = box().children(
+      {box().absolute().left(20).top(20).width(80).height(60).background(
+          relief(greySurface(), {.shoulder = 6}))});
+  host.composer.setSurfaceMap(material::texture::Role::Normal);
+  host.composer.render(tree);
   host.frame();
-  EXPECT_GT(brightness(host.pixel(22, 50)),
-            brightness(host.pixel(97, 50)) + 30);
-  direction = 0.0f;
-  EXPECT_TRUE(host.composer.isRunning());
+  EXPECT_GT(across(host.pixel(97, 50)), across(host.pixel(22, 50)) + 30);
+  // A page draw paints the material's colours flat across the shoulders.
+  host.composer.setSurfaceMap(std::nullopt);
   host.frame();
-  EXPECT_GT(brightness(host.pixel(97, 50)),
-            brightness(host.pixel(22, 50)) + 30);
+  EXPECT_EQ(host.pixel(22, 50), host.pixel(60, 50));
+  EXPECT_EQ(host.pixel(97, 50), host.pixel(60, 50));
+  EXPECT_GT(brightness(host.pixel(60, 50)), 0);
 }
 
 TEST(ComposeRelief, TimeAndSurfaceMapBindingsRemainLiveUnderAutomaticCaching) {
@@ -273,10 +249,9 @@ TEST(ComposeRelief, TimeAndSurfaceMapBindingsRemainLiveUnderAutomaticCaching) {
           .surface(
               {.metallic = 1.0f, .roughness = material::skia::base(roughMap)});
   Host mapped(120, 100);
+  mapped.composer.setSurfaceMap(material::texture::Role::Roughness);
   mapped.composer.render(
-      box()
-          .lighting(material::studio({.elevation = 90.0f}))
-          .children({box().width(80).height(60).background(relief(surface))}));
+      box().children({box().width(80).height(60).background(relief(surface))}));
   mapped.frame();
   const SkColor polished = mapped.pixel(40, 30);
   roughness = 1.0f;
@@ -578,16 +553,20 @@ TEST(ComposeRelief, InvalidAndOversizedBakesFallBackToFlatFinitePaint) {
         ReliefOptions{.depth = std::numeric_limits<float>::quiet_NaN()},
         ReliefOptions{.depth = std::numeric_limits<float>::max()},
         ReliefOptions{.shoulder = -1}}) {
-    Host host(128, 100);
+    Host normal(128, 100), base(128, 100);
     paintWithPen(relief(material::Color{1, 0, 0, 1}, options),
-                 *host.surface->getCanvas(), contextFor(rectangle()));
-    EXPECT_EQ(host.pixel(60, 50), SK_ColorRED);
-    EXPECT_EQ(host.pixel(10, 50), SK_ColorBLACK);
+                 *normal.surface->getCanvas(), contextFor(rectangle()));
+    paintWithPen(relief(material::Color{1, 0, 0, 1}, options),
+                 *base.surface->getCanvas(),
+                 contextFor(rectangle(), material::texture::Role::BaseColor));
+    EXPECT_EQ(normal.pixel(60, 50), kFacingTheViewer);
+    EXPECT_EQ(normal.pixel(10, 50), SK_ColorBLACK);
+    EXPECT_EQ(base.pixel(60, 50), SK_ColorRED);
   }
   Host host(128, 100);
   PaintContext context = contextFor(rectangle());
   context.bakeDensity = std::numeric_limits<float>::max();
   paintWithPen(relief(material::Color{1, 0, 0, 1}), *host.surface->getCanvas(),
                context);
-  EXPECT_EQ(host.pixel(60, 50), SK_ColorRED);
+  EXPECT_EQ(host.pixel(60, 50), kFacingTheViewer);
 }

@@ -48,7 +48,8 @@ class PaintVerbs {
    *  beneath the fill, strokes and bevels over it, a hard shadow as an
    *  echo of the fill and the text; passes that read pixels run over the
    *  node and its subtree as `filter` does. A stated surface response is
-   *  shaded under the lighting in force at the node.
+   *  painted as its colours, flat, and as its maps on a page painted as
+   *  surface maps (`Composer::setSurfaceMap`).
    *  @trap A fill does not inherit, so `Subtree` is `Element`, and a
    *  border here is a stroke dressing the boundary rather than a box
    *  lane, so `Padding` is `Element` too. A text unit is refused, said

@@ -43,7 +43,6 @@ sk_sp<SkPicture> snapshot(const Element& root, sigil::weave::FontContext& fonts,
   // the fresh composer holds, so an inheriting leaf inside it is set in
   // what its ancestors within the bake say before it is measured.
   impl.ensureLayout();
-  impl.resolveSceneLighting();
   if (impl.cascadeDirty) impl.runCascade();
   const SkRect rect = impl.instanceRect(*impl.root);
   if (rect.isEmpty()) return nullptr;

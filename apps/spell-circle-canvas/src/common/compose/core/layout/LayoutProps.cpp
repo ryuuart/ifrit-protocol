@@ -94,13 +94,6 @@ void Composer::Impl::applyLayoutProps(Instance& inst) {
     return;  // positioned subtree: instanceRect() reads the properties directly
   const LayoutProps& l = inst.computed.layout;
   YGNodeRef n = inst.yoga;
-  // Source declarations keep their transform lanes without becoming a
-  // flex item, even when an author supplies dimensions or insets.
-  if (inst.description->kind == Kind::Light) {
-    YGNodeStyleSetDisplay(n, YGDisplayNone);
-    return;
-  }
-
   // Whether any length below was measured against the font in force or
   // read from a custom property — the cascade pass rewrites this style
   // when either moves, and only then.

@@ -100,7 +100,6 @@ float declaredBleed(const Instance& inst, SkSize skiaSize) {
  *  on. */
 SkRect Composer::Impl::ownPaintBounds(Instance& inst) {
   const ElementNode& node = inst.painted();
-  if (node.kind == Kind::Light) return SkRect::MakeEmpty();
   const SkRect rect = instanceRect(inst);
   SkRect local = SkRect::MakeWH(rect.width(), rect.height());
   // A GLYPH'S OUTLINE IS NOT ITS LINE BOX. A text leaf is measured to the

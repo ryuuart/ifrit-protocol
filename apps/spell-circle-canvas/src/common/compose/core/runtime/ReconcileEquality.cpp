@@ -264,8 +264,8 @@ bool materialEqual(const Box<MaterialData>& a, const Box<MaterialData>& b) {
       return false;
     if (!(*a->live == *b->live)) return false;
   }
-  // A lit surface is shaded from its material, so a moved one is a new
-  // fill even where the colours it lowered to compare equal.
+  // A lit surface's maps are read from its material, so a moved one is a
+  // new fill even where the colours it lowered to compare equal.
   if (!(a->surfaced == b->surfaced)) return false;
   return true;  // ->recipe is handled with the fill compare in propertiesEqual
 }
@@ -413,7 +413,7 @@ bool operatorInputsEqual(const ElementNode& a, const ElementNode& b) {
  * reaches here, because `inst.description` holds the memo's PRODUCED payload;
  * and `children` are reconciled by key rather than compared — a node that
  *  prunes still walks them. */
-static_assert(kFieldCount<ElementNode> == 26 && kFieldCount<SceneData> == 2 &&
+static_assert(kFieldCount<ElementNode> == 25 &&
                   kFieldCount<DeclaredFields::Storage> == 6 &&
                   kFieldCount<PaintProps> == 15 &&
                   kFieldCount<ImageData> == 2 && kFieldCount<CustomData> == 2 &&
@@ -426,8 +426,6 @@ static_assert(kFieldCount<ElementNode> == 26 && kFieldCount<SceneData> == 2 &&
               "it. Nothing else fails, so no test will catch it for you.");
 bool propertiesEqual(const ElementNode& a, const ElementNode& b) {
   if (a.kind != b.kind || a.key != b.key) return false;
-  if ((bool)a.sceneData != (bool)b.sceneData) return false;
-  if (a.sceneData && !(*a.sceneData == *b.sceneData)) return false;
   // WHICH PROPERTIES WERE STATED, before any value is compared. Two
   // descriptions can carry the same padding and mean different things —
   // one states it, the other says nothing and takes whatever a rule or an

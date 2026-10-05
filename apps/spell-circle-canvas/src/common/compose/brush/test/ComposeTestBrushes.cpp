@@ -5,7 +5,6 @@
 
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/advanced/Skia.h>
-#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/skia/Paint.h>
 
 #include <utility>
@@ -424,20 +423,6 @@ struct BlendingMark {
   void paint(sigil::draw::Pen& pen, const PaintContext&) const {}
 };
 
-/** A mark whose pixels depend only on the inherited light's direction. */
-struct LitDirectionMark {
-  bool operator==(const LitDirectionMark&) const = default;
-  bool readsLighting() const { return true; }
-  void paint(sigil::draw::Pen& pen, const PaintContext& ctx) const {
-    const bool fromLeft =
-        ctx.lighting && !ctx.lighting->lights.empty() &&
-        ctx.lighting->lights.front().direction.value() > 90.0f;
-    SkPaint paint;
-    paint.setColor(fromLeft ? SK_ColorRED : SK_ColorGREEN);
-    pen.canvas()->drawRect(SkRect::MakeWH(ctx.size.x, ctx.size.y), paint);
-  }
-};
-
 /** The context a composer hands a node: a stamp store, a place in the
  *  root, and the root's size. */
 PaintContext nodeContext(StampCache& stamps) {
@@ -517,40 +502,6 @@ TEST(ComposeBrushes, ADecorationStackKeepsMarkWidthSeparateFromOverflow) {
   const Decoration stack = DecorationStack{{wide, narrow}};
   EXPECT_FLOAT_EQ(stack.bleed({100, 100}), 0.0f);
   EXPECT_FLOAT_EQ(stack.reach({100, 100}), 9.0f);
-}
-
-TEST(ComposeBrushes, ACompositeRepaintsWhenItsInheritedLightMoves) {
-  const Decoration mark = LitDirectionMark{};
-  const auto unchangedOutline = geometry::path::Shaper::incomparable(
-      [](const geometry::path::Outline& outline) { return outline; });
-  const std::vector<std::pair<std::string, Decoration>> wrappers = {
-      {"stack", DecorationStack{{mark}}},
-      {"weave", brush::layers({mark})},
-      {"brush", Brush{}.layer(mark)},
-      {"restyled", brush::restyle(unchangedOutline, mark)},
-      {"edge slice", onEdges(geometry::path::Edge::Top, mark)},
-      {"inset", inset(4, mark)},
-  };
-  for (const auto& [name, wrapped] : wrappers) {
-    SCOPED_TRACE(name);
-    motion::Animatable<float> direction = motion::animatable(180.0f);
-    Host host;
-    host.composer.setAutoTexturePromotion(false);
-    host.composer.render(
-        box()
-            .lighting(material::studio({.direction = direction}))
-            .children({box()
-                           .width(80)
-                           .height(80)
-                           .cache(Cache::Picture)
-                           .foreground(wrapped)}));
-    host.frame();
-    EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
-    direction = 0.0f;
-    EXPECT_TRUE(host.composer.isRunning());
-    host.frame();
-    EXPECT_EQ(host.pixel(40, 40), SK_ColorGREEN);
-  }
 }
 
 // -------------------------------------------------------------------------

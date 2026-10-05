@@ -40,7 +40,6 @@ sigil_test(compose_test
           test/ComposeTestTextFxTransforms.cpp
           test/ComposeTestTextFxSchedule.cpp test/ComposeTestTextSpans.cpp
           test/ComposeTestNamedStyles.cpp test/ComposeTestInkUnits.cpp
-          test/ComposeTestSpanLighting.cpp
           test/ComposeTestTextSpanAxis.cpp test/ComposeTestTextSlot.cpp
           test/ComposeTestTextMarks.cpp
   LIBRARIES SigilComposeTypography SigilComposeKit SigilComposeTesting

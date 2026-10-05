@@ -32,8 +32,9 @@ struct CoverageMark {
   void paint(draw::Pen& pen, const PaintContext& context) const;
 };
 
-/** A keyline around the node's outline painted with a material; one whose
- *  material states a lit surface is shaded under the lighting in force. */
+/** A keyline around the node's outline painted with a material's colours;
+ *  one whose material states a lit surface paints that surface's map on a
+ *  page painted as surface maps. */
 struct MaterialStroke {
   material::Paint source;
   material::StrokeOptions options;
@@ -42,12 +43,11 @@ struct MaterialStroke {
     return source == other.source && options == other.options &&
            surfaced == other.surfaced;
   }
-  // One prepared material and its current lighting pass; paint-time state
+  // One prepared material and its surface map passes; paint-time state
   // does not participate in the mark's value equality.
   mutable std::shared_ptr<MaterialStrokeCache> cache = {};
   bool isRunning() const;
   bool usesWorldSpace() const;
-  bool readsLighting() const { return surfaced.has_value(); }
   float bleed() const {
     return options.position == material::StrokePosition::Inside ? 0
                                                                 : options.width;

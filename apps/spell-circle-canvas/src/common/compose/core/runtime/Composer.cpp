@@ -175,7 +175,6 @@ bool Composer::isRunning() const {
   // composer. Poll its retained value here, before a texture scene decides
   // that drawing can be skipped.
   impl.scanReleasedScalars();
-  if (!impl.needsLayout) impl.resolveSceneLighting();
   return impl.contentDirty || impl.needsLayout || impl.volatileDirty ||
          impl.engine.isRunning() || impl.rootVolatile;
 }
@@ -288,7 +287,6 @@ void Composer::draw(SkCanvas& canvas) {
   sigil::measure::Laps laps;
 
   impl.ensureLayout();
-  impl.resolveSceneLighting();
   if (impl.cascadeDirty) impl.runCascade();
   impl.stats.layoutMs =
       sigil::measure::Milliseconds(laps.mark("layout")).count();

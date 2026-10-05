@@ -245,8 +245,8 @@ cannot attach to the original.
 
 ## Styling and text
 
-Font, ink, paragraph settings, sheets, custom properties, image sampling
-and lighting inherit through the tree. Layout and paint declarations such
+Font, ink, paragraph settings, sheets, custom properties and image sampling
+inherit through the tree. Layout and paint declarations such
 as padding, fill and transform stay local. Inheritance follows where the
 node is mounted, independent of where its C++ value was built.
 
@@ -308,43 +308,25 @@ a bounded raster, produces stepped edges, follows device scale and has an
 opacity threshold. It excludes the node's own decorations, includes its
 content and children, and falls back to the shape when empty.
 
-Point and spot lights place their source in root-page logical pixels, with
-positive z toward the viewer. A shared source lights each fill and ink where
-it sits; moving a node or its ancestor updates the response. The planar
-executor supports affine placement and bump normals, without displacement
-or self-shadowing.
-
-Use `scene()` when light sources should belong to the composition itself.
-It is an ordinary flex container whose `light()` leaves illuminate its own
-lit paint and descendants, regardless of sibling order. Light leaves take
-no layout space, paint nothing and receive no hits. Their positions are
-local; element transforms place them through their ancestors.
-`Display::None` on a source or its ancestor disables it; opacity and
-clipping leave its illumination active.
-Spot and directional axes turn with those transforms. Receivers transform
-their normals into the same root-page frame, so a turned surface catches
-the source from its new orientation. Out-of-plane source turns or perspective
-disable its direct contribution.
-
-Planar lighting is the whole of what Compose lights. The page is the
-surface and the viewer looks straight at it: a plane turned by the depth
-lanes keeps the lighting it has flat, and there is no camera, no emitter
-with an extent and no shadow one node casts on another. An interface lit
-as a body in space is a SigilWorld surface wearing the composition as a
-`material::Texture`, where the set's camera and lights shade it.
+**Compose does not shade.** A fill, ink or stroke whose material states a
+surface (`material::SurfaceOptions`) paints that material's colour stack on
+a page, flat, exactly as a material that states no surface paints it; its
+normal, roughness, metallic, occlusion and emission channels change nothing
+there. A relief paints its material's colours flat over the outline, and
+glyph and word ink restart those colours on each unit. Light belongs to
+SigilWorld: a page is lit by a set through its surface maps.
 
 **A set lights a page through its surface maps.** `SurfaceScene` renders
 one retained tree as the maps of a surface — base colour, normal,
 roughness, metallic, occlusion and emissive — and `maps()` answers them as
 a `material::texture::TextureMaps`. Hand that to
 `material::surface::program(maps, parameters)` and put the result on a
-World surface: the set's lights, environment and camera shade the page,
-and Compose shades nothing. Every lit fill, ink (Glyph and Word units
-included), material stroke and relief paints the map its material states,
-lit or not where it stands; content that takes no light is its own
-colour — its colour in the emissive map over a black base, a normal facing
-the viewer, roughness and occlusion one and metallic zero — so flat text
-and fills come out of the set looking as painted. Where nothing paints,
+World surface: the set's lights, environment and camera shade the page.
+Every lit fill, ink (Glyph and Word units included), material stroke and
+relief paints the map its material states; content that takes no light is
+its own colour — its colour in the emissive map over a black base, a
+normal facing the viewer, roughness and occlusion one and metallic zero —
+so flat text and fills come out of the set looking as painted. Where nothing paints,
 every map reads that same ground with a transparent base colour, and an
 antialiased edge composites each map by its coverage, normals included as
 their encoding. Normals are encoded green up the picture.
@@ -365,51 +347,13 @@ map through `setSurfaceMap` too. A page painted as a map takes no pixel
 bakes. A layer effect that makes colour of its own over lit content — a
 shadow or glow filter on a group — writes that colour into every map.
 
-```cpp
-material::Light key{.kind = material::LightKind::Point,
-                    .position = {0, 0, 180}, .range = 800};
-auto panel = compose::box().width(140).height(100).fill(gold);
-auto composition = compose::scene().row().gap(12).children({
-    compose::light(key).translateX(120).translateY(60), panel, panel});
-```
-
-Here `gold` is the caller's material. A source belongs to its nearest scene;
-a nested scene starts with no inherited sources or environment. Set a
-scene's reflected surroundings with `Element::environment`. A receiver's
-`Element::lighting` or its material's own lighting replaces the scene
-context. Attributes remain passive facts for their readers. Emissive
-appearance does not register an illuminating source.
-
-Light color, intensity and applicable angles accept live values from
-SigilMotion. Keep the cells beside the application model, then update them
-without describing the tree again:
-
-```cpp
-auto keyColor = motion::animatable(material::Color{1, 0.8f, 0.6f, 1});
-auto strength = motion::animatable(1.0f);
-auto bearing = motion::animatable(120.0f);
-material::Light key{.direction = bearing, .color = keyColor,
-                    .intensity = strength, .ambient = 0.05f};
-auto source = compose::light(key);
-keyColor = material::Color{0.4f, 0.7f, 1, 1};
-strength = 0.6f;
-bearing = 30.0f;
-```
-
-The host draws after changing a cell; `Composer::isRunning` observes a
-changed scene source even after its receivers settle into caches. Positions,
-range, cone and ambient values are ordinary fields. Animate source placement
-with its element's transforms, or describe again when those fields change.
-
-For a caller's material `gold`, ordinary `.ink(gold)` shades the glyphs
-under the lighting in force. Outline relief adds a bevel derived from
-the actual contours; its glyph foreground supplies the text paint, so
-set the ordinary ink transparent to avoid painting the glyphs twice.
-
-`relief(material, options)` shades a material over that outline, combining
-the contour bevel with any normal map in the material. Shoulder is measured
-in logical pixels; positive depth raises the outline and negative depth
-impresses it. Attach it as a shape background or a glyph foreground:
+`relief(material, options)` puts a material over the outline being painted,
+combining a bevel derived from the actual contours with any normal map in
+the material — in the normal map a set lights the page by. Shoulder is
+measured in logical pixels; positive depth raises the outline and negative
+depth impresses it. Attach it as a shape background, or as a glyph
+foreground with the ordinary ink set transparent so the glyphs are not
+painted twice:
 
 ```cpp
 #include <sigilcompose/brush/Relief.h>
@@ -424,7 +368,7 @@ Here `gold` is the caller's material. Link `SigilComposeBrush`. Relief keeps
 its layers, effects and live surface channels. It is a decoration;
 ordinary material fills and inks remain available through `fill` and `ink`.
 
-A material Ribbon uses the same lighting and effect path over its swept
+A material Ribbon uses the same surface map and effect path over its swept
 band. `brush::ribbon(profile, material)` keeps the full material; its `Fill`
 overload paints only the colour stack. Layer brushes with `brush::layers`
 when several marks need to share one outline.
@@ -437,17 +381,17 @@ Pass `material::image(scene->texture())` to
 `material::surface::normalFromHeight`, then put that result in the shared
 background material's normal channel. The same texture can mask colour,
 roughness or metallic changes. Lettering then changes how the background
-takes light, including where marks overlap. Link `SigilComposeTexture`
+takes a set's light, including where marks overlap. Link `SigilComposeTexture`
 and `SigilMaterialSurface` and include their own headers. Keep the source
 tree independent of the material consuming it to avoid a feedback loop.
-Retain the texture scene; its settled tree does not repaint as the final
-surface's lighting moves.
+Retain the texture scene; its settled tree does not repaint as the set's
+lights move.
 
 Leave `Cache::Auto` in place for ordinary scenes. The composer records
 static content and chooses reuse from declared inputs. A custom paint
 program that reads time, input or external state without re-describing
 must use `Cache::None`. Custom decoration schemes must forward their
-animation, overflow, mark width, backdrop, lighting, root-space sampling and borrowing
+animation, overflow, mark width, backdrop, root-space sampling and borrowing
 capabilities when composed; `DecorationStack` and the stock adaptors do
 that for their members. A scheme that samples root coordinates declares
 `usesWorldSpace()` so a moved ancestor invalidates its held paint.
@@ -490,7 +434,7 @@ live under `include/sigilcompose/<feature>/`; the
 accepted values, with examples beside each entry.
 
 Values retain their library of origin: outlines and geometry are
-SigilGeometry's, paints and lighting SigilMaterial's, pixels SigilMedia's,
+SigilGeometry's, paints and surfaces SigilMaterial's, pixels SigilMedia's,
 text and paragraphs SigilWeave's, clocks and animated values SigilMotion's.
 SigilCore owns generic reconciliation and cache decisions. Compose owns
 their execution over Yoga, text state and Skia. It does not re-export

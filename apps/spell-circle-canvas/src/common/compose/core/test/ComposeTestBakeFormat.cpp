@@ -6,7 +6,6 @@
 
 #include <include/core/SkColorSpace.h>
 #include <sigilcompose/brush/Ribbons.h>
-#include <sigilmaterial/core/Lighting.h>
 
 #include <algorithm>
 #include <cmath>
@@ -16,12 +15,10 @@
 
 namespace {
 
-material::Material hdrCacheSurface(material::Color illumination = {4, 2, 1,
-                                                                   1}) {
-  return material::from(material::Color{.7f, .6f, .5f, 1})
-      .surface({.roughness = 1.0f,
-                .lighting = material::studio(
-                    {.elevation = 90, .color = illumination, .ambient = 0})});
+/** A surface whose colours reach past one, which a page paints flat. */
+material::Material hdrCacheSurface(material::Color radiance = {2.8f, 1.2f, .5f,
+                                                               1}) {
+  return material::from(radiance).surface({.roughness = 1.0f});
 }
 
 Element hdrCacheFigure(Cache cache) {
@@ -195,7 +192,7 @@ TEST(ComposeCaching, SharedCellSheetKeepsHdrForEachComposersDestination) {
             .shape(skiaShape([](SkSize size) {
               return SkPathBuilder().addOval(SkRect::MakeSize(size)).detach();
             }))
-            .fill(hdrCacheSurface({1, 1, 1, 1})),
+            .fill(hdrCacheSurface({.7f, .6f, .5f, 1})),
         {40, 40});
     const test::Raster coverage =
         test::rasterize(box()
@@ -206,7 +203,7 @@ TEST(ComposeCaching, SharedCellSheetKeepsHdrForEachComposersDestination) {
                         fonts(), {64, 64}, kRGBA_F32_SkColorType);
     ASSERT_TRUE(coverage.valid());
     // Atlas sampling has its own coverage. Measure it with the same geometry
-    // and unit illumination, then require unclipped radiance at every sample.
+    // and colours below one, then require unclipped radiance at every sample.
     float coverageError = 0, energyError = 0;
     int edges = 0;
     for (int y = 0; y < 64; ++y)

@@ -88,7 +88,6 @@ void Composer::Impl::rebuildKeyIndex() {
   threadedInstances.clear();
   addingInstances.clear();
   additionOwners.clear();
-  sceneInstances.clear();
   hasCustomLayout = false;
   hasCenterPins = false;
   // The reconciler fills byKey — a memo shell's key first, else the
@@ -100,14 +99,6 @@ void Composer::Impl::rebuildKeyIndex() {
           !inst.description->key.empty())
         bySlot[inst.description->key] = &inst;
       const ElementNode& node = *inst.description;
-      inst.lightingOwner = inst.parent ? inst.parent->lightingOwner : nullptr;
-      if (node.kind == Kind::Scene) {
-        inst.lightingOwner = &inst;
-        inst.lightSources.clear();
-        sceneInstances.push_back(&inst);
-      } else if (node.kind == Kind::Light && inst.lightingOwner) {
-        inst.lightingOwner->lightSources.push_back(&inst);
-      }
       if (node.deriveData) {
         const DeriveData& derive = *node.deriveData;
         if (!derive.flowAroundKeys.empty()) flowInstances.push_back(&inst);
@@ -144,12 +135,6 @@ void Composer::Impl::rebuildKeyIndex() {
         threadedInstances.push_back(&inst);
       if (inst.computed.layout.centerAt) hasCenterPins = true;
     });
-  // Named sources retain one summation order when their siblings reorder.
-  for (Instance* scope : sceneInstances)
-    std::stable_sort(scope->lightSources.begin(), scope->lightSources.end(),
-                     [&](const Instance* a, const Instance* b) {
-                       return reconciler.keyOf(*a) < reconciler.keyOf(*b);
-                     });
   orderDerivedByReads();
 }
 

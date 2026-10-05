@@ -1,6 +1,7 @@
 /** @file
- * Outline coverage supplies the shoulder normals; SigilMaterial supplies
- * the colour stack, surface response, lighting and pixel filters.
+ * Outline coverage supplies the shoulder normals a surface map reads;
+ * SigilMaterial supplies the colour stack, the surface maps and pixel
+ * filters.
  */
 
 #include <include/core/SkCanvas.h>
@@ -39,8 +40,6 @@ struct ReliefEntry {
   size_t normalPixels = 0;
   material::Material surfaced = material::Color{0, 0, 0, 0};
   std::optional<material::skia::LitSurface> prepared;
-  std::optional<material::Lighting> lighting;
-  material::Paint paint;
 };
 
 struct ReliefCache {
@@ -103,6 +102,46 @@ bool isBeneath(const material::CoverageEffect& step) {
          !step.shadow.inside;
 }
 
+/** @p drawn over @p outline between @p material's coverage effects, under
+ *  its pixel effects, marked as a surface map where @p asMap. */
+void paintOver(const material::Material& material, draw::Pen& pen,
+               const PaintContext& context, const SkPath& outline,
+               const material::Paint& drawn, bool asMap) {
+  SkCanvas& canvas = *pen.canvas();
+  const material::FrameData frame = frameOf(context);
+  const material::Filter* effects = material.effects();
+  SkAutoCanvasRestore restore(&canvas, false);
+  if (effects) {
+    if (sk_sp<SkImageFilter> pixels = material::skia::resolvedImageFilter(
+            effects->withoutCoverage(), &frame)) {
+      SkPaint layer;
+      layer.setImageFilter(std::move(pixels));
+      float coverageBleed = 0;
+      for (const material::CoverageEffect& step : effects->coverage())
+        coverageBleed =
+            std::max(coverageBleed, detail::CoverageMark{step}.bleed());
+      const SkRect content =
+          outline.getBounds().makeOutset(coverageBleed, coverageBleed);
+      canvas.saveLayer(&content, &layer);
+    }
+    for (const material::CoverageEffect& step : effects->coverage())
+      if (isBeneath(step)) detail::CoverageMark{step}.paint(pen, context);
+  }
+  SkPaint paint;
+  paint.setAntiAlias(true);
+  if (drawn.isSolid())
+    paint.setColor4f(material::skia::toSkColor(drawn.solidColor()), nullptr);
+  else if (sk_sp<SkShader> shader = material::skia::shader(drawn, frame))
+    paint.setShader(std::move(shader));
+  else
+    return;
+  if (asMap) detail::markSurfaceMap(paint);
+  canvas.drawPath(outline, paint);
+  if (effects)
+    for (const material::CoverageEffect& step : effects->coverage())
+      if (!isBeneath(step)) detail::CoverageMark{step}.paint(pen, context);
+}
+
 }  // namespace
 
 bool Relief::isRunning() const { return m_material.isRunning(); }
@@ -131,17 +170,16 @@ float Relief::bleed(glm::vec2 size) const {
   return bleed;
 }
 
-bool Relief::readsLighting() const {
-  // The relief gives a material that states no surface a default one to
-  // carry its shoulder normals, so only a surface stated unlit paints the
-  // same under every lighting.
-  const material::SurfaceOptions* surface = m_material.surface();
-  return !surface || !surface->unlit;
-}
-
 void Relief::paint(draw::Pen& pen, const PaintContext& context) const {
   if (context.outline.empty()) return;
   const SkPath outline = geometry::path::toSk(context.outline);
+  // Only a surface map reads the relief's normals: every other draw paints
+  // the material's colours flat over the outline.
+  if (!context.surfaceMap) {
+    paintOver(m_material, pen, context, outline,
+              material::skia::paint(m_material), false);
+    return;
+  }
   const float density = densityOf(context);
   if (!m_cache) m_cache = std::make_shared<detail::ReliefCache>();
   auto& entries = m_cache->entries;
@@ -191,60 +229,15 @@ void Relief::paint(draw::Pen& pen, const PaintContext& context) const {
     cache.surfaced = m_material;
     cache.surfaced.surface(surface);
     cache.prepared.emplace(cache.surfaced);
-    cache.lighting.reset();
   }
   detail::ReliefEntry& cache = *found;
-  // On a page painted as a surface map the relief paints that map of its
-  // surface — the bevel's normals among them — rather than its shading;
-  // the shaded paint held for the lighting is left as it stands.
-  const bool asMap =
-      context.surfaceMap && material::skia::isLit(cache.surfaced);
-  material::Paint mapped;
-  if (asMap) {
-    mapped = cache.prepared->asMap(*context.surfaceMap);
-  } else {
-    const material::Lighting under = material::skia::lightingFor(
-        cache.surfaced,
-        context.lighting ? *context.lighting : material::Lighting{});
-    if (!cache.lighting || *cache.lighting != under) {
-      cache.lighting = under;
-      cache.paint = cache.prepared->under(under);
-    }
-  }
-  const material::Paint& drawn = asMap ? mapped : cache.paint;
-  SkCanvas& canvas = *pen.canvas();
-  const material::FrameData frame = frameOf(context);
-  const material::Filter* effects = m_material.effects();
-  SkAutoCanvasRestore restore(&canvas, false);
-  if (effects) {
-    if (sk_sp<SkImageFilter> pixels = material::skia::resolvedImageFilter(
-            effects->withoutCoverage(), &frame)) {
-      SkPaint layer;
-      layer.setImageFilter(std::move(pixels));
-      float coverageBleed = 0;
-      for (const material::CoverageEffect& step : effects->coverage())
-        coverageBleed =
-            std::max(coverageBleed, detail::CoverageMark{step}.bleed());
-      const SkRect content =
-          outline.getBounds().makeOutset(coverageBleed, coverageBleed);
-      canvas.saveLayer(&content, &layer);
-    }
-    for (const material::CoverageEffect& step : effects->coverage())
-      if (isBeneath(step)) detail::CoverageMark{step}.paint(pen, context);
-  }
-  SkPaint paint;
-  paint.setAntiAlias(true);
-  if (drawn.isSolid())
-    paint.setColor4f(material::skia::toSkColor(drawn.solidColor()), nullptr);
-  else if (sk_sp<SkShader> shader = material::skia::shader(drawn, frame))
-    paint.setShader(std::move(shader));
-  else
-    return;
-  if (asMap) detail::markSurfaceMap(paint);
-  canvas.drawPath(outline, paint);
-  if (effects)
-    for (const material::CoverageEffect& step : effects->coverage())
-      if (!isBeneath(step)) detail::CoverageMark{step}.paint(pen, context);
+  // The relief paints the map of its surface — the bevel's normals among
+  // them. A surface stated unlit is its own colour in every map.
+  const bool asMap = material::skia::isLit(cache.surfaced);
+  paintOver(m_material, pen, context, outline,
+            asMap ? cache.prepared->asMap(*context.surfaceMap)
+                  : material::skia::paint(cache.surfaced),
+            asMap);
 }
 
 }  // namespace sigil::compose

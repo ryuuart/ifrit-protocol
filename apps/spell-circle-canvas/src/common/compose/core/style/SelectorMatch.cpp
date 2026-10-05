@@ -437,13 +437,12 @@ void indexSiblings(Instance& parent) {
   // structural pseudo-class itself.
   int count = 0;
   for (const auto& child : parent.children)
-    if (!child->description->added() && child->description->kind != Kind::Light)
-      ++count;
+    if (!child->description->added()) ++count;
   int at = 0;
   for (const auto& child : parent.children) {
     SiblingPlace& place = child->place;
     const int slot = (int)(&child - parent.children.data());
-    if (child->description->added() || child->description->kind == Kind::Light)
+    if (child->description->added())
       place = SiblingPlace{0, 0, 0, 0, slot};
     else
       place = SiblingPlace{at++, count, 0, 0, slot};
@@ -459,9 +458,7 @@ void indexSiblings(Instance& parent) {
   std::vector<RoleTally> tallies;
   const int held = (int)parent.children.size();
   for (int at = 0; at < held; ++at) {
-    if (parent.children[at]->description->added() ||
-        parent.children[at]->description->kind == Kind::Light)
-      continue;
+    if (parent.children[at]->description->added()) continue;
     const std::string_view role = roleOf(*parent.children[at]);
     if (role.empty()) continue;
     const auto found = std::find_if(
@@ -474,9 +471,7 @@ void indexSiblings(Instance& parent) {
   }
   if (tallies.empty()) return;
   for (int at = 0; at < held; ++at) {
-    if (parent.children[at]->description->added() ||
-        parent.children[at]->description->kind == Kind::Light)
-      continue;
+    if (parent.children[at]->description->added()) continue;
     const std::string_view role = roleOf(*parent.children[at]);
     if (role.empty()) continue;
     const auto found = std::find_if(

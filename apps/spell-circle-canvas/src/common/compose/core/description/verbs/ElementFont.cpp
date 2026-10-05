@@ -185,8 +185,8 @@ Derived& FontVerbs<Derived>::ink(material::Material material, PaintBox box) {
     }
   }
   ink(Fill::fromMaterial(material), box);
-  // A lit surface keeps its material, shaded under the lighting in force
-  // at each node the ink reaches.
+  // A lit surface keeps its material for the surface maps, painted as
+  // its colours at each node the ink reaches otherwise.
   if (material::skia::isLit(material)) {
     detail::CascadeData& cascade = declarations()->ink();
     cascade.inkSurfaced = std::move(material);

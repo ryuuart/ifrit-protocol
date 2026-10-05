@@ -479,14 +479,6 @@ concept BlendingDecoration = requires(const D& d) {
   { d.blends() } -> std::convertible_to<bool>;
 };
 
-/** Optional on a DecorationScheme: whether it is shaded under the
- *  lighting in force (`PaintContext::lighting`), so a node carrying it
- *  repaints while that lighting moves. */
-template <class D>
-concept LitDecoration = requires(const D& d) {
-  { d.readsLighting() } -> std::convertible_to<bool>;
-};
-
 /** Optional on a DecorationScheme: whether its paint samples a field
  *  anchored to the composer root. A node or ancestor transform changes
  *  those samples even when the decoration's own values remain unchanged.
@@ -528,12 +520,6 @@ class Decoration {
         m_blends([&] {
           if constexpr (BlendingDecoration<D>)
             return scheme.blends();
-          else
-            return false;
-        }()),
-        m_readsLighting([&] {
-          if constexpr (LitDecoration<D>)
-            return scheme.readsLighting();
           else
             return false;
         }()),
@@ -612,8 +598,6 @@ class Decoration {
    *  BlendingDecoration). True for a bare PaintProgram, which declares
    *  nothing. */
   bool blends() const { return m_blends; }
-  /** Whether it is shaded under the lighting in force. */
-  bool readsLighting() const { return m_readsLighting; }
   /** Whether its paint samples a field anchored to the composer root. */
   bool usesWorldSpace() const { return m_worldSpace; }
   /** Keyed elements whose resolved paths this decoration reads (see
@@ -637,7 +621,6 @@ class Decoration {
  private:
   bool m_animated = false;
   bool m_blends = false;
-  bool m_readsLighting = false;
   bool m_worldSpace = false;
   float m_bleed = 0.0f;
   float m_reach = 0.0f;
@@ -664,11 +647,6 @@ struct DecorationStack {
   bool blends() const {
     for (const Decoration& mark : marks)
       if (mark.blends()) return true;
-    return false;
-  }
-  bool readsLighting() const {
-    for (const Decoration& mark : marks)
-      if (mark.readsLighting()) return true;
     return false;
   }
   bool usesWorldSpace() const {

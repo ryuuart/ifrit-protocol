@@ -31,19 +31,6 @@ void warnTextIndentIsNeverAuto() {
       "the measure. (warned once)\n");
 }
 
-/** The once-per-process diagnostic behind `environment()` on a node that
- *  is not a `scene()`: the surroundings a scene's receivers reflect belong
- *  to the scene that lights them, and no other node reads one. */
-void warnEnvironmentNeedsAScene() {
-  static thread_local bool warned = false;
-  if (warned) return;
-  warned = true;
-  SkDebugf(
-      "[compose] environment() was given to a node that is not a scene(), "
-      "and nothing else reads one — it was dropped. State it on the scene() "
-      "whose receivers reflect it. (warned once)\n");
-}
-
 }  // namespace
 
 template <class Derived>
@@ -172,22 +159,6 @@ Derived& CascadeVerbs<Derived>::var(std::string_view name,
 template <class Derived>
 Derived& CascadeVerbs<Derived>::varDefaults(VarTable defaults) {
   declarations()->customProperties().varDefaults = std::move(defaults);
-  return self();
-}
-
-template <class Derived>
-Derived& CascadeVerbs<Derived>::lighting(material::Lighting lighting) {
-  declarations()->lighting().lighting = std::move(lighting);
-  return self();
-}
-
-template <class Derived>
-Derived& CascadeVerbs<Derived>::environment(material::Environment environment) {
-  detail::ElementNode* node = declarations();
-  if (node->kind == detail::Kind::Scene)
-    node->sceneData.ensure().environment = std::move(environment);
-  else
-    warnEnvironmentNeedsAScene();
   return self();
 }
 

@@ -246,7 +246,7 @@ void Composer::Impl::onPatched(Instance& inst, const ElementNode* prev,
   // bound transforms by the volatility walk.)
   inst.hasWorldSpaceMaterial = nodeUsesWorldSpace(next) ||
                                ruleFillUsesWorldSpace(inst.ruleLayer.get()) ||
-                               inst.litUsesWorldSpace();
+                               inst.inkUsesWorldSpace();
   if (prev && !describedTransformEqual(*prev, next)) staleWorldSpaceBelow(inst);
 
   // Kind change → full remount of content state.

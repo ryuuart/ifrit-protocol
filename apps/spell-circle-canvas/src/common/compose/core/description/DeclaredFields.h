@@ -24,7 +24,7 @@ class DeclaredFields;
 void startWithOperatorZIndex(DeclaredFields& added, int zIndex);
 
 /** THE KEY TO `DeclaredFields::defaults()`. Only the sites that give a
- *  node the values it starts with can make one: `point()`, `light()` and
+ *  node the values it starts with can make one: `point()` and
  *  `positioned()`, an operator's z-index for what it adds, and the memo
  *  shell's probe, which carries one block's values and states nothing.
  *  A verb cannot make one, so it cannot write a field without its bit. */
@@ -33,7 +33,6 @@ class DefaultsKey {
   // `DefaultsKey{}` through without asking whether the caller may.
   DefaultsKey() {}  // NOLINT(modernize-use-equals-default)
   friend Element compose::point();
-  friend Element compose::light(material::Light source);
   friend Element compose::positioned();
   friend void startWithOperatorZIndex(DeclaredFields& added, int zIndex);
   friend void warnIgnoredMemoShellProps(const ElementNode& shell);

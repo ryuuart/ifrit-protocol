@@ -348,12 +348,6 @@ void Composer::Impl::resolveCascade(
   std::shared_ptr<const VarTable> vars = parentVars;
   sigil::weave::ParagraphBlock block = parentBlock;
   std::optional<SkSamplingOptions> sampling = parentSampling;
-  // The lighting inherits as the sampling does, read off the parent,
-  // which the pass has already resolved.
-  const std::shared_ptr<const material::Lighting> parentLighting =
-      inst.parent != nullptr ? inst.parent->lighting : nullptr;
-  std::shared_ptr<const material::Lighting> lighting =
-      node.kind == Kind::Scene ? inst.sceneLighting : parentLighting;
   const CascadeData* const cascade =
       node.cascadeData ? &*node.cascadeData : nullptr;
   // THE SELECTOR SHEETS IN FORCE HERE: the ones the ancestors applied,
@@ -442,15 +436,13 @@ void Composer::Impl::resolveCascade(
       inst.hasWorldSpaceMaterial = true;
   }
   // Prepared inputs belong to the effective surfaced fill. Dropping or
-  // replacing that fill releases them even when the node does not paint;
-  // changing only its lighting keeps the inputs available for reuse.
+  // replacing that fill releases them even when the node does not paint.
   if (inst.litMaterial) {
     const MaterialData* fill = fillSlotOf(inst);
     if (!fill || !fill->surfaced || *fill->surfaced != *inst.litMaterial) {
       inst.litFill.reset();
       inst.litFillInputs.reset();
       inst.litMaterial.reset();
-      inst.litUnder.reset();
     }
   }
   // THE MARKS THE MATCHED RULES STATE, laid under the node's own on the
@@ -576,9 +568,6 @@ void Composer::Impl::resolveCascade(
         longhands.state(said->font ? &*said->font : nullptr,
                         said->block ? &*said->block : nullptr, said);
         if (said->sampling) sampling = said->sampling;
-        if (said->lighting)
-          lighting =
-              std::make_shared<const material::Lighting>(*said->lighting);
         if (!said->varDefaults.empty())
           ruleVarDefaults.overlay(said->varDefaults);
       }
@@ -624,9 +613,6 @@ void Composer::Impl::resolveCascade(
             else
               sampling.reset();
             break;
-          case Property::Lighting:
-            lighting = fromParent ? parentLighting : nullptr;
-            break;
           default:
             break;
         }
@@ -652,8 +638,6 @@ void Composer::Impl::resolveCascade(
     block = sigil::weave::overlay(
         blockFromInitial ? sigil::weave::ParagraphBlock{} : block, ownBlock);
     if (cascade != nullptr && cascade->sampling) sampling = cascade->sampling;
-    if (cascade != nullptr && cascade->lighting)
-      lighting = std::make_shared<const material::Lighting>(*cascade->lighting);
     const bool anyOwnVars =
         cascade != nullptr &&
         (!cascade->varDefaults.empty() || !cascade->vars.empty());
@@ -758,9 +742,6 @@ void Composer::Impl::resolveCascade(
           else
             sampling.reset();
           break;
-        case Property::Lighting:
-          lighting = fromParent ? parentLighting : nullptr;
-          break;
         case Property::CustomProperties:
           vars = fromParent ? parentVars : nullptr;
           break;
@@ -810,35 +791,20 @@ void Composer::Impl::resolveCascade(
     remMoved = rootSize != remPx;
     remPx = rootSize;
   }
-  // A LIT INK is shaded under the lighting in force HERE, which may be
-  // other than where it was stated; the paint lit last time stands while
-  // neither the ink's material nor the lighting has moved.
-  // A page painted as a surface map paints a lit ink as that map of it,
-  // lit or not where it stands; the paint held for one map is dropped
-  // with every other when the map changes.
+  // A LIT INK on a page painted as a surface map paints as that map of
+  // it; the paint held for one map is dropped with every other when the
+  // map changes. Every other draw paints the ink's colours flat. The paint
+  // made last time stands while the ink's material has not moved.
   if (inkPaint.surfaced) {
     const bool sameMaterial = inst.inkPaint.surfaced == inkPaint.surfaced;
     if (!sameMaterial) inst.litInkInputs.reset();
-    const bool sameLight =
-        lighting == inst.lighting ||
-        (lighting && inst.lighting && *lighting == *inst.lighting);
-    if (surfaceMap && material::skia::isLit(*inkPaint.surfaced)) {
-      if (!first && sameMaterial && inst.inkPaint.paint) {
-        inkPaint.paint = inst.inkPaint.paint;
-      } else {
-        if (!inst.litInkInputs) inst.litInkInputs.emplace(*inkPaint.surfaced);
-        inkPaint.paint = inst.litInkInputs->asMap(*surfaceMap);
-      }
-    } else if (!first && sameLight && inst.inkPaint.paint && sameMaterial) {
+    if (!first && sameMaterial && inst.inkPaint.paint) {
       inkPaint.paint = inst.inkPaint.paint;
+    } else if (surfaceMap && material::skia::isLit(*inkPaint.surfaced)) {
+      if (!inst.litInkInputs) inst.litInkInputs.emplace(*inkPaint.surfaced);
+      inkPaint.paint = inst.litInkInputs->asMap(*surfaceMap);
     } else {
-      const material::Lighting under = material::skia::lightingFor(
-          *inkPaint.surfaced, lighting ? *lighting : material::Lighting{});
-      if (under && !inst.litInkInputs)
-        inst.litInkInputs.emplace(*inkPaint.surfaced);
-      inkPaint.paint = inst.litInkInputs
-                           ? inst.litInkInputs->under(under)
-                           : material::skia::paint(*inkPaint.surfaced);
+      inkPaint.paint = material::skia::paint(*inkPaint.surfaced);
     }
   } else {
     inst.litInkInputs.reset();
@@ -848,21 +814,15 @@ void Composer::Impl::resolveCascade(
       first || !(font.color == inst.font.color) || !(inkPaint == inst.inkPaint);
   const bool varsChanged = first || !sameVars(vars, inst.vars);
   const bool samplingChanged = first || !(sampling == inst.sampling);
-  // Compared by value, so a lighting stated again as the same value keeps
-  // the one the subtree already shares.
-  const bool lightingChanged =
-      first || (lighting != inst.lighting && (!lighting || !inst.lighting ||
-                                              !(*lighting == *inst.lighting)));
-  if (lightingChanged) inst.lighting = std::move(lighting);
   inst.font = font;
   inst.inkPaint = inkPaint;
-  // Inherited ink spanning another box and positioned surface lighting
-  // both depend on this node's root placement. Retained pixels must be
+  // Inherited ink spanning another box, or sampling root coordinates,
+  // depends on this node's root placement. Retained pixels must be
   // invalidated when the node or an ancestor moves. Reconcile resets the
   // dependency from the description; the cascade adds the effective ink
-  // and lighting dependency after inheritance and overrides resolve.
+  // dependency after inheritance and overrides resolve.
   if ((inkPaint.paint && spreadsAcrossTree(inkPaint.box)) ||
-      inst.litUsesWorldSpace())
+      inst.inkUsesWorldSpace())
     inst.hasWorldSpaceMaterial = true;
   inst.inkPaintOrigin = inkPaintOrigin;
   inst.vars = vars;
@@ -974,8 +934,7 @@ void Composer::Impl::resolveCascade(
   // Whatever reads the ink, a property or the sampling at paint — a stroke
   // in the ink, a fill on a property, an image through its filter — baked
   // the old value into its recording.
-  if (!first &&
-      (inkChanged || varsChanged || samplingChanged || lightingChanged)) {
+  if (!first && (inkChanged || varsChanged || samplingChanged)) {
     inst.markPaintDirtyUp();
     contentDirty = true;
   }
@@ -1021,8 +980,6 @@ void Composer::Impl::refreshInheritedInk(Instance& inst) {
       } else {
         retained.ink.reset();
         retained.litInputs.reset();
-        retained.litUnder.reset();
-        retained.litPaint.reset();
       }
       retained.style = std::move(next);
       retained.inkDeclared = text.spanRestyles[i].inkMaterial.has_value();

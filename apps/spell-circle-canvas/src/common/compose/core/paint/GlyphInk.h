@@ -23,17 +23,15 @@ namespace sigil::compose::detail {
 
 /** THE INK ONE DRAW OF A PASSAGE PAINTS ITS GLYPHS WITH. */
 struct TextInk {
-  /** A lit ink resolved once its box is known: shaded under `lighting`,
-   *  or, on a page painted as a surface map, read as `map`. */
+  /** A lit ink on a page painted as a surface map, resolved once its box
+   *  is known: read as `map`. */
   struct Surface {
     material::skia::LitSurface inputs;
-    material::Lighting lighting;
-    std::optional<material::texture::Role> map;
+    material::texture::Role map;
     /** The ink over the unit square @p paintToLocal places in the node. */
     sk_sp<SkShader> shader(const material::FrameData& frame,
                            const glm::mat3& paintToLocal) const {
-      return map ? inputs.mapShader(*map, frame, paintToLocal)
-                 : inputs.shader(lighting, frame, paintToLocal);
+      return inputs.mapShader(map, frame, paintToLocal);
     }
   };
   /** One retained span source resolved for this draw. Its owner follows

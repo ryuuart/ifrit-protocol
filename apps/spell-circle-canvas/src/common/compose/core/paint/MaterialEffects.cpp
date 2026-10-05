@@ -31,8 +31,6 @@ struct MaterialStrokeCache {
 
   material::Material material;
   material::skia::LitSurface prepared;
-  std::optional<material::Lighting> lighting;
-  material::Paint paint;
 };
 
 namespace {
@@ -175,7 +173,7 @@ void MaterialStroke::paint(draw::Pen& pen, const PaintContext& context) const {
   SkPaint stroke;
   stroke.setAntiAlias(true);
   // On a page painted as a surface map the keyline paints that map of its
-  // surface, from the same prepared inputs it is shaded from.
+  // surface; every other draw paints its colours flat.
   if (surfaced && context.surfaceMap) {
     if (!cache || cache->material != *surfaced)
       cache = std::make_shared<MaterialStrokeCache>(*surfaced);
@@ -188,23 +186,7 @@ void MaterialStroke::paint(draw::Pen& pen, const PaintContext& context) const {
                options.position);
     return;
   }
-  const material::Lighting under =
-      surfaced ? material::skia::lightingFor(
-                     *surfaced, context.lighting ? *context.lighting
-                                                 : material::Lighting{})
-               : material::Lighting{};
-  if (under) {
-    if (!cache || cache->material != *surfaced)
-      cache = std::make_shared<MaterialStrokeCache>(*surfaced);
-    if (!cache->lighting || *cache->lighting != under) {
-      cache->lighting = under;
-      cache->paint = cache->prepared.under(under);
-    }
-    const sk_sp<SkShader> shader =
-        material::skia::shader(cache->paint, frameOf(context));
-    if (!shader) return;
-    stroke.setShader(shader);
-  } else if (source.isSolid()) {
+  if (source.isSolid()) {
     stroke.setColor4f(material::skia::toSkColor(source.solidColor()), nullptr);
   } else if (sk_sp<SkShader> shader =
                  material::skia::shader(source, frameOf(context))) {

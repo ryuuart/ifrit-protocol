@@ -26,12 +26,6 @@ std::string profileLabel(const detail::Instance& inst, const SkRect& rect) {
     case detail::Kind::Slot:
       kind = "slot";
       break;
-    case detail::Kind::Scene:
-      kind = "scene";
-      break;
-    case detail::Kind::Light:
-      kind = "light";
-      break;
   }
   char buf[96];
   std::snprintf(buf, sizeof buf, "%s %.0fx%.0f", kind, rect.width(),

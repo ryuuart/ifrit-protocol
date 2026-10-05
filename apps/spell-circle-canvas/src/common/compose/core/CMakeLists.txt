@@ -71,7 +71,6 @@ sigil_library(SigilComposeCore
     runtime/Reconcile.cpp
     runtime/ReconcileEquality.cpp
     runtime/ReconcileHost.cpp
-    runtime/SceneLighting.cpp
     runtime/SlotSpecs.h
     runtime/TextState.h
     runtime/Transforms.h
@@ -172,8 +171,6 @@ sigil_test(compose_test
           test/StandardExceptionsTest.cpp
           test/ComposeTestEffects.cpp test/ComposeTestMaterial.cpp
           test/ComposeTestLiveMaterial.cpp test/ComposeTestWorldSpace.cpp
-    test/ComposeTestLighting.cpp
-    test/ComposeTestSceneLighting.cpp
           test/ComposeTestMask.cpp test/ComposeTestFieldPins.cpp
           test/ComposeTestDeclareDoor.cpp
           test/ComposeTestSlotConsumers.cpp

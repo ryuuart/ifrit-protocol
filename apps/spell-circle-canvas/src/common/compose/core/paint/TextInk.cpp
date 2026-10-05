@@ -35,25 +35,11 @@ bool detail::TextState::Restyle::paints(
   });
 }
 
-const material::Paint* detail::TextState::Restyle::paintUnder(
-    const material::Lighting& lighting) {
+const material::Paint* detail::TextState::Restyle::flatInk() {
   const auto& source = style.paint.foregroundMaterial;
   if (!inkDeclared || !source) return nullptr;
-  if (!material::skia::isLit(*source)) {
-    if (!ink) ink = material::skia::paint(*source);
-    return &*ink;
-  }
-  const auto under = material::skia::lightingFor(*source, lighting);
-  if (!under && !litInputs) {
-    if (!ink) ink = material::skia::paint(*source);
-    return &*ink;
-  }
-  if (!litInputs) litInputs.emplace(*source);
-  if (!litPaint || litUnder != under) {
-    litPaint = litInputs->under(under);
-    litUnder = under;
-  }
-  return &*litPaint;
+  if (!ink) ink = material::skia::paint(*source);
+  return &*ink;
 }
 
 detail::TextInk Composer::Impl::textInkOf(Instance& inst,
@@ -81,28 +67,19 @@ detail::TextInk Composer::Impl::textInkOf(Instance& inst,
       detail::TextInk::Span span;
       span.source = retained.style.paint.foregroundMaterial;
       span.unit = textUnitOf(retained.inkBox);
-      const auto& inherited =
-          inst.lighting ? *inst.lighting : material::Lighting{};
-      const auto under =
-          span.unit ? material::skia::lightingFor(*span.source, inherited)
-                    : material::Lighting{};
       // On a page painted as a surface map a lit span paints that map of
-      // its material, lit or not where it stands.
+      // its material; every other draw paints its colours flat.
       const bool asMap = surfaceMap && material::skia::isLit(*span.source);
       if (asMap && !retained.litInputs)
         retained.litInputs.emplace(*span.source);
       span.surfaceMap = asMap;
       if (asMap && span.unit) {
         span.surface =
-            detail::TextInk::Surface{*retained.litInputs, {}, surfaceMap};
-      } else if (under && !asMap) {
-        if (!retained.litInputs) retained.litInputs.emplace(*span.source);
-        span.surface = detail::TextInk::Surface{*retained.litInputs, under};
+            detail::TextInk::Surface{*retained.litInputs, *surfaceMap};
       } else {
         std::optional<material::Paint> mapped;
         if (asMap) mapped = retained.litInputs->asMap(*surfaceMap);
-        const material::Paint* paint =
-            mapped ? &*mapped : retained.paintUnder(inherited);
+        const material::Paint* paint = mapped ? &*mapped : retained.flatInk();
         if (!paint) continue;
         PaintContext context = paintCtx;
         if (span.unit) context.size = {1.0f, 1.0f};
@@ -207,16 +184,8 @@ detail::TextInk Composer::Impl::textInkOf(Instance& inst,
   PaintContext metricCtx = paintCtx;
   metricCtx.size = {1.0f, 1.0f};
   std::optional<detail::TextInk::Surface> surface;
-  if (inst.litInkInputs && inst.inkPaint.surfaced) {
-    if (surfaceMap) {
-      surface = detail::TextInk::Surface{*inst.litInkInputs, {}, surfaceMap};
-    } else {
-      const auto under = material::skia::lightingFor(
-          *inst.inkPaint.surfaced,
-          inst.lighting ? *inst.lighting : material::Lighting{});
-      if (under) surface = detail::TextInk::Surface{*inst.litInkInputs, under};
-    }
-  }
+  if (inst.litInkInputs && inst.inkPaint.surfaced && surfaceMap)
+    surface = detail::TextInk::Surface{*inst.litInkInputs, *surfaceMap};
   const Fill f = surface ? Fill::none() : resolveFill(*metricMat, metricCtx);
   // AN INK THAT RESTARTS PER UNIT keeps its paint on the unit square: the
   // text engine lays it on each unit's own box. The passage mapping below
@@ -247,7 +216,7 @@ detail::TextInk Composer::Impl::textInkOf(Instance& inst,
     SkMatrix map = SkMatrix::Translate(block.left(), block.top());
     map.preScale(std::max(block.width(), 1.0f), std::max(block.height(), 1.0f));
     metric.foreground.setShader(mapped(map));
-    if (surface && surface->map) detail::markSurfaceMap(metric.foreground);
+    if (surface) detail::markSurfaceMap(metric.foreground);
     havePaint = true;
   } else if ((shader || surface) && !inst.lines.empty()) {
     // The first run that carries glyphs is the face the cap band is read
@@ -278,7 +247,7 @@ detail::TextInk Composer::Impl::textInkOf(Instance& inst,
     SkMatrix map = SkMatrix::Translate(left, top);
     map.preScale(std::max(right - left, 1.0f), std::max(bottom - top, 1.0f));
     metric.foreground.setShader(mapped(map));
-    if (surface && surface->map) detail::markSurfaceMap(metric.foreground);
+    if (surface) detail::markSurfaceMap(metric.foreground);
     havePaint = true;
   } else if (f.kind == Fill::Kind::Color) {
     metric.foreground.setColor4f(material::skia::toSkColor(f.colorValue),

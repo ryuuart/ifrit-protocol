@@ -119,8 +119,8 @@ Derived& PaintVerbs<Derived>::fill(material::Material material, PaintBox box) {
   }
   fill(Fill::fromMaterial(material), box);
   if (effects) declarations()->fxData.ensure().fillEffects = std::move(effects);
-  // A surface that takes light keeps its material: the painter shades it
-  // under the lighting in force, and paints the fill above where none is.
+  // A surface that takes light keeps its material for the surface maps;
+  // every other draw paints the fill above, its colours flat.
   if (material::skia::isLit(material))
     declarations()->materialData.ensure().surfaced = std::move(material);
   return self();

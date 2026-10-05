@@ -51,16 +51,7 @@ inline SkPath skiaOutline(const Shape& shape, SkSize size) {
 
 namespace sigil::compose::detail {
 
-enum class Kind : uint8_t {
-  Box,
-  Stack,
-  Text,
-  Image,
-  Custom,
-  Slot,
-  Scene,
-  Light
-};
+enum class Kind : uint8_t { Box, Stack, Text, Image, Custom, Slot };
 
 // ---- ElementNode blocks: rare/kind-specific fields live out-of-line so a
 // plain box costs a fraction of what one flat struct would, and each phase's
@@ -454,8 +445,9 @@ struct MaterialData {
   // shader.
   std::optional<material::Paint> recipe;
   // THE MATERIAL OF A LIT SURFACE, where fill(Material) was handed one that
-  // states a surface taking light: the painter shades it under the lighting
-  // in force, and paints `live` or the fill beneath where none is.
+  // states a surface taking light: a page painted as a surface map paints
+  // that map of it, and every other draw paints `live` or the fill beneath,
+  // its colours flat.
   std::optional<material::Material> surfaced;
 };
 
@@ -503,8 +495,9 @@ struct DepthData {
 struct InkInForce {
   std::optional<material::Paint> paint;
   PaintBox box = PaintBox::Element;
-  /** The material of a lit ink, shaded under the lighting in force at
-   *  each node it reaches into `paint`. */
+  /** The material of a lit ink, which a page painted as a surface map
+   *  paints as that map into `paint` at each node it reaches; every other
+   *  draw paints its colours flat. */
   std::optional<material::Material> surfaced;
   bool operator==(const InkInForce&) const = default;
 };
@@ -578,9 +571,6 @@ struct CascadeData {
   /** How image leaves under this node sample their source
    *  (Element::imageRendering), inherited as CSS's image-rendering is. */
   std::optional<SkSamplingOptions> sampling;
-  /** The light a lit surface under this node is shaded under
-   *  (Element::lighting), inherited as the ink is. */
-  std::optional<material::Lighting> lighting;
   /** ink(var(...)): the property the ink reads. Exclusive with a colour in
    *  `font->color` — whichever was written last stands. */
   std::optional<VarRef> inkVar;
@@ -611,15 +601,6 @@ struct CascadeData {
  * against the memo the node was last described from, and runs `invoke` under
  * that environment on a miss. */
 using MemoData = core::Memo<Element>;
-
-/** A planar lighting declaration: a source leaf states its light, and a
- *  scene container states the environment its receivers inherit. Sources
- *  belong to the nearest scene, independent of operator scopes. */
-struct SceneData {
-  std::optional<material::Light> source;
-  std::optional<material::Environment> environment;
-  bool operator==(const SceneData&) const = default;
-};
 
 struct ElementNode {
   Kind kind = Kind::Box;
@@ -684,8 +665,6 @@ struct ElementNode {
   // The facts this node states and the operators it applies (see
   // OperatorData): a node that states neither carries none.
   Box<OperatorData> operatorData;
-  // A source or an environment declaration; ordinary nodes carry none.
-  Box<SceneData> sceneData;
 
   std::vector<Element> children;
 
@@ -756,9 +735,6 @@ struct ElementNode {
   }
   CascadeData& imageRendering() {
     return fields.state(Property::ImageRendering, cascadeData.ensure());
-  }
-  CascadeData& lighting() {
-    return fields.state(Property::Lighting, cascadeData.ensure());
   }
 
   /** Whether this node applies operators that place its children. */

@@ -35,25 +35,6 @@ Text textLeaf() {
 
 Element box() { return {}; }
 
-Element scene() {
-  Element e;
-  e.node()->kind = Kind::Scene;
-  return e;
-}
-
-Element light(material::Light source) {
-  Element e;
-  e.node()->kind = Kind::Light;
-  e.node()->sceneData.ensure().source = std::move(source);
-  detail::LayoutProps& layout =
-      e.node()->fields.defaults(detail::DefaultsKey{}).layout;
-  layout.absolute = true;
-  layout.width = Dimension(0.0f);
-  layout.height = Dimension(0.0f);
-  e.node()->hitTestable = false;
-  return e;
-}
-
 Element stack() {
   Element e;
   e.node()->kind = Kind::Stack;

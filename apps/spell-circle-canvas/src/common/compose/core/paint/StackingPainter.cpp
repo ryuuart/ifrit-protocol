@@ -101,7 +101,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   const ComputedStyle& style = inst.computed;
   // No box, and no subtree: the description keeps the node, the picture
   // does not.
-  if (style.layout.display == Display::None || node.kind == Kind::Light) return;
+  if (style.layout.display == Display::None) return;
   const SkRect rect = instanceRect(inst);
   const float opacity = std::clamp(
       inst.resolveFloat(Instance::kOpacity, style.paint.opacity), 0.0f, 1.0f);

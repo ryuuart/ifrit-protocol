@@ -146,7 +146,7 @@ void detail::resolveGlyphInk(const sigil::weave::ParagraphLayout& layout,
           shader = ink.unitSquare;
           unit = ink.unit;
           if (ink.unitSurface) surface = &*ink.unitSurface;
-          surfaceMap = surface && surface->map;
+          surfaceMap = surface != nullptr;
         } else if (placed.paint->foregroundMaterial) {
           for (size_t index = ink.spans.size(); index-- > 0;) {
             const TextInk::Span& span = ink.spans[index];

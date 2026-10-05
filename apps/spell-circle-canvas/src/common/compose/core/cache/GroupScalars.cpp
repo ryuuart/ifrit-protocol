@@ -39,7 +39,6 @@ using namespace detail;
 void collectGroupScalars(const Instance& inst, bool root,
                          std::vector<float>& out) {
   const ElementNode& node = *inst.description;
-  if (node.kind == Kind::Light) return;
   const auto push = [&](Instance::Slot slot,
                         const motion::Animatable<float>& v) {
     if (motion::isRunning(inst.anims[slot].get(), v))

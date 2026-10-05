@@ -1,8 +1,8 @@
 /** @file
- * A fill whose material states a lit surface, shaded under the lighting
- * in force — or, on a page painted as a surface map, read as that map. The
- * prepared material inputs stand while lighting changes; only the pass
- * above them is replaced.
+ * A fill whose material states a lit surface, on a page painted as a
+ * surface map, read as that map; and whether the ink in force at a node
+ * samples root coordinates. Every other draw paints a lit fill's colours
+ * flat, through the fill beneath.
  */
 
 #include <sigilmaterial/skia/Lit.h>
@@ -12,87 +12,41 @@
 
 namespace sigil::compose::detail {
 
-namespace {
-bool positioned(const material::Lighting& lighting) {
-  return lighting && lighting.dependsOnPlacement();
-}
-}  // namespace
-
-bool Instance::litUsesWorldSpace() const {
-  if (inkPaint.paint && inkPaint.paint->usesWorldSpace()) return true;
-  if (!inkPaint.paint) {
-    const material::Lighting inForce =
-        lighting ? *lighting : material::Lighting{};
-    if ((!paragraph || textDirty) && description->textData) {
-      // The cascade precedes materialization, so newly described spans
-      // declare placement dependencies before their retained styles exist.
-      for (const SpanRestyle& span : description->textData->spanRestyles)
-        if (span.inkMaterial &&
-            (material::skia::usesWorldSpace(*span.inkMaterial) ||
-             positioned(
-                 material::skia::lightingFor(*span.inkMaterial, inForce))))
-          return true;
-    } else if (textState && paragraph) {
-      for (const TextState::Restyle& restyle : textState->restyles) {
-        if (!restyle.paints(*paragraph)) continue;
-        const material::Material& source =
-            *restyle.style.paint.foregroundMaterial;
-        if (material::skia::usesWorldSpace(source) ||
-            positioned(material::skia::lightingFor(source, inForce)))
-          return true;
-      }
-    }
+bool Instance::inkUsesWorldSpace() const {
+  if (inkPaint.paint) return inkPaint.paint->usesWorldSpace();
+  if ((!paragraph || textDirty) && description->textData) {
+    // The cascade precedes materialization, so newly described spans
+    // declare placement dependencies before their retained styles exist.
+    for (const SpanRestyle& span : description->textData->spanRestyles)
+      if (span.inkMaterial && material::skia::usesWorldSpace(*span.inkMaterial))
+        return true;
+  } else if (textState && paragraph) {
+    for (const TextState::Restyle& restyle : textState->restyles)
+      if (restyle.paints(*paragraph) &&
+          material::skia::usesWorldSpace(
+              *restyle.style.paint.foregroundMaterial))
+        return true;
   }
-  if (lighting && positioned(*lighting)) {
-    const ElementNode& node = painted();
-    for (const Decoration& mark : node.backgrounds)
-      if (mark.readsLighting()) return true;
-    for (const Decoration& mark : node.foregrounds)
-      if (mark.readsLighting()) return true;
-    if (node.hasStrokePasses())
-      for (const StrokePass& pass : node.strokeData->passes)
-        if (pass.what.readsLighting()) return true;
-    if (node.fxData)
-      for (const Decoration& mark : node.fxData->overlays)
-        if (mark.readsLighting()) return true;
-  }
-  const MaterialData* slot = fillSlotOf(*this);
-  if (!slot || !slot->surfaced) return false;
-  const material::Lighting under = material::skia::lightingFor(
-      *slot->surfaced, lighting ? *lighting : material::Lighting{});
-  return positioned(under);
+  return false;
 }
 
 const material::Paint* Instance::litFillOf(const MaterialData& slot) const {
   if (!slot.surfaced) return nullptr;
   const material::Material& from = *slot.surfaced;
-  const bool materialChanged = !litMaterial || *litMaterial != from;
-  if (materialChanged) {
+  if (!litMaterial || *litMaterial != from) {
     litMaterial = from;
     litFillInputs.reset();
     litFill.reset();
   }
   // A page painted as a surface map paints the fill as that map of its
-  // surface, lit or not where it stands; the held paint is dropped when the
-  // map changes.
-  if (owner && owner->surfaceMap && material::skia::isLit(from)) {
-    if (!litFillInputs) litFillInputs.emplace(from);
-    if (!litFill) litFill = litFillInputs->asMap(*owner->surfaceMap);
-    litUnder.reset();
-    return &*litFill;
-  }
-  const material::Lighting under = material::skia::lightingFor(
-      from, lighting ? *lighting : material::Lighting{});
-  if (!under) {
+  // surface; the held paint is dropped when the map changes. Every other
+  // draw paints the fill beneath, the material's colours flat.
+  if (!owner || !owner->surfaceMap || !material::skia::isLit(from)) {
     litFill.reset();
-    litUnder.reset();
     return nullptr;
   }
   if (!litFillInputs) litFillInputs.emplace(from);
-  if (!litFill || litUnder != lighting) {
-    litFill = litFillInputs->under(under);
-    litUnder = lighting;
-  }
+  if (!litFill) litFill = litFillInputs->asMap(*owner->surfaceMap);
   return &*litFill;
 }
 

@@ -23,8 +23,7 @@ namespace sigil::compose {
  *  `rotateX() rotateY() rotateZ()` list, X outermost, with `rotate()`
  *  the turn about z.
  *
- *  Projection does not intersect planes or supply displaced receiver
- *  positions to the planar lighting executor. */
+ *  Projection does not intersect planes. */
 template <class Derived>
 class DepthVerbs {
  public:

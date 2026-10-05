@@ -8,7 +8,6 @@
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/typography/Presets.h>
 #include <sigilcompose/typography/Typography.h>
-#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilweave/query/Selector.h>
@@ -46,56 +45,6 @@ void denseArm(benchmark::State& state, Cache mode) {
   host.draw();
   for ([[maybe_unused]] auto iteration : state) host.draw();
   state.counters["texturesLive"] = (double)host.composer.stats().texturesLive;
-}
-
-// The description and shaped text stay retained; only the source's
-// placement changes. Glyph and word arms shade the same selected range.
-template <class Draw>
-void movingSpanLightArm(benchmark::State& state, PaintBox domain, Draw draw) {
-  const int words = static_cast<int>(state.range(0));
-  std::u8string copy;
-  for (int i = 0; i < words / 4; ++i)
-    copy += u8"RETAINED MATERIAL LIGHT RESPONSE ";
-
-  Host host(800, 400);
-  sigil::weave::TextStyle style;
-  style.shaping.fontSize = 24.f;
-  const auto finish =
-      sigil::material::from(sigil::material::Color{.45f, .65f, .9f, 1.f})
-          .surface({.metallic = .25f,
-                    .roughness = .65f,
-                    .normal = sigil::material::Color{.72f, .35f, .9f, 1.f}});
-  auto lettering =
-      text(copy, style).absolute().rect(24, 24, 752, 352).cache(Cache::None);
-  if (domain == PaintBox::Element)
-    lettering.ink(finish);
-  else
-    lettering.span(sigil::weave::selectors::words(0, words),
-                   SpanStyle().ink(finish, domain));
-
-  auto sourceX = sigil::motion::animatable(160.f);
-  sigil::material::Light source{.intensity = .85f,
-                                .ambient = .08f,
-                                .kind = sigil::material::LightKind::Point,
-                                .position = {0, 160, 180},
-                                .range = 1000};
-  host.composer.render(scene().width(800).height(400).children(
-      {light(source).translateX(sourceX), std::move(lettering)}));
-  draw(host);
-  sourceX = 560.f;
-  draw(host);
-  const auto shaped = sigil::compose::bench::fonts().stats().shapeCalls;
-
-  bool right = true;
-  for ([[maybe_unused]] auto iteration : state) {
-    right = !right;
-    sourceX = right ? 560.f : 160.f;
-    draw(host);
-  }
-  state.counters["words"] = static_cast<double>(words);
-  state.counters["shapeCalls"] = static_cast<double>(
-      sigil::compose::bench::fonts().stats().shapeCalls - shaped);
-  state.SetItemsProcessed(state.iterations() * words);
 }
 
 }  // namespace
@@ -201,30 +150,6 @@ BENCHMARK(BM_Draw_KineticColumns)
     ->Arg(4)
     ->Unit(benchmark::kMicrosecond);
 
-static void BM_Draw_SpanSurface_PointLight_Glyph(benchmark::State& state) {
-  movingSpanLightArm(state, PaintBox::Glyph, [](Host& host) { host.draw(); });
-}
-BENCHMARK(BM_Draw_SpanSurface_PointLight_Glyph)
-    ->Arg(4)
-    ->Arg(32)
-    ->Unit(benchmark::kMicrosecond);
-
-static void BM_Draw_SpanSurface_PointLight_Word(benchmark::State& state) {
-  movingSpanLightArm(state, PaintBox::Word, [](Host& host) { host.draw(); });
-}
-BENCHMARK(BM_Draw_SpanSurface_PointLight_Word)
-    ->Arg(4)
-    ->Arg(32)
-    ->Unit(benchmark::kMicrosecond);
-
-static void BM_Draw_SurfaceInk_PointLight_WholeLeaf(benchmark::State& state) {
-  movingSpanLightArm(state, PaintBox::Element, [](Host& host) { host.draw(); });
-}
-BENCHMARK(BM_Draw_SurfaceInk_PointLight_WholeLeaf)
-    ->Arg(4)
-    ->Arg(32)
-    ->Unit(benchmark::kMicrosecond);
-
 #ifdef SIGIL_BENCH_GPU
 
 // ---- Dense static text on Graphite ---------------------------------------
@@ -259,15 +184,6 @@ void denseGraphiteArm(benchmark::State& state, Cache mode) {
   state.counters["texturesLive"] = (double)host.composer.stats().texturesLive;
 }
 
-void movingSpanLightGraphiteArm(benchmark::State& state, PaintBox domain) {
-  GraphiteTarget target(state, 800, 400);
-  if (!target.ok()) return;
-  movingSpanLightArm(state, domain, [&](Host& host) {
-    host.composer.draw(target.canvas());
-    target.submitSynced();
-  });
-}
-
 }  // namespace
 
 static void BM_Draw_DenseText_PictureReplay_Graphite(benchmark::State& state) {
@@ -282,33 +198,6 @@ static void BM_Draw_DenseText_TextureBlit_Graphite(benchmark::State& state) {
   denseGraphiteArm(state, Cache::Texture);
 }
 BENCHMARK(BM_Draw_DenseText_TextureBlit_Graphite);
-
-static void BM_Draw_SpanSurface_PointLight_Glyph_Graphite(
-    benchmark::State& state) {
-  movingSpanLightGraphiteArm(state, PaintBox::Glyph);
-}
-BENCHMARK(BM_Draw_SpanSurface_PointLight_Glyph_Graphite)
-    ->Arg(4)
-    ->Arg(32)
-    ->Unit(benchmark::kMicrosecond);
-
-static void BM_Draw_SpanSurface_PointLight_Word_Graphite(
-    benchmark::State& state) {
-  movingSpanLightGraphiteArm(state, PaintBox::Word);
-}
-BENCHMARK(BM_Draw_SpanSurface_PointLight_Word_Graphite)
-    ->Arg(4)
-    ->Arg(32)
-    ->Unit(benchmark::kMicrosecond);
-
-static void BM_Draw_SurfaceInk_PointLight_WholeLeaf_Graphite(
-    benchmark::State& state) {
-  movingSpanLightGraphiteArm(state, PaintBox::Element);
-}
-BENCHMARK(BM_Draw_SurfaceInk_PointLight_WholeLeaf_Graphite)
-    ->Arg(4)
-    ->Arg(32)
-    ->Unit(benchmark::kMicrosecond);
 
 /** Kinetic typography on Graphite: a looping textFx() reveal drives batched
  *  RSXform glyph draws every frame, which is the shape that stresses the

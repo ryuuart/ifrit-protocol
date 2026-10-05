@@ -145,8 +145,6 @@ std::string_view propertyName(Property property) {
       return "var";
     case Property::ImageRendering:
       return "imageRendering";
-    case Property::Lighting:
-      return "lighting";
     case Property::kCount:
       break;
   }
@@ -346,7 +344,6 @@ void copyProperty(Property property, const ComputedStyle& from,
     case Property::Ink:
     case Property::CustomProperties:
     case Property::ImageRendering:
-    case Property::Lighting:
     case Property::kCount:
       return;
   }

@@ -19,7 +19,6 @@ using namespace detail;
 // Resolved-rect reads
 
 SkRect Composer::Impl::instanceRect(const Instance& inst) const {
-  if (inst.description->kind == Kind::Light) return SkRect::MakeEmpty();
   if (inst.yoga)
     return SkRect::MakeXYWH(
         YGNodeLayoutGetLeft(inst.yoga), YGNodeLayoutGetTop(inst.yoga),

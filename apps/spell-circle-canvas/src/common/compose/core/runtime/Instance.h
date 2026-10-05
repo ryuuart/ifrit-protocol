@@ -216,7 +216,8 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // THE INK IN FORCE AS A PAINT at this node, inherited exactly as the
   // font's colour is, and empty on the tree every ink is a colour on.
   InkInForce inkPaint;
-  // Prepared ink inputs survive a change of inherited lighting.
+  // Prepared ink inputs for the surface maps of a lit ink, kept while its
+  // material stands.
   std::optional<material::skia::LitSurface> litInkInputs;
   // Whether THIS node is the one that stated that paint — the box an
   // ink anchored to a declaring box maps onto.
@@ -240,26 +241,18 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // THE IMAGE SAMPLING IN FORCE at this node, or none stated, which an
   // image leaf reads as linear.
   std::optional<SkSamplingOptions> sampling;
-  // THE LIGHTING IN FORCE at this node, shared down the subtree that
-  // inherits it; null where no node above states one.
-  std::shared_ptr<const material::Lighting> lighting;
-  // A scene owns the resolved source snapshot; other nodes borrow it
-  // through the cascade. Source pointers are rebuilt with the key index.
-  std::shared_ptr<const material::Lighting> sceneLighting;
-  Instance* lightingOwner = nullptr;
-  std::vector<Instance*> lightSources;
-  // Prepared fill inputs survive lighting changes; the pass is replaced
-  // when the material or inherited lighting changes.
+  // Prepared fill inputs for the surface maps of a lit fill, kept while
+  // its material stands; the map paint is replaced when the map changes.
   mutable std::optional<material::Paint> litFill;
   mutable std::optional<material::Material> litMaterial;
   mutable std::optional<material::skia::LitSurface> litFillInputs;
-  mutable std::shared_ptr<const material::Lighting> litUnder;
-  /** The fill in force as a lit surface under the lighting in force, or
-   *  null where the fill is not lit or nothing lights it. */
+  /** The fill in force as the surface map the composer paints the page
+   *  as, or null where the fill is not lit or no map is selected — where
+   *  the fill beneath paints the material's colours flat. */
   const material::Paint* litFillOf(const MaterialData& slot) const;
-  /** Whether surface fills, ink or lighting-aware decorations read root
-   *  placement under inherited or material-owned lights. */
-  bool litUsesWorldSpace() const;
+  /** Whether the ink in force here, or a span's, samples root
+   *  coordinates. */
+  bool inkUsesWorldSpace() const;
   // The face's own line height at `font`, px — what an `lh` length under
   // this node resolves against.
   float lineHeight = 0.0f;

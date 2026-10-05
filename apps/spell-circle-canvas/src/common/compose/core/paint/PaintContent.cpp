@@ -452,7 +452,6 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       .contentScaleRead = &contentScaleRead,
       .destination = outputInfo,
       .recorder = paintDestination(canvas).recorder(),
-      .lighting = inst.lighting.get(),
       .surfaceMap = surfaceMap,
       .animating = engine.isRunning(),
       .fonts = &fonts,
@@ -975,8 +974,6 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       case Kind::Box:
       case Kind::Stack:
       case Kind::Slot:
-      case Kind::Scene:
-      case Kind::Light:
         break;
     }
 

@@ -66,14 +66,10 @@ measurement pass. Their Yoga outputs do not become inputs to another
 round. Paint consumes the settled geometry; a
 paint-only binding changes a transform or paint without relayout.
 
-Scene containers own planar lighting independently of layout operators.
-The source declarations below a scene are collected before its receivers
-paint, stopping at nested scenes. Source leaves have no layout, painted
-content or hit region. Their resolved transforms and light values feed
-the scene context; a change invalidates the receivers that used it and
-their containing recordings. A receiver's complete lighting declaration
-replaces that context. Descriptions carry the source and environment
-values; the retained runtime owns resolved contexts and dependencies.
+Compose shades nothing. A fill, ink, stroke or relief whose material
+states a lit surface paints its colours flat; on a page painted as one
+surface map (`Composer::setSurfaceMap`) the same site paints that map of
+its surface from inputs the retained runtime prepares once per material.
 
 The stacking painter owns traversal and compositing. Cache tiers answer
 whether they painted a node; declining a bake returns to live paint. A

@@ -134,8 +134,7 @@ sound model; nothing below them changes kernel semantics.
   in.
 - `core/verbs/Cascade.h` — `CascadeVerbs`: `paragraph` and its longhands
   `lineHeight`, `textAlign`, `textIndent`, `writingMode`, `hyphens`,
-  `textWrap`, `textJustify`, `var`, `varDefaults`, `imageRendering`, `lighting`,
-  `environment`,
+  `textWrap`, `textJustify`, `var`, `varDefaults`, `imageRendering`,
   and the keywords `inherit`, `initial`, `unset` — what a node declares
   to everything under it.
 - `core/verbs/Paint.h` — `PaintVerbs`: `fill`, in every form a surface
@@ -178,7 +177,7 @@ sound model; nothing below them changes kernel semantics.
   by. This is the header a consumer includes: it brings
   every verb family and every kind of node with it, and a family's own
   header is for a value that inherits the family.
-- `core/Factories.h` — the functions that start one: `box`, `scene`, `light`, `stack`,
+- `core/Factories.h` — the functions that start one: `box`, `stack`,
   `positioned`, `text`, `frame`, `image` (an `media::Image`, or a
   raw `SkImage` with a `material::Fit` — `Stretch`, `Contain`,
   `Cover` or `Native` — which is

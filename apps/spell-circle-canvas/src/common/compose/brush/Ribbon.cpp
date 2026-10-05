@@ -36,10 +36,6 @@ bool Ribbon::isRunning() const {
                       : compose::detail::paintOf(fill).isRunning();
 }
 
-bool Ribbon::readsLighting() const {
-  return fillMaterial && material::skia::isLit(*fillMaterial);
-}
-
 bool Ribbon::usesWorldSpace() const {
   return fillMaterial ? material::skia::usesWorldSpace(*fillMaterial)
                       : compose::detail::paintOf(fill).usesWorldSpace();

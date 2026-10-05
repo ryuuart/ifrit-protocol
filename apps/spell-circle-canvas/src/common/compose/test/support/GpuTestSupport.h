@@ -23,7 +23,6 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmaterial/texture/Texture.h>

@@ -200,10 +200,6 @@ struct Composer::Impl {
   // stale.
   std::vector<detail::Instance*> releasedScalars;
   void scanReleasedScalars();  // defined in Volatility.cpp beside the memos
-  std::vector<detail::Instance*> sceneInstances;
-  material::Lighting sceneLightingScratch;
-  /** Resolve mounted sources independently of paint and cached subtrees. */
-  void resolveSceneLighting();
   bool hasDerived() const {
     return !borrowInstances.empty() || !flowInstances.empty() ||
            !threadedInstances.empty();

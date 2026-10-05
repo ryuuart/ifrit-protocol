@@ -6,7 +6,6 @@
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/brush/Relief.h>
-#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/texture/Image.h>
@@ -487,83 +486,26 @@ TEST(ComposeRibbon, ARecipeCanPaintTheBandAndALiveOneDeclaresItself) {
   EXPECT_EQ(paintedPerFrame(false), 0u) << "…and a static one must cache";
 }
 
-namespace {
-
-int ribbonBrightness(SkColor color) {
-  return SkColorGetR(color) + SkColorGetG(color) + SkColorGetB(color);
-}
-
-struct CountedRibbonPicture {
-  std::shared_ptr<int> reads;
-  sk_sp<SkImage> image;
-  sigil::media::Frame frameAt(std::chrono::duration<double>) const {
-    ++*reads;
-    return {.image = image};
-  }
-  bool isRunning() const { return false; }
-  SkISize size() const { return image->dimensions(); }
-  bool operator==(const CountedRibbonPicture&) const = default;
-};
-
-}  // namespace
-
-TEST(ComposeRibbon, InheritedLightMovesTheSurfaceWithoutReadingItsBaseAgain) {
-  auto reads = std::make_shared<int>(0);
-  SkBitmap pixels;
-  pixels.allocN32Pixels(200, 200, true);
-  pixels.eraseColor(SkColorSetRGB(150, 150, 150));
-  pixels.setImmutable();
-  const material::Material finish =
-      material::image(sigil::media::PixelSource(
-                          CountedRibbonPicture{reads, pixels.asImage()}))
-          .surface(
-              {.roughness = .75f,
-               .normal = material::from(material::Color{.9f, .5f, .8f, 1})});
-  motion::Animatable<float> direction = motion::animatable(0.0f);
-  Host host;
-  host.composer.render(
-      stack()
-          .lighting(material::studio(
-              {.direction = direction, .elevation = 30, .ambient = .05f}))
-          .children({straightRun(brush::ribbon(24, finish))}));
-  host.frame();
-  const int first = ribbonBrightness(host.pixel(100, 100));
-  const int readsOnce = *reads;
-  ASSERT_GT(readsOnce, 0);
-  direction = 180.0f;
-  host.frame();
-  EXPECT_GT(first, ribbonBrightness(host.pixel(100, 100)) + 60);
-  EXPECT_GT(host.composer.stats().nodesPainted, 0u);
-  direction = 90.0f;
-  host.frame();
-  EXPECT_EQ(*reads, readsOnce);
-}
-
-TEST(ComposeRibbon, PlainMaterialsAndUnlitSurfacesPreserveTheFillBaseline) {
+TEST(ComposeRibbon, PlainLitAndUnlitMaterialsPaintTheFillBaseline) {
   const material::Color color{.8f, .25f, .1f, 1};
   const material::Material plain = material::from(color);
   const material::Material unlit =
       material::from(color).surface({.unlit = true});
-  motion::Animatable<float> direction = motion::animatable(0.0f);
-  const material::Lighting lighting =
-      material::studio({.direction = direction, .elevation = 20});
-  Host fillHost, plainHost, unlitHost;
-  const auto scene = [&](brush::Ribbon mark) {
-    return stack().lighting(lighting).children({straightRun(std::move(mark))});
-  };
-  fillHost.composer.render(scene(brush::ribbon(24, Fill::color(color))));
-  plainHost.composer.render(scene(brush::ribbon(24, plain)));
-  unlitHost.composer.render(scene(brush::ribbon(24, unlit)));
-  for (float angle : {0.0f, 180.0f}) {
-    direction = angle;
-    fillHost.frame();
-    plainHost.frame();
-    unlitHost.frame();
-    EXPECT_TRUE(identicalPixels(fillHost, plainHost, 200, 200));
-    EXPECT_TRUE(identicalPixels(fillHost, unlitHost, 200, 200));
-  }
-  EXPECT_FALSE(brush::ribbon(24, plain).readsLighting());
-  EXPECT_FALSE(brush::ribbon(24, unlit).readsLighting());
+  // A stated surface paints its colours on a page, flat, whatever its
+  // normal and roughness say.
+  const material::Material lit = material::from(color).surface(
+      {.roughness = .75f,
+       .normal = material::from(material::Color{.9f, .5f, .8f, 1})});
+  Host fillHost, plainHost, unlitHost, litHost;
+  fillHost.composer.render(straightRun(brush::ribbon(24, Fill::color(color))));
+  plainHost.composer.render(straightRun(brush::ribbon(24, plain)));
+  unlitHost.composer.render(straightRun(brush::ribbon(24, unlit)));
+  litHost.composer.render(straightRun(brush::ribbon(24, lit)));
+  for (Host* host : {&fillHost, &plainHost, &unlitHost, &litHost})
+    host->frame();
+  EXPECT_TRUE(identicalPixels(fillHost, plainHost, 200, 200));
+  EXPECT_TRUE(identicalPixels(fillHost, unlitHost, 200, 200));
+  EXPECT_TRUE(identicalPixels(fillHost, litHost, 200, 200));
 }
 
 TEST(ComposeRibbon, AnEmptyFillLeavesTheDestinationUnpainted) {
@@ -632,8 +574,6 @@ TEST_P(HeldRootRibbon, ReanchorsSurfaceAndEffectInputsWhenItsAncestorMoves) {
   const auto scene = [&](Cache cache) {
     return box()
         .cache(Cache::None)
-        .lighting(material::studio(
-            {.direction = 0, .elevation = 25, .ambient = .05f}))
         .children({box()
                        .absolute()
                        .rect(20, 0, 200, 200)
@@ -656,11 +596,16 @@ TEST_P(HeldRootRibbon, ReanchorsSurfaceAndEffectInputsWhenItsAncestorMoves) {
   retained.frame(1.0 / 60.0);
   ordinary.frame(1.0 / 60.0);
   EXPECT_TRUE(identicalPixels(retained, ordinary, 400, 200));
+  // A root-anchored normal reaches only the surface maps, so on a page the
+  // band moves unchanged; a root-anchored blur moves under it.
   int changed = 0;
   for (int y = 70; y < 130; ++y)
     for (int x = 40; x < 180; ++x)
       changed += before.getColor(20 + x, y) != ordinary.pixel(100 + x, y);
-  EXPECT_GT(changed, 100);
+  if (normal)
+    EXPECT_EQ(changed, 0);
+  else
+    EXPECT_GT(changed, 100);
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -698,7 +643,7 @@ TEST(ComposeRibbon, MaterialShadowUsesTheSweptBandAndExtendsItsBleed) {
   EXPECT_EQ(host.pixel(100, 130), SK_ColorBLACK);
 }
 
-TEST(ComposeRibbon, MaterialConstructorAndLayersKeepRootSpaceAndLighting) {
+TEST(ComposeRibbon, MaterialConstructorAndLayersKeepRootSpace) {
   material::Paint ramp = material::Paint::linearGradient(
       {0, 0}, {240, 0}, {{0, {1, 0, 0, 1}}, {1, {0, 0, 1, 1}}},
       {.units = material::GradientUnits::Pixels});
@@ -708,11 +653,9 @@ TEST(ComposeRibbon, MaterialConstructorAndLayersKeepRootSpaceAndLighting) {
   const brush::Ribbon mark = brush::ribbon(geometry::path::Profile(24), finish);
   ASSERT_TRUE(mark.fillMaterial);
   EXPECT_TRUE(*mark.fillMaterial == finish);
-  EXPECT_TRUE(mark.readsLighting());
   EXPECT_TRUE(mark.usesWorldSpace());
   const auto layers =
       brush::layers({brush::ribbon(30, Fill::color({.1f, .1f, .1f, 1})), mark});
-  EXPECT_TRUE(layers.readsLighting());
   EXPECT_TRUE(layers.usesWorldSpace());
   motion::Animatable<float> shift = motion::animatable(0.0f);
   Host host(240, 100);

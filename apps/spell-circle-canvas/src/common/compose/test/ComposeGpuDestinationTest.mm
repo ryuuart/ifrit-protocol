@@ -259,7 +259,7 @@ sigil::material::Material constantDeviceInk(const std::shared_ptr<RecorderImageB
 }
 
 void expectSurfacedSpanInk(const SkBitmap &actual, const SkBitmap &coverage,
-                           const SkBitmap *lightingReference,
+                           const SkBitmap *flatReference,
                            const std::vector<std::pair<int, int>> &columns) {
   ASSERT_FALSE(actual.empty());
   ASSERT_EQ(columns.size(), 6u);
@@ -280,7 +280,7 @@ void expectSurfacedSpanInk(const SkBitmap &actual, const SkBitmap &coverage,
         expected = SK_ColorWHITE;
       } else if (x < columns[4].first) {
         ++selected;
-        expected = lightingReference ? lightingReference->getColor(x, y) : SK_ColorBLACK;
+        expected = flatReference ? flatReference->getColor(x, y) : SK_ColorBLACK;
         selectedBrightness += SkColorGetR(expected) + SkColorGetG(expected) + SkColorGetB(expected);
       } else {
         ++replaced;
@@ -297,7 +297,7 @@ void expectSurfacedSpanInk(const SkBitmap &actual, const SkBitmap &coverage,
   EXPECT_GT(neighbors, 400u);
   EXPECT_GT(selected, 400u);
   EXPECT_GT(replaced, 400u);
-  if (lightingReference) EXPECT_GT(selectedBrightness, selected * 20);
+  if (flatReference) EXPECT_GT(selectedBrightness, selected * 20);
   EXPECT_EQ(changed, 0u) << "largest interior channel difference: " << maximum;
 }
 
@@ -616,7 +616,7 @@ INSTANTIATE_TEST_SUITE_P(Domains, ComposeGpuSpanInk,
                                          SpanInkDomain{"Glyph", PaintBox::Glyph}),
                          [](const auto &info) { return info.param.name; });
 
-TEST(ComposeGpu, SurfacedUnitSpanInkRebindsItsColorAndNormalAcrossDestinations) {
+TEST(ComposeGpu, SurfacedUnitSpanInkRebindsItsColorAcrossDestinationsAndLeavesItsNormalUnread) {
   REQUIRE_GPU();
   ASSERT_TRUE(sigil::test::instrument::sans());
   auto replacementDevice = sigil::core::hardware::GpuDevice::createOwned();
@@ -640,12 +640,10 @@ TEST(ComposeGpu, SurfacedUnitSpanInkRebindsItsColorAndNormalAcrossDestinations) 
   };
   struct Case {
     PaintBox domain;
-    material::LightKind kind;
     bool rasterFallback;
   };
-  for (const Case &test : {Case{PaintBox::Glyph, material::LightKind::Point, true},
-                           Case{PaintBox::Word, material::LightKind::Spot, false}}) {
-    SCOPED_TRACE(test.domain == PaintBox::Glyph ? "Glyph/Point" : "Word/Spot");
+  for (const Case &test : {Case{PaintBox::Glyph, true}, Case{PaintBox::Word, false}}) {
+    SCOPED_TRACE(test.domain == PaintBox::Glyph ? "Glyph" : "Word");
     const auto deviceColorImage = picture(graphite(), deviceColor);
     const auto deviceNormalImage = picture(graphite(), deviceNormal);
     const auto otherColorImage = picture(replacement.get(), otherColor);
@@ -668,20 +666,8 @@ TEST(ComposeGpu, SurfacedUnitSpanInkRebindsItsColorAndNormalAcrossDestinations) 
     normalBinding->addDevice(replacement->recorder(), otherNormalImage);
     const auto ink = constantDeviceInk(colorBinding)
                          .surface({.roughness = .8f, .normal = constantDeviceInk(normalBinding)});
-    const material::Light source{.elevation = 90.f,
-                                 .intensity = .85f,
-                                 .ambient = 0.f,
-                                 .kind = test.kind,
-                                 .position = {140, 50, 90},
-                                 .range = 440,
-                                 .innerAngle = 25,
-                                 .outerAngle = 80};
-    const auto tree = [&] {
-      return scene()
-          .width(kSpanWidth)
-          .height(kSpanHeight)
-          .children({light(source).translateX(17).translateY(9), spanInkTree(&ink, test.domain)});
-    };
+    // A page paints the surfaced ink's colours flat and reads no normal.
+    const auto tree = [&] { return spanInkTree(&ink, test.domain); };
     sigil::motion::Engine engine;
     Composer mask(engine, fonts());
     mask.setSize({kSpanWidth, kSpanHeight});
@@ -693,18 +679,9 @@ TEST(ComposeGpu, SurfacedUnitSpanInkRebindsItsColorAndNormalAcrossDestinations) 
     Composer expected(engine, fonts());
     expected.setSize({kSpanWidth, kSpanHeight});
     expected.setAutoTexturePromotion(Composer::PromotionPolicy::Off);
-    const auto reference = [&](sigil::skia::GraphiteContext *context, SkColor color,
-                               SkColor normal) {
-      auto placed = source;
-      placed.position += glm::vec3{17, 9, 0};
-      material::Lighting lighting(placed);
-      lighting.frame = material::LightingFrame::Scene;
-      expected.render(box()
-                          .width(kSpanWidth)
-                          .height(kSpanHeight)
-                          .fill(material::from(materialColor(color))
-                                    .surface({.roughness = .8f, .normal = materialColor(normal)}))
-                          .lighting(lighting));
+    const auto reference = [&](sigil::skia::GraphiteContext *context, SkColor color) {
+      expected.render(
+          box().width(kSpanWidth).height(kSpanHeight).fill(material::from(materialColor(color))));
       return context ? drawOnGpu(expected, *context, kSpanWidth, kSpanHeight)
                      : drawOnRaster(expected, kSpanWidth, kSpanHeight);
     };
@@ -716,12 +693,14 @@ TEST(ComposeGpu, SurfacedUnitSpanInkRebindsItsColorAndNormalAcrossDestinations) 
     normalBinding->resetReads();
     const auto first = drawOnGpu(composer, kSpanWidth, kSpanHeight);
     ASSERT_FALSE(first.empty());
-    const auto firstExpected = reference(graphite(), deviceColor, deviceNormal);
+    const auto firstExpected = reference(graphite(), deviceColor);
     ASSERT_FALSE(firstExpected.empty());
     expectSurfacedSpanInk(first, coverage, &firstExpected, columns);
     EXPECT_GT(colorBinding->deviceReads, 0);
-    EXPECT_GT(normalBinding->deviceReads, 0);
-    EXPECT_EQ(colorBinding->rasterReads, 0);
+    EXPECT_EQ(normalBinding->deviceReads, 0);
+    // Lowering the flat colour stack at its first draw takes at most one
+    // host snapshot; the device draws bind the colour where it stands.
+    EXPECT_LE(colorBinding->rasterReads, 1);
     EXPECT_EQ(normalBinding->rasterReads, 0);
     const auto runs = spanRuns(composer);
     ASSERT_FALSE(runs.empty());
@@ -733,18 +712,18 @@ TEST(ComposeGpu, SurfacedUnitSpanInkRebindsItsColorAndNormalAcrossDestinations) 
     EXPECT_EQ(normalBinding->deviceReads, normalReads);
     EXPECT_EQ(composer.stats().picturesRecorded, 0u);
     const auto raster = drawOnRaster(composer, kSpanWidth, kSpanHeight);
-    const auto rasterExpected = reference(nullptr, rasterColor, rasterNormal);
+    const auto rasterExpected = reference(nullptr, rasterColor);
     ASSERT_FALSE(rasterExpected.empty());
     expectSurfacedSpanInk(raster, coverage, test.rasterFallback ? &rasterExpected : nullptr,
                           columns);
     EXPECT_GT(colorBinding->rasterReads, 0);
-    if (test.rasterFallback) EXPECT_GT(normalBinding->rasterReads, 0);
+    EXPECT_EQ(normalBinding->rasterReads, 0);
     EXPECT_EQ(spanRuns(composer), runs);
     const auto returned = drawOnGpu(composer, kSpanWidth, kSpanHeight);
     expectSurfacedSpanInk(returned, coverage, &firstExpected, columns);
     EXPECT_EQ(spanRuns(composer), runs);
     const auto other = drawOnGpu(composer, *replacement, kSpanWidth, kSpanHeight);
-    const auto otherExpected = reference(replacement.get(), otherColor, otherNormal);
+    const auto otherExpected = reference(replacement.get(), otherColor);
     ASSERT_FALSE(otherExpected.empty());
     expectSurfacedSpanInk(other, coverage, &otherExpected, columns);
     EXPECT_EQ(spanRuns(composer), runs);

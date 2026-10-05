@@ -223,8 +223,7 @@ Derived& TextContentVerbs<Derived>::span(sigil::weave::Selector where,
     restyle.italic = said.italic;
     restyle.inkVar = said.inkVar;
     // Surface channels belong to the authored ink even when its base is
-    // a flat colour. Inherited lighting may move; the authored material
-    // itself must remain static.
+    // a flat colour. The authored material itself must remain static.
     const bool restarts = textUnitOf(said.inkBox).has_value();
     if (said.inkSurfaced &&
         (said.inkSurfaced->isRunning() ||
