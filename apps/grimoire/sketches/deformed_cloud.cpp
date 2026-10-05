@@ -119,7 +119,7 @@ struct DeformedCloud {
     const float turn = 18.0f + 86.0f * (0.5f + 0.5f * std::sin(seconds * 0.7f));
     const float push = 16.0f + 30.0f * (0.5f + 0.5f * std::sin(seconds * 0.5f));
 
-    const gm::pop::Chain forged =
+    const gm::Instances forged =
         pop::on(seed)
             .rampBy(pop::Attribute::P, 1, heights(), low, high)
             .select("band", pop::Select::Shape::Box, centre, slab, 0.45f)
@@ -134,7 +134,8 @@ struct DeformedCloud {
             // and the band between them does not move at all.
             .twist(turn, {0, 1, 0}, low, high, {0, 0, 0})
             .masked("band")
-            .vary(0.45f, 1.0f);
+            .vary(0.45f, 1.0f)
+            .instances(gm::quad(3.1f, 3.1f));
 
     // The room, as one value: the rig the body is lit by, the turntable
     // the camera rides, and how far under it the floor lies.
@@ -153,7 +154,7 @@ struct DeformedCloud {
                               .drop = 1.0f};
 
     return world::kit::litSet(
-        world::points(forged, gm::quad(3.1f, 3.1f))
+        world::mesh(forged)
             .key("forged")
             .fill(material::surface::program(
                 {.baseColor = {1, 1, 1, 1}, .roughness = 0.6f}))

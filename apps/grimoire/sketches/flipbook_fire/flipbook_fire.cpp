@@ -6,6 +6,7 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImage.h>
 #include <sigilgeometry/kit/Solids.h>
+#include <sigilgeometry/mesh/Instances.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilmaterial/color/Color.h>
@@ -221,6 +222,61 @@ material::Material flame(const material::Texture& sheet, bool blendFrames,
                 .depthFade = 22.0f});
 }
 
+/** AN EMBER: the flame sheet as a spark of light added over the scene,
+ *  each instance showing the cell its own "cell" scalar names. */
+material::Material ember(const material::Texture& sheet) {
+  return material::from(material::Color{0, 0, 0, 1})
+      .surface(
+          {.metallic = 1.0f,
+           .roughness = 1.0f,
+           .emission = {1.0f, 0.78f, 0.52f, 1},
+           .emissionStrength = 3.0f,
+           .emissionMap = material::flipbook(sheet, {.columns = kColumns,
+                                                     .rows = kRows,
+                                                     .framesPerSecond = 0,
+                                                     .frameAttribute = "cell"}),
+           .blend = material::BlendMode::PlusLighter});
+}
+
+/** A number in 0..1 that @p n and @p salt decide and nothing else. */
+float scatter(int n, float salt) {
+  const float x = std::sin((float)n * 12.9898f + salt * 78.233f) * 43758.547f;
+  return x - std::floor(x);
+}
+
+/** THE EMBERS over one fire at @p seconds: sparks rising off the coals
+ *  and drifting, as instanced geometry. Each is a pure function of the
+ *  time and its own seed — how far through its rise it is, which way it
+ *  drifts, which cell of the sheet it shows — so the drift plays and
+ *  nothing is simulated. Every rise lasts the loop or half of it. */
+gm::Instances risingEmbers(float seconds, float salt) {
+  constexpr int kEmbers = 40;
+  constexpr float kRise = 250;
+  gm::Instances out;
+  out.stamp = gm::quad(10, 10);
+  std::vector<float>& cell = out.attributes["cell"];
+  for (int n = 0; n < kEmbers; ++n) {
+    const float own = scatter(n, salt);
+    const float life =
+        scatter(n, salt + 1) < 0.5f ? kLoopSeconds : kLoopSeconds / 2;
+    const float rise = seconds / life + own;
+    const float age = rise - std::floor(rise);
+    const float bearing = scatter(n, salt + 2) * kTau;
+    const float reach = 10.0f + 26.0f * scatter(n, salt + 3);
+    const float sway = 9.0f * std::sin(age * kTau * 1.5f + own * kTau) * age;
+    out.positions.push_back({std::cos(bearing) * reach * (0.4f + age) + sway,
+                             kRim - 6 + age * kRise,
+                             std::sin(bearing) * reach * (0.4f + age)});
+    out.scales.emplace_back(1.0f - 0.6f * age);
+    // Brightest just off the coals, gone by the top of the rise.
+    const float shown = smooth(0.0f, 0.08f, age) * std::pow(1.0f - age, 1.6f);
+    out.colors.push_back({1, 1, 1, shown});
+    const float frame = own * kFrames + seconds * kFramesPerSecond;
+    cell.push_back(frame - std::floor(frame / kFrames) * kFrames);
+  }
+  return out;
+}
+
 /** THE COALS: dark where they are cold, and glowing brighter than white
  *  where the packed mask's noise — streaming slowly along the swirl —
  *  says they are hot. */
@@ -275,6 +331,7 @@ struct FlipbookFire {
   material::Texture flow;
   material::Material iron{material::Color{0, 0, 0, 1}};
   material::Material embers{material::Color{0, 0, 0, 1}};
+  material::Material sparks{material::Color{0, 0, 0, 1}};
 
   void setup(sketch::SetContext& ctx) {
     ctx.canvas(960, 600);
@@ -287,11 +344,12 @@ struct FlipbookFire {
                                        .metallic = 1.0f,
                                        .roughness = 0.42f});
     embers = coals(mask, flow);
+    sparks = ember(sheet);
   }
 
   /** One brazier at @p x: its iron, its coals, a flame card turned to
-   *  the camera about the up axis, and a light above it that burns with
-   *  the flame. */
+   *  the camera about the up axis, embers rising off it each turned to the
+   *  camera, and a light above it that burns with the flame. */
   world::Group fire(const char* key, float x, bool blendFrames,
                     float startFrame, float seconds) const {
     const float burning = flicker(seconds, startFrame * 0.37f);
@@ -308,6 +366,10 @@ struct FlipbookFire {
                     .at({0, kRim + 88, 0})
                     .facing(world::Facing::CameraUpright)
                     .fill(flame(sheet, blendFrames, startFrame)),
+                world::mesh(risingEmbers(seconds, startFrame + x * 0.01f))
+                    .key("embers")
+                    .facing(world::Facing::Camera)
+                    .fill(sparks),
                 world::pointLight(
                     {.color = material::Color{1.0f, 0.62f, 0.30f, 1},
                      .intensity = world::intensityAt(1.6f * burning, 220.0f)})
@@ -351,5 +413,6 @@ struct FlipbookFire {
 SIGIL_SKETCH(FlipbookFire, "Study · Effects",
              "Two braziers burning a generated flame flipbook — one blending "
              "its frames, one stepping through them — with flowing coals "
-             "from a channel-packed mask, a light that flickers with the "
+             "from a channel-packed mask, embers drawn as instanced sparks "
+             "each playing its own cell, a light that flickers with the "
              "fire, soft edges where the flame meets the bowl, and bloom");

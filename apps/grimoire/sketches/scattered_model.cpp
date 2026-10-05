@@ -99,8 +99,7 @@ gm::Mesh generated() {
 /** THE DUST: a chain over the subject's faces — the scatter, a ramp
  *  that reads each point's height into its colour over the subject's own
  *  bounds, and a vary that spreads the stamp sizes about a base. The
- *  chain is the description; what cooks it is whichever runtime the
- *  frame is performed on. */
+ *  chain is the description; ending it in instances cooks it. */
 gm::pop::Chain dustOver(const gm::Mesh& subject) {
   glm::vec3 low{0.0f}, high{0.0f};
   subject.bounds(&low, &high);
@@ -117,7 +116,7 @@ namespace {
 
 struct ScatteredModel {
   gm::Mesh subject;
-  gm::pop::Chain dust;
+  gm::Instances dust;
 
   void setup(sketch::SetContext& ctx) {
     sketch::kit::stage(
@@ -126,7 +125,9 @@ struct ScatteredModel {
               .background = material::Color{0.028f, 0.031f, 0.042f, 1.0f}});
     std::optional<gm::Mesh> model = imported(ctx.assets);
     subject = model ? std::move(*model) : generated();
-    dust = dustOver(subject);
+    // …instanced once: the dust does not move over the body, the node it
+    // stands on turns.
+    dust = gm::pop::cookInstances(dustOver(subject), gm::quad(2.9f, 2.9f));
   }
 
   world::Frame describe(sigil::motion::Duration now) {
@@ -161,8 +162,8 @@ struct ScatteredModel {
     // body is the cheapest stamp that still reads as a shell. It turns
     // slowly, so the scatter reads as a skin over the silhouette rather
     // than as a texture on it.
-    const world::Points shell =
-        world::points(dust, gm::quad(2.9f, 2.9f))
+    const world::Mesh shell =
+        world::mesh(dust)
             .key("dust")
             .rotateY(seconds * 9.0f)
             .scale(1.05f)

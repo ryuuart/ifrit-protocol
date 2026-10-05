@@ -68,14 +68,17 @@ world::Group set(motion::Duration now) {
   // What stands at every point is a FLAKE, and a flat body reads as the
   // bead it draws only while it faces the viewer — so the direction lane
   // the loop seeded with its tangent is replaced by the gaze, and the
-  // square covers the area the bead's disc did.
-  const gm::pop::Chain comet =
+  // square covers the area the bead's disc did. The window rides the
+  // loop, so the comet is instanced afresh as it moves.
+  const gm::Instances comet =
       gm::pop::on(path)
           .count(600)
+          .window(head, 0.22f)
           .spread(7.0f)
           .vary(0.6f, 1.0f)
           .fade({1.0f, 0.78f, 0.38f, 1.0f}, {1.0f, 0.42f, 0.16f, 1.0f})
-          .lookAt(kEye);
+          .lookAt(kEye)
+          .instances(gm::quad(8.9f, 8.9f));
 
   const world::Group posts =
       world::group(world::each(kPosts, [](std::size_t i) {
@@ -106,8 +109,7 @@ world::Group set(motion::Duration now) {
                            .fill(material::Color{0.09f, 0.10f, 0.13f, 1.0f})
                            .collection("ground"),
                        posts,
-                       world::points(comet, gm::quad(8.9f, 8.9f),
-                                     {.window = world::Window{head, 0.22f}})
+                       world::mesh(comet)
                            .key("comet")
                            .fill(material::Color{1.0f, 0.72f, 0.34f, 1.0f})
                            .collection("glow")})

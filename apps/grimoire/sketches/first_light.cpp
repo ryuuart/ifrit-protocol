@@ -81,13 +81,15 @@ struct FirstLight {
     // so the direction lane the loop seeded with its tangent is
     // replaced by the gaze, and the square covers the area the bead's
     // disc did.
-    const gm::pop::Chain comet =
+    const gm::Instances comet =
         gm::pop::on(path)
             .count(1200)
+            .window(head, 0.28f)
             .spread(13.0f)
             .vary(0.5f, 1.0f)
             .fade({1.0f, 0.72f, 0.35f, 1.0f}, {0.25f, 0.55f, 1.0f, 1.0f})
-            .lookAt(eye);
+            .lookAt(eye)
+            .instances(gm::quad(7.0f, 7.0f));
 
     return world::group({world::directionalLight(
                              {-0.45f, -0.8f, -0.4f},
@@ -112,8 +114,7 @@ struct FirstLight {
                              .key("tube")
                              .fill(material::Color{0.62f, 0.66f, 0.74f, 1.0f})
                              .collection("lit"),
-                         world::points(comet, gm::quad(7.0f, 7.0f),
-                                       {.window = world::Window{head, 0.28f}})
+                         world::mesh(comet)
                              .key("comet")
                              .fill(material::Color{0.95f, 0.75f, 0.42f, 1.0f})
                              .collection("glow")})
