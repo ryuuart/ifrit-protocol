@@ -10,7 +10,7 @@
 #include <sigilworld/node/Camera.h>
 #include <sigilworld/node/Group.h>
 #include <sigilworld/node/Mesh.h>
-#include <sigilworld/node/Points.h>
+#include <sigilworld/node/Null.h>
 #include <sigilworld/node/Verbs.h>
 
 #include <utility>
@@ -51,25 +51,17 @@ Mesh mesh(geometry::mesh::Mesh triangles) {
   return out;
 }
 
+Mesh mesh(geometry::mesh::Instances instances) {
+  Mesh out;
+  out.edit().geometry = std::move(instances);
+  return out;
+}
+
+Null null() { return Null(); }
+
 Mesh mesh(Generator generator) {
   Mesh out;
   out.edit().geometry = std::move(generator);
-  return out;
-}
-
-Points points(geometry::mesh::pop::Chain chain, geometry::mesh::Mesh stamp,
-              PointsOptions options) {
-  Points out;
-  NodeDescription& node = out.edit();
-  node.geometry =
-      Chained{std::move(chain), std::move(options.runtime), std::move(stamp)};
-  node.window = std::move(options.window);
-  return out;
-}
-
-Points points(geometry::mesh::Cloud cloud, geometry::mesh::Mesh stamp) {
-  Points out;
-  out.edit().geometry = Stamped{std::move(cloud), std::move(stamp)};
   return out;
 }
 

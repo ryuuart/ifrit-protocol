@@ -1,12 +1,13 @@
 /** @file
- * A Cloud of stamps as a UsdGeomPointInstancer with the stamp mesh as
- * its one prototype: positions from the cloud, the "size" lane as
- * scales, "dir" (or "normal") as orientations, "tint" as displayColor.
+ * Instanced geometry as a UsdGeomPointInstancer with the stamp as its one
+ * prototype: positions, scales and orientations, the instances' colours
+ * as displayColor and displayOpacity, and each named scalar as a
+ * per-instance primvar. A cloud of stamps is instanced the point
+ * operators' way and written the same.
  */
 
-#include <pxr/base/gf/quatd.h>
 #include <pxr/base/gf/quath.h>
-#include <pxr/base/gf/rotation.h>
+#include <pxr/base/tf/stringUtils.h>
 #include <pxr/base/tf/token.h>
 #include <pxr/base/vt/array.h>
 #include <pxr/usd/sdf/types.h>
@@ -15,9 +16,6 @@
 #include <pxr/usd/usdGeom/scope.h>
 #include <pxr/usd/usdGeom/tokens.h>
 
-#include <glm/geometric.hpp>
-#include <optional>
-
 #include "GfMatrix.h"
 #include "WriterImpl.h"
 
@@ -25,12 +23,11 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 namespace sigil::usd {
 
-std::string Writer::stamps(std::string_view name,
-                           const geometry::mesh::Cloud& cloud,
-                           const geometry::mesh::Mesh& stamp,
-                           const glm::mat4& model,
-                           const material::Material& material,
-                           std::string_view parent) {
+std::string Writer::instances(std::string_view name,
+                              const geometry::mesh::Instances& instances,
+                              const glm::mat4& model,
+                              const material::Material& material,
+                              std::string_view parent) {
   Impl& impl = *m_impl;
   if (!impl.stage) return {};
   const std::string path = impl.uniquePath(parent, name);
@@ -41,50 +38,40 @@ std::string Writer::stamps(std::string_view name,
   const std::string protoPath = path + "/Prototypes/stamp";
   UsdGeomScope::Define(impl.stage, SdfPath(path + "/Prototypes"));
   UsdGeomMesh proto = UsdGeomMesh::Define(impl.stage, SdfPath(protoPath));
-  impl.fillMesh(proto, stamp);
-  impl.bind(proto, stamp, {material}, name);
+  impl.fillMesh(proto, instances.stamp);
+  impl.bind(proto, instances.stamp, {material}, name);
   instancer.CreatePrototypesRel().AddTarget(SdfPath(protoPath));
 
-  const size_t n = cloud.size();
+  const size_t n = instances.size();
   VtVec3fArray positions;
   VtIntArray protoIndices((int)n, 0);
   VtVec3fArray scales;
   VtQuathArray orientations;
-  const std::vector<float>* size = cloud.scalarIf("size");
-  const std::vector<glm::vec3>* dir = cloud.vectorIf("dir");
-  if (!dir) dir = cloud.vectorIf("normal");
-  const std::vector<glm::vec4>* tint = cloud.colorIf("tint");
   for (size_t i = 0; i < n; ++i) {
-    const glm::vec3& p = cloud.positions[i];
+    const glm::vec3& p = instances.positions[i];
     positions.push_back({p.x, p.y, p.z});
-    const float s = size && i < size->size() ? (*size)[i] : 1.0f;
-    scales.push_back({s, s, s});
-    if (dir && i < dir->size()) {
-      // The stamp's +z along dir: the rotation taking (0,0,1) to dir. A
-      // point whose lane holds no direction stands the stamp the way it
-      // was modelled rather than turning it by a NaN.
-      const std::optional<glm::vec3> d = aimedAlong((*dir)[i]);
-      const GfQuatd q =
-          d ? GfRotation(GfVec3d(0, 0, 1), GfVec3d(d->x, d->y, d->z)).GetQuat()
-            : GfQuatd(1.0, GfVec3d(0, 0, 0));
+    const glm::vec3 s =
+        i < instances.scales.size() ? instances.scales[i] : glm::vec3(1.0f);
+    scales.push_back({s.x, s.y, s.z});
+    if (i < instances.orientations.size()) {
+      const glm::quat& q = instances.orientations[i];
       orientations.push_back(
-          GfQuath((GfHalf)q.GetReal(), (GfHalf)q.GetImaginary()[0],
-                  (GfHalf)q.GetImaginary()[1], (GfHalf)q.GetImaginary()[2]));
+          GfQuath((GfHalf)q.w, (GfHalf)q.x, (GfHalf)q.y, (GfHalf)q.z));
     }
   }
   instancer.CreatePositionsAttr().Set(positions);
   instancer.CreateProtoIndicesAttr().Set(protoIndices);
   instancer.CreateScalesAttr().Set(scales);
-  if (orientations.size() == n)
+  if (n > 0 && orientations.size() == n)
     instancer.CreateOrientationsAttr().Set(orientations);
-  if (tint && tint->size() == n) {
+  UsdGeomPrimvarsAPI primvars(instancer);
+  if (n > 0 && instances.colors.size() == n) {
     VtVec3fArray colors;
     VtFloatArray alphas;
-    for (const glm::vec4& c : *tint) {
+    for (const glm::vec4& c : instances.colors) {
       colors.push_back({c.r, c.g, c.b});
       alphas.push_back(c.a);
     }
-    UsdGeomPrimvarsAPI primvars(instancer);
     primvars
         .CreatePrimvar(TfToken("displayColor"), SdfValueTypeNames->Color3fArray,
                        UsdGeomTokens->vertex)
@@ -94,7 +81,27 @@ std::string Writer::stamps(std::string_view name,
                        UsdGeomTokens->vertex)
         .Set(alphas);
   }
+  for (const auto& [attribute, values] : instances.attributes) {
+    if (values.size() != n || !TfIsValidIdentifier(attribute)) continue;
+    primvars
+        .CreatePrimvar(TfToken(attribute), SdfValueTypeNames->FloatArray,
+                       UsdGeomTokens->vertex)
+        .Set(VtFloatArray(values.begin(), values.end()));
+  }
   return path;
+}
+
+std::string Writer::stamps(std::string_view name,
+                           const geometry::mesh::Cloud& cloud,
+                           const geometry::mesh::Mesh& stamp,
+                           const glm::mat4& model,
+                           const material::Material& material,
+                           std::string_view parent) {
+  return instances(
+      name,
+      geometry::mesh::points::instances(
+          cloud, stamp, geometry::mesh::points::stampOptions(cloud)),
+      model, material, parent);
 }
 
 }  // namespace sigil::usd

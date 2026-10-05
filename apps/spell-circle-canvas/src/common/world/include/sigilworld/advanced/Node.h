@@ -8,7 +8,7 @@
  * that decides whether two descriptions are provably the same node
  * described twice.
  *
- * A typed node — a `Group`, a `Mesh`, a `Light`, a `Camera`, `Points` —
+ * A typed node — a `Group`, a `Null`, a `Mesh`, a `Light`, a `Camera` —
  * IS one of these with the verbs its kind can use on top, so
  * reconciliation, equality and keys see one model whatever the kinds.
  * Nothing here is retained: an entity, a running motion and a cooked
@@ -72,14 +72,6 @@ struct Along {
   motion::Animatable<float> distance{0.0f};
 };
 
-/** A WINDOW INTO A LOOP: the leading edge and the length trailing it,
- *  both in loop parameter and both bindable, so advancing `head` alone
- *  tows the window round. */
-struct Window {
-  motion::Animatable<float> head{1.0f};
-  motion::Animatable<float> span{1.0f};
-};
-
 /** What the tone curve is that compresses a lit sum onto what a display
  *  can hold. It runs last, after the exposure, on linear light, and its
  *  answer is what is encoded for the display. */
@@ -102,7 +94,8 @@ enum class ToneCurve : uint8_t {
 /** WHICH WAY A BODY TURNS TO FACE THE CAMERA, whatever its node's own
  *  rotation says — the billboard a sprite, a flame or a glint is drawn on.
  *  The body keeps where it stands and its scale; its own +z is turned
- *  toward the camera. */
+ *  toward the camera. Instanced geometry turns each instance about where
+ *  it stands, keeping that instance's own scale. */
 enum class Facing : uint8_t {
   /** As placed: the node's rotation stands. */
   None,
@@ -130,8 +123,9 @@ using Memo = core::Memo<Node>;
 
 /** ONE NODE'S DESCRIPTION, field by field. Which factory made the node
  *  decides which fields it ever writes: only a group has children, only
- *  a mesh or points a geometry slot and a surface, only a light an
- *  emitter, only a camera a lens. */
+ *  a mesh a geometry slot and a surface, only a light an emitter, only a
+ *  camera a lens, and only a light or a camera a node it looks at. A
+ *  null writes none of them. */
 struct NodeDescription {
   /** What children are matched on; empty means positional. */
   std::string key;
@@ -139,7 +133,9 @@ struct NodeDescription {
   std::optional<Along> along;
   /** Whether the node and everything under it is in the scene at all. */
   bool visible = true;
-  std::optional<Window> window;
+  /** The key of the node a light or a camera is aimed at, resolved each
+   *  frame against where that node stands; empty for none. */
+  std::string lookAt;
   Geometry geometry;
   material::Backface backface = material::Backface::Hidden;
   /** Whether a body turns to face the camera. */

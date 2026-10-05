@@ -14,11 +14,6 @@ float standingValue(Slot slot) {
     case kScaleX:
     case kScaleY:
     case kScaleZ:
-    // A window with no head and span covers the whole loop, so a
-    // description that drops one ramps back to the whole loop rather
-    // than to nothing.
-    case kWindowHead:
-    case kWindowSpan:
       return 1.0f;
     default:
       return 0.0f;
@@ -48,8 +43,6 @@ void lanesOf(const NodeDescription& node, std::vector<Lane>& out) {
   push(kOriginZ, &t.originZ);
   push(kAxisDegrees, &t.axisDegrees);
   push(kAlongDistance, node.along ? &node.along->distance : nullptr);
-  push(kWindowHead, node.window ? &node.window->head : nullptr);
-  push(kWindowSpan, node.window ? &node.window->span : nullptr);
 }
 
 }  // namespace sigil::world

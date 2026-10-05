@@ -39,7 +39,7 @@ namespace sigil::world {
 
 /** THE FRAME'S RESOURCES, by name: the images its passes wrote, read
  *  from the executor that holds their pixels, and the point sets a compute
- *  pass cooks, with the stamped meshes formed from them. The pixels stay
+ *  pass cooks, with the instanced geometry formed from them. The pixels stay
  *  where they were drawn, and nothing crosses back until something asks
  *  for an image by name. */
 class Targets {
@@ -61,18 +61,19 @@ class Targets {
   [[nodiscard]] const geometry::mesh::Cloud* points(
       std::string_view name) const;
 
-  /** @p cloud STAMPED with @p stamp, formed once per distinct pair and
-   *  kept while both stand; null when there is nothing to stamp. The
+  /** @p stamp STANDING AT EVERY POINT of @p cloud as instanced geometry,
+   *  placed by the point operators' own table, formed once per distinct
+   *  pair and kept while both stand; null when there is nothing to stamp. The
    *  answer is held under `stampKey`, a fold over the two VALUES, so a
    *  still set is neither formed twice nor uploaded twice, and what a
    *  frame does not ask for is let go at the end of it. @p key receives
    *  the number the stamping is held under, for an executor that keys an
    *  upload by the same one. */
-  const geometry::mesh::Mesh* stamped(const geometry::mesh::Cloud& cloud,
-                                      const geometry::mesh::Mesh& stamp,
-                                      uint64_t* key = nullptr);
+  const geometry::mesh::Instances* stamped(const geometry::mesh::Cloud& cloud,
+                                           const geometry::mesh::Mesh& stamp,
+                                           uint64_t* key = nullptr);
 
-  /** How many stamped meshes have been FORMED here, over the store's
+  /** How many stampings have been FORMED here, over the store's
    *  whole life. A frame drawing a set that has not moved must not move
    *  this number. */
   [[nodiscard]] uint64_t stampings() const { return m_stampings; }
@@ -93,7 +94,7 @@ class Targets {
   boost::container::map<std::string, geometry::mesh::Cloud> m_points;
   /** A formed stamping and the frame it was last asked for in. */
   struct Stamping {
-    geometry::mesh::Mesh mesh;
+    geometry::mesh::Instances instances;
     /** The pair it was formed from, kept so that a lookup landing on
      *  this number is confirmed by value rather than by the fold. */
     geometry::mesh::Cloud cloud;

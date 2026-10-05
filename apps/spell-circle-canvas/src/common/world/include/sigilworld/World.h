@@ -17,11 +17,12 @@
 #include <sigilworld/node/Group.h>
 #include <sigilworld/node/Light.h>
 #include <sigilworld/node/Mesh.h>
-#include <sigilworld/node/Points.h>
+#include <sigilworld/node/Null.h>
 
 /** THREE-DIMENSIONAL SCENES, DESCRIBED AS VALUES. A set is a tree of
- *  nodes built fresh every frame — groups placing what is under them,
- *  meshes and points wearing surfaces, lights and cameras — handed to a
+ *  nodes built fresh every frame — groups and nulls placing what is under
+ *  them or standing to be referred to, meshes wearing surfaces, lights
+ *  and cameras — handed to a
  *  frame that names its environment and its passes, reconciled into a
  *  retained scene and drawn on a device. Reach for it when a drawing has
  *  depth, a camera or a light in it. It consumes SigilGeometry's meshes

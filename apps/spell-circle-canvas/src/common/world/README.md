@@ -30,6 +30,22 @@ world::Frame describe(sigil::motion::Duration now) {
 }
 ```
 
+## The node families
+
+Every node is one of three families, named the way 3D graphics names
+them:
+
+- **structure** — `group`, which places the children it holds, and
+  `null`, a placement with a key and nothing else, there to be referred
+  to: a pivot, or what a light or a camera looks at;
+- **geometry** — `mesh`, the one node kind that draws: triangles, or one
+  stamp repeated as instanced geometry, which SigilGeometry's point
+  operators make (`pop::on(…).instances(stamp)`);
+- **influences** — the lights, which act on bodies wherever those stand
+  in the tree and are narrowed by a link, never by nesting.
+
+A camera is the viewpoint a frame looks through.
+
 ## Three rules
 
 1. **What flows down the tree is placement and visibility, and nothing
@@ -53,9 +69,9 @@ Everything a set says, from `<sigilworld/World.h>`:
 ```cpp
 // the nodes — every kind places, keys and joins collections
 Group  group({child, child, …});              // the one kind with children
+Null   null();                                // a placement to refer to
 Mesh   mesh(geometry::mesh::Mesh triangles);
-Points points(geometry::mesh::pop::Chain chain, geometry::mesh::Mesh stamp,
-              PointsOptions = {});
+Mesh   mesh(geometry::mesh::Instances instances);  // one stamp, repeated
 Light  directionalLight(glm::vec3 direction, DirectionalLightOptions = {});
 Light  pointLight(PointLightOptions = {});
 Light  spotLight(glm::vec3 direction, SpotLightOptions = {});
@@ -68,13 +84,14 @@ std::vector<Node> each(range or count, make);  // children a range describes
 // every kind
 .key(name)  .collection(name)  .at(position)  .rotateX/Y/Z(degrees)
 .scale(factor)  .along(rail, distance)  .visible(shown)
-// a mesh and points
+// a mesh
 .fill(material::Material surface)   // a material::Color is lit at the stock response
 .backface(material::Backface)
-// a mesh
 .facing(Facing)                     // Facing::Camera, Facing::CameraUpright
 // a light
-.lightLink(Collection)  .shadowLink(Collection)
+.lightLink(Collection)  .shadowLink(Collection)  .lookAt(key)
+// a camera
+.lookAt(key)
 
 // the frame
 Frame(Node scene);
@@ -91,17 +108,25 @@ kit::environmentMap(kit::EnvironmentMapOptions);
 
 **The node kinds.** A `Group` is the one kind that holds children, and it
 takes them as its argument: a braced list mixing every kind, and the
-lists `each()` makes. A `Mesh` is one body wearing a surface. `Points`
-stand a stamp at every point a chain cooks or a cloud holds, wearing the
-node's surface. A `Light` is one node type made by five factories — a
+lists `each()` makes. A `Null` holds nothing and draws nothing; it stands
+where it is placed so that a key can name the spot. A `Mesh` is one body
+wearing a surface: a `geometry::mesh::Mesh` drawn once, or
+`geometry::mesh::Instances` — one stamp and, per instance, a position,
+an orientation, a scale, a colour and named scalars — drawn as the stamp
+repeated, each instance carrying its colour and scalars to the surface
+(`material::FlipbookOptions::frameAttribute` plays each copy's own frame).
+A `Light` is one node type made by five factories — a
 directional light, the same everywhere; a point light, shining every way
 from where its node stands and falling off with the square of the
 distance; a spot light, within a cone; an ambient light, the same from
 every direction; a hemisphere light, a sky from above and a ground from
 below — each aimed by the direction it travels, which its node's
-rotation turns. Nothing lights a set that the set did not state. A `Camera` is
+rotation turns, or at a keyed node with `lookAt`. Nothing lights a set
+that the set did not state. A `Camera` is
 Geometry's lens standing where its node does, with the exposure and the
-tone curve the picture is read at. Every kind places itself with the same
+tone curve the picture is read at; `lookAt` aims it at a keyed node. An
+aim is resolved every frame against where the keyed node stands, and a
+key no node answers to stops the frame, naming both. Every kind places itself with the same
 verbs, answers to a key and joins collections; each adds only the verbs
 that mean something for it, so `fill` on a light does not compile.
 
@@ -144,8 +169,6 @@ and a field no consumer sets does not exist.
   the up axis (`rotation`), how much of it is shown behind the set and how
   blurred (`shown`, `blur`), and a ground the shown panorama is projected
   onto (`groundRadius`). Every dial is animatable and read once a frame.
-- `PointsOptions` — a `Window` into the loop the chain carries, its
-  `head` and `span` animatable, and the `runtime` the chain is cooked on.
 - `kit::Rig`, `kit::Turntable`, `kit::Set` and `kit::EnvironmentMapOptions`
   — the presets', in `reference/PRESETS.md`.
 
@@ -165,15 +188,14 @@ each header under `sigilworld/advanced/`:
 - `advanced/Node.h` — `Node`, the type-erased handle every
   kind converts to; `NodeDescription`, every field of one node;
   `propertiesEqual`, the structural prune over it; `memo`; and
-  `Along`, `Window`, `CameraDescription` and `ToneCurve`.
+  `Along`, `Facing`, `CameraDescription` and `ToneCurve`.
 - `advanced/Light.h` — `LightKind`, `LightDescription`,
   `PlacedLight`, `held`, `attenuation`, `radiance`, `linearColor` and
   `encodedColor`: a light as values.
 - `advanced/Lanes.h` — `LaneFamily`, `Slot`, `lanesOf` and
   `standingValue`: a node's animation lanes.
-- `advanced/Geometry.h` — `Stamped`, `Chained`, `Generator`,
-  `Geometry`, `Cooked`, `cook`, `stampKey` and `signature`: the geometry
-  slot and its cook.
+- `advanced/Geometry.h` — `Generator`, `Geometry`, `Cooked`, `cook`,
+  `stampKey` and `signature`: the geometry slot and its cook.
 - `advanced/View.h` — `Draw`, `Sampling`, `samplingOf`,
   `ViewOffset`, `View`, `memberOf`, `clipProjection`: what a pass sees.
 - `advanced/Runtime.h` — `Executor` and `Runtime`, the seam a
@@ -353,14 +375,15 @@ changes, and answers false for anything it cannot compare — a field left
 out of the comparison does not produce a wrong answer where the mistake
 is, it produces a node that never patches on that field again.
 
-**The kinds are one model underneath.** A `Group`, a `Mesh`, `Points`,
+**The kinds are one model underneath.** A `Group`, a `Null`, a `Mesh`,
 a `Light` and a `Camera` are typed handles over one description, so the
 reconciler, the prune and the keys see one node whatever made it, and a
 group's children are held as `Node`, the type-erased handle every kind
 converts to. Which factory made a node decides which fields it ever
-writes, and there is no kind field: a mesh and points are told apart by
-the geometry slot's VALUE TYPE — a `geometry::mesh::Mesh` against a
-`Chained` — so `remountRequired` answers false, always, and a key that
+writes, and there is no kind field: triangles and instanced geometry are
+told apart by the geometry slot's VALUE TYPE — a `geometry::mesh::Mesh`
+against a `geometry::mesh::Instances` — so `remountRequired` answers
+false, always, and a key that
 describes one and then the other resolves new resources in place while
 its entity and its lanes stand.
 
@@ -375,12 +398,12 @@ go. An extracted frame lives for one draw.
 counts and kinds — SigilCoreCompute's FNV fold, so a bucket is one number
 wherever it is computed — buckets a lookup and `operator==` decides it,
 so two different geometries can never be served one artefact however
-their bytes happen to fold together. Two nodes describing one chain cook
-it once.
+their bytes happen to fold together. Two nodes describing one geometry
+share one artefact, and the device uploads it once.
 
 **Lanes are addressed by where the motion lives.** One fixed row per lane
 per node — the nine placement lanes, the three origin lanes, the axis
-turn, the along-distance, and the window's head and span — so a ramp
+turn and the along-distance — so a ramp
 survives a patch that changed what the node holds.
 
 **A light's dials and the environment's are values, not lanes.** A
@@ -688,7 +711,7 @@ itself. Operation by operation:
 | `children` / `descriptionOf` | the description's `children`, and the description off each `Node` |
 | `memoOf` / `produce` | the description's `Memo`, and the deferred describe run under the environment its author had |
 | `create` | a node, an entity with a `Placement`, and the first patch — with the child's place among the siblings mounting with it, which every staggered tween on it resolves against |
-| `onPatched` | retargets the lanes (mounting entrances on the first patch, each resolved at the child's place), marks the geometry slot for resolution when it or its window changed, and stales every bake above |
+| `onPatched` | retargets the lanes (mounting entrances on the first patch, each resolved at the child's place), marks the geometry slot for resolution when it changed, and stales every bake above |
 | `reorder` | stales every bake above when a child mounted, unmounted or moved |
 | `remountRequired` | **false, always** — nothing a node retains is welded to what its slots hold |
 | `invalidate` | stales every bake above |
@@ -725,8 +748,8 @@ execute performs that order on the frame's runtime. The last two do
 nothing for a frame that declared no passes.
 
 **The caching proof** rides extract. Each node declares what moves —
-a bound or ramping placement lane is composite motion, a bound window
-lane rebuilds the geometry, a live material rebuilds the surface, and a
+a bound or ramping placement lane is composite motion, a live material
+rebuilds the surface, and a
 generator that cannot say whether it is the same generator is volatility
 no value comparison can see — and `core::foldSubtree` answers what the
 subtree promises. A `core::Settle` over the node's sixteen placement
@@ -776,8 +799,8 @@ count a selection is read by. A test target adds that one directory and
 includes the header by name; no library's include path carries it, so
 nothing shipped can reach a fixture. A body that needs a shape takes
 SigilGeometry's `quad()` rather than building one, and the one
-hand-built mesh left is a single TRIANGLE, kept because a stamp standing
-at every point of a cloud is counted in triangles.
+hand-built mesh left is a single TRIANGLE, kept because instanced
+geometry's stamp is counted in triangles.
 
 `node/test/` covers the description: copy-on-write, a group taking every
 kind in one braced list, the structural prune **field by field as one

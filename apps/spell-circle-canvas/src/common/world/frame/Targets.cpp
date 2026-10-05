@@ -1,7 +1,7 @@
 /** @file
  * The frame's named resources: the images an executor answers for, the
- * point sets a compute pass cooks, and the stamped meshes formed from
- * them.
+ * point sets a compute pass cooks, and the instanced geometry formed
+ * from them.
  */
 
 #include <sigilworld/advanced/Skia.h>
@@ -25,9 +25,9 @@ const geometry::mesh::Cloud* Targets::points(std::string_view name) const {
   return it == m_points.end() ? nullptr : &it->second;
 }
 
-const geometry::mesh::Mesh* Targets::stamped(const geometry::mesh::Cloud& cloud,
-                                             const geometry::mesh::Mesh& stamp,
-                                             uint64_t* key) {
+const geometry::mesh::Instances* Targets::stamped(
+    const geometry::mesh::Cloud& cloud, const geometry::mesh::Mesh& stamp,
+    uint64_t* key) {
   if (cloud.positions.empty() || stamp.positions.empty()) return nullptr;
   // A FOLD IS A BUCKET AND NEVER AN ANSWER, here as in the resource
   // store: an entry holds the pair it was formed from and is confirmed
@@ -41,7 +41,7 @@ const geometry::mesh::Mesh* Targets::stamped(const geometry::mesh::Cloud& cloud,
     if (found->second.cloud == cloud && found->second.stamp == stamp) {
       found->second.used = m_frame;
       if (key) *key = folded;
-      return &found->second.mesh;
+      return &found->second.instances;
     }
     ++folded;
   }
@@ -49,13 +49,14 @@ const geometry::mesh::Mesh* Targets::stamped(const geometry::mesh::Cloud& cloud,
   Stamping made;
   // How the stamp rides its points is the point operators' own table —
   // one convention, so a cloud stands its stamps up the same way here
-  // and through `pop::cookMesh`.
-  made.mesh = cook(Stamped{cloud, stamp}).mesh;
+  // and through `pop::cookInstances`.
+  made.instances = geometry::mesh::points::instances(
+      cloud, stamp, geometry::mesh::points::stampOptions(cloud));
   made.cloud = cloud;
   made.stamp = stamp;
   made.used = m_frame;
   ++m_stampings;
-  return &m_stamped.emplace(folded, std::move(made)).first->second.mesh;
+  return &m_stamped.emplace(folded, std::move(made)).first->second.instances;
 }
 
 void Targets::endFrame() {

@@ -7,6 +7,7 @@
  * values a scene is made of.
  */
 
+#include <sigilgeometry/mesh/Instances.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/codec/Model.h>
 #include <sigilworld/advanced/Light.h>
@@ -67,6 +68,18 @@ struct ReadEnvironment {
   world::Environment environment;
 };
 
+/** ONE POINT INSTANCER read from a stage as instanced geometry: its first
+ *  prototype as the stamp, in the instancer's own space; its positions,
+ *  scales and orientations; `displayColor` and `displayOpacity` as the
+ *  instances' colours; every other float primvar with one value per
+ *  instance as a named scalar; and where the instancer stands, which a
+ *  mesh node takes as its placement. */
+struct ReadInstances {
+  std::string path;
+  geometry::mesh::Instances instances;
+  glm::mat4 placement{1.0f};
+};
+
 /** One camera read from a stage, with the path of the prim it came
  *  from. */
 struct ReadCamera {
@@ -98,6 +111,13 @@ std::optional<std::vector<ReadLight>> readLights(
  *  radiance it was described with. nullopt when the stage cannot be
  *  opened. */
 std::optional<std::vector<ReadEnvironment>> readEnvironments(
+    const std::filesystem::path& file, std::string* error = nullptr);
+
+/** Every UsdGeomPointInstancer on the stage, in traversal order, as
+ *  instanced geometry — what `world::mesh` draws. `readModel` reads the
+ *  same prim as a faceless part of its positions. nullopt when the stage
+ *  cannot be opened. */
+std::optional<std::vector<ReadInstances>> readInstances(
     const std::filesystem::path& file, std::string* error = nullptr);
 
 /** Every UsdGeomCamera on the stage, in traversal order: the prim's

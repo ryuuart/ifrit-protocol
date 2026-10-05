@@ -16,6 +16,7 @@
  * custom metadata rather than baked.
  */
 
+#include <sigilgeometry/mesh/Instances.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/pop/Points.h>
@@ -72,9 +73,18 @@ class Writer {
     return this->mesh(name, mesh, model,
                       std::vector<material::Material>{material}, parent);
   }
-  /** Stamps: a UsdGeomPointInstancer over @p cloud's positions with the
-   *  stamp mesh as its one prototype; the "size" lane scales, "dir" (or
-   *  "normal") orients, "tint" lands as a per-instance primvar. */
+  /** Instanced geometry: a UsdGeomPointInstancer with the stamp as its
+   *  one prototype, the instances' positions, scales and orientations as
+   *  its own, their colours as `displayColor` and `displayOpacity`, and
+   *  each named scalar as a per-instance primvar of its name. */
+  std::string instances(std::string_view name,
+                        const geometry::mesh::Instances& instances,
+                        const glm::mat4& model,
+                        const material::Material& material,
+                        std::string_view parent = "/World");
+  /** Stamps: @p stamp standing at every point of @p cloud the point
+   *  operators' way — the "size" lane scales, "dir" (or "normal")
+   *  orients, "tint" colours — written as `instances` writes it. */
   std::string stamps(std::string_view name, const geometry::mesh::Cloud& cloud,
                      const geometry::mesh::Mesh& stamp, const glm::mat4& model,
                      const material::Material& material,

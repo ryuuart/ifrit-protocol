@@ -1,5 +1,5 @@
 # The node feature: one node of a 3D scene as a comparable copy-on-write
-# value, in its five kinds — group, mesh, points, light and camera — over
+# value, in its five kinds — group, null, mesh, light and camera — over
 # one description underneath; the verb families they share, the
 # transform lanes, collections, the light values and the generator seam.
 # Nothing here cooks, draws or retains: it links the vocabularies it is
@@ -9,7 +9,7 @@
 find_package(glm CONFIG REQUIRED)
 sigil_library(SigilWorldNode
   SOURCES Collection.cpp Equal.cpp Geometry.cpp Lanes.cpp Light.cpp Verbs.cpp
-  HEADERS Camera.h Collection.h Group.h Light.h Mesh.h Points.h Transform.h
+  HEADERS Camera.h Collection.h Group.h Light.h Mesh.h Null.h Transform.h
           Verbs.h ../advanced/Geometry.h ../advanced/Lanes.h
           ../advanced/Light.h ../advanced/Node.h
   PUBLIC SigilCoreComparable SigilCoreCompute SigilCoreReconcile

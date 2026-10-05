@@ -56,6 +56,10 @@ struct Placement {
  *  never given to another, which an address cannot promise. */
 struct Body {
   const geometry::mesh::Mesh* mesh = nullptr;
+  /** The instances that mesh is repeated at, when the slot holds
+   *  instanced geometry — the mesh is then its stamp — and null for a
+   *  body drawn once. Both belong to the store's entry. */
+  const geometry::mesh::Instances* instances = nullptr;
   uint64_t id = 0;
   material::Backface backface = material::Backface::Hidden;
   /** Whether the body turns to face the camera, which only the frame's
@@ -109,18 +113,11 @@ struct Instance : core::Node<Instance, std::shared_ptr<NodeDescription>> {
   /** What the lanes resolved to this frame. */
   geometry::mesh::Transform values;
   float alongDistance = 0.0f;
-  float windowHead = 1.0f;
-  float windowSpan = 1.0f;
 
-  /** The artefact this node's geometry slot resolved, and the window
-   *  values it was resolved at — a moving window is moving geometry, so
-   *  it resolves again whenever those change. */
+  /** The artefact this node's geometry slot resolved. */
   Resource* resource = nullptr;
-  float resolvedHead = 0.0f;
-  float resolvedSpan = 0.0f;
   /** The description's slot changed and the artefact has not caught up
-   *  yet — resolution is extract's, so that a window sampled this frame
-   *  is already in hand when the slot is cooked. */
+   *  yet — resolution is extract's. */
   bool geometryDirty = true;
 
   glm::mat4 world{1.0f};
@@ -283,13 +280,12 @@ struct Scene::Impl {
   void rescanMoved();
   void rescanMoved(Instance& inst);
 
-  /** Resolves @p inst's geometry slot against the store, dropping
-   *  whatever it held. @p geometry is the slot with this frame's window
-   *  applied. */
+  /** Resolves @p inst's geometry slot against the store when it changed,
+   *  dropping whatever it held. */
   void ensureResource(Instance& inst);
-  void resolveResource(Instance& inst, Geometry geometry);
-  /** The node's geometry slot with its window values written into it. */
-  Geometry effectiveGeometry(const Instance& inst) const;
+  /** WHERE THE NODE KEYED @p key STANDS this frame, the first in tree
+   *  order; null when no node answers to it. */
+  [[nodiscard]] const Instance* findKeyed(std::string_view key) const;
   /** Every bake from @p inst up to the root goes stale. */
   void staleBakesUp(Instance* inst);
   void rebuildKeyIndex();

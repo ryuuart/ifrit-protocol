@@ -57,16 +57,6 @@ bool alongEqual(const std::optional<Along>& a, const std::optional<Along>& b) {
          propertyEqual(a->distance, b->distance);
 }
 
-static_assert(core::kFieldCount<Window> == 2,
-              "Window gained or lost a field — rule on it in "
-              "windowEqual() below, then bump this count.");
-bool windowEqual(const std::optional<Window>& a,
-                 const std::optional<Window>& b) {
-  if (a.has_value() != b.has_value()) return false;
-  if (!a) return true;
-  return propertyEqual(a->head, b->head) && propertyEqual(a->span, b->span);
-}
-
 static_assert(core::kFieldCount<geometry::mesh::camera::Camera> == 6,
               "Camera gained or lost a field — rule on it in "
               "cameraEqual() below, then bump this count.");
@@ -128,7 +118,7 @@ bool propertiesEqual(const NodeDescription& a, const NodeDescription& b) {
   if (!transformEqual(a.transform, b.transform)) return false;
   if (!alongEqual(a.along, b.along)) return false;
   if (a.visible != b.visible) return false;
-  if (!windowEqual(a.window, b.window)) return false;
+  if (a.lookAt != b.lookAt) return false;
   // The geometry slot's value type IS the node's kind, and the variant's
   // own equality compares both: two nodes holding different alternatives
   // are unequal, two holding the same one compare its contents. A

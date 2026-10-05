@@ -9,6 +9,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilusd/read/Reader.h>
 #include <sigilusd/runtime/Runtime.h>
@@ -265,6 +266,52 @@ TEST(UsdRead, ReadsAnInstancerAsAFacelessPart) {
   EXPECT_FLOAT_EQ(sparks->mesh.positions[0].y, 10.0f);
   // The prototype mesh under it is a part of its own.
   EXPECT_TRUE(named(*model, "stamp"));
+}
+
+TEST(UsdRead, AnInstancerIsInstancedGeometryWithItsColoursAndScalars) {
+  SKIP_WITHOUT_USD();
+  const std::filesystem::path file = scratch("instances.usda");
+  geometry::mesh::Instances written;
+  written.stamp = geometry::mesh::quad(4, 4);
+  written.positions = {{0, 0, 0}, {10, 0, 0}, {0, 10, 0}};
+  written.scales = {{1, 1, 1}, {2, 2, 2}, {0.5f, 0.5f, 0.5f}};
+  written.orientations = {
+      glm::quat(1, 0, 0, 0),
+      glm::angleAxis(glm::radians(90.0f), glm::vec3(0, 1, 0)),
+      glm::quat(1, 0, 0, 0)};
+  written.colors = {{1, 0, 0, 1}, {0, 1, 0, 0.5f}, {0, 0, 1, 1}};
+  written.attributes["age"] = {0.1f, 0.5f, 0.9f};
+  {
+    usd::Writer writer(file);
+    writer.instances("sparks", written,
+                     glm::translate(glm::mat4(1.0f), {0, 20, 0}),
+                     material::surface::program());
+    ASSERT_TRUE(writer.save());
+  }
+  const auto read = usd::readInstances(file);
+  ASSERT_TRUE(read);
+  ASSERT_EQ(read->size(), 1u);
+  const geometry::mesh::Instances& instances = read->front().instances;
+  EXPECT_EQ(instances.size(), 3u);
+  EXPECT_EQ(instances.positions, written.positions)
+      << "in the instancer's own space";
+  EXPECT_FLOAT_EQ(read->front().placement[3].y, 20.0f);
+  EXPECT_EQ(instances.scales, written.scales);
+  ASSERT_EQ(instances.orientations.size(), 3u);
+  EXPECT_NEAR(instances.orientations[1].y, written.orientations[1].y, 1e-3f);
+  EXPECT_EQ(instances.colors, written.colors);
+  ASSERT_NE(instances.attributeIf("age"), nullptr);
+  EXPECT_FLOAT_EQ((*instances.attributeIf("age"))[1], 0.5f);
+  EXPECT_EQ(instances.stamp.triangleCount(), 2u);
+  EXPECT_NEAR(instances.stamp.positions.front().y,
+              written.stamp.positions.front().y, 1e-4f)
+      << "the stamp is in the instancer's space, not the world's";
+  // The same prim is still a faceless part of positions to readModel.
+  const auto model = usd::readModel(file);
+  ASSERT_TRUE(model);
+  const geometry::mesh::codec::decode::Part* sparks = named(*model, "sparks");
+  ASSERT_TRUE(sparks);
+  EXPECT_EQ(sparks->mesh.vertexCount(), 3u);
 }
 
 TEST(UsdRead, RoundTripsWhatTheWriterAuthors) {
@@ -621,4 +668,5 @@ TEST(UsdRead, RefusesWhatItCannotOpen) {
   EXPECT_FALSE(error.empty());
   EXPECT_FALSE(usd::readLights(scratch("nope.usdc")));
   EXPECT_FALSE(usd::readCameras(scratch("nope.usdc")));
+  EXPECT_FALSE(usd::readInstances(scratch("nope.usdc")));
 }

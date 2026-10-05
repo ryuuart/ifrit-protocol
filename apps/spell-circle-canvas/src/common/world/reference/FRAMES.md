@@ -131,16 +131,17 @@ answered by the executor that holds its pixels. What a resource was at
 the end of the frame before is that executor's to keep, and a post pass
 reads it through `Pass::previous`.
 
-`Targets::stamped` is a cloud STAMPED with a mesh, formed once per
-distinct pair and kept while both stand, and null when there is nothing
-to stamp.
+`Targets::stamped` is a mesh STANDING AT EVERY POINT of a cloud as
+instanced geometry, placed by the point operators' own table, formed once
+per distinct pair and kept while both stand, and null when there is
+nothing to stamp.
 
 A geometry pass draws the stamps of every point set it reads, every
-frame. Forming them in the draw would re-stamp a set that has not moved —
-the whole cloud times the stamp's vertices, however still the frame is — so the answer is held here under `stampKey`, which is a
+frame. Forming them in the draw would instance a set that has not moved
+again, however still the frame is — so the answer is held here under `stampKey`, which is a
 fold over the two VALUES. The fold buckets the lookup and the pair itself
 decides it, so two pairs that fold to one number are two stampings under
-two numbers and neither is ever served the other's mesh. A frame that
+two numbers and neither is ever served the other's instances. A frame that
 asks for one it already has pays the fold and the confirmation and
 nothing else, and the device keys its upload by the number this
 answers, so a still set is neither formed twice nor uploaded twice.
@@ -150,7 +151,7 @@ key receives the number a stamping is held under, for an executor that
 keys an upload by the same one, so that the fold is paid once per frame
 and not twice.
 
-`Targets::stampings` is how many stamped meshes have been FORMED, over
+`Targets::stampings` is how many stampings have been FORMED, over
 the store's whole life. A frame drawing a set that has not moved must not
 move that number.
 

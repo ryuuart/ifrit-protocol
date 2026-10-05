@@ -395,3 +395,31 @@ TEST(Lighting, ASetWithNoAmbientLightAndNoEnvironmentHasBlackShadows) {
                    on.runtime);
   EXPECT_LT(luma(at(plate, 0.5f, 0.5f)), 1.0f / 255.0f);
 }
+
+// ---- a light aimed at a node ------------------------------------------
+
+TEST(Lighting, ALightLookingAtANullLightsTheSideFacingIt) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // The light is made travelling +x — which would light the ball's left —
+  // and stands off to its right, looking at a null where the ball is.
+  const auto ball = [&](bool aimed) {
+    Light sun = directionalLight({1, 0, 0}, {.intensity = 2.0f})
+                    .key("sun")
+                    .at({300, 0, 0});
+    if (aimed) sun.lookAt("pivot");
+    return photographed({std::move(sun), null().key("pivot"),
+                         mesh(gm::superellipsoid({60, 60, 60}, 2.0f, 64, 48))
+                             .key("ball")
+                             .fill(matte(0.8f))},
+                        on.runtime);
+  };
+  const SkBitmap unaimed = ball(false);
+  EXPECT_GT(luma(at(unaimed, 0.38f, 0.5f)), luma(at(unaimed, 0.62f, 0.5f)))
+      << "as made, the light reaches the left";
+  const SkBitmap aimed = ball(true);
+  EXPECT_GT(luma(at(aimed, 0.62f, 0.5f)), 0.2f)
+      << "aimed at the null, it lights the side facing it";
+  EXPECT_LT(luma(at(aimed, 0.38f, 0.5f)), 1.0f / 255.0f)
+      << "and the side away from it is dark";
+}

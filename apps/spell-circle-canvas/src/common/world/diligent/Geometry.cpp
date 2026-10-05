@@ -5,6 +5,12 @@
  * the point sets it reads; and the coverage a masked pass downstream
  * reads its selection from.
  *
+ * EVERY BODY IS ONE INSTANCED DRAW: its mesh once, and a second buffer
+ * stepping once per instance — instanced geometry's own instances, or one
+ * neutral instance for a body drawn once. The copies of one body are
+ * drawn in the order its instances stand in; they are not sorted among
+ * themselves.
+ *
  * THE ORDER: LAID OVER FIRST, THEN BLENDED. Bodies arrive sorted back to
  * front by where each one's own origin stands from the camera. Every body
  * laid over normally is drawn first, in that order — an opaque one
@@ -31,6 +37,7 @@
 #include <sigilmaterial/advanced/FrameData.h>
 #include <sigilmaterial/advanced/Program.h>  // reportOnce
 #include <sigilmaterial/advanced/Terms.h>
+#include <sigilmaterial/core/Instance.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Parameters.h>
 #include <sigilmaterial/surface/Surface.h>
@@ -224,6 +231,41 @@ void writeMaterial(material::slang::Uniforms& uniforms,
   }
 }
 
+/** The number the scaffold reads a facing by. */
+float facingNumber(Facing facing) {
+  switch (facing) {
+    case Facing::None:
+      return 0.0f;
+    case Facing::Camera:
+      return 1.0f;
+    case Facing::CameraUpright:
+      return 2.0f;
+  }
+  return 0.0f;
+}
+
+/** What a draw's instances need of the scaffold: whether each one turns
+ *  to the camera and the camera's axes it turns onto, and the keys of the
+ *  scalars each one carries. */
+void writeInstancing(material::slang::Uniforms& uniforms, const glm::mat4& view,
+                     Facing facing, const device::InstanceBuffers& instances) {
+  uniforms.set("uView", view);
+  uniforms.set("uFacing", facingNumber(facing), 0.0f, 0.0f, 0.0f);
+  // The view is rigid, so its transpose carries the picture's right, up
+  // and backward into the world, and its inverse's translation is the
+  // eye.
+  const glm::mat3 axes = glm::transpose(glm::mat3(view));
+  const glm::vec3 eye = glm::vec3(glm::inverse(view)[3]);
+  uniforms.set("uCameraRight", axes[0].x, axes[0].y, axes[0].z, 0.0f);
+  uniforms.set("uCameraUp", axes[1].x, axes[1].y, axes[1].z, 0.0f);
+  uniforms.set("uCameraBack", axes[2].x, axes[2].y, axes[2].z, 0.0f);
+  uniforms.set("uCameraEye", eye.x, eye.y, eye.z, 1.0f);
+  float keys[4];
+  for (int k = 0; k < 4; ++k)
+    keys[k] = material::instanceAttributeKey(instances.attributeNames[k]);
+  uniforms.set("uInstanceAttributeKeys", keys, 4);
+}
+
 /** Everything a draw's scaffold needs: where the body stands, where the
  *  camera is, what is shining on it, and how the camera reads it. */
 void writeScaffold(material::slang::Uniforms& uniforms,
@@ -348,17 +390,30 @@ bool surfaceSlot(std::string_view slot) {
 /** The scaffold's slot the opaque depth is read through. */
 constexpr std::string_view kSceneDepthSlot = "uSceneDepth";
 
+/** What one body is drawn as: its mesh, the artefact number its buffers
+ *  are held under, and the instances it is repeated at — null for one
+ *  neutral instance — with whether each turns to the camera. */
+struct Shape {
+  uint64_t artefact = 0;
+  const geometry::mesh::Mesh* mesh = nullptr;
+  const geometry::mesh::Instances* instances = nullptr;
+  Facing facing = Facing::None;
+};
+
 /** One body, drawn. @p map is the texture it is dressed with, or null;
  *  @p sceneDepth the copy of the opaque depth, or null. */
 void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
-              uint64_t artefact, const geometry::mesh::Mesh& mesh,
-              const glm::mat4& model, glm::vec4 baseColor,
+              const Shape& shape, const glm::mat4& model, glm::vec4 baseColor,
               const material::Material* worn, const material::Texture* map,
               std::span<const PlacedLight* const> lights,
               const Environment& sky, bool lit, const Blending& blending,
               bool cull, dg::ITexture* sceneDepth) {
-  const MeshBuffers* buffers = gpu.meshes.upload(artefact, mesh);
+  const MeshBuffers* buffers = gpu.meshes.upload(shape.artefact, *shape.mesh);
   if (!buffers) return;
+  const device::InstanceBuffers* instances =
+      shape.instances ? gpu.meshes.instances(shape.artefact, *shape.instances)
+                      : gpu.meshes.single();
+  if (!instances) return;
   // A CHILD MATERIAL IN A SLOT is written into the body, so the device
   // compiles one program that plays it; a material holding none is
   // itself.
@@ -372,6 +427,7 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
   PipelineKey key{surface.program, blending.blend, true, blending.depthWrite,
                   false,           false,          cull};
   key.target = kRadianceFormat;
+  key.instanced = true;
   const Pipeline* pipeline = gpu.pipelines.pipeline(key);
   if (!pipeline) return;
 
@@ -389,6 +445,8 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
   material::slang::Uniforms uniforms(*surface.program);
   writeScaffold(uniforms, *surface.program, gpu, viewProj, view, model,
                 baseColor, lights, sky, levels, lit, sceneDepth != nullptr);
+  writeInstancing(uniforms, view, shape.instances ? shape.facing : Facing::None,
+                  *instances);
   writeMaterial(uniforms, surface);
 
   // THE SAMPLED SLOTS, bound by NAME rather than by position, because a
@@ -492,15 +550,16 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
   device::bindDraw(gpu.shared, *pipeline, *surface.program, uniforms, textures,
                    toSk(sampling.filter), sampling.tile, &isEnvironmentSlot,
                    samplers, views);
-  dg::IBuffer* vertices = buffers->vertices;
-  const dg::Uint64 offset = 0;
-  context->SetVertexBuffers(0, 1, &vertices, &offset,
+  dg::IBuffer* streams[2] = {buffers->vertices, instances->instances};
+  const dg::Uint64 offsets[2] = {0, 0};
+  context->SetVertexBuffers(0, 2, streams, offsets,
                             dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
                             dg::SET_VERTEX_BUFFERS_FLAG_RESET);
   context->SetIndexBuffer(buffers->indices, 0,
                           dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
   dg::DrawIndexedAttribs draw;
   draw.NumIndices = buffers->indexCount;
+  draw.NumInstances = instances->count;
   draw.IndexType = dg::VT_UINT32;
   draw.Flags = dg::DRAW_FLAG_VERIFY_ALL;
   context->DrawIndexed(draw);
@@ -655,8 +714,9 @@ void drawBodies(Gpu& gpu, const View& view, const glm::mat4& viewProj,
       // A BODY THAT IS ITS OWN LIGHT is drawn unlit whatever the pass
       // says, because that is what its surface is and not how this pass
       // reads it — a variant laid over it included.
-      drawBody(gpu, viewProj, viewMatrix, body.geometry, *body.mesh, body.world,
-               colour, flat ? nullptr : body.material,
+      drawBody(gpu, viewProj, viewMatrix,
+               Shape{body.geometry, body.mesh, body.instances, body.facing},
+               body.world, colour, flat ? nullptr : body.material,
                flat ? nullptr : body.texture, reaching, view.environment,
                lit && body.lit, blending,
                /*cull=*/body.backface == material::Backface::Hidden,
@@ -706,9 +766,10 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
              cull ? &pass.collection() : nullptr, /*lit=*/true, nullptr,
              colour);
 
-  // The stamps of every point set the pass reads. A compute pass writes
-  // points; this is what makes them visible, and a pass with no stamp
-  // draws none of them.
+  // The stamps of every point set the pass reads, drawn as instanced
+  // geometry like any instanced body. A compute pass writes points; this
+  // is what makes them visible, and a pass with no stamp draws none of
+  // them.
   if (!pass.stamp().positions.empty()) {
     // A pass's stamps belong to no node: they joined no collection and
     // stand under no key, so a light reaches them unless its link
@@ -729,13 +790,14 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
       const geometry::mesh::Cloud* cloud = std::as_const(targets).points(name);
       if (!cloud || cloud->positions.empty()) continue;
       uint64_t key = 0;
-      const geometry::mesh::Mesh* stamped =
+      const geometry::mesh::Instances* stamped =
           targets.stamped(*cloud, pass.stamp(), &key);
-      if (!stamped || stamped->indices.empty()) continue;
+      if (!stamped || stamped->stamp.indices.empty()) continue;
       // The top bit is the half of the numbering these take, so the
       // store's key is carried in the rest of it.
       const uint64_t artefact = kStampArtefact | (key >> 1u);
-      drawBody(gpu, viewProj, viewMatrix, artefact, *stamped, glm::mat4(1.0f),
+      drawBody(gpu, viewProj, viewMatrix,
+               Shape{artefact, &stamped->stamp, stamped}, glm::mat4(1.0f),
                {0.9f, 0.9f, 0.95f, 1.0f}, nullptr, nullptr, everyLight,
                view.environment, /*lit=*/true, Blending{}, /*cull=*/true,
                nullptr);

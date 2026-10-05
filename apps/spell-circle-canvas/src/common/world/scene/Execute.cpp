@@ -145,10 +145,15 @@ void Scene::Impl::collectBodies(const geometry::mesh::camera::Camera& eye,
     const component::Named& named = registry.get<component::Named>(entity);
     const component::Joined* joined =
         registry.try_get<component::Joined>(entity);
+    // A body drawn once turns as a whole; instanced geometry turns each
+    // instance where it stands, which only the device's vertex stage
+    // reaches.
+    const glm::mat4& placed = registry.get<component::Placement>(entity).world;
     into.push_back(Draw{
-        .world = faced(registry.get<component::Placement>(entity).world,
-                       body.facing, eye),
+        .world = body.instances ? placed : faced(placed, body.facing, eye),
         .mesh = body.mesh,
+        .instances = body.instances,
+        .facing = body.instances ? body.facing : Facing::None,
         .backface = body.backface,
         .geometry = body.id,
         .baseColor = surface.baseColor,

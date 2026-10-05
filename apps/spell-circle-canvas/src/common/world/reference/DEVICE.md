@@ -61,11 +61,24 @@ an artefact that is dropped frees its memory and the next one cooked can
 land on it, and a count per store would hand two scenes' artefacts one
 number.
 
+**EVERY BODY IS ONE INSTANCED DRAW.** The stamp's mesh is uploaded once
+under its artefact's number, its instances — position, orientation,
+scale, colour, texture window and four named scalars each — into a second
+buffer that steps once per instance under the same number, and the body
+is one indexed draw of as many instances as it has. A body that is not
+instanced geometry is drawn the same way with one neutral instance, so
+there is one vertex stage, one layout and one pipeline per material and
+blend; a neutral instance changes no vertex by so much as a rounding. A
+body facing the camera with instanced geometry turns each instance where
+it stands in that vertex stage. The copies of one body are drawn in the
+order its instances stand in and are not sorted among themselves, which
+an additive surface does not mind and a translucent one laid over may.
+
 **A STAMPED POINT SET IS AN ARTEFACT LIKE ANY OTHER.** A geometry pass
-draws the stamps of every point set it reads, every frame, and forming
-one costs the whole cloud times the stamp's vertices — so it is formed
-ONCE per distinct (cloud, stamp) and uploaded once, and a set that has
-not moved between two frames is neither instanced again nor re-uploaded.
+draws the stamps of every point set it reads, every frame, as instanced
+geometry — the stamp once and an instance per point — formed ONCE per
+distinct (cloud, stamp) and uploaded once, so a set that has not moved
+between two frames is neither instanced again nor re-uploaded.
 `Targets::stamped()` is where it is formed and held;
 `world::stampKey()` is the number the two values fold to, read from
 their CONTENT because that is what "the same stamping" means — an
@@ -73,7 +86,7 @@ address cannot say it and a shape cannot — and the device keys its
 upload by that same number. The fold BUCKETS the lookup and the pair
 itself decides it: an entry holds the cloud and the stamp it was formed
 from, so two pairs that happen to fold together are two stampings under
-two numbers and neither is ever served the other's mesh. `Targets::stampings()` counts what has
+two numbers and neither is ever served the other's instances. `Targets::stampings()` counts what has
 actually been formed, which is what the test asserts does not move
 across three frames of a still set. A stamping no pass asked for in a
 frame is let go at the end of it.
@@ -200,9 +213,9 @@ caller holding a runtime must not have to check for.
 **World's own geometry slot has no swept kind**, so nothing in `scene/`
 reaches for this: a sweep is formed by whoever describes the geometry,
 and a host that holds the device puts the runtime in the `SweepOptions`
-it sweeps with. A `Chained` slot is the one that carries a runtime,
-and the device executor swaps the host pop runtime into it when the whole
-chain has kernels.
+it sweeps with. Instanced geometry is likewise cooked by whoever ends a
+chain in it, on the runtime that caller names; a compute pass is the one
+place the frame cooks a chain itself.
 
 ## The point operators on the device
 

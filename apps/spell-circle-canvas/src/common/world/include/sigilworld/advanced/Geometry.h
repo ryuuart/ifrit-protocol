@@ -2,48 +2,22 @@
 
 /** @file
  * @ingroup world-node
- * What a node is made of: the four shapes a geometry slot takes — a
- * formed mesh, a stamped cloud, a point chain with the runtime that
- * cooks it, or a generator — and the cook that turns any of them into
- * points and triangles. There is no kind field anywhere in this
- * library: the slot's value type IS the kind.
+ * What a node is made of: the three shapes a geometry slot takes — a
+ * formed mesh, instanced geometry, or a generator — and the cook that
+ * turns any of them into the triangles a draw uses. There is no kind field
+ * anywhere in this library: the slot's value type IS the kind.
  */
 
 #include <sigilcore/comparable/Erased.h>
+#include <sigilgeometry/mesh/Instances.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/pop/Points.h>
-#include <sigilgeometry/mesh/pop/Pop.h>
 
 #include <cstdint>
 #include <string>
 #include <variant>
 
 namespace sigil::world {
-
-/** Points, and the body standing at each of them. The stamp is oriented
- *  by the cloud's "normal" lane, scaled by its "size" lane and tinted by
- *  its "tint" lane wherever those lanes exist — the names every point
- *  operator already writes. A cloud with no stamp cooks its points and
- *  draws nothing, which is a legitimate node: the points are what a
- *  later pass reads. */
-struct Stamped {
-  geometry::mesh::Cloud cloud;
-  geometry::mesh::Mesh stamp;
-
-  bool operator==(const Stamped&) const = default;
-};
-
-/** A point chain and the runtime that cooks it. The chain DESCRIBES the
- *  points; the runtime evaluates them, and every runtime is required to
- *  produce the same cloud from the same chain. The stamp is the body at
- *  each cooked point, on the same terms as Stamped's. */
-struct Chained {
-  geometry::mesh::pop::Chain chain;
-  geometry::mesh::pop::Runtime runtime = geometry::mesh::pop::Runtime::cpu();
-  geometry::mesh::Mesh stamp;
-
-  bool operator==(const Chained&) const = default;
-};
 
 /** The escape from the geometry vocabulary: a value that builds its own
  *  mesh. */
@@ -71,23 +45,24 @@ class GeneratorOperations {
 using Generator = core::Erased<GeneratorOperations>;
 
 /** THE GEOMETRY SLOT. An empty slot draws nothing — a node that is only
- *  a placement for its children, an emitter or a viewpoint. */
-using Geometry = std::variant<std::monostate, geometry::mesh::Mesh, Stamped,
-                              Chained, Generator>;
+ *  a placement for its children, an emitter or a viewpoint. Instanced
+ *  geometry is drawn as its stamp repeated once per instance. */
+using Geometry = std::variant<std::monostate, geometry::mesh::Mesh,
+                              geometry::mesh::Instances, Generator>;
 
-/** What a geometry slot cooks to: the points it produced, when it
- *  produced any, and the triangles a draw uses. Both may be empty. */
+/** What a geometry slot cooks to: the triangles a draw uses, which may be
+ *  empty. Instanced geometry is already what is drawn, so it cooks to
+ *  nothing and is read off the slot itself. */
 struct Cooked {
-  geometry::mesh::Cloud cloud;
   geometry::mesh::Mesh mesh;
 };
 
-/** Evaluate @p geometry. A Mesh is already cooked; a Stamped instances
- *  its stamp over its cloud; a Chained cooks its chain on its runtime
- *  and then instances; a Generator is asked. */
+/** Evaluate @p geometry. A Mesh is already cooked; instanced geometry and
+ *  an empty slot cook to nothing; a Generator is asked. */
 Cooked cook(const Geometry& geometry);
 
-/** THE NUMBER TWO STAMPINGS AGREE ON when they are the same stamping:
+/** THE NUMBER TWO STAMPINGS AGREE ON — the stamps a pass draws over
+ *  the points a compute pass cooked — when they are the same stamping:
  *  a fold over the VALUES of @p cloud and @p stamp, not over their
  *  shapes and not over their addresses. A cloud that has not moved must
  *  answer with the same number and a cloud that has moved must not,

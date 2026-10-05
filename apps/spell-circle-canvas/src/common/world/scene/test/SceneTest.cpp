@@ -49,15 +49,17 @@ geometry::mesh::Mesh card(float size) {
   return geometry::mesh::quad(size * 2.0f, size * 2.0f);
 }
 
-/** A closed loop and a chain of stamps riding a window of it — the same
- *  VALUE wherever it is built, which is what makes it shareable. */
-geometry::mesh::pop::Chain cometChain() {
+/** A closed loop and stamps riding a window of it, as instanced geometry
+ *  — the same VALUE wherever it is built, which is what makes it
+ *  shareable. */
+geometry::mesh::Instances comet() {
   std::vector<glm::vec3> loop = {
       {-80, 0, 0}, {0, 60, 0}, {80, 0, 0}, {0, -60, 0}};
   return geometry::mesh::pop::on(loop)
       .count(64)
       .window(0.9f, 0.4f)
-      .spread(6.0f);
+      .spread(6.0f)
+      .instances(card(3));
 }
 
 /** WHAT A PASS WAS HANDED, as values: every body's key, placement,
@@ -181,14 +183,16 @@ TEST_F(WorldScene, ABodysBackfaceReachesThePassThatDrawsIt) {
 TEST_F(WorldScene, AGeometrySlotChangeKeepsTheNodeAndItsLanes) {
   motion::Animatable<float> lift = motion::animatable(0.0f);
 
-  // A mesh and points are two kinds over one description, so the same
-  // key describing the one and then the other is a change of what the
-  // node holds, not a new node.
+  // Triangles and instanced geometry are two values of one geometry slot,
+  // so the same key describing the one and then the other is a change of
+  // what the node holds, not a new node.
   const auto describe = [&lift](bool asCloud) -> Group {
     if (asCloud) {
       geometry::mesh::Cloud cloud;
       cloud.positions = {{-20, 0, 0}, {20, 0, 0}};
-      return group({points(cloud, card(4)).key("body").translateY(lift)})
+      return group({mesh(geometry::mesh::points::instances(cloud, card(4)))
+                        .key("body")
+                        .translateY(lift)})
           .key("root");
     }
     return group({mesh(card(20)).key("body").translateY(lift)}).key("root");
@@ -214,10 +218,10 @@ TEST_F(WorldScene, AGeometrySlotChangeKeepsTheNodeAndItsLanes) {
   EXPECT_EQ(scene.stats().resources, 1);
 }
 
-TEST_F(WorldScene, TwoNodesDescribingOneChainShareOneCook) {
-  const geometry::mesh::pop::Chain chain = cometChain();
-  const Group root = group({points(chain, card(3)).key("left").at({-40, 0, 0}),
-                            points(chain, card(3)).key("right").at({40, 0, 0})})
+TEST_F(WorldScene, TwoNodesDescribingOneInstancingShareOneArtefact) {
+  const geometry::mesh::Instances instances = comet();
+  const Group root = group({mesh(instances).key("left").at({-40, 0, 0}),
+                            mesh(instances).key("right").at({40, 0, 0})})
                          .key("root");
 
   scene.render(root);
@@ -228,7 +232,7 @@ TEST_F(WorldScene, TwoNodesDescribingOneChainShareOneCook) {
 
   // One of them describes a different body: the shared entry stays, and
   // the other node keeps drawing from it.
-  const Group split = group({points(chain, card(3)).key("left").at({-40, 0, 0}),
+  const Group split = group({mesh(instances).key("left").at({-40, 0, 0}),
                              mesh(card(9)).key("right").at({40, 0, 0})})
                           .key("root");
   scene.render(split);
@@ -404,6 +408,26 @@ TEST_F(WorldScene, SeveralCamerasAreChosenBetweenByKey) {
   ASSERT_TRUE(scene.camera().has_value());
   EXPECT_FLOAT_EQ(scene.camera()->eye.z, 900.0f);
   EXPECT_TRUE(scene.error().empty());
+}
+
+TEST_F(WorldScene, ACameraLookingAtANullLooksWhereTheNullStands) {
+  scene.render(group({group({null().key("pivot")}).at({40, 10, -5}),
+                      camera(lensAt(300)).key("eye").lookAt("pivot")})
+                   .key("root"));
+  ASSERT_TRUE(scene.camera().has_value());
+  EXPECT_TRUE(scene.error().empty());
+  EXPECT_FLOAT_EQ(scene.camera()->target.x, 40.0f);
+  EXPECT_FLOAT_EQ(scene.camera()->target.y, 10.0f);
+  EXPECT_FLOAT_EQ(scene.camera()->target.z, -5.0f);
+  EXPECT_FLOAT_EQ(scene.camera()->eye.z, 300.0f);
+}
+
+TEST_F(WorldScene, LookingAtAKeyNoNodeAnswersToIsAnErrorNamingIt) {
+  scene.render(group({directionalLight({0, -1, 0}).key("sun").lookAt("pivot"),
+                      null().key("elsewhere")})
+                   .key("root"));
+  EXPECT_NE(scene.error().find("\"sun\""), std::string::npos);
+  EXPECT_NE(scene.error().find("\"pivot\""), std::string::npos);
 }
 
 TEST_F(WorldScene, SeveralCamerasAndNoneNamedIsAnErrorThatSaysSo) {

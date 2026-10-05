@@ -8,6 +8,7 @@
  * reachable from a pass.
  */
 
+#include <sigilgeometry/mesh/Instances.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilmaterial/core/Backface.h>
@@ -36,6 +37,14 @@ namespace sigil::world {
 struct Draw {
   glm::mat4 world{1.0f};
   const geometry::mesh::Mesh* mesh = nullptr;
+  /** THE INSTANCES the mesh is repeated at, each placed within `world`,
+   *  when the body is instanced geometry — the mesh is then its stamp —
+   *  and null for a body drawn once. */
+  const geometry::mesh::Instances* instances = nullptr;
+  /** Whether each instance turns to face the camera, keeping where it
+   *  stands and its own scale. A body drawn once is turned as a whole
+   *  before it arrives here, and says `Facing::None`. */
+  Facing facing = Facing::None;
   /** Whether reverse-wound faces survive rasterization. */
   material::Backface backface = material::Backface::Hidden;
   /** WHICH COOKED ARTEFACT those triangles are, named by a number no

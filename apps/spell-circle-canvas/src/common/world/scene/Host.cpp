@@ -59,9 +59,7 @@ void Scene::Impl::onPatched(Instance& inst, const NodeDescription* prev,
   // The geometry slot's value type is the node's kind, so a change of
   // kind is a change of this field and nothing else: the entity and the
   // lanes above have already survived it.
-  if (!prev || !(prev->geometry == next.geometry) ||
-      prev->window.has_value() != next.window.has_value())
-    inst.geometryDirty = true;
+  if (!prev || !(prev->geometry == next.geometry)) inst.geometryDirty = true;
 
   staleBakesUp(&inst);
 }

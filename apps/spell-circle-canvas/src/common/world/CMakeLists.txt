@@ -81,6 +81,8 @@ sigil_doc_probes(world
            "<sigilmaterial/advanced/Terms.h>"
            "<sigilmaterial/slang/SlangCompiler.h>"
            "<sigilmaterial/surface/Surface.h>"
+           "<sigilmaterial/core/Instance.h>"
+           "<sigilmaterial/texture/Flipbook.h>"
            "<sigilgeometry/mesh/pop/Kernel.h>"
            "<sigilgeometry/mesh/pop/device/Cook.h>"
            "<sigilgeometry/mesh/pop/device/Sweep.h>"

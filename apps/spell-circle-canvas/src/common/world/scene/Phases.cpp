@@ -156,8 +156,6 @@ void Scene::Impl::sampleLanes(Instance& inst) {
   inst.values.axis = node.transform.axis;
   inst.values.axisDegrees = read(kAxisDegrees);
   inst.alongDistance = read(kAlongDistance);
-  inst.windowHead = read(kWindowHead);
-  inst.windowSpan = read(kWindowSpan);
   for (std::unique_ptr<Instance>& child : inst.children) sampleLanes(*child);
 }
 
@@ -227,41 +225,33 @@ void Scene::Impl::rescanMoved(Instance& inst) {
 
 // ---- the geometry slot's resource -------------------------------------------
 
-Geometry Scene::Impl::effectiveGeometry(const Instance& inst) const {
-  const NodeDescription& node = *inst.description;
-  if (!node.window) return node.geometry;
-  const Chained* chained = std::get_if<Chained>(&node.geometry);
-  if (!chained || chained->chain.empty()) return node.geometry;
-  Chained windowed = *chained;
-  gm::pop::setField(windowed.chain.front(), "head", inst.windowHead);
-  gm::pop::setField(windowed.chain.front(), "span", inst.windowSpan);
-  return windowed;
-}
-
-void Scene::Impl::resolveResource(Instance& inst, Geometry geometry) {
+void Scene::Impl::ensureResource(Instance& inst) {
+  if (!inst.geometryDirty) return;
   // Acquired before the old one is released: two nodes describing one
   // geometry share an entry, and dropping first would retire the very
   // artefact the new reference is about to ask for.
-  Resource* next = store.acquire(std::move(geometry), &stats.cooked);
+  Resource* next = store.acquire(inst.description->geometry, &stats.cooked);
   store.release(inst.resource);
   inst.resource = next;
-  inst.resolvedHead = inst.windowHead;
-  inst.resolvedSpan = inst.windowSpan;
   inst.geometryDirty = false;
 }
 
-void Scene::Impl::ensureResource(Instance& inst) {
-  // A window only reaches the geometry of a slot that holds a chain, so
-  // only such a slot re-resolves when the window's values move. Asking a
-  // slot the window cannot address would compare its whole contents
-  // against the store on every frame of a motion that does not touch it.
-  const bool windowMoved =
-      inst.description->window &&
-      std::holds_alternative<Chained>(inst.description->geometry) &&
-      (inst.resolvedHead != inst.windowHead ||
-       inst.resolvedSpan != inst.windowSpan);
-  if (!inst.geometryDirty && !windowMoved) return;
-  resolveResource(inst, effectiveGeometry(inst));
+// ---- what a light or a camera looks at
+// ---------------------------------------
+
+const Instance* Scene::Impl::findKeyed(std::string_view key) const {
+  if (!root || key.empty()) return nullptr;
+  std::vector<const Instance*> stack{root.get()};
+  while (!stack.empty()) {
+    const Instance* inst = stack.back();
+    stack.pop_back();
+    if (inst->description->key == key) return inst;
+    // Children pushed last-first, so the walk visits them in tree order.
+    for (auto child = inst->children.rbegin(); child != inst->children.rend();
+         ++child)
+      stack.push_back(child->get());
+  }
+  return nullptr;
 }
 
 // ---- extract ---------------------------------------------------------------
@@ -271,11 +261,26 @@ core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst, bool hidden) {
   hidden = hidden || !node.visible;
   // THE CAMERAS IN TREE ORDER, a node's own before its children's: the
   // frame chooses among them once the walk is done.
-  if (node.camera && !hidden)
+  // WHERE A LIGHT OR A CAMERA LOOKS, resolved against the placements this
+  // frame derived: the keyed node's origin, wherever it stands.
+  std::optional<glm::vec3> aim;
+  if (!node.lookAt.empty() && (node.camera || node.light)) {
+    if (const Instance* target = findKeyed(node.lookAt))
+      aim = glm::vec3(target->world[3]);
+    else if (error.empty())
+      error = std::string(node.camera ? "the camera \"" : "the light \"") +
+              node.key + "\" looks at \"" + node.lookAt +
+              "\", and no node in the tree answers to that key";
+  }
+  if (node.camera && !hidden) {
+    geometry::mesh::camera::Camera lens =
+        placeCamera(node.camera->lens, inst.world);
+    if (aim) lens.target = *aim;
     cameras.push_back({.key = node.key,
                        .exposure = node.camera->exposure.value(),
                        .toneCurve = node.camera->toneCurve,
-                       .lens = placeCamera(node.camera->lens, inst.world)});
+                       .lens = lens});
+  }
 
   core::ChildVolatility childVolatility;
   for (std::unique_ptr<Instance>& child : inst.children)
@@ -294,12 +299,8 @@ core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst, bool hidden) {
     // could never be told so would hold the whole subtree volatile for
     // the rest of the scene's life.
     if (!motion::isRunning(inst.anims[i].get(), *lane.value)) continue;
-    // A window drives what the node IS MADE OF; every other lane drives
-    // only where the node stands.
-    if (i == kWindowHead || i == kWindowSpan)
-      movingContent = true;
-    else
-      movingPlacement = true;
+    // Every lane drives where the node stands.
+    movingPlacement = true;
   }
   if (node.material && node.material->isRunning()) movingContent = true;
   for (const material::Material& slot : node.slots)
@@ -337,8 +338,19 @@ core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst, bool hidden) {
   // go missing with it. A light's colour and strength are read here, so
   // one bound to a live value changes the shading without staling any
   // bake.
-  if (node.light && !hidden)
-    lights.push_back(placeLight(*node.light, inst.world, node.key));
+  if (node.light && !hidden) {
+    PlacedLight placed = placeLight(*node.light, inst.world, node.key);
+    // An aimed light travels from where it stands toward what it looks
+    // at; a light with no direction of its own is not turned.
+    const bool aimable = node.light->kind == LightKind::Directional ||
+                         node.light->kind == LightKind::Spot;
+    if (aim && aimable) {
+      const glm::vec3 toward = *aim - placed.position;
+      if (glm::dot(toward, toward) > 0.0f)
+        placed.light.direction = glm::normalize(toward);
+    }
+    lights.push_back(std::move(placed));
+  }
   return inst.verdict;
 }
 
@@ -373,13 +385,23 @@ void Scene::Impl::chooseCamera() {
 void Scene::Impl::writeComponents(Instance& inst) {
   const NodeDescription& node = *inst.description;
   registry.get<component::Placement>(inst.entity).world = inst.world;
+  // INSTANCED GEOMETRY IS DRAWN AS IT IS: its stamp, repeated at its
+  // instances, both read off the store's entry.
+  const geometry::mesh::Instances* instances =
+      inst.resource
+          ? std::get_if<geometry::mesh::Instances>(&inst.resource->geometry)
+          : nullptr;
+  if (instances && (instances->stamp.indices.empty() || !instances->size()))
+    instances = nullptr;
   const geometry::mesh::Mesh* mesh =
-      inst.resource && !inst.resource->cooked.mesh.indices.empty()
+      instances ? &instances->stamp
+      : inst.resource && !inst.resource->cooked.mesh.indices.empty()
           ? &inst.resource->cooked.mesh
           : nullptr;
   if (mesh)
-    registry.emplace_or_replace<component::Body>(
-        inst.entity, mesh, inst.resource->id, node.backface, node.facing);
+    registry.emplace_or_replace<component::Body>(inst.entity, mesh, instances,
+                                                 inst.resource->id,
+                                                 node.backface, node.facing);
   else
     registry.remove<component::Body>(inst.entity);
   const material::Material* worn = surfaceOf(node);

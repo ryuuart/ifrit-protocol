@@ -38,8 +38,6 @@ enum Slot : size_t {
   kOriginZ,
   kAxisDegrees,
   kAlongDistance,
-  kWindowHead,
-  kWindowSpan,
   kLaneCount,
 };
 

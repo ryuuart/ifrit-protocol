@@ -52,6 +52,14 @@
 // back into exactly that colour — the curve run backward. A surface that
 // must shine brighter than white is lit and states its emission.
 //
+// EVERY BODY IS DRAWN AS INSTANCES of its mesh: instanced geometry with
+// one per copy it carries, any other body with one neutral instance at its
+// own origin. An instance places the mesh within the body — a position,
+// a turn and a scale — or, for a body facing the camera, turns each copy
+// toward the camera where it stands; its colour multiplies the mesh's
+// tint and its texture window remaps the uv. What a material may read of
+// it — its colour, its index and its named scalars — is below.
+//
 // A SURFACE THAT FADES WHERE IT MEETS THE SCENE reads the depth of what
 // is opaque behind it, which the renderer copies once the opaque bodies
 // are drawn, and loses its coverage over the distance it named.
@@ -92,6 +100,22 @@ uniform Sampler2D uSceneDepth;
 /** x, y: one over the target's width and height; z: one when the depth
  *  above is the scene's, zero when nothing was copied. */
 uniform float4 uDepthFade;
+
+/** The camera's view, which carries a point of the world into the space
+ *  the shading is written in. */
+uniform float4x4 uView;
+/** WHETHER EACH INSTANCE FACES THE CAMERA. x: 0 as placed, 1 square on to
+ *  the picture, 2 turned about the world's up axis only. */
+uniform float4 uFacing;
+/** The camera's own axes in the world — the picture's right, its up, and
+ *  backward toward the eye — and where the eye stands. */
+uniform float4 uCameraRight;
+uniform float4 uCameraUp;
+uniform float4 uCameraBack;
+uniform float4 uCameraEye;
+/** THE KEYS OF THE FOUR SCALARS each instance carries, in the order they
+ *  were packed: the number each name folds to, zero where none. */
+uniform float4 uInstanceAttributeKeys;
 
 #ifdef SIGIL_LIT
 /** view * model, for the position the shading is written in. */
@@ -163,18 +187,39 @@ uniform float4 uGround;
 uniform float4 uEnvDials;
 #endif
 
+// Numbered explicitly, because the instance elements skip the fifth
+// input, which a primitive lane takes when a layout declares one.
 struct VSIn {
-  float3 position : ATTRIB0;
-  float3 normal : ATTRIB1;
-  float2 uv : ATTRIB2;
-  float4 color : ATTRIB3;
+  [[vk::location(0)]] float3 position : ATTRIB0;
+  [[vk::location(1)]] float3 normal : ATTRIB1;
+  [[vk::location(2)]] float2 uv : ATTRIB2;
+  [[vk::location(3)]] float4 color : ATTRIB3;
+  /** ONE INSTANCE: xyz where it stands within the body. */
+  [[vk::location(5)]] float4 instancePosition : ATTRIB5;
+  /** …its turn, a quaternion x y z w… */
+  [[vk::location(6)]] float4 instanceOrientation : ATTRIB6;
+  /** …xyz its scale along the mesh's own axes… */
+  [[vk::location(7)]] float4 instanceScale : ATTRIB7;
+  /** …the colour it multiplies the mesh's by… */
+  [[vk::location(8)]] float4 instanceColor : ATTRIB8;
+  /** …the window {uOffset, vOffset, uScale, vScale} its uv is read
+   *  through… */
+  [[vk::location(9)]] float4 instanceTextureWindow : ATTRIB9;
+  /** …and its four named scalars. */
+  [[vk::location(10)]] float4 instanceAttributes : ATTRIB10;
+  uint instanceIndex : SV_InstanceID;
 };
 
 struct VSOut {
   float4 position : SV_Position;
-  /** The mesh's own per-vertex tint. */
+  /** The mesh's own per-vertex tint, times its instance's colour. */
   float4 tint : COLOR0;
   float2 uv : TEXCOORD0;
+  /** The instance this pixel's copy is: its colour, its scalars and its
+   *  index, the same over the whole copy. */
+  nointerpolation float4 perInstanceColor : COLOR1;
+  nointerpolation float4 perInstanceAttributes : TEXCOORD2;
+  nointerpolation float perInstanceIndex : TEXCOORD3;
 #ifdef SIGIL_LIT
   /** Where the surface stands and which way it faces, in the space the
    *  shading is written in. */
@@ -222,17 +267,108 @@ static float3 gSurfaceEmission = float3(0.0, 0.0, 0.0);
  *  nears the opaque surface behind it; zero does not fade. */
 static float gSurfaceDepthFade = 0.0;
 
+/** @p v turned by the unit quaternion @p q. The identity turn leaves
+ *  every vector exactly as it was. */
+float3 rotateByQuaternion(float4 q, float3 v) {
+  let t = 2.0 * cross(q.xyz, v);
+  return v + q.w * t + cross(q.xyz, t);
+}
+
+/** One over each of @p s, a zero scale read as one so a flattened copy's
+ *  normal stays a direction. */
+float3 inverseScale(float3 s) {
+  return float3(s.x != 0.0 ? 1.0 / s.x : 1.0, s.y != 0.0 ? 1.0 / s.y : 1.0,
+                s.z != 0.0 ? 1.0 / s.z : 1.0);
+}
+
 [shader("vertex")]
 VSOut vsMain(VSIn input) {
   VSOut out;
-  out.position = mul(uViewProj, mul(uModel, float4(input.position, 1.0)));
-  out.uv = input.uv;
-  out.tint = input.color;
+  let q = input.instanceOrientation;
+  let s = input.instanceScale.xyz;
+  if (uFacing.x > 0.5) {
+    // EACH COPY TURNED TO THE CAMERA where it stands, keeping its own
+    // scale and the body's: its +z toward the eye.
+    let centre = mul(uModel, float4(input.instancePosition.xyz, 1.0)).xyz;
+    let bodyScale = float3(length(mul(uModel, float4(1.0, 0.0, 0.0, 0.0)).xyz),
+                           length(mul(uModel, float4(0.0, 1.0, 0.0, 0.0)).xyz),
+                           length(mul(uModel, float4(0.0, 0.0, 1.0, 0.0)).xyz));
+    var right = uCameraRight.xyz;
+    var up = uCameraUp.xyz;
+    var back = uCameraBack.xyz;
+    if (uFacing.x > 1.5) {
+      up = float3(0.0, 1.0, 0.0);
+      var toward = uCameraEye.xyz - centre;
+      toward.y = 0.0;
+      // Straight above or below, the camera's own backward direction on
+      // the ground decides which way the copy stands turned.
+      if (dot(toward, toward) < 1e-8) toward = float3(uCameraBack.x, 0.0, uCameraBack.z);
+      back = dot(toward, toward) > 1e-8 ? normalize(toward)
+                                        : float3(0.0, 0.0, 1.0);
+      right = cross(up, back);
+    }
+    let p = input.position * s * bodyScale;
+    let world = float4(centre + right * p.x + up * p.y + back * p.z, 1.0);
+    let n = input.normal * inverseScale(s * bodyScale);
+    let worldNormal = right * n.x + up * n.y + back * n.z;
+    out.position = mul(uViewProj, world);
 #ifdef SIGIL_LIT
-  out.viewPos = mul(uModelView, float4(input.position, 1.0)).xyz;
-  out.viewNormal = mul(uNormalMatrix, float4(input.normal, 0.0)).xyz;
+    out.viewPos = mul(uView, world).xyz;
+    out.viewNormal = mul(uView, float4(worldNormal, 0.0)).xyz;
 #endif
+  } else {
+    let local = input.instancePosition.xyz +
+                rotateByQuaternion(q, input.position * s);
+    let localNormal = rotateByQuaternion(q, input.normal * inverseScale(s));
+    out.position = mul(uViewProj, mul(uModel, float4(local, 1.0)));
+#ifdef SIGIL_LIT
+    out.viewPos = mul(uModelView, float4(local, 1.0)).xyz;
+    out.viewNormal = mul(uNormalMatrix, float4(localNormal, 0.0)).xyz;
+#endif
+  }
+  let window = input.instanceTextureWindow;
+  out.uv = window.xy + input.uv * window.zw;
+  out.tint = input.color * input.instanceColor;
+  out.perInstanceColor = input.instanceColor;
+  out.perInstanceAttributes = input.instanceAttributes;
+  out.perInstanceIndex = (float)input.instanceIndex;
   return out;
+}
+
+// ---- what a material may read of the instance it is drawn on ---------
+
+static float4 gInstanceColor = float4(1.0, 1.0, 1.0, 1.0);
+static float4 gInstanceAttributes = float4(0.0, 0.0, 0.0, 0.0);
+static float gInstanceIndex = 0.0;
+
+/** The colour of the instance this pixel's copy is: white for a body that
+ *  is not instanced geometry. */
+float4 instanceColor() { return gInstanceColor; }
+/** Which instance it is, counted from zero. */
+float instanceIndex() { return gInstanceIndex; }
+/** Whether the instances carry the scalar whose name folds to @p key. */
+bool instanceCarries(float key) {
+  return key != 0.0 &&
+         (uInstanceAttributeKeys.x == key || uInstanceAttributeKeys.y == key ||
+          uInstanceAttributeKeys.z == key || uInstanceAttributeKeys.w == key);
+}
+/** The scalar whose name folds to @p key, on this pixel's instance; zero
+ *  where the instances carry none. */
+float instanceAttribute(float key) {
+  if (key == 0.0) return 0.0;
+  if (uInstanceAttributeKeys.x == key) return gInstanceAttributes.x;
+  if (uInstanceAttributeKeys.y == key) return gInstanceAttributes.y;
+  if (uInstanceAttributeKeys.z == key) return gInstanceAttributes.z;
+  if (uInstanceAttributeKeys.w == key) return gInstanceAttributes.w;
+  return 0.0;
+}
+
+/** Makes this pixel's instance what the readers above answer. Every
+ *  fragment entry calls it before the surface is asked. */
+void enterInstance(VSOut input) {
+  gInstanceColor = input.perInstanceColor;
+  gInstanceAttributes = input.perInstanceAttributes;
+  gInstanceIndex = input.perInstanceIndex;
 }
 
 /** The scaffold's own surface, for a draw with no material program: the
@@ -497,6 +633,7 @@ float4 shade(float4 surface, VSOut input) {
 
 [shader("fragment")]
 float4 fsFlat(VSOut input) : SV_Target {
+  enterInstance(input);
   return shade(surfaceFlat(input.uv), input);
 }
 

@@ -11,6 +11,7 @@
 
 #include <sigilcore/callable/Callable.h>
 #include <sigilcore/comparable/Erased.h>
+#include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/BlendMode.h>
 #include <sigilworld/advanced/Geometry.h>

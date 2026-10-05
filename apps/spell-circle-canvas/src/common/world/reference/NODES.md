@@ -14,22 +14,25 @@ it is the `Scene`'s business. The chaining verbs return the node, so a
 node reads as one expression, and every kind is a copy-on-write handle on
 one description, so passing one around costs a refcount.
 
-There are five kinds, each started by a factory and each a typed handle
-over the one `NodeDescription` underneath:
+There are five kinds in three families — structure, geometry and
+influences — and the camera a frame looks through, each started by a
+factory and each a typed handle over the one `NodeDescription`
+underneath:
 
-| kind | factory | what it is |
-|---|---|---|
-| `Group` | `group({…})` | nodes under one placement — the one kind with children, which are its argument |
-| `Mesh` | `mesh(triangles)` | one body wearing a surface |
-| `Points` | `points(chain, stamp, options)` / `points(cloud, stamp)` | a stamp standing at every point, wearing the node's surface |
-| `Light` | `directionalLight`, `pointLight`, `spotLight` | one light, placed and aimed by its node |
-| `Camera` | `camera(lens, options)` | one viewpoint, and how its picture is read |
+| family | kind | factory | what it is |
+|---|---|---|---|
+| structure | `Group` | `group({…})` | nodes under one placement — the one kind with children, which are its argument |
+| structure | `Null` | `null()` | a placement, a key and its collections, and nothing else: a pivot, or what a light or a camera looks at |
+| geometry | `Mesh` | `mesh(triangles)` / `mesh(instances)` | one body wearing a surface: triangles drawn once, or instanced geometry drawn as its stamp repeated |
+| influences | `Light` | `directionalLight`, `pointLight`, `spotLight`, `ambientLight`, `hemisphereLight` | one light, placed and aimed by its node |
+| — | `Camera` | `camera(lens, options)` | one viewpoint, and how its picture is read |
 
 Every kind converts to `Node`, the type-erased handle a group's children
 are held as, so one braced list mixes them:
 `group({mesh(body), pointLight(), each(posts, post)})`. A verb belongs to
-a kind only where it means something there — `Mesh::fill` and
-`Points::fill`, `Light::lightLink`, and no `fill` on a light.
+a kind only where it means something there — `Mesh::fill`,
+`Light::lightLink`, `Light::lookAt` and `Camera::lookAt`, and no `fill` on
+a light or a null.
 
 ### What every kind says
 
@@ -75,8 +78,8 @@ carrying one is placed by it alone.
 
 ### What a body is made of
 
-`SurfaceVerbs::fill` is the surface every face of a mesh or of points is
-shaded by: a material's base is the base colour and its `surface({…})`
+`SurfaceVerbs::fill` is the surface every face of a mesh is shaded by —
+every copy of instanced geometry's stamp alike: a material's base is the base colour and its `surface({…})`
 the lit response, lowered once at the verb into the surface program. A
 material that states no response is lit at the stock one, so a plain
 `material::Color` lights; `.surface({.unlit = true})` is its own light.
@@ -87,32 +90,39 @@ The per-face form takes one material per slot, in slot order.
 `Backface::Visible` keeps the reverse side of a sheet or panel when the
 viewpoint passes behind it.
 
-`PointsOptions::window` is A WINDOW INTO A LOOP: the leading edge and the
-length trailing it, both in loop parameter and both bindable, so
-advancing the head alone tows the window round. It addresses the chain's
-first operator, which carries the loop. A moving window is moving
-GEOMETRY: every distinct pair of values is a different chain and cooks
-its own points.
-
 ### The geometry slot
 
-What a mesh or points are made of is one of four shapes a geometry slot
-takes — a formed mesh, a cloud with the body stamped at every point, a
-point chain with the runtime that cooks it, or a generator that builds
-its own — and the cook that turns any of them into the points and
-triangles a draw uses.
+What a mesh is made of is one of three shapes a geometry slot takes — a
+formed mesh, instanced geometry, or a generator that builds its own — and
+the cook that turns a mesh or a generator into the triangles a draw uses.
 
 There is no kind field anywhere in this library. The slot's value type IS
-what a body is: a node holding a mesh and a node holding a chain are told
-apart by what they hold, so a key that describes one and then the other
-resolves new resources and keeps its identity, its handle and its lanes.
+what a body is: a node holding triangles and a node holding instanced
+geometry are told apart by what they hold, so a key that describes one
+and then the other resolves new resources and keeps its identity, its
+handle and its lanes.
 
-`cook` evaluates a geometry: a mesh is already cooked, a stamped cloud
-instances its stamp over its points, a chain cooks on its runtime and
-then instances, and a generator is asked.
+`cook` evaluates a geometry: a mesh is already cooked, a generator is
+asked, and instanced geometry cooks to nothing because it is already what
+is drawn — its stamp, once per instance, on the device in one instanced
+draw. Making instanced geometry is SigilGeometry's: a point-operator chain
+ends in `pop::Builder::instances(stamp)`, and a cloud of points in
+`geometry::mesh::points::instances`. A window into the loop the chain
+rides is the chain's own (`pop::Builder::window`), so a moving window is
+moving geometry, described afresh each frame and cooked each time it
+moves.
+
+**Per instance**, every copy carries its colour, its index and up to four
+named scalars to the surface it wears. A device program reads them as
+`instanceColor()`, `instanceIndex()` and `instanceAttribute(key)`, a key
+being `material::instanceAttributeKey` of the scalar's name; a flipbook
+plays each copy's own frame from the scalar
+`material::FlipbookOptions::frameAttribute` names. A body that faces the
+camera turns every instance where it stands.
 
 `stampKey` is THE NUMBER TWO STAMPINGS AGREE ON when they are the same
-stamping: a fold over the VALUES of a cloud and a stamp, not over their
+stamping — the stamp a geometry pass stands at every point a compute pass
+cooked, which a frame's targets form into instanced geometry: a fold over the VALUES of a cloud and a stamp, not over their
 shapes and not over their addresses. A stamped point set is formed once
 per distinct pair and uploaded once, so what says "distinct" has to be
 the content — a cloud that has not moved between two frames must answer
@@ -120,7 +130,7 @@ with the same number, and a cloud that has moved must not. An address
 cannot say it, a cloud freed and remade landing on the same memory, and
 a shape cannot, two clouds of one size being two clouds; which is why it
 reads the bytes. It costs one pass over the cloud against forming its
-whole stamped mesh.
+instances again.
 
 ### Lights
 
@@ -136,7 +146,11 @@ direction, and `hemisphereLight` from a sky above the horizon and a
 ground below it, about its node's up. A light is aimed by the direction
 it travels, and its node's rotation turns that direction — and a
 hemisphere light's up — so a light placed under a turned group turns
-with it.
+with it. `Light::lookAt` aims a directional or a spot light at a keyed
+node instead — usually a `null` — from wherever the light stands, resolved
+every frame against where that node stands; a light with no direction of
+its own is not turned, and a key no node answers to stops the frame,
+naming both.
 
 A light lights every body in the scene wherever it stands in the tree.
 `Light::lightLink` narrows that to a `Collection` — USD's light link —
@@ -172,7 +186,9 @@ is one stop. `CameraOptions::toneCurve` is that curve:
 `ToneCurve::Reinhard` divides a colour by one plus its luminance,
 `ToneCurve::Neutral` leaves a colour lit to show itself very nearly as
 it is and compresses only above a shoulder, and `ToneCurve::Linear`
-applies none.
+applies none. `Camera::lookAt` aims the camera at a keyed node — its
+target is that node's origin each frame, its eye where its placement puts
+it.
 
 A frame looks through one camera: the only one in the tree, or the one
 `Frame::camera` names by key. Several with none named is an error naming
@@ -234,7 +250,7 @@ whole count of them, in slot order, with a null value on every row this
 description does not carry the block for. The vector is the caller's so a
 per-frame walk allocates nothing after the first node.
 
-The rows are placement and the window alone. A light's colour and
+The rows are placement alone. A light's colour and
 strength, a camera's exposure and the environment's dials are animatable
 values read once a frame, not lanes.
 

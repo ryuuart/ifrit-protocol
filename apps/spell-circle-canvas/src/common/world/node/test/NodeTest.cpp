@@ -6,6 +6,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilworld/World.h>
 #include <sigilworld/advanced/Lanes.h>
@@ -120,10 +121,12 @@ geometry::mesh::curve::Spline3 rail() {
   spline.points = {{0, 0, 0}, {100, 0, 0}, {100, 100, 0}};
   return spline;
 }
-Points comet(PointsOptions options) {
-  return points(geometry::mesh::pop::on(
-                    std::vector<glm::vec3>{{0, 0, 0}, {10, 0, 0}, {10, 10, 0}}),
-                triangle(1), std::move(options))
+Mesh comet(float head, float span) {
+  return mesh(geometry::mesh::pop::on(
+                  std::vector<glm::vec3>{{0, 0, 0}, {10, 0, 0}, {10, 10, 0}})
+                  .count(12)
+                  .window(head, span)
+                  .instances(triangle(1)))
       .key("body");
 }
 
@@ -226,9 +229,12 @@ const Field kFields[] = {
        return camera(geometry::mesh::camera::Camera{}, {.exposure = 0.5f})
            .key("body");
      }},
-    {"AWindowOnTheRail", [] -> Node { return comet({}); },
-     [] -> Node { return comet({.window = Window{0.5f, 0.2f}}); },
-     [] -> Node { return comet({.window = Window{0.5f, 0.4f}}); }},
+    {"AWindowOnTheRail", [] -> Node { return comet(1.0f, 1.0f); },
+     [] -> Node { return comet(0.5f, 0.2f); },
+     [] -> Node { return comet(0.5f, 0.4f); }},
+    {"WhatALightLooksAt", [] -> Node { return lamp(); },
+     [] -> Node { return lamp().lookAt("pivot"); },
+     [] -> Node { return lamp().lookAt("target"); }},
 };
 
 }  // namespace
@@ -261,20 +267,38 @@ TEST(WorldNode, BackfaceVisibilityReachesThePrune) {
 
 TEST(WorldNode, TheGeometrySlotsValueTypeIsTheKind) {
   const Mesh one = mesh(triangle(10)).key("g");
-  const Points cloud = points(geometry::mesh::Cloud{}, triangle(10)).key("g");
-  EXPECT_FALSE(propertiesEqual(*one.node(), *cloud.node()));
+  geometry::mesh::Instances repeated;
+  repeated.stamp = triangle(10);
+  const Mesh instanced = mesh(repeated).key("g");
+  EXPECT_FALSE(propertiesEqual(*one.node(), *instanced.node()));
+  EXPECT_FALSE(propertiesEqual(*one.node(), *null().key("g").node()));
   EXPECT_TRUE(
       propertiesEqual(*one.node(), *mesh(triangle(10)).key("g").node()));
   EXPECT_FALSE(
       propertiesEqual(*one.node(), *mesh(triangle(11)).key("g").node()));
 }
 
-TEST(WorldNode, PointsStandTheStampAtEveryPoint) {
+TEST(WorldNode, InstancedGeometryIsDrawnAsItIsAndCooksNothing) {
   geometry::mesh::Cloud cloud;
   cloud.positions = {{0, 0, 0}, {5, 0, 0}};
-  const Cooked cooked = cook(points(cloud, triangle(2)).node()->geometry);
-  EXPECT_EQ(cooked.cloud.size(), 2u);
-  EXPECT_EQ(cooked.mesh.triangleCount(), 2u);
+  const Mesh body = mesh(geometry::mesh::points::instances(cloud, triangle(2)));
+  const auto* instances =
+      std::get_if<geometry::mesh::Instances>(&body.node()->geometry);
+  ASSERT_NE(instances, nullptr);
+  EXPECT_EQ(instances->size(), 2u);
+  EXPECT_EQ(instances->stamp.triangleCount(), 1u);
+  EXPECT_TRUE(cook(body.node()->geometry).mesh.indices.empty());
+}
+
+TEST(WorldNode, ANullIsAPlacementAndNothingElse) {
+  const Null pivot = null().key("pivot").at({1, 2, 3}).collection("marks");
+  const NodeDescription& node = *pivot.node();
+  EXPECT_EQ(node.key, "pivot");
+  EXPECT_TRUE(std::holds_alternative<std::monostate>(node.geometry));
+  EXPECT_FALSE(node.light.has_value());
+  EXPECT_FALSE(node.camera.has_value());
+  EXPECT_TRUE(node.children.empty());
+  EXPECT_EQ(node.collections, std::vector<std::string>{"marks"});
 }
 
 TEST(WorldNode, MaterialsCompareByValue) {
@@ -308,14 +332,11 @@ TEST(WorldNode, LanesAreOneFixedRowPerSlot) {
   for (size_t i = 0; i < lanes.size(); ++i) EXPECT_EQ(lanes[i].slot.index, i);
   EXPECT_NE(lanes[kTranslateX].value, nullptr);
   EXPECT_EQ(lanes[kAlongDistance].value, nullptr);
-  EXPECT_EQ(lanes[kWindowHead].value, nullptr);
   EXPECT_FLOAT_EQ(lanes[kScaleX].standing, 1.0f);
   EXPECT_FLOAT_EQ(lanes[kTranslateX].standing, 0.0f);
 
-  lanesOf(*comet({.window = Window{0.5f, 0.25f}}).along(rail(), 3.0f).node(),
-          lanes);
+  lanesOf(*comet(0.5f, 0.25f).along(rail(), 3.0f).node(), lanes);
   EXPECT_NE(lanes[kAlongDistance].value, nullptr);
-  EXPECT_NE(lanes[kWindowSpan].value, nullptr);
 }
 
 TEST(WorldNode, LocalMatrixPlacesScalesAndTurns) {
@@ -335,7 +356,9 @@ TEST(WorldNode, LocalMatrixPlacesScalesAndTurns) {
 TEST(WorldNode, SignatureBucketsEqualValuesTogether) {
   const Geometry a = triangle(10);
   const Geometry b = triangle(10);
-  const Geometry c = Stamped{{}, triangle(10)};
+  geometry::mesh::Instances repeated;
+  repeated.stamp = triangle(10);
+  const Geometry c = repeated;
   EXPECT_EQ(signature(a), signature(b));
   EXPECT_NE(signature(a), signature(c));
 }

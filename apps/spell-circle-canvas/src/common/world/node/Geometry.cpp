@@ -26,26 +26,6 @@ uint64_t mixMesh(uint64_t hash, const geometry::mesh::Mesh& mesh) {
   return fnv1a(hash, mesh.primitives.size());
 }
 
-uint64_t mixCloud(uint64_t hash, const geometry::mesh::Cloud& cloud) {
-  hash = fnv1a(hash, cloud.size());
-  hash = fnv1a(hash, cloud.scalars.size());
-  hash = fnv1a(hash, cloud.vectors.size());
-  return fnv1a(hash, cloud.colors.size());
-}
-
-Cooked cookPoints(geometry::mesh::Cloud cloud,
-                  const geometry::mesh::Mesh& stamp) {
-  Cooked cooked;
-  // How the stamp rides its points is the point operators' own table —
-  // one convention, so a cloud stands its stamps up the same way here
-  // and through `pop::cookMesh`.
-  if (!stamp.positions.empty() && !cloud.positions.empty())
-    cooked.mesh =
-        gm::points::instance(cloud, stamp, gm::points::stampOptions(cloud));
-  cooked.cloud = std::move(cloud);
-  return cooked;
-}
-
 /** Every float of a lane folded in, read as its bits so that two values
  *  differing in their last place are two values. */
 uint64_t mixFloats(uint64_t hash, const float* values, size_t count) {
@@ -91,16 +71,9 @@ uint64_t stampKey(const geometry::mesh::Cloud& cloud,
 Cooked cook(const Geometry& geometry) {
   if (const geometry::mesh::Mesh* mesh =
           std::get_if<geometry::mesh::Mesh>(&geometry))
-    return {{}, *mesh};
-  if (const Stamped* stamped = std::get_if<Stamped>(&geometry))
-    return cookPoints(stamped->cloud, stamped->stamp);
-  if (const Chained* chained = std::get_if<Chained>(&geometry)) {
-    if (chained->chain.empty()) return {};
-    return cookPoints(gm::pop::cook(chained->chain, chained->runtime),
-                      chained->stamp);
-  }
+    return {*mesh};
   if (const Generator* generator = std::get_if<Generator>(&geometry))
-    if (*generator) return {{}, (*generator)->cook()};
+    if (*generator) return {(*generator)->cook()};
   return {};
 }
 
@@ -109,13 +82,10 @@ uint64_t signature(const Geometry& geometry) {
   if (const geometry::mesh::Mesh* mesh =
           std::get_if<geometry::mesh::Mesh>(&geometry))
     return mixMesh(hash, *mesh);
-  if (const Stamped* stamped = std::get_if<Stamped>(&geometry))
-    return mixMesh(mixCloud(hash, stamped->cloud), stamped->stamp);
-  if (const Chained* chained = std::get_if<Chained>(&geometry)) {
-    hash = fnv1a(hash, chained->chain.size());
-    for (const gm::pop::Operation& operation : chained->chain)
-      hash = fnv1a(hash, (uint64_t)operation.index());
-    return mixMesh(hash, chained->stamp);
+  if (const gm::Instances* instances = std::get_if<gm::Instances>(&geometry)) {
+    hash = fnv1a(hash, instances->size());
+    hash = fnv1a(hash, instances->attributes.size());
+    return mixMesh(hash, instances->stamp);
   }
   if (const Generator* generator = std::get_if<Generator>(&geometry))
     if (*generator) return fnv1a(hash, (*generator)->name());
