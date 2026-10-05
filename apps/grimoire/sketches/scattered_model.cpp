@@ -41,7 +41,7 @@
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
-#include <sigilworld/kit/Kit.h>
+#include <sigilworld/World.h>
 
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
@@ -129,25 +129,26 @@ struct ScatteredModel {
     dust = dustOver(subject);
   }
 
-  world::Frame describe(float seconds) {
+  world::Frame describe(sigil::motion::Duration now) {
+    const float seconds = (float)now.count();
     const world::kit::Set set{
         .rig = {.extent = kExtent, .bearing = -34.0f, .elevation = 30.0f},
         .table = {.radius = 470.0f,
                   .height = 175.0f,
-                  .period = 16.0f,
-                  .fovYDeg = 44.0f},
+                  .period = sigil::motion::Duration(16.0),
+                  .fieldOfView = 44.0f},
         .ground = 3.4f,
         .drop = 0.92f};
 
     // The body under its own dust: dim and unlit, so what reads is the
     // silhouette the scatter was taken from rather than a second lit
     // surface competing with it.
-    world::Element core = world::Element()
-                              .key("body")
-                              .mesh(subject)
-                              .fill(material::surface::unlit(
-                                  {.baseColor = {0.10f, 0.11f, 0.15f, 1.0f}}))
-                              .tag("core");
+    const world::Mesh core =
+        world::mesh(subject)
+            .key("body")
+            .fill(material::surface::unlit(
+                {.baseColor = {0.10f, 0.11f, 0.15f, 1.0f}}))
+            .collection("core");
 
     // …and the dust over it: one FLAKE at every point, laid flat against
     // the surface it was scattered from — a stamp is turned by the
@@ -155,21 +156,17 @@ struct ScatteredModel {
     // body is the cheapest stamp that still reads as a shell. It turns
     // slowly, so the scatter reads as a skin over the silhouette rather
     // than as a texture on it.
-    world::Element shell =
-        world::Element()
+    const world::Points shell =
+        world::points(dust, gm::quad(2.9f, 2.9f))
             .key("dust")
             .rotateY(seconds * 9.0f)
             .scale(1.05f)
-            .chain(dust)
-            .stamp(gm::quad(2.9f, 2.9f))
             .fill(material::surface::program(
                 {.baseColor = {1, 1, 1, 1}, .roughness = 0.65f}))
-            .tag("dust");
+            .collection("dust");
 
-    return world::Frame(
-        world::kit::litSet(world::Element().key("subject").children(
-                               {std::move(core), std::move(shell)}),
-                           set, seconds));
+    return world::kit::litSet(world::group({core, shell}).key("subject"), set,
+                              now);
   }
 };
 

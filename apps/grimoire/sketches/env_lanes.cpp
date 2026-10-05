@@ -1,7 +1,8 @@
 /** @file
- * env_lanes — the dials on the environment node, one sphere, six bakes.
+ * env_lanes — the environment's dials and the camera's exposure, one
+ * sphere, six bakes.
  *
- * A frame holds ONE environment node, so a sheet that compares its dials
+ * A frame holds ONE environment, so a sheet that compares its dials
  * cannot be one set: each cell is its own frame, baked through
  * `SketchContext::bakeSet` at the pixels the cell will have and painted
  * as the picture INSIDE this page.
@@ -13,20 +14,20 @@
  * surface's roughness before it picks a prefiltered level, so a whole set
  * softens without a material being edited. `crossfade` mixes a second
  * panorama over the first, both sampled rather than one rebuilt, which is
- * what lets a sky change while the frame is running. `backdrop` is the
- * sky SHOWN behind the set at that strength — zero draws none of it, so
- * the dial is also the switch — blurred in the same roughness units a
+ * what lets a sky change while the frame is running. `shown` is the sky
+ * SHOWN behind the set at that strength — zero draws none of it, so the
+ * dial is also the switch — blurred in the same roughness units a
  * reflection reads.
  *
- * `exposure` is the odd one: what every radiance is multiplied by before
- * the tone curve compresses it, so doubling it is one stop. It is the one
- * dial here that means something in a set carrying no panorama at all,
+ * `exposure` is the camera's, not the environment's: what every radiance
+ * is multiplied by before the tone curve compresses it, so doubling it is
+ * one stop. It means something in a set carrying no panorama at all,
  * because a lit sum ends at that curve either way.
  *
  * EDIT THESE FIRST
  *   kExposure — the stop the reference cell is read at.
  *   kBias — the roughness added to every surface in its cell.
- *   kBackdrop, kBlur — how much sky is shown, and how soft.
+ *   kShown, kBlur — how much sky is shown, and how soft.
  */
 
 // TAGS: Materials/Lighting
@@ -42,10 +43,7 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilsketch/set/Set.h>
-#include <sigilworld/element/Element.h>
-#include <sigilworld/element/Environment.h>
-#include <sigilworld/frame/Frame.h>
-#include <sigilworld/kit/Kit.h>
+#include <sigilworld/World.h>
 
 #include <string>
 #include <utility>
@@ -67,7 +65,7 @@ constexpr float kPicture = 236;
 
 constexpr float kExposure = 1.0f;  // the stop the reference is read at
 constexpr float kBias = 0.45f;     // roughness added to every surface
-constexpr float kBackdrop = 1.0f;  // how much sky is shown
+constexpr float kShown = 1.0f;     // how much sky is shown
 constexpr float kBlur = 0.35f;     // …and how soft
 
 constexpr material::Color kCellGround{0.06f, 0.065f, 0.08f, 1};
@@ -82,24 +80,22 @@ sketch::kit::Theme sheetTheme() {
 
 /** The subject every cell bakes: one near-mirror body over a matte
  *  floor, so a reflection has something to be read against. */
-world::Element subject() {
-  world::Element set;
-  set.key("subject").children(
-      {world::Element()
-           .key("body")
-           .at({0, 40, 0})
-           .mesh(gm::superellipsoid({46, 46, 46}, 2.0f, 40, 26))
-           .fill(material::surface::program(
-               {.baseColor = {0.85f, 0.86f, 0.88f, 1},
-                .metallic = 1.0f,
-                .roughness = 0.12f})),
-       world::Element()
-           .key("slab")
-           .at({0, -14, 0})
-           .mesh(gm::superellipsoid({150, 12, 150}, 8.0f, 20, 10))
-           .fill(material::surface::program(
-               {.baseColor = {0.20f, 0.21f, 0.24f, 1}, .roughness = 0.65f}))});
-  return set;
+world::Group subject() {
+  return world::group(
+             {world::mesh(gm::superellipsoid({46, 46, 46}, 2.0f, 40, 26))
+                  .key("body")
+                  .at({0, 40, 0})
+                  .fill(material::surface::program(
+                      {.baseColor = {0.85f, 0.86f, 0.88f, 1},
+                       .metallic = 1.0f,
+                       .roughness = 0.12f})),
+              world::mesh(gm::superellipsoid({150, 12, 150}, 8.0f, 20, 10))
+                  .key("slab")
+                  .at({0, -14, 0})
+                  .fill(material::surface::program(
+                      {.baseColor = {0.20f, 0.21f, 0.24f, 1},
+                       .roughness = 0.65f}))})
+      .key("subject");
 }
 
 gm::camera::Camera lens() {
@@ -140,41 +136,29 @@ struct EnvLanes {
     // every bake has already been taken
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
-    const material::EnvironmentMap studio = shapeworks_lab::studioEnvironment();
-    const material::EnvironmentMap sunset = shapeworks_lab::sunsetEnvironment();
+    const world::EnvironmentMap studio = shapeworks_lab::studioEnvironment();
+    const world::EnvironmentMap sunset = shapeworks_lab::sunsetEnvironment();
 
-    /** One frame: the subject under an environment node carrying the
-     *  cell's own dials, and nothing else different. */
-    const auto bake = [&](world::Environment environment) {
-      world::Element root;
-      root.key("set").children(
-          {world::Element().key("sky").environmentMap(std::move(environment)),
-           subject()});
-      return ctx.bakeSet(world::Frame(std::move(root)), lens(),
-                         {(int)kCell, (int)kPicture}, kCellGround);
+    /** One frame: the subject in the studio under the cell's own dials,
+     *  seen through a camera at the cell's own exposure, and nothing else
+     *  different. */
+    const auto bake = [&](world::EnvironmentOptions dials,
+                          float exposure = kExposure) {
+      world::Frame frame(
+          world::group(
+              {world::camera(lens(), {.exposure = exposure}), subject()})
+              .key("set"));
+      frame.environment(studio, std::move(dials));
+      return ctx.bakeSet(frame, {(int)kCell, (int)kPicture},
+                         {.camera = lens(), .background = kCellGround});
     };
 
-    world::Environment base;
-    base.map = studio;
-    base.exposure = kExposure;
-
-    world::Environment brighter = base;
-    brighter.exposure = kExposure * 2.0f;
-
-    world::Environment softened = base;
-    softened.roughnessBias = kBias;
-
-    world::Environment mirrored = base;
-    mirrored.diffuse = 0.15f;
-    mirrored.specular = 2.0f;
-
-    world::Environment mixed = base;
-    mixed.next = sunset;
-    mixed.crossfade = 0.75f;
-
-    world::Environment shown = base;
-    shown.backdrop.intensity = kBackdrop;
-    shown.backdrop.blur = kBlur;
+    const world::EnvironmentOptions base;
+    const world::EnvironmentOptions softened{.roughnessBias = kBias};
+    const world::EnvironmentOptions mirrored{.diffuse = 0.15f,
+                                             .specular = 2.0f};
+    const world::EnvironmentOptions mixed{.next = sunset, .crossfade = 0.75f};
+    const world::EnvironmentOptions shown{.shown = kShown, .blur = kBlur};
 
     ctx.composer.render(sketch::kit::page(
         {.title = "One room, six readings",
@@ -194,7 +178,7 @@ struct EnvLanes {
                                 bake(base)),
                            cell("ONE STOP BRIGHTER", "exposure = 2",
                                 "Double the radiance before the tone curve.",
-                                bake(brighter)),
+                                bake(base, kExposure * 2.0f)),
                            cell("ROUGHER EVERYWHERE", "roughnessBias = 0.45",
                                 "A bias softens every reflection without "
                                 "editing the materials.",
@@ -204,7 +188,7 @@ struct EnvLanes {
              sketch::kit::section(
                  {.label = "THE ENVIRONMENT AROUND IT",
                   .note = "Separate the light contribution, the next sky, and "
-                          "the visible backdrop."},
+                          "the sky shown behind."},
                  sketch::kit::comparison(
                      {.cases =
                           {cell("DIFFUSE / SPECULAR", "diffuse .15 specular 2",
@@ -216,9 +200,9 @@ struct EnvLanes {
                                 "The next panorama contributes 75% of the "
                                 "illumination.",
                                 bake(mixed)),
-                           cell("SHOW THE SKY", "backdrop 1.0 blur 0.35",
-                                "The backdrop becomes visible, with its own "
-                                "blur.",
+                           cell("SHOW THE SKY", "shown 1.0 blur 0.35",
+                                "The sky becomes visible behind the set, with "
+                                "its own blur.",
                                 bake(shown))},
                       .measure = 1020,
                       .gap = 18}))})));
@@ -226,6 +210,6 @@ struct EnvLanes {
 };
 
 SIGIL_SKETCH(EnvLanes, "Kit · API",
-             "one chrome body baked six times under the environment node's "
-             "own dials — the stop, the roughness bias, the two "
-             "sides of the map, the crossfade and the shown sky")
+             "one chrome body baked six times under the environment's own "
+             "dials and the camera's exposure — the stop, the roughness bias, "
+             "the two sides of the map, the crossfade and the shown sky")

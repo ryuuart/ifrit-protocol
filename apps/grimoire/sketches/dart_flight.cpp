@@ -33,7 +33,7 @@
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
-#include <sigilworld/kit/Kit.h>
+#include <sigilworld/World.h>
 
 #include <cmath>
 #include <glm/vec2.hpp>
@@ -95,7 +95,7 @@ struct DartFlight {
               .background = material::Color{0.028f, 0.032f, 0.046f, 1.0f}});
   }
 
-  world::Frame describe(float seconds) {
+  world::Frame describe(motion::Duration now) {
     const gm::curve::Spline3 loop = flight();
     const float lap = loop.length();
 
@@ -117,34 +117,26 @@ struct DartFlight {
     // the curve put it in — which is `along()` composing with the
     // rotation lanes rather than replacing them.
     const auto gateAt = [&](int i) {
-      return world::Element()
+      return world::mesh(gate())
           .key("gate" + std::to_string(i))
           .along(loop, lap * ((float)i / (float)kGates))
           .rotateY((float)i * 11.0f)
-          .mesh(gate())
           .fill(brass)
-          .tag("gate");
+          .collection("gate");
     };
 
-    world::Element subject =
-        world::Element()
-            .key("flight")
-            .children({world::Element().key("rail").mesh(rail).fill(wire).tag(
-                "rail")})
-            .children(std::views::iota(0, kGates) |
-                      std::views::transform(gateAt))
-            // …and the dart, on the same curve, at a distance that is a
-            // function of the moment and of nothing else.
-            .children(
-                {world::Element()
-                     .key("dart")
-                     .along(loop, motion::phase(
-                                      motion::Duration(seconds),
-                                      motion::Duration(1.0 / kLapsPerSecond)) *
-                                      lap)
-                     .mesh(dart())
-                     .fill(chrome)
-                     .tag("dart")});
+    const world::Group subject =
+        world::group(
+            {world::mesh(rail).key("rail").fill(wire).collection("rail"),
+             std::views::iota(0, kGates) | std::views::transform(gateAt),
+             world::mesh(dart())
+                 .key("dart")
+                 .along(loop, motion::phase(
+                                  now, motion::Duration(1.0 / kLapsPerSecond)) *
+                                  lap)
+                 .fill(chrome)
+                 .collection("dart")})
+            .key("flight");
 
     const world::kit::Set set{.rig = {.extent = 220.0f,
                                       .bearing = -30.0f,
@@ -152,11 +144,11 @@ struct DartFlight {
                                       .intensity = 1.1f},
                               .table = {.radius = 700.0f,
                                         .height = 300.0f,
-                                        .period = 18.0f,
-                                        .fovYDeg = 42.0f},
+                                        .period = sigil::motion::Duration(18.0),
+                                        .fieldOfView = 42.0f},
                               .ground = 4.0f,
                               .drop = 0.85f};
-    return world::Frame(world::kit::litSet(std::move(subject), set, seconds));
+    return world::kit::litSet(subject, set, now);
   }
 };
 

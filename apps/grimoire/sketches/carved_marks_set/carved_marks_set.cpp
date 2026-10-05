@@ -9,7 +9,6 @@
 #include <sigilcompose/brush/Ribbons.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/texture/SurfaceScene.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
@@ -20,12 +19,9 @@
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/surface/Surface.h>
-#include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Image.h>
 #include <sigilsketch/set/Set.h>
-#include <sigilworld/element/Element.h>
-#include <sigilworld/frame/Frame.h>
-#include <sigilworld/light/Light.h>
+#include <sigilworld/World.h>
 
 #include <algorithm>
 #include <cmath>
@@ -182,7 +178,7 @@ material::Material hammeredGold() {
 
 /** The page the set wears: two marked slabs, gilt glyphs, a relief and
  *  the captions that take no light. */
-Element page(const material::Material& height) {
+Element carvedPage(const material::Material& height) {
   const auto slab = [&](float x, std::string_view title, std::string_view note,
                         const material::Material& face, bool copper) {
     const auto stock =
@@ -249,20 +245,16 @@ Element page(const material::Material& height) {
 }
 
 /** A studio of two soft boxes over a graded room. */
-material::EnvironmentMap studio() {
-  return material::EnvironmentMap::baked(256, [](float u, float v) {
-    const auto box = [u, v](float centre, float wide, float high) {
-      const float across =
-          std::min(std::abs(u - centre), 1 - std::abs(u - centre)) / wide;
-      const float down = (v - .42f) / high;
-      return std::exp(-.5f * (across * across + down * down));
-    };
-    glm::vec3 colour{.20f + .55f * (1 - v), .21f + .56f * (1 - v),
-                     .24f + .60f * (1 - v)};
-    colour += glm::vec3{5.0f, 4.4f, 3.4f} * box(.18f, .06f, .2f);
-    colour += glm::vec3{1.6f, 2.0f, 2.5f} * box(.70f, .05f, .26f);
-    return colour;
-  });
+world::EnvironmentMap studio() {
+  return world::kit::environmentMap(
+      {.zenith = {.75f, .77f, .84f},
+       .nadir = {.20f, .21f, .24f},
+       .softBoxes = {{.centre = {.18f, .42f},
+                      .size = {.06f, .2f},
+                      .radiance = {5.0f, 4.4f, 3.4f}},
+                     {.centre = {.70f, .42f},
+                      .size = {.05f, .26f},
+                      .radiance = {1.6f, 2.0f, 2.5f}}}});
 }
 
 /** How far the plate is turned at @p seconds: square on until the turn
@@ -275,8 +267,8 @@ float yawAt(double seconds) {
 
 struct CarvedMarksSet {
   std::shared_ptr<compose::TextureScene> heightScene;
-  std::shared_ptr<compose::SurfaceScene> pageScene;
-  material::EnvironmentMap room;
+  sketch::Page page;
+  world::EnvironmentMap room;
   Element tree = compose::stack();
   gm::Mesh plate;
 
@@ -294,44 +286,44 @@ struct CarvedMarksSet {
     ctx.canvas(kWidth, kHeight);
     ctx.captureAt(2.0);
     ctx.background(hexColor(0x141716));
-    ctx.camera(lens());
     heightScene = ctx.textureScene({kFieldWidth, kFieldHeight}, kBlack);
     heightScene->render(die());
     const auto height =
         material::image(heightScene->texture()
                             .tile(material::Repeat::Pad)
                             .sampling(material::Sampling::Linear));
-    pageScene = ctx.surfaceScene({kWidth, kHeight});
-    tree = page(height);
+    page = ctx.page({kWidth, kHeight});
+    tree = carvedPage(height);
     room = studio();
     // One flat sheet: the page's maps carry the relief, and the device
     // shades them per pixel.
     plate = gm::quad(kWidth, kHeight);
   }
 
-  world::Frame describe(double seconds) {
-    const double now = std::isfinite(seconds) ? std::max(0.0, seconds) : 0;
-    pageScene->render(tree, now);
-    auto surface =
-        material::surface::program(pageScene->maps(), {.baseColor = kWhite});
-    const float phase = 2 * kPi * float(std::fmod(now, double(kLoop))) / kLoop;
-    world::Element root;
-    root.camera(lens()).children({
-        world::Element().key("studio").environmentMap(
-            {.map = room, .intensity = 1.4f, .diffuse = .5f, .exposure = 1.2f}),
-        world::Element().key("key").light(
-            world::light::sun({.45f, -.35f, -.82f}, {1, .93f, .8f, 1}, 1.8f)),
-        world::Element().key("sweep").light(world::light::point(
-            {640 * std::sin(phase), 260 * std::cos(phase), 220},
-            {1, .97f, .9f, 1}, 2.2f, 3200)),
-        world::Element()
-            .key("plate")
-            .rotateY(yawAt(now))
-            .mesh(plate)
-            .backface(material::Backface::Visible)
-            .fill(std::move(surface)),
-    });
-    return world::Frame(root).extent({kWidth, kHeight});
+  world::Frame describe(sigil::motion::Duration now) {
+    const float phase =
+        2 * kPi * float(std::fmod(now.count(), double(kLoop))) / kLoop;
+    return world::Frame(
+               world::group({world::camera(lens(), {.exposure = 1.2f}),
+                             world::directionalLight(
+                                 {.45f, -.35f, -.82f},
+                                 {.color = material::Color{1, .93f, .8f, 1},
+                                  .intensity = 1.8f})
+                                 .key("key"),
+                             world::pointLight(
+                                 {.color = material::Color{1, .97f, .9f, 1},
+                                  .intensity = 2.2f,
+                                  .range = 3200})
+                                 .key("sweep")
+                                 .at({640 * std::sin(phase),
+                                      260 * std::cos(phase), 220}),
+                             world::mesh(plate)
+                                 .key("plate")
+                                 .rotateY(yawAt(now.count()))
+                                 .backface(material::Backface::Visible)
+                                 .fill(page.surface())}))
+        .environment(room, {.intensity = 1.4f, .diffuse = .5f})
+        .pass(page.render(tree));
   }
 };
 

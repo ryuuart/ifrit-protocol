@@ -121,7 +121,7 @@ struct WorldHud {
    *  and a quad sized from `2 d tan(fov/2)` is short of the frustum by
    *  that unit — which is a resample of the whole overlay, the one thing
    *  this quad exists to avoid. */
-  world::Element overlayQuad(sigil::material::Texture texture) {
+  world::Mesh overlayQuad(sigil::material::Texture texture) {
     const glm::vec3 forward = glm::normalize(lens.target - lens.eye);
     constexpr float kAt = 60.0f;
     const glm::vec2 frame =
@@ -131,44 +131,42 @@ struct WorldHud {
     sigil::material::Material surface =
         sigil::material::surface::unlit({.baseColor = {1, 1, 1, 1}});
     surface.slot(sigil::material::surface::kBaseColorSlot, std::move(texture));
-    return world::Element()
+    return world::mesh(worldhud::gm::quad(w, h))
         .key("overlay")
         .transform(
             ::sigil::geometry::mesh::camera::faceCamera(lens.eye, at, lens.up))
-        .mesh(worldhud::gm::quad(w, h))
         .fill(std::move(surface))
-        .tag("overlay");
+        .collection("overlay");
   }
 
-  world::Frame describe(float seconds) {
+  world::Frame describe(sigil::motion::Duration now) {
+    const float seconds = (float)now.count();
     namespace wh = worldhud;
     driveTo((double)seconds);
-
-    world::Element scene = world::Element().key("vale");
-    scene.children({world::Element().key("sun").light(world::light::sun(
-        {-0.44f, -0.78f, -0.44f}, {1.00f, 0.94f, 0.80f, 1.0f}, 1.05f))});
-    scene.children({world::Element().key("sky").light(world::light::sun(
-        {
-            0.26f,
-            0.52f,
-            0.36f,
-        },
-        {0.42f, 0.56f, 0.78f, 1.0f}, 0.42f))});
-
-    scene.children({world::Element()
-                        .key("terrain")
-                        .mesh(valley)
-                        .fill(sigil::material::surface::program(
-                            {.baseColor = {1, 1, 1, 1}, .roughness = 0.92f}))
-                        .tag("terrain")});
 
     // THE HUD IS DESCRIBED ONCE. Every bar on it is a bound Output on a
     // retained node, so the frames after the first cost a reconcile
     // against a tree that did not change — re-describing a hundred nodes
     // per frame would be paying for the bindings twice.
     overlay->render(retained, (double)seconds);
-    scene.children({overlayQuad(overlay->texture())});
-    return world::Frame(std::move(scene));
+    return world::group(
+               {world::directionalLight(
+                    {-0.44f, -0.78f, -0.44f},
+                    {.color = material::Color{1.00f, 0.94f, 0.80f, 1.0f},
+                     .intensity = 1.05f})
+                    .key("sun"),
+                world::directionalLight(
+                    {0.26f, 0.52f, 0.36f},
+                    {.color = material::Color{0.42f, 0.56f, 0.78f, 1.0f},
+                     .intensity = 0.42f})
+                    .key("sky"),
+                world::mesh(valley)
+                    .key("terrain")
+                    .fill(sigil::material::surface::program(
+                        {.baseColor = {1, 1, 1, 1}, .roughness = 0.92f}))
+                    .collection("terrain"),
+                overlayQuad(overlay->texture())})
+        .key("vale");
   }
 
   // ------------------------------------------------------------------

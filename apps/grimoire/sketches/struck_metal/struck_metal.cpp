@@ -14,16 +14,13 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/surface/Surface.h>
-#include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilweave/choreograph/PlacedGlyph.h>
 #include <sigilweave/fonts/Shaper.h>
 #include <sigilweave/layout/TextContext.h>
-#include <sigilworld/element/Element.h>
-#include <sigilworld/frame/Frame.h>
-#include <sigilworld/light/Light.h>
+#include <sigilworld/World.h>
 
 #include <algorithm>
 #include <array>
@@ -162,10 +159,9 @@ path::Outline lettering(weave::TextContext& text, const weave::Face& face,
           .detach());
 }
 
-world::Element part(std::string_view key, const gm::Mesh& mesh,
-                    const material::Material& finish,
-                    glm::vec3 at = {0, 0, 0}) {
-  return world::Element().key(key).mesh(mesh).fill(finish).at(at);
+world::Mesh part(std::string_view key, const gm::Mesh& mesh,
+                 const material::Material& finish, glm::vec3 at = {0, 0, 0}) {
+  return world::mesh(mesh).key(key).fill(finish).at(at);
 }
 material::Material metal(material::Color c, float roughness) {
   return material::surface::program(
@@ -221,27 +217,21 @@ FinishMaps bronzeMaps() {
       media::PixelSource(SkImages::RasterFromBitmap(pixels[2])));
   return out;
 }
-material::EnvironmentMap studio() {
-  return material::EnvironmentMap::baked(256, [](float u, float v) {
-    const auto box = [u, v](float centre, float wide, float high) {
-      const float dx =
-          std::min(std::abs(u - centre), 1 - std::abs(u - centre)) / wide;
-      const float dy = (v - 0.45f) / high;
-      return std::exp(-0.5f * (dx * dx + dy * dy));
-    };
-    glm::vec3 c{0.23f + 0.68f * (1 - v), 0.25f + 0.7f * (1 - v),
-                0.29f + 0.73f * (1 - v)};
-    c += glm::vec3{6.2f, 5.5f, 4.1f} * box(0.16f, 0.055f, 0.2f);
-    c += glm::vec3{2.0f, 2.5f, 3.0f} * box(0.72f, 0.045f, 0.28f);
-    return c;
-  });
+world::EnvironmentMap studio() {
+  return world::kit::environmentMap(
+      {.zenith = {0.91f, 0.95f, 1.02f},
+       .nadir = {0.23f, 0.25f, 0.29f},
+       .softBoxes = {{.centre = {0.16f, 0.45f},
+                      .size = {0.055f, 0.2f},
+                      .radiance = {6.2f, 5.5f, 4.1f}},
+                     {.centre = {0.72f, 0.45f},
+                      .size = {0.045f, 0.28f},
+                      .radiance = {2.0f, 2.5f, 3.0f}}}});
 }
 
-world::Element turnControl(std::string_view key, float radius,
-                           const material::Material& brass,
-                           const material::Material& aluminum) {
-  world::Element result;
-  result.key(key);
+world::Group turnControl(std::string_view key, float radius,
+                         const material::Material& brass,
+                         const material::Material& aluminum) {
   const auto shell = gm::revolve({{0, 0},
                                   {radius - 3, 0},
                                   {radius, 3},
@@ -249,12 +239,6 @@ world::Element turnControl(std::string_view key, float radius,
                                   {radius - 4, 27},
                                   {0, 27}},
                                  {.segments = 64});
-  result.children(
-      {part("turned-shell", shell, brass).rotateX(90),
-       part("inset-cap", gm::extrude(circle(radius - 7), 2), aluminum,
-            {0, 0, 28.5f}),
-       part("index", gm::box({-1, radius - 19, 30}, {1, radius - 8, 31.2f}),
-            material::surface::unlit({.baseColor = ink(0xd4dabc)}))});
   gm::Mesh ribs;
   for (int i = 0; i < 48; ++i) {
     const float a = 2 * kPi * i / 48;
@@ -265,8 +249,15 @@ world::Element turnControl(std::string_view key, float radius,
     rib.transform(transform);
     ribs.append(rib);
   }
-  result.children({part("milled-ribs", ribs, brass)});
-  return result;
+  return world::group(
+             {part("turned-shell", shell, brass).rotateX(90),
+              part("inset-cap", gm::extrude(circle(radius - 7), 2), aluminum,
+                   {0, 0, 28.5f}),
+              part("index",
+                   gm::box({-1, radius - 19, 30}, {1, radius - 8, 31.2f}),
+                   material::surface::unlit({.baseColor = ink(0xd4dabc)})),
+              part("milled-ribs", ribs, brass)})
+      .key(key);
 }
 
 compose::Element label(std::string words, float x, float y, float w, float size,
@@ -286,13 +277,16 @@ struct StruckMetal {
   std::shared_ptr<compose::TextureScene> hud;
   compose::Element staticHud;
   FinishMaps maps;
-  material::EnvironmentMap environment;
+  world::EnvironmentMap environment;
   material::Material bronze{material::Color{0, 0, 0, 1}};
   material::Material brass{material::Color{0, 0, 0, 1}};
   material::Material aluminum{material::Color{0, 0, 0, 1}};
   material::Material enamel{material::Color{0, 0, 0, 1}};
-  world::Element chassis, medallion, controls, registerStrip, coupons;
-  world::Element piercedBody, raisedTitle, raisedNumber;
+  world::Group chassis, controls, registerStrip, coupons;
+  /** The medallion's own parts; the pierced body and the counter that
+   *  change with the moment join them as it is described. */
+  std::vector<world::Node> medallion;
+  world::Mesh piercedBody, raisedTitle, raisedNumber;
 
   gm::camera::Camera lens() const {
     gm::camera::Camera eye;
@@ -309,7 +303,6 @@ struct StruckMetal {
     ctx.canvas(kWidth, kHeight);
     ctx.captureAt(2.4);
     ctx.background(ink(0x171b19));
-    ctx.camera(lens());
     hud = ctx.textureScene({kWidth, kHeight});
     maps = bronzeMaps();
     environment = studio();
@@ -337,19 +330,19 @@ struct StruckMetal {
     const path::Outline recessWords = lettering(text, sans, u8"STRIKE", 45, 4);
     const path::Outline recess = placed(recessWords, 210, -115);
     const auto frontOutline = caseOutline.subtracted(recess);
-    chassis.key("chassis").children(
-        {part("cast-body", gm::extrude(caseOutline, 42), bronze),
-         part("face-with-recesses", gm::extrude(frontOutline, 6), bronze,
-              {0, 0, 25}),
-         part("enamel-recess-floor", gm::extrude(recessWords, 1.6f), enamel,
-              {210, 115, 24.5f}),
-         part("bright-perimeter",
-              gm::extrude(outer.subtracted(roundRect(1018, 378, 19)), 6), brass,
-              {0, 0, 26}),
-         part("register-window-rim",
-              gm::extrude(
-                  roundRect(378, 83, 11).subtracted(roundRect(368, 73, 7)), 3),
-              aluminum, {225, -82, 29})});
+    std::vector<world::Node> chassisParts{
+        part("cast-body", gm::extrude(caseOutline, 42), bronze),
+        part("face-with-recesses", gm::extrude(frontOutline, 6), bronze,
+             {0, 0, 25}),
+        part("enamel-recess-floor", gm::extrude(recessWords, 1.6f), enamel,
+             {210, 115, 24.5f}),
+        part("bright-perimeter",
+             gm::extrude(outer.subtracted(roundRect(1018, 378, 19)), 6), brass,
+             {0, 0, 26}),
+        part("register-window-rim",
+             gm::extrude(
+                 roundRect(378, 83, 11).subtracted(roundRect(368, 73, 7)), 3),
+             aluminum, {225, -82, 29})};
 
     // The aperture continues through the cast body. The medallion's own
     // holes therefore reveal the background in both front and rear views.
@@ -361,15 +354,12 @@ struct StruckMetal {
                                     -100 * std::cos(a), float(i) * 30));
     }
     piercedBody = part("pierced-brass", gm::extrude(pierced, 10), brass);
-    medallion.key("pierced-medallion")
-        .children({part("raised-rim",
-                        gm::extrude(circle(140).subtracted(circle(135)), 3),
-                        aluminum, {0, 0, 6.5f}),
-                   part("hub-enamel", gm::extrude(circle(59), 2), enamel,
-                        {0, 0, 6.5f}),
-                   part("hub-border",
-                        gm::extrude(circle(62).subtracted(circle(58)), 3),
-                        brass, {0, 0, 8})});
+    medallion = {
+        part("raised-rim", gm::extrude(circle(140).subtracted(circle(135)), 3),
+             aluminum, {0, 0, 6.5f}),
+        part("hub-enamel", gm::extrude(circle(59), 2), enamel, {0, 0, 6.5f}),
+        part("hub-border", gm::extrude(circle(62).subtracted(circle(58)), 3),
+             brass, {0, 0, 8})};
     gm::Mesh ticks;
     for (int i = 0; i < 72; ++i) {
       const float a = 2 * kPi * i / 72;
@@ -382,7 +372,7 @@ struct StruckMetal {
       tick.transform(transform);
       ticks.append(tick);
     }
-    medallion.children({part("engraved-scale", ticks, aluminum)});
+    medallion.push_back(part("engraved-scale", ticks, aluminum));
     raisedNumber = part(
         "raised-counter",
         gm::extrude(lettering(text, serif, u8"08", 61), kLetterDepth), brass);
@@ -391,69 +381,76 @@ struct StruckMetal {
              gm::extrude(lettering(text, sans, u8"AURUM", 44, 5), kLetterDepth),
              brass);
 
-    controls.key("turned-controls")
-        .children({turnControl("brass-control", 38, brass, aluminum)
-                       .at({88, 8, kFace + 3}),
-                   turnControl("bronze-control", 38, bronze, brass)
-                       .at({228, 8, kFace + 3}),
-                   turnControl("aluminum-control", 38, aluminum, brass)
-                       .at({368, 8, kFace + 3})});
+    controls =
+        world::group({turnControl("brass-control", 38, brass, aluminum)
+                          .at({88, 8, kFace + 3}),
+                      turnControl("bronze-control", 38, bronze, brass)
+                          .at({228, 8, kFace + 3}),
+                      turnControl("aluminum-control", 38, aluminum, brass)
+                          .at({368, 8, kFace + 3})})
+            .key("turned-controls");
     for (int i = 0; i < 3; ++i) {
       const auto caption = lettering(text, sans,
                                      i == 0   ? u8"IMPULSE"
                                      : i == 1 ? u8"RELIEF"
                                               : u8"INDEX",
                                      13, 1.2f);
-      chassis.children(
-          {part("control-name-" + std::to_string(i), gm::extrude(caption, 1.6f),
-                aluminum, {88 + i * 140.0f, -43, kFace + 1.6f})});
+      chassisParts.push_back(part("control-name-" + std::to_string(i),
+                                  gm::extrude(caption, 1.6f), aluminum,
+                                  {88 + i * 140.0f, -43, kFace + 1.6f}));
     }
     const auto registerWords = lettering(text, sans, u8"0 2 4 8", 43, 7);
-    registerStrip.key("sliding-register")
-        .children({part("cut-register",
-                        gm::extrude(
-                            roundRect(410, 66, 6).subtracted(registerWords), 6),
-                        brass),
-                   part("enamel-register-floor",
-                        gm::extrude(roundRect(410, 66, 6), 1.5f), enamel,
-                        {0, 0, -3.1f}),
-                   part("lower-rail", gm::box({-202, -36, -4}, {202, -32, 1}),
-                        aluminum),
-                   part("upper-rail", gm::box({-202, 32, -4}, {202, 36, 1}),
-                        aluminum)});
+    registerStrip =
+        world::group(
+            {part("cut-register",
+                  gm::extrude(roundRect(410, 66, 6).subtracted(registerWords),
+                              6),
+                  brass),
+             part("enamel-register-floor",
+                  gm::extrude(roundRect(410, 66, 6), 1.5f), enamel,
+                  {0, 0, -3.1f}),
+             part("lower-rail", gm::box({-202, -36, -4}, {202, -32, 1}),
+                  aluminum),
+             part("upper-rail", gm::box({-202, 32, -4}, {202, 36, 1}),
+                  aluminum)})
+            .key("sliding-register");
     for (int x : {-1, 1})
       for (int y : {-1, 1}) {
-        world::Element screw;
-        screw.key("screw-" + std::to_string(x) + "-" + std::to_string(y));
-        screw.children(
-            {part("head", gm::extrude(circle(6), 3), aluminum),
-             part("slot", gm::box({-4, -0.7f, 1.6f}, {4, 0.7f, 2.2f}),
-                  enamel)});
-        chassis.children({screw.at({x * 485.0f, y * 165.0f, kFace + 1.5f})
-                              .rotateZ(float(x * y) * 26)});
+        chassisParts.push_back(
+            world::group(
+                {part("head", gm::extrude(circle(6), 3), aluminum),
+                 part("slot", gm::box({-4, -0.7f, 1.6f}, {4, 0.7f, 2.2f}),
+                      enamel)})
+                .key("screw-" + std::to_string(x) + "-" + std::to_string(y))
+                .at({x * 485.0f, y * 165.0f, kFace + 1.5f})
+                .rotateZ(float(x * y) * 26));
       }
+    chassis = world::group(chassisParts).key("chassis");
 
     const auto sampleWord = lettering(text, serif, u8"R8", 59);
+    std::vector<world::Node> couponParts;
     for (int i = 0; i < 2; ++i) {
       const float relief = i == 0 ? 0.8f : 16;
-      world::Element coupon;
-      coupon.key(i == 0 ? "shallow-coupon" : "deep-coupon")
-          .children({part("coupon-base",
-                          gm::extrude(roundRect(182, 89, 10), 12), bronze),
-                     part("raised-type", gm::extrude(sampleWord, relief), brass,
-                          {0, 0, 6 + relief * 0.5f + 0.8f})});
-      coupons.children({coupon.at({-330 + i * 315.0f, -277, 95}).rotateX(-5)});
+      couponParts.push_back(
+          world::group({part("coupon-base",
+                             gm::extrude(roundRect(182, 89, 10), 12), bronze),
+                        part("raised-type", gm::extrude(sampleWord, relief),
+                             brass, {0, 0, 6 + relief * 0.5f + 0.8f})})
+              .key(i == 0 ? "shallow-coupon" : "deep-coupon")
+              .at({-330 + i * 315.0f, -277, 95})
+              .rotateX(-5));
     }
     const auto stencil = lettering(text, sans, u8"B8", 59, 3);
     path::Outline cuts = stencil;
     // Narrow bridges keep counter islands attached to a real stencil.
     for (float y : {-15.0f, 0.0f, 15.0f})
       cuts = cuts.subtracted(placed(roundRect(170, 2.8f, 0), 0, y));
-    coupons.children(
-        {part("cut-letter-stencil",
-              gm::extrude(roundRect(182, 89, 10).subtracted(cuts), 12),
-              aluminum, {300, -277, 95})
-             .rotateX(-5)});
+    couponParts.push_back(
+        part("cut-letter-stencil",
+             gm::extrude(roundRect(182, 89, 10).subtracted(cuts), 12), aluminum,
+             {300, -277, 95})
+            .rotateX(-5));
+    coupons = world::group(couponParts);
 
     const auto white = ink(0xe5dcca), muted = ink(0x9faaa3),
                gold = ink(0xdab875);
@@ -474,7 +471,7 @@ struct StruckMetal {
                64, 912, 1300, 13, muted)});
   }
 
-  world::Element overlay(const gm::camera::Camera& eye) const {
+  world::Mesh overlay(const gm::camera::Camera& eye) const {
     const auto forward = glm::normalize(eye.target - eye.eye);
     const float distance = eye.zNear + 4;
     const auto extent = eye.extentAt(distance, float(kWidth) / kHeight);
@@ -485,7 +482,8 @@ struct StruckMetal {
                                           eye.up));
   }
 
-  world::Frame describe(double seconds) {
+  world::Frame describe(sigil::motion::Duration now) {
+    const double seconds = now.count();
     const Moment m = moment(seconds);
     auto hudTree = staticHud;
     const auto gold = ink(0xdab875), muted = ink(0x9faaa3);
@@ -497,48 +495,53 @@ struct StruckMetal {
     hud->render(hudTree, std::isfinite(seconds) ? std::max(0.0, seconds) : 0);
     auto currentBrass = brass;
     currentBrass.set("roughness", m.roughness);
-    auto rose = medallion;
     auto counter = raisedNumber;
     counter.fill(currentBrass)
         .at({0, 0, 10 + m.relief * 0.5f})
         .scaleZ(m.relief / kLetterDepth);
     auto pierced = piercedBody;
-    rose.children({pierced.fill(currentBrass), counter});
+    std::vector<world::Node> roseParts = medallion;
+    roseParts.push_back(pierced.fill(currentBrass));
+    roseParts.push_back(counter);
     auto title = raisedTitle;
     title.fill(currentBrass)
         .at({225, 161, kFace + 0.8f + m.relief * 0.5f})
         .scaleZ(m.relief / kLetterDepth);
-    world::Element assembly;
-    assembly.key("struck-register")
-        .at({0, 110, 0})
-        .rotateY(m.yaw)
-        .rotateX(m.pitch)
-        .children({chassis, rose.at({-270, 0, 32}), controls, title,
-                   registerStrip.at(
-                       {225 + bounded(kControls.registerTravel, 0, 28, 20) *
-                                  std::sin(m.wave),
-                        -82, 14})});
+    const world::Group assembly =
+        world::group(
+            {chassis,
+             world::group(roseParts).key("pierced-medallion").at({-270, 0, 32}),
+             controls, title,
+             world::Group(registerStrip)
+                 .at({225 + bounded(kControls.registerTravel, 0, 28, 20) *
+                                std::sin(m.wave),
+                      -82, 14})})
+            .key("struck-register")
+            .at({0, 110, 0})
+            .rotateY(m.yaw)
+            .rotateX(m.pitch);
     const float turn =
         bounded(kControls.lightSwing, -90, 90, 36) * std::sin(m.wave);
     const auto eye = lens();
-    world::Element scene;
-    scene.camera(eye).children(
-        {world::Element()
-             .key("studio")
-             .environmentMap({.map = environment,
-                              .intensity = 0.92f,
-                              .diffuse = 0.45f,
-                              .specular = 1,
-                              .exposure = 1.05f})
-             .rotateY(turn),
-         world::Element().key("key").light(
-             world::light::sun({0.7f * std::cos(radians(turn)), 0.24f,
-                                -0.7f + 0.5f * std::sin(radians(turn))},
-                               {1, 0.89f, 0.68f, 1}, 2.4f)),
-         world::Element().key("fill").light(world::light::sun(
-             {-0.7f, -0.3f, -0.6f}, {0.58f, 0.72f, 0.85f, 1}, 0.65f)),
-         assembly, coupons, overlay(eye)});
-    return world::Frame(scene).extent({kWidth, kHeight});
+    return world::Frame(
+               world::group(
+                   {world::camera(eye, {.exposure = 1.05f}),
+                    world::directionalLight(
+                        {0.7f * std::cos(radians(turn)), 0.24f,
+                         -0.7f + 0.5f * std::sin(radians(turn))},
+                        {.color = material::Color{1, 0.89f, 0.68f, 1},
+                         .intensity = 2.4f})
+                        .key("key"),
+                    world::directionalLight(
+                        {-0.7f, -0.3f, -0.6f},
+                        {.color = material::Color{0.58f, 0.72f, 0.85f, 1},
+                         .intensity = 0.65f})
+                        .key("fill"),
+                    assembly, coupons, overlay(eye)}))
+        .environment(environment, {.intensity = 0.92f,
+                                   .diffuse = 0.45f,
+                                   .specular = 1,
+                                   .rotation = turn});
   }
 };
 

@@ -55,43 +55,39 @@ class WorldStudy:
         pen.background(PAPER)
         seconds = pen.millis() / 1000
         pieces = [
-            world.Element()
-            .key(f"station-{index}")
-            .at((x, 0, 0))
-            .children(
-                world.Element()
+            world.group(
+                world.mesh(self.vessel)
                 .key(f"vessel-{index}")
-                .mesh(self.vessel)
                 .fill(finish)
                 .rotateY(seconds * 14),
-                world.Element()
+                world.mesh(self.plinth)
                 .key(f"plinth-{index}")
-                .mesh(self.plinth)
                 .fill(self.base)
                 .translateY(-74),
             )
+            .key(f"station-{index}")
+            .at((x, 0, 0))
             for index, (x, finish) in enumerate(zip((-205, 0, 205), self.finishes))
         ]
-        model = (
-            world.Element()
-            .key("study")
-            .children(
-                world.Element().key("forms").children(pieces),
-                world.kit.threePoint(
-                    world.kit.Rig(
-                        extent=380,
-                        bearing=-35 + seconds * 8,
-                        elevation=38,
-                        intensity=1.2,
-                        fill=0.5,
-                    )
-                ),
-            )
-        )
+        model = world.group(
+            world.group(pieces).key("forms"),
+            world.kit.threePoint(
+                world.kit.Rig(
+                    extent=380,
+                    bearing=-35 + seconds * 8,
+                    elevation=38,
+                    intensity=1.2,
+                    fill=0.5,
+                )
+            ),
+        ).key("study")
         # A set is drawn on a device and nowhere else: the bake answers
         # None where the host brought none up, and the sheet says so.
         still = ctx.bakeSet(
-            world.Frame(model), self.camera, (1104, 510), background=hexColor(0x141D25)
+            world.Frame(model),
+            (1104, 510),
+            camera=self.camera,
+            background=hexColor(0x141D25),
         )
         if still is not None:
             pen.image(still, 48, 150)

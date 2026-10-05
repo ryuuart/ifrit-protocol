@@ -19,13 +19,13 @@
 #include <sigilgeometry/mesh/pop/Points.h>
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilusd/read/Reader.h>
 #include <sigilusd/runtime/Runtime.h>
 #include <sigilusd/write/Writer.h>
+#include <sigilworld/World.h>
 
 #include <filesystem>
 #include <glm/glm.hpp>
@@ -91,13 +91,13 @@ camera::Camera sourceCamera() {
   return view;
 }
 
-const char* kindName(material::LightKind kind) {
+const char* kindName(world::LightKind kind) {
   switch (kind) {
-    case material::LightKind::Directional:
+    case world::LightKind::Directional:
       return "sun";
-    case material::LightKind::Point:
+    case world::LightKind::Point:
       return "point";
-    case material::LightKind::Spot:
+    case world::LightKind::Spot:
       return "spot";
   }
   return "?";
@@ -151,8 +151,12 @@ struct UsdRoundtrip {
     const gm::Cloud motes = gm::points::onMesh(source, kMotes, 7);
     const material::Material brass = material::surface::program(
         {.baseColor = kBrass, .metallic = 1, .roughness = 0.28f});
-    const material::Light sun =
-        world::light::sun({-0.5f, -0.7f, -0.5f}, {1.0f, 0.95f, 0.88f, 1}, 1.2f);
+    const world::PlacedLight sun{
+        .light = world::directionalLight(
+                     {-0.5f, -0.7f, -0.5f},
+                     {.color = material::Color{1.0f, 0.95f, 0.88f, 1},
+                      .intensity = 1.2f})
+                     .description()};
     const camera::Camera lens = sourceCamera();
 
     const std::filesystem::path dir =
@@ -167,7 +171,8 @@ struct UsdRoundtrip {
                        "lane\n%s light · fovY %.1f° · "
                        "%zu instancer points",
                        source.positions.size(), source.indices.size() / 3,
-                       kindName(sun.kind), (double)lens.fovYDeg, motes.size()),
+                       kindName(sun.light.kind), (double)lens.fovYDeg,
+                       motes.size()),
         source, lens, kBrass));
 
     std::string names;
@@ -219,18 +224,19 @@ struct UsdRoundtrip {
 
       cases.push_back(specimen(
           extension, extension,
-          kit::formatted(
-              "%.1f KiB · %zu parts · %zu vertices\n"
-              "%zu light%s (%s) · %zu camera%s · fovY %.1f"
-              "°",
-              (double)bytes / 1024.0, model ? model->parts.size() : 0,
-              back.positions.size(), lamps ? lamps->size() : 0,
-              lamps && lamps->size() == 1 ? "" : "s",
-              lamps && !lamps->empty() ? kindName(lamps->front().light.kind)
-                                       : "none",
-              lenses ? lenses->size() : 0,
-              lenses && lenses->size() == 1 ? "" : "s",
-              readLens ? (double)readLens->fovYDeg : 0.0),
+          kit::formatted("%.1f KiB · %zu parts · %zu vertices\n"
+                         "%zu light%s (%s) · %zu camera%s · fovY %.1f"
+                         "°",
+                         (double)bytes / 1024.0,
+                         model ? model->parts.size() : 0, back.positions.size(),
+                         lamps ? lamps->size() : 0,
+                         lamps && lamps->size() == 1 ? "" : "s",
+                         lamps && !lamps->empty()
+                             ? kindName(lamps->front().light.light.kind)
+                             : "none",
+                         lenses ? lenses->size() : 0,
+                         lenses && lenses->size() == 1 ? "" : "s",
+                         readLens ? (double)readLens->fovYDeg : 0.0),
           back, readLens));
     }
 

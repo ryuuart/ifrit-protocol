@@ -10,7 +10,7 @@
  * in the scene tree at all.
  *
  * `only(selector).variant(surface)` DRAWS THE SELECTION AGAIN in another
- * surface. The pass paints every body first; the tagged ones are then
+ * surface. The pass paints every body first; the swapped collection's are then
  * repainted in the variant, which is why the near row reads hot and the
  * far row keeps the material it declared. The ordering READS THAT OFF
  * the declaration — a pass carrying `variant` is realised as
@@ -31,7 +31,7 @@
  *
  * EDIT THESE FIRST
  *   kMotes   — how many points the chain cooks.
- *   kSwapTag — the word the variant pass selects on.
+ *   kSwapCollection — the word the variant pass selects on.
  *   the captured moment, which is where the rail's window stands.
  */
 
@@ -45,12 +45,7 @@
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
-#include <sigilworld/element/Element.h>
-#include <sigilworld/element/Selector.h>
-#include <sigilworld/frame/Frame.h>
-#include <sigilworld/frame/Pass.h>
-#include <sigilworld/kit/Kit.h>
-#include <sigilworld/light/Light.h>
+#include <sigilworld/World.h>
 
 #include <cmath>
 #include <cstdio>
@@ -69,7 +64,7 @@ namespace {
 constexpr int kBlocks = 5;      // blocks in each row
 constexpr int kMotes = 700;     // points the chain cooks
 constexpr float kSpacing = 96;  // between blocks in a row
-const char* const kSwapTag = "swap";
+const char* const kSwapCollection = "swap";
 
 constexpr glm::vec3 kEye{0.0f, 210.0f, 620.0f};
 
@@ -92,20 +87,23 @@ gm::pop::Chain motes() {
       .lookAt(kEye);
 }
 
-/** One row of blocks at @p z, every one of them carrying @p tag. */
-world::Element row(const char* key, float z, const char* tag,
-                   material::Material surface) {
-  return world::Element().key(key).children(
-      std::views::iota(0, kBlocks) | std::views::transform([&](int i) {
-        const float x = ((float)i - (float)(kBlocks - 1) * 0.5f) * kSpacing;
-        return world::Element()
-            .key(std::string(key) + std::to_string(i))
-            .at({x, -60.0f, z})
-            .rotateY((float)i * 9.0f)
-            .mesh(gm::superellipsoid({30.0f, 44.0f, 30.0f}, 5.0f, 12, 8))
-            .fill(surface)
-            .tag(tag);
-      }));
+/** One row of blocks at @p z, every one of them in the collection
+ *  @p joined. */
+world::Group row(const char* key, float z, const char* joined,
+                 material::Material surface) {
+  return world::group(
+             {std::views::iota(0, kBlocks) | std::views::transform([&](int i) {
+                const float x =
+                    ((float)i - (float)(kBlocks - 1) * 0.5f) * kSpacing;
+                return world::mesh(gm::superellipsoid({30.0f, 44.0f, 30.0f},
+                                                      5.0f, 12, 8))
+                    .key(std::string(key) + std::to_string(i))
+                    .at({x, -60.0f, z})
+                    .rotateY((float)i * 9.0f)
+                    .fill(surface)
+                    .collection(joined);
+              })})
+      .key(key);
 }
 
 }  // namespace
@@ -132,39 +130,42 @@ struct ComputeVariant {
 
   /** The bodies. The cooked cloud is NOT among them — it arrives as a
    *  resource a pass stamps. */
-  world::Element scene() const {
+  world::Group scene() const {
     const material::Material slate = material::surface::program(
         {.baseColor = {0.30f, 0.33f, 0.40f, 1.0f}, .roughness = 0.6f});
     // THE READBACK, STOOD UP: one post per hundred points the callback
     // counted — none at all in a frame nothing came back in.
     const int posts = cookedPoints / 100;
-    return world::Element().key("set").children(
-        {world::Element().key("sun").light(world::light::sun(
-             {-0.42f, -0.82f, -0.38f}, {0.96f, 0.97f, 1.0f, 1.0f}, 1.0f)),
-         world::Element()
-             .key("plate")
-             .at({0, -104, 0})
-             .rotateX(-90.0f)
-             .mesh(gm::quad(900, 900))
-             .fill(material::surface::program(
-                 {.baseColor = {0.07f, 0.08f, 0.11f, 1.0f}})),
-         row("far", -300.0f, "keep", slate),
-         row("near", 110.0f, kSwapTag, slate),
-         world::Element().key("tally").children(
-             std::views::iota(0, posts) | std::views::transform([posts](int i) {
-               return world::Element()
-                   .key("tally" + std::to_string(i))
-                   .at({((float)i - (float)(posts - 1) * 0.5f) * 34.0f, -90.0f,
-                        200.0f})
-                   .mesh(gm::superellipsoid({9.0f, 18.0f, 9.0f}, 2.0f, 8, 5))
-                   .fill(material::surface::unlit(
-                       {.baseColor = {0.95f, 0.78f, 0.35f, 1.0f}}));
-             }))});
+    return world::group(
+               {world::directionalLight(
+                    {-0.42f, -0.82f, -0.38f},
+                    {.color = material::Color{0.96f, 0.97f, 1.0f, 1.0f},
+                     .intensity = 1.0f})
+                    .key("sun"),
+                world::mesh(gm::quad(900, 900))
+                    .key("plate")
+                    .at({0, -104, 0})
+                    .rotateX(-90.0f)
+                    .fill(material::Color{0.07f, 0.08f, 0.11f, 1.0f}),
+                row("far", -300.0f, "keep", slate),
+                row("near", 110.0f, kSwapCollection, slate),
+                world::group(
+                    {std::views::iota(0, posts) |
+                     std::views::transform([posts](int i) {
+                       return world::mesh(gm::superellipsoid(
+                                              {9.0f, 18.0f, 9.0f}, 2.0f, 8, 5))
+                           .key("tally" + std::to_string(i))
+                           .at({((float)i - (float)(posts - 1) * 0.5f) * 34.0f,
+                                -90.0f, 200.0f})
+                           .fill(material::surface::unlit(
+                               {.baseColor = {0.95f, 0.78f, 0.35f, 1.0f}}));
+                     })})
+                    .key("tally")})
+        .key("set");
   }
 
-  world::Frame describe(float seconds) {
-    (void)seconds;
-    // What the tagged row is REPAINTED in. What the two executors take
+  world::Frame describe() {
+    // What the swapped row is REPAINTED in. What the two executors take
     // from it differs — the host reads its base colour and stands it
     // under the pass's own lights, the device draws the surface it
     // names — so the row reads hot on both and identical on neither.
@@ -176,7 +177,7 @@ struct ComputeVariant {
         // Points, cooked. It writes no pixels and orders itself ahead of
         // whatever reads what it wrote.
         .pass(world::computePass("cook").chain(motes()).writes("motes"))
-        // Every body, a flake at every cooked point, and the tagged row
+        // Every body, a flake at every cooked point, and the swapped row
         // drawn again in `hot`. ONE geometry pass does all three: a
         // second one writing the same target would clear it and paint
         // the bodies over again, since a pass that narrows nothing
@@ -190,7 +191,7 @@ struct ComputeVariant {
                   .writes("colour")
                   .clear({0.028f, 0.032f, 0.05f, 1.0f})
                   .stamp(gm::quad(7.0f, 7.0f))
-                  .only(world::selectors::tag(kSwapTag))
+                  .only(kSwapCollection)
                   .variant(hot)
                   .realise(world::Selection::Variant))
         .readback(world::readback("motes").then(
@@ -212,4 +213,4 @@ struct ComputeVariant {
 
 SIGIL_SKETCH(ComputeVariant, "Kit · API",
              "computePass cooks the cloud, a variant pass repaints the "
-             "tagged row, and a readback counts the points it got back")
+             "swapped row, and a readback counts the points it got back")

@@ -56,9 +56,9 @@
 #include <sigilsketch/scry/SharedEngine.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilweave/style/Type.h>
-#include <sigilworld/element/Element.h>
+#include <sigilworld/World.h>
+#include <sigilworld/advanced/Light.h>
 #include <sigilworld/frame/Frame.h>
-#include <sigilworld/light/Light.h>
 
 #include <cmath>
 #include <memory>
@@ -159,13 +159,12 @@ sketch::scry::Sequence arriving() {
 /** A screen: a quad wearing @p dressed, tilted @p yawDeg about the
  *  vertical and standing at @p x. Unlit on purpose — a screen emits, and
  *  a lighting term across it would read as a smear. */
-world::Element screen(const char* key, float x, float yawDeg,
-                      material::Material dressed) {
-  return world::Element()
+world::Mesh screen(const char* key, float x, float yawDeg,
+                   material::Material dressed) {
+  return world::mesh(gm::quad(kPanel, kPanel))
       .key(key)
       .at({x, 10.0f, 0.0f})
       .rotateY(yawDeg)
-      .mesh(gm::quad(kPanel, kPanel))
       .fill(std::move(dressed));
 }
 
@@ -239,7 +238,8 @@ struct ImportNative {
     }
   }
 
-  world::Frame describe(float seconds) {
+  world::Frame describe(sigil::motion::Duration now) {
+    const float seconds = (float)now.count();
     // The page arrives on the engine's thread, and a set describes itself
     // every frame, so this is where it is asked for rather than waited on.
     if (settling) settling->advance();
@@ -267,20 +267,21 @@ struct ImportNative {
       fromPage.slot(material::surface::kBaseColorSlot,
                     material::Texture(pageFrame));
 
-    world::Element root;
-    root.key("set").children(
-        {world::Element().key("sun").light(world::light::sun(
-             {-0.4f, -0.8f, -0.4f}, {0.95f, 0.96f, 1.0f, 1.0f}, 0.9f)),
-         world::Element()
-             .key("plate")
-             .at({0, -118, 0})
-             .rotateX(-90.0f)
-             .mesh(gm::quad(900, 700))
-             .fill(material::surface::program(
-                 {.baseColor = {0.05f, 0.06f, 0.09f, 1.0f}})),
-         screen("compose", -125.0f, 17.0f, std::move(fromCompose)),
-         screen("page", 125.0f, -17.0f, std::move(fromPage))});
-    return world::Frame(std::move(root));
+    const world::Group root =
+        world::group({world::directionalLight(
+                          {-0.4f, -0.8f, -0.4f},
+                          {.color = material::Color{0.95f, 0.96f, 1.0f, 1.0f},
+                           .intensity = 0.9f})
+                          .key("sun"),
+                      world::mesh(gm::quad(900, 700))
+                          .key("plate")
+                          .at({0, -118, 0})
+                          .rotateX(-90.0f)
+                          .fill(material::Color{0.05f, 0.06f, 0.09f, 1.0f}),
+                      screen("compose", -125.0f, 17.0f, std::move(fromCompose)),
+                      screen("page", 125.0f, -17.0f, std::move(fromPage))})
+            .key("set");
+    return root;
   }
 };
 

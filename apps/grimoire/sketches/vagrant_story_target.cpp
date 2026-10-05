@@ -109,7 +109,7 @@
 #include <sigilsketch/set/Set.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/style/Type.h>
-#include <sigilworld/kit/Kit.h>
+#include <sigilworld/World.h>
 
 #include <algorithm>
 #include <array>
@@ -123,6 +123,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
@@ -345,19 +346,17 @@ constexpr std::array<Part, 6> kParts = {
 /** A figure: the six parts of limbs[6], as six bodies. Nothing here is a
  *  character rig — the point is that the thing the cards address and the
  *  thing on screen are the same six entries. */
-Element figure(const std::string& prefix, glm::vec3 at, float facingDeg,
-               float scale, const material::Material& skin, float selectedPulse,
-               int selected) {
-  Element body = Element().key(prefix).at(at).rotateY(facingDeg).scale(scale);
+Group figure(const std::string& prefix, glm::vec3 at, float facingDeg,
+             float scale, const material::Material& skin, float selectedPulse,
+             int selected) {
+  std::vector<Node> parts;
   for (size_t i = 0; i < kParts.size(); ++i) {
     const Part& p = kParts[i];
-    Element limb = Element()
-                       .key(prefix + "-" + kLimbs[i].name)
-                       .at(p.at)
-                       .mesh(gm::superellipsoid(p.radii, p.exponent, 20, 14))
-                       .fill(skin)
-                       .tag("limb");
-    body.children({std::move(limb)});
+    parts.push_back(mesh(gm::superellipsoid(p.radii, p.exponent, 20, 14))
+                        .key(prefix + "-" + kLimbs[i].name)
+                        .at(p.at)
+                        .fill(skin)
+                        .collection("limb"));
     if ((int)i != selected) continue;
     // THE MARKER RING: a ring lying flat round the limb, pulsing. Flat
     // because the figure it hangs on is turned to face its opponent and a
@@ -367,24 +366,21 @@ Element figure(const std::string& prefix, glm::vec3 at, float facingDeg,
     // reconstructs is the one in which nothing else does.
     const float r =
         std::max(p.radii.x, p.radii.z) + 42.0f + 9.0f * selectedPulse;
-    body.children({Element()
-                       .key(prefix + "-mark")
-                       .at(p.at)
-                       .mesh(gm::torus(r, 3.2f, 36, 6))
-                       .fill(wire(1.0f, 3.4f))
-                       .tag("mark")});
+    parts.push_back(mesh(gm::torus(r, 3.2f, 36, 6))
+                        .key(prefix + "-mark")
+                        .at(p.at)
+                        .fill(wire(1.0f, 3.4f))
+                        .collection("mark"));
   }
-  return body;
+  return group(parts).key(prefix).at(at).rotateY(facingDeg).scale(scale);
 }
 
 /** THE REACH SPHERE: eight meridians and five latitude rings of real
  *  wire round Ashley's chest, turning. Every ring is one torus, so the
  *  near arc and the far arc of a wire are the same body seen from two
  *  sides and the sphere reads as a sphere without a hidden-line pass. */
-Element reachSphere(float seconds) {
-  Element sphere =
-      Element().key("reach").at(kAshleyAt + glm::vec3{0.0f, kChest, 0.0f});
-  sphere.rotateY(seconds * 26.0f);
+Group reachSphere(float seconds) {
+  std::vector<Node> wires;
   constexpr int kMeridians = 8;
   for (int i = 0; i < kMeridians; ++i) {
     // The ring stands upright in its OWN node and the bearing is its
@@ -392,16 +388,13 @@ Element reachSphere(float seconds) {
     // them in a fixed order — asking one node for both would turn a ring
     // that is already upright about the axis it is upright around, and
     // every meridian would land on the same one.
-    Element bearing = Element()
-                          .key("meridian" + std::to_string(i))
-                          .rotateY((float)i * 180.0f / (float)kMeridians);
-    bearing.children({Element()
-                          .key("ring")
-                          .rotateX(90.0f)
-                          .mesh(gm::torus(kSphereRadius, 1.1f, 64, 5))
-                          .fill(wire(0.34f, 1.5f))
-                          .tag("wire")});
-    sphere.children({std::move(bearing)});
+    wires.push_back(group({mesh(gm::torus(kSphereRadius, 1.1f, 64, 5))
+                               .key("ring")
+                               .rotateX(90.0f)
+                               .fill(wire(0.34f, 1.5f))
+                               .collection("wire")})
+                        .key("meridian" + std::to_string(i))
+                        .rotateY((float)i * 180.0f / (float)kMeridians));
   }
   constexpr int kLatitudes = 5;
   for (int i = 0; i < kLatitudes; ++i) {
@@ -410,15 +403,17 @@ Element reachSphere(float seconds) {
     // of the ring cut there are the two components of the same place.
     const SkPoint on = sigil::geometry::path::toSk(
         arrange::onEllipse({0, 0}, {kSphereRadius, kSphereRadius}, lat));
-    sphere.children(
-        {Element()
-             .key("latitude" + std::to_string(i))
-             .at({0.0f, on.fY, 0.0f})
-             .mesh(gm::torus(on.fX, 1.1f, 64, 5))
-             .fill(wire(i == 2 ? 0.62f : 0.30f, i == 2 ? 2.4f : 1.5f))
-             .tag("wire")});
+    wires.push_back(
+        mesh(gm::torus(on.fX, 1.1f, 64, 5))
+            .key("latitude" + std::to_string(i))
+            .at({0.0f, on.fY, 0.0f})
+            .fill(wire(i == 2 ? 0.62f : 0.30f, i == 2 ? 2.4f : 1.5f))
+            .collection("wire"));
   }
-  return sphere;
+  return group(wires)
+      .key("reach")
+      .at(kAshleyAt + glm::vec3{0.0f, kChest, 0.0f})
+      .rotateY(seconds * 26.0f);
 }
 
 /** THE ATTACK WEDGE, which is the other 5-bit field: the sphere's 32
@@ -427,9 +422,8 @@ Element reachSphere(float seconds) {
  *  the floor under the sphere. It is a sibling of the sphere rather than
  *  a child, because the wedge is fixed to Ashley's facing while the
  *  wires turn. */
-Element attackLadder() {
-  Element ladder =
-      Element().key("ladder").at(kAshleyAt + glm::vec3{0.0f, 6.0f, 0.0f});
+Group attackLadder() {
+  std::vector<Node> ticks;
   for (int i = 0; i < 32; ++i) {
     const float a = (float)i * kAngleStep * kDeg;
     const bool inWedge = i < kAttackShapeAngle;
@@ -438,20 +432,17 @@ Element attackLadder() {
     // screen, so the ellipse's second component is negated onto z.
     const SkPoint on = sigil::geometry::path::toSk(
         arrange::onEllipse({0, 0}, {kSphereRadius, kSphereRadius}, a));
-    Element bearing = Element()
-                          .key("tick" + std::to_string(i))
-                          .at({on.fX, 0.0f, -on.fY})
-                          .rotateY(-(float)i * kAngleStep);
-    bearing.children(
-        {Element()
-             .key("bar")
-             .rotateX(-90.0f)
-             .mesh(gm::quad(4.0f, len))
-             .fill(wire(inWedge ? 0.92f : 0.34f, inWedge ? 2.8f : 1.1f))
-             .tag("tick")});
-    ladder.children({std::move(bearing)});
+    ticks.push_back(
+        group({mesh(gm::quad(4.0f, len))
+                   .key("bar")
+                   .rotateX(-90.0f)
+                   .fill(wire(inWedge ? 0.92f : 0.34f, inWedge ? 2.8f : 1.1f))
+                   .collection("tick")})
+            .key("tick" + std::to_string(i))
+            .at({on.fX, 0.0f, -on.fY})
+            .rotateY(-(float)i * kAngleStep));
   }
-  return ladder;
+  return group(ticks).key("ladder").at(kAshleyAt + glm::vec3{0.0f, 6.0f, 0.0f});
 }
 
 // ---------------------------------------------------------------------------
@@ -651,7 +642,7 @@ struct VagrantStoryTarget {
   /** The overlay's quad: it stands one metre in front of the eye and is
    *  exactly as wide and as tall as the frustum is there, so a texture
    *  pixel and a plate pixel are the same pixel. */
-  Element overlayQuad(material::Texture texture) {
+  Mesh overlayQuad(material::Texture texture) {
     const glm::vec3 forward = glm::normalize(lens.target - lens.eye);
     constexpr float kAt = 100.0f;
     const glm::vec2 frame =
@@ -661,68 +652,72 @@ struct VagrantStoryTarget {
     material::Material surface =
         material::surface::unlit({.baseColor = {1, 1, 1, 1}});
     surface.slot(material::surface::kBaseColorSlot, std::move(texture));
-    return Element()
+    return mesh(vs::gm::quad(w, h))
         .key("overlay")
         .transform(
             ::sigil::geometry::mesh::camera::faceCamera(lens.eye, at, lens.up))
-        .mesh(vs::gm::quad(w, h))
         .fill(std::move(surface))
-        .tag("overlay");
+        .collection("overlay");
   }
 
-  world::Frame describe(float seconds) {
+  world::Frame describe(sigil::motion::Duration now) {
+    const float seconds = (float)now.count();
     using namespace vs;
     const float pulse = 0.5f + 0.5f * std::sin(seconds * 4.2f);
-    Element scene = Element().key("battle");
-    scene.children(
-        // The floor of the Iron Maiden: one dark flag, lit, so the figures
-        // and the sphere have something to stand on and cast their values
-        // against.
-        {Element()
-             .key("floor")
-             .rotateX(-90.0f)
-             .mesh(gm::quad(1800.0f, 1800.0f))
-             .fill(material::surface::program(
-                 {.baseColor = {0.112f, 0.104f, 0.116f, 1.0f},
-                  .roughness = 0.9f}))
-             .tag("ground"),
-         // The chamber's far wall. Without it the upper half of the frame
-         // is the clear colour, and a wireframe read against nothing is a
-         // wireframe with no depth in it.
-         Element()
-             .key("wall")
-             .at({0.0f, 300.0f, -900.0f})
-             .mesh(gm::quad(2400.0f, 1200.0f))
-             .fill(material::surface::program(
-                 {.baseColor = {0.088f, 0.086f, 0.104f, 1.0f},
-                  .roughness = 0.95f}))
-             .tag("ground"),
-         // A cold key from behind the enemy and a warm fill at Ashley's
-         // back: the dungeon's own two-source reading, which is what
-         // separates the two figures without a rim pass.
-         Element().key("key").light(light::sun(
-             {-0.42f, -0.74f, -0.52f}, {0.62f, 0.72f, 1.00f, 1.0f}, 0.92f)),
-         Element().key("torch").light(light::point({-330.0f, 240.0f, 300.0f},
-                                                   {1.00f, 0.58f, 0.26f, 1.0f},
-                                                   1.60f, 1100.0f)),
-         Element().key("bounce").light(light::sun(
-             {0.34f, -0.42f, 0.84f}, {0.44f, 0.50f, 0.66f, 1.0f}, 0.34f)),
-         figure("ashley", kAshleyAt, 72.0f, 1.0f,
-                material::surface::program(
-                    {.baseColor = {0.62f, 0.60f, 0.55f, 1.0f},
-                     .roughness = 0.44f}),
-                0.0f, -1),
-         figure("dullahan", kEnemyAt, -104.0f, 1.34f,
-                material::surface::program(
-                    {.baseColor = {0.22f, 0.24f, 0.30f, 1.0f},
-                     .roughness = 0.28f}),
-                pulse, kSelected),
-         reachSphere(seconds), attackLadder()});
-
     overlay->render(retained, (double)seconds);
-    scene.children({overlayQuad(overlay->texture())});
-
-    return Frame(std::move(scene));
+    return group(
+               // The floor of the Iron Maiden: one dark flag, lit, so the
+               // figures
+               // and the sphere have something to stand on and cast their
+               // values against.
+               {mesh(gm::quad(1800.0f, 1800.0f))
+                    .key("floor")
+                    .rotateX(-90.0f)
+                    .fill(material::surface::program(
+                        {.baseColor = {0.112f, 0.104f, 0.116f, 1.0f},
+                         .roughness = 0.9f}))
+                    .collection("ground"),
+                // The chamber's far wall. Without it the upper half of the
+                // frame is the clear colour, and a wireframe read against
+                // nothing is a wireframe with no depth in it.
+                mesh(gm::quad(2400.0f, 1200.0f))
+                    .key("wall")
+                    .at({0.0f, 300.0f, -900.0f})
+                    .fill(material::surface::program(
+                        {.baseColor = {0.088f, 0.086f, 0.104f, 1.0f},
+                         .roughness = 0.95f}))
+                    .collection("ground"),
+                // A cold key from behind the enemy and a warm fill at Ashley's
+                // back: the dungeon's own two-source reading, which is what
+                // separates the two figures without a rim pass.
+                directionalLight(
+                    {-0.42f, -0.74f, -0.52f},
+                    {.color = material::Color{0.62f, 0.72f, 1.00f, 1.0f},
+                     .intensity = 0.92f})
+                    .key("key"),
+                pointLight({.color = material::Color{1.00f, 0.58f, 0.26f, 1.0f},
+                            .intensity = 1.60f,
+                            .range = 1100.0f})
+                    .at({-330.0f, 240.0f, 300.0f})
+                    .key("torch"),
+                directionalLight(
+                    {0.34f, -0.42f, 0.84f},
+                    {.color = material::Color{0.44f, 0.50f, 0.66f, 1.0f},
+                     .intensity = 0.34f})
+                    .key("bounce"),
+                figure("ashley", kAshleyAt, 72.0f, 1.0f,
+                       material::surface::program(
+                           {.baseColor = {0.62f, 0.60f, 0.55f, 1.0f},
+                            .roughness = 0.44f}),
+                       0.0f, -1),
+                figure("dullahan", kEnemyAt, -104.0f, 1.34f,
+                       material::surface::program(
+                           {.baseColor = {0.22f, 0.24f, 0.30f, 1.0f},
+                            .roughness = 0.28f}),
+                       pulse, kSelected),
+                reachSphere(seconds), attackLadder(),
+                overlayQuad(overlay->texture())})
+        .key("battle");
   }
 };
 

@@ -19,11 +19,10 @@
 #include <sigilgeometry/mesh/curve/Pose.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/surface/Surface.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
-#include <sigilworld/kit/Kit.h>
+#include <sigilworld/World.h>
 
 #include <cmath>
 #include <glm/vec3.hpp>
@@ -38,12 +37,14 @@ namespace sections = sigil::geometry::sections;
 
 namespace {
 
-/** The camera's rail, and the seconds it takes to go round once. The
+/** The camera's rail, and the time it takes to go round once. The
  *  lens's target is written in the rail's own frame, so the aim depends
  *  on the radius and the height rather than on where the camera has
  *  got to. */
-constexpr world::kit::Turntable kTable{
-    .radius = 470.0f, .height = 190.0f, .period = 16.5f, .stations = 8};
+constexpr world::kit::Turntable kTable{.radius = 470.0f,
+                                       .height = 190.0f,
+                                       .period = motion::Duration(16.5),
+                                       .stations = 8};
 
 /** The loop both the tube and the comet ride: the kit's wave at its own
  *  stations, which is a ring that stands high and low by turns, so it
@@ -58,7 +59,7 @@ struct FirstLight {
               .background = material::Color{0.035f, 0.04f, 0.055f, 1.0f}});
   }
 
-  world::Frame describe(float seconds) {
+  world::Frame describe(motion::Duration now) {
     const gm::curve::Spline3 loop = ribbon();
     const gm::curve::Spline3 track = world::kit::rail(kTable);
 
@@ -69,14 +70,11 @@ struct FirstLight {
                         .normals = gm::pop::SweepOptions::Normals::Radial});
 
     const std::vector<glm::vec3> path = loop.sampleArcLength(96);
-    const float head =
-        motion::phase(motion::Duration(seconds), motion::Duration(1.0 / 0.35));
+    const float head = motion::phase(now, motion::Duration(1.0 / 0.35));
     // Where the lens stands: the turntable's node carries it, so the
     // pose the rail puts that node in at the distance it has travelled
     // IS the eye, and the comet is turned onto the same point.
-    const float travelled = motion::phase(motion::Duration(seconds),
-                                          motion::Duration(kTable.period)) *
-                            track.length();
+    const float travelled = motion::phase(now, kTable.period) * track.length();
     const glm::vec3 eye = gm::curve::poseAlong(track, travelled).position;
     // What stands at every point of the comet is a FLAKE, and a flat
     // body reads as the bead it draws only while it faces the viewer —
@@ -91,37 +89,34 @@ struct FirstLight {
             .fade({1.0f, 0.72f, 0.35f, 1.0f}, {0.25f, 0.55f, 1.0f, 1.0f})
             .lookAt(eye);
 
-    return world::Element().key("set").children(
-        {world::Element().key("sun").light(world::light::sun(
-             {-0.45f, -0.8f, -0.4f}, {1.0f, 0.96f, 0.9f, 1.0f}, 0.95f)),
-         world::Element()
-             .key("lamp")
-             .at({180, 150, 220})
-             .light(world::light::point({0, 0, 0}, {0.45f, 0.6f, 1.0f, 1.0f},
-                                        0.9f, 900.0f)),
-         world::kit::turntable(kTable, seconds),
-         world::Element()
-             .key("plate")
-             .at({0, -150, 0})
-             .rotateX(-90.0f)
-             .mesh(gm::quad(900, 900))
-             .fill(material::surface::program(
-                 {.baseColor = {0.10f, 0.11f, 0.14f, 1.0f}}))
-             .tag("ground"),
-         world::Element()
-             .key("tube")
-             .mesh(tube)
-             .fill(material::surface::program(
-                 {.baseColor = {0.62f, 0.66f, 0.74f, 1.0f}}))
-             .tag("lit"),
-         world::Element()
-             .key("comet")
-             .chain(comet)
-             .stamp(gm::quad(7.0f, 7.0f))
-             .window(head, 0.28f)
-             .fill(material::surface::program(
-                 {.baseColor = {0.95f, 0.75f, 0.42f, 1.0f}}))
-             .tag("glow")});
+    return world::group({world::directionalLight(
+                             {-0.45f, -0.8f, -0.4f},
+                             {.color = material::Color{1.0f, 0.96f, 0.9f, 1.0f},
+                              .intensity = 0.95f})
+                             .key("sun"),
+                         world::pointLight(
+                             {.color = material::Color{0.45f, 0.6f, 1.0f, 1.0f},
+                              .intensity = 0.9f,
+                              .range = 900.0f})
+                             .key("lamp")
+                             .at({180, 150, 220}),
+                         world::kit::turntable(kTable, now),
+                         world::mesh(gm::quad(900, 900))
+                             .key("plate")
+                             .at({0, -150, 0})
+                             .rotateX(-90.0f)
+                             .fill(material::Color{0.10f, 0.11f, 0.14f, 1.0f})
+                             .collection("ground"),
+                         world::mesh(tube)
+                             .key("tube")
+                             .fill(material::Color{0.62f, 0.66f, 0.74f, 1.0f})
+                             .collection("lit"),
+                         world::points(comet, gm::quad(7.0f, 7.0f),
+                                       {.window = world::Window{head, 0.28f}})
+                             .key("comet")
+                             .fill(material::Color{0.95f, 0.75f, 0.42f, 1.0f})
+                             .collection("glow")})
+        .key("set");
   }
 };
 

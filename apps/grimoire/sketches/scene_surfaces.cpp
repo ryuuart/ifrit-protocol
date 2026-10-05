@@ -58,7 +58,7 @@
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilweave/style/Type.h>
-#include <sigilworld/kit/Kit.h>
+#include <sigilworld/World.h>
 
 #include <array>
 #include <cmath>
@@ -309,7 +309,8 @@ struct SceneSurfaces {
                            .normals = gm::pop::SweepOptions::Normals::Frame});
   }
 
-  world::Frame describe(float seconds) {
+  world::Frame describe(sigil::motion::Duration now) {
+    const float seconds = (float)now.count();
     const std::array<material::Color, 3> accents = {
         material::Color{0.30f, 0.82f, 1.00f, 1.0f},
         material::Color{1.00f, 0.62f, 0.24f, 1.0f},
@@ -322,48 +323,50 @@ struct SceneSurfaces {
     // the +x axis: a set whose subject is a screen has to be built
     // toward where the camera starts, or the plate is a picture of its
     // edge.
-    world::Element console = world::Element().key("console").rotateY(90.0f);
-    for (int i = 0; i < 3; ++i) {
-      // The arc: each card stands one radius out along its own bearing
-      // and is turned to face the middle, which is two numbers rather
-      // than a matrix.
-      const float bearingDeg = ((float)i - 1.0f) * kArcSpreadDeg;
-      const float bearing = bearingDeg * kTwoPi / 360.0f;
-      // A bearing is measured from +z and turns toward +x, so the
-      // ellipse's two components land on z and on x in that order.
-      const glm::vec2 on =
-          arrange::onEllipse({0, 0}, {kArcRadius, kArcRadius}, bearing);
-      console.children(
-          {world::Element()
-               .key("card" + std::to_string(i))
-               .at({on.y, 78.0f, on.x - kArcRadius})
-               .mesh(gm::quad(kCardWidth, kCardHeight))
-               .backface(material::Backface::Visible)
-               .fill(screenOf(cards[(size_t)i].at(seconds, content[(size_t)i])))
-               .tag("flat")});
-    }
-
-    // CURVED: the same kind of content on a panel that is not flat.
-    console.children(
-        {world::Element()
-             .key("band")
-             .at({0.0f, -40.0f, 0.0f})
-             .mesh(gm::cylinderPanel(560.0f, 76.0f, kArcRadius, 72, 6))
-             .backface(material::Backface::Visible)
-             .fill(screenOf(strip.at(seconds, band(seconds))))
-             .tag("curved")});
-
-    // …and one lit body in front of them, so the plate carries both
-    // readings at once: a surface the emitters reach, and screens they
-    // do not.
-    console.children(
-        {world::Element()
-             .key("shelf")
-             .at({0.0f, -96.0f, 96.0f})
-             .mesh(gm::superellipsoid({330.0f, 9.0f, 74.0f}, 6.0f, 48, 16))
-             .fill(material::surface::program(
-                 {.baseColor = {0.42f, 0.45f, 0.53f, 1.0f}, .roughness = 0.3f}))
-             .tag("frame")});
+    const world::Group console =
+        world::group(
+            {world::each(3,
+                         [&](size_t i) {
+                           // The arc: each card stands one radius out along
+                           // its own bearing and is turned to face the
+                           // middle, which is two numbers rather than a
+                           // matrix.
+                           const float bearingDeg =
+                               ((float)i - 1.0f) * kArcSpreadDeg;
+                           const float bearing = bearingDeg * kTwoPi / 360.0f;
+                           // A bearing is measured from +z and turns toward
+                           // +x, so the ellipse's two components land on z
+                           // and on x in that order.
+                           const glm::vec2 on = arrange::onEllipse(
+                               {0, 0}, {kArcRadius, kArcRadius}, bearing);
+                           return world::mesh(gm::quad(kCardWidth, kCardHeight))
+                               .key("card" + std::to_string(i))
+                               .at({on.y, 78.0f, on.x - kArcRadius})
+                               .backface(material::Backface::Visible)
+                               .fill(screenOf(cards[i].at(seconds, content[i])))
+                               .collection("flat");
+                         }),
+             // CURVED: the same kind of content on a panel that is not
+             // flat.
+             world::mesh(gm::cylinderPanel(560.0f, 76.0f, kArcRadius, 72, 6))
+                 .key("band")
+                 .at({0.0f, -40.0f, 0.0f})
+                 .backface(material::Backface::Visible)
+                 .fill(screenOf(strip.at(seconds, band(seconds))))
+                 .collection("curved"),
+             // …and one lit body in front of them, so the plate carries
+             // both readings at once: a surface the lights reach, and
+             // screens they do not.
+             world::mesh(
+                 gm::superellipsoid({330.0f, 9.0f, 74.0f}, 6.0f, 48, 16))
+                 .key("shelf")
+                 .at({0.0f, -96.0f, 96.0f})
+                 .fill(material::surface::program(
+                     {.baseColor = {0.42f, 0.45f, 0.53f, 1.0f},
+                      .roughness = 0.3f}))
+                 .collection("frame")})
+            .key("console")
+            .rotateY(90.0f);
 
     // TILED: the third sampling of the same kind of scene. The card
     // repeats along the ribbon and stands once across it, and the tape
@@ -377,27 +380,27 @@ struct SceneSurfaces {
         {.baseColor = {1, 1, 1, 1}, .roughness = 0.4f});
     printedTape.slot(material::surface::kBaseColorSlot, std::move(printed));
 
-    world::Element room = world::Element().key("room");
-    room.children({std::move(console)});
-    room.children({world::Element()
-                       .key("ribbon")
-                       .mesh(rail)
-                       .backface(material::Backface::Visible)
-                       .fill(std::move(printedTape))
-                       .tag("tiled")});
+    const world::Group room =
+        world::group({console, world::mesh(rail)
+                                   .key("ribbon")
+                                   .backface(material::Backface::Visible)
+                                   .fill(std::move(printedTape))
+                                   .collection("tiled")})
+            .key("room");
 
-    world::kit::Set set;
-    set.rig.extent = 300.0f;
-    set.rig.bearing = -22.0f;
-    set.rig.elevation = 26.0f;
-    set.rig.intensity = 0.85f;
-    set.ground = 4.2f;
-    set.drop = 0.92f;
-    set.table.radius = 1020.0f;
-    set.table.height = 345.0f;
-    set.table.period = 40.0f;
-    set.table.fovYDeg = 40.0f;
-    return world::Frame(world::kit::litSet(std::move(room), set, seconds));
+    return world::kit::litSet(
+        room,
+        {.rig = {.extent = 300.0f,
+                 .bearing = -22.0f,
+                 .elevation = 26.0f,
+                 .intensity = 0.85f},
+         .table = {.radius = 1020.0f,
+                   .height = 345.0f,
+                   .period = sigil::motion::Duration(40.0),
+                   .fieldOfView = 40.0f},
+         .ground = 4.2f,
+         .drop = 0.92f},
+        now);
   }
 };
 

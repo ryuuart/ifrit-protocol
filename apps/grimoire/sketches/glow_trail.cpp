@@ -24,17 +24,15 @@
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/surface/Surface.h>
 #include <sigilmotion/time/Duration.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
-#include <sigilworld/kit/Kit.h>
+#include <sigilworld/World.h>
 
 #include <cmath>
 #include <glm/vec3.hpp>
 #include <string>
-#include <utility>
 #include <vector>
 
 namespace sketch = sigil::sketch;
@@ -62,13 +60,11 @@ gm::curve::Spline3 loop() {
 }
 
 /** The set: a ring of posts, a plate under them, and a comet of beads
- *  riding a moving window of the loop. Only the comet answers to
- *  "glow". */
-world::Element set(float seconds) {
-  const gm::curve::Spline3 rail = loop();
-  const std::vector<glm::vec3> path = rail.sampleArcLength(96);
-  const float head = motion::phase(sigil::motion::Duration(seconds),
-                                   sigil::motion::Duration(1.0 / 0.42));
+ *  riding a moving window of the loop. Only the comet is in the "glow"
+ *  collection. */
+world::Group set(motion::Duration now) {
+  const std::vector<glm::vec3> path = loop().sampleArcLength(96);
+  const float head = motion::phase(now, motion::Duration(1.0 / 0.42));
   // What stands at every point is a FLAKE, and a flat body reads as the
   // bead it draws only while it faces the viewer — so the direction lane
   // the loop seeded with its tangent is replaced by the gaze, and the
@@ -81,46 +77,40 @@ world::Element set(float seconds) {
           .fade({1.0f, 0.78f, 0.38f, 1.0f}, {1.0f, 0.42f, 0.16f, 1.0f})
           .lookAt(kEye);
 
-  world::Element posts;
-  posts.key("posts").children(world::each(kPosts, [](std::size_t i) {
-    // The angle is wanted too, to turn each post onto its own spoke, so
-    // the ring is taken as the two halves rather than as onRing.
-    const float angle =
-        arrange::along(0.0f, kTwoPi, i, kPosts, arrange::Turn::Closed);
-    const SkPoint on = sigil::geometry::path::toSk(
-        arrange::onEllipse({0, 0}, {kRing, kRing}, angle));
-    return world::Element()
-        .key("post" + std::to_string(i))
-        .at({on.fX, -84.0f, on.fY})
-        .rotateY(angle * 57.2957795f)
-        .mesh(gm::superellipsoid({8.0f, 40.0f, 8.0f}, 6.0f, 10, 6))
-        .fill(material::surface::program(
-            {.baseColor = {0.34f, 0.37f, 0.46f, 1.0f}}))
-        .tag("lit");
-  }));
+  const world::Group posts =
+      world::group(world::each(kPosts, [](std::size_t i) {
+        // The angle is wanted too, to turn each post onto its own spoke, so
+        // the ring is taken as the two halves rather than as onRing.
+        const float angle =
+            arrange::along(0.0f, kTwoPi, i, kPosts, arrange::Turn::Closed);
+        const SkPoint on = sigil::geometry::path::toSk(
+            arrange::onEllipse({0, 0}, {kRing, kRing}, angle));
+        return world::mesh(gm::superellipsoid({8.0f, 40.0f, 8.0f}, 6.0f, 10, 6))
+            .key("post" + std::to_string(i))
+            .at({on.fX, -84.0f, on.fY})
+            .rotateY(angle * 57.2957795f)
+            .fill(material::Color{0.34f, 0.37f, 0.46f, 1.0f})
+            .collection("lit");
+      })).key("posts");
 
-  world::Element root;
-  root.key("set").children(
-      {world::Element().key("sun").light(world::light::sun(
-           {-0.4f, -0.85f, -0.35f}, {0.95f, 0.96f, 1.0f, 1.0f}, 0.9f)),
-       world::Element()
-           .key("plate")
-           .at({0, -120, 0})
-           .rotateX(-90.0f)
-           .mesh(gm::quad(760, 760))
-           .fill(material::surface::program(
-               {.baseColor = {0.09f, 0.10f, 0.13f, 1.0f}}))
-           .tag("ground"),
-       std::move(posts),
-       world::Element()
-           .key("comet")
-           .chain(comet)
-           .stamp(gm::quad(8.9f, 8.9f))
-           .window(head, 0.22f)
-           .fill(material::surface::program(
-               {.baseColor = {1.0f, 0.72f, 0.34f, 1.0f}}))
-           .tag("glow")});
-  return root;
+  return world::group({world::directionalLight(
+                           {-0.4f, -0.85f, -0.35f},
+                           {.color = material::Color{0.95f, 0.96f, 1.0f, 1.0f},
+                            .intensity = 0.9f})
+                           .key("sun"),
+                       world::mesh(gm::quad(760, 760))
+                           .key("plate")
+                           .at({0, -120, 0})
+                           .rotateX(-90.0f)
+                           .fill(material::Color{0.09f, 0.10f, 0.13f, 1.0f})
+                           .collection("ground"),
+                       posts,
+                       world::points(comet, gm::quad(8.9f, 8.9f),
+                                     {.window = world::Window{head, 0.22f}})
+                           .key("comet")
+                           .fill(material::Color{1.0f, 0.72f, 0.34f, 1.0f})
+                           .collection("glow")})
+      .key("set");
 }
 
 }  // namespace
@@ -136,8 +126,8 @@ struct GlowTrail {
     ctx.camera({.eye = kEye, .target = {0.0f, -30.0f, 0.0f}, .fovYDeg = 42.0f});
   }
 
-  world::Frame describe(float seconds) {
-    world::Frame frame(set(seconds));
+  world::Frame describe(motion::Duration now) {
+    world::Frame frame(set(now));
     frame
         // The whole set, and — because a narrowed post pass follows it —
         // the coverage of what that pass addresses.
@@ -146,30 +136,31 @@ struct GlowTrail {
         .pass(world::postPass("hot")
                   .reads("colour")
                   .writes("hot")
-                  .only(world::selectors::tag("glow"))
-                  .levels(1.9f, 0.06f, {1.0f, 0.86f, 0.66f, 1.0f}))
+                  .only("glow")
+                  .levels({.gain = 1.9f,
+                           .lift = 0.06f,
+                           .tint = {1.0f, 0.86f, 0.66f, 1.0f}}))
         // CULL: the same beads, alone, so what is softened next is the
-        // emitters rather than the picture.
-        .pass(world::geometryPass("emitters")
-                  .only(world::selectors::tag("glow"))
-                  .writes("spark"))
+        // beads rather than the picture.
+        .pass(world::geometryPass("beads").only("glow").writes("spark"))
         .pass(
             world::postPass("bloom").reads("spark").writes("bloom").blur(11.0f))
         // …at a strength a tail can be built out of: what accumulates
         // over many frames must be dim in any one of them.
         .pass(world::postPass("ember").reads("bloom").writes("ember").levels(
-            0.42f, 0.0f, {1.0f, 0.80f, 0.52f, 1.0f}))
+            {.gain = 0.42f, .tint = {1.0f, 0.80f, 0.52f, 1.0f}}))
         // PREVIOUS: this frame's embers over the tail the frames before
         // it left, at a weight that lets the tail fade out.
         .pass(world::postPass("trail")
                   .reads("ember")
                   .previous("trail")
                   .writes("trail")
-                  .composite(sigil::material::BlendMode::PlusLighter, 0.88f))
+                  .composite({.mode = material::BlendMode::PlusLighter,
+                              .opacity = 0.88f}))
         .pass(world::postPass("picture")
                   .reads("hot", "trail")
                   .writes("picture")
-                  .composite(sigil::material::BlendMode::PlusLighter, 1.0f));
+                  .composite({.mode = material::BlendMode::PlusLighter}));
     return frame;
   }
 };

@@ -11,13 +11,10 @@
 #include <sigilgeometry/path/Polyline.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/surface/Surface.h>
-#include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilsketch/set/Set.h>
-#include <sigilworld/element/Element.h>
-#include <sigilworld/frame/Frame.h>
-#include <sigilworld/light/Light.h>
+#include <sigilworld/World.h>
 
 #include <algorithm>
 #include <array>
@@ -188,22 +185,21 @@ BrushMaps brushMaps() {
   return out;
 }
 
-material::EnvironmentMap studio() {
-  return material::EnvironmentMap::baked(512, [](float u, float v) {
-    const auto strip = [u, v](float center, float width, float elevation,
-                              float height) {
-      const float du = std::min(std::abs(u - center), 1 - std::abs(u - center));
-      const float x = du / width, y = (v - elevation) / height;
-      return std::exp(-0.5f * (x * x + y * y));
-    };
-    const float ceiling = std::pow(1 - v, 1.7f);
-    glm::vec3 result{0.30f + ceiling * 0.85f, 0.33f + ceiling * 0.87f,
-                     0.37f + ceiling * 0.92f};
-    result += glm::vec3{6.8f, 6.5f, 6.0f} * strip(0.16f, 0.06f, 0.49f, 0.23f);
-    result += glm::vec3{1.2f, 1.55f, 2.1f} * strip(0.74f, 0.07f, 0.40f, 0.12f);
-    result += glm::vec3{3.6f, 3.8f, 4.0f} * strip(0.01f, 0.02f, 0.44f, 0.29f);
-    return result;
-  });
+world::EnvironmentMap studio() {
+  return world::kit::environmentMap(
+      {.width = 512,
+       .zenith = {1.15f, 1.20f, 1.29f},
+       .nadir = {0.30f, 0.33f, 0.37f},
+       .exponent = 1.7f,
+       .softBoxes = {{.centre = {0.16f, 0.49f},
+                      .size = {0.06f, 0.23f},
+                      .radiance = {6.8f, 6.5f, 6.0f}},
+                     {.centre = {0.74f, 0.40f},
+                      .size = {0.07f, 0.12f},
+                      .radiance = {1.2f, 1.55f, 2.1f}},
+                     {.centre = {0.01f, 0.44f},
+                      .size = {0.02f, 0.29f},
+                      .radiance = {3.6f, 3.8f, 4.0f}}}});
 }
 
 material::Material metal(material::Color color, float roughness) {
@@ -243,17 +239,13 @@ gm::Mesh cap(float w, float h, float corner) {
     contour.points.emplace_back(p.x, p.y);
   return gm::fill(path::toPath(contour));
 }
-world::Element part(std::string key, gm::Mesh mesh, material::Material finish,
-                    glm::vec3 at = {0, 0, 0}) {
-  return world::Element()
-      .key(key)
-      .mesh(std::move(mesh))
-      .fill(std::move(finish))
-      .at(at);
+world::Mesh part(std::string key, gm::Mesh mesh, material::Material finish,
+                 glm::vec3 at = {0, 0, 0}) {
+  return world::mesh(std::move(mesh)).key(key).fill(std::move(finish)).at(at);
 }
 
-world::Element knob(float radius, const material::Material& bright,
-                    const material::Material& dark) {
+world::Group knob(float radius, const material::Material& bright,
+                  const material::Material& dark) {
   const auto shell = gm::revolve({{0, -4},
                                   {radius - 3, -4},
                                   {radius, 0},
@@ -261,8 +253,7 @@ world::Element knob(float radius, const material::Material& bright,
                                   {radius - 4, 24},
                                   {0, 24}},
                                  {.segments = 96});
-  world::Element result;
-  result.children(
+  return world::group(
       {part("lathed", shell, bright).rotateX(90),
        part("cap",
             gm::revolve({{0, 0}, {radius - 7, 0}, {radius - 7, 1}, {0, 1}},
@@ -271,19 +262,18 @@ world::Element knob(float radius, const material::Material& bright,
            .rotateX(90),
        part("index",
             gm::box({-0.9f, radius - 20, 25.3f}, {0.9f, radius - 10, 26}),
-            material::surface::unlit({.baseColor = ink(0xd5e8cb)}))});
-  for (int i = 0; i < 64; ++i) {
-    const float a = 2 * kPi * float(i) / 64;
-    result.children({part("knurl-" + std::to_string(i),
-                          gm::box({-0.7f, -1.0f, 0}, {0.7f, 1.0f, 15}), bright,
-                          {radius * std::cos(a), radius * std::sin(a), 1.5f})
-                         .rotateZ(float(i) * 360 / 64)});
-  }
-  return result;
+            material::surface::unlit({.baseColor = ink(0xd5e8cb)})),
+       world::each(64, [&](size_t i) {
+         const float a = 2 * kPi * float(i) / 64;
+         return part("knurl-" + std::to_string(i),
+                     gm::box({-0.7f, -1.0f, 0}, {0.7f, 1.0f, 15}), bright,
+                     {radius * std::cos(a), radius * std::sin(a), 1.5f})
+             .rotateZ(float(i) * 360 / 64);
+       })});
 }
 
-world::Element screw(const material::Material& steel) {
-  return world::Element().children(
+world::Group screw(const material::Material& steel) {
+  return world::group(
       {part("head",
             gm::revolve({{0, -1},
                          {3.5f, -1},
@@ -367,18 +357,18 @@ compose::Element displayGraphic(float seconds) {
 struct MetalInstrument {
   std::shared_ptr<compose::TextureScene> faceScene, displayScene, overlayScene;
   BrushMaps maps;
-  material::EnvironmentMap environment;
+  world::EnvironmentMap environment;
   material::Material polished{ink(0xadb8c2)}, dark{ink(0x263139)},
       blasted{ink(0x99a1a8)};
-  world::Element enclosure, bezel, screws, mainKnob, balanceKnob, sourceKnob;
-  std::array<world::Element, 3> coupons;
+  world::Group enclosure, screws, mainKnob, balanceKnob, sourceKnob;
+  world::Mesh bezel;
+  std::array<world::Mesh, 3> coupons;
   gm::Mesh panel, displayPlane, glassPlane;
 
   void setup(sketch::SetContext& ctx) {
     ctx.canvas(kWidth, kHeight);
     ctx.captureAt(2.4);
     ctx.background(ink(0x11191e));
-    ctx.camera(lens(moment(0)));
     maps = brushMaps();
     environment = studio();
     polished = metal({0.83f, 0.86f, 0.89f, 1}, kControls.polishedRoughness);
@@ -396,43 +386,43 @@ struct MetalInstrument {
                   ring(900, 300, 14, 53)});
     const auto frontBevel = gm::loft(
         {ring(900, 300, 14, 53), ring(880, 280, 10, 63)}, {.capEnds = false});
-    enclosure = world::Element()
-                    .key("enclosure")
-                    .children({part("walls", walls, brushed(maps)),
-                               part("polished-chamfer", frontBevel, polished),
-                               part("panel-seat", panel, dark, {0, 0, 62})});
+    std::vector<world::Node> casing{
+        part("walls", walls, brushed(maps)),
+        part("polished-chamfer", frontBevel, polished),
+        part("panel-seat", panel, dark, {0, 0, 62})};
     // Raised vent strips expose a stepped silhouette under a grazing camera.
     // The enclosure underneath stays closed; these are not through-holes.
-    for (int i = 0; i < 26; ++i) {
-      enclosure.children({part("vent-" + std::to_string(i),
-                               gm::box({-3, 149, -40}, {3, 150.6f, 29}), dark,
-                               {-260 + i * 20.0f, 0, 0})});
-    }
+    for (int i = 0; i < 26; ++i)
+      casing.push_back(part("vent-" + std::to_string(i),
+                            gm::box({-3, 149, -40}, {3, 150.6f, 29}), dark,
+                            {-260 + i * 20.0f, 0, 0}));
     for (int side : {-1, 1}) {
-      enclosure.children({part("rail-" + std::to_string(side),
-                               gm::box({-3, -137, -49}, {3, 137, 47}), polished,
-                               {side * 451.0f, 0, 0})});
-      for (int rear : {-1, 1}) {
-        enclosure.children({part(
+      casing.push_back(part("rail-" + std::to_string(side),
+                            gm::box({-3, -137, -49}, {3, 137, 47}), polished,
+                            {side * 451.0f, 0, 0}));
+      for (int rear : {-1, 1})
+        casing.push_back(part(
             "foot-" + std::to_string(side) + "-" + std::to_string(rear),
             gm::revolve({{0, -9}, {20, -9}, {23, -6}, {23, 4}, {19, 7}, {0, 7}},
                         {.segments = 48}),
             material::surface::program(
                 {.baseColor = ink(0x172025), .roughness = 0.92f}),
-            {side * 350.0f, -155, rear * 37.0f})});
-      }
+            {side * 350.0f, -155, rear * 37.0f}));
     }
+    enclosure = world::group(casing).key("enclosure");
     bezel = part("display-bezel",
                  gm::loft({ring(312, 123, 7, -4), ring(286, 103, 4, 7)},
                           {.capEnds = false}),
                  polished);
+    std::vector<world::Node> corners;
     for (int x : {-1, 1})
       for (int y : {-1, 1})
-        screws.children(
-            {screw(polished)
-                 .key("screw-" + std::to_string(x) + "-" + std::to_string(y))
-                 .at({x * 419.0f, y * 122.0f, 0})
-                 .rotateZ(float(x * y) * 28)});
+        corners.push_back(
+            screw(polished)
+                .key("screw-" + std::to_string(x) + "-" + std::to_string(y))
+                .at({x * 419.0f, y * 122.0f, 0})
+                .rotateZ(float(x * y) * 28));
+    screws = world::group(corners);
     mainKnob = knob(54, polished, brushed(maps));
     balanceKnob = knob(32, polished, metal({0.68f, 0.72f, 0.77f, 1}, 0.14f));
     sourceKnob = knob(26, polished, blasted);
@@ -524,7 +514,7 @@ struct MetalInstrument {
     return root;
   }
 
-  world::Element overlayQuad(const gm::camera::Camera& camera) const {
+  world::Mesh overlayQuad(const gm::camera::Camera& camera) const {
     const glm::vec3 forward = glm::normalize(camera.target - camera.eye);
     const float distance = camera.zNear + 4;
     const glm::vec2 extent = camera.extentAt(distance, float(kWidth) / kHeight);
@@ -534,7 +524,8 @@ struct MetalInstrument {
         .transform(gm::camera::faceCamera(camera.eye, at, camera.up));
   }
 
-  world::Frame describe(double seconds) {
+  world::Frame describe(sigil::motion::Duration now) {
+    const double seconds = now.count();
     const Moment m = moment(seconds);
     const double sceneTime =
         std::isfinite(seconds) ? std::max(0.0, seconds) : 0;
@@ -542,25 +533,6 @@ struct MetalInstrument {
     displayScene->render(displayGraphic(m.t), sceneTime);
     overlayScene->render(overlay(m), sceneTime);
     const float front = 65 + 135 * m.explode;
-    auto assembly =
-        world::Element()
-            .key("instrument")
-            .at({-50, 110, 0})
-            .rotateY(m.yaw)
-            .rotateX(m.pitch)
-            .scaleZ(m.depth / kBodyDepth)
-            .children(
-                {enclosure,
-                 part("engraved-face", panel,
-                      brushed(maps, faceScene->texture()), {0, 0, front}),
-                 screws.at({0, 0, front}), bezel.at({-253, 18, front + 2}),
-                 part("display", displayPlane, screen(displayScene->texture()),
-                      {-253, 18, front + 7}),
-                 mainKnob.at({145, -30, front + 7})
-                     .rotateZ(-44 + 10 * std::sin(m.t * 0.45f)),
-                 balanceKnob.at({285, -40, front + 7})
-                     .rotateZ(6 * std::sin(m.t * 0.6f)),
-                 sourceKnob.at({385, -40, front + 7}).rotateZ(35)});
     auto glass = material::surface::program(
         {.baseColor = {0.72f, 0.84f, 0.9f, 0.15f},
          .roughness = 0.085f,
@@ -568,39 +540,62 @@ struct MetalInstrument {
          .ior = 1.5f,
          .thickness = 1.8f,
          .reflectionWeight = 0.18f});
-    assembly.children(
-        {part("display-glass", glassPlane, glass, {-253, 18, front + 10})});
-    world::Element scene;
-    scene.camera(camera);
+    const world::Group assembly =
+        world::group(
+            {enclosure,
+             part("engraved-face", panel, brushed(maps, faceScene->texture()),
+                  {0, 0, front}),
+             world::Group(screws).at({0, 0, front}),
+             world::Mesh(bezel).at({-253, 18, front + 2}),
+             part("display", displayPlane, screen(displayScene->texture()),
+                  {-253, 18, front + 7}),
+             world::Group(mainKnob)
+                 .at({145, -30, front + 7})
+                 .rotateZ(-44 + 10 * std::sin(m.t * 0.45f)),
+             world::Group(balanceKnob)
+                 .at({285, -40, front + 7})
+                 .rotateZ(6 * std::sin(m.t * 0.6f)),
+             world::Group(sourceKnob).at({385, -40, front + 7}).rotateZ(35),
+             part("display-glass", glassPlane, glass, {-253, 18, front + 10})})
+            .key("instrument")
+            .at({-50, 110, 0})
+            .rotateY(m.yaw)
+            .rotateX(m.pitch)
+            .scaleZ(m.depth / kBodyDepth);
     const float lightTurn = m.t * bounded(kControls.lightSpeed, -60, 60, 8);
-    scene.children({world::Element()
-                        .key("studio")
-                        .environmentMap({.map = environment,
-                                         .intensity = 0.95f,
-                                         .diffuse = 0.45f,
-                                         .specular = 1,
-                                         .exposure = 1.05f})
-                        .rotateY(lightTurn),
-                    world::Element().key("key").light(world::light::sun(
+    return world::Frame(
+               world::group(
+                   {world::camera(camera, {.exposure = 1.05f}),
+                    world::directionalLight(
                         {0.9f * std::cos(radians(lightTurn)) -
                              0.38f * std::sin(radians(lightTurn)),
                          0.3f,
                          -0.9f * std::sin(radians(lightTurn)) -
                              0.38f * std::cos(radians(lightTurn))},
-                        {1, 0.93f, 0.81f, 1}, 2.2f)),
-                    world::Element().key("fill").light(world::light::sun(
-                        {0.75f, -0.2f, -0.5f}, {0.62f, 0.79f, 1, 1}, 0.55f)),
+                        {.color = material::Color{1, 0.93f, 0.81f, 1},
+                         .intensity = 2.2f})
+                        .key("key"),
+                    world::directionalLight(
+                        {0.75f, -0.2f, -0.5f},
+                        {.color = material::Color{0.62f, 0.79f, 1, 1},
+                         .intensity = 0.55f})
+                        .key("fill"),
                     assembly,
                     part("shelf", gm::box({-250, -274, 95}, {330, -268, 150}),
-                         material::surface::program({.baseColor = ink(0x182126),
-                                                     .roughness = 0.95f}))});
-    for (size_t i = 0; i < coupons.size(); ++i)
-      scene.children({coupons[i]
-                          .at({-175 + float(i) * 208, -218, 115})
-                          .rotateX(68)
-                          .rotateY(-15 + 8 * std::sin(m.t * 0.4f))});
-    scene.children({overlayQuad(camera)});
-    return world::Frame(scene).extent({kWidth, kHeight});
+                         material::surface::program(
+                             {.baseColor = ink(0x182126), .roughness = 0.95f})),
+                    world::each(coupons,
+                                [&](const world::Mesh& coupon, size_t i) {
+                                  return world::Mesh(coupon)
+                                      .at({-175 + float(i) * 208, -218, 115})
+                                      .rotateX(68)
+                                      .rotateY(-15 + 8 * std::sin(m.t * 0.4f));
+                                }),
+                    overlayQuad(camera)}))
+        .environment(environment, {.intensity = 0.95f,
+                                   .diffuse = 0.45f,
+                                   .specular = 1,
+                                   .rotation = lightTurn});
   }
 };
 

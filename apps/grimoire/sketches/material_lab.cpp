@@ -56,7 +56,7 @@
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
-#include <sigilworld/kit/Kit.h>
+#include <sigilworld/World.h>
 
 #include <algorithm>
 #include <boost/container/map.hpp>
@@ -204,14 +204,14 @@ material::texture::TextureMaps floorMaps() {
 }
 
 /** A card standing upright at @p x, wearing @p surface. */
-world::Element card(std::string_view key, float x, material::Material surface) {
-  return world::Element()
+world::Mesh card(std::string_view key, float x, material::Material surface) {
+  return world::mesh(
+             gm::cylinderPanel(kCardWidth, kCardHeight, kCardCurve, 24, 6))
       .key(key)
       .at({x, 0.0f, 0.0f})
       .rotateX(-kCardLean)
-      .mesh(gm::cylinderPanel(kCardWidth, kCardHeight, kCardCurve, 24, 6))
       .fill(std::move(surface))
-      .tag("card");
+      .collection("card");
 }
 
 /** PLAIN: a colour and a roughness, and no map anywhere. It is the
@@ -289,19 +289,18 @@ material::Material emitting() {
 }
 
 /** The five surfaces, left to right. */
-world::Element cards() {
+world::Group cards() {
   const float left = -2.0f * kCardGap;
-  return world::Element()
+  return world::group({card("plain", left, plain()),
+                       card("stacked", left + kCardGap, stacked()),
+                       card("bumped", left + 2.0f * kCardGap, bumped()),
+                       card("sweep", left + 3.0f * kCardGap, sweep()),
+                       card("emissive", left + 4.0f * kCardGap, emitting())})
       .key("cards")
       .at({0.0f, 40.0f, 0.0f})
       // The row runs across the turntable's parked station rather than
       // along it, so the cards are seen face on.
-      .rotateY(90.0f)
-      .children({card("plain", left, plain()),
-                 card("stacked", left + kCardGap, stacked()),
-                 card("bumped", left + 2.0f * kCardGap, bumped()),
-                 card("sweep", left + 3.0f * kCardGap, sweep()),
-                 card("emissive", left + 4.0f * kCardGap, emitting())});
+      .rotateY(90.0f);
 }
 
 }  // namespace
@@ -314,7 +313,7 @@ struct MaterialLab {
    *  about and the floor's two maps are generated pixel by pixel — so
    *  building them per frame would generate the same images sixty times
    *  a second to describe a picture that never changed. */
-  world::Element row;
+  world::Group row;
   std::optional<material::Material> floorSurface;
 
   void setup(sketch::SetContext& ctx) {
@@ -342,7 +341,7 @@ struct MaterialLab {
     floorSurface = std::move(floor);
   }
 
-  world::Frame describe(float seconds) {
+  world::Frame describe(sigil::motion::Duration now) {
     // The room, as one value. The key stands just off the eye's own
     // bearing and above it, so every card is lit face on and the
     // highlight lands where a reader is already looking; the fill opens
@@ -358,12 +357,12 @@ struct MaterialLab {
                                       .back = 0.5f},
                               .table = {.radius = 760.0f,
                                         .height = 420.0f,
-                                        .period = 0.0f,
-                                        .fovYDeg = 34.0f},
+                                        .period = sigil::motion::Duration(0.0),
+                                        .fieldOfView = 34.0f},
                               .ground = 5.0f,
                               .drop = 0.5f,
                               .surface = floorSurface};
-    return world::Frame(world::kit::litSet(row, set, seconds));
+    return world::kit::litSet(row, set, now);
   }
 };
 

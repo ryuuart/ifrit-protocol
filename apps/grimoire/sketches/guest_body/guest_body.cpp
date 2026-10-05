@@ -65,9 +65,9 @@
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Theme.h>
 #include <sigilsketch/set/Set.h>
-#include <sigilworld/element/Element.h>
+#include <sigilworld/World.h>
+#include <sigilworld/advanced/Light.h>
 #include <sigilworld/frame/Frame.h>
-#include <sigilworld/light/Light.h>
 
 #include <memory>
 #include <utility>
@@ -165,7 +165,8 @@ struct GuestBody {
     card = ctx.textureScene(kCard);
   }
 
-  world::Frame describe(float seconds) {
+  world::Frame describe(sigil::motion::Duration now) {
+    const float seconds = (float)now.count();
     if (card) card->render(waiting(), (double)seconds);
 
     // THE ASK IS EVERY FRAME, which is also what opens onto a publisher
@@ -180,51 +181,53 @@ struct GuestBody {
     if (picture.valid())
       screen.slot(material::surface::kBaseColorSlot, std::move(picture));
 
-    world::Element root;
-    root.key("set").children(
-        {world::Element().key("sun").light(world::light::sun(
-             {-0.45f, -0.55f, -0.7f}, {0.98f, 0.97f, 0.94f, 1.0f}, 1.45f)),
-         world::Element().key("fill").light(world::light::sun(
-             {0.7f, -0.2f, 0.4f}, {0.42f, 0.55f, 0.78f, 1.0f}, 0.35f)),
-         // The wall the set stands in front of, so the screen's turn is
-         // read against something that is not turning.
-         world::Element()
-             .key("wall")
-             .at({0, 40, -240})
-             .mesh(gm::quad(1100, 620))
-             .fill(material::surface::program(
-                 {.baseColor = {0.055f, 0.066f, 0.094f, 1.0f},
-                  .roughness = 0.85f})),
-         world::Element()
-             .key("floor")
-             .at({0, -108, -40})
-             .rotateX(-90.0f)
-             .mesh(gm::quad(1100, 520))
-             .fill(material::surface::program(
-                 {.baseColor = {0.07f, 0.078f, 0.10f, 1.0f},
-                  .roughness = 0.6f})),
-         // THE BODY: one turning thing, with the lit bezel and the unlit
-         // screen riding it, so the two faces turn together.
-         world::Element()
-             .key("body")
-             .at({0, 6, 0})
-             .rotateY(seconds * 360.0f / kTurnSeconds)
-             .children({world::Element()
-                            .key("bezel")
-                            .at({0, 0, -kRelief})
-                            .mesh(gm::quad(kScreen + kBezel * 2.0f,
-                                           kScreenHeight + kBezel * 2.0f))
-                            .backface(material::Backface::Visible)
-                            .fill(material::surface::program(
-                                {.baseColor = {0.60f, 0.63f, 0.67f, 1.0f},
-                                 .metallic = 0.9f,
-                                 .roughness = 0.34f})),
-                        world::Element()
-                            .key("screen")
-                            .mesh(gm::quad(kScreen, kScreenHeight))
-                            .backface(material::Backface::Visible)
-                            .fill(std::move(screen))})});
-    return world::Frame(std::move(root));
+    const world::Group root =
+        world::group(
+            {world::directionalLight(
+                 {-0.45f, -0.55f, -0.7f},
+                 {.color = material::Color{0.98f, 0.97f, 0.94f, 1.0f},
+                  .intensity = 1.45f})
+                 .key("sun"),
+             world::directionalLight(
+                 {0.7f, -0.2f, 0.4f},
+                 {.color = material::Color{0.42f, 0.55f, 0.78f, 1.0f},
+                  .intensity = 0.35f})
+                 .key("fill"),
+             // The wall the set stands in front of, so the screen's turn is
+             // read against something that is not turning.
+             world::mesh(gm::quad(1100, 620))
+                 .key("wall")
+                 .at({0, 40, -240})
+                 .fill(material::surface::program(
+                     {.baseColor = {0.055f, 0.066f, 0.094f, 1.0f},
+                      .roughness = 0.85f})),
+             world::mesh(gm::quad(1100, 520))
+                 .key("floor")
+                 .at({0, -108, -40})
+                 .rotateX(-90.0f)
+                 .fill(material::surface::program(
+                     {.baseColor = {0.07f, 0.078f, 0.10f, 1.0f},
+                      .roughness = 0.6f})),
+             // THE BODY: one turning thing, with the lit bezel and the unlit
+             // screen riding it, so the two faces turn together.
+             world::group({world::mesh(gm::quad(kScreen + kBezel * 2.0f,
+                                                kScreenHeight + kBezel * 2.0f))
+                               .key("bezel")
+                               .at({0, 0, -kRelief})
+                               .backface(material::Backface::Visible)
+                               .fill(material::surface::program(
+                                   {.baseColor = {0.60f, 0.63f, 0.67f, 1.0f},
+                                    .metallic = 0.9f,
+                                    .roughness = 0.34f})),
+                           world::mesh(gm::quad(kScreen, kScreenHeight))
+                               .key("screen")
+                               .backface(material::Backface::Visible)
+                               .fill(std::move(screen))})
+                 .key("body")
+                 .at({0, 6, 0})
+                 .rotateY(seconds * 360.0f / kTurnSeconds)})
+            .key("set");
+    return root;
   }
 };
 

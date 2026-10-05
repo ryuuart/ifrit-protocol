@@ -8,9 +8,9 @@
  * transmission, index and thickness finally have something on the other
  * side of them.
  *
- * THE SKY IS A NODE, and the node's transform orients it: `rotateY` on
- * the environment node is the whole of turning the sky, and the
- * reflections turn with it while the lights and the bodies stand still.
+ * THE SKY IS THE FRAME'S ENVIRONMENT, and its `rotation` orients it: one
+ * dial is the whole of turning the sky, and the reflections turn with it
+ * while the lights and the bodies stand still.
  * That is what makes the study readable — a still picture of a mirror
  * says nothing about which way the mirror is facing.
  *
@@ -22,8 +22,7 @@
  * because a dial that moves with the time is photographed at whatever
  * value each lane's own route to the capture reached, and two plates of
  * one description have to be pictures of the same moment. The turn of
- * the sky is what moves, and a transform is the same transform on
- * either tier.
+ * the sky is what moves.
  *
  * WHAT THE DEVICE SAYS. Under a sky the device evaluates the terms per
  * pixel — the cosine convolution for what falls on a surface, the split
@@ -45,7 +44,7 @@
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
-#include <sigilworld/kit/Kit.h>
+#include <sigilworld/World.h>
 
 #include <glm/vec3.hpp>
 #include <string_view>
@@ -101,33 +100,31 @@ constexpr int kMeridians = 64;
 constexpr int kParallels = 40;
 
 /** One sphere at @p x, wearing @p surface. */
-world::Element ball(std::string_view key, float x, material::Material surface) {
-  return world::Element()
+world::Mesh ball(std::string_view key, float x, material::Material surface) {
+  return world::mesh(gm::superellipsoid({kRadius, kRadius, kRadius}, 2.0f,
+                                        kMeridians, kParallels))
       .key(key)
       .at({x, 0.0f, 0.0f})
-      .mesh(gm::superellipsoid({kRadius, kRadius, kRadius}, 2.0f, kMeridians,
-                               kParallels))
       .fill(std::move(surface))
-      .tag("ball");
+      .collection("ball");
 }
 
 /** The four surfaces, left to right: a mirror, a rough metal, a
  *  dielectric and glass. Each is a composition the kit ships, so what
  *  the study varies is the surface and not the way it is spelled. */
-world::Element balls() {
+world::Group balls() {
   const float left = -1.5f * kGap;
-  return world::Element()
+  return world::group({ball("chrome", left, chrome()),
+                       ball("rough", left + kGap,
+                            metal({0.85f, 0.86f, 0.88f, 1}, 0.35f)),
+                       ball("dielectric", left + 2.0f * kGap,
+                            dielectric({0.14f, 0.30f, 0.42f, 1}, 0.15f)),
+                       ball("glass", left + 3.0f * kGap, glass())})
       .key("balls")
       .at({0.0f, 26.0f, 0.0f})
       // The row runs across the turntable's parked station rather than
       // along it, so all four are seen face on.
-      .rotateY(90.0f)
-      .children(
-          {ball("chrome", left, chrome()),
-           ball("rough", left + kGap, metal({0.85f, 0.86f, 0.88f, 1}, 0.35f)),
-           ball("dielectric", left + 2.0f * kGap,
-                dielectric({0.14f, 0.30f, 0.42f, 1}, 0.15f)),
-           ball("glass", left + 3.0f * kGap, glass())});
+      .rotateY(90.0f);
 }
 
 }  // namespace
@@ -139,9 +136,9 @@ struct ReflectionLab {
    *  texel by texel and prefiltered into nine levels the first time it
    *  is asked for; building one per frame would bake the same sky sixty
    *  times a second to describe a picture that never changed. */
-  world::Element row;
-  material::EnvironmentMap studio;
-  material::EnvironmentMap sunset;
+  world::Group row;
+  world::EnvironmentMap studio;
+  world::EnvironmentMap sunset;
 
   void setup(sketch::SetContext& ctx) {
     // Far enough into the turn that the sky has moved off its start and
@@ -161,29 +158,8 @@ struct ReflectionLab {
         {0.05f, 0.03f, 0.05f, 1});
   }
 
-  world::Frame describe(float seconds) {
-    // THE SKY, AS A NODE. Its transform is its orientation, so one
-    // rotate lane turns every reflection in the set at once; the
-    // crossfade runs beside it, from the studio bake to the sunset one.
-    world::Element dome = world::Element()
-                              .key("sky")
-                              .environmentMap({.map = studio, .next = sunset})
-                              .rotateY(seconds * 26.0f)
-                              // HELD, not ramping. Both maps are sampled and
-                              // mixed at this value, which is what the dial
-                              // does; moving it with the time would photograph
-                              // at two different values on two lanes that
-                              // reach their capture by different routes, and
-                              // the tiers would stop being comparable pictures
-                              // of one description. The SKY'S TURN is what
-                              // moves here, and it is a transform.
-                              .crossfade(0.45f)
-                              // The backdrop is shown, softly, so the row is
-                              // read against the sky it is reflecting rather
-                              // than against a flat ground.
-                              .backdrop(0.85f)
-                              .backdropBlur(0.35f);
-
+  world::Frame describe(sigil::motion::Duration now) {
+    const float seconds = (float)now.count();
     // The rig is dimmer than a studio's, because the sky is now most of
     // the light in the set: a key at full strength would wash the
     // reflections out and the study would be about the key. The
@@ -198,11 +174,22 @@ struct ReflectionLab {
                                       .intensity = 0.45f},
                               .table = {.radius = 700.0f,
                                         .height = 250.0f,
-                                        .period = 0.0f,
-                                        .fovYDeg = 32.0f},
+                                        .period = sigil::motion::Duration(0.0),
+                                        .fieldOfView = 32.0f},
                               .ground = 0.0f};
-    return world::Frame(world::kit::litSet(
-        world::Element().key("study").children({dome, row}), set, seconds));
+    // THE SKY. Its turn is one dial, so it turns every reflection in the
+    // set at once; the crossfade runs beside it, from the studio bake to
+    // the sunset one — HELD, not ramping, because both maps are sampled
+    // and mixed at this value and the sky's TURN is what moves here. The
+    // sky is shown too, softly, so the row is read against the sky it is
+    // reflecting rather than against a flat ground.
+    return world::Frame(
+               world::kit::litSet(world::group({row}).key("study"), set, now))
+        .environment(studio, {.next = sunset,
+                              .crossfade = 0.45f,
+                              .rotation = seconds * 26.0f,
+                              .shown = 0.85f,
+                              .blur = 0.35f});
   }
 };
 

@@ -190,8 +190,8 @@ struct TwoAdvancedV4 {
   static sigil::geometry::mesh::Mesh skyMesh();
 
   /** One pod: a dome on the water with a dark visor band and a lit maw. */
-  static world::Element pod(const std::string& key, float x, float z,
-                            float scale);
+  static world::Group pod(const std::string& key, float x, float z,
+                          float scale);
 
   /** The hero's world, PHOTOGRAPHED ONCE into an image @p w x @p h. The
    *  set is built here and handed to the host, which stands the frame in

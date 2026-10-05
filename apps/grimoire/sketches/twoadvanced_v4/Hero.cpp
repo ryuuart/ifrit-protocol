@@ -62,78 +62,82 @@ auto TwoAdvancedV4::skyMesh() -> sigil::geometry::mesh::Mesh {
 }
 
 auto TwoAdvancedV4::pod(const std::string& key, float x, float z, float scale)
-    -> world::Element {
+    -> world::Group {
   namespace gm = sigil::geometry::mesh;
-  world::Element p = world::Element().key(key).at({x, 0.0f, z}).scale(scale);
-  p.children({world::Element()
-                  .key(key + "-shell")
-                  .at({0.0f, 66.0f, 0.0f})
-                  .mesh(gm::superellipsoid({52.0f, 74.0f, 52.0f}, 2.6f, 28, 18))
-                  .fill(sigil::material::surface::program(
-                      {.baseColor = {0.070f, 0.086f, 0.098f, 1.0f},
-                       .metallic = 0.7f,
-                       .roughness = 0.28f})),
-              world::Element()
-                  .key(key + "-visor")
-                  .at({0.0f, 50.0f, 42.0f})
-                  .mesh(gm::superellipsoid({18.0f, 14.0f, 16.0f}, 1.8f, 20, 14))
-                  .fill(sigil::material::surface::unlit(
-                      {.baseColor = {0.42f, 0.055f, 0.045f, 1.0f},
-                       .emissive = {1.0f, 0.16f, 0.12f, 1.0f},
-                       .emissiveStrength = 1.4f}))});
-  return p;
+  return world::group({world::mesh(gm::superellipsoid({52.0f, 74.0f, 52.0f},
+                                                      2.6f, 28, 18))
+                           .key(key + "-shell")
+                           .at({0.0f, 66.0f, 0.0f})
+                           .fill(sigil::material::surface::program(
+                               {.baseColor = {0.070f, 0.086f, 0.098f, 1.0f},
+                                .metallic = 0.7f,
+                                .roughness = 0.28f})),
+                       world::mesh(gm::superellipsoid({18.0f, 14.0f, 16.0f},
+                                                      1.8f, 20, 14))
+                           .key(key + "-visor")
+                           .at({0.0f, 50.0f, 42.0f})
+                           .fill(sigil::material::surface::unlit(
+                               {.baseColor = {0.42f, 0.055f, 0.045f, 1.0f},
+                                .emissive = {1.0f, 0.16f, 0.12f, 1.0f},
+                                .emissiveStrength = 1.4f}))})
+      .key(key)
+      .at({x, 0.0f, z})
+      .scale(scale);
 }
 
 auto TwoAdvancedV4::bakeHero(int w, int h, sketch::SketchContext& ctx)
     -> sk_sp<SkImage> {
   namespace gm = sigil::geometry::mesh;
   using namespace tav;
-  world::Element scene = world::Element().key("mainframe");
-
   // The lights: a cold key from behind the city, so the pods are read
   // as silhouettes against the halo, and a dim fill from the front so
   // their metal is not black.
-  scene.children(
-      {world::Element().key("key").light(world::light::sun(
-           {0.16f, -0.30f, 0.94f}, {0.36f, 0.86f, 0.92f, 1.0f}, 1.05f)),
-       world::Element().key("fill").light(world::light::sun(
-           {-0.34f, -0.52f, -0.78f}, {0.44f, 0.72f, 0.82f, 1.0f}, 0.95f)),
-       // THE SKY is a body: one unlit backdrop far behind everything, with
-       // the ramp in its vertex colours. A gradient painted under the render
-       // would be a second picture the scene knows nothing about.
-       world::Element()
-           .key("sky")
-           .at({0.0f, 900.0f, -5200.0f})
-           .mesh(skyMesh())
-           .fill(sigil::material::surface::unlit({.baseColor = {1, 1, 1, 1}})),
-       world::Element()
-           .key("water")
-           .rotateX(-90.0f)
-           .mesh(gm::quad(9000.0f, 9000.0f))
-           .fill(sigil::material::surface::program(
-               {.baseColor = {0.012f, 0.070f, 0.082f, 1.0f},
-                .metallic = 0.9f,
-                .roughness = 0.10f})),
-       world::Element()
-           .key("city")
-           .mesh(cityMesh())
-           .fill(sigil::material::surface::program(
-               {.baseColor = {1, 1, 1, 1}, .roughness = 0.85f})),
-       // THE HALO: a real ring behind the pods, which is what the reference
-       // reads as depth rather than as a drawn circle — the middle pod
-       // occludes it.
-       world::Element()
-           .key("halo")
-           .at({0.0f, 150.0f, -760.0f})
-           .rotateX(90.0f)
-           .mesh(gm::torus(300.0f, 7.0f, 80, 8))
-           .fill(sigil::material::surface::unlit(
-               {.baseColor = {0.62f, 0.98f, 0.99f, 1.0f},
-                .emissive = {0.62f, 0.98f, 0.99f, 1.0f},
-                .emissiveStrength = 2.4f})),
-       pod("pod-mid", 0.0f, -430.0f, 1.60f),
-       pod("pod-left", -352.0f, -580.0f, 1.30f),
-       pod("pod-right", 358.0f, -600.0f, 1.26f)});
+  const world::Group scene =
+      world::group(
+          {world::directionalLight(
+               {0.16f, -0.30f, 0.94f},
+               {.color = material::Color{0.36f, 0.86f, 0.92f, 1.0f},
+                .intensity = 1.05f})
+               .key("key"),
+           world::directionalLight(
+               {-0.34f, -0.52f, -0.78f},
+               {.color = material::Color{0.44f, 0.72f, 0.82f, 1.0f},
+                .intensity = 0.95f})
+               .key("fill"),
+           // THE SKY is a body: one unlit backdrop far behind everything, with
+           // the ramp in its vertex colours. A gradient painted under the
+           // render would be a second picture the scene knows nothing about.
+           world::mesh(skyMesh())
+               .key("sky")
+               .at({0.0f, 900.0f, -5200.0f})
+               .fill(sigil::material::surface::unlit(
+                   {.baseColor = {1, 1, 1, 1}})),
+           world::mesh(gm::quad(9000.0f, 9000.0f))
+               .key("water")
+               .rotateX(-90.0f)
+               .fill(sigil::material::surface::program(
+                   {.baseColor = {0.012f, 0.070f, 0.082f, 1.0f},
+                    .metallic = 0.9f,
+                    .roughness = 0.10f})),
+           world::mesh(cityMesh())
+               .key("city")
+               .fill(sigil::material::surface::program(
+                   {.baseColor = {1, 1, 1, 1}, .roughness = 0.85f})),
+           // THE HALO: a real ring behind the pods, which is what the reference
+           // reads as depth rather than as a drawn circle — the middle pod
+           // occludes it.
+           world::mesh(gm::torus(300.0f, 7.0f, 80, 8))
+               .key("halo")
+               .at({0.0f, 150.0f, -760.0f})
+               .rotateX(90.0f)
+               .fill(sigil::material::surface::unlit(
+                   {.baseColor = {0.62f, 0.98f, 0.99f, 1.0f},
+                    .emissive = {0.62f, 0.98f, 0.99f, 1.0f},
+                    .emissiveStrength = 2.4f})),
+           pod("pod-mid", 0.0f, -430.0f, 1.60f),
+           pod("pod-left", -352.0f, -580.0f, 1.30f),
+           pod("pod-right", 358.0f, -600.0f, 1.26f)})
+          .key("mainframe");
 
   camera::Camera lens;
   lens.eye = {0.0f, 30.0f, 320.0f};
@@ -143,8 +147,8 @@ auto TwoAdvancedV4::bakeHero(int w, int h, sketch::SketchContext& ctx)
   lens.zNear = 4.0f;
   lens.zFar = 12000.0f;
 
-  return ctx.bakeSet(world::Frame(std::move(scene)), lens, {w, h},
-                     hexColor(0x02070A));
+  return ctx.bakeSet(scene, {w, h},
+                     {.camera = lens, .background = hexColor(0x02070A)});
 }
 
 auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {

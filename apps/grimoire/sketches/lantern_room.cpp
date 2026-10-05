@@ -32,13 +32,14 @@
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
-#include <sigilworld/kit/Kit.h>
+#include <sigilworld/World.h>
 
 #include <array>
 #include <cmath>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <string>
+#include <vector>
 
 namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
@@ -118,28 +119,9 @@ struct LanternRoom {
               .background = material::Color{0.010f, 0.012f, 0.020f, 1.0f}});
   }
 
-  world::Frame describe(float seconds) {
-    world::Element room = world::Element().key("room");
-
-    room.children(
-        {world::Element()
-             .key("plinth")
-             .at({0.0f, kFloor, 0.0f})
-             .mesh(plinth())
-             .fill(material::surface::program(
-                 {.baseColor = {0.13f, 0.13f, 0.16f, 1.0f}, .roughness = 0.8f}))
-             .tag("ground"),
-         // A sun so faint it is an outline rather than a light: what keeps
-         // the far side of every body from being nothing at all.
-         world::Element().key("sun").light(world::light::sun(
-             {-0.35f, -0.85f, -0.4f}, {0.52f, 0.60f, 0.86f, 1.0f}, 0.22f)),
-         // The spot: opening downward onto the middle of the cluster, so the
-         // tallest body is picked out from above while the lanterns reach it
-         // from the sides.
-         world::Element().key("spot").light(world::light::spot(
-             {0.0f, 520.0f, 0.0f}, {0.0f, -1.0f, 0.0f}, 22.0f, 8.0f,
-             {1.0f, 0.96f, 0.88f, 1.0f}, 0.9f, 900.0f))});
-
+  world::Frame describe(sigil::motion::Duration now) {
+    const float seconds = (float)now.count();
+    std::vector<world::Node> lanterns;
     for (const Lantern& lantern : kLanterns) {
       // Each lantern rides a slow bob of its own, so what it reaches
       // changes: a falloff is a function of distance, and the clearest
@@ -151,55 +133,84 @@ struct LanternRoom {
       const SkPoint on = sigil::geometry::path::toSk(
           arrange::onEllipse({0, 0}, {kRing, kRing}, bearing));
       const glm::vec3 at{on.fY, kFloor + lantern.height + 42.0f * bob, on.fX};
-      room.children(
-          {world::Element()
-               .key(std::string(lantern.key) + "-shell")
-               .at(at)
-               .mesh(gm::superellipsoid({19.0f, 26.0f, 19.0f}, 1.4f, 24, 16))
-               .fill(glow(lantern.color))
-               .tag("lantern"),
-           // …and the emitter at the same place, a sibling rather than a
-           // child: a node that is only an emitter carries no geometry, and
-           // nothing about a light is welded to a body.
-           world::Element()
-               .key(std::string(lantern.key) + "-lamp")
-               .at(at)
-               .light(world::light::point({0, 0, 0},
-                                          {lantern.color.r, lantern.color.g,
-                                           lantern.color.b, lantern.color.a},
-                                          1.25f, kReach))
-               .tag("lamp")});
+      lanterns.push_back(
+          world::mesh(gm::superellipsoid({19.0f, 26.0f, 19.0f}, 1.4f, 24, 16))
+              .key(std::string(lantern.key) + "-shell")
+              .at(at)
+              .fill(glow(lantern.color))
+              .collection("lantern"));
+      // …and the light at the same place, a sibling rather than a child:
+      // a light carries no geometry, and nothing about a light is welded
+      // to a body.
+      lanterns.push_back(
+          world::pointLight(
+              {.color = material::Color{lantern.color.r, lantern.color.g,
+                                        lantern.color.b, lantern.color.a},
+               .intensity = 1.25f,
+               .range = kReach})
+              .key(std::string(lantern.key) + "-lamp")
+              .at(at)
+              .collection("lamp"));
     }
 
-    for (size_t i = 0; i < kBodies.size(); ++i) {
-      const Body& body = kBodies[i];
-      room.children(
-          {world::Element()
-               .key("body" + std::to_string(i))
-               .at({body.at.x, kFloor + body.at.y, body.at.z})
-               .mesh(gm::superellipsoid(body.radii, body.exponent, 40, 26))
-               .fill(material::surface::program(
-                   {.baseColor = {0.52f, 0.53f, 0.57f, 1.0f},
-                    .roughness = 0.5f}))
-               .tag("body")});
-    }
-
-    // The camera is the kit's turntable and nothing else is: this study
-    // lights its own room, so the preset that puts three lamps over a
-    // ground plane would be describing a second room on top of it.
-    room.children({world::kit::turntable({.at = {0.0f, 0.0f, 0.0f},
-                                          .radius = 760.0f,
-                                          .height = 260.0f,
-                                          .period = 24.0f,
-                                          .fovYDeg = 44.0f},
-                                         seconds)});
-    return world::Frame(std::move(room));
+    return world::group(
+               {world::mesh(plinth())
+                    .key("plinth")
+                    .at({0.0f, kFloor, 0.0f})
+                    .fill(material::surface::program(
+                        {.baseColor = {0.13f, 0.13f, 0.16f, 1.0f},
+                         .roughness = 0.8f}))
+                    .collection("ground"),
+                // A directional light so faint it is an outline rather
+                // than a light: what keeps the far side of every body from
+                // being nothing at all.
+                world::directionalLight(
+                    {-0.35f, -0.85f, -0.4f},
+                    {.color = material::Color{0.52f, 0.60f, 0.86f, 1.0f},
+                     .intensity = 0.22f})
+                    .key("sun"),
+                // The spot: opening downward onto the middle of the
+                // cluster, so the tallest body is picked out from above
+                // while the lanterns reach it from the sides.
+                world::spotLight(
+                    {0.0f, -1.0f, 0.0f},
+                    {.color = material::Color{1.0f, 0.96f, 0.88f, 1.0f},
+                     .intensity = 0.9f,
+                     .range = 900.0f,
+                     .innerAngle = 8.0f,
+                     .outerAngle = 22.0f})
+                    .key("spot")
+                    .at({0.0f, 520.0f, 0.0f}),
+                lanterns,
+                world::each(
+                    kBodies,
+                    [](const Body& body, size_t i) {
+                      return world::mesh(gm::superellipsoid(
+                                             body.radii, body.exponent, 40, 26))
+                          .key("body" + std::to_string(i))
+                          .at({body.at.x, kFloor + body.at.y, body.at.z})
+                          .fill(material::surface::program(
+                              {.baseColor = {0.52f, 0.53f, 0.57f, 1.0f},
+                               .roughness = 0.5f}))
+                          .collection("body");
+                    }),
+                // The camera is the kit's turntable and nothing else is:
+                // this study lights its own room, so the preset that puts
+                // three lamps over a ground plane would be describing a
+                // second room on top of it.
+                world::kit::turntable({.radius = 760.0f,
+                                       .height = 260.0f,
+                                       .period = sigil::motion::Duration(24.0),
+                                       .fieldOfView = 44.0f},
+                                      now)})
+        .key("room");
   }
 };
 
 }  // namespace
 
 SIGIL_SKETCH(LanternRoom, "Set",
-             "The three emitters in one dark room — four coloured "
+             "The three kinds of light in one dark room — four coloured "
              "lanterns that are their own light and carry a lamp each, a "
-             "spot from above, and a sun faint enough to be an outline")
+             "spot from above, and a directional light faint enough to be "
+             "an outline")

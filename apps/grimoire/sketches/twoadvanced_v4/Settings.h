@@ -43,7 +43,7 @@
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Scrollbar.h>
 #include <sigilweave/style/Face.h>
-#include <sigilworld/frame/Frame.h>
+#include <sigilworld/World.h>
 
 #include <algorithm>
 #include <array>

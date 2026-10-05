@@ -35,7 +35,7 @@
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
-#include <sigilworld/kit/Kit.h>
+#include <sigilworld/World.h>
 
 #include <algorithm>
 #include <cmath>
@@ -108,7 +108,8 @@ struct DeformedCloud {
     }
   }
 
-  world::Frame describe(float seconds) {
+  world::Frame describe(sigil::motion::Duration now) {
+    const float seconds = (float)now.count();
     const float middle = (low + high) * 0.5f;
     const glm::vec3 centre{0.0f, middle, 0.0f};
     const glm::vec3 slab{kExtent * 6.0f, (high - low) * kBandFraction,
@@ -142,20 +143,18 @@ struct DeformedCloud {
                                       .elevation = 30.0f},
                               .table = {.radius = 640.0f,
                                         .height = 230.0f,
-                                        .period = 20.0f,
-                                        .fovYDeg = 42.0f},
+                                        .period = sigil::motion::Duration(20.0),
+                                        .fieldOfView = 42.0f},
                               .ground = 4.0f,
                               .drop = 1.0f};
 
-    return world::Frame(world::kit::litSet(
-        world::Element()
+    return world::kit::litSet(
+        world::points(forged, gm::quad(3.1f, 3.1f))
             .key("forged")
-            .chain(forged)
-            .stamp(gm::quad(3.1f, 3.1f))
             .fill(material::surface::program(
                 {.baseColor = {1, 1, 1, 1}, .roughness = 0.6f}))
-            .tag("cloud"),
-        set, seconds));
+            .collection("cloud"),
+        set, now);
   }
 };
 
