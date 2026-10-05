@@ -291,9 +291,14 @@ void bindKinds(py::module_& module) {
       "A group of the nodes given, in order: nodes of any kind, or one "
       "iterable of them.");
 
+  py::enum_<world::Facing>(module, "Facing")
+      .value("None_", world::Facing::None)
+      .value("Camera", world::Facing::Camera)
+      .value("CameraUpright", world::Facing::CameraUpright);
   auto mesh = py::class_<world::Mesh, world::Node>(module, "Mesh");
   bindNodeVerbs(mesh);
   bindSurfaceVerbs(mesh);
+  mesh.def("facing", &world::Mesh::facing, py::arg("facing"), fluent);
   module.def(
       "mesh",
       [](geometry::mesh::Mesh triangles) {
@@ -544,7 +549,25 @@ void bindWorld(py::module_& root) {
             return self.composite({.mode = mode, .opacity = opacity});
           },
           py::arg("mode") = material::BlendMode::PlusLighter,
-          py::arg("opacity") = 1, fluent);
+          py::arg("opacity") = 1, fluent)
+      .def(
+          "bloom",
+          [](world::Pass& self, float threshold, float intensity,
+             float radius) -> world::Pass& {
+            return self.bloom({.threshold = threshold,
+                               .intensity = intensity,
+                               .radius = radius});
+          },
+          py::arg("threshold") = 1.0f, py::arg("intensity") = 0.6f,
+          py::arg("radius") = 24.0f, fluent);
+  module.def(
+      "bloom",
+      [](float threshold, float intensity, float radius) {
+        return world::bloom(
+            {.threshold = threshold, .intensity = intensity, .radius = radius});
+      },
+      py::kw_only(), py::arg("threshold") = 1.0f, py::arg("intensity") = 0.6f,
+      py::arg("radius") = 24.0f);
   module.def("geometryPass", &world::geometryPass, py::arg("name"));
   module.def("postPass", &world::postPass, py::arg("name"));
   py::class_<world::Frame>(module, "Frame")

@@ -6,6 +6,7 @@
 from pathlib import Path as _Path
 
 from _sigil.media import (
+    ColorSpace,
     Encoder,
     Format,
     Frame,
@@ -26,7 +27,11 @@ def load(path, *, width=0, height=0, layer=""):
     raster size and an EXR a layer."""
     path = _Path(path)
     return decode(
-        Image, path.read_bytes(), width=width, height=height, layer=layer,
+        Image,
+        path.read_bytes(),
+        width=width,
+        height=height,
+        layer=layer,
         hint=str(path),
     )
 
@@ -50,6 +55,7 @@ def save(image, path, *, format=None, quality=100):
 
 
 __all__ = [
+    "ColorSpace",
     "Encoder",
     "Format",
     "Frame",

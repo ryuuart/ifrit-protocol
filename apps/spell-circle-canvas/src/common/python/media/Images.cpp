@@ -7,8 +7,8 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkPixmap.h>
 #include <pybind11/stl.h>
-#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/advanced/Device.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/core/Image.h>
 #include <sigilmedia/difference/Difference.h>
 #include <sigilmedia/image/Decode.h>
@@ -75,6 +75,9 @@ void bindMediaImages(py::module_& module) {
         return image;
       },
       py::arg("pixels"), py::arg("width"), py::arg("height"));
+  py::enum_<media::ColorSpace>(media, "ColorSpace")
+      .value("Srgb", media::ColorSpace::Srgb)
+      .value("Data", media::ColorSpace::Data);
   py::enum_<media::Format>(media, "Format")
       .value("Png", media::Format::Png)
       .value("Jpeg", media::Format::Jpeg)
@@ -85,11 +88,10 @@ void bindMediaImages(py::module_& module) {
   // picture: Python draws through a canvas that holds no recorder of the
   // device a hardware decode or a publication stands on.
   py::class_<media::Frame>(media, "Frame")
-      .def_property_readonly(
-          "image",
-          [](const media::Frame& frame) {
-            return media::deviceImage(frame, nullptr);
-          })
+      .def_property_readonly("image",
+                             [](const media::Frame& frame) {
+                               return media::deviceImage(frame, nullptr);
+                             })
       .def_readonly("time", &media::Frame::time)
       .def_readonly("duration", &media::Frame::duration)
       .def_readonly("index", &media::Frame::index);
@@ -113,27 +115,31 @@ void bindMediaImages(py::module_& module) {
       .def("frames", &media::Image::frames)
       .def(
           "frameAt",
-          [](const media::Image& image,
-             std::chrono::duration<double> elapsed) {
+          [](const media::Image& image, std::chrono::duration<double> elapsed) {
             return image.frameAt(elapsed);
           },
           py::arg("elapsed"));
   media.def(
       "decode",
       [](py::handle type, py::bytes data, int width, int height,
-         const std::string& layer, const std::string& hint) {
+         const std::string& layer, const std::string& hint,
+         media::ColorSpace colorSpace) {
         if (!type.is(py::type::of<media::Image>()))
           throw py::type_error(
               "media.decode answers an Image; a video opens through a hub");
         const std::string bytes = data;
-        auto decoded = media::decode<media::Image>(
-            bytesOf(bytes), {.layer = layer, .width = width, .height = height},
-            hint);
+        auto decoded = media::decode<media::Image>(bytesOf(bytes),
+                                                   {.layer = layer,
+                                                    .width = width,
+                                                    .height = height,
+                                                    .colorSpace = colorSpace},
+                                                   hint);
         if (!decoded) throw py::value_error("The image could not be decoded.");
         return held(std::move(decoded));
       },
       py::arg("type"), py::arg("data"), py::kw_only(), py::arg("width") = 0,
-      py::arg("height") = 0, py::arg("layer") = "", py::arg("hint") = "");
+      py::arg("height") = 0, py::arg("layer") = "", py::arg("hint") = "",
+      py::arg("colorSpace") = media::ColorSpace::Srgb);
   media.def(
       "encode",
       [](const SkImage& image, media::Format format, int quality) {

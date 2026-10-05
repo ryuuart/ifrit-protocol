@@ -62,8 +62,9 @@ that its pixels match the original.
 | Study · Esoteric | 4 | 0 | 0 |
 | Study · Screens | 6 | 0 | 0 |
 | Study · Game UI | 11 | 0 | 0 |
+| Study · Effects | 1 | 0 | 0 |
 | Study · Materials | 17 | 0 | 0 |
-| **All** | **244** | **57** | **9** |
+| **All** | **245** | **57** | **9** |
 
 Every sketch in Draw, Draw · Generative, Draw · Observable reproductions, Draw
 · Procedural, Kit · Depth, Compose · Typography and Study · Paint is bound.
@@ -695,6 +696,12 @@ model, arithmetic and data become Python code and are not listed.
 | `thaumonomicon` | Stamped brushes and shapers; hatches; routed wires; silhouettes; pixel sprites; baked pixel type; lattice hash; grain; bound motion | `compose::lines::Line` and `lines::Rails`; `compose::Brush` shaped layer stacks; `compose::brush` scatter, pattern and art brushes; `compose::PaintProgram` canvas decorations; `compose::lines::Hatch` and `lines::RadialHatch`; `compose::LayeredBrush` stroke layers; `compose::routers` stock routers; `compose::kit` pixel type (`bakeRun`, `Mask`, `PixFont`); `compose::kit` pixel sprites (`Sprite`, `PixelInk`); `SkCanvas` layers, `drawPaint` and `drawImageRect`; `core::noise::hash` / `lattice` positional hashes; `geometry::path::PolarFrame` and `path::Grid`; `geometry::shapers` and `path::Shaper` |
 | `vagrant_story_target` | Device set hosting; lit meshes and lights; compose texture on material slot; frustum extent; baked pixel type; kit meter | Set sketches (`sketch::SetContext`, `describe`); `sketch::kit::meter` and `gauge`; `compose::TextureScene` and `SketchContext::textureScene`; `compose::Border` and `compose::decorations::border` rules; `compose::kit` pixel type (`bakeRun`, `Mask`, `PixFont`); `material::Texture` and `Material::slot` |
 | `xcom_battlescape` | Instanced atlas pools; palette lookup shader; index sprites; coverage pixel type; pattern tiles; check table; lattice hash; composer queries | `compose::kit::table` with `Column`; `compose::Pattern` tiled fills; `compose::kit` pixel type (`bakeRun`, `Mask`, `PixFont`); `compose::kit` pixel sprites (`Sprite`, `PixelInk`); `core::noise::hash` / `lattice` positional hashes; `geometry::path::PolarFrame` and `path::Grid`; `material::pattern` stock tiles |
+
+#### Study · Effects
+
+| Sketch | Needs | Not yet bound |
+| --- | --- | --- |
+| `flipbook_fire` | Not yet audited | Not yet audited |
 
 #### Study · Materials
 

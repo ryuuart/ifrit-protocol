@@ -3,6 +3,7 @@
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/filter/Filter.h>
+#include <sigilmaterial/texture/Channel.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/material/Convert.h>
 #include <sigilpython/material/Registration.h>
@@ -20,21 +21,22 @@ constexpr auto fluent = py::return_value_policy::reference_internal;
 
 void bindMaterialCore(py::module_& module) {
   auto materials = submodule(module, "material");
-  py::enum_<material::MaskChannel>(materials, "MaskChannel")
-      .value("Alpha", material::MaskChannel::Alpha)
-      .value("Luminance", material::MaskChannel::Luminance)
-      .value("Red", material::MaskChannel::Red)
-      .value("Green", material::MaskChannel::Green)
-      .value("Blue", material::MaskChannel::Blue);
+  py::enum_<material::ColorChannel>(materials, "ColorChannel")
+      .value("Alpha", material::ColorChannel::Alpha)
+      .value("Luminance", material::ColorChannel::Luminance)
+      .value("Red", material::ColorChannel::Red)
+      .value("Green", material::ColorChannel::Green)
+      .value("Blue", material::ColorChannel::Blue);
   py::class_<material::Material> type(materials, "Material");
   py::implicitly_convertible<material::Color, material::Material>();
   py::class_<material::Mask>(materials, "Mask")
       .def(py::init([](const material::Material& source,
-                       material::MaskChannel channel, float low, float high,
+                       material::ColorChannel channel, float low, float high,
                        bool invert) {
              return material::Mask{source, channel, low, high, invert};
            }),
-           py::arg("source"), py::arg("channel") = material::MaskChannel::Alpha,
+           py::arg("source"),
+           py::arg("channel") = material::ColorChannel::Alpha,
            py::arg("low") = 0.0f, py::arg("high") = 1.0f,
            py::arg("invert") = false)
       .def(py::self == py::self);
@@ -70,15 +72,31 @@ void bindMaterialBuilder(py::module_& module) {
              std::optional<material::Material> clearcoatNormal,
              float transmission, float ior, float thickness,
              const material::Color& absorption, float reflectionWeight,
-             bool unlit) -> material::Material& {
-            return self.surface(
-                {std::move(metallic), std::move(roughness),
-                 std::move(occlusion), std::move(normal), normalScale,
-                 normalDirectX, emission, emissionStrength,
-                 std::move(emissionMap), alphaCutoff, std::move(clearcoat),
-                 std::move(clearcoatRoughness), std::move(clearcoatNormal),
-                 transmission, ior, thickness, absorption, reflectionWeight,
-                 unlit});
+             bool unlit, material::BlendMode blend,
+             std::optional<bool> depthWrite,
+             float depthFade) -> material::Material& {
+            return self.surface({std::move(metallic),
+                                 std::move(roughness),
+                                 std::move(occlusion),
+                                 std::move(normal),
+                                 normalScale,
+                                 normalDirectX,
+                                 emission,
+                                 emissionStrength,
+                                 std::move(emissionMap),
+                                 alphaCutoff,
+                                 std::move(clearcoat),
+                                 std::move(clearcoatRoughness),
+                                 std::move(clearcoatNormal),
+                                 transmission,
+                                 ior,
+                                 thickness,
+                                 absorption,
+                                 reflectionWeight,
+                                 unlit,
+                                 blend,
+                                 depthWrite,
+                                 depthFade});
           },
           py::kw_only(), py::arg_v("metallic", material::Channel(0.0f), "0.0"),
           py::arg_v("roughness", material::Channel(0.5f), "0.5"),
@@ -96,7 +114,10 @@ void bindMaterialBuilder(py::module_& module) {
           py::arg("thickness") = 40.0f,
           py::arg_v("absorption", material::Color{0, 0, 0, 1},
                     "Color(0, 0, 0, 1)"),
-          py::arg("reflectionWeight") = 1.0f, py::arg("unlit") = false, fluent)
+          py::arg("reflectionWeight") = 1.0f, py::arg("unlit") = false,
+          py::arg("blend") = material::BlendMode::Normal,
+          py::arg("depthWrite") = py::none(), py::arg("depthFade") = 0.0f,
+          fluent)
       .def(
           "effects",
           [](material::Material& self, const material::Filter& chain)
@@ -127,6 +148,8 @@ void bindMaterialBuilder(py::module_& module) {
       .def("isRunning", &material::Material::isRunning)
       .def("base", &material::Material::base)
       .def(py::self == py::self);
+  materials.def("channel", &material::channel, py::arg("source"),
+                py::arg("which"));
   materials.def(
       "from_",
       [](py::handle base) {

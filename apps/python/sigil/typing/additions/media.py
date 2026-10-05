@@ -8,7 +8,11 @@ def load(path, *, width=0, height=0, layer=""):
     raster size and an EXR a layer."""
     path = _Path(path)
     return decode(
-        Image, path.read_bytes(), width=width, height=height, layer=layer,
+        Image,
+        path.read_bytes(),
+        width=width,
+        height=height,
+        layer=layer,
         hint=str(path),
     )
 
