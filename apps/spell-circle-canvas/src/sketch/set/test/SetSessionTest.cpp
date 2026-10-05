@@ -17,7 +17,7 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/set/Set.h>
-#include <sigilworld/element/Element.h>
+#include <sigilworld/World.h>
 
 #include <algorithm>
 #include <cmath>
@@ -85,16 +85,19 @@ struct Spun {
     lens.target = {0, 0, 0};
     ctx.camera(lens);
   }
-  world::Frame describe(float seconds) {
+  world::Frame describe(sigil::motion::Duration now) {
+    const float seconds = (float)now.count();
     ++describes;
-    return world::Element().key("set").children(
-        {world::Element().key("sun").light(
-             world::light::sun({-0.4f, -0.8f, -0.3f}, {1, 1, 1, 1}, 1.0f)),
-         world::Element()
-             .key("body")
-             .rotateY(seconds * 90.0f)
-             .mesh(roundedBox())
-             .fill(sigil::material::surface::program())});
+    return world::group({world::directionalLight(
+                             {-0.4f, -0.8f, -0.3f},
+                             {.color = sigil::material::Color{1, 1, 1, 1},
+                              .intensity = 1.0f})
+                             .key("sun"),
+                         world::mesh(roundedBox())
+                             .key("body")
+                             .rotateY(seconds * 90.0f)
+                             .fill(sigil::material::surface::program())})
+        .key("set");
   }
 };
 
@@ -111,15 +114,17 @@ struct Screened {
     ctx.camera(lens);
     screen = ctx.textureScene({64, 64});
   }
-  world::Frame describe(float seconds) {
+  world::Frame describe(sigil::motion::Duration now) {
+    const float seconds = (float)now.count();
     using namespace sigil::compose;
     screen->render(box().width(64).height(64).fill(Fill::color({0, 1, 0, 1})),
                    seconds);
     sigil::material::Material surface =
         sigil::material::surface::unlit({.baseColor = {1, 1, 1, 1}});
     surface.slot(sigil::material::surface::kBaseColorSlot, screen->texture());
-    return world::Element().key("set").children(
-        {world::Element().key("card").mesh(gm::quad(120, 90)).fill(surface)});
+    return world::group(
+               {world::mesh(gm::quad(120, 90)).key("card").fill(surface)})
+        .key("set");
   }
 };
 
@@ -127,7 +132,7 @@ struct Screened {
  *  — a lit panel under an unlit green label — and wears it on one card
  *  under a sun. */
 struct Surfaced {
-  std::shared_ptr<sigil::compose::SurfaceScene> page;
+  Page page;
   void setup(SetContext& ctx) {
     ctx.canvas(160, 120);
     ctx.background({0, 0, 0, 1});
@@ -135,29 +140,27 @@ struct Surfaced {
     lens.eye = {0, 0, 200};
     lens.target = {0, 0, 0};
     ctx.camera(lens);
-    page = ctx.surfaceScene({64, 64});
+    page = ctx.page({64, 64});
   }
-  world::Frame describe(float seconds) {
+  world::Frame describe(sigil::motion::Duration) {
     using namespace sigil::compose;
     namespace material = sigil::material;
-    page->render(box()
-                     .width(64)
-                     .height(64)
-                     .fill(material::from(material::Color{.6f, .6f, .6f, 1})
-                               .surface({.roughness = .9f}))
-                     .children({box()
-                                    .absolute()
-                                    .rect(16, 16, 32, 32)
-                                    .fill(material::Color{0, 1, 0, 1})}),
-                 seconds);
-    return world::Element().key("set").children(
-        {world::Element().key("sun").light(
-             world::light::sun({0, 0, -1}, {1, 1, 1, 1}, 1.0f)),
-         world::Element()
-             .key("card")
-             .mesh(gm::quad(120, 90))
-             .fill(material::surface::program(page->maps(),
-                                              {.baseColor = {1, 1, 1, 1}}))});
+    return world::Frame(
+               world::group({world::directionalLight({0, 0, -1}).key("sun"),
+                             world::mesh(gm::quad(120, 90))
+                                 .key("card")
+                                 .fill(page.surface())})
+                   .key("set"))
+        .pass(page.render(
+            box()
+                .width(64)
+                .height(64)
+                .fill(material::from(material::Color{.6f, .6f, .6f, 1})
+                          .surface({.roughness = .9f}))
+                .children({box()
+                               .absolute()
+                               .rect(16, 16, 32, 32)
+                               .fill(material::Color{0, 1, 0, 1})})));
   }
 };
 
@@ -182,16 +185,18 @@ struct Framed {
     fallback.eye = {0, 0, 900};
     ctx.camera(fallback);
   }
-  world::Frame describe(float) {
-    return world::Element().key("set").children(
-        {world::Element().key("sun").light(
-             world::light::sun({-0.4f, -0.8f, -0.3f}, {1, 1, 1, 1}, 1.0f)),
-         world::Element().key("lens").camera(framedLens()),
-         world::Element()
-             .key("body")
-             .at({40, 30, -10})
-             .mesh(roundedBox())
-             .fill(sigil::material::surface::program())});
+  world::Frame describe(sigil::motion::Duration) {
+    return world::group({world::directionalLight(
+                             {-0.4f, -0.8f, -0.3f},
+                             {.color = sigil::material::Color{1, 1, 1, 1},
+                              .intensity = 1.0f})
+                             .key("sun"),
+                         world::camera(framedLens()).key("lens"),
+                         world::mesh(roundedBox())
+                             .key("body")
+                             .at({40, 30, -10})
+                             .fill(sigil::material::surface::program())})
+        .key("set");
   }
 };
 
@@ -388,17 +393,22 @@ struct Measured {
     lens.target = {0, 0, 0};
     ctx.camera(lens);
   }
-  world::Frame describe(float seconds) {
+  world::Frame describe(sigil::motion::Duration now) {
+    const float seconds = (float)now.count();
     // A rounded box large enough to fill the pane the zoomed cases look
     // through, turning, so its shading moves across every pixel of it.
-    world::Frame frame(world::Element().key("set").children(
-        {world::Element().key("sun").light(
-             world::light::sun({-0.4f, -0.8f, -0.3f}, {1, 1, 1, 1}, 1.0f)),
-         world::Element()
-             .key("body")
-             .rotateY(seconds * 90.0f)
-             .mesh(gm::superellipsoid({60, 60, 60}, 2.0f, 24, 16))
-             .fill(sigil::material::surface::program())}));
+    world::Frame frame(
+        world::group(
+            {world::directionalLight(
+                 {-0.4f, -0.8f, -0.3f},
+                 {.color = sigil::material::Color{1, 1, 1, 1},
+                  .intensity = 1.0f})
+                 .key("sun"),
+             world::mesh(gm::superellipsoid({60, 60, 60}, 2.0f, 24, 16))
+                 .key("body")
+                 .rotateY(seconds * 90.0f)
+                 .fill(sigil::material::surface::program())})
+            .key("set"));
     frame
         .pass(world::geometryPass("colour").writes("colour").clear(
             sigil::material::Color{0.05f, 0.05f, 0.08f, 1}))
@@ -531,16 +541,19 @@ TEST_F(SetWindow, AStillAfterAZoomedFrameShowsTheWholePicture) {
  *  plate, no ground and no viewpoint of its own. */
 struct Bare {
   static inline int describes = 0;
-  world::Frame describe(float seconds) {
+  world::Frame describe(sigil::motion::Duration now) {
+    const float seconds = (float)now.count();
     ++describes;
-    return world::Element().key("set").children(
-        {world::Element().key("sun").light(
-             world::light::sun({-0.4f, -0.8f, -0.3f}, {1, 1, 1, 1}, 1.0f)),
-         world::Element()
-             .key("body")
-             .rotateY(seconds * 90.0f)
-             .mesh(roundedBox())
-             .fill(sigil::material::surface::program())});
+    return world::group({world::directionalLight(
+                             {-0.4f, -0.8f, -0.3f},
+                             {.color = sigil::material::Color{1, 1, 1, 1},
+                              .intensity = 1.0f})
+                             .key("sun"),
+                         world::mesh(roundedBox())
+                             .key("body")
+                             .rotateY(seconds * 90.0f)
+                             .fill(sigil::material::surface::program())})
+        .key("set");
   }
 };
 

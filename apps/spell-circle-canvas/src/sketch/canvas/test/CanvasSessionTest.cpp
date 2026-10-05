@@ -28,7 +28,7 @@
 #include <sigilweave/paint/Paint.h>
 #include <sigilweave/style/PaintLayer.h>
 #include <sigilweave/style/Type.h>
-#include <sigilworld/element/Element.h>
+#include <sigilworld/World.h>
 #include <sigilworld/frame/Frame.h>
 
 #include <chrono>
@@ -82,12 +82,11 @@ constexpr auto kEnter = std::chrono::milliseconds(400);
 constexpr auto kStagger = std::chrono::milliseconds(120);
 
 world::Frame cardFrame() {
-  return world::Frame(world::Element().key("set").children(
-      {world::Element()
-           .key("card")
-           .mesh(gm::quad(kCardW, kCardH))
-           .fill(
-               sigil::material::surface::unlit({.baseColor = {1, 1, 1, 1}}))}));
+  return world::Frame(world::group({world::mesh(gm::quad(kCardW, kCardH))
+                                        .key("card")
+                                        .fill(sigil::material::surface::unlit(
+                                            {.baseColor = {1, 1, 1, 1}}))})
+                          .key("set"));
 }
 
 gm::camera::Camera cardCamera(float eyeZ) {
@@ -492,8 +491,10 @@ struct Baking {
   static inline sk_sp<SkImage> far;
   void setup(SketchContext& ctx) {
     ctx.canvas(200, 120);
-    near = ctx.bakeSet(cardFrame(), cardCamera(kEyeZ), kBakeSize, kGround);
-    far = ctx.bakeSet(cardFrame(), cardCamera(kEyeZ * 2), kBakeSize, kGround);
+    near = ctx.bakeSet(cardFrame(), kBakeSize,
+                       {.camera = cardCamera(kEyeZ), .background = kGround});
+    far = ctx.bakeSet(cardFrame(), kBakeSize,
+                      {.camera = cardCamera(kEyeZ * 2), .background = kGround});
     ctx.composer.render(box().width(10).height(10));
   }
 };
@@ -504,18 +505,17 @@ struct Baking {
  *  bake has to be able to reach a moment of it. */
 world::Frame enteringFrame() {
   const auto card = [](const char* key, float x) {
-    return world::Element()
+    return world::mesh(gm::quad(kCardW * 0.4f, kCardH))
         .key(key)
         .translateX(
             sigil::motion::animate({.from = x - kSlideIn,
                                     .to = x,
                                     .duration = kEnter,
                                     .delay = sigil::motion::stagger(kStagger)}))
-        .mesh(gm::quad(kCardW * 0.4f, kCardH))
         .fill(sigil::material::surface::unlit({.baseColor = {1, 1, 1, 1}}));
   };
-  return world::Frame(world::Element().key("set").children(
-      {card("left", -40.0f), card("right", 40.0f)}));
+  return world::Frame(
+      world::group({card("left", -40.0f), card("right", 40.0f)}).key("set"));
 }
 
 /** A sketch that bakes the entering card at three moments: before it
@@ -527,8 +527,10 @@ struct Entering {
   void setup(SketchContext& ctx) {
     ctx.canvas(200, 120);
     const auto bake = [&](double seconds) {
-      return ctx.bakeSet(enteringFrame(), cardCamera(kEyeZ), kBakeSize, kGround,
-                         seconds);
+      return ctx.bakeSet(enteringFrame(), kBakeSize,
+                         {.camera = cardCamera(kEyeZ),
+                          .background = kGround,
+                          .at = sigil::motion::Duration(seconds)});
     };
     atMount = bake(0.0);
     partWay = bake(kEnter.count() / 1000.0 * 0.5);

@@ -13,7 +13,7 @@
 #include <sigilsketch/set/Set.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
-#include <sigilworld/element/Element.h>
+#include <sigilworld/World.h>
 
 #include <string>
 
@@ -45,21 +45,22 @@ struct Ring {
     lens.eye = {0, 200, 520};
     ctx.camera(lens);
   }
-  world::Frame describe(float seconds) {
-    world::Element root =
-        world::Element().key("set").children({world::Element().key("sun").light(
-            world::light::sun({-0.4f, -0.8f, -0.3f}, {1, 1, 1, 1}, 1.0f))});
-    for (int i = 0; i < 24; ++i) {
-      const float angle = (float)i * 15.0f + seconds * 30.0f;
-      root = root.children(
-          {world::Element()
-               .key("body" + std::to_string(i))
-               .rotateY(angle)
-               .at({160.0f, 0, 0})
-               .mesh(gm::superellipsoid({20, 20, 20}, 0.2f, 16, 12))
-               .fill(sigil::material::surface::program())});
-    }
-    return root;
+  world::Frame describe(sigil::motion::Duration now) {
+    const float seconds = (float)now.count();
+    return world::group(
+               {world::directionalLight({-0.4f, -0.8f, -0.3f}).key("sun"),
+                world::each(
+                    24,
+                    [seconds](size_t i) {
+                      const float angle = (float)i * 15.0f + seconds * 30.0f;
+                      return world::mesh(
+                                 gm::superellipsoid({20, 20, 20}, 0.2f, 16, 12))
+                          .key("body" + std::to_string(i))
+                          .rotateY(angle)
+                          .at({160.0f, 0, 0})
+                          .fill(sigil::material::surface::program());
+                    })})
+        .key("set");
   }
 };
 

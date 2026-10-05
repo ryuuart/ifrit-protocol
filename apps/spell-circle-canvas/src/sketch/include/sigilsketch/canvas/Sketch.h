@@ -49,8 +49,10 @@
 #include <include/core/SkRefCnt.h>
 #include <sigilcompose/core/Composer.h>
 #include <sigilcompose/core/Measure.h>
+#include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/render/Runtime.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmotion/time/Duration.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/CanvasSpecification.h>
 #include <sigilsketch/core/Device.h>
@@ -68,9 +70,6 @@ class TextureScene;
 }
 namespace sigil::world {
 class Frame;
-}
-namespace sigil::geometry::mesh::camera {
-struct Camera;
 }
 
 /** EVERY RENDERABLE THING AS ONE SKETCH: a single file, addressed by its
@@ -95,6 +94,17 @@ struct Camera;
  *  where a library's vocabulary is exercised, and its plate is what says
  *  the vocabulary still draws what it drew. */
 namespace sigil::sketch {
+
+/** HOW A SET IS BAKED into a canvas sketch's picture: what it is seen
+ *  through, what is behind it, and when. */
+struct BakeSetOptions {
+  /** The lens a tree holding no camera is seen through. */
+  geometry::mesh::camera::Camera camera;
+  /** What the picture is cleared to behind the set. */
+  sigil::material::Color background{0, 0, 0, 0};
+  /** The moment of the bake, on the baked scene's own clock. */
+  motion::Duration at{};
+};
 
 /** WHAT A SKETCH IS HANDED every time it is asked to describe itself.
  *
@@ -167,31 +177,30 @@ struct SketchContext {
   [[nodiscard]] std::shared_ptr<compose::TextureScene> textureScene(
       SkISize size, sigil::material::Color background = {0, 0, 0, 0});
 
-  /** A LIT SET RENDERED ONCE INTO AN IMAGE @p size pixels across, over
-   *  @p background — the picture INSIDE a page. A canvas plate is
+  /** A LIT SET RENDERED ONCE INTO AN IMAGE @p size pixels across — the
+   *  picture INSIDE a page. A canvas plate is
    *  re-rendered at the capture scale, so a document that wanted a set
    *  in one of its panels cannot wear it as a texture the way a body
    *  does: it bakes the set at the pixels the panel will have and paints
    *  the image. The frame's own words are SigilWorld's, from
    *  `<sigilworld/frame/Frame.h>`.
    *
-   *  SEEN FROM @p camera — unless the tree carries a viewpoint of its
-   *  own, which wins here exactly as it wins in the set runtime, so a
-   *  set that put its camera on a rail is photographed from that rail
-   *  wherever it is photographed. The frame is formed and presented
-   *  through the one viewpoint, so the two cannot disagree.
+   *  SEEN THROUGH `BakeSetOptions::camera` — unless the tree carries a
+   *  camera of its own, which wins here exactly as it wins in the set
+   *  runtime, so a set that put its camera on a rail is photographed from
+   *  that rail wherever it is photographed.
    *
    *  It draws on the device runtime the process installed — a set is
    *  drawn on a device and nowhere else — and answers NULL where there
    *  is none, so a sketch that bakes a set declares `needsDevice` and an
    *  `available()` probe over `runtimeAvailable`. A frame that declares no
-   *  passes is drawn through one geometry pass clearing to
-   *  @p background. The picture is a function of the frame, the
-   *  viewpoint, the size and @p seconds; the scene it stands the frame in
+   *  passes is drawn through one geometry pass clearing to the options'
+   *  background. The picture is a function of the frame, the camera, the
+   *  size and the moment; the scene it stands the frame in
    *  lives for this call alone, so what comes back is an image and not a
    *  view onto something still standing.
    *
-   *  @p seconds IS THE MOMENT OF THE BAKE, on the baked scene's own
+   *  `BakeSetOptions::at` IS THE MOMENT OF THE BAKE, on the baked scene's own
    *  clock, which starts when the scene mounts. It is what a set with an
    *  ENTRANCE is photographed at: a `staggerChildren` cascade is a
    *  schedule of transitions that begin at the mount, so at zero every
@@ -204,10 +213,8 @@ struct SketchContext {
    *  on the page to do it. The moment is reached in one step, so a set
    *  whose motion is a fixed-rate steppable rather than a transition is
    *  not what this is for. */
-  [[nodiscard]] sk_sp<SkImage> bakeSet(
-      const world::Frame& frame, const geometry::mesh::camera::Camera& camera,
-      SkISize size, sigil::material::Color background = {0, 0, 0, 0},
-      double seconds = 0.0);
+  [[nodiscard]] sk_sp<SkImage> bakeSet(const world::Frame& frame, SkISize size,
+                                       BakeSetOptions options = {});
 
   /** WHETHER THE CLOCK THIS SESSION IS DRAWN AT IS NOT THE WALL'S: the
    *  host is taking a capture that will be DIFFED, or a client is

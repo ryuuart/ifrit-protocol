@@ -43,7 +43,7 @@ set(SIGIL_SKETCH_SOURCES
   core/Assets.cpp core/Catalog.cpp core/Crash.cpp core/Device.cpp
   core/Registry.cpp core/Sources.cpp core/State.cpp
   canvas/Context.cpp canvas/Guest.cpp canvas/Session.cpp
-  set/Context.cpp set/Session.cpp
+  set/Context.cpp set/Page.cpp set/Session.cpp
   live/BuildDirectory.cpp live/BuildCache.cpp live/Host.cpp live/Residency.cpp live/SkewGuard.cpp
   plate/Compare.cpp plate/Graphite.cpp plate/Story.cpp plate/Sweep.cpp
   plate/ThumbnailQueue.cpp plate/Thumbnails.cpp plate/ThumbnailWriter.cpp)
@@ -53,7 +53,7 @@ set(SIGIL_SKETCH_HEADERS
   core/Kind.h core/Members.h core/Placement.h core/Registry.h core/Session.h
   core/Sources.h core/State.h
   canvas/Guest.h canvas/Sketch.h
-  set/Set.h
+  set/Page.h set/Set.h
   live/Host.h live/Residency.h
   plate/Compare.h plate/Graphite.h plate/Story.h
   plate/Sweep.h plate/ThumbnailQueue.h plate/Thumbnails.h
@@ -63,7 +63,7 @@ set(SIGIL_SKETCH_PUBLIC
   SigilGeometryMeshCamera SigilGeometryMeshRender SigilMediaCore
   SigilIOHub SigilIOFrames SigilMeasure SigilMaterialColor SigilMaterialTexture
   SigilMotionClock
-  SigilComposeCore SigilWorldFrame SigilWorldElement)
+  SigilComposeCore SigilWorldFrame SigilWorldNode SigilWorldKit)
 set(SIGIL_SKETCH_PRIVATE
   # The door a frame arrives by. A canvas can wear another application's
   # picture, so the archive that draws reaches the subscription — the
@@ -142,7 +142,7 @@ sigil_library(SigilSketchVocabulary
     SigilCompose SigilComposeTexture SigilComposeTesting SigilComposeDraw
     SigilGeometry SigilMaterial
     SigilWeave SigilWeaveKit SigilWeavePorts
-    SigilWorldElement SigilWorldFrame SigilWorldScene SigilWorldKit
+    SigilWorldNode SigilWorldFrame SigilWorldScene SigilWorldKit
     SigilCoreCompute SigilData SigilMedia SigilMotion SigilIO
     SigilMeasure)
 

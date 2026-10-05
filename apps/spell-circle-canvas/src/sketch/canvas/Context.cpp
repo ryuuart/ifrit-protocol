@@ -34,27 +34,31 @@ std::shared_ptr<compose::TextureScene> SketchContext::textureScene(
   return scene;
 }
 
-sk_sp<SkImage> SketchContext::bakeSet(
-    const world::Frame& frame, const geometry::mesh::camera::Camera& camera,
-    SkISize size, sigil::material::Color background, double seconds) {
+sk_sp<SkImage> SketchContext::bakeSet(const world::Frame& frame, SkISize size,
+                                      BakeSetOptions options) {
   // A set is drawn on a device and nowhere else.
   if (!runtimeAvailable()) return nullptr;
   sk_sp<SkSurface> surface = SkSurfaces::Raster(
       SkImageInfo::MakeN32Premul(size.width(), size.height()));
   if (!surface) return nullptr;
   SkCanvas& canvas = *surface->getCanvas();
-  canvas.clear(material::skia::toSkColor(background));
-  // The caller's viewpoint is written onto the frame rather than handed
-  // to the draw, which is what lets a tree carrying its own camera win:
-  // forming and presenting then read the ONE viewpoint, and a frame that
-  // named none is seen from the caller's.
+  canvas.clear(material::skia::toSkColor(options.background));
+  // The caller's lens is written onto the frame rather than handed to the
+  // draw, which is what lets a tree carrying its own camera win: forming
+  // and presenting then read the ONE camera, and a tree holding none is
+  // seen through the caller's.
   world::Frame framed = frame;
   framed.extent(glm::ivec2(size.width(), size.height()))
-      .camera(camera)
+      .defaultCamera(options.camera)
       .runtime(runtime());
-  if (framed.passes().empty())
+  // A frame whose only passes paint the textures its bodies wear is
+  // still drawn through the one geometry pass.
+  bool formsAPicture = false;
+  for (const world::Pass& pass : framed.passes())
+    formsAPicture = formsAPicture || pass.stage() != world::Stage::Texture;
+  if (!formsAPicture)
     framed.pass(world::geometryPass("colour").writes("colour").clear(
-        material::skia::toSkColor(background)));
+        material::skia::toSkColor(options.background)));
   // A scene for this call, on a CLOCK OF ITS OWN: nothing here is
   // retained between bakes, so the picture is a function of the frame
   // and the moment and not of how many times the sketch has baked one —
@@ -67,8 +71,8 @@ sk_sp<SkImage> SketchContext::bakeSet(
   // render; the second is what samples the lanes where the clock has
   // taken them.
   scene.render(framed);
-  if (seconds > 0.0) {
-    engine.advance(motion::Duration(seconds));
+  if (options.at > motion::Duration::zero()) {
+    engine.advance(options.at);
     scene.render(framed);
   }
   if (!scene.error().empty()) return nullptr;

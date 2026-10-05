@@ -15,8 +15,8 @@
 #include <sigilsketch/core/Sources.h>
 #include <sigilsketch/plate/Thumbnails.h>
 #include <sigilsketch/set/Set.h>
-#include <sigilworld/element/Element.h>
-#include <sigilworld/frame/Runtime.h>
+#include <sigilworld/World.h>
+#include <sigilworld/advanced/Runtime.h>
 
 #include <atomic>
 #include <chrono>
@@ -175,8 +175,8 @@ struct Lit {
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(0.05);
   }
-  world::Frame describe(float /*seconds*/) {
-    return world::Element().key("empty");
+  world::Frame describe(sigil::motion::Duration) {
+    return world::group().key("empty");
   }
 };
 

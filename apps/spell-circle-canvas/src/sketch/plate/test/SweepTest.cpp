@@ -28,7 +28,7 @@
 #include <sigilsketch/plate/Story.h>
 #include <sigilsketch/plate/Sweep.h>
 #include <sigilsketch/set/Set.h>
-#include <sigilworld/element/Element.h>
+#include <sigilworld/World.h>
 #include <sigilworld/frame/Frame.h>
 
 #include <algorithm>
@@ -119,14 +119,14 @@ struct InitialSetProbe {
     ctx.camera(lens);
   }
 
-  sigil::world::Frame describe(float seconds) {
+  sigil::world::Frame describe(sigil::motion::Duration now) {
+    const float seconds = (float)now.count();
     describedSeconds = seconds;
     const sigil::material::Color color =
         seconds == 0 ? sigil::material::Color{0, 1, 0, 1}
                      : sigil::material::Color{1, 0, 0, 1};
-    return sigil::world::Element()
+    return sigil::world::mesh(sigil::geometry::mesh::quad(120, 90))
         .key("initial_set")
-        .mesh(sigil::geometry::mesh::quad(120, 90))
         .fill(sigil::material::surface::unlit({.baseColor = color}));
   }
 };

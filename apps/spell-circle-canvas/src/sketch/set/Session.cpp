@@ -83,10 +83,13 @@ struct Window {
  *  readback is owed once per frame described and not once per forming. */
 world::Frame formedAgain(const world::Frame& frame) {
   world::Frame again(frame.scene());
-  again.extent(frame.extent())
+  again.environment(frame.environmentMap(), frame.environmentOptions())
+      .extent(frame.extent())
       .viewOffset(frame.viewOffset())
-      .camera(frame.camera())
+      .defaultCamera(frame.defaultCamera())
       .runtime(frame.runtime());
+  if (!frame.camera().empty()) again.camera(frame.camera());
+  if (frame.cameraOverride()) again.cameraOverride(*frame.cameraOverride());
   for (const world::Pass& pass : frame.passes()) again.pass(pass);
   if (!frame.present().empty()) again.present(frame.present());
   return again;
@@ -94,11 +97,14 @@ world::Frame formedAgain(const world::Frame& frame) {
 
 /** A set about the SCENE, made into one a runtime can perform: one
  *  geometry pass clearing to the declared background and painting every
- *  body. A set that already declares passes is left alone — an executor
- *  is only reached through passes. */
+ *  body. A set that already declares a pass forming a picture is left
+ *  alone — an executor is only reached through passes — and one whose
+ *  only passes paint the textures its bodies wear is still a set about
+ *  the scene. */
 void throughPasses(world::Frame& frame,
                    const sigil::material::Color& background) {
-  if (!frame.passes().empty()) return;
+  for (const world::Pass& pass : frame.passes())
+    if (pass.stage() != world::Stage::Texture) return;
   frame.pass(world::geometryPass("colour").writes("colour").clear(
       sigil::material::skia::toSkColor(background)));
 }
@@ -115,8 +121,8 @@ class SetSession final : public Session {
     m_specification.size = {900, 640};
     m_specification.background = {0.04f, 0.045f, 0.06f, 1.0f};
     m_specification.captureSeconds = 1.0;
-    SetContext ctx{assets,    fonts,       &m_specification, &m_camera,
-                   &m_scenes, &m_surfaces, deterministic};
+    SetContext ctx{assets,    fonts,    &m_specification, &m_camera,
+                   &m_scenes, &m_pages, deterministic};
     m_set->setup(ctx);
     m_declared = m_camera;
     m_window.whole = {(int)m_specification.size.width(),
@@ -143,24 +149,21 @@ class SetSession final : public Session {
     // arrived by the moment it draws.
     const double seconds = m_engine.elapsed().count();
     io::advance(m_assets.hub(), std::chrono::duration<double>(seconds));
-    world::Frame frame = m_set->describe((float)seconds);
+    world::Frame frame = m_set->describe(m_engine.elapsed());
     // The plate's size and its viewpoint are the host's to state: a set
     // says what it is of, not where it lands. The picture is the declared
     // canvas in the pixels this canvas actually has, so the frame is
     // formed at the resolution it will be seen at, and only over the part
     // of it this canvas's clip leaves.
     m_window = windowOn(canvas);
-    frame.camera(viewing());
+    frame.defaultCamera(m_camera);
     over(frame, m_window);
-    if (m_orbiting) {
-      // A TREE'S OWN LENS WINS over the frame's, which is what lets a
-      // set put its camera on a rail and be photographed from it. A host
-      // that has taken hold of the viewpoint has to win over THAT, and
-      // the first camera in tree order is the one a frame is seen from,
-      // so the described tree is hung under one node carrying the host's
-      // camera — which stands before whatever the set declared.
-      frame.scene(world::Element().camera(m_orbit).children({frame.scene()}));
-    }
+    // A TREE'S OWN CAMERA WINS over the lens the set was handed at setup,
+    // which is what lets a set put its camera on a rail and be
+    // photographed from it. A host that has taken hold of the viewpoint
+    // has to win over THAT, and says so as the frame's override: the
+    // camera the tree chose still says how the picture is read.
+    if (m_orbiting) frame.cameraOverride(m_orbit);
     frame.runtime(m_runtime);
     throughPasses(frame, m_specification.background);
     m_scene.render(frame);
@@ -220,9 +223,9 @@ class SetSession final : public Session {
                   "nodes %lld   drawn %lld   resources %lld   passes %lld",
                   (long long)stats.nodes, (long long)stats.drawn,
                   (long long)stats.resources, (long long)stats.passes);
-    // …and the screens the set asked for at setup, which no counter of
-    // the retained scene's can see.
-    const size_t screens = m_scenes.size() + m_surfaces.size();
+    // …and the screens and pages the set asked for at setup, which no
+    // counter of the retained scene's can see.
+    const size_t screens = m_scenes.size() + m_pages.size();
     if (screens == 0) return line;
     char held[48];
     std::snprintf(held, sizeof held, "   screens %zu", screens);
@@ -364,7 +367,8 @@ class SetSession final : public Session {
    *  retained scene, so they outlive both: a texture a body wears is
    *  still standing when its wearer goes. */
   std::vector<std::shared_ptr<compose::TextureScene>> m_scenes;
-  std::vector<std::shared_ptr<compose::SurfaceScene>> m_surfaces;
+  /** What the pages the context handed out paint into. */
+  std::vector<std::shared_ptr<compose::SurfaceScene>> m_pages;
   std::unique_ptr<SetBody> m_set;
   /** What the set reaches for that it did not generate. Held for the
    *  session's life rather than only for the setup that declared it,

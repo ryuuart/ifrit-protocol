@@ -72,13 +72,20 @@ supplies an explicit filed name when needed.
 | Header | Body contract | Result |
 | --- | --- | --- |
 | `<sigilsketch/canvas/Sketch.h>` | `sketch::CanvasSketch`: `setup(ctx)`, optional `update(elapsed, ctx)` | a Compose tree |
-| `<sigilsketch/set/Set.h>` | `sketch::SetSketch`: `describe(seconds)`, optional `setup(ctx)` | a World frame |
+| `<sigilsketch/set/Set.h>` | `sketch::SetSketch`: `describe(now)`, optional `setup(ctx)` | a World frame |
 
-A set's `describe()` returns a `world::Frame` or a World element that becomes
-one. Describe a reproducible scene as a function of scene time and its data.
-The optional `setup(sketch::SetContext&)` declares canvas size, background,
-capture time and fallback camera. Include World's own headers for its scene
+A set's `describe(motion::Duration now)` returns a `world::Frame`, or any
+World node, which becomes one. Describe a reproducible scene as a function of
+the scene time and its data. The optional `setup(sketch::SetContext&)`
+declares canvas size, background, capture time and the lens a tree holding no
+camera is seen through. Include `<sigilworld/World.h>` for the scene
 vocabulary; [SigilWorld's README](../common/world/README.md) defines it.
+
+A set's camera is the tree's: one camera in the tree is the one looked
+through, and a tree holding several names one with `world::Frame::camera`.
+When the host takes hold of the viewpoint — an orbit in a window — it states
+its lens as the frame's `world::Frame::cameraOverride`, and the camera the
+tree chose still says how the picture is read.
 
 A Canvas body that uses the host's device mesh painter, foreign textures or
 device compute declares `static constexpr bool needsDevice = true;`.
@@ -288,8 +295,8 @@ A canvas and a set can exchange pictures without sharing their runtime:
 | Context method | Purpose |
 | --- | --- |
 | `ctx.textureScene(size, background)` | a Compose scene painted into a texture |
-| `ctx.bakeSet(frame, camera, size, background, seconds)` | one World frame baked into an image on a canvas |
-| set `ctx.surfaceScene(size)` | a Compose page painted as a surface's maps, for the set's lights to shade |
+| `ctx.bakeSet(frame, size, {.camera, .background, .at})` | one World frame baked into an image on a canvas |
+| set `ctx.page(size)` | a `sketch::Page`: a Compose page painted as a surface's maps by a pass on the frame, for the set's lights to shade |
 
 The session retains texture scenes until the body declares again. Create one
 in `setup()`, keep the returned pointer, and update it at the scene's forward
@@ -297,17 +304,32 @@ time. Creating one every frame keeps every such scene until redeclaration.
 Include `<sigilcompose/texture/Texture.h>` for its `render()`, `image()` and
 `texture()` operations.
 
-A set's `surfaceScene` is held the same way. Its `maps()`, from
-`<sigilcompose/texture/SurfaceScene.h>`, dress a surface through
-SigilMaterial's surface `program(maps)`: Compose paints each lit material's maps
-and the page's flat content as its own colour, and the set's lights,
-environment and camera shade the page.
+A set's page is held the same way. It is two calls in `describe`:
+`Page::render(tree)` is the texture pass that paints the tree as the maps of a
+surface at the frame's time, put on the frame with `pass`, and
+`Page::surface()` is the one material a body wears to show it. Compose paints
+each lit material's maps and the page's flat content as its own colour, and
+the set's lights, environment and camera shade the page. Nothing paints
+unless its pass is on the frame: a body wearing a page whose pass is missing
+is an error naming both, and a page whose tree has not changed paints nothing
+and is counted as skipped.
 
-A set bake uses its own clock, so sampling an entrance at `seconds` does not
+```cpp
+struct Plate {
+  sketch::Page page;
+  void setup(sketch::SetContext& ctx) { page = ctx.page({1440, 900}); }
+  world::Frame describe(motion::Duration now) {
+    return world::Frame(world::group({world::mesh(sheet).fill(page.surface())}))
+        .pass(page.render(tree(now)));
+  }
+};
+```
+
+A set bake uses its own clock, so sampling an entrance at `BakeSetOptions::at` does not
 advance the surrounding canvas sketch. It draws on the device runtime the host
 installed and answers null where there is none, so a canvas sketch that bakes
 a set declares `needsDevice` and an `available()` probe over
-`sketch::runtimeAvailable`. Include `<sigilworld/frame/Frame.h>` for the frame.
+`sketch::runtimeAvailable`. Include `<sigilworld/World.h>` for the frame.
 
 A canvas that draws meshes directly uses `sketch::painterRuntime()`, which is
 the CPU painter where no device runtime is installed. A set uses

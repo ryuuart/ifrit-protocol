@@ -8,8 +8,8 @@
 #                (SigilScry), measure/
 #                (SigilMeasure), motion/ (SigilMotion), geometry/
 #                (SigilGeometry), material/ (SigilMaterial), draw/
-#                (SigilDraw), world/ (SigilWorldElement, SigilWorldFrame,
-#                SigilWorldGraph, SigilWorldScene, SigilWorldLight,
+#                (SigilDraw), world/ (SigilWorldNode, SigilWorldFrame,
+#                SigilWorldGraph, SigilWorldScene,
 #                SigilWorldKit, SigilWorldDiligent) and usd/ (SigilUsd),
 #                which leaves itself out where its SDK is not installed, and
 #                compose/ (SigilCompose) last. Each library carries its

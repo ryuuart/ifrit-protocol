@@ -1,12 +1,16 @@
 /** @file
  * What a set's context hands it beyond its declarations: a compose scene
- * kept as a texture, or as the maps of a surface, for a body to wear.
+ * kept as a texture for a body to wear as its own light, and a page the
+ * set lights.
  */
 
 #include <sigilcompose/texture/SurfaceScene.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/set/Set.h>
+
+#include <string>
+#include <utility>
 
 namespace sigil::sketch {
 
@@ -26,14 +30,19 @@ std::shared_ptr<compose::TextureScene> SetContext::textureScene(
   return scene;
 }
 
-std::shared_ptr<compose::SurfaceScene> SetContext::surfaceScene(SkISize size) {
+Page SetContext::page(glm::ivec2 size) {
   // A page painted as maps takes no pixel bake, so a capture that will be
   // diffed has no promotion decision to pin. Kept by the session, as a
   // texture scene is.
   std::shared_ptr<compose::SurfaceScene> scene =
-      compose::SurfaceScene::make(size, fonts);
-  if (scene && surfaces) surfaces->push_back(scene);
-  return scene;
+      compose::SurfaceScene::make(SkISize::Make(size.x, size.y), fonts);
+  if (!scene) return Page();
+  // The first page is "page"; each one after it is numbered, so two pages
+  // on one frame are two passes an error can tell apart.
+  const size_t made = pages ? pages->size() : 0;
+  if (pages) pages->push_back(scene);
+  return Page(std::move(scene),
+              made == 0 ? "page" : "page " + std::to_string(made + 1));
 }
 
 }  // namespace sigil::sketch

@@ -178,19 +178,22 @@ void bindContext(py::module_& module) {
       .def(
           "bakeSet",
           [](const Context& ctx, const world::Frame& frame,
+             std::array<int, 2> size,
              const geometry::mesh::camera::Camera& camera,
-             std::array<int, 2> size, material::Color background,
-             double seconds) {
-            if (!std::isfinite(seconds) || seconds < 0)
+             material::Color background, double at) {
+            if (!std::isfinite(at) || at < 0)
               throw py::value_error(
                   "A bake's moment must be finite and nonnegative");
             const SkISize extent = pixels(size);
-            return ctx.state()->context().bakeSet(frame, camera, extent,
-                                                  background, seconds);
+            return ctx.state()->context().bakeSet(frame, extent,
+                                                  {.camera = camera,
+                                                   .background = background,
+                                                   .at = motion::Duration(at)});
           },
-          py::arg("frame"), py::arg("camera"), py::arg("size"),
+          py::arg("frame"), py::arg("size"),
+          py::arg("camera") = geometry::mesh::camera::Camera{},
           py::arg("background") = material::Color{0, 0, 0, 0},
-          py::arg("seconds") = 0.0)
+          py::arg("at") = 0.0)
       .def(
           "local",
           [](const Context& ctx, const std::string& name) {

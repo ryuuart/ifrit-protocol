@@ -8,7 +8,7 @@
 sigil_test(sketch_test
   SOURCES test/CanvasSessionTest.cpp test/GuestTest.cpp
   SUPPORT_DIRS ${SIGIL_GEOMETRY_DEVICE_TEST_SUPPORT_DIR}
-  LIBRARIES SigilSketch SigilComposeTexture SigilComposeDraw SigilWorldElement
+  LIBRARIES SigilSketch SigilComposeTexture SigilComposeDraw SigilWorldNode
             SigilWorldFrame SigilGeometryKit SigilMaterialSurface
             SigilWeavePorts SigilWorldDiligent
   SUITES CanvasBakes

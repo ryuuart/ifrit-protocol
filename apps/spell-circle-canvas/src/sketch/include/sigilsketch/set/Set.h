@@ -9,16 +9,18 @@
  */
 
 #include <sigilmaterial/color/Color.h>
+#include <sigilmotion/time/Duration.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/CanvasSpecification.h>
 #include <sigilsketch/core/Device.h>
 #include <sigilsketch/core/Members.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
-#include <sigilworld/element/Element.h>
-#include <sigilworld/frame/Frame.h>
-#include <sigilworld/frame/Runtime.h>
+#include <sigilsketch/set/Page.h>
+#include <sigilworld/World.h>
+#include <sigilworld/advanced/Runtime.h>
 
+#include <glm/vec2.hpp>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -35,8 +37,9 @@ class TextureScene;
 namespace sigil::sketch {
 
 /** WHAT A SET IS HANDED when it declares itself: the plate it will be
- *  photographed onto, the viewpoint it is seen from, what it may reach
- *  for, and the one door a 2D picture comes in by. Handed once, at
+ *  photographed onto, the camera it is seen through, what it may reach
+ *  for, and the two doors a 2D picture comes in by — a screen that is its
+ *  own light, and a page the set lights. Handed once, at
  *  setup — a set's every frame is a function of the scene time and of
  *  nothing else. */
 struct SetContext {
@@ -49,9 +52,9 @@ struct SetContext {
   /** Host-owned: the texture scenes `textureScene()` handed out, kept
    *  for the session's life. */
   std::vector<std::shared_ptr<compose::TextureScene>>* scenes = nullptr;
-  /** Host-owned: the surface scenes `surfaceScene()` handed out, kept for
+  /** Host-owned: what the pages `page()` handed out paint into, kept for
    *  the session's life. */
-  std::vector<std::shared_ptr<compose::SurfaceScene>>* surfaces = nullptr;
+  std::vector<std::shared_ptr<compose::SurfaceScene>>* pages = nullptr;
 
   /** A COMPOSE SCENE PAINTED INTO A TEXTURE, @p size pixels across and
    *  cleared to @p background — a 2D screen a body wears. Ask for it
@@ -72,16 +75,14 @@ struct SetContext {
   [[nodiscard]] std::shared_ptr<compose::TextureScene> textureScene(
       SkISize size, sigil::material::Color background = {0, 0, 0, 0});
 
-  /** A COMPOSE SCENE PAINTED AS THE MAPS OF A SURFACE, @p size pixels
-   *  across — a page the set's own lights shade. Ask for it here, hold the
-   *  pointer, and in `describe` hand it the tree at the scene time with
-   *  `render()` and dress a surface with
-   *  `material::surface::program(scene->maps())`. Its own words are
-   *  SigilCompose's, from `<sigilcompose/texture/SurfaceScene.h>`.
-   *  The session keeps it for as long as it runs, as it keeps a
-   *  `textureScene()`, and for the same reason. */
-  [[nodiscard]] std::shared_ptr<compose::SurfaceScene> surfaceScene(
-      SkISize size);
+  /** A PAGE THE SET LIGHTS, @p size pixels across: a compose tree
+   *  painted as the maps of a surface by a pass on the frame. Ask for it
+   *  here and hold it; in `describe`, put `page.render(tree)` on the frame
+   *  and `page.surface()` on the body that shows it — the set's own lights,
+   *  environment and camera shade it, and the frame's time paints it. The
+   *  session keeps what it paints into for as long as it runs, as it keeps
+   *  a `textureScene()`, and for the same reason. */
+  [[nodiscard]] Page page(glm::ivec2 size);
 
   /** Declare the plate's size in pixels. */
   void canvas(int width, int height) {
@@ -96,8 +97,8 @@ struct SetContext {
   void captureAt(double seconds) {
     if (specification) specification->captureSeconds = seconds;
   }
-  /** The viewpoint, unless the tree declares one of its own — a set that
-   *  puts a camera on a rail says so in its description and leaves this
+  /** The lens a tree holding no camera is seen through — a set that puts
+   *  a camera on a rail says so in its description and leaves this
    *  alone. */
   void camera(const geometry::mesh::camera::Camera& lens) {
     if (eye) *eye = lens;
@@ -116,10 +117,10 @@ struct SetContext {
 
 /** A SKETCH THAT DRESSES A SET: any type that can describe a world
  *  Frame at a scene time. There is no base class and nothing to inherit
- *  — a struct spelling `describe(seconds)` is a set, and `describe()` is
- *  accepted too, from a set that does not move. `setup(SetContext&)` is
- *  optional beside it: declare the plate and the viewpoint there, once
- *  per (re)load.
+ *  — a struct spelling `describe(motion::Duration now)` is a set, and
+ *  `describe()` is accepted too, from a set that does not move.
+ * `setup(SetContext&)` is optional beside it: declare the plate and the
+ * viewpoint there, once per (re)load.
  *
  *  `describe` is a PURE FUNCTION of the scene time and nothing else,
  *  which is what makes a plate reproducible: a host steps from zero at a
@@ -132,8 +133,8 @@ struct SetContext {
  *  plate's size and the viewpoint into whichever it was handed, so a set
  *  states its subject and nothing about where it lands. */
 template <class SetType>
-concept SetSketch =
-    core::PrefixCallable<detail::DescribeCall<SetType>, world::Frame(float)>;
+concept SetSketch = core::PrefixCallable<detail::DescribeCall<SetType>,
+                                         world::Frame(motion::Duration)>;
 
 /** WHAT A SESSION DRIVES: one set, behind the two calls a host makes of
  *  it. The set itself derives from nothing and declares no virtual of
@@ -143,7 +144,7 @@ class SetBody {
  public:
   virtual ~SetBody() = default;
   virtual void setup(SetContext& ctx) = 0;
-  virtual world::Frame describe(float seconds) = 0;
+  virtual world::Frame describe(motion::Duration now) = 0;
 };
 
 /** Opens an owned body on the set runtime — the door a host whose set
@@ -183,8 +184,8 @@ class SetBodyOf final : public SetBody {
                                        void(SetContext&)>)
       core::callPrefix(detail::SetupCall<SetType>{m_set}, ctx);
   }
-  world::Frame describe(float seconds) override {
-    return core::callPrefix(detail::DescribeCall<SetType>{m_set}, seconds);
+  world::Frame describe(motion::Duration now) override {
+    return core::callPrefix(detail::DescribeCall<SetType>{m_set}, now);
   }
 
  private:
