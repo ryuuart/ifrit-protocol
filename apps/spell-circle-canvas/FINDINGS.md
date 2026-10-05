@@ -1166,36 +1166,20 @@ unchanged frame, a viewport change and a changed outer track. Deterministic
 layout-pass counters should establish fewer redundant passes; retain the
 benchmark for timing rather than using a machine-specific unit threshold.
 
-## Renderer gap: 2D surface transmission channels do not implement transport
+## Renderer gap: World's surfaces do not implement clearcoat
 
-`SurfaceOptions` carries transmission, refractive index, thickness and
-absorption, but the 2D lowering in `src/common/material/skia/Lit.cpp` and
-`skia/shaders/LitSurface.sksl` does not apply those channels. Painting
-pairs of swatches through the planar executor that differ in one surface
-channel each shows it: changing transmission, index, thickness or
-absorption leaves the pair identical, while clearcoat, roughness,
-metallic, occlusion, emission and normal conventions change their
-swatches. Nothing tells the author the request was dropped.
+`SurfaceOptions` carries a clearcoat weight beside transmission, refractive
+index, thickness and absorption. World's device surface lowering
+(`surface::lower`, `src/common/material/surface/Lower.cpp`) passes
+transmission, index, thickness and absorption on to the device program,
+but does not implement clearcoat; it reports a nonzero clearcoat request
+once and draws the surface uncoated.
 
-`Filter::glass` supplies bounded planar backdrop refraction through a
-separate destination-filter operation. Surface coating and reflection remain
-material fills. That operation does not implement the surface value's volume
-transmission, absorption length or dispersion. World's device surface
-lowering (`surface::lower`, `src/common/material/surface/Lower.cpp`)
-passes transmission, index, thickness and absorption on to the device
-program, but does not implement clearcoat; it reports a nonzero clearcoat
-request once.
-
-The planar executor lights a page; volume transport is not its job and
-belongs to SigilWorld's surfaces. Wanted on the planar side: only a
-once-only report that transmission, index, thickness and absorption are
-not drawn on the page, in the shape of the report World's lowering makes
-for clearcoat, rather than an unchanged swatch presented as a successful
-response. Wanted on the World side: its device lowering keeps reporting
-the clearcoat it does not implement, once, until it implements it. A
-regression should paint a surface with each unsupported channel through
-each executor, assert the report is made once and only for the channels
-that executor does not draw, and assert supported channels make none.
+Wanted: a coating lobe in World's surface program, with the report kept
+until it exists. A regression should shade one surface with and without a
+clearcoat under one light, assert the coated highlight differs and the
+uncoated one is unchanged, and assert the report is made once while the
+lobe is missing.
 
 ## Renderer limitation: Skia's CPU image-filter layer is eight-bit, so raster filters quantize coverage, clip HDR and step contour normals
 
@@ -1277,7 +1261,7 @@ texture readiness before changing the executor.
 
 ## Authoring ergonomics: outline relief is a decoration rather than a fill or ink
 
-Compose's material fills and inks shade their existing coverage. The shared
+Compose's material fills and inks paint their existing coverage. The shared
 `relief` brush can derive a normal field from the actual shape or placed
 glyphs, but it is attached as a background or foreground decoration. Text
 must select the glyph boundary and make its ordinary ink transparent. The
@@ -1317,12 +1301,12 @@ should compare two direct normal textures with their composed normal field
 under the same lighting, preserving UV placement, normal convention and
 live inputs. Until then, a World study must supply a direct texture slot.
 
-This is the door a lit Compose interface in space goes through: the marks
-a composition bakes into a height texture reach a World surface as its
-normal channel through `surface::normalFromHeight`, which is such a
-program. With it unbound, a Compose texture can dress a World surface's
-base colour and nothing else, and the relief the planar executor shows
-flat on the page is absent on the same surface turned in a set.
+The marks a composition bakes into a height texture reach a World surface
+as its normal channel through `surface::normalFromHeight`, which is such a
+program. With it unbound, such a texture dresses a World surface's base
+colour and nothing else; a page rendered as surface maps by
+`compose::SurfaceScene` reaches the set with its normal map as an image,
+which the binder does read.
 
 ## Bug: flow exclusions can read fixed-size glyphs before text layout
 
@@ -1353,80 +1337,25 @@ join values, and optional contour relief derived from that same coverage.
 A regression should compare its silhouette with Skia's stroke construction
 for round, miter and bevel joins and butt, round and square caps. Cover zero
 and fractional widths, miter limits, open and closed contours, clipped ends,
-signed relief, material effects and live inherited lighting.
-
-## Authoring gap: a coating cannot state its own finish in Compose
-
-`SurfaceOptions` exposes a clearcoat weight. The Skia surface shader uses
-one fixed coat roughness and the substrate's normal for the coating. The
-`layered_material_type` study can make porcelain, applied metal and its
-coating visible together, but cannot independently specify a smooth glaze
-above a rough impressed substrate. Material colour layers share one
-surface response; they are not independently shaded films.
-
-Wanted: an explicit coating finish with independent roughness and normal
-where the executor supports it. A regression should keep the substrate
-unchanged while only the coating highlight width or normal changes, verify
-zero coating against the ordinary surface, and preserve live map inputs.
+signed relief and material effects.
 
 ## Rendering gap: Graphite promotion changes fine ribbon coverage
 
-The fixed comparison coupons in `pigment_brushes` use full-material ribbons
-under static lighting. At two seconds and native density, Graphite captures
-with automatic promotion disabled and eager promotion enabled agree on the
-main material shading but differ at narrow ribbon boundaries and isolated
-coverage seams in the coupons. The metal and typography studies have only
+The fixed comparison coupons in `pigment_brushes` use full-material ribbons.
+At two seconds and native density, Graphite captures with automatic
+promotion disabled and eager promotion enabled agree on the main material
+colour but differ at narrow ribbon boundaries and isolated coverage seams in
+the coupons. The metal and typography studies have only
 small channel-rounding differences under the same comparison. These captures
 use the same Graphite executor for the live paint and the device bake.
 
 Wanted: device promotion preserves the live ribbon's coverage, including
 overlapping sections of a swept band. A reduced regression should compare a
-wide curved band with a thin band under the same static material and light,
-with promotion off and eager. Cover clipped coupons, negative origins,
+wide curved band with a thin band under the same static material, with
+promotion off and eager. Cover clipped coupons, negative origins,
 partly transparent layers, joins and a picture parent. Compare edge coverage
-separately from fully covered material shading; treating a large sparse edge
+separately from fully covered material colour; treating a large sparse edge
 difference as a small whole-frame average conceals the defect.
-
-## Performance gap: moving-light material studies are expensive on raster
-
-A picture records drawing commands, not their shaded pixels. A moving
-light rightly prevents holding the final shaded surface, but the
-stationary colour, height and normal channels beneath it re-run their
-material programs on every paint, so a lit material study under a moving
-light pays for all of its channel programs each frame.
-
-`--bench` on `pigment_brushes`, `metal_linework`, `layered_material_type`,
-`reflection_lobe` and the `painted_fields` steel workbench with a front
-point light shows it on raster: the frame time is spent in paint while
-description, reconciliation and layout stay small, and each misses the
-frame budget that `--window-bench` meets on the native window. The two
-lanes do not measure the same work: the window's figures are CPU activity
-and frame cadence, not GPU execution time. In `painted_fields` and
-`reflection_lobe` the outer custom paint callback includes a nested
-Compose description, so paint time does not isolate one shader; and the
-directional stone baseline and point-lit steel version of `painted_fields`
-change both material and lighting, so their difference does not isolate
-positioned lighting. In `reflection_lobe`, which retains its painted input
-and moves its mounted point lights, a plain metal crop below the letters
-and above the bristles changes as the sources move, independently of
-their visible markers.
-
-The `LitRaster` benchmark compares flat paint, positioned sources,
-procedural normals, procedural and prepared-image environments,
-painted-height normals, composed normals and coating at equal pixel
-extents; its mapped-normal arms use the procedural environment and must
-be compared with that arm. Point lights already skip the axis and cone
-work only a spot light needs, and a prepared environment panorama
-replaces the procedural one; neither moves the dominant raster cost, and
-the clearcoat arm is the most expensive.
-
-Wanted: retain stationary channel work as textures at the paint density,
-without freezing the light, UV placement or live inputs. Establish the
-dominant programs with a CPU sample before changing the executor, and
-compare retained channel textures with the procedural inputs at equal
-density. A regression should prove unchanged pixels under moving light
-and fresh channels after a source change; timing belongs in the
-benchmark.
 
 ## Authoring gap: a persistent Compose drawing hides its sampled output
 
@@ -1487,13 +1416,11 @@ revision semantics and bindings that retain their block identity.
 ## Rendering gap: painted brush height differs between raster and Graphite
 
 The deterministic bristle height input in `reflection_lobe` is identical
-across all thirty native-density GPU captures, including source, light,
-coating and promotion changes. The matching raster capture differs in its
-height-preview interior at 4,739 pixels, with a maximum channel difference
-of 42. The environment-only scalar coupon interiors agree within one
-channel level, while a bristle highlight elsewhere differs by 224 levels.
-The full-frame backend difference cannot be attributed solely to text or
-edge antialiasing; the brush input differs before it drives the normal map.
+across its native-density GPU captures, including promotion changes. The
+matching raster capture differs in its height-preview interior at 4,739
+pixels, with a maximum channel difference of 42. The backend difference
+cannot be attributed solely to text or edge antialiasing; the brush input
+differs before it drives the normal map.
 
 Seeded fibres painted into a fresh `draw::Graphics` on raster and on the
 device reproduce the input difference — the fixture of
@@ -1532,90 +1459,17 @@ upload controls, and retain finite unit-facing normals, seeded repeatability,
 constant height and zero depth. No tolerance for independently rasterized
 height fields has been adopted.
 
-## Performance gap: identical environments prepare separately for each receiver
+## Rendering gap: HDR coverage differs between raster and Graphite
 
-Every independently constructed LitSurface owns a lowered environment Paint
-and an atlas preparation cache. Identical environments can therefore repeat
-lowering and preparation across receivers with equivalent resolved inputs.
-This duplication follows from the ownership in the code; native per-frame
-duplication and its cost have not been quantified.
-
-Wanted: the nearest scene or lighting context can retain both the lowered
-panorama and its preparation. Sharing only the atlas cache is insufficient
-because separate lowerings produce separate shader identities. Reuse must
-account for the resolved source, extent and recorder, preserving time,
-bindings, receiver geometry and root placement. An authored-material-only
-global cache cannot establish those equivalences.
-
-A regression should prove one preparation across equivalent receivers,
-retention through rotation and intensity changes, and refresh or separation
-for different source frames, extents, backends, receiver contexts, nested
-scenes and lighting overrides. Measure actual preparation counts and cost
-before selecting a public host seam.
-
-## Rendering gap: finite environment samples alias narrow source support
-
-The spherical environment kernel uses a fixed deterministic sample sequence:
-64 samples for sharp lobes and 512 for broad or cosine-weighted lobes.
-Constant skies are preserved, but narrow off-axis support can fall between
-samples. More samples do not monotonically reduce that error.
-
-An independent spherical integral of a radiance-six north cap with an
-11.25-degree radius gives 0.161475896 for the cosine response at a normal
-45 degrees from north. The selected 512-sample cosine sequence gives
-0.140625, about 12.9 percent below that value. A sharp lobe at roughness
-0.125 and a normal 22.5 degrees from north has a reference response
-0.016016172 but receives zero from the selected sequence. These are
-numerical kernel witnesses, not an accuracy bound for native filtered images.
-
-Wanted: controlled sampling error for small emitting support without
-per-material gain or a panorama-space blur. Compare representative caps,
-strips and off-axis tails against independent spherical quadrature, retaining
-constant-sky identity, longitude continuity, HDR and deterministic results.
-Then measure source refresh and native normal-ramp continuity; a larger
-fixed loop alone does not establish either accuracy or usable refresh cost.
-
-A bounded 225-case CPU study compared 1,800 estimates using a float panorama
-and material/image importance sampling. A 512-wide panorama with 64 samples
-from each proposal improves the two cap witnesses to 0.16043424 and
-0.01537085, but loses a half-degree strip entirely. A 1024-wide panorama
-oversizes that strip's response by 52.7 percent. Supersampling source cells
-helps some cases while retaining substantial tiny-feature errors. Constants,
-black and the tested longitude seams are preserved. The estimates are
-numerical research, without half-precision, device, atlas-interpolation or
-moving-source validation. Source-bake convergence and fallback are unresolved;
-additional samples or resolution do not improve monotonically. Keep the
-production kernel until that contract and native refresh cost are established.
-
-## Rendering gap: HDR highlight coverage differs between raster and Graphite
-
-The native `metal_linework` blue state uses one frontal source at intensity
-0.35 with ambient zero and no environment. Raster and Graphite captures
-at exactly 26.6666666667 seconds use the same host, description and density.
-Most channel differences are small, but 258 pixels differ by more than
-64 channel levels. At glyph pixel (1133, 56), Graphite is RGBA
-(15, 9, 255, 255) and raster is (15, 9, 90, 255); the maximum difference
-across the plate is 240. Identical red and green backdrop channels at this
-pixel make changed silhouette coverage an insufficient explanation.
-Capturing `metal_linework` at that time on raster and on Graphite and
-comparing the two reproduces it; with zero direct RGB the maximum backend
-difference is eight instead.
-
-The lit shader returns unclamped radiance with premultiplied alpha. A sharp
-highlight can exceed one even when the source RGB is one. In the 351 pixels
-with channel differences above 32, GPU blue is always brighter and the black
-control differs by at most one. Plain material ink contains outliers, so
-outline relief is not required. Subtracting the black control from selected
-glyph edges gives a GPU/raster blue ratio near 4.8, consistent with the
-roughness-0.25 surface's finite highlight peak rather than half overflow.
-
-Skia's raster-pipeline blitter (`SkRasterPipelineBlitter`) clamps shader
-values for a normalized target before it applies path or glyph coverage,
-so raster clips an HDR highlight before coverage where Graphite need not;
-that different clipping order is the likely cause, not yet confirmed
-against the installed Skia. The float16 light-color regression retains HDR range and
-agrees between executors, so clamping the common lighting shader would
-discard intended output rather than resolve the coverage contract.
+A paint whose shader returns values above one with premultiplied alpha —
+an HDR colour stack, a bright runtime shader — composites differently on
+the two executors where its coverage is partial. Skia's raster-pipeline
+blitter (`SkRasterPipelineBlitter`) clamps shader values for a normalized
+target before it applies path or glyph coverage, so raster clips an HDR
+value before coverage where Graphite need not; on glyph edges Graphite
+comes out several times brighter than raster while a black control agrees.
+That clipping order is the likely cause, not yet confirmed against the
+installed Skia.
 
 Wanted: a declared display-range and HDR compositing boundary. A regression
 should draw the same partially covered glyph, curved stroke and filled edge
@@ -1623,7 +1477,8 @@ with bounded and HDR shader values into N32 and float16 targets, over an
 opaque colored ground and transparency. Compare coverage separately from
 radiance, preserve full-coverage HDR values, and establish where display
 clipping occurs on both executors. Keep comparing the two executors at a
-matching clock; do not rebase away the sparse highlight differences as ordinary antialiasing.
+matching clock; do not rebase away sparse edge differences as ordinary
+antialiasing.
 
 ## Rendering gap: instance tints lose HDR range before compositing
 
@@ -1642,48 +1497,6 @@ independently; changing destination precision must not change authored tint
 semantics silently. Keep the bounded batch path when it meets that contract.
 
 
-## Contract gap: a lamp on the page changes which normal the environment reads
-
-Under `material::LightingFrame::Surface`, a directional source reads the
-node's own normal. `src/common/material/skia/Lit.cpp` selects
-`LitPositioned.sksl` as soon as any source is a point or a spot, and
-`LitSurface.sksl` then replaces the shaded normal with the page normal
-for everything after it: the ambient tint, the environment reflection,
-the view cosine and the coat. So a turned or scaled node keeps its
-reflections where they were until a lamp is added anywhere in the rig,
-and then they turn. `Lighting.h`, `Lit.h` and the Material README state
-this as the rule.
-
-Which normal a surface's environment reads should follow from the frame
-it states, never from which kinds of source happen to be present. In the
-Surface frame the ambient, environment and coat terms would read the
-node's own normal, and only a positioned source's direct term the page
-normal. A test should hold a rotated lit node's environment reflection
-unchanged when a point light of zero intensity is added, and unchanged
-again when it is removed. Every plate with a positioned light over a
-turned node moves.
-
-## Renderer gap: the page and the set shade direct light differently
-
-`src/common/material/skia/shaders/LitSurface.sksl` and
-`src/common/world/diligent/shaders/Surface.slang` execute one surface
-value. The page's direct term is the shared one in
-`src/common/material/core/shaders/Shading.slang`: a highlight whose
-exponent comes from the roughness, normalised, multiplied by the facing
-cosine and coloured by the surface's reflectance. The set's is written in
-its own shader: an exponent taken from the scene or a per-pixel gloss,
-no normalisation, gated by the facing cosine but not multiplied by it,
-tinted white for a dielectric, with no ambient share on a metal and a rim
-term the page has none of. A material moved from a page to a set
-therefore changes its highlight width, strength and colour.
-
-The set should call the shared direct term, reading roughness where it
-reads gloss. A test should shade one surface under one directional light
-through both executors, viewer straight on, and compare the centre pixel
-within a tolerance; a second should vary roughness and see the highlight
-widen in both. Every lit World plate moves, and the rebase names this
-cause.
-
 ## Contract gap: a material stroke keeps its prepared surface in the description
 
 `detail::MaterialStroke` in
@@ -1695,12 +1508,12 @@ painting one description — a `TextureScene` beside the window's
 composer — write the same cache, and neither owns its lifetime.
 
 A description is immutable once described; retained paint state belongs
-to the instance that paints. The prepared `LitSurface` and its lighting
-pass should stand beside the instance's other lit inputs, keyed by the
+to the instance that paints. The prepared `LitSurface` and its surface map
+passes should stand beside the instance's other lit inputs, keyed by the
 mark's place among the node's strokes. A test should paint one
-description through two composers under different lighting and find each
-shaded under its own; a second should describe the stroke once, paint it,
-and find the description's bytes unchanged.
+description through two composers painting different surface maps and
+find each painted as its own map; a second should describe the stroke
+once, paint it, and find the description's bytes unchanged.
 
 ## Performance gap: a local bake inside a recording is always a raster
 
@@ -1719,9 +1532,8 @@ find the child's bake texture-backed.
 ## Study queue: the material studies are written around the libraries
 
 The sixteen `Study · Materials` sketches under `apps/grimoire/sketches/`
-were written while the lighting vocabulary was growing and say with raw
-mechanism what the libraries now say directly. What a sketch pass should
-change, by kind:
+say with raw mechanism what the libraries say directly. What a sketch pass
+should change, by kind:
 
 - **Raw Skia.** `ceramic_glaze`, `metal_instrument` and `struck_metal`
   build their maps in `SkBitmap` pixel loops; `luminous_layers` makes and
@@ -1752,22 +1564,20 @@ change, by kind:
   clamp with a fallback in seven, a number formatter in nine
   (`compose::kit::formatted`), a hex colour in three
   (`material::hexColor`), a button in five, a studio environment bake in
-  nine, a texture stretched over an extent in five. `carved_marks` and
+  three, a texture stretched over an extent in five. `carved_marks` and
   `layered_material_type` share most of their page.
-- **Outside the page's lighting.** `painted_fields` and `reflection_lobe`
-  stand softboxes, strips and rings in as environment panoramas and
-  brushed anisotropy as groove normals; `metal_instrument` lights a
-  Compose plane turned under `perspective`. Emitters with an extent,
-  anisotropy and a turned plane are a set's.
+- **Lighting.** A study's lighting goes through a set: its page is worn
+  as surface maps (`compose::SurfaceScene`) by a World surface under the
+  set's lights, as `carved_marks_set` does. Until then its lit materials
+  paint their colours flat. Emitters with an extent, anisotropy and a
+  turned plane are a set's too.
 - **Checks that throw while painting.** `carved_marks`,
   `layered_material_type` and `luminous_layers` verify revisions each
   frame and throw from `update` or `paint`; `light_table` and
   `luminous_layers` carry read-back functions nothing calls. Those are
   tests.
 - **Wrong pictures.** `struck_metal`'s key light travels upward, so the
-  piece is lit from below. `stone_relief`'s dial ticks and
-  `wet_glass_console`'s turned film are lit in their own frame, so the
-  light turns with them. `carved_marks` differentiates a unit-square
+  piece is lit from below. `carved_marks` differentiates a unit-square
   height at a step wider than its ribs for glyph and word units.
   `embossed_foil` and `reflection_lobe` do not close their loops.
   `painted_fields` and `carved_marks` stretch a field across boxes of
@@ -1776,8 +1586,6 @@ change, by kind:
 What the libraries lack and the studies spell by hand, each a growth of
 the library named:
 
-- `material::Light::position` is a plain vector, so a moving lamp
-  re-describes the page (SigilMaterial).
 - `draw::Graphics::image()` and `extent()`, `brush::Ribbon::band` and
   `compose::TextureScene::make` and `size()` take and return Skia types
   (SigilDraw, SigilCompose).
@@ -1801,12 +1609,12 @@ the copies above are one kit piece or a library call.
 `style.foreground` and `PaintLayer::resolvedPaint`, and never consults
 `PaintStyle::foregroundMaterial` or `PaintLayer::material`; the batches
 have no material resolver. The paragraph draws, `ParagraphLayout::draw`
-and `drawBatched`, shade those passes through `paint::setMaterialResolver`
-over the glyph ink bounds. So a span whose material shades it at rest
+and `drawBatched`, paint those passes through `paint::setMaterialResolver`
+over the glyph ink bounds. So a span whose material paints it at rest
 draws in its configured foreground as soon as a text effect moves its
 glyphs into the batches.
 
-One material should shade a glyph the same way at rest and in motion. A
+One material should paint a glyph the same way at rest and in motion. A
 test should draw one styled glyph with a `foregroundMaterial` and an
 installed resolver twice, through `drawBatched` and through
 `GlyphRSXformBatches` at the same pose, and assert that both resolve the
