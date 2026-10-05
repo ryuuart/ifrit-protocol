@@ -14,6 +14,7 @@
 #include <sigilcore/reconcile/Memo.h>
 #include <sigilcore/reconcile/Node.h>
 #include <sigilcore/reconcile/Reconciler.h>
+#include <sigilmaterial/core/Lighting.h>
 #include <sigilworld/advanced/Skia.h>
 #include <sigilworld/element/Lanes.h>
 #include <sigilworld/element/Node.h>

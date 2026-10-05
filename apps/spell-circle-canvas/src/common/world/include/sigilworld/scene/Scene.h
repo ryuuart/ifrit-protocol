@@ -9,6 +9,7 @@
  */
 
 #include <sigilgeometry/mesh/render/Runtime.h>
+#include <sigilmaterial/core/Lighting.h>
 #include <sigilworld/element/Element.h>
 #include <sigilworld/frame/Frame.h>
 #include <sigilworld/graph/Plan.h>
@@ -54,7 +55,6 @@ class Scene {
    *  they wrote; a frame with no passes is its scene.
    *  @trap Execution reads the extracted state and never the tree. */
   void render(const Frame& frame);
-
 
   /** The viewpoint the tree declared, carried by its node's placement —
    *  the first one in tree order when there are several. */

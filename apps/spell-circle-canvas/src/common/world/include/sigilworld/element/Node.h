@@ -13,6 +13,7 @@
  */
 
 #include <sigilcore/cache/Policy.h>
+#include <sigilmaterial/core/Lighting.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Tween.h>
 #include <sigilworld/element/Element.h>

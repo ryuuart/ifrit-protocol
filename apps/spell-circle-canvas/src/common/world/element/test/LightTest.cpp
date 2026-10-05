@@ -73,9 +73,9 @@ TEST(Light, AnglesReadAsAWorldDirection) {
   const material::Light overhead = light::sun({0, -1, 0});
   EXPECT_FLOAT_EQ(overhead.elevation.value(), 90.0f);
   EXPECT_EQ(light::travel(overhead), glm::vec3(0, -1, 0));
-  // Material's stock key light, placed in a set: from the bearing 120
+  // A light's default angles, placed in a set: from the bearing 120
   // degrees counter-clockwise from +x seen from above, 45 degrees up.
-  const glm::vec3 key = light::travel(material::studio());
+  const glm::vec3 key = light::travel(material::Light{});
   EXPECT_NEAR(key.y, -std::sqrt(0.5f), 1e-6f);
   EXPECT_NEAR(key.x, std::sqrt(0.5f) * 0.5f, 1e-6f);
   EXPECT_NEAR(key.z, std::sqrt(0.5f) * std::sqrt(0.75f), 1e-6f);

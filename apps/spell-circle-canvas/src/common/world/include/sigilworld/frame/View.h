@@ -11,6 +11,7 @@
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilgeometry/mesh/render/Shading.h>
 #include <sigilmaterial/core/Backface.h>
+#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilmedia/core/Picture.h>
 #include <sigilworld/element/Element.h>
