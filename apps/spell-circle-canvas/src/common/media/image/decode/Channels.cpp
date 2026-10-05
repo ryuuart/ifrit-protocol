@@ -5,7 +5,6 @@
  */
 
 #include "sigilmedia/image/Channels.h"
-#include "sigilmedia/advanced/Skia.h"
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImageInfo.h>
@@ -16,6 +15,7 @@
 #include <utility>
 
 #include "Backends.h"
+#include "sigilmedia/advanced/Skia.h"
 #include "sigilmedia/core/Image.h"
 
 namespace sigil::media {
@@ -27,7 +27,8 @@ namespace {
  *  whether the caller said so with -1 or named an index past the
  *  channels there are: a picture with a hole in it beats a read past
  *  the end. */
-sk_sp<SkImage> pickChannels(const Channels& channels, ChannelPick pick) {
+sk_sp<SkImage> pickChannels(const Channels& channels, ChannelPick pick,
+                            ColorSpace colorSpace = ColorSpace::Srgb) {
   const size_t stride = channels.names.size();
   const size_t pixels = (size_t)channels.width * channels.height;
   std::vector<float> rgba(pixels * 4);
@@ -39,14 +40,18 @@ sk_sp<SkImage> pickChannels(const Channels& channels, ChannelPick pick) {
     float* destination = rgba.data() + pixel * 4;
     const float red = held(pick.red) ? source[pick.red] : 0.0f;
     destination[0] = red;
-    destination[1] = held(pick.green) ? source[pick.green] : red;  // luminance repeats
+    destination[1] =
+        held(pick.green) ? source[pick.green] : red;  // luminance repeats
     destination[2] = held(pick.blue) ? source[pick.blue] : red;
     destination[3] = held(pick.alpha) ? source[pick.alpha] : 1.0f;
   }
   const SkImageInfo info = SkImageInfo::Make(
       channels.width, channels.height,
       channels.floatingPoint ? kRGBA_F32_SkColorType : kN32_SkColorType,
-      kPremul_SkAlphaType);
+      // Data keeps its alpha out of its other three channels, which is
+      // also how the channels arrived: nothing here multiplies them.
+      colorSpace == ColorSpace::Data ? kUnpremul_SkAlphaType
+                                     : kPremul_SkAlphaType);
   SkBitmap bitmap;
   if (!bitmap.tryAllocPixels(info)) return nullptr;
   if (channels.floatingPoint) {
@@ -72,7 +77,8 @@ std::shared_ptr<const Image> documentOf(sk_sp<SkImage> picture) {
 
 namespace backend {
 
-sk_sp<SkImage> composite(const Channels& channels, std::string_view layer) {
+sk_sp<SkImage> composite(const Channels& channels, std::string_view layer,
+                         ColorSpace colorSpace) {
   const auto find = [&](std::initializer_list<const char*> candidates) {
     for (const char* candidate : candidates) {
       const std::string wanted = layer.empty()
@@ -95,7 +101,7 @@ sk_sp<SkImage> composite(const Channels& channels, std::string_view layer) {
             .alpha = count > 3 ? 3 : -1};
   }
   if (pick.red < 0 && pick.green < 0 && pick.blue < 0) return nullptr;
-  return pickChannels(channels, pick);
+  return pickChannels(channels, pick, colorSpace);
 }
 
 }  // namespace backend

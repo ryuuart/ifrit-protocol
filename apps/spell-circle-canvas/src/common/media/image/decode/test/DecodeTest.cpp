@@ -1,26 +1,28 @@
 /** @file
  * The image route — the Skia codecs reached through
- * media::decode<media::Image>() and the image probe on raw bytes, the KTX reader, the DDS cube
- * map through OpenImageIO when it is built in, and the SVG backend when
- * it is. The file reads here are the test's own; the library takes no
- * paths.
+ * media::decode<media::Image>() and the image probe on raw bytes, the KTX
+ * reader, the DDS cube map through OpenImageIO when it is built in, and the SVG
+ * backend when it is. The file reads here are the test's own; the library takes
+ * no paths.
  */
 
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkColor.h>
+#include <include/core/SkColorSpace.h>
+#include <include/core/SkImageInfo.h>
+#include <include/core/SkPixmap.h>
 #include <include/core/SkSize.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/image/Decode.h>
 
 #include <chrono>
 #include <filesystem>
+#include <fstream>
 #include <optional>
 #include <span>
-#include <type_traits>
-
-#include <fstream>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "CubeContainers.h"
@@ -28,17 +30,17 @@
 
 namespace {
 
-using sigil::media::test::assetPath;
-using sigil::media::test::expectNearColor;
-using sigil::media::test::pixelAt;
 using sigil::media::Channels;
 using sigil::media::Image;
 using sigil::media::ImageOptions;
 using sigil::media::Metadata;
+using sigil::media::test::assetPath;
+using sigil::media::test::expectNearColor;
+using sigil::media::test::pixelAt;
 
-std::shared_ptr<const Image> decodeImage(std::span<const std::byte> bytes,
-                                         ImageOptions options = {},
-                                         const std::filesystem::path& name = {}) {
+std::shared_ptr<const Image> decodeImage(
+    std::span<const std::byte> bytes, ImageOptions options = {},
+    const std::filesystem::path& name = {}) {
   return sigil::media::decode<Image>(bytes, options, name);
 }
 
@@ -75,8 +77,7 @@ constexpr bool kSvgBackend = false;
 TEST(ImageDecode, RoutesRasterBytesThroughTheSkiaCodecs) {
   const auto bytes = readFile(assetPath("anim.gif"));
   ASSERT_FALSE(bytes.empty());
-  auto asset = decodeImage(bytes, {},
-                                         assetPath("anim.gif"));
+  auto asset = decodeImage(bytes, {}, assetPath("anim.gif"));
   ASSERT_TRUE(asset);
   EXPECT_TRUE(asset->isRunning());
   ASSERT_EQ(asset->frames().size(), 3u);
@@ -100,6 +101,47 @@ TEST(ImageDecode, LdrChannelsNormalizeToPremultipliedFloats) {
   EXPECT_FLOAT_EQ(channels->at(1, 1, channels->index("R")), 1.0f);
   EXPECT_FLOAT_EQ(channels->at(1, 1, channels->index("G")), 0.0f);
   EXPECT_FLOAT_EQ(channels->at(1, 1, channels->index("A")), 1.0f);
+}
+
+TEST(ImageDecode, DataKeepsItsAlphaOutOfItsColour) {
+  // Every texel holds a colour and no alpha. As colour the alpha takes the
+  // colour with it; as data the colour stands.
+  const auto bytes = readFile(assetPath("straight.png"));
+  ASSERT_FALSE(bytes.empty());
+  const auto data =
+      decodeImage(bytes, {.colorSpace = sigil::media::ColorSpace::Data});
+  ASSERT_TRUE(data);
+  const sk_sp<SkImage> image = data->frames().front().image;
+  EXPECT_EQ(image->alphaType(), kUnpremul_SkAlphaType);
+  SkPixmap pixels;
+  ASSERT_TRUE(image->peekPixels(&pixels));
+  const auto* texel = static_cast<const uint8_t*>(pixels.addr(1, 1));
+  EXPECT_EQ(texel[0], 200);
+  EXPECT_EQ(texel[1], 100);
+  EXPECT_EQ(texel[2], 50);
+  EXPECT_EQ(texel[3], 0);
+}
+
+TEST(ImageDecode, SixteenBitDataKeepsItsPrecision) {
+  const auto bytes = readFile(assetPath("deep.png"));
+  ASSERT_FALSE(bytes.empty());
+  const auto data =
+      decodeImage(bytes, {.colorSpace = sigil::media::ColorSpace::Data});
+  ASSERT_TRUE(data);
+  const sk_sp<SkImage> image = data->frames().front().image;
+  EXPECT_NE(image->colorType(), kRGBA_8888_SkColorType);
+  EXPECT_NE(image->colorType(), kBGRA_8888_SkColorType);
+  SkBitmap read;
+  read.allocPixels(SkImageInfo::Make(2, 1, kRGBA_F32_SkColorType,
+                                     kUnpremul_SkAlphaType, nullptr));
+  ASSERT_TRUE(image->readPixels(read.pixmap(), 0, 0));
+  const auto* first = static_cast<const float*>(read.getAddr(0, 0));
+  // A thousandth of a step of eight bits: a value eight bits could not
+  // have carried.
+  EXPECT_NEAR(first[0], 1000.0f / 65535.0f, 2e-4f);
+  EXPECT_NEAR(first[1], 30000.0f / 65535.0f, 2e-4f);
+  EXPECT_NEAR(first[2], 1.0f, 2e-4f);
+  EXPECT_NEAR(first[3], 0.0f, 2e-4f);
 }
 
 TEST(ImageDecode, DecodesEveryStillFormat) {
@@ -272,8 +314,7 @@ std::span<const std::byte> svgBytes(const char* svg) {
 
 TEST(SvgDecode, RendersAtExplicitSize) {
   if (!kSvgBackend) GTEST_SKIP() << "built without the Skia SVG backend";
-  auto asset = decodeImage(svgBytes(kTwoRectSvg),
-      {.width = 64, .height = 32});
+  auto asset = decodeImage(svgBytes(kTwoRectSvg), {.width = 64, .height = 32});
   ASSERT_TRUE(asset);
   EXPECT_EQ(asset->size().x, 64);
   EXPECT_EQ(asset->size().y, 32);
@@ -286,8 +327,7 @@ TEST(SvgDecode, RendersAtExplicitSize) {
 
 TEST(SvgDecode, WidthOnlyDerivesHeightFromAspect) {
   if (!kSvgBackend) GTEST_SKIP() << "built without the Skia SVG backend";
-  auto asset = decodeImage(svgBytes(kTwoRectSvg),
-      {.width = 100});
+  auto asset = decodeImage(svgBytes(kTwoRectSvg), {.width = 100});
   ASSERT_TRUE(asset);
   EXPECT_EQ(asset->size().x, 100);
   EXPECT_EQ(asset->size().y, 50);  // 8x4 intrinsic aspect

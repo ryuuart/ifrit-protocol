@@ -63,7 +63,9 @@ const std::vector<glm::vec2>& environmentBrdfTable();
  *  `environmentDiffuse`, `environmentReflection`, `refraction`,
  *  `attenuate`, `emission`, `occlusion`; the display transform every lit
  *  sum ends at — `luminance`, `toneMap`, `toneMapNeutral`,
- *  `toneMapLinear`, `toneCurve`, `linearFromSrgb`, `srgbFromLinear` and
+ *  `toneMapLinear`, `toneCurve`, the same four backward —
+ *  `toneMapInverse`, `toneMapNeutralInverse`, `toneMapLinearInverse`,
+ *  `toneCurveInverse` — `linearFromSrgb`, `srgbFromLinear` and
  *  their one-channel forms; and the panorama's own geometry:
  *  `equirectangularUv`, `roughnessLevel`, `atan2P`, `acosP`. */
 

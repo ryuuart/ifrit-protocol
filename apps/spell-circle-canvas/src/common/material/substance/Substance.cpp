@@ -8,12 +8,12 @@
  * cook it stands on answers empty without one.
  */
 
+#include <sigilio/hub/Hub.h>
 #include <sigilmaterial/advanced/Program.h>
 #include <sigilmaterial/substance/Substance.h>
 #include <sigilmaterial/substance/advanced/Archive.h>
 #include <sigilmaterial/substance/advanced/Cook.h>
 #include <sigilmaterial/texture/Image.h>
-#include <sigilio/hub/Hub.h>
 
 #include <algorithm>
 #include <array>
@@ -105,8 +105,7 @@ std::string presetFileBeside(std::string_view uri) {
   return sibling + ".sbsprs";
 }
 
-void addPresetsBeside(io::Hub& hub, std::string_view uri,
-                      CookScheduler& cook) {
+void addPresetsBeside(io::Hub& hub, std::string_view uri, CookScheduler& cook) {
   if (std::optional<std::string> text = hub.text(presetFileBeside(uri)))
     cook.addPresets(*text);
 }
@@ -145,9 +144,9 @@ Material substance(io::Hub& hub, std::string_view uri,
                    SubstanceOptions options) {
   const std::string where(uri);
   if (!sbsar::available()) {
-    reportOnce("substance:unavailable",
-               "this build has no Substance SDK; \"" + where +
-                   "\" answers an empty material");
+    reportOnce("substance:unavailable", "this build has no Substance SDK; \"" +
+                                            where +
+                                            "\" answers an empty material");
     return sbsar::nothing();
   }
   const std::shared_ptr<const sbsar::Archive> archive = sbsar::load(hub, uri);
@@ -169,9 +168,10 @@ Material substance(io::Hub& hub, std::string_view uri,
                              .engine = options.engine};
   if (cooking.outputs.empty()) {
     for (const sbsar::Output& output : archive->graph(*graph).outputs)
-      if (output.image && std::find(sbsar::kMaterialUsages.begin(),
-                                    sbsar::kMaterialUsages.end(),
-                                    output.usage) != sbsar::kMaterialUsages.end())
+      if (output.image &&
+          std::find(sbsar::kMaterialUsages.begin(),
+                    sbsar::kMaterialUsages.end(),
+                    output.usage) != sbsar::kMaterialUsages.end())
         cooking.outputs.push_back({output.usage});
   }
   sbsar::CookScheduler cook(archive, *graph, cooking);
@@ -208,7 +208,7 @@ Material substance(io::Hub& hub, std::string_view uri,
     LayerOptions how;
     if (std::optional<Material> opacity = channel("opacity"))
       how.mask = Mask{.source = std::move(*opacity),
-                      .channel = MaskChannel::Luminance};
+                      .channel = ColorChannel::Luminance};
     material.layer(std::move(*base), how);
   }
   SurfaceOptions surface;

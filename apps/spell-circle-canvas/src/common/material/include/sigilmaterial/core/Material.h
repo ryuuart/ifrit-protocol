@@ -393,10 +393,30 @@ class Material {
 
   struct ResolveState;
   std::shared_ptr<ResolveState> m_resolve;
+
+  /** Writes a material's slot children into one body, which reads every
+   *  part of an instance: its values, its bindings and its leaves. */
+  friend Material inlined(const Material& material);
 };
 
-/** What a layer's mask reads from its source material. */
-enum class MaskChannel : uint8_t {
+/** EVERY SLOT HOLDING A MATERIAL, WRITTEN INTO ONE SLANG BODY. A device
+ *  compiler is handed one body per material and cannot reach a child
+ *  material in a slot, so the children's bodies are inlined into the
+ *  parent's, each slot read becoming a call of the child's `surface`, and
+ *  the children's values, live bindings and leaves carried under the
+ *  slot's name as a prefix — a flipbook in a surface's base-colour slot
+ *  plays on the device as it does on a page. A child with no Slang body
+ *  stays in its slot. The parent's own names are unchanged, so a reader
+ *  asking a field or a leaf slot of the result asks it as before; the
+ *  composed definition is made once per set of definitions. A material
+ *  with no material in a slot comes back as it is. */
+Material inlined(const Material& material);
+
+/** ONE CHANNEL OF A MATERIAL READ AS A GREY VALUE: what a layer's mask
+ *  reads from its source, and what `channel()` picks out of a texture that
+ *  packs several values into one image — a mask in red, a noise in green,
+ *  a gradient in blue — wherever a material is taken. */
+enum class ColorChannel : uint8_t {
   Alpha,      ///< coverage (CSS mask-mode: alpha)
   Luminance,  ///< brightness (CSS mask-mode: luminance)
   Red,
@@ -409,7 +429,7 @@ enum class MaskChannel : uint8_t {
  *  [0, 1] and optionally inverted. */
 struct Mask {
   Material source;
-  MaskChannel channel = MaskChannel::Alpha;
+  ColorChannel channel = ColorChannel::Alpha;
   float low = 0, high = 1;
   bool invert = false;
   bool operator==(const Mask&) const = default;
@@ -482,6 +502,23 @@ struct SurfaceOptions {
   float reflectionWeight = 1;
   /** No lighting: the base colour as it is. */
   bool unlit = false;
+  /** HOW THE SURFACE COMPOSITES over what stands behind it, once shaded:
+   *  `Normal` lays it over by its alpha; `PlusLighter` adds it — a glow, a
+   *  flame, a beam, which only ever brighten and need no order among
+   *  themselves; `Multiply` darkens what is behind by it; `Screen`
+   *  lightens it; `Modulate` multiplies by the premultiplied colour. A 3D
+   *  renderer reads it as its blend state; the 2D painter composites a
+   *  node by the node's own blend mode and ignores it. */
+  BlendMode blend = BlendMode::Normal;
+  /** Whether the surface writes depth, so that what is drawn after it and
+   *  behind it is hidden. Unstated, an opaque surface composited
+   *  normally writes it and every other surface does not. */
+  std::optional<bool> depthWrite;
+  /** SOFT EDGES WHERE IT MEETS THE SCENE: the distance, in scene units,
+   *  over which the surface fades out as it approaches the opaque surface
+   *  behind it, so a sprite crossing a floor shows no hard line. Zero does
+   *  not fade. */
+  float depthFade = 0;
   bool operator==(const SurfaceOptions&) const = default;
 };
 

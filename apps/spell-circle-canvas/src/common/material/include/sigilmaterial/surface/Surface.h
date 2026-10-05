@@ -24,6 +24,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string_view>
 
 namespace sigil::material::surface {
@@ -149,7 +150,31 @@ struct SurfaceParameters {
    *  red and the roughness in green, so one image fills both slots. */
   float clearcoatChannel = 0;
   float clearcoatRoughnessChannel = 1;
+  /** HOW THE SURFACE COMPOSITES, as `SurfaceOptions` states it: the blend
+   *  mode by its enumerator, whether it writes depth — 1 yes, 0 no, below
+   *  zero unstated — and the distance it fades over where it meets what
+   *  stands behind it. A renderer reads the first two as its blend state
+   *  (`compositing()`); the bodies hand the third to the renderer, which
+   *  is the one holding the scene's depth. */
+  float blend = 0;
+  float depthWrite = -1;
+  float depthFade = 0;
 };
+
+/** HOW A SURFACE COMPOSITES, read back off the program as a renderer acts
+ *  on it: the blend mode, whether it writes depth where it said, and its
+ *  depth fade. */
+struct Compositing {
+  BlendMode blend = BlendMode::Normal;
+  std::optional<bool> depthWrite;
+  float depthFade = 0;
+  bool operator==(const Compositing&) const = default;
+};
+
+/** What @p material states about compositing: a surface program's own
+ *  three fields, and the stock answer — normal, unstated, no fade — for
+ *  any material that carries none of them. */
+Compositing compositing(const Material& material);
 
 /** HOW THE ENVIRONMENT REACHES A SURFACE, which is a choice about the
  *  model and not a dial on it, so it is one recipe each and no body

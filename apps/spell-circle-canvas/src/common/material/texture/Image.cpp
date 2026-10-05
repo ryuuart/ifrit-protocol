@@ -34,6 +34,7 @@ const std::shared_ptr<const Recipe>& imageRecipe() {
 Material image(media::PixelSource pixels, ImageOptions options) {
   Texture texture(std::move(pixels));
   texture.tile(options.repeat, options.repeatY.value_or(options.repeat));
+  if (options.colorSpace) texture.colorSpace(*options.colorSpace);
   return image(std::move(texture));
 }
 

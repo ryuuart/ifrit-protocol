@@ -461,6 +461,59 @@ public float3 toneCurve(float3 radiance, float exposure, float curve) {
   return toneMapLinear(radiance, exposure);
 }
 
+/** THE CURVES RUN BACKWARD: the radiance that @p display — a linear
+ *  colour in the unit range, the curve's output before it is encoded —
+ *  is what the curve @p curve makes of at @p exposure. Each curve here
+ *  rises without turning back, so each has exactly one answer; a display
+ *  value at white, which Reinhard and the neutral curve only approach, is
+ *  answered with the brightest radiance a half float holds short of it.
+ *  This is how a surface drawn as authored passes through the camera's
+ *  reading unchanged: it is written as the light the reading turns back
+ *  into the colour it was authored in. */
+public float3 toneMapInverse(float3 display, float exposure) {
+  float3 y = max(display, float3(0.0, 0.0, 0.0));
+  float l = min(luminance(y), 0.9999);
+  return y / ((1.0 - l) * max(exposure, 1e-6));
+}
+
+/** `toneMapNeutral` backward: the compression above the shoulder undone
+ *  from the peak it left — the brightest channel, which the
+ *  desaturation never moves — and then the offset near black undone from
+ *  the lowest channel, which the offset alone decides. */
+public float3 toneMapNeutralInverse(float3 display, float exposure) {
+  float3 c = max(display, float3(0.0, 0.0, 0.0));
+  float newPeak = min(max(c.x, max(c.y, c.z)), 0.9999);
+  float start = 0.76;
+  if (newPeak >= start) {
+    float d = 1.0 - start;
+    float peak = d * d / (1.0 - newPeak) - d + start;
+    float g = 1.0 - 1.0 / (0.15 * (peak - newPeak) + 1.0);
+    c = (min(c, float3(newPeak, newPeak, newPeak)) -
+         float3(newPeak, newPeak, newPeak) * g) /
+        max(1.0 - g, 1e-6);
+    c = c * (peak / max(newPeak, 1e-6));
+  }
+  float lowest = min(c.x, min(c.y, c.z));
+  float offset = 0.04;
+  if (lowest < 0.04) {
+    float before = sqrt(max(lowest, 0.0) / 6.25);
+    offset = before - max(lowest, 0.0);
+  }
+  return (c + float3(offset, offset, offset)) / max(exposure, 1e-6);
+}
+
+/** `toneMapLinear` backward: the exposure divided out. */
+public float3 toneMapLinearInverse(float3 display, float exposure) {
+  return max(display, float3(0.0, 0.0, 0.0)) / max(exposure, 1e-6);
+}
+
+/** THE CURVE A CAMERA NAMES, backward, by its number. */
+public float3 toneCurveInverse(float3 display, float exposure, float curve) {
+  if (curve < 0.5) return toneMapInverse(display, exposure);
+  if (curve < 1.5) return toneMapNeutralInverse(display, exposure);
+  return toneMapLinearInverse(display, exposure);
+}
+
 // ---- the colour encoding --------------------------------------------
 // Light adds and multiplies in LINEAR values; a display shows, and an
 // eight-bit image stores, ENCODED ones, spaced so equal steps look equal.

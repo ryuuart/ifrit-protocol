@@ -1,0 +1,12 @@
+// One channel of the source as an opaque grey, in the order the channel
+// names are declared: alpha, luminance, red, green, blue.
+
+half4 main(float2 xy) {
+  half4 read = source.eval(xy);
+  half value = read.a;
+  if (which > 0.5) value = dot(read.rgb, half3(0.2126, 0.7152, 0.0722));
+  if (which > 1.5) value = read.r;
+  if (which > 2.5) value = read.g;
+  if (which > 3.5) value = read.b;
+  return half4(value, value, value, 1.0);
+}

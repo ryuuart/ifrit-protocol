@@ -23,9 +23,12 @@
 namespace sigil::media::backend {
 
 /** PNG, JPEG, WebP, GIF and AVIF through Skia's codecs, stills and
- *  animations, every frame composited into premultiplied N32; nothing
+ *  animations, every frame composited into premultiplied N32 — or, for
+ *  @p colorSpace `Data`, into straight alpha with no colour conversion,
+ *  a source of more than eight bits a channel keeping sixteen; nothing
  *  when Skia does not recognise the bytes. */
-std::optional<Image> decodeWithSkia(const std::byte* bytes, size_t size);
+std::optional<Image> decodeWithSkia(const std::byte* bytes, size_t size,
+                                    ColorSpace colorSpace = ColorSpace::Srgb);
 
 /** The same route as a probe: dimensions, frame count, format name. */
 std::optional<Metadata> probeWithSkia(const std::byte* bytes, size_t size);
@@ -38,7 +41,8 @@ std::optional<Channels> decodeChannelsWithSkia(const std::byte* bytes,
 
 /** A channel group of @p channels composited into one picture, as
  *  `Channels::image` describes; null when the layer names nothing. */
-sk_sp<SkImage> composite(const Channels& channels, std::string_view layer);
+sk_sp<SkImage> composite(const Channels& channels, std::string_view layer,
+                         ColorSpace colorSpace = ColorSpace::Srgb);
 
 /** The twelve-byte identifier of a KTX 1 or KTX 2 container. */
 bool looksLikeKtx(const std::byte* bytes, size_t size);

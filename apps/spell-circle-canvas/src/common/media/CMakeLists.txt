@@ -10,9 +10,10 @@
 #
 # The committed fixtures every test and bench reads sit in test/assets/
 # (one still per format plus a 3-frame red/green/blue animation for each
-# animated format, regenerable with PIL + avifenc, and a VP8 clip with
-# alpha) and reach a binary through the SIGIL_TEST_ASSET_DIR compile
-# definition; the helpers the image cases read a fixture by are
+# animated format, regenerable with PIL + avifenc, a VP8 clip with
+# alpha, and two PNGs written byte by byte for data decoding: one whose
+# texels hold colour and no alpha, one sixteen bits a channel) and reach
+# a binary through the SIGIL_TEST_ASSET_DIR compile definition; the helpers the image cases read a fixture by are
 # test/Pixels.h.
 #
 # The Skia codec set is guaranteed by the skia vcpkg features declared in

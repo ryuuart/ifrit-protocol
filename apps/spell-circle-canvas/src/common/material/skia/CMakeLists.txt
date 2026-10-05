@@ -39,7 +39,7 @@ sigil_test(material_test
           test/SkiaEffectLightTest.cpp test/SkiaEffectSlotTest.cpp
           test/SkiaEffectGlassTest.cpp
           test/SkiaRampTest.cpp test/PaletteTest.cpp
-          test/SkiaSurfaceMapTest.cpp
+          test/SkiaSurfaceMapTest.cpp test/SkiaPlaybackTest.cpp
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
   DEFINITIONS SIGIL_MATERIAL_SKIA_SHADER_DIR="${_shaders}"
   LIBRARIES SigilMaterialSkia SigilMaterialProgram)

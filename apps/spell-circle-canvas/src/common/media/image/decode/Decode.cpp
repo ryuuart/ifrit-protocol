@@ -4,12 +4,12 @@
  */
 
 #include "sigilmedia/image/Decode.h"
-#include "sigilmedia/advanced/Skia.h"
 
 #include <utility>
 #include <vector>
 
 #include "Backends.h"
+#include "sigilmedia/advanced/Skia.h"
 
 namespace sigil::media {
 
@@ -36,10 +36,12 @@ std::optional<Image> decodeDocument(std::type_identity<Image>,
   // formats and their animation best, so it goes first otherwise, and
   // SkCodec fails fast on a foreign format.
   if (options.layer.empty())
-    if (auto image = backend::decodeWithSkia(bytes, size)) return image;
+    if (auto image = backend::decodeWithSkia(bytes, size, options.colorSpace))
+      return image;
   if (backend::looksLikeKtx(bytes, size))
     if (auto channels = backend::decodeChannelsWithKtx(bytes, size))
-      if (auto image = stillOf(backend::composite(*channels, options.layer)))
+      if (auto image = stillOf(
+              backend::composite(*channels, options.layer, options.colorSpace)))
         return image;
 #ifdef SIGILMEDIA_HAS_SVG
   if (backend::looksLikeSvg(bytes, size, nameHint))
@@ -47,7 +49,8 @@ std::optional<Image> decodeDocument(std::type_identity<Image>,
 #endif
 #ifdef SIGILMEDIA_HAS_OIIO
   if (auto channels = backend::decodeChannelsWithOiio(bytes, size, nameHint))
-    return stillOf(backend::composite(*channels, options.layer));
+    return stillOf(
+        backend::composite(*channels, options.layer, options.colorSpace));
   return std::nullopt;
 #else
   (void)nameHint;

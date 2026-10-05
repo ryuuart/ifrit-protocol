@@ -11,6 +11,7 @@
 
 #include <sigilmaterial/core/Gradient.h>
 #include <sigilmaterial/core/Material.h>
+#include <sigilmedia/core/ColorSpace.h>
 #include <sigilmedia/core/PixelSource.h>
 
 #include <optional>
@@ -25,6 +26,9 @@ struct ImageOptions {
    *  vertically too unless `repeatY` says otherwise. */
   Repeat repeat = Repeat::None;
   std::optional<Repeat> repeatY;
+  /** What the pixels hold — colour or data — as `Texture::colorSpace`
+   *  states it; unstated, the place the image fills decides. */
+  std::optional<media::ColorSpace> colorSpace;
   bool operator==(const ImageOptions&) const = default;
 };
 

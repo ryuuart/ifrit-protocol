@@ -13,3 +13,11 @@ float cutS(float a) {
 bool dressedS(float4 c) {
   return c.r < 1.0 || c.g < 1.0 || c.b < 1.0;
 }
+
+// HOW THE SURFACE COMPOSITES is the renderer's to act on: `blend` and
+// `depthWrite` are its blend state and are read off the parameters where
+// the draw is set up, and the depth fade is handed on here, because only
+// the renderer holds the depth of what stands behind the surface.
+void compositingS() {
+  gSurfaceDepthFade = max(depthFade, 0.0);
+}

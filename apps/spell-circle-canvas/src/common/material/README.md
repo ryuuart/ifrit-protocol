@@ -102,8 +102,9 @@ material::Material face = material::from(material::hexColor(0xB8BDC4))
 For coarse relief with finer detail, `surface::blendNormals` combines two
 normal materials by reorienting the detail into the coarse tangent frame.
 Its options state each input's green-channel convention and the output's.
-Compose evaluates composed normal materials; World's current surface binder
-accepts direct `Texture` slots and does not evaluate general composed channels.
+Compose evaluates composed normal materials; a device renderer evaluates a
+material in a slot when it has a Slang body, through `material::inlined`
+below.
 
 `surface::normalFromHeight(height, options)` converts a grayscale material
 into a normal channel. White is the stated height above black; negative
@@ -128,6 +129,74 @@ The texture feature also provides:
 
 These values describe images and sampling. The backend operations under
 `sigilmaterial/skia/` convert them into Skia images and shaders.
+
+### What a texture holds
+
+A texture states whether its pixels are colour or data with
+`Texture::colorSpace`, spelled with SigilMedia's `media::ColorSpace`:
+
+- `media::ColorSpace::Srgb` is colour as a display stores it: decoded into
+  light where it is lit, its alpha multiplied into it where it is
+  composited, converted between colour spaces where a canvas asks.
+- `media::ColorSpace::Data` is numbers — a normal, a roughness, a flow, a
+  mask packed into a channel, a motion vector. A renderer reads them as
+  stored: no decode, no alpha multiplied into the other channels (a texel
+  whose alpha is zero keeps its red, green and blue), no colour
+  conversion, and sixteen-bit and floating-point pixels at their own
+  precision. Decode an image as data with `media::ImageOptions::colorSpace`,
+  so its sixteen bits and its straight alpha survive the decode too.
+
+Unstated, the place the texture fills decides: a surface's normal,
+roughness, metalness, occlusion, opacity and clear-coat maps are data by
+their role, its base colour and emission are colour, and anywhere else a
+texture is colour. `surface::program(TextureMaps)` states data on the maps
+a texture set imports. `Texture::mipmaps` says whether a renderer builds
+the smaller copies a shrunk texture is read from; unstated, colour has
+them, a surface's data maps have them, and other data does not — a table
+or a sheet of cells must not be averaged. `Texture::sampling` with
+`Sampling::Nearest` reads texel by texel. `material::ImageOptions` carries
+the colour space for `material::image(pixels, options)`. Skia reads a data
+texture through a raw shader, unconverted.
+
+### Playing what an effects tool hands over
+
+```cpp
+#include <sigilmaterial/texture/Channel.h>
+#include <sigilmaterial/texture/Flipbook.h>
+#include <sigilmaterial/texture/Flowmap.h>
+
+material::Material fire = material::flipbook(
+    sheet, {.columns = 8, .rows = 8, .framesPerSecond = 30,
+            .blendFrames = true});
+material::Material grain =
+    material::channel(material::image(packed), material::ColorChannel::Green);
+material::Material streaming = material::flowmap(
+    grain, {.flow = directions, .strength = 0.15f, .speed = 0.5f});
+```
+
+- `material::flipbook(sheet, FlipbookOptions)` plays a grid of frames read
+  row by row from the top left. The sheet carries no word about its grid,
+  so `columns`, `rows` and `frames` (zero is every cell) state it;
+  `framesPerSecond`, `loop` and `startFrame` drive it from the frame's
+  clock. A bound `frame` (in frames) or `progress` (zero to one over the
+  run) wins over the clock. `blendFrames` mixes the two cells the clock
+  stands between; `motionVectors` — a second sheet of the same grid whose
+  red and green, encoded around one half in units of one cell, say how each
+  pixel moves to the next frame — pushes each of the two reads along the
+  motion first, scaled by `motionStrength`. Each cell covers the region it
+  paints: a mesh's uv square, a node's box. Which frame stands is a pure
+  function of the clock and these values.
+- `material::flowmap(source, FlowmapOptions)` reads `source` through a
+  texture of directions (`flow`, data) moving with the clock: two reads half
+  a cycle apart slide `strength` along the flow each cycle, `speed` cycles a
+  second, crossfaded so neither is seen when it jumps back.
+- `material::channel(source, ColorChannel)` is one channel of any material
+  as an opaque grey — red, green, blue, alpha or luminance — wherever a
+  material is taken: a roughness, a mask, a layer, a base. `ColorChannel` is
+  also what a layer's `Mask::channel` reads.
+
+All three are materials with a body for Skia and one for Slang, so the same
+value plays on a page and on a 3D body.
 
 ## Surfaces and light
 
@@ -176,6 +245,25 @@ Samples at or above the threshold keep their color and alpha; shape
 antialiasing still applies afterward. Zero preserves ordinary blending.
 Effects require rendered coverage and are ignored by a renderer
 that has none.
+
+**How a surface composites** is part of its description, as three.js and
+glTF put it on the material: `SurfaceOptions::blend` is a `BlendMode` —
+`Normal` laid over, `PlusLighter` added, `Multiply`, `Screen`, `Modulate`
+— `depthWrite` whether it hides what is drawn after it and behind it
+(unstated: an opaque surface laid over normally does, any other does not),
+and `depthFade` the distance in scene units over which it fades out where
+it meets the opaque surface behind it. The surface program carries the
+three as `blend`, `depthWrite` and `depthFade` in `SurfaceParameters`, and
+`surface::compositing(material)` reads them back as a `Compositing` for the
+renderer that acts on them. The 2D painter composites a node by the node's
+own blend mode and ignores them.
+
+**A material in a slot, on a device.** A device compiler is handed one body
+per material, so `material::inlined(material)` writes every child material
+in a slot its Slang body samples into that body: the slot's reads become
+calls of the child's `surface`, and the child's values, live bindings and
+leaves are carried under the slot's name as a prefix. A flipbook in a
+surface's base-colour or emission slot plays on a 3D body this way.
 
 ## Backdrop glass
 

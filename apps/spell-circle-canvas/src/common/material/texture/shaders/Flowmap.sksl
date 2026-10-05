@@ -1,0 +1,17 @@
+// A flow map over the region the material paints: the same two reads
+// the device body takes, the flow read across the region at its own size
+// and the source moved in the region's pixels.
+
+half4 main(float2 xy) {
+  float2 region = max(uResolution, float2(1.0));
+  float2 uv = xy / region;
+  float2 along = (float2(flow.eval(uv * flowSize).rg) * 2.0 - float2(1.0)) *
+                 strength;
+  float cycle = uTime * speed;
+  float first = cycle - floor(cycle);
+  float shifted = cycle + 0.5;
+  float second = shifted - floor(shifted);
+  half4 a = source.eval(xy - along * first * region);
+  half4 b = source.eval(xy - along * second * region);
+  return mix(a, b, half(abs(1.0 - 2.0 * first)));
+}

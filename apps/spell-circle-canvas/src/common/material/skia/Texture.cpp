@@ -23,10 +23,16 @@ namespace {
 sk_sp<SkShader> imageShader(const Texture& texture, sk_sp<SkImage> picture) {
   if (!picture) return nullptr;
   const SkMatrix placing = toSkMatrix(texture.uv());
+  const SkSamplingOptions sampling(toSkFilterMode(texture.sampling()));
+  // DATA IS NOT COLOUR-MANAGED: the raw shader hands a program the values
+  // the pixels hold, with no conversion between colour spaces and no
+  // alpha multiplied into the other channels.
+  if (texture.colorSpace() == media::ColorSpace::Data)
+    return picture->makeRawShader(toSkTileMode(texture.tileX()),
+                                  toSkTileMode(texture.tileY()), sampling,
+                                  &placing);
   return picture->makeShader(toSkTileMode(texture.tileX()),
-                             toSkTileMode(texture.tileY()),
-                             SkSamplingOptions(toSkFilterMode(texture.sampling())),
-                             &placing);
+                             toSkTileMode(texture.tileY()), sampling, &placing);
 }
 
 }  // namespace
@@ -37,9 +43,9 @@ sk_sp<SkShader> shader(const Texture& texture) {
 
 sk_sp<SkShader> shader(const Texture& texture, const FrameData& frame) {
   if (!texture.animated() && !frame.recorder) return shader(texture);
-  return imageShader(texture,
-                     image(texture, std::chrono::duration<double>(frame.seconds),
-                           frame.recorder));
+  return imageShader(
+      texture, image(texture, std::chrono::duration<double>(frame.seconds),
+                     frame.recorder));
 }
 
 SkFilterMode toSkFilterMode(Sampling sampling) {

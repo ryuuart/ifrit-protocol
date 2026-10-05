@@ -56,6 +56,15 @@ registers and finds the decoder under, so a sketch compiled and loaded
 while its host runs, holding `Image` under another C++ identity, reaches
 the decoder the host registered.
 
+**Colour or data.** `ImageOptions::colorSpace` says what the pixels are.
+`sigil::media::ColorSpace::Srgb`, the default, is colour: every frame
+lands premultiplied, eight bits a channel. `sigil::media::ColorSpace::Data`
+is numbers a shader reads as written — a normal, a flow, a packed mask, a
+motion vector: the alpha stays straight, no colour conversion is applied,
+a source holding sixteen bits a channel keeps sixteen, and floating-point
+channels stay floating point. A texture stating the same thing is how a
+renderer then uploads it.
+
 `image/Decode.h` is the route. Decoding an `Image` sniffs the bytes and
 tries the Skia codecs first (skipped when a layer is named, since layers
 are an OpenImageIO concept), then KTX, then SVG, then OpenImageIO; the

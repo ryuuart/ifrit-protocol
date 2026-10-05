@@ -7,15 +7,15 @@
  * image is decoded with.
  */
 
-#include <glm/vec2.hpp>
-
 #include <chrono>
+#include <glm/vec2.hpp>
 #include <memory>
 #include <string>
 #include <string_view>
 #include <type_traits>
 #include <vector>
 
+#include "sigilmedia/core/ColorSpace.h"
 #include "sigilmedia/core/Frame.h"
 
 namespace sigil::media {
@@ -34,6 +34,11 @@ struct ImageOptions {
    *  has none. A raster format ignores it. */
   int width = 0;
   int height = 0;  ///< The other axis of the same raster size.
+  /** What the picture's values are. `ColorSpace::Data` decodes them as
+   *  stored: straight alpha, no colour conversion, and sixteen-bit and
+   *  floating-point sources kept at their precision rather than brought
+   *  down to eight bits. */
+  ColorSpace colorSpace = ColorSpace::Srgb;
 
   bool operator==(const ImageOptions&) const = default;
 };

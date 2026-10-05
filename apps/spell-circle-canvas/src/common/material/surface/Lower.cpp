@@ -94,6 +94,10 @@ Material lower(const Material& material) {
     parameters.clearcoatRoughnessChannel = 0;
   if (stated.emissionMap && parameters.emissiveStrength <= 0)
     parameters.emissiveStrength = 1;
+  parameters.blend = (float)stated.blend;
+  parameters.depthWrite =
+      stated.depthWrite ? (*stated.depthWrite ? 1.0f : 0.0f) : -1.0f;
+  parameters.depthFade = stated.depthFade;
 
   Material out = stated.unlit ? unlit(parameters) : program(parameters);
   if (!colour) place(out, kBaseColorSlot, flat(material));

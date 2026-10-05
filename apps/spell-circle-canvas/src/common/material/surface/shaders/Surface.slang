@@ -1,4 +1,5 @@
 float4 surface(float2 uv) {
+  compositingS();
   // The base colour comes back ENCODED, as it was typed and as its map
   // stores it: the renderer decodes what a body returns once, whatever
   // body it is.

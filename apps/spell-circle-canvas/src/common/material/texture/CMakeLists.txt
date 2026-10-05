@@ -1,5 +1,6 @@
 # The texture feature: an image and its sampling as a comparable leaf a
-# material tree holds, the tools' texture-set vocabulary, the environment
+# material tree holds, a sheet played as a flipbook, a flow map, one
+# channel read as a grey, the tools' texture-set vocabulary, the environment
 # map a reflective surface is shaded from, and the atlas over a sheet.
 # Links the core and SigilMedia (an asset is a source). No header here
 # names a Skia type — the Skia executor is where a texture meets Skia —
@@ -13,11 +14,18 @@ find_package(boost_container CONFIG REQUIRED)
 find_package(simdjson CONFIG REQUIRED)
 find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilMaterialTexture
-  SOURCES Atlas.cpp EnvironmentMap.cpp Image.cpp Texture.cpp TextureSet.cpp
-  HEADERS Atlas.h EnvironmentMap.h Image.h Texture.h TextureSet.h
+  SOURCES Atlas.cpp Channel.cpp EnvironmentMap.cpp Flipbook.cpp Flowmap.cpp
+          Image.cpp Texture.cpp TextureSet.cpp
+  HEADERS Atlas.h Channel.h EnvironmentMap.h Flipbook.h Flowmap.h Image.h
+          Texture.h TextureSet.h
   INCLUDE_PRIVATE ${Stb_INCLUDE_DIR}
   PUBLIC SigilMaterialCore SigilMediaCore Boost::container
   PRIVATE unofficial::skia::skia simdjson::simdjson)
+# The flipbook, the flow map and the channel reading are recipes whose
+# bodies travel with the binary.
+sigil_shader_sources(SigilMaterialTexture
+  DIR ${CMAKE_CURRENT_LIST_DIR}/shaders
+  NAMESPACE sigil::material::texture)
 
 # The cube-container cases decode a DDS and a KTX the test writes itself,
 # through SigilMedia's routing surface and its fixture builders. The cases

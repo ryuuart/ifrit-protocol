@@ -10,7 +10,7 @@ find_package(unofficial-skia CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 sigil_library(SigilMediaCore
   SOURCES Device.cpp Formats.cpp Image.cpp Picture.cpp PixelSource.cpp Timing.cpp
-  HEADERS Decode.h Format.h Frame.h Image.h Metadata.h Picture.h PixelSource.h
+  HEADERS ColorSpace.h Decode.h Format.h Frame.h Image.h Metadata.h Picture.h PixelSource.h
           ../advanced/Device.h ../advanced/Formats.h ../advanced/Skia.h
           ../advanced/Source.h
   PUBLIC unofficial::skia::skia glm::glm)

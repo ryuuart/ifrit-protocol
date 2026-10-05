@@ -37,12 +37,14 @@ const std::shared_ptr<const Recipe>& halftoneRampRecipe() {
 
 }  // namespace
 
-Material halftoneRamp(float spacing, float minimumRadius, float maximumRadius, Color color,
-                      float angleDegrees, float rampFrom, float rampTo) {
-  return Material(halftoneRampRecipe(),
-                  HalftoneRampParameters{std::max(spacing, 1.0f), minimumRadius, maximumRadius,
-                                         angleDegrees * 0.017453293f, 0.0f, 0.0f,
-                                         rampFrom, rampTo, color});
+Material halftoneRamp(float spacing, float minimumRadius, float maximumRadius,
+                      Color color, float angleDegrees, float rampFrom,
+                      float rampTo) {
+  return Material(
+      halftoneRampRecipe(),
+      HalftoneRampParameters{std::max(spacing, 1.0f), minimumRadius,
+                             maximumRadius, angleDegrees * 0.017453293f, 0.0f,
+                             0.0f, rampFrom, rampTo, color});
 }
 
 namespace {
@@ -169,7 +171,7 @@ Material grained(Color ground, float amount, float frequency) {
   return from(darker).layer(
       from(lighter),
       {.mask = Mask{.source = noise(frequency, {.octaves = 2, .grain = true}),
-                    .channel = MaskChannel::Luminance}});
+                    .channel = ColorChannel::Luminance}});
 }
 
 }  // namespace sigil::material

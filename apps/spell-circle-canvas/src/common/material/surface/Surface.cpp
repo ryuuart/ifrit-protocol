@@ -14,6 +14,7 @@
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilshaders/MaterialSurface.h>
 
+#include <algorithm>
 #include <cmath>
 #include <string>
 #include <string_view>
@@ -192,6 +193,22 @@ bool isSurface(const Material& material) {
          material.recipePointer() == unlitRecipe();
 }
 
+Compositing compositing(const Material& material) {
+  Compositing out;
+  const Schema& fields = material.recipe().parameters();
+  const auto number = [&](std::string_view name, float otherwise) {
+    const Field* field = fields.find(name);
+    return field && field->floats == 1 ? material.get<float>(name) : otherwise;
+  };
+  const float blend = number("blend", 0.0f);
+  if (blend >= 0.0f && blend <= (float)BlendMode::Xor)
+    out.blend = (BlendMode)(int)std::lround(blend);
+  const float depthWrite = number("depthWrite", -1.0f);
+  if (depthWrite >= 0.0f) out.depthWrite = depthWrite > 0.5f;
+  out.depthFade = std::max(number("depthFade", 0.0f), 0.0f);
+  return out;
+}
+
 bool isUnlit(const Material& material) {
   return material.recipePointer() == unlitRecipe();
 }
@@ -250,15 +267,24 @@ Material program(const texture::TextureMaps& maps, SurfaceParameters base) {
   const auto place = [&](std::string_view slot, const Texture* t) {
     if (t) m.slot(slot, *t);
   };
+  // A set's maps other than its colours are DATA, and are stated so where
+  // the set did not say otherwise: a normal or a packed map read as colour
+  // would have its alpha multiplied into it.
+  const auto data = [&](std::string_view slot, const Texture* t) {
+    if (!t) return;
+    Texture stated = *t;
+    if (!stated.colorSpace()) stated.colorSpace(media::ColorSpace::Data);
+    m.slot(slot, std::move(stated));
+  };
   place(kBaseColorSlot, maps.map(Role::BaseColor));
-  place(kNormalSlot, maps.map(Role::Normal));
-  place(kRoughnessSlot, roughness);
-  place(kMetallicSlot, metallic);
-  place(kOcclusionSlot, occlusion);
+  data(kNormalSlot, maps.map(Role::Normal));
+  data(kRoughnessSlot, roughness);
+  data(kMetallicSlot, metallic);
+  data(kOcclusionSlot, occlusion);
   place(kEmissiveSlot, maps.map(Role::Emissive));
-  place(kOpacitySlot, maps.map(Role::Opacity));
-  place(kClearcoatSlot, coat);
-  place(kClearcoatRoughnessSlot, coat);
+  data(kOpacitySlot, maps.map(Role::Opacity));
+  data(kClearcoatSlot, coat);
+  data(kClearcoatRoughnessSlot, coat);
   return m;
 }
 

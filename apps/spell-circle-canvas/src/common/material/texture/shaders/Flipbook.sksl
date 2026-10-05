@@ -1,0 +1,52 @@
+// A flipbook over a sheet: the same frame and the same cell the device
+// body answers, read here in the sheet's own pixels over the region the
+// material paints. Skia's colour is premultiplied, so a data sheet —
+// read straight — is multiplied by its alpha on the way out.
+
+float2 flipbookCell(float index, float2 uv) {
+  float across = max(columns, 1.0);
+  float down = max(rows, 1.0);
+  float row = floor(index / across);
+  float column = index - row * across;
+  float2 cellTexels = max(sheetSize / float2(across, down), float2(1.0));
+  float2 inset = float2(0.5) / cellTexels;
+  float2 local = clamp(uv, inset, float2(1.0) - inset);
+  return (float2(column, row) + local) / float2(across, down) * sheetSize;
+}
+
+float flipbookFrame() {
+  float count = max(frames, 1.0);
+  float shown = uTime * framesPerSecond;
+  if (progress >= 0.0) shown = progress * count;
+  if (frame >= 0.0) shown = frame;
+  shown = shown + startFrame;
+  if (loop > 0.5) return shown - floor(shown / count) * count;
+  return clamp(shown, 0.0, count - 1.0);
+}
+
+half4 main(float2 xy) {
+  float2 uv = xy / max(uResolution, float2(1.0));
+  float count = max(frames, 1.0);
+  float shown = flipbookFrame();
+  float first = floor(shown);
+  float between = blendFrames > 0.5 ? shown - first : 0.0;
+  float second = first + 1.0;
+  if (second >= count) second = loop > 0.5 ? 0.0 : count - 1.0;
+  float2 pushFirst = float2(0.0);
+  float2 pushSecond = float2(0.0);
+  if (motionStrength != 0.0 && between > 0.0) {
+    float2 motion =
+        (float2(motionVectors.eval(flipbookCell(first, uv) / sheetSize *
+                                   motionSize).rg) * 2.0 - float2(1.0)) *
+        motionStrength;
+    pushFirst = -motion * between;
+    pushSecond = motion * (1.0 - between);
+  }
+  half4 read = sheet.eval(flipbookCell(first, uv + pushFirst));
+  if (between > 0.0) {
+    half4 next = sheet.eval(flipbookCell(second, uv + pushSecond));
+    read = mix(read, next, half(between));
+  }
+  if (straight > 0.5) return half4(read.rgb * read.a, read.a);
+  return read;
+}

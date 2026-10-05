@@ -15,8 +15,9 @@
  * device renderer binds its frame as a texture.
  */
 
-#include <sigilmaterial/core/Gradient.h>
 #include <sigilmaterial/advanced/Leaf.h>
+#include <sigilmaterial/core/Gradient.h>
+#include <sigilmedia/core/ColorSpace.h>
 #include <sigilmedia/core/Frame.h>
 #include <sigilmedia/core/PixelSource.h>
 
@@ -114,9 +115,35 @@ class Texture : public Leaf {
     m_cut = {};
     return *this;
   }
-  /** How the image is read between pixels; linear unless stated. */
+  /** How the image is read between pixels; linear unless stated. A data
+   *  texture a shader must read texel by texel — a lookup table, a
+   *  position per vertex — states `Sampling::Nearest`. */
   Texture& sampling(Sampling mode) {
     m_sampling = mode;
+    return *this;
+  }
+  /** WHAT THE IMAGE HOLDS: colour (`media::ColorSpace::Srgb`) or numbers
+   *  (`media::ColorSpace::Data`). Colour is decoded into light where it
+   *  is lit and composited premultiplied; data reaches a shader exactly
+   *  as stored — no decode, no premultiplied alpha, and sixteen-bit and
+   *  floating-point pixels at their own precision.
+   *
+   *  Unstated, the place the texture fills decides: a surface's normal,
+   *  roughness, metalness, occlusion and clear-coat maps are data by
+   *  their role, its base colour and emission are colour, and anywhere
+   *  else a texture is colour. */
+  Texture& colorSpace(media::ColorSpace space) {
+    m_colorSpace = space;
+    return *this;
+  }
+  /** WHETHER A RENDERER BUILDS SMALLER COPIES of the image to read where
+   *  it is shrunk on screen. They stop a minified texture shimmering, and
+   *  they average texels that must not be averaged — the neighbouring
+   *  cells of a sheet, the entries of a table. Unstated, colour has them
+   *  and data has them where its role is a surface's map, and nowhere
+   *  else. */
+  Texture& mipmaps(bool on) {
+    m_mipmaps = on;
     return *this;
   }
 
@@ -126,6 +153,12 @@ class Texture : public Leaf {
   const glm::mat3& uv() const { return m_uv; }
   const std::optional<PixelRect>& region() const { return m_region; }
   Sampling sampling() const { return m_sampling; }
+  /** What the image holds, when the texture says; unstated otherwise. */
+  const std::optional<media::ColorSpace>& colorSpace() const {
+    return m_colorSpace;
+  }
+  /** Whether it has smaller copies, when the texture says. */
+  const std::optional<bool>& mipmaps() const { return m_mipmaps; }
 
   bool valid() const { return static_cast<bool>(m_source); }
   /** The frame sampled at @p time: the source's frame, read back to host
@@ -162,6 +195,8 @@ class Texture : public Leaf {
   glm::mat3 m_uv{1.0f};
   std::optional<PixelRect> m_region;
   Sampling m_sampling = Sampling::Linear;
+  std::optional<media::ColorSpace> m_colorSpace;
+  std::optional<bool> m_mipmaps;
   // The region cut from the frame it was cut from, so a texture sampled
   // every frame does not copy its pixels every frame. Derived state: not
   // part of equality.

@@ -17,13 +17,13 @@
 #include <include/core/SkData.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkPixmap.h>
+#include <sigilmedia/advanced/Skia.h>
 
 #include <algorithm>
 #include <chrono>
 #include <vector>
 
 #include "Backends.h"
-#include <sigilmedia/advanced/Skia.h>
 
 namespace sigil::media::backend {
 
@@ -54,17 +54,51 @@ std::chrono::duration<double> normalizedDuration(int milliseconds) {
       milliseconds <= 10 ? 0.1 : milliseconds / 1000.0);
 }
 
+/** THE LAYOUT A FRAME DECODES INTO. Colour lands in the premultiplied
+ *  N32 layout the canvases draw with, whatever the source's bit depth or
+ *  subsampling. Data lands as it was written: its alpha straight, no
+ *  colour space to convert through, and a source that holds more than
+ *  eight bits a channel in sixteen bits a channel. */
+SkImageInfo frameLayout(const SkCodec& codec, ColorSpace colorSpace) {
+  const SkImageInfo stated = codec.getInfo();
+  if (colorSpace == ColorSpace::Srgb)
+    return stated.makeColorType(kN32_SkColorType)
+        .makeAlphaType(kPremul_SkAlphaType);
+  const bool deep = codec.hasHighBitDepthEncodedData();
+  return stated
+      .makeColorType(deep ? kR16G16B16A16_unorm_SkColorType
+                          : kRGBA_8888_SkColorType)
+      .makeAlphaType(stated.alphaType() == kOpaque_SkAlphaType
+                         ? kOpaque_SkAlphaType
+                         : kUnpremul_SkAlphaType)
+      .makeColorSpace(nullptr);
+}
+
+std::optional<Image> decodeAs(SkCodec& codec, const SkImageInfo& frameInfo);
+
 }  // namespace
 
-std::optional<Image> decodeWithSkia(const std::byte* bytes, size_t size) {
+std::optional<Image> decodeWithSkia(const std::byte* bytes, size_t size,
+                                    ColorSpace colorSpace) {
   std::unique_ptr<SkCodec> codec = codecFor(bytes, size);
   if (!codec) return std::nullopt;
+  if (std::optional<Image> decoded =
+          decodeAs(*codec, frameLayout(*codec, colorSpace)))
+    return decoded;
+  // A codec that cannot write sixteen bits a channel writes half floats,
+  // which hold the same eleven bits of a sixteen-bit source's top.
+  if (colorSpace == ColorSpace::Data)
+    return decodeAs(
+        *codec,
+        frameLayout(*codec, colorSpace).makeColorType(kRGBA_F16_SkColorType));
+  return std::nullopt;
+}
 
-  // Every frame decodes into the premultiplied N32 layout the canvases
-  // draw with, whatever the source's bit depth or subsampling.
-  const SkImageInfo frameInfo = codec->getInfo()
-                                    .makeColorType(kN32_SkColorType)
-                                    .makeAlphaType(kPremul_SkAlphaType);
+namespace {
+
+std::optional<Image> decodeAs(SkCodec& codecReference,
+                              const SkImageInfo& frameInfo) {
+  SkCodec* codec = &codecReference;
   const int frameCount = std::max(1, codec->getFrameCount());
 
   // Animated formats delta-encode: a frame may cover only part of the
@@ -113,6 +147,8 @@ std::optional<Image> decodeWithSkia(const std::byte* bytes, size_t size) {
   }
   return Image(std::move(frames), repetitions);
 }
+
+}  // namespace
 
 std::optional<Metadata> probeWithSkia(const std::byte* bytes, size_t size) {
   std::unique_ptr<SkCodec> codec = codecFor(bytes, size);

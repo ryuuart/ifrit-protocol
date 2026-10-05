@@ -7,8 +7,8 @@
 
 #include <include/core/SkImage.h>
 #include <include/core/SkRect.h>
-#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/advanced/Device.h>
+#include <sigilmedia/advanced/Skia.h>
 
 namespace sigil::material {
 
@@ -64,7 +64,8 @@ DeviceImage Texture::deviceImage() const {
 bool Texture::operator==(const Texture& other) const {
   return m_source == other.m_source && m_tileX == other.m_tileX &&
          m_tileY == other.m_tileY && m_uv == other.m_uv &&
-         m_region == other.m_region && m_sampling == other.m_sampling;
+         m_region == other.m_region && m_sampling == other.m_sampling &&
+         m_colorSpace == other.m_colorSpace && m_mipmaps == other.m_mipmaps;
 }
 
 }  // namespace sigil::material
