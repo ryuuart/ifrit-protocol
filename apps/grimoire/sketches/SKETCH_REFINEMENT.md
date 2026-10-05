@@ -63,7 +63,7 @@ columns; matching swatches, headings and values share an origin.
 Two Python studies demonstrate the native authoring surface: typography combines
 mixed runs, inline slots, threaded frames and a curved baseline; World combines
 a shared mesh, keyed scene elements, material values and a moving light rig.
-The World study uses the native CPU executor.
+The World study bakes its frame on the device the host brought up.
 
 The C++ `document_styles` and Python `python_document` studies each present one
 content tree under two scoped role stylesheets. They demonstrate native document

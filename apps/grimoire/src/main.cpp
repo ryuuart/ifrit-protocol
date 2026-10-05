@@ -3,8 +3,9 @@
  *
  *   Grimoire [--no-gpu]                      the Welcome screen
  *   Grimoire --sketch <name>                 the app, on that one
- *   Grimoire --list [--kind canvas|set]     the registry, one per line
- *   Grimoire --catalog [<file.cpp>]          the browser's rows, one JSON
+ *   Grimoire --list [--kind canvas|set] [--gpu]
+ *                                              the registry, one per line
+ *   Grimoire --catalog [<file.cpp>] [--gpu]  the browser's rows, one JSON
  *                                              object per line
  *   Grimoire --python-info                  Python ABI as JSON
  *   Grimoire --workspace <directory>        a saved folder selection
@@ -418,6 +419,10 @@ int main(int argc, char* argv[]) {
     // it is missing after a tab. Dropping it from the listing would say
     // the same thing by saying nothing, which reads as a sketch that was
     // deleted.
+    //
+    // A SET IS AVAILABLE ONLY WHERE A DEVICE IS, so `--gpu` brings the
+    // one device up first and a listing without it greys every set.
+    if (args.gpu && !useDevice()) return 1;
     const bool toTerminal = isatty(fileno(stdout)) != 0;
     for (const sketch::RegistryRow& row : sketch::registryRows(args.kind)) {
       if (row.available) {
@@ -428,6 +433,7 @@ int main(int argc, char* argv[]) {
                   row.name.c_str(), row.reason.c_str(),
                   toTerminal ? "\x1b[0m" : "");
     }
+    releaseDevice();
     return 0;
   }
 
@@ -437,7 +443,10 @@ int main(int argc, char* argv[]) {
     // this run was pointed at after it, one JSON object per line. They are
     // `sketch::catalog`'s rows as the browser maps them, so this is also
     // how another process reads the registry as values: every entry's
-    // filed name, stem, runtime and availability on this machine.
+    // filed name, stem, runtime and availability on this machine. A set
+    // is available only where a device is, so `--gpu` brings the one
+    // device up first, as it does for the listing above.
+    if (args.gpu && !useDevice()) return 1;
     int coreArgc = 1;
     const QCoreApplication core(coreArgc, argv);
     SketchCatalog::sketchDirectory = SIGIL_SKETCH_DIR;
@@ -447,6 +456,7 @@ int main(int argc, char* argv[]) {
     const SketchCatalog rows;
     for (const QVariant& row : rows.sketches())
       std::printf("%s\n", grimoire::catalogRowJson(row.toMap()).constData());
+    releaseDevice();
     return 0;
   }
 
@@ -601,14 +611,10 @@ int main(int argc, char* argv[]) {
   }
 
   // ---- the app ---------------------------------------------------------
-  // THE LIVE HOST DRAWS SETS ON THE DEVICE. A device is what runs a
-  // material's own body: the CPU mesh executor has no compiler, so every
-  // surface reaches it as the colour the frame extracted, and a reader
-  // looking at a lit set in this window would be looking at a picture no
-  // recipe ever ran in. Unlike the sweep's flag, a device that will not
-  // come up is not fatal here — there is no plate whose name would then
-  // stand over two different pictures, only a window that says which
-  // tier it is showing.
+  // THE LIVE HOST DRAWS SETS ON THE DEVICE, which is the only place a set
+  // is drawn. Unlike the sweep's flag, a device that will not come up is
+  // not fatal here: the canvas sketches still run, and every set is
+  // listed unavailable with the reason.
   // The window's own frame-rate lane opens the window at a stated size
   // and asks Qt for a stated scale, which it can only be told before the
   // application exists.
@@ -619,8 +625,7 @@ int main(int argc, char* argv[]) {
   }
   if (args.noGpu || !useDevice())
     std::fprintf(stderr,
-                 "[grimoire] sets draw on the CPU mesh executor: a "
-                 "surface reaches it as the colour extract read off it\n");
+                 "[grimoire] no device: every set is listed unavailable\n");
   SharedWebEngineScope sharedWebEngine;
   // The build directories of runs that were killed are the process's to
   // clear, not the first sketch's: swept while the window is coming up,

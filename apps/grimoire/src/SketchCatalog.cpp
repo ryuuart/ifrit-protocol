@@ -235,6 +235,9 @@ void SketchCatalog::reportThumbnail(int index, sketch::ThumbnailOutcome outcome,
     case sketch::ThumbnailOutcome::Failed:
       note = "could not be drawn";
       break;
+    case sketch::ThumbnailOutcome::Unavailable:
+      (void)sketch::thumbnailAvailable(entry, &note);
+      break;
     case sketch::ThumbnailOutcome::Wrote:
     case sketch::ThumbnailOutcome::Stopped:
       break;

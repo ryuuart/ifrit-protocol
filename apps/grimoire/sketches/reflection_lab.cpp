@@ -25,16 +25,10 @@
  * the sky is what moves, and a transform is the same transform on
  * either tier.
  *
- * WHAT EACH TIER SAYS. Both tiers compute the same terms — the cosine
- * convolution for what falls on a surface, the split sum for what it
- * mirrors — and they compute them at different RATES: the device per
- * pixel, the host tier once per vertex with Skia interpolating between.
- * A sphere is the shape that shows the difference honestly, because its
- * normal turns continuously and a per-vertex reflection therefore reads
- * as facets exactly where the mesh is coarse. Glass is where the two
- * part company most: refraction is a per-pixel question, so the host
- * tier's glass sphere is its transmitted tint and its rim rather than a
- * picture of the sky bent through it.
+ * WHAT THE DEVICE SAYS. Under a sky the device evaluates the terms per
+ * pixel — the cosine convolution for what falls on a surface, the split
+ * sum for what it mirrors — so a sphere, whose normal turns continuously,
+ * reads as a curve, and glass is the sky bent through it.
  *
  * NO SCREEN-SPACE REFRACTION. Glass here refracts the WORLD — the
  * environment map behind it — and not the other bodies in the row. What
@@ -101,11 +95,8 @@ material::Material glass() {
 
 constexpr float kRadius = 52.0f;
 constexpr float kGap = 132.0f;
-/** How finely the spheres are tessellated. A reflection is a function of
- *  the normal, and on the host tier the normal is only sampled where a
- *  vertex is — so this count is the resolution of the reflection there,
- *  and it is set high enough that a mirror reads as a mirror rather than
- *  as a faceted ball. */
+/** How finely the spheres are tessellated: enough that the silhouette of
+ *  a mirror reads as a ball rather than a polygon. */
 constexpr int kMeridians = 64;
 constexpr int kParallels = 40;
 

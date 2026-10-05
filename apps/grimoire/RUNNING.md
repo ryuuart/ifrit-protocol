@@ -6,13 +6,14 @@ compiles it are [SigilSketch's](../spell-circle-canvas/src/sketch/README.md);
 [README.md](README.md) beside this file says how Grimoire is built.
 
 ```sh
-Grimoire [--no-gpu]                       # the app
+Grimoire [--no-gpu]                       # the app; --no-gpu lists no set
 Grimoire --sketch <name>                  # the app, on that one
 Grimoire <file.cpp>                       # the app, on that file
 Grimoire --workspace <directory>          # the app, on a folder of sketches
 Grimoire --examples                       # the app, on the bundled catalogue
-Grimoire --list [--kind canvas|set]      # the registry, one per line
-Grimoire --catalog [<file.cpp>]           # the browser's rows, one JSON each
+Grimoire --list [--kind canvas|set] [--gpu]
+                                          # the registry, one per line
+Grimoire --catalog [<file.cpp>] [--gpu]   # the browser's rows, one JSON each
 Grimoire <file.cpp> --frame out.png [--at <sec>] [--scale <n>] [--gpu]
                                   [--frames <count>] [--fps <n>]
                                   [--deterministic | --no-deterministic]
@@ -64,6 +65,17 @@ Graphite and Set scenes through the World device executor. A missing
 device context fails instead of producing a raster substitute. `--bench`
 keeps its raster canvas frame path, with the selected device executor for
 Set and mesh work.
+
+**A set is drawn on a device and nowhere else.** Every lane that draws one
+— `--frame`, `--bench`, `--headless`, `--video` — needs `--gpu`. Without
+it no device comes up and every set is unavailable with one reason, the
+one SigilSketch writes: a still or a measurement of a set refuses with it,
+a sweep skips each set and prints it, `--video` refuses a selection that
+holds one, and `--list` and `--catalog` grey every set with it — which is
+why both take `--gpu` too, to list the sets a device can draw.
+`--thumbnails` never brings a device up, so it notes every set with the
+same reason and the window's refresh takes a set's still once it is
+opened.
 
 For a headless sweep, `--scale <n>` sets device pixels per canvas unit on
 both CPU and GPU. It overrides the sketch's oversample and the host's width
@@ -166,15 +178,10 @@ execution is pinned, so a `--frame` can be diffed while the app and
 Advance policy and `--no-deterministic` the wall's, for either lane,
 which is how a sketch's real figures are looked at in a written frame.
 
-The app brings a device up and every set draws through it, because a
-device is what runs a material's own body: the CPU mesh executor has no
-compiler, so a surface reaches it as the colour the frame extracted and a
-reader would be looking at a picture no recipe ever ran in. `--no-gpu`
-keeps sets on that executor, which is what a plate is hashed from and
-therefore what a window is worth putting beside one. A device that will
-not come up is reported and the app carries on — unlike the sweep's
-`--gpu`, which must fail rather than put two different pictures under one
-plate's name.
+The app brings a device up and every set draws through it. `--no-gpu`
+brings none up, and every set is listed unavailable; a device that will
+not come up is reported and the app carries on the same way — unlike the
+sweep's `--gpu`, which fails the run.
 
 **The canvas zooms without growing what it draws into.** The live view
 sits in a pan-zoom pasteboard, but it is not scaled by it: the item fills
@@ -394,8 +401,8 @@ set draws its frame there, and a canvas sketch's mesh painter
 (`sketch::painterRuntime()`) rasterises there. It is fatal when no device
 comes up, because a run that asked for the device and quietly gave the
 CPU's picture puts two different pictures under one name. Without it a
-file renders on the CPU mesh executor, which is what a plate is hashed
-from.
+canvas sketch renders on the CPU, which is what its plate is hashed from,
+and a set is refused: it is drawn on a device and nowhere else.
 
 **The moment is the sketch's, not the flag's.** `--at <sec>` overrides
 it, and a sketch that declared none falls back to 1.5 s; otherwise a

@@ -358,11 +358,14 @@ add_test(NAME sketch_reload_surface_video
 
 # …and the same guard for the other runtime: a set sketch names world
 # symbols no canvas sketch does, so a world archive missing from the list
-# above shows up here and nowhere else.
+# above shows up here and nowhere else. A set is drawn on a device and
+# nowhere else, so the still is taken with `--gpu`.
 add_test(NAME sketch_reload_surface_set
   COMMAND Grimoire
     ${SIGIL_SKETCH_DIR}/first_light.cpp
-    --frame ${CMAKE_BINARY_DIR}/sketch_reload_surface_set.png)
+    --frame ${CMAKE_BINARY_DIR}/sketch_reload_surface_set.png --gpu)
+set_tests_properties(sketch_reload_surface_set PROPERTIES
+  LABELS gpu TIMEOUT 300)
 
 # …and for the archives only the HOST links. A device backend is not in
 # the sketch target's closure — a bare consumer of that target must not
@@ -402,7 +405,8 @@ endif()
 add_test(NAME sketch_reload_named
   COMMAND Grimoire
     ${SIGIL_SKETCH_DIR}/world_hud/world_hud.cpp
-    --frame ${CMAKE_BINARY_DIR}/sketch_reload_named.png)
+    --frame ${CMAKE_BINARY_DIR}/sketch_reload_named.png --gpu)
+set_tests_properties(sketch_reload_named PROPERTIES LABELS gpu TIMEOUT 300)
 
 # THE DIRECTORY FORM. A sketch that is a directory goes through the host
 # as several translation units compiled apart and linked once, which

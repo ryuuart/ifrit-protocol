@@ -19,17 +19,15 @@
  * the value has a name on the page.
  *
  * `readback(name).then(fn)` ASKS FOR A RESOURCE BACK, and the callback
- * runs THE FRAME AFTER the one that made it — which is the only honest
- * answer where reading a device's memory costs a wait, and is therefore
- * what the CPU executor promises too. The tell-tale posts along the front
+ * runs THE FRAME AFTER the one that made it, because reading a device's
+ * memory costs a wait. The tell-tale posts along the front
  * edge are that answer made visible: one post per hundred points the
  * readback counted, so a frame in which nothing came back has none. The
  * count and the frame number are printed to stderr as well, because a set
  * has no text of its own.
  *
- * Both tiers run the same declarations: plainly the passes execute on the
- * CPU, and under `--gpu` on `diligent::runtime` with the chain cooked by
- * the device's own point executor.
+ * The passes execute on `diligent::runtime`, with the chain cooked by the
+ * device's own point executor.
  *
  * EDIT THESE FIRST
  *   kMotes   — how many points the chain cooks.

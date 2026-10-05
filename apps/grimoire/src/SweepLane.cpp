@@ -36,8 +36,9 @@ int runSweep(const Arguments& args, int chosen,
   // device's context, so there is one device in the process and not
   // two that cannot read each other's textures. A canvas sketch's mesh
   // painter still stays on the CPU executor whatever the flag says: a
-  // plate is hashed from that executor, and the two rasterise the same
-  // picture but not the same bytes.
+  // canvas plate is hashed from that executor, and the two rasterise the
+  // same picture but not the same bytes. WITHOUT the flag no device comes
+  // up and every set is listed unavailable and skipped, saying why.
   // A SWEEP ON THE DEVICE DRAWS THE PROGRAMS AN OPEN WINDOW DRAWS, with
   // nobody waiting on any of them, so what it built is worth writing
   // down for a machine that has nothing written down yet. The

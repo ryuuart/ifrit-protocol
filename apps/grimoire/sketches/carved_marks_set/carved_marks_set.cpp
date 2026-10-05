@@ -304,12 +304,9 @@ struct CarvedMarksSet {
     pageScene = ctx.surfaceScene({kWidth, kHeight});
     tree = page(height);
     room = studio();
-    // One flat sheet, cut finely enough that a tier shading per vertex
-    // and mapping a texture across each triangle without perspective
-    // still reads it as a plane when it turns.
-    plate = gm::grid(36, 24, [](float u, float v) {
-      return glm::vec3{(u - .5f) * kWidth, (v - .5f) * kHeight, 0};
-    });
+    // One flat sheet: the page's maps carry the relief, and the device
+    // shades them per pixel.
+    plate = gm::quad(kWidth, kHeight);
   }
 
   world::Frame describe(double seconds) {

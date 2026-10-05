@@ -41,6 +41,7 @@
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/set/Set.h>
 #include <sigilworld/element/Element.h>
 #include <sigilworld/element/Environment.h>
 #include <sigilworld/frame/Frame.h>
@@ -127,6 +128,13 @@ sketch::kit::ComparisonCase cell(const char* caseTitle, const char* call,
 }  // namespace
 
 struct EnvLanes {
+  /** Every cell is a set baked on the device, so the sheet needs one and
+   *  is unavailable, saying so, where none is installed. */
+  static constexpr bool needsDevice = true;
+  static bool available(std::string* why) {
+    return sigil::sketch::runtimeAvailable(why);
+  }
+
   void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // every bake has already been taken

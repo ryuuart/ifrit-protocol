@@ -113,10 +113,12 @@ canvas dark, and draws a still for every sketch that has none: the
 sketch's kind opened and stepped to its declared moment — the same
 capture the CPU plate tier takes — scaled to the thumbnail size, one at a
 time, on the CPU and never touching the device. That holds whatever the
-process installed: a still opens every kind on the CPU runtime — a set's
-whole frame and a 2D body's mesh painter alike — so a sketch's thumbnail
-is drawn on the mesh executor even in a window whose live canvas is
-lighting sets on a device. The status strip counts
+process installed: a still opens every kind on empty runtimes, so a 2D
+body's meshes are drawn on the CPU painter even in a window whose live
+canvas is drawing on a device. A set is drawn on a device and nowhere
+else, so the fill gives it no still: it gets a NOTE carrying the reason,
+and its still is the one the refresh below takes the first time it is
+opened. The status strip counts
 them off, `thumbnails 12/41 …`, and each row fills in as its file lands
 without remounting the others; a row on screen is moved to the front of
 the queue, so what you are looking at is drawn first. **Opening a sketch
@@ -155,7 +157,8 @@ gets a drawn glyph for the runtime it draws through.
 `Grimoire --thumbnails` fills the store headless, over the same budget
 and writing the same notes, and exits non-zero naming the sketches that
 failed. It is the same render the window's fill takes, down to the
-runtime: a set is drawn on the CPU mesh executor either way.
+runtime, and it brings no device up: every set is listed unavailable and
+skipped, saying why.
 
 **What is not in a row is the canvas.** A sketch declares its size, its
 ground and the moment it names from inside its own setup, so those are

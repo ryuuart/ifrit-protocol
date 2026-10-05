@@ -9,15 +9,8 @@
  * through a mask, one wearing a normal map, one wearing a packed
  * roughness-and-metallic map, and one that emits.
  *
- * WHICH CARD READS ON WHICH TIER. The device tier runs each material's
- * own body, so every card there is what its parameters and its maps say. The
- * CPU tier has no compiler and reads a surface's base colour and its
- * base-colour map alone, so on it the row is five flat colours and the
- * floor's weave: the plain card is its colour, the stack is the colour
- * of the surface at the bottom of it, and the normal, packed and
- * emissive cards are their base colours with nothing of the map in them.
- * Both plates are honest pictures of their tier, and the row is built to
- * make the difference between them the thing the study shows.
+ * The device runs each material's own body, so every card is what its
+ * parameters and its maps say.
  *
  * THE CARDS ARE CURVED, not flat. A Blinn highlight on a flat card is
  * one value over the whole face — the same value — so a card meant to

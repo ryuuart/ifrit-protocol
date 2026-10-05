@@ -1,10 +1,11 @@
-"""A retained native World scene: one vessel, three finishes, one moving rig."""
+"""A native World frame baked on the device: one vessel, three finishes, one moving rig."""
 
 # TAGS: World/Scenes, Geometry/Meshes, Materials/Surfaces
 
 from sigil import world
 from sigil.draw import LEFT, TOP, Pen
 from sigil.geometry import mesh
+from sigil.material import hexColor
 from sigil.material import surface as surfaces
 from sigil.sketch import SketchContext, sketch
 
@@ -16,7 +17,6 @@ PAPER = "#141d25"
 @sketch(size=(1200, 820), background=PAPER, capture_at=1.0)
 class WorldStudy:
     def setup(self, ctx: SketchContext) -> None:
-        self.scene = world.Scene()
         self.vessel = mesh.revolve(
             [
                 (0, -64),
@@ -51,7 +51,7 @@ class WorldStudy:
         self.camera.target = (0, -6, 0)
         self.camera.fovYDeg = 30
 
-    def draw(self, pen: Pen) -> None:
+    def draw(self, pen: Pen, ctx: SketchContext) -> None:
         pen.background(PAPER)
         seconds = pen.millis() / 1000
         pieces = [
@@ -88,8 +88,19 @@ class WorldStudy:
                 ),
             )
         )
-        self.scene.render(world.Frame(model).camera(self.camera))
-        pen.image(self.scene.image((1104, 510), background=PAPER), 48, 150)
+        # A set is drawn on a device and nowhere else: the bake answers
+        # None where the host brought none up, and the sheet says so.
+        still = ctx.bakeSet(
+            world.Frame(model), self.camera, (1104, 510), background=hexColor(0x141D25)
+        )
+        if still is not None:
+            pen.image(still, 48, 150)
+        else:
+            pen.noStroke()
+            pen.fill(MUTED)
+            pen.textAlign(LEFT, TOP)
+            pen.textSize(15)
+            pen.text("This sheet bakes its set on a device, and none is here.", 48, 380)
 
         pen.noStroke()
         pen.textAlign(LEFT, TOP)
@@ -128,7 +139,7 @@ class WorldStudy:
 
         pen.fill(MUTED)
         pen.textSize(12)
-        pen.text("RETAINED WORLD / NATIVE CPU EXECUTOR", 48, 751)
+        pen.text("WORLD FRAME / DEVICE EXECUTOR", 48, 751)
         pen.text(
             "Dielectric surfaces share roughness 0.45. This light rig has no environment reflections.",
             48,

@@ -15,10 +15,10 @@
  * that cannot — placed together. Nothing binds them but the placement
  * they share, which is why moving one number moves both.
  *
- * WHAT THIS STUDY DOES NOT SHOW is a lamp's pool on the ground. Both
- * tiers shade PER VERTEX, so a falloff is only ever as detailed as the
- * surface it lands on, and the plinth below is small and dark rather
- * than a floor pretending to carry a gradient it cannot. The colours on
+ * WHAT THIS STUDY DOES NOT SHOW is a lamp's pool on the ground. The
+ * device shades an emitter PER VERTEX, so a falloff is only ever as
+ * detailed as the surface it lands on, and the plinth below is small and dark
+ * rather than a floor pretending to carry a gradient it cannot. The colours on
  * the bodies are the honest reading of where the light is.
  */
 

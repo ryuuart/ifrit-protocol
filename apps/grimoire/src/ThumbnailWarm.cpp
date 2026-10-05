@@ -78,6 +78,15 @@ int runThumbnails(int only, const std::string& kind,
         std::printf("thumbnail %-24s [noted: declared a plate]\n", entry.name);
         ++noted;
         break;
+      case sketch::ThumbnailOutcome::Unavailable: {
+        std::string reason;
+        (void)sketch::thumbnailAvailable(entry, &reason);
+        sketch::noteThumbnail(directory, entry.name, key, reason);
+        std::printf("thumbnail %-24s [noted: %s]\n", entry.name,
+                    reason.c_str());
+        ++noted;
+        break;
+      }
       case sketch::ThumbnailOutcome::OverBudget:
         sketch::noteThumbnail(directory, entry.name, key,
                               "still ran past its budget");

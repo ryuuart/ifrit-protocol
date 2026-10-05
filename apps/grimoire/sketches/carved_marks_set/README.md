@@ -29,5 +29,4 @@ The sketch has no control panel. It has none of the source study's timed
 finish phases, gilding or cut-depth edits, and no reference normal preview.
 The relief is shaded, not displaced: the plate keeps its silhouette and casts
 no shadow into its own cuts. Point lights reach the plate as directions toward
-its centre, not at their true positions. The host tier shades per vertex, so
-it shows colour, emission and overall light without the relief.
+its centre, not at their true positions.

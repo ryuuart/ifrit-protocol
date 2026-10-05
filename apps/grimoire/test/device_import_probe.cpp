@@ -43,11 +43,10 @@ struct DeviceImportProbe {
     ctx.canvas(360, 120);
     ctx.background({0.06f, 0.07f, 0.10f, 1});
 
-    // The door under test. On the CPU tier there is no device and the
-    // call never runs — the reference is what matters, because a symbol
-    // the host does not carry stops the dylib at load whether or not the
-    // branch is ever taken. On a device it runs and refuses an empty
-    // texture, which is the value's stated answer.
+    // The door under test. Without a device the call never runs — the reference
+    // is what matters, because a symbol the host does not carry stops the dylib
+    // at load whether or not the branch is ever taken. On a device it runs and
+    // refuses an empty texture, which is the value's stated answer.
     if (auto* on = sketch::device()) {
       const sigil::material::Texture texture = world::diligent::importNative(
           *on, sigil::core::hardware::NativeTexture{});

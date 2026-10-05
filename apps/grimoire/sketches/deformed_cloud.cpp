@@ -13,9 +13,9 @@
  *
  * THE CHAIN IS THE DESCRIPTION, NOT THE POINTS. Nothing here evaluates
  * anything: a `Chain` is a value the node carries, and the runtime the
- * frame is performed on cooks it — the host executor on a machine with
- * no device, and the device's own kernels where every operator in the
- * chain has one, from the same description and to the same points. The
+ * frame is performed on cooks it — the device's own kernels where every
+ * operator in the chain has one and the host cook where one does not,
+ * from the same description and to the same points. The
  * count is the one number that decides how much work that is.
  *
  * A MASK IS A LANE, and that is what makes this readable: `select`

@@ -61,8 +61,7 @@ bool awaitFirstBuild(sketch::Host& host) {
     std::this_thread::sleep_for(50ms);
   }
   if (!host.live()) {
-    std::fprintf(stderr, "sketch failed to build:\n%s\n",
-                 host.errorLog().c_str());
+    std::fprintf(stderr, "sketch did not open:\n%s\n", host.errorLog().c_str());
     return false;
   }
   return true;

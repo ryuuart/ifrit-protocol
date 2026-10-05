@@ -98,11 +98,12 @@ sketch::Assets& assets() {
  *  and pipeline it made goes when the device does. */
 std::unique_ptr<sigil::geometry::device::Device> g_device;
 
-/** Puts every set sketch on the device, and says whether it could. The
- *  sweep treats a false answer as fatal because drawing the CPU's
- *  picture under a name that asked for the device's would put two
- *  different pictures under one name; the live host carries on, because
- *  a window can say which tier it is showing. */
+/** Puts every set sketch on the device, and says whether it could. A set
+ *  is drawn on a device and nowhere else, so until this answers true
+ *  every set is unavailable. The sweep treats a false answer as fatal,
+ *  because a run that asked for the device and quietly drew without it
+ *  would put a different picture under a name; the live host carries on
+ *  with every set listed unavailable. */
 bool useDevice() {
   if (g_device) return true;
   std::string error;

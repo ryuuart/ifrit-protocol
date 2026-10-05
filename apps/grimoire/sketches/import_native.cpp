@@ -24,10 +24,10 @@
  * it is what says the pixels were never read back, so a renderer holding
  * another device draws the body undressed rather than something it
  * invented. A sketch reaches the device through `sketch::device()`, which
- * is null on the CPU tier, and the host force-loads every archive it
- * links, so a set that walks through the door does so under `--gpu`. This
- * sheet stops at the two producers: what it shows is the host image each
- * one hands over, on either tier.
+ * is null where no device came up, and the host force-loads every archive
+ * it links, so a set that walks through the door does so under `--gpu`.
+ * This sheet stops at the two producers: what it shows is the host image
+ * each one hands over.
  *
  * EDIT THESE FIRST
  *   kPanel — how large each screen stands in the set.
