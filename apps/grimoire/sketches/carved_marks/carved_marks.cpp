@@ -126,7 +126,7 @@ material::Material sampled(material::Texture texture, glm::vec2 extent) {
 }
 
 material::Mask marked(const material::Material& height) {
-  return {height, material::MaskChannel::Luminance};
+  return {height, material::ColorChannel::Luminance};
 }
 
 material::Material unitColor(glm::vec2 extent) {

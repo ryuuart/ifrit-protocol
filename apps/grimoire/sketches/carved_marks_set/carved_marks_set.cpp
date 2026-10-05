@@ -117,7 +117,7 @@ Element die() {
 }
 
 material::Mask marked(const material::Material& height) {
-  return {height, material::MaskChannel::Luminance};
+  return {height, material::ColorChannel::Luminance};
 }
 
 /** Cut limestone: the die pressed in, pores and strata from noise, dark

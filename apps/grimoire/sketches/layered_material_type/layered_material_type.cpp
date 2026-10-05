@@ -276,15 +276,15 @@ struct LayeredMaterialType {
     roughness.layer(
         material::Color{c.roughness * .7f, c.roughness * .7f, c.roughness * .7f,
                         1},
-        {.mask = material::Mask{height, material::MaskChannel::Luminance}});
+        {.mask = material::Mask{height, material::ColorChannel::Luminance}});
     return material::from(hexColor(0xe9e1ce))
         .layer(
             c.depth < 0 ? copper(c.roughness) : gold(),
-            {.mask = material::Mask{height, material::MaskChannel::Luminance}})
+            {.mask = material::Mask{height, material::ColorChannel::Luminance}})
         .layer(
             hexColor(0xac644b),
             {.opacity = c.overprint * .28f,
-             .mask = material::Mask{height, material::MaskChannel::Luminance}})
+             .mask = material::Mask{height, material::ColorChannel::Luminance}})
         .surface({.metallic = height,
                   .roughness = roughness,
                   .normal = normal,

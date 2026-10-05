@@ -96,7 +96,7 @@ material::Material finish(const Controls& c, bool copper = false,
         copper ? silver : bronze,
         {.opacity = c.overlay,
          .mask = material::Mask{.source = material::shader(kPlatingMask),
-                                .channel = material::MaskChannel::Luminance}});
+                                .channel = material::ColorChannel::Luminance}});
   return out.surface(
       {.metallic = c.metallic,
        .roughness = c.roughness,

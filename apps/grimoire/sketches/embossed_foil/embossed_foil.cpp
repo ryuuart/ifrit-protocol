@@ -116,7 +116,7 @@ material::Material foil(const Controls& c, bool silver = false,
                   .opacity = c.amberLayer,
                   .mask = material::Mask{
                       .source = material::shader(embossed_foil::kFilmMask),
-                      .channel = material::MaskChannel::Luminance,
+                      .channel = material::ColorChannel::Luminance,
                       .low = 0.0f,
                       .high = 1.0f}});
   }
@@ -125,7 +125,7 @@ material::Material foil(const Controls& c, bool silver = false,
                  {.opacity = 0.87f,
                   .mask = material::Mask{
                       .source = material::shader(embossed_foil::kOverprintMask),
-                      .channel = material::MaskChannel::Alpha}});
+                      .channel = material::ColorChannel::Alpha}});
   }
   return result.surface(
       {.metallic = std::clamp(c.metallic, 0.0f, 1.0f),

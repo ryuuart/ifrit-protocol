@@ -568,10 +568,14 @@ struct MetalInstrument {
                    {world::camera(camera,
                                   {.exposure = 0.38f,
                                    .toneCurve = world::ToneCurve::Neutral}),
+                    // The key travels DOWN onto the instrument, as a
+                    // studio key hangs above it: a key travelling up from
+                    // below puts its mirror image in the polished face,
+                    // straight back at the camera.
                     world::directionalLight(
                         {0.9f * std::cos(radians(lightTurn)) -
                              0.38f * std::sin(radians(lightTurn)),
-                         0.3f,
+                         -0.3f,
                          -0.9f * std::sin(radians(lightTurn)) -
                              0.38f * std::cos(radians(lightTurn))},
                         {.color = material::Color{1, 0.93f, 0.81f, 1},
