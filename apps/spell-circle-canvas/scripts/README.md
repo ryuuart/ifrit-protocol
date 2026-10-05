@@ -275,12 +275,13 @@ inventory the `docs` build writes is what sees those.
 
 ## Plates — `plates`
 
-Three tiers, one binary. `--tier cpu` (the default) steps every sketch —
-canvas and set alike — to its declared moment and rasterises it on the
-CPU, so a plate is a function of the declaration alone and the tier is
-judged on byte identity against one manifest,
-`build/plate_baseline_<config>.sha256`, keyed by registry name and
-covering both kinds. A clean sweep is the byte-neutrality verdict; a
+Three tiers, one binary. `--tier cpu` (the default) steps every canvas
+sketch to its declared moment and rasterises it on the CPU, so a plate is
+a function of the declaration alone and the tier is judged on byte
+identity against one manifest, `build/plate_baseline_<config>.sha256`,
+keyed by registry name. A set is drawn on a device and nowhere else, so
+this tier passes every set over and prints how many it passed over; the
+device tier below is where a set is judged. A clean sweep is the byte-neutrality verdict; a
 scene over the per-scene ceiling fails by name, and there is no
 per-scene override. `--rebase` adopts; a sweep narrowed by `--kind`,
 `--sketch` or `--scenes` merges into the manifest rather than
@@ -358,58 +359,52 @@ pinned number. A sketch that reads a clock and does not go through
 
 ### The device tier
 
-`--tier device` renders the same sketches through the device and
-compares each against the CPU plate of the same run per colour channel
-— mean and p99 judged within per-sketch ceilings, max reported — because
-a device plate is not a function of the drawing code alone. It has no
-baseline and refuses `--rebase`; without a device runtime it says so and
-exits 0. The two directories of plates are differenced by the
-comparison above, which decodes them and answers the distances; what
-stays here is the judgement, because a ceiling is a tolerance about a
-machine and not a fact about two files.
+`--tier device` asks the binary to bring its device up and list the
+registry (`Grimoire --catalog --gpu`); without a device runtime it says so
+and exits 0. It then judges two kinds of sketch two ways.
 
-Why a distance and not a hash: for a set the two tiers are two
-rasterisers. The host paints shaded vertices through a per-triangle sort
-with Skia's antialiasing; the device rasterises the same shading through
-a depth buffer with none. They agree about what the scene is and they
-differ along every edge, and a post pass's blur is a box approximation
-on one side and a separable Gaussian on the other. Asking for equal
-bytes would fail on the first pixel and tell no one anything. So three
-numbers are taken per colour channel in 0..255 over every pixel: the
-**mean** absolute difference, which is the number that says the two
+A SET, and a canvas sketch available only where a device is — one that
+bakes a set into its page — has no CPU plate. Each is rendered with
+`--gpu` and its bytes hashed against a manifest of device plates this
+machine keeps, `build/plate_baseline_<config>_device.sha256`: the same
+byte-identity question the CPU tier asks, asked of the one rasteriser such
+a sketch has. A device plate is a function of the declaration, the
+driver and the machine, and on one machine and one driver the same
+declaration renders the same bytes, which is what makes a hash the honest
+verdict and the manifest machine-local. `--tier device --rebase` adopts
+these plates, merging when narrowed exactly as the CPU tier does,
+`--stability N` re-renders a mover, and the canvas sketches are not
+adopted, since they keep no device baseline.
+
+A CANVAS sketch is rendered on the CPU and on the device and the two
+plates are compared per colour channel — mean and p99 judged within a
+ceiling, max reported — because a canvas's device plate is a second
+rasteriser's picture of what the CPU tier already holds to its baseline.
+The two directories of plates are differenced by the comparison above,
+which decodes them and answers the distances; what stays here is the
+judgement, because a ceiling is a tolerance about a machine and not a fact
+about two files.
+
+Why a distance there and not a hash: the CPU rasterises through Skia
+with its antialiasing and the device through a depth buffer with none.
+They agree about what the picture is and they differ along every edge,
+so three numbers are taken per colour channel in 0..255 over every pixel:
+the **mean** absolute difference, which is the number that says the two
 pictures ARE the same picture; **p99**, the value 99 channels in a
 hundred stay under, which says the disagreement is confined rather than
-spread; and **max**, the worst channel anywhere, which is an edge or a
-body a centroid sort ranked wrongly on the host and a depth buffer
-rightly on the device, and is reported rather than judged.
+spread; and **max**, the worst channel anywhere, which is an edge, and is
+reported rather than judged.
 
-A sketch names its own mean and p99 ceilings in the script's
-`GPU_TOLERANCE`, set from what the two tiers actually do rather than
-from a wish, and tightened when one of them gets closer to the other
-rather than loosened when a change moves them apart. A sketch with no
-entry is judged by the default, `(12.0, 128)`. What each named ceiling
-is answering:
-
-| sketch | mean, p99 | why it stands where it does |
-|---|---|---|
-| `first_light` | 10.0, 96 | A comet of twelve hundred stamped beads is nothing but silhouettes, and the host antialiases those edges where the device does not. Its broad ground plate is also FOUR vertices wide: the host clamps each shaded vertex to a byte and interpolates the bytes, the device interpolates the shading and clamps per pixel, and across a quad that large the two readings drift mildly apart everywhere at once. |
-| `glow_trail` | 4.0, 32 | Neither of those. The two tiers stand a per-channel unit or two apart over almost all of it, and its worst channel is where a centroid sort puts a far post behind the plate on the host and the depth buffer puts it in front on the device — the host being wrong rather than the device. |
-| `material_lab` | 10.0, 192 | The loosest entry, and the one study whose two tiers are MEANT to disagree. Its five cards are chosen because the device shades them — a stack composed through a mask, a normal map, a packed roughness-and-metallic map, an emission — and the CPU tier can read a base colour and a base-colour map and nothing else, so on four of the five the two pictures are simply different pictures. That is what puts the p99 where it is. The mean is still the number that says a card landed where it belongs. On top of that it carries the drift every 3D scene here has: a broad ground plane wearing a check repeated five times across itself and seen nearly edge on, which the two tiers minify differently everywhere at once. |
-| `key_light` | 3.0, 32 | A still set under a ramping key is nearly all interior: the two tiers agree to a channel or two everywhere but the silhouettes. |
-| `dart_flight` | 2.0, 24 | A swept rail, a few gates and a dart on it are almost entirely smooth interior over an empty background — where the two tiers agree most closely of anything in this registry. |
-| `deformed_cloud` | 2.0, 24 | A densely packed cloud of flakes reads the same way for the opposite reason: every flake stands against its neighbour rather than against the background, so there is hardly a silhouette to disagree about. |
-| `scattered_model` | 4.0, 128 | The other extreme: a scatter thin enough to see through is nearly all silhouette edge, one rasteriser antialiases those and the other does not, so the p99 says so while the mean says the two are the same picture. |
-| `lantern_room` | 4.0, 64 | Four coloured lamps read as directions on the host and as attenuated emitters on the device, so the bodies between them are shaded from slightly different strengths — a low mean over a picture that is mostly dark, and a p99 at the lit edges. |
-
-A ceiling is for a scene the two tiers draw the same way and read
-slightly apart. There is no list of scenes the tier declines to judge: a
-scene that draws differently on the two backends is a defect in what
-drew it, and a sheet whose subject is a call one backend does not
-implement says so with a call every backend performs.
+A canvas sketch may name its own mean and p99 ceilings in the script's
+`GPU_TOLERANCE`, set from what the two rasterisers actually do rather
+than from a wish; one with no entry is judged by the default,
+`(12.0, 128)`, and today none needs its own. A ceiling is for a sketch the
+two draw the same way and read slightly apart: a sketch that draws
+differently on the two backends is a defect in what drew it.
 
 ### The promotion tier
 
-`--tier promotion` renders the same sketches twice on the CPU — once
+`--tier promotion` renders the canvas sketches twice on the CPU — once
 with automatic texture promotion held off, once with every promotable
 node eagerly baked — and judges the pair against the contract compose
 states. It exists because nothing else exercises the promoter: a
@@ -496,16 +491,19 @@ THE PLATES ARE KEPT, beside the manifest, under
 overwritten rather than accumulated, and never committed because
 `build/` is ignored. `baseline/` holds what the manifest was baked from
 and is overwritten on rebase; `cpu/` holds what the last judging sweep
-rendered; the two comparing tiers keep both halves (`device/cpu`,
-`device/gpu`, `promotion/off`, `promotion/on`). A hash says a scene
+rendered; the device tier keeps its own baseline beside its manifest
+(`device/baseline`) and what its last judging sweep rendered of the
+device-only sketches (`device/sets`); the two comparing halves keep both
+sides (`device/cpu`, `device/gpu`, `promotion/off`, `promotion/on`). A hash says a scene
 MOVED and nothing about where, so each mover's verdict line names its
 two files and the summary prints the `sigil.py plates compare
 build/plates_<config>/baseline build/plates_<config>/cpu` that
 differences them channel by channel.
 
-The manifest is machine-local by design (plates are deterministic per
+Both manifests are machine-local by design (plates are deterministic per
 machine, not across machines), so a fresh checkout runs
-`sigil.py plates --rebase` once before a sweep can judge anything.
+`sigil.py plates --rebase` and `sigil.py plates --tier device --rebase`
+once before a sweep can judge anything.
 
 A library's own plate cases are the other half of the verb: ctest cases
 labelled `plates`, each a picture the library's testing harness renders

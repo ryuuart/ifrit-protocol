@@ -9,6 +9,7 @@
 #include <sigilcore/comparable/Erased.h>
 
 #include <memory>
+#include <string>
 #include <string_view>
 
 namespace sigil::weave {
@@ -53,6 +54,17 @@ struct KindOperations {
    *  a device is a process-wide resource and the machines this runs on
    *  do not all have one. */
   [[nodiscard]] virtual bool needsDevice() const { return false; }
+
+  /** WHETHER A SESSION OF THIS KIND CAN OPEN HERE, and what is missing
+   *  when it cannot, written into @p why. A kind that draws only through
+   *  a device answers false where it would open on none, so a host lists
+   *  the sketch as unavailable with that one reason rather than opening a
+   *  session that draws nothing. Asked when a sketch is listed and again
+   *  when it opens, so the answer is the process's at that moment. */
+  [[nodiscard]] virtual bool available(std::string* why) const {
+    (void)why;
+    return true;
+  }
 };
 
 /** WHAT A SKETCH DRAWS, as a value.

@@ -11,6 +11,7 @@
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/set/Set.h>
 #include <sigilworld/advanced/Skia.h>
 #include <sigilworld/frame/Frame.h>
 #include <sigilworld/scene/Scene.h>
@@ -36,6 +37,8 @@ std::shared_ptr<compose::TextureScene> SketchContext::textureScene(
 sk_sp<SkImage> SketchContext::bakeSet(
     const world::Frame& frame, const geometry::mesh::camera::Camera& camera,
     SkISize size, sigil::material::Color background, double seconds) {
+  // A set is drawn on a device and nowhere else.
+  if (!runtimeAvailable()) return nullptr;
   sk_sp<SkSurface> surface = SkSurfaces::Raster(
       SkImageInfo::MakeN32Premul(size.width(), size.height()));
   if (!surface) return nullptr;
@@ -46,7 +49,12 @@ sk_sp<SkImage> SketchContext::bakeSet(
   // forming and presenting then read the ONE viewpoint, and a frame that
   // named none is seen from the caller's.
   world::Frame framed = frame;
-  framed.extent(glm::ivec2(size.width(), size.height())).camera(camera);
+  framed.extent(glm::ivec2(size.width(), size.height()))
+      .camera(camera)
+      .runtime(runtime());
+  if (framed.passes().empty())
+    framed.pass(world::geometryPass("colour").writes("colour").clear(
+        material::skia::toSkColor(background)));
   // A scene for this call, on a CLOCK OF ITS OWN: nothing here is
   // retained between bakes, so the picture is a function of the frame
   // and the moment and not of how many times the sketch has baked one —
@@ -63,6 +71,7 @@ sk_sp<SkImage> SketchContext::bakeSet(
     engine.advance(motion::Duration(seconds));
     scene.render(framed);
   }
+  if (!scene.error().empty()) return nullptr;
   world::draw(scene, canvas);
   return surface->makeImageSnapshot();
 }

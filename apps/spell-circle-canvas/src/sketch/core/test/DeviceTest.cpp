@@ -18,17 +18,15 @@ sigil::geometry::device::Device* stand(void* address) {
   return static_cast<sigil::geometry::device::Device*>(address);
 }
 
-TEST(SketchDevice, NoHostInstalledOneIsTheCpuTier) {
-  EXPECT_EQ(device(), nullptr);
-}
+TEST(SketchDevice, NoHostInstalledOneIsNull) { EXPECT_EQ(device(), nullptr); }
 
 TEST(SketchDevice, TheInstalledDeviceIsWhatComesBack) {
   int marker = 0;
   sigil::geometry::device::Device* installed = stand(&marker);
   useDevice(installed);
   EXPECT_EQ(device(), installed);
-  // A host that lets its device go says so, and the answer is the CPU
-  // tier again rather than a pointer to something released.
+  // A host that lets its device go says so, and the answer is null
+  // again rather than a pointer to something released.
   useDevice(nullptr);
   EXPECT_EQ(device(), nullptr);
 }

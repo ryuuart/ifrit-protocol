@@ -118,6 +118,10 @@ enum class ThumbnailOutcome {
   Heavy,
   /** The walk ran past the run's budget and was abandoned. */
   OverBudget,
+  /** The sketch cannot be drawn where a thumbnail is: a set, which is
+   *  drawn on a device and nowhere else. Nothing ran; `thumbnailAvailable`
+   *  says why. */
+  Unavailable,
   /** No kind, an empty canvas, no surface, or the write failed. */
   Failed,
 };
@@ -159,15 +163,21 @@ struct ThumbnailRun {
  *  it names none), takes the still the plate tier takes, and scales it so
  *  its larger side is `run.maxDimension` pixels before encoding a PNG.
  *  CPU ONLY, whatever the process holds — it allocates a raster surface
- *  and never a device one, and it opens the kind on the CPU runtimes
- *  rather than on the ones a host installed, both the frame a set draws
- *  through and the painter a 2D body stands a mesh up on, so it can run
- *  on a worker that shares no device and no queue with the thread that
- *  is presenting. Any older thumbnail for `run.stem` under the output's
- *  directory is removed. */
+ *  and never a device one, and it opens the kind on empty runtimes rather
+ *  than on the ones a host installed, so it can run on a worker that
+ *  shares no device and no queue with the thread that is presenting: a
+ *  2D body stands a mesh up on the CPU painter, and a set, which is drawn
+ *  on a device and nowhere else, answers `Unavailable`. Any older
+ *  thumbnail for `run.stem` under the output's directory is removed. */
 [[nodiscard]] ThumbnailOutcome renderThumbnail(const Entry& entry,
                                                weave::FontContext& fonts,
                                                Assets& assets,
                                                const ThumbnailRun& run);
+
+/** WHETHER @p entry CAN BE DRAWN AS A THUMBNAIL — on the CPU, away from
+ *  any device — and where it cannot, the reason, written into @p why: a
+ *  set's, which is the one message every door a set is refused at
+ *  speaks. */
+[[nodiscard]] bool thumbnailAvailable(const Entry& entry, std::string* why);
 
 }  // namespace sigil::sketch

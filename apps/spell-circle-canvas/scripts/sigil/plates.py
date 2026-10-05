@@ -9,7 +9,8 @@
     sigil.py plates --scenes "aero desktop" black_watch
     sigil.py plates --stability 3      # re-render movers 3x to separate
                                        # flappers from code
-    sigil.py plates --tier device      # the same sketches on the GPU
+    sigil.py plates --tier device      # canvases on the GPU, and every set
+    sigil.py plates --tier device --rebase   # adopt the sets' device plates
     sigil.py plates --tier promotion   # …and with the promoter let go
     sigil.py plates compare <a> <b>    # two plate directories, differenced
 
@@ -17,7 +18,10 @@ Renders every sketch through `Grimoire --headless --ledger` (the
 benchmark-free exact-stepped capture), N at a time, hashes the plates,
 and compares against a stored baseline manifest. One binary renders all
 three tiers; what separates them is which rasteriser a sketch draws
-through and what the runtime's promoter is allowed to do.
+through and what the runtime's promoter is allowed to do. A set is drawn
+on the device and nowhere else, so the CPU and promotion tiers pass every
+set over and count them, and the device tier holds each set to a device
+plate of its own, hashed into a second machine-local manifest.
 
 What each tier judges, what it refuses and why each ceiling stands where
 it does is scripts/README.md; this refuses to keep a second copy of it.
@@ -62,22 +66,16 @@ PROMOTION_ON = ("--promotion",)
 LIBRARY_PLATES_LABEL = "plates"
 LIBRARY_PLATES_REBASE = "SIGIL_PLATES_REBASE"
 
-# How far a sketch's device plate may stand from its CPU plate: (mean,
-# p99) per colour channel in 0..255. Set from what the two tiers actually
-# do, and tightened when one of them gets closer to the other rather than
-# loosened when a change moves them apart. What each entry is answering
-# is the table in scripts/README.md.
+# How far a CANVAS sketch's device plate may stand from its CPU plate:
+# (mean, p99) per colour channel in 0..255. Set from what the two
+# rasterisers actually do, and tightened when one of them gets closer to
+# the other rather than loosened when a change moves them apart. A set has
+# no CPU plate and is judged on its own device plate instead.
 DEFAULT_GPU_TOLERANCE = (12.0, 128)
-GPU_TOLERANCE = {
-    "first_light": (10.0, 96),
-    "glow_trail": (4.0, 32),
-    "material_lab": (10.0, 192),
-    "key_light": (3.0, 32),
-    "dart_flight": (2.0, 24),
-    "deformed_cloud": (2.0, 24),
-    "scattered_model": (4.0, 128),
-    "lantern_room": (4.0, 64),
-}
+GPU_TOLERANCE = {}
+
+# The kind that is drawn on the device and nowhere else.
+SET_KIND = "set"
 
 # How far a promoted plate may stand from the same scene rendered with the
 # promoter held off, and it is THREE BARS because the contract compose
@@ -146,10 +144,12 @@ PROMOTION_DRIFT_CEILING_OVER_GRAZE = 64
 PROMOTION_ON_COUNTED = PROMOTION_ON + ("--composites",)
 
 
-def registry(binary, kinds):
+def registry(binary, kinds, device=False):
     """What the binary carries for the given kinds: scene -> kind for the
-    ones this machine can render, and scene -> reason for the ones it
-    cannot.
+    ones this machine can render, and scene -> (kind, reason) for the ones
+    it cannot. @p device asks the binary to bring its device up first,
+    without which every set is unavailable; None when that was asked and
+    the machine has no device to bring up.
 
     Read as values — the catalog's rows, one JSON object each, which carry
     every entry's filed name, runtime and availability. The registry is
@@ -158,10 +158,21 @@ def registry(binary, kinds):
     row like any other, with the reason: a sketch dropped from the rows
     and a sketch deleted from the tree would read exactly alike, and the
     difference is the whole point."""
-    listed = tree.capture([binary, "--catalog"], check=True).stdout
+    command = [binary, "--catalog"] + (["--gpu"] if device else [])
+    result = tree.capture(command)
+    if (
+        device
+        and result.returncode != 0
+        and "no device runtime" in (result.stderr + result.stdout)
+    ):
+        return None
+    result.check_returncode()
+    listed = result.stdout
     scenes, unavailable = {}, {}
     for line in listed.splitlines():
-        if not line.strip():
+        # A row is one JSON object per line; a device brought up for the
+        # listing logs its own lines beside them, which are not rows.
+        if not line.startswith("{"):
             continue
         row = json.loads(line)
         if row["kind"] not in kinds:
@@ -169,7 +180,7 @@ def registry(binary, kinds):
         if row["available"]:
             scenes[row["filedName"]] = row["kind"]
         else:
-            unavailable[row["filedName"]] = row["reason"]
+            unavailable[row["filedName"]] = (row["kind"], row["reason"])
     return scenes, unavailable
 
 
@@ -359,31 +370,28 @@ def sweep(binary, scenes, outdir, timeout, jobs, extra_args, standing):
     return results, errors, declared
 
 
-def device_sweep(binary, scenes, timeout, jobs, host_dir, device_dir):
-    """The device tier: every sketch rendered BOTH ways and the two plates
-    compared. It has no baseline — the CPU plate of the same sketch IS
-    the reference, and both are made in this run, and both are kept so a
-    scene reported OVER can be looked at rather than only measured."""
-
-    # One sketch first, to tell "no device on this machine" from a defect.
-    probe = subprocess.run(
-        [binary, "--headless", device_dir, "--gpu", "--sketch", scenes[0]],
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-    )
-    if probe.returncode != 0 and "no device runtime" in (probe.stderr + probe.stdout):
-        print("SKIPPED: this machine has no device to render on")
+def device_sweep(binary, canvases, timeout, jobs, host_dir, device_dir):
+    """The device tier's canvas half: every canvas sketch rendered BOTH
+    ways and the two plates compared. It has no baseline — the CPU plate
+    of the same sketch IS the reference, and both are made in this run,
+    and both are kept so a scene reported OVER can be looked at rather
+    than only measured."""
+    if not canvases:
         return 0
-
-    print("[cpu]")
+    print("[canvas on the cpu]")
     _, cpu_errors, _ = sweep(
-        binary, scenes, host_dir, timeout, jobs, PROMOTION_OFF, lambda s, d: "rendered"
+        binary,
+        canvases,
+        host_dir,
+        timeout,
+        jobs,
+        PROMOTION_OFF,
+        lambda s, d: "rendered",
     )
-    print("[gpu]")
+    print("[canvas on the gpu]")
     _, gpu_errors, _ = sweep(
         binary,
-        scenes,
+        canvases,
         device_dir,
         timeout,
         jobs,
@@ -399,7 +407,7 @@ def device_sweep(binary, scenes, timeout, jobs, host_dir, device_dir):
         # Nothing was differenced, so every scene below fails for this one
         # reason rather than for one of its own.
         print(f"  {refusal}   <-- FINDING")
-    for scene in scenes:
+    for scene in canvases:
         if scene in unusable:
             print(f"  {unusable[scene].upper()} {scene}   <-- FINDING")
             verdict = 1
@@ -420,7 +428,7 @@ def device_sweep(binary, scenes, timeout, jobs, host_dir, device_dir):
             verdict = 1
     print(f"\nplates kept: {host_dir}\n             {device_dir}")
     if verdict == 0 and not errors:
-        print("VERDICT: the device tier stands within tolerance of the CPU tier")
+        print("VERDICT: every canvas stands within tolerance of its CPU plate")
     return verdict or (1 if errors else 0)
 
 
@@ -561,6 +569,124 @@ def promotion_sweep(binary, scenes, timeout, jobs, off_dir, on_dir):
     return verdict or (1 if errors else 0)
 
 
+def hashed_sweep(
+    binary,
+    scenes,
+    args,
+    *,
+    manifest,
+    kept_baseline,
+    judged,
+    stability,
+    extra_args,
+    narrowed,
+    skipped,
+):
+    """Renders @p scenes, hashes each plate and judges it against
+    @p manifest — or, adopting, writes the manifest from them. The CPU
+    tier asks this of every canvas sketch and the device tier of every
+    set: the same byte-identity question, asked of the one rasteriser each
+    kind has. @p judged and @p stability make the directories a judging
+    sweep and a stability re-render write into, made only when used.
+    Answers the verdict: 0 when nothing moved and nothing failed."""
+    # Read BEFORE the sweep so a scene can be judged the moment it lands.
+    standing_manifest = baseline.read_manifest(manifest)
+    adopting = args.rebase or not os.path.exists(manifest)
+
+    def standing(scene, digest):
+        if args.rebase or scene not in standing_manifest:
+            return "rendered"
+        return "identical" if standing_manifest[scene] == digest else "hash miss"
+
+    # An adopting sweep IS the baseline, so it renders straight into the
+    # kept baseline directory and the manifest is written from the same
+    # plates. A judging sweep renders beside it, which leaves the two
+    # directories `plates compare` differences standing when it is over.
+    outdir = kept_baseline if adopting else judged()
+    results, errors, _ = sweep(
+        binary,
+        scenes,
+        outdir,
+        args.timeout_seconds,
+        args.jobs,
+        extra_args,
+        standing,
+    )
+
+    if adopting:
+        if not args.rebase:
+            print(
+                f"no manifest at {manifest} — writing one (this sweep "
+                f"becomes the baseline)"
+            )
+        # A narrowed rebase merges into the existing manifest rather than
+        # truncating it to the subset. A rebase that skipped scenes merges
+        # for the same reason narrowed to those: this machine could not
+        # ask them anything, so it has nothing to say about their
+        # baselines either.
+        keep = True if narrowed else (set(skipped) if skipped else None)
+        merged = baseline.write_manifest(manifest, keep, results)
+        prune_plates(kept_baseline, merged)
+        print(
+            f"baseline written: {manifest} ({len(merged)} scenes, "
+            f"{len(results)} from this sweep)"
+        )
+        print(f"baseline plates: {kept_baseline}")
+        return 1 if errors else 0
+
+    movers, missing = [], []
+    for scene, digest in sorted(results.items()):
+        if scene not in standing_manifest:
+            missing.append(scene)
+        elif standing_manifest[scene] != digest:
+            movers.append(scene)
+    identical = len(results) - len(movers) - len(missing)
+    print(
+        f"\n{identical} byte-identical, {len(movers)} with a moved hash, "
+        f"{len(missing)} not in baseline, {len(errors)} failed"
+    )
+
+    verdict = 0
+    for scene in movers:
+        if args.stability > 0:
+            rerenders = {results[scene]}
+            for _ in range(args.stability):
+                _, digest, _, _, _ = render_scene(
+                    binary,
+                    scene,
+                    stability(),
+                    args.timeout_seconds,
+                    extra_args,
+                )
+                if digest:
+                    rerenders.add(digest)
+            if len(rerenders) > 1:
+                print(
+                    f"  MOVED (self-unstable) {scene} — disagrees with "
+                    f"itself across {args.stability + 1} renders; "
+                    f"attribute to the scene, not to the change"
+                )
+                continue
+        print(
+            f"  MOVED  {scene}  {standing_manifest[scene][:12]} -> "
+            f"{results[scene][:12]}   <-- FINDING\n"
+            f"           was {plate_path(kept_baseline, scene)}\n"
+            f"           now {plate_path(outdir, scene)}"
+        )
+        verdict = 1
+    for scene in missing:
+        print(f"  NEW    {scene} (not in baseline — rebase to adopt)")
+    # A hash says a scene moved and nothing about where. The two
+    # directories behind the two hashes are both still on disk, so the
+    # next question has a command rather than a re-render.
+    print(f"\nplates kept: {outdir}")
+    if verdict:
+        print(f"  python3 scripts/sigil.py plates compare {kept_baseline} {outdir}")
+    if verdict == 0 and not errors:
+        print("VERDICT: byte-neutral")
+    return verdict or (1 if errors else 0)
+
+
 def library_plates(config: str, rebase: bool) -> int:
     """The libraries' own plate cases, judged — or, rebasing, adopted into
     the baselines committed beside their tests, which the caller then
@@ -604,11 +730,14 @@ def main(argv: list) -> int:
         "--tier",
         choices=("cpu", "device", "promotion"),
         default="cpu",
-        help="cpu (default): CPU renders to each scene's declared capture "
-        "moment, judged on byte identity against the baseline manifest. "
-        "device: the same scenes on the GPU, judged per colour channel "
-        "against the CPU plate of the same run; no baseline. promotion: "
-        "the same scenes rendered with automatic texture promotion held "
+        help="cpu (default): every canvas sketch rendered on the CPU to its "
+        "declared capture moment, judged on byte identity against the "
+        "baseline manifest; sets are passed over and counted. device: each "
+        "canvas sketch on the GPU judged per colour channel against its CPU "
+        "plate of the same run, and each set on the GPU judged on byte "
+        "identity against its own device manifest, which --rebase adopts. "
+        "promotion: the canvas sketches rendered with automatic texture "
+        "promotion held "
         "off and again with every promotable node eagerly baked, judged "
         "within one code value where the held-off plate is transparent "
         "black, two per composite where it holds content, and sixty-four "
@@ -625,11 +754,12 @@ def main(argv: list) -> int:
     ap.add_argument(
         "--rebase",
         action="store_true",
-        help="write the manifest from this sweep. A sweep narrowed by --kind, "
-        "--sketch or --scenes merges, so only an unnarrowed rebase rewrites "
-        "the file wholesale. An unnarrowed rebase also adopts the library "
-        "plate cases (ctest label plates) into the baselines committed "
-        "beside their tests",
+        help="write the manifest from this sweep — the CPU tier's for the "
+        "canvas sketches, the device tier's for the sets. A sweep narrowed "
+        "by --kind, --sketch or --scenes merges, so only an unnarrowed "
+        "rebase rewrites the file wholesale. An unnarrowed CPU rebase also "
+        "adopts the library plate cases (ctest label plates) into the "
+        "baselines committed beside their tests",
     )
     ap.add_argument(
         "--stability",
@@ -654,10 +784,17 @@ def main(argv: list) -> int:
     args = ap.parse_args(argv)
 
     binary = str(tree.grimoire(args.config))
-    manifest = str(tree.build_dir() / f"plate_baseline_{args.config}.sha256")
 
     kinds = (args.kind,) if args.kind else KINDS
-    listed, unavailable = registry(binary, kinds)
+    # A SET IS AVAILABLE ONLY WHERE A DEVICE IS, so the device tier asks
+    # the binary to bring its device up before it lists anything; the
+    # other two tiers list without one and pass every set over.
+    on_device = args.tier == "device"
+    listing = registry(binary, kinds, device=on_device)
+    if listing is None:
+        print("SKIPPED: this machine has no device to render on")
+        return 0
+    listed, unavailable = listing
     chosen = list(args.scenes or [])
     if args.sketch:
         chosen.append(args.sketch)
@@ -666,39 +803,89 @@ def main(argv: list) -> int:
     ]
     if unknown:
         sys.exit(f"not in the registry: {', '.join(unknown)}")
+    narrowed = bool(chosen or args.kind)
+
+    def selected(scene):
+        return not chosen or scene in chosen
+
+    # Off the device every set is passed over, counted rather than
+    # listed one by one: it has no CPU plate, and its picture is the
+    # device tier's to judge.
+    passed_over = []
+    if not on_device:
+        passed_over = sorted(
+            [s for s, k in listed.items() if k == SET_KIND and selected(s)]
+            + [s for s, (k, _) in unavailable.items() if k == SET_KIND and selected(s)]
+        )
+        listed = {s: k for s, k in listed.items() if k != SET_KIND}
+        unavailable = {s: v for s, v in unavailable.items() if v[0] != SET_KIND}
     # A scene this machine cannot render is reported and stood down —
     # including one named explicitly on the command line, because asking
     # for it by name does not install anything.
-    skipped = {
-        scene: why
-        for scene, why in unavailable.items()
-        if not chosen or scene in chosen
-    }
-    scenes = {s: k for s, k in listed.items() if not chosen or s in chosen}
+    skipped = {scene: why for scene, (_, why) in unavailable.items() if selected(scene)}
+    scenes = {s: k for s, k in listed.items() if selected(s)}
     for scene, why in sorted(skipped.items()):
         print(f"SKIPPED {scene}: {why}")
-    narrowed = bool(chosen or args.kind)
+    if passed_over:
+        print(
+            f"PASSED OVER {len(passed_over)} sets: a set is drawn on the device, "
+            f"and --tier device judges it against its own device baseline"
+        )
 
     if args.tier == "device":
-        if args.rebase:
-            sys.exit(
-                "--tier device has no baseline to rebase: it is judged against "
-                "the CPU plates the same sweep renders. Change GPU_TOLERANCE to "
-                "move what it accepts."
-            )
+        # WHAT HAS NO CPU PLATE is judged on its own device plate: every
+        # set, and a canvas sketch that is available only where a device
+        # is — one that bakes a set into its page. The listing without a
+        # device says which those are.
+        _, off_device = registry(binary, kinds)
+        sets = [s for s, k in scenes.items() if k == SET_KIND or s in off_device]
+        canvases = [s for s in scenes if s not in sets]
         print(
             f"{len(scenes)} scenes, {args.jobs} jobs, config {args.config}, "
-            f"tier device: each rendered on the CPU and on the device and "
-            f"compared per colour channel"
+            f"tier device: {len(canvases)} canvases rendered on the CPU and on "
+            f"the device and compared per colour channel, {len(sets)} drawn "
+            f"only on the device and hashed against their device baseline"
         )
-        return device_sweep(
-            binary,
-            list(scenes),
-            args.timeout_seconds,
-            args.jobs,
-            plate_dir(args.config, "device", "cpu"),
-            plate_dir(args.config, "device", "gpu"),
-        )
+        if args.rebase and canvases and not sets:
+            sys.exit(
+                "--tier device adopts only what is drawn on the device alone: "
+                "a canvas sketch is judged against the CPU plate the same "
+                "sweep renders. Change GPU_TOLERANCE to move what it accepts."
+            )
+        verdict = 0
+        if canvases and not args.rebase:
+            verdict = device_sweep(
+                binary,
+                canvases,
+                args.timeout_seconds,
+                args.jobs,
+                plate_dir(args.config, "device", "cpu"),
+                plate_dir(args.config, "device", "gpu"),
+            )
+        if sets:
+            print("[drawn only on the gpu]")
+            verdict = (
+                hashed_sweep(
+                    binary,
+                    sets,
+                    args,
+                    manifest=str(
+                        tree.build_dir() / f"plate_baseline_{args.config}_device.sha256"
+                    ),
+                    kept_baseline=plate_dir(
+                        args.config, "device", "baseline", fresh=False
+                    ),
+                    judged=lambda: plate_dir(args.config, "device", "sets"),
+                    stability=lambda: plate_dir(
+                        args.config, "device", "stability", fresh=False
+                    ),
+                    extra_args=PROMOTION_OFF + ("--gpu",),
+                    narrowed=narrowed,
+                    skipped=skipped,
+                )
+                or verdict
+            )
+        return verdict
 
     if args.tier == "promotion":
         if args.rebase:
@@ -723,105 +910,21 @@ def main(argv: list) -> int:
         )
 
     print(f"{len(scenes)} scenes, {args.jobs} jobs, config {args.config}, tier cpu")
-
-    # Read BEFORE the sweep so a scene can be judged the moment it lands.
-    standing_manifest = baseline.read_manifest(manifest)
-    adopting = args.rebase or not os.path.exists(manifest)
-
-    def standing(scene, digest):
-        if args.rebase or scene not in standing_manifest:
-            return "rendered"
-        return "identical" if standing_manifest[scene] == digest else "hash miss"
-
-    # An adopting sweep IS the baseline, so it renders straight into the
-    # kept baseline directory and the manifest is written from the same
-    # plates. A judging sweep renders beside it, which leaves the two
-    # directories `plates compare` differences standing when it is over.
-    kept_baseline = plate_dir(args.config, "baseline", fresh=False)
-    outdir = kept_baseline if adopting else plate_dir(args.config, "cpu")
-    results, errors, _ = sweep(
+    verdict = hashed_sweep(
         binary,
         list(scenes),
-        outdir,
-        args.timeout_seconds,
-        args.jobs,
-        PROMOTION_OFF,
-        standing,
+        args,
+        manifest=str(tree.build_dir() / f"plate_baseline_{args.config}.sha256"),
+        kept_baseline=plate_dir(args.config, "baseline", fresh=False),
+        judged=lambda: plate_dir(args.config, "cpu"),
+        stability=lambda: plate_dir(args.config, "stability", fresh=False),
+        extra_args=PROMOTION_OFF,
+        narrowed=narrowed,
+        skipped=skipped,
     )
-
-    if adopting:
-        if not args.rebase:
-            print(
-                f"no manifest at {manifest} — writing one (this sweep "
-                f"becomes the baseline)"
-            )
-        # A narrowed rebase merges into the existing manifest rather than
-        # truncating it to the subset. A rebase that skipped scenes merges
-        # for the same reason narrowed to those: this machine could not
-        # ask them anything, so it has nothing to say about their
-        # baselines either.
-        keep = True if narrowed else (set(skipped) if skipped else None)
-        merged = baseline.write_manifest(manifest, keep, results)
-        prune_plates(kept_baseline, merged)
-        print(
-            f"baseline written: {manifest} ({len(merged)} scenes, "
-            f"{len(results)} from this sweep)"
-        )
-        print(f"baseline plates: {kept_baseline}")
-        verdict = 0
-    else:
-        movers, missing = [], []
-        for scene, digest in sorted(results.items()):
-            if scene not in standing_manifest:
-                missing.append(scene)
-            elif standing_manifest[scene] != digest:
-                movers.append(scene)
-        identical = len(results) - len(movers) - len(missing)
-        print(
-            f"\n{identical} byte-identical, {len(movers)} with a moved hash, "
-            f"{len(missing)} not in baseline, {len(errors)} failed"
-        )
-
-        verdict = 0
-        for scene in movers:
-            if args.stability > 0:
-                rerenders = {results[scene]}
-                for _ in range(args.stability):
-                    _, digest, _, _, _ = render_scene(
-                        binary,
-                        scene,
-                        plate_dir(args.config, "stability", fresh=False),
-                        args.timeout_seconds,
-                    )
-                    if digest:
-                        rerenders.add(digest)
-                if len(rerenders) > 1:
-                    print(
-                        f"  MOVED (self-unstable) {scene} — disagrees with "
-                        f"itself across {args.stability + 1} renders; "
-                        f"attribute to the scene, not to the change"
-                    )
-                    continue
-            print(
-                f"  MOVED  {scene}  {standing_manifest[scene][:12]} -> "
-                f"{results[scene][:12]}   <-- FINDING\n"
-                f"           was {plate_path(kept_baseline, scene)}\n"
-                f"           now {plate_path(outdir, scene)}"
-            )
-            verdict = 1
-        for scene in missing:
-            print(f"  NEW    {scene} (not in baseline — rebase to adopt)")
-        # A hash says a scene moved and nothing about where. The two
-        # directories behind the two hashes are both still on disk, so the
-        # next question has a command rather than a re-render.
-        print(f"\nplates kept: {outdir}")
-        if verdict:
-            print(f"  python3 scripts/sigil.py plates compare {kept_baseline} {outdir}")
-        if verdict == 0 and not errors:
-            print("VERDICT: byte-neutral")
 
     # The libraries' own plates answer for the whole tree or not at all, so
     # a sweep narrowed to some sketches leaves them standing.
     if not narrowed and library_plates(args.config, args.rebase) != 0:
         verdict = verdict or 1
-    return verdict or (1 if errors else 0)
+    return verdict

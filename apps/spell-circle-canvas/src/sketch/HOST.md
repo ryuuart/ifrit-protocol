@@ -143,7 +143,9 @@ walks the compiled-in registry.
 
 `--frame` with `--gpu` draws a Canvas still through Graphite and a Set
 scene through the World device executor; a requested device or Graphite
-context that cannot open fails the capture. On Apple, a capture of a pure
+context that cannot open fails the capture. A Set is drawn on a device and
+nowhere else, so without `--gpu` its kind is unavailable and the capture
+is refused with that reason. On Apple, a capture of a pure
 Canvas kind owns a Metal device and Graphite context without starting
 World or Vulkan. A kind that declares device work prepares the shared
 Geometry and World executor before its availability probe and setup.

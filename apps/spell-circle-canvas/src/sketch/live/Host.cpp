@@ -320,6 +320,10 @@ bool Host::openSession(const Kind& kind, bool (*available)(std::string*)) {
     std::string unavailable;
     if (available && !available(&unavailable))
       throw std::runtime_error("the sketch is unavailable: " + unavailable);
+    // …and the kind's own answer, which a file opened by path reaches
+    // through no registry entry: a set where no device is installed.
+    if (!kind->available(&unavailable))
+      throw std::runtime_error("the sketch is unavailable: " + unavailable);
     // A compiled-in sketch is keyed by its entry; a workspace sketch by
     // its file's stem, with the files beside that file mounted as its own.
     std::string key;

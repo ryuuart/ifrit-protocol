@@ -24,7 +24,13 @@ beside the case that
 takes a page's still — two cases that must not meet in one process because
 the engine allows one renderer per process and the shared-engine case
 ends by shutting its one down for good. Both are labelled `ultralight`
-and are absent altogether without that SDK. Beside the test binary
+and are absent altogether without that SDK. A case that opens a set or
+bakes one draws it on the one device the process brings up, through
+`test/support/Devices.h`, and skips naming what is missing where the machine
+has no Vulkan runtime; those suites — `SetSession`, `SetDoors`, `SetWindow`,
+`SetBodies`, `SetKinds`, the set's session contract and `CanvasBakes` — carry
+the `gpu` label, and `SetAvailability` asks without a device what a set with
+none to draw on answers. Beside the test binary
 stands one bench binary, `sketch_bench`, built from every feature's
 `bench/` directory — a Google Benchmark executable rather than a test,
 reached through the `benches` target.

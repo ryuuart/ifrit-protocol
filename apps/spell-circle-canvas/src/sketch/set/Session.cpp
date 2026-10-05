@@ -24,6 +24,7 @@
 #include <glm/geometric.hpp>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -33,12 +34,16 @@ namespace sigil::sketch {
 namespace {
 
 /** The runtime a session opens on when its kind states none. A device
- *  is one device and one queue for the whole run; an empty value is the
- *  CPU mesh executor. */
+ *  is one device and one queue for the whole run; an empty value is no
+ *  device, and no set opens on it. */
 world::Runtime& processRuntime() {
   static world::Runtime runtime;
   return runtime;
 }
+
+/** THE ONE MESSAGE a set is refused with, wherever it is refused. */
+constexpr const char* kNoDevice =
+    "a set is drawn on a device, and no device is available to it";
 
 /** HOW MANY CANVAS PIXELS ONE DECLARED UNIT COVERS.
  *
@@ -90,8 +95,7 @@ world::Frame formedAgain(const world::Frame& frame) {
 /** A set about the SCENE, made into one a runtime can perform: one
  *  geometry pass clearing to the declared background and painting every
  *  body. A set that already declares passes is left alone — an executor
- *  is only reached through passes, and a set about the scene must be
- *  able to say what it looks like on a device too. */
+ *  is only reached through passes. */
 void throughPasses(world::Frame& frame,
                    const sigil::material::Color& background) {
   if (!frame.passes().empty()) return;
@@ -157,17 +161,13 @@ class SetSession final : public Session {
       // camera — which stands before whatever the set declared.
       frame.scene(world::Element().camera(m_orbit).children({frame.scene()}));
     }
-    if (m_runtime) {
-      frame.runtime(m_runtime);
-      throughPasses(frame, m_specification.background);
-    }
+    frame.runtime(m_runtime);
+    throughPasses(frame, m_specification.background);
     m_scene.render(frame);
     // A frame formed over a part of its picture is kept, so a repaint
     // onto a canvas that shows more of the picture can form what the
-    // part left out without describing the moment again. A frame with
-    // no passes forms no targets and is drawn over the whole picture
-    // whatever the part, so there is nothing of it to form again.
-    if (m_window.partial() && !frame.passes().empty())
+    // part left out without describing the moment again.
+    if (m_window.partial())
       m_standing = std::move(frame);
     else
       m_standing.reset();
@@ -346,9 +346,8 @@ class SetSession final : public Session {
     canvas.clear(
         material::skia::toSkColor(m_specification.background).toSkColor());
     // The picture arrives as many pixels across as the frame STANDING
-    // was formed at — as a presented resource standing where its part of
-    // the picture does, or as bodies projected into the whole picture —
-    // and is put back on the declared canvas here.
+    // was formed at — a presented resource standing where its part of
+    // the picture does — and is put back on the declared canvas here.
     // It is read off the frame rather than off this canvas because a
     // repaint may arrive on a canvas fitted differently from the one the
     // frame was formed for, and the picture that exists is the one that
@@ -358,7 +357,7 @@ class SetSession final : public Session {
     canvas.scale(
         m_specification.size.width() / (float)m_window.whole.width(),
         m_specification.size.height() / (float)m_window.whole.height());
-    world::draw(m_scene, canvas, viewing());
+    world::draw(m_scene, canvas);
   }
 
   /** The texture scenes the context handed out. Before the set and the
@@ -404,17 +403,32 @@ std::unique_ptr<Session> openSet(std::unique_ptr<SetBody> body,
                                  weave::FontContext& fonts, Assets& assets,
                                  bool deterministic,
                                  const world::Runtime& runtime) {
+  std::string why;
+  if (!runtimeAvailable(runtime, &why)) throw std::runtime_error(why);
   return std::make_unique<SetSession>(std::move(body), fonts, assets,
                                       deterministic, runtime);
+}
+
+const world::Runtime& SetKind::openingRuntime() const {
+  return m_runtime ? *m_runtime : processRuntime();
+}
+
+bool SetKind::available(std::string* why) const {
+  return runtimeAvailable(openingRuntime(), why);
 }
 
 std::unique_ptr<Session> SetKind::open(weave::FontContext& fonts,
                                        Assets& assets, bool deterministic,
                                        std::string_view key) const {
   (void)key;
+  // Refused BEFORE a body is made, so a set that cannot be drawn runs
+  // none of its own setup.
+  const world::Runtime& runtime = openingRuntime();
+  std::string why;
+  if (!runtimeAvailable(runtime, &why)) throw std::runtime_error(why);
   return openSet(
       m_source ? m_source->open() : std::unique_ptr<SetBody>(m_factory()),
-      fonts, assets, deterministic, m_runtime ? *m_runtime : processRuntime());
+      fonts, assets, deterministic, runtime);
 }
 
 Kind onRuntime(const Kind& kind, const world::Runtime& runtime) {
@@ -430,5 +444,15 @@ Kind onRuntime(const Kind& kind, const world::Runtime& runtime) {
 void useRuntime(const world::Runtime& runtime) { processRuntime() = runtime; }
 
 const world::Runtime& runtime() { return processRuntime(); }
+
+bool runtimeAvailable(const world::Runtime& runtime, std::string* why) {
+  if (runtime) return true;
+  if (why) *why = kNoDevice;
+  return false;
+}
+
+bool runtimeAvailable(std::string* why) {
+  return runtimeAvailable(processRuntime(), why);
+}
 
 }  // namespace sigil::sketch

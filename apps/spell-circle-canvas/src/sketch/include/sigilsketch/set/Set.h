@@ -151,7 +151,9 @@ class SetBody {
  *  through its kind. Setup runs before the session is returned. The
  *  body must not be null, and @p runtime is the one every frame is
  *  drawn through: `runtime()` below is the process's own, which is what
- *  a kind that stated none opens on. */
+ *  a kind that stated none opens on.
+ *  @throws std::runtime_error with the message `runtimeAvailable` writes
+ *  when @p runtime is empty, before the body's setup runs. */
 [[nodiscard]] std::unique_ptr<Session> openSet(std::unique_ptr<SetBody> body,
                                                weave::FontContext& fonts,
                                                Assets& assets,
@@ -190,7 +192,9 @@ class SetBodyOf final : public SetBody {
 };
 
 /** THE 3D KIND: a world Frame, reconciled onto a retained Scene and
- *  drawn through whichever runtime the process brought up. */
+ *  drawn on the device runtime the process brought up. A set is drawn on
+ *  a device and nowhere else: where there is none, the kind is
+ *  unavailable and says so, and no session opens. */
 class SetKind final : public KindOperations {
  public:
   using Factory = SetBody* (*)();
@@ -207,7 +211,7 @@ class SetKind final : public KindOperations {
   }
 
   /** THIS KIND, OPENING ITS SESSIONS ON @p runtime — an empty one being
-   *  the CPU mesh executor.
+   *  no device, which leaves the kind unavailable.
    *
    *  A session takes its runtime once, when it opens, and draws every
    *  frame through that one: what a host installed on the process is the
@@ -225,8 +229,13 @@ class SetKind final : public KindOperations {
   [[nodiscard]] std::string_view runtime() const override { return "set"; }
 
   /** A set is lit by the device renderer: its materials run their own
-   *  bodies there, and there is no CPU tier that draws the same picture. */
+   *  bodies there, and nothing else draws one. */
   [[nodiscard]] bool needsDevice() const override { return true; }
+
+  /** False where the runtime this kind opens on — the one it states, or
+   *  the process's — is empty, with the one message `runtimeAvailable`
+   *  writes. */
+  [[nodiscard]] bool available(std::string* why) const override;
 
   /** A set's every frame is a pure function of the scene time, so there
    *  is nothing a set could have measured about its own execution to
@@ -242,6 +251,9 @@ class SetKind final : public KindOperations {
   std::shared_ptr<const SetBodySource> m_source;
   /** Unset is the process's own — the runtime a host installed once. */
   std::optional<world::Runtime> m_runtime;
+
+  /** The runtime a session of this kind opens on. */
+  [[nodiscard]] const world::Runtime& openingRuntime() const;
 };
 
 /** @p kind WITH THE RUNTIME ITS SESSIONS DRAW THROUGH STATED, rather
@@ -249,8 +261,9 @@ class SetKind final : public KindOperations {
  *
  *  A kind that draws through no such runtime — a 2D canvas, a pen — is
  *  returned unchanged, so a host may say this about whatever it is
- *  holding. An empty runtime is the CPU mesh executor, which is what a
- *  caller that must not reach the process's device asks for. */
+ *  holding. An empty runtime is no device: a set stated on one is
+ *  unavailable, which is what a caller that must not reach the process's
+ *  device — a background still on a worker — asks for. */
 [[nodiscard]] Kind onRuntime(const Kind& kind, const world::Runtime& runtime);
 
 /** The factory SIGIL_SKETCH takes the ADDRESS of; see the 2D one for why
@@ -270,18 +283,27 @@ template <class SetType>
 /** THE RUNTIME A SET SESSION DRAWS THROUGH UNLESS ITS KIND STATED ONE,
  *  for this process.
  *
- *  An empty runtime is the CPU mesh executor: it needs no device, it is
- *  what a machine with no Vulkan runtime renders on, and it is what a
- *  byte-identity plate is hashed from. A host that brought a device up
- *  says so ONCE — one device, one queue — because a device is a property
- *  of the process and not of a sketch. It is READ AT OPEN: a session
- *  keeps the runtime it opened with, so installing another does not
- *  reach into a session already running, and `onRuntime` above is how a
- *  host opens one somewhere else.
+ *  A host that brought a device up installs the runtime over it ONCE —
+ *  one device, one queue — because a device is a property of the process
+ *  and not of a sketch. Empty until then, and a set is unavailable while
+ *  it is: a machine with no Vulkan runtime, or a host that brought no
+ *  device up, draws no set. It is READ AT OPEN: a session keeps the
+ *  runtime it opened with, so installing another does not reach into a
+ *  session already running, and `onRuntime` above is how a host opens one
+ *  somewhere else.
  *
  *  A call that takes the DEVICE itself rather than a runtime over it
  *  reaches `sketch::device()`, from `<sigilsketch/core/Device.h>`. */
 void useRuntime(const world::Runtime& runtime);
 [[nodiscard]] const world::Runtime& runtime();
+
+/** WHETHER A SET CAN BE DRAWN on @p runtime — the process's when none is
+ *  named — and, where it cannot, the one message that says why, written
+ *  into @p why. Every door a set is refused at speaks through this, so a
+ *  listing, a sweep, a still and a canvas sketch baking a set all say the
+ *  same thing. */
+[[nodiscard]] bool runtimeAvailable(std::string* why = nullptr);
+[[nodiscard]] bool runtimeAvailable(const world::Runtime& runtime,
+                                    std::string* why);
 
 }  // namespace sigil::sketch

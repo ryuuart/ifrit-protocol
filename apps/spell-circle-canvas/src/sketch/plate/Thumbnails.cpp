@@ -7,11 +7,11 @@
 #include <include/core/SkData.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkSurface.h>
-#include <sigilmedia/advanced/Skia.h>
-#include <sigilmedia/image/Encode.h>
 #include <sigilio/source/Sink.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
+#include <sigilmedia/advanced/Skia.h>
+#include <sigilmedia/image/Encode.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/CanvasSpecification.h>
 #include <sigilsketch/core/Kind.h>
@@ -192,19 +192,34 @@ bool stopped(const std::atomic_bool* stop) {
 
 }  // namespace
 
+namespace {
+
+/** ON THE CPU WHATEVER THE PROCESS INSTALLED. A still is drawn on a
+ *  worker beside a window that is presenting, and a device is one device
+ *  and one queue: a background walk driving the queue the render thread
+ *  is drawing with is two threads inside one graphics context. So the
+ *  kind is opened on empty runtimes for both doors a sketch reaches a
+ *  device through: the mesh style a 2D body stands up in space, which
+ *  then draws on the CPU painter, and a set's whole frame, which leaves
+ *  the set unavailable. What a host installed reaches nothing here. */
+Kind thumbnailKind(const Entry& entry) {
+  return onPainterRuntime(onRuntime(entry.kind(), {}), {});
+}
+
+}  // namespace
+
+bool thumbnailAvailable(const Entry& entry, std::string* why) {
+  if (!entry.kind) return true;
+  const Kind kind = thumbnailKind(entry);
+  return !kind || kind->available(why);
+}
+
 ThumbnailOutcome renderThumbnail(const Entry& entry, weave::FontContext& fonts,
                                  Assets& assets, const ThumbnailRun& run) try {
-  // ON THE CPU WHATEVER THE PROCESS INSTALLED. A still is drawn on a
-  // worker beside a window that is presenting, and a device is one device
-  // and one queue: a background walk driving the queue the render thread
-  // is drawing with is two threads inside one graphics context. So the
-  // kind is opened on empty runtimes — the CPU mesh executor, which is
-  // also the tier a plate is hashed from — for both doors a sketch draws
-  // a mesh through: a set's whole frame, and the mesh style a 2D body
-  // stands up in space. What a host installed reaches nothing here.
   if (!entry.kind) return ThumbnailOutcome::Failed;
-  const Kind kind = onPainterRuntime(onRuntime(entry.kind(), {}), {});
+  const Kind kind = thumbnailKind(entry);
   if (!kind) return ThumbnailOutcome::Failed;
+  if (!kind->available(nullptr)) return ThumbnailOutcome::Unavailable;
   // Deterministic, so a sketch that measured something about its own
   // execution pins it — a thumbnail is a picture that will be looked at
   // beside a plate, and the two must agree.

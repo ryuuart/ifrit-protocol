@@ -214,6 +214,28 @@ TEST(SketchHost, ARequiredDeviceFailurePrecedesSetBodyConstruction) {
   EXPECT_NE(host.errorLog().find("required device"), std::string::npos);
 }
 
+TEST(SketchHost, ASetWithNoDeviceToDrawOnIsUnavailableBeforeItsBodyIsMade) {
+  // A host that brought no device up opens no set: the session is refused
+  // with the one message every door a set is refused at speaks, and the
+  // body is never made.
+  const Watched file("sigil_sketch_set_without_device");
+  const Entry entry{"prepared_set", "prepared_set", "Test", "",
+                    &preparedSetKind};
+  useRuntime({});
+  std::string why;
+  ASSERT_FALSE(runtimeAvailable(&why));
+  EXPECT_FALSE(entry.available());
+  auto opts = options(file.path);
+  opts.compiledIn = &entry;
+  PreparedSet::bodies = 0;
+  PreparedSet::setups = 0;
+  Host host(std::move(opts), fonts());
+  EXPECT_FALSE(host.live());
+  EXPECT_EQ(PreparedSet::bodies, 0);
+  EXPECT_EQ(PreparedSet::setups, 0);
+  EXPECT_NE(host.errorLog().find(why), std::string::npos) << host.errorLog();
+}
+
 TEST(SketchHost, ARejectedSetReplacementKeepsTheCanvasAndCaptureBackend) {
   const Watched file("sigil_sketch_candidate_device");
   auto python = file.path;

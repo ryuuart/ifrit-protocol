@@ -41,6 +41,7 @@
 #include <vector>
 
 #include "ScratchDir.h"
+#include "support/Devices.h"
 #include "support/Fixtures.h"
 
 namespace {
@@ -425,7 +426,35 @@ TEST(Sweep, AMomentTheRunNamesOutranksTheOneTheSketchDeclared) {
             bytesOf(first.path / "plate_sweep_probe.png"));
 }
 
-TEST(Sweep, AZeroMomentDescribesTheInitialSetAndKeepsItsTime) {
+/** A SWEEP OVER A SET: drawn on the device, so the device runtime is
+ *  installed for the process before the case and taken away after, or
+ *  the case skips naming what is missing. */
+class DeviceSweep : public testing::Test {
+ protected:
+  void SetUp() override {
+    std::string why;
+    if (!sigil::sketch::test::installDeviceRuntime(&why))
+      GTEST_SKIP() << "no Vulkan device: " << why;
+  }
+  void TearDown() override { useRuntime({}); }
+};
+
+TEST(Sweep, ASetWithNoDeviceToDrawOnIsSkippedAndWritesNoPlate) {
+  // A skip is not a failure: the run succeeds, no plate is written, and
+  // the set's body is never asked to describe.
+  useRuntime({});
+  const ScratchDir out("sigil_sweep_set_without_device");
+  SweepOptions options = ledgerRun(out.path);
+  options.only = find("initial_set_probe");
+  ASSERT_GE(options.only, 0);
+  InitialSetProbe::describedSeconds = -1;
+  EXPECT_EQ(0, sweep(options, fonts(), assets()));
+  EXPECT_EQ(InitialSetProbe::describedSeconds, -1.0f);
+  EXPECT_FALSE(
+      std::filesystem::exists(out.path / "plate_initial_set_probe.png"));
+}
+
+TEST_F(DeviceSweep, AZeroMomentDescribesTheInitialSetAndKeepsItsTime) {
   const ScratchDir out("sigil_sweep_initial_set");
   SweepOptions options = ledgerRun(out.path);
   options.only = find("initial_set_probe");
@@ -447,7 +476,7 @@ TEST(Sweep, AZeroMomentDescribesTheInitialSetAndKeepsItsTime) {
   EXPECT_LT(bounds.bottom, image->height() - 1);
 }
 
-TEST(Sweep, SelectsByRuntime) {
+TEST_F(DeviceSweep, SelectsByRuntime) {
   const ScratchDir out("sigil_sweep_runtime");
   SweepOptions options = ledgerRun(out.path);
   options.only = -1;

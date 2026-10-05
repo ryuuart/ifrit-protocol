@@ -46,6 +46,7 @@
 
 #include "ScratchDir.h"
 #include "TextFields.h"
+#include "support/Devices.h"
 #include "support/Fixtures.h"
 #include "support/Pixels.h"
 #include "support/Sessions.h"
@@ -536,7 +537,30 @@ struct Entering {
   }
 };
 
-TEST(CanvasDoors, BakesTheMomentOfAnEntranceRatherThanAlwaysItsFirstFrame) {
+/** A CASE THAT BAKES A SET: the set is drawn on the device, so the
+ *  device runtime is installed for the process before it and taken away
+ *  after, or the case skips naming what is missing. */
+class CanvasBakes : public testing::Test {
+ protected:
+  void SetUp() override {
+    std::string why;
+    if (!sigil::sketch::test::installDeviceRuntime(&why))
+      GTEST_SKIP() << "no Vulkan device: " << why;
+  }
+  void TearDown() override { useRuntime({}); }
+};
+
+TEST(CanvasDoors, BakesNothingWhereNoDeviceIsInstalled) {
+  // A set is drawn on a device and nowhere else, so a bake with none to
+  // draw on is no image rather than a picture no device drew.
+  useRuntime({});
+  Baking::near = nullptr;
+  const std::unique_ptr<Session> session =
+      kindOf<Baking>()->open(fonts(), assets());
+  EXPECT_FALSE(Baking::near);
+}
+
+TEST_F(CanvasBakes, BakesTheMomentOfAnEntranceRatherThanAlwaysItsFirstFrame) {
   const std::unique_ptr<Session> session =
       kindOf<Entering>()->open(fonts(), assets());
   ASSERT_TRUE(Entering::landed);
@@ -585,7 +609,7 @@ TEST(CanvasDoors, KeepsTheTextureScenesItHandsOutUntilTheBodyDeclaresAgain) {
   EXPECT_TRUE(Screening::scene.expired());
 }
 
-TEST(CanvasDoors, BakesASetAsTheCameraProjectsIt) {
+TEST_F(CanvasBakes, BakesASetAsTheCameraProjectsIt) {
   const std::unique_ptr<Session> session =
       kindOf<Baking>()->open(fonts(), assets());
   ASSERT_TRUE(Baking::near);
@@ -616,7 +640,7 @@ TEST(CanvasDoors, BakesASetAsTheCameraProjectsIt) {
               kBakeSize.height() / 2.0f, 1.0f);
 }
 
-TEST(CanvasDoors, BakesTheSameSetFromTheCameraItIsGiven) {
+TEST_F(CanvasBakes, BakesTheSameSetFromTheCameraItIsGiven) {
   const std::unique_ptr<Session> session =
       kindOf<Baking>()->open(fonts(), assets());
   ASSERT_TRUE(Baking::far);

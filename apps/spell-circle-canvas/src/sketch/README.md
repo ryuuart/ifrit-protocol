@@ -304,16 +304,23 @@ and the page's flat content as its own colour, and the set's lights,
 environment and camera shade the page.
 
 A set bake uses its own clock, so sampling an entrance at `seconds` does not
-advance the surrounding canvas sketch. It uses the CPU mesh executor for a
-reproducible plate. Include `<sigilworld/frame/Frame.h>` for the frame.
+advance the surrounding canvas sketch. It draws on the device runtime the host
+installed and answers null where there is none, so a canvas sketch that bakes
+a set declares `needsDevice` and an `available()` probe over
+`sketch::runtimeAvailable`. Include `<sigilworld/frame/Frame.h>` for the frame.
 
-A canvas that draws meshes directly uses `sketch::painterRuntime()`.
-A set uses `sketch::runtime()`. Each session keeps the runtime it opened
-with; `sketch::onPainterRuntime` and `sketch::onRuntime` let a host choose
-one for a particular kind. Without a device runtime, the CPU executor is used.
+A canvas that draws meshes directly uses `sketch::painterRuntime()`, which is
+the CPU painter where no device runtime is installed. A set uses
+`sketch::runtime()` and is drawn on a device and nowhere else: where the
+runtime it would open on is empty, its kind answers `available()` false with
+the one message `sketch::runtimeAvailable` writes, so a listing greys it, a
+sweep skips it and a host refuses to open it, each saying why. Each session
+keeps the runtime it opened with; `sketch::onPainterRuntime` and
+`sketch::onRuntime` let a host choose one for a particular kind, and a set
+stated on an empty runtime is unavailable.
 `sketch::device()` is the optional device handle for operations such as native
-texture import; a sketch needing it supplies a CPU fallback or an availability
-probe.
+texture import; a canvas sketch needing it supplies a fallback or an
+availability probe.
 
 ### Another application's picture
 

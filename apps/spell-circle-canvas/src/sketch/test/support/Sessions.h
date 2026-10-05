@@ -19,6 +19,13 @@
  *     static void reset();              // zero the body's run count
  *     static int bodyRuns();            // how often the body has run
  *
+ * and, for a runtime that draws on a device, two more:
+ *
+ *     static bool prepare(std::string* why);  // install it, or say why not
+ *     static void release();                  // take it away again
+ *
+ * a case whose `prepare` answers false SKIPS with the reason.
+ *
  * and one line beside it:
  *
  *     INSTANTIATE_TYPED_TEST_SUITE_P(<the runtime>, SessionContract, Traits);
@@ -36,6 +43,7 @@
 #include <sigilsketch/core/Session.h>
 
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "support/Fixtures.h"
@@ -47,12 +55,21 @@ template <typename Traits>
 class SessionContract : public ::testing::Test {
  protected:
   void SetUp() override {
+    if constexpr (requires(std::string* why) { Traits::prepare(why); }) {
+      std::string why;
+      if (!Traits::prepare(&why)) GTEST_SKIP() << "no device: " << why;
+    }
     Traits::reset();
     m_surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(
         (int)Traits::canvas().width(), (int)Traits::canvas().height()));
     m_session = Traits::kind()->open(sigil::sketch::test::fonts(),
                                      sigil::sketch::test::assets());
     ASSERT_NE(m_session, nullptr);
+  }
+
+  void TearDown() override {
+    m_session.reset();
+    if constexpr (requires { Traits::release(); }) Traits::release();
   }
 
   SkCanvas& canvas() { return *m_surface->getCanvas(); }

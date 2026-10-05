@@ -114,7 +114,9 @@ void ThumbnailQueue::loop() {
       m_queued.erase(index);
       // A render that was let go says nothing about the sketch, so it is
       // not remembered as one that cannot be drawn.
-      if (outcome == ThumbnailOutcome::Failed) m_failed.insert(index);
+      if (outcome == ThumbnailOutcome::Failed ||
+          outcome == ThumbnailOutcome::Unavailable)
+        m_failed.insert(index);
       remaining = (int)m_pending.size();
     }
     if (outcome == ThumbnailOutcome::Stopped) continue;

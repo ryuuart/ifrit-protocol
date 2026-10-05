@@ -1,6 +1,7 @@
 /** @file
- * The 3D frame loop: describe, reconcile, extract and draw, on the CPU
- * mesh executor — the floor a set stands on before any device.
+ * The 3D frame loop: describe, reconcile, extract and draw, on the device
+ * a set is drawn on. An arm with no Vulkan runtime to ask says so and
+ * measures nothing.
  */
 
 #include <benchmark/benchmark.h>
@@ -13,6 +14,10 @@
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilworld/element/Element.h>
+
+#include <string>
+
+#include "support/Devices.h"
 
 namespace {
 
@@ -59,7 +64,13 @@ struct Ring {
 };
 
 void SetFrame(benchmark::State& state) {
+  std::string why;
+  if (!sigil::sketch::test::installDeviceRuntime(&why)) {
+    state.SkipWithError(("no Vulkan device: " + why).c_str());
+    return;
+  }
   std::unique_ptr<Session> session = kindOf<Ring>()->open(fonts(), assets());
+  useRuntime({});
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(480, 320));
   SkCanvas canvas(bitmap);
@@ -68,14 +79,18 @@ void SetFrame(benchmark::State& state) {
 }
 BENCHMARK(SetFrame)->Unit(benchmark::kMicrosecond);
 
-/** THE RING THROUGH A PANE, magnified by the argument about its centre
- *  and performed through passes, the way a window zoomed into a set
+/** THE RING THROUGH A PANE, magnified by the argument about its centre,
+ *  the way a window zoomed into a set
  *  draws it: the pane is the declared canvas's size at every zoom, so
  *  the work a frame does is meant to stay where it is at one while the
  *  picture it is a piece of grows with the square of the zoom. */
 void SetFrameThroughPane(benchmark::State& state) {
   const float zoom = (float)state.range(0);
-  useRuntime(world::Runtime::cpu());
+  std::string why;
+  if (!sigil::sketch::test::installDeviceRuntime(&why)) {
+    state.SkipWithError(("no Vulkan device: " + why).c_str());
+    return;
+  }
   std::unique_ptr<Session> session = kindOf<Ring>()->open(fonts(), assets());
   useRuntime({});
   SkBitmap bitmap;

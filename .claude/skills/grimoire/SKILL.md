@@ -21,7 +21,11 @@ build/bin/<config>/Grimoire.app/Contents/MacOS/Grimoire \
 Pointed at a file with no `--headless`, Grimoire opens on it, from
 anywhere on disk, and hot-swaps the recompiled sketch on every save;
 `--frame out.png` renders one still, `--bench` measures it against the
-60 FPS gate on a raster surface, `--window-bench` presents it in the
+60 FPS gate on a raster surface — a set is drawn on a device and nowhere
+else, so every lane that draws one (`--frame`, `--bench`, `--headless`,
+`--video`) needs `--gpu`, and without it the set is refused, skipped or
+listed unavailable with one reason; `--list --gpu` and `--catalog --gpu`
+list the sets a device can draw — `--window-bench` presents it in the
 real window, `--shot <png>` captures the app. `--video <out.mp4>
 [--video-frames <n>] [--video-size <WxH>] [--video-bitrate <bits>]`
 encodes the selection into one vertical montage, and needs `--gpu` for a
@@ -39,7 +43,10 @@ session holds automatic texture promotion off, so `--promotion` is the
 one door that lets the promoter go with every other pin standing, and
 `--no-promotion` pins it off on a backend whose default would not; the
 plate ledger's promotion tier renders each scene both ways and judges
-the pair. `--thumbnails [--sketch <name>] [--kind canvas|set]
+the pair. The ledger's CPU tier judges canvas sketches only and counts the
+sets it passes over; `sigil.py plates --tier device` judges each set on
+byte identity against a machine-local device manifest, adopted with
+`--rebase`. `--thumbnails [--sketch <name>] [--kind canvas|set]
 [--thumbnail-budget <sec>] [--thumbnail-heavy]` renders the browser's
 missing or stale thumbnails headless and exits non-zero naming any that
 failed — the app owns its thumbnails, rendering them on demand into a

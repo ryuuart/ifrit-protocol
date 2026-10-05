@@ -51,10 +51,15 @@ struct Entry {
    *  Null for a sketch that needs nothing but this binary. */
   bool (*probe)(std::string* why) = nullptr;
 
-  /** The probe's answer; no probe reads as available. @p why is written
-   *  only when the answer is false. */
+  /** The probe's answer and then the kind's — a kind that draws only
+   *  through a device is unavailable where none is installed; no probe
+   *  reads as available. @p why is written only when the answer is
+   *  false. */
   [[nodiscard]] bool available(std::string* why = nullptr) const {
-    return !probe || probe(why);
+    if (probe && !probe(why)) return false;
+    if (!kind) return true;
+    const Kind made = kind();
+    return !made || made->available(why);
   }
 };
 

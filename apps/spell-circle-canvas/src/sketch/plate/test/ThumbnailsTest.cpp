@@ -237,8 +237,11 @@ Kind throwingKind() {
 /** A STILL IS CPU-ONLY WHATEVER THE PROCESS HOLDS. The worker that draws
  *  one runs beside a window that is presenting, and a device is one
  *  device and one queue: a background walk driving the queue the render
- *  thread draws with is two threads inside one graphics context. */
-TEST(ThumbnailStore, ASetIsDrawnOnTheCpuWhateverTheProcessInstalled) {
+ *  thread draws with is two threads inside one graphics context. A set
+ *  is drawn on a device and nowhere else, so its still is UNAVAILABLE —
+ *  with the one message every door a set is refused at speaks — and the
+ *  runtime the process installed is never reached. */
+TEST(ThumbnailStore, ASetIsUnavailableWhateverTheProcessInstalled) {
   const ScratchDir dir("sigil_thumbnail_set");
   std::atomic_int reached{0};
   Reached installed;
@@ -249,12 +252,18 @@ TEST(ThumbnailStore, ASetIsDrawnOnTheCpuWhateverTheProcessInstalled) {
   ThumbnailRun run = runInto(thumbnailFile(dir.path, "lit", "aaaa"), "lit");
   const ThumbnailOutcome outcome =
       renderThumbnail(entry, fonts(), assets(), run);
+  std::string why;
+  const bool drawable = thumbnailAvailable(entry, &why);
   useRuntime({});
 
-  EXPECT_EQ(ThumbnailOutcome::Wrote, outcome);
-  EXPECT_TRUE(std::filesystem::exists(run.outputPath));
+  EXPECT_EQ(ThumbnailOutcome::Unavailable, outcome);
+  EXPECT_FALSE(std::filesystem::exists(run.outputPath));
   EXPECT_EQ(reached.load(), 0)
       << "the still went through the runtime the process installed";
+  EXPECT_FALSE(drawable);
+  std::string message;
+  EXPECT_FALSE(runtimeAvailable(world::Runtime{}, &message));
+  EXPECT_EQ(why, message);
 }
 
 /** A STILL IS CPU-ONLY FOR EVERY RUNTIME, not only a set's. A 2D sketch

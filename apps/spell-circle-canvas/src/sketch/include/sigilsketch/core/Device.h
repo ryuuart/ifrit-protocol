@@ -15,24 +15,25 @@ namespace sigil::sketch {
 /** THE DEVICE THIS PROCESS HOLDS, or null.
  *
  *  A sketch draws through a runtime and never asks which one — that is
- *  what `sketch::runtime()` and `sketch::painterRuntime()` are for, and
- *  both answer on a machine with no device. This is the third answer,
- *  for the one thing a runtime cannot stand in for: a call that takes
- *  the device ITSELF, because what it does is give the device a handle
- *  over something the graphics API already holds. A foreign texture
- *  entering a material slot is the case — the pixels stand on one
- *  device and on no other, so there is nothing for a CPU executor to
- *  answer with.
+ *  what `sketch::runtime()` and `sketch::painterRuntime()` are for. This
+ *  is the third answer, for the one thing a runtime cannot stand in for:
+ *  a call that takes the device ITSELF, because what it does is give the
+ *  device a handle over something the graphics API already holds. A
+ *  foreign texture entering a material slot is the case — the pixels
+ *  stand on one device and on no other.
  *
- *  NULL IS THE CPU TIER, and it is the answer a byte-identity plate is
- *  taken on, so a sketch that reaches for the device states what it
- *  draws without one:
+ *  NULL IS NO DEVICE, which is where a canvas sketch's byte-identity
+ *  plate is taken, so a canvas sketch that reaches for the device states
+ *  what it draws without one. A set is never drawn without one: it is
+ *  unavailable wherever no runtime is installed, so inside a set this is
+ *  the device the set is being drawn on:
  *
  *      if (auto* on = sketch::device())
  *        slot = world::diligent::importNative(*on, native);
  *
- *  A sketch that cannot draw its subject at all without one says so
- *  through `unavailable(...)` rather than drawing an empty set.
+ *  A canvas sketch that cannot draw its subject at all without one says
+ *  so through its `available()` probe rather than drawing an empty
+ *  picture.
  *
  *  The device's own words are SigilGeometry's, from
  *  `<sigilgeometry/device/Device.h>`; a sketch walking through this door

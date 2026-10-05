@@ -181,12 +181,15 @@ struct SketchContext {
    *  wherever it is photographed. The frame is formed and presented
    *  through the one viewpoint, so the two cannot disagree.
    *
-   *  It draws on the CPU mesh executor whatever device the process
-   *  holds, and declares no passes: the picture is a function of the
-   *  frame, the viewpoint, the size and @p seconds, and of nothing the
-   *  machine it ran on decides. The scene it stands the frame in lives
-   *  for this call alone, so what comes back is an image and not a view
-   *  onto something still standing.
+   *  It draws on the device runtime the process installed — a set is
+   *  drawn on a device and nowhere else — and answers NULL where there
+   *  is none, so a sketch that bakes a set declares `needsDevice` and an
+   *  `available()` probe over `runtimeAvailable`. A frame that declares no
+   *  passes is drawn through one geometry pass clearing to
+   *  @p background. The picture is a function of the frame, the
+   *  viewpoint, the size and @p seconds; the scene it stands the frame in
+   *  lives for this call alone, so what comes back is an image and not a
+   *  view onto something still standing.
    *
    *  @p seconds IS THE MOMENT OF THE BAKE, on the baked scene's own
    *  clock, which starts when the scene mounts. It is what a set with an

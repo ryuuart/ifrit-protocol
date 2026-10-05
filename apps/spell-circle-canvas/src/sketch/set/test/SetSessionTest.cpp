@@ -1,6 +1,10 @@
 /** @file
- * The 3D session: what a set declares, and that stepping it to a moment
- * is a function of the moment alone.
+ * The 3D session: what a set declares, that stepping it to a moment is a
+ * function of the moment alone, and that a set with no device to draw on
+ * does not open and says why.
+ *
+ * Every case that opens a set draws it on the device and SKIPS where the
+ * machine has no Vulkan runtime; its suite carries the `gpu` label.
  */
 
 #include <gtest/gtest.h>
@@ -22,9 +26,11 @@
 #include <glm/geometric.hpp>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
+#include "support/Devices.h"
 #include "support/Fixtures.h"
 #include "support/Pixels.h"
 #include "support/Sessions.h"
@@ -40,6 +46,30 @@ using sigil::sketch::test::assets;
 using sigil::sketch::test::fonts;
 using sigil::sketch::test::inkBounds;
 using sigil::sketch::test::samePicture;
+
+/** A CASE THAT OPENS A SET: the device runtime installed for the process
+ *  before it, as a host installs it, and taken away after it, or the case
+ *  skipped naming what is missing. */
+class OnDevice : public testing::Test {
+ protected:
+  void SetUp() override {
+    std::string why;
+    if (!sigil::sketch::test::installDeviceRuntime(&why))
+      GTEST_SKIP() << "no Vulkan device: " << why;
+  }
+  void TearDown() override { useRuntime({}); }
+};
+
+class SetSession : public OnDevice {};
+class SetDoors : public OnDevice {};
+class SetWindow : public OnDevice {};
+class SetBodies : public OnDevice {};
+class SetKinds : public OnDevice {};
+
+/** The body every set here turns: a rounded box, whose flat faces turn
+ *  to and from the sun as it spins and whose silhouette a rasteriser
+ *  with no antialiasing still draws whole. */
+gm::Mesh roundedBox() { return gm::superellipsoid({40, 40, 40}, 6.0f, 24, 16); }
 
 /** One box on a turntable, and nothing else. It counts the times its
  *  body was asked to describe, which is the observable behind the
@@ -63,7 +93,7 @@ struct Spun {
          world::Element()
              .key("body")
              .rotateY(seconds * 90.0f)
-             .mesh(gm::superellipsoid({40, 40, 40}, 0.2f, 24, 16))
+             .mesh(roundedBox())
              .fill(sigil::material::surface::program())});
   }
 };
@@ -160,7 +190,7 @@ struct Framed {
          world::Element()
              .key("body")
              .at({40, 30, -10})
-             .mesh(gm::superellipsoid({40, 40, 40}, 0.2f, 24, 16))
+             .mesh(roundedBox())
              .fill(sigil::material::surface::program())});
   }
 };
@@ -190,17 +220,17 @@ SkBitmap oneFrame(Session& session) {
   return bitmap;
 }
 
-TEST(SetSession, TheSameMomentIsTheSamePicture) {
+TEST_F(SetSession, TheSameMomentIsTheSamePicture) {
   // The plate contract: a set is a pure function of the scene time, so
   // two runs that step the same number of frames agree on every byte.
   EXPECT_TRUE(samePicture(steppedTo(30), steppedTo(30)));
 }
 
-TEST(SetSession, ADifferentMomentIsADifferentPicture) {
+TEST_F(SetSession, ADifferentMomentIsADifferentPicture) {
   EXPECT_FALSE(samePicture(steppedTo(6), steppedTo(30)));
 }
 
-TEST(SetSession, AFittedCanvasPutsThePictureInTheSamePlace) {
+TEST_F(SetSession, AFittedCanvasPutsThePictureInTheSamePlace) {
   // A live host hands over a canvas ALREADY FITTED: the sketch's own
   // canvas scaled up to the window it was letterboxed into, on a screen
   // that may have two pixels for every one of those. A set whose
@@ -225,7 +255,7 @@ TEST(SetSession, AFittedCanvasPutsThePictureInTheSamePlace) {
   EXPECT_NEAR(one.fBottom, two.fBottom, kSlack);
 }
 
-TEST(SetSession, AFittedCanvasIsFormedAtItsOwnResolution) {
+TEST_F(SetSession, AFittedCanvasIsFormedAtItsOwnResolution) {
   // A set is formed at ONE resolution, so it has to be formed at the
   // canvas's: one formed at the declared size and then magnified onto a
   // canvas twice as wide is a picture of a smaller one. What separates
@@ -249,28 +279,20 @@ TEST(SetSession, AFittedCanvasIsFormedAtItsOwnResolution) {
                           "a magnified plate looks like";
 }
 
-TEST(SetSession, DrawsThroughThePassesWhenTheProcessInstalledARuntime) {
+TEST_F(SetSession, DrawsThroughOnePassWhenTheSetDeclaresNone) {
   // The runtime is a property of the PROCESS, not of a sketch: a host
   // that brought one up says so once, and every session then reaches it.
   // An executor is only reached THROUGH passes, so a set about the scene
-  // is given one — and a session that never declared it would draw every
-  // surface as the colour extract read off it, whatever runtime the host
-  // installed.
-  std::unique_ptr<Session> session = kindOf<Spun>()->open(fonts(), assets());
+  // is given one geometry pass clearing to its background.
+  std::unique_ptr<Session> performed = kindOf<Spun>()->open(fonts(), assets());
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(160, 120));
   SkCanvas canvas(bitmap);
-  session->frame(canvas, 1.0 / 60.0);
-  EXPECT_EQ(session->lanes()[3].ms, 0.0);
-
-  useRuntime(world::Runtime::cpu());
-  std::unique_ptr<Session> performed = kindOf<Spun>()->open(fonts(), assets());
   performed->frame(canvas, 1.0 / 60.0);
   EXPECT_EQ(performed->lanes()[3].ms, 1.0);
-  useRuntime({});
 }
 
-TEST(SetSession, OffersAViewpointAHostCanTakeHoldOf) {
+TEST_F(SetSession, OffersAViewpointAHostCanTakeHoldOf) {
   // A host reads this to decide whether to offer the control at all,
   // and seeds the control with where the set already stands rather than
   // with a number of its own.
@@ -280,7 +302,7 @@ TEST(SetSession, OffersAViewpointAHostCanTakeHoldOf) {
   EXPECT_TRUE(session->orbit().has_value());
 }
 
-TEST(SetSession, IsSeenFromTheCameraItsOwnTreeCarries) {
+TEST_F(SetSession, IsSeenFromTheCameraItsOwnTreeCarries) {
   // WHAT A LIVE HOST MUST SHOW before anyone touches it: the set as its
   // plate shows it. The host hands in a fallback camera nowhere near the
   // one the tree carries, and the tree's is what the session reports.
@@ -295,7 +317,7 @@ TEST(SetSession, IsSeenFromTheCameraItsOwnTreeCarries) {
   EXPECT_NEAR(reported->distance, declared.distance, 1e-2f);
 }
 
-TEST(SetSession, ADragThatMovesItByNothingChangesNothing) {
+TEST_F(SetSession, ADragThatMovesItByNothingChangesNothing) {
   // Which is what says the orbit pivots on the declared camera's own
   // target and stands at its own distance, rather than on a point and a
   // distance of the host's.
@@ -309,7 +331,7 @@ TEST(SetSession, ADragThatMovesItByNothingChangesNothing) {
   EXPECT_TRUE(samePicture(standing, held));
 }
 
-TEST(SetSession, ADragMovesItAboutTheTargetItDeclared) {
+TEST_F(SetSession, ADragMovesItAboutTheTargetItDeclared) {
   std::unique_ptr<Session> session = kindOf<Framed>()->open(fonts(), assets());
   oneFrame(*session);
   const camera::Orbit declared = camera::orbitOf(framedLens());
@@ -325,7 +347,7 @@ TEST(SetSession, ADragMovesItAboutTheTargetItDeclared) {
   EXPECT_NEAR(after->pitchDeg, declared.pitchDeg, 1e-2f);
 }
 
-TEST(SetDoors, PaintsATextureSceneOntoABody) {
+TEST_F(SetDoors, PaintsATextureSceneOntoABody) {
   std::unique_ptr<Session> session =
       kindOf<Screened>()->open(fonts(), assets());
   // The card is unlit and wears the sheet, so what the middle of the
@@ -338,7 +360,7 @@ TEST(SetDoors, PaintsATextureSceneOntoABody) {
   EXPECT_LT(SkColorGetB(centre), 40u);
 }
 
-TEST(SetDoors, PaintsASurfaceSceneThatTheSetLights) {
+TEST_F(SetDoors, PaintsASurfaceSceneThatTheSetLights) {
   std::unique_ptr<Session> session =
       kindOf<Surfaced>()->open(fonts(), assets());
   const SkBitmap picture = oneFrame(*session);
@@ -409,7 +431,7 @@ SkBitmap throughThePane(Session& session, int frames) {
   return bitmap;
 }
 
-TEST(SetWindow, AZoomedPaneFormsOnlyThePanesPixels) {
+TEST_F(SetWindow, AZoomedPaneFormsOnlyThePanesPixels) {
   // A set is formed at the resolution it is seen at, so at 4x the
   // whole canvas would be 640x480 — sixteen times the pane. What is
   // formed is the part the pane shows, and no larger than the pane.
@@ -421,7 +443,7 @@ TEST(SetWindow, AZoomedPaneFormsOnlyThePanesPixels) {
   EXPECT_EQ(Measured::formed, glm::ivec2(160, 120));
 }
 
-TEST(SetWindow, APaneShowsWhatTheWholeCanvasShowsThere) {
+TEST_F(SetWindow, APaneShowsWhatTheWholeCanvasShowsThere) {
   // The part is the whole picture's projection carried off-centre, so
   // each pixel of it is the pixel the whole canvas at 4x holds there.
   // The two projections are the same numbers composed differently, so a
@@ -461,7 +483,7 @@ TEST(SetWindow, APaneShowsWhatTheWholeCanvasShowsThere) {
       << apart << " pixels differ by more than two levels";
 }
 
-TEST(SetWindow, AWholeCanvasClipFormsTheWholeCanvas) {
+TEST_F(SetWindow, AWholeCanvasClipFormsTheWholeCanvas) {
   // A plate's clip is the whole canvas, and what it forms is the
   // declared canvas in the plate's pixels — the frame a set with no
   // part in it forms, unmoved.
@@ -483,7 +505,7 @@ TEST(SetWindow, AWholeCanvasClipFormsTheWholeCanvas) {
   EXPECT_EQ(Measured::formed, glm::ivec2(640, 480));
 }
 
-TEST(SetWindow, AStillAfterAZoomedFrameShowsTheWholePicture) {
+TEST_F(SetWindow, AStillAfterAZoomedFrameShowsTheWholePicture) {
   // A still describes nothing and shows the frame standing; a frame
   // standing that was formed over a pane's part of the picture is formed
   // again over what the still shows, at the same moment — so it is the
@@ -517,7 +539,7 @@ struct Bare {
          world::Element()
              .key("body")
              .rotateY(seconds * 90.0f)
-             .mesh(gm::superellipsoid({40, 40, 40}, 0.2f, 24, 16))
+             .mesh(roundedBox())
              .fill(sigil::material::surface::program())});
   }
 };
@@ -528,7 +550,7 @@ struct Misspelled {
   void describeIt(float) {}
 };
 
-TEST(SetBodies, ASetIsAnyTypeThatNamesDescribe) {
+TEST_F(SetBodies, ASetIsAnyTypeThatNamesDescribe) {
   // The concept is what `kindOf` asserts on, so a member spelled some
   // other way is a compile error naming the signatures a set may have.
   // Nothing in this tree compiles a translation unit that must NOT build
@@ -552,7 +574,7 @@ TEST(SetBodies, ASetIsAnyTypeThatNamesDescribe) {
   EXPECT_EQ(Bare::describes, 1);
 }
 
-TEST(SetDoors, OpensAnOwnedBodyWithNoKindBehindIt) {
+TEST_F(SetDoors, OpensAnOwnedBodyWithNoKindBehindIt) {
   // The door a host whose set is not a C++ type comes in by: it holds
   // the body itself and names the runtime, and what comes back is the
   // session the registered kind would have opened.
@@ -580,7 +602,7 @@ class SpunSource final : public SetBodySource {
   }
 };
 
-TEST(SetKinds, ASupplierOpensTheBodiesWhereNoFactoryFunctionCan) {
+TEST_F(SetKinds, ASupplierOpensTheBodiesWhereNoFactoryFunctionCan) {
   const auto source = std::make_shared<const SpunSource>();
   const Kind supplied = SetKind{source};
 
@@ -600,8 +622,44 @@ TEST(SetKinds, ASupplierOpensTheBodiesWhereNoFactoryFunctionCan) {
   EXPECT_EQ(Spun::describes, 1);
 }
 
+TEST(SetAvailability, ASetWithNoDeviceToDrawOnIsUnavailableAndSaysWhy) {
+  // ONE MESSAGE at every door: the kind a listing asks, the registry
+  // entry a sweep asks, the open a host attempts and the probe a canvas
+  // sketch baking a set declares all say the same thing, and no body's
+  // setup runs.
+  useRuntime({});
+  std::string why;
+  EXPECT_FALSE(runtimeAvailable(&why));
+  EXPECT_FALSE(why.empty());
+  std::string kindWhy;
+  EXPECT_FALSE(kindOf<Spun>()->available(&kindWhy));
+  EXPECT_EQ(kindWhy, why);
+  Spun::describes = 0;
+  try {
+    (void)kindOf<Spun>()->open(fonts(), assets());
+    ADD_FAILURE() << "a set opened with no device to draw on";
+  } catch (const std::runtime_error& error) {
+    EXPECT_EQ(std::string(error.what()), why);
+  }
+  EXPECT_EQ(Spun::describes, 0);
+  // A kind stated on no device is unavailable whatever the process holds,
+  // which is what a still taken away from the device asks for.
+  std::string installed;
+  if (sigil::sketch::test::installDeviceRuntime(&installed)) {
+    EXPECT_TRUE(kindOf<Spun>()->available(nullptr));
+    EXPECT_FALSE(onRuntime(kindOf<Spun>(), {})->available(nullptr));
+    useRuntime({});
+  }
+}
+
 /** The 3D session's answers to what every session promises. */
 struct SetTraits {
+  /** A set is drawn on a device: the contract installs the device
+   *  runtime before each case and takes it away after. */
+  static bool prepare(std::string* why) {
+    return sigil::sketch::test::installDeviceRuntime(why);
+  }
+  static void release() { useRuntime({}); }
   static Kind kind() { return kindOf<Spun>(); }
   static SkSize canvas() { return SkSize::Make(160, 120); }
   static double captureSeconds() { return 0.5; }
