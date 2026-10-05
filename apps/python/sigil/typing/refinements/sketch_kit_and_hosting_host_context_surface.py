@@ -17,7 +17,8 @@ def register(table: Table) -> None:
     # A declared canvas reads a size the way every other size-taking slot
     # does, because the record's conversion is the shared one.
     table.erased("_sigil.sketch.CanvasSpecification", "size", "_t.SizeLike")
-    # A bake answers nothing when the raster surface cannot be taken.
+    # A bake answers nothing where no device is installed to draw the set
+    # on, or when the raster surface cannot be taken.
     table.returns("_sigil.Context", "bakeSet", "_sigil.skia.Image | None")
     # A guest reads the canvas off the pen the drawing is landing on, and
     # answers nothing while no publication is standing.

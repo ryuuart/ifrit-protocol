@@ -1,18 +1,21 @@
-"""Native retained World scenes, frame execution and Python value ownership."""
+"""Native retained World scenes, frame declarations and Python value ownership.
+
+A set is drawn on a device and nowhere else, and a Python process brings
+none up, so what is asked here is what the retained scene holds: the
+nodes, their placements, the emitters and the viewpoint, and the refusals
+a frame meets before anything is drawn.
+"""
 
 import gc
-import tempfile
 import threading
 import unittest
 import weakref
-from pathlib import Path
 
-from sigil import media, world
+from sigil import world
 from sigil.geometry import mesh
 from sigil.material import Color, Material
 from sigil.material import surface as surfaces
 from sigil.motion import animatable
-from sigil.sketch import render_file
 
 
 def camera() -> mesh.camera.Camera:
@@ -32,18 +35,12 @@ def body() -> world.Element:
 
 
 class World(unittest.TestCase):
-    def test_headless_scene_draws_native_geometry_and_image_owns_pixels(self):
+    def test_headless_scene_retains_native_geometry(self):
         scene = world.Scene()
         scene.render(world.Frame(body()).camera(camera()))
-        raster = scene.image((96, 96))
-        pixels = raster.rgba()
-        self.assertTrue(any(pixels[3::4]))
-        self.assertEqual(pixels[:4], bytes(4))
-        self.assertGreater(pixels[(48 * 96 + 48) * 4], 0)
         self.assertEqual(scene.stats.nodes, 1)
-        del scene
-        gc.collect()
-        self.assertEqual(raster.rgba(), pixels)
+        self.assertNotEqual(scene.handleOf("body"), 0)
+        self.assertEqual(scene.referencesOf("body"), 1)
 
     def test_children_forms_append_and_reordering_preserves_native_identity(self):
         shared = mesh.box((-10, -10, -10), (10, 10, 10))
@@ -83,7 +80,7 @@ class World(unittest.TestCase):
             self.assertEqual(scene.handleOf(key), handles[key])
         self.assertEqual(scene.handleOf("e"), 0)
 
-    def test_frame_executes_post_pass_and_reports_native_graph_errors(self):
+    def test_frame_passes_need_a_device_and_report_native_graph_errors(self):
         scene = world.Scene()
         base = (
             world.Frame(body())
@@ -91,24 +88,11 @@ class World(unittest.TestCase):
             .extent((96, 96))
             .pass_(world.geometryPass("main").writes(("color",)))
         )
-        scene.render(base)
-        original = scene.image((96, 96)).rgba()
-        graded = (
-            base.copy()
-            .pass_(
-                world.postPass("grade")
-                .reads(["color"])
-                .writes("graded")
-                .levels(0.25, 0)
-            )
-            .present("graded")
-        )
-        scene.render(graded)
-        result = scene.image((96, 96)).rgba()
-        center = (48 * 96 + 48) * 4
-        self.assertGreater(original[center], result[center])
-        self.assertGreater(result[center], 0)
-        self.assertEqual(scene.stats.passes, 2)
+        # A pass is drawn on a device, and a frame that names no runtime
+        # is refused with the reason rather than drawn as nothing.
+        with self.assertRaisesRegex(ValueError, "device"):
+            scene.render(base)
+        self.assertEqual(scene.stats.passes, 0)
         broken = (
             world.Frame(body())
             .extent((96, 96))
@@ -120,30 +104,31 @@ class World(unittest.TestCase):
         no_extent = world.Frame(body()).pass_(world.geometryPass("main").writes("out"))
         with self.assertRaises(ValueError):
             scene.render(no_extent)
-        scene.render(base)
+        scene.render(world.Frame(body()).camera(camera()))
         self.assertEqual(scene.error, "")
-        self.assertEqual(scene.image((96, 96)).rgba(), original)
 
     def test_motion_is_sampled_and_keeps_a_live_value_alive(self):
         angle = animatable(0)
         reference = weakref.ref(angle)
         scene = world.Scene()
         scene.render(world.Frame(body().rotateZ(angle)).camera(camera()))
-        start = scene.image((96, 96)).rgba()
+        start = scene.transformOf("body")
         angle.value = 90
         scene.advance(0)
-        end = scene.image((96, 96)).rgba()
+        end = scene.transformOf("body")
         self.assertNotEqual(start, end)
         del angle
         gc.collect()
         self.assertIsNone(reference())
         scene.advance(0.1)
-        self.assertEqual(scene.image((96, 96)).rgba(), end)
+        self.assertEqual(scene.transformOf("body"), end)
 
     def test_lights_presets_and_getters_use_owned_native_values(self):
-        material = surfaces.program(surfaces.SurfaceParameters(
-            baseColor=(1.0, 0.766, 0.336), metallic=1, roughness=0.18
-        ))
+        material = surfaces.program(
+            surfaces.SurfaceParameters(
+                baseColor=(1.0, 0.766, 0.336), metallic=1, roughness=0.18
+            )
+        )
         self.assertIsInstance(material, Material)
         setup = world.kit.Set(ground=0)
         setup.rig.extent = 90
@@ -180,7 +165,9 @@ class World(unittest.TestCase):
             self.assertAlmostEqual(channel, expected, places=4)
         # And a colour a builder was handed is the same colour on the
         # way back.
-        metal = surfaces.SurfaceParameters(baseColor="#804000", metallic=1, roughness=0.3)
+        metal = surfaces.SurfaceParameters(
+            baseColor="#804000", metallic=1, roughness=0.3
+        )
         for written, built in zip(parameters.baseColor, metal.baseColor):
             self.assertAlmostEqual(written, built, places=4)
         # Absorption is taken per unit of thickness rather than looked
@@ -199,7 +186,7 @@ class World(unittest.TestCase):
 
         def another_thread() -> None:
             try:
-                scene.image((16, 16))
+                scene.handleOf("body")
             except RuntimeError as error:
                 errors.append(error)
 
@@ -210,34 +197,10 @@ class World(unittest.TestCase):
         self.assertIsInstance(errors[0], RuntimeError)
         for size in ((0, 10), (10, -1)):
             with self.assertRaises(ValueError):
-                scene.image(size)
+                world.Frame(body()).extent(size)
         for step in (-1, float("inf"), float("nan")):
             with self.assertRaises(ValueError):
                 scene.advance(step)
-
-    def test_world_draw_uses_checked_sketch_pen(self):
-        with tempfile.TemporaryDirectory() as folder:
-            source, output = Path(folder) / "world.py", Path(folder) / "world.png"
-            source.write_text("""from sigil import world
-from sigil.geometry import mesh
-from sigil.material import surface
-from sigil.sketch import sketch
-@sketch(size=(96,96), capture_at=0, background="#000000")
-class Study:
-    def setup(self, ctx):
-        self.scene = world.Scene()
-        camera = mesh.camera.Camera()
-        camera.eye = (0,0,320)
-        body = world.Element().mesh(mesh.box((-65,-35,-20),(65,35,20)))
-        body.fill(surface.unlit(surface.SurfaceParameters(baseColor="#e75a31")))
-        self.scene.render(world.Frame(body).camera(camera))
-    def draw(self, pen):
-        self.scene.draw(pen)
-""")
-            render_file(source, output)
-            pixels = media.load(output).frameAt(0).image.rgba()
-            self.assertEqual(pixels[:4], bytes([0, 0, 0, 255]))
-            self.assertGreater(pixels[(48 * 96 + 48) * 4], 0)
 
 
 if __name__ == "__main__":

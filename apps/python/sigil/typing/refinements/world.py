@@ -43,7 +43,6 @@ def {name}(self, *resources: str) -> Pass: ...
 """,
         )
     table.erased("_sigil.world.Pass", "clear levels", "_t.ColorLike")
-    table.erased("_sigil.world.Scene", "image", "_t.ColorLike")
     for record, fields in (
         ("_sigil.world.kit.Rig", {"at": 3, "color": 4}),
         ("_sigil.world.kit.Turntable", {"at": 3}),

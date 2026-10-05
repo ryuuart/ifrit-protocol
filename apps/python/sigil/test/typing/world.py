@@ -5,7 +5,6 @@ from sigil.geometry import mesh
 from sigil.material import Material
 from sigil.material import surface as surfaces
 from sigil.motion import animatable
-from sigil.skia import Image
 
 parameters = surfaces.SurfaceParameters(baseColor="#a3c4bd", roughness=0.3)
 finish: Material = surfaces.program(parameters)
@@ -35,7 +34,6 @@ frame = (
 scene = world.Scene()
 scene.render(frame)
 scene.advance(1 / 60)
-plate: Image = scene.image((320, 240), background="#152334")
 sun = world.light.sun(direction=(-1, -1, -1), color=(1, 1, 1, 1))
 direction: tuple[float, float, float] = world.light.travel(sun)
 bearing: float = sun.direction

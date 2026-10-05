@@ -48,7 +48,7 @@ assert "sigil._loader" not in sys.modules
            scope);
 }
 
-TEST(PythonBindings, WorldOwnsItsEngineFrameAndPixelsWithoutASketchHost) {
+TEST(PythonBindings, WorldOwnsItsEngineAndFrameWithoutASketchHost) {
   auto module = native();
   py::dict scope;
   scope["native"] = module;
@@ -70,12 +70,11 @@ body = (native.world.Element().key("body")
         .translateX(native.motion.animate(from_=0, to=30, duration=1)))
 frame = native.world.Frame(body).camera(camera)
 scene.render(frame)
-first = scene.image((96, 96)).rgba()
-assert any(first[3::4])
+first = scene.transformOf("body")
 handle = scene.handleOf("body")
 angle.value = 90
 scene.advance(0.25)
-quarter = scene.image((96, 96)).rgba()
+quarter = scene.transformOf("body")
 assert first != quarter
 
 del angle, frame, body, camera
@@ -83,13 +82,11 @@ gc.collect()
 assert angle_ref() is None
 scene.advance(0.25)
 assert scene.handleOf("body") == handle
-image = scene.image((96, 96))
-half = image.rgba()
+half = scene.transformOf("body")
 assert half != quarter
-assert any(half[3::4])
+assert not hasattr(scene, "image")
 del scene
 gc.collect()
-assert image.rgba() == half
 assert not hasattr(native, "Context")
 assert "sigil._loader" not in sys.modules
 )",

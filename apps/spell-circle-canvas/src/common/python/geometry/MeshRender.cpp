@@ -4,7 +4,6 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilgeometry/mesh/render/Runtime.h>
-#include <sigilgeometry/mesh/render/Shading.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
@@ -73,7 +72,7 @@ std::exception_ptr drawThroughPanelPen(const py::function& body,
  *  every other colour in Python is. */
 template <class Record>
 void colourField(py::class_<Record>& type, const char* name,
-                 glm::vec4 Record::*member) {
+                 glm::vec4 Record::* member) {
   type.def_property(
       name,
       [member](const Record& value) {
@@ -89,32 +88,12 @@ void colourField(py::class_<Record>& type, const char* name,
  *  absent picture reads back as None. */
 template <class Record>
 void pictureField(py::class_<Record>& type, const char* name,
-                  media::Picture Record::*member) {
+                  media::Picture Record::* member) {
   type.def_property(
       name,
       [member](const Record& value) -> sk_sp<SkImage> { return value.*member; },
       [member](Record& value, sk_sp<SkImage> image) {
         value.*member = media::Picture(std::move(image));
-      });
-}
-
-/** A chain of pictures, copied out as a list of images. */
-template <class Record>
-void pictureChainField(py::class_<Record>& type, const char* name,
-                       std::vector<media::Picture> Record::*member) {
-  type.def_property(
-      name,
-      [member](const Record& value) {
-        std::vector<sk_sp<SkImage>> images;
-        for (const media::Picture& picture : value.*member)
-          images.push_back(picture);
-        return images;
-      },
-      [member](Record& value, const std::vector<sk_sp<SkImage>>& images) {
-        std::vector<media::Picture> pictures;
-        pictures.reserve(images.size());
-        for (const sk_sp<SkImage>& image : images) pictures.push_back(image);
-        value.*member = std::move(pictures);
       });
 }
 
@@ -144,47 +123,12 @@ void bindGeometryMeshRender(py::module_& module) {
       .def("copy", [](const render::Runtime& value) { return value; });
   copyProtocol(runtime);
 
-  // THE PANORAMA A LIT SURFACE SAMPLES. The prefiltered chain a
-  // reflection picks a level from, the cosine convolution a diffuse term
-  // reads, where the sky is turned to, and how far it is believed.
-  auto environment = bindRecord<render::Environment>(
-      renderer, "Environment", "An environment has no field named ");
-  // A chain is copied out as a list of images, so a level is added by
-  // assigning the list back rather than by appending to what a read
-  // handed over.
-  pictureChainField(environment, "levels", &render::Environment::levels);
-  pictureField(environment, "irradiance", &render::Environment::irradiance);
-  pictureChainField(environment, "nextLevels",
-                    &render::Environment::nextLevels);
-  pictureField(environment, "nextIrradiance",
-               &render::Environment::nextIrradiance);
-  environment
-      .def_readwrite("crossfade", &render::Environment::crossfade)
-      // The rotation is read and answered by columns: where the
-      // panorama's own x, y and z axes point, in that order.
-      .def_readwrite("orientation", &render::Environment::orientation)
-      .def_readwrite("tint", &render::Environment::tint)
-      .def_readwrite("intensity", &render::Environment::intensity)
-      .def_readwrite("diffuse", &render::Environment::diffuse)
-      .def_readwrite("specular", &render::Environment::specular)
-      .def_readwrite("roughnessBias", &render::Environment::roughnessBias)
-      .def_readwrite("exposure", &render::Environment::exposure)
-      .def_readwrite("backdrop", &render::Environment::backdrop)
-      .def_readwrite("backdropBlur", &render::Environment::backdropBlur)
-      .def_readwrite("groundRadius", &render::Environment::groundRadius)
-      .def_readwrite("projectionCenter", &render::Environment::projectionCenter)
-      .def("valid", &render::Environment::valid)
-      .def(
-          "__eq__",
-          [](const render::Environment& value,
-             const render::Environment& other) { return value == other; },
-          py::arg("other"), py::is_operator());
-
   py::class_<render::Light> light(renderer, "Light");
   light
       .def(py::init([](glm::vec3 direction, SkColor4f color, float intensity) {
-             return render::Light{
-                 direction, {color.fR, color.fG, color.fB, color.fA}, intensity};
+             return render::Light{direction,
+                                  {color.fR, color.fG, color.fB, color.fA},
+                                  intensity};
            }),
            py::arg("direction") = glm::vec3(-0.5f, -0.8f, -0.4f),
            py::arg("color") = SkColors::kWhite, py::arg("intensity") = 1)
@@ -215,9 +159,6 @@ void bindGeometryMeshRender(py::module_& module) {
   style.def_readwrite("mode", &render::MeshStyle::mode)
       .def_readwrite("lit", &render::MeshStyle::lit)
       .def_readwrite("lights", &render::MeshStyle::lights)
-      .def_readwrite("environment", &render::MeshStyle::environment)
-      .def_readwrite("metallic", &render::MeshStyle::metallic)
-      .def_readwrite("roughness", &render::MeshStyle::roughness)
       .def_readwrite("specular", &render::MeshStyle::specular)
       .def_readwrite("shininess", &render::MeshStyle::shininess)
       .def_readwrite("rim", &render::MeshStyle::rim)
@@ -281,63 +222,12 @@ void bindGeometryMeshRender(py::module_& module) {
          const render::Runtime& runtime) {
         auto& host = pen(borrowed);
         render::drawImagePanel(*host.canvas(), media::Picture(std::move(image)),
-                               width, height,
-                               model, camera, {host.width, host.height},
-                               opacity, runtime);
+                               width, height, model, camera,
+                               {host.width, host.height}, opacity, runtime);
       },
       py::arg("pen"), py::arg("image"), py::arg("width"), py::arg("height"),
       py::arg("model"), py::arg("camera"), py::arg("opacity") = 1,
       py::arg("runtime") = render::Runtime::cpu());
-  renderer.def(
-      "drawBackdrop",
-      [](py::handle borrowed, const render::Environment& environment,
-         const glm::mat4& projection, const glm::mat4& viewMatrix) {
-        auto& host = pen(borrowed);
-        render::drawBackdrop(*host.canvas(), environment, projection,
-                             viewMatrix, {host.width, host.height});
-      },
-      py::arg("pen"), py::arg("environment"), py::arg("projection"),
-      py::arg("viewMatrix"));
-
-  // THE SHADING TERMS THEMSELVES, the same arithmetic the draw above
-  // evaluates per vertex. They are here so an author computing a colour
-  // beside the picture — a swatch, a legend, a second tier written in
-  // Python — lands on the value the renderer landed on. Each parameter
-  // keeps the name the header gives it, and the ones the header spells
-  // with a single letter are written out.
-  renderer.def("backdropRay", &render::backdropRay, py::arg("environment"),
-               py::arg("eye"), py::arg("ray"));
-  renderer.def("atan2P", &render::atan2P, py::arg("y"), py::arg("x"));
-  renderer.def("acosP", &render::acosP, py::arg("x"));
-  renderer.def("equirectangularUv", &render::equirectangularUv,
-               py::arg("direction"));
-  renderer.def("specularColor", &render::specularColor, py::arg("baseColor"),
-               py::arg("metal"));
-  renderer.def("fresnelRough", &render::fresnelRough, py::arg("f0"),
-               py::arg("cosTheta"), py::arg("roughness"));
-  renderer.def("environmentBrdf", &render::environmentBrdf,
-               py::arg("roughness"), py::arg("nDotV"));
-  renderer.def("environmentSpecular", &render::environmentSpecular,
-               py::arg("radiance"), py::arg("f0"), py::arg("roughness"),
-               py::arg("nDotV"));
-  renderer.def("attenuate", &render::attenuate, py::arg("radiance"),
-               py::arg("absorb"), py::arg("thickness"));
-  renderer.def("luminance", &render::luminance, py::arg("color"));
-  renderer.def("toneMap", &render::toneMap, py::arg("radiance"),
-               py::arg("exposure"));
-  renderer.def("refraction", &render::refraction, py::arg("incident"),
-               py::arg("normal"), py::arg("eta"));
-  renderer.def(
-      "samplePanorama",
-      [](sk_sp<SkImage> panorama, glm::vec2 uv) {
-        return render::samplePanorama(media::Picture(std::move(panorama)), uv);
-      },
-      py::arg("panorama"), py::arg("uv"));
-  renderer.def("environmentRadiance", &render::environmentRadiance,
-               py::arg("environment"), py::arg("direction"),
-               py::arg("roughness"));
-  renderer.def("environmentIrradiance", &render::environmentIrradiance,
-               py::arg("environment"), py::arg("normal"));
 }
 
 }  // namespace sigil::python

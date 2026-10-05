@@ -1371,9 +1371,9 @@ paint.
 
 The native `sigil.material.surface.SurfaceParameters` record and its
 `program` and `unlit` factories describe mesh surfaces: base color, roughness, metallic
-response, emission and transmission. The CPU executor, the only one Python
-reaches, shades from base color and metallic response; emission and
-transmission do not reach its pixels. The returned `sigil.material.Material`
+response, emission and transmission. A surface is shaded by the World device
+executor, which a sketch reaches through `SketchContext.bakeSet` on a host
+that brought a device up. The returned `sigil.material.Material`
 is the same value a World element accepts. `surface.normalFromHeight(height,
 HeightNormalOptions(depth=..., step=..., directX=...))` differentiates a
 grayscale height into an encoded normal map, and `surface.blendNormals(base,
@@ -1454,24 +1454,38 @@ display or GPU.
 
 ## Retained 3D scenes
 
-`sigil.world` exposes native retained scene declarations and the CPU frame
-executor. Import meshes and cameras from `sigil.geometry.mesh`, materials
-from `sigil.material`, and animation values from `sigil.motion`. These are
-the same values used by the direct bindings.
+`sigil.world` exposes native retained scene declarations. A set is drawn on
+a device and nowhere else, and a Python process brings none up, so a
+`world.Scene` holds and reconciles a description — its nodes, placements,
+emitters and viewpoint — and draws nothing. A sketch that shows a set bakes
+it with `ctx.bakeSet(frame, camera, size, background, seconds)`, which
+draws on the device the host brought up and answers `None` where there is
+none. Import meshes and cameras from `sigil.geometry.mesh`, materials from
+`sigil.material`, and animation values from `sigil.motion`. These are the
+same values used by the direct bindings.
 
 ```python
-from sigil import media, world
+from sigil import world
+from sigil.compose import box, image
 from sigil.geometry import mesh
 from sigil.material import surface as surfaces
+from sigil.sketch import sketch
 
-finish = surfaces.program(
-    surfaces.SurfaceParameters(baseColor="#87b9ad", roughness=0.45)
-)
-model = (world.Element().key("vessel")
-         .mesh(mesh.torus(65, 20)).fill(finish).rotateX(25))
-scene = world.Scene()
-scene.render(world.kit.litSet(model, world.kit.Set(ground=0), seconds=1))
-media.save(scene.image((640, 480), background="#141d25"), "world.png")
+
+@sketch(size=(640, 480), background="#141d25")
+class Vessel:
+    def setup(self, ctx):
+        finish = surfaces.program(
+            surfaces.SurfaceParameters(baseColor="#87b9ad", roughness=0.45)
+        )
+        model = (world.Element().key("vessel")
+                 .mesh(mesh.torus(65, 20)).fill(finish).rotateX(25))
+        lens = mesh.camera.Camera()
+        lens.eye = (0, 120, 420)
+        frame = world.Frame(world.kit.litSet(model, world.kit.Set(ground=0),
+                                             seconds=1))
+        still = ctx.bakeSet(frame, lens, (640, 480), background="#141d25")
+        ctx.render(image(still) if still is not None else box())
 ```
 
 An `Element` supports keyed children, mesh and material values, tags,
@@ -1488,19 +1502,17 @@ named resources; `postPass` can read, blur, grade and composite them. Add a
 pass with `frame.pass_(pass_value)` and choose the image with
 `frame.present("resource")`. Pass `reads` and `writes` accept variadic names
 or one iterable. Selectors combine with `|`, `&` and `~`; `Selection.All`
-disables selection filtering. Invalid frame graphs raise `ValueError`.
+disables selection filtering. Invalid frame graphs raise `ValueError`, and so
+does a frame that declares passes to a `Scene`, which has no device to run
+them on.
 
-`Scene.image(size)` returns an owned native image with no window required;
-`Scene.draw(pen)` draws into a live sketch's checked pen. A scene stays on
-its creating thread and owns the engine its native renderer borrows. Camera,
+A scene stays on its creating thread and owns the engine its native
+reconciler borrows. Camera,
 light and statistics getters return copies. The three-point rig, turntable
 and lit-set kit compose ordinary native elements. Light and rig colors are
 linear RGBA sequences, matching the native light records.
 
-The CPU executor approximates material response through the native mesh
-painter. Without an environment map, roughness does not change its
-directional-light highlights; the study varies base color at a fixed
-roughness. Device execution, environment lighting, texture-map authoring,
+The device runtime itself, environment lighting, texture-map authoring,
 point-operator pipelines, custom pass callbacks and readbacks remain
 unbound; the Python API does not claim GPU PBR parity.
 

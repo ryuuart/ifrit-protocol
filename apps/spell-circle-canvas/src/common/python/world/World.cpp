@@ -1,14 +1,11 @@
-#include <include/core/SkSurface.h>
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
-#include <sigildraw/Pen.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/geometry/Casters.h>
 #include <sigilpython/motion/Convert.h>
 #include <sigilpython/skia/Values.h>
 #include <sigilpython/world/Registration.h>
-#include <sigilworld/advanced/Skia.h>
 #include <sigilworld/kit/Kit.h>
 #include <sigilworld/scene/Scene.h>
 
@@ -50,7 +47,7 @@ std::vector<std::string> resourceNames(py::args values) {
 
 SkISize extent(std::array<int, 2> size) {
   if (size[0] <= 0 || size[1] <= 0)
-    throw py::value_error("A World image extent must be positive.");
+    throw py::value_error("A World frame extent must be positive.");
   return {size[0], size[1]};
 }
 
@@ -87,18 +84,6 @@ class Scene {
       m_scene.render(*m_frame);
       if (!m_scene.error().empty()) throw py::value_error(m_scene.error());
     }
-  }
-
-  sk_sp<SkImage> image(std::array<int, 2> size, py::handle background) {
-    (void)get();
-    const SkISize pixels = extent(size);
-    auto surface = SkSurfaces::Raster(
-        SkImageInfo::MakeN32Premul(pixels.width(), pixels.height()));
-    if (!surface)
-      throw std::runtime_error("The World image could not be allocated.");
-    surface->getCanvas()->clear(color(background));
-    world::draw(m_scene, *surface->getCanvas());
-    return surface->makeImageSnapshot();
   }
 
  private:
@@ -143,8 +128,9 @@ void bindLight(py::module_& module) {
       py::arg("intensity") = 1, py::arg("range") = 600);
   light.def(
       "spot",
-      [](const glm::vec3& position, const glm::vec3& direction, float outerAngle,
-         float innerAngle, py::handle tint, float intensity, float range) {
+      [](const glm::vec3& position, const glm::vec3& direction,
+         float outerAngle, float innerAngle, py::handle tint, float intensity,
+         float range) {
         return world::light::spot(position, direction, outerAngle, innerAngle,
                                   lightColor(tint), intensity, range);
       },
@@ -396,14 +382,6 @@ void bindWorld(py::module_& root) {
           },
           py::arg("scene"))
       .def("advance", &Scene::advance, py::arg("seconds"))
-      .def("image", &Scene::image, py::arg("size"),
-           py::arg("background") = "#00000000")
-      .def(
-          "draw",
-          [](Scene& self, BorrowedPen& pen) {
-            world::draw(self.get(), *pen.get().canvas());
-          },
-          py::arg("pen"))
       .def(
           "handleOf",
           [](Scene& self, const std::string& key) {

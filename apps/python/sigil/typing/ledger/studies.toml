@@ -75,4 +75,4 @@ combines = "Periodic arcs and fading trails computed from the scene clock"
 combines = "Mixed runs, inline slots, named selections, initial letters, balanced story frames and a curved baseline"
 
 [study.python_world_study]
-combines = "One vessel mesh under keyed scene nodes, three dielectric finishes and a moving three-point rig, rendered on the CPU"
+combines = "One vessel mesh under keyed scene nodes, three dielectric finishes and a moving three-point rig, baked on the device"

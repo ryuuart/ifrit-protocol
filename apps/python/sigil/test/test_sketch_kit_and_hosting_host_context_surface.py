@@ -139,11 +139,15 @@ class HostContextSurface(unittest.TestCase):
         self.assertEqual(uri, f"sketch://{key}/beside.txt")
         self.assertEqual(text, "a file beside the sketch")
 
-    def test_a_baked_set_is_an_owned_image_of_the_extent_that_was_asked_for(self):
+    def test_a_set_baked_with_no_device_is_none_and_bad_requests_are_refused(self):
+        # A set is drawn on a device and nowhere else, and this process
+        # brings none up: a bake answers None rather than a picture no
+        # device drew, and a request that could never be drawn is refused
+        # before that.
         self.render("""
             import builtins
             from sigil import world
-            from sigil.compose import image
+            from sigil.compose import box
             from sigil.geometry import mesh
             from sigil.material import surface as surfaces
             from sigil.sketch import sketch
@@ -186,23 +190,16 @@ class HostContextSurface(unittest.TestCase):
                     except ValueError as error:
                         refusals.append(str(error))
                     builtins._sigil_host_context = (still, later, wider, refusals)
-                    ctx.render(image(still))
+                    ctx.render(box())
         """)
         still, later, wider, refusals = builtins._sigil_host_context
-        self.assertEqual((still.width(), still.height()), (64, 64))
-        self.assertEqual((wider.width(), wider.height()), (48, 32))
-        # A set with no motion in it is the same picture at every moment.
-        self.assertEqual(still.rgba(), later.rgba())
-        self.assertNotEqual(still.rgba(), wider.rgba())
-        # The background reaches the bake, so the corner is the colour
-        # that was asked for rather than nothing at all.
-        self.assertEqual(still.rgba()[3], 255)
+        self.assertIsNone(still)
+        self.assertIsNone(later)
+        self.assertIsNone(wider)
         self.assertEqual(len(refusals), 3)
         for refusal in refusals[:2]:
             self.assertIn("positive", refusal)
         self.assertIn("finite and nonnegative", refusals[2])
-        # The image belongs to whoever took it, not to the closed session.
-        self.assertEqual(len(still.rgba()), 64 * 64 * 4)
 
     def test_required_art_stands_a_sketch_down_with_the_first_missing_url(self):
         with tempfile.TemporaryDirectory() as directory:

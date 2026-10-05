@@ -1897,14 +1897,13 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "`mesh.render` lights and `MeshStyle` with `drawMesh`, `drawImagePanel` and `drawPanel`, render environments and runtimes, on the CPU executor"
+bound = "`mesh.render` lights and `MeshStyle` with `drawMesh`, `drawImagePanel` and `drawPanel`, and runtimes, on the CPU executor"
 python = [
   "geometry.mesh.render.Light",
   "geometry.mesh.render.MeshStyle",
   "geometry.mesh.render.drawMesh",
   "geometry.mesh.render.drawImagePanel",
   "geometry.mesh.render.drawPanel",
-  "geometry.mesh.render.Environment",
   "geometry.mesh.render.Runtime",
 ]
 
@@ -1973,19 +1972,17 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "a thread-checked `Scene` that owns its engine, with `render`, `advance`, `image`, `draw(pen)`, handles and statistics"
+bound = "a thread-checked `Scene` that owns its engine, with `render`, `advance`, handles and statistics; a set is drawn on a device, which a sketch reaches through `SketchContext.bakeSet`"
 python = [
   "world.Scene",
   "world.Scene.render",
   "world.Scene.advance",
-  "world.Scene.image",
-  "world.Scene.draw",
   "world.Scene.handleOf",
   "world.Scene.stats",
 ]
 
 [[section.surface.item]]
-bound = "`light` sun, point and spot; the `kit` rig, turntable and lit set; the CPU executor"
+bound = "`light` sun, point and spot; the `kit` rig, turntable and lit set"
 python = [
   "world.light.sun",
   "world.light.point",
