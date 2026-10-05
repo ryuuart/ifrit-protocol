@@ -147,7 +147,8 @@ struct LanternRoom {
               {.color = material::Color{lantern.color.r, lantern.color.g,
                                         lantern.color.b, lantern.color.a},
                .intensity = world::intensityAt(2.0f, kRing),
-               .range = kReach})
+               .range = kReach,
+               .castShadow = true})
               .key(std::string(lantern.key) + "-lamp")
               .at(at)
               .collection("lamp"));

@@ -34,20 +34,22 @@ struct SceneStats {
   int64_t surfaces = 0;         ///< surfaces the frame's image resources needed
   int64_t texturesPainted = 0;  ///< texture passes that painted
   int64_t texturesSkipped = 0;  ///< texture passes that found nothing changed
+  int64_t shadowMaps = 0;       ///< lights whose shadow map the frame draws
 
   /** Every count back to zero, for the next frame. */
   void reset() {
     reconcile.reset();
     nodes = extracted = cooked = baked = replayed = drawn = rounds = 0;
     passes = barriers = aliased = surfaces = 0;
-    texturesPainted = texturesSkipped = 0;
+    texturesPainted = texturesSkipped = shadowMaps = 0;
   }
 
   /** Adds every count under its name (`world.nodes`, `world.extracted`,
    *  `world.cooked`, `world.resources`, `world.baked`,
    *  `world.replayed`, `world.drawn`, `world.rounds`, `world.passes`,
    *  `world.barriers`, `world.aliased`, `world.surfaces`,
-   *  `world.texturesPainted`, `world.texturesSkipped`), and the
+   *  `world.texturesPainted`, `world.texturesSkipped`,
+   *  `world.shadowMaps`), and the
    *  reconciler's under theirs. */
   void report(measure::Counters& counters) const {
     reconcile.report(counters);
@@ -65,6 +67,7 @@ struct SceneStats {
     counters.add("world.surfaces", surfaces);
     counters.add("world.texturesPainted", texturesPainted);
     counters.add("world.texturesSkipped", texturesSkipped);
+    counters.add("world.shadowMaps", shadowMaps);
   }
 };
 

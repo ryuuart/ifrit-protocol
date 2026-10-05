@@ -67,6 +67,10 @@ struct Body {
    *  viewpoint can settle — so it is applied where the draws are
    *  collected, not here. */
   Facing facing = Facing::None;
+  /** Whether it blocks the lights that cast shadows, and whether their
+   *  shadows darken it. */
+  bool castShadow = true;
+  bool receiveShadow = true;
 };
 
 /** What the surface is: the colour a tier with no compiler to run a

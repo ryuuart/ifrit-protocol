@@ -88,6 +88,18 @@ class World(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "eye"):
             scene.render(world.group(eye, world.camera(camera()).key("other")))
 
+    def test_a_light_casts_when_asked_and_a_body_can_decline(self):
+        sun = world.directionalLight(
+            (0, -1, 0), castShadow=True, shadow=world.LightShadow(radius=2)
+        ).shadowLink(world.Collection(exclude=["glass"]))
+        self.assertTrue(sun.description.castShadow)
+        self.assertEqual(sun.description.shadow.radius, 2)
+        self.assertEqual(sun.description.shadow.mapSize, 2048)
+        self.assertEqual(sun.description.shadow.cascades, 1)
+        self.assertEqual(sun.description.shadowLink.exclude, ["glass"])
+        self.assertFalse(world.pointLight().description.castShadow)
+        self.assertIsInstance(body().castShadow(False).receiveShadow(False), world.Mesh)
+
     def test_instanced_geometry_is_a_mesh_and_a_null_is_looked_at(self):
         sparks = mesh.Instances()
         sparks.stamp = mesh.quad(4, 4)

@@ -23,6 +23,12 @@
 // dressed: the slot an unmapped body leaves empty reads one white texel,
 // and the map multiplies the surface's colour before any light does.
 //
+// THE SHADOW STAGE draws with this text too: `fsShadow` writes nothing but
+// depth, for a body whose surface does not decide where it covers, and
+// `fsShadowFlat` and a material's `fsMaterialShadow` keep only the pixels
+// whose coverage reaches one half, so a card cut out by its map casts
+// the shape it shows.
+//
 // SIGIL_LIT is the axis the source is specialised on. Defined, the
 // lights, the environment and the camera's curve reach the surface;
 // undefined, the surface colour stands as it is and the lighting, its
@@ -38,7 +44,10 @@
 //      microfacet model — a Lambert diffuse and a GGX specular lobe,
 //      split between them by metalness and by Fresnel — and a positioned
 //      light is reached at the falloff its distance and its cone give
-//      HERE, not at some point standing in for the body;
+//      HERE, not at some point standing in for the body; a light that
+//      casts a shadow is multiplied, before anything else is made of it,
+//      by the share of its map's filtered comparisons the pixel passes,
+//      and nothing else in the sum is;
 //   3. the light arriving from everywhere — the environment's panorama,
 //      ambient and hemisphere lights — adds its diffuse and its mirrored
 //      share, with the energy a rough surface scatters more than once put
@@ -180,6 +189,39 @@ uniform float4 uLightDirection[16];
 uniform float4 uLightColor[16];
 uniform float4 uLightGround[16];
 uniform float4 uLightCount;
+
+/** THE SHADOW MAPS, every light's in one depth atlas, read texel by
+ *  texel: a texel holds the depth, zero at a map's near plane and one at
+ *  its far one, of the nearest body blocking that light. */
+uniform Sampler2D uShadowAtlas;
+/** x: one over the atlas's side in texels; y: one when this body is
+ *  darkened by shadows, zero when it is not; z: how many maps there are. */
+uniform float4 uShadowDials;
+/** WHICH MAP EACH LIGHT READS, four lights to a row in the order of the
+ *  light records: the map's number, or below zero for none. */
+uniform float4 uLightShadow[4];
+/** PER MAP — up to twenty-four of them, a point light taking six — the
+ *  four rows of the matrix carrying a point in the space the
+ *  shading is written in to the light's clip space — map n's rows are
+ *  4n to 4n + 3; */
+uniform float4 uShadowMatrix[96];
+/** …the corner (xy) and size (zw) of its tile in the atlas, in the atlas's
+ *  own uv; */
+uniform float4 uShadowTile[24];
+/** …x, y: its near and far planes, in scene units; z: zero for an
+ *  orthographic map, one for a perspective one, two for the first of a
+ *  point light's six faces, which follow it in the order +x, -x, +y, -y,
+ *  +z, -z; w: the width one texel covers — at a distance of one unit from
+ *  the light for a perspective map; */
+uniform float4 uShadowDepth[24];
+/** …and x: its depth bias, y: its normal bias, z: its filter radius, all
+ *  in texels; w: the share of the map over which a shadow fades out at
+ *  its edge. */
+uniform float4 uShadowBias[24];
+/** …and on the first of a directional light's cascades, which follow it
+ *  one after another, how far in front of the camera each reaches, zero
+ *  past the last; zero throughout on every other map. */
+uniform float4 uShadowCascade[24];
 
 /** THE SET'S ENVIRONMENT MAP, and the second one it is crossfading to.
  *  Both are equirect panoramas of linear radiance whose mip levels are the
@@ -546,6 +588,125 @@ float3 seenThrough(float3 p, float3 v, float3 n, float ior, float rough,
 }
 #endif
 
+/** ONE STORED DEPTH, compared: whether the point @p receiver scene units
+ *  from the light, brought @p bias nearer it, is lit past what map @p map
+ *  stored at the atlas texel @p texel. */
+float shadowTexel(int map, float2 texel, float receiver, float bias) {
+  let depth = uShadowDepth[map];
+  let stored =
+      uShadowAtlas.SampleLevel((texel + float2(0.5, 0.5)) * uShadowDials.x, 0.0)
+          .r;
+  return shadowTest(receiver, shadowDistance(stored, depth.x, depth.y, depth.z),
+                    bias);
+}
+
+/** HOW MUCH OF A CASTING LIGHT REACHES the point @p p, whose geometric
+ *  normal is @p geometric, from the direction @p l: one where nothing it
+ *  stored stands between, zero where something does, and between along a
+ *  shadow's filtered edge. Nine taps a radius apart, each blended from the
+ *  four texels around it, every one kept inside the light's own tile. */
+float shadowAt(int map, float3 p, float3 geometric, float3 l) {
+  let depth = uShadowDepth[map];
+  let bias = uShadowBias[map];
+  let nDotL = max(dotP(geometric, l), 0.0);
+  // The texel's width where the point stands: the same everywhere in an
+  // orthographic map, growing with the distance in a perspective one.
+  let lightRow = uShadowMatrix[map * 4 + 3];
+  let distanceAway = depth.z > 0.5 ? max(dotP(lightRow, float4(p, 1.0)), 0.0)
+                                   : 1.0;
+  let texel = depth.w * distanceAway;
+  let moved = p + geometric * shadowNormalOffset(bias.y, texel, nDotL);
+  let position = float4(moved, 1.0);
+  let clip = float4(dotP(uShadowMatrix[map * 4 + 0], position),
+                    dotP(uShadowMatrix[map * 4 + 1], position),
+                    dotP(uShadowMatrix[map * 4 + 2], position),
+                    dotP(uShadowMatrix[map * 4 + 3], position));
+  if (clip.w <= 0.0) return 1.0;
+  let ndc = clip.xyz / clip.w;
+  let uv = float2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5);
+  // Beyond the map's far plane, or off its edge, nothing was drawn.
+  if (ndc.z > 1.0 || uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0)
+    return 1.0;
+  let receiver = shadowDistance(ndc.z, depth.x, depth.y, depth.z);
+  let movedTexel = depth.z > 0.5 ? depth.w * receiver : depth.w;
+  let compareBias = shadowDepthBias(bias.x, movedTexel, nDotL, bias.z);
+  let tile = uShadowTile[map];
+  let side = 1.0 / uShadowDials.x;
+  let low = tile.xy * side;
+  let high = (tile.xy + tile.zw) * side - float2(1.0, 1.0);
+  let centre = shadowAtlasUv(uv, tile) * side - float2(0.5, 0.5);
+  float lit = 0.0;
+  for (int ty = 0; ty < 3; ++ty) {
+    for (int tx = 0; tx < 3; ++tx) {
+      let at = centre + float2(shadowTapOffset(float(tx), bias.z),
+                               shadowTapOffset(float(ty), bias.z));
+      let corner = floor(at);
+      let f = at - corner;
+      let t00 = clamp(corner, low, high);
+      let t11 = clamp(corner + float2(1.0, 1.0), low, high);
+      lit = lit + shadowTapWeight() *
+                      shadowBilinear(
+                          shadowTexel(map, t00, receiver, compareBias),
+                          shadowTexel(map, float2(t11.x, t00.y), receiver,
+                                      compareBias),
+                          shadowTexel(map, float2(t00.x, t11.y), receiver,
+                                      compareBias),
+                          shadowTexel(map, t11, receiver, compareBias),
+                          f);
+    }
+  }
+  return shadowed(lit, shadowEdgeFade(uv, bias.w));
+}
+
+/** HOW MUCH OF A CASTING LIGHT REACHES @p p through the map that starts
+ *  at @p map: that map; for a directional light split into cascades, the
+ *  one the point's distance in front of the camera falls in, crossing
+ *  into the next over the last tenth of it; or for a point light the one
+ *  of its six faces the point stands most squarely in front of. */
+float shadowOf(int map, float3 p, float3 geometric, float3 l) {
+  let ends = uShadowCascade[map];
+  if (ends.x > 0.0) {
+    let depth = -p.z;
+    let index = int(shadowCascade(depth, ends));
+    let end = index == 0 ? ends.x : index == 1 ? ends.y : index == 2 ? ends.z
+                                                                     : ends.w;
+    let start = index == 0 ? 0.0 : index == 1 ? ends.x : index == 2 ? ends.y
+                                                                    : ends.z;
+    let next = index == 0 ? ends.y : index == 1 ? ends.z : index == 2 ? ends.w
+                                                                      : 0.0;
+    let own = shadowAt(map + index, p, geometric, l);
+    let crossed =
+        next > 0.0 ? shadowCascadeBlend(depth, end, (end - start) * 0.1) : 0.0;
+    if (crossed <= 0.0) return own;
+    return mixP(own, shadowAt(map + index + 1, p, geometric, l), crossed);
+  }
+  if (uShadowDepth[map].z < 1.5) return shadowAt(map, p, geometric, l);
+  let position = float4(p, 1.0);
+  int best = map;
+  float squarest = -1e30;
+  for (int face = 0; face < 6; ++face) {
+    let at = map + face;
+    let x = dotP(uShadowMatrix[at * 4 + 0], position);
+    let y = dotP(uShadowMatrix[at * 4 + 1], position);
+    let w = dotP(uShadowMatrix[at * 4 + 3], position);
+    let square = w - max(abs(x), abs(y));
+    if (square > squarest) {
+      squarest = square;
+      best = at;
+    }
+  }
+  return shadowAt(best, p, geometric, l);
+}
+
+/** THE MAP light @p light reads, or below zero for none. */
+int shadowMapOf(int light) {
+  if (uShadowDials.y < 0.5) return -1;
+  let row = uLightShadow[light / 4];
+  let lane = light % 4;
+  let found = lane == 0 ? row.x : lane == 1 ? row.y : lane == 2 ? row.z : row.w;
+  return int(found);
+}
+
 /** THE LIT SUM at one pixel, in linear radiance, for a surface whose
  *  decoded colour is @p base. Emission is the caller's. */
 float3 shadeLit(VSOut input, float3 base) {
@@ -689,6 +850,13 @@ float3 shadeLit(VSOut input, float3 base) {
                             uLightColor[i].w, uLightGround[i].w);
     }
     if (reach <= 0.0) continue;
+    // THE SHADOW takes its share of this light, and of nothing else.
+    let map = shadowMapOf(i);
+    if (map >= 0) {
+      let toward = kind > 0.5 ? l : -normalizeP(uLightDirection[i].xyz);
+      reach = reach * shadowOf(map, input.viewPos, geometric, toward);
+      if (reach <= 0.0) continue;
+    }
     let radiance = colour * reach;
     var diffuseOne = radiance * directDiffuse(n, l, v, diffuse, f0, f90);
 #ifdef SIGIL_ANISOTROPY
@@ -865,6 +1033,28 @@ float4 shade(float4 surface, VSOut input) {
 float4 fsFlat(VSOut input) : SV_Target {
   enterInstance(input);
   return shade(surfaceFlat(input.uv), input);
+}
+
+/** WHERE A BODY BLOCKS A LIGHT, for one whose coverage its map decides:
+ *  the pixels whose coverage — the surface's alpha, its tint's and its
+ *  map's — falls short of one half are dropped, and the rest write
+ *  depth. */
+void shadowCoverage(float4 surface, VSOut input) {
+  let mapUv = mul(uBaseColorMapUv, float4(input.uv, 0.0, 1.0)).xy;
+  let map = uBaseColorMap.Sample(mapUv);
+  if (surface.a * input.tint.a * map.a < 0.5) discard;
+}
+
+/** THE SHADOW STAGE'S OWN DRAW for a body whose surface does not decide
+ *  where it covers: depth, and nothing else. */
+[shader("fragment")]
+void fsShadow(VSOut input) {}
+
+/** …and for a body with no material program whose map does. */
+[shader("fragment")]
+void fsShadowFlat(VSOut input) {
+  enterInstance(input);
+  shadowCoverage(surfaceFlat(input.uv), input);
 }
 
 #ifdef SIGIL_LIT

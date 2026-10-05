@@ -29,6 +29,9 @@ enum : uint32_t {
    *  stands as it is, which is what a coverage or a variant re-draw
    *  wants. */
   kVariantLit = 1u << 0u,
+  /** The shadow stage's build: the body's surface is asked only where it
+   *  covers, and the program writes depth and nothing else. */
+  kVariantShadow = 1u << 1u,
 };
 
 }  // namespace sigil::world::diligent

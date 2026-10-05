@@ -186,6 +186,8 @@ void Scene::Impl::collectBodies(const geometry::mesh::camera::Camera& eye,
         .material = surface.material ? &*surface.material : nullptr,
         .lit = surface.lit,
         .texture = surface.texture,
+        .castShadow = body.castShadow,
+        .receiveShadow = body.receiveShadow,
     });
   }
 }
@@ -234,6 +236,16 @@ bool Scene::Impl::phaseGraph() {
   view.offset = frame.viewOffset();
   view.time = engine.elapsed();
 
+  // THE SHADOW STAGE a lit geometry pass opens with: one map per light
+  // that casts, and none at all in a frame where nothing does.
+  bool paints = false;
+  for (const PassWork& work : plan.steps())
+    paints = paints || (work.pass && work.pass->stage() == Stage::Geometry &&
+                        !work.pass->body());
+  stats.shadowMaps =
+      paints
+          ? (int64_t)shadowCasters(std::span<const PlacedLight>(lights)).size()
+          : 0;
   stats.barriers = (int64_t)plan.barriers().size();
   stats.aliased = plan.aliased();
   stats.surfaces = plan.surfaces();

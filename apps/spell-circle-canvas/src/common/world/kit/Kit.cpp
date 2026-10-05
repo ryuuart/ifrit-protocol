@@ -52,10 +52,13 @@ glm::vec3 station(glm::vec3 at, float distance, float bearing,
  *  range, at the intensity that delivers @p strength at the subject. */
 Light lamp(std::string_view key, glm::vec3 position,
            motion::Animatable<material::Color> color,
-           motion::Animatable<float> strength) {
+           motion::Animatable<float> strength, bool casts = false,
+           LightShadow shadow = {}) {
   return pointLight({.color = std::move(color),
                      .intensity = intensityAt(std::move(strength),
-                                              glm::length(position))})
+                                              glm::length(position)),
+                     .castShadow = casts,
+                     .shadow = shadow})
       .key(key)
       .at(position);
 }
@@ -67,7 +70,7 @@ Group threePoint(const Rig& rig) {
   const float distance = kKeyDistance * rig.extent;
   std::vector<Node> lights{
       lamp("key", station(centre, distance, rig.bearing, rig.elevation),
-           rig.color, rig.intensity),
+           rig.color, rig.intensity, rig.keyCastsShadow, rig.keyShadow),
       // A quarter turn the other way and lower: the fill is what
       // keeps the side the key does not reach from being black.
       lamp("fill",

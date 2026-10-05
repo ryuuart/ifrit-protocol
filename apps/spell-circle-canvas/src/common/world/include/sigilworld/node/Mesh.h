@@ -32,6 +32,19 @@ class Mesh : public Node,
     edit().facing = turned;
     return *this;
   }
+  /** WHETHER THE BODY CASTS SHADOWS from the lights that cast them. Every
+   *  body that writes depth does unless it says otherwise; a light's
+   *  shadow link narrows it further. */
+  Mesh& castShadow(bool casts) {
+    edit().castShadow = casts;
+    return *this;
+  }
+  /** WHETHER SHADOWS DARKEN THE BODY. Every lit body is darkened by them
+   *  unless it says otherwise. */
+  Mesh& receiveShadow(bool receives) {
+    edit().receiveShadow = receives;
+    return *this;
+  }
 };
 
 /** A body of @p triangles, lit at the stock surface until it is

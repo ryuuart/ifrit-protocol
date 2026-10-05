@@ -112,7 +112,10 @@ picture. A geometry pass draws them in three phases over that order —
 the bodies laid over normally; then, after the picture so far is copied,
 the bodies that see through themselves (transmission, distortion), which
 read that copy; then the blended ones — and a frame with nothing that
-sees through itself copies nothing.
+sees through itself copies nothing. Before any of them, a geometry pass
+under a light that casts shadows draws each such light's shadow map, and
+`SceneStats::shadowMaps` counts the lights it drew one for — zero in a
+frame where no light casts, which draws none.
 
 `View::environment` is THE SET'S ENVIRONMENT MAP, oriented: the panorama
 every lit body samples for what reaches it from every direction, with an

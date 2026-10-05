@@ -88,8 +88,11 @@ std::vector<Node> each(range or count, make);  // children a range describes
 .fill(material::Material surface)   // a material::Color is lit at the stock response
 .backface(material::Backface)
 .facing(Facing)                     // Facing::Camera, Facing::CameraUpright
+.castShadow(casts)  .receiveShadow(receives)   // both on unless stated
 // a light
 .lightLink(Collection)  .shadowLink(Collection)  .lookAt(key)
+// a directional, point or spot light's options: .castShadow = true,
+// .shadow = {bias, normalBias, radius, mapSize, distance, cascades}
 // a camera
 .lookAt(key)
 
@@ -136,7 +139,8 @@ excludes terms, a plain name being the members of that collection and a
 term beginning with `/` being the node with that key and everything under
 it, the way a USD collection includes a prim's path. A pass narrows to
 one with `Pass::only`, a light reaches only one with `Light::lightLink`,
-and a light's shadow link waits for shadows with `Light::shadowLink`.
+and a light that casts shadows has them cast only by one with
+`Light::shadowLink`.
 
 **The frame** holds what is not a node: the environment the set stands
 in, the camera it is seen through when the tree holds several, and the

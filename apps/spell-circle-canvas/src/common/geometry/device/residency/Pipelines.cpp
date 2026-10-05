@@ -117,10 +117,10 @@ const Pipeline* PipelineCache::pipeline(const PipelineKey& key) {
   // reads changing between one stage and the next.
   info.PSODesc.ResourceLayout.DefaultVariableType =
       dg::SHADER_RESOURCE_VARIABLE_TYPE_DYNAMIC;
-  info.AddShader(vs)
-      .AddShader(ps)
-      .AddRenderTarget(key.target)
-      .SetDepthFormat(key.depth ? kDepthFormat : dg::TEX_FORMAT_UNKNOWN)
+  info.AddShader(vs).AddShader(ps);
+  // A draw that writes only depth declares no colour target at all.
+  if (key.target != dg::TEX_FORMAT_UNKNOWN) info.AddRenderTarget(key.target);
+  info.SetDepthFormat(key.depth ? kDepthFormat : dg::TEX_FORMAT_UNKNOWN)
       .SetPrimitiveTopology(dg::PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
       .SetBlendDesc(blendFor(key.blend));
 

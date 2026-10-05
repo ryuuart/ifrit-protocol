@@ -5,7 +5,10 @@
  * directional light as UsdLuxDistantLight, oriented so its -Z runs along
  * the direction, and an ambient or hemisphere light as an untextured
  * UsdLuxDomeLight — the hemisphere's ground colour as custom data and its
- * up as the dome's +Y; the light and shadow links as custom data.
+ * up as the dome's +Y; the light and shadow links as custom data; and a
+ * directional, point or spot light's shadow as UsdLux's `shadow:enable`,
+ * with its bias, normal bias, filter radius, map size, reach and cascades
+ * as custom data.
  *
  * UsdLux states colour in linear light, so every colour is written
  * decoded. A sphere light's intensity is the radiance of its surface: a
@@ -22,6 +25,7 @@
 #include <pxr/base/vt/value.h>
 #include <pxr/usd/usdLux/distantLight.h>
 #include <pxr/usd/usdLux/domeLight.h>
+#include <pxr/usd/usdLux/shadowAPI.h>
 #include <pxr/usd/usdLux/shapingAPI.h>
 #include <pxr/usd/usdLux/sphereLight.h>
 #include <sigilmaterial/color/Color.h>
@@ -54,6 +58,27 @@ void writeLink(UsdPrim& prim, const char* key, const world::Collection& link) {
   };
   terms(std::string(key) + ":include", link.include);
   terms(std::string(key) + ":exclude", link.exclude);
+}
+
+/** WHETHER A LIGHT CASTS, as UsdLux's own shadow switch — written false as
+ *  well as true, because a reader that knows no better takes an unstated
+ *  switch as on — and, when it casts, how its shadow is made, which
+ *  UsdLux has no words for, as custom data. */
+void writeShadow(UsdPrim& prim, const world::LightDescription& light) {
+  UsdLuxShadowAPI::Apply(prim).CreateShadowEnableAttr().Set(light.castShadow);
+  if (!light.castShadow) return;
+  const world::LightShadow& shadow = light.shadow;
+  prim.SetCustomDataByKey(TfToken("sigil:shadowBias"), VtValue(shadow.bias));
+  prim.SetCustomDataByKey(TfToken("sigil:shadowNormalBias"),
+                          VtValue(shadow.normalBias));
+  prim.SetCustomDataByKey(TfToken("sigil:shadowRadius"),
+                          VtValue(shadow.radius));
+  prim.SetCustomDataByKey(TfToken("sigil:shadowMapSize"),
+                          VtValue(shadow.mapSize));
+  prim.SetCustomDataByKey(TfToken("sigil:shadowDistance"),
+                          VtValue(shadow.distance));
+  prim.SetCustomDataByKey(TfToken("sigil:shadowCascades"),
+                          VtValue(shadow.cascades));
 }
 
 }  // namespace
@@ -103,6 +128,7 @@ std::string Writer::light(std::string_view name,
     prim.SetCustomDataByKey(TfToken("sigil:range"), VtValue(light.range));
     writeLink(prim, "sigil:lightLink", light.lightLink);
     writeLink(prim, "sigil:shadowLink", light.shadowLink);
+    writeShadow(prim, light);
     if (light.kind == world::LightKind::Spot) {
       // The cone is UsdLux shaping: it opens around the light's -Z, so
       // the prim is oriented to aim -Z along the direction, the outer
@@ -138,6 +164,7 @@ std::string Writer::light(std::string_view name,
   UsdPrim prim = distant.GetPrim();
   writeLink(prim, "sigil:lightLink", light.lightLink);
   writeLink(prim, "sigil:shadowLink", light.shadowLink);
+  writeShadow(prim, light);
   return path;
 }
 

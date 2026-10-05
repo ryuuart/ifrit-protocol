@@ -54,7 +54,8 @@ struct PipelineKey {
   /** Are back faces dropped? A draw the caller asked to keep them for
    *  is a different pipeline and not a different program. */
   bool cull = true;
-  /** The format of the target it draws into. */
+  /** The format of the target it draws into; `TEX_FORMAT_UNKNOWN` for a
+   *  draw that writes depth and no colour at all. */
   Diligent::TEXTURE_FORMAT target = kColorFormat;
   /** Does the vertex layout declare the INSTANCE elements, read from a
    *  second buffer once per instance? A program whose vertex stage reads

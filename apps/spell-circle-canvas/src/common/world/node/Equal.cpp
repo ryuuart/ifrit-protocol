@@ -78,7 +78,7 @@ bool cameraEqual(const std::optional<CameraDescription>& a,
          a->toneCurve == b->toneCurve;
 }
 
-static_assert(core::kFieldCount<LightDescription> == 10,
+static_assert(core::kFieldCount<LightDescription> == 12,
               "LightDescription gained or lost a field — rule on it in "
               "lightEqual() below, then bump this count.");
 bool lightEqual(const std::optional<LightDescription>& a,
@@ -91,7 +91,8 @@ bool lightEqual(const std::optional<LightDescription>& a,
          propertyEqual(a->groundColor, b->groundColor) &&
          a->range == b->range && a->innerAngle == b->innerAngle &&
          a->outerAngle == b->outerAngle && a->lightLink == b->lightLink &&
-         a->shadowLink == b->shadowLink;
+         a->shadowLink == b->shadowLink && a->castShadow == b->castShadow &&
+         a->shadow == b->shadow;
 }
 
 bool materialsEqual(const NodeDescription& a, const NodeDescription& b) {
@@ -106,7 +107,7 @@ bool materialsEqual(const NodeDescription& a, const NodeDescription& b) {
 }  // namespace
 
 static_assert(
-    core::kFieldCount<NodeDescription> == 17,
+    core::kFieldCount<NodeDescription> == 19,
     "A field of NodeDescription appeared or vanished. Rule on it in "
     "propertiesEqual() below — participate, or a stated reason not to "
     "— then bump this count. A miss is silent: the node prunes, "
@@ -127,6 +128,8 @@ bool propertiesEqual(const NodeDescription& a, const NodeDescription& b) {
   if (!(a.geometry == b.geometry)) return false;
   if (a.backface != b.backface) return false;
   if (a.facing != b.facing) return false;
+  if (a.castShadow != b.castShadow) return false;
+  if (a.receiveShadow != b.receiveShadow) return false;
   if (!materialsEqual(a, b)) return false;
   if (a.collections != b.collections) return false;
   if (!lightEqual(a.light, b.light)) return false;

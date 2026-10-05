@@ -19,6 +19,7 @@
 #include <sigilworld/frame/Environment.h>
 #include <sigilworld/node/Camera.h>
 #include <sigilworld/node/Group.h>
+#include <sigilworld/node/Light.h>
 
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
@@ -66,6 +67,11 @@ struct Rig {
    *  environment. Zero adds none. */
   float ambientIntensity = 0.0f;
   material::Color ambientColor = material::Color{1, 1, 1, 1};
+  /** WHETHER THE KEY CASTS SHADOWS, and how they are made. Off unless
+   *  stated, so a rig written without shadows lights exactly as it did;
+   *  the fill and the back light never cast. */
+  bool keyCastsShadow = false;
+  LightShadow keyShadow = {};
 };
 
 /** THE RIG, as one group with three keyed point lights — `key`, `fill`

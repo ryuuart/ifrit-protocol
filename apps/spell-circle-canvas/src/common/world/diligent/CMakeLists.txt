@@ -86,6 +86,7 @@ sigil_test(world_test
   SOURCES test/RuntimeTest.cpp test/StackTest.cpp
           test/SurfaceTest.cpp test/LightingTest.cpp test/EffectsTest.cpp
           test/InstancingTest.cpp test/LobesTest.cpp test/TransmissionTest.cpp
+          test/ShadowTest.cpp
           test/DeviceSeams.h
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
                ${SIGIL_GEOMETRY_DEVICE_TEST_SUPPORT_DIR}
@@ -93,7 +94,7 @@ sigil_test(world_test
   LIBRARIES SigilWorldDiligent SigilMaterialSurface SigilGeometryKit
   SUITES Blending Bloom DataTexture DepthFade DeviceFrame Environment Facing
          FinalStage Flipbook GpuRuntime Lighting Lobes Programs Stack
-         SurfaceProgram SurfaceSlots Transmission
+         Shadow SurfaceProgram SurfaceSlots Transmission
   LABELS gpu)
 
 sigil_bench(world_bench

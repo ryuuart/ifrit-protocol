@@ -13,8 +13,11 @@
 #include <sigilmotion/values/Animatable.h>
 #include <sigilworld/node/Collection.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <glm/vec3.hpp>
+#include <span>
+#include <vector>
 
 namespace sigil::world {
 
@@ -25,6 +28,37 @@ enum class LightKind : uint8_t {
   Spot,         ///< a position and a direction, within a cone
   Ambient,      ///< the same radiance from every direction
   Hemisphere,   ///< a sky colour from above and a ground colour from below
+};
+
+/** HOW A LIGHT'S SHADOW IS MADE, once the light casts one. Every length
+ *  here is counted in TEXELS of the light's shadow map — the width one
+ *  texel covers where the shaded point stands — so the same numbers serve
+ *  a set measured in centimetres and one measured in metres.
+ *
+ *  - `bias` is how far nearer the light a stored depth must stand before
+ *    it shadows a point, beside a share that grows as the surface turns
+ *    away from the light, so a lit face does not shadow itself;
+ *  - `normalBias` is how far a point is moved out along its surface's
+ *    normal before it is looked up, which is what keeps a face grazed by
+ *    the light free of stripes without lifting a shadow off its caster;
+ *  - `radius` is how far apart the filter's taps stand, so a larger one is
+ *    a softer edge;
+ *  - `mapSize` is how many texels a side the map has, at most 2048;
+ *  - `distance`, for a directional light, is how far in front of the
+ *    camera its map reaches; zero fits the map to every body in view;
+ *  - `cascades`, for a directional light, is how many maps that reach is
+ *    split into along the camera's depth, at most four: each nearer one
+ *    covers less of the set at the same size, so a shadow near the camera
+ *    is sharper. One is a single map for the whole reach. */
+struct LightShadow {
+  float bias = 1.0f;
+  float normalBias = 1.0f;
+  float radius = 1.0f;
+  int mapSize = 2048;
+  float distance = 0.0f;
+  int cascades = 1;
+
+  bool operator==(const LightShadow&) const = default;
 };
 
 /** WHAT A LIGHT NODE DESCRIBES, in the node's own space. The world is
@@ -71,9 +105,16 @@ struct LightDescription {
   /** THE BODIES IT LIGHTS — USD's light link. The whole scene unless it
    *  says otherwise. */
   Collection lightLink;
-  /** THE BODIES THAT BLOCK IT — USD's shadow link. Stored, compared and
-   *  written out; nothing casts a shadow yet, so nothing reads it. */
+  /** THE BODIES THAT BLOCK IT — USD's shadow link: of the bodies that
+   *  cast, the ones that cast THIS light's shadow. The whole scene unless
+   *  it says otherwise. */
   Collection shadowLink;
+  /** WHETHER IT CASTS SHADOWS. Off unless stated, so a set written without
+   *  shadows looks the same. A directional, a spot and a point light cast;
+   *  an ambient light and a hemisphere light cast nothing. */
+  bool castShadow = false;
+  /** How its shadow is made, when it casts one. */
+  LightShadow shadow;
 
   bool operator==(const LightDescription&) const = default;
 };
@@ -91,6 +132,17 @@ struct PlacedLight {
 
   bool operator==(const PlacedLight&) const = default;
 };
+
+/** HOW MANY LIGHTS CAST A SHADOW IN ONE FRAME. A light that asks past
+ *  this many casts nothing, and says so once. */
+constexpr size_t kShadowCasters = 4;
+
+/** THE LIGHTS OF @p lights THAT CAST A SHADOW this frame, as their
+ *  positions in @p lights: every directional, spot and point light that
+ *  states `castShadow`, in the order the frame placed them, up to
+ *  `kShadowCasters`. One past the budget casts nothing, and says so once. */
+[[nodiscard]] std::vector<size_t> shadowCasters(
+    std::span<const PlacedLight> lights);
 
 /** @p light with each animatable read once and held as that constant, so
  *  nothing written to a live value afterwards reaches the copy. */

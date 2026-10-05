@@ -48,7 +48,9 @@ is read by; the other two are what keeps it from being read by the key
 alone. `Rig::ambientIntensity` and `Rig::ambientColor`, past zero, add an
 ambient light to the rig, keyed `ambient`; nothing else lights the
 shadows, so a rig stating none over a set with no environment leaves
-them black.
+them black. `Rig::keyCastsShadow` makes the key cast shadows, made as
+`Rig::keyShadow` says; off unless stated, so a rig written without it
+lights exactly as it did, and the fill and the back light never cast.
 
 `threePoint` is THE RIG, as one group with three keyed point lights — the
 key, the fill and the back — each standing where the arrangement puts

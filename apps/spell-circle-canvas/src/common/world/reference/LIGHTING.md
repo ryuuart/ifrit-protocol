@@ -10,7 +10,8 @@ SigilMaterial's `core/shaders/Shading.slang` and are named in
 ## In one paragraph
 
 Every lit pixel is shaded on its own, in linear light. Each light reaches
-the pixel at the falloff its distance and cone give there; the surface
+the pixel at the falloff its distance and cone give there, and a light
+that casts a shadow reaches it only where nothing stands between; the surface
 answers through a microfacet model — a Lambert diffuse and a GGX specular
 lobe, split by metalness and Fresnel — with a clear coat as a second lobe
 over it, and, where a surface states them, a sheen, a brushing that
@@ -150,7 +151,7 @@ surface that states it compiles it. Per pixel:
 **One layer of refraction.** One copy of the scene is taken per frame, so
 a transmissive body never sees another through itself: glass behind glass
 shows what stood behind both. Nothing is cast through a transmissive body
-either — no caustic, and it shadows nothing differently from an opaque one.
+either — no caustic — and it casts no shadow at all (see Shadows).
 
 **Distortion.** `distortion` (a two-channel DATA map, half-grey still)
 with `distortionStrength` (scene units at the surface) displaces what
@@ -162,6 +163,81 @@ map at a strength other than zero; an unlit surface does not carry it.
 
 **Both sides.** A body whose back face is drawn is lit as the side it
 shows.
+
+## Shadows
+
+A light that states `castShadow` darkens what stands behind a body from
+it. The shadow takes that light's direct contribution — its diffuse, its
+highlight, its sheen and its clear coat — and nothing else: ambient and
+hemisphere lights, the environment and emission are never shadowed, so a
+second light that does not cast still lights what the first one's shadow
+covers.
+
+**Which lights cast.** Off unless stated, so a set written before shadows
+looks the same.
+
+| light | its map |
+|---|---|
+| directional | one orthographic map along the light, square across, fitted to what the camera sees of the set — every body, or the ones within `shadow.distance` of the camera when that is past zero — and deep enough to hold every body between the light and them; its corner snapped to whole texels. With `shadow.cascades` past one, that reach is split along the camera's depth into as many slices — growing with the distance, three parts of the way from even to geometric — each fitted with its own map, so the nearer ones cover less at the same size; a point reads the slice its distance in front of the camera falls in, crossing into the next over the last tenth of it (`shadowCascade`, `shadowCascadeBlend`) |
+| spot | one perspective map from where it stands along its aim, opening a little wider than its cone, reaching its range or the far side of the set |
+| point | six perspective maps, one along each axis each way; a point is read through the face it stands most squarely in front of |
+| ambient, hemisphere | none: light from everywhere casts nothing |
+
+At most `kShadowCasters` (four) lights cast in one frame, counted in the
+order the frame placed them; one past that casts nothing and says so once.
+
+**Which bodies cast and receive.** Every body casts and every lit body
+receives unless it says otherwise — `mesh(...).castShadow(false)`,
+`.receiveShadow(false)` — so shadows appear as soon as a light casts. A
+light's `shadowLink(collection)` narrows which of the casting bodies cast
+ITS shadow, exactly as `lightLink` narrows which bodies it lights.
+
+| body | casts | receives |
+|---|---|---|
+| opaque, laid over writing depth | yes | yes |
+| dressed with a map or an opacity map | through its coverage: where coverage falls short of one half, nothing | yes |
+| translucent, additive, multiplying, screening, fading, or writing no depth | no | yes, when lit |
+| transmissive or distorting | no | yes |
+| unlit — its own light | no | no |
+| instanced geometry | every instance | every instance |
+| turned to the camera | the shape the eye sees it at, turned as the camera turns it | yes |
+
+Both faces of a body block a light, so a card casts from behind as well as
+in front.
+
+**The stage.** A geometry pass under a light that casts opens with the
+shadow stage, before its target is cleared: every such light's maps are
+drawn into one depth atlas, each in a square tile — every tile the size of
+the largest map asked for, at most 2048 texels and smaller when the frame
+holds more maps than fit 4096 texels a side — from the bodies that cast,
+seen from the light, writing depth and nothing else. A body whose surface
+does not decide where it covers is drawn with one depth-only program; one
+dressed with a map runs its own program's shadow build, which keeps only
+the pixels its coverage reaches. A pass under no light that casts draws no
+map and binds no atlas.
+
+**Filtering.** A shaded point is moved out along its surface's normal,
+carried into the light's map, and compared against nine taps `radius`
+texels apart, each blended from the four texels around it — so a shadow's
+edge is soft over about two radii and moves smoothly as the point does.
+Every tap stays inside the light's own tile. A directional map that the
+camera's view cut short fades its shadow out over the last twentieth of
+the map. The terms are `shadowDistance`, `shadowDepthBias`,
+`shadowNormalOffset`, `shadowTest`, `shadowBilinear`, `shadowTapOffset`,
+`shadowTapWeight`, `shadowAtlasUv`, `shadowEdgeFade` and `shadowed`.
+
+**Bias.** Every length is counted in texels of the light's map — the
+width one texel covers where the point stands — so the same numbers serve
+a set of any scale (`LightShadow`, on the light's options as `shadow`):
+
+| option | default | what it does |
+|---|---|---|
+| `bias` | 1 | how much nearer the light a stored depth must stand to shadow a point; a share that grows with the tangent of the angle to the light, over the radius and one texel more, is added, the tangent capped at eight |
+| `normalBias` | 1 | how far a point is moved out along its normal before it is looked up, all of it where the light grazes the surface and none where it meets it square on |
+| `radius` | 1 | how far apart the filter's taps stand: larger is softer |
+| `mapSize` | 2048 | how many texels a side the map has |
+| `distance` | 0 | a directional light's reach in front of the camera; zero fits every body in view |
+| `cascades` | 1 | how many maps a directional light's reach is split into along the camera's depth, at most four |
 
 ## The optional lobes
 
@@ -265,7 +341,12 @@ backdrop and the same sun reflected in a body are one brightness.
 
 ## What it does not do
 
-No shadows between bodies, no area lights, and the environment's
+Shadows are opaque or absent — a transmissive body casts none rather
+than a coloured or partial one — a shadow's softness is the filter's and
+does not widen with the distance from its caster, and a directional
+light's cascades are fitted to the camera's view each frame and are not
+held still as the camera moves. No area
+lights, and the environment's
 prefiltered chain is a set of wrap-aware blurs rather than a GGX
 convolution of the panorama — the sheen reads the same chain rather than
 one filtered for its own lobe. A sheen, a brushing and a film are

@@ -70,6 +70,11 @@ struct Draw {
    *  off the material once per frame, so an executor does not walk a
    *  material tree per draw. */
   const ::sigil::material::Texture* texture = nullptr;
+  /** WHETHER IT BLOCKS the lights that cast shadows — the node's word,
+   *  before a light's shadow link and before what its surface is. */
+  bool castShadow = true;
+  /** Whether those lights' shadows darken it. */
+  bool receiveShadow = true;
 };
 
 /** A TEXTURE AS A MESH SAMPLES IT: the image, where it is read at over

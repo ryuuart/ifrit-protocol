@@ -176,7 +176,9 @@ TEST(Light, AHeldLightKeepsEveryFieldAndLetsGoOfItsLiveValues) {
                                                     .intensity = strength,
                                                     .range = 250,
                                                     .innerAngle = 7,
-                                                    .outerAngle = 33})
+                                                    .outerAngle = 33,
+                                                    .castShadow = true,
+                                                    .shadow = {.bias = 2}})
                            .lightLink("props")
                            .shadowLink("walls");
 
@@ -184,7 +186,8 @@ TEST(Light, AHeldLightKeepsEveryFieldAndLetsGoOfItsLiveValues) {
   // ONE NAME PER FIELD, so a field added to the light stops this case
   // compiling until it is named here and its carrying is asserted.
   const auto& [kind, direction, heldColor, intensity, ground, range, innerAngle,
-               outerAngle, lightLink, shadowLink] = heldLight;
+               outerAngle, lightLink, shadowLink, castShadow, shadow] =
+      heldLight;
   EXPECT_EQ(kind, LightKind::Spot);
   EXPECT_EQ(direction, glm::vec3(0.2f, -1, 0.1f));
   EXPECT_EQ(heldColor.value(), (material::Color{0.5f, 0.25f, 2, 0.75f}));
@@ -196,6 +199,8 @@ TEST(Light, AHeldLightKeepsEveryFieldAndLetsGoOfItsLiveValues) {
   EXPECT_FLOAT_EQ(outerAngle, 33);
   EXPECT_EQ(lightLink, Collection{.include = {"props"}});
   EXPECT_EQ(shadowLink, Collection{.include = {"walls"}});
+  EXPECT_TRUE(castShadow);
+  EXPECT_EQ(shadow, (LightShadow{.bias = 2}));
 
   // Every animatable is a constant now, and the live values it was read
   // from move on without it.

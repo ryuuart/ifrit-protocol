@@ -164,6 +164,33 @@ dg::ITexture* Gpu::sceneColorForReading() {
   return sceneColor;
 }
 
+dg::ITexture* Gpu::shadowAtlasAt(int side) {
+  if (shadowAtlas && shadowAtlasSide >= side) return shadowAtlas;
+  if (side <= 0 || !device->renderDevice()) return nullptr;
+  shadowAtlasView.Release();
+  shadowAtlas.Release();
+  shadowAtlasSide = 0;
+  dg::TextureDesc desc;
+  desc.Name = "world shadow atlas";
+  desc.Type = dg::RESOURCE_DIM_TEX_2D;
+  desc.Width = desc.Height = (dg::Uint32)side;
+  desc.Format = kDepthFormat;
+  desc.BindFlags = dg::BIND_DEPTH_STENCIL | dg::BIND_SHADER_RESOURCE;
+  desc.Usage = dg::USAGE_DEFAULT;
+  device->renderDevice()->CreateTexture(desc, nullptr, &shadowAtlas);
+  if (!shadowAtlas) return nullptr;
+  dg::TextureViewDesc view;
+  view.ViewType = dg::TEXTURE_VIEW_SHADER_RESOURCE;
+  view.Format = kDepthFormat;
+  shadowAtlas->CreateView(view, &shadowAtlasView);
+  if (!shadowAtlasView) {
+    shadowAtlas.Release();
+    return nullptr;
+  }
+  shadowAtlasSide = side;
+  return shadowAtlas;
+}
+
 sk_sp<SkImage> Gpu::read(std::string_view name) {
   dg::ITexture* texture = current(name);
   if (!texture) texture = previous(name);

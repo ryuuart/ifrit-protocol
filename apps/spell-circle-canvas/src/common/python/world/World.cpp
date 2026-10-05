@@ -232,6 +232,14 @@ void bindLights(py::module_& module) {
       .def_readwrite("exclude", &world::Collection::exclude)
       .def("everything", &world::Collection::everything)
       .def(py::self == py::self);
+  bindRecord<world::LightShadow>(module, "LightShadow",
+                                 "Unknown shadow field: ")
+      .def_readwrite("bias", &world::LightShadow::bias)
+      .def_readwrite("normalBias", &world::LightShadow::normalBias)
+      .def_readwrite("radius", &world::LightShadow::radius)
+      .def_readwrite("mapSize", &world::LightShadow::mapSize)
+      .def_readwrite("distance", &world::LightShadow::distance)
+      .def_readwrite("cascades", &world::LightShadow::cascades);
   py::class_<world::LightDescription>(module, "LightDescription")
       .def_readonly("kind", &world::LightDescription::kind)
       .def_readonly("direction", &world::LightDescription::direction)
@@ -251,7 +259,9 @@ void bindLights(py::module_& module) {
       .def_readonly("innerAngle", &world::LightDescription::innerAngle)
       .def_readonly("outerAngle", &world::LightDescription::outerAngle)
       .def_readonly("lightLink", &world::LightDescription::lightLink)
-      .def_readonly("shadowLink", &world::LightDescription::shadowLink);
+      .def_readonly("shadowLink", &world::LightDescription::shadowLink)
+      .def_readonly("castShadow", &world::LightDescription::castShadow)
+      .def_readonly("shadow", &world::LightDescription::shadow);
   py::class_<world::PlacedLight>(module, "PlacedLight")
       .def_readonly("light", &world::PlacedLight::light)
       .def_readonly("position", &world::PlacedLight::position)
@@ -298,7 +308,10 @@ void bindKinds(py::module_& module) {
   auto mesh = py::class_<world::Mesh, world::Node>(module, "Mesh");
   bindNodeVerbs(mesh);
   bindSurfaceVerbs(mesh);
-  mesh.def("facing", &world::Mesh::facing, py::arg("facing"), fluent);
+  mesh.def("facing", &world::Mesh::facing, py::arg("facing"), fluent)
+      .def("castShadow", &world::Mesh::castShadow, py::arg("casts"), fluent)
+      .def("receiveShadow", &world::Mesh::receiveShadow, py::arg("receives"),
+           fluent);
   module.def(
       "mesh",
       [](geometry::mesh::Mesh triangles) {
@@ -338,36 +351,48 @@ void bindKinds(py::module_& module) {
       .def_property_readonly("description", &world::Light::description);
   module.def(
       "directionalLight",
-      [](const glm::vec3& direction, py::handle tint, py::handle intensity) {
+      [](const glm::vec3& direction, py::handle tint, py::handle intensity,
+         bool castShadow, const world::LightShadow& shadow) {
         return world::directionalLight(
             direction, {.color = lightColor(tint),
-                        .intensity = motionAnimatable(intensity)});
+                        .intensity = motionAnimatable(intensity),
+                        .castShadow = castShadow,
+                        .shadow = shadow});
       },
       py::arg("direction"), py::arg("color") = glm::vec4(1),
-      py::arg("intensity") = 1);
+      py::arg("intensity") = 1, py::arg("castShadow") = false,
+      py::arg("shadow") = world::LightShadow{});
   module.def(
       "pointLight",
-      [](py::handle tint, py::handle intensity, float range) {
+      [](py::handle tint, py::handle intensity, float range, bool castShadow,
+         const world::LightShadow& shadow) {
         return world::pointLight({.color = lightColor(tint),
                                   .intensity = motionAnimatable(intensity),
-                                  .range = range});
+                                  .range = range,
+                                  .castShadow = castShadow,
+                                  .shadow = shadow});
       },
       py::arg("color") = glm::vec4(1), py::arg("intensity") = 1,
-      py::arg("range") = 0);
+      py::arg("range") = 0, py::arg("castShadow") = false,
+      py::arg("shadow") = world::LightShadow{});
   module.def(
       "spotLight",
       [](const glm::vec3& direction, py::handle tint, py::handle intensity,
-         float range, float innerAngle, float outerAngle) {
+         float range, float innerAngle, float outerAngle, bool castShadow,
+         const world::LightShadow& shadow) {
         return world::spotLight(direction,
                                 {.color = lightColor(tint),
                                  .intensity = motionAnimatable(intensity),
                                  .range = range,
                                  .innerAngle = innerAngle,
-                                 .outerAngle = outerAngle});
+                                 .outerAngle = outerAngle,
+                                 .castShadow = castShadow,
+                                 .shadow = shadow});
       },
       py::arg("direction"), py::arg("color") = glm::vec4(1),
       py::arg("intensity") = 1, py::arg("range") = 0, py::arg("innerAngle") = 0,
-      py::arg("outerAngle") = 45);
+      py::arg("outerAngle") = 45, py::arg("castShadow") = false,
+      py::arg("shadow") = world::LightShadow{});
   module.def(
       "ambientLight",
       [](py::handle tint, py::handle intensity) {
@@ -442,6 +467,8 @@ void bindWorldKit(py::module_& kit) {
             self.fillColor = material::Color(color(value));
           })
       .def_readwrite("ambientIntensity", &Rig::ambientIntensity)
+      .def_readwrite("keyCastsShadow", &Rig::keyCastsShadow)
+      .def_readwrite("keyShadow", &Rig::keyShadow)
       .def_property(
           "ambientColor", [](const Rig& self) { return self.ambientColor; },
           [](Rig& self, py::handle value) {
@@ -658,7 +685,8 @@ void bindWorld(py::module_& root) {
            {"aliased", &world::SceneStats::aliased},
            {"surfaces", &world::SceneStats::surfaces},
            {"texturesPainted", &world::SceneStats::texturesPainted},
-           {"texturesSkipped", &world::SceneStats::texturesSkipped}})
+           {"texturesSkipped", &world::SceneStats::texturesSkipped},
+           {"shadowMaps", &world::SceneStats::shadowMaps}})
     stats.def_readonly(name, member);
   py::class_<Scene>(module, "Scene")
       .def(py::init<>())

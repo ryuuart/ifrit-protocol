@@ -27,6 +27,13 @@ namespace sigil::world::diligent {
  *  to compile, which is reported once. */
 const material::slang::Compiled& scaffold(bool lit);
 
+/** THE SHADOW STAGE'S SCAFFOLD: depth and nothing else, for a body whose
+ *  surface does not decide where it covers — one program, and so one
+ *  pipeline, for every such body — or, with @p coverage, depth only where
+ *  the colour and the map the frame extracted cover at least one half.
+ *  Empty when it failed to compile, which is reported once. */
+const material::slang::Compiled& shadowScaffold(bool coverage);
+
 /** THE SKY ITSELF, as one triangle over the whole target: the same
  *  scaffold text, compiled at its other pair of entry points. It is a
  *  pass rather than a body because a body would need a mesh, a placement

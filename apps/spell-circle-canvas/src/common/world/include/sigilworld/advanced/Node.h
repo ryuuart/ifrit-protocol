@@ -140,6 +140,10 @@ struct NodeDescription {
   material::Backface backface = material::Backface::Hidden;
   /** Whether a body turns to face the camera. */
   Facing facing = Facing::None;
+  /** Whether a body blocks the lights that cast shadows. */
+  bool castShadow = true;
+  /** Whether the shadows those lights cast darken a body. */
+  bool receiveShadow = true;
   /** The one surface. */
   std::optional<::sigil::material::Material> material;
   /** …or the per-face slots, in slot order. A node carries one form or

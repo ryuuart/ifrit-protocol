@@ -7,7 +7,12 @@
  * stands and aims its -Z, which is the axis UsdLux opens a cone around,
  * and a dome's +Y, which is a hemisphere's up; `sigil:range` gives the
  * range a UsdLux light has no word for, and `sigil:lightLink` and
- * `sigil:shadowLink` the links.
+ * `sigil:shadowLink` the links. A directional, point or spot light casts
+ * where the prim applies UsdLux's shadow schema with `shadow:enable` on,
+ * its shadow made as the `sigil:shadow…` custom data says; a prim that
+ * does not apply the schema casts nothing, which keeps a stage authored
+ * without shadows in mind looking as it was authored, though UsdLux's own
+ * fallback for the switch is on.
  *
  * UsdLux colour is linear and is encoded on the way in, as a light's
  * colour is typed; a sphere light's intensity is the radiance of its
@@ -24,10 +29,12 @@
 #include <pxr/usd/usdLux/distantLight.h>
 #include <pxr/usd/usdLux/domeLight.h>
 #include <pxr/usd/usdLux/lightAPI.h>
+#include <pxr/usd/usdLux/shadowAPI.h>
 #include <pxr/usd/usdLux/shapingAPI.h>
 #include <pxr/usd/usdLux/sphereLight.h>
 
 #include <glm/geometric.hpp>
+#include <type_traits>
 
 #include "GfMatrix.h"
 #include "ReadContext.h"
@@ -55,6 +62,27 @@ world::Collection linkOf(const UsdPrim& prim, const char* key) {
   terms(std::string(key) + ":include", link.include);
   terms(std::string(key) + ":exclude", link.exclude);
   return link;
+}
+
+/** Whether a light casts, and how its shadow is made: UsdLux's switch,
+ *  where the prim applies the schema, and the custom data beside it. */
+void readShadow(const UsdPrim& prim, world::LightDescription& light) {
+  if (!prim.HasAPI<UsdLuxShadowAPI>()) return;
+  bool enabled = false;
+  if (const UsdAttribute attr = UsdLuxShadowAPI(prim).GetShadowEnableAttr())
+    attr.Get(&enabled);
+  light.castShadow = enabled;
+  const auto number = [&prim](const char* key, auto& into) {
+    const VtValue stored = prim.GetCustomDataByKey(TfToken(key));
+    using Value = std::decay_t<decltype(into)>;
+    if (stored.IsHolding<Value>()) into = stored.UncheckedGet<Value>();
+  };
+  number("sigil:shadowBias", light.shadow.bias);
+  number("sigil:shadowNormalBias", light.shadow.normalBias);
+  number("sigil:shadowRadius", light.shadow.radius);
+  number("sigil:shadowMapSize", light.shadow.mapSize);
+  number("sigil:shadowDistance", light.shadow.distance);
+  number("sigil:shadowCascades", light.shadow.cascades);
 }
 
 }  // namespace
@@ -108,6 +136,7 @@ std::optional<world::PlacedLight> readLight(const UsdPrim& prim,
     return placed;
   }
 
+  readShadow(prim, light);
   if (distant) {
     light.kind = world::LightKind::Directional;
     return placed;

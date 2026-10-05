@@ -96,6 +96,35 @@ using ::sigil::geometry::device::MeshBuffers;
 using ::sigil::geometry::device::Pipeline;
 using ::sigil::geometry::device::PipelineKey;
 
+/** ONE LIGHT'S SHADOW MAP, as the shadow stage drew it and the shading
+ *  reads it: the light, the projection that carried the world into the
+ *  map, the square of the atlas it occupies, and what a stored depth
+ *  means. */
+struct ShadowMap {
+  const PlacedLight* light = nullptr;
+  /** World to the light's clip space, depth zero at its near plane. */
+  glm::mat4 viewProjection{1.0f};
+  /** The tile's top-left corner in the atlas, and its side, in texels. */
+  int x = 0;
+  int y = 0;
+  int size = 0;
+  float near = 0.0f;
+  float far = 1.0f;
+  bool perspective = false;
+  /** One of the six faces of a point light's map, which stand in the
+   *  atlas one after another in the order +x, -x, +y, -y, +z, -z. */
+  bool cube = false;
+  /** The width one texel covers: everywhere in an orthographic map, at a
+   *  distance of one unit from the light in a perspective one. */
+  float texel = 0.0f;
+  /** The share of the map over which a shadow fades out at its edge. */
+  float fade = 0.0f;
+  /** ON THE FIRST OF A DIRECTIONAL LIGHT'S CASCADES, which follow it in
+   *  the atlas: how far in front of the camera each one reaches, zero past
+   *  the last. Zero throughout on every other map. */
+  glm::vec4 ends{0.0f};
+};
+
 /** THE EXECUTOR'S STATE, shared by every copy of the runtime value one
  *  call made. */
 struct Gpu {
@@ -150,6 +179,16 @@ struct Gpu {
    *  one pass cannot be handed the same one. */
   std::vector<dg::RefCntAutoPtr<dg::ITexture>> scratch;
   ::sigil::geometry::device::PipelineCache pipelines;
+  /** THE SHADOW ATLAS: one depth texture holding every casting light's
+   *  map, each in a square tile of its own, made on the first frame with
+   *  a light that casts and kept while it is large enough. */
+  dg::RefCntAutoPtr<dg::ITexture> shadowAtlas;
+  /** …read through a view of the depth format itself. */
+  dg::RefCntAutoPtr<dg::ITextureView> shadowAtlasView;
+  int shadowAtlasSide = 0;
+  /** The maps the geometry pass under way drew, empty when no light in it
+   *  casts. */
+  std::vector<ShadowMap> shadows;
 
   // ---- what the whole of it is made of (Gpu.cpp) ----
   /** Sizes the frame's targets to @p size, dropping everything made at
@@ -185,6 +224,10 @@ struct Gpu {
   /** The copy of the lit colour a surface that sees through itself
    *  reads, made on the first ask; null where the device refused it. */
   dg::ITexture* sceneColorForReading();
+  /** The shadow atlas at @p side texels or more a side, made on the first
+   *  ask and again when a larger one is asked for; null where the device
+   *  refused it. */
+  dg::ITexture* shadowAtlasAt(int side);
 };
 
 /** The number the programs read a tone curve by. */

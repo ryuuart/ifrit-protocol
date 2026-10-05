@@ -86,12 +86,14 @@ world::PlacedLight lampLight() {
 }
 
 world::PlacedLight beamLight() {
-  world::Light beam =
-      world::spotLight({0, -1, 0}, {.color = material::Color{1, 0.5f, 0, 1},
-                                    .intensity = 4.0f,
-                                    .range = 500.0f,
-                                    .innerAngle = 28.0f,
-                                    .outerAngle = 40.0f});
+  world::Light beam = world::spotLight(
+      {0, -1, 0}, {.color = material::Color{1, 0.5f, 0, 1},
+                   .intensity = 4.0f,
+                   .range = 500.0f,
+                   .innerAngle = 28.0f,
+                   .outerAngle = 40.0f,
+                   .castShadow = true,
+                   .shadow = {.bias = 2.0f, .radius = 3.0f, .mapSize = 1024}});
   beam.lightLink(world::Collection{.include = {"props"}, .exclude = {"/rig"}});
   return placed(beam, {0, 80, 0});
 }
@@ -463,6 +465,13 @@ TEST(UsdRead, ASpotComesBackWithItsConeAndTheInnerEdgeTheSoftnessGivesIt) {
   EXPECT_FLOAT_EQ(back->light.range, 500.0f);
   // Its light link comes back term for term.
   EXPECT_EQ(back->light.lightLink, beamLight().light.lightLink);
+  // …and so does its shadow: UsdLux's switch, and how it is made.
+  EXPECT_TRUE(back->light.castShadow);
+  EXPECT_EQ(back->light.shadow, beamLight().light.shadow);
+  // A light that does not cast says so, and comes back casting nothing.
+  const world::PlacedLight* sun = lightAt(*lights, "/World/sun");
+  ASSERT_TRUE(sun);
+  EXPECT_FALSE(sun->light.castShadow);
 }
 
 TEST(UsdRead, ACameraComesBackSeeingWhatItSaw) {

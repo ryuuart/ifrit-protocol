@@ -3,6 +3,7 @@
  * and the intensity that delivers a strength at a distance.
  */
 
+#include <sigilmaterial/advanced/Program.h>  // reportOnce
 #include <sigilmotion/bind/Binding.h>
 #include <sigilworld/advanced/Light.h>
 #include <sigilworld/node/Light.h>
@@ -11,6 +12,7 @@
 #include <cmath>
 #include <glm/geometric.hpp>
 #include <glm/trigonometric.hpp>
+#include <string>
 #include <utility>
 
 namespace sigil::world {
@@ -43,6 +45,27 @@ LightDescription held(const LightDescription& light) {
   out.intensity = motion::Animatable<float>(light.intensity.value());
   out.groundColor =
       motion::Animatable<material::Color>(light.groundColor.value());
+  return out;
+}
+
+std::vector<size_t> shadowCasters(std::span<const PlacedLight> lights) {
+  std::vector<size_t> out;
+  for (size_t i = 0; i < lights.size(); ++i) {
+    const LightDescription& light = lights[i].light;
+    if (!light.castShadow) continue;
+    if (light.kind != LightKind::Directional && light.kind != LightKind::Spot &&
+        light.kind != LightKind::Point)
+      continue;
+    if (out.size() >= kShadowCasters) {
+      material::reportOnce(
+          "world.shadow.budget",
+          "more than " + std::to_string(kShadowCasters) +
+              " lights ask to cast shadows in one frame; the ones past that "
+              "many, in the order the frame placed them, cast nothing");
+      continue;
+    }
+    out.push_back(i);
+  }
   return out;
 }
 
@@ -113,14 +136,18 @@ Light directionalLight(glm::vec3 direction, DirectionalLightOptions options) {
   return lightNode({.kind = LightKind::Directional,
                     .direction = direction,
                     .color = std::move(options.color),
-                    .intensity = std::move(options.intensity)});
+                    .intensity = std::move(options.intensity),
+                    .castShadow = options.castShadow,
+                    .shadow = options.shadow});
 }
 
 Light pointLight(PointLightOptions options) {
   return lightNode({.kind = LightKind::Point,
                     .color = std::move(options.color),
                     .intensity = std::move(options.intensity),
-                    .range = options.range});
+                    .range = options.range,
+                    .castShadow = options.castShadow,
+                    .shadow = options.shadow});
 }
 
 Light spotLight(glm::vec3 direction, SpotLightOptions options) {
@@ -130,7 +157,9 @@ Light spotLight(glm::vec3 direction, SpotLightOptions options) {
                     .intensity = std::move(options.intensity),
                     .range = options.range,
                     .innerAngle = options.innerAngle,
-                    .outerAngle = options.outerAngle});
+                    .outerAngle = options.outerAngle,
+                    .castShadow = options.castShadow,
+                    .shadow = options.shadow});
 }
 
 Light ambientLight(AmbientLightOptions options) {

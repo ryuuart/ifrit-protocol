@@ -1759,3 +1759,49 @@ Wanted: an optional tangent lane — a mesh primitive the generators fill
 and the vertex layout carries when present — read in preference to the
 derivative frame. A device test should brush a sphere of few segments and
 assert the highlight varies smoothly across a triangle edge.
+
+## A directional light's cascades are refitted every frame
+
+`fitCascades` and `fitDirectional` in
+`src/common/world/diligent/Geometry.cpp` fit each cascade to the box of
+what the camera sees of the set in its slice, snapped to whole texels.
+The box changes size as the camera turns, so the texel size changes and a
+still shadow shimmers along its edges while the camera moves. The
+intended fit is a bounding sphere of each slice, whose size does not
+change with the camera's turn, snapped in the light's own space. A test
+should turn the camera a few degrees over a still set and assert that a
+shadow edge seen at the same world point moves by no more than a pixel.
+
+## A transmissive body casts no shadow at all
+
+`casts` in `src/common/world/diligent/Geometry.cpp` leaves out every body
+that sees through itself, so a glass, a water surface or a tinted slab
+lets the whole of a light through, uncoloured. The intended behaviour is
+a shadow that keeps what the body transmits: tinted by its base colour
+and its attenuation over its thickness, and partial where its
+transmission is. It needs a coloured shadow map beside the depth atlas,
+or a transmittance read through the body. A test should stand a green
+transmissive slab between a casting light and a white plate and assert
+that the plate behind it is darker than beside it and greener than red.
+
+## A shadow's softness does not widen with distance from its caster
+
+The filter in `shadowAt` in `src/common/world/diligent/shaders/Surface.slang`
+spreads every edge over the same few texels, so a shadow beneath a
+resting body is as soft as one thrown far across the ground. Real
+penumbrae widen with the distance between caster and receiver. The
+intended form searches the map for the blockers around a point and
+scales the filter by their distance and the light's size. A test should
+compare the edge width, in pixels, of a shadow cast from a card 10 units
+above a plate with one cast from 100 units above, and assert the second
+is wider.
+
+## Per-body shadow flags do not reach a USD stage
+
+`Writer::mesh` in `src/common/usd/write/Mesh.cpp` writes geometry,
+placement and material, and nothing of a body's `castShadow` or
+`receiveShadow`; a stage read back casts and receives everywhere. The
+lights' own shadow switch and settings are written. The intended mapping
+writes a body that opts out as custom data on its prim, or folds it into
+each casting light's shadow link. A test should write a mesh with
+`castShadow(false)` and assert that the body read back carries the flag.

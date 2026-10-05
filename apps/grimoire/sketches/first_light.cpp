@@ -94,7 +94,8 @@ struct FirstLight {
     return world::group({world::directionalLight(
                              {-0.45f, -0.8f, -0.4f},
                              {.color = material::Color{1.0f, 0.96f, 0.9f, 1.0f},
-                              .intensity = 2.4f})
+                              .intensity = 2.4f,
+                              .castShadow = true})
                              .key("sun"),
                          world::pointLight(
                              {.color = material::Color{0.45f, 0.6f, 1.0f, 1.0f},

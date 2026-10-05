@@ -35,6 +35,12 @@
  * triangles give, which an additive surface does not mind and a translucent one
  * laid over may.
  *
+ * THE SHADOW STAGE COMES BEFORE ALL OF IT. In a pass under a light that
+ * casts, every such light's map is drawn into one depth atlas before the
+ * target is opened: each body that casts, seen from the light, writing
+ * depth and nothing else. A pass under no light that casts draws no map,
+ * binds no atlas and is the pass it would be without this stage.
+ *
  * Every body writes LIGHT into a target holding light; the camera's
  * reading is the final stage's.
  */
@@ -56,10 +62,15 @@
 #include <sigilworld/diligent/Runtime.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstring>
+#include <glm/common.hpp>
+#include <glm/ext/matrix_clip_space.hpp>
+#include <glm/ext/matrix_transform.hpp>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/trigonometric.hpp>
+#include <limits>
 #include <optional>
 #include <span>
 #include <string>
@@ -188,15 +199,19 @@ struct Surface {
   bool lit = true;
 };
 
-Surface surfaceOf(const material::Material* material, bool lit,
-                  double seconds) {
+Surface surfaceOf(const material::Material* material, bool lit, double seconds,
+                  bool shadow = false) {
   Surface out;
-  out.lit = lit;
+  out.lit = lit && !shadow;
+  const auto fallback = [&] {
+    return shadow ? &shadowScaffold(/*coverage=*/true) : &scaffold(out.lit);
+  };
   if (!material) {
-    out.program = &scaffold(lit);
+    out.program = fallback();
     return out;
   }
-  const material::Variant variant{lit ? kVariantLit : 0u};
+  const material::Variant variant{shadow ? kVariantShadow
+                                         : (lit ? kVariantLit : 0u)};
   // THE FRAME'S CLOCK reaches the body: a material that reads time — a
   // flipbook, a flow — is shown at the time the frame was described at.
   material::FrameData frame;
@@ -210,7 +225,7 @@ Surface surfaceOf(const material::Material* material, bool lit,
     // The cache has already reported the recipe and the target; the body
     // it would have painted is drawn in the colour the frame extracted,
     // which is what the tier with no compiler answers with too.
-    out.program = &scaffold(lit);
+    out.program = fallback();
     return out;
   }
   out.program = &program->compiled();
@@ -278,6 +293,61 @@ void writeInstancing(material::slang::Uniforms& uniforms, const glm::mat4& view,
   uniforms.set("uInstanceAttributeKeys", keys, 4);
 }
 
+/** THE SHADOWS a lit draw reads: the maps the pass drew, carried from the
+ *  space the shading is written in, and which of @p lights reads which.
+ *  A body that receives none, or a pass that drew none, says so and is
+ *  shaded exactly as it would be without them. */
+void writeShadows(material::slang::Uniforms& uniforms, const Gpu& gpu,
+                  const glm::mat4& view,
+                  std::span<const PlacedLight* const> lights, bool receives) {
+  const bool reads =
+      receives && !gpu.shadows.empty() && gpu.shadowAtlasSide > 0;
+  const float side = (float)std::max(gpu.shadowAtlasSide, 1);
+  uniforms.set("uShadowDials", 1.0f / side, reads ? 1.0f : 0.0f,
+               (float)gpu.shadows.size(), 0.0f);
+  if (!reads) return;
+  // The shading's points stand in the camera's view space, so each map's
+  // projection is taken from there.
+  const glm::mat4 back = glm::inverse(view);
+  for (size_t m = 0; m < gpu.shadows.size(); ++m) {
+    const ShadowMap& map = gpu.shadows[m];
+    const glm::mat4 carried = map.viewProjection * back;
+    for (int r = 0; r < 4; ++r) {
+      const float row[4] = {carried[0][r], carried[1][r], carried[2][r],
+                            carried[3][r]};
+      uniforms.setElement("uShadowMatrix", m * 4 + (size_t)r, row, 4);
+    }
+    const float tile[4] = {(float)map.x / side, (float)map.y / side,
+                           (float)map.size / side, (float)map.size / side};
+    uniforms.setElement("uShadowTile", m, tile, 4);
+    const float depth[4] = {map.near, map.far,
+                            map.cube          ? 2.0f
+                            : map.perspective ? 1.0f
+                                              : 0.0f,
+                            map.texel};
+    uniforms.setElement("uShadowDepth", m, depth, 4);
+    const LightShadow& stated = map.light->light.shadow;
+    const float bias[4] = {std::max(stated.bias, 0.0f),
+                           std::max(stated.normalBias, 0.0f),
+                           std::max(stated.radius, 0.0f), map.fade};
+    uniforms.setElement("uShadowBias", m, bias, 4);
+    const float ends[4] = {map.ends.x, map.ends.y, map.ends.z, map.ends.w};
+    uniforms.setElement("uShadowCascade", m, ends, 4);
+  }
+  float slots[16];
+  std::fill(std::begin(slots), std::end(slots), -1.0f);
+  // A point light's six faces stand side by side; the light reads the
+  // first and the shading finds the face it needs from there.
+  for (size_t i = 0; i < lights.size() && i < 16; ++i)
+    for (size_t m = 0; m < gpu.shadows.size(); ++m)
+      if (gpu.shadows[m].light == lights[i]) {
+        slots[i] = (float)m;
+        break;
+      }
+  for (size_t row = 0; row < 4; ++row)
+    uniforms.setElement("uLightShadow", row, slots + row * 4, 4);
+}
+
 /** Everything a draw's scaffold needs: where the body stands, where the
  *  camera is, what is shining on it, and how the camera reads it. */
 void writeScaffold(material::slang::Uniforms& uniforms,
@@ -286,7 +356,7 @@ void writeScaffold(material::slang::Uniforms& uniforms,
                    const glm::mat4& model, glm::vec4 baseColor,
                    std::span<const PlacedLight* const> lights,
                    const Environment& sky, int levels, bool lit,
-                   bool depthReadable) {
+                   bool depthReadable, bool receives) {
   uniforms.set("uViewProj", viewProj);
   uniforms.set("uModel", model);
   uniforms.set("uBaseColor", baseColor.r, baseColor.g, baseColor.b,
@@ -324,6 +394,7 @@ void writeScaffold(material::slang::Uniforms& uniforms,
   for (size_t i = 0; i < count; ++i) writeLight(uniforms, i, *lights[i], view);
   uniforms.set("uLightCount", (float)count,
                (float)material::kEnvironmentBrdfSize, 0.0f, 0.0f);
+  writeShadows(uniforms, gpu, view, lights.first(count), receives);
 }
 
 /** HOW ONE BODY COMPOSITES: its blend, whether it writes depth, and
@@ -405,6 +476,8 @@ bool surfaceSlot(std::string_view slot) {
 constexpr std::string_view kSceneDepthSlot = "uSceneDepth";
 /** …and the one the scene behind a surface that sees through itself is. */
 constexpr std::string_view kSceneColorSlot = "uSceneColor";
+/** …and the one every light's shadow map is read through. */
+constexpr std::string_view kShadowSlot = "uShadowAtlas";
 
 /** What one body is drawn as: its mesh, the artefact number its buffers
  *  are held under, and the instances it is repeated at — null for one
@@ -416,16 +489,26 @@ struct Shape {
   Facing facing = Facing::None;
 };
 
+/** A BODY DRAWN INTO A SHADOW MAP: the light's projection, and whether
+ *  the body's surface decides where it covers. */
+struct Caster {
+  glm::mat4 viewProjection{1.0f};
+  bool coverage = false;
+};
+
 /** One body, drawn. @p map is the texture it is dressed with, or null;
  *  @p sceneDepth the copy of the opaque depth, or null; @p sceneColor the
- *  copy of the scene a body that sees through itself reads, or null. */
+ *  copy of the scene a body that sees through itself reads, or null;
+ *  @p caster, where the body is drawn into a shadow map rather than the
+ *  picture; @p receives, whether the shadows the pass drew darken it. */
 void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
               const Shape& shape, const glm::mat4& model, glm::vec4 baseColor,
               const material::Material* worn, const material::Texture* map,
               std::span<const PlacedLight* const> lights,
               const Environment& sky, bool lit, const Blending& blending,
               bool cull, dg::ITexture* sceneDepth,
-              dg::ITexture* sceneColor = nullptr) {
+              dg::ITexture* sceneColor = nullptr,
+              const Caster* caster = nullptr, bool receives = true) {
   const MeshBuffers* buffers = gpu.meshes.upload(shape.artefact, *shape.mesh);
   if (!buffers) return;
   const device::InstanceBuffers* instances =
@@ -439,13 +522,29 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
       worn ? std::optional<material::Material>(material::inlined(*worn))
            : std::nullopt;
   const material::Material* material = inlined ? &*inlined : nullptr;
-  const Surface surface = surfaceOf(material, lit, gpu.seconds);
+  // INTO A SHADOW MAP, a body whose surface does not decide where it
+  // covers is drawn with the one depth-only program; one whose surface
+  // does is asked, through its own program's shadow build, only that.
+  Surface surface;
+  if (caster && !caster->coverage)
+    surface.program = &shadowScaffold(/*coverage=*/false);
+  else
+    surface = surfaceOf(material, lit, gpu.seconds, caster != nullptr);
+  if (caster) lit = false;
   if (!surface.program || surface.program->empty()) return;
 
   PipelineKey key{surface.program, blending.blend, true, blending.depthWrite,
                   false,           false,          cull};
   key.target = kRadianceFormat;
   key.instanced = true;
+  if (caster) {
+    // Depth and no colour; both faces, so a card blocks the light from
+    // behind as well as in front.
+    key = PipelineKey{
+        surface.program, SkBlendMode::kSrc, true, true, false, false, false};
+    key.target = dg::TEX_FORMAT_UNKNOWN;
+    key.instanced = true;
+  }
   const Pipeline* pipeline = gpu.pipelines.pipeline(key);
   if (!pipeline) return;
 
@@ -461,8 +560,10 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
   const int levels = panorama ? (int)panorama->GetDesc().MipLevels : 0;
 
   material::slang::Uniforms uniforms(*surface.program);
-  writeScaffold(uniforms, *surface.program, gpu, viewProj, view, model,
-                baseColor, lights, sky, levels, lit, sceneDepth != nullptr);
+  writeScaffold(uniforms, *surface.program, gpu,
+                caster ? caster->viewProjection : viewProj, view, model,
+                baseColor, lights, sky, levels, lit, sceneDepth != nullptr,
+                receives);
   writeInstancing(uniforms, view, shape.instances ? shape.facing : Facing::None,
                   *instances);
   writeMaterial(uniforms, surface);
@@ -544,6 +645,16 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
     }
     if (slot == kBrdfSlot) {
       textures[i] = gpu.maps.sample(brdfTable());
+      continue;
+    }
+    // …and so is the shadow atlas, read texel by texel through a view of
+    // its depth format.
+    if (slot == kShadowSlot) {
+      if (!gpu.shadows.empty() && gpu.shadowAtlas) {
+        textures[i] = gpu.shadowAtlas;
+        views[i] = gpu.shadowAtlasView;
+      }
+      samplers[i] = gpu.shared.samplerFor(SkFilterMode::kNearest, false);
       continue;
     }
     if (!material) continue;
@@ -803,7 +914,383 @@ void drawBodies(Gpu& gpu, const View& view, const glm::mat4& viewProj,
           lit && body.lit, blending,
           /*cull=*/body.backface == material::Backface::Hidden,
           blending.fades || phase == Phase::SeenThrough ? sceneDepth : nullptr,
-          phase == Phase::SeenThrough ? sceneColor : nullptr);
+          phase == Phase::SeenThrough ? sceneColor : nullptr, nullptr,
+          body.receiveShadow);
+    }
+  }
+}
+
+// ---- the shadow stage -------------------------------------------------
+//
+// THE FITTING IS WRITTEN HERE. DiligentFX's ShadowMapManager fits cascades
+// for one directional light into a texture array of its own; a frame here
+// holds directional and spot lights side by side, each with its own map
+// size, shadow link and bias, in one atlas the surface program reads with
+// the rest of its slots — which that manager neither allocates nor fits.
+
+/** An axis-aligned box in the world, empty until a point is added. */
+struct Box {
+  glm::vec3 low{std::numeric_limits<float>::max()};
+  glm::vec3 high{std::numeric_limits<float>::lowest()};
+  void add(const glm::vec3& p) {
+    low = glm::min(low, p);
+    high = glm::max(high, p);
+  }
+  void add(const Box& other) {
+    if (other.empty()) return;
+    add(other.low);
+    add(other.high);
+  }
+  [[nodiscard]] bool empty() const { return low.x > high.x; }
+  [[nodiscard]] glm::vec3 corner(int i) const {
+    return {(i & 1) ? high.x : low.x, (i & 2) ? high.y : low.y,
+            (i & 4) ? high.z : low.z};
+  }
+};
+
+/** WHERE @p body STANDS in the world: its mesh's box, grown to reach every
+ *  instance it is repeated at, carried through its placement. */
+Box boxOf(const Draw& body) {
+  Box out;
+  if (!body.mesh || body.mesh->positions.empty()) return out;
+  glm::vec3 low;
+  glm::vec3 high;
+  body.mesh->bounds(&low, &high);
+  Box local;
+  if (body.instances && body.instances->size()) {
+    // Each copy may turn, so it is given the sphere its stamp could sweep.
+    const float reach = std::max(glm::length(low), glm::length(high));
+    const geometry::mesh::Instances& copies = *body.instances;
+    for (size_t i = 0; i < copies.size(); ++i) {
+      const glm::vec3 scale =
+          i < copies.scales.size() ? glm::abs(copies.scales[i]) : glm::vec3(1);
+      const float grown = reach * std::max({scale.x, scale.y, scale.z});
+      local.add(copies.positions[i] - glm::vec3(grown));
+      local.add(copies.positions[i] + glm::vec3(grown));
+    }
+  } else {
+    local.add(low);
+    local.add(high);
+  }
+  for (int i = 0; i < 8; ++i)
+    out.add(glm::vec3(body.world * glm::vec4(local.corner(i), 1.0f)));
+  return out;
+}
+
+/** WHETHER @p body BLOCKS LIGHT: it says it casts, it is lit, and it is
+ *  laid over writing depth. A body that adds, multiplies, screens, fades or
+ *  writes no depth, one that sees through itself, and one that is its own
+ *  light cast nothing. */
+bool casts(const Draw& body) {
+  if (!body.mesh || !body.castShadow || !body.lit) return false;
+  if (seesThrough(body, false)) return false;
+  const Blending blending = blendingOf(body, body.baseColor, false);
+  if (blended(body, blending, false)) return false;
+  return blending.depthWrite;
+}
+
+/** WHETHER @p body's SURFACE DECIDES WHERE IT COVERS: it is dressed with a
+ *  map, whose alpha may cut it out, or with an opacity map. */
+bool coverageOf(const Draw& body) {
+  if (body.texture) return true;
+  return body.material &&
+         material::surface::map(*body.material,
+                                material::surface::kOpacitySlot) != nullptr;
+}
+
+/** A view from @p eye toward @p ahead, with an up that is never parallel
+ *  to it. */
+glm::mat4 lightView(const glm::vec3& eye, const glm::vec3& ahead) {
+  const glm::vec3 up =
+      std::abs(ahead.y) > 0.99f ? glm::vec3(0, 0, 1) : glm::vec3(0, 1, 0);
+  return glm::lookAtRH(eye, eye + ahead, up);
+}
+
+/** A projection's depth taken from minus one to one onto zero to one, the
+ *  range the device stores, near at zero. */
+glm::mat4 toDeviceDepth(const glm::mat4& projection) {
+  glm::mat4 depth(1.0f);
+  depth[2][2] = 0.5f;
+  depth[3][2] = 0.5f;
+  return depth * projection;
+}
+
+/** THE CORNERS OF WHAT THE CAMERA SEES between @p from and @p to in front
+ *  of it, each measured along the way it looks; zero for either is the
+ *  near or the far plane. */
+std::array<glm::vec3, 8> cameraCorners(const View& view, float from, float to) {
+  const glm::mat4 inverse = glm::inverse(clipProjection(view));
+  std::array<glm::vec3, 8> out;
+  const glm::vec3 eye = view.camera.eye;
+  const glm::vec3 forward = glm::normalize(view.camera.target - eye);
+  for (int i = 0; i < 4; ++i) {
+    const glm::vec2 ndc{(i & 1) ? 1.0f : -1.0f, (i & 2) ? 1.0f : -1.0f};
+    const glm::vec4 nearPoint = inverse * glm::vec4(ndc, 0.0f, 1.0f);
+    const glm::vec4 farPoint = inverse * glm::vec4(ndc, 1.0f, 1.0f);
+    const glm::vec3 a = glm::vec3(nearPoint) / nearPoint.w;
+    const glm::vec3 b = glm::vec3(farPoint) / farPoint.w;
+    const float along = glm::dot(b - a, forward);
+    const float start = glm::dot(a - eye, forward);
+    // The point of this corner's ray at a distance in front of the eye.
+    const auto at = [&](float distance, glm::vec3 otherwise) {
+      if (distance <= 0.0f || along <= 0.0f) return otherwise;
+      return a + (b - a) * std::clamp((distance - start) / along, 0.0f, 1.0f);
+    };
+    out[(size_t)i] = at(from, a);
+    out[(size_t)i + 4] = at(to, b);
+  }
+  return out;
+}
+
+/** HOW FAR IN FRONT OF THE CAMERA a directional light's maps reach: the
+ *  distance its shadow states, or the far side of the set. */
+float shadowReach(const PlacedLight& light, const View& view,
+                  const Box& scene) {
+  if (light.light.shadow.distance > 0.0f) return light.light.shadow.distance;
+  const glm::vec3 eye = view.camera.eye;
+  const glm::vec3 forward = glm::normalize(view.camera.target - eye);
+  float reach = 0.0f;
+  for (int i = 0; i < 8; ++i)
+    reach = std::max(reach, glm::dot(scene.corner(i) - eye, forward));
+  return std::min(reach, view.camera.zFar);
+}
+
+/** A DIRECTIONAL LIGHT'S MAP: an orthographic view along the light, square
+ *  across, covering what the camera sees of the set between @p from and
+ *  @p to in front of it — zero for either is the near or the far plane —
+ *  and deep enough to hold every body between the light and them. Its
+ *  corner is snapped to whole texels, so a still light's shadow does not
+ *  crawl as the fit moves. */
+ShadowMap fitDirectional(const PlacedLight& light, const View& view,
+                         const Box& scene, int size, float from, float to) {
+  ShadowMap out;
+  out.light = &light;
+  out.size = size;
+  const glm::vec3 ahead = glm::length(light.light.direction) > 1e-5f
+                              ? glm::normalize(light.light.direction)
+                              : glm::vec3(0, -1, 0);
+  const glm::vec3 centre = (scene.low + scene.high) * 0.5f;
+  const float radius =
+      std::max(glm::length(scene.high - scene.low) * 0.5f, 1e-3f);
+  const glm::mat4 looking = lightView(centre - ahead * (radius * 2.0f), ahead);
+  Box sceneSeen;
+  for (int i = 0; i < 8; ++i)
+    sceneSeen.add(glm::vec3(looking * glm::vec4(scene.corner(i), 1.0f)));
+  Box cameraSeen;
+  for (const glm::vec3& corner : cameraCorners(view, from, to))
+    cameraSeen.add(glm::vec3(looking * glm::vec4(corner, 1.0f)));
+  // Across, what the camera sees of the set; deep, the whole set.
+  glm::vec2 low = glm::max(glm::vec2(sceneSeen.low), glm::vec2(cameraSeen.low));
+  glm::vec2 high =
+      glm::min(glm::vec2(sceneSeen.high), glm::vec2(cameraSeen.high));
+  const bool clipped = low.x > sceneSeen.low.x || low.y > sceneSeen.low.y ||
+                       high.x < sceneSeen.high.x || high.y < sceneSeen.high.y;
+  if (low.x >= high.x || low.y >= high.y) {
+    low = glm::vec2(sceneSeen.low);
+    high = glm::vec2(sceneSeen.high);
+  }
+  // A little past the set on every side, so a shadow at its edge is never
+  // the last texel of the map.
+  const float half =
+      std::max(high.x - low.x, high.y - low.y) * 0.5f * 1.02f + 1e-3f;
+  out.texel = 2.0f * half / (float)size;
+  glm::vec2 middle = (low + high) * 0.5f;
+  middle = glm::floor(middle / out.texel) * out.texel;
+  out.near = std::max(-sceneSeen.high.z - radius * 0.01f, 0.0f);
+  out.far = -sceneSeen.low.z + radius * 0.01f;
+  out.viewProjection = toDeviceDepth(glm::orthoRH_NO(
+                           middle.x - half, middle.x + half, middle.y - half,
+                           middle.y + half, out.near, out.far)) *
+                       looking;
+  out.fade = clipped ? 0.05f : 0.0f;
+  return out;
+}
+
+/** A DIRECTIONAL LIGHT'S CASCADES: its reach split along the camera's
+ *  depth into as many slices as its shadow states, each fitted with its
+ *  own map — the slices growing with the distance, three parts of the way
+ *  from even to geometric, so the nearer maps cover less of the set at the
+ *  same size. One cascade is the single map for the whole reach. */
+std::vector<ShadowMap> fitCascades(const PlacedLight& light, const View& view,
+                                   const Box& scene, int size) {
+  const int count = std::clamp(light.light.shadow.cascades, 1, 4);
+  if (count == 1) {
+    const float distance = std::max(light.light.shadow.distance, 0.0f);
+    return {fitDirectional(light, view, scene, size, 0.0f, distance)};
+  }
+  const float near = std::max(view.camera.zNear, 1e-3f);
+  const float far = std::max(shadowReach(light, view, scene), near * 2.0f);
+  std::vector<ShadowMap> out;
+  glm::vec4 ends{0.0f};
+  float from = 0.0f;
+  for (int k = 0; k < count; ++k) {
+    const float share = (float)(k + 1) / (float)count;
+    const float geometric = near * std::pow(far / near, share);
+    const float even = near + (far - near) * share;
+    const float to = k + 1 == count ? far : 0.75f * geometric + 0.25f * even;
+    ShadowMap map = fitDirectional(light, view, scene, size, from, to);
+    // Only the last fades at its edge: every other one hands over to the
+    // next before it reaches it.
+    if (k + 1 < count) map.fade = 0.0f;
+    ends[k] = to;
+    out.push_back(map);
+    from = to;
+  }
+  out.front().ends = ends;
+  return out;
+}
+
+/** A SPOT LIGHT'S MAP: a perspective view from where it stands along where
+ *  it aims, opening a little wider than its cone, reaching its range or,
+ *  with none, the far side of the set. */
+ShadowMap fitSpot(const PlacedLight& light, const Box& scene, int size) {
+  ShadowMap out;
+  out.light = &light;
+  out.size = size;
+  out.perspective = true;
+  const glm::vec3 ahead = glm::length(light.light.direction) > 1e-5f
+                              ? glm::normalize(light.light.direction)
+                              : glm::vec3(0, -1, 0);
+  float far = light.light.range;
+  if (far <= 0.0f) {
+    for (int i = 0; i < 8; ++i)
+      far = std::max(far, glm::length(scene.corner(i) - light.position));
+  }
+  out.far = std::max(far, 1e-2f);
+  out.near = std::max(out.far * 0.002f, 1e-3f);
+  const float opening = std::min(
+      glm::radians(std::max(light.light.outerAngle, 1.0f) * 2.0f + 2.0f),
+      glm::radians(170.0f));
+  out.texel = 2.0f * std::tan(opening * 0.5f) / (float)size;
+  out.viewProjection =
+      toDeviceDepth(glm::perspectiveRH_NO(opening, 1.0f, out.near, out.far)) *
+      lightView(light.position, ahead);
+  return out;
+}
+
+/** THE WIDTH ONE FACE OF A POINT LIGHT'S MAP OPENS beyond a quarter turn,
+ *  as the tangent of its half angle: a little past one, so the filter's
+ *  taps near a face's edge still read that face. */
+constexpr float kFaceReach = 1.05f;
+
+/** A POINT LIGHT'S MAP: six perspective views from where it stands, one
+ *  along each axis each way, every one reaching its range or, with none,
+ *  the far side of the set. The shading reads the face the point stands
+ *  most squarely in front of. */
+std::array<ShadowMap, 6> fitPoint(const PlacedLight& light, const Box& scene,
+                                  int size) {
+  float far = light.light.range;
+  if (far <= 0.0f)
+    for (int i = 0; i < 8; ++i)
+      far = std::max(far, glm::length(scene.corner(i) - light.position));
+  far = std::max(far, 1e-2f);
+  const float near = std::max(far * 0.002f, 1e-3f);
+  const glm::mat4 projection = toDeviceDepth(
+      glm::perspectiveRH_NO(2.0f * std::atan(kFaceReach), 1.0f, near, far));
+  static const glm::vec3 kAxes[6] = {{1, 0, 0},  {-1, 0, 0}, {0, 1, 0},
+                                     {0, -1, 0}, {0, 0, 1},  {0, 0, -1}};
+  std::array<ShadowMap, 6> out;
+  for (size_t face = 0; face < 6; ++face) {
+    ShadowMap& map = out[face];
+    map.light = &light;
+    map.size = size;
+    map.perspective = true;
+    map.cube = true;
+    map.near = near;
+    map.far = far;
+    map.texel = 2.0f * kFaceReach / (float)size;
+    map.viewProjection = projection * lightView(light.position, kAxes[face]);
+  }
+  return out;
+}
+
+/** THE SHADOW STAGE: every casting light's map drawn into the atlas, each
+ *  in its own tile, from the bodies that cast and that its shadow link
+ *  keeps. Draws nothing, and binds nothing afterwards, in a pass under no
+ *  light that casts. */
+void drawShadows(Gpu& gpu, const View& view, const glm::mat4& cameraView) {
+  gpu.shadows.clear();
+  const std::vector<size_t> chosen =
+      shadowCasters(std::span<const PlacedLight>(view.lights));
+  if (chosen.empty()) return;
+  Box scene;
+  std::vector<Box> boxes(view.draws.size());
+  for (size_t i = 0; i < view.draws.size(); ++i) {
+    boxes[i] = boxOf(view.draws[i]);
+    scene.add(boxes[i]);
+  }
+  if (scene.empty()) return;
+
+  // EVERY TILE THE SIZE OF THE LARGEST MAP ASKED FOR, in a square grid
+  // holding one tile per map — six for a point light, one per cascade for
+  // a directional light — and no more than
+  // kAtlasSide texels a side: a frame holding more maps than that fits at
+  // the size asked for draws every one of them smaller. A map asking for
+  // less than its tile draws into the tile's corner.
+  constexpr int kAtlasSide = 4096;
+  int tile = 64;
+  size_t count = 0;
+  for (const size_t index : chosen) {
+    const PlacedLight& light = view.lights[index];
+    tile = std::max(tile, std::clamp(light.light.shadow.mapSize, 64, 2048));
+    count += light.light.kind == LightKind::Point ? 6
+             : light.light.kind == LightKind::Directional
+                 ? (size_t)std::clamp(light.light.shadow.cascades, 1, 4)
+                 : 1;
+  }
+  int across = 1;
+  while ((size_t)(across * across) < count) ++across;
+  tile = std::min(tile, kAtlasSide / across);
+  dg::ITexture* atlas = gpu.shadowAtlasAt(tile * across);
+  if (!atlas) return;
+  const auto place = [&](ShadowMap map) {
+    const int at = (int)gpu.shadows.size();
+    map.x = (at % across) * tile;
+    map.y = (at / across) * tile;
+    gpu.shadows.push_back(map);
+  };
+  for (const size_t index : chosen) {
+    const PlacedLight& light = view.lights[index];
+    const int size = std::clamp(light.light.shadow.mapSize, 64, tile);
+    if (light.light.kind == LightKind::Point) {
+      for (const ShadowMap& face : fitPoint(light, scene, size)) place(face);
+    } else if (light.light.kind == LightKind::Spot) {
+      place(fitSpot(light, scene, size));
+    } else {
+      for (const ShadowMap& slice : fitCascades(light, view, scene, size))
+        place(slice);
+    }
+  }
+
+  dg::IDeviceContext* context = gpu.device->context();
+  dg::ITextureView* dsv = atlas->GetDefaultView(dg::TEXTURE_VIEW_DEPTH_STENCIL);
+  context->SetRenderTargets(0, nullptr, dsv,
+                            dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+  context->ClearDepthStencil(dsv, dg::CLEAR_DEPTH_FLAG, 1.0f, 0,
+                             dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+  const dg::Uint32 side = (dg::Uint32)gpu.shadowAtlasSide;
+  for (const ShadowMap& map : gpu.shadows) {
+    dg::Viewport viewport;
+    viewport.TopLeftX = (float)map.x;
+    viewport.TopLeftY = (float)map.y;
+    viewport.Width = viewport.Height = (float)map.size;
+    viewport.MinDepth = 0.0f;
+    viewport.MaxDepth = 1.0f;
+    context->SetViewports(1, &viewport, side, side);
+    const Collection& link = map.light->light.shadowLink;
+    for (size_t i = 0; i < view.draws.size(); ++i) {
+      const Draw& body = view.draws[i];
+      if (!casts(body)) continue;
+      if (!link.everything() && !link.contains(memberOf(body))) continue;
+      const Caster caster{map.viewProjection, coverageOf(body)};
+      // A body turned to the camera keeps the turn the eye sees it at, so
+      // its shadow is the shape it shows.
+      drawBody(
+          gpu, map.viewProjection, cameraView,
+          Shape{body.geometry, body.mesh, body.instances, body.facing},
+          body.world, body.baseColor, caster.coverage ? body.material : nullptr,
+          caster.coverage ? body.texture : nullptr, {}, view.environment,
+          /*lit=*/false, Blending{}, /*cull=*/false, nullptr, nullptr, &caster);
     }
   }
 }
@@ -823,6 +1310,7 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
 
   const float clearNothing[4] = {0, 0, 0, 0};
   const bool asCoverage = work.realisation == Selection::Mask;
+  gpu.shadows.clear();
   if (asCoverage) {
     // Coverage is where the selection is, not what it looks like: flat
     // white, and nothing else reaches it.
@@ -833,9 +1321,21 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
     return;
   }
 
+  // THE SHADOW STAGE, before the target is opened: the maps every lit
+  // body below reads.
+  drawShadows(gpu, view, viewMatrix);
   // THE CLEAR IS AN AUTHORED COLOUR, so it is filled as the light the
   // final stage turns back into it, and the depth is cleared beside it.
   openTarget(gpu, colour, clearNothing, true);
+  if (!gpu.shadows.empty()) {
+    // The stage drew into tiles of the atlas; the picture is drawn whole.
+    dg::Viewport whole;
+    whole.Width = (float)gpu.extent.width();
+    whole.Height = (float)gpu.extent.height();
+    gpu.device->context()->SetViewports(1, &whole,
+                                        (dg::Uint32)gpu.extent.width(),
+                                        (dg::Uint32)gpu.extent.height());
+  }
   fillTarget(gpu, colour, pass.clear());
   resumeTarget(gpu, colour, true);
   // The PROJECTION alone is what turns a pixel into a ray, and it is the

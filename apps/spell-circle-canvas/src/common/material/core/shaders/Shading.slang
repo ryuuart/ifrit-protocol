@@ -802,6 +802,122 @@ public float occlusion(float ao, float strength) {
   return 1.0 + (min(max(ao, 0.0), 1.0) - 1.0) * s;
 }
 
+// ---- shadows ---------------------------------------------------------
+// A light that casts draws the depth of what blocks it into a map seen
+// from the light. A shaded point is carried into that map, moved out along
+// its normal, compared against the depths stored around it, and the share
+// of the comparisons it passes is how much of that light's direct
+// contribution reaches it. Every length below is in scene units unless it
+// says texels; `texel` is the width one texel of the map covers where the
+// point stands.
+
+/** HOW FAR FROM THE LIGHT a depth stored in its map stands, in scene units.
+ *  A directional light's map is an orthographic projection, whose depth
+ *  runs evenly from `near` at zero to `far` at one; a spot light's
+ *  (`perspective` one) is a perspective projection, whose depth crowds
+ *  toward the near plane. */
+public float shadowDistance(float depth, float near, float far,
+                            float perspective) {
+  float span = far - near;
+  if (perspective > 0.5) {
+    float d = far - depth * span;
+    return d > 0.0 ? near * far / d : far;
+  }
+  return near + depth * span;
+}
+
+/** HOW MUCH NEARER THE LIGHT a stored depth must stand to shadow a point:
+ *  `bias` texels, and a share that grows as the surface turns away from
+ *  the light — its depth changes by the tangent of that angle across a
+ *  texel, over the radius and the one texel more that the filter's taps
+ *  reach — capped so a surface edge-on to the light is not lifted without
+ *  end. */
+public float shadowDepthBias(float bias, float texel, float nDotL,
+                             float radius) {
+  float n = min(max(nDotL, 0.05), 1.0);
+  float slope = min(sqrt(1.0 - n * n) / n, 8.0);
+  return texel * (bias + (max(radius, 1.0) + 1.0) * slope);
+}
+
+/** HOW FAR A POINT IS MOVED out along its normal before it is looked up:
+ *  `normalBias` texels, all of it where the light grazes the surface and
+ *  none where the light meets it square on. */
+public float shadowNormalOffset(float normalBias, float texel, float nDotL) {
+  float n = min(max(nDotL, 0.0), 1.0);
+  return normalBias * texel * sqrt(1.0 - n * n);
+}
+
+/** ONE COMPARISON: one where the point, brought `bias` nearer the light,
+ *  stands no further from it than the depth stored; zero where something
+ *  stored stands between. */
+public float shadowTest(float receiver, float stored, float bias) {
+  return receiver - bias <= stored ? 1.0 : 0.0;
+}
+
+/** FOUR NEIGHBOURING COMPARISONS blended by where the tap falls between
+ *  their texel centres (`f`, in [0, 1] each way), so a shadow's edge
+ *  moves smoothly as the point does rather than a texel at a time. The
+ *  four weights sum to one. */
+public float shadowBilinear(float lit00, float lit10, float lit01,
+                            float lit11, float2 f) {
+  float top = lit00 + (lit10 - lit00) * f.x;
+  float bottom = lit01 + (lit11 - lit01) * f.x;
+  return top + (bottom - top) * f.y;
+}
+
+/** WHERE TAP @p tap (0, 1 or 2) of the filter's three along an axis
+ *  stands from the point, in texels: one radius either side of it and one
+ *  on it. Each of the nine taps weighs a ninth. */
+public float shadowTapOffset(float tap, float radius) {
+  return (tap - 1.0) * radius;
+}
+
+/** …the weight of each of the nine. */
+public float shadowTapWeight() { return 1.0 / 9.0; }
+
+/** WHERE A POINT IN A LIGHT'S OWN MAP (`uv`, zero to one across it) is
+ *  read in the atlas holding every light's map: the tile's corner in
+ *  `tile.xy`, its size in `tile.zw`. */
+public float2 shadowAtlasUv(float2 uv, float4 tile) {
+  return tile.xy + uv * tile.zw;
+}
+
+/** HOW MUCH OF A SHADOW STANDS near the edge of the map it was read from:
+ *  all of it inside, fading to none over the last `width` of the map, so
+ *  the edge of what a map covers is not a hard line across the ground. */
+public float shadowEdgeFade(float2 uv, float width) {
+  float2 inside = min(uv, float2(1.0, 1.0) - uv);
+  float nearest = min(inside.x, inside.y);
+  return width > 0.0 ? min(max(nearest / width, 0.0), 1.0)
+                     : (nearest >= 0.0 ? 1.0 : 0.0);
+}
+
+/** WHICH OF A DIRECTIONAL LIGHT'S CASCADES a point @p depth in front of
+ *  the camera reads: the first whose far end, of the up to four in
+ *  `ends` — zero past the last — lies beyond it; past every end, the
+ *  last. */
+public float shadowCascade(float depth, float4 ends) {
+  float index = 0.0;
+  if (depth > ends.x && ends.y > 0.0) index = 1.0;
+  if (index > 0.5 && depth > ends.y && ends.z > 0.0) index = 2.0;
+  if (index > 1.5 && depth > ends.z && ends.w > 0.0) index = 3.0;
+  return index;
+}
+
+/** HOW FAR A POINT HAS CROSSED into the next cascade's share: none until
+ *  the last `band` before its own cascade's far `end`, all of it at that
+ *  end, so two cascades meet without a seam. */
+public float shadowCascadeBlend(float depth, float end, float band) {
+  return band > 0.0 ? min(max((depth - (end - band)) / band, 0.0), 1.0) : 0.0;
+}
+
+/** THE SHARE OF ONE LIGHT that reaches a point under a filtered shadow
+ *  `lit` (one unshadowed), faded by where it was read: a fade of zero is
+ *  no shadow at all. */
+public float shadowed(float lit, float fade) {
+  return 1.0 - (1.0 - lit) * fade;
+}
+
 // ---- the display transform ------------------------------------------
 
 /** HOW BRIGHT A COLOUR READS, at the weights the three primaries carry

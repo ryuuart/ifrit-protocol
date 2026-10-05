@@ -40,8 +40,9 @@ class Light : public Node,
    *  origin. A light with no direction of its own is not turned. A key no
    *  node answers to stops the frame, naming both. */
   Light& lookAt(std::string key);
-  /** THE BODIES THAT BLOCK THIS LIGHT — USD's shadow link. Stored and
-   *  written out; nothing casts a shadow yet. */
+  /** THE BODIES THAT BLOCK THIS LIGHT — USD's shadow link: of the bodies
+   *  that cast shadows, the ones that cast this light's. Unlinked, every
+   *  one of them does. Read only while the light casts. */
   Light& shadowLink(Collection blockers);
   /** …the members of the one collection called @p name. */
   Light& shadowLink(std::string name);
@@ -56,6 +57,10 @@ struct DirectionalLightOptions {
   motion::Animatable<material::Color> color = material::Color{1, 1, 1, 1};
   /** How strongly, as a factor on the colour. */
   motion::Animatable<float> intensity = 1.0f;
+  /** WHETHER IT CASTS SHADOWS: off unless stated. */
+  bool castShadow = false;
+  /** How its shadow is made, when it casts one. */
+  LightShadow shadow = {};
 };
 
 /** How a point light shines and how far it reaches. */
@@ -69,6 +74,11 @@ struct PointLightOptions {
   /** Past zero, the distance at which it has been brought smoothly to
    *  nothing; zero reaches everywhere. */
   float range = 0;
+  /** WHETHER IT CASTS SHADOWS, every way from where it stands: off unless
+   *  stated. */
+  bool castShadow = false;
+  /** How its shadow is made, when it casts one. */
+  LightShadow shadow = {};
 };
 
 /** How a spot light shines, how far it reaches and how wide it opens. */
@@ -84,6 +94,10 @@ struct SpotLightOptions {
   float innerAngle = 0;
   /** Degrees from its aim beyond which it is dark. */
   float outerAngle = 45;
+  /** WHETHER IT CASTS SHADOWS: off unless stated. */
+  bool castShadow = false;
+  /** How its shadow is made, when it casts one. */
+  LightShadow shadow = {};
 };
 
 /** How an ambient light shines: the same from every direction. */

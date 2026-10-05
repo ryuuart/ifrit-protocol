@@ -85,6 +85,13 @@ material that states no response is lit at the stock one, so a plain
 `material::Color` lights; `.surface({.unlit = true})` is its own light.
 The per-face form takes one material per slot, in slot order.
 
+`Mesh::castShadow` and `Mesh::receiveShadow` say whether a body blocks
+the lights that cast shadows and whether their shadows darken it. Both
+are on unless the body says otherwise, so shadows appear as soon as a
+light casts; what the surface is decides the rest — a blended, a
+transmissive or an unlit body casts nothing, and an unlit one receives
+nothing ([LIGHTING.md](LIGHTING.md) holds the table).
+
 `Backface` is WHICH SIDES OF A BODY'S TRIANGLES ARE DRAWN.
 `Backface::Hidden` is the default for closed solids;
 `Backface::Visible` keeps the reverse side of a sheet or panel when the
@@ -154,15 +161,18 @@ naming both.
 
 A light lights every body in the scene wherever it stands in the tree.
 `Light::lightLink` narrows that to a `Collection` — USD's light link —
-and an unlinked light reaches everything. `Light::shadowLink` is the
-collection that blocks it, stored and written out; nothing casts a
-shadow yet.
+and an unlinked light reaches everything. A light that states
+`castShadow` in its options — a directional, a spot or a point light —
+casts shadows, made as its `LightShadow` says; `Light::shadowLink`
+narrows which of the bodies that cast cast ITS shadow — USD's shadow
+link — the same way, and an unlinked light is blocked by every one of
+them.
 
 `LightDescription` is what a light node carries: its `LightKind`, the
 direction, the colour, the strength and a hemisphere's ground colour —
 all `motion::Animatable`, so a light bound to a live value dims and
-tints while the tree stands still — the range, the cone and the two
-links. `PlacedLight` is what a frame keeps of one: its description with
+tints while the tree stands still — the range, the cone, the two
+links, whether it casts and how its shadow is made. `PlacedLight` is what a frame keeps of one: its description with
 every animatable `held`, its direction carried into the world, and where
 its node stands.
 

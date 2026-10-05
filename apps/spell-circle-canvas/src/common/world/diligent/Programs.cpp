@@ -62,6 +62,21 @@ const Compiled& scaffold(bool lit) {
   return lit ? shaded : plain;
 }
 
+const Compiled& shadowScaffold(bool coverage) {
+  const auto build = [](const char* entry) {
+    Compiled built;
+    std::string error;
+    if (!material::slang::compileModule(shaderSource("Surface.slang"), "vsMain",
+                                        entry, /*lit=*/false, &built, &error))
+      material::reportOnce(std::string("world.diligent.shadow.") + entry,
+                           "the shadow stage did not compile: " + error);
+    return built;
+  };
+  static const Compiled depthOnly = build("fsShadow");
+  static const Compiled covered = build("fsShadowFlat");
+  return coverage ? covered : depthOnly;
+}
+
 const Compiled& backdropProgram() {
   static const Compiled built = [] {
     Compiled program;
@@ -120,10 +135,13 @@ void installSlangCompiler() {
           source += '\n';
           source += body;
           source += shaderSource("MaterialEntry.slang");
+          // The shadow stage's build asks the body only where it covers,
+          // and is never lit.
+          const bool shadow = variant.has(kVariantShadow);
           Compiled built;
-          if (!material::slang::compileModule(source, "vsMain", "fsMaterial",
-                                              variant.has(kVariantLit), &built,
-                                              &error))
+          if (!material::slang::compileModule(
+                  source, "vsMain", shadow ? "fsMaterialShadow" : "fsMaterial",
+                  !shadow && variant.has(kVariantLit), &built, &error))
             return nullptr;
           return std::make_shared<material::slang::SlangProgram>(
               std::move(recipe), variant, std::move(built));

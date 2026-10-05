@@ -24,7 +24,13 @@ and nothing of the engine.
 `diligent::runtime(device)` performs a frame's passes on the device the
 `diligent/` feature brought up. What it does with each:
 
-- a **geometry pass** rasterises the bodies its realisation leaves it
+- a **geometry pass** under a light that casts opens with THE SHADOW
+  STAGE, before its target is cleared: each casting light's map is drawn
+  into one depth atlas, in a tile of its own, from the bodies that cast,
+  writing depth and nothing else ([LIGHTING.md](LIGHTING.md) says which
+  lights and bodies, and how the maps are fitted and read). A pass under
+  no light that casts draws no map and binds no atlas. Then it rasterises
+  the bodies its realisation leaves it
   into a device texture, DEPTH-TESTED, from a pipeline built out of each
   material's own `Target::Slang` body, into a half-float target holding
   linear light. It draws the bodies laid over normally first, in the
@@ -297,8 +303,9 @@ adds to it:
 - **a light reaches only the bodies its light link names.** Each body is
   drawn under the lights whose `Light::lightLink` contains it, asked of
   the same member a pass's collection reads; an unlinked light reaches
-  every body. The shadow link is stored and reaches nothing, since no
-  body casts a shadow. A draw carries at most sixteen lights.
+  every body. A light's `Light::shadowLink` narrows, the same way, which of
+  the bodies that cast are drawn into its shadow map. A draw carries at
+  most sixteen lights.
 - a surface that says light does not reach it — `material::surface::unlit`
   — is drawn with the unlit build: what it shows is its base colour and
   the mesh's own tint, as authored. The answer is read off the material

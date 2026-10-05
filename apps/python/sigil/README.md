@@ -1490,9 +1490,10 @@ class Vessel:
 
 A scene is typed nodes: `world.group(...)` holds children, given as
 variadic nodes or one iterable, including a tuple; `world.mesh(m)` is a body
-that takes `fill` and `backface`; `world.directionalLight`,
-`world.pointLight` and `world.spotLight` make a `Light`, which takes
-`lightLink` and `shadowLink`; `world.camera(lens, exposure=…)` makes a
+that takes `fill`, `backface`, `castShadow` and `receiveShadow`;
+`world.directionalLight`, `world.pointLight` and `world.spotLight` make a
+`Light`, which takes `lightLink` and `shadowLink`, and casts shadows given
+`castShadow=True`, made as `shadow=world.LightShadow(radius=2)` says; `world.camera(lens, exposure=…)` makes a
 `Camera`. Every kind takes `key`, `collection`, `at`, the rotation and scale
 lanes and `visible`. Re-describing keyed nodes preserves native identity and
 shares equal mesh resources. Scalar lanes accept animatables,

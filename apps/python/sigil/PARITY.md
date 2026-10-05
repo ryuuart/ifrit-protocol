@@ -63,8 +63,9 @@ that its pixels match the original.
 | Study · Screens | 6 | 0 | 0 |
 | Study · Game UI | 11 | 0 | 0 |
 | Study · Effects | 1 | 0 | 0 |
+| Study · Lighting | 1 | 0 | 0 |
 | Study · Materials | 19 | 0 | 0 |
-| **All** | **247** | **57** | **9** |
+| **All** | **248** | **57** | **9** |
 
 Every sketch in Draw, Draw · Generative, Draw · Observable reproductions, Draw
 · Procedural, Kit · Depth, Compose · Typography and Study · Paint is bound.
@@ -702,6 +703,12 @@ model, arithmetic and data become Python code and are not listed.
 | Sketch | Needs | Not yet bound |
 | --- | --- | --- |
 | `flipbook_fire` | Not yet audited | Not yet audited |
+
+#### Study · Lighting
+
+| Sketch | Needs | Not yet bound |
+| --- | --- | --- |
+| `shadow_play` | Not yet audited | Not yet audited |
 
 #### Study · Materials
 

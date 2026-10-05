@@ -86,6 +86,10 @@ const std::vector<float>& sheenAlbedoTable();
  *  `iridescenceFresnel`, `iridescentF0`, `fresnelToF0`,
  *  `reflectanceFromIor`, `interferenceColor`, `dielectricReflectance`,
  *  `specularColorFrom`, `reflectance90From`, `diffuseColorFrom`;
+ *  shadows — `shadowDistance`, `shadowDepthBias`, `shadowNormalOffset`,
+ *  `shadowTest`, `shadowBilinear`, `shadowTapOffset`, `shadowTapWeight`,
+ *  `shadowAtlasUv`, `shadowEdgeFade`, `shadowed`, `shadowCascade`,
+ *  `shadowCascadeBlend`;
  *  the display transform every lit
  *  sum ends at — `luminance`, `toneMap`, `toneMapNeutral`,
  *  `toneMapLinear`, `toneCurve`, the same four backward —
