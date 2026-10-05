@@ -137,6 +137,19 @@ spread along each. A studio is a graded room and two or three boxes; a
 window-lit room is a dim gradient and one wide box. Empty options bake a
 black map, because nothing here states a look.
 
+## A light that is seen
+
+A light is not a body, so nothing shows where it stands. `visibleLight`
+returns a group holding the light and, for a rect, a sphere or a disk
+light, an unlit mesh of the same shape and size — a panel, a ball, a
+round panel — facing the way the light shines, drawn as authored in the
+light's colour as it stands when the group is made, casting and
+receiving no shadow, keyed `emitter`. The group is what is placed and
+turned, so the light and its mesh move as one; the light's own placement
+is left at the group's origin. A light with no size comes back alone in
+its group. It composes a light, a mesh and an unlit surface, and states
+no look of its own beyond the light's colour.
+
 ## See also
 
 `reference/NODES.md` for the verbs these presets are composed out of.

@@ -326,3 +326,29 @@ TEST(WorldKit, AnEnvironmentMapIsAGradientAndSoftBoxes) {
 }
 
 }  // namespace
+
+TEST(WorldKit, AVisibleLightIsTheLightBesideAnUnlitMeshOfItsShape) {
+  const Group panel = kit::visibleLight(
+      rectLight({0, -1, 0},
+                {.width = 4,
+                 .height = 2,
+                 .color = ::sigil::material::Color{1, 0.5f, 0.25f, 1}})
+          .key("panel"));
+  EXPECT_EQ(keysOf(panel), (std::vector<std::string>{"panel", "emitter"}));
+  const NodeDescription* emitter = childOf(panel, "emitter");
+  ASSERT_NE(emitter, nullptr);
+  EXPECT_FALSE(emitter->castShadow);
+  ASSERT_NE(surfaceOf(panel, "emitter"), nullptr);
+  // The panel's face, +z, is turned onto the way the light shines.
+  const glm::mat4 turned = emitter->transform.matrix.value_or(glm::mat4(1));
+  EXPECT_NEAR(turned[2][1], -1.0f, 1e-5f);
+  EXPECT_NEAR(turned[0][0], 1.0f, 1e-5f);
+
+  EXPECT_EQ(keysOf(kit::visibleLight(sphereLight({.radius = 1}).key("ball"))),
+            (std::vector<std::string>{"ball", "emitter"}));
+  EXPECT_EQ(keysOf(kit::visibleLight(diskLight({0, 0, -1}).key("disk"))),
+            (std::vector<std::string>{"disk", "emitter"}));
+  // A light with no size has nothing to show.
+  EXPECT_EQ(keysOf(kit::visibleLight(pointLight().key("lamp"))),
+            (std::vector<std::string>{"lamp"}));
+}

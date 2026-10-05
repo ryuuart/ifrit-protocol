@@ -645,6 +645,199 @@ public float3 hemisphereIrradiance(float3 n, float3 up, float3 sky,
   return ground + (sky - ground) * t;
 }
 
+// ---- lights with a size --------------------------------------------------
+//
+// A rect, a disk or a sphere light is shaded by two readings of it. The
+// DIFFUSE side receives the light's exact cosine-weighted solid angle
+// where one has a closed form: a rectangle's is integrated edge by edge
+// over the part of it above the surface's horizon, a sphere's above the
+// horizon is a point light's at its centre, and a disk's is exact on its
+// axis. The SPECULAR side is lit as by a point light standing at the
+// light's REPRESENTATIVE POINT — the point of the light nearest the
+// reflected ray, so a mirror sees the light's own outline — carrying the
+// solid angle the light fills, with the narrow peak of a smooth lobe
+// widened by that solid angle and scaled down by the same amount, so
+// the highlight neither gains nor loses light for being spread.
+//
+// Every vector here runs FROM THE SHADED POINT, which stands at the
+// origin; a light's corners and centre are given relative to it.
+
+/** ONE EDGE OF A POLYGON SEEN FROM THE ORIGIN, between the directions
+ *  @p a and @p b (of any length): its share of twice the cosine-weighted
+ *  solid angle the polygon fills about @p n, signed by which way the edge
+ *  runs. Summed over a closed polygon and halved, its magnitude is the
+ *  polygon's cosine-weighted solid angle. */
+public float polygonEdge(float3 a, float3 b, float3 n) {
+  float la = sqrt(dot(a, a));
+  float lb = sqrt(dot(b, b));
+  if (la <= 0.0 || lb <= 0.0) return 0.0;
+  float3 ua = a / la;
+  float3 ub = b / lb;
+  float3 c = cross(ua, ub);
+  float s = sqrt(dot(c, c));
+  if (s <= 1e-7) return 0.0;
+  return atan2P(s, dot(ua, ub)) * dot(c, n) / s;
+}
+
+/** `polygonEdge` for the part of the edge from @p a to @p b above the
+ *  horizon square to @p n; nothing for an edge wholly below it. */
+public float clippedEdge(float3 a, float3 b, float3 n) {
+  float ha = dot(a, n);
+  float hb = dot(b, n);
+  if (ha <= 0.0 && hb <= 0.0) return 0.0;
+  if (ha > 0.0 && hb > 0.0) return polygonEdge(a, b, n);
+  float3 x = a + (b - a) * (ha / (ha - hb));
+  return ha > 0.0 ? polygonEdge(a, x, n) : polygonEdge(x, b, n);
+}
+
+/** WHERE THE EDGE FROM @p a TO @p b CROSSES THE HORIZON square to @p n:
+ *  the crossing in xyz, and in w one where the edge leaves the half above
+ *  the horizon, minus one where it enters it, zero where it does not
+ *  cross. */
+public float4 horizonCrossing(float3 a, float3 b, float3 n) {
+  float ha = dot(a, n);
+  float hb = dot(b, n);
+  if ((ha > 0.0 && hb > 0.0) || (ha <= 0.0 && hb <= 0.0))
+    return float4(0.0, 0.0, 0.0, 0.0);
+  float3 x = a + (b - a) * (ha / (ha - hb));
+  return float4(x.x, x.y, x.z, ha > 0.0 ? 1.0 : -1.0);
+}
+
+/** THE COSINE-WEIGHTED SOLID ANGLE OF A QUADRILATERAL above the horizon
+ *  square to @p n, its corners @p p0 to @p p3 in order around it: the
+ *  integral of the cosine from @p n over the directions it fills. A
+ *  light whose face has radiance L delivers L times this to a surface
+ *  facing @p n. The part below the horizon is clipped away, and the
+ *  horizon closes what is left. */
+public float quadIrradiance(float3 p0, float3 p1, float3 p2, float3 p3,
+                            float3 n) {
+  float sum = clippedEdge(p0, p1, n) + clippedEdge(p1, p2, n) +
+              clippedEdge(p2, p3, n) + clippedEdge(p3, p0, n);
+  float4 c0 = horizonCrossing(p0, p1, n);
+  float4 c1 = horizonCrossing(p1, p2, n);
+  float4 c2 = horizonCrossing(p2, p3, n);
+  float4 c3 = horizonCrossing(p3, p0, n);
+  float3 leave = c0.w > 0.5   ? c0.xyz
+                 : c1.w > 0.5 ? c1.xyz
+                 : c2.w > 0.5 ? c2.xyz
+                              : c3.xyz;
+  float3 enter = c0.w < -0.5   ? c0.xyz
+                 : c1.w < -0.5 ? c1.xyz
+                 : c2.w < -0.5 ? c2.xyz
+                               : c3.xyz;
+  float crossings = abs(c0.w) + abs(c1.w) + abs(c2.w) + abs(c3.w);
+  if (crossings > 1.5) sum = sum + polygonEdge(leave, enter, n);
+  return abs(sum) * 0.5;
+}
+
+/** THE SOLID ANGLE OF THE TRIANGLE @p a, @p b, @p c seen from the
+ *  origin, in steradians. */
+public float triangleSolidAngle(float3 a, float3 b, float3 c) {
+  float la = sqrt(dot(a, a));
+  float lb = sqrt(dot(b, b));
+  float lc = sqrt(dot(c, c));
+  float num = abs(dot(a, cross(b, c)));
+  float den = la * lb * lc + dot(a, b) * lc + dot(a, c) * lb + dot(b, c) * la;
+  return 2.0 * atan2P(num, den);
+}
+
+/** THE SOLID ANGLE OF A QUADRILATERAL seen from the origin, its corners
+ *  in order around it. */
+public float quadSolidAngle(float3 p0, float3 p1, float3 p2, float3 p3) {
+  return triangleSolidAngle(p0, p1, p2) + triangleSolidAngle(p0, p2, p3);
+}
+
+/** THE SOLID ANGLE OF A BALL of @p radius whose centre stands @p distance
+ *  away: a whole hemisphere from inside it. */
+public float sphereSolidAngle(float distance, float radius) {
+  float d = max(distance, 1e-4);
+  float x = min(radius * radius / (d * d), 1.0);
+  return 6.28318548 * x / (1.0 + sqrt(1.0 - x));
+}
+
+/** THE SOLID ANGLE OF A DISK of @p radius whose centre stands
+ *  @p distance away, seen at @p cosFace from its normal: exact on its
+ *  axis, and shrinking with the cosine off it. */
+public float diskSolidAngle(float distance, float radius, float cosFace) {
+  float r2 = radius * radius;
+  return 3.14159274 * r2 * max(cosFace, 0.0) /
+         max(distance * distance + r2, 1e-8);
+}
+
+/** HOW MUCH OF A NARROW HIGHLIGHT a light filling @p solidAngle keeps at
+ *  @p roughness: the lobe's width widened by half the angular radius of
+ *  a disk of that solid angle, and the share of its peak the widening
+ *  leaves. One for a light with no size; toward nothing for a mirror
+ *  under a large light, whose peak the solid angle stands in for. */
+public float areaNormalization(float roughness, float solidAngle) {
+  float a = microfacetWidth(roughness);
+  float widened =
+      min(a + 0.5 * sqrt(max(solidAngle, 0.0) / 3.14159274), 1.0);
+  float keep = a / max(widened, 1e-6);
+  return keep * keep;
+}
+
+/** WHERE ALONG THE PLANE THROUGH @p center SQUARE TO @p normal the ray
+ *  from the origin along @p r meets it; a ray running away from the
+ *  plane is carried far along it the way it leans, so the nearest edge
+ *  answers. */
+public float3 planePoint(float3 center, float3 normal, float3 r) {
+  float facing = dot(r, normal);
+  float ahead = dot(center, normal);
+  if (facing * ahead > 1e-8) return r * (ahead / facing);
+  float3 along = r - normal * facing;
+  return center + along * (1e4 * sqrt(dot(center, center)) + 1.0);
+}
+
+/** A RECT LIGHT'S REPRESENTATIVE POINT for the reflected ray @p r: where
+ *  the ray meets the rectangle's plane, held inside the rectangle — its
+ *  centre @p center, its face's normal @p normal, its width along the
+ *  unit @p across and its height along the unit @p up, at half sizes
+ *  @p halfWidth and @p halfHeight. */
+public float3 rectPoint(float3 center, float3 normal, float3 across,
+                        float3 up, float halfWidth, float halfHeight,
+                        float3 r) {
+  float3 local = planePoint(center, normal, r) - center;
+  float s = min(max(dot(local, across), -halfWidth), halfWidth);
+  float t = min(max(dot(local, up), -halfHeight), halfHeight);
+  return center + across * s + up * t;
+}
+
+/** A DISK LIGHT'S REPRESENTATIVE POINT for the reflected ray @p r: where
+ *  the ray meets the disk's plane, held inside its @p radius. */
+public float3 diskPoint(float3 center, float3 normal, float radius,
+                        float3 r) {
+  float3 local = planePoint(center, normal, r) - center;
+  local = local - normal * dot(local, normal);
+  float len = sqrt(dot(local, local));
+  if (len > radius) local = local * (radius / len);
+  return center + local;
+}
+
+/** A SPHERE LIGHT'S REPRESENTATIVE POINT for the reflected ray @p r: the
+ *  point of the ball nearest the ray — its centre for a ball of radius
+ *  zero. */
+public float3 spherePoint(float3 center, float radius, float3 r) {
+  float3 toRay = r * dot(center, r) - center;
+  float len = sqrt(dot(toRay, toRay));
+  float k = len > 0.0 ? min(radius / len, 1.0) : 0.0;
+  return center + toRay * k;
+}
+
+/** THE DIFFUSE SIDE OF A LIGHT WITH A SIZE: Lambert's lobe less what
+ *  Fresnel reflected — read toward the light's centre @p l — times the
+ *  @p irradiance the light delivers per unit of its colour, the cosine
+ *  already inside it. */
+public float3 areaDiffuse(float3 n, float3 l, float3 v, float3 diffuse,
+                          float3 f0, float3 f90, float irradiance) {
+  if (irradiance <= 0.0) return float3(0.0, 0.0, 0.0);
+  float3 h = l + v;
+  float len = sqrt(dot(h, h));
+  h = len > 0.0 ? h / len : n;
+  float3 f = fresnelSchlick(f0, f90, dot(v, h));
+  return (float3(1.0, 1.0, 1.0) - f) * diffuse * (irradiance / 3.14159274);
+}
+
 /** WHERE THE SPLIT-SUM TABLE IS READ for a @p roughness and a viewing
  *  cosine @p nDotV, over a table of @p size texels a side whose columns run
  *  in the cosine and whose rows run in the roughness, both from 0 to 1 at

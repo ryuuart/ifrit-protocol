@@ -225,7 +225,10 @@ void bindLights(py::module_& module) {
       .value("Point", world::LightKind::Point)
       .value("Spot", world::LightKind::Spot)
       .value("Ambient", world::LightKind::Ambient)
-      .value("Hemisphere", world::LightKind::Hemisphere);
+      .value("Hemisphere", world::LightKind::Hemisphere)
+      .value("Rect", world::LightKind::Rect)
+      .value("Sphere", world::LightKind::Sphere)
+      .value("Disk", world::LightKind::Disk);
   bindRecord<world::Collection>(module, "Collection",
                                 "Unknown collection field: ")
       .def_readwrite("include", &world::Collection::include)
@@ -258,6 +261,9 @@ void bindLights(py::module_& module) {
       .def_readonly("range", &world::LightDescription::range)
       .def_readonly("innerAngle", &world::LightDescription::innerAngle)
       .def_readonly("outerAngle", &world::LightDescription::outerAngle)
+      .def_readonly("width", &world::LightDescription::width)
+      .def_readonly("height", &world::LightDescription::height)
+      .def_readonly("radius", &world::LightDescription::radius)
       .def_readonly("lightLink", &world::LightDescription::lightLink)
       .def_readonly("shadowLink", &world::LightDescription::shadowLink)
       .def_readonly("castShadow", &world::LightDescription::castShadow)
@@ -265,7 +271,8 @@ void bindLights(py::module_& module) {
   py::class_<world::PlacedLight>(module, "PlacedLight")
       .def_readonly("light", &world::PlacedLight::light)
       .def_readonly("position", &world::PlacedLight::position)
-      .def_readonly("key", &world::PlacedLight::key);
+      .def_readonly("key", &world::PlacedLight::key)
+      .def_readonly("across", &world::PlacedLight::across);
   module.def("attenuation", &world::attenuation, py::arg("light"),
              py::arg("at"));
   module.def("radiance", &world::radiance, py::arg("light"));
@@ -394,6 +401,51 @@ void bindKinds(py::module_& module) {
       py::arg("outerAngle") = 45, py::arg("castShadow") = false,
       py::arg("shadow") = world::LightShadow{});
   module.def(
+      "rectLight",
+      [](const glm::vec3& direction, float width, float height, py::handle tint,
+         py::handle intensity, bool castShadow,
+         const world::LightShadow& shadow) {
+        return world::rectLight(direction,
+                                {.width = width,
+                                 .height = height,
+                                 .color = lightColor(tint),
+                                 .intensity = motionAnimatable(intensity),
+                                 .castShadow = castShadow,
+                                 .shadow = shadow});
+      },
+      py::arg("direction"), py::arg("width") = 1, py::arg("height") = 1,
+      py::arg("color") = glm::vec4(1), py::arg("intensity") = 1,
+      py::arg("castShadow") = false, py::arg("shadow") = world::LightShadow{});
+  module.def(
+      "sphereLight",
+      [](float radius, py::handle tint, py::handle intensity, float range,
+         bool castShadow, const world::LightShadow& shadow) {
+        return world::sphereLight({.radius = radius,
+                                   .color = lightColor(tint),
+                                   .intensity = motionAnimatable(intensity),
+                                   .range = range,
+                                   .castShadow = castShadow,
+                                   .shadow = shadow});
+      },
+      py::arg("radius") = 0.1f, py::arg("color") = glm::vec4(1),
+      py::arg("intensity") = 1, py::arg("range") = 0,
+      py::arg("castShadow") = false, py::arg("shadow") = world::LightShadow{});
+  module.def(
+      "diskLight",
+      [](const glm::vec3& direction, float radius, py::handle tint,
+         py::handle intensity, bool castShadow,
+         const world::LightShadow& shadow) {
+        return world::diskLight(direction,
+                                {.radius = radius,
+                                 .color = lightColor(tint),
+                                 .intensity = motionAnimatable(intensity),
+                                 .castShadow = castShadow,
+                                 .shadow = shadow});
+      },
+      py::arg("direction"), py::arg("radius") = 0.1f,
+      py::arg("color") = glm::vec4(1), py::arg("intensity") = 1,
+      py::arg("castShadow") = false, py::arg("shadow") = world::LightShadow{});
+  module.def(
       "ambientLight",
       [](py::handle tint, py::handle intensity) {
         return world::ambientLight({.color = lightColor(tint),
@@ -510,6 +562,7 @@ void bindWorldKit(py::module_& kit) {
             self.surface = std::move(value);
           });
   kit.def("threePoint", &world::kit::threePoint, py::arg("rig") = Rig{});
+  kit.def("visibleLight", &world::kit::visibleLight, py::arg("light"));
   kit.def(
       "turntable",
       [](const Turntable& table, double now) {

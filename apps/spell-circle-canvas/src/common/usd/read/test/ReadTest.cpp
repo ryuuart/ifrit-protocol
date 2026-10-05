@@ -679,3 +679,61 @@ TEST(UsdRead, RefusesWhatItCannotOpen) {
   EXPECT_FALSE(usd::readCameras(scratch("nope.usdc")));
   EXPECT_FALSE(usd::readInstances(scratch("nope.usdc")));
 }
+
+TEST(UsdRead, LightsWithASizeComeBackAsTheirShapeWithTheirSizeAndStrength) {
+  SKIP_WITHOUT_USD();
+  const std::filesystem::path file = scratch("sized.usdc");
+  {
+    usd::Writer writer(file);
+    world::PlacedLight panel;
+    panel.light.kind = world::LightKind::Rect;
+    panel.light.direction = {0, -1, 0};
+    panel.light.width = 4;
+    panel.light.height = 2;
+    panel.light.intensity = 5.0f;
+    panel.position = {1, 10, 2};
+    panel.across = {0, 0, 1};
+    world::PlacedLight ball;
+    ball.light.kind = world::LightKind::Sphere;
+    ball.light.radius = 0.5f;
+    ball.light.intensity = 30.0f;
+    ball.position = {0, 3, 0};
+    world::PlacedLight disk;
+    disk.light.kind = world::LightKind::Disk;
+    disk.light.direction = {1, 0, 0};
+    disk.light.radius = 2;
+    disk.light.intensity = 12.0f;
+    ASSERT_EQ(writer.light("panel", panel), "/World/panel");
+    ASSERT_EQ(writer.light("ball", ball), "/World/ball");
+    ASSERT_EQ(writer.light("disk", disk), "/World/disk");
+    std::string error;
+    ASSERT_TRUE(writer.save(&error)) << error;
+  }
+  std::string error;
+  const std::optional<std::vector<usd::ReadLight>> lights =
+      usd::readLights(file, &error);
+  ASSERT_TRUE(lights) << error;
+
+  const world::PlacedLight* panel = lightAt(*lights, "/World/panel");
+  ASSERT_TRUE(panel);
+  EXPECT_EQ(panel->light.kind, world::LightKind::Rect);
+  EXPECT_FLOAT_EQ(panel->light.width, 4);
+  EXPECT_FLOAT_EQ(panel->light.height, 2);
+  EXPECT_NEAR(panel->light.intensity.value(), 5.0f, 1e-5f);
+  EXPECT_NEAR(panel->light.direction.y, -1.0f, 1e-5f);
+  EXPECT_NEAR(std::abs(panel->across.z), 1.0f, 1e-5f);
+  EXPECT_NEAR(panel->position.y, 10.0f, 1e-4f);
+
+  const world::PlacedLight* ball = lightAt(*lights, "/World/ball");
+  ASSERT_TRUE(ball);
+  EXPECT_EQ(ball->light.kind, world::LightKind::Sphere);
+  EXPECT_FLOAT_EQ(ball->light.radius, 0.5f);
+  EXPECT_NEAR(ball->light.intensity.value(), 30.0f, 1e-3f);
+
+  const world::PlacedLight* disk = lightAt(*lights, "/World/disk");
+  ASSERT_TRUE(disk);
+  EXPECT_EQ(disk->light.kind, world::LightKind::Disk);
+  EXPECT_FLOAT_EQ(disk->light.radius, 2);
+  EXPECT_NEAR(disk->light.intensity.value(), 12.0f, 1e-3f);
+  EXPECT_NEAR(disk->light.direction.x, 1.0f, 1e-5f);
+}

@@ -43,6 +43,7 @@ def group(*children: Node) -> Group: ...
         "_t.ScalarLike",
     )
     table.erased(WORLD, "hemisphereLight", TINT, TINT, "_t.ScalarLike")
+    table.erased(WORLD, "rectLight diskLight sphereLight", TINT, "_t.ScalarLike")
     # A number answers a number and a live value a value following it.
     table.declares(
         WORLD,
@@ -52,6 +53,8 @@ def group(*children: Node) -> Group: ...
     )
     table.parameters(WORLD + ".directionalLight", direction="_t.Vec3Like")
     table.parameters(WORLD + ".spotLight", direction="_t.Vec3Like")
+    table.parameters(WORLD + ".rectLight", direction="_t.Vec3Like")
+    table.parameters(WORLD + ".diskLight", direction="_t.Vec3Like")
     table.erased(WORLD, "camera", "_t.ScalarLike")
     table.erased(f"{WORLD}.Frame", "environment", *(["_t.ScalarLike"] * 8))
     table.declares(
@@ -66,6 +69,13 @@ def direction(self) -> _t.Vec3: ...
         "position",
         """@property
 def position(self) -> _t.Vec3: ...
+""",
+    )
+    table.declares(
+        f"{WORLD}.PlacedLight",
+        "across",
+        """@property
+def across(self) -> _t.Vec3: ...
 """,
     )
     table.parameters(WORLD + ".attenuation", at="_t.Vec3Like")

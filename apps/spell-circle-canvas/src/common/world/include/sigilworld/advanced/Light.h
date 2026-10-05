@@ -28,6 +28,9 @@ enum class LightKind : uint8_t {
   Spot,         ///< a position and a direction, within a cone
   Ambient,      ///< the same radiance from every direction
   Hemisphere,   ///< a sky colour from above and a ground colour from below
+  Rect,         ///< a rectangle with a size, shining from its front face
+  Sphere,       ///< a point light with a radius: a ball that glows
+  Disk,         ///< a round panel with a radius, shining from its front face
 };
 
 /** HOW A LIGHT'S SHADOW IS MADE, once the light casts one. Every length
@@ -77,6 +80,17 @@ struct LightShadow {
  *    `d` — the inverse square — so its intensity is what it delivers at a
  *    distance of one unit, and `intensityAt` states one by what it
  *    delivers further off;
+ *  - a sphere light is a point light with a size and keeps its reading:
+ *    its intensity is what the whole ball delivers at one unit, so a
+ *    larger ball at the same intensity spreads the same light over a
+ *    wider, dimmer highlight, and a radius of zero is a point light;
+ *  - a disk light delivers `color * intensity` along its face's normal
+ *    at one unit, falling off with the cosine a point stands at from the
+ *    face and over `d² + radius²`;
+ *  - a rect light's `color * intensity` is the RADIANCE of its face — how
+ *    bright the panel itself is — so a larger panel at the same
+ *    intensity delivers more: far off, a rect of area `A` delivers what a
+ *    disk light of intensity `intensity * A` would;
  *  - an ambient light is radiance arriving equally from every direction,
  *    and a hemisphere light is `color` from above the horizon its up
  *    names and `groundColor` from below.
@@ -102,6 +116,14 @@ struct LightDescription {
    *  dark beyond `outerAngle`, interpolated between. */
   float innerAngle = 0;
   float outerAngle = 45;
+  /** Rect: the rectangle's size in scene units. Its width runs along
+   *  the node's x axis made square to `direction`, or along its z axis
+   *  for a light travelling along x, and its height square to both. */
+  float width = 0;
+  float height = 0;
+  /** Sphere and disk: the radius of the ball or the panel, in scene
+   *  units. */
+  float radius = 0;
   /** THE BODIES IT LIGHTS — USD's light link. The whole scene unless it
    *  says otherwise. */
   Collection lightLink;
@@ -110,8 +132,8 @@ struct LightDescription {
    *  it says otherwise. */
   Collection shadowLink;
   /** WHETHER IT CASTS SHADOWS. Off unless stated, so a set written without
-   *  shadows looks the same. A directional, a spot and a point light cast;
-   *  an ambient light and a hemisphere light cast nothing. */
+   *  shadows looks the same. Every light but an ambient and a hemisphere
+   *  light casts; a light with a size casts from its centre. */
   bool castShadow = false;
   /** How its shadow is made, when it casts one. */
   LightShadow shadow;
@@ -129,6 +151,9 @@ struct PlacedLight {
   glm::vec3 position = {0, 0, 0};
   /** The key of the node that carried it. */
   std::string key;
+  /** A rect light's width axis in the world, unit length and square to
+   *  its direction; unread by every other kind. */
+  glm::vec3 across = {1, 0, 0};
 
   bool operator==(const PlacedLight&) const = default;
 };
@@ -138,8 +163,8 @@ struct PlacedLight {
 constexpr size_t kShadowCasters = 4;
 
 /** THE LIGHTS OF @p lights THAT CAST A SHADOW this frame, as their
- *  positions in @p lights: every directional, spot and point light that
- *  states `castShadow`, in the order the frame placed them, up to
+ *  positions in @p lights: every light but an ambient or a hemisphere
+ *  light that states `castShadow`, in the order the frame placed them, up to
  *  `kShadowCasters`. One past the budget casts nothing, and says so once. */
 [[nodiscard]] std::vector<size_t> shadowCasters(
     std::span<const PlacedLight> lights);
@@ -150,9 +175,13 @@ constexpr size_t kShadowCasters = 4;
 
 /** How much of @p light's intensity reaches @p at before any surface
  *  term: one for a directional, ambient or hemisphere light, and for a
- *  point or spot light the inverse square of the distance, windowed to
- *  zero at its range when it has one — so it is NOT bounded by one — times
- *  a spot's cone. */
+ *  point, spot or sphere light the inverse square of the distance,
+ *  windowed to zero at its range when it has one — so it is NOT bounded
+ *  by one — times a spot's cone. A disk light delivers its intensity
+ *  over the distance squared plus its radius squared, times the cosine
+ *  @p at stands at from its face; a rect light its area times that
+ *  cosine over the distance squared, which is what it delivers far from
+ *  it. Both are nothing behind their face. */
 [[nodiscard]] float attenuation(const PlacedLight& light, const glm::vec3& at);
 
 /** The light's colour, decoded, scaled by its intensity — what a renderer

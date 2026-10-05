@@ -76,6 +76,15 @@ PlacedLight placeLight(const LightDescription& light, const glm::mat4& world,
   const glm::vec3 carried = basis * aim;
   placed.light.direction =
       glm::dot(carried, carried) > 0.0f ? glm::normalize(carried) : aim;
+  // A rect's width runs along the node's x axis made square to its aim,
+  // or its z axis for an aim along x, carried the way a point's offset
+  // is; an executor squares it again to the direction a look-at gives.
+  glm::vec3 across = glm::vec3(1, 0, 0) - aim * aim.x;
+  if (glm::dot(across, across) < 1e-6f)
+    across = glm::vec3(0, 0, 1) - aim * aim.z;
+  const glm::vec3 turned = glm::mat3(world) * across;
+  placed.across = glm::dot(turned, turned) > 0.0f ? glm::normalize(turned)
+                                                  : glm::vec3(1, 0, 0);
   return placed;
 }
 
@@ -343,7 +352,9 @@ core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst, bool hidden) {
     // An aimed light travels from where it stands toward what it looks
     // at; a light with no direction of its own is not turned.
     const bool aimable = node.light->kind == LightKind::Directional ||
-                         node.light->kind == LightKind::Spot;
+                         node.light->kind == LightKind::Spot ||
+                         node.light->kind == LightKind::Rect ||
+                         node.light->kind == LightKind::Disk;
     if (aim && aimable) {
       const glm::vec3 toward = *aim - placed.position;
       if (glm::dot(toward, toward) > 0.0f)

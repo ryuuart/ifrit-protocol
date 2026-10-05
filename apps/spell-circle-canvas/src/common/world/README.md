@@ -75,6 +75,9 @@ Mesh   mesh(geometry::mesh::Instances instances);  // one stamp, repeated
 Light  directionalLight(glm::vec3 direction, DirectionalLightOptions = {});
 Light  pointLight(PointLightOptions = {});
 Light  spotLight(glm::vec3 direction, SpotLightOptions = {});
+Light  rectLight(glm::vec3 direction, RectLightOptions = {});  // a panel with a size
+Light  sphereLight(SphereLightOptions = {});                   // a point light with a radius
+Light  diskLight(glm::vec3 direction, DiskLightOptions = {});  // a round panel
 Light  ambientLight(AmbientLightOptions = {});
 Light  hemisphereLight(HemisphereLightOptions = {});
 float  intensityAt(float strength, float distance);  // inverse square, stated
@@ -107,6 +110,7 @@ Pass   bloom(Bloom = {});            // threshold, intensity, radius
 kit::threePoint(kit::Rig = {});
 kit::turntable(kit::Turntable, motion::Duration now);
 kit::environmentMap(kit::EnvironmentMapOptions);
+kit::visibleLight(Light);           // a sized light beside an unlit mesh of its shape
 ```
 
 **The node kinds.** A `Group` is the one kind that holds children, and it
@@ -323,7 +327,10 @@ a camera riding a closed rail and looking inward, with `kit::rail(table)`
 the curve itself; `kit::litSet` is both over a ground plane, with the
 subject under it; `kit::environmentMap(options)` bakes a panorama from a
 vertical gradient and soft boxes — a studio, a window-lit room, a sky —
-as data rather than as a function a set writes by hand.
+as data rather than as a function a set writes by hand; and
+`kit::visibleLight(light)` groups a rect, sphere or disk light with an
+unlit mesh of its shape and size in its colour, so the light is seen
+where it stands.
 
 Two more rails stand beside the turntable's, each a plain `Spline3` a
 node rides with `along()`, scatters a comet on or sweeps a band over.

@@ -53,8 +53,7 @@ std::vector<size_t> shadowCasters(std::span<const PlacedLight> lights) {
   for (size_t i = 0; i < lights.size(); ++i) {
     const LightDescription& light = lights[i].light;
     if (!light.castShadow) continue;
-    if (light.kind != LightKind::Directional && light.kind != LightKind::Spot &&
-        light.kind != LightKind::Point)
+    if (light.kind == LightKind::Ambient || light.kind == LightKind::Hemisphere)
       continue;
     if (out.size() >= kShadowCasters) {
       material::reportOnce(
@@ -71,9 +70,18 @@ std::vector<size_t> shadowCasters(std::span<const PlacedLight> lights) {
 
 float attenuation(const PlacedLight& placed, const glm::vec3& at) {
   const LightDescription& light = placed.light;
-  if (light.kind != LightKind::Point && light.kind != LightKind::Spot)
-    return 1.0f;
   const glm::vec3 toLight = placed.position - at;
+  if (light.kind == LightKind::Rect || light.kind == LightKind::Disk) {
+    const float cosFace = glm::dot(unit(light.direction), unit(-toLight));
+    if (cosFace <= 0.0f) return 0.0f;
+    const float squared = std::max(glm::dot(toLight, toLight), 1e-4f);
+    if (light.kind == LightKind::Disk)
+      return cosFace / (squared + light.radius * light.radius);
+    return light.width * light.height * cosFace / squared;
+  }
+  if (light.kind != LightKind::Point && light.kind != LightKind::Spot &&
+      light.kind != LightKind::Sphere)
+    return 1.0f;
   // The same arithmetic the device's `distanceFalloff` and `coneFalloff`
   // do, so a host reading of a light and the shaded picture agree.
   const float distance = std::max(glm::length(toLight), 1e-2f);
@@ -158,6 +166,37 @@ Light spotLight(glm::vec3 direction, SpotLightOptions options) {
                     .range = options.range,
                     .innerAngle = options.innerAngle,
                     .outerAngle = options.outerAngle,
+                    .castShadow = options.castShadow,
+                    .shadow = options.shadow});
+}
+
+Light rectLight(glm::vec3 direction, RectLightOptions options) {
+  return lightNode({.kind = LightKind::Rect,
+                    .direction = direction,
+                    .color = std::move(options.color),
+                    .intensity = std::move(options.intensity),
+                    .width = std::max(options.width, 0.0f),
+                    .height = std::max(options.height, 0.0f),
+                    .castShadow = options.castShadow,
+                    .shadow = options.shadow});
+}
+
+Light sphereLight(SphereLightOptions options) {
+  return lightNode({.kind = LightKind::Sphere,
+                    .color = std::move(options.color),
+                    .intensity = std::move(options.intensity),
+                    .range = options.range,
+                    .radius = std::max(options.radius, 0.0f),
+                    .castShadow = options.castShadow,
+                    .shadow = options.shadow});
+}
+
+Light diskLight(glm::vec3 direction, DiskLightOptions options) {
+  return lightNode({.kind = LightKind::Disk,
+                    .direction = direction,
+                    .color = std::move(options.color),
+                    .intensity = std::move(options.intensity),
+                    .radius = std::max(options.radius, 0.0f),
                     .castShadow = options.castShadow,
                     .shadow = options.shadow});
 }

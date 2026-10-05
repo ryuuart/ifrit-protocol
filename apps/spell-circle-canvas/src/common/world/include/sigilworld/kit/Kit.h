@@ -4,11 +4,11 @@
  * @ingroup world-kit
  * Presets: nodes composed out of the verbs a tree is already written in
  * — a three-point rig, a turntable, and a set with both over a ground
- * plane — the rails a body rides, and an environment map made from a
- * gradient and soft boxes. NOTHING HERE DECIDES A LOOK: each returns an
- * ordinary value whose every part the caller can read, replace or
- * ignore, and the only constants in it are the geometry of the
- * arrangement plus one neutral grey for an unsurfaced ground.
+ * plane — the rails a body rides, an environment map made from a
+ * gradient and soft boxes, and a light with a size made visible. NOTHING HERE
+ * DECIDES A LOOK: each returns an ordinary value whose every part the caller
+ * can read, replace or ignore, and the only constants in it are the geometry of
+ * the arrangement plus one neutral grey for an unsurfaced ground.
  */
 
 #include <sigilgeometry/mesh/curve/Curve.h>
@@ -173,6 +173,17 @@ struct Set {
  *  builds it alone. */
 Group litSet(Node subject, const Set& set = {},
              motion::Duration now = motion::Duration{});
+
+/** A LIGHT THAT IS SEEN. A light is not a body, so nothing shows where
+ *  it stands; this returns a group holding @p light and, for a light with
+ *  a size, an unlit mesh of its shape and size in its colour — a rect's
+ *  panel, a disk's round panel, a sphere's ball — facing the way it
+ *  shines. Place and turn the GROUP, not the light, so the two move as
+ *  one. The mesh is drawn as authored in the light's colour as it stands
+ *  when this is called — no light reaches it and no exposure moves it —
+ *  casts and receives no shadow, and is keyed `emitter`; any other kind of
+ * light comes back alone in its group. */
+Group visibleLight(Light light);
 
 /** ONE SOFT BOX in an environment map: an elliptical glow whose radiance
  *  falls off as a Gaussian, centred at `centre` in the map's `(u, v)` —

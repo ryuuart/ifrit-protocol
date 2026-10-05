@@ -158,6 +158,12 @@ float kindNumber(LightKind kind) {
       return 3.0f;
     case LightKind::Hemisphere:
       return 4.0f;
+    case LightKind::Rect:
+      return 5.0f;
+    case LightKind::Sphere:
+      return 6.0f;
+    case LightKind::Disk:
+      return 7.0f;
   }
   return 0.0f;
 }
@@ -182,8 +188,32 @@ void writeLight(material::slang::Uniforms& uniforms, size_t index,
                                 kindNumber(light.kind)};
   const float rowDirection[4] = {direction.x, direction.y, direction.z,
                                  std::max(light.range, 0.0f)};
-  const float rowColour[4] = {colour.r, colour.g, colour.b, cosOuter};
-  const float rowGround[4] = {ground.r, ground.g, ground.b, cosInner};
+  float rowColour[4] = {colour.r, colour.g, colour.b, cosOuter};
+  float rowGround[4] = {ground.r, ground.g, ground.b, cosInner};
+  // A LIGHT WITH A SIZE carries it where a cone or a ground would be: its
+  // half width (or radius) beside the colour, and for a rect its width
+  // axis — squared to the direction it travels — with its half height.
+  if (light.kind == LightKind::Rect || light.kind == LightKind::Sphere ||
+      light.kind == LightKind::Disk) {
+    const glm::vec3 unitDirection = glm::length(direction) > 1e-5f
+                                        ? glm::normalize(direction)
+                                        : glm::vec3(0, -1, 0);
+    glm::vec3 across = glm::mat3(view) * placed.across;
+    across = across - unitDirection * glm::dot(across, unitDirection);
+    if (glm::dot(across, across) < 1e-8f) {
+      const glm::vec3 other = std::abs(unitDirection.x) < 0.9f
+                                  ? glm::vec3(1, 0, 0)
+                                  : glm::vec3(0, 0, 1);
+      across = other - unitDirection * glm::dot(other, unitDirection);
+    }
+    across = glm::normalize(across);
+    const bool rect = light.kind == LightKind::Rect;
+    rowColour[3] = rect ? light.width * 0.5f : light.radius;
+    rowGround[0] = across.x;
+    rowGround[1] = across.y;
+    rowGround[2] = across.z;
+    rowGround[3] = rect ? light.height * 0.5f : 0.0f;
+  }
   uniforms.setElement("uLightPosition", index, rowPosition, 4);
   uniforms.setElement("uLightDirection", index, rowDirection, 4);
   uniforms.setElement("uLightColor", index, rowColour, 4);
@@ -1140,6 +1170,11 @@ std::vector<ShadowMap> fitCascades(const PlacedLight& light, const View& view,
   return out;
 }
 
+/** THE HALF ANGLE, in degrees, a rect or disk light's shadow map opens
+ *  to: the map is a spot's from the panel's centre, and what stands
+ *  further off its face than this casts no shadow. */
+constexpr float kPanelShadowAngle = 50.0f;
+
 /** A SPOT LIGHT'S MAP: a perspective view from where it stands along where
  *  it aims, opening a little wider than its cone, reaching its range or,
  *  with none, the far side of the set. */
@@ -1158,9 +1193,13 @@ ShadowMap fitSpot(const PlacedLight& light, const Box& scene, int size) {
   }
   out.far = std::max(far, 1e-2f);
   out.near = std::max(out.far * 0.002f, 1e-3f);
+  // A panel shines over its whole front half, which one perspective map
+  // cannot hold; its map opens as a spot of `kPanelShadowAngle` would.
+  const bool panel = light.light.kind == LightKind::Rect ||
+                     light.light.kind == LightKind::Disk;
+  const float outer = panel ? kPanelShadowAngle : light.light.outerAngle;
   const float opening = std::min(
-      glm::radians(std::max(light.light.outerAngle, 1.0f) * 2.0f + 2.0f),
-      glm::radians(170.0f));
+      glm::radians(std::max(outer, 1.0f) * 2.0f + 2.0f), glm::radians(170.0f));
   out.texel = 2.0f * std::tan(opening * 0.5f) / (float)size;
   out.viewProjection =
       toDeviceDepth(glm::perspectiveRH_NO(opening, 1.0f, out.near, out.far)) *
@@ -1233,7 +1272,9 @@ void drawShadows(Gpu& gpu, const View& view, const glm::mat4& cameraView) {
   for (const size_t index : chosen) {
     const PlacedLight& light = view.lights[index];
     tile = std::max(tile, std::clamp(light.light.shadow.mapSize, 64, 2048));
-    count += light.light.kind == LightKind::Point ? 6
+    count += light.light.kind == LightKind::Point ||
+                     light.light.kind == LightKind::Sphere
+                 ? 6
              : light.light.kind == LightKind::Directional
                  ? (size_t)std::clamp(light.light.shadow.cascades, 1, 4)
                  : 1;
@@ -1252,9 +1293,14 @@ void drawShadows(Gpu& gpu, const View& view, const glm::mat4& cameraView) {
   for (const size_t index : chosen) {
     const PlacedLight& light = view.lights[index];
     const int size = std::clamp(light.light.shadow.mapSize, 64, tile);
-    if (light.light.kind == LightKind::Point) {
+    // A light with a size casts from its centre: a sphere as a point
+    // light, a rect or a disk as a spot aimed along its face.
+    if (light.light.kind == LightKind::Point ||
+        light.light.kind == LightKind::Sphere) {
       for (const ShadowMap& face : fitPoint(light, scene, size)) place(face);
-    } else if (light.light.kind == LightKind::Spot) {
+    } else if (light.light.kind == LightKind::Spot ||
+               light.light.kind == LightKind::Rect ||
+               light.light.kind == LightKind::Disk) {
       place(fitSpot(light, scene, size));
     } else {
       for (const ShadowMap& slice : fitCascades(light, view, scene, size))

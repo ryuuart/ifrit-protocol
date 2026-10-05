@@ -186,8 +186,8 @@ TEST(Light, AHeldLightKeepsEveryFieldAndLetsGoOfItsLiveValues) {
   // ONE NAME PER FIELD, so a field added to the light stops this case
   // compiling until it is named here and its carrying is asserted.
   const auto& [kind, direction, heldColor, intensity, ground, range, innerAngle,
-               outerAngle, lightLink, shadowLink, castShadow, shadow] =
-      heldLight;
+               outerAngle, width, height, radius, lightLink, shadowLink,
+               castShadow, shadow] = heldLight;
   EXPECT_EQ(kind, LightKind::Spot);
   EXPECT_EQ(direction, glm::vec3(0.2f, -1, 0.1f));
   EXPECT_EQ(heldColor.value(), (material::Color{0.5f, 0.25f, 2, 0.75f}));
@@ -197,6 +197,9 @@ TEST(Light, AHeldLightKeepsEveryFieldAndLetsGoOfItsLiveValues) {
   EXPECT_FLOAT_EQ(range, 250);
   EXPECT_FLOAT_EQ(innerAngle, 7);
   EXPECT_FLOAT_EQ(outerAngle, 33);
+  EXPECT_FLOAT_EQ(width, 0);
+  EXPECT_FLOAT_EQ(height, 0);
+  EXPECT_FLOAT_EQ(radius, 0);
   EXPECT_EQ(lightLink, Collection{.include = {"props"}});
   EXPECT_EQ(shadowLink, Collection{.include = {"walls"}});
   EXPECT_TRUE(castShadow);
@@ -211,4 +214,28 @@ TEST(Light, AHeldLightKeepsEveryFieldAndLetsGoOfItsLiveValues) {
   EXPECT_FLOAT_EQ(source.description().intensity.value(), 9.0f);
   EXPECT_FLOAT_EQ(heldLight.intensity.value(), 3.0f);
   EXPECT_EQ(heldLight.color.value(), (material::Color{0.5f, 0.25f, 2, 0.75f}));
+}
+
+TEST(Light, LightsWithASizeCarryItAndShineFromTheirFrontFace) {
+  const Light panel = rectLight({0, -1, 0}, {.width = 2, .height = 0.5f});
+  EXPECT_EQ(panel.description().kind, LightKind::Rect);
+  EXPECT_FLOAT_EQ(panel.description().width, 2);
+  EXPECT_FLOAT_EQ(panel.description().height, 0.5f);
+  const Light ball = sphereLight({.radius = 0.25f});
+  EXPECT_EQ(ball.description().kind, LightKind::Sphere);
+  EXPECT_FLOAT_EQ(ball.description().radius, 0.25f);
+  const Light disk = diskLight({0, -1, 0}, {.radius = 0.5f});
+  EXPECT_EQ(disk.description().kind, LightKind::Disk);
+  EXPECT_FLOAT_EQ(disk.description().radius, 0.5f);
+
+  // A sphere keeps a point light's reading whatever its size.
+  EXPECT_FLOAT_EQ(attenuation(standing(ball), {0, -4, 0}),
+                  attenuation(standing(pointLight()), {0, -4, 0}));
+  // A disk delivers over the distance squared plus its radius squared,
+  // and nothing behind its face.
+  EXPECT_FLOAT_EQ(attenuation(standing(disk), {0, -2, 0}), 1.0f / 4.25f);
+  EXPECT_FLOAT_EQ(attenuation(standing(disk), {0, 2, 0}), 0.0f);
+  // Far off, a rect delivers its area over the distance squared.
+  EXPECT_FLOAT_EQ(attenuation(standing(panel), {0, -10, 0}), 1.0f / 100.0f);
+  EXPECT_FLOAT_EQ(attenuation(standing(panel), {0, 10, 0}), 0.0f);
 }

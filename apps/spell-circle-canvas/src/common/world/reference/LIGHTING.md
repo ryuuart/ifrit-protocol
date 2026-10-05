@@ -37,6 +37,9 @@ no environment has black shadows.
 | directional | `directionalLight(direction, options)` | `color * intensity` to a surface square to it, everywhere; no falloff |
 | point | `pointLight(options)` | `color * intensity / d²` at distance `d` |
 | spot | `spotLight(direction, options)` | a point light within a cone |
+| rect | `rectLight(direction, options)` | a panel `width` by `height` whose FACE has radiance `color * intensity`, shining from its front face only; far off, `intensity * width * height / d²` times the cosine from its face |
+| sphere | `sphereLight(options)` | a point light with a `radius`: `color * intensity / d²` from the whole ball |
+| disk | `diskLight(direction, options)` | a round panel of `radius` shining from its front face: `color * intensity / (d² + radius²)` times the cosine from its face |
 | ambient | `ambientLight(options)` | radiance `color * intensity` arriving equally from every direction |
 | hemisphere | `hemisphereLight(options)` | radiance `color * intensity` from above the horizon its node's up names, `groundColor * intensity` from below |
 
@@ -53,6 +56,68 @@ times the distance squared — so a rig reads in the numbers it lights its
 subject with. It takes a moving strength too, and the light follows it.
 The kit's three-point rig states every lamp this way, by what it
 delivers at the subject.
+
+## Lights with a size
+
+A rect, a sphere and a disk light have a size in scene units and stand
+centred where their node is placed. A rect and a disk shine from their
+FRONT face only — the face their direction leaves by — and nothing behind
+that face is lit. A rect's width runs along its node's x axis made square
+to its direction (its z axis for a light travelling along x) and its
+height square to both, so turning the node turns the panel; a node's
+scale does not resize a light.
+
+**Units.** A rect's intensity is the RADIANCE of its face — how bright
+the panel itself is, the way UsdLux states an emitter: a larger panel
+at the same intensity delivers more, and far off a panel of area `A`
+delivers what a disk light of intensity `intensity * A` would. A sphere
+and a disk keep a point light's reading — the intensity is what the whole
+light delivers at one unit along its axis — so their size softens the
+light without changing how much of it there is, a sphere of radius zero
+IS a point light, and `world::intensityAt` states either of them as it
+states a point light. The face of a sphere or a disk has radiance
+`intensity / (pi * radius²)`.
+
+**The technique.** Each sized light is shaded by two readings of it.
+
+- The DIFFUSE side receives what the whole light delivers. A rect's is
+  exact: its cosine-weighted solid angle, integrated edge by edge
+  (`quadIrradiance`) over the part of it above the surface's horizon, the
+  part below clipped away. A sphere above the horizon delivers exactly
+  what a point light at its centre would, and that is what it uses; a
+  disk uses `intensity * cos / (d² + radius²)`, exact on its axis.
+- The SPECULAR side is lit as by a point light at the light's
+  REPRESENTATIVE POINT — the point of the light nearest the reflected ray
+  (`rectPoint`, `diskPoint`, `spherePoint`), so a smooth surface mirrors
+  the light's own outline — carrying the solid angle the light fills
+  (`quadSolidAngle`, `sphereSolidAngle`, `diskSolidAngle`). The lobe's
+  peak is scaled by `(a / a')²`, where `a'` is the lobe's width widened by
+  half the angular radius of that solid angle (`areaNormalization`), so a
+  highlight spread by a large light is no brighter in sum for it.
+
+This is the representative-point treatment, not an integration of the
+GGX lobe over the light: the outline of a rectangle on a mirror is exact,
+but its brightness on a rough surface is an estimate, and the highlight
+of a light partly below the horizon is lit as if all of it were above.
+
+**Each lobe under a sized light.** The base diffuse and specular are as
+above. A clear coat is a second representative point, found along the
+coat's own reflected ray and widened at the coat's roughness. A brushing
+keeps the isotropic representative point and stretches the lobe there as
+for a point light. A sheen is lit as by a point light at the light's
+centre carrying the whole light. A thin film moves the head-on
+reflectance before any light is read, so it applies unchanged. A
+dielectric's specular strength and colour apply unchanged.
+
+**Shadows.** A sized light that states `castShadow` casts from its
+centre through the same maps: a sphere as a point light's six faces, a
+rect or a disk as a spot aimed along its face whose map opens fifty
+degrees either side of its normal, so a body further off its face than
+that casts nothing. Its shadows are no softer for its size; the edge is
+the filter's, as for every light.
+
+**Seeing the light.** A light is not a body; `world::kit::visibleLight`
+puts an unlit mesh of its shape beside it.
 
 ## Falloff
 
@@ -181,6 +246,8 @@ looks the same.
 | directional | one orthographic map along the light, square across, fitted to what the camera sees of the set — every body, or the ones within `shadow.distance` of the camera when that is past zero — and deep enough to hold every body between the light and them; its corner snapped to whole texels. With `shadow.cascades` past one, that reach is split along the camera's depth into as many slices — growing with the distance, three parts of the way from even to geometric — each fitted with its own map, so the nearer ones cover less at the same size; a point reads the slice its distance in front of the camera falls in, crossing into the next over the last tenth of it (`shadowCascade`, `shadowCascadeBlend`) |
 | spot | one perspective map from where it stands along its aim, opening a little wider than its cone, reaching its range or the far side of the set |
 | point | six perspective maps, one along each axis each way; a point is read through the face it stands most squarely in front of |
+| rect, disk | a spot's map from the panel's centre along its face, opening fifty degrees either side of its normal |
+| sphere | a point light's six maps from its centre |
 | ambient, hemisphere | none: light from everywhere casts nothing |
 
 At most `kShadowCasters` (four) lights cast in one frame, counted in the
@@ -345,8 +412,10 @@ Shadows are opaque or absent — a transmissive body casts none rather
 than a coloured or partial one — a shadow's softness is the filter's and
 does not widen with the distance from its caster, and a directional
 light's cascades are fitted to the camera's view each frame and are not
-held still as the camera moves. No area
-lights, and the environment's
+held still as the camera moves. A sized light's shadow is cast from its
+centre, with no widening toward a penumbra its size would make; its
+highlight is a representative point's, not an integral of the lobe over
+it; a sized light has no range and no cone. The environment's
 prefiltered chain is a set of wrap-aware blurs rather than a GGX
 convolution of the panorama — the sheen reads the same chain rather than
 one filtered for its own lobe. A sheen, a brushing and a film are

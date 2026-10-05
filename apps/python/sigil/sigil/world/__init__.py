@@ -28,6 +28,7 @@ from _sigil.world import (
     bloom,
     camera,
     directionalLight,
+    diskLight,
     geometryPass,
     group,
     hemisphereLight,
@@ -37,6 +38,8 @@ from _sigil.world import (
     pointLight,
     postPass,
     radiance,
+    rectLight,
+    sphereLight,
     spotLight,
 )
 
@@ -72,6 +75,7 @@ __all__ = [
     "camera",
     "diligent",
     "directionalLight",
+    "diskLight",
     "geometryPass",
     "graph",
     "group",
@@ -83,5 +87,7 @@ __all__ = [
     "pointLight",
     "postPass",
     "radiance",
+    "rectLight",
+    "sphereLight",
     "spotLight",
 ]

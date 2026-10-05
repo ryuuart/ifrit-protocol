@@ -17,14 +17,18 @@
  * over pi, and the prim is marked to be treated as a point.
  */
 
+#include <pxr/base/gf/matrix3d.h>
 #include <pxr/base/gf/quatf.h>
 #include <pxr/base/gf/rotation.h>
 #include <pxr/base/gf/vec3f.h>
 #include <pxr/base/tf/token.h>
 #include <pxr/base/vt/array.h>
 #include <pxr/base/vt/value.h>
+#include <pxr/usd/usdGeom/xformable.h>
+#include <pxr/usd/usdLux/diskLight.h>
 #include <pxr/usd/usdLux/distantLight.h>
 #include <pxr/usd/usdLux/domeLight.h>
+#include <pxr/usd/usdLux/rectLight.h>
 #include <pxr/usd/usdLux/shadowAPI.h>
 #include <pxr/usd/usdLux/shapingAPI.h>
 #include <pxr/usd/usdLux/sphereLight.h>
@@ -113,6 +117,68 @@ std::string Writer::light(std::string_view name,
     }
     writeLink(prim, "sigil:lightLink", light.lightLink);
     writeLink(prim, "sigil:shadowLink", light.shadowLink);
+    return path;
+  }
+  // A LIGHT WITH A SIZE is the UsdLux light of its shape, unnormalized,
+  // its intensity the radiance of its surface: a rect's is ours as it
+  // stands, and a sphere's or a disk's is ours spread over pi r². UsdLux
+  // lights shine down -Z, a rect's width along X and its height along Y.
+  const bool sized =
+      (light.kind == world::LightKind::Rect) ||
+      (light.kind == world::LightKind::Disk) ||
+      (light.kind == world::LightKind::Sphere && light.radius > 0.0f);
+  if (sized) {
+    const float area = kPi * light.radius * light.radius;
+    UsdPrim prim;
+    UsdGeomXformable placedPrim;
+    if (light.kind == world::LightKind::Rect) {
+      UsdLuxRectLight rect = UsdLuxRectLight::Define(impl.stage, SdfPath(path));
+      rect.CreateWidthAttr().Set(light.width);
+      rect.CreateHeightAttr().Set(light.height);
+      rect.CreateIntensityAttr().Set(light.intensity.value());
+      rect.CreateColorAttr().Set(linear);
+      prim = rect.GetPrim();
+      placedPrim = rect;
+    } else if (light.kind == world::LightKind::Disk) {
+      UsdLuxDiskLight disk = UsdLuxDiskLight::Define(impl.stage, SdfPath(path));
+      disk.CreateRadiusAttr().Set(light.radius);
+      disk.CreateIntensityAttr().Set(
+          area > 0.0f ? light.intensity.value() / area : 0.0f);
+      disk.CreateColorAttr().Set(linear);
+      prim = disk.GetPrim();
+      placedPrim = disk;
+    } else {
+      UsdLuxSphereLight ball =
+          UsdLuxSphereLight::Define(impl.stage, SdfPath(path));
+      ball.CreateRadiusAttr().Set(light.radius);
+      ball.CreateIntensityAttr().Set(light.intensity.value() / area);
+      ball.CreateColorAttr().Set(linear);
+      prim = ball.GetPrim();
+      placedPrim = ball;
+      prim.SetCustomDataByKey(TfToken("sigil:range"), VtValue(light.range));
+    }
+    placedPrim.AddTranslateOp().Set(
+        GfVec3d(placed.position.x, placed.position.y, placed.position.z));
+    if (light.kind != world::LightKind::Sphere) {
+      if (const std::optional<glm::vec3> d = aimedAlong(light.direction)) {
+        // -Z along the direction and X along the width axis, squared to
+        // it; Y completes the frame.
+        glm::vec3 across = placed.across - *d * glm::dot(placed.across, *d);
+        if (glm::dot(across, across) < 1e-8f)
+          across =
+              std::abs(d->x) < 0.9f ? glm::vec3(1, 0, 0) : glm::vec3(0, 0, 1);
+        across = glm::normalize(across - *d * glm::dot(across, *d));
+        const glm::vec3 z = -*d;
+        const glm::vec3 y = glm::cross(z, across);
+        const GfMatrix3d basis(across.x, across.y, across.z, y.x, y.y, y.z, z.x,
+                               z.y, z.z);
+        placedPrim.AddOrientOp().Set(
+            GfQuatf(basis.ExtractRotation().GetQuat()));
+      }
+    }
+    writeLink(prim, "sigil:lightLink", light.lightLink);
+    writeLink(prim, "sigil:shadowLink", light.shadowLink);
+    writeShadow(prim, light);
     return path;
   }
   if (light.kind != world::LightKind::Directional) {

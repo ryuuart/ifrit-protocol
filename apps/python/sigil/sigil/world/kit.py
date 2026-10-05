@@ -10,6 +10,7 @@ from _sigil.world.kit import (
     litSet,
     threePoint,
     turntable,
+    visibleLight,
 )
 
 __all__ = [
@@ -21,4 +22,5 @@ __all__ = [
     "litSet",
     "threePoint",
     "turntable",
+    "visibleLight",
 ]

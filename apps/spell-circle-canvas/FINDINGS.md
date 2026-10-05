@@ -1805,3 +1805,48 @@ lights' own shadow switch and settings are written. The intended mapping
 writes a body that opts out as custom data on its prim, or folds it into
 each casting light's shadow link. A test should write a mesh with
 `castShadow(false)` and assert that the body read back carries the flag.
+
+## A sized light's highlight is a representative point's, not the lobe's integral
+
+`src/common/world/diligent/shaders/Surface.slang` lights the specular side
+of a rect, sphere or disk light from the point of the light nearest the
+reflected ray, with the lobe widened by the solid angle the light fills
+(`areaNormalization` in `src/common/material/core/shaders/Shading.slang`).
+The outline a mirror shows is exact; the brightness on a rough surface is
+an estimate, the highlight of a light partly below the horizon is lit as
+if all of it were above, and the rectangle's highlight on a rough surface
+is rounder than the lobe integrated over the rectangle would be. The
+intended treatment for a rect is linearly transformed cosines: two tables,
+fitted on the host by roughness and viewing angle the way the split-sum
+table is integrated, mapping the GGX lobe onto a clamped cosine so the
+rectangle clipped to the horizon is integrated against it exactly. A test
+should compare the rect's specular response on a plate at roughness 0.3,
+0.6 and 0.9 against a direct numerical integral of the lobe over the
+rectangle, within a stated bound, and the fitted tables against direct
+integration at their texel centres.
+
+## A sized light's shadow is as hard as a point light's
+
+A rect, sphere or disk light that casts does so from its centre through
+the same maps a spot or point light uses (`drawShadows` in
+`src/common/world/diligent/Geometry.cpp`); the filter's radius does not
+widen with the light's size or with the distance from the caster, so the
+penumbra does not grow away from the contact point as it does under a
+real softbox. A rect or disk light's map opens fifty degrees about its
+normal and nothing further off its face casts. Intended: contact-hardening
+shadows whose filter widens with the light's size times the
+caster-to-receiver distance over the light-to-caster distance, searched in
+the light's map, and a panel's map covering its whole front half. A test
+should assert that a sphere's shadow edge under a large rect light is
+sharper at the contact point than a body's length away from it.
+
+## A sized light's sheen, brushing and range are simplified
+
+Under a rect, sphere or disk light a sheen is lit as by a point light at
+the light's centre carrying the whole light, and a brushing keeps the
+isotropic representative point and stretches the lobe there. Neither
+follows the light's shape, a rect and a disk have no `range` window, and
+a node's scale does not resize a sized light. A test should assert that a
+brushed plate under a long strip light aligned with the brushing shows a
+longer highlight than one across it, and that a sheen under a wide panel
+grazing a cloth plate spreads over the panel's width.

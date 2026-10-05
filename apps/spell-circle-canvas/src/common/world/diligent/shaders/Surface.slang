@@ -44,7 +44,11 @@
 //      microfacet model — a Lambert diffuse and a GGX specular lobe,
 //      split between them by metalness and by Fresnel — and a positioned
 //      light is reached at the falloff its distance and its cone give
-//      HERE, not at some point standing in for the body; a light that
+//      HERE, not at some point standing in for the body; a light with a
+//      size — a rect, a sphere, a disk — gives the diffuse side what the
+//      whole of it delivers and lights each highlight from its point
+//      nearest the reflected ray, widened by the solid angle it fills;
+//      a light that
 //      casts a shadow is multiplied, before anything else is made of it,
 //      by the share of its map's filtered comparisons the pixel passes,
 //      and nothing else in the sum is;
@@ -174,15 +178,17 @@ uniform float4x4 uNormalMatrix;
  *  written in and with every colour already decoded and scaled by its
  *  intensity.
  *
- *  position xyz: where a point or spot stands; w: the kind — 0
- *  directional, 1 point, 2 spot, 3 ambient, 4 hemisphere.
- *  direction xyz: the way a directional or spot light travels, or a
- *  hemisphere's up; w: the range a positioned light is windowed to, zero
- *  for none.
+ *  position xyz: where a positioned light stands — a sized light's
+ *  centre; w: the kind — 0 directional, 1 point, 2 spot, 3 ambient,
+ *  4 hemisphere, 5 rect, 6 sphere, 7 disk.
+ *  direction xyz: the way a directional, spot, rect or disk light
+ *  travels, or a hemisphere's up; w: the range a positioned light is
+ *  windowed to, zero for none.
  *  color rgb: the radiance it shines with — a hemisphere's sky; w: a
- *  spot's outer cone, as a cosine.
- *  ground rgb: a hemisphere's ground; w: a spot's inner cone, as a
- *  cosine. `uLightCount.x` says how many of the sixteen are lit, and
+ *  spot's outer cone, as a cosine, or a rect's half width, or a sphere's
+ *  or a disk's radius.
+ *  ground rgb: a hemisphere's ground, or a rect's unit width axis; w: a
+ *  spot's inner cone, as a cosine, or a rect's half height. `uLightCount.x` says how many of the sixteen are lit, and
  *  `uLightCount.y` how many texels a side the split sum's table has. */
 uniform float4 uLightPosition[16];
 uniform float4 uLightDirection[16];
@@ -808,6 +814,103 @@ float3 shadeLit(VSOut input, float3 base) {
     if (i >= count) break;
     let kind = uLightPosition[i].w;
     let colour = uLightColor[i].rgb;
+    if (kind > 4.5) {
+      // A LIGHT WITH A SIZE: the diffuse side receives what the whole
+      // light delivers, and the highlights are lit from the point of the
+      // light nearest each reflected ray, carrying the solid angle the
+      // light fills.
+      let centre = uLightPosition[i].xyz - input.viewPos;
+      let face = normalizeP(uLightDirection[i].xyz);
+      let size = uLightColor[i].w;
+      let far = max(lengthP(centre), 1e-4);
+      let toCentre = centre / far;
+      let facing = max(dotP(n, toCentre), 0.0);
+      // What the diffuse side receives per unit of the colour, the solid
+      // angle the light fills, and what a highlight receives from it.
+      float irradiance;
+      float solid;
+      float strength;
+      float3 lit;
+      float3 litCoat;
+      if (kind > 6.5) {
+        let cosFace = dotP(-toCentre, face);
+        if (cosFace <= 0.0) continue;
+        let fall = 1.0 / (far * far + size * size);
+        irradiance = cosFace * fall * facing;
+        solid = diskSolidAngle(far, size, cosFace);
+        strength = cosFace * fall;
+        lit = normalizeP(diskPoint(centre, face, size, r));
+        litCoat = normalizeP(diskPoint(centre, face, size, coatR));
+      } else if (kind > 5.5) {
+        let fall = distanceFalloff(far, uLightDirection[i].w);
+        irradiance = fall * facing;
+        solid = sphereSolidAngle(far, size);
+        strength = fall;
+        lit = normalizeP(spherePoint(centre, size, r));
+        litCoat = normalizeP(spherePoint(centre, size, coatR));
+      } else {
+        if (dotP(centre, face) >= 0.0) continue;
+        let across = uLightGround[i].xyz;
+        let up = normalizeP(cross(face, across));
+        let halfHeight = uLightGround[i].w;
+        let corner0 = centre - across * size - up * halfHeight;
+        let corner1 = centre + across * size - up * halfHeight;
+        let corner2 = centre + across * size + up * halfHeight;
+        let corner3 = centre - across * size + up * halfHeight;
+        irradiance = quadIrradiance(corner0, corner1, corner2, corner3, n);
+        solid = quadSolidAngle(corner0, corner1, corner2, corner3);
+        strength = solid;
+        lit = normalizeP(rectPoint(centre, face, across, up, size, halfHeight,
+                                   r));
+        litCoat = normalizeP(rectPoint(centre, face, across, up, size,
+                                       halfHeight, coatR));
+      }
+      if (irradiance <= 0.0 && strength <= 0.0) continue;
+      // Its shadow is read from its centre.
+      float shade = 1.0;
+      let areaMap = shadowMapOf(i);
+      if (areaMap >= 0) {
+        shade = shadowOf(areaMap, input.viewPos, geometric, toCentre);
+        if (shade <= 0.0) continue;
+      }
+      let shaded = colour * shade;
+      let highlight = strength * areaNormalization(rough, solid);
+      var areaDiffuseOne =
+          shaded * areaDiffuse(n, toCentre, v, diffuse, f0, f90, irradiance);
+#ifdef SIGIL_ANISOTROPY
+      var areaSpecularOne =
+          shaded * highlight *
+          directSpecularAnisotropic(n, brushed, lit, v, f0, f90, rough,
+                                    anisotropy);
+#else
+      var areaSpecularOne =
+          shaded * highlight * directSpecular(n, lit, v, f0, f90, rough);
+#endif
+#ifdef SIGIL_SHEEN
+      // A sheen is lit as by a point light at the light's centre carrying
+      // the whole light.
+      let areaSheenAlbedo =
+          uEnvironmentBrdf
+              .SampleLevel(environmentBrdfUv(sheenRough, facing, tableSize),
+                           0.0)
+              .b;
+      let areaScaling =
+          sheenScaling(sheenColor, sheenAlbedoView, areaSheenAlbedo);
+      areaDiffuseOne = areaDiffuseOne * areaScaling;
+      areaSpecularOne = areaSpecularOne * areaScaling;
+      sheenDirect = sheenDirect + shaded * strength *
+                                      directSheen(n, toCentre, v, sheenColor,
+                                                  sheenRough);
+#endif
+      directDiffuseSum = directDiffuseSum + areaDiffuseOne;
+      directSpecularSum = directSpecularSum + areaSpecularOne;
+      if (coat > 0.0)
+        coatDirect = coatDirect +
+                     shaded * (strength * areaNormalization(coatRough, solid)) *
+                         directSpecular(coatNormal, litCoat, v, coatF0, white,
+                                        coatRough);
+      continue;
+    }
     if (kind > 3.5) {
       let up = uLightDirection[i].xyz;
       let ground = uLightGround[i].rgb;

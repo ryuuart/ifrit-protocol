@@ -16,6 +16,8 @@
 #include <algorithm>
 #include <cmath>
 #include <glm/geometric.hpp>
+#include <glm/mat4x4.hpp>
+#include <optional>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -176,6 +178,56 @@ Group litSet(Node subject, const Set& set, motion::Duration now) {
   children.push_back(turntable(set.table, now));
   children.push_back(group({std::move(subject)}).key("subject"));
   return group(children).key("set");
+}
+
+Group visibleLight(Light light) {
+  const LightDescription& described = light.description();
+  const float radius = described.radius;
+  std::optional<geometry::mesh::Mesh> shape;
+  switch (described.kind) {
+    case LightKind::Rect:
+      shape = geometry::mesh::quad(described.width, described.height);
+      break;
+    case LightKind::Disk:
+      // A fan of rings in the xy plane, its face toward +z.
+      shape = geometry::mesh::grid(
+          48, 4, [radius](float u, float v) -> std::pair<glm::vec3, glm::vec3> {
+            const float angle = -u * kTwoPi;
+            return {{std::cos(angle) * radius * v, std::sin(angle) * radius * v,
+                     0.0f},
+                    {0.0f, 0.0f, 1.0f}};
+          });
+      break;
+    case LightKind::Sphere:
+      shape = geometry::mesh::superellipsoid({radius, radius, radius}, 2.0f, 48,
+                                             32);
+      break;
+    default:
+      break;
+  }
+  if (!shape) return group({std::move(light)});
+  // The mesh's face, +z, turned onto the way the light shines, its x axis
+  // onto the light's width axis: the node's x made square to the
+  // direction, or its z for a light shining along x.
+  const glm::vec3 ahead = glm::length(described.direction) > 1e-5f
+                              ? glm::normalize(described.direction)
+                              : glm::vec3(0, -1, 0);
+  glm::vec3 across = glm::vec3(1, 0, 0) - ahead * ahead.x;
+  if (glm::dot(across, across) < 1e-6f)
+    across = glm::vec3(0, 0, 1) - ahead * ahead.z;
+  across = glm::normalize(across);
+  const glm::vec3 up = glm::cross(ahead, across);
+  const glm::mat4 facing(glm::vec4(across, 0), glm::vec4(up, 0),
+                         glm::vec4(ahead, 0), glm::vec4(0, 0, 0, 1));
+  const material::Color colour = described.color.value();
+  Node emitter = mesh(std::move(*shape))
+                     .key("emitter")
+                     .transform(facing)
+                     .castShadow(false)
+                     .receiveShadow(false)
+                     .fill(material::surface::unlit(
+                         {.baseColor = {colour.r, colour.g, colour.b, 1}}));
+  return group({std::move(light), std::move(emitter)});
 }
 
 EnvironmentMap environmentMap(const EnvironmentMapOptions& options) {

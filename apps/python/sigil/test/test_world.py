@@ -100,6 +100,18 @@ class World(unittest.TestCase):
         self.assertFalse(world.pointLight().description.castShadow)
         self.assertIsInstance(body().castShadow(False).receiveShadow(False), world.Mesh)
 
+    def test_lights_with_a_size_carry_it_and_the_kit_shows_them(self):
+        panel = world.rectLight((0, -1, 0), width=4, height=2, intensity=3)
+        self.assertEqual(panel.description.kind, world.LightKind.Rect)
+        self.assertEqual(panel.description.width, 4)
+        self.assertEqual(panel.description.height, 2)
+        ball = world.sphereLight(radius=0.5, intensity=world.intensityAt(1, 3))
+        self.assertEqual(ball.description.kind, world.LightKind.Sphere)
+        self.assertEqual(ball.description.radius, 0.5)
+        disk = world.diskLight((0, 0, -1), radius=0.25)
+        self.assertEqual(disk.description.kind, world.LightKind.Disk)
+        self.assertIsInstance(world.kit.visibleLight(panel.key("panel")), world.Group)
+
     def test_instanced_geometry_is_a_mesh_and_a_null_is_looked_at(self):
         sparks = mesh.Instances()
         sparks.stamp = mesh.quad(4, 4)

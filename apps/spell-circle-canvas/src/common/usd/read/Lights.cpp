@@ -26,9 +26,11 @@
 #include <pxr/base/vt/value.h>
 #include <pxr/usd/sdf/assetPath.h>
 #include <pxr/usd/usd/primRange.h>
+#include <pxr/usd/usdLux/diskLight.h>
 #include <pxr/usd/usdLux/distantLight.h>
 #include <pxr/usd/usdLux/domeLight.h>
 #include <pxr/usd/usdLux/lightAPI.h>
+#include <pxr/usd/usdLux/rectLight.h>
 #include <pxr/usd/usdLux/shadowAPI.h>
 #include <pxr/usd/usdLux/shapingAPI.h>
 #include <pxr/usd/usdLux/sphereLight.h>
@@ -91,6 +93,8 @@ std::optional<world::PlacedLight> readLight(const UsdPrim& prim,
                                             ReadContext& context) {
   const bool distant = prim.IsA<UsdLuxDistantLight>();
   const bool sphere = prim.IsA<UsdLuxSphereLight>();
+  const bool rect = prim.IsA<UsdLuxRectLight>();
+  const bool disk = prim.IsA<UsdLuxDiskLight>();
   // A dome WITH a picture is an environment, read by `readEnvironments`;
   // one without is light arriving equally from everywhere.
   bool dome = false;
@@ -100,7 +104,7 @@ std::optional<world::PlacedLight> readLight(const UsdPrim& prim,
     dome = !(file && file.HasAuthoredValue() && file.Get(&picture) &&
              !picture.GetAssetPath().empty());
   }
-  if (!distant && !sphere && !dome) return std::nullopt;
+  if (!distant && !sphere && !dome && !rect && !disk) return std::nullopt;
 
   const glm::mat4 world = fromGf(context.xforms.GetLocalToWorldTransform(prim));
   // A UsdLux light shines down its -Z; the third basis vector of the
@@ -143,6 +147,34 @@ std::optional<world::PlacedLight> readLight(const UsdPrim& prim,
   }
 
   placed.position = glm::vec3(world[3]);
+  // A RECT or a DISK is ours of its shape: its intensity is the radiance
+  // of its face, which a disk carries as what it delivers at one unit
+  // over pi r². `normalize` spreads the stated power over the face, so it
+  // is divided by the area here.
+  bool normalized = false;
+  api.GetNormalizeAttr().Get(&normalized);
+  if (rect || disk) {
+    placed.across = glm::normalize(glm::vec3(world[0]));
+    if (rect) {
+      light.kind = world::LightKind::Rect;
+      float width = 1.0f;
+      float height = 1.0f;
+      UsdLuxRectLight(prim).GetWidthAttr().Get(&width);
+      UsdLuxRectLight(prim).GetHeightAttr().Get(&height);
+      light.width = width;
+      light.height = height;
+      if (normalized && width * height > 0.0f)
+        light.intensity = intensity / (width * height);
+      return placed;
+    }
+    light.kind = world::LightKind::Disk;
+    float diskRadius = 0.5f;
+    UsdLuxDiskLight(prim).GetRadiusAttr().Get(&diskRadius);
+    light.radius = diskRadius;
+    light.intensity =
+        normalized ? intensity : intensity * kPi * diskRadius * diskRadius;
+    return placed;
+  }
   float radius = 1.0f;
   UsdLuxSphereLight(prim).GetRadiusAttr().Get(&radius);
   light.intensity = intensity * kPi * radius * radius;
@@ -165,6 +197,15 @@ std::optional<world::PlacedLight> readLight(const UsdPrim& prim,
     light.kind = world::LightKind::Spot;
     light.outerAngle = outerAngle;
     light.innerAngle = outerAngle * (1.0f - softness);
+    return placed;
+  }
+  // A sphere not marked to be treated as a point is a ball of its radius.
+  bool point = false;
+  UsdLuxSphereLight(prim).GetTreatAsPointAttr().Get(&point);
+  if (!point && radius > 0.0f) {
+    light.kind = world::LightKind::Sphere;
+    light.radius = radius;
+    if (normalized) light.intensity = intensity;
     return placed;
   }
   light.kind = world::LightKind::Point;

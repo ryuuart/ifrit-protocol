@@ -78,7 +78,7 @@ bool cameraEqual(const std::optional<CameraDescription>& a,
          a->toneCurve == b->toneCurve;
 }
 
-static_assert(core::kFieldCount<LightDescription> == 12,
+static_assert(core::kFieldCount<LightDescription> == 15,
               "LightDescription gained or lost a field — rule on it in "
               "lightEqual() below, then bump this count.");
 bool lightEqual(const std::optional<LightDescription>& a,
@@ -90,9 +90,10 @@ bool lightEqual(const std::optional<LightDescription>& a,
          propertyEqual(a->intensity, b->intensity) &&
          propertyEqual(a->groundColor, b->groundColor) &&
          a->range == b->range && a->innerAngle == b->innerAngle &&
-         a->outerAngle == b->outerAngle && a->lightLink == b->lightLink &&
-         a->shadowLink == b->shadowLink && a->castShadow == b->castShadow &&
-         a->shadow == b->shadow;
+         a->outerAngle == b->outerAngle && a->width == b->width &&
+         a->height == b->height && a->radius == b->radius &&
+         a->lightLink == b->lightLink && a->shadowLink == b->shadowLink &&
+         a->castShadow == b->castShadow && a->shadow == b->shadow;
 }
 
 bool materialsEqual(const NodeDescription& a, const NodeDescription& b) {

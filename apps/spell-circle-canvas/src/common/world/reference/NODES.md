@@ -24,7 +24,7 @@ underneath:
 | structure | `Group` | `group({…})` | nodes under one placement — the one kind with children, which are its argument |
 | structure | `Null` | `null()` | a placement, a key and its collections, and nothing else: a pivot, or what a light or a camera looks at |
 | geometry | `Mesh` | `mesh(triangles)` / `mesh(instances)` | one body wearing a surface: triangles drawn once, or instanced geometry drawn as its stamp repeated |
-| influences | `Light` | `directionalLight`, `pointLight`, `spotLight`, `ambientLight`, `hemisphereLight` | one light, placed and aimed by its node |
+| influences | `Light` | `directionalLight`, `pointLight`, `spotLight`, `rectLight`, `sphereLight`, `diskLight`, `ambientLight`, `hemisphereLight` | one light, placed and aimed by its node |
 | — | `Camera` | `camera(lens, options)` | one viewpoint, and how its picture is read |
 
 Every kind converts to `Node`, the type-erased handle a group's children
@@ -141,19 +141,24 @@ instances again.
 
 ### Lights
 
-A light is one node type made by five factories. `directionalLight` is
+A light is one node type made by eight factories. `directionalLight` is
 a light the same everywhere, travelling along a direction toward what it
 lights: it stands nowhere. `pointLight` shines every way from where its
 node stands, falling off with the square of the distance and, past a
 `range` of zero, brought smoothly to nothing at it. `spotLight` is a
 point light narrowed to a cone about its direction, full strength inside
 `SpotLightOptions::innerAngle` and dark outside
-`SpotLightOptions::outerAngle`. `ambientLight` arrives equally from every
+`SpotLightOptions::outerAngle`. Three lights have a size, centred where
+their node stands: `rectLight` is a panel `RectLightOptions::width` by
+`RectLightOptions::height` shining from its front face along its
+direction, `sphereLight` a ball of `SphereLightOptions::radius` shining
+every way, and `diskLight` a round panel of `DiskLightOptions::radius`
+shining from its front face. `ambientLight` arrives equally from every
 direction, and `hemisphereLight` from a sky above the horizon and a
 ground below it, about its node's up. A light is aimed by the direction
 it travels, and its node's rotation turns that direction — and a
 hemisphere light's up — so a light placed under a turned group turns
-with it. `Light::lookAt` aims a directional or a spot light at a keyed
+with it. `Light::lookAt` aims a directional, spot, rect or disk light at a keyed
 node instead — usually a `null` — from wherever the light stands, resolved
 every frame against where that node stands; a light with no direction of
 its own is not turned, and a key no node answers to stops the frame,
