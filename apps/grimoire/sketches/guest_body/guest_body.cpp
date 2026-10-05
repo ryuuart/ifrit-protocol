@@ -186,13 +186,14 @@ struct GuestBody {
             {world::directionalLight(
                  {-0.45f, -0.55f, -0.7f},
                  {.color = material::Color{0.98f, 0.97f, 0.94f, 1.0f},
-                  .intensity = 1.45f})
+                  .intensity = 3.4f})
                  .key("sun"),
              world::directionalLight(
                  {0.7f, -0.2f, 0.4f},
                  {.color = material::Color{0.42f, 0.55f, 0.78f, 1.0f},
-                  .intensity = 0.35f})
+                  .intensity = 0.9f})
                  .key("fill"),
+             world::ambientLight({.intensity = 0.05f}).key("ambient"),
              // The wall the set stands in front of, so the screen's turn is
              // read against something that is not turning.
              world::mesh(gm::quad(1100, 620))

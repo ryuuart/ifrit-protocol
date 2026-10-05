@@ -565,7 +565,9 @@ struct MetalInstrument {
     const float lightTurn = m.t * bounded(kControls.lightSpeed, -60, 60, 8);
     return world::Frame(
                world::group(
-                   {world::camera(camera, {.exposure = 1.05f}),
+                   {world::camera(camera,
+                                  {.exposure = 0.38f,
+                                   .toneCurve = world::ToneCurve::Neutral}),
                     world::directionalLight(
                         {0.9f * std::cos(radians(lightTurn)) -
                              0.38f * std::sin(radians(lightTurn)),
@@ -573,12 +575,12 @@ struct MetalInstrument {
                          -0.9f * std::sin(radians(lightTurn)) -
                              0.38f * std::cos(radians(lightTurn))},
                         {.color = material::Color{1, 0.93f, 0.81f, 1},
-                         .intensity = 2.2f})
+                         .intensity = 2.6f})
                         .key("key"),
                     world::directionalLight(
                         {0.75f, -0.2f, -0.5f},
                         {.color = material::Color{0.62f, 0.79f, 1, 1},
-                         .intensity = 0.55f})
+                         .intensity = 1.1f})
                         .key("fill"),
                     assembly,
                     part("shelf", gm::box({-250, -274, 95}, {330, -268, 150}),

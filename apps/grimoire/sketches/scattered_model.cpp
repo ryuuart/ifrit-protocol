@@ -131,14 +131,19 @@ struct ScatteredModel {
 
   world::Frame describe(sigil::motion::Duration now) {
     const float seconds = (float)now.count();
-    const world::kit::Set set{
-        .rig = {.extent = kExtent, .bearing = -34.0f, .elevation = 30.0f},
-        .table = {.radius = 470.0f,
-                  .height = 175.0f,
-                  .period = sigil::motion::Duration(16.0),
-                  .fieldOfView = 44.0f},
-        .ground = 3.4f,
-        .drop = 0.92f};
+    const world::kit::Set set{.rig = {.extent = kExtent,
+                                      .bearing = -34.0f,
+                                      .elevation = 30.0f,
+                                      .intensity = 2.6f,
+                                      .fillIntensity = 0.9f,
+                                      .backIntensity = 1.4f,
+                                      .ambientIntensity = 0.06f},
+                              .table = {.radius = 470.0f,
+                                        .height = 175.0f,
+                                        .period = sigil::motion::Duration(16.0),
+                                        .fieldOfView = 44.0f},
+                              .ground = 3.4f,
+                              .drop = 0.92f};
 
     // The body under its own dust: dim and unlit, so what reads is the
     // silhouette the scatter was taken from rather than a second lit

@@ -525,17 +525,19 @@ struct StruckMetal {
     const auto eye = lens();
     return world::Frame(
                world::group(
-                   {world::camera(eye, {.exposure = 1.05f}),
+                   {world::camera(eye,
+                                  {.exposure = 0.5f,
+                                   .toneCurve = world::ToneCurve::Neutral}),
                     world::directionalLight(
                         {0.7f * std::cos(radians(turn)), 0.24f,
                          -0.7f + 0.5f * std::sin(radians(turn))},
                         {.color = material::Color{1, 0.89f, 0.68f, 1},
-                         .intensity = 2.4f})
+                         .intensity = 5.0f})
                         .key("key"),
                     world::directionalLight(
                         {-0.7f, -0.3f, -0.6f},
                         {.color = material::Color{0.58f, 0.72f, 0.85f, 1},
-                         .intensity = 0.65f})
+                         .intensity = 1.3f})
                         .key("fill"),
                     assembly, coupons, overlay(eye)}))
         .environment(environment, {.intensity = 0.92f,

@@ -169,9 +169,9 @@ struct ReflectionLab {
     const world::kit::Set set{.rig = {.extent = 140.0f,
                                       .bearing = 62.0f,
                                       .elevation = 34.0f,
-                                      .fill = 0.3f,
-                                      .back = 0.4f,
-                                      .intensity = 0.45f},
+                                      .intensity = 1.1f,
+                                      .fillIntensity = 0.35f,
+                                      .backIntensity = 0.45f},
                               .table = {.radius = 700.0f,
                                         .height = 250.0f,
                                         .period = sigil::motion::Duration(0.0),
@@ -185,7 +185,8 @@ struct ReflectionLab {
     // reflecting rather than against a flat ground.
     return world::Frame(
                world::kit::litSet(world::group({row}).key("study"), set, now))
-        .environment(studio, {.next = sunset,
+        .environment(studio, {.intensity = 0.4f,
+                              .next = sunset,
                               .crossfade = 0.45f,
                               .rotation = seconds * 26.0f,
                               .shown = 0.85f,

@@ -304,25 +304,28 @@ struct CarvedMarksSet {
     const float phase =
         2 * kPi * float(std::fmod(now.count(), double(kLoop))) / kLoop;
     return world::Frame(
-               world::group({world::camera(lens(), {.exposure = 1.2f}),
-                             world::directionalLight(
-                                 {.45f, -.35f, -.82f},
-                                 {.color = material::Color{1, .93f, .8f, 1},
-                                  .intensity = 1.8f})
-                                 .key("key"),
-                             world::pointLight(
-                                 {.color = material::Color{1, .97f, .9f, 1},
-                                  .intensity = 2.2f,
-                                  .range = 3200})
-                                 .key("sweep")
-                                 .at({640 * std::sin(phase),
-                                      260 * std::cos(phase), 220}),
-                             world::mesh(plate)
-                                 .key("plate")
-                                 .rotateY(yawAt(now.count()))
-                                 .backface(material::Backface::Visible)
-                                 .fill(page.surface())}))
-        .environment(room, {.intensity = 1.4f, .diffuse = .5f})
+               world::group(
+                   {world::camera(lens(),
+                                  {.exposure = 0.72f,
+                                   .toneCurve = world::ToneCurve::Neutral}),
+                    world::directionalLight(
+                        {.45f, -.35f, -.82f},
+                        {.color = material::Color{1, .93f, .8f, 1},
+                         .intensity = 1.1f})
+                        .key("key"),
+                    world::pointLight(
+                        {.color = material::Color{1, .97f, .9f, 1},
+                         .intensity = world::intensityAt(2.4f, 400.0f),
+                         .range = 3200})
+                        .key("sweep")
+                        .at({640 * std::sin(phase), 260 * std::cos(phase),
+                             110}),
+                    world::mesh(plate)
+                        .key("plate")
+                        .rotateY(yawAt(now.count()))
+                        .backface(material::Backface::Visible)
+                        .fill(page.surface())}))
+        .environment(room, {.intensity = 1.0f, .diffuse = .5f})
         .pass(page.render(tree));
   }
 };

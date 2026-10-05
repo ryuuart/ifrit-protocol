@@ -76,8 +76,10 @@ class WorldStudy:
                     extent=380,
                     bearing=-35 + seconds * 8,
                     elevation=38,
-                    intensity=1.2,
-                    fill=0.5,
+                    intensity=3.0,
+                    fillIntensity=1.5,
+                    backIntensity=1.6,
+                    ambientIntensity=0.06,
                 )
             ),
         ).key("study")

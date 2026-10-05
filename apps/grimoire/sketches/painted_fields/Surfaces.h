@@ -114,7 +114,7 @@ inline material::Material surface(
        .roughness = roughness,
        .normal = normal,
        .normalDirectX = true,
-       .clearcoat = 0,
+       .clearcoat = 0.0f,
        .reflectionWeight = finish == Finish::Stone ? .42f : .86f});
 }
 

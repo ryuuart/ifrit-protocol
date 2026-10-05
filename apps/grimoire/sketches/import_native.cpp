@@ -271,8 +271,9 @@ struct ImportNative {
         world::group({world::directionalLight(
                           {-0.4f, -0.8f, -0.4f},
                           {.color = material::Color{0.95f, 0.96f, 1.0f, 1.0f},
-                           .intensity = 0.9f})
+                           .intensity = 2.3f})
                           .key("sun"),
+                      world::ambientLight({.intensity = 0.07f}).key("fill"),
                       world::mesh(gm::quad(900, 700))
                           .key("plate")
                           .at({0, -118, 0})

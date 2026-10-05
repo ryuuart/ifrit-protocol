@@ -693,18 +693,19 @@ struct VagrantStoryTarget {
                 directionalLight(
                     {-0.42f, -0.74f, -0.52f},
                     {.color = material::Color{0.62f, 0.72f, 1.00f, 1.0f},
-                     .intensity = 0.92f})
+                     .intensity = 2.3f})
                     .key("key"),
                 pointLight({.color = material::Color{1.00f, 0.58f, 0.26f, 1.0f},
-                            .intensity = 1.60f,
+                            .intensity = intensityAt(2.5f, 500.0f),
                             .range = 1100.0f})
                     .at({-330.0f, 240.0f, 300.0f})
                     .key("torch"),
                 directionalLight(
                     {0.34f, -0.42f, 0.84f},
                     {.color = material::Color{0.44f, 0.50f, 0.66f, 1.0f},
-                     .intensity = 0.34f})
+                     .intensity = 0.85f})
                     .key("bounce"),
+                ambientLight({.intensity = 0.04f}).key("ambient"),
                 figure("ashley", kAshleyAt, 72.0f, 1.0f,
                        material::surface::program(
                            {.baseColor = {0.62f, 0.60f, 0.55f, 1.0f},

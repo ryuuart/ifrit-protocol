@@ -96,8 +96,9 @@ world::Group set(motion::Duration now) {
   return world::group({world::directionalLight(
                            {-0.4f, -0.85f, -0.35f},
                            {.color = material::Color{0.95f, 0.96f, 1.0f, 1.0f},
-                            .intensity = 0.9f})
+                            .intensity = 2.3f})
                            .key("sun"),
+                       world::ambientLight({.intensity = 0.07f}).key("fill"),
                        world::mesh(gm::quad(760, 760))
                            .key("plate")
                            .at({0, -120, 0})

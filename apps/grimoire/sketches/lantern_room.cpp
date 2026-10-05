@@ -146,7 +146,7 @@ struct LanternRoom {
           world::pointLight(
               {.color = material::Color{lantern.color.r, lantern.color.g,
                                         lantern.color.b, lantern.color.a},
-               .intensity = 1.25f,
+               .intensity = world::intensityAt(2.0f, kRing),
                .range = kReach})
               .key(std::string(lantern.key) + "-lamp")
               .at(at)
@@ -167,7 +167,7 @@ struct LanternRoom {
                 world::directionalLight(
                     {-0.35f, -0.85f, -0.4f},
                     {.color = material::Color{0.52f, 0.60f, 0.86f, 1.0f},
-                     .intensity = 0.22f})
+                     .intensity = 0.55f})
                     .key("sun"),
                 // The spot: opening downward onto the middle of the
                 // cluster, so the tallest body is picked out from above
@@ -175,7 +175,7 @@ struct LanternRoom {
                 world::spotLight(
                     {0.0f, -1.0f, 0.0f},
                     {.color = material::Color{1.0f, 0.96f, 0.88f, 1.0f},
-                     .intensity = 0.9f,
+                     .intensity = world::intensityAt(1.4f, 600.0f),
                      .range = 900.0f,
                      .innerAngle = 8.0f,
                      .outerAngle = 22.0f})

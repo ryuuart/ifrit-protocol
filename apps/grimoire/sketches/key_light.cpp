@@ -92,7 +92,7 @@ struct KeyLight {
     // The values the key reads, written from the scene time — so the
     // plate is a function of the declared moment and of nothing else.
     const float swing = 0.5f + 0.5f * std::sin((float)now.count() * 2.1f);
-    strength = 0.35f + 1.15f * swing;
+    strength = 0.9f + 2.9f * swing;
     tint = material::Color{1.0f, 0.62f + 0.38f * swing,
                            0.35f + 0.65f * (1.0f - swing), 1.0f};
     return world::kit::litSet(
@@ -100,10 +100,11 @@ struct KeyLight {
         {.rig = {.extent = 150.0f,
                  .bearing = -50.0f,
                  .elevation = 26.0f,
-                 .fill = 0.28f,
-                 .back = 0.5f,
                  .intensity = strength,
-                 .color = tint},
+                 .color = tint,
+                 .fillIntensity = 0.75f,
+                 .backIntensity = 1.3f,
+                 .ambientIntensity = 0.05f},
          .table = {.radius = 560.0f,
                    .height = 250.0f,
                    .period = sigil::motion::Duration(16.0),

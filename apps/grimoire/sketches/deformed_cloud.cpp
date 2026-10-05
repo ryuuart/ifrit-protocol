@@ -140,7 +140,11 @@ struct DeformedCloud {
     // the camera rides, and how far under it the floor lies.
     const world::kit::Set set{.rig = {.extent = kExtent * 1.4f,
                                       .bearing = -38.0f,
-                                      .elevation = 30.0f},
+                                      .elevation = 30.0f,
+                                      .intensity = 2.6f,
+                                      .fillIntensity = 0.9f,
+                                      .backIntensity = 1.4f,
+                                      .ambientIntensity = 0.06f},
                               .table = {.radius = 640.0f,
                                         .height = 230.0f,
                                         .period = sigil::motion::Duration(20.0),

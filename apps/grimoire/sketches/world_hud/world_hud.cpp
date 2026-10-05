@@ -153,13 +153,14 @@ struct WorldHud {
                {world::directionalLight(
                     {-0.44f, -0.78f, -0.44f},
                     {.color = material::Color{1.00f, 0.94f, 0.80f, 1.0f},
-                     .intensity = 1.05f})
+                     .intensity = 2.6f})
                     .key("sun"),
                 world::directionalLight(
                     {0.26f, 0.52f, 0.36f},
                     {.color = material::Color{0.42f, 0.56f, 0.78f, 1.0f},
-                     .intensity = 0.42f})
+                     .intensity = 1.0f})
                     .key("sky"),
+                world::ambientLight({.intensity = 0.06f}).key("ambient"),
                 world::mesh(valley)
                     .key("terrain")
                     .fill(sigil::material::surface::program(

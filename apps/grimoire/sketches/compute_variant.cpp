@@ -140,8 +140,9 @@ struct ComputeVariant {
                {world::directionalLight(
                     {-0.42f, -0.82f, -0.38f},
                     {.color = material::Color{0.96f, 0.97f, 1.0f, 1.0f},
-                     .intensity = 1.0f})
+                     .intensity = 2.5f})
                     .key("sun"),
+                world::ambientLight({.intensity = 0.07f}).key("fill"),
                 world::mesh(gm::quad(900, 900))
                     .key("plate")
                     .at({0, -104, 0})

@@ -92,14 +92,15 @@ struct FirstLight {
     return world::group({world::directionalLight(
                              {-0.45f, -0.8f, -0.4f},
                              {.color = material::Color{1.0f, 0.96f, 0.9f, 1.0f},
-                              .intensity = 0.95f})
+                              .intensity = 2.4f})
                              .key("sun"),
                          world::pointLight(
                              {.color = material::Color{0.45f, 0.6f, 1.0f, 1.0f},
-                              .intensity = 0.9f,
+                              .intensity = world::intensityAt(1.8f, 320.0f),
                               .range = 900.0f})
                              .key("lamp")
                              .at({180, 150, 220}),
+                         world::ambientLight({.intensity = 0.07f}).key("fill"),
                          world::kit::turntable(kTable, now),
                          world::mesh(gm::quad(900, 900))
                              .key("plate")

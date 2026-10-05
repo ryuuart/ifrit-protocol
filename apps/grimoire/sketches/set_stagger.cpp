@@ -134,8 +134,13 @@ struct SetStagger {
     // The tree holds NO camera, so the lens the setup wrote is the one the
     // frame is seen through — a still eye, because what moves here is the
     // cascade and not the lens.
-    const world::kit::Rig rig{
-        .extent = 190.0f, .bearing = -34.0f, .elevation = 34.0f};
+    const world::kit::Rig rig{.extent = 190.0f,
+                              .bearing = -34.0f,
+                              .elevation = 34.0f,
+                              .intensity = 2.6f,
+                              .fillIntensity = 0.9f,
+                              .backIntensity = 1.4f,
+                              .ambientIntensity = 0.06f};
     world::Frame frame(
         world::group(
             {world::mesh(gm::superellipsoid({420, 10, 300}, 8.0f, 12, 8))
