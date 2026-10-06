@@ -11,6 +11,10 @@ the product, a window server or a network.
 
 ## Start here
 
+0. **[Getting started: one sketch, from a box to a lit scene](guide:getting-started)**
+   — the tour: a page, a row from data, motion, a pen, the same card as
+   a scene in space, a material and a post pass, and where each library's
+   own document is.
 1. **[Put a coloured rounded box on the page](guide:a-coloured-rounded-box)**
    — a canvas, a box, a fill and a corner radius, and the two ways to
    run it.
