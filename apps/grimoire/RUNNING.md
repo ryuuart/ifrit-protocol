@@ -87,7 +87,7 @@ the width ceiling, never below one.
 
 **`--state <dir>` is the one place a run keeps what it writes for a later
 run.** The builds of sketch files, the browser's thumbnails, the device
-programs a run recorded, the settings and the recent workspaces each take
+programs a run recorded and the surface programs it compiled, the settings and the recent workspaces each take
 a directory or a file under it — `builds/`, `thumbnails/`, `pipelines/`,
 `settings/` — instead of the platform's own locations, and a window or a
 command the run starts is handed the same root. A test or a script that
@@ -486,7 +486,10 @@ selected sketch for a stretch after a warm-up, and prints one
 machine-readable line each — prefixed `WINDOW`, the way `--bench`
 prefixes `BENCH` — carrying the presented rate, the frame's work mean
 and p99, its paint phase, the submit, and the headroom the work alone
-would allow. A sketch this machine cannot run is named `SKIPPED` with
+would allow; then what opening the sketch cost, kept out of every
+number before it: `open`, the seconds from the ask to the first frame
+of its session on screen, and `warmMax`, the slowest frame of the
+warm-up that followed. A sketch this machine cannot run is named `SKIPPED` with
 what is missing, and no line is written for it.
 
 **Each row is the sketch that was on screen.** Selecting a sketch is an

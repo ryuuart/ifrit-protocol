@@ -11,6 +11,9 @@
 // go on answering the old size after an upgrade moved it, with no build
 // error and no failing case, and a declaration cut at the wrong place
 // leaves stored pipeline keys describing programs nobody built.
+// `src/image/SkImage_Raster.h` and `SkImage_Base.h` are private for the
+// same reason and read for one thing only: the pixel memory behind a
+// raster image, which is what says when that image's pixels go.
 
 #include <gpu/graphite/Context.h>
 #include <gpu/graphite/ContextOptions.h>
@@ -21,16 +24,22 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkData.h>
 #include <include/core/SkExecutor.h>
+#include <include/core/SkPixelRef.h>
 #include <include/core/SkSpan.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <include/private/SkIDChangeListener.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <src/core/SkKnownRuntimeEffects.h>
+#include <src/image/SkImage_Base.h>
+#include <src/image/SkImage_Raster.h>
 
 #include <algorithm>
 #include <atomic>
 #include <boost/unordered/unordered_flat_map.hpp>
 #include <cstdint>
 #include <cstdlib>
+#include <memory>
+#include <mutex>
 #include <utility>
 #include <vector>
 
@@ -44,15 +53,25 @@ namespace {
  *  on first use and caches by (image uniqueID, mipmapped) so a raster
  *  atlas or nine-slice uploads once rather than per draw.
  *
- *  Entries pin their textures until the cache reaches kMaxEntries, at
- *  which point it is cleared wholesale — no LRU. That suits hosts holding
- *  a handful of long-lived generated atlases; a host churning thousands of
- *  distinct images would want a real eviction policy instead. */
+ *  A RASTER ENTRY LIVES AS LONG AS ITS SOURCE'S PIXELS. A raster image's
+ *  pixel memory tells its listeners when it goes, and the entry made for
+ *  it is dropped on the next request after that — so a host that draws a
+ *  fresh image every frame (a picture read back from another device, a
+ *  scene painted on the CPU) holds one texture for the frame in flight
+ *  rather than a texture per frame it ever drew, each the size of the
+ *  picture, until the entry count fills. A texture let go of here returns
+ *  to the context's own cache, where the next upload of the same size
+ *  finds it instead of allocating.
+ *
+ *  Entries whose source cannot say when it goes — a lazy image — pin their
+ *  textures until the cache reaches kMaxEntries, at which point it is
+ *  cleared wholesale. */
 class CachingImageProvider final : public skgpu::graphite::ImageProvider {
  public:
   sk_sp<SkImage> findOrCreate(skgpu::graphite::Recorder* recorder,
                               const SkImage* image,
                               SkImage::RequiredProperties required) override {
+    dropGone();
     const uint64_t key = (static_cast<uint64_t>(image->uniqueID()) << 1u) |
                          (required.fMipmapped ? 1u : 0u);
     if (auto it = m_cache.find(key); it != m_cache.end()) return it->second;
@@ -76,12 +95,61 @@ class CachingImageProvider final : public skgpu::graphite::ImageProvider {
     if (m_cache.size() >= kMaxEntries)
       m_cache.clear();  // stale uniqueIDs accumulate as images are replaced
     m_cache.emplace(key, texture);
+    forgetWithItsPixels(*image, key);
     return texture;
   }
 
  private:
+  /** The keys whose source pixels went, filled from whichever thread let
+   *  the last reference to them go and drained on the recorder's. */
+  struct Gone {
+    std::mutex lock;
+    std::vector<uint64_t> keys;
+  };
+
+  /** Told by a raster image's pixel memory that it is going. Holds the
+   *  list weakly, so a provider that went first is told nothing. */
+  class Forget final : public SkIDChangeListener {
+   public:
+    Forget(std::weak_ptr<Gone> into, uint64_t key)
+        : m_into(std::move(into)), m_key(key) {}
+    void changed() override {
+      const std::shared_ptr<Gone> gone = m_into.lock();
+      if (!gone) return;
+      const std::lock_guard<std::mutex> held(gone->lock);
+      gone->keys.push_back(m_key);
+    }
+
+   private:
+    std::weak_ptr<Gone> m_into;
+    uint64_t m_key;
+  };
+
+  /** Asks @p image's pixel memory to say when it goes, where it can. */
+  void forgetWithItsPixels(const SkImage& image, uint64_t key) {
+    const SkImage_Base* base = as_IB(&image);
+    if (base->type() != SkImage_Base::Type::kRaster &&
+        base->type() != SkImage_Base::Type::kRasterPinnable)
+      return;
+    SkPixelRef* pixels =
+        static_cast<const SkImage_Raster*>(base)->getPixelRef();
+    if (!pixels) return;
+    pixels->addGenIDChangeListener(sk_make_sp<Forget>(m_gone, key));
+  }
+
+  void dropGone() {
+    std::vector<uint64_t> keys;
+    {
+      const std::lock_guard<std::mutex> held(m_gone->lock);
+      if (m_gone->keys.empty()) return;
+      keys.swap(m_gone->keys);
+    }
+    for (const uint64_t key : keys) m_cache.erase(key);
+  }
+
   static constexpr size_t kMaxEntries = 256;
   boost::unordered_flat_map<uint64_t, sk_sp<SkImage>> m_cache;
+  std::shared_ptr<Gone> m_gone = std::make_shared<Gone>();
 };
 
 /** Where a failed shader compile is reported, for every context built

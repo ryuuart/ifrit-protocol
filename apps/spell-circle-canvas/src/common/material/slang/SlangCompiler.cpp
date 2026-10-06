@@ -14,8 +14,13 @@
 #include <slang.h>
 
 #include <algorithm>
+#include <boost/unordered/unordered_flat_map.hpp>
+#include <cstdio>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <mutex>
+#include <system_error>
 
 namespace sigil::material::slang {
 
@@ -238,6 +243,178 @@ bool compileNamed(const std::string& name, std::string_view source,
   return true;
 }
 
+/** EVERYTHING A COMPILE'S OUTPUT DEPENDS ON, as one text: the compiler's
+ *  own build, the modules every session loads, the specialisation, the
+ *  two entry points and the source. Two compiles with the same text
+ *  produce the same words, so the text is what a kept program is found
+ *  by — and compared against whole, never by a digest alone. */
+std::string compileKey(std::string_view source, std::string_view vertexEntry,
+                       std::string_view fragmentEntry, bool lit) {
+  static const std::string fixed = [] {
+    std::string text = "slang ";
+    if (const char* tag = spGetBuildTagString()) text += tag;
+    text += '\n';
+    text += shaderSource("Portable.slang");
+    text += '\n';
+    text += termsSource(Target::Slang);
+    text += '\n';
+    return text;
+  }();
+  std::string key = fixed;
+  key += lit ? "lit\n" : "unlit\n";
+  key += vertexEntry;
+  key += '\n';
+  key += fragmentEntry;
+  key += '\n';
+  key += source;
+  return key;
+}
+
+/** A stable 64-bit digest of @p text, which names a kept program's file
+ *  and nothing more: the file carries the whole key and is read only
+ *  when that matches. */
+uint64_t digestOf(std::string_view text) {
+  uint64_t hash = 0xcbf29ce484222325ull;
+  for (const char c : text) {
+    hash ^= (uint8_t)c;
+    hash *= 0x100000001b3ull;
+  }
+  return hash;
+}
+
+/** The directory compiled programs are kept in between runs, empty for
+ *  none. */
+std::filesystem::path& storeDirectory() {
+  static std::filesystem::path directory;
+  return directory;
+}
+
+constexpr char kStoreMark[8] = {'S', 'I', 'G', 'P', 'R', 'G', '0', '1'};
+
+/** A kept file longer than this is not one this code wrote. */
+constexpr uint64_t kLongestStoredField = 64ull << 20;
+
+void writeNumber(std::ofstream& out, uint64_t value) {
+  out.write(reinterpret_cast<const char*>(&value), sizeof value);
+}
+
+void writeText(std::ofstream& out, std::string_view text) {
+  writeNumber(out, text.size());
+  out.write(text.data(), (std::streamsize)text.size());
+}
+
+void writeWords(std::ofstream& out, const std::vector<uint32_t>& words) {
+  writeNumber(out, words.size());
+  out.write(reinterpret_cast<const char*>(words.data()),
+            (std::streamsize)(words.size() * sizeof(uint32_t)));
+}
+
+bool readNumber(std::ifstream& in, uint64_t* value) {
+  in.read(reinterpret_cast<char*>(value), sizeof *value);
+  return (bool)in;
+}
+
+bool readText(std::ifstream& in, std::string* text) {
+  uint64_t size = 0;
+  if (!readNumber(in, &size) || size > kLongestStoredField) return false;
+  text->resize(size);
+  in.read(text->data(), (std::streamsize)size);
+  return (bool)in;
+}
+
+bool readWords(std::ifstream& in, std::vector<uint32_t>* words) {
+  uint64_t count = 0;
+  if (!readNumber(in, &count) || count * sizeof(uint32_t) > kLongestStoredField)
+    return false;
+  words->resize(count);
+  in.read(reinterpret_cast<char*>(words->data()),
+          (std::streamsize)(count * sizeof(uint32_t)));
+  return (bool)in;
+}
+
+std::filesystem::path storedFile(const std::string& key) {
+  char name[32];
+  std::snprintf(name, sizeof name, "%016llx.program",
+                (unsigned long long)digestOf(key));
+  return storeDirectory() / name;
+}
+
+/** The program kept for @p key, when one is and its key is @p key. */
+bool readStored(const std::string& key, Compiled* out) {
+  if (storeDirectory().empty()) return false;
+  std::ifstream in(storedFile(key), std::ios::binary);
+  if (!in) return false;
+  char mark[sizeof kStoreMark];
+  in.read(mark, sizeof mark);
+  if (!in || std::memcmp(mark, kStoreMark, sizeof mark) != 0) return false;
+  std::string kept;
+  if (!readText(in, &kept) || kept != key) return false;
+  Compiled read;
+  uint64_t count = 0;
+  uint64_t bytes = 0;
+  if (!readWords(in, &read.vertex) || !readWords(in, &read.fragment) ||
+      !readNumber(in, &bytes) || !readNumber(in, &count) || count > 1u << 16)
+    return false;
+  read.uniformBytes = (size_t)bytes;
+  for (uint64_t i = 0; i < count; ++i) {
+    std::string name;
+    uint64_t fields[4];
+    if (!readText(in, &name)) return false;
+    for (uint64_t& field : fields)
+      if (!readNumber(in, &field)) return false;
+    read.uniforms.emplace(std::move(name),
+                          UniformSlot{(size_t)fields[0], (size_t)fields[1],
+                                      (size_t)fields[2], (size_t)fields[3]});
+  }
+  if (!readNumber(in, &count) || count > 1u << 16) return false;
+  for (uint64_t i = 0; i < count; ++i) {
+    std::string name;
+    if (!readText(in, &name)) return false;
+    read.textures.push_back(std::move(name));
+  }
+  if (read.vertex.empty() || read.fragment.empty()) return false;
+  *out = std::move(read);
+  return true;
+}
+
+/** @p compiled kept for @p key, written beside its place and moved into
+ *  it, so a reader never meets half a file. A store that cannot be
+ *  written to keeps nothing and the compile stands. */
+void writeStored(const std::string& key, const Compiled& compiled) {
+  if (storeDirectory().empty()) return;
+  std::error_code ignored;
+  std::filesystem::create_directories(storeDirectory(), ignored);
+  const std::filesystem::path into = storedFile(key);
+  std::filesystem::path partial = into;
+  partial += ".partial";
+  {
+    std::ofstream out(partial, std::ios::binary | std::ios::trunc);
+    if (!out) return;
+    out.write(kStoreMark, sizeof kStoreMark);
+    writeText(out, key);
+    writeWords(out, compiled.vertex);
+    writeWords(out, compiled.fragment);
+    writeNumber(out, compiled.uniformBytes);
+    writeNumber(out, compiled.uniforms.size());
+    for (const auto& [name, slot] : compiled.uniforms) {
+      writeText(out, name);
+      writeNumber(out, slot.offset);
+      writeNumber(out, slot.bytes);
+      writeNumber(out, slot.count);
+      writeNumber(out, slot.stride);
+    }
+    writeNumber(out, compiled.textures.size());
+    for (const std::string& name : compiled.textures) writeText(out, name);
+    if (!out) {
+      out.close();
+      std::filesystem::remove(partial, ignored);
+      return;
+    }
+  }
+  std::filesystem::rename(partial, into, ignored);
+  if (ignored) std::filesystem::remove(partial, ignored);
+}
+
 }  // namespace
 
 const UniformSlot* Compiled::uniform(std::string_view name) const {
@@ -254,6 +431,22 @@ bool compileModule(std::string_view source, std::string_view vertexEntry,
   static std::mutex mutex;
   const std::lock_guard<std::mutex> lock(mutex);
 
+  // ONE COMPILE PER TEXT FOR THE PROCESS, AND ONE PER TEXT FOR THE STORE.
+  // A sketch reloaded, a recipe made again with the same body and two
+  // recipes whose bodies agree all hand over the same text, and the words
+  // it compiles to are the same words.
+  static boost::unordered_flat_map<std::string, Compiled> compiled;
+  std::string key = compileKey(source, vertexEntry, fragmentEntry, lit);
+  if (const auto found = compiled.find(key); found != compiled.end()) {
+    *out = found->second;
+    return true;
+  }
+  if (Compiled kept; readStored(key, &kept)) {
+    *out = kept;
+    compiled.emplace(std::move(key), std::move(kept));
+    return true;
+  }
+
   // A NAME NO OTHER MODULE HAS. A session remembers a module by its
   // name, so two recipes loaded under one name would be one module and
   // every material after the first would be drawn with the first one's
@@ -264,10 +457,17 @@ bool compileModule(std::string_view source, std::string_view vertexEntry,
   const std::string name = std::string(programStem) + std::to_string(++serial);
   std::string diagnostic;
   if (compileNamed(name, source, vertexEntry, fragmentEntry, lit, out,
-                   &diagnostic))
+                   &diagnostic)) {
+    writeStored(key, *out);
+    compiled.emplace(std::move(key), *out);
     return true;
+  }
   if (error) *error = withoutSerial(std::move(diagnostic), name);
   return false;
+}
+
+void useProgramStore(std::filesystem::path directory) {
+  storeDirectory() = std::move(directory);
 }
 
 void Uniforms::set(std::string_view name, const float* values, size_t count) {

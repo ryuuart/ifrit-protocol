@@ -266,6 +266,26 @@ TEST(SigilSkiaGraphite, DirectDrawsReuseTheImageProvidersTexture) {
   EXPECT_EQ(pixels.getColor(5, 5), SK_ColorBLACK);
 }
 
+TEST(SigilSkiaGraphite, ARasterImagesTextureGoesWithTheImage) {
+  // A host that reads a picture back from another device draws a fresh
+  // raster image every frame. The texture made for each one must go when
+  // the image does, or the provider holds one picture-sized texture per
+  // frame ever drawn.
+  SKIP_WITHOUT_METAL();
+  GraphiteContext *ctx = graphite();
+  skgpu::graphite::ImageProvider *provider = ctx->recorder()->clientImageProvider();
+  ASSERT_NE(provider, nullptr);
+  sk_sp<SkImage> frame = whiteSheet();
+  const sk_sp<SkImage> texture = provider->findOrCreate(ctx->recorder(), frame.get(), {});
+  ASSERT_NE(texture, nullptr);
+  EXPECT_FALSE(texture->unique()) << "the provider keeps what it made while the image lives";
+  frame.reset();
+  // The next request, for any image, is where the provider lets go.
+  const sk_sp<SkImage> next = whiteSheet();
+  ASSERT_NE(provider->findOrCreate(ctx->recorder(), next.get(), {}), nullptr);
+  EXPECT_TRUE(texture->unique());
+}
+
 TEST(SigilSkiaGraphite, EachRecorderOwnsItsDirectImagePromotions) {
   SKIP_WITHOUT_METAL();
   GraphiteContext *ctx = graphite();

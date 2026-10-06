@@ -380,6 +380,15 @@ layout put them apart, and a name the program does not carry skipped,
 since an optimiser that dropped an unused uniform is not a mistake to
 report.
 
+A text is compiled once per process: a second `compileModule` with the
+same source, entry points and specialisation answers with the first
+one's words. `slang::useProgramStore(directory)` keeps every compiled
+program in a directory a host owns, so the next run reads it back
+instead of compiling it. A kept program is found by everything its words
+depend on — the compiler's build, the modules every session loads, the
+specialisation, the entry points and the source, compared whole — so one
+kept by another build or for another text is never read.
+
 Both stages are linked as one program, because the layout is a property
 of the linked program: linking them apart would let an unused uniform be
 dropped from one and not the other, and the two would then read one

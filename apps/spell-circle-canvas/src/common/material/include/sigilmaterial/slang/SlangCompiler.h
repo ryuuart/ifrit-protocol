@@ -17,6 +17,7 @@
 #include <boost/container/map.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <functional>
 #include <glm/mat4x4.hpp>
 #include <memory>
@@ -79,6 +80,17 @@ struct Compiled {
 bool compileModule(std::string_view source, std::string_view vertexEntry,
                    std::string_view fragmentEntry, bool lit, Compiled* out,
                    std::string* error);
+
+/** WHERE COMPILED PROGRAMS ARE KEPT BETWEEN RUNS: a directory a host
+ *  owns, read before a compile and written after one, so a program a
+ *  previous run compiled is read back instead of compiled again. A kept
+ *  program is found by everything its words depend on — the compiler's
+ *  build, the modules every session loads, the specialisation, the entry
+ *  points and the source, compared whole — so one kept by another build
+ *  or for another text is never read. An empty path keeps none, which
+ *  is the default. Within one process a text is compiled once whether or
+ *  not a store is named. */
+void useProgramStore(std::filesystem::path directory);
 
 /** A recipe compiled for this target. A renderer reaches it off a
  *  `Program` with `as<SlangProgram>()`. */

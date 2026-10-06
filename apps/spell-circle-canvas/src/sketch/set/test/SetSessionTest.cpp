@@ -16,6 +16,7 @@
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/surface/Surface.h>
+#include <sigilsketch/core/Device.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/World.h>
 
@@ -441,6 +442,46 @@ TEST_F(SetDoors, PaintsATextureSceneOntoABody) {
   EXPECT_GT(SkColorGetG(centre), 200u);
   EXPECT_LT(SkColorGetR(centre), 40u);
   EXPECT_LT(SkColorGetB(centre), 40u);
+}
+
+/** The screen the last `Screened` session made, so a case can ask where
+ *  it stands. */
+std::weak_ptr<sigil::compose::TextureScene>& lastScreen() {
+  static std::weak_ptr<sigil::compose::TextureScene> screen;
+  return screen;
+}
+
+/** `Screened`, telling the case which screen it was handed. */
+struct ScreenedAndSeen : Screened {
+  void setup(SetContext& ctx) {
+    Screened::setup(ctx);
+    lastScreen() = screen;
+  }
+};
+
+TEST_F(SetDoors, ALiveSetPaintsItsScreensOnTheDeviceItIsDrawnOn) {
+  // On the CPU every material a screen or a page paints is interpreted
+  // pixel by pixel, which for a page of material is seconds a frame; a
+  // live set's screens stand on the device it draws on, and a capture
+  // that will be diffed keeps the CPU's pixels.
+  const sigil::geometry::device::test::OnDevice on =
+      sigil::geometry::device::test::onDevice();
+  ASSERT_TRUE(on);
+  useDevice(on.device);
+  for (const bool deterministic : {false, true}) {
+    std::unique_ptr<Session> session =
+        kindOf<ScreenedAndSeen>()->open(fonts(), assets(), deterministic);
+    const SkBitmap picture = oneFrame(*session);
+    const std::shared_ptr<sigil::compose::TextureScene> screen =
+        lastScreen().lock();
+    ASSERT_NE(screen, nullptr);
+    EXPECT_EQ((bool)screen->deviceImage(), !deterministic)
+        << (deterministic ? "a capture" : "a window");
+    const SkColor centre = picture.getColor(80, 60);
+    EXPECT_GT(SkColorGetG(centre), 200u);
+    EXPECT_LT(SkColorGetR(centre), 40u);
+  }
+  useDevice(nullptr);
 }
 
 TEST_F(SetDoors, PaintsASurfaceSceneThatTheSetLights) {

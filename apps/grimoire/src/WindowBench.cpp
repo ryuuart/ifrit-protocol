@@ -47,10 +47,16 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
     double measureBegan = 0.0;
     unsigned long long framesAtBegin = 0;
     int stoodDown = 0;
+    /** When the entry on screen was asked for, when the window first
+     *  presented its session, and the longest frame of its warm-up: what
+     *  opening it cost, kept apart from the stretch it is measured over. */
+    double asked = 0.0;
+    double opened = -1.0;
+    double slowestWarmMs = 0.0;
   };
   auto run = std::make_shared<Run>(
       Run{std::move(selection), 0, sketch::BenchCadence(times),
-          std::chrono::steady_clock::now(), 0.0, 0, 0});
+          std::chrono::steady_clock::now(), 0.0, 0, 0, 0.0, -1.0, 0.0});
   run->cadence.select(0.0);
   view.setProperty("sketchIndex", run->selection[0]);
 
@@ -85,6 +91,7 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
         const bool presenting = host && host->live() &&
                                 host->sketchPath() == wanted &&
                                 host->presentedFrames() > 0;
+        if (presenting && run->opened < 0.0) run->opened = now;
         const sketch::BenchCadence::Step step =
             run->cadence.advance(now, presenting);
         if (step == sketch::BenchCadence::Step::Wait) return;
@@ -95,6 +102,9 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
           // could not draw drops it — and a stretch measured over no
           // session is stood down below rather than read.
           if (host) {
+            run->slowestWarmMs = sigil::measure::Milliseconds(
+                                     host->frameTimes().work().quantile(1.0))
+                                     .count();
             host->resetMetrics();
             run->framesAtBegin = host->presentedFrames();
           }
@@ -144,7 +154,7 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
             std::printf(
                 "WINDOW %s window=%dx%d@%g canvas=%dx%d kind=%.*s fps=%.1f "
                 "work=%.2fms p99=%.2fms draw=%.2fms submit=%.2fms "
-                "headroom=%.1f\n",
+                "headroom=%.1f open=%.2fs warmMax=%.1fms\n",
                 key.c_str(), window.width(), window.height(),
                 window.devicePixelRatio(), (int)canvas.width(),
                 (int)canvas.height(), (int)runtime.size(), runtime.data(), fps,
@@ -154,7 +164,9 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
                     .count(),
                 sigil::measure::Milliseconds(host->drawTimes().mean()).count(),
                 metrics.value(QStringLiteral("submitMs")).toDouble(),
-                host->frameTimes().headroomFps());
+                host->frameTimes().headroomFps(),
+                run->opened >= 0.0 ? run->opened - run->asked : -1.0,
+                run->slowestWarmMs);
           }
         } else {
           // Step::Skip — the window never presented this entry's session.
@@ -174,6 +186,9 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
         }
         view.setProperty("sketchIndex", run->selection[run->at]);
         run->cadence.select(now);
+        run->asked = now;
+        run->opened = -1.0;
+        run->slowestWarmMs = 0.0;
       });
   timer->start();
   return true;

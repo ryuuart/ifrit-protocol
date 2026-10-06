@@ -96,6 +96,7 @@
  */
 
 #include <sigilcore/hardware/GpuDevice.h>
+#include <sigilmaterial/slang/SlangCompiler.h>
 #include <sigilsketch/core/Crash.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Sources.h>
@@ -742,6 +743,11 @@ int main(int argc, char* argv[]) {
   // were declared before the context was created, which is here: the
   // window's context is made on the render thread, after this.
   openPipelineWarmup(pipelines::storeDirectory());
+  // A SET'S SURFACE PROGRAMS, kept beside them: each one a run compiled is
+  // read back by the next instead of compiled again on the thread that
+  // draws while the set opens.
+  sigil::material::slang::useProgramStore(pipelines::storeDirectory() /
+                                          "surface programs");
 
   QQmlApplicationEngine engine;
   QObject::connect(

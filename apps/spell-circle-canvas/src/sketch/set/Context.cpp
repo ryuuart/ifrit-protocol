@@ -6,13 +6,37 @@
 
 #include <sigilcompose/texture/SurfaceScene.h>
 #include <sigilcompose/texture/Texture.h>
+#include <sigilgeometry/device/Device.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilsketch/core/Device.h>
 #include <sigilsketch/set/Set.h>
 
 #include <string>
 #include <utility>
 
 namespace sigil::sketch {
+
+namespace {
+
+/** A LIVE SET'S 2D SCENES ARE PAINTED ON THE DEVICE THE SET IS DRAWN ON.
+ *  There the material programs a page or a screen paints with run on the
+ *  device, and the body that wears the result samples the very texture
+ *  they painted, with no upload between. On the CPU every one of those
+ *  programs is interpreted pixel by pixel, once per map, which for a page
+ *  of material is seconds a frame.
+ *
+ *  A capture that will be diffed keeps the CPU's pixels, which are the
+ *  same pixels on every machine; a scene the device refuses stays on the
+ *  CPU and paints there as it would have. */
+template <class Scene>
+void standOnTheDevice(Scene& scene, bool deterministic) {
+  if (deterministic) return;
+  geometry::device::Device* on = device();
+  if (!on || !on->gpu() || !on->graphite()) return;
+  (void)scene.useDevice(*on->gpu(), *on->graphite());
+}
+
+}  // namespace
 
 std::shared_ptr<compose::TextureScene> SetContext::textureScene(
     SkISize size, sigil::material::Color background) {
@@ -23,6 +47,7 @@ std::shared_ptr<compose::TextureScene> SetContext::textureScene(
   // the same measured decision on the same capture.
   if (deterministic)
     scene->setAutoTexturePromotion(compose::PromotionPolicy::Off);
+  standOnTheDevice(*scene, deterministic);
   // Kept by the session, not by this context: the context is handed over
   // at setup and gone by the first frame, and the scene has to stand for
   // as long as a body wears it.
@@ -37,6 +62,7 @@ Page SetContext::page(glm::ivec2 size) {
   std::shared_ptr<compose::SurfaceScene> scene =
       compose::SurfaceScene::make(SkISize::Make(size.x, size.y), fonts);
   if (!scene) return Page();
+  standOnTheDevice(*scene, deterministic);
   // The first page is "page"; each one after it is numbered, so two pages
   // on one frame are two passes an error can tell apart.
   const size_t made = pages ? pages->size() : 0;

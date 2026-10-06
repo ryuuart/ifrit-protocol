@@ -7,9 +7,11 @@
 #include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/slang/SlangCompiler.h>
 #include <sigilshaders/MaterialSlang.h>
+#include <unistd.h>
 
 #include <cctype>
 #include <cstring>
+#include <filesystem>
 #include <string>
 
 #include "ShaderTable.h"
@@ -278,4 +280,38 @@ TEST(MaterialSlang, ARecipesSlangBodyCompilesAsASurface) {
 TEST(MaterialSlang, TheShaderTableHoldsEveryFileTheDirectoryDoes) {
   sigil::test::expectShaderTableIsWholeDirectory(
       shaderSources(), SIGIL_MATERIAL_SLANG_SHADER_DIR);
+}
+
+TEST(MaterialSlang, AStoreKeepsOneProgramPerTextItCompiled) {
+  // A named store is written after a compile, once per distinct text: the
+  // same text again is the process's own copy, and a text that differs
+  // by a comment is a program of its own.
+  const std::filesystem::path store =
+      std::filesystem::temp_directory_path() /
+      ("sigil-material-slang-store-" + std::to_string(::getpid()));
+  std::filesystem::remove_all(store);
+  useProgramStore(store);
+  const std::string first = std::string(kModule) + "\n// kept once\n";
+  const std::string second = std::string(kModule) + "\n// kept twice\n";
+  Compiled a;
+  Compiled again;
+  Compiled b;
+  std::string error;
+  ASSERT_TRUE(compileModule(first, "vsTest", "fsTest", false, &a, &error))
+      << error;
+  ASSERT_TRUE(compileModule(first, "vsTest", "fsTest", false, &again, &error))
+      << error;
+  ASSERT_TRUE(compileModule(second, "vsTest", "fsTest", false, &b, &error))
+      << error;
+  useProgramStore({});
+  EXPECT_EQ(again.vertex, a.vertex);
+  EXPECT_EQ(again.fragment, a.fragment);
+  EXPECT_EQ(again.textures, a.textures);
+  ASSERT_NE(again.uniform("uTint"), nullptr);
+  EXPECT_EQ(again.uniform("uTint")->offset, a.uniform("uTint")->offset);
+  size_t kept = 0;
+  for (const auto& entry : std::filesystem::directory_iterator(store))
+    kept += entry.path().extension() == ".program" ? 1 : 0;
+  EXPECT_EQ(kept, 2u);
+  std::filesystem::remove_all(store);
 }

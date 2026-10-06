@@ -22,11 +22,12 @@ sigil_slang_module(NAME Portable
   PROOF_VAR SIGIL_MATERIAL_PORTABLE_PROOF)
 
 find_package(boost_container CONFIG REQUIRED)
+find_package(boost_unordered CONFIG REQUIRED)
 sigil_library(SigilMaterialSlang
   SOURCES SlangCompiler.cpp ${SIGIL_MATERIAL_PORTABLE_PROOF}
   HEADERS SlangCompiler.h
   PUBLIC SigilMaterialCore Boost::container
-  PRIVATE slang::slang)
+  PRIVATE slang::slang Boost::unordered)
 sigil_shader_sources(SigilMaterialSlang
   DIR ${SIGIL_MATERIAL_SLANG_SHADER_DIR} NAMESPACE sigil::material::slang)
 

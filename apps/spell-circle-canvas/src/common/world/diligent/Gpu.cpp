@@ -201,6 +201,11 @@ sk_sp<SkImage> Gpu::read(std::string_view name) {
   if (!display) display = makeColor("world display", kColorFormat);
   if (!display) return nullptr;
   finalStage(*this, texture, display);
+  // The stage leaves the display bound to be drawn into, and a copy out
+  // of a bound target makes the device unbind it itself and say so on
+  // every frame; it is let go of here instead.
+  device->context()->SetRenderTargets(0, nullptr, nullptr,
+                                      dg::RESOURCE_STATE_TRANSITION_MODE_NONE);
   return shared.read(display);
 }
 
