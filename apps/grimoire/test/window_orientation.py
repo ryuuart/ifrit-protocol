@@ -192,17 +192,17 @@ def benchmark_file(grimoire: Path, probe: Path, work: Path, environment: dict):
         )
         rows = [line for line in output.splitlines() if line.startswith("WINDOW ")]
         if len(rows) != 1 or not re.match(
-            rf"WINDOW {fixture.stem} window=\S+ canvas={width}x{height} kind=canvas fps=",
+            rf"WINDOW {fixture.stem} window=\S+ canvas={width}x{height} kind=scene2d fps=",
             rows[0],
         ):
             sys.exit(f"the window benchmark did not measure the current file: {rows}")
 
     (work / "broken.sksl").write_text("half4 main(float2 xy) { return missingColour; }")
     fixture.write_text("""#include <sigilcompose/core/Factories.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilmaterial/program/Shader.h>
 struct BrokenShader {
-  void setup(sigil::sketch::SketchContext& ctx) {
+  void setup(sigil::sketch::Scene2DContext& ctx) {
     ctx.canvas(640, 420);
     ctx.composer.render(sigil::compose::box().width(640).height(420).fill(
         sigil::material::shader(ctx.assets.hub(), ctx.local("broken.sksl"))));

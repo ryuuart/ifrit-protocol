@@ -8,8 +8,8 @@
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Constants.h>
 #include <sigildraw/Pen.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <cmath>
 
@@ -20,7 +20,7 @@ using namespace sigil::draw;
 namespace {
 
 struct ObservableFlowfield1 {
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     sketch::kit::stage(context, {.size = {720, 720}, .captureAt = 0.05});
 
     context.composer.render(compose::graphics("observable_flowfield_1.loop",

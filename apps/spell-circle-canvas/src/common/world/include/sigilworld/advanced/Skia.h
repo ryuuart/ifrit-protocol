@@ -68,7 +68,7 @@ class Targets {
    *  placed by the point operators' own table, formed once per distinct
    *  pair and kept while both stand; null when there is nothing to stamp. The
    *  answer is held under `stampKey`, a fold over the two VALUES, so a
-   *  still set is neither formed twice nor uploaded twice, and what a
+   *  still scene is neither formed twice nor uploaded twice, and what a
    *  frame does not ask for is let go at the end of it. @p key receives
    *  the number the stamping is held under, for an executor that keys an
    *  upload by the same one. */
@@ -77,7 +77,7 @@ class Targets {
                                            uint64_t* key = nullptr);
 
   /** How many stampings have been FORMED here, over the store's
-   *  whole life. A frame drawing a set that has not moved must not move
+   *  whole life. A frame drawing a scene that has not moved must not move
    *  this number. */
   [[nodiscard]] uint64_t stampings() const { return m_stampings; }
 

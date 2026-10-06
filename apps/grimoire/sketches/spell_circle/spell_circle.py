@@ -23,7 +23,7 @@ from sigil.compose import (
 )
 from sigil.material import Paint
 from sigil.motion import animate
-from sigil.sketch import SketchContext, kit, sketch
+from sigil.sketch import Scene2DContext, kit, sketch
 from sigil.weave import Type
 
 TITLE = "Spell Circle"
@@ -131,7 +131,7 @@ def swatches() -> Element:
 
 @sketch(size=(900, 560), capture_at=1.1, background="transparent")
 class SpellCircle:
-    def setup(self, ctx: SketchContext) -> None:
+    def setup(self, ctx: Scene2DContext) -> None:
         look = kit.house_theme()
         look.palette.ground = (0, 0, 0, 0)
         look.palette.ink = "#273d41"

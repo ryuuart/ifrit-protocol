@@ -24,11 +24,11 @@ TestCase {
 
     readonly property var sketches: [
         { sketchIndex: 0, name: "A passage", key: "passage", folder: "Study · Type",
-          kind: "canvas", blurb: "A paragraph", tags: ["Typography/Paragraph", "Typography/CJK", "Motion/Text"] },
+          kind: "scene2d", blurb: "A paragraph", tags: ["Typography/Paragraph", "Typography/CJK", "Motion/Text"] },
         { sketchIndex: 1, name: "Brush", key: "brush", folder: "Draw · Procedural",
           kind: "draw", blurb: "Ink", tags: ["Drawing/Brushes"] },
         { sketchIndex: 2, name: "Letter", key: "letter", folder: "Catalog · Type",
-          kind: "canvas", blurb: "A letter", tags: ["Typography/Lettering"] },
+          kind: "scene2d", blurb: "A letter", tags: ["Typography/Lettering"] },
         { sketchIndex: 3, name: "Draft", key: "draft", folder: "Workspace",
           kind: "", blurb: "An external file", tags: [], external: true,
           entryPath: "src/art/scene.py" }
@@ -115,7 +115,7 @@ TestCase {
 
     function test_searchCountsAndGroupFilterCompose() {
         browser.chooseGroup("Drawing");
-        browser.filterText = "tag:typography kind:canvas passage";
+        browser.filterText = "tag:typography kind:scene2d passage";
         settle();
         compare(browser.matchingCount, 1);
         compare(node("Typography").count, 1);
@@ -185,7 +185,7 @@ TestCase {
 
     function test_switchingViewsPreservesSearchOrderSelectionAndPosition() {
         browser.chooseGroup("Typography");
-        browser.filterText = "kind:canvas";
+        browser.filterText = "kind:scene2d";
         browser.sortKey = "name";
         browser.sortAscending = false;
         settle();
@@ -198,7 +198,7 @@ TestCase {
         browser.chooseView("gallery");
         settle();
         compare(browser.cards, cards);
-        compare(browser.filterText, "kind:canvas");
+        compare(browser.filterText, "kind:scene2d");
         compare(browser.groupPath, "Typography");
         compare(browser.selectedIndex, 0);
         compare(browser.rebuildGeneration, generation);
@@ -247,7 +247,7 @@ TestCase {
     function test_clearFiltersResetsQueryAndGroupInEitherView(data) {
         browser.chooseView(data.mode);
         browser.chooseGroup("Drawing");
-        browser.filterText = "kind:canvas";
+        browser.filterText = "kind:scene2d";
         settle();
         compare(browser.cards.length, 0);
         verify(browser.hasFilters);

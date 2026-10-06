@@ -82,7 +82,7 @@ capture never depended on the phases in the first place.
 The runtimes make a plate differently, and each way is load-bearing. A
 drawn tree is resolution-independent, so its still is one more frame
 re-rendered at up to twice the canvas — a texture bake re-runs at the
-capture scale rather than being upsampled. A lit set is FORMED at one
+capture scale rather than being upsampled. A lit scene is FORMED at one
 resolution and its still describes nothing, so there is nothing to form
 again larger and its plate is the frame it just finished. A pen's
 canvas holds every frame's residue at the resolution it was formed at,
@@ -91,9 +91,9 @@ that seam.
 
 Which resolution that is comes off the canvas a host hands over. A
 plate's canvas is the declared size and carries no transform; a live
-window's carries the fit AND the screen's own scale, and a set formed at
+window's carries the fit AND the screen's own scale, and a scene3d sketch formed at
 its declared size and then fitted upward would be a magnified picture of
-a smaller one. So a set reads the scale off the canvas it is given,
+a smaller one. So a scene3d sketch reads the scale off the canvas it is given,
 forms its frame at that many pixels, and puts the result back on the
 declared canvas — which on a plate's canvas is the identity, and is why
 the two hosts agree to the byte.
@@ -216,12 +216,12 @@ in one run and reads the rows, and `sigil.py plates compare <dir-a>
 ### The plate ledger
 
 `scripts/sigil.py plates` drives Grimoire's sweep: three tiers over one
-binary. The CPU tier judges every canvas sketch on byte identity against one
-baseline manifest and passes every set over, counting them; the device tier
-renders each canvas sketch through the device and judges it against its CPU
-plate of the same run, per colour channel, and judges each set — drawn on a
+binary. The CPU tier judges every scene2d sketch on byte identity against one
+baseline manifest and passes every scene3d sketch over, counting them; the device tier
+renders each scene2d sketch through the device and judges it against its CPU
+plate of the same run, per colour channel, and judges each scene3d sketch — drawn on a
 device and nowhere else — on byte identity against a device manifest of its
-own; the promotion tier renders each canvas scene with the promoter held off
+own; the promotion tier renders each scene2d sketch with the promoter held off
 and again with every promotable node eagerly baked, and judges the pair
 within one code value. The CPU and device tiers keep baselines. The judgement
 itself is `scripts/README.md`'s.

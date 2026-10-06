@@ -46,8 +46,8 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <string>
 #include <utility>
@@ -119,7 +119,7 @@ const char* kHeartD =
 }  // namespace
 
 struct ShapeShelf {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // A generator is a pure function of its parameters and the box.
     sketch::kit::stage(ctx, {.size = {1120, 980}, .captureAt = 0.05});

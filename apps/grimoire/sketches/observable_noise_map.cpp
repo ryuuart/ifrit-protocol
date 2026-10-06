@@ -8,7 +8,7 @@
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Math.h>
 #include <sigildraw/Pen.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
@@ -17,7 +17,7 @@ using namespace sigil::draw;
 namespace {
 
 struct ObservableNoiseMap {
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     context.canvas(720, 720);
     context.captureAt(0.05);
 

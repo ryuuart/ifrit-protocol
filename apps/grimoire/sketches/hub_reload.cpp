@@ -27,8 +27,8 @@
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/core/Image.h>
 #include <sigilmedia/image/Encode.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <array>
 #include <filesystem>
@@ -103,7 +103,7 @@ std::vector<std::byte> chart(int bars, material::Color ink) {
 }  // namespace
 
 struct HubReload {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide presentation(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // both readings have already been taken

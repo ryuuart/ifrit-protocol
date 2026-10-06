@@ -68,8 +68,8 @@
 #include <sigilgeometry/path/blend/Blend.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <cmath>
 #include <string>
@@ -281,7 +281,7 @@ void spineTurned(SkCanvas& canvas) {
 }  // namespace
 
 struct BlendOptions {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // Every step is computed from the keys and the options; nothing here
     // reads the clock.

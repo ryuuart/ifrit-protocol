@@ -1,8 +1,8 @@
 # Surface lobes
 
-Thirteen balls of one size under one set, each wearing one of the optional
+Thirteen balls of one size under one scene, each wearing one of the optional
 lobes of the physically based surface beside a neighbour that states
-nothing more, and a page lit by the same set.
+nothing more, and a page lit by the same scene.
 
 The upper row, left to right:
 

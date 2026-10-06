@@ -116,12 +116,12 @@ void everySample(Visit&& visit) {
           "domains": ["host", "clock"],
           "clock": "PauseWhileLoading",
           "state_root": "/tmp/state",
-          "sessions": [{"sketch": "hello", "kind": "canvas",
+          "sessions": [{"sketch": "hello", "kind": "scene2d",
                         "width": 800, "height": 600, "moment": 2}],
           "attached": ["session-1", "session-2"]})");
   visit.template operator()<protocol::registry::values::ListResult>(
       "sigil.protocol.registry.ListResult",
-      R"({"sketches": [{"name": "hello", "stem": "hello", "kind": "canvas",
+      R"({"sketches": [{"name": "hello", "stem": "hello", "kind": "scene2d",
                         "available": true},
                        {"name": "usd_roundtrip", "available": false,
                         "reason": "built without OpenUSD"}]})");
@@ -197,7 +197,7 @@ TEST(ProtocolRoundTrip, TextTheTableCannotHoldIsNoValue) {
   why.clear();
   EXPECT_FALSE(
       data::values::fromJson<protocol::session::values::OpenParameters>(
-          R"({"kind": "canvas"})", &why));
+          R"({"kind": "scene2d"})", &why));
   EXPECT_FALSE(why.empty());
 }
 

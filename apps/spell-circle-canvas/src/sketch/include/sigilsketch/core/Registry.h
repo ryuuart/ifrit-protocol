@@ -101,9 +101,9 @@ inline constexpr bool kNoSurface = false;
 template <class SketchType>
 [[nodiscard]] Kind kindOf() {
   static_assert(detail::kNoSurface<SketchType>,
-                "SIGIL_SKETCH takes a sketch. A canvas sketch (the "
-                "sketch::CanvasSketch concept) names setup(SketchContext&) "
-                "or setup(); a set (sketch::SetSketch) names "
+                "SIGIL_SKETCH takes a sketch. A scene2d sketch (the "
+                "sketch::Scene2DSketch concept) names setup(Scene2DContext&) "
+                "or setup(); a scene3d sketch (sketch::Scene3DSketch) names "
                 "describe(float seconds) or describe(), answering a "
                 "world::Frame. This type names none of them.");
   return {};

@@ -40,8 +40,8 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/paint/Bases.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include "tategaki/VerticalSpecimen.h"
 
@@ -73,7 +73,7 @@ constexpr float kDiscSize = 168, kSealSize = 104;
 }  // namespace mawari
 
 struct Mawarikomi {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 1.0,
                              .background = material::Color{1, 1, 1, 1}});

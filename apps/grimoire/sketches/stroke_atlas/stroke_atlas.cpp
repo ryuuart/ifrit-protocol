@@ -9,7 +9,7 @@
 struct StrokeAtlasSketch {
   sigil::motion::Animatable<float> march = sigil::motion::animatable(0.0f);
 
-  Element describe(sketch::SketchContext& ctx) {
+  Element describe(sketch::Scene2DContext& ctx) {
     // The plate's voices stand on its root, so every leaf under it
     // resolves the class it names here.
     Element plate = stack().fill(kPaper).applyStyleSheet(voices());
@@ -528,7 +528,7 @@ struct StrokeAtlasSketch {
     return plate;
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(
         ctx, {.size = {1600, 1990}, .captureAt = 6.0, .background = kPaper});
 

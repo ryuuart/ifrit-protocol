@@ -49,7 +49,7 @@ function draw() {
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Pen.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
@@ -58,7 +58,7 @@ using namespace sigil::draw;
 struct Bounce {
   float x = 200, y = 100, vx = 3, vy = 2;
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(400, 300);
     ctx.composer.render(
         compose::graphics("bounce.loop", [this](Pen& pen) { draw(pen); })
@@ -294,7 +294,7 @@ vectors), `tint`, `filter`, `erase`/`noErase`, `beginClip`/`endClip`
 `loadFont`/`loadJSON`/`loadStrings`/`loadSound`, the DOM
 (`createButton`, `createSlider`, `select`), and WEBGL with everything
 under it (`box`, `sphere`, `rotateX`, `camera`, `lights`) — a lit set is
-a `sketch::SetSketch`.
+a `sketch::Scene3DSketch`.
 
 ## Retained guests
 

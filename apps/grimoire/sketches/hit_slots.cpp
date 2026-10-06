@@ -68,9 +68,9 @@
 #include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Theme.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
@@ -254,7 +254,7 @@ struct HitSlots {
              .hitTestable(false)});
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide look(sketch::kit::featureTheme());
     sketch::kit::stage(
         ctx,
@@ -271,7 +271,7 @@ struct HitSlots {
     ctx.composer.renderSlot("answer", answer());
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     // The answer is described AGAIN whenever it changes, and a describe
     // outside the scope setup opened has no theme bound: the look must be
     // in scope wherever the tree is built, not only where it is first

@@ -48,9 +48,9 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilmotion/ease/Ease.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Instrument.h>
 #include <sigilsketch/kit/Theme.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <array>
 #include <cmath>
@@ -133,7 +133,7 @@ constexpr std::array<Band, 6> kBands = {{{50, -16, 15},
 
 /** The door this sketch opens: the port and path a phone reaches, and
  *  the pages the same port hands out, which stand beside this file. */
-std::string doorOf(const sketch::SketchContext& ctx) {
+std::string doorOf(const sketch::Scene2DContext& ctx) {
   return "ws://:" + std::to_string(kPort) + kPath +
          "?pages=" + ctx.local(kPages);
 }
@@ -207,7 +207,7 @@ struct PhoneSky {
   std::string pages;
   Reading shown;
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide sheet(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(
@@ -247,7 +247,7 @@ struct PhoneSky {
     describe(ctx);
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     const double step = elapsed - seconds;
     seconds = elapsed;
     drift += (double)wind() * step;
@@ -353,7 +353,7 @@ struct PhoneSky {
     return true;
   }
 
-  void describe(sketch::SketchContext& ctx) {
+  void describe(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide sheet(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     std::vector<compose::Element> parts;

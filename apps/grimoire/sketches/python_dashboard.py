@@ -8,7 +8,7 @@ from math import sin
 from sigil.compose import box, column, row, text
 from sigil.compose import document as doc
 from sigil.motion import animate
-from sigil.sketch import SketchContext, kit, sketch
+from sigil.sketch import Scene2DContext, kit, sketch
 
 READINGS = [
     dict(
@@ -142,7 +142,7 @@ def signal_panel():
 
 @sketch(size=(1100, 660), capture_at=2.0)
 class Dashboard:
-    def setup(self, ctx: SketchContext) -> None:
+    def setup(self, ctx: Scene2DContext) -> None:
         with kit.provide(kit.feature_theme(kit.Density.Spacious)):
             kit.stage(ctx, size=(1100, 660), capture_at=2.0)
             ctx.render(

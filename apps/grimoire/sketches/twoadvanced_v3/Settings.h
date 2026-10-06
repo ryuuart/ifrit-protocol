@@ -30,9 +30,9 @@
 #include <sigilmedia/advanced/Embedded.h>
 #include <sigilmedia/core/Image.h>
 #include <sigilmotion/values/Tween.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <array>

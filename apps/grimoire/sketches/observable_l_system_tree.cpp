@@ -9,7 +9,7 @@
 #include <sigildraw/Constants.h>
 #include <sigildraw/Math.h>
 #include <sigildraw/Pen.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <cmath>
@@ -44,7 +44,7 @@ struct Branch {
 struct ObservableLSystemTree {
   std::string sentence = "F";
 
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     context.canvas(800, 800);
     context.captureAt(0.05);
     for (int generation = 0; generation < 4; ++generation)

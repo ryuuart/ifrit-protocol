@@ -20,8 +20,8 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmedia/advanced/Skia.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Face.h>
@@ -87,7 +87,7 @@ struct PixFontDotSprite {
   kit::Mask sweep[3];
   std::shared_ptr<const sigil::media::Image> dot;
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     sketch::kit::stage(ctx, {.size = kCanvas});
     // The readout is live, so the sheet is complete only once the number

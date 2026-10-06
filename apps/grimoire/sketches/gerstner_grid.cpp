@@ -59,8 +59,8 @@
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/time/Duration.h>
 #include <sigilmotion/values/Time.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/style/Type.h>
 
 #include <array>
@@ -185,7 +185,7 @@ struct GerstnerGrid {
   // falls in the middle of the opening four-column hold: settled after the
   // entrance, well clear of the first step.
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 1.5,
                              .background = material::Color{0, 0, 0, 1}});
@@ -222,7 +222,7 @@ struct GerstnerGrid {
   /** Stepping the programme is a DATA change, so it re-describes and the
    *  reconciler diffs — which is also the honest way to show that the six
    *  configurations are six layouts, not six frames of one. */
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     Composer& composer = ctx.composer;
     if (elapsed < nextStep && shownConfig == config) return;
     if (elapsed >= nextStep) {

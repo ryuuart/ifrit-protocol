@@ -2,7 +2,7 @@
 
 The catalogue has three presentation needs. Feature demonstrations use the shared
 SketchKit feature theme, page, sections, comparisons, captions and wells. Reference studies preserve the typography,
-colour, arrangement and proportions of their source. Drawing and 3D sketches
+colour, arrangement and proportions of their source. Drawing and scene3d sketches
 keep the image itself as the subject; a page is not required around every image.
 
 The earlier review inventory below records **236 managed entries**. The
@@ -19,7 +19,7 @@ and ateliers whose shapes and lettering are made of material: `carved_marks`,
 `light_table`, `luminous_layers`, `metal_linework`, `optical_liquid`,
 `painted_fields`, `pigment_brushes`, `reflection_lobe`, `stone_relief` and
 `wet_glass_console` on Compose, and `metal_instrument` and `struck_metal` as
-World sets with physical cuts and depth. Each keeps its own authored interface
+scene3d sketches with physical cuts and depth. Each keeps its own authored interface
 rather than the shared feature page and steps through timed states that each
 change one material parameter or light; most keep fixed endpoint specimens
 beside the hero in every state.
@@ -365,7 +365,7 @@ build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire \
 The current refresh updates 113 native and 12 Python feature demonstrations.
 Reference reconstructions and authored catalog treatments are outside its
 scope. Fifteen native entries retain their presentation: thirteen full-frame
-Set scenes, the Gerstner grid reconstruction and the `ui_particles` artwork.
+scene3d sketches, the Gerstner grid reconstruction and the `ui_particles` artwork.
 
 Feature sheets bind `featureTheme()` explicitly. Compact and spacious densities
 share slate grounds, ivory type and pale gold readings while retaining the

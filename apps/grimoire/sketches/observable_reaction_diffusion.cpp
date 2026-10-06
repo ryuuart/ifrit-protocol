@@ -9,7 +9,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Pen.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <array>
@@ -34,7 +34,7 @@ struct ObservableReactionDiffusion {
   std::vector<Cell> next = field;
   SkBitmap bitmap;
 
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     context.canvas(720, 720);
     context.captureAt(5.0);
     bitmap.allocN32Pixels(kGrid, kGrid);

@@ -13,10 +13,10 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Pen.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/live/Host.h>
 #include <sigilsketch/plate/Sweep.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilsketch/testing/Comparison.h>
 #include <sigilsketch/testing/InProcessHost.h>
 
@@ -50,7 +50,7 @@ void drawOnce(sigil::draw::Pen& pen) {
 }
 
 struct PenDrawnOnce {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(64, 48);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(1.0);
@@ -121,12 +121,12 @@ TEST(SketchWrittenStill, AtAPlatesDensityIsThePlateOfThatMoment) {
 /** A BOX MARCHING RIGHT a canvas unit every sixtieth of a second, so a
  *  still one frame later than another is another picture. */
 struct MarchingBox {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(64, 48);
     ctx.background({0.1f, 0.1f, 0.2f, 1});
     ctx.captureAt(1.0);
   }
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     using namespace sigil::compose;
     ctx.composer.render(box()
                             .width(10)
@@ -210,12 +210,12 @@ TEST(SketchWrittenStill, OfAMovingSceneIsThePlateOfThatMoment) {
  *  is photographed at is the ceiling over its width rather than a whole
  *  number, and its height times that density falls between two pixels. */
 struct WideStrip {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(1250, 333);
     ctx.background({0.1f, 0.1f, 0.2f, 1});
     ctx.captureAt(0.5);
   }
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     using namespace sigil::compose;
     ctx.composer.render(box()
                             .width(40)

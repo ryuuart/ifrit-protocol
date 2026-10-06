@@ -1,10 +1,10 @@
 /** @file
- * The 3D session: what a set declares, that stepping it to a moment is a
- * function of the moment alone, and that a set with no device to draw on
- * does not open and says why.
+ * The 3D session: what a scene3d sketch declares, that stepping it to a moment
+ * is a function of the moment alone, and that a scene3d sketch with no device
+ * to draw on does not open and says why.
  *
- * Every case that opens a set draws it on the device and SKIPS where the
- * machine has no Vulkan runtime; its suite carries the `gpu` label.
+ * Every case that opens a scene3d sketch draws it on the device and SKIPS where
+ * the machine has no Vulkan runtime; its suite carries the `gpu` label.
  */
 
 #include <gtest/gtest.h>
@@ -18,7 +18,7 @@
 #include <sigilmaterial/advanced/Program.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/core/Device.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilworld/World.h>
 
 #include <algorithm>
@@ -51,9 +51,9 @@ using sigil::sketch::test::fonts;
 using sigil::sketch::test::inkBounds;
 using sigil::sketch::test::samePicture;
 
-/** A CASE THAT OPENS A SET: the device runtime installed for the process
- *  before it, as a host installs it, and taken away after it, or the case
- *  skipped naming what is missing. */
+/** A CASE THAT OPENS A SCENE3D SKETCH: the device runtime installed for the
+ *  process before it, as a host installs it, and taken away after it, or the
+ *  case skipped naming what is missing. */
 class OnDevice : public testing::Test {
  protected:
   void SetUp() override {
@@ -64,14 +64,14 @@ class OnDevice : public testing::Test {
   void TearDown() override { useRuntime({}); }
 };
 
-class SetSession : public OnDevice {};
-class SetDoors : public OnDevice {};
-class SetWindow : public OnDevice {};
-class SetBodies : public OnDevice {};
-class SetKinds : public OnDevice {};
+class Scene3DSession : public OnDevice {};
+class Scene3DDoors : public OnDevice {};
+class Scene3DWindow : public OnDevice {};
+class Scene3DBodies : public OnDevice {};
+class Scene3DKinds : public OnDevice {};
 
-/** The body every set here turns: a rounded box, whose flat faces turn
- *  to and from the sun as it spins and whose silhouette a rasteriser
+/** The body every scene3d sketch here turns: a rounded box, whose flat faces
+ *  turn to and from the sun as it spins and whose silhouette a rasteriser
  *  with no antialiasing still draws whole. */
 gm::Mesh roundedBox() { return gm::superellipsoid({40, 40, 40}, 6.0f, 24, 16); }
 
@@ -80,7 +80,7 @@ gm::Mesh roundedBox() { return gm::superellipsoid({40, 40, 40}, 6.0f, 24, 16); }
  *  difference between stepping and repainting. */
 struct Spun {
   static inline int describes = 0;
-  void setup(SetContext& ctx) {
+  void setup(Scene3DContext& ctx) {
     ctx.canvas(160, 120);
     ctx.background({0.05f, 0.05f, 0.08f, 1});
     ctx.captureAt(0.5);
@@ -105,11 +105,11 @@ struct Spun {
   }
 };
 
-/** A set that paints a compose sheet into a texture the session keeps,
- *  and wears it on one unlit card facing the camera. */
+/** A scene3d sketch that paints a compose sheet into a texture the session
+ *  keeps, and wears it on one unlit card facing the camera. */
 struct Screened {
   std::shared_ptr<sigil::compose::TextureScene> screen;
-  void setup(SetContext& ctx) {
+  void setup(Scene3DContext& ctx) {
     ctx.canvas(160, 120);
     ctx.background({0, 0, 0, 1});
     sigil::geometry::mesh::camera::Camera lens;
@@ -132,12 +132,12 @@ struct Screened {
   }
 };
 
-/** A set that paints a compose page as a surface's maps the session keeps
- *  — a lit panel under an unlit green label — and wears it on one card
+/** A scene3d sketch that paints a compose page as a surface's maps the session
+ *  keeps — a lit panel under an unlit green label — and wears it on one card
  *  under a sun. */
 struct Surfaced {
   Page page;
-  void setup(SetContext& ctx) {
+  void setup(Scene3DContext& ctx) {
     ctx.canvas(160, 120);
     ctx.background({0, 0, 0, 1});
     sigil::geometry::mesh::camera::Camera lens;
@@ -175,7 +175,7 @@ struct Surfaced {
 template <int Coat>
 struct CoatedPage {
   Page page;
-  void setup(SetContext& ctx) {
+  void setup(Scene3DContext& ctx) {
     ctx.canvas(160, 120);
     ctx.background({0, 0, 0, 1});
     page = ctx.page({64, 64});
@@ -212,7 +212,7 @@ struct CoatedPage {
 template <int Specular, int Brushed>
 struct LobedPage {
   Page page;
-  void setup(SetContext& ctx) {
+  void setup(Scene3DContext& ctx) {
     ctx.canvas(160, 120);
     ctx.background({0, 0, 0, 1});
     page = ctx.page({64, 64});
@@ -246,7 +246,7 @@ struct LobedPage {
   }
 };
 
-/** THE CAMERA A SET DECLARES IN ITS OWN TREE — nowhere near the
+/** THE CAMERA A SCENE3D SKETCH DECLARES IN ITS OWN TREE — nowhere near the
  *  fallback its host hands in, and looking at a point that is not the
  *  origin, so that a viewpoint pivoting on the wrong one of the two is
  *  visible. */
@@ -260,7 +260,7 @@ sigil::geometry::mesh::camera::Camera framedLens() {
 
 /** One box seen from a camera the TREE carries. */
 struct Framed {
-  void setup(SetContext& ctx) {
+  void setup(Scene3DContext& ctx) {
     ctx.canvas(160, 120);
     ctx.background({0.05f, 0.05f, 0.08f, 1});
     sigil::geometry::mesh::camera::Camera fallback;
@@ -282,7 +282,7 @@ struct Framed {
   }
 };
 
-/** The set, stepped @p frames from zero onto a canvas @p scale times its
+/** The sketch, stepped @p frames from zero onto a canvas @p scale times its
  *  declared size and scaled to match — which is what a host that fitted
  *  the sketch into a window on a scaled screen hands over. */
 SkBitmap steppedOnto(float scale, int frames) {
@@ -328,20 +328,20 @@ SkBitmap shadedFrame(Session& session) {
   return bitmap;
 }
 
-TEST_F(SetSession, TheSameMomentIsTheSamePicture) {
-  // The plate contract: a set is a pure function of the scene time, so
-  // two runs that step the same number of frames agree on every byte.
+TEST_F(Scene3DSession, TheSameMomentIsTheSamePicture) {
+  // The plate contract: a scene3d sketch is a pure function of the scene time,
+  // so two runs that step the same number of frames agree on every byte.
   EXPECT_TRUE(samePicture(steppedTo(30), steppedTo(30)));
 }
 
-TEST_F(SetSession, ADifferentMomentIsADifferentPicture) {
+TEST_F(Scene3DSession, ADifferentMomentIsADifferentPicture) {
   EXPECT_FALSE(samePicture(steppedTo(6), steppedTo(30)));
 }
 
-TEST_F(SetSession, AFittedCanvasPutsThePictureInTheSamePlace) {
+TEST_F(Scene3DSession, AFittedCanvasPutsThePictureInTheSamePlace) {
   // A live host hands over a canvas ALREADY FITTED: the sketch's own
   // canvas scaled up to the window it was letterboxed into, on a screen
-  // that may have two pixels for every one of those. A set whose
+  // that may have two pixels for every one of those. A scene3d sketch whose
   // projection is read off the surface instead of off the canvas lands
   // at the surface's size inside a box that is still the declared one,
   // which carries most of it off its own edge.
@@ -363,8 +363,8 @@ TEST_F(SetSession, AFittedCanvasPutsThePictureInTheSamePlace) {
   EXPECT_NEAR(one.fBottom, two.fBottom, kSlack);
 }
 
-TEST_F(SetSession, AFittedCanvasIsFormedAtItsOwnResolution) {
-  // A set is formed at ONE resolution, so it has to be formed at the
+TEST_F(Scene3DSession, AFittedCanvasIsFormedAtItsOwnResolution) {
+  // A scene3d sketch is formed at ONE resolution, so it has to be formed at the
   // canvas's: one formed at the declared size and then magnified onto a
   // canvas twice as wide is a picture of a smaller one. What separates
   // the two is inside the outline rather than around it — a magnified
@@ -387,11 +387,11 @@ TEST_F(SetSession, AFittedCanvasIsFormedAtItsOwnResolution) {
                           "a magnified plate looks like";
 }
 
-TEST_F(SetSession, DrawsThroughOnePassWhenTheSetDeclaresNone) {
+TEST_F(Scene3DSession, DrawsThroughOnePassWhenTheScene3DDeclaresNone) {
   // The runtime is a property of the PROCESS, not of a sketch: a host
   // that brought one up says so once, and every session then reaches it.
-  // An executor is only reached THROUGH passes, so a set about the scene
-  // is given one geometry pass clearing to its background.
+  // An executor is only reached THROUGH passes, so a scene3d sketch about the
+  // scene is given one geometry pass clearing to its background.
   std::unique_ptr<Session> performed = kindOf<Spun>()->open(fonts(), assets());
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(160, 120));
@@ -400,9 +400,9 @@ TEST_F(SetSession, DrawsThroughOnePassWhenTheSetDeclaresNone) {
   EXPECT_EQ(performed->lanes()[3].ms, 1.0);
 }
 
-TEST_F(SetSession, OffersAViewpointAHostCanTakeHoldOf) {
+TEST_F(Scene3DSession, OffersAViewpointAHostCanTakeHoldOf) {
   // A host reads this to decide whether to offer the control at all,
-  // and seeds the control with where the set already stands rather than
+  // and seeds the control with where the sketch already stands rather than
   // with a number of its own.
   std::unique_ptr<Session> session = kindOf<Spun>()->open(fonts(), assets());
   EXPECT_TRUE(session->hasViewpoint());
@@ -410,8 +410,8 @@ TEST_F(SetSession, OffersAViewpointAHostCanTakeHoldOf) {
   EXPECT_TRUE(session->orbit().has_value());
 }
 
-TEST_F(SetSession, IsSeenFromTheCameraItsOwnTreeCarries) {
-  // WHAT A LIVE HOST MUST SHOW before anyone touches it: the set as its
+TEST_F(Scene3DSession, IsSeenFromTheCameraItsOwnTreeCarries) {
+  // WHAT A LIVE HOST MUST SHOW before anyone touches it: the sketch as its
   // plate shows it. The host hands in a fallback camera nowhere near the
   // one the tree carries, and the tree's is what the session reports.
   std::unique_ptr<Session> session = kindOf<Framed>()->open(fonts(), assets());
@@ -425,7 +425,7 @@ TEST_F(SetSession, IsSeenFromTheCameraItsOwnTreeCarries) {
   EXPECT_NEAR(reported->distance, declared.distance, 1e-2f);
 }
 
-TEST_F(SetSession, ADragThatMovesItByNothingChangesNothing) {
+TEST_F(Scene3DSession, ADragThatMovesItByNothingChangesNothing) {
   // Which is what says the orbit pivots on the declared camera's own
   // target and stands at its own distance, rather than on a point and a
   // distance of the host's.
@@ -439,7 +439,7 @@ TEST_F(SetSession, ADragThatMovesItByNothingChangesNothing) {
   EXPECT_TRUE(samePicture(standing, held));
 }
 
-TEST_F(SetSession, ADragMovesItAboutTheTargetItDeclared) {
+TEST_F(Scene3DSession, ADragMovesItAboutTheTargetItDeclared) {
   std::unique_ptr<Session> session = kindOf<Framed>()->open(fonts(), assets());
   oneFrame(*session);
   const camera::Orbit declared = camera::orbitOf(framedLens());
@@ -455,7 +455,7 @@ TEST_F(SetSession, ADragMovesItAboutTheTargetItDeclared) {
   EXPECT_NEAR(after->pitchDeg, declared.pitchDeg, 1e-2f);
 }
 
-TEST_F(SetDoors, PaintsATextureSceneOntoABody) {
+TEST_F(Scene3DDoors, PaintsATextureSceneOntoABody) {
   std::unique_ptr<Session> session =
       kindOf<Screened>()->open(fonts(), assets());
   // The card is unlit and wears the sheet, so what the middle of the
@@ -477,17 +477,17 @@ std::weak_ptr<sigil::compose::TextureScene>& lastScreen() {
 
 /** `Screened`, telling the case which screen it was handed. */
 struct ScreenedAndSeen : Screened {
-  void setup(SetContext& ctx) {
+  void setup(Scene3DContext& ctx) {
     Screened::setup(ctx);
     lastScreen() = screen;
   }
 };
 
-TEST_F(SetDoors, ALiveSetPaintsItsScreensOnTheDeviceItIsDrawnOn) {
+TEST_F(Scene3DDoors, ALiveScene3DPaintsItsScreensOnTheDeviceItIsDrawnOn) {
   // On the CPU every material a screen or a page paints is interpreted
   // pixel by pixel, which for a page of material is seconds a frame; a
-  // live set's screens stand on the device it draws on, and a capture
-  // that will be diffed keeps the CPU's pixels.
+  // live scene3d sketch's screens stand on the device it draws on, and a
+  // capture that will be diffed keeps the CPU's pixels.
   const sigil::geometry::device::test::OnDevice on =
       sigil::geometry::device::test::onDevice();
   ASSERT_TRUE(on);
@@ -508,7 +508,7 @@ TEST_F(SetDoors, ALiveSetPaintsItsScreensOnTheDeviceItIsDrawnOn) {
   useDevice(nullptr);
 }
 
-TEST_F(SetDoors, PaintsASurfaceSceneThatTheSetLights) {
+TEST_F(Scene3DDoors, PaintsASurfaceSceneThatTheScene3DLights) {
   std::unique_ptr<Session> session =
       kindOf<Surfaced>()->open(fonts(), assets());
   const SkBitmap picture = shadedFrame(*session);
@@ -522,7 +522,7 @@ TEST_F(SetDoors, PaintsASurfaceSceneThatTheSetLights) {
   EXPECT_NEAR(int(SkColorGetR(panel)), int(SkColorGetG(panel)), 12);
 }
 
-TEST_F(SetDoors, APagesClearcoatReachesTheShaderThroughItsSurface) {
+TEST_F(Scene3DDoors, APagesClearcoatReachesTheShaderThroughItsSurface) {
   std::unique_ptr<Session> coated =
       kindOf<CoatedPage<1>>()->open(fonts(), assets());
   std::unique_ptr<Session> bare =
@@ -539,7 +539,7 @@ TEST_F(SetDoors, APagesClearcoatReachesTheShaderThroughItsSurface) {
               0.08f);
 }
 
-TEST_F(SetDoors, APagesSpecularReachesTheShaderThroughItsSurface) {
+TEST_F(Scene3DDoors, APagesSpecularReachesTheShaderThroughItsSurface) {
   // The page learns its content states a specular while it paints, after
   // the frame was described; the first frame already shades with it.
   const SkBitmap stock =
@@ -550,7 +550,7 @@ TEST_F(SetDoors, APagesSpecularReachesTheShaderThroughItsSurface) {
       << "with no specular the page's dielectric shows no highlight";
 }
 
-TEST_F(SetDoors, APagesBrushingReachesTheShaderThroughItsSurface) {
+TEST_F(Scene3DDoors, APagesBrushingReachesTheShaderThroughItsSurface) {
   const SkBitmap round =
       shadedFrame(*kindOf<LobedPage<1, 1>>()->open(fonts(), assets()));
   const SkBitmap brushed =
@@ -564,13 +564,13 @@ TEST_F(SetDoors, APagesBrushingReachesTheShaderThroughItsSurface) {
   EXPECT_GT(along, across + 0.05f);
 }
 
-/** A body on a turntable, performed through a pass the set declares
+/** A body on a turntable, performed through a pass the sketch declares
  *  itself and asked back, so a case can read how many pixels the frame
  *  was formed at — which is what a host zooming into a piece of it pays
  *  for. */
 struct Measured {
   static inline glm::ivec2 formed{0, 0};
-  void setup(SetContext& ctx) {
+  void setup(Scene3DContext& ctx) {
     ctx.canvas(160, 120);
     ctx.background({0.05f, 0.05f, 0.08f, 1});
     sigil::geometry::mesh::camera::Camera lens;
@@ -626,8 +626,8 @@ SkBitmap throughThePane(Session& session, int frames) {
   return bitmap;
 }
 
-TEST_F(SetWindow, AZoomedPaneFormsOnlyThePanesPixels) {
-  // A set is formed at the resolution it is seen at, so at 4x the
+TEST_F(Scene3DWindow, AZoomedPaneFormsOnlyThePanesPixels) {
+  // A scene3d sketch is formed at the resolution it is seen at, so at 4x the
   // whole canvas would be 640x480 — sixteen times the pane. What is
   // formed is the part the pane shows, and no larger than the pane.
   Measured::formed = {0, 0};
@@ -638,7 +638,7 @@ TEST_F(SetWindow, AZoomedPaneFormsOnlyThePanesPixels) {
   EXPECT_EQ(Measured::formed, glm::ivec2(160, 120));
 }
 
-TEST_F(SetWindow, APaneShowsWhatTheWholeCanvasShowsThere) {
+TEST_F(Scene3DWindow, APaneShowsWhatTheWholeCanvasShowsThere) {
   // The part is the whole picture's projection carried off-centre, so
   // each pixel of it is the pixel the whole canvas at 4x holds there.
   // The two projections are the same numbers composed differently, so a
@@ -678,9 +678,9 @@ TEST_F(SetWindow, APaneShowsWhatTheWholeCanvasShowsThere) {
       << apart << " pixels differ by more than two levels";
 }
 
-TEST_F(SetWindow, AWholeCanvasClipFormsTheWholeCanvas) {
+TEST_F(Scene3DWindow, AWholeCanvasClipFormsTheWholeCanvas) {
   // A plate's clip is the whole canvas, and what it forms is the
-  // declared canvas in the plate's pixels — the frame a set with no
+  // declared canvas in the plate's pixels — the frame a scene3d sketch with no
   // part in it forms, unmoved.
   Measured::formed = {0, 0};
   std::unique_ptr<Session> declared =
@@ -700,7 +700,7 @@ TEST_F(SetWindow, AWholeCanvasClipFormsTheWholeCanvas) {
   EXPECT_EQ(Measured::formed, glm::ivec2(640, 480));
 }
 
-TEST_F(SetWindow, AStillAfterAZoomedFrameShowsTheWholePicture) {
+TEST_F(Scene3DWindow, AStillAfterAZoomedFrameShowsTheWholePicture) {
   // A still describes nothing and shows the frame standing; a frame
   // standing that was formed over a pane's part of the picture is formed
   // again over what the still shows, at the same moment — so it is the
@@ -722,8 +722,8 @@ TEST_F(SetWindow, AStillAfterAZoomedFrameShowsTheWholePicture) {
   EXPECT_TRUE(samePicture(fromZoomed, fromPlain));
 }
 
-/** A SET THAT SPELLS NOTHING BUT ITS FRAME: no `setup`, and therefore no
- *  plate, no ground and no viewpoint of its own. */
+/** A SCENE3D SKETCH THAT SPELLS NOTHING BUT ITS FRAME: no `setup`, and
+ *  therefore no plate, no ground and no viewpoint of its own. */
 struct Bare {
   static inline int describes = 0;
   world::Frame describe(sigil::motion::Duration now) {
@@ -748,22 +748,22 @@ struct Misspelled {
   void describeIt(float) {}
 };
 
-TEST_F(SetBodies, ASetIsAnyTypeThatNamesDescribe) {
+TEST_F(Scene3DBodies, AScene3DIsAnyTypeThatNamesDescribe) {
   // The concept is what `kindOf` asserts on, so a member spelled some
-  // other way is a compile error naming the signatures a set may have.
-  // Nothing in this tree compiles a translation unit that must NOT build
+  // other way is a compile error naming the signatures a scene3d sketch may
+  // have. Nothing in this tree compiles a translation unit that must NOT build
   // — the documentation probes are the one generated compile check and
   // they assert that a name EXISTS — so what a case can hold is the
   // answer the assertion reads.
-  static_assert(SetSketch<Spun>);
-  static_assert(SetSketch<Bare>);
-  static_assert(!SetSketch<Misspelled>);
+  static_assert(Scene3DSketch<Spun>);
+  static_assert(Scene3DSketch<Bare>);
+  static_assert(!Scene3DSketch<Misspelled>);
 
   Bare::describes = 0;
   std::unique_ptr<Session> session = kindOf<Bare>()->open(fonts(), assets());
   ASSERT_NE(session, nullptr);
-  // A set that declared no plate is opened onto the one every set
-  // session starts with, and describing is all it is asked for.
+  // A scene3d sketch that declared no plate is opened onto the one every
+  // scene3d session starts with, and describing is all it is asked for.
   EXPECT_EQ(session->canvas().size, SkSize::Make(900, 640));
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(90, 64));
@@ -772,14 +772,14 @@ TEST_F(SetBodies, ASetIsAnyTypeThatNamesDescribe) {
   EXPECT_EQ(Bare::describes, 1);
 }
 
-TEST_F(SetDoors, OpensAnOwnedBodyWithNoKindBehindIt) {
-  // The door a host whose set is not a C++ type comes in by: it holds
-  // the body itself and names the runtime, and what comes back is the
+TEST_F(Scene3DDoors, OpensAnOwnedBodyWithNoKindBehindIt) {
+  // The door a host whose scene3d sketch is not a C++ type comes in by: it
+  // holds the body itself and names the runtime, and what comes back is the
   // session the registered kind would have opened.
   Spun::describes = 0;
   std::unique_ptr<Session> owned =
-      openSet(std::make_unique<SetBodyOf<Spun>>(), fonts(), assets(), false,
-              sigil::sketch::runtime());
+      openScene3D(std::make_unique<Scene3DBodyOf<Spun>>(), fonts(), assets(),
+                  false, sigil::sketch::runtime());
   ASSERT_NE(owned, nullptr);
   EXPECT_EQ(owned->canvas().size, SkSize::Make(160, 120));
   const SkBitmap throughTheDoor = oneFrame(*owned);
@@ -792,25 +792,26 @@ TEST_F(SetDoors, OpensAnOwnedBodyWithNoKindBehindIt) {
 }
 
 /** A supplier standing where the address of a factory function would:
- *  what a host whose sets are made somewhere else registers. */
-class SpunSource final : public SetBodySource {
+ *  what a host whose scene3d sketches are made somewhere else registers. */
+class SpunSource final : public Scene3DBodySource {
  public:
-  std::unique_ptr<SetBody> open() const override {
-    return std::make_unique<SetBodyOf<Spun>>();
+  std::unique_ptr<Scene3DBody> open() const override {
+    return std::make_unique<Scene3DBodyOf<Spun>>();
   }
 };
 
-TEST_F(SetKinds, ASupplierOpensTheBodiesWhereNoFactoryFunctionCan) {
+TEST_F(Scene3DKinds, ASupplierOpensTheBodiesWhereNoFactoryFunctionCan) {
   const auto source = std::make_shared<const SpunSource>();
-  const Kind supplied = SetKind{source};
+  const Kind supplied = Scene3DKind{source};
 
   // Two kinds are the same kind when they open the same body: the same
   // supplier is one kind, a second supplier of the same type is
   // another, and neither is the kind a factory function makes.
-  EXPECT_TRUE(supplied == Kind{SetKind{source}});
-  EXPECT_FALSE(supplied == Kind{SetKind{std::make_shared<const SpunSource>()}});
+  EXPECT_TRUE(supplied == Kind{Scene3DKind{source}});
+  EXPECT_FALSE(supplied ==
+               Kind{Scene3DKind{std::make_shared<const SpunSource>()}});
   EXPECT_FALSE(supplied == kindOf<Spun>());
-  EXPECT_EQ(supplied->runtime(), "set");
+  EXPECT_EQ(supplied->runtime(), "scene3d");
 
   Spun::describes = 0;
   std::unique_ptr<Session> session = supplied->open(fonts(), assets());
@@ -820,10 +821,10 @@ TEST_F(SetKinds, ASupplierOpensTheBodiesWhereNoFactoryFunctionCan) {
   EXPECT_EQ(Spun::describes, 1);
 }
 
-TEST(SetAvailability, ASetWithNoDeviceToDrawOnIsUnavailableAndSaysWhy) {
+TEST(Scene3DAvailability, AScene3DWithNoDeviceToDrawOnIsUnavailableAndSaysWhy) {
   // ONE MESSAGE at every door: the kind a listing asks, the registry
-  // entry a sweep asks, the open a host attempts and the probe a canvas
-  // sketch baking a set declares all say the same thing, and no body's
+  // entry a sweep asks, the open a host attempts and the probe a scene2d
+  // sketch baking a 3D frame declares all say the same thing, and no body's
   // setup runs.
   useRuntime({});
   std::string why;
@@ -835,7 +836,7 @@ TEST(SetAvailability, ASetWithNoDeviceToDrawOnIsUnavailableAndSaysWhy) {
   Spun::describes = 0;
   try {
     (void)kindOf<Spun>()->open(fonts(), assets());
-    ADD_FAILURE() << "a set opened with no device to draw on";
+    ADD_FAILURE() << "a scene3d sketch opened with no device to draw on";
   } catch (const std::runtime_error& error) {
     EXPECT_EQ(std::string(error.what()), why);
   }
@@ -851,8 +852,8 @@ TEST(SetAvailability, ASetWithNoDeviceToDrawOnIsUnavailableAndSaysWhy) {
 }
 
 /** The 3D session's answers to what every session promises. */
-struct SetTraits {
-  /** A set is drawn on a device: the contract installs the device
+struct Scene3DTraits {
+  /** A scene3d sketch is drawn on a device: the contract installs the device
    *  runtime before each case and takes it away after. */
   static bool prepare(std::string* why) {
     return sigil::sketch::test::installDeviceRuntime(why);
@@ -861,7 +862,7 @@ struct SetTraits {
   static Kind kind() { return kindOf<Spun>(); }
   static SkSize canvas() { return SkSize::Make(160, 120); }
   static double captureSeconds() { return 0.5; }
-  static const char* runtime() { return "set"; }
+  static const char* runtime() { return "scene3d"; }
   static std::vector<const char*> lanes() {
     return {"nodes", "drawn", "cooked", "passes"};
   }
@@ -874,4 +875,5 @@ struct SetTraits {
 
 }  // namespace
 
-INSTANTIATE_TYPED_TEST_SUITE_P(TheSetSession, SessionContract, SetTraits);
+INSTANTIATE_TYPED_TEST_SUITE_P(TheScene3DSession, SessionContract,
+                               Scene3DTraits);

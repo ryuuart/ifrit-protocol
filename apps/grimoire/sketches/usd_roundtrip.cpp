@@ -20,8 +20,8 @@
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/surface/Surface.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilusd/read/Reader.h>
 #include <sigilusd/runtime/Runtime.h>
 #include <sigilusd/write/Writer.h>
@@ -81,7 +81,7 @@ render::MeshStyle stageStyle() {
   return style;
 }
 
-/** The camera the set is described with, and the one every cell's own
+/** The camera the scene is described with, and the one every cell's own
  *  file has to give back. */
 camera::Camera sourceCamera() {
   camera::Camera view;
@@ -141,7 +141,7 @@ struct UsdRoundtrip {
    *  still open nothing. */
   static bool available(std::string* why) { return usd::available(why); }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});

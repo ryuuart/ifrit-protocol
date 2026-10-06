@@ -34,8 +34,8 @@
 #include <sigilmotion/bind/Binding.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/layout/ParagraphStyle.h>
 
 #include <algorithm>
@@ -708,7 +708,7 @@ struct LainNavi {
     return where;
   }
 
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     context.canvas(kWidth, kHeight);
     context.background(hexColor(0x050818));
     // The dialog is filling its bar and PRESENT DAY, PRESENT TIME stand
@@ -719,7 +719,7 @@ struct LainNavi {
     update(0, context);
   }
 
-  void update(double elapsed, sketch::SketchContext& context) {
+  void update(double elapsed, sketch::Scene2DContext& context) {
     const float seconds =
         static_cast<float>(std::fmod(elapsed, static_cast<double>(kLoop)));
     clock = seconds;

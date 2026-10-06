@@ -47,8 +47,8 @@
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmotion/ease/Ease.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/kit/Features.h>
 #include <sigilweave/paragraph/RichText.h>
 #include <sigilweave/paragraph/Unit.h>
@@ -141,7 +141,7 @@ const auto kColumnEntranceSpan = motion::timingOf(kColumnEntrance).span(4);
 struct Bousen {
   /// After the columns have assembled: the plate is the finished page.
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 2.6,
                              .background = material::Color{1, 1, 1, 1}});

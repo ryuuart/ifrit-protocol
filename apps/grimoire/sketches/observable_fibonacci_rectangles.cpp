@@ -7,7 +7,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Pen.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <array>
 #include <cmath>
@@ -25,7 +25,7 @@ int signFor(int index) {
 }
 
 struct ObservableFibonacciRectangles {
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     context.canvas(800, 800);
     context.captureAt(0.05);
 

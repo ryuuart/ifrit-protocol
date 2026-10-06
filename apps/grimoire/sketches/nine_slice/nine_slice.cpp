@@ -17,8 +17,8 @@
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmedia/advanced/Skia.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilskia/draw/Direct.h>
 #include <sigilweave/style/Type.h>
 
@@ -207,7 +207,7 @@ struct NineSlice {
                            .width(360)})})}));
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 6.0,
                              .background = material::Color{0, 0, 0, 1}});
@@ -224,7 +224,7 @@ struct NineSlice {
    *  value the layout already settled, and this changes what the layout
    *  settles. The reconciler diffs the rest, which is the point of
    *  watching the stretch rather than assuming it. */
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     stretch = 0.5f + 0.5f * (float)std::sin(elapsed * 1.4);
     ctx.composer.render(describe());
   }

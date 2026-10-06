@@ -15,7 +15,7 @@
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/program/Shader.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <array>
@@ -348,7 +348,7 @@ struct MetalLinework {
              label("SILVER OVER COPPER / MASKED OVERPRINT", 1060, 798, 340, 9),
              rule(40, 826, 1360), kit::at(specimens(c), 40, 849, 1360, 158)});
   }
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(1440, 1000);
     ctx.background(kGround);
     ctx.captureAt(2);
@@ -356,7 +356,7 @@ struct MetalLinework {
     phaseIndex = heldPhase < 0 ? 0 : std::clamp(heldPhase, 0, 4);
     ctx.composer.render(describe(phaseIndex));
   }
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     const double seconds =
         std::isfinite(elapsed) ? std::max(0.0, elapsed) : 0.0;
     const int next = heldPhase < 0

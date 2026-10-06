@@ -1,4 +1,4 @@
-# Carved / Marks, lit by the set
+# Carved / Marks, lit by the scene
 
 The central specimens of [carved_marks](../carved_marks/README.md) — the
 `OB8` letter die with its pressure ribbon and fibre passes pressed into
@@ -6,7 +6,7 @@ limestone and raised into copper, gold leaf restarted on every glyph, and a
 relief bevelled off the glyph contours — laid out as one 1440 × 900 Compose
 page. Compose paints the page as the maps of a surface: base colour, normal,
 roughness, metallic, occlusion and emissive. One flat World plate wears those
-maps, and the set's sun, a raking point light and a studio environment shade
+maps, and the scene's sun, a raking point light and a studio environment shade
 it. Compose shades nothing here.
 
 The shared height comes from a separate Compose scene. It is pressed into the

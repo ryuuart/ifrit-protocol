@@ -317,7 +317,7 @@ TEST(WorldNode, MaterialsCompareByValue) {
 
 TEST(WorldNode, AColourFillIsTheStockSurfaceProgramOfThatColour) {
   // `fill(colour)` and the program spelled out describe one surface, which
-  // is what lets a set say a colour and be lit.
+  // is what lets a scene say a colour and be lit.
   const material::Color colour{0.6f, 0.3f, 0.2f, 1.0f};
   const Mesh short_ = body().fill(colour);
   const Mesh spelled =

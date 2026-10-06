@@ -13,7 +13,7 @@ from sigil.compose import Cache, Overflow, box, pen, text
 from sigil.draw import CLOSE, Pen
 from sigil.material import BloomOptions, Filter, Paint, shader
 from sigil.motion import animatable
-from sigil.sketch import SketchContext, sketch
+from sigil.sketch import Scene2DContext, sketch
 from sigil.weave import TextAlignment
 
 WIDTH, HEIGHT = 1880, 800
@@ -168,7 +168,7 @@ def film_filter(clock):
 
 @sketch()
 class AndromedaOpticalLab:
-    def setup(self, ctx: SketchContext):
+    def setup(self, ctx: Scene2DContext):
         ctx.canvas(WIDTH, HEIGHT)
         ctx.background("#030406")
         ctx.captureAt(24.0)

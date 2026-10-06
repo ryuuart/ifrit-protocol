@@ -27,7 +27,7 @@ Takes `ListParameters`: What list is asked.
 
 | Parameter | Type | Default | |
 | --- | --- | --- | --- |
-| `kind` | string | "" | The runtime to list, canvas or set; empty for every one. |
+| `kind` | string | "" | The runtime to list, scene2d or scene3d; empty for every one. |
 
 Answers `ListResult`: The sketches the registry holds.
 
@@ -123,6 +123,6 @@ One sketch the registry holds.
 | --- | --- | --- | --- |
 | `name` | string | "" | The name it is opened by. |
 | `stem` | string | "" | Its file's stem, or its directory's. |
-| `kind` | string | "" | The runtime it draws through: canvas or set. |
+| `kind` | string | "" | The runtime it draws through: scene2d or scene3d. |
 | `available` | bool | false | Whether this build can open it. |
 | `reason` | string | "" | Why it cannot, where it cannot. |

@@ -49,9 +49,9 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilmotion/ease/Ease.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Instrument.h>
 #include <sigilsketch/kit/Theme.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <array>
@@ -188,7 +188,7 @@ struct FeedEvents {
   std::vector<std::pair<std::string, uint64_t>> kinds;
   Reading shown;
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide sheet(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(
@@ -230,7 +230,7 @@ struct FeedEvents {
     describe(ctx);
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     const double step = elapsed - seconds;
     seconds = elapsed;
     drift += (double)wind.value() * step;
@@ -303,7 +303,7 @@ struct FeedEvents {
     return true;
   }
 
-  void describe(sketch::SketchContext& ctx) {
+  void describe(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide sheet(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // A paint program runs after the describe scope has closed, where

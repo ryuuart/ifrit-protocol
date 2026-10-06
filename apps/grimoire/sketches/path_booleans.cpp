@@ -40,8 +40,8 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Operations.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
@@ -165,7 +165,7 @@ struct PathBooleans {
     }
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(
         ctx, {.size = {1240, 980},
               .captureAt = 1.0,

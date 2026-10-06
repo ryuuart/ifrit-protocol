@@ -5,13 +5,13 @@
 #include <gtest/gtest.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/kit/Board.h>
-#include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/advanced/Recipe.h>
+#include <sigilmaterial/core/Material.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <memory>
-#include <sigilmaterial/skia/Paint.h>
-#include <sigilsketch/canvas/Sketch.h>
-#include <sigilsketch/kit/Kit.h>
 
 #include "Drawn.h"
 
@@ -146,8 +146,7 @@ TEST(SketchKitPanel, AVignetteDarkensTheCornersAndNotTheMiddle) {
   kit::Theme paper = kit::houseTheme();
   paper.palette.ground = {0.6f, 0.6f, 0.6f, 1};
   const kit::Provide bound(paper);
-  SkBitmap shaded =
-      Drawn(kit::backdrop({.vignette = 0.9f})).pixels();
+  SkBitmap shaded = Drawn(kit::backdrop({.vignette = 0.9f})).pixels();
   const sigil::material::Color corner = shaded.getColor4f(1, 1);
   const sigil::material::Color middle = shaded.getColor4f(kWide / 2, kTall / 2);
   EXPECT_LT(corner.r, middle.r);
@@ -156,8 +155,7 @@ TEST(SketchKitPanel, AVignetteDarkensTheCornersAndNotTheMiddle) {
 
 /** A grain moves pixels that a flat ground leaves identical. */
 TEST(SketchKitPanel, AGrainIsNotAFlatGround) {
-  SkBitmap grained =
-      Drawn(kit::backdrop({.grain = 0.5f})).pixels();
+  SkBitmap grained = Drawn(kit::backdrop({.grain = 0.5f})).pixels();
   bool moved = false;
   const uint32_t first = *grained.getAddr32(0, 8);
   for (int x = 1; x < kWide && !moved; ++x)
@@ -198,12 +196,12 @@ TEST(SketchKitPanel, TheScreenIsInsetByTheBezel) {
  *  take a material, and the chrome is what the same materials on the two
  *  hand-spelled nodes draw. */
 TEST(SketchKitPanel, AFrameShellAndScreenTakeAMaterial) {
-  const sigil::material::Material purbeck = bands(
-      {.hi = {0.47f, 0.46f, 0.42f, 1}, .lo = {0.31f, 0.31f, 0.28f, 1}});
+  const sigil::material::Material purbeck =
+      bands({.hi = {0.47f, 0.46f, 0.42f, 1}, .lo = {0.31f, 0.31f, 0.28f, 1}});
   const sigil::material::Material mortar =
       bands({.hi = {0.42f, 0.41f, 0.37f, 1},
-                                   .lo = {0.28f, 0.27f, 0.25f, 1},
-                                   .angleDegrees = 60.0f});
+             .lo = {0.28f, 0.27f, 0.25f, 1},
+             .angleDegrees = 60.0f});
   const kit::Theme& house = kit::houseTheme();
   Element byHand =
       compose::box()

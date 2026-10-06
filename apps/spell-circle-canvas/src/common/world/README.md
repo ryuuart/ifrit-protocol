@@ -64,7 +64,7 @@ A camera is the viewpoint a frame looks through.
 
 ## The front page
 
-Everything a set says, from `<sigilworld/World.h>`:
+Everything a scene says, from `<sigilworld/World.h>`:
 
 ```cpp
 // the nodes — every kind places, keys and joins collections
@@ -128,8 +128,8 @@ from where its node stands and falling off with the square of the
 distance; a spot light, within a cone; an ambient light, the same from
 every direction; a hemisphere light, a sky from above and a ground from
 below — each aimed by the direction it travels, which its node's
-rotation turns, or at a keyed node with `lookAt`. Nothing lights a set
-that the set did not state. A `Camera` is
+rotation turns, or at a keyed node with `lookAt`. Nothing lights a scene
+that the scene did not state. A `Camera` is
 Geometry's lens standing where its node does, with the exposure and the
 tone curve the picture is read at; `lookAt` aims it at a keyed node. An
 aim is resolved every frame against where the keyed node stands, and a
@@ -146,7 +146,7 @@ one with `Pass::only`, a light reaches only one with `Light::lightLink`,
 and a light that casts shadows has them cast only by one with
 `Light::shadowLink`.
 
-**The frame** holds what is not a node: the environment the set stands
+**The frame** holds what is not a node: the environment the scene stands
 in, the camera it is seen through when the tree holds several, and the
 passes that draw it. A frame with no passes is its scene — reconciled and
 extracted, and drawn by nothing.
@@ -174,7 +174,7 @@ and a field no consumer sets does not exist.
 - `EnvironmentOptions` — what of the panorama reaches a surface
   (`intensity`, `diffuse`, `specular`, `roughnessBias`), a second
   panorama crossfaded over the first (`next`, `crossfade`), its turn about
-  the up axis (`rotation`), how much of it is shown behind the set and how
+  the up axis (`rotation`), how much of it is shown behind the scene and how
   blurred (`shown`, `blur`), and a ground the shown panorama is projected
   onto (`groundRadius`). Every dial is animatable and read once a frame.
 - `kit::Rig`, `kit::Turntable`, `kit::Set` and `kit::EnvironmentMapOptions`
@@ -183,14 +183,14 @@ and a field no consumer sets does not exist.
 The passes are the frame's second tier: `geometryPass`, `computePass`,
 `postPass` and the verbs that declare what each reads, writes, narrows
 to and does, in **[reference/FRAMES.md](reference/FRAMES.md)**. The
-placement verbs a set reaches for less often — `translateX/Y/Z`,
+placement verbs a scene reaches for less often — `translateX/Y/Z`,
 `scaleX/Y/Z`, `rotate(axis, degrees)`, `transformOrigin`, the matrix
 escape `transform`, and `cache` and `transition` — are on every kind
 beside the ones above, in **[reference/NODES.md](reference/NODES.md)**.
 
 ## Tier three: `advanced/`
 
-What a host, an executor or a test reaches for, and a set never does —
+What a host, an executor or a test reaches for, and a scene never does —
 each header under `sigilworld/advanced/`:
 
 - `advanced/Node.h` — `Node`, the type-erased handle every
@@ -224,7 +224,7 @@ renders frames into; `diligent::runtime(device)`, in
 
 It owns three things and nothing else: the 3D scene description, the
 frame graph that orders passes from their declared inputs and outputs,
-and the execution of that graph. A set is drawn on a device and nowhere
+and the execution of that graph. A scene is drawn on a device and nowhere
 else: there is no CPU executor, and a frame whose passes carry no device
 runtime runs none of them and says so. It holds no window, no swapchain,
 no clock of its own — its motion runs on the `motion::Engine` its caller
@@ -301,7 +301,7 @@ scene.render(frame);
 world::draw(scene, canvas);  // what the passes wrote — advanced/Skia.h
 ```
 
-A host states what the set does not: the extent the targets are made
+A host states what the scene does not: the extent the targets are made
 at, `Frame::defaultCamera` for a tree holding no camera, and
 `Frame::cameraOverride` — a lens that wins over the chosen camera's while
 that camera still says how the picture is read — for a host that has
@@ -327,7 +327,7 @@ a camera riding a closed rail and looking inward, with `kit::rail(table)`
 the curve itself; `kit::litSet` is both over a ground plane, with the
 subject under it; `kit::environmentMap(options)` bakes a panorama from a
 vertical gradient and soft boxes — a studio, a window-lit room, a sky —
-as data rather than as a function a set writes by hand; and
+as data rather than as a function a scene writes by hand; and
 `kit::visibleLight(light)` groups a rect, sphere or disk light with an
 unlit mesh of its shape and size in its colour, so the light is seen
 where it stands.
@@ -457,7 +457,7 @@ picture lands.
 passes needs one; `viewOffset(ViewOffset)` makes those targets a part of
 a larger picture — `whole` pixels across, the part's corner at `origin` —
 formed through the whole picture's projection carried off-centre, so a
-host showing a magnified piece of a set forms only the piece and draws it
+host showing a magnified piece of a scene forms only the piece and draws it
 where it stands; `defaultCamera(lens)` is the lens for a tree that holds
 no camera, and `cameraOverride(lens)` the one a host that has taken hold
 of the viewpoint states; `present(name)` names the resource the finished picture
@@ -690,7 +690,7 @@ through, and replaces the node's own rotation.
 
 **[reference/DEVICE.md](reference/DEVICE.md)** is the chapter on that
 executor: what it does with each pass, what a material reaches the
-device as, what a lit set can and cannot say there, the seams below this
+device as, what a lit scene can and cannot say there, the seams below this
 library whose device executors stand beside their CPU ones, where its
 shaders come from and the one device it all stands on.
 **[reference/LIGHTING.md](reference/LIGHTING.md)** is the lighting model
@@ -726,13 +726,13 @@ A host that owns both — a study, an application — makes the scene, hands
 it the tree each frame, and puts the value it returns in a material slot.
 That is the whole handoff.
 
-**A page the set lights is a texture pass.** Compose can paint one tree
+**A page the scene lights is a texture pass.** Compose can paint one tree
 as the maps of a surface — base colour, normal, roughness, metallic,
 occlusion and emissive, the clear coat, and the maps of whichever of the
 sheen, the brushing, the thin film and the specular its materials state —
 and a host that links both libraries puts that
 paint on the frame as a texture pass and the surface it makes in a
-body's material, its textures marked as that pass's. The set's lights,
+body's material, its textures marked as that pass's. The scene's lights,
 environment and camera then shade the page; its unlit content arrives in
 the emissive map over a black base and shows as it was painted. The
 sketch framework's page is that host's door.
@@ -776,7 +776,7 @@ fixed total spread across however many children turn up, a
 child that MOUNTS resolves it at its place among the siblings mounting
 with it. It is SigilMotion's stagger, the same value a paragraph's
 glyphs are scheduled with, so `motion::StaggerFrom::Center` means one
-thing in a set and in a line of type. Only children that actually mount
+thing in a scene and in a line of type. Only children that actually mount
 are delayed, and they are placed among the children mounting with them:
 appending one node to a live list enters it at once rather than making
 it wait out the whole list.
@@ -976,7 +976,7 @@ Three things are deliberately asked elsewhere. **That every recipe this
 repository ships compiles** is SigilMaterial's: its Slang suite compiles
 the surface program through the same backend and its `MaterialGpu`
 suite draws every recipe on a device, so a sweep here would be a third
-reading of one fact. **Whether a whole set's picture held still** is
+reading of one fact. **Whether a whole scene's picture held still** is
 judged over the whole registry by `sigil.py plates --tier device`,
 against the device plates that machine keeps — so the only distance a
 test here reads is the worst channel, as an INEQUALITY saying an

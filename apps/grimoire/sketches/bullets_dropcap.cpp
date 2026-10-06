@@ -12,8 +12,8 @@
 #include <sigilcompose/kit/Typeset.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <optional>
@@ -104,7 +104,7 @@ Element hangingList() {
 }  // namespace
 
 struct BulletsDropCap {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide look(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx, {.size = {1100, 790}, .captureAt = 0.05});

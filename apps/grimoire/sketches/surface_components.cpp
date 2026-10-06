@@ -20,8 +20,8 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
@@ -94,13 +94,13 @@ struct SurfaceComponents {
              .rowGap = 18}));
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide presentation(sketch::kit::featureTheme());
     sketch::kit::stage(ctx, {.size = {1020, 620}, .captureAt = 2.5});
     ctx.composer.render(describe(80));
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     const float wave = 0.5f + 0.5f * std::sin((float)elapsed);
     ink = Fill::color({0.08f, 0.18f + wave * 0.18f, 0.28f + wave * 0.20f, 1});
     const int step = (int)elapsed % 4;

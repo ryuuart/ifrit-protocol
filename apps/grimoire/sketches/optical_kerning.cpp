@@ -38,8 +38,8 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Face.h>
 #include <sigilweave/style/Type.h>
@@ -98,7 +98,7 @@ struct OpticalKerning {
   std::vector<sigil::compose::kit::Reading> pairs;
   std::string lineDelta;
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 

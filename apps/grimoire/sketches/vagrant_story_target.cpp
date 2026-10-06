@@ -106,7 +106,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/kit/Meter.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/style/Type.h>
 #include <sigilworld/World.h>
@@ -503,19 +503,19 @@ compose::Element gauge(float x, float y, float w, float h, float fraction,
 namespace {
 
 struct VagrantStoryTarget {
-  /** THE SESSION KEEPS THE SCENE. Asked for once while the set declares
-   *  itself, so the texture the overlay quad wears outlives every frame
-   *  that wears it; asked for per frame it would be one scene per frame,
+  /** THE SESSION KEEPS THE SCENE. Asked for once while the scene3d sketch
+   *  declares itself, so the texture the overlay quad wears outlives every
+   * frame that wears it; asked for per frame it would be one scene per frame,
    *  each holding a texture the last one's body was pointing at. */
   std::shared_ptr<compose::TextureScene> overlay;
   weave::FontContext* fonts = nullptr;
   compose::Element retained;
   /** The camera. It is a member because the overlay's quad has to be put
-   *  where the frustum is, and a set whose camera is declared once is a
-   *  set whose overlay is a fixed rectangle rather than a guess. */
+   *  where the frustum is, and a scene3d sketch whose camera is declared
+   *  once is one whose overlay is a fixed rectangle rather than a guess. */
   geometry::mesh::camera::Camera lens;
 
-  void setup(sketch::SetContext& ctx) {
+  void setup(sketch::Scene3DContext& ctx) {
     ctx.canvas(vs::kHudW, vs::kHudH);
     ctx.background({0.016f, 0.019f, 0.031f, 1.0f});
     ctx.captureAt(2.2);

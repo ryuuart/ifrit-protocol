@@ -23,10 +23,10 @@ from sigil.compose import document as doc
 from sigil.compose import kit as marks
 from sigil.compose.layouts import Grid, fr
 from sigil.draw import Pen
-from sigil.media import load
 from sigil.material import Paint
+from sigil.media import load
 from sigil.motion import animatable, animate, bind
-from sigil.sketch import SketchContext, kit, render_file, sketch
+from sigil.sketch import Scene2DContext, kit, render_file, sketch
 from sigil.weave import Type, em, rich, textStyle
 
 document_items = [doc.item("One"), doc.item(body=doc.paragraph("Two"), marker="2.")]
@@ -94,7 +94,7 @@ def title_part(words: str, props: marks.Sheet) -> Text:
 class TypedSketch:
     model = Reading("One native scene", 0.7)
 
-    def setup(self, ctx: SketchContext) -> None:
+    def setup(self, ctx: Scene2DContext) -> None:
         look = kit.house_theme()
         look.palette.ground = "#13252e"
         look.type.title.size = 34
@@ -113,7 +113,7 @@ class TypedSketch:
             panel = kit.well(body, width=620, height=220, corners=12)
             ctx.render(kit.page(panel, title="Typed Python"))
 
-    def update(self, elapsed: float, ctx: SketchContext) -> None:
+    def update(self, elapsed: float, ctx: Scene2DContext) -> None:
         if elapsed > 2:
             ctx.render(component(self.model))
 

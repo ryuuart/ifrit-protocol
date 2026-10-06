@@ -20,13 +20,13 @@
 
 namespace sigil::sketch {
 /** The per-frame value a sketch body is handed; its own words are
- *  `<sigilsketch/canvas/Sketch.h>`, which this names and does not
- *  include: the kit's headers reach one signature's worth of the canvas
+ *  `<sigilsketch/scene2d/Scene2D.h>`, which this names and does not
+ *  include: the kit's headers reach one signature's worth of the scene2d
  *  runtime, not the whole compose surface behind it. */
-struct SketchContext;
-/** The same for a SET — a world Frame, lit and photographed — whose own
- *  words are `<sigilsketch/set/Set.h>`. */
-struct SetContext;
+struct Scene2DContext;
+/** The same for a SCENE3D SKETCH — a world Frame, lit and photographed — whose
+ *  own words are `<sigilsketch/scene3d/Scene3D.h>`. */
+struct Scene3DContext;
 }  // namespace sigil::sketch
 
 namespace sigil::sketch::kit {
@@ -66,19 +66,19 @@ struct Stage {
  *
  *  It writes the whole `CanvasSpecification`, defaults included, so what a host
  *  reads back afterwards is exactly what this says. */
-void stage(SketchContext& ctx, const Stage& surface);
+void stage(Scene2DContext& ctx, const Stage& surface);
 
-/** THE SAME DECLARATION FOR A SET, which says the same three things
+/** THE SAME DECLARATION FOR A SCENE3D SKETCH, which says the same three things
  *  through three calls of its own.
  *
  *      sketch::kit::stage(ctx, {.size = {640, 440}, .captureAt = 1.3,
  *                               .background = {0.03f, 0.035f, 0.05f, 1}});
  *
  *  The VIEWPOINT is not here: a camera is a fact about the scene rather
- *  than about the plate, and a set that puts one on a rail states it in
- *  its description. `SetContext::camera` is the fallback for the set
+ *  than about the plate, and a sketch that puts one on a rail states it in
+ *  its description. `Scene3DContext::camera` is the fallback for the sketch
  *  that does not. */
-void stage(SetContext& ctx, const Stage& surface);
+void stage(Scene3DContext& ctx, const Stage& surface);
 
 /** THE PROSE A SHEET CARRIES. Only the prose: every face, size, colour,
  *  margin and rule the page is set in is the theme's, which is the whole

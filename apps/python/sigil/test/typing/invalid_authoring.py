@@ -5,7 +5,7 @@ from sigil.compose import document as doc
 from sigil.compose import kit as marks
 from sigil.compose.layouts import Grid, fr
 from sigil.draw import Pen
-from sigil.sketch import SketchContext, kit, sketch
+from sigil.sketch import Scene2DContext, kit, sketch
 
 
 def component(model: int) -> Text:
@@ -45,7 +45,7 @@ box().varDefaults({doc.measure: object()})  # error: reportArgumentType
 sketch(size=(200, "wide"))  # error: reportArgumentType
 
 
-def draw(pen: Pen, ctx: SketchContext) -> None:
+def draw(pen: Pen, ctx: Scene2DContext) -> None:
     pen.circle("left", 20, 10)  # error: reportArgumentType
     pen.line(x1=0, y1=0, x2=12, yy2=12)  # error: reportCallIssue
     ctx.render("a scene")  # error: reportArgumentType

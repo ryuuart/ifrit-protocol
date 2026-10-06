@@ -14,7 +14,7 @@
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/style/Face.h>
 
 #include <array>
@@ -201,7 +201,7 @@ struct EvaMagiDeliberation {
                         information()})});
   }
 
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     context.canvas(layout.canvasWidth, layout.canvasHeight);
     context.background(kGround);
     fonts = context.fonts;

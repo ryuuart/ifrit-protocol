@@ -9,7 +9,7 @@ from sigil.compose import document as doc
 from sigil.compose import kit as marks
 from sigil.compose.layouts import AlongPath, BaselineGrid, Diagonal, Jittered, Radial
 from sigil.motion import animate
-from sigil.sketch import SketchContext, kit, sketch
+from sigil.sketch import Scene2DContext, kit, sketch
 from sigil.skia import PathBuilder
 
 WIDTH, HEIGHT = 352, 214
@@ -159,7 +159,7 @@ def specimen(picture, index, label, note):
 
 @sketch(size=(1200, 760), capture_at=1.1)
 class OrderSpecimen:
-    def setup(self, ctx: SketchContext) -> None:
+    def setup(self, ctx: Scene2DContext) -> None:
         look = kit.feature_theme(kit.Density.Spacious)
         with kit.provide(look):
             kit.stage(ctx, size=(1200, 760), capture_at=1.1)

@@ -8,7 +8,7 @@
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Constants.h>
 #include <sigildraw/Pen.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <cmath>
@@ -62,7 +62,7 @@ constexpr float kMargin = 20.0f;  // how far past the edge a boid wraps
 struct ObservableReynoldsSteering {
   std::vector<Boid> boids;
 
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     context.canvas(900, 720);
     context.captureAt(5.0);
     boids.clear();

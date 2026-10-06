@@ -408,7 +408,7 @@ material::EnvironmentMap hemispheres(SkColor4f above, SkColor4f below) {
           {info, pixels.data(), (size_t)kWidth * 4 * sizeof(float)}));
 }
 
-/** A set standing in @p map read under @p sky and holding nothing else —
+/** A scene standing in @p map read under @p sky and holding nothing else —
  *  no body, no light — so what a plate of it shows is the panorama shown
  *  behind it alone. */
 Frame skyAlone(const world::EnvironmentMap& map,
@@ -429,7 +429,7 @@ TEST(Environment, TheBackdropPutsTheZenithAtTheTopOfTheFrame) {
   // v = 0 is the zenith, and a camera looking along -z from above the
   // origin has the upper hemisphere in the upper half of its frame. A
   // sky read with its second axis the wrong way round puts the ground
-  // where the zenith is and every reflection in the set with it, and
+  // where the zenith is and every reflection in the scene with it, and
   // nothing about a smooth panorama would show that.
   world::EnvironmentOptions sky;
   world::EnvironmentMap map;
@@ -480,7 +480,7 @@ TEST(Environment, ABackdropAtZeroStrengthDrawsNothing) {
   const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;
   // The strength is also the switch, so there is no flag that can
-  // disagree with it: a set that carries a panorama and shows none of it
+  // disagree with it: a scene that carries a panorama and shows none of it
   // stands against whatever the pass cleared to.
   world::EnvironmentOptions sky;
   world::EnvironmentMap map;
@@ -534,10 +534,10 @@ TEST(Environment, AMirrorWearsTheSkyAndAMatteSurfaceIsLitByIt) {
   const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;
   // What the test pins is the difference between a mirror and a matte
-  // surface under one sky, with no emitter anywhere in the set: the
+  // surface under one sky, with no emitter anywhere in the scene: the
   // mirror takes the sky's own colour off its reflected view vector,
   // the matte one keeps its albedo and is lit by what falls on it. A
-  // set with neither an emitter nor a sky would be black.
+  // scene with neither an emitter nor a sky would be black.
   // A NEUTRAL sky, so what the matte surface shows is its own albedo:
   // under a coloured one a green surface reads by the product of the
   // two, which is a fact about multiplication and not about the tier.
@@ -569,7 +569,7 @@ TEST(Environment, AMirrorWearsTheSkyAndAMatteSurfaceIsLitByIt) {
   EXPECT_NEAR(mirrored.fR, mirrored.fG, 0.05f);
   EXPECT_GT(diffuse.fG, diffuse.fR + 0.05f);
   // And the sky reaches them both — a body under a lit sky with no
-  // emitter in the set is not black.
+  // emitter in the scene is not black.
   EXPECT_GT(luma(diffuse), 0.02f);
   EXPECT_GT(luma(mirrored), 0.02f);
 }

@@ -14,8 +14,8 @@
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
@@ -125,7 +125,7 @@ struct HelloSketch {
                            .ink(sketch::kit::theme().palette.ash)})})}));
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     sketch::kit::stage(ctx, {.size = {1000, 700}, .captureAt = 1.0});
     ctx.composer.render(describe());
@@ -136,7 +136,7 @@ struct HelloSketch {
     });
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     if (elapsed < nextScoreAt) return;
     nextScoreAt = elapsed + 1.0;
     score += 25;

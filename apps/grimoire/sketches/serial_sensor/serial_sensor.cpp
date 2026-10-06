@@ -51,9 +51,9 @@
 #include <sigildraw/Pen.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Instrument.h>
 #include <sigilsketch/kit/Theme.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <array>
@@ -182,7 +182,7 @@ struct SerialSensor {
   /** What the description standing now was written from. */
   Reading shown;
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide sheet(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(
@@ -210,7 +210,7 @@ struct SerialSensor {
   /** The data path: the sky and the field move without being described
    *  again, because the pen reads them on every frame. What is
    *  described again is the readout, and only when a figure changed. */
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     const double step = std::max(0.0, elapsed - seconds);
     seconds = elapsed;
     listen();
@@ -254,7 +254,7 @@ struct SerialSensor {
     return true;
   }
 
-  void describe(sketch::SketchContext& ctx) {
+  void describe(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide sheet(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // A paint program runs after the describe scope has closed, where

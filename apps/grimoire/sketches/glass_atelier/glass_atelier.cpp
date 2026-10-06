@@ -24,8 +24,8 @@
 #include <sigilmaterial/skia/Bevel.h>
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/Registry.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <array>
@@ -466,7 +466,7 @@ struct GlassAtelier {
     return page;
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(kWidth, kHeight);
     ctx.oversample(1);
     ctx.captureAt(2);
@@ -499,7 +499,7 @@ struct GlassAtelier {
     ctx.composer.render(describe(phaseIndex));
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     const double seconds = std::isfinite(elapsed) ? std::max(0.0, elapsed) : 0;
     const float t =
         static_cast<float>(std::fmod(seconds, double(kLoopSeconds)));

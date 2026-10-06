@@ -74,7 +74,7 @@ TEST(SketchCatalogRows, AFileOpenedByPathHasNoRuntimeUntilItIsBuilt) {
   // A draft nothing has built, standing in a directory of its own, as a
   // sketch outside this checkout does: its row says so rather than
   // guessing a runtime from the folder it stands in. A Python file always
-  // draws through a canvas.
+  // draws through the scene2d runtime.
   const ScratchDir drafts("catalog_drafts");
   drafts.write("book_probe_draft.cpp", "// a draft nothing has built\n");
   drafts.write("python_draft.py", "\"\"\"A draft in Python.\"\"\"\n");
@@ -96,7 +96,7 @@ TEST(SketchCatalogRows, AFileOpenedByPathHasNoRuntimeUntilItIsBuilt) {
   EXPECT_EQ(draft.entryPath, drafts.path / "book_probe_draft.cpp");
 
   EXPECT_EQ(rows.back().key, "python_draft");
-  EXPECT_EQ(rows.back().kind, "canvas");
+  EXPECT_EQ(rows.back().kind, "scene2d");
 }
 
 TEST(SketchCatalogRows, AWorkspaceGroupsItsFilesByTheDirectoriesUnderIt) {

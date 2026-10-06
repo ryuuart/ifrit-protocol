@@ -103,6 +103,6 @@ ffmpeg -framerate 12 -i /tmp/optical-record/frame_%04d.png \
   -c:v libx264 -crf 18 -pix_fmt yuv420p /tmp/optical-record.mp4
 ```
 
-That file lane draws 2D canvases on Raster. A native Graphite window is
+That file lane draws scene2d sketches on Raster. A native Graphite window is
 separate backend evidence. File photographs observe the requested time
 plus the runtime's still step; capture comparisons must account for it.

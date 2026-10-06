@@ -10,11 +10,11 @@
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/render/Runtime.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/Session.h>
 #include <sigilsketch/core/Sources.h>
 #include <sigilsketch/plate/Thumbnails.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene2d/Scene2D.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilworld/World.h>
 #include <sigilworld/advanced/Runtime.h>
 
@@ -60,12 +60,12 @@ constexpr int kWholeWalk = (int)(kLateMoment * kRate);
 /** A sketch that counts the frames it is walked for and stops itself
  *  partway. */
 struct Counting {
-  void setup(SketchContext& ctx) {
+  void setup(Scene2DContext& ctx) {
     ctx.canvas(48, 32);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(kLateMoment);
   }
-  void update(double /*elapsed*/, SketchContext& ctx) {
+  void update(double /*elapsed*/, Scene2DContext& ctx) {
     if (g_frames.fetch_add(1) + 1 >= kStopAfter) g_stop.store(true);
     ctx.composer.render(
         box().width(16).height(16).fill(Fill::color({1, 0, 0, 1})));
@@ -75,12 +75,12 @@ struct Counting {
 /** The same walk, counted, with nothing that stops it — what a budget
  *  and a plate declaration are read against. */
 struct Long {
-  void setup(SketchContext& ctx) {
+  void setup(Scene2DContext& ctx) {
     ctx.canvas(48, 32);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(kLateMoment);
   }
-  void update(double /*elapsed*/, SketchContext& ctx) {
+  void update(double /*elapsed*/, Scene2DContext& ctx) {
     g_frames.fetch_add(1);
     ctx.composer.render(
         box().width(16).height(16).fill(Fill::color({0, 1, 0, 1})));
@@ -91,13 +91,13 @@ struct Long {
  *  still rather than on holding a frame rate, which is the declaration
  *  a fill stands down on. */
 struct Plate {
-  void setup(SketchContext& ctx) {
+  void setup(Scene2DContext& ctx) {
     ctx.canvas(48, 32);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(0.1);
     ctx.plate();
   }
-  void update(double /*elapsed*/, SketchContext& ctx) {
+  void update(double /*elapsed*/, Scene2DContext& ctx) {
     g_frames.fetch_add(1);
     ctx.composer.render(
         box().width(16).height(16).fill(Fill::color({0, 0, 1, 1})));
@@ -123,7 +123,7 @@ struct Reached : world::Executor {
 namespace render = sigil::geometry::mesh::render;
 
 /** THE 2D TWIN: a mesh executor that draws nothing and remembers being
- *  reached, so a case can assert that a canvas sketch standing geometry
+ *  reached, so a case can assert that a scene2d sketch standing geometry
  *  up in space never drew its still through the painter a host
  *  installed. */
 struct PainterReached : render::Executor {
@@ -147,12 +147,12 @@ struct PainterReached : render::Executor {
  *  painter it was opened on — the shape `floating_panels` and
  *  `painter_gpu` are, with nothing else on the sheet. */
 struct Standing {
-  void setup(SketchContext& ctx) {
+  void setup(Scene2DContext& ctx) {
     ctx.canvas(48, 32);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(0.05);
   }
-  void update(double /*elapsed*/, SketchContext& ctx) {
+  void update(double /*elapsed*/, Scene2DContext& ctx) {
     // The painter is read where a sketch reads it: from inside the body,
     // as it declares.
     ctx.composer.render(box().width(32).height(24).children(
@@ -167,10 +167,10 @@ struct Standing {
   }
 };
 
-/** A set with nothing in it: what is being asserted is which runtime the
- *  session opened on, which needs no subject. */
+/** A scene3d sketch with nothing in it: what is being asserted is which runtime
+ *  the session opened on, which needs no subject. */
 struct Lit {
-  void setup(SetContext& ctx) {
+  void setup(Scene3DContext& ctx) {
     ctx.canvas(48, 32);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(0.05);
@@ -218,7 +218,7 @@ struct ThrowingSession final : Session {
 
 template <Fault fault>
 struct ThrowingKind final : KindOperations {
-  std::string_view runtime() const override { return "canvas"; }
+  std::string_view runtime() const override { return "scene2d"; }
   std::unique_ptr<Session> open(sigil::weave::FontContext&, Assets&, bool,
                                 std::string_view) const override {
     if constexpr (fault == Fault::Open)
@@ -237,11 +237,11 @@ Kind throwingKind() {
 /** A STILL IS CPU-ONLY WHATEVER THE PROCESS HOLDS. The worker that draws
  *  one runs beside a window that is presenting, and a device is one
  *  device and one queue: a background walk driving the queue the render
- *  thread draws with is two threads inside one graphics context. A set
- *  is drawn on a device and nowhere else, so its still is UNAVAILABLE —
- *  with the one message every door a set is refused at speaks — and the
- *  runtime the process installed is never reached. */
-TEST(ThumbnailStore, ASetIsUnavailableWhateverTheProcessInstalled) {
+ *  thread draws with is two threads inside one graphics context. A scene3d
+ *  sketch is drawn on a device and nowhere else, so its still is UNAVAILABLE —
+ *  with the one message every door a scene3d sketch is refused at speaks — and
+ *  the runtime the process installed is never reached. */
+TEST(ThumbnailStore, AScene3DIsUnavailableWhateverTheProcessInstalled) {
   const ScratchDir dir("sigil_thumbnail_set");
   std::atomic_int reached{0};
   Reached installed;
@@ -266,12 +266,12 @@ TEST(ThumbnailStore, ASetIsUnavailableWhateverTheProcessInstalled) {
   EXPECT_EQ(why, message);
 }
 
-/** A STILL IS CPU-ONLY FOR EVERY RUNTIME, not only a set's. A 2D sketch
- *  that stands geometry up in space hands `painterRuntime()` to a mesh
+/** A STILL IS CPU-ONLY FOR EVERY RUNTIME, not only a scene3d sketch's. A 2D
+ *  sketch that stands geometry up in space hands `painterRuntime()` to a mesh
  *  style, and the still it is drawn for must reach the CPU executor
  *  whatever the process installed — the same one device, one queue that
- *  keeps a set's still off the device. */
-TEST(ThumbnailStore, ACanvasIsPaintedOnTheCpuWhateverTheProcessInstalled) {
+ *  keeps a scene3d sketch's still off the device. */
+TEST(ThumbnailStore, AScene2DIsPaintedOnTheCpuWhateverTheProcessInstalled) {
   const ScratchDir dir("sigil_thumbnail_canvas");
   std::atomic_int reached{0};
   PainterReached installed;

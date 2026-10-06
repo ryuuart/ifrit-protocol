@@ -72,8 +72,8 @@
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <cmath>
 #include <vector>
@@ -179,7 +179,7 @@ struct MeshGenerators {
         wire);
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(
         ctx, {.size = SkSize::Make(kCanvas.width(), 690),
               .captureAt = 1.0,

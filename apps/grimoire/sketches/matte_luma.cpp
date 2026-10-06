@@ -53,8 +53,8 @@
 #include <sigilmaterial/skia/Ramp.h>
 #include <sigilmaterial/skia/Texture.h>
 #include <sigilmedia/advanced/Skia.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/style/Type.h>
 
 #include <array>
@@ -189,7 +189,7 @@ Element bandLabels(float stripW) {
 }  // namespace
 
 struct MatteLuma {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     sketch::kit::stage(ctx, {.size = {1100, 1180}});
     // Every gate is a constant: the sheet is complete on the first frame.

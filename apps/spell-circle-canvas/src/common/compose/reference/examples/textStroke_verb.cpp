@@ -8,7 +8,7 @@
 
 #include <sigilcompose/core/Core.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
@@ -46,7 +46,7 @@ Element cell(const char* caption, Element label) {
 }  // namespace
 
 struct TextStrokeVerb {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas({.size = kCanvas, .background = kGround, .captureSeconds = 0});
     ctx.composer.render(describe());
   }

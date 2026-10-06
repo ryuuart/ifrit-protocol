@@ -40,9 +40,9 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/advanced/Held.h>
 #include <sigilmotion/clock/Engine.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Chart.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <chrono>
@@ -130,7 +130,7 @@ Element plot(const char* key,
 struct LaneRetarget {
   Trace plain, slots, family, reshaped;
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide presentation(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // the four flights have already been run

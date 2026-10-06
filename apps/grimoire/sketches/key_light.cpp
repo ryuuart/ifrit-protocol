@@ -1,7 +1,7 @@
 /** @file
  * key_light — a light bound to live values, and what it reaches.
  *
- * One set under the kit's three-point rig, with the KEY LIGHT'S strength
+ * One scene under the kit's three-point rig, with the KEY LIGHT'S strength
  * and colour bound to live values while the tree that declares them
  * stands still. Nothing about the description changes from frame to
  * frame: what moves is what the light's values are bound to, which is the
@@ -11,7 +11,7 @@
  * something to fall across and the rig's fill and back lights have
  * somewhere to be seen. A body is shaded by the lights the frame
  * gathered, and the gather happens on the walk that visits every node —
- * so a light that ramps stales no cache, which is why the set can be as
+ * so a light that ramps stales no cache, which is why the scene can be as
  * still as it looks and still change colour.
  */
 
@@ -24,7 +24,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/kit/Page.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilworld/World.h>
 
 #include <cmath>
@@ -81,7 +81,7 @@ struct KeyLight {
   sigil::motion::Animatable<material::Color> tint =
       sigil::motion::animatable(material::Color{1, 1, 1, 1});
 
-  void setup(sketch::SetContext& ctx) {
+  void setup(sketch::Scene3DContext& ctx) {
     sketch::kit::stage(
         ctx, {.size = {760, 500},
               .captureAt = 1.6,
@@ -118,7 +118,7 @@ struct KeyLight {
 
 }  // namespace
 
-SIGIL_SKETCH(KeyLight, "Set",
+SIGIL_SKETCH(KeyLight, "Scene3D",
              "A light bound to live values — one still set whose key light's "
              "strength and colour follow the scene time, so what moves is "
              "the value and never the description")

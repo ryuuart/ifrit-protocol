@@ -11,7 +11,7 @@ from math import cos, pi, sin
 from sigil.draw import LEFT, TOP, Pen
 from sigil.geometry import mesh
 from sigil.material import pattern
-from sigil.sketch import SketchContext, kit, sketch
+from sigil.sketch import Scene2DContext, kit, sketch
 
 camera = mesh.camera
 render = mesh.render
@@ -38,7 +38,7 @@ def surface(color, *, gloss=0.8):
 
 @sketch(size=(1400, 900), capture_at=0.5)
 class MeshObservatory:
-    def setup(self, ctx: SketchContext) -> None:
+    def setup(self, ctx: Scene2DContext) -> None:
         self.look = kit.feature_theme(kit.Density.Spacious)
         with kit.provide(self.look):
             kit.stage(ctx, size=(1400, 900), capture_at=0.5)

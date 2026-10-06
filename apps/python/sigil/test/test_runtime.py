@@ -35,7 +35,7 @@ class Runtime(unittest.TestCase):
                 def draw(self, pen, ctx):
                     pen.background("#ff0000" if ctx.elapsed == 0 else "#0000ff")
         """
-        # The still is the sweep's photograph: the canvas runtime draws one
+        # The still is the sweep's photograph: the scene2d runtime draws one
         # frame more to take it, a sixtieth of a second past the moment.
         declared = self.render(source)
         self.assertAlmostEqual(builtins._sigil_runtime, 1 / 60)

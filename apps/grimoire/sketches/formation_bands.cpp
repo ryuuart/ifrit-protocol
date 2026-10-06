@@ -40,8 +40,8 @@
 #include <sigilgeometry/path/Profile.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <functional>
 #include <string>
@@ -146,7 +146,7 @@ sketch::kit::ComparisonCase bandCell(const char* title, const char* call,
 }  // namespace
 
 struct FormationBands {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     // nothing moves; the sheet is complete at once
     const sketch::kit::Provide look(sheetTheme());
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});

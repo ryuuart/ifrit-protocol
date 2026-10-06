@@ -27,9 +27,9 @@
 
 namespace sigil::sketch {
 /** The per-frame value a sketch body is handed; its own words are
- *  `<sigilsketch/canvas/Sketch.h>`, which this names and does not
+ *  `<sigilsketch/scene2d/Scene2D.h>`, which this names and does not
  *  include. */
-struct SketchContext;
+struct Scene2DContext;
 }  // namespace sigil::sketch
 
 namespace sigil::sketch::kit {
@@ -85,7 +85,7 @@ class Document {
   /** The document among the SKETCH'S OWN FILES, `ctx.local(name)` —
    *  `"data/content.json"` beside the sketch — through the resource hub,
    *  which caches it and notices an edit to it. */
-  Document(SketchContext& ctx, std::string_view name);
+  Document(Scene2DContext& ctx, std::string_view name);
   /** The document already in hand, for a sketch that loaded it itself. */
   explicit Document(std::shared_ptr<const data::Json> held)
       : m_held(std::move(held)) {}

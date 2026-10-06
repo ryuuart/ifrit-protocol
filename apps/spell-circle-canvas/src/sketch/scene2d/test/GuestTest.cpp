@@ -9,8 +9,8 @@
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
-#include <sigilsketch/canvas/Guest.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Guest.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include "support/Fixtures.h"
 
@@ -27,13 +27,13 @@ class GuestContext {
         m_context(m_composer, m_engine, assets(), {0, 0}, &m_specification,
                   &fonts(), deterministic) {}
 
-  sigil::sketch::SketchContext& context() { return m_context; }
+  sigil::sketch::Scene2DContext& context() { return m_context; }
 
  private:
   sigil::motion::Engine m_engine;
   sigil::compose::Composer m_composer;
   sigil::sketch::CanvasSpecification m_specification;
-  sigil::sketch::SketchContext m_context;
+  sigil::sketch::Scene2DContext m_context;
 };
 
 TEST(SketchGuest, WithNothingPublishingThereIsNoPictureToWear) {

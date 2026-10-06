@@ -61,9 +61,9 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilmotion/ease/Ease.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Instrument.h>
 #include <sigilsketch/kit/Theme.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <array>
 #include <cmath>
@@ -154,7 +154,7 @@ constexpr std::array<Band, 6> kBands = {{{50, -16, 15},
 /** The door the introductions cross: the port a phone reaches, the path
  *  it opens back on, and the pages the same port hands out, which stand
  *  beside this file. */
-std::string signalOf(const sketch::SketchContext& ctx) {
+std::string signalOf(const sketch::Scene2DContext& ctx) {
   return "ws://:" + std::to_string(kPort) + kPath +
          "?pages=" + ctx.local(kPages);
 }
@@ -162,7 +162,7 @@ std::string signalOf(const sketch::SketchContext& ctx) {
 /** The conversation itself, held over that door. The signal stands in
  *  the query whole, pages and all, so the page a phone loads and the
  *  socket the introductions cross are one address and one feed. */
-std::string doorOf(const sketch::SketchContext& ctx) {
+std::string doorOf(const sketch::Scene2DContext& ctx) {
   std::string uri =
       "webrtc://" + std::string(kRoom) + "?signal=" + signalOf(ctx);
   if (*kIce != '\0') uri += "&ice=" + std::string(kIce);
@@ -255,7 +255,7 @@ struct WebRtcSky {
   std::string pages;
   Reading shown;
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide sheet(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(
@@ -296,7 +296,7 @@ struct WebRtcSky {
     describe(ctx);
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     const double step = elapsed - seconds;
     seconds = elapsed;
     drift += (double)wind() * step;
@@ -403,7 +403,7 @@ struct WebRtcSky {
     return true;
   }
 
-  void describe(sketch::SketchContext& ctx) {
+  void describe(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide sheet(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     std::vector<compose::Element> parts;

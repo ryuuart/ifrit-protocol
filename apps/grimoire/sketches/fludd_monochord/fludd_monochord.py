@@ -14,7 +14,7 @@ from sigil.draw import CENTER, LEFT, Pen
 from sigil.geometry.shapes import arc
 from sigil.material import Filter, ShadowOptions, shader
 from sigil.media import load
-from sigil.sketch import SketchContext, sketch
+from sigil.sketch import Scene2DContext, sketch
 from sigil.weave import typeface
 
 WIDTH, HEIGHT = 2310, 2190
@@ -211,7 +211,7 @@ def curved_labels():
 
 @sketch(size=(WIDTH, HEIGHT), background="#282B28", capture_at=0.36)
 class FluddMonochord:
-    def setup(self, ctx: SketchContext):
+    def setup(self, ctx: Scene2DContext):
         hub = ctx.assets.hub()
         paper = shader(hub, ctx.local("paper.sksl")).effects(
             Filter.shadow("#030605C0", ShadowOptions(blur=24, offset=(11, 17)))

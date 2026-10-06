@@ -47,10 +47,10 @@
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilsketch/kit/Legend.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/kit/Hyphenation.h>
 #include <sigilweave/kit/LineTables.h>
 
@@ -277,7 +277,7 @@ struct Cosmati {
   /** The scene's one clock, in seconds; every beat is a window on it. */
   sigil::motion::Animatable<float> seconds = sigil::motion::animatable(0.0f);
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     words = sketch::kit::Document{ctx, "data/pavement.json"};
     stone = {quarryOf(words, "porphyry"), quarryOf(words, "serpentine"),
              quarryOf(words, "giallo"),   quarryOf(words, "marble"),

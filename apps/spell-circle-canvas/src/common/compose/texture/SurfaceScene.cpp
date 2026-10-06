@@ -95,7 +95,7 @@ void SurfaceScene::render(const Element& root, double seconds) {
   m_lobes.specular |= heard.specular;
   // TRANSMISSION AND DISTORTION read the scene behind the surface they
   // sit on, which a page's flat maps cannot carry: a material that needs
-  // its own shading crosses to the set as itself, and until it can, the
+  // its own shading crosses to the World scene as itself, and until it can, the
   // page is drawn without them.
   if (heard.transmission || heard.distortion)
     material::reportOnce(

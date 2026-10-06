@@ -1,7 +1,7 @@
-"""A Python sketch that dresses a set.
+"""The Python scene3d kind and a scene on the session ticker.
 
 Input contracts for the erased signatures of the
-sketch-kit-and-hosting/host-set-sketches package, and nothing else: a fragment is one
+world/scene3d-hosting package, and nothing else: a fragment is one
 author's alone.
 """
 

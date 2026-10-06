@@ -440,7 +440,7 @@ void writeScaffold(material::slang::Uniforms& uniforms,
                glm::mat4(sky.orientation *
                          glm::transpose(glm::mat3(
                              glm::inverseTranspose(glm::mat3(view))))));
-  // NO LIGHT IS SUPPLIED THAT THE SET DID NOT STATE: a set with no
+  // NO LIGHT IS SUPPLIED THAT THE SCENE DID NOT STATE: a scene with no
   // ambient light and no environment has black shadows.
   const size_t count = std::min(lights.size(), kLights);
   for (size_t i = 0; i < count; ++i) writeLight(uniforms, i, *lights[i], view);
@@ -682,7 +682,7 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
       continue;
     }
     // …and the four panorama slots are the FRAME'S, not any material's:
-    // a sky is a property of the set every body in it reads, so it is
+    // a sky is a property of the scene every body in it reads, so it is
     // bound beside the lights rather than dressed onto a surface.
     if (slot == kEnvironmentSlots[0]) {
       textures[i] = panorama;
@@ -1109,7 +1109,7 @@ std::array<glm::vec3, 8> cameraCorners(const View& view, float from, float to) {
 }
 
 /** HOW FAR IN FRONT OF THE CAMERA a directional light's maps reach: the
- *  distance its shadow states, or the far side of the set. */
+ *  distance its shadow states, or the far side of the scene. */
 float shadowReach(const PlacedLight& light, const View& view,
                   const Box& scene) {
   if (light.light.shadow.distance > 0.0f) return light.light.shadow.distance;
@@ -1122,7 +1122,7 @@ float shadowReach(const PlacedLight& light, const View& view,
 }
 
 /** A DIRECTIONAL LIGHT'S MAP: an orthographic view along the light, square
- *  across, covering what the camera sees of the set between @p from and
+ *  across, covering what the camera sees of the scene between @p from and
  *  @p to in front of it — zero for either is the near or the far plane —
  *  and deep enough to hold every body between the light and them. Its
  *  corner is snapped to whole texels, so a still light's shadow does not
@@ -1145,7 +1145,7 @@ ShadowMap fitDirectional(const PlacedLight& light, const View& view,
   Box cameraSeen;
   for (const glm::vec3& corner : cameraCorners(view, from, to))
     cameraSeen.add(glm::vec3(looking * glm::vec4(corner, 1.0f)));
-  // Across, what the camera sees of the set; deep, the whole set.
+  // Across, what the camera sees of the scene; deep, the whole scene.
   glm::vec2 low = glm::max(glm::vec2(sceneSeen.low), glm::vec2(cameraSeen.low));
   glm::vec2 high =
       glm::min(glm::vec2(sceneSeen.high), glm::vec2(cameraSeen.high));
@@ -1155,7 +1155,7 @@ ShadowMap fitDirectional(const PlacedLight& light, const View& view,
     low = glm::vec2(sceneSeen.low);
     high = glm::vec2(sceneSeen.high);
   }
-  // A little past the set on every side, so a shadow at its edge is never
+  // A little past the scene on every side, so a shadow at its edge is never
   // the last texel of the map.
   const float half =
       std::max(high.x - low.x, high.y - low.y) * 0.5f * 1.02f + 1e-3f;
@@ -1175,7 +1175,7 @@ ShadowMap fitDirectional(const PlacedLight& light, const View& view,
 /** A DIRECTIONAL LIGHT'S CASCADES: its reach split along the camera's
  *  depth into as many slices as its shadow states, each fitted with its
  *  own map — the slices growing with the distance, three parts of the way
- *  from even to geometric, so the nearer maps cover less of the set at the
+ *  from even to geometric, so the nearer maps cover less of the scene at the
  *  same size. One cascade is the single map for the whole reach. */
 std::vector<ShadowMap> fitCascades(const PlacedLight& light, const View& view,
                                    const Box& scene, int size) {
@@ -1213,7 +1213,7 @@ constexpr float kPanelShadowAngle = 50.0f;
 
 /** A SPOT LIGHT'S MAP: a perspective view from where it stands along where
  *  it aims, opening a little wider than its cone, reaching its range or,
- *  with none, the far side of the set. */
+ *  with none, the far side of the scene. */
 ShadowMap fitSpot(const PlacedLight& light, const Box& scene, int size) {
   ShadowMap out;
   out.light = &light;
@@ -1250,7 +1250,7 @@ constexpr float kFaceReach = 1.05f;
 
 /** A POINT LIGHT'S MAP: six perspective views from where it stands, one
  *  along each axis each way, every one reaching its range or, with none,
- *  the far side of the set. The shading reads the face the point stands
+ *  the far side of the scene. The shading reads the face the point stands
  *  most squarely in front of. */
 std::array<ShadowMap, 6> fitPoint(const PlacedLight& light, const Box& scene,
                                   int size) {
@@ -1596,7 +1596,7 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
         everyLight.push_back(&light);
     // A STAMPING IS AN ARTEFACT LIKE ANY OTHER: formed once per distinct
     // (cloud, stamp) in the store, and uploaded once under the number
-    // that pair folds to. A set that has not moved between two frames is
+    // that pair folds to. A scene that has not moved between two frames is
     // therefore neither instanced again nor re-uploaded, however many
     // frames draw it.
     for (const std::string& name : pass.reads()) {

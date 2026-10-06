@@ -69,8 +69,8 @@
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Time.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/query/Selector.h>
 #include <sigilweave/style/Type.h>
 
@@ -265,7 +265,7 @@ struct AxisRipple {
    *  exact pen positions can be measured only from a style holding a face,
    *  never from the family a sheet names, so every width on this page is
    *  printed to the whole pixel. */
-  float widthOf(sketch::SketchContext& ctx, Element leaf) const {
+  float widthOf(sketch::Scene2DContext& ctx, Element leaf) const {
     return ctx.measure(box().applyStyleSheet(sheet).children({std::move(leaf)}))
         .width();
   }
@@ -491,7 +491,7 @@ struct AxisRipple {
                        "the wave.")});
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     // The crest on the word's eighth letter: the rise ahead of it and the
     // fall behind it are both on the page, with the line at rest either
     // side.

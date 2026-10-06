@@ -37,7 +37,7 @@
 #include <sigildraw/Constants.h>
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
@@ -59,7 +59,7 @@ constexpr double kTurn = 6.0;  // seconds for one turn
 constexpr double kCaptureAt = 1.5;
 
 struct AlphaGround {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(
         {.size = kCanvas, .background = kGround, .captureSeconds = kCaptureAt});
     ctx.composer.render(

@@ -81,7 +81,7 @@ class Frame {
  public:
   Frame() = default;
   /** A frame that is nothing but @p scene — any node, a group of the
-   *  set most often. */
+   *  whole scene most often. */
   Frame(Node scene)  // NOLINT: a frame with no passes IS its scene
       : m_scene(std::move(scene)) {}
 
@@ -90,7 +90,7 @@ class Frame {
    *  @{ */
   /** The tree to describe. */
   Frame& scene(Node root);
-  /** THE ENVIRONMENT the set stands in: @p map, every lit body sampling
+  /** THE ENVIRONMENT the scene stands in: @p map, every lit body sampling
    *  it for what reaches it from all around, read under @p options. A
    *  frame holds one. */
   Frame& environment(EnvironmentMap map, EnvironmentOptions options = {});
@@ -108,7 +108,7 @@ class Frame {
 
   /** @name What a host states
    *  Where the picture lands and what draws it — the host's to say, not
-   *  the set's.
+   *  the scene's.
    *  @{ */
   /** The size the frame's targets are made at. A frame declaring passes
    *  needs one. */
@@ -149,7 +149,7 @@ class Frame {
 
   /** The tree this frame describes. */
   [[nodiscard]] const Node& scene() const { return m_scene; }
-  /** The panorama the set stands in; invalid when the frame states none. */
+  /** The panorama the scene stands in; invalid when the frame states none. */
   [[nodiscard]] const EnvironmentMap& environmentMap() const {
     return m_environmentMap;
   }

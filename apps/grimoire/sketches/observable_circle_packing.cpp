@@ -8,8 +8,8 @@
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <cmath>
 #include <vector>
@@ -34,7 +34,7 @@ struct Circle {
 struct ObservableCirclePacking {
   std::vector<Circle> circles;
 
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     sketch::kit::stage(context, {.size = kCanvas, .captureAt = 4.0});
 
     context.composer.render(compose::graphics("observable_circle_packing.loop",

@@ -7,7 +7,7 @@ from sigil.draw import LEFT, TOP, Pen
 from sigil.geometry import mesh
 from sigil.material import hexColor
 from sigil.material import surface as surfaces
-from sigil.sketch import SketchContext, sketch
+from sigil.sketch import Scene2DContext, sketch
 
 INK = "#ebeee7"
 MUTED = "#93a4aa"
@@ -16,7 +16,7 @@ PAPER = "#141d25"
 
 @sketch(size=(1200, 820), background=PAPER, capture_at=1.0)
 class WorldStudy:
-    def setup(self, ctx: SketchContext) -> None:
+    def setup(self, ctx: Scene2DContext) -> None:
         self.vessel = mesh.revolve(
             [
                 (0, -64),
@@ -51,7 +51,7 @@ class WorldStudy:
         self.camera.target = (0, -6, 0)
         self.camera.fovYDeg = 30
 
-    def draw(self, pen: Pen, ctx: SketchContext) -> None:
+    def draw(self, pen: Pen, ctx: Scene2DContext) -> None:
         pen.background(PAPER)
         seconds = pen.millis() / 1000
         pieces = [
@@ -83,9 +83,9 @@ class WorldStudy:
                 )
             ),
         ).key("study")
-        # A set is drawn on a device and nowhere else: the bake answers
-        # None where the host brought none up, and the sheet says so.
-        still = ctx.bakeSet(
+        # A scene3d frame is drawn on a device and nowhere else: the bake
+        # answers None where the host brought none up, and the sheet says so.
+        still = ctx.bakeScene3D(
             world.Frame(model),
             (1104, 510),
             camera=self.camera,

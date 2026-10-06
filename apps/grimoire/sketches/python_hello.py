@@ -11,7 +11,7 @@ TAGS: Runtime/Starter, Drawing/Primitives, Motion/Animation
 from math import sin
 
 from sigil.draw import Pen
-from sigil.sketch import SketchContext, kit, sketch
+from sigil.sketch import Scene2DContext, kit, sketch
 
 COLOR = "#efb87e"
 SPEED = 1.2
@@ -19,7 +19,7 @@ SPEED = 1.2
 
 @sketch(size=(640, 420), capture_at=1.0)
 class Hello:
-    def setup(self, ctx: SketchContext) -> None:
+    def setup(self, ctx: Scene2DContext) -> None:
         self.look = kit.feature_theme(kit.Density.Spacious)
         with kit.provide(self.look):
             kit.stage(ctx, size=(640, 420), capture_at=1.0)

@@ -531,7 +531,7 @@ python = ["material.Paint.shader"]
 [requirement.painter-runtime]
 native = "`sketch::painterRuntime` mesh executor query"
 library = "Sketch host"
-python = ["sketch.SketchContext.painterRuntime"]
+python = ["sketch.Scene2DContext.painterRuntime"]
 
 [requirement.particles]
 native = "`motion::physics::Emitter` and `Particles`"
@@ -683,10 +683,10 @@ native = "`io::NetworkCache` network cache seeding"
 library = "IO"
 python = ["io.NetworkCache"]
 
-[requirement.set-sketches]
-native = "Set sketches (`sketch::SetContext`, `describe`)"
+[requirement.scene3d-sketches]
+native = "Scene3D sketches (`sketch::Scene3DContext`, `describe`)"
 library = "Sketch host"
-python = ["sketch.SetContext"]
+python = ["sketch.Scene3DContext"]
 
 [requirement.shader-local-matrix]
 native = "`SkShader` local matrices and raw image shaders"
@@ -711,7 +711,7 @@ python = [
 [requirement.sketch-schemas]
 native = "Per-sketch `<stem>.fbs` schemas for Python entries"
 library = "Sketch host"
-python = ["data.Schema.fromBinarySchema", "sketch.SketchContext.local"]
+python = ["data.Schema.fromBinarySchema", "sketch.Scene2DContext.local"]
 
 [requirement.sketch-scry]
 native = "`sketch::scry` shared engine, settling and sequences"
@@ -817,9 +817,9 @@ library = "Material"
 python = ["material.surface.program", "material.texture.TextureMaps"]
 
 [requirement.texture-scene]
-native = "`compose::TextureScene` and `SketchContext::textureScene`"
+native = "`compose::TextureScene` and `Scene2DContext::textureScene`"
 library = "Compose"
-python = ["compose.TextureScene", "sketch.SketchContext.textureScene"]
+python = ["compose.TextureScene", "sketch.Scene2DContext.textureScene"]
 
 [requirement.textures]
 native = "`material::Texture` and `Material::slot`"

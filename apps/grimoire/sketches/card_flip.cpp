@@ -9,8 +9,8 @@
 // move it, and it projects onto the plane its parent paints on — one 4x4
 // per node, flattened at paint, so tree order stays draw order and every
 // cache a node holds lives in its own plane exactly as before. What this
-// is not: a scene. Nothing intersects and nothing is lit; a set is where
-// that lives.
+// is not: a scene. Nothing intersects and nothing is lit; a scene3d sketch is
+// where that lives.
 //
 //   THE CARD    a preserve3d host turning on a bound rotateY under a
 //               perspective, holding a front and a back pre-turned half
@@ -46,9 +46,9 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/values/Time.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Theme.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
@@ -123,7 +123,7 @@ struct CardFlip {
                             spinY = motion::animatable(0.0f),
                             sway = motion::animatable(0.0f);
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide look(sketch::kit::featureTheme());
     // MID-TURN. At 2.2 s the card is past its quarter turn and the back
     // has just taken over, the cube shows three faces at an oblique, and

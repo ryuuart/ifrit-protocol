@@ -1,5 +1,5 @@
 /** Carved stone and chased copper painted by Compose as a surface's maps
- *  and lit by the set: World's lights, environment and camera shade the
+ *  and lit by the scene: World's lights, environment and camera shade the
  *  page, and Compose shades nothing.
  */
 // TAGS: Compose/Materials, Materials/Stone, Materials/Metal,
@@ -20,7 +20,7 @@
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/Image.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilworld/World.h>
 
 #include <algorithm>
@@ -176,7 +176,7 @@ material::Material hammeredGold() {
        .normalDirectX = true});
 }
 
-/** The page the set wears: two marked slabs, gilt glyphs, a relief and
+/** The page the scene wears: two marked slabs, gilt glyphs, a relief and
  *  the captions that take no light. */
 Element carvedPage(const material::Material& height) {
   const auto slab = [&](float x, std::string_view title, std::string_view note,
@@ -282,7 +282,7 @@ struct CarvedMarksSet {
     return camera;
   }
 
-  void setup(sketch::SetContext& ctx) {
+  void setup(sketch::Scene3DContext& ctx) {
     ctx.canvas(kWidth, kHeight);
     ctx.captureAt(2.0);
     ctx.background(hexColor(0x141716));
@@ -334,4 +334,4 @@ struct CarvedMarksSet {
 
 SIGIL_SKETCH(CarvedMarksSet, "Study · Materials",
              "Carved stone and chased copper painted as a surface's maps and "
-             "lit by the set's lights, environment and turning view")
+             "lit by the scene's lights, environment and turning view")

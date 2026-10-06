@@ -6,7 +6,7 @@ from math import cos, hypot, sin
 
 from sigil.draw import ADD, BLEND, CANVAS, ROUND, Pen
 from sigil.material import Paint, shader
-from sigil.sketch import SketchContext, sketch
+from sigil.sketch import Scene2DContext, sketch
 
 LINE_FIELD = r"""
       half4 main(float2 xy) {
@@ -102,7 +102,7 @@ FILAMENT = r"""
 
 @sketch(size=(720, 720), background="#02050e", capture_at=0.05)
 class LiquidGlass:
-    def setup(self, ctx: SketchContext) -> None:
+    def setup(self, ctx: Scene2DContext) -> None:
         self.source = Paint(
             shader(LINE_FIELD, key="python_liquid_glass/line_field")
         ).quantizeTime(30)

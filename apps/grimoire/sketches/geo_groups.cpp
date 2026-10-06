@@ -39,8 +39,8 @@
 #include <sigilgeometry/mesh/pop/Points.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
@@ -154,7 +154,7 @@ struct GeoGroups {
   geometry::mesh::Cloud saved, peaked, twisted;
   std::string caption;
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // Every cloud is cooked in setup; nothing reads the clock.
     sketch::kit::stage(ctx, {.size = {1200, 650}, .captureAt = 0.05});

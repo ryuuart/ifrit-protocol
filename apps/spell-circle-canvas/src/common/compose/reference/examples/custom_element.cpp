@@ -6,12 +6,12 @@
  * photographed with `--frame` and never enters the plate sweep.
  */
 
-#include <sigildraw/Pen.h>
 #include <include/core/SkCanvas.h>
 #include <sigilcompose/core/Core.h>
+#include <sigildraw/Pen.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <cmath>
 
@@ -31,16 +31,16 @@ constexpr material::Color kAsh = material::hexColor(0x8ea0ad);
  *  which is what `PaintContext::size` carries. */
 void rings(sigil::draw::Pen& pen, const PaintContext& context) {
   SkCanvas& canvas = *pen.canvas();
-  const SkPoint centre{context.size.x * 0.5f,
-                       context.size.y * 0.5f};
+  const SkPoint centre{context.size.x * 0.5f, context.size.y * 0.5f};
   SkPaint paint;
   paint.setAntiAlias(true);
   paint.setStyle(SkPaint::kStroke_Style);
   for (int ring = 1; ring <= 7; ++ring) {
     const float t = (float)ring / 7;
     paint.setStrokeWidth(1.0f + 2.0f * t);
-    paint.setColor4f(
-        material::skia::toSkColor(material::hexColor(0x6fb3a6, 1.0f - 0.9f * t)), nullptr);
+    paint.setColor4f(material::skia::toSkColor(
+                         material::hexColor(0x6fb3a6, 1.0f - 0.9f * t)),
+                     nullptr);
     canvas.drawCircle(centre, 14.0f * (float)ring, paint);
   }
 }
@@ -48,7 +48,7 @@ void rings(sigil::draw::Pen& pen, const PaintContext& context) {
 }  // namespace
 
 struct CustomElement {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas({.size = kCanvas, .background = kGround, .captureSeconds = 0});
     ctx.composer.render(describe());
   }

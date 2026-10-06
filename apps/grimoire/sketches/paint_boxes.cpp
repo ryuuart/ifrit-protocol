@@ -8,8 +8,8 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilmaterial/paint/Bases.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <string>
@@ -77,7 +77,7 @@ Element cards() {
 }  // namespace
 
 struct PaintBoxes {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide look(sketch::kit::studyTheme());
     sketch::kit::stage(ctx, {.size = {1100, 760}, .captureAt = 0.05});
     ctx.composer.render(sketch::kit::page(

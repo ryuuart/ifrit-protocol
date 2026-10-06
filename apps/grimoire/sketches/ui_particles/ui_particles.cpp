@@ -33,8 +33,8 @@
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmotion/clock/Engine.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <array>
 #include <cmath>
@@ -443,12 +443,12 @@ struct UiParticles {
         });
   }
 
-  void update(double t, sketch::SketchContext& ctx) {
+  void update(double t, sketch::Scene2DContext& ctx) {
     syncPool(chips, *chipPool, t, stepAlpha.value());
     syncPool(posts, *postPool, t, stepAlpha.value());
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 6.0,
                              .background = material::Color{0, 0, 0, 1}});

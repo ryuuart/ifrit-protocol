@@ -51,8 +51,8 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/style/Type.h>
 
 #include <utility>
@@ -123,7 +123,7 @@ Element panel(Element construction) {
 }  // namespace
 
 struct CrtBloom {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // Nothing on the sheet reads the clock: both halos are static and the
     // tube is a function of the box, so the plate is the first moment.

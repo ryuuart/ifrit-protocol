@@ -39,8 +39,8 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Face.h>
 #include <sigilweave/style/Type.h>
@@ -181,7 +181,7 @@ struct DunhuangStarChart {
   std::vector<Asterism> asterisms;
   sigil::weave::Face han, latin;
 
-  void read(sketch::SketchContext& ctx) {
+  void read(sketch::Scene2DContext& ctx) {
     const auto table = [&ctx](const char* name) {
       return ctx.assets.hub().load<sigil::data::Table>(
           ctx.local(std::string("data/") + name));
@@ -419,7 +419,7 @@ struct DunhuangStarChart {
                  .top(1500)});
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(
         ctx,
         {.size = {kWidth, kHeight}, .captureAt = 0.05, .background = kGround});

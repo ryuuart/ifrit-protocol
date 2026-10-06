@@ -48,8 +48,8 @@
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmedia/advanced/Skia.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <array>
 #include <cmath>
@@ -113,7 +113,7 @@ struct PopStamps {
    *  session owns the scene the picture was taken from and lets it go
    *  when the body declares again, so the sketch holds an image and
    *  nothing else. */
-  static sk_sp<SkImage> bake(sketch::SketchContext& ctx, const Element& tree,
+  static sk_sp<SkImage> bake(sketch::Scene2DContext& ctx, const Element& tree,
                              int side) {
     const std::shared_ptr<TextureScene> scene = ctx.textureScene({side, side});
     if (!scene) return nullptr;
@@ -160,7 +160,7 @@ struct PopStamps {
             }));
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide look(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(

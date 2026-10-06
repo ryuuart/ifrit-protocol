@@ -46,8 +46,8 @@ struct WindowBench {
  *  makes it a gate. Here the frame is drawn through the surface the
  *  window presents, at the window's pixels and its device pixel ratio,
  *  and the numbers carry the host's own overhead with them: the submit
- *  or texture upload that puts the frame on screen, and for a set the
- *  device readback and blit that its paint phase performs. The presented
+ *  or texture upload that puts the frame on screen, and for a scene3d sketch
+ * the device readback and blit that its paint phase performs. The presented
  *  rate is the compositor's answer, so it is bounded by the display and
  *  a sketch inside its budget reads at the refresh rate.
  *

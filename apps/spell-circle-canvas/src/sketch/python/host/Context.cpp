@@ -10,10 +10,10 @@
 #include <sigilpython/compose/Composer.h>
 #include <sigilpython/compose/Kit.h>
 #include <sigilpython/motion/Convert.h>
-#include <sigilsketch/canvas/Guest.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/CanvasSpecification.h>
+#include <sigilsketch/scene2d/Guest.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilworld/frame/Frame.h>
 
 #include <array>
@@ -52,7 +52,7 @@ void checkCanvasSize(SkSize size) {
 
 SkISize pixels(std::array<int, 2> size) {
   if (size[0] <= 0 || size[1] <= 0)
-    throw py::value_error("A baked set's extent must be positive");
+    throw py::value_error("A baked 3D frame's extent must be positive");
   return {size[0], size[1]};
 }
 
@@ -176,7 +176,7 @@ void bindContext(py::module_& module) {
           },
           py::arg("element"), py::arg("maxSize") = SkSize::MakeEmpty())
       .def(
-          "bakeSet",
+          "bakeScene3D",
           [](const Context& ctx, const world::Frame& frame,
              std::array<int, 2> size,
              const geometry::mesh::camera::Camera& camera,
@@ -185,10 +185,11 @@ void bindContext(py::module_& module) {
               throw py::value_error(
                   "A bake's moment must be finite and nonnegative");
             const SkISize extent = pixels(size);
-            return ctx.state()->context().bakeSet(frame, extent,
-                                                  {.camera = camera,
-                                                   .background = background,
-                                                   .at = motion::Duration(at)});
+            return ctx.state()->context().bakeScene3D(
+                frame, extent,
+                {.camera = camera,
+                 .background = background,
+                 .at = motion::Duration(at)});
           },
           py::arg("frame"), py::arg("size"),
           py::arg("camera") = geometry::mesh::camera::Camera{},

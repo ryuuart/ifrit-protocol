@@ -13,8 +13,8 @@ a case by its full one, with no target behind either.
 The library has one test binary, `sketch_test`, built from every
 feature's `test/` directory; ctest discovers one entry per CASE out of
 it. `core/test/` covers the registry, the kind seam, the crash reporter
-and where a sketch stands on disk; `canvas/test/` and
-`set/test/` the two sessions;
+and where a sketch stands on disk; `scene2d/test/` and
+`scene3d/test/` the two sessions;
 `kit/test/` the sheet a specimen stands on; `live/test/` the
 host, the resident set and the cadence a window sweep keeps;
 `plate/test/` the sweep, the comparison
@@ -24,12 +24,12 @@ beside the case that
 takes a page's still — two cases that must not meet in one process because
 the engine allows one renderer per process and the shared-engine case
 ends by shutting its one down for good. Both are labelled `ultralight`
-and are absent altogether without that SDK. A case that opens a set or
-bakes one draws it on the one device the process brings up, through
+and are absent altogether without that SDK. A case that opens a scene3d
+sketch or bakes a 3D frame draws it on the one device the process brings up, through
 `test/support/Devices.h`, and skips naming what is missing where the machine
-has no Vulkan runtime; those suites — `SetSession`, `SetDoors`, `SetWindow`,
-`SetBodies`, `SetKinds`, the set's session contract and `CanvasBakes` — carry
-the `gpu` label, and `SetAvailability` asks without a device what a set with
+has no Vulkan runtime; those suites — `Scene3DSession`, `Scene3DDoors`, `Scene3DWindow`,
+`Scene3DBodies`, `Scene3DKinds`, the scene3d session contract and `Scene2DBakes` — carry
+the `gpu` label, and `Scene3DAvailability` asks without a device what a scene3d sketch with
 none to draw on answers. Beside the test binary
 stands one bench binary, `sketch_bench`, built from every feature's
 `bench/` directory — a Google Benchmark executable rather than a test,
@@ -58,8 +58,8 @@ body's own time plus the runtime's, the oversample a still is worth
 taking at, and a repaint that draws the state the frames left and
 advances nothing. Each session's cases instantiate them with a traits
 type naming its own fixture sketch, and what is left in each session's
-file is what only that runtime does: a canvas re-renders for its still
-and so takes one more step, a set is formed at the resolution of the
+file is what only that runtime does: a scene2d sketch re-renders for its still
+and so takes one more step, a scene3d sketch is formed at the resolution of the
 canvas it is handed rather than magnified onto it.
 
 Nothing here compiles or opens a sketch of any catalogue: every case

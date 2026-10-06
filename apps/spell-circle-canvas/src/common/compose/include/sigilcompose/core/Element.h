@@ -75,8 +75,8 @@
  *
  *  Reach for it when a picture is a function of state that changes.
  *  A one-off drawing with no state behind it is cheaper with an
- *  immediate-mode pen (SigilDraw); a lit scene in space is a set
- *  (SigilWorld). */
+ *  immediate-mode pen (SigilDraw); a lit scene in space is a World
+ *  scene (SigilWorld). */
 namespace sigil::compose {
 
 /** ONE NODE OF A SCENE DESCRIPTION: what to draw, how to lay it out, and

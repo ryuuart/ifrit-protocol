@@ -40,7 +40,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/kit/Page.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilworld/World.h>
 
 #include <glm/vec3.hpp>
@@ -118,7 +118,7 @@ struct ScatteredModel {
   gm::Mesh subject;
   gm::Instances dust;
 
-  void setup(sketch::SetContext& ctx) {
+  void setup(sketch::Scene3DContext& ctx) {
     sketch::kit::stage(
         ctx, {.size = {860, 580},
               .captureAt = 1.7,
@@ -178,7 +178,7 @@ struct ScatteredModel {
 
 }  // namespace
 
-SIGIL_SKETCH(ScatteredModel, "Set",
+SIGIL_SKETCH(ScatteredModel, "Scene3D",
              "An imported model scattered into stamps — the mesh "
              "codec's output is the same currency a generated body is, and "
              "a cloud over its surface stands a facet at every point")

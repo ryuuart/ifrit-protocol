@@ -42,7 +42,7 @@ protocol::Program grimoire() {
   program.sessions = [] {
     protocol::session::values::Summary open;
     open.sketch = "ember";
-    open.kind = "canvas";
+    open.kind = "scene2d";
     return std::vector<protocol::session::values::Summary>{open};
   };
   return program;

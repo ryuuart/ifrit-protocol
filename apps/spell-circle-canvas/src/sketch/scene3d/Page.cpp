@@ -1,5 +1,5 @@
 /** @file
- * A page the set lights: the texture pass that paints a compose tree as
+ * A page the sketch lights: the texture pass that paints a compose tree as
  * the maps of a surface, and the surface those maps make.
  */
 
@@ -7,7 +7,7 @@
 #include <sigilcompose/texture/SurfaceScene.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilmaterial/surface/Surface.h>
-#include <sigilsketch/set/Page.h>
+#include <sigilsketch/scene3d/Page.h>
 #include <sigilworld/advanced/TextureProducer.h>
 
 #include <chrono>

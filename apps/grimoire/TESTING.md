@@ -59,7 +59,7 @@ plate hashes. Three different things, and none of them stands in for
 another.
 
 Within the dynamic entries, one per distinct surface: `shapeworks_lab`
-and `first_light` are the widest canvas and set sketches by the symbols
+and `first_light` are the widest scene2d and scene3d sketches by the symbols
 they name, `stock_materials` paints one of every stock material,
 `video_compose` reaches the decoder and encoder archives no
 geometry-heavy sketch names, `world_hud` is the other registration form,

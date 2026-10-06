@@ -14,7 +14,7 @@
 #include <sigilmaterial/program/Shader.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Time.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <cmath>
@@ -238,7 +238,7 @@ Element cutter() {
 struct DeadSpaceRig {
   motion::Animatable<float> phase = motion::animatable(0.0f);
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(1440, 960);
     ctx.background(ground);
     ctx.captureAt(4.2);

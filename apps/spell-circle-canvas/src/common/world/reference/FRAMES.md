@@ -28,7 +28,7 @@ roughness before it picks a prefiltered level, a second panorama
 `EnvironmentOptions::crossfade`, and its turn about the up axis,
 `EnvironmentOptions::rotation`. What it lights and what it shows are two
 questions: `EnvironmentOptions::shown` is how strongly the panorama is
-drawn behind the set — zero draws none of it, so the dial is also the
+drawn behind the scene — zero draws none of it, so the dial is also the
 switch — blurred by `EnvironmentOptions::blur` in the roughness units a
 reflection reads, and projected onto a ground sphere of
 `EnvironmentOptions::groundRadius` where that is past zero. Every dial is
@@ -144,14 +144,14 @@ per distinct pair and kept while both stand, and null when there is
 nothing to stamp.
 
 A geometry pass draws the stamps of every point set it reads, every
-frame. Forming them in the draw would instance a set that has not moved
+frame. Forming them in the draw would instance a scene that has not moved
 again, however still the frame is — so the answer is held here under `stampKey`, which is a
 fold over the two VALUES. The fold buckets the lookup and the pair itself
 decides it, so two pairs that fold to one number are two stampings under
 two numbers and neither is ever served the other's instances. A frame that
 asks for one it already has pays the fold and the confirmation and
 nothing else, and the device keys its upload by the number this
-answers, so a still set is neither formed twice nor uploaded twice.
+answers, so a still scene is neither formed twice nor uploaded twice.
 
 What is not asked for in a frame is let go at the end of it. The optional
 key receives the number a stamping is held under, for an executor that
@@ -159,7 +159,7 @@ keys an upload by the same one, so that the fold is paid once per frame
 and not twice.
 
 `Targets::stampings` is how many stampings have been FORMED, over
-the store's whole life. A frame drawing a set that has not moved must not
+the store's whole life. A frame drawing a scene that has not moved must not
 move that number.
 
 `Targets::ImageSource` is WHERE AN IMAGE COMES FROM: the executor that

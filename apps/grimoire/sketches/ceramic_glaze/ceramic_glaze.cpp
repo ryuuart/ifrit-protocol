@@ -21,7 +21,7 @@
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilmedia/advanced/Skia.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <array>
@@ -505,7 +505,7 @@ struct CeramicGlaze {
                  55, 975, 1338, 10, muted)});
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(kWidth, kHeight);
     ctx.oversample(1);
     ctx.captureAt(2);
@@ -516,7 +516,7 @@ struct CeramicGlaze {
     crazing = finishMaps(317, porosity * .21f, true);
     ctx.composer.render(describe(0));
   }
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     const double seconds = std::isfinite(elapsed) ? std::max(0.0, elapsed) : 0;
     const float t =
         static_cast<float>(std::fmod(seconds, double(kLoopSeconds)));

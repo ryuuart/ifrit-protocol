@@ -1,11 +1,11 @@
 /** @file
  * first_light — one of everything a description can hold.
  *
- * A lit set: a tube SWEPT along a closed loop, a comet of STAMPS riding
+ * A lit scene: a tube SWEPT along a closed loop, a comet of STAMPS riding
  * a moving window of that same loop, a plate under both, a sun and a
  * lamp, and a CAMERA on a rail of its own. The two curves are the
  * world kit's — `kit::wave` for the loop that rises and falls,
- * `kit::turntable` for the camera that circles the set and looks
+ * `kit::turntable` for the camera that circles the scene and looks
  * inward — so what this file states is the arrangement and nothing
  * else. Everything is a function of the scene time, so the plate is a
  * function of the declared moment.
@@ -21,7 +21,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/kit/Page.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilworld/World.h>
 
 #include <cmath>
@@ -52,7 +52,7 @@ constexpr world::kit::Turntable kTable{.radius = 470.0f,
 gm::curve::Spline3 ribbon() { return world::kit::wave({}); }
 
 struct FirstLight {
-  void setup(sketch::SetContext& ctx) {
+  void setup(sketch::Scene3DContext& ctx) {
     sketch::kit::stage(
         ctx, {.size = {900, 640},
               .captureAt = 1.4,
@@ -125,7 +125,7 @@ struct FirstLight {
 
 }  // namespace
 
-SIGIL_SKETCH(FirstLight, "Set",
-             "A lit set with one of everything a description can hold — a "
+SIGIL_SKETCH(FirstLight, "Scene3D",
+             "A lit scene with one of everything a description can hold — a "
              "tube swept along the kit's wave, a comet of stamps riding a "
              "window of it, and a turntable camera on a rail of its own")

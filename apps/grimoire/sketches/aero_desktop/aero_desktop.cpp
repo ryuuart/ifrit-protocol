@@ -42,8 +42,8 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Time.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
@@ -151,7 +151,7 @@ struct AeroDesktop {
   motion::Animatable<float> orbGlow =
       motion::animatable(0.0f);  // start-orb ambient breathing
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 6.0,
                              .background = material::Color{0, 0, 0, 1}});

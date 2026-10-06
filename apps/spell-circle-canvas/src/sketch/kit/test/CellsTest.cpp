@@ -3,22 +3,21 @@
  * and the runs and grids several of them are set in.
  */
 
-#include <sigilgeometry/advanced/Skia.h>
 #include <gtest/gtest.h>
 #include <sigilcompose/brush/Decorations.h>
-#include <sigilmaterial/filter/Filter.h>
 #include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcore/reconcile/Environment.h>
-#include <sigilmaterial/core/Material.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/advanced/Recipe.h>
+#include <sigilmaterial/core/Material.h>
+#include <sigilmaterial/filter/Filter.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <memory>
-#include <sigilmaterial/skia/Paint.h>
-#include <sigilsketch/canvas/Sketch.h>
-#include <sigilsketch/kit/Kit.h>
-
 #include <utility>
 
 #include "Drawn.h"
@@ -235,19 +234,18 @@ TEST(SketchKitCells, APaddingDownOfItsOwn) {
  *  than collapsing to a Fill — which is the half a `Fill` alone could not
  *  say. */
 TEST(SketchKitCells, AWellGroundedInAMaterialIsTheHandSpelledFill) {
-  const sigil::material::Material quarry = bands(
-      {.hi = {0.47f, 0.29f, 0.29f, 1}, .lo = {0.30f, 0.19f, 0.19f, 1}});
-  EXPECT_TRUE(
-      sameDrawing(compose::box()
-                      .width(163)
-                      .height(176)
-                      .overflow(compose::Overflow::Clip)
-                      .fill(quarry)
-                      .children({subject()}),
-                  kit::well({.width = compose::Dimension(163),
-                             .height = compose::Dimension(176),
-                             .ground = quarry},
-                            compose::box().children({subject()}))));
+  const sigil::material::Material quarry =
+      bands({.hi = {0.47f, 0.29f, 0.29f, 1}, .lo = {0.30f, 0.19f, 0.19f, 1}});
+  EXPECT_TRUE(sameDrawing(compose::box()
+                              .width(163)
+                              .height(176)
+                              .overflow(compose::Overflow::Clip)
+                              .fill(quarry)
+                              .children({subject()}),
+                          kit::well({.width = compose::Dimension(163),
+                                     .height = compose::Dimension(176),
+                                     .ground = quarry},
+                                    compose::box().children({subject()}))));
 }
 
 /** A well carrying neither draws exactly what it always did. */

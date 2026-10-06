@@ -12,7 +12,7 @@ from sigil.compose import Element, row
 from sigil.compose import document as doc
 from sigil.material import Paint
 from sigil.motion import animate
-from sigil.sketch import SketchContext, kit, sketch
+from sigil.sketch import Scene2DContext, kit, sketch
 
 TITLE = "Hello, Compose."
 CARDS = [
@@ -47,7 +47,7 @@ def card(title: str, detail: str, accent: str, delay: float = 0) -> Element:
 
 @sketch(size=(900, 360), capture_at=1.1)
 class HelloCompose:
-    def setup(self, ctx: SketchContext) -> None:
+    def setup(self, ctx: Scene2DContext) -> None:
         look = kit.feature_theme(kit.Density.Spacious)
         with kit.provide(look):
             kit.stage(ctx, size=(900, 360), capture_at=1.1)

@@ -7,7 +7,7 @@ from cmath import phase
 from math import cos, pi
 
 from sigil.draw import CLOSE, HSB, Pen
-from sigil.sketch import SketchContext, sketch
+from sigil.sketch import Scene2DContext, sketch
 
 
 def limited(vector, maximum):
@@ -21,7 +21,7 @@ def steer(desired, velocity):
 
 @sketch(size=(900, 720), capture_at=5)
 class ReynoldsSteering:
-    def setup(self, ctx: SketchContext) -> None:
+    def setup(self, ctx: Scene2DContext) -> None:
         self.boids = []
 
     def advance(self, width, height):

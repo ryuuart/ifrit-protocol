@@ -5,8 +5,8 @@
 // carries, held here so what this code draws with is its own.
 
 #include <include/core/SkRect.h>
-#include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/advanced/Recipe.h>
+#include <sigilmaterial/core/Material.h>
 
 #include <algorithm>
 #include <cmath>
@@ -68,10 +68,12 @@ half4 main(float2 point) {
 }
 )SHADER";
 
-inline sigil::material::Material meshGradient(const SkRect& bounds, float timeSeconds) {
+inline sigil::material::Material meshGradient(const SkRect& bounds,
+                                              float timeSeconds) {
   static const std::shared_ptr<const sigil::material::Recipe> recipe =
       fieldRecipe("text_fields.meshGradient", kMeshGradientSkSL);
-  return sigil::material::Material(recipe, fieldParameters(bounds, timeSeconds));
+  return sigil::material::Material(recipe,
+                                   fieldParameters(bounds, timeSeconds));
 }
 
 }  // namespace text_fields

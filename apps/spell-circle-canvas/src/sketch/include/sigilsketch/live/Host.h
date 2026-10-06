@@ -128,7 +128,7 @@ class Host {
     /** WHO MOVES THE CLOCK the sessions this host opens are drawn at.
      *  Under any policy but the wall's a session is opened for a
      *  repeatable run: what the sketch measured about its own execution
-     *  is pinned (`SketchContext::deterministic` reads true) and the
+     *  is pinned (`Scene2DContext::deterministic` reads true) and the
      *  runtime's own re-baking is held off, so a capture can be diffed. A
      *  host steps its session with whatever delta its caller states
      *  either way; the policy is what the session is opened for. */
@@ -218,7 +218,7 @@ class Host {
    *  something has loaded. */
   [[nodiscard]] Session* session() { return m_session.get(); }
 
-  /** WHICH RUNTIME THE LOADED SKETCH DRAWS THROUGH — "canvas" or "set" —
+  /** WHICH RUNTIME THE LOADED SKETCH DRAWS THROUGH — "scene2d" or "scene3d" —
    *  read off the kind the host is holding, or empty before one has
    *  loaded. A file opened by path is not known to draw through any
    *  runtime until it has been built, so this is what fills in the row a
@@ -227,7 +227,7 @@ class Host {
     return m_kind ? m_kind->runtime() : std::string_view{};
   }
   /** Whether the accepted kind uses the host's device executor. Graphite
-   *  capture of a pure Canvas does not itself require that executor. */
+   *  capture of a pure scene2d sketch does not itself require that executor. */
   [[nodiscard]] bool needsDevice() const {
     return m_kind && m_kind->needsDevice();
   }
@@ -257,8 +257,8 @@ class Host {
     return m_frameTimes;
   }
   /** The session's own PAINT phase over the same frames. It is inside the
-   *  work lane, and it is worth having on its own because for a set drawn
-   *  on a device it is where the readback and the blit onto the canvas
+   *  work lane, and it is worth having on its own because for a scene3d sketch
+   *  drawn on a device it is where the readback and the blit onto the canvas
    *  land — the host cost a frame-time gate rendering onto a raster
    *  surface never pays. */
   [[nodiscard]] const measure::Window<measure::Duration>& drawTimes() const {

@@ -127,7 +127,7 @@ Ui.Panel {
                 maximumScale: Math.max(1.0, Math.min(16.0, 16384 / (Math.max(canvasViewport.canvasWidth, canvasViewport.canvasHeight) * Screen.devicePixelRatio)))
                 panButtons: Qt.MiddleButton
                 showPanCursor: false
-                // A set sketch owns the ordinary wheel for camera
+                // A scene3d sketch owns the ordinary wheel for camera
                 // distance. Ctrl-wheel still reaches zoom below.
                 mouseWheelZoomEnabled: !view.orbitable
 
@@ -223,7 +223,7 @@ Ui.Panel {
 
                     // The pointer and the keys, for the sketches that
                     // read them. Neither handler takes the grab, so the
-                    // orbit above still drags a set; a sketch with
+                    // orbit above still drags a scene3d sketch; a sketch with
                     // nothing for a pointer to do ignores what arrives.
                     // The hover reports where the pointer stands with
                     // no button down, the point handler while one is,

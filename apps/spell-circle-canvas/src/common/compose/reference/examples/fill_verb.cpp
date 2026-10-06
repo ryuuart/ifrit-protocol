@@ -6,11 +6,11 @@
  * photographed with `--frame` and never enters the plate sweep.
  */
 
-#include <sigilmaterial/paint/Bases.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
@@ -38,7 +38,7 @@ Element swatch(Element square, const char* spelling) {
 }  // namespace
 
 struct FillVerb {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas({.size = kCanvas, .background = kGround, .captureSeconds = 0});
     ctx.composer.render(describe());
   }
@@ -53,11 +53,11 @@ struct FillVerb {
         .ink(kAccent)
         .children({
             swatch(box().fill(kAccent), "fill(colour)"),
-            swatch(
-                box().fill(material::linearGradient(
-                    {0, 0}, {1, 1},
-                    {{0.0f, material::hexColor(0x2f6f8f)}, {1.0f, material::hexColor(0x8f2f4f)}})),
-                "fill(paint)"),
+            swatch(box().fill(material::linearGradient(
+                       {0, 0}, {1, 1},
+                       {{0.0f, material::hexColor(0x2f6f8f)},
+                        {1.0f, material::hexColor(0x8f2f4f)}})),
+                   "fill(paint)"),
             swatch(box().fill(Fill::currentInk()), "fill(the ink in force)"),
         });
   }

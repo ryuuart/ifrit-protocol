@@ -37,7 +37,7 @@ collection, language and dimensions. Browsing and presentation stay separate:
   the sketch's own canvas units, through `Session::pointer` and
   `Session::key`, for a sketch that reads them; a click on the list takes
   the arrows back. A sketch with nothing for a pointer to do ignores what
-  arrives, and a drag over a set still orbits it.
+  arrives, and a drag over a scene3d sketch still orbits it.
 
 The library's group picker opens a navigation tree grouped by **subject**, using tags from each
 sketch's opening comment. Paths such as `Typography/Paragraph` make an
@@ -113,10 +113,10 @@ canvas dark, and draws a still for every sketch that has none: the
 sketch's kind opened and stepped to its declared moment — the same
 capture the CPU plate tier takes — scaled to the thumbnail size, one at a
 time, on the CPU and never touching the device. That holds whatever the
-process installed: a still opens every kind on empty runtimes, so a 2D
+process installed: a still opens every kind on empty runtimes, so a scene2d
 body's meshes are drawn on the CPU painter even in a window whose live
-canvas is drawing on a device. A set is drawn on a device and nowhere
-else, so the fill gives it no still: it gets a NOTE carrying the reason,
+canvas is drawing on a device. A scene3d sketch is drawn on a device and
+nowhere else, so the fill gives it no still: it gets a NOTE carrying the reason,
 and its still is the one the refresh below takes the first time it is
 opened. The status strip counts
 them off, `thumbnails 12/41 …`, and each row fills in as its file lands
@@ -157,7 +157,7 @@ gets a drawn glyph for the runtime it draws through.
 `Grimoire --thumbnails` fills the store headless, over the same budget
 and writing the same notes, and exits non-zero naming the sketches that
 failed. It is the same render the window's fill takes, down to the
-runtime, and it brings no device up: every set is listed unavailable and
+runtime, and it brings no device up: every scene3d sketch is listed unavailable and
 skipped, saying why.
 
 **What is not in a row is the canvas.** A sketch declares its size, its

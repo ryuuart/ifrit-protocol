@@ -18,7 +18,7 @@ from sigil.compose import (
 )
 from sigil.compose import document as doc
 from sigil.motion import animate, ease
-from sigil.sketch import SketchContext, kit, sketch
+from sigil.sketch import Scene2DContext, kit, sketch
 from sigil.weave import Type
 
 
@@ -78,7 +78,7 @@ def instrument(reading):
 
 @sketch(size=(960, 480), capture_at=2.4)
 class MemoStation:
-    def setup(self, ctx: SketchContext) -> None:
+    def setup(self, ctx: Scene2DContext) -> None:
         self.last = None
         self.look = kit.feature_theme(kit.Density.Spacious)
         with kit.provide(self.look):
@@ -89,7 +89,7 @@ class MemoStation:
             ]
         )
 
-    def update(self, elapsed: float, ctx: SketchContext) -> None:
+    def update(self, elapsed: float, ctx: Scene2DContext) -> None:
         # The input model changes at an instrument's reporting cadence.
         tick = int(elapsed * 2)
         if tick == self.last:

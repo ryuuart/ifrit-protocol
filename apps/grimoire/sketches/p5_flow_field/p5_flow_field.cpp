@@ -20,7 +20,7 @@
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/program/Shader.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <cmath>
 
@@ -62,7 +62,7 @@ struct P5FlowField {
   material::Material ink = material::Color{0, 0, 0, 0};
   const material::Material sparks = particleLight();
 
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     ink = currentInk(material::shader(context.assets.hub(),
                                       context.local("flow.sksl"),
                                       {.textures = {{"uField", {}}}}));

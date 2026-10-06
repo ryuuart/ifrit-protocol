@@ -18,7 +18,7 @@
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <array>
@@ -157,7 +157,7 @@ struct Clavicula {
   motion::Animatable<float> traceStart = motion::animatable(0.0f);
   motion::Animatable<float> traceEnd = motion::animatable(0.06f);
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(kWidth, kHeight);
     ctx.background(material::hexColor(0x161C1C));
     ctx.captureAt(5.0);
@@ -382,7 +382,7 @@ struct Clavicula {
     });
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     const float t = float(elapsed);
     traceStart = t / 18.0f;
     traceEnd = t / 18.0f + 0.065f;

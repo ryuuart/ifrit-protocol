@@ -247,12 +247,12 @@ from everywhere. A surface carries only the lobes it states
 (`material::lobes(SurfaceOptions)`, `material::Lobes`): the surface program
 lowered from one that states no sheen has no sheen in its body and samples
 none of the sheen's maps, and the program's own recipe says which it
-carries (`surface::lobes(Material)`). SigilMaterial shades nothing: a renderer that shades a set
-shades a material's surface under the set's own lights, and a 2D painter
+carries (`surface::lobes(Material)`). SigilMaterial shades nothing: a renderer that shades a scene
+shades a material's surface under the scene's own lights, and a 2D painter
 paints the material's colour stack flat. `material::skia::paint` lowers
 that colour stack whether or not the material states a surface.
 
-The lights a surface is shaded under are the renderer's: a set's are
+The lights a surface is shaded under are the renderer's: a scene's are
 SigilWorld's, which names them itself.
 
 The shading terms a renderer composes a lit surface from — the GGX

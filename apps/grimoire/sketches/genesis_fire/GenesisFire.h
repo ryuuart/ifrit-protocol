@@ -318,7 +318,7 @@ struct GenesisFire {
 
   // =========================================================================
 
-  void setup(sketch::SketchContext& ctx);
+  void setup(sketch::Scene2DContext& ctx);
 
   /** THE LOOP, run by the pen of the node the study stands in: one frame
    *  of the canvas that node keeps. */

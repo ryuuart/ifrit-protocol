@@ -14,7 +14,7 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilworld/World.h>
 
 #include <cmath>
@@ -166,7 +166,7 @@ struct SurfaceLobes {
     return camera;
   }
 
-  void setup(sketch::SetContext& ctx) {
+  void setup(sketch::Scene3DContext& ctx) {
     ctx.canvas(kWidth, kHeight);
     ctx.captureAt(2.0);
     ctx.background(hexColor(0x101113));

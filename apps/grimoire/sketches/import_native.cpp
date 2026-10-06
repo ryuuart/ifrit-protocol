@@ -25,12 +25,13 @@
  * another device draws the body undressed rather than something it
  * invented. A sketch reaches the device through `sketch::device()`, which
  * is null where no device came up, and the host force-loads every archive
- * it links, so a set that walks through the door does so under `--gpu`.
+ * it links, so a scene3d sketch that walks through the door does so under
+ * `--gpu`.
  * This sheet stops at the two producers: what it shows is the host image
  * each one hands over.
  *
  * EDIT THESE FIRST
- *   kPanel — how large each screen stands in the set.
+ *   kPanel — how large each screen stands in the scene.
  *   kBake  — the pixel size the compose scene is painted at.
  *   the page, below — what the second screen wears.
  */
@@ -52,9 +53,9 @@
 #include <sigilscry/engine/WebView.h>
 #include <sigilscry/platform/Runtime.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilsketch/scry/Settling.h>
 #include <sigilsketch/scry/SharedEngine.h>
-#include <sigilsketch/set/Set.h>
 #include <sigilweave/style/Type.h>
 #include <sigilworld/World.h>
 #include <sigilworld/advanced/Light.h>
@@ -201,7 +202,7 @@ struct ImportNative {
       pageFrame = view->frame().image;
   }
 
-  void setup(sketch::SetContext& ctx) {
+  void setup(sketch::Scene3DContext& ctx) {
     sketch::kit::stage(
         ctx, {.size = {880, 480},
               .captureAt = 0.4,
@@ -217,8 +218,8 @@ struct ImportNative {
     composed = ctx.textureScene(kBake);
 
     // The scry producer: one engine, one view, one settled frame. The
-    // frame is held rather than re-read, because a set's every frame is a
-    // function of the scene time and a live page is not.
+    // frame is held rather than re-read, because a scene3d sketch's every frame
+    // is a function of the scene time and a live page is not.
     const std::shared_ptr<scry::WebEngine> engine =
         sketch::scry::sharedEngine();
     if (engine) {
@@ -240,8 +241,9 @@ struct ImportNative {
 
   world::Frame describe(sigil::motion::Duration now) {
     const float seconds = (float)now.count();
-    // The page arrives on the engine's thread, and a set describes itself
-    // every frame, so this is where it is asked for rather than waited on.
+    // The page arrives on the engine's thread, and a scene3d sketch describes
+    // itself every frame, so this is where it is asked for rather than waited
+    // on.
     if (settling) settling->advance();
     wearPage();
     if (composed) composed->render(dial((float)kBake.width()), (double)seconds);

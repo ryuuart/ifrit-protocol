@@ -598,7 +598,7 @@ namespace {
 
 constexpr glm::ivec2 kFrameExtent{96, 96};
 
-/** The two bodies of a set: one plain on the left and one in the "glow"
+/** The two bodies of a scene: one plain on the left and one in the "glow"
  *  collection on the right. */
 std::vector<Node> bodies() {
   return {mesh(card(34)).key("left").at({-46, 0, 0}).collection("plain"),

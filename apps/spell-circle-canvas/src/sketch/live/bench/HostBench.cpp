@@ -8,8 +8,8 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Factories.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/live/Host.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -28,7 +28,7 @@ sigil::weave::FontContext& fonts() {
 }
 
 struct Square {
-  void setup(SketchContext& ctx) {
+  void setup(Scene2DContext& ctx) {
     ctx.canvas(320, 240);
     ctx.composer.render(
         box().width(80).height(80).fill(Fill::color({0, 1, 0, 1})));

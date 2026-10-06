@@ -158,7 +158,7 @@ def paint(pen: draw.Pen) -> None:
     )
 
 
-def setup(ctx: sketch.SketchContext) -> None:
+def setup(ctx: sketch.Scene2DContext) -> None:
     ctx.canvas(320, 240)
     ctx.render(compose.graphics("ink", paint))
     assert_type(ctx.engine.timer(lambda delta, elapsed: elapsed < 2), motion.Timer)

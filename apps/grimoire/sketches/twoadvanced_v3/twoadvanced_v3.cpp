@@ -62,7 +62,7 @@ Element TwoAdvancedV3::describe() {
   return page;
 }
 
-void TwoAdvancedV3::setup(sketch::SketchContext& ctx) {
+void TwoAdvancedV3::setup(sketch::Scene2DContext& ctx) {
   using namespace tv3;
   // Everything has entered by ~3.3 s; 7.6 s puts the discord orb loop
   // (20 fps, 102 frames) on its bright crest, frame 50.
@@ -123,7 +123,7 @@ void TwoAdvancedV3::setup(sketch::SketchContext& ctx) {
   if (!discordSeq.empty()) renderDiscordFrame(ctx, 0);
 }
 
-void TwoAdvancedV3::renderCloudFrame(sketch::SketchContext& ctx, int frame) {
+void TwoAdvancedV3::renderCloudFrame(sketch::Scene2DContext& ctx, int frame) {
   using namespace tv3;
   cloudFrame = frame;
   ctx.composer.renderSlot(
@@ -131,7 +131,7 @@ void TwoAdvancedV3::renderCloudFrame(sketch::SketchContext& ctx, int frame) {
                     stretchFill(clouds[(size_t)frame], 310, 255))));
 }
 
-void TwoAdvancedV3::renderDiscordFrame(sketch::SketchContext& ctx, int frame) {
+void TwoAdvancedV3::renderDiscordFrame(sketch::Scene2DContext& ctx, int frame) {
   using namespace tv3;
   discordFrame = frame;
   ctx.composer.renderSlot(
@@ -139,7 +139,7 @@ void TwoAdvancedV3::renderDiscordFrame(sketch::SketchContext& ctx, int frame) {
                      stretchFill(discordSeq[(size_t)frame], 64, 64))));
 }
 
-void TwoAdvancedV3::renderStage(sketch::SketchContext& ctx,
+void TwoAdvancedV3::renderStage(sketch::Scene2DContext& ctx,
                                 const Element& content, bool hasHome) {
   ctx.composer.renderSlot("stage", content);
   // The clouds slot was just rebuilt empty inside fresh home art —
@@ -148,7 +148,7 @@ void TwoAdvancedV3::renderStage(sketch::SketchContext& ctx,
     renderCloudFrame(ctx, std::max(0, cloudFrame));
 }
 
-void TwoAdvancedV3::update(double elapsed, sketch::SketchContext& ctx) {
+void TwoAdvancedV3::update(double elapsed, sketch::Scene2DContext& ctx) {
   using namespace tv3;
   // The section cycle state, then the frame sequences — everything on
   // the DATA path, each slot swap touching only its own subtree.

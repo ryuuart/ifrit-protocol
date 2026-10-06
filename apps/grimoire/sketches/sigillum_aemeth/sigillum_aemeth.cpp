@@ -53,10 +53,10 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/bind/Binding.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Theme.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <array>
@@ -320,7 +320,7 @@ struct SigillumAemeth {
   std::array<motion::Animatable<float>, 40> rubricated{};
 
   template <class Read>
-  static void rows(sketch::SketchContext& context, const char* file,
+  static void rows(sketch::Scene2DContext& context, const char* file,
                    Read read) {
     if (const auto table = context.assets.hub().load<data::Table>(
             context.local(std::string("data/") + file)))
@@ -864,7 +864,7 @@ struct SigillumAemeth {
     loopLength = now + kRest;
   }
 
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     rows(context, "ring.csv", [this](const auto& table) {
       const auto letter = table.template column<std::string>("letter");
       const auto number = table.template column<double>("number");
@@ -950,7 +950,7 @@ struct SigillumAemeth {
         {ground(), carving(), rubrication(), lamp(), leaf()}));
   }
 
-  void update(double elapsed, sketch::SketchContext&) {
+  void update(double elapsed, sketch::Scene2DContext&) {
     if (walks.empty()) return;
     const float now = std::fmod((float)elapsed, loopLength);
     score = now;

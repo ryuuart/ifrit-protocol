@@ -19,8 +19,8 @@
 #include <sigildraw/Math.h>
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <array>
 #include <cmath>
@@ -55,7 +55,7 @@ constexpr std::array<Pigment, 5> kPigments{{
 }};
 
 struct BristleBloom {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(
         ctx, {.size = {900, 900}, .captureAt = 0.25, .background = kPaper});
     ctx.composer.render(compose::graphics("bristle_bloom.bloom",

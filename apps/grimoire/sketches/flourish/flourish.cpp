@@ -44,8 +44,8 @@
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilmotion/ease/Ease.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
@@ -562,7 +562,7 @@ struct Flourish {
                    goldDust()});
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     for (auto& value : spin) value = sigil::motion::animatable(value.value());
     for (auto& value : breathe)
       value = sigil::motion::animatable(value.value());
@@ -615,7 +615,7 @@ struct Flourish {
     composer.render(describe());
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     Composer& composer = ctx.composer;
     if (elapsed < nextAccent) return;
     nextAccent = elapsed + 4.0;

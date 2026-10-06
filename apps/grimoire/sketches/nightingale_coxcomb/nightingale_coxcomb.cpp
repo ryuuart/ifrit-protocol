@@ -67,9 +67,9 @@
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/schedule/Stagger.h>
 #include <sigilmotion/values/Tween.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Chart.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/layout/ParagraphStyle.h>
 #include <sigilweave/style/Length.h>
 
@@ -825,7 +825,7 @@ struct NightingaleCoxcomb {
         });
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     // A colour is read from its CSS text by the p5 canvas library's parser,
     // the one such parser the libraries hold.
     if (const auto colours = ctx.assets.hub().load<sigil::data::Table>(
@@ -884,7 +884,7 @@ struct NightingaleCoxcomb {
     ctx.composer.render(describe());
   }
 
-  void update(double, sketch::SketchContext&) {}
+  void update(double, sketch::Scene2DContext&) {}
 };
 
 SIGIL_SKETCH(NightingaleCoxcomb, "Study · Science",

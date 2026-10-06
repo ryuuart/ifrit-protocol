@@ -43,7 +43,7 @@ TEST(GrimoireInspection, AnswersHostAndRegistryAndMountsNoSessionOrClock) {
   sigil::sketch::setStateDirectory(state.path);
   Inspection inspection(0, sigil::sketch::CatalogSources{}, [] {
     return std::vector<OpenSession>{
-        {.sketch = "cascade", .kind = "canvas", .width = 640, .height = 360}};
+        {.sketch = "cascade", .kind = "scene2d", .width = 640, .height = 360}};
   });
   ASSERT_TRUE(inspection.listening());
   EXPECT_TRUE(std::filesystem::exists(state.path / "protocol-address"));

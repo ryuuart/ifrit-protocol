@@ -21,7 +21,7 @@ class CatalogRows(unittest.TestCase):
             files = [row for row in rows if row.external]
             self.assertEqual([row.key for row in files], ["lamp", "draft"])
             lamp, unbuilt = files
-            self.assertEqual(lamp.kind, "canvas")
+            self.assertEqual(lamp.kind, "scene2d")
             self.assertEqual(unbuilt.kind, "")
             self.assertEqual(lamp.source.subject, "A lamp on a table.")
             self.assertEqual(lamp.entryPath, Path("studies/lamp.py"))
@@ -33,7 +33,7 @@ class CatalogRows(unittest.TestCase):
         # The registry is the process's: Grimoire's holds every sketch it
         # was built with, and the extension alone registers none.
         self.assertEqual(registryRows(), [])
-        self.assertEqual(registryRows("canvas"), [])
+        self.assertEqual(registryRows("scene2d"), [])
 
 
 if __name__ == "__main__":

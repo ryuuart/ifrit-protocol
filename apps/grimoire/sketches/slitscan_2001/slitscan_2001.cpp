@@ -10,7 +10,7 @@
 
 #include "SlitScan2001.h"
 
-auto SlitScan2001::describe(sketch::SketchContext& ctx) -> Element {
+auto SlitScan2001::describe(sketch::Scene2DContext& ctx) -> Element {
   using namespace slit;
   return box()
       .column()
@@ -376,7 +376,7 @@ const data::Json& SlitScan2001::doc() const {
   return words ? *words : none;
 }
 
-void SlitScan2001::setup(sketch::SketchContext& ctx) {
+void SlitScan2001::setup(sketch::Scene2DContext& ctx) {
   using namespace slit;
   words =
       ctx.assets.hub().load<sigil::data::Json>(ctx.local("data/content.json"));
@@ -510,7 +510,7 @@ void SlitScan2001::setup(sketch::SketchContext& ctx) {
   ctx.composer.renderSlot("ripple", rippleEl());
 }
 
-void SlitScan2001::update(double e, sketch::SketchContext& ctx) {
+void SlitScan2001::update(double e, sketch::Scene2DContext& ctx) {
   if (filmClock.droppedTime()) everClamped = true;
   // Shot cuts are HARD, and they land on a FILM FRAME (every 96th), not on
   // a wall-clock boundary. The film cuts.

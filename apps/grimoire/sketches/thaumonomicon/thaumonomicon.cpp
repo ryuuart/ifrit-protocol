@@ -31,8 +31,8 @@
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
@@ -428,7 +428,7 @@ struct Thaumonomicon {
 
   // -------------------------------------------------------------------------
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(ctx, {.size = kCanvas,
                              .captureAt = 0.3,
                              .background = hexColor(0x0B0806),

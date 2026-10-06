@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup sketch-canvas
+ * @ingroup sketch-scene2d
  *
  * ANOTHER APPLICATION'S PICTURE, as something a sketch can wear: the
  * newest frame of a publication on this machine, as an image the canvas
@@ -11,13 +11,12 @@
 
 #include <include/core/SkImage.h>
 #include <include/core/SkRefCnt.h>
+#include <sigilio/frames/Subscription.h>
 #include <sigilmaterial/texture/Texture.h>
 
 #include <memory>
 #include <string>
 #include <string_view>
-
-#include <sigilio/frames/Subscription.h>
 
 class SkCanvas;
 
@@ -31,8 +30,8 @@ class Hub;
 
 namespace sigil::sketch {
 
-struct SketchContext;
-struct SetContext;
+struct Scene2DContext;
+struct Scene3DContext;
 
 /**
  * A PUBLICATION, WORN. Another application on this machine offers its
@@ -62,11 +61,13 @@ class Guest {
    *  machine with no Metal device, or while the host is capturing.
    *
    *  It is made from the context a sketch was handed, whichever context
-   *  that is: a page declares itself from a `SketchContext` and a set
-   *  from a `SetContext`, and what a guest reads off either is whether
-   *  the host is capturing. */
-  Guest(SketchContext& context, std::string name, std::string application = {});
-  Guest(SetContext& context, std::string name, std::string application = {});
+   *  that is: a page declares itself from a `Scene2DContext` and a scene3d
+   *  sketch from a `Scene3DContext`, and what a guest reads off either is
+   *  whether the host is capturing. */
+  Guest(Scene2DContext& context, std::string name,
+        std::string application = {});
+  Guest(Scene3DContext& context, std::string name,
+        std::string application = {});
   ~Guest();
   Guest(const Guest&) = delete;
   Guest& operator=(const Guest&) = delete;
@@ -81,8 +82,8 @@ class Guest {
    *  rasterising on the CPU has no recorder, and the answer there is
    *  null.
    *
-   *  IT ARRIVES THE OTHER WAY UP AND IS TURNED OVER ON THE WAY IN. A publication
-   *  is carried on a surface whose first row is the image's BOTTOM,
+   *  IT ARRIVES THE OTHER WAY UP AND IS TURNED OVER ON THE WAY IN. A
+   * publication is carried on a surface whose first row is the image's BOTTOM,
    *  which is the order every application sharing textures on this
    *  machine writes and reads; a canvas draws with its first row at the
    *  top. So the frame is drawn once into a target of its own, on the

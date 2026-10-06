@@ -385,7 +385,7 @@ TEST(Lighting, ASetWithNoAmbientLightAndNoEnvironmentHasBlackShadows) {
   const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;
   // A sun from behind the card: nothing it does not reach is lit, because
-  // nothing the set did not state shines.
+  // nothing the scene did not state shines.
   const SkBitmap plate =
       photographed({directionalLight({0, 0, 1}, {.intensity = 2.0f}).key("sun"),
                     mesh(gm::quad(120, 120))

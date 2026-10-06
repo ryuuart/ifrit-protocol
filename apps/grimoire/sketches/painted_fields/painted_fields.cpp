@@ -11,7 +11,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/program/Shader.h>
 #include <sigilmaterial/surface/Surface.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <array>
@@ -212,7 +212,7 @@ struct PaintedFields {
     pen.element(describe(), 0, 0, kWidth, kHeight);
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(kWidth, kHeight);
     ctx.background(kGround);
     ctx.captureAt(2);
@@ -224,7 +224,7 @@ struct PaintedFields {
                             .cache(compose::Cache::None));
   }
 
-  void update(double elapsed, sketch::SketchContext&) {
+  void update(double elapsed, sketch::Scene2DContext&) {
     const double seconds = std::isfinite(elapsed) ? std::max(0., elapsed) : 0.;
     const float t = static_cast<float>(std::fmod(seconds, 32.));
     phase = heldPhase < 0 ? std::min(7, static_cast<int>(t / 4))

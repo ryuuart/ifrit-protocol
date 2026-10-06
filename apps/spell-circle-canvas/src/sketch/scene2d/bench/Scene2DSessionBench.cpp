@@ -7,7 +7,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Factories.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -30,7 +30,7 @@ Assets& assets() {
 /** A grid of filled boxes, described once. Nothing re-describes, so what
  *  is measured is the session's own per-frame cost. */
 struct Grid {
-  void setup(SketchContext& ctx) {
+  void setup(Scene2DContext& ctx) {
     ctx.canvas(640, 480);
     Element root = stack();
     for (int i = 0; i < 64; ++i) {
@@ -47,20 +47,20 @@ struct Grid {
   }
 };
 
-void CanvasFrame(benchmark::State& state) {
+void Scene2DFrame(benchmark::State& state) {
   std::unique_ptr<Session> session = kindOf<Grid>()->open(fonts(), assets());
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(640, 480));
   for (int i = 0; i < 8; ++i) session->frame(*surface->getCanvas(), 1.0 / 60.0);
   for (auto&& _ : state) session->frame(*surface->getCanvas(), 1.0 / 60.0);
 }
-BENCHMARK(CanvasFrame)->Unit(benchmark::kMicrosecond);
+BENCHMARK(Scene2DFrame)->Unit(benchmark::kMicrosecond);
 
-void CanvasOpen(benchmark::State& state) {
+void Scene2DOpen(benchmark::State& state) {
   const Kind kind = kindOf<Grid>();
   for (auto&& _ : state)
     benchmark::DoNotOptimize(kind->open(fonts(), assets()));
 }
-BENCHMARK(CanvasOpen)->Unit(benchmark::kMicrosecond);
+BENCHMARK(Scene2DOpen)->Unit(benchmark::kMicrosecond);
 
 }  // namespace

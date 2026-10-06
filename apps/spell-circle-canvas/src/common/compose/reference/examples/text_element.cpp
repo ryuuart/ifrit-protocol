@@ -9,7 +9,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/paragraph/RichText.h>
 #include <sigilweave/style/Style.h>
 
@@ -45,7 +45,7 @@ Element row(const char* caption, Element leaf) {
 }  // namespace
 
 struct TextElement {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas({.size = kCanvas, .background = kGround, .captureSeconds = 0});
     ctx.composer.render(describe());
   }

@@ -8,7 +8,7 @@ Requires the optional ``studies`` package extra.
 import numpy as np
 from sigil.draw import Pen
 from sigil.media import fromRgba
-from sigil.sketch import SketchContext, sketch
+from sigil.sketch import Scene2DContext, sketch
 
 REQUIRES = ("numpy",)
 
@@ -25,7 +25,7 @@ def laplace(field):
 
 @sketch(size=(720, 720), capture_at=5)
 class ReactionDiffusion:
-    def setup(self, ctx: SketchContext) -> None:
+    def setup(self, ctx: Scene2DContext) -> None:
         self.a = np.ones((144, 144), dtype=np.float32)
         self.b = np.zeros_like(self.a)
         self.b[56:88, 56:88] = 1

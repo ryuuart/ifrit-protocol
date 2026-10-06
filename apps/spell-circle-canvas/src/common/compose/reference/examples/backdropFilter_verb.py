@@ -6,7 +6,7 @@ rendered with ``sigil render`` and belongs to no sketch registry.
 """
 
 from sigil import compose, material
-from sigil.sketch import SketchContext, sketch
+from sigil.sketch import Scene2DContext, sketch
 
 GROUND = "#10161b"
 INK = "#f0f5f8"
@@ -47,7 +47,7 @@ def panel(caption: str, plate: compose.Element) -> compose.Element:
 
 @sketch(size=(620, 280), background=GROUND, capture_at=0)
 class BackdropFilterVerb:
-    def setup(self, ctx: SketchContext) -> None:
+    def setup(self, ctx: Scene2DContext) -> None:
         ctx.render(self.describe())
 
     def describe(self) -> compose.Element:

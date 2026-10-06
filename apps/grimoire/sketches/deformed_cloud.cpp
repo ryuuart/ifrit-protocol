@@ -34,7 +34,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/kit/Page.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilworld/World.h>
 
 #include <algorithm>
@@ -92,7 +92,7 @@ struct DeformedCloud {
   float low = 0.0f;
   float high = 0.0f;
 
-  void setup(sketch::SetContext& ctx) {
+  void setup(sketch::Scene3DContext& ctx) {
     sketch::kit::stage(
         ctx, {.size = {880, 580},
               .captureAt = 1.45,
@@ -165,7 +165,7 @@ struct DeformedCloud {
 
 }  // namespace
 
-SIGIL_SKETCH(DeformedCloud, "Set",
+SIGIL_SKETCH(DeformedCloud, "Scene3D",
              "A point chain cooked in a room — a band selected "
              "across a scattered body, pushed out inside it and twisted "
              "beyond it, with one facet stood at every cooked point")

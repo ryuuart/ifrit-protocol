@@ -156,10 +156,10 @@ struct TwoAdvancedV4 {
   // occlusion — rendered ONCE into an image at setup and composited into
   // the page like any other bitmap.
   //
-  // IT STAYS A CANVAS SKETCH and does not become a set. The page is a
-  // DOCUMENT: resolution-independent, so its plate is re-rendered at the
-  // capture scale, and every panel on it is 2D chrome. A set forms at one
-  // resolution and would drag two thousand lines of chrome through a
+  // IT STAYS A SCENE2D SKETCH and does not become a scene3d sketch. The page is
+  // a DOCUMENT: resolution-independent, so its plate is re-rendered at the
+  // capture scale, and every panel on it is 2D chrome. A scene3d sketch forms
+  // at one resolution and would drag two thousand lines of chrome through a
   // texture for the sake of one panel. The hero is a picture INSIDE the
   // page, so it is a picture.
   //
@@ -197,7 +197,7 @@ struct TwoAdvancedV4 {
    *  set is built here and handed to the host, which stands the frame in
    *  a scene of its own for the length of one call and gives back a
    *  picture rather than a view onto something still standing. */
-  sk_sp<SkImage> bakeHero(int w, int h, sketch::SketchContext& ctx);
+  sk_sp<SkImage> bakeHero(int w, int h, sketch::Scene2DContext& ctx);
 
   Element heroScene(float w, float h, bool still);
 
@@ -295,7 +295,7 @@ struct TwoAdvancedV4 {
 
   // =========================================================================
 
-  void setup(sketch::SketchContext& ctx);
+  void setup(sketch::Scene2DContext& ctx);
 
-  void update(double elapsed, sketch::SketchContext& ctx);
+  void update(double elapsed, sketch::Scene2DContext& ctx);
 };

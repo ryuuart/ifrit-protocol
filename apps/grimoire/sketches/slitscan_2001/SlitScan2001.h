@@ -172,8 +172,8 @@ struct SlitScan2001 {
   Element rippleEl();
 
   // ---------------------------------------------------------------- describe
-  Element describe(sketch::SketchContext& ctx);
+  Element describe(sketch::Scene2DContext& ctx);
 
-  void setup(sketch::SketchContext& ctx);
-  void update(double e, sketch::SketchContext& ctx);
+  void setup(sketch::Scene2DContext& ctx);
+  void update(double e, sketch::Scene2DContext& ctx);
 };

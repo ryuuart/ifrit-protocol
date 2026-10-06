@@ -21,7 +21,7 @@ from sigil.material import (
     noise,
 )
 from sigil.motion import animatable, bind, envelope
-from sigil.sketch import SketchContext, sketch
+from sigil.sketch import Scene2DContext, sketch
 from sigil.skia import PathBuilder
 
 WIDTH, HEIGHT = 1800, 1280
@@ -377,7 +377,7 @@ def cursor(p: Pen):
 
 @sketch(size=(WIDTH, HEIGHT), background="#D5DED5", capture_at=4.6)
 class MacrodataRefinement:
-    def setup(self, ctx: SketchContext):
+    def setup(self, ctx: Scene2DContext):
         self.seconds = animatable(0.0)
         self.phase = animatable(0.0)
         self.selected = animatable(0.0)
@@ -657,7 +657,7 @@ class MacrodataRefinement:
             )
         )
 
-    def update(self, elapsed, ctx: SketchContext):
+    def update(self, elapsed, ctx: Scene2DContext):
         t = elapsed % 26
 
         def ramp(a, b):

@@ -42,8 +42,8 @@
 #include <sigilmaterial/skia/Texture.h>
 #include <sigilmaterial/texture/Atlas.h>
 #include <sigilmaterial/texture/Texture.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <functional>
 #include <optional>
@@ -184,7 +184,7 @@ struct MaterialAtlas {
    *  are readings of the SAME bake. */
   material::Texture sheet = buildSheet();
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide look(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // nothing moves; the sheet is complete at once

@@ -7,21 +7,21 @@
 #include <include/core/SkCanvas.h>
 #include <sigilio/frames/Subscription.h>
 #include <sigilio/hub/Hub.h>
-#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/advanced/Device.h>
-#include <sigilsketch/canvas/Guest.h>
-#include <sigilsketch/canvas/Sketch.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilmedia/advanced/Skia.h>
+#include <sigilsketch/scene2d/Guest.h>
+#include <sigilsketch/scene2d/Scene2D.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 
 #include <utility>
 
 namespace sigil::sketch {
 
-Guest::Guest(SketchContext& context, std::string name, std::string application)
+Guest::Guest(Scene2DContext& context, std::string name, std::string application)
     : Guest(context.assets.hub(), context.deterministic, std::move(name),
             std::move(application)) {}
 
-Guest::Guest(SetContext& context, std::string name, std::string application)
+Guest::Guest(Scene3DContext& context, std::string name, std::string application)
     : Guest(context.assets.hub(), context.deterministic, std::move(name),
             std::move(application)) {}
 

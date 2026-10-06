@@ -6,8 +6,8 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/kit/Feed.h>
 #include <sigilcompose/kit/Plate.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include "Drawn.h"
 
@@ -36,11 +36,11 @@ TEST(SketchKitConsole, DrawsTheHandSpelledPlate) {
   Element byHand = compose::kit::console(
       {.feeds = {&rows},
        .style = {.window = {.visible = 24, .gap = house.spacing.rowGap},
-                 .styles = compose::kit::tinted(
-                     {.face = house.type.mono,
-                      .size = house.type.captionLabel.size,
-                      .color = house.palette.ink},
-                     {})},
+                 .styles =
+                     compose::kit::tinted({.face = house.type.mono,
+                                           .size = house.type.captionLabel.size,
+                                           .color = house.palette.ink},
+                                          {})},
        .plate = {.paddingX = house.spacing.panelPadding,
                  .paddingY = house.spacing.panelPadding * 0.6f,
                  .gap = house.spacing.labelGap,

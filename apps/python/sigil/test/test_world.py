@@ -1,7 +1,7 @@
 """Native retained World scenes, frame declarations and Python value ownership.
 
-A set is drawn on a device and nowhere else, and a Python process brings
-none up, so what is asked here is what the retained scene holds: the
+A scene3d sketch is drawn on a device and nowhere else, and a Python
+process brings none up, so what is asked here is what the retained scene holds: the
 nodes, their placements, the lights and the camera, and the refusals a
 frame meets before anything is drawn.
 """

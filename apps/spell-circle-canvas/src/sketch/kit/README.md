@@ -49,7 +49,7 @@ namespace sketch = sigil::sketch;
 using namespace sigil::compose;
 
 struct BorderWeave {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(ctx, {.size = {1100, 424}, .captureAt = 0.05});
     ctx.composer.render(sketch::kit::page(
         {.title = "THE RULE AND THE STRANDS",
@@ -220,7 +220,7 @@ painting an Element directly.
 
 | | |
 | --- | --- |
-| `stage(ctx, Stage)` | the canvas, the ground and the capture moment in one call — the whole `CanvasSpecification`, with the ground taken from the theme unless the stage names one. A SET takes the same value through the `SetContext` overload; the viewpoint is not on it, because a camera is a fact about the scene and `SetContext::camera` is the fallback for the set that states none |
+| `stage(ctx, Stage)` | the canvas, the ground and the capture moment in one call — the whole `CanvasSpecification`, with the ground taken from the theme unless the stage names one. A SCENE3D SKETCH takes the same value through the `Scene3DContext` overload; the viewpoint is not on it, because a camera is a fact about the scene and `Scene3DContext::camera` is the fallback for the sketch that states none |
 | `page(Page, content)` | the sheet over the whole canvas: title, subtitle and footer in document roles `h1`, `lead` and `footer`, its margins, its ground and its hairline |
 | `well(Well, surface)` | the fixed surface a specimen is shown in, on the theme's cell ground — with `corners` and a `keyline`, the PLATE a panel stands on; with a `recess`, the hole punched in one; with a `relief`, the piece standing proud of one. THE SURFACE IS THE WELL: the spec is written onto the element handed in, which is what a drawing sized to its plate wants |
 | `well({…, .content = Well::Content{}}, picture)` | THE WELL THAT HOLDS: the plate is a surface of its own and the picture stands inside it at its own measure, ranged as `content` says and centred where it says nothing else — the specimen smaller than the plate it is shown on |
@@ -862,7 +862,7 @@ It draws nothing and holds no kernel state, and nothing links it back —
 `SigilSketchVocabulary` names it for every sketch, and no library below
 links it. It LINKS THE SKETCH
 ARCHIVE, because `stage()` writes a sketch's `CanvasSpecification` through the
-canvas runtime's own context: no device backend and no window come with
+scene2d runtime's own context: no device backend and no window come with
 that, but the reload engine and the headless renderer stand in the same
 archive and do. It LINKS THE CONNECTION for the same kind of reason:
 `Channel` follows a door the sketch opened and is driven by `io::Hub`'s

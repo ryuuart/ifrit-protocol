@@ -8,7 +8,7 @@
  * light is not striped by its own map; every instance of instanced
  * geometry casts; and a frame with no light that casts draws no map.
  *
- * The set is a ground plate seen from above and in front, a card held
+ * The scene is a ground plate seen from above and in front, a card held
  * level over it, and lights from above. Every case reads the effect off
  * the pixels where the projection puts a point of the ground, so what is
  * asserted is where a shadow falls and never a number a rasteriser
@@ -374,7 +374,7 @@ TEST(Shadow, AFrameWithNoLightThatCastsDrawsNoShadowMap) {
 namespace {
 
 /** Two spot lights with a stated reach, so neither map's fit follows the
- *  set's bounds: one casting only the card's shadow, one casting every
+ *  scene's bounds: one casting only the card's shadow, one casting every
  *  shadow but the card's. The card stands at @p cardX. */
 Frame twoSpots(float cardX, const Runtime& runtime) {
   const auto spot = [](Collection link) {
@@ -446,7 +446,7 @@ TEST(Shadow, MovingOneCasterRedrawsOnlyTheMapsItCastsInto) {
   // The card casts only for the card's spot: that map is drawn again and
   // the other is kept.
   EXPECT_EQ(scene.stats().shadowMapsDrawn, 1);
-  // A fresh scene drawing the moved set from nothing is the same picture.
+  // A fresh scene drawing the moved scene from nothing is the same picture.
   EXPECT_EQ(diligent::worstChannel(
                 moved, diligent::photograph(twoSpots(-30.0f, on.runtime),
                                             on.runtime, kExtent)),

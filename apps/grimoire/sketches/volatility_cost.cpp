@@ -86,8 +86,8 @@
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilmotion/values/Tween.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
@@ -345,7 +345,7 @@ struct VolatilityCost {
 
   /** THE FRAME, as the composer reports it: counts remain visible in a
    *  deterministic capture; stopwatch readings are hidden. */
-  Element statsBlock(const sketch::SketchContext& ctx) const {
+  Element statsBlock(const sketch::Scene2DContext& ctx) const {
     // A COUNT IS A FUNCTION OF THE DESCRIPTION and is printed as it is;
     // a TIME is a function of the machine and is hidden when the host is
     // capturing for a diff.
@@ -388,7 +388,7 @@ struct VolatilityCost {
   /** REPRESENTATIVE SUBJECT NODES, costliest first, each with the tier it took
    * and the condition that refused it a bake. `selfMs` excludes children, so
    * the number lands on the node that actually costs. */
-  Element costTable(const sketch::SketchContext& ctx) const {
+  Element costTable(const sketch::Scene2DContext& ctx) const {
     const auto subject = [](const std::string& key) {
       if (key == "field") return "moving field";
       if (key == "cellPanel") return "parked panel";
@@ -435,14 +435,14 @@ struct VolatilityCost {
          legend()});
   }
 
-  Element readout(const sketch::SketchContext& ctx) const {
+  Element readout(const sketch::Scene2DContext& ctx) const {
     if (!snapped)
       return box().height(350).children({document::caption(
           "Observing the two workloads… snapshot at " + ms(kSnapAt) + " s")});
     return box().row().gap(48).children({statsBlock(ctx), costTable(ctx)});
   }
 
-  Element describe(sketch::SketchContext& ctx) {
+  Element describe(sketch::Scene2DContext& ctx) {
     // The theme is bound where the tree is DESCRIBED, not where setup
     // runs: this sketch describes again on every reading, and a scope
     // that ended with setup would not be there.
@@ -487,7 +487,7 @@ struct VolatilityCost {
                       readout(ctx)}))});
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // the reading is taken and frozen by then
     sketch::kit::stage(ctx, {.size = {1360, 1400}, .captureAt = kSnapAt + 0.5});
@@ -508,7 +508,7 @@ struct VolatilityCost {
     ctx.composer.render(describe(ctx));
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     if (kRepaintHz > 0.0) {
       // The demonstration mode: a change every 1/kRepaintHz seconds — each
       // one re-declares volatility for a frame, after which the value

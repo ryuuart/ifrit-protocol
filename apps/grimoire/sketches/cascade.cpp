@@ -15,8 +15,8 @@
 #include <sigilcore/reconcile/Environment.h>
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/paragraph/RichText.h>
 #include <sigilweave/style/Length.h>
 
@@ -218,7 +218,7 @@ struct Cascade {
   Element trail;
   bool cooled = false;
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide look(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx, {.size = {1100, 1150}, .captureAt = kCapture});
@@ -226,7 +226,7 @@ struct Cascade {
     ctx.composer.render(sheet());
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     if (cooled || elapsed < kSwitchAt) return;
     cooled = true;
     const sketch::kit::Provide look(

@@ -64,13 +64,13 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Cells.h>
 #include <sigilsketch/kit/Connection.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Panel.h>
 #include <sigilsketch/kit/Theme.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <cstddef>
 #include <numbers>
@@ -136,7 +136,7 @@ struct Door {
 
 /** The URI a door opens: its address, and for a door that answers with a
  *  certificate, the pair beside this sketch that it answers with. */
-std::string uriOf(const Door& door, const sketch::SketchContext& ctx) {
+std::string uriOf(const Door& door, const sketch::Scene2DContext& ctx) {
   std::string uri(door["address"].string());
   if (!door["certificate"].null())
     uri += "?cert=" + ctx.local(door["certificate"].string()) +
@@ -177,7 +177,7 @@ struct FeedSky {
   /** The one clock every band's drift and breath is bound to. */
   motion::Animatable<float> clock = motion::animatable(0.0f);
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = kCaptureAt});
     ctx.engine.timer(
         [this, seconds = 0.0](sigil::motion::Duration stepDuration) mutable {
@@ -211,13 +211,13 @@ struct FeedSky {
 
   /** The data path: a door whose vitals moved has a new sky and a new
    *  readout, and nothing else in the scene is described again. */
-  void update(double, sketch::SketchContext& ctx) {
+  void update(double, sketch::Scene2DContext& ctx) {
     bool moved = false;
     for (Door& door : doors) moved = door.read() || moved;
     if (moved) describe(ctx);
   }
 
-  void describe(sketch::SketchContext& ctx) {
+  void describe(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide sheet(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     ctx.composer.render(sketch::kit::page(

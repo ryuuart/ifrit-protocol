@@ -35,8 +35,8 @@
 #include <sigilmeasure/check/Check.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Time.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/kit/Hyphenation.h>
 #include <sigilweave/kit/LineTables.h>
 
@@ -1043,7 +1043,7 @@ struct BlackWatch {
 
   // =========================================================================
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     doc = sketch::kit::Document(ctx, "data/content.json");
     const sketch::kit::Document setts(ctx, "data/setts.json");
     colours = readCard(doc["card"]);

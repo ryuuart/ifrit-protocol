@@ -11,9 +11,9 @@
 #include <include/core/SkBitmap.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilmaterial/program/Shader.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/live/Host.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <chrono>
 #include <filesystem>
@@ -32,7 +32,7 @@ namespace sketch = sigil::sketch;
 /** A GUEST THAT PAINTS ITSELF WITH ITS OWN FILE: the whole canvas filled
  *  with the program in `fill.sksl` beside it. */
 struct ShaderGuest {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(40, 30);
     ctx.background({0, 0, 0, 1});
     ctx.composer.render(sigil::compose::box().width(40).height(30).fill(
@@ -115,7 +115,7 @@ TEST(SketchShaderReload, AnEditedShaderIsDrawnAndABrokenOneShownAsABuildIs) {
 std::string askedFor = "fil.sksl";
 
 struct AskingByName {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(40, 30);
     ctx.composer.render(sigil::compose::box().width(40).height(30).fill(
         sigil::material::shader(ctx.assets.hub(), ctx.local(askedFor))));

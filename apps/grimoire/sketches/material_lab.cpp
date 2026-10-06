@@ -18,7 +18,7 @@
  * key light. Each card's face turns through most of a right angle, which
  * is enough that the highlight lands somewhere on every one of them.
  *
- * NO GLASS, AND NO SKY. This set is lit by three lamps and nothing else,
+ * NO GLASS, AND NO SKY. This scene is lit by three lamps and nothing else,
  * so `transmission`, `ior` and `thickness` have nothing to refract here:
  * a glass card would be a tinted rectangle labelled glass. What glass
  * needs is a panorama to bend, and the study of that is `reflection_lab`
@@ -55,7 +55,7 @@
 #include <sigilmaterial/texture/TextureSet.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilsketch/kit/Page.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilworld/World.h>
 
 #include <algorithm>
@@ -316,14 +316,14 @@ struct MaterialLab {
   world::Group row;
   std::optional<material::Material> floorSurface;
 
-  void setup(sketch::SetContext& ctx) {
+  void setup(sketch::Scene3DContext& ctx) {
     sketch::kit::stage(
         ctx, {.size = {880, 520},
               .captureAt = 1.1,
               .background = material::Color{0.035f, 0.038f, 0.05f, 1.0f}});
     row = cards();
-    // The floor wears the set: a texture that repeats is what says how
-    // large the room is.
+    // The floor is what scales the scene: a texture that repeats is what says
+    // how large the room is.
     material::Material floor =
         material::surface::program(floorMaps(), {.baseColor = {1, 1, 1, 1}});
     if (const material::Texture* map =
@@ -370,7 +370,7 @@ struct MaterialLab {
 
 }  // namespace
 
-SIGIL_SKETCH(MaterialLab, "Set",
+SIGIL_SKETCH(MaterialLab, "Scene3D",
              "What a surface is made of — five cards over a textured "
              "floor: one plain, one a stack through a mask, one normal-mapped, "
              "one sweeping rough to metal, and one emitting")

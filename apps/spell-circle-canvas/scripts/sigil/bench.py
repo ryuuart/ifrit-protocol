@@ -6,7 +6,7 @@
     sigil.py bench --repetitions 7 --min-time 0.2
     sigil.py bench --lane fps               # the real window instead
     sigil.py bench --lane fps --sketch first_light
-    sigil.py bench --lane fps --kind set --seconds 4
+    sigil.py bench --lane fps --kind scene3d --seconds 4
 
 TWO LANES, ONE BODY. The `bench` lane (the default) runs every `*_bench`
 binary the build produced under bin/<config>/benches with Google
@@ -596,7 +596,9 @@ def main(argv: list) -> int:
         help="Qt's scale factor for the window (default 2)",
     )
     window.add_argument("--sketch", metavar="NAME", help="present only this one")
-    window.add_argument("--kind", choices=["canvas", "set"], help="present only these")
+    window.add_argument(
+        "--kind", choices=["scene2d", "scene3d"], help="present only these"
+    )
 
     args = ap.parse_args(argv)
     if args.timeout_seconds is None:

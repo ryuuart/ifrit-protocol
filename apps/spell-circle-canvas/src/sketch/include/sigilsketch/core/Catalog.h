@@ -37,7 +37,7 @@ struct CatalogSources {
  *  stand is what tells them apart. Such a file is compiled when it is
  *  opened, so a C++ one has NO kind until it has been built — an empty
  *  kind, not a guess from the folder it stands in — while a Python file
- *  always draws through a canvas.
+ *  always draws through the scene2d runtime.
  *
  *  What is not here is the canvas: a sketch declares its size, its ground
  *  and its moment from inside its own setup, which only a running session

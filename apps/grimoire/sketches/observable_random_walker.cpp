@@ -8,7 +8,7 @@
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcore/compute/Chance.h>
 #include <sigildraw/Pen.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <cmath>
@@ -25,7 +25,7 @@ namespace {
 uint32_t hash(uint32_t value) { return chance::Stream::mix64(value).bits(); }
 
 struct ObservableRandomWalker {
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     context.canvas(800, 800);
     context.captureAt(0.05);
 

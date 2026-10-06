@@ -22,8 +22,8 @@
 #include <sigilmedia/core/Image.h>
 #include <sigilmotion/time/Duration.h>
 #include <sigilmotion/values/Time.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/style/Type.h>
 
 #include <array>
@@ -204,7 +204,7 @@ struct TileMap {
   std::unique_ptr<Composer> probe;
   Composer::Stats worked;
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     for (auto& value : flash) value = sigil::motion::animatable(value.value());
 
     sketch::kit::stage(ctx, {.size = {kCanvasW, kCanvasH}, .captureAt = 6.0});
@@ -262,7 +262,7 @@ struct TileMap {
         })});
   }
 
-  Element describe(sketch::SketchContext& ctx) {
+  Element describe(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // The counts are a function of the description and belong on a
     // plate; the milliseconds are a function of the run and do not, so
@@ -357,7 +357,7 @@ struct TileMap {
    *  chunk is given a different region, that chunk's properties stop being
    *  equal, and the tree is described again. Between edits nothing is
    *  described at all — the wash fades on its lane. */
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     // The probe is stepped every frame the sheet is, because a recording
     // is counted by the draw that writes it.
     if (probe) {

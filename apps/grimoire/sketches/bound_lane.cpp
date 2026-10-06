@@ -61,8 +61,8 @@
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilmotion/values/Tween.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
@@ -231,7 +231,7 @@ struct BoundLane {
   sigil::motion::Animatable<float> seconds = sigil::motion::animatable(0.0f);
   sigil::motion::Animatable<float> phase = sigil::motion::animatable(0.0f);
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide look(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx, {.size = {1280, 1030}, .captureAt = 6.0});

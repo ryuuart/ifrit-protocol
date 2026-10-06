@@ -5439,19 +5439,19 @@
     "unit": "ns",
     "repetitions": 4
    },
-   "CanvasFrame": {
+   "Scene2DFrame": {
     "real_ns": 26489.434014288723,
     "cpu_ns": 26489.34766214182,
     "unit": "us",
     "repetitions": 4
    },
-   "CanvasOpen": {
+   "Scene2DOpen": {
     "real_ns": 35062.03125289176,
     "cpu_ns": 35061.624999999876,
     "unit": "us",
     "repetitions": 4
    },
-   "SetFrame": {
+   "Scene3DFrame": {
     "real_ns": 1330835.5138481907,
     "cpu_ns": 1330838.0952380942,
     "unit": "us",

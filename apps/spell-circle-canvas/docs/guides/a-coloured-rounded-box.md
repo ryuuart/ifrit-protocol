@@ -10,7 +10,7 @@ Save this anywhere on disk as `first_box.cpp`.
 
 ```cpp
 #include <sigilcompose/core/Core.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
@@ -24,7 +24,7 @@ constexpr material::Color kAccent = hexColor(0xe2714b);
 }  // namespace
 
 struct FirstBox {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas({.size = kCanvas, .background = kGround, .captureSeconds = 0});
     ctx.composer.render(describe());
   }
@@ -55,7 +55,7 @@ restarting.
 
 ```python
 from sigil import compose
-from sigil.sketch import SketchContext, sketch
+from sigil.sketch import Scene2DContext, sketch
 
 GROUND = "#11151a"
 ACCENT = "#e2714b"
@@ -63,7 +63,7 @@ ACCENT = "#e2714b"
 
 @sketch(size=(480, 320), background=GROUND, capture_at=0)
 class FirstBox:
-    def setup(self, ctx: SketchContext) -> None:
+    def setup(self, ctx: Scene2DContext) -> None:
         ctx.render(self.describe())
 
     def describe(self) -> compose.Element:

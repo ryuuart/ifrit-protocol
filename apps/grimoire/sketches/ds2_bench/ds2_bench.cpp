@@ -41,8 +41,8 @@
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <sstream>
 #include <string>
@@ -907,7 +907,7 @@ struct Ds2Bench {
         .children({room(), floorLight(), cone(), lens(), hologram()});
   }
 
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     context.canvas(kWidth, kHeight);
     context.background(kVoid);
     // The schematic has just finished drawing in.

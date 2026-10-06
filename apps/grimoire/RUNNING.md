@@ -6,12 +6,12 @@ compiles it are [SigilSketch's](../spell-circle-canvas/src/sketch/README.md);
 [README.md](README.md) beside this file says how Grimoire is built.
 
 ```sh
-Grimoire [--no-gpu]                       # the app; --no-gpu lists no set
+Grimoire [--no-gpu]                       # the app; --no-gpu lists no scene3d sketch
 Grimoire --sketch <name>                  # the app, on that one
 Grimoire <file.cpp>                       # the app, on that file
 Grimoire --workspace <directory>          # the app, on a folder of sketches
 Grimoire --examples                       # the app, on the bundled catalogue
-Grimoire --list [--kind canvas|set] [--gpu]
+Grimoire --list [--kind scene2d|scene3d] [--gpu]
                                           # the registry, one per line
 Grimoire --catalog [<file.cpp>] [--gpu]   # the browser's rows, one JSON each
 Grimoire <file.cpp> --frame out.png [--at <sec>] [--scale <n>] [--gpu]
@@ -26,7 +26,7 @@ Grimoire --video out.mp4 [--video-frames <n>] [--video-size <WxH>]
            [--kind <k>] [--gpu]
 Grimoire --compare <dir-a> <dir-b>        # two sweeps' plates, differenced
 Grimoire --window-bench [<sec>] [--window-size <WxH>] [--window-scale <n>]
-Grimoire --thumbnails [--sketch <name>] [--kind canvas|set]
+Grimoire --thumbnails [--sketch <name>] [--kind scene2d|scene3d]
            [--thumbnail-budget <sec>] [--thumbnail-heavy]
 Grimoire --publish [<name>] [--sketch <name>]
                                             # the window's frames, live, to
@@ -60,22 +60,22 @@ driving a sketch host is answered — the agents and the harness a test
 drives one through — and [What Grimoire mounts](#what-grimoire-mounts)
 below what each lane here mounts.
 
-`--frame` and `--headless` with `--gpu` draw Canvas stills through
-Graphite and Set scenes through the World device executor. A missing
+`--frame` and `--headless` with `--gpu` draw scene2d stills through
+Graphite and scene3d sketches through the World device executor. A missing
 device context fails instead of producing a raster substitute. `--bench`
-keeps its raster canvas frame path, with the selected device executor for
-Set and mesh work.
+keeps its raster scene2d frame path, with the selected device executor for
+scene3d and mesh work.
 
-**A set is drawn on a device and nowhere else.** Every lane that draws one
-— `--frame`, `--bench`, `--headless`, `--video` — needs `--gpu`. Without
-it no device comes up and every set is unavailable with one reason, the
-one SigilSketch writes: a still or a measurement of a set refuses with it,
-a sweep skips each set and prints it, `--video` refuses a selection that
-holds one, and `--list` and `--catalog` grey every set with it — which is
-why both take `--gpu` too, to list the sets a device can draw.
-`--thumbnails` never brings a device up, so it notes every set with the
-same reason and the window's refresh takes a set's still once it is
-opened.
+**A scene3d sketch is drawn on a device and nowhere else.** Every lane
+that draws one — `--frame`, `--bench`, `--headless`, `--video` — needs
+`--gpu`. Without it no device comes up and every scene3d sketch is
+unavailable with one reason, the one SigilSketch writes: a still or a
+measurement of one refuses with it, a sweep skips each one and prints it,
+`--video` refuses a selection that holds one, and `--list` and `--catalog`
+grey every scene3d sketch with it — which is why both take `--gpu` too, to
+list the scene3d sketches a device can draw. `--thumbnails` never brings a
+device up, so it notes every scene3d sketch with the same reason and the
+window's refresh takes a scene3d sketch's still once it is opened.
 
 For a headless sweep, `--scale <n>` sets device pixels per canvas unit on
 both CPU and GPU. It overrides the sketch's oversample and the host's width
@@ -141,8 +141,8 @@ newest frame to a file.
 **Frames come the other way too**: a sketch wears another application's
 publication through `sigil::sketch::Guest`, which [SigilSketch's
 README](../spell-circle-canvas/src/sketch/README.md) defines;
-`guest_picture` is the page that wears one and `guest_body` the set that
-turns one under a light.
+`guest_picture` is the page that wears one and `guest_body` the scene3d
+sketch that turns one under a light.
 
 What travels is a texture, so publishing wants the window on Graphite.
 On the CPU raster fallback there is no texture to offer, and the flag is
@@ -178,8 +178,8 @@ execution is pinned, so a `--frame` can be diffed while the app and
 Advance policy and `--no-deterministic` the wall's, for either lane,
 which is how a sketch's real figures are looked at in a written frame.
 
-The app brings a device up and every set draws through it. `--no-gpu`
-brings none up, and every set is listed unavailable; a device that will
+The app brings a device up and every scene3d sketch draws through it.
+`--no-gpu` brings none up, and every scene3d sketch is listed unavailable; a device that will
 not come up is reported and the app carries on the same way — unlike the
 sweep's `--gpu`, which fails the run.
 
@@ -204,7 +204,7 @@ than 16×). A pointer is read back through the view, so a sketch sees
 canvas units wherever the reader has moved it. It hears nothing from a
 pointer off its canvas unless a press that began on it was dragged there,
 and nothing from a press that began off it, wherever that press is
-dragged. Orbiting a set, the wheel's
+dragged. Orbiting a scene3d sketch, the wheel's
 distance and the click that gives the sketch the keyboard belong to the
 canvas too; off it a drag, a wheel and a touchpad scroll reach the
 pasteboard. Underneath it, the sketch's cached
@@ -324,8 +324,8 @@ itself — there is no frame to protect, and replaying would put the
 store's state inside a lane whose picture has to depend on nothing but
 the sketch. A sweep with no `--gpu` does not warm at all, because it
 builds no device program to record. Neither does `--frame`: it
-photographs a canvas on a raster surface so the picture is reproducible,
-and a set is drawn by the device's own renderer, so a capture builds no
+photographs a scene2d sketch on a raster surface so the picture is
+reproducible, and a scene3d sketch is drawn by the device's own renderer, so a capture builds no
 Graphite program either.
 
 A key is replayed only if its description still reads back the same. A key
@@ -363,11 +363,12 @@ second, and `--fps` changes both the encoder rate and the fixed scene clock.
 runtime. Hardware H.264 is preferred and OpenH264 is the fallback. Unavailable
 sketches are named and skipped rather than encoded as failure cards.
 
-`--gpu` is REQUIRED for a selection that holds a set, exactly as it is for
-the sweep, and for the same reason: a set is lit by the device renderer,
+`--gpu` is REQUIRED for a selection that holds a scene3d sketch, exactly as
+it is for the sweep, and for the same reason: a scene3d sketch is lit by
+the device renderer,
 so a montage that included one without a device would put a picture no
-recipe ran in under that sketch's name. A selection that holds a set and
-did not ask is refused, naming `--kind` as the other way out; a run that
+recipe ran in under that sketch's name. A selection that holds a scene3d
+sketch and did not ask is refused, naming `--kind` as the other way out; a run that
 asks and cannot have the device fails; a run whose selection needs none
 brings none up.
 
@@ -397,12 +398,12 @@ give it a transparent background, draw, export. Any sketch answers to the
 flag, so the sketch that draws the asset is the template.
 
 **`--gpu` puts the run on the device**, exactly as it does for a sweep: a
-set draws its frame there, and a canvas sketch's mesh painter
+scene3d sketch draws its frame there, and a scene2d sketch's mesh painter
 (`sketch::painterRuntime()`) rasterises there. It is fatal when no device
 comes up, because a run that asked for the device and quietly gave the
 CPU's picture puts two different pictures under one name. Without it a
-canvas sketch renders on the CPU, which is what its plate is hashed from,
-and a set is refused: it is drawn on a device and nowhere else.
+scene2d sketch renders on the CPU, which is what its plate is hashed from,
+and a scene3d sketch is refused: it is drawn on a device and nowhere else.
 
 **The moment is the sketch's, not the flag's.** `--at <sec>` overrides
 it, and a sketch that declared none falls back to 1.5 s; otherwise a
@@ -416,7 +417,7 @@ drops it (`sigil::sketch::plateExtent`).
 taken through the runtime's own `Session::still` — `Host::photograph` —
 so `--frame --at 1 --scale 2`, the sweep's plate at `--at 1 --scale 2`,
 a protocol session stepped a second and photographed at density 2,
-and `sigil.sketch.render_file` are one picture, byte for byte. A canvas
+and `sigil.sketch.render_file` are one picture, byte for byte. A scene2d
 sketch re-renders its still, which draws one frame more: the picture is
 the scene one sixtieth of a second past the moment named, and the sketch
 ran one more update to reach it. For the same reason a sequence of
@@ -478,7 +479,7 @@ deterministic, so two runs measure the same frames.
 
 ```sh
 Grimoire --window-bench [<sec>] [--window-size <WxH>] [--window-scale <n>]
-           [--sketch <name>] [--kind canvas|set]
+           [--sketch <name>] [--kind scene2d|scene3d]
 ```
 
 Opens the window at a stated size and device pixel ratio, presents each
@@ -498,7 +499,7 @@ keyboard holds the GPU in its lowest one, which reads as a slower rate
 in the same binary — so rows are compared only when both were taken
 under the same power, back to back.
 
-**Where the device's time went.** A set's row ends with `gpu=`: the
+**Where the device's time went.** A scene3d sketch's row ends with `gpu=`: the
 device's own time for each stage of the frame, in milliseconds, each the
 mean over the measured stretch, as `frame:<ms>,<stage>:<ms>,…` — the
 whole frame first, then the stages in the order they ran. A geometry
@@ -512,7 +513,7 @@ the final stage the window's picture leaves through. The stages are
 timed with the device's timestamps only over the measured stretch, so
 the rest of the run writes none; the stage that dominates `frame` is the
 one to cut. `gpu=unavailable` is a device that writes no timestamps, and
-a canvas sketch, which has no device stages, carries no field. `--bench`
+a scene2d sketch, which has no device stages, carries no field. `--bench`
 prints the same breakdown on its `device (mean ms)` line. A sketch this machine cannot run is
 named `SKIPPED` with what is missing, and no line is written for it.
 
@@ -545,7 +546,7 @@ what makes it a gate: the sketch's own cost, isolated. Here the frame is
 drawn through the surface the window presents, at the window's pixels
 and its device pixel ratio, and the numbers carry the host's own
 overhead with them — the submit or texture upload that puts the frame on
-screen, and, for a set drawn on a device, the readback and blit its
+screen, and, for a scene3d sketch drawn on a device, the readback and blit its
 paint phase performs. Selection goes through the same property a click
 sets, so a switch takes the path a reader's click takes.
 

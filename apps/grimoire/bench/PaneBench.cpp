@@ -19,10 +19,10 @@
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/skia/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -47,7 +47,7 @@ struct PaneProbe {
   static constexpr int kColumns = 30;
   static constexpr int kRows = 24;
 
-  void setup(SketchContext& ctx) {
+  void setup(Scene2DContext& ctx) {
     ctx.canvas(900, 720);
     ctx.background({0.08f, 0.08f, 0.1f, 1});
     std::vector<compose::Element> tiles;

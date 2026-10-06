@@ -1,6 +1,6 @@
 # The kit feature: presets that compose nodes — a three-point rig, a
 # turntable, the set both make over a ground plane, and an environment
-# map baked from a gradient and soft boxes — and the front door a set
+# map baked from a gradient and soft boxes — and the front door a scene
 # includes. Everything here returns an ordinary value built out of the
 # verbs a tree is already written in, so a caller reads, replaces or
 # ignores any part of one.

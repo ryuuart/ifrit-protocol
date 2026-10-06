@@ -17,8 +17,8 @@
 #include <sigildraw/Pen.h>
 #include <sigildraw/brush/Brush.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <array>
 #include <vector>
@@ -46,7 +46,7 @@ constexpr std::array<material::Color, 5> kPalette{{
 }};
 
 struct BrushworkCurrents {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(
         ctx, {.size = {1080, 760}, .captureAt = 0.25, .background = kPaper});
 

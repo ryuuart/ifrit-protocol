@@ -160,7 +160,7 @@ it with a shader implementation.
 
 The file video lane currently dispatches through a registry selection
 rather than opening the supplied file. A live ordinary-file probe exits
-with `selection holds a set`. A file-specific export route would complete
+with `selection holds a scene3d sketch`. A file-specific export route would complete
 the authoring workflow. A regression should encode the explicitly supplied
 file, or reject it clearly before dispatching a registry montage. The
 supported numbered-frame lane supplies the movie for this study.

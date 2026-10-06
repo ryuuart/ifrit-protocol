@@ -3,7 +3,7 @@
  *
  *   Grimoire [--no-gpu]                      the Welcome screen
  *   Grimoire --sketch <name>                 the app, on that one
- *   Grimoire --list [--kind canvas|set] [--gpu]
+ *   Grimoire --list [--kind scene2d|scene3d] [--gpu]
  *                                              the registry, one per line
  *   Grimoire --catalog [<file.cpp>] [--gpu]  the browser's rows, one JSON
  *                                              object per line
@@ -39,7 +39,7 @@
  *   Grimoire --window-bench [<sec>] [--window-size <WxH>]
  *              [--window-scale <n>] [--sketch <name>] [--kind <k>]
  *                                              the window's own frame rate
- *   Grimoire --thumbnails [--sketch <name>] [--kind canvas|set]
+ *   Grimoire --thumbnails [--sketch <name>] [--kind scene2d|scene3d]
  *              [--thumbnail-budget <sec>] [--thumbnail-heavy]
  *                                              render missing/stale stills
  *   Grimoire --publish [<name>] …             the window's frames, offered
@@ -421,8 +421,9 @@ int main(int argc, char* argv[]) {
     // the same thing by saying nothing, which reads as a sketch that was
     // deleted.
     //
-    // A SET IS AVAILABLE ONLY WHERE A DEVICE IS, so `--gpu` brings the
-    // one device up first and a listing without it greys every set.
+    // A SCENE3D SKETCH IS AVAILABLE ONLY WHERE A DEVICE IS, so `--gpu`
+    // brings the one device up first and a listing without it greys every
+    // scene3d sketch.
     if (args.gpu && !useDevice()) return 1;
     const bool toTerminal = isatty(fileno(stdout)) != 0;
     for (const sketch::RegistryRow& row : sketch::registryRows(args.kind)) {
@@ -444,9 +445,9 @@ int main(int argc, char* argv[]) {
     // this run was pointed at after it, one JSON object per line. They are
     // `sketch::catalog`'s rows as the browser maps them, so this is also
     // how another process reads the registry as values: every entry's
-    // filed name, stem, runtime and availability on this machine. A set
-    // is available only where a device is, so `--gpu` brings the one
-    // device up first, as it does for the listing above.
+    // filed name, stem, runtime and availability on this machine. A
+    // scene3d sketch is available only where a device is, so `--gpu` brings the
+    // one device up first, as it does for the listing above.
     if (args.gpu && !useDevice()) return 1;
     int coreArgc = 1;
     const QCoreApplication core(coreArgc, argv);
@@ -552,12 +553,12 @@ int main(int argc, char* argv[]) {
     // inside a sketch is a bare signal with nothing printed.
     sketch::installCrashReporter(options.sketchPath);
     finishMaterialWarmup(materialWarmup);
-    // `--gpu` PUTS THIS RUN ON THE DEVICE: a set draws its frame there,
-    // and a canvas is photographed on a Graphite surface. A sketch whose
-    // kind needs the device executor brings it up before its session
-    // opens, and a device that will not come up fails the run, because a
-    // capture that asked for the device and quietly gave the CPU's
-    // picture puts two different pictures under one name.
+    // `--gpu` PUTS THIS RUN ON THE DEVICE: a scene3d sketch draws its frame
+    // there, and a scene2d sketch is photographed on a Graphite surface. A
+    // sketch whose kind needs the device executor brings it up before its
+    // session opens, and a device that will not come up fails the run, because
+    // a capture that asked for the device and quietly gave the CPU's picture
+    // puts two different pictures under one name.
     if (args.gpu) {
       options.prepareSession = [&](const sketch::Kind& kind) {
 #ifdef __APPLE__
@@ -612,10 +613,10 @@ int main(int argc, char* argv[]) {
   }
 
   // ---- the app ---------------------------------------------------------
-  // THE LIVE HOST DRAWS SETS ON THE DEVICE, which is the only place a set
-  // is drawn. Unlike the sweep's flag, a device that will not come up is
-  // not fatal here: the canvas sketches still run, and every set is
-  // listed unavailable with the reason.
+  // THE LIVE HOST DRAWS SCENE3D SKETCHES ON THE DEVICE, which is the only
+  // place one is drawn. Unlike the sweep's flag, a device that will not
+  // come up is not fatal here: the scene2d sketches still run, and every
+  // scene3d sketch is listed unavailable with the reason.
   // The window's own frame-rate lane opens the window at a stated size
   // and asks Qt for a stated scale, which it can only be told before the
   // application exists.
@@ -626,7 +627,8 @@ int main(int argc, char* argv[]) {
   }
   if (args.noGpu || !useDevice())
     std::fprintf(stderr,
-                 "[grimoire] no device: every set is listed unavailable\n");
+                 "[grimoire] no device: every scene3d sketch is listed "
+                 "unavailable\n");
   SharedWebEngineScope sharedWebEngine;
   // The build directories of runs that were killed are the process's to
   // clear, not the first sketch's: swept while the window is coming up,
@@ -743,9 +745,9 @@ int main(int argc, char* argv[]) {
   // were declared before the context was created, which is here: the
   // window's context is made on the render thread, after this.
   openPipelineWarmup(pipelines::storeDirectory());
-  // A SET'S SURFACE PROGRAMS, kept beside them: each one a run compiled is
-  // read back by the next instead of compiled again on the thread that
-  // draws while the set opens.
+  // A SCENE3D SKETCH'S SURFACE PROGRAMS, kept beside them: each one a run
+  // compiled is read back by the next instead of compiled again on the
+  // thread that draws while the scene3d sketch opens.
   sigil::material::slang::useProgramStore(pipelines::storeDirectory() /
                                           "surface programs");
 

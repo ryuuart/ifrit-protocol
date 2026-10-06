@@ -6,7 +6,7 @@ with ``sigil render`` and belongs to no sketch registry.
 """
 
 from sigil import compose, material
-from sigil.sketch import SketchContext, sketch
+from sigil.sketch import Scene2DContext, sketch
 
 GROUND = "#0f1318"
 PLATE = "#1d2730"
@@ -43,16 +43,14 @@ def cell(caption: str, plate: compose.Element) -> compose.Element:
 
 @sketch(size=(640, 250), background=GROUND, capture_at=0)
 class FilterVerb:
-    def setup(self, ctx: SketchContext) -> None:
+    def setup(self, ctx: Scene2DContext) -> None:
         ctx.render(self.describe())
 
     def describe(self) -> compose.Element:
         return (
             compose.box(
                 cell("no filter", compose.box()),
-                cell(
-                    "filter(blur)", compose.box().filter(material.Filter.blur(3))
-                ),
+                cell("filter(blur)", compose.box().filter(material.Filter.blur(3))),
                 cell(
                     "filter(glow)",
                     compose.box().filter(material.Filter.glow("#3fd6b0", 9)),

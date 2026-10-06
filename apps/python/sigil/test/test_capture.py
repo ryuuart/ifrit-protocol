@@ -78,7 +78,7 @@ class CaptureParity(unittest.TestCase):
                     )
                     native_times = json.loads(source.with_suffix(".json").read_text())
                     self.assertEqual(api_times, native_times)
-                    # Both photograph as the sweep does: the canvas runtime
+                    # Both photograph as the sweep does: the scene2d runtime
                     # draws one frame more to take its still, one sixtieth
                     # of a second past the moment asked for.
                     self.assertAlmostEqual(api_times[-1], (at or 0) + 1 / 60)

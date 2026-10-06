@@ -43,7 +43,7 @@ namespace sigil::sketch::python {
 void configureInterpreter(const std::filesystem::path& executable);
 
 /** Describes a Python source file without reading it or initializing Python.
- * The canvas kind can be listed even when the file is missing or invalid.
+ * The scene2d kind can be listed even when the file is missing or invalid.
  * Each opened session imports the current source and its local modules into
  * a fresh generation. Relative paths are anchored to the current directory
  * when this value is constructed; import failures surface when it opens. */

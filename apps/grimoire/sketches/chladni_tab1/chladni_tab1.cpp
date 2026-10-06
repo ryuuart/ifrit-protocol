@@ -54,8 +54,8 @@
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Tween.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <memory>
@@ -596,7 +596,7 @@ struct ChladniTab1 {
     }
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     plate = sketch::kit::Document(ctx, "data/plate.json");
     const data::Json& scan = plate["scan"];
     scale = (float)scan["scale"].number();
@@ -715,7 +715,7 @@ struct ChladniTab1 {
   }
 
   /** Described again when the sand lands and when the bow moves on. */
-  void update(double, sketch::SketchContext& ctx) {
+  void update(double, sketch::Scene2DContext& ctx) {
     if (gathering == describedGathering && hopping == describedHopping) return;
     describedGathering = gathering;
     describedHopping = hopping;

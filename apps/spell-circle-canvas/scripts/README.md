@@ -275,13 +275,13 @@ inventory the `docs` build writes is what sees those.
 
 ## Plates — `plates`
 
-Three tiers, one binary. `--tier cpu` (the default) steps every canvas
+Three tiers, one binary. `--tier cpu` (the default) steps every scene2d
 sketch to its declared moment and rasterises it on the CPU, so a plate is
 a function of the declaration alone and the tier is judged on byte
 identity against one manifest, `build/plate_baseline_<config>.sha256`,
-keyed by registry name. A set is drawn on a device and nowhere else, so
-this tier passes every set over and prints how many it passed over; the
-device tier below is where a set is judged. A clean sweep is the byte-neutrality verdict; a
+keyed by registry name. A scene3d sketch is drawn on a device and nowhere else, so
+this tier passes every scene3d sketch over and prints how many it passed over; the
+device tier below is where a scene3d sketch is judged. A clean sweep is the byte-neutrality verdict; a
 scene over the per-scene ceiling fails by name, and there is no
 per-scene override. `--rebase` adopts; a sweep narrowed by `--kind`,
 `--sketch` or `--scenes` merges into the manifest rather than
@@ -363,8 +363,8 @@ pinned number. A sketch that reads a clock and does not go through
 registry (`Grimoire --catalog --gpu`); without a device runtime it says so
 and exits 0. It then judges two kinds of sketch two ways.
 
-A SET, and a canvas sketch available only where a device is — one that
-bakes a set into its page — has no CPU plate. Each is rendered with
+A SCENE3D sketch, and a scene2d sketch available only where a device is — one that
+bakes a scene3d sketch into its page — has no CPU plate. Each is rendered with
 `--gpu` and its bytes hashed against a manifest of device plates this
 machine keeps, `build/plate_baseline_<config>_device.sha256`: the same
 byte-identity question the CPU tier asks, asked of the one rasteriser such
@@ -373,12 +373,12 @@ driver and the machine, and on one machine and one driver the same
 declaration renders the same bytes, which is what makes a hash the honest
 verdict and the manifest machine-local. `--tier device --rebase` adopts
 these plates, merging when narrowed exactly as the CPU tier does,
-`--stability N` re-renders a mover, and the canvas sketches are not
+`--stability N` re-renders a mover, and the scene2d sketches are not
 adopted, since they keep no device baseline.
 
-A CANVAS sketch is rendered on the CPU and on the device and the two
+A SCENE2D sketch is rendered on the CPU and on the device and the two
 plates are compared per colour channel — mean and p99 judged within a
-ceiling, max reported — because a canvas's device plate is a second
+ceiling, max reported — because a scene2d sketch's device plate is a second
 rasteriser's picture of what the CPU tier already holds to its baseline.
 The two directories of plates are differenced by the comparison above,
 which decodes them and answers the distances; what stays here is the
@@ -395,7 +395,7 @@ hundred stay under, which says the disagreement is confined rather than
 spread; and **max**, the worst channel anywhere, which is an edge, and is
 reported rather than judged.
 
-A canvas sketch may name its own mean and p99 ceilings in the script's
+A scene2d sketch may name its own mean and p99 ceilings in the script's
 `GPU_TOLERANCE`, set from what the two rasterisers actually do rather
 than from a wish; one with no entry is judged by the default,
 `(12.0, 128)`, and today none needs its own. A ceiling is for a sketch the
@@ -404,7 +404,7 @@ differently on the two backends is a defect in what drew it.
 
 ### The promotion tier
 
-`--tier promotion` renders the canvas sketches twice on the CPU — once
+`--tier promotion` renders the scene2d sketches twice on the CPU — once
 with automatic texture promotion held off, once with every promotable
 node eagerly baked — and judges the pair against the contract compose
 states. It exists because nothing else exercises the promoter: a
@@ -493,7 +493,7 @@ overwritten rather than accumulated, and never committed because
 and is overwritten on rebase; `cpu/` holds what the last judging sweep
 rendered; the device tier keeps its own baseline beside its manifest
 (`device/baseline`) and what its last judging sweep rendered of the
-device-only sketches (`device/sets`); the two comparing halves keep both
+device-only sketches (`device/scene3d`); the two comparing halves keep both
 sides (`device/cpu`, `device/gpu`, `promotion/off`, `promotion/on`). A hash says a scene
 MOVED and nothing about where, so each mover's verdict line names its
 two files and the summary prints the `sigil.py plates compare
@@ -546,7 +546,7 @@ nothing: it is the sketch's own cost isolated, which is what makes it a
 gate. The window lane draws through the surface the window presents, at
 the window's pixels and its device pixel ratio, and the numbers carry
 the host's own overhead — the submit or texture upload that puts the
-frame on screen, and for a set the device readback and blit its paint
+frame on screen, and for a scene3d sketch the device readback and blit its paint
 phase performs. Neither replaces the other. A presented rate is bounded
 by the compositor, which means the display: a sketch comfortably inside
 its budget reads at the refresh rate and says nothing more, so the

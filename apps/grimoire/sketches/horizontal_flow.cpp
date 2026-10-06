@@ -23,10 +23,10 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Cells.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Theme.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -146,7 +146,7 @@ Element panel(float left, const char* title, const char* note, Element body) {
 }  // namespace
 
 struct HorizontalFlow {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     const sketch::kit::Theme& sheet = sketch::kit::theme();
     sketch::kit::stage(ctx,

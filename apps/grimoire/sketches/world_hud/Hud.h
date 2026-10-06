@@ -20,7 +20,7 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/kit/Cells.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/style/Type.h>
 #include <sigilworld/kit/Kit.h>

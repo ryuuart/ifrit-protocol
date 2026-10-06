@@ -1,5 +1,5 @@
 /** @file
- * The 3D session: an engine, a retained Scene and one set body describing
+ * The 3D session: an engine, a retained Scene and one scene3d body describing
  * a frame into them.
  */
 
@@ -12,7 +12,7 @@
 #include <sigilmeasure/advanced/Laps.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilsketch/core/Crash.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilworld/advanced/Skia.h>
 #include <sigilworld/advanced/Stats.h>
 #include <sigilworld/frame/Pass.h>
@@ -37,23 +37,23 @@ namespace {
 
 /** The runtime a session opens on when its kind states none. A device
  *  is one device and one queue for the whole run; an empty value is no
- *  device, and no set opens on it. */
+ *  device, and no scene3d sketch opens on it. */
 world::Runtime& processRuntime() {
   static world::Runtime runtime;
   return runtime;
 }
 
-/** THE ONE MESSAGE a set is refused with, wherever it is refused. */
+/** THE ONE MESSAGE a scene3d sketch is refused with, wherever it is refused. */
 constexpr const char* kNoDevice =
-    "a set is drawn on a device, and no device is available to it";
+    "a scene3d sketch is drawn on a device, and no device is available to it";
 
 /** HOW MANY CANVAS PIXELS ONE DECLARED UNIT COVERS.
  *
  *  A host hands over a canvas already fitted: a plate's canvas is the
  *  declared size and carries nothing, while a live window on a scaled
  *  screen carries the fit AND the screen's own scale. A drawn tree is
- *  resolution-independent and needs neither number; a lit set is formed
- *  at ONE resolution, so a set formed at its declared size and then
+ *  resolution-independent and needs neither number; a lit scene is formed
+ *  at ONE resolution, so a scene3d sketch formed at its declared size and then
  *  fitted upward is a magnified picture of a smaller one rather than the
  *  picture at the size it is seen. Reading the number off the canvas is
  *  what keeps the two agreeing without a second place to state it. */
@@ -99,14 +99,14 @@ world::Frame formedAgain(const world::Frame& frame) {
   return again;
 }
 
-/** A set about the SCENE, made into one a runtime can perform: one
+/** A scene3d sketch about the SCENE, made into one a runtime can perform: one
  *  geometry pass clearing to the declared background and painting every
- *  body into `colour`. A set whose passes already form a picture — a
+ *  body into `colour`. A scene3d sketch whose passes already form a picture — a
  *  geometry pass, or a body doing its own work — is left alone, since an
  *  executor is only reached through passes; one whose passes only paint
  *  the textures its bodies wear, or only work on the picture — a bloom
- *  over `colour` — is still a set about the scene, and has the stock pass
- *  put FIRST, so a post pass reading `colour` reads what it painted. */
+ *  over `colour` — is still a scene3d sketch about the scene, and has the stock
+ *  pass put FIRST, so a post pass reading `colour` reads what it painted. */
 void throughPasses(world::Frame& frame,
                    const sigil::material::Color& background) {
   for (const world::Pass& pass : frame.passes())
@@ -136,11 +136,11 @@ void throughPasses(world::Frame& frame,
 }
 
 /** ONE 3D SKETCH, RUNNING. */
-class SetSession final : public Session {
+class Scene3DSession final : public Session {
  public:
-  SetSession(std::unique_ptr<SetBody> set, weave::FontContext& fonts,
-             Assets& assets, bool deterministic, world::Runtime runtime)
-      : m_set(std::move(set)),
+  Scene3DSession(std::unique_ptr<Scene3DBody> body, weave::FontContext& fonts,
+                 Assets& assets, bool deterministic, world::Runtime runtime)
+      : m_body(std::move(body)),
         m_assets(assets),
         m_scene(m_engine),
         m_runtime(std::move(runtime)),
@@ -148,9 +148,9 @@ class SetSession final : public Session {
     m_specification.size = {900, 640};
     m_specification.background = {0.04f, 0.045f, 0.06f, 1.0f};
     m_specification.captureSeconds = 1.0;
-    SetContext ctx{assets,    fonts,    &m_specification, &m_camera,
-                   &m_scenes, &m_pages, deterministic};
-    m_set->setup(ctx);
+    Scene3DContext ctx{assets,    fonts,    &m_specification, &m_camera,
+                       &m_scenes, &m_pages, deterministic};
+    m_body->setup(ctx);
     m_declared = m_camera;
     m_window.whole = {(int)m_specification.size.width(),
                       (int)m_specification.size.height()};
@@ -171,22 +171,22 @@ class SetSession final : public Session {
     else
       m_engine.advance();
     // A recording plays back as a function of the scene time, so the
-    // feeds the set reads are moved by the same engine, and moved before
+    // feeds the sketch reads are moved by the same engine, and moved before
     // it describes: what a frame is described from is everything that had
     // arrived by the moment it draws.
     const double seconds = m_engine.elapsed().count();
     io::advance(m_assets.hub(), std::chrono::duration<double>(seconds));
-    world::Frame frame = m_set->describe(m_engine.elapsed());
-    // The plate's size and its viewpoint are the host's to state: a set
-    // says what it is of, not where it lands. The picture is the declared
-    // canvas in the pixels this canvas actually has, so the frame is
+    world::Frame frame = m_body->describe(m_engine.elapsed());
+    // The plate's size and its viewpoint are the host's to state: a scene3d
+    // sketch says what it is of, not where it lands. The picture is the
+    // declared canvas in the pixels this canvas actually has, so the frame is
     // formed at the resolution it will be seen at, and only over the part
     // of it this canvas's clip leaves.
     m_window = windowOn(canvas);
     frame.defaultCamera(m_camera);
     over(frame, m_window);
-    // A TREE'S OWN CAMERA WINS over the lens the set was handed at setup,
-    // which is what lets a set put its camera on a rail and be
+    // A TREE'S OWN CAMERA WINS over the lens the sketch was handed at setup,
+    // which is what lets a scene3d sketch put its camera on a rail and be
     // photographed from it. A host that has taken hold of the viewpoint
     // has to win over THAT, and says so as the frame's override: the
     // camera the tree chose still says how the picture is read.
@@ -206,9 +206,9 @@ class SetSession final : public Session {
       m_standing = std::move(frame);
     else
       m_standing.reset();
-    // WHAT THE SET ITSELF DECLARED, read back after the describe that
+    // WHAT THE SKETCH ITSELF DECLARED, read back after the describe that
     // said it, so a host asking where the sketch stands is told the
-    // set's own answer and not the fallback the host handed in. It is
+    // sketch's own answer and not the fallback the host handed in. It is
     // only read while the host has NOT taken hold: once it has, the
     // camera the tree carries is the host's own.
     if (!m_orbiting) {
@@ -237,10 +237,10 @@ class SetSession final : public Session {
   void repaint(SkCanvas& canvas) override { present(canvas); }
 
   /** The plate IS the frame just finished, put on the canvas the host
-   *  sized. A set is formed at ONE resolution and this call describes
-   *  nothing, so there is nothing here to form again larger: a bigger
+   *  sized. A scene3d sketch is formed at ONE resolution and this call
+   *  describes nothing, so there is nothing here to form again larger: a bigger
    *  canvas magnifies the frame that stands rather than sharpening it,
-   *  which is why a set asks for no oversample. */
+   *  which is why a scene3d sketch asks for no oversample. */
   void still(SkCanvas& canvas) override { present(canvas); }
 
   [[nodiscard]] Timing timing() const override { return m_timing; }
@@ -294,7 +294,7 @@ class SetSession final : public Session {
                   (long long)stats.nodes, (long long)stats.drawn,
                   (long long)stats.resources, (long long)stats.passes,
                   (long long)stats.readbacks);
-    // …and the screens and pages the set asked for at setup, which no
+    // …and the screens and pages the sketch asked for at setup, which no
     // counter of the retained scene's can see.
     const size_t screens = m_scenes.size() + m_pages.size();
     if (screens == 0) return line;
@@ -304,11 +304,11 @@ class SetSession final : public Session {
   }
 
   /** ORBIT: yaw and pitch about the viewpoint's own target, at a
-   *  distance from it. THE SET'S OWN CAMERA IS THE PIVOT — its target,
+   *  distance from it. THE SKETCH'S OWN CAMERA IS THE PIVOT — its target,
    *  its up axis and its lens are kept and only the eye is moved — so a
-   *  set that put its camera somewhere particular is orbited around what
+   *  sketch that put its camera somewhere particular is orbited around what
    *  it was looking at rather than around a point the host chose. Until
-   *  this is called the set is seen from exactly the camera it declared,
+   *  this is called the sketch is seen from exactly the camera it declared,
    *  which is what makes the live picture and the plate the same
    *  picture. */
   [[nodiscard]] bool hasViewpoint() const override { return true; }
@@ -439,14 +439,14 @@ class SetSession final : public Session {
                                 : world::Presentation::OnDevice);
   }
 
-  /** The texture scenes the context handed out. Before the set and the
+  /** The texture scenes the context handed out. Before the sketch and the
    *  retained scene, so they outlive both: a texture a body wears is
    *  still standing when its wearer goes. */
   std::vector<std::shared_ptr<compose::TextureScene>> m_scenes;
   /** What the pages the context handed out paint into. */
   std::vector<std::shared_ptr<compose::SurfaceScene>> m_pages;
-  std::unique_ptr<SetBody> m_set;
-  /** What the set reaches for that it did not generate. Held for the
+  std::unique_ptr<Scene3DBody> m_body;
+  /** What the sketch reaches for that it did not generate. Held for the
    *  session's life rather than only for the setup that declared it,
    *  because the feeds it opened are moved forward every frame. */
   Assets& m_assets;
@@ -459,10 +459,10 @@ class SetSession final : public Session {
   motion::Engine m_engine;
   world::Scene m_scene;
   CanvasSpecification m_specification;
-  /** The fallback the set was handed at setup, for a tree declaring no
+  /** The fallback the sketch was handed at setup, for a tree declaring no
    *  camera of its own. */
   geometry::mesh::camera::Camera m_camera;
-  /** The viewpoint the last describe put the set at — the tree's own, or
+  /** The viewpoint the last describe put the sketch at — the tree's own, or
    *  the fallback where it declared none. */
   geometry::mesh::camera::Camera m_declared;
   geometry::mesh::camera::Camera m_orbit;
@@ -510,45 +510,45 @@ class SetSession final : public Session {
 
 }  // namespace
 
-std::unique_ptr<Session> openSet(std::unique_ptr<SetBody> body,
-                                 weave::FontContext& fonts, Assets& assets,
-                                 bool deterministic,
-                                 const world::Runtime& runtime) {
+std::unique_ptr<Session> openScene3D(std::unique_ptr<Scene3DBody> body,
+                                     weave::FontContext& fonts, Assets& assets,
+                                     bool deterministic,
+                                     const world::Runtime& runtime) {
   std::string why;
   if (!runtimeAvailable(runtime, &why)) throw std::runtime_error(why);
-  return std::make_unique<SetSession>(std::move(body), fonts, assets,
-                                      deterministic, runtime);
+  return std::make_unique<Scene3DSession>(std::move(body), fonts, assets,
+                                          deterministic, runtime);
 }
 
-const world::Runtime& SetKind::openingRuntime() const {
+const world::Runtime& Scene3DKind::openingRuntime() const {
   return m_runtime ? *m_runtime : processRuntime();
 }
 
-bool SetKind::available(std::string* why) const {
+bool Scene3DKind::available(std::string* why) const {
   return runtimeAvailable(openingRuntime(), why);
 }
 
-std::unique_ptr<Session> SetKind::open(weave::FontContext& fonts,
-                                       Assets& assets, bool deterministic,
-                                       std::string_view key) const {
+std::unique_ptr<Session> Scene3DKind::open(weave::FontContext& fonts,
+                                           Assets& assets, bool deterministic,
+                                           std::string_view key) const {
   (void)key;
-  // Refused BEFORE a body is made, so a set that cannot be drawn runs
-  // none of its own setup.
+  // Refused BEFORE a body is made, so a scene3d sketch that cannot be drawn
+  // runs none of its own setup.
   const world::Runtime& runtime = openingRuntime();
   std::string why;
   if (!runtimeAvailable(runtime, &why)) throw std::runtime_error(why);
-  return openSet(
-      m_source ? m_source->open() : std::unique_ptr<SetBody>(m_factory()),
+  return openScene3D(
+      m_source ? m_source->open() : std::unique_ptr<Scene3DBody>(m_factory()),
       fonts, assets, deterministic, runtime);
 }
 
 Kind onRuntime(const Kind& kind, const world::Runtime& runtime) {
-  // The concrete kind is asked for by type because the runtime is a set's
-  // own vocabulary: a canvas and a pen have no frame to run through one,
-  // and a host holding a mixed selection says this about every kind it
-  // holds rather than sorting them first.
-  if (const auto* set = dynamic_cast<const SetKind*>(kind.get()))
-    return set->on(runtime);
+  // The concrete kind is asked for by type because the runtime is a scene3d
+  // sketch's own vocabulary: a scene2d sketch and a pen have no frame to run
+  // through one, and a host holding a mixed selection says this about every
+  // kind it holds rather than sorting them first.
+  if (const auto* scene3d = dynamic_cast<const Scene3DKind*>(kind.get()))
+    return scene3d->on(runtime);
   return kind;
 }
 

@@ -67,7 +67,7 @@ std::vector<CatalogRow> catalog(const CatalogSources& sources) {
     row.key = row.name;
     row.category = groupOf(file, sources.workspaceRoot);
     row.blurb = file.parent_path().string();
-    row.kind = file.extension() == ".py" ? "canvas" : "";
+    row.kind = file.extension() == ".py" ? "scene2d" : "";
     row.external = true;
     row.videoExportable = false;
     describeFile(row, file, sources);

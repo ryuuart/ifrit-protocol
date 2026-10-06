@@ -45,9 +45,9 @@
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/query/Selector.h>
 #include <sigilweave/style/Type.h>
 #include <sigilweave/unicode/Unicode.h>
@@ -264,7 +264,7 @@ struct MatrixRain {
    *  as many columns as fit it, each ended by a newline after as many
    *  cells as fit its height — measured on the plane's own class, so the
    *  sheet's size is the one the grid is cut for. */
-  Plane readPlane(sketch::SketchContext& ctx, const data::Json& entry) const {
+  Plane readPlane(sketch::Scene2DContext& ctx, const data::Json& entry) const {
     Plane plane{.name = std::string(entry["plane"].string()),
                 .seed = (uint32_t)entry["seed"].number(),
                 .slowest = (float)entry["cellsPerSecond"][0].number(),
@@ -543,7 +543,7 @@ struct MatrixRain {
         });
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     // The title held over a rain deep in its steady state: fresh heads,
     // long tails and columns resting dark between drops.
     sketch::kit::stage(

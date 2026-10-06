@@ -75,7 +75,7 @@ struct PlateExtent {
 struct SweepOptions {
   std::string outputDirectory = "sketch_plates";
   /** Draw on the device: a Graphite surface for the sketches that paint
-   *  onto a canvas, the device runtime for the ones that light a set. */
+   *  onto a canvas, the device runtime for the ones that light a 3D scene. */
   bool gpu = false;
   /** Device pixels per canvas unit, overriding the declared oversample
    *  and width ceiling. Zero uses plateDensity(); positive values apply
@@ -85,7 +85,7 @@ struct SweepOptions {
    *  means you want that sketch's real number, so the per-sketch time
    *  budget that keeps a whole sweep to a few minutes does not apply. */
   int only = -1;
-  /** Only the sketches drawn through this runtime (`canvas`, `set`);
+  /** Only the sketches drawn through this runtime (`scene2d`, `scene3d`);
    *  empty is all of them. */
   std::string kind;
   /** Force cost-based re-baking off. On a device the backend-aware

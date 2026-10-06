@@ -34,7 +34,7 @@ SKETCH = """// @STEM@.cpp — a sketch that lives beside its own files, outside 
 // broken. README.md beside this file says what the rest of the folder
 // is for.
 
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilsketch/kit/Kit.h>
 
 #include <memory>
@@ -54,7 +54,7 @@ struct @NAME@ {
    *  assets/ holds anything at all. */
   std::shared_ptr<const sigil::media::Image> reference;
 
-  Element describe(sketch::SketchContext& ctx) {
+  Element describe(sketch::Scene2DContext& ctx) {
     // THE LOOK IS THE THEME'S, carried down the tree: the root states
     // the theme's registers as classes, and a leaf names the one it is
     // set in rather than spelling a size and a colour of its own.
@@ -72,7 +72,7 @@ struct @NAME@ {
                        .inset(150, 64, 0, 64)});
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     // The canvas this sketch wants, and the moment a still of it is
     // worth taking. The ground is the theme's unless this says another.
     sketch::kit::stage(ctx, {.size = {960, 600}, .captureAt = 0.4});

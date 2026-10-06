@@ -6,7 +6,7 @@
 
 #include "HitmanVerlet.h"
 
-auto HitmanVerlet::setup(sketch::SketchContext& ctx) -> void {
+auto HitmanVerlet::setup(sketch::Scene2DContext& ctx) -> void {
   ctx.canvas(kCanvasW, kCanvasH);
   ctx.background(kInk);
   // This study brings its own canvas, background and capture instant

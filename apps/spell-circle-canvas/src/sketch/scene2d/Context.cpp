@@ -1,6 +1,6 @@
 /** @file
- * What a canvas sketch's context hands it beyond its declarations: a
- * compose scene kept as a texture, and a lit set baked to an image.
+ * What a scene2d sketch's context hands it beyond its declarations: a
+ * compose scene kept as a texture, and a lit scene baked to an image.
  */
 
 #include <include/core/SkCanvas.h>
@@ -10,15 +10,15 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmotion/clock/Engine.h>
-#include <sigilsketch/canvas/Sketch.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene2d/Scene2D.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilworld/advanced/Skia.h>
 #include <sigilworld/frame/Frame.h>
 #include <sigilworld/scene/Scene.h>
 
 namespace sigil::sketch {
 
-std::shared_ptr<compose::TextureScene> SketchContext::textureScene(
+std::shared_ptr<compose::TextureScene> Scene2DContext::textureScene(
     SkISize size, sigil::material::Color background) {
   if (!fonts) return nullptr;
   std::shared_ptr<compose::TextureScene> scene =
@@ -34,9 +34,10 @@ std::shared_ptr<compose::TextureScene> SketchContext::textureScene(
   return scene;
 }
 
-sk_sp<SkImage> SketchContext::bakeSet(const world::Frame& frame, SkISize size,
-                                      BakeSetOptions options) {
-  // A set is drawn on a device and nowhere else.
+sk_sp<SkImage> Scene2DContext::bakeScene3D(const world::Frame& frame,
+                                           SkISize size,
+                                           BakeScene3DOptions options) {
+  // A scene3d sketch is drawn on a device and nowhere else.
   if (!runtimeAvailable()) return nullptr;
   sk_sp<SkSurface> surface = SkSurfaces::Raster(
       SkImageInfo::MakeN32Premul(size.width(), size.height()));
@@ -63,7 +64,7 @@ sk_sp<SkImage> SketchContext::bakeSet(const world::Frame& frame, SkISize size,
   // retained between bakes, so the picture is a function of the frame
   // and the moment and not of how many times the sketch has baked one —
   // and the moment is reached without touching the sketch's engine,
-  // which a document baking a set into one of its panels must not move.
+  // which a document baking a 3D frame into one of its panels must not move.
   motion::Engine engine;
   world::Scene scene(engine);
   // MOUNT, THEN MOVE. A node's entrance begins when it mounts, so the

@@ -74,9 +74,9 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/time/Duration.h>
 #include <sigilmotion/values/Time.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Meter.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/choreograph/Choreograph.h>
 #include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -155,7 +155,7 @@ struct EmberDecode {
   float displayTotalMs = 1;  // the cascades' spans, read back from beatsOf
   float wordsTotalMs = 1;
 
-  Element describe(sketch::SketchContext& ctx) {
+  Element describe(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide presentation(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     const sigil::weave::Face face =
@@ -242,7 +242,7 @@ struct EmberDecode {
              {each(beats, readBack)})});
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     burn = material::shader(
         ctx.assets.hub(), ctx.local("burn.sksl"),
         BurnParameters{kInk, kEmber, {kSweep, kSpeckle, kPatch}},
@@ -258,7 +258,7 @@ struct EmberDecode {
     ctx.composer.render(describe(ctx));
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     // The cascades' real spans, read off the schedule rather than
     // restated: the last beat's start plus one beat's length is the whole
     // ramp. beatsOf answers after the first draw has laid the text out,

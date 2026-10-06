@@ -19,7 +19,7 @@
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/program/Shader.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <array>
@@ -285,14 +285,14 @@ struct PigmentBrushes {
              kit::at(box().width(1358).height(213).children(std::move(samples)),
                      40, 844, 1358, 213)});
   }
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(1440, 1080);
     ctx.background(kPaper);
     ctx.captureAt(2);
     phaseIndex = heldPhase < 0 ? 0 : std::clamp(heldPhase, 0, 5);
     ctx.composer.render(describe(phaseIndex));
   }
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     const double t = std::isfinite(elapsed) ? std::max(0.0, elapsed) : 0;
     const double loop = std::fmod(t, 24.0);
     const int next = heldPhase < 0 ? static_cast<int>(loop / 4)

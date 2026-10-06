@@ -44,8 +44,8 @@
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/core/Image.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <memory>
 #include <utility>
@@ -139,7 +139,7 @@ sketch::kit::ComparisonCase cell(const char* caseTitle, const char* call,
 struct CoverageBoundary {
   const CutOuts cut;
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide presentation(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // nothing moves; the sheet is complete at once

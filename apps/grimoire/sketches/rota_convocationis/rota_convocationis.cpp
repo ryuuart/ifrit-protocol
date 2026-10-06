@@ -40,9 +40,9 @@
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Theme.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
@@ -391,7 +391,7 @@ struct RotaConvocationis {
 
   /** The size at which @p run girds a circle of @p radius px, measured
    *  twice because tracking is px and does not scale with the type. */
-  float fit(sketch::SketchContext& context, const Text& run, float radius,
+  float fit(sketch::Scene2DContext& context, const Text& run, float radius,
             float fill) const {
     float size = 20;
     for (int pass = 0; pass < 2; ++pass) {
@@ -488,7 +488,7 @@ struct RotaConvocationis {
    *  which a cut in the middle of a space has room for. Of those, the
    *  ones nearest an even division of the ring, so each wedge holds about
    *  as much lettering as its neighbours. */
-  std::vector<float> cutsOf(sketch::SketchContext& context, const Band& band,
+  std::vector<float> cutsOf(sketch::Scene2DContext& context, const Band& band,
                             float size) const {
     const std::string words{content[band.words].string()};
     const auto width = [&](const std::string& run) {
@@ -861,7 +861,7 @@ struct RotaConvocationis {
          colophon()});
   }
 
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     for (auto& value : phase) value = sigil::motion::animatable(0.0f);
     for (auto& value : kindle) value = sigil::motion::animatable(0.0f);
     for (auto& value : sealKindle) value = sigil::motion::animatable(0.0f);
@@ -901,7 +901,7 @@ struct RotaConvocationis {
     context.composer.render(describe());
   }
 
-  void update(double elapsed, sketch::SketchContext&) {
+  void update(double elapsed, sketch::Scene2DContext&) {
     const float now = float(elapsed);
     // 0 before @p from, 1 once @p over seconds have passed, eased between.
     const auto rise = [now](float from, float over) {

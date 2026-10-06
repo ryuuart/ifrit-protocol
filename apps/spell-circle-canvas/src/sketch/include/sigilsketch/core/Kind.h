@@ -69,7 +69,7 @@ struct KindOperations {
 
 /** WHAT A SKETCH DRAWS, as a value.
  *
- *  A drawn tree and a lit set are two runtimes, not two namespaces: a
+ *  A drawn tree and a lit scene are two runtimes, not two namespaces: a
  *  host holds the kind, asks it for a session and drives that. So a
  *  third runtime is a value someone constructs and hands to
  *  SIGIL_SKETCH, never a case someone adds to a switch in a host — and

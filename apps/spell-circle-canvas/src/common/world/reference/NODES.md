@@ -211,7 +211,7 @@ every one.
 
 ### Staggering an entrance
 
-An entrance on a child of a set is staggered by the child's OWN tween:
+An entrance on a child of a scene is staggered by the child's OWN tween:
 `.opacity(motion::animate({.from = 0.0f, .to = 1.0f, .delay =
 motion::stagger(60ms)}))` resolves the delay at the child's place among
 the siblings mounting with it — a step per child, a fixed total spread

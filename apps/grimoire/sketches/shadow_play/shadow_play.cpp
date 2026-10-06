@@ -1,5 +1,5 @@
 /** Forms on a ground before a back wall under three lights that cast: a
- *  sun turning overhead, a spot circling the set and a lamp standing
+ *  sun turning overhead, a spot circling the scene and a lamp standing
  *  among the forms, so every shadow sweeps across the ground and up the
  *  wall. One slab is left out of the spot's shadow by its shadow link,
  *  and one floating cube casts nothing at all.
@@ -12,7 +12,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/surface/Surface.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilworld/World.h>
 
 #include <cmath>
@@ -59,7 +59,7 @@ struct ShadowPlay {
   gm::Mesh ground, wall, column, ball, ring, slab, cube, bulb;
   gm::Instances arc;
 
-  void setup(sketch::SetContext& ctx) {
+  void setup(sketch::Scene3DContext& ctx) {
     ctx.canvas(kWidth, kHeight);
     ctx.captureAt(1.0);
     ctx.background(hexColor(0x0b0c0f));
@@ -85,11 +85,11 @@ struct ShadowPlay {
     lens.zNear = 40;
     lens.zFar = 5000;
 
-    // THE SUN turns once round the set each loop, high and to the left
+    // THE SUN turns once round the scene each loop, high and to the left
     // at the start, so every shadow it casts sweeps a full turn.
     const glm::vec3 sun{0.55f * std::cos(phase + 2.4f), -0.8f,
                         0.55f * std::sin(phase + 2.4f) - 0.25f};
-    // THE SPOT circles above the front of the set the other way, always
+    // THE SPOT circles above the front of the scene the other way, always
     // aimed at the middle of the ground.
     const glm::vec3 spotAt{520 * std::cos(-phase + 0.6f), 560,
                            260 + 260 * std::sin(-phase + 0.6f)};
@@ -103,7 +103,7 @@ struct ShadowPlay {
                    .intensity = 2.2f,
                    .castShadow = true,
                    // Three maps along the camera's depth, the nearest
-                   // covering the front of the set.
+                   // covering the front of the scene.
                    .shadow = {.cascades = 3}})
              .key("sun"),
          world::spotLight({0, -1, 0},

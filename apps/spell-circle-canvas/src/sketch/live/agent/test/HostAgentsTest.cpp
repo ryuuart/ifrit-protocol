@@ -19,8 +19,8 @@
 #include <sigilprotocol/dispatch/InProcess.h>
 #include <sigilprotocol/host/HostClient.h>
 #include <sigilprotocol/session/SessionClient.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/live/agent/HostAgents.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <chrono>
 #include <cstddef>
@@ -49,12 +49,12 @@ using namespace std::chrono_literals;
 /** A box marching right a canvas unit every sixtieth of a second, so
  *  any two moments of it are two pictures. */
 struct MarchingBox {
-  void setup(sigil::sketch::SketchContext& ctx) {
+  void setup(sigil::sketch::Scene2DContext& ctx) {
     ctx.canvas(64, 48);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(0.5);
   }
-  void update(double elapsed, sigil::sketch::SketchContext& ctx) {
+  void update(double elapsed, sigil::sketch::Scene2DContext& ctx) {
     using namespace sigil::compose;
     ctx.composer.render(box()
                             .width(10)
@@ -176,7 +176,7 @@ TEST(SketchSessionAgent, OpensARegistrySketchAndDescribeListsItsSession) {
   const Answer<session::values::Summary> opened =
       host.open("agents_marching_box");
   ASSERT_TRUE(opened) << opened.error().message;
-  EXPECT_EQ(opened.result().kind, "canvas");
+  EXPECT_EQ(opened.result().kind, "scene2d");
   EXPECT_EQ(opened.result().width, 64.0f);
   EXPECT_EQ(opened.result().height, 48.0f);
   EXPECT_EQ(opened.result().moment, 0.5);
@@ -265,7 +265,7 @@ TEST(SketchClockAgent, TwoStillsUnderAdvanceAreTwoMoments) {
   const Answer<session::values::StillResult> second = host.still(1, "b.png");
   ASSERT_TRUE(first && second);
   EXPECT_NE(bytesOf(first.result().path), bytesOf(second.result().path));
-  // The canvas runtime draws its still one sixtieth on, and the clock
+  // The scene2d runtime draws its still one sixtieth on, and the clock
   // counts that frame.
   EXPECT_NEAR(first.result().seconds, 1.0 / 60.0, 1e-9);
 }
@@ -315,7 +315,7 @@ bool g_openedRepeatable = false;
 
 /** A sketch that says what it was opened for. */
 struct OpenedFor {
-  void setup(sigil::sketch::SketchContext& ctx) {
+  void setup(sigil::sketch::Scene2DContext& ctx) {
     ctx.canvas(16, 16);
     g_openedRepeatable = ctx.deterministic;
   }
@@ -497,8 +497,8 @@ float g_bakeDensity = 0.0f;
 
 /** A sketch that reads back the density its session bakes at. */
 struct BakeDensityProbe {
-  void setup(sigil::sketch::SketchContext& ctx) { ctx.canvas(40, 30); }
-  void update(double, sigil::sketch::SketchContext& ctx) {
+  void setup(sigil::sketch::Scene2DContext& ctx) { ctx.canvas(40, 30); }
+  void update(double, sigil::sketch::Scene2DContext& ctx) {
     g_bakeDensity = ctx.composer.bakeDensity();
   }
 };
@@ -518,7 +518,7 @@ TEST(SketchSessionAgent, ADensityPinnedBeforeTheOpenIsTheFirstFramesGrid) {
   ASSERT_TRUE(host.open("agents_bake_density"));
   g_bakeDensity = 0.0f;
   ASSERT_TRUE(host.step(1.0 / 60.0));
-  // Zero pins a plate's density: the canvas runtime's oversample of two.
+  // Zero pins a plate's density: the scene2d runtime's oversample of two.
   EXPECT_EQ(g_bakeDensity, 2.0f);
 
   session::values::DensityParameters three;
@@ -586,12 +586,12 @@ uint64_t g_arrivals = 0;
  *  live feed does. */
 struct RecordingReader {
   sigil::io::Feed feed;
-  void setup(sigil::sketch::SketchContext& ctx) {
+  void setup(sigil::sketch::Scene2DContext& ctx) {
     ctx.canvas(16, 16);
     ctx.assets.hub().replay("udp://:27183", g_recording.string());
     feed = ctx.assets.hub().listen("udp://:27183");
   }
-  void update(double, sigil::sketch::SketchContext&) {
+  void update(double, sigil::sketch::Scene2DContext&) {
     g_arrivals = feed ? feed.state().revision : 0;
   }
 };
@@ -611,8 +611,10 @@ TEST(SketchClockAgent, UnderPauseARecordingDeliversNothingMore) {
   {
     sigil::io::RecordingWriter writer(g_recording);
     ASSERT_TRUE(writer.good());
-    ASSERT_TRUE(writer.append(sigil::io::Message(recorded("dawn"), {}, std::chrono::duration<double>(0.0), 1)));
-    ASSERT_TRUE(writer.append(sigil::io::Message(recorded("noon"), {}, std::chrono::duration<double>(0.5), 2)));
+    ASSERT_TRUE(writer.append(sigil::io::Message(
+        recorded("dawn"), {}, std::chrono::duration<double>(0.0), 1)));
+    ASSERT_TRUE(writer.append(sigil::io::Message(
+        recorded("noon"), {}, std::chrono::duration<double>(0.5), 2)));
   }
   AgentHost host;
   ASSERT_TRUE(host.policy(clock::Policy_Advance));

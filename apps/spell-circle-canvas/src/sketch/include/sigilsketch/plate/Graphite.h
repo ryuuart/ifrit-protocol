@@ -17,11 +17,11 @@ namespace sigil::sketch {
  *
  *  It is the device's own — 2D drawing through it lands in a texture a
  *  3D pass on that same device samples, with no copy and one handle
- *  table naming both — so a canvas photographed here and a set rendered
- *  by the device runtime stand on ONE device. Nothing is created here,
- *  and that is the point: a second device would be a second set of
- *  textures, and a plate drawn on one of them cannot read what the
- *  other painted. A host says which device this is by installing it,
+ *  table naming both — so a scene2d sketch photographed here and a scene3d
+ *  sketch rendered by the device runtime stand on ONE device. Nothing is
+ *  created here, and that is the point: a second device would be a second
+ *  set of textures, and a plate drawn on one of them cannot read what
+ *  the other painted. A host says which device this is by installing it,
  *  through `sketch::useDevice()`. */
 skia::GraphiteContext* deviceGraphite();
 

@@ -6,7 +6,7 @@ rendered with ``sigil render`` and belongs to no sketch registry.
 """
 
 from sigil import compose
-from sigil.sketch import SketchContext, sketch
+from sigil.sketch import Scene2DContext, sketch
 
 GROUND = "#1a2027"
 PLATE = "#e9eef1"
@@ -31,7 +31,7 @@ def cell(caption: str, plate: compose.Element) -> compose.Element:
 
 @sketch(size=(620, 250), background=GROUND, capture_at=0)
 class BackgroundVerb:
-    def setup(self, ctx: SketchContext) -> None:
+    def setup(self, ctx: Scene2DContext) -> None:
         ctx.render(self.describe())
 
     def describe(self) -> compose.Element:

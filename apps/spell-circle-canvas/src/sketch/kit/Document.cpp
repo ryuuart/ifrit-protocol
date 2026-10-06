@@ -1,7 +1,7 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/kit/Document.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <string>
@@ -51,12 +51,12 @@ std::string written(
  *  own, a record names its own under `words` and `class`. */
 std::string_view sentence(const data::Json& item) {
   return item.kind() == data::Json::Kind::String ? item.string()
-                                               : item["words"].string();
+                                                 : item["words"].string();
 }
 
 }  // namespace
 
-Document::Document(SketchContext& ctx, std::string_view name)
+Document::Document(Scene2DContext& ctx, std::string_view name)
     : m_held(ctx.assets.hub().load<data::Json>(ctx.local(name))) {}
 
 Document& Document::figures(Figures named) {

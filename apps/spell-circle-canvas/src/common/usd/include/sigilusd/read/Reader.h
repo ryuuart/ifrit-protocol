@@ -107,7 +107,7 @@ std::optional<std::vector<ReadLight>> readLights(
  *  order; one with none is an ambient or a hemisphere light, which
  *  `readLights` answers. The
  *  intensity read back carries the factor the writer divided the
- *  panorama by, so a stage written and read again lights a set at the
+ *  panorama by, so a stage written and read again lights a scene at the
  *  radiance it was described with. nullopt when the stage cannot be
  *  opened. */
 std::optional<std::vector<ReadEnvironment>> readEnvironments(

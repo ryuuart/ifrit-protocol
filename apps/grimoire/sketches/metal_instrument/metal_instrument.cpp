@@ -13,7 +13,7 @@
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmedia/advanced/Skia.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilworld/World.h>
 
 #include <algorithm>
@@ -365,7 +365,7 @@ struct MetalInstrument {
   std::array<world::Mesh, 3> coupons;
   gm::Mesh panel, displayPlane, glassPlane;
 
-  void setup(sketch::SetContext& ctx) {
+  void setup(sketch::Scene3DContext& ctx) {
     ctx.canvas(kWidth, kHeight);
     ctx.captureAt(2.4);
     ctx.background(ink(0x11191e));

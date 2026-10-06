@@ -89,7 +89,7 @@ auto TwoAdvancedV4::describe() -> Element {
       {rail(false), rail(true), statusBar(), sheet, bootOverlay()});
 }
 
-auto TwoAdvancedV4::setup(sketch::SketchContext& ctx) -> void {
+auto TwoAdvancedV4::setup(sketch::Scene2DContext& ctx) -> void {
   for (auto& value : dot) value = sigil::motion::animatable(value.value());
   for (auto& value : gauge) value = sigil::motion::animatable(value.value());
   for (auto& value : gaugeAlpha)
@@ -288,7 +288,8 @@ auto TwoAdvancedV4::setup(sketch::SketchContext& ctx) -> void {
   ctx.composer.renderSlot("mfload", mfLoadReadout(mfSection = 2));
 }
 
-auto TwoAdvancedV4::update(double elapsed, sketch::SketchContext& ctx) -> void {
+auto TwoAdvancedV4::update(double elapsed, sketch::Scene2DContext& ctx)
+    -> void {
   // The ACCESSING readout's section name is text content, so it rides
   // the DATA path: re-rendered into its slot only when the cycle's
   // target changes.

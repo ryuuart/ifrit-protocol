@@ -16,7 +16,7 @@
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmedia/advanced/Skia.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilweave/choreograph/PlacedGlyph.h>
 #include <sigilweave/fonts/Shaper.h>
 #include <sigilweave/layout/TextContext.h>
@@ -299,7 +299,7 @@ struct StruckMetal {
     return eye;
   }
 
-  void setup(sketch::SetContext& ctx) {
+  void setup(sketch::Scene3DContext& ctx) {
     ctx.canvas(kWidth, kHeight);
     ctx.captureAt(2.4);
     ctx.background(ink(0x171b19));

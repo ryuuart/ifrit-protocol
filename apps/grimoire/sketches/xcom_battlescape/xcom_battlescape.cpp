@@ -18,7 +18,7 @@
 #include <sigildata/decode/Json.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <array>
@@ -107,7 +107,7 @@ struct Artefact {
     return block(ramp, step);
   }
 
-  void read(sketch::SketchContext& context) {
+  void read(sketch::Scene2DContext& context) {
     const auto file = [&](const char* name) {
       return context.assets.hub().load<sigil::data::Json>(
           context.local(std::string("data/") + name));
@@ -488,7 +488,7 @@ struct XcomBattlescape {
     alarm = Fill::color(art.colour(entry));
   }
 
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     context.canvas(320 * kPixel, 200 * kPixel);
     context.background(hexColor(0x000000));
     // One screen pixel is four canvas pixels, so eight device pixels in
@@ -505,7 +505,7 @@ struct XcomBattlescape {
 
   /** The screen's clock ticks ten times a second and nothing on it moves
    *  between ticks. */
-  void update(double elapsed, sketch::SketchContext&) {
+  void update(double elapsed, sketch::Scene2DContext&) {
     const int now = (int)(elapsed * 10);
     if (now == tick) return;
     tick = now;

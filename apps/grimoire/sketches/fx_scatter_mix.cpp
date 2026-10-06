@@ -42,8 +42,8 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/schedule/Stagger.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Face.h>
 #include <sigilweave/style/Type.h>
@@ -105,7 +105,7 @@ motion::Tween<float> ladder(motion::StaggerFrom from,
 struct FxScatterMix {
   bool instrumented = false;
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide presentation(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
@@ -115,13 +115,13 @@ struct FxScatterMix {
     ctx.engine.timer([this]() -> bool { return !instrumented; });
   }
 
-  void update(double, sketch::SketchContext& ctx) {
+  void update(double, sketch::Scene2DContext& ctx) {
     if (instrumented || ctx.composer.beatsOf("sc", 0).empty()) return;
     ctx.composer.render(describe(ctx));
     instrumented = true;
   }
 
-  Element describe(sketch::SketchContext& ctx) {
+  Element describe(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide presentation(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     const material::Color ink = sketch::kit::theme().palette.figure;

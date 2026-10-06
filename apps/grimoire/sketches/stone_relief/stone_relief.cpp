@@ -13,8 +13,8 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/paint/Bases.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/Registry.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/style/Type.h>
 
@@ -305,7 +305,7 @@ struct StoneRelief {
     return state;
   }
 
-  void describe(const State& state, sketch::SketchContext& ctx) {
+  void describe(const State& state, sketch::Scene2DContext& ctx) {
     Element page =
         box().width(kWidth).height(kHeight).fill(material::linearGradient(
             {0, 0}, {1, 1}, {hexColor(0x282923), hexColor(0x101511)}));
@@ -332,7 +332,7 @@ struct StoneRelief {
     described = state;
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(kWidth, kHeight);
     ctx.background(hexColor(0x101511));
     ctx.oversample(1);
@@ -346,7 +346,7 @@ struct StoneRelief {
     describe(at(0), ctx);
   }
 
-  void update(float seconds, sketch::SketchContext& ctx) {
+  void update(float seconds, sketch::Scene2DContext& ctx) {
     const State state = at(seconds);
     if (!described || *described != state) describe(state, ctx);
   }

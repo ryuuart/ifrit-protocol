@@ -18,7 +18,7 @@
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <array>
@@ -500,7 +500,7 @@ struct WetGlassConsole {
                  40, 868, 1360, 176)});
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     for (std::size_t i = 0; i < kDrops.size(); ++i) {
       dropX[i] = motion::animatable(0.0f);
       dropY[i] = motion::animatable(0.0f);
@@ -513,7 +513,7 @@ struct WetGlassConsole {
     ctx.composer.render(describe(phaseIndex));
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     const double seconds =
         std::isfinite(elapsed) ? std::max(0.0, elapsed) : 0.0;
     for (std::size_t i = 0; i < kDrops.size(); ++i) {

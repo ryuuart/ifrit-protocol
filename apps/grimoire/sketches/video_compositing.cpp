@@ -32,9 +32,9 @@
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/video/Video.h>
 #include <sigilmotion/time/Duration.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
@@ -130,7 +130,7 @@ struct VideoCompositing {
         {kDaySky, kNightSky, kDust, kColorBurst, kAlphaVideo}, why);
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide presentation(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx, {.size = SkSize::Make(kWidth, kHeight),

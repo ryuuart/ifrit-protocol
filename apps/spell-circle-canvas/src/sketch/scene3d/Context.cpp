@@ -1,7 +1,7 @@
 /** @file
- * What a set's context hands it beyond its declarations: a compose scene
- * kept as a texture for a body to wear as its own light, and a page the
- * set lights.
+ * What a scene3d sketch's context hands it beyond its declarations: a compose
+ * scene kept as a texture for a body to wear as its own light, and a page the
+ * scene lights.
  */
 
 #include <sigilcompose/texture/SurfaceScene.h>
@@ -9,7 +9,7 @@
 #include <sigilgeometry/device/Device.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/core/Device.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 
 #include <string>
 #include <utility>
@@ -18,9 +18,9 @@ namespace sigil::sketch {
 
 namespace {
 
-/** A LIVE SET'S 2D SCENES ARE PAINTED ON THE DEVICE THE SET IS DRAWN ON.
- *  There the material programs a page or a screen paints with run on the
- *  device, and the body that wears the result samples the very texture
+/** A LIVE SCENE3D SKETCH'S 2D SCENES ARE PAINTED ON THE DEVICE THE SKETCH IS
+ *  DRAWN ON. There the material programs a page or a screen paints with run on
+ *  the device, and the body that wears the result samples the very texture
  *  they painted, with no upload between. On the CPU every one of those
  *  programs is interpreted pixel by pixel, once per map, which for a page
  *  of material is seconds a frame.
@@ -38,7 +38,7 @@ void standOnTheDevice(Scene& scene, bool deterministic) {
 
 }  // namespace
 
-std::shared_ptr<compose::TextureScene> SetContext::textureScene(
+std::shared_ptr<compose::TextureScene> Scene3DContext::textureScene(
     SkISize size, sigil::material::Color background) {
   std::shared_ptr<compose::TextureScene> scene =
       compose::TextureScene::make(size, fonts, background);
@@ -55,7 +55,7 @@ std::shared_ptr<compose::TextureScene> SetContext::textureScene(
   return scene;
 }
 
-Page SetContext::page(glm::ivec2 size) {
+Page Scene3DContext::page(glm::ivec2 size) {
   // A page painted as maps takes no pixel bake, so a capture that will be
   // diffed has no promotion decision to pin. Kept by the session, as a
   // texture scene is.

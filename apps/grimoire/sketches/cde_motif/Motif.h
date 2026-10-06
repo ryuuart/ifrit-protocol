@@ -24,10 +24,10 @@
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Painted.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Scrollbar.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/paragraph/RichText.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Face.h>

@@ -134,8 +134,8 @@
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/schedule/Stagger.h>
 #include <sigilmotion/values/Time.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/query/Selector.h>
 #include <sigilweave/style/Type.h>
@@ -669,7 +669,7 @@ struct KaraokeWipe {
         });
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(kWidth, kHeight);
     ctx.background(kRoom);
     if (!ctx.fonts) return;
@@ -711,7 +711,7 @@ struct KaraokeWipe {
    *  drawn from — not from a second copy of the cascade's arithmetic that
    *  a nested beat or a recut table would silently invalidate. Both marks
    *  stand on the first letter, so every distance is taken from its edge. */
-  void update(double, sketch::SketchContext& ctx) {
+  void update(double, sketch::Scene2DContext& ctx) {
     const std::vector<Beat> beats = ctx.composer.beatsOf("sung", 0);
     if (beats.empty()) return;  // nothing laid out yet
     const float origin = beats.front().rect.left();

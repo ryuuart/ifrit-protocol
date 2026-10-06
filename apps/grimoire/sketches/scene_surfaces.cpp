@@ -56,7 +56,7 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/kit/Page.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilweave/style/Type.h>
 #include <sigilworld/World.h>
 
@@ -295,7 +295,7 @@ struct SceneSurfaces {
    *  it per frame would be work the description already did. */
   gm::Mesh rail;
 
-  void setup(sketch::SetContext& ctx) {
+  void setup(sketch::Scene3DContext& ctx) {
     sketch::kit::stage(
         ctx, {.size = {960, 620},
               .captureAt = 1.35,
@@ -320,7 +320,7 @@ struct SceneSurfaces {
         dial(seconds, accents[2])};
 
     // The console faces the turntable's FIRST STATION, which stands on
-    // the +x axis: a set whose subject is a screen has to be built
+    // the +x axis: a scene3d sketch whose subject is a screen has to be built
     // toward where the camera starts, or the plate is a picture of its
     // edge.
     const world::Group console =
@@ -410,7 +410,7 @@ struct SceneSurfaces {
 
 }  // namespace
 
-SIGIL_SKETCH(SceneSurfaces, "Set",
+SIGIL_SKETCH(SceneSurfaces, "Scene3D",
              "One kind of 2D scene on three surfaces — flat cards, "
              "a curved band and a tiled ribbon, each an ordinary texture in "
              "a base-colour slot")

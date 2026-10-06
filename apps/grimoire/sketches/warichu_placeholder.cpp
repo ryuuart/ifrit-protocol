@@ -13,8 +13,8 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/layout/Beside.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/paragraph/RichText.h>
@@ -40,7 +40,7 @@ struct Note {
   std::u8string words, first, second;
   float oneLine = 0;
 
-  void measure(sketch::SketchContext& ctx, std::u8string copy,
+  void measure(sketch::Scene2DContext& ctx, std::u8string copy,
                weave::Type voice, bool vertical = false) {
     words = std::move(copy);
     type = std::move(voice);
@@ -99,7 +99,7 @@ Element horizontal(const Note& note, bool balanced) {
 struct WarichuPlaceholder {
   Note latin, japanese;
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide look(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx, {.size = {1100, 825}, .captureAt = 0.05});

@@ -41,7 +41,7 @@ struct LootGrid {
   /** The counter ticks, so the tree re-renders — but only on the frames
    *  where the integer actually changed. That is the reconciler's job and
    *  this is the cheapest honest way to exercise it. */
-  void update(double, sketch::SketchContext& ctx) {
+  void update(double, sketch::Scene2DContext& ctx) {
     Composer& composer = ctx.composer;
     if (gold != shownGold) {
       shownGold = gold;
@@ -62,7 +62,7 @@ struct LootGrid {
    *  the rest of the sheet is set in is never reached. */
   sigil::weave::Face displayFace;
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 5.1,
                              .background = sigil::material::Color{0, 0, 0, 1}});

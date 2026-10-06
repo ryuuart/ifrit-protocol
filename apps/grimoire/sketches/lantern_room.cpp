@@ -31,7 +31,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/kit/Page.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilworld/World.h>
 
 #include <array>
@@ -112,7 +112,7 @@ material::Material glow(glm::vec4 color) {
 namespace {
 
 struct LanternRoom {
-  void setup(sketch::SetContext& ctx) {
+  void setup(sketch::Scene3DContext& ctx) {
     sketch::kit::stage(
         ctx, {.size = {900, 600},
               .captureAt = 1.6,
@@ -210,7 +210,7 @@ struct LanternRoom {
 
 }  // namespace
 
-SIGIL_SKETCH(LanternRoom, "Set",
+SIGIL_SKETCH(LanternRoom, "Scene3D",
              "The three kinds of light in one dark room — four coloured "
              "lanterns that are their own light and carry a lamp each, a "
              "spot from above, and a directional light faint enough to be "

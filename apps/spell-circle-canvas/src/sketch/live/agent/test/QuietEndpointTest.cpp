@@ -7,11 +7,11 @@
 
 #include <gtest/gtest.h>
 #include <sigilcompose/core/Core.h>
-#include <sigilio/hub/Hub.h>
 #include <sigilio/advanced/Time.h>
+#include <sigilio/hub/Hub.h>
 #include <sigilprotocol/endpoint/Endpoint.h>
 #include <sigilprotocol/registry/RegistryAgent.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilsketch/testing/InProcessHost.h>
 
 #include <filesystem>
@@ -30,11 +30,11 @@ using sigil::test::ScratchDir;
 
 /** A box sliding across the canvas, so every frame is another picture. */
 struct QuietBox {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(48, 32);
     ctx.background({0, 0, 0, 1});
   }
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     using namespace sigil::compose;
     ctx.composer.render(box()
                             .width(6)

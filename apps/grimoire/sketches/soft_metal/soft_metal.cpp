@@ -14,7 +14,7 @@
 #include <sigilmaterial/program/Shader.h>
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <cmath>
@@ -35,7 +35,7 @@ struct SoftMetal {
   motion::Animatable<float> upper = motion::animatable(-306.0f);
   motion::Animatable<float> lower = motion::animatable(306.0f);
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(1440, 612);
     ctx.background({0.014f, 0.018f, 0.023f, 1});
     ctx.captureAt(4.0);
@@ -129,7 +129,7 @@ struct SoftMetal {
     return positioned().width(1440).height(612).children(std::move(frame));
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     const float cycle = std::fmod(float(elapsed), 12.0f);
     const float progress = std::clamp(cycle / 1.8f, 0.0f, 1.0f);
     const float eased = 1.0f - std::pow(1.0f - progress, 4.0f);

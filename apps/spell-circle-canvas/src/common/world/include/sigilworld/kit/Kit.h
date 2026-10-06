@@ -27,7 +27,7 @@
 #include <vector>
 
 /** STOCK ARRANGEMENTS OVER THE NODE KINDS: values that compose the same
- *  verbs an author would write, so a set is described in one call
+ *  verbs an author would write, so a scene is described in one call
  *  instead of a dozen. Reach for it for a lighting rig or another
  *  well-worn arrangement. Nothing here decides anything the node kinds
  *  do not already say. */
@@ -63,7 +63,7 @@ struct Rig {
   material::Color backColor = material::Color{1, 1, 1, 1};
   /** Past zero, an ambient light of this strength and colour joins the
    *  rig, keyed `ambient`: light arriving equally from everywhere, which
-   *  is what keeps a shadow from being black in a set with no
+   *  is what keeps a shadow from being black in a scene with no
    *  environment. Zero adds none. */
   float ambientIntensity = 0.0f;
   material::Color ambientColor = material::Color{1, 1, 1, 1};

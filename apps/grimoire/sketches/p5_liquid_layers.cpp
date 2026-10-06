@@ -20,7 +20,7 @@
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/Texture.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <array>
 #include <cmath>
@@ -73,7 +73,7 @@ brush::Tool liquidNib(material::Color colour, float width) {
 struct P5LiquidLayers {
   const material::Material ground = graphPaper();
 
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     context.canvas(720, 560);
     context.background({4 / 255.0f, 9 / 255.0f, 18 / 255.0f, 1});
     context.captureAt(0.05);  // the painting is a direct function of the clock

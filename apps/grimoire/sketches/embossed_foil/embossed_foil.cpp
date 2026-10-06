@@ -18,7 +18,7 @@
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/paint/Bases.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <array>
@@ -424,7 +424,7 @@ struct EmbossedFoil {
                      40, 879, 1360, 164)});
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(1440, 1040);
     ctx.oversample(1);
     ctx.background(kDark);
@@ -433,7 +433,7 @@ struct EmbossedFoil {
     ctx.composer.render(describe(phaseIndex));
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     const double seconds =
         std::isfinite(elapsed) ? std::max(0.0, elapsed) : 0.0;
     const int next =

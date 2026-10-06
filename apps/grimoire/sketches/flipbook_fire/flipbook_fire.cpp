@@ -17,7 +17,7 @@
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilmedia/advanced/Skia.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilworld/World.h>
 
 #include <algorithm>
@@ -333,7 +333,7 @@ struct FlipbookFire {
   material::Material embers{material::Color{0, 0, 0, 1}};
   material::Material sparks{material::Color{0, 0, 0, 1}};
 
-  void setup(sketch::SetContext& ctx) {
+  void setup(sketch::Scene3DContext& ctx) {
     ctx.canvas(960, 600);
     ctx.captureAt(0.6);
     ctx.background(material::Color{0.012f, 0.012f, 0.016f, 1});

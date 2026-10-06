@@ -62,9 +62,9 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Scrollbar.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <array>
@@ -411,7 +411,7 @@ struct TwoAdvancedEquipment {
                                  .transformOrigin(pct(0), pct(0))});
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     using namespace teq;
     // The plate at exactly 2x. One page pixel is two canvas px and four
     // device px, so the 10 px Verdana and every GIF edge land whole.

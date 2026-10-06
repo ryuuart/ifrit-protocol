@@ -1,5 +1,6 @@
-"""Everything a canvas sketch is handed: the canvas it declares, the files
-beside it, the set it bakes, the art it requires and the publication it wears.
+"""Everything a scene2d sketch is handed: the canvas it declares, the files
+beside it, the scene3d sketch it bakes, the art it requires and the
+publication it wears.
 """
 
 import builtins
@@ -139,8 +140,10 @@ class HostContextSurface(unittest.TestCase):
         self.assertEqual(uri, f"sketch://{key}/beside.txt")
         self.assertEqual(text, "a file beside the sketch")
 
-    def test_a_set_baked_with_no_device_is_none_and_bad_requests_are_refused(self):
-        # A set is drawn on a device and nowhere else, and this process
+    def test_a_scene3d_frame_baked_with_no_device_is_none_and_bad_requests_are_refused(
+        self,
+    ):
+        # A scene3d sketch is drawn on a device and nowhere else, and this process
         # brings none up: a bake answers None rather than a picture no
         # device drew, and a request that could never be drawn is refused
         # before that.
@@ -169,25 +172,25 @@ class HostContextSurface(unittest.TestCase):
                         )
                     )
                     frame = world.Frame(body)
-                    still = ctx.bakeSet(
+                    still = ctx.bakeScene3D(
                         frame, (64, 64), camera=lens, background="#101820"
                     )
-                    later = ctx.bakeSet(
+                    later = ctx.bakeScene3D(
                         frame=frame,
                         size=(64, 64),
                         camera=lens,
                         background="#101820",
                         at=0.5,
                     )
-                    wider = ctx.bakeSet(frame, (48, 32), camera=lens)
+                    wider = ctx.bakeScene3D(frame, (48, 32), camera=lens)
                     refusals = []
                     for bad in ((0, 8), (8, -1)):
                         try:
-                            ctx.bakeSet(frame, bad, camera=lens)
+                            ctx.bakeScene3D(frame, bad, camera=lens)
                         except ValueError as error:
                             refusals.append(str(error))
                     try:
-                        ctx.bakeSet(frame, (8, 8), camera=lens, at=-1)
+                        ctx.bakeScene3D(frame, (8, 8), camera=lens, at=-1)
                     except ValueError as error:
                         refusals.append(str(error))
                     builtins._sigil_host_context = (still, later, wider, refusals)

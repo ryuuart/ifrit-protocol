@@ -15,8 +15,8 @@
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <array>
 #include <cmath>
@@ -215,7 +215,7 @@ struct EvaMagiInterior {
                true)});
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     fonts = ctx.fonts;
     sketch::kit::stage(ctx, {.size = {kWidth, kHeight},
                              .captureAt = 9,
@@ -248,7 +248,7 @@ struct EvaMagiInterior {
     ctx.composer.renderSlot("timers", timers(second));
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     turn = static_cast<float>(std::fmod(elapsed * 0.006, 1.0));
     const int now = static_cast<int>(elapsed) % 223238;
     if (now == second) return;

@@ -7,8 +7,8 @@
 #include <include/core/SkShader.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <string>
 
@@ -36,8 +36,10 @@ using sigil::sketch::test::fonts;
  *  theme's two faces, which are the sheet's to state. */
 sigil::weave::TextStyle cardLine(const kit::Register& line,
                                  sigil::material::Color ink) {
-  return sigil::weave::textStyle(
-      {.face = line.face, .size = line.size, .color = ink, .track = line.track});
+  return sigil::weave::textStyle({.face = line.face,
+                                  .size = line.size,
+                                  .color = ink,
+                                  .track = line.track});
 }
 
 /** The card is the header half of a page, standing alone: three lines in
@@ -165,24 +167,24 @@ TEST(SketchKitHeading, AFamilyTheSheetSetsReachesTheCardsLines) {
     return compose::box().fontFamily("Georgia").children({std::move(tree)});
   };
   const auto title = [&](int weight) {
-    return underGeorgia(compose::box()
-                            .column()
-                            .alignItems(compose::Align::Start)
-                            .children({compose::text(u8"T")
-                                           .font({.size = feature.type.title.size,
-                                                  .color = feature.palette.ink,
-                                                  .track = feature.type.title.track})
-                                           .fontWeight(weight)}));
+    return underGeorgia(
+        compose::box()
+            .column()
+            .alignItems(compose::Align::Start)
+            .children({compose::text(u8"T")
+                           .font({.size = feature.type.title.size,
+                                  .color = feature.palette.ink,
+                                  .track = feature.type.title.track})
+                           .fontWeight(weight)}));
   };
   const Element card = kit::titleCard({.title = {u8"T"}});
   EXPECT_TRUE(sameDrawing(underGeorgia(card), title(400)));
-  EXPECT_TRUE(sameDrawing(
-      compose::box()
-          .applyStyleSheet(
-              compose::StyleSheet{compose::rule("h1").fontWeight(700)})
-          .fontFamily("Georgia")
-          .children({card}),
-      title(700)));
+  EXPECT_TRUE(sameDrawing(compose::box()
+                              .applyStyleSheet(compose::StyleSheet{
+                                  compose::rule("h1").fontWeight(700)})
+                              .fontFamily("Georgia")
+                              .children({card}),
+                          title(700)));
   // What gives the case its power: the card with no family above it is
   // another picture, so Georgia is what reached the title.
   EXPECT_FALSE(sameDrawing(card, underGeorgia(card)));
@@ -237,10 +239,12 @@ TEST(SketchKitHeading, DocumentRulesStyleAPreviouslyConstructedCard) {
 }
 
 TEST(SketchKitHeading, AnAuthoredShaderKeepsDocumentTypography) {
-  const Element card = kit::titleCard(
-      {.title = {.words = "AAAA",
-                 .ink = Fill{sigil::material::skia::base(sigil::material::skia::paint(SkShaders::Color(SK_ColorGREEN)))}},
-       .key = "card"});
+  const Element card =
+      kit::titleCard({.title = {.words = "AAAA",
+                                .ink = Fill{sigil::material::skia::base(
+                                    sigil::material::skia::paint(
+                                        SkShaders::Color(SK_ColorGREEN)))}},
+                      .key = "card"});
   Drawn original(compose::box().children({card}));
   Drawn styled(
       compose::box()

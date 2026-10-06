@@ -10,8 +10,8 @@
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmeasure/advanced/Laps.h>
 #include <sigilmotion/clock/Engine.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/Crash.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/paint/Paint.h>
 
 #include <array>
@@ -43,7 +43,7 @@ geometry::mesh::render::Runtime& processPainter() {
  *  shaded through a resolver the paint feature holds and does not supply,
  *  because that feature links no renderer; with none installed the pass
  *  draws its plain paint, which reads as a bug in the sketch rather than
- *  as a seam nobody closed. The canvas runtime closes it with
+ *  as a seam nobody closed. The scene2d runtime closes it with
  *  SigilMaterial's Skia backend, over the bounds of what the pass covers.
  *
  *  It is a DEFAULT and never an override: a host that shades somewhere
@@ -99,12 +99,12 @@ class PainterScope {
  *  bindings, transitions and volatile leaves coherently. Everything a
  *  frame costs is measured around the two halves that answer different
  *  questions: what the BODY did, and what the runtime did with it. */
-class CanvasSession final : public Session {
+class Scene2DSession final : public Session {
  public:
-  CanvasSession(std::unique_ptr<CanvasBody> sketch, weave::FontContext& fonts,
-                Assets& assets, bool deterministic,
-                const geometry::mesh::render::Runtime& painter,
-                std::string_view key = {})
+  Scene2DSession(std::unique_ptr<Scene2DBody> sketch, weave::FontContext& fonts,
+                 Assets& assets, bool deterministic,
+                 const geometry::mesh::render::Runtime& painter,
+                 std::string_view key = {})
       : m_fonts(fonts),
         m_assets(assets),
         m_sketch(std::move(sketch)),
@@ -141,12 +141,12 @@ class CanvasSession final : public Session {
     // inside setup. The second call is a no-op when they agree.
     m_composer->setSize(
         glm::vec2{m_specification.size.width(), m_specification.size.height()});
-    SketchContext ctx = context();
+    Scene2DContext ctx = context();
     m_sketch->setup(ctx);
     applySize();
   }
 
-  ~CanvasSession() override {
+  ~Scene2DSession() override {
     // Retained descriptions and running motions may point into
     // sketch-owned state, so the composer goes before its author.
     m_composer.reset();
@@ -182,7 +182,7 @@ class CanvasSession final : public Session {
     // The body declares everything again, its texture scenes included,
     // so the ones it asked for last time are let go before it asks.
     m_scenes.clear();
-    SketchContext ctx = context();
+    Scene2DContext ctx = context();
     m_sketch->setup(ctx);
     applySize();
   }
@@ -333,7 +333,7 @@ class CanvasSession final : public Session {
     const double seconds = m_engine.elapsed().count();
     io::advance(m_assets.hub(), std::chrono::duration<double>(seconds));
     {
-      SketchContext ctx = context();
+      Scene2DContext ctx = context();
       m_sketch->update(seconds, ctx);
     }
     applySize();  // a sketch may resize itself mid-run, p5 style
@@ -372,12 +372,12 @@ class CanvasSession final : public Session {
     m_applied = m_specification.size;
   }
 
-  SketchContext context() {
-    // A prvalue: SketchContext is non-copyable, so guaranteed elision is
+  Scene2DContext context() {
+    // A prvalue: Scene2DContext is non-copyable, so guaranteed elision is
     // the only way it travels.
-    return SketchContext{*m_composer,          m_engine,         m_assets,
-                         m_specification.size, &m_specification, &m_fonts,
-                         m_deterministic,      &m_scenes,        m_key};
+    return Scene2DContext{*m_composer,          m_engine,         m_assets,
+                          m_specification.size, &m_specification, &m_fonts,
+                          m_deterministic,      &m_scenes,        m_key};
   }
 
   weave::FontContext& m_fonts;
@@ -390,7 +390,7 @@ class CanvasSession final : public Session {
    *  and a texture a retained tree holds are still standing when their
    *  owners go. */
   std::vector<std::shared_ptr<compose::TextureScene>> m_scenes;
-  std::unique_ptr<CanvasBody> m_sketch;
+  std::unique_ptr<Scene2DBody> m_sketch;
   // After the sketch: reverse destruction releases retained descriptions
   // (which may point at sketch-owned Outputs) before their owner.
   std::unique_ptr<compose::Composer> m_composer;
@@ -407,26 +407,26 @@ class CanvasSession final : public Session {
 
 }  // namespace
 
-std::unique_ptr<Session> CanvasKind::open(weave::FontContext& fonts,
-                                          Assets& assets, bool deterministic,
-                                          std::string_view key) const {
-  return std::make_unique<CanvasSession>(
-      std::unique_ptr<CanvasBody>(m_factory()), fonts, assets, deterministic,
+std::unique_ptr<Session> Scene2DKind::open(weave::FontContext& fonts,
+                                           Assets& assets, bool deterministic,
+                                           std::string_view key) const {
+  return std::make_unique<Scene2DSession>(
+      std::unique_ptr<Scene2DBody>(m_factory()), fonts, assets, deterministic,
       m_painter ? *m_painter : painterRuntime(), key);
 }
 
-std::unique_ptr<Session> openCanvas(std::unique_ptr<CanvasBody> body,
-                                    weave::FontContext& fonts, Assets& assets,
-                                    bool deterministic, std::string_view key) {
-  return std::make_unique<CanvasSession>(std::move(body), fonts, assets,
-                                         deterministic, painterRuntime(), key);
+std::unique_ptr<Session> openScene2D(std::unique_ptr<Scene2DBody> body,
+                                     weave::FontContext& fonts, Assets& assets,
+                                     bool deterministic, std::string_view key) {
+  return std::make_unique<Scene2DSession>(std::move(body), fonts, assets,
+                                          deterministic, painterRuntime(), key);
 }
 
 Kind onPainterRuntime(const Kind& kind,
                       const geometry::mesh::render::Runtime& painter) {
   // The painter is a 2D kind's own vocabulary, so only a 2D kind answers
   // to it and everything else comes back as it went in.
-  if (const auto* canvas = dynamic_cast<const CanvasKind*>(kind.get()))
+  if (const auto* canvas = dynamic_cast<const Scene2DKind*>(kind.get()))
     return canvas->on(painter);
   return kind;
 }

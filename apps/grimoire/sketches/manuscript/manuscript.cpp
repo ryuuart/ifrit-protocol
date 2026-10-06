@@ -11,7 +11,7 @@
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmedia/advanced/Resource.h>
 #include <sigilmedia/core/Image.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <string>
@@ -41,7 +41,7 @@ struct Manuscript {
   Element pageFrame;
   material::Material coverage = material::Color{0, 0, 0, 0};
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(1000, 1430);
     ctx.background(material::hexColor(0x151916));
     ctx.captureAt(3.0);
@@ -83,7 +83,7 @@ struct Manuscript {
                  45, 34, 910, 1288)});
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     leafScene->render(leafField, elapsed);
     ctx.composer.render(describe());
   }

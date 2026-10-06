@@ -40,8 +40,8 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/ease/Ease.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/query/Selector.h>
@@ -107,7 +107,7 @@ constexpr const char8_t* kPassage =
 }  // namespace margin
 
 struct AnnotatedMargin {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     // MID-CASCADE. The playhead is the point of the lower strip, and a
     // meter photographed after its schedule has closed is nine full bars
     // saying nothing; this falls a little past half way through the roll.
@@ -123,11 +123,11 @@ struct AnnotatedMargin {
     ctx.composer.render(describe(ctx));
   }
 
-  void update(double, sketch::SketchContext& ctx) {
+  void update(double, sketch::Scene2DContext& ctx) {
     ctx.composer.render(describe(ctx));
   }
 
-  Element describe(sketch::SketchContext& ctx) {
+  Element describe(sketch::Scene2DContext& ctx) {
     namespace m = margin;
     const Composer& composer = ctx.composer;
 

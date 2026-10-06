@@ -1,7 +1,7 @@
 /** @file
- * compute_variant — the three pass verbs a set has that draw nothing by
- * themselves: cooking points, re-drawing a selection, and asking for a
- * resource back.
+ * compute_variant — the three pass verbs a scene3d sketch has that draw
+ * nothing by themselves: cooking points, re-drawing a selection, and asking for
+ * a resource back.
  *
  * `computePass(name).chain(chain, runtime)` COOKS POINTS and writes no
  * pixels. What it cooks lands in the resource it writes, and a geometry
@@ -23,8 +23,8 @@
  * memory costs a wait. The tell-tale posts along the front
  * edge are that answer made visible: one post per hundred points the
  * readback counted, so a frame in which nothing came back has none. The
- * count and the frame number are printed to stderr as well, because a set
- * has no text of its own.
+ * count and the frame number are printed to stderr as well, because a scene3d
+ * sketch has no text of its own.
  *
  * The passes execute on `diligent::runtime`, with the chain cooked by the
  * device's own point executor.
@@ -44,7 +44,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/kit/Page.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilworld/World.h>
 
 #include <cmath>
@@ -116,7 +116,7 @@ struct ComputeVariant {
    *  it stands the posts the count asks for. */
   int cookedPoints = 0;
 
-  void setup(sketch::SetContext& ctx) {
+  void setup(sketch::Scene3DContext& ctx) {
     sketch::kit::stage(
         ctx, {.size = {880, 560},
               .captureAt = 1.4,

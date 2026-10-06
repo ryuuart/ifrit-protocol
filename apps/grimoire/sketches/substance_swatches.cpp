@@ -32,8 +32,8 @@
 #include <sigilmaterial/substance/Substance.h>
 #include <sigilmaterial/substance/advanced/Archive.h>
 #include <sigilmedia/core/PixelSource.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <cstdio>
 #include <filesystem>
@@ -148,7 +148,7 @@ struct SubstanceSwatchesSketch {
 
   /** A PIECE THIS MACHINE CANNOT SHOW: the plate is the reason, on a
    *  canvas sized for one notice rather than for cards that never came. */
-  void refuse(sketch::SketchContext& ctx, Utf8 heading, Utf8 detail) {
+  void refuse(sketch::Scene2DContext& ctx, Utf8 heading, Utf8 detail) {
     ctx.canvas(940, 320);
     ctx.composer.render(
         stack()
@@ -156,7 +156,7 @@ struct SubstanceSwatchesSketch {
             .children({notice(std::move(heading), std::move(detail))}));
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.background(sketch::kit::featureTheme().palette.ground);
     ctx.captureAt(0.5);
 

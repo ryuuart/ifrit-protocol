@@ -9,9 +9,9 @@
 #include <gtest/gtest.h>
 #include <mach-o/dyld.h>
 #include <sigilcompose/core/Core.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/plate/Sweep.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilsketch/testing/Harness.h>
 
 #include <array>
@@ -31,12 +31,12 @@ using sketch::testing::Harness;
 /** A box marching right a canvas unit every sixtieth of a second, with a
  *  moment declared, so a still at any other time is another picture. */
 struct HarnessMarchingBox {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(64, 48);
     ctx.background({0.1f, 0.1f, 0.2f, 1});
     ctx.captureAt(0.5);
   }
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     using namespace sigil::compose;
     ctx.composer.render(box()
                             .width(10)

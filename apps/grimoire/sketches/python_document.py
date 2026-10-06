@@ -5,7 +5,7 @@ TAGS: Typography/Documents, Typography/Styles, Runtime/Python
 
 from sigil.compose import Element, StyleSheet, row, rule
 from sigil.compose import document as doc
-from sigil.sketch import SketchContext, kit, sketch
+from sigil.sketch import Scene2DContext, kit, sketch
 from sigil.skia import Typeface
 from sigil.weave import Leading, ParagraphBlock, Type
 
@@ -63,7 +63,7 @@ def voice(
 
 @sketch(size=(1100, 800), capture_at=0.05)
 class DocumentStudy:
-    def setup(self, ctx: SketchContext) -> None:
+    def setup(self, ctx: Scene2DContext) -> None:
         look = kit.feature_theme(kit.Density.Spacious)
         with kit.provide(look):
             kit.stage(ctx, size=(1100, 800), capture_at=0.05)

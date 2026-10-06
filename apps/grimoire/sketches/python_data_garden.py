@@ -10,7 +10,7 @@ from sigil.compose import box, column, graphics, row, text
 from sigil.compose import document as doc
 from sigil.data import Order, Scale, Transform, decodeCsv
 from sigil.draw import CENTER, LEFT, RIGHT
-from sigil.sketch import SketchContext, kit, sketch
+from sigil.sketch import Scene2DContext, kit, sketch
 
 CSV = """species,light,height,water,room
 Maidenhair,36,24,84,A
@@ -31,7 +31,7 @@ ROOMS = {"A": "#6c9981", "B": "#c59e68", "C": "#ab7868"}
 
 @sketch(size=(1000, 780), capture_at=0)
 class DataGarden:
-    def setup(self, ctx: SketchContext) -> None:
+    def setup(self, ctx: Scene2DContext) -> None:
         self.table = decodeCsv(CSV)
         self.ranking = self.table.sort("height", Order.Descending)
         self.light = Scale(domain=(20, 100), range=(52, 530))

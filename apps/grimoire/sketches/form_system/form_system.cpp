@@ -12,7 +12,7 @@
 #include <sigilgeometry/path/Transform.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <array>
@@ -113,7 +113,7 @@ struct FormSystem {
   std::array<motion::Animatable<float>, 6> separation;
   motion::Animatable<float> registration = motion::animatable(0.0f);
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(1000, 1480);
     ctx.background(paper);
     ctx.captureAt(3.4);

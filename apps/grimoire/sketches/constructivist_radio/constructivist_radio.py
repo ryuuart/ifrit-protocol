@@ -13,7 +13,7 @@ from sigil.compose import Cache, PaintBox, box, text
 from sigil.compose import pen as canvas
 from sigil.draw import CLOSE, DEGREES
 from sigil.material import Color, shader
-from sigil.sketch import SketchContext, sketch
+from sigil.sketch import Scene2DContext, sketch
 from sigil.weave import FrameOptions, Type
 
 SIZE = (900, 1260)
@@ -395,7 +395,7 @@ def words(
 
 @sketch(size=SIZE, background=PAPER, capture_at=4)
 class ConstructivistRadio:
-    def setup(self, ctx: SketchContext):
+    def setup(self, ctx: Scene2DContext):
         letters = [
             words("РАДИО", 37, 142, 850, 182, BLACK, -11.4, -8, 0.95),
             words(

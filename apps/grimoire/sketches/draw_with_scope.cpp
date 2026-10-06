@@ -25,8 +25,8 @@
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <cmath>
 #include <map>
@@ -164,7 +164,7 @@ sketch::kit::ComparisonCase cell(const char* title, const char* call,
 }  // namespace
 
 struct DrawWithScope {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide presentation(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});

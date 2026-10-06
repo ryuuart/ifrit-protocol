@@ -8,7 +8,7 @@ instructions belong to `apps/python/sigil`.
 ## Layout
 
 ONE DIRECTORY PER SUBJECT GROUP, ONE FILE PER SUBJECT. `host/` is what a
-sketch is handed — the context, the sets and what a Python entry declares
+sketch is handed — the context, the scene3d sketches and what a Python entry declares
 — and `kit/` the specimen values it dresses with. Each directory carries
 one registration header naming every bind function the files beside it
 define, and one source file per subject, all of them named in the CMake
@@ -23,8 +23,8 @@ the installed extension use that assembly.
 
 * `host/Registration.h` — `bindRuntime`, `bindSketchCatalog`,
   `bindSketchContextSurface`, `bindSketchDeviceRuntimes`, `bindSketchEntries`,
-  `bindSketchPlates`, `bindSketchSchema`, `bindSketchSetSketches`,
-  `bindSketchWorldSet`
+  `bindSketchPlates`, `bindSketchSchema`, `bindSketchScene3DSketches`,
+  `bindSketchWorldScene3D`
 * `kit/Registration.h` — `bindSketchKit`, `bindSketchKitCharts`,
   `bindSketchKitContent`, `bindSketchKitControls`, `bindSketchKitLegends`,
   `bindSketchKitPanels`,

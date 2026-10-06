@@ -35,7 +35,7 @@ the host tier a window stands on link no protocol:
 `sigil::motion::ClockPolicy` a host opens its sessions for, and under any
 policy but the wall's a session is a repeatable run: what the sketch
 measured about its own execution is pinned and the runtime's own
-re-baking is held off. `SketchContext::deterministic` is the one reading
+re-baking is held off. `Scene2DContext::deterministic` is the one reading
 a sketch gets of it — the clock is not the wall's — and it never learns
 which client drives it. The agent opens a session for the policy that
 stands, draws no frame before a client's first step unless the clock is
@@ -68,7 +68,7 @@ describes again, so a client that means to hold a session to a plate
 pins its density before opening it — `session.pinDensity`, zero for
 `sigil::sketch::plateDensity`, the density the sweep photographs at —
 and a still at that density is the sweep's plate of the same moment. A
-canvas re-renders its still one frame on, which `Session::stillStep`
+scene2d sketch re-renders its still one frame on, which `Session::stillStep`
 says and the clock counts. Under a held clock — the Pause policy or a
 person's pause — a still is the host's own, `Host::still`: the frame the
 clock holds as it was last drawn, with nothing new drawn, so two stills
@@ -82,7 +82,7 @@ for the wall's clock and the runtime's own promotion and density.
 
 Two commands are answered with a refusal that names why, and are the
 ones this agent leaves open: `session.measured`, because a value a sketch
-passes through `SketchContext::measured` carries no name to answer it
+passes through `Scene2DContext::measured` carries no name to answer it
 by; and `session.pinDevice` for the GPU, because the agent takes its
 stills on the CPU alone.
 

@@ -1,4 +1,4 @@
-"""Sketch declarations and file rendering through the native canvas session."""
+"""Sketch declarations and file rendering through the native scene2d session."""
 
 import sys as _sys
 from functools import wraps as _wraps
@@ -10,7 +10,7 @@ from _sigil import render_file as _native_render_file
 
 
 def render_file(source, output, *, at=None):
-    """Render a sketch file to PNG using the native headless canvas session."""
+    """Render a sketch file to PNG using the native headless scene2d session."""
     return _native_render_file(_fspath(source), _fspath(output), at=at)
 
 
@@ -24,7 +24,7 @@ def _number(value, name, *, positive=False):
 
 
 def sketch(*, size=(960, 640), background="#121720", capture_at=1.0):
-    """Declare a canvas sketch with optional setup, update and draw methods.
+    """Declare a scene2d sketch with optional setup, update and draw methods.
 
     ``setup(self, ctx)`` initializes state and may render a native element.
     ``update(self, elapsed, ctx)`` runs on the session clock when present.

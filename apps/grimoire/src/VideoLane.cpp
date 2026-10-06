@@ -20,17 +20,18 @@ int runVideo(const Arguments& args, int chosen,
   options.only = chosen;
   options.kind = args.kind;
   options.title = "SIGIL GRIMOIRE";
-  // `--gpu` FIRST, exactly as the sweep tests it: a montage of a set
-  // needs the device its materials run in, and a run that did not ask
+  // `--gpu` FIRST, exactly as the sweep tests it: a montage of a scene3d
+  // sketch needs the device its materials run in, and a run that did not ask
   // for one must not bring it up as a side effect of the test. A
-  // selection that holds a set and did not ask is REFUSED: a set is
-  // drawn on a device and nowhere else.
+  // selection that holds a scene3d sketch and did not ask is REFUSED: a
+  // scene3d sketch is drawn on a device and nowhere else.
   if (selectionNeedsDevice(chosen, args.kind)) {
     if (!args.gpu) {
-      std::fprintf(stderr,
-                   "--video: this selection holds a set, which is lit on "
-                   "the device; pass --gpu or narrow the selection with "
-                   "--kind\n");
+      std::fprintf(
+          stderr,
+          "--video: this selection holds a scene3d sketch, which is lit on "
+          "the device; pass --gpu or narrow the selection with "
+          "--kind\n");
       return 2;
     }
     if (!useDevice()) return 1;

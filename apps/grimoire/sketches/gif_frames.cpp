@@ -23,8 +23,8 @@
 #include <sigilmedia/core/Image.h>
 #include <sigilmedia/image/Decode.h>
 #include <sigilmotion/time/Duration.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
@@ -81,7 +81,7 @@ struct GifFrames {
     return sketch::requireCached({kSource}, why);
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // every frame is on the sheet; nothing moves
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});

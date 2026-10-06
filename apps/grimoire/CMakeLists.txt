@@ -2,7 +2,7 @@
 # catalogue of sketches: an application of the framework that consumes it
 # through its public targets and headers alone.
 #
-# The app lists every sketch, live-edits any of them, and draws a set
+# The app lists every sketch, live-edits any of them, and draws a scene3d
 # sketch through an orbitable viewport. `--headless` is the renderer
 # every plate-ledger tier drives. The browser's rows (SketchCatalog, a
 # QObject model over the registry and the files a run was pointed at)
@@ -222,7 +222,7 @@ if(TARGET SigilScry)
   target_compile_definitions(Grimoire PRIVATE SIGIL_GRIMOIRE_SCRY)
 endif()
 
-# The device lane for set sketches: a flag that asked for the device
+# The device lane for scene3d sketches: a flag that asked for the device
 # answers with the device or with nothing, never with a fallback. The
 # frame runtime is the world's; the mesh painter's device executor
 # stands beside its CPU twin in SigilGeometry, so both are named.
@@ -364,15 +364,15 @@ add_test(NAME sketch_reload_surface_video
     ${SIGIL_SKETCH_DIR}/video_compose.cpp
     --frame ${CMAKE_BINARY_DIR}/sketch_reload_surface_video.png)
 
-# …and the same guard for the other runtime: a set sketch names world
-# symbols no canvas sketch does, so a world archive missing from the list
-# above shows up here and nowhere else. A set is drawn on a device and
-# nowhere else, so the still is taken with `--gpu`.
-add_test(NAME sketch_reload_surface_set
+# …and the same guard for the other runtime: a scene3d sketch names world
+# symbols no scene2d sketch does, so a world archive missing from the list
+# above shows up here and nowhere else. A scene3d sketch is drawn on a
+# device and nowhere else, so the still is taken with `--gpu`.
+add_test(NAME sketch_reload_surface_scene3d
   COMMAND Grimoire
     ${SIGIL_SKETCH_DIR}/first_light.cpp
-    --frame ${CMAKE_BINARY_DIR}/sketch_reload_surface_set.png --gpu)
-set_tests_properties(sketch_reload_surface_set PROPERTIES
+    --frame ${CMAKE_BINARY_DIR}/sketch_reload_surface_scene3d.png --gpu)
+set_tests_properties(sketch_reload_surface_scene3d PROPERTIES
   LABELS gpu TIMEOUT 300)
 
 # …and for the archives only the HOST links. A device backend is not in

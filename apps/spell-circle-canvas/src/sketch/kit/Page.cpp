@@ -1,15 +1,15 @@
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/skia/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene2d/Scene2D.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 
 #include <utility>
 
 namespace sigil::sketch::kit {
 
-void stage(SketchContext& ctx, const Stage& surface) {
+void stage(Scene2DContext& ctx, const Stage& surface) {
   CanvasSpecification declared;
   declared.size = surface.size;
   declared.background = material::skia::toSkColor(
@@ -21,7 +21,7 @@ void stage(SketchContext& ctx, const Stage& surface) {
   ctx.canvas(declared);
 }
 
-void stage(SetContext& ctx, const Stage& surface) {
+void stage(Scene3DContext& ctx, const Stage& surface) {
   if (ctx.specification == nullptr) return;
   CanvasSpecification declared;
   declared.size = surface.size;

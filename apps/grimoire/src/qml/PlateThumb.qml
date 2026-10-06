@@ -14,7 +14,7 @@ Rectangle {
      *  yet — in which case one is asked for as the thumbnail comes on
      *  screen. */
     property url plate
-    /** "canvas" or "set" — which glyph stands in for a missing plate. */
+    /** "scene2d" or "scene3d" — which glyph stands in for a missing plate. */
     property string kind
     /** The catalog to ask for a render, and the sketch this thumbnail is
      *  of. A missing or stale thumbnail is requested as the row appears
@@ -79,7 +79,7 @@ Rectangle {
             context.lineWidth = Math.max(1, glyph.width * 0.06);
             const w = glyph.width;
             const h = glyph.height;
-            if (thumb.kind === "set") {
+            if (thumb.kind === "scene3d") {
                 // A box seen from a corner: the silhouette, then the
                 // three edges that meet at the near vertex — the least
                 // that reads as a solid rather than as a hexagon.

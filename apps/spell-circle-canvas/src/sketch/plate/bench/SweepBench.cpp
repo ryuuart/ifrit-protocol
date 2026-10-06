@@ -11,8 +11,8 @@
 
 #include <benchmark/benchmark.h>
 #include <sigilcompose/core/Factories.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/plate/Sweep.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -35,7 +35,7 @@ Assets& assets() {
 }
 
 struct Probe {
-  void setup(SketchContext& ctx) {
+  void setup(Scene2DContext& ctx) {
     ctx.canvas(64, 48);
     ctx.captureAt(0.1);  // six steps: the harness, not the scene
     ctx.composer.render(

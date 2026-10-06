@@ -20,9 +20,9 @@
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/time/Duration.h>
 #include <sigilmotion/values/Time.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <initializer_list>
@@ -308,7 +308,7 @@ struct KumikoAsanoha {
                    shopDrawing(doc, bank, seconds)});
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     // The still is taken mid-hold: the panel is complete and lit from the
     // lamp's beat onwards and the loop tears down at its period, so a
     // moment well clear of both cannot catch the plate half-built.

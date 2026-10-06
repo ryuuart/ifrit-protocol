@@ -1,5 +1,5 @@
 /** @file
- * set_stagger — the entrances of a set's children, cascaded, and the
+ * set_stagger — the entrances of a scene's children, cascaded, and the
  * collection that addresses a subtree afterwards.
  *
  * A stagger on the child's tween delays each entrance
@@ -43,7 +43,7 @@
 #include <sigilmotion/schedule/Stagger.h>
 #include <sigilmotion/values/Tween.h>
 #include <sigilsketch/kit/Page.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilworld/World.h>
 
 #include <chrono>
@@ -111,7 +111,7 @@ world::Group row(const std::string& key, float z, motion::StaggerFrom from,
 }  // namespace
 
 struct SetStagger {
-  void setup(sketch::SetContext& ctx) {
+  void setup(sketch::Scene3DContext& ctx) {
     // MID-CASCADE: far enough in that the head of each row has landed and
     // its tail is still on the way, which is the whole of what a ladder
     // looks like.
@@ -178,7 +178,7 @@ struct SetStagger {
   }
 };
 
-SIGIL_SKETCH(SetStagger, "Set",
+SIGIL_SKETCH(SetStagger, "Scene3D",
              "two rows of children entering on their own cascades — "
              "one from the start, one from both edges — with the "
              "far row alone selected by its subtree, softened and "

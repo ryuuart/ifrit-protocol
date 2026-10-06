@@ -29,10 +29,10 @@
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/ease/Ease.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Theme.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <array>
@@ -960,7 +960,7 @@ struct KspMapView {
                  .fill(ramp(hexColor(0x9AA2A7), hexColor(0x666E74)))});
   }
 
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     sketch::kit::stage(
         context, {.size = {1200, 800}, .captureAt = 6.0, .background = kSpace});
     map = sketch::kit::Document(context, "data/orbits.json");

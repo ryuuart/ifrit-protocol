@@ -361,7 +361,7 @@ struct AstralTome {
 
   // --------------------------------------------------------------- setup
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     for (auto& value : bright) value = sigil::motion::animatable(value.value());
 
     sketch::kit::stage(ctx, {.size = SkSize::Make(at::kCanvasW, at::kCanvasH),
@@ -501,7 +501,7 @@ struct AstralTome {
 
   static float kInkAlphaOf() { return at::kInkAlpha; }
 
-  void update(double, sketch::SketchContext&) {}
+  void update(double, sketch::Scene2DContext&) {}
 };
 
 SIGIL_SKETCH(AstralTome, "Study · Game UI",

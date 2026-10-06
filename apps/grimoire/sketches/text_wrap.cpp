@@ -27,8 +27,8 @@
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Face.h>
 #include <sigilweave/style/Type.h>
@@ -92,7 +92,7 @@ Element row(const char* name, std::vector<Element> specimens) {
 }  // namespace
 
 struct TextWrapSpecimen {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     sketch::kit::stage(ctx, {.size = kSceneSize, .captureAt = 0.2});
     ctx.composer.render(describe());

@@ -53,9 +53,9 @@
 #include <sigilscry/engine/WebEngine.h>
 #include <sigilscry/engine/WebImage.h>
 #include <sigilscry/platform/Runtime.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilsketch/scry/Settling.h>
 #include <sigilsketch/scry/SharedEngine.h>
 
@@ -195,7 +195,7 @@ struct WebPanelSketch {
    *  out with. */
   static bool available(std::string* why) { return scry::available(why); }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(ctx, {.size = {980, 660},
                              .captureAt = 1.0,
                              .background = hexColor(0x0b0a16)});
@@ -234,7 +234,7 @@ struct WebPanelSketch {
    *  leaf starts showing the page rather than the blank a view paints the
    *  moment it exists — and on the frame the settle finishes. A capture
    *  has already finished it and this moves nothing. */
-  void update(double, sketch::SketchContext& ctx) {
+  void update(double, sketch::Scene2DContext& ctx) {
     if (!m_page) return;
     const bool finished = m_page->advance();
     if (!finished && m_page->painted() == m_shownPage) return;
@@ -245,7 +245,7 @@ struct WebPanelSketch {
    *  loaded document and its well until then — or, once the settle has
    *  given the page up, the card that says why there is none. The settle
    *  goes before the view it latched. */
-  void describe(sketch::SketchContext& ctx) {
+  void describe(sketch::Scene2DContext& ctx) {
     if (m_page && m_page->broken()) {
       m_why = "the page never loaded and painted";
       m_page.reset();

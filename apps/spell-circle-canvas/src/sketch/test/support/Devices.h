@@ -1,18 +1,18 @@
 #pragma once
 
 /** @file
- * THE RUNTIME A SET IS DRAWN ON IN A TEST: the device runtime over the
- * one Vulkan device the process brings up, installed for the process the
+ * THE RUNTIME A SCENE3D SKETCH IS DRAWN ON IN A TEST: the device runtime over
+ * the one Vulkan device the process brings up, installed for the process the
  * way a host installs it, or the reason there is none.
  *
- * A set is drawn on a device and nowhere else, so a case that opens one
- * asks for this first and SKIPS with the reason where the machine has no
+ * A scene3d sketch is drawn on a device and nowhere else, so a case that opens
+ * one asks for this first and SKIPS with the reason where the machine has no
  * Vulkan runtime — which is why such a case's suite carries the `gpu`
  * label. The binary that includes this links SigilWorldDiligent and puts
  * SigilGeometryDevice's test support on its include path.
  */
 
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilworld/diligent/Runtime.h>
 
 #include <string>

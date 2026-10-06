@@ -20,8 +20,8 @@
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/program/Shader.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <cmath>
 
@@ -53,7 +53,7 @@ struct P5AttractorLoom {
   material::Material threads = material::Color{0, 0, 0, 0};
   const material::Material background = ground();
 
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     threads = threadInk(material::shader(context.assets.hub(),
                                          context.local("thread.sksl"),
                                          {.textures = {{"uGrain", {}}}}));

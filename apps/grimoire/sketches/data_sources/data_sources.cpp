@@ -14,8 +14,8 @@
 #include <sigilio/advanced/Places.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/style/Type.h>
 
 #include <array>
@@ -67,7 +67,7 @@ struct DataSources {
   std::optional<data::Table> fromDuck;
   std::string sqliteNote, duckNote;
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(ctx, {.size = {1100, 640}, .captureAt = 0.05});
     // The CSV beside this sketch, decoded to a Table by the hub.
     csv =

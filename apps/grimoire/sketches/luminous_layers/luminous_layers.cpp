@@ -26,7 +26,7 @@
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <array>
@@ -836,7 +836,7 @@ struct LuminousLayers {
     pen.element(page, 0, 0, kWidth, kHeight);
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(luminous_layers::kWidth, luminous_layers::kHeight);
     ctx.background(luminous_layers::kPaper);
     ctx.captureAt(2);

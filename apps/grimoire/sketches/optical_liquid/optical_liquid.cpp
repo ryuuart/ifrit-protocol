@@ -19,7 +19,7 @@
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/program/Shader.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <array>
@@ -544,7 +544,7 @@ struct OpticalLiquid {
         });
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(1440, 1000);
     ctx.oversample(1);
     ctx.background({0.94f, 0.95f, 0.92f, 1});
@@ -552,7 +552,7 @@ struct OpticalLiquid {
     ctx.composer.render(describe(0));
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     const double seconds =
         std::isfinite(elapsed) ? std::max(0.0, elapsed) : 0.0;
     const int next = static_cast<int>(std::fmod(

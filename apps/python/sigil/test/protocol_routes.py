@@ -151,7 +151,7 @@ class SocketRoute(unittest.TestCase):
             )
             self.assertEqual(described.sessions, ())
             self.assertEqual(Clock(host).current().frame, 0)
-            entries = Registry(host).list(kind="canvas").sketches
+            entries = Registry(host).list(kind="scene2d").sketches
             self.assertIn(self.SCENE, [entry.name for entry in entries])
             # A second client finds the same host through the state
             # directory it keeps its address under.
@@ -170,7 +170,7 @@ class SocketRoute(unittest.TestCase):
             # bakes: zero pins the density a plate is photographed at.
             Session(host).pin_density(density=0)
             opened = Session(host).open(sketch=self.SCENE)
-            self.assertEqual(opened.kind, "canvas")
+            self.assertEqual(opened.kind, "scene2d")
             self.assertEqual(Clock(host).step(seconds=1).frame, 60)
             density = expected.width() / opened.width
             still = Session(host).still(density=density, path="stepped.png")

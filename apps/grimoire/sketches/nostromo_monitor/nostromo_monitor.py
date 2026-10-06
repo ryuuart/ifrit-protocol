@@ -14,7 +14,7 @@ from sigil.compose import Cache, MotionPath, Overflow, box, heldPath, pen, text
 from sigil.draw import RGB, SHAPE, Pen
 from sigil.material import BloomOptions, Filter, Paint
 from sigil.motion import animatable, bind, envelope
-from sigil.sketch import SketchContext, sketch
+from sigil.sketch import Scene2DContext, sketch
 from sigil.skia import PathBuilder
 
 WIDTH, HEIGHT = (1800, 1125)
@@ -390,7 +390,7 @@ def program_filter(name, declared, values):
 
 @sketch()
 class NostromoMonitor:
-    def setup(self, ctx: SketchContext):
+    def setup(self, ctx: Scene2DContext):
         ctx.canvas(WIDTH, HEIGHT)
         ctx.background("#181008")
         ctx.captureAt(5.5)

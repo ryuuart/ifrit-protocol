@@ -65,7 +65,7 @@ defeat the prune while still painting live.
 struct Pulse {
   motion::Animatable<Fill> tint = motion::animatable(Fill::color(kCool));
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas({.size = kCanvas, .background = kGround, .captureSeconds = 1.5});
     ctx.engine.timer([this, &engine = ctx.engine] {
       const float t = motion::phase(engine.elapsed(), 2s);

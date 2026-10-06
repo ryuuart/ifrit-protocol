@@ -236,7 +236,7 @@ struct SpaceJam1996 {
 
   // ---- the record ---------------------------------------------------------
 
-  void read(sketch::SketchContext& context) {
+  void read(sketch::Scene2DContext& context) {
     const auto load = [&](const char* file) {
       return context.assets.hub().load<sigil::data::Table>(
           context.local(std::string("data/") + file));
@@ -630,7 +630,7 @@ struct SpaceJam1996 {
     return {174, 62};  // the Reload button
   }
 
-  void advance(double elapsed, sketch::SketchContext& context) {
+  void advance(double elapsed, sketch::Scene2DContext& context) {
     const long visit = (long)std::floor(elapsed / cycle);
     const double seconds = elapsed - (double)visit * cycle;
     clock = (float)seconds;
@@ -708,7 +708,7 @@ struct SpaceJam1996 {
     }
   }
 
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     // Taken with the page whole and the pointer resting on Jam Central.
     sketch::kit::stage(context, {.size = SkSize::Make(kWindowWidth * kZoom,
                                                       kWindowHeight * kZoom),
@@ -732,7 +732,7 @@ struct SpaceJam1996 {
     advance(0, context);
   }
 
-  void update(double elapsed, sketch::SketchContext& context) {
+  void update(double elapsed, sketch::Scene2DContext& context) {
     advance(elapsed, context);
   }
 };

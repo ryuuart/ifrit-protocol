@@ -84,7 +84,7 @@ by its peak, written as a sixteen-bit PNG, and the peak multiplied into
 the dome light's `intensity`: the ratios survive at sixteen bits a
 channel, the total radiance is right, and it is right through the
 standard attribute rather than through a custom one only this library
-reads. A stage written and read again lights a set as it was described.
+reads. A stage written and read again lights a scene as it was described.
 
 **A stacked material exports the material at the bottom.** Stacking is a
 live composition; `UsdPreviewSurface` cannot hold it, and this library

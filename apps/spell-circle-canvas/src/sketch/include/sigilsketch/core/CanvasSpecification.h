@@ -51,7 +51,7 @@ struct CanvasSpecification {
   double captureSeconds = -1.0;
   int oversample = 0;
 
-  /** Paint unobserved capture steps. False lets a Canvas session advance
+  /** Paint unobserved capture steps. False lets a scene2d session advance
    *  its clock, feeds and update callback without painting. Declare false
    *  only when draw callbacks neither accumulate pixels nor advance state
    *  needed by the final image. Real frames and stills always paint. */

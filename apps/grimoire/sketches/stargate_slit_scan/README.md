@@ -46,7 +46,7 @@ build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire \
 ```
 
 Scene times 1.8, 8, 16 and 23 show the title and three principal optical
-compositions. The file capture lane draws 2D canvases on Raster and adds
+compositions. The file capture lane draws scene2d sketches on Raster and adds
 the host's still step to the requested timestamp. A held native Graphite
 window is separate backend evidence.
 

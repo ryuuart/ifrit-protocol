@@ -2,7 +2,7 @@
 
 /** @file
  * @ingroup world-kit
- * THE FRONT DOOR: everything a set is written in — the node kinds, the
+ * THE FRONT DOOR: everything a scene is written in — the node kinds, the
  * frame and its environment, the collections, and the kit's stock
  * arrangements. A sketch includes this and nothing else from here; what
  * a host, an executor or a test reaches for is under `advanced/`.
@@ -19,7 +19,7 @@
 #include <sigilworld/node/Mesh.h>
 #include <sigilworld/node/Null.h>
 
-/** THREE-DIMENSIONAL SCENES, DESCRIBED AS VALUES. A set is a tree of
+/** THREE-DIMENSIONAL SCENES, DESCRIBED AS VALUES. A scene is a tree of
  *  nodes built fresh every frame — groups and nulls placing what is under
  *  them or standing to be referred to, meshes wearing surfaces, lights
  *  and cameras — handed to a

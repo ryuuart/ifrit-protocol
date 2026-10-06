@@ -16,8 +16,8 @@
 #include <sigilio/hub/Feed.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <cstddef>
@@ -88,7 +88,7 @@ struct FeedVitals {
    *  is its own arrival time against the clock that delivered it. */
   double now = 0;
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide presentation(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = kCaptureAt});
@@ -107,7 +107,7 @@ struct FeedVitals {
     describe(ctx);
   }
 
-  void update(double seconds, sketch::SketchContext& ctx) {
+  void update(double seconds, sketch::Scene2DContext& ctx) {
     now = seconds;
     if (drain()) describe(ctx);
   }
@@ -127,7 +127,7 @@ struct FeedVitals {
     return true;
   }
 
-  void describe(sketch::SketchContext& ctx) {
+  void describe(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide presentation(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // A paint program runs after the describe scope has closed, where the

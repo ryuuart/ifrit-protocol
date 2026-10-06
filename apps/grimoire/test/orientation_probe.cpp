@@ -4,7 +4,7 @@
  *  top of the item. */
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Pen.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 namespace {
 
@@ -15,7 +15,7 @@ constexpr float kHeight = 420;
 constexpr float kBand = kHeight / 6;
 
 struct Orientation {
-  void setup(sigil::sketch::SketchContext& ctx) {
+  void setup(sigil::sketch::Scene2DContext& ctx) {
     using namespace sigil::compose;
     ctx.canvas(kWidth, kHeight);
     ctx.composer.render(pen("bands",

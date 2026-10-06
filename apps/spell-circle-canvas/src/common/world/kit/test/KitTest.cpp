@@ -85,7 +85,7 @@ TEST(WorldKit, TheRigIsThreeKeyedLights) {
   EXPECT_GT(key->intensity.value(), fill->intensity.value());
   EXPECT_GT(key->intensity.value(), back->intensity.value());
   // …and none of them carries a surface, a mesh or a viewpoint: a rig
-  // lights a set, it does not furnish one.
+  // lights a scene, it does not furnish one.
   EXPECT_EQ(surfaceOf(rig, "key"), nullptr);
   EXPECT_FALSE(childOf(rig, "key")->camera.has_value());
 }

@@ -123,7 +123,7 @@ def main() -> None:
         "--sketch",
         args.sketch,
         "--kind",
-        "canvas",
+        "scene2d",
     ]
     if args.gpu:
         command.append("--gpu")

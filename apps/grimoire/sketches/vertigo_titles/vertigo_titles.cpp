@@ -57,8 +57,8 @@
 #include <sigilmotion/bind/Binding.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Face.h>
 #include <sigilweave/style/Style.h>
@@ -528,14 +528,14 @@ struct VertigoTitles {
   }
 
   template <class Read>
-  static void rows(sketch::SketchContext& context, const char* file,
+  static void rows(sketch::Scene2DContext& context, const char* file,
                    Read read) {
     if (const auto table = context.assets.hub().load<data::Table>(
             context.local(std::string("data/") + file)))
       read(*table);
   }
 
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     rows(context, "figures.csv", [this](const data::Table& table) {
       const auto number = [&](const char* name) {
         return table.column<double>(name);
@@ -592,7 +592,7 @@ struct VertigoTitles {
     context.composer.render(describe());
   }
 
-  void update(double elapsed, sketch::SketchContext&) {
+  void update(double elapsed, sketch::Scene2DContext&) {
     const float now = (float)std::fmod(elapsed, (double)kLoopLength);
     seconds = now;
     lightLevel = 0.0f;

@@ -56,8 +56,8 @@
 #include <sigilmaterial/program/Shader.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmedia/advanced/Skia.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <array>
 #include <string>
@@ -335,7 +335,7 @@ struct MaterialChild {
                        .gap = 20})})}));
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     struct PaletteParameters {
       float uShade = 0;
     };
@@ -348,7 +348,7 @@ struct MaterialChild {
     ctx.composer.render(describe());
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     // Derived from `elapsed`, not accumulated: a still at a declared time
     // is then the same still every run.
     const int want = (int)(elapsed / kSwapEvery);

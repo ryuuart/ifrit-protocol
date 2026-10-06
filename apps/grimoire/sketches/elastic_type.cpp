@@ -115,9 +115,9 @@
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Time.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Chart.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <array>
@@ -757,7 +757,7 @@ struct ElasticType {
                           "every segment is crossed with CSS ease.")})});
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     // Early in the pass: the one-body RUBBERBAND stands at the table's
     // stretch while the per-letter word lays the squash that led to it
     // along the line, head to tail, and jello has just answered.

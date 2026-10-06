@@ -67,10 +67,10 @@
 #include <sigilmotion/schedule/Stagger.h>
 #include <sigilmotion/time/Duration.h>
 #include <sigilmotion/values/Time.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Heading.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/paragraph/RichText.h>
 #include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/query/Selector.h>
@@ -944,7 +944,7 @@ struct ShippingForecast {
         });
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     // The still is the swell's second peak: the barometer has decoded and
     // the forecast's initials have landed, and the grade is at its height.
     sketch::kit::stage(

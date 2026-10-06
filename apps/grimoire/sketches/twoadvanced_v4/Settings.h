@@ -39,9 +39,9 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmotion/values/Tween.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Scrollbar.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/style/Face.h>
 #include <sigilworld/World.h>
 

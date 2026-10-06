@@ -10,7 +10,7 @@ from sigil.draw import LEFT, TOP, Pen
 from sigil.geometry import mesh
 from sigil.material import Color
 from sigil.material import surface as surfaces
-from sigil.sketch import SketchContext, sketch
+from sigil.sketch import Scene2DContext, sketch
 
 TAU = math.tau
 # The loop: the flame's 64 frames at 32 a second, and every flicker a
@@ -322,7 +322,7 @@ def flicker(seconds: float, offset: float) -> float:
 
 @sketch(size=(WIDTH, HEIGHT), background="#030304", capture_at=0.6)
 class PythonFlipbookFire:
-    def setup(self, ctx: SketchContext) -> None:
+    def setup(self, ctx: Scene2DContext) -> None:
         self.sheet = flame_sheet()
         self.iron = surfaces.program(
             surfaces.SurfaceParameters(
@@ -378,7 +378,7 @@ class PythonFlipbookFire:
             .at((x, 0, 0))
         )
 
-    def draw(self, pen: Pen, ctx: SketchContext) -> None:
+    def draw(self, pen: Pen, ctx: Scene2DContext) -> None:
         seconds = pen.millis() / 1000
         model = world.group(
             world.camera(self.lens, exposure=1.4, toneCurve=world.ToneCurve.Neutral),
@@ -397,9 +397,9 @@ class PythonFlipbookFire:
         frame = world.Frame(model).pass_(
             world.bloom(threshold=1.0, intensity=0.7, radius=48)
         )
-        # A set is drawn on a device and nowhere else: the bake answers
-        # None where the host brought none up, and the sheet says so.
-        still = ctx.bakeSet(
+        # A scene3d frame is drawn on a device and nowhere else: the bake
+        # answers None where the host brought none up, and the sheet says so.
+        still = ctx.bakeScene3D(
             frame,
             (WIDTH, HEIGHT),
             camera=self.lens,

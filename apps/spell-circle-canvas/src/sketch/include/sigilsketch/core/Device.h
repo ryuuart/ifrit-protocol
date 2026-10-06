@@ -22,16 +22,16 @@ namespace sigil::sketch {
  *  foreign texture entering a material slot is the case — the pixels
  *  stand on one device and on no other.
  *
- *  NULL IS NO DEVICE, which is where a canvas sketch's byte-identity
- *  plate is taken, so a canvas sketch that reaches for the device states
- *  what it draws without one. A set is never drawn without one: it is
- *  unavailable wherever no runtime is installed, so inside a set this is
- *  the device the set is being drawn on:
+ *  NULL IS NO DEVICE, which is where a scene2d sketch's byte-identity
+ *  plate is taken, so a scene2d sketch that reaches for the device states
+ *  what it draws without one. A scene3d sketch is never drawn without one:
+ *  it is unavailable wherever no runtime is installed, so inside a scene3d
+ *  sketch this is the device it is being drawn on:
  *
  *      if (auto* on = sketch::device())
  *        slot = world::diligent::importNative(*on, native);
  *
- *  A canvas sketch that cannot draw its subject at all without one says
+ *  A scene2d sketch that cannot draw its subject at all without one says
  *  so through its `available()` probe rather than drawing an empty
  *  picture.
  *

@@ -23,7 +23,7 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 namespace sketch = sigil::sketch;
 using namespace sigil::compose;
@@ -31,7 +31,7 @@ using namespace sigil::compose;
 namespace {
 
 struct ReservedWordProbe {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(640, 400);
     ctx.background({0.02f, 0.02f, 0.04f, 1});
     ctx.captureAt(0.1);

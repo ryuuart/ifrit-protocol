@@ -56,9 +56,9 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Theme.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Face.h>
 
@@ -838,7 +838,7 @@ struct ThunderFulu {
              .width(1600)});
   }
 
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     context.canvas(kWidth, kHeight);
     context.background(kNight);
     // After the seal lands: the whole talisman, written and sealed.
@@ -903,7 +903,7 @@ struct ThunderFulu {
     context.composer.render(describe());
   }
 
-  void update(double elapsed, sketch::SketchContext&) {
+  void update(double elapsed, sketch::Scene2DContext&) {
     score = (float)std::fmod(elapsed, (double)kLoop);
   }
 };

@@ -20,7 +20,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Pen.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
@@ -36,7 +36,7 @@ constexpr float kFade = 30;
 struct P5Hello {
   float x = 200, y = 100, vx = 3, vy = 2;
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(400, 300);
     ctx.background({0.078f, 0.078f, 0.078f, 1});
     ctx.captureAt(3.0);

@@ -23,8 +23,8 @@ namespace sigil::sketch::detail {
  *  all, the answer is that it can be invoked with nothing, which is how
  *  a misspelling is caught rather than silently accepted.
  *
- *  Both surfaces use it: `setup` is handed the canvas context in one and
- *  the set's in the other, and the wrapper names neither. */
+ *  Both kinds use it: `setup` is handed the scene2d context in one and
+ *  the scene3d context in the other, and the wrapper names neither. */
 template <class Body>
 struct SetupCall {
   Body& body;
@@ -37,7 +37,7 @@ struct SetupCall {
   }
 };
 
-/** `body.update(…)` as a callable: the canvas surface's per-frame call. */
+/** `body.update(…)` as a callable: the scene2d kind's per-frame call. */
 template <class Body>
 struct UpdateCall {
   Body& body;
@@ -50,7 +50,7 @@ struct UpdateCall {
   }
 };
 
-/** `body.describe(…)` as a callable: the set surface's whole frame. */
+/** `body.describe(…)` as a callable: the scene3d kind's whole frame. */
 template <class Body>
 struct DescribeCall {
   Body& body;

@@ -22,7 +22,7 @@
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/device/Device.h>
 #include <sigilmaterial/texture/Texture.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/style/Type.h>
 #include <sigilworld/diligent/Import.h>
 
@@ -39,7 +39,7 @@ struct DeviceImportProbe {
   static constexpr bool needsDevice = true;
   bool imported = false;
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(360, 120);
     ctx.background({0.06f, 0.07f, 0.10f, 1});
 

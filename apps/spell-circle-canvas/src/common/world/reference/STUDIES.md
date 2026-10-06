@@ -20,8 +20,8 @@ for the registry, the live host and the plates.
 
 ```sh
 build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire \
-    --headless <outdir> --kind set [--sketch <name>] --gpu
-build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire --list --kind set
+    --headless <outdir> --kind scene3d [--sketch <name>] --gpu
+build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire --list --kind scene3d
 ```
 
 `--sketch` takes a case-insensitive substring, which is the loop for
@@ -32,17 +32,17 @@ A study is drawn on the device, so it needs `--gpu`. A study that
 declared no passes is wrapped in one geometry pass clearing to its
 background, because an executor is only reached through passes. On a
 machine with no Vulkan runtime `--gpu` reports that and fails, and a run
-without it lists every study unavailable, saying a set is drawn on a
+without it lists every study unavailable, saying a scene3d sketch is drawn on a
 device. The device is brought up by the BINARY and installed once for the
 process, so no feature here but `diligent/` links one.
 
-Fifteen sketches draw through the Set runtime, and between them they
+Fifteen sketches draw through the scene3d runtime, and between them they
 exercise every feature this library has:
 
 - **`first_light`** — the scene: a tube swept along a closed loop, a
   comet of stamps riding a moving window of that same loop, a plate under
   both, a sun and a lamp, and a camera on a rail of its own.
-- **`glow_trail`** — the passes. Its set is drawn once, and what is
+- **`glow_trail`** — the passes. Its scene is drawn once, and what is
   tagged "glow" is then reached three ways, one per realisation: a
   narrowed post pass lifts the beads in place through the coverage the
   geometry pass before it was made to write; a narrowed geometry pass
@@ -77,12 +77,12 @@ exercise every feature this library has:
   map; the frame's environment turns by its `rotation`, which turns the
   reflections while the lights and bodies stand still, and the row stands
   under a held crossfade of two panoramas.
-- **`set_stagger`** — the entrances of a set's children, staggered, and
+- **`set_stagger`** — the entrances of a scene's children, staggered, and
   the collection that addresses a subtree afterwards. Two rows differ
   only in their stagger's origin, so at one moment they hold different
   shapes of the same run; a `Collection` naming one row's subtree by its
   key narrows a pass to it.
-- **`key_light`** — a light bound to live values. One still set under the
+- **`key_light`** — a light bound to live values. One still scene under the
   kit's three-point rig, with the key light's strength and colour bound
   to live values: nothing about the description changes from frame to
   frame, and what moves is what the light's values are bound to.
@@ -113,7 +113,7 @@ exercise every feature this library has:
   and **`world_hud`** — the pass verbs that draw nothing by themselves
   (cooking points, re-drawing a selection, asking for a resource back),
   the zero-copy import door, and two studies that hang a compose overlay
-  on an unlit quad filling the frustum over a lit set.
+  on an unlit quad filling the frustum over a lit scene.
 
 Most of them are built out of `kit/`: `kit::threePoint` puts three point
 lights round a subject in its own extents, with the key's strength and
@@ -130,20 +130,20 @@ plate's size and its camera into whichever it was handed.
 
 ## The plate ledger over the studies
 
-A study is a sketch of the `set` kind, so it is judged by the one plate
+A study is a sketch of the `scene3d` kind, so it is judged by the one plate
 ledger over the one registry, narrowed to that kind. It is drawn on the
 device and nowhere else, so its tier is the DEVICE tier: every study is
 rendered on the device to its declared moment and its bytes hashed
 against a manifest of the device plates this machine keeps,
 `build/plate_baseline_<config>_device.sha256`. It is the same question
-the CPU tier asks of a canvas sketch — did any byte move that I did not
+the CPU tier asks of a scene2d sketch — did any byte move that I did not
 mean to move — asked of the one rasteriser a study has, on the machine
 in front of you:
 
 ```sh
-python3 scripts/sigil.py plates --kind set --tier device --rebase  # adopt
-python3 scripts/sigil.py plates --kind set --tier device           # judge
-python3 scripts/sigil.py plates --kind set --tier device --stability 2
+python3 scripts/sigil.py plates --kind scene3d --tier device --rebase  # adopt
+python3 scripts/sigil.py plates --kind scene3d --tier device           # judge
+python3 scripts/sigil.py plates --kind scene3d --tier device --stability 2
 ```
 
 A sweep narrowed to one kind or one study merges into that manifest

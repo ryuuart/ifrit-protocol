@@ -9,9 +9,9 @@
 # indistinguishable from it at every call site, and a component with no
 # theme bound behaves correctly.
 #
-# It stands above the canvas runtime because `stage()` writes a
-# CanvasSpecification through a SketchContext, which is why SigilSketch is PUBLIC
-# here; it links no device backend, no window and no sketch.
+# It stands above the scene2d runtime because `stage()` writes a
+# CanvasSpecification through a Scene2DContext, which is why SigilSketch is
+# PUBLIC here; it links no device backend, no window and no sketch.
 #
 # The connection is PUBLIC for the same reason: the channel's own header
 # names the door it follows and the hub whose dispatch drives it, and the

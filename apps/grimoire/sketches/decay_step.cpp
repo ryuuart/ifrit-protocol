@@ -46,8 +46,8 @@
 #include <sigilmotion/time/Duration.h>
 #include <sigilmotion/values/Spring.h>
 #include <sigilmotion/values/Time.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <functional>
 #include <string>
@@ -121,7 +121,7 @@ Element plot(const char* key, std::vector<sketch::kit::Layer> curves,
 }  // namespace
 
 struct DecayStep {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide presentation(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // the plots are functions of time, not of the clock

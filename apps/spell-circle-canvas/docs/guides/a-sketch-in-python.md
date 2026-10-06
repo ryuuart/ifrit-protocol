@@ -15,7 +15,7 @@ uv venv .venv --python 3.14
 uv pip install --python .venv/bin/python dist/sigil_sketch-*.whl
 ```
 
-The installed command renders through the native canvas session. It
+The installed command renders through the native scene2d session. It
 needs no Grimoire window, no display server, no `PYTHONPATH` and no
 source checkout.
 
@@ -25,7 +25,7 @@ source checkout.
 """A first sketch: a ring of chips, and a caption under them."""
 
 from sigil import compose, material, motion
-from sigil.sketch import SketchContext, sketch
+from sigil.sketch import Scene2DContext, sketch
 
 GROUND = "#11151a"
 INK = "#e8eef2"
@@ -40,7 +40,7 @@ def chip(index: int, total: int) -> compose.Element:
 
 @sketch(size=(620, 260), background=GROUND, capture_at=1.0)
 class FirstPythonSketch:
-    def setup(self, ctx: SketchContext) -> None:
+    def setup(self, ctx: Scene2DContext) -> None:
         ctx.render(self.describe())
 
     def describe(self) -> compose.Element:
@@ -111,7 +111,7 @@ them.
 | `sigil.motion` | `animate`, `animatable`, `bind`, `Tween`, `Transition`, the easing curves |
 | `sigil.weave` | the text styles, the paragraph vocabulary |
 | `sigil.skia` | the raw Skia values a canvas program uses: paths, images, `Paint` as Skia means it |
-| `sigil.sketch` | `sketch`, `SketchContext`, `render_file`, and the sketch kit |
+| `sigil.sketch` | `sketch`, `Scene2DContext`, `render_file`, and the sketch kit |
 
 One name exists in two modules and it is worth fixing in your head once.
 `sigil.skia.Paint` is Skia's own draw paint — a style, a stroke width, a

@@ -6,11 +6,11 @@
 #include <gtest/gtest.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/StyleSheet.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
-#include "sigilweave/advanced/Skia.h"
 #include "Drawn.h"
+#include "sigilweave/advanced/Skia.h"
 
 namespace {
 
@@ -180,7 +180,8 @@ TEST(SketchKitTheme, ARegisterIsTheStyleTheCallSiteWouldHaveWritten) {
       house.style(house.type.title, house.palette.ink);
   EXPECT_EQ(byTheme.shaping.fontSize, byHand.shaping.fontSize);
   EXPECT_EQ(byTheme.shaping.letterSpacing, byHand.shaping.letterSpacing);
-  EXPECT_EQ(byTheme.shaping.typeface.identity(), byHand.shaping.typeface.identity());
+  EXPECT_EQ(byTheme.shaping.typeface.identity(),
+            byHand.shaping.typeface.identity());
   EXPECT_EQ(byTheme.paint.foreground.getColor(),
             byHand.paint.foreground.getColor());
 }

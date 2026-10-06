@@ -1,7 +1,7 @@
 /** @file
  * glow_trail — the first thing this library's PASSES made.
  *
- * The set is drawn once. What is tagged "glow" is then reached three
+ * The scene is drawn once. What is tagged "glow" is then reached three
  * ways, one per realisation the ordering knows: a post pass narrowed to
  * that tag brightens the beads in place through the coverage the
  * geometry pass before it was made to write; a geometry pass narrowed to
@@ -27,7 +27,7 @@
 #include <sigilmotion/time/Duration.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/kit/Page.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilworld/World.h>
 
 #include <cmath>
@@ -47,7 +47,7 @@ namespace {
 constexpr float kTwoPi = 6.283185307179586f;
 constexpr int kPosts = 16;
 constexpr float kRing = 190.0f;
-/** Where the set is watched from. The comet's flakes are turned onto it,
+/** Where the scene is watched from. The comet's flakes are turned onto it,
  *  so the same point is both the lens's station and their gaze. */
 constexpr glm::vec3 kEye{0.0f, 250.0f, 560.0f};
 
@@ -59,7 +59,7 @@ gm::curve::Spline3 loop() {
       {.radius = 200.0f, .inner = 120.0f, .high = 70.0f, .low = -50.0f});
 }
 
-/** The set: a ring of posts, a plate under them, and a comet of beads
+/** The scene: a ring of posts, a plate under them, and a comet of beads
  *  riding a moving window of the loop. Only the comet is in the "glow"
  *  collection. */
 world::Group set(motion::Duration now) {
@@ -121,7 +121,7 @@ world::Group set(motion::Duration now) {
 namespace {
 
 struct GlowTrail {
-  void setup(sketch::SetContext& ctx) {
+  void setup(sketch::Scene3DContext& ctx) {
     sketch::kit::stage(
         ctx, {.size = {640, 440},
               .captureAt = 1.3,
@@ -170,8 +170,8 @@ struct GlowTrail {
 
 }  // namespace
 
-SIGIL_SKETCH(GlowTrail, "Set",
-             "The passes, made visible — one set reached three ways: a "
+SIGIL_SKETCH(GlowTrail, "Scene3D",
+             "The passes, made visible — one scene reached three ways: a "
              "masked grade where the beads stand, the same beads culled "
              "into a target of their own and softened, and that laid over "
              "its own output from the frame before")

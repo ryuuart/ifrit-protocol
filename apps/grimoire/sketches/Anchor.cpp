@@ -8,8 +8,8 @@
  * open.
  */
 
-#include <sigilsketch/canvas/Sketch.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene2d/Scene2D.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 
 namespace sigil::sketch {
 

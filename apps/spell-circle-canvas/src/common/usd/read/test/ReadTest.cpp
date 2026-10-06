@@ -524,7 +524,7 @@ TEST(UsdRead, ADomeLightsPanoramaIsAFileBesideTheStageAndItsDialsComeBack) {
   // The sky has values above one, so the writer divided the panorama by
   // its peak and multiplied that peak into the light's strength: what
   // comes back is brighter than what went out by exactly that factor,
-  // and the radiance the set is lit at is the same either way.
+  // and the radiance the scene is lit at is the same either way.
   EXPECT_GT(back.environment.intensity, kSkyIntensity);
   EXPECT_FLOAT_EQ(back.environment.diffuse, 0.7f);
   EXPECT_FLOAT_EQ(back.environment.specular, 1.3f);

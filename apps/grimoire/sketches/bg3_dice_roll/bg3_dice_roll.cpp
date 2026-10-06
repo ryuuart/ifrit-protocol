@@ -26,8 +26,8 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Tween.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
@@ -424,7 +424,7 @@ struct Bg3DiceRoll {
 
   // ---------------------------------------------------------------- setup
 
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     context.canvas(kWidth, kHeight + kCaption);
     context.background(kScrim);
     context.captureAt(6.0);
@@ -448,7 +448,7 @@ struct Bg3DiceRoll {
 
   /** The die is re-described every frame while it tumbles; after that only
    *  when the list arrives or the counted total moves. */
-  void update(double elapsed, sketch::SketchContext& context) {
+  void update(double elapsed, sketch::Scene2DContext& context) {
     const bool tumbling = seconds < kStill + 0.2;
     const bool arriving = (seconds < kCountFrom) != (elapsed < kCountFrom);
     const int counted =

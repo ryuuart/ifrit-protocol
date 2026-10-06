@@ -16,7 +16,7 @@
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/program/Shader.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <array>
 #include <cmath>
@@ -87,7 +87,7 @@ struct P5RefractiveMetaballs {
   /** Held on the sketch: the frame asks for it. */
   material::Material refraction = material::Color{0, 0, 0, 0};
 
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     struct GlassParameters {
       glm::vec4 uBall0{}, uBall1{}, uBall2{}, uBall3{};
       glm::vec4 uBall4{}, uBall5{}, uBall6{}, uBall7{};

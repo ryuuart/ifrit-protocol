@@ -24,7 +24,7 @@ half-float target. Every pass over the picture — a blur, a composite, a
 bloom — works on that light, and the final stage exposes it, passes it
 through the camera's tone curve and encodes it for the display — last,
 once, when the picture leaves the frame. Nothing
-lights a set that the set did not state: a set with no ambient light and
+lights a scene that the scene did not state: a scene with no ambient light and
 no environment has black shadows.
 
 ## What a light delivers
@@ -49,7 +49,7 @@ the whole hemisphere. Under an ambient light of one it shows all of it,
 as under a uniform environment of that radiance.
 
 **Stating a light by what it delivers.** A positioned light's intensity
-is what it delivers at one unit, which at the pixel-sized distances a set
+is what it delivers at one unit, which at the pixel-sized distances a scene
 is built at is a large number. `world::intensityAt(strength, distance)`
 is the intensity that delivers `strength` at `distance` — the strength
 times the distance squared — so a rig reads in the numbers it lights its
@@ -238,13 +238,13 @@ hemisphere lights, the environment and emission are never shadowed, so a
 second light that does not cast still lights what the first one's shadow
 covers.
 
-**Which lights cast.** Off unless stated, so a set written before shadows
+**Which lights cast.** Off unless stated, so a scene written before shadows
 looks the same.
 
 | light | its map |
 |---|---|
-| directional | one orthographic map along the light, square across, fitted to what the camera sees of the set — every body, or the ones within `shadow.distance` of the camera when that is past zero — and deep enough to hold every body between the light and them; its corner snapped to whole texels. With `shadow.cascades` past one, that reach is split along the camera's depth into as many slices — growing with the distance, three parts of the way from even to geometric — each fitted with its own map, so the nearer ones cover less at the same size; a point reads the slice its distance in front of the camera falls in, crossing into the next over the last tenth of it (`shadowCascade`, `shadowCascadeBlend`) |
-| spot | one perspective map from where it stands along its aim, opening a little wider than its cone, reaching its range or the far side of the set |
+| directional | one orthographic map along the light, square across, fitted to what the camera sees of the scene — every body, or the ones within `shadow.distance` of the camera when that is past zero — and deep enough to hold every body between the light and them; its corner snapped to whole texels. With `shadow.cascades` past one, that reach is split along the camera's depth into as many slices — growing with the distance, three parts of the way from even to geometric — each fitted with its own map, so the nearer ones cover less at the same size; a point reads the slice its distance in front of the camera falls in, crossing into the next over the last tenth of it (`shadowCascade`, `shadowCascadeBlend`) |
+| spot | one perspective map from where it stands along its aim, opening a little wider than its cone, reaching its range or the far side of the scene |
 | point | six perspective maps, one along each axis each way; a point is read through the face it stands most squarely in front of |
 | rect, disk | a spot's map from the panel's centre along its face, opening fifty degrees either side of its normal |
 | sphere | a point light's six maps from its centre |
@@ -285,7 +285,7 @@ map and binds no atlas.
 
 **What a map costs.** A map is drawn only in a frame where something its
 depth depends on moved — its light, its fit, or a body casting into it —
-and kept otherwise, so a still set pays for its shadows once. A frame
+and kept otherwise, so a still scene pays for its shadows once. A frame
 that draws one pays for every casting body drawn into it once more and
 for its tile's texels: doubling `shadow.mapSize` quadruples the texels
 written and read, a point light draws six maps and a directional one a
@@ -413,7 +413,7 @@ every post pass:
 | `ToneCurve::Neutral` | almost the identity below a shoulder near 0.8 — a page reads as painted — and a smooth compression above it |
 | `ToneCurve::Linear` | no curve: the exposed sum, cut off at one by the target |
 
-The sky drawn behind a set is read the same way, so a sun in the
+The sky drawn behind a scene is read the same way, so a sun in the
 backdrop and the same sun reflected in a body are one brightness.
 
 ## What it does not do

@@ -8,7 +8,7 @@
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <cmath>
 #include <vector>
@@ -31,7 +31,7 @@ struct ObservableCirclePackingContained {
   static constexpr float kBoundary = 255.0f;
   std::vector<Circle> circles;
 
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     context.canvas(800, 800);
     context.captureAt(3.0);
 

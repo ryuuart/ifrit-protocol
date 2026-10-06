@@ -163,7 +163,7 @@ def main() -> None:
             "--sketch",
             args.source.stem,
             "--kind",
-            "canvas",
+            "scene2d",
         ]
     )
     compiled_in = plates / f"plate_{args.source.stem}.png"

@@ -200,7 +200,7 @@ Item {
                     else if (!list.showFolder && row.sketch.folder)
                         facts.push(row.sketch.folder);
                     if (!list.showKind)
-                        facts.push(row.sketch.kind === "set" ? "3D scene" : "Canvas");
+                        facts.push(row.sketch.kind === "scene3d" ? "3D scene" : "2D scene");
                     if (!list.showCanvas && row.sketch.canvas)
                         facts.push(row.sketch.canvas);
                     if (row.presented && !list.showLines && row.sketch.lines > 0)

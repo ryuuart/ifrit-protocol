@@ -1,10 +1,10 @@
 # Python sketches
 
-Python is an alternative authoring language for the native canvas session,
+Python is an alternative authoring language for the native scene2d session,
 included in every Grimoire build.
 A saved `.py` file is imported into a fresh sketch instance without a C++
 compile or link. Composition, layout, text, motion and drawing still run
-through the same native libraries as a C++ canvas sketch.
+through the same native libraries as a C++ scene2d sketch.
 
 The Python frontend has two authoring paths: ordinary Python functions
 that produce retained native elements, and an immediate drawing method
@@ -97,8 +97,8 @@ it from. A bound class reports that module too: `material.Color` reads as
 
 Compose shades nothing. A material that states a `surface(...)` paints its
 colours on a page, flat, as a material without one does; light belongs to a
-World set, which lights a page through its surface maps. `material.Light`
-describes one emitter for that set and answers `copy.copy` and
+World scene, which lights a page through its surface maps. `material.Light`
+describes one emitter for that scene and answers `copy.copy` and
 `copy.deepcopy`, so a memo model can hold one; a copied light keeps reading
 the live cells it was built with.
 
@@ -108,7 +108,7 @@ with `background()` for a shape, or with `foreground()` and
 `decorationOutline(compose.Boundary.Glyphs)` for type. `shoulder` is the
 width of the rounded edge in logical pixels and `depth` its height relative
 to that width; a negative depth impresses the outline. The material's own
-normal map is reoriented into the relief, in the normal map a World set
+normal map is reoriented into the relief, in the normal map a World scene
 lights the page by; on a page the material paints its colours flat.
 
 Both Python surfaces target the capabilities needed to reproduce the native
@@ -156,7 +156,7 @@ native service you receive:
 ```python
 from sigil.compose import Text, text
 from sigil.draw import Pen
-from sigil.sketch import SketchContext, sketch
+from sigil.sketch import Scene2DContext, sketch
 
 
 def caption(label: str) -> Text:
@@ -165,7 +165,7 @@ def caption(label: str) -> Text:
 
 @sketch(size=(640, 420))
 class Hello:
-    def setup(self, ctx: SketchContext) -> None:
+    def setup(self, ctx: Scene2DContext) -> None:
         ctx.background("#18252e")
 
     def draw(self, pen: Pen) -> None:
@@ -199,7 +199,7 @@ then render one directly:
 The optional `studies` extra adds NumPy for the vectorized examples. The
 base package has no third-party Python runtime dependencies.
 
-The installed command renders directly through the native canvas session.
+The installed command renders directly through the native scene2d session.
 It needs no Grimoire window, display server, `PYTHONPATH`, or source
 checkout. `python -m sigil render ...` is the same command. The Python API
 is also available from the installed environment:
@@ -214,7 +214,7 @@ The renderer accepts strings and `pathlib.Path` objects. Omitting `at`
 uses the capture moment declared by the sketch, or 1.5 seconds if none is
 declared. Grimoire and standalone Python step alike: whole steps at 60
 FPS followed by the fractional remainder, then the picture is taken as a
-plate is, under the moving clock: a canvas draws one more frame to take
+plate is, under the moving clock: a scene2d sketch draws one more frame to take
 it, so the picture is the scene one sixtieth of a second past the moment
 named, after one more update. Zero runs one update without advancing
 time, so a picture asked for at zero shows the scene a sixtieth of a
@@ -227,7 +227,7 @@ returns a nonzero status when import, setup or rendering fails.
 What Grimoire's browser and its plate ledger know about sketches is
 available as values too. `catalog(files=[], sketchDirectory=None,
 workspace=None)` answers one `CatalogRow` per file — its key, the runtime
-it draws through (a Python file always a canvas, a C++ file none until it
+it draws through (a Python file always scene2d, a C++ file none until it
 has been built), its entry path and what its opening comment says in
 `source` — after one row per registry entry, whose files it looks for
 under `sketchDirectory`; `registryRows(kind="")` answers the registry
@@ -295,7 +295,7 @@ the `SigilSketch` core does not link Python. A native live host opts in by
 supplying its Python loader
 through `Host::Options::pythonLoader`. Grimoire and the standalone
 renderer always supply that function. Both use the same module registration
-and canvas-session implementation. Grimoire initializes the interpreter
+and scene2d session implementation. Grimoire initializes the interpreter
 when it loads a Python sketch or checks a declared Python package requirement.
 
 A source build needs the native dependencies and toolchain configured for
@@ -653,17 +653,17 @@ thread or calling back into Python from a transport:
 
 ```python
 from sigil.data import decodeJson, encodeJson
-from sigil.sketch import SketchContext
+from sigil.sketch import Scene2DContext
 
 
-def setup(self, ctx: SketchContext) -> None:
+def setup(self, ctx: Scene2DContext) -> None:
     self.input = ctx.assets.hub().listen("udp://:27021")
     if not self.input.state().isOpen():
         raise RuntimeError(self.input.state().error)
     self.level = 0.0
 
 
-def update(self, elapsed: float, ctx: SketchContext) -> None:
+def update(self, elapsed: float, ctx: Scene2DContext) -> None:
     while (arrival := self.input.receive()) is not None:
         document = decodeJson(arrival.payload.decode("utf-8"))
         if document is not None:
@@ -1372,7 +1372,7 @@ paint.
 The native `sigil.material.surface.SurfaceParameters` record and its
 `program` and `unlit` factories describe mesh surfaces: base color, roughness, metallic
 response, emission and transmission. A surface is shaded by the World device
-executor, which a sketch reaches through `SketchContext.bakeSet` on a host
+executor, which a sketch reaches through `Scene2DContext.bakeScene3D` on a host
 that brought a device up. The returned `sigil.material.Material`
 is the same value a World element accepts. `surface.normalFromHeight(height,
 HeightNormalOptions(depth=..., step=..., directX=...))` differentiates a
@@ -1461,11 +1461,11 @@ CPU executor into the `mesh.Instances` or `mesh.Mesh` a World body wears.
 
 ## Retained 3D scenes
 
-`sigil.world` exposes native retained scene declarations. A set is drawn on
+`sigil.world` exposes native retained scene declarations. A scene3d sketch is drawn on
 a device and nowhere else, and a Python process brings none up, so a
 `world.Scene` holds and reconciles a description — its nodes, placements,
-lights and camera — and draws nothing. A sketch that shows a set bakes it
-with `ctx.bakeSet(frame, size, camera=…, background=…, at=…)`, which draws
+lights and camera — and draws nothing. A scene2d sketch that shows a scene3d frame bakes it
+with `ctx.bakeScene3D(frame, size, camera=…, background=…, at=…)`, which draws
 on the device the host brought up and answers `None` where there is none. Import meshes and cameras from `sigil.geometry.mesh`, materials from
 `sigil.material`, and animation values from `sigil.motion`. These are the
 same values used by the direct bindings.
@@ -1490,7 +1490,7 @@ class Vessel:
         lens.eye = (0, 120, 420)
         frame = world.Frame(world.kit.litSet(model, world.kit.Set(ground=0),
                                              now=1))
-        still = ctx.bakeSet(frame, (640, 480), camera=lens,
+        still = ctx.bakeScene3D(frame, (640, 480), camera=lens,
                             background="#141d25")
         ctx.render(image(still) if still is not None else box())
 ```
@@ -1539,7 +1539,7 @@ material along a texture of directions. `python_flipbook_fire` wears all
 three.
 
 The device runtime itself, texture-map sets, point clouds, curve rides,
-sweeps, a set's `Page`, custom pass callbacks and readbacks remain
+sweeps, a scene3d sketch's `Page`, custom pass callbacks and readbacks remain
 unbound; the Python API does not claim GPU PBR parity.
 
 ## Example gallery

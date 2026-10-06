@@ -1,18 +1,18 @@
 /** @file
  * The process's own values: the stock materials, the fonts and assets
  * every session shares, the flags file beside the binary, and the device
- * a set is lit on.
+ * a scene3d sketch is lit on.
  */
 
 #include "Startup.h"
 
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/surface/Surface.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/Device.h>
 #include <sigilsketch/core/Registry.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene2d/Scene2D.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -100,18 +100,18 @@ sketch::Assets& assets() {
  *  and pipeline it made goes when the device does. */
 std::unique_ptr<sigil::geometry::device::Device> g_device;
 
-/** Puts every set sketch on the device, and says whether it could. A set
- *  is drawn on a device and nowhere else, so until this answers true
- *  every set is unavailable. The sweep treats a false answer as fatal,
- *  because a run that asked for the device and quietly drew without it
- *  would put a different picture under a name; the live host carries on
- *  with every set listed unavailable. */
+/** Puts every scene3d sketch on the device, and says whether it could. A
+ *  scene3d sketch is drawn on a device and nowhere else, so until this
+ *  answers true every scene3d sketch is unavailable. The sweep treats a false
+ * answer as fatal, because a run that asked for the device and quietly drew
+ * without it would put a different picture under a name; the live host carries
+ * on with every scene3d sketch listed unavailable. */
 bool useDevice() {
   if (g_device) return true;
   std::string error;
   // The pipelines the device builds are kept beside the rest of what a
   // run records, so the next launch reads them back instead of building
-  // each one again while a set opens.
+  // each one again while a scene3d sketch opens.
   sigil::geometry::device::DeviceConfig config;
   config.pipelineStore = pipelines::storeDirectory();
   auto candidate = sigil::geometry::device::Device::create(config, &error);
@@ -124,7 +124,7 @@ bool useDevice() {
       sigil::geometry::mesh::render::deviceRuntime(*candidate);
   g_device = std::move(candidate);
   sketch::useRuntime(frameRuntime);
-  // …and the 2D twin: a canvas sketch that stands a mesh up in space
+  // …and the scene2d twin: a scene2d sketch that stands a mesh up in space
   // reaches the same device through sketch::painterRuntime().
   sketch::usePainterRuntime(meshRuntime);
   // …and the device itself, for the calls no runtime can stand in for:

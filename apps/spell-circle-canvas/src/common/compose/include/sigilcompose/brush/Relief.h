@@ -4,7 +4,7 @@
  * @ingroup compose-brush
  *
  * A material over the rounded relief of the outline being painted: the
- * relief's normals reach the surface maps a set lights the page by, and
+ * relief's normals reach the surface maps a World scene lights the page by, and
  * an ordinary draw paints the material's colours flat.
  */
 

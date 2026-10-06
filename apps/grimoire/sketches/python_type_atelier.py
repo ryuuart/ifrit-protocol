@@ -23,7 +23,7 @@ from sigil.compose import (
 )
 from sigil.compose import document as doc
 from sigil.compose import selectors as selected
-from sigil.sketch import SketchContext, kit, sketch
+from sigil.sketch import Scene2DContext, kit, sketch
 from sigil.skia import PathBuilder
 from sigil.weave import (
     Decoration,
@@ -169,7 +169,7 @@ def part(eyebrow: str, *cases: tuple[str, str, Element, str]) -> Element:
 
 @sketch(size=SIZE, capture_at=0.05)
 class TypeAtelier:
-    def setup(self, ctx: SketchContext) -> None:
+    def setup(self, ctx: Scene2DContext) -> None:
         # The opening paragraph alone carries the initial letter and the
         # keeps; the second is set in the paragraph setting in force.
         # An initial letter's own style reaches its shaping and not its

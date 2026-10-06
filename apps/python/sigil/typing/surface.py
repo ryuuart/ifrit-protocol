@@ -143,7 +143,7 @@ RENAMES: dict[str, dict[str, str]] = {
         "panelGrid": "panel_grid",
     },
     "sigil.compose.layouts": {"repeatTrack": "repeat_track"},
-    "sigil.sketch": {"Context": "SketchContext"},
+    "sigil.sketch": {"Context": "Scene2DContext"},
     "sigil.sketch.kit": {
         "controlsOf": "controls_of",
         "featureTheme": "feature_theme",

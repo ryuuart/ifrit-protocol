@@ -1,18 +1,18 @@
 #pragma once
 
 /** @file
- * @ingroup sketch-canvas
+ * @ingroup sketch-scene2d
  *
  * The 2D sketch surface: a p5-style entry point over the full compose
  * API. Include this and SIGIL_SKETCH registers a sketch that draws a
  * compose Element tree.
  */
 
-/** @defgroup sketch-canvas The sketch surface
- *  The 2D entry point: what a sketch is handed every frame
- *  (`SketchContext`), what makes a type a sketch (`CanvasSketch`), and
- *  the kind that opens one on the compose runtime (canvas/). The first
- *  header a sketch author opens. */
+/** @defgroup sketch-scene2d Scene2D sketches
+ *  The scene2d kind: what a scene2d sketch is handed every frame
+ *  (`Scene2DContext`), what makes a type a scene2d sketch
+ *  (`Scene2DSketch`), and the kind that opens one on the compose runtime
+ *  (scene2d/). The first header a sketch author opens. */
 /** @defgroup sketch-core Registry, session, assets, device
  *  What every kind of sketch shares: the registry a sketch is addressed
  *  in, the session a host drives, the canvas specification a sketch
@@ -33,9 +33,9 @@
  *  the registry, the per-frame statistics, the channel-by-channel
  *  comparison, the MP4 montage, and the thumbnails the browser shows
  *  (plate/). */
-/** @defgroup sketch-set 3D sets
- *  A sketch whose subject is a lit scene in space rather than a canvas
- *  (set/). */
+/** @defgroup sketch-scene3d Scene3D sketches
+ *  The scene3d kind: a sketch whose subject is a lit scene in space
+ *  rather than a flat surface (scene3d/). */
 /** @defgroup sketch-scry Web leaves
  *  An HTML and CSS page rendered into a sketch, and the settling a
  *  deterministic capture of one needs (scry/). */
@@ -76,13 +76,13 @@ class Frame;
  *  stem, that a live host opens, a sweep photographs and a browser lists.
  *
  *  A sketch is a plain type with no base class and nothing to inherit. A
- *  struct spelling `setup(SketchContext&)` is a canvas sketch; spelling
+ *  struct spelling `setup(Scene2DContext&)` is a scene2d sketch; spelling
  *  `update()` as well makes it one that reacts. The `SIGIL_SKETCH` macro
  *  registers it, and a `Kind` says what runtime it draws through — a
- *  compose Element tree, a lit 3D set, or a Python source file.
+ *  compose Element tree, a lit 3D scene, or a Python source file.
  *
  *  A `Session` is what a host drives: it holds the composer, the clock
- *  and the assets, opens the body once, and steps it. `SketchContext` is
+ *  and the assets, opens the body once, and steps it. `Scene2DContext` is
  *  the per-frame value the body is handed, and is rebuilt every frame
  *  deliberately, so nothing may capture it.
  *
@@ -95,12 +95,12 @@ class Frame;
  *  the vocabulary still draws what it drew. */
 namespace sigil::sketch {
 
-/** HOW A SET IS BAKED into a canvas sketch's picture: what it is seen
+/** HOW A 3D FRAME IS BAKED into a scene2d sketch's picture: what it is seen
  *  through, what is behind it, and when. */
-struct BakeSetOptions {
+struct BakeScene3DOptions {
   /** The lens a tree holding no camera is seen through. */
   geometry::mesh::camera::Camera camera;
-  /** What the picture is cleared to behind the set. */
+  /** What the picture is cleared to behind the scene. */
   sigil::material::Color background{0, 0, 0, 0};
   /** The moment of the bake, on the baked scene's own clock. */
   motion::Duration at{};
@@ -113,7 +113,7 @@ struct BakeSetOptions {
  *  frame, and capturing a copy would hold a stale specification and a stale
  * size just as silently. Neither compiles. Capture `ctx.composer` (stable for
  * the sketch's life) or plain data instead. */
-struct SketchContext {
+struct Scene2DContext {
   compose::Composer& composer;    ///< render()/renderSlot()/query surface
   sigil::motion::Engine& engine;  ///< animations, timelines and timers
   Assets& assets;                 ///< hot-reloading resource access
@@ -134,7 +134,7 @@ struct SketchContext {
     return "sketch://" + std::string(key) + "/" + std::string(name);
   }
 
-  SketchContext(
+  Scene2DContext(
       compose::Composer& composerIn, sigil::motion::Engine& engineIn,
       Assets& assetsIn, SkSize sizeIn,
       CanvasSpecification* specificationIn = nullptr,
@@ -151,8 +151,8 @@ struct SketchContext {
         scenes(scenesIn),
         key(keyIn),
         deterministic(deterministicIn) {}
-  SketchContext(const SketchContext&) = delete;
-  SketchContext& operator=(const SketchContext&) = delete;
+  Scene2DContext(const Scene2DContext&) = delete;
+  Scene2DContext& operator=(const Scene2DContext&) = delete;
 
   /** A COMPOSE SCENE PAINTED INTO A TEXTURE, @p size pixels across and
    *  cleared to @p background: hand it a tree with `render()` and read
@@ -177,22 +177,22 @@ struct SketchContext {
   [[nodiscard]] std::shared_ptr<compose::TextureScene> textureScene(
       SkISize size, sigil::material::Color background = {0, 0, 0, 0});
 
-  /** A LIT SET RENDERED ONCE INTO AN IMAGE @p size pixels across — the
-   *  picture INSIDE a page. A canvas plate is
-   *  re-rendered at the capture scale, so a document that wanted a set
+  /** A LIT 3D SCENE RENDERED ONCE INTO AN IMAGE @p size pixels across — the
+   *  picture INSIDE a page. A scene2d plate is
+   *  re-rendered at the capture scale, so a document that wanted a 3D scene
    *  in one of its panels cannot wear it as a texture the way a body
-   *  does: it bakes the set at the pixels the panel will have and paints
+   *  does: it bakes the scene at the pixels the panel will have and paints
    *  the image. The frame's own words are SigilWorld's, from
    *  `<sigilworld/frame/Frame.h>`.
    *
-   *  SEEN THROUGH `BakeSetOptions::camera` — unless the tree carries a
-   *  camera of its own, which wins here exactly as it wins in the set
-   *  runtime, so a set that put its camera on a rail is photographed from
+   *  SEEN THROUGH `BakeScene3DOptions::camera` — unless the tree carries a
+   *  camera of its own, which wins here exactly as it wins in the scene3d
+   *  runtime, so a scene that put its camera on a rail is photographed from
    *  that rail wherever it is photographed.
    *
-   *  It draws on the device runtime the process installed — a set is
+   *  It draws on the device runtime the process installed — a 3D scene is
    *  drawn on a device and nowhere else — and answers NULL where there
-   *  is none, so a sketch that bakes a set declares `needsDevice` and an
+   *  is none, so a sketch that bakes a 3D scene declares `needsDevice` and an
    *  `available()` probe over `runtimeAvailable`. A frame that declares no
    *  passes is drawn through one geometry pass clearing to the options'
    *  background. The picture is a function of the frame, the camera, the
@@ -200,21 +200,22 @@ struct SketchContext {
    *  lives for this call alone, so what comes back is an image and not a
    *  view onto something still standing.
    *
-   *  `BakeSetOptions::at` IS THE MOMENT OF THE BAKE, on the baked scene's own
-   *  clock, which starts when the scene mounts. It is what a set with an
+   *  `BakeScene3DOptions::at` IS THE MOMENT OF THE BAKE, on the baked scene's
+   *  own clock, which starts when the scene mounts. It is what a scene with an
    *  ENTRANCE is photographed at: a `staggerChildren` cascade is a
    *  schedule of transitions that begin at the mount, so at zero every
-   *  one of them is still at its start pose and the picture is the set
+   *  one of them is still at its start pose and the picture is the scene
    *  before it arrived — which is a still no author ever wanted.
    *
    *  The clock is the BAKE'S, not the sketch's. Reaching the moment on
    *  the sketch's own engine would step the sketch, and a document that
-   *  photographed a set in one of its panels would move everything else
-   *  on the page to do it. The moment is reached in one step, so a set
+   *  photographed a 3D scene in one of its panels would move everything else
+   *  on the page to do it. The moment is reached in one step, so a scene
    *  whose motion is a fixed-rate steppable rather than a transition is
    *  not what this is for. */
-  [[nodiscard]] sk_sp<SkImage> bakeSet(const world::Frame& frame, SkISize size,
-                                       BakeSetOptions options = {});
+  [[nodiscard]] sk_sp<SkImage> bakeScene3D(const world::Frame& frame,
+                                           SkISize size,
+                                           BakeScene3DOptions options = {});
 
   /** WHETHER THE CLOCK THIS SESSION IS DRAWN AT IS NOT THE WALL'S: the
    *  host is taking a capture that will be DIFFED, or a client is
@@ -342,7 +343,7 @@ struct SketchContext {
 
 /** A SKETCH THAT DRAWS A COMPOSE ELEMENT TREE: any type that can be
  *  asked to set itself up. There is no base class and nothing to
- *  inherit — a struct spelling `setup(SketchContext&)` is a sketch, and
+ *  inherit — a struct spelling `setup(Scene2DContext&)` is a sketch, and
  *  `setup()` is accepted too, from a body that reads nothing off the
  *  context. `setup` is called once per (re)load and again when an asset
  *  file changes; declare the scene there, animation wiring included.
@@ -369,40 +370,40 @@ struct SketchContext {
  *  starts at zero again and the piece plays from its beginning — the
  *  entrance being edited runs again on every save. */
 template <class SketchType>
-concept CanvasSketch =
-    core::PrefixCallable<detail::SetupCall<SketchType>, void(SketchContext&)>;
+concept Scene2DSketch =
+    core::PrefixCallable<detail::SetupCall<SketchType>, void(Scene2DContext&)>;
 
-/** WHAT A SESSION DRIVES: one canvas sketch, behind the two calls a host
+/** WHAT A SESSION DRIVES: one scene2d sketch, behind the two calls a host
  *  makes of it. The sketch itself derives from nothing and declares no
  *  virtual of its own; this is the vtable, built out of the members the
  *  type spells, and the only thing that holds a sketch by pointer. */
-class CanvasBody {
+class Scene2DBody {
  public:
-  virtual ~CanvasBody() = default;
-  virtual void setup(SketchContext& ctx) = 0;
-  virtual void update(double elapsed, SketchContext& ctx) = 0;
+  virtual ~Scene2DBody() = default;
+  virtual void setup(Scene2DContext& ctx) = 0;
+  virtual void update(double elapsed, Scene2DContext& ctx) = 0;
 };
 
-/** Opens an owned body on the native canvas runtime. Setup runs before the
+/** Opens an owned body on the native scene2d runtime. Setup runs before the
  *  session is returned; a failed setup destroys the candidate body and its
  *  retained descriptions. The body must not be null. */
-[[nodiscard]] std::unique_ptr<Session> openCanvas(
-    std::unique_ptr<CanvasBody> body, weave::FontContext& fonts, Assets& assets,
-    bool deterministic = false, std::string_view key = {});
+[[nodiscard]] std::unique_ptr<Session> openScene2D(
+    std::unique_ptr<Scene2DBody> body, weave::FontContext& fonts,
+    Assets& assets, bool deterministic = false, std::string_view key = {});
 
 /** ONE SKETCH OF TYPE @p SketchType, OWNED, answering those calls with
  *  the parameters it named — so a body spelling `setup()` is set up with
  *  nothing, and one spelling no `update` at all is stepped by doing
  *  nothing. */
-template <CanvasSketch SketchType>
-class CanvasBodyOf final : public CanvasBody {
+template <Scene2DSketch SketchType>
+class Scene2DBodyOf final : public Scene2DBody {
  public:
-  void setup(SketchContext& ctx) override {
+  void setup(Scene2DContext& ctx) override {
     core::callPrefix(detail::SetupCall<SketchType>{m_sketch}, ctx);
   }
-  void update(double elapsed, SketchContext& ctx) override {
+  void update(double elapsed, Scene2DContext& ctx) override {
     if constexpr (core::PrefixCallable<detail::UpdateCall<SketchType>,
-                                       void(double, SketchContext&)>)
+                                       void(double, Scene2DContext&)>)
       core::callPrefix(detail::UpdateCall<SketchType>{m_sketch}, elapsed, ctx);
   }
 
@@ -412,18 +413,18 @@ class CanvasBodyOf final : public CanvasBody {
 
 /** THE 2D KIND: a compose Element tree, reconciled by a Composer and
  *  painted onto a canvas, driven by a clock the host owns. */
-class CanvasKind final : public KindOperations {
+class Scene2DKind final : public KindOperations {
  public:
-  using Factory = CanvasBody* (*)();
+  using Factory = Scene2DBody* (*)();
   /** @p needsDevice declares body work that uses the host's device, such as
    *  compute, foreign textures or the device mesh painter. */
-  explicit CanvasKind(Factory factory, bool needsDevice = false)
+  explicit Scene2DKind(Factory factory, bool needsDevice = false)
       : m_factory(factory), m_needsDevice(needsDevice) {}
   /** Written out rather than defaulted: the operations a kind answers
    *  are an abstract base, and a defaulted comparison would try to
    *  compare that. What identifies a kind is the body it opens and the
    *  painter it opens it on, including its device requirement. */
-  bool operator==(const CanvasKind& other) const {
+  bool operator==(const Scene2DKind& other) const {
     return m_factory == other.m_factory && m_painter == other.m_painter &&
            m_needsDevice == other.m_needsDevice;
   }
@@ -438,14 +439,14 @@ class CanvasKind final : public KindOperations {
    *  device stands — a background still on a thread that shares no queue
    *  with the one presenting — says so here, and the sessions it opens
    *  are unaffected by what any other thread installed. */
-  [[nodiscard]] CanvasKind on(
+  [[nodiscard]] Scene2DKind on(
       const geometry::mesh::render::Runtime& painter) const {
-    CanvasKind stated = *this;
+    Scene2DKind stated = *this;
     stated.m_painter = painter;
     return stated;
   }
 
-  [[nodiscard]] std::string_view runtime() const override { return "canvas"; }
+  [[nodiscard]] std::string_view runtime() const override { return "scene2d"; }
 
   [[nodiscard]] bool needsDevice() const override {
     return m_needsDevice ||
@@ -467,7 +468,7 @@ class CanvasKind final : public KindOperations {
 /** @p kind WITH THE MESH PAINTER ITS SESSIONS DRAW THROUGH STATED,
  *  rather than read off the process when each opens.
  *
- *  A kind that stands no mesh up of its own — a set, a pen — is returned
+ *  A kind that stands no mesh up of its own — scene3d, a pen — is returned
  *  unchanged, so a host may say this about whatever it is holding. An
  *  empty painter is the CPU mesh executor, which is what a caller that
  *  must not reach the process's device asks for. */
@@ -476,7 +477,7 @@ class CanvasKind final : public KindOperations {
 
 /** THE MESH PAINTER EVERY 2D SKETCH DRAWS THROUGH, for this process.
  *
- *  A canvas sketch that stands geometry up in space hands this to a
+ *  A scene2d sketch that stands geometry up in space hands this to a
  *  `MeshStyle`, and the mesh is then rasterised on whatever device the
  *  host brought up:
  *
@@ -489,8 +490,8 @@ class CanvasKind final : public KindOperations {
  *
  *  A host that brought one up says so ONCE, because a device is a
  *  property of the process and not of a sketch. It is the 2D twin of the
- *  runtime a set draws through: a set's is a whole frame's, this one is
- *  a single mesh draw's, and a process on a device installs both.
+ *  runtime a scene3d sketch draws through: that one is a whole frame's, this
+ *  one is a single mesh draw's, and a process on a device installs both.
  *  Installing an empty runtime — what a host does when it lets its
  *  device go — puts the CPU executor back rather than leaving a value
  *  that draws nothing.
@@ -513,8 +514,8 @@ void usePainterRuntime(const geometry::mesh::render::Runtime& runtime);
  *  which is what keeps a registration initializer non-throwing whatever
  *  the sketch's constructor does. */
 template <class SketchType>
-[[nodiscard]] CanvasBody* makeCanvasBody() {
-  return new CanvasBodyOf<SketchType>();
+[[nodiscard]] Scene2DBody* makeScene2DBody() {
+  return new Scene2DBodyOf<SketchType>();
 }
 
 /** The kind a 2D sketch draws through. SIGIL_SKETCH resolves this from
@@ -523,14 +524,14 @@ template <class SketchType>
  *  uses the host's device declares `static constexpr bool needsDevice = true`.
  *  Ordinary 2D drawing needs no device executor. */
 template <class SketchType>
-  requires CanvasSketch<SketchType>
+  requires Scene2DSketch<SketchType>
 [[nodiscard]] Kind kindOf() {
   if constexpr (requires {
                   { SketchType::needsDevice } -> std::convertible_to<bool>;
                 })
-    return CanvasKind{&makeCanvasBody<SketchType>, SketchType::needsDevice};
+    return Scene2DKind{&makeScene2DBody<SketchType>, SketchType::needsDevice};
   else
-    return CanvasKind{&makeCanvasBody<SketchType>};
+    return Scene2DKind{&makeScene2DBody<SketchType>};
 }
 
 }  // namespace sigil::sketch

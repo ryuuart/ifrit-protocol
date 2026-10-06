@@ -12,13 +12,13 @@
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/image/Encode.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/CanvasSpecification.h>
 #include <sigilsketch/core/Kind.h>
 #include <sigilsketch/core/Session.h>
 #include <sigilsketch/core/Sources.h>
 #include <sigilsketch/plate/Thumbnails.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene2d/Scene2D.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 
 #include <algorithm>
 #include <atomic>
@@ -200,8 +200,9 @@ namespace {
  *  is drawing with is two threads inside one graphics context. So the
  *  kind is opened on empty runtimes for both doors a sketch reaches a
  *  device through: the mesh style a 2D body stands up in space, which
- *  then draws on the CPU painter, and a set's whole frame, which leaves
- *  the set unavailable. What a host installed reaches nothing here. */
+ *  then draws on the CPU painter, and a scene3d sketch's whole frame,
+ *  which leaves the sketch unavailable. What a host installed reaches
+ *  nothing here. */
 Kind thumbnailKind(const Entry& entry) {
   return onPainterRuntime(onRuntime(entry.kind(), {}), {});
 }
@@ -264,9 +265,9 @@ ThumbnailOutcome renderThumbnail(const Entry& entry, weave::FontContext& fonts,
   }
   if (stopped(run.stop)) return ThumbnailOutcome::Stopped;
 
-  // The still, scaled so its larger side is maxDimension: a canvas
-  // sketch re-renders here at the smaller scale, a set or a pen presents
-  // the frame just finished.
+  // The still, scaled so its larger side is maxDimension: a scene2d
+  // sketch re-renders here at the smaller scale, a scene3d sketch or a pen
+  // presents the frame just finished.
   const float longest = std::max(size.width(), size.height());
   const float scale = std::min(1.0f, (float)run.maxDimension / longest);
   const SkImageInfo thumbInfo = SkImageInfo::MakeN32Premul(

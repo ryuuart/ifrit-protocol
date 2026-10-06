@@ -12,7 +12,7 @@
 #include <sigildraw/Pen.h>
 #include <sigildraw/brush/Brush.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <array>
 #include <utility>
@@ -37,7 +37,7 @@ constexpr std::array<material::Color, 6> kInk{{
 struct BrushEngineAtlas {
   brush::Engine brushes;
 
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     context.canvas(1000, 900);
     context.captureAt(0.25);
     brushes.scaleBrushes(3.5f);

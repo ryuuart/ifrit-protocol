@@ -314,19 +314,19 @@ a page, flat, exactly as a material that states no surface paints it; its
 normal, roughness, metallic, occlusion and emission channels change nothing
 there. A relief paints its material's colours flat over the outline, and
 glyph and word ink restart those colours on each unit. Light belongs to
-SigilWorld: a page is lit by a set through its surface maps.
+SigilWorld: a page is lit by a World scene through its surface maps.
 
-**A set lights a page through its surface maps.** `SurfaceScene` renders
+**A World scene lights a page through its surface maps.** `SurfaceScene` renders
 one retained tree as the maps of a surface — base colour, normal,
 roughness, metallic, occlusion and emissive — and `maps()` answers them as
 a `material::texture::TextureMaps`. Hand that to
 `material::surface::program(maps, parameters)` and put the result on a
-World surface: the set's lights, environment and camera shade the page.
+World surface: the scene's lights, environment and camera shade the page.
 Every lit fill, ink (Glyph and Word units included), material stroke and
 relief paints the map its material states; content that takes no light is
 its own colour — its colour in the emissive map over a black base, a
 normal facing the viewer, roughness and occlusion one and metallic zero —
-so flat text and fills come out of the set looking as painted. Where nothing paints,
+so flat text and fills come out of the scene looking as painted. Where nothing paints,
 every map reads that same ground with a transparent base colour, and an
 antialiased edge composites each map by its coverage, normals included as
 their encoding. Normals are encoded green up the picture.
@@ -349,7 +349,7 @@ shadow or glow filter on a group — writes that colour into every map.
 
 `relief(material, options)` puts a material over the outline being painted,
 combining a bevel derived from the actual contours with any normal map in
-the material — in the normal map a set lights the page by. Shoulder is
+the material — in the normal map a World scene lights the page by. Shoulder is
 measured in logical pixels; positive depth raises the outline and negative
 depth impresses it. Attach it as a shape background, or as a glyph
 foreground with the ordinary ink set transparent so the glyphs are not
@@ -381,10 +381,10 @@ Pass `material::image(scene->texture())` to
 `material::surface::normalFromHeight`, then put that result in the shared
 background material's normal channel. The same texture can mask colour,
 roughness or metallic changes. Lettering then changes how the background
-takes a set's light, including where marks overlap. Link `SigilComposeTexture`
+takes a scene's light, including where marks overlap. Link `SigilComposeTexture`
 and `SigilMaterialSurface` and include their own headers. Keep the source
 tree independent of the material consuming it to avoid a feedback loop.
-Retain the texture scene; its settled tree does not repaint as the set's
+Retain the texture scene; its settled tree does not repaint as the scene's
 lights move.
 
 Leave `Cache::Auto` in place for ordinary scenes. The composer records

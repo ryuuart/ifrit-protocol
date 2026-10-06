@@ -6,7 +6,7 @@ with ``sigil render`` and belongs to no sketch registry.
 """
 
 from sigil import compose
-from sigil.sketch import SketchContext, sketch
+from sigil.sketch import Scene2DContext, sketch
 
 GROUND = "#14181d"
 PLATE = "#1b2229"
@@ -40,7 +40,7 @@ def panel(caption: str) -> compose.Element:
 
 @sketch(size=(600, 260), background=GROUND, capture_at=0)
 class InkVerb:
-    def setup(self, ctx: SketchContext) -> None:
+    def setup(self, ctx: Scene2DContext) -> None:
         ctx.render(self.describe())
 
     def describe(self) -> compose.Element:

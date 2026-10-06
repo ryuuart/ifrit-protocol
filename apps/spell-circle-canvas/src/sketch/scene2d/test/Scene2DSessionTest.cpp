@@ -24,7 +24,7 @@
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmotion/clock/Engine.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/paint/Paint.h>
 #include <sigilweave/style/PaintLayer.h>
 #include <sigilweave/style/Type.h>
@@ -122,7 +122,7 @@ SkIRect silhouetteOf(const SkBitmap& pixels) {
 struct Screening {
   static inline sk_sp<SkImage> sheet;
   static inline std::weak_ptr<TextureScene> scene;
-  void setup(SketchContext& ctx) {
+  void setup(Scene2DContext& ctx) {
     ctx.canvas(200, 120);
     const std::shared_ptr<TextureScene> kept = ctx.textureScene({32, 32});
     kept->render(box().width(32).height(32).fill(Fill::color({1, 0, 0, 1})));
@@ -137,14 +137,14 @@ struct Screening {
  *  between repainting and stepping. */
 struct Declaring {
   static inline int updates = 0;
-  void setup(SketchContext& ctx) {
+  void setup(Scene2DContext& ctx) {
     ctx.canvas(320, 200);
     ctx.background({0.1f, 0.2f, 0.3f, 1});
     ctx.captureAt(2.5);
     ctx.composer.render(
         box().width(100).height(50).fill(Fill::color({1, 0, 0, 1})));
   }
-  void update(double, SketchContext&) { ++updates; }
+  void update(double, Scene2DContext&) { ++updates; }
 };
 
 /** The port the listening sketch below opens, and the recording it reads
@@ -164,7 +164,7 @@ std::shared_ptr<const sigil::io::Bytes> recorded(std::string_view text) {
  *  body would do from what arrived. */
 struct Listening {
   static inline sigil::io::Feed sky;
-  void setup(SketchContext& ctx) {
+  void setup(Scene2DContext& ctx) {
     ctx.canvas(64, 48);
     sigil::io::Hub& hub = ctx.assets.hub();
     if (ctx.deterministic) hub.replay(kSkyPort, ctx.local("data/sky.feed"));
@@ -188,7 +188,7 @@ struct UpdateDrivenCapture {
   sigil::motion::Timer timer;
   sigil::io::Feed feed;
 
-  void setup(SketchContext& ctx) {
+  void setup(Scene2DContext& ctx) {
     ctx.canvas(64, 48);
     ctx.paintDiscardedFrames(false);
     ctx.assets.hub().replay(kSkyPort, ctx.local("data/sky.feed"));
@@ -226,7 +226,7 @@ struct UpdateDrivenCapture {
 struct AccumulatingCapture {
   static inline int paints = 0;
   int drawn = 0;
-  void setup(SketchContext& ctx) {
+  void setup(Scene2DContext& ctx) {
     ctx.canvas(64, 48);
     ctx.composer.render(graphics("accumulating-capture",
                                  [this](sigil::draw::Pen& pen) {
@@ -256,7 +256,7 @@ struct Probing {
   static inline float nextInk = 40.0f;
   /** This instance's own answer, taken once in setup(). */
   float ink = 0;
-  void setup(SketchContext& ctx) {
+  void setup(Scene2DContext& ctx) {
     ctx.canvas(320, 200);
     ctx.background({0, 0, 0, 1});
     ink = nextInk;
@@ -266,7 +266,7 @@ struct Probing {
    *  home observable: a sketch whose answer sat in a shared static would
    *  redraw itself from ANOTHER session's answer the moment that session
    *  opened, and only a description taken after that shows it. */
-  void update(double, SketchContext& ctx) { ctx.composer.render(art()); }
+  void update(double, Scene2DContext& ctx) { ctx.composer.render(art()); }
   /** The probed width goes on a CHILD of a root that fills the canvas,
    *  held at the start of its row: the probe has to reach the pixels for
    *  a comparison of them to say anything. */
@@ -282,9 +282,9 @@ struct Probing {
 
 /** What every case here opens: the session over that sketch, and a
  *  raster surface at exactly the canvas it declared. */
-class CanvasSession : public ::testing::Test {
+class Scene2DSession : public ::testing::Test {
  protected:
-  CanvasSession()
+  Scene2DSession()
       : session(kindOf<Declaring>()->open(fonts(), assets())),
         surface(SkSurfaces::Raster(SkImageInfo::MakeN32Premul(320, 200))) {}
 
@@ -297,7 +297,7 @@ class CanvasSession : public ::testing::Test {
   sk_sp<SkSurface> surface;
 };
 
-TEST_F(CanvasSession, PaintsWhatTheSketchDescribed) {
+TEST_F(Scene2DSession, PaintsWhatTheSketchDescribed) {
   canvas().clear(SK_ColorBLACK);
   session->frame(canvas(), 1.0 / 60.0);
   EXPECT_EQ(pixels().getColor(10, 10), SK_ColorRED);
@@ -316,9 +316,9 @@ TEST_F(CanvasSession, PaintsWhatTheSketchDescribed) {
   EXPECT_EQ(pixels().getColor(300, 190), SK_ColorBLACK);
 }
 
-TEST_F(CanvasSession,
+TEST_F(Scene2DSession,
        AStillTakesOneMoreStepSoAPlateIsTheDeclaredMomentPlusOne) {
-  // A canvas runtime re-renders for its still — it is resolution
+  // A scene2d runtime re-renders for its still — it is resolution
   // independent, so a plate is described again at the capture scale
   // rather than magnified — and describing again is one more step.
   session->frame(canvas(), 1.0 / 60.0);
@@ -328,7 +328,7 @@ TEST_F(CanvasSession,
   EXPECT_EQ(Declaring::updates, stepped + 1);
 }
 
-TEST(CanvasCapture, UpdateOnlyPreRollPreservesTimersFeedsAndTheFinalStill) {
+TEST(Scene2DCapture, UpdateOnlyPreRollPreservesTimersFeedsAndTheFinalStill) {
   sigil::test::ScratchDir dir("sketch_update_only_capture");
   std::filesystem::create_directories(dir.path / "data");
   {
@@ -401,7 +401,7 @@ TEST(CanvasCapture, UpdateOnlyPreRollPreservesTimersFeedsAndTheFinalStill) {
   EXPECT_TRUE(samePicture(reference, skipped));
 }
 
-TEST(CanvasCapture, DefaultDiscardedFramesPreserveAccumulatedBrushPixels) {
+TEST(Scene2DCapture, DefaultDiscardedFramesPreserveAccumulatedBrushPixels) {
   const auto take = [](bool discard) {
     AccumulatingCapture::paints = 0;
     const auto session = kindOf<AccumulatingCapture>()->open(fonts(), assets());
@@ -429,11 +429,11 @@ TEST(CanvasCapture, DefaultDiscardedFramesPreserveAccumulatedBrushPixels) {
 }
 
 /** The 2D session's answers to what every session promises. */
-struct CanvasTraits {
+struct Scene2DTraits {
   static Kind kind() { return kindOf<Declaring>(); }
   static SkSize canvas() { return SkSize::Make(320, 200); }
   static double captureSeconds() { return 2.5; }
-  static const char* runtime() { return "canvas"; }
+  static const char* runtime() { return "scene2d"; }
   static std::vector<const char*> lanes() {
     return {"recon", "layout", "volat", "paint"};
   }
@@ -444,7 +444,7 @@ struct CanvasTraits {
   static int bodyRuns() { return Declaring::updates; }
 };
 
-TEST(CanvasDoors, DrawsTwoSessionsOfOneSketchFromTheirOwnProbes) {
+TEST(Scene2DDoors, DrawsTwoSessionsOfOneSketchFromTheirOwnProbes) {
   const auto shot = [](Session& session, SkSurface& surface) {
     surface.getCanvas()->clear(SK_ColorBLACK);
     session.frame(*surface.getCanvas(), 1.0 / 60.0);
@@ -491,18 +491,20 @@ TEST(CanvasDoors, DrawsTwoSessionsOfOneSketchFromTheirOwnProbes) {
 struct Baking {
   static inline sk_sp<SkImage> near;
   static inline sk_sp<SkImage> far;
-  void setup(SketchContext& ctx) {
+  void setup(Scene2DContext& ctx) {
     ctx.canvas(200, 120);
-    near = ctx.bakeSet(cardFrame(), kBakeSize,
-                       {.camera = cardCamera(kEyeZ), .background = kGround});
-    far = ctx.bakeSet(cardFrame(), kBakeSize,
-                      {.camera = cardCamera(kEyeZ * 2), .background = kGround});
+    near =
+        ctx.bakeScene3D(cardFrame(), kBakeSize,
+                        {.camera = cardCamera(kEyeZ), .background = kGround});
+    far = ctx.bakeScene3D(
+        cardFrame(), kBakeSize,
+        {.camera = cardCamera(kEyeZ * 2), .background = kGround});
     ctx.composer.render(box().width(10).height(10));
   }
 };
 
 /** THE SAME CARD WITH AN ENTRANCE, cascaded: it slides in from the left
- *  over its own tween, and its delay staggers when each of the set's
+ *  over its own tween, and its delay staggers when each of the group's
  *  children starts. A still of it is a claim about that entrance, so the
  *  bake has to be able to reach a moment of it. */
 world::Frame enteringFrame() {
@@ -526,13 +528,13 @@ struct Entering {
   static inline sk_sp<SkImage> atMount;
   static inline sk_sp<SkImage> partWay;
   static inline sk_sp<SkImage> landed;
-  void setup(SketchContext& ctx) {
+  void setup(Scene2DContext& ctx) {
     ctx.canvas(200, 120);
     const auto bake = [&](double seconds) {
-      return ctx.bakeSet(enteringFrame(), kBakeSize,
-                         {.camera = cardCamera(kEyeZ),
-                          .background = kGround,
-                          .at = sigil::motion::Duration(seconds)});
+      return ctx.bakeScene3D(enteringFrame(), kBakeSize,
+                             {.camera = cardCamera(kEyeZ),
+                              .background = kGround,
+                              .at = sigil::motion::Duration(seconds)});
     };
     atMount = bake(0.0);
     partWay = bake(kEnter.count() / 1000.0 * 0.5);
@@ -541,10 +543,10 @@ struct Entering {
   }
 };
 
-/** A CASE THAT BAKES A SET: the set is drawn on the device, so the
+/** A CASE THAT BAKES A 3D FRAME: the frame is drawn on the device, so the
  *  device runtime is installed for the process before it and taken away
  *  after, or the case skips naming what is missing. */
-class CanvasBakes : public testing::Test {
+class Scene2DBakes : public testing::Test {
  protected:
   void SetUp() override {
     std::string why;
@@ -554,8 +556,8 @@ class CanvasBakes : public testing::Test {
   void TearDown() override { useRuntime({}); }
 };
 
-TEST(CanvasDoors, BakesNothingWhereNoDeviceIsInstalled) {
-  // A set is drawn on a device and nowhere else, so a bake with none to
+TEST(Scene2DDoors, BakesNothingWhereNoDeviceIsInstalled) {
+  // A 3D frame is drawn on a device and nowhere else, so a bake with none to
   // draw on is no image rather than a picture no device drew.
   useRuntime({});
   Baking::near = nullptr;
@@ -564,7 +566,7 @@ TEST(CanvasDoors, BakesNothingWhereNoDeviceIsInstalled) {
   EXPECT_FALSE(Baking::near);
 }
 
-TEST_F(CanvasBakes, BakesTheMomentOfAnEntranceRatherThanAlwaysItsFirstFrame) {
+TEST_F(Scene2DBakes, BakesTheMomentOfAnEntranceRatherThanAlwaysItsFirstFrame) {
   const std::unique_ptr<Session> session =
       kindOf<Entering>()->open(fonts(), assets());
   ASSERT_TRUE(Entering::landed);
@@ -578,13 +580,13 @@ TEST_F(CanvasBakes, BakesTheMomentOfAnEntranceRatherThanAlwaysItsFirstFrame) {
   EXPECT_LT(mounted.left(), halfway.left())
       << "the bake stood still where the entrance was moving";
   EXPECT_LT(halfway.left(), settled.left());
-  // …and the landed one is the set as described, symmetric about the
+  // …and the landed one is the scene as described, symmetric about the
   // middle, which is what says the clock actually reached the end.
   EXPECT_NEAR((float)(settled.left() + settled.right()) / 2.0f,
               kBakeSize.width() / 2.0f, 1.5f);
 }
 
-TEST(CanvasDoors, PaintsWhatTheSketchHandedTheTextureScene) {
+TEST(Scene2DDoors, PaintsWhatTheSketchHandedTheTextureScene) {
   const std::unique_ptr<Session> session =
       kindOf<Screening>()->open(fonts(), assets());
   ASSERT_TRUE(Screening::sheet);
@@ -593,7 +595,7 @@ TEST(CanvasDoors, PaintsWhatTheSketchHandedTheTextureScene) {
   EXPECT_EQ(pixelsOf(Screening::sheet).getColor(16, 16), SK_ColorRED);
 }
 
-TEST(CanvasDoors, KeepsTheTextureScenesItHandsOutUntilTheBodyDeclaresAgain) {
+TEST(Scene2DDoors, KeepsTheTextureScenesItHandsOutUntilTheBodyDeclaresAgain) {
   std::unique_ptr<Session> session =
       kindOf<Screening>()->open(fonts(), assets());
   // The sketch dropped its own reference at the end of setup; the scene
@@ -613,7 +615,7 @@ TEST(CanvasDoors, KeepsTheTextureScenesItHandsOutUntilTheBodyDeclaresAgain) {
   EXPECT_TRUE(Screening::scene.expired());
 }
 
-TEST_F(CanvasBakes, BakesASetAsTheCameraProjectsIt) {
+TEST_F(Scene2DBakes, BakesAScene3DAsTheCameraProjectsIt) {
   const std::unique_ptr<Session> session =
       kindOf<Baking>()->open(fonts(), assets());
   ASSERT_TRUE(Baking::near);
@@ -644,20 +646,20 @@ TEST_F(CanvasBakes, BakesASetAsTheCameraProjectsIt) {
               kBakeSize.height() / 2.0f, 1.0f);
 }
 
-TEST_F(CanvasBakes, BakesTheSameSetFromTheCameraItIsGiven) {
+TEST_F(Scene2DBakes, BakesTheSameScene3DFromTheCameraItIsGiven) {
   const std::unique_ptr<Session> session =
       kindOf<Baking>()->open(fonts(), assets());
   ASSERT_TRUE(Baking::far);
   // The same frame from twice the distance is the same card at half the
   // pixels — the viewpoint is the caller's, and the picture is a
-  // projection of the set rather than a stamp of it.
+  // projection of the scene rather than a stamp of it.
   const SkIRect near = silhouetteOf(pixelsOf(Baking::near));
   const SkIRect far = silhouetteOf(pixelsOf(Baking::far));
   EXPECT_NEAR((float)far.width(), near.width() / 2.0f, 2.0f);
   EXPECT_NEAR((float)far.height(), near.height() / 2.0f, 2.0f);
 }
 
-TEST(CanvasDoors, PaintsMeshOnTheCpuUntilAProcessInstallsADevice) {
+TEST(Scene2DDoors, PaintsMeshOnTheCpuUntilAProcessInstallsADevice) {
   namespace render = sigil::geometry::mesh::render;
   // A sketch writes `style.runtime = sketch::painterRuntime()` once and
   // draws on both tiers, so the door must be a runtime that draws — an
@@ -667,13 +669,13 @@ TEST(CanvasDoors, PaintsMeshOnTheCpuUntilAProcessInstallsADevice) {
   EXPECT_EQ(painterRuntime(), render::Runtime::cpu());
 }
 
-/** THE THREE SHAPES A CANVAS SKETCH IS WRITTEN IN, side by side: the
+/** THE THREE SHAPES A SCENE2D SKETCH IS WRITTEN IN, side by side: the
  *  whole offer, a `setup` that named none of it, and a body stepped
  *  through an `update` that named the seconds and not the context. None
  *  of them derives from anything. */
 struct Whole {
   static inline int setups = 0;
-  void setup(SketchContext& ctx) {
+  void setup(Scene2DContext& ctx) {
     ++setups;
     ctx.canvas(64, 48);
     ctx.composer.render(box().width(10).height(10));
@@ -687,27 +689,27 @@ struct Bare {
 
 struct Stepped {
   static inline double last = -1.0;
-  void setup(SketchContext& ctx) { ctx.canvas(64, 48); }
+  void setup(Scene2DContext& ctx) { ctx.canvas(64, 48); }
   void update(double elapsed) { last = elapsed; }
 };
 
 /** …and a type that spelled the member some other way, which is what the
  *  registration has to refuse. */
 struct Misspelled {
-  void setUp(SketchContext&) {}
+  void setUp(Scene2DContext&) {}
 };
 
-TEST(CanvasBodies, ASketchIsAnyTypeThatNamesSetup) {
+TEST(Scene2DBodies, ASketchIsAnyTypeThatNamesSetup) {
   // The concept is what `kindOf` asserts on, so a member spelled some
   // other way is a compile error naming the signatures a body may have.
   // Nothing in this tree compiles a translation unit that must NOT build
   // — the documentation probes are the one generated compile check and
   // they assert that a name EXISTS — so what a case can hold is the
   // answer the assertion reads.
-  static_assert(CanvasSketch<Whole>);
-  static_assert(CanvasSketch<Bare>);
-  static_assert(CanvasSketch<Stepped>);
-  static_assert(!CanvasSketch<Misspelled>);
+  static_assert(Scene2DSketch<Whole>);
+  static_assert(Scene2DSketch<Bare>);
+  static_assert(Scene2DSketch<Stepped>);
+  static_assert(!Scene2DSketch<Misspelled>);
 
   Whole::setups = 0;
   const std::unique_ptr<Session> session =
@@ -717,7 +719,7 @@ TEST(CanvasBodies, ASketchIsAnyTypeThatNamesSetup) {
   EXPECT_EQ(session->canvas().size, SkSize::Make(64, 48));
 }
 
-TEST(CanvasBodies, OpensABodyThatNamedNothingItWasOffered) {
+TEST(Scene2DBodies, OpensABodyThatNamedNothingItWasOffered) {
   Bare::setups = 0;
   const std::unique_ptr<Session> session =
       kindOf<Bare>()->open(fonts(), assets());
@@ -732,7 +734,7 @@ TEST(CanvasBodies, OpensABodyThatNamedNothingItWasOffered) {
   session->frame(*surface->getCanvas(), 1.0 / 60.0);
 }
 
-TEST(CanvasBodies, StepsABodyThatNamedTheSecondsAndNotTheContext) {
+TEST(Scene2DBodies, StepsABodyThatNamedTheSecondsAndNotTheContext) {
   Stepped::last = -1.0;
   const std::unique_ptr<Session> session =
       kindOf<Stepped>()->open(fonts(), assets());
@@ -749,7 +751,7 @@ TEST(CanvasBodies, StepsABodyThatNamedTheSecondsAndNotTheContext) {
  *  moves it: the frames a host steps carry the feed forward to exactly
  *  the arrivals due by the moment being drawn, with nothing for the
  *  sketch to call and nothing for a host to schedule. */
-TEST(CanvasDoors, CarriesAMountedRecordingToTheSceneTimeTheFramesReach) {
+TEST(Scene2DDoors, CarriesAMountedRecordingToTheSceneTimeTheFramesReach) {
   sigil::test::ScratchDir dir("sketch_canvas_feed");
   std::filesystem::create_directories(dir.path / "data");
   {
@@ -804,7 +806,7 @@ constexpr int kShadedHeight = 80;
 
 struct Shaded {
   static inline bool carriesMaterial = true;
-  void setup(SketchContext& ctx) {
+  void setup(Scene2DContext& ctx) {
     ctx.canvas(kShadedWidth, kShadedHeight);
     sigil::weave::PaintLayer pass(SK_ColorWHITE);
     if (carriesMaterial)
@@ -865,7 +867,7 @@ class InstalledResolver {
   ~InstalledResolver() { sigil::weave::paint::setMaterialResolver({}); }
 };
 
-TEST(CanvasDoors, ShadesATextPassesMaterialWithoutAHostInstallingAResolver) {
+TEST(Scene2DDoors, ShadesATextPassesMaterialWithoutAHostInstallingAResolver) {
   // A material on a text pass is shaded by the runtime the sketch drew
   // through: nothing in this binary is a host and nothing here installed
   // a resolver, and the two plates still differ.
@@ -880,7 +882,7 @@ TEST(CanvasDoors, ShadesATextPassesMaterialWithoutAHostInstallingAResolver) {
       << "the pass drew its plain paint, so the material never shaded";
 }
 
-TEST(CanvasDoors, LeavesAResolverAHostInstalledStanding) {
+TEST(Scene2DDoors, LeavesAResolverAHostInstalledStanding) {
   // A flat, unmistakable colour nothing else in this file draws.
   constexpr SkColor kHostInk = 0xFF00FF00;
   const InstalledResolver installed(
@@ -896,15 +898,15 @@ TEST(CanvasDoors, LeavesAResolverAHostInstalledStanding) {
   EXPECT_GT(hostInked, 0) << "the runtime's default replaced the host's";
 }
 
-TEST(CanvasDoors, AMaterialPassNeedsNoHostToShade) {
-  // The seam's own claim: opening a canvas session is what closes it.
+TEST(Scene2DDoors, AMaterialPassNeedsNoHostToShade) {
+  // The seam's own claim: opening a scene2d session is what closes it.
   const std::unique_ptr<Session> session =
       kindOf<Bare>()->open(fonts(), assets());
   ASSERT_TRUE(session);
   EXPECT_TRUE(sigil::weave::paint::hasMaterialResolver());
 }
 
-struct DeviceCanvas : Bare {
+struct DeviceScene2D : Bare {
   static constexpr bool needsDevice = true;
 };
 
@@ -919,19 +921,20 @@ class SuppliedPainter final : public gm::render::Executor {
                  const std::function<void(SkCanvas&)>&) const override {}
 };
 
-TEST(CanvasKinds, DeviceRequirementsFollowTheBodyOrSuppliedPainter) {
+TEST(Scene2DKinds, DeviceRequirementsFollowTheBodyOrSuppliedPainter) {
   const Kind ordinary = kindOf<Bare>();
   EXPECT_FALSE(ordinary->needsDevice());
-  EXPECT_TRUE(kindOf<DeviceCanvas>()->needsDevice());
+  EXPECT_TRUE(kindOf<DeviceScene2D>()->needsDevice());
   EXPECT_FALSE(onPainterRuntime(ordinary, {})->needsDevice());
   EXPECT_FALSE(
       onPainterRuntime(ordinary, gm::render::Runtime::cpu())->needsDevice());
   EXPECT_TRUE(onPainterRuntime(ordinary, gm::render::Runtime{SuppliedPainter{}})
                   ->needsDevice());
-  EXPECT_TRUE(onPainterRuntime(kindOf<DeviceCanvas>(), {})->needsDevice());
-  EXPECT_FALSE(ordinary == Kind(CanvasKind{&makeCanvasBody<Bare>, true}));
+  EXPECT_TRUE(onPainterRuntime(kindOf<DeviceScene2D>(), {})->needsDevice());
+  EXPECT_FALSE(ordinary == Kind(Scene2DKind{&makeScene2DBody<Bare>, true}));
 }
 
 }  // namespace
 
-INSTANTIATE_TYPED_TEST_SUITE_P(TheCanvasSession, SessionContract, CanvasTraits);
+INSTANTIATE_TYPED_TEST_SUITE_P(TheScene2DSession, SessionContract,
+                               Scene2DTraits);

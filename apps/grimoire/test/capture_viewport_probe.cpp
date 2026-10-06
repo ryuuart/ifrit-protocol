@@ -2,14 +2,14 @@
 #include <include/core/SkCanvas.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Pen.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <cstdio>
 #include <cstdlib>
 
 namespace {
 struct CaptureViewport {
-  void setup(sigil::sketch::SketchContext& ctx) {
+  void setup(sigil::sketch::Scene2DContext& ctx) {
     using namespace sigil::compose;
     ctx.canvas(640, 400);
     ctx.composer.render(

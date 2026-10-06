@@ -17,8 +17,8 @@
 #include <sigilscry/engine/WebEngine.h>
 #include <sigilscry/engine/WebView.h>
 #include <sigilscry/platform/Runtime.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilsketch/scry/Settling.h>
 #include <sigilsketch/scry/SharedEngine.h>
 #include <sigilweave/style/Type.h>
@@ -117,7 +117,7 @@ struct WebScript {
    *  apart from an earlier declaration's under the same cell. */
   int declared = 0;
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // every stage is done before the first frame
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
@@ -200,7 +200,7 @@ struct WebScript {
    *  advanced here, on the thread that draws, and the sheet is described
    *  again on the frame any of them finishes. A capture has finished all
    *  four already and this moves nothing. */
-  void update(double, sketch::SketchContext& ctx) {
+  void update(double, sketch::Scene2DContext& ctx) {
     bool landed = false;
     for (const std::unique_ptr<sketch::scry::Settling>& settling : pages)
       landed = settling->advance() || landed;
@@ -208,7 +208,7 @@ struct WebScript {
   }
 
   /** The sheet as the four pages stand now. */
-  void describe(sketch::SketchContext& ctx) {
+  void describe(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     const bool arrived =
         std::all_of(pages.begin(), pages.end(),

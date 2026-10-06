@@ -104,7 +104,7 @@ Sampling samplingOf(const ::sigil::material::Texture& texture);
  *  projection stays the whole picture's and is carried off-centre onto
  *  the part, so a pixel of the targets is the pixel the whole picture
  *  holds there and nothing outside the part is formed at all — which is
- *  how a host showing a magnified piece of a set pays for the piece.
+ *  how a host showing a magnified piece of a scene pays for the piece.
  *
  *  A zero `whole` says the targets ARE the picture, and so does one
  *  equal to the targets' size at the origin; either leaves every

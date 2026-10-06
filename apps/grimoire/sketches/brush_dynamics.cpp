@@ -12,7 +12,7 @@
 #include <sigildraw/Pen.h>
 #include <sigildraw/brush/Brush.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <array>
 #include <cmath>
@@ -73,7 +73,7 @@ void lane(Pen& pen, float y, const char* name, brush::Tool tool, float spacing,
 }
 
 struct BrushDynamics {
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     context.canvas(1000, 760);
     context.captureAt(0.25);
 

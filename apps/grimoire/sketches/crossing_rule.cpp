@@ -35,8 +35,8 @@
 #include <sigilgeometry/path/Crossings.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <string>
 #include <utility>
@@ -183,7 +183,7 @@ sketch::kit::ComparisonCase cell(const char* title, std::string key,
 }  // namespace
 
 struct CrossingRuleSheet {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});

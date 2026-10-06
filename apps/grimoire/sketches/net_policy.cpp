@@ -24,8 +24,8 @@
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/core/Image.h>
 #include <sigilmedia/image/Encode.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <cstddef>
 #include <filesystem>
@@ -93,7 +93,7 @@ Element decision(const char* policy, const char* state, const char* route,
 }  // namespace
 
 struct NetPolicy {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide presentation(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // every ask has already been answered

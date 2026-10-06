@@ -763,7 +763,7 @@ struct CdeMotifSketch {
                        .children({cde::label(title)})});
   }
 
-  Element describe(sketch::SketchContext& ctx) {
+  Element describe(sketch::Scene2DContext& ctx) {
     // ONE REGISTER FOR THE WHOLE DESKTOP, declared where the desktop is:
     // CDE has no type hierarchy, so every label under here is set in this
     // and says only its words. The colour is not part of it — a colour
@@ -806,7 +806,7 @@ struct CdeMotifSketch {
 
   // -------------------------------------------------------------------------
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     // The still has to name its moment: palettes snap every 3 s over
     // {Default, Crimson, Black, Summer}, and an undeclared capture can land
     // on a snap or on Black, the all-black degenerate palette. Default —
@@ -861,7 +861,7 @@ struct CdeMotifSketch {
 
   int lastSweepByte = -1;
 
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     // Beat one: the palette cycles every 3 s. SNAP, do not crossfade —
     // CDE's colour server re-allocates the cells and every window
     // repaints on the next expose; a 300 ms lerp across a desktop would

@@ -132,7 +132,7 @@ class TablesAgree(unittest.TestCase):
 
     def test_a_required_member_left_out_is_refused(self) -> None:
         with self.assertRaises(messages.MessageError):
-            protocol.session.OpenParameters.from_json({"kind": "canvas"})
+            protocol.session.OpenParameters.from_json({"kind": "scene2d"})
 
 
 class ClientSpeaksTheDefinition(unittest.TestCase):

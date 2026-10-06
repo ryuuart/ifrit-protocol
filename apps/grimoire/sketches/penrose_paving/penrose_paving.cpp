@@ -30,9 +30,9 @@
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmotion/bind/Binding.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
@@ -558,7 +558,7 @@ struct PenrosePaving {
     });
   }
 
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     // Captured in the evening light with the rules drawn on the finished
     // paving; the loop begins at the sun, so the moment is late in it.
     sketch::kit::stage(
@@ -606,7 +606,7 @@ struct PenrosePaving {
             }));
   }
 
-  void update(double elapsed, sketch::SketchContext&) {
+  void update(double elapsed, sketch::Scene2DContext&) {
     const float now = std::fmod((float)elapsed, kLoop);
     seconds = now;
     // Each cut moves in the first four fifths of its time and rests after.

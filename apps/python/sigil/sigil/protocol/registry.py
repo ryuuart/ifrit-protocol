@@ -195,7 +195,7 @@ class Entry:
     """Its file's stem, or its directory's."""
 
     kind: str = ""
-    """The runtime it draws through: canvas or set."""
+    """The runtime it draws through: scene2d or scene3d."""
 
     available: bool = False
     """Whether this build can open it."""
@@ -231,7 +231,7 @@ class ListParameters:
     """What list is asked."""
 
     kind: str = ""
-    """The runtime to list, canvas or set; empty for every one."""
+    """The runtime to list, scene2d or scene3d; empty for every one."""
 
     def to_json(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""

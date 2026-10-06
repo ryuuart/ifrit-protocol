@@ -32,8 +32,8 @@
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -258,7 +258,7 @@ struct WinampBase {
   // =========================================================================
   // READING
 
-  void read(sketch::SketchContext& context) {
+  void read(sketch::Scene2DContext& context) {
     const auto json = [&](const char* name) {
       return context.assets.hub().load<data::Json>(
           context.local(std::string("data/") + name));
@@ -1121,7 +1121,7 @@ struct WinampBase {
         });
   }
 
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     // The capture sits on the spectrum at full swing, a beat after the
     // treble slider was pulled up and before the visualiser changes mode.
     sketch::kit::stage(context, {.size = {kDesktopWidth * kSkinPixel,

@@ -28,14 +28,14 @@ Takes `OpenParameters`: What open is asked.
 | Parameter | Type | Default | |
 | --- | --- | --- | --- |
 | `sketch` | string, required | "" | A registry name, or the path to a sketch file or directory, which is compiled and loaded as a person's edit would be. |
-| `kind` | string | "" | The runtime to open it through, canvas or set; empty for whichever it declares. |
+| `kind` | string | "" | The runtime to open it through, scene2d or scene3d; empty for whichever it declares. |
 
 Answers `Summary`: A session as a list shows it.
 
 | Field | Type | Default | |
 | --- | --- | --- | --- |
 | `sketch` | string | "" | The registry name, or the path, it was opened from. |
-| `kind` | string | "" | The runtime it draws through: canvas or set. |
+| `kind` | string | "" | The runtime it draws through: scene2d or scene3d. |
 | `width` | float | 0.0 | The canvas width it declared, in canvas units. |
 | `height` | float | 0.0 | The canvas height it declared, in canvas units. |
 | `moment` | double | -1.0 | The moment it declared it is photographed at, in seconds; negative where it declared none. |

@@ -41,7 +41,7 @@
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmotion/bind/Binding.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Face.h>
 
@@ -265,7 +265,7 @@ struct Minard1869 {
   weave::Type almanacDate, almanacCount;
 
   template <class Read>
-  static void rows(sketch::SketchContext& context, const char* file,
+  static void rows(sketch::Scene2DContext& context, const char* file,
                    Read read) {
     if (const auto table = context.assets.hub().load<sigil::data::Table>(
             context.local(std::string("data/") + file)))
@@ -344,7 +344,7 @@ struct Minard1869 {
     });
   }
 
-  Element printed(sketch::SketchContext& context) const {
+  Element printed(sketch::Scene2DContext& context) const {
     std::vector<Element> ink;
     // The printed frame: a heavy rule outside a fine one.
     ink.push_back(
@@ -530,7 +530,7 @@ struct Minard1869 {
 
   /** The thermometer: the curve as the readings come in, each hung from
    *  the retreat by a line that drops to it on the day it was taken. */
-  Element thermometer(sketch::SketchContext& context) {
+  Element thermometer(sketch::Scene2DContext& context) {
     std::vector<Element> marks;
     rows(context, "temperatures.csv", [&](const auto& table) {
       const auto label = table.template column<std::string>("label");
@@ -608,7 +608,7 @@ struct Minard1869 {
         .height(96);
   }
 
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     context.canvas(kWidth, kHeight);
     context.background(kGround);
     // Taken with the retreat home, the graph drawn and the Berezina named.
@@ -674,7 +674,7 @@ struct Minard1869 {
             }));
   }
 
-  void update(double elapsed, sketch::SketchContext&) {
+  void update(double elapsed, sketch::Scene2DContext&) {
     seconds = (float)std::fmod(elapsed, (double)kLoopLength);
     const float today = campaignDay(seconds.value());
     day = today;

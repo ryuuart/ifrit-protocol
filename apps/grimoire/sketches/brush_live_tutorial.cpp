@@ -22,7 +22,7 @@
 #include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <array>
 #include <cmath>
@@ -119,7 +119,7 @@ struct BrushLiveTutorial {
   brush::Engine brushes;
   int lastScene = -1;
 
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     context.canvas(840, 840);
     context.background({255 / 255.0f, 252 / 255.0f, 235 / 255.0f, 1});
     context.captureAt(12.5);

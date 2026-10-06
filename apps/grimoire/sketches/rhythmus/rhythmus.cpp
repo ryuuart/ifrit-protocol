@@ -11,7 +11,7 @@
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <array>
@@ -58,7 +58,7 @@ struct Rhythmus {
   motion::Animatable<float> registerX = motion::animatable(0.0f);
   std::array<motion::Animatable<float>, 5> slice;
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(1000, 1400);
     ctx.background(black);
     ctx.captureAt(3.2);

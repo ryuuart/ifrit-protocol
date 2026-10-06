@@ -1,5 +1,5 @@
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Passage.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <cstdio>
 #include <optional>
@@ -7,7 +7,7 @@
 
 namespace sigil::sketch::kit {
 
-std::u8string passage(SketchContext& ctx, std::string_view name) {
+std::u8string passage(Scene2DContext& ctx, std::string_view name) {
   const std::string uri = ctx.local(name);
   std::optional<std::string> text = ctx.assets.hub().text(uri);
   if (!text) {

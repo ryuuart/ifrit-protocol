@@ -18,8 +18,8 @@
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmaterial/texture/Texture.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/Registry.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/query/Selector.h>
 
 #include <algorithm>
@@ -402,7 +402,7 @@ struct LayeredMaterialType {
     return page;
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(kWidth, kHeight);
     ctx.background(kPaper);
     ctx.captureAt(2);
@@ -428,7 +428,7 @@ struct LayeredMaterialType {
     update(0, ctx);
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     checkInk();
     const float t = static_cast<float>(
         std::fmod(std::isfinite(elapsed) ? std::max(0., elapsed) : 0., 24.));

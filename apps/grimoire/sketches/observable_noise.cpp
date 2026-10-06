@@ -8,7 +8,7 @@
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcore/compute/Chance.h>
 #include <sigildraw/Pen.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <cmath>
 #include <cstdint>
@@ -25,7 +25,7 @@ namespace {
 float sample(uint32_t value) { return chance::Stream::mix64(value).unit(); }
 
 struct ObservableNoise {
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     context.canvas(900, 720);
     context.captureAt(0.05);
 

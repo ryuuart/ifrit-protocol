@@ -8,7 +8,7 @@
 
 #include "GenesisFire.h"
 
-void GenesisFire::setup(sketch::SketchContext& ctx) {
+void GenesisFire::setup(sketch::Scene2DContext& ctx) {
   // 4.6 s into the 10 s loop: the wavefront is near the right edge, the
   // leftmost systems are burning out and the rightmost have just ignited.
   ctx.canvas(kCanvasW, kCanvasH);

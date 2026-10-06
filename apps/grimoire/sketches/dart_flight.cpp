@@ -32,7 +32,7 @@
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/kit/Page.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilworld/World.h>
 
 #include <cmath>
@@ -88,7 +88,7 @@ gm::Mesh gate() { return gm::torus(26.0f, 3.0f, 6, 10); }
 namespace {
 
 struct DartFlight {
-  void setup(sketch::SetContext& ctx) {
+  void setup(sketch::Scene3DContext& ctx) {
     sketch::kit::stage(
         ctx, {.size = {880, 600},
               .captureAt = 1.5,
@@ -157,7 +157,7 @@ struct DartFlight {
 
 }  // namespace
 
-SIGIL_SKETCH(DartFlight, "Set",
+SIGIL_SKETCH(DartFlight, "Scene3D",
              "A dart flying a closed loop — one curve, swept into "
              "a rail and ridden by everything on it, each node aimed by the "
              "curve's own frame")

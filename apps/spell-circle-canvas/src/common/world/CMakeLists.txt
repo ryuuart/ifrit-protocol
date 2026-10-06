@@ -39,7 +39,7 @@ add_subdirectory(scene)
 add_subdirectory(diligent)
 
 # The presets: nodes composed out of the verbs above — a three-point rig,
-# a turntable, a lit set, a panorama — and the front door every set
+# a turntable, a lit set, a panorama — and the front door every scene
 # includes. It stands on the description and the frame, and nothing here
 # draws or retains.
 add_subdirectory(kit)
@@ -57,7 +57,7 @@ sigil_library(SigilWorld
 # The libraries this one stands on are scanned so a borrowed name
 # resolves where it lives: the mesh currency and its runtimes, the
 # reconcile phases and the settle policy, the shader compiler, and the
-# stagger whose origins mean the same thing in a set as in a line of
+# stagger whose origins mean the same thing in a scene as in a line of
 # type. The entity store's own names are EnTT's, whose headers no
 # include root here carries.
 sigil_doc_probes(world

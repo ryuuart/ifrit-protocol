@@ -14,7 +14,7 @@ from sigil.compose import pen as canvas
 from sigil.draw import CLOSE, Pen
 from sigil.material import shader
 from sigil.motion import animatable, bind
-from sigil.sketch import SketchContext, sketch
+from sigil.sketch import Scene2DContext, sketch
 from sigil.weave import FrameOptions, Leading, Type
 
 SIZE = (1600, 1100)
@@ -780,7 +780,7 @@ def label(
 
 @sketch(size=SIZE, background=GROUND, capture_at=4.0)
 class BorgesLibrary:
-    def setup(self, ctx: SketchContext):
+    def setup(self, ctx: Scene2DContext):
         self.seconds = animatable(0)
         self.interior = Interior()
         route_dot = (
@@ -929,5 +929,5 @@ class BorgesLibrary:
             )
         )
 
-    def update(self, elapsed, ctx: SketchContext):
+    def update(self, elapsed, ctx: Scene2DContext):
         self.seconds.set(elapsed)

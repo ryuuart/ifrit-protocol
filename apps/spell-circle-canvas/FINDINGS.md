@@ -86,8 +86,8 @@ tally counts as found, so it builds nothing whether a recorded set
 exists or not.
 
 `--frame` is not a way in and is not the missing half: a capture
-photographs a canvas on a raster surface so the picture is reproducible,
-and a set is drawn by the device's own renderer, so the lane builds no
+photographs a scene2d sketch on a raster surface so the picture is reproducible,
+and a scene3d sketch is drawn by the device's own renderer, so the lane builds no
 Graphite program at all and has nothing to record. Only the `--gpu`
 sweep and the window build them.
 
@@ -160,7 +160,7 @@ passage's frame cost does not grow with the zoom.
 and a run shorter than a closed baseline leaves a gap at the seam while
 a longer one is cut off at the end. A ring inscription girds its circle
 exactly, so `rota_convocationis` measures each band with
-`SketchContext::measure` and rescales the font size twice (tracking is
+`Scene2DContext::measure` and rescales the font size twice (tracking is
 px and does not scale with the type) before it describes the tree:
 twelve seals and four bands, each a probe outside the tree.
 
@@ -314,7 +314,7 @@ leaf carries and assert local 1 follows it.
 resolution from a family name to that face exists:
 `weave::FontContext::familyTypeface(family, style)`
 (`sigilweave/fonts/FontContext.h`) answers one family name, and
-`SketchContext::fonts` is that context. What is missing is narrower:
+`Scene2DContext::fonts` is that context. What is missing is narrower:
 
 - the measuring doors take the held face, which is a Skia value a sketch
   may not hold, so the one family door ends in a type the sketch cannot
@@ -327,7 +327,7 @@ resolution from a family name to that face exists:
   `getVariationDesignParameters`) and exposes nothing.
 
 So the one door left to a sketch whose type is named on a rule is
-`SketchContext::measure` over an element, and that answers the leaf's
+`Scene2DContext::measure` over an element, and that answers the leaf's
 box: `LayoutText.cpp` rounds a passage's measured size up to whole pixels
 (`std::ceil` on `measuredSize`), with no pen positions and no metrics.
 
@@ -1022,7 +1022,7 @@ that keyword-only captured values retain their values.
 
 The optical-record focus probe asks for a Python file still at 0.25
 seconds. Its update log visits 0.25 and then 0.26666666666666666 seconds
-before writing the image. `src/sketch/canvas/Session.cpp` deliberately
+before writing the image. `src/sketch/scene2d/Session.cpp` deliberately
 paints a still through `frame(..., stillStep())`, and
 `src/sketch/live/Host.cpp` advances the requested duration before invoking
 that photograph. The extra step is intentional, but the file lane's
@@ -1065,8 +1065,8 @@ host.describe reports the live optical-record canvas.
 The protocol already defines clock stepping and session sequence capture,
 and the Host already has the device-backed capture seam. An author cannot
 combine those existing facilities through the window endpoint. The
-file-frame lane deliberately captures 2D canvases on Raster, including
-when `--gpu` enables the device for mesh or set content. A procedural
+file-frame lane deliberately captures scene2d sketches on Raster, including
+when `--gpu` enables the device for mesh or scene3d content. A procedural
 optical movie therefore cannot request the window's 2D backend through
 either public route. Connecting a client to a running window's endpoint
 and sending `clock.setPolicy` or `session.still` reproduces the refusals.
@@ -1169,14 +1169,14 @@ a circular shoulder with its radial reference, and separate normal
 encoding from coverage and filter precision. Increasing output density or
 blurring the final plate does not establish a smoother source field.
 
-## API gap: canvas sequence sampling advances during photography
+## API gap: scene2d sequence sampling advances during photography
 
 The native protocol sequence steps by one over the requested rate between
-stills. A canvas still also draws an extra frame and advances by one
-sixtieth of a second, while a set still presents its held frame. The same
+stills. A scene2d still also draws an extra frame and advances by one
+sixtieth of a second, while a scene3d still presents its held frame. The same
 25-frame request at rate 24 therefore advances the stone and optical clocks
-by 1.4167 seconds, but the metal set clock by one second. Requesting that
-sequence through the protocol from a canvas study and a set study, then
+by 1.4167 seconds, but the metal scene3d clock by one second. Requesting that
+sequence through the protocol from a scene2d study and a scene3d study, then
 seeking each directly to the sequence's final reported time, reproduces
 it: the direct seeks match the actual final sequence time exactly, not the
 requested one.
@@ -1186,7 +1186,7 @@ insufficient to state the scene's sampling interval across runtime kinds.
 Wanted: photograph each requested scene time while retaining redraw at the
 capture density; count redraws separately from clock advancement. A
 regression should sample a clock-driven color or position at the same
-requested times in a canvas and a set, assert those times and frame count,
+requested times in a scene2d sketch and a scene3d sketch, assert those times and frame count,
 and compare fresh direct seeks at several densities. Paused stills should
 remain held and repeatable.
 
@@ -1230,7 +1230,7 @@ Wanted: a Slang body for `normalFromHeight` (a central difference over the
 height slot at a texel step the recipe states), or a bake of its output into
 a texture before it reaches a body. A regression should compare a height
 texture's derived normal on a World card with the same normal supplied as a
-texture, under one raking light. Until then a page reaches a set through
+texture, under one raking light. Until then a page reaches a scene3d sketch through
 `compose::SurfaceScene`, whose normal map is an image the binder reads.
 
 ## Bug: flow exclusions can read fixed-size glyphs before text layout
@@ -1491,11 +1491,11 @@ should change, by kind:
   (`material::hexColor`), a button in five, a studio environment bake in
   three, a texture stretched over an extent in five. `carved_marks` and
   `layered_material_type` share most of their page.
-- **Lighting.** A study's lighting goes through a set: its page is worn
+- **Lighting.** A study's lighting goes through a scene3d sketch: its page is worn
   as surface maps (`compose::SurfaceScene`) by a World surface under the
-  set's lights, as `carved_marks_set` does. Until then its lit materials
+  scene3d sketch's lights, as `carved_marks_set` does. Until then its lit materials
   paint their colours flat. Emitters with an extent and a turned plane
-  are a set's too.
+  are a scene3d sketch's too.
 - **Checks that throw while painting.** `carved_marks`,
   `layered_material_type` and `luminous_layers` verify revisions each
   frame and throw from `update` or `paint`; `light_table` and
@@ -1624,8 +1624,8 @@ up to 32 levels along such edges.
 
 Wanted: a frame overlay — a page laid over the finished picture after the
 final stage, in display values — for content that is about the picture
-rather than standing in the set, as the kit's planned frame overlay would
-be. A regression should lay a half-transparent grey panel over a bright set
+rather than standing in the scene, as the kit's planned frame overlay would
+be. A regression should lay a half-transparent grey panel over a bright scene
 both ways and assert the overlay matches a Skia composite of the same
 panel over the same picture to within a level.
 
@@ -1712,13 +1712,13 @@ the file's thickness and attenuation.
 
 ## A page's surface maps cannot carry transmission or distortion
 
-A Compose page reaches a set as a surface's MAPS
+A Compose page reaches a scene3d sketch as a surface's MAPS
 (`compose/texture/SurfaceScene.cpp`, `material::skia::asMap`), one image
 per role; transmission and distortion read the scene behind the surface,
 which a flat map cannot hold, and a page whose content states either is
 drawn without it, reported once (`compose.surface.transmission`). The
 route for a material that needs its own shading is for it to cross to
-the set as ITSELF with a coverage mask, stacked through `material::over`
+the scene as ITSELF with a coverage mask, stacked through `material::over`
 onto the page's surface, rather than flattened into maps — which also
 needs the stack to mix the transmission and distortion variables by its
 mask (the entry below). A test should hang a page with a glass panel over
@@ -1764,12 +1764,12 @@ assert the highlight varies smoothly across a triangle edge.
 
 `fitCascades` and `fitDirectional` in
 `src/common/world/diligent/Geometry.cpp` fit each cascade to the box of
-what the camera sees of the set in its slice, snapped to whole texels.
+what the camera sees of the scene in its slice, snapped to whole texels.
 The box changes size as the camera turns, so the texel size changes and a
 still shadow shimmers along its edges while the camera moves. The
 intended fit is a bounding sphere of each slice, whose size does not
 change with the camera's turn, snapped in the light's own space. A test
-should turn the camera a few degrees over a still set and assert that a
+should turn the camera a few degrees over a still scene and assert that a
 shadow edge seen at the same world point moves by no more than a pixel.
 
 ## A transmissive body casts no shadow at all
@@ -1866,9 +1866,9 @@ material asks for, by its first number. A test should assert that
 `pop::on(loop).fill("cell", {3, 0, 0, 0}).instances(quad, {"cell"})`
 answers 3 for every instance's `"cell"`.
 
-## A set's first frame still builds its pipelines and its fixed programs on the thread that draws
+## A scene3d sketch's first frame still builds its pipelines and its fixed programs on the thread that draws
 
-A live set no longer waits for a surface program — a body whose program
+A live scene3d sketch no longer waits for a surface program — a body whose program
 is compiling is drawn as a stand-in — but the pipeline built from each
 program (`PipelineCache::pipeline` in
 `src/common/geometry/device/residency/Pipelines.cpp`) and the backend's
@@ -1879,11 +1879,11 @@ driver's pipeline cache is kept between runs, so this costs the first
 launch on a machine and the first use of each fixed program in a process.
 The intended behaviour is that a pipeline is built on a worker as a
 program is, and the fixed programs are compiled when the device comes up,
-off the thread that draws. A test should open a set whose pipelines are
+off the thread that draws. A test should open a scene3d sketch whose pipelines are
 not cached and assert its first live frame returns before any pipeline
 is built, and that a later frame draws the body whole.
 
-## A canvas on the shared Vulkan device still reads a set's picture back
+## A canvas on the shared Vulkan device still reads a scene3d sketch's picture back
 
 `Gpu::present` in `src/common/world/diligent/Gpu.cpp` hands a picture
 over in place only to a Metal recorder — a window's. A canvas drawn
@@ -1899,16 +1899,16 @@ pixels equal the readback's.
 
 `gm::superellipsoid`, `quad` and the other solids in
 `src/common/geometry/include/sigilgeometry/kit/Solids.h` return a formed
-mesh, so a set that spells one in `describe()` builds the triangles every
+mesh, so a scene3d sketch that spells one in `describe()` builds the triangles every
 frame only for reconcile to find them equal; `world::Generator` keeps a
 cook by value but needs a hand-written model. The shape vocabulary in
 2D already answers with comparable values. The intended shape is a solid
 spelled as a value (its radii, exponent and divisions) that a node's
 geometry slot holds and cooks once while it is unchanged. `set_stagger`
 forms its meshes once in members until then. A test should describe a
-set naming a solid value twice and assert the solid was formed once.
+scene3d sketch naming a solid value twice and assert the solid was formed once.
 
-## The lit bodies laid over are most of a full-size set's device time
+## The lit bodies laid over are most of a full-size scene3d sketch's device time
 
 Timed with `Frame::timeStages`, a full-size window frame of `first_light`,
 `shadow_play`, `soft_boxes` and `world_hud` spends almost all of its

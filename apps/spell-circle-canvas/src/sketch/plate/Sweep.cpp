@@ -128,8 +128,8 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
   }
 
   // THE DEVICE'S OWN CONTEXT, and never one of this sweep's making: a
-  // set is rendered by the runtime the host installed on the device it
-  // brought up, and a canvas is photographed on a surface allocated
+  // scene3d sketch is rendered by the runtime the host installed on the device
+  // it brought up, and a scene2d sketch is photographed on a surface allocated
   // here. Two devices would mean the second could not read what the
   // first painted, so both stand on the one the host installed.
   skia::GraphiteContext* graphite = nullptr;

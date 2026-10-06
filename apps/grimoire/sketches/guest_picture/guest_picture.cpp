@@ -59,11 +59,11 @@
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmedia/advanced/Skia.h>
-#include <sigilsketch/canvas/Guest.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Cells.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Theme.h>
+#include <sigilsketch/scene2d/Guest.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <memory>
 #include <string>
@@ -111,7 +111,7 @@ struct GuestPicture {
   bool showing = false;
   std::string drawnIn;
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide presentation(sketch::kit::featureTheme());
     sketch::kit::stage(
         ctx, {.size = kCanvas, .captureAt = kCaptureAt, .background = kGround});
@@ -124,7 +124,7 @@ struct GuestPicture {
    *  caption and a different card, and nothing else on the page moves by
    *  being described again. The picture itself is never re-described —
    *  it is one leaf drawing whatever the newest frame is. */
-  void update(double, sketch::SketchContext& ctx) {
+  void update(double, sketch::Scene2DContext& ctx) {
     if (read()) describe(ctx);
   }
 
@@ -139,7 +139,7 @@ struct GuestPicture {
     return true;
   }
 
-  void describe(sketch::SketchContext& ctx) {
+  void describe(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide presentation(sketch::kit::featureTheme());
     std::vector<compose::Element> body;
     body.push_back(picture());

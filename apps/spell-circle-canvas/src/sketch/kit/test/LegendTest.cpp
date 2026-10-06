@@ -4,8 +4,8 @@
 
 #include <gtest/gtest.h>
 #include <sigilcompose/brush/Decorations.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <vector>
 
@@ -162,7 +162,7 @@ TEST(SketchKitLegend, AStripNamesTheStepsItHasWordsFor) {
 TEST(SketchKitLegend, AStripLightsTheStepsItsReadingIsTakenAt) {
   const kit::Theme& house = kit::houseTheme();
   const std::vector<compose::Fill> steps{Fill::color({1, 0, 0, 1}),
-                                                 Fill::color({0, 1, 0, 1})};
+                                         Fill::color({0, 1, 0, 1})};
   const sigil::material::Color lit{0.2f, 0.4f, 1.0f, 1};
   Element byHand =
       compose::box()
@@ -175,9 +175,10 @@ TEST(SketchKitLegend, AStripLightsTheStepsItsReadingIsTakenAt) {
                    .alignItems(compose::Align::Center)
                    .children({compose::box().width(20).height(10).fill(
                        Fill::color({1, 0, 0, 1}))})
-                   .children({compose::text(
-                                  u8"0", house.style(house.type.eyebrow, lit))
-                                  .margin(house.spacing.captionNoteGap, 0, 0, 0)})})
+                   .children(
+                       {compose::text(u8"0",
+                                      house.style(house.type.eyebrow, lit))
+                            .margin(house.spacing.captionNoteGap, 0, 0, 0)})})
           .children(
               {compose::box()
                    .column()
@@ -198,13 +199,14 @@ TEST(SketchKitLegend, AStripLightsTheStepsItsReadingIsTakenAt) {
 
 TEST(SketchKitLegend, AChipIsItsWordOnTheThemesFigureGround) {
   const kit::Theme& house = kit::houseTheme();
-  Element byHand = compose::box()
-                       .padding(house.spacing.chipPaddingY, house.spacing.chipPaddingX)
-                       .fill(Fill::color(house.palette.figure))
-                       .borderRadius(compose::Corners{2})
-                       .children({compose::text(
-                           u8"PINNED", house.style(house.type.eyebrow,
-                                                   house.palette.ground))});
+  Element byHand =
+      compose::box()
+          .padding(house.spacing.chipPaddingY, house.spacing.chipPaddingX)
+          .fill(Fill::color(house.palette.figure))
+          .borderRadius(compose::Corners{2})
+          .children(
+              {compose::text(u8"PINNED", house.style(house.type.eyebrow,
+                                                     house.palette.ground))});
   EXPECT_TRUE(sameDrawing(std::move(byHand), kit::chip({.label = u8"PINNED"})));
 }
 

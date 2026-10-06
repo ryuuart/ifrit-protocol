@@ -24,10 +24,10 @@
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/image/Decode.h>
 #include <sigilmedia/video/Video.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/plate/Story.h>
 #include <sigilsketch/plate/Sweep.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene2d/Scene2D.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilworld/World.h>
 #include <sigilworld/frame/Frame.h>
 
@@ -56,12 +56,12 @@ using sigil::test::ScratchDir;
 /** A moving scene with a declared moment, so what the sweep captures
  *  depends on the declaration and could differ if it did not. */
 struct Probe {
-  void setup(SketchContext& ctx) {
+  void setup(Scene2DContext& ctx) {
     ctx.canvas(64, 48);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(0.5);
   }
-  void update(double elapsed, SketchContext& ctx) {
+  void update(double elapsed, Scene2DContext& ctx) {
     ctx.composer.render(box()
                             .width(10)
                             .height(10)
@@ -78,7 +78,7 @@ struct StoryMomentProbe {
   static inline double firstPaintSeconds = -1, lastUpdateSeconds = -1;
   double seconds = 0;
 
-  void setup(SketchContext& ctx) {
+  void setup(Scene2DContext& ctx) {
     ctx.canvas(64, 48);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(2.0);
@@ -104,12 +104,12 @@ struct StoryMomentProbe {
   }
 };
 
-/** A retained set whose initial scene is green and every later scene is
- *  red. Repainting its held frame must keep the initial scene time. */
-struct InitialSetProbe {
+/** A retained scene3d sketch whose initial scene is green and every later scene
+ *  is red. Repainting its held frame must keep the initial scene time. */
+struct InitialScene3DProbe {
   static inline float describedSeconds = -1;
 
-  void setup(SetContext& ctx) {
+  void setup(Scene3DContext& ctx) {
     ctx.canvas(64, 48);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(0.5);
@@ -138,7 +138,7 @@ struct InitialSetProbe {
  *  on, so the march has to survive a pre-roll taken somewhere else. */
 struct DrawnTrail {
   int drawn = 0;
-  void setup(SketchContext& ctx) {
+  void setup(Scene2DContext& ctx) {
     ctx.canvas(64, 48);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(0.5);
@@ -162,7 +162,7 @@ constexpr float kWideW = 1600;
 constexpr float kWideH = 100;
 
 struct WidePlate {
-  void setup(SketchContext& ctx) {
+  void setup(Scene2DContext& ctx) {
     ctx.canvas(kWideW, kWideH);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(0.1);
@@ -172,7 +172,7 @@ struct WidePlate {
 };
 
 struct WidePlateAtTwo {
-  void setup(SketchContext& ctx) {
+  void setup(Scene2DContext& ctx) {
     ctx.canvas(kWideW, kWideH);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(0.1);
@@ -187,7 +187,7 @@ struct DensityPlate {
   static inline std::vector<float> firstDensities;
   bool firstFrame = true;
 
-  void setup(SketchContext& ctx) {
+  void setup(Scene2DContext& ctx) {
     ctx.canvas(64, 48);
     ctx.background({0, 0, 0, 1});
     ctx.oversample(3);
@@ -196,7 +196,7 @@ struct DensityPlate {
             Fill::color({0, 1, 0, 1}))}));
   }
 
-  void update(double, SketchContext& ctx) {
+  void update(double, Scene2DContext& ctx) {
     if (!firstFrame) return;
     firstDensities.push_back(ctx.composer.bakeDensity());
     firstFrame = false;
@@ -210,7 +210,7 @@ struct Ungrounded {
     if (why) *why = "the thing it draws is not installed";
     return false;
   }
-  void setup(SketchContext& ctx) {
+  void setup(Scene2DContext& ctx) {
     ctx.canvas(64, 48);
     ctx.background({0, 0, 0, 1});
     ctx.captureAt(0.1);
@@ -218,7 +218,7 @@ struct Ungrounded {
 };
 
 struct MissingShader {
-  void setup(SketchContext& ctx) {
+  void setup(Scene2DContext& ctx) {
     ctx.canvas(64, 48);
     ctx.captureAt(0.05);
     ctx.composer.render(box().width(64).height(48).fill(sigil::material::shader(
@@ -426,7 +426,7 @@ TEST(Sweep, AMomentTheRunNamesOutranksTheOneTheSketchDeclared) {
             bytesOf(first.path / "plate_sweep_probe.png"));
 }
 
-/** A SWEEP OVER A SET: drawn on the device, so the device runtime is
+/** A SWEEP OVER A SCENE3D SKETCH: drawn on the device, so the device runtime is
  *  installed for the process before the case and taken away after, or
  *  the case skips naming what is missing. */
 class DeviceSweep : public testing::Test {
@@ -439,30 +439,30 @@ class DeviceSweep : public testing::Test {
   void TearDown() override { useRuntime({}); }
 };
 
-TEST(Sweep, ASetWithNoDeviceToDrawOnIsSkippedAndWritesNoPlate) {
+TEST(Sweep, AScene3DWithNoDeviceToDrawOnIsSkippedAndWritesNoPlate) {
   // A skip is not a failure: the run succeeds, no plate is written, and
-  // the set's body is never asked to describe.
+  // the sketch's body is never asked to describe.
   useRuntime({});
   const ScratchDir out("sigil_sweep_set_without_device");
   SweepOptions options = ledgerRun(out.path);
   options.only = find("initial_set_probe");
   ASSERT_GE(options.only, 0);
-  InitialSetProbe::describedSeconds = -1;
+  InitialScene3DProbe::describedSeconds = -1;
   EXPECT_EQ(0, sweep(options, fonts(), assets()));
-  EXPECT_EQ(InitialSetProbe::describedSeconds, -1.0f);
+  EXPECT_EQ(InitialScene3DProbe::describedSeconds, -1.0f);
   EXPECT_FALSE(
       std::filesystem::exists(out.path / "plate_initial_set_probe.png"));
 }
 
-TEST_F(DeviceSweep, AZeroMomentDescribesTheInitialSetAndKeepsItsTime) {
+TEST_F(DeviceSweep, AZeroMomentDescribesTheInitialScene3DAndKeepsItsTime) {
   const ScratchDir out("sigil_sweep_initial_set");
   SweepOptions options = ledgerRun(out.path);
   options.only = find("initial_set_probe");
   options.at = 0.0;
   ASSERT_GE(options.only, 0);
-  InitialSetProbe::describedSeconds = -1;
+  InitialScene3DProbe::describedSeconds = -1;
   ASSERT_EQ(0, sweep(options, fonts(), assets()));
-  EXPECT_EQ(InitialSetProbe::describedSeconds, 0.0f);
+  EXPECT_EQ(InitialScene3DProbe::describedSeconds, 0.0f);
 
   const sk_sp<SkImage> image =
       plateImage(out.path / "plate_initial_set_probe.png");
@@ -480,7 +480,7 @@ TEST_F(DeviceSweep, SelectsByRuntime) {
   const ScratchDir out("sigil_sweep_runtime");
   SweepOptions options = ledgerRun(out.path);
   options.only = -1;
-  options.kind = "set";
+  options.kind = "scene3d";
   ASSERT_EQ(0, sweep(options, fonts(), assets()));
   EXPECT_FALSE(std::filesystem::exists(out.path / "plate_sweep_probe.png"));
   EXPECT_TRUE(
@@ -681,9 +681,9 @@ TEST(Story, AKeptCanvasSurvivesThePreRoll) {
     add("story_moment_probe", nullptr, "Test",
         "a late capture moment held in a fixed video frame",
         &kindOf<StoryMomentProbe>);
-[[maybe_unused]] const bool initialSetRegistered =
+[[maybe_unused]] const bool initialScene3DRegistered =
     add("initial_set_probe", nullptr, "Test", "a retained scene at time zero",
-        &kindOf<InitialSetProbe>);
+        &kindOf<InitialScene3DProbe>);
 [[maybe_unused]] const bool densityPlateRegistered =
     add("density_plate", nullptr, "Test", "the first frame's capture density",
         &kindOf<DensityPlate>);

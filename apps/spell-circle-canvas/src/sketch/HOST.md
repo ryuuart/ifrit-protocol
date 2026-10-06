@@ -4,7 +4,7 @@ Sigil is a suite of libraries — Compose, World, Draw, Motion, IO and the
 rest — each used directly through its own headers and target. SigilSketch
 is the framework a scene is hosted through: registration (`SIGIL_SKETCH`
 and `sketch::Entry`), sessions (`sketch::Kind` opens a `sketch::Session`),
-the canvas and set runtimes those sessions draw through, the live host
+the scene2d and scene3d runtimes those sessions draw through, the live host
 (`sketch::Host`) that compiles, loads and swaps sketches, and the
 workspace convention for sketches kept outside this repository.
 Grimoire, at `apps/grimoire/`, is one host built on that framework: the
@@ -141,17 +141,17 @@ walks the compiled-in registry.
 
 ## Captures on the device
 
-`--frame` with `--gpu` draws a Canvas still through Graphite and a Set
-scene through the World device executor; a requested device or Graphite
-context that cannot open fails the capture. A Set is drawn on a device and
+`--frame` with `--gpu` draws a scene2d still through Graphite and a scene3d
+sketch through the World device executor; a requested device or Graphite
+context that cannot open fails the capture. A scene3d sketch is drawn on a device and
 nowhere else, so without `--gpu` its kind is unavailable and the capture
 is refused with that reason. On Apple, a capture of a pure
-Canvas kind owns a Metal device and Graphite context without starting
+scene2d kind owns a Metal device and Graphite context without starting
 World or Vulkan. A kind that declares device work prepares the shared
 Geometry and World executor before its availability probe and setup.
-Canvas bodies declare that work with `static constexpr bool needsDevice =
+Scene2D bodies declare that work with `static constexpr bool needsDevice =
 true;`; a supplied non-CPU painter also requires it. `--bench` keeps its
-raster frame path; `--gpu` selects the device executor for Set and mesh
+raster frame path; `--gpu` selects the device executor for scene3d and mesh
 work during that measurement.
 
 ## Mapped-code lifetime
@@ -179,7 +179,7 @@ surface and device runtime that those sessions use.
 
 `Host::frame(double)` advances an unobserved capture step through
 `Session::discardedFrame`; `Host::prepareCapture` uses this path for its
-pre-roll. Drawing runs by default. A Canvas declaration with
+pre-roll. Drawing runs by default. A scene2d declaration with
 `CanvasSpecification::paintDiscardedFrames` false omits painting while the
 clock, feeds and body updates still advance. It requires capture state that
 does not depend on draw callbacks. Frames supplied a canvas and captured

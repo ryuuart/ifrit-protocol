@@ -5,7 +5,7 @@
  * lane is running: the one web engine a page sketch borrows, the stock
  * materials, the font context and the asset store every session is handed,
  * the compile flags a reloaded sketch is built with, and the one device a
- * set is lit on.
+ * scene3d sketch is lit on.
  */
 
 #include <sigilmaterial/advanced/Program.h>
@@ -96,7 +96,7 @@ sigil::weave::FontContext& fonts();
  *  store. */
 sigil::sketch::Assets& assets();
 
-/** Puts every set sketch on the device, and says whether it could. The
+/** Puts every scene3d sketch on the device, and says whether it could. The
  *  sweep treats a false answer as fatal because drawing the CPU's
  *  picture under a name that asked for the device's would put two
  *  different pictures under one name; the live host carries on, because
@@ -114,6 +114,6 @@ void releaseDevice();
  *  The kind answers for itself, so a runtime added later is not a name
  *  this has to learn. It is not what decides whether a device is brought
  *  up — a `--gpu` run brings one up whatever it holds, because the
- *  surface a canvas is photographed on comes off that same device — but
+ *  surface a scene2d sketch is photographed on comes off that same device — but
  *  it is what a montage asks before spending one. */
 bool selectionNeedsDevice(int only, const std::string& kind);

@@ -15,7 +15,7 @@
 #include <sigilmaterial/program/Shader.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Time.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <cmath>
@@ -171,7 +171,7 @@ Element spectralTrace() {
 struct ArrivalSemagram {
   motion::Animatable<float> sweep = motion::animatable(0.0f);
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(1440, 960);
     ctx.background(paper);
     ctx.captureAt(4.8);

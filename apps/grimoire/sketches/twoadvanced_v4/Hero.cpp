@@ -85,7 +85,7 @@ auto TwoAdvancedV4::pod(const std::string& key, float x, float z, float scale)
       .scale(scale);
 }
 
-auto TwoAdvancedV4::bakeHero(int w, int h, sketch::SketchContext& ctx)
+auto TwoAdvancedV4::bakeHero(int w, int h, sketch::Scene2DContext& ctx)
     -> sk_sp<SkImage> {
   namespace gm = sigil::geometry::mesh;
   using namespace tav;
@@ -147,8 +147,8 @@ auto TwoAdvancedV4::bakeHero(int w, int h, sketch::SketchContext& ctx)
   lens.zNear = 4.0f;
   lens.zFar = 12000.0f;
 
-  return ctx.bakeSet(scene, {w, h},
-                     {.camera = lens, .background = hexColor(0x02070A)});
+  return ctx.bakeScene3D(scene, {w, h},
+                         {.camera = lens, .background = hexColor(0x02070A)});
 }
 
 auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {

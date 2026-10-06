@@ -21,7 +21,7 @@
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/program/Shader.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <array>
@@ -73,7 +73,7 @@ struct P5FractalGarden {
   const material::Material background = ground();
   const material::Material buds = budLight();
 
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     branches = branchInk(material::shader(context.assets.hub(),
                                           context.local("branch.sksl"),
                                           {.textures = {{"uGrain", {}}}}));

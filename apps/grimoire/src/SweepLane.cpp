@@ -31,14 +31,15 @@ int runSweep(const Arguments& args, int chosen,
   // plate is taken there instead of at its sketch's own moment.
   options.at = args.capture.at;
   // `--gpu` BRINGS THE ONE DEVICE UP, whatever the selection holds.
-  // A set is rendered by the runtime installed on it; a canvas is
-  // photographed on a Graphite surface allocated from that same
+  // A scene3d sketch is rendered by the runtime installed on it; a scene2d
+  // sketch is photographed on a Graphite surface allocated from that same
   // device's context, so there is one device in the process and not
-  // two that cannot read each other's textures. A canvas sketch's mesh
+  // two that cannot read each other's textures. A scene2d sketch's mesh
   // painter still stays on the CPU executor whatever the flag says: a
-  // canvas plate is hashed from that executor, and the two rasterise the
+  // scene2d plate is hashed from that executor, and the two rasterise the
   // same picture but not the same bytes. WITHOUT the flag no device comes
-  // up and every set is listed unavailable and skipped, saying why.
+  // up and every scene3d sketch is listed unavailable and skipped, saying
+  // why.
   // A SWEEP ON THE DEVICE DRAWS THE PROGRAMS AN OPEN WINDOW DRAWS, with
   // nobody waiting on any of them, so what it built is worth writing
   // down for a machine that has nothing written down yet. The

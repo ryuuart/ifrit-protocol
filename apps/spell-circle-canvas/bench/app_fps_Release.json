@@ -8,7 +8,7 @@
   "aero_desktop": {
    "window": "1440x900@2",
    "canvas": "900x640",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.0,
    "work": 0.53,
    "p99": 0.85,
@@ -19,7 +19,7 @@
   "annotated_margin": {
    "window": "1440x900@2",
    "canvas": "1100x760",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.9,
    "work": 0.86,
    "p99": 1.22,
@@ -30,7 +30,7 @@
   "astral_tome": {
    "window": "1440x900@2",
    "canvas": "1200x828",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.7,
    "work": 1.09,
    "p99": 1.38,
@@ -41,7 +41,7 @@
   "axis_ripple": {
    "window": "1440x900@2",
    "canvas": "1120x620",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.9,
    "work": 0.96,
    "p99": 2.4,
@@ -52,7 +52,7 @@
   "beethoven": {
    "window": "1440x900@2",
    "canvas": "900x640",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.1,
    "work": 0.65,
    "p99": 0.94,
@@ -63,7 +63,7 @@
   "bg3_dice_roll": {
    "window": "1440x900@2",
    "canvas": "1200x1318",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.7,
    "work": 1.01,
    "p99": 3.08,
@@ -74,7 +74,7 @@
   "black_watch": {
    "window": "1440x900@2",
    "canvas": "1600x1440",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.9,
    "work": 1.7,
    "p99": 2.24,
@@ -85,7 +85,7 @@
   "blend_options": {
    "window": "1440x900@2",
    "canvas": "1200x1330",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.0,
    "work": 0.76,
    "p99": 1.36,
@@ -96,7 +96,7 @@
   "blur_falloff": {
    "window": "1440x900@2",
    "canvas": "1080x430",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.1,
    "work": 0.72,
    "p99": 2.87,
@@ -107,7 +107,7 @@
   "border_weave": {
    "window": "1440x900@2",
    "canvas": "1100x424",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.8,
    "work": 0.52,
    "p99": 1.62,
@@ -118,7 +118,7 @@
   "bound_lane": {
    "window": "1440x900@2",
    "canvas": "1280x900",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 118.8,
    "work": 0.92,
    "p99": 2.33,
@@ -129,7 +129,7 @@
   "bousen": {
    "window": "1440x900@2",
    "canvas": "900x640",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.0,
    "work": 0.41,
    "p99": 0.71,
@@ -239,7 +239,7 @@
   "bullets_dropcap": {
    "window": "1440x900@2",
    "canvas": "1100x496",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.6,
    "work": 0.31,
    "p99": 0.98,
@@ -250,7 +250,7 @@
   "card_flip": {
    "window": "1440x900@2",
    "canvas": "1200x560",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.9,
    "work": 0.45,
    "p99": 1.26,
@@ -261,7 +261,7 @@
   "cde_motif": {
    "window": "1440x900@2",
    "canvas": "1152x900",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.7,
    "work": 1.94,
    "p99": 3.19,
@@ -272,7 +272,7 @@
   "chaucer_astrolabe": {
    "window": "1440x900@2",
    "canvas": "2400x1600",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.5,
    "work": 2.53,
    "p99": 3.0,
@@ -283,7 +283,7 @@
   "chevreul_circle": {
    "window": "1440x900@2",
    "canvas": "1800x1200",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.6,
    "work": 1.88,
    "p99": 2.95,
@@ -294,7 +294,7 @@
   "chladni_tab1": {
    "window": "1440x900@2",
    "canvas": "1560x2020",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.8,
    "work": 1.59,
    "p99": 2.27,
@@ -305,7 +305,7 @@
   "chrome_type": {
    "window": "1440x900@2",
    "canvas": "1180x820",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.1,
    "work": 0.99,
    "p99": 2.02,
@@ -316,7 +316,7 @@
   "cjk_rules": {
    "window": "1440x900@2",
    "canvas": "1100x362",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.3,
    "work": 0.27,
    "p99": 0.96,
@@ -327,7 +327,7 @@
   "codec_roundtrip": {
    "window": "1440x900@2",
    "canvas": "1120x700",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.6,
    "work": 2.17,
    "p99": 2.58,
@@ -338,7 +338,7 @@
   "compute_variant": {
    "window": "1440x900@2",
    "canvas": "880x560",
-   "kind": "set",
+   "kind": "scene3d",
    "fps": 117.2,
    "work": 3.98,
    "p99": 4.78,
@@ -349,7 +349,7 @@
   "contour_poses": {
    "window": "1440x900@2",
    "canvas": "1100x772",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.6,
    "work": 0.42,
    "p99": 1.58,
@@ -360,7 +360,7 @@
   "corner_notched": {
    "window": "1440x900@2",
    "canvas": "1100x620",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.9,
    "work": 0.32,
    "p99": 1.19,
@@ -371,7 +371,7 @@
   "cosmati": {
    "window": "1440x900@2",
    "canvas": "900x640",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.9,
    "work": 0.9,
    "p99": 2.54,
@@ -382,7 +382,7 @@
   "coverage_boundary": {
    "window": "1440x900@2",
    "canvas": "1100x424",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.0,
    "work": 0.6,
    "p99": 3.19,
@@ -393,7 +393,7 @@
   "crossing_rule": {
    "window": "1440x900@2",
    "canvas": "1120x736",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.6,
    "work": 0.6,
    "p99": 1.53,
@@ -404,7 +404,7 @@
   "crt_bloom": {
    "window": "1440x900@2",
    "canvas": "1000x500",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 117.7,
    "work": 0.35,
    "p99": 1.5,
@@ -415,7 +415,7 @@
   "curve_shelf": {
    "window": "1440x900@2",
    "canvas": "1100x598",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.6,
    "work": 0.38,
    "p99": 0.83,
@@ -426,7 +426,7 @@
   "daemon_console": {
    "window": "1440x900@2",
    "canvas": "900x640",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.9,
    "work": 2.54,
    "p99": 5.69,
@@ -437,7 +437,7 @@
   "dart_flight": {
    "window": "1440x900@2",
    "canvas": "880x600",
-   "kind": "set",
+   "kind": "scene3d",
    "fps": 117.1,
    "work": 3.88,
    "p99": 5.16,
@@ -448,7 +448,7 @@
   "decay_step": {
    "window": "1440x900@2",
    "canvas": "1100x400",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.7,
    "work": 0.28,
    "p99": 0.73,
@@ -459,7 +459,7 @@
   "deformed_cloud": {
    "window": "1440x900@2",
    "canvas": "880x580",
-   "kind": "set",
+   "kind": "scene3d",
    "fps": 119.6,
    "work": 4.83,
    "p99": 5.1,
@@ -470,7 +470,7 @@
   "ds2_bench": {
    "window": "1440x900@2",
    "canvas": "1200x800",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.2,
    "work": 1.09,
    "p99": 1.46,
@@ -481,7 +481,7 @@
   "dunhuang_star_chart": {
    "window": "1440x900@2",
    "canvas": "2560x1600",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.3,
    "work": 1.48,
    "p99": 2.03,
@@ -492,7 +492,7 @@
   "elastic_type": {
    "window": "1440x900@2",
    "canvas": "1080x620",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.0,
    "work": 1.03,
    "p99": 6.96,
@@ -503,7 +503,7 @@
   "ember_decode": {
    "window": "1440x900@2",
    "canvas": "1000x430",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.8,
    "work": 0.58,
    "p99": 1.68,
@@ -514,7 +514,7 @@
   "encode_write": {
    "window": "1440x900@2",
    "canvas": "1100x400",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.5,
    "work": 0.33,
    "p99": 1.56,
@@ -525,7 +525,7 @@
   "env_faces": {
    "window": "1440x900@2",
    "canvas": "1100x654",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.3,
    "work": 0.34,
    "p99": 0.92,
@@ -536,7 +536,7 @@
   "env_lanes": {
    "window": "1440x900@2",
    "canvas": "1100x424",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.4,
    "work": 0.26,
    "p99": 0.74,
@@ -547,7 +547,7 @@
   "eva_magi_defense": {
    "window": "1440x900@2",
    "canvas": "1920x1080",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.2,
    "work": 0.64,
    "p99": 2.32,
@@ -558,7 +558,7 @@
   "eva_magi_deliberation": {
    "window": "1440x900@2",
    "canvas": "1440x1052",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.0,
    "work": 0.18,
    "p99": 1.13,
@@ -569,7 +569,7 @@
   "eva_magi_interior": {
    "window": "1440x900@2",
    "canvas": "1440x1052",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.9,
    "work": 0.62,
    "p99": 2.22,
@@ -580,7 +580,7 @@
   "exact_tangent": {
    "window": "1440x900@2",
    "canvas": "1100x400",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.5,
    "work": 0.53,
    "p99": 1.87,
@@ -591,7 +591,7 @@
   "exr_channels": {
    "window": "1440x900@2",
    "canvas": "1080x396",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.1,
    "work": 0.23,
    "p99": 0.94,
@@ -602,7 +602,7 @@
   "fallout2_charsheet": {
    "window": "1440x900@2",
    "canvas": "1280x1088",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.2,
    "work": 1.45,
    "p99": 1.81,
@@ -613,7 +613,7 @@
   "field_shelf": {
    "window": "1440x900@2",
    "canvas": "1100x636",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.2,
    "work": 0.58,
    "p99": 1.56,
@@ -624,7 +624,7 @@
   "first_light": {
    "window": "1440x900@2",
    "canvas": "900x640",
-   "kind": "set",
+   "kind": "scene3d",
    "fps": 119.0,
    "work": 3.6,
    "p99": 4.12,
@@ -635,7 +635,7 @@
   "floating_panels": {
    "window": "1440x900@2",
    "canvas": "1240x720",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.8,
    "work": 0.12,
    "p99": 0.85,
@@ -646,7 +646,7 @@
   "flourish": {
    "window": "1440x900@2",
    "canvas": "900x640",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.0,
    "work": 1.48,
    "p99": 2.55,
@@ -657,7 +657,7 @@
   "formation_bands": {
    "window": "1440x900@2",
    "canvas": "1100x748",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.3,
    "work": 0.24,
    "p99": 1.09,
@@ -668,7 +668,7 @@
   "frame_grid": {
    "window": "1440x900@2",
    "canvas": "1100x740",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.9,
    "work": 0.35,
    "p99": 0.88,
@@ -679,7 +679,7 @@
   "frame_inputs": {
    "window": "1440x900@2",
    "canvas": "1100x646",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.4,
    "work": 0.28,
    "p99": 1.47,
@@ -690,7 +690,7 @@
   "fx_scatter_mix": {
    "window": "1440x900@2",
    "canvas": "1100x400",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.4,
    "work": 0.55,
    "p99": 2.86,
@@ -712,7 +712,7 @@
   "geo_groups": {
    "window": "1440x900@2",
    "canvas": "1200x440",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.9,
    "work": 2.17,
    "p99": 2.52,
@@ -723,7 +723,7 @@
   "gerstner_grid": {
    "window": "1440x900@2",
    "canvas": "900x640",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.1,
    "work": 0.8,
    "p99": 1.89,
@@ -734,7 +734,7 @@
   "gif_frames": {
    "window": "1440x900@2",
    "canvas": "1120x560",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.7,
    "work": 0.49,
    "p99": 2.09,
@@ -745,7 +745,7 @@
   "glow_trail": {
    "window": "1440x900@2",
    "canvas": "640x440",
-   "kind": "set",
+   "kind": "scene3d",
    "fps": 119.6,
    "work": 7.2,
    "p99": 11.18,
@@ -756,7 +756,7 @@
   "grid_layouts": {
    "window": "1440x900@2",
    "canvas": "1100x622",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.9,
    "work": 0.49,
    "p99": 1.29,
@@ -767,7 +767,7 @@
   "half_float": {
    "window": "1440x900@2",
    "canvas": "1100x400",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.0,
    "work": 0.25,
    "p99": 0.74,
@@ -778,7 +778,7 @@
   "hello": {
    "window": "1440x900@2",
    "canvas": "1000x700",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.2,
    "work": 0.58,
    "p99": 1.72,
@@ -789,7 +789,7 @@
   "hit_slots": {
    "window": "1440x900@2",
    "canvas": "900x600",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.5,
    "work": 0.31,
    "p99": 1.08,
@@ -811,7 +811,7 @@
   "horizontal_flow": {
    "window": "1440x900@2",
    "canvas": "1080x620",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.9,
    "work": 0.21,
    "p99": 0.42,
@@ -822,7 +822,7 @@
   "hub_reload": {
    "window": "1440x900@2",
    "canvas": "1100x400",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.9,
    "work": 0.32,
    "p99": 1.02,
@@ -833,7 +833,7 @@
   "import_native": {
    "window": "1440x900@2",
    "canvas": "880x480",
-   "kind": "set",
+   "kind": "scene3d",
    "fps": 117.0,
    "work": 2.62,
    "p99": 4.78,
@@ -844,7 +844,7 @@
   "karaoke_wipe": {
    "window": "1440x900@2",
    "canvas": "1020x470",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.8,
    "work": 0.51,
    "p99": 1.24,
@@ -855,7 +855,7 @@
   "keeps_and_frames": {
    "window": "1440x900@2",
    "canvas": "1100x604",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.1,
    "work": 0.34,
    "p99": 1.38,
@@ -866,7 +866,7 @@
   "key_light": {
    "window": "1440x900@2",
    "canvas": "760x500",
-   "kind": "set",
+   "kind": "scene3d",
    "fps": 118.3,
    "work": 3.77,
    "p99": 5.27,
@@ -877,7 +877,7 @@
   "kinetic_card": {
    "window": "1440x900@2",
    "canvas": "1180x620",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.5,
    "work": 1.66,
    "p99": 2.67,
@@ -888,7 +888,7 @@
   "ksp_mapview": {
    "window": "1440x900@2",
    "canvas": "1200x800",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.0,
    "work": 1.99,
    "p99": 2.65,
@@ -899,7 +899,7 @@
   "kumiko_asanoha": {
    "window": "1440x900@2",
    "canvas": "1400x1210",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.4,
    "work": 1.22,
    "p99": 1.83,
@@ -910,7 +910,7 @@
   "lain_navi": {
    "window": "1440x900@2",
    "canvas": "1016x720",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.0,
    "work": 1.11,
    "p99": 11.71,
@@ -921,7 +921,7 @@
   "lane_retarget": {
    "window": "1440x900@2",
    "canvas": "1100x400",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.9,
    "work": 0.21,
    "p99": 0.93,
@@ -932,7 +932,7 @@
   "lantern_room": {
    "window": "1440x900@2",
    "canvas": "900x600",
-   "kind": "set",
+   "kind": "scene3d",
    "fps": 118.6,
    "work": 3.79,
    "p99": 4.89,
@@ -943,7 +943,7 @@
   "live_settling": {
    "window": "1440x900@2",
    "canvas": "1100x400",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.9,
    "work": 0.42,
    "p99": 1.07,
@@ -954,7 +954,7 @@
   "loot_grid": {
    "window": "1440x900@2",
    "canvas": "900x880",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 115.0,
    "work": 1.68,
    "p99": 3.27,
@@ -965,7 +965,7 @@
   "manuscript": {
    "window": "1440x900@2",
    "canvas": "777x1080",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 118.9,
    "work": 0.13,
    "p99": 0.38,
@@ -976,7 +976,7 @@
   "material_atlas": {
    "window": "1440x900@2",
    "canvas": "1100x660",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.6,
    "work": 0.34,
    "p99": 1.04,
@@ -987,7 +987,7 @@
   "material_child": {
    "window": "1440x900@2",
    "canvas": "1060x690",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.5,
    "work": 0.41,
    "p99": 2.1,
@@ -998,7 +998,7 @@
   "material_lab": {
    "window": "1440x900@2",
    "canvas": "880x520",
-   "kind": "set",
+   "kind": "scene3d",
    "fps": 117.6,
    "work": 4.62,
    "p99": 4.95,
@@ -1009,7 +1009,7 @@
   "matrix_rain": {
    "window": "1440x900@2",
    "canvas": "1280x780",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.3,
    "work": 5.72,
    "p99": 6.44,
@@ -1020,7 +1020,7 @@
   "matte_luma": {
    "window": "1440x900@2",
    "canvas": "1180x620",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.4,
    "work": 0.56,
    "p99": 1.6,
@@ -1031,7 +1031,7 @@
   "mawarikomi": {
    "window": "1440x900@2",
    "canvas": "900x640",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.0,
    "work": 0.34,
    "p99": 0.62,
@@ -1042,7 +1042,7 @@
   "mesh_generators": {
    "window": "1440x900@2",
    "canvas": "1400x500",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.9,
    "work": 0.12,
    "p99": 0.53,
@@ -1053,7 +1053,7 @@
   "mesh_normal_bridge": {
    "window": "1440x900@2",
    "canvas": "1320x720",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.2,
    "work": 0.38,
    "p99": 1.48,
@@ -1064,7 +1064,7 @@
   "minard_1869": {
    "window": "1440x900@2",
    "canvas": "2560x1600",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.0,
    "work": 1.41,
    "p99": 2.14,
@@ -1075,7 +1075,7 @@
   "net_policy": {
    "window": "1440x900@2",
    "canvas": "1100x400",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.5,
    "work": 0.26,
    "p99": 1.04,
@@ -1086,7 +1086,7 @@
   "night_network": {
    "window": "1440x900@2",
    "canvas": "900x640",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.1,
    "work": 0.92,
    "p99": 1.37,
@@ -1097,7 +1097,7 @@
   "nightingale_coxcomb": {
    "window": "1440x900@2",
    "canvas": "1900x1032",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.4,
    "work": 1.43,
    "p99": 4.11,
@@ -1108,7 +1108,7 @@
   "nine_slice": {
    "window": "1440x900@2",
    "canvas": "900x640",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.8,
    "work": 0.76,
    "p99": 2.17,
@@ -1119,7 +1119,7 @@
   "noise_shelf": {
    "window": "1440x900@2",
    "canvas": "1100x400",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.8,
    "work": 3.8,
    "p99": 3.98,
@@ -1295,7 +1295,7 @@
   "ocio_view": {
    "window": "1440x900@2",
    "canvas": "1100x640",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.9,
    "work": 0.31,
    "p99": 1.49,
@@ -1306,7 +1306,7 @@
   "optical_kerning": {
    "window": "1440x900@2",
    "canvas": "1100x400",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.9,
    "work": 0.32,
    "p99": 1.11,
@@ -1317,7 +1317,7 @@
   "over_under": {
    "window": "1440x900@2",
    "canvas": "1100x622",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.1,
    "work": 0.5,
    "p99": 1.56,
@@ -1405,7 +1405,7 @@
   "paint_shelf": {
    "window": "1440x900@2",
    "canvas": "1100x646",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.5,
    "work": 0.42,
    "p99": 1.14,
@@ -1416,7 +1416,7 @@
   "painter_gpu": {
    "window": "1440x900@2",
    "canvas": "1180x700",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.3,
    "work": 0.22,
    "p99": 0.77,
@@ -1427,7 +1427,7 @@
   "paragraph_paints": {
    "window": "1440x900@2",
    "canvas": "1200x900",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.9,
    "work": 0.38,
    "p99": 0.86,
@@ -1438,7 +1438,7 @@
   "paragraph_sheet": {
    "window": "1440x900@2",
    "canvas": "1280x1060",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.4,
    "work": 0.28,
    "p99": 0.76,
@@ -1449,7 +1449,7 @@
   "passive_tree": {
    "window": "1440x900@2",
    "canvas": "900x640",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 101.9,
    "work": 4.03,
    "p99": 12.04,
@@ -1460,7 +1460,7 @@
   "path_booleans": {
    "window": "1440x900@2",
    "canvas": "1240x720",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.8,
    "work": 0.19,
    "p99": 0.73,
@@ -1471,7 +1471,7 @@
   "pattern_sequence": {
    "window": "1440x900@2",
    "canvas": "1100x636",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.4,
    "work": 0.34,
    "p99": 1.07,
@@ -1482,7 +1482,7 @@
   "penrose_paving": {
    "window": "1440x900@2",
    "canvas": "1600x1200",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.0,
    "work": 5.92,
    "p99": 7.43,
@@ -1493,7 +1493,7 @@
   "persona_menu": {
    "window": "1440x900@2",
    "canvas": "900x640",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.1,
    "work": 1.08,
    "p99": 2.12,
@@ -1504,7 +1504,7 @@
   "pixfont_dotsprite": {
    "window": "1440x900@2",
    "canvas": "1100x424",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.3,
    "work": 0.45,
    "p99": 1.59,
@@ -1515,7 +1515,7 @@
   "place_repeat_tiles": {
    "window": "1440x900@2",
    "canvas": "1100x470",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.2,
    "work": 0.35,
    "p99": 1.46,
@@ -1526,7 +1526,7 @@
   "pop_billboards": {
    "window": "1440x900@2",
    "canvas": "1100x748",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 82.0,
    "work": 11.34,
    "p99": 12.04,
@@ -1537,7 +1537,7 @@
   "pop_deform": {
    "window": "1440x900@2",
    "canvas": "1240x860",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 108.3,
    "work": 8.51,
    "p99": 9.38,
@@ -1548,7 +1548,7 @@
   "pop_math": {
    "window": "1440x900@2",
    "canvas": "1100x672",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.0,
    "work": 0.36,
    "p99": 2.73,
@@ -1559,7 +1559,7 @@
   "pop_order": {
    "window": "1440x900@2",
    "canvas": "760x500",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.2,
    "work": 0.87,
    "p99": 2.65,
@@ -1570,7 +1570,7 @@
   "pop_prims": {
    "window": "1440x900@2",
    "canvas": "1240x720",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.3,
    "work": 0.08,
    "p99": 0.42,
@@ -1581,7 +1581,7 @@
   "pop_stamps": {
    "window": "1440x900@2",
    "canvas": "1240x720",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.7,
    "work": 0.09,
    "p99": 0.46,
@@ -1603,7 +1603,7 @@
   "reflection_lab": {
    "window": "1440x900@2",
    "canvas": "880x520",
-   "kind": "set",
+   "kind": "scene3d",
    "fps": 119.0,
    "work": 4.73,
    "p99": 5.53,
@@ -1614,7 +1614,7 @@
   "rich_slot_reserve": {
    "window": "1440x900@2",
    "canvas": "1100x424",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.9,
    "work": 0.33,
    "p99": 1.22,
@@ -1625,7 +1625,7 @@
   "rota_convocationis": {
    "window": "1440x900@2",
    "canvas": "1280x1280",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.9,
    "work": 2.47,
    "p99": 12.42,
@@ -1636,7 +1636,7 @@
   "routers_straight": {
    "window": "1440x900@2",
    "canvas": "1100x400",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.1,
    "work": 0.24,
    "p99": 0.73,
@@ -1647,7 +1647,7 @@
   "routes_probe": {
    "window": "1440x900@2",
    "canvas": "1100x470",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.2,
    "work": 0.38,
    "p99": 1.35,
@@ -1658,7 +1658,7 @@
   "ruby_kenten": {
    "window": "1440x900@2",
    "canvas": "900x640",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.4,
    "work": 0.29,
    "p99": 0.57,
@@ -1669,7 +1669,7 @@
   "scattered_model": {
    "window": "1440x900@2",
    "canvas": "860x580",
-   "kind": "set",
+   "kind": "scene3d",
    "fps": 116.6,
    "work": 3.16,
    "p99": 7.12,
@@ -1680,7 +1680,7 @@
   "scene_surfaces": {
    "window": "1440x900@2",
    "canvas": "960x620",
-   "kind": "set",
+   "kind": "scene3d",
    "fps": 119.6,
    "work": 5.62,
    "p99": 6.83,
@@ -1691,7 +1691,7 @@
   "sdf_star": {
    "window": "1440x900@2",
    "canvas": "1100x640",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.0,
    "work": 0.32,
    "p99": 1.16,
@@ -1702,7 +1702,7 @@
   "set_stagger": {
    "window": "1440x900@2",
    "canvas": "900x460",
-   "kind": "set",
+   "kind": "scene3d",
    "fps": 117.2,
    "work": 7.11,
    "p99": 8.32,
@@ -1713,7 +1713,7 @@
   "shape_tour": {
    "window": "1440x900@2",
    "canvas": "1120x840",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.1,
    "work": 0.66,
    "p99": 1.55,
@@ -1724,7 +1724,7 @@
   "shapeworks_lab": {
    "window": "1440x900@2",
    "canvas": "1280x780",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.5,
    "work": 1.76,
    "p99": 2.8,
@@ -1735,7 +1735,7 @@
   "shipping_forecast": {
    "window": "1440x900@2",
    "canvas": "1440x880",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.0,
    "work": 1.83,
    "p99": 4.22,
@@ -1746,7 +1746,7 @@
   "sigillum_aemeth": {
    "window": "1440x900@2",
    "canvas": "2000x1417",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 118.7,
    "work": 1.62,
    "p99": 2.39,
@@ -1757,7 +1757,7 @@
   "slang_portable": {
    "window": "1440x900@2",
    "canvas": "1100x874",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.5,
    "work": 0.26,
    "p99": 0.69,
@@ -1768,7 +1768,7 @@
   "slitscan_2001": {
    "window": "1440x900@2",
    "canvas": "1560x960",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.9,
    "work": 1.92,
    "p99": 2.49,
@@ -1779,7 +1779,7 @@
   "spacejam_1996": {
    "window": "1440x900@2",
    "canvas": "1280x1600",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.0,
    "work": 0.8,
    "p99": 2.85,
@@ -1790,7 +1790,7 @@
   "spacing_passes": {
    "window": "1440x900@2",
    "canvas": "1100x400",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.1,
    "work": 0.23,
    "p99": 0.73,
@@ -1801,7 +1801,7 @@
   "sticker_collection": {
    "window": "1440x900@2",
    "canvas": "1080x1350",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.9,
    "work": 1.1,
    "p99": 4.62,
@@ -1812,7 +1812,7 @@
   "stock_materials": {
    "window": "1440x900@2",
    "canvas": "1150x900",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.5,
    "work": 0.76,
    "p99": 1.72,
@@ -1823,7 +1823,7 @@
   "stroke_atlas": {
    "window": "1440x900@2",
    "canvas": "1600x1990",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.6,
    "work": 1.44,
    "p99": 1.96,
@@ -1834,7 +1834,7 @@
   "substance_swatches": {
    "window": "1440x900@2",
    "canvas": "928x662",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 118.4,
    "work": 0.32,
    "p99": 2.38,
@@ -1845,7 +1845,7 @@
   "svg_silhouette": {
    "window": "1440x900@2",
    "canvas": "1100x684",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.6,
    "work": 0.37,
    "p99": 1.15,
@@ -1856,7 +1856,7 @@
   "tategaki": {
    "window": "1440x900@2",
    "canvas": "900x640",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.1,
    "work": 0.68,
    "p99": 1.05,
@@ -1867,7 +1867,7 @@
   "text_paints": {
    "window": "1440x900@2",
    "canvas": "1100x596",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.6,
    "work": 0.41,
    "p99": 0.87,
@@ -1878,7 +1878,7 @@
   "thaumonomicon": {
    "window": "1440x900@2",
    "canvas": "1280x800",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.0,
    "work": 1.64,
    "p99": 2.05,
@@ -1889,7 +1889,7 @@
   "threaded_story": {
    "window": "1440x900@2",
    "canvas": "1180x700",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 118.4,
    "work": 0.27,
    "p99": 0.51,
@@ -1900,7 +1900,7 @@
   "thunder_fulu": {
    "window": "1440x900@2",
    "canvas": "1900x1220",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 116.6,
    "work": 1.0,
    "p99": 1.81,
@@ -1911,7 +1911,7 @@
   "ticker_lanes": {
    "window": "1440x900@2",
    "canvas": "1100x400",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.6,
    "work": 0.26,
    "p99": 0.74,
@@ -1922,7 +1922,7 @@
   "tile_map": {
    "window": "1440x900@2",
    "canvas": "944x331",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.1,
    "work": 0.77,
    "p99": 2.62,
@@ -1933,7 +1933,7 @@
   "twoadvanced_equipment": {
    "window": "1440x900@2",
    "canvas": "1580x1160",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.4,
    "work": 0.94,
    "p99": 2.6,
@@ -1944,7 +1944,7 @@
   "twoadvanced_v3": {
    "window": "1440x900@2",
    "canvas": "1920x1080",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.1,
    "work": 1.29,
    "p99": 4.78,
@@ -1955,7 +1955,7 @@
   "twoadvanced_v4": {
    "window": "1440x900@2",
    "canvas": "1940x1560",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.1,
    "work": 1.85,
    "p99": 3.36,
@@ -1966,7 +1966,7 @@
   "ui_particles": {
    "window": "1440x900@2",
    "canvas": "900x640",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.4,
    "work": 0.36,
    "p99": 1.33,
@@ -1977,7 +1977,7 @@
   "usd_roundtrip": {
    "window": "1440x900@2",
    "canvas": "1200x520",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.1,
    "work": 0.19,
    "p99": 1.01,
@@ -1988,7 +1988,7 @@
   "vagrant_story_target": {
    "window": "1440x900@2",
    "canvas": "1280x960",
-   "kind": "set",
+   "kind": "scene3d",
    "fps": 118.4,
    "work": 3.99,
    "p99": 4.8,
@@ -1999,7 +1999,7 @@
   "vertigo_titles": {
    "window": "1440x900@2",
    "canvas": "1480x800",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.0,
    "work": 1.13,
    "p99": 2.71,
@@ -2010,7 +2010,7 @@
   "video_compose": {
    "window": "1440x900@2",
    "canvas": "1080x1920",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.0,
    "work": 0.62,
    "p99": 1.61,
@@ -2021,7 +2021,7 @@
   "video_compositing": {
    "window": "1440x900@2",
    "canvas": "1080x1920",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.5,
    "work": 0.18,
    "p99": 0.68,
@@ -2032,7 +2032,7 @@
   "volatility_cost": {
    "window": "1440x900@2",
    "canvas": "1320x980",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.7,
    "work": 2.05,
    "p99": 2.57,
@@ -2043,7 +2043,7 @@
   "warichu_placeholder": {
    "window": "1440x900@2",
    "canvas": "1100x424",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.0,
    "work": 0.49,
    "p99": 1.27,
@@ -2054,7 +2054,7 @@
   "web_panel": {
    "window": "1440x900@2",
    "canvas": "980x660",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.5,
    "work": 0.52,
    "p99": 1.67,
@@ -2065,7 +2065,7 @@
   "web_script": {
    "window": "1440x900@2",
    "canvas": "1360x430",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 120.2,
    "work": 0.33,
    "p99": 1.78,
@@ -2076,7 +2076,7 @@
   "winamp_base": {
    "window": "1440x900@2",
    "canvas": "1320x1947",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 116.1,
    "work": 1.83,
    "p99": 2.91,
@@ -2087,7 +2087,7 @@
   "world_hud": {
    "window": "1440x900@2",
    "canvas": "900x640",
-   "kind": "set",
+   "kind": "scene3d",
    "fps": 70.3,
    "work": 13.21,
    "p99": 23.2,
@@ -2098,7 +2098,7 @@
   "xcom_battlescape": {
    "window": "1440x900@2",
    "canvas": "1280x800",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.4,
    "work": 1.59,
    "p99": 3.57,
@@ -2109,7 +2109,7 @@
   "y2k_chrome": {
    "window": "1440x900@2",
    "canvas": "900x640",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.9,
    "work": 1.43,
    "p99": 2.87,
@@ -2120,7 +2120,7 @@
   "yarn_marquee": {
    "window": "1440x900@2",
    "canvas": "1200x660",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.2,
    "work": 0.25,
    "p99": 0.96,
@@ -2131,7 +2131,7 @@
   "zellige": {
    "window": "1440x900@2",
    "canvas": "900x640",
-   "kind": "canvas",
+   "kind": "scene2d",
    "fps": 119.6,
    "work": 0.6,
    "p99": 2.47,

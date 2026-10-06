@@ -44,7 +44,7 @@ struct WorldHud {
    *  filled it. */
   worldhud::gm::Mesh valley = worldhud::valley();
 
-  void setup(sketch::SetContext& ctx) {
+  void setup(sketch::Scene3DContext& ctx) {
     for (auto& value : cooldown)
       value = sigil::motion::animatable(value.value());
 

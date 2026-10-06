@@ -1,7 +1,7 @@
 /** @file
  * The 3D frame loop: describe, reconcile, extract and draw, on the device
- * a set is drawn on. An arm with no Vulkan runtime to ask says so and
- * measures nothing.
+ * a scene3d sketch is drawn on. An arm with no Vulkan runtime to ask says so
+ * and measures nothing.
  */
 
 #include <benchmark/benchmark.h>
@@ -10,7 +10,7 @@
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/surface/Surface.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilworld/World.h>
@@ -39,7 +39,7 @@ Assets& assets() {
 /** A ring of bodies, all turning: the description changes every frame,
  *  so what is measured is reconcile plus draw rather than a still tree. */
 struct Ring {
-  void setup(SetContext& ctx) {
+  void setup(Scene3DContext& ctx) {
     ctx.canvas(480, 320);
     sigil::geometry::mesh::camera::Camera lens;
     lens.eye = {0, 200, 520};
@@ -64,7 +64,7 @@ struct Ring {
   }
 };
 
-void SetFrame(benchmark::State& state) {
+void Scene3DFrame(benchmark::State& state) {
   std::string why;
   if (!sigil::sketch::test::installDeviceRuntime(&why)) {
     state.SkipWithError(("no Vulkan device: " + why).c_str());
@@ -78,14 +78,14 @@ void SetFrame(benchmark::State& state) {
   for (int i = 0; i < 8; ++i) session->frame(canvas, 1.0 / 60.0);
   for (auto&& _ : state) session->frame(canvas, 1.0 / 60.0);
 }
-BENCHMARK(SetFrame)->Unit(benchmark::kMicrosecond);
+BENCHMARK(Scene3DFrame)->Unit(benchmark::kMicrosecond);
 
 /** THE RING THROUGH A PANE, magnified by the argument about its centre,
- *  the way a window zoomed into a set
+ *  the way a window zoomed into a scene3d sketch
  *  draws it: the pane is the declared canvas's size at every zoom, so
  *  the work a frame does is meant to stay where it is at one while the
  *  picture it is a piece of grows with the square of the zoom. */
-void SetFrameThroughPane(benchmark::State& state) {
+void Scene3DFrameThroughPane(benchmark::State& state) {
   const float zoom = (float)state.range(0);
   std::string why;
   if (!sigil::sketch::test::installDeviceRuntime(&why)) {
@@ -103,7 +103,7 @@ void SetFrameThroughPane(benchmark::State& state) {
   for (int i = 0; i < 8; ++i) session->frame(canvas, 1.0 / 60.0);
   for (auto&& _ : state) session->frame(canvas, 1.0 / 60.0);
 }
-BENCHMARK(SetFrameThroughPane)
+BENCHMARK(Scene3DFrameThroughPane)
     ->Arg(1)
     ->Arg(2)
     ->Arg(4)

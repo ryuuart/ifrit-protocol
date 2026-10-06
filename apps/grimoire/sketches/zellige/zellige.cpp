@@ -39,8 +39,8 @@
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/style/Type.h>
 
 #include <array>
@@ -161,7 +161,7 @@ struct Zellige {
     panels[2].tile.rotate((float)(phase % 8) * 22.5f);
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 1.5,
                              .background = material::Color{0, 0, 0, 1}});
@@ -222,7 +222,7 @@ struct Zellige {
                       })})})});
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     if (elapsed < nextSwap) return;
     nextSwap = elapsed + zellige_wall::kSwapPeriod;
     ++phase;

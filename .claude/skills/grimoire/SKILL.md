@@ -15,21 +15,21 @@ binary inside it, from `apps/spell-circle-canvas`:
 
 ```sh
 build/bin/<config>/Grimoire.app/Contents/MacOS/Grimoire \
-  --headless [<outdir>] [--gpu] [--sketch <name>] [--kind canvas|set]
+  --headless [<outdir>] [--gpu] [--sketch <name>] [--kind scene2d|scene3d]
 ```
 
 Pointed at a file with no `--headless`, Grimoire opens on it, from
 anywhere on disk, and hot-swaps the recompiled sketch on every save;
 `--frame out.png` renders one still, `--bench` measures it against the
-60 FPS gate on a raster surface — a set is drawn on a device and nowhere
+60 FPS gate on a raster surface — a scene3d sketch is drawn on a device and nowhere
 else, so every lane that draws one (`--frame`, `--bench`, `--headless`,
-`--video`) needs `--gpu`, and without it the set is refused, skipped or
+`--video`) needs `--gpu`, and without it the scene3d sketch is refused, skipped or
 listed unavailable with one reason; `--list --gpu` and `--catalog --gpu`
-list the sets a device can draw — `--window-bench` presents it in the
+list the scene3d sketches a device can draw — `--window-bench` presents it in the
 real window, `--shot <png>` captures the app. `--video <out.mp4>
 [--video-frames <n>] [--video-size <WxH>] [--video-bitrate <bits>]`
 encodes the selection into one vertical montage, and needs `--gpu` for a
-selection holding a set exactly as the sweep does. A sweep with no
+selection holding a scene3d sketch exactly as the sweep does. A sweep with no
 directory writes into `sketch_plates/`. `--at <sec>` is the one flag for
 the moment: it takes every plate of a sweep at that scene time instead
 of at each sketch's own, and moves a `--frame` still the same way.
@@ -43,10 +43,10 @@ session holds automatic texture promotion off, so `--promotion` is the
 one door that lets the promoter go with every other pin standing, and
 `--no-promotion` pins it off on a backend whose default would not; the
 plate ledger's promotion tier renders each scene both ways and judges
-the pair. The ledger's CPU tier judges canvas sketches only and counts the
-sets it passes over; `sigil.py plates --tier device` judges each set on
+the pair. The ledger's CPU tier judges scene2d sketches only and counts the
+scene3d sketches it passes over; `sigil.py plates --tier device` judges each scene3d sketch on
 byte identity against a machine-local device manifest, adopted with
-`--rebase`. `--thumbnails [--sketch <name>] [--kind canvas|set]
+`--rebase`. `--thumbnails [--sketch <name>] [--kind scene2d|scene3d]
 [--thumbnail-budget <sec>] [--thumbnail-heavy]` renders the browser's
 missing or stale thumbnails headless and exits non-zero naming any that
 failed — the app owns its thumbnails, rendering them on demand into a

@@ -5,11 +5,11 @@
 #include <sigilpython/Bindings.h>
 #include <sigilpython/io/Hub.h>
 #include <sigilpython/skia/Values.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/live/Host.h>
 #include <sigilsketch/python/Python.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilsketch/testing/InProcessHost.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -171,7 +171,7 @@ struct Generation {
   }
 };
 
-class Body final : public CanvasBody {
+class Body final : public Scene2DBody {
  public:
   Body(const std::shared_ptr<Generation>& generation,
        const std::shared_ptr<State>& state)
@@ -194,7 +194,7 @@ class Body final : public CanvasBody {
 
   ~Body() override { m_state->close(); }
 
-  void setup(SketchContext& ctx) override {
+  void setup(Scene2DContext& ctx) override {
     m_state->update(ctx);
     // Keep existing transports open while setup reacquires its declarations.
     // Feeds omitted by this declaration close when its previous leases leave.
@@ -212,7 +212,7 @@ class Body final : public CanvasBody {
     }
   }
 
-  void update(double elapsed, SketchContext& ctx) override {
+  void update(double elapsed, Scene2DContext& ctx) override {
     m_state->update(ctx);
     const sigil::python::CallbackBoundary themes;
     if (!m_update) return;
@@ -333,7 +333,7 @@ class PythonKind final : public KindOperations {
   bool operator==(const PythonKind& other) const {
     return m_generation == other.m_generation;
   }
-  std::string_view runtime() const override { return "canvas"; }
+  std::string_view runtime() const override { return "scene2d"; }
   std::unique_ptr<Session> open(weave::FontContext& fonts, Assets& assets,
                                 bool deterministic,
                                 std::string_view key) const override {
@@ -344,7 +344,7 @@ class PythonKind final : public KindOperations {
       const sigil::python::CallbackBoundary themes;
       auto body = std::make_unique<Body>(m_generation, state);
       auto session =
-          openCanvas(std::move(body), fonts, assets, deterministic, key);
+          openScene2D(std::move(body), fonts, assets, deterministic, key);
       return std::make_unique<PythonSession>(std::move(session), state);
     } catch (const py::error_already_set& error) {
       throw std::runtime_error(error.what());
@@ -362,7 +362,7 @@ class SourceKind final : public KindOperations {
   bool operator==(const SourceKind& other) const {
     return m_source == other.m_source;
   }
-  std::string_view runtime() const override { return "canvas"; }
+  std::string_view runtime() const override { return "scene2d"; }
   std::unique_ptr<Session> open(weave::FontContext& fonts, Assets& assets,
                                 bool deterministic,
                                 std::string_view key) const override {

@@ -3,25 +3,25 @@
  * sphere, six bakes.
  *
  * A frame holds ONE environment, so a sheet that compares its dials
- * cannot be one set: each cell is its own frame, baked through
- * `SketchContext::bakeSet` at the pixels the cell will have and painted
+ * cannot be one scene: each cell is its own frame, baked through
+ * `Scene2DContext::bakeScene3D` at the pixels the cell will have and painted
  * as the picture INSIDE this page.
  *
  * The dials divide cleanly. `diffuse` is how much of the map reaches a
  * surface as the light falling on it from everywhere and `specular` is
  * how much of it a surface mirrors — pushing one and not the other is a
  * LOOK and not a physical claim. `roughnessBias` is added to every
- * surface's roughness before it picks a prefiltered level, so a whole set
+ * surface's roughness before it picks a prefiltered level, so a whole scene
  * softens without a material being edited. `crossfade` mixes a second
  * panorama over the first, both sampled rather than one rebuilt, which is
  * what lets a sky change while the frame is running. `shown` is the sky
- * SHOWN behind the set at that strength — zero draws none of it, so the
+ * SHOWN behind the scene at that strength — zero draws none of it, so the
  * dial is also the switch — blurred in the same roughness units a
  * reflection reads.
  *
  * `exposure` is the camera's, not the environment's: what every radiance
  * is multiplied by before the tone curve compresses it, so doubling it is
- * one stop. It means something in a set carrying no panorama at all,
+ * one stop. It means something in a scene carrying no panorama at all,
  * because a lit sum ends at that curve either way.
  *
  * EDIT THESE FIRST
@@ -40,9 +40,9 @@
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmedia/advanced/Skia.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene2d/Scene2D.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilworld/World.h>
 
 #include <string>
@@ -124,14 +124,14 @@ sketch::kit::ComparisonCase cell(const char* caseTitle, const char* call,
 }  // namespace
 
 struct EnvLanes {
-  /** Every cell is a set baked on the device, so the sheet needs one and
+  /** Every cell is a scene baked on the device, so the sheet needs one and
    *  is unavailable, saying so, where none is installed. */
   static constexpr bool needsDevice = true;
   static bool available(std::string* why) {
     return sigil::sketch::runtimeAvailable(why);
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // every bake has already been taken
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
@@ -149,8 +149,8 @@ struct EnvLanes {
               {world::camera(lens(), {.exposure = exposure}), subject()})
               .key("set"));
       frame.environment(studio, std::move(dials));
-      return ctx.bakeSet(frame, {(int)kCell, (int)kPicture},
-                         {.camera = lens(), .background = kCellGround});
+      return ctx.bakeScene3D(frame, {(int)kCell, (int)kPicture},
+                             {.camera = lens(), .background = kCellGround});
     };
 
     const world::EnvironmentOptions base;

@@ -15,9 +15,9 @@
 #include <sigilcompose/web/Web.h>
 #include <sigilscry/engine/WebEngine.h>
 #include <sigilscry/engine/WebView.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/plate/Sweep.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilsketch/scry/Settling.h>
 #include <sigilsketch/scry/SharedEngine.h>
 #include <sigilsketch/testing/Comparison.h>
@@ -60,7 +60,7 @@ struct LoadingClockPage {
   /** After the view it settles, so it goes first. */
   std::unique_ptr<sketch::scry::Settling> page;
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(kWidth, kHeight);
     ctx.background({0, 0, 0, 1});
     g_arrivedAtOpen = false;
@@ -73,10 +73,10 @@ struct LoadingClockPage {
     }
     describe(ctx);
   }
-  void update(double, sketch::SketchContext& ctx) {
+  void update(double, sketch::Scene2DContext& ctx) {
     if (page && page->advance()) describe(ctx);
   }
-  void describe(sketch::SketchContext& ctx) {
+  void describe(sketch::Scene2DContext& ctx) {
     using namespace sigil::compose;
     ctx.composer.render(page && page->painted()
                             ? web(view).width(kWidth).height(kHeight)

@@ -10,7 +10,7 @@
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilmaterial/skia/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <chrono>
 #include <memory>
@@ -31,7 +31,7 @@ constexpr SkColor kMark = SK_ColorRED;
  *  its top-left corner: where that mark lands is where the canvas's
  *  corner landed. */
 struct CornerMark {
-  void setup(SketchContext& ctx) {
+  void setup(Scene2DContext& ctx) {
     ctx.canvas(200, 100);
     ctx.background({0, 0, 1, 1});
     ctx.composer.render(

@@ -4,7 +4,7 @@
  * What the host lends a Python body while its session is open, and the
  * checked handles the bindings hand out over it.
  *
- * The host rebuilds `SketchContext` every frame, so nothing here holds
+ * The host rebuilds `Scene2DContext` every frame, so nothing here holds
  * one: the state keeps the pointers out of the newest one and every
  * handle reads them back through a weak reference to the state. A
  * context an author stashed therefore answers with an error rather than
@@ -18,7 +18,7 @@
 #include <pybind11/pybind11.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/io/Hub.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <memory>
 #include <stdexcept>
@@ -62,7 +62,7 @@ struct State {
     feedLeases.clear();
   }
 
-  void update(SketchContext& ctx) {
+  void update(Scene2DContext& ctx) {
     composer = &ctx.composer;
     engine = &ctx.engine;
     assets = &ctx.assets;
@@ -75,7 +75,7 @@ struct State {
     valid = true;
   }
 
-  SketchContext context() const {
+  Scene2DContext context() const {
     return {*composer,           *engine,       *assets,
             specification->size, specification, fonts,
             deterministic,       scenes,        key};

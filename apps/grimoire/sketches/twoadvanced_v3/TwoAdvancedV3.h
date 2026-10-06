@@ -219,13 +219,13 @@ struct TwoAdvancedV3 {
 
   // =========================================================================
 
-  void setup(sketch::SketchContext& ctx);
+  void setup(sketch::Scene2DContext& ctx);
 
   // Slot content must carry its own dims: a slot node sizes from its
   // content, so an inset()-positioned filler inside one measures zero.
-  void renderCloudFrame(sketch::SketchContext& ctx, int frame);
+  void renderCloudFrame(sketch::Scene2DContext& ctx, int frame);
 
-  void renderDiscordFrame(sketch::SketchContext& ctx, int frame);
+  void renderDiscordFrame(sketch::Scene2DContext& ctx, int frame);
 
   // --- the section cycle -----------------------------------------------
   // The home view holds until the cycle starts, then the simulated visitor
@@ -240,13 +240,13 @@ struct TwoAdvancedV3 {
 
   static int stopTarget(int stop) { return stop < 6 ? stop : -1; }
 
-  void renderStage(sketch::SketchContext& ctx, const Element& content,
+  void renderStage(sketch::Scene2DContext& ctx, const Element& content,
                    bool hasHome);
 
-  void renderNavTabs(sketch::SketchContext& ctx, int active) {
+  void renderNavTabs(sketch::Scene2DContext& ctx, int active) {
     navActive = active;
     ctx.composer.renderSlot("navtabs", navTabs(active));
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx);
+  void update(double elapsed, sketch::Scene2DContext& ctx);
 };

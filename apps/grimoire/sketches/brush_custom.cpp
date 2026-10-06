@@ -16,7 +16,7 @@
 #include <sigildraw/brush/Brush.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmedia/advanced/Skia.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <array>
 #include <cmath>
@@ -87,7 +87,7 @@ struct BrushCustom {
   sk_sp<SkImage> shape;
   sk_sp<SkImage> grain;
 
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     context.canvas(1000, 760);
     // The sheet is complete once every row has been laid.
     context.captureAt(0.25);

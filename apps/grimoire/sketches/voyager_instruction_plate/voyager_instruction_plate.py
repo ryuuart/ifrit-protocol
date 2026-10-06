@@ -14,7 +14,7 @@ from sigil.compose import Cache, box, image, pen
 from sigil.draw import CENTER, CLOSE, LEFT, Pen
 from sigil.material import Filter, ShadowOptions, shader
 from sigil.media import load
-from sigil.sketch import SketchContext, sketch
+from sigil.sketch import Scene2DContext, sketch
 from sigil.weave import typeface
 
 WIDTH, HEIGHT = 2100, 1460
@@ -330,7 +330,7 @@ def reading(p: Pen) -> None:
 
 @sketch(size=(WIDTH, HEIGHT), background="#0F1617", capture_at=14.8)
 class VoyagerInstructionPlate:
-    def setup(self, ctx: SketchContext) -> None:
+    def setup(self, ctx: Scene2DContext) -> None:
         cover = load(LOCAL / "data" / "cover.svg", width=DISC_SIZE, height=DISC_SIZE)
         hub = ctx.assets.hub()
         optical = Filter.of(

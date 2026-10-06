@@ -50,8 +50,8 @@
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmotion/ease/Ease.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
@@ -132,7 +132,7 @@ inline sigil::compose::StyleSheet look() {
 }  // namespace beethoven_plate
 
 struct Beethoven {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     // The whole table is revealed: the outermost ring runs 120 ms doubled
     // five times, so the last sweep lands before four seconds and the plate
     // is the poster rather than a frame of its assembly.

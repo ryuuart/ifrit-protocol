@@ -14,8 +14,8 @@
  * key no longer matches is stale and is re-rendered. The render is the
  * same capture the CPU plate tier takes, scaled down, and it never
  * touches a device: it opens every kind on the CPU runtimes whatever the
- * process installed — a set's whole frame and a 2D body's mesh painter
- * alike — which is what lets it run on a worker thread beside a window
+ * process installed — a scene3d sketch's whole frame and a 2D body's mesh
+ * painter alike — which is what lets it run on a worker thread beside a window
  * that is presenting.
  */
 
@@ -118,8 +118,8 @@ enum class ThumbnailOutcome {
   Heavy,
   /** The walk ran past the run's budget and was abandoned. */
   OverBudget,
-  /** The sketch cannot be drawn where a thumbnail is: a set, which is
-   *  drawn on a device and nowhere else. Nothing ran; `thumbnailAvailable`
+  /** The sketch cannot be drawn where a thumbnail is: a scene3d sketch, which
+   *  is drawn on a device and nowhere else. Nothing ran; `thumbnailAvailable`
    *  says why. */
   Unavailable,
   /** No kind, an empty canvas, no surface, or the write failed. */
@@ -166,8 +166,8 @@ struct ThumbnailRun {
  *  and never a device one, and it opens the kind on empty runtimes rather
  *  than on the ones a host installed, so it can run on a worker that
  *  shares no device and no queue with the thread that is presenting: a
- *  2D body stands a mesh up on the CPU painter, and a set, which is drawn
- *  on a device and nowhere else, answers `Unavailable`. Any older
+ *  2D body stands a mesh up on the CPU painter, and a scene3d sketch, which is
+ *  drawn on a device and nowhere else, answers `Unavailable`. Any older
  *  thumbnail for `run.stem` under the output's directory is removed. */
 [[nodiscard]] ThumbnailOutcome renderThumbnail(const Entry& entry,
                                                weave::FontContext& fonts,
@@ -176,8 +176,8 @@ struct ThumbnailRun {
 
 /** WHETHER @p entry CAN BE DRAWN AS A THUMBNAIL — on the CPU, away from
  *  any device — and where it cannot, the reason, written into @p why: a
- *  set's, which is the one message every door a set is refused at
- *  speaks. */
+ *  scene3d sketch's, which is the one message every door a scene3d sketch is
+ *  refused at speaks. */
 [[nodiscard]] bool thumbnailAvailable(const Entry& entry, std::string* why);
 
 }  // namespace sigil::sketch

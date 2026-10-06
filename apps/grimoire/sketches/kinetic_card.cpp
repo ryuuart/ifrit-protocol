@@ -54,8 +54,8 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/values/Time.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Face.h>
 #include <sigilweave/style/Type.h>
@@ -152,7 +152,7 @@ struct KineticCard {
   /// The one clock: a wrapping [0,1) every cascade's master reads.
   motion::Animatable<float> phase = motion::animatable(0.0f);
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize, .captureAt = kPeriod * 0.5});
     // MID-CASCADE. The master maps onto each track's OWN span, so one
     // fraction of the period is the same fraction of every schedule
@@ -172,7 +172,7 @@ struct KineticCard {
     ctx.composer.render(describe(ctx));
   }
 
-  void update(double, sketch::SketchContext& ctx) {
+  void update(double, sketch::Scene2DContext& ctx) {
     // A meter that moves with its cascade is re-read every frame; that is
     // the whole cost of an instrument, and it is why one is never in the
     // paint loop of anything that ships.
@@ -198,7 +198,7 @@ struct KineticCard {
             .note = row.note};
   }
 
-  Element describe(sketch::SketchContext& ctx) {
+  Element describe(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     const Composer& composer = ctx.composer;
 

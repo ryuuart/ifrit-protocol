@@ -23,7 +23,7 @@
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <array>
@@ -147,7 +147,7 @@ struct BristleCurrent {
     }
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(kCanvas, kCanvas);
     ctx.background({244 / 255.0f, 238 / 255.0f, 221 / 255.0f, 1});
     ctx.captureAt(5.2);

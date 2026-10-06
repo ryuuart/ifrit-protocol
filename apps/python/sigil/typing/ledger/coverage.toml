@@ -18,7 +18,7 @@ title = "Hosting and runtime"
 prose = "hosting"
 
 [[section.surface]]
-name = "Canvas sketches"
+name = "Scene2D sketches"
 
 [[section.surface.item]]
 bound = "`@sketch` classes, whose `setup`, `update` and `draw` may omit trailing arguments of `setup(ctx)`, `update(elapsed, ctx)` and `draw(pen, ctx)`, and which the catalogue and external workspaces discover"
@@ -30,17 +30,17 @@ bound = "undecorated classes with `setup` and an optional `update`, which open o
 [[section.surface.item]]
 bound = "a checked context (`canvas`, `background`, `captureAt`, `oversample`, `plate`, `nonlinearPicture`, `render`, `measure`, `snapshot`, `measured`, `local` and the session readings) that rejects use after teardown or from another thread"
 python = [
-  "sketch.SketchContext.canvas",
-  "sketch.SketchContext.background",
-  "sketch.SketchContext.captureAt",
-  "sketch.SketchContext.oversample",
-  "sketch.SketchContext.plate",
-  "sketch.SketchContext.nonlinearPicture",
-  "sketch.SketchContext.render",
-  "sketch.SketchContext.measure",
-  "sketch.SketchContext.snapshot",
-  "sketch.SketchContext.measured",
-  "sketch.SketchContext.local",
+  "sketch.Scene2DContext.canvas",
+  "sketch.Scene2DContext.background",
+  "sketch.Scene2DContext.captureAt",
+  "sketch.Scene2DContext.oversample",
+  "sketch.Scene2DContext.plate",
+  "sketch.Scene2DContext.nonlinearPicture",
+  "sketch.Scene2DContext.render",
+  "sketch.Scene2DContext.measure",
+  "sketch.Scene2DContext.snapshot",
+  "sketch.Scene2DContext.measured",
+  "sketch.Scene2DContext.local",
 ]
 
 [[section.surface.item]]
@@ -61,22 +61,22 @@ bound = "`render_file` through the native host"
 python = ["sketch.render_file"]
 
 [[section.surface.item]]
-native = "Set sketches: `sketch::SetContext` and `describe(now)` returning a `world::Frame`"
-python = ["sketch.SetContext"]
+native = "Scene3D sketches: `sketch::Scene3DContext` and `describe(now)` returning a `world::Frame`"
+python = ["sketch.Scene3DContext"]
 
 [[section.surface.item]]
-native = "`SketchContext::textureScene` and `fonts`"
-python = ["sketch.SketchContext.textureScene", "sketch.SketchContext.fonts"]
+native = "`Scene2DContext::textureScene` and `fonts`"
+python = ["sketch.Scene2DContext.textureScene", "sketch.Scene2DContext.fonts"]
 
 [[section.surface.item]]
-native = "`SketchContext::bakeSet`, `canvas(CanvasSpecification)` and `key`"
-bound_text = "`bakeSet`, `canvas` over a `CanvasSpecification` (whose `paintDiscardedFrames` lets unobserved capture steps go unpainted) and `key` on the context"
+native = "`Scene2DContext::bakeScene3D`, `canvas(CanvasSpecification)` and `key`"
+bound_text = "`bakeScene3D`, `canvas` over a `CanvasSpecification` (whose `paintDiscardedFrames` lets unobserved capture steps go unpainted) and `key` on the context"
 python = [
-  "sketch.SketchContext.bakeSet",
-  "sketch.SketchContext.canvas",
+  "sketch.Scene2DContext.bakeScene3D",
+  "sketch.Scene2DContext.canvas",
   "sketch.CanvasSpecification",
   "sketch.CanvasSpecification.paintDiscardedFrames",
-  "sketch.SketchContext.key",
+  "sketch.Scene2DContext.key",
 ]
 
 [[section.surface.item]]
@@ -87,8 +87,8 @@ python = ["sketch.Guest"]
 [[section.surface.item]]
 native = "`painterRuntime` and `device`"
 python = [
-  "sketch.SketchContext.painterRuntime",
-  "sketch.SketchContext.device",
+  "sketch.Scene2DContext.painterRuntime",
+  "sketch.Scene2DContext.device",
 ]
 
 [[section.surface.item]]
@@ -115,7 +115,7 @@ name = "Composer"
 [[section.surface.item]]
 bound = "Checked `ctx.composer`: `render`, `renderSlot`, `bounds`, `hitTest`, `settling`, `isRunning`, `dirty`, `purgeCaches` and owned `stats`"
 python = [
-  "sketch.SketchContext.composer",
+  "sketch.Scene2DContext.composer",
   "compose.Composer.render",
   "compose.Composer.renderSlot",
   "compose.Composer.bounds",
@@ -176,7 +176,7 @@ name = "Engine"
 [[section.surface.item]]
 bound = "Checked `ctx.engine`: `animate` over a live value, `timeline` with `add`, `call` and `label` at `at`, `afterEnd`, `afterPrevious`, `withPrevious` and `atLabel`, and `timer` with a callback of zero to two arguments that returns `False` to stop, a `stepRate` with its catch-up limit, `betweenSteps` and `droppedTime`, a `frameRate`, a `duration` and a `delay`; `elapsed` and `isRunning`"
 python = [
-  "sketch.SketchContext.engine",
+  "sketch.Scene2DContext.engine",
   "motion.Engine.animate",
   "motion.Engine.timeline",
   "motion.Engine.timer",
@@ -823,8 +823,8 @@ python = [
 ]
 
 [[section.surface.item]]
-native = "`stage(SetContext)`"
-python = ["sketch.SetContext"]
+native = "`stage(Scene3DContext)`"
+python = ["sketch.Scene3DContext"]
 
 [[section.surface.item]]
 native = "`passage`"
@@ -976,7 +976,7 @@ native = "`HyphenationOptions::patterns` in a paragraph's style"
 python = ["weave.HyphenationOptions.patterns"]
 
 [[section.surface.item]]
-native = "`weave::paint::setMaterialResolver`, which a canvas session already installs, so a paint layer's material shades without one"
+native = "`weave::paint::setMaterialResolver`, which a scene2d session already installs, so a paint layer's material shades without one"
 python = ["weave.paint.setMaterialResolver"]
 
 [[section.surface]]
@@ -1999,7 +1999,7 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "a thread-checked `Scene` that owns its engine, with `render`, `advance`, handles and statistics; a set is drawn on a device, which a sketch reaches through `SketchContext.bakeSet`"
+bound = "a thread-checked `Scene` that owns its engine, with `render`, `advance`, handles and statistics; a scene3d sketch is drawn on a device, which a scene2d sketch reaches through `Scene2DContext.bakeScene3D`"
 python = [
   "world.Scene",
   "world.Scene.render",

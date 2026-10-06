@@ -9,7 +9,7 @@ TAGS: Motion/Animation, Drawing/Generative, Typography/Interface
 from sigil.compose import box, column, text
 from sigil.compose import document as doc
 from sigil.motion import Keyframe, Wiggle, animatable, animate, bind, ease, envelope
-from sigil.sketch import SketchContext, kit, sketch
+from sigil.sketch import Scene2DContext, kit, sketch
 
 WIDTH = 860
 TRACK = 610
@@ -82,7 +82,7 @@ def signal_row(number, title, detail, signal, accent):
 
 @sketch(size=(960, 800), capture_at=1.1)
 class MotionSignals:
-    def setup(self, ctx: SketchContext) -> None:
+    def setup(self, ctx: Scene2DContext) -> None:
         seconds = animatable(0)
         ctx.engine.timer(lambda delta, elapsed: seconds.set(elapsed))
         folded = bind(seconds, from_=(0, 5), wrap=1)

@@ -38,8 +38,8 @@
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Frame.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <functional>
 #include <string>
@@ -131,7 +131,7 @@ sketch::kit::ComparisonCase cell(const char* title, const char* call,
 }  // namespace
 
 struct FrameGrid {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     // nothing moves; the sheet is complete at once
     const sketch::kit::Provide look(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));

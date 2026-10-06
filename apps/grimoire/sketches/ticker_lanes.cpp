@@ -47,8 +47,8 @@
 #include <sigilmotion/time/Duration.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Time.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <span>
@@ -122,7 +122,7 @@ struct TickerLanes {
   Lane freeLane, fixedLane, alphaLane, sourceLane, derivedLane, timelineLane;
   std::string readouts[4];
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide presentation(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // the run has already happened, on its own ticker

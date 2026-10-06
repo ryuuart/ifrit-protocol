@@ -16,8 +16,8 @@
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmaterial/texture/Texture.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/Registry.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/query/Selector.h>
 
 #include <algorithm>
@@ -667,7 +667,7 @@ half4 main(float2 p) {
     pen.element(tree, 0, 0, carved_marks::kWidth, carved_marks::kHeight);
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     using namespace carved_marks;
     ctx.canvas(kWidth, kHeight);
     ctx.background(kPaper);

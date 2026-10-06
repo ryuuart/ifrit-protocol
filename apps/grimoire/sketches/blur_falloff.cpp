@@ -49,8 +49,8 @@
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/Texture.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <cmath>
 #include <string>
@@ -131,7 +131,7 @@ struct BlurFalloff {
   sigil::motion::Animatable<float> rack =
       sigil::motion::animatable(0.0f);  // panel 4's bound maxSigma
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
     // the top of panel 4's breath: 1 / (2 kRackHz)
     sketch::kit::stage(ctx, {.size = {1100, 960}, .captureAt = 2.78});
@@ -209,7 +209,7 @@ struct BlurFalloff {
                   .gap = 20})})));
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     (void)ctx;
     // Derived from `elapsed`, not accumulated: a still at a declared time
     // is then the same still every run. No re-describe — the bound

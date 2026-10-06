@@ -9,7 +9,7 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigildraw/Pen.h>
 #include <sigilsketch/live/Host.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilworld/frame/Frame.h>
 #include <signal.h>
 #include <unistd.h>
@@ -43,7 +43,7 @@ struct Restarted {
   static inline int setups = 0;
   static inline bool failSetup = false;
 
-  void setup(SketchContext& ctx) {
+  void setup(Scene2DContext& ctx) {
     ++setups;
     if (failSetup) throw std::runtime_error("setup rejected the candidate");
     ctx.canvas(120, 90);
@@ -119,18 +119,18 @@ std::vector<std::string> preparationOrder;
 bool executorReady = false;
 bool preparationProbeFails = false;
 
-struct PreparedCanvas {
+struct PreparedScene2D {
   static constexpr bool needsDevice = true;
-  PreparedCanvas() { preparationOrder.emplace_back("body"); }
-  void setup(SketchContext& ctx) {
+  PreparedScene2D() { preparationOrder.emplace_back("body"); }
+  void setup(Scene2DContext& ctx) {
     preparationOrder.emplace_back("setup");
     ctx.canvas(120, 90);
   }
 };
 
-Kind preparedCanvasKind() {
+Kind preparedScene2DKind() {
   preparationOrder.emplace_back("kind");
-  return kindOf<PreparedCanvas>();
+  return kindOf<PreparedScene2D>();
 }
 
 bool preparedAvailable(std::string* why) {
@@ -142,8 +142,8 @@ bool preparedAvailable(std::string* why) {
 
 TEST(SketchHost, PreparesBeforeAvailabilityAndSetupOnOpenAndRestart) {
   const Watched file("sigil_sketch_prepared");
-  const Entry entry{"prepared", "prepared",          "Test",
-                    "",         &preparedCanvasKind, &preparedAvailable};
+  const Entry entry{"prepared", "prepared",           "Test",
+                    "",         &preparedScene2DKind, &preparedAvailable};
   auto opts = options(file.path);
   opts.compiledIn = &entry;
   executorReady = false;
@@ -185,58 +185,58 @@ TEST(SketchHost, PreparesBeforeAvailabilityAndSetupOnOpenAndRestart) {
             (std::vector<std::string>{"prepare", "probe", "body", "setup"}));
 }
 
-struct PreparedSet {
+struct PreparedScene3D {
   static inline int bodies = 0;
   static inline int setups = 0;
-  PreparedSet() { ++bodies; }
-  void setup(SetContext&) { ++setups; }
+  PreparedScene3D() { ++bodies; }
+  void setup(Scene3DContext&) { ++setups; }
   sigil::world::Frame describe() { return {}; }
 };
 
-Kind preparedSetKind() { return kindOf<PreparedSet>(); }
+Kind preparedScene3DKind() { return kindOf<PreparedScene3D>(); }
 
-TEST(SketchHost, ARequiredDeviceFailurePrecedesSetBodyConstruction) {
+TEST(SketchHost, ARequiredDeviceFailurePrecedesScene3DBodyConstruction) {
   const Watched file("sigil_sketch_required_device");
   const Entry entry{"prepared_set", "prepared_set", "Test", "",
-                    &preparedSetKind};
+                    &preparedScene3DKind};
   auto opts = options(file.path);
   opts.compiledIn = &entry;
-  PreparedSet::bodies = 0;
-  PreparedSet::setups = 0;
+  PreparedScene3D::bodies = 0;
+  PreparedScene3D::setups = 0;
   opts.prepareSession = [](const Kind& kind) {
     EXPECT_TRUE(kind->needsDevice());
     throw std::runtime_error("the required device is unavailable");
   };
   Host host(std::move(opts), fonts());
   EXPECT_FALSE(host.live());
-  EXPECT_EQ(PreparedSet::bodies, 0);
-  EXPECT_EQ(PreparedSet::setups, 0);
+  EXPECT_EQ(PreparedScene3D::bodies, 0);
+  EXPECT_EQ(PreparedScene3D::setups, 0);
   EXPECT_NE(host.errorLog().find("required device"), std::string::npos);
 }
 
-TEST(SketchHost, ASetWithNoDeviceToDrawOnIsUnavailableBeforeItsBodyIsMade) {
-  // A host that brought no device up opens no set: the session is refused
-  // with the one message every door a set is refused at speaks, and the
-  // body is never made.
+TEST(SketchHost, AScene3DWithNoDeviceToDrawOnIsUnavailableBeforeItsBodyIsMade) {
+  // A host that brought no device up opens no scene3d sketch: the session is
+  // refused with the one message every door a scene3d sketch is refused at
+  // speaks, and the body is never made.
   const Watched file("sigil_sketch_set_without_device");
   const Entry entry{"prepared_set", "prepared_set", "Test", "",
-                    &preparedSetKind};
+                    &preparedScene3DKind};
   useRuntime({});
   std::string why;
   ASSERT_FALSE(runtimeAvailable(&why));
   EXPECT_FALSE(entry.available());
   auto opts = options(file.path);
   opts.compiledIn = &entry;
-  PreparedSet::bodies = 0;
-  PreparedSet::setups = 0;
+  PreparedScene3D::bodies = 0;
+  PreparedScene3D::setups = 0;
   Host host(std::move(opts), fonts());
   EXPECT_FALSE(host.live());
-  EXPECT_EQ(PreparedSet::bodies, 0);
-  EXPECT_EQ(PreparedSet::setups, 0);
+  EXPECT_EQ(PreparedScene3D::bodies, 0);
+  EXPECT_EQ(PreparedScene3D::setups, 0);
   EXPECT_NE(host.errorLog().find(why), std::string::npos) << host.errorLog();
 }
 
-TEST(SketchHost, ARejectedSetReplacementKeepsTheCanvasAndCaptureBackend) {
+TEST(SketchHost, ARejectedScene3DReplacementKeepsTheCanvasAndCaptureBackend) {
   const Watched file("sigil_sketch_candidate_device");
   auto python = file.path;
   python.replace_extension(".py");
@@ -246,7 +246,7 @@ TEST(SketchHost, ARejectedSetReplacementKeepsTheCanvasAndCaptureBackend) {
   static bool requestSet = false;
   requestSet = false;
   opts.pythonLoader = [](const std::filesystem::path&) {
-    return requestSet ? kindOf<PreparedSet>() : kindOf<Restarted>();
+    return requestSet ? kindOf<PreparedScene3D>() : kindOf<Restarted>();
   };
   std::vector<bool> requirements;
   opts.prepareSession = [&](const Kind& kind) {
@@ -255,8 +255,8 @@ TEST(SketchHost, ARejectedSetReplacementKeepsTheCanvasAndCaptureBackend) {
       throw std::runtime_error("the candidate device is unavailable");
   };
   Restarted::failSetup = false;
-  PreparedSet::bodies = 0;
-  PreparedSet::setups = 0;
+  PreparedScene3D::bodies = 0;
+  PreparedScene3D::setups = 0;
   Host host(std::move(opts), fonts());
   host.poll();
   ASSERT_TRUE(host.live()) << host.errorLog();
@@ -275,10 +275,10 @@ TEST(SketchHost, ARejectedSetReplacementKeepsTheCanvasAndCaptureBackend) {
   host.poll();
   EXPECT_EQ(requirements, (std::vector<bool>{false, true}));
   EXPECT_EQ(host.session(), accepted);
-  EXPECT_EQ(host.kind(), "canvas");
+  EXPECT_EQ(host.kind(), "scene2d");
   EXPECT_FALSE(host.needsDevice());
-  EXPECT_EQ(PreparedSet::bodies, 0);
-  EXPECT_EQ(PreparedSet::setups, 0);
+  EXPECT_EQ(PreparedScene3D::bodies, 0);
+  EXPECT_EQ(PreparedScene3D::setups, 0);
   EXPECT_FALSE(host.still().drawsNothing());
   EXPECT_EQ(captures, 1);
   EXPECT_TRUE(host.restartSession());
@@ -305,7 +305,7 @@ TEST(SketchHost, UnknownPreparationFailuresPreserveTheAcceptedSession) {
 
 struct FailingFrame {
   static inline int updates = 0;
-  void setup(SketchContext& ctx) { ctx.canvas(120, 90); }
+  void setup(Scene2DContext& ctx) { ctx.canvas(120, 90); }
   void update() {
     ++updates;
     throw std::runtime_error("the frame callback failed");
@@ -453,7 +453,7 @@ struct CaptureClock {
   static inline bool resize = false;
   static inline bool paintDiscarded = true;
   static inline int paints = 0;
-  void setup(SketchContext& ctx) {
+  void setup(Scene2DContext& ctx) {
     ctx.canvas(120, 90);
     ctx.captureAt(0);
     ctx.paintDiscardedFrames(paintDiscarded);
@@ -467,7 +467,7 @@ struct CaptureClock {
                             .width(120)
                             .height(90));
   }
-  void update(double elapsed, SketchContext& ctx) {
+  void update(double elapsed, Scene2DContext& ctx) {
     updates.push_back(elapsed);
     if (resize) ctx.canvas(150.5f, 100.25f);
   }

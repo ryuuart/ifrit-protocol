@@ -2,6 +2,6 @@
 
 namespace sigil::sketch::python {
 
-void bindSketchWorldSet(pybind11::module_&) {}
+void bindSketchScene3DSketches(pybind11::module_&) {}
 
 }  // namespace sigil::sketch::python

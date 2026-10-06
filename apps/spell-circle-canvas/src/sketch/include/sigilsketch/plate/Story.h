@@ -33,7 +33,7 @@ struct StoryOptions {
   std::string outputPath;  ///< where the MP4 is written
   /// The index of the one sketch to film; negative films every one.
   int only = -1;
-  /// Which kind of sketch to film ("canvas", "set"); empty films all.
+  /// Which kind of sketch to film ("scene2d", "scene3d"); empty films all.
   std::string kind;
   int width = 1080;              ///< the montage's pixel width
   int height = 1920;             ///< the montage's pixel height

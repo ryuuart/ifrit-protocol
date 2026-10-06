@@ -75,8 +75,9 @@ struct FeedFixture {
   sketch::Assets services{fs::path{}};
 
   FeedFixture() {
-    sigil::io::registerTransport(services.hub(), "fixture", [counts = counts](std::string_view uri,
-                                     sigil::io::Inlet inlet) {
+    sigil::io::registerTransport(
+        services.hub(), "fixture",
+        [counts = counts](std::string_view uri, sigil::io::Inlet inlet) {
           const std::string key(uri);
           ++counts->opened[key];
           counts->feeds[key] = std::move(inlet);
@@ -213,14 +214,14 @@ TEST(SketchPython, ASourceKindCanBeListedWhenItsFileIsMissingOrInvalid) {
   PythonSource source("sigil_python_source_kind_listing");
   const sketch::Kind kind = sketch::python::source(source.entry());
   ASSERT_TRUE(kind);
-  EXPECT_EQ(kind->runtime(), "canvas");
+  EXPECT_EQ(kind->runtime(), "scene2d");
   EXPECT_FALSE(kind->needsDevice());
   EXPECT_THROW((void)kind->open(fonts(), assets(), true, "missing"),
                std::runtime_error);
 
   source.write("entry.py", "class Study(:\n");
   const sketch::Kind invalid = sketch::python::source(source.entry());
-  EXPECT_EQ(invalid->runtime(), "canvas");
+  EXPECT_EQ(invalid->runtime(), "scene2d");
   EXPECT_THROW((void)invalid->open(fonts(), assets(), true, "invalid"),
                std::runtime_error);
 

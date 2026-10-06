@@ -3,32 +3,33 @@
 Sigil is a suite of libraries. Use Compose, World, Draw or another library
 directly by including its own headers, spelling its namespace and linking its
 target. SigilSketch is the framework a scene is hosted through: registration,
-sessions, the canvas and set runtimes, the live host that compiles and swaps
+sessions, the scene2d and scene3d runtimes, the live host that compiles and swaps
 sketches, and the workspace convention for sketches kept outside this
 repository. The drawing libraries do not depend on it. Grimoire, at
 `apps/grimoire/`, is one application built on SigilSketch — the stock host,
 and an example of using the framework — that lists and runs the sketches it
 is pointed at and carries this repository's catalogue of them.
 
-A sketch is a plain C++ type that describes a canvas or a lit set, or a
+A sketch is a plain C++ type that describes a 2D surface (a scene2d sketch)
+or a lit scene in space (a scene3d sketch), or a
 Python class doing the same. The host supplies the clock, assets and
 rendering runtime. A sketch reaches a host compiled into it, as a C++ source
 file the host compiles against itself, or as a Python file; the host watches
 the file, swaps each good build in and keeps the last working session when
 one fails.
 
-## Write a canvas sketch
+## Write a scene2d sketch
 
 ```cpp
 #include <sigilcompose/core/Core.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilsketch/core/Registry.h>
 
 namespace compose = sigil::compose;
 namespace sketch = sigil::sketch;
 
 struct Hello {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(1000, 700);
     ctx.background({0.05f, 0.04f, 0.10f, 1});
     ctx.captureAt(2.4);
@@ -67,40 +68,44 @@ its build discovers by file stem; Grimoire's is `apps/grimoire/sketches/`.
 supplies an explicit filed name when needed.
 [REGISTRY.md](REGISTRY.md) covers names, tags and plates.
 
-## Canvas, set and pen
+## Scene2D, Scene3D and pen
 
 | Header | Body contract | Result |
 | --- | --- | --- |
-| `<sigilsketch/canvas/Sketch.h>` | `sketch::CanvasSketch`: `setup(ctx)`, optional `update(elapsed, ctx)` | a Compose tree |
-| `<sigilsketch/set/Set.h>` | `sketch::SetSketch`: `describe(now)`, optional `setup(ctx)` | a World frame |
+| `<sigilsketch/scene2d/Scene2D.h>` | `sketch::Scene2DSketch`: `setup(ctx)`, optional `update(elapsed, ctx)` | a Compose tree |
+| `<sigilsketch/scene3d/Scene3D.h>` | `sketch::Scene3DSketch`: `describe(now)`, optional `setup(ctx)` | a World frame |
 
-A set's `describe(motion::Duration now)` returns a `world::Frame`, or any
+World's own `Scene`, the reconciled frame a scene3d sketch is drawn from,
+is a different thing: the sketch kinds always carry a dimension, scene2d
+and scene3d, which is what keeps them apart.
+
+A scene3d sketch's `describe(motion::Duration now)` returns a `world::Frame`, or any
 World node, which becomes one. Describe a reproducible scene as a function of
-the scene time and its data. The optional `setup(sketch::SetContext&)`
+the scene time and its data. The optional `setup(sketch::Scene3DContext&)`
 declares canvas size, background, capture time and the lens a tree holding no
 camera is seen through. Include `<sigilworld/World.h>` for the scene
 vocabulary; [SigilWorld's README](../common/world/README.md) defines it.
 
-A set's camera is the tree's: one camera in the tree is the one looked
+A scene3d sketch's camera is the tree's: one camera in the tree is the one looked
 through, and a tree holding several names one with `world::Frame::camera`.
 When the host takes hold of the viewpoint — an orbit in a window — it states
 its lens as the frame's `world::Frame::cameraOverride`, and the camera the
 tree chose still says how the picture is read.
 
-A Canvas body that uses the host's device mesh painter, foreign textures or
+A scene2d body that uses the host's device mesh painter, foreign textures or
 device compute declares `static constexpr bool needsDevice = true;`.
 Ordinary Compose drawing needs no World executor. A supplied non-CPU
-`CanvasKind` painter also declares device work. The host reads
+`Scene2DKind` painter also declares device work. The host reads
 `KindOperations::needsDevice` before opening a session; this declaration does
 not prevent the body from providing a CPU fallback.
 
-An immediate pen program is a canvas sketch with a
+An immediate pen program is a scene2d sketch with a
 `compose::graphics` node:
 
 ```cpp
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Pen.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <cmath>
 
@@ -109,7 +114,7 @@ namespace draw = sigil::draw;
 namespace sketch = sigil::sketch;
 
 struct Orbit {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(400, 300);
     ctx.composer.render(
         compose::graphics("orbit.loop", [this](draw::Pen& pen) { paint(pen); })
@@ -137,13 +142,13 @@ frame; it has no separate event callback lifecycle.
 
 ## Retained updates and motion
 
-A canvas scene is retained. Declare it in `setup()`, including its bindings,
+A scene2d sketch is retained. Declare it in `setup()`, including its bindings,
 transitions and timers. Re-describe only when data changes its structure.
 Use `Composer::renderSlot` to replace one changing part, or a `custom()` leaf
 with `Cache::None` for drawing that needs a program every frame.
 
 Keep sketch state in members. A reload creates a new instance and restarts
-its clock. `SketchContext` is valid only during its callback; do not capture it.
+its clock. `Scene2DContext` is valid only during its callback; do not capture it.
 The session's composer and engine remain valid for the session, so a callback
 may capture those references explicitly.
 
@@ -157,7 +162,7 @@ namespace motion = sigil::motion;
 
 motion::Timer solver;
 
-void setup(sketch::SketchContext& ctx) {
+void setup(sketch::Scene2DContext& ctx) {
   solver = ctx.engine.timer([this] { solve(); }, {.stepRate = 60.0});
 }
 ```
@@ -168,7 +173,7 @@ even on frames a pen program skips. Starting the timer in the draw callback
 would create a new timer on every frame.
 
 Capture pre-roll calls `Session::discardedFrame`. It paints by default so
-draw callbacks can accumulate strokes and advance persistent state. A Canvas
+draw callbacks can accumulate strokes and advance persistent state. A scene2d
 sketch whose capture state advances entirely through its engine, feeds and
 `update()` may declare `ctx.paintDiscardedFrames(false)` in setup. Those
 steps omit drawing; real frames, repaints and stills continue to paint.
@@ -226,7 +231,7 @@ Live inputs use the same hub:
 ```cpp
 #include <sigilio/hub/Hub.h>
 
-void setup(sketch::SketchContext& ctx) {
+void setup(sketch::Scene2DContext& ctx) {
   auto& hub = ctx.assets.hub();
   if (ctx.deterministic)
     hub.replay("udp://:27020", ctx.local("data/sky.feed"));
@@ -290,13 +295,13 @@ its stills, sweeps, video, comparisons and benchmark commands.
 
 ## Pictures between runtimes
 
-A canvas and a set can exchange pictures without sharing their runtime:
+A scene2d sketch and a scene3d sketch can exchange pictures without sharing their runtime:
 
 | Context method | Purpose |
 | --- | --- |
 | `ctx.textureScene(size, background)` | a Compose scene painted into a texture |
-| `ctx.bakeSet(frame, size, {.camera, .background, .at})` | one World frame baked into an image on a canvas |
-| set `ctx.page(size)` | a `sketch::Page`: a Compose page painted as a surface's maps by a pass on the frame, for the set's lights to shade |
+| `ctx.bakeScene3D(frame, size, {.camera, .background, .at})` | one World frame baked into an image on a scene2d sketch's surface |
+| scene3d `ctx.page(size)` | a `sketch::Page`: a Compose page painted as a surface's maps by a pass on the frame, for the scene's lights to shade |
 
 The session retains texture scenes until the body declares again. Create one
 in `setup()`, keep the returned pointer, and update it at the scene's forward
@@ -304,15 +309,15 @@ time. Creating one every frame keeps every such scene until redeclaration.
 Include `<sigilcompose/texture/Texture.h>` for its `render()`, `image()` and
 `texture()` operations.
 
-A set's page is held the same way. It is two calls in `describe`:
+A scene3d sketch's page is held the same way. It is two calls in `describe`:
 `Page::render(tree)` is the texture pass that paints the tree as the maps of a
 surface at the frame's time, put on the frame with `pass`, and
 `Page::surface()` is the one material a body wears to show it. Compose paints
 each lit material's maps and the page's flat content as its own colour, and
-the set's lights, environment and camera shade the page — every lit
+the scene's lights, environment and camera shade the page — every lit
 material's base colour, normal, roughness, metalness, occlusion, emission
 and clear coat (its weight and roughness; a coat's own normal is not
-carried yet) reach the set's shading through `Page::surface()`, and which
+carried yet) reach the scene's shading through `Page::surface()`, and which
 maps carry them is the page's business. Flat content on a page is its own
 light and goes through the camera's exposure and tone curve like any
 other light, so a page meant to read as painted is seen through
@@ -324,7 +329,7 @@ and is counted as skipped.
 ```cpp
 struct Plate {
   sketch::Page page;
-  void setup(sketch::SetContext& ctx) { page = ctx.page({1440, 900}); }
+  void setup(sketch::Scene3DContext& ctx) { page = ctx.page({1440, 900}); }
   world::Frame describe(motion::Duration now) {
     return world::Frame(world::group({world::mesh(sheet).fill(page.surface())}))
         .pass(page.render(tree(now)));
@@ -332,39 +337,39 @@ struct Plate {
 };
 ```
 
-A set's frame is painted into `colour` by a geometry pass the host puts on
-it, clearing to the declared background, unless one of the set's own passes
-forms the picture — a geometry pass, or a body doing its own work. A set
+A scene3d sketch's frame is painted into `colour` by a geometry pass the host puts on
+it, clearing to the declared background, unless one of the sketch's own passes
+forms the picture — a geometry pass, or a body doing its own work. A scene3d sketch
 whose passes only paint textures, or only work on the picture, keeps the
 stock pass, put first: `world::Frame(scene).pass(world::bloom({}))` is the
 scene with a bloom over it.
 
-A set bake uses its own clock, so sampling an entrance at `BakeSetOptions::at` does not
-advance the surrounding canvas sketch. It draws on the device runtime the host
-installed and answers null where there is none, so a canvas sketch that bakes
-a set declares `needsDevice` and an `available()` probe over
+A 3D bake uses its own clock, so sampling an entrance at `BakeScene3DOptions::at` does not
+advance the surrounding scene2d sketch. It draws on the device runtime the host
+installed and answers null where there is none, so a scene2d sketch that bakes
+a 3D frame declares `needsDevice` and an `available()` probe over
 `sketch::runtimeAvailable`. Include `<sigilworld/World.h>` for the frame.
 
-A canvas that draws meshes directly uses `sketch::painterRuntime()`, which is
-the CPU painter where no device runtime is installed. A set uses
+A scene2d sketch that draws meshes directly uses `sketch::painterRuntime()`, which is
+the CPU painter where no device runtime is installed. A scene3d sketch uses
 `sketch::runtime()` and is drawn on a device and nowhere else: where the
 runtime it would open on is empty, its kind answers `available()` false with
 the one message `sketch::runtimeAvailable` writes, so a listing greys it, a
 sweep skips it and a host refuses to open it, each saying why. Each session
 keeps the runtime it opened with; `sketch::onPainterRuntime` and
-`sketch::onRuntime` let a host choose one for a particular kind, and a set
-stated on an empty runtime is unavailable.
+`sketch::onRuntime` let a host choose one for a particular kind, and a scene3d
+kind stated on an empty runtime is unavailable.
 `sketch::device()` is the optional device handle for operations such as native
-texture import; a canvas sketch needing it supplies a fallback or an
+texture import; a scene2d sketch needing it supplies a fallback or an
 availability probe.
 
 ### Another application's picture
 
 A host may publish what its canvas draws to other applications on the
 machine — Grimoire's `--publish` does — and `sigil::sketch::Guest`, from
-`<sigilsketch/canvas/Guest.h>`, is the same door read from the inside of
+`<sigilsketch/scene2d/Guest.h>`, is the same door read from the inside of
 a sketch: made from the context a sketch was handed — a page's
-`SketchContext` or a set's `SetContext` — and the name a publication
+`Scene2DContext` or a scene3d sketch's `Scene3DContext` — and the name a publication
 announces, it answers with the newest frame two ways.
 `sigil::sketch::Guest::frame` is the frame as an image on the recorder
 the canvas is being drawn on, one per frame that arrived and null while
@@ -379,8 +384,8 @@ whose frames are turned as they are bound. It takes the
 asks with what it is already holding and names Graphite nowhere.
 `sigil::sketch::Guest::texture` is the same frame as a
 `material::Texture`, which is what a surface's base-colour slot takes, so
-a body in a set wears the publication the way it wears any other picture;
-`guest_body` is the set that turns one under a light. That one reads the
+a body in a scene3d sketch wears the publication the way it wears any other picture;
+`guest_body` is the scene3d sketch that turns one under a light. That one reads the
 pixels back into host memory, because the renderer that shades a body
 does not stand where a publication arrives — a frame is a Metal texture
 and the world draws through Vulkan — and a slot that works on every tier
@@ -474,10 +479,10 @@ the package, typing and environment contract.
 ## Hosts and library boundaries
 
 `sketch::Kind` opens a `sketch::Session`; a host drives that session without
-knowing whether it paints a canvas or a set. An adapter with no C++ sketch type
-can use `sketch::openCanvas` with an owned `sketch::CanvasBody`, or
-`sketch::openSet` with an owned `sketch::SetBody`.
-`sketch::SetBodySource` supplies set bodies for a kind.
+knowing whether it paints a scene2d or a scene3d sketch. An adapter with no C++ sketch type
+can use `sketch::openScene2D` with an owned `sketch::Scene2DBody`, or
+`sketch::openScene3D` with an owned `sketch::Scene3DBody`.
+`sketch::Scene3DBodySource` supplies scene3d bodies for a kind.
 
 The runtimes own their clocks, retained scenes and caches. A host owns assets,
 runtime selection and session lifetime. Device objects must outlive sessions
@@ -485,7 +490,7 @@ using them. `sketch::useRuntime`, `sketch::usePainterRuntime` and
 `sketch::useDevice` install process defaults; individual sessions keep the
 runtimes with which they opened.
 
-The canvas runtime installs the default text material resolver unless a host
+The scene2d runtime installs the default text material resolver unless a host
 already supplied one. Runtimes link no device backend or Qt.
 `sketch::Host` compiles a C++ sketch with the flags its own build captured,
 against its own headers, and refuses to when those headers are newer than
@@ -502,7 +507,7 @@ workspaces and mapped-code lifetime are defined in [HOST.md](HOST.md). The proto
 | Directory | Responsibility |
 | --- | --- |
 | `core/` | registry, kind, session, assets and crash reporting |
-| `canvas/`, `set/` | the two rendering runtimes |
+| `scene2d/`, `scene3d/` | the two rendering runtimes |
 | `live/` | watching, compilation, the build cache, adoption and residency |
 | `plate/` | captures, sweeps, comparisons and thumbnails |
 | `kit/`, `scry/` | specimen furniture and optional web integration |

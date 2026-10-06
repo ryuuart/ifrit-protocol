@@ -26,7 +26,7 @@ true.
 The arrangement is stated relative to the subject, so one rig serves a
 thumbnail and a room: `Rig::extent` is how far across the subject is and
 every distance is a multiple of it. `Rig::bearing` turns the whole rig
-about the subject's up axis, so a set is re-lit by turning one number.
+about the subject's up axis, so a scene is re-lit by turning one number.
 
 The key stands two and a fifth extents from the subject. `Rig::bearing` and `Rig::elevation` are the key's bearing round the
 subject and its height above it, in degrees; the fill stands a quarter
@@ -47,7 +47,7 @@ shadow side and the rim as they were stated. The key is what a subject
 is read by; the other two are what keeps it from being read by the key
 alone. `Rig::ambientIntensity` and `Rig::ambientColor`, past zero, add an
 ambient light to the rig, keyed `ambient`; nothing else lights the
-shadows, so a rig stating none over a set with no environment leaves
+shadows, so a rig stating none over a scene with no environment leaves
 them black. `Rig::keyCastsShadow` makes the key cast shadows, made as
 `Rig::keyShadow` says; off unless stated, so a rig written without it
 lights exactly as it did, and the fill and the back light never cast.
@@ -125,7 +125,7 @@ caller who wants one of them alone builds it alone.
 ## An environment map from a gradient and soft boxes
 
 `environmentMap` bakes a panorama out of data rather than out of a
-function a set writes by hand: a vertical gradient from
+function a scene writes by hand: a vertical gradient from
 `EnvironmentMapOptions::zenith` straight up to
 `EnvironmentMapOptions::nadir` straight down — the zenith's share at a
 height being `(1 - v)` raised to `EnvironmentMapOptions::exponent` — and

@@ -59,7 +59,7 @@
 #include <sigilmotion/time/Duration.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilmotion/values/Tween.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Face.h>
 #include <sigilweave/style/Type.h>
@@ -747,7 +747,7 @@ struct PsxDoomFire {
 
   // =========================================================================
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(kCanvasW, kCanvasH);
     ctx.background(kInk);
     ctx.captureAt(6.0);

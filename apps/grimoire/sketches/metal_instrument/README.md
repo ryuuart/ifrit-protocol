@@ -1,7 +1,7 @@
 # Metal instrument
 
 A fictional precision audio monitor, “TONE / 03”, built as a real
-three-dimensional set on a 1440 × 960 canvas. The enclosure has a chamfered
+scene3d sketch on a 1440 × 960 canvas. The enclosure has a chamfered
 silhouette, a polished front rim, directional finish marks, lathed and knurled
 controls, countersunk screw heads, raised vent strips, rubber feet and a
 recessed luminous meter. Compose supplies the face markings and the live meter

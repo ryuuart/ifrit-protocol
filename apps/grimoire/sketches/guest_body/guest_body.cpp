@@ -7,7 +7,7 @@
  * a wall, with a bezel around it that catches the light as it comes
  * round. The picture reaches the body the way every other picture does —
  * a `material::Texture` in the base-colour slot of a surface — so
- * nothing about the set knows where the pixels came from.
+ * nothing about the scene knows where the pixels came from.
  *
  * THE SCREEN IS UNLIT ON PURPOSE. A screen is its own light, and a
  * shading term across it would read as a smear over somebody else's
@@ -20,8 +20,8 @@
  * not stand there — a frame is Metal and the world draws through Vulkan
  * — so `sigil::sketch::Guest::texture` reads the pixels back into host
  * memory and the renderer uploads them to its own device like any other
- * image. `guest_picture` is the case that copies nothing: a canvas draws
- * on the device the frame arrived on, so it wraps the texture where it
+ * image. `guest_picture` is the case that copies nothing: a scene2d sketch
+ * draws on the device the frame arrived on, so it wraps the texture where it
  * stands.
  *
  * NOTHING ARRIVES IN A CAPTURE, and the stand-in is the honest plate:
@@ -44,7 +44,7 @@
  * EDIT THESE FIRST
  *   kPublication  the name this screen waits on
  *   kApplication  the one application it will take it from; empty is any
- *   kScreen       how wide the screen stands in the set
+ *   kScreen       how wide the screen stands in the scene
  *   kTurnSeconds  how long one whole turn of the screen takes
  */
 
@@ -61,10 +61,10 @@
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/Texture.h>
-#include <sigilsketch/canvas/Guest.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Theme.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene2d/Guest.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilworld/World.h>
 #include <sigilworld/advanced/Light.h>
 #include <sigilworld/frame/Frame.h>
@@ -113,7 +113,7 @@ constexpr glm::vec3 kEye{0.0f, 54.0f, 400.0f};
 /** WHAT THE SCREEN WEARS WHILE NOBODY IS PUBLISHING: the name nothing is
  *  publishing under, and the one line that would start somebody
  *  publishing under it. A card this sketch paints rather than a flat
- *  colour, because a plate of this set should say what it is waiting
+ *  colour, because a plate of this sketch should say what it is waiting
  *  for. */
 Element waiting() {
   const sketch::kit::Provide presentation(sketch::kit::featureTheme());
@@ -152,7 +152,7 @@ struct GuestBody {
    *  the scene standing for as long as a body wears it. */
   std::shared_ptr<TextureScene> card;
 
-  void setup(sketch::SetContext& ctx) {
+  void setup(sketch::Scene3DContext& ctx) {
     sketch::kit::stage(
         ctx, {.size = kCanvas, .captureAt = kCaptureAt, .background = kGround});
     gm::camera::Camera lens;
@@ -170,9 +170,9 @@ struct GuestBody {
     if (card) card->render(waiting(), (double)seconds);
 
     // THE ASK IS EVERY FRAME, which is also what opens onto a publisher
-    // that appeared after this set was declared, or came back after one
+    // that appeared after this scene was declared, or came back after one
     // stopped. What it answers decides which picture is on the screen
-    // and nothing else about the set.
+    // and nothing else about the scene.
     material::Texture picture = guest ? guest->texture() : material::Texture{};
     if (!picture.valid() && card) picture = card->texture();
 
@@ -194,7 +194,7 @@ struct GuestBody {
                   .intensity = 0.9f})
                  .key("fill"),
              world::ambientLight({.intensity = 0.05f}).key("ambient"),
-             // The wall the set stands in front of, so the screen's turn is
+             // The wall the scene stands in front of, so the screen's turn is
              // read against something that is not turning.
              world::mesh(gm::quad(1100, 620))
                  .key("wall")

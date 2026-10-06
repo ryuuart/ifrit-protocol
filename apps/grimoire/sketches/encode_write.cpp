@@ -24,8 +24,8 @@
 #include <sigilmedia/core/Image.h>
 #include <sigilmedia/image/Decode.h>
 #include <sigilmedia/image/Encode.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <filesystem>
 #include <memory>
@@ -89,7 +89,7 @@ sketch::kit::ComparisonCase encoded(const char* title, const char* control,
 }  // namespace
 
 struct EncodeWrite {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide presentation(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // every encode has already been taken

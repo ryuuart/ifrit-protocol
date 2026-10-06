@@ -1,6 +1,6 @@
 # SigilWorld — the device executor
 
-The chapter on the executor a set is drawn by, which rasterises on a
+The chapter on the executor a scene is drawn by, which rasterises on a
 GPU: what it does with each pass, what a material reaches the device as,
 the two seams below this library whose device executors stand beside
 their CPU ones, what a shaded scene can and cannot say there, where its
@@ -119,7 +119,7 @@ an additive surface does not mind and a translucent one laid over may.
 **A STAMPED POINT SET IS AN ARTEFACT LIKE ANY OTHER.** A geometry pass
 draws the stamps of every point set it reads, every frame, as instanced
 geometry — the stamp once and an instance per point — formed ONCE per
-distinct (cloud, stamp) and uploaded once, so a set that has not moved
+distinct (cloud, stamp) and uploaded once, so a scene that has not moved
 between two frames is neither instanced again nor re-uploaded.
 `Targets::stamped()` is where it is formed and held;
 `world::stampKey()` is the number the two values fold to, read from
@@ -130,7 +130,7 @@ itself decides it: an entry holds the cloud and the stamp it was formed
 from, so two pairs that happen to fold together are two stampings under
 two numbers and neither is ever served the other's instances. `Targets::stampings()` counts what has
 actually been formed, which is what the test asserts does not move
-across three frames of a still set. A stamping no pass asked for in a
+across three frames of a still scene. A stamping no pass asked for in a
 frame is let go at the end of it.
 
 **The pixels stay on the device.** The frame's resources are device
@@ -315,7 +315,7 @@ with `setenv(..., overwrite=0)`, so a process that has already put
 asked for — which is the way to buy the faster device back, at the cost
 of a device pop cook that no longer answers what the host answers.
 
-## What a lit set can and cannot say
+## What a lit scene can and cannot say
 
 The lighting model is **[LIGHTING.md](LIGHTING.md)**. What the device
 adds to it:
@@ -367,13 +367,13 @@ adds to it:
   host image at all, so a renderer on another device draws the body
   undressed rather than something it invented.
 
-- **the panorama SHOWN behind the set is `EnvironmentOptions::shown`**,
+- **the panorama SHOWN behind the scene is `EnvironmentOptions::shown`**,
   drawn as one triangle over the target with each pixel reading the
   panorama along the ray the eye looks through it, at that strength and
   `EnvironmentOptions::blur`. Past a `groundRadius` of zero the panorama
   is projected onto a sphere of that radius centred at the world origin: the pixel reads
   where its ray leaves the sphere, along the direction from the centre
-  to that point, so an eye moving through the set sees the horizon shift
+  to that point, so an eye moving through the scene sees the horizon shift
   the way it would outdoors. An eye at the centre, or on or outside the
   sphere, reads by direction — the sky at infinity, which is what a
   radius of zero means. The projection reaches what is shown alone: what a
@@ -447,5 +447,5 @@ frame.runtime(world::diligent::runtime(*device));
 
 There is no Metal path here, because Diligent has no Metal backend:
 `create` fails on a machine with no Vulkan runtime, and such a machine
-draws no set — a frame whose passes carry no runtime runs none of them
+draws no scene — a frame whose passes carry no runtime runs none of them
 and `Scene::error()` says so.

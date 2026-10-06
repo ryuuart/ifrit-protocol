@@ -6,7 +6,7 @@ TAGS: Drawing/Brushes, Geometry/Layout, Typography/Interface
 from sigil.compose import Element, box, text
 from sigil.compose import document as doc
 from sigil.draw import Pen, brush
-from sigil.sketch import SketchContext, kit, sketch
+from sigil.sketch import Scene2DContext, kit, sketch
 
 
 def card(label: str, accent: str) -> Element:
@@ -26,7 +26,7 @@ def card(label: str, accent: str) -> Element:
 
 @sketch(size=(740, 370), capture_at=0)
 class ComposeStamps:
-    def setup(self, ctx: SketchContext) -> None:
+    def setup(self, ctx: Scene2DContext) -> None:
         self.look = kit.feature_theme()
         with kit.provide(self.look):
             kit.stage(ctx, size=(740, 370), capture_at=0)

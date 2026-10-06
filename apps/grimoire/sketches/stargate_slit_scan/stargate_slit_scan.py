@@ -11,7 +11,7 @@ from pathlib import Path
 from sigil.compose import Overflow, box, text
 from sigil.material import BloomOptions, Filter, shader
 from sigil.motion import animatable
-from sigil.sketch import SketchContext, sketch
+from sigil.sketch import Scene2DContext, sketch
 from sigil.weave import TextAlignment
 
 WIDTH, HEIGHT, DURATION = 1800, 900, 28.0
@@ -37,7 +37,7 @@ def ease(time, start, stop):
 
 @sketch()
 class StargateSlitScan:
-    def setup(self, ctx: SketchContext):
+    def setup(self, ctx: Scene2DContext):
         ctx.canvas(WIDTH, HEIGHT)
         ctx.background("#000000")
         ctx.captureAt(8.0)

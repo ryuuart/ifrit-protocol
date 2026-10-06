@@ -193,7 +193,7 @@ Light sphereLight(SphereLightOptions options = {});
  *  along @p direction and nothing behind it. */
 Light diskLight(glm::vec3 direction, DiskLightOptions options = {});
 /** A light arriving equally from every direction: what fills the shadows
- *  of a set with no environment. Where its node stands does not matter. */
+ *  of a scene with no environment. Where its node stands does not matter. */
 Light ambientLight(AmbientLightOptions options = {});
 /** A light arriving from a sky above and a ground below, about the up
  *  axis of its node — +y, turned by the node's rotation. */

@@ -36,7 +36,7 @@ enum class LightKind : uint8_t {
 /** HOW A LIGHT'S SHADOW IS MADE, once the light casts one. Every length
  *  here is counted in TEXELS of the light's shadow map — the width one
  *  texel covers where the shaded point stands — so the same numbers serve
- *  a set measured in centimetres and one measured in metres.
+ *  a scene measured in centimetres and one measured in metres.
  *
  *  - `bias` is how far nearer the light a stored depth must stand before
  *    it shadows a point, beside a share that grows as the surface turns
@@ -51,7 +51,7 @@ enum class LightKind : uint8_t {
  *    camera its map reaches; zero fits the map to every body in view;
  *  - `cascades`, for a directional light, is how many maps that reach is
  *    split into along the camera's depth, at most four: each nearer one
- *    covers less of the set at the same size, so a shadow near the camera
+ *    covers less of the scene at the same size, so a shadow near the camera
  *    is sharper. One is a single map for the whole reach. */
 struct LightShadow {
   float bias = 1.0f;
@@ -131,7 +131,7 @@ struct LightDescription {
    *  cast, the ones that cast THIS light's shadow. The whole scene unless
    *  it says otherwise. */
   Collection shadowLink;
-  /** WHETHER IT CASTS SHADOWS. Off unless stated, so a set written without
+  /** WHETHER IT CASTS SHADOWS. Off unless stated, so a scene written without
    *  shadows looks the same. Every light but an ambient and a hemisphere
    *  light casts; a light with a size casts from its centre. */
   bool castShadow = false;

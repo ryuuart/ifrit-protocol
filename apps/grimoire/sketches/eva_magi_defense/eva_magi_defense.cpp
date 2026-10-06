@@ -429,7 +429,7 @@ struct EvaMagiDefense {
   }
 
   // --- host ------------------------------------------------------------------
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     for (auto& value : fallAlpha)
       value = sigil::motion::animatable(value.value());
 
@@ -505,7 +505,7 @@ struct EvaMagiDefense {
     ctx.composer.renderSlot("funnel", funnelLayer());
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) {
+  void update(double elapsed, sketch::Scene2DContext& ctx) {
     // The front is a bound pan and never re-describes: derived from
     // `elapsed`, in whole pixels, negative as the field climbs the plate.
     const double sweep = (elapsed - 3.0) / 14.0;

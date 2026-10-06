@@ -12,10 +12,10 @@
 
 namespace sigil::sketch {
 /** The per-frame value a sketch body is handed; its own words are
- *  `<sigilsketch/canvas/Sketch.h>`, which this names and does not
- *  include: the kit's headers reach one signature's worth of the canvas
+ *  `<sigilsketch/scene2d/Scene2D.h>`, which this names and does not
+ *  include: the kit's headers reach one signature's worth of the scene2d
  *  runtime, not the whole compose surface behind it. */
-struct SketchContext;
+struct Scene2DContext;
 }  // namespace sigil::sketch
 
 namespace sigil::sketch::kit {
@@ -41,6 +41,6 @@ namespace sigil::sketch::kit {
  *  a broken checkout rather than a condition to render around: a page
  *  set in nothing is unmistakable, where a page set in a stand-in is a
  *  plate that quietly stopped being the picture its header describes. */
-[[nodiscard]] std::u8string passage(SketchContext& ctx, std::string_view name);
+[[nodiscard]] std::u8string passage(Scene2DContext& ctx, std::string_view name);
 
 }  // namespace sigil::sketch::kit

@@ -28,8 +28,8 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <string>
 
@@ -74,7 +74,7 @@ struct P5MixedForms {
                        .key("frame")});
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     sketch::kit::stage(
         ctx, {.size = {720, 480},
               .captureAt = 2.5,

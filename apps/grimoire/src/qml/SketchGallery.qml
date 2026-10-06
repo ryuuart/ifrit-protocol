@@ -176,7 +176,7 @@ Item {
 
                         Label {
                             Layout.fillWidth: true
-                            text: cell.presented ? "On canvas" : cell.sketch.kind === "set" ? "3D scene" : "Canvas"
+                            text: cell.presented ? "On canvas" : cell.sketch.kind === "scene3d" ? "3D scene" : "2D scene"
                             color: cell.presented ? Ui.Theme.statusText : Ui.Theme.secondaryText
                             font.pixelSize: Ui.Theme.captionSize
                             font.weight: cell.presented ? Font.DemiBold : Font.Normal

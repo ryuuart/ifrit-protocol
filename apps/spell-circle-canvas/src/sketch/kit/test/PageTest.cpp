@@ -7,9 +7,9 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcore/reconcile/Environment.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene2d/Scene2D.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 
 #include <utility>
 
@@ -35,8 +35,8 @@ TEST(SketchKitStage, DeclaresTheWholeCanvas) {
   sigil::motion::Engine engine;
   compose::Composer composer(engine, fonts());
   sigil::sketch::CanvasSpecification specification;
-  sigil::sketch::SketchContext ctx(composer, engine, assets(), {0, 0},
-                                   &specification, &fonts());
+  sigil::sketch::Scene2DContext ctx(composer, engine, assets(), {0, 0},
+                                    &specification, &fonts());
 
   kit::stage(ctx, {.size = {1100, 424}, .captureAt = 0.05});
   EXPECT_EQ(specification.size, (SkSize{1100, 424}));
@@ -51,8 +51,8 @@ TEST(SketchKitStage, TheGroundIsTheThemesUnlessTheStageSaysOtherwise) {
   sigil::motion::Engine engine;
   compose::Composer composer(engine, fonts());
   sigil::sketch::CanvasSpecification specification;
-  sigil::sketch::SketchContext ctx(composer, engine, assets(), {0, 0},
-                                   &specification, &fonts());
+  sigil::sketch::Scene2DContext ctx(composer, engine, assets(), {0, 0},
+                                    &specification, &fonts());
 
   kit::Theme paper = kit::houseTheme();
   paper.palette.ground = {0.945f, 0.937f, 0.918f, 1};
@@ -66,15 +66,15 @@ TEST(SketchKitStage, TheGroundIsTheThemesUnlessTheStageSaysOtherwise) {
   EXPECT_EQ(specification.background, (sigil::material::Color{1, 0, 0, 1}));
 }
 
-TEST(SketchKitStage, ASetDeclaresTheSameThreeThings) {
-  // A set says the canvas, the ground and the moment through three calls
-  // of its own; the stage is the same value for both kinds of sketch.
+TEST(SketchKitStage, AScene3DDeclaresTheSameThreeThings) {
+  // A scene3d sketch says the canvas, the ground and the moment through three
+  // calls of its own; the stage is the same value for both kinds of sketch.
   sigil::sketch::CanvasSpecification specification;
   sigil::geometry::mesh::camera::Camera eye;
-  sigil::sketch::SetContext ctx{.assets = assets(),
-                                .fonts = fonts(),
-                                .specification = &specification,
-                                .eye = &eye};
+  sigil::sketch::Scene3DContext ctx{.assets = assets(),
+                                    .fonts = fonts(),
+                                    .specification = &specification,
+                                    .eye = &eye};
 
   kit::stage(ctx,
              {.size = {640, 440},
@@ -84,7 +84,7 @@ TEST(SketchKitStage, ASetDeclaresTheSameThreeThings) {
   EXPECT_EQ(specification.captureSeconds, 1.3);
   EXPECT_EQ(specification.background,
             (sigil::material::Color{0.03f, 0.035f, 0.05f, 1}));
-  // The ground falls back to the theme's, as a canvas sketch's does.
+  // The ground falls back to the theme's, as a scene2d sketch's does.
   kit::stage(ctx, {.size = {10, 10}});
   EXPECT_EQ(specification.background, kit::houseTheme().palette.ground);
 }

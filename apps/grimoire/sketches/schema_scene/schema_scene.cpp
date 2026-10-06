@@ -48,8 +48,8 @@
 #include <sigilio/hub/Hub.h>
 #include <sigilio/source/Source.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Instrument.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <cmath>
 #include <cstddef>
@@ -97,7 +97,7 @@ struct SchemaScene {
    *  long as it holds them, which is until the next message it takes. */
   std::shared_ptr<const io::Bytes> taken;
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide presentation(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx,

@@ -5,11 +5,11 @@
 # It stands ABOVE the drawing libraries rather than beside them: a sketch
 # may describe a compose Element tree or a world Frame, and a pen paints
 # through a node of the first, so this library links all three. Nothing
-# underneath links back — a drawn tree, a lit set and a pen's canvas meet
+# underneath links back — a drawn tree, a lit scene and a pen's canvas meet
 # here and nowhere else.
 #
 # One archive, in directories that are the outline: core/ (what a sketch
-# is and the registry it joins), the two runtimes canvas/ and set/,
+# is and the registry it joins), the two runtimes scene2d/ and scene3d/,
 # live/ (the reload engine), plate/ (the headless renderer) and,
 # where the SDK is installed, scry/ (the one web engine sketches borrow).
 # Each directory keeps its own tests and benchmarks beside its code. The
@@ -26,7 +26,8 @@ sigil_library_root(SigilSketch
        ${CMAKE_CURRENT_LIST_DIR}/PROTOCOL.md)
 # THE ARCHIVE LINKS NO DEVICE BACKEND AND NO QT. The runtime a session
 # draws through is a value the process installs — a machine with no
-# device runs every set on the CPU mesh executor — and the plate's
+# device draws 2D meshes on the CPU mesh executor and no scene3d sketch
+# at all — and the plate's
 # `--gpu` lane draws through the Graphite context the process's device
 # already carries, which is why SigilGeometryDevice is here and no
 # renderer is: a device of the plate's own would be a second set of
@@ -42,8 +43,8 @@ sigil_library_root(SigilSketch
 set(SIGIL_SKETCH_SOURCES
   core/Assets.cpp core/Catalog.cpp core/Crash.cpp core/Device.cpp
   core/Registry.cpp core/Sources.cpp core/State.cpp
-  canvas/Context.cpp canvas/Guest.cpp canvas/Session.cpp
-  set/Context.cpp set/Page.cpp set/Session.cpp
+  scene2d/Context.cpp scene2d/Guest.cpp scene2d/Session.cpp
+  scene3d/Context.cpp scene3d/Page.cpp scene3d/Session.cpp
   live/BuildDirectory.cpp live/BuildCache.cpp live/Host.cpp live/Residency.cpp live/SkewGuard.cpp
   plate/Compare.cpp plate/Graphite.cpp plate/Story.cpp plate/Sweep.cpp
   plate/ThumbnailQueue.cpp plate/Thumbnails.cpp plate/ThumbnailWriter.cpp)
@@ -52,8 +53,8 @@ set(SIGIL_SKETCH_HEADERS
   core/Device.h
   core/Kind.h core/Members.h core/Placement.h core/Registry.h core/Session.h
   core/Sources.h core/State.h
-  canvas/Guest.h canvas/Sketch.h
-  set/Page.h set/Set.h
+  scene2d/Guest.h scene2d/Scene2D.h
+  scene3d/Page.h scene3d/Scene3D.h
   live/Host.h live/Residency.h
   plate/Compare.h plate/Graphite.h plate/Story.h
   plate/Sweep.h plate/ThumbnailQueue.h plate/Thumbnails.h
@@ -65,7 +66,7 @@ set(SIGIL_SKETCH_PUBLIC
   SigilMotionClock
   SigilComposeCore SigilWorldFrame SigilWorldNode SigilWorldKit)
 set(SIGIL_SKETCH_PRIVATE
-  # The door a frame arrives by. A canvas can wear another application's
+  # The door a frame arrives by. A scene2d sketch can wear another application's
   # picture, so the archive that draws reaches the subscription — the
   # publisher beside it is still nobody's but the host's, and neither
   # protocol reaches a header.
@@ -103,8 +104,8 @@ endif()
 # Each directory's cases and benchmarks, declared beside the code they
 # cover, in the library's one test binary and one bench binary.
 add_subdirectory(core)
-add_subdirectory(canvas)
-add_subdirectory(set)
+add_subdirectory(scene2d)
+add_subdirectory(scene3d)
 add_subdirectory(live)
 add_subdirectory(testing)
 add_subdirectory(plate)

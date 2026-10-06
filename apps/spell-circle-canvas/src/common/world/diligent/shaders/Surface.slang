@@ -992,7 +992,7 @@ float3 shadeLit(VSOut input, float3 base) {
                                                           coatRough);
   }
 
-  // WHAT ARRIVES FROM EVERYWHERE: the panorama, where the set has one,
+  // WHAT ARRIVES FROM EVERYWHERE: the panorama, where the scene has one,
   // beside what the ambient and hemisphere lights put there.
   let sky = uEnvDials.w > 0.0;
   float3 irradiance = aroundIrradiance;
@@ -1199,7 +1199,7 @@ float4 fsBackdrop(BackdropOut input) : SV_Target {
   if (ray.z > 0.0) ray = -ray;
   // A SKY PROJECTED ONTO A GROUND SPHERE is read where the ray leaves
   // the sphere, along the direction from its centre to that point, so
-  // an eye moving through the set sees the horizon shift. The eye is
+  // an eye moving through the scene sees the horizon shift. The eye is
   // this space's origin, so it stands at minus the centre relative to
   // it; inside the sphere the quadratic has one positive root, the
   // exit. An eye on or outside the sphere, or a radius of zero, reads

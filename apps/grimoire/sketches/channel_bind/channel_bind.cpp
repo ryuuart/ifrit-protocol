@@ -58,8 +58,8 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <array>
 #include <cstddef>
@@ -183,7 +183,7 @@ struct ChannelBind {
   };
   Shown shown;
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide presentation(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(
@@ -210,7 +210,7 @@ struct ChannelBind {
     describe(ctx);
   }
 
-  void update(double, sketch::SketchContext& ctx) {
+  void update(double, sketch::Scene2DContext& ctx) {
     // The drawing itself needs no frame: the three properties are bound,
     // and a bound property is read where it is painted. What is described
     // again is the readout, and only when a fader moved.
@@ -250,7 +250,7 @@ struct ChannelBind {
     return true;
   }
 
-  void describe(sketch::SketchContext& ctx) {
+  void describe(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide presentation(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     ctx.composer.render(sketch::kit::page(

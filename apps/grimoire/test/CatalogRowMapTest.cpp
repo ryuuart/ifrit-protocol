@@ -30,14 +30,14 @@ TEST(GrimoireCatalogRow, AnUnavailableRowCarriesItsFiledNameRuntimeAndReason) {
   row.name = "tile map";
   row.title = "Tile Map";
   row.key = "tile_map";
-  row.kind = "set";
+  row.kind = "scene3d";
   row.available = false;
   row.reason = "needs a device";
 
   const QJsonObject object = printed(row);
   EXPECT_EQ(object.value("filedName").toString(), QStringLiteral("tile map"));
   EXPECT_EQ(object.value("name").toString(), QStringLiteral("Tile Map"));
-  EXPECT_EQ(object.value("kind").toString(), QStringLiteral("set"));
+  EXPECT_EQ(object.value("kind").toString(), QStringLiteral("scene3d"));
   ASSERT_TRUE(object.value("available").isBool());
   EXPECT_FALSE(object.value("available").toBool());
   EXPECT_EQ(object.value("reason").toString(),
@@ -48,11 +48,11 @@ TEST(GrimoireCatalogRow, AnAvailableRowSaysSoWithAnEmptyReason) {
   CatalogRow row;
   row.name = "cascade";
   row.title = "Cascade";
-  row.kind = "canvas";
+  row.kind = "scene2d";
 
   const QJsonObject object = printed(row);
   EXPECT_EQ(object.value("filedName").toString(), QStringLiteral("cascade"));
-  EXPECT_EQ(object.value("kind").toString(), QStringLiteral("canvas"));
+  EXPECT_EQ(object.value("kind").toString(), QStringLiteral("scene2d"));
   ASSERT_TRUE(object.value("available").isBool());
   EXPECT_TRUE(object.value("available").toBool());
   ASSERT_TRUE(object.contains("reason"));

@@ -64,8 +64,8 @@
 #include <sigilmaterial/skia/Texture.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmedia/advanced/Skia.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <cmath>
 #include <optional>
@@ -340,7 +340,7 @@ struct ShapeworksLab {
                  .at({640, 913})});
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide presentation(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx,

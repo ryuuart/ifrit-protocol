@@ -7,7 +7,7 @@ sigil_library(SigilSketchPython
   SOURCES
     Module.cpp host/Catalog.cpp host/Context.cpp host/DeviceRuntimes.cpp
     host/Entries.cpp host/Plates.cpp host/Runtime.cpp host/Schema.cpp
-    host/SetSketches.cpp host/Testing.cpp host/WorldSet.cpp
+    host/Scene3DSketches.cpp host/Testing.cpp host/WorldScene3D.cpp
     kit/Charts.cpp kit/Content.cpp kit/Controls.cpp kit/Legends.cpp
     kit/Panels.cpp
     kit/Specimen.cpp kit/Streams.cpp kit/Verdict.cpp

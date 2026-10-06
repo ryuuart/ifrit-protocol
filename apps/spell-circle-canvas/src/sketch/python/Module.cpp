@@ -16,8 +16,8 @@ PYBIND11_MODULE(_sigil, module) {
   sigil::sketch::python::bindSketchCatalog(module);
   sigil::sketch::python::bindSketchSchema(module);
   sigil::sketch::python::bindSketchDeviceRuntimes(module);
-  sigil::sketch::python::bindSketchSetSketches(module);
-  sigil::sketch::python::bindSketchWorldSet(module);
+  sigil::sketch::python::bindSketchScene3DSketches(module);
+  sigil::sketch::python::bindSketchWorldScene3D(module);
   sigil::sketch::python::bindSketchTesting(module);
   sigil::sketch::python::bindSketchKit(module);
   sigil::sketch::python::bindSketchKitContent(module);

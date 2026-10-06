@@ -23,7 +23,7 @@
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilmedia/advanced/Skia.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <array>
@@ -390,7 +390,7 @@ struct LightTable {
         [this](draw::Pen& pen) { drawPrepared(pen); }, fonts);
   }
   void paint(draw::Pen& pen) { drawPrepared(pen); }
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas(light_table::kWidth, light_table::kHeight);
     ctx.background(light_table::kPaper);
     ctx.captureAt(2);

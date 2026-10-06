@@ -15,7 +15,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
@@ -38,7 +38,8 @@ sk_sp<SkImage> checker() {
   SkCanvas& canvas = *surface->getCanvas();
   canvas.clear(material::skia::toSkColor(material::hexColor(0x25303a)));
   SkPaint paint;
-  paint.setColor4f(material::skia::toSkColor(material::hexColor(0x6fb3a6)), nullptr);
+  paint.setColor4f(material::skia::toSkColor(material::hexColor(0x6fb3a6)),
+                   nullptr);
   for (int y = 0; y < 4; ++y)
     for (int x = 0; x < 8; ++x)
       if ((x + y) % 2 == 0)
@@ -73,7 +74,7 @@ Element cell(const char* caption, Element leaf) {
 }  // namespace
 
 struct ImageElement {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas({.size = kCanvas, .background = kGround, .captureSeconds = 0});
     ctx.composer.render(describe());
   }
@@ -87,9 +88,10 @@ struct ImageElement {
         .gap(16)
         .padding(22)
         .imageRendering(material::Sampling::Nearest)
-        .children({cell("Fit::Contain", image(picture, material::Fit::Contain)),
-                   cell("Fit::Cover", image(picture, material::Fit::Cover)),
-                   cell("Fit::Stretch", image(picture, material::Fit::Stretch))});
+        .children(
+            {cell("Fit::Contain", image(picture, material::Fit::Contain)),
+             cell("Fit::Cover", image(picture, material::Fit::Cover)),
+             cell("Fit::Stretch", image(picture, material::Fit::Stretch))});
   }
 };
 

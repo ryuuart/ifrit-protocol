@@ -44,7 +44,7 @@ struct Timing {
  *  needs in order to letterbox, clear, photograph and time a sketch is
  *  here, and nothing about WHICH runtime is: a host that lists,
  *  captures and benchmarks sketches never learns whether it is holding a
- *  drawn tree or a lit set. */
+ *  drawn tree or a lit scene. */
 class Session {
  public:
   virtual ~Session() = default;

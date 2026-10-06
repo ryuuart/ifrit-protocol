@@ -58,8 +58,8 @@
 #include <sigilgeometry/mesh/render/Runtime.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmedia/advanced/Skia.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <cmath>
@@ -151,7 +151,7 @@ struct FloatingPanels {
 
   /** An element tree painted to pixels at a stated size. The session owns
    *  the scene; what comes back here is the image. */
-  static sk_sp<SkImage> bake(sketch::SketchContext& ctx, const Element& tree,
+  static sk_sp<SkImage> bake(sketch::Scene2DContext& ctx, const Element& tree,
                              int w, int h) {
     const std::shared_ptr<TextureScene> scene = ctx.textureScene({w, h});
     if (!scene) return nullptr;
@@ -198,7 +198,7 @@ struct FloatingPanels {
                       .runtime = painter()});
   }
 
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     const sketch::kit::Provide presentation(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(ctx,

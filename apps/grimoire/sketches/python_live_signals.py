@@ -22,7 +22,7 @@ from sigil.draw import CENTER, LEFT, RIGHT, Pen
 from sigil.io import Feed, ListenOptions, ReadyState
 from sigil.io.testing import inletOf
 from sigil.material import Color
-from sigil.sketch import SketchContext, kit, sketch
+from sigil.sketch import Scene2DContext, kit, sketch
 from sigil.skia import Path, PathBuilder
 
 PORT = 27021
@@ -121,7 +121,7 @@ def metric(label: str, value: str, detail: str, accent: str) -> Element:
 
 @sketch(size=(1100, 720), capture_at=4.0)
 class LiveSignals:
-    def setup(self, ctx: SketchContext) -> None:
+    def setup(self, ctx: Scene2DContext) -> None:
         self.look = kit.feature_theme(kit.Density.Spacious)
         with kit.provide(self.look):
             kit.stage(ctx, size=(1100, 720), capture_at=4.0)
@@ -152,7 +152,7 @@ class LiveSignals:
         with kit.provide(self.look):
             ctx.render(self.describe(0))
 
-    def update(self, elapsed: float, ctx: SketchContext) -> None:
+    def update(self, elapsed: float, ctx: Scene2DContext) -> None:
         if self.replay:
             while self.pending and self.pending[0][0] <= elapsed:
                 arrivedAt, payload = self.pending.popleft()

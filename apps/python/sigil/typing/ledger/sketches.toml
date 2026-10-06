@@ -18,7 +18,7 @@ collections = [
   "Kit · Depth",
   "Compose · Typography",
   "Specimen",
-  "Set",
+  "Scene3D",
   "Data",
   "Media",
   "Catalog · Type",
@@ -80,7 +80,7 @@ needs = "Facts stated with `attribute`; radial layout by a fact lane with facing
 requires = ["kit-section-header", "silhouettes"]
 
 [sketch.axis_ripple]
-needs = "Per-glyph variable-axis track on a looping textFx cascade; a level under each letter by textAttach with a bound scale; fontFamily on a sheet with custom properties; SketchContext::measure to the whole pixel; document type"
+needs = "Per-glyph variable-axis track on a looping textFx cascade; a level under each letter by textAttach with a bound scale; fontFamily on a sheet with custom properties; Scene2DContext::measure to the whole pixel; document type"
 requires = [
   "text-fx",
   "text-effects",
@@ -291,9 +291,9 @@ needs = "PLY encode and decode of meshes and clouds; model merge, bounds and fit
 requires = ["kit-section-header", "clouds", "mesh-codec"]
 
 [sketch.compute_variant]
-needs = "Set-kind hosting; wave rail; compute pass cooking a point chain; stamped geometry pass; variant repaint; readback callback"
+needs = "scene3d hosting; wave rail; compute pass cooking a point chain; stamped geometry pass; variant repaint; readback callback"
 requires = [
-  "set-sketches",
+  "scene3d-sketches",
   "point-operators",
   "splines",
   "world-rails",
@@ -353,9 +353,9 @@ requires = [
 ]
 
 [sketch.dart_flight]
-needs = "Set hosting; kit winding spline; swept rail; along-curve placement; revolved and torus meshes; PBR surfaces; lit set kit"
+needs = "scene3d hosting; kit winding spline; swept rail; along-curve placement; revolved and torus meshes; PBR surfaces; lit set kit"
 requires = [
-  "set-sketches",
+  "scene3d-sketches",
   "splines",
   "sweeps",
   "world-rails",
@@ -375,8 +375,8 @@ needs = "Clock arithmetic (decay, quantize, step, phase); closed-form spring sta
 requires = ["kit-plot", "springs"]
 
 [sketch.deformed_cloud]
-needs = "Set hosting; surface point scatter; masked point-operator chain; stamped facets; PBR surface; lit set kit"
-requires = ["set-sketches", "point-operators", "clouds", "world-chains"]
+needs = "scene3d hosting; surface point scatter; masked point-operator chain; stamped facets; PBR surface; lit set kit"
+requires = ["scene3d-sketches", "point-operators", "clouds", "world-chains"]
 
 [sketch.document_styles]
 needs = "Document kit roles; role stylesheets with block leading; inline rich run; specimen page, comparison and wells"
@@ -554,9 +554,9 @@ needs = "Shader field recipes; slotted child texture; custom canvas drawing; spe
 requires = ["kit-section-header"]
 
 [sketch.first_light]
-needs = "Set hosting; kit wave and rail curves; pose along; swept tube; windowed stamp chain; directional and point lights; turntable"
+needs = "scene3d hosting; kit wave and rail curves; pose along; swept tube; windowed stamp chain; directional and point lights; turntable"
 requires = [
-  "set-sketches",
+  "scene3d-sketches",
   "point-operators",
   "splines",
   "sweeps",
@@ -645,9 +645,9 @@ requires = [
 ]
 
 [sketch.glow_trail]
-needs = "Set hosting with camera; kit wave curve; windowed stamp chain; collection-joined geometry and post passes with previous-frame feedback"
+needs = "scene3d hosting with camera; kit wave curve; windowed stamp chain; collection-joined geometry and post passes with previous-frame feedback"
 requires = [
-  "set-sketches",
+  "scene3d-sketches",
   "point-operators",
   "splines",
   "world-rails",
@@ -663,8 +663,8 @@ needs = "gRPC Connection handlers and broadcast sends; eased ticker ramps; instr
 requires = ["kit-instrument", "timelines", "connection"]
 
 [sketch.guest_body]
-needs = "Set-kind world frame; published texture subscription; texture scene; material texture slot; lit meshes"
-requires = ["set-sketches", "guests", "texture-scene", "textures"]
+needs = "scene3d world frame; published texture subscription; texture scene; material texture slot; lit meshes"
+requires = ["scene3d-sketches", "guests", "texture-scene", "textures"]
 
 [sketch.guest_picture]
 needs = "Published frame subscription on canvas recorder; specimen page, caption and well; document waiting card"
@@ -703,9 +703,9 @@ needs = "Standalone hub mount, text, image and poll; custom decoder; offscreen p
 requires = ["compose-readout", "raster-surfaces", "hub-decoders"]
 
 [sketch.import_native]
-needs = "Set hosting; compose texture scene; material texture slots; Scry web view frames; world elements, lights, quads"
+needs = "scene3d hosting; compose texture scene; material texture slots; Scry web view frames; world elements, lights, quads"
 requires = [
-  "set-sketches",
+  "scene3d-sketches",
   "availability-probe",
   "require-cached",
   "sketch-scry",
@@ -727,8 +727,8 @@ needs = "Rich stories; paragraph keeps; threaded frames; first-baseline and dist
 requires = []
 
 [sketch.key_light]
-needs = "Set hosting; a key light's strength and colour bound to live values; three-point rig; lit set"
-requires = ["set-sketches", "world-placement"]
+needs = "scene3d hosting; a key light's strength and colour bound to live values; three-point rig; lit set"
+requires = ["scene3d-sketches", "world-placement"]
 
 [sketch.kinetic_card]
 needs = "Per-glyph text effect tracks and presets on a cascade; shared phase output; beat meters read from composer; specimen theme"
@@ -776,8 +776,8 @@ needs = "Standalone ticker; animated float lanes; slot and family retargeting; c
 requires = ["compose-readout", "kit-plot", "timelines", "lanes"]
 
 [sketch.lantern_room]
-needs = "Set hosting; sun, spot and point emitters; unlit emissive and PBR surfaces; superellipsoids; turntable camera"
-requires = ["set-sketches"]
+needs = "scene3d hosting; sun, spot and point emitters; unlit emissive and PBR surfaces; superellipsoids; turntable camera"
+requires = ["scene3d-sketches"]
 
 [sketch.live_settling]
 needs = "Offscreen composer frame driving; live Knuth-Plass passages; settling reports; comparison kit; readout rows"
@@ -792,8 +792,8 @@ needs = "Produced sheet texture; atlas grid, TexturePacker and Aseprite imports;
 requires = ["kit-section-header", "raster-surfaces", "textures", "atlas"]
 
 [sketch.material_lab]
-needs = "Set hosting on the device tier; texture-slotted PBR surfaces; masked material stack; usage-keyed texture set; generated maps"
-requires = ["set-sketches", "textures", "over", "texture-maps"]
+needs = "scene3d hosting on the device tier; texture-slotted PBR surfaces; masked material stack; usage-keyed texture set; generated maps"
+requires = ["scene3d-sketches", "textures", "over", "texture-maps"]
 
 [sketch.material_slots]
 needs = "Runtime shader child slots and uniforms; nearest image paints; LUT images; material kits; masked material stacks"
@@ -1128,8 +1128,8 @@ needs = "Fixed-step ticker; RGBA image blits; pen text and clipping; retained gu
 requires = ["text-fx", "kinetic-presets", "schedules"]
 
 [sketch.reflection_lab]
-needs = "Set hosting; environment maps with crossfade and backdrop; chrome, metal, dielectric and glass surface presets"
-requires = ["set-sketches", "environment-maps", "world-environment"]
+needs = "scene3d hosting; environment maps with crossfade and backdrop; chrome, metal, dielectric and glass surface presets"
+requires = ["scene3d-sketches", "environment-maps", "world-environment"]
 
 [sketch.rich_slot_reserve]
 needs = "Rich text inline slots with keyed children; reserved line bands; measured blocks; house face; specimen furniture"
@@ -1176,13 +1176,13 @@ needs = "Vertical writing mode; reserved ruby and kenten annotations; specimen c
 requires = []
 
 [sketch.scattered_model]
-needs = "Set hosting; resource hub fetch; glTF mesh decode and fit; surface scatter chain; stamped facets; unlit core"
-requires = ["set-sketches", "point-operators", "mesh-codec", "world-chains"]
+needs = "scene3d hosting; resource hub fetch; glTF mesh decode and fit; surface scatter chain; stamped facets; unlit core"
+requires = ["scene3d-sketches", "point-operators", "mesh-codec", "world-chains"]
 
 [sketch.scene_surfaces]
-needs = "Set hosting; compose scenes rendered to textures; base-colour texture slots with tiling; swept ribbon; unlit screens"
+needs = "scene3d hosting; compose scenes rendered to textures; base-colour texture slots with tiling; swept ribbon; unlit screens"
 requires = [
-  "set-sketches",
+  "scene3d-sketches",
   "texture-scene",
   "splines",
   "sweeps",
@@ -1203,8 +1203,8 @@ needs = "Serial line Connection; recording replay; instrument page; transformed 
 requires = ["kit-instrument", "connection"]
 
 [sketch.set_stagger]
-needs = "Set hosting with camera; world child stagger by spread; entrance transitions; collection-narrowed passes; three-point rig"
-requires = ["set-sketches", "schedules", "world-placement"]
+needs = "scene3d hosting with camera; world child stagger by spread; entrance transitions; collection-narrowed passes; three-point rig"
+requires = ["scene3d-sketches", "schedules", "world-placement"]
 
 [sketch.shape_tour]
 needs = "Stock silhouette generators, parametric curves and corner operators; shaped filled boxes; captions and cell runs"
@@ -1475,9 +1475,9 @@ requires = [
 ]
 
 [sketch.vagrant_story_target]
-needs = "Device set hosting; lit meshes and lights; compose texture on material slot; frustum extent; baked pixel type; kit meter"
+needs = "Device scene3d hosting; lit meshes and lights; compose texture on material slot; frustum extent; baked pixel type; kit meter"
 requires = [
-  "set-sketches",
+  "scene3d-sketches",
   "kit-meter",
   "texture-scene",
   "border",
@@ -1569,9 +1569,9 @@ requires = [
 ]
 
 [sketch."world hud"]
-needs = "Set-kind world frame; HUD texture scene on camera-fitted quad; voxel mesh; kit wells; instanced stamps; tick rail; silhouettes"
+needs = "scene3d world frame; HUD texture scene on camera-fitted quad; voxel mesh; kit wells; instanced stamps; tick rail; silhouettes"
 requires = [
-  "set-sketches",
+  "scene3d-sketches",
   "instancing",
   "texture-scene",
   "pixel-styles",

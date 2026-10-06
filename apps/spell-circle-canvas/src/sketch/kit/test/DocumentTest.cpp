@@ -6,8 +6,8 @@
 
 #include <gtest/gtest.h>
 #include <sigilcompose/core/StyleSheet.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <filesystem>
 #include <fstream>
@@ -34,9 +34,9 @@ struct Beside {
   sigil::motion::Engine engine;
   compose::Composer composer{engine, fonts()};
   sigil::sketch::CanvasSpecification specification;
-  sigil::sketch::SketchContext ctx{composer, engine,         store,
-                                   {0, 0},   &specification, &fonts(),
-                                   false,    nullptr,        "document"};
+  sigil::sketch::Scene2DContext ctx{composer, engine,         store,
+                                    {0, 0},   &specification, &fonts(),
+                                    false,    nullptr,        "document"};
 
   explicit Beside(std::string_view json) {
     std::filesystem::remove_all(root);

@@ -33,7 +33,7 @@
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/paint/Bases.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
@@ -342,7 +342,7 @@ struct Sheet {
   std::map<char, kit::Sprite> numerals;
   std::map<std::string, shapes::Fitted, std::less<>> figures;
 
-  void read(sketch::SketchContext& context) {
+  void read(sketch::Scene2DContext& context) {
     const auto file = [&](const char* name) {
       return context.assets.hub().load<Json>(
           context.local(std::string("data/") + name));
@@ -848,7 +848,7 @@ struct Fallout2CharSheet {
     return now;
   }
 
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     context.canvas(px(640), px(580));
     context.background(hexColor(0x050604));
     context.captureAt(6.0);
@@ -858,7 +858,7 @@ struct Fallout2CharSheet {
     context.composer.render(describe());
   }
 
-  void update(double elapsed, sketch::SketchContext& context) {
+  void update(double elapsed, sketch::Scene2DContext& context) {
     const double time = std::fmod(elapsed, kLoop);
 
     // The cursor slides from the row it left to the row it is sent to.

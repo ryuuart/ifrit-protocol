@@ -10,14 +10,14 @@ from math import tau
 import numpy as np
 from sigil.core import chance
 from sigil.draw import SQUARE, Pen, PointMode
-from sigil.sketch import SketchContext, sketch
+from sigil.sketch import Scene2DContext, sketch
 
 REQUIRES = ("numpy",)
 
 
 @sketch(size=(720, 720), capture_at=0.05)
 class FlowField:
-    def setup(self, ctx: SketchContext) -> None:
+    def setup(self, ctx: Scene2DContext) -> None:
         self.samples = np.array(
             [
                 (

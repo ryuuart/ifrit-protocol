@@ -9,7 +9,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/filter/Filter.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
@@ -50,7 +50,7 @@ Element panel(const char* caption, Element plate) {
 }  // namespace
 
 struct BackdropFilterVerb {
-  void setup(sketch::SketchContext& ctx) {
+  void setup(sketch::Scene2DContext& ctx) {
     ctx.canvas({.size = kCanvas, .background = kGround, .captureSeconds = 0});
     ctx.composer.render(describe());
   }

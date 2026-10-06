@@ -269,7 +269,7 @@ class OpenParameters:
     """
 
     kind: str = ""
-    """The runtime to open it through, canvas or set; empty for whichever
+    """The runtime to open it through, scene2d or scene3d; empty for whichever
     it declares.
     """
 
@@ -525,7 +525,7 @@ class Summary:
     """The registry name, or the path, it was opened from."""
 
     kind: str = ""
-    """The runtime it draws through: canvas or set."""
+    """The runtime it draws through: scene2d or scene3d."""
 
     width: float = 0.0
     """The canvas width it declared, in canvas units."""

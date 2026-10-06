@@ -7,7 +7,7 @@
  * node, because it surrounds everything rather than standing anywhere.
  * The panorama itself is an `EnvironmentMap`; what is added here is what
  * of it reaches a surface, how it is turned, and how much of it is shown
- * behind the set.
+ * behind the scene.
  */
 
 #include <sigilmaterial/texture/EnvironmentMap.h>
@@ -20,7 +20,7 @@ namespace sigil::world {
 /** THE PANORAMA: an equirectangular radiance image with its prefiltered
  *  levels and its irradiance, baked once. SigilMaterial holds the type,
  *  because SigilGeometry's device residency uploads it and Geometry
- *  stands beneath this library; this is the name a set spells it by. */
+ *  stands beneath this library; this is the name a scene spells it by. */
 using EnvironmentMap = material::EnvironmentMap;
 
 /** What of the environment reaches a surface, how it is turned and how
@@ -35,7 +35,7 @@ struct EnvironmentOptions {
    *  not the other is a look, not a physical claim. */
   motion::Animatable<float> specular{1.0f};
   /** Added to every surface's roughness before it picks a prefiltered
-   *  level, so a whole set softens without a material being edited. */
+   *  level, so a whole scene softens without a material being edited. */
   motion::Animatable<float> roughnessBias{0.0f};
   /** A SECOND PANORAMA, crossfaded over the first: at 0 only the first is
    *  read, at 1 only this one. Both are sampled and mixed, which is what
@@ -44,8 +44,8 @@ struct EnvironmentOptions {
   motion::Animatable<float> crossfade{0.0f};
   /** The turn of the panorama about the up axis, in degrees. */
   motion::Animatable<float> rotation{0.0f};
-  /** THE PANORAMA SHOWN behind the set, at this strength — zero shows
-   *  none of it, so the dial is also the switch. What a set is lit by and
+  /** THE PANORAMA SHOWN behind the scene, at this strength — zero shows
+   *  none of it, so the dial is also the switch. What a scene is lit by and
    *  what it shows are separate questions. */
   motion::Animatable<float> shown{0.0f};
   /** How blurred the shown panorama is, in the roughness units a
@@ -53,7 +53,7 @@ struct EnvironmentOptions {
   motion::Animatable<float> blur{0.0f};
   /** GROUND PROJECTION: past zero, the shown panorama is a sphere of this
    *  radius standing on the ground at the world origin rather than a
-   *  picture at infinity, so a body moving through the set sees the
+   *  picture at infinity, so a body moving through the scene sees the
    *  horizon shift the way it would outdoors. */
   float groundRadius = 0;
 };

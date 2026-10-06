@@ -18,7 +18,7 @@
 #include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/scene2d/Scene2D.h>
 
 #include <algorithm>
 #include <array>
@@ -163,7 +163,7 @@ void vein(Pen& pen, const Leaf& leaf, material::Color color) {
 struct BrushBotanicalStudy {
   brush::Engine brushes;
 
-  void setup(sketch::SketchContext& context) {
+  void setup(sketch::Scene2DContext& context) {
     context.canvas(1100, 780);
     context.captureAt(0.25);
     brushes.scaleBrushes(1.15f);

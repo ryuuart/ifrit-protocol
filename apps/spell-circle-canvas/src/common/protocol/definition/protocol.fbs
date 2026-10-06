@@ -234,7 +234,7 @@ enum Promotion : byte {
 table Summary {
   /// The registry name, or the path, it was opened from.
   sketch: string;
-  /// The runtime it draws through: canvas or set.
+  /// The runtime it draws through: scene2d or scene3d.
   kind: string;
   /// The canvas width it declared, in canvas units.
   width: float;
@@ -250,7 +250,7 @@ table OpenParameters {
   /// A registry name, or the path to a sketch file or directory, which
   /// is compiled and loaded as a person's edit would be.
   sketch: string (required);
-  /// The runtime to open it through, canvas or set; empty for whichever
+  /// The runtime to open it through, scene2d or scene3d; empty for whichever
   /// it declares.
   kind: string;
 }
@@ -465,7 +465,7 @@ table Entry {
   name: string;
   /// Its file's stem, or its directory's.
   stem: string;
-  /// The runtime it draws through: canvas or set.
+  /// The runtime it draws through: scene2d or scene3d.
   kind: string;
   /// Whether this build can open it.
   available: bool;
@@ -475,7 +475,7 @@ table Entry {
 
 /// What list is asked.
 table ListParameters {
-  /// The runtime to list, canvas or set; empty for every one.
+  /// The runtime to list, scene2d or scene3d; empty for every one.
   kind: string;
 }
 

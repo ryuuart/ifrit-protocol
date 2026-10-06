@@ -42,7 +42,7 @@
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilsketch/kit/Page.h>
-#include <sigilsketch/set/Set.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilworld/World.h>
 
 #include <glm/vec3.hpp>
@@ -142,7 +142,7 @@ struct ReflectionLab {
   world::EnvironmentMap studio;
   world::EnvironmentMap sunset;
 
-  void setup(sketch::SetContext& ctx) {
+  void setup(sketch::Scene3DContext& ctx) {
     // Far enough into the turn that the sky has moved off its start and
     // the crossfade is under way, so the plate is a picture of the
     // study rather than of its first frame.
@@ -163,7 +163,7 @@ struct ReflectionLab {
   world::Frame describe(sigil::motion::Duration now) {
     const float seconds = (float)now.count();
     // The rig is dimmer than a studio's, because the sky is now most of
-    // the light in the set: a key at full strength would wash the
+    // the light in the scene: a key at full strength would wash the
     // reflections out and the study would be about the key. The
     // turntable is PARKED, like every lab: the row faces the eye and
     // stays there, so what moves in the picture is the sky and nothing
@@ -198,7 +198,7 @@ struct ReflectionLab {
 
 }  // namespace
 
-SIGIL_SKETCH(ReflectionLab, "Set",
+SIGIL_SKETCH(ReflectionLab, "Scene3D",
              "What a body sees past the lights — chrome, rough metal, a "
              "dielectric and glass under a turning sky that crossfades from a "
              "studio to a sunset")
