@@ -77,13 +77,12 @@ material::Material coolSlab() {
 
 /** One row of children under its own key, cascaded by its own spread. */
 world::Group row(const std::string& key, float z, motion::StaggerFrom from,
-                 const material::Material& skin) {
+                 const material::Material& skin, const gm::Mesh& slab) {
   return world::group(
              {std::views::iota(0, kCount) | std::views::transform([&](int i) {
                 const float x =
                     ((float)i - (float)(kCount - 1) * 0.5f) * kPitch;
-                return world::mesh(
-                           gm::superellipsoid({22, 30, 22}, 3.0f, 18, 12))
+                return world::mesh(slab)
                     .key(key + std::to_string(i))
                     .at({x, 30, z})
                     .fill(skin)
@@ -130,6 +129,12 @@ struct SetStagger {
     ctx.camera(lens);
   }
 
+  // THE TRIANGLES ARE FORMED ONCE: a body handed the same mesh value
+  // every frame is compared and kept, where one formed afresh in every
+  // describe is built again only to be found equal.
+  const gm::Mesh m_slab = gm::superellipsoid({22, 30, 22}, 3.0f, 18, 12);
+  const gm::Mesh m_ground = gm::superellipsoid({420, 10, 300}, 8.0f, 12, 8);
+
   world::Frame describe() {
     // The tree holds NO camera, so the lens the setup wrote is the one the
     // frame is seen through — a still eye, because what moves here is the
@@ -142,18 +147,18 @@ struct SetStagger {
                               .backIntensity = 1.4f,
                               .ambientIntensity = 0.06f};
     world::Frame frame(
-        world::group(
-            {world::mesh(gm::superellipsoid({420, 10, 300}, 8.0f, 12, 8))
-                 .key("ground")
-                 .at({0, -12, 0})
-                 .fill(material::surface::program(
-                     {.baseColor = {0.20f, 0.21f, 0.24f, 1},
-                      .roughness = 0.7f})),
-             world::kit::threePoint(rig),
-             world::group(
-                 {row("near", 60, motion::StaggerFrom::First, coolSlab()),
-                  row("far", -80, motion::StaggerFrom::Edges, litSlab())})
-                 .key("rows")})
+        world::group({world::mesh(m_ground)
+                          .key("ground")
+                          .at({0, -12, 0})
+                          .fill(material::surface::program(
+                              {.baseColor = {0.20f, 0.21f, 0.24f, 1},
+                               .roughness = 0.7f})),
+                      world::kit::threePoint(rig),
+                      world::group({row("near", 60, motion::StaggerFrom::First,
+                                        coolSlab(), m_slab),
+                                    row("far", -80, motion::StaggerFrom::Edges,
+                                        litSlab(), m_slab)})
+                          .key("rows")})
             .key("set"));
     // THE SELECTION, made visible where the frame paints everything: the
     // whole picture first, then the far row ALONE — everything under the

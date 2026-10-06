@@ -65,6 +65,20 @@ fence signal or wait on `gpu()`, is made under a `QueueLock`. Diligent
 takes the same lock from inside its own submissions, which is why the
 lock does not nest: no Diligent call may be made while one is held.
 
+**A queue made on Metal itself reaches the device through its Metal
+objects.** Where the driver runs Vulkan over Metal, `metalTexture()` and
+`metalEvent()` answer the id<MTLTexture> behind a texture and the
+id<MTLSharedEvent> behind a fence on `gpu()`, so a window drawing on a
+Metal queue of its own samples a picture drawn here and waits for it on
+the GPU. Both answer null on any other driver, and a caller then reads
+the picture back.
+
+**Pipelines are kept between runs.** Every pipeline is built through the
+driver's own cache, `pipelineStateCache()`, which `Device::create` seeds
+from `DeviceConfig::pipelineStore` and which is written back there when
+the device goes; the driver discards what another device or driver
+wrote.
+
 **Residency is the device's too.** A mesh is host memory and a map is an
 image; a draw needs buffers and a texture. `device::MeshResidency`
 (`device/residency/Meshes.h`) makes that crossing and remembers it: `upload()`

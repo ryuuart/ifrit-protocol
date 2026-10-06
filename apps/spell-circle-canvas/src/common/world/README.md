@@ -596,6 +596,40 @@ the frame stopped needing.
 A pass carrying a body runs that body instead of the stage's work, and
 the declarations around it are unchanged.
 
+**A picture is presented in place or read back.** `world::draw(scene,
+canvas, Presentation::OnDevice)` asks the executor for an image the
+canvas samples where the device drew it: the final stage is drawn into
+a texture handed to the canvas's queue, a fence is signalled behind it
+on the device's queue, and the canvas's next submission waits on the
+GPU for that signal — the same order a compose texture sampled by a 3D
+pass keeps by riding one queue, made explicit because a window draws on
+a queue of its own. A texture is drawn into again only once the
+window's submission that sampled it has finished. Where the canvas
+cannot reach the device — another API, another device, a raster canvas
+— or every presented texture is still out, the picture is read back, as
+`Presentation::Readback`, the default, always reads it: the same bytes
+onto every canvas, which is what a capture that will be diffed draws.
+`SceneStats::readbacks` and `SceneStats::presentedOnDevice` count which
+way each picture went.
+
+**A live frame does not wait for a program.** With
+`Frame::standIns(true)`, a body whose surface program has not compiled
+yet is drawn in its base colour, unlit, while
+`material::ProgramCache::prepare` compiles it on a worker, and whole on
+the first frame after it arrives; `SceneStats::programsPending` counts
+the bodies drawn so. A frame left waiting compiles every program before
+it draws, so its first frame holds the real surfaces. The pipelines
+built from programs go through the driver's cache on the device they
+stand on, which a host that names a store keeps between runs.
+
+**A shadow map nothing moved in is kept.** The atlas stands from frame
+to frame, and a light's map is drawn again only when what its depth is
+a function of changed: its projection, which follows the light and, for
+a directional light's cascades, the camera; or a body its link keeps
+that casts — where it stands, which cooked triangles it is, its
+instances, and, where its surface cuts it out, the moment that surface
+is read at. `SceneStats::shadowMapsDrawn` counts the maps a frame drew.
+
 ### Drawing a frame: order, light and the final stage
 
 **The order is laid over first, then blended.** Bodies arrive sorted back

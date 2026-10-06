@@ -132,6 +132,14 @@ class Frame {
   /** The resource the finished picture is in. Unset means the last
    *  image any pass wrote. */
   Frame& present(std::string name);
+  /** WHETHER A BODY WAITS FOR ITS PROGRAM. With stand-ins, a body whose
+   *  surface program has not compiled yet is drawn in its base colour,
+   *  unlit, while the program compiles on a worker, and whole on a later
+   *  frame — what a live window wants, so it keeps presenting. Without,
+   *  the default, every program is compiled before the frame draws, so a
+   *  capture that will be diffed holds the real surface on its first
+   *  frame. */
+  Frame& standIns(bool drawStandIns);
   /** @} */
 
   /** The tree this frame describes. */
@@ -170,6 +178,9 @@ class Frame {
   /** The resource the finished picture is in; empty means the last
    *  image any pass wrote. */
   [[nodiscard]] const std::string& present() const { return m_present; }
+  /** Whether a body whose program is still compiling is drawn as a
+   *  stand-in rather than waited for. */
+  [[nodiscard]] bool standIns() const { return m_standIns; }
 
  private:
   Node m_scene;
@@ -184,6 +195,7 @@ class Frame {
   std::vector<Readback> m_readbacks;
   Runtime m_runtime;
   std::string m_present;
+  bool m_standIns = false;
 };
 
 }  // namespace sigil::world

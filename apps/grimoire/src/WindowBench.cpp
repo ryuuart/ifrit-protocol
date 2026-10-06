@@ -23,6 +23,7 @@
 #include <string_view>
 #include <utility>
 
+#include "Conditions.h"
 #include "GrimoireView.h"
 #include "SketchCatalog.h"
 
@@ -154,7 +155,8 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
             std::printf(
                 "WINDOW %s window=%dx%d@%g canvas=%dx%d kind=%.*s fps=%.1f "
                 "work=%.2fms p99=%.2fms draw=%.2fms submit=%.2fms "
-                "headroom=%.1f open=%.2fs warmMax=%.1fms\n",
+                "headroom=%.1f open=%.2fs warmMax=%.1fms power=%s "
+                "gpuBusy=%d%%\n",
                 key.c_str(), window.width(), window.height(),
                 window.devicePixelRatio(), (int)canvas.width(),
                 (int)canvas.height(), (int)runtime.size(), runtime.data(), fps,
@@ -166,7 +168,7 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
                 metrics.value(QStringLiteral("submitMs")).toDouble(),
                 host->frameTimes().headroomFps(),
                 run->opened >= 0.0 ? run->opened - run->asked : -1.0,
-                run->slowestWarmMs);
+                run->slowestWarmMs, powerSource().c_str(), gpuBusyPercent());
           }
         } else {
           // Step::Skip — the window never presented this entry's session.

@@ -370,3 +370,85 @@ TEST(Shadow, AFrameWithNoLightThatCastsDrawsNoShadowMap) {
   // The sun's map and the lamp's six faces: two lights cast.
   EXPECT_EQ(maps(true), 2);
 }
+
+namespace {
+
+/** Two spot lights with a stated reach, so neither map's fit follows the
+ *  set's bounds: one casting only the card's shadow, one casting every
+ *  shadow but the card's. The card stands at @p cardX. */
+Frame twoSpots(float cardX, const Runtime& runtime) {
+  const auto spot = [](Collection link) {
+    return spotLight({0, -1, 0}, {.intensity = intensityAt(3.0f, 120.0f),
+                                  .range = 400.0f,
+                                  .innerAngle = 25,
+                                  .outerAngle = 35,
+                                  .castShadow = true})
+        .at({0, 120, 0})
+        .shadowLink(std::move(link));
+  };
+  Frame frame(
+      group({spot(Collection{.include = {"props"}}).key("card spot"),
+             spot(Collection{.exclude = {"props"}}).key("rest spot"), ground(),
+             mesh(gm::superellipsoid({20, 20, 20}, 2.0f, 16, 8))
+                 .key("block")
+                 .at({50, 20, 0})
+                 .fill(matte(0.6f)),
+             card().at({cardX, 40, 0})})
+          .key("set"));
+  frame.extent(kExtent)
+      .defaultCamera(diligent::raisedEye())
+      .runtime(runtime)
+      .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack));
+  return frame;
+}
+
+}  // namespace
+
+TEST(Shadow, AStillSetDrawsNoShadowMapOnItsSecondFrame) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  motion::Engine engine;
+  Scene scene(engine);
+  const auto step = [&] {
+    engine.advance(engine.elapsed() + motion::Duration(1.0 / 60.0));
+    scene.render(twoSpots(0.0f, on.runtime));
+    SkBitmap bitmap;
+    bitmap.allocPixels(SkImageInfo::MakeN32Premul(kExtent.x, kExtent.y));
+    SkCanvas canvas(bitmap);
+    draw(scene, canvas);
+    return bitmap;
+  };
+  const SkBitmap first = step();
+  EXPECT_EQ(scene.stats().shadowMapsDrawn, 2);
+  const SkBitmap second = step();
+  // Nothing moved, so both maps stand as the first frame drew them…
+  EXPECT_EQ(scene.stats().shadowMapsDrawn, 0);
+  // …and the picture is the same picture.
+  EXPECT_EQ(diligent::worstChannel(first, second), 0);
+}
+
+TEST(Shadow, MovingOneCasterRedrawsOnlyTheMapsItCastsInto) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  motion::Engine engine;
+  Scene scene(engine);
+  const auto step = [&](float cardX) {
+    engine.advance(engine.elapsed() + motion::Duration(1.0 / 60.0));
+    scene.render(twoSpots(cardX, on.runtime));
+    SkBitmap bitmap;
+    bitmap.allocPixels(SkImageInfo::MakeN32Premul(kExtent.x, kExtent.y));
+    SkCanvas canvas(bitmap);
+    draw(scene, canvas);
+    return bitmap;
+  };
+  (void)step(0.0f);
+  const SkBitmap moved = step(-30.0f);
+  // The card casts only for the card's spot: that map is drawn again and
+  // the other is kept.
+  EXPECT_EQ(scene.stats().shadowMapsDrawn, 1);
+  // A fresh scene drawing the moved set from nothing is the same picture.
+  EXPECT_EQ(diligent::worstChannel(
+                moved, diligent::photograph(twoSpots(-30.0f, on.runtime),
+                                            on.runtime, kExtent)),
+            0);
+}

@@ -61,7 +61,8 @@ enable_language(C)
 find_package(VulkanHeaders CONFIG REQUIRED)
 find_package(unofficial-diligent-engine CONFIG REQUIRED)
 sigil_library(SigilGeometryDevice
-  SOURCES AdoptDevice.cpp AdoptDevice.h Device.cpp Resources.cpp Resources.h
+  SOURCES AdoptDevice.cpp AdoptDevice.h Device.cpp MetalObjects.cpp
+          Resources.cpp Resources.h
           VolkShim.c
   HEADERS Device.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}

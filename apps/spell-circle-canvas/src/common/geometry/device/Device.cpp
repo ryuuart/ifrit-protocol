@@ -1,4 +1,5 @@
 #include <Graphics/GraphicsEngine/interface/DeviceContext.h>
+#include <Graphics/GraphicsEngine/interface/PipelineStateCache.h>
 #include <Graphics/GraphicsEngine/interface/RenderDevice.h>
 #include <Graphics/GraphicsEngineVulkan/interface/EngineFactoryVk.h>
 #include <sigilcore/hardware/GpuDevice.h>
@@ -9,6 +10,10 @@
 #include <atomic>
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
+#include <iterator>
+#include <system_error>
+#include <vector>
 
 #include "AdoptDevice.h"
 
@@ -24,12 +29,50 @@ struct Device::Impl {
    *  adoption failed, which leaves the 3D side whole. */
   std::unique_ptr<core::hardware::GpuDevice> gpu;
   std::unique_ptr<skia::GraphiteContext> graphite;
+  /** The driver's pipeline cache, and the file it is kept in. */
+  dg::RefCntAutoPtr<dg::IPipelineStateCache> pipelines;
+  std::filesystem::path pipelineFile;
 };
+
+namespace {
+
+/** THE FILE THE PIPELINE CACHE IS KEPT IN, inside the store a host
+ *  named. */
+std::filesystem::path pipelineFileIn(const std::filesystem::path& store) {
+  return store / "device pipelines.bin";
+}
+
+/** What the cache held when the device went, written beside the file and
+ *  moved over it, so a run that stops halfway through leaves the last
+ *  whole one. */
+void keepPipelines(dg::IPipelineStateCache* cache,
+                   const std::filesystem::path& file) {
+  if (!cache || file.empty()) return;
+  dg::RefCntAutoPtr<dg::IDataBlob> blob;
+  cache->GetData(&blob);
+  if (!blob || blob->GetSize() == 0) return;
+  std::error_code error;
+  std::filesystem::create_directories(file.parent_path(), error);
+  std::filesystem::path partial = file;
+  partial += ".partial";
+  {
+    std::ofstream out(partial, std::ios::binary | std::ios::trunc);
+    if (!out) return;
+    out.write(static_cast<const char*>(blob->GetConstDataPtr()),
+              (std::streamsize)blob->GetSize());
+    if (!out) return;
+  }
+  std::filesystem::rename(partial, file, error);
+}
+
+}  // namespace
 
 Device::Device() : m_impl(std::make_unique<Impl>()) {}
 
 Device::~Device() {
   if (!m_impl) return;
+  keepPipelines(m_impl->pipelines, m_impl->pipelineFile);
+  m_impl->pipelines.Release();
   // Graphite's teardown and the adopted device's both touch the shared
   // queue, so they go under the queue lock and ahead of the Diligent
   // objects that own it.
@@ -75,7 +118,27 @@ std::unique_ptr<Device> Device::create(const DeviceConfig& config,
   engineCI.Features.NativeFence = DEVICE_FEATURE_STATE_OPTIONAL;
   IRenderDevice* rawDevice = nullptr;
   IDeviceContext* rawContext = nullptr;
+#ifdef __APPLE__
+  // THE METAL OBJECTS BEHIND THE DEVICE'S OWN, which a window drawing on
+  // Metal through a queue of its own samples a picture by. A driver that
+  // does not offer them refuses the device, so it is asked for again
+  // without them: they cost the window's zero-copy path, not the device.
+  const char* const metalObjects[] = {"VK_EXT_metal_objects"};
+  engineCI.DeviceExtensionCount = 1;
+  engineCI.ppDeviceExtensionNames = metalObjects;
   factory->CreateDeviceAndContextsVk(engineCI, &rawDevice, &rawContext);
+  if (!rawDevice || !rawContext) {
+    if (rawContext) rawContext->Release();
+    if (rawDevice) rawDevice->Release();
+    rawDevice = nullptr;
+    rawContext = nullptr;
+    engineCI.DeviceExtensionCount = 0;
+    engineCI.ppDeviceExtensionNames = nullptr;
+    factory->CreateDeviceAndContextsVk(engineCI, &rawDevice, &rawContext);
+  }
+#else
+  factory->CreateDeviceAndContextsVk(engineCI, &rawDevice, &rawContext);
+#endif
   if (!rawDevice || !rawContext) {
     if (error)
       *error =
@@ -87,6 +150,29 @@ std::unique_ptr<Device> Device::create(const DeviceConfig& config,
   std::unique_ptr<Device> device(new Device());
   device->m_impl->device.Attach(rawDevice);
   device->m_impl->context.Attach(rawContext);
+
+  // THE DRIVER'S PIPELINE CACHE, seeded with what the last run kept.
+  if (!config.pipelineStore.empty()) {
+    const std::filesystem::path file = pipelineFileIn(config.pipelineStore);
+    std::vector<char> kept;
+    if (std::ifstream in{file, std::ios::binary})
+      kept.assign(std::istreambuf_iterator<char>(in),
+                  std::istreambuf_iterator<char>());
+    PipelineStateCacheCreateInfo cacheInfo;
+    cacheInfo.Desc.Name = "device pipelines";
+    cacheInfo.Desc.Mode = PSO_CACHE_MODE_LOAD_STORE;
+    cacheInfo.pCacheData = kept.empty() ? nullptr : kept.data();
+    cacheInfo.CacheDataSize = (Uint32)kept.size();
+    rawDevice->CreatePipelineStateCache(cacheInfo, &device->m_impl->pipelines);
+    // What another driver wrote is refused; the cache then starts empty.
+    if (!device->m_impl->pipelines && !kept.empty()) {
+      cacheInfo.pCacheData = nullptr;
+      cacheInfo.CacheDataSize = 0;
+      rawDevice->CreatePipelineStateCache(cacheInfo,
+                                          &device->m_impl->pipelines);
+    }
+    if (device->m_impl->pipelines) device->m_impl->pipelineFile = file;
+  }
 
   // One device for 2D and 3D: the Vulkan device and queue Diligent just
   // made, adopted by SigilSkia, with Graphite recording onto that same
@@ -123,6 +209,9 @@ Diligent::IDeviceContext* Device::context() const { return m_impl->context; }
 core::hardware::GpuDevice* Device::gpu() const { return m_impl->gpu.get(); }
 skia::GraphiteContext* Device::graphite() const {
   return m_impl->graphite.get();
+}
+Diligent::IPipelineStateCache* Device::pipelineStateCache() const {
+  return m_impl->pipelines;
 }
 
 Device::QueueLock::QueueLock(Device& device) : m_device(&device) {

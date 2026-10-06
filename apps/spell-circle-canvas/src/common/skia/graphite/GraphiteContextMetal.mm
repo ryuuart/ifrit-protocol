@@ -10,6 +10,8 @@
 #include <gpu/graphite/mtl/MtlBackendContext.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 
+#include "Waits.h"
+
 namespace sigil::skia {
 
 std::unique_ptr<GraphiteContext> GraphiteContext::createMetal(void *mtlDevice,
@@ -33,6 +35,10 @@ std::unique_ptr<GraphiteContext> GraphiteContext::createMetal(void *mtlDevice,
       context->makeRecorder(makeRecorderOptions());
   if (!recorder) return nullptr;
 
+  // The device the recorder draws on is noted, so a texture made on
+  // another API over the same device can be told apart from one that is
+  // not on it before a draw samples it.
+  noteMetalDevice(recorder.get(), mtlDevice);
   return std::unique_ptr<GraphiteContext>(
       new GraphiteContext(std::move(context), std::move(recorder)));
 }

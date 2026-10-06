@@ -18,6 +18,8 @@
 #include <include/gpu/graphite/mtl/MtlGraphiteTypes_cpp.h>
 #include <sigilskia/graphite/TextureImage.h>
 
+#include "Waits.h"
+
 #include <array>
 #include <mutex>
 #include <optional>
@@ -91,6 +93,51 @@ sk_sp<SkImage> wrapImage(skgpu::graphite::Recorder &recorder, void *mtlTexture, 
   // out of the wrap runs it. A release here as well would free the texture
   // twice.
   return image;
+}
+
+namespace {
+
+/** What a wrap that tells its owner hands its release: the texture it
+ *  retained, and whom to tell once it lets go. */
+struct Released {
+  CFTypeRef texture = nullptr;
+  TextureRelease released = nullptr;
+  void *context = nullptr;
+};
+
+}  // namespace
+
+sk_sp<SkImage> wrapImage(skgpu::graphite::Recorder &recorder, void *mtlTexture, int width,
+                         int height, SkAlphaType alphaType, sk_sp<SkColorSpace> colorSpace,
+                         TextureRelease released, void *releasedContext) {
+  if (recorder.backend() != skgpu::BackendApi::kMetal || !mtlTexture || width <= 0 || height <= 0) {
+    if (released) released(releasedContext);
+    return nullptr;
+  }
+  // Retained for the image's life as the plain wrap does, and the owner
+  // told only once the retain is let go — which Graphite does once the
+  // image is gone and the last submission that sampled it is finished.
+  auto *hold =
+      new Released{CFRetain(static_cast<CFTypeRef>(mtlTexture)), released, releasedContext};
+  const skgpu::graphite::BackendTexture backendTexture =
+      skgpu::graphite::BackendTextures::MakeMetal(SkISize::Make(width, height), hold->texture);
+  return SkImages::WrapTexture(
+      &recorder, backendTexture, alphaType, std::move(colorSpace),
+      [](void *context) {
+        auto *hold = static_cast<Released *>(context);
+        CFRelease(hold->texture);
+        if (hold->released) hold->released(hold->context);
+        delete hold;
+      },
+      hold);
+}
+
+bool drawsOnDeviceOf(const skgpu::graphite::Recorder &recorder, void *mtlTexture) {
+  if (recorder.backend() != skgpu::BackendApi::kMetal || !mtlTexture) return false;
+  void *device = metalDeviceOf(&recorder);
+  if (!device) return false;
+  id<MTLTexture> texture = (__bridge id<MTLTexture>)mtlTexture;
+  return (__bridge void *)texture.device == device;
 }
 
 sk_sp<SkImage> wrapImage(skgpu::graphite::Recorder &recorder, void *mtlTexture,

@@ -16,6 +16,10 @@ sk_sp<SkImage> Targets::image(std::string_view name) {
   return m_source ? m_source(name) : nullptr;
 }
 
+sk_sp<SkImage> Targets::onDevice(std::string_view name, SkCanvas& canvas) {
+  return m_deviceSource ? m_deviceSource(name, canvas) : nullptr;
+}
+
 geometry::mesh::Cloud* Targets::points(std::string_view name) {
   return &m_points[std::string(name)];
 }

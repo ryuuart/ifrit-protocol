@@ -453,6 +453,11 @@ be validated by that backend.
 - A manually constructed `Recipe` has object identity. Define it once and
   share it; building equal recipe objects repeatedly creates distinct program
   cache entries. The ordinary `shader()` factory handles definition reuse.
+- A renderer that must not wait for a compile asks
+  `ProgramCache::prepare(recipe, target, variant)` first: true when the
+  program can be had at once, otherwise false with the compile started on
+  a worker of its own, which a later ask finds held. `compiling()` counts
+  the compiles under way; the process waits for them when it exits.
 
 ## Features and dependencies
 

@@ -87,7 +87,8 @@ world::Frame formedAgain(const world::Frame& frame) {
       .extent(frame.extent())
       .viewOffset(frame.viewOffset())
       .defaultCamera(frame.defaultCamera())
-      .runtime(frame.runtime());
+      .runtime(frame.runtime())
+      .standIns(frame.standIns());
   if (!frame.camera().empty()) again.camera(frame.camera());
   if (frame.cameraOverride()) again.cameraOverride(*frame.cameraOverride());
   for (const world::Pass& pass : frame.passes()) again.pass(pass);
@@ -118,7 +119,8 @@ void throughPasses(world::Frame& frame,
       .extent(frame.extent())
       .viewOffset(frame.viewOffset())
       .defaultCamera(frame.defaultCamera())
-      .runtime(frame.runtime());
+      .runtime(frame.runtime())
+      .standIns(frame.standIns());
   if (!frame.camera().empty()) first.camera(frame.camera());
   if (frame.cameraOverride()) first.cameraOverride(*frame.cameraOverride());
   first.pass(std::move(stock));
@@ -137,7 +139,8 @@ class SetSession final : public Session {
       : m_set(std::move(set)),
         m_assets(assets),
         m_scene(m_engine),
-        m_runtime(std::move(runtime)) {
+        m_runtime(std::move(runtime)),
+        m_deterministic(deterministic) {
     m_specification.size = {900, 640};
     m_specification.background = {0.04f, 0.045f, 0.06f, 1.0f};
     m_specification.captureSeconds = 1.0;
@@ -185,6 +188,10 @@ class SetSession final : public Session {
     // camera the tree chose still says how the picture is read.
     if (m_orbiting) frame.cameraOverride(m_orbit);
     frame.runtime(m_runtime);
+    // A LIVE SESSION KEEPS PRESENTING while a program compiles, drawing
+    // the body as a stand-in until it arrives; a capture that will be
+    // diffed waits for every program, so its first frame is the real one.
+    frame.standIns(!m_deterministic);
     throughPasses(frame, m_specification.background);
     m_scene.render(frame);
     // A frame formed over a part of its picture is kept, so a repaint
@@ -238,11 +245,13 @@ class SetSession final : public Session {
 
   [[nodiscard]] std::string counters() const override {
     const world::SceneStats& stats = m_scene.stats();
-    char line[192];
+    char line[224];
     std::snprintf(line, sizeof line,
-                  "nodes %lld   drawn %lld   resources %lld   passes %lld",
+                  "nodes %lld   drawn %lld   resources %lld   passes %lld"
+                  "   readbacks %lld",
                   (long long)stats.nodes, (long long)stats.drawn,
-                  (long long)stats.resources, (long long)stats.passes);
+                  (long long)stats.resources, (long long)stats.passes,
+                  (long long)stats.readbacks);
     // …and the screens and pages the set asked for at setup, which no
     // counter of the retained scene's can see.
     const size_t screens = m_scenes.size() + m_pages.size();
@@ -380,7 +389,12 @@ class SetSession final : public Session {
     canvas.scale(
         m_specification.size.width() / (float)m_window.whole.width(),
         m_specification.size.height() / (float)m_window.whole.height());
-    world::draw(m_scene, canvas);
+    // A LIVE PICTURE IS SAMPLED WHERE THE DEVICE DREW IT, when the
+    // canvas's queue reaches that device; a capture that will be diffed
+    // is read back, which is the same bytes onto every canvas.
+    world::draw(m_scene, canvas,
+                m_deterministic ? world::Presentation::Readback
+                                : world::Presentation::OnDevice);
   }
 
   /** The texture scenes the context handed out. Before the set and the
@@ -397,6 +411,9 @@ class SetSession final : public Session {
   /** Taken once, when this session opened: every frame it draws goes
    *  through this one, whatever the process installed after. */
   world::Runtime m_runtime;
+  /** A capture that will be diffed: its picture is read back rather than
+   *  sampled in place. */
+  bool m_deterministic = false;
   motion::Engine m_engine;
   world::Scene m_scene;
   CanvasSpecification m_specification;

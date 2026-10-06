@@ -88,7 +88,7 @@ qt_add_executable(Grimoire
   src/SweepLane.cpp src/SweepLane.h
   src/ThumbnailWarm.cpp src/ThumbnailWarm.h
   src/VideoLane.cpp src/VideoLane.h
-  src/WindowBench.cpp src/WindowBench.h
+  src/WindowBench.cpp src/WindowBench.h src/Conditions.cpp src/Conditions.h
 )
 sigil_qt_target(Grimoire)
 
@@ -168,6 +168,14 @@ target_include_directories(Grimoire PRIVATE ${CMAKE_CURRENT_LIST_DIR}/src)
 # that answers one listens through, and the version host.describe names.
 target_compile_definitions(Grimoire PRIVATE
   SIGIL_GRIMOIRE_VERSION="${PROJECT_VERSION}")
+if(APPLE)
+  # The power source and the GPU's utilization a measured row is taken
+  # under, read from the platform's own registries.
+  find_library(GRIMOIRE_IOKIT IOKit REQUIRED)
+  find_library(GRIMOIRE_COREFOUNDATION CoreFoundation REQUIRED)
+  target_link_libraries(Grimoire PRIVATE ${GRIMOIRE_IOKIT}
+                                         ${GRIMOIRE_COREFOUNDATION})
+endif()
 target_link_libraries(Grimoire PRIVATE
   SigilSketch SigilSketchPython SigilSketches SigilSketchesPython
   SigilSketchSessionAgent SigilProtocolEndpoint

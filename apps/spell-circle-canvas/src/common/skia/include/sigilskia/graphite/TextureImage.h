@@ -17,6 +17,7 @@
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkYUVAInfo.h>
 
+#include <cstdint>
 #include <span>
 
 class SkImage;
@@ -59,6 +60,36 @@ sk_sp<SkImage> wrapImage(skgpu::graphite::Recorder& recorder, void* mtlTexture,
 sk_sp<SkImage> wrapImage(skgpu::graphite::Recorder& recorder, void* mtlTexture,
                          SkAlphaType alphaType = kPremul_SkAlphaType,
                          sk_sp<SkColorSpace> colorSpace = nullptr);
+
+/** THE WRAP ABOVE, TELLING THE TEXTURE'S OWNER WHEN IT IS FREE AGAIN:
+ *  @p released is called with @p releasedContext once the image is gone
+ *  and every submission that sampled it has finished on the GPU — the
+ *  moment whoever draws into the texture may draw into it again. Runs
+ *  even when the answer is null, so a caller hands its context over
+ *  exactly once. */
+sk_sp<SkImage> wrapImage(skgpu::graphite::Recorder& recorder, void* mtlTexture,
+                         int width, int height, SkAlphaType alphaType,
+                         sk_sp<SkColorSpace> colorSpace,
+                         TextureRelease released, void* releasedContext);
+
+/** Whether @p recorder draws on the Metal device @p mtlTexture stands on.
+ *  False for a recorder on another API or another device, and for one
+ *  this library did not bring up, whose device it cannot name. */
+bool drawsOnDeviceOf(const skgpu::graphite::Recorder& recorder,
+                     void* mtlTexture);
+
+/** THE WAIT A TEXTURE ANOTHER QUEUE WRITES NEEDS before a draw here
+ *  samples it: the next recording this library inserts from @p recorder
+ *  waits, on the GPU, until @p mtlSharedEvent — an id<MTLSharedEvent>
+ *  bridged to void* — reaches @p value. Register it BEFORE recording the
+ *  draw that samples, so the recording that carries the draw carries
+ *  the wait; an event only rises, so a later value of one event replaces
+ *  an earlier one still waiting.
+ *  @trap Only the inserts this library makes attach it — an
+ *  `OffscreenSurface` submit, a paint-order fence, a readback. A caller
+ *  inserting the recording itself orders nothing. */
+void waitBeforeSampling(skgpu::graphite::Recorder& recorder,
+                        void* mtlSharedEvent, uint64_t value);
 
 /** @p mtlTexture's pixels READ BACK INTO HOST MEMORY, as an image any
  *  canvas and any renderer can draw. Read as the format the texture

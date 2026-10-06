@@ -86,6 +86,37 @@ class Targets {
   /** Installs @p source, on the terms above. */
   void source(ImageSource source) { m_source = std::move(source); }
 
+  /** @p name as an image @p canvas draws by sampling the executor's own
+   *  texture where it stands, with nothing read back: what presenting a
+   *  picture costs when the canvas's queue can reach the device. Null
+   *  when no executor offers that for this canvas, which a caller
+   *  answers with `image()`. */
+  [[nodiscard]] sk_sp<SkImage> onDevice(std::string_view name,
+                                        SkCanvas& canvas);
+  /** WHERE A PICTURE IS SAMPLED IN PLACE: the executor that holds the
+   *  pixels, asked for one name and the canvas that will draw it. An
+   *  executor that can hand a canvas its texture installs it at the
+   *  start of every frame it runs, beside the image source. */
+  using DeviceSource =
+      std::function<sk_sp<SkImage>(std::string_view, SkCanvas&)>;
+  /** Installs @p source, on the terms above. */
+  void deviceSource(DeviceSource source) { m_deviceSource = std::move(source); }
+
+  /** HOW MANY SHADOW MAPS THE EXECUTOR DREW, which the scene's own plan
+   *  cannot see: a map nothing moved in is kept from the frame before and
+   *  not drawn. An executor adds what each pass drew; the scene takes the
+   *  sum once its passes have run, which starts the next sum at zero. */
+  void addShadowMapsDrawn(int64_t count) { m_shadowMapsDrawn += count; }
+  [[nodiscard]] int64_t takeShadowMapsDrawn() {
+    return std::exchange(m_shadowMapsDrawn, 0);
+  }
+  /** HOW MANY BODIES THE EXECUTOR DREW AS A STAND-IN because their
+   *  program was still compiling, on the same terms. */
+  void addProgramsPending(int64_t count) { m_programsPending += count; }
+  [[nodiscard]] int64_t takeProgramsPending() {
+    return std::exchange(m_programsPending, 0);
+  }
+
   /** Close the frame: a stamping no pass asked for in it is let go. */
   void endFrame();
 
@@ -104,10 +135,27 @@ class Targets {
   boost::container::map<uint64_t, Stamping> m_stamped;
   uint64_t m_frame = 0;
   uint64_t m_stampings = 0;
+  int64_t m_shadowMapsDrawn = 0;
+  int64_t m_programsPending = 0;
   ImageSource m_source;
+  DeviceSource m_deviceSource;
 };
 
 class Scene;
+
+/** HOW A PICTURE REACHES A CANVAS. */
+enum class Presentation : uint8_t {
+  /** Read back into host memory and drawn as a raster image: the same
+   *  bytes onto every canvas, which is what a capture that will be
+   *  diffed draws. */
+  Readback,
+  /** Sampled where the device drew it, when the canvas draws on a queue
+   *  that can reach that device — the order between the device's drawing
+   *  and the canvas's sampling kept on the GPU, with no wait on this
+   *  thread — and read back as above where it cannot. What a live window
+   *  draws. */
+  OnDevice,
+};
 
 /** Draw the picture @p scene's last `render()` formed on @p canvas: the
  *  resource its passes wrote and the frame presents, which a frame's
@@ -115,8 +163,11 @@ class Scene;
  *  addressed in the pixels of the whole picture the frame's camera
  *  framed, so a frame formed over a part of it (`Frame::viewOffset`)
  *  lands where that part stands. A frame that declared no passes, or
- *  whose passes did not run, formed no picture and draws nothing. */
-void draw(Scene& scene, SkCanvas& canvas);
+ *  whose passes did not run, formed no picture and draws nothing.
+ *  @p presentation says whether the picture may be sampled in place;
+ *  the scene's stats count which way it went. */
+void draw(Scene& scene, SkCanvas& canvas,
+          Presentation presentation = Presentation::Readback);
 
 /** A pixel size as Skia's. */
 inline SkISize toSk(glm::ivec2 size) { return SkISize::Make(size.x, size.y); }

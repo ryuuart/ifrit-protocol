@@ -7,6 +7,10 @@
 #include "Gpu.h"
 
 #include <Graphics/GraphicsTools/interface/CommonlyUsedStates.h>
+#include <include/core/SkCanvas.h>
+#include <include/gpu/graphite/Recorder.h>
+#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilskia/graphite/TextureImage.h>
 #include <sigilworld/advanced/Skia.h>
 
 #include <Graphics/GraphicsEngine/interface/GraphicsTypesX.hpp>
@@ -25,6 +29,8 @@ Gpu::~Gpu() {
   // Everything below borrows the device's queue; nothing may be
   // recording when the objects behind it go.
   if (device && device->context()) device->context()->Flush();
+  if (presentedFence && device && device->gpu())
+    device->gpu()->destroyFence(presentedFence);
 }
 
 dg::RefCntAutoPtr<dg::ITexture> Gpu::makeColor(const char* label,
@@ -52,6 +58,11 @@ void Gpu::resize(SkISize size) {
   opaqueDepth.Release();
   sceneColor.Release();
   display.Release();
+  // A picture still out with another queue keeps its texture alive
+  // through the retain that queue's image holds, so letting go of it here
+  // frees nothing that is still being sampled.
+  presented.clear();
+  presentRefused = false;
   scratch.clear();
   if (extent.isEmpty() || !device->renderDevice()) return;
   dg::TextureDesc desc;
@@ -170,6 +181,8 @@ dg::ITexture* Gpu::shadowAtlasAt(int side) {
   shadowAtlasView.Release();
   shadowAtlas.Release();
   shadowAtlasSide = 0;
+  // A new atlas holds none of the tiles the folds describe.
+  shadowFolds.clear();
   dg::TextureDesc desc;
   desc.Name = "world shadow atlas";
   desc.Type = dg::RESOURCE_DIM_TEX_2D;
@@ -207,6 +220,81 @@ sk_sp<SkImage> Gpu::read(std::string_view name) {
   device->context()->SetRenderTargets(0, nullptr, nullptr,
                                       dg::RESOURCE_STATE_TRANSITION_MODE_NONE);
   return shared.read(display);
+}
+
+sk_sp<SkImage> Gpu::present(std::string_view name, SkCanvas& canvas) {
+#ifdef __APPLE__
+  skgpu::graphite::Recorder* recorder = canvas.recorder();
+  ::sigil::core::hardware::GpuDevice* shared = device->gpu();
+  if (presentRefused || !recorder || !shared ||
+      recorder->backend() != skgpu::BackendApi::kMetal)
+    return nullptr;
+  dg::ITexture* texture = current(name);
+  if (!texture) texture = previous(name);
+  if (!texture) return nullptr;
+
+  // A TEXTURE THE OTHER QUEUE IS DONE WITH, or a new one while fewer than
+  // the most a window keeps out are made.
+  PresentedImage* slot = nullptr;
+  for (PresentedImage& image : presented) {
+    if (image.sampling->load(std::memory_order_acquire)) continue;
+    slot = &image;
+    break;
+  }
+  if (!slot) {
+    if (presented.size() >= kPresentedInFlight) return nullptr;
+    PresentedImage made;
+    made.texture = makeColor("world presented", kColorFormat);
+    if (made.texture) made.metal = device->metalTexture(made.texture);
+    if (!made.metal || !skia::drawsOnDeviceOf(*recorder, made.metal)) {
+      presentRefused = true;
+      return nullptr;
+    }
+    made.sampling = std::make_shared<std::atomic<bool>>(false);
+    presented.push_back(std::move(made));
+    slot = &presented.back();
+  }
+  if (!presentedFence) {
+    presentedFence = shared->createFence();
+    presentedEvent = device->metalEvent(presentedFence);
+  }
+  if (!presentedEvent) {
+    presentRefused = true;
+    return nullptr;
+  }
+
+  finalStage(*this, texture, slot->texture);
+  dg::IDeviceContext* context = device->context();
+  context->SetRenderTargets(0, nullptr, nullptr,
+                            dg::RESOURCE_STATE_TRANSITION_MODE_NONE);
+  // THE ORDER BETWEEN THE TWO QUEUES, kept on the GPU. The picture is
+  // submitted, the fence is signalled behind it on this device's queue —
+  // a signal stands after everything submitted before it — and the
+  // canvas's next submission is made to wait for that value before it
+  // samples. Neither queue waits on this thread.
+  context->Flush();
+  ::sigil::core::hardware::FenceValue value;
+  {
+    ::sigil::geometry::device::Device::QueueLock lock(*device);
+    value = shared->signal(presentedFence);
+  }
+  skia::waitBeforeSampling(*recorder, presentedEvent, value);
+
+  slot->sampling->store(true, std::memory_order_release);
+  using Flag = std::shared_ptr<std::atomic<bool>>;
+  return skia::wrapImage(
+      *recorder, slot->metal, extent.width(), extent.height(),
+      kPremul_SkAlphaType, nullptr,
+      [](void* context) {
+        const std::unique_ptr<Flag> flag(static_cast<Flag*>(context));
+        (*flag)->store(false, std::memory_order_release);
+      },
+      new Flag(slot->sampling));
+#else
+  (void)name;
+  (void)canvas;
+  return nullptr;
+#endif
 }
 
 glm::mat4 mapMatrix(const SkMatrix& uv) {

@@ -138,6 +138,23 @@ the last image naming it is gone, so an image outliving the view or the
 frame that owned its texture still samples pixels rather than whatever
 now holds the slot.
 
+**A texture another QUEUE writes is ordered on the GPU.** Two queues on
+one device — a Vulkan driver running over Metal and a window drawing on
+Metal through a queue of its own — share textures but not their order.
+The writer signals an event behind its drawing, and
+`sigil::skia::waitBeforeSampling(recorder, mtlSharedEvent, value)` makes
+the next recording this library inserts from that recorder wait for it
+on the GPU, so neither thread waits. It is registered before the
+sampling draw is recorded, and only this library's own inserts — a
+surface's submit, a paint-order fence, a readback — attach it. The wrap
+that tells its owner when the texture is free again —
+`wrapImage(recorder, mtlTexture, width, height, alpha, colourSpace,
+released, context)` — calls `released` once the image is gone and every
+submission that sampled it has finished, which is when the writer may
+draw into it again. `sigil::skia::drawsOnDeviceOf(recorder, mtlTexture)`
+says whether a recorder this library brought up stands on the texture's
+device at all.
+
 **A texture that must cross to another device is READ, not wrapped.**
 A wrap names one texture on one recorder, so it has nothing to give a
 renderer standing on a different device — or on a different graphics API,

@@ -152,6 +152,9 @@ const Pipeline* PipelineCache::pipeline(const PipelineKey& key) {
         dg::InputLayoutDesc{elements.data(), (dg::Uint32)elements.size()});
   }
 
+  // Through the driver's cache, so a pipeline an earlier run built is read
+  // back rather than built again.
+  info.pPSOCache = m_device->pipelineStateCache();
   renderDevice->CreateGraphicsPipelineState(info, &built.state);
   if (built.state)
     built.state->CreateShaderResourceBinding(&built.binding, true);

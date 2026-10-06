@@ -16,6 +16,8 @@
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
+#include "PipelineStore.h"
+
 #ifndef SIGILSKETCH_NO_DEVICE
 #include <sigilgeometry/device/Device.h>
 #include <sigilgeometry/mesh/render/device/Painter.h>
@@ -107,7 +109,11 @@ std::unique_ptr<sigil::geometry::device::Device> g_device;
 bool useDevice() {
   if (g_device) return true;
   std::string error;
-  const sigil::geometry::device::DeviceConfig config;
+  // The pipelines the device builds are kept beside the rest of what a
+  // run records, so the next launch reads them back instead of building
+  // each one again while a set opens.
+  sigil::geometry::device::DeviceConfig config;
+  config.pipelineStore = pipelines::storeDirectory();
   auto candidate = sigil::geometry::device::Device::create(config, &error);
   if (!candidate) {
     std::fprintf(stderr, "no device runtime (%s)\n", error.c_str());

@@ -16,6 +16,8 @@
 #include <mutex>
 #include <utility>
 
+#include "Waits.h"
+
 namespace sigil::skia {
 
 // A MOVED-FROM SURFACE DOES NOTHING. A defaulted move would leave the
@@ -56,6 +58,8 @@ void OffscreenSurface::submit() {
 
   skgpu::graphite::InsertRecordingInfo recordingInfo;
   recordingInfo.fRecording = recording.get();
+  PendingWaits waits(recorder);
+  waits.attach(recordingInfo);
   const skgpu::graphite::InsertStatus status =
       context->insertRecording(recordingInfo);
   if (!status) {

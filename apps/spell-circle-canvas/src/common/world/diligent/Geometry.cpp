@@ -227,10 +227,25 @@ struct Surface {
   material::Material::Resolved upload;
   const material::Recipe* recipe = nullptr;
   bool lit = true;
+  /** Drawn as a stand-in while its own program compiles. */
+  bool standIn = false;
 };
 
+/** Whether @p material's program for @p variant can be had without
+ *  waiting — held, or not a compile at all — starting it on a worker when
+ *  it cannot. */
+bool programReady(const material::Material& material, uint32_t variant) {
+  return material::ProgramCache::shared().prepare(material.recipePointer(),
+                                                  material::Target::Slang,
+                                                  material::Variant{variant});
+}
+
+/** THE STAND-IN, with @p standIns: a body whose program is still
+ *  compiling is drawn in its base colour, unlit — or, into a shadow map,
+ *  through the depth scaffold that reads that colour's coverage — and is
+ *  drawn whole on the first frame after the program arrives. */
 Surface surfaceOf(const material::Material* material, bool lit, double seconds,
-                  bool shadow = false) {
+                  bool shadow = false, bool standIns = false) {
   Surface out;
   out.lit = lit && !shadow;
   const auto fallback = [&] {
@@ -242,6 +257,13 @@ Surface surfaceOf(const material::Material* material, bool lit, double seconds,
   }
   const material::Variant variant{shadow ? kVariantShadow
                                          : (lit ? kVariantLit : 0u)};
+  if (standIns && !programReady(*material, variant.bits)) {
+    out.standIn = true;
+    out.lit = false;
+    out.program =
+        shadow ? &shadowScaffold(/*coverage=*/true) : &scaffold(false);
+    return out;
+  }
   // THE FRAME'S CLOCK reaches the body: a material that reads time — a
   // flipbook, a flow — is shown at the time the frame was described at.
   material::FrameData frame;
@@ -559,7 +581,12 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
   if (caster && !caster->coverage)
     surface.program = &shadowScaffold(/*coverage=*/false);
   else
-    surface = surfaceOf(material, lit, gpu.seconds, caster != nullptr);
+    surface =
+        surfaceOf(material, lit, gpu.seconds, caster != nullptr, gpu.standIns);
+  if (surface.standIn) {
+    ++gpu.programsPending;
+    lit = false;
+  }
   if (caster) lit = false;
   if (!surface.program || surface.program->empty()) return;
 
@@ -1243,22 +1270,120 @@ std::array<ShadowMap, 6> fitPoint(const PlacedLight& light, const Box& scene,
   return out;
 }
 
+/** A FOLD OF BYTES INTO A NUMBER, one value at a time. */
+struct Fold {
+  uint64_t value = 1469598103934665603ull;
+  void bytes(const void* data, size_t size) {
+    const auto* at = static_cast<const unsigned char*>(data);
+    for (size_t i = 0; i < size; ++i) {
+      value ^= at[i];
+      value *= 1099511628211ull;
+    }
+  }
+  template <class T>
+  void add(const T& thing) {
+    bytes(&thing, sizeof thing);
+  }
+  template <class T>
+  void all(const std::vector<T>& things) {
+    add(things.size());
+    if (!things.empty()) bytes(things.data(), things.size() * sizeof(T));
+  }
+};
+
+/** WHAT ONE MAP'S DEPTH IS A FUNCTION OF: where it stands in the atlas
+ *  and how it projects, and every body its light's link keeps that casts
+ *  — where it stands, which cooked triangles it is, every instance of
+ *  it, the eye's turn where it turns to face the eye, and, where its
+ *  surface cuts it out, the map and the moment that surface is read at.
+ *  Two frames folding to the same number draw the same depth into the
+ *  tile, so the second keeps the first's. */
+uint64_t shadowFold(const ShadowMap& map, const View& view,
+                    const glm::mat4& cameraView, double seconds) {
+  Fold fold;
+  fold.add(map.viewProjection);
+  fold.add(map.x);
+  fold.add(map.y);
+  fold.add(map.size);
+  const Collection& link = map.light->light.shadowLink;
+  for (size_t i = 0; i < view.draws.size(); ++i) {
+    const Draw& body = view.draws[i];
+    if (!casts(body)) continue;
+    if (!link.everything() && !link.contains(memberOf(body))) continue;
+    fold.add(i);
+    fold.add(body.world);
+    fold.add(body.geometry);
+    fold.add(body.mesh);
+    fold.add(body.mesh->positions.size());
+    if (body.instances) {
+      fold.all(body.instances->positions);
+      fold.all(body.instances->orientations);
+      fold.all(body.instances->scales);
+    }
+    if (body.facing != Facing::None) fold.add(cameraView);
+    if (coverageOf(body)) {
+      // A caster drawn as a stand-in is drawn again once its program
+      // arrives.
+      if (view.standIns && body.material)
+        fold.add(
+            programReady(material::inlined(*body.material), kVariantShadow));
+      fold.add(body.material);
+      fold.add(body.texture);
+      fold.add(body.baseColor);
+      fold.add(seconds);
+    }
+  }
+  return fold.value;
+}
+
+/** A TILE OF CLEARED DEPTH as large as @p side, cleared once when made:
+ *  what one map's tile is reset from by a copy, since a clear reaches the
+ *  whole atlas and a tile kept from the frame before must survive it. */
+dg::ITexture* blankTile(Gpu& gpu, int side) {
+  if (gpu.shadowBlank && gpu.shadowBlankSide >= side) return gpu.shadowBlank;
+  gpu.shadowBlank.Release();
+  gpu.shadowBlankSide = 0;
+  dg::TextureDesc desc;
+  desc.Name = "world shadow blank tile";
+  desc.Type = dg::RESOURCE_DIM_TEX_2D;
+  desc.Width = desc.Height = (dg::Uint32)side;
+  desc.Format = kDepthFormat;
+  desc.BindFlags = dg::BIND_DEPTH_STENCIL;
+  desc.Usage = dg::USAGE_DEFAULT;
+  gpu.device->renderDevice()->CreateTexture(desc, nullptr, &gpu.shadowBlank);
+  if (!gpu.shadowBlank) return nullptr;
+  dg::IDeviceContext* context = gpu.device->context();
+  dg::ITextureView* dsv =
+      gpu.shadowBlank->GetDefaultView(dg::TEXTURE_VIEW_DEPTH_STENCIL);
+  context->SetRenderTargets(0, nullptr, dsv,
+                            dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+  context->ClearDepthStencil(dsv, dg::CLEAR_DEPTH_FLAG, 1.0f, 0,
+                             dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+  gpu.shadowBlankSide = side;
+  return gpu.shadowBlank;
+}
+
 /** THE SHADOW STAGE: every casting light's map drawn into the atlas, each
  *  in its own tile, from the bodies that cast and that its shadow link
  *  keeps. Draws nothing, and binds nothing afterwards, in a pass under no
- *  light that casts. */
-void drawShadows(Gpu& gpu, const View& view, const glm::mat4& cameraView) {
+ *  light that casts.
+ *
+ *  A MAP NOTHING MOVED IN IS KEPT. The atlas stands from frame to frame,
+ *  and a tile is redrawn only when what its depth is a function of
+ *  changed — its light, its fit, or a body that casts into it. Answers
+ *  how many maps it drew. */
+int64_t drawShadows(Gpu& gpu, const View& view, const glm::mat4& cameraView) {
   gpu.shadows.clear();
   const std::vector<size_t> chosen =
       shadowCasters(std::span<const PlacedLight>(view.lights));
-  if (chosen.empty()) return;
+  if (chosen.empty()) return 0;
   Box scene;
   std::vector<Box> boxes(view.draws.size());
   for (size_t i = 0; i < view.draws.size(); ++i) {
     boxes[i] = boxOf(view.draws[i]);
     scene.add(boxes[i]);
   }
-  if (scene.empty()) return;
+  if (scene.empty()) return 0;
 
   // EVERY TILE THE SIZE OF THE LARGEST MAP ASKED FOR, in a square grid
   // holding one tile per map — six for a point light, one per cascade for
@@ -1283,7 +1408,7 @@ void drawShadows(Gpu& gpu, const View& view, const glm::mat4& cameraView) {
   while ((size_t)(across * across) < count) ++across;
   tile = std::min(tile, kAtlasSide / across);
   dg::ITexture* atlas = gpu.shadowAtlasAt(tile * across);
-  if (!atlas) return;
+  if (!atlas) return 0;
   const auto place = [&](ShadowMap map) {
     const int at = (int)gpu.shadows.size();
     map.x = (at % across) * tile;
@@ -1308,14 +1433,55 @@ void drawShadows(Gpu& gpu, const View& view, const glm::mat4& cameraView) {
     }
   }
 
+  // WHICH TILES MUST BE DRAWN AGAIN. An atlas made anew, or laid out
+  // anew, holds nothing worth keeping.
+  const bool laidOut = atlas == gpu.shadowFoldsAtlas &&
+                       gpu.shadowFolds.size() == gpu.shadows.size();
+  std::vector<uint64_t> folds(gpu.shadows.size());
+  std::vector<bool> redraw(gpu.shadows.size(), !laidOut);
+  size_t redrawn = 0;
+  for (size_t at = 0; at < gpu.shadows.size(); ++at) {
+    folds[at] = shadowFold(gpu.shadows[at], view, cameraView, gpu.seconds);
+    if (laidOut && folds[at] != gpu.shadowFolds[at]) redraw[at] = true;
+    redrawn += redraw[at] ? 1 : 0;
+  }
+  gpu.shadowFolds = std::move(folds);
+  gpu.shadowFoldsAtlas = atlas;
+  if (redrawn == 0) return 0;
+
   dg::IDeviceContext* context = gpu.device->context();
   dg::ITextureView* dsv = atlas->GetDefaultView(dg::TEXTURE_VIEW_DEPTH_STENCIL);
-  context->SetRenderTargets(0, nullptr, dsv,
-                            dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-  context->ClearDepthStencil(dsv, dg::CLEAR_DEPTH_FLAG, 1.0f, 0,
-                             dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+  dg::ITexture* blank =
+      redrawn == gpu.shadows.size() ? nullptr : blankTile(gpu, tile);
+  if (blank) {
+    // Each tile drawn again is reset from the blank one; every other tile
+    // keeps the depth the frame before drew.
+    for (size_t at = 0; at < gpu.shadows.size(); ++at) {
+      if (!redraw[at]) continue;
+      dg::Box whole;
+      whole.MaxX = whole.MaxY = (dg::Uint32)tile;
+      dg::CopyTextureAttribs copy(
+          blank, dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION, atlas,
+          dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+      copy.pSrcBox = &whole;
+      copy.DstX = (dg::Uint32)gpu.shadows[at].x;
+      copy.DstY = (dg::Uint32)gpu.shadows[at].y;
+      context->CopyTexture(copy);
+    }
+    context->SetRenderTargets(0, nullptr, dsv,
+                              dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+  } else {
+    std::fill(redraw.begin(), redraw.end(), true);
+    redrawn = gpu.shadows.size();
+    context->SetRenderTargets(0, nullptr, dsv,
+                              dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+    context->ClearDepthStencil(dsv, dg::CLEAR_DEPTH_FLAG, 1.0f, 0,
+                               dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+  }
   const dg::Uint32 side = (dg::Uint32)gpu.shadowAtlasSide;
-  for (const ShadowMap& map : gpu.shadows) {
+  for (size_t at = 0; at < gpu.shadows.size(); ++at) {
+    if (!redraw[at]) continue;
+    const ShadowMap& map = gpu.shadows[at];
     dg::Viewport viewport;
     viewport.TopLeftX = (float)map.x;
     viewport.TopLeftY = (float)map.y;
@@ -1339,6 +1505,7 @@ void drawShadows(Gpu& gpu, const View& view, const glm::mat4& cameraView) {
           /*lit=*/false, Blending{}, /*cull=*/false, nullptr, nullptr, &caster);
     }
   }
+  return (int64_t)redrawn;
 }
 
 }  // namespace
@@ -1357,6 +1524,15 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
   const float clearNothing[4] = {0, 0, 0, 0};
   const bool asCoverage = work.realisation == Selection::Mask;
   gpu.shadows.clear();
+  gpu.standIns = view.standIns;
+  gpu.programsPending = 0;
+  // Every body this pass drew as a stand-in is told to the scene, however
+  // the pass returns.
+  struct Report {
+    Gpu& gpu;
+    Targets& targets;
+    ~Report() { targets.addProgramsPending(gpu.programsPending); }
+  } report{gpu, targets};
   if (asCoverage) {
     // Coverage is where the selection is, not what it looks like: flat
     // white, and nothing else reaches it.
@@ -1369,7 +1545,7 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
 
   // THE SHADOW STAGE, before the target is opened: the maps every lit
   // body below reads.
-  drawShadows(gpu, view, viewMatrix);
+  targets.addShadowMapsDrawn(drawShadows(gpu, view, viewMatrix));
   // THE CLEAR IS AN AUTHORED COLOUR, so it is filled as the light the
   // final stage turns back into it, and the depth is cleared beside it.
   openTarget(gpu, colour, clearNothing, true);

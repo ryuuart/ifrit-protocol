@@ -235,6 +235,7 @@ bool Scene::Impl::phaseGraph() {
   view.extent = frame.extent();
   view.offset = frame.viewOffset();
   view.time = engine.elapsed();
+  view.standIns = frame.standIns();
 
   // THE SHADOW STAGE a lit geometry pass opens with: one map per light
   // that casts, and none at all in a frame where nothing does.
@@ -281,6 +282,8 @@ bool Scene::Impl::phaseExecute() {
     runtime->execute(work, view, targets);
   }
 
+  stats.shadowMapsDrawn = targets.takeShadowMapsDrawn();
+  stats.programsPending = targets.takeProgramsPending();
   for (const Readback& back : frame.readbacks()) {
     if (!back.callback()) continue;
     Readback::Result result;
@@ -291,6 +294,7 @@ bool Scene::Impl::phaseExecute() {
       result.points = targets.points(back.name());
     else
       result.image = targets.image(back.name());
+    if (result.image) ++stats.readbacks;
     captured.emplace_back(std::move(result), back.callback());
   }
   targets.endFrame();

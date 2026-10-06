@@ -489,8 +489,15 @@ and p99, its paint phase, the submit, and the headroom the work alone
 would allow; then what opening the sketch cost, kept out of every
 number before it: `open`, the seconds from the ask to the first frame
 of its session on screen, and `warmMax`, the slowest frame of the
-warm-up that followed. A sketch this machine cannot run is named `SKIPPED` with
-what is missing, and no line is written for it.
+warm-up that followed. Last come the conditions the row was taken
+under: `power`, what powers the machine (`AC`, `battery` or `unknown`),
+and `gpuBusy`, the GPU's utilization as its driver reports it when the
+row closes. Neither says the performance state the GPU is clocked at —
+no public interface reports it, and a laptop on battery and idle at the
+keyboard holds the GPU in its lowest one, which reads as a slower rate
+in the same binary — so rows are compared only when both were taken
+under the same power, back to back. A sketch this machine cannot run is
+named `SKIPPED` with what is missing, and no line is written for it.
 
 **Each row is the sketch that was on screen.** Selecting a sketch is an
 ask: the session opens on the render thread and its first frame — the

@@ -155,6 +155,9 @@ struct View {
   /** Where the targets stand in the picture the camera frames; the
    *  targets are the whole of it unless this says otherwise. */
   ViewOffset offset;
+  /** A body whose program is still compiling is drawn as a stand-in
+   *  rather than waited for: `Frame::standIns`. */
+  bool standIns = false;
 };
 
 /** The size of the picture @p view's camera frames, in pixels: the

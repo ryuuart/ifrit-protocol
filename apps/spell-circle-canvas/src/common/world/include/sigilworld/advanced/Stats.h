@@ -35,6 +35,16 @@ struct SceneStats {
   int64_t texturesPainted = 0;  ///< texture passes that painted
   int64_t texturesSkipped = 0;  ///< texture passes that found nothing changed
   int64_t shadowMaps = 0;       ///< lights whose shadow map the frame draws
+  /** Maps the executor drew this frame — six a point light, one a
+   *  cascade — leaving out every map nothing moved in, which is kept. */
+  int64_t shadowMapsDrawn = 0;
+  /** Bodies drawn as a stand-in because their program was still
+   *  compiling: zero in a frame that waits for every program. */
+  int64_t programsPending = 0;
+  int64_t readbacks = 0;  ///< images read back into host memory this frame
+  /** Pictures presented by sampling the executor's own texture where it
+   *  stands, with nothing read back. */
+  int64_t presentedOnDevice = 0;
 
   /** Every count back to zero, for the next frame. */
   void reset() {
@@ -42,6 +52,7 @@ struct SceneStats {
     nodes = extracted = cooked = baked = replayed = drawn = rounds = 0;
     passes = barriers = aliased = surfaces = 0;
     texturesPainted = texturesSkipped = shadowMaps = 0;
+    readbacks = presentedOnDevice = shadowMapsDrawn = programsPending = 0;
   }
 
   /** Adds every count under its name (`world.nodes`, `world.extracted`,
@@ -49,7 +60,10 @@ struct SceneStats {
    *  `world.replayed`, `world.drawn`, `world.rounds`, `world.passes`,
    *  `world.barriers`, `world.aliased`, `world.surfaces`,
    *  `world.texturesPainted`, `world.texturesSkipped`,
-   *  `world.shadowMaps`), and the
+   *  `world.shadowMaps`, `world.shadowMapsDrawn`,
+   *  `world.programsPending`, `world.readbacks`,
+   *  `world.presentedOnDevice`),
+   *  and the
    *  reconciler's under theirs. */
   void report(measure::Counters& counters) const {
     reconcile.report(counters);
@@ -67,6 +81,10 @@ struct SceneStats {
     counters.add("world.surfaces", surfaces);
     counters.add("world.texturesPainted", texturesPainted);
     counters.add("world.texturesSkipped", texturesSkipped);
+    counters.add("world.shadowMapsDrawn", shadowMapsDrawn);
+    counters.add("world.programsPending", programsPending);
+    counters.add("world.readbacks", readbacks);
+    counters.add("world.presentedOnDevice", presentedOnDevice);
     counters.add("world.shadowMaps", shadowMaps);
   }
 };

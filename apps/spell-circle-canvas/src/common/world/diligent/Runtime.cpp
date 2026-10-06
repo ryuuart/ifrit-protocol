@@ -47,6 +47,12 @@ class GpuExecutor : public Executor {
     // been handed to another runtime in between.
     targets.source(
         [gpu = m_gpu](std::string_view name) { return gpu->read(name); });
+    // …and where a canvas whose queue reaches this device may sample it
+    // in place instead.
+    targets.deviceSource(
+        [gpu = m_gpu](std::string_view name, SkCanvas& canvas) {
+          return gpu->present(name, canvas);
+        });
   }
 
   void execute(const PassWork& work, const View& view,

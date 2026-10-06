@@ -112,6 +112,19 @@ class ProgramCache {
                                    Target target, Variant variant,
                                    std::string& error);
 
+  /** WHETHER THE PROGRAM CAN BE HAD WITHOUT WAITING: true when it is
+   *  held, or when asking for it would not compile — no compiler, no body,
+   *  a failure already reported — so a synchronous ask answers at once.
+   *  Otherwise false, with the compile started on a worker of its own if
+   *  none is under way; a later ask finds it held. What a frame that will
+   *  not wait for a compile asks before it draws.
+   *  @trap Only the shared cache keeps a worker's compile: one this asks
+   *  of another cache must outlive the compile. */
+  bool prepare(std::shared_ptr<const Recipe> recipe, Target target,
+               Variant variant = {});
+  /** How many compiles `prepare` started that have not finished. */
+  size_t compiling() const;
+
   /** Compiles the distinct requests concurrently and populates this cache. */
   WarmupResult warmup(std::span<const WarmupRequest> requests);
 

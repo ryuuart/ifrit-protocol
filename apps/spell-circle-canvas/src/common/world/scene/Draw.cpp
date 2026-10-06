@@ -13,12 +13,20 @@
 
 namespace sigil::world {
 
-void draw(Scene& scene, SkCanvas& canvas) {
+void draw(Scene& scene, SkCanvas& canvas, Presentation presentation) {
   Scene::Impl& impl = SceneAccess::of(scene);
   if (impl.frame.passes().empty() || !impl.error.empty()) return;
   if (impl.plan.present().empty()) return;
-  const sk_sp<SkImage> picture = impl.targets.image(impl.plan.present());
-  if (!picture) return;
+  sk_sp<SkImage> picture;
+  if (presentation == Presentation::OnDevice)
+    picture = impl.targets.onDevice(impl.plan.present(), canvas);
+  if (picture) {
+    ++impl.stats.presentedOnDevice;
+  } else {
+    picture = impl.targets.image(impl.plan.present());
+    if (!picture) return;
+    ++impl.stats.readbacks;
+  }
   // A frame formed over a PART of its picture lands where that part
   // stands in it, so the canvas is addressed in the whole picture's
   // pixels either way.

@@ -43,6 +43,8 @@
 #include <utility>
 #include <vector>
 
+#include "Waits.h"
+
 namespace sigil::skia {
 
 namespace {
@@ -316,6 +318,10 @@ std::unique_ptr<skgpu::graphite::Recorder> GraphiteContext::makeRecorder()
   return m_context ? m_context->makeRecorder(makeRecorderOptions()) : nullptr;
 }
 
-GraphiteContext::~GraphiteContext() = default;
+GraphiteContext::~GraphiteContext() {
+  // What was noted about the recorder goes with it, so a recorder made
+  // later at the same address inherits neither a device nor a wait.
+  forgetRecorder(m_recorder.get());
+}
 
 }  // namespace sigil::skia

@@ -18,6 +18,8 @@
 #include <memory>
 #include <thread>
 
+#include "Waits.h"
+
 namespace sigil::skia {
 
 bool readbackPixels(GraphiteContext& context, SkSurface& surface,
@@ -31,6 +33,8 @@ bool readbackPixels(GraphiteContext& context, SkSurface& surface,
   if (recording) {
     skgpu::graphite::InsertRecordingInfo insert;
     insert.fRecording = recording.get();
+    PendingWaits waits(context.recorder());
+    waits.attach(insert);
     if (context.context()->insertRecording(insert) !=
         skgpu::graphite::InsertStatus::kSuccess)
       return false;

@@ -11,10 +11,13 @@
 #include <boost/container/flat_map.hpp>
 #include <boost/container/flat_set.hpp>
 #include <boost/unordered/unordered_flat_set.hpp>
+#include <condition_variable>
 #include <cstdio>
+#include <cstdlib>
 #include <exception>
 #include <future>
 #include <mutex>
+#include <thread>
 #include <vector>
 
 #include "ProgramInternal.h"
@@ -43,6 +46,10 @@ struct ProgramCache::Impl {
   // which did not each still say their piece once.
   boost::container::flat_set<std::pair<const Recipe*, Target>> unread;
   size_t generation = 0;
+  /** Keys a worker `prepare` started is compiling, and what is told when
+   *  one finishes. */
+  boost::container::flat_set<Key> background;
+  std::condition_variable settled;
 };
 
 ProgramCache::ProgramCache() : m_impl(std::make_unique<Impl>()) {}
@@ -57,8 +64,10 @@ void reportOnce(const std::string& key, const std::string& message) {
 }
 
 ProgramCache& ProgramCache::shared() {
-  static ProgramCache cache;
-  return cache;
+  // NEVER DESTROYED: a worker `prepare` started may still be compiling
+  // into it while the process exits.
+  static auto* cache = new ProgramCache();
+  return *cache;
 }
 
 void ProgramCache::registerCompiler(Target target, Compiler compiler) {
@@ -210,6 +219,57 @@ std::shared_ptr<Program> ProgramCache::program(
     promise->set_exception(failure);
     throw;
   }
+}
+
+bool ProgramCache::prepare(std::shared_ptr<const Recipe> recipe, Target target,
+                           Variant variant) {
+  if (!recipe) return true;
+  const Impl::Key key{recipe.get(), target, variant};
+  {
+    std::lock_guard lock(m_impl->mutex);
+    if (m_impl->programs.contains(key)) return true;
+    if (m_impl->inFlight.contains(key) || m_impl->background.contains(key))
+      return false;
+    // What would answer at once without a compile is answered by the
+    // synchronous ask: there is nothing for a worker to do.
+    if (m_impl->reported.contains({recipe.get(), target})) return true;
+    if (!m_impl->compilers.contains(target) || !recipe->has(target))
+      return true;
+    m_impl->background.insert(key);
+  }
+  // THE PROCESS WAITS FOR ITS WORKERS AT EXIT: a compile reaches into the
+  // compiler's own statics, which go once the process starts tearing
+  // down, so a worker still running then would be reading what is gone.
+  // Registered after those statics stood up, so it runs before they go.
+  static const bool waitsAtExit = [] {
+    std::atexit([] {
+      ProgramCache& cache = ProgramCache::shared();
+      std::unique_lock lock(cache.m_impl->mutex);
+      cache.m_impl->settled.wait(
+          lock, [&] { return cache.m_impl->background.empty(); });
+    });
+    return true;
+  }();
+  (void)waitsAtExit;
+  // A THREAD OF ITS OWN, not a pool's: a compile is long and rare — once
+  // per program for the life of the process — and a pool shared with
+  // per-frame work would hold that work up behind it.
+  std::thread([this, recipe = std::move(recipe), target, variant, key] {
+    try {
+      (void)program(recipe, target, variant);
+    } catch (...) {
+      // The compile reported what stopped it; a later ask tries again.
+    }
+    std::lock_guard lock(m_impl->mutex);
+    m_impl->background.erase(key);
+    m_impl->settled.notify_all();
+  }).detach();
+  return false;
+}
+
+size_t ProgramCache::compiling() const {
+  std::lock_guard lock(m_impl->mutex);
+  return m_impl->background.size();
 }
 
 WarmupResult ProgramCache::warmup(std::span<const WarmupRequest> requests) {

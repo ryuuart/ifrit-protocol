@@ -15,6 +15,8 @@
 
 #include <optional>
 
+#include "Waits.h"
+
 namespace sigil::skia {
 
 namespace {
@@ -78,6 +80,8 @@ void PaintOrderCanvas::fence() const {
   if (!recording) return;
   skgpu::graphite::InsertRecordingInfo insert;
   insert.fRecording = recording.get();
+  PendingWaits waits(recorder);
+  waits.attach(insert);
   auto lock = m_context->lockContext();
   context->insertRecording(insert);
   ++m_fences;

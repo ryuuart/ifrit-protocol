@@ -22,6 +22,7 @@
 #include <include/core/SkMatrix.h>
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSize.h>
+#include <sigilcore/hardware/Handle.h>
 #include <sigilgeometry/device/Device.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
@@ -32,6 +33,7 @@
 #include <sigilworld/frame/Pass.h>
 
 #include <Common/interface/RefCntAutoPtr.hpp>
+#include <atomic>
 #include <boost/container/map.hpp>
 #include <cstddef>
 #include <cstdint>
@@ -125,6 +127,24 @@ struct ShadowMap {
   glm::vec4 ends{0.0f};
 };
 
+/** ONE PICTURE HANDED TO A QUEUE THAT IS NOT THIS DEVICE'S: the final
+ *  stage's eight-bit picture in a texture of its own, the same texture as
+ *  the other queue's API names it, and whether a draw there is still
+ *  sampling it — set when it is handed over and cleared once the image
+ *  that sampled it is gone and its submission has finished, which is the
+ *  only moment the texture may be drawn into again. */
+struct PresentedImage {
+  dg::RefCntAutoPtr<dg::ITexture> texture;
+  void* metal = nullptr;
+  std::shared_ptr<std::atomic<bool>> sampling;
+};
+
+/** How many pictures may be out with another queue at once. A window
+ *  keeps two or three frames in flight and lets go of what it sampled a
+ *  frame after that; a picture asked for while every one of these is
+ *  still out is read back instead. */
+constexpr size_t kPresentedInFlight = 4;
+
 /** THE EXECUTOR'S STATE, shared by every copy of the runtime value one
  *  call made. */
 struct Gpu {
@@ -163,6 +183,17 @@ struct Gpu {
   /** What a display reads: the final stage's eight-bit picture of the
    *  resource last read, made on the first ask. */
   dg::RefCntAutoPtr<dg::ITexture> display;
+  /** THE PICTURES HANDED TO ANOTHER QUEUE, made on the first ask and
+   *  reused once that queue is done with them. */
+  std::vector<PresentedImage> presented;
+  /** The fence a presented picture is signalled on once the device has
+   *  drawn it, and the same fence as the other queue's API names it:
+   *  what that queue's sampling waits for on the GPU. */
+  ::sigil::core::hardware::FenceHandle presentedFence;
+  void* presentedEvent = nullptr;
+  /** The device cannot hand its pictures to a canvas's queue at this
+   *  extent; asked again once the extent changes. */
+  bool presentRefused = false;
   /** HOW THE FRAME'S PICTURE IS READ: the camera's exposure and tone
    *  curve, which the final stage applies when a resource leaves the
    *  frame, and which a surface drawn as authored is written through in
@@ -171,6 +202,10 @@ struct Gpu {
   ToneCurve toneCurve = ToneCurve::Reinhard;
   /** The frame's time, the clock a material reading time is shown at. */
   double seconds = 0.0;
+  /** The pass under way draws a body whose program is still compiling as
+   *  a stand-in, and how many it has drawn so. */
+  bool standIns = false;
+  int64_t programsPending = 0;
   /** TARGETS NO RESOURCE NAMES, made on the first ask and kept for the
    *  extent's life. A device cannot sample an image it is drawing into,
    *  so every stage that reads and writes at once — one direction of a
@@ -189,6 +224,14 @@ struct Gpu {
   /** The maps the geometry pass under way drew, empty when no light in it
    *  casts. */
   std::vector<ShadowMap> shadows;
+  /** WHAT EACH TILE'S DEPTH WAS DRAWN FROM, one fold a map in the order
+   *  of `shadows`, and the atlas they were drawn into: a map whose fold
+   *  is unchanged keeps its tile. */
+  std::vector<uint64_t> shadowFolds;
+  const dg::ITexture* shadowFoldsAtlas = nullptr;
+  /** A tile of cleared depth a redrawn map's tile is reset from. */
+  dg::RefCntAutoPtr<dg::ITexture> shadowBlank;
+  int shadowBlankSide = 0;
 
   // ---- what the whole of it is made of (Gpu.cpp) ----
   /** Sizes the frame's targets to @p size, dropping everything made at
@@ -214,6 +257,14 @@ struct Gpu {
   /** @p name's pixels, read back through a staging texture. Null when
    *  nothing has written it. */
   sk_sp<SkImage> read(std::string_view name);
+  /** @p name's picture as an image @p canvas samples where it stands,
+   *  with nothing read back: the final stage drawn into a texture handed
+   *  to the canvas's queue, signalled on the GPU once drawn, and the
+   *  canvas's next submission made to wait for that signal. Null when
+   *  the canvas's queue cannot reach this device — another API, another
+   *  device, a driver that cannot name its Metal objects — or when every
+   *  picture is still out, which the caller answers with `read`. */
+  sk_sp<SkImage> present(std::string_view name, SkCanvas& canvas);
 
   /** A texture of this frame's size in @p format. */
   dg::RefCntAutoPtr<dg::ITexture> makeColor(

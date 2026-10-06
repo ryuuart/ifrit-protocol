@@ -7,12 +7,17 @@
  * submissions in one stream.
  */
 
+#include <sigilcore/hardware/Handle.h>
+
+#include <filesystem>
 #include <memory>
 #include <string>
 
 namespace Diligent {
 struct IRenderDevice;
 struct IDeviceContext;
+struct ITexture;
+struct IPipelineStateCache;
 }  // namespace Diligent
 
 namespace sigil::core::hardware {
@@ -38,6 +43,12 @@ struct DeviceConfig {
   /** Turn the backend's validation layers on. They cost every call and
    *  report on standard error, so they are off unless asked for. */
   bool validation = false;
+  /** WHERE THE PIPELINES BUILT ON THE DEVICE ARE KEPT between runs: the
+   *  driver's own cache of them, read when the device is made and written
+   *  when it goes, so a pipeline a run built is not built again from
+   *  nothing by the next. Empty keeps nothing. The driver discards what
+   *  another device or driver wrote. */
+  std::filesystem::path pipelineStore;
 };
 
 /**
@@ -78,6 +89,22 @@ class Device {
    *  painting 2D into a texture a 3D pass reads. Both null together. */
   core::hardware::GpuDevice* gpu() const;
   skia::GraphiteContext* graphite() const;
+
+  /** The driver's cache every pipeline built on this device is made
+   *  through, kept where `DeviceConfig::pipelineStore` says; null when the
+   *  device keeps none. */
+  Diligent::IPipelineStateCache* pipelineStateCache() const;
+
+  /** THE METAL OBJECTS BEHIND THIS DEVICE'S OWN, where the driver runs
+   *  Vulkan over Metal and exports what it made: @p texture's
+   *  id<MTLTexture>, and the id<MTLSharedEvent> a fence made on `gpu()`
+   *  is, both bridged to void* and neither retained. What a queue a host
+   *  made on Metal itself — a window's — needs to sample a texture drawn
+   *  here and to wait on the GPU for the drawing to finish.
+   *  @silent Null where the driver is not one over Metal or cannot say,
+   *  which a caller answers by taking the long way round. */
+  void* metalTexture(Diligent::ITexture* texture) const;
+  void* metalEvent(core::hardware::FenceHandle fence) const;
 
   /** Holds the one command queue for as long as it lives.
    *

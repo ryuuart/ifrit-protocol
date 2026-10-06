@@ -90,6 +90,11 @@ Frame& Frame::runtime(Runtime r) {
   return *this;
 }
 
+Frame& Frame::standIns(bool drawStandIns) {
+  m_standIns = drawStandIns;
+  return *this;
+}
+
 Frame& Frame::present(std::string name) {
   m_present = std::move(name);
   return *this;

@@ -15,12 +15,14 @@
 #include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
+#include <sigilmaterial/advanced/Program.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/core/Device.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/World.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -29,6 +31,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "support/Devices.h"
@@ -304,6 +307,27 @@ SkBitmap oneFrame(Session& session) {
   return bitmap;
 }
 
+/** ONE FRAME AS ITS SURFACES SHADE IT. A live session draws a body as a
+ *  stand-in while its program compiles on a worker, so the same moment
+ *  is drawn again once every compile is done, and what is read is the
+ *  surface and not its stand-in. */
+SkBitmap shadedFrame(Session& session) {
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(160, 120));
+  SkCanvas canvas(bitmap);
+  session.frame(canvas, 1.0 / 60.0);
+  const auto deadline =
+      std::chrono::steady_clock::now() + std::chrono::seconds(30);
+  bool waited = false;
+  while (sigil::material::ProgramCache::shared().compiling() > 0 &&
+         std::chrono::steady_clock::now() < deadline) {
+    waited = true;
+    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+  }
+  if (waited) session.frame(canvas, 0.0);
+  return bitmap;
+}
+
 TEST_F(SetSession, TheSameMomentIsTheSamePicture) {
   // The plate contract: a set is a pure function of the scene time, so
   // two runs that step the same number of frames agree on every byte.
@@ -487,7 +511,7 @@ TEST_F(SetDoors, ALiveSetPaintsItsScreensOnTheDeviceItIsDrawnOn) {
 TEST_F(SetDoors, PaintsASurfaceSceneThatTheSetLights) {
   std::unique_ptr<Session> session =
       kindOf<Surfaced>()->open(fonts(), assets());
-  const SkBitmap picture = oneFrame(*session);
+  const SkBitmap picture = shadedFrame(*session);
   // The unlit label comes out as it was painted, its own light; the lit
   // panel around it is grey under the sun.
   const SkColor label = picture.getColor(80, 60);
@@ -503,8 +527,8 @@ TEST_F(SetDoors, APagesClearcoatReachesTheShaderThroughItsSurface) {
       kindOf<CoatedPage<1>>()->open(fonts(), assets());
   std::unique_ptr<Session> bare =
       kindOf<CoatedPage<0>>()->open(fonts(), assets());
-  const SkBitmap withCoat = oneFrame(*coated);
-  const SkBitmap without = oneFrame(*bare);
+  const SkBitmap withCoat = shadedFrame(*coated);
+  const SkBitmap without = shadedFrame(*bare);
   // The coat the page painted mirrors the lamp where the reflection meets
   // the eye; the bare page shows only its rough base there.
   const SkColor4f centreCoated = withCoat.getColor4f(80, 60);
@@ -519,18 +543,18 @@ TEST_F(SetDoors, APagesSpecularReachesTheShaderThroughItsSurface) {
   // The page learns its content states a specular while it paints, after
   // the frame was described; the first frame already shades with it.
   const SkBitmap stock =
-      oneFrame(*kindOf<LobedPage<1, 0>>()->open(fonts(), assets()));
+      shadedFrame(*kindOf<LobedPage<1, 0>>()->open(fonts(), assets()));
   const SkBitmap none =
-      oneFrame(*kindOf<LobedPage<0, 0>>()->open(fonts(), assets()));
+      shadedFrame(*kindOf<LobedPage<0, 0>>()->open(fonts(), assets()));
   EXPECT_GT(stock.getColor4f(80, 60).fG, none.getColor4f(80, 60).fG + 0.1f)
       << "with no specular the page's dielectric shows no highlight";
 }
 
 TEST_F(SetDoors, APagesBrushingReachesTheShaderThroughItsSurface) {
   const SkBitmap round =
-      oneFrame(*kindOf<LobedPage<1, 1>>()->open(fonts(), assets()));
+      shadedFrame(*kindOf<LobedPage<1, 1>>()->open(fonts(), assets()));
   const SkBitmap brushed =
-      oneFrame(*kindOf<LobedPage<1, 9>>()->open(fonts(), assets()));
+      shadedFrame(*kindOf<LobedPage<1, 9>>()->open(fonts(), assets()));
   // Barely brushed, the highlight is nearly round; brushed hard, it runs
   // out along the page's width and not up it.
   EXPECT_NEAR(round.getColor4f(80 + 18, 60).fG,

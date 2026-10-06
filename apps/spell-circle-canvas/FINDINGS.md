@@ -1866,68 +1866,44 @@ material asks for, by its first number. A test should assert that
 `pop::on(loop).fill("cell", {3, 0, 0, 0}).instances(quad, {"cell"})`
 answers 3 for every instance's `"cell"`.
 
-## A set's picture crosses to the window through the CPU every frame
+## A set's first frame still builds its pipelines and its fixed programs on the thread that draws
 
-`world::draw` asks the targets for the presented image, which
-`diligent::Gpu::read` answers by running the final stage, copying the
-display into a staging texture, waiting for the whole queue
-(`Resources::read` calls `WaitForIdle`), and copying the rows into a new
-`SkImage`. The window then draws that raster image, so Graphite uploads
-it again as a new texture. In the live window this is most of a set's
-frame: the render thread sits in `vkQueueWaitIdle` for the GPU's whole
-frame, then copies the picture twice. A canvas the window shows at full
-size on a Retina screen makes each copy several megabytes, and nothing of
-the next frame overlaps the GPU's work on this one.
+A live set no longer waits for a surface program — a body whose program
+is compiling is drawn as a stand-in — but the pipeline built from each
+program (`PipelineCache::pipeline` in
+`src/common/geometry/device/residency/Pipelines.cpp`) and the backend's
+own fixed programs (`scaffold`, `shadowScaffold`, `postPrograms`,
+`backdropProgram` in `src/common/world/diligent/Programs.cpp`, compiled on
+first use) are still built inside the frame on the render thread. The
+driver's pipeline cache is kept between runs, so this costs the first
+launch on a machine and the first use of each fixed program in a process.
+The intended behaviour is that a pipeline is built on a worker as a
+program is, and the fixed programs are compiled when the device comes up,
+off the thread that draws. A test should open a set whose pipelines are
+not cached and assert its first live frame returns before any pipeline
+is built, and that a later frame draws the body whole.
 
-The intended path is the one a set's own textures already take in the
-other direction: the display texture stands on the device both APIs
-share, and the window wraps it as an image (`skia::TextureImage` over
-the Vulkan or Metal handle) after the device's submit, with no readback
-and no wait — the copy kept only for a readback a frame declared and for
-captures. A test should draw a set into a Graphite surface on the shared
-device and assert the presented image is texture-backed and that no
-staging read happened; a bench arm should time a set's frame presented
-both ways.
+## A canvas on the shared Vulkan device still reads a set's picture back
 
-## Opening a set compiles every surface program on the thread that draws
+`Gpu::present` in `src/common/world/diligent/Gpu.cpp` hands a picture
+over in place only to a Metal recorder — a window's. A canvas drawn
+through the device's own Graphite on Vulkan (`--bench --gpu`, a headless
+sweep on the device) stands on the very queue the picture was drawn on
+and could wrap the image with no fence at all, but is read back. Only a
+live run would take that road: a capture that will be diffed reads back
+by design. A test should present a live frame onto a surface of the
+device's own Graphite and assert `SceneStats::readbacks` is zero and the
+pixels equal the readback's.
 
-A set's first frames compile one Slang program per distinct recipe and
-variant (lit, shadow), then one MoltenVK pipeline per program and state,
-all inside `drawBody` on the render thread, so the window does not
-present while they run. The compiled-program store
-(`material::slang::useProgramStore`) makes every launch after the first
-read programs back instead, and a text is compiled once per process, but
-the first open of a set on a machine still stalls for every program it
-needs, and the pipeline build stays per launch. The intended behaviour
-is that a live window keeps presenting while programs build: compile on
-a worker and draw a body whose program is not ready yet with the
-scaffold's flat colour (as a body with no compilable program already
-is), while a capture that will be diffed waits for every program. A test
-should open a set whose material has not been compiled in the process,
-step one frame under a live session and assert the frame returns before
-the compile finishes; a second under a deterministic session must hold
-the compiled picture.
+## The geometry kit's solids are not comparable values a node can keep
 
-## Every shadow map is redrawn every frame
-
-`drawShadows` clears the whole depth atlas (up to 4096 texels a side) and
-redraws every caster into every casting light's maps on every frame,
-whether or not a light or a caster moved. For a still set the maps are
-the same depth every frame. The intended behaviour is that a map is
-redrawn only when its light, its fit (the camera, for a directional
-light's cascades) or a caster it holds changed — the placements and the
-geometry the scene already knows to be still. A test should step a still
-set with one casting light twice and assert the second frame draws no
-caster into the atlas while the picture stays byte-identical.
-
-## The window's measured rate drifts with the machine's GPU state
-
-On a laptop on battery and idle at the keyboard, the Metal system trace
-of a Grimoire window reports the GPU held in its minimum performance
-state "due to active device conditions", and stretches of
-`--window-bench` read two to five times slower for tens of seconds and
-then recover, in the same binary, run after run. A rate taken under
-those conditions is the machine's and not the sketch's. `--window-bench`
-prints nothing about it. A lane that measures should say the power
-source and the GPU's performance state beside each row, or refuse to
-compare rows taken under different ones.
+`gm::superellipsoid`, `quad` and the other solids in
+`src/common/geometry/include/sigilgeometry/kit/Solids.h` return a formed
+mesh, so a set that spells one in `describe()` builds the triangles every
+frame only for reconcile to find them equal; `world::Generator` keeps a
+cook by value but needs a hand-written model. The shape vocabulary in
+2D already answers with comparable values. The intended shape is a solid
+spelled as a value (its radii, exponent and divisions) that a node's
+geometry slot holds and cooks once while it is unchanged. `set_stagger`
+forms its meshes once in members until then. A test should describe a
+set naming a solid value twice and assert the solid was formed once.
