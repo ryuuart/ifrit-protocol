@@ -52,14 +52,10 @@ sk_sp<SkImage> Scene2DContext::bakeScene3D(const world::Frame& frame,
   framed.extent(glm::ivec2(size.width(), size.height()))
       .defaultCamera(options.camera)
       .runtime(runtime());
-  // A frame whose only passes paint the textures its bodies wear is
-  // still drawn through the one geometry pass.
-  bool formsAPicture = false;
-  for (const world::Pass& pass : framed.passes())
-    formsAPicture = formsAPicture || pass.stage() != world::Stage::Texture;
-  if (!formsAPicture)
-    framed.pass(world::geometryPass("colour").writes("colour").clear(
-        material::skia::toSkColor(options.background)));
+  // A frame whose passes paint no bodies — none at all, texture passes
+  // alone, or a bloom alone — is drawn through the stock geometry pass,
+  // put first so a post pass reads what it painted.
+  throughPasses(framed, options.background);
   // A scene for this call, on a CLOCK OF ITS OWN: nothing here is
   // retained between bakes, so the picture is a function of the frame
   // and the moment and not of how many times the sketch has baked one —

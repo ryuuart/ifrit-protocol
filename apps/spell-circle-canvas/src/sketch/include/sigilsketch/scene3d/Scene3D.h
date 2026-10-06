@@ -305,4 +305,16 @@ void useRuntime(const world::Runtime& runtime);
 [[nodiscard]] bool runtimeAvailable(const world::Runtime& runtime,
                                     std::string* why);
 
+/** A FRAME ABOUT THE SCENE, made into one a runtime can perform: one
+ *  geometry pass clearing to @p background and painting every body into
+ *  `colour`. A frame whose passes already form a picture — a geometry
+ *  pass, or a body doing its own work — is left alone, since an executor
+ *  is only reached through passes; one whose passes only paint the
+ *  textures its bodies wear, or only work on the picture — a bloom over
+ *  `colour` — is still a frame about the scene, and has the stock pass
+ *  put FIRST, so a post pass reading `colour` reads what it painted. A
+ *  scene3d session and a scene2d bake fill a frame in through this one
+ *  rule. */
+void throughPasses(world::Frame& frame, const material::Color& background);
+
 }  // namespace sigil::sketch

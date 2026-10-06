@@ -322,6 +322,10 @@ def flicker(seconds: float, offset: float) -> float:
 
 @sketch(size=(WIDTH, HEIGHT), background="#030304", capture_at=0.6)
 class PythonFlipbookFire:
+    # A sheet that bakes a 3D frame draws it on the host's device, so the
+    # host brings the device up before this sketch opens.
+    needsDevice = True
+
     def setup(self, ctx: Scene2DContext) -> None:
         self.sheet = flame_sheet()
         self.iron = surfaces.program(

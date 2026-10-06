@@ -153,6 +153,11 @@ struct Generation {
   sigil::python::CallbackLifetime callbacks;
   std::shared_ptr<Object> body;
   std::string package;
+  /** The body class's own `needsDevice`, read once when it is loaded: a
+   *  sketch that bakes a 3D frame says so there, as a C++ body does with
+   *  its `static constexpr bool needsDevice`, and a host brings the device
+   *  up before the session opens. */
+  bool needsDevice = false;
 
   ~Generation() {
     if (!Py_IsInitialized()) return;
@@ -334,6 +339,7 @@ class PythonKind final : public KindOperations {
     return m_generation == other.m_generation;
   }
   std::string_view runtime() const override { return "scene2d"; }
+  bool needsDevice() const override { return m_generation->needsDevice; }
   std::unique_ptr<Session> open(weave::FontContext& fonts, Assets& assets,
                                 bool deterministic,
                                 std::string_view key) const override {
@@ -510,6 +516,8 @@ Kind load(const std::filesystem::path& source) {
         py::module_::import("sigil._loader").attr("load")(source.string());
     generation->body = std::make_shared<Object>(result[0]);
     generation->package = result[1].cast<std::string>();
+    generation->needsDevice =
+        py::getattr(result[0], "needsDevice", py::bool_(false)).cast<bool>();
     return Kind{PythonKind(std::move(generation))};
   } catch (const py::error_already_set& error) {
     throw std::runtime_error(error.what());

@@ -16,6 +16,10 @@ PAPER = "#141d25"
 
 @sketch(size=(1200, 820), background=PAPER, capture_at=1.0)
 class WorldStudy:
+    # A sheet that bakes a 3D frame draws it on the host's device, so the
+    # host brings the device up before this sketch opens.
+    needsDevice = True
+
     def setup(self, ctx: Scene2DContext) -> None:
         self.vessel = mesh.revolve(
             [

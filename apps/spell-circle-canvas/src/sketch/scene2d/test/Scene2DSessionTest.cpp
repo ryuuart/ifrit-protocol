@@ -543,6 +543,21 @@ struct Entering {
   }
 };
 
+/** THE CARD UNDER A BLOOM AND NOTHING ELSE: a frame that names only a
+ *  post pass still has bodies to paint, so the bake paints them first and
+ *  blooms what it painted. */
+struct Blooming {
+  static inline sk_sp<SkImage> glowing;
+  void setup(Scene2DContext& ctx) {
+    ctx.canvas(200, 120);
+    world::Frame frame = cardFrame();
+    frame.pass(world::bloom({.threshold = 0.5f, .intensity = 0.5f}));
+    glowing = ctx.bakeScene3D(
+        frame, kBakeSize, {.camera = cardCamera(kEyeZ), .background = kGround});
+    ctx.composer.render(box().width(10).height(10));
+  }
+};
+
 /** A CASE THAT BAKES A 3D FRAME: the frame is drawn on the device, so the
  *  device runtime is installed for the process before it and taken away
  *  after, or the case skips naming what is missing. */
@@ -564,6 +579,20 @@ TEST(Scene2DDoors, BakesNothingWhereNoDeviceIsInstalled) {
   const std::unique_ptr<Session> session =
       kindOf<Baking>()->open(fonts(), assets());
   EXPECT_FALSE(Baking::near);
+}
+
+TEST_F(Scene2DBakes, PaintsTheBodiesUnderAFrameThatNamesOnlyAPostPass) {
+  const std::unique_ptr<Session> session =
+      kindOf<Blooming>()->open(fonts(), assets());
+  ASSERT_TRUE(Blooming::glowing);
+  const SkBitmap pixels = pixelsOf(Blooming::glowing);
+  // The card is white at the middle of the picture, bloomed or not; a
+  // frame that ran its bloom over nothing is the ground everywhere.
+  const SkColor middle =
+      pixels.getColor(kBakeSize.width() / 2, kBakeSize.height() / 2);
+  EXPECT_GT(SkColorGetR(middle), 200u)
+      << "the bake bloomed a picture no geometry pass had painted";
+  EXPECT_FALSE(silhouetteOf(pixels).isEmpty());
 }
 
 TEST_F(Scene2DBakes, BakesTheMomentOfAnEntranceRatherThanAlwaysItsFirstFrame) {

@@ -99,6 +99,8 @@ world::Frame formedAgain(const world::Frame& frame) {
   return again;
 }
 
+}  // namespace
+
 /** A scene3d sketch about the SCENE, made into one a runtime can perform: one
  *  geometry pass clearing to the declared background and painting every
  *  body into `colour`. A scene3d sketch whose passes already form a picture — a
@@ -134,6 +136,8 @@ void throughPasses(world::Frame& frame,
     first.readback(readback);
   frame = std::move(first);
 }
+
+namespace {
 
 /** ONE 3D SKETCH, RUNNING. */
 class Scene3DSession final : public Session {

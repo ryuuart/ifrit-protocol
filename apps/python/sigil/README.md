@@ -1466,7 +1466,9 @@ a device and nowhere else, and a Python process brings none up, so a
 `world.Scene` holds and reconciles a description — its nodes, placements,
 lights and camera — and draws nothing. A scene2d sketch that shows a scene3d frame bakes it
 with `ctx.bakeScene3D(frame, size, camera=…, background=…, at=…)`, which draws
-on the device the host brought up and answers `None` where there is none. Import meshes and cameras from `sigil.geometry.mesh`, materials from
+on the device the host brought up and answers `None` where there is none.
+A sketch class that bakes declares `needsDevice = True`, and a host that
+reads it brings the device up before the sketch opens. Import meshes and cameras from `sigil.geometry.mesh`, materials from
 `sigil.material`, and animation values from `sigil.motion`. These are the
 same values used by the direct bindings.
 
