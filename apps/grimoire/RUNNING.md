@@ -496,7 +496,24 @@ row closes. Neither says the performance state the GPU is clocked at —
 no public interface reports it, and a laptop on battery and idle at the
 keyboard holds the GPU in its lowest one, which reads as a slower rate
 in the same binary — so rows are compared only when both were taken
-under the same power, back to back. A sketch this machine cannot run is
+under the same power, back to back.
+
+**Where the device's time went.** A set's row ends with `gpu=`: the
+device's own time for each stage of the frame, in milliseconds, each the
+mean over the measured stretch, as `frame:<ms>,<stage>:<ms>,…` — the
+whole frame first, then the stages in the order they ran. A geometry
+pass's stages are its name followed by `.shadow` (the shadow maps it
+drew), `.laid` (the clear, the sky and every body laid over),
+`.colour-copy` and `.mips` (the scene copied, with its smaller levels,
+for a body that sees through itself), `.depth-copy` (the depth copied
+for one that fades into the scene), `.seen`, `.blended` and `.extras`
+(stamps, a variant, coverage); a post pass is its own name; `present` is
+the final stage the window's picture leaves through. The stages are
+timed with the device's timestamps only over the measured stretch, so
+the rest of the run writes none; the stage that dominates `frame` is the
+one to cut. `gpu=unavailable` is a device that writes no timestamps, and
+a canvas sketch, which has no device stages, carries no field. `--bench`
+prints the same breakdown on its `device (mean ms)` line. A sketch this machine cannot run is
 named `SKIPPED` with what is missing, and no line is written for it.
 
 **Each row is the sketch that was on screen.** Selecting a sketch is an

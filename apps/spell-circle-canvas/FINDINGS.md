@@ -1907,3 +1907,32 @@ spelled as a value (its radii, exponent and divisions) that a node's
 geometry slot holds and cooks once while it is unchanged. `set_stagger`
 forms its meshes once in members until then. A test should describe a
 set naming a solid value twice and assert the solid was formed once.
+
+## The lit bodies laid over are most of a full-size set's device time
+
+Timed with `Frame::timeStages`, a full-size window frame of `first_light`,
+`shadow_play`, `soft_boxes` and `world_hud` spends almost all of its
+device time in `colour.laid` — the clear, the sky and every opaque body
+drawn through its surface program — and little in the shadow stage, the
+copies or the final stage. `drawBodies` in
+`src/common/world/diligent/Geometry.cpp` draws the opaque bodies back to
+front, at the frame's full device-pixel size, and every lit pixel runs the
+surface program over every light reaching it plus a nine-tap shadow
+filter per casting light. What is evidently intended is that the frame's
+cost follows what is seen, not the window's pixel count times the
+overdraw. Which part dominates — overdraw, the light loop or the shadow
+filter — is not yet measured: a test should time `colour.laid` for a set
+of overlapping opaque cards and assert it stays near one card's cost
+whatever their count, and time one lit card under one casting light and
+under none and bound the difference.
+
+## The scene's smaller levels are made in full for any surface that sees through itself
+
+`drawBodies` in `src/common/world/diligent/Geometry.cpp` copies the lit
+colour and generates every level down to one texel
+(`Gpu::sceneColorForReading`) in every frame that holds a transmissive or
+distorting body, whatever the roughest such body can read. What is
+intended is that a frame makes only the levels its seen-through bodies'
+roughness reaches. A test should time a frame holding one smooth glass
+pane and assert no `colour.mips` stage beyond the levels a roughness of
+zero reads, and that a rough pane's picture is unchanged.

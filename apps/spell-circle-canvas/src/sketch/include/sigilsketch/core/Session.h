@@ -143,6 +143,20 @@ class Session {
    *  than for a measured run. */
   virtual void setProfiling(bool on) { (void)on; }
 
+  /** TIME THE DEVICE'S STAGES on the frames that follow, and start the
+   *  means `deviceTimes()` reads afresh. It costs a timestamp per stage
+   *  on the device, so a host turns it on for the stretch it reports. */
+  virtual void timeDevice(bool on) { (void)on; }
+
+  /** The device's time per stage, in milliseconds, each the mean over
+   *  the frames timed since `timeDevice(true)`, as one whitespace-free
+   *  token: `frame:<ms>,<stage>:<ms>,…`, the frame first and the stages
+   *  in the order they ran. `unavailable` where the device writes no
+   *  timestamps, `pending` before a timed frame has finished there, and
+   *  empty for a runtime with no device stages or when none were asked
+   *  for. */
+  [[nodiscard]] virtual std::string deviceTimes() const { return {}; }
+
   /** COUNT THE COMPOSITES EACH PIXEL PASSES THROUGH on the frames that
    *  follow. A runtime that holds cached rasters composites a pixel more
    *  times than a live paint does, and each composite rounds; the count

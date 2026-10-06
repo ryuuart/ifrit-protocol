@@ -15,6 +15,7 @@
 #include <Graphics/GraphicsEngine/interface/Buffer.h>
 #include <Graphics/GraphicsEngine/interface/DeviceContext.h>
 #include <Graphics/GraphicsEngine/interface/PipelineState.h>
+#include <Graphics/GraphicsEngine/interface/Query.h>
 #include <Graphics/GraphicsEngine/interface/RenderDevice.h>
 #include <Graphics/GraphicsEngine/interface/ShaderResourceBinding.h>
 #include <Graphics/GraphicsEngine/interface/Texture.h>
@@ -29,6 +30,7 @@
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilworld/advanced/Skia.h>
+#include <sigilworld/advanced/Stats.h>
 #include <sigilworld/advanced/View.h>
 #include <sigilworld/frame/Pass.h>
 
@@ -37,6 +39,7 @@
 #include <boost/container/map.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <glm/mat4x4.hpp>
 #include <memory>
 #include <string>
@@ -145,6 +148,49 @@ struct PresentedImage {
  *  still out is read back instead. */
 constexpr size_t kPresentedInFlight = 4;
 
+/** THE DEVICE'S CLOCK OVER A FRAME'S STAGES. While a frame asks for it,
+ *  every stage boundary writes a timestamp on the device, and a stage's
+ *  time is the span from the boundary before it to its own: what the
+ *  device spent finishing that stage once the one before it was done. A
+ *  boundary with no name only starts the next span — what stands before a
+ *  stage the device may have waited on the host for, such as the final
+ *  stage drawn after the frame was submitted.
+ *
+ *  THE DEVICE ANSWERS LATE. A timestamp can be read only once the frame
+ *  that wrote it has finished on the device, so a frame's marks are kept
+ *  until they can be read — at most `kFramesKept` frames of them, the
+ *  oldest dropped unread past that — and `latest` holds the newest frame
+ *  read. A device that cannot write timestamps writes none and says so. */
+struct StageClock {
+  static constexpr size_t kFramesKept = 8;
+  struct Mark {
+    std::string stage;
+    dg::RefCntAutoPtr<dg::IQuery> query;
+  };
+  /** Whether the frame under way is timed. */
+  bool on = false;
+  /** Whether the device was asked and has no timestamps. */
+  bool unavailable = false;
+  bool probed = false;
+  /** The marks of the frame under way, and of frames not yet read, each
+   *  with the targets of the scene that drew it: one runtime may serve
+   *  several scenes, and a scene is told only of its own frames. */
+  struct Marked {
+    std::vector<Mark> marks;
+    uint64_t scene = 0;
+  };
+  Marked open;
+  std::deque<Marked> pending;
+  /** Queries read and free to be written again. */
+  std::vector<dg::RefCntAutoPtr<dg::IQuery>> spare;
+  /** The newest frame read, its stages summed by name in the order they
+   *  first ran, and its number among the frames timed. */
+  std::vector<DeviceStage> latest;
+  int64_t latestFrame = -1;
+  uint64_t latestScene = 0;
+  int64_t framesTimed = 0;
+};
+
 /** THE EXECUTOR'S STATE, shared by every copy of the runtime value one
  *  call made. */
 struct Gpu {
@@ -213,6 +259,21 @@ struct Gpu {
    *  these, and they are addressed by index so that two such stages in
    *  one pass cannot be handed the same one. */
   std::vector<dg::RefCntAutoPtr<dg::ITexture>> scratch;
+  /** TARGETS SMALLER THAN THE FRAME, which a blur and a bloom take their
+   *  spreading in: level @c n is the frame's size halved @c n times,
+   *  rounded up, and each level holds working targets addressed by index
+   *  as `scratch` is, one format apiece. Made on the first ask and kept
+   *  for the extent's life. */
+  struct Reduced {
+    int level = 0;
+    size_t index = 0;
+    dg::TEXTURE_FORMAT format = dg::TEX_FORMAT_UNKNOWN;
+    dg::RefCntAutoPtr<dg::ITexture> texture;
+  };
+  std::vector<Reduced> reduced;
+  /** Whether the device draws into the packed three-channel float format
+   *  a bloom's spreads are held in; asked once. */
+  int packedLight = -1;
   ::sigil::geometry::device::PipelineCache pipelines;
   /** THE SHADOW ATLAS: one depth texture holding every casting light's
    *  map, each in a square tile of its own, made on the first frame with
@@ -232,6 +293,24 @@ struct Gpu {
   /** A tile of cleared depth a redrawn map's tile is reset from. */
   dg::RefCntAutoPtr<dg::ITexture> shadowBlank;
   int shadowBlankSide = 0;
+  /** The clock over the frame's stages, and the pass the stages being
+   *  marked belong to. */
+  StageClock clock;
+  std::string clockPass;
+  bool clockStarted = false;
+
+  // ---- the clock (Clock.cpp) ----
+  /** Opens the frame's marks with a boundary when @p timed, and reads
+   *  every earlier frame the device has finished. */
+  void startClock(bool timed, const Targets& scene);
+  /** A stage boundary: the stage that ends here is @p stage of the pass
+   *  under way, or only a boundary when @p stage is empty. Nothing when
+   *  the frame is not timed. */
+  void mark(std::string_view stage);
+  /** …the same, with the stage named whole rather than by its pass. */
+  void markWhole(std::string_view stage);
+  /** States what the clock has read on @p targets. */
+  void reportClock(Targets& targets) const;
 
   // ---- what the whole of it is made of (Gpu.cpp) ----
   /** Sizes the frame's targets to @p size, dropping everything made at
@@ -242,6 +321,14 @@ struct Gpu {
   dg::ITexture* target(std::string_view name);
   /** Working target @p index, made on the first ask. */
   dg::ITexture* working(size_t index);
+  /** Working target @p index at level @p level — the frame's size halved
+   *  that many times, rounded up — in @p format, made on the first ask. */
+  dg::ITexture* workingAt(int level, size_t index,
+                          dg::TEXTURE_FORMAT format = kRadianceFormat);
+  /** THE FORMAT A BLOOM'S SPREADS ARE HELD IN: light with no alpha, so
+   *  three packed floats where the device draws into them, and the
+   *  frame's own format where it does not. */
+  dg::TEXTURE_FORMAT spreadFormat();
   /** @p name as it stands, or as it stood at the end of the frame
    *  before; null when nothing has written it. */
   dg::ITexture* current(std::string_view name);
@@ -269,6 +356,9 @@ struct Gpu {
   /** A texture of this frame's size in @p format. */
   dg::RefCntAutoPtr<dg::ITexture> makeColor(
       const char* label, dg::TEXTURE_FORMAT format = kRadianceFormat);
+  /** …and one of @p size. */
+  dg::RefCntAutoPtr<dg::ITexture> makeColorAt(SkISize size, const char* label,
+                                              dg::TEXTURE_FORMAT format);
   /** The copy of the depth buffer a blended body reads, made on the
    *  first ask; null where the device refused it. */
   dg::ITexture* depthForReading();

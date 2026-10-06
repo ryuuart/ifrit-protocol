@@ -56,8 +56,19 @@ struct PostPrograms {
   /** A target filled with an authored colour, as the light that leaves
    *  the final stage as it. */
   material::slang::Compiled fill;
-  /** A bloom's first step: what passes its threshold. */
-  material::slang::Compiled threshold;
+  /** A level half the size of what it reads, and the same with a bloom's
+   *  threshold taken on the way. */
+  material::slang::Compiled down;
+  material::slang::Compiled downThreshold;
+  /** A smaller level read back at the target's size. */
+  material::slang::Compiled up;
+  /** A bloom's last step: the picture and its two spreads, laid
+   *  together. */
+  material::slang::Compiled bloom;
+  /** Two layers laid at once. */
+  material::slang::Compiled composite;
+  /** A masked grade in one draw. */
+  material::slang::Compiled maskedLevels;
 };
 const PostPrograms& postPrograms();
 

@@ -256,6 +256,8 @@ class PythonSession final : public Session {
     return m_session->lanes();
   }
   std::string counters() const override { return m_session->counters(); }
+  void timeDevice(bool on) override { m_session->timeDevice(on); }
+  std::string deviceTimes() const override { return m_session->deviceTimes(); }
 
   void frame(SkCanvas& canvas, double dt) override {
     const SkAutoCanvasRestore restore(&canvas, true);

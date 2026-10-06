@@ -158,6 +158,8 @@ struct View {
   /** A body whose program is still compiling is drawn as a stand-in
    *  rather than waited for: `Frame::standIns`. */
   bool standIns = false;
+  /** The device times each stage of the frame: `Frame::timeStages`. */
+  bool timeStages = false;
 };
 
 /** The size of the picture @p view's camera frames, in pixels: the

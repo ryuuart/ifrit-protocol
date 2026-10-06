@@ -203,6 +203,30 @@ value installs itself as the image source, so a readback or the presented
 picture costs one crossing for that one resource and every other resource
 stays where it was written.
 
+A BLUR OR A BLOOM IS TAKEN SMALL. A blur wide enough is spread at a
+level of the frame halved one to four times and read back at full size,
+and a bloom always spreads at reduced levels; the footprint asked for is
+honoured at the level it is taken at, so the picture may differ from a
+full-size Gaussian by what the level cannot resolve. `DEVICE.md` states
+the levels and the bound.
+
+WHAT EACH STAGE COST THE DEVICE. A frame that states
+`Frame::timeStages(true)` writes a timestamp at every stage boundary, and
+the scene's `SceneStats::deviceStages` then names each stage with the GPU
+time it took — a geometry pass's shadow stage, its bodies laid over, the
+copy of the scene and its smaller levels, the copy of the depth, the
+bodies that see through themselves, the blended ones, and what it drew
+after them (`<pass>.shadow`, `<pass>.laid`, `<pass>.colour-copy`,
+`<pass>.mips`, `<pass>.depth-copy`, `<pass>.seen`, `<pass>.blended`,
+`<pass>.extras`); a post pass under its own name; and the final stage a
+picture left the frame through (`present`, `readback`). A device answers
+a timestamp only once it has finished the frame that wrote it, so the
+stages are those of the newest timed frame that has — a frame or a few
+before the one rendered — numbered by `deviceStagesFrame`, and
+`deviceTiming` says whether they were measured, are still pending, or
+cannot be because the device writes no timestamps. A frame that does not
+ask writes none.
+
 Two frames carrying the value made by one call to `diligent::runtime`
 compare equal; two separate calls do not, because they hold separate
 device state. Every value made from one device shares its queue, and

@@ -56,7 +56,7 @@ sigil_slang_module(NAME Post SOURCE ${_shaders}/Post.slang
 # feature and in none of its headers.
 find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilWorldDiligent
-  SOURCES Geometry.cpp Gpu.cpp Gpu.h Import.cpp Post.cpp
+  SOURCES Clock.cpp Geometry.cpp Gpu.cpp Gpu.h Import.cpp Post.cpp
           Programs.cpp Programs.h Runtime.cpp
           ${SIGIL_WORLD_SURFACE_PROOF} ${SIGIL_WORLD_POST_PROOF}
   HEADERS Import.h Runtime.h ../advanced/Diligent.h
@@ -87,7 +87,7 @@ sigil_test(world_test
           test/SurfaceTest.cpp test/LightingTest.cpp test/EffectsTest.cpp
           test/InstancingTest.cpp test/LobesTest.cpp test/TransmissionTest.cpp
           test/ShadowTest.cpp test/AreaLightTest.cpp test/PresentTest.cpp
-          test/StandInTest.cpp
+          test/StandInTest.cpp test/PostChainTest.cpp
           test/DeviceSeams.h
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
                ${SIGIL_GEOMETRY_DEVICE_TEST_SUPPORT_DIR}
@@ -95,7 +95,7 @@ sigil_test(world_test
   LIBRARIES SigilWorldDiligent SigilMaterialSurface SigilGeometryKit
             SigilSkiaGraphite
   SUITES AreaLight Blending Bloom DataTexture DepthFade DeviceFrame Environment Facing
-         FinalStage Flipbook GpuRuntime Lighting Lobes PresentedPicture Programs Stack StandIn
+         FinalStage Flipbook GpuRuntime Lighting Lobes PostChain PresentedPicture Programs Stack StandIn
          Shadow SurfaceProgram SurfaceSlots Transmission
   LABELS gpu)
 

@@ -14,8 +14,12 @@
 #include <sigilworld/diligent/Runtime.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
+#include <initializer_list>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -28,18 +32,8 @@ namespace {
 /** One triangle, so a post stage binds no vertex buffer at all. */
 constexpr uint32_t kFullscreenVertices = 3;
 
-/** Which working target each stage that reads and writes at once takes.
- *  They are separate numbers because a masked blur uses all three at
- *  once. */
-constexpr size_t kBlurTarget = 0;
-constexpr size_t kMaskedTarget = 1;
-constexpr size_t kAsideTarget = 2;
-/** A bloom's two: what passed the threshold, and the same blurred. */
-constexpr size_t kBrightTarget = 3;
-constexpr size_t kSpreadTarget = 4;
-
-/** Draws @p program over the whole of @p into, reading @p source and
- *  @p coverage. */
+/** Draws @p program over the whole of @p into, reading @p textures in the
+ *  order the program declares its slots. */
 void drawStage(Gpu& gpu, const material::slang::Compiled& program,
                dg::ITexture* into, SkBlendMode blend,
                const material::slang::Uniforms& uniforms,
@@ -52,6 +46,8 @@ void drawStage(Gpu& gpu, const material::slang::Compiled& program,
 
   dg::IDeviceContext* context = gpu.device->context();
   dg::ITextureView* rtv = into->GetDefaultView(dg::TEXTURE_VIEW_RENDER_TARGET);
+  // Binding the target also sets the viewport to the whole of it, which
+  // is what lets a stage draw into a level smaller than the frame.
   context->SetRenderTargets(1, &rtv, nullptr,
                             dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
   if (clear) {
@@ -84,67 +80,249 @@ material::slang::Uniforms baseUniforms(const Gpu& gpu,
   return uniforms;
 }
 
-/** A separable Gaussian of @p sigma over @p source into @p into, through
- *  the working target @p half. */
-void blurInto(Gpu& gpu, dg::ITexture* source, dg::ITexture* into,
-              dg::ITexture* half, float sigma, SkBlendMode blend, bool clear) {
-  const PostPrograms& programs = postPrograms();
-  material::slang::Uniforms across = baseUniforms(gpu, programs.blur, sigma, 1);
-  across.set("uDirection", 1.0f, 0.0f, 0.0f, 0.0f);
-  drawStage(gpu, programs.blur, half, SkBlendMode::kSrc, across, {source},
-            true);
-  material::slang::Uniforms down = baseUniforms(gpu, programs.blur, sigma, 1);
-  down.set("uDirection", 0.0f, 1.0f, 0.0f, 0.0f);
-  drawStage(gpu, programs.blur, into, blend, down, {half}, clear);
+/** Which working target each stage that reads and writes at once takes,
+ *  at full size. They are separate numbers because a masked blur uses
+ *  all three at once. */
+constexpr size_t kAcrossFullTarget = 0;
+constexpr size_t kMaskedTarget = 1;
+constexpr size_t kAsideTarget = 2;
+/** At a reduced level: the picture halved down to it, and the same
+ *  spread across. */
+constexpr size_t kLevelTarget = 0;
+constexpr size_t kAcrossTarget = 1;
+/** A bloom's: what passed the threshold at its first level, its near
+ *  spread, and its far spread with the far level's working target. */
+constexpr size_t kBrightTarget = 2;
+constexpr size_t kNearTarget = 3;
+constexpr size_t kFarTarget = 4;
+
+/** THE SMALLEST LEVEL A SPREAD IS TAKEN AT, and the narrowest spread a
+ *  level may be asked for, in its own texels. Below two texels a level's
+ *  Gaussian is too coarse to read back smoothly, so a spread is taken at
+ *  the smallest level where it is still at least that wide. */
+constexpr int kDeepestLevel = 4;
+constexpr float kNarrowestSpread = 2.0f;
+
+/** WHAT HALVING AND READING BACK SPREAD ON THEIR OWN, in squared pixels
+ *  of the full picture. Each halving averages four by four texels of the
+ *  level above, a variance of 1.25 of that level's texels squared; the
+ *  read back is a cubic B-spline over the level's texels, a variance of
+ *  a third of one squared. A spread taken at a level is narrowed by
+ *  both, so the three together are the spread asked for. */
+float spreadOfHalving(int from, int to) {
+  float variance = 0.0f;
+  for (int level = from + 1; level <= to; ++level) {
+    const float texel = (float)(1 << (level - 1));
+    variance += 1.25f * texel * texel;
+  }
+  return variance;
+}
+float spreadOfReadingBack(int level) {
+  if (level <= 0) return 0.0f;
+  const float texel = (float)(1 << level);
+  return texel * texel / 3.0f;
 }
 
-/** THE BLOOM: @p source into @p into, with what passes the threshold
- *  spread over it twice — once to about a third of the radius, once to
- *  the whole of it — and added back at the intensity, so a bright point
- *  keeps a hot core inside a long soft tail. */
-void bloomInto(Gpu& gpu, const Bloom& glow, dg::ITexture* source,
-               dg::ITexture* into, bool clear) {
+/** The level a spread of @p sigma pixels is taken at, starting from what
+ *  the picture at @p from already spread, @p spent squared pixels: the
+ *  smallest whose own Gaussian is still `kNarrowestSpread` texels wide. */
+int levelFor(float sigma, int from, float spent) {
+  int chosen = from;
+  for (int level = from + 1; level <= kDeepestLevel; ++level) {
+    const float left = sigma * sigma + spent - spreadOfHalving(from, level) -
+                       spreadOfReadingBack(level);
+    const float texel = (float)(1 << level);
+    if (left < kNarrowestSpread * kNarrowestSpread * texel * texel) break;
+    chosen = level;
+  }
+  return chosen;
+}
+
+/** The sigma, in the texels of @p level, that leaves a spread of
+ *  @p sigma pixels once the halving from @p from and the read back are
+ *  counted, with @p spent squared pixels already spread before. */
+float sigmaAt(float sigma, int from, int level, float spent) {
+  const float left = sigma * sigma + spent - spreadOfHalving(from, level) -
+                     spreadOfReadingBack(level);
+  const float texel = (float)(1 << level);
+  return std::sqrt(std::max(left, 0.0f)) / texel;
+}
+
+/** Draws @p program over the whole of @p into, with each texture bound
+ *  at the slot its name says. */
+void drawStage(
+    Gpu& gpu, const material::slang::Compiled& program, dg::ITexture* into,
+    SkBlendMode blend, const material::slang::Uniforms& uniforms,
+    std::initializer_list<std::pair<std::string_view, dg::ITexture*>> named,
+    bool clear) {
+  std::vector<dg::ITexture*> textures(program.textures.size(), nullptr);
+  for (size_t i = 0; i < program.textures.size(); ++i)
+    for (const auto& [slot, texture] : named)
+      if (program.textures[i] == slot) textures[i] = texture;
+  drawStage(gpu, program, into, blend, uniforms, textures, clear);
+}
+
+/** One texel of @p texture, as `uTexel` carries it. */
+std::pair<float, float> texelOf(dg::ITexture* texture) {
+  const dg::TextureDesc& desc = texture->GetDesc();
+  return {1.0f / (float)desc.Width, 1.0f / (float)desc.Height};
+}
+
+/** @p source halved down to @p level, from @p from, through the working
+ *  targets of every level between; the first halving holds each texel
+ *  against a bloom's threshold first when @p threshold. Answers the
+ *  smallest level's target. */
+dg::ITexture* halveDown(Gpu& gpu, dg::ITexture* source, int from, int level,
+                        size_t index, dg::TEXTURE_FORMAT format,
+                        const Bloom* threshold = nullptr) {
   const PostPrograms& programs = postPrograms();
-  dg::ITexture* bright = gpu.working(kBrightTarget);
-  dg::ITexture* spread = gpu.working(kSpreadTarget);
-  dg::ITexture* half = gpu.working(kBlurTarget);
-  material::slang::Uniforms copy = baseUniforms(gpu, programs.copy, 0, 1);
-  if (!bright || !spread || !half || glow.intensity <= 0.0f) {
-    drawStage(gpu, programs.copy, into, SkBlendMode::kSrc, copy, {source},
+  dg::ITexture* at = source;
+  for (int next = from + 1; next <= level; ++next) {
+    dg::ITexture* into = gpu.workingAt(next, index, format);
+    if (!into) return nullptr;
+    const bool first = threshold && next == from + 1;
+    const material::slang::Compiled& program =
+        first ? programs.downThreshold : programs.down;
+    material::slang::Uniforms halve = baseUniforms(gpu, program, 0, 1);
+    const auto [x, y] = texelOf(at);
+    halve.set("uTexel", x, y, 0.0f, 0.0f);
+    if (first)
+      halve.set("uBloom", threshold->threshold, threshold->intensity, 0.0f,
+                0.0f);
+    drawStage(gpu, program, into, SkBlendMode::kSrc, halve, {{"uSource", at}},
+              true);
+    at = into;
+  }
+  return at;
+}
+
+/** A separable Gaussian of @p sigma texels of @p level over @p picture,
+ *  in place, through that level's working target @p across. */
+void spreadAt(Gpu& gpu, dg::ITexture* picture, dg::ITexture* across,
+              float sigma) {
+  const PostPrograms& programs = postPrograms();
+  const auto [x, y] = texelOf(picture);
+  material::slang::Uniforms first = baseUniforms(gpu, programs.blur, sigma, 1);
+  first.set("uTexel", x, y, sigma, 0.0f);
+  first.set("uDirection", 1.0f, 0.0f, 0.0f, 0.0f);
+  drawStage(gpu, programs.blur, across, SkBlendMode::kSrc, first,
+            {{"uSource", picture}}, true);
+  material::slang::Uniforms second = baseUniforms(gpu, programs.blur, sigma, 1);
+  second.set("uTexel", x, y, sigma, 0.0f);
+  second.set("uDirection", 0.0f, 1.0f, 0.0f, 0.0f);
+  drawStage(gpu, programs.blur, picture, SkBlendMode::kSrc, second,
+            {{"uSource", across}}, true);
+}
+
+/** A BLUR OF @p sigma PIXELS over @p source into @p into. A narrow one is
+ *  taken at full size; a wider one is taken where its footprint is still
+ *  `kNarrowestSpread` texels — the picture halved down to that level, the
+ *  Gaussian taken there, narrowed by what the halving and the read back
+ *  spread on their own, and read back at full size through a cubic
+ *  B-spline — so the work no longer grows with the square of the radius,
+ *  and the blur is the same footprint as one taken at full size, within
+ *  what the smaller level can resolve. */
+void blurInto(Gpu& gpu, dg::ITexture* source, dg::ITexture* into, float sigma,
+              SkBlendMode blend, bool clear) {
+  const PostPrograms& programs = postPrograms();
+  const int level = levelFor(sigma, 0, 0.0f);
+  if (level == 0) {
+    dg::ITexture* across = gpu.working(kAcrossFullTarget);
+    if (!across) return;
+    material::slang::Uniforms first =
+        baseUniforms(gpu, programs.blur, sigma, 1);
+    first.set("uDirection", 1.0f, 0.0f, 0.0f, 0.0f);
+    drawStage(gpu, programs.blur, across, SkBlendMode::kSrc, first,
+              {{"uSource", source}}, true);
+    material::slang::Uniforms second =
+        baseUniforms(gpu, programs.blur, sigma, 1);
+    second.set("uDirection", 0.0f, 1.0f, 0.0f, 0.0f);
+    drawStage(gpu, programs.blur, into, blend, second, {{"uSource", across}},
               clear);
     return;
   }
-  material::slang::Uniforms threshold =
-      baseUniforms(gpu, programs.threshold, 0, 1);
-  threshold.set("uBloom", glow.threshold, glow.intensity, 0.0f, 0.0f);
-  drawStage(gpu, programs.threshold, bright, SkBlendMode::kSrc, threshold,
-            {source}, true);
-  drawStage(gpu, programs.copy, into, SkBlendMode::kSrc, copy, {source}, clear);
-  const float radius = std::max(glow.radius, 0.0f);
-  // The near spread lands in its own target and is added; the far one is
-  // blurred from it, so the two together cost what one wide blur does.
-  blurInto(gpu, bright, spread, half, std::max(radius / 9.0f, 0.5f),
-           SkBlendMode::kSrc, true);
-  material::slang::Uniforms added =
-      baseUniforms(gpu, programs.copy, 0, glow.intensity * 0.5f);
-  drawStage(gpu, programs.copy, into, SkBlendMode::kPlus, added, {spread},
-            false);
-  blurInto(gpu, spread, bright, half, std::max(radius / 3.5f, 0.5f),
-           SkBlendMode::kSrc, true);
-  drawStage(gpu, programs.copy, into, SkBlendMode::kPlus, added, {bright},
-            false);
+  dg::ITexture* small =
+      halveDown(gpu, source, 0, level, kLevelTarget, kRadianceFormat);
+  dg::ITexture* across = gpu.workingAt(level, kAcrossTarget);
+  if (!small || !across) return;
+  spreadAt(gpu, small, across, sigmaAt(sigma, 0, level, 0.0f));
+  material::slang::Uniforms up = baseUniforms(gpu, programs.up, 0, 1);
+  const auto [x, y] = texelOf(small);
+  up.set("uTexel", x, y, 0.0f, 0.0f);
+  drawStage(gpu, programs.up, into, blend, up, {{"uSource", small}}, clear);
 }
 
-/** The operation, applied to @p source into @p into. A blur takes two passes
- *  through a working target; everything else takes one. */
+/** THE BLOOM: @p source into @p into, with what passes the threshold
+ *  spread over it twice — once to about a ninth of the radius, and that
+ *  spread again by about a third of it — and added back at the
+ *  intensity, so a bright point keeps a hot core inside a long soft
+ *  tail. What passes the threshold is taken while the picture is halved,
+ *  both spreads at the level their width allows, and the picture and the
+ *  two spreads are laid together in one draw at full size. */
+void bloomInto(Gpu& gpu, const Bloom& glow, dg::ITexture* source,
+               dg::ITexture* into, bool clear) {
+  const PostPrograms& programs = postPrograms();
+  material::slang::Uniforms copy = baseUniforms(gpu, programs.copy, 0, 1);
+  if (glow.intensity <= 0.0f) {
+    drawStage(gpu, programs.copy, into, SkBlendMode::kSrc, copy,
+              {{"uSource", source}}, clear);
+    return;
+  }
+  const dg::TEXTURE_FORMAT format = gpu.spreadFormat();
+  const float radius = std::max(glow.radius, 0.0f);
+  const float nearSigma = std::max(radius / 9.0f, 0.5f);
+  const float farSigma = std::max(radius / 3.5f, 0.5f);
+  // The threshold is always taken while halving once, so the near spread
+  // starts at the first level whatever its width; the first halving's own
+  // spread is counted against it.
+  const int nearLevel = std::max(levelFor(nearSigma, 0, 0.0f), 1);
+  dg::ITexture* bright =
+      halveDown(gpu, source, 0, 1, kBrightTarget, format, &glow);
+  dg::ITexture* near =
+      bright ? halveDown(gpu, bright, 1, nearLevel, kNearTarget, format)
+             : nullptr;
+  dg::ITexture* nearAcross = gpu.workingAt(nearLevel, kAcrossTarget, format);
+  if (!near || !nearAcross) {
+    drawStage(gpu, programs.copy, into, SkBlendMode::kSrc, copy,
+              {{"uSource", source}}, clear);
+    return;
+  }
+  spreadAt(gpu, near, nearAcross, sigmaAt(nearSigma, 0, nearLevel, 0.0f));
+  // THE FAR SPREAD IS THE NEAR ONE SPREAD AGAIN: what the near one
+  // already spread at its level, before its read back, is counted as
+  // spent.
+  const float spent = spreadOfReadingBack(nearLevel);
+  const int farLevel = levelFor(farSigma, nearLevel, spent);
+  dg::ITexture* far =
+      halveDown(gpu, near, nearLevel, farLevel, kFarTarget, format);
+  if (far == near) {
+    // Both spreads are read at the end, so a far one taken at the near
+    // one's level is spread from a copy of it.
+    far = gpu.workingAt(farLevel, kFarTarget, format);
+    material::slang::Uniforms plain = baseUniforms(gpu, programs.copy, 0, 1);
+    drawStage(gpu, programs.copy, far, SkBlendMode::kSrc, plain,
+              {{"uSource", near}}, true);
+  }
+  dg::ITexture* farAcross = gpu.workingAt(farLevel, kFarTarget + 1, format);
+  if (!far || !farAcross) return;
+  spreadAt(gpu, far, farAcross, sigmaAt(farSigma, nearLevel, farLevel, spent));
+
+  material::slang::Uniforms laid =
+      baseUniforms(gpu, programs.bloom, 0, glow.intensity * 0.5f);
+  const auto [nx, ny] = texelOf(near);
+  const auto [fx, fy] = texelOf(far);
+  laid.set("uTexels", nx, ny, fx, fy);
+  drawStage(gpu, programs.bloom, into, SkBlendMode::kSrc, laid,
+            {{"uSource", source}, {"uSecond", near}, {"uThird", far}}, clear);
+}
+
+/** The operation, applied to @p source into @p into. */
 void applyOperation(Gpu& gpu, const PostOperation& operation,
                     dg::ITexture* source, dg::ITexture* into, SkBlendMode blend,
                     bool clear) {
   const PostPrograms& programs = postPrograms();
   if (const Blur* blur = std::get_if<Blur>(&operation)) {
-    dg::ITexture* half = gpu.working(kBlurTarget);
-    if (!half) return;
-    blurInto(gpu, source, into, half, blur->sigma, blend, clear);
+    blurInto(gpu, source, into, blur->sigma, blend, clear);
     return;
   }
   if (const Bloom* glow = std::get_if<Bloom>(&operation)) {
@@ -244,6 +422,19 @@ void applyPost(Gpu& gpu, const PassWork& work) {
     return;
   }
 
+  const Levels* grade = std::get_if<Levels>(&pass.operation());
+  if (coverage && grade) {
+    // A MASKED GRADE is one draw: the picture, and its grade laid over it
+    // where the coverage stands — what the general path below draws in
+    // three, with no full-size target in between.
+    material::slang::Uniforms uniforms =
+        baseUniforms(gpu, programs.maskedLevels, 0.0f, 1.0f);
+    uniforms.set("uGrade", grade->gain, grade->lift, 1.0f, 0.0f);
+    uniforms.set("uTint", grade->tint.r, grade->tint.g, grade->tint.b, 1.0f);
+    drawStage(gpu, programs.maskedLevels, into, SkBlendMode::kSrc, uniforms,
+              {{"uSource", layers.front()}, {"uCoverage", coverage}}, true);
+    return;
+  }
   if (coverage) {
     // Masked: the picture stands everywhere, and the operation reaches it only
     // where the coverage does. The operation lands in a working target first
@@ -263,10 +454,22 @@ void applyPost(Gpu& gpu, const PassWork& work) {
     return;
   }
 
-  applyOperation(gpu, pass.operation(), layers.front(), into, SkBlendMode::kSrc,
-                 /*clear=*/true);
   const SkBlendMode blend = compositeBlend(pass.operation());
   const float opacity = compositeOpacity(pass.operation());
+  if (std::holds_alternative<Composite>(pass.operation()) &&
+      layers.size() == 2) {
+    // TWO LAYERS ARE LAID IN ONE DRAW, reading both, rather than the
+    // first copied in and the second blended over it.
+    material::slang::Uniforms uniforms =
+        baseUniforms(gpu, programs.composite, 0.0f, 1.0f);
+    uniforms.set("uLayer", opacity,
+                 blend == SkBlendMode::kSrcOver ? 1.0f : 0.0f, 0.0f, 0.0f);
+    drawStage(gpu, programs.composite, into, SkBlendMode::kSrc, uniforms,
+              {{"uSource", layers[0]}, {"uSecond", layers[1]}}, true);
+    return;
+  }
+  applyOperation(gpu, pass.operation(), layers.front(), into, SkBlendMode::kSrc,
+                 /*clear=*/true);
   if (!std::holds_alternative<Composite>(pass.operation())) return;
   for (size_t i = 1; i < layers.size(); ++i) {
     material::slang::Uniforms uniforms =

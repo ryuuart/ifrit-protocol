@@ -140,6 +140,11 @@ class Frame {
    *  capture that will be diffed holds the real surface on its first
    *  frame. */
   Frame& standIns(bool drawStandIns);
+  /** WHETHER THE DEVICE TIMES EACH STAGE of this frame, into the scene's
+   *  `SceneStats::deviceStages`. Off by default: a timed stage writes a
+   *  timestamp on the device at its end, and nothing is written for a
+   *  frame nobody reads them from. */
+  Frame& timeStages(bool timed);
   /** @} */
 
   /** The tree this frame describes. */
@@ -181,6 +186,8 @@ class Frame {
   /** Whether a body whose program is still compiling is drawn as a
    *  stand-in rather than waited for. */
   [[nodiscard]] bool standIns() const { return m_standIns; }
+  /** Whether the device times this frame's stages. */
+  [[nodiscard]] bool timeStages() const { return m_timeStages; }
 
  private:
   Node m_scene;
@@ -196,6 +203,7 @@ class Frame {
   Runtime m_runtime;
   std::string m_present;
   bool m_standIns = false;
+  bool m_timeStages = false;
 };
 
 }  // namespace sigil::world

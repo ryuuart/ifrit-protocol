@@ -899,7 +899,8 @@ void copyForReading(Gpu& gpu, dg::ITexture* from, dg::ITexture* into) {
  *  or copies it before the first of them when nothing copied it yet. */
 void drawBodies(Gpu& gpu, const View& view, const glm::mat4& viewProj,
                 const glm::mat4& viewMatrix, const Collection* only, bool lit,
-                const glm::vec4* flat, dg::ITexture* target) {
+                const glm::vec4* flat, dg::ITexture* target,
+                bool timed = false) {
   // THE LIGHTS EACH BODY IS REACHED BY: every light, unless its light
   // link leaves the body out. Asked per body, against the same member a
   // pass's collection reads, so a light link and a pass narrow on one
@@ -934,13 +935,16 @@ void drawBodies(Gpu& gpu, const View& view, const glm::mat4& viewProj,
       if (phase == Phase::SeenThrough && !sceneColor) {
         if (dg::ITexture* copy = gpu.sceneColorForReading()) {
           copyForReading(gpu, target, copy);
+          if (timed) gpu.mark("colour-copy");
           gpu.device->context()->GenerateMips(
               copy->GetDefaultView(dg::TEXTURE_VIEW_SHADER_RESOURCE));
+          if (timed) gpu.mark("mips");
           sceneColor = copy;
         }
         if (!sceneDepth && gpu.depth)
           if (dg::ITexture* depthCopy = gpu.depthForReading()) {
             copyForReading(gpu, gpu.depth, depthCopy);
+            if (timed) gpu.mark("depth-copy");
             sceneDepth = depthCopy;
           }
         resumeTarget(gpu, target, true);
@@ -951,6 +955,7 @@ void drawBodies(Gpu& gpu, const View& view, const glm::mat4& viewProj,
       if (blending.fades && !sceneDepth && gpu.depth) {
         if (dg::ITexture* copy = gpu.depthForReading()) {
           copyForReading(gpu, gpu.depth, copy);
+          if (timed) gpu.mark("depth-copy");
           resumeTarget(gpu, target, true);
           sceneDepth = copy;
         }
@@ -974,6 +979,10 @@ void drawBodies(Gpu& gpu, const View& view, const glm::mat4& viewProj,
           phase == Phase::SeenThrough ? sceneColor : nullptr, nullptr,
           body.receiveShadow);
     }
+    if (timed)
+      gpu.mark(phase == Phase::LaidOver      ? "laid"
+               : phase == Phase::SeenThrough ? "seen"
+                                             : "blended");
   }
 }
 
@@ -1540,12 +1549,14 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
     const glm::vec4 white{1, 1, 1, 1};
     drawBodies(gpu, view, viewProj, viewMatrix, &pass.collection(),
                /*lit=*/false, &white, colour);
+    gpu.mark("coverage");
     return;
   }
 
   // THE SHADOW STAGE, before the target is opened: the maps every lit
   // body below reads.
   targets.addShadowMapsDrawn(drawShadows(gpu, view, viewMatrix));
+  gpu.mark("shadow");
   // THE CLEAR IS AN AUTHORED COLOUR, so it is filled as the light the
   // final stage turns back into it, and the depth is cleared beside it.
   openTarget(gpu, colour, clearNothing, true);
@@ -1568,8 +1579,8 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
   drawBackdrop(gpu, view, viewProj * glm::inverse(viewMatrix), viewMatrix);
   const bool cull = work.realisation == Selection::Cull;
   drawBodies(gpu, view, viewProj, viewMatrix,
-             cull ? &pass.collection() : nullptr, /*lit=*/true, nullptr,
-             colour);
+             cull ? &pass.collection() : nullptr, /*lit=*/true, nullptr, colour,
+             /*timed=*/true);
 
   // The stamps of every point set the pass reads, drawn as instanced
   // geometry like any instanced body. A compute pass writes points; this
@@ -1631,6 +1642,7 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
     drawBodies(gpu, view, viewProj, viewMatrix, &painted.of, /*lit=*/false,
                &white, coverage);
   }
+  gpu.mark("extras");
 }
 
 }  // namespace sigil::world::diligent

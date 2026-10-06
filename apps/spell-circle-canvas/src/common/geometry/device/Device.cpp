@@ -116,6 +116,10 @@ std::unique_ptr<Device> Device::create(const DeviceConfig& config,
   // rather than ENABLED, so a driver without them still brings the
   // device up — it costs the shared 2D path, not the 3D one.
   engineCI.Features.NativeFence = DEVICE_FEATURE_STATE_OPTIONAL;
+  // Timestamps: what a frame's stages are timed by when a host asks.
+  // OPTIONAL, so a driver without them brings the device up and a timed
+  // frame says it could not be.
+  engineCI.Features.TimestampQueries = DEVICE_FEATURE_STATE_OPTIONAL;
   IRenderDevice* rawDevice = nullptr;
   IDeviceContext* rawContext = nullptr;
 #ifdef __APPLE__

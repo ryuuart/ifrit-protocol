@@ -95,6 +95,11 @@ Frame& Frame::standIns(bool drawStandIns) {
   return *this;
 }
 
+Frame& Frame::timeStages(bool timed) {
+  m_timeStages = timed;
+  return *this;
+}
+
 Frame& Frame::present(std::string name) {
   m_present = std::move(name);
   return *this;

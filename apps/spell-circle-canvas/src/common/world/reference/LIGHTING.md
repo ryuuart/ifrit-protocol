@@ -283,6 +283,16 @@ dressed with a map runs its own program's shadow build, which keeps only
 the pixels its coverage reaches. A pass under no light that casts draws no
 map and binds no atlas.
 
+**What a map costs.** A map is drawn only in a frame where something its
+depth depends on moved — its light, its fit, or a body casting into it —
+and kept otherwise, so a still set pays for its shadows once. A frame
+that draws one pays for every casting body drawn into it once more and
+for its tile's texels: doubling `shadow.mapSize` quadruples the texels
+written and read, a point light draws six maps and a directional one a
+map per cascade. Reading a map costs every lit pixel nine filtered taps
+per casting light whatever the map's size. A frame timed with
+`Frame::timeStages` reports the stage as `<pass>.shadow`.
+
 **Filtering.** A shaded point is moved out along its surface's normal,
 carried into the light's map, and compared against nine taps `radius`
 texels apart, each blended from the four texels around it — so a shadow's

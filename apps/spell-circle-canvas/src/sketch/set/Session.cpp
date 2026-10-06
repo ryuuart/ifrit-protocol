@@ -14,6 +14,7 @@
 #include <sigilsketch/core/Crash.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/advanced/Skia.h>
+#include <sigilworld/advanced/Stats.h>
 #include <sigilworld/frame/Pass.h>
 #include <sigilworld/scene/Scene.h>
 
@@ -26,6 +27,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -88,7 +90,8 @@ world::Frame formedAgain(const world::Frame& frame) {
       .viewOffset(frame.viewOffset())
       .defaultCamera(frame.defaultCamera())
       .runtime(frame.runtime())
-      .standIns(frame.standIns());
+      .standIns(frame.standIns())
+      .timeStages(frame.timeStages());
   if (!frame.camera().empty()) again.camera(frame.camera());
   if (frame.cameraOverride()) again.cameraOverride(*frame.cameraOverride());
   for (const world::Pass& pass : frame.passes()) again.pass(pass);
@@ -120,7 +123,8 @@ void throughPasses(world::Frame& frame,
       .viewOffset(frame.viewOffset())
       .defaultCamera(frame.defaultCamera())
       .runtime(frame.runtime())
-      .standIns(frame.standIns());
+      .standIns(frame.standIns())
+      .timeStages(frame.timeStages());
   if (!frame.camera().empty()) first.camera(frame.camera());
   if (frame.cameraOverride()) first.cameraOverride(*frame.cameraOverride());
   first.pass(std::move(stock));
@@ -192,6 +196,7 @@ class SetSession final : public Session {
     // the body as a stand-in until it arrives; a capture that will be
     // diffed waits for every program, so its first frame is the real one.
     frame.standIns(!m_deterministic);
+    frame.timeStages(m_timeDevice);
     throughPasses(frame, m_specification.background);
     m_scene.render(frame);
     // A frame formed over a part of its picture is kept, so a repaint
@@ -222,6 +227,7 @@ class SetSession final : public Session {
     m_timing.drawMs = measure::Milliseconds(m_laps.mark("draw")).count();
     m_timing.totalMs = measure::Milliseconds(m_laps.total()).count();
     const world::SceneStats& stats = m_scene.stats();
+    if (m_timeDevice) gatherDeviceTimes(stats);
     m_lanes = {LaneCost{"nodes", (double)stats.nodes},
                LaneCost{"drawn", (double)stats.drawn},
                LaneCost{"cooked", (double)stats.cooked},
@@ -241,6 +247,42 @@ class SetSession final : public Session {
 
   [[nodiscard]] std::span<const LaneCost> lanes() const override {
     return m_lanes;
+  }
+
+  void timeDevice(bool on) override {
+    m_timeDevice = on;
+    m_deviceSums.clear();
+    m_deviceFrames = 0;
+    m_deviceSeen = -1;
+    m_deviceTiming = world::DeviceTiming::Off;
+  }
+
+  [[nodiscard]] std::string deviceTimes() const override {
+    switch (m_deviceTiming) {
+      case world::DeviceTiming::Off:
+        return {};
+      case world::DeviceTiming::Unavailable:
+        return "unavailable";
+      case world::DeviceTiming::Pending:
+        return "pending";
+      case world::DeviceTiming::Measured:
+        break;
+    }
+    if (m_deviceFrames == 0) return "pending";
+    double whole = 0.0;
+    for (const auto& [stage, sum] : m_deviceSums) whole += sum;
+    const auto token = [&](std::string_view stage, double sum) {
+      std::string name(stage);
+      for (char& c : name)
+        if (c == ' ' || c == ',' || c == ':') c = '_';
+      char ms[32];
+      std::snprintf(ms, sizeof ms, ":%.2f", sum / (double)m_deviceFrames);
+      return name + ms;
+    };
+    std::string line = token("frame", whole);
+    for (const auto& [stage, sum] : m_deviceSums)
+      line += "," + token(stage, sum);
+    return line;
   }
 
   [[nodiscard]] std::string counters() const override {
@@ -436,6 +478,34 @@ class SetSession final : public Session {
   // lays cost no allocation inside the span they are timing.
   measure::Laps m_laps;
   std::array<LaneCost, 4> m_lanes{};
+  /** THE DEVICE'S STAGE TIMES, summed over every timed frame read since
+   *  `timeDevice(true)` — each frame once, by the number the scene gives
+   *  it — in the order the stages first ran. */
+  bool m_timeDevice = false;
+  std::vector<std::pair<std::string, double>> m_deviceSums;
+  int64_t m_deviceFrames = 0;
+  int64_t m_deviceSeen = -1;
+  world::DeviceTiming m_deviceTiming = world::DeviceTiming::Off;
+
+  void gatherDeviceTimes(const world::SceneStats& stats) {
+    if (stats.deviceTiming != world::DeviceTiming::Measured) {
+      if (m_deviceFrames == 0) m_deviceTiming = stats.deviceTiming;
+      return;
+    }
+    m_deviceTiming = world::DeviceTiming::Measured;
+    if (stats.deviceStagesFrame == m_deviceSeen) return;
+    m_deviceSeen = stats.deviceStagesFrame;
+    ++m_deviceFrames;
+    for (const world::DeviceStage& stage : stats.deviceStages) {
+      auto same = std::find_if(
+          m_deviceSums.begin(), m_deviceSums.end(),
+          [&](const auto& sum) { return sum.first == stage.stage; });
+      if (same == m_deviceSums.end())
+        m_deviceSums.emplace_back(stage.stage, stage.ms);
+      else
+        same->second += stage.ms;
+    }
+  }
 };
 
 }  // namespace

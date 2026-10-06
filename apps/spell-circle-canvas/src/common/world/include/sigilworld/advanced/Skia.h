@@ -25,7 +25,9 @@
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilworld/advanced/Geometry.h>
+#include <sigilworld/advanced/Stats.h>
 
+#include <atomic>
 #include <boost/container/map.hpp>
 #include <cstdint>
 #include <functional>
@@ -34,6 +36,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 namespace sigil::world {
 
@@ -117,6 +120,25 @@ class Targets {
     return std::exchange(m_programsPending, 0);
   }
 
+  /** THE DEVICE'S STAGE TIMES, which only the executor can read: it
+   *  states the newest timed frame that has finished on the device, and
+   *  the scene takes them once its passes have run into its stats. */
+  void deviceStages(std::vector<DeviceStage> stages, DeviceTiming timing,
+                    int64_t frame) {
+    m_deviceStages = std::move(stages);
+    m_deviceTiming = timing;
+    m_deviceStagesFrame = frame;
+  }
+  /** A number no other targets made in this process carry: what an
+   *  executor serving several scenes tells their frames apart by. */
+  [[nodiscard]] uint64_t serial() const { return m_serial; }
+  /** Moves what the executor stated into @p stats, leaving nothing here. */
+  void takeDeviceStages(SceneStats& stats) {
+    stats.deviceStages = std::exchange(m_deviceStages, {});
+    stats.deviceTiming = std::exchange(m_deviceTiming, DeviceTiming::Off);
+    stats.deviceStagesFrame = std::exchange(m_deviceStagesFrame, -1);
+  }
+
   /** Close the frame: a stamping no pass asked for in it is let go. */
   void endFrame();
 
@@ -137,6 +159,14 @@ class Targets {
   uint64_t m_stampings = 0;
   int64_t m_shadowMapsDrawn = 0;
   int64_t m_programsPending = 0;
+  static uint64_t nextSerial() {
+    static std::atomic<uint64_t> made{0};
+    return ++made;
+  }
+  uint64_t m_serial = nextSerial();
+  std::vector<DeviceStage> m_deviceStages;
+  DeviceTiming m_deviceTiming = DeviceTiming::Off;
+  int64_t m_deviceStagesFrame = -1;
   ImageSource m_source;
   DeviceSource m_deviceSource;
 };

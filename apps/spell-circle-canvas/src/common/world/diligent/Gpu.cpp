@@ -35,13 +35,19 @@ Gpu::~Gpu() {
 
 dg::RefCntAutoPtr<dg::ITexture> Gpu::makeColor(const char* label,
                                                dg::TEXTURE_FORMAT format) {
+  return makeColorAt(extent, label, format);
+}
+
+dg::RefCntAutoPtr<dg::ITexture> Gpu::makeColorAt(SkISize size,
+                                                 const char* label,
+                                                 dg::TEXTURE_FORMAT format) {
   dg::RefCntAutoPtr<dg::ITexture> texture;
-  if (extent.isEmpty() || !device->renderDevice()) return texture;
+  if (size.isEmpty() || !device->renderDevice()) return texture;
   dg::TextureDesc desc;
   desc.Name = label;
   desc.Type = dg::RESOURCE_DIM_TEX_2D;
-  desc.Width = (dg::Uint32)extent.width();
-  desc.Height = (dg::Uint32)extent.height();
+  desc.Width = (dg::Uint32)size.width();
+  desc.Height = (dg::Uint32)size.height();
   desc.Format = format;
   desc.BindFlags = dg::BIND_RENDER_TARGET | dg::BIND_SHADER_RESOURCE;
   desc.Usage = dg::USAGE_DEFAULT;
@@ -64,6 +70,7 @@ void Gpu::resize(SkISize size) {
   presented.clear();
   presentRefused = false;
   scratch.clear();
+  reduced.clear();
   if (extent.isEmpty() || !device->renderDevice()) return;
   dg::TextureDesc desc;
   desc.Name = "world depth";
@@ -81,6 +88,38 @@ dg::ITexture* Gpu::working(size_t index) {
   if (scratch.size() <= index) scratch.resize(index + 1);
   if (!scratch[index]) scratch[index] = makeColor("world working target");
   return scratch[index];
+}
+
+dg::ITexture* Gpu::workingAt(int level, size_t index,
+                             dg::TEXTURE_FORMAT format) {
+  if (level <= 0 && format == kRadianceFormat) return working(index);
+  if (extent.isEmpty()) return nullptr;
+  for (const Reduced& made : reduced)
+    if (made.level == level && made.index == index && made.format == format)
+      return made.texture;
+  const int halved = 1 << level;
+  const SkISize size = SkISize::Make((extent.width() + halved - 1) / halved,
+                                     (extent.height() + halved - 1) / halved);
+  Reduced made{level, index, format,
+               makeColorAt(size, "world reduced target", format)};
+  if (!made.texture) return nullptr;
+  reduced.push_back(std::move(made));
+  return reduced.back().texture;
+}
+
+dg::TEXTURE_FORMAT Gpu::spreadFormat() {
+  if (packedLight < 0) {
+    dg::IRenderDevice* render = device->renderDevice();
+    const dg::TextureFormatInfoExt& info =
+        render->GetTextureFormatInfoExt(dg::TEX_FORMAT_R11G11B10_FLOAT);
+    packedLight =
+        info.Supported && (info.BindFlags & dg::BIND_RENDER_TARGET) != 0 &&
+                (info.BindFlags & dg::BIND_SHADER_RESOURCE) != 0 &&
+                (info.Dimensions & dg::RESOURCE_DIMENSION_SUPPORT_TEX_2D)
+            ? 1
+            : 0;
+  }
+  return packedLight ? dg::TEX_FORMAT_R11G11B10_FLOAT : kRadianceFormat;
 }
 
 dg::ITexture* Gpu::target(std::string_view name) {
@@ -213,7 +252,9 @@ sk_sp<SkImage> Gpu::read(std::string_view name) {
   // light as the camera reads it.
   if (!display) display = makeColor("world display", kColorFormat);
   if (!display) return nullptr;
+  markWhole("");
   finalStage(*this, texture, display);
+  markWhole("readback");
   // The stage leaves the display bound to be drawn into, and a copy out
   // of a bound target makes the device unbind it itself and say so on
   // every frame; it is let go of here instead.
@@ -263,7 +304,11 @@ sk_sp<SkImage> Gpu::present(std::string_view name, SkCanvas& canvas) {
     return nullptr;
   }
 
+  // What stands between the frame's last pass and this stage is the
+  // host's, so the stage's time starts here.
+  markWhole("");
   finalStage(*this, texture, slot->texture);
+  markWhole("present");
   dg::IDeviceContext* context = device->context();
   context->SetRenderTargets(0, nullptr, nullptr,
                             dg::RESOURCE_STATE_TRANSITION_MODE_NONE);

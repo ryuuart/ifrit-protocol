@@ -111,7 +111,12 @@ const PostPrograms& postPrograms() {
     one("fsMasked", &built.masked);
     one("fsFinal", &built.final);
     one("fsFill", &built.fill);
-    one("fsThreshold", &built.threshold);
+    one("fsDown", &built.down);
+    one("fsDownThreshold", &built.downThreshold);
+    one("fsUp", &built.up);
+    one("fsBloom", &built.bloom);
+    one("fsComposite", &built.composite);
+    one("fsMaskedLevels", &built.maskedLevels);
     return built;
   }();
   return programs;

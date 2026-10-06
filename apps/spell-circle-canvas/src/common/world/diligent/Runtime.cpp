@@ -42,6 +42,7 @@ class GpuExecutor : public Executor {
   void beginFrame(Targets& targets) const override {
     m_gpu->resize(toSk(targets.extent()));
     m_gpu->beginFrame();
+    m_gpu->clockStarted = false;
     // Where a resource's pixels are, for the frame that asks for one.
     // Installed every frame because the targets a scene holds may have
     // been handed to another runtime in between.
@@ -64,12 +65,21 @@ class GpuExecutor : public Executor {
     m_gpu->exposure = view.exposure;
     m_gpu->toneCurve = view.toneCurve;
     m_gpu->seconds = view.time.count();
+    // THE CLOCK STARTS WITH THE FRAME'S FIRST PASS, which is the first
+    // moment the view saying whether the frame is timed is in hand.
+    if (!m_gpu->clockStarted) {
+      m_gpu->startClock(view.timeStages, targets);
+      m_gpu->reportClock(targets);
+      m_gpu->clockStarted = true;
+    }
+    m_gpu->clockPass = pass.name();
     // A declared body replaces the stage's own work and keeps the
     // stage's declarations, so the ordering around it is unchanged. It
     // is handed the same view and the same targets whichever executor is
     // running, which is what makes an escape hatch portable.
     if (pass.body()) {
       pass.body()->run(view, targets);
+      m_gpu->markWhole(pass.name());
       return;
     }
     switch (pass.stage()) {
@@ -78,9 +88,11 @@ class GpuExecutor : public Executor {
         return;
       case Stage::Compute:
         cook(work, targets);
+        m_gpu->mark("compute");
         return;
       case Stage::Post:
         applyPost(*m_gpu, work);
+        m_gpu->markWhole(pass.name());
         return;
       // A texture pass paints with its own producer, which the scene runs
       // before it hands a step to an executor; nothing of it is the

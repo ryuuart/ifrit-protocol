@@ -155,6 +155,8 @@ int runBench(sketch::Host& host, const CaptureOptions& options,
     session->setProfiling(false);
   }
 
+  // The device's stages are timed over the measured frames alone.
+  if (sketch::Session* session = host.session()) session->timeDevice(true);
   std::vector<double> frames, updates, draws;
   std::vector<std::vector<double>> lanes;
   std::vector<std::string> laneNames;
@@ -227,8 +229,13 @@ int runBench(sketch::Host& host, const CaptureOptions& options,
   for (size_t l = 0; l < lanes.size(); ++l)
     std::printf(" · %s %.2f", laneNames[l].c_str(), mean(lanes[l]));
   std::printf("\n");
-  if (sketch::Session* session = host.session())
+  if (sketch::Session* session = host.session()) {
     std::printf("  last frame: %s\n", session->counters().c_str());
+    const std::string device = session->deviceTimes();
+    if (!device.empty())
+      std::printf("  device (mean ms): %s\n", device.c_str());
+    session->timeDevice(false);
+  }
   if (!hot.empty()) {
     std::printf("  most expensive nodes (self ms, excluding children):\n");
     for (const std::string& line : hot) std::printf("    %s\n", line.c_str());

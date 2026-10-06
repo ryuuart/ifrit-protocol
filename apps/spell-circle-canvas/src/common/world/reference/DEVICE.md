@@ -64,13 +64,37 @@ and nothing of the engine.
   one fragment stage per layer. A texture's origin is its top left and
   clip space counts y upward, so that triangle turns the vertical
   coordinate over — without which a chain of such stages would be right
-  only when its length was even. A blur is a separable Gaussian in two
-  draws through a working target, a grade is one draw, and a composite
-  lays each further layer over the first under a blend state. Masked, the
-  picture is copied first and the operation reaches it through the coverage.
-  A device cannot sample an image it is drawing into, so every stage that
-  reads and writes at once takes a working target of its own — including
-  a pass that declares it writes what it reads.
+  only when its length was even. A grade is one draw; a composite of two
+  layers is one draw reading both, and of more lays each further layer
+  over the first under a blend state. A masked grade is one draw too —
+  the picture, and its grade laid over it where the coverage stands;
+  any other masked operation copies the picture first and reaches it
+  through the coverage. A device cannot sample an image it is drawing
+  into, so every stage that reads and writes at once takes a working
+  target of its own — including a pass that declares it writes what it
+  reads.
+- **A BLUR AND A BLOOM SPREAD AT A REDUCED LEVEL.** A blur is a separable
+  Gaussian. A narrow one is two draws at full size; a wider one is taken
+  at the smallest level — the frame's size halved one to four times —
+  where its Gaussian is still two of that level's texels wide: the
+  picture halved down to it (each halving averages four by four texels
+  of the level above), the Gaussian taken there, and the result read
+  back at full size through a cubic B-spline in the same draw that lays
+  it into the target. The Gaussian taken at the level is narrowed by
+  what the halvings and the read back spread on their own, so the three
+  together are the width asked for. **THE RULE: a blur's footprint is
+  honoured at the level it is taken at,** so its picture may differ from
+  the full-size Gaussian by what that level cannot resolve — a few
+  levels of eight bits inside the picture, a few more within one level
+  texel of its edge, where the level holds its edge over several pixels.
+  A bloom takes its threshold while halving once, so a single bright
+  texel spreads as it would at full size; spreads the result to a ninth
+  of its radius at the level that width allows, spreads that again by a
+  third of the radius at a smaller one, and lays the picture and both
+  spreads together in one draw at full size. Its spreads carry light and
+  no alpha, so they are held in three packed floats where the device
+  draws into them (`R11G11B10`), and in the frame's own half floats
+  where it does not.
 
 **A cooked artefact is named by a NUMBER, not by its address.** A
 renderer holding buffers per geometry keys on `Draw::geometry`, which the

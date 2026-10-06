@@ -20,6 +20,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <memory>
+#include <string>
 #include <string_view>
 #include <utility>
 
@@ -108,6 +109,10 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
                                      .count();
             host->resetMetrics();
             run->framesAtBegin = host->presentedFrames();
+            // The device's stages are timed over the measured stretch
+            // alone, so the row's breakdown is the frames its rate is.
+            if (sketch::Session* session = host->session())
+              session->timeDevice(true);
           }
           return;
         }
@@ -152,11 +157,20 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
                         key.c_str(), frames, stretch);
             ++run->stoodDown;
           } else {
+            // THE DEVICE'S SHARE, stage by stage, where the session has
+            // stages on a device: the last field, so a reader of the
+            // fields before it reads the row as it always did.
+            std::string device;
+            if (sketch::Session* session = host->session()) {
+              device = session->deviceTimes();
+              session->timeDevice(false);
+            }
+            if (!device.empty()) device = " gpu=" + device;
             std::printf(
                 "WINDOW %s window=%dx%d@%g canvas=%dx%d kind=%.*s fps=%.1f "
                 "work=%.2fms p99=%.2fms draw=%.2fms submit=%.2fms "
                 "headroom=%.1f open=%.2fs warmMax=%.1fms power=%s "
-                "gpuBusy=%d%%\n",
+                "gpuBusy=%d%%%s\n",
                 key.c_str(), window.width(), window.height(),
                 window.devicePixelRatio(), (int)canvas.width(),
                 (int)canvas.height(), (int)runtime.size(), runtime.data(), fps,
@@ -168,7 +182,8 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
                 metrics.value(QStringLiteral("submitMs")).toDouble(),
                 host->frameTimes().headroomFps(),
                 run->opened >= 0.0 ? run->opened - run->asked : -1.0,
-                run->slowestWarmMs, powerSource().c_str(), gpuBusyPercent());
+                run->slowestWarmMs, powerSource().c_str(), gpuBusyPercent(),
+                device.c_str());
           }
         } else {
           // Step::Skip — the window never presented this entry's session.

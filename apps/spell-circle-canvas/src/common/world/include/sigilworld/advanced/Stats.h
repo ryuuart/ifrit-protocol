@@ -10,8 +10,35 @@
 #include <sigilmeasure/advanced/Counters.h>
 
 #include <cstdint>
+#include <string>
+#include <vector>
 
 namespace sigil::world {
+
+/** ONE STAGE OF A FRAME ON THE DEVICE and the GPU time it took: the time
+ *  between the device finishing the stage before it and finishing this
+ *  one, as the device's own timestamps read it. A stage is named by the
+ *  pass it belongs to and what it does there — `main.shadow`,
+ *  `main.laid`, `main.colour-copy`, `main.mips`, `main.depth-copy`,
+ *  `main.seen`, `main.blended`, `main.extras`, a post pass by its own
+ *  name, and `present` or `readback` for the final stage a picture leaves
+ *  the frame through. */
+struct DeviceStage {
+  std::string stage;
+  double ms = 0.0;
+};
+
+/** WHETHER A FRAME'S DEVICE STAGES WERE TIMED. */
+enum class DeviceTiming : uint8_t {
+  /** Nobody asked: the frame wrote no timestamp. */
+  Off,
+  /** Asked, and the device cannot write timestamps. */
+  Unavailable,
+  /** Asked, and no timed frame has finished on the device yet. */
+  Pending,
+  /** `deviceStages` holds a finished frame's stages. */
+  Measured,
+};
 
 /** THE FRAME'S COST, as numbers a test can assert and a table can print.
  *  Plain integers on the hot path; `report()` publishes them under their
@@ -45,6 +72,24 @@ struct SceneStats {
   /** Pictures presented by sampling the executor's own texture where it
    *  stands, with nothing read back. */
   int64_t presentedOnDevice = 0;
+  /** THE GPU TIME OF EACH STAGE, on a frame that asked for it
+   *  (`Frame::timeStages`). A device answers a timestamp only once the
+   *  frame that wrote it has finished there, so these are the stages of
+   *  the newest timed frame that has — a frame or a few before this one —
+   *  and `deviceStagesFrame` numbers that frame, so a reader averaging
+   *  over frames counts each one once. Empty unless `deviceTiming` is
+   *  `Measured`. */
+  std::vector<DeviceStage> deviceStages;
+  DeviceTiming deviceTiming = DeviceTiming::Off;
+  int64_t deviceStagesFrame = -1;
+
+  /** The sum of `deviceStages`: the frame's GPU time from its first
+   *  stage to its last. */
+  [[nodiscard]] double deviceMs() const {
+    double total = 0.0;
+    for (const DeviceStage& stage : deviceStages) total += stage.ms;
+    return total;
+  }
 
   /** Every count back to zero, for the next frame. */
   void reset() {
@@ -53,6 +98,9 @@ struct SceneStats {
     passes = barriers = aliased = surfaces = 0;
     texturesPainted = texturesSkipped = shadowMaps = 0;
     readbacks = presentedOnDevice = shadowMapsDrawn = programsPending = 0;
+    deviceStages.clear();
+    deviceTiming = DeviceTiming::Off;
+    deviceStagesFrame = -1;
   }
 
   /** Adds every count under its name (`world.nodes`, `world.extracted`,
