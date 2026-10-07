@@ -1,535 +1,695 @@
-// Ceramic fills and inks with seeded crazing, pores, rounded shoulders and
-// apparent formed relief. The normals carry the relief; the planes stay flat.
-// TAGS: Materials/Ceramics, Compose/Layers, Interfaces/Controls
+/** Three glazes, each on a thrown jar and an incised tile: a clear coat
+ *  over a crazed glass whose colour pools deeper in every recess, the
+ *  crazing carried by the coat's own normal so it breaks up the coat's
+ *  reflections of a soft key and a studio sky, and a bare foot under no
+ *  coat at all.
+ */
+// TAGS: Materials/Ceramics, Materials/Lighting, Geometry/3D,
+// Compose/Materials
 
-#include <include/core/SkBitmap.h>
-#include <include/core/SkCanvas.h>
-#include <include/core/SkImage.h>
-#include <include/core/SkPaint.h>
-#include <sigilcompose/brush/Relief.h>
-#include <sigilcompose/core/Factories.h>
+#include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcore/compute/Noise.h>
-#include <sigilgeometry/advanced/Skia.h>
-#include <sigilgeometry/path/Noise.h>
+#include <sigilcompose/texture/Texture.h>
+#include <sigilgeometry/kit/Solids.h>
+#include <sigilgeometry/mesh/Mesh.h>
+#include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilgeometry/path/Outline.h>
 #include <sigilgeometry/path/Polyline.h>
+#include <sigilgeometry/path/Scatter.h>
+#include <sigilgeometry/path/Through.h>
 #include <sigilgeometry/path/Triangulate.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
+#include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/filter/Filter.h>
-#include <sigilmaterial/program/Shader.h>
+#include <sigilmaterial/paint/Bases.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmaterial/texture/Texture.h>
-#include <sigilmedia/advanced/Skia.h>
-#include <sigilsketch/scene2d/Scene2D.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene3d/Scene3D.h>
+#include <sigilworld/World.h>
+#include <sigilworld/kit/Kit.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
-#include <cstdio>
 #include <glm/geometric.hpp>
+#include <glm/vec2.hpp>
+#include <memory>
+#include <optional>
 #include <string>
-#include <string_view>
 #include <utility>
 #include <vector>
 
 namespace compose = sigil::compose;
+namespace gm = sigil::geometry::mesh;
 namespace material = sigil::material;
-namespace media = sigil::media;
-namespace sketch = sigil::sketch;
 namespace path = sigil::geometry::path;
-namespace noise = sigil::core::noise;
-namespace kit = sigil::compose::kit;
+namespace sketch = sigil::sketch;
+namespace world = sigil::world;
 
 namespace {
 
-constexpr int kWidth = 1440, kHeight = 1000, kMapSize = 768;
-constexpr float kLoopSeconds = 28;
-constexpr int kLastPhase = 6;
+using compose::Element;
+using material::Color;
+using material::hexColor;
 
-struct Controls {
-  float roughness = 0.17f;
-  float normalStrength = 1;
-  float glazeWeight = 1;
-  float porosity = 0.75f;
-  float crackStrength = 0.72f;
-  float reliefDepth = 3.4f;
-};
-constexpr Controls kControls;
+constexpr int kWidth = 1440, kHeight = 900;
+/** The jar's page runs once round the jar across its width, and along the
+ *  profile up its height: the underside at the bottom of the page, the
+ *  floor inside at the top. */
+constexpr int kJarPageWidth = 1024, kJarPageHeight = 640;
+constexpr int kTilePage = 512;
+constexpr int kProfileSamples = 320;
+constexpr float kLoop = 16, kPi = 3.14159265358979f;
+constexpr float kJarSpacing = 380, kTileSize = 196, kTileThickness = 14;
+/** How far a tile leans back toward the eye, in degrees. */
+constexpr float kTileTilt = 14;
 
-float bounded(float value, float lo, float hi, float fallback) {
-  return std::clamp(std::isfinite(value) ? value : fallback, lo, hi);
-}
-material::Color ink(uint32_t rgb, float alpha = 1) {
-  auto color = material::hexColor(rgb);
-  color.a = alpha;
-  return color;
-}
-std::string number(float value, int precision = 2) {
-  std::array<char, 32> buffer{};
-  std::snprintf(buffer.data(), buffer.size(), "%.*f", precision, value);
-  return buffer.data();
-}
-
-struct Moment {
-  float roughness = 0.17f, normal = 1, glaze = 1, depth = 3.4f;
-  bool scalarRoughness = false;
-  int phase = 0;
-  const char* name = "GLAZED / WORKING";
-  const char* note =
-      "Crazed celadon, porcelain controls and colored glaze pads";
-};
-Moment moment(int phase) {
-  Moment m;
-  m.phase = phase;
-  m.roughness = bounded(kControls.roughness, 0, 1, 0.17f);
-  m.normal = bounded(kControls.normalStrength, 0, 3, 1);
-  m.glaze = bounded(kControls.glazeWeight, 0, 1, 1);
-  m.depth = bounded(kControls.reliefDepth, 0, 10, 3.4f);
-  switch (phase) {
-    case 1:
-      m.roughness = 0;
-      m.glaze = 1;
-      m.scalarRoughness = true;
-      m.name = "ROUGHNESS / ZERO";
-      m.note = "Scalar zero; normals and coating retained";
-      break;
-    case 2:
-      m.roughness = 1;
-      m.glaze = 1;
-      m.scalarRoughness = true;
-      m.name = "ROUGHNESS / ONE";
-      m.note =
-          "Rough body under a glossy coating; pore normals remain connected";
-      break;
-    case 3:
-      m.normal = 0;
-      m.name = "NORMAL / ZERO";
-      m.note = "Normal perturbation removed; the stacked shapes remain";
-      break;
-    case 4:
-      m.normal = 3;
-      m.name = "NORMAL / STRONG";
-      m.note = "Shoulder, craze and pore normals at the study maximum";
-      break;
-    case 5:
-      m.glaze = 0;
-      m.name = "COATING / ZERO";
-      m.note =
-          "Clearcoat disabled; the colored body retains its roughness and maps";
-      break;
-    case 6:
-      m.depth = 0;
-      m.name = "PROFILE / ZERO HEIGHT";
-      m.note = "Macro-height removed; fine finish maps remain connected";
-      break;
-    default:
-      break;
-  }
-  return m;
-}
-
-compose::Element label(std::string text, float x, float y, float width,
-                       float size, material::Color color, float weight = 450) {
-  return compose::text(std::move(text))
-      .left(x)
-      .top(y)
-      .width(width)
-      .height(size * 1.6f)
-      .font({.size = size, .color = color})
-      .fontWeight(weight);
-}
-compose::Element rule(float x, float y, float width, material::Color color) {
-  return kit::at(x, y, width, 1).fill(color);
-}
-
-struct CeramicMaps {
-  material::Texture color, normal, roughness;
+/** ONE GLAZE: the colour it fires to where it runs thin, where it lies at
+ *  an ordinary depth and where it pools; the ink its crazing takes up, in
+ *  the wide cracks and in the fine ones between them; how coarse the
+ *  crazing is; the clay it sits on. */
+struct Glaze {
+  const char* name;
+  Color thin, middle, pooled;
+  Color crackInk;
+  float crackInkOpacity;
+  Color fineInk;
+  float fineInkOpacity;
+  float cellSpacing;
+  uint64_t seed;
+  float coatRoughness;
+  Color clay;
 };
 
-CeramicMaps finishMaps(uint32_t seed, float porosity, bool crazed) {
-  std::array<SkBitmap, 3> pixels;
-  for (auto& bitmap : pixels) bitmap.allocN32Pixels(kMapSize, kMapSize);
-  SkBitmap cracks, pores;
-  cracks.allocN32Pixels(kMapSize, kMapSize);
-  pores.allocN32Pixels(kMapSize, kMapSize);
-  cracks.eraseColor(SK_ColorBLACK);
-  pores.eraseColor(SK_ColorBLACK);
-  noise::Mix64Stream random(seed);
-  if (crazed) {
-    std::vector<glm::vec2> seeds;
-    for (int i = 0; i < 62; ++i)
-      seeds.emplace_back(random.range(-30, kMapSize + 30),
-                         random.range(-30, kMapSize + 30));
-    SkCanvas canvas(cracks);
-    SkPaint paint;
-    paint.setAntiAlias(true);
-    paint.setColor(SK_ColorWHITE);
-    paint.setStyle(SkPaint::kStroke_Style);
-    paint.setStrokeWidth(2.0f);
-    for (const auto& cell :
-         path::voronoi(seeds, path::Rect::of({0, 0}, {kMapSize, kMapSize})))
-      canvas.drawPath(path::toSk(path::toPath(cell)), paint);
-  }
-  {
-    SkCanvas canvas(pores);
-    SkPaint paint;
-    paint.setAntiAlias(true);
-    paint.setColor(SK_ColorWHITE);
-    for (int i = 0; i < 3100; ++i)
-      canvas.drawCircle(random.range(0, kMapSize), random.range(0, kMapSize),
-                        random.range(0.6f, 2.3f), paint);
-  }
-  const float crackStrength =
-      crazed ? bounded(kControls.crackStrength, 0, 1, 0.72f) : 0;
-  std::vector<float> heights(kMapSize * kMapSize);
-  for (int y = 0; y < kMapSize; ++y) {
-    for (int x = 0; x < kMapSize; ++x) {
-      const float p = SkColorGetR(pores.getColor(x, y)) / 255.0f * porosity;
-      const float c =
-          SkColorGetR(cracks.getColor(x, y)) / 255.0f * crackStrength;
-      const float coarse = path::valueNoise({x * 0.018f, y * 0.018f, 0}, seed);
-      const float grain = noise::hash(seed, uint32_t(y * kMapSize + x));
-      heights[size_t(y * kMapSize + x)] =
-          0.016f * coarse + 0.004f * grain * porosity - 0.12f * p - 0.06f * c;
-      const auto channel = [](float value) {
-        return static_cast<U8CPU>(255 * std::clamp(value, 0.0f, 1.0f));
-      };
-      const float color = 0.96f + 0.027f * coarse - 0.24f * p - 0.30f * c;
-      // Bitmap storage is native SkPMColor, not packed ARGB SkColor.
-      *pixels[0].getAddr32(x, y) = SkPreMultiplyARGB(
-          255, channel(color), channel(color), channel(color));
-      const auto rough = channel(0.83f + 0.11f * p + 0.045f * coarse);
-      *pixels[2].getAddr32(x, y) = SkPreMultiplyARGB(255, rough, rough, rough);
-    }
-  }
-  const auto height = [&](int x, int y) {
-    return heights[size_t(std::clamp(y, 0, kMapSize - 1) * kMapSize +
-                          std::clamp(x, 0, kMapSize - 1))];
-  };
-  for (int y = 0; y < kMapSize; ++y) {
-    for (int x = 0; x < kMapSize; ++x) {
-      const glm::vec3 normal = glm::normalize(
-          glm::vec3{-(height(x + 1, y) - height(x - 1, y)) * 4,
-                    (height(x, y + 1) - height(x, y - 1)) * 4, 1});
-      const auto channel = [](float value) {
-        return static_cast<U8CPU>(255 *
-                                  std::clamp(0.5f + 0.5f * value, 0.0f, 1.0f));
-      };
-      *pixels[1].getAddr32(x, y) = SkPreMultiplyARGB(
-          255, channel(normal.x), channel(normal.y), channel(normal.z));
-    }
-  }
-  return {material::Texture(
-              media::PixelSource(SkImages::RasterFromBitmap(pixels[0]))),
-          material::Texture(
-              media::PixelSource(SkImages::RasterFromBitmap(pixels[1]))),
-          material::Texture(
-              media::PixelSource(SkImages::RasterFromBitmap(pixels[2])))};
-}
+/** Celadon on grey stoneware, its crazing stained faintly; oxblood on
+ *  porcelain, white where it thins at the rim and nearly black where it
+ *  pools, crazed fine and unstained; amber on buff clay, its wide cracks
+ *  inked dark and its fine ones gold. */
+const std::array<Glaze, 3> kGlazes{{
+    {.name = "celadon",
+     .thin = hexColor(0xb9cdb0),
+     .middle = hexColor(0x86ab95),
+     .pooled = hexColor(0x3f6f61),
+     .crackInk = hexColor(0x5d5a48),
+     .crackInkOpacity = .35f,
+     .fineInk = hexColor(0xd8d2b8),
+     .fineInkOpacity = .25f,
+     .cellSpacing = 30,
+     .seed = 11,
+     .coatRoughness = .03f,
+     .clay = hexColor(0x9a8f82)},
+    {.name = "oxblood",
+     .thin = hexColor(0xd9c7b8),
+     .middle = hexColor(0x9c1c1f),
+     .pooled = hexColor(0x4a070c),
+     .crackInk = hexColor(0x2a0508),
+     .crackInkOpacity = .18f,
+     .fineInk = hexColor(0x2a0508),
+     .fineInkOpacity = 0,
+     .cellSpacing = 22,
+     .seed = 23,
+     .coatRoughness = .02f,
+     .clay = hexColor(0xe0d8cb)},
+    {.name = "amber",
+     .thin = hexColor(0xe2b25a),
+     .middle = hexColor(0xa8611c),
+     .pooled = hexColor(0x3b1d0b),
+     .crackInk = hexColor(0x1e120a),
+     .crackInkOpacity = .7f,
+     .fineInk = hexColor(0xf3c96a),
+     .fineInkOpacity = .2f,
+     .cellSpacing = 40,
+     .seed = 37,
+     .coatRoughness = .06f,
+     .clay = hexColor(0xb98d61)},
+}};
 
-material::Texture fitted(material::Texture texture, float width, float height) {
-  glm::mat3 placement(1);
-  placement[0][0] = width / kMapSize;
-  placement[1][1] = height / kMapSize;
-  texture.uv(placement).tile(material::Repeat::Pad);
-  return texture;
-}
+// ---------------------------------------------------------------------------
+// THE JAR: one profile, lathed, and the glaze depth its curvature implies.
 
+/** The jar's profile as (radius, height), from the middle of the
+ *  underside out over the foot ring, up the body to a rolled lip and back
+ *  down the inside to the middle of the floor, spaced evenly along its
+ *  length so the page's rows are spaced evenly over the jar. */
 struct Profile {
-  float radius = 20;
-  float shoulder = 8;
-  float depth = 3.4f;
-  float circular = 0;
-  float waves = 0;
+  std::vector<glm::vec2> points;
+  /** The glaze's depth at each point, 0 thin to 1 pooled. */
+  std::vector<float> depth;
+  /** How far along the profile the glaze begins above the bare foot, 0
+   *  to 1. */
+  float glazeLine = 0;
 };
-constexpr std::string_view kProfileNormal = R"(
-float edgeDistance(float2 p) {
-    float2 size = max(uResolution, float2(1));
-    if (circular > 0.5)
-        return length((p - size * .5) / (size * .5)) * min(size.x, size.y) * .5
-               - min(size.x, size.y) * .5;
-    float r = min(radius, min(size.x, size.y) * .5);
-    float2 q = abs(p - size * .5) - size * .5 + r;
-    return length(max(q, float2(0))) + min(max(q.x, q.y), 0.0) - r;
-}
-float heightAt(float2 p) {
-    float2 size = max(uResolution, float2(1));
-    float shoulderRamp = smoothstep(0.0, max(shoulder, .2), -edgeDistance(p));
-    float2 q = p / size;
-    float height = shoulderRamp * depth;
-    if (circular > .5) {
-        float rr = length((q - .5) * 2);
-        height += depth * 1.3 * max(0.0, 1.0 - rr * rr);
-        height += depth * .32 * exp(-abs(rr - .64) * 35);
-    }
-    float envelope = sin(clamp(q.x, 0.0, 1.0) * 3.141593)
-                   * sin(clamp(q.y, 0.0, 1.0) * 3.141593);
-    float wave = .5 + .5 * cos((q.x * 3.3 + q.y * 1.1) * 3.141593);
-    return height + waves * depth * 3 * envelope * wave;
-}
-half4 main(float2 p) {
-    float footprint = max(.55, 1.0 / max(uContentScale, .25));
-    float dx = (heightAt(p + float2(footprint, 0)) - heightAt(p - float2(footprint, 0)))
-               / (2 * footprint);
-    float dy = (heightAt(p + float2(0, footprint)) - heightAt(p - float2(0, footprint)))
-               / (2 * footprint);
-    float3 fine = finish.eval(p).rgb * 2 - 1;
-    float3 n = normalize(float3(-dx + fine.x, dy + fine.y, max(fine.z, .05)));
-    return half4(half3(n * .5 + .5), 1);
-}
-)";
 
-material::Material ceramic(const CeramicMaps& maps, material::Color color,
-                           float width, float height, const Moment& m,
-                           Profile profile = {}) {
-  profile.depth = m.depth;
-  auto base = material::image(fitted(maps.color, width, height));
-  base.layer(material::from(color), {.blend = material::BlendMode::Multiply});
-  auto normals =
-      material::shader(kProfileNormal, profile, {.textures = {{"finish", {}}}});
-  normals.slot("finish", fitted(maps.normal, width, height));
-  const float roughness = m.roughness;
-  material::Channel rough = roughness;
-  if (!m.scalarRoughness) {
-    auto map = material::image(fitted(maps.roughness, width, height));
-    map.layer(
-        material::from(material::Color{roughness, roughness, roughness, 1}),
-        {.blend = material::BlendMode::Multiply});
-    rough = std::move(map);
+Profile throwJar() {
+  const std::vector<glm::vec2> guide{
+      {0, 9},     {34, 9},    {44, 5},    {50, 0},    {60, 0},    {66, 6},
+      {68, 16},   {80, 34},   {100, 66},  {116, 112}, {121, 158}, {115, 204},
+      {98, 242},  {74, 270},  {54, 288},  {47, 304},  {50, 320},  {57, 331},
+      {53, 338},  {44, 334},  {40, 318},  {41, 300},  {60, 278},  {90, 246},
+      {106, 204}, {110, 156}, {101, 100}, {78, 50},   {40, 26},   {0, 21}};
+  Profile jar;
+  jar.points =
+      path::resample(path::curveThrough(guide), kProfileSamples).front().points;
+  auto& points = jar.points;
+  const size_t count = points.size();
+  const auto outward = [&](size_t i) {
+    const glm::vec2 along =
+        points[std::min(i + 1, count - 1)] - points[i == 0 ? 0 : i - 1];
+    return glm::normalize(glm::vec2(along.y, -along.x));
+  };
+  // THROWING: the potter's fingers leave shallow rings up the outside of
+  // the body, and a pair of grooves is cut round the shoulder.
+  size_t lipIndex = 0;
+  for (size_t i = 0; i < count; ++i)
+    if (points[i].y > points[lipIndex].y) lipIndex = i;
+  std::vector<glm::vec2> thrown = points;
+  for (size_t i = 1; i + 1 < lipIndex; ++i) {
+    const float height = points[i].y;
+    if (height < 30 || height > 290) continue;
+    const float fade =
+        std::min({1.0f, (height - 30) / 30, (290 - height) / 30});
+    float offset = -0.25f * fade *
+                   (0.5f + 0.5f * std::cos(height * 0.5f +
+                                           1.6f * std::sin(height * 0.031f)));
+    for (const float groove : {214.0f, 224.0f})
+      offset -= 2.4f * std::exp(-0.5f * std::pow((height - groove) / 1.8f, 2));
+    thrown[i] += outward(i) * offset;
   }
-  return base.surface({.roughness = std::move(rough),
-                       .normal = std::move(normals),
-                       .normalScale = m.normal,
-                       .clearcoat = m.glaze});
+  points = std::move(thrown);
+  // THE GLAZE'S DEPTH: it gathers where the surface is hollow along the
+  // profile and on what faces up, and lies thin over what is convex.
+  std::vector<float> depth(count, 0.4f);
+  for (size_t i = 1; i + 1 < count; ++i) {
+    const glm::vec2 bend = points[i - 1] + points[i + 1] - 2.0f * points[i];
+    const float spacing = glm::length(points[i + 1] - points[i - 1]) * 0.5f;
+    const float hollow = glm::dot(bend, outward(i)) / (spacing * spacing);
+    depth[i] = 0.42f + std::clamp(hollow * 5.0f, -0.35f, 0.6f) +
+               0.22f * std::max(0.0f, outward(i).y);
+  }
+  // The glaze line, where the glaze stops above the bare foot, and the
+  // roll it gathers into just above it as it runs down in the kiln.
+  size_t glazeIndex = 0;
+  while (glazeIndex < lipIndex && points[glazeIndex].y < 18) ++glazeIndex;
+  jar.glazeLine = float(glazeIndex) / float(count - 1);
+  for (size_t i = glazeIndex; i < lipIndex; ++i) {
+    const float above = points[i].y - points[glazeIndex].y;
+    depth[i] +=
+        0.55f * std::exp(-above / 9.0f) + 0.12f * std::exp(-above / 60.0f);
+  }
+  // The floor inside holds a pool of its own.
+  for (size_t i = lipIndex; i < count; ++i)
+    depth[i] += 0.5f * std::max(0.0f, 1.0f - points[i].y / 60.0f);
+  // Glaze flows, so its depth is softened along the profile.
+  for (int pass = 0; pass < 2; ++pass) {
+    std::vector<float> soft = depth;
+    for (size_t i = 1; i + 1 < count; ++i)
+      soft[i] = 0.25f * depth[i - 1] + 0.5f * depth[i] + 0.25f * depth[i + 1];
+    depth = std::move(soft);
+  }
+  for (float& value : depth) value = std::clamp(value, 0.0f, 1.0f);
+  jar.depth = std::move(depth);
+  return jar;
 }
+
+/** The glaze's depth up the jar's page, grey from thin to pooled. */
+material::Material depthUpThePage(const Profile& jar) {
+  // A ramp holds a bounded number of stops, so the depth is read at as
+  // many evenly spaced places along the profile.
+  constexpr size_t kStops = 256;
+  std::vector<material::ColorStop> stops;
+  stops.reserve(kStops);
+  for (size_t stop = 0; stop < kStops; ++stop) {
+    const float along = float(stop) / float(kStops - 1);
+    const float grey =
+        jar.depth[size_t(std::lround(along * float(jar.depth.size() - 1)))];
+    stops.push_back({along, Color{grey, grey, grey, 1}});
+  }
+  return material::linearGradient({0, 1}, {0, 0},
+                                  material::ColorStops(std::move(stops)));
+}
+
+// ---------------------------------------------------------------------------
+// THE CRAZING: a cell network in a height, each cell tipped a little its
+// own way, every crack a groove.
+
+/** A network of cells about @p spacing across over @p width by @p height,
+ *  repeating across its width when @p wraps. @p tipped, it is a height:
+ *  each cell a plane tipped its own way about mid grey and every crack
+ *  between them a groove. Otherwise it is where the cracks run, black on
+ *  white, for the ink they take up. */
+Element crazing(int width, int height, float spacing, uint64_t seed, bool wraps,
+                bool tipped) {
+  const auto count = int(float(width) * float(height) / (spacing * spacing));
+  std::vector<glm::vec2> sites = path::sample(
+      path::Region::of(path::Rect::of({0, 0}, {float(width), float(height)})),
+      // Sites spread a little apart, not relaxed into a lattice: crazing
+      // opens cells of uneven size.
+      path::distribution::blueNoise(count, seed, 2));
+  const size_t own = sites.size();
+  if (wraps) {
+    sites.reserve(own * 3);
+    for (size_t i = 0; i < own; ++i)
+      sites.push_back(sites[i] - glm::vec2(width, 0));
+    for (size_t i = 0; i < own; ++i)
+      sites.push_back(sites[i] + glm::vec2(width, 0));
+  }
+  const float margin = wraps ? float(width) : 0;
+  const std::vector<path::Polyline> cells = path::voronoi(
+      sites,
+      path::Rect{{-margin, -2}, {float(width) + margin, float(height) + 2}});
+  auto field = compose::stack().width(width).height(height).fill(
+      Color{.5f, .5f, .5f, 1});
+  std::vector<Element> pieces;
+  for (size_t i = 0; i < cells.size(); ++i) {
+    const path::Polyline& cell = cells[i];
+    if (cell.points.size() < 3) continue;
+    float left = cell.points.front().x, right = left;
+    for (const glm::vec2& point : cell.points) {
+      left = std::min(left, point.x);
+      right = std::max(right, point.x);
+    }
+    if (right < 0 || left > float(width)) continue;
+    // The tip is the original site's, so a cell and its repeat across the
+    // seam lean the same way.
+    const size_t origin = i % own;
+    const float turn = float(origin) * 2.399963f + float(seed);
+    const float lean = 0.08f + 0.1f * float((origin * 7919) % 13) / 12.0f;
+    const glm::vec2 direction{std::cos(turn), std::sin(turn)};
+    const glm::vec2 centre = cell.centroid();
+    path::Polyline ring = cell;
+    ring.closed = true;
+    auto piece = compose::kit::at(0, 0, float(width), float(height))
+                     .shape(compose::heldPath(path::toPath(ring)));
+    if (tipped)
+      piece
+          .fill(material::linearGradient(
+              centre - direction * spacing * 0.5f,
+              centre + direction * spacing * 0.5f,
+              {Color{.5f - lean, .5f - lean, .5f - lean, 1},
+               Color{.5f + lean, .5f + lean, .5f + lean, 1}},
+              {.units = material::GradientUnits::Pixels}))
+          .stroke(
+              material::Material(Color{.3f, .3f, .3f, 1}),
+              {.width = 0.9f, .position = material::StrokePosition::Center});
+    else
+      piece.fill(Color{1, 1, 1, 1})
+          .stroke(
+              material::Material(Color{0, 0, 0, 1}),
+              {.width = 1.5f, .position = material::StrokePosition::Center});
+    pieces.push_back(std::move(piece));
+  }
+  field.children(std::move(pieces));
+  return field.filter(material::Filter::blur(0.6f));
+}
+
+/** A texture painted once from @p tree, read as data. */
+material::Texture paintedOnce(sketch::Scene3DContext& ctx, glm::ivec2 size,
+                              const Element& tree, material::Repeat repeat) {
+  const auto scene = ctx.textureScene({size.x, size.y}, Color{0, 0, 0, 1});
+  scene->render(tree);
+  return scene->texture()
+      .tile(repeat)
+      .sampling(material::Sampling::Linear)
+      .colorSpace(sigil::media::ColorSpace::Data);
+}
+
+/** The coat's own normal: the crazing's height, differentiated. */
+Element coatNormal(int width, int height, const material::Texture& crazed,
+                   const std::optional<material::Material>& under = {}) {
+  auto normal = material::surface::normalFromHeight(
+      material::image(crazed), {.depth = 18, .step = 0.8f});
+  if (under)
+    normal = material::surface::blendNormals(*under, std::move(normal));
+  return compose::kit::at(0, 0, float(width), float(height)).fill(normal);
+}
+
+// ---------------------------------------------------------------------------
+// THE SURFACES the pages paint.
+
+/** Glaze over @p depth: thin colour, the ordinary colour where it lies
+ *  deeper, the pooled colour where it gathers, the crazing inked in, and
+ *  a clear coat over all of it. */
+material::Material glazed(const Glaze& glaze, const material::Material& depth,
+                          const material::Material& crazed,
+                          const material::Material& fine,
+                          std::optional<material::Material> normal = {}) {
+  using material::ColorChannel;
+  return material::from(glaze.thin)
+      .layer(
+          glaze.middle,
+          {.mask = material::Mask{depth, ColorChannel::Luminance, .12f, .5f}})
+      .layer(
+          glaze.pooled,
+          {.mask = material::Mask{depth, ColorChannel::Luminance, .5f, .95f}})
+      .layer(material::noise(.02f, {.octaves = 3, .grain = true}),
+             {.blend = material::BlendMode::SoftLight, .opacity = .35f})
+      .layer(glaze.fineInk,
+             {.opacity = glaze.fineInkOpacity,
+              .mask = material::Mask{fine, ColorChannel::Luminance, .2f, .8f,
+                                     true}})
+      .layer(glaze.crackInk,
+             {.opacity = glaze.crackInkOpacity,
+              .mask = material::Mask{crazed, ColorChannel::Luminance, .2f, .8f,
+                                     true}})
+      .surface({.roughness = .35f,
+                .normal = std::move(normal),
+                .clearcoat = 1.0f,
+                .clearcoatRoughness = glaze.coatRoughness});
+}
+
+/** Bare clay: rough, dull, grained, and under no coat. */
+material::Material bareClay(const Glaze& glaze) {
+  return material::from(glaze.clay)
+      .layer(material::noise(.09f, {.octaves = 3, .grain = true}),
+             {.blend = material::BlendMode::Multiply, .opacity = .3f})
+      .surface({.roughness = .9f,
+                .normal = material::surface::normalFromHeight(
+                    material::noise(.3f, {.octaves = 2, .grain = true}),
+                    {.depth = .7f})});
+}
+
+/** The same clay as a body wears it directly: its colour and its
+ *  roughness. */
+material::Material clayEdge(const Glaze& glaze) {
+  return material::from(glaze.clay).surface({.roughness = .9f});
+}
+
+/** THE JAR'S PAGE: bare clay over the foot, and the glaze from a wavering
+ *  line above it to the floor inside, with a few runs reaching down. */
+Element jarPage(const Glaze& glaze, const Profile& jar,
+                const material::Material& depth,
+                const material::Material& crazed,
+                const material::Material& fine) {
+  const float line = (1 - jar.glazeLine) * kJarPageHeight;
+  std::string edge = "M0 0";
+  for (int x = 0; x <= kJarPageWidth; x += 8) {
+    const float u = float(x) / kJarPageWidth;
+    float y = line + 2.0f * std::sin(u * 2 * kPi * 5 + float(glaze.seed)) +
+              1.2f * std::sin(u * 2 * kPi * 13);
+    for (int run = 0; run < 4; ++run) {
+      const float centre = std::fmod(
+          0.17f + 0.27f * float(run) + 0.05f * float(glaze.seed % 7), 1.0f);
+      const float distance =
+          std::min(std::abs(u - centre), 1 - std::abs(u - centre));
+      y += 7.0f * std::exp(-0.5f * std::pow(distance / 0.008f, 2));
+    }
+    edge += " L" + std::to_string(x) + " " + std::to_string(y);
+  }
+  edge += " L" + std::to_string(kJarPageWidth) + " 0 Z";
+  return compose::stack()
+      .width(kJarPageWidth)
+      .height(kJarPageHeight)
+      .fill(bareClay(glaze))
+      .children({compose::kit::at(0, 0, kJarPageWidth, kJarPageHeight)
+                     .shape(compose::heldPath(path::Outline::svg(edge)))
+                     .fill(glazed(glaze, depth, crazed, fine))});
+}
+
+/** THE TILE'S INCISIONS: a field of @p field with a border, rings and
+ *  petals cut into it in @p cut, softened by @p softness — a height when
+ *  the field is white and the cuts black, the glaze's depth when the
+ *  field is an ordinary grey and the cuts white. */
+Element incisions(float softness, Color field, Color cutColour) {
+  constexpr float size = kTilePage, middle = kTilePage / 2.0f;
+  const auto cut = [&](const path::Outline& line, float width) {
+    return compose::kit::at(0, 0, size, size)
+        .shape(compose::heldPath(line))
+        .stroke(material::Material(cutColour),
+                {.width = width, .position = material::StrokePosition::Center});
+  };
+  std::vector<Element> cuts{
+      cut(path::Outline::rectangle(path::Rect::of({34, 34}, {444, 444})), 7),
+      cut(path::Outline::rectangle(path::Rect::of({52, 52}, {408, 408})), 3)};
+  for (const float radius : {44.0f, 150.0f, 172.0f})
+    cuts.push_back(cut(
+        path::Outline::svg(
+            "M" + std::to_string(middle - radius) + " " +
+            std::to_string(middle) + " a" + std::to_string(radius) + " " +
+            std::to_string(radius) + " 0 1 0 " + std::to_string(2 * radius) +
+            " 0 a" + std::to_string(radius) + " " + std::to_string(radius) +
+            " 0 1 0 " + std::to_string(-2 * radius) + " 0 Z"),
+        radius < 100 ? 5.0f : 4.0f));
+  // Eight petals between the inner ring and the outer pair, each a lens
+  // with a vein down its middle.
+  for (int petal = 0; petal < 8; ++petal) {
+    const float turn = float(petal) * kPi / 4;
+    const glm::vec2 along{std::cos(turn), std::sin(turn)};
+    const glm::vec2 across{-along.y, along.x};
+    const glm::vec2 root = glm::vec2(middle) + along * 52.0f;
+    const glm::vec2 tip = glm::vec2(middle) + along * 142.0f;
+    const glm::vec2 bulgeA =
+        glm::vec2(middle) + along * 100.0f + across * 34.0f;
+    const glm::vec2 bulgeB =
+        glm::vec2(middle) + along * 100.0f - across * 34.0f;
+    const auto at = [](glm::vec2 p) {
+      return std::to_string(p.x) + " " + std::to_string(p.y);
+    };
+    cuts.push_back(cut(
+        path::Outline::svg("M" + at(root) + " Q" + at(bulgeA) + " " + at(tip) +
+                           " Q" + at(bulgeB) + " " + at(root) + " Z"),
+        4));
+    cuts.push_back(cut(path::Outline::svg("M" + at(root + along * 14.0f) +
+                                          " L" + at(tip - along * 16.0f)),
+                       2));
+  }
+  return compose::stack()
+      .width(size)
+      .height(size)
+      .fill(field)
+      .children(std::move(cuts))
+      .filter(material::Filter::blur(softness));
+}
+
+/** THE TILE'S PAGE: glaze over the incisions, pooled where they are cut,
+ *  with the cuts' own shoulders in the surface's normal. */
+Element tilePage(const Glaze& glaze, const material::Texture& cut,
+                 const material::Texture& depth,
+                 const material::Material& crazed,
+                 const material::Material& fine) {
+  return compose::stack().width(kTilePage).height(kTilePage).children(
+      {compose::kit::at(0, 0, kTilePage, kTilePage)
+           .fill(
+               glazed(glaze, material::image(depth), crazed, fine,
+                      material::surface::normalFromHeight(
+                          material::image(cut), {.depth = 5, .step = 1.2f})))});
+}
+
+/** A studio of one broad soft box high on the left and a narrow strip on
+ *  the right over a graded room, for the coat to reflect. */
+world::EnvironmentMap studio() {
+  return world::kit::environmentMap(
+      {.zenith = {.62f, .66f, .74f},
+       .nadir = {.08f, .07f, .06f},
+       .exponent = 1.4f,
+       .softBoxes = {{.centre = {.30f, .36f},
+                      .size = {.10f, .14f},
+                      .radiance = {5.5f, 5.2f, 4.6f}},
+                     {.centre = {.74f, .42f},
+                      .size = {.03f, .22f},
+                      .radiance = {1.8f, 2.1f, 2.6f}}}});
+}
+
+struct Specimen {
+  sketch::Page jarPage;
+  sketch::Page tilePage;
+  Element jarTree = compose::stack();
+  Element tileTree = compose::stack();
+  material::Texture jarCoat;
+  material::Texture tileCoat;
+};
 
 struct CeramicGlaze {
-  CeramicMaps porcelain, stoneware, crazing;
-  int phaseIndex = 0;
+  std::vector<Specimen> specimens;
+  world::EnvironmentMap room;
+  gm::Mesh jar, tileTop, tileSides, stilt, ground;
 
-  compose::Element tile(float x, float y, float width, float height,
-                        const CeramicMaps& maps, material::Color color,
-                        const Moment& m, Profile profile = {}) const {
-    return kit::at(x, y, width, height)
-        .borderRadius(profile.circular > .5f ? width * .5f : profile.radius)
-        .fill(ceramic(maps, color, width, height, m, profile));
+  static gm::camera::Camera lens() {
+    gm::camera::Camera camera;
+    camera.eye = {0, 700, 1300};
+    camera.target = {0, 110, 90};
+    camera.fovYDeg = 31;
+    camera.zNear = 40;
+    camera.zFar = 6000;
+    return camera;
   }
 
-  compose::Element inscription(std::string text, float x, float y, float width,
-                               float size, material::Color color,
-                               const Moment& m, bool inset = false) const {
-    // The ink's generated contour normals follow the placed glyphs.
-    auto finish = material::from(color).surface({.roughness = m.roughness,
-                                                 .normalScale = m.normal,
-                                                 .clearcoat = m.glaze});
-    return label(std::move(text), x, y, width, size, color, 600)
-        .ink(material::Color{0, 0, 0, 0})
-        .decorationOutline(compose::Boundary::Glyphs)
-        .foreground(compose::relief(
-            std::move(finish), {.shoulder = std::max(.6f, size * .028f),
-                                .depth = (inset ? -1 : 1) * m.depth * .42f}));
-  }
+  void setup(sketch::Scene3DContext& ctx) {
+    sketch::kit::stage(ctx, {.size = {kWidth, kHeight},
+                             .captureAt = 2.5,
+                             .background = hexColor(0x0e0f11)});
+    const Profile thrown = throwJar();
+    jar = gm::revolve(thrown.points, {.segments = 160});
+    tileTop = gm::box({-kTileSize / 2, 0, -kTileSize / 2},
+                      {kTileSize / 2, kTileThickness, kTileSize / 2},
+                      {.front = false,
+                       .back = false,
+                       .right = false,
+                       .left = false,
+                       .bottom = false});
+    tileSides = gm::box({-kTileSize / 2, 0, -kTileSize / 2},
+                        {kTileSize / 2, kTileThickness, kTileSize / 2},
+                        {.top = false, .bottom = false});
+    ground = gm::quad(16000, 9000);
+    const float under = 0.9f * kTileSize * std::sin(kTileTilt * kPi / 180);
+    stilt = gm::box({-30, 0, -14}, {30, under, 14});
+    room = studio();
 
-  compose::Element bench(const Moment& m) const {
-    Moment body = m;
-    body.roughness = .64f;
-    const auto warm = ink(0xe7ddc6), inkBlue = ink(0x24464c);
-    auto slab = kit::at(55, 236, 952, 508)
-                    .fill(ink(0x998b73))
-                    .borderRadius(29)
-                    .filter(material::Filter::dropShadow(
-                        ink(0x4c5141, .17f), {.blur = 15, .offset = {0, 12}}));
-    auto face = tile(0, -8, 952, 508, stoneware, warm, body,
-                     {.radius = 29, .shoulder = 13});
-    face.children(
-        {inscription("01 / CELADON RELIEF", 34, 25, 400, 14, inkBlue, body,
-                     true),
-         inscription("02 / PORCELAIN", 489, 25, 236, 14, inkBlue, body, true),
-         inscription("03 / GLAZE", 747, 25, 195, 14, inkBlue, body, true),
-         label("FORMED FINISH / NORMAL-MAP PROFILE", 33, 479, 590, 10, inkBlue),
-         label("GLAZE ARCHIVE 04", 745, 479, 205, 10, inkBlue)});
-    auto plate = kit::at(30, 71, 422, 371).fill(ink(0x567c72)).borderRadius(27);
-    auto glazed = tile(0, -5, 422, 371, crazing, ink(0x84b6a6), m,
-                       {.radius = 27, .shoulder = 13, .waves = 1});
-    glazed.children({inscription("G / 04", 29, 22, 315, 39, ink(0xe8ecd2), m),
-                     inscription("CELADON", 27, 242, 390, 45, ink(0xe5e2c8), m),
-                     inscription("CRAZE / POROSITY / FORMED RIDGES", 30, 307,
-                                 372, 11, ink(0x264d53), m, true),
-                     label("A COLOR STUDY / NOT A FIRING SIMULATION", 31, 333,
-                           370, 10, ink(0x284e53))});
-    for (int i = 0; i <= 15; ++i)
-      glazed.children({kit::at(387 - (i % 5 == 0 ? 11 : 5), 30 + i * 18,
-                               i % 5 == 0 ? 11 : 5, 1)
-                           .fill(ink(0x244e52, .58f))});
-    plate.children({std::move(glazed)});
-    face.children({std::move(plate)});
-
-    // These are stacked Compose planes. The profile lives in the normals,
-    // so it changes without moving a silhouette.
-    face.children(
-        {tile(491, 82, 226, 226, stoneware, ink(0x8e9079), body,
-              {.radius = 113, .shoulder = 15, .circular = 1}),
-         tile(501, 76, 206, 206, porcelain, ink(0xeeead6), m,
-              {.radius = 103, .shoulder = 11, .circular = 1}),
-         tile(537, 113, 134, 134, porcelain, ink(0xe8d6b6), m,
-              {.radius = 67, .shoulder = 5, .circular = 1}),
-         inscription("04", 549, 147, 127, 53, inkBlue, m),
-         inscription("GLAZE / WEIGHT", 501, 282, 229, 10, inkBlue, body, true),
-         tile(491, 326, 98, 76, porcelain, ink(0xe5e8d5), m,
-              {.radius = 17, .shoulder = 7}),
-         tile(612, 326, 98, 76, porcelain, ink(0xe5e8d5), m,
-              {.radius = 17, .shoulder = 7}),
-         inscription("−", 520, 339, 59, 35, inkBlue, m),
-         inscription("+", 640, 339, 59, 35, inkBlue, m),
-         label("RAW BODY", 492, 423, 121, 10, inkBlue),
-         label("GLAZED", 621, 423, 102, 10, inkBlue)});
-    const std::array<material::Color, 3> colors{ink(0x366798), ink(0x925054),
-                                                ink(0xb78547)};
-    const std::array<const char*, 3> names{"COBALT", "OXBLOOD", "AMBER"};
-    for (size_t i = 0; i < colors.size(); ++i) {
-      const float y = 76 + float(i) * 113;
-      auto pad = tile(750, y, 176, 83, crazing, colors[i], m,
-                      {.radius = 21, .shoulder = 10});
-      pad.children(
-          {inscription("0" + std::to_string(i + 1), 16, 10, 72, 25,
-                       ink(0xf2e4cd), m),
-           inscription(names[i], 16, 50, 155, 12, ink(0xf2e4cd), m, true)});
-      face.children({std::move(pad)});
+    const glm::ivec2 jarSize{kJarPageWidth, kJarPageHeight};
+    const glm::ivec2 tileSize{kTilePage, kTilePage};
+    const Color white{1, 1, 1, 1}, black{0, 0, 0, 1},
+        ordinary{.48f, .48f, .48f, 1};
+    const auto cut = paintedOnce(ctx, tileSize, incisions(1.4f, white, black),
+                                 material::Repeat::Pad);
+    const auto pooled = paintedOnce(
+        ctx, tileSize, incisions(6.0f, ordinary, white), material::Repeat::Pad);
+    const auto filled = paintedOnce(
+        ctx, tileSize, incisions(5.0f, white, black), material::Repeat::Pad);
+    // The glaze's depth is painted once into a strip as tall as the page,
+    // repeated across it, so a mask reading it samples an image rather
+    // than walking the gradient's stops at every pixel of every map.
+    constexpr int kStrip = 8;
+    const material::Material depth =
+        material::image(paintedOnce(ctx, {kStrip, kJarPageHeight},
+                                    compose::stack()
+                                        .width(kStrip)
+                                        .height(kJarPageHeight)
+                                        .fill(depthUpThePage(thrown)),
+                                    material::Repeat::Repeat));
+    for (const Glaze& glaze : kGlazes) {
+      Specimen specimen;
+      // The fine crazing runs between the wide cracks at a smaller
+      // spacing, as a second, later network.
+      const auto jarCrazing = [&](bool tipped, float scale = 1,
+                                  uint64_t other = 0) {
+        return paintedOnce(
+            ctx, jarSize,
+            crazing(kJarPageWidth, kJarPageHeight, glaze.cellSpacing * scale,
+                    glaze.seed + other, true, tipped),
+            material::Repeat::Repeat);
+      };
+      const auto tileCrazing = [&](bool tipped, float scale = 1,
+                                   uint64_t other = 0) {
+        return paintedOnce(
+            ctx, tileSize,
+            crazing(kTilePage, kTilePage, glaze.cellSpacing * 1.1f * scale,
+                    glaze.seed + 101 + other, false, tipped),
+            material::Repeat::Pad);
+      };
+      specimen.jarCoat = paintedOnce(
+          ctx, jarSize,
+          coatNormal(kJarPageWidth, kJarPageHeight, jarCrazing(true)),
+          material::Repeat::Repeat);
+      // The coat lies over the tile's incisions, softened by the glaze
+      // that fills them, and is crazed over that.
+      specimen.tileCoat = paintedOnce(
+          ctx, tileSize,
+          coatNormal(kTilePage, kTilePage, tileCrazing(true),
+                     material::surface::normalFromHeight(
+                         material::image(filled), {.depth = 4, .step = 1.5f})),
+          material::Repeat::Pad);
+      specimen.jarPage = ctx.page(jarSize);
+      specimen.tilePage = ctx.page(tileSize);
+      specimen.jarTree =
+          jarPage(glaze, thrown, depth, material::image(jarCrazing(false)),
+                  material::image(jarCrazing(false, .42f, 7)));
+      specimen.tileTree =
+          tilePage(glaze, cut, pooled, material::image(tileCrazing(false)),
+                   material::image(tileCrazing(false, .42f, 7)));
+      specimens.push_back(std::move(specimen));
     }
-    slab.children({std::move(face)});
-    return slab;
   }
 
-  compose::Element parameters(const Moment& m) const {
-    const auto dark = ink(0x28474b), muted = ink(0x758278),
-               green = ink(0x347c6e);
-    auto out = kit::at(1050, 229, 338, 516);
-    out.children({label("SURFACE PARAMETERS", 0, 0, 338, 13, dark, 600),
-                  label("Body + dielectric coating", 0, 27, 338, 12, muted)});
-    const std::array<std::string, 4> values{number(m.roughness),
-                                            number(m.normal), number(m.glaze),
-                                            number(m.depth)};
-    const std::array<const char*, 4> names{"ROUGHNESS", "NORMAL STRENGTH",
-                                           "GLAZE WEIGHT", "PROFILE HEIGHT"};
-    for (size_t i = 0; i < values.size(); ++i) {
-      const float y = 70 + float(i) * 78;
-      out.children(
-          {label(names[i], 0, y, 180, 10, muted),
-           label(values[i], 0, y + 19, 240, 29, dark),
-           label(i == 2 ? "coating / 0–1" : "", 185, y + 38, 145, 10, muted),
-           rule(0, y + 61, 320, ink(0xb4bdae))});
+  /** @p page's surface with the coat's own normal in its slot.
+   *
+   *  A page paints the coat's weight and roughness but not a normal of
+   *  the coat's own, so the crazing reaches the coat from a texture
+   *  painted beside the page and laid in the coat's normal slot. */
+  static material::Material coated(const sketch::Page& page,
+                                   const material::Texture& coatNormal) {
+    material::Material surface = page.surface();
+    surface.slot(material::surface::kClearcoatNormalSlot, coatNormal);
+    return surface;
+  }
+
+  world::Frame describe(sigil::motion::Duration now) {
+    const float seconds = float(std::fmod(now.count(), double(kLoop)));
+    const float phase = 2 * kPi * seconds / kLoop;
+    // The jars turn once each loop, so their crazing passes under the
+    // key's reflection; the key glides across the front and back.
+    const float turn = 360.0f * seconds / kLoop;
+    const glm::vec3 keyAt{-260 + 460 * std::sin(phase), 820, -180};
+
+    std::vector<world::Node> nodes{
+        world::camera(lens(), {.exposure = 0.95f,
+                               .toneCurve = world::ToneCurve::Neutral}),
+        world::null().key("table").at({0, 110, 80}),
+        world::hemisphereLight({.color = hexColor(0xc9d3e2),
+                                .groundColor = hexColor(0x3a3029),
+                                .intensity = 0.12f})
+            .key("sky"),
+        world::rectLight({0, -1, 0},
+                         {.width = 380,
+                          .height = 240,
+                          .color = hexColor(0xfff1df),
+                          .intensity = 15.0f,
+                          .castShadow = true,
+                          .shadow = {.bias = 3, .normalBias = 2, .radius = 4}})
+            .key("key")
+            .at(keyAt)
+            .lookAt("table"),
+        world::mesh(ground).key("slab").rotateX(-90).fill(
+            material::surface::program(
+                {.baseColor = hexColor(0x3e3b37), .roughness = .75f})),
+    };
+    std::vector<world::Pass> passes;
+    for (size_t i = 0; i < specimens.size(); ++i) {
+      const Specimen& specimen = specimens[i];
+      const Glaze& glaze = kGlazes[i];
+      const float x = kJarSpacing * (float(i) - 1);
+      nodes.push_back(world::mesh(jar)
+                          .key(std::string(glaze.name) + " jar")
+                          .at({x, 0, -60})
+                          .rotateY(turn + 120.0f * float(i))
+                          .fill(coated(specimen.jarPage, specimen.jarCoat)));
+      // THE TILE leans back on a kiln stilt, its front edge on the slab,
+      // tipped toward the eye far enough to mirror the key overhead.
+      const std::string name = glaze.name;
+      const float lift = 0.5f * kTileSize * std::sin(kTileTilt * kPi / 180);
+      nodes.push_back(
+          world::group({world::group({world::mesh(tileTop)
+                                          .key(name + " tile")
+                                          .fill(coated(specimen.tilePage,
+                                                       specimen.tileCoat)),
+                                      world::mesh(tileSides)
+                                          .key(name + " tile edge")
+                                          .fill(clayEdge(glaze))})
+                            .key(name + " tile tipped")
+                            .at({0, lift, 0})
+                            .rotateX(kTileTilt),
+                        world::mesh(stilt)
+                            .key(name + " stilt")
+                            .at({0, 0, -0.4f * kTileSize})
+                            .fill(clayEdge(glaze))})
+              .key(name + " tile stand")
+              .at({x, 0, 320})
+              .rotateY(-8 + 8 * float(i)));
+      passes.push_back(specimen.jarPage.render(specimen.jarTree));
+      passes.push_back(specimen.tilePage.render(specimen.tileTree));
     }
-    out.children(
-        {label("28 s / SEVEN DETERMINISTIC STATES", 0, 475, 335, 10, green)});
-    for (int i = 0; i <= kLastPhase; ++i)
-      out.children({kit::at(i * 34.5f, 498, 26, 5)
-                        .borderRadius(2.5f)
-                        .fill(i == m.phase ? green : ink(0xcdd1c1))});
-    return out;
-  }
-
-  compose::Element specimens() const {
-    auto out = kit::at(55, 814, 1334, 151);
-    const std::array<const char*, 6> titles{"PORCELAIN",      "STONEWARE",
-                                            "CRAZED CELADON", "GLAZE 0",
-                                            "GLAZE 1",        "NORMAL 0 / 3"};
-    const std::array<const char*, 6> notes{
-        "roughness 0 / smooth",          "roughness 1 / porous",
-        "colored cracks / fine normals", "same body / coating 0",
-        "same body / coating 1",         "same color / changed normal"};
-    Moment smooth, rough, crazed, raw, glazed, flat;
-    smooth.roughness = 0;
-    smooth.scalarRoughness = true;
-    smooth.normal = .25f;
-    rough.roughness = 1;
-    rough.scalarRoughness = true;
-    crazed.roughness = .2f;
-    raw.roughness = .65f;
-    raw.glaze = 0;
-    glazed.roughness = .65f;
-    flat.roughness = .2f;
-    flat.normal = 0;
-    const std::array<Moment, 6> controls{smooth, rough,  crazed,
-                                         raw,    glazed, flat};
-    for (size_t i = 0; i < controls.size(); ++i) {
-      const float x = float(i) * 223;
-      const CeramicMaps& maps =
-          i == 0 ? porcelain
-                 : (i == 1 || i == 3 || i == 4 ? stoneware : crazing);
-      const auto color =
-          i == 0 ? ink(0xe9e4d1)
-                 : (i == 1 || i == 3 || i == 4 ? ink(0xb8a68a) : ink(0x84b6a6));
-      out.children({label("0" + std::to_string(i + 1) + " / " + titles[i], x, 0,
-                          213, 10, ink(0x354f53), 550)});
-      if (i == 5) {
-        auto high = controls[i];
-        high.normal = 3;
-        out.children({tile(x, 25, 97, 94, maps, color, controls[i],
-                           {.radius = 16, .shoulder = 8, .waves = 1}),
-                      tile(x + 101, 25, 97, 94, maps, color, high,
-                           {.radius = 16, .shoulder = 8, .waves = 1})});
-      } else {
-        out.children({tile(
-            x, 25, 198, 94, maps, color, controls[i],
-            {.radius = 16, .shoulder = 8, .waves = i == 2 ? 1.0f : 0.0f})});
-      }
-      out.children({label(notes[i], x, 128, 211, 9, ink(0x6a7d72))});
-    }
-    return out;
-  }
-
-  compose::Element describe(int phase) const {
-    const Moment m = moment(phase);
-    const auto dark = ink(0x2c464b), muted = ink(0x758278);
-    return compose::positioned()
-        .width(kWidth)
-        .height(kHeight)
-        .fontFamily("Inter, Helvetica Neue, sans-serif")
-        .children(
-            {label("KILN / 04", 52, 38, 785, 57, dark, 500),
-             label("CERAMIC GLAZE / A STUDY OF FORMED COLOR", 55, 118, 970, 12,
-                   muted, 550),
-             label("SPECIMEN LABORATORY", 1060, 43, 325, 11, dark, 600),
-             label("PORCELAIN / STONEWARE / GLAZE", 1060, 68, 325, 10, muted),
-             label("Compose fills + material inks", 1060, 93, 325, 10, muted),
-             rule(55, 156, 1330, ink(0xafb9a7)),
-             label(m.name, 55, 178, 980, 20, ink(0x317f6f), 600),
-             label(m.note, 55, 208, 1015, 12, muted), bench(m), parameters(m),
-             label("FIXED FINISH COUPONS", 55, 777, 690, 13, dark, 600),
-             label("ENDPOINTS", 1027, 779, 364, 10, muted), specimens(),
-             label(
-                 "28 s LOOP   /   02 GLAZED · 06 R0 · 10 R1 · 14 N0 · 18 N3 · "
-                 "22 COAT0 · 26 ZERO HEIGHT",
-                 55, 975, 1338, 10, muted)});
-  }
-
-  void setup(sketch::Scene2DContext& ctx) {
-    ctx.canvas(kWidth, kHeight);
-    ctx.oversample(1);
-    ctx.captureAt(2);
-    ctx.background(ink(0xf1eddf));
-    const float porosity = bounded(kControls.porosity, 0, 1, .75f);
-    porcelain = finishMaps(41, .035f, false);
-    stoneware = finishMaps(107, porosity, false);
-    crazing = finishMaps(317, porosity * .21f, true);
-    ctx.composer.render(describe(0));
-  }
-  void update(double elapsed, sketch::Scene2DContext& ctx) {
-    const double seconds = std::isfinite(elapsed) ? std::max(0.0, elapsed) : 0;
-    const float t =
-        static_cast<float>(std::fmod(seconds, double(kLoopSeconds)));
-    const int next = std::min(kLastPhase, static_cast<int>(t / 4));
-    if (next != phaseIndex) {
-      phaseIndex = next;
-      ctx.composer.render(describe(next));
-    }
+    world::Frame frame(world::group(std::move(nodes)));
+    frame.environment(room, {.intensity = 0.5f, .diffuse = 0.4f});
+    for (auto& pass : passes) frame.pass(std::move(pass));
+    return frame;
   }
 };
 
 }  // namespace
 
 SIGIL_SKETCH(CeramicGlaze, "Study · Materials",
-             "Crazed celadon, porcelain and stoneware material fills and inks "
-             "with fixed finish comparisons");
+             "Celadon, oxblood and amber, each on a thrown jar and an incised "
+             "tile: a clear coat over crazing that breaks up its reflections, "
+             "colour pooling darker in every recess, and a bare foot")
