@@ -595,7 +595,8 @@ struct SurfaceOptions {
 };
 
 /** WHICH OF THE OPTIONAL LOBES a surface carries — sheen, anisotropy,
- *  iridescence, a dielectric's own specular, transmission, distortion. A
+ *  iridescence, a dielectric's own specular, transmission, distortion, a
+ *  clear coat. A
  * surface carries only the lobes it states: one that states no sheen samples
  * none of the sheen's maps and is shaded by a renderer that compiles no sheen
  * term for it, so a surface pays for exactly what it says. */
@@ -610,6 +611,9 @@ struct Lobes {
   /** A displacement of what stands behind, which reads that picture
    *  too. */
   bool distortion = false;
+  /** A clear coat over the base, with its own roughness and its own
+   *  normal. */
+  bool clearcoat = false;
   bool operator==(const Lobes&) const = default;
 };
 
@@ -617,8 +621,8 @@ struct Lobes {
  *  black, an anisotropy other than zero, an iridescence that is a map or
  *  other than zero, a specular strength or colour that is a map or other
  *  than one and white, a transmission that is a map or other than zero, a
- *  distortion map at a strength other than zero. An unlit surface states
- *  none. */
+ *  distortion map at a strength other than zero, a clear coat that is a map
+ *  or other than zero. An unlit surface states none. */
 Lobes lobes(const SurfaceOptions& options);
 
 /** A FILTER CHAIN AS THE EFFECTS STAGE of the designated form: any

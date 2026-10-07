@@ -10,6 +10,8 @@
 #include <sigilworld/advanced/Diligent.h>
 #include <sigilworld/diligent/Runtime.h>
 
+#include <array>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <string_view>
@@ -37,6 +39,7 @@ std::string lobeDefinitions(std::string_view body) {
       {"gSurfaceSpecular", "#define SIGIL_SPECULAR 1\n"},
       {"gSurfaceTransmission", "#define SIGIL_TRANSMISSION 1\n"},
       {"gSurfaceDistortion", "#define SIGIL_DISTORTION 1\n"},
+      {"gSurfaceClearcoat", "#define SIGIL_CLEARCOAT 1\n"},
   };
   std::string out;
   for (const Lobe& lobe : kLobes)
@@ -45,21 +48,46 @@ std::string lobeDefinitions(std::string_view body) {
   return out;
 }
 
+/** THE LIGHTS A LIT BUILD IS SPECIALISED ON, as the definitions that
+ *  compile the scaffold's terms for them in. */
+std::string lightDefinitions(uint32_t variant) {
+  std::string out;
+  if (variant & kVariantAreaLights) out += "#define SIGIL_AREA_LIGHTS 1\n";
+  if (variant & kVariantCascadedShadows)
+    out += "#define SIGIL_CASCADED_SHADOWS 1\n";
+  if (variant & kVariantPointShadows) out += "#define SIGIL_POINT_SHADOWS 1\n";
+  return out;
+}
+
+/** The variant bits that name the lights a lit build is specialised on. */
+constexpr uint32_t kLightVariants =
+    kVariantAreaLights | kVariantCascadedShadows | kVariantPointShadows;
+
 }  // namespace
 
-const Compiled& scaffold(bool lit) {
-  const auto build = [](bool shaded) {
+const Compiled& scaffold(bool lit, uint32_t lights) {
+  const auto build = [](bool shaded, uint32_t reaching) {
     Compiled built;
     std::string error;
-    if (!material::slang::compileModule(shaderSource("Surface.slang"), "vsMain",
-                                        "fsFlat", shaded, &built, &error))
+    const std::string source =
+        lightDefinitions(reaching) + std::string(shaderSource("Surface.slang"));
+    if (!material::slang::compileModule(source, "vsMain", "fsFlat", shaded,
+                                        &built, &error))
       material::reportOnce("world.diligent.scaffold",
                            "the surface scaffold did not compile: " + error);
     return built;
   };
-  static const Compiled shaded = build(true);
-  static const Compiled plain = build(false);
-  return lit ? shaded : plain;
+  static const Compiled plain = build(false, 0u);
+  if (!lit) return plain;
+  // One lit build per set of lights, made on first asking and kept for
+  // the process: there are only as many as the light bits can spell.
+  static std::mutex mutex;
+  static std::array<std::unique_ptr<Compiled>, kLightVariants + 1> shaded;
+  const uint32_t reaching = lights & kLightVariants;
+  const std::lock_guard lock(mutex);
+  std::unique_ptr<Compiled>& made = shaded[reaching];
+  if (!made) made = std::make_unique<Compiled>(build(true, reaching));
+  return *made;
 }
 
 const Compiled& shadowScaffold(bool coverage) {
@@ -135,18 +163,20 @@ void installSlangCompiler() {
           // next; the fragment entry that calls the body last, because
           // `surface` is not visible until the body has defined it.
           const std::string body = recipe->source(material::Target::Slang);
+          const bool shadow = variant.has(kVariantShadow);
+          const bool lit = !shadow && variant.has(kVariantLit);
           std::string source = lobeDefinitions(body);
+          if (lit) source += lightDefinitions(variant.bits);
           source += shaderSource("Surface.slang");
           source += '\n';
           source += body;
           source += shaderSource("MaterialEntry.slang");
           // The shadow stage's build asks the body only where it covers,
           // and is never lit.
-          const bool shadow = variant.has(kVariantShadow);
           Compiled built;
           if (!material::slang::compileModule(
                   source, "vsMain", shadow ? "fsMaterialShadow" : "fsMaterial",
-                  !shadow && variant.has(kVariantLit), &built, &error))
+                  lit, &built, &error))
             return nullptr;
           return std::make_shared<material::slang::SlangProgram>(
               std::move(recipe), variant, std::move(built));

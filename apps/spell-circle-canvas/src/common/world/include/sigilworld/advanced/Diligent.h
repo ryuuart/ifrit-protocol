@@ -32,6 +32,15 @@ enum : uint32_t {
   /** The shadow stage's build: the body's surface is asked only where it
    *  covers, and the program writes depth and nothing else. */
   kVariantShadow = 1u << 1u,
+  /** Beside `kVariantLit`, the kinds of light that reach the body. A lit
+   *  program carries the terms of a light with a size only when one of
+   *  them has one; it reads a directional light's cascades only when one
+   *  of them is read through cascades, and a point light's six faces only
+   *  when one of them is read through them. A body under none of these is
+   *  drawn by a program that holds none of their code. */
+  kVariantAreaLights = 1u << 2u,
+  kVariantCascadedShadows = 1u << 3u,
+  kVariantPointShadows = 1u << 4u,
 };
 
 }  // namespace sigil::world::diligent

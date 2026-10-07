@@ -244,7 +244,10 @@ drawn in the colour the frame extracted instead.
 specialises a program on. A recipe compiles once per variant, so a bit
 belongs there only when it changes the PROGRAM, and this one does:
 without it the lighting, the uniforms it reads and the loop over the
-lights are not in the compiled shader at all.
+lights are not in the compiled shader at all. `kVariantAreaLights`,
+`kVariantCascadedShadows` and `kVariantPointShadows` are the others: the
+renderer sets each from the lights a draw is handed, and a lit program
+built without one has no code for that kind of light.
 
 Two things a backend might be expected to specialise on are not bits,
 because neither changes a program. The mesh vertex layout is one: every

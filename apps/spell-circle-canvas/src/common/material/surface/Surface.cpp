@@ -63,6 +63,7 @@ std::string slangSurface(Reflection reflection, Lobes carried) {
   if (!carried.specular) strike(body, "specular");
   if (!carried.transmission) strike(body, "transmission");
   if (!carried.distortion) strike(body, "distortion");
+  if (!carried.clearcoat) strike(body, "clearcoat");
   const std::string_view mark = "REFLECTION_WEIGHT";
   const size_t at = body.find(mark);
   // A body with no mark in it is a body the reflection cannot be written
@@ -220,18 +221,19 @@ SurfaceRecipes& surfaceRecipes() {
 }
 
 /** One bit per lobe below the model's. */
-constexpr int kLobeBits = 63;
-constexpr int kAdditiveBit = 64;
+constexpr int kLobeBits = 127;
+constexpr int kAdditiveBit = 128;
 
 int lobeBits(Lobes carried) {
   return (carried.sheen ? 1 : 0) | (carried.anisotropy ? 2 : 0) |
          (carried.iridescence ? 4 : 0) | (carried.specular ? 8 : 0) |
-         (carried.transmission ? 16 : 0) | (carried.distortion ? 32 : 0);
+         (carried.transmission ? 16 : 0) | (carried.distortion ? 32 : 0) |
+         (carried.clearcoat ? 64 : 0);
 }
 
 Lobes lobesOfBits(int bits) {
-  return {(bits & 1) != 0, (bits & 2) != 0,  (bits & 4) != 0,
-          (bits & 8) != 0, (bits & 16) != 0, (bits & 32) != 0};
+  return {(bits & 1) != 0,  (bits & 2) != 0,  (bits & 4) != 0, (bits & 8) != 0,
+          (bits & 16) != 0, (bits & 32) != 0, (bits & 64) != 0};
 }
 
 /** The lit recipe a material is an instance of, by its key — the model's
@@ -264,6 +266,7 @@ const std::shared_ptr<const Recipe>& surfaceRecipe(Reflection reflection,
     if (carried.specular) name += ".specular";
     if (carried.transmission) name += ".transmission";
     if (carried.distortion) name += ".distortion";
+    if (carried.clearcoat) name += ".clearcoat";
     recipe = std::make_shared<const Recipe>(define(
         std::move(name), "Surface.sksl", slangSurface(reflection, carried)));
   }
@@ -283,6 +286,7 @@ Lobes lobes(const SurfaceParameters& parameters) {
       parameters.specularColorFactor.g != stock.specularColorFactor.g ||
       parameters.specularColorFactor.b != stock.specularColorFactor.b;
   out.transmission = parameters.transmission != 0;
+  out.clearcoat = parameters.clearcoat != 0;
   return out;
 }
 
@@ -314,6 +318,7 @@ Material program(const SurfaceParameters& parameters, Reflection reflection,
   carried.iridescence |= stated.iridescence;
   carried.specular |= stated.specular;
   carried.transmission |= stated.transmission;
+  carried.clearcoat |= stated.clearcoat;
   return dress(Material(surfaceRecipe(reflection, carried), parameters));
 }
 

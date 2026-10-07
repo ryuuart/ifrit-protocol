@@ -24,6 +24,7 @@
 #include <sigilworld/diligent/Runtime.h>
 
 #include <cmath>
+#include <cstring>
 #include <utility>
 #include <vector>
 
@@ -242,9 +243,43 @@ TEST(Lobes, EachLobeCostsOnlyTheSamplersOfItsOwnMaps) {
   surface::SurfaceParameters dull;
   dull.specular = 0.5f;
   EXPECT_EQ(samplersOf(dull), plain + 2) << "strength and colour";
+  surface::SurfaceParameters coated;
+  coated.clearcoat = 0.5f;
+  EXPECT_EQ(samplersOf(coated), plain + 3) << "weight, roughness and normal";
   // Everything at once, which the device draws (below).
   EXPECT_EQ(samplersOf({}, {true, true, true, true}), plain + 7);
   RecordProperty("plainSamplers", (int)plain);
+}
+
+TEST(Lobes, ACoatOfNoWeightShadesExactlyAsNoCoat) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // A surface carrying the coat's lobe at a weight of zero is drawn by the
+  // program with the coat's terms compiled in; one carrying no coat by the
+  // program without them. The coat of nothing adds nothing and takes
+  // nothing, so the two pictures are the same to the bit.
+  surface::SurfaceParameters plastic;
+  plastic.baseColor = {0.5f, 0.2f, 0.1f, 1};
+  plastic.roughness = 0.35f;
+  const auto card = [&](material::Lobes carried) {
+    return photographed(
+        {pointLight({.intensity = intensityAt(3.0f, 150.0f)})
+             .key("lamp")
+             .at({0, 0, 150}),
+         ambientLight({.intensity = 0.2f}).key("fill"),
+         mesh(gm::quad(120, 120))
+             .key("card")
+             .fill(surface::program(plastic, surface::Reflection::SplitSum,
+                                    carried))},
+        on.runtime);
+  };
+  const SkBitmap uncoated = card({});
+  const SkBitmap coatOfNothing = card({.clearcoat = true});
+  ASSERT_EQ(uncoated.computeByteSize(), coatOfNothing.computeByteSize());
+  EXPECT_EQ(std::memcmp(uncoated.getPixels(), coatOfNothing.getPixels(),
+                        uncoated.computeByteSize()),
+            0);
+  EXPECT_GT(luma(at(uncoated, 0.5f, 0.5f)), 0.05f) << "the card is lit";
 }
 
 TEST(Lobes, AStatedLobeIsCompiledAndAnUnstatedOneCostsNoSampler) {

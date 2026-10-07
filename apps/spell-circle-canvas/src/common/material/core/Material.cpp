@@ -644,6 +644,7 @@ Lobes lobes(const SurfaceOptions& options) {
       mapped(options.transmission) || number(options.transmission) != 0;
   out.distortion =
       options.distortion.has_value() && options.distortionStrength != 0;
+  out.clearcoat = mapped(options.clearcoat) || number(options.clearcoat) != 0;
   return out;
 }
 

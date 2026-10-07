@@ -37,6 +37,15 @@
 // compiler when the body it is compiled with writes that lobe's
 // variables below.
 //
+// THE LIGHTS THAT REACH A BODY are axes of the lit build too, set by the
+// renderer from the lights it hands the draw: SIGIL_AREA_LIGHTS when one
+// of them has a size, SIGIL_CASCADED_SHADOWS when one reads a directional
+// light's cascades, SIGIL_POINT_SHADOWS when one reads a point light's six
+// faces. A program built without one of them has no code for that kind of
+// light at all, and is drawn only under lights that are not of it, so a
+// body pays in its program for the lights that reach it rather than for
+// every kind a scene could hold.
+//
 // THE LIT BUILD SHADES EVERY PIXEL, in view space and in LINEAR light:
 //
 //   1. the surface's colour is decoded;
@@ -58,11 +67,12 @@
 //      back, darkened by the surface's occlusion and by nothing else;
 //   4. the optional lobes a surface states — a sheen over the base, a
 //      highlight stretched along a brushing, a thin film tinting the
-//      reflectance, a dielectric's own specular strength and colour — are
-//      each compiled in only when the body this text is compiled with
-//      states them (SIGIL_SHEEN, SIGIL_ANISOTROPY, SIGIL_IRIDESCENCE,
-//      SIGIL_SPECULAR), so a body that states none compiles to the program
-//      it would be if the lobes were not in this text;
+//      reflectance, a dielectric's own specular strength and colour, the
+//      clear coat of step 6 — are each compiled in only when the body this
+//      text is compiled with states them (SIGIL_SHEEN, SIGIL_ANISOTROPY,
+//      SIGIL_IRIDESCENCE, SIGIL_SPECULAR, SIGIL_CLEARCOAT), so a body that
+//      states none compiles to the program it would be if the lobes were
+//      not in this text;
 //   5. a surface that states TRANSMISSION (SIGIL_TRANSMISSION) gives up
 //      its diffuse side to what passes through it: the eye's ray is bent
 //      at the surface, carried across the stated thickness, projected back
@@ -545,25 +555,30 @@ void tangentAxes(float3 n, float3 p, float2 uv, out float3 t, out float3 b) {
 }
 
 /** THE PANORAMA, at a direction in the space the shading is written in
- *  and at a roughness. The two maps are sampled and mixed rather than
- *  one being rebuilt, which is what lets a sky change while the frame is
- *  running. */
+ *  and at a roughness. While a crossfade is under way the two maps are
+ *  sampled and mixed rather than one being rebuilt, which is what lets a
+ *  sky change while the frame is running; with none, the second is not
+ *  read. */
 float3 environmentAt(float3 direction, float roughness) {
   let d = normalizeP(mul(uEnvMatrix, float4(direction, 0.0)).xyz);
   let uv = equirectangularUv(d);
   let level = roughnessLevel(roughness + uEnvDials.z, uEnvDials.w);
-  let a = uEnvironment.SampleLevel(uv, level).rgb;
-  let b = uEnvironmentNext.SampleLevel(uv, level).rgb;
-  return mixP(a, b, uEnvTint.a) * uEnvTint.rgb * uEnvDials.y;
+  var radiance = uEnvironment.SampleLevel(uv, level).rgb;
+  if (uEnvTint.a > 0.0)
+    radiance = mixP(radiance, uEnvironmentNext.SampleLevel(uv, level).rgb,
+                    uEnvTint.a);
+  return radiance * uEnvTint.rgb * uEnvDials.y;
 }
 
 /** …and what falls on a surface facing that way from everywhere. */
 float3 irradianceAt(float3 normal) {
   let d = normalizeP(mul(uEnvMatrix, float4(normal, 0.0)).xyz);
   let uv = equirectangularUv(d);
-  let a = uIrradiance.SampleLevel(uv, 0.0).rgb;
-  let b = uIrradianceNext.SampleLevel(uv, 0.0).rgb;
-  return mixP(a, b, uEnvTint.a) * uEnvTint.rgb * uEnvDials.x;
+  var irradiance = uIrradiance.SampleLevel(uv, 0.0).rgb;
+  if (uEnvTint.a > 0.0)
+    irradiance = mixP(irradiance, uIrradianceNext.SampleLevel(uv, 0.0).rgb,
+                      uEnvTint.a);
+  return irradiance * uEnvTint.rgb * uEnvDials.x;
 }
 
 #ifdef SIGIL_TRANSMISSION
@@ -642,6 +657,44 @@ float shadowAt(int map, float3 p, float3 geometric, float3 l) {
   let high = (tile.xy + tile.zw) * side - float2(1.0, 1.0);
   let centre = shadowAtlasUv(uv, tile) * side - float2(0.5, 0.5);
   float lit = 0.0;
+  // A FILTER ONE TEXEL WIDE reads overlapping blocks: its three taps a side
+  // stand on three consecutive texels, so the nine blocks of four lie in
+  // one block of sixteen, and each of those is compared once and read by
+  // every tap that covers it. Where the taps' corners are not consecutive
+  // — a wider filter, or a tap rounded across a texel's edge — each tap
+  // compares its own four.
+  let first = floor(centre + float2(shadowTapOffset(0.0, bias.z),
+                                    shadowTapOffset(0.0, bias.z)));
+  let middle = floor(centre + float2(shadowTapOffset(1.0, bias.z),
+                                     shadowTapOffset(1.0, bias.z)));
+  let last = floor(centre + float2(shadowTapOffset(2.0, bias.z),
+                                   shadowTapOffset(2.0, bias.z)));
+  if (all(middle == first + float2(1.0, 1.0)) &&
+      all(last == first + float2(2.0, 2.0))) {
+    float compared[16];
+    [ForceUnroll]
+    for (int y = 0; y < 4; ++y) {
+      [ForceUnroll]
+      for (int x = 0; x < 4; ++x)
+        compared[y * 4 + x] = shadowTexel(
+            map, clamp(first + float2(float(x), float(y)), low, high),
+            receiver, compareBias);
+    }
+    [ForceUnroll]
+    for (int ty = 0; ty < 3; ++ty) {
+      [ForceUnroll]
+      for (int tx = 0; tx < 3; ++tx) {
+        let at = centre + float2(shadowTapOffset(float(tx), bias.z),
+                                 shadowTapOffset(float(ty), bias.z));
+        let f = at - floor(at);
+        let k = ty * 4 + tx;
+        lit = lit + shadowTapWeight() *
+                        shadowBilinear(compared[k], compared[k + 1],
+                                       compared[k + 4], compared[k + 5], f);
+      }
+    }
+    return shadowed(lit, shadowEdgeFade(uv, bias.w));
+  }
   for (int ty = 0; ty < 3; ++ty) {
     for (int tx = 0; tx < 3; ++tx) {
       let at = centre + float2(shadowTapOffset(float(tx), bias.z),
@@ -670,6 +723,7 @@ float shadowAt(int map, float3 p, float3 geometric, float3 l) {
  *  into the next over the last tenth of it; or for a point light the one
  *  of its six faces the point stands most squarely in front of. */
 float shadowOf(int map, float3 p, float3 geometric, float3 l) {
+#ifdef SIGIL_CASCADED_SHADOWS
   let ends = uShadowCascade[map];
   if (ends.x > 0.0) {
     let depth = -p.z;
@@ -686,6 +740,10 @@ float shadowOf(int map, float3 p, float3 geometric, float3 l) {
     if (crossed <= 0.0) return own;
     return mixP(own, shadowAt(map + index + 1, p, geometric, l), crossed);
   }
+#endif
+#ifndef SIGIL_POINT_SHADOWS
+  return shadowAt(map, p, geometric, l);
+#else
   if (uShadowDepth[map].z < 1.5) return shadowAt(map, p, geometric, l);
   let position = float4(p, 1.0);
   int best = map;
@@ -702,6 +760,7 @@ float shadowOf(int map, float3 p, float3 geometric, float3 l) {
     }
   }
   return shadowAt(best, p, geometric, l);
+#endif
 }
 
 /** THE MAP light @p light reads, or below zero for none. */
@@ -735,11 +794,13 @@ float3 shadeLit(VSOut input, float3 base) {
   if (gSurfaceNormal.x != 0.0 || gSurfaceNormal.y != 0.0)
     n = normalizeP(t * gSurfaceNormal.x + b * gSurfaceNormal.y +
                    geometric * gSurfaceNormal.z);
+#ifdef SIGIL_CLEARCOAT
   float3 coatNormal = geometric;
   if (gSurfaceClearcoatNormal.x != 0.0 || gSurfaceClearcoatNormal.y != 0.0)
     coatNormal = normalizeP(t * gSurfaceClearcoatNormal.x +
                             b * gSurfaceClearcoatNormal.y +
                             geometric * gSurfaceClearcoatNormal.z);
+#endif
 
   let metal = saturateP(gSurfaceMetal);
   let rough = gSurfaceRoughness < 0.0 ? 0.5 : saturateP(gSurfaceRoughness);
@@ -792,28 +853,31 @@ float3 shadeLit(VSOut input, float3 base) {
   float3 aroundSheen = float3(0.0, 0.0, 0.0);
 #endif
 
+#ifdef SIGIL_CLEARCOAT
   let coat = saturateP(gSurfaceClearcoat);
   let coatRough = saturateP(gSurfaceClearcoatRoughness);
   let coatF0 = float3(0.04, 0.04, 0.04);
   let white = float3(1.0, 1.0, 1.0);
   let coatNDotV = max(dotP(coatNormal, v), 0.0);
   let coatR = coatNormal * (2.0 * coatNDotV) - v;
+  float3 coatDirect = float3(0.0, 0.0, 0.0);
+  float3 aroundCoat = float3(0.0, 0.0, 0.0);
+#endif
 
   float3 directDiffuseSum = float3(0.0, 0.0, 0.0);
   float3 directSpecularSum = float3(0.0, 0.0, 0.0);
-  float3 coatDirect = float3(0.0, 0.0, 0.0);
   // What the ambient and hemisphere lights put on the surface from every
   // way at once: the cosine-weighted mean radiance at the normal, and the
   // radiance a mirror would see along each reflected ray.
   float3 aroundIrradiance = float3(0.0, 0.0, 0.0);
   float3 aroundMirrored = float3(0.0, 0.0, 0.0);
-  float3 aroundCoat = float3(0.0, 0.0, 0.0);
 
   let count = int(uLightCount.x);
   for (int i = 0; i < 16; ++i) {
     if (i >= count) break;
     let kind = uLightPosition[i].w;
     let colour = uLightColor[i].rgb;
+#ifdef SIGIL_AREA_LIGHTS
     if (kind > 4.5) {
       // A LIGHT WITH A SIZE: the diffuse side receives what the whole
       // light delivers, and the highlights are lit from the point of the
@@ -831,7 +895,9 @@ float3 shadeLit(VSOut input, float3 base) {
       float solid;
       float strength;
       float3 lit;
+#ifdef SIGIL_CLEARCOAT
       float3 litCoat;
+#endif
       if (kind > 6.5) {
         let cosFace = dotP(-toCentre, face);
         if (cosFace <= 0.0) continue;
@@ -840,14 +906,18 @@ float3 shadeLit(VSOut input, float3 base) {
         solid = diskSolidAngle(far, size, cosFace);
         strength = cosFace * fall;
         lit = normalizeP(diskPoint(centre, face, size, r));
+#ifdef SIGIL_CLEARCOAT
         litCoat = normalizeP(diskPoint(centre, face, size, coatR));
+#endif
       } else if (kind > 5.5) {
         let fall = distanceFalloff(far, uLightDirection[i].w);
         irradiance = fall * facing;
         solid = sphereSolidAngle(far, size);
         strength = fall;
         lit = normalizeP(spherePoint(centre, size, r));
+#ifdef SIGIL_CLEARCOAT
         litCoat = normalizeP(spherePoint(centre, size, coatR));
+#endif
       } else {
         if (dotP(centre, face) >= 0.0) continue;
         let across = uLightGround[i].xyz;
@@ -862,8 +932,10 @@ float3 shadeLit(VSOut input, float3 base) {
         strength = solid;
         lit = normalizeP(rectPoint(centre, face, across, up, size, halfHeight,
                                    r));
+#ifdef SIGIL_CLEARCOAT
         litCoat = normalizeP(rectPoint(centre, face, across, up, size,
                                        halfHeight, coatR));
+#endif
       }
       if (irradiance <= 0.0 && strength <= 0.0) continue;
       // Its shadow is read from its centre.
@@ -904,13 +976,16 @@ float3 shadeLit(VSOut input, float3 base) {
 #endif
       directDiffuseSum = directDiffuseSum + areaDiffuseOne;
       directSpecularSum = directSpecularSum + areaSpecularOne;
+#ifdef SIGIL_CLEARCOAT
       if (coat > 0.0)
         coatDirect = coatDirect +
                      shaded * (strength * areaNormalization(coatRough, solid)) *
                          directSpecular(coatNormal, litCoat, v, coatF0, white,
                                         coatRough);
+#endif
       continue;
     }
+#endif
     if (kind > 3.5) {
       let up = uLightDirection[i].xyz;
       let ground = uLightGround[i].rgb;
@@ -921,9 +996,11 @@ float3 shadeLit(VSOut input, float3 base) {
       aroundMirrored = aroundMirrored +
                        mixP(hemisphereIrradiance(r, up, colour, ground),
                             facing, rough);
+#ifdef SIGIL_CLEARCOAT
       aroundCoat = aroundCoat +
                    mixP(hemisphereIrradiance(coatR, up, colour, ground),
                         facing, coatRough);
+#endif
 #ifdef SIGIL_SHEEN
       aroundSheen = aroundSheen +
                     mixP(hemisphereIrradiance(plainR, up, colour, ground),
@@ -934,7 +1011,9 @@ float3 shadeLit(VSOut input, float3 base) {
     if (kind > 2.5) {
       aroundIrradiance = aroundIrradiance + colour;
       aroundMirrored = aroundMirrored + colour;
+#ifdef SIGIL_CLEARCOAT
       aroundCoat = aroundCoat + colour;
+#endif
 #ifdef SIGIL_SHEEN
       aroundSheen = aroundSheen + colour;
 #endif
@@ -986,10 +1065,12 @@ float3 shadeLit(VSOut input, float3 base) {
 #endif
     directDiffuseSum = directDiffuseSum + diffuseOne;
     directSpecularSum = directSpecularSum + specularOne;
+#ifdef SIGIL_CLEARCOAT
     if (coat > 0.0)
       coatDirect = coatDirect + radiance * directSpecular(coatNormal, l, v,
                                                           coatF0, white,
                                                           coatRough);
+#endif
   }
 
   // WHAT ARRIVES FROM EVERYWHERE: the panorama, where the scene has one,
@@ -997,11 +1078,15 @@ float3 shadeLit(VSOut input, float3 base) {
   let sky = uEnvDials.w > 0.0;
   float3 irradiance = aroundIrradiance;
   float3 mirrored = aroundMirrored;
+#ifdef SIGIL_CLEARCOAT
   float3 coatMirrored = aroundCoat;
+#endif
   if (sky) {
     irradiance = irradiance + irradianceAt(n);
     mirrored = mirrored + environmentAt(r, rough);
+#ifdef SIGIL_CLEARCOAT
     if (coat > 0.0) coatMirrored = coatMirrored + environmentAt(coatR, coatRough);
+#endif
   }
   let occluded = saturateP(gSurfaceOcclusion);
   let brdf = uEnvironmentBrdf
@@ -1064,6 +1149,7 @@ float3 shadeLit(VSOut input, float3 base) {
   colour = colour + sheenDirect + sheenAround;
 #endif
 
+#ifdef SIGIL_CLEARCOAT
   // THE COAT lies over all of it: what it reflects is added, and what it
   // reflected is what the surface beneath no longer receives or shows.
   if (coat > 0.0) {
@@ -1079,6 +1165,7 @@ float3 shadeLit(VSOut input, float3 base) {
     colour = colour * clearcoatTransmittance(coat, coatNDotV) +
              (coatDirect + coatAround) * coat;
   }
+#endif
   return colour;
 }
 #endif

@@ -58,12 +58,16 @@ struct PagePaint final : world::TextureProducerOperations {
   /** A page learns which optional lobes its content states by painting
    *  it, which happens after the frame was described: a body wearing the
    *  page's surface from before the page learned a lobe is drawn wearing
-   *  the surface with that lobe's maps. */
+   *  the surface with that lobe's maps. The lobes compared are the ones the
+   *  page's maps dress a surface with, which counts the clear coat whose
+   *  map every page paints. */
   std::optional<material::Material> restated(
       const material::Material& worn) const override {
     if (!scene || !material::surface::isSurface(worn)) return std::nullopt;
-    if (material::surface::lobes(worn) == scene->lobes()) return std::nullopt;
-    return surfaceOf(*scene, name);
+    material::Material current = surfaceOf(*scene, name);
+    if (material::surface::lobes(worn) == material::surface::lobes(current))
+      return std::nullopt;
+    return current;
   }
 
   bool operator==(const PagePaint& other) const {

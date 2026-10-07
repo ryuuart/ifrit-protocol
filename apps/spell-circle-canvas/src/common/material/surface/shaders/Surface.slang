@@ -23,6 +23,7 @@ float4 surface(float2 uv) {
       metallic * (dressedS(mm) ? chanS(mm, metallicChannel) : 1.0), 0.0, 1.0);
   gSurfaceReflection = REFLECTION_WEIGHT;
 
+  // clearcoat {
   float4 cm = clearcoatMap.Sample(uv);
   float4 crm = clearcoatRoughnessMap.Sample(uv);
   gSurfaceClearcoat = clamp(
@@ -31,6 +32,7 @@ float4 surface(float2 uv) {
       clearcoatRoughness *
           (dressedS(crm) ? chanS(crm, clearcoatRoughnessChannel) : 1.0),
       0.0, 1.0);
+  // } clearcoat
 
   // THE OPTIONAL LOBES, each between its two marks: a program that does
   // not carry a lobe has the text between them struck out, so it neither
@@ -102,11 +104,13 @@ float4 surface(float2 uv) {
     float ty = normalDirectX > 0.5 ? -tn.y : tn.y;
     gSurfaceNormal = float3(tn.x * normalScale, ty * normalScale, tn.z);
   }
+  // clearcoat {
   float4 cn = clearcoatNormalMap.Sample(uv);
   if (dressedS(cn)) {
     float3 tn = cn.rgb * 2.0 - 1.0;
     float ty = normalDirectX > 0.5 ? -tn.y : tn.y;
     gSurfaceClearcoatNormal = float3(tn.x, ty, tn.z);
   }
+  // } clearcoat
   return float4(min(c.rgb, float3(a, a, a)), a);
 }

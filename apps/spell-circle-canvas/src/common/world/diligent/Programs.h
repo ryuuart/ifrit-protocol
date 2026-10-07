@@ -18,14 +18,18 @@
 
 #include <sigilmaterial/slang/SlangCompiler.h>
 
+#include <cstdint>
+
 namespace sigil::world::diligent {
 
 /** THE SCAFFOLD ON ITS OWN, in each of its two builds. It is what a body
  *  whose material has no Slang body is drawn with — the colour the frame
  *  extracted, lit or not as the pass wants — and its unlit build is what
- *  a coverage or a variant re-draw uses. Empty when the scaffold failed
- *  to compile, which is reported once. */
-const material::slang::Compiled& scaffold(bool lit);
+ *  a coverage or a variant re-draw uses. The lit build is made once per
+ *  set of the light bits in @p lights (`kVariantAreaLights` and its
+ *  neighbours), which the unlit one ignores. Empty when the scaffold
+ *  failed to compile, which is reported once. */
+const material::slang::Compiled& scaffold(bool lit, uint32_t lights = 0u);
 
 /** THE SHADOW STAGE'S SCAFFOLD: depth and nothing else, for a body whose
  *  surface does not decide where it covers — one program, and so one

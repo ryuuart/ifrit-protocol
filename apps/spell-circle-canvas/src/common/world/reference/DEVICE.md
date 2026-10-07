@@ -150,9 +150,15 @@ with straight alpha. The scaffold around it supplies the vertex stage,
 the lighting and the premultiply, and every uniform — the recipe's
 parameters and the scaffold's own — is written at the offset the compiler
 REPORTED for it, so a body that declares one more parameter moves nothing
-a renderer has to be told about. The variant axis is one bit, `kVariantLit`:
+a renderer has to be told about. The first variant axis is `kVariantLit`:
 without it the lighting, the uniforms it reads and the loop over the
-lights are not in the compiled program. Which build a body is drawn
+lights are not in the compiled program. Beside it, the lit build is
+specialised on the kinds of light that reach the body —
+`kVariantAreaLights` when one of them has a size,
+`kVariantCascadedShadows` when one is read through a directional light's
+cascades, `kVariantPointShadows` when one is read through a point light's
+six faces — so a program holds the code of the lights it is drawn under
+and no other. Which build a body is drawn
 with is the body's own answer as much as the pass's — a surface that is
 its own light takes the unlit one whatever the pass asked for. The mesh vertex layout is not a
 variant axis, because there is one — position, normal, uv and tint, with
@@ -222,7 +228,9 @@ coat's `gSurfaceClearcoat`, `gSurfaceClearcoatRoughness` and
 off of its own, in linear radiance. A body that writes a lobe's variable
 states the lobe, and only then is the lobe's term compiled into its
 program — `SIGIL_TRANSMISSION` and `SIGIL_DISTORTION` beside the sheen's,
-the brushing's, the film's and the specular's — so a body that writes none
+the brushing's, the film's, the specular's and the clear coat's — so a
+surface program states the coat only when its weight or its map does, and
+a body that writes none
 of them compiles to the scaffold every other body does. The colour a body returns is ENCODED, as an author
 types it; the scaffold decodes it.
 

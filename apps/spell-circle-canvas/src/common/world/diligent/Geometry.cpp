@@ -220,6 +220,37 @@ void writeLight(material::slang::Uniforms& uniforms, size_t index,
   uniforms.setElement("uLightGround", index, rowGround, 4);
 }
 
+/** THE KINDS OF LIGHT a lit program is specialised on, of the first
+ *  sixteen of @p lights — the ones the scaffold is written with: whether
+ *  one of them has a size, and, where the body reads the pass's shadows,
+ *  whether one of them is read through a directional light's cascades or
+ *  a point light's six faces. The tests are the ones the scaffold makes
+ *  of the same records, so a program built without a kind is never drawn
+ *  under it. */
+uint32_t lightVariant(const Gpu& gpu,
+                      std::span<const PlacedLight* const> lights,
+                      bool receives) {
+  uint32_t bits = 0u;
+  const size_t count = std::min(lights.size(), kLights);
+  for (size_t i = 0; i < count; ++i) {
+    const LightKind kind = lights[i]->light.kind;
+    if (kind == LightKind::Rect || kind == LightKind::Sphere ||
+        kind == LightKind::Disk)
+      bits |= kVariantAreaLights;
+  }
+  if (!receives || gpu.shadows.empty() || gpu.shadowAtlasSide <= 0) return bits;
+  for (size_t i = 0; i < count; ++i)
+    for (const ShadowMap& map : gpu.shadows)
+      if (map.light == lights[i]) {
+        if (map.ends.x > 0.0f)
+          bits |= kVariantCascadedShadows;
+        else if (map.cube)
+          bits |= kVariantPointShadows;
+        break;
+      }
+  return bits;
+}
+
 /** What one body is drawn with: its program, the bytes its material
  *  resolved to, and whether the emitters reach it. */
 struct Surface {
@@ -245,18 +276,20 @@ bool programReady(const material::Material& material, uint32_t variant) {
  *  through the depth scaffold that reads that colour's coverage — and is
  *  drawn whole on the first frame after the program arrives. */
 Surface surfaceOf(const material::Material* material, bool lit, double seconds,
-                  bool shadow = false, bool standIns = false) {
+                  bool shadow = false, bool standIns = false,
+                  uint32_t lights = 0u) {
   Surface out;
   out.lit = lit && !shadow;
   const auto fallback = [&] {
-    return shadow ? &shadowScaffold(/*coverage=*/true) : &scaffold(out.lit);
+    return shadow ? &shadowScaffold(/*coverage=*/true)
+                  : &scaffold(out.lit, lights);
   };
   if (!material) {
     out.program = fallback();
     return out;
   }
   const material::Variant variant{shadow ? kVariantShadow
-                                         : (lit ? kVariantLit : 0u)};
+                                         : (lit ? kVariantLit | lights : 0u)};
   if (standIns && !programReady(*material, variant.bits)) {
     out.standIn = true;
     out.lit = false;
@@ -582,7 +615,8 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
     surface.program = &shadowScaffold(/*coverage=*/false);
   else
     surface =
-        surfaceOf(material, lit, gpu.seconds, caster != nullptr, gpu.standIns);
+        surfaceOf(material, lit, gpu.seconds, caster != nullptr, gpu.standIns,
+                  lit && !caster ? lightVariant(gpu, lights, receives) : 0u);
   if (surface.standIn) {
     ++gpu.programsPending;
     lit = false;

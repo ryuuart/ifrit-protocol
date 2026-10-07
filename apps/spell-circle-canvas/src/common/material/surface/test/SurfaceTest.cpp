@@ -617,8 +617,10 @@ TEST(Surface, ASurfaceStatingNoLobeCarriesNoneOfTheirText) {
   for (const char* absent :
        {"sheenColorMap", "anisotropyMap", "iridescenceMap", "specularMap",
         "specularColorMap", "transmissionMap", "thicknessMap", "distortionMap",
+        "clearcoatMap", "clearcoatRoughnessMap", "clearcoatNormalMap",
         "gSurfaceSheen", "gSurfaceAnisotropy", "gSurfaceIridescence",
-        "gSurfaceSpecular", "gSurfaceTransmission", "gSurfaceDistortion"})
+        "gSurfaceSpecular", "gSurfaceTransmission", "gSurfaceDistortion",
+        "gSurfaceClearcoat"})
     EXPECT_EQ(text.find(absent), std::string::npos) << absent;
   // It is built on the plain recipe, the one a surface stating no lobe is.
   EXPECT_EQ(plain.recipePointer(), surface::surfaceRecipe());
@@ -679,8 +681,24 @@ TEST(Surface, EachStatedLobeCarriesItsOwnTextAndNoOther) {
   EXPECT_EQ(surface::lobes(haze), (Lobes{.distortion = true}));
   EXPECT_NE(surface::map(haze, surface::kDistortionSlot), nullptr);
 
+  // A clear coat is carried by a weight other than zero or by its map, and
+  // carries its weight, its roughness and its own normal.
+  const Material coated = surface::lower(
+      from(Color{0.6f, 0.1f, 0.1f, 1})
+          .surface({.clearcoat = 1.0f, .clearcoatRoughness = 0.05f}));
+  EXPECT_EQ(surface::lobes(coated), (Lobes{.clearcoat = true}));
+  EXPECT_NE(slangOf(coated).find("gSurfaceClearcoat"), std::string::npos);
+  EXPECT_NE(slangOf(coated).find("clearcoatNormalMap"), std::string::npos);
+  EXPECT_EQ(slangOf(coated).find("sheenColorMap"), std::string::npos);
+  const Material coatedByMap = surface::lower(
+      from(Color{0.6f, 0.1f, 0.1f, 1})
+          .surface({.clearcoat = image(media::PixelSource(grey))}));
+  EXPECT_TRUE(surface::lobes(coatedByMap).clearcoat);
+  EXPECT_NE(surface::map(coatedByMap, surface::kClearcoatSlot), nullptr);
+
   // Every one of them is still a surface program.
-  for (const Material* m : {&sheen, &brushed, &film, &dull, &glass, &haze})
+  for (const Material* m :
+       {&sheen, &brushed, &film, &dull, &glass, &haze, &coated})
     EXPECT_TRUE(surface::isSurface(*m));
 }
 

@@ -252,8 +252,8 @@ enum class Reflection : uint8_t {
 /** The lobes @p parameters state by their numbers: a sheen colour other
  *  than black, an anisotropy or an iridescence other than zero, a specular
  *  strength other than one or a colour other than white, a transmission
- *  other than zero. A distortion needs its map, so it is stated by
- *  carrying it. */
+ *  or a clear coat other than zero. A distortion needs its map, so it is
+ *  stated by carrying it. */
 Lobes lobes(const SurfaceParameters& parameters);
 
 /** The lobes @p material carries: none for anything that is not a lit
@@ -267,9 +267,9 @@ const std::shared_ptr<const Recipe>& surfaceRecipe(
     Reflection reflection = Reflection::SplitSum, Lobes carried = {});
 
 /** A lit metallic-roughness surface: its base colour, emission, normal,
- *  roughness, metalness, occlusion, clear coat and whichever optional
- *  lobes its numbers state, handed to whatever renderer shades
- *  it. */
+ *  roughness, metalness, occlusion and whichever optional lobes — a clear
+ *  coat among them — its numbers state, handed to whatever renderer
+ *  shades it. */
 Material program(const SurfaceParameters& parameters = {},
                  Reflection reflection = Reflection::SplitSum);
 /** …carrying @p carried as well as the lobes the numbers state: what a
