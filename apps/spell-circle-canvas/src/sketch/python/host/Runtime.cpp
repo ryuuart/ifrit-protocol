@@ -10,6 +10,7 @@
 #include <sigilsketch/live/Host.h>
 #include <sigilsketch/python/Python.h>
 #include <sigilsketch/scene2d/Scene2D.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilsketch/testing/InProcessHost.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -340,6 +341,13 @@ class PythonKind final : public KindOperations {
   }
   std::string_view runtime() const override { return "scene2d"; }
   bool needsDevice() const override { return m_generation->needsDevice; }
+  /** A sketch that bakes a 3D frame draws on the device runtime the
+   *  process installed, so where none is it is listed unavailable with
+   *  the one message every device door speaks, rather than opened to
+   *  draw its fallback. */
+  bool available(std::string* why) const override {
+    return !m_generation->needsDevice || runtimeAvailable(why);
+  }
   std::unique_ptr<Session> open(weave::FontContext& fonts, Assets& assets,
                                 bool deterministic,
                                 std::string_view key) const override {

@@ -1936,3 +1936,23 @@ intended is that a frame makes only the levels its seen-through bodies'
 roughness reaches. A test should time a frame holding one smooth glass
 pane and assert no `colour.mips` stage beyond the levels a roughness of
 zero reads, and that a rough pane's picture is unchanged.
+
+## Device tier: four scene2d sketches stand beyond tolerance of their CPU plates
+
+`sigil.py plates --tier device` renders every scene2d sketch on the CPU
+and on the device and compares them per colour channel. Four stand OVER
+the tolerance (mean above 12, p99 above 128): `andromeda_optical_lab`,
+`stargate_slit_scan`, `voyager_instruction_plate` and
+`substance_swatches`. Each of them paints through a runtime effect or a
+material map, so the drift is in how Graphite and the raster backend
+execute the same program, not in the sketch. The tier's exit status is
+1 while the rows read OVER, and the scene3d set's byte-neutral verdict
+stands beside it.
+
+A scene2d picture should be the same picture on either backend within
+the tolerance the tier states, or the sketch should say which backend it
+is drawn on. A test should render each of the four on both backends at
+the plate moment and find the per-channel mean and p99 within the
+tier's tolerance; until then the four rows are the finding, and a run
+of the tier is read by its rows and not by its last line.
+

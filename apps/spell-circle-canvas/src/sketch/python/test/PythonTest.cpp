@@ -8,6 +8,7 @@
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/live/Host.h>
 #include <sigilsketch/python/Python.h>
+#include <sigilsketch/scene3d/Scene3D.h>
 
 #include <chrono>
 #include <filesystem>
@@ -208,6 +209,34 @@ class Study:
   EXPECT_EQ(fixture.counts->closed["fixture://input"], 1);
   session.reset();
   EXPECT_EQ(fixture.counts->closed["fixture://input"], 1);
+}
+
+TEST(SketchPython, ASketchThatNeedsTheDeviceIsUnavailableWithoutOne) {
+  PythonSource source("sigil_python_needs_device");
+  source.write("entry.py", R"PY(
+class Study:
+    needsDevice = True
+    def setup(self, ctx):
+        pass
+)PY");
+  const sketch::Kind kind = sketch::python::load(source.entry());
+  EXPECT_TRUE(kind->needsDevice());
+  sketch::useRuntime({});
+  std::string why;
+  EXPECT_FALSE(kind->available(&why));
+  EXPECT_FALSE(why.empty());
+  std::string expected;
+  EXPECT_FALSE(sketch::runtimeAvailable(&expected));
+  EXPECT_EQ(why, expected);
+
+  source.write("entry.py", R"PY(
+class Study:
+    def setup(self, ctx):
+        pass
+)PY");
+  const sketch::Kind plain = sketch::python::load(source.entry());
+  EXPECT_FALSE(plain->needsDevice());
+  EXPECT_TRUE(plain->available(&why));
 }
 
 TEST(SketchPython, ASourceKindCanBeListedWhenItsFileIsMissingOrInvalid) {
