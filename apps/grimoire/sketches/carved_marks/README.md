@@ -1,32 +1,75 @@
-# Carved / Marks
+# Carved marks
 
-The central specimens of `carved_marks` — the
-`OB8` letter die with its pressure ribbon and fibre passes pressed into
-limestone and raised into copper, gold leaf restarted on every glyph, and a
-relief bevelled off the glyph contours — laid out as one 1440 × 900 Compose
-page. Compose paints the page as the maps of a surface: base colour, normal,
-roughness, metallic, occlusion and emissive. One flat World plate wears those
-maps, and the scene's sun, a raking point light and a studio environment shade
-it. Compose shades nothing here.
+One letter die, `OB8`, worked into three real bodies lying on a slate table:
+cut into a block of limestone, raised and chased into a bronze plate, and
+impressed into a glazed porcelain tile whose impression is gilt. A single low
+key light rakes across the table and travels from one side to the other, so
+the marks are read from their shadows: the walls of the stone's cuts throw
+shade onto the cut floors and the worn shoulders roll into them, the pores
+and tool passes in the stone catch the grazing light, the bronze letters
+stand off their plate and the chasing round them darkens and flashes as the
+light turns, and on the porcelain one held height changes the glaze into
+gold — its colour, its metalness and its roughness — so the impression reads
+as a continuous surface that is ceramic on the top and metal in the hollow.
 
-The shared height comes from a separate Compose scene. It is pressed into the
-stone at −2.8 pixels and raised from the copper at +1.6, with noise grain
-blended into both normals. The captions and rules take no light. They arrive
-in the emissive map over a black base, so they read as painted under every
-light and at every angle.
+## What it shows
 
-The loop is 12 seconds and closes on itself:
+- **Limestone, cut.** A block of warm cream stone with the die cut through
+  its top as real incisions: vertical walls that throw shade across the cut
+  floors, floors chiselled into a V and darkened with dust, and soft worn
+  shoulders that roll down into every cut. The face is bedded with faint
+  strata, mottled and pored, worn into a slow swell; the pressure ribbon and
+  its fibre passes are pressed shallowly into it under the letters.
+- **Bronze, raised and chased.** A bronze plate clouded with green-brown
+  patina, its field dimpled by the hammer, with the die standing off it as
+  polished solids. A chased groove follows every letter's edge and the
+  ribbon is chased into the field; patina gathers in the chasing, which is
+  rougher and less metallic than the field.
+- **Porcelain, impressed and gilt.** A glazed tile with the die, a border
+  rule and the ribbon pressed into it. One depth map drives everything: the
+  colour turns from glaze to gold, metalness from none to full, roughness
+  from glaze to burnished gold, and the glaze's clear coat lifts away, so the
+  hollow is metal and the top is ceramic on one continuous surface.
+- **One key that travels.** A low warm light starts at the left in front of
+  the table, swings round behind the bodies to the right and returns over a
+  sixteen-second loop, rising a little as it passes behind. The room's lamps
+  turn with it, so the bronze's reflections travel too. The stone's shadow
+  reaches across the table to the other bodies at the lowest angles.
 
-| Seconds | What moves |
-| --- | --- |
-| 0–7 | The plate faces the camera square on while the point light circles low across it. Highlights cross the cut stone, the chased copper and the gilt glyphs. |
-| 7–12 | The plate turns 26° one way, then the other, and comes back square. The copper and gold catch the environment's soft boxes as they pass. |
+## How it is built
 
-The page is painted once and is not painted again. Only the lights and the
-plate move.
+- `sketch::Page` — four pages, one per face and one for the table. Each is a
+  single box filled with a material whose surface Compose paints as maps;
+  World's lights, shadows and environment shade them.
+- `compose::TextureScene` — one depth map per face, white deepest, read back
+  as `material::image`. It feeds `material::surface::normalFromHeight`,
+  blended over noise normals with `material::surface::blendNormals`, and is
+  the mask that layers grime, patina or gold over the base colour.
+- `compose::brush::ribbon` — the pressure ribbon and the fibre passes, swept
+  along held outlines into each depth map; `material::Filter::blur` softens
+  the shoulders.
+- `compose::relief` — the chiselled V on the stone's cut floors, painted
+  inside the letters on the same page the skin wears.
+- `weave::ParagraphLayout::glyphOutline` — the die's contours, placed once
+  per face; the same outline cuts the stone, raises the bronze and is drawn
+  into every depth map, so geometry and maps agree.
+- `geometry::mesh::extrude` — the stone's body and the skin the letters are
+  cut through, the bronze plate and its raised letters, and the porcelain
+  tile; each face wears its page and its walls a plain surface.
+  `geometry::shapes::rounded` rounds the slabs' corners.
+- `world::directionalLight` with `castShadow` and three cascades is the key;
+  `world::hemisphereLight` a dim fill; `world::kit::environmentMap` the room,
+  turned with the key through `EnvironmentOptions::rotation`.
 
-The sketch has no control panel. It has none of the source study's timed
-finish phases, gilding or cut-depth edits, and no reference normal preview.
-The relief is shaded, not displaced: the plate keeps its silhouette and casts
-no shadow into its own cuts. Point lights reach the plate as directions toward
-its centre, not at their true positions.
+## What to look at
+
+- The stone's cut walls: one side of every letter in shade, the opposite
+  floor lit, and the side that is shaded changing as the key passes.
+- The worn shoulders at the cut edges and the pores and strata on the face,
+  which show only while the light grazes them.
+- The bronze letters' shadows on the plate and the chased grooves round
+  them, which flash as the reflected lamps cross.
+- The porcelain impression: gold in the hollow under the clear glaze on the
+  top, with no seam between the two.
+- The stone's long shadow crossing the porcelain tile at the start of the
+  loop.
