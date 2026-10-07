@@ -285,8 +285,9 @@ struct Framed {
 /** The sketch, stepped @p frames from zero onto a canvas @p scale times its
  *  declared size and scaled to match — which is what a host that fitted
  *  the sketch into a window on a scaled screen hands over. */
-SkBitmap steppedOnto(float scale, int frames) {
-  std::unique_ptr<Session> session = kindOf<Spun>()->open(fonts(), assets());
+SkBitmap steppedOnto(float scale, int frames, bool capture = false) {
+  std::unique_ptr<Session> session =
+      kindOf<Spun>()->open(fonts(), assets(), capture);
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul((int)std::lround(160 * scale),
                                                 (int)std::lround(120 * scale)));
@@ -363,28 +364,46 @@ TEST_F(Scene3DSession, AFittedCanvasPutsThePictureInTheSamePlace) {
   EXPECT_NEAR(one.fBottom, two.fBottom, kSlack);
 }
 
-TEST_F(Scene3DSession, AFittedCanvasIsFormedAtItsOwnResolution) {
-  // A scene3d sketch is formed at ONE resolution, so it has to be formed at the
-  // canvas's: one formed at the declared size and then magnified onto a
-  // canvas twice as wide is a picture of a smaller one. What separates
+/** How many 2x2 blocks of @p picture hold more than one colour: a
+ *  picture magnified twice from a smaller one has none, since every block
+ *  came from a single source pixel. */
+size_t mixedBlocks(const SkBitmap& picture) {
+  size_t mixed = 0;
+  for (int y = 0; y + 1 < picture.height(); y += 2)
+    for (int x = 0; x + 1 < picture.width(); x += 2) {
+      const SkColor first = picture.getColor(x, y);
+      if (picture.getColor(x + 1, y) != first ||
+          picture.getColor(x, y + 1) != first ||
+          picture.getColor(x + 1, y + 1) != first)
+        ++mixed;
+    }
+  return mixed;
+}
+
+TEST_F(Scene3DSession, AFittedCaptureIsFormedAtItsOwnResolution) {
+  // A scene3d sketch is formed at ONE resolution, so a capture is formed at
+  // the canvas's: one formed at the declared size and then magnified onto
+  // a canvas twice as wide is a picture of a smaller one. What separates
   // the two is inside the outline rather than around it — a magnified
   // plate is one where every 2x2 of pixels came from a single source
   // pixel, so not one of them holds two colours.
-  const SkBitmap fitted = steppedOnto(2.0f, 30);
+  const SkBitmap fitted = steppedOnto(2.0f, 30, true);
   ASSERT_EQ(fitted.width(), 320);
   ASSERT_EQ(fitted.height(), 240);
+  EXPECT_GT(mixedBlocks(fitted), 0u)
+      << "every 2x2 block holds one colour, which is what a magnified "
+         "plate looks like";
+}
 
-  size_t mixed = 0;
-  for (int y = 0; y + 1 < fitted.height(); y += 2)
-    for (int x = 0; x + 1 < fitted.width(); x += 2) {
-      const SkColor first = fitted.getColor(x, y);
-      if (fitted.getColor(x + 1, y) != first ||
-          fitted.getColor(x, y + 1) != first ||
-          fitted.getColor(x + 1, y + 1) != first)
-        ++mixed;
-    }
-  EXPECT_GT(mixed, 0u) << "every 2x2 block holds one colour, which is what "
-                          "a magnified plate looks like";
+TEST_F(Scene3DSession, AFittedLiveSessionIsFormedAtItsDeclaredResolution) {
+  // A live window forms no more pixels than the sketch declared and
+  // magnifies the picture, so on a canvas twice as wide the same scene
+  // is the declared picture doubled: every 2x2 block is one colour.
+  const SkBitmap fitted = steppedOnto(2.0f, 30, false);
+  ASSERT_EQ(fitted.width(), 320);
+  ASSERT_EQ(fitted.height(), 240);
+  EXPECT_EQ(mixedBlocks(fitted), 0u)
+      << "a live session formed more pixels than its canvas declares";
 }
 
 TEST_F(Scene3DSession, DrawsThroughOnePassWhenTheScene3DDeclaresNone) {
@@ -627,12 +646,12 @@ SkBitmap throughThePane(Session& session, int frames) {
 }
 
 TEST_F(Scene3DWindow, AZoomedPaneFormsOnlyThePanesPixels) {
-  // A scene3d sketch is formed at the resolution it is seen at, so at 4x the
+  // A capture is formed at the resolution it is seen at, so at 4x the
   // whole canvas would be 640x480 — sixteen times the pane. What is
   // formed is the part the pane shows, and no larger than the pane.
   Measured::formed = {0, 0};
   std::unique_ptr<Session> session =
-      kindOf<Measured>()->open(fonts(), assets());
+      kindOf<Measured>()->open(fonts(), assets(), true);
   // Two frames: a readback is handed over the frame after it was made.
   throughThePane(*session, 2);
   EXPECT_EQ(Measured::formed, glm::ivec2(160, 120));
@@ -646,10 +665,12 @@ TEST_F(Scene3DWindow, APaneShowsWhatTheWholeCanvasShowsThere) {
   // level or two, and a pixel whose centre stands on a triangle's edge
   // may fall to the other side of it — never more than a sliver of the
   // pane.
-  std::unique_ptr<Session> zoomed = kindOf<Measured>()->open(fonts(), assets());
+  std::unique_ptr<Session> zoomed =
+      kindOf<Measured>()->open(fonts(), assets(), true);
   const SkBitmap pane = throughThePane(*zoomed, 30);
 
-  std::unique_ptr<Session> whole = kindOf<Measured>()->open(fonts(), assets());
+  std::unique_ptr<Session> whole =
+      kindOf<Measured>()->open(fonts(), assets(), true);
   SkBitmap canvasPixels;
   canvasPixels.allocPixels(SkImageInfo::MakeN32Premul(640, 480));
   SkCanvas canvas(canvasPixels);
@@ -690,7 +711,8 @@ TEST_F(Scene3DWindow, AWholeCanvasClipFormsTheWholeCanvas) {
   EXPECT_EQ(Measured::formed, glm::ivec2(160, 120));
 
   Measured::formed = {0, 0};
-  std::unique_ptr<Session> fitted = kindOf<Measured>()->open(fonts(), assets());
+  std::unique_ptr<Session> fitted =
+      kindOf<Measured>()->open(fonts(), assets(), true);
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(640, 480));
   SkCanvas canvas(bitmap);
@@ -698,6 +720,34 @@ TEST_F(Scene3DWindow, AWholeCanvasClipFormsTheWholeCanvas) {
   fitted->frame(canvas, 1.0 / 60.0);
   fitted->frame(canvas, 1.0 / 60.0);
   EXPECT_EQ(Measured::formed, glm::ivec2(640, 480));
+}
+
+TEST_F(Scene3DWindow, ALiveSessionFormsNoMorePixelsThanItDeclared) {
+  // A live window's pane on a dense screen, or zoomed in, hands the
+  // sketch a canvas scaled up. The lit draw costs by the pixel, so a
+  // live session forms the declared canvas and the pane magnifies it;
+  // the same canvas handed to a capture forms every pixel (above).
+  Measured::formed = {0, 0};
+  std::unique_ptr<Session> live =
+      kindOf<Measured>()->open(fonts(), assets(), false);
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(640, 480));
+  SkCanvas canvas(bitmap);
+  canvas.scale(kZoom, kZoom);
+  live->frame(canvas, 1.0 / 60.0);
+  live->frame(canvas, 1.0 / 60.0);
+  EXPECT_EQ(Measured::formed, glm::ivec2(160, 120));
+  // …and the picture is still drawn over the whole canvas: a corner
+  // is the ground and the middle is the body.
+  EXPECT_NE(bitmap.getColor(320, 240), bitmap.getColor(2, 2));
+
+  // A pane looking at a quarter of the canvas at 4x forms that quarter
+  // of the declared pixels, never the pane's own.
+  Measured::formed = {0, 0};
+  std::unique_ptr<Session> zoomed =
+      kindOf<Measured>()->open(fonts(), assets(), false);
+  throughThePane(*zoomed, 2);
+  EXPECT_EQ(Measured::formed, glm::ivec2(160 / kZoom, 120 / kZoom));
 }
 
 TEST_F(Scene3DWindow, AStillAfterAZoomedFrameShowsTheWholePicture) {

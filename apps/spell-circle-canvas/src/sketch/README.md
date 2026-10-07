@@ -92,6 +92,12 @@ When the host takes hold of the viewpoint — an orbit in a window — it states
 its lens as the frame's `world::Frame::cameraOverride`, and the camera the
 tree chose still says how the picture is read.
 
+A scene3d sketch's picture is formed at one resolution. A capture — a plate,
+a still — forms every pixel the canvas has for it. A live window forms no
+more pixels than the sketch declared, and the pane magnifies the picture: a
+lit draw costs by the pixel, and a pane on a dense screen has four times
+the pixels of the same pane on a plain one.
+
 A scene2d body that uses the host's device mesh painter, foreign textures or
 device compute declares `static constexpr bool needsDevice = true;`.
 Ordinary Compose drawing needs no World executor. A supplied non-CPU

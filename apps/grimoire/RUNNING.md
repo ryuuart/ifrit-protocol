@@ -190,7 +190,9 @@ and the pan are a view the frame is drawn through — the sketch's canvas
 letterboxed, then magnified and moved, and clipped to the pane, so
 everything off screen is rejected before it is drawn. A frame at 4× fills
 the pane's pixels and not sixteen times them, and a wheel spin never
-waits on a new texture. While the zoom is moving the sketch is drawn at
+waits on a new texture. A live scene3d sketch forms no more pixels than
+its declared canvas whatever the pane's density or zoom, and the pane
+magnifies that picture; a capture forms every pixel the canvas has. While the zoom is moving the sketch is drawn at
 the scale it stood at and that frame is magnified to the view; it is
 drawn at the view's own scale again once the zoom has held still for a
 moment, or at once when the zoom has run past twice or half the held

@@ -346,7 +346,15 @@ class Scene3DSession final : public Session {
    *  A canvas whose clip is the whole picture, as a plate's is, forms
    *  the whole picture exactly as a frame with no part does. */
   [[nodiscard]] Window windowOn(const SkCanvas& canvas) const {
-    const float scale = pixelScale(canvas);
+    // A LIVE WINDOW FORMS NO MORE PIXELS THAN THE SKETCH DECLARED. The
+    // lit draw costs by the pixel, and a pane on a dense screen has four
+    // times the pixels of the same pane on a plain one; the declared
+    // canvas is the resolution the sketch was made at, so a live session
+    // forms that many and the pane magnifies the picture. A deterministic
+    // session — a plate, a still — forms every pixel the canvas has for
+    // it, so a capture is the picture at the size it is taken.
+    const float scale = m_deterministic ? pixelScale(canvas)
+                                        : std::min(pixelScale(canvas), 1.0f);
     const SkSize size = m_specification.size;
     Window window;
     window.whole = {std::max(1, (int)std::lround(size.width() * scale)),

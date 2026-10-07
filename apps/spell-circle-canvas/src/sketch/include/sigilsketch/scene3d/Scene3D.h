@@ -111,7 +111,10 @@ struct Scene3DContext {
    *  nothing may hold the thread that draws, and such a body starts
    *  what it needs and describes what has arrived. A scene3d sketch's own
    *  description is a function of the scene time either way — this
-   *  decides when what it describes is THERE, not what it is. */
+   *  decides when what it describes is THERE, not what it is. It also
+   *  decides how many pixels are formed: a capture forms every pixel the
+   *  canvas has for it, a live window no more than the sketch declared,
+   *  magnified to the pane. */
   bool deterministic = false;
 };
 
