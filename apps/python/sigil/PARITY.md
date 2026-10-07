@@ -712,21 +712,12 @@ model, arithmetic and data become Python code and are not listed.
 | Sketch | Needs | Not yet bound |
 | --- | --- | --- |
 | `carved_marks` | Not yet audited | Not yet audited |
-| `carved_marks_set` | Not yet audited | Not yet audited |
 | `ceramic_glaze` | Not yet audited | Not yet audited |
 | `embossed_foil` | Not yet audited | Not yet audited |
-| `glass_atelier` | Not yet audited | Not yet audited |
 | `glass_forms` | Not yet audited | Not yet audited |
-| `layered_material_type` | Not yet audited | Not yet audited |
-| `light_table` | Not yet audited | Not yet audited |
-| `luminous_layers` | Not yet audited | Not yet audited |
 | `metal_instrument` | Not yet audited | Not yet audited |
 | `metal_linework` | Not yet audited | Not yet audited |
-| `optical_liquid` | Not yet audited | Not yet audited |
 | `painted_fields` | Not yet audited | Not yet audited |
-| `pigment_brushes` | Not yet audited | Not yet audited |
-| `reflection_lobe` | Not yet audited | Not yet audited |
-| `stone_relief` | Not yet audited | Not yet audited |
 | `struck_metal` | Not yet audited | Not yet audited |
 | `surface_lobes` | Not yet audited | Not yet audited |
 | `wet_glass_console` | Not yet audited | Not yet audited |

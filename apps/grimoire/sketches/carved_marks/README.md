@@ -1,47 +1,32 @@
 # Carved / Marks
 
-A 1440 × 1120 Compose material atelier: porous limestone beside brushed copper,
-with the same letter die and layered marks pressed into both finishes. Real
-`OB8` text keeps its counters. A pressure ribbon and two crossing fibre passes
-overlap the lettering in one opaque grayscale height field. Dark ink and partial
-gilding sample that field, so the marks change the material rather than sit
-above it.
+The central specimens of `carved_marks` — the
+`OB8` letter die with its pressure ribbon and fibre passes pressed into
+limestone and raised into copper, gold leaf restarted on every glyph, and a
+relief bevelled off the glyph contours — laid out as one 1440 × 900 Compose
+page. Compose paints the page as the maps of a surface: base colour, normal,
+roughness, metallic, occlusion and emissive. One flat World plate wears those
+maps, and the scene's sun, a raking point light and a studio environment shade
+it. Compose shades nothing here.
 
-The stone takes the height as a cut; the copper reverses and reduces it into a
-raised, chased finish. Local grain supplies a second normal layer. Every
-material paints its colour stack flat; the normal, roughness and metallic
-channels describe the surface without shading it. Stone pores, copper scores,
-oxide tint and gold masks are authored fields.
+The shared height comes from a separate Compose scene. It is pressed into the
+stone at −2.8 pixels and raised from the copper at +1.6, with noise grain
+blended into both normals. The captions and rules take no light. They arrive
+in the emissive map over a black base, so they read as painted under every
+light and at every angle.
 
-The 16-second loop has four four-second phases:
+The loop is 12 seconds and closes on itself:
 
-| Seconds | Phase |
+| Seconds | What moves |
 | --- | --- |
-| 0–4 | Cut stone and chased copper |
-| 4–8 | Zero macro depth; grain remains |
-| 8–12 | Half gilding, dark ink retained |
-| 12–16 | Reflected Glyph mapping; Word ink spans font-size changes |
+| 0–7 | The plate faces the camera square on while the point light circles low across it. Highlights cross the cut stone, the chased copper and the gilt glyphs. |
+| 7–12 | The plate turns 26° one way, then the other, and comes back square. The copper and gold catch the environment's soft boxes as they pass. |
 
-`HOLD` pins the finish. `AUTO` restores the timed presets; `PREVIOUS` and
-`NEXT` select a held phase. Four rails edit signed cut depth, grain depth,
-copper roughness and gilding opacity; dragging one enters manual mode.
-`NORMALS` toggles the hero and selected-letter normals.
+The page is painted once and is not painted again. Only the lights and the
+plate move.
 
-Beside the stone, a height preview and a fixed reference normal at −2.8 pixels
-stay unchanged through every phase and finish edit. The hero's own normals
-follow the current signed depth, so they can differ from that fixed reference.
-
-The lower cards apply a procedural height field directly to material ink in the
-Element, Glyph and Word domains. Element ink covers its whole leaf; on the
-Glyph and Word cards the `cut /` prefix stays ordinary ink outside the selected
-material span. The Word card changes `I` and `B` font sizes within one mapping,
-and the final phase reflects the Glyph card horizontally and stretches it
-vertically. The edge rail shows signed and zero depth, fine lines, both
-roughness endpoints and a matching green-axis normal pair; it keeps its normals
-when `NORMALS` turns the hero's off.
-
-The relief is described, not cut: there is no V-shaped groove, displaced metal,
-changed silhouette or groove shadow. Gilding and ink are masks, with no leaf
-thickness, wiping or ink flow. The copper's brushing is scalar roughness, with
-no anisotropic highlight. Every receiver is a flat Compose element. Georgia,
-with serif fallbacks, supplies the letter shapes.
+The sketch has no control panel. It has none of the source study's timed
+finish phases, gilding or cut-depth edits, and no reference normal preview.
+The relief is shaded, not displaced: the plate keeps its silhouette and casts
+no shadow into its own cuts. Point lights reach the plate as directions toward
+its centre, not at their true positions.

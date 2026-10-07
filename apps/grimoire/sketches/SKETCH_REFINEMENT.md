@@ -13,16 +13,11 @@ not a claim that the sketch was redesigned.
 
 ## Material interface studies
 
-Sixteen studies under `Study · Materials` present invented instruments, desks
-and ateliers whose shapes and lettering are made of material: `carved_marks`,
-`ceramic_glaze`, `embossed_foil`, `glass_atelier`, `layered_material_type`,
-`light_table`, `luminous_layers`, `metal_linework`, `optical_liquid`,
-`painted_fields`, `pigment_brushes`, `reflection_lobe`, `stone_relief` and
-`wet_glass_console` on Compose, and `metal_instrument` and `struck_metal` as
-scene3d sketches with physical cuts and depth. Each keeps its own authored interface
-rather than the shared feature page and steps through timed states that each
-change one material parameter or light; most keep fixed endpoint specimens
-beside the hero in every state.
+Ten studies under `Study · Materials` are scene3d sketches of objects under
+scene lights: `carved_marks`, `ceramic_glaze`, `embossed_foil`, `glass_forms`,
+`metal_instrument`, `metal_linework`, `painted_fields`, `struck_metal`,
+`surface_lobes` and `wet_glass_console`. Each states its goal in its README
+before its code, and its plate moves whenever its picture is made better.
 
 Their refinement still wants:
 
