@@ -1467,8 +1467,9 @@ a device and nowhere else, and a Python process brings none up, so a
 lights and camera — and draws nothing. A scene2d sketch that shows a scene3d frame bakes it
 with `ctx.bakeScene3D(frame, size, camera=…, background=…, at=…)`, which draws
 on the device the host brought up and answers `None` where there is none.
-A sketch class that bakes declares `needsDevice = True`, and a host that
-reads it brings the device up before the sketch opens. Import meshes and cameras from `sigil.geometry.mesh`, materials from
+A sketch class that bakes declares `needsDevice = True` on a line of its
+own; a host reads it from the file's text when the sketch is listed, and
+brings the device up before the sketch opens. Import meshes and cameras from `sigil.geometry.mesh`, materials from
 `sigil.material`, and animation values from `sigil.motion`. These are the
 same values used by the direct bindings.
 

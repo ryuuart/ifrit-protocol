@@ -17,6 +17,7 @@
 #include <unistd.h>
 
 #include <cmath>
+#include <fstream>
 #include <memory>
 #include <mutex>
 #include <span>
@@ -369,6 +370,33 @@ class PythonKind final : public KindOperations {
   std::shared_ptr<Generation> m_generation;
 };
 
+/** Whether the sketch written in @p source declares `needsDevice = True`
+ *  on a line of its own, read from the text rather than by importing it:
+ *  a listing asks every source kind before any is opened, and importing
+ *  each would run every sketch's module to answer one line. A file that
+ *  cannot be read declares nothing. */
+bool declaresDevice(const std::filesystem::path& source) {
+  std::ifstream file(source);
+  std::string line;
+  while (std::getline(file, line)) {
+    std::string_view text = line;
+    const auto first = text.find_first_not_of(" \t");
+    if (first == std::string_view::npos || first == 0) continue;
+    text.remove_prefix(first);
+    constexpr std::string_view kName = "needsDevice";
+    if (!text.starts_with(kName)) continue;
+    text.remove_prefix(kName.size());
+    const auto equals = text.find_first_not_of(" \t");
+    if (equals == std::string_view::npos || text[equals] != '=') continue;
+    text.remove_prefix(equals + 1);
+    const auto value = text.find_first_not_of(" \t");
+    if (value != std::string_view::npos &&
+        text.substr(value).starts_with("True"))
+      return true;
+  }
+  return false;
+}
+
 class SourceKind final : public KindOperations {
  public:
   explicit SourceKind(std::filesystem::path source)
@@ -377,6 +405,10 @@ class SourceKind final : public KindOperations {
     return m_source == other.m_source;
   }
   std::string_view runtime() const override { return "scene2d"; }
+  bool needsDevice() const override { return declaresDevice(m_source); }
+  bool available(std::string* why) const override {
+    return !declaresDevice(m_source) || runtimeAvailable(why);
+  }
   std::unique_ptr<Session> open(weave::FontContext& fonts, Assets& assets,
                                 bool deterministic,
                                 std::string_view key) const override {

@@ -237,6 +237,19 @@ class Study:
   const sketch::Kind plain = sketch::python::load(source.entry());
   EXPECT_FALSE(plain->needsDevice());
   EXPECT_TRUE(plain->available(&why));
+
+  // A SOURCE KIND ANSWERS THE SAME FROM THE FILE'S TEXT, before anything
+  // is imported: a listing asks every source before one opens.
+  source.write("entry.py", R"PY(
+class Study:
+    needsDevice = True
+    def setup(self, ctx):
+        pass
+)PY");
+  const sketch::Kind listed = sketch::python::source(source.entry());
+  EXPECT_TRUE(listed->needsDevice());
+  EXPECT_FALSE(listed->available(&why));
+  EXPECT_EQ(why, expected);
 }
 
 TEST(SketchPython, ASourceKindCanBeListedWhenItsFileIsMissingOrInvalid) {
