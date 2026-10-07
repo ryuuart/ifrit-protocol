@@ -128,8 +128,8 @@ struct WorldHud {
         lens.extentAt(kAt, kSceneSize.fWidth / kSceneSize.fHeight);
     const float h = frame.y, w = frame.x;
     const glm::vec3 at = lens.eye + forward * kAt;
-    sigil::material::Material surface =
-        sigil::material::surface::unlit({.baseColor = {1, 1, 1, 1}});
+    sigil::material::Material surface = sigil::material::surface::unlit(
+        {.baseColor = {1, 1, 1, 1}, .depthWrite = false});
     surface.slot(sigil::material::surface::kBaseColorSlot, std::move(texture));
     return world::mesh(worldhud::gm::quad(w, h))
         .key("overlay")

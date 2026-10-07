@@ -475,7 +475,10 @@ struct StruckMetal {
     const auto forward = glm::normalize(eye.target - eye.eye);
     const float distance = eye.zNear + 4;
     const auto extent = eye.extentAt(distance, float(kWidth) / kHeight);
-    auto finish = material::surface::unlit({.baseColor = {1, 1, 1, 1}});
+    // The sheet writes no depth, so the register shows through where it
+    // is clear.
+    auto finish = material::surface::unlit(
+        {.baseColor = {1, 1, 1, 1}, .depthWrite = false});
     finish.slot(material::surface::kBaseColorSlot, hud->texture());
     return part("status-overlay", gm::quad(extent.x, extent.y), finish)
         .transform(gm::camera::faceCamera(eye.eye, eye.eye + forward * distance,

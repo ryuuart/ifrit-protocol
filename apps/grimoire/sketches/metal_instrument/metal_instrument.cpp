@@ -208,8 +208,12 @@ material::Material metal(material::Color color, float roughness) {
        .metallic = 1,
        .roughness = bounded(roughness, 0, 1, 0.27f)});
 }
-material::Material screen(material::Texture texture) {
-  auto result = material::surface::unlit({.baseColor = {1, 1, 1, 1}});
+/** A picture shown as it is: the device's display, or — @p overlay — a
+ *  sheet in front of the whole scene, which writes no depth so the scene
+ *  shows through where the sheet is clear. */
+material::Material screen(material::Texture texture, bool overlay = false) {
+  auto result = material::surface::unlit(
+      {.baseColor = {1, 1, 1, 1}, .depthWrite = overlay ? 0.0f : -1.0f});
   result.slot(material::surface::kBaseColorSlot, std::move(texture));
   return result;
 }
@@ -520,7 +524,7 @@ struct MetalInstrument {
     const glm::vec2 extent = camera.extentAt(distance, float(kWidth) / kHeight);
     const glm::vec3 at = camera.eye + forward * distance;
     return part("overlay", gm::quad(extent.x, extent.y),
-                screen(overlayScene->texture()))
+                screen(overlayScene->texture(), true))
         .transform(gm::camera::faceCamera(camera.eye, at, camera.up));
   }
 

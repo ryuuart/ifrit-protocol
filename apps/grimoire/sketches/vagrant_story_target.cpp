@@ -649,8 +649,8 @@ struct VagrantStoryTarget {
         lens.extentAt(kAt, (float)vs::kHudW / (float)vs::kHudH);
     const float w = frame.x, h = frame.y;
     const glm::vec3 at = lens.eye + forward * kAt;
-    material::Material surface =
-        material::surface::unlit({.baseColor = {1, 1, 1, 1}});
+    material::Material surface = material::surface::unlit(
+        {.baseColor = {1, 1, 1, 1}, .depthWrite = false});
     surface.slot(material::surface::kBaseColorSlot, std::move(texture));
     return mesh(vs::gm::quad(w, h))
         .key("overlay")

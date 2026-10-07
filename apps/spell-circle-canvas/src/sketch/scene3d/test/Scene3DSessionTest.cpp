@@ -311,7 +311,10 @@ SkBitmap oneFrame(Session& session) {
 /** ONE FRAME AS ITS SURFACES SHADE IT. A live session draws a body as a
  *  stand-in while its program compiles on a worker, so the same moment
  *  is drawn again once every compile is done, and what is read is the
- *  surface and not its stand-in. */
+ *  surface and not its stand-in. It is drawn again whether or not a
+ *  compile is still running when the first frame returns: one that
+ *  finished while that frame was drawing left its stand-in in the
+ *  picture all the same. */
 SkBitmap shadedFrame(Session& session) {
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(160, 120));
@@ -319,13 +322,10 @@ SkBitmap shadedFrame(Session& session) {
   session.frame(canvas, 1.0 / 60.0);
   const auto deadline =
       std::chrono::steady_clock::now() + std::chrono::seconds(30);
-  bool waited = false;
   while (sigil::material::ProgramCache::shared().compiling() > 0 &&
-         std::chrono::steady_clock::now() < deadline) {
-    waited = true;
+         std::chrono::steady_clock::now() < deadline)
     std::this_thread::sleep_for(std::chrono::milliseconds(5));
-  }
-  if (waited) session.frame(canvas, 0.0);
+  session.frame(canvas, 0.0);
   return bitmap;
 }
 
@@ -832,13 +832,16 @@ TEST_F(Scene3DDoors, OpensAnOwnedBodyWithNoKindBehindIt) {
                   false, sigil::sketch::runtime());
   ASSERT_NE(owned, nullptr);
   EXPECT_EQ(owned->canvas().size, SkSize::Make(160, 120));
-  const SkBitmap throughTheDoor = oneFrame(*owned);
-  EXPECT_EQ(Spun::describes, 1);
+  // Shaded, not first frames: a live session stands a body in while its
+  // program compiles, and which of the two sessions meets a compile still
+  // under way is a race the picture must not depend on.
+  const SkBitmap throughTheDoor = shadedFrame(*owned);
+  EXPECT_GE(Spun::describes, 1);
 
   Spun::describes = 0;
   std::unique_ptr<Session> registered = kindOf<Spun>()->open(fonts(), assets());
   ASSERT_NE(registered, nullptr);
-  EXPECT_TRUE(samePicture(throughTheDoor, oneFrame(*registered)));
+  EXPECT_TRUE(samePicture(throughTheDoor, shadedFrame(*registered)));
 }
 
 /** A supplier standing where the address of a factory function would:

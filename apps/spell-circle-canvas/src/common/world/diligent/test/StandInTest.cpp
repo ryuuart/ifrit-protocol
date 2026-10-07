@@ -21,6 +21,8 @@
 #include <memory>
 #include <string>
 #include <thread>
+#include <utility>
+#include <vector>
 
 #include "DeviceSeams.h"
 #include "TestMaterial.h"
@@ -46,13 +48,18 @@ material::Material uncompiled(const std::string& name) {
 }
 
 Frame card(const material::Material& surface, const Runtime& runtime,
-           bool standIns) {
-  Frame frame(
-      group({directionalLight({0, 0, -1}, {.intensity = 0.5f}).key("sun"),
-             mesh(::sigil::geometry::mesh::quad(120, 120))
-                 .key("card")
-                 .fill(surface)})
-          .key("set"));
+           bool standIns, bool panel = false) {
+  std::vector<Node> content{
+      directionalLight({0, 0, -1}, {.intensity = 0.5f}).key("sun"),
+      mesh(::sigil::geometry::mesh::quad(120, 120)).key("card").fill(surface)};
+  // A light with a size, which a program built for the sun alone has no
+  // code for.
+  if (panel)
+    content.push_back(
+        rectLight({0, 0, -1}, {.width = 60, .height = 60, .intensity = 1.0f})
+            .key("panel")
+            .at({0, 0, 40}));
+  Frame frame(group(std::move(content)).key("set"));
   frame.extent(kExtent)
       .defaultCamera(diligent::levelEye())
       .runtime(runtime)
@@ -109,4 +116,32 @@ TEST(StandIn, AFrameThatWaitsHoldsTheProgramOnItsFirstFrame) {
   const SkColor4f first = middle(scene);
   EXPECT_GT(first.fR, 0.05f);
   EXPECT_LT(first.fR, 0.8f);
+}
+
+TEST(StandIn, ALightKindEnteringStandsInForOneFrameAtMost) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  const material::Material surface =
+      uncompiled("world.test.stand-in.light-enters");
+  motion::Engine engine;
+  Scene scene(engine);
+  // The body opens and its program streams in.
+  scene.render(card(surface, on.runtime, /*standIns=*/true));
+  const auto deadline =
+      std::chrono::steady_clock::now() + std::chrono::seconds(30);
+  while (material::ProgramCache::shared().compiling() > 0 &&
+         std::chrono::steady_clock::now() < deadline)
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  scene.render(card(surface, on.runtime, /*standIns=*/true));
+  ASSERT_EQ(scene.stats().programsPending, 0);
+
+  // A rect light enters: the frame that meets it may stand the body in
+  // while its program for the new set compiles, and the frame after it,
+  // asked at once, draws the body whole.
+  scene.render(card(surface, on.runtime, /*standIns=*/true, /*panel=*/true));
+  EXPECT_LE(scene.stats().programsPending, 1);
+  scene.render(card(surface, on.runtime, /*standIns=*/true, /*panel=*/true));
+  EXPECT_EQ(scene.stats().programsPending, 0);
+  const SkColor4f lit = middle(scene);
+  EXPECT_LT(lit.fR, 0.95f) << "the body is lit, not its unlit stand-in";
 }

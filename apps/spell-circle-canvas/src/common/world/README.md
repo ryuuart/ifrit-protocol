@@ -647,6 +647,15 @@ mind. A card whose texture is transparent in places writes depth wherever
 it covers; one standing in front of blended bodies states
 `depthWrite = false`.
 
+**A body writing depth is opaque.** A body composited normally that
+writes depth — stated, or by default because its colour is opaque — is
+drawn with blending off: its pixels replace what stands behind them,
+alpha and all, and the device skips shading what a nearer opaque body
+hides. Translucency is a body that writes no depth
+(`SurfaceOptions::depthWrite = false`) or states a blend of its own
+(`SurfaceOptions::blend`); either is drawn over what stands behind by its
+alpha.
+
 **A blended body fading into the scene** reads the depth of what is opaque
 behind it: once the opaque bodies are drawn the depth buffer is copied, and
 the copy is read through a view of its own depth format, which Metal

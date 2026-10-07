@@ -584,7 +584,10 @@ struct SurfaceOptions {
   BlendMode blend = BlendMode::Normal;
   /** Whether the surface writes depth, so that what is drawn after it and
    *  behind it is hidden. Unstated, an opaque surface composited
-   *  normally writes it and every other surface does not. */
+   *  normally writes it and every other surface does not. A surface
+   *  composited normally that writes depth IS OPAQUE: a 3D renderer draws
+   *  it replacing what it covers, its alpha included, so a translucent
+   *  surface states `false` here or a blend other than `Normal`. */
   std::optional<bool> depthWrite;
   /** SOFT EDGES WHERE IT MEETS THE SCENE: the distance, in scene units,
    *  over which the surface fades out as it approaches the opaque surface

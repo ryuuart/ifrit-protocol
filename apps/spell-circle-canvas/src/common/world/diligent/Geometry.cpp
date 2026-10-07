@@ -610,13 +610,26 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
   // INTO A SHADOW MAP, a body whose surface does not decide where it
   // covers is drawn with the one depth-only program; one whose surface
   // does is asked, through its own program's shadow build, only that.
+  const uint32_t reaching =
+      lit && !caster ? lightVariant(gpu, lights, receives) : 0u;
   Surface surface;
   if (caster && !caster->coverage)
     surface.program = &shadowScaffold(/*coverage=*/false);
   else
-    surface =
-        surfaceOf(material, lit, gpu.seconds, caster != nullptr, gpu.standIns,
-                  lit && !caster ? lightVariant(gpu, lights, receives) : 0u);
+    surface = surfaceOf(material, lit, gpu.seconds, caster != nullptr,
+                        gpu.standIns, reaching);
+  // A LIGHT KIND ENTERING, told from a body opening by the light bits its
+  // lit program was last drawn whole with: the compile the stand-in
+  // started is waited for before the next geometry pass draws.
+  if (lit && !caster && material) {
+    const material::Recipe* recipe = &material->recipe();
+    const auto drawn = gpu.litWith.find(recipe);
+    if (!surface.standIn)
+      gpu.litWith[recipe] = reaching;
+    else if (drawn != gpu.litWith.end() && drawn->second != reaching)
+      gpu.awaitedPrograms.emplace_back(material->recipePointer(),
+                                       kVariantLit | reaching);
+  }
   if (surface.standIn) {
     ++gpu.programsPending;
     lit = false;
@@ -624,8 +637,17 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
   if (caster) lit = false;
   if (!surface.program || surface.program->empty()) return;
 
-  PipelineKey key{surface.program, blending.blend, true, blending.depthWrite,
-                  false,           false,          cull};
+  // A BODY WRITING DEPTH IS OPAQUE: what it covers it replaces, so a
+  // body composited normally and writing depth is drawn with blending
+  // off, which is also what lets the device skip the pixels a nearer
+  // opaque body hides. Translucency is a body that writes no depth or
+  // states a blend of its own.
+  const SkBlendMode blend =
+      blending.depthWrite && blending.blend == SkBlendMode::kSrcOver
+          ? SkBlendMode::kSrc
+          : blending.blend;
+  PipelineKey key{surface.program, blend, true, blending.depthWrite,
+                  false,           false, cull};
   key.target = kRadianceFormat;
   key.instanced = true;
   if (caster) {
@@ -1569,6 +1591,13 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
   gpu.shadows.clear();
   gpu.standIns = view.standIns;
   gpu.programsPending = 0;
+  // The programs a light kind entering started on an earlier pass are
+  // waited for here, before anything is drawn, so the stand-ins it cost
+  // stop at the pass that met it.
+  for (const auto& [recipe, variant] : gpu.awaitedPrograms)
+    (void)material::ProgramCache::shared().program(
+        recipe, material::Target::Slang, material::Variant{variant});
+  gpu.awaitedPrograms.clear();
   // Every body this pass drew as a stand-in is told to the scene, however
   // the pass returns.
   struct Report {

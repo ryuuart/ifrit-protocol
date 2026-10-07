@@ -359,6 +359,29 @@ TEST(Blending, AnOpaqueBodyStillHidesWhatIsBehindIt) {
   EXPECT_LT(centre.fG, 0.12f) << "nothing behind an opaque body shows";
 }
 
+TEST(Blending, ABodyWritingDepthReplacesWhatItCoversAndOneWritingNoneBlends) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // A half-transparent card over a blue plate. Writing depth, it is
+  // opaque: drawn with blending off, its pixels replace the plate's and no
+  // blue reaches the picture through it. Writing none, it is drawn over the
+  // plate by its alpha and the blue shows through.
+  const auto picture = [&](bool writes) {
+    return photographed({card("plate", flat({0.0f, 0.0f, 0.8f, 1}), -10, 150),
+                         card("veil",
+                              flat({0.0f, 0.8f, 0.0f, 0.5f},
+                                   material::BlendMode::Normal, writes),
+                              0, 80)},
+                        on.runtime);
+  };
+  const SkColor4f opaque = at(picture(true), 0.5f, 0.5f);
+  const SkColor4f translucent = at(picture(false), 0.5f, 0.5f);
+  EXPECT_LT(opaque.fB, 1.5f / 255) << "a body writing depth replaces the plate";
+  EXPECT_GT(opaque.fG, 0.2f) << "and shows its own colour";
+  EXPECT_GT(translucent.fB, 0.3f) << "a body writing no depth blends over it";
+  EXPECT_GT(translucent.fG, 0.2f);
+}
+
 // ---- the clock and the flipbook ----------------------------------------
 
 TEST(Flipbook, ShowsTheCellTheClockStandsAt) {

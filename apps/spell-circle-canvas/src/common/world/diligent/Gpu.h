@@ -27,6 +27,7 @@
 #include <sigilgeometry/device/Device.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilworld/advanced/Skia.h>
@@ -44,6 +45,8 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "Meshes.h"
@@ -252,6 +255,19 @@ struct Gpu {
    *  a stand-in, and how many it has drawn so. */
   bool standIns = false;
   int64_t programsPending = 0;
+  /** WHEN A KIND OF LIGHT ENTERS — a light with a size, a directional
+   *  light read through cascades, a point light read through its faces —
+   *  every lit material it reaches needs its program built for the new
+   *  set. The pass that meets it starts each compile on a worker and
+   *  draws the body as a stand-in; the next geometry pass waits for every
+   *  one of them before it draws, so a light entering costs at most one
+   *  frame of stand-ins. A body opening for the first time is not among
+   *  them: its program streams in as a stand-in for as long as it takes. */
+  std::vector<std::pair<std::shared_ptr<const material::Recipe>, uint32_t>>
+      awaitedPrograms;
+  /** The light bits each recipe's lit program was last drawn whole with,
+   *  which is how a light entering is told from a body opening. */
+  std::unordered_map<const material::Recipe*, uint32_t> litWith;
   /** TARGETS NO RESOURCE NAMES, made on the first ask and kept for the
    *  extent's life. A device cannot sample an image it is drawing into,
    *  so every stage that reads and writes at once — one direction of a
