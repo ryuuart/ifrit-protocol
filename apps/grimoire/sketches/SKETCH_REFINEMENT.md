@@ -142,7 +142,6 @@ build/bin/Release/Grimoire.app/Contents/MacOS/Grimoire \
 | `bousen` | Retain · authored catalog | Reviewed GPU plate |
 | `chrome_type` | Retain · authored catalog | Cached preview |
 | `horizontal_flow` | Retain · authored catalog | Cached preview |
-| `manuscript` | Retain · authored catalog | Reviewed GPU plate |
 | `mawarikomi` | Retain · authored catalog | Cached preview |
 | `ruby_kenten` | Retain · authored catalog | Cached preview |
 | `tategaki` | Retain · authored catalog | Cached preview |
