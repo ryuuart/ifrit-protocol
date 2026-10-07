@@ -1,375 +1,572 @@
-/** @file
- * Metallic linework — a silver and copper routing instrument.
- * EDIT THESE FIRST: Controls, heldPhase, circuit(), and finish().
+/** Plated conductor traces on a dark glass-weave board, brushed along
+ *  their own direction so each highlight is drawn out across the trace
+ *  and turns with it through every bend as the key light swings; vias
+ *  stand as plated rings, solder beads sit on the connector pads, and one
+ *  silver line carries a pulse of light along its length.
  */
-// TAGS: Materials/Metal, Drawing/Brushes,
-// Geometry/Lines, Typography/Material ink, Composition/Layers
+// TAGS: Compose/Materials, Materials/Metal, Materials/Lighting,
+// Geometry/3D
 
-#include <include/core/SkPathUtils.h>
-#include <sigilcompose/brush/Brush.h>
+#include <sigilcompose/brush/Ribbons.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilgeometry/advanced/Skia.h>
-#include <sigilgeometry/kit/Generators.h>
-#include <sigilgeometry/path/Through.h>
+#include <sigilcompose/texture/Texture.h>
+#include <sigilgeometry/kit/Solids.h>
+#include <sigilgeometry/mesh/Mesh.h>
+#include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilgeometry/mesh/curve/Curve.h>
+#include <sigilgeometry/mesh/pop/Builder.h>
+#include <sigilgeometry/path/Outline.h>
+#include <sigilgeometry/path/Profile.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/field/Field.h>
-#include <sigilmaterial/paint/Bases.h>
-#include <sigilmaterial/program/Shader.h>
-#include <sigilsketch/scene2d/Scene2D.h>
+#include <sigilmaterial/filter/Filter.h>
+#include <sigilmaterial/surface/Surface.h>
+#include <sigilmaterial/texture/Image.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene3d/Scene3D.h>
+#include <sigilworld/World.h>
+#include <sigilworld/kit/Kit.h>
 
 #include <algorithm>
-#include <array>
 #include <cmath>
-#include <cstdio>
+#include <glm/geometric.hpp>
+#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
+#include <memory>
 #include <string>
-#include <string_view>
+#include <utility>
 #include <vector>
 
-namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
+namespace gm = sigil::geometry::mesh;
 namespace material = sigil::material;
 namespace path = sigil::geometry::path;
-namespace shapes = sigil::geometry::shapes;
-using namespace sigil::compose;
+namespace sketch = sigil::sketch;
+namespace world = sigil::world;
 
 namespace {
 
-constexpr material::Color kGround{0.025f, 0.030f, 0.033f, 1};
-constexpr material::Color kInk{0.78f, 0.83f, 0.83f, 1};
-constexpr material::Color kMuted{0.42f, 0.49f, 0.49f, 1};
-constexpr material::Color kRule{0.14f, 0.20f, 0.20f, 1};
-constexpr material::Color kAmber{0.83f, 0.52f, 0.26f, 1};
-constexpr material::Color kTeal{0.32f, 0.66f, 0.61f, 1};
-constexpr std::array kPhases{"CONDUCTOR / NOMINAL", "PIGMENT / METALLIC ZERO",
-                             "POLISH / ROUGHNESS ZERO", "OXIDE / ROUGHNESS ONE",
-                             "OVERPRINT / HALF OPACITY"};
+using compose::Element;
+using material::hexColor;
 
-struct Controls {
-  float metallic = 1;
-  float roughness = 0.25f;
-  float normalStrength = 0.24f;
-  float depth = 0.85f;
-  float shoulder = 1.6f;
-  float overlay = 0.82f;
-};
+constexpr float kLoop = 12, kPi = 3.14159265358979f;
+constexpr material::Color kBlack{0, 0, 0, 1};
 
-struct Grain {
-  float strength = 0.24f;
-};
-constexpr std::string_view kNormal = R"(
-half4 main(float2 p) {
-  float step = max(0.65, 1.0 / max(uContentScale, 0.125));
-  float phase = p.y * 1.9 + sin(p.x * 0.031) * 0.5;
-  float detail = sin(phase) * exp(-step * 0.17);
-  float3 n = normalize(float3(0.05 * strength * sin(p.x * 0.23),
-                              strength * detail, 1));
-  return half4(half3(n * 0.5 + 0.5), 1);
-})";
-constexpr std::string_view kPlatingMask = R"(
-half4 main(float2 p) {
-  float cell = fract((p.x + p.y * 0.32) / 77.0);
-  float band = smoothstep(0.10, 0.13, cell) *
-               (1.0 - smoothstep(0.68, 0.71, cell));
-  float scuff = 0.70 + 0.30 * sin(p.x * 0.013 + sin(p.y * 0.042));
-  return half4(half3(band * scuff), 1);
-})";
-Element label(std::string_view content, float x, float y, float width,
-              float size = 11, material::Color ink = kMuted,
-              float weight = 500) {
-  return kit::at(text(std::string(content)), x, y, width, size * 1.6f)
-      .fontSize(size)
-      .fontWeight(weight)
-      .ink(ink);
-}
-Element rule(float x, float y, float w, float h = 1,
-             material::Color ink = kRule) {
-  return kit::at(x, y, w, h).fill(ink);
-}
-material::Material finish(const Controls& c, bool copper = false,
-                          bool layered = false) {
-  const material::Color silver{0.59f, 0.66f, 0.69f, 1};
-  const material::Color bronze{0.73f, 0.39f, 0.18f, 1};
-  auto out = material::from(copper ? bronze : silver);
-  out.layer(material::noise(0.08f, {.seed = 29, .grain = true, .stretch = 10}),
-            {.blend = material::BlendMode::SoftLight, .opacity = 0.10f});
-  if (layered)
-    out.layer(
-        copper ? silver : bronze,
-        {.opacity = c.overlay,
-         .mask = material::Mask{.source = material::shader(kPlatingMask),
-                                .channel = material::ColorChannel::Luminance}});
-  return out.surface(
-      {.metallic = c.metallic,
-       .roughness = c.roughness,
-       .normal = material::shader(kNormal, Grain{c.normalStrength}),
-       .clearcoat = 0.12f,
-       .reflectionWeight = 0.8f});
-}
+/** THE BOARD, in page pixels, which are also scene units. */
+constexpr float kWidth = 1600, kDepth = 1000;
+/** How high the plating stands above the board, in scene units. */
+constexpr float kPlating = 2;
 
-Element lettering(std::string_view words, float x, float y, float width,
-                  float size, const Controls& c, bool copper = false) {
-  return label(words, x, y, width, size, kInk, 650)
-      .ink(material::Color{0, 0, 0, 0})
-      .decorationOutline(Boundary::Glyphs)
-      .foreground(relief(finish(c, copper, true),
-                         {.shoulder = c.shoulder, .depth = c.depth}));
-}
+material::Color grey(float value) { return {value, value, value, 1}; }
 
-// Skia supplies exact cap and join coverage. The ordinary material stroke
-// preserves surface response but does not expose these geometry decisions.
-path::Outline strokeRegion(const path::Outline& spine, float width,
-                           path::Cap cap = path::Cap::Round,
-                           path::Join join = path::Join::Miter) {
-  if (!(width > 0)) return {};
-  SkPaint paint;
-  paint.setStyle(SkPaint::kStroke_Style);
-  paint.setStrokeWidth(width);
-  paint.setStrokeCap(path::toSk(cap));
-  paint.setStrokeJoin(path::toSk(join));
-  return path::fromSk(skpathutils::FillPathWithPaint(path::toSk(spine), paint));
-}
-path::Outline route(std::initializer_list<glm::vec2> points) {
-  return path::through(
-      std::span<const glm::vec2>(points.begin(), points.size()));
-}
-Element conductor(const path::Outline& region, const Controls& c,
-                  bool copper = false, bool layered = false) {
-  return pathFigure(region, 3)
-      .background(shadow(Fill::color({0, 0, 0, 0.8f}), {0, 2}, 2))
-      .foreground(relief(finish(c, copper, layered),
-                         {.shoulder = c.shoulder, .depth = c.depth}));
-}
-
+/** A TRACE as it is routed: the corners it turns at, how wide it is,
+ *  whether it is copper or silver, and how round its bends are. */
 struct Trace {
-  path::Outline region;
-  bool copper = false;
-  bool layered = false;
+  std::vector<glm::vec2> corners;
+  float width;
+  bool copper;
+  float bend;
 };
+
+/** A pad where a trace begins or ends: a disc, holed when a via stands
+ *  on it, beaded when a lead is soldered to it. */
+struct Pad {
+  glm::vec2 at;
+  float radius;
+  bool copper;
+  bool via;
+  bool solder;
+};
+
+/** THE BUS: four silver lines leaving the connector, dropping through a
+ *  forty-five degree bend together and ending at a staggered row of
+ *  vias. Perpendicular spacing holds through the bend. */
+std::vector<Trace> bus() {
+  std::vector<Trace> lines;
+  for (int line = 0; line < 4; ++line) {
+    const float top = 300 + 40.0f * float(line);
+    const float diagonal = 320 - 40 * std::sqrt(2.0f) * float(line);
+    const float end = line % 2 ? 1340 : 1280;
+    lines.push_back({{{150, top},
+                      {diagonal + top, top},
+                      {diagonal + top + 300, top + 300},
+                      {end, top + 300}},
+                     14,
+                     false,
+                     24});
+  }
+  return lines;
+}
+
+/** THE POWER RUN: a broad copper line along the front that steps back
+ *  through one bend to a stitched pad. */
+Trace power() {
+  return {{{130, 880}, {1000, 880}, {1090, 790}, {1460, 790}}, 46, true, 60};
+}
+
+/** THE MEANDER: a copper signal that leaves a pad at the back left,
+ *  runs right, then winds through four U-turns to a via — the shape a
+ *  router uses to lengthen a line, every turn a half circle. */
+Trace meander() {
+  std::vector<glm::vec2> corners{{160, 140}, {1040, 140}};
+  float x = 1040;
+  for (int turn = 0; turn < 4; ++turn) {
+    corners.push_back({x, 262});
+    corners.push_back({x + 48, 262});
+    corners.push_back({x + 48, 140});
+    corners.push_back({x + 96, 140});
+    x += 96;
+  }
+  corners.back() = {1500, 140};
+  return {corners, 16, true, 24};
+}
+
+/** THE COIL: a copper spiral inductor between the bus and the power
+ *  run, three and a half turns out from a via at its heart, then a
+ *  straight lead to a pad — every part of it brushed round the way a
+ *  spun disc is. */
+constexpr glm::vec2 kCoilCentre{430, 650};
+Trace coil() {
+  std::vector<glm::vec2> corners;
+  constexpr float kTurns = 3.5f, kInner = 34, kPitch = 30;
+  const int steps = int(kTurns * 72);
+  for (int step = 0; step <= steps; ++step) {
+    const float turned = float(step) / 72;
+    const float angle = 2 * kPi * turned;
+    const float radius = kInner + kPitch * turned;
+    corners.push_back(kCoilCentre +
+                      radius * glm::vec2(std::cos(angle), std::sin(angle)));
+  }
+  corners.push_back({250, corners.back().y});
+  return {corners, 11, true, 0};
+}
+
+std::vector<Trace> traces() {
+  auto all = bus();
+  all.push_back(power());
+  all.push_back(meander());
+  all.push_back(coil());
+  return all;
+}
+
+std::vector<Pad> pads() {
+  std::vector<Pad> all;
+  for (const Trace& line : bus()) {
+    all.push_back({line.corners.front(), 17, false, false, true});
+    all.push_back({line.corners.back(), 17, false, true, false});
+  }
+  all.push_back({{130, 880}, 38, true, false, true});
+  all.push_back({{1460, 790}, 38, true, true, false});
+  for (const float x : {1410.0f, 1510.0f})
+    all.push_back({{x, 860}, 17, true, true, false});
+  all.push_back({{160, 140}, 16, true, false, true});
+  all.push_back({{1500, 140}, 16, true, true, false});
+  all.push_back({kCoilCentre, 18, true, true, false});
+  all.push_back({coil().corners.back(), 17, true, false, true});
+  for (const glm::vec2 at : std::vector<glm::vec2>{
+           {1190, 470}, {1250, 530}, {1530, 420}, {760, 200}, {860, 250}})
+    all.push_back({at, 15, false, true, false});
+  return all;
+}
+
+/** THE SPINE a trace is drawn along: its corners joined straight, each
+ *  corner rounded by a curve that leaves and rejoins the legs `bend`
+ *  pixels from it, sampled finely enough that every short leg holds one
+ *  direction. */
+std::vector<glm::vec2> spine(const Trace& trace) {
+  const auto& corners = trace.corners;
+  if (trace.bend <= 0) return corners;
+  std::vector<glm::vec2> points{corners.front()};
+  for (size_t index = 1; index + 1 < corners.size(); ++index) {
+    const glm::vec2 before = corners[index - 1], corner = corners[index],
+                    after = corners[index + 1];
+    const float reach = std::min({trace.bend, glm::length(corner - before) / 2,
+                                  glm::length(after - corner) / 2});
+    const glm::vec2 enter = corner - glm::normalize(corner - before) * reach;
+    const glm::vec2 leave = corner + glm::normalize(after - corner) * reach;
+    constexpr int kSteps = 10;
+    for (int step = 0; step <= kSteps; ++step) {
+      const float t = float(step) / kSteps;
+      points.push_back((1 - t) * (1 - t) * enter + 2 * (1 - t) * t * corner +
+                       t * t * leave);
+    }
+  }
+  points.push_back(corners.back());
+  return points;
+}
+
+std::string svg(const std::vector<glm::vec2>& points) {
+  std::string data;
+  for (size_t index = 0; index < points.size(); ++index)
+    data += (index ? " L" : "M") + std::to_string(points[index].x) + " " +
+            std::to_string(points[index].y);
+  return data;
+}
+
+/** A band along @p points, laid by @p brush. */
+Element band(const std::vector<glm::vec2>& points,
+             compose::brush::Ribbon brush) {
+  return compose::kit::at(0, 0, kWidth, kDepth)
+      .shape(compose::heldPath(path::Outline::svg(svg(points))))
+      .stroke(std::move(brush));
+}
+
+compose::brush::Ribbon ribbon(float width, compose::Fill fill) {
+  auto brush = compose::brush::ribbon(path::Profile{{0, width}, {1, width}},
+                                      std::move(fill));
+  brush.join = path::Join::Round;
+  return brush;
+}
+
+compose::brush::Ribbon ribbon(float width, material::Material plating) {
+  auto brush = compose::brush::ribbon(path::Profile{{0, width}, {1, width}},
+                                      std::move(plating));
+  brush.join = path::Join::Round;
+  return brush;
+}
+
+Element disc(glm::vec2 centre, float radius, compose::Fill fill) {
+  return compose::kit::at(centre.x - radius, centre.y - radius, 2 * radius,
+                          2 * radius)
+      .borderRadius(radius)
+      .fill(std::move(fill));
+}
+
+Element disc(glm::vec2 centre, float radius, material::Material finish) {
+  return compose::kit::at(centre.x - radius, centre.y - radius, 2 * radius,
+                          2 * radius)
+      .borderRadius(radius)
+      .fill(std::move(finish));
+}
+
+/** THE PLATING'S HEIGHT, white highest: the board's glass weave low and
+ *  faint, each trace a soft shoulder under a flat top with a slight
+ *  crown, each pad a disc, each via's drill a pit. */
+Element heightPage() {
+  const auto weave =
+      material::from(grey(.1f))
+          .layer(material::noise(.06f, {.octaves = 3,
+                                        .seed = 4,
+                                        .grain = true,
+                                        .contrast = 1.4f,
+                                        .stretch = 3}),
+                 {.blend = material::BlendMode::Multiply, .opacity = .35f})
+          .layer(material::noise(.06f, {.octaves = 3,
+                                        .seed = 9,
+                                        .grain = true,
+                                        .contrast = 1.4f,
+                                        .stretch = .33f}),
+                 {.blend = material::BlendMode::Multiply, .opacity = .35f});
+  std::vector<Element> marks;
+  for (const Trace& trace : traces()) {
+    const auto points = spine(trace);
+    marks.push_back(
+        band(points, ribbon(trace.width + 6, compose::Fill::color(grey(.5f))))
+            .filter(material::Filter::blur(3)));
+    marks.push_back(
+        band(points, ribbon(trace.width, compose::Fill::color(grey(.62f))))
+            .filter(material::Filter::blur(1)));
+    marks.push_back(band(points, ribbon(trace.width * .45f,
+                                        compose::Fill::color(grey(.68f))))
+                        .filter(material::Filter::blur(trace.width * .2f)));
+  }
+  for (const Pad& pad : pads()) {
+    marks.push_back(
+        disc(pad.at, pad.radius + 3, compose::Fill::color(grey(.5f)))
+            .filter(material::Filter::blur(3)));
+    marks.push_back(disc(pad.at, pad.radius, compose::Fill::color(grey(.63f)))
+                        .filter(material::Filter::blur(1)));
+    if (pad.via)
+      marks.push_back(
+          disc(pad.at, pad.radius * .5f, compose::Fill::color(kBlack)));
+  }
+  return compose::stack().width(kWidth).height(kDepth).fill(weave).children(
+      std::move(marks));
+}
+
+/** THE BRUSHING: every short leg of every spine painted in its own
+ *  direction — red and green the direction as a normal map encodes one,
+ *  green pointing up the page — at full strength in blue; the board and
+ *  the pads stay at zero strength, so they are not brushed. */
+Element directionPage() {
+  std::vector<Element> legs;
+  for (const Trace& trace : traces()) {
+    const auto points = spine(trace);
+    for (size_t index = 0; index + 1 < points.size(); ++index) {
+      const glm::vec2 from = points[index], to = points[index + 1];
+      if (glm::length(to - from) < .01f) continue;
+      const glm::vec2 along = glm::normalize(to - from);
+      const material::Color direction{along.x * .5f + .5f, -along.y * .5f + .5f,
+                                      1, 1};
+      // Each leg reaches a little past its ends so the next one meets it
+      // without a seam on the outside of a bend.
+      const glm::vec2 reach = along * (trace.width * .5f);
+      legs.push_back(
+          band({from - reach, to + reach},
+               ribbon(trace.width + 10, compose::Fill::color(direction))));
+    }
+  }
+  for (const Pad& pad : pads())
+    legs.push_back(
+        disc(pad.at, pad.radius + 2, compose::Fill::color({.5f, .5f, 0, 1})));
+  return compose::stack()
+      .width(kWidth)
+      .height(kDepth)
+      .fill(material::Color{.5f, .5f, 0, 1})
+      .children(std::move(legs));
+}
+
+material::Material image(const std::shared_ptr<compose::TextureScene>& scene) {
+  return material::image(scene->texture()
+                             .tile(material::Repeat::Pad)
+                             .sampling(material::Sampling::Linear));
+}
+
+material::Color copperColour() { return hexColor(0xe08a5a); }
+material::Color silverColour() { return hexColor(0xd8dbe0); }
+
+/** THE PLATING: metal over the relief's normal, polished and brushed
+ *  along the direction map. */
+material::Material plating(material::Color colour,
+                           const material::Material& normal,
+                           const material::Material& direction) {
+  return material::from(colour).surface({.metallic = 1.0f,
+                                         .roughness = .2f,
+                                         .normal = normal,
+                                         .anisotropy = .9f,
+                                         .anisotropyDirection = direction});
+}
+
+/** THE COLOUR PAGE: the substrate dark and rough, each trace a ribbon of
+ *  plating, each pad a polished disc with its drill dark, and two lines
+ *  of silkscreen ink. */
+Element boardPage(const material::Material& height,
+                  const material::Material& direction) {
+  const auto normal = material::surface::normalFromHeight(
+      height, {.depth = 6, .step = .8f, .directX = true});
+  const auto substrate =
+      material::from(hexColor(0x26302a))
+          .layer(material::noise(.05f, {.octaves = 3,
+                                        .seed = 2,
+                                        .grain = true,
+                                        .contrast = 1.3f,
+                                        .stretch = 2.5f}),
+                 {.blend = material::BlendMode::Multiply, .opacity = .5f})
+          .surface({.roughness = .78f,
+                    .normal = normal,
+                    .normalDirectX = true,
+                    .specular = .6f});
+  const auto copper = plating(copperColour(), normal, direction);
+  const auto silver = plating(silverColour(), normal, direction);
+  std::vector<Element> content;
+  for (const Trace& trace : traces())
+    content.push_back(band(
+        spine(trace), ribbon(trace.width, trace.copper ? copper : silver)));
+  for (const Pad& pad : pads()) {
+    content.push_back(disc(pad.at, pad.radius, pad.copper ? copper : silver));
+    if (pad.via)
+      content.push_back(
+          disc(pad.at, pad.radius * .5f,
+               material::from(hexColor(0x050505)).surface({.roughness = .9f})));
+  }
+  const auto silkscreen =
+      material::from(hexColor(0xd9d6cc)).surface({.roughness = .85f});
+  const auto caption = [&](std::string words, float top, float size) {
+    return compose::kit::at(compose::text(std::move(words)), 250, top, 1100,
+                            size * 1.6f)
+        .fontSize(size)
+        .letterSpacing(size * .16f)
+        .ink(silkscreen, compose::PaintBox::Glyph);
+  };
+  content.push_back(caption("METAL LINEWORK", 924, 24));
+  content.push_back(
+      caption("brushed along the trace  ·  plated vias  ·  a pulse on line 0",
+              960, 15));
+  return compose::stack().width(kWidth).height(kDepth).fill(substrate).children(
+      std::move(content));
+}
+
+/** A page point on the board's top, in the scene. */
+glm::vec3 onBoard(glm::vec2 at, float lift) {
+  return {at.x - kWidth / 2, lift, at.y - kDepth / 2};
+}
+
+/** A VIA'S BARREL AND RING: a plated annulus standing on its pad, its
+ *  rim rounded, lathed about the up axis. */
+gm::Mesh ring(float outer) {
+  const float inner = outer * .5f, height = outer * .5f;
+  return gm::revolve(std::vector<glm::vec2>{{inner, -2},
+                                            {inner, height * .7f},
+                                            {inner + 1.5f, height * .95f},
+                                            {(inner + outer) / 2, height},
+                                            {outer - 1.5f, height * .95f},
+                                            {outer, height * .7f},
+                                            {outer, -2}},
+                     {.segments = 64});
+}
 
 struct MetalLinework {
-  Controls controls;
-  int heldPhase = -1;
-  int phaseIndex = 0;
-  std::vector<Trace> traces;
-  std::array<path::Outline, 3> joins;
-  std::array<path::Outline, 3> caps;
-  std::array<path::Outline, 5> hairlines;
-  path::Outline pressure;
+  std::shared_ptr<compose::TextureScene> height, direction;
+  sketch::Page board;
+  Element boardTree = compose::stack();
+  world::EnvironmentMap room;
+  gm::Mesh slab, floor;
+  /** Per pad, the via ring or solder bead standing on it, if any. */
+  std::vector<gm::Mesh> rings, beads;
+  std::vector<glm::vec3> pulseRail;
 
-  Controls state(int phase) const {
-    Controls c = controls;
-    if (phase == 1) c.metallic = 0;
-    if (phase == 2) c.roughness = 0;
-    if (phase == 3) c.roughness = 1;
-    if (phase == 4) c.overlay = 0.5f;
-    return c;
-  }
-  void circuit() {
-    for (int i = 0; i < 6; ++i) {
-      const float y = 115 + i * 55.0f;
-      const float end = 142 + i * 19.0f;
-      traces.push_back(
-          {strokeRegion(
-               route({{52, y}, {168, y}, {215 + i * 11.0f, end}, {303, end}}),
-               i == 2 ? 9 : 5),
-           i % 2 == 0, i == 4});
-      traces.push_back({strokeRegion(route({{635, end + 23},
-                                            {706 - i * 8.0f, end + 23},
-                                            {782, y},
-                                            {897, y}}),
-                                     4),
-                        i % 2 != 0, i == 2});
-    }
-    for (int i = 0; i < 3; ++i) {
-      traces.push_back({strokeRegion(route({{136 + i * 45.0f, 421},
-                                            {136 + i * 45.0f, 483},
-                                            {285 + i * 45.0f, 483},
-                                            {365 + i * 21.0f, 404}}),
-                                     5),
-                        i == 1, i == 2});
-      traces.push_back({strokeRegion(route({{560 + i * 21.0f, 404},
-                                            {670 + i * 45.0f, 490},
-                                            {859 - i * 45.0f, 490},
-                                            {859 - i * 45.0f, 410}}),
-                                     4),
-                        i != 1});
-    }
-    const auto corner = route({{14, 57}, {78, 13}, {111, 65}, {158, 23}});
-    for (int i = 0; i < 3; ++i) {
-      joins[i] =
-          strokeRegion(corner, 12, path::Cap::Butt, static_cast<path::Join>(i));
-      caps[i] = strokeRegion(route({{22, 28}, {157, 28}}), 16,
-                             static_cast<path::Cap>(i));
-    }
-    constexpr std::array widths{0.0f, 0.5f, 1.0f, 2.0f, 4.0f};
-    for (int i = 0; i < 5; ++i)
-      hairlines[i] = strokeRegion(
-          route({{11, 14 + i * 14.0f}, {190, 14 + i * 14.0f}}), widths[i]);
-    brush::Ribbon nib;
-    nib.width = path::Profile{{0, 0.5f},  {0.15f, 6},  {0.42f, 18},
-                              {0.60f, 4}, {0.78f, 12}, {1, 0.5f}};
-    nib.join = path::Join::Round;
-    nib.step = 1;
-    pressure = path::fromSk(nib.band(path::toSk(path::Outline::svg(
-        "M10 56 C32 6 70 12 73 44 C78 93 98 18 126 37 C153 60 166 9 198 19"))));
+  static gm::camera::Camera lens() {
+    gm::camera::Camera camera;
+    camera.eye = {-30, 1180, 860};
+    camera.target = {0, 0, 70};
+    camera.fovYDeg = 46;
+    camera.zNear = 40;
+    camera.zFar = 20000;
+    return camera;
   }
 
-  Element board(const Controls& c) const {
-    const auto backing =
-        material::from(kGround)
-            .layer(material::noise(0.35f, {.seed = 17, .grain = true}),
-                   {.blend = material::BlendMode::SoftLight, .opacity = 0.24f})
-            .surface({.roughness = 0.96f});
-    std::vector<Element> parts{
-        label("A / CONDUCTIVE NETWORK", 26, 19, 480, 11, kTeal),
-        label("ETCH / INLAY / OVERPRINT", 685, 19, 261, 10), rule(26, 46, 920)};
-    for (const Trace& t : traces)
-      parts.push_back(conductor(t.region, c, t.copper, t.layered));
-    for (int i = 0; i < 12; ++i) {
-      const float x = i < 6 ? 38.0f : 880.0f;
-      const float y = 104 + (i % 6) * 55.0f;
-      parts.push_back(kit::at(x, y, 28, 28)
-                          .shape(shapes::annulus(0.47f))
-                          .foreground(relief(finish(c, i % 2 == 0),
-                                             {.shoulder = 1.5f, .depth = 1})));
-      parts.push_back(label(i < 6 ? "IN" : "OUT", x - 6, y + 34, 54, 8));
+  void setup(sketch::Scene3DContext& ctx) {
+    sketch::kit::stage(ctx, {.size = {1440, 900},
+                             .captureAt = 4.0,
+                             .background = hexColor(0x0a0b0c)});
+    height = ctx.textureScene({int(kWidth), int(kDepth)}, kBlack);
+    height->render(heightPage());
+    direction = ctx.textureScene({int(kWidth), int(kDepth)}, {.5f, .5f, 0, 1});
+    direction->render(directionPage());
+    board = ctx.page({int(kWidth), int(kDepth)});
+    boardTree = boardPage(image(height), image(direction));
+
+    slab = gm::box({-kWidth / 2, -24, -kDepth / 2},
+                   {kWidth / 2, -.5f, kDepth / 2});
+    floor = gm::quad(20000, 20000);
+    for (const Pad& pad : pads()) {
+      rings.push_back(pad.via ? ring(pad.radius) : gm::Mesh{});
+      beads.push_back(
+          pad.solder ? gm::superellipsoid({pad.radius * .85f, pad.radius * .55f,
+                                           pad.radius * .85f},
+                                          2.0f, 40, 24)
+                     : gm::Mesh{});
     }
-    parts.push_back(kit::at(302, 85, 340, 340)
-                        .shape(shapes::annulus(0.90f))
-                        .foreground(relief(finish(c, false, true),
-                                           {.shoulder = 2, .depth = 1})));
-    parts.push_back(kit::at(325, 108, 294, 294)
-                        .shape(shapes::annulus(0.93f))
-                        .fill(finish(c, true)));
-    parts.push_back(lettering("O8", 373, 153, 233, 106, c));
-    parts.push_back(label("SIGNAL MATRIX", 380, 282, 210, 11, kTeal, 600));
-    parts.push_back(label("Cu / Ag  •  ROUTE 08", 377, 307, 246, 9));
-    for (int i = 0; i < 30; ++i) {
-      const float a = i * 12.0f * 0.0174532925f;
-      parts.push_back(
-          kit::at(470 + std::cos(a) * 119, 253 + std::sin(a) * 119, 10, 1.5f)
-              .fill(finish(c, i % 5 == 0))
-              .rotate(i * 12.0f));
+    // The pulse's rail: the first bus line, evenly resampled, standing on
+    // the plating.
+    gm::curve::Spline3 line;
+    line.type = gm::curve::Spline3::Type::Linear;
+    for (const glm::vec2 point : spine(bus().front()))
+      line.points.push_back(onBoard(point, kPlating + 3));
+    pulseRail = line.sampleArcLength(400);
+
+    room = world::kit::environmentMap(
+        {.zenith = {.1f, .11f, .13f},
+         .nadir = {.02f, .02f, .02f},
+         .softBoxes = {{.centre = {.25f, .34f},
+                        .size = {.1f, .12f},
+                        .radiance = {3.6f, 3.2f, 2.7f}},
+                       {.centre = {.66f, .3f},
+                        .size = {.2f, .04f},
+                        .radiance = {2.2f, 2.3f, 2.6f}}}});
+  }
+
+  /** THE PULSE at @p head: a short bright window riding the rail and a
+   *  longer, dimmer one trailing it. */
+  std::vector<world::Node> pulse(float head) const {
+    const auto glow = [](float strength) {
+      return material::from(hexColor(0xbfe4ff))
+          .surface(
+              {.emission = hexColor(0x9fd8ff), .emissionStrength = strength});
+    };
+    const auto bead = gm::superellipsoid({3.4f, 3.4f, 8}, 2.0f, 16, 10);
+    return {
+        world::mesh(
+            gm::pop::on(pulseRail).count(36).window(head, .03f).instances(bead))
+            .key("pulse head")
+            .fill(glow(22)),
+        world::mesh(
+            gm::pop::on(pulseRail)
+                .count(60)
+                .window(head - .03f, .09f)
+                .instances(gm::superellipsoid({1.6f, 1.6f, 6}, 2.0f, 12, 8)))
+            .key("pulse tail")
+            .fill(glow(6))};
+  }
+
+  world::Frame describe(sigil::motion::Duration now) {
+    const float seconds = float(std::fmod(now.count(), double(kLoop)));
+    const float phase = 2 * kPi * seconds / kLoop;
+    // The key rides an arc behind the board, low, from left to right and
+    // back, so the plating mirrors it toward the eye.
+    const float swing = 1.05f * std::sin(phase);
+    const glm::vec3 key =
+        glm::normalize(glm::vec3{std::sin(swing), -.42f, std::cos(swing)});
+    // The pulse runs the bus line once a loop, from connector to via.
+    const float travel = seconds / kLoop;
+    const float head = .12f + travel * (.995f - .12f);
+
+    const auto viaFinish = [](bool copper) {
+      return material::from(copper ? copperColour() : silverColour())
+          .surface({.metallic = 1.0f, .roughness = .22f, .anisotropy = .6f});
+    };
+    const auto solderFinish =
+        material::from(hexColor(0xc9ccd0))
+            .surface({.metallic = 1.0f, .roughness = .1f});
+    std::vector<world::Node> nodes{
+        world::camera(lens(), {.exposure = 1.15f,
+                               .toneCurve = world::ToneCurve::Neutral}),
+        world::directionalLight(key, {.color = hexColor(0xfff1e2),
+                                      .intensity = 2.6f,
+                                      .castShadow = true})
+            .key("key"),
+        // THE PANEL: a warm soft box high behind the board, where the
+        // plating mirrors it toward the eye.
+        world::kit::visibleLight(
+            world::rectLight(glm::normalize(glm::vec3{.15f, -.75f, 1}),
+                             {.width = 700,
+                              .height = 160,
+                              .color = hexColor(0xffe6c8),
+                              .intensity = 6.0f})
+                .key("panel"))
+            .key("panel rig")
+            .at({-180, 820, -1350}),
+        world::mesh(floor)
+            .key("floor")
+            .at({0, -24, 0})
+            .rotateX(-90)
+            .fill(
+                material::from(hexColor(0x0d0e10)).surface({.roughness = .8f})),
+        world::mesh(slab).key("slab").fill(
+            material::from(hexColor(0x141a17)).surface({.roughness = .7f})),
+        world::mesh(gm::quad(kWidth, kDepth))
+            .key("board")
+            .rotateX(-90)
+            .fill(board.surface())};
+    const auto all = pads();
+    for (size_t index = 0; index < all.size(); ++index) {
+      const Pad& pad = all[index];
+      const std::string name = std::to_string(index);
+      if (pad.via)
+        nodes.push_back(world::mesh(rings[index])
+                            .key("via " + name)
+                            .at(onBoard(pad.at, kPlating))
+                            .fill(viaFinish(pad.copper)));
+      if (pad.solder)
+        nodes.push_back(world::mesh(beads[index])
+                            .key("solder " + name)
+                            .at(onBoard(pad.at, 0))
+                            .fill(solderFinish));
     }
-    parts.push_back(rule(26, 530, 920));
-    parts.push_back(
-        label("INSULATING GROUND / ROUGHNESS 0.96", 27, 548, 482, 9));
-    parts.push_back(label("OPEN COUNTERS · ANNULAR VIAS · LAYERED TRACES", 566,
-                          548, 380, 9));
-    return box()
-        .width(976)
-        .height(592)
-        .borderRadius({18})
-        .overflow(Overflow::Clip)
-        .fill(backing)
-        .stroke(material::from(kRule), {.width = 1})
-        .children(std::move(parts));
-  }
-  Element inspector(int phase, const Controls& c) const {
-    std::vector<Element> parts{
-        label("B / SURFACE RESPONSE", 0, 0, 318, 11, kAmber),
-        label(kPhases[phase], 0, 30, 318, 19, kInk, 600), rule(0, 82, 318)};
-    const std::array<std::string_view, 3> names{"METALLIC", "ROUGHNESS",
-                                                "MASK OPACITY"};
-    const std::array<float, 3> values{c.metallic, c.roughness, c.overlay};
-    for (int i = 0; i < 3; ++i) {
-      std::array<char, 24> value{};
-      std::snprintf(value.data(), value.size(), "%.2f",
-                    static_cast<double>(values[i]));
-      parts.push_back(label(names[i], 0, 107 + i * 79, 205, 10));
-      parts.push_back(label(value.data(), 214, 101 + i * 79, 104, 22, kInk));
-      parts.push_back(rule(0, 146 + i * 79, 318));
-      parts.push_back(rule(0, 145 + i * 79, 318 * values[i], 2, kAmber));
-    }
-    parts.push_back(label("THREE VISIBLE LAYERS", 0, 442, 318, 11, kTeal, 600));
-    parts.push_back(
-        label("01  Matte insulating substrate\n02  Brushed silver / copper "
-              "contour\n03  Masked plating overprint",
-              0, 473, 318, 11));
-    parts.push_back(
-        label("20 S / FIVE STATES / SOURCE CONTROLS", 0, 565, 318, 9));
-    return box().width(318).height(592).children(std::move(parts));
-  }
-  Element specimens(const Controls& c) const {
-    std::vector<Element> parts;
-    constexpr std::array headings{
-        "JOIN / ROUND · MITER · BEVEL", "CAP / BUTT · ROUND · SQUARE",
-        "WIDTH / 0 · 0.5 · 1 · 2 · 4 PX", "PRESSURE / PLATED RIBBON"};
-    for (int i = 0; i < 4; ++i) {
-      std::vector<Element> samples;
-      if (i == 0 || i == 1) {
-        for (int j = 0; j < 3; ++j)
-          samples.push_back(
-              kit::at(conductor(i == 0 ? joins[j] : caps[j], c, j == 1, j == 2),
-                      8 + j * 105.0f, 14, 180, 86)
-                  .transformOrigin(pct(0), pct(0))
-                  .scale(0.55f));
-      } else if (i == 2) {
-        constexpr std::array widths{"0 / EMPTY", "0.5", "1.0", "2.0", "4.0"};
-        for (int j = 0; j < 5; ++j) {
-          samples.push_back(conductor(hairlines[j], c, false, true));
-          samples.push_back(label(widths[j], 219, 7 + j * 14.0f, 99, 9));
-        }
-      } else {
-        samples.push_back(conductor(pressure, c, true, true));
-        samples.push_back(label("0.5 → 18 → 0.5 px", 15, 85, 265, 9));
-      }
-      parts.push_back(kit::at(i * 345.0f, 0, 325, 158)
-                          .children({label(headings[i], 0, 0, 325, 10, kInk),
-                                     kit::at(0, 28, 325, 123)
-                                         .borderRadius({8})
-                                         .overflow(Overflow::Clip)
-                                         .fill(kGround)
-                                         .children(std::move(samples))}));
-    }
-    return box().width(1360).height(158).children(std::move(parts));
-  }
-  Element describe(int phase) const {
-    const Controls c = state(phase);
-    return box()
-        .width(1440)
-        .height(1000)
-        .fontFamily("Inter, Helvetica Neue, sans-serif")
-        .fill(material::linearGradient({0, 0}, {0.4f, 1},
-                                       {{0, {0.052f, 0.065f, 0.066f, 1}},
-                                        {1, {0.014f, 0.022f, 0.026f, 1}}}))
-        .children(
-            {label("MATERIAL WRITING / 03", 40, 26, 590, 11, kAmber, 600),
-             lettering("METAL / LINEWORK", 34, 46, 1030, 68, c, true),
-             label("INLAID ROUTING INSTRUMENT  /  MATERIAL BRUSHES · LETTERS · "
-                   "OPEN CONTOURS",
-                   40, 129, 1012, 10),
-             label("Cu / Ag", 1123, 48, 270, 35, kInk).ink(finish(c)),
-             label("AUTHORED STUDY / NOT HARDWARE", 1099, 116, 301, 9),
-             rule(40, 159, 1360), kit::at(board(c), 40, 183, 976, 592),
-             kit::at(inspector(phase, c), 1082, 183, 318, 592),
-             label("GEOMETRY DETERMINES COVERAGE / MATERIAL DETERMINES "
-                   "APPEARANCE",
-                   40, 798, 957, 10, kTeal),
-             label("SILVER OVER COPPER / MASKED OVERPRINT", 1060, 798, 340, 9),
-             rule(40, 826, 1360), kit::at(specimens(c), 40, 849, 1360, 158)});
-  }
-  void setup(sketch::Scene2DContext& ctx) {
-    ctx.canvas(1440, 1000);
-    ctx.background(kGround);
-    ctx.captureAt(2);
-    circuit();
-    phaseIndex = heldPhase < 0 ? 0 : std::clamp(heldPhase, 0, 4);
-    ctx.composer.render(describe(phaseIndex));
-  }
-  void update(double elapsed, sketch::Scene2DContext& ctx) {
-    const double seconds =
-        std::isfinite(elapsed) ? std::max(0.0, elapsed) : 0.0;
-    const int next = heldPhase < 0
-                         ? static_cast<int>(std::fmod(seconds / 4, 5.0))
-                         : std::clamp(heldPhase, 0, 4);
-    if (next != phaseIndex) {
-      phaseIndex = next;
-      ctx.composer.render(describe(next));
-    }
+    for (auto& node : pulse(head)) nodes.push_back(std::move(node));
+    return world::Frame(world::group(std::move(nodes)))
+        .environment(room, {.intensity = .5f, .diffuse = .25f})
+        .pass(world::bloom({.threshold = 1.2f, .intensity = .6f, .radius = 18}))
+        .pass(board.render(boardTree));
   }
 };
+
 }  // namespace
 
 SIGIL_SKETCH(MetalLinework, "Study · Materials",
-             "layered silver and copper linework, pressure ribbons and "
-             "material lettering")
+             "Plated copper and silver traces on a dark board, brushed along "
+             "their own direction so each highlight turns with the trace as "
+             "the key swings, with plated vias, solder beads and a pulse of "
+             "light running one line")
