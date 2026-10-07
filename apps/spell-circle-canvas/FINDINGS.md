@@ -2183,3 +2183,65 @@ Thickness, like the flipbook frame, should be readable from a named
 instance attribute. A test should instance one bead at two sizes with a
 thickness attribute and find the page bent more through the larger.
 
+## Regression: the faked layer styles a page wears no longer paint
+
+Compose's layer styles — the aqua gel, the y2k chrome, the bevel, the
+inner shadow, the outer glow, the phosphor idiom — are Photoshop-shaped
+fakes drawn across an outline, not lit materials, and `surface_components`,
+`scene_surfaces`, `chrome_type`, `daemon_console` and the text-fill scenes
+depend on them. Since the page's lit pass left with World taking the
+lighting, the styles that read it paint flat or not at all.
+
+The fakes stay fakes: a layer style is a vintage effect a page composes
+in 2D, and it should paint without any scene or light. Each style should
+be a decoration over the brush tier that reads no light, with its
+highlight direction a parameter of the style. A test should paint a
+chrome word and a gel pill on a page with no lights and find the gradient
+map and the bevel in the pixels; the plates of the five sketches above
+are the acceptance.
+
+## Regression: the stock materials are missing something
+
+The owner reports the stock materials — what a plain colour on `fill`
+and the kit's stock looks give — read as lacking since the lighting
+moved. What is missing is not yet named: compare each stock material's
+page plate and scene plate against its pre-move plate and state the
+difference, then fix it where it lives.
+
+## Authoring gap: Python cannot paint a page as a surface
+
+A Python sketch has no `Page` and no texture scene, so Compose cannot
+drive a World body's maps the way a C++ scene3d sketch does; the only
+route is an offscreen `Graphics` buffer whose image becomes a texture,
+one buffer per map. The owner wants a Python 3D scene that combines
+carved marks and metal linework with Compose driving the materials and
+no geometry doing it.
+
+Bind the page: `ctx.page(size)`, `page.render(tree)` as a pass and
+`page.surface()` as the material, so a Python bake carries a page that
+Compose paints every frame. A test should bake a frame whose body wears
+a page of one colour from Python and find the colour on the body. Then
+write the combined study.
+
+## Performance: wet_glass_console is very demanding
+
+The owner reports `wet_glass_console` as very demanding in the window;
+its window bench fails its gate on the describe phase. Whether that is
+the six hundred instanced transmitting beads, the page repainted every
+frame, or the three swept rivulets rebuilt per frame is not measured.
+Profile it with the per-stage timers and `--bench`, name the cost, and
+fix it at the library if the cost is the library's.
+
+## Bug: a keyframed tween on a World lane from Python stands at its end
+
+`motion.animate(keyframes=[Keyframe(-90, 0), Keyframe(9, 1.1), Keyframe(0, 0.5)])`
+on a mesh's `rotateY`, baked from a Python sketch at a moment inside the
+tween, draws the body at the last keyframe's value, while the same lane
+with `animate(from_=-90, to=0, duration=1.6)` is mid-swing at that moment.
+The keyframe list is either not carried into the lane or is sampled at
+its end.
+
+A keyframed tween should sample at the moment like a two-point one. A
+test should bake a Python frame at a moment inside a three-keyframe
+rotation and find the body turned between the first two values.
+
