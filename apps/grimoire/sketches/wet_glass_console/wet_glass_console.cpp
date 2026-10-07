@@ -1,544 +1,634 @@
-/** @file
- * wet_glass_console — water beads over a live environmental instrument.
- *
- * EDIT THESE FIRST
- *   Controls — wetness, bead size, bounded bend, cap relief and coating.
- *   heldPhase — hold one of the eight states; -1 advances every four seconds.
- *   kDrops — authored bead placement over the live Compose display.
+/** A dark telemetry console under a rained-on sheet of glass: its page
+ *  keeps changing, and every bead, rivulet and wipe ridge on the glass is
+ *  a body of water that bends the page seen through it, under a cool key
+ *  light, a drifting panel light and a room.
  */
+// TAGS: Materials/Glass, Materials/Water, Materials/Lighting,
+// Geometry/3D, Geometry/Points
 
-// TAGS: Materials/Glass, Materials/Water, Composition/Layers,
-// Composition/Instrumentation
-
-#include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/brush/Ribbons.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilgeometry/kit/Generators.h>
+#include <sigilgeometry/kit/Sections.h>
+#include <sigilgeometry/kit/Solids.h>
+#include <sigilgeometry/mesh/Mesh.h>
+#include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilgeometry/mesh/pop/Pop.h>
+#include <sigilgeometry/path/Outline.h>
+#include <sigilgeometry/path/Profile.h>
+#include <sigilgeometry/path/Through.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/field/Field.h>
-#include <sigilmaterial/filter/Filter.h>
-#include <sigilmaterial/paint/Bases.h>
-#include <sigilmotion/values/Animatable.h>
-#include <sigilsketch/scene2d/Scene2D.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene3d/Scene3D.h>
+#include <sigilworld/World.h>
+#include <sigilworld/kit/Kit.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
+#include <glm/gtc/matrix_transform.hpp>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
 
-#include "Water.h"
-
-namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
+namespace gm = sigil::geometry::mesh;
 namespace material = sigil::material;
-namespace motion = sigil::motion;
-namespace shapes = sigil::geometry::shapes;
-using namespace sigil::compose;
+namespace path = sigil::geometry::path;
+namespace sections = sigil::geometry::sections;
+namespace sketch = sigil::sketch;
+namespace world = sigil::world;
 
 namespace {
 
-constexpr material::Color kInk{0.78f, 0.90f, 0.91f, 1};
-constexpr material::Color kMuted{0.35f, 0.52f, 0.57f, 1};
-constexpr material::Color kDim{0.20f, 0.34f, 0.39f, 1};
-constexpr material::Color kTeal{0.18f, 0.83f, 0.75f, 1};
-constexpr material::Color kAmber{0.94f, 0.64f, 0.25f, 1};
-constexpr material::Color kRule{0.19f, 0.32f, 0.37f, 0.7f};
-constexpr float kPhaseSeconds = 4;
+using compose::Element;
+using material::hexColor;
 
-struct Controls {
-  float wetness = 0.72f;
-  float beadScale = 1;
-  float bendPixels = 12;
-  float capHeight = 0.72f;
-  float roughness = 0.035f;
-  float coatingOpacity = 0.42f;
-  float filmAmount = 0.10f;
-  float driftPixels = 7;
-  bool overlap = false;
-};
+constexpr int kWidth = 1440, kHeight = 900;
+/** The page, in page pixels, which are also scene units. */
+constexpr float kPageWidth = 1600, kPageHeight = 1000;
+constexpr float kLoop = 12, kPi = 3.14159265358979f;
+/** How far in front of the page the glass stands at its middle, how far
+ *  its top leans out toward the eye, and how wide its mount is. */
+constexpr float kGlassGap = 46, kGlassLean = 3.2f, kMount = 44;
+/** The face of the glass the water stands on, in the glass's own frame. */
+constexpr float kGlassFace = 3;
 
-struct Phase {
-  std::string_view name;
-  std::string_view detail;
-};
+constexpr auto kTeal = hexColor(0x3fe0c8);
+constexpr auto kAmber = hexColor(0xf2a33c);
+constexpr auto kInk = hexColor(0xcfe9ee);
+constexpr auto kMuted = hexColor(0x5d8590);
+constexpr auto kGridInk = hexColor(0x1d3a42);
 
-constexpr std::array kPhases{
-    Phase{"BEADING / ACTIVE", "Separate caps over a live instrument"},
-    Phase{"DRY / BASELINE", "Uncovered display; the trace keeps moving"},
-    Phase{"WET / FILM", "Spread water, streaks and shallow rivulets"},
-    Phase{"MICRO / DENSITY", "Small caps and the same bounded optics"},
-    Phase{"MACRO / LENS", "Large beads magnify type and the live trace"},
-    Phase{"OVERLAP / CLIP", "Stacked beads cross a rounded display edge"},
-    Phase{"COATING / ZERO", "Zero coating and zero optical displacement"},
-    Phase{"COATING / ONE", "Opaque coating endpoint; not clear water"},
-};
+float fraction(float value) { return value - std::floor(value); }
 
-struct Drop {
-  float x;
-  float y;
-  float width;
-  float height;
-  bool pear = false;
-};
+float smooth(float edge0, float edge1, float x) {
+  const float t = std::clamp((x - edge0) / (edge1 - edge0), 0.0f, 1.0f);
+  return t * t * (3 - 2 * t);
+}
 
-constexpr std::array kDrops{
-    Drop{62, 70, 54, 60},    Drop{211, 111, 97, 108, true},
-    Drop{382, 54, 35, 39},   Drop{528, 132, 75, 83},
-    Drop{754, 73, 118, 128}, Drop{845, 234, 41, 49, true},
-    Drop{660, 277, 65, 77},  Drop{431, 254, 114, 133, true},
-    Drop{217, 298, 45, 50},  Drop{64, 394, 86, 96},
-    Drop{352, 444, 31, 35},  Drop{706, 431, 92, 106, true},
-    Drop{153, 54, 16, 18},   Drop{325, 203, 23, 24},
-    Drop{608, 60, 12, 14},   Drop{870, 424, 22, 26},
-    Drop{583, 397, 26, 30},  Drop{174, 459, 15, 18},
-    Drop{482, 69, 17, 19},   Drop{782, 331, 18, 22},
-    Drop{317, 365, 13, 15},  Drop{101, 262, 22, 25},
-    Drop{624, 192, 20, 22},  Drop{823, 498, 14, 16},
-};
+/** A stable value in [0, 1) for @p index under @p salt. */
+float hashed(uint32_t index, uint32_t salt) {
+  uint32_t h = index * 374761393u + salt * 668265263u;
+  h = (h ^ (h >> 13)) * 1274126177u;
+  return float((h ^ (h >> 16)) & 0xffffffu) / float(0x1000000);
+}
 
-std::string number(float value, int precision = 2) {
+std::string decimal(float value, int precision) {
   std::array<char, 32> buffer{};
-  std::snprintf(buffer.data(), buffer.size(), "%.*f", precision,
-                static_cast<double>(value));
+  std::snprintf(buffer.data(), buffer.size(), "%.*f", precision, double(value));
   return buffer.data();
 }
 
-Element label(std::string_view words, float x, float y, float width,
-              float size = 12, material::Color ink = kMuted,
-              float weight = 500) {
-  return kit::at(text(std::string(words)), x, y, width, size * 1.55f)
+// ---------------------------------------------------------------------------
+// THE PAGE: the console's face, a dark ground that takes the light with
+// flat telemetry on it that shows as the console's own light.
+// ---------------------------------------------------------------------------
+
+Element words(std::string content, float x, float y, float width, float size,
+              material::Color ink, float weight = 500,
+              std::string_view family = "Menlo, SF Mono, monospace") {
+  return compose::kit::at(compose::text(std::move(content)), x, y, width,
+                          size * 1.4f)
+      .fontFamily(std::string(family))
       .fontSize(size)
       .fontWeight(weight)
       .ink(ink);
 }
 
-Element rule(float x, float y, float width, float height = 1,
-             material::Color color = kRule) {
-  return kit::at(x, y, width, height).fill(color);
+Element bar(float x, float y, float width, float height, material::Color ink) {
+  return compose::kit::at(x, y, width, height).fill(ink);
 }
 
-Element rounded(float x, float y, float width, float height, float radius,
-                material::Color color) {
-  return kit::at(x, y, width, height).borderRadius({radius}).fill(color);
+/** A line through @p points, @p width wide, laid over the whole page so
+ *  its points are page pixels. */
+Element line(const std::vector<glm::vec2>& points, float width,
+             material::Color ink) {
+  return compose::kit::at(0, 0, kPageWidth, kPageHeight)
+      .shape(compose::heldPath(path::curveThrough(points)))
+      .stroke(compose::brush::ribbon(path::Profile(width),
+                                     material::Material(ink)));
 }
 
-material::Material chassis(float roughness = 0.38f) {
-  return material::from(
-             material::linearGradient({0, 0}, {0.2f, 1},
-                                      {{0, {0.23f, 0.32f, 0.36f, 1}},
-                                       {0.06f, {0.09f, 0.15f, 0.19f, 1}},
-                                       {0.48f, {0.15f, 0.22f, 0.26f, 1}},
-                                       {0.94f, {0.08f, 0.13f, 0.17f, 1}},
-                                       {1, {0.25f, 0.35f, 0.39f, 1}}}))
-      .layer(
-          material::noise(
-              0.05f, {.octaves = 2, .seed = 27, .grain = true, .stretch = 18}),
-          {.blend = material::BlendMode::SoftLight, .opacity = 0.15f})
-      .surface({.metallic = 0.68f,
-                .roughness = roughness,
-                .normal = material::shader(wet_glass::kPanelNormal)});
-}
-
-material::Material lettering() {
-  return material::linearGradient({0, 0}, {0.12f, 1},
-                                  {{0, {0.83f, 0.95f, 0.96f, 1}},
-                                   {0.42f, {0.52f, 0.75f, 0.80f, 1}},
-                                   {0.62f, {0.89f, 0.98f, 0.97f, 1}},
-                                   {1, {0.46f, 0.66f, 0.73f, 1}}})
-      .surface({.metallic = 0.32f,
-                .roughness = 0.30f,
-                .normal = material::shader(wet_glass::kPanelNormal)});
-}
-
-Element screw(float x, float y) {
-  return kit::at(x, y, 10, 10)
-      .shape(shapes::circle())
-      .fill(chassis(0.26f))
-      .stroke(stroke(0.6f, Fill::color(kDim)))
-      .children({rule(2, 4.6f, 6, 0.8f, kMuted)});
-}
-
-Element water(float x, float y, float width, float height, const Controls& c,
-              const Shape& silhouette, float film = 0) {
-  const auto parameters =
-      wet_glass::parameters({width, height}, c.bendPixels, c.capHeight,
-                            c.roughness, c.coatingOpacity, film);
-  const auto optical = material::shader(wet_glass::kRefraction, parameters,
-                                        {.textures = {{"content", {}}}});
-  return kit::at(x, y, width, height)
-      .shape(silhouette)
-      .overflow(Overflow::Clip)
-      .backdropFilter(material::Filter::of(optical, 40))
-      .fill(material::shader(wet_glass::kGlazing, parameters)
-                .surface({.roughness = c.roughness,
-                          .normal = material::shader(wet_glass::kCapNormal,
-                                                     parameters),
-                          .normalScale = 0.70f}))
-      .cache(Cache::Picture);
-}
-
-Element numericCell(std::string_view heading, std::string_view value,
-                    std::string_view unit, float x, float y, float width,
-                    material::Color color = kTeal) {
-  return kit::at(x, y, width, 111)
-      .borderRadius({9})
-      .fill({0.018f, 0.043f, 0.060f, 0.9f})
-      .stroke(stroke(0.8f, Fill::color(kRule)))
-      .children({label(heading, 15, 11, width - 28, 10, kMuted, 600),
-                 label(value, 13, 27, width - 53, 44, color, 500),
-                 label(unit, width - 55, 58, 50, 12, kMuted),
-                 rule(15, 94, width - 30, 1),
-                 rule(15, 94, (width - 30) * 0.62f, 1.5f, color)});
-}
-
-Element chart(float x, float y, float width, float height, float channel) {
-  const material::Color color = channel == 0 ? kTeal : kAmber;
-  return kit::at(x, y, width, height)
-      .borderRadius({8})
-      .overflow(Overflow::Clip)
-      .fill(material::shader(wet_glass::kDisplay))
-      .stroke(stroke(0.8f, Fill::color(kRule)))
-      .children(
-          {label(channel == 0 ? "01 / HUMIDITY" : "02 / PRESSURE", 14, 11,
-                 width - 25, 10, color, 600),
-           label("LIVE / 32 S", width - 104, 11, 94, 9, kMuted),
-           kit::at(12, 37, width - 24, height - 66)
-               .fill(material::shader(wet_glass::kTrace,
-                                      wet_glass::TraceParameters{
-                                          {width - 24, height - 66}, channel})),
-           label("−16", 14, height - 22, 45, 9),
-           label("−08", width * 0.47f, height - 22, 45, 9),
-           label("NOW", width - 50, height - 22, 42, 9, color)});
-}
-
-Element channelCell(int index, float x, float y) {
-  constexpr std::array names{"AIR", "GLASS", "WIND", "FILM"};
-  constexpr std::array values{"23.8", "21.4", "07.6", "0.34"};
-  constexpr std::array units{"°C", "°C", "m/s", "mm"};
-  return kit::at(x, y, 208, 79)
-      .borderRadius({7})
-      .fill({0.023f, 0.055f, 0.071f, 1})
-      .stroke(stroke(0.7f, Fill::color(kRule)))
-      .children({label("C" + std::to_string(index + 1), 11, 9, 28, 9, kTeal),
-                 label(names[index], 42, 8, 150, 10, kMuted, 600),
-                 label(values[index], 11, 25, 137, 28, kInk),
-                 label(units[index], 147, 44, 50, 10), rule(11, 68, 186, 1),
-                 rule(11, 68, 41.0f + index * 34, 1.5f,
-                      index == 3 ? kAmber : kTeal)});
-}
-
-Element display() {
-  std::vector<Element> parts{
-      label("HYGRO / 08", 24, 17, 228, 15, kInk, 600),
-      label("STATION 04  /  COASTAL ARRAY", 254, 21, 370, 10),
-      rounded(779, 19, 6, 6, 3, kTeal),
-      label("LINK / ACTIVE", 795, 17, 120, 10, kTeal),
-      rule(24, 47, 880),
-      numericCell("RELATIVE HUMIDITY", "84.2", "% RH", 24, 67, 273),
-      numericCell("DEW POINT", "18.6", "°C", 24, 188, 273, kAmber),
-      chart(315, 67, 589, 136, 0),
-      chart(315, 214, 589, 136, 1),
-      label("SENSOR ARRAY / LIVE TELEMETRY", 24, 325, 276, 10, kMuted, 600),
-      rule(24, 349, 273),
-      rule(24, 483, 880),
-      label("AUTO / ACQUISITION", 24, 506, 238, 10, kTeal, 600),
-      label("ENV 04.118   •   WINDOW HEATER STANDBY", 274, 506, 417, 10),
-      label("SYNC  /  60 HZ", 794, 506, 110, 10, kMuted),
-  };
-  for (int i = 0; i < 4; ++i)
-    parts.push_back(channelCell(i, 24 + i * 224.0f, 378));
-  for (int i = 0; i < 12; ++i) {
-    const float x = 24 + i * 22.7f;
-    parts.push_back(
-        rounded(x, 356, 16, 5, 2,
-                i < 8 ? kTeal : material::Color{0.04f, 0.14f, 0.16f, 1}));
+/** A channel's signal at @p u, one page width per loop: whole cycles
+ *  only, so the trace scrolls round the loop and meets itself. */
+float signal(int channel, float u) {
+  const float turn = 2 * kPi * u;
+  switch (channel) {
+    case 0:
+      return .55f * std::sin(turn * 3) + .25f * std::sin(turn * 11 + 1.3f) +
+             .12f * std::sin(turn * 29 + .4f);
+    case 1:
+      return .7f * std::sin(turn * 2 + .8f) + .2f * std::sin(turn * 17) +
+             .1f * std::sin(turn * 41 + 2.1f);
+    default: {
+      // A pulse train: a sharp beat every eighth of the width.
+      const float beat = fraction(u * 8);
+      return -.15f + 1.1f * std::exp(-std::pow((beat - .3f) * 18, 2.0f)) -
+             .45f * std::exp(-std::pow((beat - .36f) * 22, 2.0f));
+    }
   }
-  return box()
-      .width(928)
-      .height(540)
-      .fill(material::shader(wet_glass::kDisplay))
+}
+
+/** ONE CHART: a faint grid, the trace scrolling across it with a soft
+ *  wide pass under a sharp one, its name and its reading. */
+std::vector<Element> chart(int channel, float x, float y, float width,
+                           float height, float seconds) {
+  const material::Color ink = channel == 1 ? kAmber : kTeal;
+  const material::Color haze{ink.r, ink.g, ink.b, .22f};
+  std::vector<Element> parts;
+  for (int row = 0; row <= 4; ++row)
+    parts.push_back(bar(x, y + row * height / 4, width, 1, kGridInk));
+  for (int column = 0; column <= 12; ++column)
+    parts.push_back(bar(x + column * width / 12, y, 1, height, kGridInk));
+  std::vector<glm::vec2> trace;
+  constexpr int kSamples = 220;
+  const float scroll = seconds / kLoop;
+  for (int index = 0; index <= kSamples; ++index) {
+    const float across = float(index) / kSamples;
+    trace.push_back(
+        {x + across * width,
+         y + height * (.5f - .42f * signal(channel, across + scroll))});
+  }
+  parts.push_back(line(trace, 9, haze));
+  parts.push_back(line(trace, 2.4f, ink));
+  constexpr std::array names{"01 HUMIDITY", "02 PRESSURE", "03 ANEMOMETER"};
+  parts.push_back(words(names[channel], x, y - 34, 400, 17, ink, 600));
+  parts.push_back(words(decimal(signal(channel, 1 + scroll) * 10 + 50, 2),
+                        x + width - 130, y - 38, 130, 22, kInk));
+  return parts;
+}
+
+/** THE CALIBRATION STRIP: groups of line pairs growing finer toward the
+ *  right, then a ramp of greys — straight lines to show every bend. */
+std::vector<Element> calibration(float x, float y) {
+  std::vector<Element> parts{
+      words("CALIBRATION / W-08", x, y - 34, 500, 15, kMuted, 600)};
+  constexpr std::array widths{9.0f, 7.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.5f};
+  float at = x;
+  for (float width : widths) {
+    for (int pair = 0; pair < 5; ++pair)
+      parts.push_back(bar(at + pair * width * 2, y, width, 70, kInk));
+    at += width * 10 + 26;
+  }
+  for (int step = 0; step < 10; ++step) {
+    const float grey = .08f + .09f * step;
+    parts.push_back(bar(at + step * 34.0f, y, 34, 70,
+                        material::Color{grey, grey, grey, 1}));
+  }
+  return parts;
+}
+
+/** THE PAGE AT @p seconds. */
+Element consolePage(float seconds) {
+  const float turn = 2 * kPi * seconds / kLoop;
+  const auto ground =
+      material::from(hexColor(0x091013)).surface({.roughness = .66f});
+  std::vector<Element> parts{
+      words("HYGRO 08", 90, 70, 300, 26, kInk, 700),
+      words("COASTAL ARRAY 04 / WINDOW STATION", 290, 76, 700, 17, kMuted),
+      words("T+" + decimal(seconds, 2), 1300, 72, 220, 22, kTeal),
+      bar(90, 118, 1420, 2, kGridInk),
+  };
+  // THE READINGS: two large numbers that drift as the weather does.
+  const float humidity =
+      84 + 2.6f * std::sin(turn) + .5f * std::sin(turn * 5 + .7f);
+  const float dew = 18.6f + .8f * std::sin(turn * 2 + 1.1f);
+  parts.push_back(words("RELATIVE HUMIDITY", 90, 170, 420, 17, kMuted, 600));
+  parts.push_back(words(decimal(humidity, 1), 82, 196, 460, 150, kInk, 500));
+  parts.push_back(words("% RH", 420, 360, 120, 22, kTeal));
+  parts.push_back(words("DEW POINT", 90, 430, 420, 17, kMuted, 600));
+  parts.push_back(words(decimal(dew, 1), 84, 456, 460, 104, kAmber, 500));
+  parts.push_back(words("°C", 350, 572, 80, 22, kAmber));
+  for (int channel = 0; channel < 3; ++channel)
+    for (Element& part :
+         chart(channel, 640, 190 + channel * 186.0f, 870, 120, seconds))
+      parts.push_back(std::move(part));
+  // THE CHANNEL ROW: small readings ticking over.
+  constexpr std::array names{"AIR", "GLASS", "WIND", "FILM"};
+  constexpr std::array units{"°C", "°C", "m/s", "mm"};
+  const std::array<float, 4> values{
+      23.8f + .3f * std::sin(turn * 3), 21.4f + .5f * std::sin(turn + 2),
+      7.6f + 2.2f * std::sin(turn * 4 + .5f), .34f + .12f * std::sin(turn * 2)};
+  for (int index = 0; index < 4; ++index) {
+    const float x = 90 + index * 190.0f;
+    parts.push_back(words(names[index], x, 640, 170, 15, kMuted, 600));
+    parts.push_back(words(decimal(values[index], index == 3 ? 2 : 1), x, 662,
+                          170, 40, kInk));
+    parts.push_back(words(units[index], x + 120, 680, 60, 14, kMuted));
+    parts.push_back(bar(x, 718, 160, 1, kGridInk));
+    parts.push_back(bar(x, 717,
+                        160 * (.3f + .6f * fraction(values[index] * .37f)), 3,
+                        index == 3 ? kAmber : kTeal));
+  }
+  for (Element& part : calibration(90, 840)) parts.push_back(std::move(part));
+  return compose::stack()
+      .width(kPageWidth)
+      .height(kPageHeight)
+      .fill(ground)
       .children(std::move(parts));
 }
 
-Element meter(std::string_view title, std::string value, std::string_view unit,
-              float y, float fraction, material::Color color = kTeal) {
-  return kit::at(0, y, 332, 67)
-      .children(
-          {label(title, 0, 0, 328, 10, kMuted, 600),
-           label(value, 0, 16, 193, 26, kInk), label(unit, 197, 32, 135, 10),
-           rule(0, 62, 332, 1),
-           rule(0, 61, 332 * std::clamp(fraction, 0.0f, 1.0f), 2, color)});
+// ---------------------------------------------------------------------------
+// THE WATER: beads, rivulets and wipe ridges on the glass, in the glass's
+// own frame — x across, y up the glass, z out of it toward the eye.
+// ---------------------------------------------------------------------------
+
+/** The wiper's pivot below the glass and the arc of glass it cleared. */
+constexpr glm::vec2 kWiperPivot{-220, -770};
+constexpr float kWipeInner = 735, kWipeOuter = 875;
+
+/** A WATER CAP of unit base radius, its axis out of the glass: a slice
+ *  of a sphere standing on the glass at the angle water meets it. */
+gm::Mesh capStamp(float droop) {
+  constexpr float kHeight = .72f;
+  const float radius = (1 + kHeight * kHeight) / (2 * kHeight);
+  const float reach = std::asin(1 / radius);
+  std::vector<glm::vec2> profile;
+  constexpr int kSteps = 14;
+  for (int step = kSteps; step >= 0; --step) {
+    const float angle = reach * float(step) / kSteps;
+    profile.push_back({radius * std::sin(angle),
+                       kHeight - radius + radius * std::cos(angle)});
+  }
+  gm::Mesh cap = gm::revolve(profile, {.segments = 40});
+  // Stand it on the glass with its axis out of it, and let a drooping
+  // drop hang a little down the pane.
+  cap.transform(glm::translate(glm::mat4(1), {0, -.2f * droop, 0}) *
+                glm::scale(glm::mat4(1), {1, 1 + .3f * droop, 1}) *
+                glm::rotate(glm::mat4(1), kPi / 2, {1, 0, 0}));
+  return cap;
+}
+
+/** The arch a run of water carries along the glass: wide on the pane,
+ *  low off it. */
+path::Polyline archProfile(float height) {
+  path::Polyline arch;
+  constexpr int kSteps = 12;
+  for (int step = 0; step <= kSteps; ++step) {
+    const float angle = kPi * float(kSteps - step) / kSteps;
+    arch.points.push_back({std::cos(angle), -height * std::sin(angle)});
+  }
+  return arch;
+}
+
+struct Bead {
+  glm::vec2 at;
+  float radius;
+  bool droops;
+};
+
+/** Whether @p at lies in the arc the wiper cleared, @p margin wider. */
+bool wiped(glm::vec2 at, float margin) {
+  const float reach = glm::length(at - kWiperPivot);
+  return reach > kWipeInner - margin && reach < kWipeOuter + margin;
+}
+
+/** THE BEADS, thrown at the glass and kept where they fit: many small,
+ *  a few large, none in the wiped arc. */
+std::vector<Bead> scatterBeads() {
+  std::vector<Bead> beads;
+  const float halfWidth = kPageWidth / 2 - kMount - 6;
+  const float halfHeight = kPageHeight / 2 - kMount - 6;
+  for (uint32_t attempt = 0; attempt < 9000 && beads.size() < 620; ++attempt) {
+    const float size = hashed(attempt, 3);
+    const float radius = 3.5f + 38 * size * size * size;
+    const glm::vec2 at{(hashed(attempt, 1) * 2 - 1) * (halfWidth - radius),
+                       (hashed(attempt, 2) * 2 - 1) * (halfHeight - radius)};
+    if (wiped(at, radius + 8)) continue;
+    const bool fits =
+        std::none_of(beads.begin(), beads.end(), [&](const Bead& other) {
+          return glm::length(other.at - at) < other.radius + radius + 3;
+        });
+    if (!fits) continue;
+    beads.push_back({at, radius, radius > 11 && hashed(attempt, 4) < .45f});
+  }
+  return beads;
+}
+
+/** ONE RIVULET: the lane it runs down and when in the loop it starts. */
+struct Rivulet {
+  float lane;
+  float offset;
+  float wander;
+};
+constexpr std::array kRivulets{Rivulet{-500, .10f, 1.3f},
+                               Rivulet{90, .43f, 4.1f},
+                               Rivulet{545, .76f, 2.6f}};
+constexpr float kRunTop = 430, kRunBottom = -560;
+/** The lowest the water shows, where the mount covers the glass. */
+constexpr float kGlassBottom = -kPageHeight / 2 + kMount;
+
+/** Where a rivulet's path crosses height @p y. */
+float runX(const Rivulet& run, float y) {
+  return run.lane + 22 * std::sin(y * .0105f + run.wander) +
+         9 * std::sin(y * .029f + run.wander * 2.3f);
+}
+
+/** A rivulet's moment in the loop: where its head is, how much of its
+ *  trail is left, and how far the beads it took up have formed again. */
+struct RunState {
+  float head;
+  float trail;
+  float regrowth;
+};
+
+RunState runAt(const Rivulet& run, float seconds) {
+  const float life = fraction(seconds / kLoop + run.offset);
+  // The drop clings, then lets go and runs faster as it gathers water.
+  const float travel = smooth(0, .72f, life);
+  return {kRunTop - (kRunTop - kRunBottom) * travel * travel,
+          1 - smooth(.7f, .94f, life), smooth(.86f, 1.0f, life)};
+}
+
+/** The water surface: clear, at water's index, @p thickness the path
+ *  light takes through the body. */
+material::Material water(float thickness) {
+  return material::from(material::Color{1, 1, 1, 1})
+      .surface({.roughness = .04f,
+                .transmission = 1.0f,
+                .ior = 1.33f,
+                .thickness = thickness});
+}
+
+/** The bead sizes and the path light takes through each. */
+struct BeadClass {
+  float smallest;
+  float thickness;
+};
+constexpr std::array kBeadClasses{BeadClass{0, 6}, BeadClass{9, 16},
+                                  BeadClass{18, 32}};
+
+/** THE CAMERA: a little above the console and to its left. */
+gm::camera::Camera lens() {
+  gm::camera::Camera camera;
+  camera.eye = {-380, 300, 1960};
+  camera.target = {-60, 10, 0};
+  camera.fovYDeg = 28.5f;
+  camera.zNear = 80;
+  camera.zFar = 8000;
+  return camera;
 }
 
 struct WetGlassConsole {
-  Controls controls;
-  int heldPhase = -1;
-  int phaseIndex = 0;
-  std::array<motion::Animatable<float>, kDrops.size()> dropX;
-  std::array<motion::Animatable<float>, kDrops.size()> dropY;
-  Shape circle = shapes::circle();
-  Shape pear = shapes::svg(
-      "M50 0 C72 10 98 42 99 65 C102 86 81 100 51 100 "
-      "C21 100 0 86 1 64 C2 39 24 11 50 0 Z");
-  Shape rivulet = shapes::svg(
-      "M43 0 C58 0 71 8 68 20 C65 34 46 41 48 53 "
-      "C50 65 81 68 82 81 C83 96 65 100 49 100 "
-      "C28 100 16 92 21 78 C26 63 37 61 32 48 "
-      "C27 35 24 28 26 18 C28 7 32 0 43 0 Z");
+  sketch::Page page;
+  world::EnvironmentMap room;
+  std::vector<Bead> beads;
+  gm::Mesh roundCap, droopingCap, plate, face, glass, railAcross, railUp;
+  gm::Mesh wipeRidges;
 
-  Controls stateFor(int index) const {
-    Controls state = controls;
-    switch (index) {
-      case 1:
-        state.wetness = 0;
-        state.filmAmount = 0;
-        break;
-      case 2:
-        state.wetness = 1;
-        state.filmAmount = 0.60f;
-        state.roughness = 0.13f;
-        break;
-      case 3:
-        state.wetness = 1;
-        state.beadScale = 0.32f;
-        state.bendPixels = 6;
-        state.capHeight = 1.1f;
-        break;
-      case 4:
-        state.beadScale = 1.55f;
-        state.bendPixels = 18;
-        break;
-      case 5:
-        state.wetness = 1;
-        state.overlap = true;
-        state.bendPixels = 18;
-        break;
-      case 6:
-        state.coatingOpacity = 0;
-        state.wetness = 1;
-        break;
-      case 7:
-        state.coatingOpacity = 1;
-        state.wetness = 1;
-        break;
-      default:
-        break;
-    }
-    return state;
+  void setup(sketch::Scene3DContext& ctx) {
+    sketch::kit::stage(ctx, {.size = {kWidth, kHeight},
+                             .captureAt = 3.0,
+                             .background = hexColor(0x06080a)});
+    page = ctx.page({int(kPageWidth), int(kPageHeight)});
+    // A dim room with cool windows round it, so a bead turned any way
+    // finds one to hold.
+    room = world::kit::environmentMap(
+        {.zenith = {.05f, .06f, .08f},
+         .nadir = {.02f, .02f, .025f},
+         .softBoxes = {{.centre = {.0f, .34f},
+                        .size = {.12f, .08f},
+                        .radiance = {3.0f, 3.6f, 4.6f}},
+                       {.centre = {.25f, .28f},
+                        .size = {.16f, .06f},
+                        .radiance = {2.6f, 3.2f, 4.2f}},
+                       {.centre = {.5f, .36f},
+                        .size = {.10f, .10f},
+                        .radiance = {2.2f, 2.7f, 3.4f}},
+                       {.centre = {.75f, .30f},
+                        .size = {.18f, .06f},
+                        .radiance = {2.8f, 2.5f, 2.2f}}}});
+    beads = scatterBeads();
+    roundCap = capStamp(0);
+    droopingCap = capStamp(1);
+    plate = gm::box({-kPageWidth / 2 - 30, -kPageHeight / 2 - 30, -60},
+                    {kPageWidth / 2 + 30, kPageHeight / 2 + 30, -.5f},
+                    {.front = false});
+    face = gm::quad(kPageWidth, kPageHeight);
+    glass = gm::box({-kPageWidth / 2, -kPageHeight / 2, -kGlassFace},
+                    {kPageWidth / 2, kPageHeight / 2, kGlassFace});
+    railAcross = gm::box({-kPageWidth / 2 - 6, -kMount / 2, -14},
+                         {kPageWidth / 2 + 6, kMount / 2, 14});
+    railUp = gm::box({-kMount / 2, -kPageHeight / 2 + kMount, -14},
+                     {kMount / 2, kPageHeight / 2 - kMount, 14});
+    wipeRidges = wipeMarks();
   }
 
-  Element droplets(const Controls& c) const {
-    std::vector<Element> parts;
-    const int count =
-        static_cast<int>(kDrops.size() * std::clamp(c.wetness, 0.0f, 1.0f));
-    if (c.filmAmount > 0 && count > 0) {
-      Controls film = c;
-      film.bendPixels = 3;
-      film.capHeight = 0.12f;
-      film.coatingOpacity = std::min(c.coatingOpacity, 0.55f) * c.filmAmount;
-      parts.push_back(water(304, 20, 335, 474, film, rivulet, 1));
-      parts.push_back(water(821, -17, 49, 610, film, rivulet, 1));
-      parts.push_back(water(141, 214, 146, 239, film, pear, 1).rotate(-21));
-    }
-    for (int i = 0; i < count; ++i) {
-      const Drop& drop = kDrops[i];
-      const float width = std::max(drop.width * c.beadScale, 1.0f);
-      const float height = std::max(drop.height * c.beadScale, 1.0f);
-      parts.push_back(
-          water(drop.x, drop.y, width, height, c, drop.pear ? pear : circle)
-              .translateX(dropX[i])
-              .translateY(dropY[i]));
-    }
-    if (c.overlap) {
-      parts.push_back(water(460, 100, 180, 199, c, circle));
-      parts.push_back(water(532, 176, 138, 155, c, pear));
-      parts.push_back(water(879, -43, 131, 156, c, circle));
-      parts.push_back(water(-57, 466, 159, 153, c, circle));
-    }
-    return box().width(928).height(540).children(std::move(parts));
-  }
-
-  Element console(const Controls& c) const {
-    Element screen =
-        kit::at(stack(), 26, 26, 928, 540)
-            .borderRadius({15})
-            .overflow(Overflow::Clip)
-            .children({display(),
-                       kit::at(0, 0, 928, 540)
-                           .borderRadius({15})
-                           .fill(material::shader(wet_glass::kWindow)
-                                     .surface({.roughness = 0.10f,
-                                               .normal = material::shader(
-                                                   wet_glass::kPanelNormal)}))
-                           .cache(Cache::Picture),
-                       droplets(c)});
-    return box().width(980).height(592).children(
-        {kit::at(3, 8, 977, 587)
-             .borderRadius({25})
-             .fill({0, 0, 0, 0.7f})
-             .filter(material::Filter::blur(14)),
-         kit::at(0, 0, 980, 592)
-             .borderRadius({23})
-             .fill(chassis())
-             .stroke(stroke(0.8f, Fill::color(kDim))),
-         rounded(16, 16, 948, 560, 20, {0.006f, 0.016f, 0.021f, 1}),
-         std::move(screen),
-         rule(37, 24, 900, 0.7f, {0.41f, 0.62f, 0.65f, 0.5f}),
-         label("IP / 68", 36, 574, 100, 8, kMuted, 600),
-         label("HERMETIC WINDOW  /  LAMINATE 02", 655, 574, 285, 8),
-         screw(7, 7), screw(963, 7), screw(7, 575), screw(963, 575)});
-  }
-
-  Element controlsPanel(int index, const Controls& c) const {
-    std::vector<Element> parts{
-        label("SURFACE / OBSERVATION", 0, 0, 332, 10, kTeal, 600),
-        label(kPhases[index].name, 0, 25, 332, 24, kInk),
-        label(kPhases[index].detail, 0, 66, 332, 10),
-        meter("WET COVERAGE", number(c.wetness * 100, 0), "% authored", 111,
-              c.wetness),
-        meter("OPTICAL DISPLACEMENT", number(c.bendPixels, 0), "local px / ≤18",
-              190, c.bendPixels / 18),
-        meter("CAP RELIEF", number(c.capHeight), "normal amplitude", 269,
-              c.capHeight / 1.3f),
-        meter("COATING OPACITY", number(c.coatingOpacity),
-              "0 absent / 1 covered", 348, c.coatingOpacity, kAmber),
-        label("LIVE TRACE  /  FIXED LOCAL OPTICS", 0, 518, 332, 10, kTeal, 600),
-        label("Drops drift; the display remains a Compose tree", 0, 539, 332,
-              10),
-        rule(0, 565, 332)};
-    for (int i = 0; i < static_cast<int>(kPhases.size()); ++i) {
-      parts.push_back(
-          rounded(i * 37.0f, 579, 29, 7, 3, i == index ? kTeal : kDim));
-    }
-    return box().width(332).height(592).children(std::move(parts));
-  }
-
-  Element coupon(int index, std::string_view title, std::string_view detail,
-                 int kind) const {
-    Controls c = controls;
-    c.filmAmount = 0;
-    c.coatingOpacity = 0.50f;
-    std::vector<Element> parts{
-        label("0" + std::to_string(index + 1) + " / " + std::string(title), 0,
-              0, 208, 10, kInk, 600),
-        kit::at(0, 24, 208, 113)
-            .borderRadius({12})
-            .overflow(Overflow::Clip)
-            .fill(material::shader(wet_glass::kCalibration))
-            .children({label("08 / +", 16, 51, 186, 29, kInk, 600),
-                       rule(121, 29, 2, 99, kAmber)}),
-        label(detail, 0, 149, 214, 10),
+  /** THE WIPE MARKS: two low ridges of water along the edges of the
+   *  cleared arc, and one faint streak inside it where the blade was
+   *  worn. */
+  static gm::Mesh wipeMarks() {
+    const auto arc = [](float radius) {
+      gm::Cloud points;
+      for (int step = 0; step <= 160; ++step) {
+        const float angle = kPi * (.08f + .84f * step / 160.0f);
+        const glm::vec2 at =
+            kWiperPivot + radius * glm::vec2{-std::cos(angle), std::sin(angle)};
+        if (std::abs(at.x) < kPageWidth / 2 - kMount &&
+            std::abs(at.y) < kPageHeight / 2 - kMount)
+          points.positions.push_back({at, kGlassFace});
+      }
+      return points;
     };
-    Element sample =
-        kit::at(0, 24, 208, 113).borderRadius({12}).overflow(Overflow::Clip);
-    if (kind == 1) sample.children({water(35, 10, 92, 100, c, circle)});
-    if (kind == 2) {
-      for (int i = 0; i < 11; ++i) {
-        const float size = 3.0f + (i % 4) * 3.0f;
-        sample.children({water(12 + i * 17.0f, 15 + (i % 3) * 31.0f, size, size,
-                               c, circle)});
+    gm::Mesh marks;
+    const struct {
+      float radius, width, height;
+    } passes[] = {{kWipeInner - 4, 4, .5f},
+                  {kWipeOuter + 4, 5, .55f},
+                  {kWipeInner + 58, 1.2f, .4f}};
+    for (const auto& pass : passes)
+      marks.append(
+          gm::pop::on(arc(pass.radius))
+              .sweep(archProfile(pass.height), false,
+                     {.segments = 220, .scale = pass.width, .up = {0, 0, 1}}));
+    return marks;
+  }
+
+  /** THE BEADS AT @p seconds, one instanced body per size and shape: a
+   *  bead a rivulet's head has passed over is taken up, and forms again
+   *  as that trail drains. */
+  std::vector<world::Node> beadBodies(float seconds) const {
+    std::array<RunState, kRivulets.size()> runs{};
+    for (size_t index = 0; index < kRivulets.size(); ++index)
+      runs[index] = runAt(kRivulets[index], seconds);
+    std::array<std::array<gm::Cloud, 2>, kBeadClasses.size()> clouds;
+    for (const Bead& bead : beads) {
+      float scale = 1;
+      for (size_t index = 0; index < kRivulets.size(); ++index) {
+        const Rivulet& run = kRivulets[index];
+        const float reach = 18 + bead.radius;
+        if (std::abs(bead.at.x - runX(run, bead.at.y)) < reach &&
+            bead.at.y > runs[index].head)
+          scale = std::min(scale, runs[index].regrowth);
+      }
+      if (scale < .05f) continue;
+      size_t sizeClass = 0;
+      while (sizeClass + 1 < kBeadClasses.size() &&
+             bead.radius >= kBeadClasses[sizeClass + 1].smallest)
+        ++sizeClass;
+      gm::Cloud& cloud = clouds[sizeClass][bead.droops ? 1 : 0];
+      cloud.positions.push_back({bead.at, kGlassFace});
+      cloud.scalar("size").back() = bead.radius * scale;
+    }
+    std::vector<world::Node> bodies;
+    for (size_t sizeClass = 0; sizeClass < kBeadClasses.size(); ++sizeClass)
+      for (int shape = 0; shape < 2; ++shape) {
+        const gm::Cloud& cloud = clouds[sizeClass][shape];
+        if (cloud.size() == 0) continue;
+        bodies.push_back(world::mesh(gm::pop::on(cloud).instances(
+                                         shape ? droopingCap : roundCap))
+                             .key("beads " + std::to_string(sizeClass) +
+                                  (shape ? " drooping" : " round"))
+                             .fill(water(kBeadClasses[sizeClass].thickness))
+                             .collection("glazing"));
+      }
+    return bodies;
+  }
+
+  /** THE RIVULETS AT @p seconds: each a trail swept down its lane to
+   *  where its head has reached, thin behind and swelling toward the
+   *  head, and the head itself a heavy drop. */
+  std::vector<world::Node> rivulets(float seconds) const {
+    std::vector<world::Node> bodies;
+    for (size_t index = 0; index < kRivulets.size(); ++index) {
+      const Rivulet& run = kRivulets[index];
+      const RunState state = runAt(run, seconds);
+      const std::string key = "rivulet " + std::to_string(index);
+      if (state.trail > .02f && kRunTop - state.head > 12) {
+        // The rail ends where the head is, or at the mount if the head
+        // has run in under it.
+        const float end = std::max(state.head, kGlassBottom);
+        gm::Cloud rail;
+        for (float y = kRunTop; y > end; y -= 14)
+          rail.positions.push_back({runX(run, y), y, kGlassFace});
+        rail.positions.push_back({runX(run, end), end, kGlassFace});
+        const float trail = state.trail;
+        bodies.push_back(
+            world::mesh(gm::pop::on(rail).sweep(
+                            archProfile(.6f), false,
+                            {.segments = 120,
+                             .scale = 14,
+                             .taper =
+                                 [trail](float t) {
+                                   return trail *
+                                          (.35f + .65f * smooth(.55f, 1, t));
+                                 },
+                             .up = {0, 0, 1}}))
+                .key(key + " trail")
+                .fill(water(8))
+                .collection("glazing"));
+      }
+      if (state.head > kGlassBottom + 10) {
+        gm::Cloud head;
+        head.positions.push_back(
+            {runX(run, state.head), state.head - 6, kGlassFace});
+        head.scalar("size").back() = 17;
+        bodies.push_back(world::mesh(gm::pop::on(head).instances(droopingCap))
+                             .key(key + " head")
+                             .fill(water(40))
+                             .collection("glazing"));
       }
     }
-    if (kind == 3) sample.children({water(13, -20, 174, 170, c, circle)});
-    if (kind == 4) {
-      c.roughness = 1;
-      sample.children({water(14, 10, 114, 104, c, circle),
-                       water(98, -25, 118, 150, c, pear)});
-    }
-    if (kind == 5) {
-      c.coatingOpacity = 0;
-      sample.children({water(13, 12, 85, 88, c, circle)});
-      c.coatingOpacity = 1;
-      sample.children({water(113, 19, 66, 76, c, pear),
-                       water(5, 5, 0, 0, c, circle),
-                       water(196, 101, 1, 1, c, circle)});
-    }
-    parts.push_back(std::move(sample));
-    return kit::at(index * 226.0f, 0, 208, 176).children(std::move(parts));
+    return bodies;
   }
 
-  Element describe(int index) const {
-    const Controls c = stateFor(index);
-    return box()
-        .width(1440)
-        .height(1040)
-        .fontFamily("Inter, Helvetica Neue, sans-serif")
-        .fill(material::linearGradient({0, 0}, {0.25f, 1},
-                                       {{0, {0.035f, 0.071f, 0.093f, 1}},
-                                        {1, {0.011f, 0.026f, 0.038f, 1}}}))
-        .children(
-            {label("FIELD / 08   •   SURFACE OPTICS", 40, 26, 706, 11, kTeal,
-                   600),
-             label("WET GLASS / CONSOLE", 37, 48, 1006, 53, kInk, 500)
-                 .ink(lettering()),
-             label("WATER BEADING OVER AN ACTIVE INSTRUMENT  /  CAPS · FILM · "
-                   "CLIPPED LAYERS",
-                   40, 120, 1009, 11),
-             label("COASTAL OBSERVATORY", 1070, 33, 330, 11, kInk, 600),
-             label("CALIBRATION / W–08", 1070, 56, 330, 10),
-             label("Analytic optics / generated surfaces", 1070, 79, 330, 10),
-             rule(40, 158, 1360), kit::at(console(c), 40, 183, 980, 592),
-             kit::at(controlsPanel(index, c), 1068, 183, 332, 592),
-             label("BENEATH / LIVE TELEMETRY", 40, 799, 290, 10, kTeal, 600),
-             label("ABOVE / STATIC LOCAL LENSES IN MOTION", 385, 799, 543, 10),
-             label("36 S LOOP  /  NINE HELD STATES", 1075, 799, 330, 10),
-             rule(40, 829, 1360),
-             label("FIXED CALIBRATION STRIP", 40, 849, 430, 10, kMuted, 600),
-             label("Same chart / visible wet–dry and sampling endpoints", 941,
-                   849, 459, 10),
-             kit::at(
-                 box().width(1360).height(176).children(
-                     {coupon(0, "DRY", "No overlay / undisplaced type", 0),
-                      coupon(1, "BEAD", "Cap normal / local magnification", 1),
-                      coupon(2, "MICRO", "3–12 px / density-aware chart", 2),
-                      coupon(3, "MACRO", "Large cap / clipped to glass", 3),
-                      coupon(4, "STACK", "Two layers / roughness 1", 4),
-                      coupon(5, "ENDPOINTS", "Opacity 0 / 1 · size 0 / 1 px",
-                             5)}),
-                 40, 868, 1360, 176)});
-  }
+  world::Frame describe(sigil::motion::Duration now) {
+    const float seconds = float(std::fmod(now.count(), double(kLoop)));
+    const float drift = std::sin(2 * kPi * seconds / kLoop);
+    const auto mountMetal = material::from(hexColor(0x1b1f23))
+                                .surface({.metallic = .85f, .roughness = .38f});
+    // The cover glass is coated against reflection, as a console's is,
+    // so the room lies faintly on it and brightly on the water.
+    const material::Material clearGlass =
+        material::from(material::Color{1, 1, 1, 1})
+            .surface({.roughness = .02f,
+                      .specular = .3f,
+                      .transmission = 1.0f,
+                      .ior = 1.5f,
+                      .thickness = 2 * kGlassFace});
 
-  void setup(sketch::Scene2DContext& ctx) {
-    for (std::size_t i = 0; i < kDrops.size(); ++i) {
-      dropX[i] = motion::animatable(0.0f);
-      dropY[i] = motion::animatable(0.0f);
-    }
-    ctx.canvas(1440, 1040);
-    ctx.oversample(1);
-    ctx.background({0.011f, 0.026f, 0.038f, 1});
-    ctx.captureAt(2);
-    phaseIndex = heldPhase < 0 ? 0 : std::clamp(heldPhase, 0, 7);
-    ctx.composer.render(describe(phaseIndex));
-  }
+    std::vector<world::Node> onGlass{
+        world::mesh(glass).key("glass").fill(clearGlass).collection("glazing"),
+        world::mesh(railAcross)
+            .key("mount top")
+            .at({0, kPageHeight / 2 - kMount / 2, 0})
+            .fill(mountMetal),
+        world::mesh(railAcross)
+            .key("mount bottom")
+            .at({0, -kPageHeight / 2 + kMount / 2, 0})
+            .fill(mountMetal),
+        world::mesh(railUp)
+            .key("mount left")
+            .at({-kPageWidth / 2 + kMount / 2, 0, 0})
+            .fill(mountMetal),
+        world::mesh(railUp)
+            .key("mount right")
+            .at({kPageWidth / 2 - kMount / 2, 0, 0})
+            .fill(mountMetal),
+        world::mesh(wipeRidges)
+            .key("wipe marks")
+            .fill(water(5))
+            .collection("glazing"),
+    };
+    for (world::Node& body : beadBodies(seconds))
+      onGlass.push_back(std::move(body));
+    for (world::Node& body : rivulets(seconds))
+      onGlass.push_back(std::move(body));
 
-  void update(double elapsed, sketch::Scene2DContext& ctx) {
-    const double seconds =
-        std::isfinite(elapsed) ? std::max(0.0, elapsed) : 0.0;
-    for (std::size_t i = 0; i < kDrops.size(); ++i) {
-      const float seed = static_cast<float>(i) * 1.73f;
-      dropX[i] = controls.driftPixels * 0.22f *
-                 static_cast<float>(std::sin(seconds * 0.19 + seed));
-      dropY[i] =
-          controls.driftPixels *
-          static_cast<float>(0.55 * std::sin(seconds * 0.13 + seed) +
-                             0.30 * std::sin(seconds * 0.31 + seed * 0.53));
-    }
-    const int next =
-        heldPhase < 0
-            ? static_cast<int>(std::fmod(seconds / kPhaseSeconds,
-                                         static_cast<double>(kPhases.size())))
-            : std::clamp(heldPhase, 0, 7);
-    if (next != phaseIndex) {
-      phaseIndex = next;
-      ctx.composer.render(describe(phaseIndex));
-    }
+    return world::Frame(
+               world::group(
+                   {world::camera(lens(),
+                                  {.exposure = .95f,
+                                   .toneCurve = world::ToneCurve::Neutral}),
+                    // THE KEY: cool, high on the left and in front,
+                    // throwing the mount's shadow down across the page.
+                    world::directionalLight({.42f, -.55f, -.72f},
+                                            {.color = hexColor(0xc8dcff),
+                                             .intensity = 2.4f,
+                                             .castShadow = true,
+                                             .shadow = {.bias = 2,
+                                                        .normalBias = 1.5f,
+                                                        .radius = 2.5f,
+                                                        .mapSize = 2048}})
+                        .key("key"),
+                    // THE PANEL every bead shows as its highlight,
+                    // drifting slowly across above the eye; it reaches
+                    // the glass and the water only, so the page keeps
+                    // its dark.
+                    world::rectLight({-420 * drift + 120, -640, -1000},
+                                     {.width = 1300,
+                                      .height = 380,
+                                      .color = hexColor(0xe6f0ff),
+                                      .intensity = 30})
+                        .key("panel")
+                        .lightLink("glazing")
+                        .at({420 * drift - 120, 640, 1000}),
+                    world::ambientLight(
+                        {.color = hexColor(0x8fa6c0), .intensity = .05f})
+                        .key("fill"),
+                    world::group(
+                        {world::mesh(plate).key("housing").fill(mountMetal),
+                         world::mesh(face).key("face").fill(page.surface()),
+                         world::group(std::move(onGlass))
+                             .key("glass rig")
+                             .at({0, 0, kGlassGap})
+                             .rotateX(kGlassLean)})
+                        .key("console")
+                        .rotateX(-7)}))
+        .environment(room, {.intensity = .6f, .diffuse = .08f})
+        .pass(page.render(consolePage(seconds)));
   }
 };
 
 }  // namespace
 
-SIGIL_SKETCH(
-    WetGlassConsole, "Study · Materials",
-    "water beads, rivulets and layered glass over a live Compose instrument")
+SIGIL_SKETCH(WetGlassConsole, "Study · Materials",
+             "A live telemetry console under rained-on glass: beads, "
+             "rivulets and wipe ridges of water bend the changing page "
+             "beneath them")
