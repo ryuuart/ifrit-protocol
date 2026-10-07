@@ -1883,3 +1883,303 @@ the plate moment and find the per-channel mean and p99 within the
 tier's tolerance; until then the four rows are the finding, and a run
 of the tier is read by its rows and not by its last line.
 
+## Authoring gap: a body cannot wear one region of a page
+
+`sketch::Page::surface()` is the whole page: a body shows all of it, so a
+scene whose bodies each show a different part of one laid-out page paints
+one page per body instead. `carved_marks` carries four pages for four
+bodies that could share one.
+
+A page's surface should take a region — a rectangle in page units — that
+the body's texture coordinates map onto, so one page lays its parts out
+and each body wears its own. A test should paint one page with two
+coloured halves, dress two cards with the two halves, and find each card
+the colour of its half.
+
+## Authoring gap: an extruded solid's walls cannot wear a page
+
+`geometry::mesh::extrude` writes the walls' texture coordinates along the
+outline's length, so a page worn by the solid stretches round its walls
+and the top face is the only face that reads as the page. `carved_marks`
+builds every solid twice, a top that wears the page and walls that wear a
+plain surface.
+
+The extrusion should let the caller say what the walls wear: their own
+coordinates (the outline's length) or the top's projected down, and a
+solid should be able to carry two surfaces, one per face set, as a
+`Mesh` with named parts does. A test should extrude a square with a page
+projected onto it and find the wall pixels the colour of the page's edge.
+
+## Authoring gap: text as an outline takes a text context and three calls
+
+Turning a string into a `geometry::path::Outline` at a size and centre
+takes a `weave::TextContext`, `singleLine().layout().glyphOutline()` and
+a recentre by hand; `carved_marks` and `struck_metal` each write it, and
+`struck_metal` still builds its outlines through Skia.
+
+SigilWeave should offer one door — the text, a face, a size and where its
+centre stands, answering the outline — and `struck_metal` should use it.
+A test should outline one glyph and find its bounds centred where it was
+asked for.
+
+## Authoring gap: a mask by luminance and a remapped depth need helpers in the sketch
+
+Masking a layer by a material's luminance is a `material::Mask` the
+layer options cannot be brace-initialised with, and "this depth map,
+mapped from one value to another" has no door, so a metalness,
+roughness or clear-coat channel driven by one depth map is written as a
+two-layer material each time. `carved_marks` carries both helpers.
+
+SigilMaterial should take a mask as a layer option that brace-initialises
+from a material and a channel, and offer a remap of a scalar material
+between two values. A test should drive a channel from a depth map
+through the remap and find the stated range at the map's extremes.
+
+## Contract gap: a material's channel maps ignore the paint box its colour honours
+
+A fill stated with `PaintBox::Canvas` or `PaintBox::Subtree` places its
+colour stack in that box, through `placePaint`, but the material's other
+maps — normal, roughness, clear coat, emission — are placed in the
+element's own box. A height texture worn as the normal of an inset
+rectangle or a text leaf lands out of register with the base colour
+painted beside it. `painted_fields` makes every channel-bearing element a
+full-page box to keep the maps in register.
+
+Every map a material carries should be placed where its base colour is
+placed. A test should fill an inset rectangle with a material whose base
+colour and normal come from one texture under `PaintBox::Canvas`, read
+back both maps, and find the texture at the same place in each.
+
+## Renderer gap: a page cannot glow above white
+
+`compose::SurfaceScene` paints its maps into eight-bit N32 surfaces and
+`material::surface::program(TextureMaps)` fixes the emissive strength at
+one, so an emission a page's content states above one is clipped and
+never reaches a bloom threshold. `painted_fields` makes its glowing mark a
+separate body with its own surface and adds a sphere light for the spill
+the page's glow cannot give.
+
+A page's emission map should be float, or the page should carry an
+emissive strength its surface states, so content brighter than white
+blooms. A test should paint a page with an emission of four, dress a card
+with it under a bloom pass, and find the card's pixels above white before
+the bloom and spread after it.
+
+## Authoring gap: an extrusion has no rounded or bevelled edge
+
+`geometry::mesh::ExtrudeOptions` states caps and walls and nothing about
+the edge between them, so a cut pane with a half-round rim is lofted by
+hand from outlines inset along the round, which holds only for a convex
+outline without holes. `glass_forms` builds its panes that way.
+
+The extrusion should take an edge: a radius or a bevel width and its
+segments, applied round every outline including holes. A test should
+extrude a square with a round of radius r and find the rim's normals
+turning smoothly from the cap to the wall across r.
+
+## Contract gap: which winding a lathe and a loft orient outward is unstated
+
+`geometry::mesh::revolve` with a clockwise profile and `loft` with
+anticlockwise rings ordered back to front both produce inward normals,
+and neither header says which way gives outward ones. A glass body made
+inward bends the wrong way: `glass_forms`' magnifier shrank its scale
+until the profile was reversed, and the sketch reverses the order itself.
+
+Each header should state the winding that orients outward, or the
+function should orient outward whatever the winding, as a solid is
+expected to. A test should revolve a profile each way and find the
+normals outward in both.
+
+## Renderer gap: a height-derived normal cannot dress a device body
+
+`material::surface::normalFromHeight` is a Skia program with no Slang
+body, so a body drawn on the device cannot wear a normal derived from a
+height material; only an image map reaches it. `glass_forms` still fills
+its haze map pixel by pixel from a bitmap for that reason, and any reeded
+or hammered glass needs an image.
+
+The normal-from-height recipe should carry a Slang body, as the other
+shared recipes do, so a device body takes it like a page does. A test
+should dress a device card with a normal from a noise height and find the
+shading vary across it.
+
+## Renderer limitation: refraction sees one layer and bends at one surface
+
+A transmitting body reads the opaque scene behind it and bends the eye's
+ray at its front surface, carried the stated thickness; it does not see
+another transmitting body behind it. So a glass front cannot stand before
+a liquid, a rod broken at a liquid's surface needs an optical thickness
+far beyond the real depth, a magnifier's power is its thickness and too
+much inverts the picture, and an enlarged scene is the rendered pixels
+upscaled. `glass_forms` states its thicknesses as optical depths chosen
+for the bend and leaves the cell's front as a reflection-only surface.
+
+Transmission should see through transmitting bodies behind it, in order
+of depth, for at least one more layer, and a body's exit surface should
+take part in the bend. A test should stand a tinted slab behind a clear
+one and find the tint through both.
+
+## Bug: a layered material worn by a bare body is drawn as the stock grey, and nothing says so
+
+A `material::from(colour).layer(noise, …).surface(…)` stack worn by a
+world mesh directly, not through a page, renders as the stock mid-grey:
+the layers and the colour are dropped on the way to the device and no
+warning is written. `embossed_foil`'s bench wears a plain colour because
+of it.
+
+A material World cannot lower should be refused with a message naming
+the body and what it carries, or lowered: a layered stack can be baked
+to a texture the surface wears. A test should dress a device card with a
+two-layer material and find either the layers' colour or the refusal.
+
+## Authoring gap: a visible light cannot be aimed or ridden as one node
+
+`world::kit::visibleLight` wraps a sized light with an unlit emitter of
+its shape, but `Light::lookAt` turns only the light inside, and `.along`
+cannot carry the group, so a panel on a rail that must face its subject
+is placed with `.at()` and aimed by hand each frame; `embossed_foil`
+does that.
+
+The visible-light group should take `lookAt` and `along` as a light
+does, turning the emitter with the light. A test should ride a visible
+rect light along a rail aimed at a keyed node and find the emitter's
+normal pointing at it at two stations.
+
+## Authoring gap: a grid sheet's texture coordinates are always its own parameters
+
+`geometry::mesh::grid` writes texture coordinates from its (u, v)
+parameters, so a sheet that is not the whole rectangle — a cut blanket,
+a triangular corner — has its coordinates overwritten by hand after the
+fact. `embossed_foil` relays them in page pixels.
+
+The grid should take a texture placement: coordinates from the position
+formula, or a rectangle in page units the sheet maps onto. A test should
+make a grid with a placement and find a corner vertex's coordinates
+where the placement puts them.
+
+## Contract gap: the anisotropy direction map's sign is not pinned by a test
+
+A direction map is read as a normal map's red and green, green pointing
+up the page, so a page leg (dx, dy) is written as (dx, −dy). Rendered
+against the opposite sign and against no anisotropy, both give a
+plausible picture, so an author cannot tell by eye which is right.
+`metal_linework` follows the convention as documented.
+
+A test should dress a World page with a strip brushed at 45 degrees
+under a known light and find the highlight stretched along the strip's
+direction, which fixes the sign end to end.
+
+## Authoring gap: a direction map is painted one leg at a time
+
+A material brushed along a path needs a direction map, and a ribbon
+has no fill that writes its own tangent, so `metal_linework` strokes
+every short leg of every trace as its own ribbon in its own colour.
+
+A ribbon fill that writes the ribbon's tangent as a direction colour
+would make the map one stroke per trace and serve any brushed-along-a-
+path material. A test should stroke a quarter circle with the tangent
+fill and find the map's direction turning with the arc.
+
+## Contract gap: a stamp chain along a spine always closes the loop
+
+`geometry::mesh::pop::on(spline)` adds a closing segment from the
+spine's end back to its start, so a window riding an open trace is kept
+short of the end to stay off the segment. `metal_linework` guards the
+head's phase for that reason.
+
+The scatter should know whether its spine is open and ride only its
+length then. A test should window the last tenth of an open spine and
+find no stamp on the chord back to the start.
+
+## Contract gap: a page carries no clear-coat normal
+
+`compose::SurfaceScene` paints a coat's weight and roughness but not
+`SurfaceOptions::clearcoatNormal`: there is no texture role for it, the
+surface-map shader has no role for it, and `surface::program(TextureMaps)`
+never fills the coat-normal slot. `ceramic_glaze` paints its crazing into
+a texture scene and lays it into the page's surface by the slot itself,
+which stands in for the missing map.
+
+A page should carry the coat's normal as it carries the other lobe maps,
+painted once the content states one, and the program should place it. A
+test should paint a page whose content states a coat normal, dress a card
+with the page, and find the coat's reflection broken where the map turns.
+
+## Authoring gap: no cellular noise
+
+`material::noise` is turbulence and grain; it has no cellular or Voronoi
+option, so a crazing or a cell network is built from `path::voronoi` cells
+drawn as shapes. `ceramic_glaze` does so.
+
+The noise should offer a cellular mode — distance to the nearest seed and
+to the second, with a jitter — as a material, so a crackle is a fill. A
+test should sample the cellular noise at a seed and find zero there and a
+rise away from it.
+
+## Performance gap: a many-stop gradient mask on a headless page paints per pixel
+
+In a headless plate sweep a page paints on the CPU, where a ramp of two
+hundred and fifty-six stops used as a mask is evaluated per pixel in every
+map pass; `ceramic_glaze`'s first plate timed out at the sweep's limit
+until the depth was painted once into a strip and repeated. A live window
+paints the same page on Graphite.
+
+A ramp used as a mask should be sampled from a lookup once per paint,
+not evaluated per pixel per pass, and a headless page that is static
+should paint once and be kept. A test should time a page masked by a
+many-stop ramp on the CPU against the same page masked by a strip and
+find them within a small factor.
+
+## Renderer limitation: a distortion map offsets in view space and only where the surface is translucent
+
+A surface's distortion map moves what is seen behind it by an offset in
+view space, not along the surface's own directions, so a meniscus map on
+a revolved bead cannot push radially; and the offset is laid over the
+picture by the surface's alpha, so on an opaque transmitting body it does
+nothing. `wet_glass_console` bends its beads by transmission and curvature
+alone.
+
+A distortion should be stated in the surface's tangent frame and apply
+to a transmitting body's refracted read. A test should dress a sphere
+with a radial distortion and find the page behind it displaced outward
+on every side.
+
+## Rendering gap: a curved transmitting body shows the page behind it darker and softer than a flat one
+
+Beads and swept trails in `wet_glass_console` show the page roughly a
+fifth to two fifths darker and blurred compared with the flat glass sheet
+over the same page, at an index of one, zero thickness and a roughness
+near zero, with or without the sheet. On a dark page the beads read as
+dark lumps with bright rims. The probe stills stand in the session's
+scratchpad; the cause is not found.
+
+A transmitting body at an index of one and zero thickness should show
+the page behind it unchanged whatever its curvature. A test should stand
+a sphere and a flat card, both at that setting, over a bright page and
+compare the mean of the pixels through each.
+
+## Performance gap: a page repainted every frame is painted on the CPU in a capture
+
+On the still and plate path a page paints on the CPU raster, so a
+page-wide runtime-effect material costs seconds per frame and a capture
+stepped to its moment runs for minutes; `wet_glass_console`'s first plate
+timed out and its page dropped its halftone and noise layers to render.
+The window bench of the same sketch failed its gate on the describe
+phase. A live window paints the page on Graphite.
+
+A capture should paint pages on the device it has, as the window does,
+and a static layer of a changing page should be kept rather than
+repainted. A test should capture a page carrying a runtime effect and
+find it drawn through the device recorder.
+
+## Authoring gap: an instance cannot state its own transmission thickness
+
+An instanced stamp carries a colour and named scalars to the surface,
+but transmission thickness reads the surface's value only, so
+`wet_glass_console` stands its beads in three size classes with three
+thicknesses instead of one body whose thickness follows its size.
+
+Thickness, like the flipbook frame, should be readable from a named
+instance attribute. A test should instance one bead at two sizes with a
+thickness attribute and find the page bent more through the larger.
+
