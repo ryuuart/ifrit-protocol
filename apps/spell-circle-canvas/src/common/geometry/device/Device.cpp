@@ -89,21 +89,24 @@ Device::~Device() {
 std::unique_ptr<Device> Device::create(const DeviceConfig& config,
                                        std::string* error) {
   using namespace dg;
-  // THE FLOAT MODEL, PINNED BEFORE THE DRIVER READS IT. This driver
-  // relaxes floating point by default: a square root becomes an
+  // THE FLOAT MODEL, CHOSEN PER SHADER BEFORE THE DRIVER READS IT. This
+  // driver can relax floating point: a square root becomes an
   // approximation and a divide becomes a reciprocal and a multiply, both
   // of which round differently from the same expression on a host. A
-  // kernel compiled once for both is then two answers, so the relaxation
-  // is turned off here — before the instance exists, which is the only
-  // moment it is read — and left alone when something else already set
-  // it, so a caller may still ask for the faster arithmetic.
+  // kernel compiled once for both would then be two answers. So the
+  // driver is told to relax ON DEMAND — every shader that does not
+  // declare the precise float model is compiled relaxed, which is what a
+  // picture wants, and every kernel held to bit identity declares it in
+  // its own module and is compiled exact. It is set before the instance
+  // exists, which is the only moment it is read, and left alone when
+  // something else already set it, so a caller may still pin either end.
   //
   // IT IS A PROCESS-WIDE WRITE, and `setenv` is not safe against a
   // concurrent read of the environment, so this call must run before any
   // other thread reads one. The first device a process brings up is
   // where it lands, which is why it stands at the head of the bring-up
   // rather than beside the instance it affects.
-  setenv("MVK_CONFIG_FAST_MATH_ENABLED", "0", /*overwrite=*/0);
+  setenv("MVK_CONFIG_FAST_MATH_ENABLED", "2", /*overwrite=*/0);
   IEngineFactoryVk* factory = GetEngineFactoryVk();
   if (!factory) {
     if (error) *error = "Diligent Vulkan factory unavailable";

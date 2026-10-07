@@ -121,9 +121,12 @@ void run(const OperationDispatch& dispatch, glm::vec4* destination,
  *  That model is what makes the two ends agree in their last place: it
  *  puts a `NoContraction` decoration on every float arithmetic result,
  *  which tells a driver that a multiply and the add after it are two
- *  operations and forbids it fusing them into one that rounds once. It
- *  is asked for where the module is compiled, so a second backend has
- *  nothing to remember.
+ *  operations and forbids it fusing them into one that rounds once; and
+ *  its entry point declares the `SignedZeroInfNanPreserve` execution mode
+ *  at 32 bits, which tells a driver that relaxes floating point where a
+ *  shader does not forbid it to compile this one exact. Both are asked
+ *  for where the module is compiled, so a second backend has nothing to
+ *  remember.
  *
  *  The words are the build's own and stand for the life of the
  *  process. */

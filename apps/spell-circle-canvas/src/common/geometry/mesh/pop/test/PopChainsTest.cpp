@@ -10,6 +10,8 @@
 #include <sigilgeometry/kit/Sections.h>
 
 #include <cmath>
+#include <cstdint>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -18,6 +20,8 @@
 #include "sigilgeometry/mesh/pop/Kernel.h"
 #include "sigilgeometry/mesh/pop/Points.h"
 #include "sigilgeometry/mesh/pop/Pop.h"
+#include "sigilgeometry/mesh/pop/Stamp.h"
+#include "sigilgeometry/mesh/pop/Sweep.h"
 #include "support/GeometrySupport.h"
 #include "support/Loops.h"
 
@@ -180,6 +184,48 @@ TEST(Pop, ADegenerateGeneratorCooksToAnEmptyCloud) {
   over.mesh = flat;
   over.count = 128;
   empty({over, pop::Jitter{}});
+}
+
+namespace {
+
+/** Whether the module @p words declares, for its entry point, the
+ *  `SignedZeroInfNanPreserve` execution mode at 32 bits — the statement a
+ *  driver that relaxes floating point reads as "compile this one exact" —
+ *  and the capability that mode needs. */
+bool declaresThePreciseFloatModel(std::span<const uint32_t> words) {
+  constexpr uint32_t kCapability = 17;
+  constexpr uint32_t kEntryPoint = 15;
+  constexpr uint32_t kExecutionMode = 16;
+  constexpr uint32_t kPreserve = 4466;
+  constexpr uint32_t kPreserveMode = 4461;
+  bool capability = false;
+  bool mode = false;
+  uint32_t entry = 0;
+  for (size_t at = 5; at < words.size();) {
+    const uint32_t opcode = words[at] & 0xffffu;
+    const uint32_t length = words[at] >> 16u;
+    if (length == 0) return false;
+    if (opcode == kCapability && words[at + 1] == kPreserve) capability = true;
+    if (opcode == kEntryPoint) entry = words[at + 2];
+    if (opcode == kExecutionMode && length == 4 && words[at + 1] == entry &&
+        words[at + 2] == kPreserveMode && words[at + 3] == 32)
+      mode = true;
+    at += length;
+  }
+  return capability && mode;
+}
+
+}  // namespace
+
+// EVERY KERNEL HELD TO BIT IDENTITY SAYS SO IN ITS OWN WORDS. The device
+// relaxes floating point in every shader that does not forbid it, so the
+// three kernels a device runs each carry the precise float model's
+// execution mode; the device conformance cases are what prove the mode is
+// honoured.
+TEST(Pop, EveryKernelDeclaresThePreciseFloatModel) {
+  EXPECT_TRUE(declaresThePreciseFloatModel(kernel::operationSpirv()));
+  EXPECT_TRUE(declaresThePreciseFloatModel(kernel::sweepSpirv()));
+  EXPECT_TRUE(declaresThePreciseFloatModel(kernel::stampSpirv()));
 }
 
 // A kernel description is a VALUE: the argument block a device would

@@ -307,21 +307,24 @@ only because the operators are one piece of arithmetic compiled twice
 under a float model pinned at both ends. Three things pin it, and each of
 them is load-bearing: the generated C++ is compiled with
 `-ffp-contract=off`; the SPIR-V is compiled under `-fp-mode precise`, so
-it carries one `NoContraction` decoration per arithmetic result; and
-`MVK_CONFIG_FAST_MATH_ENABLED` is set to 0 before the Vulkan instance
-exists, because this driver otherwise takes a square root as an
-approximation and a divide as a reciprocal and a multiply. Remove any one
-and SigilGeometry's conformance test — every supported chain cooked both
-ways and compared bit for bit — fails on the first expression of the
-shape `a + b * c`.
+it carries one `NoContraction` decoration per arithmetic result; and the
+embedded kernel declares the `SignedZeroInfNanPreserve` execution mode,
+which the device's driver — told to relax floating point ON DEMAND
+(`MVK_CONFIG_FAST_MATH_ENABLED` set to 2 before the Vulkan instance
+exists) — reads as a shader that must be compiled exact. Without it the
+driver takes a square root as an approximation and a divide as a
+reciprocal and a multiply. Remove any one and SigilGeometry's conformance
+test — every supported chain cooked both ways and compared bit for bit —
+fails on the first expression of the shape `a + b * c`.
 
-The last of the three is DEVICE-WIDE and it is not free: the graphics
-pipelines pay it too, and a frame that leans on the post stages is
-measurably slower for it (the bench ledger owns the number). It is set
-with `setenv(..., overwrite=0)`, so a process that has already put
+Every other shader on the device — the lit scaffold, the post stages, the
+painter — states no float model and is compiled relaxed, which a picture
+wants and a kernel cannot have. The setting is written with
+`setenv(..., overwrite=0)`, so a process that has already put
 `MVK_CONFIG_FAST_MATH_ENABLED` in its own environment keeps whatever it
-asked for — which is the way to buy the faster device back, at the cost
-of a device pop cook that no longer answers what the host answers.
+asked for: 0 compiles every shader exact, 1 relaxes the kernels too, at
+the cost of a device pop cook that no longer answers what the host
+answers.
 
 ## What a lit scene can and cannot say
 

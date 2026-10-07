@@ -22,8 +22,11 @@
 # `NoContraction`, which is what tells a driver that a multiply and the
 # add after it are two operations and forbids it fusing them into one
 # that rounds once. `-ffp-contract=off` is the generated C++'s end,
-# `-fmetal-math-mode=safe -ffp-contract=off` Metal's, and
-# MVK_CONFIG_FAST_MATH_ENABLED=0 MoltenVK's at run time.
+# `-fmetal-math-mode=safe -ffp-contract=off` Metal's, and the embedded
+# module's own `SignedZeroInfNanPreserve` execution mode MoltenVK's: the
+# device relaxes the arithmetic of every shader that does not state it
+# and keeps it exact in every one that does. The compiler writes no such
+# mode, so the embedding step writes it (SlangEmbedSpirv.cmake).
 #
 # Only the SINGLE-SOURCE KERNEL lane asks for it. Bit identity with the
 # C++ executor is what a kernel is held to; a material or a painter
@@ -153,6 +156,7 @@ function(sigil_slang_module)
          -DENTRY=${_onlyEntry}
          "-DSPIRV=${SIGIL_SLANG_GENERATED_DIR}/${ARG_NAME}.${_onlyEntry}.spv"
          "-DHEADER=${_spvHeader}"
+         -DPRECISE=ON
          -P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/SlangEmbedSpirv.cmake")
     list(APPEND _spvFiles "${_spvHeader}")
   endif()
