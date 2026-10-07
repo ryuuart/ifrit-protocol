@@ -1,46 +1,52 @@
 # Embossed foil
 
-A 1440 × 1040 Compose study of metallized blanket surfaces and pressed metal
-lettering. A fictional orbital thermal-control console sits inside a sewn
-gold-coloured cover with a folded silver corner. Its thermal loop, temperature
-readings, heater duty, live trace and controls form one invented instrument.
+A sheet of metallised thermal blanket lies on a dark bench: gold foil
+crinkled into a thousand small facets, quilted into soft pillows between
+its stitches, hemmed in silver tape, with a word pressed into it by a die,
+and one corner folded back to show the silver underside. A soft panel of
+light travels behind it on a rail, so its reflection runs across the
+blanket and every crease flashes and goes dark as the panel passes, while
+the pressed letters, smoothed flat by the die, hold the panel as one clean
+mirror among the crinkle; the silver corner lifts and settles on its fold,
+catching the panel at its own angle and throwing a shadow across the gold.
 
-## What is drawn
+## What it shows
 
-Foil fills and text inks share gradient and noise layers, a masked amber
-overprint over a silver base, a metallic response, a crease normal map and a
-matching roughness map. The crinkle normals come from a static two-scale
-triangular height field: broad planar facets, smaller creases and an irregular
-silhouette, with seam runs and a folded edge. Gold and silver foil sit side by
-side as a material comparison.
+- Crinkle that is only a normal map: the facets are a height field — fractal
+  noise at three scales, drawn crease lines and long fold lines — turned into
+  normals, so the panel's reflection breaks into sparks across a sheet whose
+  real mesh is smooth.
+- Pressed lettering as a deeper, flatter region of the same height field: the
+  die erases the crinkle inside the letters and rolls a shoulder round them,
+  so the word reads as a smooth mirror sunk into the foil.
+- Foil over a fabric backing: a metal surface whose roughness follows the
+  crinkle, with a faint sheen at grazing angles.
+- A real body that is not flat: the blanket is a sheet displaced into quilted
+  pillows and two broad folds, its corner cut away; the silver corner is a
+  second, slightly curled body hinged on the cut, folding as the scene runs.
+- A visible rect light on a rail with shadows, a cool fill, and a studio
+  environment of soft boxes for the metals to reflect.
 
-Pressed controls and the large orbital heading use outline relief: the node's
-shape for the controls, the glyph contours for the lettering. Signed depth
-gives raised or recessed shoulders, including letter counters and the annular
-gauge hole, and the contour normals compose with the creases. The relief
-lettering paints through a foreground decoration over transparent ink; the
-title, readings and fixed normal/roughness specimens use material ink directly.
+## How it is built
 
-Every material on the page paints its colour stack flat; the surface channels
-describe the foil without shading it. Only the temperature trace reads the
-material clock. There is no mesh, cloth solver, thermal simulation or image
-asset; the foil's insulating layers are not modelled.
+The crinkle is painted once into a height texture: `material::noise` in
+turbulence and grain modes at three frequencies, `compose::brush::ribbon`
+strokes for the creases and folds, stitch dimples, and the letter die
+(`weave::TextContext` glyph outlines filled black), softened with
+`material::Filter::blur`. `material::surface::normalFromHeight` turns it into
+the normal map both foils share. Two `sketch::Page`s carry the gold and the
+silver surfaces — `metallic`, a roughness masked by the crinkle, `sheenColor`
+and `sheenRoughness` — and the hem tape and a two-line caption on the gold.
+The blanket and the corner are `gm::grid` sheets with their UVs laid over the
+page in page pixels. The light is `world::rectLight` inside
+`world::kit::visibleLight`, placed on its rail and aimed at the blanket each
+frame; the fill is a second, cool `rectLight`; the room is
+`world::kit::environmentMap` with soft boxes.
 
-## Controls and states
+## What to look at
 
-`Controls` holds crinkle strength, roughness, metallic fraction, signed relief
-depth, shoulder width, amber layer opacity and the mask comparison.
-`heldPhase` holds a state from 0 to 6; −1 advances the 28-second loop.
-
-| Seconds | State | Condition |
-| --- | --- | --- |
-| 0–4 | Nominal | Gold and silver foil, raised controls and material inks |
-| 4–8 | Normal zero | Flat crease normal; contour relief remains |
-| 8–12 | Strong crinkle | Larger crease amplitude |
-| 12–16 | Roughness zero | Sharp roughness endpoint |
-| 16–20 | Roughness one | Diffuse roughness endpoint |
-| 20–24 | Recessed | Negative outline depth |
-| 24–28 | Layers / mask | Perforated overprint and shaped clipping |
-
-The fixed strip always shows normal zero and strong, roughness zero and one,
-signed glyph relief and masked layers with holes.
+The panel's reflection crossing the gold: it is never one shape, but a field
+of facets that light and die in turn. The pressed word, which holds a single
+clean reflection while the foil round it sparkles. The silver corner as it
+rises: its creases flash at a different moment from the gold beneath it, and
+its shadow slides over the pillows.

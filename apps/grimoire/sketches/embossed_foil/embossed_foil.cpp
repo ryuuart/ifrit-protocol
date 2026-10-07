@@ -1,454 +1,523 @@
-/** @file
- * embossed_foil — a foil-clad orbital thermal-control console.
- *
- * EDIT THESE FIRST
- *   Controls — crinkle strength, roughness, relief and amber layer.
- *   heldPhase — -1 cycles; 0–6 holds one authored material state.
- *   blanket — the fitted foil silhouette, seams and folded corner.
+/** A gold thermal blanket on a dark bench, crinkled into facets, quilted
+ *  into pillows, hemmed in silver tape and pressed with a word, its corner
+ *  folded back to show the silver beneath; a soft panel travels behind it
+ *  on a rail, so every crease flashes and goes dark as the panel and the
+ *  fold move, while the die-smoothed letters hold one clean reflection.
  */
+// TAGS: Compose/Materials, Materials/Metal, Materials/Lighting,
+// Geometry/3D, Typography/Relief
 
-// TAGS: Materials/Metal, Materials/Foil, Typography/Material ink,
-// Composition/Instrumentation
-
-#include <sigilcompose/brush/Decorations.h>
-#include <sigilcompose/brush/Relief.h>
+#include <sigilcompose/brush/Ribbons.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilgeometry/kit/Generators.h>
+#include <sigilcompose/texture/Texture.h>
+#include <sigilgeometry/mesh/Mesh.h>
+#include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilgeometry/path/Outline.h>
+#include <sigilgeometry/path/Profile.h>
+#include <sigilgeometry/path/Transform.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/filter/Filter.h>
-#include <sigilmaterial/paint/Bases.h>
-#include <sigilsketch/scene2d/Scene2D.h>
+#include <sigilmaterial/surface/Surface.h>
+#include <sigilmaterial/texture/Image.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scene3d/Scene3D.h>
+#include <sigilweave/layout/TextContext.h>
+#include <sigilworld/World.h>
+#include <sigilworld/kit/Kit.h>
 
 #include <algorithm>
-#include <array>
 #include <cmath>
-#include <cstdio>
+#include <glm/geometric.hpp>
+#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
+#include <memory>
+#include <random>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
 
-#include "Foil.h"
-
-namespace sketch = sigil::sketch;
+namespace compose = sigil::compose;
+namespace gm = sigil::geometry::mesh;
 namespace material = sigil::material;
-namespace shapes = sigil::geometry::shapes;
-using namespace sigil::compose;
+namespace path = sigil::geometry::path;
+namespace sketch = sigil::sketch;
+namespace weave = sigil::weave;
+namespace world = sigil::world;
 
 namespace {
 
-constexpr material::Color kInk{0.82f, 0.87f, 0.87f, 1};
-constexpr material::Color kMuted{0.42f, 0.51f, 0.56f, 1};
-constexpr material::Color kRule{0.18f, 0.27f, 0.32f, 0.8f};
-constexpr material::Color kBlue{0.21f, 0.63f, 0.79f, 1};
-constexpr material::Color kGold{0.91f, 0.61f, 0.21f, 1};
-constexpr material::Color kDark{0.012f, 0.026f, 0.038f, 1};
-constexpr float kPhaseSeconds = 4;
+using compose::Element;
+using material::hexColor;
 
-struct Controls {
-  float crinkle = 0.58f;
-  float roughness = 0.24f;
-  float metallic = 1;
-  float reliefDepth = 1.05f;
-  float shoulder = 1.8f;
-  float amberLayer = 0.76f;
-  bool maskStress = false;
-};
+constexpr float kLoop = 14, kPi = 3.14159265358979f;
+constexpr material::Color kBlack{0, 0, 0, 1}, kWhite{1, 1, 1, 1};
 
-struct Phase {
-  std::string_view name;
-  std::string_view detail;
-};
-constexpr std::array kPhases{
-    Phase{"ORBIT / NOMINAL", "Creased foil, raised controls and material ink"},
-    Phase{"NORMAL / ZERO", "Flat foil normal; contour shoulders remain"},
-    Phase{"CRINKLE / STRONG", "Larger crease amplitude in the foil normal"},
-    Phase{"ROUGHNESS / ZERO", "Sharp roughness endpoint"},
-    Phase{"ROUGHNESS / ONE", "Diffuse roughness endpoint"},
-    Phase{"DIE / RECESSED", "Signed depth reverses the contour relief"},
-    Phase{"LAYERS / MASK", "Perforated overprint, shaped holes and clipping"},
-};
+/** THE BLANKET, in page pixels, which are also scene units. */
+constexpr float kWidth = 1500, kDepth = 1000;
+/** How far along each edge the folded corner reaches. */
+constexpr float kCorner = 420;
+/** The folded corner's hinge length and its reach from the hinge. */
+const float kHinge = kCorner * std::sqrt(2.0f);
+const float kReach = kHinge / 2;
+/** How wide the silver hem tape is, and how far apart the quilting's
+ *  stitches stand. */
+constexpr float kHem = 34, kQuilt = 300;
 
-constexpr int kLastPhase = static_cast<int>(kPhases.size()) - 1;
+material::Color grey(float value) { return {value, value, value, 1}; }
 
-Element label(std::string_view words, float x, float y, float width,
-              float size = 12, material::Color color = kMuted,
-              float weight = 500) {
-  return kit::at(text(std::string(words)), x, y, width, size * 1.55f)
-      .fontSize(size)
-      .fontWeight(weight)
-      .ink(color);
+/** The die's lettering at @p size, centred on @p centre in page pixels. */
+path::Outline lettering(weave::TextContext& text, const weave::Face& face,
+                        std::u8string_view words, float size, float tracking,
+                        glm::vec2 centre) {
+  weave::TextStyle style;
+  style.shaping.typeface = face;
+  style.shaping.fontSize = size;
+  style.shaping.letterSpacing = tracking;
+  const auto outline =
+      text.singleLine(words, style, {0, 0}).layout().glyphOutline();
+  return outline.transformed(
+      path::Transform::translate(centre - outline.bounds().centre()));
 }
 
-Element rule(float x, float y, float width, float height = 1,
-             material::Color color = kRule) {
-  return kit::at(x, y, width, height).fill(color);
+/** A line laid into a height map: a band of @p width along @p spine,
+ *  tapering at both ends, at @p level. */
+Element crease(const std::string& spine, glm::vec2 page, float width,
+               float level) {
+  return compose::kit::at(0, 0, page.x, page.y)
+      .shape(compose::heldPath(path::Outline::svg(spine)))
+      .stroke(compose::brush::ribbon(
+          path::Profile{{0, .2f}, {.2f, width}, {.7f, width * .8f}, {1, .2f}},
+          compose::Fill::color(grey(level))));
 }
 
-std::string number(float value, int precision = 2) {
-  std::array<char, 32> out{};
-  std::snprintf(out.data(), out.size(), "%.*f", precision,
-                static_cast<double>(value));
-  return out.data();
-}
-
-material::Material foil(const Controls& c, bool silver = false,
-                        float seed = 11) {
-  const embossed_foil::Parameters parameters{
-      .scale = 1,
-      .strength = std::clamp(c.crinkle, 0.0f, 1.5f),
-      .roughness = std::clamp(c.roughness, 0.0f, 1.0f),
-      .variation = c.roughness > 0 && c.roughness < 1 ? 0.12f : 0,
-      .seed = seed};
-  auto result = material::linearGradient({0, 0}, {0.18f, 1},
-                                         {{0, {0.76f, 0.81f, 0.81f, 1}},
-                                          {0.48f, {0.52f, 0.59f, 0.60f, 1}},
-                                          {0.69f, {0.84f, 0.85f, 0.79f, 1}},
-                                          {1, {0.55f, 0.63f, 0.67f, 1}}});
-  result.layer(
-      material::noise(0.09f,
-                      {.octaves = 2, .seed = 16, .grain = true, .stretch = 8}),
-      {.blend = material::BlendMode::SoftLight, .opacity = 0.08f});
-  if (!silver) {
-    result.layer(material::Color{1, 0.53f, 0.025f, 1},
-                 {.blend = material::BlendMode::Multiply,
-                  .opacity = c.amberLayer,
-                  .mask = material::Mask{
-                      .source = material::shader(embossed_foil::kFilmMask),
-                      .channel = material::ColorChannel::Luminance,
-                      .low = 0.0f,
-                      .high = 1.0f}});
+/** A WANDERING CREASE: a few short legs that turn a little at each
+ *  joint, as a foil sheet creases when it is handled. */
+std::string wander(std::mt19937& random, glm::vec2 page, float reach) {
+  std::uniform_real_distribution<float> unit(0, 1);
+  glm::vec2 at{unit(random) * page.x, unit(random) * page.y};
+  float heading = unit(random) * 2 * kPi;
+  std::string spine = "M" + std::to_string(at.x) + " " + std::to_string(at.y);
+  const int legs = 2 + int(unit(random) * 4);
+  for (int leg = 0; leg < legs; ++leg) {
+    heading += (unit(random) - .5f) * .9f;
+    at += glm::vec2(std::cos(heading), std::sin(heading)) * reach *
+          (.4f + unit(random));
+    spine += " L" + std::to_string(at.x) + " " + std::to_string(at.y);
   }
-  if (c.maskStress) {
-    result.layer(material::Color{0.012f, 0.067f, 0.094f, 1},
-                 {.opacity = 0.87f,
-                  .mask = material::Mask{
-                      .source = material::shader(embossed_foil::kOverprintMask),
-                      .channel = material::ColorChannel::Alpha}});
+  return spine;
+}
+
+/** THE CRINKLE OF A FOIL SHEET @p page across, white highest: broad
+ *  creased facets, finer ones and a grain, then the drawn creases — light
+ *  ridges and dark valleys — and @p folds long soft folds. */
+std::vector<Element> crinkle(glm::vec2 page, unsigned seed, int creases,
+                             const std::vector<std::string>& folds) {
+  const auto facets =
+      material::from(material::noise(.0042f, {.octaves = 3,
+                                              .seed = float(seed),
+                                              .turbulence = true,
+                                              .grain = true,
+                                              .contrast = 1.6f}))
+          .layer(material::noise(.016f, {.octaves = 3,
+                                         .seed = float(seed) + 7,
+                                         .turbulence = true,
+                                         .grain = true,
+                                         .contrast = 1.4f}),
+                 {.opacity = .42f})
+          .layer(
+              material::noise(
+                  .07f, {.octaves = 2, .seed = float(seed) + 3, .grain = true}),
+              {.opacity = .12f});
+  std::vector<Element> marks{
+      compose::kit::at(0, 0, page.x, page.y).fill(facets)};
+  std::mt19937 random(seed);
+  for (int index = 0; index < creases; ++index) {
+    // A crease is a change of slope: a soft ridge or valley with a
+    // sharp line along its spine.
+    const bool ridge = index % 2 == 0;
+    const float level = ridge ? 1.0f : 0.0f;
+    const auto spine = wander(random, page, 120);
+    marks.push_back(crease(spine, page, 18, level)
+                        .opacity(.32f)
+                        .filter(material::Filter::blur(5)));
+    marks.push_back(crease(spine, page, 1.6f, level)
+                        .opacity(.3f)
+                        .filter(material::Filter::blur(.7f)));
   }
-  return result.surface(
-      {.metallic = std::clamp(c.metallic, 0.0f, 1.0f),
-       .roughness = material::shader(embossed_foil::kRoughness, parameters),
-       .normal = material::shader(embossed_foil::kNormal, parameters),
-       .reflectionWeight = 0.88f});
-}
-
-Element embossed(std::string_view words, float x, float y, float width,
-                 float size, material::Material finish, const Controls& c) {
-  return label(words, x, y, width, size, kInk, 650)
-      .ink(material::Color{0, 0, 0, 0})
-      .decorationOutline(Boundary::Glyphs)
-      .foreground(relief(std::move(finish),
-                         {.shoulder = c.shoulder, .depth = c.reliefDepth}));
-}
-
-Element pressed(float x, float y, float width, float height, float radius,
-                material::Material finish, const Controls& c) {
-  return kit::at(x, y, width, height)
-      .borderRadius({radius})
-      .background(relief(std::move(finish),
-                         {.shoulder = c.shoulder, .depth = c.reliefDepth}));
-}
-
-Element screw(float x, float y, const Controls& c) {
-  Controls bolt = c;
-  bolt.reliefDepth = 0.7f;
-  bolt.shoulder = 1.1f;
-  bolt.crinkle = 0;
-  return pressed(x, y, 11, 11, 5.5f, foil(bolt, true), bolt)
-      .children({rule(2.5f, 5, 6, 0.8f, {0.08f, 0.14f, 0.16f, 0.8f})});
-}
-
-Element seam(float x, float y, float width, bool vertical = false) {
-  Element out = kit::at(x, y, vertical ? 7.0f : width, vertical ? width : 7.0f);
-  out.children(
-      {rule(0, 0, vertical ? 1.0f : width, vertical ? width : 1.0f,
-            {0.04f, 0.03f, 0.02f, 0.8f}),
-       rule(vertical ? 6.0f : 0, vertical ? 0 : 6.0f, vertical ? 1.0f : width,
-            vertical ? width : 1.0f, {0.91f, 0.71f, 0.37f, 0.4f})});
-  for (int i = 0; i < static_cast<int>(width / 11); ++i) {
-    out.children({rule(vertical ? 2.0f : i * 11.0f, vertical ? i * 11.0f : 2.0f,
-                       vertical ? 3.0f : 5.0f, vertical ? 5.0f : 3.0f,
-                       {0.91f, 0.78f, 0.53f, 0.6f})});
+  for (const auto& fold : folds) {
+    marks.push_back(crease(fold, page, 34, 1)
+                        .opacity(.5f)
+                        .filter(material::Filter::blur(12)));
+    marks.push_back(crease(fold, page, 3, 1)
+                        .opacity(.7f)
+                        .filter(material::Filter::blur(1.2f)));
   }
-  return out;
+  return marks;
 }
 
-Element thermalPlot() {
-  return kit::at(0, 0, 524, 145)
-      .borderRadius({9})
-      .overflow(Overflow::Clip)
-      .fill(material::shader(embossed_foil::kGrid))
-      .stroke(stroke(0.8f, Fill::color(kRule)))
-      .children({label("SKIN / ORBITAL CYCLE", 15, 10, 348, 10, kBlue, 600),
-                 label("+42", 466, 12, 43, 9), label("−18", 466, 108, 43, 9),
-                 kit::at(14, 32, 438, 97)
-                     .fill(material::shader(embossed_foil::kTelemetry)),
-                 rule(14, 92, 438, 0.7f, {0.77f, 0.44f, 0.12f, 0.45f}),
-                 label("SUNLIT", 15, 120, 130, 9),
-                 label("ECLIPSE", 321, 120, 130, 9, kBlue)});
-}
-
-Element button(std::string_view title, std::string_view detail, float x,
-               bool active, const Controls& c) {
-  return pressed(x, 0, 166, 63, 10, foil(c, !active, 21), c)
-      .children(
-          {label(title, 15, 10, 143, 15, {0.032f, 0.052f, 0.065f, 1}, 700),
-           label(detail, 15, 38, 143, 9, {0.04f, 0.072f, 0.086f, 1}, 600)});
-}
-
-Element thermalCore(const Controls& c) {
-  Controls channel = c;
-  channel.reliefDepth = -0.7f;
-  channel.shoulder = 1.3f;
-  const auto ringFinish = foil(c, true, 27);
-  std::vector<Element> parts{
-      pressed(0, 0, 298, 298, 18, foil(channel, true, 27), channel),
-      label("LOOP / A", 20, 17, 180, 10, {0.045f, 0.065f, 0.075f, 1}, 600),
-      kit::at(36, 56, 226, 226)
-          .shape(shapes::annulus(0.74f))
-          .background(
-              relief(ringFinish, {.shoulder = 2.2f, .depth = c.reliefDepth})),
-      kit::at(55, 75, 188, 188)
-          .shape(shapes::annulus(0.87f))
-          .fill(foil(c, false, 7)),
-      kit::at(80, 100, 138, 138).shape(shapes::circle()).fill(kDark),
-      label("ΔT", 115, 117, 95, 20, kMuted),
-      label("08.4", 88, 148, 136, 41, kInk, 500).ink(foil(c, true)),
-      label("K / NOMINAL", 104, 208, 126, 9, kBlue, 600),
-      rule(272, 85, 6, 154, {0.02f, 0.04f, 0.05f, 0.7f})};
-  for (int i = 0; i < 18; ++i) {
-    const float angle = (-140.0f + i * 16.0f) * 0.0174532925f;
-    const float x = 149 + std::cos(angle) * 100;
-    const float y = 169 + std::sin(angle) * 100;
-    parts.push_back(kit::at(x - 3, y - 1, 6, 2)
-                        .fill(i < 11 ? kBlue : kGold)
-                        .rotate(i * 16.0f - 140));
+/** THE GOLD BLANKET'S HEIGHT: the crinkle, the hem pressed flat and
+ *  stitched, a stitch at every quilting tack, and the letter die pressed
+ *  deepest of all, flat at the bottom, so the crinkle is gone inside it. */
+Element blanketHeight(const path::Outline& word, const path::Outline& line) {
+  const glm::vec2 page{kWidth, kDepth};
+  auto marks = crinkle(page, 11, 260,
+                       {"M-40 260 C300 180 620 330 980 220 S1400 120 1560 190",
+                        "M180 1040 C320 760 520 640 760 600 S1180 520 1540 300",
+                        "M-20 820 C220 760 380 840 560 1040"});
+  // The hem: pressed flat under the tape, with a row of stitches.
+  const auto band = [&](float left, float top, float width, float height) {
+    return compose::kit::at(left, top, width, height).fill(grey(.42f));
+  };
+  marks.push_back(band(0, 0, kWidth, kHem));
+  marks.push_back(band(0, kDepth - kHem, kWidth, kHem));
+  marks.push_back(band(0, 0, kHem, kDepth));
+  marks.push_back(band(kWidth - kHem, 0, kHem, kDepth));
+  std::string stitches;
+  const auto dash = [&](glm::vec2 from, glm::vec2 to) {
+    stitches += "M" + std::to_string(from.x) + " " + std::to_string(from.y) +
+                " L" + std::to_string(to.x) + " " + std::to_string(to.y) + " ";
+  };
+  for (float x = kHem; x < kWidth - kHem; x += 22) {
+    dash({x, kHem + 6}, {x + 11, kHem + 6});
+    dash({x, kDepth - kHem - 6}, {x + 11, kDepth - kHem - 6});
   }
-  return box().width(298).height(298).children(std::move(parts));
-}
-
-Element blanket(const Controls& c, const Shape& outline, const Shape& flap) {
-  std::vector<Element> parts{
-      kit::at(7, 13, 994, 595)
-          .shape(outline)
-          .fill({0, 0, 0, 0.7f})
-          .filter(material::Filter::blur(17)),
-      kit::at(0, 0, 1000, 600)
-          .shape(outline)
-          .fill(foil(c))
-          .stroke(stroke(0.8f, Fill::color({0.59f, 0.39f, 0.12f, 0.7f}))),
-      seam(25, 24, 948),
-      seam(25, 568, 948),
-      seam(23, 31, 531, true),
-      seam(969, 31, 531, true),
-      kit::at(56, 47, 888, 494)
-          .borderRadius({18})
-          .fill(kDark)
-          .stroke(stroke(1, Fill::color({0.30f, 0.37f, 0.38f, 1}))),
-      pressed(76, 64, 848, 83, 11, foil(c, true, 5), c),
-      embossed("ORBITAL / 04", 99, 68, 676, 43, foil(c, false, 5), c),
-      label("THERMAL", 789, 86, 117, 12, {0.06f, 0.09f, 0.11f, 1}, 700),
-      label("CONTROL", 789, 105, 117, 10, {0.06f, 0.09f, 0.11f, 1}, 600),
-      kit::at(thermalCore(c), 77, 165, 298, 298),
-      label("RADIATOR / A", 395, 163, 232, 11, kBlue, 600),
-      label("23.6", 391, 180, 265, 57, kInk, 500).ink(foil(c, true, 18)),
-      label("°C", 559, 211, 85, 20),
-      label("HEATER / DUTY", 692, 169, 214, 10, kMuted, 600),
-      label("34%", 686, 190, 201, 44, kInk).ink(foil(c, false, 18)),
-      rule(395, 252, 520),
-      kit::at(thermalPlot(), 394, 272, 524, 145),
-      label("COMMAND / HEAT REJECTION", 395, 431, 459, 10, kMuted, 600),
-      kit::at(box().width(524).height(63).children(
-                  {button("AUTO", "CLOSED LOOP", 0, true, c),
-                   button("BYPASS", "LOOP ISOLATE", 179, false, c),
-                   button("HOLD", "SET POINT", 358, false, c)}),
-              394, 457, 524, 63),
-      label("MLI / 24", 85, 484, 203, 17, kGold, 600).ink(foil(c, false)),
-      label("INTERFACE / FICTIONAL", 84, 514, 286, 8),
-      kit::at(880, 2, 120, 130)
-          .shape(flap)
-          .fill(foil(c, true, 38))
-          .stroke(stroke(0.8f, Fill::color({0.78f, 0.83f, 0.83f, 0.8f}))),
-      label("FOLD / 02", 885, 18, 95, 9, {0.06f, 0.09f, 0.11f, 1}, 600)};
-  for (glm::vec2 p : {glm::vec2{44, 34}, {941, 34}, {44, 552}, {941, 552}})
-    parts.push_back(screw(p.x, p.y, c));
-  for (int i = 0; i < 12; ++i) {
-    parts.push_back(rule(657 + i * 7.5f, 246, 4, 3, i < 7 ? kGold : kRule));
+  for (float y = kHem; y < kDepth - kHem; y += 22) {
+    dash({kHem + 6, y}, {kHem + 6, y + 11});
+    dash({kWidth - kHem - 6, y}, {kWidth - kHem - 6, y + 11});
   }
-  return box().width(1000).height(600).children(std::move(parts));
+  // A cross stitch at every quilting tack.
+  for (float x = kQuilt; x < kWidth; x += kQuilt)
+    for (float y = kQuilt * .5f; y < kDepth; y += kQuilt) {
+      dash({x - 9, y - 9}, {x + 9, y + 9});
+      dash({x - 9, y + 9}, {x + 9, y - 9});
+    }
+  marks.push_back(compose::kit::at(0, 0, kWidth, kDepth)
+                      .shape(compose::heldPath(path::Outline::svg(stitches)))
+                      .stroke(kBlack, {.width = 3})
+                      .opacity(.8f)
+                      .filter(material::Filter::blur(1.2f)));
+  // THE DIE, pressed to the bottom and softened into a shoulder.
+  for (const auto* letters : {&word, &line})
+    marks.push_back(compose::kit::at(0, 0, kWidth, kDepth)
+                        .shape(compose::heldPath(*letters))
+                        .fill(kBlack)
+                        .filter(material::Filter::blur(2.4f)));
+  return compose::stack().width(kWidth).height(kDepth).fill(kBlack).children(
+      std::move(marks));
 }
 
-Element meter(std::string_view heading, std::string value,
-              std::string_view unit, float y, float fraction) {
-  return kit::at(0, y, 316, 67)
-      .children(
-          {label(heading, 0, 0, 316, 10, kMuted, 600),
-           label(value, 0, 18, 187, 27, kInk), label(unit, 189, 34, 127, 10),
-           rule(0, 62, 316),
-           rule(0, 61, 316 * std::clamp(fraction, 0.0f, 1.0f), 2, kGold)});
+/** THE SILVER CORNER'S HEIGHT: the same foil handled harder, so its
+ *  creases are closer and its folds run along the hinge. */
+Element cornerHeight() {
+  const glm::vec2 page{kHinge, kReach};
+  return compose::stack().width(page.x).height(page.y).fill(kBlack).children(
+      crinkle(page, 29, 140,
+              {"M-20 40 C180 70 380 20 620 60",
+               "M120 320 C200 200 330 150 420 -20"}));
+}
+
+material::Material image(const std::shared_ptr<compose::TextureScene>& scene) {
+  return material::image(scene->texture()
+                             .tile(material::Repeat::Pad)
+                             .sampling(material::Sampling::Linear));
+}
+
+/** A FOIL'S SURFACE over @p height: metal all through, its roughness
+ *  following the crinkle — burnished on the ridges, duller in the
+ *  creases — its normal the height's, and a faint sheen where the fabric
+ *  backing shows through at grazing angles. */
+material::Material foil(material::Material base,
+                        const material::Material& height, float smooth,
+                        float dull, material::Color sheen) {
+  const auto roughness =
+      material::from(grey(dull))
+          .layer(grey(smooth),
+                 {.mask = material::Mask{height,
+                                         material::ColorChannel::Luminance}});
+  return base.surface({.metallic = 1.0f,
+                       .roughness = roughness,
+                       .normal = material::surface::normalFromHeight(
+                           height, {.depth = 9, .step = .8f, .directX = true}),
+                       .normalDirectX = true,
+                       .sheenColor = sheen,
+                       .sheenRoughness = .55f});
+}
+
+/** THE GOLD PAGE: the blanket's foil, the die-smoothed letters, the
+ *  silver hem tape and a two-line caption in flat ink. */
+Element goldPage(const material::Material& height, const path::Outline& word,
+                 const path::Outline& line) {
+  const auto tint = [](material::Color colour, float seed) {
+    return material::from(colour).layer(
+        material::noise(.006f, {.octaves = 3, .seed = seed, .grain = true}),
+        {.blend = material::BlendMode::Multiply, .opacity = .22f});
+  };
+  const auto gold =
+      foil(tint(hexColor(0xe8b04f), 4), height, .07f, .34f, hexColor(0x5a3c18));
+  // Inside the die the foil is pressed smooth: one roughness, deeper gold.
+  const auto pressed =
+      tint(hexColor(0xd99636), 4)
+          .surface({.metallic = 1.0f,
+                    .roughness = .1f,
+                    .normal = material::surface::normalFromHeight(
+                        height, {.depth = 9, .step = .8f, .directX = true}),
+                    .normalDirectX = true});
+  const auto tape =
+      foil(tint(hexColor(0xd7dade), 9), height, .2f, .34f, hexColor(0x30343a));
+  std::vector<Element> content;
+  for (const auto* letters : {&word, &line})
+    content.push_back(compose::kit::at(0, 0, kWidth, kDepth)
+                          .shape(compose::heldPath(*letters))
+                          .fill(pressed));
+  const auto band = [&](float left, float top, float width, float height) {
+    return compose::kit::at(left, top, width, height).fill(tape);
+  };
+  content.push_back(band(0, 0, kWidth, kHem));
+  content.push_back(band(0, kDepth - kHem, kWidth, kHem));
+  content.push_back(band(0, 0, kHem, kDepth));
+  content.push_back(band(kWidth - kHem, 0, kHem, kDepth));
+  const auto caption = [](std::string_view words, float top, float size) {
+    return compose::kit::at(compose::text(std::string(words)), 80, top, 900,
+                            size * 1.6f)
+        .fontSize(size)
+        .letterSpacing(size * .14f)
+        .ink(hexColor(0x2a1d0c));
+  };
+  content.push_back(caption("EMBOSSED FOIL", kDepth - 124, 22));
+  content.push_back(caption(
+      "crinkled gold · a folded silver corner · a travelling soft panel",
+      kDepth - 92, 16));
+  return compose::stack().width(kWidth).height(kDepth).fill(gold).children(
+      std::move(content));
+}
+
+/** THE SILVER PAGE the folded corner shows. */
+Element silverPage(const material::Material& height) {
+  return compose::stack().width(kHinge).height(kReach).fill(foil(
+      material::from(hexColor(0xdadde2))
+          .layer(
+              material::noise(.01f, {.octaves = 3, .seed = 5, .grain = true}),
+              {.blend = material::BlendMode::Multiply, .opacity = .14f}),
+      height, .08f, .3f, hexColor(0x3a4048)));
+}
+
+float smoothstep(float edge0, float edge1, float value) {
+  const float t = std::clamp((value - edge0) / (edge1 - edge0), 0.0f, 1.0f);
+  return t * t * (3 - 2 * t);
+}
+
+/** THE BLANKET'S RISE above the bench at a point of its face, in its own
+ *  coordinates — x across, y from the front edge back: quilted pillows
+ *  between the tacks, two broad folds, all of it settling to the bench at
+ *  the edges and along the cut where the corner was folded away. */
+float rise(float x, float y) {
+  const float across = x + kWidth / 2, back = y + kDepth / 2;
+  const float toEdge =
+      std::min({across, kWidth - across, back, kDepth - back,
+                // the cut: the line from (W - corner, 0) to (W, corner)
+                (kWidth - across + back - kCorner) / std::sqrt(2.0f)});
+  const float settle = smoothstep(0, 140, toEdge);
+  const float pillowX = std::sin(kPi * across / kQuilt);
+  const float pillowY = std::sin(kPi * (back - kQuilt * .5f) / kQuilt);
+  const float pillows = 20 * pillowX * pillowX * pillowY * pillowY;
+  const auto ridge = [](float distance, float width) {
+    return std::exp(-distance * distance / (width * width));
+  };
+  const float firstFold =
+      ridge(back - (620 + .22f * x + 50 * std::sin(x / 260)), 95);
+  const float secondFold =
+      ridge(across * .7f + back - (1350 + 40 * std::sin(back / 210)), 80);
+  return settle * (5 + pillows + 30 * firstFold + 24 * secondFold);
+}
+
+/** THE BLANKET: a sheet over its face with the front-right corner cut
+ *  away, lying in its own xy plane facing +z, risen by `rise`, with UVs
+ *  over the page in page pixels. */
+gm::Mesh blanket() {
+  auto sheet = gm::grid(220, 150, [](float u, float v) -> glm::vec3 {
+    const float back = v * kDepth;
+    // A row near the front is shortened by the cut.
+    const float cut = std::max(0.0f, kCorner - back);
+    const float x = -kWidth / 2 + u * (kWidth - cut);
+    const float y = back - kDepth / 2;
+    return {x, y, rise(x, y)};
+  });
+  for (size_t index = 0; index < sheet.positions.size(); ++index)
+    sheet.uvs[index] = {sheet.positions[index].x / kWidth + .5f,
+                        .5f - sheet.positions[index].y / kDepth};
+  return sheet;
+}
+
+/** THE SILVER CORNER: the triangle the cut took, laid out from its hinge
+ *  along x through the origin and reaching toward +z, its silver face
+ *  toward -y so it shows once folded over, and curled a little away from
+ *  that face toward its tip. */
+gm::Mesh corner() {
+  auto flap = gm::grid(48, 32, [](float u, float v) -> glm::vec3 {
+    return {(u - .5f) * kHinge * (1 - v), -26 * v * v, v * kReach};
+  });
+  for (size_t index = 0; index < flap.positions.size(); ++index)
+    flap.uvs[index] = {flap.positions[index].x / kHinge + .5f,
+                       flap.positions[index].z / kReach};
+  return flap;
+}
+
+/** THE STUDIO SWEEP the blanket lies on: a dark floor that curves up
+ *  into a wall behind it, so there is no horizon. */
+gm::Mesh sweep() {
+  constexpr float floorFront = 5000, floorBack = 2400, bend = 900, wall = 4000;
+  const float floorLength = floorFront + floorBack;
+  const float bendLength = kPi / 2 * bend;
+  const float length = floorLength + bendLength + wall;
+  return gm::grid(4, 160, [=](float u, float v) -> glm::vec3 {
+    const float x = (u - .5f) * 20000;
+    const float along = v * length;
+    if (along < floorLength) return {x, 0, floorFront - along};
+    if (along < floorLength + bendLength) {
+      const float angle = (along - floorLength) / bend;
+      return {x, bend - bend * std::cos(angle),
+              -floorBack - bend * std::sin(angle)};
+    }
+    return {x, bend + along - floorLength - bendLength, -floorBack - bend};
+  });
+}
+
+/** THE PANEL'S RAIL: a shallow arc high behind the blanket, ridden there
+ *  and back once a loop, easing at its ends. */
+glm::vec3 railAt(float seconds) {
+  const float swing = -std::cos(2 * kPi * seconds / kLoop);
+  const float angle = swing * 40 * kPi / 180;
+  return {1300 * std::sin(angle), 470, -1300 * std::cos(angle) + 150};
 }
 
 struct EmbossedFoil {
-  Controls controls;
-  int heldPhase = -1;
-  int phaseIndex = 0;
-  Shape blanketOutline = shapes::svg(
-      "M1 4 L11 0 L35 3 L63 0 L96 4 L100 12 L98 30 L100 58 "
-      "L98 86 L100 96 L87 100 L62 98 L33 100 L12 98 L0 94 "
-      "L2 72 L0 45 L2 24 Z");
-  Shape foldedCorner = shapes::svg("M0 0 L100 0 L100 100 L46 79 L13 44 Z");
+  std::shared_ptr<compose::TextureScene> goldHeight, silverHeight;
+  sketch::Page gold, silver;
+  Element goldTree = compose::stack(), silverTree = compose::stack();
+  world::EnvironmentMap room;
+  gm::Mesh sheet, flap, bench;
 
-  Controls stateFor(int index) const {
-    Controls c = controls;
-    switch (index) {
-      case 1:
-        c.crinkle = 0;
-        break;
-      case 2:
-        c.crinkle = 1.45f;
-        break;
-      case 3:
-        c.roughness = 0;
-        break;
-      case 4:
-        c.roughness = 1;
-        break;
-      case 5:
-        c.reliefDepth = -1.05f;
-        break;
-      case 6:
-        c.maskStress = true;
-        c.amberLayer = 1;
-        break;
-      default:
-        break;
-    }
-    return c;
+  static gm::camera::Camera lens() {
+    gm::camera::Camera camera;
+    camera.eye = {-60, 620, 1320};
+    camera.target = {40, 10, -100};
+    camera.fovYDeg = 46;
+    camera.zNear = 40;
+    camera.zFar = 20000;
+    return camera;
   }
 
-  Element controlsPanel(int index, const Controls& c) const {
-    std::vector<Element> parts{
-        label("FOIL / MATERIAL RESPONSE", 0, 0, 316, 10, kGold, 600),
-        label(kPhases[index].name, 0, 25, 316, 23, kInk),
-        label(kPhases[index].detail, 0, 65, 316, 10),
-        meter("CRINKLE NORMAL", number(c.crinkle), "field strength", 114,
-              c.crinkle / 1.5f),
-        meter("SURFACE ROUGHNESS", number(c.roughness), "0 sharp / 1 diffuse",
-              193, c.roughness),
-        meter("SIGNED RELIEF", number(c.reliefDepth), "raised / recessed", 272,
-              std::abs(c.reliefDepth) / 1.5f),
-        label("Material fills / material ink / outline relief", 0, 548, 316,
-              10),
-        rule(0, 578, 316)};
-    for (int i = 0; i < static_cast<int>(kPhases.size()); ++i)
-      parts.push_back(rule(i * 36.0f, 592, 27, 5, i == index ? kGold : kRule));
-    return box().width(316).height(600).children(std::move(parts));
+  void setup(sketch::Scene3DContext& ctx) {
+    sketch::kit::stage(ctx, {.size = {1440, 900},
+                             .captureAt = 4.0,
+                             .background = hexColor(0x0b0c0e)});
+    weave::TextContext text(ctx.fonts);
+    auto face = ctx.fonts.familyTypeface("Futura", {.weight = 700});
+    if (!face) face = ctx.fonts.defaultTypeface();
+    const auto word =
+        lettering(text, face, u8"HELIOS", 230, 34, {kWidth / 2 - 40, 360});
+    const auto line = lettering(text, face, u8"THERMAL CONTROL  ·  PANEL 7", 40,
+                                10, {kWidth / 2 - 40, 545});
+
+    goldHeight = ctx.textureScene({int(kWidth), int(kDepth)}, kBlack);
+    goldHeight->render(blanketHeight(word, line));
+    silverHeight = ctx.textureScene({int(kHinge), int(kReach)}, kBlack);
+    silverHeight->render(cornerHeight());
+
+    gold = ctx.page({int(kWidth), int(kDepth)});
+    silver = ctx.page({int(kHinge), int(kReach)});
+    goldTree = goldPage(image(goldHeight), word, line);
+    silverTree = silverPage(image(silverHeight));
+
+    sheet = blanket();
+    flap = corner();
+    bench = sweep();
+    room = world::kit::environmentMap(
+        {.zenith = {.12f, .13f, .15f},
+         .nadir = {.02f, .02f, .025f},
+         .softBoxes = {{.centre = {.2f, .36f},
+                        .size = {.08f, .14f},
+                        .radiance = {4.2f, 3.7f, 3.0f}},
+                       {.centre = {.62f, .3f},
+                        .size = {.16f, .05f},
+                        .radiance = {2.6f, 2.6f, 2.8f}},
+                       {.centre = {.8f, .44f},
+                        .size = {.04f, .2f},
+                        .radiance = {1.2f, 1.6f, 2.3f}}}});
   }
 
-  Element specimen(int index) const {
-    constexpr std::array names{"NORMAL 0", "NORMAL +", "ROUGH 0",
-                               "ROUGH 1",  "DIE ±",    "MASK / HOLE"};
-    constexpr std::array details{"Flat cap",      "Strong folds",
-                                 "Roughness 0",   "Roughness 1",
-                                 "Raised / sunk", "Layers / counters"};
-    Controls c = controls;
-    c.crinkle = 0.8f;
-    if (index == 0) c.crinkle = 0;
-    if (index == 1) c.crinkle = 1.45f;
-    if (index == 2) c.roughness = 0;
-    if (index == 3) c.roughness = 1;
-    if (index == 5) c.maskStress = true;
-    Element sample = kit::at(0, 25, 153, 91)
-                         .borderRadius({10})
-                         .overflow(Overflow::Clip)
-                         .fill(foil(c, index % 2 != 0, 19));
-    if (index == 4) {
-      c.reliefDepth = 1.05f;
-      sample.children({embossed("O", 7, 14, 67, 46, foil(c, true), c)});
-      c.reliefDepth = -1.05f;
-      sample.children({embossed("8", 78, 14, 68, 46, foil(c, true), c)});
-    } else if (index == 5) {
-      sample.children(
-          {kit::at(8, 15, 60, 60)
-               .shape(shapes::annulus(0.56f))
-               .background(relief(foil(c, true), {.shoulder = 2, .depth = 1})),
-           embossed("O8", 68, 21, 82, 34, foil(c, true), c),
-           kit::at(-8, 79, 172, 10).fill(foil(c, false))});
-    } else {
-      sample.children(
-          {label("O8", 13, 16, 136, 43, kInk, 650).ink(foil(c, true, 19))});
-    }
-    return kit::at(index * 171.0f, 0, 153, 164)
-        .children({label(names[index], 0, 0, 153, 10, kInk, 600),
-                   std::move(sample), label(details[index], 0, 128, 158, 9)});
-  }
-
-  Element describe(int index) const {
-    const Controls c = stateFor(index);
-    std::vector<Element> samples;
-    for (int i = 0; i < 6; ++i) samples.push_back(specimen(i));
-    return box()
-        .width(1440)
-        .height(1040)
-        .fontFamily("Inter, Helvetica Neue, sans-serif")
-        .fill(material::linearGradient(
-            {0, 0}, {0.3f, 1}, {{0, {0.035f, 0.062f, 0.081f, 1}}, {1, kDark}}))
-        .children(
-            {label("FIELD / 09  •  METALLIZED SURFACES", 40, 25, 807, 11, kGold,
-                   600),
-             label("THERMAL / O08", 35, 47, 1002, 61, kInk, 650)
-                 .ink(foil(c, false, 32)),
-             label("AN ORBITAL CONTROL CONSOLE  /  EMBOSSED LETTERING · "
-                   "CRINKLED FOIL",
-                   40, 126, 1024, 10),
-             label("ORBITAL MATERIALS LAB", 1085, 33, 315, 11, kInk, 600),
-             label("GOLD / SILVER  •  BLANKET 04", 1085, 58, 315, 10),
-             label("Generated field / authored interface", 1085, 83, 315, 10),
-             rule(40, 160, 1360),
-             kit::at(blanket(c, blanketOutline, foldedCorner), 40, 184, 1000,
-                     600),
-             kit::at(controlsPanel(index, c), 1084, 184, 316, 600),
-             label("AMBER FILM / REFLECTIVE ALUMINUM CUE", 40, 807, 524, 10,
-                   kGold, 600),
-             label("Fictional readings / no thermal simulation", 620, 807, 463,
-                   10),
-             label("28 S / SEVEN STATES", 1248, 807, 152, 10),
-             rule(40, 835, 1360),
-             label("FIXED MATERIAL AND OUTLINE SPECIMENS", 40, 855, 755, 10,
-                   kMuted, 600),
-             label("Foil fill + actual text ink / counter-hole relief", 990,
-                   855, 410, 10),
-             kit::at(box().width(1360).height(164).children(std::move(samples)),
-                     40, 879, 1360, 164)});
-  }
-
-  void setup(sketch::Scene2DContext& ctx) {
-    ctx.canvas(1440, 1040);
-    ctx.oversample(1);
-    ctx.background(kDark);
-    ctx.captureAt(2);
-    phaseIndex = heldPhase < 0 ? 0 : std::clamp(heldPhase, 0, kLastPhase);
-    ctx.composer.render(describe(phaseIndex));
-  }
-
-  void update(double elapsed, sketch::Scene2DContext& ctx) {
-    const double seconds =
-        std::isfinite(elapsed) ? std::max(0.0, elapsed) : 0.0;
-    const int next =
-        heldPhase < 0
-            ? static_cast<int>(std::fmod(seconds / kPhaseSeconds,
-                                         static_cast<double>(kPhases.size())))
-            : std::clamp(heldPhase, 0, kLastPhase);
-    if (next != phaseIndex) {
-      phaseIndex = next;
-      ctx.composer.render(describe(phaseIndex));
-    }
+  world::Frame describe(sigil::motion::Duration now) {
+    const float seconds = float(std::fmod(now.count(), double(kLoop)));
+    const glm::vec3 panel = railAt(seconds);
+    const glm::vec3 aim{0, 0, 40};
+    // The corner lifts off the gold and settles back twice a loop.
+    const float lift = .5f - .5f * std::cos(4 * kPi * seconds / kLoop);
+    const float fold = 176 - 20 * lift;
+    // The hinge: the cut from (W/2 - corner, front) to (W/2, front -
+    // corner), in the scene, where the blanket has settled to the bench.
+    const glm::vec3 hinge{kWidth / 2 - kCorner / 2, 6,
+                          kDepth / 2 - kCorner / 2};
+    return world::Frame(
+               world::group(
+                   {world::camera(lens(),
+                                  {.exposure = .95f,
+                                   .toneCurve = world::ToneCurve::Neutral}),
+                    // THE PANEL: a soft rect light on its rail behind the
+                    // blanket, turned each frame to face it, so its
+                    // reflection runs across the foil toward the eye.
+                    world::kit::visibleLight(
+                        world::rectLight(glm::normalize(aim - panel),
+                                         {.width = 560,
+                                          .height = 190,
+                                          .color = hexColor(0xfff2e0),
+                                          .intensity = 10.0f,
+                                          .castShadow = true,
+                                          .shadow = {.bias = 3,
+                                                     .normalBias = 2,
+                                                     .radius = 3,
+                                                     .mapSize = 2048}})
+                            .key("panel"))
+                        .key("panel rig")
+                        .at(panel),
+                    // THE FILL: a broad, dim, cool panel low at the front
+                    // left, so the creases turned away still read.
+                    world::rectLight(glm::normalize(glm::vec3{.8f, -.5f, -1}),
+                                     {.width = 600,
+                                      .height = 400,
+                                      .color = hexColor(0x9fb8e8),
+                                      .intensity = .08f})
+                        .key("fill")
+                        .at({-1400, 600, 1300}),
+                    world::mesh(bench).key("sweep").fill(
+                        material::from(hexColor(0x101113))
+                            .surface({.roughness = .7f})),
+                    world::mesh(sheet)
+                        .key("blanket")
+                        .at({0, 1.5f, 0})
+                        .rotateX(-90)
+                        .fill(gold.surface()),
+                    world::group({world::group({world::mesh(flap)
+                                                    .key("corner")
+                                                    .rotateX(-fold)
+                                                    .fill(silver.surface())})
+                                      .key("corner turn")
+                                      .rotateY(45)})
+                        .key("corner hinge")
+                        .at(hinge)}))
+        .environment(room, {.intensity = .45f, .diffuse = .2f})
+        .pass(world::bloom({.threshold = 1.4f, .intensity = .35f}))
+        .pass(gold.render(goldTree))
+        .pass(silver.render(silverTree));
   }
 };
 
 }  // namespace
 
 SIGIL_SKETCH(EmbossedFoil, "Study · Materials",
-             "crinkled foil fills, material ink and embossed orbital controls")
+             "A crinkled gold thermal blanket pressed with a word and folded "
+             "back at one silver corner, under a soft panel travelling on a "
+             "rail, so every crease flashes and goes dark as it passes")
