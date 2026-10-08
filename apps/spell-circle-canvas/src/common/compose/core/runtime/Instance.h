@@ -35,10 +35,12 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <iterator>  // std::size, for the kSlotSpecs asserts
 #include <limits>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -78,6 +80,21 @@ using HeldMotion = motion::HeldMotion;
  *
  *  Both forms are one value so the compare that decides whether the text
  *  must be laid out again stays a plain vector compare. */
+/** ONE STOP ON A FILL'S PATH: the fill, where in the path's 0→1 progress
+ *  it stands, and the curve the step arriving at it is read through. */
+struct FillStop {
+  Fill fill;
+  float at = 0.0f;
+  motion::Easing ease;
+};
+
+/** THE COLOUR A FILL PATH STANDS AT @p progress through it: the two stops
+ *  around the progress, each read through @p resolve — which turns a
+ *  reference into the colour it names — mixed through the arriving
+ *  stop's curve. A step that lasts nothing is taken at once. */
+material::Color colourAlong(std::span<const FillStop> path, float progress,
+                            const std::function<Fill(const Fill&)>& resolve);
+
 struct Exclusion {
   SkRect bounds = SkRect::MakeEmpty();  ///< the target's box (or the circle's)
   SkPath path;          ///< the silhouette; empty when the target has none
@@ -403,7 +420,10 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
    *  children new in that patch, so one row appended to a live list enters
    *  at once rather than waiting out its whole-list step. */
   motion::Place mountPlace;
-  Fill fillFrom, fillTo;                // endpoints for kFillLerp
+  // The path kFillLerp's progress runs along: two stops for a change
+  // eased by the fill's own curve, one per keyframe after the start for
+  // a path.
+  std::vector<FillStop> fillPath;
   material::Color inkFrom{0, 0, 0, 1};  // where kInkLerp started
   // THE INK TARGET IN FORCE, as the cascade pass last resolved it: the
   // colour kInkLerp is headed for, and the one a freshly resolved colour

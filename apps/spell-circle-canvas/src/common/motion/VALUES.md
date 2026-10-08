@@ -59,7 +59,9 @@ them: `from`, `to`, `keyframes`, `duration` (250ms), `delay` (0ms), `ease`
 afterwards the property behaves as though only `.to` had been written. A
 path of keyframes is an entrance too: with no `.from` it sets out from
 where it rests, and a step that lasts nothing is taken at once, so a
-first step of no duration is where it visibly begins. A
+first step of no duration is where it visibly begins. A later description
+that moves a path's resting value plays its steps again, set out from
+the value on screen; described again unchanged, it starts nothing. A
 tween with `.to` alone eases on change: the property starts out holding
 it, and a later description carrying a different one eases there from
 wherever the value is. A keyframe with no duration takes the tween's

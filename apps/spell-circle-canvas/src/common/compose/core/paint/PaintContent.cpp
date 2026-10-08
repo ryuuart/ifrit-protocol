@@ -830,18 +830,17 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
     Fill fill;
     if (style.paint.fill->identity())
       fill = style.paint.fill->value();
-    else if (inst.anims[Instance::kFillLerp] &&
+    else if (!inst.fillPath.empty() && inst.anims[Instance::kFillLerp] &&
              inst.anims[Instance::kFillLerp]->started &&
              inst.anims[Instance::kFillLerp]->isRunning()) {
       const float t = inst.anims[Instance::kFillLerp]->value();
-      // Either endpoint may be written as the ink in force or a custom
-      // property, so both are resolved here before the colours are mixed.
-      const Fill from = resolveFill(inst.fillFrom, paintCtx);
-      const Fill to = resolveFill(inst.fillTo, paintCtx);
-      fill = to;
-      const material::Color& a = from.colorValue;
-      const material::Color& b = to.colorValue;
-      fill.colorValue = material::mixToward(a, b, t, a.a + (b.a - a.a) * t);
+      // Any stop may be written as the ink in force or a custom property,
+      // so each is resolved here before the colours are mixed.
+      const auto resolve = [&paintCtx](const Fill& stop) {
+        return resolveFill(stop, paintCtx);
+      };
+      fill = resolve(inst.fillPath.back().fill);
+      fill.colorValue = colourAlong(inst.fillPath, t, resolve);
       fill.kind = Fill::Kind::Color;
     } else {
       ResolvedProperty<Fill> resolved =

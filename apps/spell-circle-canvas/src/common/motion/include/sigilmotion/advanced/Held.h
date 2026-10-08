@@ -109,7 +109,9 @@ ResolvedProperty<T> resolveProperty(const Animatable<T>& property,
 float valueOf(const HeldMotion* animated, const Animatable<float>& property);
 
 /** Starts (or retargets) the ramp held in `held` when the target
- *  changed. Returns true if a motion is running. The motion is passed
+ *  changed. A path of keyframes whose resting value changed plays its
+ *  steps again from the value on screen; any other change eases straight
+ *  to the new target. Returns true if a motion is running. The motion is passed
  *  rather than an index into a store, because how many of these a
  *  consumer keeps and where is the consumer's business — one body,
  *  every storage. @p place is where the value's owner stands among its

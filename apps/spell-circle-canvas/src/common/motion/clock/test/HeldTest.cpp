@@ -221,6 +221,35 @@ TEST(Held, APathWithNoFromEntersFromItsFirstStepThatLastsNothing) {
   EXPECT_FALSE(held->isRunning());
 }
 
+TEST(Held, APathReDescribedToANewRestPlaysItsStepsFromWhereTheValueIs) {
+  // The same two-step path, first resting at 0 and then at 20: the change
+  // of rest plays the steps again, set out from the value on screen, and
+  // describing the path again unchanged starts nothing.
+  const auto path = [](float middle, float rest) {
+    return animate({.keyframes = {{.to = middle, .duration = 1s},
+                                  {.to = rest, .duration = 1s}},
+                    .ease = ease::linear});
+  };
+  Engine engine;
+  std::unique_ptr<HeldMotion> held;
+  const Animatable<float> before = path(0.0f, 0.0f);
+  const Animatable<float> after = path(10.0f, 20.0f);
+  EXPECT_TRUE(retarget(engine, held, before, after, {}));
+  ASSERT_TRUE(held);
+  EXPECT_EQ(held->target, 20.0f);
+  stepBy(engine, 500ms);
+  EXPECT_NEAR(held->value(), 5.0f, 1e-3f) << "half way to the first step";
+  stepBy(engine, 1s);
+  EXPECT_NEAR(held->value(), 15.0f, 1e-3f) << "half way through the second";
+  stepBy(engine, 1s);
+  EXPECT_FLOAT_EQ(held->value(), 20.0f);
+  EXPECT_FALSE(held->isRunning());
+
+  EXPECT_FALSE(retarget(engine, held, after, path(10.0f, 20.0f), {}));
+  EXPECT_FALSE(held->isRunning());
+  EXPECT_FLOAT_EQ(held->value(), 20.0f);
+}
+
 TEST(Held, AKeyframeWithNoDurationTakesAnEqualShareOfTheEntrance) {
   Engine engine;
   std::unique_ptr<HeldMotion> held;

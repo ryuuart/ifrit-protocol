@@ -24,6 +24,9 @@
 #include <sigilmaterial/color/Color.h>
 
 #include <chrono>
+#include <functional>
+#include <span>
+#include <utility>
 
 #include "ComposeRuntime.h"
 #include "paint/PaintInternal.h"
@@ -42,7 +45,64 @@ float detail::Instance::resolveFloatAt(
   return motion::valueOf(anim, v);
 }
 
+material::Color detail::colourAlong(
+    std::span<const FillStop> path, float progress,
+    const std::function<Fill(const Fill&)>& resolve) {
+  if (path.empty()) return {};
+  const auto colourOf = [&resolve](const FillStop& stop) {
+    return resolve(stop.fill).colorValue;
+  };
+  // The last step reads a progress past either end as it stands, so a
+  // curve that overshoots carries the colour past its stop.
+  for (size_t index = 1; index < path.size(); ++index) {
+    const float length = path[index].at - path[index - 1].at;
+    const bool last = index + 1 == path.size();
+    if (length <= 0.0f && !last) continue;  // a step lasting nothing is taken
+    if (progress > path[index].at && !last) continue;
+    if (length <= 0.0f) return colourOf(path[index]);
+    const float unit = (progress - path[index - 1].at) / length;
+    const float shaped = path[index].ease ? path[index].ease(unit) : unit;
+    const material::Color a = colourOf(path[index - 1]);
+    const material::Color b = colourOf(path[index]);
+    return material::mixToward(a, b, shaped, a.a + (b.a - a.a) * shaped);
+  }
+  return colourOf(path.back());
+}
+
 namespace {
+
+/** A FILL'S PATH OF KEYFRAMES set out from @p start, as stops along one
+ *  linear progress, and the progress that runs it: the tween's delay and
+ *  the steps' summed length. An undurationed step takes the tween's
+ *  duration divided by the number of steps and an uncurved one the
+ *  tween's curve. */
+std::pair<std::vector<FillStop>, motion::Tween<float>> fillPathOf(
+    const motion::Tween<Fill>& tween, const Fill& start) {
+  const motion::Duration share =
+      tween.duration.value() / (double)tween.keyframes.size();
+  std::vector<motion::Duration> ends;
+  motion::Duration total{};
+  for (const motion::Keyframe<Fill>& step : tween.keyframes)
+    ends.push_back(total += step.duration.value_or(share));
+  std::vector<FillStop> stops{{start, 0.0f, {}}};
+  for (size_t index = 0; index < tween.keyframes.size(); ++index) {
+    const motion::Keyframe<Fill>& step = tween.keyframes[index];
+    const float at =
+        total > motion::Duration{} ? (float)(ends[index] / total) : 1.0f;
+    stops.push_back({step.to, at, step.ease ? step.ease : tween.easing()});
+  }
+  return {std::move(stops), motion::Tween<float>{.duration = total,
+                                                 .delay = tween.delay.value(),
+                                                 .ease = motion::ease::linear}};
+}
+
+/** Whether every stop on @p path is a colour, the one kind a fill path
+ *  mixes. */
+bool allColours(std::span<const FillStop> path) {
+  return std::all_of(path.begin(), path.end(), [](const FillStop& stop) {
+    return stop.fill.kind == Fill::Kind::Color;
+  });
+}
 
 /** The vector holding a positional family's motions on the instance. */
 std::vector<std::unique_ptr<HeldMotion>>& familyAnims(Instance& inst,
@@ -174,20 +234,27 @@ void Composer::Impl::applyMountTransitions(Instance& inst) {
   // The kFillLerp row (SlotRole::Bespoke): from → to through a synthesized
   // 0→1 progress, because the description holds an Animatable<Fill> and no
   // float for the table to point at.
+  // A path of keyframes enters too, from its `from` or, naming none, from
+  // where it rests, so its first step is the first place it goes.
   if (inst.computed.paint.fill) {
     const motion::Tween<Fill>* described =
         inst.computed.paint.fill->described();
-    const std::optional<motion::Tween<Fill>> tween =
-        described ? std::optional(described->resolved(inst.mountPlace))
-                  : std::nullopt;
-    const Fill rest = tween ? tween->rest() : Fill{};
-    const Fill from = tween && tween->from ? tween->from->value() : Fill{};
-    if (tween && tween->from && from.kind == Fill::Kind::Color &&
-        rest.kind == Fill::Kind::Color && !(from == rest)) {
-      inst.fillFrom = from;
-      inst.fillTo = rest;
-      motion::progress(engine, inst.anims[Instance::kFillLerp],
-                       motion::transitionOf(*tween, inst.mountPlace));
+    if (described && described->isEntrance()) {
+      const motion::Tween<Fill> tween = described->resolved(inst.mountPlace);
+      const Fill rest = tween.rest();
+      const Fill from = tween.start();
+      if (!tween.keyframes.empty()) {
+        auto [path, run] = fillPathOf(tween, from);
+        if (allColours(path)) {
+          inst.fillPath = std::move(path);
+          motion::progress(engine, inst.anims[Instance::kFillLerp], run);
+        }
+      } else if (from.kind == Fill::Kind::Color &&
+                 rest.kind == Fill::Kind::Color && !(from == rest)) {
+        inst.fillPath = {{from, 0.0f, {}}, {rest, 1.0f, motion::ease::linear}};
+        motion::progress(engine, inst.anims[Instance::kFillLerp],
+                         motion::transitionOf(tween, inst.mountPlace));
+      }
     }
   }
 }
@@ -240,15 +307,26 @@ void Composer::Impl::retargetProperties(Instance& inst, StyledNode prev,
       // Current visual color as the new "from" (retarget-from-current).
       Fill from = prevFill.target;
       auto& anim = inst.anims[Instance::kFillLerp];
-      if (anim && anim->started && anim->isRunning()) {
-        const float t = anim->value();
-        const material::Color& a = inst.fillFrom.colorValue;
-        const material::Color& b = inst.fillTo.colorValue;
-        from.colorValue = material::mixToward(a, b, t, a.a + (b.a - a.a) * t);
+      if (anim && anim->started && anim->isRunning())
+        from.colorValue = colourAlong(inst.fillPath, anim->value(),
+                                      [](const Fill& stop) { return stop; });
+      // A path whose resting fill changed plays its steps again from the
+      // colour on screen; any other change eases straight to the new one.
+      const motion::Tween<Fill>* path = next.style.paint.fill->described();
+      std::optional<std::pair<std::vector<FillStop>, motion::Tween<float>>>
+          steps;
+      if (path && !path->keyframes.empty()) {
+        steps = fillPathOf(path->resolved(inst.mountPlace), from);
+        if (!allColours(steps->first)) steps.reset();
       }
-      inst.fillFrom = std::move(from);
-      inst.fillTo = nextFill.target;
-      motion::progress(engine, anim, *nextFill.transition);
+      if (steps) {
+        inst.fillPath = std::move(steps->first);
+        motion::progress(engine, anim, steps->second);
+      } else {
+        inst.fillPath = {{std::move(from), 0.0f, {}},
+                         {nextFill.target, 1.0f, motion::ease::linear}};
+        motion::progress(engine, anim, *nextFill.transition);
+      }
     }
   }
 }

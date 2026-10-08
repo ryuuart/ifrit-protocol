@@ -2110,16 +2110,3 @@ direction — and turn every normal into the page as the brushing is. A
 test should state a relief on a span ink and find the page's height cut;
 a ribbon brushed along itself should stretch its highlight along a
 curve.
-
-## Contract gap: a keyframed path plays only on mount, and a colour path with no from never enters
-
-A tween's keyframes are an entrance from its first step on a float lane,
-but a later description change eases straight to the new resting value
-and ignores the keyframes; and Compose's own colour and fill entrance in
-`compose/core/runtime/Transitions.cpp` still enters only when a from is
-named, so a colour keyframe path with no from does not play on mount.
-A keyframed path should play from its first step on mount and again
-when the description changes its resting value, on float and colour
-lanes alike. Tests: a colour path with no from enters on mount; a float
-path re-described to a new rest plays its steps.
-

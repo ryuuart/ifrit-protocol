@@ -72,7 +72,8 @@ struct Keyframe {
  *    or to `to` — and afterwards the property behaves as though only `.to`
  *    had been written. A path of keyframes is an entrance too: with no
  *    `.from` it starts where it rests, and a first step that lasts nothing
- *    is where it visibly begins.
+ *    is where it visibly begins; a later description that moves its rest
+ *    plays its steps again from the value on screen.
  *  - `.to` ALONE eases on change. It says nothing about mounting: the
  *    property starts out holding `.to`, and whenever a later description
  *    carries a different one the property eases there from wherever it is,

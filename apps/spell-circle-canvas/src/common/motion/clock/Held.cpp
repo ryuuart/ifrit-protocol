@@ -187,6 +187,52 @@ void start(Engine& engine, HeldMotion& held, std::shared_ptr<Ramp> ramp) {
   engine.run(std::move(ramp));
 }
 
+/** THE STEPS OF @p tween's PATH, set out from @p from: one segment per
+ *  keyframe, an undurationed step taking the tween's duration divided by
+ *  the number of steps and an uncurved one the tween's curve. */
+std::vector<Ramp::Segment> pathSegments(const Tween<float>& tween, float from) {
+  std::vector<Ramp::Segment> segments;
+  const Duration share =
+      tween.duration.value() / (double)tween.keyframes.size();
+  float at = from;
+  for (const Keyframe<float>& step : tween.keyframes) {
+    segments.push_back({at, step.to,
+                        segmentSeconds(step.duration.value_or(share)),
+                        step.ease ? step.ease : tween.easing()});
+    at = step.to;
+  }
+  return segments;
+}
+
+/** PLAYS @p segments ON @p held from @p from, after @p tween's delay and
+ *  as many times as it repeats, toward where it rests. A looping motion
+ *  holds where each pass ends before the next starts, and a step that
+ *  lasts nothing is taken at once, so the value holds through the delay
+ *  where the first step that moves sets out from. */
+void play(Engine& engine, std::unique_ptr<HeldMotion>& held,
+          const Tween<float>& tween, float from,
+          std::vector<Ramp::Segment> segments) {
+  if (tween.loop != 0 && tween.loopDelay > Duration{})
+    segments.push_back({segments.back().to,
+                        segments.back().to,
+                        segmentSeconds(tween.loopDelay),
+                        {}});
+  float opening = from;
+  for (const Ramp::Segment& segment : segments) {
+    if (segment.seconds > 0.0) break;
+    opening = segment.to;
+  }
+  if (!held) held = std::make_unique<HeldMotion>();
+  held->live = opening;
+  held->started = true;
+  held->target = tween.rest();
+  const float lead = segmentSeconds(tween.delay.value());
+  start(engine, *held,
+        std::make_shared<Ramp>(held->live.cell(), from, lead > 0 ? lead : 0.0,
+                               std::move(segments), passesOf(tween.loop),
+                               tween.alternate));
+}
+
 }  // namespace
 
 void HeldMotion::stop() {
@@ -248,6 +294,15 @@ bool retarget(Engine& engine, std::unique_ptr<HeldMotion>& held,
     anim->target = next.target;
     return true;
   }
+  // A PATH WHOSE RESTING VALUE CHANGED plays its steps again, set out
+  // from the value on screen; one described again with the same rest has
+  // returned above or is pruned before it gets here.
+  if (const Tween<float>* path = nextValue.described();
+      path && !path->keyframes.empty() && prev.target != next.target) {
+    const Tween<float> tween = path->resolved(place);
+    play(engine, anim, tween, current, pathSegments(tween, current));
+    return true;
+  }
   if (current == next.target) {
     // The value COINCIDES with the new target, but a moving ramp that
     // passed the keeps-flying guard is provably headed somewhere else —
@@ -280,56 +335,19 @@ void enter(Engine& engine, std::unique_ptr<HeldMotion>& held,
            const Animatable<float>& property, Place place) {
   const Tween<float>* described = property.described();
   if (!described || !described->isEntrance()) return;
-  const Tween<float> resolved = described->resolved(place);
-  const Tween<float>* tween = &resolved;
+  const Tween<float> tween = described->resolved(place);
   // A path that names no `from` starts where it rests, as `Tween::at`
   // reads it, so its first step is the first place it goes.
-  const float from = tween->start();
-  std::vector<Ramp::Segment> segments;
-  if (!tween->keyframes.empty()) {
-    // An undurationed step takes the tween's duration divided by the
-    // number of steps; an uncurved one takes the tween's curve.
-    const Duration share =
-        tween->duration.value() / (double)tween->keyframes.size();
-    float at = from;
-    for (const Keyframe<float>& step : tween->keyframes) {
-      segments.push_back({at, step.to,
-                          segmentSeconds(step.duration.value_or(share)),
-                          step.ease ? step.ease : tween->easing()});
-      at = step.to;
-    }
-  } else {
-    // A from→to that goes nowhere and does not repeat is not an entrance.
-    if (!tween->to || (from == tween->to->value() && tween->loop == 0)) return;
-    segments.push_back({from, tween->to->value(),
-                        segmentSeconds(tween->duration.value()),
-                        tween->easing()});
+  const float from = tween.start();
+  if (!tween.keyframes.empty()) {
+    play(engine, held, tween, from, pathSegments(tween, from));
+    return;
   }
-  // A looping entrance holds where each pass ends before the next starts.
-  if (tween->loop != 0 && tween->loopDelay > Duration{})
-    segments.push_back({segments.back().to,
-                        segments.back().to,
-                        segmentSeconds(tween->loopDelay),
-                        {}});
-  // A step that lasts nothing is taken at once, so the value holds
-  // through the delay where the first step that moves sets out from.
-  float opening = from;
-  for (const Ramp::Segment& segment : segments) {
-    if (segment.seconds > 0.0) break;
-    opening = segment.to;
-  }
-  auto& anim = held;
-  if (!anim) anim = std::make_unique<HeldMotion>();
-  anim->live = opening;
-  anim->started = true;
-  anim->target = tween->rest();
-  // The declared delay — a staggered one already resolved for this child —
-  // holds the `from` before the motion starts.
-  const float lead = segmentSeconds(tween->delay.value());
-  start(engine, *anim,
-        std::make_shared<Ramp>(anim->live.cell(), from, lead > 0 ? lead : 0.0,
-                               std::move(segments), passesOf(tween->loop),
-                               tween->alternate));
+  // A from→to that goes nowhere and does not repeat is not an entrance.
+  if (!tween.to || (from == tween.to->value() && tween.loop == 0)) return;
+  play(engine, held, tween, from,
+       {{from, tween.to->value(), segmentSeconds(tween.duration.value()),
+         tween.easing()}});
 }
 
 bool isRunning(const HeldMotion* animated, const Animatable<float>& property) {

@@ -7,14 +7,18 @@
 // empty curve means, and the value each shape of the authoring grammar
 // builds.
 
-#include "support/CoreTestSupport.h"
 #include <sigilmotion/ease/Ease.h>
+
+#include "support/CoreTestSupport.h"
 
 TEST(ComposeTransitions, RampsAndRetargetsFromCurrent) {
   Host host;
   auto at = [&](float target) {
     return box().children(
-        {box().key("m").width(50).height(50).fill(red()).translateX(motion::animate({.to = target, .duration = 400ms, .ease = motion::ease::linear}))});
+        {box().key("m").width(50).height(50).fill(red()).translateX(
+            motion::animate({.to = target,
+                             .duration = 400ms,
+                             .ease = motion::ease::linear}))});
   };
   host.composer.render(at(0.0f));
   host.frame();
@@ -43,7 +47,10 @@ TEST(ComposeTransitions, RetargetsFromTheStyleTheNodeStoodInAcrossAPrune) {
   Host host;
   auto at = [&](float target) {
     return box().children(
-        {box().key("m").width(50).height(50).fill(red()).translateX(motion::animate({.to = target, .duration = 400ms, .ease = motion::ease::linear}))});
+        {box().key("m").width(50).height(50).fill(red()).translateX(
+            motion::animate({.to = target,
+                             .duration = 400ms,
+                             .ease = motion::ease::linear}))});
   };
   host.composer.render(at(0.0f));
   host.frame();
@@ -72,8 +79,7 @@ TEST(ComposeTransitions, AStaggeredDelayAddsItsStepToTheDeclaredStart) {
                          .delay = motion::stagger(400ms, {.start = 200ms}),
                          .ease = motion::ease::linear}));
   };
-  host.composer.render(
-      box().column().gap(10).children({card("a"), card("b")}));
+  host.composer.render(box().column().gap(10).children({card("a"), card("b")}));
   host.frame(0.15);  // inside the declared delay: neither has started
   EXPECT_EQ(host.pixel(25, 10), SK_ColorBLACK);
   EXPECT_EQ(host.pixel(25, 40), SK_ColorBLACK);
@@ -125,7 +131,8 @@ TEST(ComposeBindings, ActiveWakesForABindingThatSettledAndMovedAgain) {
   // host assigns the output again, so a host polling `dirty()` alone
   // would sleep through the change.
   Host host;
-  motion::Animatable<Fill> bar = motion::animatable<Fill>(Fill::color({1, 0, 0, 1}));
+  motion::Animatable<Fill> bar =
+      motion::animatable<Fill>(Fill::color({1, 0, 0, 1}));
   host.composer.render(box().children(
       {box().absolute().left(20).top(20).width(60).height(60).fill(bar)}));
   host.frame();
@@ -133,11 +140,13 @@ TEST(ComposeBindings, ActiveWakesForABindingThatSettledAndMovedAgain) {
   // Held still long enough for the walk to release the binding.
   for (int frame = 0; frame < 12; ++frame) host.frame();
   EXPECT_FALSE(host.composer.dirty());
-  EXPECT_FALSE(host.composer.isRunning()) << "a settled scene has nothing to draw";
+  EXPECT_FALSE(host.composer.isRunning())
+      << "a settled scene has nothing to draw";
 
   bar = Fill::color({0, 1, 0, 1});  // the host wrote the output itself
   EXPECT_FALSE(host.composer.dirty()) << "no describe and no layout ran";
-  EXPECT_TRUE(host.composer.isRunning()) << "…and the next draw is a new colour";
+  EXPECT_TRUE(host.composer.isRunning())
+      << "…and the next draw is a new colour";
 
   host.frame();
   EXPECT_GT(SkColorGetG(host.pixel(50, 50)), 180u);
@@ -168,8 +177,8 @@ TEST(ComposeTransitions, PlainSnapAfterTransitionLands) {
   };
   host.composer.render(at(0.0f));
   host.frame();
-  host.composer.render(
-      at(motion::animate({.to = 100.0f, .duration = 400ms, .ease = motion::ease::linear})));
+  host.composer.render(at(motion::animate(
+      {.to = 100.0f, .duration = 400ms, .ease = motion::ease::linear})));
   host.frame(0.2);  // mid-ramp, box around x=50..100
   EXPECT_EQ(host.pixel(75, 25), SK_ColorRED);
   host.composer.render(at(0.0f));  // PLAIN: must snap home
@@ -275,8 +284,9 @@ TEST(ComposeTravel, TIsAFractionOfTotalArcLengthAcrossEveryContour) {
 
 TEST(ComposeTravel, APathWithNoMeasurableLengthLeavesTheLanesStanding) {
   Host host(200, 200);
-  host.composer.render(travelFrame(
-      rider({.path = skiaShape([] { return SkPath(); }), .t = 0.5f}).translateX(40)));
+  host.composer.render(
+      travelFrame(rider({.path = skiaShape([] { return SkPath(); }), .t = 0.5f})
+                      .translateX(40)));
   host.frame();
   const SkPoint ink = inkCentroid(host, SK_ColorRED, 200, 200);
   EXPECT_NEAR(ink.x(), 63.5f, 1.5f)
@@ -316,23 +326,21 @@ TEST(ComposeTravel, PerAxisScaleParticipatesInReconcilerEquality) {
   EXPECT_EQ(host.pixel(60, 20), SK_ColorRED)
       << "…and the stale picture replayed";
 
-  host.composer.render(
-      bar(2.0f).children({box()
-                              .key("y")
-                              .absolute()
-                              .rect(0, 60, 40, 40)
-                              .transformOrigin(pct(0), pct(0))
-                              .fill(green())
-                              .scaleY(1.0f)}));
+  host.composer.render(bar(2.0f).children({box()
+                                               .key("y")
+                                               .absolute()
+                                               .rect(0, 60, 40, 40)
+                                               .transformOrigin(pct(0), pct(0))
+                                               .fill(green())
+                                               .scaleY(1.0f)}));
   host.frame();
-  host.composer.render(
-      bar(2.0f).children({box()
-                              .key("y")
-                              .absolute()
-                              .rect(0, 60, 40, 40)
-                              .transformOrigin(pct(0), pct(0))
-                              .fill(green())
-                              .scaleY(2.0f)}));
+  host.composer.render(bar(2.0f).children({box()
+                                               .key("y")
+                                               .absolute()
+                                               .rect(0, 60, 40, 40)
+                                               .transformOrigin(pct(0), pct(0))
+                                               .fill(green())
+                                               .scaleY(2.0f)}));
   host.frame();
   EXPECT_EQ(host.pixel(20, 130), SK_ColorGREEN)
       << "a CHANGED scaleY pruned into the old description";
@@ -349,15 +357,15 @@ TEST(ComposeBindings, AShapedBindingDrivesThePropertyInPixels) {
   // alongside the first — two things to keep in step for no reason.
   Host host(200, 200);
   motion::Animatable<float> phase = motion::animatable(0.0f);
-  host.composer.render(
-      box().children({box()
-                          .width(20)
-                          .height(20)
-                          .absolute()
-                          .left(0)
-                          .top(90)
-                          .fill(red())
-                          .translateX(motion::bind(phase, {.to = {0.0f, 160.0f}}))}));
+  host.composer.render(box().children(
+      {box()
+           .width(20)
+           .height(20)
+           .absolute()
+           .left(0)
+           .top(90)
+           .fill(red())
+           .translateX(motion::bind(phase, {.to = {0.0f, 160.0f}}))}));
   auto redAt = [&](int x) { return SkColorGetR(host.pixel(x, 100)) > 180; };
 
   host.frame();
@@ -407,7 +415,8 @@ TEST(ComposeBindings, AFillCanBeBoundLive) {
   // The live value holds a Fill, and you write it from the
   // same steppable that computes the number driving everything else.
   Host host(200, 200);
-  motion::Animatable<Fill> bar = motion::animatable<Fill>(Fill::color({1, 0, 0, 1}));
+  motion::Animatable<Fill> bar =
+      motion::animatable<Fill>(Fill::color({1, 0, 0, 1}));
   host.composer.render(box().children(
       {box().absolute().left(20).top(80).width(160).height(40).fill(bar)}));
   host.frame();
@@ -435,7 +444,10 @@ TEST(ComposeMotion, AnEmptyEasingMeansTheDefaultRatherThanACrash) {
                           .left(0)
                           .top(80)
                           .fill(red())
-                          .translateX(motion::animate({.from = 0.0f, .to = 120.0f, .duration = 200ms, .delay = 0ms}))}));
+                          .translateX(motion::animate({.from = 0.0f,
+                                                       .to = 120.0f,
+                                                       .duration = 200ms,
+                                                       .delay = 0ms}))}));
   host.frame();     // would throw here
   host.frame(0.4);  // land the entrance
   EXPECT_TRUE(SkColorGetR(host.pixel(130, 100)) > 180);
@@ -447,8 +459,10 @@ TEST(ComposeMotion, AnEmptyEasingMeansTheDefaultRatherThanACrash) {
 
 TEST(ComposeMotion, EachShapeOfATweenSaysWhatItDoes) {
   const motion::Animatable<float> change =
-      motion::animate({.to = 1.0f, .duration = 200ms, .delay = 40ms,
-               .ease = motion::ease::linear});
+      motion::animate({.to = 1.0f,
+                       .duration = 200ms,
+                       .delay = 40ms,
+                       .ease = motion::ease::linear});
   ASSERT_NE(change.described(), nullptr);
   EXPECT_EQ(change.value(), 1.0f);
   EXPECT_FALSE(change.described()->isEntrance())
@@ -457,17 +471,21 @@ TEST(ComposeMotion, EachShapeOfATweenSaysWhatItDoes) {
   EXPECT_EQ(change.described()->delay, 40ms);
 
   const motion::Animatable<float> entrance =
-      motion::animate({.from = 0.0f, .to = 1.0f, .duration = 200ms,
-               .ease = motion::ease::linear});
-  EXPECT_EQ(entrance.value(), 1.0f) << "a described motion reads where it rests";
+      motion::animate({.from = 0.0f,
+                       .to = 1.0f,
+                       .duration = 200ms,
+                       .ease = motion::ease::linear});
+  EXPECT_EQ(entrance.value(), 1.0f)
+      << "a described motion reads where it rests";
   ASSERT_TRUE(entrance.described()->isEntrance());
   EXPECT_EQ(*entrance.described()->from, 0.0f);
   EXPECT_FLOAT_EQ(entrance.described()->easing()(0.25f), 0.25f);
 
-  const motion::Animatable<float> path = motion::animate(
-      {.from = 40.0f,
-       .keyframes = {{.to = -20.0f, .duration = 200ms}, {.to = 0.0f, .duration = 200ms}},
-       .ease = motion::ease::linear});
+  const motion::Animatable<float> path =
+      motion::animate({.from = 40.0f,
+                       .keyframes = {{.to = -20.0f, .duration = 200ms},
+                                     {.to = 0.0f, .duration = 200ms}},
+                       .ease = motion::ease::linear});
   EXPECT_EQ(path.value(), 0.0f) << "the last keyframe is where it rests";
   EXPECT_EQ(*path.described()->from, 40.0f);
   EXPECT_FLOAT_EQ(path.described()->at(100ms), 10.0f);
@@ -482,15 +500,17 @@ TEST(ComposeMotion, AnEmptyTweenIsDETERMINATE) {
   // A tween that names nothing is a degenerate ask that must still produce
   // a definite answer: where it rests is a value-initialized T, so a float
   // property reads zero rather than whatever was on the stack.
-  const motion::Animatable<float> empty = motion::animate(motion::Tween<float>{});
+  const motion::Animatable<float> empty =
+      motion::animate(motion::Tween<float>{});
   EXPECT_EQ(empty.value(), 0.0f);
   EXPECT_FALSE(empty.described()->isEntrance());
 
   // And through the property slot: the node paints AT that determinate
   // value rather than at a number nobody chose.
   Host host;
-  host.composer.render(box().children({box().width(80).height(80).fill(red()).opacity(
-      motion::animate(motion::Tween<float>{}))}));
+  host.composer.render(
+      box().children({box().width(80).height(80).fill(red()).opacity(
+          motion::animate(motion::Tween<float>{}))}));
   host.frame();
   EXPECT_EQ(host.pixel(20, 20), SK_ColorBLACK);  // opacity 0, not garbage
 }
@@ -498,11 +518,10 @@ TEST(ComposeMotion, AnEmptyTweenIsDETERMINATE) {
 TEST(ComposeMotion, AKeyframeWithNoDurationTakesItsShareOfTheTween) {
   // anime.js's rule: a step that names no duration takes the tween's
   // duration divided by the number of steps.
-  const motion::Tween<float> there = {
-      .from = 0.0f,
-      .keyframes = {{.to = 1.0f}, {.to = 0.0f}},
-      .duration = 200ms,
-      .ease = motion::ease::linear};
+  const motion::Tween<float> there = {.from = 0.0f,
+                                      .keyframes = {{.to = 1.0f}, {.to = 0.0f}},
+                                      .duration = 200ms,
+                                      .ease = motion::ease::linear};
   EXPECT_FLOAT_EQ(there.at(50ms), 0.5f);
   EXPECT_FLOAT_EQ(there.at(100ms), 1.0f);
   EXPECT_FLOAT_EQ(there.at(150ms), 0.5f);
@@ -512,8 +531,11 @@ TEST(ComposeMotion, AKeyframeWithNoDurationTakesItsShareOfTheTween) {
 TEST(ComposeMotion, AnimatePlaysEntranceOnMount) {
   Host host;
   auto tree = [] {
-    return box().children(
-        {box().width(80).height(80).fill(red()).opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 200ms, .ease = motion::ease::linear}))});
+    return box().children({box().width(80).height(80).fill(red()).opacity(
+        motion::animate({.from = 0.0f,
+                         .to = 1.0f,
+                         .duration = 200ms,
+                         .ease = motion::ease::linear}))});
   };
   host.composer.render(tree());
   host.frame();
@@ -534,14 +556,66 @@ TEST(ComposeMotion, AnimatePlaysEntranceOnMount) {
 
 TEST(ComposeMotion, AnimateColorSweepsOnMount) {
   Host host;
-  host.composer.render(
-      box().children({box().width(80).height(80).fill(motion::animate<Fill>(
-          {.from = Fill::color({1, 1, 1, 1}), .to = red(), .duration = 200ms,
-           .ease = motion::ease::linear}))}));
+  host.composer.render(box().children({box().width(80).height(80).fill(
+      motion::animate<Fill>({.from = Fill::color({1, 1, 1, 1}),
+                             .to = red(),
+                             .duration = 200ms,
+                             .ease = motion::ease::linear}))}));
   host.frame();
   EXPECT_EQ(host.pixel(40, 40), SK_ColorWHITE);  // the declared "from"
   host.frame(0.3);
   EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
+}
+
+TEST(ComposeMotion, AFillPathWithNoFromEntersFromItsFirstStep) {
+  // A path of three colours and no `from`: the first step lasts nothing,
+  // so the box mounts blue, reads between blue and red half way through
+  // the second step, and comes to rest green.
+  Host host;
+  host.composer.render(
+      box().children({box().width(80).height(80).fill(motion::animate<Fill>(
+          {.keyframes = {{.to = Fill::color({0, 0, 1, 1}), .duration = 0ms},
+                         {.to = red(), .duration = 200ms},
+                         {.to = Fill::color({0, 1, 0, 1}), .duration = 200ms}},
+           .ease = motion::ease::linear}))}));
+  host.frame();
+  EXPECT_EQ(host.pixel(40, 40), SK_ColorBLUE) << "the path's first step";
+  host.frame(0.1);  // half the step from blue to red
+  const SkColor middle = host.pixel(40, 40);
+  EXPECT_GT(SkColorGetR(middle), 90u);
+  EXPECT_LT(SkColorGetR(middle), 165u);
+  EXPECT_GT(SkColorGetB(middle), 90u);
+  EXPECT_LT(SkColorGetB(middle), 165u);
+  EXPECT_EQ(SkColorGetG(middle), 0u);
+  host.frame(0.5);
+  EXPECT_EQ(host.pixel(40, 40), SK_ColorGREEN);
+}
+
+TEST(ComposeMotion, AFillPathReDescribedToANewRestPlaysItsStepsAgain) {
+  // The same path resting first at green, then at white: the new rest
+  // plays the steps again from the colour on screen, so part way through
+  // its first timed step the box is between green and red.
+  const auto path = [](Fill rest) {
+    return box().children({box().width(80).height(80).fill(
+        motion::animate<Fill>({.keyframes = {{.to = red(), .duration = 200ms},
+                                             {.to = rest, .duration = 200ms}},
+                               .ease = motion::ease::linear}))});
+  };
+  Host host;
+  host.composer.render(path(Fill::color({0, 1, 0, 1})));
+  host.frame();
+  host.frame(1.0);
+  EXPECT_EQ(host.pixel(40, 40), SK_ColorGREEN);
+  host.composer.render(path(Fill::color({1, 1, 1, 1})));
+  host.frame();
+  host.frame(0.1);  // half the step from green to red
+  const SkColor middle = host.pixel(40, 40);
+  EXPECT_GT(SkColorGetR(middle), 90u);
+  EXPECT_LT(SkColorGetR(middle), 165u);
+  EXPECT_GT(SkColorGetG(middle), 90u);
+  EXPECT_LT(SkColorGetG(middle), 165u);
+  host.frame(0.5);
+  EXPECT_EQ(host.pixel(40, 40), SK_ColorWHITE);
 }
 
 TEST(ComposeMotion, AFillWrittenAsFlatColourMaterialsSweepsBetweenThem) {
@@ -551,10 +625,11 @@ TEST(ComposeMotion, AFillWrittenAsFlatColourMaterialsSweepsBetweenThem) {
   Host host;
   const material::Material blue(material::Color{0, 0, 1, 1});
   const material::Material scarlet(material::Color{1, 0, 0, 1});
-  host.composer.render(
-      box().children({box().width(80).height(80).fill(motion::animate<Fill>(
-          {.from = Fill(blue), .to = Fill(scarlet), .duration = 200ms,
-           .ease = motion::ease::linear}))}));
+  host.composer.render(box().children({box().width(80).height(80).fill(
+      motion::animate<Fill>({.from = Fill(blue),
+                             .to = Fill(scarlet),
+                             .duration = 200ms,
+                             .ease = motion::ease::linear}))}));
   host.frame();
   EXPECT_EQ(host.pixel(40, 40), SK_ColorBLUE);  // the declared "from"
   host.frame(0.1);                              // half the linear ramp
