@@ -53,8 +53,8 @@ struct Keyframe {
 /** A MOTION, described.
  *
  *      animate({.from = 0.0f, .to = 1.0f, .duration = 320ms})   // an entrance
- *      animate({.to = lifted ? -8.0f : 0.0f})                   // eases on change
- *      animate({.from = 0.8f, .keyframes = {{.to = 1.07f, .duration = 80ms},
+ *      animate({.to = lifted ? -8.0f : 0.0f})                   // eases on
+ * change animate({.from = 0.8f, .keyframes = {{.to = 1.07f, .duration = 80ms},
  *                                           {.to = 1.0f}}})     // a path
  *      element.transition({.duration = 320ms, .ease = ease::outBack()})
  *
@@ -70,7 +70,9 @@ struct Keyframe {
  *  - `.from` NAMED is an ENTRANCE. The motion plays once, when the
  *    property's owner first appears — from `from` through the keyframes
  *    or to `to` — and afterwards the property behaves as though only `.to`
- *    had been written.
+ *    had been written. A path of keyframes is an entrance too: with no
+ *    `.from` it starts where it rests, and a first step that lasts nothing
+ *    is where it visibly begins.
  *  - `.to` ALONE eases on change. It says nothing about mounting: the
  *    property starts out holding `.to`, and whenever a later description
  *    carries a different one the property eases there from wherever it is,
@@ -79,7 +81,8 @@ struct Keyframe {
  *  `delay` holds the value where it stands before the motion starts.
  *  `from`, `to`, `duration` and `delay` each take a plain value or a
  *  `stagger()`, which a host resolves from the child's place among its
- *  siblings: `.delay = stagger(40ms)` is the one-line cascade. `loop` plays the motion that many more times
+ *  siblings: `.delay = stagger(40ms)` is the one-line cascade. `loop` plays the
+ * motion that many more times
  *  (-1 for ever) and `alternate` plays every other one backwards.
  *  `composition` says what a change mid-flight does to the motion already
  *  running.
@@ -134,20 +137,29 @@ struct Tween {
     static const Easing kDefault = ease::outQuad;
     return ease ? ease : kDefault;
   }
-  /** Whether the motion plays when its owner first appears. */
-  [[nodiscard]] bool isEntrance() const { return from.has_value(); }
+  /** WHERE THE MOTION STARTS: `from`, else where it rests — so a path
+   *  that names no `from` leaves its resting value for its first step. */
+  [[nodiscard]] T start() const { return from ? from->value() : rest(); }
+  /** Whether the motion plays when its owner first appears: it names a
+   *  `from`, or a path of keyframes. */
+  [[nodiscard]] bool isEntrance() const {
+    return from.has_value() || !keyframes.empty();
+  }
 
   /** THE VALUE @p time AFTER THE MOTION STARTS, read with no engine: a
    *  function of the time and nothing else, so a bake, a scrub, a shader's
    *  uniform and a value read three times in one frame all get the same
    *  number. The delay holds `from`; the passes repeat as `loop` and
    *  `alternate` say; past the last pass the value is where it rests. A
-   *  tween with no `from` starts at `to`. Moves through `interpolate()`,
-   *  the line between two values of `T` the engine moves by too. */
+   *  tween with no `from` starts where it rests, and a step that lasts
+   *  nothing is taken at once, so a path whose first step lasts nothing
+   *  starts, and holds through its delay, at that step. Moves through
+   *  `interpolate()`, the line between two values of `T` the engine moves
+   *  by too. */
   [[nodiscard]] T at(Duration time) const
     requires Interpolable<T>
   {
-    const T start = from ? from->value() : rest();
+    const T origin = start();
     const Duration length = duration.value();
     const Duration wait = delay.value();
     // A tween with no keyframes is one step to where it rests.
@@ -155,22 +167,28 @@ struct Tween {
     const Keyframe<T>* steps = keyframes.empty() ? &single : keyframes.data();
     const size_t count = keyframes.empty() ? 1 : keyframes.size();
     const Duration share = length / (double)count;
+    T opening = origin;
+    for (size_t step = 0;
+         step < count && steps[step].duration.value_or(share) <= Duration{};
+         ++step)
+      opening = steps[step].to;
     Duration pass{};
     for (size_t index = 0; index < count; ++index)
       pass += steps[index].duration.value_or(share);
     // A looping pass ends on its hold, where the value rests at the last
     // step's end until the next pass starts.
     if (loop != 0) pass += loopDelay;
-    if (time <= wait) return start;
+    if (time <= wait) return opening;
     Duration into = time - wait;
     int index = 0;
     if (pass > Duration{}) {
       index = (int)std::floor(into / pass);
-      if (loop >= 0 && index > loop) return (alternate && loop % 2 == 1) ? start : rest();
+      if (loop >= 0 && index > loop)
+        return (alternate && loop % 2 == 1) ? opening : rest();
       into -= pass * (double)index;
     }
     if (alternate && index % 2 == 1) into = pass - into;
-    T at = start;
+    T at = origin;
     for (size_t step = 0; step < count; ++step) {
       const Duration stepLength = steps[step].duration.value_or(share);
       if (into <= stepLength) {
@@ -191,10 +209,11 @@ struct Tween {
 template <typename T>
 bool tweenEqual(const Tween<T>& left, const Tween<T>& right) {
   return left.from == right.from && left.to == right.to &&
-         left.keyframes == right.keyframes &&
-         left.duration == right.duration && left.delay == right.delay &&
+         left.keyframes == right.keyframes && left.duration == right.duration &&
+         left.delay == right.delay &&
          easeEqual(left.easing(), right.easing()) && left.loop == right.loop &&
-         left.loopDelay == right.loopDelay && left.alternate == right.alternate &&
+         left.loopDelay == right.loopDelay &&
+         left.alternate == right.alternate &&
          left.composition == right.composition;
 }
 
@@ -222,9 +241,9 @@ Timing timingOf(const Tween<T>& tween,
 template <typename T>
 class Animatable;
 
-/** A PROPERTY VALUE THAT MOVES: `.opacity(animate({.from = 0.0f, .to = 1.0f}))`.
- *  The runtime manufactures the motion, as against `animatable()`, where
- *  the caller writes the value itself. A consumer that bakes a still
+/** A PROPERTY VALUE THAT MOVES: `.opacity(animate({.from = 0.0f, .to
+ * = 1.0f}))`. The runtime manufactures the motion, as against `animatable()`,
+ * where the caller writes the value itself. A consumer that bakes a still
  *  rather than running frames resolves it to where it comes to rest. */
 Animatable<float> animate(Tween<float> tween);
 

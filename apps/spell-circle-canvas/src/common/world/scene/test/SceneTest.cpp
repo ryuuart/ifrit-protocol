@@ -29,6 +29,8 @@
 #include <array>
 #include <chrono>
 #include <cstdint>
+#include <glm/geometric.hpp>
+#include <glm/mat3x3.hpp>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -420,6 +422,73 @@ TEST_F(WorldScene, ACameraLookingAtANullLooksWhereTheNullStands) {
   EXPECT_FLOAT_EQ(scene.camera()->target.y, 10.0f);
   EXPECT_FLOAT_EQ(scene.camera()->target.z, -5.0f);
   EXPECT_FLOAT_EQ(scene.camera()->eye.z, 300.0f);
+}
+
+TEST_F(WorldScene, AVisibleLightRidingARailFacesWhatItLooksAtAtEveryStation) {
+  // A panel riding a straight rail above a subject, aimed at it: at two
+  // stations the light shines at the subject and the panel's face, its
+  // +z, points there too, wherever the rail has carried it.
+  const geometry::mesh::curve::Spline3 rail{
+      .points = {{-200, 100, 0}, {200, 100, 0}},
+      .type = geometry::mesh::curve::Spline3::Type::Linear};
+  const glm::vec3 subject{0, -50, 30};
+  const Recording recorder;
+  for (const float distance : {50.0f, 300.0f}) {
+    scene.render(
+        recorded(group({null().key("subject").at(subject),
+                        kit::visibleLight(
+                            rectLight({0, -1, 0}, {.width = 40, .height = 20})
+                                .key("panel"))
+                            .key("panel rig")
+                            .along(rail, distance)
+                            .lookAt("subject")})
+                     .key("root"),
+                 recorder));
+    ASSERT_TRUE(scene.error().empty()) << scene.error();
+    const glm::vec3 station{-200.0f + distance, 100.0f, 0.0f};
+    const glm::vec3 toward = glm::normalize(subject - station);
+
+    const auto emitter = std::find(recorder.seen->keys.begin(),
+                                   recorder.seen->keys.end(), "emitter");
+    ASSERT_NE(emitter, recorder.seen->keys.end());
+    const glm::mat4& placed =
+        recorder.seen->worlds[size_t(emitter - recorder.seen->keys.begin())];
+    EXPECT_NEAR(glm::distance(glm::vec3(placed[3]), station), 0.0f, 1e-3f);
+    const glm::vec3 normal =
+        glm::normalize(glm::mat3(placed) * glm::vec3(0, 0, 1));
+    EXPECT_NEAR(glm::dot(normal, toward), 1.0f, 1e-5f)
+        << "the panel faces its subject at " << distance;
+
+    const std::vector<PlacedLight> lights = scene.lights();
+    ASSERT_EQ(lights.size(), 1u);
+    EXPECT_NEAR(glm::dot(lights.front().light.direction, toward), 1.0f, 1e-5f)
+        << "the light shines at its subject at " << distance;
+  }
+}
+
+TEST_F(WorldScene, AnAimedGroupTurnsItsForwardAxisOntoWhatItLooksAt) {
+  // A plain group points +z at what it looks at, and carries its children
+  // round with it; a body standing ahead of it on +z is carried onto the
+  // line toward the target.
+  const Recording recorder;
+  scene.render(
+      recorded(group({null().key("target").at({100, 0, 0}),
+                      group({mesh(card(2)).key("ahead").at({0, 0, 10})})
+                          .key("aimed")
+                          .rotateY(30.0f)
+                          .lookAt("target")})
+                   .key("root"),
+               recorder));
+  ASSERT_TRUE(scene.error().empty()) << scene.error();
+  ASSERT_EQ(recorder.seen->worlds.size(), 1u);
+  const glm::vec3 ahead(recorder.seen->worlds.front()[3]);
+  EXPECT_NEAR(ahead.x, 10.0f, 1e-4f);
+  EXPECT_NEAR(ahead.y, 0.0f, 1e-4f);
+  EXPECT_NEAR(ahead.z, 0.0f, 1e-4f);
+
+  scene.render(group({group().key("aimed").lookAt("nowhere")}).key("root"));
+  EXPECT_NE(scene.error().find("\"aimed\""), std::string::npos);
+  EXPECT_NE(scene.error().find("\"nowhere\""), std::string::npos);
 }
 
 TEST_F(WorldScene, LookingAtAKeyNoNodeAnswersToIsAnErrorNamingIt) {

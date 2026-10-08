@@ -452,8 +452,6 @@ struct EmbossedFoil {
 
   world::Frame describe(sigil::motion::Duration now) {
     const float seconds = float(std::fmod(now.count(), double(kLoop)));
-    const glm::vec3 panel = railAt(seconds);
-    const glm::vec3 aim{0, 0, 40};
     // The corner lifts off the gold and settles back twice a loop.
     const float lift = .5f - .5f * std::cos(4 * kPi * seconds / kLoop);
     const float fold = 176 - 20 * lift;
@@ -467,10 +465,11 @@ struct EmbossedFoil {
                                   {.exposure = .95f,
                                    .toneCurve = world::ToneCurve::Neutral}),
                     // THE PANEL: a soft rect light on its rail behind the
-                    // blanket, turned each frame to face it, so its
-                    // reflection runs across the foil toward the eye.
+                    // blanket, aimed at it, so its reflection runs across
+                    // the foil toward the eye.
+                    world::null().key("panel target").at({0, 0, 40}),
                     world::kit::visibleLight(
-                        world::rectLight(glm::normalize(aim - panel),
+                        world::rectLight({0, 0, -1},
                                          {.width = 560,
                                           .height = 190,
                                           .color = hexColor(0xfff2e0),
@@ -482,7 +481,8 @@ struct EmbossedFoil {
                                                      .mapSize = 2048}})
                             .key("panel"))
                         .key("panel rig")
-                        .at(panel),
+                        .at(railAt(seconds))
+                        .lookAt("panel target"),
                     // THE FILL: a broad, dim, cool panel low at the front
                     // left, so the creases turned away still read.
                     world::rectLight(glm::normalize(glm::vec3{.8f, -.5f, -1}),

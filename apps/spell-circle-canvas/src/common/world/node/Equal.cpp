@@ -108,7 +108,7 @@ bool materialsEqual(const NodeDescription& a, const NodeDescription& b) {
 }  // namespace
 
 static_assert(
-    core::kFieldCount<NodeDescription> == 20,
+    core::kFieldCount<NodeDescription> == 21,
     "A field of NodeDescription appeared or vanished. Rule on it in "
     "propertiesEqual() below — participate, or a stated reason not to "
     "— then bump this count. A miss is silent: the node prunes, "
@@ -121,6 +121,7 @@ bool propertiesEqual(const NodeDescription& a, const NodeDescription& b) {
   if (!alongEqual(a.along, b.along)) return false;
   if (a.visible != b.visible) return false;
   if (a.lookAt != b.lookAt) return false;
+  if (a.forward != b.forward) return false;
   // The geometry slot's value type IS the node's kind, and the variant's
   // own equality compares both: two nodes holding different alternatives
   // are unequal, two holding the same one compare its contents. A

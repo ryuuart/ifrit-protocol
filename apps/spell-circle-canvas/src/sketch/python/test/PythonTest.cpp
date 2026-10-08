@@ -720,4 +720,76 @@ TEST_F(SketchPythonBakes, APageThePythonSketchPaintsIsWornByTheBakedCard) {
   EXPECT_LT(SkColorGetG(pixels.getColor(1, 1)), 50u);
 }
 
+TEST_F(SketchPythonBakes, AKeyframedTurnBakedAtAMomentStandsBetweenItsSteps) {
+  PythonSource source("sigil_python_keyframed_bake");
+  // A green card turned about y by a path of three keyframes and no
+  // `from_`: it starts at -80 degrees, reaches 0 a second later and 80 a
+  // second after that. Baked at four moments side by side, the card's
+  // width on the middle row is how far it has turned: thin at the start
+  // and at rest, whole at 0, and in between half way through the first
+  // step.
+  source.write(
+      "entry.py",
+      "from sigil import motion, world\n"
+      "from sigil.geometry import mesh\n"
+      "from sigil.material import surface as surfaces\n"
+      "from sigil.motion import ease\n"
+      "from sigil.sketch import sketch\n"
+      "\n"
+      "MOMENTS = (0.0, 0.5, 1.0, 5.0)\n"
+      "\n"
+      "@sketch(size=(384, 96), background='#000000', capture_at=0)\n"
+      "class Turned:\n"
+      "    needsDevice = True\n"
+      "\n"
+      "    def setup(self, ctx):\n"
+      "        lens = mesh.camera.Camera()\n"
+      "        lens.eye = (0, 0, 300)\n"
+      "        lens.target = (0, 0, 0)\n"
+      "        turn = motion.animate(keyframes=[\n"
+      "            motion.Keyframe(-80, 0.0),\n"
+      "            motion.Keyframe(0, 1.0, ease.linear),\n"
+      "            motion.Keyframe(80, 1.0, ease.linear)])\n"
+      "        card = (world.mesh(mesh.quad(160, 100)).key('card')\n"
+      "                .rotateY(turn)\n"
+      "                .fill(surfaces.unlit(\n"
+      "                    surfaces.SurfaceParameters(baseColor='#00ff00'))))\n"
+      "        frame = world.Frame(world.group(card).key('set'))\n"
+      "        self.stills = [ctx.bakeScene3D(frame, (96, 96), camera=lens,\n"
+      "                                       background='#000000', at=at)\n"
+      "                       for at in MOMENTS]\n"
+      "\n"
+      "    def draw(self, pen, ctx):\n"
+      "        for index, still in enumerate(self.stills):\n"
+      "            if still is not None:\n"
+      "                pen.image(still, 96 * index, 0)\n");
+  const sketch::Kind kind = sketch::python::load(source.entry());
+  auto session = kind->open(fonts(), assets(), true, "turned");
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(384, 96));
+  session->frame(*surface->getCanvas(), 1.0 / 60.0);
+  SkBitmap pixels;
+  pixels.allocPixels(SkImageInfo::MakeN32Premul(384, 96));
+  ASSERT_TRUE(surface->readPixels(pixels, 0, 0));
+  const auto widthAt = [&pixels](int panel) {
+    int width = 0;
+    for (int x = panel * 96; x < (panel + 1) * 96; ++x) {
+      const SkColor colour = pixels.getColor(x, 48);
+      if (SkColorGetG(colour) > 160 && SkColorGetR(colour) < 80) ++width;
+    }
+    return width;
+  };
+  const int start = widthAt(0);
+  const int turned = widthAt(1);
+  const int whole = widthAt(2);
+  const int rest = widthAt(3);
+  ASSERT_GT(whole, 30) << "the card square on fills its share of the row";
+  EXPECT_LT(start, whole * 35 / 100) << "the path starts at its first step";
+  EXPECT_LT(rest, whole * 35 / 100) << "the path rests at its last step";
+  EXPECT_GT(turned, whole * 60 / 100)
+      << "half way through the first step the card has turned toward 0";
+  EXPECT_LT(turned, whole * 92 / 100)
+      << "half way through the first step the card is still turned";
+}
+
 }  // namespace

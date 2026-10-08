@@ -160,6 +160,15 @@ void bindNodeVerbs(py::class_<Kind, world::Node>& kind) {
           [](Kind& self, bool shown) -> Kind& { return self.visible(shown); },
           py::arg("shown"), fluent)
       .def(
+          "lookAt",
+          [](Kind& self, std::string key) -> Kind& {
+            return self.lookAt(std::move(key));
+          },
+          py::arg("key"), fluent,
+          "Aims the node at the node keyed: a light shines toward it, a "
+          "camera looks at it, and any other node turns its forward axis "
+          "onto it.")
+      .def(
           "rotate",
           [](Kind& self, glm::vec3 axis, py::handle degrees) -> Kind& {
             return self.rotate(axis, motionAnimatable(degrees));
@@ -354,7 +363,6 @@ void bindKinds(py::module_& module) {
             return self.shadowLink(collectionOf(blockers));
           },
           py::arg("blockers"), fluent)
-      .def("lookAt", &world::Light::lookAt, py::arg("key"), fluent)
       .def_property_readonly("description", &world::Light::description);
   module.def(
       "directionalLight",
@@ -469,7 +477,6 @@ void bindKinds(py::module_& module) {
       .value("Linear", world::ToneCurve::Linear);
   auto camera = py::class_<world::Camera, world::Node>(module, "Camera");
   bindNodeVerbs(camera);
-  camera.def("lookAt", &world::Camera::lookAt, py::arg("key"), fluent);
   module.def(
       "camera",
       [](const geometry::mesh::camera::Camera& lens, py::handle exposure,

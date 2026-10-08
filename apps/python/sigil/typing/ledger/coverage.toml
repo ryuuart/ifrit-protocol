@@ -2041,11 +2041,14 @@ python = [
 ]
 
 [[section.surface.item]]
-native = "`mesh` over instanced geometry, `null`, and `lookAt` on a light or a camera"
+native = "`mesh` over instanced geometry, `null`, and `lookAt` on every kind"
 python = [
   "geometry.mesh.Instances",
   "world.null",
   "world.Null",
+  "world.Group.lookAt",
+  "world.Null.lookAt",
+  "world.Mesh.lookAt",
   "world.Light.lookAt",
   "world.Camera.lookAt",
 ]

@@ -86,18 +86,16 @@ std::vector<Node> each(range or count, make);  // children a range describes
 
 // every kind
 .key(name)  .collection(name)  .at(position)  .rotateX/Y/Z(degrees)
-.scale(factor)  .along(rail, distance)  .visible(shown)
+.scale(factor)  .along(rail, distance)  .lookAt(key)  .visible(shown)
 // a mesh
 .fill(material::Material surface)   // a material::Color is lit at the stock response
 .backface(material::Backface)
 .facing(Facing)                     // Facing::Camera, Facing::CameraUpright
 .castShadow(casts)  .receiveShadow(receives)   // both on unless stated
 // a light
-.lightLink(Collection)  .shadowLink(Collection)  .lookAt(key)
+.lightLink(Collection)  .shadowLink(Collection)
 // a directional, point or spot light's options: .castShadow = true,
 // .shadow = {bias, normalBias, radius, mapSize, distance, cascades}
-// a camera
-.lookAt(key)
 
 // the frame
 Frame(Node scene);
@@ -110,7 +108,7 @@ Pass   bloom(Bloom = {});            // threshold, intensity, radius
 kit::threePoint(kit::Rig = {});
 kit::turntable(kit::Turntable, motion::Duration now);
 kit::environmentMap(kit::EnvironmentMapOptions);
-kit::visibleLight(Light);           // a sized light beside an unlit mesh of its shape
+kit::visibleLight(Light);           // a sized light beside an unlit mesh of its shape, aimed as one
 ```
 
 **The node kinds.** A `Group` is the one kind that holds children, and it
@@ -128,14 +126,23 @@ from where its node stands and falling off with the square of the
 distance; a spot light, within a cone; an ambient light, the same from
 every direction; a hemisphere light, a sky from above and a ground from
 below — each aimed by the direction it travels, which its node's
-rotation turns, or at a keyed node with `lookAt`. Nothing lights a scene
-that the scene did not state. A `Camera` is
-Geometry's lens standing where its node does, with the exposure and the
-tone curve the picture is read at; `lookAt` aims it at a keyed node. An
-aim is resolved every frame against where the keyed node stands, and a
-key no node answers to stops the frame, naming both. Every kind places itself with the same
-verbs, answers to a key and joins collections; each adds only the verbs
-that mean something for it, so `fill` on a light does not compile.
+rotation turns. Nothing lights a scene that the scene did not state. A
+`Camera` is Geometry's lens standing where its node does, with the
+exposure and the tone curve the picture is read at. Every kind places
+itself with the same verbs, answers to a key and joins collections; each
+adds only the verbs that mean something for it, so `fill` on a light
+does not compile.
+
+**An aim is a placement.** `lookAt(key)` aims any node at a keyed one —
+a null, usually — resolved every frame against where that node stands: a
+light shines toward it, a camera looks at it, and any other node is
+turned so its forward axis points there, in place of its rotation lanes
+and a rail's turn, carrying everything under it round. The forward axis
+is +z, the way a quad faces, unless whatever built the node says
+otherwise: `kit::visibleLight`'s group faces the way its light shines,
+so a panel riding a rail and aimed at its subject shines at it and faces
+it at every station. A key no node answers to stops the frame, naming
+both.
 
 **A collection** is how a set names a set of nodes. A node joins named
 collections with `collection("props")`; a `Collection` value includes and
@@ -330,7 +337,8 @@ vertical gradient and soft boxes — a studio, a window-lit room, a sky —
 as data rather than as a function a scene writes by hand; and
 `kit::visibleLight(light)` groups a rect, sphere or disk light with an
 unlit mesh of its shape and size in its colour, so the light is seen
-where it stands.
+where it stands, and the group faces the way the light shines, so
+placing, riding and aiming the group moves the two as one.
 
 Two more rails stand beside the turntable's, each a plain `Spline3` a
 node rides with `along()`, scatters a comet on or sweeps a band over.
@@ -888,7 +896,8 @@ public headers only" a property of the build rather than a convention.
 `scene/test/` covers the retained side, every case over one fixture
 holding an engine and a scene running on it: a light bound to a live
 value reaching retained bodies while the tree stands still, lights and
-cameras riding their nodes' placement, the camera rule — one camera, a
+cameras riding their nodes' placement, a group and a visible light on a
+rail turned onto what they look at at every station, the camera rule — one camera, a
 named one, several and none named an error, an override keeping the
 camera's exposure — a hidden node taking its subtree out, a body wearing
 a texture whose pass is missing being a named error and a texture pass

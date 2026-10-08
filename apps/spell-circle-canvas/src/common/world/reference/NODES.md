@@ -30,9 +30,8 @@ underneath:
 Every kind converts to `Node`, the type-erased handle a group's children
 are held as, so one braced list mixes them:
 `group({mesh(body), pointLight(), each(posts, post)})`. A verb belongs to
-a kind only where it means something there — `Mesh::fill`,
-`Light::lightLink`, `Light::lookAt` and `Camera::lookAt`, and no `fill` on
-a light or a null.
+a kind only where it means something there — `Mesh::fill` and
+`Light::lightLink`, and no `fill` on a light or a null.
 
 ### What every kind says
 
@@ -56,6 +55,20 @@ the spline's units and it is a lane like any other, so a binding tows
 the node along. It replaces the translation lanes and the axis turn, and
 composes with the rest: the three rotation lanes, the scales and the
 origin still apply, inside the frame the curve put the node in.
+
+`PlacementVerbs::lookAt` aims a node at a keyed one — usually a `null`
+— resolved every frame against where that node stands. A light and a
+camera read it as their own aim, below; any other node is turned so its
+forward axis, `NodeDescription::forward`, points at the keyed node's
+origin, its x axis held square to the aim, in place of its rotation
+lanes, its axis turn and a rail's turn, while its position and its
+scales stand. The forward axis is +z, the way a quad faces, unless
+whatever built the node states the way its contents face, as
+`kit::visibleLight` does, so a group carries what it holds round with
+the aim. The aim is read where the target stood in the round of
+placement before, and the rounds the placements converge in bring a
+target moving this frame along; a node aimed at something it carries
+turns its own target and may not come to rest.
 
 `PlacementVerbs::visible` takes a node and everything under it out of the
 scene: a hidden body is not drawn, a hidden light lights nothing, and a
@@ -158,7 +171,7 @@ direction, and `hemisphereLight` from a sky above the horizon and a
 ground below it, about its node's up. A light is aimed by the direction
 it travels, and its node's rotation turns that direction — and a
 hemisphere light's up — so a light placed under a turned group turns
-with it. `Light::lookAt` aims a directional, spot, rect or disk light at a keyed
+with it. `PlacementVerbs::lookAt` aims a directional, spot, rect or disk light at a keyed
 node instead — usually a `null` — from wherever the light stands, resolved
 every frame against where that node stands; a light with no direction of
 its own is not turned, and a key no node answers to stops the frame,
@@ -201,7 +214,7 @@ is one stop. `CameraOptions::toneCurve` is that curve:
 `ToneCurve::Reinhard` divides a colour by one plus its luminance,
 `ToneCurve::Neutral` leaves a colour lit to show itself very nearly as
 it is and compresses only above a shoulder, and `ToneCurve::Linear`
-applies none. `Camera::lookAt` aims the camera at a keyed node — its
+applies none. `PlacementVerbs::lookAt` aims the camera at a keyed node — its
 target is that node's origin each frame, its eye where its placement puts
 it.
 

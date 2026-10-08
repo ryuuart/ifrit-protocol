@@ -26,15 +26,6 @@ class Camera : public Node,
  public:
   Camera() = default;
 
-  /** AIMS THE CAMERA AT THE NODE KEYED @p key — a null, usually — each
-   *  frame: its target is that node's origin, wherever it stands, and its
-   *  eye stays where its placement puts it. A key no node answers to
-   *  stops the frame, naming both. */
-  Camera& lookAt(std::string key) {
-    edit().lookAt = std::move(key);
-    return *this;
-  }
-
   /** What this node describes. */
   [[nodiscard]] const CameraDescription& description() const;
 };

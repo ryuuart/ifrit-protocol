@@ -35,12 +35,6 @@ class Light : public Node,
   Light& lightLink(Collection bodies);
   /** …the members of the one collection called @p name. */
   Light& lightLink(std::string name);
-  /** AIMS THE LIGHT AT THE NODE KEYED @p key — a null, usually — from
-   *  wherever it stands, each frame, in place of the direction it was
-   *  made with: a directional, spot, rect or disk light travels toward that
-   * node's origin. A light with no direction of its own is not turned. A key no
-   *  node answers to stops the frame, naming both. */
-  Light& lookAt(std::string key);
   /** THE BODIES THAT BLOCK THIS LIGHT — USD's shadow link: of the bodies
    *  that cast shadows, the ones that cast this light's. Unlinked, every
    *  one of them does. Read only while the light casts. */

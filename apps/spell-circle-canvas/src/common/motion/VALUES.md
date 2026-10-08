@@ -57,6 +57,9 @@ them: `from`, `to`, `keyframes`, `duration` (250ms), `delay` (0ms), `ease`
 `composition`. A tween that NAMES
 `.from` is an entrance: it plays once, when its owner first appears, and
 afterwards the property behaves as though only `.to` had been written. A
+path of keyframes is an entrance too: with no `.from` it sets out from
+where it rests, and a step that lasts nothing is taken at once, so a
+first step of no duration is where it visibly begins. A
 tween with `.to` alone eases on change: the property starts out holding
 it, and a later description carrying a different one eases there from
 wherever the value is. A keyframe with no duration takes the tween's

@@ -235,6 +235,17 @@ const Field kFields[] = {
     {"WhatALightLooksAt", [] -> Node { return lamp(); },
      [] -> Node { return lamp().lookAt("pivot"); },
      [] -> Node { return lamp().lookAt("target"); }},
+    {"TheAxisAnAimPoints", [] -> Node { return group().key("body"); },
+     [] -> Node {
+       Group body = group().key("body");
+       body.edit().forward = {0, -1, 0};
+       return body;
+     },
+     [] -> Node {
+       Group body = group().key("body");
+       body.edit().forward = {1, 0, 0};
+       return body;
+     }},
 };
 
 }  // namespace

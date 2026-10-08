@@ -1148,7 +1148,9 @@ that order whatever order they are named in; `envelope.cosine()`,
 `animate(from_=start, to=end, duration=..., delay=..., ease=...)` declares
 an entrance; `animate(to=target, ...)` alone eases the property whenever a
 later description changes its target; `keyframes=[Keyframe(value,
-duration=...), ...]` declares a path. `Tween(...)` is the same description
+duration=...), ...]` declares a path, which is an entrance too: with no
+`from_` it sets out from where it rests, and a first keyframe lasting
+nothing is where it visibly begins. `Tween(...)` is the same description
 as a value, which `animate(tween)` and `ctx.engine.animate` take. `from_`,
 `to`, `duration` and `delay` each take a `stagger(...)` as well — a delay
 ladder, a spread from the first child's value to the last's, or a table of

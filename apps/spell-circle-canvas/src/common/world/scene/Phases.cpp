@@ -17,6 +17,7 @@
 
 #include <cstring>
 #include <glm/gtc/matrix_inverse.hpp>
+#include <glm/mat3x3.hpp>
 #include <optional>
 #include <string>
 #include <utility>
@@ -114,6 +115,19 @@ PlacedLight placeLight(const LightDescription& light, const glm::mat4& world,
   placed.across = glm::dot(turned, turned) > 0.0f ? glm::normalize(turned)
                                                   : glm::vec3(1, 0, 0);
   return placed;
+}
+
+/** THE TURN THAT FACES @p ahead: its z axis along the direction, its x
+ *  axis the x axis made square to it — or the z axis, for a direction
+ *  along x — and its y axis the third, so the turn facing +z is none. It
+ *  is the rule a rect light's width and a visible light's panel are laid
+ *  by. */
+glm::mat3 facing(glm::vec3 ahead) {
+  glm::vec3 across = glm::vec3(1, 0, 0) - ahead * ahead.x;
+  if (glm::dot(across, across) < 1e-6f)
+    across = glm::vec3(0, 0, 1) - ahead * ahead.z;
+  across = glm::normalize(across);
+  return glm::mat3(across, glm::cross(ahead, across), ahead);
 }
 
 /** The viewpoint, carried the same way. */
@@ -226,6 +240,36 @@ void Scene::Impl::deriveInto(Instance& inst, const glm::mat4& parentWorld,
     local = frame * inFrame.matrix();
   } else {
     local = inst.values.matrix();
+  }
+
+  // AN AIMED NODE that is neither a light nor a camera — those two read
+  // their aim where they are gathered — is turned so its forward axis
+  // points at the keyed node's origin, read in the parent's space, where
+  // it last stood: the rounds this phase converges in carry a target
+  // that moves this frame to where it moved. Its position and its scales
+  // stand.
+  if (!node.lookAt.empty() && !node.light && !node.camera) {
+    if (const Instance* target = findKeyed(node.lookAt)) {
+      const glm::vec3 position(local[3]);
+      const glm::vec3 there(glm::inverse(parentWorld) * target->world[3]);
+      const glm::vec3 toward = there - position;
+      const float forwardLength = glm::length(node.forward);
+      if (glm::dot(toward, toward) > 1e-12f && forwardLength > 1e-6f) {
+        const glm::mat3 turn =
+            facing(glm::normalize(toward)) *
+            glm::transpose(facing(node.forward / forwardLength));
+        const glm::vec3 scales{glm::length(glm::vec3(local[0])),
+                               glm::length(glm::vec3(local[1])),
+                               glm::length(glm::vec3(local[2]))};
+        local = glm::mat4(1.0f);
+        for (int axis = 0; axis < 3; ++axis)
+          local[axis] = glm::vec4(turn[axis] * scales[axis], 0.0f);
+        local[3] = glm::vec4(position, 1.0f);
+      }
+    } else if (error.empty()) {
+      error = "the node \"" + node.key + "\" looks at \"" + node.lookAt +
+              "\", and no node in the tree answers to that key";
+    }
   }
 
   const glm::mat4 world = parentWorld * local;

@@ -31,6 +31,7 @@
 #include <concepts>
 #include <cstdint>
 #include <functional>
+#include <glm/vec3.hpp>
 #include <memory>
 #include <optional>
 #include <string>
@@ -123,9 +124,8 @@ using Memo = core::Memo<Node>;
 
 /** ONE NODE'S DESCRIPTION, field by field. Which factory made the node
  *  decides which fields it ever writes: only a group has children, only
- *  a mesh a geometry slot and a surface, only a light an emitter, only a
- *  camera a lens, and only a light or a camera a node it looks at. A
- *  null writes none of them. */
+ *  a mesh a geometry slot and a surface, only a light an emitter and only
+ *  a camera a lens. A null writes none of them. */
 struct NodeDescription {
   /** What children are matched on; empty means positional. */
   std::string key;
@@ -133,9 +133,14 @@ struct NodeDescription {
   std::optional<Along> along;
   /** Whether the node and everything under it is in the scene at all. */
   bool visible = true;
-  /** The key of the node a light or a camera is aimed at, resolved each
-   *  frame against where that node stands; empty for none. */
+  /** The key of the node this one is aimed at, resolved each frame
+   *  against where that node stands; empty for none. */
   std::string lookAt;
+  /** The node's own axis an aim points at what it looks at: +z, the way a
+   *  quad faces, unless whatever built the node states the way its
+   *  contents face. A light's aim is its direction and a camera's its
+   *  view, so neither reads it. */
+  glm::vec3 forward{0.0f, 0.0f, 1.0f};
   Geometry geometry;
   material::Backface backface = material::Backface::Hidden;
   /** Whether a body turns to face the camera. */

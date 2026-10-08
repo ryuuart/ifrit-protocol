@@ -39,8 +39,8 @@ silver surfaces — `metallic`, a roughness masked by the crinkle, `sheenColor`
 and `sheenRoughness` — and the hem tape and a two-line caption on the gold.
 The blanket and the corner are `gm::grid` sheets with their UVs laid over the
 page in page pixels. The light is `world::rectLight` inside
-`world::kit::visibleLight`, placed on its rail and aimed at the blanket each
-frame; the fill is a second, cool `rectLight`; the room is
+`world::kit::visibleLight`, placed on its rail and aimed at a null on the
+blanket with `lookAt`, which turns the light and its panel as one; the fill is a second, cool `rectLight`; the room is
 `world::kit::environmentMap` with soft boxes.
 
 ## What to look at

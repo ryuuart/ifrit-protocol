@@ -124,6 +124,22 @@ class PlacementVerbs {
     self().edit().along = Along{std::move(spline), std::move(distance)};
     return self();
   }
+  /** AIMS THE NODE AT THE NODE KEYED @p key — a null, usually — each
+   *  frame, from wherever it stands. A light shines toward that node's
+   *  origin in place of the direction it was made with, and one with no
+   *  direction of its own is not turned; a camera's target is that origin
+   *  and its eye stays where its placement puts it; any other node is
+   *  turned so its forward axis — +z, or the way a kit's contents face —
+   *  points there, its x axis held square to it, in place of its rotation
+   *  lanes, its axis turn and a rail's turn, so a group carries everything
+   *  under it round with the aim. A key no node answers to stops the
+   *  frame, naming both.
+   *  @trap A node aimed at something it carries turns what it aims at
+   *  with it, and may not come to rest. */
+  Derived& lookAt(std::string key) {
+    self().edit().lookAt = std::move(key);
+    return self();
+  }
   /** Whether the node and everything under it is in the scene: a hidden
    *  body is not drawn, a hidden light lights nothing and a hidden
    *  camera is not looked through. Shown by default. */

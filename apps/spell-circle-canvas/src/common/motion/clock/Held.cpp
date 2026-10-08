@@ -98,8 +98,9 @@ class Ramp final : public detail::Stepped {
     for (const Layer& layer : m_layers) {
       if (m_time <= layer.begin) continue;
       const double into = m_time - layer.begin;
-      const float unit =
-          layer.seconds > 0.0 ? (float)std::min(into / layer.seconds, 1.0) : 1.0f;
+      const float unit = layer.seconds > 0.0
+                             ? (float)std::min(into / layer.seconds, 1.0)
+                             : 1.0f;
       value += layer.delta * (layer.ease ? layer.ease(unit) : unit);
     }
     cell->value = value;
@@ -118,7 +119,18 @@ class Ramp final : public detail::Stepped {
   float passEnd(int index) const {
     if (m_segments.empty()) return m_start;
     const bool backwards = m_alternate && (index % 2 == 1);
-    return backwards ? m_segments.front().from : m_segments.back().to;
+    return backwards ? opening() : m_segments.back().to;
+  }
+
+  /** Where a pass sets out: its first segment's start, past every
+   *  segment that lasts nothing, since such a step is taken at once. */
+  float opening() const {
+    float value = m_segments.front().from;
+    for (const Segment& segment : m_segments) {
+      if (segment.seconds > 0.0) break;
+      value = segment.to;
+    }
+    return value;
   }
 
   /** One pass's value @p at seconds into it, played forwards. */
@@ -128,7 +140,9 @@ class Ramp final : public detail::Stepped {
         at -= segment.seconds;
         continue;
       }
-      const float unit = (float)(at / segment.seconds);
+      // A step that lasts nothing is already where it goes.
+      const float unit =
+          segment.seconds > 0.0 ? (float)(at / segment.seconds) : 1.0f;
       const float shaped = segment.ease ? segment.ease(unit) : 0.0f;
       return segment.from + (segment.to - segment.from) * shaped;
     }
@@ -138,7 +152,7 @@ class Ramp final : public detail::Stepped {
   /** The motion without its blended changes, @p time seconds in. */
   float base(double time) const {
     if (m_segments.empty()) return m_start;
-    if (time <= m_lead) return m_segments.front().from;
+    if (time <= m_lead) return opening();
     double into = time - m_lead;
     if (m_passes == 1) return within(into);
     if (m_passes > 1 && into >= m_pass * m_passes) return passEnd(m_passes - 1);
@@ -192,11 +206,11 @@ float valueOf(const HeldMotion* animated, const Animatable<float>& property) {
 }
 
 bool retarget(Engine& engine, std::unique_ptr<HeldMotion>& held,
-                       const Animatable<float>& previousValue,
-                       const Animatable<float>& nextValue,
-                       const std::optional<Tween<float>>& fallback,
-                       Place place) {
-  ResolvedProperty<float> prev = resolveProperty(previousValue, fallback, place);
+              const Animatable<float>& previousValue,
+              const Animatable<float>& nextValue,
+              const std::optional<Tween<float>>& fallback, Place place) {
+  ResolvedProperty<float> prev =
+      resolveProperty(previousValue, fallback, place);
   ResolvedProperty<float> next = resolveProperty(nextValue, fallback, place);
   // Snap semantics must actually LAND: a lingering ramp from an earlier
   // transition would shadow the constant description forever
@@ -240,7 +254,8 @@ bool retarget(Engine& engine, std::unique_ptr<HeldMotion>& held,
     // left alone it would carry the value to a STALE target (permanent,
     // since identical re-describes prune). Stop it; the description's
     // own value (== next.target) shows through.
-    if (anim && anim->started && anim->isRunning() && anim->target != next.target)
+    if (anim && anim->started && anim->isRunning() &&
+        anim->target != next.target)
       snapAnim();
     return anim && anim->isRunning();
   }
@@ -249,7 +264,8 @@ bool retarget(Engine& engine, std::unique_ptr<HeldMotion>& held,
   anim->live = current;  // seed the retarget start point
   anim->started = true;
   anim->target = next.target;
-  const float delay = segmentSeconds(how.delay.value());  // the stagger primitive
+  const float delay =
+      segmentSeconds(how.delay.value());  // the stagger primitive
   start(engine, *anim,
         std::make_shared<Ramp>(
             anim->live.cell(), current, delay > 0 ? delay : 0.0,
@@ -261,12 +277,14 @@ bool retarget(Engine& engine, std::unique_ptr<HeldMotion>& held,
 }
 
 void enter(Engine& engine, std::unique_ptr<HeldMotion>& held,
-                   const Animatable<float>& property, Place place) {
+           const Animatable<float>& property, Place place) {
   const Tween<float>* described = property.described();
-  if (!described || !described->from) return;
+  if (!described || !described->isEntrance()) return;
   const Tween<float> resolved = described->resolved(place);
   const Tween<float>* tween = &resolved;
-  const float from = tween->from->value();
+  // A path that names no `from` starts where it rests, as `Tween::at`
+  // reads it, so its first step is the first place it goes.
+  const float from = tween->start();
   std::vector<Ramp::Segment> segments;
   if (!tween->keyframes.empty()) {
     // An undurationed step takes the tween's duration divided by the
@@ -289,11 +307,20 @@ void enter(Engine& engine, std::unique_ptr<HeldMotion>& held,
   }
   // A looping entrance holds where each pass ends before the next starts.
   if (tween->loop != 0 && tween->loopDelay > Duration{})
-    segments.push_back({segments.back().to, segments.back().to,
-                        segmentSeconds(tween->loopDelay), {}});
+    segments.push_back({segments.back().to,
+                        segments.back().to,
+                        segmentSeconds(tween->loopDelay),
+                        {}});
+  // A step that lasts nothing is taken at once, so the value holds
+  // through the delay where the first step that moves sets out from.
+  float opening = from;
+  for (const Ramp::Segment& segment : segments) {
+    if (segment.seconds > 0.0) break;
+    opening = segment.to;
+  }
   auto& anim = held;
   if (!anim) anim = std::make_unique<HeldMotion>();
-  anim->live = from;
+  anim->live = opening;
   anim->started = true;
   anim->target = tween->rest();
   // The declared delay — a staggered one already resolved for this child —
@@ -310,7 +337,7 @@ bool isRunning(const HeldMotion* animated, const Animatable<float>& property) {
 }
 
 void progress(Engine& engine, std::unique_ptr<HeldMotion>& held,
-                  const Tween<float>& spec) {
+              const Tween<float>& spec) {
   if (!held) held = std::make_unique<HeldMotion>();
   held->live = 0.0f;
   held->started = true;
@@ -319,8 +346,9 @@ void progress(Engine& engine, std::unique_ptr<HeldMotion>& held,
   start(engine, *held,
         std::make_shared<Ramp>(
             held->live.cell(), 0.0f, delay > 0 ? delay : 0.0,
-            std::vector<Ramp::Segment>{
-                {0.0f, 1.0f, segmentSeconds(spec.duration.value()), spec.easing()}},
+            std::vector<Ramp::Segment>{{0.0f, 1.0f,
+                                        segmentSeconds(spec.duration.value()),
+                                        spec.easing()}},
             1, false));
 }
 

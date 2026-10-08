@@ -178,11 +178,13 @@ Group litSet(Node subject, const Set& set = {},
  *  it stands; this returns a group holding @p light and, for a light with
  *  a size, an unlit mesh of its shape and size in its colour — a rect's
  *  panel, a disk's round panel, a sphere's ball — facing the way it
- *  shines. Place and turn the GROUP, not the light, so the two move as
- *  one. The mesh is drawn as authored in the light's colour as it stands
- *  when this is called — no light reaches it and no exposure moves it —
- *  casts and receives no shadow, and is keyed `emitter`; any other kind of
- * light comes back alone in its group. */
+ *  shines. Place, turn, ride and aim the GROUP, not the light, so the two
+ *  move as one: the way the light shines is the group's forward axis, so
+ *  `lookAt(key)` on the group shines the light at that node and turns
+ *  the panel to face it, wherever `at` or `along` puts the group. The mesh is
+ * drawn as authored in the light's colour as it stands when this is called — no
+ * light reaches it and no exposure moves it — casts and receives no shadow, and
+ * is keyed `emitter`; any other kind of light comes back alone in its group. */
 Group visibleLight(Light light);
 
 /** ONE SOFT BOX in an environment map: an elliptical glow whose radiance

@@ -205,13 +205,19 @@ Group visibleLight(Light light) {
     default:
       break;
   }
-  if (!shape) return group({std::move(light)});
-  // The mesh's face, +z, turned onto the way the light shines, its x axis
-  // onto the light's width axis: the node's x made square to the
-  // direction, or its z for a light shining along x.
+  // The way the light shines is the group's forward axis, so an aim
+  // turns the light and the panel together onto what it looks at.
   const glm::vec3 ahead = glm::length(described.direction) > 1e-5f
                               ? glm::normalize(described.direction)
                               : glm::vec3(0, -1, 0);
+  if (!shape) {
+    Group alone = group({std::move(light)});
+    alone.edit().forward = ahead;
+    return alone;
+  }
+  // The mesh's face, +z, turned onto the way the light shines, its x axis
+  // onto the light's width axis: the node's x made square to the
+  // direction, or its z for a light shining along x.
   glm::vec3 across = glm::vec3(1, 0, 0) - ahead * ahead.x;
   if (glm::dot(across, across) < 1e-6f)
     across = glm::vec3(0, 0, 1) - ahead * ahead.z;
@@ -227,7 +233,9 @@ Group visibleLight(Light light) {
                      .receiveShadow(false)
                      .fill(material::surface::unlit(
                          {.baseColor = {colour.r, colour.g, colour.b, 1}}));
-  return group({std::move(light), std::move(emitter)});
+  Group seen = group({std::move(light), std::move(emitter)});
+  seen.edit().forward = ahead;
+  return seen;
 }
 
 EnvironmentMap environmentMap(const EnvironmentMapOptions& options) {

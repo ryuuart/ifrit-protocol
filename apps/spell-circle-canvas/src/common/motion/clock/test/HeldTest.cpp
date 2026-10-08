@@ -8,8 +8,6 @@
  * synthesized 0→1 progress.
  */
 
-#include "support/StandsAlone.h"
-
 #include <gtest/gtest.h>
 #include <sigilmotion/advanced/Held.h>
 #include <sigilmotion/clock/Engine.h>
@@ -24,6 +22,7 @@
 #include <optional>
 
 #include "support/Ramps.h"
+#include "support/StandsAlone.h"
 
 using namespace sigil::motion;
 using namespace std::chrono_literals;
@@ -74,8 +73,7 @@ TEST(Held, ATransitionRampsToTheTargetAndRetargetsFromWhereItIs) {
   stepBy(engine, 500ms);
   EXPECT_NEAR(held->value(), 5.0f, 1e-4f);
   // A patch to the same target leaves the motion alone.
-  EXPECT_TRUE(
-      retarget(engine, held, ramped(10.0f, 1s), ramped(10.0f, 1s), {}));
+  EXPECT_TRUE(retarget(engine, held, ramped(10.0f, 1s), ramped(10.0f, 1s), {}));
   stepBy(engine, 250ms);
   EXPECT_NEAR(held->value(), 7.5f, 1e-4f);
   // A new target starts from the current value, not from the description.
@@ -197,6 +195,32 @@ TEST(Held, AKeyframedEntrancePlaysItsStepsInTurn) {
   EXPECT_NEAR(held->value(), 5.0f, 1e-4f);
 }
 
+TEST(Held, APathWithNoFromEntersFromItsFirstStepThatLastsNothing) {
+  // A three-step swing written as its path alone: the first step lasts
+  // nothing, so the entrance sets out from it, and the value read inside
+  // the second step stands between the first two values, as `Tween::at`
+  // reads the same tween.
+  const Tween<float> swing{.keyframes = {{.to = -90.0f, .duration = 0s},
+                                         {.to = 9.0f, .duration = 1100ms},
+                                         {.to = 0.0f, .duration = 500ms}},
+                           .ease = ease::linear};
+  Engine engine;
+  std::unique_ptr<HeldMotion> held;
+  enter(engine, held, animate(swing));
+  ASSERT_TRUE(held) << "a path of keyframes is an entrance";
+  EXPECT_FLOAT_EQ(held->value(), -90.0f);
+  EXPECT_EQ(held->target, 0.0f);
+  stepBy(engine, 550ms);
+  EXPECT_NEAR(held->value(), -40.5f, 1e-3f);
+  EXPECT_NEAR(swing.at(550ms), -40.5f, 1e-3f);
+  EXPECT_FLOAT_EQ(swing.at(0s), -90.0f);
+  stepBy(engine, 800ms);
+  EXPECT_NEAR(held->value(), 4.5f, 1e-3f);
+  stepBy(engine, 500ms);
+  EXPECT_FLOAT_EQ(held->value(), 0.0f);
+  EXPECT_FALSE(held->isRunning());
+}
+
 TEST(Held, AKeyframeWithNoDurationTakesAnEqualShareOfTheEntrance) {
   Engine engine;
   std::unique_ptr<HeldMotion> held;
@@ -252,7 +276,8 @@ TEST(Held, ALoopingEntranceRepeatsAndAnAlternatingOneComesBack) {
 TEST(Held, AProgressHoldsForItsDelayThenRampsToOne) {
   Engine engine;
   std::unique_ptr<HeldMotion> held;
-  progress(engine, held, {.duration = 1s, .delay = 500ms, .ease = ease::linear});
+  progress(engine, held,
+           {.duration = 1s, .delay = 500ms, .ease = ease::linear});
   ASSERT_TRUE(held);
   EXPECT_EQ(held->value(), 0.0f);
   stepBy(engine, 500ms);
@@ -278,14 +303,15 @@ TEST(Held, IsRunningIsALiveValueOrAHeldRampThatMoves) {
 
 TEST(Held, ResolvePropertyTakesTheFallbackOnlyForAConstant) {
   const std::optional<Tween<float>> fallback = Tween<float>{.duration = 700ms};
-  const ResolvedProperty<float> constant = resolveProperty<float>(2.0f, fallback);
+  const ResolvedProperty<float> constant =
+      resolveProperty<float>(2.0f, fallback);
   EXPECT_EQ(constant.target, 2.0f);
   ASSERT_TRUE(constant.transition);
   EXPECT_EQ(constant.transition->duration.value(), 700ms);
 
   // A described motion keeps its own timing, resolved for its place.
-  const Animatable<float> fan =
-      animate({.to = stagger(10.0f), .duration = 300ms, .delay = stagger(40ms)});
+  const Animatable<float> fan = animate(
+      {.to = stagger(10.0f), .duration = 300ms, .delay = stagger(40ms)});
   const ResolvedProperty<float> third = resolveProperty(fan, fallback, {2, 4});
   EXPECT_EQ(third.target, 20.0f);
   ASSERT_TRUE(third.transition);

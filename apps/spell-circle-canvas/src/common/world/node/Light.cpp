@@ -224,11 +224,6 @@ Light& Light::lightLink(std::string name) {
   return lightLink(Collection{.include = {std::move(name)}});
 }
 
-Light& Light::lookAt(std::string key) {
-  edit().lookAt = std::move(key);
-  return *this;
-}
-
 Light& Light::shadowLink(Collection blockers) {
   if (auto& light = edit().light) light->shadowLink = std::move(blockers);
   return *this;

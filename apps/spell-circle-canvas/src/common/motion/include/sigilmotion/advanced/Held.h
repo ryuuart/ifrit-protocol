@@ -115,19 +115,20 @@ float valueOf(const HeldMotion* animated, const Animatable<float>& property);
  *  every storage. @p place is where the value's owner stands among its
  *  siblings, which a staggered tween resolves against. */
 bool retarget(Engine& engine, std::unique_ptr<HeldMotion>& held,
-                       const Animatable<float>& previousValue,
-                       const Animatable<float>& nextValue,
-                       const std::optional<Tween<float>>& fallback,
-                       Place place = {});
+              const Animatable<float>& previousValue,
+              const Animatable<float>& nextValue,
+              const std::optional<Tween<float>>& fallback, Place place = {});
 
 /** An entrance: a tween that names `.from` plays from there — through its
  *  keyframes, or to `.to` — when it FIRST appears: there is no previous
  *  value to diff against, so `from` is the "previous" the author
- *  declared. It repeats as its `loop` and `alternate` say, and every
+ *  declared. A path of keyframes with no `.from` plays from where it
+ *  rests, as `Tween::at` reads it, and a step that lasts nothing is taken
+ *  at once. It repeats as its `loop` and `alternate` say, and every
  *  staggered field resolves against @p place, where the owner stands among
  *  its siblings. A value with no entrance starts nothing. */
 void enter(Engine& engine, std::unique_ptr<HeldMotion>& held,
-                   const Animatable<float>& property, Place place = {});
+           const Animatable<float>& property, Place place = {});
 
 /** IS THIS VALUE MOVING RIGHT NOW? A live value always is — the hand that
  *  writes it can stop at any frame and nothing here can see when — and a
@@ -149,7 +150,7 @@ bool isRunning(const HeldMotion* animated, const Animatable<float>& property);
  *  than at each such site, the mount and the retarget of one cannot drift
  *  apart. */
 void progress(Engine& engine, std::unique_ptr<HeldMotion>& held,
-                  const Tween<float>& spec);
+              const Tween<float>& spec);
 
 /** Where a lane's motion is held on the node. `Family` is the host's
  *  enumeration of its storages: one fixed slot array whose rows are a
@@ -205,9 +206,8 @@ void retargetFixed(Engine& engine,
       continue;  // neither description carries it: nothing to ramp
     const Animatable<float> standing = next[i].standing;
     retarget(engine, animated[next[i].slot.index],
-                      previous[i].value ? *previous[i].value : standing,
-                      next[i].value ? *next[i].value : standing, nodeDefault,
-                      place);
+             previous[i].value ? *previous[i].value : standing,
+             next[i].value ? *next[i].value : standing, nodeDefault, place);
   }
 }
 
@@ -218,10 +218,10 @@ void retargetFixed(Engine& engine,
  *  nodes. A family of equal shape retargets lane by lane. */
 template <class Family>
 void retargetPositional(Engine& engine, HeldMotions& animated,
-                    std::span<const Lane<Family>> previous,
-                    std::span<const Lane<Family>> next,
-                    const std::optional<Tween<float>>& nodeDefault,
-                    Place place = {}) {
+                        std::span<const Lane<Family>> previous,
+                        std::span<const Lane<Family>> next,
+                        const std::optional<Tween<float>>& nodeDefault,
+                        Place place = {}) {
   if (previous.size() != next.size()) {
     animated.clear();
     animated.resize(next.size());
@@ -232,7 +232,7 @@ void retargetPositional(Engine& engine, HeldMotions& animated,
     if (animated.size() != next.size()) animated.resize(next.size());
     for (size_t i = 0; i < next.size(); ++i)
       retarget(engine, animated[i], *previous[i].value, *next[i].value,
-                        nodeDefault, place);
+               nodeDefault, place);
   }
 }
 
