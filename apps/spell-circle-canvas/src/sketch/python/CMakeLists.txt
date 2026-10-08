@@ -6,7 +6,8 @@
 sigil_library(SigilSketchPython
   SOURCES
     Module.cpp host/Catalog.cpp host/Context.cpp host/DeviceRuntimes.cpp
-    host/Entries.cpp host/Plates.cpp host/Runtime.cpp host/Schema.cpp
+    host/Entries.cpp host/Page.cpp host/Plates.cpp host/Runtime.cpp
+    host/Schema.cpp
     host/Scene3DSketches.cpp host/Testing.cpp host/WorldScene3D.cpp
     kit/Charts.cpp kit/Content.cpp kit/Controls.cpp kit/Legends.cpp
     kit/Panels.cpp
@@ -24,9 +25,13 @@ target_compile_definitions(SigilSketchPython PRIVATE
   SIGIL_PYTHON_PACKAGE_DIR="${SIGIL_PYTHON_PACKAGE_DIR}"
   SIGIL_PYTHON_ABI="${Python3_SOABI}")
 
+# The cases that bake a 3D frame bring the device up and skip without it.
 sigil_test(sketch_test
   SOURCES test/PythonTest.cpp
-  LIBRARIES SigilSketchPython SigilPython)
+  SUPPORT_DIRS ${SIGIL_GEOMETRY_DEVICE_TEST_SUPPORT_DIR}
+  LIBRARIES SigilSketchPython SigilPython SigilWorldDiligent
+  SUITES SketchPythonBakes
+  LABELS gpu)
 
 # The registry a host builds out of its own Python sketches.
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/PythonSketches.cmake)

@@ -10,6 +10,9 @@
 PYBIND11_MODULE(_sigil, module) {
   sigil::python::bindLibraries(module);
   sigil::sketch::python::bindRuntime(module);
+  // The page before the context, so the context's `page` is declared as
+  // answering the class an author imports.
+  sigil::sketch::python::bindSketchPage(module);
   sigil::sketch::python::bindSketchContextSurface(module);
   sigil::sketch::python::bindSketchEntries(module);
   sigil::sketch::python::bindSketchPlates(module);

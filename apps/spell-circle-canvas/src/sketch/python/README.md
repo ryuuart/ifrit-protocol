@@ -23,7 +23,7 @@ the installed extension use that assembly.
 
 * `host/Registration.h` — `bindRuntime`, `bindSketchCatalog`,
   `bindSketchContextSurface`, `bindSketchDeviceRuntimes`, `bindSketchEntries`,
-  `bindSketchPlates`, `bindSketchSchema`, `bindSketchScene3DSketches`,
+  `bindSketchPage`, `bindSketchPlates`, `bindSketchSchema`, `bindSketchScene3DSketches`,
   `bindSketchWorldScene3D`
 * `kit/Registration.h` — `bindSketchKit`, `bindSketchKitCharts`,
   `bindSketchKitContent`, `bindSketchKitControls`, `bindSketchKitLegends`,
@@ -35,7 +35,9 @@ source imports, sketch instances, checked context and service views,
 callback and feed leases, and file rendering through the native host.
 `host/Plates.cpp` binds the comparison of two directories of plates as the
 rows a script judges, and `host/Catalog.cpp` the registry and a catalog of
-sketch files as the rows a browser shows. `kit/Specimen.cpp` binds sketch specimen values and
+sketch files as the rows a browser shows. `host/Page.cpp` binds the page a
+baked frame lights, which `Module.cpp` registers before the context so the
+context's `page` answers the class an author imports. `kit/Specimen.cpp` binds sketch specimen values and
 typed theme providers.
 
 ## Ownership

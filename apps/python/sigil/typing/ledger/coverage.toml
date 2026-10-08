@@ -80,6 +80,16 @@ python = [
 ]
 
 [[section.surface.item]]
+native = "`Scene2DContext::page` and `sketch::Page`"
+bound_text = "`page` on the context, whose `sketch.Page` paints a tree as a surface's maps through `render(tree)`, the pass a baked frame carries, and dresses a baked body with `surface()`"
+python = [
+  "sketch.Scene2DContext.page",
+  "sketch.Page",
+  "sketch.Page.render",
+  "sketch.Page.surface",
+]
+
+[[section.surface.item]]
 native = "`sketch::Guest`"
 bound_text = "`sketch.Guest`"
 python = ["sketch.Guest"]

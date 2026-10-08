@@ -4,6 +4,7 @@
  */
 
 #include <sigilcompose/core/Composer.h>
+#include <sigilcompose/texture/SurfaceScene.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/mesh/render/Runtime.h>
 #include <sigilio/advanced/Time.h>
@@ -179,9 +180,11 @@ class Scene2DSession final : public Session {
 
   void redeclare() override {
     const PainterScope on(m_painter);
-    // The body declares everything again, its texture scenes included,
-    // so the ones it asked for last time are let go before it asks.
+    // The body declares everything again, its texture scenes and pages
+    // included, so the ones it asked for last time are let go before it
+    // asks.
     m_scenes.clear();
+    m_pages.clear();
     Scene2DContext ctx = context();
     m_sketch->setup(ctx);
     applySize();
@@ -211,9 +214,10 @@ class Scene2DSession final : public Session {
     // composer's own counters cannot see: a scene it asked for once is a
     // fixture, and a count that climbs frame by frame is a body asking
     // for one every frame.
-    if (m_scenes.empty()) return line;
+    const size_t scenes = m_scenes.size() + m_pages.size();
+    if (scenes == 0) return line;
     char held[48];
-    std::snprintf(held, sizeof held, "   scenes %zu", m_scenes.size());
+    std::snprintf(held, sizeof held, "   scenes %zu", scenes);
     return std::string(line) + held;
   }
 
@@ -375,9 +379,16 @@ class Scene2DSession final : public Session {
   Scene2DContext context() {
     // A prvalue: Scene2DContext is non-copyable, so guaranteed elision is
     // the only way it travels.
-    return Scene2DContext{*m_composer,          m_engine,         m_assets,
-                          m_specification.size, &m_specification, &m_fonts,
-                          m_deterministic,      &m_scenes,        m_key};
+    return Scene2DContext{*m_composer,
+                          m_engine,
+                          m_assets,
+                          m_specification.size,
+                          &m_specification,
+                          &m_fonts,
+                          m_deterministic,
+                          &m_scenes,
+                          m_key,
+                          &m_pages};
   }
 
   weave::FontContext& m_fonts;
@@ -390,6 +401,9 @@ class Scene2DSession final : public Session {
    *  and a texture a retained tree holds are still standing when their
    *  owners go. */
   std::vector<std::shared_ptr<compose::TextureScene>> m_scenes;
+  /** What the pages the context handed out paint into, kept beside the
+   *  texture scenes for the same reason. */
+  std::vector<std::shared_ptr<compose::SurfaceScene>> m_pages;
   std::unique_ptr<Scene2DBody> m_sketch;
   // After the sketch: reverse destruction releases retained descriptions
   // (which may point at sketch-owned Outputs) before their owner.

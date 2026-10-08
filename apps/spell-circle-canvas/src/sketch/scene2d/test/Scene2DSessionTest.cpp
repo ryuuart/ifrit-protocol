@@ -558,6 +558,30 @@ struct Blooming {
   }
 };
 
+/** A sketch that asks for a PAGE while declaring itself, paints it one
+ *  green that takes no light, and bakes a card wearing it under no light
+ *  at all: what the card shows is the page and nothing the scene lit. The
+ *  page is let go after the bake, so what stands afterwards is what the
+ *  session is holding. */
+struct Paging {
+  static inline sk_sp<SkImage> worn;
+  static inline std::string name;
+  void setup(Scene2DContext& ctx) {
+    ctx.canvas(200, 120);
+    const Page page = ctx.page({32, 32});
+    name = page.name();
+    world::Frame frame(world::group({world::mesh(gm::quad(kCardW, kCardH))
+                                         .key("card")
+                                         .fill(page.surface())})
+                           .key("set"));
+    frame.pass(page.render(
+        box().width(32).height(32).fill(Fill::color({0, 1, 0, 1}))));
+    worn = ctx.bakeScene3D(
+        frame, kBakeSize, {.camera = cardCamera(kEyeZ), .background = kGround});
+    ctx.composer.render(box().width(10).height(10));
+  }
+};
+
 /** A CASE THAT BAKES A 3D FRAME: the frame is drawn on the device, so the
  *  device runtime is installed for the process before it and taken away
  *  after, or the case skips naming what is missing. */
@@ -613,6 +637,27 @@ TEST_F(Scene2DBakes, BakesTheMomentOfAnEntranceRatherThanAlwaysItsFirstFrame) {
   // middle, which is what says the clock actually reached the end.
   EXPECT_NEAR((float)(settled.left() + settled.right()) / 2.0f,
               kBakeSize.width() / 2.0f, 1.5f);
+}
+
+TEST_F(Scene2DBakes, PaintsThePageABakedCardWears) {
+  const std::unique_ptr<Session> session =
+      kindOf<Paging>()->open(fonts(), assets());
+  ASSERT_TRUE(Paging::worn);
+  EXPECT_EQ(Paging::name, "page");
+  const SkBitmap pixels = pixelsOf(Paging::worn);
+  // The page's pass ran before the card was drawn: the card's middle is
+  // the green the page was painted, its own light, and the corner is the
+  // ground the bake was cleared to.
+  const SkColor middle =
+      pixels.getColor(kBakeSize.width() / 2, kBakeSize.height() / 2);
+  EXPECT_GT(SkColorGetG(middle), 200u);
+  EXPECT_LT(SkColorGetR(middle), 50u);
+  EXPECT_LT(SkColorGetB(middle), 50u);
+  EXPECT_EQ(pixels.getColor(1, 1),
+            material::skia::toSkColor(kGround).toSkColor());
+  // The session counts the page among what it holds for the body.
+  EXPECT_NE(session->counters().find("scenes 1"), std::string::npos)
+      << session->counters();
 }
 
 TEST(Scene2DDoors, PaintsWhatTheSketchHandedTheTextureScene) {

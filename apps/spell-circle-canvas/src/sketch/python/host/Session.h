@@ -41,6 +41,7 @@ struct State {
   Assets* assets = nullptr;
   weave::FontContext* fonts = nullptr;
   std::vector<std::shared_ptr<compose::TextureScene>>* scenes = nullptr;
+  std::vector<std::shared_ptr<compose::SurfaceScene>>* pages = nullptr;
   std::unordered_map<io::Feed, std::shared_ptr<io::Feed>> feedLeases;
   std::thread::id thread;
   std::string key;
@@ -68,6 +69,7 @@ struct State {
     assets = &ctx.assets;
     fonts = ctx.fonts;
     scenes = ctx.scenes;
+    pages = ctx.pages;
     specification = ctx.specification;
     thread = std::this_thread::get_id();
     key = ctx.key;
@@ -76,9 +78,9 @@ struct State {
   }
 
   Scene2DContext context() const {
-    return {*composer,           *engine,       *assets,
-            specification->size, specification, fonts,
-            deterministic,       scenes,        key};
+    return {*composer,     *engine, *assets,       specification->size,
+            specification, fonts,   deterministic, scenes,
+            key,           pages};
   }
 };
 

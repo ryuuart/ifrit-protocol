@@ -3,6 +3,9 @@
  */
 
 #include <gtest/gtest.h>
+#include <include/core/SkBitmap.h>
+#include <include/core/SkCanvas.h>
+#include <include/core/SkSurface.h>
 #include <include/utils/SkNoDrawCanvas.h>
 #include <sigilio/hub/Feed.h>
 #include <sigilsketch/core/Registry.h>
@@ -18,6 +21,7 @@
 #include <string_view>
 
 #include "ScratchDir.h"
+#include "support/Devices.h"
 #include "support/Fixtures.h"
 
 namespace {
@@ -656,6 +660,64 @@ TEST(SketchPython, AGlobalGraphicsCallbackDoesNotKeepItsGenerationAlive) {
   const sketch::Kind kind = sketch::python::load(source.entry());
   auto session = kind->open(fonts(), assets(), true, "checked");
   EXPECT_EQ(session->canvas().size, SkSize::Make(80, 60));
+}
+
+/** A CASE THAT BAKES A 3D FRAME from Python: the frame is drawn on the
+ *  device, so the device runtime is installed for the process before it
+ *  and taken away after, or the case skips naming what is missing. */
+class SketchPythonBakes : public testing::Test {
+ protected:
+  void SetUp() override {
+    std::string why;
+    if (!sketch::test::installDeviceRuntime(&why))
+      GTEST_SKIP() << "no Vulkan device: " << why;
+  }
+  void TearDown() override { sketch::useRuntime({}); }
+};
+
+TEST_F(SketchPythonBakes, APageThePythonSketchPaintsIsWornByTheBakedCard) {
+  PythonSource source("sigil_python_page_bake");
+  // One green page that takes no light, worn by a card under no light at
+  // all: what the card shows is the page, and the bake fills the canvas.
+  source.write("entry.py",
+               "from sigil import compose, world\n"
+               "from sigil.geometry import mesh\n"
+               "from sigil.sketch import sketch\n"
+               "\n"
+               "@sketch(size=(128, 96), background='#1a1a1a', capture_at=0)\n"
+               "class Paged:\n"
+               "    needsDevice = True\n"
+               "\n"
+               "    def setup(self, ctx):\n"
+               "        self.page = ctx.page((32, 32))\n"
+               "        lens = mesh.camera.Camera()\n"
+               "        lens.eye = (0, 0, 300)\n"
+               "        lens.target = (0, 0, 0)\n"
+               "        card = (world.mesh(mesh.quad(100, 60)).key('card')\n"
+               "                .fill(self.page.surface()))\n"
+               "        tree = compose.box().width(32).height(32)"
+               ".fill('#00ff00')\n"
+               "        frame = (world.Frame(world.group(card).key('set'))\n"
+               "                 .pass_(self.page.render(tree)))\n"
+               "        still = ctx.bakeScene3D(frame, (128, 96), "
+               "camera=lens, background='#1a1a1a')\n"
+               "        ctx.render(compose.image(still).width(128).height(96)\n"
+               "                   if still is not None else compose.box())\n");
+  const sketch::Kind kind = sketch::python::load(source.entry());
+  ASSERT_TRUE(kind->needsDevice());
+  auto session = kind->open(fonts(), assets(), true, "paged");
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(128, 96));
+  session->frame(*surface->getCanvas(), 1.0 / 60.0);
+  SkBitmap pixels;
+  pixels.allocPixels(SkImageInfo::MakeN32Premul(128, 96));
+  ASSERT_TRUE(surface->readPixels(pixels, 0, 0));
+  const SkColor middle = pixels.getColor(64, 48);
+  EXPECT_GT(SkColorGetG(middle), 200u);
+  EXPECT_LT(SkColorGetR(middle), 50u);
+  EXPECT_LT(SkColorGetB(middle), 50u);
+  // Off the card is the ground the bake was cleared to, not the page.
+  EXPECT_LT(SkColorGetG(pixels.getColor(1, 1)), 50u);
 }
 
 }  // namespace

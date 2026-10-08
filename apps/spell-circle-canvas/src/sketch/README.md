@@ -307,7 +307,7 @@ A scene2d sketch and a scene3d sketch can exchange pictures without sharing thei
 | --- | --- |
 | `ctx.textureScene(size, background)` | a Compose scene painted into a texture |
 | `ctx.bakeScene3D(frame, size, {.camera, .background, .at})` | one World frame baked into an image on a scene2d sketch's surface |
-| scene3d `ctx.page(size)` | a `sketch::Page`: a Compose page painted as a surface's maps by a pass on the frame, for the scene's lights to shade |
+| `ctx.page(size)` | a `sketch::Page`: a Compose page painted as a surface's maps by a pass on the frame, for the scene's lights to shade — on a scene3d sketch's frame, or on the frame a scene2d sketch bakes |
 
 The session retains texture scenes until the body declares again. Create one
 in `setup()`, keep the returned pointer, and update it at the scene's forward
@@ -339,6 +339,28 @@ struct Plate {
   world::Frame describe(motion::Duration now) {
     return world::Frame(world::group({world::mesh(sheet).fill(page.surface())}))
         .pass(page.render(tree(now)));
+  }
+};
+```
+
+A scene2d sketch asks `Scene2DContext::page` for the same page and wears it
+on the frame it bakes: the frame carries `page.render(tree)`, a body on it
+wears `page.surface()`, and `bakeScene3D` runs the page's pass at the bake's
+moment before anything draws a body. The session keeps what the page paints
+into until the body declares again, as it keeps a texture scene; the page is
+painted on the device a live session draws on, and on the CPU for a capture
+that will be diffed.
+
+```cpp
+struct Plaque {
+  sketch::Page page;
+  void setup(sketch::Scene2DContext& ctx) { page = ctx.page({768, 384}); }
+  void update(double seconds, sketch::Scene2DContext& ctx) {
+    world::Frame frame(world::group({world::mesh(plate).fill(page.surface())}));
+    frame.pass(page.render(face(seconds)));
+    auto still = ctx.bakeScene3D(frame, {960, 540},
+                                 {.camera = lens, .at = motion::Duration(seconds)});
+    // …paint `still` on the sketch's own page
   }
 };
 ```
@@ -474,6 +496,11 @@ session system; Grimoire is one that does. Saving imports a fresh body without c
 `uv run sigil open sketch.py` launches Grimoire with that project's Python
 dependencies. A `pyproject.toml` configures the environment; it does not select
 the entry module. Helpers remain ordinary imports.
+
+A Python sketch is a scene2d sketch: it shows a lit scene by baking a frame,
+and dresses a body in Compose through `ctx.page((width, height))`, whose
+`render(tree)` is the pass the baked frame carries and whose `surface()` the
+body wears. `python_plaque` is one.
 
 Reusable bindings belong to SigilPython. SigilSketchPython adds sketch sessions
 and kit support without adding Python to the core library, and its

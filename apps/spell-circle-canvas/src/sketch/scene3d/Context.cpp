@@ -13,6 +13,9 @@
 
 #include <string>
 #include <utility>
+#include <vector>
+
+#include "KeptPage.h"
 
 namespace sigil::sketch {
 
@@ -55,7 +58,10 @@ std::shared_ptr<compose::TextureScene> Scene3DContext::textureScene(
   return scene;
 }
 
-Page Scene3DContext::page(glm::ivec2 size) {
+namespace detail {
+
+Page keptPage(glm::ivec2 size, weave::FontContext& fonts, bool deterministic,
+              std::vector<std::shared_ptr<compose::SurfaceScene>>* pages) {
   // A page painted as maps takes no pixel bake, so a capture that will be
   // diffed has no promotion decision to pin. Kept by the session, as a
   // texture scene is.
@@ -63,12 +69,16 @@ Page Scene3DContext::page(glm::ivec2 size) {
       compose::SurfaceScene::make(SkISize::Make(size.x, size.y), fonts);
   if (!scene) return Page();
   standOnTheDevice(*scene, deterministic);
-  // The first page is "page"; each one after it is numbered, so two pages
-  // on one frame are two passes an error can tell apart.
   const size_t made = pages ? pages->size() : 0;
   if (pages) pages->push_back(scene);
   return Page(std::move(scene),
               made == 0 ? "page" : "page " + std::to_string(made + 1));
+}
+
+}  // namespace detail
+
+Page Scene3DContext::page(glm::ivec2 size) {
+  return detail::keptPage(size, fonts, deterministic, pages);
 }
 
 }  // namespace sigil::sketch

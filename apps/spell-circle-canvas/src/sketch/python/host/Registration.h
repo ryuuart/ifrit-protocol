@@ -32,6 +32,8 @@ void bindSketchPlates(pybind11::module_& module);
 /** Registers a Python sketch's own schema, and a settled page on @p
  *  module. */
 void bindSketchSchema(pybind11::module_& module);
+/** Registers a page a baked 3D frame lights on @p module. */
+void bindSketchPage(pybind11::module_& module);
 /** Registers a Python scene3d sketch on @p module. */
 void bindSketchScene3DSketches(pybind11::module_& module);
 /** Registers the Python scene3d kind and a scene on the session engine on

@@ -1,6 +1,7 @@
 /** @file
  * What a scene2d sketch's context hands it beyond its declarations: a
- * compose scene kept as a texture, and a lit scene baked to an image.
+ * compose scene kept as a texture, a page a baked scene lights, and a lit
+ * scene baked to an image.
  */
 
 #include <include/core/SkCanvas.h>
@@ -15,6 +16,8 @@
 #include <sigilworld/advanced/Skia.h>
 #include <sigilworld/frame/Frame.h>
 #include <sigilworld/scene/Scene.h>
+
+#include "../scene3d/KeptPage.h"
 
 namespace sigil::sketch {
 
@@ -32,6 +35,11 @@ std::shared_ptr<compose::TextureScene> Scene2DContext::textureScene(
   // value and the scene outlives every one of them.
   if (scenes) scenes->push_back(scene);
   return scene;
+}
+
+Page Scene2DContext::page(glm::ivec2 size) {
+  if (!fonts) return Page();
+  return detail::keptPage(size, *fonts, deterministic, pages);
 }
 
 sk_sp<SkImage> Scene2DContext::bakeScene3D(const world::Frame& frame,

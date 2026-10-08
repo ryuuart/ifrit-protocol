@@ -14,11 +14,13 @@
 #include <sigilsketch/core/CanvasSpecification.h>
 #include <sigilsketch/scene2d/Guest.h>
 #include <sigilsketch/scene2d/Scene2D.h>
+#include <sigilsketch/scene3d/Page.h>
 #include <sigilworld/frame/Frame.h>
 
 #include <array>
 #include <cmath>
 #include <filesystem>
+#include <glm/vec2.hpp>
 #include <memory>
 #include <optional>
 #include <stdexcept>
@@ -48,6 +50,14 @@ void checkCanvasSize(SkSize size) {
   if (!std::isfinite(size.width()) || !std::isfinite(size.height()) ||
       size.width() <= 0 || size.height() <= 0)
     throw py::value_error("Canvas dimensions must be finite and positive");
+}
+
+/** A page's size in its own pixels, refused before a scene is made of
+ *  it: a page of no width paints nothing a body could wear. */
+glm::ivec2 pagePixels(std::array<int, 2> size) {
+  if (size[0] <= 0 || size[1] <= 0)
+    throw py::value_error("A page's size must be positive");
+  return {size[0], size[1]};
 }
 
 SkISize pixels(std::array<int, 2> size) {
@@ -195,6 +205,16 @@ void bindContext(py::module_& module) {
           py::arg("camera") = geometry::mesh::camera::Camera{},
           py::arg("background") = material::Color{0, 0, 0, 0},
           py::arg("at") = 0.0)
+      .def(
+          "page",
+          [](const Context& ctx, std::array<int, 2> size) {
+            return ctx.state()->context().page(pagePixels(size));
+          },
+          py::arg("size"),
+          "A page a baked 3D frame lights, size pixels across: put "
+          "page.render(tree) on the frame and page.surface() on the body "
+          "that shows it. The session keeps what it paints into until the "
+          "sketch declares again; ask while declaring and hold the page.")
       .def(
           "local",
           [](const Context& ctx, const std::string& name) {

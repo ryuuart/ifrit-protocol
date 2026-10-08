@@ -59,15 +59,18 @@
 #include <sigilsketch/core/Members.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
+#include <sigilsketch/scene3d/Page.h>
 
 #include <algorithm>
+#include <glm/vec2.hpp>
 #include <memory>
 #include <optional>
 #include <vector>
 
 namespace sigil::compose {
+class SurfaceScene;
 class TextureScene;
-}
+}  // namespace sigil::compose
 namespace sigil::world {
 class Frame;
 }
@@ -124,6 +127,9 @@ struct Scene2DContext {
   /** Host-owned: the texture scenes `textureScene()` handed out, kept
    *  for the session's life. */
   std::vector<std::shared_ptr<compose::TextureScene>>* scenes = nullptr;
+  /** Host-owned: what the pages `page()` handed out paint into, kept for
+   *  the session's life. */
+  std::vector<std::shared_ptr<compose::SurfaceScene>>* pages = nullptr;
   /** The sketch's registry key, and the files beside it: `local("x.csv")`
    *  is the URI of the file `x.csv` in the directory the sketch's entry
    *  stands in, which `assets.hub().load<data::Table>()` and
@@ -141,7 +147,8 @@ struct Scene2DContext {
       sigil::weave::FontContext* fontsIn = nullptr,
       bool deterministicIn = false,
       std::vector<std::shared_ptr<compose::TextureScene>>* scenesIn = nullptr,
-      std::string_view keyIn = {})
+      std::string_view keyIn = {},
+      std::vector<std::shared_ptr<compose::SurfaceScene>>* pagesIn = nullptr)
       : composer(composerIn),
         engine(engineIn),
         assets(assetsIn),
@@ -149,6 +156,7 @@ struct Scene2DContext {
         specification(specificationIn),
         fonts(fontsIn),
         scenes(scenesIn),
+        pages(pagesIn),
         key(keyIn),
         deterministic(deterministicIn) {}
   Scene2DContext(const Scene2DContext&) = delete;
@@ -176,6 +184,31 @@ struct Scene2DContext {
    *  Null only where the host lent no fonts. */
   [[nodiscard]] std::shared_ptr<compose::TextureScene> textureScene(
       SkISize size, sigil::material::Color background = {0, 0, 0, 0});
+
+  /** A PAGE A BAKED 3D FRAME LIGHTS, @p size pixels across: a compose
+   *  tree painted as the maps of a surface by a pass on the frame. It is
+   *  the page a scene3d sketch asks its own context for, and it is worn
+   *  the same way:
+   *
+   *      world::Frame frame(world::group({…,
+   *                                       world::mesh(plate).fill(page.surface())}));
+   *      frame.pass(page.render(tree));
+   *      auto still = ctx.bakeScene3D(frame, {640, 480}, options);
+   *
+   *  The bake runs the page's pass at the bake's moment before anything
+   *  draws a body, so the tree a frame carries is the one its body wears.
+   *  A tree that has not changed since the page last painted is not
+   *  painted again, so a body that carries the same tree every frame pays
+   *  for the paint once.
+   *
+   *  THE SESSION KEEPS what the page paints into, as it keeps a
+   *  `textureScene()`, and lets go of it when the body declares again.
+   *  Ask while declaring and hold the page; a body asking every frame
+   *  holds every frame's page until the next declaration.
+   *
+   *  No page — its pass paints nothing and its surface is the stock one —
+   *  where the host lent no fonts. */
+  [[nodiscard]] Page page(glm::ivec2 size);
 
   /** A LIT 3D SCENE RENDERED ONCE INTO AN IMAGE @p size pixels across — the
    *  picture INSIDE a page. A scene2d plate is

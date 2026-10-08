@@ -1541,9 +1541,41 @@ the scalar each instance carries under `frameAttribute` — and
 material along a texture of directions. `python_flipbook_fire` wears all
 three.
 
+A body's material can be a Compose page. `ctx.page((width, height))` makes
+a `sketch.Page` the session keeps until the sketch declares again: ask for it
+in `setup` and hold it. `page.render(tree)` is the pass that paints the tree
+as the maps of a surface — base colour, normal, roughness, metalness,
+occlusion, emission and clear coat, each where the tree's materials state
+them — and `page.surface()` is the material a body wears to show it. Put the
+pass on the frame the sketch bakes with `frame.pass_(...)`; the bake runs it
+at its moment, before anything draws a body, and a body wearing the surface
+on a frame without the pass is an error naming both. Every lit material in
+the tree paints its own maps — a `surface(...)` fill, an `ink`, a
+`compose.relief(...)` decoration for raised or impressed type — and content
+that states no surface is its own light, so the scene's lights,
+environment and camera shade everything else. A tree that has not changed
+since the page last painted is not painted again. `python_plaque` wears one.
+
+```python
+@sketch(size=(960, 540), capture_at=2.0)
+class Plaque:
+    needsDevice = True
+
+    def setup(self, ctx):
+        self.page = ctx.page((768, 384))
+        self.plate = mesh.quad(320, 160)
+
+    def draw(self, pen, ctx):
+        body = world.mesh(self.plate).key("plaque").fill(self.page.surface())
+        frame = world.Frame(world.group(light, body)).pass_(self.page.render(face()))
+        still = ctx.bakeScene3D(frame, (960, 540), camera=lens, at=pen.millis() / 1000)
+        if still is not None:
+            pen.image(still, 0, 0)
+```
+
 The device runtime itself, texture-map sets, point clouds, curve rides,
-sweeps, a scene3d sketch's `Page`, custom pass callbacks and readbacks remain
-unbound; the Python API does not claim GPU PBR parity.
+sweeps, custom pass callbacks and readbacks remain unbound; the Python API
+does not claim GPU PBR parity.
 
 ## Example gallery
 

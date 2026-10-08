@@ -1,6 +1,6 @@
 """Everything a scene2d sketch is handed: the canvas it declares, the files
-beside it, the scene3d sketch it bakes, the art it requires and the
-publication it wears.
+beside it, the scene3d sketch it bakes and the page that bake lights, the art
+it requires and the publication it wears.
 """
 
 import builtins
@@ -204,6 +204,69 @@ class HostContextSurface(unittest.TestCase):
         for refusal in refusals[:2]:
             self.assertIn("positive", refusal)
         self.assertIn("finite and nonnegative", refusals[2])
+
+    def test_a_page_paints_a_tree_for_a_baked_frame_and_is_worn_as_a_surface(
+        self,
+    ):
+        # A page is the pass that paints a tree as a surface's maps and the
+        # material a body wears to show it. This process brings no device up,
+        # so the bake that carries it answers None; the page, its pass and
+        # its surface are made all the same, and a size that could never be
+        # painted is refused.
+        self.render("""
+            import builtins
+            from sigil import compose, material, world
+            from sigil.geometry import mesh
+            from sigil.sketch import Page, sketch
+
+
+            @sketch(size=(80, 80), capture_at=0)
+            class Paged:
+                def setup(self, ctx):
+                    first = ctx.page((32, 32))
+                    second = ctx.page((16, 8))
+                    tree = compose.box().width(32).height(32).fill("#00ff00")
+                    painting = first.render(tree)
+                    worn = first.surface()
+                    card = world.mesh(mesh.quad(100, 60)).key("card").fill(worn)
+                    frame = world.Frame(world.group(card).key("set")).pass_(painting)
+                    still = ctx.bakeScene3D(frame, (64, 64))
+                    refusals = []
+                    for bad in ((0, 8), (8, -1)):
+                        try:
+                            ctx.page(bad)
+                        except ValueError as error:
+                            refusals.append(str(error))
+                    builtins._sigil_host_context = (
+                        isinstance(first, Page),
+                        first.name,
+                        second.name,
+                        Page().name,
+                        isinstance(painting, world.Pass),
+                        isinstance(worn, material.Material),
+                        still,
+                        refusals,
+                    )
+                    ctx.render(compose.box())
+        """)
+        (
+            is_page,
+            first,
+            second,
+            none,
+            is_pass,
+            is_material,
+            still,
+            refusals,
+        ) = builtins._sigil_host_context
+        self.assertTrue(is_page)
+        self.assertEqual((first, second, none), ("page", "page 2", ""))
+        self.assertTrue(is_pass)
+        self.assertTrue(is_material)
+        self.assertIsNone(still)
+        self.assertEqual(len(refusals), 2)
+        for refusal in refusals:
+            self.assertIn("positive", refusal)
 
     def test_required_art_stands_a_sketch_down_with_the_first_missing_url(self):
         with tempfile.TemporaryDirectory() as directory:

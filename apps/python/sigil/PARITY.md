@@ -53,19 +53,19 @@ that its pixels match the original.
 | Catalog · Game UI | 5 | 1 | 0 |
 | Catalog · Generative | 2 | 0 | 0 |
 | Catalog · Tiling | 1 | 0 | 0 |
-| Study · Type | 10 | 0 | 0 |
+| Study · Type | 8 | 0 | 0 |
 | Study · Pattern | 4 | 0 | 0 |
 | Study · Paint | 2 | 2 | 0 |
 | Study · Motion | 4 | 0 | 0 |
-| Study · Film | 5 | 0 | 0 |
+| Study · Film | 4 | 0 | 0 |
 | Study · Science | 5 | 0 | 0 |
 | Study · Esoteric | 4 | 0 | 0 |
 | Study · Screens | 6 | 0 | 0 |
-| Study · Game UI | 11 | 0 | 0 |
+| Study · Game UI | 9 | 0 | 0 |
 | Study · Effects | 1 | 0 | 1 |
 | Study · Lighting | 2 | 0 | 0 |
-| Study · Materials | 19 | 0 | 0 |
-| **All** | **249** | **57** | **10** |
+| Study · Materials | 10 | 0 | 0 |
+| **All** | **235** | **57** | **10** |
 
 Every sketch in Draw, Draw · Generative, Draw · Observable reproductions, Draw
 · Procedural, Kit · Depth, Compose · Typography and Study · Paint is bound.
@@ -171,7 +171,7 @@ These public modules are registered and export nothing yet:
 
 | Surface | Bound | Not yet bound |
 | --- | --- | --- |
-| Scene2D sketches | `@sketch` classes, whose `setup`, `update` and `draw` may omit trailing arguments of `setup(ctx)`, `update(elapsed, ctx)` and `draw(pen, ctx)`, and which the catalogue and external workspaces discover; undecorated classes with `setup` and an optional `update`, which open only from their file path; a checked context (`canvas`, `background`, `captureAt`, `oversample`, `plate`, `nonlinearPicture`, `render`, `measure`, `snapshot`, `measured`, `local` and the session readings) that rejects use after teardown or from another thread; checked assets (`hub`, `root`); a fresh import of the source and its local modules each time a sketch opens; catalogue metadata read from docstrings, `TAGS` and `REQUIRES`; `render_file` through the native host; `bakeScene3D`, `canvas` over a `CanvasSpecification` (whose `paintDiscardedFrames` lets unobserved capture steps go unpainted) and `key` on the context; `sketch.Guest`; `requireCached` | Scene3D sketches: `sketch::Scene3DContext` and `describe(now)` returning a `world::Frame`; `Scene2DContext::textureScene` and `fonts`; `painterRuntime` and `device`; a declared `available(why)` probe; a registered name or category other than the file stem and `Python`; the per-sketch `<stem>.fbs` schema rule, which runs only for C++ entries; `sketch::scry` settling |
+| Scene2D sketches | `@sketch` classes, whose `setup`, `update` and `draw` may omit trailing arguments of `setup(ctx)`, `update(elapsed, ctx)` and `draw(pen, ctx)`, and which the catalogue and external workspaces discover; undecorated classes with `setup` and an optional `update`, which open only from their file path; a checked context (`canvas`, `background`, `captureAt`, `oversample`, `plate`, `nonlinearPicture`, `render`, `measure`, `snapshot`, `measured`, `local` and the session readings) that rejects use after teardown or from another thread; checked assets (`hub`, `root`); a fresh import of the source and its local modules each time a sketch opens; catalogue metadata read from docstrings, `TAGS` and `REQUIRES`; `render_file` through the native host; `bakeScene3D`, `canvas` over a `CanvasSpecification` (whose `paintDiscardedFrames` lets unobserved capture steps go unpainted) and `key` on the context; `page` on the context, whose `sketch.Page` paints a tree as a surface's maps through `render(tree)`, the pass a baked frame carries, and dresses a baked body with `surface()`; `sketch.Guest`; `requireCached` | Scene3D sketches: `sketch::Scene3DContext` and `describe(now)` returning a `world::Frame`; `Scene2DContext::textureScene` and `fonts`; `painterRuntime` and `device`; a declared `available(why)` probe; a registered name or category other than the file stem and `Python`; the per-sketch `<stem>.fbs` schema rule, which runs only for C++ entries; `sketch::scry` settling |
 | Composer | Checked `ctx.composer`: `render`, `renderSlot`, `bounds`, `hitTest`, `settling`, `isRunning`, `dirty`, `purgeCaches` and owned `stats`; `scheduleSpan`, in seconds; `setInherited` and `setView`; `setProfiling` with `profile`, `setCompositeCounting`, `setAutoTexturePromotion` and `setBakeDensity`; a standalone `compose.Composer` over an optional `motion.Engine`, driven through `setSize`, `draw`, `setPointer` and `setKey` | `paragraphLayout`, `beatsOf` and `units` |
 | Engine | Checked `ctx.engine`: `animate` over a live value, `timeline` with `add`, `call` and `label` at `at`, `afterEnd`, `afterPrevious`, `withPrevious` and `atLabel`, and `timer` with a callback of zero to two arguments that returns `False` to stop, a `stepRate` with its catch-up limit, `betweenSteps` and `droppedTime`, a `frameRate`, a `duration` and a `delay`; `elapsed` and `isRunning`; every `Playback` verb: `play`, `pause`, `resume`, `restart`, `reverse`, `alternate`, `seek`, `complete`, `cancel`, `revert` and `onComplete`, with `isRunning`, `isPaused`, `isCompleted`, `currentTime` and `progress`; a World scene moves its own engine through `Scene.advance`; a standalone `motion.Engine` over `EngineOptions`, moved by `advance` or `advanceWall`, under a `ClockPolicy` and a budget, held, sped and restarted | Nothing |
 | Memo | `compose.memo(properties, describe)`: a deep-copied model compared with Python equality, native reconciliation, the inherited environment restored around the deferred builder, and builder failures reported with a traceback | `copy.deepcopy` on every bound value type, which the enumerations and several values still refuse, so a model cannot hold every bound value; Python values in `core::environment` (`Provide`, `inherited`, `inheritedOr`, `bound`), so a Python kit's own theme is not a captured dependency |
@@ -285,7 +285,7 @@ found; `sigil.core.optionalLibraries()` names the ones a build carries.
 
 ## Python studies
 
-The 23 bundled Python sketches are authoring studies. Seven port a native
+The 24 bundled Python sketches are authoring studies. Seven port a native
 sketch, three adapt one, and the rest exercise the Python surface without a
 native counterpart.
 
@@ -317,6 +317,7 @@ NumPy, which the package's `studies` extra supplies.
 | `python_observable_reaction_diffusion` | A NumPy Gray–Scott simulation and bulk pixel transfer | Ports `observable_reaction_diffusion` |
 | `python_observable_reynolds` | Stateful flocking, seeded initialization and transforms | Ports `observable_reynolds_steering` |
 | `python_orbits` | Periodic arcs and fading trails computed from the scene clock | — |
+| `python_plaque` | One Compose page as the material of a baked plaque: stone, copper type raised on a rounded shoulder, a glowing rule and flat ink, lit by a moving key and a studio environment | — |
 | `python_type_atelier` | Mixed runs, inline slots, named selections, initial letters, balanced story frames and a curved baseline | — |
 | `python_world_study` | One vessel mesh under keyed scene nodes, three dielectric finishes and a moving three-point rig, baked on the device | — |
 
