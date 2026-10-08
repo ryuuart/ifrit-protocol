@@ -1882,30 +1882,11 @@ solid should be able to carry two surfaces, one per face set, as a
 `Mesh` with named parts does. A test should extrude a square with a page
 projected onto it and find the wall pixels the colour of the page's edge.
 
-## Authoring gap: text as an outline takes a text context and three calls
+## `weave::glyphOutline` and `material::remap` are not bound in Python
 
-Turning a string into a `geometry::path::Outline` at a size and centre
-takes a `weave::TextContext`, `singleLine().layout().glyphOutline()` and
-a recentre by hand; `carved_marks` and `struck_metal` each write it, and
-`struck_metal` still builds its outlines through Skia.
-
-SigilWeave should offer one door — the text, a face, a size and where its
-centre stands, answering the outline — and `struck_metal` should use it.
-A test should outline one glyph and find its bounds centred where it was
-asked for.
-
-## Authoring gap: a mask by luminance and a remapped depth need helpers in the sketch
-
-Masking a layer by a material's luminance is a `material::Mask` the
-layer options cannot be brace-initialised with, and "this depth map,
-mapped from one value to another" has no door, so a metalness,
-roughness or clear-coat channel driven by one depth map is written as a
-two-layer material each time. `carved_marks` carries both helpers.
-
-SigilMaterial should take a mask as a layer option that brace-initialises
-from a material and a channel, and offer a remap of a scalar material
-between two values. A test should drive a channel from a depth map
-through the remap and find the stated range at the map's extremes.
+The text-as-outline door and the scalar remap have no Python spelling; a
+test should outline a glyph and remap a ramp from Python and read what the
+C++ cases read.
 
 ## Renderer gap: a page cannot glow above white
 

@@ -17,9 +17,7 @@
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilsketch/scene3d/Scene3D.h>
-#include <sigilweave/choreograph/PlacedGlyph.h>
-#include <sigilweave/fonts/Shaper.h>
-#include <sigilweave/layout/TextContext.h>
+#include <sigilweave/layout/GlyphOutline.h>
 #include <sigilworld/World.h>
 
 #include <algorithm>
@@ -127,36 +125,6 @@ path::Outline placed(const path::Outline& outline, float x, float y,
   matrix.postTranslate(x, y);
   return path::fromSk(
       SkPathBuilder().addPath(path::toSk(outline), matrix).detach());
-}
-
-// Weave supplies shaped glyph IDs and placement, and Skia exposes each
-// glyph's vector outline. The combined outline keeps its counters for
-// the geometry extrusion; raster text would lose the physical side walls.
-path::Outline lettering(weave::TextContext& text, const weave::Face& face,
-                        std::u8string_view words, float size,
-                        float tracking = 0) {
-  weave::TextStyle style;
-  style.shaping.typeface = face;
-  style.shaping.fontSize = size;
-  style.shaping.letterSpacing = tracking;
-  const auto line = text.singleLine(words, style, {0, 0});
-  SkPathBuilder builder;
-  weave::forEachPlacedGlyph(
-      line.layout(), line.paragraph(), [&](const weave::PlacedGlyph& glyph) {
-        const auto& word = *glyph.shaped;
-        const SkFont font =
-            weave::makeFont(word.typeface, word.fontSize, word.scaleX);
-        if (auto outline = font.getPath(glyph.glyph))
-          builder.addPath(*outline,
-                          SkMatrix::Translate(glyph.rest.x, glyph.rest.y));
-      });
-  const SkPath outline = builder.detach();
-  const SkRect bounds = outline.computeTightBounds();
-  return path::fromSk(
-      SkPathBuilder()
-          .addPath(outline,
-                   SkMatrix::Translate(-bounds.centerX(), -bounds.centerY()))
-          .detach());
 }
 
 world::Mesh part(std::string_view key, const gm::Mesh& mesh,
@@ -316,7 +284,6 @@ struct StruckMetal {
     aluminum = metal({0.73f, 0.78f, 0.80f, 1}, 0.2f);
     enamel = material::surface::program(
         {.baseColor = ink(0x12382e), .roughness = 0.14f});
-    weave::TextContext text(ctx.fonts);
     auto sans = ctx.fonts.familyTypeface("Helvetica Neue", {.weight = 700});
     auto serif = ctx.fonts.familyTypeface("Baskerville", {.weight = 700});
     if (!sans) sans = ctx.fonts.defaultTypeface();
@@ -327,7 +294,8 @@ struct StruckMetal {
     const path::Outline window = placed(roundRect(368, 73, 7), 225, 82);
     const path::Outline caseOutline =
         outer.subtracted(aperture).subtracted(window);
-    const path::Outline recessWords = lettering(text, sans, u8"STRIKE", 45, 4);
+    const path::Outline recessWords = weave::glyphOutline(
+        ctx.fonts, u8"STRIKE", {.face = sans, .size = 45, .track = 4});
     const path::Outline recess = placed(recessWords, 210, -115);
     const auto frontOutline = caseOutline.subtracted(recess);
     std::vector<world::Node> chassisParts{
@@ -375,11 +343,16 @@ struct StruckMetal {
     medallion.push_back(part("engraved-scale", ticks, aluminum));
     raisedNumber = part(
         "raised-counter",
-        gm::extrude(lettering(text, serif, u8"08", 61), kLetterDepth), brass);
-    raisedTitle =
-        part("raised-title",
-             gm::extrude(lettering(text, sans, u8"AURUM", 44, 5), kLetterDepth),
-             brass);
+        gm::extrude(
+            weave::glyphOutline(ctx.fonts, u8"08", {.face = serif, .size = 61}),
+            kLetterDepth),
+        brass);
+    raisedTitle = part(
+        "raised-title",
+        gm::extrude(weave::glyphOutline(ctx.fonts, u8"AURUM",
+                                        {.face = sans, .size = 44, .track = 5}),
+                    kLetterDepth),
+        brass);
 
     controls =
         world::group({turnControl("brass-control", 38, brass, aluminum)
@@ -390,16 +363,18 @@ struct StruckMetal {
                           .at({368, 8, kFace + 3})})
             .key("turned-controls");
     for (int i = 0; i < 3; ++i) {
-      const auto caption = lettering(text, sans,
-                                     i == 0   ? u8"IMPULSE"
-                                     : i == 1 ? u8"RELIEF"
-                                              : u8"INDEX",
-                                     13, 1.2f);
+      const auto caption =
+          weave::glyphOutline(ctx.fonts,
+                              i == 0   ? u8"IMPULSE"
+                              : i == 1 ? u8"RELIEF"
+                                       : u8"INDEX",
+                              {.face = sans, .size = 13, .track = 1.2f});
       chassisParts.push_back(part("control-name-" + std::to_string(i),
                                   gm::extrude(caption, 1.6f), aluminum,
                                   {88 + i * 140.0f, -43, kFace + 1.6f}));
     }
-    const auto registerWords = lettering(text, sans, u8"0 2 4 8", 43, 7);
+    const auto registerWords = weave::glyphOutline(
+        ctx.fonts, u8"0 2 4 8", {.face = sans, .size = 43, .track = 7});
     registerStrip =
         world::group(
             {part("cut-register",
@@ -427,7 +402,8 @@ struct StruckMetal {
       }
     chassis = world::group(chassisParts).key("chassis");
 
-    const auto sampleWord = lettering(text, serif, u8"R8", 59);
+    const auto sampleWord =
+        weave::glyphOutline(ctx.fonts, u8"R8", {.face = serif, .size = 59});
     std::vector<world::Node> couponParts;
     for (int i = 0; i < 2; ++i) {
       const float relief = i == 0 ? 0.8f : 16;
@@ -440,7 +416,8 @@ struct StruckMetal {
               .at({-330 + i * 315.0f, -277, 95})
               .rotateX(-5));
     }
-    const auto stencil = lettering(text, sans, u8"B8", 59, 3);
+    const auto stencil = weave::glyphOutline(
+        ctx.fonts, u8"B8", {.face = sans, .size = 59, .track = 3});
     path::Outline cuts = stencil;
     // Narrow bridges keep counter islands attached to a real stencil.
     for (float y : {-15.0f, 0.0f, 15.0f})

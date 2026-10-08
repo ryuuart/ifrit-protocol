@@ -45,8 +45,15 @@ The four parts have distinct jobs:
 | `effects()` | Apply a filter chain to rendered coverage: shadows, glows, strokes or bevels. |
 
 A layer mask takes a material source, a channel, a `[low, high]` range and
-an optional inversion. The range maps to coverage `[0, 1]`. Surface channels
-can be constants or materials where their types allow it.
+an optional inversion, stated in place in the layer's options:
+`{.mask = {depth, material::ColorChannel::Luminance}}`, or
+`{.mask = {depth, material::ColorChannel::Luminance, 0.2f, 0.8f, true}}`.
+The range maps to coverage `[0, 1]`. Surface channels can be constants or
+materials where their types allow it, and `material::remap()` turns one
+channel of a map into the stretch of values a channel wants — a metalness
+of one in a carving's hollows and zero on its face is
+`material::remap(depth, {.to = {0, 1}})`, and `RemapOptions::from` says
+which stretch of the map is read.
 
 The designated form is useful when the parts are already data:
 

@@ -26,7 +26,7 @@
 #include <sigilmaterial/texture/Image.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/scene3d/Scene3D.h>
-#include <sigilweave/layout/TextContext.h>
+#include <sigilweave/layout/GlyphOutline.h>
 #include <sigilworld/World.h>
 
 #include <cmath>
@@ -48,6 +48,7 @@ namespace world = sigil::world;
 namespace {
 
 using compose::Element;
+using material::ColorChannel;
 using material::hexColor;
 
 constexpr float kLoop = 16, kPi = 3.14159265358979f;
@@ -60,22 +61,6 @@ constexpr glm::vec2 kStoneFace{1040, 600}, kBronzeFace{700, 430},
 constexpr float kStoneThickness = 120, kStoneCut = 16;
 constexpr float kBronzeThickness = 16, kBronzeRaise = 9;
 constexpr float kTileThickness = 26;
-
-/** The die's lettering at @p size, centred on @p centre in a face's own
- *  page pixels: the glyph contours a layout placed, counters kept. */
-path::Outline lettering(weave::TextContext& text, const weave::Face& face,
-                        std::u8string_view words, float size, float tracking,
-                        glm::vec2 centre) {
-  weave::TextStyle style;
-  style.shaping.typeface = face;
-  style.shaping.fontSize = size;
-  style.shaping.letterSpacing = tracking;
-  const auto outline =
-      text.singleLine(words, style, {0, 0}).layout().glyphOutline();
-  const auto bounds = outline.bounds();
-  return outline.transformed(
-      path::Transform::translate(centre - bounds.centre()));
-}
 
 /** A rectangle of @p size with its corners rounded to @p radius. */
 path::Outline slab(glm::vec2 size, float radius) {
@@ -149,10 +134,6 @@ material::Material depthOf(const compose::TextureScene& scene) {
                              .sampling(material::Sampling::Linear));
 }
 
-material::Mask where(const material::Material& depth) {
-  return {depth, material::ColorChannel::Luminance};
-}
-
 /** A normal from @p depth, with a second, finer one laid over it. */
 material::Material normalOf(const material::Material& depth, float scale,
                             const material::Material& detail,
@@ -181,7 +162,8 @@ material::Material limestone(const material::Material& depth) {
                  {.blend = material::BlendMode::Multiply, .opacity = .09f})
           .layer(pores,
                  {.blend = material::BlendMode::Multiply, .opacity = .14f})
-          .layer(hexColor(0x8c8268), {.opacity = .45f, .mask = where(depth)});
+          .layer(hexColor(0x8c8268),
+                 {.opacity = .45f, .mask = {depth, ColorChannel::Luminance}});
   const auto texture = material::surface::blendNormals(
       material::surface::normalFromHeight(pores,
                                           {.depth = -.6f, .directX = true}),
@@ -208,15 +190,16 @@ material::Material bronze(const material::Material& depth) {
       material::from(hexColor(0xa8743f))
           .layer(clouds,
                  {.blend = material::BlendMode::Multiply, .opacity = .35f})
-          .layer(hexColor(0x4f5f45), {.opacity = .55f, .mask = where(clouds)})
-          .layer(hexColor(0x2c2a20), {.opacity = .7f, .mask = where(depth)});
+          .layer(hexColor(0x4f5f45),
+                 {.opacity = .55f, .mask = {clouds, ColorChannel::Luminance}})
+          .layer(hexColor(0x2c2a20),
+                 {.opacity = .7f, .mask = {depth, ColorChannel::Luminance}});
   return face.surface(
-      {.metallic = material::from(material::Color{.95f, .95f, .95f, 1})
-                       .layer(material::Color{.45f, .45f, .45f, 1},
-                              {.mask = where(depth)}),
+      {.metallic = material::remap(depth, {.to = {.95f, .45f}}),
        .roughness = material::from(material::Color{.34f, .34f, .34f, 1})
                         .layer(material::Color{.6f, .6f, .6f, 1},
-                               {.opacity = .5f, .mask = where(clouds)}),
+                               {.opacity = .5f,
+                                .mask = {clouds, ColorChannel::Luminance}}),
        .normal = normalOf(depth, 4, hammer, 1.1f),
        .normalDirectX = true});
 }
@@ -231,20 +214,15 @@ material::Material porcelain(const material::Material& depth) {
       material::from(hexColor(0xf3f1ea))
           .layer(material::noise(.01f, {.octaves = 2, .grain = true}),
                  {.blend = material::BlendMode::Multiply, .opacity = .05f})
-          .layer(gold, {.mask = where(depth)});
-  const auto between = [&](float top, float hollow) {
-    return material::from(material::Color{top, top, top, 1})
-        .layer(material::Color{hollow, hollow, hollow, 1},
-               {.mask = where(depth)});
-  };
+          .layer(gold, {.mask = {depth, ColorChannel::Luminance}});
   return face.surface(
-      {.metallic = between(0, 1),
-       .roughness = between(.12f, .26f),
+      {.metallic = material::remap(depth, {.to = {0, 1}}),
+       .roughness = material::remap(depth, {.to = {.12f, .26f}}),
        .normal =
            normalOf(depth, 5,
                     material::noise(.08f, {.octaves = 2, .grain = true}), .25f),
        .normalDirectX = true,
-       .clearcoat = between(1, 0),
+       .clearcoat = material::remap(depth, {.to = {1, 0}}),
        .clearcoatRoughness = .04f});
 }
 
@@ -333,17 +311,20 @@ struct CarvedMarks {
     sketch::kit::stage(ctx, {.size = {1440, 900},
                              .captureAt = 3.0,
                              .background = hexColor(0x101214)});
-    weave::TextContext text(ctx.fonts);
-    auto face = ctx.fonts.familyTypeface("Optima", {.weight = 700});
-    if (!face) face = ctx.fonts.defaultTypeface();
-
-    // THE DIE, set once per face at that face's scale.
-    const auto stoneLetters =
-        lettering(text, face, u8"OB8", 330, 18, {kStoneFace.x / 2, 250});
-    const auto bronzeLetters =
-        lettering(text, face, u8"OB8", 210, 12, {kBronzeFace.x / 2, 175});
-    const auto tileLetters = lettering(text, face, u8"OB8", 165, 9,
-                                       {kTileFace.x / 2, kTileFace.y / 2 - 20});
+    // THE DIE, set once per face at that face's scale and centred where
+    // that face carries it, in the face's own page pixels.
+    const auto die = [&](float size, float track, glm::vec2 centre) {
+      return weave::glyphOutline(ctx.fonts, u8"OB8",
+                                 {.family = "Optima",
+                                  .style = {.weight = 700},
+                                  .size = size,
+                                  .track = track,
+                                  .at = centre});
+    };
+    const auto stoneLetters = die(330, 18, {kStoneFace.x / 2, 250});
+    const auto bronzeLetters = die(210, 12, {kBronzeFace.x / 2, 175});
+    const auto tileLetters =
+        die(165, 9, {kTileFace.x / 2, kTileFace.y / 2 - 20});
 
     // The depth each face's marks are laid into, white deepest.
     stoneDepth =

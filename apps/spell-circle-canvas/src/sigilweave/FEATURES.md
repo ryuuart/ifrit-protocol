@@ -272,6 +272,11 @@ a contour interval carries a `geometry::path::Contour`:
   put one.
 - **`layout/ParagraphLayout.h`** — `ParagraphLayout`, `layoutParagraph()`
   and `layoutSingleLine()`. Includes the four above.
+- **`layout/GlyphOutline.h`** — `glyphOutline()`, a string as the
+  contours of its glyphs set on one line, counters kept, stood with its
+  centre or the start of its baseline on a point; `GlyphOutlineOptions`
+  names the face or family, the size, the tracking and that point, and
+  `GlyphOutlineAnchor` which of the two stands there.
 - **`layout/Beside.h`** — setting a run beside another's extent:
   `bandBeside()`, `layoutBeside()` and `shareOfReading()`, the three
   questions a reading over or beside a base is made of.

@@ -144,6 +144,27 @@ resolution, shaping counters and font-cache purges.
 font caches or outstanding results. `TextContext::stats` reports paragraph
 builds, cache hits and retained entries; resetting counters preserves entries.
 
+### Text as an outline
+
+A string a solid is extruded from, a stencil is cut from or a depth map is
+pressed with is its glyphs' contours, and one call answers them:
+
+```cpp
+#include <sigilweave/layout/GlyphOutline.h>
+
+geometry::path::Outline die = glyphOutline(
+    fonts, u8"OB8",
+    {.family = "Optima", .style = {.weight = 700}, .size = 330, .at = {520, 250}});
+```
+
+`glyphOutline` sets the text on one line through the font service and
+stands the centre of the contours' tight bounds on `at`;
+`GlyphOutlineAnchor::Baseline` stands the start of the baseline there
+instead. A stated `face` wins over `family`, and a family the service does
+not know is its default face. Counters are kept, so the outline extrudes
+with its holes. `ParagraphLayout::glyphOutline` is the same contours of a
+layout a caller already holds.
+
 Editable and mixed-style documents continue to use `Paragraph` and
 `layoutParagraph` directly. `kit::LayoutGuard` remains useful when the caller
 can identify changes in custom geometry or coordinate several layouts.

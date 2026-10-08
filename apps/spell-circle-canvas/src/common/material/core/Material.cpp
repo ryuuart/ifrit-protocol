@@ -19,6 +19,7 @@
 #include <cmath>
 #include <cstring>
 #include <mutex>
+#include <utility>
 
 namespace sigil::material {
 
@@ -666,6 +667,20 @@ Lobes lobes(const SurfaceOptions& options) {
       options.distortion.has_value() && options.distortionStrength != 0;
   out.clearcoat = mapped(options.clearcoat) || number(options.clearcoat) != 0;
   return out;
+}
+
+Material remap(const Material& source, const RemapOptions& options) {
+  // A mask's fit only rises from its low end to its high end, so a falling
+  // stretch is read as the rising one with its answers swapped.
+  ValueRange from = options.from, to = options.to;
+  if (from.low > from.high) {
+    std::swap(from.low, from.high);
+    std::swap(to.low, to.high);
+  }
+  const auto grey = [](float value) { return Color{value, value, value, 1}; };
+  return Material(grey(to.low))
+      .layer(grey(to.high),
+             {.mask = {source, options.channel, from.low, from.high}});
 }
 
 }  // namespace sigil::material

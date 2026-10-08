@@ -138,6 +138,44 @@ TEST(SkiaMaterial, AMaskSaysWhereALayerApplies) {
   EXPECT_EQ(SK_ColorBLUE, centre(inverted));
 }
 
+TEST(SkiaMaterial, ALayerMaskedByLuminanceFollowsItsGradient) {
+  const Material ramp =
+      linearGradient({0, 0}, {1, 0}, {Color{0, 0, 0, 1}, Color{1, 1, 1, 1}});
+  const Material masked =
+      from(Color{0, 0, 0, 1})
+          .layer(Color{1, 1, 1, 1}, {.mask = {ramp, ColorChannel::Luminance}});
+  const SkBitmap expected = drawnFloat(skia::paint(ramp));
+  const SkBitmap actual = drawnFloat(skia::paint(masked));
+  float previous = -1;
+  for (int x = 0; x < 16; ++x) {
+    // White over black at the gradient's own value is the gradient.
+    const auto wanted = premul(expected, x, 8);
+    const auto read = premul(actual, x, 8);
+    EXPECT_NEAR(read[0], wanted[0], 0.002f) << "column " << x;
+    EXPECT_NEAR(read[3], 1, 0.00002f) << "column " << x;
+    EXPECT_GT(read[0], previous) << "column " << x;
+    previous = read[0];
+  }
+}
+
+TEST(SkiaMaterial, ARemapReadsTheStatedRangeAtTheMapsExtremes) {
+  const Material ramp =
+      linearGradient({0, 0}, {1, 0}, {Color{0, 0, 0, 1}, Color{1, 1, 1, 1}});
+  // The ramp's ends lie past the stretch read, so both columns hold the
+  // stated values exactly; a falling stretch answers the same map.
+  const auto check = [&](const Material& remapped, float left, float right) {
+    const SkBitmap pixels = drawnFloat(skia::paint(remapped));
+    expectPremul(pixels, 0, 8, {left, left, left, 1});
+    expectPremul(pixels, 15, 8, {right, right, right, 1});
+    const float middle = premul(pixels, 8, 8)[0];
+    EXPECT_GT(middle, std::min(left, right));
+    EXPECT_LT(middle, std::max(left, right));
+  };
+  check(remap(ramp, {.from = {0.1f, 0.9f}, .to = {0.2f, 0.7f}}), 0.2f, 0.7f);
+  check(remap(ramp, {.from = {0.9f, 0.1f}, .to = {0.7f, 0.2f}}), 0.2f, 0.7f);
+  check(remap(ramp, {.from = {0.1f, 0.9f}, .to = {1, 0}}), 1, 0);
+}
+
 TEST(SkiaMaterial, AGradientIsABaseAndComparesByValue) {
   const auto build = [] {
     return from(linearGradient({0, 0}, {1, 0},

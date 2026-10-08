@@ -18,12 +18,14 @@ find_package(boost_container_hash CONFIG REQUIRED)
 find_package(harfbuzz CONFIG REQUIRED COMPONENTS icu)
 sigil_library(SigilWeaveLayout
   SOURCES BandScan.cpp BandScan.h Beside.cpp Blobs.cpp Blobs.h Blocks.cpp
-          Ellipsis.cpp Flow.cpp Greedy.cpp InitialLetter.cpp KnuthPlass.cpp
+          Ellipsis.cpp Flow.cpp GlyphOutline.cpp Greedy.cpp InitialLetter.cpp
+          KnuthPlass.cpp
           LayoutMetrics.cpp LineBreak.cpp ParagraphBlock.cpp Placement.cpp
           PlacementMojikumi.cpp
           PlacementSegments.cpp PlacementTabs.cpp FlowShape.cpp TextContext.cpp
           KnuthPlassPrefix.h ParagraphLayoutInternal.h
-  HEADERS Beside.h Breaking.h Flow.h Frame.h InitialLetter.h Justification.h
+  HEADERS Beside.h Breaking.h Flow.h Frame.h GlyphOutline.h InitialLetter.h
+          Justification.h
           LayoutOptions.h Mojikumi.h Overflow.h ParagraphBlock.h ParagraphLayout.h
           ParagraphStyle.h PositionedRun.h Story.h TabStops.h TextContext.h
           ../advanced/Skia.h
@@ -51,7 +53,7 @@ sigil_test(weave_test
           test/FrameTest.cpp test/HyphenationTest.cpp test/LineEdgesTest.cpp
           test/BesideTest.cpp test/MojikumiTest.cpp test/BalanceTest.cpp
           test/InitialLetterTest.cpp
-          test/StoryTest.cpp test/TextContextTest.cpp
+          test/StoryTest.cpp test/TextContextTest.cpp test/GlyphOutlineTest.cpp
   LIBRARIES SigilWeaveLayout SigilWeaveKit SigilWeavePorts
             Boost::unordered
   LABELS fonts

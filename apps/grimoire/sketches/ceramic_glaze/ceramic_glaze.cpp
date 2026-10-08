@@ -340,22 +340,18 @@ material::Material glazed(const Glaze& glaze, const material::Material& depth,
                           std::optional<material::Material> normal = {}) {
   using material::ColorChannel;
   return material::from(glaze.thin)
-      .layer(
-          glaze.middle,
-          {.mask = material::Mask{depth, ColorChannel::Luminance, .12f, .5f}})
-      .layer(
-          glaze.pooled,
-          {.mask = material::Mask{depth, ColorChannel::Luminance, .5f, .95f}})
+      .layer(glaze.middle,
+             {.mask = {depth, ColorChannel::Luminance, .12f, .5f}})
+      .layer(glaze.pooled,
+             {.mask = {depth, ColorChannel::Luminance, .5f, .95f}})
       .layer(material::noise(.02f, {.octaves = 3, .grain = true}),
              {.blend = material::BlendMode::SoftLight, .opacity = .35f})
       .layer(glaze.fineInk,
              {.opacity = glaze.fineInkOpacity,
-              .mask = material::Mask{fine, ColorChannel::Luminance, .2f, .8f,
-                                     true}})
+              .mask = {fine, ColorChannel::Luminance, .2f, .8f, true}})
       .layer(glaze.crackInk,
              {.opacity = glaze.crackInkOpacity,
-              .mask = material::Mask{crazed, ColorChannel::Luminance, .2f, .8f,
-                                     true}})
+              .mask = {crazed, ColorChannel::Luminance, .2f, .8f, true}})
       .surface({.roughness = .35f,
                 .normal = std::move(normal),
                 .clearcoat = 1.0f,

@@ -468,15 +468,57 @@ struct Mask {
   bool operator==(const Mask&) const = default;
 };
 
+/** A LAYER'S MASK, OR NONE: an optional `Mask` that also takes a mask's
+ *  own fields in braces, so a layer says where it applies in place —
+ *  `{.mask = {depth, ColorChannel::Luminance}}`, or with its range and
+ *  inversion after the channel. Empty, the layer applies everywhere. */
+struct LayerMask : std::optional<Mask> {
+  using std::optional<Mask>::optional;
+  LayerMask() = default;
+  LayerMask(std::optional<Mask> mask)  // NOLINT(google-explicit-constructor)
+      : std::optional<Mask>(std::move(mask)) {}
+  LayerMask(Material source, ColorChannel channel,  // NOLINT
+            float low = 0, float high = 1, bool invert = false)
+      : std::optional<Mask>(
+            Mask{std::move(source), channel, low, high, invert}) {}
+  friend bool operator==(const LayerMask& left, const LayerMask& right) {
+    return static_cast<const std::optional<Mask>&>(left) ==
+           static_cast<const std::optional<Mask>&>(right);
+  }
+};
+
 /** How a layer meets what is beneath it. */
 struct LayerOptions {
   BlendMode blend = BlendMode::Normal;
   /** The layer composites in full with its blend mode, and the result
    *  mixes back toward what is beneath by this fraction. */
   float opacity = 1;
-  std::optional<Mask> mask;
+  LayerMask mask;
   bool operator==(const LayerOptions&) const = default;
 };
+
+/** A stretch of scalar values, from `low` to `high`; either may be the
+ *  larger, which reverses the stretch. */
+struct ValueRange {
+  float low = 0, high = 1;
+  bool operator==(const ValueRange&) const = default;
+};
+
+/** How `remap()` reads its source and what it answers. */
+struct RemapOptions {
+  /** The stretch of the source's channel that is read. */
+  ValueRange from;
+  /** The values the two ends of `from` become. */
+  ValueRange to;
+  ColorChannel channel = ColorChannel::Luminance;
+};
+
+/** ONE CHANNEL OF @p source MAPPED FROM ONE STRETCH OF VALUES ONTO
+ *  ANOTHER, as a grey material: `from.low` reads as `to.low`, `from.high`
+ *  as `to.high`, straight between them and held past either end. It is
+ *  what drives a metalness, a roughness or a clear coat from one height
+ *  or depth map: `remap(depth, {.to = {0.12f, 0.26f}})`. */
+Material remap(const Material& source, const RemapOptions& options = {});
 
 /** One layer of the stack: a material and how it meets the ones beneath. */
 struct Layer {
