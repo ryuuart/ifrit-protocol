@@ -15,7 +15,10 @@
 #include <include/core/SkColorFilter.h>
 #include <include/core/SkRefCnt.h>
 #include <include/utils/SkPaintFilterCanvas.h>
+#include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/texture/TextureSet.h>
+
+#include <optional>
 
 class SkCanvas;
 class SkMatrix;
@@ -27,6 +30,15 @@ class Recorder;
 }
 
 namespace sigil::compose::detail {
+
+/** THE MATERIAL A PAGE PAINTED AS SURFACE MAPS PAINTS AS ITS MAPS, where
+ *  @p material states a surface: one stating `SurfaceOptions`, lit or
+ *  unlit, as it is, and the unlit surface program as a material whose
+ *  surface is stated unlit, so it is its own colour in the emissive map.
+ *  None for content that states no surface, which the canvas below paints
+ *  as the stock surface. */
+std::optional<material::Material> surfacedForMaps(
+    const material::Material& material);
 
 /** Marks @p paint as already carrying a surface map, so the canvas below
  *  passes it through as it is. A lit site painting in map mode calls this

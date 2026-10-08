@@ -22,6 +22,7 @@
 #include <cmath>
 
 #include "paint/FillLowering.h"
+#include "paint/SurfaceMap.h"
 
 namespace sigil::compose::detail {
 struct RibbonCache {
@@ -79,8 +80,10 @@ void Ribbon::paint(draw::Pen& pen, const PaintContext& ctx) const {
   if (region.isEmpty()) return;
   if (fillMaterial) {
     if (!cache) cache = std::make_shared<detail::RibbonCache>();
-    material::Material finish = *fillMaterial;
-    if (!finish.surface()) finish.surface({.unlit = true});
+    // A finish stating no surface is the stock surface on a page painted
+    // as surface maps; one stated unlit is its own colour there.
+    material::Material finish =
+        detail::surfacedForMaps(*fillMaterial).value_or(*fillMaterial);
     Relief material = relief(std::move(finish), {.depth = 0});
     if (!cache->material || *cache->material != material)
       cache->material = std::move(material);

@@ -14,6 +14,7 @@
 
 #include "description/ComposeInternal.h"
 #include "paint/MaterialEffects.h"
+#include "paint/SurfaceMap.h"
 
 namespace sigil::compose {
 
@@ -119,13 +120,14 @@ Derived& PaintVerbs<Derived>::fill(material::Material material, PaintBox box) {
   }
   fill(Fill::fromMaterial(material), box);
   if (effects) declarations()->fxData.ensure().fillEffects = std::move(effects);
-  // A surface that takes light keeps its material for the surface maps;
-  // every other draw paints the fill above, its colours flat. Its maps
-  // stand on the box its colours do: a fill laid over the canvas lays
-  // its normal, numbers and lobes over the canvas as well.
-  if (material::skia::isLit(material)) {
-    if (box == PaintBox::Canvas) material.worldSpace(true);
-    declarations()->materialData.ensure().surfaced = std::move(material);
+  // A material that states a surface, lit or unlit, keeps it for the
+  // surface maps; every other draw paints the fill above, its colours
+  // flat. Its maps stand on the box its colours do: a fill laid over the
+  // canvas lays its normal, numbers and lobes over the canvas as well.
+  if (std::optional<material::Material> surfaced =
+          detail::surfacedForMaps(material)) {
+    if (box == PaintBox::Canvas) surfaced->worldSpace(true);
+    declarations()->materialData.ensure().surfaced = std::move(*surfaced);
   }
   return self();
 }

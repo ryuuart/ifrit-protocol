@@ -18,6 +18,7 @@
 
 #include "description/ComposeInternal.h"
 #include "paint/MaterialEffects.h"
+#include "paint/SurfaceMap.h"
 
 namespace sigil::compose {
 
@@ -169,7 +170,8 @@ Derived& FontVerbs<Derived>::ink(material::Material material, PaintBox box) {
     // A span keeps the full surface until its visible ranges and drawing
     // destination are known. Lowering its base here would read pixels even
     // when a later span replaces all of its ink.
-    if (material::skia::isLit(material)) {
+    if (std::optional<material::Material> surfaced =
+            detail::surfacedForMaps(material)) {
       if (box == PaintBox::Padding || box == PaintBox::Content) {
         warnInkTakesNoFillBox();
         box = PaintBox::Element;
@@ -178,18 +180,20 @@ Derived& FontVerbs<Derived>::ink(material::Material material, PaintBox box) {
       if (cascade.font) cascade.font->color.reset();
       cascade.inkVar.reset();
       cascade.inkPaint.reset();
-      cascade.inkSurfaced = std::move(material);
+      cascade.inkSurfaced = std::move(*surfaced);
       cascade.inkBox = box;
       cascade.statesInk = true;
       return self();
     }
   }
   ink(Fill::fromMaterial(material), box);
-  // A lit surface keeps its material for the surface maps, painted as
-  // its colours at each node the ink reaches otherwise.
-  if (material::skia::isLit(material)) {
+  // A material that states a surface, lit or unlit, keeps it for the
+  // surface maps, painted as its colours at each node the ink reaches
+  // otherwise.
+  if (std::optional<material::Material> surfaced =
+          detail::surfacedForMaps(material)) {
     detail::CascadeData& cascade = declarations()->ink();
-    cascade.inkSurfaced = std::move(material);
+    cascade.inkSurfaced = std::move(*surfaced);
     // A solid base still has mapped surface channels. Its colour lane
     // must preserve the material's requested text-unit domain.
     if (box == PaintBox::Padding || box == PaintBox::Content) {

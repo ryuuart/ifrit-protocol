@@ -106,9 +106,10 @@ detail::TextInk Composer::Impl::textInkOf(Instance& inst,
       detail::TextInk::Span span;
       span.source = retained.style.paint.foregroundMaterial;
       span.unit = textUnitOf(retained.inkBox);
-      // On a page painted as a surface map a lit span paints that map of
-      // its material; every other draw paints its colours flat.
-      const bool asMap = surfaceMap && material::skia::isLit(*span.source);
+      // On a page painted as a surface map a span whose material states a
+      // surface, lit or unlit, paints that map of it; every other draw
+      // paints its colours flat.
+      const bool asMap = surfaceMap && span.source->surface() != nullptr;
       if (asMap && !retained.surfaceMapInputs)
         retained.surfaceMapInputs.emplace(*span.source);
       span.surfaceMap = asMap;

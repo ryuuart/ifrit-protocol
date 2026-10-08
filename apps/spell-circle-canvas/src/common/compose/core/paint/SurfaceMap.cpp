@@ -14,6 +14,7 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/SurfaceMaps.h>
+#include <sigilmaterial/surface/Surface.h>
 
 #include <array>
 #include <optional>
@@ -42,6 +43,14 @@ bool compositesByCoverage(const SkPaint& paint) {
 }
 
 }  // namespace
+
+std::optional<material::Material> surfacedForMaps(
+    const material::Material& material) {
+  if (material.surface()) return material;
+  if (material::surface::isUnlit(material))
+    return material::from(material).surface({.unlit = true});
+  return std::nullopt;
+}
 
 void markSurfaceMap(SkPaint& paint) {
   if (!paint.getColorFilter()) paint.setColorFilter(mark());

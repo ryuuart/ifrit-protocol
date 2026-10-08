@@ -40,9 +40,9 @@ const material::Paint* Instance::surfaceMapFillOf(
     surfaceMapFill.reset();
   }
   // A page painted as a surface map paints the fill as that map of its
-  // surface; the held paint is dropped when the map changes. Every other
-  // draw paints the fill beneath, the material's colours flat.
-  if (!owner || !owner->surfaceMap || !material::skia::isLit(from)) {
+  // surface, lit or unlit; the held paint is dropped when the map changes.
+  // Every other draw paints the fill beneath, the material's colours flat.
+  if (!owner || !owner->surfaceMap || !from.surface()) {
     surfaceMapFill.reset();
     return nullptr;
   }

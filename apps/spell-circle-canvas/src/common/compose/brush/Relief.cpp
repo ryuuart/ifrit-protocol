@@ -136,7 +136,7 @@ void Relief::paint(draw::Pen& pen, const PaintContext& context) const {
   if (!m_units) m_units = std::make_shared<detail::UnitSurfaces>();
   // The relief paints the map of its surface — the relief's normals among
   // them. A surface stated unlit is its own colour in every map.
-  const bool asMap = material::skia::isLit(m_material);
+  const bool asMap = m_material.surface() != nullptr;
   paintOver(m_material, pen, context, outline,
             asMap
                 ? m_units->mapsFor(m_material, unit).asMap(*context.surfaceMap)

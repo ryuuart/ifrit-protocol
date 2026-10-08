@@ -13,6 +13,7 @@
 
 #include "description/ComposeInternal.h"
 #include "paint/MaterialEffects.h"
+#include "paint/SurfaceMap.h"
 
 namespace sigil::compose {
 
@@ -95,8 +96,8 @@ Derived& DecorationVerbs<Derived>::decorationOutline(Boundary source,
 template <class Derived>
 Derived& DecorationVerbs<Derived>::stroke(material::Material material,
                                           material::StrokeOptions options) {
-  std::optional<material::Material> surfaced;
-  if (material::skia::isLit(material)) surfaced = material;
+  std::optional<material::Material> surfaced =
+      detail::surfacedForMaps(material);
   return foreground(Decoration(detail::MaterialStroke{
       material::skia::paint(material), options, std::move(surfaced)}));
 }

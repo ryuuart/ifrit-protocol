@@ -20,6 +20,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/scene3d/Scene3D.h>
 #include <sigilworld/World.h>
@@ -90,6 +91,12 @@ std::string decimal(float value, int precision) {
 // flat telemetry on it that shows as the console's own light.
 // ---------------------------------------------------------------------------
 
+/** The console's own light: a colour that shows as it is under any light,
+ *  the way a display's phosphor does, rather than a colour the room lights. */
+material::Material screenLight(material::Color colour) {
+  return material::from(colour).surface({.unlit = true});
+}
+
 Element words(std::string content, float x, float y, float width, float size,
               material::Color ink, float weight = 500,
               std::string_view family = "Menlo, SF Mono, monospace") {
@@ -98,11 +105,11 @@ Element words(std::string content, float x, float y, float width, float size,
       .fontFamily(std::string(family))
       .fontSize(size)
       .fontWeight(weight)
-      .ink(ink);
+      .ink(screenLight(ink));
 }
 
 Element bar(float x, float y, float width, float height, material::Color ink) {
-  return compose::kit::at(x, y, width, height).fill(ink);
+  return compose::kit::at(x, y, width, height).fill(screenLight(ink));
 }
 
 /** A line through @p points, @p width wide, laid over the whole page so
@@ -111,8 +118,7 @@ Element line(const std::vector<glm::vec2>& points, float width,
              material::Color ink) {
   return compose::kit::at(0, 0, kPageWidth, kPageHeight)
       .shape(compose::heldPath(path::curveThrough(points)))
-      .stroke(compose::brush::ribbon(path::Profile(width),
-                                     material::Material(ink)));
+      .stroke(compose::brush::ribbon(path::Profile(width), screenLight(ink)));
 }
 
 /** A channel's signal at @p u, one page width per loop: whole cycles

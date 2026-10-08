@@ -171,8 +171,8 @@ struct Surfaced {
 
 /** A page of one colour worn on a card under a single lamp standing off
  *  its left edge, so the card's near side takes more light than its far
- *  side: the colour stated flat when @p Glowing is zero, or as the
- *  emission of a black surface when it is one. */
+ *  side: the colour stated flat when @p Glowing is zero, as the emission
+ *  of a black surface when it is one, and stated unlit when it is two. */
 template <int Glowing>
 struct SideLitPage {
   Page page;
@@ -188,12 +188,14 @@ struct SideLitPage {
   world::Frame describe(sigil::motion::Duration) {
     using namespace sigil::compose;
     namespace material = sigil::material;
+    const material::Color grey{0.7f, 0.7f, 0.7f, 1};
     const material::Material colour =
-        Glowing ? material::from(material::Color{0, 0, 0, 1})
-                      .surface({.roughness = 1.0f,
-                                .emission = {0.7f, 0.7f, 0.7f, 1},
-                                .emissionStrength = 1.0f})
-                : material::Material(material::Color{0.7f, 0.7f, 0.7f, 1});
+        Glowing == 2   ? material::from(grey).surface({.unlit = true})
+        : Glowing == 1 ? material::from(material::Color{0, 0, 0, 1})
+                             .surface({.roughness = 1.0f,
+                                       .emission = grey,
+                                       .emissionStrength = 1.0f})
+                       : material::Material(grey);
     return world::Frame(
                world::group({world::pointLight({.intensity = world::intensityAt(
                                                     3.0f, 100.0f)})
@@ -691,6 +693,13 @@ TEST_F(Scene3DDoors, AFlatColourOnAPageTakesTheLightAndOnlyEmissionGlows) {
   const SkBitmap glow = shadedFrame(*glowing);
   EXPECT_GT(light(glow.getColor(120, 60)), 90);
   EXPECT_NEAR(light(glow.getColor(40, 60)), light(glow.getColor(120, 60)), 12);
+  // Stated unlit, it is its own colour, alike on both sides.
+  std::unique_ptr<Session> own =
+      kindOf<SideLitPage<2>>()->open(fonts(), assets());
+  const SkBitmap unlit = shadedFrame(*own);
+  EXPECT_GT(light(unlit.getColor(120, 60)), 90);
+  EXPECT_NEAR(light(unlit.getColor(40, 60)), light(unlit.getColor(120, 60)),
+              12);
 }
 
 TEST_F(Scene3DDoors, APagesClearcoatReachesTheShaderThroughItsSurface) {

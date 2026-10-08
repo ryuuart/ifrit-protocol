@@ -330,7 +330,9 @@ relief paints the map its material states; content that states no surface
 stock surface: its colour in the base colour map, a normal facing the
 viewer, roughness one half, occlusion one and metallic and emission zero,
 so it takes the scene's light, shadows and environment like the rest of
-the body. Only a material that states emission glows. Where nothing paints,
+the body. Only a material that states emission glows, and one stated
+unlit — `material::SurfaceOptions::unlit` or `material::surface::unlit` — is
+its own colour, in the emissive map over a black base. Where nothing paints,
 every map reads a transparent base colour over a normal facing the viewer,
 roughness and occlusion one and metallic and emission zero, and an
 antialiased edge composites each map by its coverage, normals included as

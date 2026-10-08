@@ -8,9 +8,11 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImage.h>
 #include <sigilcompose/brush/Relief.h>
+#include <sigilcompose/brush/Ribbons.h>
 #include <sigilcompose/testing/Scene.h>
 #include <sigilcompose/texture/SurfaceScene.h>
 #include <sigilmaterial/core/Material.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilmedia/advanced/Skia.h>
@@ -659,5 +661,98 @@ TEST(ComposeSurfaceScene, AKeylineBrushedAlongItsUnitRunsAlongItsOutline) {
     const SkColor4f down = brushing.getColor4f(x, y);
     EXPECT_NEAR(down.fR, .5f, .03f) << x << "," << y;
     EXPECT_NEAR(std::abs(down.fG - .5f), .5f, .03f) << x << "," << y;
+  }
+}
+
+namespace {
+
+/** A page whose fill and keyline, whole-passage ink, per-glyph ink and
+ *  ribbon all carry @p finish. */
+Element ownColourPage(const material::Material& finish) {
+  return box().width(kWidth).height(kHeight).children({
+      box()
+          .absolute()
+          .rect(0, 0, 40, 40)
+          .fill(finish)
+          .stroke(finish,
+                  {.width = 4, .position = material::StrokePosition::Inside}),
+      text(u8"HH")
+          .font({.size = 40})
+          .absolute()
+          .rect(44, 0, 84, 48)
+          .ink(finish),
+      text(u8"HH")
+          .font({.size = 40})
+          .absolute()
+          .rect(0, 48, 64, 48)
+          .ink(finish, PaintBox::Glyph),
+      box().absolute().rect(76, 60, 40, 40).stroke(brush::ribbon(8, finish)),
+  });
+}
+
+/** Whether, somewhere in @p region where the page painted at full
+ *  coverage, @p shown reads @p colour and @p dark reads black. */
+bool showsColourIn(const SkBitmap& shown, const SkBitmap& dark, SkIRect region,
+                   material::Color colour) {
+  for (int y = region.top(); y < region.bottom(); ++y)
+    for (int x = region.left(); x < region.right(); ++x) {
+      const SkColor4f in = shown.getColor4f(x, y);
+      const SkColor4f out = dark.getColor4f(x, y);
+      if (in.fA < .99f || out.fA < .99f) continue;
+      if (std::abs(in.fR - colour.r) < .03f &&
+          std::abs(in.fG - colour.g) < .03f &&
+          std::abs(in.fB - colour.b) < .03f && out.fR < .03f && out.fG < .03f &&
+          out.fB < .03f)
+        return true;
+    }
+  return false;
+}
+
+}  // namespace
+
+TEST(ComposeSurfaceScene,
+     ContentStatedUnlitIsItsOwnColourAndPlainContentIsLit) {
+  // Stated unlit — in either spelling — every fill, keyline, ink and ribbon
+  // is its own colour: the colour in the emissive map over a black base.
+  // The same content as a plain colour is the base colour and emits
+  // nothing, so a scene's light falls on it.
+  const material::Color colour{.9f, .3f, .1f, 1};
+  struct Case {
+    const char* name;
+    material::Material finish;
+    bool ownColour;
+  };
+  const std::vector<Case> cases{
+      {"unlit surface options", material::from(colour).surface({.unlit = true}),
+       true},
+      {"unlit surface program", material::surface::unlit({.baseColor = colour}),
+       true},
+      {"plain colour", material::Material(colour), false},
+  };
+  for (const Case& each : cases) {
+    SCOPED_TRACE(each.name);
+    const auto scene = SurfaceScene::make({kWidth, kHeight}, fonts());
+    ASSERT_NE(scene, nullptr);
+    scene->render(ownColourPage(each.finish));
+    const SkBitmap base = pixelsOf(*scene, Role::BaseColor);
+    const SkBitmap emissive = pixelsOf(*scene, Role::Emissive);
+    ASSERT_FALSE(base.empty());
+    const SkBitmap& shown = each.ownColour ? emissive : base;
+    const SkBitmap& dark = each.ownColour ? base : emissive;
+    EXPECT_TRUE(
+        showsColourIn(shown, dark, SkIRect::MakeLTRB(14, 14, 26, 26), colour))
+        << "the fill";
+    EXPECT_TRUE(
+        showsColourIn(shown, dark, SkIRect::MakeLTRB(0, 14, 3, 26), colour))
+        << "the keyline";
+    EXPECT_TRUE(
+        showsColourIn(shown, dark, SkIRect::MakeLTRB(44, 0, 128, 48), colour))
+        << "the whole-passage ink";
+    EXPECT_TRUE(
+        showsColourIn(shown, dark, SkIRect::MakeLTRB(0, 48, 64, 96), colour))
+        << "the per-glyph ink";
+    EXPECT_TRUE(
+        showsColourIn(shown, dark, SkIRect::MakeLTRB(74, 70, 79, 90), colour))
+        << "the ribbon";
   }
 }

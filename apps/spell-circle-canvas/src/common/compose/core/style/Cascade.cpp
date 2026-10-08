@@ -792,7 +792,8 @@ void Composer::Impl::resolveCascade(
     remMoved = rootSize != remPx;
     remPx = rootSize;
   }
-  // A LIT INK on a page painted as a surface map paints as that map of
+  // AN INK THAT STATES A SURFACE, lit or unlit, on a page painted as a
+  // surface map paints as that map of
   // it; the paint held for one map is dropped with every other when the
   // map changes. Every other draw paints the ink's colours flat. The paint
   // made last time stands while the ink's material has not moved.
@@ -801,7 +802,7 @@ void Composer::Impl::resolveCascade(
     if (!sameMaterial) inst.surfaceMapInkInputs.reset();
     if (!first && sameMaterial && inst.inkPaint.paint) {
       inkPaint.paint = inst.inkPaint.paint;
-    } else if (surfaceMap && material::skia::isLit(*inkPaint.surfaced)) {
+    } else if (surfaceMap && inkPaint.surfaced->surface()) {
       if (!inst.surfaceMapInkInputs)
         inst.surfaceMapInkInputs.emplace(*inkPaint.surfaced);
       inkPaint.paint = inst.surfaceMapInkInputs->asMap(*surfaceMap);

@@ -38,8 +38,9 @@ namespace sigil::compose {
  *  (`material::skia::asMap`) at the coverage it paints; content that states
  *  no surface is a stock surface — its colour in the base colour map, a
  *  normal facing the viewer, roughness one half, occlusion one, metallic,
- *  emission and the coat zero — so it takes the scene's light, and only a
- *  material that states emission glows. Where nothing paints, each map
+ *  emission and the coat zero — so it takes the scene's light; only a
+ *  material that states emission glows, and one stated unlit is its own
+ *  colour in the emissive map. Where nothing paints, each map
  *  reads a transparent base colour, a normal facing the viewer, roughness
  *  and occlusion one and metallic, emission and the coat zero. Normals are
  * encoded green up the picture; occlusion, roughness and metallic share the
