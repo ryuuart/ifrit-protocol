@@ -36,16 +36,13 @@ namespace {
  *  aligned, a size that varies, a tint that varies, and a texture window
  *  per point. */
 gm::Cloud cloud(int count) {
-  gm::pop::SplineScatter scatter;
-  scatter.loop = {{-120, 0, -60},
-                  {-40, 55, 90},
-                  {70, -30, 60},
-                  {130, 25, -50},
-                  {30, -60, -110}};
-  scatter.count = count;
-  scatter.radius = 12.0f;
+  const std::vector<glm::vec3> loop = {{-120, 0, -60},
+                                       {-40, 55, 90},
+                                       {70, -30, 60},
+                                       {130, 25, -50},
+                                       {30, -60, -110}};
   return gm::pop::cook(gm::pop::Chain(
-      gm::pop::on(scatter.loop)
+      gm::pop::on(loop)
           .count(count)
           .spread(12.0f)
           .jitter(9.0f)

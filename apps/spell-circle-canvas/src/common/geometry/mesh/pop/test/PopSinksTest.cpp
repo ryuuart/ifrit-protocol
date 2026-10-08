@@ -34,7 +34,8 @@ TEST(Pop, SweptSinksBendWithTheChain) {
   // that moves points also bends every swept surface built from the chain.
   // The same description feeds a round profile and a flat one unchanged.
   pop::SplineScatter scatter;
-  scatter.loop = flatRing(10, 300.0);
+  scatter.spine.points = flatRing(10, 300.0);
+  scatter.spine.closed = true;
   scatter.count = 96;
   scatter.head = 1;
   scatter.span = 1;

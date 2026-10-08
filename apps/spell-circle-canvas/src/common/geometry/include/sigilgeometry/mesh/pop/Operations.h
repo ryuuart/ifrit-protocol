@@ -70,10 +70,14 @@ inline int32_t builtinIndex(const AttributeReference& attribute) {
 /** How many slots the table above names, so a chain numbers its own
  *  attributes from here on and never collides with a built-in. */
 inline constexpr int32_t kBuiltinSlots = 6;
-/** Generator: scatter count points along a window of a closed
- *  loop — writes P, T, Dir (the tangent), Scale = 1. */
+/** Generator: scatter count points along a window of a spine —
+ *  writes P, T, Dir (the tangent), Scale = 1. The window is measured in
+ *  the spine's parameter and ends at `head`. A closed spine wraps, so a
+ *  window across its join rides through it; an open spine has two ends,
+ *  so the window is clipped to the spine and its points spread over
+ *  what remains. */
 struct SplineScatter {
-  std::vector<glm::vec3> loop;
+  curve::Spline3 spine;
   int count = 10000;
   float head = 1, span = 1;
   float radius = 0;  ///< stable per-point offset in the normal plane

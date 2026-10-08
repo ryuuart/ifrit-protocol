@@ -30,6 +30,25 @@ using sigil::geometry::mesh::normalized;
 
 namespace {
 
+/** Six times the signed volume a triangle list encloses, measured
+ *  against the origin: positive when its triangles wind outward, by the
+ *  right-hand rule, from the solid they close. */
+double signedVolume(const std::vector<glm::vec3>& positions,
+                    const std::vector<uint32_t>& indices) {
+  double volume = 0;
+  for (size_t i = 0; i + 2 < indices.size(); i += 3)
+    volume += (double)glm::dot(
+        positions[indices[i]],
+        cross(positions[indices[i + 1]], positions[indices[i + 2]]));
+  return volume;
+}
+
+/** Turns every triangle of @p indices to wind the other way. */
+void reverseWinding(std::vector<uint32_t>& indices) {
+  for (size_t i = 0; i + 2 < indices.size(); i += 3)
+    std::swap(indices[i + 1], indices[i + 2]);
+}
+
 /** Ensure the geometric normal of triangle (i0,i1,i2) points along
  *  @p wanted, swapping winding when it does not. */
 void orientTriangle(const std::vector<glm::vec3>& positions, uint32_t* tri,
@@ -227,12 +246,30 @@ Mesh loft(const std::vector<std::vector<glm::vec3>>& sections,
       const uint32_t a = r * stride + k, b = a + 1, c = a + stride, d = c + 1;
       out.indices.insert(out.indices.end(), {a, c, b, b, c, d});
     }
+  const auto centreOf = [count](const std::vector<glm::vec3>& ring) {
+    glm::vec3 centre{0};
+    for (const glm::vec3& p : ring) centre += p;
+    return centre / (float)count;
+  };
+  // Which way the walls face is read from the solid they enclose with
+  // their end caps, so the caps count whether or not they are emitted:
+  // each end is closed by a fan from its centre, wound as the cap below
+  // is. A ring of sections encloses its solid with its walls alone.
+  double volume = signedVolume(out.positions, out.indices);
+  if (!options.closed)
+    for (const bool first : {true, false}) {
+      const auto& ring = first ? rings.front() : rings.back();
+      const glm::vec3 centre = centreOf(ring);
+      for (size_t k = 0; k < count; ++k) {
+        const glm::vec3 current = ring[k], next = ring[(k + 1) % count];
+        volume += first ? (double)glm::dot(centre, cross(current, next))
+                        : (double)glm::dot(centre, cross(next, current));
+      }
+    }
   if (options.capEnds && !options.closed) {
     for (const bool first : {true, false}) {
       const auto& ring = first ? rings.front() : rings.back();
-      glm::vec3 centre{0};
-      for (const glm::vec3& p : ring) centre += p;
-      centre /= (float)count;
+      const glm::vec3 centre = centreOf(ring);
       glm::vec3 area{0};
       for (size_t k = 0; k < count; ++k)
         area += cross(ring[k] - centre, ring[(k + 1) % count] - centre);
@@ -267,6 +304,7 @@ Mesh loft(const std::vector<std::vector<glm::vec3>>& sections,
       }
     }
   }
+  if ((volume < 0) != options.inward) reverseWinding(out.indices);
   out.computeNormals();
   return out;
 }
@@ -285,8 +323,7 @@ Mesh revolve(const path::Outline& profile, const RevolveOptions& options) {
 
 Mesh revolve(const std::vector<glm::vec2>& profile,
              const RevolveOptions& options) {
-  Mesh out;
-  if (profile.size() < 2) return out;
+  if (profile.size() < 2) return {};
   const float sweep = options.sweepDeg * (float)M_PI / 180.0f;
   const int nu = std::max(options.segments, 3) + (options.close ? 1 : 0);
   const int nv = (int)profile.size();
@@ -297,11 +334,29 @@ Mesh revolve(const std::vector<glm::vec2>& profile,
     const glm::vec2 a = profile[(size_t)i], b = profile[(size_t)i + 1];
     return a + (b - a) * t;
   };
-  return grid(nu, nv, [&](float u, float v) -> glm::vec3 {
+  Mesh out = grid(nu, nv, [&](float u, float v) -> glm::vec3 {
     const glm::vec2 p = sample(v);
     const float theta = u * sweep;
     return {p.x * std::cos(theta), p.y, -p.x * std::sin(theta)};
   });
+  // The solid is the region the profile encloses with the axis, each end
+  // joined straight to it. The lathe faces away from that region when it
+  // winds anticlockwise in (radius, height) and into it otherwise.
+  std::vector<glm::vec2> region;
+  region.reserve(profile.size() + 2);
+  region.push_back({0, profile.front().y});
+  region.insert(region.end(), profile.begin(), profile.end());
+  region.push_back({0, profile.back().y});
+  double area = 0;
+  for (size_t i = 0; i < region.size(); ++i) {
+    const glm::vec2 a = region[i], b = region[(i + 1) % region.size()];
+    area += (double)a.x * b.y - (double)b.x * a.y;
+  }
+  if ((area < 0) != options.inward) {
+    reverseWinding(out.indices);
+    for (glm::vec3& normal : out.normals) normal = -normal;
+  }
+  return out;
 }
 
 Mesh box(glm::vec3 lo, glm::vec3 hi, const BoxOptions& options) {

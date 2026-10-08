@@ -6,10 +6,11 @@
 
 #include <gtest/gtest.h>
 #include <include/core/SkPathBuilder.h>
-#include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/advanced/Skia.h>
+#include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Faces.h>
 
+#include <algorithm>
 #include <cmath>
 #include <glm/geometric.hpp>
 #include <vector>
@@ -29,6 +30,36 @@ bool normalsAreUnit(const Mesh& mesh) {
   return true;
 }
 
+/** How many of @p mesh's triangles face toward @p centre — or, when
+ *  @p away is false, away from it — by their winding or by the normals at
+ *  their corners; a triangle with no area faces nowhere and is not
+ *  counted. */
+int facingWrongly(const Mesh& mesh, glm::vec3 centre, bool away = true) {
+  int wrongly = 0;
+  for (size_t i = 0; i + 2 < mesh.indices.size(); i += 3) {
+    const glm::vec3 a = mesh.positions[mesh.indices[i]];
+    const glm::vec3 b = mesh.positions[mesh.indices[i + 1]];
+    const glm::vec3 c = mesh.positions[mesh.indices[i + 2]];
+    glm::vec3 face = glm::cross(b - a, c - a);
+    if (glm::length(face) < 1e-6f) continue;
+    bool wrong =
+        glm::dot(face, (a + b + c) / 3.0f - centre) * (away ? 1 : -1) <= 0;
+    for (size_t k = 0; k < 3; ++k)
+      wrong = wrong || glm::dot(mesh.normals[mesh.indices[i + k]], face) <= 0;
+    if (wrong) ++wrongly;
+  }
+  return wrongly;
+}
+
+/** A square ring of @p half across each way at depth @p z, anticlockwise
+ *  seen from +z, or clockwise when @p clockwise. */
+std::vector<glm::vec3> squareRing(float half, float z, bool clockwise) {
+  std::vector<glm::vec3> ring = {
+      {-half, -half, z}, {half, -half, z}, {half, half, z}, {-half, half, z}};
+  if (clockwise) std::reverse(ring.begin(), ring.end());
+  return ring;
+}
+
 }  // namespace
 
 TEST(Solids, ExtrudeLiftsAPathIntoASolidAndDroppingCapsLeavesAShell) {
@@ -41,9 +72,8 @@ TEST(Solids, ExtrudeLiftsAPathIntoASolidAndDroppingCapsLeavesAShell) {
   solid.bounds(&lo, &hi);
   EXPECT_NEAR(hi.z - lo.z, 4.0f, 1e-4f);  // the depth is total, centred on 0
 
-  const Mesh shell =
-      extrude(path::fromSk(square(10)),
-              {.depth = 4, .frontCap = false, .backCap = false});
+  const Mesh shell = extrude(path::fromSk(square(10)),
+                             {.depth = 4, .frontCap = false, .backCap = false});
   EXPECT_LT(shell.triangleCount(), solid.triangleCount());
 
   // A rectangle keeps its own two extents and gains the depth as the
@@ -100,6 +130,42 @@ TEST(Solids, RevolveLathesAProfileAroundTheAxisAndAPartialSweepStopsShort) {
   const Mesh quarter = revolve(profile, {.segments = 16, .sweepDeg = 90});
   quarter.bounds(&lo, &hi);
   EXPECT_GT(lo.x, -1e-4f);
+}
+
+TEST(Solids, ALatheFacesOutWhicheverWayItsProfileRuns) {
+  // A closed can: out along the floor, up the wall, in across the lid.
+  // Anticlockwise in (radius, height) one way, clockwise the other.
+  std::vector<glm::vec2> profile = {{0, 0}, {10, 0}, {10, 20}, {0, 20}};
+  const glm::vec3 centre{0, 10, 0};
+  const Mesh anticlockwise = revolve(profile, {.segments = 24});
+  EXPECT_EQ(facingWrongly(anticlockwise, centre), 0);
+  std::reverse(profile.begin(), profile.end());
+  const Mesh clockwise = revolve(profile, {.segments = 24});
+  EXPECT_EQ(facingWrongly(clockwise, centre), 0);
+  EXPECT_TRUE(normalsAreUnit(clockwise));
+
+  // Stated inward, it faces into the solid instead.
+  const Mesh inward = revolve(profile, {.segments = 24, .inward = true});
+  EXPECT_EQ(facingWrongly(inward, centre, false), 0);
+}
+
+TEST(Solids, ALoftFacesOutWhicheverWayItsRingsWindAndRun) {
+  const glm::vec3 centre{0, 0, 5};
+  for (const bool clockwise : {false, true})
+    for (const bool backToFront : {false, true})
+      for (const bool capEnds : {false, true}) {
+        std::vector<std::vector<glm::vec3>> sections = {
+            squareRing(10, 0, clockwise), squareRing(10, 10, clockwise)};
+        if (!backToFront) std::reverse(sections.begin(), sections.end());
+        const Mesh skin = loft(sections, {.capEnds = capEnds});
+        ASSERT_GT(skin.triangleCount(), 0u);
+        EXPECT_EQ(facingWrongly(skin, centre), 0)
+            << "clockwise " << clockwise << " back to front " << backToFront
+            << " capped " << capEnds;
+        const Mesh inward =
+            loft(sections, {.capEnds = capEnds, .inward = true});
+        EXPECT_EQ(facingWrongly(inward, centre, false), 0);
+      }
 }
 
 TEST(Solids, TheNamedSurfacesAreTheSheetSeamEvaluated) {

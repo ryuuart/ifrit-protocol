@@ -111,7 +111,12 @@ size_t pop::seedLanes(const pop::Chain& chain, pop::Lanes* lanes) {
   const auto* scatter = std::get_if<pop::SplineScatter>(&chain.front());
   const auto* surface = std::get_if<pop::MeshScatter>(&chain.front());
   const auto* given = std::get_if<pop::PointSet>(&chain.front());
-  if (scatter && (scatter->loop.size() < 3 || scatter->count < 1)) return 0;
+  // A closed spine needs three points to enclose anything; an open one
+  // needs two to have a length.
+  if (scatter &&
+      (scatter->spine.points.size() < (scatter->spine.closed ? 3u : 2u) ||
+       scatter->count < 1))
+    return 0;
   if (surface && (surface->mesh.indices.empty() || surface->count < 1))
     return 0;
   if (given && given->cloud.positions.empty()) return 0;
@@ -162,21 +167,33 @@ size_t pop::seedLanes(const pop::Chain& chain, pop::Lanes* lanes) {
   }
 
   if (scatter) {
-    Spline3 spline;
-    spline.points = scatter->loop;
-    spline.closed = true;
+    const Spline3& spline = scatter->spine;
+    // A closed spine wraps a parameter past either end round to the
+    // other. An open spine has nothing past its ends, so its window is
+    // clipped to the spine and the points spread over what remains of it.
+    const bool closed = spline.closed;
+    const float windowEnd =
+        closed ? scatter->head : std::min(scatter->head, 1.0f);
+    const float windowStart =
+        closed ? scatter->head - scatter->span
+               : std::max(scatter->head - scatter->span, 0.0f);
+    const float span =
+        closed ? scatter->span : std::max(windowEnd - windowStart, 0.0f);
+    const auto onSpine = [closed](float t) {
+      return closed ? wrap01(t) : std::clamp(t, 0.0f, 1.0f);
+    };
     core::schedule::parallelFor(
         count, kLaneGrain, [&](size_t first, size_t last) {
           for (size_t i = first; i < last; ++i) {
             const uint32_t seed = scatter->seed;
             const float u0 = ((float)i + 0.5f) / (float)count;
             const float t =
-                scatter->head - scatter->span + scatter->span * u0 +
+                windowStart + span * u0 +
                 (core::noise::pcgUnit((uint32_t)i * 3u + seed) - 0.5f) *
-                    (scatter->span / (float)count) * 4.0f;
-            const glm::vec3 p = spline.position(wrap01(t));
-            glm::vec3 tangent = spline.position(wrap01(t + 0.002f)) -
-                                spline.position(wrap01(t - 0.002f));
+                    (span / (float)count) * 4.0f;
+            const glm::vec3 p = spline.position(onSpine(t));
+            glm::vec3 tangent = spline.position(onSpine(t + 0.002f)) -
+                                spline.position(onSpine(t - 0.002f));
             const float len = glm::length(tangent);
             tangent = len > 1e-6f ? tangent * (1.0f / len) : glm::vec3{1, 0, 0};
             glm::vec3 n0 = std::abs(tangent.y) < 0.9f

@@ -103,7 +103,7 @@ TEST(GeneralShapes, AFlatFillAndALoftAreMeshes) {
   EXPECT_EQ(skin.indices.size() % 3, 0u);
 }
 
-TEST(GeneralShapes, LoftCapsFollowTheSideWinding) {
+TEST(GeneralShapes, ALoftAndItsCapsFaceOutWhicheverWayTheRingsWind) {
   const std::vector<glm::vec3> square{
       {-1, -1, -1}, {-1, 1, -1}, {1, 1, -1}, {1, -1, -1}};
   for (bool reversed : {false, true}) {
@@ -118,14 +118,13 @@ TEST(GeneralShapes, LoftCapsFollowTheSideWinding) {
         const mesh::Mesh body = mesh::loft(
             {first, last}, {.segmentsBetween = between, .capEnds = caps});
         ASSERT_FALSE(body.indices.empty());
-        const float winding = reversed ? -1.0f : 1.0f;
         size_t capTriangles = 0;
         for (size_t i = 0; i < body.indices.size(); i += 3) {
           const glm::vec3 a = body.positions[body.indices[i]];
           const glm::vec3 b = body.positions[body.indices[i + 1]];
           const glm::vec3 c = body.positions[body.indices[i + 2]];
           const glm::vec3 normal = glm::cross(b - a, c - a);
-          EXPECT_GT(winding * glm::dot(normal, (a + b + c) / 3.0f), 0)
+          EXPECT_GT(glm::dot(normal, (a + b + c) / 3.0f), 0)
               << "triangle " << i / 3 << ", reversed " << reversed
               << ", intermediate rings " << between << ", caps " << caps;
           if (a.z == b.z && b.z == c.z) ++capTriangles;
@@ -197,8 +196,7 @@ TEST(GeneralShapes, LoftCapsKeepPlanarNormalsAndUsableUvs) {
       EXPECT_TRUE(std::equal(walls.indices.begin(), walls.indices.end(),
                              capped.indices.begin()));
       for (size_t end = 0; end < 2; ++end) {
-        const float sign =
-            (end == 0 ? -1.0f : 1.0f) * (reversed ? -1.0f : 1.0f);
+        const float sign = end == 0 ? -1.0f : 1.0f;
         const glm::vec3 expectedNormal = normal * sign;
         float uvArea = 0;
         for (size_t triangle = 0; triangle < corners.size(); ++triangle) {

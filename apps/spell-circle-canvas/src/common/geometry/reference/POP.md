@@ -11,7 +11,8 @@ cloud's lane names onto a chain's attribute names and a stamp's dials.
 
 `pop::Operation` is a variant over twenty-five operator values, and `pop::Chain`
 is a vector of them. Generators seed a chain: `SplineScatter` (points along a
-window of a closed loop), `MeshScatter` (points on a formed model's
+window of a spine — a closed loop wraps, an open spine is ridden only
+along its length), `MeshScatter` (points on a formed model's
 faces) and `PointSet` (an existing `Cloud` — an import's `asCloud()`, a
 previous cook — every lane riding in as an attribute, so a Houdini group
 arrives as a mask under its own name). Filters rewrite attributes in place: `Jitter`, `Noise`, `Ramp`,
@@ -54,7 +55,7 @@ way to write such a lane; a `Lookup`, a `Math` on a custom lane, or an
 importer's attribute serve just as well. Both executors apply the mask
 with the same expression.
 
-`pop::on()` — over a loop, a `Mesh`, a `Chain` or a `Cloud` — returns a
+`pop::on()` — over a loop, a `curve::Spline3`, a `Mesh`, a `Chain` or a `Cloud` — returns a
 `Builder` whose chained verbs (`count`, `window`,
 `spread`, `seed`, `jitter`, `noise`, `vary`, `fade`, `tint`, `lookAt`,
 `move`, `fill`, `atlas`, `rampBy`, `order`, `orderBy`, `promote`, `smooth`,
@@ -71,9 +72,11 @@ carries a profile along, and `cookBillboards()` splatting them onto a
 canvas as camera-facing sprites — the one sink that forms no geometry,
 because a billboard faces the eye and so is answered where the eye is
 rather than in the world. The builder reaches all five as `cloud()`,
-`stamps()`, `instances()`, `sweep()` and `billboards()`. A loop entry's
-`window(head, span)` is part of the chain like any operator, so a
-moving window is a chain described afresh.
+`stamps()`, `instances()`, `sweep()` and `billboards()`. A loop or spine
+entry's `window(head, span)` is part of the chain like any operator, so a
+moving window is a chain described afresh. A window on an open spine is
+clipped to it, so a window running off either end never crosses a chord
+from the end back to the start.
 
 
 ## The pop family, and where each member runs

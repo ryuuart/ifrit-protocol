@@ -32,10 +32,10 @@ namespace pop {
  */
 class Builder {
  public:
-  explicit Builder(std::vector<glm::vec3> loop) {
+  explicit Builder(curve::Spline3 spine) {
     SplineScatter scatter;
-    scatter.loop = std::move(loop);
-    m_chain.emplace_back(scatter);
+    scatter.spine = std::move(spine);
+    m_chain.emplace_back(std::move(scatter));
   }
   /** Compose: build ON another chain — its cooked P becomes this
    *  chain's path. Pops feed pops; positions are the currency. The
@@ -372,10 +372,18 @@ class Builder {
   Chain m_chain;
   uint32_t m_seed = 101;
 };
-/** The entry verb: points on (a window of) this closed loop. */
+/** The entry verb: points on (a window of) this closed loop, read as a
+ *  Catmull-Rom spline through its points. */
 inline Builder on(std::vector<glm::vec3> loop) {
-  return Builder(std::move(loop));
+  curve::Spline3 spine;
+  spine.points = std::move(loop);
+  spine.closed = true;
+  return Builder(std::move(spine));
 }
+/** The spine entry: points on (a window of) this spline, which is read
+ *  by its own rule and its own closure — an open spine is ridden only
+ *  along its length, never across a chord from its end to its start. */
+inline Builder on(curve::Spline3 spine) { return Builder(std::move(spine)); }
 /** The composing entry: points on another chain's cooked result. */
 inline Builder on(const Chain& upstream) { return Builder(upstream); }
 /** The surface entry: points on a formed model's faces. */
@@ -410,7 +418,7 @@ inline void pop::Builder::billboards(SkCanvas& canvas,
   pop::cookBillboards(m_chain, canvas, camera, viewport, style, runtime);
 }
 inline pop::Builder::Builder(const Chain& upstream)
-    : Builder(pop::cook(upstream).positions) {}
+    : Builder(pop::on(pop::cook(upstream).positions)) {}
 
 inline Mesh pop::Builder::sweep(const path::Polyline& profile, bool closed,
                                 const pop::SweepOptions& options,

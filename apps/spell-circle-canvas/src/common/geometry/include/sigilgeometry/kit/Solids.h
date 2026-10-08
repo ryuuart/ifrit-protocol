@@ -66,6 +66,9 @@ struct LoftOptions {
   /** Close the first and last sections with a fan from their centres.
    *  Caps have separate vertices, keeping planar ends flat-shaded. */
   bool capEnds = true;
+  /** Face the skin into the solid rather than out of it — the inside
+   *  of a tunnel or a vessel seen from within. */
+  bool inward = false;
 };
 
 /** A SKIN THROUGH SECTIONS: each section a closed ring of points in 3D,
@@ -74,7 +77,12 @@ struct LoftOptions {
  *  lofted into a circle. Wall UVs: u around a ring, v along the sections.
  *  Each cap projects UVs into its own plane and normalizes both axes to
  *  the projected bounds; a collapsed axis remains finite. Fewer than two
- *  sections or a section with fewer than three points answers an empty mesh. */
+ *  sections or a section with fewer than three points answers an empty mesh.
+ *
+ *  The skin faces OUTWARD whichever way the rings wind and whichever
+ *  order they come in: the outside is the side facing away from the
+ *  solid the skin encloses with its end caps, whether or not the caps
+ *  are emitted, and `inward` turns the whole skin to face into it. */
 Mesh loft(const std::vector<std::vector<glm::vec3>>& sections,
           const LoftOptions& options = {});
 
@@ -86,10 +94,21 @@ struct RevolveOptions {
   int segments = 48;     ///< steps around the axis
   float sweepDeg = 360;  ///< partial sweeps leave an open seam
   bool close = true;     ///< duplicate seam ring for clean UV wrap
+  /** Face the surface toward the axis rather than away from the
+   *  solid — the inside of a bowl seen from within. */
+  bool inward = false;
 };
 
 /** Lathe a profile polyline around the +y axis: each profile point is
- *  (radius, height). UVs: u around the sweep, v along the profile. */
+ *  (radius, height). UVs: u around the sweep, v along the profile.
+ *
+ *  The surface faces OUTWARD whichever way the profile runs: the solid
+ *  is the region the profile encloses with the axis, closed by joining
+ *  each end of the profile straight to the axis, and the normals face
+ *  away from it. A profile that encloses no area with the axis — a
+ *  radial line, a flat disc — faces the way its points run: down for
+ *  a disc drawn outward from the axis, up for one drawn in toward it. `inward`
+ * turns the surface to face into the solid. */
 Mesh revolve(const std::vector<glm::vec2>& profile,
              const RevolveOptions& options = {});
 

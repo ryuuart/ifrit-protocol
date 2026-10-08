@@ -415,7 +415,7 @@ struct MetalLinework {
   gm::Mesh slab, floor;
   /** Per pad, the via ring or solder bead standing on it, if any. */
   std::vector<gm::Mesh> rings, beads;
-  std::vector<glm::vec3> pulseRail;
+  gm::curve::Spline3 pulseRail;
 
   static gm::camera::Camera lens() {
     gm::camera::Camera camera;
@@ -450,12 +450,12 @@ struct MetalLinework {
                      : gm::Mesh{});
     }
     // The pulse's rail: the first bus line, evenly resampled, standing on
-    // the plating.
+    // the plating, and open, so a window rides it only from end to end.
     gm::curve::Spline3 line;
     line.type = gm::curve::Spline3::Type::Linear;
     for (const glm::vec2 point : spine(bus().front()))
       line.points.push_back(onBoard(point, kPlating + 3));
-    pulseRail = line.sampleArcLength(400);
+    pulseRail.points = line.sampleArcLength(400);
 
     room = world::kit::environmentMap(
         {.zenith = {.1f, .11f, .13f},
@@ -499,9 +499,10 @@ struct MetalLinework {
     const float swing = 1.05f * std::sin(phase);
     const glm::vec3 key =
         glm::normalize(glm::vec3{std::sin(swing), -.42f, std::cos(swing)});
-    // The pulse runs the bus line once a loop, from connector to via.
+    // The pulse runs the bus line once a loop, its trail entering whole at
+    // the connector and its head ending on the via.
     const float travel = seconds / kLoop;
-    const float head = .12f + travel * (.995f - .12f);
+    const float head = .12f + travel * (1 - .12f);
 
     const auto viaFinish = [](bool copper) {
       return material::from(copper ? copperColour() : silverColour())

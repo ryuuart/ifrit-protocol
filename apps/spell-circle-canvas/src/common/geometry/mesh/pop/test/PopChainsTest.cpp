@@ -38,7 +38,8 @@ TEST(Pop, CookMeshFormsAModelFromAChain) {
   // Cooking is also pure: the same chain cooks to the same model, and
   // editing the chain value is the only way to get a different one.
   pop::SplineScatter scatter;
-  scatter.loop = flatRing(8, 200.0);
+  scatter.spine.points = flatRing(8, 200.0);
+  scatter.spine.closed = true;
   scatter.count = 500;
   scatter.head = 1;
   scatter.span = 1;
@@ -152,22 +153,58 @@ TEST(Pop, ImportedModelsJoinTheSystem) {
 // whose triangles have no area between them. A chain over any of them
 // must cook to an empty cloud rather than to `count` points sitting on
 // top of one another at the origin.
+TEST(Pop, AWindowOnAnOpenSpineRidesOnlyItsLength) {
+  // Three sides of a square, left open: the chord from its end back to
+  // its start would be the fourth side, along x = 0.
+  curve::Spline3 spine;
+  spine.type = curve::Spline3::Type::Linear;
+  spine.points = {{0, 0, 0}, {100, 0, 0}, {100, 100, 0}, {0, 100, 0}};
+
+  // The last tenth of the open spine is the far end of the top side, so
+  // every stamp lies on it and none on the chord below it.
+  const Cloud open = pop::on(spine).count(200).window(1.0f, 0.1f).cloud();
+  ASSERT_EQ(open.size(), 200u);
+  for (const glm::vec3& point : open.positions) {
+    EXPECT_NEAR(point.y, 100.0f, 1e-3f) << point.x;
+    EXPECT_GE(point.x, -1e-3f);
+  }
+
+  // A window reaching past the end is clipped to the spine rather than
+  // wrapped round to its start.
+  const Cloud overrun = pop::on(spine).count(200).window(1.2f, 0.3f).cloud();
+  for (const glm::vec3& point : overrun.positions)
+    EXPECT_NEAR(point.y, 100.0f, 1e-3f) << point.x;
+
+  // The same window on the spine closed rides its fourth side, the join
+  // back to the start, and a point jittered past the end wraps onto the
+  // start's corner.
+  spine.closed = true;
+  const Cloud closed = pop::on(spine).count(200).window(1.0f, 0.1f).cloud();
+  ASSERT_EQ(closed.size(), 200u);
+  int onTheJoin = 0;
+  for (const glm::vec3& point : closed.positions)
+    if (point.x < 1.0f && point.y < 45.0f) ++onTheJoin;
+  EXPECT_EQ(onTheJoin, 200);
+}
+
 TEST(Pop, ADegenerateGeneratorCooksToAnEmptyCloud) {
   const auto empty = [](const pop::Chain& chain) {
     const Cloud cooked = pop::cook(chain);
     EXPECT_TRUE(cooked.positions.empty()) << cooked.positions.size();
   };
 
-  // Fewer than three points is not a loop, so there is nothing to
-  // scatter along.
+  // Fewer than three points closed is not a loop, so there is nothing
+  // to scatter along.
   pop::SplineScatter twoPoints;
-  twoPoints.loop = {{0, 0, 0}, {100, 0, 0}};
+  twoPoints.spine.points = {{0, 0, 0}, {100, 0, 0}};
+  twoPoints.spine.closed = true;
   twoPoints.count = 64;
   empty({twoPoints});
 
   // A count of none: the chain is well formed and asks for nothing.
   pop::SplineScatter none;
-  none.loop = flatRing(8, 200.0);
+  none.spine.points = flatRing(8, 200.0);
+  none.spine.closed = true;
   none.count = 0;
   empty({none, pop::Jitter{}});
 

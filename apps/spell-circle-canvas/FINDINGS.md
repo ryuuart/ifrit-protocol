@@ -1934,19 +1934,6 @@ segments, applied round every outline including holes. A test should
 extrude a square with a round of radius r and find the rim's normals
 turning smoothly from the cap to the wall across r.
 
-## Contract gap: which winding a lathe and a loft orient outward is unstated
-
-`geometry::mesh::revolve` with a clockwise profile and `loft` with
-anticlockwise rings ordered back to front both produce inward normals,
-and neither header says which way gives outward ones. A glass body made
-inward bends the wrong way: `glass_forms`' magnifier shrank its scale
-until the profile was reversed, and the sketch reverses the order itself.
-
-Each header should state the winding that orients outward, or the
-function should orient outward whatever the winding, as a solid is
-expected to. A test should revolve a profile each way and find the
-normals outward in both.
-
 ## Renderer gap: a height-derived normal cannot dress a device body
 
 `material::surface::normalFromHeight` is a Skia program with no Slang
@@ -1987,17 +1974,6 @@ The grid should take a texture placement: coordinates from the position
 formula, or a rectangle in page units the sheet maps onto. A test should
 make a grid with a placement and find a corner vertex's coordinates
 where the placement puts them.
-
-## Contract gap: a stamp chain along a spine always closes the loop
-
-`geometry::mesh::pop::on(spline)` adds a closing segment from the
-spine's end back to its start, so a window riding an open trace is kept
-short of the end to stay off the segment. `metal_linework` guards the
-head's phase for that reason.
-
-The scatter should know whether its spine is open and ride only its
-length then. A test should window the last tenth of an open spine and
-find no stamp on the chord back to the start.
 
 ## Authoring gap: no cellular noise
 
@@ -2110,3 +2086,13 @@ direction — and turn every normal into the page as the brushing is. A
 test should state a relief on a span ink and find the page's height cut;
 a ribbon brushed along itself should stretch its highlight along a
 curve.
+
+## Authoring gap: Python cannot ride an open spine or ask for an inward lathe
+
+`pop::on(curve::Spline3)` keeps a spine's own closure so a window rides an
+open trace's full length, and `RevolveOptions::inward` and
+`LoftOptions::inward` turn a solid into itself; neither is bound, so a
+Python chain still closes its loop and a Python lathe cannot face in.
+Bind both and run the typing generator; a Python test should window the
+last tenth of an open spine and find no stamp on the chord.
+
