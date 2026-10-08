@@ -1190,34 +1190,6 @@ requested times in a scene2d sketch and a scene3d sketch, assert those times and
 and compare fresh direct seeks at several densities. Paused stills should
 remain held and repeatable.
 
-## Authoring ergonomics: outline relief is a decoration rather than a fill or ink
-
-Compose's material fills and inks paint their existing coverage. The shared
-`relief` brush can derive a normal field from the actual shape or placed
-glyphs, but it is attached as a background or foreground decoration. Text
-must select the glyph boundary and make its ordinary ink transparent. The
-stone, ceramic and foil studies repeat those three operations. A surfaced
-material supplied directly to `fill` or `ink` does not acquire contour relief.
-
-Wanted: one outline-aware paint operation over the existing fill and ink
-seams, preserving the material's layers, effects and normal detail. A
-possible spelling is `ink(relief(material, options))`; this is an API request,
-not an available overload. The contour-aware paint must remain in the
-inherited ink lane until the receiving leaf has its outline and final
-paint-box mapping. Its colour mapping and logical-pixel contour normals
-have different coordinate requirements.
-
-A helper that writes transparent ink, selects glyph boundaries and adds a
-foreground would change inherited child ink, redirect unrelated decorations
-and retain relief after a later ink assignment. Its foreground also uses
-resting glyph outlines rather than the ordinary text-effects draw poses.
-
-Regressions should compare shape fills and shaped text, including counters,
-signed depth, shared brushes, density and live channels, without drawing
-ordinary ink a second time. Cover inherited parent ink, explicit and cleared
-child ink, repeated assignment, current-ink marks, rich spans, independent
-decorations, paint-box mapping and animated or path-placed glyphs.
-
 ## Renderer gap: a material channel with no Slang body is not bound by World
 
 World's device binder writes a child material in a surface slot into the
@@ -1935,21 +1907,6 @@ from a material and a channel, and offer a remap of a scalar material
 between two values. A test should drive a channel from a depth map
 through the remap and find the stated range at the map's extremes.
 
-## Contract gap: a material's channel maps ignore the paint box its colour honours
-
-A fill stated with `PaintBox::Canvas` or `PaintBox::Subtree` places its
-colour stack in that box, through `placePaint`, but the material's other
-maps — normal, roughness, clear coat, emission — are placed in the
-element's own box. A height texture worn as the normal of an inset
-rectangle or a text leaf lands out of register with the base colour
-painted beside it. `painted_fields` makes every channel-bearing element a
-full-page box to keep the maps in register.
-
-Every map a material carries should be placed where its base colour is
-placed. A test should fill an inset rectangle with a material whose base
-colour and normal come from one texture under `PaintBox::Canvas`, read
-back both maps, and find the texture at the same place in each.
-
 ## Renderer gap: a page cannot glow above white
 
 `compose::SurfaceScene` paints its maps into eight-bit N32 surfaces and
@@ -2069,17 +2026,6 @@ A test should dress a World page with a strip brushed at 45 degrees
 under a known light and find the highlight stretched along the strip's
 direction, which fixes the sign end to end.
 
-## Authoring gap: a direction map is painted one leg at a time
-
-A material brushed along a path needs a direction map, and a ribbon
-has no fill that writes its own tangent, so `metal_linework` strokes
-every short leg of every trace as its own ribbon in its own colour.
-
-A ribbon fill that writes the ribbon's tangent as a direction colour
-would make the map one stroke per trace and serve any brushed-along-a-
-path material. A test should stroke a quarter circle with the tangent
-fill and find the map's direction turning with the arc.
-
 ## Contract gap: a stamp chain along a spine always closes the loop
 
 `geometry::mesh::pop::on(spline)` adds a closing segment from the
@@ -2090,20 +2036,6 @@ head's phase for that reason.
 The scatter should know whether its spine is open and ride only its
 length then. A test should window the last tenth of an open spine and
 find no stamp on the chord back to the start.
-
-## Contract gap: a page carries no clear-coat normal
-
-`compose::SurfaceScene` paints a coat's weight and roughness but not
-`SurfaceOptions::clearcoatNormal`: there is no texture role for it, the
-surface-map shader has no role for it, and `surface::program(TextureMaps)`
-never fills the coat-normal slot. `ceramic_glaze` paints its crazing into
-a texture scene and lays it into the page's surface by the slot itself,
-which stands in for the missing map.
-
-A page should carry the coat's normal as it carries the other lobe maps,
-painted once the content states one, and the program should place it. A
-test should paint a page whose content states a coat normal, dress a card
-with the page, and find the coat's reflection broken where the map turns.
 
 ## Authoring gap: no cellular noise
 
@@ -2244,4 +2176,35 @@ its end.
 A keyframed tween should sample at the moment like a two-point one. A
 test should bake a Python frame at a moment inside a three-keyframe
 rotation and find the body turned between the first two values.
+
+## Contract gap: a material's channels are not all placed and sourced by the unit its colour is
+
+A fill names a unit — `PaintBox::Element`, `Glyph`, `Word`, `Line`,
+`Subtree`, `Canvas` — and the colour stack lands on that unit's box and
+restarts there, which `ink_units` shows with one ramp over four units.
+The material's other channels do not follow: its normal, roughness,
+clear-coat and emission maps are placed in the element's own box
+whatever the fill said, a page paints no clear-coat normal at all, a
+relief over an outline is a decoration apart from fills and inks, and a
+brushing direction has to be painted one leg at a time because no
+material can read the direction of the shape it fills. Every material
+rewrite this week worked round it with full-page boxes and hand-painted
+maps.
+
+One rule should hold for every channel a material states: it is placed
+on the unit the colour is placed on, it reaches the page's maps whether
+it is a colour, a normal, a coat normal or an emission, and it may take
+that unit as a source — the unit's coverage as a height, the unit's
+outline as a relief, the unit's direction as a brushing — resolved by
+the painter at paint time the way the box already is, so a material
+never holds an element. `.fill(material.stone().relief(depth),
+PaintBox::Glyph)` then cuts each letter, and the same fill with `Canvas`
+cuts the lettering as one mark in a page-wide height. A material worn by
+a body with no page behind it has no unit to read and is refused by
+name. Tests: a fill under `PaintBox::Canvas` whose base colour and
+normal come from one texture reads back both maps at the same place; a
+page whose content states a coat normal dresses a card whose coat
+reflection breaks where the map turns; a relief fill under `Glyph` and
+under `Word` differs exactly in where the shoulders fall; a brushed
+strip at forty-five degrees stretches its highlight along the strip.
 
