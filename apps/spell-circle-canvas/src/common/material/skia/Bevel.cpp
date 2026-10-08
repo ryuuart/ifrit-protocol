@@ -1,7 +1,8 @@
 /** @file
  * The bevel normal map, differentiated from an outline's blurred
  * coverage: the shape is drawn white, blurred by the shoulder width,
- * smoothstepped into a height field and differentiated into normals.
+ * smoothstepped into a height field and differentiated into normals;
+ * and the face a bevel shades from those normals.
  */
 
 #include "sigilmaterial/skia/Bevel.h"
@@ -14,11 +15,17 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkSurface.h>
 #include <include/effects/SkImageFilters.h>
+#include <include/effects/SkRuntimeEffect.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/texture/Image.h>
 #include <sigilmedia/advanced/Skia.h>
+#include <sigilshaders/MaterialSkia.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <limits>
+#include <string>
 #include <vector>
 
 namespace sigil::material::skia {
@@ -143,6 +150,86 @@ Texture reliefNormals(const SkPath& outline, const ReliefOptions& options,
   toLogical[0][0] = toLogical[1][1] = 1.0f / density;
   normal.uv(localToPaint * toLogical * normal.uv());
   return normal;
+}
+
+namespace {
+
+const sk_sp<SkRuntimeEffect>& bevelFaceEffect() {
+  static const sk_sp<SkRuntimeEffect> effect = [] {
+    auto [built, error] = SkRuntimeEffect::MakeForShader(
+        SkString(std::string(shaderSource("BevelFace.sksl")).c_str()));
+    if (!built)
+      SkDebugf("sigilmaterial bevel face shader: %s\n", error.c_str());
+    return built;
+  }();
+  return effect;
+}
+
+/** @p gloss resampled to the program's seventeen evenly spaced samples;
+ *  a straight line where it is empty. */
+std::array<float, 17> contourSamples(const std::vector<float>& gloss) {
+  std::array<float, 17> samples{};
+  for (size_t i = 0; i < samples.size(); ++i) {
+    const float at = (float)i / 16.0f;
+    if (gloss.empty()) {
+      samples[i] = at;
+    } else if (gloss.size() == 1) {
+      samples[i] = gloss.front();
+    } else {
+      const float position = at * (float)(gloss.size() - 1);
+      const size_t below =
+          std::min((size_t)std::floor(position), gloss.size() - 2);
+      const float share = position - (float)below;
+      samples[i] = gloss[below] + (gloss[below + 1] - gloss[below]) * share;
+    }
+    if (!std::isfinite(samples[i])) samples[i] = 0;
+  }
+  return samples;
+}
+
+}  // namespace
+
+sk_sp<SkShader> bevelFace(const Texture& shoulder, const BevelOptions& options,
+                          const FrameData& frame) {
+  const sk_sp<SkRuntimeEffect>& effect = bevelFaceEffect();
+  if (!effect || !shoulder.source()) return nullptr;
+  Texture normals = shoulder;
+  normals.colorSpace(media::ColorSpace::Data);
+  const sk_sp<SkShader> shoulderShader =
+      shader(paint(material::image(std::move(normals))), frame);
+  if (!shoulderShader) return nullptr;
+  constexpr float kRadians = 3.14159265358979f / 180.0f;
+  const float angle = options.angleDegrees * kRadians;
+  const float altitude =
+      std::clamp(options.altitudeDegrees, 0.0f, 90.0f) * kRadians;
+  // Counter-clockwise from three o'clock on a canvas whose y grows down.
+  const SkV3 toward = {std::cos(angle) * std::cos(altitude),
+                       -std::sin(angle) * std::cos(altitude),
+                       std::sin(altitude)};
+  const std::array<float, 17> gloss = contourSamples(options.gloss);
+  SkRuntimeShaderBuilder builder(effect);
+  builder.uniform("uHighlightDirection") = toward;
+  builder.uniform("uHighlight") =
+      SkV4{options.highlight.r, options.highlight.g, options.highlight.b,
+           options.highlight.a};
+  builder.uniform("uShadow") = SkV4{options.shadow.r, options.shadow.g,
+                                    options.shadow.b, options.shadow.a};
+  builder.uniform("uResolution") = SkV2{std::max(frame.resolution.x, 1.0f),
+                                        std::max(frame.resolution.y, 1.0f)};
+  builder.uniform("uBend") = std::isfinite(options.bend) ? options.bend : 0.0f;
+  sk_sp<SkShader> reflection =
+      options.reflection ? shader(paint(*options.reflection), frame) : nullptr;
+  sk_sp<SkShader> face =
+      options.normal ? shader(paint(*options.normal), frame) : nullptr;
+  builder.uniform("uHasReflection") = reflection ? 1.0f : 0.0f;
+  builder.uniform("uHasFaceNormal") = face ? 1.0f : 0.0f;
+  builder.uniform("uGloss").set(gloss.data(), (int)gloss.size());
+  builder.child("uShoulder") = shoulderShader;
+  builder.child("uReflection") =
+      reflection ? reflection : SkShaders::Color(SK_ColorTRANSPARENT);
+  builder.child("uFaceNormal") =
+      face ? face : SkShaders::Color(SkColorSetARGB(255, 128, 128, 255));
+  return builder.makeShader();
 }
 
 }  // namespace sigil::material::skia

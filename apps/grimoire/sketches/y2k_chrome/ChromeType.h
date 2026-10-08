@@ -56,6 +56,7 @@ struct ChromeOptions {
 /** A reflective plate with a cast shadow, chisel edge and outer keyline.
  *  The steel face has deeper folds and a recessed upper edge. */
 inline material::Material y2kChrome(ChromeOptions options = {}) {
+  const float fold = options.palette == ChromePalette::Silver ? 0.25f : 0.58f;
   material::Filter effects = material::Filter::shadow(
       {0, 0, 0, 0.45f}, {.blur = 10, .offset = {0, 6}});
   if (options.palette == ChromePalette::Steel)
@@ -70,7 +71,7 @@ inline material::Material y2kChrome(ChromeOptions options = {}) {
     effects = effects.then(material::Filter::stroke(
         options.keyline, {.width = options.keylineWidth,
                           .position = material::StrokePosition::Outside}));
-  return liquidMetal(options.palette == ChromePalette::Silver ? 0.25f : 0.58f,
+  return liquidMetal(fold,
                      options.palette == ChromePalette::Silver ? 0.25f : 0.16f)
       .effects(effects);
 }

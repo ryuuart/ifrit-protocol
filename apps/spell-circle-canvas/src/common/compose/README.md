@@ -302,7 +302,9 @@ dress the outline outside that clip.
 
 A fill accepts a colour, `Fill` or SigilMaterial material. Decorations are
 marks attached around a boundary; material effects supply surface looks
-such as shadows and bevels. `Element::decorationOutline` chooses the
+such as shadows and bevels. These are layer styles, not lighting: each
+states its own highlight direction, colours and, for chrome, the picture
+its face reflects, and paints the same with no scene and no light. `Element::decorationOutline` chooses the
 shape, placed glyph contours or rendered coverage. Coverage tracing uses
 a bounded raster, produces stepped edges, follows device scale and has an
 opacity threshold. It excludes the node's own decorations, includes its

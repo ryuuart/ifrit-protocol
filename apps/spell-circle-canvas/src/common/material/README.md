@@ -359,6 +359,30 @@ zero or less, and radius zero are identity; negative or nonfinite radii are
 reported and return no filter. This is an orthographic single-interface
 warp, with no dispersion or transport through a closed glass body.
 
+## Layer styles
+
+The coverage effects are an image editor's layer styles, drawn across the
+outline a consumer paints — a box, the contours of a word — and they
+read no light of any scene: each carries its own direction and colours.
+`Filter::shadow` is a drop shadow, or with `.inside` an inner shadow, or
+with a `.spread` and no offset an outer glow; `Filter::stroke` a keyline;
+`Filter::bevel` a bevel and emboss lit from `angleDegrees`, with its
+`highlight` and `shadow` colours. A bevel that states a gloss contour
+(`BevelOptions::gloss`), a picture to reflect (`BevelOptions::reflection`)
+or a relief of its face (`BevelOptions::normal`) is shaded from its
+shoulder's normals under its own highlight direction and altitude
+(`BevelOptions::altitudeDegrees`): chrome is a bevel whose face reflects a
+picture laid across the box, bent where the face leans. `horizonReflection()`
+is the stock picture, a sky over a hard horizon over a lit ground.
+
+```cpp
+material::Material chrome = material::from(material::hexColor(0xD8DEE6))
+    .effects(material::Filter::bevel({
+        .depth = 2, .size = 3, .altitudeDegrees = 50,
+        .gloss = {0, 0.9f, 0.4f, 1},
+        .reflection = material::horizonReflection()}));
+```
+
 ## Write a shader
 
 ```cpp

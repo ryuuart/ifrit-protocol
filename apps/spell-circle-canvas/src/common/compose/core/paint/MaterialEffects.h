@@ -22,14 +22,24 @@ namespace sigil::compose::detail {
 
 struct ElementNode;
 struct MaterialStrokeCache;
+struct BevelFaceCache;
 
 /** One coverage step, painted around the node's outline. */
 struct CoverageMark {
   material::CoverageEffect effect;
-  bool operator==(const CoverageMark&) const = default;
+  // The shoulder a bevel shaded from its face last cut; paint-time state
+  // does not participate in the mark's value equality.
+  mutable std::shared_ptr<BevelFaceCache> face = {};
+  bool operator==(const CoverageMark& other) const {
+    return effect == other.effect;
+  }
   /** How far past the node's box the mark paints. */
   float bleed() const;
   void paint(draw::Pen& pen, const PaintContext& context) const;
+
+ private:
+  /** A bevel whose face is shaded from its shoulder, over the shape. */
+  void paintBevelFace(draw::Pen& pen, const PaintContext& context) const;
 };
 
 /** A keyline around the node's outline painted with a material's colours;

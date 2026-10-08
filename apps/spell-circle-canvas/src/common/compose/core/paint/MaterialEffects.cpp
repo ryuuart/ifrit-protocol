@@ -17,6 +17,7 @@
 #include <include/pathops/SkPathOps.h>
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/advanced/Skia.h>
+#include <sigilmaterial/skia/Bevel.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/SurfaceMaps.h>
@@ -46,6 +47,16 @@ struct MaterialStrokeCache {
   float density = 0;
   std::optional<UnitShape> unit;
   UnitSurfaces units;
+};
+
+/** The shoulder a bevel's face was last shaded from, and what it was cut
+ *  from: the outline, the bevel's width and height, and the density. */
+struct BevelFaceCache {
+  SkPath outline;
+  float size = 0;
+  float depth = 0;
+  float density = 0;
+  material::Texture shoulder;
 };
 
 namespace {
@@ -226,6 +237,10 @@ void CoverageMark::paint(draw::Pen& pen, const PaintContext& context) const {
       return;
     case Step::Bevel: {
       const material::BevelOptions& bevel = effect.bevel;
+      if (bevel.shadesFace()) {
+        paintBevelFace(pen, context);
+        return;
+      }
       const float radians = bevel.angleDegrees * 3.14159265358979f / 180.0f;
       // Canvas y grows downward, and an inner shadow's visible edge is the
       // one opposite its offset: the lit band is cast away from the light.
@@ -236,6 +251,33 @@ void CoverageMark::paint(draw::Pen& pen, const PaintContext& context) const {
       return;
     }
   }
+}
+
+void CoverageMark::paintBevelFace(draw::Pen& pen,
+                                  const PaintContext& context) const {
+  const material::BevelOptions& bevel = effect.bevel;
+  const SkPath outline = geometry::path::toSk(context.outline);
+  if (outline.isEmpty() || !(bevel.size > 0)) return;
+  const float density =
+      context.bakeDensity > 0 ? context.bakeDensity : context.contentScale;
+  if (!face) face = std::make_shared<BevelFaceCache>();
+  if (face->outline != outline || face->size != bevel.size ||
+      face->depth != bevel.depth || face->density != density) {
+    face->outline = outline;
+    face->size = bevel.size;
+    face->depth = bevel.depth;
+    face->density = density;
+    face->shoulder = material::skia::reliefNormals(
+        outline, {.shoulder = bevel.size, .depth = bevel.depth / bevel.size},
+        density > 0 ? density : 1.0f);
+  }
+  const sk_sp<SkShader> shader =
+      material::skia::bevelFace(face->shoulder, bevel, frameOf(context));
+  if (!shader) return;
+  SkPaint paint;
+  paint.setAntiAlias(true);
+  paint.setShader(shader);
+  pen.canvas()->drawPath(shapeOf(context), paint);
 }
 
 bool MaterialStroke::isRunning() const {

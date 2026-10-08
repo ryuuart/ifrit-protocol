@@ -1,0 +1,58 @@
+// THE FACE OF A BEVEL SHADED FROM ITS SHOULDER: the shoulder's normals,
+// bent by the face's own relief, laid with a highlight where they lean
+// toward the style's highlight direction and a shadow where they lean
+// away, over the picture the face reflects. Coordinates are the node's
+// pixels, y down; every normal here is in that frame.
+uniform float3 uHighlightDirection;  // unit, toward the highlight
+uniform float4 uHighlight;           // straight colour
+uniform float4 uShadow;              // straight colour
+uniform float2 uResolution;          // the box, in pixels
+uniform float uBend;                 // share of the box a full lean moves
+uniform float uHasReflection;
+uniform float uHasFaceNormal;
+uniform float uGloss[17];            // the contour over [0, 1]
+uniform shader uShoulder;            // (n + 1) / 2, green down
+uniform shader uReflection;
+uniform shader uFaceNormal;          // (n + 1) / 2, green up
+
+float contour(float share) {
+  float x = clamp(share, 0.0, 1.0) * 16.0;
+  float value = uGloss[16];
+  for (int i = 0; i < 16; ++i) {
+    if (x < float(i + 1)) {
+      value = mix(uGloss[i], uGloss[i + 1], x - float(i));
+      break;
+    }
+  }
+  return value;
+}
+
+half4 main(float2 p) {
+  float3 normal = float3(uShoulder.eval(p).rgb) * 2.0 - 1.0;
+  if (uHasFaceNormal > 0.5) {
+    half4 encoded = uFaceNormal.eval(p);
+    float3 face = encoded.a > 0.0
+                      ? float3(encoded.rgb / encoded.a) * 2.0 - 1.0
+                      : float3(0.0, 0.0, 1.0);
+    face.y = -face.y;
+    normal = float3(normal.xy + face.xy, normal.z * face.z);
+  }
+  float size = length(normal);
+  normal = size > 1e-5 ? normal / size : float3(0.0, 0.0, 1.0);
+
+  half4 colour = half4(0.0);
+  if (uHasReflection > 0.5)
+    colour = uReflection.eval(p + normal.xy * uBend * uResolution);
+
+  float facing = dot(normal, uHighlightDirection);
+  float level = uHighlightDirection.z;
+  float toward = clamp((facing - level) / max(1.0 - level, 1e-4), 0.0, 1.0);
+  float away = clamp((level - facing) / max(level, 1e-4), 0.0, 1.0);
+  float shade = contour(away) * uShadow.a;
+  float light = contour(toward) * uHighlight.a;
+  colour = half4(half3(uShadow.rgb) * half(shade), half(shade)) +
+           colour * half(1.0 - shade);
+  colour = half4(half3(uHighlight.rgb) * half(light), half(light)) +
+           colour * half(1.0 - light);
+  return colour;
+}

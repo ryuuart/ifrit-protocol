@@ -1976,19 +1976,6 @@ of depth, for at least one more layer, and a body's exit surface should
 take part in the bend. A test should stand a tinted slab behind a clear
 one and find the tint through both.
 
-## Authoring gap: a visible light cannot be aimed or ridden as one node
-
-`world::kit::visibleLight` wraps a sized light with an unlit emitter of
-its shape, but `Light::lookAt` turns only the light inside, and `.along`
-cannot carry the group, so a panel on a rail that must face its subject
-is placed with `.at()` and aimed by hand each frame; `embossed_foil`
-does that.
-
-The visible-light group should take `lookAt` and `along` as a light
-does, turning the emitter with the light. A test should ride a visible
-rect light along a rail aimed at a keyed node and find the emitter's
-normal pointing at it at two stations.
-
 ## Authoring gap: a grid sheet's texture coordinates are always its own parameters
 
 `geometry::mesh::grid` writes texture coordinates from its (u, v)
@@ -2090,30 +2077,21 @@ Thickness, like the flipbook frame, should be readable from a named
 instance attribute. A test should instance one bead at two sizes with a
 thickness attribute and find the page bent more through the larger.
 
-## Regression: the faked layer styles a page wears no longer paint
+## Decision: content that states no surface glows on a lit body
 
-Compose's layer styles — the aqua gel, the y2k chrome, the bevel, the
-inner shadow, the outer glow, the phosphor idiom — are Photoshop-shaped
-fakes drawn across an outline, not lit materials, and `surface_components`,
-`scene_surfaces`, `chrome_type`, `daemon_console` and the text-fill scenes
-depend on them. Since the page's lit pass left with World taking the
-lighting, the styles that read it paint flat or not at all.
+On a page, a plain colour on `fill`, `material::from(colour)`, the
+gradients and the pattern tiles paint as they did before World took the
+lighting, and the layer styles read no light. On a World body wearing a
+page through `compose::SurfaceScene`, the same content is written into
+the emissive map over a black base, so it shows its colour whatever the
+scene's lights, shadows and environment do — where a page laid in a
+body's base-colour slot takes them. Whether flat content on a worn page
+should stay self-lit or become base colour (lit, shadowed, reflecting
+the environment) is the owner's call.
 
-The fakes stay fakes: a layer style is a vintage effect a page composes
-in 2D, and it should paint without any scene or light. Each style should
-be a decoration over the brush tier that reads no light, with its
-highlight direction a parameter of the style. A test should paint a
-chrome word and a gel pill on a page with no lights and find the gradient
-map and the bevel in the pixels; the plates of the five sketches above
-are the acceptance.
-
-## Regression: the stock materials are missing something
-
-The owner reports the stock materials — what a plain colour on `fill`
-and the kit's stock looks give — read as lacking since the lighting
-moved. What is missing is not yet named: compare each stock material's
-page plate and scene plate against its pre-move plate and state the
-difference, then fix it where it lives.
+A test should paint a plain fill on a page worn by a lit body, put the
+body half in a shadow, and find the fill darker in the shadow if the
+owner chooses base colour, or unchanged if self-lit stays.
 
 ## Authoring gap: the combined Python carved-and-plated study is not written
 
@@ -2134,19 +2112,6 @@ frame, or the three swept rivulets rebuilt per frame is not measured.
 Profile it with the per-stage timers and `--bench`, name the cost, and
 fix it at the library if the cost is the library's.
 
-## Bug: a keyframed tween on a World lane from Python stands at its end
-
-`motion.animate(keyframes=[Keyframe(-90, 0), Keyframe(9, 1.1), Keyframe(0, 0.5)])`
-on a mesh's `rotateY`, baked from a Python sketch at a moment inside the
-tween, draws the body at the last keyframe's value, while the same lane
-with `animate(from_=-90, to=0, duration=1.6)` is mid-swing at that moment.
-The keyframe list is either not carried into the lane or is sampled at
-its end.
-
-A keyframed tween should sample at the moment like a two-point one. A
-test should bake a Python frame at a moment inside a three-keyframe
-rotation and find the body turned between the first two values.
-
 ## Authoring gap: Python does not spell a material's relief or brushing, and some units answer no source
 
 `material::Material::relief` and `.brushed` are not bound, so a Python
@@ -2163,4 +2128,25 @@ direction — and turn every normal into the page as the brushing is. A
 Python test should state a relief on a fill and find the page's height
 cut; a ribbon brushed along itself should stretch its highlight along a
 curve.
+
+## Authoring gap: the bevel's face options and the horizon reflection are not bound in Python
+
+`material::BevelOptions` carries `altitudeDegrees`, `gloss`, `reflection`,
+`bend` and `normal`, and `material::horizonReflection` is the stock
+picture a chrome reflects, but the Python bindings know neither, so a
+Python page cannot state a shaded bevel or a chrome. Bind them and run
+the typing generator; a Python test should paint a bevelled word with a
+horizon and find the dark row across it.
+
+## Contract gap: a keyframed path plays only on mount, and a colour path with no from never enters
+
+A tween's keyframes are an entrance from its first step on a float lane,
+but a later description change eases straight to the new resting value
+and ignores the keyframes; and Compose's own colour and fill entrance in
+`compose/core/runtime/Transitions.cpp` still enters only when a from is
+named, so a colour keyframe path with no from does not play on mount.
+A keyframed path should play from its first step on mount and again
+when the description changes its resting value, on float and colour
+lanes alike. Tests: a colour path with no from enters on mount; a float
+path re-described to a new rest plays its steps.
 

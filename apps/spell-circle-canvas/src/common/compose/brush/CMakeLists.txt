@@ -34,6 +34,7 @@ sigil_test(compose_test
           test/ComposeTestTextureBake.cpp test/ComposeTestTemporalCache.cpp
           test/ComposeTestSplitBake.cpp test/ComposeTestGroupBake.cpp
           test/ComposeTestRuleMarks.cpp test/ComposeTestCascadePaints.cpp
+          test/ComposeTestLayerStyles.cpp
   LIBRARIES SigilComposeBrush SigilComposeKit SigilComposeTesting
             SigilWeavePorts)
 

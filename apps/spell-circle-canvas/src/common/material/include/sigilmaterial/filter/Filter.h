@@ -69,21 +69,71 @@ struct StrokeOptions {
   bool operator==(const StrokeOptions&) const = default;
 };
 
-/** THE BEVEL: two opposed inner shadows lit from one direction, the
- *  fake-3D edge an image editor's layer style draws. */
+/** THE BEVEL AND EMBOSS an image editor's layer style draws: a fake-3D
+ *  edge lit from a direction the style states, reading no light of any
+ *  scene. Two kinds of mark share these options.
+ *
+ *  - With no `gloss`, `reflection` or `normal`, two opposed inner
+ *    shadows, `depth` apart along `angleDegrees` and `size` soft: the
+ *    highlight on the edges facing the light, the shadow on the far ones.
+ *  - With any of them, THE FACE IS SHADED FROM ITS SHOULDER: the outline's
+ *    coverage softened over `size` pixels and raised `depth` pixels is a
+ *    field of normals, combined with `normal` where one is given. Where a
+ *    normal leans toward the highlight direction (`angleDegrees` round,
+ *    `altitudeDegrees` up) the highlight is laid, where it leans away the
+ *    shadow is, each by how far it leans remapped through `gloss`; a flat
+ *    face takes neither. Under them the face shows `reflection`, read
+ *    where its normal bends it. */
 struct BevelOptions {
   /** How far the lit and the shaded plane are pushed apart, in local
-   *  pixels. */
+   *  pixels; shaded from the shoulder, how high the shoulder rises. */
   float depth = 3;
-  /** How soft the edge is, in local pixels. */
+  /** How soft the edge is, in local pixels; shaded from the shoulder, how
+   *  wide the shoulder is. */
   float size = 4;
-  /** Where the light comes from, in degrees counter-clockwise from 3
+  /** Where the highlight comes from, in degrees counter-clockwise from 3
    *  o'clock. */
   float angleDegrees = 120;
+  /** How high the highlight stands above the page, in degrees: 90 is
+   *  straight on and lights every slope alike, 0 grazes the page. Read
+   *  where the face is shaded from its shoulder. */
+  float altitudeDegrees = 30;
   Color highlight = {1, 1, 1, 0.65f};
   Color shadow = {0, 0, 0, 0.45f};
+  /** THE GLOSS CONTOUR: how the share of the highlight or the shadow a
+   *  slope takes, from zero to one, is remapped before it is laid —
+   *  samples evenly spaced over that range, the first at zero and the
+   *  last at one. A ring (low, high, low) puts a bright band partway up
+   *  the shoulder, as chrome shows. Empty is a straight line. */
+  std::vector<float> gloss;
+  /** THE PICTURE THE FACE REFLECTS: any material — a gradient, an image,
+   *  a shader — laid across the box the bevel dresses, in that box's own
+   *  units, and read where the face's normal moves it. Unset, the face is
+   *  left as the fill painted it. `horizonReflection()` is the stock
+   *  picture. */
+  std::optional<Material> reflection;
+  /** How far a normal leaning all the way over moves where `reflection`
+   *  is read, as a share of the box. */
+  float bend = 0.35f;
+  /** THE FACE'S OWN RELIEF: a normal material, encoded `(n + 1) / 2` with
+   *  green up the picture, laid across the box and combined with the
+   *  shoulder's — folds in a sheet of chrome, ripples in a gel. */
+  std::optional<Material> normal;
+
+  /** Whether the face is shaded from its shoulder rather than drawn as
+   *  two inner shadows. */
+  bool shadesFace() const {
+    return !gloss.empty() || reflection.has_value() || normal.has_value();
+  }
   bool operator==(const BevelOptions&) const = default;
 };
+
+/** THE STOCK PICTURE A CHROME FACE REFLECTS, for `BevelOptions::reflection`:
+ *  a pale sky deepening toward a hard dark horizon across the middle of
+ *  the box, over a warm lit ground — the reflection a chrome wordmark is
+ *  painted with. @p horizon is where the horizon stands down the box, from
+ *  zero at its top to one at its bottom. */
+Material horizonReflection(float horizon = 0.5f);
 
 /** ONE STEP THAT READS A LAYER'S COVERAGE — its distance to the edge, its
  *  alpha — rather than its pixels: a shadow, a stroke or a bevel in a

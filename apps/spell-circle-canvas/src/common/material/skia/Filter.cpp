@@ -7,10 +7,12 @@
 
 #include <include/core/SkColor.h>
 #include <include/effects/SkImageFilters.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <utility>
@@ -174,6 +176,22 @@ Filter Filter::stroke(Color color, StrokeOptions options) {
   step.color = color;
   step.stroke = options;
   return FilterAccess::wrap({}, {step});
+}
+
+Material horizonReflection(float horizon) {
+  // The stops stand on the horizon: the sky above it and the ground
+  // below it keep their proportions wherever it is put.
+  const float at = std::clamp(horizon, 0.02f, 0.98f);
+  const auto sky = [at](float share) { return at * share; };
+  const auto ground = [at](float share) { return at + (1 - at) * share; };
+  return linearGradient({0, 0}, {0, 1},
+                        {{0.0f, {0.96f, 0.98f, 1.0f, 1}},
+                         {sky(0.45f), {0.70f, 0.80f, 0.90f, 1}},
+                         {sky(0.92f), {0.30f, 0.38f, 0.48f, 1}},
+                         {at, {0.07f, 0.08f, 0.10f, 1}},
+                         {ground(0.08f), {0.36f, 0.32f, 0.28f, 1}},
+                         {ground(0.55f), {0.80f, 0.76f, 0.70f, 1}},
+                         {1.0f, {0.98f, 0.96f, 0.92f, 1}}});
 }
 
 Filter Filter::bevel(BevelOptions options) {

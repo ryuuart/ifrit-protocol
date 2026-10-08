@@ -6,15 +6,18 @@
  * bevelNormals(): a normal map derived from an outline's coverage, so a
  * flat shape shades as though it had a rounded shoulder. It encodes
  * device-space normals (+y down, +z toward the viewer) and produces a
- * Texture a recipe's slot takes — the other half of what a
- * reflective 2D surface is shaded from, beside an EnvironmentMap. It
- * stands in the Skia executor because the outline arrives as a Skia path
- * and its coverage is rasterised by Skia.
+ * Texture a recipe's slot takes; and bevelFace(), the face a bevel layer
+ * style shades from those normals with the highlight direction and the
+ * reflection it carries itself. Both stand in the Skia executor because the
+ * outline arrives as a Skia path and its coverage is rasterised by Skia.
  */
 
 #include <include/core/SkPath.h>
 #include <include/core/SkRect.h>
+#include <include/core/SkShader.h>
+#include <sigilmaterial/advanced/FrameData.h>
 #include <sigilmaterial/core/Material.h>
+#include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/texture/Texture.h>
 
 #include <glm/mat3x3.hpp>
@@ -45,5 +48,17 @@ Texture bevelNormals(const SkPath& path, float bevelPx, float heightScale = 1);
 Texture reliefNormals(const SkPath& outline, const ReliefOptions& options,
                       float density = 1,
                       const glm::mat3& localToPaint = glm::mat3(1.0f));
+
+/** THE FACE OF A BEVEL SHADED FROM ITS SHOULDER (`BevelOptions::shadesFace`)
+ *  as one shader in the node's pixels: @p shoulder is the normal map of the
+ *  outline's softened coverage, green down, as `reliefNormals` cuts it with
+ *  the shoulder `options.size` wide and `options.depth` high; the face's
+ *  own `normal` and the `reflection` it shows resolve across the box
+ *  @p frame states. Draw it over the outline; a slope leaning toward the
+ *  style's highlight direction takes the highlight, one leaning away the
+ *  shadow, a flat face neither. Null where the program cannot be made or
+ *  the shoulder has no image. */
+sk_sp<SkShader> bevelFace(const Texture& shoulder, const BevelOptions& options,
+                          const FrameData& frame);
 
 }  // namespace sigil::material::skia
