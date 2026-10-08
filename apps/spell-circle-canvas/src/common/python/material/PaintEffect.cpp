@@ -164,8 +164,16 @@ void bindMaterialPaintEffect(py::module_& module) {
       .def_readwrite("depth", &material::BevelOptions::depth)
       .def_readwrite("size", &material::BevelOptions::size)
       .def_readwrite("angleDegrees", &material::BevelOptions::angleDegrees)
+      .def_readwrite("altitudeDegrees",
+                     &material::BevelOptions::altitudeDegrees)
       .def_readwrite("highlight", &material::BevelOptions::highlight)
-      .def_readwrite("shadow", &material::BevelOptions::shadow);
+      .def_readwrite("shadow", &material::BevelOptions::shadow)
+      .def_readwrite("gloss", &material::BevelOptions::gloss)
+      .def_readwrite("reflection", &material::BevelOptions::reflection)
+      .def_readwrite("bend", &material::BevelOptions::bend)
+      .def_readwrite("normal", &material::BevelOptions::normal);
+  nativePaint.def("horizonReflection", &material::horizonReflection,
+                  py::arg("horizon") = 0.5f);
   bindRecord<material::BloomOptions>(nativePaint, "BloomOptions",
                                      "Unknown BloomOptions field: ")
       .def_readwrite("sigma", &material::BloomOptions::sigma)

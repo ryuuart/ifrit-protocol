@@ -61,6 +61,7 @@ from _sigil.material import (
     placeholder,
     ramp,
     rampBracket,
+    readsUnit,
     rotateHue,
     sampleRamp,
     scale,
@@ -87,6 +88,7 @@ from _sigil.material.skia import (
     ShadowOptions,
     StrokeOptions,
     StrokePosition,
+    horizonReflection,
 )
 
 from . import (
@@ -155,6 +157,7 @@ __all__ = [
     "from_",
     "harmony",
     "hexColor",
+    "horizonReflection",
     "hsv",
     "image",
     "inSrgbGamut",
@@ -175,6 +178,7 @@ __all__ = [
     "placeholder",
     "ramp",
     "rampBracket",
+    "readsUnit",
     "rotateHue",
     "sampleRamp",
     "sbsar",

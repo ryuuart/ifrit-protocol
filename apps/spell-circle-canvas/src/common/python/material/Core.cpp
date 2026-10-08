@@ -165,6 +165,22 @@ void bindMaterialBuilder(py::module_& module) {
           py::arg("depthWrite") = py::none(), py::arg("depthFade") = 0.0f,
           fluent)
       .def(
+          "relief",
+          [](material::Material& self, float shoulder, float depth)
+              -> material::Material& { return self.relief({shoulder, depth}); },
+          py::kw_only(),
+          py::arg("shoulder") = material::ReliefOptions{}.shoulder,
+          py::arg("depth") = material::ReliefOptions{}.depth, fluent)
+      .def(
+          "brushed",
+          [](material::Material& self, float strength,
+             float rotation) -> material::Material& {
+            return self.brushed({strength, rotation});
+          },
+          py::kw_only(),
+          py::arg("strength") = material::BrushedOptions{}.strength,
+          py::arg("rotation") = material::BrushedOptions{}.rotation, fluent)
+      .def(
           "effects",
           [](material::Material& self, const material::Filter& chain)
               -> material::Material& { return self.effects(chain); },
@@ -196,6 +212,7 @@ void bindMaterialBuilder(py::module_& module) {
       .def(py::self == py::self);
   materials.def("channel", &material::channel, py::arg("source"),
                 py::arg("which"));
+  materials.def("readsUnit", &material::readsUnit, py::arg("material"));
   materials.def(
       "from_",
       [](py::handle base) {

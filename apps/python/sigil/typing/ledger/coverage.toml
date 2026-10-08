@@ -1764,6 +1764,22 @@ python = [
 ]
 
 [[section.surface.item]]
+bound = "a relief and a brushing read from the unit a material is painted into: `Material.relief` with its `shoulder` and `depth`, `Material.brushed` with its `strength` and `rotation`, and `readsUnit`"
+python = [
+  "material.Material.relief",
+  "material.Material.brushed",
+  "material.readsUnit",
+]
+
+[[section.surface.item]]
+bound = "a bevel's shaded face: `BevelOptions` with `altitudeDegrees`, the `gloss` contour, the `reflection` picture and its `bend`, and the face's own `normal`, with `horizonReflection` the stock picture a chrome reflects"
+python = [
+  "material.BevelOptions",
+  "material.Filter.bevel",
+  "material.horizonReflection",
+]
+
+[[section.surface.item]]
 native = "`Recipe` authoring with frame inputs, `UniformBlock` and banks"
 python = ["material.Recipe", "material.UniformBlock", "material.Bank"]
 

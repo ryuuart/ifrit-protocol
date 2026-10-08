@@ -2096,31 +2096,20 @@ frame, or the three swept rivulets rebuilt per frame is not measured.
 Profile it with the per-stage timers and `--bench`, name the cost, and
 fix it at the library if the cost is the library's.
 
-## Authoring gap: Python does not spell a material's relief or brushing, and some units answer no source
+## Authoring gap: a span ink and a ribbon answer no unit source, and unit normals stay in the node's frame
 
-`material::Material::relief` and `.brushed` are not bound, so a Python
-page cannot state them; and a span ink with no unit and a material ribbon
-answer no unit source, so their relief lies flat and their brushing runs
-along the surface. A glyph or word ink uses its box's long axis as its
-direction, since the layout carries no stem direction; every normal but
-the brushing direction is written in the node's frame rather than turned
+A span ink with no unit and a material ribbon answer no unit source, so a
+material's relief lies flat under them and its brushing runs along the
+surface. A glyph or word ink uses its box's long axis as its direction,
+since the layout carries no stem direction; every normal but the
+brushing direction is written in the node's frame rather than turned
 into the page.
 
-Bind the two statements (the typing generator run and committed), give
-the span ink and the ribbon their unit — the ribbon's tangent is its
+Give the span ink and the ribbon their unit — the ribbon's tangent is its
 direction — and turn every normal into the page as the brushing is. A
-Python test should state a relief on a fill and find the page's height
-cut; a ribbon brushed along itself should stretch its highlight along a
+test should state a relief on a span ink and find the page's height cut;
+a ribbon brushed along itself should stretch its highlight along a
 curve.
-
-## Authoring gap: the bevel's face options and the horizon reflection are not bound in Python
-
-`material::BevelOptions` carries `altitudeDegrees`, `gloss`, `reflection`,
-`bend` and `normal`, and `material::horizonReflection` is the stock
-picture a chrome reflects, but the Python bindings know neither, so a
-Python page cannot state a shaded bevel or a chrome. Bind them and run
-the typing generator; a Python test should paint a bevelled word with a
-horizon and find the dark row across it.
 
 ## Contract gap: a keyframed path plays only on mount, and a colour path with no from never enters
 
