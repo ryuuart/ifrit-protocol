@@ -102,13 +102,13 @@ bool materialsEqual(const NodeDescription& a, const NodeDescription& b) {
   if (a.slots.size() != b.slots.size()) return false;
   for (size_t i = 0; i < a.slots.size(); ++i)
     if (!(a.slots[i] == b.slots[i])) return false;
-  return true;
+  return a.unreadSources == b.unreadSources;
 }
 
 }  // namespace
 
 static_assert(
-    core::kFieldCount<NodeDescription> == 19,
+    core::kFieldCount<NodeDescription> == 20,
     "A field of NodeDescription appeared or vanished. Rule on it in "
     "propertiesEqual() below — participate, or a stated reason not to "
     "— then bump this count. A miss is silent: the node prunes, "

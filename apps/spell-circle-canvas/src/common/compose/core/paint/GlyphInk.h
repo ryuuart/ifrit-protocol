@@ -6,6 +6,7 @@
  * that ink restarts on each unit of the passage.
  */
 
+#include <include/core/SkPath.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkShader.h>
 #include <sigilmaterial/advanced/FrameData.h>
@@ -21,6 +22,8 @@
 
 namespace sigil::compose::detail {
 
+class UnitSurfaces;
+
 /** THE INK ONE DRAW OF A PASSAGE PAINTS ITS GLYPHS WITH. */
 struct TextInk {
   /** A lit ink on a page painted as a surface map, resolved once its box
@@ -28,11 +31,23 @@ struct TextInk {
   struct Surface {
     material::skia::SurfaceMaps inputs;
     material::texture::Role map;
+    /** The material where it reads the unit it is painted into, with the
+     *  node's held maps per unit: each unit's maps are answered for that
+     *  unit's outline and direction. */
+    std::optional<material::Material> readsUnit;
+    UnitSurfaces* units = nullptr;
     /** The ink over the unit square @p paintToLocal places in the node. */
     sk_sp<SkShader> shader(const material::FrameData& frame,
                            const glm::mat3& paintToLocal) const {
       return inputs.mapShader(map, frame, paintToLocal);
     }
+    /** The ink over the unit square @p paintToLocal places in the node,
+     *  answered for the unit @p outline covers in the node, running
+     *  @p direction in the page, rasterised at @p density. */
+    sk_sp<SkShader> shaderOver(const material::FrameData& frame,
+                               const glm::mat3& paintToLocal,
+                               const SkPath& outline, glm::vec2 direction,
+                               float density) const;
   };
   /** One retained span source resolved for this draw. Its owner follows
    *  paragraph restyling; its shader belongs to the current destination. */
@@ -59,6 +74,8 @@ struct TextInk {
   /** Span inks visible beneath any whole-passage override. */
   std::vector<Span> spans;
   material::FrameData frame;
+  /** Device pixels to each logical pixel a unit's relief is cut at. */
+  float density = 1;
 
   /** A span or unit needs its own foreground for this draw. */
   [[nodiscard]] bool hasGlyphStyles() const {

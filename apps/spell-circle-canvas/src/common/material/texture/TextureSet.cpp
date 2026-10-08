@@ -189,6 +189,8 @@ std::string_view name(Role role) {
       return "anisotropy";
     case Role::Iridescence:
       return "iridescence";
+    case Role::ClearcoatNormal:
+      return "clearcoatNormal";
   }
   return "?";
 }

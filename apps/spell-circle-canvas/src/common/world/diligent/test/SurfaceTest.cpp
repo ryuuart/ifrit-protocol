@@ -573,3 +573,49 @@ TEST(Environment, AMirrorWearsTheSkyAndAMatteSurfaceIsLitByIt) {
   EXPECT_GT(luma(diffuse), 0.02f);
   EXPECT_GT(luma(mirrored), 0.02f);
 }
+
+// ---- what a bare body cannot wear ------------------------------------
+
+TEST(SurfaceRefusals, AUnitSourceOnABareBodyIsRefusedByName) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // A relief and a brushing read the unit a page paints a material into;
+  // a body wearing the material itself has no page and no unit, so it is
+  // drawn without them — exactly as the same surface stating neither —
+  // and the body and each source are named once.
+  const material::Color grey{0.8f, 0.8f, 0.8f, 1.0f};
+  const material::Material plain =
+      material::from(grey).surface({.metallic = 1.0f, .roughness = .4f});
+  const material::Material reading =
+      material::from(grey)
+          .surface({.metallic = 1.0f, .roughness = .4f})
+          .relief({.shoulder = 4, .depth = 1})
+          .brushed({.strength = 0});
+  const SkBitmap bare = cardOn(plain, on.runtime);
+  testing::internal::CaptureStderr();
+  const SkBitmap refused = cardOn(reading, on.runtime);
+  const std::string said = testing::internal::GetCapturedStderr();
+  EXPECT_EQ(diligent::worstChannel(bare, refused), 0);
+  EXPECT_NE(said.find("\"card\""), std::string::npos) << said;
+  EXPECT_NE(said.find("relief"), std::string::npos) << said;
+  EXPECT_NE(said.find("brushing"), std::string::npos) << said;
+}
+
+TEST(SurfaceRefusals, ALayeredStackOnABareBodyIsRefusedByName) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // A colour with a second colour laid half over it has no program the
+  // device can run as a base colour, so the body says so by name, and
+  // what it carries.
+  const material::Material layered =
+      material::from(material::Color{0.9f, 0.2f, 0.1f, 1})
+          .layer(material::from(material::Color{0.1f, 0.2f, 0.9f, 1}),
+                 {.opacity = .5f})
+          .surface({.roughness = .6f});
+  testing::internal::CaptureStderr();
+  const SkBitmap drawn = cardOn(layered, on.runtime);
+  const std::string said = testing::internal::GetCapturedStderr();
+  EXPECT_GT(luma(at(drawn, 0.5f, 0.5f)), 0.05f) << "the card is drawn";
+  EXPECT_NE(said.find("\"card\""), std::string::npos) << said;
+  EXPECT_NE(said.find("layered colour stack"), std::string::npos) << said;
+}

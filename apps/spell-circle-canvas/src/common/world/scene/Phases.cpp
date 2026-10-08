@@ -8,6 +8,7 @@
 #include <sigilcore/cache/Cache.h>
 #include <sigilgeometry/mesh/curve/Pose.h>
 #include <sigilmaterial/advanced/Combine.h>
+#include <sigilmaterial/advanced/Program.h>  // reportOnce
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmotion/advanced/Held.h>
@@ -47,6 +48,33 @@ const material::Material* readableSurface(const material::Material* material) {
     material = base;
   }
   return material;
+}
+
+/** WHAT A BODY CANNOT WEAR, named once per body: a source read of the
+ *  unit a page paints a material into, which a body has none of, and a
+ *  layered colour stack, which has no program a device can run. The body
+ *  is drawn without them — the relief flat, the brushing along the
+ *  surface's u, the stack as its surface's stock colour. */
+void refuseUnreadable(const NodeDescription& node,
+                      const material::Material* worn) {
+  const std::string body = node.key.empty() ? "(unkeyed)" : node.key;
+  for (const std::string& source : node.unreadSources)
+    material::reportOnce(
+        "world.body.unit:" + body + ":" + source,
+        "body \"" + body + "\" wears a material whose " + source +
+            " reads the unit a page paints it into; a body has no unit, so it "
+            "is drawn without it. Paint the material on a page the body "
+            "wears.");
+  if (!worn) return;
+  const material::Material* base =
+      readableSurface(worn)->slot(material::surface::kBaseColorSlot);
+  if (base && !base->hasProgram() && !base->layers().empty())
+    material::reportOnce(
+        "world.body.layers:" + body,
+        "body \"" + body +
+            "\" wears a layered colour stack, which has no program a device "
+            "can run; it is drawn in its surface's stock colour. Paint the "
+            "stack on a page the body wears, or bake it into an image.");
 }
 
 /** THE COLOUR A BODY IS EXTRACTED WITH: what a pass draws it in where
@@ -416,6 +444,7 @@ void Scene::Impl::writeComponents(Instance& inst) {
   else
     registry.remove<component::Body>(inst.entity);
   const material::Material* worn = surfaceOf(node);
+  refuseUnreadable(node, worn);
   component::Surface& surface = registry.emplace_or_replace<component::Surface>(
       inst.entity, baseColorOf(readableSurface(worn)),
       worn ? std::optional<material::Material>(*worn)

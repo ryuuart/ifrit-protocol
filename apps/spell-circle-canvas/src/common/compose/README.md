@@ -329,7 +329,26 @@ normal facing the viewer, roughness and occlusion one and metallic zero —
 so flat text and fills come out of the scene looking as painted. Where nothing paints,
 every map reads that same ground with a transparent base colour, and an
 antialiased edge composites each map by its coverage, normals included as
-their encoding. Normals are encoded green up the picture.
+their encoding. Normals are encoded green up the picture. A material that
+states a normal of its clear coat's own adds a `ClearcoatNormal` map, as a
+stated optional lobe adds its maps.
+
+**Every channel stands on the unit the colour does.** A fill or an ink
+names a unit with its `PaintBox` — the element's box, its padding or
+content box, the subtree's, the canvas, or a glyph, cluster, word, line or
+sentence of a passage — and the material's normal, numbers, coat, emission
+and lobes are placed on that unit and restart on it exactly as its colour
+stack does. A material may also read the unit as a source, resolved by
+the painter when it paints: `material::Material::relief` raises or impresses
+the unit's own coverage softened over the shoulder into the normal map, and
+`material::Material::brushed` brushes along the unit — a keyline's tangent,
+a box's long axis, a glyph's box's long axis, in the page. So
+`.ink(stone.relief({.shoulder = 3, .depth = 1}), PaintBox::Glyph)` cuts each
+letter and the same ink with `PaintBox::Canvas` cuts the passage as one
+mark; under `PaintBox::Word` neighbouring letters share one height, so the
+shoulders between them fall where the word's do. A material holds no
+element: a body wearing it with no page behind it has no unit to read and
+says so.
 
 ```cpp
 #include <sigilcompose/texture/SurfaceScene.h>
@@ -347,13 +366,14 @@ map through `setSurfaceMap` too. A page painted as a map takes no pixel
 bakes. A layer effect that makes colour of its own over lit content — a
 shadow or glow filter on a group — writes that colour into every map.
 
-`relief(material, options)` puts a material over the outline being painted,
-combining a bevel derived from the actual contours with any normal map in
-the material — in the normal map a World scene lights the page by. Shoulder is
-measured in logical pixels; positive depth raises the outline and negative
-depth impresses it. Attach it as a shape background, or as a glyph
-foreground with the ordinary ink set transparent so the glyphs are not
-painted twice:
+`relief(material, options)` is the same relief said over an outline: a
+decoration that paints `material.relief(options)` with the outline it is
+given as the unit — a shape, placed glyph contours, traced coverage —
+combining the relief with any normal map in the material, in the normal map
+a World scene lights the page by. Shoulder is measured in logical pixels;
+positive depth raises the outline and negative depth impresses it. Attach it
+as a shape background, or as a glyph foreground with the ordinary ink set
+transparent so the glyphs are not painted twice:
 
 ```cpp
 #include <sigilcompose/brush/Relief.h>
@@ -365,8 +385,9 @@ auto lettering = compose::text("AURUM").font({.size = 64})
 ```
 
 Here `gold` is the caller's material. Link `SigilComposeBrush`. Relief keeps
-its layers, effects and live surface channels. It is a decoration;
-ordinary material fills and inks remain available through `fill` and `ink`.
+its layers, effects and live surface channels. Its options are
+`material::ReliefOptions`; a fill or an ink states the same relief on its
+own unit with `material::Material::relief`.
 
 A material Ribbon uses the same surface map and effect path over its swept
 band. `brush::ribbon(profile, material)` keeps the full material; its `Fill`

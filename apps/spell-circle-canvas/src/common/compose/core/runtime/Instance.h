@@ -45,6 +45,7 @@
 namespace sigil::compose::detail {
 
 struct Instance;
+class UnitSurfaces;
 
 /** WHETHER THE CHILDREN OF THIS NODE CARRY YOGA NODES. Stated once because
  *  two places ask — the mount that creates the node and the patch that
@@ -246,6 +247,9 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   mutable std::optional<material::Paint> surfaceMapFill;
   mutable std::optional<material::Material> surfaceMapMaterial;
   mutable std::optional<material::skia::SurfaceMaps> surfaceMapFillInputs;
+  // The maps of a lit fill or ink that reads the unit it is painted into,
+  // prepared per unit while the material and the unit stand.
+  mutable std::shared_ptr<UnitSurfaces> unitSurfaces;
   /** The fill in force as the surface map the composer paints the page
    *  as, or null where the fill is not lit or no map is selected — where
    *  the fill beneath paints the material's colours flat. */

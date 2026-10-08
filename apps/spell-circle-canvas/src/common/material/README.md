@@ -236,6 +236,20 @@ and map, a clear coat — `clearcoat`, `clearcoatRoughness` and its own
   what stands behind displaced, with no light involved, for heat haze and
   shockwaves; carried only with a map at a strength other than zero.
 
+**The unit a material is painted into** can be a source of its surface,
+resolved by whatever paints it: `Material::relief(ReliefOptions)` raises
+(positive `depth`) or impresses the unit's coverage, softened over the
+`shoulder` in logical pixels, and combines that relief under the stated
+normal; `Material::brushed(BrushedOptions)` states an anisotropy of
+`strength` that runs along the unit, turned by `rotation` degrees — the
+`SurfaceOptions::relief` and `SurfaceOptions::anisotropyAlongUnit` fields.
+`readsUnit(material)` says whether a material reads one. A material holds
+no unit: a 2D page's painter knows the glyph, word, box or stroke it paints
+and answers the sources with `surface::resolveUnit`, cutting the relief with
+`skia::reliefNormals` and the direction with `surface::unitDirection`; a 3D
+body wearing the material with no page behind it has no unit and is drawn
+without them, said by name.
+
 What a renderer makes of the last two is its own: SigilWorld reads a copy
 of the scene behind the surface, one layer deep. A page's surface maps
 carry neither — a page whose content states them is drawn without them,
@@ -269,8 +283,9 @@ weight and roughness (`texture::Role::Clearcoat`), or one of the optional
 lobes' — the sheen's colour (`Sheen`), the sheen's roughness with the
 specular strength (`SheenSpecular`), the specular colour
 (`SpecularColor`), the brushing's direction and strength (`Anisotropy`)
-and the film's weight and thickness (`Iridescence`) — keyed by
-`texture::Role`, as the texture of that role encodes it.
+and the film's weight and thickness (`Iridescence`) — and the coat's own
+normal (`ClearcoatNormal`), keyed by `texture::Role`, as the texture of
+that role encodes it.
 `material::skia::LobeListener` hears which lobes the surfaces read as maps
 on its thread state, which is how a page learns which of those maps it
 needs. The normal comes
@@ -285,7 +300,9 @@ metallic is zero. `material::skia::SurfaceMaps` prepares a material's colour
 stack and channels once and answers every map from them; its `asMap()`
 holds one pass per role, and `SurfaceMaps::mapShader` places a map for one
 draw whose unit square maps into the node. Construct another when the
-material changes. The coat's normal and `reflectionWeight` have no map.
+material changes. `reflectionWeight` has no map. A material anchored to the
+root frame (`Material::worldSpace`) anchors every map there, so its normal
+and numbers stand where its colours do.
 
 In Skia, a positive `SurfaceOptions::alphaCutoff` removes color-stack samples
 whose alpha is below the threshold, in a flat paint and in every map.

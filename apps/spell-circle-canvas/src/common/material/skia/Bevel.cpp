@@ -10,6 +10,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImageFilter.h>
 #include <include/core/SkImageInfo.h>
+#include <include/core/SkMatrix.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkSurface.h>
 #include <include/effects/SkImageFilters.h>
@@ -17,6 +18,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <vector>
 
 namespace sigil::material::skia {
@@ -104,6 +106,43 @@ Texture bevelNormals(const SkPath& path, float bevelPx, float heightScale) {
   SkRect b = path.computeTightBounds();
   b.outset(bevelPx + 2, bevelPx + 2);
   return bevelNormals(path, b.roundOut(), bevelPx, heightScale);
+}
+
+Texture reliefNormals(const SkPath& outline, const ReliefOptions& options,
+                      float density, const glm::mat3& localToPaint) {
+  // The scratch a relief rasterises — coverage, height and normals — is
+  // bounded whatever the outline's or the canvas's size.
+  constexpr double kMaxPixels = 16.0 * 1024 * 1024;
+  if (!std::isfinite(options.shoulder) || options.shoulder <= 0 ||
+      !std::isfinite(options.depth) || options.depth == 0 ||
+      !std::isfinite(density) || density <= 0 || outline.isEmpty())
+    return {};
+  const float shoulder = options.shoulder * density;
+  // The coverage differentiator squares its slopes when normalising.
+  if (!std::isfinite(shoulder) ||
+      std::abs(options.depth) > std::sqrt(std::numeric_limits<float>::max()) /
+                                    std::max(shoulder, 1.0f))
+    return {};
+  const SkPath scaled =
+      outline.makeTransform(SkMatrix::Scale(density, density));
+  if (!scaled.isFinite()) return {};
+  SkRect bounds = scaled.computeTightBounds();
+  bounds.outset(shoulder + 2, shoulder + 2);
+  constexpr double kIntLimit = std::numeric_limits<int>::max();
+  const double width = std::ceil(bounds.right()) - std::floor(bounds.left());
+  const double height = std::ceil(bounds.bottom()) - std::floor(bounds.top());
+  if (!bounds.isFinite() || width <= 0 || height <= 0 ||
+      width * height > kMaxPixels ||
+      std::max({std::abs(double(bounds.left())), std::abs(double(bounds.top())),
+                std::abs(double(bounds.right())),
+                std::abs(double(bounds.bottom()))}) >= kIntLimit)
+    return {};
+  Texture normal =
+      bevelNormals(scaled, bounds.roundOut(), shoulder, options.depth);
+  glm::mat3 toLogical(1.0f);
+  toLogical[0][0] = toLogical[1][1] = 1.0f / density;
+  normal.uv(localToPaint * toLogical * normal.uv());
+  return normal;
 }
 
 }  // namespace sigil::material::skia

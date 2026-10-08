@@ -14,7 +14,10 @@
 
 #include <include/core/SkPath.h>
 #include <include/core/SkRect.h>
+#include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/texture/Texture.h>
+
+#include <glm/mat3x3.hpp>
 
 namespace sigil::material::skia {
 
@@ -30,5 +33,17 @@ Texture bevelNormals(const SkPath& path, SkIRect bounds, float bevelPx,
 /** `bevelNormals` over the path's own bounds outset by the bevel, so the
  *  shoulder has room on every side. */
 Texture bevelNormals(const SkPath& path, float bevelPx, float heightScale = 1);
+
+/** THE RELIEF @p options STATE, cut from the unit @p outline covers: its
+ *  coverage softened over the shoulder as a height, differentiated into
+ *  normals green down. @p outline is in logical pixels, rasterised at
+ *  @p density device pixels to each, and the texture is placed through
+ *  @p localToPaint, the logical pixels into the space the material it
+ *  dresses is sampled in. Invalid — the unit left flat — for a shoulder or
+ *  depth of zero or not finite, a density that is not positive, and an
+ *  outline whose shoulder would need more than sixteen million pixels. */
+Texture reliefNormals(const SkPath& outline, const ReliefOptions& options,
+                      float density = 1,
+                      const glm::mat3& localToPaint = glm::mat3(1.0f));
 
 }  // namespace sigil::material::skia

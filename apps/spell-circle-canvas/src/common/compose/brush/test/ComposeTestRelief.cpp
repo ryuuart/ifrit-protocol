@@ -548,11 +548,13 @@ TEST(ComposeRelief, NormalBakesDoNotParticipateInStructuralEquality) {
 }
 
 TEST(ComposeRelief, InvalidAndOversizedBakesFallBackToFlatFinitePaint) {
-  for (const ReliefOptions options :
-       {ReliefOptions{.shoulder = std::numeric_limits<float>::infinity()},
-        ReliefOptions{.depth = std::numeric_limits<float>::quiet_NaN()},
-        ReliefOptions{.depth = std::numeric_limits<float>::max()},
-        ReliefOptions{.shoulder = -1}}) {
+  for (const material::ReliefOptions options :
+       {material::ReliefOptions{.shoulder =
+                                    std::numeric_limits<float>::infinity()},
+        material::ReliefOptions{.depth =
+                                    std::numeric_limits<float>::quiet_NaN()},
+        material::ReliefOptions{.depth = std::numeric_limits<float>::max()},
+        material::ReliefOptions{.shoulder = -1}}) {
     Host normal(128, 100), base(128, 100);
     paintWithPen(relief(material::Color{1, 0, 0, 1}, options),
                  *normal.surface->getCanvas(), contextFor(rectangle()));

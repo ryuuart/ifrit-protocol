@@ -1976,19 +1976,6 @@ of depth, for at least one more layer, and a body's exit surface should
 take part in the bend. A test should stand a tinted slab behind a clear
 one and find the tint through both.
 
-## Bug: a layered material worn by a bare body is drawn as the stock grey, and nothing says so
-
-A `material::from(colour).layer(noise, …).surface(…)` stack worn by a
-world mesh directly, not through a page, renders as the stock mid-grey:
-the layers and the colour are dropped on the way to the device and no
-warning is written. `embossed_foil`'s bench wears a plain colour because
-of it.
-
-A material World cannot lower should be refused with a message naming
-the body and what it carries, or lowered: a layered stack can be baked
-to a texture the surface wears. A test should dress a device card with a
-two-layer material and find either the layers' colour or the refusal.
-
 ## Authoring gap: a visible light cannot be aimed or ridden as one node
 
 `world::kit::visibleLight` wraps a sized light with an unlit emitter of
@@ -2013,18 +2000,6 @@ The grid should take a texture placement: coordinates from the position
 formula, or a rectangle in page units the sheet maps onto. A test should
 make a grid with a placement and find a corner vertex's coordinates
 where the placement puts them.
-
-## Contract gap: the anisotropy direction map's sign is not pinned by a test
-
-A direction map is read as a normal map's red and green, green pointing
-up the page, so a page leg (dx, dy) is written as (dx, −dy). Rendered
-against the opposite sign and against no anisotropy, both give a
-plausible picture, so an author cannot tell by eye which is right.
-`metal_linework` follows the convention as documented.
-
-A test should dress a World page with a strip brushed at 45 degrees
-under a known light and find the highlight stretched along the strip's
-direction, which fixes the sign end to end.
 
 ## Contract gap: a stamp chain along a spine always closes the loop
 
@@ -2140,20 +2115,15 @@ moved. What is missing is not yet named: compare each stock material's
 page plate and scene plate against its pre-move plate and state the
 difference, then fix it where it lives.
 
-## Authoring gap: Python cannot paint a page as a surface
+## Authoring gap: the combined Python carved-and-plated study is not written
 
-A Python sketch has no `Page` and no texture scene, so Compose cannot
-drive a World body's maps the way a C++ scene3d sketch does; the only
-route is an offscreen `Graphics` buffer whose image becomes a texture,
-one buffer per map. The owner wants a Python 3D scene that combines
-carved marks and metal linework with Compose driving the materials and
-no geometry doing it.
-
-Bind the page: `ctx.page(size)`, `page.render(tree)` as a pass and
-`page.surface()` as the material, so a Python bake carries a page that
-Compose paints every frame. A test should bake a frame whose body wears
-a page of one colour from Python and find the colour on the body. Then
-write the combined study.
+The owner wants a Python 3D scene that combines carved marks and metal
+linework with Compose driving the materials and no geometry doing it. A
+Python sketch now dresses a baked body in Compose through
+`ctx.page(size)`, `page.render(tree)` and `page.surface()`, and
+`python_plaque` wears one page with raised type; the combined study itself
+is not written. It should stand beside `python_plaque` as a Python bake
+whose bodies wear pages only, and its device plate is its test.
 
 ## Performance: wet_glass_console is very demanding
 
@@ -2177,34 +2147,20 @@ A keyframed tween should sample at the moment like a two-point one. A
 test should bake a Python frame at a moment inside a three-keyframe
 rotation and find the body turned between the first two values.
 
-## Contract gap: a material's channels are not all placed and sourced by the unit its colour is
+## Authoring gap: Python does not spell a material's relief or brushing, and some units answer no source
 
-A fill names a unit — `PaintBox::Element`, `Glyph`, `Word`, `Line`,
-`Subtree`, `Canvas` — and the colour stack lands on that unit's box and
-restarts there, which `ink_units` shows with one ramp over four units.
-The material's other channels do not follow: its normal, roughness,
-clear-coat and emission maps are placed in the element's own box
-whatever the fill said, a page paints no clear-coat normal at all, a
-relief over an outline is a decoration apart from fills and inks, and a
-brushing direction has to be painted one leg at a time because no
-material can read the direction of the shape it fills. Every material
-rewrite this week worked round it with full-page boxes and hand-painted
-maps.
+`material::Material::relief` and `.brushed` are not bound, so a Python
+page cannot state them; and a span ink with no unit and a material ribbon
+answer no unit source, so their relief lies flat and their brushing runs
+along the surface. A glyph or word ink uses its box's long axis as its
+direction, since the layout carries no stem direction; every normal but
+the brushing direction is written in the node's frame rather than turned
+into the page.
 
-One rule should hold for every channel a material states: it is placed
-on the unit the colour is placed on, it reaches the page's maps whether
-it is a colour, a normal, a coat normal or an emission, and it may take
-that unit as a source — the unit's coverage as a height, the unit's
-outline as a relief, the unit's direction as a brushing — resolved by
-the painter at paint time the way the box already is, so a material
-never holds an element. `.fill(material.stone().relief(depth),
-PaintBox::Glyph)` then cuts each letter, and the same fill with `Canvas`
-cuts the lettering as one mark in a page-wide height. A material worn by
-a body with no page behind it has no unit to read and is refused by
-name. Tests: a fill under `PaintBox::Canvas` whose base colour and
-normal come from one texture reads back both maps at the same place; a
-page whose content states a coat normal dresses a card whose coat
-reflection breaks where the map turns; a relief fill under `Glyph` and
-under `Word` differs exactly in where the shoulders fall; a brushed
-strip at forty-five degrees stretches its highlight along the strip.
+Bind the two statements (the typing generator run and committed), give
+the span ink and the ribbon their unit — the ribbon's tangent is its
+direction — and turn every normal into the page as the brushing is. A
+Python test should state a relief on a fill and find the page's height
+cut; a ribbon brushed along itself should stretch its highlight along a
+curve.
 

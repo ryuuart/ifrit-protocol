@@ -11,6 +11,7 @@
 #include <include/core/SkSurface.h>
 #include <sigilmaterial/advanced/Program.h>
 #include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/texture/Image.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilshaders/MaterialSurface.h>
 
@@ -359,6 +360,39 @@ const Texture* map(const Material& material, std::string_view slot) {
   return fill ? nullptr : texture;
 }
 
+Material resolveUnit(const Material& material, const PaintedUnit& unit) {
+  const SurfaceOptions* stated = material.surface();
+  if (!stated || (!stated->relief && !stated->anisotropyAlongUnit))
+    return material;
+  SurfaceOptions surface = *stated;
+  if (surface.relief && unit.relief && unit.relief->valid()) {
+    Material bevel = image(*unit.relief);
+    surface.normal = surface.normal
+                         ? blendNormals(std::move(bevel), *surface.normal,
+                                        {.baseDirectX = true,
+                                         .detailDirectX = surface.normalDirectX,
+                                         .outputDirectX = true})
+                         : std::move(bevel);
+    surface.normalDirectX = true;
+  }
+  surface.relief.reset();
+  if (surface.anisotropyAlongUnit && unit.direction)
+    surface.anisotropyDirection = *unit.direction;
+  surface.anisotropyAlongUnit = false;
+  Material resolved = material;
+  resolved.surface(surface);
+  return resolved;
+}
+
+Material unitDirection(glm::vec2 direction) {
+  const float length = std::hypot(direction.x, direction.y);
+  const glm::vec2 along = std::isfinite(length) && length > 0
+                              ? direction / length
+                              : glm::vec2{1, 0};
+  // Green up the page: a page's y runs down.
+  return Material(Color{along.x * 0.5f + 0.5f, -along.y * 0.5f + 0.5f, 1, 1});
+}
+
 Material program(const texture::TextureMaps& maps, SurfaceParameters base) {
   using texture::Role;
   const auto has = [&](Role role) { return maps.map(role) != nullptr; };
@@ -461,6 +495,8 @@ Material program(const texture::TextureMaps& maps, SurfaceParameters base) {
   data(kOpacitySlot, maps.map(Role::Opacity));
   data(kClearcoatSlot, coat);
   data(kClearcoatRoughnessSlot, coat);
+  // The coat's own normal, read in the convention the set's normal is.
+  data(kClearcoatNormalSlot, maps.map(Role::ClearcoatNormal));
   if (sheen) {
     place(kSheenColorSlot, sheen);
     data(kSheenRoughnessSlot, sheenSpecular);

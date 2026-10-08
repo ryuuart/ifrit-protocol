@@ -28,9 +28,12 @@ constexpr std::array kRoles{Role::BaseColor, Role::Normal, Role::Packed,
 /** THE MAPS AN OPTIONAL LOBE NEEDS, painted only once a material on the
  *  page states the lobe: the sheen's colour and its roughness beside the
  *  specular strength, the specular colour with that same shared image, the
- *  brushing's direction and strength, the film's weight and thickness. */
-std::vector<Role> lobeRoles(const material::Lobes& lobes) {
+ *  brushing's direction and strength, the film's weight and thickness —
+ *  and the coat's own normal, once a material states one. */
+std::vector<Role> lobeRoles(const material::Lobes& lobes,
+                            bool clearcoatNormal) {
   std::vector<Role> out;
+  if (clearcoatNormal) out.push_back(Role::ClearcoatNormal);
   if (lobes.sheen) out.push_back(Role::Sheen);
   if (lobes.sheen || lobes.specular) out.push_back(Role::SheenSpecular);
   if (lobes.specular) out.push_back(Role::SpecularColor);
@@ -93,6 +96,7 @@ void SurfaceScene::render(const Element& root, double seconds) {
   m_lobes.anisotropy |= heard.anisotropy;
   m_lobes.iridescence |= heard.iridescence;
   m_lobes.specular |= heard.specular;
+  m_clearcoatNormal |= listener.heardClearcoatNormal();
   // TRANSMISSION AND DISTORTION read the scene behind the surface they
   // sit on, which a page's flat maps cannot carry: a material that needs
   // its own shading crosses to the World scene as itself, and until it can, the
@@ -102,7 +106,7 @@ void SurfaceScene::render(const Element& root, double seconds) {
         "compose.surface.transmission",
         "a material on a page states transmission or distortion, which a "
         "page's surface maps cannot carry; the page is drawn without them");
-  for (Role role : lobeRoles(m_lobes)) {
+  for (Role role : lobeRoles(m_lobes, m_clearcoatNormal)) {
     if (m_scenes.count(role)) continue;
     if (!add(role)) continue;
     paint(*m_scenes.at(role));

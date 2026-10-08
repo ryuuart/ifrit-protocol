@@ -8,19 +8,26 @@
 #include "MaterialEffects.h"
 
 #include <include/core/SkCanvas.h>
+#include <include/core/SkContourMeasure.h>
 #include <include/core/SkMaskFilter.h>
 #include <include/core/SkPaint.h>
+#include <include/core/SkPathUtils.h>
+#include <include/core/SkSurface.h>
 #include <include/core/SkTypes.h>  // SkDebugf
+#include <include/pathops/SkPathOps.h>
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/SurfaceMaps.h>
+#include <sigilmaterial/texture/Image.h>
+#include <sigilmedia/advanced/Skia.h>
 
 #include <algorithm>
 #include <cmath>
 
 #include "SurfaceMap.h"
+#include "UnitSurface.h"
 #include "description/ComposeInternal.h"
 
 namespace sigil::compose::detail {
@@ -31,6 +38,14 @@ struct MaterialStrokeCache {
 
   material::Material material;
   material::skia::SurfaceMaps prepared;
+  /** Where the material reads its unit: the band the keyline covers and
+   *  the tangent painted along it, made again when the outline, its place
+   *  in the page or the density moves. */
+  SkPath outline;
+  glm::mat3 toPage{1.0f};
+  float density = 0;
+  std::optional<UnitShape> unit;
+  UnitSurfaces units;
 };
 
 namespace {
@@ -98,6 +113,70 @@ void strokeSide(SkCanvas& canvas, const PaintContext& context, SkPaint paint,
   }
   canvas.drawPath(geometry::path::toSk(context.outline), paint);
   canvas.restore();
+}
+
+/** The band a keyline @p width wide on the side @p position names covers
+ *  around @p outline, whose inside is @p shape. */
+SkPath strokeBand(const SkPath& outline, const SkPath& shape, float width,
+                  material::StrokePosition position) {
+  SkPaint stroke;
+  stroke.setStyle(SkPaint::kStroke_Style);
+  stroke.setStrokeWidth(
+      position == material::StrokePosition::Center ? width : width * 2);
+  SkPath band = skpathutils::FillPathWithPaint(outline, stroke);
+  if (position == material::StrokePosition::Center) return band;
+  return Op(band, shape,
+            position == material::StrokePosition::Inside ? kIntersect_SkPathOp
+                                                         : kDifference_SkPathOp)
+      .value_or(band);
+}
+
+/** THE TANGENT ALONG @p outline as an anisotropy direction map, over
+ *  @p band in the node's logical pixels: each short piece of the contour
+ *  paints the way it runs in the page — @p toPage carries the node there
+ *  — across the band's width, at @p density device pixels to each logical
+ *  pixel. Empty where the band is empty or too large to paint. */
+std::optional<material::Material> tangentAlong(const SkPath& outline,
+                                               const SkPath& band, float reach,
+                                               const glm::mat3& toPage,
+                                               float density) {
+  constexpr double kMaxPixels = 16.0 * 1024 * 1024;
+  const SkRect bounds = band.getBounds().makeOutset(2, 2);
+  const double across = std::ceil(bounds.width() * density);
+  const double down = std::ceil(bounds.height() * density);
+  if (bounds.isEmpty() || !bounds.isFinite() || across * down > kMaxPixels)
+    return std::nullopt;
+  sk_sp<SkSurface> surface = SkSurfaces::Raster(SkImageInfo::Make(
+      (int)across, (int)down, kRGBA_8888_SkColorType, kUnpremul_SkAlphaType));
+  if (!surface) return std::nullopt;
+  SkCanvas& canvas = *surface->getCanvas();
+  canvas.clear(SkColor4f{1, 0.5f, 1, 1});
+  canvas.scale(density, density);
+  canvas.translate(-bounds.left(), -bounds.top());
+  SkPaint piece;
+  piece.setStyle(SkPaint::kStroke_Style);
+  piece.setStrokeWidth(reach);
+  piece.setStrokeCap(SkPaint::kSquare_Cap);
+  constexpr float kStep = 1.5f;
+  SkContourMeasureIter contours(outline, false);
+  while (sk_sp<SkContourMeasure> contour = contours.next()) {
+    for (float at = 0; at < contour->length(); at += kStep) {
+      SkPoint from, tangent, to;
+      if (!contour->getPosTan(at, &from, &tangent)) continue;
+      contour->getPosTan(std::min(at + kStep, contour->length()), &to, nullptr);
+      const glm::vec2 page = intoPage({tangent.x(), tangent.y()}, toPage);
+      piece.setColor4f({page.x * 0.5f + 0.5f, -page.y * 0.5f + 0.5f, 1, 1});
+      canvas.drawLine(from, to, piece);
+    }
+  }
+  glm::mat3 toLogical(1.0f);
+  toLogical[0][0] = toLogical[1][1] = 1.0f / density;
+  toLogical[2][0] = bounds.left();
+  toLogical[2][1] = bounds.top();
+  material::Texture texture(surface->makeImageSnapshot());
+  texture.colorSpace(sigil::media::ColorSpace::Data);
+  texture.uv(toLogical);
+  return material::image(std::move(texture));
 }
 
 }  // namespace
@@ -177,8 +256,32 @@ void MaterialStroke::paint(draw::Pen& pen, const PaintContext& context) const {
   if (surfaced && context.surfaceMap) {
     if (!cache || cache->material != *surfaced)
       cache = std::make_shared<MaterialStrokeCache>(*surfaced);
+    // A keyline that reads its unit reads the band it covers: the relief
+    // cut from it, the brushing along the outline's tangent.
+    const material::skia::SurfaceMaps* maps = &cache->prepared;
+    if (material::readsUnit(*surfaced)) {
+      const SkPath outline = geometry::path::toSk(context.outline);
+      const float density =
+          context.bakeDensity > 0 ? context.bakeDensity : context.contentScale;
+      const glm::mat3& toPage = context.toRoot.matrix;
+      if (!cache->unit || cache->outline != outline ||
+          cache->toPage != toPage || cache->density != density) {
+        UnitShape unit;
+        unit.outline = strokeBand(outline, shapeOf(context), options.width,
+                                  options.position);
+        unit.density = density;
+        if (surfaced->surface()->anisotropyAlongUnit)
+          unit.directionMap = tangentAlong(
+              outline, unit.outline, options.width * 2 + 2, toPage, density);
+        cache->outline = outline;
+        cache->toPage = toPage;
+        cache->density = density;
+        cache->unit = std::move(unit);
+      }
+      maps = &cache->units.mapsFor(*surfaced, *cache->unit);
+    }
     const sk_sp<SkShader> shader = material::skia::shader(
-        cache->prepared.asMap(*context.surfaceMap), frameOf(context));
+        maps->asMap(*context.surfaceMap), frameOf(context));
     if (!shader) return;
     stroke.setShader(shader);
     markSurfaceMap(stroke);

@@ -139,6 +139,26 @@ Material& Material::surface(const SurfaceOptions& options) {
   return *this;
 }
 
+Material& Material::relief(ReliefOptions options) {
+  SurfaceOptions stated = surface() ? *surface() : SurfaceOptions{};
+  stated.relief = options;
+  return surface(stated);
+}
+
+Material& Material::brushed(BrushedOptions options) {
+  SurfaceOptions stated = surface() ? *surface() : SurfaceOptions{};
+  stated.anisotropy = options.strength;
+  stated.anisotropyRotation = options.rotation;
+  stated.anisotropyAlongUnit = true;
+  return surface(stated);
+}
+
+bool readsUnit(const Material& material) {
+  const SurfaceOptions* stated = material.surface();
+  return stated && !stated->unlit &&
+         (stated->relief || stated->anisotropyAlongUnit);
+}
+
 void Material::placeEffects(std::shared_ptr<const detail::Part> effects) {
   compose().effects = std::move(effects);
 }

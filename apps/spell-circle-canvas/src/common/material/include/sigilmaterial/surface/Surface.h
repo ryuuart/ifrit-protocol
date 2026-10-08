@@ -23,6 +23,7 @@
 #include <sigilmaterial/texture/TextureSet.h>
 
 #include <cstdint>
+#include <glm/vec2.hpp>
 #include <memory>
 #include <optional>
 #include <string_view>
@@ -62,6 +63,26 @@ struct HeightNormalOptions {
  *  normals. The input's colour stack is sampled; its surface/effects are not.
  */
 Material normalFromHeight(Material height, HeightNormalOptions options = {});
+
+/** WHAT A PAINTER READ OF THE UNIT IT PAINTS A MATERIAL INTO, placed where
+ *  the material is sampled: the unit's relief as an encoded normal map,
+ *  green down, and the way the unit runs as an anisotropy direction map —
+ *  red and green encoded as a normal map is, green up the page — a solid
+ *  colour for a box or a glyph, a painted map along a stroke. */
+struct PaintedUnit {
+  std::optional<Texture> relief;
+  std::optional<Material> direction;
+};
+
+/** @p material with the unit sources it states answered by @p unit: a
+ *  relief's normals reoriented under the stated normal, a brushing along
+ *  the unit read from @p unit's direction. What @p unit does not answer
+ *  stays flat or runs along the surface's u. The result reads no unit. */
+Material resolveUnit(const Material& material, const PaintedUnit& unit);
+
+/** @p direction, a vector in the page with y down, as the solid anisotropy
+ *  direction map `PaintedUnit::direction` holds. */
+Material unitDirection(glm::vec2 direction);
 
 /** The slots the surface recipes declare, one per map a texture
  *  set carries. Each takes a `Texture` (or any leaf a renderer binds);

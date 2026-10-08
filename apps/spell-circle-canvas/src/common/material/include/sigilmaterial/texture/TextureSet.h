@@ -62,6 +62,8 @@ enum class Role {
   /** A thin film's weight in red and its thickness in green, over the
    *  range a surface reading it states — glTF's layout. */
   Iridescence,
+  /** The clear coat's own tangent-space normal, encoded as `Normal` is. */
+  ClearcoatNormal,
 };
 
 /** The thickness, in nanometres, an `Iridescence` image reaches at white

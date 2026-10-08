@@ -59,11 +59,10 @@ coat and a rougher surface.
   as the glaze's depth, and softened again for the normal of the coat that
   fills them, blended with the crazing by `material::surface::blendNormals`.
 - **The pages** (`Scene3DContext::page`) paint each surface's maps: the
-  glaze as `Material::surface` with `.clearcoat` and `.clearcoatRoughness`,
-  the foot as bare clay with a higher roughness and a grain normal. A page
-  paints the coat's weight and roughness but carries no normal of the coat's
-  own, so the sketch lays the painted coat normal into the page surface's
-  `material::surface::kClearcoatNormalSlot` itself.
+  glaze as `Material::surface` with `.clearcoat`, `.clearcoatRoughness` and
+  the painted coat normal as `.clearcoatNormal`, the foot as bare clay with
+  a higher roughness and a grain normal. The page paints the coat's normal
+  as a map of its own wherever the glaze lies.
 - **The light**: one `world::rectLight` casting shadows, high behind the
   jars and gliding across them, a `world::hemisphereLight` sky, and a
   `world::kit::environmentMap` studio of a broad soft box and a narrow strip.

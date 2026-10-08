@@ -37,6 +37,7 @@
 #include "PaintInternal.h"
 #include "PenOnCanvas.h"
 #include "SurfaceMap.h"
+#include "UnitSurface.h"
 #include "runtime/ComposeRuntime.h"
 
 namespace sigil::compose {
@@ -770,6 +771,35 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
     // they must stay balanced against their restores below, and the
     // foregrounds still trace the outline.)
   } else if (const material::Paint* live = liveMaterialOf(inst)) {
+    // A LIT FILL THAT READS ITS UNIT, on a page painted as a surface map,
+    // is that map of its material answered for the node's own outline:
+    // the relief cut from it, the brushing along its long axis, sampled
+    // where the fill's box places the material.
+    std::optional<material::Paint> unitFill;
+    if (surfaceMap)
+      if (const MaterialData* slot = fillSlotOf(inst);
+          slot && slot->surfaced && material::readsUnit(*slot->surfaced)) {
+        const glm::mat3& toRoot = paintCtx.toRoot.matrix;
+        detail::UnitShape unit;
+        unit.outline =
+            customShape || trimmed ? surfacePath : SkPath::RRect(rrect);
+        unit.direction =
+            detail::longAxisOf({bounds.width(), bounds.height()}, toRoot);
+        unit.density = paintCtx.bakeDensity > 0 ? paintCtx.bakeDensity
+                                                : paintCtx.contentScale;
+        if (style.paint.fillBox == PaintBox::Canvas) {
+          unit.localToPaint = toRoot;
+        } else if (style.paint.fillBox == PaintBox::Content) {
+          const detail::Insets inset = paddingOf(inst);
+          unit.localToPaint[2][0] = -inset.left;
+          unit.localToPaint[2][1] = -inset.top;
+        }
+        if (!inst.unitSurfaces)
+          inst.unitSurfaces = std::make_shared<detail::UnitSurfaces>();
+        unitFill = inst.unitSurfaces->mapsFor(*slot->surfaced, unit)
+                       .asMap(*surfaceMap);
+        live = &*unitFill;
+      }
     // The fill's box: the paint's unit square is stretched over the
     // rectangle the fill names rather than the node's own. The painted
     // AREA does not move with it — a clip is what would move that, and
@@ -778,9 +808,10 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
     // A border here is a stroke dressing the boundary rather than a box
     // lane, so the padding box IS the border box and only the content box
     // moves the paint.
-    if (style.paint.fillBox != PaintBox::Content || inst.hasPendingLiveFill) {
-      resolvedFill = inst.hasPendingLiveFill ? inst.pendingLiveFill
-                                             : resolveFill(*live, paintCtx);
+    const bool pending = inst.hasPendingLiveFill && !unitFill;
+    if (style.paint.fillBox != PaintBox::Content || pending) {
+      resolvedFill =
+          pending ? inst.pendingLiveFill : resolveFill(*live, paintCtx);
     } else {
       const detail::Insets inset = paddingOf(inst);
       PaintContext originCtx = paintCtx;

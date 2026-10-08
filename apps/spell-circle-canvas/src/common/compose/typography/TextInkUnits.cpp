@@ -9,8 +9,11 @@
  * the glyphs by, so a letter on a curve gets the box it stands in.
  */
 
+#include <include/core/SkFont.h>
 #include <include/core/SkFontMetrics.h>
 #include <include/core/SkMatrix.h>
+#include <include/core/SkPath.h>
+#include <include/core/SkPathBuilder.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilweave/choreograph/Choreograph.h>  // forEachPlacedGlyph
@@ -26,6 +29,7 @@
 #include "TextEngine.h"
 #include "TextPose.h"
 #include "paint/SurfaceMap.h"
+#include "paint/UnitSurface.h"
 #include "sigilweave/advanced/Skia.h"
 
 namespace sigil::compose {
@@ -95,7 +99,30 @@ struct UnitGroup {
   const detail::TextInk::Surface* surface = nullptr;
   /** The group's paint already is a surface map of its material. */
   bool surfaceMap = false;
+  /** Where the group's surface reads its unit: the outline of its glyphs
+   *  as their poses place them, and the way its first glyph runs. */
+  SkPathBuilder outline;
+  bool outlined = false;
+  glm::vec2 run{1, 0};
 };
+
+/** @p placed's outline as @p pose places it in the node. */
+void addGlyphOutline(const sigil::weave::PlacedGlyph& placed,
+                     const RestPose& pose, SkPathBuilder& into) {
+  if (!placed.shaped || !placed.shaped->typeface) return;
+  const SkFont font =
+      sigil::weave::makeFont(placed.shaped->typeface, placed.shaped->fontSize,
+                             placed.shaped->scaleX, placed.shaped->aliased);
+  const std::optional<SkPath> contour = font.getPath(placed.glyph);
+  if (!contour) return;
+  const glm::vec2 offset =
+      pose.centreOffset.value_or(glm::vec2{placed.advance * 0.5f, 0.0f});
+  SkMatrix place;
+  place.setSinCos(pose.sine, pose.cosine);
+  place.postTranslate(pose.centre.x, pose.centre.y);
+  place.preTranslate(-offset.x, -offset.y);
+  into.addPath(contour->makeTransform(place));
+}
 
 struct GroupStyle {
   const sigil::weave::PaintStyle* base;
@@ -177,6 +204,11 @@ void detail::resolveGlyphInk(const sigil::weave::ParagraphLayout& layout,
         UnitGroup& group = groups.back();
         RestPose pose;
         if (unit && restPoseOf(poses, placed, pose)) {
+          if (group.surface && group.surface->readsUnit) {
+            if (!group.outlined) group.run = {pose.cosine, pose.sine};
+            group.outlined = true;
+            addGlyphOutline(placed, pose, group.outline);
+          }
           const SkRect box =
               inkBoxOf(placed, pose, capHeightOf(placed.shaped, caps));
           if (group.placed)
@@ -197,10 +229,20 @@ void detail::resolveGlyphInk(const sigil::weave::ParagraphLayout& layout,
       const SkRect box = group.placed ? group.box : SkRect::MakeWH(1, 1);
       SkMatrix map = SkMatrix::Translate(box.left(), box.top());
       map.preScale(std::max(box.width(), 1.0f), std::max(box.height(), 1.0f));
-      if (group.surface)
+      if (group.surface && group.surface->readsUnit) {
+        // A unit read as a source runs along its box's long axis, turned
+        // with its first glyph, carried into the page.
+        const glm::vec2 local = box.width() >= box.height()
+                                    ? group.run
+                                    : glm::vec2{-group.run.y, group.run.x};
+        const glm::mat3& toPage = ink.frame.world;
+        group.shader = group.surface->shaderOver(
+            ink.frame, material::skia::toMatrix(map), group.outline.snapshot(),
+            detail::intoPage(local, toPage), ink.density);
+      } else if (group.surface) {
         group.shader =
             group.surface->shader(ink.frame, material::skia::toMatrix(map));
-      else
+      } else
         group.shader = group.shader->makeWithLocalMatrix(map);
     }
   }

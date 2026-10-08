@@ -16,6 +16,7 @@
 #include <sigilmotion/values/Tween.h>
 #include <sigilworld/advanced/Node.h>
 
+#include <algorithm>
 #include <concepts>
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
@@ -23,6 +24,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 namespace sigil::world {
 
@@ -228,6 +230,12 @@ class IdentityVerbs {
  *  lowered, rather than lowering to its base unlit. */
 [[nodiscard]] material::Material worn(const material::Material& material);
 
+/** The sources @p material reads of the unit a page paints it into — its
+ *  relief, its brushing along the unit — by name; a body has no unit, so
+ *  it is drawn without them and says which. */
+[[nodiscard]] std::vector<std::string> unreadSources(
+    const material::Material& material);
+
 /** WHAT A BODY IS MADE OF: the surface every face is shaded by, and
  *  whether its reverse-wound faces are drawn. */
 template <class Derived>
@@ -243,6 +251,7 @@ class SurfaceVerbs {
   Derived& fill(material::Material surface) {
     NodeDescription& node = self().edit();
     node.material = worn(surface);
+    node.unreadSources = unreadSources(surface);
     node.slots.clear();
     return self();
   }
@@ -252,8 +261,14 @@ class SurfaceVerbs {
     NodeDescription& node = self().edit();
     node.slots.clear();
     node.slots.reserve(slots.size());
-    for (const material::Material& slot : slots)
+    node.unreadSources.clear();
+    for (const material::Material& slot : slots) {
       node.slots.push_back(worn(slot));
+      for (std::string& source : unreadSources(slot))
+        if (std::find(node.unreadSources.begin(), node.unreadSources.end(),
+                      source) == node.unreadSources.end())
+          node.unreadSources.push_back(std::move(source));
+    }
     node.material.reset();
     return self();
   }

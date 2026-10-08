@@ -37,6 +37,15 @@ material::Material worn(const material::Material& material) {
       material::from(material).surface(material::SurfaceOptions{}));
 }
 
+std::vector<std::string> unreadSources(const material::Material& material) {
+  std::vector<std::string> out;
+  if (!material::readsUnit(material)) return out;
+  const material::SurfaceOptions& stated = *material.surface();
+  if (stated.relief) out.emplace_back("relief");
+  if (stated.anisotropyAlongUnit) out.emplace_back("brushing along the unit");
+  return out;
+}
+
 Group group(std::initializer_list<Children> children) {
   Group out;
   std::vector<Node>& into = out.edit().children;

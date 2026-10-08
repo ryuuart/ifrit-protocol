@@ -71,13 +71,15 @@ std::optional<size_t> surfaceMapIndex(texture::Role role) {
       return 11;
     case texture::Role::Iridescence:
       return 12;
+    case texture::Role::ClearcoatNormal:
+      return 13;
     default:
       return std::nullopt;
   }
 }
 
 /** The number of roles a surface map pass answers. */
-constexpr size_t kSurfaceMapRoles = 13;
+constexpr size_t kSurfaceMapRoles = 14;
 
 /** The listener standing on this thread, innermost first. */
 thread_local LobeListener* tCurrentListener = nullptr;
@@ -119,7 +121,8 @@ struct SurfaceMaps::Inputs {
   Paint colours;
   std::optional<Paint> normal, roughness, metallic, occlusion, emission,
       clearcoat, clearcoatRoughness, sheenColor, sheenRoughness, specular,
-      specularColor, anisotropyDirection, iridescence, iridescenceThickness;
+      specularColor, anisotropyDirection, iridescence, iridescenceThickness,
+      clearcoatNormal;
 
   static Paint prepare(const Material& material) {
     Paint paint = PaintAccess::prepareMaterial(material);
@@ -127,8 +130,18 @@ struct SurfaceMaps::Inputs {
     return paint;
   }
 
+  /** The colour stack placed in the frame every channel shares: a
+   *  material anchored to the root frame anchors the whole map, so its
+   *  colours are lowered in that frame rather than anchored twice. */
+  static Paint prepareColours(const Material& material) {
+    if (!material.worldSpace()) return prepare(material);
+    Material local = material;
+    local.worldSpace(false);
+    return prepare(local);
+  }
+
   explicit Inputs(const Material& from)
-      : material(from), colours(prepare(material)) {
+      : material(from), colours(prepareColours(material)) {
     if (!isLit(material)) return;
     const SurfaceOptions& surface = *material.surface();
     const auto lower = [](const Channel& value) -> std::optional<Paint> {
@@ -142,6 +155,8 @@ struct SurfaceMaps::Inputs {
     if (surface.emissionMap) emission = prepare(*surface.emissionMap);
     clearcoat = lower(surface.clearcoat);
     clearcoatRoughness = lower(surface.clearcoatRoughness);
+    if (surface.clearcoatNormal)
+      clearcoatNormal = prepare(*surface.clearcoatNormal);
     const auto lowerColour =
         [](const ColorInput& value) -> std::optional<Paint> {
       if (const auto* map = std::get_if<Material>(&value)) return prepare(*map);
@@ -157,8 +172,10 @@ struct SurfaceMaps::Inputs {
     if (surface.iridescenceThicknessMap)
       iridescenceThickness = prepare(*surface.iridescenceThicknessMap);
     // A page painted as a surface's maps learns from here which of the
-    // optional lobes its materials state.
+    // optional lobes its materials state, and whether one states a normal
+    // of the coat's own.
     LobeListener::hear(lobes(surface));
+    if (clearcoatNormal) LobeListener::hearClearcoatNormal();
   }
 };
 
@@ -178,6 +195,12 @@ void LobeListener::hear(const Lobes& lobes) {
     listener->m_heard.transmission |= lobes.transmission;
     listener->m_heard.distortion |= lobes.distortion;
   }
+}
+
+void LobeListener::hearClearcoatNormal() {
+  for (LobeListener* listener = tCurrentListener; listener;
+       listener = listener->m_outer)
+    listener->m_heardClearcoatNormal = true;
 }
 
 struct SurfaceMaps::MapCache {
@@ -248,7 +271,7 @@ sk_sp<SkShader> SurfaceMaps::mapShader(texture::Role role,
     if (!result || input.isSolid()) return result;
     return result->makeWithLocalMatrix(mapping);
   };
-  std::array<PaintAccess::ChildOverride, 16> children;
+  std::array<PaintAccess::ChildOverride, 17> children;
   size_t count = 0;
   const auto input = [&](const char* name, const Paint& lowered) {
     children[count++] = {name, mapped(lowered)};
@@ -273,6 +296,8 @@ sk_sp<SkShader> SurfaceMaps::mapShader(texture::Role role,
   if (m_inputs->iridescence) input("uIridescenceMap", *m_inputs->iridescence);
   if (m_inputs->iridescenceThickness)
     input("uIridescenceThicknessMap", *m_inputs->iridescenceThickness);
+  if (m_inputs->clearcoatNormal)
+    input("uClearcoatNormal", *m_inputs->clearcoatNormal);
   const PaintFrame frame = paintFrameOf(nodeFrame);
   return PaintAccess::build(*PaintAccess::live(pass), &frame, false,
                             std::span(children).first(count));
@@ -281,6 +306,7 @@ sk_sp<SkShader> SurfaceMaps::mapShader(texture::Role role,
 Color surfaceMapGround(texture::Role role) {
   switch (role) {
     case texture::Role::Normal:
+    case texture::Role::ClearcoatNormal:
       return {0.5f, 0.5f, 1, 1};
     case texture::Role::Roughness:
     case texture::Role::Occlusion:
@@ -331,6 +357,11 @@ Paint SurfaceMaps::mapPass(texture::Role role) const {
   if (!effect) return {};
   const Material& material = m_inputs->material;
   Paint pass = PaintAccess::unresolvedSksl(effect);
+  // EVERY CHANNEL STANDS WHERE THE COLOUR DOES: a material anchored to the
+  // root frame places its normal, its numbers and its lobes' maps there
+  // too, because the map samples each of them at the point it samples
+  // the colour.
+  pass.worldSpace(material.worldSpace());
   PaintAccess::storeSlot(pass, "uColor", m_inputs->colours);
   PaintAccess::storeUniform(pass, "uRole", float(*index));
   const bool unlit = !isLit(material);
@@ -394,6 +425,11 @@ Paint SurfaceMaps::mapPass(texture::Role role) const {
   if (m_inputs->iridescenceThickness)
     PaintAccess::storeSlot(pass, "uIridescenceThicknessMap",
                            *m_inputs->iridescenceThickness);
+  PaintAccess::storeUniform(pass, "uHasClearcoatNormal",
+                            m_inputs->clearcoatNormal ? 1.0f : 0.0f);
+  if (m_inputs->clearcoatNormal)
+    PaintAccess::storeSlot(pass, "uClearcoatNormal",
+                           *m_inputs->clearcoatNormal);
   const std::lock_guard lock(m_maps->mutex);
   std::optional<Paint>& held = m_maps->maps[*index];
   if (!held) held = std::move(pass);

@@ -149,6 +149,10 @@ struct NodeDescription {
   /** …or the per-face slots, in slot order. A node carries one form or
    *  the other, never both. */
   std::vector<::sigil::material::Material> slots;
+  /** WHAT THE WORN MATERIAL READS OF A UNIT, which a body has none of: the
+   *  relief or the brushing along the unit a page's painter would have
+   *  answered, named when the body is extracted and drawn without. */
+  std::vector<std::string> unreadSources;
   /** The collections the node joined. */
   std::vector<std::string> collections;
   std::optional<LightDescription> light;

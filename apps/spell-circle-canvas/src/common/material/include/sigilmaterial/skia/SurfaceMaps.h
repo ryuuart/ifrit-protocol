@@ -6,8 +6,8 @@
  * A SURFACE'S MAPS IN 2D through Skia: a material whose `surface()`
  * states a response, read back UNSHADED one surface map at a time —
  * base colour, normal, roughness, metallic, occlusion, emissive, the
- * three scalars packed, and the clear coat — for a renderer that does its
- * own lighting. Its colour stack and channel
+ * three scalars packed, the clear coat and its own normal — for a
+ * renderer that does its own lighting. Its colour stack and channel
  * inputs are prepared once and shared by every map.
  */
 
@@ -63,9 +63,9 @@ class SurfaceMaps {
 };
 
 /** Whether `asMap` answers a map for @p role: base colour, normal,
- *  roughness, metallic, occlusion, emissive, packed and clearcoat, and the
- *  optional lobes' sheen, sheen-and-specular, specular colour, anisotropy
- *  and iridescence. */
+ *  roughness, metallic, occlusion, emissive, packed and clearcoat, the
+ *  coat's own normal, and the optional lobes' sheen, sheen-and-specular,
+ *  specular colour, anisotropy and iridescence. */
 bool isSurfaceMapRole(texture::Role role);
 
 /** WHICH OPTIONAL LOBES THE SURFACES READ AS MAPS STATE, heard while one
@@ -83,13 +83,21 @@ class LobeListener {
 
   /** The lobes heard so far. */
   [[nodiscard]] Lobes heard() const { return m_heard; }
+  /** Whether a surface heard so far states a normal of its clear coat's
+   *  own, which a page paints as a map of its own once one does. */
+  [[nodiscard]] bool heardClearcoatNormal() const {
+    return m_heardClearcoatNormal;
+  }
 
   /** @private what a `SurfaceMaps` reports its material's lobes through. */
   static void hear(const Lobes& lobes);
+  /** @private what a `SurfaceMaps` reports a coat's own normal through. */
+  static void hearClearcoatNormal();
 
  private:
   LobeListener* m_outer = nullptr;
   Lobes m_heard;
+  bool m_heardClearcoatNormal = false;
 };
 
 /** @p material's surface as THE MAP OF @p role that a metallic-roughness
@@ -112,25 +120,27 @@ class LobeListener {
  *  specular strength in green; `SpecularColor` as the specular colour;
  *  `Anisotropy` as the direction the highlight stretches along, turned by
  *  `anisotropyRotation`, encoded in red and green as a normal map is, and
- *  its strength in blue; and `Iridescence` as the film's weight in red and
- *  its thickness in green over `texture::kIridescenceThicknessRange`.
+ *  its strength in blue; `Iridescence` as the film's weight in red and
+ *  its thickness in green over `texture::kIridescenceThicknessRange`; and
+ *  `ClearcoatNormal` as the coat's own normal, encoded as the normal is and
+ *  facing the viewer where the surface states none.
  *
  *  A material that states no surface, or states one `unlit`, is ITS OWN
  *  COLOUR: the colour stack is its emission, its base colour is black,
  *  its normal faces the viewer, its roughness and occlusion are one and
  *  its metallic zero — so a renderer that shades the set shows it as it
  *  was painted. A role outside `isSurfaceMapRole` paints nothing.
- *  The coat's normal and the reflection weight have no map and are not
- *  read. */
+ *  The reflection weight has no map and is not read. */
 Paint asMap(const Material& material, texture::Role role);
 
 /** What a surface map of @p role reads where nothing is painted: the map
  *  of a surface that is its own colour at no coverage — a transparent
- *  black base colour, a normal facing the viewer, roughness and occlusion
- *  one, metallic, emission and the coat zero, no sheen, a white specular
- *  at full strength, no brushing and no film. Every map but the base colour is
- *  opaque, so a lit renderer reads the base colour's alpha as where the
- *  surface is. Transparent black for a role `asMap` answers nothing for. */
+ *  black base colour, a normal and a coat normal facing the viewer,
+ *  roughness and occlusion one, metallic, emission and the coat zero, no sheen,
+ * a white specular at full strength, no brushing and no film. Every map but the
+ * base colour is opaque, so a lit renderer reads the base colour's alpha as
+ * where the surface is. Transparent black for a role `asMap` answers nothing
+ * for. */
 Color surfaceMapGround(texture::Role role);
 
 }  // namespace sigil::material::skia

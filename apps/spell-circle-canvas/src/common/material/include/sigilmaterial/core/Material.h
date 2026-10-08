@@ -53,6 +53,30 @@ struct LayerOptions;
 struct MaterialParts;
 struct SurfaceOptions;
 
+/** A RELIEF CUT FROM THE UNIT A MATERIAL IS PAINTED INTO: the unit's
+ *  coverage as a height, softened over the shoulder. The painter supplies
+ *  the unit when it paints — a glyph, a word, a line, a box, a stroke —
+ *  so one material cuts each letter under a glyph ink and the whole
+ *  passage as one mark under an ink spread across the canvas. */
+struct ReliefOptions {
+  /** Shoulder width in logical pixels. Zero leaves the unit flat. */
+  float shoulder = 2.0f;
+  /** Height relative to the shoulder width: positive raises the unit,
+   *  negative impresses it, and zero leaves it flat. */
+  float depth = 1.0f;
+  bool operator==(const ReliefOptions&) const = default;
+};
+
+/** A BRUSHING THAT RUNS THE WAY THE UNIT RUNS: a highlight stretched along
+ *  a stroke's tangent, a box's long axis, a glyph's box's long axis. */
+struct BrushedOptions {
+  /** The anisotropy, 0 none to 1 a highlight drawn into a line. */
+  float strength = 1.0f;
+  /** Degrees counter-clockwise from the unit's direction. */
+  float rotation = 0.0f;
+  bool operator==(const BrushedOptions&) const = default;
+};
+
 namespace detail {
 /** A part of a material only a renderer can supply or read — a
  *  gradient or an image base, an effects stage — held behind this
@@ -139,6 +163,15 @@ class Material {
   /** The lit response a 3D renderer reads: metallic, roughness, normal,
    *  emission and the rest. A material without one is flat. */
   Material& surface(const SurfaceOptions& options);
+  /** The unit this material is painted into, raised or impressed into
+   *  its surface: `SurfaceOptions::relief`, on the surface stated so far
+   *  or on the stock one. */
+  Material& relief(ReliefOptions options);
+  /** A brushing along the unit this material is painted into:
+   *  `SurfaceOptions::anisotropy`, `anisotropyRotation` and
+   *  `anisotropyAlongUnit`, on the surface stated so far or on the stock
+   *  one. */
+  Material& brushed(BrushedOptions options);
   /** The effects stage: a filter chain over the painted layer's
    *  coverage — shadows and glows under it, strokes and bevels over it.
    *  A renderer that has no coverage (a 3D surface) ignores it and says
@@ -485,6 +518,12 @@ struct SurfaceOptions {
   /** Whether the normal map is authored green-down (DirectX), as some
    *  tools write it. */
   bool normalDirectX = false;
+  /** A RELIEF FROM THE UNIT the surface is painted into, resolved by the
+   *  painter: the unit's coverage softened over the shoulder, as a height
+   *  whose normals are combined with `normal`. A renderer with no unit to
+   *  read — a body wearing the material with no page behind it — refuses
+   *  it. */
+  std::optional<ReliefOptions> relief;
   Color emission = {0, 0, 0, 1};
   float emissionStrength = 0;
   std::optional<Material> emissionMap;
@@ -517,6 +556,11 @@ struct SurfaceOptions {
   float anisotropy = 0;
   float anisotropyRotation = 0;
   std::optional<Material> anisotropyDirection;
+  /** THE BRUSHING RUNS ALONG THE UNIT the surface is painted into, resolved
+   *  by the painter in place of `anisotropyDirection`: a stroke's tangent,
+   *  a box's long axis, a glyph's box's long axis, turned by
+   *  `anisotropyRotation`. A renderer with no unit to read refuses it. */
+  bool anisotropyAlongUnit = false;
   /** IRIDESCENCE: a thin film over the surface — soap, oil, a tempered
    *  metal's oxide — whose interference tints the reflection by the angle
    *  it is seen at; 0 none to 1 a full film. `iridescenceIor` is the film's
@@ -619,6 +663,11 @@ struct Lobes {
   bool clearcoat = false;
   bool operator==(const Lobes&) const = default;
 };
+
+/** Whether @p material reads the unit it is painted into: a surface
+ *  stating a relief or a brushing along the unit. Only a painter that
+ *  knows the unit — a page — can draw it. */
+bool readsUnit(const Material& material);
 
 /** The lobes @p options state: a sheen colour that is a map or other than
  *  black, an anisotropy other than zero, an iridescence that is a map or

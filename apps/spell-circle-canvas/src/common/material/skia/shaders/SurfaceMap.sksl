@@ -9,7 +9,8 @@
 // 8 the sheen's colour, 9 the sheen's roughness in red and the specular
 // strength in green, 10 the specular colour, 11 the brushing's direction
 // in red and green, encoded as a normal is, and its strength in blue,
-// 12 the thin film's weight in red and its thickness in green.
+// 12 the thin film's weight in red and its thickness in green, 13 the
+// clear coat's own normal, encoded as the normal is.
 // A surface that takes no light is its own colour: emission is the colour
 // stack, the base is black, the normal faces the viewer, roughness and
 // occlusion are one, metallic and the coat zero, no sheen, a white
@@ -29,6 +30,7 @@ uniform shader uSpecularColorMap;
 uniform shader uAnisotropyMap;
 uniform shader uIridescenceMap;
 uniform shader uIridescenceThicknessMap;
+uniform shader uClearcoatNormal;
 
 uniform float uRole;
 uniform float uUnlit;
@@ -64,6 +66,7 @@ uniform float uIridescence;
 uniform float uIridescenceThickness;
 uniform float uIridescenceThicknessMinimum;
 uniform float uHasIridescenceThicknessMap;
+uniform float uHasClearcoatNormal;
 
 float roughnessAt(float2 xy, bool unlit) {
   if (unlit) return 1.0;
@@ -93,13 +96,16 @@ half4 main(float2 xy) {
   bool unlit = uUnlit > 0.5;
   if (uRole < 0.5) return unlit ? half4(0, 0, 0, painted.a) : painted;
   float3 value;
-  if (uRole < 1.5) {
+  if (uRole < 1.5 || uRole > 12.5) {
     // Green points up the picture in what comes out, whichever way the
-    // stated map was authored.
+    // stated map was authored. The coat's normal is read in the
+    // convention the surface's normal states, at its own full strength.
+    bool coat = uRole > 12.5;
     float3 n = float3(0, 0, 1);
-    if (!unlit && uHasNormal > 0.5) {
-      float3 t = float3(uNormal.eval(xy).rgb) * 2.0 - 1.0;
-      t.xy *= uNormalScale;
+    if (!unlit && (coat ? uHasClearcoatNormal : uHasNormal) > 0.5) {
+      float3 t = float3(coat ? uClearcoatNormal.eval(xy).rgb
+                             : uNormal.eval(xy).rgb) * 2.0 - 1.0;
+      if (!coat) t.xy *= uNormalScale;
       n = normalize(float3(t.x, uNormalDirectX > 0.5 ? -t.y : t.y,
                            max(t.z, 0.001)));
     }

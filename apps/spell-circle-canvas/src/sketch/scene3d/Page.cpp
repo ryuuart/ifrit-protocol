@@ -60,12 +60,18 @@ struct PagePaint final : world::TextureProducerOperations {
    *  page's surface from before the page learned a lobe is drawn wearing
    *  the surface with that lobe's maps. The lobes compared are the ones the
    *  page's maps dress a surface with, which counts the clear coat whose
-   *  map every page paints. */
+   *  map every page paints. A coat's own normal is learned the same way:
+   *  its map is added once the content states one. */
   std::optional<material::Material> restated(
       const material::Material& worn) const override {
     if (!scene || !material::surface::isSurface(worn)) return std::nullopt;
     material::Material current = surfaceOf(*scene, name);
-    if (material::surface::lobes(worn) == material::surface::lobes(current))
+    const auto coatNormal = [](const material::Material& surface) {
+      return material::surface::map(
+                 surface, material::surface::kClearcoatNormalSlot) != nullptr;
+    };
+    if (material::surface::lobes(worn) == material::surface::lobes(current) &&
+        coatNormal(worn) == coatNormal(current))
       return std::nullopt;
     return current;
   }

@@ -10,6 +10,7 @@
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkShader.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilweave/fonts/Shaper.h>  // makeFont — the ink band's cap height
@@ -21,6 +22,7 @@
 #include "GlyphInk.h"
 #include "PaintInternal.h"
 #include "SurfaceMap.h"
+#include "UnitSurface.h"
 #include "runtime/ComposeRuntime.h"
 
 namespace sigil::compose {
@@ -42,10 +44,47 @@ const material::Paint* detail::TextState::Restyle::flatInk() {
   return &*ink;
 }
 
+namespace {
+
+/** Every glyph of @p inst's passage as one outline, in the node's space,
+ *  made once per layout. */
+const SkPath& passageOutlineOf(detail::Instance& inst) {
+  if (inst.glyphOutlineRev != inst.measuredRev) {
+    inst.glyphOutline = geometry::path::toSk(inst.textLayout.glyphOutline());
+    inst.glyphOutlineRev = inst.measuredRev;
+  }
+  return inst.glyphOutline;
+}
+
+/** The way @p inst's passage runs in the page: along its glyphs' bounds'
+ *  long axis. */
+glm::vec2 passageDirectionOf(detail::Instance& inst,
+                             const PaintContext& paintCtx) {
+  const SkRect bounds = passageOutlineOf(inst).getBounds();
+  return detail::longAxisOf({bounds.width(), bounds.height()},
+                            paintCtx.toRoot.matrix);
+}
+
+/** Device pixels to each logical pixel a unit's relief is cut at. */
+float densityOf(const PaintContext& paintCtx) {
+  return paintCtx.bakeDensity > 0 ? paintCtx.bakeDensity
+                                  : paintCtx.contentScale;
+}
+
+/** The maps @p inst holds per unit a lit ink is painted into. */
+detail::UnitSurfaces& unitSurfacesOf(detail::Instance& inst) {
+  if (!inst.unitSurfaces)
+    inst.unitSurfaces = std::make_shared<detail::UnitSurfaces>();
+  return *inst.unitSurfaces;
+}
+
+}  // namespace
+
 detail::TextInk Composer::Impl::textInkOf(Instance& inst,
                                           const PaintContext& paintCtx) {
   detail::TextInk ink;
   ink.frame = frameOf(paintCtx);
+  ink.density = densityOf(paintCtx);
   const ElementNode& node = *inst.description;
   const material::Paint* metricMat = inkPaintOf(inst);
   // The outline in force: the leaf's own where it states one, else the
@@ -76,6 +115,10 @@ detail::TextInk Composer::Impl::textInkOf(Instance& inst,
       if (asMap && span.unit) {
         span.surface =
             detail::TextInk::Surface{*retained.surfaceMapInputs, *surfaceMap};
+        if (material::readsUnit(*span.source)) {
+          span.surface->readsUnit = *span.source;
+          span.surface->units = &unitSurfacesOf(inst);
+        }
       } else {
         std::optional<material::Paint> mapped;
         if (asMap) mapped = retained.surfaceMapInputs->asMap(*surfaceMap);
@@ -157,6 +200,21 @@ detail::TextInk Composer::Impl::textInkOf(Instance& inst,
   // — so nothing maps it onto the metric band, which is the element's
   // own reading.
   if (spreadsAcrossTree(inst.inkPaint.box)) {
+    // A lit ink that reads its unit is answered for the whole passage as
+    // one mark, laid in the box the ink spreads across.
+    std::optional<material::Paint> unitInk;
+    if (surfaceMap && inst.inkPaint.surfaced &&
+        material::readsUnit(*inst.inkPaint.surfaced)) {
+      detail::UnitShape unit;
+      unit.outline = passageOutlineOf(inst);
+      unit.localToPaint = paintCtx.inkAnchorToRoot.matrix;
+      unit.direction = passageDirectionOf(inst, paintCtx);
+      unit.density = densityOf(paintCtx);
+      unitInk = unitSurfacesOf(inst)
+                    .mapsFor(*inst.inkPaint.surfaced, unit)
+                    .asMap(*surfaceMap);
+      metricMat = &*unitInk;
+    }
     const Fill anchored = resolveInk(*metricMat, paintCtx);
     if (sk_sp<SkShader> shader =
             anchored.kind == Fill::Kind::Paint
@@ -184,8 +242,13 @@ detail::TextInk Composer::Impl::textInkOf(Instance& inst,
   PaintContext metricCtx = paintCtx;
   metricCtx.size = {1.0f, 1.0f};
   std::optional<detail::TextInk::Surface> surface;
-  if (inst.surfaceMapInkInputs && inst.inkPaint.surfaced && surfaceMap)
+  if (inst.surfaceMapInkInputs && inst.inkPaint.surfaced && surfaceMap) {
     surface = detail::TextInk::Surface{*inst.surfaceMapInkInputs, *surfaceMap};
+    if (material::readsUnit(*inst.inkPaint.surfaced)) {
+      surface->readsUnit = *inst.inkPaint.surfaced;
+      surface->units = &unitSurfacesOf(inst);
+    }
+  }
   const Fill f = surface ? Fill::none() : resolveFill(*metricMat, metricCtx);
   // AN INK THAT RESTARTS PER UNIT keeps its paint on the unit square: the
   // text engine lays it on each unit's own box. The passage mapping below
@@ -200,9 +263,17 @@ detail::TextInk Composer::Impl::textInkOf(Instance& inst,
     ink.unitSurface = surface;
     ink.unit = *unit;
   }
+  // Over the whole passage, a lit ink that reads its unit reads the
+  // passage: every glyph's outline, running along the band.
   const auto mapped = [&](const SkMatrix& map) {
-    return surface ? surface->shader(ink.frame, material::skia::toMatrix(map))
-                   : shader->makeWithLocalMatrix(map);
+    if (!surface) return shader->makeWithLocalMatrix(map);
+    if (!surface->readsUnit)
+      return surface->shader(ink.frame, material::skia::toMatrix(map));
+    return surface->shaderOver(
+        ink.frame, material::skia::toMatrix(map), passageOutlineOf(inst),
+        detail::longAxisOf({map.getScaleX(), map.getScaleY()},
+                           paintCtx.toRoot.matrix),
+        densityOf(paintCtx));
   };
   if ((shader || surface) && !inst.columns.empty()) {
     // A VERTICAL passage has no cap band to hang the ramp on: a column's

@@ -116,6 +116,8 @@ sigil_library(SigilComposeCore
     paint/SurfaceMap.h
     paint/TextInk.cpp
     paint/TextPainter.cpp
+    paint/UnitSurface.cpp
+    paint/UnitSurface.h
     paint/Tiles.cpp
     paint/WorldMatrix.cpp
     # cache validity, recordings, bakes and resource stores
@@ -152,7 +154,7 @@ sigil_library(SigilComposeCore
          SigilWeaveLayout SigilWeaveQuery SigilDraw
          unofficial::skia::skia
   PRIVATE SigilWeaveUnicode SigilWeaveChoreograph SigilWeavePaint
-          Boost::container Boost::unordered yoga::yogacore)
+          SigilMaterialSurface Boost::container Boost::unordered yoga::yogacore)
 sigil_shader_sources(SigilComposeCore
   DIR ${CMAKE_CURRENT_LIST_DIR}/shaders NAMESPACE sigil::compose)
 

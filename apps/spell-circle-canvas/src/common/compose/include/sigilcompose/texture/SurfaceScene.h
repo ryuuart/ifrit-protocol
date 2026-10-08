@@ -49,7 +49,9 @@ namespace sigil::compose {
  *  the first render that paints a material stating one adds the maps that
  *  lobe needs — `Sheen` and `SheenSpecular` for a sheen, `SpecularColor`
  *  and `SheenSpecular` for a specular, `Anisotropy`, `Iridescence` — paints
- *  them in that same render, and keeps them from then on.
+ *  them in that same render, and keeps them from then on. A coat's own
+ *  normal is the same: the first material stating one adds the
+ *  `ClearcoatNormal` map.
  *
  *  `maps()` hands the set to `material::surface::program`, which dresses a
  *  surface a lit renderer shades, so the page is lit by the renderer's own
@@ -111,6 +113,7 @@ class SurfaceScene {
   sigil::core::hardware::GpuDevice* m_device = nullptr;
   sigil::skia::GraphiteContext* m_context = nullptr;
   material::Lobes m_lobes;
+  bool m_clearcoatNormal = false;
 };
 
 }  // namespace sigil::compose

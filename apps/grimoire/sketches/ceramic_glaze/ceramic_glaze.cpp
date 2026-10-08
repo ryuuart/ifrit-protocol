@@ -332,10 +332,11 @@ Element coatNormal(int width, int height, const material::Texture& crazed,
 
 /** Glaze over @p depth: thin colour, the ordinary colour where it lies
  *  deeper, the pooled colour where it gathers, the crazing inked in, and
- *  a clear coat over all of it. */
+ *  a clear coat over all of it whose own normal is @p coatNormal. */
 material::Material glazed(const Glaze& glaze, const material::Material& depth,
                           const material::Material& crazed,
                           const material::Material& fine,
+                          const material::Texture& coatNormal,
                           std::optional<material::Material> normal = {}) {
   using material::ColorChannel;
   return material::from(glaze.thin)
@@ -358,7 +359,8 @@ material::Material glazed(const Glaze& glaze, const material::Material& depth,
       .surface({.roughness = .35f,
                 .normal = std::move(normal),
                 .clearcoat = 1.0f,
-                .clearcoatRoughness = glaze.coatRoughness});
+                .clearcoatRoughness = glaze.coatRoughness,
+                .clearcoatNormal = material::image(coatNormal)});
 }
 
 /** Bare clay: rough, dull, grained, and under no coat. */
@@ -383,7 +385,8 @@ material::Material clayEdge(const Glaze& glaze) {
 Element jarPage(const Glaze& glaze, const Profile& jar,
                 const material::Material& depth,
                 const material::Material& crazed,
-                const material::Material& fine) {
+                const material::Material& fine,
+                const material::Texture& coatNormal) {
   const float line = (1 - jar.glazeLine) * kJarPageHeight;
   std::string edge = "M0 0";
   for (int x = 0; x <= kJarPageWidth; x += 8) {
@@ -406,7 +409,7 @@ Element jarPage(const Glaze& glaze, const Profile& jar,
       .fill(bareClay(glaze))
       .children({compose::kit::at(0, 0, kJarPageWidth, kJarPageHeight)
                      .shape(compose::heldPath(path::Outline::svg(edge)))
-                     .fill(glazed(glaze, depth, crazed, fine))});
+                     .fill(glazed(glaze, depth, crazed, fine, coatNormal))});
 }
 
 /** THE TILE'S INCISIONS: a field of @p field with a border, rings and
@@ -469,11 +472,12 @@ Element incisions(float softness, Color field, Color cutColour) {
 Element tilePage(const Glaze& glaze, const material::Texture& cut,
                  const material::Texture& depth,
                  const material::Material& crazed,
-                 const material::Material& fine) {
+                 const material::Material& fine,
+                 const material::Texture& coatNormal) {
   return compose::stack().width(kTilePage).height(kTilePage).children(
       {compose::kit::at(0, 0, kTilePage, kTilePage)
            .fill(
-               glazed(glaze, material::image(depth), crazed, fine,
+               glazed(glaze, material::image(depth), crazed, fine, coatNormal,
                       material::surface::normalFromHeight(
                           material::image(cut), {.depth = 5, .step = 1.2f})))});
 }
@@ -498,8 +502,6 @@ struct Specimen {
   sketch::Page tilePage;
   Element jarTree = compose::stack();
   Element tileTree = compose::stack();
-  material::Texture jarCoat;
-  material::Texture tileCoat;
 };
 
 struct CeramicGlaze {
@@ -579,13 +581,13 @@ struct CeramicGlaze {
                     glaze.seed + 101 + other, false, tipped),
             material::Repeat::Pad);
       };
-      specimen.jarCoat = paintedOnce(
+      const material::Texture jarCoat = paintedOnce(
           ctx, jarSize,
           coatNormal(kJarPageWidth, kJarPageHeight, jarCrazing(true)),
           material::Repeat::Repeat);
       // The coat lies over the tile's incisions, softened by the glaze
       // that fills them, and is crazed over that.
-      specimen.tileCoat = paintedOnce(
+      const material::Texture tileCoat = paintedOnce(
           ctx, tileSize,
           coatNormal(kTilePage, kTilePage, tileCrazing(true),
                      material::surface::normalFromHeight(
@@ -595,24 +597,12 @@ struct CeramicGlaze {
       specimen.tilePage = ctx.page(tileSize);
       specimen.jarTree =
           jarPage(glaze, thrown, depth, material::image(jarCrazing(false)),
-                  material::image(jarCrazing(false, .42f, 7)));
+                  material::image(jarCrazing(false, .42f, 7)), jarCoat);
       specimen.tileTree =
           tilePage(glaze, cut, pooled, material::image(tileCrazing(false)),
-                   material::image(tileCrazing(false, .42f, 7)));
+                   material::image(tileCrazing(false, .42f, 7)), tileCoat);
       specimens.push_back(std::move(specimen));
     }
-  }
-
-  /** @p page's surface with the coat's own normal in its slot.
-   *
-   *  A page paints the coat's weight and roughness but not a normal of
-   *  the coat's own, so the crazing reaches the coat from a texture
-   *  painted beside the page and laid in the coat's normal slot. */
-  static material::Material coated(const sketch::Page& page,
-                                   const material::Texture& coatNormal) {
-    material::Material surface = page.surface();
-    surface.slot(material::surface::kClearcoatNormalSlot, coatNormal);
-    return surface;
   }
 
   world::Frame describe(sigil::motion::Duration now) {
@@ -654,7 +644,7 @@ struct CeramicGlaze {
                           .key(std::string(glaze.name) + " jar")
                           .at({x, 0, -60})
                           .rotateY(turn + 120.0f * float(i))
-                          .fill(coated(specimen.jarPage, specimen.jarCoat)));
+                          .fill(specimen.jarPage.surface()));
       // THE TILE leans back on a kiln stilt, its front edge on the slab,
       // tipped toward the eye far enough to mirror the key overhead.
       const std::string name = glaze.name;
@@ -662,8 +652,7 @@ struct CeramicGlaze {
       nodes.push_back(
           world::group({world::group({world::mesh(tileTop)
                                           .key(name + " tile")
-                                          .fill(coated(specimen.tilePage,
-                                                       specimen.tileCoat)),
+                                          .fill(specimen.tilePage.surface()),
                                       world::mesh(tileSides)
                                           .key(name + " tile edge")
                                           .fill(clayEdge(glaze))})
