@@ -2,54 +2,84 @@
 
 A plaque stands in a lit scene. Its face is an ordinary Compose page — a
 title, a rule, a caption — and the page is what the plaque is made of:
-Compose paints the colour, the relief and the glow, and World lights it.
-No geometry carries the lettering; the body is one flat quad. This page
-walks that sketch up in six steps, every one of them run through
-Grimoire as written. Save the whole file as `plaque.py` and open it with
-`Grimoire plaque.py`, or take a still with `--frame plaque.png --gpu`.
+each fill on the page says what it is made of, the page paints every
+map those materials name, and World lights it. No geometry carries the
+lettering; the body is one flat quad. This page walks that sketch up in
+five steps, every one of them run through Grimoire as written. The
+whole file is `apps/grimoire/sketches/python_plaque.py`; open it with
+`Grimoire python_plaque.py`, or take a still with `--frame plaque.png
+--gpu`.
 
-Where Python stands today: a Python sketch bakes a 3D frame into an
-image through the host's device and places it on its page; it has no
-`Page` of its own yet, so each map Compose paints goes through an
-offscreen `Graphics` buffer whose image becomes a texture. The steps
-below say so where it matters, and the last section says what the C++
-form does differently.
+## Step 1 — what the page is made of
 
-## Step 1 — the page
-
-Write the plaque's face as you would any Compose tree. It is a function
-returning an element, sized in page pixels.
+A material says what it is: a base, layers over it, and `.surface(...)`
+for how it answers light. Three of them here: a rough stone with a grain
+in it, polished copper, and copper that glows.
 
 ```python
 import math
 
 from sigil import compose, material, motion, world
-from sigil.draw import Graphics, Pen
+from sigil.draw import Pen
 from sigil.geometry import mesh
 from sigil.material import hexColor
-from sigil.material import surface as surfaces
 from sigil.motion import ease
 from sigil.sketch import Scene2DContext, sketch
 
-WIDTH, HEIGHT = 960, 540          # the canvas
-PAGE_W, PAGE_H = 768, 384         # the page the plaque wears, in page pixels
-PLATE_W, PLATE_H = 320, 160       # the plaque's size in the scene
+WIDTH, HEIGHT = 960, 540              # the canvas
+PAGE_WIDTH, PAGE_HEIGHT = 768, 384    # the page the plaque wears, in page pixels
+PLATE_WIDTH, PLATE_HEIGHT = 320, 160  # the plaque's size in the scene
 GROUND = "#0f1216"
 STONE = "#d9d0b8"
 INK = "#2b3a33"
 COPPER = "#b16d46"
 
+STONE_FACE = (
+    material.from_(STONE)
+    .layer(
+        material.noise(0.02, octaves=3, seed=4, grain=True),
+        blend=material.BlendMode.Multiply,
+        opacity=0.16,
+    )
+    .surface(roughness=0.85)
+)
+COPPER_METAL = material.from_(COPPER).surface(metallic=1.0, roughness=0.32)
+CAPTION_INK = material.from_(INK).surface(roughness=0.7)
+GLOWING_RULE = material.from_(COPPER).surface(
+    metallic=1.0, roughness=0.3, emission=COPPER, emissionStrength=2.0
+)
+```
 
-def page() -> compose.Element:
+`.surface` takes a number or a material for each channel, and the same
+slots reach a clear coat, a sheen, a brushing, glass and the rest of the
+lit surface's lobes; each is paid for only when stated.
+
+## Step 2 — the page
+
+Write the face as you would any Compose tree. The materials go on the
+fills and inks. The title is raised: its glyph outlines are decorated
+with `compose.relief`, which writes the shoulder and the depth into the
+page's height, and the copper is what the relief is made of.
+
+```python
+def plaque_face() -> compose.Element:
+    title = (
+        compose.text("PLAQUE", size=150, color=COPPER)
+        .fontWeight(700)
+        .letterSpacing(14)
+        .decorationOutline(compose.Boundary.Glyphs)
+        .foreground(compose.relief(COPPER_METAL, shoulder=5, depth=1.2))
+    )
     return (
         compose.box(
-            compose.text("PLAQUE", size=150, color=COPPER).fontWeight(700).letterSpacing(14),
-            compose.box().width(540).height(6).borderRadius(3).fill(COPPER),
-            compose.text("compose paints the maps · world lights them", size=26, color=INK),
+            title,
+            compose.box().width(540).height(6).borderRadius(3).fill(GLOWING_RULE),
+            compose.text("compose paints the maps · world lights them", size=26, color=INK)
+            .ink(CAPTION_INK),
         )
-        .width(PAGE_W)
-        .height(PAGE_H)
-        .fill(STONE)
+        .width(PAGE_WIDTH)
+        .height(PAGE_HEIGHT)
+        .fill(STONE_FACE)
         .column()
         .gap(22)
         .justifyContent("center")
@@ -57,131 +87,14 @@ def page() -> compose.Element:
     )
 ```
 
-Nothing here knows about 3D. The page is the base colour the plaque
-will wear.
+Nothing here knows about 3D, and nothing paints a height or a normal by
+hand: the page derives every map from the materials its fills state.
 
-## Step 2 — the same page as a height
+## Step 3 — the page as a surface
 
-A lit surface reads relief from a normal map, and a normal map comes
-from a height. Write the page a second time as a height: white stands
-high, black lies low, grey in between. The lettering and the rule are
-raised; the caption is a shallow ridge; a small blur gives the edges a
-rolled shoulder instead of a cliff.
-
-```python
-def relief() -> compose.Element:
-    return (
-        compose.box(
-            compose.text("PLAQUE", size=150, color="#ffffff").fontWeight(700).letterSpacing(14),
-            compose.box().width(540).height(6).borderRadius(3).fill("#ffffff"),
-            compose.text("compose paints the maps · world lights them", size=26, color="#777777"),
-        )
-        .width(PAGE_W)
-        .height(PAGE_H)
-        .fill("#000000")
-        .column()
-        .gap(22)
-        .justifyContent("center")
-        .alignItems("center")
-        .filter(material.Filter.blur(1.2))
-    )
-```
-
-The two trees share their layout, so the height lands exactly under the
-colour. A third tree, `glow()`, is the same page again with only the
-rule in white on black; it becomes the emission map in step 5.
-
-## Step 3 — paint the maps once
-
-A `Graphics` buffer is an offscreen canvas. Open it around a callback,
-place the tree with `element`, and its `image()` is a Skia image. A
-`material.Texture` wraps that image and `material.image` makes it a
-material, which is what every map slot takes.
-
-The normal map is derived from the height by
-`surfaces.normalFromHeight`. That derivation is a Skia program, and a
-body on the device cannot run it, so bake it too: fill a fourth buffer
-with the derived material and read the image back. Every map is painted
-once, in the first frame.
-
-```python
-@sketch(size=(WIDTH, HEIGHT), background=GROUND, capture_at=2.0)
-class Plaque:
-    needsDevice = True            # the bake draws on the host's device
-
-    def setup(self, ctx: Scene2DContext) -> None:
-        self.colour_buffer = Graphics(PAGE_W, PAGE_H)
-        self.height_buffer = Graphics(PAGE_W, PAGE_H)
-        self.normal_buffer = Graphics(PAGE_W, PAGE_H)
-        self.glow_buffer = Graphics(PAGE_W, PAGE_H)
-        self.plate = mesh.quad(PLATE_W, PLATE_H)
-        self.lens = mesh.camera.Camera()
-        self.lens.eye = (0, 150, 330)
-        self.lens.target = (0, 0, 0)
-        self.lens.fovYDeg = 36
-        self.painted = False
-
-    def paint_maps(self, pen: Pen) -> None:
-        self.colour_buffer.draw(pen, lambda p: p.element(page(), 0, 0, PAGE_W, PAGE_H))
-        self.height_buffer.draw(pen, lambda p: p.element(relief(), 0, 0, PAGE_W, PAGE_H))
-        self.glow_buffer.draw(pen, lambda p: p.element(glow(), 0, 0, PAGE_W, PAGE_H))
-        height = material.image(material.Texture(self.height_buffer.image()))
-        normal = surfaces.normalFromHeight(
-            height, surfaces.HeightNormalOptions(depth=-3.0, step=0.75, directX=True)
-        )
-
-        def bake_normal(p: Pen) -> None:
-            p.noStroke()
-            p.fill(normal)
-            p.rect(0, 0, PAGE_W, PAGE_H)
-
-        self.normal_buffer.draw(pen, bake_normal)
-        self.painted = True
-```
-
-`depth` is how far one unit of height tilts the normal; negative because
-the lettering is raised toward the viewer in this page's convention, and
-`directX=True` says which way the map's green points, matched by
-`normalDirectX=True` on the surface below. Change the two together.
-
-## Step 4 — the surface, from the maps
-
-A material is built from a base and told how it responds to light with
-`.surface(...)`. The base is the colour page; the normal is the baked
-map; the height map doubles as the metalness, so the raised copper
-lettering is metal and the stone around it is not.
-
-```python
-    def surface(self, glow_strength: float) -> material.Material:
-        colour = material.image(material.Texture(self.colour_buffer.image()))
-        height = material.image(material.Texture(self.height_buffer.image()))
-        normal = material.image(material.Texture(self.normal_buffer.image()))
-        glow = material.image(material.Texture(self.glow_buffer.image()))
-        return material.from_(colour).surface(
-            metallic=height,
-            roughness=0.4,
-            normal=normal,
-            normalDirectX=True,
-            emission=COPPER,
-            emissionStrength=glow_strength,
-            emissionMap=glow,
-        )
-```
-
-Any `.surface` channel takes a number or a material: `roughness=0.4` is
-one value everywhere, `metallic=height` varies by the pixel. The same
-slots reach a clear coat (`clearcoat`, `clearcoatRoughness`), a sheen
-(`sheenColor`, `sheenRoughness`), a brushing (`anisotropy`,
-`anisotropyDirection`), glass (`transmission`, `ior`, `thickness`) and
-the rest of the lit surface's lobes; each is paid for only when stated.
-
-## Step 5 — the scene, the lights, and a pulse
-
-Every frame describes the scene from the clock: a key light that swings
-over eight seconds and breathes over three, a hemisphere fill, the plaque
-on its quad, a studio environment for the copper to reflect, and a
-bloom pass that spreads the rule's glow. The glow's strength is the
-pulse, passed into the surface each frame.
+`ctx.page(size)` makes the page; the session keeps it. `page.render(tree)`
+is a pass the baked frame carries, and `page.surface()` is the material
+the quad wears.
 
 ```python
 STUDIO = world.kit.environmentMap(
@@ -192,16 +105,36 @@ STUDIO = world.kit.environmentMap(
         world.kit.SoftBox(centre=(0.7, 0.35), radiance=(3, 3.4, 4), size=(0.1, 0.12)),
     ],
 )
+
+
+@sketch(size=(WIDTH, HEIGHT), background=GROUND, capture_at=2.0)
+class Plaque:
+    needsDevice = True            # the bake draws on the host's device
+
+    def setup(self, ctx: Scene2DContext) -> None:
+        self.page = ctx.page((PAGE_WIDTH, PAGE_HEIGHT))
+        self.face = plaque_face()
+        self.plate = mesh.quad(PLATE_WIDTH, PLATE_HEIGHT)
+        self.lens = mesh.camera.Camera()
+        self.lens.eye = (0, 150, 330)
+        self.lens.target = (0, 0, 0)
+        self.lens.fovYDeg = 36
 ```
 
-The environment stands above the class; the frame is described in the
-class's `draw`:
+The face is built once, so the page paints once and keeps what it
+painted while the face is unchanged. A face built fresh each frame is
+repainted each frame, which is what a page with moving content wants.
+
+## Step 4 — the scene, with two kinds of time
+
+Every frame describes the scene from the clock: a key light that swings
+over eight seconds and breathes over three, a hemisphere fill, the
+plaque on its quad wearing the page, the studio environment for the
+copper to reflect, the page's pass, and a bloom pass.
 
 ```python
     def draw(self, pen: Pen, ctx: Scene2DContext) -> None:
         seconds = pen.millis() / 1000
-        if not self.painted:
-            self.paint_maps(pen)
         pulse = 0.5 + 0.5 * math.sin(seconds * 2 * math.pi / 3)
         swing = 0.5 + 0.5 * math.sin(seconds * 2 * math.pi / 8)
         key_angle = math.radians(-60 + 120 * swing)
@@ -214,11 +147,12 @@ class's `draw`:
             .key("plaque")
             .rotateX(-12)
             .rotateY(motion.animate(from_=-90, to=0, duration=1.6, ease=ease.outCubic))
-            .fill(self.surface(glow_strength=0.6 + 3.4 * pulse)),
+            .fill(self.page.surface()),
         ).key("scene")
         frame = (
             world.Frame(model)
             .environment(STUDIO, intensity=1.2)
+            .pass_(self.page.render(self.face))
             .pass_(world.bloom(threshold=1.8, intensity=0.6, radius=28))
         )
         still = ctx.bakeScene3D(
@@ -228,62 +162,52 @@ class's `draw`:
             pen.image(still, 0, 0)
 ```
 
-Two kinds of motion sit side by side here, and it is worth seeing why.
-
 **A value from the clock.** `pulse` and `swing` are numbers computed
-from `seconds` and written into the description: the key's intensity,
-its direction, the glow's strength. The scene is described fresh each
-frame, so this is the simplest timeline there is — a function of time —
-and it is exact at any moment, which is what a still at `--at` needs.
+from `seconds` and written into the description: the key's intensity and
+direction. The scene is described fresh each frame, so this is the
+simplest timeline there is, a function of time, exact at any moment,
+which is what a still at `--at` needs.
 
 **An entrance the runtime owns.** `rotateY(motion.animate(from_=-90,
 to=0, duration=1.6, ease=ease.outCubic))` is a tween on the node's lane.
 It plays once from the moment the plaque mounts; the bake samples it at
-the moment it is handed in `at`, so a still at 0.6 seconds shows the
-plaque mid-swing and one at 2 seconds shows it landed. Describing the
-tween again does not restart it: the lane keeps its own clock. Any
-scalar lane — `rotateX`, `scale`, `translateY`, a light's `intensity` —
-takes the same value.
+the moment handed in `at`, so a still at 0.6 seconds is mid-swing and one
+at 2 seconds has landed. Describing the tween again does not restart it.
+Any scalar lane — `rotateX`, `scale`, `translateY`, a light's
+`intensity` — takes the same value.
 
-The bloom threshold sits above the stone's brightness and below the
-rule's emission, so only the glow blooms; lower it and the whole plaque
-halos.
-
-## Step 6 — run it, at a moment
+## Step 5 — run it, at a moment
 
 ```sh
-Grimoire plaque.py                                   # live, swapped on every save
-Grimoire plaque.py --frame plaque.png --gpu --at 0.6 # mid-swing
-Grimoire plaque.py --frame plaque.png --gpu --at 2.0 # landed, glow near its peak
+Grimoire python_plaque.py                                      # live
+Grimoire python_plaque.py --frame plaque.png --gpu --at 0.6    # mid-swing
+Grimoire python_plaque.py --frame plaque.png --gpu --at 2.0    # landed
 ```
 
 A Python bake needs the device, which the window brings up and a still
-asks for with `--gpu`; `needsDevice = True` on the class is what tells
-the host before the sketch opens.
+asks for with `--gpu`; `needsDevice = True` on the class tells the host
+before the sketch opens.
 
 ## What to change next
 
-- **Make it carved rather than raised.** Invert the height page — black
-  lettering on white — and flip the sign of `depth`. The copper then
-  lies in the cut.
-- **Brush the metal.** Add `anisotropy=0.8` to the surface and paint a
-  direction map the way the colour was painted; the highlight stretches
-  along it.
-- **Glaze it.** Add `clearcoat=1.0, clearcoatRoughness=0.08` and the
-  soft boxes reflect in a coat over the stone.
-- **Keyframe the entrance.** `motion.animate(keyframes=[...])` with
-  `motion.Keyframe(to, duration, ease)` is the spelling for an overshoot
-  and settle; on a World lane baked from Python it stands at its last
-  value today, which is a queued finding, so the entrance above uses
-  `from_` and `to`.
+- **Carve rather than raise.** Give `compose.relief` a negative `depth`
+  and the copper lies in the cut.
+- **Glaze the stone.** Add `clearcoat=1.0, clearcoatRoughness=0.08` to
+  `STONE_FACE`'s surface and the soft boxes reflect in a coat over it.
+- **Move the page.** Build the face inside `draw` from `seconds` and the
+  page repaints each frame; a sliding caption or a reading that ticks
+  over is then part of the material.
+- **Brush the copper.** `anisotropy=0.8` on `COPPER_METAL` stretches its
+  highlight; the direction is the page's horizontal until the brushing
+  can follow the fill's own shape, which is queued.
 
-## The C++ form, for when the page binding lands
+## Two limits, today
 
-A C++ scene3d sketch does the same with one object: `ctx.page(size)`
-gives a `sketch::Page`, `page.render(tree)` is a pass on the frame that
-paints every map from one tree, and `page.surface()` is the material a
-body wears — no buffers, no baked normal, and the page can change every
-frame. `apps/grimoire/sketches/carved_marks/` and `painted_fields/` are
-that form. Binding the page to Python is in the findings queue; until
-then the four buffers above are the Python route, and they are the same
-four maps.
+A page's emission is clipped at one, so `emissionStrength=2.0` on the
+rule arrives no brighter than white and the bloom above its threshold
+does not fire; the rule is lit copper rather than a lamp until the page
+carries float emission. And a material's relief is said with a
+decoration over the glyph outline rather than on the material itself;
+the rule that every channel of a material is placed and sourced by the
+fill's unit, with relief and brushing as statements on the material, is
+the finding being worked, and this page will shorten when it lands.

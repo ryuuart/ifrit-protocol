@@ -24,9 +24,9 @@ the product, a window server or a network.
 3. **[Write a sketch in Python](guide:a-sketch-in-python)** — the same
    API from the other language: install, render a still, open it live.
 4. **[Compose elements as the material of a 3D body, in Python](guide:compose-driven-materials-python)**
-   — a plaque whose face is a Compose page: the page painted as colour,
-   relief and glow maps, worn by one quad under lights, with a pulse from
-   the clock and an entrance the runtime owns.
+   — a plaque whose face is a Compose page: materials on the fills, the
+   page painted as the maps those materials name, worn by one quad under
+   lights, with a pulse from the clock and an entrance the runtime owns.
 
 ## What to read next
 
