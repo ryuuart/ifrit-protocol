@@ -570,10 +570,14 @@ struct Paging {
     ctx.canvas(200, 120);
     const Page page = ctx.page({32, 32});
     name = page.name();
-    world::Frame frame(world::group({world::mesh(gm::quad(kCardW, kCardH))
-                                         .key("card")
-                                         .fill(page.surface())})
-                           .key("set"));
+    // The page's green states no surface, so it is the card's base colour
+    // and takes the sun standing behind the eye.
+    world::Frame frame(
+        world::group({world::directionalLight({0, 0, -1}).key("sun"),
+                      world::mesh(gm::quad(kCardW, kCardH))
+                          .key("card")
+                          .fill(page.surface())})
+            .key("set"));
     frame.pass(page.render(
         box().width(32).height(32).fill(Fill::color({0, 1, 0, 1}))));
     worn = ctx.bakeScene3D(
@@ -646,13 +650,13 @@ TEST_F(Scene2DBakes, PaintsThePageABakedCardWears) {
   EXPECT_EQ(Paging::name, "page");
   const SkBitmap pixels = pixelsOf(Paging::worn);
   // The page's pass ran before the card was drawn: the card's middle is
-  // the green the page was painted, its own light, and the corner is the
+  // the green the page was painted, lit by the sun, and the corner is the
   // ground the bake was cleared to.
   const SkColor middle =
       pixels.getColor(kBakeSize.width() / 2, kBakeSize.height() / 2);
-  EXPECT_GT(SkColorGetG(middle), 200u);
-  EXPECT_LT(SkColorGetR(middle), 50u);
-  EXPECT_LT(SkColorGetB(middle), 50u);
+  EXPECT_GT(SkColorGetG(middle), 100u);
+  EXPECT_GT(SkColorGetG(middle), SkColorGetR(middle) + 60);
+  EXPECT_GT(SkColorGetG(middle), SkColorGetB(middle) + 60);
   EXPECT_EQ(pixels.getColor(1, 1),
             material::skia::toSkColor(kGround).toSkColor());
   // The session counts the page among what it holds for the body.

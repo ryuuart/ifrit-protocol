@@ -111,17 +111,29 @@ TEST(SkiaSurfaceMap, StatedNumbersAndEmissionReachTheirMaps) {
 TEST(SkiaSurfaceMap, AnUnlitMaterialIsItsOwnColourWithItsCoverage) {
   // Read back unpremultiplied: each map's value at the colour's alpha.
   const Color colour{.8f, .6f, .4f, .5f};
-  for (const Material& material :
-       {Material(colour),
-        from(colour).surface({.roughness = .1f, .unlit = true})}) {
-    expectPixel(sampled(skia::asMap(material, Role::BaseColor)), 0, 0, 0, .5f);
-    expectPixel(sampled(skia::asMap(material, Role::Emissive)), .8f, .6f, .4f,
-                .5f);
-    expectPixel(sampled(skia::asMap(material, Role::Normal)), .5f, .5f, 1, .5f);
-    expectPixel(sampled(skia::asMap(material, Role::Roughness)), 1, 1, 1, .5f);
-    expectPixel(sampled(skia::asMap(material, Role::Metallic)), 0, 0, 0, .5f);
-    expectPixel(sampled(skia::asMap(material, Role::Occlusion)), 1, 1, 1, .5f);
-  }
+  const Material material =
+      from(colour).surface({.roughness = .1f, .unlit = true});
+  expectPixel(sampled(skia::asMap(material, Role::BaseColor)), 0, 0, 0, .5f);
+  expectPixel(sampled(skia::asMap(material, Role::Emissive)), .8f, .6f, .4f,
+              .5f);
+  expectPixel(sampled(skia::asMap(material, Role::Normal)), .5f, .5f, 1, .5f);
+  expectPixel(sampled(skia::asMap(material, Role::Roughness)), 1, 1, 1, .5f);
+  expectPixel(sampled(skia::asMap(material, Role::Metallic)), 0, 0, 0, .5f);
+  expectPixel(sampled(skia::asMap(material, Role::Occlusion)), 1, 1, 1, .5f);
+}
+
+TEST(SkiaSurfaceMap, AMaterialStatingNoSurfaceIsTheStockSurface) {
+  // A plain colour is a base colour that takes light, with the stock
+  // numbers, and emits nothing.
+  const Material material(Color{.8f, .6f, .4f, .5f});
+  expectPixel(sampled(skia::asMap(material, Role::BaseColor)), .8f, .6f, .4f,
+              .5f);
+  expectPixel(sampled(skia::asMap(material, Role::Emissive)), 0, 0, 0, .5f);
+  expectPixel(sampled(skia::asMap(material, Role::Normal)), .5f, .5f, 1, .5f);
+  expectPixel(sampled(skia::asMap(material, Role::Roughness)), .5f, .5f, .5f,
+              .5f);
+  expectPixel(sampled(skia::asMap(material, Role::Metallic)), 0, 0, 0, .5f);
+  expectPixel(sampled(skia::asMap(material, Role::Occlusion)), 1, 1, 1, .5f);
 }
 
 TEST(SkiaSurfaceMap, ALitMaterialsCoverageIsEveryMapsAlpha) {

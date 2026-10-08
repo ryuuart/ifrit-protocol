@@ -50,11 +50,11 @@ void markSurfaceMap(SkPaint& paint) {
 SurfaceMapCanvas::SurfaceMapCanvas(SkCanvas& target,
                                    material::texture::Role role)
     : SkPaintFilterCanvas(&target), m_target(&target) {
-  if (role == material::texture::Role::Emissive) return;
-  const material::Color ground = material::skia::surfaceMapGround(role);
+  if (role == material::texture::Role::BaseColor) return;
+  const material::Color ground = material::skia::flatContentMap(role);
   // Rows act on unpremultiplied colour: red, green and blue become the
-  // ground's, alpha stays, so the premultiplied result is the ground at
-  // the coverage the content painted.
+  // stock surface's value, alpha stays, so the premultiplied result is that
+  // value at the coverage the content painted.
   const std::array<float, 20> rows{
       0, 0, 0, 0, ground.r,  //
       0, 0, 0, 0, ground.g,  //

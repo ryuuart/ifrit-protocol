@@ -325,11 +325,14 @@ a `material::texture::TextureMaps`. Hand that to
 `material::surface::program(maps, parameters)` and put the result on a
 World surface: the scene's lights, environment and camera shade the page.
 Every lit fill, ink (Glyph and Word units included), material stroke and
-relief paints the map its material states; content that takes no light is
-its own colour — its colour in the emissive map over a black base, a
-normal facing the viewer, roughness and occlusion one and metallic zero —
-so flat text and fills come out of the scene looking as painted. Where nothing paints,
-every map reads that same ground with a transparent base colour, and an
+relief paints the map its material states; content that states no surface
+— a plain colour, a gradient, an image, flat text, a layer style — is a
+stock surface: its colour in the base colour map, a normal facing the
+viewer, roughness one half, occlusion one and metallic and emission zero,
+so it takes the scene's light, shadows and environment like the rest of
+the body. Only a material that states emission glows. Where nothing paints,
+every map reads a transparent base colour over a normal facing the viewer,
+roughness and occlusion one and metallic and emission zero, and an
 antialiased edge composites each map by its coverage, normals included as
 their encoding. Normals are encoded green up the picture. A material that
 states a normal of its clear coat's own adds a `ClearcoatNormal` map, as a

@@ -35,14 +35,16 @@ namespace sigil::compose {
 
 /** ONE TREE, PAINTED AS EACH MAP OF ITS SURFACE. Every lit fill, ink,
  *  stroke and relief paints the map its material states
- *  (`material::skia::asMap`) at the coverage it paints; content that takes
- *  no light is its own colour — its colour in the emissive map, a black
- *  base, a normal facing the viewer, roughness and occlusion one, metallic
- *  and the coat zero. Where nothing paints, each map reads that same
- *  ground, with a transparent base colour. Normals are encoded green up
- *  the picture; occlusion, roughness and metallic share the `Packed` map
- *  in red, green and blue, and the coat's weight and roughness share the
- *  `Clearcoat` map in red and green.
+ *  (`material::skia::asMap`) at the coverage it paints; content that states
+ *  no surface is a stock surface — its colour in the base colour map, a
+ *  normal facing the viewer, roughness one half, occlusion one, metallic,
+ *  emission and the coat zero — so it takes the scene's light, and only a
+ *  material that states emission glows. Where nothing paints, each map
+ *  reads a transparent base colour, a normal facing the viewer, roughness
+ *  and occlusion one and metallic, emission and the coat zero. Normals are
+ * encoded green up the picture; occlusion, roughness and metallic share the
+ * `Packed` map in red, green and blue, and the coat's weight and roughness
+ * share the `Clearcoat` map in red and green.
  *
  *  THE OPTIONAL LOBES COST NOTHING UNTIL STATED. A page whose materials
  *  state no sheen, brushing, film or specular paints those five maps only;

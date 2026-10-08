@@ -1,5 +1,5 @@
 // A compose tree painted as the maps of a surface: what each map reads
-// under a lit fill, lit glyph ink, a relief and an unlit label, where
+// under a lit fill, lit glyph ink, a relief and a flat label, where
 // nothing paints, when it stands still and when it paints again, that
 // what a composer holds for one map is never what it draws for another,
 // and that the same tree drawn as a page paints every material's colours
@@ -49,7 +49,7 @@ material::Material reliefFinish() {
       .surface({.roughness = .8f});
 }
 
-/** A lit plate with an unlit label on it, lit glyph ink, a relief, and an
+/** A lit plate with a flat label on it, lit glyph ink, a relief, and an
  *  empty band along the bottom. */
 Element page(material::Color plate = {.8f, .4f, .2f, 1}) {
   return box().width(kWidth).height(kHeight).children({
@@ -164,11 +164,12 @@ TEST(ComposeSurfaceScene, EachMapReadsWhatTheTreePaintedThere) {
   expectNear(occlusion.getColor4f(10, 10), 1, 1, 1);
   expectNear(emissive.getColor4f(10, 10), 0, 0, 0);
 
-  // The unlit label over it is its own colour and covers the plate.
-  expectNear(base.getColor4f(108, 16), 0, 0, 0);
-  expectNear(emissive.getColor4f(108, 16), .9f, .1f, .1f);
+  // The flat label over it states no surface: it is the stock surface, its
+  // colour the base colour, and it covers the plate and emits nothing.
+  expectNear(base.getColor4f(108, 16), .9f, .1f, .1f);
+  expectNear(emissive.getColor4f(108, 16), 0, 0, 0);
   expectNear(normal.getColor4f(108, 16), .5f, .5f, 1);
-  expectNear(roughness.getColor4f(108, 16), 1, 1, 1);
+  expectNear(roughness.getColor4f(108, 16), .5f, .5f, .5f);
   expectNear(metallic.getColor4f(108, 16), 0, 0, 0);
 
   // Lit glyph ink: somewhere inside a glyph the base is the ink's colour

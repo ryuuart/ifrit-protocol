@@ -134,7 +134,7 @@ struct Screened {
 };
 
 /** A scene3d sketch that paints a compose page as a surface's maps the session
- *  keeps — a lit panel under an unlit green label — and wears it on one card
+ *  keeps — a lit panel under a flat green label — and wears it on one card
  *  under a sun. */
 struct Surfaced {
   Page page;
@@ -166,6 +166,44 @@ struct Surfaced {
                                .absolute()
                                .rect(16, 16, 32, 32)
                                .fill(material::Color{0, 1, 0, 1})})));
+  }
+};
+
+/** A page of one colour worn on a card under a single lamp standing off
+ *  its left edge, so the card's near side takes more light than its far
+ *  side: the colour stated flat when @p Glowing is zero, or as the
+ *  emission of a black surface when it is one. */
+template <int Glowing>
+struct SideLitPage {
+  Page page;
+  void setup(Scene3DContext& ctx) {
+    ctx.canvas(160, 120);
+    ctx.background({0, 0, 0, 1});
+    sigil::geometry::mesh::camera::Camera lens;
+    lens.eye = {0, 0, 200};
+    lens.target = {0, 0, 0};
+    ctx.camera(lens);
+    page = ctx.page({64, 64});
+  }
+  world::Frame describe(sigil::motion::Duration) {
+    using namespace sigil::compose;
+    namespace material = sigil::material;
+    const material::Material colour =
+        Glowing ? material::from(material::Color{0, 0, 0, 1})
+                      .surface({.roughness = 1.0f,
+                                .emission = {0.7f, 0.7f, 0.7f, 1},
+                                .emissionStrength = 1.0f})
+                : material::Material(material::Color{0.7f, 0.7f, 0.7f, 1});
+    return world::Frame(
+               world::group({world::pointLight({.intensity = world::intensityAt(
+                                                    3.0f, 100.0f)})
+                                 .key("lamp")
+                                 .at({-90, 0, 40}),
+                             world::mesh(gm::quad(120, 90))
+                                 .key("card")
+                                 .fill(page.surface())})
+                   .key("set"))
+        .pass(page.render(box().width(64).height(64).fill(colour)));
   }
 };
 
@@ -625,14 +663,34 @@ TEST_F(Scene3DDoors, PaintsASurfaceSceneThatTheScene3DLights) {
   std::unique_ptr<Session> session =
       kindOf<Surfaced>()->open(fonts(), assets());
   const SkBitmap picture = shadedFrame(*session);
-  // The unlit label comes out as it was painted, its own light; the lit
-  // panel around it is grey under the sun.
+  // The flat label takes the sun as the page's base colour and comes out
+  // green; the lit panel around it is grey under the same sun.
   const SkColor label = picture.getColor(80, 60);
-  EXPECT_GT(SkColorGetG(label), 200u);
-  EXPECT_LT(SkColorGetR(label), 50u);
+  EXPECT_GT(SkColorGetG(label), 100u);
+  EXPECT_GT(SkColorGetG(label), SkColorGetR(label) + 60);
+  EXPECT_GT(SkColorGetG(label), SkColorGetB(label) + 60);
   const SkColor panel = picture.getColor(48, 60);
   EXPECT_GT(SkColorGetR(panel), 15u);
   EXPECT_NEAR(int(SkColorGetR(panel)), int(SkColorGetG(panel)), 12);
+}
+
+TEST_F(Scene3DDoors, AFlatColourOnAPageTakesTheLightAndOnlyEmissionGlows) {
+  const auto light = [](SkColor colour) {
+    return (int)SkColorGetR(colour) + (int)SkColorGetG(colour) +
+           (int)SkColorGetB(colour);
+  };
+  // A colour that states no surface is the page's base colour: the side of
+  // the card nearer the lamp reads lighter than the far side.
+  std::unique_ptr<Session> flat =
+      kindOf<SideLitPage<0>>()->open(fonts(), assets());
+  const SkBitmap lit = shadedFrame(*flat);
+  EXPECT_GT(light(lit.getColor(40, 60)), light(lit.getColor(120, 60)) + 30);
+  // The same colour stated as emission glows alike on both sides.
+  std::unique_ptr<Session> glowing =
+      kindOf<SideLitPage<1>>()->open(fonts(), assets());
+  const SkBitmap glow = shadedFrame(*glowing);
+  EXPECT_GT(light(glow.getColor(120, 60)), 90);
+  EXPECT_NEAR(light(glow.getColor(40, 60)), light(glow.getColor(120, 60)), 12);
 }
 
 TEST_F(Scene3DDoors, APagesClearcoatReachesTheShaderThroughItsSurface) {

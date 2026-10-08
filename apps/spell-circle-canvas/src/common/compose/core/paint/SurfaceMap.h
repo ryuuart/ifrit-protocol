@@ -2,12 +2,14 @@
 
 /** @file
  * A PAGE PAINTED AS ONE SURFACE MAP. A composer set to a map role paints
- * every lit material as that map of its surface (`material::skia::asMap`)
- * and everything else — flat colours, images, text that takes no light —
- * as content that is its own colour: the colour itself in the emissive
- * map, and in every other map the value an unlit surface reads there,
- * over the coverage it painted. The canvas below is where that second
- * half happens, so no site that paints ordinary content has to know.
+ * every material that states a surface as that map of its surface
+ * (`material::skia::asMap`) and everything else — flat colours, images,
+ * text, layer styles — as a stock surface: the colour itself in the base
+ * colour map, and in every other map the value the stock surface options
+ * read there (`material::skia::flatContentMap`), over the coverage it
+ * painted, so it takes the scene's light and glows only where emission is
+ * stated. The canvas below is where that second half happens, so no site
+ * that paints ordinary content has to know.
  */
 
 #include <include/core/SkColorFilter.h>
@@ -35,10 +37,10 @@ void markSurfaceMap(SkPaint& paint);
 
 /** FORWARDS EVERY DRAW TO THE CANVAS IT WRAPS AS ONE SURFACE MAP. A paint
  *  marked by `markSurfaceMap` passes unchanged. Any other paint is content
- *  that is its own colour: in the emissive map it draws as it is; in every
- *  other map its colour becomes that map's ground value at the coverage it
- *  paints, its image filter's output too, and a blend that mixes colours
- *  rather than coverage composites over instead, since a normal or a
+ *  on a stock surface: in the base colour map it draws as it is; in every
+ *  other map its colour becomes the stock surface's value there at the
+ *  coverage it paints, its image filter's output too, and a blend that mixes
+ * colours rather than coverage composites over instead, since a normal or a
  *  roughness multiplied or screened into what lies beneath means nothing.
  *  Pictures are played back through it, so a recorded draw is filtered as
  *  it is replayed and a mark recorded with it is honoured.
@@ -60,8 +62,8 @@ class SurfaceMapCanvas final : public SkPaintFilterCanvas {
 
  private:
   SkCanvas* m_target;
-  /** Maps a colour to the ground value at its own alpha; null in the
-   *  emissive map, where content keeps its colour. */
+  /** Maps a colour to the stock surface's value at its own alpha; null in
+   *  the base colour map, where content keeps its colour. */
   sk_sp<SkColorFilter> m_ownColour;
 };
 

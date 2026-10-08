@@ -303,6 +303,19 @@ sk_sp<SkShader> SurfaceMaps::mapShader(texture::Role role,
                             std::span(children).first(count));
 }
 
+Color flatContentMap(texture::Role role) {
+  switch (role) {
+    case texture::Role::BaseColor:
+      return {0, 0, 0, 0};
+    case texture::Role::Roughness:
+      return {0.5f, 0.5f, 0.5f, 1};
+    case texture::Role::Packed:
+      return {1, 0.5f, 0, 1};
+    default:
+      return surfaceMapGround(role);
+  }
+}
+
 Color surfaceMapGround(texture::Role role) {
   switch (role) {
     case texture::Role::Normal:
@@ -364,13 +377,14 @@ Paint SurfaceMaps::mapPass(texture::Role role) const {
   pass.worldSpace(material.worldSpace());
   PaintAccess::storeSlot(pass, "uColor", m_inputs->colours);
   PaintAccess::storeUniform(pass, "uRole", float(*index));
-  const bool unlit = !isLit(material);
+  // A material that states no surface is a surface all the same, with
+  // the stock options: its colour is its base colour and it takes light.
+  // Only a surface stated unlit is its own colour.
+  const SurfaceOptions* stated = material.surface();
+  const bool unlit = stated != nullptr && stated->unlit;
   PaintAccess::storeUniform(pass, "uUnlit", unlit ? 1.0f : 0.0f);
-  // What a lit surface reads where it states nothing is what the stock
-  // surface options say; a material with no surface takes them too, and
-  // the unlit branch of the program never reads them.
   static const SurfaceOptions stock;
-  const SurfaceOptions& surface = unlit ? stock : *material.surface();
+  const SurfaceOptions& surface = stated && !unlit ? *stated : stock;
   PaintAccess::storeUniform(pass, "uHasNormal",
                             !unlit && surface.normal ? 1.0f : 0.0f);
   if (m_inputs->normal)

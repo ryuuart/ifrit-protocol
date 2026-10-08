@@ -293,10 +293,11 @@ back as `(n + 1) / 2` with green up the picture whatever convention the
 material stated, including a height-derived or blended normal; a scalar
 comes back grey, its number times its map; a role a material states
 nothing for reads the stock `SurfaceOptions` number. Every map carries the
-colour stack's alpha as its coverage. A material with no surface, or an
-`unlit` one, is its own colour: emissive is the colour stack, the base is
-black, the normal faces the viewer, roughness and occlusion are one and
-metallic is zero. `material::skia::SurfaceMaps` prepares a material's colour
+colour stack's alpha as its coverage. A material with no surface reads as
+the stock `SurfaceOptions`: its colour stack is its base colour and it
+takes the renderer's light. An `unlit` one is its own colour: emissive is
+the colour stack, the base is black, the normal faces the viewer,
+roughness and occlusion are one and metallic is zero. `material::skia::SurfaceMaps` prepares a material's colour
 stack and channels once and answers every map from them; its `asMap()`
 holds one pass per role, and `SurfaceMaps::mapShader` places a map for one
 draw whose unit square maps into the node. Construct another when the

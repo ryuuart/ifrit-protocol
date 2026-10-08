@@ -11,7 +11,7 @@
 // in red and green, encoded as a normal is, and its strength in blue,
 // 12 the thin film's weight in red and its thickness in green, 13 the
 // clear coat's own normal, encoded as the normal is.
-// A surface that takes no light is its own colour: emission is the colour
+// A surface stated unlit is its own colour: emission is the colour
 // stack, the base is black, the normal faces the viewer, roughness and
 // occlusion are one, metallic and the coat zero, no sheen, a white
 // specular at full strength, no brushing and no film.

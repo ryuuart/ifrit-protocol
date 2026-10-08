@@ -125,11 +125,13 @@ class LobeListener {
  *  `ClearcoatNormal` as the coat's own normal, encoded as the normal is and
  *  facing the viewer where the surface states none.
  *
- *  A material that states no surface, or states one `unlit`, is ITS OWN
- *  COLOUR: the colour stack is its emission, its base colour is black,
- *  its normal faces the viewer, its roughness and occlusion are one and
- *  its metallic zero — so a renderer that shades the set shows it as it
- *  was painted. A role outside `isSurfaceMapRole` paints nothing.
+ *  A material that states no surface answers the stock `SurfaceOptions`:
+ *  its colour stack is its base colour and it takes the renderer's light.
+ *  Only a surface stated `unlit` is ITS OWN COLOUR: the colour stack is its
+ *  emission, its base colour is black, its normal faces the viewer, its
+ *  roughness and occlusion are one and its metallic zero — so a renderer
+ *  that shades the set shows it as it was painted. A role outside
+ *  `isSurfaceMapRole` paints nothing.
  *  The reflection weight has no map and is not read. */
 Paint asMap(const Material& material, texture::Role role);
 
@@ -142,5 +144,15 @@ Paint asMap(const Material& material, texture::Role role);
  * where the surface is. Transparent black for a role `asMap` answers nothing
  * for. */
 Color surfaceMapGround(texture::Role role);
+
+/** What a surface map of @p role reads under content that states no
+ *  surface — a plain colour, a gradient, an image, a layer style — painted
+ *  on a page: the stock `SurfaceOptions` at the coverage the content
+ *  painted. A normal and a coat normal facing the viewer, roughness one
+ *  half, metallic, emission and the coat zero, occlusion one, no sheen, a
+ *  white specular at full strength, no brushing and no film. The base
+ *  colour is the content's own colour, so this answers transparent black
+ *  for it, as for a role `asMap` answers nothing for. */
+Color flatContentMap(texture::Role role);
 
 }  // namespace sigil::material::skia

@@ -2077,22 +2077,6 @@ Thickness, like the flipbook frame, should be readable from a named
 instance attribute. A test should instance one bead at two sizes with a
 thickness attribute and find the page bent more through the larger.
 
-## Decision: content that states no surface glows on a lit body
-
-On a page, a plain colour on `fill`, `material::from(colour)`, the
-gradients and the pattern tiles paint as they did before World took the
-lighting, and the layer styles read no light. On a World body wearing a
-page through `compose::SurfaceScene`, the same content is written into
-the emissive map over a black base, so it shows its colour whatever the
-scene's lights, shadows and environment do — where a page laid in a
-body's base-colour slot takes them. Whether flat content on a worn page
-should stay self-lit or become base colour (lit, shadowed, reflecting
-the environment) is the owner's call.
-
-A test should paint a plain fill on a page worn by a lit body, put the
-body half in a shadow, and find the fill darker in the shadow if the
-owner chooses base colour, or unchanged if self-lit stays.
-
 ## Authoring gap: the combined Python carved-and-plated study is not written
 
 The owner wants a Python 3D scene that combines carved marks and metal

@@ -679,30 +679,32 @@ TEST_F(SketchPythonBakes, APageThePythonSketchPaintsIsWornByTheBakedCard) {
   PythonSource source("sigil_python_page_bake");
   // One green page that takes no light, worn by a card under no light at
   // all: what the card shows is the page, and the bake fills the canvas.
-  source.write("entry.py",
-               "from sigil import compose, world\n"
-               "from sigil.geometry import mesh\n"
-               "from sigil.sketch import sketch\n"
-               "\n"
-               "@sketch(size=(128, 96), background='#1a1a1a', capture_at=0)\n"
-               "class Paged:\n"
-               "    needsDevice = True\n"
-               "\n"
-               "    def setup(self, ctx):\n"
-               "        self.page = ctx.page((32, 32))\n"
-               "        lens = mesh.camera.Camera()\n"
-               "        lens.eye = (0, 0, 300)\n"
-               "        lens.target = (0, 0, 0)\n"
-               "        card = (world.mesh(mesh.quad(100, 60)).key('card')\n"
-               "                .fill(self.page.surface()))\n"
-               "        tree = compose.box().width(32).height(32)"
-               ".fill('#00ff00')\n"
-               "        frame = (world.Frame(world.group(card).key('set'))\n"
-               "                 .pass_(self.page.render(tree)))\n"
-               "        still = ctx.bakeScene3D(frame, (128, 96), "
-               "camera=lens, background='#1a1a1a')\n"
-               "        ctx.render(compose.image(still).width(128).height(96)\n"
-               "                   if still is not None else compose.box())\n");
+  source.write(
+      "entry.py",
+      "from sigil import compose, world\n"
+      "from sigil.geometry import mesh\n"
+      "from sigil.sketch import sketch\n"
+      "\n"
+      "@sketch(size=(128, 96), background='#1a1a1a', capture_at=0)\n"
+      "class Paged:\n"
+      "    needsDevice = True\n"
+      "\n"
+      "    def setup(self, ctx):\n"
+      "        self.page = ctx.page((32, 32))\n"
+      "        lens = mesh.camera.Camera()\n"
+      "        lens.eye = (0, 0, 300)\n"
+      "        lens.target = (0, 0, 0)\n"
+      "        card = (world.mesh(mesh.quad(100, 60)).key('card')\n"
+      "                .fill(self.page.surface()))\n"
+      "        tree = compose.box().width(32).height(32)"
+      ".fill('#00ff00')\n"
+      "        sun = world.directionalLight((0, 0, -1)).key('sun')\n"
+      "        frame = (world.Frame(world.group(sun, card).key('set'))\n"
+      "                 .pass_(self.page.render(tree)))\n"
+      "        still = ctx.bakeScene3D(frame, (128, 96), "
+      "camera=lens, background='#1a1a1a')\n"
+      "        ctx.render(compose.image(still).width(128).height(96)\n"
+      "                   if still is not None else compose.box())\n");
   const sketch::Kind kind = sketch::python::load(source.entry());
   ASSERT_TRUE(kind->needsDevice());
   auto session = kind->open(fonts(), assets(), true, "paged");
@@ -712,10 +714,11 @@ TEST_F(SketchPythonBakes, APageThePythonSketchPaintsIsWornByTheBakedCard) {
   SkBitmap pixels;
   pixels.allocPixels(SkImageInfo::MakeN32Premul(128, 96));
   ASSERT_TRUE(surface->readPixels(pixels, 0, 0));
+  // The page's green is the card's base colour, lit by the sun.
   const SkColor middle = pixels.getColor(64, 48);
-  EXPECT_GT(SkColorGetG(middle), 200u);
-  EXPECT_LT(SkColorGetR(middle), 50u);
-  EXPECT_LT(SkColorGetB(middle), 50u);
+  EXPECT_GT(SkColorGetG(middle), 100u);
+  EXPECT_GT(SkColorGetG(middle), SkColorGetR(middle) + 60);
+  EXPECT_GT(SkColorGetG(middle), SkColorGetB(middle) + 60);
   // Off the card is the ground the bake was cleared to, not the page.
   EXPECT_LT(SkColorGetG(pixels.getColor(1, 1)), 50u);
 }
