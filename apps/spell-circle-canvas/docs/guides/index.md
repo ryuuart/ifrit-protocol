@@ -27,6 +27,10 @@ the product, a window server or a network.
    — a plaque whose face is a Compose page: materials on the fills, the
    page painted as the maps those materials name, worn by one quad under
    lights, with a pulse from the clock and an entrance the runtime owns.
+5. **[An animated console in Python](guide:animated-console-python)**
+   — a page that behaves like a website: a marquee and a pulsing alert as
+   loops on lanes, typed lines and a meter as slots re-rendered from a
+   timer, phosphor glow and scanlines over a cyberpunk console.
 
 ## What to read next
 
