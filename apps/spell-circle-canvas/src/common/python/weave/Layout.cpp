@@ -1,19 +1,23 @@
+#include <pybind11/operators.h>
 #include <pybind11/stl.h>
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/advanced/Skia.h>
 #include <sigilmedia/advanced/Skia.h>
-#include <sigilweave/advanced/Skia.h>
 #include <sigilpython/Bindings.h>
+#include <sigilpython/geometry/Casters.h>
 #include <sigilpython/skia/Values.h>
 #include <sigilpython/weave/Registration.h>
+#include <sigilweave/advanced/Skia.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/kit/Hyphenation.h>
 #include <sigilweave/layout/Beside.h>
+#include <sigilweave/layout/GlyphOutline.h>
 #include <sigilweave/layout/ParagraphLayout.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/query/Query.h>
 
 #include <memory>
+#include <string>
 #include <thread>
 #include <utility>
 
@@ -397,7 +401,9 @@ void bindWeaveLayout(py::module_& root) {
           py::arg("request"))
       .def("uniformIntervals", &FlowGeometry::uniformIntervals);
   py::class_<BlockFlow, FlowGeometry>(module, "BlockFlow")
-      .def(py::init([](py::handle bounds) { return BlockFlow(geometry::path::fromSk(rect(bounds))); }),
+      .def(py::init([](py::handle bounds) {
+             return BlockFlow(geometry::path::fromSk(rect(bounds)));
+           }),
            py::arg("bounds"));
   py::class_<VerticalBlockFlow, FlowGeometry>(module, "VerticalBlockFlow")
       .def(py::init([](py::handle bounds) {
@@ -462,15 +468,21 @@ void bindWeaveLayout(py::module_& root) {
   auto flowshapes = module.def_submodule("flowshape");
   flowshapes.def(
       "rectangle",
-      [](py::handle bounds) { return flowshape::rectangle(geometry::path::fromSk(rect(bounds))); },
+      [](py::handle bounds) {
+        return flowshape::rectangle(geometry::path::fromSk(rect(bounds)));
+      },
       py::arg("bounds"));
   flowshapes.def(
       "circle",
-      [](py::handle bounds) { return flowshape::circle(geometry::path::fromSk(rect(bounds))); },
+      [](py::handle bounds) {
+        return flowshape::circle(geometry::path::fromSk(rect(bounds)));
+      },
       py::arg("bounds"));
   flowshapes.def(
       "ellipse",
-      [](py::handle bounds) { return flowshape::ellipse(geometry::path::fromSk(rect(bounds))); },
+      [](py::handle bounds) {
+        return flowshape::ellipse(geometry::path::fromSk(rect(bounds)));
+      },
       py::arg("bounds"));
   flowshapes.def(
       "path",
@@ -563,7 +575,7 @@ void bindWeaveLayout(py::module_& root) {
          const PathTextOptions& path) {
         return OwnedLayout(
             p, layoutSingleLine(fonts.get(), p,
-                             geometry::path::fromSk(point(origin)), path));
+                                geometry::path::fromSk(point(origin)), path));
       },
       py::arg("fonts"), py::arg("paragraph"), py::arg("baselineOrigin"),
       py::arg("pathText") = PathTextOptions{});
@@ -650,11 +662,65 @@ void bindWeaveLayout(py::module_& root) {
   module.def(
       "layoutWarichu",
       [](Fonts& fonts, Paragraph& note, py::handle slot, WritingMode mode) {
-        return OwnedLayout(note,
-                           layoutWarichu(fonts.get(), note,
-                                         geometry::path::fromSk(rect(slot)), mode));
+        return OwnedLayout(
+            note, layoutWarichu(fonts.get(), note,
+                                geometry::path::fromSk(rect(slot)), mode));
       },
       py::arg("fonts"), py::arg("note"), py::arg("slot"),
       py::arg("writingMode") = WritingMode::kHorizontal);
+
+  py::enum_<FaceSlant>(module, "FaceSlant")
+      .value("Upright", FaceSlant::Upright)
+      .value("Italic", FaceSlant::Italic)
+      .value("Oblique", FaceSlant::Oblique);
+  auto faceStyle = bindRecord<FaceStyle>(module, "FaceStyle",
+                                         "A face style has no field named ");
+  faceStyle.def_readwrite("weight", &FaceStyle::weight)
+      .def_readwrite("width", &FaceStyle::width)
+      .def_readwrite("slant", &FaceStyle::slant)
+      .def(py::self == py::self);
+  py::enum_<GlyphOutlineAnchor>(module, "GlyphOutlineAnchor")
+      .value("Centre", GlyphOutlineAnchor::Centre)
+      .value("Baseline", GlyphOutlineAnchor::Baseline);
+  auto glyphOutlineOptions = bindRecord<GlyphOutlineOptions>(
+      module, "GlyphOutlineOptions", "A glyph outline has no option named ");
+  glyphOutlineOptions.def_readwrite("face", &GlyphOutlineOptions::face)
+      .def_readwrite("family", &GlyphOutlineOptions::family)
+      .def_readwrite("style", &GlyphOutlineOptions::style)
+      .def_readwrite("size", &GlyphOutlineOptions::size)
+      .def_readwrite("track", &GlyphOutlineOptions::track)
+      .def_readwrite("at", &GlyphOutlineOptions::at)
+      .def_readwrite("anchor", &GlyphOutlineOptions::anchor);
+  // The record form first, so a caller holding options is not asked to
+  // spell them again; the keyword form is the shorter line for one or two.
+  const auto outlineOf = [](Fonts& fonts, const std::string& text,
+                            const GlyphOutlineOptions& options) {
+    return glyphOutline(
+        fonts.get(),
+        std::u8string_view(reinterpret_cast<const char8_t*>(text.data()),
+                           text.size()),
+        options);
+  };
+  module.def("glyphOutline", outlineOf, py::arg("fonts"), py::arg("text"),
+             py::arg("options") = GlyphOutlineOptions{});
+  module.def(
+      "glyphOutline",
+      [outlineOf](Fonts& fonts, const std::string& text, Face face,
+                  const std::string& family, const FaceStyle& style, float size,
+                  float track, glm::vec2 at, GlyphOutlineAnchor anchor) {
+        return outlineOf(fonts, text,
+                         {.face = std::move(face),
+                          .family = family,
+                          .style = style,
+                          .size = size,
+                          .track = track,
+                          .at = at,
+                          .anchor = anchor});
+      },
+      py::arg("fonts"), py::arg("text"), py::arg("face") = py::none(),
+      py::arg("family") = "", py::arg("style") = FaceStyle{},
+      py::arg("size") = 16.0f, py::arg("track") = 0.0f,
+      py::arg("at") = glm::vec2{0, 0},
+      py::arg("anchor") = GlyphOutlineAnchor::Centre);
 }
 }  // namespace sigil::python

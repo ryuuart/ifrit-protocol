@@ -1024,6 +1024,15 @@ bound = "a `ParagraphLayout` with drawing, batched drawing, line and column metr
 python = ["weave.ParagraphLayout", "weave.LineMetrics", "weave.ColumnMetrics"]
 
 [[section.surface.item]]
+bound = "`glyphOutline`, a string as the contours of its glyphs over `GlyphOutlineOptions`, with its `FaceStyle` and stood by a `GlyphOutlineAnchor`"
+python = [
+  "weave.glyphOutline",
+  "weave.GlyphOutlineOptions",
+  "weave.GlyphOutlineAnchor",
+  "weave.FaceStyle",
+]
+
+[[section.surface.item]]
 bound = "`findAllOccurrences`, `findRegexMatches`, `wordRanges` and `MarkerSet`"
 python = [
   "weave.findAllOccurrences",
@@ -1670,6 +1679,15 @@ python = [
 ]
 
 [[section.surface.item]]
+bound = "`remap`, one channel of a material mapped from one `ValueRange` onto another over `RemapOptions`, and a layer's `mask` stated as a `Mask` or as its fields in a `(source, channel)` tuple"
+python = [
+  "material.remap",
+  "material.ValueRange",
+  "material.RemapOptions",
+  "material.Mask",
+]
+
+[[section.surface.item]]
 bound = "`surface.normalFromHeight` over `HeightNormalOptions`, which differentiates a grayscale height into encoded normals, and `surface.blendNormals` over `NormalBlendOptions`, which reorients a detail normal map into a base one"
 python = [
   "material.surface.normalFromHeight",
@@ -1889,6 +1907,10 @@ bound = "`mesh.fill` over an outline, `mesh.loft` through section rings, and `ex
 python = ["geometry.mesh.fill", "geometry.mesh.loft"]
 
 [[section.surface.item]]
+bound = "a lathe or a loft turned `inward`, facing into the solid it encloses"
+python = ["geometry.mesh.RevolveOptions.inward", "geometry.mesh.loft"]
+
+[[section.surface.item]]
 bound = "the outline: `path.Outline` with its measure, area, booleans and rewrites, `Rect`, `Transform`, `through` and `curveThrough`, `offset` and `band` at a width, `points` over `random`, `poisson`, `grid`, `radial` and `along`"
 python = [
   "geometry.path.Outline",
@@ -1967,11 +1989,15 @@ python = [
 ]
 
 [[section.surface.item]]
-native = "`mesh::curve` splines and frames"
+bound = "`mesh.curve.Spline3`: control points, the `Type` that reads them and its closure, with `position`, `tangent`, `length`, `sample` and `sampleArcLength`"
 python = ["geometry.mesh.curve.Spline3"]
 
 [[section.surface.item]]
-bound = "the `mesh.pop` chain: `on` a closed loop, a formed model's faces or another chain, the `Builder` verbs `count`, `window`, `spread`, `seed`, `jitter`, `noise`, `vary`, `fade`, `tint`, `lookAt`, `move`, `fill`, `atlas`, `rampBy`, `order`, `orderBy`, `promote`, `smooth`, `relax`, `cluster`, `select` over `Select.Shape` and `Select.Combine`, `masked`, `peak`, `twist`, `taper`, `bend`, `mix`, `mixBy`, `copy`, `drop`, `keep` and `normal` over lanes named by `Attribute` or a string, and the sinks `instances` and `stamps`, cooked on the CPU executor"
+native = "`mesh::curve` parallel-transport frames, hung rails and poses"
+python = ["geometry.mesh.curve.frames"]
+
+[[section.surface.item]]
+bound = "the `mesh.pop` chain: `on` a closed loop, a `Spline3` ridden by its own closure, a formed model's faces or another chain, the `Builder` verbs `count`, `window`, `spread`, `seed`, `jitter`, `noise`, `vary`, `fade`, `tint`, `lookAt`, `move`, `fill`, `atlas`, `rampBy`, `order`, `orderBy`, `promote`, `smooth`, `relax`, `cluster`, `select` over `Select.Shape` and `Select.Combine`, `masked`, `peak`, `twist`, `taper`, `bend`, `mix`, `mixBy`, `copy`, `drop`, `keep` and `normal` over lanes named by `Attribute` or a string, and the sinks `instances` and `stamps`, cooked on the CPU executor"
 python = [
   "geometry.mesh.pop.on",
   "geometry.mesh.pop.Builder",

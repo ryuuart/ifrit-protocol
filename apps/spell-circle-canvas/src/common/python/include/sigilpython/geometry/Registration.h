@@ -31,8 +31,8 @@ void bindGeometryMesh(pybind11::module_& module);
 void bindGeometryMeshCamera(pybind11::module_& module);
 /** Registers model import and PLY/geo export on @p module. */
 void bindGeometryMeshCodec(pybind11::module_& module);
-/** Registers splines, parallel-transport frames, hung rails and poses
- *  on @p module. */
+/** Registers the 3D spline, its rule and what it answers on @p
+ *  module. */
 void bindGeometryMeshCurve(pybind11::module_& module);
 /** Registers cloud lanes, the point generators, stamping and billboards
  *  on @p module. */

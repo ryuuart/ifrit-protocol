@@ -16,13 +16,37 @@ using glm::cross;
 
 namespace {
 
+/** Overwrite a sheet's parameter coordinates where @p options places the
+ *  texture another way. The rectangle's offset is divided out once so a
+ *  vertex reads `projection / size + offset`, the same arithmetic as a
+ *  coordinate written by hand as a position over a size plus a half. */
+void placeTexture(Mesh& out, const GridOptions& options) {
+  if (options.textureFromPosition) {
+    for (size_t index = 0; index < out.positions.size(); ++index)
+      out.uvs[index] = options.textureFromPosition(out.positions[index]);
+    return;
+  }
+  if (!options.textureRectangle) return;
+  const TextureRectangle& rectangle = *options.textureRectangle;
+  const glm::vec2 offset{
+      -glm::dot(rectangle.origin, rectangle.across) / rectangle.size.x,
+      -glm::dot(rectangle.origin, rectangle.down) / rectangle.size.y};
+  for (size_t index = 0; index < out.positions.size(); ++index) {
+    const glm::vec3 position = out.positions[index];
+    out.uvs[index] = {
+        glm::dot(position, rectangle.across) / rectangle.size.x + offset.x,
+        glm::dot(position, rectangle.down) / rectangle.size.y + offset.y};
+  }
+}
+
 /** The sheet every grid is built by: one sample per vertex answering the
  *  position and the RAW normal — raw because a pole is only recognisable
  *  before the normalize, and the repair below reads which entries had no
  *  direction of their own. */
-Mesh sheet(int nu, int nv,
-           const core::Callable<std::pair<glm::vec3, glm::vec3>(float, float)>&
-               sample) {
+Mesh sheet(
+    int nu, int nv,
+    const core::Callable<std::pair<glm::vec3, glm::vec3>(float, float)>& sample,
+    const GridOptions& options) {
   Mesh out;
   nu = std::max(nu, 2);
   nv = std::max(nv, 2);
@@ -50,6 +74,7 @@ Mesh sheet(int nu, int nv,
       out.normals.push_back(normalized(raw));
     }
   }
+  placeTexture(out, options);
   for (int j = 0; j + 1 < nv; ++j) {
     for (int i = 0; i + 1 < nu; ++i) {
       const uint32_t a = (uint32_t)(j * nu + i);
@@ -90,21 +115,26 @@ Mesh sheet(int nu, int nv,
 
 }  // namespace
 
-Mesh grid(int nu, int nv, const core::Callable<glm::vec3(float, float)>& fn) {
+Mesh grid(int nu, int nv, const core::Callable<glm::vec3(float, float)>& fn,
+          const GridOptions& options) {
   const float eps = 1e-3f;
-  return sheet(nu, nv, [&fn, eps](float u, float v) {
-    const glm::vec3 du =
-        fn(std::min(u + eps, 1.0f), v) - fn(std::max(u - eps, 0.0f), v);
-    const glm::vec3 dv =
-        fn(u, std::min(v + eps, 1.0f)) - fn(u, std::max(v - eps, 0.0f));
-    return std::pair<glm::vec3, glm::vec3>{fn(u, v), cross(du, dv)};
-  });
+  return sheet(
+      nu, nv,
+      [&fn, eps](float u, float v) {
+        const glm::vec3 du =
+            fn(std::min(u + eps, 1.0f), v) - fn(std::max(u - eps, 0.0f), v);
+        const glm::vec3 dv =
+            fn(u, std::min(v + eps, 1.0f)) - fn(u, std::max(v - eps, 0.0f));
+        return std::pair<glm::vec3, glm::vec3>{fn(u, v), cross(du, dv)};
+      },
+      options);
 }
 
 Mesh grid(
     int nu, int nv,
-    const core::Callable<std::pair<glm::vec3, glm::vec3>(float, float)>& fn) {
-  return sheet(nu, nv, fn);
+    const core::Callable<std::pair<glm::vec3, glm::vec3>(float, float)>& fn,
+    const GridOptions& options) {
+  return sheet(nu, nv, fn, options);
 }
 
 Mesh quad(float width, float height) {

@@ -1882,12 +1882,6 @@ solid should be able to carry two surfaces, one per face set, as a
 `Mesh` with named parts does. A test should extrude a square with a page
 projected onto it and find the wall pixels the colour of the page's edge.
 
-## `weave::glyphOutline` and `material::remap` are not bound in Python
-
-The text-as-outline door and the scalar remap have no Python spelling; a
-test should outline a glyph and remap a ramp from Python and read what the
-C++ cases read.
-
 ## Renderer gap: a page cannot glow above white
 
 `compose::SurfaceScene` paints its maps into eight-bit N32 surfaces and
@@ -1943,18 +1937,6 @@ Transmission should see through transmitting bodies behind it, in order
 of depth, for at least one more layer, and a body's exit surface should
 take part in the bend. A test should stand a tinted slab behind a clear
 one and find the tint through both.
-
-## Authoring gap: a grid sheet's texture coordinates are always its own parameters
-
-`geometry::mesh::grid` writes texture coordinates from its (u, v)
-parameters, so a sheet that is not the whole rectangle — a cut blanket,
-a triangular corner — has its coordinates overwritten by hand after the
-fact. `embossed_foil` relays them in page pixels.
-
-The grid should take a texture placement: coordinates from the position
-formula, or a rectangle in page units the sheet maps onto. A test should
-make a grid with a placement and find a corner vertex's coordinates
-where the placement puts them.
 
 ## Authoring gap: no cellular noise
 
@@ -2067,13 +2049,3 @@ direction — and turn every normal into the page as the brushing is. A
 test should state a relief on a span ink and find the page's height cut;
 a ribbon brushed along itself should stretch its highlight along a
 curve.
-
-## Authoring gap: Python cannot ride an open spine or ask for an inward lathe
-
-`pop::on(curve::Spline3)` keeps a spine's own closure so a window rides an
-open trace's full length, and `RevolveOptions::inward` and
-`LoftOptions::inward` turn a solid into itself; neither is bound, so a
-Python chain still closes its loop and a Python lathe cannot face in.
-Bind both and run the typing generator; a Python test should window the
-last tenth of an open spine and find no stamp on the chord.
-

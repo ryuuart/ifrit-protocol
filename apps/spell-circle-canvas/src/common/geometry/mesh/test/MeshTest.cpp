@@ -61,6 +61,36 @@ TEST(Mesh, TheSheetsUvsAndIndicesAgreeWithItsVertices) {
   for (uint32_t i : m.indices) EXPECT_LT(i, m.vertexCount());
 }
 
+TEST(Mesh, ATextureRectangleLaysThePageWhereItWouldLieOverACutSheet) {
+  // A sheet 100 wide and 50 deep whose front row is shortened by a cut of
+  // 40: with parameter coordinates the front-right vertex would read u = 1;
+  // laid onto the whole 100 x 50 page it reads where it actually stands.
+  const auto cutSheet = [](float u, float v) -> glm::vec3 {
+    const float cut = 40 * (1 - v);
+    return {-50 + u * (100 - cut), v * 50 - 25, 0};
+  };
+  const Mesh parameters = mesh::grid(5, 3, cutSheet);
+  const Mesh placed =
+      mesh::grid(5, 3, cutSheet,
+                 {.textureRectangle = TextureRectangle{.origin = {-50, 25, 0},
+                                                       .size = {100, 50}}});
+  const size_t frontRight = 4;  // row v = 0, column u = 1
+  EXPECT_FLOAT_EQ(parameters.uvs[frontRight].x, 1.0f);
+  EXPECT_FLOAT_EQ(placed.uvs[frontRight].x, 0.6f) << "the cut keeps the page";
+  EXPECT_FLOAT_EQ(placed.uvs[frontRight].y, 1.0f) << "the front is the bottom";
+  EXPECT_FLOAT_EQ(placed.uvs.back().x, 1.0f) << "the back row is uncut";
+  EXPECT_FLOAT_EQ(placed.uvs.back().y, 0.0f) << "the back is the top";
+  EXPECT_EQ(placed.positions, parameters.positions);
+
+  // A formula of the position wins over the rectangle.
+  const Mesh formula = mesh::grid(
+      5, 3, cutSheet,
+      {.textureFromPosition =
+           [](glm::vec3 position) { return glm::vec2{position.x, position.y}; },
+       .textureRectangle = TextureRectangle{}});
+  EXPECT_EQ(formula.uvs[frontRight], glm::vec2(10, -25));
+}
+
 TEST(Mesh, TransformMovesBoundsAndKeepsUnitNormals) {
   Mesh m = mesh::quad(10, 10);
   m.transform(glm::translate(glm::mat4(1.0f), {5, 0, 0}));

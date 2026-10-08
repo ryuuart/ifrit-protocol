@@ -4,11 +4,13 @@
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/texture/Channel.h>
+#include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/material/Convert.h>
 #include <sigilpython/material/Registration.h>
 #include <sigilpython/motion/Convert.h>
 
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -16,6 +18,30 @@ namespace sigil::python {
 namespace py = pybind11;
 namespace {
 constexpr auto fluent = py::return_value_policy::reference_internal;
+
+/** A layer's mask as a `Mask`, None, or the mask's own fields in a tuple
+ *  — `(depth, ColorChannel.Luminance)`, with its range and inversion
+ *  after the channel — the way the native layer takes them in braces. */
+material::LayerMask layerMask(const py::object& mask) {
+  if (mask.is_none()) return {};
+  if (py::isinstance<material::Mask>(mask))
+    return std::optional<material::Mask>(mask.cast<material::Mask>());
+  if (py::isinstance<py::tuple>(mask) || py::isinstance<py::list>(mask)) {
+    const auto fields = mask.cast<py::sequence>();
+    if (fields.size() < 2 || fields.size() > 5)
+      throw py::type_error(
+          "A mask tuple is (source, channel) with an optional low, high and "
+          "invert after the channel.");
+    material::Mask value{fields[0].cast<material::Material>(),
+                         fields[1].cast<material::ColorChannel>()};
+    if (fields.size() > 2) value.low = fields[2].cast<float>();
+    if (fields.size() > 3) value.high = fields[3].cast<float>();
+    if (fields.size() > 4) value.invert = fields[4].cast<bool>();
+    return std::optional<material::Mask>(std::move(value));
+  }
+  throw py::type_error(
+      "A layer's mask is a Mask, a (source, channel) tuple, or None.");
+}
 
 }  // namespace
 
@@ -55,8 +81,8 @@ void bindMaterialBuilder(py::module_& module) {
           "layer",
           [](material::Material& self, const material::Material& source,
              material::BlendMode blend, float opacity,
-             std::optional<material::Mask> mask) -> material::Material& {
-            return self.layer(source, {blend, opacity, std::move(mask)});
+             const py::object& mask) -> material::Material& {
+            return self.layer(source, {blend, opacity, layerMask(mask)});
           },
           py::arg("source"), py::arg("blend") = material::BlendMode::Normal,
           py::arg("opacity") = 1.0f, py::arg("mask") = py::none(), fluent)
@@ -212,6 +238,36 @@ void bindMaterialBuilder(py::module_& module) {
       .def(py::self == py::self);
   materials.def("channel", &material::channel, py::arg("source"),
                 py::arg("which"));
+  auto valueRange = bindRecord<material::ValueRange>(
+      materials, "ValueRange", "A value range has no field named ");
+  valueRange
+      .def(py::init([](float low, float high) {
+             return material::ValueRange{low, high};
+           }),
+           py::arg("low"), py::arg("high"))
+      .def_readwrite("low", &material::ValueRange::low)
+      .def_readwrite("high", &material::ValueRange::high)
+      .def(py::self == py::self);
+  auto remapOptions = bindRecord<material::RemapOptions>(
+      materials, "RemapOptions", "A remap has no option named ");
+  remapOptions.def_readwrite("from_", &material::RemapOptions::from)
+      .def_readwrite("to", &material::RemapOptions::to)
+      .def_readwrite("channel", &material::RemapOptions::channel);
+  // The record form first, so a held record is not asked to convert; the
+  // keyword form names the two stretches as (low, high) pairs.
+  materials.def("remap", &material::remap, py::arg("source"),
+                py::arg("options") = material::RemapOptions{});
+  materials.def(
+      "remap",
+      [](const material::Material& source, std::pair<float, float> from,
+         std::pair<float, float> to, material::ColorChannel channel) {
+        return material::remap(source, {.from = {from.first, from.second},
+                                        .to = {to.first, to.second},
+                                        .channel = channel});
+      },
+      py::arg("source"), py::arg("from_") = std::pair<float, float>{0, 1},
+      py::arg("to") = std::pair<float, float>{0, 1},
+      py::arg("channel") = material::ColorChannel::Luminance);
   materials.def("readsUnit", &material::readsUnit, py::arg("material"));
   materials.def(
       "from_",

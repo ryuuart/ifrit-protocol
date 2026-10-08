@@ -25,6 +25,7 @@
 #include <cstdint>
 #include <functional>
 #include <glm/glm.hpp>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -108,8 +109,34 @@ struct Mesh {
   bool operator==(const Mesh&) const = default;
 };
 
+/** A rectangle laid flat in a sheet's own space that a texture covers:
+ *  its top-left corner sits at `origin`, its width runs `size.x` along
+ *  `across` and its height `size.y` along `down`. A vertex's texture
+ *  coordinates are where it projects into that rectangle, (0, 0) at the
+ *  top-left and (1, 1) at the bottom-right, so a sheet that is not the
+ *  whole rectangle — a blanket with a corner cut away — keeps the page
+ *  laid over it where the page would lie. Both directions are unit
+ *  length; a vertex off the rectangle's plane projects onto it. */
+struct TextureRectangle {
+  glm::vec3 origin{0, 0, 0};  ///< where the texture's top-left lands
+  glm::vec3 across{1, 0, 0};  ///< unit direction of the texture's width
+  glm::vec3 down{0, -1, 0};   ///< unit direction of the texture's height
+  glm::vec2 size{1, 1};       ///< width and height, in the sheet's units
+};
+
+/** How `grid()` places a texture over its sheet. With nothing stated the
+ *  texture coordinates are the (u, v) parameters, image convention: u
+ *  across, v from the sheet's v = 1 edge at the top. */
+struct GridOptions {
+  /** The texture coordinates as a formula of each vertex's position;
+   *  stated, it wins over `textureRectangle`. */
+  std::function<glm::vec2(glm::vec3 position)> textureFromPosition;
+  /** The rectangle of the sheet's space the texture covers. */
+  std::optional<TextureRectangle> textureRectangle;
+};
+
 /** Evaluate a parametric sheet on an nu x nv vertex grid. UVs are the
- *  (u,v) parameters.
+ *  (u,v) parameters unless @p options places the texture another way.
  *
  *  WHAT THE FORMULA ANSWERS DECIDES WHERE THE NORMALS COME FROM. A formula
  *  answering the POSITION is differenced: the sheet's two partial
@@ -120,13 +147,14 @@ struct Mesh {
  *  at a pole, where a difference has no direction to normalize. Either way
  *  the normals come back unit length, and a normal with no length at all
  *  borrows the nearest one that has. */
-Mesh grid(int nu, int nv,
-          const core::Callable<glm::vec3(float u, float v)>& fn);
+Mesh grid(int nu, int nv, const core::Callable<glm::vec3(float u, float v)>& fn,
+          const GridOptions& options = {});
 /** The same sheet from a formula answering the position and its normal
  *  together, which is taken at its word rather than differenced. */
-Mesh grid(int nu, int nv,
-          const core::Callable<std::pair<glm::vec3, glm::vec3>(float u,
-                                                               float v)>& fn);
+Mesh grid(
+    int nu, int nv,
+    const core::Callable<std::pair<glm::vec3, glm::vec3>(float u, float v)>& fn,
+    const GridOptions& options = {});
 
 /** Flat quad panel in the xy plane facing +z, centered at origin. */
 Mesh quad(float width, float height);

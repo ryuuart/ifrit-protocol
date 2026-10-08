@@ -132,6 +132,7 @@ path::points(where, pattern)                   // random, poisson, grid, radial,
 path::projection::stereographic(options)  .at(direction)  .from(point)   // any ProjectionScheme
 
 // Bodies
+mesh::grid(nu, nv, formula, mesh::GridOptions)  // a sheet; texture from a mesh::TextureRectangle or a formula
 mesh::extrude(outline, depth, mesh::ExtrudeOptions)
 mesh::revolve(profile, mesh::RevolveOptions)
 mesh::pop::sweep(rail, section, mesh::pop::SweepOptions)

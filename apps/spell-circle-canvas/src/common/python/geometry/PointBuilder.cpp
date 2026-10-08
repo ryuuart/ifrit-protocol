@@ -1,9 +1,10 @@
 /** @file
  * `sigil.geometry.mesh.pop`: the point-operator chain an artist builds —
- * `on(...)` enters points on a closed loop, on a formed model's faces or
- * on another chain's result, each verb appends one operation, and
- * `instances(stamp, attributes)` or `stamps(stamp)` cooks the chain on
- * the CPU reference into what a body wears. Attributes are named: an
+ * `on(...)` enters points on a closed loop, on a spline by its own
+ * closure, on a formed model's faces or on another chain's result, each
+ * verb appends one operation, and `instances(stamp, attributes)` or
+ * `stamps(stamp)` cooks the chain on the CPU reference into what a body
+ * wears. Attributes are named: an
  * `Attribute` for the conventional lanes, or any string for a lane the
  * chain invents.
  */
@@ -216,6 +217,14 @@ void bindGeometryPointBuilder(py::module_& module) {
       "on",
       [](std::vector<glm::vec3> loop) { return pop::on(std::move(loop)); },
       py::arg("loop"));
+  // An open spine is ridden along its own length only; a window at its
+  // end never crosses the chord back to its start, as a loop's would.
+  pops.def(
+      "on",
+      [](geometry::mesh::curve::Spline3 spine) {
+        return pop::on(std::move(spine));
+      },
+      py::arg("spine"));
   pops.def(
       "on",
       [](geometry::mesh::Mesh surface, int count) {

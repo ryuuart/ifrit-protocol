@@ -9,6 +9,15 @@ from .table import Table
 
 
 def register(table: Table) -> None:
+    # A glyph outline stands its anchor on a point of the plane.
+    table.accessor("_sigil.weave.GlyphOutlineOptions", "at", "_t.Vec2", "_t.Vec2Like")
+    # No face is None, which asks for the options' family instead.
+    face = "_sigil.skia.Typeface | None"
+    table.accessor("_sigil.weave.GlyphOutlineOptions", "face", face, face)
+    table.parameters(
+        "_sigil.weave.GlyphOutlineOptions.__init__", at="_t.Vec2Like", face=face
+    )
+    table.parameters("_sigil.weave.glyphOutline", at="_t.Vec2Like")
     table.erased("_sigil.weave.Type", "color", "_t.ColorLike | None")
     table.attribute("_sigil.weave.Type.textTransform", "TextTransform | None")
     table.attribute("_sigil.weave.Type.verticalForm", "VerticalForm | None")

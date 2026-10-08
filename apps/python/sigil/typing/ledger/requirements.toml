@@ -731,7 +731,7 @@ python = ["compose.Slice"]
 [requirement.splines]
 native = "`geometry::mesh::curve::Spline3` and frames"
 library = "Geometry"
-python = ["geometry.mesh.curve.Spline3"]
+python = ["geometry.mesh.curve.Spline3", "geometry.mesh.curve.frames"]
 
 [requirement.springs]
 native = "`motion::Spring` value and its `step`"

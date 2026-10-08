@@ -34,8 +34,10 @@ def register(table: Table) -> None:
     for field in ("min", "max"):
         table.accessor(rect, field, VEC2, VEC2_LIKE)
 
-    for owner, fields in ((PATH + ".Pose", ("position", "tangent", "normal")),
-                          (PATH + ".Nearest", ("position",))):
+    for owner, fields in (
+        (PATH + ".Pose", ("position", "tangent", "normal")),
+        (PATH + ".Nearest", ("position",)),
+    ):
         for field in fields:
             table.accessor(owner, field, VEC2, VEC2_LIKE)
 
@@ -51,13 +53,22 @@ def register(table: Table) -> None:
     table.parameters(PATH + ".curveThrough", points=POINTS)
     table.returns(PATH, "points", "list[_t.Vec2]")
     # A width is a number of px, or a law through `(along, width)` stops.
-    width = ("typing.SupportsFloat | collections.abc.Sequence["
-             "tuple[typing.SupportsFloat, typing.SupportsFloat]]")
+    width = (
+        "typing.SupportsFloat | collections.abc.Sequence["
+        "tuple[typing.SupportsFloat, typing.SupportsFloat]]"
+    )
     table.parameters(PATH + ".offset", width=width)
     table.parameters(PATH + ".band", width=width)
 
-    for shape in ("Radial", "Ellipse", "Fitted", "Blob", "Parallelogram",
-                  "Arrow", "Chevron"):
+    for shape in (
+        "Radial",
+        "Ellipse",
+        "Fitted",
+        "Blob",
+        "Parallelogram",
+        "Arrow",
+        "Chevron",
+    ):
         table.parameters(SHAPES + "." + shape + ".outline", size=VEC2_LIKE)
     for shape in ("Radial", "Ellipse", "Fitted"):
         table.parameters(SHAPES + "." + shape + ".at", centre=VEC2_LIKE)
@@ -70,5 +81,5 @@ def register(table: Table) -> None:
         "def loft(sections: collections.abc.Sequence["
         "collections.abc.Sequence[_t.Vec3Like]], "
         "segmentsBetween: typing.SupportsInt = 0, closed: bool = False, "
-        "capEnds: bool = True) -> Mesh: ...\n",
+        "capEnds: bool = True, inward: bool = False) -> Mesh: ...\n",
     )

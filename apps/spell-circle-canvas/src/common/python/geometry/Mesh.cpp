@@ -224,7 +224,8 @@ void bindGeometryMesh(py::module_& module) {
       meshes, "RevolveOptions", "A revolution has no option named ");
   revolveOptions.def_readwrite("segments", &mesh::RevolveOptions::segments)
       .def_readwrite("sweepDeg", &mesh::RevolveOptions::sweepDeg)
-      .def_readwrite("close", &mesh::RevolveOptions::close);
+      .def_readwrite("close", &mesh::RevolveOptions::close)
+      .def_readwrite("inward", &mesh::RevolveOptions::inward);
 
   auto platonicOptions = bindRecord<mesh::PlatonicOptions>(
       meshes, "PlatonicOptions", "A regular solid has no option named ");
@@ -309,13 +310,15 @@ void bindGeometryMesh(py::module_& module) {
   meshes.def(
       "loft",
       [](const std::vector<std::vector<glm::vec3>>& sections,
-         int segmentsBetween, bool closed, bool capEnds) {
+         int segmentsBetween, bool closed, bool capEnds, bool inward) {
         return mesh::loft(sections, {.segmentsBetween = segmentsBetween,
                                      .closed = closed,
-                                     .capEnds = capEnds});
+                                     .capEnds = capEnds,
+                                     .inward = inward});
       },
       py::arg("sections"), py::arg("segmentsBetween") = 0,
-      py::arg("closed") = false, py::arg("capEnds") = true);
+      py::arg("closed") = false, py::arg("capEnds") = true,
+      py::arg("inward") = false);
   meshes.def(
       "revolve",
       static_cast<mesh::Mesh (*)(const std::vector<glm::vec2>&,
@@ -324,13 +327,14 @@ void bindGeometryMesh(py::module_& module) {
   meshes.def(
       "revolve",
       [](const std::vector<glm::vec2>& profile, int segments, float sweepDeg,
-         bool close) {
-        return mesh::revolve(
-            profile,
-            {.segments = segments, .sweepDeg = sweepDeg, .close = close});
+         bool close, bool inward) {
+        return mesh::revolve(profile, {.segments = segments,
+                                       .sweepDeg = sweepDeg,
+                                       .close = close,
+                                       .inward = inward});
       },
       py::arg("profile"), py::arg("segments") = 48, py::arg("sweepDeg") = 360,
-      py::arg("close") = true);
+      py::arg("close") = true, py::arg("inward") = false);
   meshes.def("bakePrimitiveColor", &mesh::bakePrimitiveColor, py::arg("mesh"),
              py::arg("lane") = "Color");
 

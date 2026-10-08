@@ -12,3 +12,17 @@ from .table import Table
 
 def register(table: Table) -> None:
     """Record what pybind11 erased from this package's signatures."""
+    # A layer's mask is a Mask, or the mask's own fields in order: the
+    # source and its channel, then optionally the range and the inversion.
+    table.parameters(
+        "_sigil.material.Material.layer",
+        mask=(
+            "Mask"
+            " | tuple[Material | _t.ColorLike, ColorChannel]"
+            " | tuple[Material | _t.ColorLike, ColorChannel,"
+            " typing.SupportsFloat, typing.SupportsFloat]"
+            " | tuple[Material | _t.ColorLike, ColorChannel,"
+            " typing.SupportsFloat, typing.SupportsFloat, bool]"
+            " | None"
+        ),
+    )

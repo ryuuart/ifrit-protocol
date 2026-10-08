@@ -335,35 +335,37 @@ float rise(float x, float y) {
 }
 
 /** THE BLANKET: a sheet over its face with the front-right corner cut
- *  away, lying in its own xy plane facing +z, risen by `rise`, with UVs
- *  over the page in page pixels. */
+ *  away, lying in its own xy plane facing +z, risen by `rise`, with the
+ *  page laid over the whole face so the cut takes its corner away. */
 gm::Mesh blanket() {
-  auto sheet = gm::grid(220, 150, [](float u, float v) -> glm::vec3 {
-    const float back = v * kDepth;
-    // A row near the front is shortened by the cut.
-    const float cut = std::max(0.0f, kCorner - back);
-    const float x = -kWidth / 2 + u * (kWidth - cut);
-    const float y = back - kDepth / 2;
-    return {x, y, rise(x, y)};
-  });
-  for (size_t index = 0; index < sheet.positions.size(); ++index)
-    sheet.uvs[index] = {sheet.positions[index].x / kWidth + .5f,
-                        .5f - sheet.positions[index].y / kDepth};
-  return sheet;
+  return gm::grid(
+      220, 150,
+      [](float u, float v) -> glm::vec3 {
+        const float back = v * kDepth;
+        // A row near the front is shortened by the cut.
+        const float cut = std::max(0.0f, kCorner - back);
+        const float x = -kWidth / 2 + u * (kWidth - cut);
+        const float y = back - kDepth / 2;
+        return {x, y, rise(x, y)};
+      },
+      {.textureRectangle = gm::TextureRectangle{
+           .origin = {-kWidth / 2, kDepth / 2, 0}, .size = {kWidth, kDepth}}});
 }
 
 /** THE SILVER CORNER: the triangle the cut took, laid out from its hinge
  *  along x through the origin and reaching toward +z, its silver face
  *  toward -y so it shows once folded over, and curled a little away from
- *  that face toward its tip. */
+ *  that face toward its tip. Its texture is the rectangle hanging from
+ *  the hinge: the hinge its top edge, the reach its height. */
 gm::Mesh corner() {
-  auto flap = gm::grid(48, 32, [](float u, float v) -> glm::vec3 {
-    return {(u - .5f) * kHinge * (1 - v), -26 * v * v, v * kReach};
-  });
-  for (size_t index = 0; index < flap.positions.size(); ++index)
-    flap.uvs[index] = {flap.positions[index].x / kHinge + .5f,
-                       flap.positions[index].z / kReach};
-  return flap;
+  return gm::grid(
+      48, 32,
+      [](float u, float v) -> glm::vec3 {
+        return {(u - .5f) * kHinge * (1 - v), -26 * v * v, v * kReach};
+      },
+      {.textureRectangle = gm::TextureRectangle{.origin = {-kHinge / 2, 0, 0},
+                                                .down = {0, 0, 1},
+                                                .size = {kHinge, kReach}}});
 }
 
 /** THE STUDIO SWEEP the blanket lies on: a dark floor that curves up
