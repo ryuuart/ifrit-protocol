@@ -248,7 +248,7 @@ and map, a clear coat — `clearcoat`, `clearcoatRoughness` and its own
   wall), the volume's `attenuationColor` and `attenuationDistance` (light
   that has crossed the distance has become the colour; zero takes
   nothing), and `dispersion` (the index spread across the three colours,
-  zero none) — glass, liquid, tinted plastic; a map is read by its red;
+  zero none) — glass, liquid, tinted plastic; a map is read by its red; its reflectance follows its index — nothing at an index of one;
 - distortion — a two-channel DATA map `distortion` (red across, green up,
   half-grey still) and `distortionStrength` in scene units at the surface:
   what stands behind displaced, with no light involved, for heat haze and

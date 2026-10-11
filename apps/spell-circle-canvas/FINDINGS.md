@@ -1286,90 +1286,6 @@ A workspace should mount the `assets/` folder it was written with. A test
 should make a workspace, put a file in its `assets/`, open the entry and
 read the file through `res://`.
 
-## World reads no additive reflection
-
-`SurfaceOptions::reflectionWeight` and `surface::Reflection::Additive`
-lower into the surface program, whose body writes the weight into
-`gSurfaceReflection` (`src/common/material/surface/Lower.cpp`,
-`surface/shaders/Surface.slang`). World's scaffold
-(`src/common/world/diligent/shaders/Surface.slang`) declares the variable
-and reads nothing from it: every surface mirrors the environment through
-its own reflectance and Fresnel, so the additive recipe draws exactly as
-the split-sum one does.
-
-The additive recipe was evidently meant to add `reflectionWeight` of the
-environment with no Fresnel, as its header says. Either the scaffold
-honours it — a term `environmentReflection` already exists — or the
-choice and the field go. A test should shade one card under one
-environment with each recipe and assert the additive one differs by the
-weight, or, if the field goes, that no consumer spells it.
-
-## A stack of two surface programs cannot be drawn on the device
-
-A surface program declares ten sampled slots
-(`src/common/material/surface/Surface.cpp`) and World's scaffold six of
-its own (the base-colour map, two panoramas, two convolutions and the
-split sum's table), which is the sixteen a fragment program may declare.
-`material::over` of two surface programs asks for twenty-six and is
-reported over budget, so a stacked surface is drawn as its bottom.
-
-A stack of two lit surfaces was evidently meant to shade as a stack
-(`reference/DEVICE.md`). Wanted: slots an operand never reads left out of
-the composed program, or the scalar maps packed into one texture per
-surface as a page's are. A test should compose two surface programs with
-`over`, compile it for the device and assert it stays within the budget
-and draws both operands.
-
-## The environment's prefiltered chain is a box blur, not the lobe it is read by
-
-`EnvironmentMap::chain` (`src/common/material/texture/EnvironmentMap.cpp`)
-builds each roughness level by three wrap-aware box blurs whose radius is
-a fixed function of the level, in panorama texels — the same width at the
-poles as at the horizon — while the device reads it as the GGX lobe of
-that roughness and weights it by a split sum integrated from that lobe.
-A rough surface's reflection is therefore narrower or wider than the
-energy the table assigns it, by an amount that changes with latitude.
-
-Evidently intended: each level the panorama convolved with the GGX lobe of
-its roughness, importance-sampled in direction rather than in texels.
-A test should bake a panorama with one bright texel, prefilter it, and
-assert the lobe's angular width at each level matches the width the
-distribution gives that roughness, within a stated bound, at the horizon
-and near a pole alike.
-
-## Translucent authored content is mixed with the scene in light
-
-A surface drawn as authored (`material::surface::unlit`) is written into a
-frame's half-float target as the light the final stage turns back into its
-colour, so where it is opaque it leaves exactly as authored. Where it is
-translucent — the antialiased edge of a wire, a half-transparent HUD panel
-on a quad at the near plane — it is blended with what is behind it in
-light, before the tone curve, where a page composited over a picture is
-blended in display values. `vagrant_story_target`'s reach sphere and HUD
-plates and `metal_instrument`'s overlay differ from their earlier plates by
-up to 32 levels along such edges.
-
-Wanted: a frame overlay — a page laid over the finished picture after the
-final stage, in display values — for content that is about the picture
-rather than standing in the scene, as the kit's planned frame overlay would
-be. A regression should lay a half-transparent grey panel over a bright scene
-both ways and assert the overlay matches a Skia composite of the same
-panel over the same picture to within a level.
-
-## Bloom blurs at full resolution and stops widening past a radius
-
-`world::bloom` thresholds and blurs at the frame's own size, through the
-post stage's separable Gaussian, whose taps stop at sixty-four a side. The
-widest spread is therefore a sigma near twenty-one pixels, and a
-`Bloom::radius` much past seventy pixels is drawn as that. A large frame
-pays for every tap at full resolution.
-
-Wanted: a chain of half-resolution targets, blurred and added back up, so
-the radius is a property of the chain rather than of one blur. A regression
-should bloom a small emitter at two radii past the current limit and assert
-the wider one reaches farther, and a bench should hold the cost at a
-1440 × 960 frame.
-
 ## A World body reads an animated texture at its first frame
 
 `geometry::device::TextureResidency::sample` reads `Texture::frameAt()` with
@@ -1425,26 +1341,6 @@ whole transmission lobe and its lowering states it on
 find `material::lobes` of the lowered material carrying transmission at
 the file's thickness and attenuation.
 
-## A stack does not mix the optional lobes by its mask
-
-`material::over` mixes each operand's per-pixel surface terms by the
-coverage between them (`core/shaders/OverPrelude.slang`: `overClear`,
-`overTaken`, `overSay`), and none of the sheen, brushing, film,
-specular, transmission or distortion variables are among them. A stack
-whose operand transmits is also drawn among the bodies laid over, not
-those that see through themselves (`world/diligent/Geometry.cpp`,
-`seesThrough` asks `surface::lobes`, which answers nothing for a composed
-recipe), so it reads no copy of the scene and refracts the panorama only. A stack whose operand states a lobe
-compiles the lobe in, and the variables stand as whichever operand wrote
-them last, over the whole face rather than where the mask lets that
-operand show.
-
-Wanted: the lobe variables cleared, taken and mixed with the others,
-without making every stack carry every lobe — the composed body could
-write a lobe's variables only when an operand's body does. A test should
-stack a sheened surface over a plain one under a half mask and read the
-sheen at half its strength.
-
 ## A brushed highlight shows a coarse mesh's facets and a uv pole
 
 The tangent a brushing runs along is read off the screen derivatives of
@@ -1459,42 +1355,6 @@ Wanted: an optional tangent lane — a mesh primitive the generators fill
 and the vertex layout carries when present — read in preference to the
 derivative frame. A device test should brush a sphere of few segments and
 assert the highlight varies smoothly across a triangle edge.
-
-## A directional light's cascades are refitted every frame
-
-`fitCascades` and `fitDirectional` in
-`src/common/world/diligent/Geometry.cpp` fit each cascade to the box of
-what the camera sees of the scene in its slice, snapped to whole texels.
-The box changes size as the camera turns, so the texel size changes and a
-still shadow shimmers along its edges while the camera moves. The
-intended fit is a bounding sphere of each slice, whose size does not
-change with the camera's turn, snapped in the light's own space. A test
-should turn the camera a few degrees over a still scene and assert that a
-shadow edge seen at the same world point moves by no more than a pixel.
-
-## A transmissive body casts no shadow at all
-
-`casts` in `src/common/world/diligent/Geometry.cpp` leaves out every body
-that sees through itself, so a glass, a water surface or a tinted slab
-lets the whole of a light through, uncoloured. The intended behaviour is
-a shadow that keeps what the body transmits: tinted by its base colour
-and its attenuation over its thickness, and partial where its
-transmission is. It needs a coloured shadow map beside the depth atlas,
-or a transmittance read through the body. A test should stand a green
-transmissive slab between a casting light and a white plate and assert
-that the plate behind it is darker than beside it and greener than red.
-
-## A shadow's softness does not widen with distance from its caster
-
-The filter in `shadowAt` in `src/common/world/diligent/shaders/Surface.slang`
-spreads every edge over the same few texels, so a shadow beneath a
-resting body is as soft as one thrown far across the ground. Real
-penumbrae widen with the distance between caster and receiver. The
-intended form searches the map for the blockers around a point and
-scales the filter by their distance and the light's size. A test should
-compare the edge width, in pixels, of a shadow cast from a card 10 units
-above a plate with one cast from 100 units above, and assert the second
-is wider.
 
 ## Per-body shadow flags do not reach a USD stage
 
@@ -1525,21 +1385,6 @@ should compare the rect's specular response on a plate at roughness 0.3,
 rectangle, within a stated bound, and the fitted tables against direct
 integration at their texel centres.
 
-## A sized light's shadow is as hard as a point light's
-
-A rect, sphere or disk light that casts does so from its centre through
-the same maps a spot or point light uses (`drawShadows` in
-`src/common/world/diligent/Geometry.cpp`); the filter's radius does not
-widen with the light's size or with the distance from the caster, so the
-penumbra does not grow away from the contact point as it does under a
-real softbox. A rect or disk light's map opens fifty degrees about its
-normal and nothing further off its face casts. Intended: contact-hardening
-shadows whose filter widens with the light's size times the
-caster-to-receiver distance over the light-to-caster distance, searched in
-the light's map, and a panel's map covering its whole front half. A test
-should assert that a sphere's shadow edge under a large rect light is
-sharper at the contact point than a body's length away from it.
-
 ## A sized light's sheen, brushing and range are simplified
 
 Under a rect, sphere or disk light a sheen is lit as by a point light at
@@ -1566,23 +1411,6 @@ material asks for, by its first number. A test should assert that
 `pop::on(loop).fill("cell", {3, 0, 0, 0}).instances(quad, {"cell"})`
 answers 3 for every instance's `"cell"`.
 
-## A scene3d sketch's first frame still builds its pipelines and its fixed programs on the thread that draws
-
-A live scene3d sketch no longer waits for a surface program — a body whose program
-is compiling is drawn as a stand-in — but the pipeline built from each
-program (`PipelineCache::pipeline` in
-`src/common/geometry/device/residency/Pipelines.cpp`) and the backend's
-own fixed programs (`scaffold`, `shadowScaffold`, `postPrograms`,
-`backdropProgram` in `src/common/world/diligent/Programs.cpp`, compiled on
-first use) are still built inside the frame on the render thread. The
-driver's pipeline cache is kept between runs, so this costs the first
-launch on a machine and the first use of each fixed program in a process.
-The intended behaviour is that a pipeline is built on a worker as a
-program is, and the fixed programs are compiled when the device comes up,
-off the thread that draws. A test should open a scene3d sketch whose pipelines are
-not cached and assert its first live frame returns before any pipeline
-is built, and that a later frame draws the body whole.
-
 ## A canvas on the shared Vulkan device still reads a scene3d sketch's picture back
 
 `Gpu::present` in `src/common/world/diligent/Gpu.cpp` hands a picture
@@ -1608,35 +1436,6 @@ geometry slot holds and cooks once while it is unchanged. `set_stagger`
 forms its meshes once in members until then. A test should describe a
 scene3d sketch naming a solid value twice and assert the solid was formed once.
 
-## The lit bodies laid over are most of a full-size scene3d sketch's device time
-
-Timed with `Frame::timeStages`, a full-size window frame of `first_light`,
-`shadow_play`, `soft_boxes` and `world_hud` spends almost all of its
-device time in `colour.laid` — the clear, the sky and every opaque body
-drawn through its surface program — and little in the shadow stage, the
-copies or the final stage. `drawBodies` in
-`src/common/world/diligent/Geometry.cpp` draws the opaque bodies back to
-front, at the frame's full device-pixel size, and every lit pixel runs the
-surface program over every light reaching it plus a nine-tap shadow
-filter per casting light. What is evidently intended is that the frame's
-cost follows what is seen, not the window's pixel count times the
-overdraw. Which part dominates — overdraw, the light loop or the shadow
-filter — is not yet measured: a test should time `colour.laid` for a set
-of overlapping opaque cards and assert it stays near one card's cost
-whatever their count, and time one lit card under one casting light and
-under none and bound the difference.
-
-## The scene's smaller levels are made in full for any surface that sees through itself
-
-`drawBodies` in `src/common/world/diligent/Geometry.cpp` copies the lit
-colour and generates every level down to one texel
-(`Gpu::sceneColorForReading`) in every frame that holds a transmissive or
-distorting body, whatever the roughest such body can read. What is
-intended is that a frame makes only the levels its seen-through bodies'
-roughness reaches. A test should time a frame holding one smooth glass
-pane and assert no `colour.mips` stage beyond the levels a roughness of
-zero reads, and that a rough pane's picture is unchanged.
-
 ## Device tier: four scene2d sketches stand beyond tolerance of their CPU plates
 
 `sigil.py plates --tier device` renders every scene2d sketch on the CPU
@@ -1656,74 +1455,6 @@ the plate moment and find the per-channel mean and p99 within the
 tier's tolerance; until then the four rows are the finding, and a run
 of the tier is read by its rows and not by its last line.
 
-## Renderer gap: a height-derived normal cannot dress a device body
-
-`material::surface::normalFromHeight` is a Skia program with no Slang
-body, so a body drawn on the device cannot wear a normal derived from a
-height material; only an image map reaches it. `glass_forms` still fills
-its haze map pixel by pixel from a bitmap for that reason, and any reeded
-or hammered glass needs an image.
-
-The normal-from-height recipe should carry a Slang body, as the other
-shared recipes do, so a device body takes it like a page does. A test
-should dress a device card with a normal from a noise height and find the
-shading vary across it.
-
-## Renderer limitation: refraction sees one layer and bends at one surface
-
-A transmitting body reads the opaque scene behind it and bends the eye's
-ray at its front surface, carried the stated thickness; it does not see
-another transmitting body behind it. So a glass front cannot stand before
-a liquid, a rod broken at a liquid's surface needs an optical thickness
-far beyond the real depth, a magnifier's power is its thickness and too
-much inverts the picture, and an enlarged scene is the rendered pixels
-upscaled. `glass_forms` states its thicknesses as optical depths chosen
-for the bend and leaves the cell's front as a reflection-only surface.
-
-Transmission should see through transmitting bodies behind it, in order
-of depth, for at least one more layer, and a body's exit surface should
-take part in the bend. A test should stand a tinted slab behind a clear
-one and find the tint through both.
-
-## Renderer limitation: a distortion map offsets in view space and only where the surface is translucent
-
-A surface's distortion map moves what is seen behind it by an offset in
-view space, not along the surface's own directions, so a meniscus map on
-a revolved bead cannot push radially; and the offset is laid over the
-picture by the surface's alpha, so on an opaque transmitting body it does
-nothing. `wet_glass_console` bends its beads by transmission and curvature
-alone.
-
-A distortion should be stated in the surface's tangent frame and apply
-to a transmitting body's refracted read. A test should dress a sphere
-with a radial distortion and find the page behind it displaced outward
-on every side.
-
-## Rendering gap: a curved transmitting body shows the page behind it darker and softer than a flat one
-
-Beads and swept trails in `wet_glass_console` show the page roughly a
-fifth to two fifths darker and blurred compared with the flat glass sheet
-over the same page, at an index of one, zero thickness and a roughness
-near zero, with or without the sheet. On a dark page the beads read as
-dark lumps with bright rims. The probe stills stand in the session's
-scratchpad; the cause is not found.
-
-A transmitting body at an index of one and zero thickness should show
-the page behind it unchanged whatever its curvature. A test should stand
-a sphere and a flat card, both at that setting, over a bright page and
-compare the mean of the pixels through each.
-
-## Authoring gap: an instance cannot state its own transmission thickness
-
-An instanced stamp carries a colour and named scalars to the surface,
-but transmission thickness reads the surface's value only, so
-`wet_glass_console` stands its beads in three size classes with three
-thicknesses instead of one body whose thickness follows its size.
-
-Thickness, like the flipbook frame, should be readable from a named
-instance attribute. A test should instance one bead at two sizes with a
-thickness attribute and find the page bent more through the larger.
-
 ## Performance: wet_glass_console is very demanding
 
 The owner reports `wet_glass_console` as very demanding in the window;
@@ -1732,16 +1463,6 @@ the six hundred instanced transmitting beads, the page repainted every
 frame, or the three swept rivulets rebuilt per frame is not measured.
 Profile it with the per-stage timers and `--bench`, name the cost, and
 fix it at the library if the cost is the library's.
-
-## Rendering probe: a near-mirror surface shows a grid of small soft boxes as one even field
-
-Under no lights and a near-black environment holding a grid of tiny soft
-boxes, a chrome swatch at roughness 0.05 shows one even white field rather
-than separate reflections, on a page and on a bare quad alike. Whether
-the environment's prefiltered chain blurs its first level, or the kit's
-soft-box size means something other than its width, is not known. A test
-should render a mirror sphere under two small soft boxes and find two
-separate highlights.
 
 ## Bug: a Python sketch's draw runs on every discarded capture step whatever it declares
 
@@ -1776,4 +1497,45 @@ pass; it should be sampled from a lookup made once per paint, in the
 Skia material executor. A test should time a page masked by a many-stop
 ramp against the same page masked by a strip and find them within a
 small factor.
+
+## A scene3d sketch's first frame still builds its pipelines on the thread that draws
+
+The fixed programs compile when the device comes up, on the calling
+thread, but each pipeline is still built inside the frame that first
+needs it, in the geometry library's pipeline cache. The pipelines a frame
+will need should be built on a worker ahead of it. A test should open a
+scene on a cold store and find the first frame's draw time within a small
+factor of the second's.
+
+## A casting light's shadow filter doubles a lit pixel's cost
+
+A lit pixel under one casting light costs about twice a lit pixel under
+none, in the filter and the light loop and not in overdraw, which the
+device already removes. A hardware comparison sampler for the shadow
+taps should cut it. A test should time the laid phase with and without a
+casting light and find the ratio within a stated bound.
+
+## Bug: a point chain drops a filled scalar lane from its instances
+
+`pop::on(cloud).instances(stamp, {name})` returns no attributes for a
+cloud whose named lane is filled, while a hand-built `Instances` carries
+them; the lane is lost in cooking. A test should fill a lane on a cloud,
+instance a stamp with it named, and find the attribute on every instance.
+
+## Authoring gap: Python lacks a light's shadow size, an instance thickness attribute and a frame overlay
+
+`LightShadow::size`, `SurfaceOptions::thicknessAttribute` and
+`Frame::overlay` are not bound. Bind them and run the typing generator;
+a Python test should state a light's size and find its shadow softer away
+from the caster.
+
+## Limit: a glass body's shadow is one colour, and a lens's back mirrors its front
+
+A transmissive body's shadow tint is one colour per body from the
+material's numbers, so its transmission, attenuation and thickness maps
+do not vary it; and the refraction lens assumes the back mirrors the
+front's curvature, so a drop resting flat on glass cannot be stated. The
+tint should read the maps, and a body should be able to state a flat
+back. Tests: a glass with a transmission map casts a shadow that varies
+with it; a plano-convex body bends like one.
 
