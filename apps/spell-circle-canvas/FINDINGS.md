@@ -2041,3 +2041,21 @@ the first transmitting material's, reporting a second once. A page
 should take a stated range and a per-region volume. A test should bind
 an emission above the page's brightest and find it not clipped.
 
+## Contract gap: a keyline set inside over an open contour reports no bleed
+
+An open contour has no inside, so a keyline set inside takes one band
+centred on it, but its bleed is still reported as zero, so the band is
+clipped where the curve runs along the node's box edge. The bleed should
+know whether the outline is open and report half the width then. A test
+should stroke an open curve that touches the node's edge inside and find
+the band whole.
+
+## Authoring gap: a ribbon's nib and taper are not bound in Python
+
+`compose.brush.ribbon` exposes the width law, the fill or material, the
+step, the join and the miter limit; the nib angle and contrast and the
+start and end widths are not bound, so a Python ribbon cannot be a
+calligraphic stroke. Bind them and run the typing generator; a Python
+test should stroke a curve with a nib and find the band's width vary with
+the stroke's direction.
+
