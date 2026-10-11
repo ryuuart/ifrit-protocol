@@ -191,14 +191,22 @@ HubHandle::HubHandle(io::HubOptions options)
     : m_owner(std::make_shared<io::Hub>(std::move(options))) {}
 HubHandle::HubHandle(
     std::function<io::Hub&()> access,
-    std::function<std::shared_ptr<io::Feed>(io::Feed)> retainFeed)
-    : m_access(std::move(access)), m_retainFeed(std::move(retainFeed)) {}
+    std::function<std::shared_ptr<io::Feed>(io::Feed)> retainFeed,
+    std::function<void(std::shared_ptr<void>)> hold)
+    : m_access(std::move(access)),
+      m_retainFeed(std::move(retainFeed)),
+      m_hold(std::move(hold)) {}
 HubHandle::~HubHandle() {
   unlocked([&] { m_owner.reset(); });
 }
 io::Hub& HubHandle::get() const { return m_access ? m_access() : *m_owner; }
 std::shared_ptr<io::Feed> HubHandle::retain(const io::Feed& feed) const {
   return m_retainFeed ? m_retainFeed(feed) : nullptr;
+}
+bool HubHandle::hold(std::shared_ptr<void> value) const {
+  if (!m_hold) return false;
+  m_hold(std::move(value));
+  return true;
 }
 
 std::shared_ptr<io::Feed> retainSessionFeed(io::Feed feed) {

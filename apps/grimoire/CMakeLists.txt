@@ -303,6 +303,16 @@ add_test(NAME sketch_reload_runs_the_file
     --source ${SIGIL_SKETCH_DIR}/crossing_rule.cpp
     --work ${CMAKE_BINARY_DIR}/sketch_reload_runs_the_file)
 
+# A WINDOW RUN ASKED FOR A MOMENT HOLDS THE CANVAS THERE: the shot it
+# writes shows the same moment the file lane's still shows.
+add_test(NAME sketch_window_held_moment
+  COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_LIST_DIR}/test/held_moment.py
+    --grimoire $<TARGET_FILE:Grimoire>
+    --work ${CMAKE_BINARY_DIR}/sketch_window_held_moment)
+set_tests_properties(sketch_window_held_moment PROPERTIES
+  LABELS window TIMEOUT 300)
+
 # A GROUND WITH NO COVERAGE, which nothing else here can catch. Every
 # other sketch grounds itself in an opaque colour, so a clear that
 # dropped the ground's alpha — or a surface allocated without one —

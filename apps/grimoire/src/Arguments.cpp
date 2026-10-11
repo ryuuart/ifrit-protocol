@@ -233,6 +233,18 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
     std::fprintf(stderr, "--python-info must be used on its own\n");
     return std::nullopt;
   }
+  // THE MONTAGE ENCODES THE COMPILED-IN REGISTRY, and a file opened by
+  // path or a workspace is not in it: encoding the registry in its place
+  // would write another sketch's frames under the file's name. The
+  // combination is refused here, before any device or session opens.
+  if (!args.storyOptions.outputPath.empty() &&
+      (!args.sketchFile.empty() || !args.workspace.empty())) {
+    std::fprintf(stderr,
+                 "--video encodes compiled-in sketches named with --sketch, "
+                 "and a sketch file or --workspace is not one; photograph a "
+                 "file with --frame and --frames instead\n");
+    return std::nullopt;
+  }
   if (args.pythonExecutable.empty() != args.pythonAbi.empty()) {
     std::fprintf(
         stderr,

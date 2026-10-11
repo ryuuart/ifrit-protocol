@@ -109,8 +109,10 @@ class Host {
      *  session. Resources used by accepted sessions must remain alive. */
     std::function<void(const Kind&)> prepareSession;
     /** What mounts at `res://`. For a file opened by path it defaults to
-     *  `assets` beside that file; for a sketch this binary carries the
-     *  process states its root, and empty mounts nothing. */
+     *  `assets` beside that file; the entry of a directory sketch takes
+     *  the `assets` inside its own directory when there is one and the
+     *  one beside that directory otherwise. For a sketch this binary
+     *  carries the process states its root, and empty mounts nothing. */
     std::filesystem::path assetsDirectory;
     /** THE DIRECTORY THE COMPILED-IN SKETCHES STAND IN, mounted at
      *  `sketch://` so a sketch this binary carries reaches its own files
@@ -320,11 +322,12 @@ class Host {
    *  drawn at @p density pixels per canvas unit onto the capture
    *  backend's surface, cleared to the declared ground, and read back.
    *
-   *  Unlike `still()` it MOVES THE SCENE where the runtime re-renders its
-   *  still — one `Session::stillStep()` further, which this host's clock
-   *  counts — because that is how the sweep photographs a plate. So a
-   *  scene stepped to a moment by `prepareCapture()` and photographed
-   *  here is the sweep's plate of that moment, byte for byte, and a
+   *  Unlike `still()` it DRAWS AGAIN where the runtime re-renders its
+   *  still — one frame of no length, so the clock stays at the moment
+   *  the scene stands at — because that is how the sweep photographs a
+   *  plate. So a scene stepped to a moment by `prepareCapture()` and
+   *  photographed here is the sweep's plate of that moment, byte for
+   *  byte, taken twice it is one picture twice, and a
    *  protocol session under a moving clock takes its still through this
    *  same call. It is `plateExtent()` pixels, a fraction of a pixel
    *  dropped as the sweep drops it, and is drawn on the surface the

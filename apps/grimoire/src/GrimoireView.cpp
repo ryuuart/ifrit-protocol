@@ -26,6 +26,7 @@ std::filesystem::path GrimoireView::sketchesDirectory;
 std::filesystem::path GrimoireView::flagsFile;
 std::string GrimoireView::publishName = "Grimoire";
 bool GrimoireView::publishAtStart = false;
+double GrimoireView::heldAt = -1.0;
 sketch::Host* GrimoireView::host = nullptr;
 sigil::weave::FontContext* GrimoireView::fonts = nullptr;
 sketch::Residency GrimoireView::sessions;

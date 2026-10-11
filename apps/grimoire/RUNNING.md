@@ -31,7 +31,8 @@ Grimoire --thumbnails [--sketch <name>] [--kind scene2d|scene3d]
 Grimoire --publish [<name>] [--sketch <name>]
                                             # the window's frames, live, to
                                             # other applications
-Grimoire --shot <png> [--sketch <name>]   # the whole window, once live
+Grimoire --shot <png> [--sketch <name>] [--at <sec>]
+                                            # the whole window, once live
 … [--assets <dir>]                          # what mounts at res://
 … [--state <dir>]                           # where the run keeps what it
                                             # writes for a later run
@@ -99,7 +100,12 @@ sketch built from a Python process keeps its builds in the platform cache
 location. Nothing turns the build cache off; a run that must not reuse an
 earlier build names a fresh root.
 `--shot <png>` captures the app window rather than a sketch, which is
-the only way to look at the browser and the inspector.
+the only way to look at the browser and the inspector. `--at <sec>` in a
+window run holds the canvas at that moment: each sketch the window
+presents is stepped there as a still is, then drawn again on every frame
+with its clock standing, and the run prints the time it holds — so a shot
+at `--at 0.25` shows the scene `--frame --at 0.25` writes, and
+`--window-bench` keeps the wall's clock it measures.
 
 **`--publish` offers the sketch's own canvas to other applications.**
 A program on this machine subscribes to a name and receives every frame
@@ -362,7 +368,10 @@ is how to see which program a first frame still had to build.
 changes the even output dimensions, `--video-bitrate` sets H.264 bits per
 second, and `--fps` changes both the encoder rate and the fixed scene clock.
 `--sketch` makes a one-sketch video and `--kind` limits the registry by
-runtime. Hardware H.264 is preferred and OpenH264 is the fallback. Unavailable
+runtime. A file opened by path or a `--workspace` is not in the registry, so
+`--video` beside either is refused while the arguments are read, before any
+device or session opens; a file's frames are photographed with `--frame` and
+`--frames`. Hardware H.264 is preferred and OpenH264 is the fallback. Unavailable
 sketches are named and skipped rather than encoded as failure cards.
 
 `--gpu` is REQUIRED for a selection that holds a scene3d sketch, exactly as
@@ -420,10 +429,13 @@ taken through the runtime's own `Session::still` — `Host::photograph` —
 so `--frame --at 1 --scale 2`, the sweep's plate at `--at 1 --scale 2`,
 a protocol session stepped a second and photographed at density 2,
 and `sigil.sketch.render_file` are one picture, byte for byte. A scene2d
-sketch re-renders its still, which draws one frame more: the picture is
-the scene one sixtieth of a second past the moment named, and the sketch
-ran one more update to reach it. For the same reason a sequence of
-`--frames` faster than that step is spaced at the step.
+sketch re-renders its still in one more frame of no length: the picture is
+the scene at the moment named, the sketch ran one more update at that
+moment to draw it, and the printed `t=` is the time the pixels show. A
+sequence of `--frames` is spaced at `1/--fps` exactly, and each of its
+frames is printed with the time it shows and the file it went to; the
+`backend:` line names the surface every frame was drawn on, Graphite under
+`--gpu` and the CPU raster otherwise.
 `--bench` keeps the 1.5 s default
 whatever the sketch declared: its `--at` is a warm-up that has only to
 get programs, bakes and atlases hot, and pinning it keeps the measured

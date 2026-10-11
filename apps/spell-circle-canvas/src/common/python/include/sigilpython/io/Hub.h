@@ -28,10 +28,12 @@ class HubHandle {
   /** The same, made with @p options. */
   explicit HubHandle(io::HubOptions options);
   /** A handle onto the host's hub: @p access reaches it and throws
-   *  when the session is gone, and @p retainFeed gives the session a
-   *  lease on a feed opened through it. */
+   *  when the session is gone, @p retainFeed gives the session a lease
+   *  on a feed opened through it, and @p hold hands the session anything
+   *  else opened through it to own until the session lets it go. */
   HubHandle(std::function<io::Hub&()> access,
-            std::function<std::shared_ptr<io::Feed>(io::Feed)> retainFeed);
+            std::function<std::shared_ptr<io::Feed>(io::Feed)> retainFeed,
+            std::function<void(std::shared_ptr<void>)> hold = {});
   ~HubHandle();
   /** The hub itself: the one this handle owns, or the host's through
    *  the access it was given, which refuses once the session is gone. */
@@ -47,11 +49,18 @@ class HubHandle {
    *  Python kept the wrapper. An owning handle has no session and answers
    *  nothing. */
   std::shared_ptr<io::Feed> retain(const io::Feed& feed) const;
+  /** Hands @p value to the session to own, so a wrapper keeps it only
+   *  weakly and closing the session ends it even when Python kept the
+   *  wrapper. False on an owning handle, which has no session, and on a
+   *  borrowing one given nothing to hold with: the caller then owns
+   *  @p value itself. */
+  bool hold(std::shared_ptr<void> value) const;
 
  private:
   std::shared_ptr<io::Hub> m_owner;
   std::function<io::Hub&()> m_access;
   std::function<std::shared_ptr<io::Feed>(io::Feed)> m_retainFeed;
+  std::function<void(std::shared_ptr<void>)> m_hold;
 };
 
 /** Overlapping sessions share one lease for each native feed. Releasing the

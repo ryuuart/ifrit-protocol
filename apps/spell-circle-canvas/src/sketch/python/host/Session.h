@@ -31,8 +31,8 @@
 namespace sigil::sketch::python::detail {
 
 /** EVERYTHING ONE OPEN SESSION LENDS PYTHON, and what it holds on
- *  Python's behalf: the callables a description retained and the feeds
- *  a declaration opened. */
+ *  Python's behalf: the callables a description retained, the feeds a
+ *  declaration opened and the connections opened over them. */
 struct State {
   sigil::python::CallbackLifetime callbacks;
   compose::Composer* composer = nullptr;
@@ -43,6 +43,9 @@ struct State {
   std::vector<std::shared_ptr<compose::TextureScene>>* scenes = nullptr;
   std::vector<std::shared_ptr<compose::SurfaceScene>>* pages = nullptr;
   std::unordered_map<io::Feed, std::shared_ptr<io::Feed>> feedLeases;
+  /** What a declaration opened over a feed and Python only borrows, such
+   *  as a connection: owned here so that closing the session ends it. */
+  std::vector<std::shared_ptr<void>> held;
   std::thread::id thread;
   std::string key;
   bool deterministic = false;
@@ -60,6 +63,7 @@ struct State {
   void close() {
     valid = false;
     callbacks.clear();
+    held.clear();
     feedLeases.clear();
   }
 

@@ -326,12 +326,11 @@ int runFrames(sketch::Host& host, const CaptureOptions& options, bool gpu,
     return 1;
   }
   // THE SWEEP'S PHOTOGRAPH, so a file written at a moment is the plate of
-  // that moment. A runtime that re-renders its still moves the scene one
-  // step of its own to take it, so the next frame of a sequence is that
-  // much nearer already; a rate faster than that step spaces its frames
-  // at the step.
+  // that moment. A still does not move the scene, so the frames of a
+  // sequence are one step of the rate apart, and each is reported with
+  // the scene time its pixels show.
   const double dt = 1.0 / options.fps;
-  const double stillStep = host.session() ? host.session()->stillStep() : 0.0;
+  double shown = at;
 
   for (int index = 0; index < options.frames; ++index) {
     const std::string path = options.frames > 1
@@ -341,10 +340,11 @@ int runFrames(sketch::Host& host, const CaptureOptions& options, bool gpu,
       std::fprintf(stderr, "failed to write %s\n", path.c_str());
       return 1;
     }
-    const double between = dt - stillStep;
-    if (index + 1 < options.frames && between > 1e-12) {
+    if (options.frames > 1)
+      std::printf("frame %d: t=%.9gs %s\n", index + 1, shown, path.c_str());
+    if (index + 1 < options.frames) {
       try {
-        host.prepareCapture(between, options.fps, options.scale);
+        shown += host.prepareCapture(dt, options.fps, options.scale);
       } catch (const std::exception& error) {
         std::fprintf(stderr, "capture: %s\n", error.what());
         return 1;

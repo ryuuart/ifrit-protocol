@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <cerrno>
 #include <chrono>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -372,6 +373,67 @@ TEST(SketchHost,
   EXPECT_TRUE(host.errorLog().empty());
 }
 
+/** A body that reads one file through `res://` and keeps what it read. */
+struct ReadsTheNote {
+  static inline std::string read;
+
+  void setup(Scene2DContext& ctx) {
+    ctx.canvas(120, 90);
+    auto bytes = ctx.assets.hub().read("res://note.txt");
+    read = bytes ? std::string(bytes->asText()) : std::string();
+    ctx.composer.render(sigil::compose::box().width(20).height(20));
+  }
+};
+
+TEST(SketchHost, AWorkspaceMountsItsOwnAssetsAtRes) {
+  // The layout `sigil.py workspace new <dir>` writes: the entry named for
+  // its folder, and `assets/` inside that folder. A shared `assets/` one
+  // level up holds a file of the same name, so a read that went there is
+  // told apart from the one that should be made.
+  const sigil::test::ScratchDir root("sigil_sketch_workspace_assets");
+  const auto workspace = root.path / "aurora";
+  std::filesystem::create_directories(workspace / "assets");
+  std::filesystem::create_directories(root.path / "assets");
+  std::ofstream(workspace / "assets" / "note.txt") << "the workspace's own";
+  std::ofstream(root.path / "assets" / "note.txt") << "the shared root";
+  const auto entry = workspace / "aurora.py";
+  std::ofstream(entry) << "source handled by importer\n";
+
+  Host::Options opts;
+  opts.sketchPath = entry;
+  opts.flagsFile = root.path / "no_such.rsp";
+  opts.pythonLoader = [](const std::filesystem::path&) {
+    return kindOf<ReadsTheNote>();
+  };
+  ReadsTheNote::read.clear();
+  Host host(std::move(opts), fonts());
+  host.poll();
+  ASSERT_TRUE(host.live()) << host.errorLog();
+  EXPECT_EQ(ReadsTheNote::read, "the workspace's own");
+}
+
+TEST(SketchHost, ADirectorySketchWithoutAssetsSharesTheRootAboveIt) {
+  const sigil::test::ScratchDir root("sigil_sketch_shared_assets");
+  const auto directory = root.path / "aurora";
+  std::filesystem::create_directories(directory);
+  std::filesystem::create_directories(root.path / "assets");
+  std::ofstream(root.path / "assets" / "note.txt") << "the shared root";
+  const auto entry = directory / "aurora.py";
+  std::ofstream(entry) << "source handled by importer\n";
+
+  Host::Options opts;
+  opts.sketchPath = entry;
+  opts.flagsFile = root.path / "no_such.rsp";
+  opts.pythonLoader = [](const std::filesystem::path&) {
+    return kindOf<ReadsTheNote>();
+  };
+  ReadsTheNote::read.clear();
+  Host host(std::move(opts), fonts());
+  host.poll();
+  ASSERT_TRUE(host.live()) << host.errorLog();
+  EXPECT_EQ(ReadsTheNote::read, "the shared root");
+}
+
 TEST(SketchHost, ReportsTheMomentTheSketchDeclared) {
   // A capture with no moment named on the command line steps to this
   // number, so a still is the frame the author chose rather than the
@@ -507,7 +569,7 @@ TEST(SketchHost,
 
   EXPECT_FALSE(host.photograph().isNull());
   EXPECT_EQ(CaptureClock::paints, 2);
-  EXPECT_NEAR(CaptureClock::updates.back(), .025 + 3.0 / 60.0, 1e-9);
+  EXPECT_NEAR(CaptureClock::updates.back(), .025 + 2.0 / 60.0, 1e-9);
   const size_t updates = CaptureClock::updates.size();
   EXPECT_FALSE(host.still().isNull());
   EXPECT_EQ(CaptureClock::paints, 3);
@@ -530,6 +592,55 @@ TEST(SketchHost, CaptureMomentIncludesZeroAndTheFractionalStep) {
   ASSERT_EQ(CaptureClock::updates.size(), 2u);
   EXPECT_DOUBLE_EQ(CaptureClock::updates.front(), 1.0 / 60.0);
   EXPECT_DOUBLE_EQ(CaptureClock::updates.back(), 0.025);
+}
+
+/** An edge a hundred canvas units a second to the right, and the time
+ *  every update read: what a still shows and the time it says it shows,
+ *  side by side. */
+struct MovingEdge {
+  static inline std::vector<double> updates;
+
+  void setup(Scene2DContext& ctx) {
+    ctx.canvas(64, 8);
+    ctx.background({0, 0, 0, 1});
+  }
+  void update(double elapsed, Scene2DContext& ctx) {
+    updates.push_back(elapsed);
+    ctx.composer.render(sigil::compose::box()
+                            .width(4)
+                            .height(8)
+                            .inset(0, 0, 0, float(elapsed * 100.0))
+                            .fill(sigil::compose::Fill::color({1, 0, 0, 1})));
+  }
+};
+Kind movingEdgeKind() { return kindOf<MovingEdge>(); }
+const Entry kMovingEdge{"moving_edge", "moving_edge", "Test", "",
+                        &movingEdgeKind};
+
+TEST(SketchHost, AStillShowsTheMomentAskedForAndTakingItAgainMovesNothing) {
+  const Watched file("sigil_sketch_capture_exact_time");
+  auto opts = options(file.path);
+  opts.compiledIn = &kMovingEdge;
+  Host host(std::move(opts), fonts());
+  MovingEdge::updates.clear();
+  EXPECT_EQ(host.prepareCapture(0.25), 0.25);
+  const SkBitmap first = host.photograph();
+  ASSERT_FALSE(first.isNull()) << host.errorLog();
+  // The still drew once more, at the moment itself.
+  ASSERT_FALSE(MovingEdge::updates.empty());
+  EXPECT_NEAR(MovingEdge::updates.back(), 0.25, 1e-9);
+  // The edge stands at 25 canvas units: covered from there for four.
+  EXPECT_EQ(first.getColor(24, 4), SK_ColorBLACK);
+  EXPECT_EQ(first.getColor(26, 4), SK_ColorRED);
+  EXPECT_EQ(first.getColor(29, 4), SK_ColorBLACK);
+
+  const SkBitmap second = host.photograph();
+  ASSERT_FALSE(second.isNull());
+  EXPECT_NEAR(MovingEdge::updates.back(), 0.25, 1e-9);
+  ASSERT_EQ(first.computeByteSize(), second.computeByteSize());
+  EXPECT_EQ(std::memcmp(first.getPixels(), second.getPixels(),
+                        first.computeByteSize()),
+            0);
 }
 
 TEST(SketchHost, ReloadStartsElapsedTimeAtZero) {

@@ -47,6 +47,8 @@
  *   Grimoire --shot <png> …                  the whole window, browser and
  *                                              inspector included, once the
  *                                              sketch on screen is live
+ *   … [--at <sec>] in a window run             the canvas held at that
+ *                                              moment
  *   … [--assets <dir>]                         where res:// mounts
  *   … [--state <dir>]                          where this run keeps builds,
  *                                              thumbnails, recorded device
@@ -661,6 +663,9 @@ int main(int argc, char* argv[]) {
   SketchCatalog::thumbnailFonts = &fonts();
   SketchCatalog::thumbnailAssets = &assets();
   GrimoireView::fonts = &fonts();
+  // `--at` in a window run holds the canvas there; a frame-rate run keeps
+  // the wall's clock it measures.
+  if (args.windowBench.seconds <= 0.0) GrimoireView::heldAt = args.capture.at;
   GrimoireView::assetsDirectory = options.assetsDirectory;
   GrimoireView::sketchesDirectory = options.sketchesDirectory;
   GrimoireView::flagsFile = options.flagsFile;

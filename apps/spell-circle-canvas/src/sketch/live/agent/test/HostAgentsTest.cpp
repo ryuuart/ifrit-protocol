@@ -265,9 +265,9 @@ TEST(SketchClockAgent, TwoStillsUnderAdvanceAreTwoMoments) {
   const Answer<session::values::StillResult> second = host.still(1, "b.png");
   ASSERT_TRUE(first && second);
   EXPECT_NE(bytesOf(first.result().path), bytesOf(second.result().path));
-  // The scene2d runtime draws its still one sixtieth on, and the clock
-  // counts that frame.
-  EXPECT_NEAR(first.result().seconds, 1.0 / 60.0, 1e-9);
+  // A still draws again where the scene stands and moves no clock.
+  EXPECT_EQ(first.result().seconds, 0.0);
+  EXPECT_NEAR(second.result().seconds, 0.25, 1e-9);
 }
 
 TEST(SketchClockAgent, ABudgetRunsOutOnceAndTellsAClientThatEnabledTheClock) {
@@ -490,6 +490,49 @@ TEST(SketchSessionAgent, ASequenceIsAStillPerFrameSteppedBetweenUnderAdvance) {
           [&](auto reply) { sessionClient.sequence(three, reply); });
   ASSERT_FALSE(tooSlow);
   EXPECT_NE(tooSlow.error().message.find("rate"), std::string::npos);
+}
+
+TEST(SketchSessionAgent, ASequencePhotographsEachRequestedTimeAtEveryDensity) {
+  // A box moving three canvas units per frame of a rate of twenty: each
+  // frame of a sequence is the scene at frame / rate exactly, the clock
+  // stands at the last of them, and a fresh session seeked straight to
+  // the same moment draws the same picture, at either density.
+  for (const double density : {1.0, 2.0}) {
+    AgentHost host;
+    ASSERT_TRUE(host.policy(clock::Policy_Advance));
+    ASSERT_TRUE(host.open("agents_marching_box"));
+    const session::SessionClient sessionClient(host.client.caller());
+    session::values::SequenceParameters four;
+    four.frames = 4;
+    four.rate = 20.0;
+    four.density = density;
+    const Answer<session::values::SequenceResult> written =
+        host.ask<session::values::SequenceResult>(
+            [&](auto reply) { sessionClient.sequence(four, reply); });
+    ASSERT_TRUE(written) << written.error().message;
+    ASSERT_EQ(written.result().paths.size(), 4u);
+    EXPECT_NEAR(host.current().result().seconds, 3.0 / 20.0, 1e-9);
+
+    for (size_t frame = 0; frame < 4; ++frame) {
+      AgentHost seeked;
+      ASSERT_TRUE(seeked.policy(clock::Policy_Advance));
+      ASSERT_TRUE(seeked.open("agents_marching_box"));
+      if (frame > 0) ASSERT_TRUE(seeked.step(double(frame) / 20.0));
+      const Answer<session::values::StillResult> still =
+          seeked.still(density, "seek.png");
+      ASSERT_TRUE(still) << still.error().message;
+      EXPECT_NEAR(still.result().seconds, double(frame) / 20.0, 1e-9);
+      EXPECT_EQ(bytesOf(still.result().path),
+                bytesOf(written.result().paths[frame]))
+          << "frame " << frame << " at density " << density;
+      // A second still under the same moving clock is the same moment.
+      const Answer<session::values::StillResult> again =
+          seeked.still(density, "again.png");
+      ASSERT_TRUE(again);
+      EXPECT_EQ(again.result().seconds, still.result().seconds);
+      EXPECT_EQ(bytesOf(again.result().path), bytesOf(still.result().path));
+    }
+  }
 }
 
 /** The bake density the last frame of the probe below was drawn at. */

@@ -221,4 +221,36 @@ TEST(GrimoireArguments, AHeadlessScaleIsThePlateDensity) {
   EXPECT_EQ(args->sweepOptions.density, 0.5f);
 }
 
+TEST(GrimoireArguments, AVideoOfAFileOrWorkspaceIsRefusedBeforeAnythingOpens) {
+  // The montage encodes registry entries; a file opened by path is not
+  // one, so the pairing is refused while the arguments are read rather
+  // than answered with another sketch's frames.
+  for (const auto& words :
+       {std::vector<const char*>{"study.py", "--video", "out.mp4"},
+        std::vector<const char*>{"--video", "out.mp4", "study.cpp"},
+        std::vector<const char*>{"--workspace", "folder", "--video",
+                                 "out.mp4"}}) {
+    std::vector<std::string> owned{"Grimoire"};
+    owned.insert(owned.end(), words.begin(), words.end());
+    std::vector<char*> argv;
+    for (auto& word : owned) argv.push_back(word.data());
+    testing::internal::CaptureStderr();
+    const auto parsed = parseArguments((int)argv.size(), argv.data());
+    const std::string said = testing::internal::GetCapturedStderr();
+    EXPECT_FALSE(parsed);
+    EXPECT_NE(said.find("--video"), std::string::npos) << said;
+    EXPECT_NE(said.find("sketch file or --workspace"), std::string::npos)
+        << said;
+  }
+  // The registry's own montage and a file's stills keep their lanes.
+  const auto montage = parse({"--video", "out.mp4", "--sketch", "hello"});
+  ASSERT_TRUE(montage);
+  EXPECT_EQ(montage->selected, "hello");
+  EXPECT_TRUE(montage->sketchFile.empty());
+  const auto still = parse({"study.py", "--frame", "out.png"});
+  ASSERT_TRUE(still);
+  EXPECT_EQ(still->sketchFile, "study.py");
+  EXPECT_TRUE(still->storyOptions.outputPath.empty());
+}
+
 }  // namespace

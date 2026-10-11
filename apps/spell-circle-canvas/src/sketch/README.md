@@ -210,8 +210,9 @@ returns null and remains watched.
 | a bare path | relative to the process's working directory |
 
 For a single source opened by path, the default resource root is its
-adjacent `assets/` directory. A directory source sketch shares the
-`assets/` directory above it. Bundled sketches use the demo asset root;
+adjacent `assets/` directory. A directory source sketch mounts the
+`assets/` inside its own directory when it has one, as a workspace does,
+and otherwise shares the `assets/` directory above it. Bundled sketches use the demo asset root;
 `--assets <dir>` overrides it.
 
 ```cpp

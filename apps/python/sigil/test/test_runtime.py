@@ -36,13 +36,13 @@ class Runtime(unittest.TestCase):
                     pen.background("#ff0000" if ctx.elapsed == 0 else "#0000ff")
         """
         # The still is the sweep's photograph: the scene2d runtime draws one
-        # frame more to take it, a sixtieth of a second past the moment.
+        # frame of no length more to take it, at the moment itself.
         declared = self.render(source)
-        self.assertAlmostEqual(builtins._sigil_runtime, 1 / 60)
+        self.assertEqual(builtins._sigil_runtime, 0)
         self.assertEqual(declared, self.render(source, at=0))
-        self.assertAlmostEqual(builtins._sigil_runtime, 1 / 60)
+        self.assertEqual(builtins._sigil_runtime, 0)
         self.render(source, at=0.005)
-        self.assertAlmostEqual(builtins._sigil_runtime, 0.005 + 1 / 60)
+        self.assertAlmostEqual(builtins._sigil_runtime, 0.005)
 
     def test_composer_queries_are_owned_and_slot_replacement_is_native(self):
         self.render(

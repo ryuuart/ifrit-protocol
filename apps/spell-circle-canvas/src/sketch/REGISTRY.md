@@ -86,9 +86,10 @@ a sweep's wall clock — and produces a bit-identical plate, because the
 capture never depended on the phases in the first place.
 
 The runtimes make a plate differently, and each way is load-bearing. A
-drawn tree is resolution-independent, so its still is one more frame
-re-rendered at up to twice the canvas — a texture bake re-runs at the
-capture scale rather than being upsampled. A lit scene is FORMED at one
+drawn tree is resolution-independent, so its still is one more frame,
+of no length, re-rendered at up to twice the canvas — a texture bake
+re-runs at the capture scale rather than being upsampled, and the clock
+stays at the moment the plate names. A lit scene is FORMED at one
 resolution and its still describes nothing, so there is nothing to form
 again larger and its plate is the frame it just finished. A pen's
 canvas holds every frame's residue at the resolution it was formed at,

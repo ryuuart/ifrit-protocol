@@ -649,7 +649,8 @@ class Session:
     def still(self, *, density: float = 1.0, path: str = "") -> StillResult:
         """Photographs the session at the clock as it stands, as a plate is
         taken: a runtime that re-renders its still at the still's size draws
-        one frame more to do it, which the clock counts. A clock that is
+        one frame of no length more to do it, so the clock stays at the
+        moment photographed. A clock that is
         held — paused, or by the Pause policy — photographs the frame it
         holds as it was last drawn, drawing nothing new, so two stills under
         it are one picture.

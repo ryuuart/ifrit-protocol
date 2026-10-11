@@ -70,9 +70,10 @@ struct SessionAgentOptions {
  *
  *  A still under a moving clock is taken as a plate is: on a raster
  *  surface of the canvas times the density, cleared to the declared
- *  ground, through the runtime's own still — which draws one frame more
- *  where the runtime re-renders at the still's size, and the clock counts
- *  it, and declares its density for what the session bakes from then on.
+ *  ground, through the runtime's own still — which draws one frame of no
+ *  length more where the runtime re-renders at the still's size, so the
+ *  clock stays at the moment photographed — and declares its density for
+ *  what the session bakes from then on.
  *  A bake formed earlier is formed again only when its node describes
  *  again, so a session a client means to hold to a plate is pinned to a
  *  density before it opens — zero for `plateDensity()`, the sweep's own —

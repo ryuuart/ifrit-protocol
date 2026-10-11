@@ -179,6 +179,13 @@ for example, `pen.line(x1, y1, x2, y2)` and
 Positional APIs, such as `.children(*children)`, declare that distinction in
 their overloads.
 
+A callback is handed the longest run of leading positional arguments it
+accepts, so a positional parameter with a default receives the host's
+argument: a paint program `lambda pen, width=64: …` is called with the
+paint context in `width`. Keep a captured value in a keyword-only
+parameter, `lambda pen, *, width=64: …`, or in a closure, and name the
+context, `def paint(pen, context):`, when you want it.
+
 Annotate the parameters of your own callbacks so an editor knows which
 native service you receive:
 
@@ -243,11 +250,10 @@ The renderer accepts strings and `pathlib.Path` objects. Omitting `at`
 uses the capture moment declared by the sketch, or 1.5 seconds if none is
 declared. Grimoire and standalone Python step alike: whole steps at 60
 FPS followed by the fractional remainder, then the picture is taken as a
-plate is, under the moving clock: a scene2d sketch draws one more frame to take
-it, so the picture is the scene one sixtieth of a second past the moment
-named, after one more update. Zero runs one update without advancing
-time, so a picture asked for at zero shows the scene a sixtieth of a
-second in. The headless host steps the
+plate is: a scene2d sketch draws one more frame of no length to take it,
+so the picture is the scene at the moment named, after one more update at
+that moment. Zero runs that one update without advancing time, so a
+picture asked for at zero shows the scene at zero. The headless host steps the
 scene clock from zero, so native entrances and pen history are present
 in a capture. A fraction of a pixel is dropped, as a plate drops it.
 The CLI creates output directories as needed and

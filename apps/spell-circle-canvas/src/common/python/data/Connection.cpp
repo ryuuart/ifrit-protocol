@@ -36,37 +36,47 @@ decltype(auto) unlocked(Function&& function) {
   return std::forward<Function>(function)();
 }
 
-/** A connection opened through a hub handle: it keeps an owned hub alive
- *  as long as the connection, and refuses once a borrowed hub's session
- *  has gone. */
+/** A connection opened through a hub handle. On an owned hub it keeps
+ *  the hub and the connection alive as long as itself. On the host's hub
+ *  the session owns the connection and this keeps it only weakly, so
+ *  closing the session ends the connection's door and inlet even when
+ *  Python kept the wrapper; the wrapper then refuses. */
 class ConnectionHandle {
  public:
   ConnectionHandle(data::Connection connection, const HubHandle& hub)
-      : m_hub(hub.owner()),
-        m_check(hub.access()),
-        m_connection(std::move(connection)) {
-    if (m_check) m_lease = hub.retain(m_connection.feed());
+      : m_hub(hub.owner()), m_check(hub.access()) {
+    auto held = std::make_shared<data::Connection>(std::move(connection));
+    if (m_check) (void)hub.retain(held->feed());
+    if (m_check && hub.hold(held))
+      m_borrowed = held;
+    else
+      m_owned = std::move(held);
   }
   ~ConnectionHandle() {
+    // Letting go of the last owner may close the door, which may join a
+    // transport's thread: never with the interpreter held.
     unlocked([&] {
-      m_connection = {};
+      m_owned.reset();
       m_hub.reset();
     });
   }
-  data::Connection& get() {
-    if (m_check) {
-      (void)m_check();
-      if (m_lease.expired())
-        throw std::runtime_error("This connection belongs to a closed session");
-    }
-    return m_connection;
+  std::shared_ptr<data::Connection> get() const {
+    if (m_owned) return m_owned;
+    if (m_check) (void)m_check();
+    std::shared_ptr<data::Connection> held = m_borrowed.lock();
+    if (!held)
+      throw std::runtime_error("This connection belongs to a closed session");
+    return held;
   }
 
  private:
   std::shared_ptr<io::Hub> m_hub;
   std::function<io::Hub&()> m_check;
-  data::Connection m_connection;
-  std::weak_ptr<void> m_lease;
+  /** The connection itself, on a hub this wrapper owns. */
+  std::shared_ptr<data::Connection> m_owned;
+  /** The session's connection, on the host's hub; it expires with the
+   *  session. */
+  std::weak_ptr<data::Connection> m_borrowed;
 };
 
 /** A Python callable held by native code: taken and let go only with the
@@ -133,7 +143,9 @@ void bindDataConnection(py::module_& root) {
           py::arg("fallback") = "")
       .def("boolean", &data::Message::boolean, py::arg("fallback") = false)
       .def("address",
-           [](const data::Message& value) { return std::string(value.address()); })
+           [](const data::Message& value) {
+             return std::string(value.address());
+           })
       .def("name", &data::Message::name)
       .def("sender", &data::Message::sender)
       .def("arrivedAt",
@@ -161,23 +173,24 @@ void bindDataConnection(py::module_& root) {
       .def(
           "latest",
           [](ConnectionHandle& value, std::optional<std::string> address) {
-            data::Connection& connection = value.get();
-            return address ? connection.latest(*address) : connection.latest();
+            const auto connection = value.get();
+            return address ? connection->latest(*address)
+                           : connection->latest();
           },
           py::arg("address") = py::none())
       .def("receive",
-           [](ConnectionHandle& value) { return value.get().receive(); })
+           [](ConnectionHandle& value) { return value.get()->receive(); })
       .def(
           "on",
           [](ConnectionHandle& value, const std::string& pattern,
              py::function handler) {
-            value.get().on(pattern, handlerOf(std::move(handler)));
+            value.get()->on(pattern, handlerOf(std::move(handler)));
           },
           py::arg("pattern"), py::arg("handler"))
       .def(
           "otherwise",
           [](ConnectionHandle& value, py::function handler) {
-            value.get().otherwise(handlerOf(std::move(handler)));
+            value.get()->otherwise(handlerOf(std::move(handler)));
           },
           py::arg("handler"))
       .def(
@@ -185,10 +198,10 @@ void bindDataConnection(py::module_& root) {
           [](ConnectionHandle& value, py::handle message, const std::string& to,
              bool reply) {
             const data::Json written = dataJson(message);
-            data::Connection& connection = value.get();
+            const auto connection = value.get();
             return unlocked([&] {
-              return reply ? connection.reply(written)
-                           : connection.send(written, {.to = to});
+              return reply ? connection->reply(written)
+                           : connection->send(written, {.to = to});
             });
           },
           py::arg("message"), py::arg("to") = "", py::arg("reply") = false)
@@ -196,24 +209,25 @@ void bindDataConnection(py::module_& root) {
           "reply",
           [](ConnectionHandle& value, py::handle message) {
             const data::Json written = dataJson(message);
-            data::Connection& connection = value.get();
-            return unlocked([&] { return connection.reply(written); });
+            const auto connection = value.get();
+            return unlocked([&] { return connection->reply(written); });
           },
           py::arg("message"))
       .def(
           "record",
           [](ConnectionHandle& value, const std::filesystem::path& path) {
-            data::Connection& connection = value.get();
-            return unlocked([&] { return connection.record(path); });
+            const auto connection = value.get();
+            return unlocked([&] { return connection->record(path); });
           },
           py::arg("path"))
-      .def("state", [](ConnectionHandle& value) { return value.get().state(); })
+      .def("state",
+           [](ConnectionHandle& value) { return value.get()->state(); })
       .def("close",
            [](ConnectionHandle& value) {
-             data::Connection& connection = value.get();
-             unlocked([&] { connection.close(); });
+             const auto connection = value.get();
+             unlocked([&] { connection->close(); });
            })
-      .def("uri", [](ConnectionHandle& value) { return value.get().uri(); });
+      .def("uri", [](ConnectionHandle& value) { return value.get()->uri(); });
 
   module.def(
       "connect",
@@ -221,10 +235,11 @@ void bindDataConnection(py::module_& root) {
          std::string peer, std::optional<data::Dialect> dialect,
          std::optional<data::Schema> schema, bool queue) {
         auto& native = hub.get();
-        data::ConnectOptions options =
-            optionsOf(capacity, std::move(peer), dialect, std::move(schema), queue);
+        data::ConnectOptions options = optionsOf(
+            capacity, std::move(peer), dialect, std::move(schema), queue);
         return ConnectionHandle(
-            unlocked([&] { return data::connect(native, uri, std::move(options)); }),
+            unlocked(
+                [&] { return data::connect(native, uri, std::move(options)); }),
             hub);
       },
       py::arg("hub"), py::arg("uri"), py::arg("capacity") = 256,
@@ -237,8 +252,8 @@ void bindDataConnection(py::module_& root) {
          std::string peer, std::optional<data::Dialect> dialect,
          std::optional<data::Schema> schema, bool queue) {
         auto& native = hub.get();
-        data::ConnectOptions options =
-            optionsOf(capacity, std::move(peer), dialect, std::move(schema), queue);
+        data::ConnectOptions options = optionsOf(
+            capacity, std::move(peer), dialect, std::move(schema), queue);
         return ConnectionHandle(unlocked([&] {
                                   return data::replay(native, uri,
                                                       recording.string(),

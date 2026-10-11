@@ -68,8 +68,9 @@ describes again, so a client that means to hold a session to a plate
 pins its density before opening it — `session.pinDensity`, zero for
 `sigil::sketch::plateDensity`, the density the sweep photographs at —
 and a still at that density is the sweep's plate of the same moment. A
-scene2d sketch re-renders its still one frame on, which `Session::stillStep`
-says and the clock counts. Under a held clock — the Pause policy or a
+scene2d sketch re-renders its still in a frame of no length, so every
+runtime's still shows the moment its clock stands at, and a sequence's
+frames are the requested times whatever the runtime. Under a held clock — the Pause policy or a
 person's pause — a still is the host's own, `Host::still`: the frame the
 clock holds as it was last drawn, with nothing new drawn, so two stills
 under it are one picture. Every still is written under the state root; a path

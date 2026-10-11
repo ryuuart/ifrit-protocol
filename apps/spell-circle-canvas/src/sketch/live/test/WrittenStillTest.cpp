@@ -196,14 +196,21 @@ TEST(SketchWrittenStill, OfAMovingSceneIsThePlateOfThatMoment) {
   EXPECT_TRUE(
       sketch::testing::compare(taken.result().path, written).identical());
 
-  // What gives the case its power: the state the last step left, drawn
-  // without the runtime's own still, is the scene one frame earlier and
-  // another picture.
+  // A still moves no clock: the state the last step left, drawn without
+  // the runtime's own still, is the same moment and the same picture.
   ASSERT_TRUE(host.restartSession());
   EXPECT_EQ(host.prepareCapture(1.0, 60.0, density), 1.0);
   const std::filesystem::path held = file.dir.path / "held.png";
   ASSERT_TRUE(host.capture(held, density));
-  EXPECT_FALSE(sketch::testing::compare(held, plate).identical());
+  EXPECT_TRUE(sketch::testing::compare(held, plate).identical());
+
+  // What gives the case its power: one frame later is another picture.
+  ASSERT_TRUE(host.restartSession());
+  EXPECT_NEAR(host.prepareCapture(1.0 + 1.0 / 60.0, 60.0, density),
+              1.0 + 1.0 / 60.0, 1e-12);
+  const std::filesystem::path later = file.dir.path / "later.png";
+  ASSERT_TRUE(host.writePhotograph(later, density));
+  EXPECT_FALSE(sketch::testing::compare(later, plate).identical());
 }
 
 /** A STRIP WIDER THAN HALF THE PLATE CEILING, so the density its plate

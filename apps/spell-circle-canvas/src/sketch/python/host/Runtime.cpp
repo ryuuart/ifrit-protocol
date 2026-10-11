@@ -204,9 +204,12 @@ class Body final : public Scene2DBody {
   void setup(Scene2DContext& ctx) override {
     m_state->update(ctx);
     // Keep existing transports open while setup reacquires its declarations.
-    // Feeds omitted by this declaration close when its previous leases leave.
+    // Feeds omitted by this declaration close when its previous leases leave,
+    // after the connections the previous declaration opened over them.
     const auto previousFeeds = std::move(m_state->feedLeases);
     m_state->feedLeases.clear();
+    const auto previousHeld = std::move(m_state->held);
+    m_state->held.clear();
     const sigil::python::CallbackBoundary themes;
     try {
       if (m_setupArity == 0)
@@ -257,7 +260,6 @@ class PythonSession final : public Session {
     return m_session->canvas();
   }
   float oversample() const override { return m_session->oversample(); }
-  double stillStep() const override { return m_session->stillStep(); }
   Timing timing() const override { return m_session->timing(); }
   std::span<const LaneCost> lanes() const override {
     return m_session->lanes();
@@ -324,11 +326,13 @@ class PythonSession final : public Session {
       function();
     } catch (const py::error_already_set& error) {
       m_state->failed = true;
+      m_state->held.clear();
       m_state->feedLeases.clear();
       m_error = error.what();
       throw std::runtime_error(m_error);
     } catch (const std::exception& error) {
       m_state->failed = true;
+      m_state->held.clear();
       m_state->feedLeases.clear();
       m_error = error.what();
       throw;
@@ -587,6 +591,9 @@ void bindRuntime(py::module_& module) {
                  [v]() -> io::Hub& { return v.state()->assets->hub(); },
                  [v](io::Feed feed) {
                    return v.state()->retainFeed(std::move(feed));
+                 },
+                 [v](std::shared_ptr<void> value) {
+                   v.state()->held.push_back(std::move(value));
                  });
            })
       .def("root",

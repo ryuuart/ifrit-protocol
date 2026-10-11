@@ -159,6 +159,13 @@ class GrimoireView : public QQuickRhiItem {
    *  Defaults to Grimoire when no name was supplied. */
   static std::string publishName;
   static bool publishAtStart;
+  /** THE MOMENT THE CANVAS IS HELD AT: the command line's `--at` in a
+   *  window run. Each session the window presents is stepped there in the
+   *  fixed steps a still is prepared with and then drawn again on every
+   *  frame without its clock moving, so `--shot` photographs the scene at
+   *  that time, as `--frame` does, and a second frame shows it again.
+   *  Negative leaves the wall's clock running. */
+  static double heldAt;
   /** WHAT EVERY SESSION THIS WINDOW OPENS SHAPES TEXT WITH — the
    *  process's one font context, handed over by main() before QML loads.
    *  One owner: a context of this window's own would pay for the shaping

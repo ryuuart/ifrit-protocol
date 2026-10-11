@@ -33,6 +33,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string_view>
+#include <system_error>
 
 #include "BuildCache.h"
 #include "BuildDirectory.h"
@@ -58,12 +59,16 @@ Host::Options withDefaults(Host::Options options) {
   // a file opened by path defaults to the assets beside it.
   if (options.assetsDirectory.empty() && !options.compiledIn) {
     // A SKETCH THAT IS A DIRECTORY keeps its other units beside its
-    // entry, so the assets are NOT beside the entry: they are one level
-    // further up, in the directory every sketch shares. The entry's stem
-    // naming its own directory is what says which of the two forms this
-    // is, and it is the same rule that decides what compiles with it.
+    // entry. When that directory carries an `assets/` of its own — the
+    // folder a workspace is written with — that is what mounts;
+    // otherwise the sketch shares the `assets/` one level further up,
+    // in the directory every sketch shares. The entry's stem naming its
+    // own directory is what says which of the two forms this is, and it
+    // is the same rule that decides what compiles with it.
     std::filesystem::path beside = options.sketchPath.parent_path();
-    if (beside.filename() == options.sketchPath.stem())
+    std::error_code missing;
+    if (beside.filename() == options.sketchPath.stem() &&
+        !std::filesystem::is_directory(beside / "assets", missing))
       beside = beside.parent_path();
     options.assetsDirectory = beside / "assets";
   }
@@ -957,20 +962,11 @@ SkBitmap Host::photograph(float density) {
   // since this is the sweep's photograph.
   const SkColor4f ground =
       material::skia::toSkColor(m_session->canvas().background);
-  SkBitmap bitmap = drawStill(SkISize::Make(plate.width, plate.height), density,
-                              ground, [this](SkCanvas& canvas) {
-                                PhaseMark mark(Phase::Capture);
-                                m_session->still(canvas);
-                              });
-  if (!bitmap.isNull() && m_session) {
-    // The frame the runtime drew to take its still is a frame of the
-    // scene, and the clock here says so.
-    if (const double step = m_session->stillStep(); step > 0) {
-      m_clock.advance(m_clock.elapsed() + motion::Duration(step));
-      noteFrame(++m_frameIndex, m_clock.elapsed().count());
-    }
-  }
-  return bitmap;
+  return drawStill(SkISize::Make(plate.width, plate.height), density, ground,
+                   [this](SkCanvas& canvas) {
+                     PhaseMark mark(Phase::Capture);
+                     m_session->still(canvas);
+                   });
 }
 
 namespace {

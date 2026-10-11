@@ -267,6 +267,44 @@ class PaintProgramRenders(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "no longer inside its paint call"):
             context.size
 
+    def test_a_defaulted_positional_parameter_is_offered_the_context(self):
+        # The host fills the longest positional prefix a program accepts,
+        # so a positional parameter with a default is offered the paint
+        # context; a captured value is kept by a keyword-only parameter or
+        # by a closure, never by a defaulted positional one.
+        self.render(
+            """
+            def setup(self, ctx):
+                width = 7
+
+                def explicit(canvas, context):
+                    results['explicit'] = type(context).__name__
+
+                def closure(canvas):
+                    results['closure'] = width
+
+                ctx.render(
+                    compose.box(
+                        compose.custom(explicit).size(10, 10),
+                        compose.custom(
+                            lambda canvas, width=7: results.__setitem__(
+                                'defaulted', type(width).__name__)
+                        ).size(10, 10),
+                        compose.custom(
+                            lambda canvas, *, width=7: results.__setitem__(
+                                'keyword', width)
+                        ).size(10, 10),
+                        compose.custom(closure).size(10, 10),
+                    ).row().size(40, 10)
+                )
+            """,
+            size=(40, 10),
+        )
+        self.assertEqual(self.results["explicit"], "PaintContext")
+        self.assertEqual(self.results["defaulted"], "PaintContext")
+        self.assertEqual(self.results["keyword"], 7)
+        self.assertEqual(self.results["closure"], 7)
+
     def test_the_paint_context_reads_what_the_tree_resolved_at_the_node(self):
         self.render(
             """

@@ -370,7 +370,8 @@ TEST(Scene2DCapture, UpdateOnlyPreRollPreservesTimersFeedsAndTheFinalStill) {
     EXPECT_EQ(progress->updates, 37);
     EXPECT_EQ(progress->timerCalls, 37);
     EXPECT_EQ(progress->paints, discard ? 1 : 37);
-    EXPECT_NEAR(progress->elapsed, 37.0 / 60.0, 1e-9);
+    // The still draws once more at the moment the scene stands at.
+    EXPECT_NEAR(progress->elapsed, .6, 1e-9);
     EXPECT_NE(result.getColor(14, 12), SK_ColorBLACK);
     EXPECT_FALSE(session->costs(8).empty());
     EXPECT_FALSE(session->compositeCounts().counts.empty());

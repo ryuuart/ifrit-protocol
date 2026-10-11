@@ -83,18 +83,12 @@ class Session {
    *  plate differently, and both ways are load-bearing. A runtime whose
    *  drawing is resolution-independent RE-RENDERS here — a texture bake
    *  re-runs at the capture scale rather than being upsampled — so it
-   *  draws one more frame at the larger size. A runtime whose plate IS
-   *  the frame it just finished presents that. Either way the result is
-   *  a function of the declared moment and of nothing a machine
-   *  decides. */
+   *  draws one more frame at the larger size, a frame of no length. A
+   *  runtime whose plate IS the frame it just finished presents that.
+   *  Neither moves the scene's clock: the still shows the moment the
+   *  scene stands at, so a result is a function of the requested moment
+   *  and of nothing a machine decides. */
   virtual void still(SkCanvas& canvas) = 0;
-
-  /** HOW FAR A STILL MOVES THE SCENE, in seconds: the one frame more a
-   *  runtime that re-renders its still draws to take it, and zero for one
-   *  that presents the frame it just finished. A host that keeps a clock
-   *  beside the session counts it, so the two agree on the time a still
-   *  showed. */
-  [[nodiscard]] virtual double stillStep() const { return 0.0; }
 
   /** How much larger than its declared canvas a still of this sketch is
    *  worth taking. A host clamps it against a pixel ceiling: sketches

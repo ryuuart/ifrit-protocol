@@ -44,6 +44,7 @@
 #include <atomic>
 #include <cmath>
 #include <cstdio>
+#include <exception>
 #include <future>
 #include <mutex>
 #include <string>
@@ -418,6 +419,23 @@ void GrimoireRenderer::paintFrame(SkCanvas& canvas, sketch::Host& host) {
   // window has magnified it: taken at the screen's density, once.
   if (sketch::Session* session = host.session())
     session->setBakeDensity(m_deviceRatio);
+  // A HELD MOMENT is reached once, in the steps a still is prepared with,
+  // and every frame after it draws the scene there again.
+  if (GrimoireView::heldAt >= 0.0) {
+    if (m_sceneSeconds < GrimoireView::heldAt) {
+      try {
+        m_sceneSeconds += host.prepareCapture(
+            GrimoireView::heldAt - m_sceneSeconds, 60.0, m_deviceRatio);
+      } catch (const std::exception& error) {
+        std::fprintf(stderr, "[grimoire] the held moment: %s\n", error.what());
+      }
+      m_sceneSeconds = GrimoireView::heldAt;
+      std::printf("[grimoire] the canvas is held at t=%.9gs\n", m_sceneSeconds);
+      std::fflush(stdout);
+    }
+    host.frame(canvas, 0.0);
+    return;
+  }
   const double step = m_clock.advance().count();
   host.frame(canvas, step);
   m_sceneSeconds += step;
@@ -557,6 +575,8 @@ void GrimoireRenderer::refreshThumbnail() {
   // to be re-rendered in the background to keep it current.
   constexpr double kSettledSeconds = 1.0;
   if (m_thumbnailTaken || SketchCatalog::thumbnailDirectory.empty()) return;
+  // A canvas held at another moment is not the frame the store keeps.
+  if (GrimoireView::heldAt >= 0.0) return;
   const auto& entries = sketch::registry();
   // A file opened by path has no row in the store: the store is keyed by
   // a registry sketch's filed name, and two drafts may share a stem.

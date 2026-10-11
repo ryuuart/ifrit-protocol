@@ -232,10 +232,14 @@ class Scene3DSession final : public Session {
     m_timing.totalMs = measure::Milliseconds(m_laps.total()).count();
     const world::SceneStats& stats = m_scene.stats();
     if (m_timeDevice) gatherDeviceTimes(stats);
+    // `pending` counts the bodies the frame stood in for because their
+    // program's pipeline was still building, so a host that wants every
+    // body shaded draws until it reads zero.
     m_lanes = {LaneCost{"nodes", (double)stats.nodes},
                LaneCost{"drawn", (double)stats.drawn},
                LaneCost{"cooked", (double)stats.cooked},
-               LaneCost{"passes", (double)stats.passes}};
+               LaneCost{"passes", (double)stats.passes},
+               LaneCost{"pending", (double)stats.programsPending}};
   }
 
   void repaint(SkCanvas& canvas) override { present(canvas); }
@@ -489,7 +493,7 @@ class Scene3DSession final : public Session {
   // Reset per frame rather than built per frame, so the laps a frame
   // lays cost no allocation inside the span they are timing.
   measure::Laps m_laps;
-  std::array<LaneCost, 4> m_lanes{};
+  std::array<LaneCost, 5> m_lanes{};
   /** THE DEVICE'S STAGE TIMES, summed over every timed frame read since
    *  `timeDevice(true)` — each frame once, by the number the scene gives
    *  it — in the order the stages first ran. */

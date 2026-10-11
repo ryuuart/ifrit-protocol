@@ -7,9 +7,9 @@
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkData.h>
+#include <sigilio/source/Sink.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/image/Encode.h>
-#include <sigilio/source/Sink.h>
 #include <sigilsketch/core/Crash.h>
 #include <sigilsketch/core/Session.h>
 #include <sigilsketch/core/Sources.h>
@@ -449,8 +449,9 @@ std::optional<values::StillResult> SessionAgent::takeStill(
     // A MOVING CLOCK photographs as a plate is taken, through the host's
     // own photograph — the one path a written still takes too: the
     // runtime's still at the density, every raster the session bakes
-    // taken at that density, and one frame more where the runtime
-    // re-renders its still at this size, which the clock counts.
+    // taken at that density, and one frame of no length more where the
+    // runtime re-renders its still at this size, so the clock stays at
+    // the moment photographed.
     const SkSize size = session->canvas().size;
     const PlateExtent plate =
         plateExtent(size.width(), size.height(), (float)density);
@@ -471,7 +472,6 @@ std::optional<values::StillResult> SessionAgent::takeStill(
                                         : m_host->errorLog();
       return std::nullopt;
     }
-    (void)statedFrame(session->stillStep());
   }
   if (counting) answerCounts(*session);
   if (!writePng(bitmap.pixmap(), file)) {
@@ -602,9 +602,9 @@ double SessionAgent::statedFrame(double seconds) {
 void SessionAgent::setPolicy(motion::ClockPolicy policy,
                              std::optional<double> budgetSeconds) {
   const bool wasWall = m_clock.isWall();
-  m_clock.setPolicy(policy, budgetSeconds
-                                ? std::optional(motion::Duration(*budgetSeconds))
-                                : std::nullopt);
+  m_clock.setPolicy(
+      policy, budgetSeconds ? std::optional(motion::Duration(*budgetSeconds))
+                            : std::nullopt);
   own("policy");
   if (wasWall != m_clock.isWall()) reopen();
 }

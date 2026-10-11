@@ -155,6 +155,44 @@ class Study:
   EXPECT_EQ(fixture.counts->closed["fixture://input"], 2);
 }
 
+TEST(SketchPython, ASessionClosesConnectionsDespiteEscapedPythonWrappers) {
+  PythonSource source("sigil_python_connection_escape");
+  FeedFixture fixture;
+  source.write("entry.py", R"PY(
+import builtins
+from sigil import data
+class Study:
+    def setup(self, ctx):
+        builtins._sigil_escaped_connection = data.connect(
+            ctx.assets.hub(), 'fixture://connection')
+)PY");
+  auto kind = sketch::python::load(source.entry());
+  auto session = kind->open(fonts(), fixture.services, true, "first");
+  EXPECT_EQ(fixture.counts->opened["fixture://connection"], 1);
+  EXPECT_EQ(fixture.counts->closed["fixture://connection"], 0);
+  EXPECT_FALSE(fixture.counts->feeds["fixture://connection"].expired());
+  session.reset();
+  EXPECT_EQ(fixture.counts->closed["fixture://connection"], 1);
+  EXPECT_TRUE(fixture.counts->feeds["fixture://connection"].expired());
+
+  source.write("entry.py", R"PY(
+import builtins
+class Study:
+    def setup(self, ctx):
+        try:
+            builtins._sigil_escaped_connection.state()
+        except RuntimeError as error:
+            assert 'closed session' in str(error)
+        else:
+            raise AssertionError('An escaped connection outlived its session')
+        finally:
+            del builtins._sigil_escaped_connection
+)PY");
+  kind = sketch::python::load(source.entry());
+  session = kind->open(fonts(), fixture.services, true, "second");
+  session.reset();
+}
+
 TEST(SketchPython, OverlappingAndFailedGenerationsShareTheWorkingFeed) {
   PythonSource source("sigil_python_feed_overlap");
   FeedFixture fixture;

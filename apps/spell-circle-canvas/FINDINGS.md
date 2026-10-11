@@ -184,26 +184,18 @@ A test: one nib stroke of a saturated colour at opacity 1 over a black
 raster, through `compose::pen`; every pixel inside the stroke's width is
 within a small distance of the tool's colour, and none is lighter than it.
 
-## The rewritten studies paint their static art on every frame
+## A turning sheet wearing a coverage shadow repaints the whole canvas every frame
 
-The rewritten studies (minard_1869,
-chaucer_astrolabe, dunhuang_star_chart, ksp_mapview)
-state paper grain, stone, brush ribbons and lettering as material
-paints and shapes in the tree with no `Cache::Texture` over them, so a
-plate whose picture does not move between frames is re-rasterised on
-each one. Each fails the frame-rate gate under `--bench`, and a sweep
-that renders a few hundred frames per sketch for its statistics is
-slow for every one of them.
-
-Each study evidently means to paint its static subtree once and replay
-it, the way `eva_magi_deliberation` keys its ground as one texture, with
-only the motion it is about (a turning rete, a rolling die, strokes
-writing in) outside the bake or as a bound transform over it. The fix is
-one or two `.cache(Cache::Texture).key(...)` boundaries per study over
-the largest static subtree, placed so no blur or blend crosses them; the
-pixels must not move. A test cannot see where a specimen puts its cache,
-so `--bench` on each entry is the check: at or under the gate where the
-original met it.
+`chaucer_astrolabe` fails its frame gate: its static parts are promoted
+textures, but the rete turns inside a full-canvas sheet that wears a
+coverage-derived bevel and drop shadow, so the sheet's own paint is
+re-recorded over the whole canvas each frame and a `Cache::Texture` over
+the rete's engraving bakes nothing. Compose's retained drawing of a
+coverage decoration under a moving child should let the unchanged parts
+hold while the mover is composited, or state that a turning sheet is not
+bakeable. A test should bench a full-canvas sheet with a coverage shadow
+over one turning child and find its frame within a small multiple of the
+child's own cost; the plate moves whichever way is chosen.
 
 ## `text_paints::sparkle`'s cells follow the run's extent, and no test binary can hold that
 
@@ -271,19 +263,6 @@ be built from the deviated glyph matrices, a text-engine operation on
 `TextPainterOperations` that the painter calls. A test should bevel a
 word under a track that scales one glyph and find the bevel on the
 scaled outline.
-
-## An escaped Python connection may keep its door open after the session closes
-
-`src/common/python/data/Connection.cpp`'s `ConnectionHandle` owns its
-`data::Connection` outright, the way the feed wrapper in
-`src/common/python/io/Resources.cpp` owned its `io::Feed` until that wrapper
-was made to hold only a weak reference to the session's lease. A connection
-wrapper a study stores in `builtins` therefore outlives the session and, with
-it, the feed's door and inlet. The session evidently means to end every door it
-opened when it closes, whatever Python still holds. A test should store a
-connection wrapper in `builtins`, close the session, and assert the feed's state
-is closed and its inlet expired, as `SketchPython.ASessionClosesFeedsDespiteEscapedPythonWrappers`
-asserts for a feed.
 
 ## A phosphor bloom on a text leaf cuts away whatever the leaf paints outside its box
 
@@ -486,34 +465,6 @@ when compilation fails. A later snapshot should let the same study be
 reviewed against the changed library without changing its lookup key.
 
 
-## Bug: file-path video export ignores the requested study
-
-A live Python study renders correctly when supplied by path with `--frame`.
-The same file with `--video` is accepted by argument parsing and file
-validation, but `main.cpp` dispatches `runVideo` before the live-file lane.
-`apps/grimoire/src/VideoLane.cpp` selects only the registry index and category;
-it never reads `Arguments::sketchFile`. Consequently the file does not
-select the output. A native probe using the macrodata terminal, one video
-frame and a small output size exits with the registry's set-rendering
-requirement, even though that file is an ordinary CPU-renderable Compose
-study. With the device enabled, the code would select the registry montage
-instead of the supplied file. That broad encode was not launched.
-
-The intended authoring action is to export the current study. Wanted: the
-video lane should render and encode a file-selected session, or reject the
-unsupported file-plus-video combination before selecting other sketches.
-A silently substituted registry selection is not an acceptable fallback.
-The limitation affects newly authored sources that are not yet registered
-in the installed host as well as file edits newer than its bundled copy.
-
-A regression should supply a temporary study file whose content differs
-from every registry entry and assert that only its frames reach the video
-encoder. If the combination is unsupported, it should instead assert a
-clear early error naming that combination, before device selection or
-montage rendering. File-based stills and registry-based montages should
-retain their existing selections.
-
-
 ## Authoring difficulty: optical bloom has no shared parameter preview
 
 The macrodata-terminal study can express its narrow luminous text with
@@ -630,91 +581,6 @@ coverage above and below the scale where individual cells are resolvable.
 The unresolved screen should not form large alternating islands.
 
 
-## Authoring ergonomics: optional positional captures receive paint context
-
-The optical-record study's ordinary Python capture
-`lambda pen, width=64: draw_mark(pen, width)` receives a PaintContext in
-`width`, then raises TypeError when drawing divides the value. The callback
-dispatcher in `apps/python/sigil/sigil/_callbacks.py` deliberately selects
-the largest compatible positional prefix, and
-`src/common/python/compose/PaintPrograms.cpp` supplies the context whenever
-two arguments fit. A default capture is therefore indistinguishable from
-an optional context parameter. This follows the dispatcher contract but
-conflicts with a common Python authoring idiom.
-
-A keyword-only capture and a one-argument closure both preserve the value
-and produce identical native Raster images; swapping either for the
-defaulted positional capture in a Python study reproduces the TypeError.
-
-Wanted: an explicit way to request context, or a documented callback
-adapter that preserves ordinary captured defaults. The public callback
-guidance should show the keyword-only form and explain the positional
-injection. A regression should preserve explicit `(pen, context)` calls,
-assert the chosen behavior for optional positional captures, and verify
-that keyword-only captured values retain their values.
-
-
-## Authoring ergonomics: CLI captures do not share an exact-time request
-
-The optical-record focus probe asks for a Python file still at 0.25
-seconds. Its update log visits 0.25 and then 0.26666666666666666 seconds
-before writing the image. `src/sketch/scene2d/Session.cpp` deliberately
-paints a still through `frame(..., stillStep())`, and
-`src/sketch/live/Host.cpp` advances the requested duration before invoking
-that photograph. The extra step is intentional, but the file lane's
-reported requested time does not identify the time its pixels observe.
-
-The same probe's live blur map matches a static map at the actual observed
-time exactly. Nominal-time comparisons produce false differences. This
-is a capture contract issue, not a mapped-blur defect. Asking the file
-lane for a still at `--at 0.25` of any clock-driven Python sketch and
-logging its updates reproduces the extra step.
-
-The native window screenshot in `apps/grimoire/src/main.cpp` waits for a live
-session and warm-up frames, but does not consume the file lane's `--at`
-setting. A matching window composition currently needs a clearly
-identified fixed-time capture fixture or clock control outside that CLI
-option.
-
-The headless protocol already supports a held clock, repeated stills
-without advancement and a current-clock result. Those existing semantics
-are the model for the authoring request, rather than missing primitives.
-
-Wanted: CLI capture requests that expose a held scene time and report the
-timestamp actually drawn, while retaining any redraw needed for capture
-density. A regression should put a time readout and
-moving edge in one scene, request the same timestamp through file and
-window lanes, and verify both reported time and edge position. Repeated
-captures should not advance the scene unless advancement was requested.
-
-
-## API request: the GPU window cannot expose its capture backend to a client
-
-The optical-record sequence draws successfully in the native Graphite
-window. `GrimoireRenderer::installCaptureBackend` gives its Host a
-Graphite surface, ordered canvas and device readback. The window's
-Inspection endpoint, however, mounts only host and registry agents.
-Its advertised domains agree with that restriction. Requests for
-`clock.setPolicy` and `session.still` both return `notMounted`, even while
-host.describe reports the live optical-record canvas.
-
-The protocol already defines clock stepping and session sequence capture,
-and the Host already has the device-backed capture seam. An author cannot
-combine those existing facilities through the window endpoint. The
-file-frame lane deliberately captures scene2d sketches on Raster, including
-when `--gpu` enables the device for mesh or scene3d content. A procedural
-optical movie therefore cannot request the window's 2D backend through
-either public route. Connecting a client to a running window's endpoint
-and sending `clock.setPolicy` or `session.still` reproduces the refusals.
-
-Wanted: safe client access to the active window's clock and capture
-session, or an explicit file-sequence backend selector using the existing
-device capture seam. A regression should export only the selected file,
-report the actual backend and scene times, keep Graphite work on its
-owning thread, and verify repeated held captures and the requested frame
-count. Detaching the client should restore the host's ordinary clock and
-leave the live window usable.
-
 ## Performance gap: nested arrangements repeat Yoga settlement
 
 `core/layout/Layout.cpp` restores authored child styles and recalculates Yoga
@@ -776,27 +642,6 @@ contract. Another should preserve an exactly flat bevel interior, compare
 a circular shoulder with its radial reference, and separate normal
 encoding from coverage and filter precision. Increasing output density or
 blurring the final plate does not establish a smoother source field.
-
-## API gap: scene2d sequence sampling advances during photography
-
-The native protocol sequence steps by one over the requested rate between
-stills. A scene2d still also draws an extra frame and advances by one
-sixtieth of a second, while a scene3d still presents its held frame. The same
-25-frame request at rate 24 therefore advances the stone and optical clocks
-by 1.4167 seconds, but the metal scene3d clock by one second. Requesting that
-sequence through the protocol from a scene2d study and a scene3d study, then
-seeking each directly to the sequence's final reported time, reproduces
-it: the direct seeks match the actual final sequence time exactly, not the
-requested one.
-
-This is documented still behavior, but it makes the requested sequence rate
-insufficient to state the scene's sampling interval across runtime kinds.
-Wanted: photograph each requested scene time while retaining redraw at the
-capture density; count redraws separately from clock advancement. A
-regression should sample a clock-driven color or position at the same
-requested times in a scene2d sketch and a scene3d sketch, assert those times and frame count,
-and compare fresh direct seeks at several densities. Paused stills should
-remain held and repeatable.
 
 ## Renderer gap: a material channel with no Slang body is not bound by World
 
@@ -988,19 +833,6 @@ independently; changing destination precision must not change authored tint
 semantics silently. Keep the bounded batch path when it meets that contract.
 
 
-## Bug: a workspace's own `assets/` is not what `res://` mounts
-
-`python3 scripts/sigil.py workspace new <dir>` writes `<dir>/<dir>.cpp`
-beside `<dir>/assets/`, and the README it writes says that folder mounts
-at `res://`; `scripts/README.md` says the same. The host reads an entry
-whose directory shares its stem as a directory sketch and mounts `res://`
-from the `assets/` folder one level above that directory, so a file put
-in the workspace's own `assets/` is not found.
-
-A workspace should mount the `assets/` folder it was written with. A test
-should make a workspace, put a file in its `assets/`, open the entry and
-read the file through `res://`.
-
 ## `texture::fromUsageMap` ignores a texture's stated colour space
 
 The decoded part carries each texture's colour space, read from a USD
@@ -1098,15 +930,14 @@ Vulkan, as it already exports its own objects the other way.
 ## Contract: a live frame waits for a newly arrived program's pipeline
 
 When a body's program arrives, the next live frame builds its pipeline on
-a worker but waits for it, so hosts and tests that wait only on
-`ProgramCache::compiling()`, such as `shadedFrame` in
-`src/sketch/scene3d/test/Scene3DSessionTest.cpp`, see a whole body on the
-following frame. The body should stand in until the pipeline is built, as
-the first frame's bodies do, once those hosts and tests loop until
-`SceneStats::programsPending` is zero; then `drawBody` can take the
-cache's non-waiting answer for every live body. A test should run a live
-scene whose program arrives mid-run and find no frame longer than a small
-multiple of the steady frame.
+a worker but waits for it. Scene3d sessions now report a `pending` lane
+from `SceneStats::programsPending`, and `shadedFrame` in
+`src/sketch/scene3d/test/Scene3DSessionTest.cpp` draws until it is zero,
+so `drawBody` in `src/common/world/diligent/Geometry.cpp` can take the
+pipeline cache's non-waiting answer for every live body and stand the
+body in until it is built, as the first frame's bodies are. A test should
+run a live scene whose program arrives mid-run and find no frame longer
+than a small multiple of the steady frame.
 
 ## Present on device covers only the device Graphite's main recorder
 
@@ -1135,3 +966,26 @@ a revolved cap of a coarse profile and find no facet steps.
 the typing; a Python test should state a glow on a text leaf and find it
 following a glyph's fade, and state a page's base direction and find its
 levels resolved against it.
+
+## A web page opened after the settling suites has not arrived at setup
+
+`SketchLoadingClock.APageOpenedUnderItIsTheSweepsDeterministicCapture`
+(`src/sketch/scry/test/LoadingClockTest.cpp`) passes alone and fails
+whenever the `SketchSettling` suites run before it in one `sketch_test`
+process: after the sweep, the page's settle has not reported arrival
+under a deterministic open. A page driven through for a repeatable run
+should have arrived before setup returns, whatever ran earlier in the
+process; the shared WebEngine state the settling suites leave behind is
+the first suspect. A test should run the settling suites and then this
+one in one process and find the page arrived at open.
+
+## Design question: the window's endpoint has no client clock or session access
+
+`Grimoire <file> --frame … --gpu` photographs a scene2d sketch on
+Graphite and reports its backend and each frame's time, which is the
+capture route a client has. The window's own endpoint mounts neither the
+clock nor the session: the window's host lives on the Qt render thread
+under `GrimoireView::hostMutex`, while a `SessionAgent` opens and owns a
+host of its own. Mounting them needs either an agent that adopts an
+external host and hops its calls to the render thread, or a different
+split; the choice is the owner's.

@@ -353,8 +353,8 @@ class Scene:
         self.assertEqual(initial(5, 5), bytes([255, 0, 0, 255]))
         self.assertEqual(moved(20, 5), bytes([255, 0, 0, 255]))
         self.assertEqual(moved(5, 5), bytes([0, 0, 0, 255]))
-        # The still is the sweep's photograph, one frame past the moment.
-        self.assertAlmostEqual(builtins._motion_updates[-1][1], 0.5 + 1 / 60, places=5)
+        # The still is the sweep's photograph, at the moment itself.
+        self.assertAlmostEqual(builtins._motion_updates[-1][1], 0.5, places=5)
         gc.collect()
         self.assertIsNone(builtins._motion_owner())
 
@@ -462,10 +462,10 @@ class Scene:
         """,
             at=0.25,
         )
-        # The still is the sweep's photograph, one sixtieth of a second past
-        # the moment: two whole tenths stepped and two thirds of the third.
+        # The still is the sweep's photograph, at the moment itself: two
+        # whole tenths stepped and half of the third.
         self.assertEqual(len(builtins._motion_fixed_steps), 2)
-        self.assertAlmostEqual(builtins._motion_timer.betweenSteps(), 2 / 3, places=5)
+        self.assertAlmostEqual(builtins._motion_timer.betweenSteps(), 1 / 2, places=5)
         self.assertFalse(builtins._motion_timer.droppedTime())
         with self.assertRaisesRegex(RuntimeError, "session"):
             builtins._motion_engine.elapsed()

@@ -170,11 +170,11 @@ class Scene2DSession final : public Session {
     m_paintSkipped = false;
   }
 
-  /** One more stepped frame, at the capture's own scale: a bake re-runs
-   *  at that scale instead of being upsampled. */
-  void still(SkCanvas& canvas) override { frame(canvas, stillStep()); }
-
-  [[nodiscard]] double stillStep() const override { return 1.0 / 60.0; }
+  /** One more frame at the capture's own scale and at the moment the
+   *  scene stands at: a bake re-runs at that scale instead of being
+   *  upsampled, and the clock does not move, so the still shows the
+   *  moment it was asked for. */
+  void still(SkCanvas& canvas) override { frame(canvas, 0.0); }
 
   [[nodiscard]] float oversample() const override { return 2.0f; }
 

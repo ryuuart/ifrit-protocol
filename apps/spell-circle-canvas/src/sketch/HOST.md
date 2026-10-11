@@ -128,7 +128,9 @@ declarations, frames or stills — a standard exception or anything else —
 is reported in `Host::errorLog` and does not escape the host.
 
 For a single source, `assets/` stands beside the entry. A directory source
-sketch shares the `assets/` root above its own directory.
+sketch mounts the `assets/` inside its own directory when it has one — the
+folder `workspace new` writes — and otherwise shares the `assets/` root
+above its own directory.
 `ctx.local("data/x.csv")` always names a file beside the entry.
 `--assets` chooses another resource root.
 

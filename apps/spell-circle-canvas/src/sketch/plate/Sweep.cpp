@@ -439,8 +439,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       const int captureFrame = (int)std::lround(declared * kRate);
       // A still that presents a held frame needs that frame to exist,
       // including when the requested moment advances no time.
-      if (captureFrame == 0 && session->stillStep() == 0)
-        session->discardedFrame(discarded, 0);
+      if (captureFrame == 0) session->discardedFrame(discarded, 0);
       for (int f = 0; f < captureFrame; ++f) advanceOne();
     } else {
       const int stepped = kProbeFrames + warmFrames + sampleFrames;

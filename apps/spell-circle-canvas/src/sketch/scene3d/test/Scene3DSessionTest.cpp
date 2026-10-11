@@ -32,6 +32,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -564,13 +565,22 @@ SkBitmap oneFrame(Session& session) {
   return bitmap;
 }
 
+/** The bodies the last frame of @p session stood in for because their
+ *  program's pipeline was still building. */
+double pendingPrograms(const Session& session) {
+  for (const LaneCost& lane : session.lanes())
+    if (std::string_view(lane.name) == "pending") return lane.ms;
+  return 0;
+}
+
 /** ONE FRAME AS ITS SURFACES SHADE IT. A live session draws a body as a
- *  stand-in while its program compiles on a worker, so the same moment
- *  is drawn again once every compile is done, and what is read is the
- *  surface and not its stand-in. It is drawn again whether or not a
- *  compile is still running when the first frame returns: one that
- *  finished while that frame was drawing left its stand-in in the
- *  picture all the same. */
+ *  stand-in while its program compiles on a worker and while that
+ *  program's pipeline builds, so the same moment is drawn again once
+ *  every compile is done, and again until a frame stood in for no body:
+ *  what is read is the surface and not its stand-in. It is drawn again
+ *  whether or not a compile is still running when the first frame
+ *  returns: one that finished while that frame was drawing left its
+ *  stand-in in the picture all the same. */
 SkBitmap shadedFrame(Session& session) {
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(160, 120));
@@ -578,10 +588,13 @@ SkBitmap shadedFrame(Session& session) {
   session.frame(canvas, 1.0 / 60.0);
   const auto deadline =
       std::chrono::steady_clock::now() + std::chrono::seconds(30);
-  while (sigil::material::ProgramCache::shared().compiling() > 0 &&
-         std::chrono::steady_clock::now() < deadline)
-    std::this_thread::sleep_for(std::chrono::milliseconds(5));
-  session.frame(canvas, 0.0);
+  do {
+    while (sigil::material::ProgramCache::shared().compiling() > 0 &&
+           std::chrono::steady_clock::now() < deadline)
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    session.frame(canvas, 0.0);
+  } while (pendingPrograms(session) > 0 &&
+           std::chrono::steady_clock::now() < deadline);
   return bitmap;
 }
 
@@ -1378,7 +1391,7 @@ struct Scene3DTraits {
   static double captureSeconds() { return 0.5; }
   static const char* runtime() { return "scene3d"; }
   static std::vector<const char*> lanes() {
-    return {"nodes", "drawn", "cooked", "passes"};
+    return {"nodes", "drawn", "cooked", "passes", "pending"};
   }
   /** The plate IS the frame just finished, so there is nothing to form
    *  again larger. */
