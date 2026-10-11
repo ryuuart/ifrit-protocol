@@ -54,7 +54,7 @@ python = [
 bound = "a fresh import of the source and its local modules each time a sketch opens"
 
 [[section.surface.item]]
-bound = "catalogue metadata read from docstrings, `TAGS` and `REQUIRES`"
+bound = "catalogue metadata read without running the module: docstrings, `TAGS`, `REQUIRES`, and a literal `NAME` and `CATEGORY` a bundled sketch is registered under while its file stem stays its key"
 
 [[section.surface.item]]
 bound = "`render_file` through the native host"
@@ -81,9 +81,10 @@ python = [
 
 [[section.surface.item]]
 native = "`Scene2DContext::page` and `sketch::Page`"
-bound_text = "`page` on the context, whose `sketch.Page` paints a tree as a surface's maps through `render(tree)`, the pass a baked frame carries, and dresses a baked body with `surface()`"
+bound_text = "`page` on the context, with a `compose.SurfaceRange` stating what its maps stand for at their white, whose `sketch.Page` paints a tree as a surface's maps through `render(tree)`, the pass a baked frame carries, and dresses a baked body with `surface()` or one region of the page with `surface(region)`"
 python = [
   "sketch.Scene2DContext.page",
+  "compose.SurfaceRange",
   "sketch.Page",
   "sketch.Page.render",
   "sketch.Page.surface",
@@ -108,9 +109,6 @@ python = ["sketch.requireCached"]
 
 [[section.surface.item]]
 native = "a declared `available(why)` probe"
-
-[[section.surface.item]]
-native = "a registered name or category other than the file stem and `Python`"
 
 [[section.surface.item]]
 native = "the per-sketch `<stem>.fbs` schema rule, which runs only for C++ entries"
@@ -1520,6 +1518,10 @@ python = [
 ]
 
 [[section.surface.item]]
+bound = "a bundled font file loaded as a `skia.Typeface` through `Hub.load(skia.Typeface, uri)`, the face the hub keeps for that resource, cached and read again on an edit like any asset, on a session's hub or on an owned one after `weave.registerDecoders`"
+python = ["weave.registerDecoders"]
+
+[[section.surface.item]]
 native = "Paint shaders, color and image filters, mask filters, path effects and blenders"
 python = ["skia.Paint.setShader", "skia.Paint.setImageFilter"]
 
@@ -2081,7 +2083,7 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "collections; geometry and post passes; `Frame` with its camera and environment"
+bound = "collections; geometry and post passes; `Frame` with its camera, environment and the pictures `overlay` lays over the finished frame"
 python = [
   "world.Collection",
   "world.geometryPass",
@@ -2089,6 +2091,8 @@ python = [
   "world.Frame",
   "world.Frame.camera",
   "world.Frame.environment",
+  "world.Frame.overlay",
+  "world.Frame.overlays",
 ]
 
 [[section.surface.item]]
@@ -2102,11 +2106,12 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "directional, point and spot lights with light and shadow links; the `kit` rig, turntable, lit set and environment map"
+bound = "directional, point and spot lights with light and shadow links and a `LightShadow` whose `size` widens the penumbra away from the caster; the `kit` rig, turntable, lit set and environment map"
 python = [
   "world.directionalLight",
   "world.pointLight",
   "world.spotLight",
+  "world.LightShadow.size",
   "world.Light.lightLink",
   "world.kit.Rig",
   "world.kit.turntable",

@@ -2,6 +2,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl/filesystem.h>
 #include <sigilcompose/core/Measure.h>
+#include <sigilcompose/texture/SurfaceRange.h>
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilmaterial/color/Color.h>
@@ -207,13 +208,17 @@ void bindContext(py::module_& module) {
           py::arg("at") = 0.0)
       .def(
           "page",
-          [](const Context& ctx, std::array<int, 2> size) {
-            return ctx.state()->context().page(pagePixels(size));
+          [](const Context& ctx, std::array<int, 2> size,
+             const compose::SurfaceRange& range) {
+            return ctx.state()->context().page(pagePixels(size), range);
           },
-          py::arg("size"),
+          py::arg("size"), py::arg("range") = compose::SurfaceRange{},
           "A page a baked 3D frame lights, size pixels across: put "
           "page.render(tree) on the frame and page.surface() on the body "
-          "that shows it. The session keeps what it paints into until the "
+          "that shows it. range, a compose.SurfaceRange, states what the "
+          "page's emission, thickness and distortion maps stand for at "
+          "their white; a number left at zero is learned as the page "
+          "paints. The session keeps what it paints into until the "
           "sketch declares again; ask while declaring and hold the page.")
       .def(
           "local",

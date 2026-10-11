@@ -22,22 +22,50 @@ def declares_sketch(source):
     return False
 
 
-def registration(path, index, source):
-    description = ast.get_docstring(source) or ""
-    blurb = " ".join(description.split("\n\n", 1)[0].split())
-    requirements = ()
+def declarations(source):
+    """Each module-level assignment to a plain name, as (name, value node).
+    Only the nodes are read; nothing in the module runs."""
     for statement in source.body:
         if isinstance(statement, ast.Assign):
             targets = statement.targets
-        elif isinstance(statement, ast.AnnAssign):
+        elif isinstance(statement, ast.AnnAssign) and statement.value is not None:
             targets = [statement.target]
         else:
             continue
-        if any(
-            isinstance(target, ast.Name) and target.id == "REQUIRES"
-            for target in targets
-        ):
-            requirements = ast.literal_eval(statement.value)
+        for target in targets:
+            if isinstance(target, ast.Name):
+                yield target.id, statement.value
+
+
+def declared_text(path, source, name, default):
+    """A literal, non-empty string the module assigns to name, or default
+    when it assigns none."""
+    value = default
+    for declared, node in declarations(source):
+        if declared != name:
+            continue
+        try:
+            value = ast.literal_eval(node)
+        except ValueError:
+            raise ValueError(f"{path}: {name} must be a literal string") from None
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"{path}: {name} must be a literal, non-empty string")
+        value = value.strip()
+    return value
+
+
+def registration(path, index, source):
+    description = ast.get_docstring(source) or ""
+    blurb = " ".join(description.split("\n\n", 1)[0].split())
+    # The registry key is the file's stem and stays so: what a sketch is
+    # called and where it is filed are the author's to state, and a module
+    # that states neither reads as its stem in the Python collection.
+    name = declared_text(path, source, "NAME", path.stem)
+    category = declared_text(path, source, "CATEGORY", "Python")
+    requirements = ()
+    for declared, node in declarations(source):
+        if declared == "REQUIRES":
+            requirements = ast.literal_eval(node)
             if not isinstance(requirements, (tuple, list)) or any(
                 not isinstance(module, str)
                 or not module
@@ -60,7 +88,7 @@ bool available{index}(std::string* why) {{
   return sigil::sketch::python::available({literal(str(path))}, {{{modules}}}, why);
 }}
 [[maybe_unused]] const bool registered{index} = sigil::sketch::add(
-    {literal(path.stem)}, {literal(path.stem)}, "Python", {literal(blurb)},
+    {literal(path.stem)}, {literal(name)}, {literal(category)}, {literal(blurb)},
     &kind{index}, &available{index});
 """
 

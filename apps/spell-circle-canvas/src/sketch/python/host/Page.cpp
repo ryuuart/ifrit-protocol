@@ -7,6 +7,7 @@
 #include <pybind11/pybind11.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilmaterial/core/Material.h>
+#include <sigilmaterial/texture/Texture.h>
 #include <sigilpython/Extend.h>
 #include <sigilsketch/scene3d/Page.h>
 #include <sigilworld/frame/Pass.h>
@@ -42,6 +43,15 @@ void bindSketchPage(py::module_& module) {
       .def("surface", py::overload_cast<>(&Page::surface, py::const_),
            "The one material a body wears to show this page. A body wearing "
            "it on a frame without the page's pass is an error naming both.")
+      .def("surface",
+           py::overload_cast<material::PixelRect>(&Page::surface, py::const_),
+           py::arg("region"),
+           "The material a body wears to show one part of this page: "
+           "region, a material.PixelRect of page pixels, spread across the "
+           "body's texture coordinates as the whole page is by surface(). "
+           "One page lays its parts out and each body wears its own; the "
+           "light, depth and displacement its maps are read against are the "
+           "whole page's.")
       .def_property_readonly(
           "name", [](const Page& page) { return std::string(page.name()); },
           "The name the page's pass goes by, and that an error names: "

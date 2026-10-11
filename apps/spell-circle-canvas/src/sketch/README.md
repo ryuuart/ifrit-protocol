@@ -198,7 +198,8 @@ member. Its bindings and animation continue without rebuilding that value.
 ## Assets and live inputs
 
 Read resources through `ctx.assets.hub()`. The host registers SigilMedia and
-SigilData decoders, caches results and watches requested files. A changed
+SigilData decoders and SigilWeave's face decoder, so a bundled font file
+loads as a `weave::Face`, caches results and watches requested files. A changed
 resource re-runs the sketch's declaration. A missing or undecodable resource
 returns null and remains watched.
 

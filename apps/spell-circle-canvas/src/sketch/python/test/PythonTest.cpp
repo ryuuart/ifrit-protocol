@@ -5,15 +5,27 @@
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
+#include <include/core/SkFont.h>
+#include <include/core/SkFontTypes.h>
+#include <include/core/SkFontMgr.h>
 #include <include/core/SkSurface.h>
+#include <include/core/SkTypeface.h>
 #include <include/utils/SkNoDrawCanvas.h>
+#include <pybind11/pybind11.h>
+#include <sigilio/advanced/Places.h>
 #include <sigilio/hub/Feed.h>
+#include <sigilpython/skia/Values.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/live/Host.h>
 #include <sigilsketch/python/Python.h>
 #include <sigilsketch/scene3d/Scene3D.h>
+#include <sigilweave/advanced/Skia.h>
+#include <sigilweave/ports/Resource.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
 #include <chrono>
+#include <cmath>
+#include <cstring>
 #include <filesystem>
 #include <map>
 #include <stdexcept>
@@ -546,6 +558,118 @@ TEST(SketchPython, TwoSessionsHaveIndependentInstanceState) {
   EXPECT_EQ(second->canvas().size, SkSize::Make(101, 80));
 }
 
+TEST(SketchPython, ADeclaredUnpaintedCaptureStepLeavesTheDrawToTheStill) {
+  PythonSource source("sigil_python_unpainted_capture");
+  source.write("entry.py",
+               "import builtins\n"
+               "from sigil.sketch import CanvasSpecification, sketch\n"
+               "builtins._sigil_capture_counts = {'draw': 0, 'update': 0}\n"
+               "@sketch(size=(64, 48), capture_at=0.5)\n"
+               "class Study:\n"
+               "    def setup(self, ctx):\n"
+               "        ctx.canvas(CanvasSpecification(size=(64, 48),\n"
+               "            captureSeconds=0.5, paintDiscardedFrames=False))\n"
+               "    def update(self):\n"
+               "        builtins._sigil_capture_counts['update'] += 1\n"
+               "    def draw(self, pen):\n"
+               "        builtins._sigil_capture_counts['draw'] += 1\n");
+  sketch::Host host(source.options(), fonts());
+  host.poll();
+  ASSERT_TRUE(host.live()) << host.errorLog();
+  const auto counts = [](const char* name) {
+    const pybind11::gil_scoped_acquire lock;
+    return pybind11::module_::import("builtins")
+        .attr("_sigil_capture_counts")[name]
+        .cast<int>();
+  };
+  // Every step to the moment advances the body and none of them paints.
+  EXPECT_EQ(host.prepareCapture(), 0.5);
+  EXPECT_GT(counts("update"), 1);
+  EXPECT_EQ(counts("draw"), 0);
+  // The still is the one draw the capture pays.
+  EXPECT_FALSE(host.still().isNull());
+  EXPECT_EQ(counts("draw"), 1);
+}
+
+/** The typeface a Python setup left in `builtins._sigil_bundled_face`,
+ *  taken out of Python and the name cleared. */
+sk_sp<SkTypeface> bundledFaceFromPython() {
+  const pybind11::gil_scoped_acquire lock;
+  pybind11::module_ builtins = pybind11::module_::import("builtins");
+  sk_sp<SkTypeface> face =
+      builtins.attr("_sigil_bundled_face").cast<sk_sp<SkTypeface>>();
+  builtins.attr("__dict__").attr("pop")("_sigil_bundled_face");
+  return face;
+}
+
+std::string familyOf(const SkTypeface* face) {
+  SkString name;
+  if (face) face->getFamilyName(&name);
+  return name.c_str();
+}
+
+float advanceOf(sk_sp<SkTypeface> face, const char* text) {
+  const SkFont font(std::move(face), 32);
+  return font.measureText(text, std::strlen(text), SkTextEncoding::kUTF8);
+}
+
+TEST(SketchPython, ABundledFaceIsOneResourceToBothLanguages) {
+  PythonSource source("sigil_python_bundled_face");
+  const fs::path instruments = SIGIL_TEST_INSTRUMENT_DIR;
+  const fs::path bundled = source.scratch.path / "face.ttf";
+  fs::copy_file(instruments / "Sans.ttf", bundled);
+  source.write("entry.py",
+               "import builtins\n"
+               "from sigil import skia\n"
+               "class Study:\n"
+               "    def setup(self, ctx):\n"
+               "        ctx.canvas(40, 40)\n"
+               "        builtins._sigil_bundled_face = ctx.assets.hub().load(\n"
+               "            skia.Typeface, 'res://face.ttf')\n");
+  sketch::Assets services(source.scratch.path);
+  const sketch::Kind kind = sketch::python::load(source.entry());
+  sk_sp<SkTypeface> python;
+  {
+    auto session = kind->open(fonts(), services, true, "faced");
+    python = bundledFaceFromPython();
+  }
+  ASSERT_NE(python, nullptr) << "the Python host read no face";
+  const auto native = services.hub().load<sigil::weave::Face>("res://face.ttf");
+  ASSERT_TRUE(native && *native) << "the native host read no face";
+  // One resource: the face the hub keeps for the URI, whichever language
+  // asked, with the family and the advances of the file it came from.
+  EXPECT_EQ(python.get(), sigil::weave::borrowSk(*native));
+  const sk_sp<SkTypeface> opened =
+      sigil::weave::ports::systemFontManager()->makeFromFile(
+          (instruments / "Sans.ttf").c_str());
+  ASSERT_NE(opened, nullptr);
+  EXPECT_EQ(familyOf(python.get()), familyOf(opened.get()));
+  EXPECT_FLOAT_EQ(advanceOf(python, "Waveform"), advanceOf(opened, "Waveform"));
+
+  // Replaced on disk: a session opened afterwards reads the new face and
+  // nothing of the old one.
+  const sk_sp<SkTypeface> replacement =
+      sigil::weave::ports::systemFontManager()->makeFromFile(
+          (instruments / "HanSerif.ttf").c_str());
+  ASSERT_NE(replacement, nullptr);
+  ASSERT_NE(familyOf(replacement.get()), familyOf(opened.get()));
+  fs::copy_file(instruments / "HanSerif.ttf", bundled,
+                fs::copy_options::overwrite_existing);
+  fs::last_write_time(bundled,
+                      fs::last_write_time(bundled) + std::chrono::seconds(5));
+  sigil::io::poll(services.hub());
+  {
+    auto session = kind->open(fonts(), services, true, "faced");
+    python = bundledFaceFromPython();
+  }
+  ASSERT_NE(python, nullptr);
+  EXPECT_EQ(familyOf(python.get()), familyOf(replacement.get()));
+  const auto reloaded =
+      services.hub().load<sigil::weave::Face>("res://face.ttf");
+  ASSERT_TRUE(reloaded && *reloaded);
+  EXPECT_EQ(python.get(), sigil::weave::borrowSk(*reloaded));
+}
+
 TEST(SketchPython, AContextKeptOutsideItsSessionFailsSafelyAfterTeardown) {
   PythonSource source("sigil_python_context_lifetime");
   source.write("entry.py",
@@ -721,6 +845,213 @@ TEST_F(SketchPythonBakes, APageThePythonSketchPaintsIsWornByTheBakedCard) {
   EXPECT_GT(SkColorGetG(middle), SkColorGetB(middle) + 60);
   // Off the card is the ground the bake was cleared to, not the page.
   EXPECT_LT(SkColorGetG(pixels.getColor(1, 1)), 50u);
+}
+
+/** The still a Python source bakes, drawn into a raster canvas of
+ *  @p width by @p height and read back. */
+SkBitmap bakedStill(const PythonSource& source, std::string_view key, int width,
+                    int height) {
+  const sketch::Kind kind = sketch::python::load(source.entry());
+  auto session = kind->open(fonts(), assets(), true, std::string(key));
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(width, height));
+  session->frame(*surface->getCanvas(), 1.0 / 60.0);
+  SkBitmap pixels;
+  pixels.allocPixels(SkImageInfo::MakeN32Premul(width, height));
+  if (!surface->readPixels(pixels, 0, 0)) return {};
+  return pixels;
+}
+
+TEST_F(SketchPythonBakes, TwoCardsWearTheTwoHalvesOfOnePage) {
+  PythonSource source("sigil_python_page_regions");
+  // One page, red on its left half and blue on its right, and two cards
+  // side by side, each wearing one half: each card shows its own half's
+  // colour across the whole of it.
+  source.write(
+      "entry.py",
+      "from sigil import compose, material, world\n"
+      "from sigil.geometry import mesh\n"
+      "from sigil.sketch import sketch\n"
+      "\n"
+      "@sketch(size=(128, 64), background='#000000', capture_at=0)\n"
+      "class Halves:\n"
+      "    needsDevice = True\n"
+      "\n"
+      "    def setup(self, ctx):\n"
+      "        page = ctx.page((64, 32))\n"
+      "        lens = mesh.camera.Camera()\n"
+      "        lens.eye = (0, 0, 300)\n"
+      "        lens.target = (0, 0, 0)\n"
+      "        left = material.PixelRect(x=0, y=0, width=32, height=32)\n"
+      "        right = material.PixelRect(x=32, y=0, width=32, height=32)\n"
+      "        cards = [\n"
+      "            world.mesh(mesh.quad(100, 100)).key(name).at((x, 0, 0))\n"
+      "            .fill(page.surface(region))\n"
+      "            for name, x, region in (('left', -60, left),\n"
+      "                                    ('right', 60, right))]\n"
+      "        tree = compose.box().width(64).height(32).children(\n"
+      "            compose.box().absolute().rect(0, 0, 32, 32)"
+      ".fill('#ff0000'),\n"
+      "            compose.box().absolute().rect(32, 0, 32, 32)"
+      ".fill('#0000ff'))\n"
+      "        sun = world.directionalLight((0, 0, -1)).key('sun')\n"
+      "        frame = (world.Frame(world.group(sun, *cards).key('set'))\n"
+      "                 .pass_(page.render(tree)))\n"
+      "        still = ctx.bakeScene3D(frame, (128, 64), camera=lens,\n"
+      "                                background='#000000')\n"
+      "        ctx.render(compose.image(still).width(128).height(64)\n"
+      "                   if still is not None else compose.box())\n");
+  const SkBitmap pixels = bakedStill(source, "halves", 128, 64);
+  ASSERT_FALSE(pixels.isNull());
+  const SkColor left = pixels.getColor(46, 32);
+  const SkColor right = pixels.getColor(82, 32);
+  EXPECT_GT(SkColorGetR(left), SkColorGetB(left) + 60)
+      << "the left card wears the page's red half";
+  EXPECT_GT(SkColorGetB(right), SkColorGetR(right) + 60)
+      << "the right card wears the page's blue half";
+}
+
+TEST_F(SketchPythonBakes, AStatedEmissionRangeKeepsABrighterEmissionUnclipped) {
+  PythonSource source("sigil_python_page_range");
+  // Two pages painting the same emission of three, one stating its
+  // emissive map's white at four and one at one. Seen through an exposure
+  // of a fifth on a linear curve, the first card shows the three it was
+  // painted with and the second the one its range clips it to.
+  source.write(
+      "entry.py",
+      "from sigil import compose, material, world\n"
+      "from sigil.geometry import mesh\n"
+      "from sigil.sketch import sketch\n"
+      "\n"
+      "@sketch(size=(128, 64), background='#000000', capture_at=0)\n"
+      "class Ranged:\n"
+      "    needsDevice = True\n"
+      "\n"
+      "    def setup(self, ctx):\n"
+      "        wide = ctx.page((32, 32), compose.SurfaceRange(emission=4))\n"
+      "        narrow = ctx.page((32, 32),\n"
+      "                          range=compose.SurfaceRange(emission=1))\n"
+      "        glow = material.from_(material.Color(0, 0, 0, 1)).surface(\n"
+      "            emission=material.Color(1, 1, 1, 1), emissionStrength=3)\n"
+      "        tree = compose.box().width(32).height(32).fill(glow)\n"
+      "        lens = mesh.camera.Camera()\n"
+      "        lens.eye = (0, 0, 300)\n"
+      "        lens.target = (0, 0, 0)\n"
+      "        eye = world.camera(lens, exposure=0.2,\n"
+      "                           "
+      "toneCurve=world.ToneCurve.Linear).key('eye')\n"
+      "        cards = [\n"
+      "            world.mesh(mesh.quad(100, 100)).key(name).at((x, 0, 0))\n"
+      "            .fill(page.surface())\n"
+      "            for name, x, page in (('wide', -60, wide),\n"
+      "                                  ('narrow', 60, narrow))]\n"
+      "        frame = (world.Frame(world.group(eye, *cards).key('set'))\n"
+      "                 .pass_(wide.render(tree))\n"
+      "                 .pass_(narrow.render(tree)))\n"
+      "        still = ctx.bakeScene3D(frame, (128, 64), camera=lens,\n"
+      "                                background='#000000')\n"
+      "        ctx.render(compose.image(still).width(128).height(64)\n"
+      "                   if still is not None else compose.box())\n");
+  const SkBitmap pixels = bakedStill(source, "ranged", 128, 64);
+  ASSERT_FALSE(pixels.isNull());
+  const SkColor wide = pixels.getColor(46, 32);
+  const SkColor narrow = pixels.getColor(82, 32);
+  EXPECT_GT(SkColorGetG(narrow), 40u) << "the clipped card still glows";
+  EXPECT_GT(SkColorGetG(wide), SkColorGetG(narrow) + 40)
+      << "the range of four keeps the emission of three it was painted with";
+}
+
+TEST_F(SketchPythonBakes, ASizedLightsShadowIsSofterFartherFromItsCaster) {
+  PythonSource source("sigil_python_shadow_size");
+  // Seen from straight above, a white ground lit at forty-five degrees
+  // from the left by a sun casting shadows, and two slabs hung over it at
+  // the left, one low over the lower half and one high over the upper:
+  // each throws its shadow to the right by its height. The sun spans
+  // eight degrees in the right-hand bake and is a point in the left-hand
+  // one, so on the right the high slab's shadow edge is soft and the low
+  // one's nearly sharp, and on the left both are sharp.
+  source.write(
+      "entry.py",
+      "from sigil import material, world\n"
+      "from sigil.geometry import mesh\n"
+      "from sigil.sketch import sketch\n"
+      "\n"
+      "@sketch(size=(512, 256), background='#000000', capture_at=0)\n"
+      "class Shadowed:\n"
+      "    needsDevice = True\n"
+      "\n"
+      "    def setup(self, ctx):\n"
+      "        lens = mesh.camera.Camera()\n"
+      "        lens.eye = (0, 0, 400)\n"
+      "        lens.target = (0, 0, 0)\n"
+      "        matte = material.from_('#e0e0e0').surface(roughness=1.0)\n"
+      "        def scene(size):\n"
+      "            ground = world.mesh(mesh.quad(600, 600)).key('ground')"
+      ".fill(matte)\n"
+      "            low = world.mesh(mesh.box((-110, -90, 30), (-50, -30, 40)))"
+      ".key('low').fill(matte)\n"
+      "            high = world.mesh(mesh.box((-110, 30, 120), (-50, 90, 130)))"
+      ".key('high').fill(matte)\n"
+      "            sun = world.directionalLight((1, 0, -1), castShadow=True,\n"
+      "                shadow=world.LightShadow(size=size)).key('sun')\n"
+      "            return world.Frame(world.group(sun, ground, low, high)"
+      ".key('set'))\n"
+      "        self.stills = [ctx.bakeScene3D(scene(size), (256, 256),\n"
+      "                                       camera=lens,\n"
+      "                                       background='#000000')\n"
+      "                       for size in (0.0, 8.0)]\n"
+      "\n"
+      "    def draw(self, pen, ctx):\n"
+      "        for index, still in enumerate(self.stills):\n"
+      "            if still is not None:\n"
+      "                pen.image(still, 256 * index, 0)\n");
+  const SkBitmap pixels = bakedStill(source, "shadowed", 512, 256);
+  ASSERT_FALSE(pixels.isNull());
+  // Where a world x on the ground lands across one 256-pixel bake: the
+  // lens sees 2·400·tan(20°) units across it.
+  const double unitsAcross = 2 * 400 * std::tan(20.0 * M_PI / 180.0);
+  const auto column = [&](int bake, double x) {
+    return bake * 256 + int(std::lround(128 + x * 256 / unitsAcross));
+  };
+  const auto row = [&](double y) {
+    return int(std::lround(128 - y * 256 / unitsAcross));
+  };
+  const auto lightness = [&](int x, int y) {
+    return int(SkColorGetG(pixels.getColor(x, y)));
+  };
+  // How many pixels a shadow's right edge takes to rise from a fifth of
+  // the lit ground to four fifths of it, walking right from inside it.
+  const auto edgeWidth = [&](int bake, double shadowX, double y) {
+    const int lit = lightness(column(bake, 135), row(y));
+    int dark = -1;
+    int bright = -1;
+    for (int x = column(bake, shadowX); x < column(bake, 135); ++x) {
+      const int value = lightness(x, row(y));
+      if (dark < 0 && value > lit / 5) dark = x;
+      if (value > lit * 4 / 5) {
+        bright = x;
+        break;
+      }
+    }
+    return dark < 0 || bright < 0 ? -1 : bright - dark;
+  };
+  ASSERT_GT(lightness(column(1, 135), row(60)), 60) << "the ground is lit";
+  ASSERT_LT(lightness(column(1, 45), row(60)), 30)
+      << "the high slab shades the ground at its right";
+  const int pointLow = edgeWidth(0, -30, -60);
+  const int pointHigh = edgeWidth(0, 45, 60);
+  const int sizedLow = edgeWidth(1, -30, -60);
+  const int sizedHigh = edgeWidth(1, 45, 60);
+  ASSERT_GE(pointLow, 0);
+  ASSERT_GE(pointHigh, 0);
+  ASSERT_GE(sizedLow, 0);
+  ASSERT_GE(sizedHigh, 0);
+  EXPECT_GT(sizedHigh, sizedLow + 5)
+      << "a sized sun's penumbra widens with the caster's height";
+  EXPECT_GT(sizedHigh, pointHigh + 5)
+      << "a point sun casts the same shadow sharp";
+  EXPECT_LE(pointHigh, pointLow + 3)
+      << "a point sun's edge is as sharp high as low";
 }
 
 TEST_F(SketchPythonBakes, AKeyframedTurnBakedAtAMomentStandsBetweenItsSteps) {

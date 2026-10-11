@@ -2,13 +2,14 @@
 
 import gc
 import math
+import os
 import socket
 import tempfile
 import time
 import unittest
 from pathlib import Path
 
-from sigil import io
+from sigil import io, skia, weave
 
 
 def receive(feed):
@@ -42,6 +43,35 @@ class IO(unittest.TestCase):
             )
             self.assertIsNone(hub.read("out://missing"))
             self.assertFalse(hub.write("https://example.invalid/output", b"x"))
+
+    def test_a_bundled_font_loads_as_a_typeface_and_reloads_when_replaced(self):
+        instruments = (
+            Path(__file__).resolve().parents[3] / "spell-circle-canvas/src/test/assets"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            bundled = Path(directory) / "face.ttf"
+            bundled.write_bytes((instruments / "Sans.ttf").read_bytes())
+            hub = io.Hub()
+            hub.mount("res://", Path(directory))
+            # An owned hub knows no font until Weave puts its decoder on.
+            self.assertIsNone(hub.load(skia.Typeface, "res://face.ttf"))
+            weave.registerDecoders(hub)
+            face = hub.load(skia.Typeface, "res://face.ttf")
+            self.assertIsNotNone(face)
+            self.assertEqual(face.familyName(), "Sigil Instrument Sans")
+            self.assertEqual(
+                hub.load(skia.Typeface, "res://face.ttf").familyName(),
+                face.familyName(),
+            )
+            self.assertIsNone(hub.load(skia.Typeface, "res://missing.ttf"))
+            bundled.write_bytes((instruments / "HanSerif.ttf").read_bytes())
+            later = time.time() + 5
+            os.utime(bundled, (later, later))
+            hub.poll()
+            self.assertNotEqual(
+                hub.load(skia.Typeface, "res://face.ttf").familyName(),
+                "Sigil Instrument Sans",
+            )
 
     def test_arrivals_copy_buffers_and_survive_feed_destruction(self):
         feed = io.Feed("fixture://owned", io.ListenOptions(capacity=2))

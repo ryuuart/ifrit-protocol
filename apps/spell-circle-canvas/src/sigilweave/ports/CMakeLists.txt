@@ -7,8 +7,8 @@ find_package(boost_unordered CONFIG REQUIRED)
 find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilWeavePorts
   SOURCES SystemFontManager.cpp GenericFamilyManager.cpp
-          GenericFamilyManager.h
-  HEADERS SystemFontManager.h
+          GenericFamilyManager.h Resource.cpp
+  HEADERS SystemFontManager.h Resource.h
   PUBLIC SigilWeaveStyle unofficial::skia::skia
   PRIVATE Boost::unordered)
 
@@ -31,4 +31,10 @@ sigil_test(weave_test
 # label.
 sigil_test(weave_test
   SOURCES test/StandardExceptionsTest.cpp
+  LIBRARIES SigilWeavePorts)
+
+# A font file's bytes as a face, read from the committed instrument faces,
+# so it needs no installed font either.
+sigil_test(weave_test
+  SOURCES test/ResourceTest.cpp
   LIBRARIES SigilWeavePorts)

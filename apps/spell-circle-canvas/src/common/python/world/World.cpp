@@ -1,5 +1,6 @@
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
+#include <sigilmaterial/texture/Texture.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/geometry/Casters.h>
@@ -263,7 +264,15 @@ void bindLights(py::module_& module) {
       .def_readwrite("radius", &world::LightShadow::radius)
       .def_readwrite("mapSize", &world::LightShadow::mapSize)
       .def_readwrite("distance", &world::LightShadow::distance)
-      .def_readwrite("cascades", &world::LightShadow::cascades);
+      .def_readwrite("cascades", &world::LightShadow::cascades)
+      .def_readwrite(
+          "size", &world::LightShadow::size,
+          "How wide the source the shadow is cast from is: for a directional "
+          "light the angle across the sky it spans, in degrees, and for a "
+          "point or spot light its diameter in scene units. A source with a "
+          "width casts a penumbra that widens with the distance between a "
+          "caster and what it shades. Zero is a point; a rect, disk or "
+          "sphere light casts from its own size whatever this says.");
   py::class_<world::LightDescription>(module, "LightDescription")
       .def_readonly("kind", &world::LightDescription::kind)
       .def_readonly("direction", &world::LightDescription::direction)
@@ -762,6 +771,22 @@ void bindWorld(py::module_& root) {
           py::arg("rotation") = 0, py::arg("shown") = 0, py::arg("blur") = 0,
           py::arg("groundRadius") = 0, fluent)
       .def("pass_", &world::Frame::pass, py::arg("pass_"), fluent)
+      .def("overlay", &world::Frame::overlay, py::arg("picture"),
+           "A picture laid over the finished frame, in display values after "
+           "the camera's reading: a page about the picture, a heads-up "
+           "display, a caption. Each is laid over the ones before it, and "
+           "the pass that paints it must be on the frame, as for a texture "
+           "a body wears.",
+           fluent)
+      .def_property_readonly(
+          "overlays",
+          [](const world::Frame& self) {
+            const auto pictures = self.overlays();
+            return std::vector<material::Texture>(pictures.begin(),
+                                                  pictures.end());
+          },
+          "The pictures laid over the finished frame, in the order they are "
+          "laid.")
       .def("present", py::overload_cast<std::string>(&world::Frame::present),
            py::arg("resource"), fluent);
   auto stats = py::class_<world::SceneStats>(module, "SceneStats");

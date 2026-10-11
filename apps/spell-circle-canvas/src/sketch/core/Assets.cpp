@@ -1,11 +1,12 @@
 #include "sigilsketch/core/Assets.h"
 
 #include <sigildata/read/Read.h>
-#include <sigilmedia/advanced/Resource.h>
 #include <sigilio/advanced/Network.h>
+#include <sigilio/advanced/Places.h>
 #include <sigilio/hub/Network.h>
 #include <sigilio/transport/Transport.h>
-#include <sigilio/advanced/Places.h>
+#include <sigilmedia/advanced/Resource.h>
+#include <sigilweave/ports/Resource.h>
 
 #include <span>
 #include <string>
@@ -49,6 +50,11 @@ Assets::Assets(std::filesystem::path root, std::filesystem::path sketches)
   // by the same machinery, and a sketch carries no literal table. A
   // database file answers the same way, opened in place.
   sigil::data::registerDecoders(m_hub);
+  // A font file is a resource too: with Weave's face decoder on,
+  // hub().load<weave::Face>("sketch://<key>/data/x.ttf") answers the face
+  // it holds, cached, held and read again on an edit like any asset, and
+  // a sketch in either language asks the same door for the same face.
+  sigil::weave::ports::registerDecoders(m_hub);
   // A resource that keeps ARRIVING is a feed, and a sketch opens one
   // through this same hub: with the transports registered,
   // hub().listen("udp://:27020") binds the port and every datagram that

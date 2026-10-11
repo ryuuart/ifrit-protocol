@@ -18,6 +18,8 @@
 #include <sigilpython/io/Hub.h>
 #include <sigilpython/io/Registration.h>
 #include <sigilpython/skia/Values.h>
+#include <sigilweave/advanced/Skia.h>
+#include <sigilweave/ports/Resource.h>
 
 #include <cmath>
 #include <cstring>
@@ -52,15 +54,14 @@ io::Bytes bytes(py::handle value) {
     ~Release() { PyBuffer_Release(view); }
   } release{&view};
   return io::Bytes(std::span(static_cast<const std::byte*>(view.buf),
-                            static_cast<size_t>(view.len)));
+                             static_cast<size_t>(view.len)));
 }
 
 py::object copiedBytes(const std::shared_ptr<const io::Bytes>& value) {
   if (!value) return py::none();
-  return py::bytes(value->empty()
-                       ? ""
-                       : reinterpret_cast<const char*>(value->data()),
-                   value->size());
+  return py::bytes(
+      value->empty() ? "" : reinterpret_cast<const char*>(value->data()),
+      value->size());
 }
 
 void validTime(double seconds) {
@@ -152,8 +153,7 @@ FeedLeases& feedLeases() {
   return leases;
 }
 struct FeedLease {
-  explicit FeedLease(io::Feed value)
-      : feed(std::move(value)) {}
+  explicit FeedLease(io::Feed value) : feed(std::move(value)) {}
   ~FeedLease() {
     unlocked([&] {
       auto& leases = feedLeases();
@@ -189,8 +189,9 @@ using SharedMemoryHandle = Serialized<io::SharedMemoryWriter>;
 HubHandle::HubHandle() : m_owner(std::make_shared<io::Hub>()) {}
 HubHandle::HubHandle(io::HubOptions options)
     : m_owner(std::make_shared<io::Hub>(std::move(options))) {}
-HubHandle::HubHandle(std::function<io::Hub&()> access,
-                     std::function<std::shared_ptr<io::Feed>(io::Feed)> retainFeed)
+HubHandle::HubHandle(
+    std::function<io::Hub&()> access,
+    std::function<std::shared_ptr<io::Feed>(io::Feed)> retainFeed)
     : m_access(std::move(access)), m_retainFeed(std::move(retainFeed)) {}
 HubHandle::~HubHandle() {
   unlocked([&] { m_owner.reset(); });
@@ -255,9 +256,8 @@ void bindIO(py::module_& module) {
       .def_readonly("uri", &io::Problem::uri)
       .def_readonly("message", &io::Problem::message)
       .def_readonly("line", &io::Problem::line)
-      .def("__eq__", [](const io::Problem& left, const io::Problem& right) {
-        return left == right;
-      })
+      .def("__eq__", [](const io::Problem& left,
+                        const io::Problem& right) { return left == right; })
       .def("__repr__", [](const io::Problem& problem) {
         return "Problem(" + problem.uri +
                (problem.line ? ":" + std::to_string(*problem.line) : "") +
@@ -319,8 +319,8 @@ void bindIO(py::module_& module) {
       .def(py::self == py::self)
       .def(py::self != py::self);
   py::class_<io::Message>(resources, "Message")
-      .def(py::init([](py::handle payload, std::string sender,
-                       double arrivedAt, uint64_t revision) {
+      .def(py::init([](py::handle payload, std::string sender, double arrivedAt,
+                       uint64_t revision) {
              return io::Message(
                  std::make_shared<const io::Bytes>(bytes(payload)),
                  std::move(sender), std::chrono::duration<double>(arrivedAt),
@@ -333,13 +333,12 @@ void bindIO(py::module_& module) {
           "arrivedAt",
           [](const io::Message& value) { return value.arrivedAt().count(); })
       .def_property_readonly("sender", &io::Message::sender)
-      .def_property_readonly(
-          "receivedAt",
-          [](const io::Message& value) {
-            return std::chrono::duration<double>(
-                       value.receivedAt().time_since_epoch())
-                .count();
-          })
+      .def_property_readonly("receivedAt",
+                             [](const io::Message& value) {
+                               return std::chrono::duration<double>(
+                                          value.receivedAt().time_since_epoch())
+                                   .count();
+                             })
       .def_property(
           "payload",
           [](const io::Message& value) {
@@ -351,10 +350,9 @@ void bindIO(py::module_& module) {
             value.payload = std::make_shared<const io::Bytes>(bytes(payload));
           });
   py::class_<io::Recording>(resources, "Recording")
-      .def("stop",
-           [](io::Recording& recording) {
-             unlocked([&] { recording.stop(); });
-           })
+      .def(
+          "stop",
+          [](io::Recording& recording) { unlocked([&] { recording.stop(); }); })
       .def("stopped", &io::Recording::stopped)
       .def(
           "__enter__",
@@ -369,9 +367,9 @@ void bindIO(py::module_& module) {
   py::class_<FeedHandle>(resources, "Feed")
       .def(py::init<std::string, io::ListenOptions>(), py::arg("uri"),
            py::arg("options") = io::ListenOptions{})
-#define SIGIL_FEED_METHOD(name)                    \
-  .def(#name, [](const FeedHandle& value) {        \
-    auto feed = value.get();                       \
+#define SIGIL_FEED_METHOD(name)                   \
+  .def(#name, [](const FeedHandle& value) {       \
+    auto feed = value.get();                      \
     return unlocked([&] { return feed.name(); }); \
   })
           SIGIL_FEED_METHOD(receive) SIGIL_FEED_METHOD(latest)
@@ -384,8 +382,7 @@ void bindIO(py::module_& module) {
              const std::string& to) {
             const auto copied = bytes(payload);
             auto feed = value.get();
-            return unlocked(
-                [&] { return feed.send(copied, {.to = to}); });
+            return unlocked([&] { return feed.send(copied, {.to = to}); });
           },
           py::arg("payload"), py::arg("to") = "")
       .def(
@@ -419,8 +416,10 @@ void bindIO(py::module_& module) {
           [](const io::Inlet& inlet, py::handle payload, double arrivedAt) {
             validTime(arrivedAt);
             auto copied = bytes(payload);
-            unlocked([&] { inlet.deliver(std::move(copied),
-                                        std::chrono::duration<double>(arrivedAt)); });
+            unlocked([&] {
+              inlet.deliver(std::move(copied),
+                            std::chrono::duration<double>(arrivedAt));
+            });
           },
           py::arg("bytes"), py::arg("arrivedAt"))
       .def(
@@ -444,16 +443,25 @@ void bindIO(py::module_& module) {
              const std::string& uri) -> py::object {
             auto& hub = value.get();
             if (type.is(py::type::of<media::Image>())) {
-              auto image = unlocked(
-                  [&] { return hub.load<media::Image>(uri); });
-              return image ? py::cast(std::const_pointer_cast<media::Image>(image))
+              auto image =
+                  unlocked([&] { return hub.load<media::Image>(uri); });
+              return image ? py::cast(
+                                 std::const_pointer_cast<media::Image>(image))
                            : py::none();
             }
             if (type.is(py::type::of<media::Video>())) {
-              auto video = unlocked(
-                  [&] { return hub.load<media::Video>(uri); });
-              return video ? py::cast(std::const_pointer_cast<media::Video>(video))
+              auto video =
+                  unlocked([&] { return hub.load<media::Video>(uri); });
+              return video ? py::cast(
+                                 std::const_pointer_cast<media::Video>(video))
                            : py::none();
+            }
+            // A font file is asked for as the typeface Python holds, and
+            // answered with the face the hub keeps for that URI, so a
+            // sketch in either language reads the same face.
+            if (type.is(py::type::of<SkTypeface>())) {
+              auto face = unlocked([&] { return hub.load<weave::Face>(uri); });
+              return face ? py::cast(weave::toSk(*face)) : py::none();
             }
             return loadData(hub, type, uri);
           },
@@ -512,7 +520,8 @@ void bindIO(py::module_& module) {
           [](const HubHandle& value, std::string prefix,
              std::filesystem::path path) {
             auto& hub = value.get();
-            unlocked([&] { io::mount(hub, std::move(prefix), std::move(path)); });
+            unlocked(
+                [&] { io::mount(hub, std::move(prefix), std::move(path)); });
           },
           py::arg("prefix"), py::arg("path"))
       .def(
@@ -557,14 +566,15 @@ void bindIO(py::module_& module) {
           [](const HubHandle& value, const std::string& uri,
              io::ListenOptions options) {
             auto& hub = value.get();
-            return FeedHandle(unlocked([&] { return hub.listen(uri, options); }),
-                              value);
+            return FeedHandle(
+                unlocked([&] { return hub.listen(uri, options); }), value);
           },
           py::arg("uri"), py::arg("options") = io::ListenOptions{})
       .def(
           "replay",
           [](const HubHandle& value, const std::string& uri,
-             const std::filesystem::path& recording, io::ListenOptions options) {
+             const std::filesystem::path& recording,
+             io::ListenOptions options) {
             auto& hub = value.get();
             return FeedHandle(unlocked([&] {
                                 return hub.replay(uri, recording.string(),
@@ -594,15 +604,15 @@ void bindIO(py::module_& module) {
           [](const HubHandle& value, double time) {
             validTime(time);
             auto& hub = value.get();
-            unlocked([&] {
-              io::advance(hub, std::chrono::duration<double>(time));
-            });
+            unlocked(
+                [&] { io::advance(hub, std::chrono::duration<double>(time)); });
           },
           py::arg("time"))
-      .def("problems",
-           [](const HubHandle& value) { return value.get().problems(); },
-           "What a library reading through this hub could not make of a "
-           "resource, one Problem per URI.")
+      .def(
+          "problems",
+          [](const HubHandle& value) { return value.get().problems(); },
+          "What a library reading through this hub could not make of a "
+          "resource, one Problem per URI.")
       .def("poll",
            [](const HubHandle& value) {
              auto& hub = value.get();
@@ -612,7 +622,8 @@ void bindIO(py::module_& module) {
           "setNetworkCacheDirectory",
           [](const HubHandle& value, std::filesystem::path path) {
             auto& hub = value.get();
-            unlocked([&] { io::setNetworkCacheDirectory(hub, std::move(path)); });
+            unlocked(
+                [&] { io::setNetworkCacheDirectory(hub, std::move(path)); });
           },
           py::arg("path"))
       .def(
@@ -684,6 +695,19 @@ void bindIO(py::module_& module) {
             unlocked([&] { media::registerDecoders(hub); });
           },
           py::arg("hub"));
+  // So does SigilWeave for a font file: an owned hub loads a Typeface
+  // once this has run, and a session's hub already has.
+  submodule(module, "weave")
+      .def(
+          "registerDecoders",
+          [](const HubHandle& value) {
+            auto& hub = value.get();
+            unlocked([&] { weave::ports::registerDecoders(hub); });
+          },
+          py::arg("hub"),
+          "Puts the font-file decoder on an owned hub, after which "
+          "hub.load(skia.Typeface, uri) answers the face a bundled font "
+          "holds, cached and read again on an edit like any resource.");
 }
 
 }  // namespace sigil::python

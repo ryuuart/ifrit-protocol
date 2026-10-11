@@ -268,6 +268,57 @@ class HostContextSurface(unittest.TestCase):
         for refusal in refusals:
             self.assertIn("positive", refusal)
 
+    def test_a_page_states_its_range_and_dresses_a_body_with_one_region(self):
+        # A page's range says what its maps stand for at their white, and
+        # one page dresses several bodies with a region each. This process
+        # brings no device up, so nothing is baked; the values are made
+        # all the same.
+        self.render("""
+            import builtins
+            from sigil import compose, material
+            from sigil.sketch import sketch
+
+
+            @sketch(size=(80, 80), capture_at=0)
+            class Paged:
+                def setup(self, ctx):
+                    stated = compose.SurfaceRange(emission=8, thickness=2)
+                    page = ctx.page((64, 32), range=stated)
+                    learned = ctx.page((64, 32))
+                    left = page.surface(
+                        material.PixelRect(x=0, y=0, width=32, height=32)
+                    )
+                    right = page.surface(region=material.PixelRect(x=32, width=32, height=32))
+                    refused = None
+                    try:
+                        compose.SurfaceRange(brightness=2)
+                    except TypeError as error:
+                        refused = str(error)
+                    builtins._sigil_host_context = (
+                        (stated.emission, stated.thickness, stated.distortion),
+                        stated == compose.SurfaceRange(emission=8, thickness=2),
+                        isinstance(left, material.Material),
+                        left == right,
+                        learned.name,
+                        refused,
+                    )
+                    ctx.render(compose.box())
+        """)
+        (
+            readings,
+            equal,
+            is_material,
+            same_region,
+            learned,
+            refused,
+        ) = builtins._sigil_host_context
+        self.assertEqual(readings, (8, 2, 0))
+        self.assertTrue(equal)
+        self.assertTrue(is_material)
+        self.assertFalse(same_region)
+        self.assertEqual(learned, "page 2")
+        self.assertIn("brightness", refused)
+
     def test_required_art_stands_a_sketch_down_with_the_first_missing_url(self):
         with tempfile.TemporaryDirectory() as directory:
             empty = Path(directory) / "nothing-fetched"

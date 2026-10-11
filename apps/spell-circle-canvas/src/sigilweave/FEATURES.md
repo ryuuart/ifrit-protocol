@@ -342,7 +342,8 @@ edits, DOM-Range style. `query/Selector.h` is the same question written
 down rather than asked: `Selector` and the `selectors::` vocabulary.
 
 Separate from the engine: **`ports`** (`ports/SystemFontManager.h`, the OS
-font manager), **`kit`** (`kit/`, the companion utilities, with its own
+font manager, and `ports/Resource.h`, a font file read as a face on a
+resource hub), **`kit`** (`kit/`, the companion utilities, with its own
 README) and **`qt`** (`qt/SigilWeaveQt.h`, the Qt bridge).
 
 ### The Unicode leaf

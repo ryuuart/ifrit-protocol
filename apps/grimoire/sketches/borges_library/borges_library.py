@@ -6,6 +6,9 @@ Four book walls, two open sides and a central well form each hexagon.
 The perspective, joinery, connecting route and reader's ledger are authored.
 """
 
+NAME = "The Library of Babel"
+CATEGORY = "Study · Literature"
+
 from math import cos, exp, hypot, pi, sin
 from random import Random
 

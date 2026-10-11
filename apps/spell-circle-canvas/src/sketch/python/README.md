@@ -40,6 +40,18 @@ baked frame lights, which `Module.cpp` registers before the context so the
 context's `page` answers the class an author imports. `kit/Specimen.cpp` binds sketch specimen values and
 typed theme providers.
 
+## Registration
+
+`cmake/register_sketches.py` writes the registry entries for the Python
+sketches a host bundles, reading each source as a syntax tree and never
+running it: a file joins only when it declares a `@sketch` class. The key
+is the file's stem. A literal `NAME` and `CATEGORY` string in the module
+give the name the entry is filed under and its category, defaulting to
+the stem and `Python`; `REQUIRES` names the modules its availability
+probe asks for, and the module docstring's first paragraph is its blurb.
+A declaration that is not a literal string stops the build naming the
+file.
+
 ## Ownership
 
 The core `SigilSketch` target does not link Python. Hosts opt into Python loading

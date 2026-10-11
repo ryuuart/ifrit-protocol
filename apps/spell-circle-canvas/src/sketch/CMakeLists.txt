@@ -80,7 +80,9 @@ set(SIGIL_SKETCH_PRIVATE
   # consumer that links the transports.
   SigilIOTransport
   SigilGeometryDevice SigilSkiaGraphite SigilMediaVideoDecode
-  SigilMediaImageEncode SigilMediaVideoEncode SigilWeaveFonts)
+  SigilMediaImageEncode SigilMediaVideoEncode SigilWeaveFonts
+  # A font file read as a face is a resource the host's hub answers.
+  SigilWeavePorts)
 # The one WebEngine Ultralight permits in a process, lent to every sketch
 # that asks for it. SigilScry itself keeps explicit caller ownership as
 # its ordinary path; a host that configures the shared engine opts in.

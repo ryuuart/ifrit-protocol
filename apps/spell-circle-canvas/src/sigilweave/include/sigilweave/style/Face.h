@@ -19,6 +19,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 
@@ -67,8 +68,9 @@ class Face {
     requires AdaptsToFace<Native> &&
              (!std::same_as<std::remove_cvref_t<Native>, Face>)
   Face(Native native)  // NOLINT(google-explicit-constructor)
-      : Face(FaceAdapter<std::remove_cvref_t<Native>>::wrap(
-            std::move(native))) {}
+      : Face(
+            FaceAdapter<std::remove_cvref_t<Native>>::wrap(std::move(native))) {
+  }
 
   Face(const Face& other);
   Face(Face&& other) noexcept;
@@ -108,5 +110,13 @@ class Face {
   struct Handle;
   const Handle* m_native = nullptr;
 };
+
+/** WHAT A FACE IS CALLED ON A RESOURCE HUB: the one name a hub registers
+ *  and asks this library's face decoder under, found by argument-dependent
+ *  lookup, so `hub.load<Face>(uri)` answers wherever the decoder is on the
+ *  hub, whichever image of the program asks. */
+inline std::string_view meaningName(std::type_identity<Face>) {
+  return "weave.Face";
+}
 
 }  // namespace sigil::weave

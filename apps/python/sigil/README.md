@@ -528,6 +528,15 @@ interpreter does not have and exits nonzero rather than starting the host.
 This declaration checks availability; it does not
 install packages or choose an environment.
 
+A bundled sketch is registered under its file stem, which stays the key
+`--sketch`, `--list` and the registry answer to. Two more literal module
+declarations say how the catalogue shows it: `NAME = "The Library of
+Babel"` is the name a browser files it under, and `CATEGORY = "Study ·
+Literature"` the category it is filed in, as a C++ study states both
+beside its key. Without them a sketch reads as its stem in the `Python`
+category. Each must be a literal, non-empty string; registration reads
+them from the source without running it, and refuses anything else.
+
 The application's normal build setup includes Python support. From
 `apps/spell-circle-canvas`, build the host and standalone extension:
 
@@ -1320,6 +1329,15 @@ style's `foregroundMaterial` are shaded over the glyphs their pass covers by
 the resolver a sketch session installs; drawn where no resolver is installed,
 the pass keeps its Skia paint. The parity table tracks the remaining work
 independently of which native libraries are linked.
+
+A font file a sketch carries is a resource like an image: on a session's
+hub, `ctx.assets.hub().load(skia.Typeface, ctx.local("data/Face.ttf"))`
+answers the face it holds, which `pen.textFont` and a shaping style's
+`typeface` take. The hub keeps one face per resource, so a C++ sketch
+asking `hub.load<weave::Face>` for the same URI gets the same face, and a
+file edited on disk is read again as a new face the next time it is asked
+for. An owned hub knows no font until `weave.registerDecoders(hub)` puts
+the decoder on it.
 
 ## Data values and native resources
 

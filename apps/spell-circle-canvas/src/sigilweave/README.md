@@ -438,7 +438,7 @@ own.
 | `SigilWeaveChoreograph` | per-glyph choreography | — |
 | `SigilWeaveQuery` | range search and markers | ICU, private |
 | `SigilWeave` | interface over every target above | — |
-| `SigilWeavePorts` | `ports::systemFontManager()` — CoreText on Apple; DirectWrite and Fontconfig slot into the same call — which answers CSS's generic names `serif`, `sans-serif`, `monospace` and `system-ui` with the first installed of the families `ports::genericFamilies()` names for each on the platform; `ports::pickTypeface()`, the first installed family of a fallback chain, and `ports::face()`, that resolution kept once per chain and style so every face compared by pointer compares equal. Both take the chain either spelled out where the call is written or as a span of names assembled at run time, and both spellings reach the one holder | Skia platform ports |
+| `SigilWeavePorts` | `ports::systemFontManager()` — CoreText on Apple; DirectWrite and Fontconfig slot into the same call — which answers CSS's generic names `serif`, `sans-serif`, `monospace` and `system-ui` with the first installed of the families `ports::genericFamilies()` names for each on the platform; `ports::pickTypeface()`, the first installed family of a fallback chain, and `ports::face()`, that resolution kept once per chain and style so every face compared by pointer compares equal. Both take the chain either spelled out where the call is written or as a span of names assembled at run time, and both spellings reach the one holder; `ports::faceFromBytes()`, the face a font file's bytes hold, and `ports::registerDecoders()`, which puts that read on a resource hub so `hub.load<Face>(uri)` answers a bundled font cached, held and reloaded as the hub holds any resource, under the name `meaningName()` gives a face | Skia platform ports |
 | `SigilWeaveKit` | consumer-side discipline: rebuild/layout guards, glyph bucketing, label shorthand, sample content, the named OpenType feature presets, the three arrangements of a paint layer everyone writes, and the line-edge and hyphenation tables | SigilWeaveUnicode — private |
 | `SigilWeaveTesting` | the library's own harness, linked by test binaries alone: a passage laid under a stated font context (`testing::lay`), read back as values (`testing::read`), rendered on the CPU (`testing::Plate`) and held against a committed baseline (`testing::compareToBaseline`) | SigilMediaDifference (public: a comparison carries the `media::PixelDifference` it found); SigilMediaImageDecode, SigilMediaImageEncode and SigilIOSource for the baseline file — private |
 | `SigilWeaveQt` | interface target: `QFont` → `SkTypeface`, `QString` ↔ `Paragraph` with no transcoding; defined only when the tree builds with `SIGIL_BUILD_APPS` | Qt6::Gui |
@@ -548,11 +548,12 @@ Skia stays named where it is what the entrance is about:
   and release their inputs when those batches are cleared.
   `PaintStyle::foregroundMaterial` and `PaintLayer::material` can retain
   SigilMaterial descriptions; the host's `paint::setMaterialResolver`
-  supplies their shaders over the glyph ink bounds of the run or the
-  `drawBatched` bucket, before layer offsets, strokes or filters.
-  `GlyphRSXformBatches` consults no resolver: a glyph added there draws
-  each pass's configured paint, so a span its material shades at rest
-  draws in its configured foreground while it moves. Transformed and unshaped blobs
+  supplies their shaders over the glyph ink bounds of the run, the
+  `drawBatched` bucket or the `GlyphRSXformBatches` bucket, before layer
+  offsets, strokes or filters, asked once per bucket through
+  `paint::resolveMaterial`. A glyph batch measures its ink where its glyphs
+  stand, so one material paints a glyph the same way at rest and while it
+  moves, and a pass's material is part of its bucket's key. Transformed and unshaped blobs
   use conservative bounds; whitespace may have empty bounds. Resolution
   replaces only the configured paint's shader. Without a resolver or a returned shader,
   the configured paint stands. All paragraph draws paint every underlay
@@ -693,7 +694,8 @@ What each feature's `test/` holds:
   the process, a generic name answered as the platform's first installed
   family for it, a fallback chain that runs out onto the default family at
   the style it was asked for, and the face the port holds once per ask so
-  that everything keyed on a face by pointer keys on one value.
+  that everything keyed on a face by pointer keys on one value; and a
+  font file's bytes read as the face the file holds.
 - `testing/test/` — the harness itself (`ReadingTest`, `BaselineTest`),
   over the instrument faces and a scratch directory, and THE PLATES: nine
   pictures of what only this library draws, one case each, rendered

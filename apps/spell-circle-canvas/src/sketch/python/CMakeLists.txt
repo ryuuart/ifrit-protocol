@@ -29,7 +29,7 @@ target_compile_definitions(SigilSketchPython PRIVATE
 sigil_test(sketch_test
   SOURCES test/PythonTest.cpp
   SUPPORT_DIRS ${SIGIL_GEOMETRY_DEVICE_TEST_SUPPORT_DIR}
-  LIBRARIES SigilSketchPython SigilPython SigilWorldDiligent
+  LIBRARIES SigilSketchPython SigilPython SigilWorldDiligent SigilWeavePorts
   SUITES SketchPythonBakes
   LABELS gpu)
 

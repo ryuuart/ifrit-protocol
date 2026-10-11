@@ -15,7 +15,7 @@ import weakref
 from sigil import world
 from sigil.geometry import mesh
 from sigil.geometry.mesh import curve, pop
-from sigil.material import Color, Material
+from sigil.material import Color, Material, Sampling, Texture
 from sigil.material import surface as surfaces
 from sigil.motion import animatable
 
@@ -142,6 +142,41 @@ class World(unittest.TestCase):
         self.assertEqual(sun.description.shadowLink.exclude, ["glass"])
         self.assertFalse(world.pointLight().description.castShadow)
         self.assertIsInstance(body().castShadow(False).receiveShadow(False), world.Mesh)
+
+    def test_a_shadow_states_the_width_of_the_source_it_is_cast_from(self):
+        # A shadow's size is the width of what casts the light, not a
+        # filter: a point by default, and the angle a directional light
+        # spans or a point light's diameter once stated.
+        self.assertEqual(world.LightShadow().size, 0)
+        sun = world.directionalLight(
+            (0, -1, 0), castShadow=True, shadow=world.LightShadow(size=8)
+        )
+        self.assertEqual(sun.description.shadow.size, 8)
+        lamp = world.spotLight(
+            (0, -1, 0), castShadow=True, shadow=world.LightShadow(size=4, radius=2)
+        )
+        self.assertEqual(lamp.description.shadow.size, 4)
+        self.assertEqual(lamp.description.shadow.radius, 2)
+        shadow = world.LightShadow()
+        shadow.size = 1.5
+        self.assertEqual(shadow.copy().size, 1.5)
+
+    def test_a_frame_lays_its_overlays_in_the_order_given(self):
+        first, second = Texture(), Texture().sampling(Sampling.Nearest)
+        frame = world.Frame(body())
+        self.assertIs(frame.overlay(first), frame)
+        frame.overlay(second)
+        self.assertEqual(len(frame.overlays), 2)
+        self.assertEqual(frame.overlays[1].sampling(), Sampling.Nearest)
+
+    def test_a_surface_names_the_instance_lane_that_scales_its_thickness(self):
+        def drop(**lane):
+            return Material("#ffffff").surface(transmission=1.0, thickness=2.0, **lane)
+
+        self.assertEqual(
+            drop(thicknessAttribute="size"), drop(thicknessAttribute="size")
+        )
+        self.assertNotEqual(drop(thicknessAttribute="size"), drop())
 
     def test_lights_with_a_size_carry_it_and_the_kit_shows_them(self):
         panel = world.rectLight((0, -1, 0), width=4, height=2, intensity=3)

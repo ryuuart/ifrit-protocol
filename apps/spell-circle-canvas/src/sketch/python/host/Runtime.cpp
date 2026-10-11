@@ -270,6 +270,13 @@ class PythonSession final : public Session {
     const SkAutoCanvasRestore restore(&canvas, true);
     invoke([&] { m_session->frame(canvas, dt); });
   }
+  // Forwarded rather than left to the base, whose default paints: the
+  // wrapped session is the one that knows whether the sketch declared its
+  // unobserved steps need no painting.
+  void discardedFrame(SkCanvas& canvas, double dt) override {
+    const SkAutoCanvasRestore restore(&canvas, true);
+    invoke([&] { m_session->discardedFrame(canvas, dt); });
+  }
   void repaint(SkCanvas& canvas) override {
     const SkAutoCanvasRestore restore(&canvas, true);
     invoke([&] { m_session->repaint(canvas); });

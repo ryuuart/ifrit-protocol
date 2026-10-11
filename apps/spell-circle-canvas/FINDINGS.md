@@ -608,30 +608,6 @@ transforms should preserve the field's root anchoring; ordinary local-space
 paints should retain their existing local behavior.
 
 
-## API request: Python studies cannot declare a study category or display name
-
-The Borges architectural study carries literary-study tags and prose, but
-its native catalog row is registered with category `"Python"` and a display
-name equal to its file stem. `registration` in
-`src/sketch/python/cmake/register_sketches.py` fixes those arguments for
-every Python entry. The `@sketch` declaration accepts size, background and
-capture time; the sketch context does not expose a title or category setter.
-C++ study registration can declare both independently of the lookup key.
-
-Python is an authoring language rather than a visual subject. Wanted: a
-literal category and display-name declaration that the existing Python AST
-registration pass can read without importing the sketch, alongside its
-existing dependency metadata. A study should be able to declare
-`CATEGORY = "Study · Literature"` and an authored display name while keeping
-`borges_library` as its stable key. Other metadata spellings are possible;
-the requirement is equivalent author control across the two languages.
-
-A regression should register an explicit Python study category and display
-name, verify both in its catalog row and verify stem-based lookup. An entry
-without those declarations should retain documented defaults. The metadata
-reader should not execute module code to discover either value.
-
-
 ## Authoring difficulty: C++ studies depend on the mutable library header set
 
 While another pass edits public library headers, an existing Grimoire
@@ -821,23 +797,6 @@ construction. A regression should draw colored thin sprites and dense nib
 strokes at several subpixel translations and scales, assert nonzero smooth
 coverage along the whole run, and exercise raster and Graphite. It should
 also preserve tint and the stated destination blend mode.
-
-
-## API request: Python cannot load a bundled typeface as a resource
-
-The Mother-wall study authors its own machine glyphs and font data. The
-native C++ surface can construct a Skia face from data and adapt it into
-Weave. The inspected Python binding exposes Typeface.familyName and
-family-based weave.typeface lookup, but no file or bytes constructor.
-The study must assemble cached vector glyphs and their spacing itself to
-keep the authored face, despite Weave already owning those responsibilities.
-
-Wanted: a resource-hub typeface loader shared by both authoring languages,
-with the same cache, lifetime and reload semantics as other bundled assets.
-A regression should load a bundled face through both hosts, verify matching
-family and glyph advances, and replace its resource without leaving the
-previous face in a restarted session. This is a binding/resource gap, not
-a claim that native font loading is absent.
 
 
 ## API request: a tonal screen cannot use an arbitrary child material
@@ -1464,25 +1423,6 @@ frame, or the three swept rivulets rebuilt per frame is not measured.
 Profile it with the per-stage timers and `--bench`, name the cost, and
 fix it at the library if the cost is the library's.
 
-## Bug: a Python sketch's draw runs on every discarded capture step whatever it declares
-
-A capture stepped to its moment runs a Python scene2d sketch's `draw` on
-every pre-roll step even when the sketch declares
-`paintDiscardedFrames=False`, so a still at a moment costs as many bakes
-as there are steps to it. `python_carved_linework` pays about a hundred
-and twenty bakes for one still. The declaration should hold for a Python
-body as it does for a C++ one. A test should count `draw` calls in such a
-capture and find one.
-
-## Authoring gap: Python cannot wear one region of a page or state a page's range
-
-`sketch::Page::surface(material::PixelRect)` and `page(size,
-compose::SurfaceRange)` are not bound: `ctx.page` takes no range and
-`Page.surface` no region. Bind both and regenerate the typing; a Python
-test should dress two cards with two halves of one page and find each the
-colour of its half, and state an emission range and find a brighter bound
-emission unclipped.
-
 ## Contract limit: a page carries one volume
 
 A page states a range or learns one, but carries the first transmitting
@@ -1522,13 +1462,6 @@ cloud whose named lane is filled, while a hand-built `Instances` carries
 them; the lane is lost in cooking. A test should fill a lane on a cloud,
 instance a stamp with it named, and find the attribute on every instance.
 
-## Authoring gap: Python lacks a light's shadow size, an instance thickness attribute and a frame overlay
-
-`LightShadow::size`, `SurfaceOptions::thicknessAttribute` and
-`Frame::overlay` are not bound. Bind them and run the typing generator;
-a Python test should state a light's size and find its shadow softer away
-from the caster.
-
 ## Limit: a glass body's shadow is one colour, and a lens's back mirrors its front
 
 A transmissive body's shadow tint is one colour per body from the
@@ -1539,3 +1472,26 @@ tint should read the maps, and a body should be able to state a flat
 back. Tests: a glass with a transmission map casts a shadow that varies
 with it; a plano-convex body bends like one.
 
+## A page's surface described before the page first paints lacks the lobes paint states
+
+A frame described with `page.surface()` before the page's first `render`
+pass has run bakes the body without the optional lobe maps the page learns
+while painting, such as brushing, sheen and specular; only a frame
+described after that paint shows them. Baking twice from one description
+gives the incomplete picture; rebuilding the model after one paint gives
+the complete one. `python_carved_linework`, whose still now comes from a
+single draw, shows it against its plate. `sketch/scene3d/Page.h` states
+that a body wearing `surface()` is drawn with the maps from that same
+frame. A test should describe a frame whose page content states a lobe on
+a fresh page, bake once, and find the body's pixels equal to a second bake
+from a frame described after that paint.
+
+## Authoring gap: a workspace's Python sketch cannot state its name or category
+
+`sketch::catalog` in `src/sketch/core/Catalog.cpp` files an external
+workspace's sketch under its stem and its folder group, ignoring the
+`NAME` and `CATEGORY` a bundled Python sketch declares and the registry
+honours. A declaration the registry honours should hold wherever the
+sketch is catalogued. A test should catalogue a workspace `.py` file with
+`NAME` and `CATEGORY`, find both in its row, keep the stem as the key, and
+not execute the file.
