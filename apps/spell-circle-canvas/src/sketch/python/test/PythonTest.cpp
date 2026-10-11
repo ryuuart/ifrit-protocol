@@ -6,8 +6,8 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkFont.h>
-#include <include/core/SkFontTypes.h>
 #include <include/core/SkFontMgr.h>
+#include <include/core/SkFontTypes.h>
 #include <include/core/SkSurface.h>
 #include <include/core/SkTypeface.h>
 #include <include/utils/SkNoDrawCanvas.h>
@@ -23,14 +23,18 @@
 #include <sigilweave/ports/Resource.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <map>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
+#include <vector>
 
 #include "ScratchDir.h"
 #include "support/Devices.h"
@@ -1052,6 +1056,96 @@ TEST_F(SketchPythonBakes, ASizedLightsShadowIsSofterFartherFromItsCaster) {
       << "a point sun casts the same shadow sharp";
   EXPECT_LE(pointHigh, pointLow + 3)
       << "a point sun's edge is as sharp high as low";
+}
+
+/** A FRESH PAGE WEARING @p content, described before it first paints and
+ *  baked once, beside the same page baked from a frame described after
+ *  that paint: what the two halves of the picture show. */
+std::pair<SkBitmap, SkBitmap> firstAndSecondDescriptions(
+    std::string_view name, const std::string& content) {
+  PythonSource source(name);
+  source.write(
+      "entry.py",
+      "from sigil import compose, material, world\n"
+      "from sigil.geometry import mesh\n"
+      "from sigil.sketch import sketch\n"
+      "\n"
+      "@sketch(size=(192, 96), background='#000000', capture_at=0)\n"
+      "class Described:\n"
+      "    needsDevice = True\n"
+      "\n"
+      "    def setup(self, ctx):\n"
+      "        page = ctx.page((64, 64))\n"
+      "        lens = mesh.camera.Camera()\n"
+      "        lens.eye = (0, 0, 200)\n"
+      "        lens.target = (0, 0, 0)\n"
+      "        tree = " +
+          content +
+          "\n"
+          "        def frame():\n"
+          "            eye = world.camera(lens, "
+          "toneCurve=world.ToneCurve.Linear)"
+          ".key('eye')\n"
+          "            lamp = "
+          "world.pointLight(intensity=world.intensityAt(0.5, "
+          "150.0)).key('lamp').at((20, 30, 150))\n"
+          "            card = world.mesh(mesh.quad(120, 90)).key('card')"
+          ".fill(page.surface())\n"
+          "            return (world.Frame(world.group(eye, lamp, card)"
+          ".key('set'))\n"
+          "                    .pass_(page.render(tree)))\n"
+          "        self.stills = [ctx.bakeScene3D(frame(), (96, 96), "
+          "camera=lens, background='#000000') for _ in range(2)]\n"
+          "\n"
+          "    def draw(self, pen, ctx):\n"
+          "        for index, still in enumerate(self.stills):\n"
+          "            if still is not None:\n"
+          "                pen.image(still, 96 * index, 0)\n");
+  const SkBitmap both = bakedStill(source, name, 192, 96);
+  SkBitmap first, second;
+  if (both.isNull()) return {};
+  both.extractSubset(&first, SkIRect::MakeXYWH(0, 0, 96, 96));
+  both.extractSubset(&second, SkIRect::MakeXYWH(96, 0, 96, 96));
+  return {first, second};
+}
+
+/** How far apart two pictures of one size are: the largest difference of
+ *  any channel of any pixel. */
+int largestDifference(const SkBitmap& first, const SkBitmap& second) {
+  int largest = 0;
+  for (int y = 0; y < first.height(); ++y)
+    for (int x = 0; x < first.width(); ++x) {
+      const SkColor a = first.getColor(x, y);
+      const SkColor b = second.getColor(x, y);
+      for (int shift : {0, 8, 16, 24})
+        largest = std::max(largest, std::abs(int((a >> shift) & 0xff) -
+                                             int((b >> shift) & 0xff)));
+    }
+  return largest;
+}
+
+// Disabled while the device draws a surface restated by a texture pass
+// with its anisotropy map read otherwise than the same surface described
+// on the frame: the first bake's highlight lies differently from the
+// second's. The restated surface itself equals the later description's.
+TEST_F(SketchPythonBakes,
+       DISABLED_APageDescribedBeforeItsFirstPaintIsWornWithTheLobesItPaints) {
+  const std::vector<std::pair<std::string, std::string>> contents = {
+      {"brushed",
+       "compose.box().width(64).height(64).fill(material.from_('#e6e6e6')"
+       ".surface(metallic=1.0, roughness=0.35).brushed(strength=0.9))"},
+      {"anisotropic",
+       "compose.box().width(64).height(64).fill(material.from_('#e6e6e6')"
+       ".surface(metallic=1.0, roughness=0.35, anisotropy=0.9))"},
+  };
+  for (const auto& [name, content] : contents) {
+    SCOPED_TRACE(name);
+    const auto [first, second] = firstAndSecondDescriptions(
+        "sigil_python_first_description_" + name, content);
+    ASSERT_FALSE(first.isNull());
+    EXPECT_LE(largestDifference(first, second), 1)
+        << "the first bake wears the page as a later description does";
+  }
 }
 
 TEST_F(SketchPythonBakes, AKeyframedTurnBakedAtAMomentStandsBetweenItsSteps) {

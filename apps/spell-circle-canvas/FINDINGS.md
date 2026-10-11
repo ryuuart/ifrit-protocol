@@ -1365,19 +1365,24 @@ tint should read the maps, and a body should be able to state a flat
 back. Tests: a glass with a transmission map casts a shadow that varies
 with it; a plano-convex body bends like one.
 
-## A page's surface described before the page first paints lacks the lobes paint states
+## A surface restated by a texture pass is drawn with its anisotropy map read otherwise than the same surface described on the frame
 
-A frame described with `page.surface()` before the page's first `render`
-pass has run bakes the body without the optional lobe maps the page learns
-while painting, such as brushing, sheen and specular; only a frame
-described after that paint shows them. Baking twice from one description
-gives the incomplete picture; rebuilding the model after one paint gives
-the complete one. `python_carved_linework`, whose still now comes from a
-single draw, shows it against its plate. `sketch/scene3d/Page.h` states
-that a body wearing `surface()` is drawn with the maps from that same
-frame. A test should describe a frame whose page content states a lobe on
-a fresh page, bake once, and find the body's pixels equal to a second bake
-from a frame described after that paint.
+A page's surface described before the page first paints is restated onto
+the body after the paint (`PagePaint::restated` in
+`src/sketch/scene3d/Page.cpp`, then `Scene::Impl::restate` in
+`src/common/world/scene/Execute.cpp`). The restated surface equals the one
+a later description gets, and its parameters and lobe program reach the
+picture; its anisotropy map, though, shades differently from the same map
+in a described surface, on every frame that wears the stale description.
+The candidates are per-body state taken at extraction from the described
+material (`component::Surface` in `scene/Phases.cpp`) and how `drawBody`
+in `diligent/Geometry.cpp` binds that slot. A restated surface should be
+drawn exactly as if it had been described on the frame, as
+`sketch/scene3d/Page.h` states. The test is
+`SketchPythonBakes.DISABLED_APageDescribedBeforeItsFirstPaintIsWornWithTheLobesItPaints`
+in `src/sketch/python/test/PythonTest.cpp`; it passes with the prefix
+removed once this holds. `python_carved_linework`'s device plate shows the
+stale picture until then and is not rebased.
 
 ## Authoring gap: a workspace's Python sketch cannot state its name or category
 
