@@ -4,8 +4,8 @@
  * time reaches its end when the engine's events arrive, and the drive a
  * capture takes stops on the frame the door's own waits stop on.
  *
- * One engine at a time stands over the process's renderer, so these are
- * cases ctest runs in processes of their own.
+ * One engine at a time stands over the process's renderer, so the suite
+ * holds one engine for its cases and lets it go when it ends.
  */
 
 #include <gtest/gtest.h>
@@ -74,11 +74,24 @@ Sequence walked() {
           .whole = true};
 }
 
-/** The one engine this process boots. */
-std::shared_ptr<WebEngine> engine() {
-  static std::shared_ptr<WebEngine> held = WebEngine::create(WebEngineConfig{});
-  return held;
-}
+/** THE ENGINE THESE CASES SHARE, booted by the first of them and let go
+ *  when the suite ends. One engine at a time stands over the process's
+ *  renderer, so one held past the suite would leave every later suite in
+ *  the same process with no engine to boot. */
+class SketchSettling : public ::testing::Test {
+ protected:
+  static std::shared_ptr<WebEngine> engine() {
+    if (!held()) held() = WebEngine::create(WebEngineConfig{});
+    return held();
+  }
+  static void TearDownTestSuite() { held().reset(); }
+
+ private:
+  static std::shared_ptr<WebEngine>& held() {
+    static std::shared_ptr<WebEngine> one;
+    return one;
+  }
+};
 
 /** EVERY CORE OF THIS MACHINE SPUN for as long as this stands — the
  *  parallel load a sweep of several scenes at once puts a settle under,
@@ -128,7 +141,7 @@ bool advanceToTheEnd(sigil::sketch::scry::Settling& settling) {
   return false;
 }
 
-TEST(SketchSettling, TheReadingsAnswerWhateverThePageHasReachedAndNeverWait) {
+TEST_F(SketchSettling, TheReadingsAnswerWhateverThePageHasReachedAndNeverWait) {
   const std::shared_ptr<WebEngine> web = engine();
   if (!web) GTEST_SKIP() << "no web engine on this machine";
   const std::shared_ptr<WebView> view = web->createView(120, 90);
@@ -154,7 +167,7 @@ TEST(SketchSettling, TheReadingsAnswerWhateverThePageHasReachedAndNeverWait) {
   EXPECT_FALSE(settling.still());
 }
 
-TEST(SketchSettling, ASequenceAdvancedAStepAtATimeArrivesWhenTheEventsDo) {
+TEST_F(SketchSettling, ASequenceAdvancedAStepAtATimeArrivesWhenTheEventsDo) {
   const std::shared_ptr<WebEngine> web = engine();
   if (!web) GTEST_SKIP() << "no web engine on this machine";
   const std::shared_ptr<WebView> view = web->createView(160, 120);
@@ -182,7 +195,7 @@ TEST(SketchSettling, ASequenceAdvancedAStepAtATimeArrivesWhenTheEventsDo) {
   EXPECT_FALSE(settling->advance());
 }
 
-TEST(SketchSettling, TheDeterministicDriveStopsOnTheFrameTheWaitsStopOn) {
+TEST_F(SketchSettling, TheDeterministicDriveStopsOnTheFrameTheWaitsStopOn) {
   const std::shared_ptr<WebEngine> web = engine();
   if (!web) GTEST_SKIP() << "no web engine on this machine";
   const std::shared_ptr<WebView> driven = web->createView(160, 120);
@@ -218,7 +231,7 @@ TEST(SketchSettling, TheDeterministicDriveStopsOnTheFrameTheWaitsStopOn) {
          "is made of";
 }
 
-TEST(SketchSettling, ADrivenPageStopsOnTheSamePictureWhicheverDriveTakesIt) {
+TEST_F(SketchSettling, ADrivenPageStopsOnTheSamePictureWhicheverDriveTakesIt) {
   const std::shared_ptr<WebEngine> web = engine();
   if (!web) GTEST_SKIP() << "no web engine on this machine";
   const std::shared_ptr<WebView> held = web->createView(160, 120);
@@ -247,7 +260,7 @@ TEST(SketchSettling, ADrivenPageStopsOnTheSamePictureWhicheverDriveTakesIt) {
       << "the two drives stopped on different pictures of one walk";
 }
 
-TEST(SketchSettling, AWalkUnderAParallelLoadStopsOnThePictureAnIdleOneDoes) {
+TEST_F(SketchSettling, AWalkUnderAParallelLoadStopsOnThePictureAnIdleOneDoes) {
   const std::shared_ptr<WebEngine> web = engine();
   if (!web) GTEST_SKIP() << "no web engine on this machine";
   const std::shared_ptr<WebView> alone = web->createView(160, 120);

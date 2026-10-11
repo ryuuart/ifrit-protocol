@@ -2,8 +2,8 @@
  * The still of a page is the frame the settle accepted, on a page that
  * never stops repainting — and a page settles the same way on an engine
  * booted after another was shut down, because the renderer under both is
- * the process's. One engine at a time, so these are cases ctest runs in
- * processes of their own.
+ * the process's. One engine at a time: the suite holds one for its cases
+ * and lets it go when it ends.
  */
 
 #include <gtest/gtest.h>
@@ -53,13 +53,26 @@ SkColor corner(const sk_sp<SkImage>& image) {
   return one.getColor(0, 0);
 }
 
-/** The one CPU-mode engine this process boots. */
-std::shared_ptr<WebEngine> engine() {
-  static std::shared_ptr<WebEngine> held = WebEngine::create(WebEngineConfig{});
-  return held;
-}
+/** THE CPU-MODE ENGINE THESE CASES SHARE, booted by the first that asks
+ *  and let go when the suite ends. One engine at a time stands over the
+ *  process's renderer, so one held past the suite would leave every later
+ *  suite in the same process with no engine to boot. */
+class SketchSettledPage : public ::testing::Test {
+ protected:
+  static std::shared_ptr<WebEngine> engine() {
+    if (!held()) held() = WebEngine::create(WebEngineConfig{});
+    return held();
+  }
+  static void TearDownTestSuite() { held().reset(); }
 
-TEST(SketchSettledPage, APageSettlesOnAnEngineBootedAfterOneWasShutDown) {
+ private:
+  static std::shared_ptr<WebEngine>& held() {
+    static std::shared_ptr<WebEngine> one;
+    return one;
+  }
+};
+
+TEST_F(SketchSettledPage, APageSettlesOnAnEngineBootedAfterOneWasShutDown) {
   // A host may take its web work down and stand it up again: the engine
   // ends, the process's renderer does not. Loading a page on the FIRST
   // engine is what makes this about the defect — the page load starts
@@ -98,8 +111,8 @@ TEST(SketchSettledPage, APageSettlesOnAnEngineBootedAfterOneWasShutDown) {
   shared::shutdownSharedEngine();
 }
 
-TEST(SketchSettledPage,
-     AStillPageSettlesWithNoFurtherRepaintAndIsPaintedWhole) {
+TEST_F(SketchSettledPage,
+       AStillPageSettlesWithNoFurtherRepaintAndIsPaintedWhole) {
   // The two doors a page that goes QUIET needs, and neither is what a
   // page that keeps moving wants. A document with nothing animating
   // stops handing frames over the moment it is there, so a settle that
@@ -108,7 +121,7 @@ TEST(SketchSettledPage,
   // the WHOLE page: the engine paints what a change damaged and copies
   // the rest, so a page that was driven otherwise carries the seams of
   // however that driving was broken into steps.
-  const std::shared_ptr<WebEngine> web = WebEngine::create(WebEngineConfig{});
+  const std::shared_ptr<WebEngine> web = engine();
   if (!web) GTEST_SKIP() << "no web engine on this machine";
   const std::shared_ptr<WebView> view = web->createView(120, 90);
   ASSERT_NE(view, nullptr);
@@ -132,7 +145,8 @@ TEST(SketchSettledPage,
   EXPECT_EQ(corner(whole.image), SK_ColorBLUE);
 }
 
-TEST(SketchSettledPage, TheQuietRuleStopsOnTheSamePassHoweverSlowlyEventsCome) {
+TEST_F(SketchSettledPage,
+       TheQuietRuleStopsOnTheSamePassHoweverSlowlyEventsCome) {
   namespace shared = sigil::sketch::scry;
   // THE RULE A SETTLE ENDS ON, FED THE SAME ENGINE EVENTS TWICE: once as
   // fast as this thread can deliver them, and once with every event held
@@ -170,7 +184,7 @@ TEST(SketchSettledPage, TheQuietRuleStopsOnTheSamePassHoweverSlowlyEventsCome) {
   EXPECT_FALSE(shared::goneQuiet(0, 4 * shared::kQuietPasses));
 }
 
-TEST(SketchSettledPage, TheStillIsTheFrameTheSettleAcceptedAndNotALaterOne) {
+TEST_F(SketchSettledPage, TheStillIsTheFrameTheSettleAcceptedAndNotALaterOne) {
   const std::shared_ptr<WebEngine> web = engine();
   if (!web) GTEST_SKIP() << "no web engine on this machine";
   std::shared_ptr<WebView> view = web->createView(160, 120);

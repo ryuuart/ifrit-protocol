@@ -966,18 +966,6 @@ the typing; a Python test should state a glow on a text leaf and find it
 following a glyph's fade, and state a page's base direction and find its
 levels resolved against it.
 
-## A web page opened after the settling suites has not arrived at setup
-
-`SketchLoadingClock.APageOpenedUnderItIsTheSweepsDeterministicCapture`
-(`src/sketch/scry/test/LoadingClockTest.cpp`) passes alone and fails
-whenever the `SketchSettling` suites run before it in one `sketch_test`
-process: after the sweep, the page's settle has not reported arrival
-under a deterministic open. A page driven through for a repeatable run
-should have arrived before setup returns, whatever ran earlier in the
-process; the shared WebEngine state the settling suites leave behind is
-the first suspect. A test should run the settling suites and then this
-one in one process and find the page arrived at open.
-
 ## Design question: the window's endpoint has no client clock or session access
 
 `Grimoire <file> --frame … --gpu` photographs a scene2d sketch on
