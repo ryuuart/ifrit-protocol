@@ -846,3 +846,160 @@ TEST(ComposeSurfaceScene, ATransmittingRegionPaintsItsWeightDepthAndVolume) {
   expectNear(moved.getColor4f(32, 28), .5f, .5f, 0);
   expectNear(moved.getColor4f(96, 84), .5f, .5f, 0);
 }
+
+TEST(ComposeSurfaceScene, AStatedRangeHoldsAnEmissionPastTheBrightestPainted) {
+  const auto glowing = [](float strength) {
+    return box().width(kWidth).height(kHeight).children(
+        {box()
+             .absolute()
+             .rect(0, 0, 64, 64)
+             .fill(material::from(material::Color{.2f, .2f, .2f, 1})
+                       .surface({.emission = {1, 1, 1, 1},
+                                 .emissionStrength = strength}))});
+  };
+  // Stated: the emissive map's white is eight from the first paint, so a
+  // strength that rises from two to six is read as itself, and the page
+  // paints once for each description rather than again for a reading.
+  const auto stated =
+      SurfaceScene::make({kWidth, kHeight}, fonts(), {.emission = 8});
+  ASSERT_NE(stated, nullptr);
+  stated->render(glowing(2));
+  EXPECT_FLOAT_EQ(stated->maps().emissiveStrength, 8);
+  const float dim = pixelsOf(*stated, Role::Emissive).getColor4f(10, 10).fR;
+  const uint64_t before = stated->revision();
+  stated->render(glowing(6), 1.0 / 60.0);
+  EXPECT_EQ(stated->revision(), before + 1);
+  EXPECT_FLOAT_EQ(stated->maps().emissiveStrength, 8);
+  const float bright = pixelsOf(*stated, Role::Emissive).getColor4f(10, 10).fR;
+  EXPECT_GT(bright, dim);
+  EXPECT_LT(bright, .97f) << "six of eight is not the map's white";
+
+  // Learned: the reading rises to the brightest painted, which is white.
+  const auto learned = SurfaceScene::make({kWidth, kHeight}, fonts());
+  ASSERT_NE(learned, nullptr);
+  learned->render(glowing(2));
+  learned->render(glowing(6), 1.0 / 60.0);
+  EXPECT_FLOAT_EQ(learned->maps().emissiveStrength, 6);
+  EXPECT_GT(pixelsOf(*learned, Role::Emissive).getColor4f(10, 10).fR, .99f);
+}
+
+TEST(ComposeSurfaceScene, ARegionsMapsReadThatPartOfThePageWhole) {
+  const auto halves = [](material::Color left, material::Color right) {
+    return box().width(kWidth).height(kHeight).children({
+        box().absolute().rect(0, 0, 64, kHeight).fill(left),
+        box().absolute().rect(64, 0, 64, kHeight).fill(right),
+    });
+  };
+  const material::Color red{.9f, .1f, .1f, 1};
+  const material::Color blue{.1f, .1f, .9f, 1};
+  const auto scene = SurfaceScene::make({kWidth, kHeight}, fonts());
+  ASSERT_NE(scene, nullptr);
+  const auto left = scene->maps({0, 0, 64, kHeight});
+  const auto right = scene->maps({64, 0, 64, kHeight});
+  const auto colourOf = [](const material::texture::TextureMaps& maps, int x,
+                           int y) {
+    const material::Texture* map = maps.map(Role::BaseColor);
+    EXPECT_NE(map, nullptr);
+    const auto* source = map ? map->source().as<SceneSource>() : nullptr;
+    EXPECT_NE(source, nullptr);
+    SkBitmap pixels;
+    if (!source || !source->scene()->image()) return SkColor4f{};
+    const sk_sp<SkImage> image = source->scene()->image();
+    EXPECT_EQ(image->width(), 64);
+    pixels.allocN32Pixels(image->width(), image->height());
+    image->readPixels(nullptr, pixels.pixmap(), 0, 0);
+    return pixels.getColor4f(x, y);
+  };
+  scene->render(halves(red, blue));
+  // Each part's map is that part alone, its corner at the map's corner.
+  expectNear(colourOf(left, 2, 2), .9f, .1f, .1f);
+  expectNear(colourOf(left, 61, 100), .9f, .1f, .1f);
+  expectNear(colourOf(right, 2, 2), .1f, .1f, .9f);
+  expectNear(colourOf(right, 61, 100), .1f, .1f, .9f);
+  // The parts follow what the page paints.
+  scene->render(halves(blue, red), 1.0 / 60.0);
+  expectNear(colourOf(left, 30, 30), .1f, .1f, .9f);
+  expectNear(colourOf(right, 30, 30), .9f, .1f, .1f);
+  EXPECT_TRUE(scene->paints(
+      left.map(Role::BaseColor)->source().as<SceneSource>()->scene()));
+}
+
+TEST(ComposeSurfaceScene, ANormalIsWrittenInThePageAsItsNodeIsTurned) {
+  // A plate whose stated normal leans toward its own right: lying flat it
+  // leans right on the page; turned a quarter clockwise its right runs
+  // down the page, and so does the lean — green down, encoded.
+  const auto normalOf = [&](float turn) {
+    const auto scene = SurfaceScene::make({kWidth, kHeight}, fonts());
+    scene->render(box().width(kWidth).height(kHeight).children(
+        {box()
+             .absolute()
+             .rect(24, 46, 80, 20)
+             .rotate(turn)
+             .fill(material::from(material::Color{.6f, .6f, .6f, 1})
+                       .surface({.roughness = .5f,
+                                 .normal = material::from(
+                                     material::Color{.75f, .5f, .9f, 1})}))}));
+    return pixelsOf(*scene, Role::Normal).getColor4f(64, 56);
+  };
+  const SkColor4f flat = normalOf(0);
+  EXPECT_GT(flat.fR, .6f);
+  EXPECT_NEAR(flat.fG, .5f, .02f);
+  const SkColor4f turned = normalOf(90);
+  EXPECT_NEAR(turned.fR, .5f, .02f);
+  EXPECT_LT(turned.fG, .4f);
+  EXPECT_NEAR(turned.fB, flat.fB, .02f) << "the lean keeps its steepness";
+}
+
+TEST(ComposeSurfaceScene, ASpanInkOnNoUnitCutsItsReliefFromItsGlyphs) {
+  // The first word inked with a raised stone and no unit: the stretch of
+  // glyphs the span paints is the unit its relief is cut from, so its
+  // letters' edges lean in the normal map.
+  const material::Material raised =
+      material::from(material::Color{.6f, .6f, .6f, 1})
+          .surface({.roughness = .8f})
+          .relief({.shoulder = 6, .depth = .5f});
+  const auto scene = SurfaceScene::make({kWidth, kHeight}, fonts());
+  scene->render(box().width(kWidth).height(kHeight).children(
+      {text(u8"HH", whiteStyle(64))
+           .absolute()
+           .rect(4, 16, 120, 80)
+           .span(sigil::weave::selectors::word(0), SpanStyle().ink(raised))}));
+  const SkBitmap base = pixelsOf(*scene, Role::BaseColor);
+  const SkBitmap normal = pixelsOf(*scene, Role::Normal);
+  ASSERT_FALSE(normal.empty());
+  int leaning = 0;
+  for (int y = 0; y < kHeight; ++y)
+    for (int x = 0; x < kWidth; ++x)
+      if (base.getColor4f(x, y).fA > .9f &&
+          std::abs(normal.getColor4f(x, y).fR - .5f) > .08f)
+        ++leaning;
+  EXPECT_GT(leaning, 20);
+}
+
+TEST(ComposeSurfaceScene, ARibbonBrushedAlongItselfFollowsItsCurve) {
+  // A brushed ribbon round a circle: along its top and bottom it brushes
+  // across the page, along its sides down it, as the curve runs.
+  const auto scene = SurfaceScene::make({kWidth, kHeight}, fonts());
+  ASSERT_NE(scene, nullptr);
+  scene->render(box().width(kWidth).height(kHeight).children(
+      {box()
+           .absolute()
+           .rect(24, 16, 80, 80)
+           .borderRadius(40)
+           .stroke(brush::ribbon(
+               8, material::from(material::Color{.9f, .9f, .9f, 1})
+                      .surface({.metallic = 1.0f, .roughness = .3f})
+                      .brushed({.strength = 1})))}));
+  const SkBitmap brushing = pixelsOf(*scene, Role::Anisotropy);
+  ASSERT_FALSE(brushing.empty());
+  for (const auto& [x, y] : {std::pair{64, 16}, std::pair{64, 96}}) {
+    const SkColor4f across = brushing.getColor4f(x, y);
+    EXPECT_GT(std::abs(across.fR - .5f), .4f) << x << "," << y;
+    EXPECT_NEAR(across.fG, .5f, .1f) << x << "," << y;
+  }
+  for (const auto& [x, y] : {std::pair{24, 56}, std::pair{104, 56}}) {
+    const SkColor4f down = brushing.getColor4f(x, y);
+    EXPECT_NEAR(down.fR, .5f, .1f) << x << "," << y;
+    EXPECT_GT(std::abs(down.fG - .5f), .4f) << x << "," << y;
+  }
+}

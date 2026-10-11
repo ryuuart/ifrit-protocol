@@ -113,7 +113,9 @@ detail::TextInk Composer::Impl::textInkOf(Instance& inst,
       if (asMap && !retained.surfaceMapInputs)
         retained.surfaceMapInputs.emplace(*span.source);
       span.surfaceMap = asMap;
-      if (asMap && span.unit) {
+      // A span that reads its unit with none stated takes the stretch of
+      // glyphs it paints as one.
+      if (asMap && (span.unit || material::readsUnit(*span.source))) {
         span.surface =
             detail::TextInk::Surface{*retained.surfaceMapInputs, *surfaceMap};
         if (material::readsUnit(*span.source)) {

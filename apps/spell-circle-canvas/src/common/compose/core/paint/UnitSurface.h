@@ -40,6 +40,16 @@ struct UnitShape {
   bool operator==(const UnitShape& other) const;
 };
 
+/** THE TANGENT ALONG @p outline as a painted direction for a unit, over
+ *  @p band in the node's logical pixels: each short piece of the contour
+ *  paints the way it runs in the page — @p toPage carries the node there —
+ *  across @p reach, at @p density device pixels to each logical pixel.
+ *  Empty where the band is empty or too large to paint. */
+std::optional<material::Material> tangentAlong(const SkPath& outline,
+                                               const SkPath& band, float reach,
+                                               const glm::mat3& toPage,
+                                               float density);
+
 /** @p material with its unit sources answered by @p unit. */
 material::Material resolveUnit(const material::Material& material,
                                const UnitShape& unit);

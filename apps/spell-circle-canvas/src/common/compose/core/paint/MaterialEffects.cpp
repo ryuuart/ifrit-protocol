@@ -224,54 +224,6 @@ SkPath strokeBand(const SkPath& outline, const SkPath& shape, float width,
   return Op(band, openBand, kUnion_SkPathOp).value_or(band);
 }
 
-/** THE TANGENT ALONG @p outline as an anisotropy direction map, over
- *  @p band in the node's logical pixels: each short piece of the contour
- *  paints the way it runs in the page — @p toPage carries the node there
- *  — across the band's width, at @p density device pixels to each logical
- *  pixel. Empty where the band is empty or too large to paint. */
-std::optional<material::Material> tangentAlong(const SkPath& outline,
-                                               const SkPath& band, float reach,
-                                               const glm::mat3& toPage,
-                                               float density) {
-  constexpr double kMaxPixels = 16.0 * 1024 * 1024;
-  const SkRect bounds = band.getBounds().makeOutset(2, 2);
-  const double across = std::ceil(bounds.width() * density);
-  const double down = std::ceil(bounds.height() * density);
-  if (bounds.isEmpty() || !bounds.isFinite() || across * down > kMaxPixels)
-    return std::nullopt;
-  sk_sp<SkSurface> surface = SkSurfaces::Raster(SkImageInfo::Make(
-      (int)across, (int)down, kRGBA_8888_SkColorType, kUnpremul_SkAlphaType));
-  if (!surface) return std::nullopt;
-  SkCanvas& canvas = *surface->getCanvas();
-  canvas.clear(SkColor4f{1, 0.5f, 1, 1});
-  canvas.scale(density, density);
-  canvas.translate(-bounds.left(), -bounds.top());
-  SkPaint piece;
-  piece.setStyle(SkPaint::kStroke_Style);
-  piece.setStrokeWidth(reach);
-  piece.setStrokeCap(SkPaint::kSquare_Cap);
-  constexpr float kStep = 1.5f;
-  SkContourMeasureIter contours(outline, false);
-  while (sk_sp<SkContourMeasure> contour = contours.next()) {
-    for (float at = 0; at < contour->length(); at += kStep) {
-      SkPoint from, tangent, to;
-      if (!contour->getPosTan(at, &from, &tangent)) continue;
-      contour->getPosTan(std::min(at + kStep, contour->length()), &to, nullptr);
-      const glm::vec2 page = intoPage({tangent.x(), tangent.y()}, toPage);
-      piece.setColor4f({page.x * 0.5f + 0.5f, -page.y * 0.5f + 0.5f, 1, 1});
-      canvas.drawLine(from, to, piece);
-    }
-  }
-  glm::mat3 toLogical(1.0f);
-  toLogical[0][0] = toLogical[1][1] = 1.0f / density;
-  toLogical[2][0] = bounds.left();
-  toLogical[2][1] = bounds.top();
-  material::Texture texture(surface->makeImageSnapshot());
-  texture.colorSpace(sigil::media::ColorSpace::Data);
-  texture.uv(toLogical);
-  return material::image(std::move(texture));
-}
-
 }  // namespace
 
 float CoverageMark::bleed() const {

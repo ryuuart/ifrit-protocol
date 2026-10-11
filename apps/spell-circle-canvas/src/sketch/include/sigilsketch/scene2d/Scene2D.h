@@ -49,6 +49,7 @@
 #include <include/core/SkRefCnt.h>
 #include <sigilcompose/core/Composer.h>
 #include <sigilcompose/core/Measure.h>
+#include <sigilcompose/texture/SurfaceRange.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/render/Runtime.h>
 #include <sigilmaterial/color/Color.h>
@@ -206,9 +207,12 @@ struct Scene2DContext {
    *  Ask while declaring and hold the page; a body asking every frame
    *  holds every frame's page until the next declaration.
    *
+   *  @p range states what the page's maps stand for at their white, as
+   *  `Scene3DContext::page` takes it.
+   *
    *  No page — its pass paints nothing and its surface is the stock one —
    *  where the host lent no fonts. */
-  [[nodiscard]] Page page(glm::ivec2 size);
+  [[nodiscard]] Page page(glm::ivec2 size, compose::SurfaceRange range = {});
 
   /** A LIT 3D SCENE RENDERED ONCE INTO AN IMAGE @p size pixels across — the
    *  picture INSIDE a page. A scene2d plate is

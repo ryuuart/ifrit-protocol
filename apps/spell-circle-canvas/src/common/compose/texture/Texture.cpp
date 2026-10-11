@@ -6,11 +6,16 @@
 
 #include "sigilcompose/texture/Texture.h"
 
+#include <include/core/SkBlendMode.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImageInfo.h>
+#include <include/core/SkPaint.h>
+#include <include/core/SkRegion.h>
+#include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Composer.h>
 #include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/SurfaceMaps.h>
@@ -21,7 +26,9 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <utility>
+#include <vector>
 
 namespace sigil::compose {
 
@@ -79,9 +86,76 @@ struct TextureScene::Impl {
   uint64_t version = 0;
   bool painted = false;
 
+  /** A cut's source, the rect of it the cut shows, and the source's
+   *  revision the cut last copied. No source on a scene with a tree. */
+  std::shared_ptr<const TextureScene> cutFrom;
+  SkIRect cutRect = SkIRect::MakeEmpty();
+  uint64_t cutRevision = 0;
+
+  /** The source's rect copied over the whole of @p canvas, pixel for
+   *  pixel. */
+  void copyCut(SkCanvas& canvas) const {
+    const sk_sp<SkImage> from = cutFrom->image();
+    canvas.clear(SK_ColorTRANSPARENT);
+    if (!from) return;
+    SkPaint copy;
+    copy.setBlendMode(SkBlendMode::kSrc);
+    canvas.drawImageRect(from, SkRect::Make(cutRect),
+                         SkRect::MakeIWH(cutRect.width(), cutRect.height()),
+                         SkSamplingOptions(), &copy,
+                         SkCanvas::kStrict_SrcRectConstraint);
+  }
+
+  /** THE PIXELS A PAINT REPAINTS: the rects the composer says its draw
+   *  changes, each grown to whole pixels with one more for the antialiased
+   *  edge, or the whole surface when the composer cannot say or nothing
+   *  stands in the surface yet. Empty when nothing changed. */
+  std::optional<SkRegion> repaintRegion() {
+    // Asked even when the whole surface is painted, so the draw keeps what
+    // it painted for the next one.
+    const std::optional<std::vector<geometry::path::Rect>> changed =
+        composer->changedRegion();
+    if (!painted || !image || !changed) return std::nullopt;
+    const SkIRect whole = SkIRect::MakeSize(info.dimensions());
+    SkRegion pixels;
+    for (const geometry::path::Rect& part : *changed) {
+      SkRect grown = geometry::path::toSk(part);
+      grown.outset(1, 1);
+      SkIRect rect = grown.roundOut();
+      if (rect.intersect(whole)) pixels.op(rect, SkRegion::kUnion_Op);
+    }
+    if (pixels.contains(whole)) return std::nullopt;
+    return pixels;
+  }
+
+  /** The tree drawn over @p canvas: within @p region over what the last
+   *  paint left there, and over the whole surface when the draw reached
+   *  past it or there is no region. */
+  void drawInto(SkCanvas& canvas, const std::optional<SkRegion>& region) {
+    if (cutFrom) {
+      copyCut(canvas);
+      return;
+    }
+    if (region) {
+      canvas.save();
+      canvas.clipRegion(*region);
+      canvas.clear(material::skia::toSkColor(background));
+      composer->draw(canvas);
+      canvas.restore();
+      if (composer->drewWithinChangedRegion()) return;
+    }
+    canvas.clear(material::skia::toSkColor(background));
+    composer->draw(canvas);
+  }
+
   /** Paints the tree into whichever surface the scene stands on, and
-   *  leaves what it painted in `image`. */
+   *  leaves what it painted in `image`. A tree whose draw changes a region
+   *  of what the last paint left repaints that region alone; one whose
+   *  draw changes nothing paints nothing and answers false. */
   bool paint() {
+    const std::optional<SkRegion> region =
+        cutFrom ? std::nullopt : repaintRegion();
+    if (region && region->isEmpty()) return false;
     if (device && context) {
       // Wrapped fresh for each paint: the wrap is a thin, cheap handle
       // over a texture the device owns, and the Graphite context it is
@@ -91,16 +165,13 @@ struct TextureScene::Impl {
                                      info.refColorSpace());
       SkCanvas* canvas = surface.canvas();
       if (!canvas) return false;
-      canvas->clear(material::skia::toSkColor(background));
-      composer->draw(*canvas);
+      drawInto(*canvas, region);
       if (surface.surface()) image = surface.surface()->makeImageSnapshot();
       surface.submit();
       return image != nullptr;
     }
     if (!raster) return false;
-    SkCanvas* canvas = raster->getCanvas();
-    canvas->clear(material::skia::toSkColor(background));
-    composer->draw(*canvas);
+    drawInto(*raster->getCanvas(), region);
     image = raster->makeImageSnapshot();
     return image != nullptr;
   }
@@ -132,6 +203,27 @@ std::shared_ptr<TextureScene> TextureScene::make(SkImageInfo info,
   impl.composer->setSize(
       glm::vec2{(float)impl.info.width(), (float)impl.info.height()});
   return scene;
+}
+
+std::shared_ptr<TextureScene> TextureScene::cut(
+    std::shared_ptr<const TextureScene> source, material::PixelRect rect,
+    weave::FontContext& fonts) {
+  if (!source || rect.empty()) return nullptr;
+  SkIRect pixels = SkIRect::MakeXYWH(rect.x, rect.y, rect.width, rect.height);
+  if (!pixels.intersect(SkIRect::MakeSize(source->size()))) return nullptr;
+  std::shared_ptr<TextureScene> scene =
+      make(SkImageInfo::MakeN32Premul(pixels.width(), pixels.height()), fonts);
+  if (!scene) return nullptr;
+  scene->m_impl->cutFrom = std::move(source);
+  scene->m_impl->cutRect = pixels;
+  return scene;
+}
+
+std::optional<material::PixelRect> TextureScene::cutRect() const {
+  const Impl& impl = *m_impl;
+  if (!impl.cutFrom) return std::nullopt;
+  return material::PixelRect{impl.cutRect.x(), impl.cutRect.y(),
+                             impl.cutRect.width(), impl.cutRect.height()};
 }
 
 bool TextureScene::useDevice(core::hardware::GpuDevice& device,
@@ -200,6 +292,15 @@ void TextureScene::setSurfaceMapScale(float scale) {
 
 void TextureScene::render(const Element& root, double seconds) {
   Impl& impl = *m_impl;
+  if (impl.cutFrom) {
+    const uint64_t source = impl.cutFrom->revision();
+    if (impl.painted && source == impl.cutRevision) return;
+    if (!impl.paint()) return;
+    impl.cutRevision = source;
+    impl.painted = true;
+    ++impl.version;
+    return;
+  }
   impl.engine.advance(motion::Duration(seconds));
   impl.composer->render(root);
   // THE ONE PLACE THE VERSION MOVES. A reconcile that changed nothing
@@ -254,7 +355,10 @@ material::DeviceImage TextureScene::deviceImage() const {
   return out;
 }
 
-bool TextureScene::isRunning() const { return m_impl->composer->isRunning(); }
+bool TextureScene::isRunning() const {
+  if (m_impl->cutFrom) return false;
+  return m_impl->composer->isRunning();
+}
 
 const Composer& TextureScene::composer() const { return *m_impl->composer; }
 

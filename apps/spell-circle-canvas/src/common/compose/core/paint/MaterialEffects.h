@@ -58,9 +58,15 @@ struct MaterialStroke {
   mutable std::shared_ptr<MaterialStrokeCache> cache = {};
   bool isRunning() const;
   bool usesWorldSpace() const;
+  /** How far the keyline reaches past the node's box. One set inside a
+   *  closed contour stays within it, but an open contour has no inside and
+   *  takes one band centred on it, half of it past a box edge the curve
+   *  runs along; the outline is not known here, so inside answers that
+   *  half. */
   float bleed() const {
-    return options.position == material::StrokePosition::Inside ? 0
-                                                                : options.width;
+    return options.position == material::StrokePosition::Inside
+               ? options.width / 2
+               : options.width;
   }
   void paint(draw::Pen& pen, const PaintContext& context) const;
 };

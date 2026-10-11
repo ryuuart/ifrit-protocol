@@ -19,14 +19,25 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/SurfaceMaps.h>
 
+#include <algorithm>
 #include <cmath>
+#include <glm/mat3x3.hpp>
+#include <optional>
 
+#include "UnitPaint.h"
 #include "paint/FillLowering.h"
 #include "paint/SurfaceMap.h"
+#include "paint/UnitSurface.h"
 
 namespace sigil::compose::detail {
+/** What a ribbon keeps between paints: the maps prepared per band it
+ *  read, and the tangent it painted along the last spine. */
 struct RibbonCache {
-  std::optional<Relief> material;
+  UnitSurfaces units;
+  SkPath spine;
+  glm::mat3 toPage{1.0f};
+  float density = 0;
+  std::optional<material::Material> tangent;
 };
 }  // namespace sigil::compose::detail
 
@@ -82,15 +93,35 @@ void Ribbon::paint(draw::Pen& pen, const PaintContext& ctx) const {
     if (!cache) cache = std::make_shared<detail::RibbonCache>();
     // A finish stating no surface is the stock surface on a page painted
     // as surface maps; one stated unlit is its own colour there.
-    material::Material finish =
+    const material::Material finish =
         detail::surfacedForMaps(*fillMaterial).value_or(*fillMaterial);
-    Relief material = relief(std::move(finish), {.depth = 0});
-    if (!cache->material || *cache->material != material)
-      cache->material = std::move(material);
+    // THE BAND IS THE UNIT the finish reads: its relief is cut from the
+    // band, and a finish brushed along its unit runs along the spine — the
+    // band's tangent wherever it bends, turned into the page.
+    const SkPath spine = geometry::path::toSk(ctx.outline);
+    if (ctx.surfaceMap && finish.surface() &&
+        finish.surface()->anisotropyAlongUnit) {
+      const float density =
+          ctx.bakeDensity > 0 ? ctx.bakeDensity : ctx.contentScale;
+      if (!cache->tangent || cache->spine != spine ||
+          cache->toPage != ctx.toRoot.matrix || cache->density != density) {
+        cache->spine = spine;
+        cache->toPage = ctx.toRoot.matrix;
+        cache->density = density;
+        const float widest =
+            hasProfile() ? width.max() : std::max(widthStart, widthEnd);
+        cache->tangent =
+            detail::tangentAlong(spine, region, widest * 2 + 2,
+                                 ctx.toRoot.matrix, density > 0 ? density : 1);
+      }
+    }
     PaintContext bandContext = ctx;
     bandContext.outline = geometry::path::fromSk(region);
     bandContext.silhouette = bandContext.outline;
-    cache->material->paint(pen, bandContext);
+    detail::paintUnit(finish, cache->units, pen, bandContext, region,
+                      finish.surface() && finish.surface()->anisotropyAlongUnit
+                          ? cache->tangent
+                          : std::nullopt);
     return;
   }
   SkPaint p;

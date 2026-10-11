@@ -7,6 +7,7 @@
  * way.
  */
 
+#include <sigilcompose/texture/SurfaceRange.h>
 #include <sigilsketch/scene3d/Page.h>
 
 #include <glm/vec2.hpp>
@@ -22,7 +23,8 @@ class SurfaceScene;
 
 namespace sigil::sketch::detail {
 
-/** A PAGE @p size pixels across, painting with @p fonts, and the scene it
+/** A PAGE @p size pixels across, its maps read against @p range, painting
+ *  with @p fonts, and the scene it
  *  paints into put in @p pages when the session lent somewhere to keep it.
  *  A live page paints on the device the sketch is drawn on; a capture that
  *  will be diffed, @p deterministic, keeps the CPU's pixels. The first page
@@ -30,7 +32,8 @@ namespace sigil::sketch::detail {
  *  pages on one frame are two passes an error can tell apart. No page when
  *  the scene cannot be made. */
 [[nodiscard]] Page keptPage(
-    glm::ivec2 size, weave::FontContext& fonts, bool deterministic,
+    glm::ivec2 size, compose::SurfaceRange range, weave::FontContext& fonts,
+    bool deterministic,
     std::vector<std::shared_ptr<compose::SurfaceScene>>* pages);
 
 }  // namespace sigil::sketch::detail

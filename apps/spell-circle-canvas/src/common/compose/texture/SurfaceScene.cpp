@@ -55,10 +55,17 @@ SurfaceScene::SurfaceScene() = default;
 SurfaceScene::~SurfaceScene() = default;
 
 std::shared_ptr<SurfaceScene> SurfaceScene::make(SkISize size,
-                                                 weave::FontContext& fonts) {
+                                                 weave::FontContext& fonts,
+                                                 SurfaceRange range) {
   std::shared_ptr<SurfaceScene> surface(new SurfaceScene());
   surface->m_size = size;
   surface->m_fonts = &fonts;
+  surface->m_range = range;
+  // A stated reading stands from the first paint.
+  if (range.emission > 0)
+    surface->m_emissionScale = std::max(range.emission, 1.0f);
+  if (range.thickness > 0) surface->m_thicknessScale = range.thickness;
+  if (range.distortion > 0) surface->m_distortionScale = range.distortion;
   for (Role role : kRoles)
     if (!surface->add(role)) return nullptr;
   return surface;
@@ -79,9 +86,12 @@ bool SurfaceScene::add(Role role) {
 bool SurfaceScene::useDevice(core::hardware::GpuDevice& device,
                              skia::GraphiteContext& context) {
   // Every map stands on the device or none does: a set split across two
-  // places would be sampled from both.
+  // places would be sampled from both. The cuts stand where the maps do.
   for (auto& [role, scene] : m_scenes)
     if (!scene->useDevice(device, context)) return false;
+  for (auto& [region, cuts] : m_cuts)
+    for (auto& [role, cut] : cuts)
+      if (!cut->useDevice(device, context)) return false;
   m_device = &device;
   m_context = &context;
   return true;
@@ -110,10 +120,14 @@ void SurfaceScene::render(const Element& root, double seconds) {
   // WHAT A MAP'S WHITE STANDS FOR rises with what the page states: the
   // brightest emission, the deepest volume, the strongest distortion. A map
   // whose reading rose is painted again against it in this same render.
+  // A reading the author stated stands whatever the content says.
   const material::skia::MapReach& reach = listener.heardReach();
-  m_emissionScale = std::max({m_emissionScale, reach.emission, 1.0f});
-  m_thicknessScale = std::max(m_thicknessScale, reach.thickness);
-  m_distortionScale = std::max(m_distortionScale, reach.distortion);
+  if (m_range.emission <= 0)
+    m_emissionScale = std::max({m_emissionScale, reach.emission, 1.0f});
+  if (m_range.thickness <= 0)
+    m_thicknessScale = std::max(m_thicknessScale, reach.thickness);
+  if (m_range.distortion <= 0)
+    m_distortionScale = std::max(m_distortionScale, reach.distortion);
   // A page carries one volume: the first transmitting material's.
   if (!m_volume) m_volume = reach.volume;
   if (reach.volumesDiffer || (reach.volume && *reach.volume != *m_volume))
@@ -133,6 +147,9 @@ void SurfaceScene::render(const Element& root, double seconds) {
     paint(*m_scenes.at(role));
     painted = true;
   }
+  // Each cut copies its map once the map has painted since.
+  for (auto& [region, cuts] : m_cuts)
+    for (auto& [role, cut] : cuts) cut->render(root, seconds);
   if (painted) ++m_revision;
 }
 
@@ -151,17 +168,51 @@ float SurfaceScene::scaleOf(Role role) const {
   }
 }
 
-material::texture::TextureMaps SurfaceScene::maps() const {
+material::texture::TextureMaps SurfaceScene::readings() const {
   material::texture::TextureMaps maps;
   maps.name = "compose surface";
-  for (const auto& [role, scene] : m_scenes)
-    maps.maps.emplace(role, scene->texture());
   maps.normalDirectX = false;
   maps.emissiveStrength = m_emissionScale;
   maps.thickness = m_thicknessScale;
   maps.distortionStrength = m_distortionScale;
   maps.volume = m_volume;
   return maps;
+}
+
+material::texture::TextureMaps SurfaceScene::maps() const {
+  material::texture::TextureMaps maps = readings();
+  for (const auto& [role, scene] : m_scenes)
+    maps.maps.emplace(role, scene->texture());
+  return maps;
+}
+
+material::texture::TextureMaps SurfaceScene::maps(material::PixelRect region) {
+  material::texture::TextureMaps maps = readings();
+  auto& cuts = m_cuts[{region.x, region.y, region.width, region.height}];
+  for (const auto& [role, scene] : m_scenes) {
+    auto found = cuts.find(role);
+    if (found == cuts.end()) {
+      std::shared_ptr<TextureScene> cut =
+          TextureScene::cut(scene, region, *m_fonts);
+      if (!cut) continue;
+      // A cut asked for after the page stood on the device stands there
+      // too, and copies what the page holds now.
+      if (m_device && !cut->useDevice(*m_device, *m_context)) continue;
+      if (scene->image()) cut->render(Element());
+      found = cuts.emplace(role, std::move(cut)).first;
+    }
+    maps.maps.emplace(role, found->second->texture());
+  }
+  return maps;
+}
+
+bool SurfaceScene::paints(const TextureScene* scene) const {
+  for (const auto& [role, map] : m_scenes)
+    if (map.get() == scene) return true;
+  for (const auto& [region, cuts] : m_cuts)
+    for (const auto& [role, cut] : cuts)
+      if (cut.get() == scene) return true;
+  return false;
 }
 
 material::Texture SurfaceScene::texture(Role role) const {

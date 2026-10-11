@@ -598,3 +598,47 @@ TEST(ComposeCaching, ARecordedBakesBlitLosesNoneOfWhatItBaked) {
   EXPECT_EQ(lost, 0) << lost << " of " << lit
                      << " lit blocks came back empty from inside the page";
 }
+
+TEST(ComposeCaching, AHeldTextureMeasuresItsSubtreeOnlyWhenItChanges) {
+  // A texture over three hundred still children: once baked, a frame that
+  // changes nothing neither bakes nor measures the children again; a child
+  // that changes colour, and one that moves past where the others stand,
+  // are measured, baked and drawn afresh.
+  const auto subtree = [](material::Color last, float lastLeft) {
+    Element held = box().width(200).height(200).cache(Cache::Texture);
+    for (int index = 0; index < 300; ++index) {
+      const bool isLast = index == 299;
+      held.children({box()
+                         .absolute()
+                         .left(isLast ? lastLeft : (float)(index % 30) * 5)
+                         .top(isLast ? 150.0f : (float)(index / 30) * 5)
+                         .width(4)
+                         .height(4)
+                         .fill(isLast ? last : material::Color{0, 0, 1, 1})});
+    }
+    return box().cache(Cache::None).children({std::move(held)});
+  };
+  Host host;
+  host.composer.setAutoTexturePromotion(false);
+  host.composer.render(subtree({1, 0, 0, 1}, 20));
+  host.frame();
+  EXPECT_EQ(host.composer.stats().texturesBaked, 1u);
+  EXPECT_GE(host.composer.stats().nodesBounded, 300u);
+  host.frame();
+  EXPECT_EQ(host.composer.stats().texturesBaked, 0u);
+  EXPECT_LT(host.composer.stats().nodesBounded, 10u)
+      << "an unchanged held subtree is not walked";
+  EXPECT_EQ(host.pixel(21, 151), SK_ColorRED);
+
+  host.composer.render(subtree({0, 1, 0, 1}, 20));
+  host.frame();
+  EXPECT_EQ(host.composer.stats().texturesBaked, 1u);
+  EXPECT_GE(host.composer.stats().nodesBounded, 300u);
+  EXPECT_EQ(host.pixel(21, 151), SK_ColorGREEN);
+
+  host.composer.render(subtree({0, 1, 0, 1}, 180));
+  host.frame();
+  EXPECT_EQ(host.composer.stats().texturesBaked, 1u);
+  EXPECT_EQ(host.pixel(181, 151), SK_ColorGREEN);
+  EXPECT_EQ(host.pixel(21, 151), SK_ColorBLACK);
+}

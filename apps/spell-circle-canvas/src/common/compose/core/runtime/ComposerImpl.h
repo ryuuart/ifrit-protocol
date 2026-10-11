@@ -184,6 +184,34 @@ struct Composer::Impl {
   // that stops being a target is unbounded again the moment it does.
   std::vector<detail::Instance*> threadTargets;
   bool volatileDirty = true;  // recompute needed (render or animation)
+  // ---- what a draw changes (Changes.cpp) ----
+  // Kept from the first `Composer::changedRegion` on: every draw after it
+  // walks the tree once more to keep each node's extent for the next.
+  bool trackChanges = false;
+  // Nothing the walk can say holds for the next draw: no draw has kept the
+  // extents yet, or the size, the view, the map, its scale or the caches
+  // changed. Cleared by the draw that keeps them.
+  bool changesUnknown = true;
+  // The region the host was told before this draw, and whether it asked.
+  std::optional<std::vector<SkRect>> promisedRegion;
+  bool regionPromised = false;
+  // What the last draw found against that promise.
+  bool drewWithinPromise = true;
+  // The layout, cascade and volatility a draw settles were settled by a
+  // question asked before it.
+  bool settledForDraw = false;
+  struct ChangeWalk {
+    bool commit = false;
+    bool bounded = true;
+  };
+  void changedUnder(detail::Instance& inst, ChangeWalk& walk,
+                    std::vector<SkRect>& region, SkRect& extent);
+  /** The rects the next draw changes, in canvas units, none of them
+   *  touching another; none when it is the whole canvas. With @p commit
+   *  the extents are kept. */
+  std::optional<std::vector<SkRect>> changedRegion(bool commit);
+  /** Layout, the cascade and the volatility walk, as a draw runs them. */
+  void settleForDraw();
   bool engineWasRunning = false;
   // The root verdict's volatileAbove bit: unlike Instance::subtreeVolatile,
   // this includes the root's own opacity and transform, which can change the

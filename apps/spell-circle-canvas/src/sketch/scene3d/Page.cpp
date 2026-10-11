@@ -21,14 +21,30 @@ namespace sigil::sketch {
 
 namespace {
 
-/** THE MATERIAL A BODY WEARS TO SHOW @p scene: its maps, each marked as
- *  painted by the pass called @p name, dressing a white surface. */
-material::Material surfaceOf(const compose::SurfaceScene& scene,
-                             const std::string& name) {
-  material::texture::TextureMaps maps = scene.maps();
+/** THE MATERIAL A BODY WEARS TO SHOW @p scene, or the part of it @p region
+ *  names: its maps, each marked as painted by the pass called @p name,
+ *  dressing a white surface. */
+material::Material surfaceOf(compose::SurfaceScene& scene,
+                             const std::string& name,
+                             std::optional<material::PixelRect> region) {
+  material::texture::TextureMaps maps =
+      region ? scene.maps(*region) : scene.maps();
   for (auto& [role, texture] : maps.maps)
     texture = world::produced(texture, name);
   return material::surface::program(maps, {.baseColor = {1, 1, 1, 1}});
+}
+
+/** The part of its page @p worn shows, read off its base colour map: none
+ *  when it shows the whole page. */
+std::optional<material::PixelRect> regionWorn(const material::Material& worn) {
+  const material::Texture* texture =
+      material::surface::map(worn, material::surface::kBaseColorSlot);
+  if (!texture) return std::nullopt;
+  const auto* marked = texture->source().as<world::ProducedPixels>();
+  if (!marked) return std::nullopt;
+  const auto* painted = marked->pixels.as<compose::SceneSource>();
+  if (!painted || !painted->scene()) return std::nullopt;
+  return painted->scene()->cutRect();
 }
 
 /** THE PAGE'S PAINT, as a texture pass performs it: the tree rendered
@@ -50,11 +66,7 @@ struct PagePaint final : world::TextureProducerOperations {
     if (!marked) return false;
     const auto* painted = marked->pixels.as<compose::SceneSource>();
     if (!painted || !scene) return false;
-    for (const auto& [role, map] : scene->maps().maps) {
-      const auto* own = map.source().as<compose::SceneSource>();
-      if (own && own->scene() == painted->scene()) return true;
-    }
-    return false;
+    return scene->paints(painted->scene());
   }
 
   /** A page learns which optional lobes its content states by painting
@@ -67,7 +79,7 @@ struct PagePaint final : world::TextureProducerOperations {
   std::optional<material::Material> restated(
       const material::Material& worn) const override {
     if (!scene || !material::surface::isSurface(worn)) return std::nullopt;
-    material::Material current = surfaceOf(*scene, name);
+    material::Material current = surfaceOf(*scene, name, regionWorn(worn));
     const auto coatNormal = [](const material::Material& surface) {
       return material::surface::map(
                  surface, material::surface::kClearcoatNormalSlot) != nullptr;
@@ -116,7 +128,12 @@ material::Material Page::surface() const {
   if (!m_scene) return material::surface::program();
   // Every map is marked as this page's, so a frame can say which pass is
   // missing when a body wears them without it.
-  return surfaceOf(*m_scene, m_name);
+  return surfaceOf(*m_scene, m_name, std::nullopt);
+}
+
+material::Material Page::surface(material::PixelRect region) const {
+  if (!m_scene) return material::surface::program();
+  return surfaceOf(*m_scene, m_name, region);
 }
 
 const std::string& Page::name() const {

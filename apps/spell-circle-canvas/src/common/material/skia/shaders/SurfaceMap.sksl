@@ -18,6 +18,12 @@
 // occlusion are one, metallic and the coat zero, no sheen, a white
 // specular at full strength, no brushing, no film, no transmission and
 // nothing behind displaced.
+//
+// A normal is drawn in the node's own frame and written in the page's: its
+// tilt across the picture is turned by how the node stands in the page,
+// uWorld, as a direction drawn on the node is, and keeps its steepness. The
+// pass that writes no normal, and a material anchored to the page, carry a
+// uWorld that turns nothing.
 uniform shader uColor;
 uniform shader uNormal;
 uniform shader uRoughnessMap;
@@ -134,6 +140,24 @@ half4 main(float2 xy) {
       if (!coat) t.xy *= uNormalScale;
       n = normalize(float3(t.x, uNormalDirectX > 0.5 ? -t.y : t.y,
                            max(t.z, 0.001)));
+    }
+    // Into the page: the tilt, read down the picture as the node's frame
+    // runs, carried by the inverse transpose of the node's placement and
+    // scaled back to the steepness it had.
+    float2 down = float2(n.x, -n.y);
+    float tilt = length(down);
+    float2 across = uWorld[0].xy;
+    float2 downward = uWorld[1].xy;
+    float determinant = across.x * downward.y - across.y * downward.x;
+    if (tilt > 0.0 && abs(determinant) > 1e-8) {
+      float2 turned = float2(downward.y * down.x - across.y * down.y,
+                             across.x * down.y - downward.x * down.x) /
+                      determinant;
+      float turnedTilt = length(turned);
+      if (turnedTilt > 0.0) {
+        turned *= tilt / turnedTilt;
+        n = normalize(float3(turned.x, -turned.y, n.z));
+      }
     }
     value = n * 0.5 + 0.5;
   } else if (uRole > 13.5) {

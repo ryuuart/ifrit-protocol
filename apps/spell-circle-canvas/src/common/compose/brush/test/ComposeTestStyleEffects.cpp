@@ -113,6 +113,30 @@ TEST(ComposeStyleEffects, AKeylineOverAnOpenCurveIsOneBandAlongItAndNoChord) {
   }
 }
 
+TEST(ComposeStyleEffects, AKeylineInsideAnOpenCurveAlongTheBoxEdgeIsWhole) {
+  // An open line along the top edge of a box, keylined inside: the band is
+  // centred on the line, so half of it stands above the box, and a layer
+  // the node is drawn into (its opacity's) holds that half too.
+  const material::Color red = {1, 0, 0, 1};
+  Host host(120, 120);
+  const std::vector<glm::vec2> line{{0, 0}, {50, 0}, {100, 0}};
+  host.composer.render(box().children(
+      {box()
+           .absolute()
+           .left(10)
+           .top(40)
+           .width(100)
+           .height(40)
+           .opacity(.999f)
+           .shape(heldPath(geometry::path::curveThrough(line)))
+           .stroke(
+               material::from(red),
+               {.width = 8, .position = material::StrokePosition::Inside})}));
+  host.frame();
+  EXPECT_GT(SkColorGetR(host.pixel(60, 42)), 200u) << "below the line";
+  EXPECT_GT(SkColorGetR(host.pixel(60, 37)), 200u) << "above the box's edge";
+}
+
 TEST(ComposeStyleEffects, AnOuterGlowIsASpreadShadowWithNoOffset) {
   EXPECT_EQ(
       pixelOf(box().fill(material::from(kGrey).effects(material::Filter::shadow(

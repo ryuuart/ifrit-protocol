@@ -165,6 +165,21 @@ auto marker = compose::box().width(20).height(20)
 angle = 45.0f;
 ```
 
+A host that keeps the pixels its last draw left can repaint only what
+changed. `Composer::changedRegion()` answers the rects, in canvas units,
+outside which the next draw paints exactly what the last one did: every node
+whose own paint changed, moves on the clock, moved, or gained, lost or
+reordered a child adds where its ink stood and where it stands, its
+decorations' bleed and its layer effects' reach included. Clip the canvas to
+those rects, clear them and draw; if `drewWithinChangedRegion()` then
+answers false — a text leaf of a stated size is set at paint and can reach
+past the ink it had — draw again whole. It answers none, meaning the whole
+canvas, before the draw that first keeps its extents, after a new size,
+view, map or cache purge, on a composer that bakes pixels, and where a
+changed node cannot be bounded on its plane (a backdrop, a plane turned in
+depth, a custom program). A page painted as surface maps and every
+`TextureScene` painting one do this themselves.
+
 Paint bindings do not run layout. Change text or dimensions by describing
 again. Make a live cell once: making a new one on every description gives
 it a new identity and defeats pruning.
@@ -341,7 +356,7 @@ states a normal of its clear coat's own adds a `ClearcoatNormal` map, as a
 stated optional lobe adds its maps: a sheen, a specular, a brushing, a thin
 film, a transmission with the thickness of its volume, a distortion.
 
-**A page keeps the range its content states.** The maps are eight bits, so
+**A page keeps the range its content states, or the one stated.** The maps are eight bits, so
 the emissive map's white stands for the brightest emission any material on
 the page has stated — one at least — and `maps()` says that strength:
 content at or below one paints exactly as stated, and an emission of four
@@ -349,7 +364,11 @@ paints white and is read back as four, so it reaches a bloom's threshold.
 The thickness map's white stands for the deepest volume stated and the
 distortion map's full swing for the strongest distortion, both in scene
 units, and the index, attenuation and dispersion of the first transmitting
-material painted are the whole page's. A body wearing the page transmits,
+material painted are the whole page's. A `SurfaceRange` handed to
+`SurfaceScene::make` states those readings from the first paint instead —
+a page whose emission moves on the clock states the brightest it will
+reach, nothing below it clips, and the page never repaints because its
+content grew brighter. A body wearing the page transmits,
 bends and displaces what stands behind it exactly where the page's maps say
 it does, and shows its own colour everywhere else.
 
@@ -362,7 +381,12 @@ stack does. A material may also read the unit as a source, resolved by
 the painter when it paints: `material::Material::relief` raises or impresses
 the unit's own coverage softened over the shoulder into the normal map, and
 `material::Material::brushed` brushes along the unit — a keyline's tangent,
-a box's long axis, a glyph's box's long axis, in the page. So
+a box's long axis, a glyph's box's long axis, in the page. A span's
+ink that names no unit reads the stretch of glyphs it paints as one, and a
+material ribbon reads its band, brushed along its spine's tangent wherever
+it bends. Every normal a page's maps carry is written in the page: a node
+turned a quarter turns the lean of its normals with it, as its brushing
+turns. So
 `.ink(stone.relief({.shoulder = 3, .depth = 1}), PaintBox::Glyph)` cuts each
 letter and the same ink with `PaintBox::Canvas` cuts the passage as one
 mark; under `PaintBox::Word` neighbouring letters share one height, so the
@@ -380,7 +404,11 @@ material::Material worn = material::surface::program(page->maps());
 
 Here `tree`, `fonts` and `seconds` are the caller's. Each map is its own
 `TextureScene` over the tree, so nothing a composer recorded for one map
-is replayed for another, and a still tree paints none of them again. The
+is replayed for another, a still tree paints none of them again, and a
+tree that changed repaints only the region it changed in each map.
+`page->maps(region)` answers the maps of one rectangle of the page, in page
+pixels, each a cut of the page's map (`TextureScene::cut`) kept in step
+with every paint, so several bodies wear one page's parts. The
 mode underneath is `Composer::setSurfaceMap`, with
 `Composer::setSurfaceMapScale` for what a map's white stands for; a
 `TextureScene` takes one map through `setSurfaceMap` too. A page painted as a map takes no pixel

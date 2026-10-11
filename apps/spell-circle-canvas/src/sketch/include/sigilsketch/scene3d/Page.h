@@ -8,6 +8,7 @@
  */
 
 #include <sigilmaterial/core/Material.h>
+#include <sigilmaterial/texture/Texture.h>
 #include <sigilworld/frame/Pass.h>
 
 #include <memory>
@@ -53,6 +54,15 @@ class Page {
    *  the page learns that while it paints, after the frame was described,
    *  and a body wearing this is drawn with them from that same frame. */
   [[nodiscard]] material::Material surface() const;
+
+  /** THE MATERIAL A BODY WEARS TO SHOW ONE PART OF THIS PAGE: @p region, a
+   *  rectangle of page pixels, spread across the body's texture
+   *  coordinates as the whole page is by `surface()`. One page lays its
+   *  parts out and each body wears its own, so a scene of several bodies
+   *  paints one page rather than one each. Each part is a copy of the
+   *  page's pixels kept in step with every paint; the light, depth and
+   *  displacement its maps are read against are the whole page's. */
+  [[nodiscard]] material::Material surface(material::PixelRect region) const;
 
   /** The name the page's pass goes by, and that an error names. */
   [[nodiscard]] const std::string& name() const;

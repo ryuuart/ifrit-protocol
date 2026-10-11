@@ -252,6 +252,7 @@ static void BM_Draw_HeldTexture_SubtreeScaling(benchmark::State& state) {
   }
   for ([[maybe_unused]] auto iteration : state) host.draw();
   state.counters["texturesBaked"] = (double)host.composer.stats().texturesBaked;
+  state.counters["nodesBounded"] = (double)host.composer.stats().nodesBounded;
   state.counters["children"] = (double)count;
   state.counters["texture_pixels"] = 256 * 256;
   sigil::compose::bench::reportNodes(state, count + 2);

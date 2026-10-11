@@ -169,6 +169,44 @@ struct Surfaced {
   }
 };
 
+/** One page laid out as two halves, red and blue, each stated unlit, and
+ *  two cards side by side wearing a half each. */
+struct HalvedPage {
+  Page page;
+  void setup(Scene3DContext& ctx) {
+    ctx.canvas(160, 120);
+    ctx.background({0, 0, 0, 1});
+    sigil::geometry::mesh::camera::Camera lens;
+    lens.eye = {0, 0, 200};
+    lens.target = {0, 0, 0};
+    ctx.camera(lens);
+    page = ctx.page({64, 32});
+  }
+  world::Frame describe(sigil::motion::Duration) {
+    using namespace sigil::compose;
+    namespace material = sigil::material;
+    const auto unlit = [](material::Color colour) {
+      return material::from(colour).surface({.unlit = true});
+    };
+    return world::Frame(
+               world::group(
+                   {world::mesh(gm::quad(60, 60))
+                        .key("left card")
+                        .at({-40, 0, 0})
+                        .fill(page.surface(material::PixelRect{0, 0, 32, 32})),
+                    world::mesh(gm::quad(60, 60))
+                        .key("right card")
+                        .at({40, 0, 0})
+                        .fill(
+                            page.surface(material::PixelRect{32, 0, 32, 32}))})
+                   .key("set"))
+        .pass(page.render(box().width(64).height(32).children({
+            box().absolute().rect(0, 0, 32, 32).fill(unlit({1, 0, 0, 1})),
+            box().absolute().rect(32, 0, 32, 32).fill(unlit({0, 0, 1, 1})),
+        })));
+  }
+};
+
 /** A page of one colour worn on a card under a single lamp standing off
  *  its left edge, so the card's near side takes more light than its far
  *  side: the colour stated flat when @p Glowing is zero, as the emission
@@ -758,6 +796,20 @@ TEST_F(Scene3DDoors, PaintsASurfaceSceneThatTheScene3DLights) {
   const SkColor panel = picture.getColor(48, 60);
   EXPECT_GT(SkColorGetR(panel), 15u);
   EXPECT_NEAR(int(SkColorGetR(panel)), int(SkColorGetG(panel)), 12);
+}
+
+TEST_F(Scene3DDoors, EachBodyWearsItsOwnRegionOfOnePage) {
+  std::unique_ptr<Session> session =
+      kindOf<HalvedPage>()->open(fonts(), assets());
+  const SkBitmap picture = shadedFrame(*session);
+  // The left card wears the page's red half and the right card its blue
+  // half, each whole across the card.
+  const SkColor left = picture.getColor(55, 60);
+  EXPECT_GT(SkColorGetR(left), 150u);
+  EXPECT_LT(SkColorGetB(left), 60u);
+  const SkColor right = picture.getColor(105, 60);
+  EXPECT_GT(SkColorGetB(right), 150u);
+  EXPECT_LT(SkColorGetR(right), 60u);
 }
 
 TEST_F(Scene3DDoors, AFlatColourOnAPageTakesTheLightAndOnlyEmissionGlows) {

@@ -99,6 +99,7 @@ float declaredBleed(const Instance& inst, SkSize skiaSize) {
  *  and, in the trace's case, a silhouette cut square where the ink went
  *  on. */
 SkRect Composer::Impl::ownPaintBounds(Instance& inst) {
+  ++stats.nodesBounded;
   const ElementNode& node = inst.painted();
   const SkRect rect = instanceRect(inst);
   SkRect local = SkRect::MakeWH(rect.width(), rect.height());

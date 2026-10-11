@@ -28,6 +28,7 @@
 #include <optional>
 #include <vector>
 
+#include "UnitPaint.h"
 #include "paint/MaterialEffects.h"
 #include "paint/SurfaceMap.h"
 #include "paint/UnitSurface.h"
@@ -119,28 +120,35 @@ float Relief::bleed(glm::vec2 size) const {
 
 void Relief::paint(draw::Pen& pen, const PaintContext& context) const {
   if (context.outline.empty()) return;
-  const SkPath outline = geometry::path::toSk(context.outline);
-  // Only a surface map reads the relief: every other draw paints the
+  if (!m_units) m_units = std::make_shared<detail::UnitSurfaces>();
+  detail::paintUnit(m_material, *m_units, pen, context,
+                    geometry::path::toSk(context.outline), std::nullopt);
+}
+
+void detail::paintUnit(const material::Material& material, UnitSurfaces& units,
+                       draw::Pen& pen, const PaintContext& context,
+                       const SkPath& outline,
+                       const std::optional<material::Material>& direction) {
+  // Only a surface map reads the unit: every other draw paints the
   // material's colours flat over the outline.
   if (!context.surfaceMap) {
-    paintOver(m_material, pen, context, outline,
-              material::skia::paint(m_material), false);
+    paintOver(material, pen, context, outline, material::skia::paint(material),
+              false);
     return;
   }
-  detail::UnitShape unit;
+  UnitShape unit;
   unit.outline = outline;
   const SkRect bounds = outline.getBounds();
-  unit.direction = detail::longAxisOf({bounds.width(), bounds.height()},
-                                      context.toRoot.matrix);
+  unit.direction =
+      longAxisOf({bounds.width(), bounds.height()}, context.toRoot.matrix);
+  unit.directionMap = direction;
   unit.density = densityOf(context);
-  if (!m_units) m_units = std::make_shared<detail::UnitSurfaces>();
-  // The relief paints the map of its surface — the relief's normals among
+  // The unit paints the map of its surface — the relief's normals among
   // them. A surface stated unlit is its own colour in every map.
-  const bool asMap = m_material.surface() != nullptr;
-  paintOver(m_material, pen, context, outline,
-            asMap
-                ? m_units->mapsFor(m_material, unit).asMap(*context.surfaceMap)
-                : material::skia::paint(m_material),
+  const bool asMap = material.surface() != nullptr;
+  paintOver(material, pen, context, outline,
+            asMap ? units.mapsFor(material, unit).asMap(*context.surfaceMap)
+                  : material::skia::paint(material),
             asMap);
 }
 

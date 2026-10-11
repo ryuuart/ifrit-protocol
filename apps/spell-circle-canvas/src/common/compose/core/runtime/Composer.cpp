@@ -34,6 +34,21 @@ namespace sigil::compose {
 
 using namespace detail;
 
+namespace {
+
+/** Whether every rect of @p inner stands inside one rect of @p outer. */
+bool covers(const std::vector<SkRect>& outer,
+            const std::vector<SkRect>& inner) {
+  for (const SkRect& part : inner) {
+    bool inside = false;
+    for (const SkRect& whole : outer) inside |= whole.contains(part);
+    if (!inside) return false;
+  }
+  return true;
+}
+
+}  // namespace
+
 // Every described node allocates an ElementNode. Common fields stay inline;
 // rare and kind-specific state belongs in optional blocks. The size cap
 // prevents a new rare feature from increasing every node's allocation.
@@ -65,12 +80,14 @@ void Composer::setSize(glm::vec2 requested) {
   m_impl->size = size;
   m_impl->needsLayout = true;
   m_impl->contentDirty = true;
+  m_impl->changesUnknown = true;
 }
 
 void Composer::setView(material::Filter view) {
   m_impl->viewMaterial.reset();  // an Effect is already lowered
   m_impl->view = std::move(view);
   m_impl->contentDirty = true;  // the composite changes even if no node did
+  m_impl->changesUnknown = true;
 }
 
 void Composer::setView(const sigil::material::Material& view) {
@@ -85,6 +102,7 @@ void Composer::render(const Element& root) {
   Impl& impl = *m_impl;
   const sigil::measure::Stopwatch reconcile;
   impl.reconciler.render(impl.root, root.node());
+  impl.settledForDraw = false;
   // A patch may have started or stopped a transition, so its volatility
   // must be recomputed. An identical retained description does not: keeping
   // this false lets active() poll a released external binding before draw.
@@ -112,6 +130,7 @@ void Composer::render(const Element& root) {
 
 void Composer::renderSlot(std::string_view name, const Element& content) {
   Impl& impl = *m_impl;
+  impl.settledForDraw = false;
   const sigil::measure::Stopwatch reconcile;
   auto it = impl.bySlot.find(name);
   if (it == impl.bySlot.end()) {
@@ -164,6 +183,7 @@ void Composer::setInherited(const sigil::weave::Type& font,
   impl.rootLineHeight = 0.0f;
   impl.cascadeDirty = true;
   impl.contentDirty = true;
+  impl.changesUnknown = true;
 }
 
 bool Composer::dirty() const {
@@ -178,6 +198,49 @@ bool Composer::isRunning() const {
   impl.scanReleasedScalars();
   return impl.contentDirty || impl.needsLayout || impl.volatileDirty ||
          impl.engine.isRunning() || impl.rootVolatile;
+}
+
+void Composer::Impl::settleForDraw() {
+  ensureLayout();
+  if (cascadeDirty) runCascade();
+  // Volatility changes only on reconcile or while animations run (and once
+  // more on the frame they settle) — skip the walk otherwise. Bindings the
+  // host drives directly are the exception this scan covers: such a live value
+  // can start moving while no motion is running and the walk is asleep, so
+  // it has to re-declare its node volatile on the spot.
+  scanReleasedScalars();
+  const bool active = engine.isRunning();
+  if (volatileDirty || active || engineWasRunning) {
+    releasedScalars.clear();  // the walk re-registers what stays released
+    rootVolatile = computeVolatile(*root).volatileAbove;
+    volatileDirty = false;
+  }
+  engineWasRunning = active;
+}
+
+std::optional<std::vector<geometry::path::Rect>> Composer::changedRegion() {
+  Impl& impl = *m_impl;
+  // A composer that bakes pixels keys its bakes to the clip they were cut
+  // under, so a draw clipped to a region would cut them again: it answers
+  // the whole canvas and keeps nothing.
+  if (!impl.root || impl.bakesPixels()) return std::nullopt;
+  impl.trackChanges = true;
+  impl.regionPromised = true;
+  impl.promisedRegion.reset();
+  impl.settleForDraw();
+  impl.settledForDraw = true;
+  if (impl.changesUnknown) return std::nullopt;
+  impl.promisedRegion = impl.changedRegion(false);
+  if (!impl.promisedRegion) return std::nullopt;
+  std::vector<geometry::path::Rect> out;
+  out.reserve(impl.promisedRegion->size());
+  for (const SkRect& part : *impl.promisedRegion)
+    out.push_back(geometry::path::fromSk(part));
+  return out;
+}
+
+bool Composer::drewWithinChangedRegion() const {
+  return m_impl->drewWithinPromise;
 }
 
 void Composer::draw(SkCanvas& canvas) {
@@ -218,6 +281,7 @@ void Composer::draw(SkCanvas& canvas) {
   impl.stats.picturesRecorded = 0;
   impl.stats.texturesBaked = 0;
   impl.stats.nodesPainted = 0;
+  impl.stats.nodesBounded = 0;
   impl.promotedBytesLast = impl.promotedBytes;
   impl.promotedBytes = 0;
   impl.recording.groupPending = false;
@@ -288,24 +352,10 @@ void Composer::draw(SkCanvas& canvas) {
 
   sigil::measure::Laps laps;
 
-  impl.ensureLayout();
-  if (impl.cascadeDirty) impl.runCascade();
+  if (!impl.settledForDraw) impl.settleForDraw();
+  impl.settledForDraw = false;
   impl.stats.layoutMs =
       sigil::measure::Milliseconds(laps.mark("layout")).count();
-
-  // Volatility changes only on reconcile or while animations run (and once
-  // more on the frame they settle) — skip the walk otherwise. Bindings the
-  // host drives directly are the exception this scan covers: such a live value
-  // can start moving while no motion is running and the walk is asleep, so
-  // it has to re-declare its node volatile on the spot.
-  impl.scanReleasedScalars();
-  const bool active = impl.engine.isRunning();
-  if (impl.volatileDirty || active || impl.engineWasRunning) {
-    impl.releasedScalars.clear();  // the walk re-registers what stays released
-    impl.rootVolatile = impl.computeVolatile(*impl.root).volatileAbove;
-    impl.volatileDirty = false;
-  }
-  impl.engineWasRunning = active;
   impl.stats.volatileMs =
       sigil::measure::Milliseconds(laps.mark("volatile")).count();
 
@@ -337,6 +387,16 @@ void Composer::draw(SkCanvas& canvas) {
   }
   impl.paint(*impl.root, canvas);
   if (hasView) canvas.restore();
+  // The extents this draw left, kept for the next question; and whether
+  // what it painted stayed inside the region the host was told before it.
+  if (impl.trackChanges) {
+    const std::optional<std::vector<SkRect>> painted = impl.changedRegion(true);
+    impl.drewWithinPromise =
+        !impl.regionPromised || !impl.promisedRegion ||
+        (painted && covers(*impl.promisedRegion, *painted));
+    impl.changesUnknown = hasView;
+  }
+  impl.regionPromised = false;
   impl.stats.paintMs = sigil::measure::Milliseconds(laps.mark("paint")).count();
   impl.contentDirty = impl.recording.groupPending;
   // Costliest first, AND THE LABEL BREAKS EVERY TIE. Two nodes that cost
@@ -410,6 +470,7 @@ void Composer::setBakeDensity(float devicePixelsPerUnit) {
   const float density = devicePixelsPerUnit > 0 ? devicePixelsPerUnit : 0.0f;
   if (density == m_impl->bakeDensity) return;
   m_impl->bakeDensity = density;
+  m_impl->changesUnknown = true;
   // The next draw has work to do, and a host that gates its draw on
   // dirty() reads exactly this flag: without it the scene keeps showing
   // rasters taken at the old density until something else moves.
@@ -515,7 +576,9 @@ void Composer::setSurfaceMap(std::optional<material::texture::Role> role) {
 }
 
 void Composer::setSurfaceMapScale(float scale) {
+  const float before = m_impl->surfaceMapScale;
   m_impl->surfaceMapScale = std::isfinite(scale) && scale > 0 ? scale : 1.0f;
+  if (m_impl->surfaceMapScale != before) m_impl->changesUnknown = true;
 }
 
 float Composer::surfaceMapScale() const { return m_impl->surfaceMapScale; }
@@ -526,6 +589,7 @@ std::optional<material::texture::Role> Composer::surfaceMap() const {
 
 void Composer::purgeCaches() {
   Impl& impl = *m_impl;
+  impl.changesUnknown = true;
   impl.bakeSurfaces.clear();
   impl.promotedBytes = 0;
   impl.promotedBytesLast = 0;

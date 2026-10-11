@@ -48,6 +48,13 @@ struct TextInk {
                                const glm::mat3& paintToLocal,
                                const SkPath& outline, glm::vec2 direction,
                                float density) const;
+    /** The ink laid over the node's own box, as an ink that restarts on
+     *  no unit is, answered for the stretch of glyphs @p outline covers
+     *  in the node as one unit, running @p direction in the page,
+     *  rasterised at @p density. */
+    sk_sp<SkShader> shaderAcross(const material::FrameData& frame,
+                                 const SkPath& outline, glm::vec2 direction,
+                                 float density) const;
   };
   /** One retained span source resolved for this draw. Its owner follows
    *  paragraph restyling; its shader belongs to the current destination. */
@@ -56,8 +63,10 @@ struct TextInk {
     sk_sp<SkShader> shader;
     std::optional<material::Color> color;
     std::optional<sigil::weave::Unit> unit;
-    /** A lit unit resolves after its placed box is known. Prepared
-     *  material inputs remain shared by the retained span. */
+    /** A lit unit resolves after its placed box is known, and so does a
+     *  lit span that restarts on no unit but reads one: the stretch of
+     *  glyphs it paints is its unit. Prepared material inputs remain
+     *  shared by the retained span. */
     std::optional<Surface> surface;
     /** The span's paint already is a surface map of its material. */
     bool surfaceMap = false;

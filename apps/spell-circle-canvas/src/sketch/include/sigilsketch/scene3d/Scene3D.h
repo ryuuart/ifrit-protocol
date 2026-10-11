@@ -8,6 +8,7 @@
  * world Frame.
  */
 
+#include <sigilcompose/texture/SurfaceRange.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/time/Duration.h>
 #include <sigilsketch/core/Assets.h>
@@ -81,8 +82,11 @@ struct Scene3DContext {
    *  and `page.surface()` on the body that shows it — the scene's own lights,
    *  environment and camera shade it, and the frame's time paints it. The
    *  session keeps what it paints into for as long as it runs, as it keeps
-   *  a `textureScene()`, and for the same reason. */
-  [[nodiscard]] Page page(glm::ivec2 size);
+   *  a `textureScene()`, and for the same reason. @p range states what the
+   *  page's maps stand for at their white — the brightest emission a
+   *  page whose light moves on the clock will reach — and what it leaves
+   *  at zero is learned from what the page paints. */
+  [[nodiscard]] Page page(glm::ivec2 size, compose::SurfaceRange range = {});
 
   /** Declare the plate's size in pixels. */
   void canvas(int width, int height) {

@@ -1,12 +1,13 @@
 sigil_library(SigilComposeTexture
   SOURCES Texture.cpp SurfaceScene.cpp
-  HEADERS Texture.h SurfaceScene.h
+  HEADERS Texture.h SurfaceScene.h SurfaceRange.h
   PUBLIC SigilComposeCore SigilMaterialTexture SigilSkiaGraphite
          SigilCoreHardware
   PRIVATE SigilMotionClock SigilMaterialSkia)
 # The suite includes device-backed surface cases that skip without a GPU.
 sigil_test(compose_test
   SOURCES test/ComposeTextureTest.cpp test/ComposeSurfaceSceneTest.cpp
+    test/ComposeRepaintTest.cpp
   LIBRARIES SigilComposeTexture SigilComposeTesting SigilComposeBrush
             SigilWeavePorts
             SigilGeometryDevice

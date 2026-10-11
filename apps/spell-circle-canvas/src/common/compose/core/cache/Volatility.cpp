@@ -551,6 +551,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // is the split bake's whole population: the node's own paint is provably
   // static and only its children move.
   inst.ownContentVolatile = verdict.ownContentVolatile;
+  inst.ownVaries = ownPaint || ownContent;
   if (ownContent)
     inst.ownImage.reset();  // a volatile own paint can never hold a bake
   // The resolve-memo carve-out: volatility caused SOLELY by a live

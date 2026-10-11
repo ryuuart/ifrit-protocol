@@ -2,7 +2,7 @@ find_package(yoga CONFIG REQUIRED)
 sigil_library(SigilComposeBrush
   SOURCES Adaptors.cpp Decorations.cpp Lines.cpp Relief.cpp
           PixelStyles.cpp Ink.h
-          Composites.cpp Stamps.cpp Ribbon.cpp Art.cpp BakedArt.h
+          Composites.cpp Stamps.cpp Ribbon.cpp Art.cpp BakedArt.h UnitPaint.h
           # Stroke and mask executors.
           StrokePainting.cpp SpanNormalForm.cpp Band.cpp Masks.cpp
           SpanArithmetic.h SpanContours.h

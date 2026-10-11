@@ -62,6 +62,7 @@ sigil_library(SigilComposeCore
     style/StyleSheet.cpp
     # retained ownership, reconciliation, transitions and queries
     runtime/ComposeRuntime.h
+    runtime/Changes.cpp
     runtime/Composer.cpp
     runtime/ComposerImpl.h
     runtime/Instance.h

@@ -32,15 +32,25 @@ namespace {
 
 /** The one program every surface map is read through; its role is a
  *  uniform, so a surface's six maps share one compiled effect. */
-const sk_sp<SkRuntimeEffect>& surfaceMapEffect() {
-  static const sk_sp<SkRuntimeEffect> effect = [] {
-    auto [built, error] = SkRuntimeEffect::MakeForShader(
-        SkString(std::string(shaderSource("SurfaceMap.sksl")).c_str()));
+/** THE SURFACE MAP PASS, in two forms: one that turns the normals it
+ *  writes into the page by the node's placement — read as the automatic
+ *  `uWorld` — and one that turns nothing, for every other map and for a
+ *  material anchored to the page, so a map that writes no normal does not
+ *  depend on where its node stands. */
+const sk_sp<SkRuntimeEffect>& surfaceMapEffect(bool turnsNormals) {
+  const auto build = [](const char* world) {
+    auto [built, error] = SkRuntimeEffect::MakeForShader(SkString(
+        (std::string(world) + std::string(shaderSource("SurfaceMap.sksl")))
+            .c_str()));
     if (!built)
       SkDebugf("sigilmaterial surface map shader: %s\n", error.c_str());
     return built;
-  }();
-  return effect;
+  };
+  static const sk_sp<SkRuntimeEffect> turning =
+      build("uniform float4x4 uWorld;\n");
+  static const sk_sp<SkRuntimeEffect> still =
+      build("const float4x4 uWorld = float4x4(1.0);\n");
+  return turnsNormals ? turning : still;
 }
 
 /** The position of @p role among the maps a surface map pass answers, or
@@ -425,9 +435,12 @@ Paint SurfaceMaps::mapPass(texture::Role role) const {
     const std::lock_guard lock(m_maps->mutex);
     if (const std::optional<Paint>& held = m_maps->maps[*index]) return *held;
   }
-  const sk_sp<SkRuntimeEffect>& effect = surfaceMapEffect();
-  if (!effect) return {};
   const Material& material = m_inputs->material;
+  const bool writesNormal =
+      role == texture::Role::Normal || role == texture::Role::ClearcoatNormal;
+  const sk_sp<SkRuntimeEffect>& effect =
+      surfaceMapEffect(writesNormal && !material.worldSpace());
+  if (!effect) return {};
   Paint pass = PaintAccess::unresolvedSksl(effect);
   // EVERY CHANNEL STANDS WHERE THE COLOUR DOES: a material anchored to the
   // root frame places its normal, its numbers and its lobes' maps there

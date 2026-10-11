@@ -64,13 +64,14 @@ set(SIGIL_SKETCH_PUBLIC
   SigilGeometryMeshCamera SigilGeometryMeshRender SigilMediaCore
   SigilIOHub SigilIOFrames SigilMeasure SigilMaterialColor SigilMaterialTexture
   SigilMotionClock
-  SigilComposeCore SigilWorldFrame SigilWorldNode SigilWorldKit)
+  SigilComposeCore SigilComposeTexture SigilWorldFrame SigilWorldNode
+  SigilWorldKit)
 set(SIGIL_SKETCH_PRIVATE
   # The door a frame arrives by. A scene2d sketch can wear another application's
   # picture, so the archive that draws reaches the subscription — the
   # publisher beside it is still nobody's but the host's, and neither
   # protocol reaches a header.
-  SigilComposeTexture SigilWorldScene SigilMaterialSkia SigilWeavePaint
+  SigilWorldScene SigilMaterialSkia SigilWeavePaint
   SigilDataDecode
   SigilDataQuery
   SigilDataRead

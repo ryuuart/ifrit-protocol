@@ -663,6 +663,27 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   SkBlendMode bakedLeafBlend = SkBlendMode::kSrcOver;
   bool paintDirty = true;
   bool subtreeVolatile = false;
+  /** WHAT THE LAST DRAW LEFT ON THE CANVAS FOR THIS NODE, for a host that
+   *  keeps its pixels and repaints only what changed
+   *  (`Composer::changedRegion`). `changedOwn` says this node's own paint
+   *  changed since that draw — set by every patch and invalidation that
+   *  reaches `markPaintDirtyUp`, and true on a node no draw has seen.
+   *  `ownVaries` says its own paint moves off the describe clock (a live
+   *  material, a running transition, a connected transform, its opacity),
+   *  read off the volatility walk. The extent is the subtree's ink, its
+   *  own layer effect's reach included, in the parent's space; the matrix
+   *  is what placed it there; the signature names the children it held, in
+   *  their order. */
+  bool changedOwn = true;
+  /** The subtree's allocation rect (`bakeBounds`) as the last paint that
+   *  measured it found it, and whether one has. */
+  SkRect heldBakeBounds = SkRect::MakeEmpty();
+  bool bakeBoundsHeld = false;
+  bool ownVaries = false;
+  bool extentSeen = false;
+  SkRect lastExtent = SkRect::MakeEmpty();
+  SkMatrix lastPlacement = SkMatrix::I();
+  uint64_t lastChildren = 0;
   // Live-material stability (the resolve memo's paint half): set when the
   // node's ONLY volatility is its live material; the painter then replays
   // the cached picture whenever resolve() returns the shader the picture
@@ -991,6 +1012,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   void markPaintDirtyUp(bool ownPaint = true) {
     if (ownPaint) {
       ownPaintDirty = true;
+      changedOwn = true;
       ownImage.reset();
     }
     for (Instance* i = this; i; i = i->parent) {
@@ -999,6 +1021,10 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
       i->picture.reset();
       i->textureImage.reset();
     }
+    // Every ancestor's held bounds, with no early stop: one already dirty
+    // may be in the middle of its paint, holding bounds it measured before
+    // this change, and would keep them once that paint marks it clean.
+    for (Instance* i = this; i; i = i->parent) i->bakeBoundsHeld = false;
   }
 };
 

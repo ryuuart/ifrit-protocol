@@ -10,6 +10,7 @@
 
 #include <include/core/SkSize.h>
 #include <sigilcompose/core/Element.h>
+#include <sigilcompose/texture/SurfaceRange.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/texture/Texture.h>
@@ -19,6 +20,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <tuple>
 
 namespace sigil::weave {
 class FontContext;
@@ -72,7 +74,10 @@ namespace sigil::compose {
  *  least: a page whose brightest is four paints four as white and every
  *  other emission as its share of that light, and `maps()` states four as
  *  the strength the map is read at. A page that states nothing brighter
- *  than one paints its emission as stated.
+ *  than one paints its emission as stated. A STATED RANGE (`SurfaceRange`)
+ *  fixes those readings from the first paint instead: a page whose
+ *  emission moves on the clock states the brightest it will reach, and
+ *  nothing below it clips or is repainted because it rose.
  *
  *  `maps()` hands the set to `material::surface::program`, which dresses a
  *  surface a lit renderer shades, so the page is lit by the renderer's own
@@ -85,9 +90,11 @@ namespace sigil::compose {
 class SurfaceScene {
  public:
   /** An N32 premultiplied raster scene per map; dimensions are at least
-   *  one pixel. */
+   *  one pixel. @p range states what the maps stand for at their white;
+   *  what it leaves at zero is learned from the content. */
   static std::shared_ptr<SurfaceScene> make(SkISize size,
-                                            sigil::weave::FontContext& fonts);
+                                            sigil::weave::FontContext& fonts,
+                                            SurfaceRange range = {});
   ~SurfaceScene();
 
   SurfaceScene(const SurfaceScene&) = delete;
@@ -107,6 +114,16 @@ class SurfaceScene {
    *  what `material::surface::program(maps, parameters)` dresses a
    *  surface with. The lobe maps are there once a render has added them. */
   material::texture::TextureMaps maps() const;
+  /** THE MAPS OF ONE PART OF THE PAGE: @p region, in page pixels, read
+   *  whole by whatever wears them, so one page lays its parts out and each
+   *  body wears its own. Each map of the region is a cut of the page's map
+   *  (`TextureScene::cut`) the scene keeps from the first time the region
+   *  is asked for, copied again by every render that paints the page, on
+   *  the surface the page stands on. The numbers the maps are read
+   *  against are the whole page's. */
+  material::texture::TextureMaps maps(material::PixelRect region);
+  /** Whether @p scene is one of this page's maps or one of its cuts. */
+  bool paints(const TextureScene* scene) const;
   /** The texture for @p role; empty for a role this scene paints none for. */
   material::Texture texture(material::texture::Role role) const;
 
@@ -128,6 +145,12 @@ class SurfaceScene {
    *  others stand on; true when one is there. */
   bool add(material::texture::Role role);
   std::map<material::texture::Role, std::shared_ptr<TextureScene>> m_scenes;
+  /** The cuts of each region asked for, by region and role. */
+  std::map<std::tuple<int, int, int, int>,
+           std::map<material::texture::Role, std::shared_ptr<TextureScene>>>
+      m_cuts;
+  /** The numbers every set of maps is read against, beside its textures. */
+  material::texture::TextureMaps readings() const;
   uint64_t m_revision = 0;
   SkISize m_size = SkISize::MakeEmpty();
   sigil::weave::FontContext* m_fonts = nullptr;
@@ -138,15 +161,17 @@ class SurfaceScene {
   /** What the map of @p role is read against: its white, or its full
    *  swing. */
   float scaleOf(material::texture::Role role) const;
-  /** The brightest emission painted so far, at least one: what the
-   *  emissive map's white stands for. */
+  /** The brightest emission painted so far, at least one, or the
+   *  emission stated: what the emissive map's white stands for. */
   float m_emissionScale = 1;
-  /** The deepest volume and the strongest distortion painted so far, in
-   *  scene units; zero before a material states one. */
+  /** The deepest volume and the strongest distortion painted so far, or
+   *  the ones stated, in scene units; zero before either says one. */
   float m_thicknessScale = 0;
   float m_distortionScale = 0;
   /** The first transmitting material's volume. */
   std::optional<material::texture::Volume> m_volume;
+  /** What the author stated the maps stand for. */
+  SurfaceRange m_range;
 };
 
 }  // namespace sigil::compose

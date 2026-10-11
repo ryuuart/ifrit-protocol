@@ -39,7 +39,7 @@ void bindSketchPage(py::module_& module) {
           "The pass that paints tree as this page's maps at the frame's "
           "time, before anything draws a body. A tree that has not changed "
           "since the page last painted is not painted again.")
-      .def("surface", &Page::surface,
+      .def("surface", py::overload_cast<>(&Page::surface, py::const_),
            "The one material a body wears to show this page. A body wearing "
            "it on a frame without the page's pass is an error naming both.")
       .def_property_readonly(

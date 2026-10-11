@@ -53,6 +53,16 @@ class TextureScene : public std::enable_shared_from_this<TextureScene> {
                                             sigil::weave::FontContext& fonts,
                                             material::Color background = {
                                                 0, 0, 0, 0});
+  /** A CUT OF @p source: @p rect of its pixels, the rect's corner at pixel
+   *  (0, 0), as a scene of its own that a texture samples whole — so a
+   *  body whose coordinates span the texture shows that rect alone. It has
+   *  no tree: each `render` copies the source's newest pixels once the
+   *  source has painted since, on whichever surface the cut stands on, and
+   *  counts that as a paint. Null for a rect that misses the source. The
+   *  source must outlive nothing: the cut holds it. */
+  static std::shared_ptr<TextureScene> cut(
+      std::shared_ptr<const TextureScene> source, material::PixelRect rect,
+      sigil::weave::FontContext& fonts);
   ~TextureScene();
 
   TextureScene(const TextureScene&) = delete;
@@ -66,7 +76,8 @@ class TextureScene : public std::enable_shared_from_this<TextureScene> {
                  sigil::skia::GraphiteContext& context);
 
   /** Reconcile @p root and paint when needed. The scene clock advances to
-   *  @p seconds; earlier or nonfinite readings leave it unchanged. */
+   *  @p seconds; earlier or nonfinite readings leave it unchanged. A cut
+   *  ignores @p root and copies its source when the source has painted. */
   void render(const Element& root, double seconds = 0.0);
 
   /** A sampling value retaining this scene and its current revision. */
@@ -84,6 +95,8 @@ class TextureScene : public std::enable_shared_from_this<TextureScene> {
   material::DeviceImage deviceImage() const;
   /** Whether the retained tree needs another render. */
   bool isRunning() const;
+  /** The rect of its source a cut shows; none on a scene with a tree. */
+  std::optional<material::PixelRect> cutRect() const;
 
   /** The retained composer's statistics and queries. */
   const Composer& composer() const;

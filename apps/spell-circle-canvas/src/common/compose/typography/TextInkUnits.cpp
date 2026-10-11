@@ -203,8 +203,9 @@ void detail::resolveGlyphInk(const sigil::weave::ParagraphLayout& layout,
         }
         UnitGroup& group = groups.back();
         RestPose pose;
-        if (unit && restPoseOf(poses, placed, pose)) {
-          if (group.surface && group.surface->readsUnit) {
+        const bool readsUnit = group.surface && group.surface->readsUnit;
+        if ((unit || readsUnit) && restPoseOf(poses, placed, pose)) {
+          if (readsUnit) {
             if (!group.outlined) group.run = {pose.cosine, pose.sine};
             group.outlined = true;
             addGlyphOutline(placed, pose, group.outline);
@@ -225,6 +226,19 @@ void detail::resolveGlyphInk(const sigil::weave::ParagraphLayout& layout,
       });
 
   for (UnitGroup& group : groups) {
+    // A span on no unit that reads one: the stretch of glyphs it paints
+    // is the unit, its ink laid over the node's box as an unmapped ink is.
+    if (!group.mapped && group.surface && group.surface->readsUnit) {
+      const SkPath outline = group.outline.snapshot();
+      const SkRect bounds = outline.getBounds();
+      const glm::vec2 local = bounds.width() >= bounds.height()
+                                  ? group.run
+                                  : glm::vec2{-group.run.y, group.run.x};
+      group.shader = group.surface->shaderAcross(
+          ink.frame, outline, detail::intoPage(local, ink.frame.world),
+          ink.density);
+      continue;
+    }
     if (group.mapped && (group.shader || group.surface)) {
       const SkRect box = group.placed ? group.box : SkRect::MakeWH(1, 1);
       SkMatrix map = SkMatrix::Translate(box.left(), box.top());

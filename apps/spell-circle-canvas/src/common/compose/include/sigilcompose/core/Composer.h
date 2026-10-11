@@ -173,6 +173,34 @@ class Composer {
    *  Provably-static subtrees replay their auto-recorded pictures. */
   void draw(SkCanvas& canvas);
 
+  /** WHAT THE NEXT DRAW CHANGES, for a host that keeps the pixels the last
+   *  draw left and repaints only a region of them: the rects, in canvas
+   *  units and none touching another, outside which the next draw paints
+   *  exactly what the last one did. Every node whose own paint changed, moves
+   * on the clock, moved, or gained, lost or reordered a child contributes where
+   * its ink stood and where it stands, its decorations' bleed and its layer
+   * effects' reach included; a region of many parts is held as the one rect
+   * around them. No rects: the next draw paints what the last did.
+   *
+   *  None when the whole canvas must be painted: before the draw that
+   *  first keeps what it painted, after a new size, view, inherited font,
+   *  surface map or map scale, after `purgeCaches`, on a composer that
+   *  bakes pixels (a bake is cut to the clip it was taken under), and
+   *  when a changed node cannot be bounded on its plane — a backdrop that
+   *  reads what lies beneath it, a plane turned in depth or a shared
+   *  space, a custom program handed the canvas.
+   *
+   *  Asking settles layout, the cascade and volatility as a draw does, and
+   *  the answer holds for the next draw; from the first question on, every
+   *  draw keeps what it painted for the next one. */
+  std::optional<std::vector<geometry::path::Rect>> changedRegion();
+  /** Whether the last draw painted nothing outside the region asked for
+   *  before it. A text leaf of a stated size is set at paint, so a passage
+   *  that changed can reach past the region its old ink promised; a host
+   *  that clipped the draw to the region then paints the whole canvas. True
+   *  after a draw no region was asked for. */
+  bool drewWithinChangedRegion() const;
+
   /** Drops every per-node cache (auto pictures, Cache::Texture bakes,
    *  held live-material shaders) and marks the tree for a full repaint.
    *  GPU hosts call this on device loss or a backend switch: cached
@@ -359,6 +387,9 @@ class Composer {
     size_t picturesRecorded = 0;
     size_t texturesBaked = 0;  ///< of those, bakes rather than recordings
     size_t nodesPainted = 0;   ///< instances painted live last draw()
+    /** Nodes whose own paint bounds were measured last draw(): a held
+     *  subtree that has not changed is not measured again. */
+    size_t nodesBounded = 0;
     // Per-phase wall time, so a slow frame localizes at a glance. The paint
     // number is where per-pixel cost lives (live materials, re-records);
     // reconcile/layout/volatile are the retained machinery.

@@ -307,7 +307,7 @@ A scene2d sketch and a scene3d sketch can exchange pictures without sharing thei
 | --- | --- |
 | `ctx.textureScene(size, background)` | a Compose scene painted into a texture |
 | `ctx.bakeScene3D(frame, size, {.camera, .background, .at})` | one World frame baked into an image on a scene2d sketch's surface |
-| `ctx.page(size)` | a `sketch::Page`: a Compose page painted as a surface's maps by a pass on the frame, for the scene's lights to shade — on a scene3d sketch's frame, or on the frame a scene2d sketch bakes |
+| `ctx.page(size, range)` | a `sketch::Page`: a Compose page painted as a surface's maps by a pass on the frame, for the scene's lights to shade — on a scene3d sketch's frame, or on the frame a scene2d sketch bakes; the optional `compose::SurfaceRange` states what its maps stand for at their white |
 
 The session retains texture scenes until the body declares again. Create one
 in `setup()`, keep the returned pointer, and update it at the scene's forward
@@ -334,7 +334,24 @@ other light, so a page meant to read as painted is seen through
 `world::ToneCurve::Neutral`. Nothing paints
 unless its pass is on the frame: a body wearing a page whose pass is missing
 is an error naming both, and a page whose tree has not changed paints nothing
-and is counted as skipped.
+and is counted as skipped. A page whose tree changes repaints only what
+changed: a clock's numerals ticking over a sheet of lit materials repaint
+the numerals' few pixels in every map, and the sheet around them stays as
+it was painted, on the CPU of a capture as on a live device.
+
+One page can dress several bodies. `Page::surface(region)` is the material
+that shows one rectangle of the page, in page pixels, spread across the
+body's texture coordinates as `surface()` spreads the whole page, so a
+scene of several cards lays their faces out on one page and each card
+wears its own part. Each part is a copy of the page's pixels kept in step
+with every paint.
+
+A page whose light moves on the clock states its range:
+`ctx.page(size, {.emission = 8})` reads the emissive map's white as eight
+from the first paint, so an emission bound to a value that rises past
+everything the page painted before is kept rather than clipped, and the
+page never repaints because its content grew brighter. Left unstated, the
+range is learned from what the page paints and only rises.
 
 ```cpp
 struct Plate {
@@ -353,7 +370,8 @@ wears `page.surface()`, and `bakeScene3D` runs the page's pass at the bake's
 moment before anything draws a body. The session keeps what the page paints
 into until the body declares again, as it keeps a texture scene; the page is
 painted on the device a live session draws on, and on the CPU for a capture
-that will be diffed.
+that will be diffed, because the device draws every edge differently from
+the CPU and a capture is judged against plates made on the CPU.
 
 ```cpp
 struct Plaque {

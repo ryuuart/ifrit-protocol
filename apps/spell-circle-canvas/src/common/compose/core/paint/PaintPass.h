@@ -187,11 +187,21 @@ struct PaintPass {
    *  union with every layer effect in it given its filter's reach, which is
    *  what a surface has to hold. bakeBounds() walks the whole subtree and
    *  three tiers ask for it, so it is memoised per paint — lazily, so a
-   *  node that reaches none of them never pays for it. */
+   *  node that reaches none of them never pays for it — and kept across
+   *  paints while the subtree holds still: every change that can move the
+   *  rect stales the node's paint (`markPaintDirtyUp`) or declares it
+   *  volatile, so a node neither stale nor volatile stands where it stood
+   *  and its descendants are not walked again. */
   const SkRect& localBounds() {
     if (!localBoundsDone) {
       localBoundsDone = true;
-      localPaintBounds = impl.bakeBounds(inst);
+      if (inst.bakeBoundsHeld && !inst.paintDirty && !inst.subtreeVolatile) {
+        localPaintBounds = inst.heldBakeBounds;
+      } else {
+        localPaintBounds = impl.bakeBounds(inst);
+        inst.heldBakeBounds = localPaintBounds;
+        inst.bakeBoundsHeld = true;
+      }
     }
     return localPaintBounds;
   }
