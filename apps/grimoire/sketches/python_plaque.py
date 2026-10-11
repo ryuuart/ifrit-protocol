@@ -37,7 +37,7 @@ CAPTION_INK = material.from_(INK).surface(roughness=0.7)
 
 # The rule under the title is copper that glows.
 GLOWING_RULE = material.from_(COPPER).surface(
-    metallic=1.0, roughness=0.3, emission=COPPER, emissionStrength=2.0
+    metallic=1.0, roughness=0.3, emission=COPPER, emissionStrength=12.0
 )
 
 

@@ -46,7 +46,7 @@ STONE_FACE = (
 COPPER_METAL = material.from_(COPPER).surface(metallic=1.0, roughness=0.32)
 CAPTION_INK = material.from_(INK).surface(roughness=0.7)
 GLOWING_RULE = material.from_(COPPER).surface(
-    metallic=1.0, roughness=0.3, emission=COPPER, emissionStrength=2.0
+    metallic=1.0, roughness=0.3, emission=COPPER, emissionStrength=12.0
 )
 ```
 
@@ -201,13 +201,13 @@ before the sketch opens.
   highlight; the direction is the page's horizontal until the brushing
   can follow the fill's own shape, which is queued.
 
-## Two limits, today
+## Two things worth knowing
 
-A page's emission is clipped at one, so `emissionStrength=2.0` on the
-rule arrives no brighter than white and the bloom above its threshold
-does not fire; the rule is lit copper rather than a lamp until the page
-carries float emission. And a material's relief is said with a
-decoration over the glyph outline rather than on the material itself;
-the rule that every channel of a material is placed and sourced by the
-fill's unit, with relief and brushing as statements on the material, is
-the finding being worked, and this page will shorten when it lands.
+A page's emission map keeps its light past white: its white stands for
+the brightest emission the page states, so the rule at strength twelve
+reaches the bloom's threshold and halos, while a page that states
+nothing past white is unchanged. And `compose.relief` over the glyph
+outline is the same statement a material makes with `.relief(shoulder=,
+depth=)`; the decoration is the spelling for a text leaf's outline, the
+material's is the spelling for any fill, and both cut the page's height
+per the unit the fill names.
