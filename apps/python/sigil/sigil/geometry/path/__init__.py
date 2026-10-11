@@ -2,6 +2,7 @@
 # typing/additions, not this file.
 
 from _sigil.geometry.path import (
+    Between,
     Cap,
     Connect,
     FillRule,
@@ -13,6 +14,7 @@ from _sigil.geometry.path import (
     Outline,
     Pattern,
     Pose,
+    Profile,
     RadialOptions,
     Rect,
     Smooth,
@@ -41,6 +43,7 @@ from . import (
 )
 
 __all__ = [
+    "Between",
     "Cap",
     "Connect",
     "FillRule",
@@ -52,6 +55,7 @@ __all__ = [
     "Outline",
     "Pattern",
     "Pose",
+    "Profile",
     "RadialOptions",
     "Rect",
     "Smooth",

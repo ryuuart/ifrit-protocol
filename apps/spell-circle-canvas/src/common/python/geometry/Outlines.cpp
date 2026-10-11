@@ -2,13 +2,13 @@
 #include <pybind11/functional.h>
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/path/Offset.h>
 #include <sigilgeometry/path/Outline.h>
 #include <sigilgeometry/path/Points.h>
 #include <sigilgeometry/path/Polyline.h>
 #include <sigilgeometry/path/Radial.h>
-#include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/path/Through.h>
 #include <sigilgeometry/path/Transform.h>
 #include <sigilpython/Bindings.h>
@@ -24,10 +24,11 @@ namespace {
 
 namespace path = geometry::path;
 
-/** A width law from Python: a number is the constant width, a list of
- *  `(along, width)` pairs a law through stops. */
+/** A width law from Python: a profile as it is, a number the constant
+ *  width, a list of `(along, width)` pairs a law through stops. */
 path::Profile widthOf(pybind11::handle value) {
   namespace py = pybind11;
+  if (py::isinstance<path::Profile>(value)) return value.cast<path::Profile>();
   if (py::isinstance<py::float_>(value) || py::isinstance<py::int_>(value))
     return path::Profile(value.cast<float>());
   std::vector<path::Stop> stops;
@@ -54,7 +55,8 @@ void bindGeometryOutlines(pybind11::module_& module) {
       .value("Clamp", path::Wrap::Clamp)
       .value("Around", path::Wrap::Around);
 
-  auto rect = bindRecord<path::Rect>(paths, "Rect", "Unknown rectangle field: ");
+  auto rect =
+      bindRecord<path::Rect>(paths, "Rect", "Unknown rectangle field: ");
   rect.def_readwrite("min", &path::Rect::min)
       .def_readwrite("max", &path::Rect::max)
       .def_static("of", &path::Rect::of, py::arg("origin"), py::arg("size"))
@@ -128,8 +130,7 @@ void bindGeometryOutlines(pybind11::module_& module) {
            py::arg("wrap") = path::Wrap::Clamp)
       .def("poseAt", &path::Outline::poseAt, py::arg("distance"),
            py::arg("wrap") = path::Wrap::Clamp)
-      .def("segment", &path::Outline::segment, py::arg("start"),
-           py::arg("end"))
+      .def("segment", &path::Outline::segment, py::arg("start"), py::arg("end"))
       .def("split", &path::Outline::split, py::arg("distance"))
       .def("nearest", &path::Outline::nearest, py::arg("point"))
       .def("contains", &path::Outline::contains, py::arg("point"))
@@ -148,8 +149,10 @@ void bindGeometryOutlines(pybind11::module_& module) {
           [](const path::Outline& self, int count, float spacing,
              float tolerance) {
             std::vector<std::vector<glm::vec2>> contours;
-            for (const path::Polyline& line : self.resampled(
-                     {.count = count, .spacing = spacing, .tolerance = tolerance}))
+            for (const path::Polyline& line :
+                 self.resampled({.count = count,
+                                 .spacing = spacing,
+                                 .tolerance = tolerance}))
               contours.push_back(line.points);
             return contours;
           },
@@ -177,9 +180,9 @@ void bindGeometryOutlines(pybind11::module_& module) {
           "through",
           [](const std::vector<glm::vec2>& points, path::Smooth smooth,
              float tolerance, bool closed) {
-            return path::through(points, {.smooth = smooth,
-                                          .tolerance = tolerance,
-                                          .closed = closed});
+            return path::through(
+                points,
+                {.smooth = smooth, .tolerance = tolerance, .closed = closed});
           },
           py::arg("points"), py::arg("smooth") = path::Smooth::None,
           py::arg("tolerance") = 1.0f, py::arg("closed") = false)
@@ -195,10 +198,9 @@ void bindGeometryOutlines(pybind11::module_& module) {
           "offset",
           [](const path::Outline& source, py::handle width, bool region,
              path::Join join, float miterLimit) {
-            return path::offset(source, widthOf(width),
-                                {.join = join,
-                                 .miterLimit = miterLimit,
-                                 .region = region});
+            return path::offset(
+                source, widthOf(width),
+                {.join = join, .miterLimit = miterLimit, .region = region});
           },
           py::arg("outline"), py::arg("width"), py::arg("region") = false,
           py::arg("join") = path::Join::Round, py::arg("miterLimit") = 4.0f)
@@ -254,8 +256,7 @@ void bindGeometryOutlines(pybind11::module_& module) {
   py::class_<path::Pattern> pattern(paths, "Pattern");
   pattern.def(py::self == py::self);
   copyProtocol(pattern);
-  paths
-      .def("random", &path::random, py::arg("count"), py::arg("seed") = 1)
+  paths.def("random", &path::random, py::arg("count"), py::arg("seed") = 1)
       .def("poisson", &path::poisson, py::arg("radius"), py::arg("seed") = 1)
       .def(
           "grid",

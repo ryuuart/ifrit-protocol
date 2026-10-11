@@ -11,6 +11,7 @@
 #include <include/core/SkContourMeasure.h>
 #include <include/core/SkMaskFilter.h>
 #include <include/core/SkPaint.h>
+#include <include/core/SkPathBuilder.h>
 #include <include/core/SkPathUtils.h>
 #include <include/core/SkSurface.h>
 #include <include/core/SkTypes.h>  // SkDebugf
@@ -102,44 +103,125 @@ void innerShadow(SkCanvas& canvas, const PaintContext& context,
 
 namespace {
 
-/** Strokes @p outline with @p paint on the side @p position names. */
+/** An outline's contours parted by whether they close. Only a closed
+ *  contour has an inside, so only a closed contour has sides: the region
+ *  a fill's implicit close would give an open one is a chord across empty
+ *  space, not the inside of anything drawn. */
+struct ContoursBySide {
+  SkPath closed;
+  SkPath open;
+};
+
+ContoursBySide contoursBySide(const SkPath& outline) {
+  SkPathBuilder closed(outline.getFillType());
+  SkPathBuilder open;
+  SkPathBuilder contour;
+  bool closes = false;
+  const auto finish = [&] {
+    if (contour.isEmpty()) return;
+    (closes ? closed : open).addPath(contour.detach());
+    contour = SkPathBuilder();
+  };
+  SkPath::Iter iter(outline, false);
+  SkPoint points[4];
+  for (SkPath::Verb verb; (verb = iter.next(points)) != SkPath::kDone_Verb;) {
+    switch (verb) {
+      case SkPath::kMove_Verb:
+        finish();
+        closes = iter.isClosedContour();
+        contour.moveTo(points[0]);
+        break;
+      case SkPath::kLine_Verb:
+        contour.lineTo(points[1]);
+        break;
+      case SkPath::kQuad_Verb:
+        contour.quadTo(points[1], points[2]);
+        break;
+      case SkPath::kConic_Verb:
+        contour.conicTo(points[1], points[2], iter.conicWeight());
+        break;
+      case SkPath::kCubic_Verb:
+        contour.cubicTo(points[1], points[2], points[3]);
+        break;
+      case SkPath::kClose_Verb:
+        contour.close();
+        break;
+      default:
+        break;
+    }
+  }
+  finish();
+  return {closed.detach(), open.detach()};
+}
+
+/** What a keyline's side is read against: the silhouette when the node
+ *  carries one, otherwise the closed contours of its outline. */
+SkPath insideOf(const PaintContext& context, const SkPath& closed) {
+  return context.silhouette.empty() ? closed
+                                    : geometry::path::toSk(context.silhouette);
+}
+
+/** Strokes @p outline with @p paint on the side @p position names. An open
+ *  contour has no side, so it is stroked centred at the stated width. */
 void strokeSide(SkCanvas& canvas, const PaintContext& context, SkPaint paint,
                 float width, material::StrokePosition position) {
   paint.setStyle(SkPaint::kStroke_Style);
+  const ContoursBySide contours =
+      contoursBySide(geometry::path::toSk(context.outline));
+  if (!contours.open.isEmpty()) {
+    SkPaint centred = paint;
+    centred.setStrokeWidth(width);
+    canvas.drawPath(contours.open, centred);
+  }
+  if (contours.closed.isEmpty()) return;
   canvas.save();
   // Inside or outside: clip to that side and stroke at double width, so
   // the half that is kept is the stated width.
   switch (position) {
     case material::StrokePosition::Inside:
-      canvas.clipPath(shapeOf(context), true);
+      canvas.clipPath(insideOf(context, contours.closed), true);
       paint.setStrokeWidth(width * 2);
       break;
     case material::StrokePosition::Outside:
-      canvas.clipPath(shapeOf(context), SkClipOp::kDifference, true);
+      canvas.clipPath(insideOf(context, contours.closed), SkClipOp::kDifference,
+                      true);
       paint.setStrokeWidth(width * 2);
       break;
     case material::StrokePosition::Center:
       paint.setStrokeWidth(width);
       break;
   }
-  canvas.drawPath(geometry::path::toSk(context.outline), paint);
+  canvas.drawPath(contours.closed, paint);
   canvas.restore();
 }
 
 /** The band a keyline @p width wide on the side @p position names covers
- *  around @p outline, whose inside is @p shape. */
+ *  around @p outline, whose inside is @p shape when it is not empty and
+ *  otherwise the outline's closed contours. An open contour's band is
+ *  centred on it, as `strokeSide` draws it. */
 SkPath strokeBand(const SkPath& outline, const SkPath& shape, float width,
                   material::StrokePosition position) {
-  SkPaint stroke;
-  stroke.setStyle(SkPaint::kStroke_Style);
+  const ContoursBySide contours = contoursBySide(outline);
+  SkPaint centred;
+  centred.setStyle(SkPaint::kStroke_Style);
+  centred.setStrokeWidth(width);
+  const SkPath openBand =
+      skpathutils::FillPathWithPaint(contours.open, centred);
+  if (contours.closed.isEmpty()) return openBand;
+  SkPaint stroke = centred;
   stroke.setStrokeWidth(
       position == material::StrokePosition::Center ? width : width * 2);
-  SkPath band = skpathutils::FillPathWithPaint(outline, stroke);
-  if (position == material::StrokePosition::Center) return band;
-  return Op(band, shape,
-            position == material::StrokePosition::Inside ? kIntersect_SkPathOp
-                                                         : kDifference_SkPathOp)
-      .value_or(band);
+  SkPath band = skpathutils::FillPathWithPaint(contours.closed, stroke);
+  if (position != material::StrokePosition::Center) {
+    const SkPath& inside = shape.isEmpty() ? contours.closed : shape;
+    band =
+        Op(band, inside,
+           position == material::StrokePosition::Inside ? kIntersect_SkPathOp
+                                                        : kDifference_SkPathOp)
+            .value_or(band);
+  }
+  if (openBand.isEmpty()) return band;
+  return Op(band, openBand, kUnion_SkPathOp).value_or(band);
 }
 
 /** THE TANGENT ALONG @p outline as an anisotropy direction map, over
@@ -309,8 +391,12 @@ void MaterialStroke::paint(draw::Pen& pen, const PaintContext& context) const {
       if (!cache->unit || cache->outline != outline ||
           cache->toPage != toPage || cache->density != density) {
         UnitShape unit;
-        unit.outline = strokeBand(outline, shapeOf(context), options.width,
-                                  options.position);
+        unit.outline =
+            strokeBand(outline,
+                       context.silhouette.empty()
+                           ? SkPath()
+                           : geometry::path::toSk(context.silhouette),
+                       options.width, options.position);
         unit.density = density;
         if (surfaced->surface()->anisotropyAlongUnit)
           unit.directionMap = tangentAlong(

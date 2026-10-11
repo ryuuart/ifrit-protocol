@@ -586,13 +586,16 @@ native = "`onEdges` and `inset`"
 python = ["compose.onEdges", "compose.inset"]
 
 [[section.surface.item]]
-native = "the `brush::` solids, weaves, scatters, patterns, corner art, ribbons and art"
+native = "the `brush::` solids, weaves, scatters, patterns, corner art and art"
 python = [
   "compose.brush.solid",
   "compose.brush.weave",
   "compose.brush.scatter",
-  "compose.brush.Ribbon",
 ]
+
+[[section.surface.item]]
+bound = "`compose.brush.ribbon`: a band swept along the outline `stroke()` gives it, as wide as a width law says and painted with a colour, a fill or a material"
+python = ["compose.brush.ribbon", "compose.brush.Ribbon"]
 
 [[section.surface.item]]
 native = "`Brush` shaped layer stacks and `brush::restyle`"
@@ -1969,16 +1972,19 @@ python = [
 ]
 
 [[section.surface.item]]
-native = "`geometry::path`: polylines, contours and poses, operations and distortions, lattices, regions and sampling, triangulations and hulls, streamlines, symmetry, frames and grids, the `Profile` value, crossings, blends, conic sections and spherical projections"
+native = "`geometry::path`: polylines, contours and poses, operations and distortions, lattices, regions and sampling, triangulations and hulls, streamlines, symmetry, frames and grids, crossings, blends, conic sections and spherical projections"
 python = [
   "geometry.path.Polyline",
   "geometry.path.Contour",
   "geometry.path.operations.Chain",
   "geometry.path.PolarFrame",
-  "geometry.path.Profile",
   "geometry.path.crossing.crossings",
   "geometry.path.blend.blend",
 ]
+
+[[section.surface.item]]
+bound = "the width law `path.Profile`: one width, or a law through `(along, width)` stops read as `Between` says, and the presets `profile.offset`, `profile.taper` and `profile.steps`"
+python = ["geometry.path.Profile", "geometry.path.Between", "geometry.path.profile.taper"]
 
 [[section.surface.item]]
 native = "the `shapers` and `sections` kit, and the shape modifiers `cornered` and `distorted`"
@@ -2075,6 +2081,7 @@ python = [
 
 [[section.surface.item]]
 native = "`along` with `kit::rail`, `wave` and `winding`"
+bound_text = "`along` a rail on every kind, and the rails `kit.rail`, `kit.wave` and `kit.winding` with their records `Wave` and `Winding`"
 python = [
   "world.Mesh.along",
   "world.kit.rail",

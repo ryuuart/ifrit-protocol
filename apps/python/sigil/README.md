@@ -111,6 +111,16 @@ to that width; a negative depth impresses the outline. The material's own
 normal map is reoriented into the relief, in the normal map a World scene
 lights the page by; on a page the material paints its colours flat.
 
+`compose.brush.ribbon(width, paint)` is a band swept along the outline it
+strokes: give it to `stroke()` on a node whose `shape` is the spine, as in
+`box().shape(compose.heldPath(outline)).stroke(compose.brush.ribbon(8,
+material))`. Its width is a `geometry.path.Profile` — a number for one
+width the whole way, or a list of `(along, width)` stops along a fraction
+of the spine — and its paint a colour, a fill or a material, which keeps
+its layers, surface and effects. A keyline `stroke(material, width)` over
+an open outline is likewise one band centred on it: an open outline has no
+inside, so it has no side to keep.
+
 Both Python surfaces target the capabilities needed to reproduce the native
 sketch catalog. Coverage is still incomplete; `PARITY.md` lists the outstanding
 work. The bindings and authoring layer ship from the same build, with tests
@@ -1507,7 +1517,12 @@ that takes `fill`, `backface`, `castShadow` and `receiveShadow`;
 `Light`, which takes `lightLink` and `shadowLink`, and casts shadows given
 `castShadow=True`, made as `shadow=world.LightShadow(radius=2)` says; `world.camera(lens, exposure=…)` makes a
 `Camera`. Every kind takes `key`, `collection`, `at`, the rotation and scale
-lanes and `visible`. Re-describing keyed nodes preserves native identity and
+lanes and `visible`, and `along(rail, distance)` stands it `distance` along
+a `geometry.mesh.curve.Spline3`, in the rail's own units and turned onto
+its moving frame; a live distance tows it along. `world.kit.rail(table)`
+is the closed loop a `Turntable` rides, and `world.kit.wave(...)` and
+`world.kit.winding(...)` make rails that rise and fall or wind a shell.
+Re-describing keyed nodes preserves native identity and
 shares equal mesh resources. Scalar lanes accept animatables,
 bindings and tweens; `scene.advance(seconds)` moves the owned engine and
 samples the retained frame. Use it from an update callback
@@ -1580,7 +1595,7 @@ class Plaque:
             pen.image(still, 0, 0)
 ```
 
-The device runtime itself, texture-map sets, point clouds, curve rides,
+The device runtime itself, texture-map sets, point clouds,
 sweeps, custom pass callbacks and readbacks remain unbound; the Python API
 does not claim GPU PBR parity.
 

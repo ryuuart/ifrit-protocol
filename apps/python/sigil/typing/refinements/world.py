@@ -33,6 +33,7 @@ def group(*children: Node) -> Group: ...
         table.parameters(node + ".at", position="_t.Vec3Like")
         table.parameters(node + ".transformOrigin", origin="_t.Vec3Like")
         table.parameters(node + ".rotate", axis="_t.Vec3Like")
+        table.parameters(node + ".along", distance="_t.ScalarLike")
     for name in ("lightLink", "shadowLink"):
         table.erased(f"{WORLD}.Light", name, "str | Collection")
     table.erased(f"{WORLD}.Pass", "only", "str | Collection")

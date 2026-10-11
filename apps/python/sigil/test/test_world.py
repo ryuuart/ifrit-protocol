@@ -7,13 +7,14 @@ frame meets before anything is drawn.
 """
 
 import gc
+import math
 import threading
 import unittest
 import weakref
 
 from sigil import world
 from sigil.geometry import mesh
-from sigil.geometry.mesh import pop
+from sigil.geometry.mesh import curve, pop
 from sigil.material import Color, Material
 from sigil.material import surface as surfaces
 from sigil.motion import animatable
@@ -88,6 +89,47 @@ class World(unittest.TestCase):
         # Several cameras with none named is refused, naming them.
         with self.assertRaisesRegex(ValueError, "eye"):
             scene.render(world.group(eye, world.camera(camera()).key("other")))
+
+    def test_a_light_rides_a_rail_to_where_the_rail_puts_it(self):
+        # A straight rail 400 long: a distance along it is that fraction of
+        # its parameter, so the rail itself says where each station is.
+        rail = curve.Spline3([(-200, 100, 0), (200, 100, 0)], curve.Spline3.Type.Linear)
+        length = rail.length()
+        scene = world.Scene()
+        for distance in (50, 300):
+            lamp = world.pointLight().key("lamp").along(rail, distance)
+            self.assertIsInstance(lamp, world.Light)
+            scene.render(world.group(lamp))
+            expected = rail.position(distance / length)
+            placed = scene.lights[0].position
+            for axis in range(3):
+                self.assertAlmostEqual(placed[axis], expected[axis], delta=1e-2)
+        # A live distance tows the node along when it changes.
+        travelled = animatable(0)
+        scene.render(
+            world.group(world.pointLight().key("towed").along(rail, travelled))
+        )
+        self.assertAlmostEqual(scene.lights[0].position[0], -200, delta=1e-2)
+        travelled.value = 200
+        scene.advance(0)
+        self.assertAlmostEqual(scene.lights[0].position[0], 0, delta=1e-2)
+
+    def test_the_kit_makes_closed_rails_from_its_records(self):
+        table = world.kit.Turntable(radius=300, height=50, stations=8)
+        loop = world.kit.rail(table)
+        self.assertTrue(loop.closed)
+        self.assertEqual(len(loop.points), 8)
+        for point in loop.points:
+            self.assertAlmostEqual(math.hypot(point[0], point[2]), 300, delta=1e-2)
+            self.assertAlmostEqual(point[1], 50, delta=1e-3)
+        wave = world.kit.wave(world.kit.Wave(radius=200, inner=100, knots=4))
+        self.assertTrue(wave.closed)
+        self.assertEqual(len(wave.points), 4)
+        self.assertTrue(world.kit.winding().closed)
+        ridden = world.mesh(mesh.box((-1, -1, -1), (1, 1, 1))).along(
+            world.kit.wave(), 10
+        )
+        self.assertIsInstance(ridden, world.Mesh)
 
     def test_a_light_casts_when_asked_and_a_body_can_decline(self):
         sun = world.directionalLight(

@@ -50,8 +50,9 @@ class DecorationVerbs {
    *  unqualified strokes always paint under the span passes. */
   Derived& stroke(Decoration brush, std::string name = {});
   /** A KEYLINE around the node's boundary painted with @p material, @p
-   *  options' width wide on the side it names (outside by default). It
-   *  appends to the foregrounds as a brush does. */
+   *  options' width wide on the side it names (outside by default). An
+   *  open contour has no inside and so no side: it takes one band of that
+   *  width centred on it. It appends to the foregrounds as a brush does. */
   Derived& stroke(material::Material material,
                   material::StrokeOptions options = {});
   /** THE STROKE SLOT: `where` on the boundary, painted by `what`.

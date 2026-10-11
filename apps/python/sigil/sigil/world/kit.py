@@ -6,11 +6,16 @@ from _sigil.world.kit import (
     Set,
     SoftBox,
     Turntable,
+    Wave,
+    Winding,
     environmentMap,
     litSet,
+    rail,
     threePoint,
     turntable,
     visibleLight,
+    wave,
+    winding,
 )
 
 __all__ = [
@@ -18,9 +23,14 @@ __all__ = [
     "Set",
     "SoftBox",
     "Turntable",
+    "Wave",
+    "Winding",
     "environmentMap",
     "litSet",
+    "rail",
     "threePoint",
     "turntable",
     "visibleLight",
+    "wave",
+    "winding",
 ]

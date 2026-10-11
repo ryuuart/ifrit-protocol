@@ -169,6 +169,18 @@ void bindNodeVerbs(py::class_<Kind, world::Node>& kind) {
           "camera looks at it, and any other node turns its forward axis "
           "onto it.")
       .def(
+          "along",
+          [](Kind& self, geometry::mesh::curve::Spline3 rail,
+             py::handle distance) -> Kind& {
+            return self.along(std::move(rail), motionAnimatable(distance));
+          },
+          py::arg("rail"), py::arg("distance"), fluent,
+          "Rides the rail: the node stands `distance` along it, in the "
+          "rail's own units, turned onto the rail's moving frame. The "
+          "distance may be a live value, which tows the node along. It "
+          "replaces the node's translation and axis turn; its rotation, "
+          "scale and origin still apply in the rail's frame.")
+      .def(
           "rotate",
           [](Kind& self, glm::vec3 axis, py::handle degrees) -> Kind& {
             return self.rotate(axis, motionAnimatable(degrees));
@@ -558,6 +570,21 @@ void bindWorldKit(py::module_& kit) {
           })
       .def_readwrite("fieldOfView", &Turntable::fieldOfView)
       .def_readwrite("stations", &Turntable::stations);
+  using Wave = world::kit::Wave;
+  using Winding = world::kit::Winding;
+  bindRecord<Wave>(kit, "Wave", "Unknown wave field: ")
+      .def_readwrite("at", &Wave::at)
+      .def_readwrite("radius", &Wave::radius)
+      .def_readwrite("inner", &Wave::inner)
+      .def_readwrite("high", &Wave::high)
+      .def_readwrite("low", &Wave::low)
+      .def_readwrite("knots", &Wave::knots);
+  bindRecord<Winding>(kit, "Winding", "Unknown winding field: ")
+      .def_readwrite("at", &Winding::at)
+      .def_readwrite("shell", &Winding::shell)
+      .def_readwrite("wraps", &Winding::wraps)
+      .def_readwrite("turns", &Winding::turns)
+      .def_readwrite("knots", &Winding::knots);
   bindRecord<Set>(kit, "Set", "Unknown set field: ")
       .def_readwrite("rig", &Set::rig)
       .def_readwrite("table", &Set::table)
@@ -569,6 +596,14 @@ void bindWorldKit(py::module_& kit) {
             self.surface = std::move(value);
           });
   kit.def("threePoint", &world::kit::threePoint, py::arg("rig") = Rig{});
+  kit.def("rail", &world::kit::rail, py::arg("table"),
+          "The rail a turntable rides: a closed loop of its stations round "
+          "its centre, at its radius and height.");
+  kit.def("wave", &world::kit::wave, py::arg("wave") = Wave{},
+          "A closed rail that rises and falls, alternating between the "
+          "wave's outer and inner stations.");
+  kit.def("winding", &world::kit::winding, py::arg("winding") = Winding{},
+          "A closed rail that winds round the shell of an ellipsoid.");
   kit.def("visibleLight", &world::kit::visibleLight, py::arg("light"));
   kit.def(
       "turntable",

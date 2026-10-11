@@ -3,10 +3,12 @@ from collections.abc import Buffer, Callable, Iterable, Sequence
 from typing import Literal, Protocol, SupportsFloat, SupportsIndex, TypeAlias
 
 import _sigil.compose
+import _sigil.compose.brush
 import _sigil.compose.connect
 import _sigil.compose.layouts
 import _sigil.data
 import _sigil.draw
+import _sigil.geometry.path
 import _sigil.material
 import _sigil.material.skia
 import _sigil.motion
@@ -47,6 +49,7 @@ __all__ = [
     "PenProgram",
     "PointBatch",
     "PointLike",
+    "ProfileLike",
     "RadianceFunction",
     "RampStops",
     "RectLike",
@@ -160,13 +163,7 @@ child: the order children are laid out in has to be the order they were
 written in."""
 
 AttributeLike: TypeAlias = (
-    bool
-    | int
-    | float
-    | str
-    | Sequence[str]
-    | Sequence[FloatLike]
-    | _sigil.skia.Point
+    bool | int | float | str | Sequence[str] | Sequence[FloatLike] | _sigil.skia.Point
 )
 """A TYPED FACT'S VALUE, as a node states it. The type is part of the
 fact: a fact written as a whole number is not read back as a number, and
@@ -237,8 +234,16 @@ class SilhouetteLike(Protocol):
     def path(self, size: tuple[float, float]) -> _sigil.skia.Path: ...
 
 DecorationLike: TypeAlias = (
-    _sigil.compose.Decoration | _sigil.compose.PathFormat | _sigil.compose.Shadow
+    _sigil.compose.Decoration
+    | _sigil.compose.PathFormat
+    | _sigil.compose.Shadow
+    | _sigil.compose.brush.Ribbon
 )
+ProfileLike: TypeAlias = (
+    _sigil.geometry.path.Profile | FloatLike | Sequence[tuple[FloatLike, FloatLike]]
+)
+"""A WIDTH LAW: a profile, one width the whole way as a number, or a law
+through `(along, width)` stops, along a fraction of the spine."""
 PointBatch: TypeAlias = Buffer | Iterable[PointLike]
 DrawCallback: TypeAlias = Callable[[_sigil.draw.Pen], None]
 PaintProgram: TypeAlias = (

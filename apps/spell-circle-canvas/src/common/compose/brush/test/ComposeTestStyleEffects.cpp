@@ -3,6 +3,7 @@
 // box standing 20 px in from the corner of a 120 px host.
 
 #include <sigilcompose/brush/PixelStyles.h>
+#include <sigilgeometry/path/Through.h>
 #include <sigilmaterial/pattern/Patterns.h>
 
 #include "support/BrushTestSupport.h"
@@ -56,6 +57,58 @@ TEST(ComposeStyleEffects, StrokesKeepOnlyTheStatedSideOfTheOutline) {
       EXPECT_EQ(host.pixel(24, 60), inside ? SK_ColorRED : 0xFF808080u);
       EXPECT_EQ(host.pixel(60, 60), 0xFF808080u);
       EXPECT_EQ(host.pixel(110, 60), SK_ColorBLACK);
+    }
+  }
+}
+
+TEST(ComposeStyleEffects, AKeylineOverAnOpenCurveIsOneBandAlongItAndNoChord) {
+  // An open curve has no inside, so a keyline on any side of it is one
+  // band of the stated width centred on the curve, and nothing is drawn
+  // along the chord a fill's implicit close would run between its ends.
+  const material::Color red = {1, 0, 0, 1};
+  const std::vector<glm::vec2> points{
+      {20, 100}, {70, 40}, {130, 160}, {180, 100}};
+  const geometry::path::Outline spine = geometry::path::curveThrough(points);
+  constexpr float kWidth = 8;
+  for (const auto position :
+       {material::StrokePosition::Inside, material::StrokePosition::Center,
+        material::StrokePosition::Outside}) {
+    SCOPED_TRACE(position == material::StrokePosition::Inside   ? "inside"
+                 : position == material::StrokePosition::Center ? "center"
+                                                                : "outside");
+    Host host(200, 200);
+    host.composer.render(
+        box().children({box()
+                            .absolute()
+                            .left(0)
+                            .top(0)
+                            .width(200)
+                            .height(200)
+                            .shape(heldPath(spine))
+                            .stroke(material::from(red),
+                                    {.width = kWidth, .position = position})}));
+    host.frame();
+
+    int strays = 0;
+    for (int y = 0; y < 200; ++y)
+      for (int x = 0; x < 200; ++x)
+        if (SkColorGetR(host.pixel(x, y)) > 40 &&
+            spine.nearest({x + 0.5f, y + 0.5f}).gap > kWidth / 2 + 1.5f)
+          ++strays;
+    EXPECT_EQ(strays, 0) << "ink stands off the curve";
+
+    for (const float fraction : {0.15f, 0.3f, 0.5f, 0.7f, 0.85f}) {
+      const geometry::path::Pose pose = spine.poseAt(fraction * spine.length());
+      int inked = 0;
+      constexpr float kStep = 0.25f;
+      for (float across = -12; across <= 12; across += kStep) {
+        const glm::vec2 at = pose.position + pose.normal * across;
+        if (SkColorGetR(
+                host.pixel((int)std::floor(at.x), (int)std::floor(at.y))) > 127)
+          ++inked;
+      }
+      EXPECT_NEAR(inked * kStep, kWidth, 1.5f)
+          << "the band across the curve at " << fraction;
     }
   }
 }

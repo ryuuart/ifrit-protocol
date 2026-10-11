@@ -6,12 +6,13 @@
  */
 
 #include <pybind11/stl.h>
+#include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/brush/Ribbons.h>
+#include <sigilcompose/core/Factories.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/kit/Radial.h>
-#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilcompose/brush/Decorations.h>
-#include <sigilcompose/core/Factories.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/compose/Convert.h>
 #include <sigilpython/motion/Convert.h>
@@ -126,7 +127,10 @@ compose::Decoration decoration(py::handle value) {
     return value.cast<compose::PathFormat>();
   if (py::isinstance<compose::Shadow>(value))
     return value.cast<compose::Shadow>();
-  throw py::type_error("A decoration is a Decoration, PathFormat, or Shadow.");
+  if (py::isinstance<compose::brush::Ribbon>(value))
+    return value.cast<compose::brush::Ribbon>();
+  throw py::type_error(
+      "A decoration is a Decoration, PathFormat, Shadow or brush.Ribbon.");
 }
 
 compose::Dimension originLength(py::handle value) {

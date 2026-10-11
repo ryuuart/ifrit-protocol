@@ -52,13 +52,10 @@ def register(table: Table) -> None:
     table.parameters(PATH + ".through", points=POINTS)
     table.parameters(PATH + ".curveThrough", points=POINTS)
     table.returns(PATH, "points", "list[_t.Vec2]")
-    # A width is a number of px, or a law through `(along, width)` stops.
-    width = (
-        "typing.SupportsFloat | collections.abc.Sequence["
-        "tuple[typing.SupportsFloat, typing.SupportsFloat]]"
-    )
-    table.parameters(PATH + ".offset", width=width)
-    table.parameters(PATH + ".band", width=width)
+    # A width is a profile, a number of px, or a law through
+    # `(along, width)` stops.
+    table.parameters(PATH + ".offset", width="_t.ProfileLike")
+    table.parameters(PATH + ".band", width="_t.ProfileLike")
 
     for shape in (
         "Radial",

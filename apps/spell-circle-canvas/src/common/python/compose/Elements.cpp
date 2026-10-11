@@ -476,6 +476,13 @@ void bindCompose(py::module_& module) {
       "shape", [](py::object value) { return shape(value); }, py::arg("value"));
   composition.def(
       "heldPath",
+      [](const geometry::path::Outline& outline) {
+        return Shape{heldPath(outline)};
+      },
+      py::arg("outline"),
+      "The shape of an outline held as it is, whatever box it is given.");
+  composition.def(
+      "heldPath",
       [](const SkPath& path) {
         return Shape{heldPath(geometry::path::fromSk(path))};
       },

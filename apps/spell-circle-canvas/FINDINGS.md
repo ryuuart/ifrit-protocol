@@ -2020,23 +2020,6 @@ test should state a relief on a span ink and find the page's height cut;
 a ribbon brushed along itself should stretch its highlight along a
 curve.
 
-## Authoring gap: Python cannot ride a node along a rail
-
-`world::Node::along(rail, distance)` and `world::kit::rail` are not bound,
-so a Python light or camera on a rail is placed with `.at()` written from
-the clock each frame. `python_mixed_materials` does so. Bind `along` and
-the kit's rail; a Python test should ride a light two stations along a
-rail and find it where the rail puts it.
-
-## Authoring gap: Python has no ribbon brush, and a material stroke over an open spine draws a stray edge
-
-`compose::brush::ribbon` is not bound, and `.stroke(material)` over a
-`path.curveThrough` spine draws a second edge the spine does not have, so
-a Python trace is a filled band from `path.band` instead of a stroke.
-Bind the ribbon brush with its profile, and fix the stroke over an open
-spine; a Python test should stroke an open curve and find exactly one
-band of the stated width.
-
 ## Rendering probe: a near-mirror surface shows a grid of small soft boxes as one even field
 
 Under no lights and a near-black environment holding a grid of tiny soft
