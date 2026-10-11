@@ -118,19 +118,6 @@ upstream — `precompile` should refuse a key it cannot resolve — and a
 test should assert that a key naming an unmade piece comes back false
 rather than taking the process down.
 
-## `connect::Along`, `pin::`, `outline::` and `stamp::` are not bound in Python
-
-`src/common/python/compose/Schemes.cpp` builds an `Operator` from every
-stock arranging value and from `connect::Between` and `connect::ByLane`,
-and `_t.OperatorLike` in `apps/python/sigil/typing/_types.pyi` names the
-same set. `connect::Along` and the three adder families landed after the
-bindings branched, and the `Anchor` readings the rail bindings carried
-(`readAnchor`, `readAnchors`) went with the rail. The Python surface is
-meant to be complete over the kit's operators. `stockOperator` should
-take each of the four, the readings should return for `Along`'s stops,
-`OperatorLike` should name them and `PARITY.md` should move them across;
-a test should build each from Python and assert its additions by key.
-
 ## A zoom that settles re-rasterises everything at once, and varied glyphs grow with the scale
 
 When the pane's zoom settles, `GrimoireRenderer` redraws the frame at
@@ -258,28 +245,6 @@ over it, so it either opens one or keeps its own rows and says why. Each
 plate moves only where the kit's rows differ from the sketch's own (a
 row's name, its order, `-` for no sender, the error in the sender's
 row), and each commit names those rows.
-
-## Python binds no path construction outside `sigil.skia`
-
-`src/common/python/geometry/Shapes.cpp`, `Polylines.cpp` and the path
-operation and profile files register `sigil.geometry.shapes`,
-`sigil.geometry.path.operations`, `.profile`, `.blend`, `.crossing` and
-`sigil.geometry.sections` as empty modules, and `compose.Shape` has no
-builder of its own. A curve a compose signature takes — `TextPath.path`,
-`Element.shape`, `MotionPath` — can therefore be made from Python only with
-`sigil.skia.PathBuilder`, a Skia type the compose vocabulary does not
-spell.
-
-The empty modules evidently stand for `geometry::shapes` and
-`geometry::path` (the Catmull-Rom polyline back to a path, the shape
-generators), which `PARITY.md` lists as unbound. The smallest useful cut is
-a cubic or a smooth curve through points returned as the `Shape` compose
-already takes.
-
-A test should build a curve through three points from `sigil.geometry`
-alone, hand it to `TextPath(path=…)` and assert the run lays out along it.
-Wanted by `python_type_atelier` (its curved baseline), `python_kit_specimen`
-(the same cubic) and `python_live_signals` (its traces).
 
 ## A keyframe's colour terms are values, so a table cannot follow the sheet's palette
 
@@ -424,18 +389,6 @@ since the second reaches into SigilMaterial. A test should set
 `ink(var("accent"))` on a root with `var("accent", red)`, give a child
 text an echo naming the ink in force, and assert the echo's pixels are
 red.
-
-## The Python typing modules have not been regenerated since a custom property could hold a paint
-
-`compose::VarValue` holds a paint and `var(name, Material)` sets one, and
-the Python binding takes it, but the committed `sigil` typing modules were
-not regenerated after the binding and `typing/refinements/compose.py`
-changed, so they may still describe a custom property as a colour or a
-length (`varDefaults` in the refinements still does). Run
-`apps/python/sigil/typing/generate.py` against the matching extension,
-widen `varDefaults` to take a material if the binding does, and commit
-what it writes; the typing check should then accept a material beside a
-colour and a length.
 
 ## An escaped Python connection may keep its door open after the session closes
 
@@ -655,25 +608,6 @@ transforms should preserve the field's root anchoring; ordinary local-space
 paints should retain their existing local behavior.
 
 
-## API request: Python layout strings stop at the clipping declaration
-
-The macrodata-terminal study naturally writes `.overflow("clip")`, which
-raises TypeError: `Element::overflow` accepts only `Overflow`. The supported
-`.overflow(Overflow.Clip)` works. Exact neighboring declarations
-`.alignItems("center")` and `.justifyContent("space_between")` accept strings,
-as confirmed by a native host probe and the checked converters in
-`src/common/python/compose/Convert.cpp`. The interruption is therefore
-specific to inconsistent convenience across these layout options. This is
-an authoring request, not a rendering defect; other setters such as
-`flexDirection` and `textAlign` also use native enum arguments.
-
-Wanted: a checked Python string convenience for common layout values,
-documented alongside the native enum form. `overflow` could accept
-`"visible"` and `"clip"` while preserving native enum arguments. A regression
-should compare enum and string clipping at the same overflowing content boundary
-and assert that an unknown word raises a clear ValueError.
-
-
 ## API request: Python studies cannot declare a study category or display name
 
 The Borges architectural study carries literary-study tags and prose, but
@@ -777,22 +711,6 @@ invalidate the anchored Material's cached result. Local-space materials
 should retain their existing behavior.
 
 
-## Bug: Python clip callback typing disagrees with runtime invocation
-
-`src/common/python/draw/Pen.cpp` invokes the mask callback passed to
-`Pen.clip` with no arguments, while
-`apps/python/sigil/typing/refinements/pen.py` declares `_t.DrawCallback`.
-The generated type defines that as `Callable[[Pen], None]`. The Shahnameh
-study's mineral outlines render with zero-argument closures over the
-supplied Pen, but the correctly annotated one-argument callback cannot be
-invoked by this binding.
-
-The callback protocol and generated declaration should agree. A regression
-should type-check the callback form accepted at runtime and render its
-normal and inverted clipping, with the outer clip restored. An exception
-inside the callback should preserve the same restoration behavior.
-
-
 ## API request: paragraphs cannot state the bidi base of their page
 
 `src/sigilweave/paragraph/ParagraphAnalysis.cpp` calls
@@ -880,38 +798,6 @@ defined reset/resize policy. Capture cadence should not change the
 exposure's duration.
 
 
-## API request: Python filters cannot declare their sampling reach
-
-The metal-cover relief samples its input on either side of a cut to derive
-a surface normal. Native `Filter::of(material, sampleRadius)` lets an
-author declare that reach to the Skia runtime filter. The Python binding
-in `src/common/python/material/PaintEffect.cpp` exposes only the one-argument
-form, and the generated declaration has the same restriction. Python
-authors cannot express the sampling contract of this otherwise supported
-native material. This is a parity gap, not a demonstrated image defect.
-
-Wanted: the existing optional sampling reach on the Python construction
-door. A binding regression should accept a positive reach and match the
-native two-argument form on tiled GPU rendering, including a cut crossing
-tile and layer boundaries. The one-argument form should retain its existing
-behavior.
-
-
-## API request: Python texture-slot typing excludes the empty layer input
-
-`material.shader` types every `textures` value as a media or Skia Image.
-Its runtime converter deliberately accepts None as an empty PixelSource.
-That empty slot is how the Voyager and monochord filters declare `content`
-for the executor to supply from the painted layer. Both studies render
-successfully with `textures={'content': None}`, but that supported call
-disagrees with the generated declaration.
-
-The declaration should include the runtime's empty slot form, or expose an
-equivalent typed declaration for executor-provided layer inputs. A regression
-should type-check that form and render a content-sampling filter through it,
-while still rejecting values that cannot be image sources.
-
-
 ## Bug: sprite nib strokes lose continuous coverage below a pixel
 
 The monochord and miniature studies need continuous fine ink. Drawing
@@ -952,22 +838,6 @@ A regression should load a bundled face through both hosts, verify matching
 family and glyph advances, and replace its resource without leaving the
 previous face in a restarted session. This is a binding/resource gap, not
 a claim that native font loading is absent.
-
-
-## API request: Python cannot author the native text entrance
-
-The Mother-wall study's typed inquiry uses retained native vector glyph
-entrances. `src/common/python/compose/TextEffects.cpp` creates the textFx
-submodule without exposing the native entrance, and the Python parity
-chapter identifies Text.textFx and typeOn as missing. Reproducing the
-entrance locally duplicates glyph selection, spacing and timing already
-owned by native Compose and Weave.
-
-Wanted: Python access to the existing native text entrance with the same
-font, layout and scene-clock contract. A regression should render identical
-face, text and progress through both authoring languages and compare which
-glyphs are revealed, their advances, retained layout and final pixels.
-An unchanged progress value should preserve the same retained text work.
 
 
 ## API request: a tonal screen cannot use an arbitrary child material
@@ -1542,18 +1412,6 @@ should bloom a small emitter at two radii past the current limit and assert
 the wider one reaches farther, and a bench should hold the cost at a
 1440 × 960 frame.
 
-## Python cannot build a flipbook or a flow map
-
-`material::flipbook` and `material::flowmap` take a `material::Texture`,
-which Python does not bind (an image reaches Python materials only through
-`image(...)`). `material.channel`, the surface's `blend`, `depthWrite` and
-`depthFade`, `world.bloom`, `world.Facing` and `Mesh.facing` and
-`media.decode(..., colorSpace=)` are bound.
-
-Wanted: a Python `Texture` with `colorSpace`, `mipmaps`, `sampling` and
-tiling, and the two factories over it. A Python test should play a 2 × 2
-sheet at two times on a page and read the two cells.
-
 ## A World body reads an animated texture at its first frame
 
 `geometry::device::TextureResidency::sample` reads `Texture::frameAt()` with
@@ -1853,32 +1711,6 @@ and each body wears its own. A test should paint one page with two
 coloured halves, dress two cards with the two halves, and find each card
 the colour of its half.
 
-## Authoring gap: an extruded solid's walls cannot wear a page
-
-`geometry::mesh::extrude` writes the walls' texture coordinates along the
-outline's length, so a page worn by the solid stretches round its walls
-and the top face is the only face that reads as the page. `carved_marks`
-builds every solid twice, a top that wears the page and walls that wear a
-plain surface.
-
-The extrusion should let the caller say what the walls wear: their own
-coordinates (the outline's length) or the top's projected down, and a
-solid should be able to carry two surfaces, one per face set, as a
-`Mesh` with named parts does. A test should extrude a square with a page
-projected onto it and find the wall pixels the colour of the page's edge.
-
-## Authoring gap: an extrusion has no rounded or bevelled edge
-
-`geometry::mesh::ExtrudeOptions` states caps and walls and nothing about
-the edge between them, so a cut pane with a half-round rim is lofted by
-hand from outlines inset along the round, which holds only for a convex
-outline without holes. `glass_forms` builds its panes that way.
-
-The extrusion should take an edge: a radius or a bevel width and its
-segments, applied round every outline including holes. A test should
-extrude a square with a round of radius r and find the rim's normals
-turning smoothly from the cap to the wall across r.
-
 ## Renderer gap: a height-derived normal cannot dress a device body
 
 `material::surface::normalFromHeight` is a Skia program with no Slang
@@ -1907,17 +1739,6 @@ Transmission should see through transmitting bodies behind it, in order
 of depth, for at least one more layer, and a body's exit surface should
 take part in the bend. A test should stand a tinted slab behind a clear
 one and find the tint through both.
-
-## Authoring gap: no cellular noise
-
-`material::noise` is turbulence and grain; it has no cellular or Voronoi
-option, so a crazing or a cell network is built from `path::voronoi` cells
-drawn as shapes. `ceramic_glaze` does so.
-
-The noise should offer a cellular mode — distance to the nearest seed and
-to the second, with a jitter — as a material, so a crackle is a fill. A
-test should sample the cellular noise at a seed and find zero there and a
-rise away from it.
 
 ## Performance gap: a many-stop gradient mask on a headless page paints per pixel
 
@@ -1986,16 +1807,6 @@ Thickness, like the flipbook frame, should be readable from a named
 instance attribute. A test should instance one bead at two sizes with a
 thickness attribute and find the page bent more through the larger.
 
-## Authoring gap: the combined Python carved-and-plated study is not written
-
-The owner wants a Python 3D scene that combines carved marks and metal
-linework with Compose driving the materials and no geometry doing it. A
-Python sketch now dresses a baked body in Compose through
-`ctx.page(size)`, `page.render(tree)` and `page.surface()`, and
-`python_plaque` wears one page with raised type; the combined study itself
-is not written. It should stand beside `python_plaque` as a Python bake
-whose bodies wear pages only, and its device plate is its test.
-
 ## Performance: wet_glass_console is very demanding
 
 The owner reports `wet_glass_console` as very demanding in the window;
@@ -2050,12 +1861,13 @@ know whether the outline is open and report half the width then. A test
 should stroke an open curve that touches the node's edge inside and find
 the band whole.
 
-## Authoring gap: a ribbon's nib and taper are not bound in Python
+## Bug: a Python sketch's draw runs on every discarded capture step whatever it declares
 
-`compose.brush.ribbon` exposes the width law, the fill or material, the
-step, the join and the miter limit; the nib angle and contrast and the
-start and end widths are not bound, so a Python ribbon cannot be a
-calligraphic stroke. Bind them and run the typing generator; a Python
-test should stroke a curve with a nib and find the band's width vary with
-the stroke's direction.
+A capture stepped to its moment runs a Python scene2d sketch's `draw` on
+every pre-roll step even when the sketch declares
+`paintDiscardedFrames=False`, so a still at a moment costs as many bakes
+as there are steps to it. `python_carved_linework` pays about a hundred
+and twenty bakes for one still. The declaration should hold for a Python
+body as it does for a C++ one. A test should count `draw` calls in such a
+capture and find one.
 

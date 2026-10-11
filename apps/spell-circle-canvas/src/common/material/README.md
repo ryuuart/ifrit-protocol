@@ -35,6 +35,15 @@ converts to a `Material`; the gradient, image, noise and shader factories
 already return materials. Application-specific looks belong to the
 application and can be ordinary functions like `panel()`.
 
+`material::noise(frequency, {.cellular = true, .jitter = 1})` is cellular
+noise rather than fractal: one seed per cell of a square lattice `frequency`
+cells per pixel, the distance to the nearest seed in red, to the second in
+green, and their difference in blue — zero along the walls between cells —
+so a crackle or a cell network is a fill read through
+`material::channel(cells, ColorChannel::Blue)`. Its body exists for Skia and
+for Slang, so the same value plays on a page and on a 3D body;
+`material::field::cellular(frequency, jitter, seed)` is the same field.
+
 The four parts have distinct jobs:
 
 | Part | Meaning |
