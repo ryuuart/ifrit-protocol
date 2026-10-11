@@ -949,34 +949,6 @@ owning thread, and verify repeated held captures and the requested frame
 count. Detaching the client should restore the host's ordinary clock and
 leave the live window usable.
 
-## Performance gap: held textures still pay for their retained subtree
-
-`BM_Draw_HeldTexture_SubtreeScaling` holds one 256 x 256 texture over
-100, 500 and 2000 static children. Description and initial baking happen
-outside the timed loop; each measured frame draws the unchanged composer.
-All three arms report zero texture bakes and the same texture extent, yet
-on a Release raster run the frame time still grows with the child count.
-
-The texture avoids repainting content, but bound calculation still depends
-on the size of content it already holds.
-`core/cache/TextureBake.cpp` asks for local bounds before reusing an image;
-`core/paint/Bounds.cpp` computes bake bounds by visiting descendants. The
-composer's layout and volatility walks are gated on these warmed static
-frames, and the benchmark reads recursive statistics outside timing. The
-scaling establishes a remaining subtree cost; a profile is needed to
-attribute the fraction spent in bound calculation.
-
-Wanted: reuse settled subtree bounds and avoid static descendant preparation
-when its invalidation inputs have not changed. Preserve changes in child
-geometry, effects, world-space paint, inherited state and bound values;
-holding a texture must not conceal a live input.
-
-A regression should assert unchanged pixels and zero rebakes across held
-frames, then change each relevant input and assert fresh bounds and pixels.
-Traversal counters should verify that an unchanged held subtree can skip
-its descendants. Keep the scaling benchmark as the cost comparison rather
-than a machine-dependent timing assertion in a unit test.
-
 ## Performance gap: nested arrangements repeat Yoga settlement
 
 `core/layout/Layout.cpp` restores authored child styles and recalculates Yoga
@@ -1295,6 +1267,7 @@ the recording.
 The local bakes should allocate against the same destination. A test on
 a device should record a picture holding a `Cache::Texture` child and
 find the child's bake texture-backed.
+The fix — allocating a local bake on the paint destination when that is a device canvas — contradicts the GPU tests that pin a local bake to a raster destination (`ComposeGpu.PromotionInsideALocalTextureKeepsTheRasterDestination` and the local raster picture cases), so which contract stands is the owner's decision before either changes.
 
 ## Rendering gap: glyph batches draw a span's material unshaded
 
@@ -1698,19 +1671,6 @@ the plate moment and find the per-channel mean and p99 within the
 tier's tolerance; until then the four rows are the finding, and a run
 of the tier is read by its rows and not by its last line.
 
-## Authoring gap: a body cannot wear one region of a page
-
-`sketch::Page::surface()` is the whole page: a body shows all of it, so a
-scene whose bodies each show a different part of one laid-out page paints
-one page per body instead. `carved_marks` carries four pages for four
-bodies that could share one.
-
-A page's surface should take a region — a rectangle in page units — that
-the body's texture coordinates map onto, so one page lays its parts out
-and each body wears its own. A test should paint one page with two
-coloured halves, dress two cards with the two halves, and find each card
-the colour of its half.
-
 ## Renderer gap: a height-derived normal cannot dress a device body
 
 `material::surface::normalFromHeight` is a Skia program with no Slang
@@ -1740,20 +1700,6 @@ of depth, for at least one more layer, and a body's exit surface should
 take part in the bend. A test should stand a tinted slab behind a clear
 one and find the tint through both.
 
-## Performance gap: a many-stop gradient mask on a headless page paints per pixel
-
-In a headless plate sweep a page paints on the CPU, where a ramp of two
-hundred and fifty-six stops used as a mask is evaluated per pixel in every
-map pass; `ceramic_glaze`'s first plate timed out at the sweep's limit
-until the depth was painted once into a strip and repeated. A live window
-paints the same page on Graphite.
-
-A ramp used as a mask should be sampled from a lookup once per paint,
-not evaluated per pixel per pass, and a headless page that is static
-should paint once and be kept. A test should time a page masked by a
-many-stop ramp on the CPU against the same page masked by a strip and
-find them within a small factor.
-
 ## Renderer limitation: a distortion map offsets in view space and only where the surface is translucent
 
 A surface's distortion map moves what is seen behind it by an offset in
@@ -1782,20 +1728,6 @@ the page behind it unchanged whatever its curvature. A test should stand
 a sphere and a flat card, both at that setting, over a bright page and
 compare the mean of the pixels through each.
 
-## Performance gap: a page repainted every frame is painted on the CPU in a capture
-
-On the still and plate path a page paints on the CPU raster, so a
-page-wide runtime-effect material costs seconds per frame and a capture
-stepped to its moment runs for minutes; `wet_glass_console`'s first plate
-timed out and its page dropped its halftone and noise layers to render.
-The window bench of the same sketch failed its gate on the describe
-phase. A live window paints the page on Graphite.
-
-A capture should paint pages on the device it has, as the window does,
-and a static layer of a changing page should be kept rather than
-repainted. A test should capture a page carrying a runtime effect and
-find it drawn through the device recorder.
-
 ## Authoring gap: an instance cannot state its own transmission thickness
 
 An instanced stamp carries a colour and named scalars to the surface,
@@ -1816,21 +1748,6 @@ frame, or the three swept rivulets rebuilt per frame is not measured.
 Profile it with the per-stage timers and `--bench`, name the cost, and
 fix it at the library if the cost is the library's.
 
-## Authoring gap: a span ink and a ribbon answer no unit source, and unit normals stay in the node's frame
-
-A span ink with no unit and a material ribbon answer no unit source, so a
-material's relief lies flat under them and its brushing runs along the
-surface. A glyph or word ink uses its box's long axis as its direction,
-since the layout carries no stem direction; every normal but the
-brushing direction is written in the node's frame rather than turned
-into the page.
-
-Give the span ink and the ribbon their unit — the ribbon's tangent is its
-direction — and turn every normal into the page as the brushing is. A
-test should state a relief on a span ink and find the page's height cut;
-a ribbon brushed along itself should stretch its highlight along a
-curve.
-
 ## Rendering probe: a near-mirror surface shows a grid of small soft boxes as one even field
 
 Under no lights and a near-black environment holding a grid of tiny soft
@@ -1841,26 +1758,6 @@ soft-box size means something other than its width, is not known. A test
 should render a mirror sphere under two small soft boxes and find two
 separate highlights.
 
-## Contract limit: a page's range only rises, carries one volume, and clips a live emission past its brightest stated value
-
-The emissive, thickness and distortion maps' white stands for the
-brightest value the page's content states, learned from stated values;
-so a page that once stated a bright emission keeps the coarser precision,
-a live binding that animates an emission past the brightest stated value
-clips, and a page carries one volume (index, attenuation, dispersion),
-the first transmitting material's, reporting a second once. A page
-should take a stated range and a per-region volume. A test should bind
-an emission above the page's brightest and find it not clipped.
-
-## Contract gap: a keyline set inside over an open contour reports no bleed
-
-An open contour has no inside, so a keyline set inside takes one band
-centred on it, but its bleed is still reported as zero, so the band is
-clipped where the curve runs along the node's box edge. The bleed should
-know whether the outline is open and report half the width then. A test
-should stroke an open curve that touches the node's edge inside and find
-the band whole.
-
 ## Bug: a Python sketch's draw runs on every discarded capture step whatever it declares
 
 A capture stepped to its moment runs a Python scene2d sketch's `draw` on
@@ -1870,4 +1767,42 @@ as there are steps to it. `python_carved_linework` pays about a hundred
 and twenty bakes for one still. The declaration should hold for a Python
 body as it does for a C++ one. A test should count `draw` calls in such a
 capture and find one.
+
+## Performance gap: a page-wide change is painted whole on the CPU in a capture
+
+A page repaints only the region its tree changed, so a changing corner
+of a page costs a few milliseconds per frame per map in a capture. A
+change across the whole page — a page-wide live material, a ground that
+recolours — still repaints every map whole on the CPU, two orders slower
+than on the device, and a capture stepped to its moment pays it every
+frame. Captures stay on the CPU because the device draws every edge
+differently and the plates are made on the CPU. Either the whole-page
+CPU paint comes within a small factor of the region paint, or page
+captures move to the device with every page plate rebased — the owner's
+decision. A test should time a whole-page change against a corner change
+on the CPU and find them within a small factor.
+
+## Authoring gap: Python cannot wear one region of a page or state a page's range
+
+`sketch::Page::surface(material::PixelRect)` and `page(size,
+compose::SurfaceRange)` are not bound: `ctx.page` takes no range and
+`Page.surface` no region. Bind both and regenerate the typing; a Python
+test should dress two cards with two halves of one page and find each the
+colour of its half, and state an emission range and find a brighter bound
+emission unclipped.
+
+## Contract limit: a page carries one volume
+
+A page states a range or learns one, but carries the first transmitting
+material's index, attenuation and dispersion for the whole page and
+reports a second once. A test should paint two transmitting regions with
+different indices and find each region's volume in its own maps.
+
+## Performance gap: a ramp used as a mask is evaluated per pixel
+
+A ramp of many stops used as a mask is evaluated per pixel in every map
+pass; it should be sampled from a lookup made once per paint, in the
+Skia material executor. A test should time a page masked by a many-stop
+ramp against the same page masked by a strip and find them within a
+small factor.
 
