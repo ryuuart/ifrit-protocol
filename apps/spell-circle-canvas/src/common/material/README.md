@@ -129,8 +129,11 @@ selects the green-channel convention. Transparent input contributes zero
 height. Smooth hard edges in the input when a rounded transition is wanted.
 Mapped glyph and word ink keeps those pixel units as its box scales or turns;
 encoded normal images retain their authored slopes.
-This Skia operation samples the input's colour stack; rendered effects must be
-baked into that input first. A constant height or zero depth stays flat.
+It samples the input's colour stack, on a page and on a device body alike — a
+body takes it through `material::inlined` when the height has a Slang body,
+and there a logical pixel is the span of the surface one pixel of the picture
+covers unless the region states its size; rendered effects must be baked into
+that input first. A constant height or zero depth stays flat.
 
 The texture feature also provides:
 
@@ -245,12 +248,13 @@ and map, a clear coat — `clearcoat`, `clearcoatRoughness` and its own
 - a dielectric's own `specular` strength and `specularColor`;
 - transmission — `transmission` (a weight, a number or a material),
   `ior`, `thickness` in scene units (a number or a material; zero a thin
-  wall), the volume's `attenuationColor` and `attenuationDistance` (light
+  wall) — and `thicknessAttribute`, the name of an instance scalar that
+  multiplies it on each copy of instanced geometry —, the volume's `attenuationColor` and `attenuationDistance` (light
   that has crossed the distance has become the colour; zero takes
   nothing), and `dispersion` (the index spread across the three colours,
   zero none) — glass, liquid, tinted plastic; a map is read by its red; its reflectance follows its index — nothing at an index of one;
-- distortion — a two-channel DATA map `distortion` (red across, green up,
-  half-grey still) and `distortionStrength` in scene units at the surface:
+- distortion — a two-channel DATA map `distortion` (red across and green up the surface — on a body the way its u runs
+and the way a normal map's green points — half-grey still) and `distortionStrength` in scene units at the surface:
   what stands behind displaced, with no light involved, for heat haze and
   shockwaves; carried only with a map at a strength other than zero.
 
@@ -269,7 +273,9 @@ body wearing the material with no page behind it has no unit and is drawn
 without them, said by name.
 
 What a renderer makes of the last two is its own: SigilWorld reads a copy
-of the scene behind the surface, one layer deep. A page's surface maps
+of the scene behind the surface, copied again for a transmitting body that
+stands in front of another, and carries the eye's ray through the body to a
+back the thickness behind before it reads it. A page's surface maps
 carry both, per pixel: the transmission's weight, its thickness over the
 deepest the page states and its distortion over the strongest, with the
 volume — index, attenuation, dispersion — of the first transmitting
