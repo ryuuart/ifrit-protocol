@@ -339,11 +339,13 @@ MARK = material.from_(GLOW).surface(roughness=0.4, emission=GLOW, emissionStreng
     )
 ```
 
-The traces are ribbons: `path.band` makes a band of a width about a
-smooth spine, `compose.pathFigure` places it on the page, and the fill is
-copper brushed along the unit it is painted into — for a fill, the long
-axis of the ribbon's box, which runs the way each trace does. Three of
-them side by side make a bus along the gutter.
+The traces are ribbons: `compose.heldPath` holds a smooth spine as a box's
+shape, and `compose.brush.ribbon` sweeps a band of a width law along it,
+painted in the full material. The width law here is a list of (along,
+width) stops, a quarter wider over the first and last few hundredths of
+the spine where a trace meets its pad. The copper is brushed along the
+unit it is painted into, which for a ribbon is the spine's own tangent.
+Three ribbons side by side make a bus along the gutter.
 
 ```python
 # Copper, brushed along the unit it is painted on.
@@ -354,9 +356,17 @@ COPPER_TRACE = (
 
 ```python
 def trace(points: list[tuple[float, float]], width: float) -> compose.Element:
-    """A copper ribbon: a band of the width about a smooth spine through the points."""
-    spine = path.curveThrough(points)
-    return compose.pathFigure(path.band(spine, width)).fill(COPPER_TRACE)
+    """A copper ribbon swept along a smooth spine through the points, a little
+    wider where it meets its pads at either end."""
+    spine = compose.heldPath(path.curveThrough(points))
+    swell = [(0.0, width * 1.25), (0.04, width), (0.96, width), (1.0, width * 1.25)]
+    return (
+        compose.box()
+        .absolute()
+        .inset(0)
+        .shape(spine)
+        .stroke(compose.brush.ribbon(swell, COPPER_TRACE))
+    )
 
 
 def bus(offsets: tuple[float, ...], width: float) -> list[compose.Element]:
@@ -450,7 +460,8 @@ def sheet_face() -> compose.Element:
 ```
 
 **What you used.** `emission`, `emissionStrength` past one, `.centerAt`,
-`path.curveThrough`, `path.band`, `compose.pathFigure`,
+`path.curveThrough`, `compose.heldPath`, `compose.brush.ribbon` with a
+list of width stops, `.stroke(ribbon)`, and
 `Material.brushed(strength=, rotation=)`.
 
 ## Step 9 — the scene: a dark studio, a raking key, a soft panel, a pulse
@@ -519,6 +530,14 @@ class MixedMaterials:
         self.backing_face = backing_face()
         self.backing = mesh.quad(130, 200)
         self.sheet = mesh.quad(SHEET_WIDTH, SHEET_HEIGHT)
+        # The key's rail: an arc round the sheet in the sheet's own space,
+        # 18 degrees above its face, from its right edge over the top to its
+        # left edge.
+        self.key_rail = mesh.curve.Spline3(
+            [raking(azimuth, 18, 420) for azimuth in (20, 55, 90, 125, 160)],
+            type=mesh.curve.Spline3.Type.CatmullRom,
+        )
+        self.key_rail_length = self.key_rail.length()
         self.lens = mesh.camera.Camera()
         self.lens.eye = (0, 90, 520)
         self.lens.target = (0, -6, 0)
@@ -527,9 +546,8 @@ class MixedMaterials:
     def draw(self, pen: Pen, ctx: Scene2DContext) -> None:
         seconds = pen.millis() / 1000
         pulse = 0.5 + 0.5 * math.sin(seconds * 2 * math.pi / 1.6)
-        # The key rides a rail round the sheet, low over its face, from the
-        # right edge over the top to the left and back.
-        rail = math.sin(seconds * 2 * math.pi / 7)
+        # The key rides its rail from the right end to the left and back.
+        swing = 0.5 - 0.5 * math.sin(seconds * 2 * math.pi / 7)
         panel_width, panel_height, panel_distance = 400.0, 90.0, 380.0
         drift = math.sin(seconds * 2 * math.pi / 7 + 0.9)
         model = world.group(
@@ -558,7 +576,7 @@ class MixedMaterials:
                     castShadow=True,
                 )
                 .key("key")
-                .at(raking(90 - 70 * rail, 18, 420))
+                .along(self.key_rail, swing * self.key_rail_length)
                 .lookAt("sheet"),
                 # Behind the sheet, behind the glass column: a second page
                 # of bold bars for the glass to bend.
@@ -590,20 +608,27 @@ class MixedMaterials:
             pen.image(still, 0, 0)
 ```
 
-**The key rakes.** It is a child of the specimen group, so `raking` places
-it in the sheet's own space: 18 degrees above the face, riding from the
-right edge over the top to the left as `rail` swings. Light that low
-throws the cut of every letter into a lit wall and a dark one.
+**The key rides a rail.** `setup` builds the rail once: a Catmull-Rom
+`mesh.curve.Spline3` through five points `raking` places in the sheet's
+own space, 18 degrees above the face, from its right edge over the top to
+its left. The key is a child of the specimen group, so the rail tilts in
+with the sheet, and `.along(rail, distance)` stands it at a distance the
+clock writes, swinging from end to end; `.lookAt` keeps it aimed at the
+sheet. Light that low throws the cut of every letter into a lit wall and a
+dark one.
 
 **The panel.** A rect light's intensity is the radiance of its face, so a
 larger panel delivers more at the same intensity: here the strength
 wanted at the sheet is scaled by the distance squared over the area. Its
 reflection lies across the glaze and the satin at 2 seconds.
 
-**The copper.** At 2 seconds the bus is bright along its middle, the
-soft box's reflection drawn out along the brushing, and darkens to brown
-copper toward both ends; at 0.5 seconds, with the sheet still tilting,
-the bright stretch is at the left and the right is dark.
+**The copper.** At 2 seconds the bus is bright along most of its length
+and darkens to brown copper toward its right end. The brushing decides
+where the soft box's reflection lands along the ribbons: at 0.5 seconds,
+with the sheet still tilting, the brushed bus is bright at its left and
+dark at its right, and with `strength=0.0` the same bus is the other way
+round; at 5 seconds the brushed highlight runs further along the bus
+than the unbrushed one.
 
 **The pulse is the bloom's.** The mark holds its stated strength and the
 bloom gathers round it; the bloom's intensity breathes from the clock. At
@@ -612,7 +637,8 @@ disc with almost none. The entrance is the specimen group's `rotateX`
 tween, mid-tilt at 0.5 seconds and landed by 2.
 
 **What you used.** `world.kit.environmentMap` with `world.kit.SoftBox`,
-`world.spotLight`, `world.rectLight`, `.at`, `.lookAt`, a nested
+`world.spotLight`, `world.rectLight`, `mesh.curve.Spline3`,
+`.along(rail, distance)`, `.at`, `.lookAt`, a nested
 `world.group` so the key and the backing ride with the sheet, two pages'
 passes on one frame, `world.bloom`, and `motion.animate` on a group's
 lane.
@@ -631,9 +657,8 @@ Grimoire python_mixed_materials.py --frame sheet.png --gpu --at 5.0     # the ke
 - **Raise instead of cut.** A positive `depth` on `CARVED` stands the
   letters proud of the slate, lit along their upper edges.
 - **Brush across.** `.brushed(strength=0.9, rotation=90)` turns the
-  brushing across each trace: the bus's long highlight shrinks to a short
-  bar across it, and the left vertical trace, now brushed across its
-  length, lights from end to end.
+  brushing across each ribbon: at 2 seconds the bus's bright stretch
+  draws in toward its middle and both of its ends go dark.
 - **Lacquer the satin.** Add `clearcoat=1.0, clearcoatRoughness=0.05` to
   `SATIN` and the panel's edges appear in it as crisp lines over the soft
   highlight.
@@ -651,8 +676,3 @@ Grimoire python_mixed_materials.py --frame sheet.png --gpu --at 5.0     # the ke
   only through its luminance, or ask for grain.
 - The crazing is noise creases, not polygonal cells; there is no
   cellular noise to make a true craze from.
-- Python has no `along()` rail for a node yet, so the key's rail is its
-  position written from the clock; a material stroke over a
-  `curveThrough` spine drew a second, stray edge back to its start in
-  this sketch, so the traces are filled bands rather than strokes, and
-  Compose's ribbon brush is not bound in Python.
