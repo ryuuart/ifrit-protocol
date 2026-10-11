@@ -285,7 +285,7 @@ found; `sigil.core.optionalLibraries()` names the ones a build carries.
 
 ## Python studies
 
-The 24 bundled Python sketches are authoring studies. Seven port a native
+The 25 bundled Python sketches are authoring studies. Seven port a native
 sketch, three adapt one, and the rest exercise the Python surface without a
 native counterpart.
 
@@ -311,6 +311,7 @@ NumPy, which the package's `studies` extra supplies.
 | `python_live_signals` | UDP feed arrivals, JSON decoding, drawn traces and a reply to each sender | — |
 | `python_memo_station` | Retained model descriptions, memo invalidation and native motion | — |
 | `python_mesh_observatory` | Parametric, lathed and regular meshes with a camera and native lighting | — |
+| `python_mixed_materials` | One Compose page of mixed materials on a baked sheet: carved stone type, brushed copper ribbons, a crackled clear-coated glaze, velvet sheen, a thin film, an emissive mark, satin and matte, under a railed key, a drifting panel and a pulsing light | — |
 | `python_motion_signals` | One live value, native bindings and a keyframe entrance | — |
 | `python_observable_flowfield` | A NumPy angle field drawn as packed line batches | Ports `observable_flowfield_3` |
 | `python_observable_l_system` | String rewriting, a turtle stack and a bounds-fitted pen drawing | Ports `observable_l_system_tree` |

@@ -31,6 +31,10 @@ the product, a window server or a network.
    — a page that behaves like a website: a marquee and a pulsing alert as
    loops on lanes, typed lines and a meter as slots re-rendered from a
    timer, phosphor glow and scanlines over a cyberpunk console.
+6. **[Many materials on one page, in Python](guide:mixed-materials-python)**
+   — a specimen sheet worn by one quad: carved limestone type, brushed
+   copper ribbons, a crackled glaze, velvet, a thin film, a glowing mark,
+   satin and matte, each a fill whose material the scene lights.
 
 ## What to read next
 

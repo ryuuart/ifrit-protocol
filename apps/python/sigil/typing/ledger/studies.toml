@@ -72,6 +72,9 @@ ports = "observable_reaction_diffusion"
 combines = "Stateful flocking, seeded initialization and transforms"
 ports = "observable_reynolds_steering"
 
+[study.python_mixed_materials]
+combines = "One Compose page of mixed materials on a baked sheet: carved stone type, brushed copper ribbons, a crackled clear-coated glaze, velvet sheen, a thin film, an emissive mark, satin and matte, under a railed key, a drifting panel and a pulsing light"
+
 [study.python_orbits]
 combines = "Periodic arcs and fading trails computed from the scene clock"
 
