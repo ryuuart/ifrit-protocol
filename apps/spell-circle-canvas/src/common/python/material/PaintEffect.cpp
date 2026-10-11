@@ -199,10 +199,21 @@ void bindMaterialPaintEffect(py::module_& module) {
       .def(py::init<>())
       .def_static(
           "of",
-          [](const material::Material& program) {
-            return material::Filter::of(program);
+          [](const material::Material& program,
+             std::optional<float> sampleRadius) {
+            if (!sampleRadius) return material::Filter::of(program);
+            if (!(*sampleRadius >= 0))
+              throw py::value_error(
+                  "A sampling reach is a distance in local pixels, zero or "
+                  "more.");
+            return material::Filter::of(program, *sampleRadius);
           },
-          py::arg("program"))
+          py::arg("program"), py::arg("sampleRadius") = py::none(),
+          "A program over the layer: `program` runs with the rendered layer "
+          "in its `content` slot. `sampleRadius` bounds the largest offset, "
+          "in local pixels, at which the body samples the layer, so a body "
+          "that reads its neighbours past a tile or a layer's edge is handed "
+          "them.")
       .def_static(
           "program",
           [](py::handle effect, py::dict parameters) {

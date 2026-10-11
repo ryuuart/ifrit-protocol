@@ -333,6 +333,37 @@ class Options(unittest.TestCase):
         self.assertGreater(walls.triangleCount(), 0)
         self.assertLess(walls.triangleCount(), native.extrude(path).triangleCount())
 
+    def test_an_extrusion_rounds_its_edge_and_carries_two_face_sets(self):
+        path = self.rect()
+        rounded = native.extrude(
+            path,
+            native.ExtrudeOptions(
+                depth=10,
+                edge=native.ExtrudeEdge.Round,
+                edgeSize=2,
+                edgeSegments=4,
+                wallTexture=native.WallTexture.Projected,
+                faceSets=True,
+            ),
+        )
+        # The rim turns from the wall's normal to the cap's: its normals
+        # lean between the two.
+        leaning = [normal for normal in rounded.normals if 0.1 < normal[2] < 0.9]
+        self.assertGreater(len(leaning), 0)
+        sets = rounded.primitiveIf("Material")
+        self.assertIsNotNone(sets)
+        assert sets is not None
+        self.assertEqual({lane[0] for lane in sets}, {0.0, 1.0})
+        self.assertIsNone(native.extrude(path, depth=10).primitiveIf("Material"))
+        # Projected walls read the page at the outline's edge: every
+        # vertex on the right wall stands at the page's right edge.
+        right = [
+            uv for normal, uv in zip(rounded.normals, rounded.uvs) if normal[0] > 0.999
+        ]
+        self.assertGreater(len(right), 0)
+        for uv in right:
+            self.assertAlmostEqual(uv[0], 1.0, places=5)
+
     def test_a_partial_sweep_and_a_full_one_differ(self):
         profile = [(4, 0), (10, 0), (10, 20)]
         self.assertNotEqual(

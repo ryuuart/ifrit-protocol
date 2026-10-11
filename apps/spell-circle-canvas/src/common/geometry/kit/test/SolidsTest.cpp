@@ -114,6 +114,156 @@ TEST(Solids, ExtrudeAnnulusKeepsHole) {
   EXPECT_NEAR(area / expected, 1.0, 0.03);
 }
 
+// A round of radius r turns each wall into its cap through a quarter
+// circle: every rim vertex stands on the circle of radius r about the
+// corner it rounds, and its normal is that circle's, so going up the rim
+// the normal turns from the wall's straight out to the cap's straight up
+// in steps no wider than a quarter turn over the segments.
+TEST(Solids, ExtrudeRoundsTheEdgeFromTheCapToTheWall) {
+  const float radius = 3;
+  const int steps = 6;
+  const Mesh rounded =
+      extrude(path::fromSk(square(40)), {.depth = 20,
+                                         .edge = ExtrudeEdge::Round,
+                                         .edgeSize = radius,
+                                         .edgeSegments = steps});
+  ASSERT_GT(rounded.triangleCount(), 12u);
+  EXPECT_TRUE(normalsAreUnit(rounded));
+  EXPECT_EQ(facingWrongly(rounded, {0, 0, 0}), 0);
+  glm::vec3 lo, hi;
+  rounded.bounds(&lo, &hi);
+  EXPECT_NEAR(hi.x - lo.x, 40.0f, 1e-3f);
+  EXPECT_NEAR(hi.z - lo.z, 20.0f, 1e-3f);
+
+  // The rim along the +x wall at the front: the segment's own vertices,
+  // whose normals have no part along y.
+  std::vector<float> turns;
+  for (size_t i = 0; i < rounded.positions.size(); ++i) {
+    const glm::vec3 p = rounded.positions[i];
+    const glm::vec3 n = rounded.normals[i];
+    if (n.x < -1e-3f || std::abs(n.y) > 1e-3f || n.z < -1e-3f) continue;
+    if (p.z < 10 - radius - 1e-3f || p.x < 20 - radius - 1e-3f) continue;
+    const glm::vec2 fromCentre{p.x - (20 - radius), p.z - (10 - radius)};
+    EXPECT_NEAR(glm::length(fromCentre), radius, 1e-3f);
+    EXPECT_NEAR(n.x, fromCentre.x / radius, 1e-3f);
+    EXPECT_NEAR(n.z, fromCentre.y / radius, 1e-3f);
+    turns.push_back(std::atan2(n.z, n.x));
+  }
+  std::sort(turns.begin(), turns.end());
+  turns.erase(std::unique(turns.begin(), turns.end(),
+                          [](float a, float b) { return b - a < 1e-4f; }),
+              turns.end());
+  ASSERT_EQ(turns.size(), (size_t)steps + 1);
+  EXPECT_NEAR(turns.front(), 0.0f, 1e-4f);
+  EXPECT_NEAR(turns.back(), (float)M_PI / 2, 1e-4f);
+  for (size_t k = 1; k < turns.size(); ++k)
+    EXPECT_NEAR(turns[k] - turns[k - 1], (float)M_PI / 2 / steps, 1e-3f);
+
+  // The front cap is the outline inset by the radius.
+  float capReach = 0;
+  for (size_t i = 0; i < rounded.positions.size(); ++i)
+    if (rounded.normals[i].z > 0.999f)
+      capReach = std::max(capReach, rounded.positions[i].x);
+  EXPECT_NEAR(capReach, 20 - radius, 1e-3f);
+}
+
+// The edge goes round a hole as it goes round the outline: the hole's rim
+// faces into the hole and up, and the solid still faces outward.
+TEST(Solids, ExtrudeRoundsAHoleAndABevelIsOneFlatChamfer) {
+  SkPathBuilder ring;
+  ring.addCircle(0, 0, 80);
+  ring.addCircle(0, 0, 40, SkPathDirection::kCCW);
+  const Mesh rounded =
+      extrude(path::fromSk(ring.detach()),
+              {.depth = 10, .edge = ExtrudeEdge::Round, .edgeSize = 2});
+  int holeRim = 0;
+  for (size_t i = 0; i < rounded.positions.size(); ++i) {
+    const glm::vec3 p = rounded.positions[i];
+    const glm::vec3 n = rounded.normals[i];
+    const float radial = glm::length(glm::vec2{p.x, p.y});
+    if (radial > 60 || n.z < 0.2f || n.z > 0.95f) continue;
+    ++holeRim;
+    EXPECT_LT(glm::dot(glm::vec2{n.x, n.y}, glm::vec2{p.x, p.y}), 0.0f);
+  }
+  EXPECT_GT(holeRim, 0);
+
+  const Mesh bevelled =
+      extrude(path::fromSk(square(40)),
+              {.depth = 20, .edge = ExtrudeEdge::Bevel, .edgeSize = 4});
+  EXPECT_TRUE(normalsAreUnit(bevelled));
+  EXPECT_EQ(facingWrongly(bevelled, {0, 0, 0}), 0);
+  int chamfer = 0;
+  for (const glm::vec3& n : bevelled.normals) {
+    if (std::abs(n.z) < 1e-3f || std::abs(n.z) > 0.999f) continue;
+    ++chamfer;
+    EXPECT_NEAR(std::abs(n.z), 0.70710678f, 1e-4f);
+  }
+  // Four segments, one chamfer quad at each end of each.
+  EXPECT_EQ(chamfer, 4 * 2 * 4);
+}
+
+// A page projected down the walls: every wall vertex reads the page where
+// the outline crosses it, so the right wall reads the page's right edge
+// and the top wall its top edge, where the walls' own coordinates run the
+// whole width of the page along each wall.
+TEST(Solids, ExtrudedWallsCanWearTheCapsPageProjectedDown) {
+  const auto page = [](glm::vec2 uv) { return uv; };
+  const Mesh projected =
+      extrude(path::fromSk(square(40)),
+              {.depth = 20, .wallTexture = WallTexture::Projected});
+  const Mesh along = extrude(path::fromSk(square(40)), {.depth = 20});
+  int walls = 0;
+  for (size_t i = 0; i < projected.positions.size(); ++i) {
+    const glm::vec3 n = projected.normals[i];
+    if (n.x > 0.999f) {
+      EXPECT_NEAR(page(projected.uvs[i]).x, 1.0f, 1e-5f);
+      ++walls;
+    }
+    if (n.y > 0.999f) EXPECT_NEAR(page(projected.uvs[i]).y, 0.0f, 1e-5f);
+  }
+  EXPECT_EQ(walls, 4);
+  float least = 1, most = 0;
+  for (size_t i = 0; i < along.positions.size(); ++i)
+    if (along.normals[i].x > 0.999f) {
+      least = std::min(least, along.uvs[i].x);
+      most = std::max(most, along.uvs[i].x);
+    }
+  EXPECT_GT(most - least, 0.1f);
+}
+
+// Two face sets: the caps are slot 0 and the walls with their edges slot
+// 1, in the lane a body filled per slot reads; left alone, no lane.
+TEST(Solids, AnExtrudedSolidCarriesItsCapsAndWallsAsTwoFaceSets) {
+  EXPECT_EQ(
+      extrude(path::fromSk(square(40)), {.depth = 20}).primitiveIf("Material"),
+      nullptr);
+  const Mesh solid =
+      extrude(path::fromSk(square(40)), {.depth = 20,
+                                         .edge = ExtrudeEdge::Round,
+                                         .edgeSize = 3,
+                                         .faceSets = true});
+  const std::vector<glm::vec4>* sets = solid.primitiveIf("Material");
+  ASSERT_NE(sets, nullptr);
+  ASSERT_EQ(sets->size(), solid.triangleCount());
+  int caps = 0, sides = 0;
+  for (size_t t = 0; t < solid.triangleCount(); ++t) {
+    const bool flat =
+        std::abs(solid.normals[solid.indices[t * 3]].z) > 0.999f &&
+        std::abs(solid.normals[solid.indices[t * 3 + 1]].z) > 0.999f &&
+        std::abs(solid.normals[solid.indices[t * 3 + 2]].z) > 0.999f;
+    const float slot = (*sets)[t].x;
+    if (slot == 0) {
+      ++caps;
+      EXPECT_TRUE(flat);
+    } else {
+      ++sides;
+      EXPECT_EQ(slot, 1.0f);
+    }
+  }
+  EXPECT_GT(caps, 0);
+  EXPECT_GT(sides, 0);
+}
+
 TEST(Solids, RevolveLathesAProfileAroundTheAxisAndAPartialSweepStopsShort) {
   const std::vector<glm::vec2> profile = {{1, 0}, {2, 1}, {1, 2}};
   const Mesh full = revolve(profile, {.segments = 16});

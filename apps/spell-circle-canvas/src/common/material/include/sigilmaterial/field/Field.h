@@ -4,23 +4,24 @@
  * @ingroup material-field
  *
  * Shader fields — surfaces evaluated per pixel rather than baked as a
- * tile: the halftone ramp, Perlin noise, luminance grain, and the ripple
+ * tile: the halftone ramp, Perlin noise, luminance grain, cellular noise,
+ * and the ripple
  * that resamples a layer through a sine displacement. Every parameter is a
  * uniform; each returns a Material.
  */
 
+#include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/advanced/Recipe.h>
 
 #include <glm/vec2.hpp>
 #include <memory>
 
 /** Surfaces evaluated PER PIXEL rather than baked as a tile: the
- *  halftone ramp, Perlin noise, luminance grain, and the ripple. Reach for a field when the surface has no
- *  repeat to exploit, or when a parameter moves every frame and a baked
- *  tile would have to be regenerated; reach for `pattern` when one tile
- *  can be baked once and repeated. */
+ *  halftone ramp, Perlin noise, luminance grain, and the ripple. Reach for a
+ * field when the surface has no repeat to exploit, or when a parameter moves
+ * every frame and a baked tile would have to be regenerated; reach for
+ * `pattern` when one tile can be baked once and repeated. */
 namespace sigil::material::field {
 
 /** The halftone ramp's ABI. */
@@ -41,11 +42,11 @@ struct HalftoneRampParameters {
  *  @p angleDegrees rotates the dot grid; the ramp stays vertical.
  *  @p rampFrom / @p rampTo remap where the swell runs, as fractions of the
  *  height. To DRIFT the field, bind `uDriftX` / `uDriftY`: drift wraps
- *  seamlessly at a period of 2·spacing·√2 px along a 45° grid. Keep maximumRadius
- *  below roughly 0.45·spacing or neighbouring dots fuse. */
-Material halftoneRamp(float spacing, float minimumRadius, float maximumRadius, Color color,
-                      float angleDegrees = 0.0f, float rampFrom = 0.0f,
-                      float rampTo = 1.0f);
+ *  seamlessly at a period of 2·spacing·√2 px along a 45° grid. Keep
+ * maximumRadius below roughly 0.45·spacing or neighbouring dots fuse. */
+Material halftoneRamp(float spacing, float minimumRadius, float maximumRadius,
+                      Color color, float angleDegrees = 0.0f,
+                      float rampFrom = 0.0f, float rampTo = 1.0f);
 
 /** Perlin fractal noise — Skia's own generator, bound into a recipe that
  *  passes it through, so it fills a slot and compares like any material.
@@ -78,6 +79,28 @@ Material grain(float frequency, int octaves = 4, float seed = 1.0f,
 /** grain()'s recipe for @p octaves, defined once per count — the octave
  *  count is a constant in the body, so each count is its own program. */
 const std::shared_ptr<const Recipe>& grainRecipe(int octaves);
+
+/** The cellular noise's ABI. */
+struct CellularParameters {
+  float uFrequency;  ///< cells per pixel
+  float uJitter;     ///< 0 a seed at each cell's centre, 1 anywhere in it
+  float uSeed;
+};
+
+/** CELLULAR NOISE: one seed in each cell of a square lattice
+ *  @p frequency cells per pixel, and at every point the distance to the
+ *  nearest seed (red), to the second nearest (green) and the second less
+ *  the nearest (blue), each in cells and held under one. Red is zero at a
+ *  seed and rises away from it; blue is zero on the border between two
+ *  cells, so it is the network a crackle or a cell wall draws. @p jitter
+ *  is how far a seed may stand from its cell's centre, from zero (a
+ *  regular grid) to one (anywhere in the cell); @p seed chooses the
+ *  seeds. The body exists for Skia and for Slang: a page reads it at its
+ *  pixels, a body at its texture coordinates scaled by the region's
+ *  size. */
+Material cellular(float frequency, float jitter = 1.0f, float seed = 1.0f);
+/** cellular()'s recipe, defined once. */
+const std::shared_ptr<const Recipe>& cellularRecipe();
 
 /** The ripple's ABI. */
 struct RippleParameters {
@@ -116,6 +139,15 @@ struct NoiseOptions {
   float contrast = 1;
   /** Grain only: the anisotropy, horizontal over vertical. */
   float stretch = 1;
+  /** CELLULAR rather than fractal: the distance to the nearest of one
+   *  seed per cell in red, to the second nearest in green, and their
+   *  difference — zero along the walls between cells — in blue. The
+   *  frequency is cells per pixel; the octaves, turbulence and grain do
+   *  not apply. */
+  bool cellular = false;
+  /** Cellular only: how far a seed may stand from its cell's centre, zero
+   *  a regular grid and one anywhere in the cell. */
+  float jitter = 1;
   bool operator==(const NoiseOptions&) const = default;
 };
 
@@ -139,4 +171,3 @@ Material noise(float frequency, NoiseOptions options = {});
 Material grained(Color ground, float amount = 0.06f, float frequency = 0.8f);
 
 }  // namespace sigil::material
-

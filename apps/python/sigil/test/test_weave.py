@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from _sigil import weave as native_weave
-from sigil import geometry, material, media, skia, weave
+from sigil import compose, geometry, material, media, skia, weave
 from sigil.compose import SpanStyle, Text, TextPath, frame, text
 from sigil.compose import selectors as composition_selectors
 from sigil.motion import animatable
@@ -184,6 +184,73 @@ class Typography(unittest.TestCase):
         self.assertIs(node.textOnPath(path=path), node)
         self.assertIs(node.paragraphStyles(names=("heading", "body")), node)
         self.assertIs(node.paragraphStyles(blocks=(weave.ParagraphStyle(),)), node)
+
+    def test_a_run_lays_out_along_a_curve_built_from_geometry_alone(self):
+        # An arch through three points, made by sigil.geometry with no Skia
+        # spelling, carries the run: ink rises to the arch's crown and
+        # leaves the straight line between its two feet empty.
+        pixels = self.render("""from sigil.compose import TextPath, box, text
+from sigil.geometry import path
+from sigil.sketch import sketch
+from sigil.weave import Type
+@sketch(size=(240, 120), background="#000000")
+class Scene:
+    def setup(self, ctx):
+        arch = path.curveThrough([(20, 100), (120, 30), (220, 100)])
+        ctx.render(box().width(240).height(120).children(
+            text("MMMMMMMMMMMMMMMMMMMMMMMM").font(Type(size=16, color="#ffffff"))
+            .textOnPath(path=TextPath(path=arch, align=TextPath.Align.Center))))
+""")
+        width = 240
+
+        def inked(x0, y0, x1, y1):
+            return sum(
+                pixels[(y * width + x) * 4] > 128
+                for y in range(y0, y1)
+                for x in range(x0, x1)
+            )
+
+        self.assertGreater(inked(100, 10, 140, 45), 20)
+        self.assertEqual(inked(100, 80, 140, 110), 0)
+
+    def test_a_native_entrance_reveals_the_glyphs_in_turn(self):
+        from sigil.compose import textFx
+
+        rise = textFx.rise(30)
+        self.assertEqual(rise.from_, textFx.Displaced(dy=30))
+        typed = textFx.entrance(textFx.typeOn())
+        self.assertIsInstance(typed, compose.Track)
+        self.assertEqual(typed, textFx.entrance(textFx.typeOn()))
+
+        def revealed(progress):
+            pixels = self.render(f"""from sigil import compose
+from sigil.compose import box, text, textFx
+from sigil.sketch import sketch
+from sigil.weave import Type
+@sketch(size=(240, 40), background="#000000")
+class Scene:
+    def setup(self, ctx):
+        track = textFx.entrance(textFx.typeOn(), compose.Track(progress={progress}))
+        ctx.render(box().width(240).height(40).children(
+            text("MMMMMMMMMMMM").font(Type(size=16, color="#ffffff")).textFx(track)))
+""")
+            columns = [
+                any(pixels[(y * 240 + x) * 4] > 128 for y in range(40))
+                for x in range(240)
+            ]
+            inked = [x for x, ink in enumerate(columns) if ink]
+            return (min(inked), max(inked)) if inked else None
+
+        self.assertIsNone(revealed(0))
+        whole = revealed(1)
+        half = revealed(0.5)
+        self.assertIsNotNone(whole)
+        self.assertIsNotNone(half)
+        assert whole is not None and half is not None
+        # The first glyphs stand where they stand at rest; the last have
+        # not yet appeared.
+        self.assertEqual(half[0], whole[0])
+        self.assertLess(half[1], whole[1] - 10)
 
     def test_a_span_states_the_font_and_ink_verbs_over_its_range(self):
         stated = SpanStyle().fontWeight(700).letterSpacing(1).ink("#ff0000")

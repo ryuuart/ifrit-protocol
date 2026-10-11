@@ -178,6 +178,23 @@ void paint(SkCanvas& canvas) {
 }
 ```
 
+An extrusion turns the edge between a cap and its walls with
+`ExtrudeOptions::edge` — `mesh::ExtrudeEdge::Round` through a quarter
+circle of `edgeSize` in `edgeSegments` steps, or `ExtrudeEdge::Bevel` as one
+45-degree chamfer — round every outline, holes included. Its walls read a
+texture along the outline's length, or with
+`.wallTexture = mesh::WallTexture::Projected` read the front cap's page
+projected straight down, so a page worn by the solid runs down its walls
+as the colour of its own edge. `.faceSets = true` writes the `"Material"`
+primitive lane, 0 on the caps and 1 on the walls and edges, which a body
+filled with two materials in slot order wears as two surfaces:
+
+```cpp
+const mesh::Mesh plaque = mesh::extrude(
+    bezel, {.depth = 18, .edge = mesh::ExtrudeEdge::Round, .edgeSize = 3,
+            .wallTexture = mesh::WallTexture::Projected, .faceSets = true});
+```
+
 Nothing above holds a device, a context or a frame. An `Outline` is a
 shared immutable value; `Mesh` is a plain struct of vectors; `pop::Chain`
 is a `std::vector` of variants.

@@ -16,6 +16,9 @@ namespace sigil::python {
  *  animate, animatable, the animatable number, colour and fill, and the
  *  arithmetic over a clock reading on @p module. */
 void bindMotion(pybind11::module_& module);
+/** Registers the tween of a glyph's displacement and its keyframes on
+ *  @p module, the text effects' own, after their Displaced. */
+void bindMotionDisplacedTween(pybind11::module_& module);
 /** Registers Binding, Range, Envelope and its factories, Wiggle and bind
  *  on @p module. */
 void bindMotionAnimatableForms(pybind11::module_& module);

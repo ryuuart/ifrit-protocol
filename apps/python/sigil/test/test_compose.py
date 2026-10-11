@@ -5,9 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from sigil import compose
+from sigil import compose, media, skia, weave
 from sigil import compose as raw
-from sigil import media, skia, weave
 from sigil.compose import Align, Dimension, Fill, box, pct, stroke
 from sigil.motion import animatable
 from sigil.sketch import render_file
@@ -109,7 +108,9 @@ class Compose(unittest.TestCase):
         # says which of them inherit is asked here rather than guessed.
         self.assertTrue(compose.inheritsByDefault(compose.Property.Ink))
         self.assertFalse(compose.inheritsByDefault(compose.Property.Width))
-        self.assertEqual(compose.propertyName(compose.Property.PaddingLeft), "paddingLeft")
+        self.assertEqual(
+            compose.propertyName(compose.Property.PaddingLeft), "paddingLeft"
+        )
         for element in (
             box().inherit(compose.Property.Width),
             box().initial(compose.Property.Font),
@@ -247,6 +248,31 @@ class Placed:
         )
         # The point in hand is still pixels.
         self.assertEqual((point.left(), point.top()), (5, 6))
+
+    def test_overflow_takes_its_keyword_or_the_word_css_writes(self):
+        # A child twice the width of its parent, clipped by the enumeration
+        # and by the word, reaches no further in either.
+        def scene(clipping):
+            return self.render(
+                "from sigil import compose as raw\n"
+                "from sigil.compose import box\n"
+                "from sigil.sketch import sketch\n"
+                "@sketch(size=(32, 8), background='#000000')\n"
+                "class Scene:\n"
+                "    def setup(self, ctx):\n"
+                "        ctx.render(box().width(16).height(8)"
+                f".overflow({clipping})"
+                ".children(box().width(32).height(8).fill('#ff0000')))\n"
+            )
+
+        by_keyword = scene("raw.Overflow.Clip")
+        self.assertEqual(bytes(by_keyword), bytes(scene("'clip'")))
+        self.assertEqual(by_keyword[(4 * 32 + 24) * 4], 0)
+        visible = scene("'visible'")
+        self.assertEqual(bytes(visible), bytes(scene("raw.Overflow.Visible")))
+        self.assertGreater(visible[(4 * 32 + 24) * 4], 200)
+        with self.assertRaisesRegex(ValueError, "Unknown overflow: hidden"):
+            box().overflow("hidden")
 
     def test_flex_and_box_keywords_lay_out_as_css_says(self):
         for element in (
@@ -514,6 +540,7 @@ class Measure:
         # The misprint is a hard shadow in a material's effects, placed by the
         # fill verb, and the verbs it replaced are gone.
         from sigil import material
+
         echoed = material.from_("#ffffff").effects(
             material.Filter.shadow("#ff0000", material.ShadowOptions(offset=(6, -8)))
         )

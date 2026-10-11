@@ -94,6 +94,45 @@ class PenContracts(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "callback"):
             self.results["canvas"].getSaveCount()
 
+    def test_a_clip_callback_is_handed_the_pen_or_closes_over_it(self):
+        # One parameter is handed the pen; none closes over it. Both clip
+        # the same way, inverted or not, and the clip ends with the outer
+        # push, as it does when the callback raises.
+        picture = self.render("""
+            from sigil.draw import Pen
+            def left(clipping: Pen) -> None:
+                clipping.rect(0, 0, 16, 16)
+            def raising(clipping: Pen) -> None:
+                clipping.rect(0, 0, 32, 32)
+                raise ValueError('the mask failed')
+            pen.background('#000000')
+            pen.noStroke()
+            pen.fill('#ff0000')
+            pen.push()
+            pen.clip(left)
+            pen.rect(0, 0, 32, 16)
+            pen.pop()
+            pen.push()
+            pen.clip(lambda: pen.rect(0, 16, 16, 16), invert=True)
+            pen.rect(0, 16, 32, 16)
+            pen.pop()
+            pen.push()
+            try:
+                pen.clip(raising)
+            except ValueError as error:
+                results['raised'] = str(error)
+            pen.pop()
+            pen.fill('#0000ff')
+            pen.rect(30, 0, 2, 2)
+        """)
+        self.assertEqual(self.pixel(picture, 8, 8), (255, 0, 0, 255))
+        self.assertEqual(self.pixel(picture, 24, 8), (0, 0, 0, 255))
+        self.assertEqual(self.pixel(picture, 8, 24), (0, 0, 0, 255))
+        self.assertEqual(self.pixel(picture, 24, 24), (255, 0, 0, 255))
+        # Outside every clip once each has been popped.
+        self.assertEqual(self.pixel(picture, 31, 1), (0, 0, 255, 255))
+        self.assertIn("the mask failed", self.results["raised"])
+
     def test_point_buffers_match_iterable_pixels_without_retaining_storage(self):
         drawing = """
             pen.background('#102030')

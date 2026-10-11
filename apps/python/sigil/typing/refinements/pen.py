@@ -21,7 +21,10 @@ def register(table: Table) -> None:
     # A silhouette is whatever answers a path over a size; geometry's own
     # generators are not bound, so in Python the author writes the object.
     table.parameters("_sigil.draw.Pen.shape", silhouette="_t.SilhouetteLike")
-    table.parameters("_sigil.draw.Pen.clip", shape="_t.DrawCallback")
+    table.parameters(
+        "_sigil.draw.Pen.clip",
+        shape="_t.DrawCallback | collections.abc.Callable[[], None]",
+    )
     table.parameters("_sigil.draw.Pen.image", image="Graphics")
     # Every form the binding dispatches on, in the order it tests them: a
     # paint with or without the fit it is measured in, a material, then the

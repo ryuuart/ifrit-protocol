@@ -84,7 +84,7 @@ def register(table: Table) -> None:
         "_sigil.material.shader",
         hub="_sigil.io.Hub",
         parameters=f"collections.abc.Mapping[str, {UNIFORM_VALUE}] | tuple[{UNIFORM_VALUE}, ...] | None",
-        textures="collections.abc.Mapping[str, _sigil.media.Image | _sigil.skia.Image] | None",
+        textures="collections.abc.Mapping[str, _sigil.media.Image | _sigil.skia.Image | None] | None",
     )
     table.parameters("_sigil.material.skia.Filter.blur", sigmaMap="Paint")
     table.erased("_sigil.material.skia.Filter", "set", "_t.UniformValue")

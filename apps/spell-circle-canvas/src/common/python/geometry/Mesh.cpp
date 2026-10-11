@@ -212,13 +212,26 @@ void bindGeometryMesh(py::module_& module) {
       .def_readwrite("tint", &mesh::BoxOptions::tint)
       .def_readwrite("sideShade", &mesh::BoxOptions::sideShade);
 
+  py::enum_<mesh::ExtrudeEdge>(meshes, "ExtrudeEdge")
+      .value("Square", mesh::ExtrudeEdge::Square)
+      .value("Round", mesh::ExtrudeEdge::Round)
+      .value("Bevel", mesh::ExtrudeEdge::Bevel);
+  py::enum_<mesh::WallTexture>(meshes, "WallTexture")
+      .value("Along", mesh::WallTexture::Along)
+      .value("Projected", mesh::WallTexture::Projected);
+
   auto extrudeOptions = bindRecord<mesh::ExtrudeOptions>(
       meshes, "ExtrudeOptions", "An extrusion has no option named ");
   extrudeOptions.def_readwrite("depth", &mesh::ExtrudeOptions::depth)
       .def_readwrite("tolerance", &mesh::ExtrudeOptions::tolerance)
       .def_readwrite("frontCap", &mesh::ExtrudeOptions::frontCap)
       .def_readwrite("backCap", &mesh::ExtrudeOptions::backCap)
-      .def_readwrite("walls", &mesh::ExtrudeOptions::walls);
+      .def_readwrite("walls", &mesh::ExtrudeOptions::walls)
+      .def_readwrite("edge", &mesh::ExtrudeOptions::edge)
+      .def_readwrite("edgeSize", &mesh::ExtrudeOptions::edgeSize)
+      .def_readwrite("edgeSegments", &mesh::ExtrudeOptions::edgeSegments)
+      .def_readwrite("wallTexture", &mesh::ExtrudeOptions::wallTexture)
+      .def_readwrite("faceSets", &mesh::ExtrudeOptions::faceSets);
 
   auto revolveOptions = bindRecord<mesh::RevolveOptions>(
       meshes, "RevolveOptions", "A revolution has no option named ");

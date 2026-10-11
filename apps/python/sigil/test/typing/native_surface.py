@@ -33,6 +33,8 @@ tree = (
     compose.memo(Model(3), describe).width("100%").padding(horizontal=12, vertical=16)
 )
 assert_type(tree, compose.Element)
+assert_type(compose.box().overflow("clip"), compose.Element)
+assert_type(compose.box().overflow(compose.Overflow.Visible), compose.Element)
 key = world.pointLight(intensity=motion.animatable(1)).at((0, 0, 180))
 assert_type(key, world.Light)
 assert_type(
@@ -124,6 +126,16 @@ assert_type(
 )
 
 
+# A filter's program samples the layer the executor supplies through an
+# empty texture slot, and may state how far from a pixel it reads.
+over_layer = material.shader(
+    "half4 main(float2 p) { return content.eval(p + float2(2, 0)); }",
+    textures={"content": None},
+)
+assert_type(material.Filter.of(over_layer), material.Filter)
+assert_type(material.Filter.of(over_layer, sampleRadius=2), material.Filter)
+
+
 def paint(pen: draw.Pen) -> None:
     points = array("f", [0, 0, 30, 10])
     paint = skia.Paint()
@@ -140,6 +152,13 @@ def paint(pen: draw.Pen) -> None:
     pen.fill(
         material.surface.unlit(material.surface.SurfaceParameters(baseColor="#e75a31"))
     )
+
+    # A clip's shape is handed the pen it draws with, or closes over it.
+    def left(clipping: draw.Pen) -> None:
+        clipping.rect(0, 0, 16, 16)
+
+    pen.clip(left)
+    pen.clip(lambda: pen.rect(0, 0, 16, 16), invert=True)
 
     class Squircle:
         def path(self, size: tuple[float, float]) -> skia.Path:

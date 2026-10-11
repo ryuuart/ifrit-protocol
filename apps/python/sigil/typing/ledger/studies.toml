@@ -10,6 +10,9 @@ ports = "alpha_ground"
 combines = "Wash, dry mass, hatching and veins over ten leaves on a pressure-drawn branch"
 adapts = "brush_botanical_study"
 
+[study.python_carved_linework]
+combines = "One Compose page on one baked quad: limestone lettering cut glyph by glyph into slate, brushed copper ribbon traces, plated vias as brushed ribbon rings, and an emissive pulse riding a trace in a live window under a bloom, lit by a key on a rail and a soft panel"
+
 [study.python_compose_stamps]
 combines = "Compose trees placed by a Draw pen and repeated as a custom brush tip"
 

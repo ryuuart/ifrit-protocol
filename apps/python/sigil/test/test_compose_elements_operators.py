@@ -195,6 +195,33 @@ class Values(unittest.TestCase):
                 self.assertTrue(built.adds())
                 self.assertFalse(built.arranges())
                 self.assertTrue(built.comparable())
+        for value in (
+            compose.connect.Along(stops=["gateway", ("ledger", (0, 0)), (40, 40)]),
+            compose.pin.ByLane(lane="callout"),
+            compose.outline.Around(key="gateway"),
+            compose.outline.Hull(lane="cluster"),
+            compose.stamp.ByLane("badge", lambda node: compose.box(), key="badges"),
+        ):
+            with self.subTest(value=type(value).__name__):
+                built = compose.Operator(value)
+                self.assertTrue(built.adds())
+                self.assertFalse(built.arranges())
+        self.assertEqual(
+            compose.stamp.ByLane("badge", print, key="badges"),
+            compose.stamp.ByLane("badge", len, key="badges"),
+        )
+        self.assertNotEqual(
+            compose.stamp.ByLane("badge", print), compose.stamp.ByLane("badge", print)
+        )
+        request = compose.pin.Request(size=(20, 10))
+        facts = compose.Attributes()
+        facts.set("callout", request)
+        self.assertEqual(facts.get("callout"), request)
+        stops = compose.connect.Along(stops=["gateway", (40, 40)]).stops
+        self.assertEqual(stops[0].key(), "gateway")
+        self.assertEqual(stops[1].key(), "")
+        with self.assertRaises(TypeError):
+            compose.connect.Along(stops="gateway")
         # An operator built from an operator is that same operator.
         one = compose.Operator(compose.layouts.Radial())
         self.assertEqual(compose.Operator(one), one)
@@ -598,6 +625,56 @@ class Adding(Session):
             """
         )
         self.assertEqual(self.results["wire"], (True, True))
+
+    def test_the_kit_adders_attach_by_the_keys_they_name(self):
+        self.frame(
+            """
+            callout = compose.pin.Request(
+                element=compose.box().fill('#00ff00'), size=(20, 10),
+                where=compose.Tether(on=(1, 0.5), at=(0, 0.5), offset=(4, 0)))
+            gateway = node('gateway', 20, 30).attribute('callout', callout)
+            gateway = gateway.attribute('badge', 1).attribute('cluster', 1)
+            ledger = node('ledger', 120, 90).attribute('cluster', 1)
+            stamp = compose.stamp.ByLane(
+                'badge',
+                lambda one: compose.box().absolute().left(0).top(0)
+                    .width(3).height(3).fill('#00ff00'),
+                key='badges')
+            probe = show(pen, compose.box().width(200).height(200)
+                .operators([
+                    compose.connect.Along(
+                        stops=['gateway', ('ledger', (0, 0)), (180, 180)],
+                        wire=compose.stroke(2, '#ff0000'), key='trace'),
+                    compose.pin.ByLane(lane='callout'),
+                    compose.outline.Around(key='ledger', across=4),
+                    compose.outline.Hull(lane='cluster', margin=6),
+                    stamp,
+                ])
+                .children([gateway, ledger]))
+            results['trace'] = probe.bounds('trace')
+            results['pin'] = probe.bounds('gateway-pin')
+            results['outline'] = probe.bounds('ledger-outline')
+            results['hull'] = probe.bounds('hull:cluster')
+            results['stamp'] = probe.bounds('gateway-stamp')
+            results['unstamped'] = probe.bounds('ledger-stamp')
+            """
+        )
+        trace = self.results["trace"]
+        self.assertIsNotNone(trace)
+        # From the gateway's centre to the free point in the corner.
+        self.assertLessEqual(trace.left(), 26)
+        self.assertGreaterEqual(trace.right(), 179)
+        pin = self.results["pin"]
+        self.assertIsNotNone(pin)
+        self.assertAlmostEqual(pin.left(), 34, delta=1)
+        self.assertAlmostEqual(pin.width(), 20, delta=1)
+        self.assertIsNotNone(self.results["outline"])
+        hull = self.results["hull"]
+        self.assertIsNotNone(hull)
+        self.assertLessEqual(hull.left(), 14)
+        self.assertGreaterEqual(hull.right(), 136)
+        self.assertIsNotNone(self.results["stamp"])
+        self.assertIsNone(self.results["unstamped"])
 
     def test_a_program_draws_the_scope_with_one_pen(self):
         picture = self.frame(

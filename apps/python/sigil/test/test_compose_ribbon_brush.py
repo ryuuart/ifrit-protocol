@@ -47,6 +47,62 @@ class Profiles(unittest.TestCase):
         )
 
 
+class Nibs(unittest.TestCase):
+    """A calligraphic ribbon: its width follows the stroke's direction."""
+
+    @staticmethod
+    def thickness(band, start, step, count=400):
+        """How much of a line of `count` samples from `start` along `step`
+        lies inside `band`, in the line's own units."""
+        inside = sum(
+            1
+            for index in range(count)
+            if band.contains(start[0] + step[0] * index, start[1] + step[1] * index)
+        )
+        return inside * math.hypot(*step)
+
+    def test_a_nib_is_widest_across_its_angle_and_thinnest_along_it(self):
+        from sigil import skia
+
+        nib = compose.brush.ribbon(12, "#ffffff", nibAngleDeg=0, nibContrast=0.15)
+        self.assertEqual(nib.nibAngleDeg, 0)
+        self.assertAlmostEqual(nib.nibContrast, 0.15)
+        self.assertEqual(nib.widthStart, 12)
+        self.assertFalse(nib.hasProfile())
+        self.assertNotEqual(nib, compose.brush.ribbon(12, "#ffffff", nibAngleDeg=90))
+        # Along the nib, then across it: one turn of the same stroke.
+        spine = (
+            skia.PathBuilder().moveTo(10, 50).lineTo(110, 50).lineTo(110, 150).detach()
+        )
+        band = nib.band(spine)
+        along = self.thickness(band, (60, 40), (0, 0.05))
+        across = self.thickness(band, (100, 100), (0.05, 0))
+        self.assertAlmostEqual(along, 12 * 0.15, delta=0.3)
+        self.assertAlmostEqual(across, 12, delta=0.3)
+
+        # A curve turns the stroke through every direction between: the
+        # band widens as the curve turns from along the nib to across it.
+        curve = skia.PathBuilder().moveTo(10, 50).quadTo(110, 50, 110, 150).detach()
+        curved = nib.band(curve)
+        widths = [
+            self.thickness(curved, (x, 30), (0, 0.05), count=2400) for x in (20, 60, 90)
+        ]
+        self.assertLess(widths[0], widths[1])
+        self.assertLess(widths[1], widths[2])
+
+    def test_a_taper_runs_from_the_start_width_to_the_end(self):
+        taper = compose.brush.ribbon(10, "#ffffff", widthEnd=2)
+        self.assertEqual((taper.widthStart, taper.widthEnd), (10, 2))
+        self.assertEqual(taper.bleed(), 10)
+        from sigil import skia
+
+        band = taper.band(skia.PathBuilder().moveTo(0, 50).lineTo(200, 50).detach())
+        start = self.thickness(band, (10, 40), (0, 0.05))
+        end = self.thickness(band, (190, 40), (0, 0.05))
+        self.assertGreater(start, 8)
+        self.assertLess(end, 4)
+
+
 class Strokes(unittest.TestCase):
     """A curve stroked through the native host, measured in its picture."""
 

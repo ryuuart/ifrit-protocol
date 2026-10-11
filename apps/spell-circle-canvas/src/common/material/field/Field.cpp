@@ -1,7 +1,8 @@
 /** @file
  * The field bodies: the staggered dot grid under a vertical swell, the
  * pass-through over Skia's Perlin generator, the value-noise fBm unrolled
- * per octave count, and the sine displacement.
+ * per octave count, the nearest two seeds of a jittered lattice, and the
+ * sine displacement.
  */
 
 #include "sigilmaterial/field/Field.h"
@@ -126,6 +127,21 @@ Material grain(float frequency, int octaves, float seed, float contrast,
       GrainParameters{{frequency / k, frequency * k}, seed, contrast});
 }
 
+const std::shared_ptr<const Recipe>& cellularRecipe() {
+  static const auto recipe = std::make_shared<const Recipe>(
+      Recipe::of<CellularParameters>("field.cellular")
+          .frame(FrameInput::Resolution)
+          .body(Target::SkSL, std::string(shaderSource("Cellular.sksl")))
+          .body(Target::Slang, std::string(shaderSource("Cellular.slang"))));
+  return recipe;
+}
+
+Material cellular(float frequency, float jitter, float seed) {
+  return Material(cellularRecipe(),
+                  CellularParameters{std::max(frequency, 0.0f),
+                                     std::clamp(jitter, 0.0f, 1.0f), seed});
+}
+
 const std::shared_ptr<const Recipe>& rippleRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<RippleParameters>("field.ripple")
@@ -147,6 +163,8 @@ Material ripple(float amplitudePx, float wavelengthPx, float phase,
 namespace sigil::material {
 
 Material noise(float frequency, NoiseOptions options) {
+  if (options.cellular)
+    return field::cellular(frequency, options.jitter, options.seed);
   if (options.grain)
     return field::grain(frequency, options.octaves, options.seed,
                         options.contrast, options.stretch);

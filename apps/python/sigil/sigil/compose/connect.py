@@ -2,11 +2,13 @@
 # typing/additions, not this file.
 
 from _sigil.compose.connect import (
+    Along,
     Between,
     ByLane,
 )
 
 __all__ = [
+    "Along",
     "Between",
     "ByLane",
 ]

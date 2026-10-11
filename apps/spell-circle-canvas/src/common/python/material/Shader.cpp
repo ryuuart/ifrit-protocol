@@ -115,11 +115,17 @@ material::Schema layoutOf(const std::vector<Uniform>& uniforms) {
 }
 
 media::PixelSource pixelsOf(py::handle value) {
+  // None is the empty slot: the layer an executor supplies, as the
+  // `content` a filter's program samples.
   if (value.is_none()) return {};
   if (py::isinstance<media::Image>(value))
     return media::PixelSource(std::shared_ptr<const media::Image>(
         value.cast<std::shared_ptr<media::Image>>()));
-  return media::PixelSource(value.cast<sk_sp<SkImage>>());
+  if (py::isinstance<SkImage>(value))
+    return media::PixelSource(value.cast<sk_sp<SkImage>>());
+  throw py::type_error(
+      "A texture is a media.Image, a skia.Image, or None for the layer an "
+      "executor supplies.");
 }
 
 material::ShaderOptions optionsOf(const std::string& key,

@@ -229,6 +229,65 @@ class Shader(unittest.TestCase):
             self.assertIn("missingColour", problems[0].message)
 
 
+LAYER = """from sigil import material
+from sigil.compose import box
+from sigil.sketch import sketch
+
+SHIFT = material.shader(
+    "half4 main(float2 p) { return content.eval(p + float2(4, 0)); }",
+    textures={"content": None},
+)
+
+
+@sketch(size=(32, 8), background="#000000", capture_at=0)
+class Scene:
+    def setup(self, ctx):
+        mark = box().width(8).height(8).left(12).fill("#ff0000")
+        ctx.render(box().width(32).height(8).filter(FILTER).children(mark))
+"""
+
+
+class LayerPrograms(unittest.TestCase):
+    """A filter's program over the layer the executor supplies."""
+
+    def render(self, filter_spelling):
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder) / "scene.py"
+            output = Path(folder) / "scene.png"
+            source.write_text(LAYER.replace("FILTER", filter_spelling))
+            render_file(source, output, at=0)
+            return media.load(output).frameAt(0).image.rgba()
+
+    def red(self, pixels, x):
+        return pixels[(4 * 32 + x) * 4]
+
+    def test_an_empty_slot_is_the_layer_and_a_reach_is_stated(self):
+        plain = self.render("material.Filter.of(SHIFT)")
+        reaching = self.render("material.Filter.of(SHIFT, sampleRadius=4)")
+        # The mark stands at 12 to 20; read four pixels to the right, it
+        # lands at 8 to 16.
+        for pixels in (plain, reaching):
+            self.assertGreater(self.red(pixels, 10), 200)
+            self.assertLess(self.red(pixels, 18), 50)
+        self.assertEqual(bytes(plain), bytes(reaching))
+
+    def test_a_reach_is_a_distance_and_a_texture_is_a_picture(self):
+        program = material.shader(
+            "half4 main(float2 p) { return content.eval(p); }",
+            textures={"content": None},
+        )
+        self.assertIsInstance(
+            material.Filter.of(program, sampleRadius=0), material.Filter
+        )
+        with self.assertRaises(ValueError):
+            material.Filter.of(program, sampleRadius=-1)
+        with self.assertRaises(TypeError):
+            material.shader(
+                "half4 main(float2 p) { return content.eval(p); }",
+                textures={"content": 3},
+            )
+
+
 class StockPrograms(unittest.TestCase):
     def test_glass_refracts_over_the_options_it_is_given(self):
         options = material.GlassOptions(
@@ -407,6 +466,23 @@ class Texture(unittest.TestCase):
                 with self.subTest(frame=frame):
                     source.write_text(SHEET.replace("FRAME", str(frame)))
                     render_file(source, output, at=0)
+                    pixels = media.load(output).frameAt(0).image.rgba()
+                    offset = (4 * 8 + 4) * 4
+                    for actual, channel in zip(pixels[offset : offset + 3], expected):
+                        self.assertAlmostEqual(actual, channel, delta=1)
+
+    def test_a_flipbook_plays_its_cells_with_the_clock(self):
+        # One frame a second and no frame stated: the clock chooses, so
+        # half a second in shows the first cell and two and a half the
+        # third.
+        playing = SHEET.replace("framesPerSecond=0, frame=FRAME", "framesPerSecond=1")
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder) / "scene.py"
+            output = Path(folder) / "scene.png"
+            source.write_text(playing)
+            for seconds, expected in ((0.5, (255, 0, 0)), (2.5, (0, 0, 255))):
+                with self.subTest(seconds=seconds):
+                    render_file(source, output, at=seconds)
                     pixels = media.load(output).frameAt(0).image.rgba()
                     offset = (4 * 8 + 4) * 4
                     for actual, channel in zip(pixels[offset : offset + 3], expected):

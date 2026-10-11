@@ -24,6 +24,8 @@ compose::Fill fill(pybind11::handle value);
 compose::Align alignment(pybind11::handle value);
 /** A main-axis justification read from @p value's name. */
 compose::Justify justification(pybind11::handle value);
+/** Whether content paints past the shape, read from @p value's name. */
+compose::Overflow overflowing(pybind11::handle value);
 /** A node's outline read from @p value: a shape, or a callable that
  *  builds one for the size it is given. */
 compose::Shape shape(pybind11::handle value);

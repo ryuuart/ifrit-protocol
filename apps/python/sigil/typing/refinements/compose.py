@@ -105,7 +105,7 @@ def registerDeclarations(table: _Returning, node: str) -> None:
     table.declares(
         node,
         "varDefaults",
-        "def varDefaults(self, defaults: dict[str, _t.DimensionLike | _t.ColorLike]) -> Element: ...",
+        "def varDefaults(self, defaults: dict[str, _t.DimensionLike | _t.ColorLike | _sigil.material.Material]) -> Element: ...",
     )
     table.erased(
         node,
@@ -138,6 +138,7 @@ def inset(self, *, top: _t.DimensionLike | None = ..., right: _t.DimensionLike |
     table.erased(node, "fill", "_t.MotionFillLike")
     table.erased(node, "alignItems alignSelf", "_t.AlignLike")
     table.erased(node, "justifyContent", "_t.JustifyLike")
+    table.erased(node, "overflow", "_t.OverflowLike")
     table.erased(node, "gridCellAlign", "_t.AlignLike", "_t.AlignLike")
     table.erased(node, "centerAt", "_t.PointLike")
     # A point in hand, in pixels, or the two lengths in any unit; a rect in

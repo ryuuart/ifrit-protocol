@@ -18,6 +18,7 @@ import _sigil.weave
 __all__ = [
     "AddingOperator",
     "AlignLike",
+    "AnchorLike",
     "ArrangingOperator",
     "AttributeLike",
     "AttributeValue",
@@ -45,6 +46,7 @@ __all__ = [
     "MotionFillLike",
     "NodeLike",
     "OperatorLike",
+    "OverflowLike",
     "PaintProgram",
     "PenProgram",
     "PointBatch",
@@ -142,6 +144,11 @@ JustifyLike: TypeAlias = (
     _sigil.compose.Justify
     | Literal["start", "center", "end", "space_between", "space_around", "space_evenly"]
 )
+AnchorLike: TypeAlias = _sigil.compose.Anchor | str | tuple[str, PointLike] | PointLike
+"""ONE STOP OF A WIRE: an anchor, a node's key read at its centre, a key
+and a normalized point read on that node's bounds, or a free point in the
+scope's own coordinates."""
+OverflowLike: TypeAlias = _sigil.compose.Overflow | Literal["visible", "clip"]
 ShapeFunction: TypeAlias = Callable[[float, float], _sigil.skia.Path]
 ShapeLike: TypeAlias = _sigil.compose.Shape | _sigil.skia.Path | ShapeFunction
 NodeLike: TypeAlias = (
@@ -163,7 +170,14 @@ child: the order children are laid out in has to be the order they were
 written in."""
 
 AttributeLike: TypeAlias = (
-    bool | int | float | str | Sequence[str] | Sequence[FloatLike] | _sigil.skia.Point
+    bool
+    | int
+    | float
+    | str
+    | Sequence[str]
+    | Sequence[FloatLike]
+    | _sigil.skia.Point
+    | _sigil.compose.pin.Request
 )
 """A TYPED FACT'S VALUE, as a node states it. The type is part of the
 fact: a fact written as a whole number is not read back as a number, and
@@ -171,7 +185,15 @@ a sequence of numbers is a list of numbers whatever its length, so a
 fact meant as a point is written as a point. An empty sequence is an
 empty list of strings, because an empty one has to pick."""
 AttributeValue: TypeAlias = (
-    bool | int | float | str | list[str] | list[float] | _sigil.skia.Point | None
+    bool
+    | int
+    | float
+    | str
+    | list[str]
+    | list[float]
+    | _sigil.skia.Point
+    | _sigil.compose.pin.Request
+    | None
 )
 """A FACT READ BACK, in the type it was stated in, and None where no
 fact of that name stands in one of them. A fact a C++ caller stated in
@@ -205,6 +227,11 @@ OperatorLike: TypeAlias = (
     | _sigil.compose.layouts.AlongPath
     | _sigil.compose.connect.Between
     | _sigil.compose.connect.ByLane
+    | _sigil.compose.connect.Along
+    | _sigil.compose.pin.ByLane
+    | _sigil.compose.outline.Around
+    | _sigil.compose.outline.Hull
+    | _sigil.compose.stamp.ByLane
     | ArrangingOperator
     | AddingOperator
 )

@@ -45,6 +45,21 @@ def register(table: Table) -> None:
         )
     table.parameters(MODULE + ".drawWith", program="_t.ScopeProgram")
 
+    # The kit's adders: a run of stops in any of its spellings, a pinned
+    # box's size, and a stamp's maker handed one settled node.
+    table.accessor(
+        MODULE + ".connect.Along",
+        "stops",
+        "list[_sigil.compose.Anchor]",
+        "collections.abc.Sequence[_t.AnchorLike]",
+    )
+    table.accessor(
+        MODULE + ".pin.Request", "size", "tuple[float, float]", "_t.SizeLike"
+    )
+    maker = "collections.abc.Callable[[" + NODE + "], _t.NodeLike]"
+    table.parameters(MODULE + ".stamp.ByLane.__init__", make=maker)
+    table.accessor(MODULE + ".stamp.ByLane", "make", maker + " | None", maker)
+
     # A rectangle and a point are read through the shared conversion
     # wherever an operator writes one; the rect property's setter is the
     # one erased argument under its name.

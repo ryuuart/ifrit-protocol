@@ -28,8 +28,21 @@
 
 namespace sigil::geometry::mesh {
 
+/** The edge `extrude()` turns between a cap and the walls: left square,
+ *  rounded through a quarter circle, or cut by one flat chamfer at 45
+ *  degrees. */
+enum class ExtrudeEdge { Square, Round, Bevel };
+
+/** What the walls of `extrude()` read of a texture: their own
+ *  coordinates, u along the outline's length and v down the depth, or the
+ *  front cap's projected straight down, so a page worn by the solid runs
+ *  over its walls as the colour of the page's edge. */
+enum class WallTexture { Along, Projected };
+
 /** How `extrude()` thickens an outline: the total depth and which of the
- *  three surfaces — front cap, back cap, swept walls — to emit.
+ *  three surfaces — front cap, back cap, swept walls — to emit, the edge
+ *  between a cap and the walls, what the walls read of a texture, and
+ *  whether the caps and the walls are two face sets.
  *  Dropping caps leaves an open shell, which is what a wall-only
  *  extrusion is for. */
 struct ExtrudeOptions {
@@ -38,12 +51,31 @@ struct ExtrudeOptions {
   bool frontCap = true;
   bool backCap = true;
   bool walls = true;
+  /** The edge at each end whose cap and walls are both emitted, turned
+   *  round every outline, holes included: the cap is inset by
+   *  `edgeSize` and the walls stop `edgeSize` short of it. */
+  ExtrudeEdge edge = ExtrudeEdge::Square;
+  /** The round's radius or the chamfer's width, held to half the depth.
+   *  The inset holds while it is smaller than the outline's narrowest
+   *  feature; past that the inset outline crosses itself. */
+  float edgeSize = 0;
+  /** Steps across a round, from the cap to the wall; a chamfer is one
+   *  flat step. */
+  int edgeSegments = 4;
+  WallTexture wallTexture = WallTexture::Along;
+  /** Write the "Material" primitive lane: 0 on both caps, 1 on the walls
+   *  and the edges, so a body filled with two materials in slot order
+   *  wears the first on its caps and the second round its sides. */
+  bool faceSets = false;
 };
 
 /** Lift a filled outline into a solid: front/back caps triangulated with
  *  hole support (even-odd containment decides outer vs hole rings),
  *  walls swept between them. Cap UVs are the outline's unit bounds; wall
- *  UVs run u = contour arc length, v = depth. */
+ *  UVs run u = contour arc length and v from the front down the edges
+ *  and the depth to the back, or are the cap's projected down. Walls and
+ *  edges are flat across each outline segment and, across a round, turn
+ *  smoothly from the cap's normal to the wall's. */
 Mesh extrude(const path::Outline& outline, const ExtrudeOptions& options = {});
 
 /** The same solid @p depth thick — the call a figure lifted into a body

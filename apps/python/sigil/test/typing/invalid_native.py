@@ -8,9 +8,12 @@ compose.box().fill(object())  # error: reportArgumentType
 compose.box().padding(1, 2, 3, 4, 5)  # error: reportCallIssue
 compose.box().alignItems("sideways")  # error: reportArgumentType
 compose.box().justifyContent("spread")  # error: reportArgumentType
+compose.box().overflow("hidden")  # error: reportArgumentType
 compose.memo(2, lambda value: str(value))  # error: reportArgumentType
 weave.Type(misspelled=12)  # error: reportCallIssue
 material.Paint.sksl("code", {"gain": object()})  # error: reportArgumentType
+not_a_picture = {"content": 3}
+material.shader("code", textures=not_a_picture)  # error: reportArgumentType
 motion.animate(42)  # error: reportCallIssue,reportArgumentType
 data.Table().filter(lambda row: "yes")  # error: reportArgumentType
 io.Hub().write("output.json", {"value": 1})  # error: reportArgumentType

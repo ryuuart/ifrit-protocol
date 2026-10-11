@@ -7,6 +7,7 @@
 
 #include <pybind11/functional.h>
 #include <pybind11/stl.h>
+#include <sigilcompose/typography/Entrance.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Animatable.h>
@@ -102,6 +103,19 @@ struct Family<compose::Fill> {
   static py::object reading(const compose::Fill& value) {
     return py::cast(value);
   }
+};
+
+template <>
+struct Family<compose::textFx::Displaced> {
+  using Displaced = compose::textFx::Displaced;
+  static Displaced read(py::handle value) { return py::cast<Displaced>(value); }
+  static motion::Staggered<Displaced> readStaggered(py::handle value) {
+    return read(value);
+  }
+  static py::object reading(const motion::Staggered<Displaced>& value) {
+    return py::cast(value.value());
+  }
+  static py::object reading(const Displaced& value) { return py::cast(value); }
 };
 
 template <class T>
@@ -656,6 +670,16 @@ void bindMotion(py::module_& root) {
   module.def("flash", &motion::flash, py::arg("age"), py::arg("attack"),
              py::arg("timeConstant"), py::arg("rest") = 0.0f);
   module.def("clamp01", &motion::clamp01, py::arg("value"));
+}
+
+void bindMotionDisplacedTween(py::module_& module) {
+  auto tween = bindTween<compose::textFx::Displaced>(module, "DisplacedTween",
+                                                     "DisplacedKeyframe");
+  tween.doc() =
+      "A glyph's way home, described: from_ the Displaced it starts at, to "
+      "home unless one is named, keyframes the stops on the way, and "
+      "duration, delay, loop, loopDelay and alternate the schedule of the "
+      "track it is the entrance of.";
 }
 
 }  // namespace sigil::python

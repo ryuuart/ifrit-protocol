@@ -104,7 +104,7 @@ void bindMaterialBuilder(py::module_& module) {
              std::optional<material::Material> iridescenceThicknessMap,
              material::Channel specular, material::ColorInput specularColor,
              material::Channel transmission, float ior,
-             material::Channel thickness,
+             material::Channel thickness, std::string thicknessAttribute,
              const material::Color& attenuationColor, float attenuationDistance,
              float dispersion, std::optional<material::Material> distortion,
              float distortionStrength, float reflectionWeight, bool unlit,
@@ -140,6 +140,7 @@ void bindMaterialBuilder(py::module_& module) {
                                  std::move(transmission),
                                  ior,
                                  std::move(thickness),
+                                 std::move(thicknessAttribute),
                                  attenuationColor,
                                  attenuationDistance,
                                  dispersion,
@@ -181,6 +182,7 @@ void bindMaterialBuilder(py::module_& module) {
           py::arg_v("transmission", material::Channel(0.0f), "0.0"),
           py::arg("ior") = 1.5f,
           py::arg_v("thickness", material::Channel(0.0f), "0.0"),
+          py::arg("thicknessAttribute") = "",
           py::arg_v("attenuationColor", material::Color{1, 1, 1, 1},
                     "Color(1, 1, 1, 1)"),
           py::arg("attenuationDistance") = 0.0f, py::arg("dispersion") = 0.0f,
@@ -286,13 +288,20 @@ void bindMaterialBuilder(py::module_& module) {
   materials.def(
       "noise",
       [](float frequency, int octaves, float seed, bool turbulence, bool grain,
-         float contrast, float stretch) {
-        return material::noise(
-            frequency, {octaves, seed, turbulence, grain, contrast, stretch});
+         float contrast, float stretch, bool cellular, float jitter) {
+        return material::noise(frequency, {.octaves = octaves,
+                                           .seed = seed,
+                                           .turbulence = turbulence,
+                                           .grain = grain,
+                                           .contrast = contrast,
+                                           .stretch = stretch,
+                                           .cellular = cellular,
+                                           .jitter = jitter});
       },
       py::arg("frequency"), py::arg("octaves") = 4, py::arg("seed") = 1.0f,
       py::arg("turbulence") = false, py::arg("grain") = false,
-      py::arg("contrast") = 1.0f, py::arg("stretch") = 1.0f);
+      py::arg("contrast") = 1.0f, py::arg("stretch") = 1.0f,
+      py::arg("cellular") = false, py::arg("jitter") = 1.0f);
 }
 
 }  // namespace sigil::python

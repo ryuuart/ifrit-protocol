@@ -19,7 +19,10 @@ class Values(unittest.TestCase):
         native = media.fromRgba(pixels, 2, 1)
         pixels[:] = bytes(8)
         self.assertEqual(native.rgba(), bytes([255, 0, 0, 255, 0, 128, 255, 255]))
-        self.assertEqual(media.decode(media.Image, media.encode(native)).frameAt(0).image.rgba(), native.rgba())
+        self.assertEqual(
+            media.decode(media.Image, media.encode(native)).frameAt(0).image.rgba(),
+            native.rgba(),
+        )
         with self.assertRaises(ValueError):
             media.fromRgba(bytes(3), 1, 1)
 
@@ -62,6 +65,39 @@ class Values(unittest.TestCase):
         self.assertAlmostEqual(center[0], 320)
         self.assertAlmostEqual(center[1], 240)
         self.assertIsNone(camera.project((0, 0, 500), (640, 480)))
+
+    def test_cellular_noise_is_zero_at_a_seed_and_rises_away(self):
+        regular = material.noise(1 / 32, cellular=True, jitter=0)
+        self.assertEqual(regular, field.cellular(1 / 32, jitter=0))
+        self.assertNotEqual(regular, material.noise(1 / 32, cellular=True))
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder) / "cells.py"
+            output = Path(folder) / "cells.png"
+            source.write_text(
+                "from sigil import compose, material\n"
+                "from sigil.compose import Composer\n"
+                "from sigil.sketch import sketch\n"
+                "@sketch(size=(64, 64), capture_at=0)\n"
+                "class Cells:\n"
+                "    def draw(self, pen):\n"
+                "        composer = Composer()\n"
+                "        composer.setSize((64, 64))\n"
+                "        composer.render(compose.box().width(64).height(64)\n"
+                "            .fill(material.noise(1 / 32, cellular=True, jitter=0)))\n"
+                "        composer.draw(canvas=pen.canvas())\n"
+            )
+            render_file(source, output, at=0)
+            picture = media.decode(media.Image, output.read_bytes()).frameAt(0).image
+            pixels = picture.rgba()
+            width = picture.width()
+
+            def red(x: int, y: int) -> int:
+                return pixels[(y * width + x) * 4]
+
+            # Every seed stands at its cell's centre with no jitter.
+            self.assertLessEqual(red(16, 16), 8)
+            self.assertLess(red(16, 16), red(20, 16))
+            self.assertLess(red(20, 16), red(26, 16))
 
     def test_shader_slot_and_mesh_render_headlessly(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -113,7 +149,9 @@ class Colors(unittest.TestCase):
             compose.Fill.color(7)
 
     def test_a_fill_takes_a_paint_and_a_material(self):
-        recipe = material.surface.unlit(material.surface.SurfaceParameters(baseColor="#e75a31"))
+        recipe = material.surface.unlit(
+            material.surface.SurfaceParameters(baseColor="#e75a31")
+        )
         unit = Paint.linearGradient((0, 0), (1, 0), [(0, "#000"), (1, "#fff")])
         # A fill is a paint or a cascade reference, so both are fills, and
         # the same paint described twice is one fill.
@@ -133,9 +171,7 @@ class Colors(unittest.TestCase):
         # sets the ink from that property.
         with self.assertRaisesRegex(TypeError, "clear the paint"):
             compose.text("words").ink(ramp).ink(compose.Fill.currentInk())
-        self.assertIsInstance(
-            compose.text("words").ink(ramp).ink(None), compose.Text
-        )
+        self.assertIsInstance(compose.text("words").ink(ramp).ink(None), compose.Text)
         self.assertIsInstance(
             compose.text("words").ink(ramp).ink(compose.var("accent")),
             compose.Text,
@@ -149,9 +185,7 @@ class Colors(unittest.TestCase):
             compose.PaintBox.Canvas,
         ):
             with self.subTest(box=box):
-                self.assertIsInstance(
-                    compose.box().ink(ramp, box=box), compose.Element
-                )
+                self.assertIsInstance(compose.box().ink(ramp, box=box), compose.Element)
 
     def test_an_ink_paint_restarts_on_the_text_unit_it_names(self):
         # A text unit restarts the paint on each letter, word or line; the

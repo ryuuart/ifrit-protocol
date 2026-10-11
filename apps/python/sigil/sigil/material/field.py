@@ -2,6 +2,7 @@
 # typing/additions, not this file.
 
 from _sigil.material.field import (
+    cellular,
     grain,
     halftoneRamp,
     noise,
@@ -9,6 +10,7 @@ from _sigil.material.field import (
 )
 
 __all__ = [
+    "cellular",
     "grain",
     "halftoneRamp",
     "noise",

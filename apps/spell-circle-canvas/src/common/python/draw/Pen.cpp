@@ -556,12 +556,26 @@ void bindPen(py::module_& root) {
   penMethod(cls, "vertices", &Pen::vertices, py::arg("mesh"));
   cls.def(
       "clip",
-      [](BorrowedPen& self, py::function shape, bool invert) {
+      [](const std::shared_ptr<BorrowedPen>& self, py::function shape,
+         bool invert) {
+        // The shape is drawn with this same pen, so a callback naming one
+        // parameter is handed it and one naming none closes over it.
+        int named = 1;
+        try {
+          named = py::module_::import("sigil._callbacks")
+                      .attr("arity")(shape, 1)
+                      .cast<int>();
+        } catch (py::error_already_set& error) {
+          if (!error.matches(PyExc_ValueError)) throw;
+        }
         std::exception_ptr failure;
-        self.get().clip(
+        self->get().clip(
             [&] {
               try {
-                shape();
+                if (named == 0)
+                  shape();
+                else
+                  shape(self);
               } catch (...) {
                 failure = std::current_exception();
               }
@@ -588,8 +602,7 @@ void bindPen(py::module_& root) {
          float width, float height, int index) {
         auto& native = self.get();
         compose::paintRetained(
-            native, element,
-            geometry::path::Rect::of({x, y}, {width, height}),
+            native, element, geometry::path::Rect::of({x, y}, {width, height}),
             callerSlot(native, index));
       },
       py::arg("element"), py::arg("x"), py::arg("y"), py::arg("width"),

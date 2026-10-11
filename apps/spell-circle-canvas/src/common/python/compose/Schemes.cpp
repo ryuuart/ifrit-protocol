@@ -21,6 +21,9 @@
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Connect.h>
 #include <sigilcompose/kit/Layouts.h>
+#include <sigilcompose/kit/Outline.h>
+#include <sigilcompose/kit/Pin.h>
+#include <sigilcompose/kit/Stamp.h>
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/advanced/Skia.h>
 #include <sigilpython/Bindings.h>
@@ -321,6 +324,46 @@ struct PythonAdding {
   void add(Scope& scope) const { callAdd(value.held(), scope); }
 };
 
+/** A STAMP WHOSE MAKER IS A PYTHON CALLABLE, handed each node stating the
+ *  lane as the scope sees it. The native stamp walks the nodes and
+ *  attaches what the maker answers; this lends it the scope for the call,
+ *  so the maker reads a node exactly as an adding operator does. Two
+ *  compare as the native stamp does: by a key the author states, since a
+ *  callable has no equality of its own. */
+struct PythonStamp {
+  std::string lane;
+  std::string key;
+  std::shared_ptr<PythonCallback> make;
+  bool operator==(const PythonStamp& other) const {
+    return !key.empty() && key == other.key && lane == other.lane;
+  }
+  void add(Scope& scope) const {
+    if (!make) return;
+    const py::gil_scoped_acquire lock;
+    py::function maker;
+    try {
+      maker = make->get();
+    } catch (const std::runtime_error&) {
+      return;
+    }
+    const ScopeLoan lent{scope};
+    const auto view = lent.scope().cast<std::shared_ptr<BorrowedScope>>();
+    const Scope::Node* first = scope.nodes().data();
+    const compose::stamp::ByLane native{
+        .lane = lane, .key = key, .make = [&](const Scope::Node& one) {
+          py::object made;
+          try {
+            const CallbackBoundary boundary;
+            made = maker(ScopeNode{view, (size_t)(&one - first)});
+          } catch (const py::error_already_set& error) {
+            throw std::runtime_error(error.what());
+          }
+          return node(made);
+        }};
+    native.add(scope);
+  }
+};
+
 /** An operator over a Python object, which either arranges the children
  *  or adds to the settled scope and cannot do both: the two run in
  *  different phases of one layout, so a value carrying both states no
@@ -367,6 +410,16 @@ std::optional<Operator> stockOperator(py::handle value) {
     return Operator{value.cast<connect::Between>()};
   if (py::isinstance<connect::ByLane>(value))
     return Operator{value.cast<connect::ByLane>()};
+  if (py::isinstance<connect::Along>(value))
+    return Operator{value.cast<connect::Along>()};
+  if (py::isinstance<compose::pin::ByLane>(value))
+    return Operator{value.cast<compose::pin::ByLane>()};
+  if (py::isinstance<compose::outline::Around>(value))
+    return Operator{value.cast<compose::outline::Around>()};
+  if (py::isinstance<compose::outline::Hull>(value))
+    return Operator{value.cast<compose::outline::Hull>()};
+  if (py::isinstance<PythonStamp>(value))
+    return Operator{value.cast<PythonStamp>()};
   return std::nullopt;
 }
 
@@ -747,6 +800,33 @@ void bindScope(py::module_& composition) {
           "because its pixels land after the additions are laid out.");
 }
 
+/** One stop of a wire from any of the spellings Python writes it in. */
+compose::Anchor readAnchor(py::handle value) {
+  if (py::isinstance<compose::Anchor>(value))
+    return value.cast<compose::Anchor>();
+  if (py::isinstance<py::str>(value))
+    return compose::Anchor::on(value.cast<std::string>());
+  if (py::isinstance<py::sequence>(value)) {
+    const auto items = value.cast<py::sequence>();
+    if (items.size() == 2 && py::isinstance<py::str>(items[0]))
+      return compose::Anchor::on(items[0].cast<std::string>(),
+                                 geometry::path::fromSk(point(items[1])));
+    return compose::Anchor::at(geometry::path::fromSk(point(value)));
+  }
+  throw py::type_error(
+      "A stop is an Anchor, a node's key, a (key, (x, y)) pair read on that "
+      "node's bounds, or a free (x, y) point.");
+}
+
+/** Every stop of a run, in order. */
+std::vector<compose::Anchor> readAnchors(py::handle value) {
+  if (py::isinstance<py::str>(value))
+    throw py::type_error("The stops are a sequence of them, not one key.");
+  std::vector<compose::Anchor> stops;
+  for (py::handle one : value) stops.push_back(readAnchor(one));
+  return stops;
+}
+
 void bindConnect(py::module_& module) {
   auto wires = submodule(module, "compose.connect");
   auto between = record<connect::Between>(wires, "Between");
@@ -768,6 +848,107 @@ void bindConnect(py::module_& module) {
   field(byLane, "wire", &connect::ByLane::wire);
   field(byLane, "bleed", &connect::ByLane::bleed);
   byLane.def(py::self == py::self);
+
+  auto along = record<connect::Along>(wires, "Along");
+  along.doc() =
+      "A wire along an ordered run of stops: each an Anchor, a node's key "
+      "(its centre), a (key, (x, y)) pair read on that node's bounds, or a "
+      "free (x, y) point in the scope's coordinates. A key the scope does "
+      "not hold draws nothing.";
+  along.def_property(
+      "stops", [](const connect::Along& self) { return self.stops; },
+      [](connect::Along& self, py::handle value) {
+        self.stops = readAnchors(value);
+      });
+  field(along, "router", &connect::Along::router);
+  field(along, "wire", &connect::Along::wire);
+  field(along, "bleed", &connect::Along::bleed);
+  field(along, "key", &connect::Along::key);
+  along.def(py::self == py::self);
+}
+
+void bindAdders(py::module_& module) {
+  auto pins = submodule(module, "compose.pin");
+  auto request = record<compose::pin::Request>(pins, "Request");
+  request.doc() =
+      "What a node asks to have hung off it, stated as a fact under the "
+      "lane a pin.ByLane reads: the element, the box it is given and "
+      "where it hangs. The tether's key is ignored; the node stating the "
+      "request is the anchor.";
+  request.def_property(
+      "element", [](const compose::pin::Request& self) { return self.element; },
+      [](compose::pin::Request& self, py::handle value) {
+        self.element = node(value);
+      });
+  request.def_property(
+      "size",
+      [](const compose::pin::Request& self) {
+        return std::pair<float, float>{self.size.x, self.size.y};
+      },
+      [](compose::pin::Request& self, py::handle value) {
+        self.size = geometry::path::fromSk(point(value));
+      });
+  field(request, "where", &compose::pin::Request::where);
+  request.def(py::self == py::self);
+  auto pinning = record<compose::pin::ByLane>(pins, "ByLane");
+  pinning.doc() =
+      "An element hung off every node stating a Request under the lane, "
+      "keyed <node key>-pin and placed by the request's tether, or by the "
+      "first fallback that stays inside the scope.";
+  field(pinning, "lane", &compose::pin::ByLane::lane);
+  pinning.def(py::self == py::self);
+
+  auto outlines = submodule(module, "compose.outline");
+  auto around = record<compose::outline::Around>(outlines, "Around");
+  around.doc() =
+      "A band laid along the outline of the keyed node, as wide as its "
+      "width law and on the side its formation says.";
+  field(around, "key", &compose::outline::Around::key);
+  field(around, "across", &compose::outline::Around::across);
+  field(around, "formation", &compose::outline::Around::formation);
+  field(around, "fill", &compose::outline::Around::fill);
+  around.def(py::self == py::self);
+  auto hull = record<compose::outline::Hull>(outlines, "Hull");
+  hull.doc() =
+      "The region around every node stating the lane or naming the class: "
+      "the convex hull, or with a finite alpha the concave one, grown by "
+      "the margin.";
+  field(hull, "lane", &compose::outline::Hull::lane);
+  field(hull, "styleClass", &compose::outline::Hull::styleClass);
+  field(hull, "alpha", &compose::outline::Hull::alpha);
+  field(hull, "margin", &compose::outline::Hull::margin);
+  field(hull, "fill", &compose::outline::Hull::fill);
+  hull.def(py::self == py::self);
+
+  auto stamps = submodule(module, "compose.stamp");
+  py::class_<PythonStamp> stamp(
+      stamps, "ByLane",
+      "One element made per node stating the lane, by `make` handed the "
+      "node as the scope sees it, attached to that node and keyed "
+      "<node key>-stamp. Two stamps are equal when they name one non-empty "
+      "key over one lane, so a stamp that states its key prunes.");
+  stamp
+      .def(py::init([](std::string lane, py::function make, std::string key) {
+             return PythonStamp{std::move(lane), std::move(key),
+                                retainCallback(std::move(make))};
+           }),
+           py::arg("lane"), py::arg("make"), py::arg("key") = "")
+      .def_readwrite("lane", &PythonStamp::lane)
+      .def_readwrite("key", &PythonStamp::key)
+      .def_property(
+          "make",
+          [](const PythonStamp& self) -> py::object {
+            if (!self.make) return py::none();
+            try {
+              return self.make->get();
+            } catch (const std::runtime_error&) {
+              return py::none();
+            }
+          },
+          [](PythonStamp& self, py::function make) {
+            self.make = retainCallback(std::move(make));
+          })
+      .def(py::self == py::self);
 }
 
 }  // namespace
@@ -793,6 +974,10 @@ void stateFact(Attributes& facts, std::string_view name, py::handle value) {
     facts.set(name, value.cast<SkPoint>());
     return;
   }
+  if (py::isinstance<compose::pin::Request>(value)) {
+    facts.set(name, value.cast<compose::pin::Request>());
+    return;
+  }
   if (py::isinstance<py::sequence>(value) &&
       !py::isinstance<py::bytes>(value)) {
     bool strings = true;
@@ -813,7 +998,7 @@ void stateFact(Attributes& facts, std::string_view name, py::handle value) {
   }
   throw py::type_error(
       "A fact is a bool, a whole number, a number, a string, a list of "
-      "strings, a list of numbers, or a point.");
+      "strings, a list of numbers, a point, or a pin.Request.");
 }
 
 py::object factOf(const Attributes& facts, std::string_view name) {
@@ -825,6 +1010,8 @@ py::object factOf(const Attributes& facts, std::string_view name) {
     return py::cast(*value);
   if (auto value = facts.get<std::vector<float>>(name)) return py::cast(*value);
   if (auto value = facts.get<SkPoint>(name)) return py::cast(*value, copied);
+  if (auto value = facts.get<compose::pin::Request>(name))
+    return py::cast(*value);
   return py::none();
 }
 
@@ -853,6 +1040,7 @@ void bindComposeSchemes(py::module_& module) {
   bindArrangement(composition);
   bindScope(composition);
   bindConnect(module);
+  bindAdders(module);
 
   composition.def(
       "drawWith",

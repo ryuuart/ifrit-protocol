@@ -67,6 +67,17 @@ assert_type(compose.text("words").textStroke(1, accent), compose.Text)
 assert_type(compose.text("words").textStroke(1, solid), compose.Text)
 assert_type(compose.text("words").textStroke(1, None), compose.Text)
 
+# A custom property holds a colour, a length or a material, set one at a
+# time or as the defaults a subtree reads.
+brushed = material.Material("#b87333")
+assert_type(compose.box().var("ground", "#18252e"), compose.Element)
+assert_type(compose.box().var("inset", 12), compose.Element)
+assert_type(compose.box().var("metal", brushed), compose.Element)
+assert_type(
+    compose.box().varDefaults({"ground": "#18252e", "inset": 12, "metal": brushed}),
+    compose.Element,
+)
+
 # ---------------------------------------------------------------------------
 # MotionFillLike — a fill that may move, at Element.fill; the other
 # surface verbs take FillLike.

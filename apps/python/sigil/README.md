@@ -119,7 +119,26 @@ width the whole way, or a list of `(along, width)` stops along a fraction
 of the spine — and its paint a colour, a fill or a material, which keeps
 its layers, surface and effects. A keyline `stroke(material, width)` over
 an open outline is likewise one band centred on it: an open outline has no
-inside, so it has no side to keep.
+inside, so it has no side to keep. With `nibAngleDeg` the width is
+one number and the band is a calligraphic stroke, that wide where the
+outline runs across the nib and `nibContrast` of it where it runs along;
+with `widthEnd` it tapers from the width to `widthEnd`:
+`compose.brush.ribbon(12, ink, nibAngleDeg=30)`. `Ribbon.band(spine)` hands
+back the region a ribbon fills, to be measured.
+
+`material.noise(frequency, cellular=True, jitter=1)` is cellular noise: one
+seed per cell of a lattice `frequency` cells per pixel, the distance to the
+nearest seed in red, to the second in green, and their difference — zero on
+the walls between cells — in blue, so a crackle or a cell network is a fill
+read through `material.channel(cells, material.ColorChannel.Blue)`. It has a
+body for a page and one for a lit body alike.
+
+`geometry.mesh.extrude(path, ExtrudeOptions(...))` turns the edge between a
+cap and the walls with `edge=mesh.ExtrudeEdge.Round` or `Bevel` over
+`edgeSize` in `edgeSegments` steps, round holes too; `wallTexture=
+mesh.WallTexture.Projected` runs the cap's page down the walls; and
+`faceSets=True` lets a World body wear its caps and its walls as two
+surfaces, `world.mesh(solid).fill([face, sides])`.
 
 Both Python surfaces target the capabilities needed to reproduce the native
 sketch catalog. Coverage is still incomplete; `PARITY.md` lists the outstanding
@@ -870,7 +889,10 @@ Container factories accept children directly:
 `box`, `row`, `column`, `stack`, `positioned`, and `layout(scheme, ...)`.
 `row()` is `box().row()` and `column()` is `box().column()`. Constructors
 do not take layout or styling keywords. Fluent methods keep their native names, such
-as `.alignItems("center")`, `.fontSize(18)` and `.translateY(12)`.
+as `.alignItems("center")`, `.fontSize(18)` and `.translateY(12)`; the
+layout keywords CSS writes as words take the word or the enumeration alike,
+`.overflow("clip")` beside `.overflow(compose.Overflow.Clip)`, and an
+unknown word raises `ValueError`.
 
 Both factory arguments and `.children()` accept individual native elements
 or one sequence of elements:
@@ -948,13 +970,18 @@ A node states typed FACTS about itself with `attribute(name, value)`, or a
 whole `Attributes` table with `attributes(facts)`, and says nothing about
 who reads them. The value reads back in the type it was stated in: a
 bool, a whole number, a number, a string, a list of either, or a
-`skia.Point` — a sequence of numbers is a list of numbers whatever its
+`skia.Point`, or a `compose.pin.Request` — a sequence of numbers is a list of numbers whatever its
 length, so a fact meant as a point is stated as a point. `point()` is a
 node with no extent that exists to carry a key and facts.
 
 `operators([...])` is what reads them. Each entry is a stock arranging
-value, one of the connecting records in `sigil.compose.connect`, or a
-Python object of your own:
+value, one of the kit's adders, or a Python object of your own. The adders
+are `compose.connect.Between`, `ByLane` and `Along` — the last a wire
+through a run of stops, each an `Anchor`, a key, a `(key, (x, y))` pair or
+a free point; `compose.pin.ByLane`, which hangs the element of every
+`pin.Request` a node states under its lane; `compose.outline.Around` and
+`Hull`; and `compose.stamp.ByLane(lane, make, key=)`, which attaches what
+`make(node)` answers to every node stating the lane and prunes by its key:
 
 ```python
 import math
@@ -1273,12 +1300,22 @@ material for the main glyph pass, which its copies share.
 `Decoration` describes an underline, overline, strike or highlight. Optional
 records and array properties are copies: edit and assign them back. A rich
 value's `runs()` and a story's `blocks()` return independent snapshots.
-`TextPath` and `textOnPath` place text on a native shape and accept shared
-motion values for progress.
+`TextPath` and `textOnPath` place text on a native shape — a
+`geometry.path.Outline` such as `path.curveThrough(points)` as well as a Skia
+path — and accept shared motion values for progress.
+
+The native entrance runs on a text leaf's glyphs as a track:
+`text("KINETIC").textFx(textFx.entrance(textFx.rise(26)))`. A tween of
+`textFx.Displaced` stops says where each glyph starts and how it comes home
+— the stock `rise`, `slide`, `pop`, `spinIn`, `scatter`, `typeOn` and
+`variableAxisSweep`, or a `textFx.DisplacedTween` of your own — and its
+duration and stagger are the track's schedule; a `compose.Track` passed
+beside it says which glyphs, by what unit, and the master `progress`, which
+binds any motion value.
 
 Direct editable paragraphs, font contexts, native flow geometry and annotation
-values are available. Per-glyph effect tracks and custom Python implementations
-of flow/hyphenation remain unfinished. A paint layer's `material` and a paint
+values are available. The other per-glyph effects and custom Python
+implementations of flow/hyphenation remain unfinished. A paint layer's `material` and a paint
 style's `foregroundMaterial` are shaded over the glyphs their pass covers by
 the resolver a sketch session installs; drawn where no resolver is installed,
 the pass keeps its Skia paint. The parity table tracks the remaining work

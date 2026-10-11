@@ -14,11 +14,16 @@ def register(table: Table) -> None:
     """Record what pybind11 erased from this package's signatures."""
     brush = "_sigil.compose.brush"
     # A ribbon's width is any width law and its paint any fill; a material
-    # keeps its layers, surface and effects.
+    # keeps its layers, surface and effects. A nib or a taper reads the
+    # width as one number.
     table.declares(
         brush,
         "ribbon",
-        "def ribbon(width: _t.ProfileLike, paint: _t.FillLike) -> Ribbon: ...\n",
+        """@typing.overload
+def ribbon(width: _t.ProfileLike, paint: _t.FillLike) -> Ribbon: ...
+@typing.overload
+def ribbon(width: float, paint: _t.FillLike, *, nibAngleDeg: float | None = None, nibContrast: float = 0.15, widthEnd: float | None = None) -> Ribbon: ...
+""",
     )
     table.accessor(brush + ".Ribbon", "fill", "_sigil.compose.Fill", "_t.FillLike")
     table.accessor(

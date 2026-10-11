@@ -91,18 +91,88 @@ Mesh extrude(const path::Outline& outline, const ExtrudeOptions& options) {
   const float uvW = std::max(pathBounds.width(), 1.0f);
   const float uvH = std::max(pathBounds.height(), 1.0f);
   const float half = options.depth * 0.5f;
+  const auto projected = [&](glm::vec2 p) {
+    return glm::vec2{(p.x + uvW * 0.5f) / uvW, 1.0f - (p.y + uvH * 0.5f) / uvH};
+  };
 
-  // Caps: the rings triangulated once, holes kept by the even-odd rule,
-  // and the same triangles laid at either end.
-  const path::Triangulation cap = path::triangulate(rings);
-  auto addCap = [&](float z, bool front) {
+  // The edge stands only where a cap meets the walls, and never deeper
+  // than half the solid.
+  const bool walled = options.walls && options.depth > 0;
+  const float edgeSize = options.edge == ExtrudeEdge::Square || !walled
+                             ? 0.0f
+                             : std::clamp(options.edgeSize, 0.0f, half);
+  const float frontEdge = options.frontCap ? edgeSize : 0.0f;
+  const float backEdge = options.backCap ? edgeSize : 0.0f;
+
+  // Each ring's outward direction per segment, from the canonical
+  // winding: an outer is anticlockwise and a hole clockwise in y-up
+  // space, so the segment turned a quarter clockwise faces out of the
+  // solid for both.
+  struct Segment {
+    glm::vec2 outward;
+    float length;
+  };
+  std::vector<std::vector<Segment>> segments(ringCount);
+  for (size_t r = 0; r < ringCount; ++r) {
+    std::vector<glm::vec2>& points = rings[r].points;
+    // A repeated point has no direction; drop it before the ring is read.
+    std::vector<glm::vec2> distinct;
+    for (const glm::vec2& p : points)
+      if (distinct.empty() || glm::length(p - distinct.back()) > 1e-6f)
+        distinct.push_back(p);
+    while (distinct.size() > 1 &&
+           glm::length(distinct.front() - distinct.back()) <= 1e-6f)
+      distinct.pop_back();
+    points = std::move(distinct);
+    const size_t n = points.size();
+    for (size_t e = 0; e < n; ++e) {
+      const glm::vec2 edge = points[(e + 1) % n] - points[e];
+      const float len = glm::length(edge);
+      segments[r].push_back(
+          {len > 1e-9f ? glm::vec2{edge.y, -edge.x} / len : glm::vec2{0, 0},
+           len});
+    }
+  }
+
+  // A ring moved into the solid by @p by at every corner: each corner
+  // along the bisector of its two segments' outward directions, by the
+  // distance that keeps both segments @p by from where they were. A
+  // corner sharper than about fifteen degrees is held at four times the
+  // distance rather than reaching far past its neighbours.
+  const auto inset = [&](size_t r, float by) {
+    const std::vector<glm::vec2>& points = rings[r].points;
+    const size_t n = points.size();
+    std::vector<glm::vec2> moved(n);
+    for (size_t i = 0; i < n; ++i) {
+      const glm::vec2 before = segments[r][(i + n - 1) % n].outward;
+      const glm::vec2 after = segments[r][i].outward;
+      glm::vec2 bisector = before + after;
+      const float bisectorLength = glm::length(bisector);
+      bisector = bisectorLength > 1e-6f ? bisector / bisectorLength : after;
+      const float reach = std::max(glm::dot(bisector, after), 0.25f);
+      moved[i] = points[i] - bisector * (by / reach);
+    }
+    return moved;
+  };
+
+  // Caps: the rings triangulated once per inset, holes kept by the
+  // even-odd rule, and laid at either end.
+  const auto triangulated = [&](float by) {
+    if (by <= 0) return path::triangulate(rings);
+    std::vector<Polyline> moved(ringCount);
+    for (size_t r = 0; r < ringCount; ++r) {
+      moved[r].points = inset(r, by);
+      moved[r].closed = true;
+    }
+    return path::triangulate(moved);
+  };
+  auto addCap = [&](const path::Triangulation& cap, float z, bool front) {
     const uint32_t base = (uint32_t)out.positions.size();
     const glm::vec3 normal = {0, 0, front ? 1.0f : -1.0f};
     for (const glm::vec2& p : cap.points) {
       out.positions.emplace_back(p.x, p.y, z);
       out.normals.push_back(normal);
-      out.uvs.emplace_back((p.x + uvW * 0.5f) / uvW,
-                           1.0f - (p.y + uvH * 0.5f) / uvH);
+      out.uvs.push_back(projected(p));
     }
     for (const glm::uvec3& triangle : cap.triangles) {
       uint32_t tri[3] = {base + triangle.x, base + triangle.y,
@@ -111,45 +181,131 @@ Mesh extrude(const path::Outline& outline, const ExtrudeOptions& options) {
       out.indices.insert(out.indices.end(), {tri[0], tri[1], tri[2]});
     }
   };
-  if (options.frontCap) addCap(half, true);
-  if (options.backCap) addCap(-half, false);
+  if (options.frontCap) {
+    const path::Triangulation front = triangulated(frontEdge);
+    addCap(front, half, true);
+    if (options.backCap)
+      addCap(backEdge == frontEdge ? front : triangulated(backEdge), -half,
+             false);
+  } else if (options.backCap) {
+    addCap(triangulated(backEdge), -half, false);
+  }
+  const size_t capTriangles = out.triangleCount();
 
-  // Walls: one flat-shaded quad per contour edge, outward normals from
-  // the canonical winding.
-  if (options.walls && options.depth > 0) {
-    for (const Polyline& ring : rings) {
-      const size_t n = ring.points.size();
-      float arc = 0;
-      float total = ring.length();
-      if (total < 1e-6f) total = 1;
-      for (size_t e = 0; e < n; ++e) {
-        const glm::vec2 a = ring.points[e];
-        const glm::vec2 b = ring.points[(e + 1) % n];
-        const glm::vec2 edge = b - a;
-        const float len = length(edge);
-        if (len < 1e-9f) continue;
-        // CCW outer ring in y-up space: outward = edge rotated -90.
-        const glm::vec3 normal = normalized({edge.y / len, -edge.x / len, 0});
+  // Walls: the profile from the front cap's rim down to the back's, as
+  // rows of an inset, a depth and a normal that mixes the segment's
+  // outward direction with the axis; each segment of each ring is one
+  // strip of quads down the rows. A round is a quarter circle whose
+  // normal turns from the cap's to the wall's; a chamfer is one flat row
+  // pair at 45 degrees; the wall is one row pair facing straight out.
+  struct Row {
+    float inset;
+    float z;
+    float outward;  ///< the weight of the segment's outward direction
+    float along;    ///< the weight of +z
+  };
+  std::vector<std::pair<Row, Row>> bands;
+  const auto rim = [&](float size, bool front) {
+    if (size <= 0) return;
+    const float sign = front ? 1.0f : -1.0f;
+    const float centre = sign * (half - size);
+    if (options.edge == ExtrudeEdge::Bevel) {
+      const float slope = 0.70710678f;
+      const Row capSide{size, sign * half, slope, sign * slope};
+      const Row wallSide{0, centre, slope, sign * slope};
+      bands.push_back(front ? std::pair{capSide, wallSide}
+                            : std::pair{wallSide, capSide});
+      return;
+    }
+    const int steps = std::max(options.edgeSegments, 1);
+    std::vector<Row> rows;
+    for (int k = 0; k <= steps; ++k) {
+      // From the cap (a quarter turn) to the wall (none).
+      const float turn = 1.5707963f * (1.0f - (float)k / (float)steps);
+      rows.push_back({size * (1.0f - std::cos(turn)),
+                      centre + sign * size * std::sin(turn), std::cos(turn),
+                      sign * std::sin(turn)});
+    }
+    if (!front) std::reverse(rows.begin(), rows.end());
+    for (size_t k = 0; k + 1 < rows.size(); ++k)
+      bands.push_back({rows[k], rows[k + 1]});
+  };
+  if (walled) {
+    rim(frontEdge, true);
+    bands.push_back({{0, half - frontEdge, 1, 0}, {0, -half + backEdge, 1, 0}});
+    rim(backEdge, false);
+  }
+  // The profile's length to each row, which is what v runs along.
+  std::vector<float> profileAt(bands.size() + 1, 0.0f);
+  for (size_t b = 0; b < bands.size(); ++b)
+    profileAt[b + 1] =
+        profileAt[b] +
+        glm::length(glm::vec2{bands[b].first.inset - bands[b].second.inset,
+                              bands[b].first.z - bands[b].second.z});
+  const float profileLength = std::max(profileAt.back(), 1e-6f);
+
+  for (size_t r = 0; walled && r < ringCount; ++r) {
+    const size_t n = rings[r].points.size();
+    // The ring at each inset the rows stand at, made once per inset.
+    std::vector<std::pair<float, std::vector<glm::vec2>>> insets;
+    const auto ringAt = [&](float by) -> const std::vector<glm::vec2>& {
+      for (const auto& [at, points] : insets)
+        if (at == by) return points;
+      insets.emplace_back(by, by > 0 ? inset(r, by) : rings[r].points);
+      return insets.back().second;
+    };
+    float total = 0;
+    for (const Segment& segment : segments[r]) total += segment.length;
+    if (total < 1e-6f) total = 1;
+    float arc = 0;
+    for (size_t e = 0; e < n; ++e) {
+      const Segment& segment = segments[r][e];
+      if (segment.length < 1e-9f) continue;
+      const float u0 = arc / total, u1 = (arc + segment.length) / total;
+      arc += segment.length;
+      for (size_t b = 0; b < bands.size(); ++b) {
+        const Row& top = bands[b].first;
+        const Row& bottom = bands[b].second;
+        const std::vector<glm::vec2>& upper = ringAt(top.inset);
+        const glm::vec2 a0 = upper[e], b0 = upper[(e + 1) % n];
+        const std::vector<glm::vec2>& lower = ringAt(bottom.inset);
+        const glm::vec2 a1 = lower[e], b1 = lower[(e + 1) % n];
+        const auto normalOf = [&](const Row& row) {
+          return normalized({segment.outward.x * row.outward,
+                             segment.outward.y * row.outward, row.along});
+        };
+        const glm::vec3 upperNormal = normalOf(top);
+        const glm::vec3 lowerNormal = normalOf(bottom);
         const uint32_t base = (uint32_t)out.positions.size();
-        const float u0 = arc / total, u1 = (arc + len) / total;
-        out.positions.emplace_back(a.x, a.y, half);
-        out.positions.emplace_back(b.x, b.y, half);
-        out.positions.emplace_back(b.x, b.y, -half);
-        out.positions.emplace_back(a.x, a.y, -half);
-        for (int k = 0; k < 4; ++k) out.normals.push_back(normal);
-        out.uvs.emplace_back(u0, 0);
-        out.uvs.emplace_back(u1, 0);
-        out.uvs.emplace_back(u1, 1);
-        out.uvs.emplace_back(u0, 1);
+        out.positions.emplace_back(a0.x, a0.y, top.z);
+        out.positions.emplace_back(b0.x, b0.y, top.z);
+        out.positions.emplace_back(b1.x, b1.y, bottom.z);
+        out.positions.emplace_back(a1.x, a1.y, bottom.z);
+        out.normals.insert(out.normals.end(), {upperNormal, upperNormal,
+                                               lowerNormal, lowerNormal});
+        if (options.wallTexture == WallTexture::Projected) {
+          out.uvs.insert(out.uvs.end(), {projected(a0), projected(b0),
+                                         projected(b1), projected(a1)});
+        } else {
+          const float v0 = profileAt[b] / profileLength;
+          const float v1 = profileAt[b + 1] / profileLength;
+          out.uvs.insert(out.uvs.end(), {glm::vec2{u0, v0}, glm::vec2{u1, v0},
+                                         glm::vec2{u1, v1}, glm::vec2{u0, v1}});
+        }
+        const glm::vec3 facing = upperNormal + lowerNormal;
         uint32_t tri0[3] = {base, base + 1, base + 2};
         uint32_t tri1[3] = {base, base + 2, base + 3};
-        orientTriangle(out.positions, tri0, normal);
-        orientTriangle(out.positions, tri1, normal);
+        orientTriangle(out.positions, tri0, facing);
+        orientTriangle(out.positions, tri1, facing);
         out.indices.insert(out.indices.end(), {tri0[0], tri0[1], tri0[2],
                                                tri1[0], tri1[1], tri1[2]});
-        arc += len;
       }
     }
+  }
+
+  if (options.faceSets) {
+    std::vector<glm::vec4>& sets = out.primitive("Material", {0, 0, 0, 0});
+    for (size_t t = capTriangles; t < sets.size(); ++t) sets[t] = {1, 0, 0, 0};
   }
   return out;
 }

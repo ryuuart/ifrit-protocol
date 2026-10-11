@@ -84,6 +84,19 @@ compose::Justify justification(py::handle value) {
   throw py::value_error("Unknown justification: " + name);
 }
 
+compose::Overflow overflowing(py::handle value) {
+  if (py::isinstance<compose::Overflow>(value))
+    return value.cast<compose::Overflow>();
+  if (!py::isinstance<py::str>(value))
+    throw py::type_error(
+        "An overflow is an Overflow, \"visible\" or \"clip\".");
+  const auto name = value.cast<std::string>();
+  if (name == "visible") return compose::Overflow::Visible;
+  if (name == "clip") return compose::Overflow::Clip;
+  throw py::value_error("Unknown overflow: " + name +
+                        "; it is \"visible\" or \"clip\".");
+}
+
 compose::Shape shape(py::handle value) {
   if (py::isinstance<compose::Shape>(value))
     return value.cast<compose::Shape>();

@@ -14,12 +14,14 @@
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
+#include <sigilmaterial/slang/SlangCompiler.h>
 #include <sigilmaterial/texture/Texture.h>
-#include <sigilshaders/MaterialField.h>
 #include <sigilmedia/advanced/Skia.h>
+#include <sigilshaders/MaterialField.h>
 
 #include <algorithm>
 #include <cmath>
+#include <string>
 #include <vector>
 
 #include "ShaderTable.h"
@@ -73,7 +75,8 @@ TEST(Field, HalftoneRampSwellsDownwardAndBandRemaps) {
   const Material band =
       field::halftoneRamp(8, 0.5f, 3.5f, {0, 0, 0, 1}, 0, 0.9f, 1);
   const SkBitmap bb = render(band, 64, 64);
-  // The swell is confined to the last tenth: the top reads as the minimum radius.
+  // The swell is confined to the last tenth: the top reads as the minimum
+  // radius.
   EXPECT_LE(coverage(bb, 30), coverage(bm, 30));
 }
 
@@ -99,8 +102,10 @@ TEST(Field, GrainIsMonochromeAndVaries) {
 // all is the ground exactly.
 TEST(Field, AGrainHoldsItsStrengthOnADarkGround) {
   const Color night = hexColor(0x0B111A), clay = hexColor(0x8A7560);
-  const double dark = luminanceDeviation(painted(grained(night, 0.1f), 256, 256));
-  const double middle = luminanceDeviation(painted(grained(clay, 0.1f), 256, 256));
+  const double dark =
+      luminanceDeviation(painted(grained(night, 0.1f), 256, 256));
+  const double middle =
+      luminanceDeviation(painted(grained(clay, 0.1f), 256, 256));
   EXPECT_GT(middle, 1.0);
   EXPECT_GE(dark, 0.75 * middle) << "dark " << dark << ", mid-tone " << middle;
 
@@ -121,6 +126,69 @@ TEST(Field, NoiseComparesByParametersAndShades) {
   bool varies = false;
   for (int i = 1; i < 16; ++i) varies |= bm.getColor(i, i) != bm.getColor(0, 0);
   EXPECT_TRUE(varies);
+}
+
+// With no jitter every seed stands at its cell's centre, so at a cell's
+// centre the nearest seed is zero away and the distance rises toward the
+// cell's edge; the wall between two cells is where the nearest and the
+// second are equally far, so blue falls to zero there.
+TEST(Field, CellularNoiseIsZeroAtASeedAndRisesAwayFromIt) {
+  const Material cells = noise(1.0f / 32.0f, {.cellular = true, .jitter = 0});
+  EXPECT_EQ(cells, field::cellular(1.0f / 32.0f, 0.0f));
+  const SkBitmap bm = painted(cells, 64, 64);
+  const auto red = [&](int x, int y) { return SkColorGetR(bm.getColor(x, y)); };
+  const auto blue = [&](int x, int y) {
+    return SkColorGetB(bm.getColor(x, y));
+  };
+  EXPECT_LE(red(16, 16), 6);
+  EXPECT_LT(red(16, 16), red(20, 16));
+  EXPECT_LT(red(20, 16), red(24, 16));
+  EXPECT_LT(red(24, 16), red(28, 16));
+  EXPECT_LT(red(16, 16), red(24, 24));
+  EXPECT_LE(blue(32, 16), 12);
+  EXPECT_GT(blue(16, 16), blue(30, 16));
+
+  // A jittered field moves its seeds and still finds some point at zero.
+  const Material jittered = field::cellular(1.0f / 16.0f, 1.0f, 3.0f);
+  EXPECT_FALSE(jittered == field::cellular(1.0f / 16.0f, 1.0f, 4.0f));
+  const SkBitmap moved = painted(jittered, 64, 64);
+  int lowest = 255;
+  for (int y = 0; y < 64; ++y)
+    for (int x = 0; x < 64; ++x)
+      lowest = std::min<int>(lowest, SkColorGetR(moved.getColor(x, y)));
+  EXPECT_LE(lowest, 8);
+  EXPECT_FALSE(sigil::material::test::identical(bm, moved));
+}
+
+// The device body is the same field: it compiles as a surface whose
+// parameters and frame inputs the compiler reports.
+TEST(Field, CellularNoiseHasASlangSurface) {
+  const auto& recipe = *field::cellularRecipe();
+  ASSERT_TRUE(recipe.has(Target::Slang));
+  const std::string source = recipe.source(Target::Slang) + R"SLANG(
+struct VSOut { float4 position : SV_Position; float2 uv : TEXCOORD0; };
+
+[shader("vertex")]
+VSOut vsCellular(uint id : SV_VertexID) {
+  VSOut out;
+  out.position = float4(float(id), 0, 0, 1);
+  out.uv = float2(0.5, 0.5);
+  return out;
+}
+
+[shader("fragment")]
+float4 fsCellular(VSOut input) : SV_Target {
+  return surface(input.uv);
+}
+)SLANG";
+  slang::Compiled built;
+  std::string error;
+  ASSERT_TRUE(slang::compileModule(source, "vsCellular", "fsCellular",
+                                   /*lit=*/false, &built, &error))
+      << error;
+  EXPECT_NE(built.uniform("uFrequency"), nullptr);
+  EXPECT_NE(built.uniform("uJitter"), nullptr);
+  EXPECT_NE(built.uniform("uResolution"), nullptr);
 }
 
 TEST(Field, RippleDisplacesTheContent) {
@@ -158,7 +226,7 @@ TEST(Field, EveryStockBodyCompiles) {
   warp.slot("content", Texture(test::solid(SK_ColorMAGENTA, 4, 4)));
   std::vector<Material> all{
       field::halftoneRamp(8, 1, 3, {1, 1, 1, 1}, 15.0f, 0.1f, 0.9f),
-      field::noise(0.03f), warp};
+      field::noise(0.03f), field::cellular(0.05f), warp};
   for (int octaves = 1; octaves <= 4; ++octaves)
     all.push_back(field::grain(0.05f, octaves));
   for (const Material& m : all) {

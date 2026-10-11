@@ -302,7 +302,12 @@ void bindDeclarationVerbs(py::class_<Node>& element) {
           py::arg("horizontal"), py::arg("vertical"), fluent)
       .def("borderRadius", py::overload_cast<Corners>(&Node::borderRadius),
            py::arg("radii"), fluent)
-      .def("overflow", &Node::overflow, py::arg("overflow"), fluent)
+      .def(
+          "overflow",
+          [](Node& self, py::handle value) -> Node& {
+            return self.overflow(overflowing(value));
+          },
+          py::arg("overflow"), fluent)
       .def("paragraph",
            py::overload_cast<weave::ParagraphBlock>(&Node::paragraph),
            py::arg("partial"), fluent)
