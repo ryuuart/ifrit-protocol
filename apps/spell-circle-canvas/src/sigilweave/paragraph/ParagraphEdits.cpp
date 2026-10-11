@@ -74,6 +74,12 @@ void Paragraph::setWritingMode(WritingMode mode) {
   markDirty();
 }
 
+void Paragraph::setBaseDirection(unicode::BaseDirection base) {
+  if (m_baseDirection == base) return;
+  m_baseDirection = base;
+  markDirty();  // embedding levels are resolved in analyze()
+}
+
 void Paragraph::setSoftHyphenBreaks(bool enabled) {
   if (m_softHyphenBreaks == enabled) return;
   m_softHyphenBreaks = enabled;

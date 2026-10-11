@@ -130,8 +130,8 @@ sound model; nothing below them changes kernel semantics.
 - `core/verbs/Mask.h` — `MaskVerbs`: `mask`, in both its forms.
 - `core/verbs/Font.h` — `FontVerbs`: `font` and its longhands
   `fontFamily`, `fontSize`, `fontWeight`, `fontStyle`, `letterSpacing`,
-  and `ink` — the type and the colour every passage under a node is set
-  in.
+  `textShadow` (each entry a `TextShadow`), and `ink` — the type and the
+  colour every passage under a node is set in.
 - `core/verbs/Cascade.h` — `CascadeVerbs`: `paragraph` and its longhands
   `lineHeight`, `textAlign`, `textIndent`, `writingMode`, `hyphens`,
   `textWrap`, `textJustify`, `var`, `varDefaults`, `imageRendering`,
@@ -218,7 +218,9 @@ sound model; nothing below them changes kernel semantics.
   composer: `snapshot`, `intrinsicSize`, `metrics`, `measureRun`,
   `runPens`, and the two that solve a style BACKWARDS from a size the
   drawing states — `atCapHeight` (the number a reference actually quotes
-  about lettering) and `fitRun` (a run solved onto a width).
+  about lettering) and `fitRun` (a run solved onto a width) — and
+  `textStyleOf`, the style a text leaf in a tree is set in, for any of
+  them to measure.
 - `core/Tiles.h` — `tiles::`, the slicing of one baked picture into a run
   of tile-sized rasters.
 - `core/Shelf.h` — `shelve`, the packing several small drawings share one

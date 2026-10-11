@@ -288,7 +288,8 @@ void Paragraph::analyze(FontContext& fontContext) {
   unicode::itemize(m_text, scriptRuns);
 
   // ── Bidi levels (one run for LTR-only text, per-unit levels otherwise) ─
-  const std::vector<unicode::BidiRun> bidiRuns = unicode::bidi(m_text);
+  const std::vector<unicode::BidiRun> bidiRuns =
+      unicode::bidi(m_text, m_baseDirection);
   m_uniformBidirectionalLevel = 0;
   m_bidirectionalLevels.clear();
   if (bidiRuns.size() == 1) {

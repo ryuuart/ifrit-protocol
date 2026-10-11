@@ -39,11 +39,13 @@ TEST(ParagraphBlock, MergeCopiesFieldsAndTheEmptyPartialChangesNothing) {
   over.alignment = TextAlignment::kJustify;
   over.writingMode = WritingMode::kVerticalRL;
   over.lineBreakLocale = "ja";
+  over.baseDirection = unicode::BaseDirection::kRightToLeft;
   merge(into, over);
   EXPECT_EQ(into.leading, Leading::absolute(20));
   EXPECT_EQ(into.alignment, TextAlignment::kJustify) << "the second wins";
   EXPECT_EQ(into.writingMode, WritingMode::kVerticalRL);
   EXPECT_EQ(into.lineBreakLocale, "ja");
+  EXPECT_EQ(into.baseDirection, unicode::BaseDirection::kRightToLeft);
   const ParagraphBlock before = into;
   EXPECT_EQ(merge(into, ParagraphBlock{}), before);
   // A partial alone names the layout's own answer for what it leaves unset.
@@ -84,7 +86,8 @@ TEST(ParagraphBlock, AFieldWrittenAsAKeywordTakesTheBaseOrNothingAtAll) {
   EXPECT_FALSE(overlay(base, own).alignment.has_value());
 }
 
-TEST(ParagraphBlock, AKeywordOnAPartialHandedStraightToAStyleIsTheStylesOwnAnswer) {
+TEST(ParagraphBlock,
+     AKeywordOnAPartialHandedStraightToAStyleIsTheStylesOwnAnswer) {
   // Under no ancestor at all, `inherit` and `initial` come to the same
   // thing: the field nobody stated, which is what the whole style already
   // carries. It must not be a silent no-op at that door.

@@ -895,6 +895,7 @@ void Composer::Impl::resolveCascade(
     // paragraph holds as pixels, so a root that moved remakes it.
     const bool remakes =
         block.writingMode != inst.textBlock.writingMode ||
+        block.baseDirection != inst.textBlock.baseDirection ||
         block.lineBreakLocale != inst.textBlock.lineBreakLocale || namesMoved ||
         optionsMoved || remMoved;
     if (inst.textDirty || !inst.paragraph) {

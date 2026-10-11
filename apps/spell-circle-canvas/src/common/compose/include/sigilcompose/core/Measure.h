@@ -9,7 +9,8 @@
  * `metrics` reads a face's vertical metrics, `measureRun` / `runPens`
  * shape one run into per-glyph advances and pen positions, and
  * `atCapHeight` / `fitRun` solve a style backwards from a size the
- * drawing states.
+ * drawing states, and `textStyleOf` answers the style a leaf in a tree is
+ * set in, for any of them to measure.
  */
 
 #include <include/core/SkPicture.h>
@@ -18,6 +19,7 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilweave/style/Style.h>
 
+#include <optional>
 #include <string_view>
 #include <vector>
 
@@ -227,6 +229,22 @@ struct RunFit {
                                              float widthPx,
                                              sigil::weave::FontContext& fonts,
                                              const RunFit& fit = {});
+
+/** THE STYLE A PASSAGE IS SET IN WHERE IT STANDS: the first run of the
+ *  text leaf keyed @p key in @p root, resolved through the cascade as a
+ *  composer resolves it — the family list a rule or the leaf names found
+ *  in @p fonts at the weight and style in force, the sheet's classes, the
+ *  sizes and tracking relative to their parents. Hand it to `metrics`,
+ *  `measureRun`, `runPens`, `atCapHeight` or `fitRun` to measure the type
+ *  a page is actually set in, and read its face's axes through
+ *  `weave::Face::variationAxes`. Same sampling rules as `intrinsicSize`.
+ *  @trap Empty where @p root holds no text leaf keyed @p key. */
+std::optional<sigil::weave::TextStyle> textStyleOf(
+    const Element& root, std::string_view key,
+    sigil::weave::FontContext& fonts);
+/** The same for a tree that is the text leaf itself. */
+std::optional<sigil::weave::TextStyle> textStyleOf(
+    const Element& leaf, sigil::weave::FontContext& fonts);
 
 /** One-shot intrinsic measurement: what size would this element take?
  *  Runs the same reconcile+layout as snapshot() and returns the root's

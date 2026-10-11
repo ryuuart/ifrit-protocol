@@ -22,6 +22,7 @@
 #include <string_view>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace sigil::weave {
 
@@ -55,6 +56,24 @@ struct FaceStyle {
   int width = 5;
   FaceSlant slant = FaceSlant::Upright;
   bool operator==(const FaceStyle&) const = default;
+};
+
+/** ONE VARIATION AXIS A FACE CARRIES: its OpenType tag and the range
+ *  of design-space coordinates it takes, the default where a run states
+ *  none. */
+struct VariationAxis {
+  char tag[4] = {' ', ' ', ' ', ' '};  ///< OpenType axis tag, unterminated
+  float minimum = 0;
+  float defaultValue = 0;
+  float maximum = 0;
+  /** The font asks for the axis to be left out of a user's choices. */
+  bool hidden = false;
+  /** Whether this is the axis @p axisTag names. */
+  bool is(const char (&axisTag)[5]) const {
+    return tag[0] == axisTag[0] && tag[1] == axisTag[1] &&
+           tag[2] == axisTag[2] && tag[3] == axisTag[3];
+  }
+  bool operator==(const VariationAxis&) const = default;
 };
 
 class Face {
@@ -97,6 +116,9 @@ class Face {
   /** The face's weight, width and slant, as its font states them; the
    *  regular upright for no face. */
   FaceStyle style() const;
+  /** The variation axes the face carries, in the font's order; empty for
+   *  a face that varies along none, and for no face. */
+  std::vector<VariationAxis> variationAxes() const;
 
   bool operator==(const Face& other) const {
     return m_native == other.m_native;

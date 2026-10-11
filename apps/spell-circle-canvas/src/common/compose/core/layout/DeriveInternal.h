@@ -44,6 +44,17 @@ inline bool hasResolvedSilhouette(const Instance& inst) {
   return (bool)inst.description->shapeFn;
 }
 
+/** LAYS @p inst's PASSAGE OUT FOR THE BOX IT WAS RESOLVED TO, @p width by
+ *  @p height, where the layout it holds is not the one that box draws: its
+ *  content moved since it was set, or it lines up, hangs columns or spends
+ *  room against the box's resolved measure. Yoga measures a passage only
+ *  when its box is not given on both axes, so a box of a stated size
+ *  reaches its placed glyphs only through this. A reader of the placed
+ *  glyphs calls it first, and the painter and every borrow then read one
+ *  placement. */
+void prepareTextForBox(Composer::Impl& impl, Instance& inst, float width,
+                       float height);
+
 /** The cycle guard every borrow in this file applies: the target must not be
  *  this node or anything under it. Borrowing a DESCENDANT's geometry is the
  *  cycle — the child's box is derived from this node's, so the shape would

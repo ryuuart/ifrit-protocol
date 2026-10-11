@@ -168,7 +168,12 @@ one pen position per glyph plus a past-the-end entry, so `.back()` is the
 run's laid-out width. A space between two words is a gap the flow leaves
 rather than a glyph, so it rides the advance of the glyph before it — which
 is what makes those sums reproduce the pen positions the layout used across
-a whole sentence.
+a whole sentence. A run whose type a sheet or a family list names is
+measured in the style `textStyleOf(root, key, fonts)` answers for the leaf
+keyed `key` — the cascade resolved as a composer resolves it, the face
+found for the family list at the weight in force — and that style's
+`shaping.typeface.variationAxes()` reads the ranges of the axes its face
+carries.
 
 **Solving a style backwards from a size the drawing states.** A reference
 quotes how tall a capital stands, never a font size: `atCapHeight(style,

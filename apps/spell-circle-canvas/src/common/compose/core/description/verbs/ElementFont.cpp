@@ -4,13 +4,19 @@
  * painted in.
  */
 
+#include <include/core/SkBlurTypes.h>
+#include <include/core/SkMaskFilter.h>
 #include <include/core/SkTypes.h>  // SkDebugf — the ink box's diagnostics
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/filter/Filter.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/SurfaceMaps.h>
+#include <sigilweave/style/PaintLayer.h>
 #include <sigilweave/style/Type.h>
 
+#include <map>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <type_traits>
@@ -51,6 +57,24 @@ void warnInkTakesNoFillBox() {
       "[compose] ink() was given PaintBox::Padding or PaintBox::Content, "
       "which place a fill inside its box — the paint is stretched over "
       "PaintBox::Element. (warned once)\n");
+}
+
+/** THE BLUR A GLYPH'S SHADOW IS SOFTENED BY, one object per sigma: a
+ *  pass compares its mask filter by identity, so a partial described
+ *  again with the same shadow must hold the same filter to compare equal
+ *  and leave the passage painted as it was. */
+sk_sp<SkMaskFilter> shadowBlurOf(float sigma) {
+  static std::mutex guard;
+  static std::map<float, sk_sp<SkMaskFilter>> held;
+  // A sketch states a handful of softnesses; past this many, one more is
+  // made fresh rather than held for the life of the process.
+  constexpr size_t kHeldSoftnesses = 256;
+  const std::lock_guard<std::mutex> lock(guard);
+  if (const auto found = held.find(sigma); found != held.end())
+    return found->second;
+  sk_sp<SkMaskFilter> made = SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, sigma);
+  if (held.size() < kHeldSoftnesses) held.emplace(sigma, made);
+  return made;
 }
 
 }  // namespace
@@ -127,6 +151,34 @@ Derived& FontVerbs<Derived>::fontStyle(FontStyle style) {
 template <class Derived>
 Derived& FontVerbs<Derived>::letterSpacing(sigil::weave::Length tracking) {
   return font({.track = tracking});
+}
+
+template <class Derived>
+Derived& FontVerbs<Derived>::textShadow(std::vector<TextShadow> shadows) {
+  // The underlays are drawn back to front and CSS draws its first shadow
+  // nearest the glyph, so the list is laid down in reverse. A pass whose
+  // colour is transparent is drawn in the colour its glyph is painted in.
+  std::vector<sigil::weave::PaintLayer> passes;
+  passes.reserve(shadows.size());
+  for (auto shadow = shadows.rbegin(); shadow != shadows.rend(); ++shadow) {
+    // A shadow stated clear draws nothing, and a clear pass would read as
+    // the glyph's own colour.
+    if (shadow->color && shadow->color->a <= 0) continue;
+    sigil::weave::PaintLayer pass;
+    pass.paint.setColor4f(shadow->color
+                              ? material::skia::toSkColor(*shadow->color)
+                              : SkColor4f{0, 0, 0, 0},
+                          nullptr);
+    if (shadow->blur > 0) pass.paint.setMaskFilter(shadowBlurOf(shadow->blur));
+    pass.offset = shadow->offset;
+    passes.push_back(std::move(pass));
+  }
+  return font({.underlays = std::move(passes)});
+}
+
+template <class Derived>
+Derived& FontVerbs<Derived>::textShadow(TextShadow shadow) {
+  return textShadow(std::vector<TextShadow>{shadow});
 }
 
 template <class Derived>

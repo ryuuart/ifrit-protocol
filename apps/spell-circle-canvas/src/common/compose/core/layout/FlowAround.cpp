@@ -20,6 +20,10 @@ SkPath Composer::Impl::boundaryOutlineOf(Instance& target, float width,
   const ElementNode& node = *target.description;
   if (node.boundary == Boundary::Glyphs && node.kind == Kind::Text &&
       target.paragraph) {
+    // The glyphs as the target's box places them, which a box of a stated
+    // size has not been asked for yet; the outline held is then the one
+    // that placement makes.
+    prepareTextForBox(*this, target, width, height);
     if (target.glyphOutlineRev != target.measuredRev) {
       target.glyphOutline =
           geometry::path::toSk(target.textLayout.glyphOutline());

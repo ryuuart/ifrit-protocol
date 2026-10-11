@@ -207,3 +207,40 @@ TEST(ComposeFrameOptions, DistributeSpendsTheRoomLeftOverDownAStoryFrame) {
   EXPECT_NEAR(spread.front(), start.front(), 0.5f);
   EXPECT_GT(spread.back() - start.back(), 20.0f);
 }
+
+TEST(ComposeParagraphs, APageStatesTheBaseItsBidiResolvesAgainst) {
+  // A folio label in Persian digits, then English: on a page that states
+  // its direction right to left the words are ordered against that base,
+  // not against the first strong letter; a page restating it is set
+  // again as a fresh page with that base is.
+  const auto page =
+      [](std::optional<sigil::weave::unicode::BaseDirection> base) {
+        sigil::weave::ParagraphBlock block;
+        block.baseDirection = base;
+        return box().children({text(u8"۱۵۲۵ · Folio 22v", whiteStyle(24))
+                                   .key("folio")
+                                   .paragraph(block)});
+      };
+  const auto origins = [](Host& host) {
+    std::vector<float> xs;
+    if (const auto* layout = host.composer.paragraphLayout("folio"))
+      for (const sigil::weave::PositionedRun& run : layout->runs)
+        xs.push_back(run.origin.x);
+    return xs;
+  };
+  Host host(400, 80), fresh(400, 80);
+  host.composer.render(page(std::nullopt));
+  host.frame();
+  const std::vector<float> automatic = origins(host);
+  ASSERT_FALSE(automatic.empty());
+  host.composer.render(
+      page(sigil::weave::unicode::BaseDirection::kRightToLeft));
+  host.frame();
+  const std::vector<float> rightToLeft = origins(host);
+  EXPECT_NE(rightToLeft, automatic)
+      << "the stated base left the words where the text alone put them";
+  fresh.composer.render(
+      page(sigil::weave::unicode::BaseDirection::kRightToLeft));
+  fresh.frame();
+  EXPECT_EQ(rightToLeft, origins(fresh));
+}

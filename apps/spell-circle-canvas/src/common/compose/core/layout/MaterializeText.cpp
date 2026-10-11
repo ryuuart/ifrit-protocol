@@ -116,15 +116,18 @@ void Composer::Impl::materializeText(
   } else {
     inst.paragraph->appendText(text.utf8, text.style);
   }
-  // The writing mode and the line-break locale belong to the Paragraph, not to
-  // the layout options, so the paragraph setting in force lands them here. A
-  // field the block leaves unset leaves a passed-in paragraph's own standing.
+  // The writing mode, the bidirectional base and the line-break locale
+  // belong to the Paragraph, not to the layout options, so the paragraph
+  // setting in force lands them here. A field the block leaves unset leaves
+  // a passed-in paragraph's own standing.
   // A path run has no columns to advance — its baseline IS the geometry — so
   // the path wins and says so.
   if (inst.block.writingMode)
     inst.paragraph->setWritingMode(*inst.block.writingMode);
   if (inst.block.lineBreakLocale)
     inst.paragraph->setLineBreakLocale(*inst.block.lineBreakLocale);
+  if (inst.block.baseDirection)
+    inst.paragraph->setBaseDirection(*inst.block.baseDirection);
   inst.textBlock = inst.block;
   if (text.onPath &&
       inst.paragraph->writingMode() != sigil::weave::WritingMode::kHorizontal) {

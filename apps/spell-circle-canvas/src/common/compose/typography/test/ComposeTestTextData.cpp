@@ -8,6 +8,7 @@
 // the edges an aliased run draws.
 
 #include <sigilmaterial/paint/Bases.h>
+
 #include "support/TextTestSupport.h"
 
 TEST(ComposeText, OnPathReDescribeDoesNotKeepTheOldBaseline) {
@@ -417,12 +418,11 @@ TEST(ComposeText, AGlyphOutlineTakesTheInkWhenAPaintHasNoOneColour) {
       box()
           .padding(20)
           .ink({0, 1, 0, 1})
-          .children(
-              {text(u8"HH", whiteStyle(96))
-                   .textStroke(8.0f, material::linearGradient(
-                                         {0, 0}, {0, 1},
-                                         {{0.0f, {1, 0, 0, 1}},
-                                          {1.0f, {0, 0, 1, 1}}}))}));
+          .children({text(u8"HH", whiteStyle(96))
+                         .textStroke(8.0f, material::linearGradient(
+                                               {0, 0}, {0, 1},
+                                               {{0.0f, {1, 0, 0, 1}},
+                                                {1.0f, {0, 0, 1, 1}}}))}));
   host.frame();
   int green = 0;
   for (int y = 0; y < 160; ++y)
@@ -497,7 +497,8 @@ TEST(ComposeText, MeasureRunShapesOnceAndMatchesTheLaidOutElement) {
   {
     sigil::weave::Paragraph paragraph;
     paragraph.appendText(u8"HAMBURGEFONTSIV", style);
-    sigil::weave::BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {1.0e6f, 1.0e6f}));
+    sigil::weave::BlockFlow flow(
+        sigil::geometry::path::Rect::of({0, 0}, {1.0e6f, 1.0e6f}));
     sigil::weave::forEachPlacedGlyph(
         sigil::weave::layoutParagraph(fonts(), paragraph, flow), paragraph,
         [&](const sigil::weave::PlacedGlyph&) { ++placedGlyphs; });
@@ -517,7 +518,8 @@ TEST(ComposeText, MeasureRunPrefixSumsAreThePenPositionsAcrossWords) {
   const auto lastPenEnd = [&](std::u8string_view utf8) {
     sigil::weave::Paragraph paragraph;
     paragraph.appendText(utf8, style);
-    sigil::weave::BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {1.0e6f, 1.0e6f}));
+    sigil::weave::BlockFlow flow(
+        sigil::geometry::path::Rect::of({0, 0}, {1.0e6f, 1.0e6f}));
     const sigil::weave::ParagraphLayout layout =
         sigil::weave::layoutParagraph(fonts(), paragraph, flow);
     // The right edge of the last glyph, and the pen the first one starts at:
@@ -568,7 +570,8 @@ TEST(ComposeText, RunPensAreThePenPositionsWithOnePastTheEnd) {
   const auto placed = [&](std::u8string_view utf8) {
     sigil::weave::Paragraph paragraph;
     paragraph.appendText(utf8, style);
-    sigil::weave::BlockFlow flow(sigil::geometry::path::Rect::of({0, 0}, {1.0e6f, 1.0e6f}));
+    sigil::weave::BlockFlow flow(
+        sigil::geometry::path::Rect::of({0, 0}, {1.0e6f, 1.0e6f}));
     const sigil::weave::ParagraphLayout layout =
         sigil::weave::layoutParagraph(fonts(), paragraph, flow);
     // Pen positions relative to the FIRST glyph's pen, which is where the
@@ -775,8 +778,10 @@ TEST(ComposeText, RingWindingDecidesWhichWayTheGlyphsFace) {
     return n;
   };
 
-  auto cw = render(geometry::shapes::circle(geometry::path::Winding::OutersClockwise));
-  auto ccw = render(geometry::shapes::circle(geometry::path::Winding::OutersCounterClockwise));
+  auto cw = render(
+      geometry::shapes::circle(geometry::path::Winding::OutersClockwise));
+  auto ccw = render(geometry::shapes::circle(
+      geometry::path::Winding::OutersCounterClockwise));
   auto plain = render(geometry::shapes::circle());
 
   ASSERT_GT(inked(*cw), 300);
@@ -825,4 +830,75 @@ TEST(ComposeText, AliasedTextHasHardEdges) {
   // not — every pixel is on or off.
   EXPECT_GE(soft.second, kGlyphs * kPartialPerGlyph);
   EXPECT_LT(hard.second, soft.second / 8);
+}
+
+// -------------------------------------------------------------------------
+// The type a page is set in, measured: a leaf named by family under a
+// sheet answers the style its runs are set in, and the face's axes.
+
+TEST(ComposeText, ALeafSetByFamilyMeasuresAsItsResolvedFace) {
+  const sigil::weave::Face helvetica = fonts().familyTypeface("Helvetica Neue");
+  if (!helvetica) GTEST_SKIP() << "Helvetica Neue is not installed";
+  constexpr std::u8string_view kHero = u8"Wave Function";
+  const Element page =
+      box()
+          .applyStyleSheet(
+              StyleSheet{sigil::compose::rule(".hero")
+                             .fontFamily("Helvetica Neue, sans-serif")
+                             .fontSize(34)
+                             .letterSpacing(0.6f)})
+          .children({text(kHero).key("hero").styleClass("hero")});
+  const std::optional<sigil::weave::TextStyle> set =
+      textStyleOf(page, "hero", fonts());
+  ASSERT_TRUE(set.has_value());
+
+  sigil::weave::TextStyle held;
+  held.shaping.typeface = helvetica;
+  held.shaping.fontSize = 34;
+  held.shaping.letterSpacing = 0.6f;
+  const std::vector<float> pens = runPens(kHero, *set, fonts());
+  EXPECT_EQ(pens, runPens(kHero, held, fonts()));
+  ASSERT_FALSE(pens.empty());
+  EXPECT_NE(pens.back(), std::round(pens.back()))
+      << "the pens came back in whole pixels, as a box does";
+
+  // Fitted to a measure, the run lands on it.
+  const sigil::weave::TextStyle fitted = fitRun(kHero, *set, 180.0f, fonts());
+  EXPECT_NEAR(runPens(kHero, fitted, fonts()).back(), 180.0f, 0.5f);
+
+  // A key no leaf carries answers nothing.
+  EXPECT_FALSE(textStyleOf(page, "absent", fonts()).has_value());
+}
+
+TEST(ComposeText, ALeafsFaceAnswersItsVariationAxes) {
+  const auto gradeOf = [](const sigil::weave::TextStyle& style)
+      -> std::optional<sigil::weave::VariationAxis> {
+    for (const sigil::weave::VariationAxis& axis :
+         style.shaping.typeface.variationAxes())
+      if (axis.is("GRAD")) return axis;
+    return std::nullopt;
+  };
+  // The instrument face that grades: its axis and its range.
+  const std::optional<sigil::weave::TextStyle> graded = textStyleOf(
+      text(u8"Grade").font({.face = sigil::test::instrument::variable()}),
+      fonts());
+  ASSERT_TRUE(graded.has_value());
+  const std::optional<sigil::weave::VariationAxis> grade = gradeOf(*graded);
+  ASSERT_TRUE(grade.has_value());
+  EXPECT_LT(grade->minimum, grade->maximum);
+  EXPECT_GE(grade->defaultValue, grade->minimum);
+  EXPECT_LE(grade->defaultValue, grade->maximum);
+  // A face that varies along nothing reports nothing.
+  const std::optional<sigil::weave::TextStyle> plain = textStyleOf(
+      text(u8"Plain").font({.face = sigil::test::instrument::sans()}), fonts());
+  ASSERT_TRUE(plain.has_value());
+  EXPECT_TRUE(plain->shaping.typeface.variationAxes().empty());
+
+  // The system interface family, named as a sheet names it, where the
+  // machine's carries a grade.
+  const std::optional<sigil::weave::TextStyle> system =
+      textStyleOf(text(u8"System").fontFamily("system-ui"), fonts());
+  ASSERT_TRUE(system.has_value());
+  if (const auto systemGrade = gradeOf(*system))
+    EXPECT_LT(systemGrade->minimum, systemGrade->maximum);
 }

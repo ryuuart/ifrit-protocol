@@ -41,7 +41,7 @@ sigil_test(compose_test
           test/ComposeTestTextFxSchedule.cpp test/ComposeTestTextSpans.cpp
           test/ComposeTestNamedStyles.cpp test/ComposeTestInkUnits.cpp
           test/ComposeTestTextSpanAxis.cpp test/ComposeTestTextSlot.cpp
-          test/ComposeTestTextMarks.cpp
+          test/ComposeTestTextMarks.cpp test/ComposeTestTextShadow.cpp
   LIBRARIES SigilComposeTypography SigilComposeKit SigilComposeTesting
             SigilWeavePorts
   LABELS fonts

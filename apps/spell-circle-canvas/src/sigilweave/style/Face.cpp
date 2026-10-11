@@ -5,6 +5,7 @@
 
 #include "sigilweave/style/Face.h"
 
+#include <include/core/SkFontParameters.h>
 #include <include/core/SkFontStyle.h>
 #include <include/core/SkString.h>
 
@@ -58,6 +59,29 @@ FaceStyle Face::style() const {
   return fromSk(typeface(m_native)->fontStyle());
 }
 
+std::vector<VariationAxis> Face::variationAxes() const {
+  std::vector<VariationAxis> answered;
+  if (!m_native) return answered;
+  const int count = typeface(m_native)->getVariationDesignParameters({});
+  if (count <= 0) return answered;
+  std::vector<SkFontParameters::Variation::Axis> axes((size_t)count);
+  typeface(m_native)->getVariationDesignParameters({axes.data(), axes.size()});
+  answered.reserve(axes.size());
+  for (const SkFontParameters::Variation::Axis& axis : axes) {
+    VariationAxis entry;
+    entry.tag[0] = (char)((axis.tag >> 24) & 0xFF);
+    entry.tag[1] = (char)((axis.tag >> 16) & 0xFF);
+    entry.tag[2] = (char)((axis.tag >> 8) & 0xFF);
+    entry.tag[3] = (char)(axis.tag & 0xFF);
+    entry.minimum = axis.min;
+    entry.defaultValue = axis.def;
+    entry.maximum = axis.max;
+    entry.hidden = axis.isHidden();
+    answered.push_back(entry);
+  }
+  return answered;
+}
+
 Face FaceAdapter<sk_sp<SkTypeface>>::wrap(sk_sp<SkTypeface> native) {
   Face face;
   face.m_native = reinterpret_cast<const Face::Handle*>(native.release());
@@ -83,11 +107,10 @@ SkFontStyle toSk(const FaceStyle& style) {
 }
 
 FaceStyle fromSk(const SkFontStyle& style) {
-  const FaceSlant slant = style.slant() == SkFontStyle::kItalic_Slant
-                              ? FaceSlant::Italic
-                          : style.slant() == SkFontStyle::kOblique_Slant
-                              ? FaceSlant::Oblique
-                              : FaceSlant::Upright;
+  const FaceSlant slant =
+      style.slant() == SkFontStyle::kItalic_Slant    ? FaceSlant::Italic
+      : style.slant() == SkFontStyle::kOblique_Slant ? FaceSlant::Oblique
+                                                     : FaceSlant::Upright;
   return {style.weight(), style.width(), slant};
 }
 

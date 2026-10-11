@@ -42,6 +42,7 @@ enum class ParagraphField : uint8_t {
   OrphanLines,
   BalanceRaggedLines,
   WritingMode,
+  BaseDirection,
   LineBreakLocale,
   LineBreak,
   LastLineAlignment,
@@ -78,6 +79,9 @@ struct ParagraphBlock {
   std::optional<bool> balanceRaggedLines;
   /** The direction the lines run in (Paragraph::setWritingMode). */
   std::optional<WritingMode> writingMode;
+  /** The direction its bidirectional analysis resolves against
+   *  (Paragraph::setBaseDirection). */
+  std::optional<unicode::BaseDirection> baseDirection;
   /** The BCP-47 locale the line breaker segments under
    *  (Paragraph::setLineBreakLocale). */
   std::optional<std::string> lineBreakLocale;
@@ -111,9 +115,9 @@ struct ParagraphBlock {
     return !leading && !halfLeading && !alignment && !justification &&
            !hyphenation && !tabStops && !firstLineIndent && !lastLineIndent &&
            !widowLines && !orphanLines && !balanceRaggedLines && !writingMode &&
-           !lineBreakLocale && !lineBreak && !lastLineAlignment &&
-           !justifyLastLine && !justificationMethod && !kinsoku && !hanging &&
-           !mojikumi && !tsume && keywords.empty();
+           !baseDirection && !lineBreakLocale && !lineBreak &&
+           !lastLineAlignment && !justifyLastLine && !justificationMethod &&
+           !kinsoku && !hanging && !mojikumi && !tsume && keywords.empty();
   }
 };
 

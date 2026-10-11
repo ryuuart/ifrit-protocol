@@ -248,147 +248,30 @@ row), and each commit names those rows.
 
 ## A keyframe's colour terms are values, so a table cannot follow the sheet's palette
 
-`textFx::tween` keyframes write `GlyphModifier::colorMultiplier`,
-`colorAdd` and `colorScreen` as `material::Color` values when the table is
-built (`sigilcompose/typography/TextFx.h`). A sheet that states its
-palette as custom properties cannot hand one to a keyframe, so a table
-that colours its glyphs in the sheet's colours states them twice.
-`elastic_type`'s blush keyframes multiply each glyph toward the two
-series colours the sheet also states as `--x` and `--y`, once as custom
-properties for the traces and once as constants for the glyphs; a sheet
-that restates `--x` recolours the trace and leaves the letters behind.
+`GlyphModifier`'s three colour terms are `material::Color` values, so a
+keyframe table cannot name the ink in force or a custom property of the
+sheet, and a palette change leaves the table's colours behind. The
+intended shape is a colour term of the kinds a `Fill` has: a value, the
+ink in force, or a custom property, resolved against the glyph's own
+custom-property access when the effect is applied, with a plain colour
+still spelled as today; the same term would serve `TextShadow::color`.
+The alternative is a separate `motion::Tween<Fill>` per term beside the
+geometric keyframes. A test should drive a table naming the ink in force,
+change the sheet's ink, and find the glyphs following it.
 
-`textFx::tint` naming only `.from` already comes to rest at the glyph's
-own ink, read when the effect is applied (`GlyphInfo::ink`). A keyframe
-evidently means the same reach: a colour term that can name a custom
-property (or the ink in force), resolved against the leaf's custom
-properties when the effect is applied. How a keyframe spells that — a
-`Fill` or `VarRef` in `GlyphModifier`, or a separate colour table beside
-the geometric one — is an owner decision.
+## The glyph boundary outline is cut from the glyphs at rest
 
-A test should ink a leaf under a rule setting `--x`, run a one-keyframe
-tween whose multiplier names `--x`, and assert a glyph at local 1 draws
-the property's colour over its ink; then restate `--x` on a class the
-leaf carries and assert local 1 follows it.
-
-## A run can be measured to the pen only from a held typeface, never from the family list or the leaf a sheet sets
-
-`compose::runPens`, `measureRun`, `fitRun`, `atCapHeight` and `metrics`
-(`sigilcompose/core/Measure.h`) take a `weave::TextStyle` or a
-`weave::Type`, and both carry the face as a held `sk_sp<SkTypeface>`. The
-resolution from a family name to that face exists:
-`weave::FontContext::familyTypeface(family, style)`
-(`sigilweave/fonts/FontContext.h`) answers one family name, and
-`Scene2DContext::fonts` is that context. What is missing is narrower:
-
-- the measuring doors take the held face, which is a Skia value a sketch
-  may not hold, so the one family door ends in a type the sketch cannot
-  pass on;
-- no door takes a family LIST (`".SF NS, SF Pro, system-ui"`, as a rule
-  declares it) or a `Text` leaf resolved through the cascade the page is
-  set by, which is the resolution `intrinsicSize` already runs for a bake;
-- a face's variation axes and their ranges can be read only through Skia:
-  the compose kernel reads them itself (`FaceChoice.cpp`,
-  `getVariationDesignParameters`) and exposes nothing.
-
-So the one door left to a sketch whose type is named on a rule is
-`Scene2DContext::measure` over an element, and that answers the leaf's
-box: `LayoutText.cpp` rounds a passage's measured size up to whole pixels
-(`std::ceil` on `measuredSize`), with no pen positions and no metrics.
-
-The measuring doors evidently mean to answer for the type a page is
-actually set in, now that a page names families rather than faces: a
-leaf-taking (or family-list-taking) `runPens`, `fitRun`, `atCapHeight` and
-`metrics`, plus an axis query, all resolving the face the way the cascade
-does.
-
-A test should set a text leaf in `fontFamily("Helvetica Neue")` at 34 px
-with 0.6 px tracking under a sheet, and assert that a leaf-taking `runPens`
-returns the same pens as `runPens` over a `TextStyle` holding the face
-`familyTypeface("Helvetica Neue")` returns (so `.back()` is fractional,
-not a whole pixel); that a leaf-taking `fitRun` to a width lands within
-0.5 px of it; and that an axis query over a leaf set in the system
-interface family reports `GRAD` with its minimum and maximum, and reports
-none for a family without one.
-
-Wanted by `axis_ripple` (it prints the `wght` overhang and the `GRAD`
-drift to the whole pixel, fits its hero to the measure by measuring two
-boxes and solving the line between them, and states the grade's range as
-its own constants instead of reading the face's) and `eva_magi_defense`,
-which seats its numerals with `atCapHeight` over a face-held type and meets
-the same wall when it takes a family list.
-
-## A glyph-outline decoration is cut from the glyphs at rest, so a text shadow cannot follow a track's deformation
-
-`decorationOutline(Boundary::Glyphs)` hands a text leaf's decorations the
-outline `TextLayout::glyphOutline()` builds from the placement
-(`compose/core/paint/PaintContent.cpp`, cached against `measuredRev`). A
-`textFx()` track's `GlyphModifier` — its scale, shear, offset and rotation —
-is applied at paint time after that outline is taken, so a coverage
-shadow, glow or bevel over that outline (`material::Filter::shadow`,
-`Filter::bevel` in the effects of the leaf's ink) on a leaf whose letters a
-keyframe table squashes and shears stays drawn around the letters where
-they stood. `Boundary::Coverage` would follow them, but it rasterises and
-traces the leaf's layer whenever it is invalidated, which a track moving
-every frame does every frame. A pixel-reading shadow over the whole leaf,
-`Element::filter(material::Filter::dropShadow(colour, {.offset}))`, does
-follow the drawn letters; what does not is the coverage shadow a text's
-own ink carries.
-
-It evidently means a shadow that belongs to what the letters DO: the
-glyph outline rebuilt from the deviated glyphs when a leaf carries
-displacing tracks (the tracks already know their reach, and a settled
-cascade could cache the deviated outline as a static one is).
-
-A test should lay `textFx::tween({.to = GlyphModifier{.scaleX = 2}})` at
-progress 1 on a one-glyph leaf with `decorationOutline(Boundary::Glyphs)`
-and an outer glow (a zero-offset `Filter::shadow` with a spread), and
-assert the glow's painted bounds span the doubled glyph's width rather
-than the rest glyph's.
-
-Wanted by `elastic_type`, whose words stand in a pool of shadow attached
-under their rest extent because neither route above follows the letters.
-
-The same outline is also painted in ONE colour: a `textFx()` track's
-`colorMultiplier`, `colorAdd` and `colorScreen` modulate the glyph passes
-and never reach a decoration drawn over `Boundary::Glyphs`
-(`compose/core/paint/PaintContent.cpp` takes `glyphOutline()` once per
-`measuredRev` and hands the union to the decoration). So a text shadow or
-glow in the letters' own colour — CSS's `text-shadow` with no colour, which
-is `currentColor` per glyph — cannot follow a wipe: under
-`textFx::tint({.from = pale, .to = sung})` it glows the sung colour round letters not yet
-sung. The fix that rebuilds the outline from the deviated glyphs should
-carry each glyph's modulated colour too, or a glyph-outline decoration
-should be able to say "the glyph's own colour".
-
-A test should tint a two-glyph leaf with a track holding glyph 0 at local 1
-and glyph 1 at local 0 (`tint({.from = black, .to = white})` on a white leaf), dress it with
-`decorationOutline(Boundary::Glyphs)` and a zero-offset shadow in the ink
-in force, and assert pixels of the shadow beside glyph 0 are lit and beside
-glyph 1 are not.
-
-Add `karaoke_wipe` to that entry's wanted-by list: its glow is a second,
-blurred copy of the sung line sung from black, where one glyph-outline
-glow on the line would do.
-
-## An echo takes its colour as a value, so it cannot follow the sheet's ink
-
-An echo is `material::Filter::shadow(material::Color, {.offset})` in the
-effects of a node's fill or ink (`sigilmaterial/filter/Filter.h`). It is
-not a `Fill`, so it cannot be written as the ink in force or as a custom
-property, where `compose::Shadow::ink` now can. `nightingale_coxcomb`
-still reads its palette's ink out of code for the echo under each display
-line, and a theme swapped by a different token sheet would leave the echo
-behind.
-
-It is evidently meant to paint like every other decoration: the ink in
-force when unstated, a property when named. Either a Compose echo verb
-taking a `Fill`, or SigilMaterial's shadow colour made optional and read
-as CSS's `currentcolor` where the effect is applied — an owner decision,
-since the second reaches into SigilMaterial. A test should set
-`ink(var("accent"))` on a root with `var("accent", red)`, give a child
-text an echo naming the ink in force, and assert the echo's pixels are
-red.
+A shadow or glow that follows a track's deformation in each glyph's own
+colour is `textShadow`, which Weave's glyph pass draws per glyph. The
+`Boundary::Glyphs` outline itself, which bevels, strokes and ink-effect
+shadows cut from, is still taken from the glyphs at rest
+(`decorationBase = &inst.glyphOutline` in `core/paint/PaintContent.cpp`),
+so a bevel on a track that scales or shears its glyphs sits on the
+undeformed letters. When the leaf's tracks displace, the outline should
+be built from the deviated glyph matrices, a text-engine operation on
+`TextPainterOperations` that the painter calls. A test should bevel a
+word under a track that scales one glyph and find the bevel on the
+scaled outline.
 
 ## An escaped Python connection may keep its door open after the session closes
 
@@ -402,36 +285,6 @@ opened when it closes, whatever Python still holds. A test should store a
 connection wrapper in `builtins`, close the session, and assert the feed's state
 is closed and its inlet expired, as `SketchPython.ASessionClosesFeedsDespiteEscapedPythonWrappers`
 asserts for a feed.
-
-## A glow on changing text is a filter over the leaf's whole box, so it re-runs every frame
-
-A text leaf's glow, halation or blur — an ink material's effects stage
-or `Element::filter` — is a layer filter: the leaf's glyphs are drawn into
-a layer the size of the leaf and the filter runs over every pixel of it.
-When any glyph changes (a `textFx` track fading, tinting or substituting
-it) the layer and the filter run again. On a sheet of rain like
-`matrix_rain`'s, given a glow ink and run under `--bench` on raster, two
-1280x780 leaves under dilate + colour + blur dominate the frame, where
-the same leaves without the glow cost next to nothing. A glow that belongs to each glyph, and
-follows that glyph's brightness, has no statement that costs per glyph.
-
-The evident intent of "the ink glows" is a glyph-sized cost: a glyph drawn
-with its halo, dimmed and tinted by the same `GlyphModifier` as its body.
-What is missing is a filtered-glyph sprite: a blur (and a colour) that
-lowers to a per-draw mask filter on the glyph pass, which Skia keys into
-its strike cache, so each glyph at each size is blurred once and every
-later frame blits it under the glyph's own colour and alpha. `textStroke`
-is the one per-glyph pass that exists, and it can only say a hard
-outline. `matrix_rain` states its heads' bloom as a gradient spot moved
-by a bound transform, which is exact only because a head is always the
-brightest the rain gets; a tail's glow, which should fade with it, is not
-stated at all.
-
-A test should draw one text leaf with a glow ink whose tracks change one
-glyph's alpha per frame and assert that the per-frame paint cost does not
-scale with the leaf's box (a 64x64 leaf and a 1280x780 leaf holding the
-same glyphs cost alike within a factor), and that the halo about a glyph
-at alpha 0.2 is 0.2 of the halo at alpha 1.
 
 ## A phosphor bloom on a text leaf cuts away whatever the leaf paints outside its box
 
@@ -660,26 +513,6 @@ encoder. If the combination is unsupported, it should instead assert a
 clear early error naming that combination, before device selection or
 montage rendering. File-based stills and registry-based montages should
 retain their existing selections.
-
-
-## API request: paragraphs cannot state the bidi base of their page
-
-`src/sigilweave/paragraph/ParagraphAnalysis.cpp` calls
-`unicode::bidi(m_text)` with automatic LTR fallback. The existing Unicode
-primitive accepts `BaseDirection`, but Paragraph, ParagraphBlock,
-ParagraphStyle and LayoutOptions do not carry it through.
-
-The Shahnameh folio's Persian text shapes correctly. The limitation arises
-when a numeric folio label is followed by English on a Persian page.
-Native analysis of `۱۵۲۵ · Folio 22v` gives one level-zero run
-automatically, versus three runs with levels 2, 1 and 2 under explicit RTL.
-A paragraph partial accepting the existing BaseDirection value would let
-authors preserve their page's bidi context without injecting directional
-control characters into the content.
-
-A regression should compare Paragraph's run levels with the explicit
-Unicode primitive and verify that changing the base invalidates cached
-analysis while an unchanged base reuses it.
 
 
 ## Authoring difficulty: optical bloom has no shared parameter preview
@@ -980,20 +813,6 @@ a texture before it reaches a body. A regression should compare a height
 texture's derived normal on a World card with the same normal supplied as a
 texture, under one raking light. Until then a page reaches a scene3d sketch through
 `compose::SurfaceScene`, whose normal map is an image the binder reads.
-
-## Bug: flow exclusions can read fixed-size glyphs before text layout
-
-`core/layout/FlowAround.cpp::boundaryOutlineOf` reads the text layout's
-glyph outline without first preparing a fixed-size target. Yoga can skip
-measurement when both dimensions are given, and the two initial revision
-sentinels compare equal. The derived exclusion can therefore be the target
-rectangle while its later decoration uses the correctly laid-out glyphs.
-This remains source-backed and needs a reduced rendering case.
-
-Wanted: derive exclusions from the target's current placed glyphs. A
-regression should wrap text around a keyed, fixed-size O or H on its first
-frame and compare with an equivalent measured target. It should differ
-from a rectangular exclusion and follow a centered target after resizing.
 
 ## Authoring gap: material strokes separate cap and join control from surface relief
 
@@ -1307,3 +1126,13 @@ and the sweeps carry no tangents and an operation that rebuilds vertices
 drops them, since a mis-sized lane reads as none. Every generator should
 fill the lane and every rebuilding operation carry it. A test should brush
 a revolved cap of a coarse profile and find no facet steps.
+
+## Python lacks the text shadow, the settled text style, a face's axes and a paragraph's base direction
+
+`FontVerbs::textShadow` and `TextShadow`, `compose::textStyleOf`,
+`weave::Face::variationAxes` and `VariationAxis`,
+`Paragraph::setBaseDirection`, `ParagraphBlock::baseDirection` and
+`ParagraphField::BaseDirection` are not bound. Bind them and regenerate
+the typing; a Python test should state a glow on a text leaf and find it
+following a glyph's fade, and state a page's base direction and find its
+levels resolved against it.

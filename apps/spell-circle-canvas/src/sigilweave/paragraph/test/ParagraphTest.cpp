@@ -57,3 +57,57 @@ TEST(SentenceSegmentation, EmptyTextHasNoSentences) {
   Paragraph paragraph;
   EXPECT_TRUE(paragraph.sentenceStarts().empty());
 }
+
+namespace {
+
+/** The level the primitive gives the unit at @p offset of @p text. */
+uint8_t levelAt(std::u16string_view text, uint32_t offset,
+                unicode::BaseDirection base) {
+  for (const unicode::BidiRun& run : unicode::bidi(text, base))
+    if (run.start <= offset && offset < run.end) return run.level;
+  return 0xFF;
+}
+
+/** Every word's level beside the primitive's level at its first unit. */
+void expectLevelsOfPrimitive(const Paragraph& paragraph,
+                             unicode::BaseDirection base) {
+  for (const Word& word : paragraph.words()) {
+    if (word.textEnd <= word.textBegin) continue;
+    EXPECT_EQ(word.bidiLevel, levelAt(paragraph.text(), word.textBegin, base))
+        << "the word at " << word.textBegin;
+  }
+}
+
+}  // namespace
+
+TEST(Paragraph, ABaseDirectionResolvesLevelsAsThePrimitiveDoes) {
+  // A folio label in Persian digits, then English, on a Persian page: the
+  // page's own direction decides the numbers' and the dot's levels, which
+  // the text alone cannot.
+  FontContext& fontContext = sigil::test::fonts();
+  Paragraph paragraph;
+  paragraph.appendText(u8"۱۵۲۵ · Folio 22v", basicStyle());
+  paragraph.ensureAnalyzed(fontContext);
+  EXPECT_EQ(paragraph.baseDirection(),
+            unicode::BaseDirection::kAutoLeftToRight);
+  expectLevelsOfPrimitive(paragraph, unicode::BaseDirection::kAutoLeftToRight);
+  std::vector<uint8_t> automatic;
+  for (const Word& word : paragraph.words())
+    automatic.push_back(word.bidiLevel);
+
+  // The base standing is set again: the analysis stands.
+  const uint64_t analysed = paragraph.wordRevision();
+  paragraph.setBaseDirection(unicode::BaseDirection::kAutoLeftToRight);
+  EXPECT_EQ(paragraph.wordRevision(), analysed);
+
+  // A different base runs it again, resolved as the primitive resolves it.
+  paragraph.setBaseDirection(unicode::BaseDirection::kRightToLeft);
+  EXPECT_NE(paragraph.wordRevision(), analysed);
+  paragraph.ensureAnalyzed(fontContext);
+  expectLevelsOfPrimitive(paragraph, unicode::BaseDirection::kRightToLeft);
+  std::vector<uint8_t> rightToLeft;
+  for (const Word& word : paragraph.words())
+    rightToLeft.push_back(word.bidiLevel);
+  EXPECT_NE(rightToLeft, automatic)
+      << "a right-to-left page left every level where the text alone put it";
+}

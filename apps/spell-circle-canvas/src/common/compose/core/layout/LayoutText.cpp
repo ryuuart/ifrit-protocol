@@ -14,6 +14,7 @@
 #include <ranges>
 #include <span>
 
+#include "DeriveInternal.h"
 #include "runtime/ComposeRuntime.h"
 #include "sigilgeometry/advanced/Skia.h"
 #include "sigilweave/advanced/Skia.h"
@@ -106,6 +107,46 @@ void Composer::Impl::layoutTextInBox(Instance& inst, float boxWidth,
   layoutText(inst, std::max(boxWidth - pad.across(), 0.0f),
              boxHeight >= kUnbounded ? boxHeight
                                      : std::max(boxHeight - pad.down(), 0.0f));
+}
+
+void prepareTextForBox(Composer::Impl& impl, Instance& inst, float width,
+                       float height) {
+  const ElementNode& node = *inst.description;
+  if (!inst.paragraph) return;
+  // A run along a path is measured by its path, not by the box.
+  const bool onPathRun = node.textData && node.textData->onPath;
+  // Columns hang off the RIGHT edge of the measure, so the resolved width
+  // decides where the first column stands, not only where the text wraps.
+  const bool verticalRun =
+      inst.paragraph->writingMode() != sigil::weave::WritingMode::kHorizontal;
+  // A leaf that spends the room left over down its box needs the resolved
+  // depth, which a box of a stated height never hands the measure.
+  const bool distributesRoom =
+      node.textData && node.textData->distributesRoom(inst.textOptions);
+  // An aligned passage lines up against the resolved measure. The
+  // alignment in force is the paragraph setting over the options'.
+  const bool aligned =
+      node.textData &&
+      inst.block.alignment.value_or(node.textData->layoutOptions.alignment) !=
+          sigil::weave::TextAlignment::kStart;
+  // The room inside the box is what a held layout is valid for.
+  const detail::Insets pad = impl.paddingOf(inst);
+  const float roomAcross = std::max(width - pad.across(), 0.0f);
+  const float roomDown = std::max(height - pad.down(), 0.0f);
+  if (inst.measuredRev != inst.contentRev ||
+      (!onPathRun && node.textData &&
+       (verticalRun || distributesRoom || aligned) &&
+       (inst.measuredForWidth != roomAcross ||
+        ((verticalRun || distributesRoom) &&
+         inst.measuredForHeight != roomDown))))
+    // A frame is bounded by its own depth either way round: its remainder
+    // is what the next frame of its chain begins at.
+    impl.layoutTextInBox(
+        inst, width,
+        verticalRun || distributesRoom ||
+                (node.textData && !node.textData->threadTo.empty())
+            ? height
+            : Composer::Impl::kUnbounded);
 }
 
 void Composer::Impl::layoutText(Instance& inst, float constraint,

@@ -291,6 +291,15 @@ The document kit supplies roles and fallback type, including headings,
 paragraphs, lists, quotations and figures. Its measure, gaps and quote
 inset are inherited length properties that a theme can override.
 
+`textShadow` casts a shadow from each glyph, CSS's `text-shadow`: it is
+drawn with its glyph, beneath it, so a `textFx()` track that fades, tints
+or deforms the glyph takes the shadow along, and a blurred shadow is
+rasterised once per glyph and size rather than over the passage's box. A
+shadow naming no colour is the colour its glyph is painted in. It inherits
+as the font does. A shadow, glow or bevel among an ink material's effects
+dresses the node's outline instead, the glyphs at rest under
+`Boundary::Glyphs`.
+
 [The cascade](reference/CASCADE.md) explains precedence, keywords and
 custom properties; [selectors](reference/SELECTORS.md) explains matching.
 [Typography](TYPOGRAPHY.md) covers rich spans, text effects, paths,

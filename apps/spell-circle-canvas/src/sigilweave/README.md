@@ -512,6 +512,10 @@ state.
 - **Bidi is per-word.** Levels are computed and UAX#9 L2 visual reordering is
   applied per word; glue between reordered runs is approximated, and
   multi-segment RTL words keep logical segment order.
+  The levels resolve against the paragraph's base direction: the first
+  strong character's unless the page states its own through
+  `Paragraph::setBaseDirection` or `ParagraphBlock::baseDirection`, which
+  is what places a number or a mark between runs of another direction.
 
 ### Where Skia still shows
 

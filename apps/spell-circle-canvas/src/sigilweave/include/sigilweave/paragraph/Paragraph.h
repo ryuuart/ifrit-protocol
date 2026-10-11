@@ -89,6 +89,19 @@ class Paragraph {
     return m_writingMode;
   }
 
+  /** Sets the BASE DIRECTION its bidirectional analysis resolves against:
+   * the page's own direction, which decides the level of neutral text and
+   * of numbers between runs of another direction. The default lets the
+   * first strong character decide and reads left to right when there is
+   * none. Setting a different base re-runs the analysis; setting the one
+   * standing keeps it.
+   */
+  void setBaseDirection(unicode::BaseDirection base);
+  /** Returns the base direction the bidirectional analysis resolves against. */
+  [[nodiscard]] unicode::BaseDirection baseDirection() const noexcept {
+    return m_baseDirection;
+  }
+
   /** Sets whether a soft hyphen (U+00AD) opens a break opportunity. True
    * (the default) lets a breaker end a line there and render
    * `Word::hyphenGlyph`; false fuses the word into one unbreakable `Word`
@@ -307,6 +320,9 @@ class Paragraph {
   std::vector<Word> m_words;
   std::vector<Placeholder> m_placeholders;
   WritingMode m_writingMode = WritingMode::kHorizontal;
+  // The paragraph direction the bidirectional analysis resolves against.
+  unicode::BaseDirection m_baseDirection =
+      unicode::BaseDirection::kAutoLeftToRight;
   // Whether analyze() keeps the UAX#14 boundary a soft hyphen opens.
   bool m_softHyphenBreaks = true;
   // The tailoring the line segmentation runs under; empty is untailored.

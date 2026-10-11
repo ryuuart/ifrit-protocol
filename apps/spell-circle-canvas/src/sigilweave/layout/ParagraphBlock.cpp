@@ -56,6 +56,9 @@ void applyKeyword(ParagraphBlock& total, const ParagraphBlock& base,
     case ParagraphField::WritingMode:
       total.writingMode = from.writingMode;
       return;
+    case ParagraphField::BaseDirection:
+      total.baseDirection = from.baseDirection;
+      return;
     case ParagraphField::LineBreakLocale:
       total.lineBreakLocale = from.lineBreakLocale;
       return;
@@ -104,6 +107,7 @@ ParagraphBlock& merge(ParagraphBlock& into, const ParagraphBlock& over) {
   if (over.balanceRaggedLines)
     into.balanceRaggedLines = over.balanceRaggedLines;
   if (over.writingMode) into.writingMode = over.writingMode;
+  if (over.baseDirection) into.baseDirection = over.baseDirection;
   if (over.lineBreakLocale) into.lineBreakLocale = over.lineBreakLocale;
   if (over.lineBreak) into.lineBreak = over.lineBreak;
   if (over.lastLineAlignment) into.lastLineAlignment = over.lastLineAlignment;

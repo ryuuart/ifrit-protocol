@@ -158,7 +158,9 @@ text (its own section below).
   unregistered name resolves to the base alone, and `find` is the form
   that admits absence; `set`, `contains`, `entries`).
 - **`style/Face.h`** — `Face`, the typeface a style is set in, shared
-  and compared by identity, answering its `familyName` and `style`;
+  and compared by identity, answering its `familyName`, its `style` and
+  the `variationAxes` it carries, each a `VariationAxis`: its tag and the
+  range of coordinates it takes;
   `FaceStyle` and `FaceSlant`, which face of a family is asked for; and
   `FaceAdapter`, the seam `advanced/Skia.h` fills so a Skia typeface
   converts to and from a face where that header is included.
@@ -178,7 +180,8 @@ text (its own section below).
   names a block's setting in, every field optional: what a block inherits —
   leading, half leading, alignment, justification, hyphenation, tab stops,
   first- and last-line indents, widows and orphans, balanced ragging, the
-  breaking strategy, writing mode, line-break locale, the last line under
+  breaking strategy, writing mode, the base direction its bidirectional
+  analysis resolves against, line-break locale, the last line under
   justification and the CJK line tables. `merge` folds two partials into
   one, `overlay` resolves one onto a whole `ParagraphStyle`,
   `toParagraphStyle` is what a partial names alone, and `apply` sets the
@@ -232,8 +235,9 @@ text (its own section below).
   `WordSegment`s in a `WordSegmentList`, and the `SegmentForm` a vertical
   column places a segment in.
 - **`paragraph/Paragraph.h`** — the document: UTF-16 text, normalized
-  `StyleSpan`s, `CharRange`, inline `Placeholder`s, writing mode, the edit
-  log, sentence boundaries, and the analysis entry points;
+  `StyleSpan`s, `CharRange`, inline `Placeholder`s, writing mode, the base
+  direction (`setBaseDirection`) its bidirectional analysis resolves
+  against, the edit log, sentence boundaries, and the analysis entry points;
   `ParagraphBuilder` for the push/pop idiom.
 - **`paragraph/RichText.h`** — the same content said as a VALUE:
   `RichText`, `rich()`, runs of text with the whole styles, the PARTIALS
@@ -367,10 +371,12 @@ either header:
 | `bidi` | UAX#9 embedding levels as `BidiRun`s against a chosen `BaseDirection` |
 
 The engine consumes it privately: `Paragraph` runs `lineBreaks`, `itemize`
-and `bidi` when it analyzes, `caseMap` just before it shapes a transformed
-segment, and `sentenceStarts` on the first walk after an edit. Nothing in
-the engine's public headers names one of its types, so a consumer that
-wants the analysis without the fonts links the leaf alone. The scratch
+and `bidi` when it analyzes, against the base its page states through
+`Paragraph::setBaseDirection`, `caseMap` just before it shapes a
+transformed segment, and `sentenceStarts` on the first walk after an edit.
+The engine's public headers name one of its types, `BaseDirection`, which
+a paragraph states its page's direction in; a consumer that wants the
+analysis without the fonts links the leaf alone. The scratch
 objects the analyses reuse (ICU break iterators, the bidi analyzer) are
 thread-local, so every function is safe from any thread.
 

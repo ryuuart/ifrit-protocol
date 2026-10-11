@@ -221,6 +221,42 @@ sigil::weave::TextStyle fitRun(std::u8string_view utf8,
   return style;
 }
 
+/** The style @p key's leaf in @p root is set in, or @p root's own where
+ *  @p key is null, laid out and cascaded as a bake is. */
+std::optional<sigil::weave::TextStyle> detail::settledTextStyle(
+    const Element& root, const std::string_view* key,
+    sigil::weave::FontContext& fonts) {
+  motion::Engine engine;  // inert — same sampling rules as snapshot()
+  Composer composer(engine, fonts);
+  Composer::Impl& impl = *composer.m_impl;
+  impl.liveOnly = true;
+  composer.render(root);
+  if (!impl.root) return std::nullopt;
+  impl.ensureLayout();
+  if (impl.cascadeDirty) impl.runCascade();
+  Instance* leaf = impl.root.get();
+  if (key) {
+    const auto found = impl.byKey.find(std::string(*key));
+    leaf = found == impl.byKey.end() ? nullptr : found->second;
+  }
+  if (!leaf || !leaf->description || !leaf->description->textData)
+    return std::nullopt;
+  if (leaf->paragraph && !leaf->paragraph->spans().empty())
+    return leaf->paragraph->spans().front().style;
+  return impl.leafStyle(*leaf);
+}
+
+std::optional<sigil::weave::TextStyle> textStyleOf(
+    const Element& root, std::string_view key,
+    sigil::weave::FontContext& fonts) {
+  return settledTextStyle(root, &key, fonts);
+}
+
+std::optional<sigil::weave::TextStyle> textStyleOf(
+    const Element& leaf, sigil::weave::FontContext& fonts) {
+  return settledTextStyle(leaf, nullptr, fonts);
+}
+
 SkSize intrinsicSize(const Element& root, sigil::weave::FontContext& fonts,
                      SkSize maxSize) {
   motion::Engine engine;  // inert — same sampling rules as snapshot()

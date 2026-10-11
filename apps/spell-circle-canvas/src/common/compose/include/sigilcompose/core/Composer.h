@@ -48,6 +48,11 @@ struct Instance;
 // <sigilcompose/core/Measure.h>.
 void drawSettled(const Element& root, sigil::weave::FontContext& fonts,
                  SkCanvas& canvas, SkSize viewport);
+// The style a text leaf of a one-shot tree is set in, behind `textStyleOf`
+// in <sigilcompose/core/Measure.h>.
+std::optional<sigil::weave::TextStyle> settledTextStyle(
+    const Element& root, const std::string_view* key,
+    sigil::weave::FontContext& fonts);
 }  // namespace detail
 
 // The typography vocabulary the text queries answer in, defined under
@@ -717,6 +722,8 @@ class Composer {
                                    SkSize, SnapshotOptions);
   friend SkSize intrinsicSize(const Element&, sigil::weave::FontContext&,
                               SkSize);
+  friend std::optional<sigil::weave::TextStyle> detail::settledTextStyle(
+      const Element&, const std::string_view*, sigil::weave::FontContext&);
   friend void detail::drawSettled(const Element&, sigil::weave::FontContext&,
                                   SkCanvas&, SkSize);
   std::unique_ptr<Impl> m_impl;

@@ -17,9 +17,29 @@
 #include <sigilweave/style/Length.h>
 #include <sigilweave/style/Type.h>
 
+#include <glm/vec2.hpp>
+#include <optional>
 #include <string>
+#include <vector>
 
 namespace sigil::compose {
+
+/** ONE SHADOW EACH GLYPH CASTS — one entry of CSS `text-shadow`. It is
+ *  drawn with its glyph, beneath it, so it fades, tints, moves and
+ *  deforms exactly as a `textFx()` track takes that glyph, and a glyph's
+ *  blurred shadow is rasterised once per glyph and size rather than once
+ *  over the passage's box. */
+struct TextShadow {
+  /** How far the shadow falls from its glyph, in local pixels. */
+  glm::vec2 offset = {0, 0};
+  /** The Gaussian's standard deviation in local pixels; 0 is a hard copy
+   *  of the glyph. A blurred shadow with no offset is a glow. */
+  float blur = 0;
+  /** What the shadow is painted in; unset, the colour each glyph is
+   *  painted in, as CSS's `currentcolor`. */
+  std::optional<material::Color> color;
+  bool operator==(const TextShadow&) const = default;
+};
 
 /** THE FONT AND THE INK, which flow down the tree from the node that
  *  states them to every passage under it. `font()` is the shorthand over
@@ -67,6 +87,13 @@ class FontVerbs {
    *  Pixels when bare; `em()` is a fraction of the size the type resolves
    *  to. The `track` field of `font()`. */
   Derived& letterSpacing(sigil::weave::Length tracking);
+  /** THE SHADOWS EACH GLYPH CASTS — CSS `text-shadow`, the first entry
+   *  drawn nearest the glyph. They are the `underlays` field of `font()`,
+   *  so the later statement replaces the list and a passage with none of
+   *  its own inherits the one in force. An empty list states none. */
+  Derived& textShadow(std::vector<TextShadow> shadows);
+  /** One shadow, as the one-entry list. */
+  Derived& textShadow(TextShadow shadow);
   /** THE INK: the colour text under this node is set in, and every
    *  mark that names no colour is painted in — CSS's `color`.
    *  `Fill::currentInk()` reads it back. A node whose ink changes under
@@ -98,7 +125,8 @@ class FontVerbs {
    *  and a stated surface paints its maps on a page painted as surface
    *  maps (`Composer::setSurfaceMap`).
    *  Its effects dress the node's own layer as fill() places them — a hard
-   *  shadow echoes the text, as CSS `text-shadow` does. */
+   *  shadow echoes the whole node; the shadow each glyph casts, which moves
+   *  with its glyph, is `textShadow`. */
   Derived& ink(material::Material material, PaintBox box = PaintBox::Element);
 
  private:
