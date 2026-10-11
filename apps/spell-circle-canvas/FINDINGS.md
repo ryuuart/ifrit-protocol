@@ -254,9 +254,8 @@ sheet, and a palette change leaves the table's colours behind. The
 intended shape is a colour term of the kinds a `Fill` has: a value, the
 ink in force, or a custom property, resolved against the glyph's own
 custom-property access when the effect is applied, with a plain colour
-still spelled as today; the same term would serve `TextShadow::color`.
-The alternative is a separate `motion::Tween<Fill>` per term beside the
-geometric keyframes. A test should drive a table naming the ink in force,
+still spelled as today; the same term serves `TextShadow::color`. A
+test should drive a table naming the ink in force,
 change the sheet's ink, and find the glyphs following it.
 
 ## The glyph boundary outline is cut from the glyphs at rest
