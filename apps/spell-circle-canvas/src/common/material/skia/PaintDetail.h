@@ -45,6 +45,8 @@ struct PaintFrame {
   /** The root's laid-out size in canvas px — `uResolution` for a
    *  world-space paint. Empty falls back to `size`. */
   SkSize rootSize = SkSize::MakeEmpty();
+  /** What the painted layer holds in the box's own px; empty is the box. */
+  SkRect paintedBounds = SkRect::MakeEmpty();
   /** The box's local space to the root. Identity outside a composite. */
   SkMatrix toRoot = SkMatrix::I();
   /** Logical-node offsets expressed in the paint's sampling coordinates. */

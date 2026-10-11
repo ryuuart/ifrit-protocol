@@ -31,6 +31,14 @@ class UniformBlock {
    *  fixed for the block's life, because the declared array's is. */
   explicit UniformBlock(size_t floatCount)
       : m_values(floatCount, 0.0f), m_committedValues(floatCount, 0.0f) {}
+  /** A block is an identity a binding holds and a revision it reads:
+   *  assigning or moving one over another would change the published
+   *  array, or empty it, without a commit. Its arrays change only through
+   *  `values()` and `commit()`. */
+  UniformBlock(const UniformBlock&) = delete;
+  UniformBlock& operator=(const UniformBlock&) = delete;
+  UniformBlock(UniformBlock&&) = delete;
+  UniformBlock& operator=(UniformBlock&&) = delete;
   /** The draft floats, yours to write. Their storage stays fixed across
    *  commits, so a held span remains writable. Publish with commit(). */
   std::span<float> values() { return m_values; }

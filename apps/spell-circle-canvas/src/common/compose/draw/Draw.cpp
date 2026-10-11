@@ -49,6 +49,11 @@ struct PenState {
     draw::Frame frame;
     frame.width = ctx.size.x;
     frame.height = ctx.size.y;
+    // Where the node stands in the composer's root, so a world-space
+    // material the program paints spans the root as a node's fill does.
+    frame.rootWidth = ctx.rootSize.x;
+    frame.rootHeight = ctx.rootSize.y;
+    frame.toRoot = ctx.toRoot.matrix;
     frame.seconds = ctx.elapsedSeconds;
     frame.deltaSeconds =
         lastSeconds < 0.0 ? 0.0 : ctx.elapsedSeconds - lastSeconds;

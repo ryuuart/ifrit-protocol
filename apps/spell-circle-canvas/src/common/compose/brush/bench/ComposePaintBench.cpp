@@ -6,13 +6,18 @@
 #include <include/core/SkCanvas.h>
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/brush/Ribbons.h>
 #include <sigilcompose/core/Pattern.h>
+#include <sigilgeometry/path/Profile.h>
+#include <sigilgeometry/path/Through.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/sdf/Sdf.h>
 #include <sigilmaterial/skia/Color.h>
 
+#include <cmath>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "BenchSupport.h"
 
@@ -133,8 +138,7 @@ Element cardGrid(int count, float side, CardPaint paint) {
     Element card = box().key("card" + std::to_string(id));
     if (paint == CardPaint::Sdf) {
       card.width(padded).height(padded).fill(
-          material::sdf::material(
-              material::sdf::roundBox(side * 0.2f), style));
+          material::sdf::material(material::sdf::roundBox(side * 0.2f), style));
     } else {
       card.width(side)
           .height(side)
@@ -184,15 +188,15 @@ namespace {
 Element shadowedCards(int count, Cache mode) {
   auto root = box().row().flexWrap().gap(10).padding(10);
   for (int id = 0; id < count; ++id)
-    root.children(
-        {box()
-             .key("s" + std::to_string(id))
-             .width(120)
-             .height(72)
-             .borderRadius({8})
-             .fill(Fill::color(material::hexColor(0x2a3140)))
-             .background(shadow(sigil::material::Color{0, 0, 0, 0.55f}, {0, 4}, 10))
-             .cache(mode)});
+    root.children({box()
+                       .key("s" + std::to_string(id))
+                       .width(120)
+                       .height(72)
+                       .borderRadius({8})
+                       .fill(Fill::color(material::hexColor(0x2a3140)))
+                       .background(shadow(
+                           sigil::material::Color{0, 0, 0, 0.55f}, {0, 4}, 10))
+                       .cache(mode)});
   return root;
 }
 
@@ -228,3 +232,58 @@ BENCHMARK(BM_Draw_DropShadow_Cached)
     ->Arg(16)
     ->Arg(64)
     ->Unit(benchmark::kMicrosecond);
+
+/** SIX LONG RIBBONS ON A LARGE PAGE, REDRAWN EVERY FRAME: three scrolling
+ *  traces, each a soft wide pass under a sharp one, as a console page
+ *  paints them. Every frame's ribbons are new geometry, so this is the
+ *  cost of filling their coverage once a frame. */
+static void BM_Draw_Ribbons_Scrolling(benchmark::State& state) {
+  constexpr float kPageWidth = 1600, kPageHeight = 1000;
+  Host host((int)kPageWidth, (int)kPageHeight);
+  const auto trace = [](int channel, float scroll) {
+    std::vector<glm::vec2> points;
+    for (int index = 0; index <= 220; ++index) {
+      const float across = (float)index / 220;
+      const float turn = 6.2831853f * (across + scroll);
+      points.push_back(
+          {640 + across * 870, 250 + channel * 186.0f +
+                                   50 * std::sin(turn * (3 + channel)) +
+                                   12 * std::sin(turn * 11 + 1.3f)});
+    }
+    return points;
+  };
+  int frame = 0;
+  const auto page = [&] {
+    std::vector<Element> ribbons;
+    const float scroll = (float)frame / 240;
+    for (int channel = 0; channel < 3; ++channel)
+      for (const float width : {9.0f, 2.4f}) {
+        const auto points = trace(channel, scroll);
+        ribbons.push_back(
+            box()
+                .absolute()
+                .left(0)
+                .top(0)
+                .width(kPageWidth)
+                .height(kPageHeight)
+                .shape(heldPath(sigil::geometry::path::curveThrough(points)))
+                .stroke(brush::ribbon(
+                    sigil::geometry::path::Profile(width),
+                    material::from(material::Color{0.3f, 0.8f, 0.8f, 1})
+                        .surface({.unlit = true}))));
+      }
+    return box()
+        .width(kPageWidth)
+        .height(kPageHeight)
+        .children(std::move(ribbons));
+  };
+  host.composer.render(page());
+  host.draw();
+  for ([[maybe_unused]] auto iteration : state) {
+    ++frame;
+    host.composer.render(page());
+    host.draw();
+  }
+  state.counters["ribbons"] = 6;
+}
+BENCHMARK(BM_Draw_Ribbons_Scrolling)->Unit(benchmark::kMillisecond);

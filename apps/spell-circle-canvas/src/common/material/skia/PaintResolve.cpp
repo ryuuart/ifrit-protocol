@@ -142,6 +142,8 @@ PaintFrame paintFrameOf(const FrameData& frame) {
   PaintFrame out;
   out.size = SkSize::Make(frame.resolution.x, frame.resolution.y);
   out.rootSize = SkSize::Make(frame.rootResolution.x, frame.rootResolution.y);
+  out.paintedBounds = SkRect::MakeLTRB(frame.paintedMin.x, frame.paintedMin.y,
+                                       frame.paintedMax.x, frame.paintedMax.y);
   out.toRoot = toSkMatrix(frame.world);
   out.localToSample = toSkMatrix(frame.localToSample);
   out.seconds = frame.seconds;
@@ -152,14 +154,17 @@ PaintFrame paintFrameOf(const FrameData& frame) {
 }
 
 FrameData frameDataOf(const PaintFrame& frame) {
-  return {.seconds = frame.seconds,
-          .resolution = {frame.size.width(), frame.size.height()},
-          .rootResolution = {frame.rootSize.width(), frame.rootSize.height()},
-          .contentScale = frame.contentScale,
-          .contentScaleRead = frame.contentScaleRead,
-          .world = toMatrix(frame.toRoot),
-          .localToSample = toMatrix(frame.localToSample),
-          .recorder = frame.recorder};
+  return {
+      .seconds = frame.seconds,
+      .resolution = {frame.size.width(), frame.size.height()},
+      .rootResolution = {frame.rootSize.width(), frame.rootSize.height()},
+      .paintedMin = {frame.paintedBounds.left(), frame.paintedBounds.top()},
+      .paintedMax = {frame.paintedBounds.right(), frame.paintedBounds.bottom()},
+      .contentScale = frame.contentScale,
+      .contentScaleRead = frame.contentScaleRead,
+      .world = toMatrix(frame.toRoot),
+      .localToSample = toMatrix(frame.localToSample),
+      .recorder = frame.recorder};
 }
 
 PaintFrame rootSamplingFrame(PaintFrame frame) {

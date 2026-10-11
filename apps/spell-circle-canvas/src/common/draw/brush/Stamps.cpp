@@ -41,13 +41,16 @@ float dabAngle(Pen& pen, const Tool& tool, const Dab& dab) {
   return tool.angle + jitter;
 }
 
-/** The one sprite every round stamp samples: a white disc. */
+/** The one sprite every round stamp samples: a white disc on transparent
+ *  corners. It is premultiplied, never opaque: an image that says it is
+ *  opaque lets an opaque tint draw it as a copy rather than over what is
+ *  there, and each dab's corners then erase the dabs beneath it. */
 constexpr int kTipPixels = 32;
 
 sk_sp<SkImage> roundTip() {
   static const sk_sp<SkImage> tip = [] {
     SkBitmap bitmap;
-    bitmap.allocN32Pixels(kTipPixels, kTipPixels, true);
+    bitmap.allocN32Pixels(kTipPixels, kTipPixels);
     bitmap.eraseColor(SK_ColorTRANSPARENT);
     SkCanvas canvas(bitmap);
     SkPaint paint;

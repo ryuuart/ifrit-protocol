@@ -3,6 +3,9 @@
 // placers that fill a pool are the shape binary's, beside the other
 // shelves.
 
+#include <array>
+#include <vector>
+
 #include "support/CoreTestSupport.h"
 
 TEST(ComposeInstances, StampsAtlasCellsAtPoolPositionsWithTint) {
@@ -572,4 +575,61 @@ TEST(ComposeInstances, AFlightMaterialisesAtRestAndKeepsStepWithTheLanes) {
   pool.clear();
   pool.add({7, 7});
   EXPECT_FALSE(pool.hasFlights());
+}
+
+// A tint past one is a radiance: on a float destination an instanced cell
+// lands at the cell times its tint, as the same colour filled directly does,
+// with alpha its own lane; a bounded tint keeps the batch it always had.
+TEST(ComposeInstances, ATintPastOneKeepsItsRangeOnAFloatDestination) {
+  using namespace sigil::compose::instancing;
+  const material::Color cell{0.5f, 0.5f, 0.5f, 1};
+  const std::array<material::Color, 4> tints{
+      material::Color{1, 1, 1, 1}, material::Color{0.5f, 1, 0.25f, 1},
+      material::Color{4, 2, 1, 1}, material::Color{3, 1, 0.5f, 0.5f}};
+  const auto stamped = [&](bool direct) {
+    Host host(200, 60);
+    auto atlas = std::make_shared<CellSheet>(1.0f);
+    atlas->cell(box().width(20).height(20).fill(Fill::color(cell)), {20, 20});
+    auto pool = std::make_shared<Pool>();
+    std::vector<Element> boxes;
+    for (size_t i = 0; i < tints.size(); ++i) {
+      const material::Color& t = tints[i];
+      pool->add({30.0f + 40.0f * i, 30}, 0, 0.0f, 1.0f, t);
+      boxes.push_back(box()
+                          .absolute()
+                          .left(20.0f + 40.0f * i)
+                          .top(20)
+                          .width(20)
+                          .height(20)
+                          .fill(Fill::color({cell.r * t.r, cell.g * t.g,
+                                             cell.b * t.b, cell.a * t.a})));
+    }
+    host.composer.render(direct ? box().children(std::move(boxes))
+                                : box().children({instances(atlas, pool)}));
+    auto surface = SkSurfaces::Raster(
+        SkImageInfo::Make(200, 60, kRGBA_F16_SkColorType, kPremul_SkAlphaType));
+    surface->getCanvas()->clear(SK_ColorTRANSPARENT);
+    host.composer.draw(*surface->getCanvas());
+    SkBitmap pixels;
+    pixels.allocPixels(
+        SkImageInfo::Make(200, 60, kRGBA_F32_SkColorType, kPremul_SkAlphaType));
+    EXPECT_TRUE(surface->readPixels(pixels.pixmap(), 0, 0));
+    return pixels;
+  };
+  const SkBitmap instanced = stamped(false);
+  const SkBitmap direct = stamped(true);
+  for (size_t i = 0; i < tints.size(); ++i) {
+    const int x = 30 + 40 * (int)i;
+    const auto* got = static_cast<const float*>(instanced.getAddr(x, 30));
+    const auto* want = static_cast<const float*>(direct.getAddr(x, 30));
+    const material::Color& t = tints[i];
+    const float expected[4] = {cell.r * t.r * t.a, cell.g * t.g * t.a,
+                               cell.b * t.b * t.a, t.a};
+    for (int channel = 0; channel < 4; ++channel) {
+      EXPECT_NEAR(got[channel], expected[channel], 0.01f)
+          << "tint " << i << " channel " << channel;
+      EXPECT_NEAR(got[channel], want[channel], 0.01f)
+          << "tint " << i << " channel " << channel << " against direct";
+    }
+  }
 }

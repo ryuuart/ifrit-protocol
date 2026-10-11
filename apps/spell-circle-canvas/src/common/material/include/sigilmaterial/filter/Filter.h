@@ -267,9 +267,11 @@ class Filter {
    *  top. @p radius is the outer kernel radius in px, @p intensity its
    *  additive energy, @p chroma the spectral separation in 0..1,
    *  @p hueDrift the turn in DEGREES the halo's hue has made at that
-   *  radius, and @p tail extra energy on the outermost kernel. Painted in
-   *  a box, it runs over that box grown by @p radius and nothing beyond,
-   *  so its cost follows the layer it filters rather than the canvas.
+   *  radius, and @p tail extra energy on the outermost kernel. Painted
+   *  over a layer whose bounds are known, it runs over what that layer
+   *  holds — the box and anything painted past it — grown by @p radius
+   *  and nothing beyond, so its cost follows the layer it filters rather
+   *  than the canvas.
    *  @trap The halo is gathered over a REDUCED layer and resampled up, so
    *  its fine structure moves where a wide radius is asked for. */
   static Filter phosphorBloom(float radius = 9.0f, float threshold = 0.52f,
@@ -318,7 +320,11 @@ class Filter {
    *  its slot named `content`. @p sampleRadius bounds the largest
    *  local-coordinate offset the body samples the layer at.
    *  @trap The material's bindings and frame inputs are captured at
-   *  construction. Re-describe to sample live inputs again. */
+   *  construction. Re-describe to sample live inputs again, or edit the
+   *  filter: `set`, `bind` and `slot` lay explicit values, live bindings
+   *  and sources over the capture, and a slot the layer fills follows its
+   *  amount field wherever an edit moves it. The sampling radius stays as
+   *  constructed. */
   static Filter of(const Material& program);
   static Filter of(const Material& program, float sampleRadius);
   /** An enumeration names a mode, never a distance to sample. */

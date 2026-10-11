@@ -220,6 +220,9 @@ class Pen {
   /** A material as the fill: its base with each layer blended over it.
    *  Its surface and effects are not a pen's. */
   void fill(const material::Material& material);
+  /** The material fitted as a paint is: `SHAPE` measures it against each
+   *  shape the pen draws, `CANVAS` against the frame. */
+  void fill(const material::Material& material, Constant fit);
   void noFill();
 
   void stroke(float gray);
@@ -233,6 +236,8 @@ class Pen {
    *  each shape's bounds, `CANVAS` against the frame. */
   void stroke(const material::Paint& paint, Constant fit);
   void stroke(const material::Material& material);
+  /** Fitted exactly as the fill is. */
+  void stroke(const material::Material& material, Constant fit);
   void noStroke();
   void strokeWeight(float weight);
   void strokeCap(Constant cap);
@@ -526,6 +531,8 @@ class Pen {
   /** @} */
 
  private:
+  // A buffer's pen stands in its host's root, as the host's own does.
+  friend class Graphics;
   struct Style {
     bool doFill = true;
     bool doStroke = true;
@@ -592,6 +599,9 @@ class Pen {
   void blendInto(SkPaint& paint) const;
   void resolveFill();
   void resolveStroke();
+  /** The frame a material resolves against: the canvas, the clock and
+   *  the density, and the root canvas with the current drawing space's
+   *  place in it — the frame's own placement after the pen's transforms. */
   [[nodiscard]] material::FrameData paintFrame() const;
   /** The fill and the stroke resolved against @p box when the material was
    *  set `SHAPE`-fitted, and against the canvas otherwise. A null or
@@ -619,6 +629,10 @@ class Pen {
   SkM44 m_base;
   float m_contentScale = 1.0f;
   double m_seconds = 0.0;
+  // The frame's root canvas and this canvas's place in it.
+  float m_rootWidth = 0.0f;
+  float m_rootHeight = 0.0f;
+  glm::mat3 m_toRoot{1.0f};
   bool m_hadFrame = false;
   bool m_looping = true;
   bool m_redraw = false;

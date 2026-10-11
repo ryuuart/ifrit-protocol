@@ -16,6 +16,7 @@
 #include <sigildraw/Retained.h>
 #include <sigilgeometry/path/Outline.h>
 
+#include <glm/mat3x3.hpp>
 #include <span>
 #include <string>
 #include <string_view>
@@ -35,10 +36,9 @@ class Pen;
  *  in the guest's namespace, where argument lookup finds it; this
  *  library names no guest. */
 template <class G>
-concept Retainable = requires(Pen& pen, const G& guest,
-                              const geometry::path::Rect& box, Slot slot) {
-      paintRetained(pen, guest, box, slot);
-    };
+concept Retainable =
+    requires(Pen& pen, const G& guest, const geometry::path::Rect& box,
+             Slot slot) { paintRetained(pen, guest, box, slot); };
 
 /** WHAT `clip` DOES WITH THE SHAPE IT IS GIVEN. */
 struct ClipOptions {
@@ -54,6 +54,14 @@ struct ClipOptions {
 struct Frame {
   float width = 0;
   float height = 0;
+  /** The root canvas this canvas is placed in, in the root's pixels: what
+   *  a world-space material spans. Zero is this canvas itself. */
+  float rootWidth = 0;
+  float rootHeight = 0;
+  /** This canvas's coordinates to the root's, column-major: where a
+   *  world-space material is anchored. Identity where this canvas is the
+   *  root. */
+  glm::mat3 toRoot{1.0f};
   /** Seconds since the sketch began, on the caller's clock. */
   double seconds = 0;
   /** The step this frame took, in seconds. */

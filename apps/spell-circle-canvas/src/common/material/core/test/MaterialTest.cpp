@@ -23,6 +23,7 @@
 #include <memory>
 #include <span>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 using namespace sigil::material;
@@ -563,6 +564,13 @@ TEST(Material, CopiedResolveStateSeparatesParametersVariantsAndRecipes) {
   EXPECT_EQ(parameters(changed).uScale, 2.f);
   EXPECT_EQ(original.resolve(Target::Slang, {}).program, first.program);
 }
+
+// A block's arrays change only through its draft and commit(): no copy or
+// move can replace what a binding holding it reads.
+static_assert(!std::is_copy_constructible_v<UniformBlock>);
+static_assert(!std::is_copy_assignable_v<UniformBlock>);
+static_assert(!std::is_move_constructible_v<UniformBlock>);
+static_assert(!std::is_move_assignable_v<UniformBlock>);
 
 TEST(UniformBlock, RevisionAdvancesOnCommitOnly) {
   UniformBlock block(3);

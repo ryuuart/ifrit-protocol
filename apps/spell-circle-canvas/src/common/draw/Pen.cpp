@@ -52,6 +52,9 @@ void Pen::begin(SkCanvas& canvas, const Frame& frame) {
   m_contentScale = std::isfinite(scale) && scale > 0.0f ? scale : 1.0f;
   width = frame.width;
   height = frame.height;
+  m_rootWidth = frame.rootWidth;
+  m_rootHeight = frame.rootHeight;
+  m_toRoot = frame.toRoot;
   frameCount = frame.frameCount;
   deltaTime = frame.deltaSeconds * 1000.0;
   m_seconds = frame.seconds;
@@ -154,17 +157,30 @@ void Pen::blendMode(Constant mode) {
 material::FrameData Pen::paintFrame() const {
   material::FrameData frame;
   frame.resolution = {width, height};
+  frame.rootResolution = {m_rootWidth, m_rootHeight};
   frame.seconds = m_seconds;
   frame.contentScale = m_contentScale;
+  // The drawing space now, after the pen's own transforms, carried into
+  // the root through the frame's placement.
+  glm::mat3 local{1.0f};
+  SkM44 inverseBase;
+  if (m_canvas && m_base.invert(&inverseBase))
+    local = material::skia::toMatrix(
+        SkM44(inverseBase, m_canvas->getLocalToDevice()).asM33());
+  frame.world = m_toRoot * local;
   return frame;
 }
 
+// A world-space material is anchored where each shape is drawn, under the
+// transforms standing then, so it is resolved again at every draw.
 void Pen::resolveFill() {
-  m_fillLive = resolve(m_style.fill, m_fillPaint, paintFrame());
+  m_fillLive = resolve(m_style.fill, m_fillPaint, paintFrame()) ||
+               m_style.fill.usesWorldSpace();
 }
 
 void Pen::resolveStroke() {
-  m_strokeLive = resolve(m_style.stroke, m_strokePaint, paintFrame());
+  m_strokeLive = resolve(m_style.stroke, m_strokePaint, paintFrame()) ||
+                 m_style.stroke.usesWorldSpace();
 }
 
 sk_sp<SkShader> Pen::fittedShader(const material::Paint& paint,
@@ -175,9 +191,10 @@ sk_sp<SkShader> Pen::fittedShader(const material::Paint& paint,
   // coordinates and a compose node paints at its own origin.
   material::FrameData frame = paintFrame();
   frame.resolution = {box.width(), box.height()};
-  frame.rootResolution = {width, height};
-  frame.world =
-      material::skia::toMatrix(SkMatrix::Translate(box.left(), box.top()));
+  if (!(m_rootWidth > 0.0f && m_rootHeight > 0.0f))
+    frame.rootResolution = {width, height};
+  frame.world = frame.world * material::skia::toMatrix(
+                                  SkMatrix::Translate(box.left(), box.top()));
   sk_sp<SkShader> shader = material::skia::shader(paint, frame);
   if (!shader) return nullptr;
   return shader->makeWithLocalMatrix(
@@ -316,6 +333,9 @@ void Pen::fill(const material::Paint& paint, Constant fit) {
 void Pen::fill(const material::Material& material) {
   fill(material::Paint::recipe(material));
 }
+void Pen::fill(const material::Material& material, Constant fit) {
+  fill(material::Paint::recipe(material), fit);
+}
 void Pen::noFill() { m_style.doFill = false; }
 
 void Pen::stroke(float gray) { stroke(color(gray)); }
@@ -341,6 +361,9 @@ void Pen::stroke(const material::Paint& paint, Constant fit) {
 }
 void Pen::stroke(const material::Material& material) {
   stroke(material::Paint::recipe(material));
+}
+void Pen::stroke(const material::Material& material, Constant fit) {
+  stroke(material::Paint::recipe(material), fit);
 }
 void Pen::noStroke() { m_style.doStroke = false; }
 

@@ -63,7 +63,12 @@ write placements in place, and restart each settlement round from authored
 flex rectangles at the current container extent. Outer placements settle
 before nested scopes measure their inputs; independent scopes share that
 measurement pass. Their Yoga outputs do not become inputs to another
-round. Paint consumes the settled geometry; a
+round, and a further round runs only when something a scope read has
+changed since: its box after it placed, the sizing styles its placement
+writes on its owner, a child leaving the flow, or a text leaf whose
+reflowed lines and baseline are read back. `Composer::Stats` counts the
+whole-tree layout calculations a frame made. Paint consumes the settled
+geometry; a
 paint-only binding changes a transform or paint without relayout.
 
 Compose shades nothing. A fill, ink, stroke or relief whose material
@@ -93,6 +98,9 @@ canvases have no pixel format, so nested bakes use the owning draw's format.
 Shared cell sheets and brush art keep one bake for the last requested format.
 One-shot snapshots have no destination; any pixel bakes they contain default
 to N32. Draw through a composer onto a float canvas when retaining HDR values.
+An instanced pool whose tints pass one stamps each sprite through an
+unclamped colour multiply so a float destination keeps that range; a
+bounded pool keeps its one batch.
 
 ## Ownership
 

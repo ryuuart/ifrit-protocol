@@ -220,7 +220,9 @@ starts with published zeros. `values()` exposes the editable draft;
 `commit()` copies the whole draft into the published array and advances its
 revision. Renderers read `committedValues()`, including when another binding
 or frame input changes. A commit reaches the bound material without
-re-description; the block's size is fixed for its lifetime.
+re-description; the block's size is fixed for its lifetime, and a block
+can be neither copied nor moved, so its arrays change only through its
+draft and `commit()`.
 
 **Resolved uploads own their bytes.** `Material::resolve()` returns a
 `Material::Resolved` whose byte span stays unchanged while that result or
@@ -251,6 +253,12 @@ use homogeneous `w=0`, so translation does not change their length or
 direction.
 This affine differential supplies logical-pixel sample steps independently
 from the node-to-root placement and from encoded normal-map slopes.
+
+`FrameData::paintedMin` and `paintedMax` state what the painted layer
+holds in the node's own pixels, which can reach past the box to a
+negative origin. A filter that crops its work to its reach, such as
+`Filter::phosphorBloom`, crops to those bounds; equal corners stand for
+the box itself.
 
 **Slots ride everything.** A recipe declares slots (`slot("uSrc")`,
 exposed to SkSL as `uniform shader uSrc`); a material fills them with other

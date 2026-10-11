@@ -38,9 +38,9 @@ sigil_test(draw_test
 # The device case builds wherever Graphite does and skips where the
 # machine offers no device of its own.
 sigil_test(draw_test
-  SOURCES test/GraphicsHeightGpuTest.cpp
+  SOURCES test/GraphicsHeightGpuTest.cpp test/GraphicsBackendGpuTest.cpp
   LIBRARIES SigilSkiaGraphite
-  SUITES GraphicsHeightGpu LABELS gpu integration)
+  SUITES GraphicsHeightGpu GraphicsBackendGpu LABELS gpu integration)
 
 sigil_bench(draw_bench
   SOURCES bench/DrawBench.cpp

@@ -5,6 +5,7 @@
  */
 
 #include <include/core/SkCanvas.h>
+#include <include/core/SkColorFilter.h>
 #include <include/core/SkPicture.h>
 #include <include/core/SkRSXform.h>
 #include <include/core/SkSurface.h>
@@ -242,10 +243,12 @@ void stamp(SkCanvas& canvas, const PaintContext& ctx, CellSheet& atlas,
   static thread_local std::vector<SkRect> tex;
   static thread_local std::vector<SkColor> colors;
   static thread_local std::vector<SkSize> sizes;
+  static thread_local std::vector<material::Color> floatTints;
   xforms.clear();
   tex.clear();
   colors.clear();
   sizes.clear();
+  floatTints.clear();
   xforms.reserve(pool.size());
   tex.reserve(pool.size());
   colors.reserve(pool.size());
@@ -298,8 +301,54 @@ void stamp(SkCanvas& canvas, const PaintContext& ctx, CellSheet& atlas,
     const SkColor tint = material::skia::toSkColor(t).toSkColor();
     tinted |= tint != SK_ColorWHITE;
     colors.push_back(tint);
+    floatTints.push_back(t);
   }
   if (xforms.empty()) return;
+  // A TINT PAST ONE is a radiance, and the batch's vertex colours hold
+  // eight bits a channel: it would be clamped before it reached the cell.
+  // Such a pool is stamped one sprite at a time, each cell multiplied by
+  // its tint unclamped, so a float destination keeps what was asked for.
+  const bool radiant = std::ranges::any_of(
+      floatTints,
+      [](const material::Color& t) { return t.r > 1 || t.g > 1 || t.b > 1; });
+  if (radiant) {
+    const sk_sp<SkImage> sheet = atlas.image();
+    const SkSamplingOptions sampling(atlas.filter());
+    for (size_t i = 0; i < xforms.size(); ++i) {
+      const material::Color& t = floatTints[i];
+      const float alpha = std::clamp(t.a, 0.0f, 1.0f);
+      // The cell's unpremultiplied colour times the tint, alpha times the
+      // tint's alpha: once premultiplied, the cell times the premultiplied
+      // tint, which is what the batch's modulation computes.
+      // clang-format off
+      const float scaleColour[20] = {t.r, 0,   0,   0,     0,
+                                     0,   t.g, 0,   0,     0,
+                                     0,   0,   t.b, 0,     0,
+                                     0,   0,   0,   alpha, 0};
+      // clang-format on
+      SkPaint paint;
+      paint.setAntiAlias(true);
+      paint.setBlendMode(blend);
+      paint.setColorFilter(
+          SkColorFilters::Matrix(scaleColour, SkColorFilters::Clamp::kNo));
+      const SkRSXform& at = xforms[i];
+      const SkRect& cell = tex[i];
+      const SkSize stretch = sizes.empty() ? SkSize{1.0f, 1.0f} : sizes[i];
+      // The quad the batch builds: the cell's centre at the transform's
+      // anchor, turned and scaled, then stretched by the size lane.
+      const float half[2] = {cell.width() * 0.5f, cell.height() * 0.5f};
+      SkAutoCanvasRestore restore(&canvas, true);
+      canvas.concat(SkMatrix::MakeAll(
+          at.fSCos, -at.fSSin, at.fTx + at.fSCos * half[0] - at.fSSin * half[1],
+          at.fSSin, at.fSCos, at.fTy + at.fSSin * half[0] + at.fSCos * half[1],
+          0, 0, 1));
+      canvas.scale(stretch.width(), stretch.height());
+      canvas.drawImageRect(
+          sheet, cell, SkRect::MakeLTRB(-half[0], -half[1], half[0], half[1]),
+          sampling, &paint, SkCanvas::kStrict_SrcRectConstraint);
+    }
+    return;
+  }
   // All-white tints modulate to identity, so the colors lane is dropped
   // entirely when nothing is tinted — the common case for UI sprites.
   // drawSpriteAtlas is used rather than a native atlas draw because it

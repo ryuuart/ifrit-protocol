@@ -356,6 +356,8 @@ void Composer::draw(SkCanvas& canvas) {
   impl.settledForDraw = false;
   impl.stats.layoutMs =
       sigil::measure::Milliseconds(laps.mark("layout")).count();
+  impl.stats.layoutCalculations = impl.layoutCalculations;
+  impl.layoutCalculations = 0;
   impl.stats.volatileMs =
       sigil::measure::Milliseconds(laps.mark("volatile")).count();
 

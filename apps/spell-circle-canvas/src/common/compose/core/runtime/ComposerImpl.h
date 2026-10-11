@@ -392,6 +392,8 @@ struct Composer::Impl {
   // render()/renderSlot() phase time accumulated since the previous draw();
   // draw() publishes it as stats.reconcileMs and zeroes the accumulator.
   double reconcileAccumMs = 0;
+  /** Whole-tree Yoga calculations since the previous draw(). */
+  size_t layoutCalculations = 0;
 
   Impl(motion::Engine& t, sigil::weave::FontContext& f)
       : engine(t), fonts(f), reconciler(*this) {

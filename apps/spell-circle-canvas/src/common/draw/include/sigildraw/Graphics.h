@@ -20,7 +20,10 @@ namespace sigil::draw {
  *  `createGraphics(w, h)`, spelled as the value it returns because it
  *  lives across frames. ITS PIXELS ARE THE HOST'S, formed at the host
  *  pen's own density through the host's canvas, and a re-form keeps the
- *  picture by drawing the old surface into the new one. ITS CLOCK IS THE
+ *  picture by drawing the old surface into the new one. A buffer formed
+ *  on raster moves onto a host's device when that device first begins
+ *  it; one formed on a device stays there under a host without one,
+ *  because only the device's context can read its pixels back. ITS CLOCK IS THE
  *  HOST'S, read onto the buffer's pen by `begin`; its style is its own
  *  and holds between frames, as a pen's does. */
 class Graphics {
@@ -85,6 +88,10 @@ class Graphics {
   SkSize m_scale = {1.0f, 1.0f};
   float m_densityFloor = 0.0f;
   bool m_open = false;
+  // The device the surface was last formed for: the host's recorder or
+  // recording context then, even where it could not form the surface.
+  skgpu::graphite::Recorder* m_recorder = nullptr;
+  GrRecordingContext* m_context = nullptr;
 };
 
 }  // namespace sigil::draw

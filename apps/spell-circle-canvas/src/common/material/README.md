@@ -352,6 +352,11 @@ and numbers stand where its colours do. The anchor survives lowering
 to a Skia paint, as a paint marked `worldSpace` does, and such a material
 is geometry-dependent.
 
+On the raster executor a filter layer is eight-bit whatever the source or
+target format, so coverage quantizes to 256 levels, HDR clips at one and
+contour-derived bevel normals step; use the device executor where a
+filter must keep floating-point precision.
+
 In Skia, a positive `SurfaceOptions::alphaCutoff` removes color-stack samples
 whose alpha is below the threshold, in a flat paint and in every map.
 Samples at or above the threshold keep their color and alpha; shape
@@ -504,6 +509,7 @@ A bound `UniformBlock` starts with published zeros. Edit its draft through
 `values()`, then call `commit()` to publish the whole array; no re-description
 is needed. Renderers read `committedValues()`, so changing a scalar, time or
 box size cannot expose draft edits. Keep the fixed-size block with your model.
+A block can be neither copied nor moved.
 
 Equal shader source, parameter layout, options and values reuse the same
 definition and compare equal. Describing a shader again does not require
@@ -539,6 +545,9 @@ be validated by that backend.
   tile during each description also constructs a new bake state.
 - `Filter::of` captures uniforms and child slots at construction. Describe
   it again to sample live inputs again; static captures can compare by value.
+  Its `set`, `bind` and `slot` lay explicit edits over the capture without
+  reconnecting the material; a slot the layer fills follows its amount
+  field, and the sampling radius stays as constructed.
 - A manually constructed `Recipe` has object identity. Define it once and
   share it; building equal recipe objects repeatedly creates distinct program
   cache entries. The ordinary `shader()` factory handles definition reuse.

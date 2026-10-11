@@ -38,6 +38,7 @@
 #include "PenOnCanvas.h"
 #include "SurfaceMap.h"
 #include "UnitSurface.h"
+#include "layout/DeriveInternal.h"
 #include "runtime/ComposeRuntime.h"
 
 namespace sigil::compose {
@@ -327,59 +328,11 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   // gates both — the overwhelmingly common case, and the reason a whole-node
   // spans gate walks the boundary once rather than twice.
   // Text placement is needed by glyph decorations as well as content.
-  if (node.kind == Kind::Text && inst.paragraph) {
-    // Yoga skips the measure callback when both dimensions are fully
-    // determined (absolute + all four insets); lay out on demand at the
-    // resolved width so such text still paints. Aligned text (center/
-    // end/justify) additionally must be laid out at its FINAL width —
-    // lines place within the flow width, so a measure-time constraint
-    // that differs from the resolved box would push them off target.
-    const bool onPathRun = node.textData && node.textData->onPath;
-    // Vertical columns hang off the RIGHT edge of the measure, so the
-    // resolved width decides WHERE the first column stands and not
-    // only where the text wraps — the same reason aligned text is
-    // re-laid here, one axis over.
-    const bool verticalRun =
-        inst.paragraph &&
-        inst.paragraph->writingMode() != sigil::weave::WritingMode::kHorizontal;
-    // A leaf that spends the room left over down its box needs the
-    // RESOLVED DEPTH for the same reason an aligned leaf needs the
-    // resolved width: a box of a stated height never reaches the
-    // measure callback at all, so this is the only place the depth
-    // `textVerticalAlign` spends is known.
-    const bool distributesRoom =
-        node.textData && node.textData->distributesRoom(inst.textOptions);
-    // The alignment the leaf lays out under is the paragraph setting in
-    // force — its own `textAlign()` is that lane's spelling at the leaf
-    // — over whatever the full-control overload's options carry.
-    const bool aligned =
-        node.textData &&
-        inst.block.alignment.value_or(node.textData->layoutOptions.alignment) !=
-            sigil::weave::TextAlignment::kStart;
-    // The ROOM INSIDE the box, which is what the measure callback is
-    // handed and therefore what a cached layout is held valid for: a
-    // padded leaf compared against its outer box matches nothing and
-    // is set again every frame.
-    const detail::Insets pad = paddingOf(inst);
-    const float roomAcross = std::max(bounds.width() - pad.across(), 0.0f);
-    const float roomDown = std::max(bounds.height() - pad.down(), 0.0f);
-    if (inst.measuredRev != inst.contentRev ||
-        (!onPathRun && node.textData &&
-         (verticalRun || distributesRoom || aligned) &&
-         (inst.measuredForWidth != roomAcross ||
-          ((verticalRun || distributesRoom) &&
-           inst.measuredForHeight != roomDown))))
-      // A FRAME is bounded by its own depth either way round: its
-      // remainder is what the next frame of its chain begins at, and
-      // a re-layout here at an unbounded depth would place the whole
-      // story and leave the next frame nothing.
-      layoutTextInBox(
-          inst, bounds.width(),
-          verticalRun || distributesRoom ||
-                  (node.textData && !node.textData->threadTo.empty())
-              ? bounds.height()
-              : Composer::Impl::kUnbounded);
-  }
+  // Yoga skips the measure callback when both dimensions are fully
+  // determined, and a leaf whose lines place against its resolved box is
+  // laid out at it here: the same rule a borrow of the placed glyphs reads.
+  if (node.kind == Kind::Text && inst.paragraph)
+    prepareTextForBox(*this, inst, bounds.width(), bounds.height());
 
   // WHAT THE DECORATIONS DRESS. Every decoration is drawn across an
   // outline, and a text leaf whose boundary is its GLYPHS hands them the
@@ -492,7 +445,14 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   // pass of it already made.
   const material::Filter* layerFx =
       deferLayerEffect ? nullptr : layerEffectOf(node);
-  const material::FrameData layerFrame = frameOf(paintCtx);
+  // The layer's frame names what the layer holds, which may reach past
+  // the box: a filter that crops to its reach crops to that.
+  material::FrameData layerFrame = frameOf(paintCtx);
+  if (layerFx) {
+    const SkRect painted = recordBounds(inst);
+    layerFrame.paintedMin = {painted.left(), painted.top()};
+    layerFrame.paintedMax = {painted.right(), painted.bottom()};
+  }
   const sk_sp<SkImageFilter> layerFilter =
       layerFx ? material::skia::resolvedImageFilter(*layerFx, &layerFrame)
               : nullptr;

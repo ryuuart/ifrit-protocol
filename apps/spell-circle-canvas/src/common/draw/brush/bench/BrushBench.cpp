@@ -26,7 +26,7 @@ using namespace sigil::draw;
  *  without a file in the benchmark. */
 sk_sp<SkImage> softTip(int side) {
   SkBitmap bitmap;
-  bitmap.allocN32Pixels(side, side, true);
+  bitmap.allocN32Pixels(side, side);
   const float centre = (float)side * 0.5f;
   for (int y = 0; y < side; ++y)
     for (int x = 0; x < side; ++x) {
@@ -145,12 +145,11 @@ void BrushHatch(benchmark::State& state) {
     frame.frameCount = ++count;
     pen.begin(*surface->getCanvas(), frame);
     pen.randomSeed(29);
-    brush::hatch(
-        pen, tool, polygon,
-        {.pattern = {.spacing = 7.0f,
-                     .angle = 0.48f,
-                     .taper = brush::gradientTaper(0.18f)},
-         .jitter = 0.12f});
+    brush::hatch(pen, tool, polygon,
+                 {.pattern = {.spacing = 7.0f,
+                              .angle = 0.48f,
+                              .taper = brush::gradientTaper(0.18f)},
+                  .jitter = 0.12f});
     pen.end();
   }
 }

@@ -65,10 +65,11 @@ const sk_sp<SkRuntimeEffect>& effectProgram(EffectProgram which);
 Effect bloom(const BloomOptions& options);
 
 /** The bloom's filter DAG: reduce, gather, enlarge, composite — cropped
- *  to @p box grown by the reach when a box is known. */
+ *  to @p painted, what the layer holds, grown by the reach when it is
+ *  known. */
 sk_sp<SkImageFilter> makePhosphorBloom(SkRuntimeShaderBuilder& haloBuilder,
                                        const sk_sp<SkRuntimeEffect>& composite,
-                                       float radius, SkSize box);
+                                       float radius, SkRect painted);
 
 /** How far past its content a phosphor bloom of @p radius can write: the
  *  radius, and one pixel of the layer its halo is gathered on. */

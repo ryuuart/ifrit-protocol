@@ -29,6 +29,13 @@ struct FrameData {
   /** The root's laid-out size in pixels — what `uResolution` becomes for
    *  a material anchored to the root. Zero falls back to `resolution`. */
   glm::vec2 rootResolution{0.0f, 0.0f};
+  /** What the painted layer holds, in the node's own px, from its least
+   *  corner to its greatest: the box grown by whatever the node paints
+   *  past it — ink overflow, marks attached outside it — so the least
+   *  corner may be negative. Equal corners mean the box itself, from the
+   *  origin to `resolution`. */
+  glm::vec2 paintedMin{0.0f, 0.0f};
+  glm::vec2 paintedMax{0.0f, 0.0f};
   /** Device pixels per logical pixel; the `uContentScale` uniform. */
   float contentScale = 1.0f;
   /** Set true by an executor that hands `contentScale` to a program. A

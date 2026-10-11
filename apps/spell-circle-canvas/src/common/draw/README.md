@@ -200,11 +200,14 @@ The pen adds material, geometry and text overloads to the p5 verbs.
   `background(material::Material)` accept recipe instances. Static
   paints resolve when set; live paints and paints that read their box
   resolve for each draw against the pen's clock and canvas. Coordinates
-  follow the pen's current transform.
+  follow the pen's current transform. A world-space material spans the
+  frame's root (`Frame::rootWidth`, `rootHeight`, `toRoot`; the pen's own
+  canvas where the frame names none) and resolves again at each draw, so
+  it stays anchored there through the pen's transforms.
 * **Material space.** `CANVAS`, the default, measures paint against the
   frame. `fill(paint, SHAPE)` and `stroke(paint, SHAPE)` measure against
   each shape's bounds: the top-left is the origin and the bounds are the
-  unit square. This applies to shape fills and strokes, including lines
+  unit square; a `material::Material` takes the same word. This applies to shape fills and strokes, including lines
   and points. Text, images and backgrounds use the canvas, as do shapes
   with a zero width or height. A later fill or stroke without `SHAPE`
   restores canvas space. `push` and `pop` save this choice.
@@ -257,8 +260,11 @@ The pen adds material, geometry and text overloads to the p5 verbs.
   Density is the greater of the host's density and
   `buffer.setDensityFloor(px)`. Style and pixels persist. `resize(w, h)`
   or a density change scales the previous picture into the replacement
-  surface. Dimensions clamp to at least one canvas unit and must be
-  finite, as must the density floor. Invalid inputs throw
+  surface. A buffer first formed on raster moves onto a host's device,
+  marks kept, when that device first begins it; one on a device stays
+  there under a host without one, and a device that cannot form it is
+  not asked again at the same extent. Dimensions clamp to at least one
+  canvas unit and must be finite, as must the density floor. Invalid inputs throw
   `std::invalid_argument` without changing them. `begin` throws
   `std::length_error` for an unrepresentable pixel extent or
   `std::bad_alloc` for allocation failure; the previous image remains

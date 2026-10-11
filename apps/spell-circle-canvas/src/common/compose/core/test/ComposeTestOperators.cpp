@@ -11,6 +11,7 @@
 #include <sigilgeometry/advanced/Skia.h>
 
 #include <cmath>
+#include <memory>
 #include <numbers>
 #include <string>
 #include <vector>
@@ -285,7 +286,96 @@ TEST(ComposeOperators, ANestedModifierUsesFlexInputsAtItsPlacedContainerSize) {
   EXPECT_FLOAT_EQ(require(host.composer.bounds("child")).left(), 120);
   EXPECT_EQ(host.pixel(75, 5), SK_ColorBLACK);
   EXPECT_EQ(host.pixel(125, 5), SK_ColorRED);
-  EXPECT_EQ(calls, 2);
+  // The row is placed and measured in its new box in the same round, so
+  // a changed outer track settles without a second one.
+  EXPECT_EQ(calls, 1);
+}
+
+TEST(ComposeOperators, NestedArrangementsSettleAViewportChangeInOneRound) {
+  // An outer grid of rows, each row arranging its own two children; fr
+  // tracks so the viewport moves every row's box.
+  const auto describe = [](float firstTrack) {
+    std::vector<Element> rows;
+    for (int index = 0; index < 8; ++index)
+      rows.push_back(box()
+                         .key("row" + std::to_string(index))
+                         .row()
+                         .justifyContent(Justify::End)
+                         .operators({Nudge{.by = {-3, 0}}})
+                         .children({box()
+                                        .key("left" + std::to_string(index))
+                                        .width(10)
+                                        .height(10)
+                                        .fill(red()),
+                                    box()
+                                        .key("right" + std::to_string(index))
+                                        .width(10)
+                                        .height(10)
+                                        .fill(green())}));
+    return layout(layouts::Grid{
+                      .columns = {layouts::fr(firstTrack), layouts::fr(1),
+                                  layouts::fr(1), layouts::fr(1)},
+                      .rows = {layouts::fr(1), layouts::fr(1)},
+                      .gap = {2, 2}})
+        .children(std::move(rows));
+  };
+  // What a fresh composer lays out at a size, for comparison.
+  const auto fresh = [&](float width, float firstTrack) {
+    auto host = std::make_unique<Host>(200, 200);
+    host->composer.setSize({width, 200});
+    host->composer.render(describe(firstTrack));
+    host->frame();
+    return host;
+  };
+  const auto sameBounds = [](Host& settled, Host& reference) {
+    for (int index = 0; index < 8; ++index)
+      for (const std::string& stem : {"row", "left", "right"}) {
+        const std::string key = stem + std::to_string(index);
+        const SkRect a = require(settled.composer.bounds(key));
+        const SkRect b = require(reference.composer.bounds(key));
+        EXPECT_NEAR(a.left(), b.left(), 0.01f) << key;
+        EXPECT_NEAR(a.top(), b.top(), 0.01f) << key;
+        EXPECT_NEAR(a.width(), b.width(), 0.01f) << key;
+        EXPECT_NEAR(a.height(), b.height(), 0.01f) << key;
+      }
+  };
+  Host host(200, 200);
+  host.composer.setSize({160, 200});
+  host.composer.render(describe(1));
+  host.frame();
+  {
+    auto reference = fresh(160, 1);
+    sameBounds(host, *reference);
+  }
+  // An unchanged frame lays nothing out.
+  host.frame();
+  EXPECT_EQ(host.composer.stats().layoutCalculations, 0u);
+  // A viewport change: the relayout, one measurement per arranging depth,
+  // and the settled placement, in a single round.
+  host.composer.setSize({200, 200});
+  host.frame();
+  EXPECT_EQ(host.composer.stats().layoutCalculations, 4u);
+  {
+    auto reference = fresh(200, 1);
+    sameBounds(host, *reference);
+    EXPECT_TRUE(identicalPixels(host, *reference, 200, 200));
+  }
+  host.composer.setSize({160, 200});
+  host.frame();
+  EXPECT_EQ(host.composer.stats().layoutCalculations, 4u);
+  {
+    auto reference = fresh(160, 1);
+    sameBounds(host, *reference);
+    EXPECT_TRUE(identicalPixels(host, *reference, 200, 200));
+  }
+  // A changed outer track.
+  host.composer.render(describe(2));
+  host.frame();
+  {
+    auto reference = fresh(160, 2);
+    sameBounds(host, *reference);
+    EXPECT_TRUE(identicalPixels(host, *reference, 200, 200));
+  }
 }
 
 TEST(ComposeOperators, AFactReachesACustomLayout) {

@@ -98,9 +98,9 @@ TEST(SkiaEffect, AnAuthorFilledSlotIsNotRefilledByTheExecutor) {
   // also what lets the same material be painted as an ordinary fill.
   Material material(blurredSlotRecipe(), OneRadius{8});
   material.slot("bloom", Texture(oneColour(SK_ColorBLUE)));
-  const auto pixels = bloomThrough(
-      skia::resolvedImageFilter(Filter::of(material, 0), nullptr),
-      {1.0f, 0.72f, 0.1f, 1.0f});
+  const auto pixels =
+      bloomThrough(skia::resolvedImageFilter(Filter::of(material, 0), nullptr),
+                   {1.0f, 0.72f, 0.1f, 1.0f});
   EXPECT_FLOAT_EQ(texel(pixels, 32, 32)[2], 1.0f);
   EXPECT_FLOAT_EQ(texel(pixels, 32, 32)[0], 0.0f);
 }
@@ -146,4 +146,71 @@ TEST(SkiaEffect, AnEffectDrawsThroughTheProgramTheListNames) {
   for (const sk_sp<SkRuntimeEffect>& program : programs)
     if (program->allowColorFilter()) ++colourMaps;
   EXPECT_GT(colourMaps, size_t{0});
+}
+
+// A captured program keeps its capture and still takes explicit edits: a
+// value set or bound after conversion paints as the same value captured,
+// a copy edits apart from its original, an author-filled slot wins over the
+// layer, and a slot the layer fills follows its amount wherever it is set.
+TEST(SkiaEffect, ACapturedProgramTakesLaterEditsOverItsCapture) {
+  struct Gain {
+    float gain = 1;
+  };
+  const auto recipe = std::make_shared<const Recipe>(
+      Recipe::of<Gain>("effect.capture.edits")
+          .slot("content")
+          .body(
+              Target::SkSL,
+              "half4 main(float2 p) { return content.eval(p) * half(gain); }"));
+  const SkColor4f white{1, 1, 1, 1};
+  const auto red = [&](const Filter& filter) {
+    return texel(
+        bloomThrough(skia::resolvedImageFilter(filter, nullptr), white), 32,
+        32)[0];
+  };
+  const Filter low = Filter::of(Material(recipe, Gain{.2f}));
+  const Filter high = Filter::of(Material(recipe, Gain{.8f}));
+  EXPECT_NEAR(red(low), .2f, 4e-3f);
+  EXPECT_NEAR(red(high), .8f, 4e-3f);
+
+  Filter set = low;
+  set.set("gain", .8f);
+  EXPECT_NEAR(red(set), .8f, 4e-3f);
+  EXPECT_NEAR(red(low), .2f, 4e-3f) << "the original keeps its capture";
+  EXPECT_FALSE(set == low);
+  EXPECT_FALSE(set.isRunning());
+
+  sigil::motion::Animatable<float> gain = sigil::motion::animatable(.8f);
+  Filter bound = low;
+  bound.bind("gain", gain);
+  EXPECT_NEAR(red(bound), .8f, 4e-3f);
+  gain = .5f;
+  EXPECT_NEAR(red(bound), .5f, 4e-3f);
+
+  // A name the program does not declare is refused and changes nothing.
+  Filter refused = low;
+  refused.set("missing", 3.0f);
+  EXPECT_NEAR(red(refused), .2f, 4e-3f);
+  EXPECT_TRUE(refused == low);
+
+  // The derived input follows an amount set after conversion; an author's
+  // own source for that slot wins over the layer.
+  const SkColor4f amber{1.0f, 0.72f, 0.1f, 1.0f};
+  Filter widened = Filter::of(Material(blurredSlotRecipe(), OneRadius{3}), 0);
+  widened.set("uRadius", 12.0f);
+  const auto direct = bloomThrough(
+      skia::resolvedImageFilter(
+          Filter::of(Material(blurredSlotRecipe(), OneRadius{12}), 0), nullptr),
+      amber);
+  const auto edited =
+      bloomThrough(skia::resolvedImageFilter(widened, nullptr), amber);
+  ASSERT_EQ(direct.size(), edited.size());
+  for (size_t i = 0; i < direct.size(); ++i)
+    ASSERT_FLOAT_EQ(direct[i], edited[i]) << "at " << i;
+  Filter filled = widened;
+  filled.slot("bloom", Paint::solid({0, 0, 1, 1}));
+  const auto pixels =
+      bloomThrough(skia::resolvedImageFilter(filled, nullptr), amber);
+  EXPECT_FLOAT_EQ(texel(pixels, 32, 32)[2], 1.0f);
+  EXPECT_FLOAT_EQ(texel(pixels, 32, 32)[0], 0.0f);
 }

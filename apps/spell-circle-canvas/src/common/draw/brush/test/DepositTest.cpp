@@ -291,3 +291,33 @@ TEST(Deposit, ALongFibreStrokeLaysABoundedNumberOfMarks) {
 }
 
 }  // namespace
+
+// Each nib dab is a disc of the tool's colour laid OVER the dabs before it:
+// a dense stroke on a transparent ground is opaque the whole width of its
+// discs, and its premultiplied colour is what the same stroke leaves on an
+// opaque black ground.
+TEST(Deposit, ADenseNibStrokeAccumulatesItsDiscs) {
+  brush::Tool tool = brush::marker({0.89f, 0.26f, 0.2f, 1}, 14);
+  tool.opacity = 1;
+  tool.pressureOpacity = 0;
+  tool.opacityJitter = 0;
+  tool.sizeJitter = 0;
+  tool.scatter = 0;
+  tool.noise = 0;
+  const auto stroke = [&](SkColor ground) {
+    Paper paper(200, 100, ground);
+    paper.begin();
+    brush::line(paper.pen, tool, {30, 50}, {170, 50});
+    paper.end();
+    return paper.pixels();
+  };
+  const SkBitmap clear = stroke(SK_ColorTRANSPARENT);
+  const SkBitmap black = stroke(SK_ColorBLACK);
+  for (int y = 47; y <= 53; ++y)
+    for (int x = 60; x < 140; x += 7) {
+      const SkColor over = clear.getColor(x, y);
+      EXPECT_EQ(SkColorGetA(over), 255u) << x << "," << y;
+      EXPECT_NEAR(SkColorGetR(over), 227, 3) << x << "," << y;
+      EXPECT_EQ(over, black.getColor(x, y)) << x << "," << y;
+    }
+}

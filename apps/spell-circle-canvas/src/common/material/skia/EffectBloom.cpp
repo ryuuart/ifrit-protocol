@@ -7,8 +7,8 @@
 
 #include <include/core/SkMatrix.h>
 #include <include/core/SkRect.h>
-#include <include/core/SkSize.h>
 #include <include/core/SkSamplingOptions.h>
+#include <include/core/SkSize.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 
@@ -46,7 +46,7 @@ int haloDivisor(float radius) {
 }  // namespace
 
 /** The bloom's filter DAG: reduce, gather, enlarge, composite, cropped to
- *  the box it is painted in grown by its reach.
+ *  what the layer holds grown by its reach.
  *
  *  @p haloBuilder arrives with every uniform of the halo program already
  *  set; its radius is rewritten here, because inside a reduced layer a
@@ -62,12 +62,14 @@ int haloDivisor(float radius) {
  *  it filters. The halo reaches no further from the content than the
  *  radius, and one pixel of the layer it is gathered on beyond it, where
  *  a tap between pixels reads the pixel past it or the enlarge spreads
- *  one; so over a known @p box the graph is cropped to the box grown by
- *  that much, and every node under the crop is asked for no more. Without
- *  a box the graph stays as Skia found it. */
+ *  one; so over what the layer is known to hold, @p painted, the graph is
+ *  cropped to that grown by that much, and every node under the crop is
+ *  asked for no more. A layer's content can stand past its node's box, so
+ *  the crop is the content's and never the box's. Without bounds the
+ *  graph stays as Skia found it. */
 sk_sp<SkImageFilter> makePhosphorBloom(SkRuntimeShaderBuilder& haloBuilder,
                                        const sk_sp<SkRuntimeEffect>& composite,
-                                       float radius, SkSize box) {
+                                       float radius, SkRect painted) {
   const int divisor = haloDivisor(radius);
   const float scale = 1.0f / static_cast<float>(divisor);
   const float reach = radius * scale;
@@ -91,11 +93,10 @@ sk_sp<SkImageFilter> makePhosphorBloom(SkRuntimeShaderBuilder& haloBuilder,
     const sk_sp<SkImageFilter> inputs[2] = {nullptr, std::move(halo)};
     halo = SkImageFilters::RuntimeShader(over, names, inputs, 2);
   }
-  if (box.isEmpty()) return halo;
+  if (painted.isEmpty()) return halo;
   const float outset = phosphorBloomReach(radius);
-  return SkImageFilters::Crop(
-      SkRect::MakeWH(box.width(), box.height()).makeOutset(outset, outset),
-      std::move(halo));
+  return SkImageFilters::Crop(painted.makeOutset(outset, outset),
+                              std::move(halo));
 }
 
 float phosphorBloomReach(float radius) {

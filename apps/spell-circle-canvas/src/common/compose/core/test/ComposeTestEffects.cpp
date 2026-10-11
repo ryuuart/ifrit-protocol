@@ -7,23 +7,17 @@
 #include <include/core/SkColorFilter.h>
 #include <include/core/SkStream.h>
 #include <include/effects/SkImageFilters.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/core/Image.h>
-#include <sigilmaterial/skia/Paint.h>
 
 #include "support/CoreTestSupport.h"
 
 TEST(ComposeEffects, LayerEffectBlursNode) {
   Host host;
   host.composer.render(box().children(
-      {box()
-           .width(60)
-           .height(60)
-           .inset(70)
-           .absolute()
-           .fill(red())
-           .filter(material::skia::filter(
-               SkImageFilters::Blur(8, 8, nullptr)))}));
+      {box().width(60).height(60).inset(70).absolute().fill(red()).filter(
+          material::skia::filter(SkImageFilters::Blur(8, 8, nullptr)))}));
   host.frame();
   // Blur bleeds outside the crisp box bounds and softens the center edge.
   SkColor outside = host.pixel(64, 100);  // 6px outside the left edge
@@ -43,12 +37,8 @@ TEST(ComposeEffects, BackdropFiltersWhatIsBeneath) {
 
   host.composer.render(stack().children(
       {box().inset(0).fill(red()),
-       box()
-           .width(80)
-           .height(80)
-           .inset(60)
-           .absolute()
-           .backdropFilter(material::skia::filter(invertFilter))}));
+       box().width(80).height(80).inset(60).absolute().backdropFilter(
+           material::skia::filter(invertFilter))}));
   host.frame();
   EXPECT_EQ(host.pixel(100, 100), SK_ColorCYAN);  // red inverted inside
   EXPECT_EQ(host.pixel(20, 100), SK_ColorRED);    // untouched outside
@@ -66,15 +56,14 @@ TEST(ComposeEffects, TextureBakesEffectOnce) {
   // Cache::None on the wrapper keeps the subject painted every frame, which
   // is what makes the second assertion a statement about the texture.
   Host host;
-  host.composer.render(
-      profiledUnder(box()
-                        .key("bloomed")
-                        .width(60)
-                        .height(60)
-                        .fill(green())
-                        .filter(material::skia::filter(
-                            SkImageFilters::Blur(4, 4, nullptr)))
-                        .cache(Cache::Texture)));
+  host.composer.render(profiledUnder(
+      box()
+          .key("bloomed")
+          .width(60)
+          .height(60)
+          .fill(green())
+          .filter(material::skia::filter(SkImageFilters::Blur(4, 4, nullptr)))
+          .cache(Cache::Texture)));
   host.frame();
   EXPECT_EQ(host.composer.stats().texturesBaked, 1u) << "the bake";
   host.frame();
@@ -217,8 +206,7 @@ TEST(ComposeEffects, AStaticShaderEffectPrunesByRecipe) {
   };
   host.composer.render(tree(0.5f));
   host.frame();
-  host.composer.render(
-      tree(0.5f));  // fresh material::Filter, same recipe
+  host.composer.render(tree(0.5f));  // fresh material::Filter, same recipe
   EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
       << "an identical shader-effect recipe re-patched";
   host.frame();
@@ -247,19 +235,19 @@ TEST(ComposeEffects, LiveChainsRecomposeAndStaticChainsStayCheap) {
       material::skia::program(effect, {{"uK", 0.5f}})
           .then(material::skia::program(effect, {{"uK", 0.5f}}));
   EXPECT_FALSE(staticChain.isRunning());
-  EXPECT_TRUE(material::skia::imageFilter(staticChain) != nullptr);  // precomposed once
+  EXPECT_TRUE(material::skia::imageFilter(staticChain) !=
+              nullptr);  // precomposed once
 
   // The chain applies BOTH stages: 1.0 * 0.5 through the live chain dims
   // a green fill to about half.
   Host host;
-  host.composer.render(box().children(
-      {box()
-           .width(60)
-           .height(60)
-           .inset(0, 140, 140, 0)
-           .absolute()
-           .fill(green())
-           .filter(liveChain)}));
+  host.composer.render(box().children({box()
+                                           .width(60)
+                                           .height(60)
+                                           .inset(0, 140, 140, 0)
+                                           .absolute()
+                                           .fill(green())
+                                           .filter(liveChain)}));
   host.frame();
   const unsigned g = SkColorGetG(host.pixel(30, 30));
   EXPECT_GT(g, 90u);
@@ -277,25 +265,18 @@ TEST(ComposeEffects, ADirectionalBlurAtAnAxisAngleIsBlurBitwise) {
   // Compared pixel-for-pixel over the whole plate.
   auto plate = [](Host& host, material::Filter e) {
     host.composer.render(box().children(
-        {box()
-             .width(60)
-             .height(60)
-             .inset(70)
-             .absolute()
-             .fill(green())
-             .filter(std::move(e))}));
+        {box().width(60).height(60).inset(70).absolute().fill(green()).filter(
+            std::move(e))}));
     host.frame();
   };
   Host ported, hand, swapped;
   plate(ported, material::Filter::directionalBlur(26, 90, 14));
-  plate(hand,
-        material::skia::filter(SkImageFilters::Blur(14, 26, nullptr)));
+  plate(hand, material::skia::filter(SkImageFilters::Blur(14, 26, nullptr)));
   EXPECT_TRUE(identicalPixels(ported, hand, 200, 200))
       << "directionalBlur(26, 90, 14) must BE Blur(14, 26)";
   // The control that keeps the pin honest: swapped sigmas are a
   // different picture, and this comparison can see it.
-  plate(swapped,
-        material::skia::filter(SkImageFilters::Blur(26, 14, nullptr)));
+  plate(swapped, material::skia::filter(SkImageFilters::Blur(26, 14, nullptr)));
   EXPECT_FALSE(identicalPixels(ported, swapped, 200, 200));
 }
 
@@ -306,13 +287,8 @@ TEST(ComposeEffects, ADirectionalBlurAtAnArbitraryAngleSmearsAlongIt) {
   // distance across it, which is what the two probes below read.
   Host host;
   host.composer.render(box().children(
-      {box()
-           .width(40)
-           .height(40)
-           .inset(80)
-           .absolute()
-           .fill(green())
-           .filter(material::Filter::directionalBlur(18, 45))}));
+      {box().width(40).height(40).inset(80).absolute().fill(green()).filter(
+          material::Filter::directionalBlur(18, 45))}));
   host.frame();
   const unsigned along = SkColorGetG(host.pixel(125, 125));
   const unsigned acrossAxis = SkColorGetG(host.pixel(75, 125));
@@ -351,14 +327,8 @@ TEST(ComposeEffects, ABoundDirectionalBlurAngleAnimatesWithoutRedescribe) {
   sigil::motion::Animatable<float> angle = sigil::motion::animatable(0.0f);
   Host host;
   host.composer.render(box().children(
-      {box()
-           .width(40)
-           .height(40)
-           .inset(80)
-           .absolute()
-           .fill(green())
-           .filter(material::Filter::directionalBlur(18, 0).bind(
-               "angle", angle))}));
+      {box().width(40).height(40).inset(80).absolute().fill(green()).filter(
+          material::Filter::directionalBlur(18, 0).bind("angle", angle))}));
   host.frame();
   // angle 0: the streak runs horizontally — ink right of the box, a
   // sharp edge below it.
@@ -426,14 +396,14 @@ int contrastAt(Host& host, int x, int y) {
  *  Material must resolve in the NODE's space, and a map that read layer
  *  or canvas coordinates would shift its falloff by a third of the box. */
 void stripePlate(Host& host, material::Filter e) {
-  host.composer.render(box().children(
-      {box()
-           .width(120)
-           .height(120)
-           .inset(40)
-           .absolute()
-           .fill(material::skia::base(stripeFill()))
-           .filter(std::move(e))}));
+  host.composer.render(
+      box().children({box()
+                          .width(120)
+                          .height(120)
+                          .inset(40)
+                          .absolute()
+                          .fill(material::skia::base(stripeFill()))
+                          .filter(std::move(e))}));
   host.frame();
 }
 
@@ -461,12 +431,12 @@ TEST(ComposeEffects, AParameterMapVariesTheBlurAcrossTheNode) {
   // washes the sharp end too; a constant blur at zero leaves the soft end
   // sharp. Neither can be the picture above.
   Host constantMax, unblurred;
-  stripePlate(constantMax, material::skia::filter(
-                               SkImageFilters::Blur(16, 16, nullptr)));
+  stripePlate(constantMax,
+              material::skia::filter(SkImageFilters::Blur(16, 16, nullptr)));
   EXPECT_LT(contrastAt(constantMax, 51, y), 40)
       << "a constant max-sigma blur cannot leave the left end sharp";
-  stripePlate(unblurred, material::skia::filter(
-                             SkImageFilters::Offset(0, 0, nullptr)));
+  stripePlate(unblurred,
+              material::skia::filter(SkImageFilters::Offset(0, 0, nullptr)));
   EXPECT_GT(contrastAt(unblurred, 139, y), 150)
       << "…and no blur at all cannot make the right end soft";
 }
@@ -509,8 +479,7 @@ TEST(ComposeEffects, ALiveSigmaMapMakesTheWholeEffectLive) {
                "half4 main(float2 p) { return half4(half(uK), 0, 0, 1); }"));
   ASSERT_TRUE(fx) << err.c_str();
   sigil::motion::Animatable<float> k = sigil::motion::animatable(0.0f);
-  const material::Paint liveMap =
-      material::skia::sksl(fx).bind("uK", k);
+  const material::Paint liveMap = material::skia::sksl(fx).bind("uK", k);
   EXPECT_TRUE(material::Filter::blur(liveMap, 16).isRunning());
   EXPECT_FALSE(material::Filter::blur(focalRamp(), 16).isRunning())
       << "a static map must NOT declare volatility (the control)";
@@ -532,9 +501,8 @@ TEST(ComposeEffects, ABoundMaxSigmaAnimatesOnTheExistingChannel) {
   // so there is exactly one way to animate a blur rather than one per knob.
   sigil::motion::Animatable<float> range = sigil::motion::animatable(0.0f);
   Host host;
-  stripePlate(
-      host,
-      material::Filter::blur(focalRamp(), 0).bind("maxSigma", range));
+  stripePlate(host,
+              material::Filter::blur(focalRamp(), 0).bind("maxSigma", range));
   EXPECT_GT(contrastAt(host, 139, 100), 150);  // range 0: no blur anywhere
   range = 16.0f;
   host.frame();
@@ -556,14 +524,8 @@ TEST(ComposeEffects, AnEffectChildFillsASecondDeclaredShaderSlot) {
   ASSERT_TRUE(fx) << err.c_str();
   Host host;
   host.composer.render(box().children(
-      {box()
-           .width(120)
-           .height(120)
-           .inset(40)
-           .absolute()
-           .fill(green())
-           .filter(material::skia::program(fx).slot("param",
-                                                           focalRamp()))}));
+      {box().width(120).height(120).inset(40).absolute().fill(green()).filter(
+          material::skia::program(fx).slot("param", focalRamp()))}));
   host.frame();
   // The ramp modulates the green layer left (0) to right (1) — and the
   // ramp is in the NODE's unit square, so the dark end is at the node's
@@ -578,15 +540,9 @@ TEST(ComposeEffects, AnEffectChildFillsASecondDeclaredShaderSlot) {
   // it appears in the filter only if child() actually rebuilt the snapshot.
   Host flat;
   flat.composer.render(box().children(
-      {box()
-           .width(120)
-           .height(120)
-           .inset(40)
-           .absolute()
-           .fill(green())
-           .filter(material::skia::program(fx).slot(
-               "param",
-               material::Paint::solid({0.5f, 0.5f, 0.5f, 1})))}));
+      {box().width(120).height(120).inset(40).absolute().fill(green()).filter(
+          material::skia::program(fx).slot(
+              "param", material::Paint::solid({0.5f, 0.5f, 0.5f, 1})))}));
   flat.frame();
   EXPECT_NEAR((int)SkColorGetG(flat.pixel(60, 100)), 128, 24);
   EXPECT_NEAR((int)SkColorGetG(flat.pixel(140, 100)), 128, 24);
@@ -602,14 +558,14 @@ TEST(ComposeEffects, AnUndeclaredEffectChildIsIgnoredNotBound) {
                "half4 main(float2 p) { return half4(half(uK), 0, 0, 1); }"));
   ASSERT_TRUE(fx) << err.c_str();
   sigil::motion::Animatable<float> k = sigil::motion::animatable(1.0f);
-  const material::Paint liveMap =
-      material::skia::sksl(fx).bind("uK", k);
+  const material::Paint liveMap = material::skia::sksl(fx).bind("uK", k);
 
   // (a) filter() has no child to fill, exactly as it has no uniform.
   const sk_sp<SkImageFilter> raw = SkImageFilters::Blur(4, 4, nullptr);
   material::Filter plain = material::skia::filter(raw);
   plain.slot("param", liveMap);
-  EXPECT_EQ(material::skia::imageFilter(plain), raw) << "filter()'s filter was replaced";
+  EXPECT_EQ(material::skia::imageFilter(plain), raw)
+      << "filter()'s filter was replaced";
   EXPECT_FALSE(plain.isRunning());
 
   // (b) a shader() effect that declares no such child.
@@ -665,8 +621,7 @@ TEST(ComposeEffects, ADroppedUniformBindingIsLoudNotSilent) {
       material::skia::filter(SkImageFilters::Blur(4, 4, nullptr));
   plain.bind("uK", k);
   const std::string filterLog = ::testing::internal::GetCapturedStderr();
-  EXPECT_NE(filterLog.find("Filter::bind"), std::string::npos)
-      << filterLog;
+  EXPECT_NE(filterLog.find("Filter::bind"), std::string::npos) << filterLog;
   EXPECT_NE(filterLog.find("uK"), std::string::npos) << filterLog;
   EXPECT_FALSE(plain.isRunning());
 }
@@ -688,8 +643,7 @@ TEST(ComposeEffects, AnUndeclaredShaderUniformIsWarnedAndIgnored) {
 
   // Control: the declared float binds, silently, on both doors.
   ::testing::internal::CaptureStderr();
-  const material::Filter good =
-      material::skia::program(effect, {{"uK", 0.5f}});
+  const material::Filter good = material::skia::program(effect, {{"uK", 0.5f}});
   material::Filter goodBound = material::skia::program(effect);
   goodBound.bind("uK", k);
   EXPECT_EQ(::testing::internal::GetCapturedStderr(), "")
@@ -703,8 +657,7 @@ TEST(ComposeEffects, AnUndeclaredShaderUniformIsWarnedAndIgnored) {
   const material::Filter typoConst =
       material::skia::program(effect, {{"noSuchConst", 1.0f}});
   const std::string constLog = ::testing::internal::GetCapturedStderr();
-  EXPECT_NE(constLog.find("skia::program"), std::string::npos)
-      << constLog;
+  EXPECT_NE(constLog.find("skia::program"), std::string::npos) << constLog;
   EXPECT_NE(constLog.find("noSuchConst"), std::string::npos) << constLog;
   EXPECT_EQ(typoConst, material::skia::program(effect))
       << "a rejected constant must leave no trace in the recipe";
@@ -715,8 +668,7 @@ TEST(ComposeEffects, AnUndeclaredShaderUniformIsWarnedAndIgnored) {
   material::Filter typoBound = material::skia::program(effect);
   typoBound.bind("noSuchBinding", k);
   const std::string boundLog = ::testing::internal::GetCapturedStderr();
-  EXPECT_NE(boundLog.find("Filter::bind"), std::string::npos)
-      << boundLog;
+  EXPECT_NE(boundLog.find("Filter::bind"), std::string::npos) << boundLog;
   EXPECT_NE(boundLog.find("noSuchBinding"), std::string::npos) << boundLog;
   EXPECT_FALSE(typoBound.isRunning())
       << "an ignored binding must not mark the node live forever";
@@ -725,8 +677,7 @@ TEST(ComposeEffects, AnUndeclaredShaderUniformIsWarnedAndIgnored) {
   // (c) a name the effect DOES declare, at another type: a float2 is not a
   // float, and assigning it is the same abort.
   ::testing::internal::CaptureStderr();
-  material::Filter wrongType =
-      material::skia::program(effect, {{"uV", 1.0f}});
+  material::Filter wrongType = material::skia::program(effect, {{"uV", 1.0f}});
   wrongType.bind("uV", k);
   const std::string typeLog = ::testing::internal::GetCapturedStderr();
   EXPECT_NE(typeLog.find("uV"), std::string::npos) << typeLog;
@@ -741,4 +692,37 @@ TEST(ComposeEffects, AnUndeclaredShaderUniformIsWarnedAndIgnored) {
   again.bind("noSuchBinding", k);
   EXPECT_EQ(::testing::internal::GetCapturedStderr(), "")
       << "the same rejected name must not warn twice";
+}
+
+// A phosphor bloom on a text leaf runs over what the leaf's layer holds, so
+// a mark attached wholly below the leaf's box, past the bloom's reach, is
+// still drawn, as it is with no filter at all.
+TEST(ComposeEffects, APhosphorBloomKeepsWhatALeafPaintsOutsideItsBox) {
+  const auto greenBelow = [](bool bloom) {
+    Host host(300, 200);
+    Element line =
+        text(u8"ALPHA BETA", whiteStyle(24))
+            .key("line")
+            .textAttach(sigil::weave::selectors::word(0), box()
+                                                              .left(0)
+                                                              .top(pct(100))
+                                                              .marginTop(60)
+                                                              .width(40)
+                                                              .height(12)
+                                                              .fill(green()));
+    if (bloom) line.filter(material::Filter::phosphorBloom(4));
+    host.composer.render(box().padding(10).children({std::move(line)}));
+    host.frame();
+    const SkRect leaf = require(host.composer.bounds("line"));
+    int count = 0;
+    for (int y = (int)leaf.bottom() + 20; y < 200; ++y)
+      for (int x = 0; x < 300; ++x) {
+        const SkColor c = host.pixel(x, y);
+        if (SkColorGetG(c) > 150 && SkColorGetR(c) < 100) ++count;
+      }
+    return count;
+  };
+  const int plain = greenBelow(false);
+  ASSERT_GT(plain, 200) << "the mark stands below the leaf's box";
+  EXPECT_GE(greenBelow(true), plain * 9 / 10);
 }

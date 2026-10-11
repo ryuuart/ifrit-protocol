@@ -26,6 +26,7 @@ using namespace detail;
 // Layout passes
 
 void Composer::Impl::calculateYoga() {
+  ++layoutCalculations;
   // The viewport is the root's containing block, so a percentage the root
   // states is of the canvas; an intrinsic root has none to be of.
   const float across = size.isEmpty() ? YGUndefined : size.width();
@@ -48,6 +49,14 @@ bool Composer::Impl::phaseCustomLayouts() {
     SkRect previous;
     size_t begin;
     size_t end;
+    // The box the scope's operators ran in this round.
+    SkSize arranged = SkSize::MakeEmpty();
+    // The sizing styles the scope's own placement may write on its owner,
+    // as the previous round left them.
+    YGValue width, height, minWidth, minHeight;
+    // A text leaf among the placed children: its lines are reflowed at
+    // the placed width and its baseline is read back as an input.
+    bool readsText = false;
   };
   std::vector<Scope> scopes;
   std::vector<PlacedChild> placed;
@@ -57,18 +66,28 @@ bool Composer::Impl::phaseCustomLayouts() {
       if (levels.size() <= depth) levels.resize(depth + 1);
       levels[depth].push_back(scopes.size());
       const size_t begin = placed.size();
+      bool readsText = false;
       // Hidden and operator-added children take no authored placement.
       for (const auto& child : inst.children) {
         if (child->computed.layout.display == Display::None ||
             child->description->added())
           continue;
+        readsText |= child->paragraph.has_value();
         placed.push_back(
             {.instance = child.get(),
              .previous = instanceRect(*child),
              .wasAbsolute = YGNodeStyleGetPositionType(child->yoga) ==
                             YGPositionTypeAbsolute});
       }
-      scopes.push_back({&inst, instanceRect(inst), begin, placed.size()});
+      scopes.push_back({.owner = &inst,
+                        .previous = instanceRect(inst),
+                        .begin = begin,
+                        .end = placed.size(),
+                        .width = YGNodeStyleGetWidth(inst.yoga),
+                        .height = YGNodeStyleGetHeight(inst.yoga),
+                        .minWidth = YGNodeStyleGetMinWidth(inst.yoga),
+                        .minHeight = YGNodeStyleGetMinHeight(inst.yoga),
+                        .readsText = readsText});
       ++depth;
     }
     for (const auto& child : inst.children) self(self, *child, depth);
@@ -89,8 +108,12 @@ bool Composer::Impl::phaseCustomLayouts() {
     for (size_t index : level)
       for (PlacedChild& child : children(index))
         child.input = instanceRect(*child.instance);
-    for (size_t index : level)
-      applyCustomLayouts(*scopes[index].owner, children(index));
+    for (size_t index : level) {
+      Scope& scope = scopes[index];
+      scope.arranged = {YGNodeLayoutGetWidth(scope.owner->yoga),
+                        YGNodeLayoutGetHeight(scope.owner->yoga)};
+      applyCustomLayouts(*scope.owner, children(index));
+    }
   }
   // Restoring flex inputs and applying placements can dirty styles even
   // when the final geometry is unchanged. Settle these writes before the
@@ -102,14 +125,49 @@ bool Composer::Impl::phaseCustomLayouts() {
            std::abs(before.width() - after.width()) > 0.25f ||
            std::abs(before.height() - after.height()) > 0.25f;
   };
-  for (const Scope& scope : scopes)
-    if (moved(scope.previous, instanceRect(*scope.owner))) return true;
-  for (const PlacedChild& child : placed) {
-    // Leaving flex flow can change siblings even if this rect is stable.
-    if (!child.wasAbsolute && !child.instance->computed.layout.centerAt)
+  const auto restyled = [](YGValue before, YGValue after) {
+    if (before.unit != after.unit) return true;
+    if (before.unit == YGUnitUndefined || before.unit == YGUnitAuto)
+      return false;
+    return std::abs(before.value - after.value) > 0.25f;
+  };
+  // Another round is owed only when something an arrangement already read
+  // this round has changed since. Arrangements run outermost first, each in
+  // the box the one above it has just settled, so a child that merely
+  // moved with its container leaves every reading true. What an outer
+  // arrangement reads of a nested one is the nested owner's flex size: its
+  // placed children leave the flow, so only the sizing styles the nested
+  // placement writes on its owner reach an outer measurement.
+  for (const Scope& scope : scopes) {
+    const Instance& owner = *scope.owner;
+    const SkRect settled = instanceRect(owner);
+    // A scope placed its children in a box it no longer has.
+    if (scope.end > scope.begin &&
+        (std::abs(scope.arranged.width() - settled.width()) > 0.25f ||
+         std::abs(scope.arranged.height() - settled.height()) > 0.25f))
       return true;
-    if (moved(child.previous, instanceRect(*child.instance))) return true;
+    if (restyled(scope.minWidth, YGNodeStyleGetMinWidth(owner.yoga)) ||
+        restyled(scope.minHeight, YGNodeStyleGetMinHeight(owner.yoga)))
+      return true;
+    if ((owner.schemeSizedWidth &&
+         restyled(scope.width, YGNodeStyleGetWidth(owner.yoga))) ||
+        (owner.schemeSizedHeight &&
+         restyled(scope.height, YGNodeStyleGetHeight(owner.yoga))))
+      return true;
+    // A text leaf's lines and baseline carry the reflow at its placed
+    // measure into the next measurement, so any motion is read again.
+    if (scope.readsText && moved(scope.previous, settled)) return true;
   }
+  for (const Scope& scope : scopes)
+    for (size_t index = scope.begin; index < scope.end; ++index) {
+      const PlacedChild& child = placed[index];
+      // Leaving flex flow can change siblings even if this rect is stable.
+      if (!child.wasAbsolute && !child.instance->computed.layout.centerAt)
+        return true;
+      if (scope.readsText &&
+          moved(child.previous, instanceRect(*child.instance)))
+        return true;
+    }
   return false;
 }
 
@@ -177,7 +235,9 @@ void Composer::Impl::ensureLayout() {
   const auto runLayoutPhases = [this] {
     core::runPhases(*this, std::span<const core::Phase<Impl>>(phases),
                     kConvergeRounds, [this] {
-                      calculateYoga();
+                      // The canvas is fixed for the whole run, so a clean
+                      // tree already holds this answer.
+                      if (YGNodeIsDirty(root->yoga)) calculateYoga();
                       // Refresh routes after relayout, including a final
                       // round that will not be followed by another pass.
                       phaseDerive();

@@ -5,7 +5,12 @@
 
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Pen.h>
+#include <sigildraw/brush/Deposit.h>
+#include <sigildraw/brush/Tool.h>
+#include <sigilmaterial/paint/Paint.h>
+#include <sigilmaterial/skia/Paint.h>
 
+#include <cstdlib>
 #include <memory>
 #include <optional>
 #include <source_location>
@@ -276,6 +281,99 @@ TEST(DrawNode, TheTransformStartsAtTheBox) {
   host.frame();
   EXPECT_EQ(host.pixel(65, 75), SK_ColorGREEN);
   EXPECT_EQ(host.pixel(5, 5), SK_ColorBLACK);
+}
+
+// A world-space material spans the composer's root inside a pen leaf as it
+// does in a node's own fill: two pen leaves of unequal width, one under a
+// pen transform, sample the same field at the same root positions as a fill
+// across the canvas, through a resize of the root and a move of the leaves.
+TEST(DrawNode, AWorldSpaceMaterialSpansTheRootInsideEachPen) {
+  material::Paint field = material::Paint::linearGradient(
+      {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
+  field.worldSpace();
+  const auto penLeaf = [&](float left, float width, bool translated) {
+    return pen([field, translated](Pen& pen, const PaintContext&) {
+             pen.noStroke();
+             pen.fill(field);
+             if (translated) pen.translate(10, 0);
+             pen.rect(translated ? -10 : 0, 0, pen.width, pen.height);
+           })
+        .absolute()
+        .left(left)
+        .top(60)
+        .width(width)
+        .height(40);
+  };
+  const auto describe = [&](float shift) {
+    return box().children(
+        {box().absolute().left(0).top(10).width(pct(100)).height(40).fill(
+             material::skia::base(field)),
+         penLeaf(20 + shift, 110, false), penLeaf(150 + shift, 40, true)});
+  };
+  const auto matches = [](Host& host, int x) {
+    const SkColor fill = host.pixel(x, 30);
+    const SkColor drawn = host.pixel(x, 80);
+    return std::abs((int)SkColorGetR(fill) - (int)SkColorGetR(drawn)) <= 2 &&
+           std::abs((int)SkColorGetB(fill) - (int)SkColorGetB(drawn)) <= 2;
+  };
+  Host host(200, 120);
+  host.composer.render(describe(0));
+  host.frame();
+  for (int x : {25, 60, 125, 155, 185})
+    EXPECT_TRUE(matches(host, x)) << "at x" << x;
+  // Halfway across the root reads the field's middle, whichever leaf.
+  EXPECT_NEAR(SkColorGetR(host.pixel(100, 80)), 128, 3);
+  host.composer.setSize({160, 120});
+  host.composer.render(describe(-15));
+  host.frame();
+  for (int x : {10, 60, 100, 140, 150})
+    EXPECT_TRUE(matches(host, x)) << "at x" << x << " after a resize";
+  EXPECT_NEAR(SkColorGetR(host.pixel(80, 80)), 128, 3);
+}
+
+// A nib lays each dab as a disc of its own colour, inside a pen leaf and
+// inside a kept canvas alike: over black, the stroke's discs stand in the
+// tool's colour across their width, and nothing is lighter than it.
+TEST(DrawNode, ANibLaysDiscsOfItsOwnColour) {
+  const material::Color cinnabar{0.89f, 0.26f, 0.2f, 1};
+  const auto program = [cinnabar](Pen& pen, const PaintContext&) {
+    sigil::draw::brush::Tool tool = sigil::draw::brush::marker(cinnabar, 14);
+    tool.opacity = 1;
+    tool.pressureOpacity = 0;
+    tool.opacityJitter = 0;
+    tool.sizeJitter = 0;
+    tool.scatter = 0;
+    tool.noise = 0;
+    sigil::draw::brush::line(pen, tool, {30, 50}, {170, 50});
+  };
+  for (const bool kept : {false, true}) {
+    Host host(200, 100);
+    host.composer.render(
+        box().children({(kept ? graphics(program) : pen(program))
+                            .absolute()
+                            .left(0)
+                            .top(0)
+                            .width(200)
+                            .height(100)}));
+    host.frame();
+    for (int y = 47; y <= 53; ++y)
+      for (int x = 60; x < 140; x += 7) {
+        const SkColor c = host.pixel(x, y);
+        EXPECT_NEAR(SkColorGetR(c), 227, 4)
+            << (kept ? "kept " : "pen ") << x << "," << y;
+        EXPECT_NEAR(SkColorGetG(c), 66, 4)
+            << (kept ? "kept " : "pen ") << x << "," << y;
+      }
+    int lighter = 0;
+    for (int y = 30; y < 71; ++y)
+      for (int x = 10; x < 190; ++x) {
+        const SkColor c = host.pixel(x, y);
+        if (SkColorGetA(c) == 255 &&
+            (SkColorGetG(c) > 66 + 6 || SkColorGetB(c) > 51 + 6))
+          ++lighter;
+      }
+    EXPECT_EQ(lighter, 0) << (kept ? "kept" : "pen");
+  }
 }
 
 TEST(RetainedElement, PaintsAtTheBoxAndKeepsItsComposer) {

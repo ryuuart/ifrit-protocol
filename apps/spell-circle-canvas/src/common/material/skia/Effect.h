@@ -18,6 +18,7 @@
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkShader.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/advanced/UniformBlock.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -268,6 +269,18 @@ class Effect {
     std::optional<Material> material;
     sk_sp<const SkRuntimeEffect> program;
     float sampleRadius = 0;
+    /** The program as it was captured: every uniform and child the
+     *  material carried then, which later explicit edits are made over. */
+    std::shared_ptr<const SkRuntimeShaderBuilder> captured;
+    /** One input the layer hands the program: the layer itself, or a slot
+     *  an executor fills from it at an amount read from a field. */
+    struct LayerInput {
+      std::string name;
+      std::optional<LayerSlot> derived;
+      /** The amount field's value when the material was captured. */
+      float capturedAmount = 0;
+    };
+    std::vector<LayerInput> inputs;
   };
 
   sk_sp<SkImageFilter> m_filter;
@@ -354,6 +367,9 @@ class Effect {
   /** The recipe's filter, built unconditionally — the store-time snapshot
    *  (null paintFrame) and the per-paint resolve are one construction. */
   sk_sp<SkImageFilter> buildFilter(const PaintFrame* paintFrame) const;
+  /** A captured program's filter with every explicit edit laid over the
+   *  capture. */
+  sk_sp<SkImageFilter> buildCapturedFilter(const PaintFrame* paintFrame) const;
   /** THE EFFECT AS ONE IMAGE FILTER: the colour lane lifted into the
    *  filter graph. A chain composes image filters, and a consumer that
    *  knows only image filters must still get the right picture; the

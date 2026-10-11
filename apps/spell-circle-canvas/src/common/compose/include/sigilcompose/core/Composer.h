@@ -395,6 +395,10 @@ class Composer {
     /** Nodes whose own paint bounds were measured last draw(): a held
      *  subtree that has not changed is not measured again. */
     size_t nodesBounded = 0;
+    /** Whole-tree layout calculations since the previous draw(): one for
+     *  a plain relayout, and more where an arrangement must measure its
+     *  children's flex inputs inside a box an outer one has just placed. */
+    size_t layoutCalculations = 0;
     // Per-phase wall time, so a slow frame localizes at a glance. The paint
     // number is where per-pixel cost lives (live materials, re-records);
     // reconcile/layout/volatile are the retained machinery.

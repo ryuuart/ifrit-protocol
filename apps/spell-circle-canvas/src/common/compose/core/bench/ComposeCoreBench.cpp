@@ -330,6 +330,8 @@ static void BM_Layout_NestedArrangement_ViewportToggle(
     host.draw();
   }
   state.counters["arrangedContainers"] = (double)count + 1;
+  state.counters["layoutCalculations"] =
+      (double)host.composer.stats().layoutCalculations;
   reportNodes(state, count * 3 + 1);
 }
 BENCHMARK(BM_Layout_NestedArrangement_ViewportToggle)->Apply(nodeLadder);

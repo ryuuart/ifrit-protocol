@@ -129,9 +129,18 @@ Effect Effect::recipe(const Material& material, float sampleRadius) {
   // what it sampled, so reading a field first would look the program up
   // before there was one to find and report a recipe that compiles.
   std::vector<sk_sp<SkImageFilter>> inputs;
-  if (readsTheLayer) inputs.emplace_back(nullptr);
-  for (const LayerSlot* slot : derived)
+  std::vector<RecipeSnapshot::LayerInput> layerInputs;
+  if (readsTheLayer) {
+    inputs.emplace_back(nullptr);
+    layerInputs.push_back({.name = "content"});
+  }
+  for (const LayerSlot* slot : derived) {
     inputs.push_back(layerFilterFor(material, *slot));
+    layerInputs.push_back(
+        {.name = slot->name,
+         .derived = *slot,
+         .capturedAmount = resolvedFloat(material, slot->amountField)});
+  }
   const float reach = std::max(0.0f, sampleRadius);
   // NOTHING LEFT IS NOTHING TO BIND THE LAYER TO, so there is no filter
   // OF the layer to make. The factory reads no name as "the one child
@@ -153,7 +162,17 @@ Effect Effect::recipe(const Material& material, float sampleRadius) {
   if (!material.isRunning()) comparable = material;
   effect.m_recipeSnapshot =
       std::make_shared<const RecipeSnapshot>(RecipeSnapshot{
-          std::move(comparable), sk_ref_sp(built->effect()), sampleRadius});
+          .material = std::move(comparable),
+          .program = sk_ref_sp(built->effect()),
+          .sampleRadius = sampleRadius,
+          .captured = std::make_shared<const SkRuntimeShaderBuilder>(*built),
+          .inputs = std::move(layerInputs)});
+  // THE PROGRAM STAYS EDITABLE. The capture is the starting point; the
+  // filter's own doors validate a later `set`, `bind` or `slot` against
+  // this program and lay it over what was captured, and the sampling
+  // radius stays the one declared here.
+  effect.m_effect = sk_ref_sp(built->effect());
+  effect.m_sampleRadius = reach;
   return effect;
 }
 
@@ -386,6 +405,8 @@ sk_sp<SkImageFilter> Effect::buildFilter(const PaintFrame* paintFrame) const {
     }
     return makeDirectionalBlur(d.sigma, d.angleDegrees, d.across);
   }
+  if (m_recipeSnapshot && m_recipeSnapshot->captured)
+    return buildCapturedFilter(paintFrame);
   if (!m_effect) return m_filter;
   if (m_colorProgram) {
     // The colour lane rebuilt: a bound threshold on a bright pass is a
@@ -422,15 +443,70 @@ sk_sp<SkImageFilter> Effect::buildFilter(const PaintFrame* paintFrame) const {
       if (name == "uRadius") radius = value;
     for (const auto& [name, out] : m_bound)
       if (name == "uRadius") radius = out.value();
-    return makePhosphorBloom(
-        builder, composite, radius,
-        paintFrame ? paintFrame->size : SkSize::MakeEmpty());
+    // What the layer holds where the painter knows it, the box otherwise.
+    const SkRect painted = !paintFrame ? SkRect::MakeEmpty()
+                           : !paintFrame->paintedBounds.isEmpty()
+                               ? paintFrame->paintedBounds
+                               : SkRect::MakeSize(paintFrame->size);
+    return makePhosphorBloom(builder, composite, radius, painted);
   }
   if (m_sampleRadius &&
       validUniform(m_effect, "_sampleRadius", UniformType::kFloat))
     builder.uniform("_sampleRadius") = *m_sampleRadius;
   return SkImageFilters::RuntimeShader(builder, m_sampleRadius.value_or(0.0f),
                                        "content", nullptr);
+}
+
+/** A CAPTURED PROGRAM WITH ITS EDITS: the uniforms and children the
+ *  material carried when it was captured, every explicit value, binding
+ *  and slot laid over them, and the layer handed in under each name the
+ *  capture left for it — except a name an author has since filled, whose
+ *  source then wins. A slot the layer fills through a filter follows its
+ *  amount field wherever an edit has moved it. */
+sk_sp<SkImageFilter> Effect::buildCapturedFilter(
+    const PaintFrame* paintFrame) const {
+  const RecipeSnapshot& snapshot = *m_recipeSnapshot;
+  SkRuntimeShaderBuilder builder(*snapshot.captured);
+  for (const auto& [name, value] : m_uniforms) builder.uniform(name) = value;
+  for (const auto& [name, value] : m_uniforms2) builder.uniform(name) = value;
+  for (const auto& [name, value] : m_uniforms4) builder.uniform(name) = value;
+  for (const auto& [name, values] : m_uniformArrays)
+    builder.uniform(name).set(values.data(), (int)values.size());
+  for (const auto& [name, out] : m_bound) builder.uniform(name) = out.value();
+  for (const auto& [name, block] : m_blocks)
+    builder.uniform(name).set(block->committedValues().data(),
+                              (int)block->size());
+  for (const auto& [name, source] : m_slots)
+    if (source) builder.child(name) = detail::childShader(*source, paintFrame);
+  const auto amountOf = [&](const RecipeSnapshot::LayerInput& input) {
+    float amount = input.capturedAmount;
+    for (const auto& [name, value] : m_uniforms)
+      if (name == input.derived->amountField) amount = value;
+    for (const auto& [name, out] : m_bound)
+      if (name == input.derived->amountField) amount = out.value();
+    return std::max(0.0f, amount);
+  };
+  std::vector<std::string_view> names;
+  std::vector<sk_sp<SkImageFilter>> inputs;
+  for (const RecipeSnapshot::LayerInput& input : snapshot.inputs) {
+    const bool filled = std::ranges::any_of(
+        m_slots, [&](const auto& slot) { return slot.first == input.name; });
+    if (filled) continue;
+    names.push_back(input.name);
+    if (!input.derived) {
+      inputs.emplace_back(nullptr);
+      continue;
+    }
+    const float amount = amountOf(input);
+    inputs.push_back(SkImageFilters::Blur(amount, amount, nullptr));
+  }
+  // Nothing left for the layer is no filter of the layer, as at capture.
+  if (names.empty()) return nullptr;
+  const float reach = std::max(0.0f, snapshot.sampleRadius);
+  if (names.size() == 1)
+    return SkImageFilters::RuntimeShader(builder, reach, names[0], inputs[0]);
+  return SkImageFilters::RuntimeShader(builder, reach, names.data(),
+                                       inputs.data(), (int)names.size());
 }
 
 bool Effect::isRunning() const {
@@ -500,6 +576,12 @@ bool Effect::operator==(const Effect& other) const {
     if (!m_recipeSnapshot || !other.m_recipeSnapshot) return false;
     if (m_recipeSnapshot->program != other.m_recipeSnapshot->program ||
         m_recipeSnapshot->sampleRadius != other.m_recipeSnapshot->sampleRadius)
+      return false;
+    // The edits laid over the capture are part of what it paints.
+    if (m_uniforms != other.m_uniforms || m_uniforms2 != other.m_uniforms2 ||
+        m_uniforms4 != other.m_uniforms4 ||
+        m_uniformArrays != other.m_uniformArrays ||
+        !slotsEqual(m_slots, other.m_slots))
       return false;
     if (!m_recipeSnapshot->material || !other.m_recipeSnapshot->material)
       return m_filter == other.m_filter;

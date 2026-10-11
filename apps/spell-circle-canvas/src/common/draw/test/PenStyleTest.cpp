@@ -11,6 +11,7 @@
 #include <include/core/SkVertices.h>
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilshaders/Draw.h>
@@ -473,6 +474,56 @@ TEST(Pen, AMaterialFitsTheCanvasUnlessTheFillSaysTheShape) {
   EXPECT_GT(SkColorGetB(shapeFit.pixel(37, 20)), 200u);
   EXPECT_GT(SkColorGetR(shapeFit.pixel(62, 20)), 200u);
   EXPECT_GT(SkColorGetB(shapeFit.pixel(97, 20)), 200u);
+}
+
+TEST(Pen, AMaterialTakesTheShapeFitAsItsPaintDoes) {
+  using sigil::material::ColorStop;
+  using sigil::material::Paint;
+  const std::vector<ColorStop> ramp{{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}};
+  const sigil::material::Material material =
+      sigil::material::linearGradient({0, 0}, {1, 0}, ramp);
+  // Two shapes of different sizes, each its own complete ramp, painted by
+  // the Material and by the same Material wrapped as a paint recipe; the
+  // stroke takes the same word.
+  const auto draw = [&](Paper& paper, bool wrapped) {
+    paper.begin();
+    paper.pen.strokeWeight(6);
+    if (wrapped) {
+      paper.pen.fill(Paint::recipe(material), SHAPE);
+      paper.pen.stroke(Paint::recipe(material), SHAPE);
+    } else {
+      paper.pen.fill(material, SHAPE);
+      paper.pen.stroke(material, SHAPE);
+    }
+    paper.pen.ellipse(20, 30, 36, 36);
+    paper.pen.ellipse(70, 30, 56, 20);
+    // push and pop restore the fit; a word-less fill is the canvas again.
+    paper.pen.push();
+    paper.pen.fill(material);
+    paper.pen.pop();
+    paper.pen.noStroke();
+    paper.pen.rect(60, 70, 40, 20);
+    paper.pen.fill(material);
+    paper.pen.rect(0, 70, 40, 20);
+    paper.end();
+  };
+  Paper direct, recipe;
+  draw(direct, false);
+  draw(recipe, true);
+  const SkBitmap a = direct.pixels();
+  const SkBitmap b = recipe.pixels();
+  for (int y = 0; y < 100; ++y)
+    for (int x = 0; x < 100; ++x)
+      ASSERT_EQ(a.getColor(x, y), b.getColor(x, y)) << x << "," << y;
+  // Each ellipse runs red to blue across its own bounds.
+  EXPECT_GT(SkColorGetR(direct.pixel(5, 30)), 180u);
+  EXPECT_GT(SkColorGetB(direct.pixel(35, 30)), 180u);
+  EXPECT_GT(SkColorGetR(direct.pixel(45, 30)), 180u);
+  EXPECT_GT(SkColorGetB(direct.pixel(95, 30)), 180u);
+  // The fit popped back: the right rect is its own ramp.
+  EXPECT_GT(SkColorGetR(direct.pixel(62, 80)), 180u);
+  // The word-less fill is the canvas ramp: the left rect is mostly red.
+  EXPECT_LT(SkColorGetB(direct.pixel(37, 80)), 150u);
 }
 
 TEST(Pen, AFitIsSaidOnTheFillThatSetsIt) {
