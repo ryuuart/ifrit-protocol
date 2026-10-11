@@ -1,13 +1,13 @@
 # Many materials on one page, in Python
 
 A specimen sheet stands in a lit scene: a limestone title cut into dark
-slate, six big swatches under it — a glowing mark, velvet, a thin film, a
-crackled glaze, satin and matte — and a bus of brushed copper traces
-running in the gutter between the rows. The whole sheet is one Compose
-page worn by one flat quad. Every swatch is an ordinary fill whose
-material says what it is made of; the page paints the maps those
-materials name and World lights them, so each swatch answers the same
-lights in its own way. This page builds the sheet up material by
+slate, eight big swatches under it — a glowing mark, velvet, a thin film,
+clear glass, a crackled glaze, satin, matte and frosted glass — and a bus
+of brushed copper traces running in the gutter between the rows. The
+whole sheet is one Compose page worn by one flat quad. Every swatch is an
+ordinary fill whose material says what it is made of; the page paints the
+maps those materials name and World lights them, so each swatch answers
+the same lights in its own way. This page builds the sheet up material by
 material, every step run through Grimoire as written, and every block is
 the sketch's own code. The whole file is
 `apps/grimoire/sketches/python_mixed_materials.py`; open it with
@@ -44,12 +44,13 @@ LABEL = "#b9b3a6"
 COPPER = "#c27a4c"
 GLOW = "#ffb347"
 
-# The grid: three columns of swatches over two rows, with a gutter between
+# The grid: four columns of swatches over two rows, with a gutter between
 # the rows wide enough for the copper bus to run through.
-COLUMN_LEFT = (50, 378, 706)
+COLUMN_LEFT = (40, 283, 526, 769)
 ROW_TOP = (146, 382)
-SWATCH_WIDTH, SWATCH_HEIGHT = 268, 160
+SWATCH_WIDTH, SWATCH_HEIGHT = 215, 160
 GUTTER = 355  # the horizontal gutter's centre line
+BACKING_SIZE = (256, 394)  # the page behind the glass, in its own pixels
 MARK_CENTRE = (COLUMN_LEFT[0] + SWATCH_WIDTH / 2, ROW_TOP[0] + SWATCH_HEIGHT / 2)
 MARK_RADIUS = 40
 ```
@@ -106,7 +107,7 @@ on its own shoulder. In the stills the pale letters are the first thing
 on the sheet, each with a dark wall along one side of its cut and a lit
 wall along the other. On limestone the same cut is stone on stone and
 barely shows; it is the pale inlay on dark slate, and the low key in
-step 8, that make it read at a glance.
+step 9, that make it read at a glance.
 
 **What you used.** `material.from_`, `.layer(..., blend=, opacity=)`,
 `material.noise(..., grain=True)` (a grey grain; without `grain` the
@@ -116,7 +117,7 @@ compose.PaintBox.Glyph)`.
 
 ## Step 2 — the grid of swatches
 
-The swatches are the subject, so they are big: three columns of 268 by
+The swatches are the subject, so they are big: four columns of 215 by
 160 over two rows, placed absolutely like cells on a specimen sheet.
 Each is one box with one fill; each caption is plain type.
 
@@ -160,10 +161,10 @@ SATIN = material.from_("#2d4f8a").surface(roughness=0.22)
 MATTE = material.from_("#2d4f8a").surface(roughness=1.0)
 ```
 
-At 2 seconds the soft panel of step 8 lies across the satin and it reads
+At 2 seconds the soft panel of step 9 lies across the satin and it reads
 pale and silvery, while the matte beside it stays a deep, even blue; at
-5 seconds the panel's edge shows in the satin as a lighter shape in its
-lower right.
+5 seconds the panel's edge shows in the satin as a lighter band across
+its top.
 
 ## Step 4 — velvet
 
@@ -249,14 +250,81 @@ broken that no reflection survives in it.
 `noise(..., turbulence=True)`, `clearcoat`, `clearcoatRoughness`,
 `clearcoatNormal`.
 
-## Step 7 — the glowing mark, and a copper bus
+## Step 7 — glass, and something behind it to see
 
-The mark is a disc that states emission, in a basalt cell:
+A swatch that states `transmission` is glass on the body that wears the
+page: there the sheet lets through whatever stands behind it, bent by
+the index through the thickness of the volume, and everywhere else it is
+the sheet. A page carries one volume — the index of the first
+transmitting material it paints is the whole page's — so both panes share
+`ior=1.45`. The clear pane's face is given a gentle unevenness so what
+is behind it visibly bends; the frosted one is rough.
 
 ```python
-# The emissive mark and the basalt cell it sits in.
+# Glass: the sheet transmits here, bent by its index through the thickness
+# of the volume, onto whatever stands behind the sheet. A page carries one
+# volume, so both panes share the index. The clear pane's face is gently
+# uneven, so what is behind it wavers; the frosted one is rough, so it blurs.
+CLEAR_GLASS = material.from_("#e8f2f4").surface(
+    roughness=0.02,
+    transmission=1.0,
+    ior=1.45,
+    thickness=12.0,
+    normal=surfaces.normalFromHeight(
+        material.noise(0.02, octaves=2, seed=9, grain=True),
+        surfaces.HeightNormalOptions(depth=14.0),
+    ),
+)
+FROSTED_GLASS = material.from_("#e8f2f4").surface(
+    roughness=0.3, transmission=1.0, ior=1.45, thickness=12.0
+)
+```
+
+Glass needs something behind it. A second page of bold bars, each its own
+light, stands on a small quad just behind the glass column:
+
+```python
+def backing_face() -> compose.Element:
+    """What stands behind the glass: bold bars of their own light, unlit."""
+    colours = ("#ffb000", "#00b4d8", "#ff3d6e", "#7cff6b")
+    bars = [
+        compose.box()
+        .width(32)
+        .height(BACKING_SIZE[1])
+        .fill(material.from_(colours[index % 4]).surface(unlit=True))
+        for index in range(BACKING_SIZE[0] // 32)
+    ]
+    return (
+        compose.box(*bars)
+        .row()
+        .width(BACKING_SIZE[0])
+        .height(BACKING_SIZE[1])
+        .fill(material.from_("#101010").surface(unlit=True))
+    )
+```
+
+In the stills the clear pane shows the bars sharp, with their edges
+wavering where the pane's face is uneven; the frosted pane shows the same
+bars as soft blurred stripes. Around the panes the slate hides the
+backing completely.
+
+**What you used.** `transmission`, `ior`, `thickness`, `roughness` on a
+transmitting surface, `surface(unlit=True)` for content that is its own
+light, and a second `ctx.page`.
+
+## Step 8 — a mark that glows past white, and a copper bus
+
+The mark is a disc whose emission is well past white, in a basalt cell.
+The page's emissive map keeps that: its white stands for the brightest
+emission the page states, so the mark reaches the bloom's threshold on
+its own and nothing else on the sheet does.
+
+```python
+# The emissive mark and the basalt cell it sits in. The mark's emission is
+# well past white: the page's emissive map keeps it, so the mark is the
+# brightest thing in the frame and the bloom gathers round it alone.
 BASALT = material.from_("#121417").surface(roughness=0.3)
-MARK = material.from_(GLOW).surface(roughness=0.4, emission=GLOW, emissionStrength=1.0)
+MARK = material.from_(GLOW).surface(roughness=0.4, emission=GLOW, emissionStrength=7.0)
 ```
 
 ```python
@@ -322,12 +390,36 @@ def pad(x: float, y: float) -> compose.Element:
 The page itself is every piece in one box filled with the slate:
 
 ```python
+def sheet_face() -> compose.Element:
+    """The specimen sheet: a carved title, eight swatches, copper traces between them."""
+    title = (
+        compose.box(
+            compose.text("MATERIA", size=104, color=LIMESTONE)
+            .fontWeight(800)
+            .letterSpacing(26)
+            .ink(CARVED, compose.PaintBox.Glyph)
+        )
+        .absolute()
+        .rect(0, 8, PAGE_WIDTH, 130)
+        .row()
+        .justifyContent("center")
+        .alignItems("center")
+    )
+    mark = (
+        compose.box()
+        .absolute()
+        .centerAt(MARK_CENTRE)
+        .width(2 * MARK_RADIUS)
+        .height(2 * MARK_RADIUS)
+        .borderRadius(MARK_RADIUS)
+        .fill(MARK)
+    )
     traces = [
         *bus((-13, 0, 13), 10),
-        trace([(352, 156), (346, 250), (356, GUTTER - 13)], 10),
-        trace([(680, GUTTER + 13), (674, 450), (682, 534)], 10),
-        pad(352, 156),
-        pad(682, 534),
+        trace([(269, 156), (264, 250), (271, GUTTER - 13)], 10),
+        trace([(512, GUTTER + 13), (507, 450), (514, 534)], 10),
+        pad(269, 156),
+        pad(514, 534),
     ]
     return (
         compose.box(
@@ -337,15 +429,19 @@ The page itself is every piece in one box filled with the slate:
             mark,
             swatch(VELVET, 1, 0),
             swatch(FILM, 2, 0),
+            swatch(CLEAR_GLASS, 3, 0),
             swatch(GLAZE, 0, 1),
             swatch(SATIN, 1, 1),
             swatch(MATTE, 2, 1),
+            swatch(FROSTED_GLASS, 3, 1),
             caption("EMISSIVE", 0, 0),
             caption("VELVET", 1, 0),
             caption("THIN FILM", 2, 0),
+            caption("CLEAR GLASS", 3, 0),
             caption("GLAZED TILE", 0, 1),
             caption("SATIN", 1, 1),
             caption("MATTE", 2, 1),
+            caption("FROSTED GLASS", 3, 1),
         )
         .width(PAGE_WIDTH)
         .height(PAGE_HEIGHT)
@@ -353,11 +449,11 @@ The page itself is every piece in one box filled with the slate:
     )
 ```
 
-**What you used.** `emission`, `emissionStrength`, `.centerAt`,
+**What you used.** `emission`, `emissionStrength` past one, `.centerAt`,
 `path.curveThrough`, `path.band`, `compose.pathFigure`,
 `Material.brushed(strength=, rotation=)`.
 
-## Step 8 — the scene: a dark studio, a raking key, a soft panel, a pulse
+## Step 9 — the scene: a dark studio, a raking key, a soft panel, a pulse
 
 A metal is what it mirrors. Under a bright, even environment flat copper
 mirrors the same light everywhere and reads as an orange band; in a dark
@@ -401,7 +497,7 @@ STUDIO = world.kit.environmentMap(
 )
 ```
 
-The face is built once in `setup`, so the page paints once and keeps
+The faces are built once in `setup`, so each page paints once and keeps
 what it painted. Everything that moves is in the scene.
 
 ```python
@@ -412,12 +508,16 @@ class MixedMaterials:
     needsDevice = True
 
     def setup(self, ctx: Scene2DContext) -> None:
-        # The face is built once: the page paints it the first time and
+        # The faces are built once: each page paints the first time and
         # keeps it. A face that changed every frame would repaint every map
-        # of the page every frame, so everything that moves is in the scene,
-        # the mark's pulse included.
+        # of its page every frame, so everything that moves is in the scene,
+        # the mark's pulse included: the mark holds its stated strength and
+        # the bloom round it breathes.
         self.page = ctx.page((PAGE_WIDTH, PAGE_HEIGHT))
         self.face = sheet_face()
+        self.backing_page = ctx.page(BACKING_SIZE)
+        self.backing_face = backing_face()
+        self.backing = mesh.quad(130, 200)
         self.sheet = mesh.quad(SHEET_WIDTH, SHEET_HEIGHT)
         self.lens = mesh.camera.Camera()
         self.lens.eye = (0, 90, 520)
@@ -460,16 +560,12 @@ class MixedMaterials:
                 .key("key")
                 .at(raking(90 - 70 * rail, 18, 420))
                 .lookAt("sheet"),
-                # The mark's pulse: a light standing just off its face that
-                # breathes, falling on the mark and the slate around it and
-                # nowhere far, with the bloom breathing in step.
-                world.pointLight(
-                    color=GLOW,
-                    intensity=world.intensityAt(8.0 + 32.0 * pulse, 30.0),
-                    range=90,
-                )
-                .key("mark-light")
-                .at(on_sheet(*MARK_CENTRE, 14)),
+                # Behind the sheet, behind the glass column: a second page
+                # of bold bars for the glass to bend.
+                world.mesh(self.backing)
+                .key("backing")
+                .at(on_sheet(COLUMN_LEFT[3] + SWATCH_WIDTH / 2, GUTTER - 12, -12))
+                .fill(self.backing_page.surface()),
             )
             .key("specimen")
             .rotateX(
@@ -479,8 +575,9 @@ class MixedMaterials:
         frame = (
             world.Frame(model)
             .environment(STUDIO, intensity=1.4)
+            .pass_(self.backing_page.render(self.backing_face))
             .pass_(self.page.render(self.face))
-            .pass_(world.bloom(threshold=1.0, intensity=0.5 + 0.5 * pulse, radius=26))
+            .pass_(world.bloom(threshold=1.5, intensity=0.3 + 1.1 * pulse, radius=36))
         )
         still = ctx.bakeScene3D(
             frame,
@@ -508,16 +605,17 @@ soft box's reflection drawn out along the brushing, and darkens to brown
 copper toward both ends; at 0.5 seconds, with the sheet still tilting,
 the bright stretch is at the left and the right is dark.
 
-**The pulse is in the scene.** A point light standing just off the mark
-breathes, falling on the mark and the basalt around it and nowhere far,
-and the bloom breathes in step: at 2 seconds the mark has a halo and a
-warm spill; at 2.8 seconds it is a plain orange disc. The entrance is the
-specimen group's `rotateX` tween, mid-tilt at 0.5 seconds and landed by 2.
+**The pulse is the bloom's.** The mark holds its stated strength and the
+bloom gathers round it; the bloom's intensity breathes from the clock. At
+2 seconds the mark has a soft amber halo; at 2.8 seconds it is a crisp
+disc with almost none. The entrance is the specimen group's `rotateX`
+tween, mid-tilt at 0.5 seconds and landed by 2.
 
 **What you used.** `world.kit.environmentMap` with `world.kit.SoftBox`,
-`world.spotLight`, `world.rectLight`, `world.pointLight(range=)`, `.at`,
-`.lookAt`, a nested `world.group` so lights ride with the body they
-belong to, `world.bloom`, and `motion.animate` on a group's lane.
+`world.spotLight`, `world.rectLight`, `.at`, `.lookAt`, a nested
+`world.group` so the key and the backing ride with the sheet, two pages'
+passes on one frame, `world.bloom`, and `motion.animate` on a group's
+lane.
 
 ## Run it, at a moment
 
@@ -542,12 +640,13 @@ Grimoire python_mixed_materials.py --frame sheet.png --gpu --at 5.0     # the ke
 
 ## Fine print
 
-- A page's emission arrives no brighter than white, so `emissionStrength`
-  above 1.0 changes nothing yet; the mark reaches the bloom's threshold
-  because its base colour is also lit by its own point light.
-- A face that changes is a page that paints every map again. Building
-  the face inside `draw` from the clock costs a repaint of the whole page
-  each frame, which is why the pulse here lives in the scene.
+- A page's range is learned from what it states: the emissive map's white
+  is the brightest emission stated anywhere on the page. A pulse that
+  re-described the mark's strength each frame would repaint every map of
+  the page each frame — about a minute for a still here against three
+  seconds for the held face — so the pulse lives in the bloom.
+- A page carries one volume: the index, attenuation and dispersion of the
+  first transmitting material it paints are the whole page's.
 - `material.noise` is coloured unless `grain=True`; read it as a height
   only through its luminance, or ask for grain.
 - The crazing is noise creases, not polygonal cells; there is no
