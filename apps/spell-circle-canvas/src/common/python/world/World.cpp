@@ -1,5 +1,6 @@
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
+#include <sigilgeometry/kit/Solids.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilpython/Bindings.h>
@@ -18,6 +19,7 @@
 #include <stdexcept>
 #include <string>
 #include <thread>
+#include <type_traits>
 #include <vector>
 
 namespace sigil::python {
@@ -362,6 +364,26 @@ void bindKinds(py::module_& module) {
       },
       py::arg("instances"),
       "A body of instanced geometry: its stamp drawn once per instance.");
+  // A SOLID VALUE stands in the body's geometry slot as itself, so two
+  // descriptions naming equal values are one body and its mesh is formed
+  // once, by the cook, while the value stands unchanged.
+  const auto solidBody = [&]<class Solid>(std::type_identity<Solid>) {
+    module.def(
+        "mesh", [](Solid solid) { return world::mesh(std::move(solid)); },
+        py::arg("solid"),
+        "A body of a solid value, formed once while the value stands "
+        "unchanged.");
+  };
+  namespace solids = geometry::solids;
+  solidBody(std::type_identity<solids::Quad>{});
+  solidBody(std::type_identity<solids::Box>{});
+  solidBody(std::type_identity<solids::RegularSolid>{});
+  solidBody(std::type_identity<solids::Torus>{});
+  solidBody(std::type_identity<solids::Superellipsoid>{});
+  solidBody(std::type_identity<solids::CylinderPanel>{});
+  solidBody(std::type_identity<solids::Extrusion>{});
+  solidBody(std::type_identity<solids::Revolution>{});
+  solidBody(std::type_identity<solids::Loft>{});
 
   auto null = py::class_<world::Null, world::Node>(module, "Null");
   bindNodeVerbs(null);

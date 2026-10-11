@@ -16,6 +16,32 @@ namespace {
 using namespace sigil::sketch;
 namespace fs = std::filesystem;
 
+TEST(SketchSources, APythonModulesOwnNameAndCategoryAreReadNotRun) {
+  const sigil::test::ScratchDir scratch("sigil_sketch_sources_declared");
+  scratch.write("declared.py",
+                "NAME = \"First\"\n"
+                "CATEGORY = 'Study \\u00b7 Escaped'\n"
+                "\"\"\"\n"
+                "NAME = 'inside a long string'\n"
+                "\"\"\"\n"
+                "def helper():\n"
+                "    CATEGORY = 'indented'\n"
+                "NAMESPACE = 'another name'\n"
+                "NAME = 'It\\'s the last'\n"
+                "CATEGORY = 'Study' + ' joined'\n");
+  const SourceMetadata stated = sourceMetadata(scratch.path / "declared.py");
+  EXPECT_EQ(stated.name, "It's the last");
+  // An escape this reader does not read leaves the line unread, and so
+  // does a value that is no single literal.
+  EXPECT_EQ(stated.category, "");
+  scratch.write("plain.py", "NAME = ''\nCATEGORY = 3\n");
+  const SourceMetadata plain = sourceMetadata(scratch.path / "plain.py");
+  EXPECT_EQ(plain.name, "");
+  EXPECT_EQ(plain.category, "");
+  scratch.write("native.cpp", "// NAME = 'a comment'\nNAME = \"x\";\n");
+  EXPECT_EQ(sourceMetadata(scratch.path / "native.cpp").name, "");
+}
+
 TEST(SketchSources, ABareFileIsItsOwnOnlyUnit) {
   const sigil::test::ScratchDir scratch("sigil_sketch_sources_bare");
   scratch.write("hello.cpp", "// a sketch\n");

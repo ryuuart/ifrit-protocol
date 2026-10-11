@@ -76,6 +76,9 @@ void bindGeometrySeams(pybind11::module_& module);
  *  and ellipse — an outline fitted to a box, and the stock values over
  *  them on @p module. */
 void bindGeometryShapes(pybind11::module_& module);
+/** Registers the solid values — each a comparable description of a stock
+ *  solid that forms its mesh on asking — on @p module. */
+void bindGeometrySolids(pybind11::module_& module);
 /** Registers triangulations, hulls, streamlines, symmetry, value noise
  *  and the cellular sheet on @p module. */
 void bindGeometryStructures(pybind11::module_& module);

@@ -86,6 +86,7 @@ PUBLIC_MODULES: dict[str, str] = {
     "_sigil.geometry.sections": "sigil.geometry.sections",
     "_sigil.geometry.shapers": "sigil.geometry.shapers",
     "_sigil.geometry.shapes": "sigil.geometry.shapes",
+    "_sigil.geometry.solids": "sigil.geometry.solids",
     "_sigil.io": "sigil.io",
     "_sigil.io.frames": "sigil.io.frames",
     "_sigil.io.testing": "sigil.io.testing",

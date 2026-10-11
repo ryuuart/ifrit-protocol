@@ -11,6 +11,7 @@ from . import (
     sections,
     shapers,
     shapes,
+    solids,
 )
 
 __all__ = [
@@ -21,4 +22,5 @@ __all__ = [
     "sections",
     "shapers",
     "shapes",
+    "solids",
 ]

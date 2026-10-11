@@ -240,6 +240,14 @@ void bindGeometryMesh(py::module_& module) {
       .def_readwrite("close", &mesh::RevolveOptions::close)
       .def_readwrite("inward", &mesh::RevolveOptions::inward);
 
+  auto loftOptions = bindRecord<mesh::LoftOptions>(
+      meshes, "LoftOptions", "A loft has no option named ");
+  loftOptions
+      .def_readwrite("segmentsBetween", &mesh::LoftOptions::segmentsBetween)
+      .def_readwrite("closed", &mesh::LoftOptions::closed)
+      .def_readwrite("capEnds", &mesh::LoftOptions::capEnds)
+      .def_readwrite("inward", &mesh::LoftOptions::inward);
+
   auto platonicOptions = bindRecord<mesh::PlatonicOptions>(
       meshes, "PlatonicOptions", "A regular solid has no option named ");
   platonicOptions

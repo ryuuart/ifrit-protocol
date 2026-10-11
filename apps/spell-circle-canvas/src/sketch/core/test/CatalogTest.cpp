@@ -112,4 +112,37 @@ TEST(SketchCatalogRows, AWorkspaceGroupsItsFilesByTheDirectoriesUnderIt) {
   EXPECT_EQ(row.entryPath, std::filesystem::path("studies/light/lamp.cpp"));
 }
 
+TEST(SketchCatalogRows, AWorkspacePythonSketchStatesItsNameAndCategory) {
+  const ScratchDir workspace("catalog_workspace_declared");
+  // The module stops the moment it runs, so a catalog that read its
+  // declarations by running it would find neither.
+  workspace.write(
+      "studies/borges_probe.py",
+      "\"\"\"A reader's view into a library.\"\"\"\n"
+      "raise SystemExit('a catalog never runs a sketch')\n"
+      "NAME = 'The Library of Babel'\n"
+      "CATEGORY: str = \"Study \xc2\xb7 Literature\"  # filed here\n"
+      "@sketch()\n"
+      "class Library:\n"
+      "    NAME = 'not the module level'\n");
+  workspace.write("studies/plain_probe.py", "@sketch()\nclass Plain: pass\n");
+  const std::vector<CatalogRow> rows =
+      catalog({.files = {workspace.path / "studies/borges_probe.py",
+                         workspace.path / "studies/plain_probe.py"},
+               .workspaceRoot = workspace.path});
+  const CatalogRow& declared = rows[rows.size() - 2];
+  EXPECT_EQ(declared.key, "borges_probe");
+  EXPECT_EQ(declared.name, "The Library of Babel");
+  EXPECT_EQ(declared.title, "The Library of Babel");
+  EXPECT_EQ(declared.category, "Study \xc2\xb7 Literature");
+  EXPECT_EQ(declared.source.subject, "A reader's view into a library.");
+  // A sketch that states neither keeps its stem and its workspace group.
+  const CatalogRow& plain = rows.back();
+  EXPECT_EQ(plain.key, "plain_probe");
+  EXPECT_EQ(plain.name, "plain_probe");
+  EXPECT_EQ(plain.category, "Workspace \xc2\xb7 " +
+                                workspace.path.filename().string() +
+                                " \xc2\xb7 studies");
+}
+
 }  // namespace

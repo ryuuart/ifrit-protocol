@@ -66,6 +66,13 @@ std::vector<CatalogRow> catalog(const CatalogSources& sources) {
     row.name = file.stem().string();
     row.key = row.name;
     row.category = groupOf(file, sources.workspaceRoot);
+    // A Python sketch states its own name and category as the bundled
+    // ones do; its stem stays the key it is opened and asked for by.
+    if (file.extension() == ".py") {
+      const SourceMetadata stated = sourceMetadata(file);
+      if (!stated.name.empty()) row.name = stated.name;
+      if (!stated.category.empty()) row.category = stated.category;
+    }
     row.blurb = file.parent_path().string();
     row.kind = file.extension() == ".py" ? "scene2d" : "";
     row.external = true;

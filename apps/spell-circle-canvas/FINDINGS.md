@@ -1367,16 +1367,6 @@ in `src/sketch/python/test/PythonTest.cpp`; it passes with the prefix
 removed once this holds. `python_carved_linework`'s device plate shows the
 stale picture until then and is not rebased.
 
-## Authoring gap: a workspace's Python sketch cannot state its name or category
-
-`sketch::catalog` in `src/sketch/core/Catalog.cpp` files an external
-workspace's sketch under its stem and its folder group, ignoring the
-`NAME` and `CATEGORY` a bundled Python sketch declares and the registry
-honours. A declaration the registry honours should hold wherever the
-sketch is catalogued. A test should catalogue a workspace `.py` file with
-`NAME` and `CATEGORY`, find both in its row, keep the stem as the key, and
-not execute the file.
-
 ## Rendering gap: a body's per-face slots draw only the first slot
 
 `SurfaceVerbs::fill(std::span<const material::Material>)` stores
@@ -1390,14 +1380,6 @@ its two-extrusion `lying()` until this holds, and its rounded edges wait
 on it too, since a rounded edge needs cap and walls in one mesh. A test
 should extrude a square with face sets, fill it with two materials, render
 it, and find the caps the first and the walls the second.
-
-## Follow-up: Python bindings for solid values
-
-`geometry::solids::*` and `world::mesh(Solid)` hold a solid as a comparable
-value the store cooks once while it stands, proven at the node and in the
-scene. The solid values and `world.mesh(solid)` are not bound in Python;
-bind them and regenerate the typing, with a Python test that describes one
-twice and finds it formed once.
 
 ## A device binding may answer nothing to a recorder that cannot sample its surface
 

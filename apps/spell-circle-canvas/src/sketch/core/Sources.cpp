@@ -7,8 +7,10 @@
 
 #include <algorithm>
 #include <fstream>
+#include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <system_error>
 #include <utility>
 
@@ -148,6 +150,81 @@ void appendTags(SourceMetadata& header, std::string_view text) {
   }
 }
 
+/** THE STRING @p line ASSIGNS TO @p name at a module's top level — `NAME
+ *  = "x"`, `NAME: str = 'x'`, with a comment after it or none — or
+ *  nothing when the line is no such assignment or what it assigns is not
+ *  one plain, single-quoted or double-quoted string literal. The escapes a
+ *  literal of that kind usually carries are read; any other leaves it
+ *  unread, as a value the registration pass would refuse. */
+std::optional<std::string> declaredText(std::string_view line,
+                                        std::string_view name) {
+  if (!line.starts_with(name)) return std::nullopt;
+  std::string_view rest = line.substr(name.size());
+  const auto skipSpaces = [&rest] {
+    while (!rest.empty() && (rest.front() == ' ' || rest.front() == '\t' ||
+                             rest.front() == '\r'))
+      rest.remove_prefix(1);
+  };
+  skipSpaces();
+  if (!rest.empty() && rest.front() == ':') {
+    const size_t equals = rest.find('=');
+    if (equals == std::string_view::npos) return std::nullopt;
+    rest.remove_prefix(equals);
+  }
+  if (rest.empty() || rest.front() != '=' || rest.starts_with("=="))
+    return std::nullopt;
+  rest.remove_prefix(1);
+  skipSpaces();
+  if (rest.empty() || (rest.front() != '"' && rest.front() != '\''))
+    return std::nullopt;
+  const char quote = rest.front();
+  if (rest.size() >= 3 && rest[1] == quote && rest[2] == quote)
+    return std::nullopt;
+  std::string text;
+  size_t at = 1;
+  for (; at < rest.size() && rest[at] != quote; ++at) {
+    if (rest[at] != '\\') {
+      text += rest[at];
+      continue;
+    }
+    if (++at == rest.size()) return std::nullopt;
+    switch (rest[at]) {
+      case '\\':
+      case '\'':
+      case '"':
+        text += rest[at];
+        break;
+      case 'n':
+        text += '\n';
+        break;
+      case 't':
+        text += '\t';
+        break;
+      default:
+        return std::nullopt;
+    }
+  }
+  if (at == rest.size()) return std::nullopt;
+  rest.remove_prefix(at + 1);
+  skipSpaces();
+  if (!rest.empty() && rest.front() != '#') return std::nullopt;
+  text = trimmed(text);
+  if (text.empty()) return std::nullopt;
+  return text;
+}
+
+/** Whether @p line opens or closes a triple-quoted string: an odd number
+ *  of triple quotes of either kind on it. */
+bool togglesLongString(std::string_view line) {
+  size_t count = 0;
+  for (std::string_view quote :
+       {std::string_view("\"\"\""), std::string_view("\'\'\'")})
+    for (size_t at = line.find(quote); at != std::string_view::npos;
+         at = line.find(quote, at + 3))
+      ++count;
+  return count % 2 == 1;
+}
+
 }  // namespace
 
 SourceMetadata sourceMetadata(const std::filesystem::path& file) {
@@ -164,8 +241,19 @@ SourceMetadata sourceMetadata(const std::filesystem::path& file) {
   std::string quote;
   size_t subjectStart = 1;
   std::string line;
+  bool inLongString = false;
   while (std::getline(stream, line)) {
     ++header.lines;
+    // A Python module's own name and category are statements anywhere at
+    // its top level, read off the line and never run.
+    if (python) {
+      if (!inLongString) {
+        if (auto name = declaredText(line, "NAME")) header.name = *name;
+        if (auto category = declaredText(line, "CATEGORY"))
+          header.category = *category;
+      }
+      if (togglesLongString(line)) inLongString = !inLongString;
+    }
     if (!inHeader) continue;
     const std::string bare = trimmed(line);
     std::string text;

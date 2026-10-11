@@ -13,7 +13,7 @@ import unittest
 import weakref
 
 from sigil import world
-from sigil.geometry import mesh
+from sigil.geometry import mesh, solids
 from sigil.geometry.mesh import curve, pop
 from sigil.material import Color, Material, Sampling, Texture
 from sigil.material import surface as surfaces
@@ -177,6 +177,59 @@ class World(unittest.TestCase):
             drop(thicknessAttribute="size"), drop(thicknessAttribute="size")
         )
         self.assertNotEqual(drop(thicknessAttribute="size"), drop())
+
+    def test_a_solid_value_named_twice_is_formed_once(self):
+        ring = solids.Torus(majorRadius=40, tubeRadius=8, ringSteps=24, tubeSteps=12)
+        self.assertEqual(
+            ring, solids.Torus(majorRadius=40, tubeRadius=8, ringSteps=24, tubeSteps=12)
+        )
+        self.assertNotEqual(ring, solids.Torus(majorRadius=41, tubeRadius=8))
+        self.assertEqual(
+            len(ring.mesh().positions),
+            len(mesh.torus(40, 8, 24, 12).positions),
+        )
+
+        def describe():
+            return world.Frame(
+                world.group(
+                    world.mesh(ring).key("left").at((-60, 0, 0)),
+                    world.mesh(ring.copy()).key("right").at((60, 0, 0)),
+                ).key("set")
+            ).defaultCamera(camera())
+
+        scene = world.Scene()
+        scene.render(describe())
+        # Two bodies naming one value are one artefact, formed once.
+        self.assertEqual(scene.stats.resources, 1)
+        self.assertEqual(scene.stats.cooked, 1)
+        # Described again, the value stands unchanged and nothing is formed.
+        scene.render(describe())
+        self.assertEqual(scene.stats.resources, 1)
+        self.assertEqual(scene.stats.cooked, 0)
+        self.assertEqual(scene.error, "")
+
+    def test_every_solid_value_forms_what_its_former_forms(self):
+        values = [
+            solids.Quad(width=3, height=2),
+            solids.Box(low=(-1, -2, -3), high=(1, 2, 3)),
+            solids.RegularSolid(solid=mesh.Platonic.Icosahedron),
+            solids.Superellipsoid(radii=(2, 1, 1), exponent=4),
+            solids.CylinderPanel(width=4, height=2, radius=3),
+            solids.Revolution(profile=[(0, 0), (1, 0.5), (0, 1)]),
+            solids.Loft(
+                sections=[
+                    [(0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0)],
+                    [(0, 0, 2), (1, 0, 2), (1, 1, 2), (0, 1, 2)],
+                ]
+            ),
+        ]
+        for value in values:
+            with self.subTest(value=type(value).__name__):
+                self.assertGreater(len(value.mesh().positions), 0)
+                self.assertIsInstance(world.mesh(value), world.Mesh)
+                self.assertEqual(value, value.copy())
+        with self.assertRaises(TypeError):
+            solids.Torus(radius=2)
 
     def test_lights_with_a_size_carry_it_and_the_kit_shows_them(self):
         panel = world.rectLight((0, -1, 0), width=4, height=2, intensity=3)

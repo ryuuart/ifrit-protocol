@@ -57,7 +57,13 @@ subject, without a separate title paragraph.
   are removed; repeated paths count once. Tag lines never become subject
   prose or editing instructions.
 
-All three are optional. A file without prose omits those blocks, and a file
+* **A Python sketch's name and category** are its module's top-level
+  `NAME = "…"` and `CATEGORY = "…"`, each one plain string literal, read
+  off the line and never run; the last of each wins. A workspace file
+  opened by path is filed under them, keeping its stem as its key; a file
+  that states neither reads as its stem in its workspace group.
+
+All of these are optional. A file without prose omits those blocks, and a file
 without tags carries none, which a browser files under its collection alone.
 
 ## Plates

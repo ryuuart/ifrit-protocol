@@ -2143,6 +2143,22 @@ python = [
 ]
 
 [[section.surface.item]]
+native = "`mesh` over a solid value and `geometry::solids`"
+bound_text = "`mesh` over a solid value — `geometry.solids.Quad`, `Box`, `RegularSolid`, `Torus`, `Superellipsoid`, `CylinderPanel`, `Extrusion`, `Revolution` and `Loft`, each comparing by value and forming its mesh through `mesh()` — held in the body as the value and formed once while it stands unchanged"
+python = [
+  "geometry.solids.Quad",
+  "geometry.solids.Box",
+  "geometry.solids.RegularSolid",
+  "geometry.solids.Torus",
+  "geometry.solids.Superellipsoid",
+  "geometry.solids.CylinderPanel",
+  "geometry.solids.Extrusion",
+  "geometry.solids.Revolution",
+  "geometry.solids.Loft",
+  "geometry.mesh.LoftOptions",
+]
+
+[[section.surface.item]]
 native = "`mesh` over a generator"
 python = [
   "world.Generator",

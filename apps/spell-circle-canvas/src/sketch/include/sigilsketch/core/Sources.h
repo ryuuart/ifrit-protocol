@@ -21,6 +21,12 @@ struct SourceMetadata {
   /** Comma-separated TAGS in the opening header. A slash nests a subject;
    *  several paths place a sketch in several browser groups. */
   std::vector<std::string> tags;
+  /** A Python module's literal `NAME` string at its own top level: the
+   *  name the sketch is filed under, its stem when empty. */
+  std::string name;
+  /** A Python module's literal `CATEGORY` string at its own top level:
+   *  the category the sketch is filed in, the host's own when empty. */
+  std::string category;
   int lines = 0;
 };
 
@@ -29,6 +35,10 @@ struct SourceMetadata {
  *  paragraph before the subject; a module docstring opens with its subject.
  *  EDIT THESE FIRST introduces knobs, preserving list breaks and joining
  *  wrapped lines. TAGS: lines supply group paths without becoming prose.
+ *  A Python module's top-level `NAME = "…"` and `CATEGORY = "…"`, each a
+ *  plain string literal, are read wherever they stand, without running the
+ *  module; any other spelling of either is left unread, and the last of
+ *  each wins.
  *  The first code statement ends the header. Missing files return an empty
  *  value. */
 [[nodiscard]] SourceMetadata sourceMetadata(const std::filesystem::path& file);

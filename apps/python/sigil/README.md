@@ -535,7 +535,10 @@ Babel"` is the name a browser files it under, and `CATEGORY = "Study ·
 Literature"` the category it is filed in, as a C++ study states both
 beside its key. Without them a sketch reads as its stem in the `Python`
 category. Each must be a literal, non-empty string; registration reads
-them from the source without running it, and refuses anything else.
+them from the source without running it, and refuses anything else. A
+workspace's sketch opened by path is catalogued under the same two
+declarations, read the same way, and otherwise under its stem in its
+workspace group.
 
 The application's normal build setup includes Python support. From
 `apps/spell-circle-canvas`, build the host and standalone extension:

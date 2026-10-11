@@ -24,6 +24,8 @@ void bindSketchCatalog(py::module_& module) {
       .def_readonly("subject", &SourceMetadata::subject)
       .def_readonly("editFirst", &SourceMetadata::editFirst)
       .def_readonly("tags", &SourceMetadata::tags)
+      .def_readonly("name", &SourceMetadata::name)
+      .def_readonly("category", &SourceMetadata::category)
       .def_readonly("lines", &SourceMetadata::lines);
   py::class_<RegistryRow>(sketches, "RegistryRow")
       .def_readonly("name", &RegistryRow::name)

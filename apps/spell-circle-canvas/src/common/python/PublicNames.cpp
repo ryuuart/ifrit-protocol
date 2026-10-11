@@ -77,6 +77,7 @@ constexpr std::array<std::pair<std::string_view, std::string_view>, 102> kPublic
     {"geometry.sections", "sigil.geometry.sections"},
     {"geometry.shapers", "sigil.geometry.shapers"},
     {"geometry.shapes", "sigil.geometry.shapes"},
+    {"geometry.solids", "sigil.geometry.solids"},
     {"io", "sigil.io"},
     {"io.frames", "sigil.io.frames"},
     {"material", "sigil.material"},

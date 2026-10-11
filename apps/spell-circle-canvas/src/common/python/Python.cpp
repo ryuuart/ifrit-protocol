@@ -87,6 +87,7 @@ void bindLibraries(pybind11::module_& module) {
   bindGeometryProfiles(module);
   bindGeometryOutlines(module);
   bindGeometryShapes(module);
+  bindGeometrySolids(module);
   bindGeometryRegions(module);
   bindGeometryStructures(module);
   bindGeometryCharts(module);

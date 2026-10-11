@@ -342,7 +342,8 @@ assembly guards their calls the same way.
   `bindGeometryPathOperations`, `bindGeometryPointBuilder`,
   `bindGeometryPointKernels`, `bindGeometryPointOperations`,
   `bindGeometryPolylines`, `bindGeometryProfiles`, `bindGeometryRegions`,
-  `bindGeometrySeams`, `bindGeometryShapes`, `bindGeometryStructures`
+  `bindGeometrySeams`, `bindGeometryShapes`, `bindGeometrySolids`,
+  `bindGeometryStructures`
 * `motion/Registration.h` — `bindMotion`, `bindMotionAnimatableForms`,
   `bindMotionClock`, `bindMotionLanes`, `bindMotionParticles`,
   `bindMotionPhysics`, `bindMotionSchedule`, `bindMotionSignals`

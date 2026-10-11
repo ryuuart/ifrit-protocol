@@ -28,7 +28,7 @@ sigil_library(SigilPython
     geometry/Outlines.cpp geometry/PathEditing.cpp geometry/PathOperations.cpp
     geometry/PointBuilder.cpp geometry/PointKernels.cpp
     geometry/PointOperations.cpp geometry/Polylines.cpp geometry/Profiles.cpp
-    geometry/Regions.cpp geometry/Seams.cpp geometry/Shapes.cpp
+    geometry/Regions.cpp geometry/Seams.cpp geometry/Shapes.cpp geometry/Solids.cpp
     geometry/Structures.cpp media/Images.cpp media/Video.cpp
     io/Frames.cpp material/Core.cpp
     material/Environment.cpp material/Field.cpp
