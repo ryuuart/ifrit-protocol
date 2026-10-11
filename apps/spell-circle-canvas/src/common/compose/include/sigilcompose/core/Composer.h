@@ -195,6 +195,19 @@ class Composer {
   void setSurfaceMap(std::optional<material::texture::Role> role);
   /** The map the page is painted as; none for the page as it is seen. */
   std::optional<material::texture::Role> surfaceMap() const;
+  /** WHAT THE MAP'S WHITE STANDS FOR, in a map whose content can state more
+   *  than white holds: in the emissive map, the emission, as light, painted
+   *  white; in the thickness map, the thickness in scene units painted
+   *  white; in the distortion map, the displacement in scene units painted
+   *  at the full swing either side of the still half. Every lit material's
+   *  map is read against it as it is drawn, so a page whose brightest
+   *  emission is four paints four as white and one as a quarter of that
+   *  light. Other maps ignore it. One, the default, paints what is stated;
+   *  a value that is not positive reads as one. Recordings are kept, since the
+   *  reading is applied as they play back. */
+  void setSurfaceMapScale(float scale);
+  /** The value the map's white stands for. */
+  float surfaceMapScale() const;
 
   /** @name Queries
    *  What the RESOLVED side answers about the tree it laid out. Each is

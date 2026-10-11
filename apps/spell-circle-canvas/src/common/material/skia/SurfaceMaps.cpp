@@ -14,7 +14,9 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilshaders/MaterialSkia.h>
 
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -73,13 +75,19 @@ std::optional<size_t> surfaceMapIndex(texture::Role role) {
       return 12;
     case texture::Role::ClearcoatNormal:
       return 13;
+    case texture::Role::Transmission:
+      return 14;
+    case texture::Role::Thickness:
+      return 15;
+    case texture::Role::Distortion:
+      return 16;
     default:
       return std::nullopt;
   }
 }
 
 /** The number of roles a surface map pass answers. */
-constexpr size_t kSurfaceMapRoles = 14;
+constexpr size_t kSurfaceMapRoles = 17;
 
 /** The listener standing on this thread, innermost first. */
 thread_local LobeListener* tCurrentListener = nullptr;
@@ -114,6 +122,26 @@ void channel(Paint& pass, const Channel& value,
   }
 }
 
+/** How far @p surface, stating @p stated, reaches past a map's white. */
+MapReach reachOf(const SurfaceOptions& surface, const Lobes& stated) {
+  MapReach reach;
+  reach.emission = std::max({surface.emission.r, surface.emission.g,
+                             surface.emission.b, 0.0f}) *
+                   std::max(surface.emissionStrength, 0.0f);
+  if (stated.transmission) {
+    const float* thickness = std::get_if<float>(&surface.thickness);
+    reach.thickness = thickness ? std::max(*thickness, 0.0f) : 1.0f;
+    reach.volume =
+        texture::Volume{.ior = surface.ior,
+                        .attenuationColor = surface.attenuationColor,
+                        .attenuationDistance = surface.attenuationDistance,
+                        .dispersion = surface.dispersion};
+  }
+  if (stated.distortion)
+    reach.distortion = std::abs(surface.distortionStrength);
+  return reach;
+}
+
 }  // namespace
 
 struct SurfaceMaps::Inputs {
@@ -122,7 +150,7 @@ struct SurfaceMaps::Inputs {
   std::optional<Paint> normal, roughness, metallic, occlusion, emission,
       clearcoat, clearcoatRoughness, sheenColor, sheenRoughness, specular,
       specularColor, anisotropyDirection, iridescence, iridescenceThickness,
-      clearcoatNormal;
+      clearcoatNormal, transmission, thickness, distortion;
 
   static Paint prepare(const Material& material) {
     Paint paint = PaintAccess::prepareMaterial(material);
@@ -171,11 +199,16 @@ struct SurfaceMaps::Inputs {
     iridescence = lower(surface.iridescence);
     if (surface.iridescenceThicknessMap)
       iridescenceThickness = prepare(*surface.iridescenceThicknessMap);
+    transmission = lower(surface.transmission);
+    thickness = lower(surface.thickness);
+    if (surface.distortion) distortion = prepare(*surface.distortion);
     // A page painted as a surface's maps learns from here which of the
     // optional lobes its materials state, and whether one states a normal
     // of the coat's own.
-    LobeListener::hear(lobes(surface));
+    const Lobes stated = lobes(surface);
+    LobeListener::hear(stated);
     if (clearcoatNormal) LobeListener::hearClearcoatNormal();
+    LobeListener::hearReach(reachOf(surface, stated));
   }
 };
 
@@ -194,6 +227,21 @@ void LobeListener::hear(const Lobes& lobes) {
     listener->m_heard.specular |= lobes.specular;
     listener->m_heard.transmission |= lobes.transmission;
     listener->m_heard.distortion |= lobes.distortion;
+  }
+}
+
+void LobeListener::hearReach(const MapReach& reach) {
+  for (LobeListener* listener = tCurrentListener; listener;
+       listener = listener->m_outer) {
+    MapReach& heard = listener->m_reach;
+    heard.emission = std::max(heard.emission, reach.emission);
+    heard.thickness = std::max(heard.thickness, reach.thickness);
+    heard.distortion = std::max(heard.distortion, reach.distortion);
+    if (!reach.volume) continue;
+    if (!heard.volume)
+      heard.volume = reach.volume;
+    else if (*heard.volume != *reach.volume)
+      heard.volumesDiffer = true;
   }
 }
 
@@ -228,7 +276,8 @@ bool usesWorldSpace(const Material& material) {
   for (const Channel* channel :
        {&surface->metallic, &surface->roughness, &surface->occlusion,
         &surface->clearcoat, &surface->clearcoatRoughness,
-        &surface->sheenRoughness, &surface->specular, &surface->iridescence})
+        &surface->sheenRoughness, &surface->specular, &surface->iridescence,
+        &surface->transmission, &surface->thickness})
     if (const auto* map = std::get_if<Material>(channel);
         map && detail::paintUsesWorldSpace(*map))
       return true;
@@ -238,7 +287,8 @@ bool usesWorldSpace(const Material& material) {
         map && detail::paintUsesWorldSpace(*map))
       return true;
   for (const std::optional<Material>* map :
-       {&surface->anisotropyDirection, &surface->iridescenceThicknessMap})
+       {&surface->anisotropyDirection, &surface->iridescenceThicknessMap,
+        &surface->distortion})
     if (*map && detail::paintUsesWorldSpace(**map)) return true;
   return (surface->normal && detail::paintUsesWorldSpace(*surface->normal)) ||
          (surface->emissionMap &&
@@ -271,7 +321,7 @@ sk_sp<SkShader> SurfaceMaps::mapShader(texture::Role role,
     if (!result || input.isSolid()) return result;
     return result->makeWithLocalMatrix(mapping);
   };
-  std::array<PaintAccess::ChildOverride, 17> children;
+  std::array<PaintAccess::ChildOverride, 20> children;
   size_t count = 0;
   const auto input = [&](const char* name, const Paint& lowered) {
     children[count++] = {name, mapped(lowered)};
@@ -298,6 +348,10 @@ sk_sp<SkShader> SurfaceMaps::mapShader(texture::Role role,
     input("uIridescenceThicknessMap", *m_inputs->iridescenceThickness);
   if (m_inputs->clearcoatNormal)
     input("uClearcoatNormal", *m_inputs->clearcoatNormal);
+  if (m_inputs->transmission)
+    input("uTransmissionMap", *m_inputs->transmission);
+  if (m_inputs->thickness) input("uThicknessMap", *m_inputs->thickness);
+  if (m_inputs->distortion) input("uDistortionMap", *m_inputs->distortion);
   const PaintFrame frame = paintFrameOf(nodeFrame);
   return PaintAccess::build(*PaintAccess::live(pass), &frame, false,
                             std::span(children).first(count));
@@ -339,6 +393,11 @@ Color surfaceMapGround(texture::Role role) {
       return {1, 1, 1, 1};
     case texture::Role::Anisotropy:
       return {1, 0.5f, 0, 1};
+    case texture::Role::Transmission:
+    case texture::Role::Thickness:
+      return {0, 0, 0, 1};
+    case texture::Role::Distortion:
+      return {0.5f, 0.5f, 0, 1};
     default:
       return {0, 0, 0, 0};
   }
@@ -444,6 +503,18 @@ Paint SurfaceMaps::mapPass(texture::Role role) const {
   if (m_inputs->clearcoatNormal)
     PaintAccess::storeSlot(pass, "uClearcoatNormal",
                            *m_inputs->clearcoatNormal);
+  channel(pass, surface.transmission, m_inputs->transmission,
+          "uTransmissionMap", "uHasTransmissionMap", "uTransmission");
+  channel(pass, surface.thickness, m_inputs->thickness, "uThicknessMap",
+          "uHasThicknessMap", "uThickness");
+  // A distortion is carried only with its map, at a strength other than
+  // zero; without one, what stands behind stays still.
+  const bool distorts = m_inputs->distortion && surface.distortionStrength != 0;
+  PaintAccess::storeUniform(pass, "uHasDistortionMap", distorts ? 1.0f : 0.0f);
+  PaintAccess::storeUniform(pass, "uDistortionStrength",
+                            surface.distortionStrength);
+  if (m_inputs->distortion)
+    PaintAccess::storeSlot(pass, "uDistortionMap", *m_inputs->distortion);
   const std::lock_guard lock(m_maps->mutex);
   std::optional<Paint>& held = m_maps->maps[*index];
   if (!held) held = std::move(pass);

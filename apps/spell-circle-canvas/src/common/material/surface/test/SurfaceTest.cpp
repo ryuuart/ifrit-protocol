@@ -429,6 +429,47 @@ TEST(Surface, DressesADecodedSet) {
   EXPECT_EQ(base->source(), media::PixelSource(image));
   // A set with no normal map still leaves the slot dressed flat.
   EXPECT_NE(m.leaf(surface::kNormalSlot), nullptr);
+  // A set that says its emissive map's white stands for four is read at
+  // four.
+  maps.emissiveStrength = 4;
+  EXPECT_FLOAT_EQ(surface::program(maps).get<float>("emissiveStrength"), 4.0f);
+}
+
+TEST(Surface, ASetsTransmissionAndDistortionMapsCarryTheirLobes) {
+  const sk_sp<SkImage> image = [] {
+    sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(2, 2));
+    s->getCanvas()->clear(SK_ColorGRAY);
+    return s->makeImageSnapshot();
+  }();
+  texture::TextureMaps maps;
+  maps.maps[texture::Role::BaseColor] = Texture(media::PixelSource(image));
+  // A set with neither map carries neither lobe.
+  EXPECT_EQ(surface::lobes(surface::program(maps)), Lobes{});
+
+  maps.maps[texture::Role::Transmission] = Texture(media::PixelSource(image));
+  maps.maps[texture::Role::Thickness] = Texture(media::PixelSource(image));
+  maps.maps[texture::Role::Distortion] = Texture(media::PixelSource(image));
+  maps.thickness = 20;
+  maps.distortionStrength = 3;
+  maps.volume = texture::Volume{.ior = 1.33f, .dispersion = 0.1f};
+  const Material m = surface::program(maps);
+  const Lobes carried = surface::lobes(m);
+  EXPECT_TRUE(carried.transmission);
+  EXPECT_TRUE(carried.distortion);
+  // The weight comes up off zero for the map to show, the depth is the
+  // thickness the set says the map's white stands for, and the volume is
+  // the set's.
+  EXPECT_FLOAT_EQ(m.get<float>("transmission"), 1.0f);
+  EXPECT_FLOAT_EQ(m.get<float>("thickness"), 20.0f);
+  EXPECT_FLOAT_EQ(m.get<float>("distortionStrength"), 3.0f);
+  EXPECT_FLOAT_EQ(m.get<float>("ior"), 1.33f);
+  EXPECT_FLOAT_EQ(m.get<float>("dispersion"), 0.1f);
+  EXPECT_NE(surface::map(m, surface::kTransmissionSlot), nullptr);
+  EXPECT_NE(surface::map(m, surface::kThicknessSlot), nullptr);
+  EXPECT_NE(surface::map(m, surface::kDistortionSlot), nullptr);
+  // Every one of them is data.
+  EXPECT_EQ(surface::map(m, surface::kThicknessSlot)->colorSpace(),
+            media::ColorSpace::Data);
 }
 
 TEST(Over, StacksTopOverBaseWhereTheMaskSays) {

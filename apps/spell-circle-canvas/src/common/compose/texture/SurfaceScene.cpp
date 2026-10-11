@@ -8,6 +8,7 @@
 #include <sigilmaterial/advanced/Program.h>  // reportOnce
 #include <sigilmaterial/skia/SurfaceMaps.h>
 
+#include <algorithm>
 #include <array>
 #include <utility>
 #include <vector>
@@ -28,8 +29,9 @@ constexpr std::array kRoles{Role::BaseColor, Role::Normal, Role::Packed,
 /** THE MAPS AN OPTIONAL LOBE NEEDS, painted only once a material on the
  *  page states the lobe: the sheen's colour and its roughness beside the
  *  specular strength, the specular colour with that same shared image, the
- *  brushing's direction and strength, the film's weight and thickness —
- *  and the coat's own normal, once a material states one. */
+ *  brushing's direction and strength, the film's weight and thickness, the
+ *  transmission with the thickness of its volume, the distortion — and the
+ *  coat's own normal, once a material states one. */
 std::vector<Role> lobeRoles(const material::Lobes& lobes,
                             bool clearcoatNormal) {
   std::vector<Role> out;
@@ -39,6 +41,11 @@ std::vector<Role> lobeRoles(const material::Lobes& lobes,
   if (lobes.specular) out.push_back(Role::SpecularColor);
   if (lobes.anisotropy) out.push_back(Role::Anisotropy);
   if (lobes.iridescence) out.push_back(Role::Iridescence);
+  if (lobes.transmission) {
+    out.push_back(Role::Transmission);
+    out.push_back(Role::Thickness);
+  }
+  if (lobes.distortion) out.push_back(Role::Distortion);
   return out;
 }
 
@@ -62,6 +69,7 @@ bool SurfaceScene::add(Role role) {
   std::shared_ptr<TextureScene> scene = TextureScene::make(m_size, *m_fonts);
   if (!scene) return false;
   scene->setSurfaceMap(role);
+  scene->setSurfaceMapScale(scaleOf(role));
   // A map added after the scene adopted a device stands there too.
   if (m_device && !scene->useDevice(*m_device, *m_context)) return false;
   m_scenes.emplace(role, std::move(scene));
@@ -96,16 +104,29 @@ void SurfaceScene::render(const Element& root, double seconds) {
   m_lobes.anisotropy |= heard.anisotropy;
   m_lobes.iridescence |= heard.iridescence;
   m_lobes.specular |= heard.specular;
+  m_lobes.transmission |= heard.transmission;
+  m_lobes.distortion |= heard.distortion;
   m_clearcoatNormal |= listener.heardClearcoatNormal();
-  // TRANSMISSION AND DISTORTION read the scene behind the surface they
-  // sit on, which a page's flat maps cannot carry: a material that needs
-  // its own shading crosses to the World scene as itself, and until it can, the
-  // page is drawn without them.
-  if (heard.transmission || heard.distortion)
+  // WHAT A MAP'S WHITE STANDS FOR rises with what the page states: the
+  // brightest emission, the deepest volume, the strongest distortion. A map
+  // whose reading rose is painted again against it in this same render.
+  const material::skia::MapReach& reach = listener.heardReach();
+  m_emissionScale = std::max({m_emissionScale, reach.emission, 1.0f});
+  m_thicknessScale = std::max(m_thicknessScale, reach.thickness);
+  m_distortionScale = std::max(m_distortionScale, reach.distortion);
+  // A page carries one volume: the first transmitting material's.
+  if (!m_volume) m_volume = reach.volume;
+  if (reach.volumesDiffer || (reach.volume && *reach.volume != *m_volume))
     material::reportOnce(
-        "compose.surface.transmission",
-        "a material on a page states transmission or distortion, which a "
-        "page's surface maps cannot carry; the page is drawn without them");
+        "compose.surface.volume",
+        "transmitting materials on one page state different indices, "
+        "attenuations or dispersions; the page carries the first one's");
+  for (auto& [role, scene] : m_scenes) {
+    const float scale = scaleOf(role);
+    if (scene->composer().surfaceMapScale() == scale) continue;
+    scene->setSurfaceMapScale(scale);
+    paint(*scene);
+  }
   for (Role role : lobeRoles(m_lobes, m_clearcoatNormal)) {
     if (m_scenes.count(role)) continue;
     if (!add(role)) continue;
@@ -117,12 +138,29 @@ void SurfaceScene::render(const Element& root, double seconds) {
 
 material::Lobes SurfaceScene::lobes() const { return m_lobes; }
 
+float SurfaceScene::scaleOf(Role role) const {
+  switch (role) {
+    case Role::Emissive:
+      return m_emissionScale;
+    case Role::Thickness:
+      return m_thicknessScale > 0 ? m_thicknessScale : 1;
+    case Role::Distortion:
+      return m_distortionScale > 0 ? m_distortionScale : 1;
+    default:
+      return 1;
+  }
+}
+
 material::texture::TextureMaps SurfaceScene::maps() const {
   material::texture::TextureMaps maps;
   maps.name = "compose surface";
   for (const auto& [role, scene] : m_scenes)
     maps.maps.emplace(role, scene->texture());
   maps.normalDirectX = false;
+  maps.emissiveStrength = m_emissionScale;
+  maps.thickness = m_thicknessScale;
+  maps.distortionStrength = m_distortionScale;
+  maps.volume = m_volume;
   return maps;
 }
 

@@ -1554,9 +1554,14 @@ at its moment, before anything draws a body, and a body wearing the surface
 on a frame without the pass is an error naming both. Every lit material in
 the tree paints its own maps — a `surface(...)` fill, an `ink`, a
 `compose.relief(...)` decoration for raised or impressed type — and content
-that states no surface is its own light, so the scene's lights,
-environment and camera shade everything else. A tree that has not changed
+that states no surface is the stock surface, lit, shadowed and reflecting
+like the rest of the body; only content stated unlit or with an emission
+is its own light. A tree that has not changed
 since the page last painted is not painted again. `python_plaque` wears one.
+A fill stating `material.from_(c).surface(transmission=1.0, ior=1.33,
+thickness=20)` on the page is glass on the body that wears it, seeing the
+scene behind where the page transmits, and an `emissionStrength` past one
+keeps its light past white.
 
 ```python
 @sketch(size=(960, 540), capture_at=2.0)

@@ -338,7 +338,20 @@ roughness and occlusion one and metallic and emission zero, and an
 antialiased edge composites each map by its coverage, normals included as
 their encoding. Normals are encoded green up the picture. A material that
 states a normal of its clear coat's own adds a `ClearcoatNormal` map, as a
-stated optional lobe adds its maps.
+stated optional lobe adds its maps: a sheen, a specular, a brushing, a thin
+film, a transmission with the thickness of its volume, a distortion.
+
+**A page keeps the range its content states.** The maps are eight bits, so
+the emissive map's white stands for the brightest emission any material on
+the page has stated — one at least — and `maps()` says that strength:
+content at or below one paints exactly as stated, and an emission of four
+paints white and is read back as four, so it reaches a bloom's threshold.
+The thickness map's white stands for the deepest volume stated and the
+distortion map's full swing for the strongest distortion, both in scene
+units, and the index, attenuation and dispersion of the first transmitting
+material painted are the whole page's. A body wearing the page transmits,
+bends and displaces what stands behind it exactly where the page's maps say
+it does, and shows its own colour everywhere else.
 
 **Every channel stands on the unit the colour does.** A fill or an ink
 names a unit with its `PaintBox` — the element's box, its padding or
@@ -368,8 +381,9 @@ material::Material worn = material::surface::program(page->maps());
 Here `tree`, `fonts` and `seconds` are the caller's. Each map is its own
 `TextureScene` over the tree, so nothing a composer recorded for one map
 is replayed for another, and a still tree paints none of them again. The
-mode underneath is `Composer::setSurfaceMap`; a `TextureScene` takes one
-map through `setSurfaceMap` too. A page painted as a map takes no pixel
+mode underneath is `Composer::setSurfaceMap`, with
+`Composer::setSurfaceMapScale` for what a map's white stands for; a
+`TextureScene` takes one map through `setSurfaceMap` too. A page painted as a map takes no pixel
 bakes. A layer effect that makes colour of its own over lit content — a
 shadow or glow filter on a group — writes that colour into every map.
 

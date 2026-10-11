@@ -12,12 +12,14 @@
  * caller's, so the library owns no file access.
  */
 
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilmedia/core/PixelSource.h>
 
 #include <filesystem>
 #include <functional>
 #include <map>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -64,6 +66,15 @@ enum class Role {
   Iridescence,
   /** The clear coat's own tangent-space normal, encoded as `Normal` is. */
   ClearcoatNormal,
+  /** How much of what lies behind shows through, in red. */
+  Transmission,
+  /** The depth of a transmitting volume in red, over the thickness the set
+   *  states its white stands for. */
+  Thickness,
+  /** The displacement of what stands behind: red across, green up,
+   *  half-grey still, over the strength the set states its full swing
+   *  stands for. */
+  Distortion,
 };
 
 /** The thickness, in nanometres, an `Iridescence` image reaches at white
@@ -118,12 +129,36 @@ std::vector<TextureSet> discover(const std::filesystem::path& directory);
 /** Decodes a path into pixels; an empty source when it cannot. */
 using Decoder = std::function<media::PixelSource(const std::filesystem::path&)>;
 
+/** THE VOLUME a transmitting surface's light crosses: the index it bends
+ *  by, the colour light has become after `attenuationDistance` scene units
+ *  of it (zero takes nothing), and how far the index spreads across the
+ *  three colours. */
+struct Volume {
+  float ior = 1.5f;
+  Color attenuationColor = {1, 1, 1, 1};
+  float attenuationDistance = 0;
+  float dispersion = 0;
+  bool operator==(const Volume&) const = default;
+};
+
 /** A set decoded: one repeating texture per role that decoded, and the
  *  normal convention the set declared. */
 struct TextureMaps {
   std::string name;
   std::map<Role, Texture> maps;
   bool normalDirectX = false;
+  /** WHAT A MAP'S WHITE STANDS FOR, where the set says — zero leaves the
+   *  number `surface::program` starts a present map at: the emission
+   *  strength the emissive map's white is read at, as light… */
+  float emissiveStrength = 0;
+  /** …the thickness, in scene units, the thickness map's white is read at,
+   *  and the displacement, in scene units, the distortion map's full swing
+   *  is read at. */
+  float thickness = 0;
+  float distortionStrength = 0;
+  /** The volume a transmission map's surface bends and tints by; none
+   *  leaves the stock surface's. */
+  std::optional<Volume> volume;
 
   /** The texture for @p role, or null when the set has none. */
   const Texture* map(Role role) const {

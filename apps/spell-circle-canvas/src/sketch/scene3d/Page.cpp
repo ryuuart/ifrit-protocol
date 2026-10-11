@@ -6,6 +6,7 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/texture/SurfaceScene.h>
 #include <sigilcompose/texture/Texture.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/scene3d/Page.h>
 #include <sigilworld/advanced/TextureProducer.h>
@@ -13,6 +14,7 @@
 #include <chrono>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <utility>
 
 namespace sigil::sketch {
@@ -70,8 +72,22 @@ struct PagePaint final : world::TextureProducerOperations {
       return material::surface::map(
                  surface, material::surface::kClearcoatNormalSlot) != nullptr;
     };
+    // The numbers the maps are read against are learned the same way: an
+    // emission past white raises the strength the emissive map is read at,
+    // a deeper volume or a stronger distortion the reading of its map, and
+    // the first transmitting material sets the volume the page carries.
+    const auto readAgainst = [](const material::Material& surface) {
+      return std::tuple(surface.get<float>("emissiveStrength"),
+                        surface.get<float>("thickness"),
+                        surface.get<float>("distortionStrength"),
+                        surface.get<float>("ior"),
+                        surface.get<float>("attenuationDistance"),
+                        surface.get<material::Color>("attenuationColor"),
+                        surface.get<float>("dispersion"));
+    };
     if (material::surface::lobes(worn) == material::surface::lobes(current) &&
-        coatNormal(worn) == coatNormal(current))
+        coatNormal(worn) == coatNormal(current) &&
+        readAgainst(worn) == readAgainst(current))
       return std::nullopt;
     return current;
   }

@@ -61,7 +61,11 @@ void markSurfaceMap(SkPaint& paint);
  *  into the map. The wrapped canvas must outlive this one. */
 class SurfaceMapCanvas final : public SkPaintFilterCanvas {
  public:
-  SurfaceMapCanvas(SkCanvas& target, material::texture::Role role);
+  /** @p scale is what the map's white stands for
+   *  (`Composer::setSurfaceMapScale`): a marked paint in a map that holds
+   *  more than white is read against it. */
+  SurfaceMapCanvas(SkCanvas& target, material::texture::Role role,
+                   float scale = 1);
 
   /** The recorder the wrapped canvas draws into, so a device texture is
    *  bound where it stands. */
@@ -77,6 +81,9 @@ class SurfaceMapCanvas final : public SkPaintFilterCanvas {
   /** Maps a colour to the stock surface's value at its own alpha; null in
    *  the base colour map, where content keeps its colour. */
   sk_sp<SkColorFilter> m_ownColour;
+  /** Reads a marked paint's value against what the map's white stands
+   *  for; null where the map holds what is stated. */
+  sk_sp<SkColorFilter> m_scaled;
 };
 
 }  // namespace sigil::compose::detail

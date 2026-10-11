@@ -1609,21 +1609,6 @@ whole transmission lobe and its lowering states it on
 find `material::lobes` of the lowered material carrying transmission at
 the file's thickness and attenuation.
 
-## A page's surface maps cannot carry transmission or distortion
-
-A Compose page reaches a scene3d sketch as a surface's MAPS
-(`compose/texture/SurfaceScene.cpp`, `material::skia::asMap`), one image
-per role; transmission and distortion read the scene behind the surface,
-which a flat map cannot hold, and a page whose content states either is
-drawn without it, reported once (`compose.surface.transmission`). The
-route for a material that needs its own shading is for it to cross to
-the scene as ITSELF with a coverage mask, stacked through `material::over`
-onto the page's surface, rather than flattened into maps — which also
-needs the stack to mix the transmission and distortion variables by its
-mask (the entry below). A test should hang a page with a glass panel over
-half of it in front of a half-black, half-white backdrop and find the
-edge bent behind the panel's half and straight behind the other.
-
 ## A stack does not mix the optional lobes by its mask
 
 `material::over` mixes each operand's per-pixel surface terms by the
@@ -1882,21 +1867,6 @@ solid should be able to carry two surfaces, one per face set, as a
 `Mesh` with named parts does. A test should extrude a square with a page
 projected onto it and find the wall pixels the colour of the page's edge.
 
-## Renderer gap: a page cannot glow above white
-
-`compose::SurfaceScene` paints its maps into eight-bit N32 surfaces and
-`material::surface::program(TextureMaps)` fixes the emissive strength at
-one, so an emission a page's content states above one is clipped and
-never reaches a bloom threshold. `painted_fields` makes its glowing mark a
-separate body with its own surface and adds a sphere light for the spill
-the page's glow cannot give.
-
-A page's emission map should be float, or the page should carry an
-emissive strength its surface states, so content brighter than white
-blooms. A test should paint a page with an emission of four, dress a card
-with it under a bloom pass, and find the card's pixels above white before
-the bloom and spread after it.
-
 ## Authoring gap: an extrusion has no rounded or bevelled edge
 
 `geometry::mesh::ExtrudeOptions` states caps and walls and nothing about
@@ -2049,3 +2019,42 @@ direction — and turn every normal into the page as the brushing is. A
 test should state a relief on a span ink and find the page's height cut;
 a ribbon brushed along itself should stretch its highlight along a
 curve.
+
+## Authoring gap: Python cannot ride a node along a rail
+
+`world::Node::along(rail, distance)` and `world::kit::rail` are not bound,
+so a Python light or camera on a rail is placed with `.at()` written from
+the clock each frame. `python_mixed_materials` does so. Bind `along` and
+the kit's rail; a Python test should ride a light two stations along a
+rail and find it where the rail puts it.
+
+## Authoring gap: Python has no ribbon brush, and a material stroke over an open spine draws a stray edge
+
+`compose::brush::ribbon` is not bound, and `.stroke(material)` over a
+`path.curveThrough` spine draws a second edge the spine does not have, so
+a Python trace is a filled band from `path.band` instead of a stroke.
+Bind the ribbon brush with its profile, and fix the stroke over an open
+spine; a Python test should stroke an open curve and find exactly one
+band of the stated width.
+
+## Rendering probe: a near-mirror surface shows a grid of small soft boxes as one even field
+
+Under no lights and a near-black environment holding a grid of tiny soft
+boxes, a chrome swatch at roughness 0.05 shows one even white field rather
+than separate reflections, on a page and on a bare quad alike. Whether
+the environment's prefiltered chain blurs its first level, or the kit's
+soft-box size means something other than its width, is not known. A test
+should render a mirror sphere under two small soft boxes and find two
+separate highlights.
+
+## Contract limit: a page's range only rises, carries one volume, and clips a live emission past its brightest stated value
+
+The emissive, thickness and distortion maps' white stands for the
+brightest value the page's content states, learned from stated values;
+so a page that once stated a bright emission keeps the coarser precision,
+a live binding that animates an emission past the brightest stated value
+clips, and a page carries one volume (index, attenuation, dispersion),
+the first transmitting material's, reporting a second once. A page
+should take a stated range and a per-region volume. A test should bind
+an emission above the page's brightest and find it not clipped.
+

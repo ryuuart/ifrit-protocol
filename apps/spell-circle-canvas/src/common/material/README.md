@@ -157,7 +157,9 @@ Unstated, the place the texture fills decides: a surface's normal,
 roughness, metalness, occlusion, opacity and clear-coat maps are data by
 their role, its base colour and emission are colour, and anywhere else a
 texture is colour. `surface::program(TextureMaps)` states data on the maps
-a texture set imports. `Texture::mipmaps` says whether a renderer builds
+a texture set imports, and reads its emissive, thickness and distortion
+maps at the strength, depth and displacement the set says their white
+stands for, and its transmission with the set's volume. `Texture::mipmaps` says whether a renderer builds
 the smaller copies a shrunk texture is read from; unstated, colour has
 them, a surface's data maps have them, and other data does not — a table
 or a sheet of cells must not be averaged. `Texture::sampling` with
@@ -259,10 +261,14 @@ without them, said by name.
 
 What a renderer makes of the last two is its own: SigilWorld reads a copy
 of the scene behind the surface, one layer deep. A page's surface maps
-carry neither — a page whose content states them is drawn without them,
-said once.
+carry both, per pixel: the transmission's weight, its thickness over the
+deepest the page states and its distortion over the strongest, with the
+volume — index, attenuation, dispersion — of the first transmitting
+material the page paints standing for the whole page.
 
-Emission above white is `emissionStrength` past one. Colours in it are
+Emission above white is `emissionStrength` past one: the colour decoded
+into light and multiplied, and a page's emissive map's white stands for the
+brightest emission the page states. Colours in it are
 encoded as an author types them; occlusion darkens only light arriving
 from everywhere. A surface carries only the lobes it states
 (`material::lobes(SurfaceOptions)`, `material::Lobes`): the surface program
@@ -289,13 +295,20 @@ scalars packed in glTF's order (`texture::Role::Packed`), the clear coat's
 weight and roughness (`texture::Role::Clearcoat`), or one of the optional
 lobes' — the sheen's colour (`Sheen`), the sheen's roughness with the
 specular strength (`SheenSpecular`), the specular colour
-(`SpecularColor`), the brushing's direction and strength (`Anisotropy`)
-and the film's weight and thickness (`Iridescence`) — and the coat's own
-normal (`ClearcoatNormal`), keyed by `texture::Role`, as the texture of
-that role encodes it.
+(`SpecularColor`), the brushing's direction and strength (`Anisotropy`),
+the film's weight and thickness (`Iridescence`), the transmission's weight
+(`Transmission`), its thickness in scene units (`Thickness`) and the
+distortion in scene units, red across and green up around one half
+(`Distortion`) — and the coat's own normal (`ClearcoatNormal`), keyed by
+`texture::Role`, as the texture of that role encodes it. An emission past
+one comes back as light encoded past white, and a thickness or a
+distortion past what white holds comes back past it, for a reader that
+scales the map back into range.
 `material::skia::LobeListener` hears which lobes the surfaces read as maps
-on its thread state, which is how a page learns which of those maps it
-needs. The normal comes
+on its thread state, and how far they reach past a map's white
+(`material::skia::MapReach`: the brightest emission, the deepest volume, the
+strongest distortion, the first volume), which is how a page learns which
+of those maps it needs and what each one's white stands for. The normal comes
 back as `(n + 1) / 2` with green up the picture whatever convention the
 material stated, including a height-derived or blended normal; a scalar
 comes back grey, its number times its map; a role a material states

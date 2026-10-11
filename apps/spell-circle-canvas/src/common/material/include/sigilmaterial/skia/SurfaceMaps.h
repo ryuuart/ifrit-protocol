@@ -19,6 +19,7 @@
 #include <sigilmaterial/texture/TextureSet.h>
 
 #include <memory>
+#include <optional>
 
 namespace sigil::material::skia {
 
@@ -68,6 +69,25 @@ class SurfaceMaps {
  *  specular colour, anisotropy and iridescence. */
 bool isSurfaceMapRole(texture::Role role);
 
+/** WHAT THE SURFACES READ AS MAPS STATE BEYOND WHAT A MAP HOLDS AT WHITE,
+ *  and the numbers of a volume no map holds — what a page painted as maps
+ *  reads its maps against. */
+struct MapReach {
+  /** The brightest emission stated: the largest channel of an emission
+   *  colour times its strength; zero where none glows. */
+  float emission = 0;
+  /** The deepest thickness a transmitting surface states, in scene units;
+   *  a thickness that is a map reaches one. */
+  float thickness = 0;
+  /** The largest distortion strength stated with a map, in scene units. */
+  float distortion = 0;
+  /** The volume of the first transmitting surface heard. */
+  std::optional<texture::Volume> volume;
+  /** Whether a transmitting surface heard after the first states another
+   *  volume, which a page carrying one volume cannot keep. */
+  bool volumesDiffer = false;
+};
+
 /** WHICH OPTIONAL LOBES THE SURFACES READ AS MAPS STATE, heard while one
  *  of these stands on the thread that reads them. A painter that paints
  *  a page as a surface's maps stands one over the paint, and so learns
@@ -88,16 +108,21 @@ class LobeListener {
   [[nodiscard]] bool heardClearcoatNormal() const {
     return m_heardClearcoatNormal;
   }
+  /** How far the surfaces heard so far reach past a map's white. */
+  [[nodiscard]] const MapReach& heardReach() const { return m_reach; }
 
   /** @private what a `SurfaceMaps` reports its material's lobes through. */
   static void hear(const Lobes& lobes);
   /** @private what a `SurfaceMaps` reports a coat's own normal through. */
   static void hearClearcoatNormal();
+  /** @private what a `SurfaceMaps` reports its material's reach through. */
+  static void hearReach(const MapReach& reach);
 
  private:
   LobeListener* m_outer = nullptr;
   Lobes m_heard;
   bool m_heardClearcoatNormal = false;
+  MapReach m_reach;
 };
 
 /** @p material's surface as THE MAP OF @p role that a metallic-roughness

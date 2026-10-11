@@ -56,9 +56,50 @@ void markSurfaceMap(SkPaint& paint) {
   if (!paint.getColorFilter()) paint.setColorFilter(mark());
 }
 
+namespace {
+
+/** THE READING OF A LIT MATERIAL'S MAP against what the map's white stands
+ *  for, @p scale, or null where the map holds what is stated. An emissive
+ *  map is light encoded for display, so it is decoded, divided and
+ *  encoded again, and the light read back at that strength is the light
+ *  stated; a thickness is divided; a distortion is divided about the half
+ *  that encodes stillness. Every other map holds what is stated. */
+sk_sp<SkColorFilter> scaledReading(material::texture::Role role, float scale) {
+  if (scale == 1) return nullptr;
+  const float by = 1 / scale;
+  // Rows act on unpremultiplied colour, so the premultiplied result is the
+  // scaled value at the coverage the content painted.
+  const std::array<float, 20> divided{
+      by, 0,  0,  0, 0,  //
+      0,  by, 0,  0, 0,  //
+      0,  0,  by, 0, 0,  //
+      0,  0,  0,  1, 0,
+  };
+  if (role == material::texture::Role::Emissive)
+    return SkColorFilters::LinearToSRGBGamma()->makeComposed(
+        SkColorFilters::Matrix(divided.data())
+            ->makeComposed(SkColorFilters::SRGBToLinearGamma()));
+  if (role == material::texture::Role::Thickness)
+    return SkColorFilters::Matrix(divided.data());
+  // A displacement is encoded around one half, so it is divided about it.
+  const float still = 0.5f * (1 - by);
+  const std::array<float, 20> centred{
+      by, 0,  0, 0, still,  //
+      0,  by, 0, 0, still,  //
+      0,  0,  1, 0, 0,      //
+      0,  0,  0, 1, 0,
+  };
+  if (role == material::texture::Role::Distortion)
+    return SkColorFilters::Matrix(centred.data());
+  return nullptr;
+}
+
+}  // namespace
+
 SurfaceMapCanvas::SurfaceMapCanvas(SkCanvas& target,
-                                   material::texture::Role role)
+                                   material::texture::Role role, float scale)
     : SkPaintFilterCanvas(&target), m_target(&target) {
+  m_scaled = scaledReading(role, scale);
   if (role == material::texture::Role::BaseColor) return;
   const material::Color ground = material::skia::flatContentMap(role);
   // Rows act on unpremultiplied colour: red, green and blue become the
@@ -81,7 +122,7 @@ bool SurfaceMapCanvas::onFilter(SkPaint& paint) const {
   if (m_ownColour && !compositesByCoverage(paint))
     paint.setBlendMode(SkBlendMode::kSrcOver);
   if (paint.getColorFilter() == mark().get()) {
-    paint.setColorFilter(nullptr);
+    paint.setColorFilter(m_scaled);
     return true;
   }
   if (!m_ownColour) return true;

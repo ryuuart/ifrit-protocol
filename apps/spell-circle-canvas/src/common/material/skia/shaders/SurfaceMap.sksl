@@ -10,11 +10,14 @@
 // strength in green, 10 the specular colour, 11 the brushing's direction
 // in red and green, encoded as a normal is, and its strength in blue,
 // 12 the thin film's weight in red and its thickness in green, 13 the
-// clear coat's own normal, encoded as the normal is.
+// clear coat's own normal, encoded as the normal is, 14 the transmission,
+// 15 the thickness in scene units, 16 the distortion in scene units, red
+// across and green up, encoded around one half.
 // A surface stated unlit is its own colour: emission is the colour
 // stack, the base is black, the normal faces the viewer, roughness and
 // occlusion are one, metallic and the coat zero, no sheen, a white
-// specular at full strength, no brushing and no film.
+// specular at full strength, no brushing, no film, no transmission and
+// nothing behind displaced.
 uniform shader uColor;
 uniform shader uNormal;
 uniform shader uRoughnessMap;
@@ -31,6 +34,9 @@ uniform shader uAnisotropyMap;
 uniform shader uIridescenceMap;
 uniform shader uIridescenceThicknessMap;
 uniform shader uClearcoatNormal;
+uniform shader uTransmissionMap;
+uniform shader uThicknessMap;
+uniform shader uDistortionMap;
 
 uniform float uRole;
 uniform float uUnlit;
@@ -67,6 +73,12 @@ uniform float uIridescenceThickness;
 uniform float uIridescenceThicknessMinimum;
 uniform float uHasIridescenceThicknessMap;
 uniform float uHasClearcoatNormal;
+uniform float uHasTransmissionMap;
+uniform float uTransmission;
+uniform float uHasThicknessMap;
+uniform float uThickness;
+uniform float uHasDistortionMap;
+uniform float uDistortionStrength;
 
 float roughnessAt(float2 xy, bool unlit) {
   if (unlit) return 1.0;
@@ -89,6 +101,20 @@ float occlusionAt(float2 xy, bool unlit) {
   return clamp(value, 0.0, 1.0);
 }
 
+// The display encoding and its inverse, extended past one along the
+// power curve so a colour brighter than white survives the round trip.
+float3 linearFromEncoded(float3 c) {
+  float3 low = c / 12.92;
+  float3 high = pow((max(c, 0.0) + 0.055) / 1.055, float3(2.4));
+  return mix(low, high, step(0.04045, c));
+}
+
+float3 encodedFromLinear(float3 l) {
+  float3 low = l * 12.92;
+  float3 high = 1.055 * pow(max(l, 0.0), float3(1.0 / 2.4)) - 0.055;
+  return mix(low, high, step(0.0031308, l));
+}
+
 half4 main(float2 xy) {
   half4 painted = uColor.eval(xy);
   float alpha = float(painted.a);
@@ -96,7 +122,7 @@ half4 main(float2 xy) {
   bool unlit = uUnlit > 0.5;
   if (uRole < 0.5) return unlit ? half4(0, 0, 0, painted.a) : painted;
   float3 value;
-  if (uRole < 1.5 || uRole > 12.5) {
+  if (uRole < 1.5 || (uRole > 12.5 && uRole < 13.5)) {
     // Green points up the picture in what comes out, whichever way the
     // stated map was authored. The coat's normal is read in the
     // convention the surface's normal states, at its own full strength.
@@ -110,6 +136,31 @@ half4 main(float2 xy) {
                            max(t.z, 0.001)));
     }
     value = n * 0.5 + 0.5;
+  } else if (uRole > 13.5) {
+    if (uRole < 14.5) {
+      float transmission = 0.0;
+      if (!unlit) {
+        transmission = uTransmission;
+        if (uHasTransmissionMap > 0.5)
+          transmission *= float(uTransmissionMap.eval(xy).r);
+      }
+      value = float3(clamp(transmission, 0.0, 1.0));
+    } else if (uRole < 15.5) {
+      // In scene units, past one where the volume is deeper, for a reader
+      // that divides the map by its own deepest.
+      float thickness = 0.0;
+      if (!unlit) {
+        thickness = uThickness;
+        if (uHasThicknessMap > 0.5) thickness *= float(uThicknessMap.eval(xy).r);
+      }
+      value = float3(max(thickness, 0.0));
+    } else {
+      float2 moved = float2(0.0);
+      if (!unlit && uHasDistortionMap > 0.5)
+        moved = (float2(uDistortionMap.eval(xy).rg) * 2.0 - 1.0) *
+                uDistortionStrength;
+      value = float3(moved * 0.5 + 0.5, 0.0);
+    }
   } else if (uRole < 2.5) {
     value = float3(roughnessAt(xy, unlit));
   } else if (uRole < 3.5) {
@@ -120,6 +171,14 @@ half4 main(float2 xy) {
     if (unlit) return painted;
     value = uEmission.rgb * uEmissionStrength;
     if (uHasEmissionMap > 0.5) value *= float3(uEmissionMap.eval(xy).rgb);
+    if (uEmissionStrength > 1.0) {
+      // A strength past one is LIGHT: the stated colour is decoded,
+      // multiplied, and encoded again past one, so a reader that decodes
+      // the map and divides it keeps the light stated.
+      float3 stated = uEmission.rgb;
+      if (uHasEmissionMap > 0.5) stated *= float3(uEmissionMap.eval(xy).rgb);
+      value = encodedFromLinear(linearFromEncoded(stated) * uEmissionStrength);
+    }
   } else if (uRole < 6.5) {
     value = float3(occlusionAt(xy, unlit), roughnessAt(xy, unlit),
                    metallicAt(xy, unlit));

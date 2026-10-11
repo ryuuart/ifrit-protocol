@@ -93,6 +93,9 @@ class TextureScene : public std::enable_shared_from_this<TextureScene> {
    *  cleared to that map's ground in place of the background; none paints
    *  it as it is seen, over the background again. The next render paints. */
   void setSurfaceMap(std::optional<material::texture::Role> role);
+  /** What the map's white stands for (`Composer::setSurfaceMapScale`).
+   *  A change paints again at the next render. */
+  void setSurfaceMapScale(float scale);
 
  private:
   TextureScene();

@@ -24,6 +24,7 @@
 
 #include <algorithm>
 #include <boost/unordered/unordered_flat_set.hpp>
+#include <cmath>
 #include <functional>
 
 #include "ComposeRuntime.h"
@@ -185,7 +186,8 @@ void Composer::draw(SkCanvas& canvas) {
   // A page painted as a surface map is drawn through the canvas that turns
   // content that is its own colour into the map's reading of it.
   if (impl.surfaceMap && !impl.drawingSurfaceMap) {
-    detail::SurfaceMapCanvas mapped(canvas, *impl.surfaceMap);
+    detail::SurfaceMapCanvas mapped(canvas, *impl.surfaceMap,
+                                    impl.surfaceMapScale);
     impl.drawingSurfaceMap = true;
     draw(mapped);
     impl.drawingSurfaceMap = false;
@@ -511,6 +513,12 @@ void Composer::setSurfaceMap(std::optional<material::texture::Role> role) {
   }
   impl.cascadeDirty = true;
 }
+
+void Composer::setSurfaceMapScale(float scale) {
+  m_impl->surfaceMapScale = std::isfinite(scale) && scale > 0 ? scale : 1.0f;
+}
+
+float Composer::surfaceMapScale() const { return m_impl->surfaceMapScale; }
 
 std::optional<material::texture::Role> Composer::surfaceMap() const {
   return m_impl->surfaceMap;

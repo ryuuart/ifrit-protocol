@@ -215,6 +215,8 @@ struct Composer::Impl {
   // Composer::setSurfaceMap: the one map of their surface every node paints
   // as, or none for the page as it is seen.
   std::optional<material::texture::Role> surfaceMap;
+  // Composer::setSurfaceMapScale: what the map's white stands for.
+  float surfaceMapScale = 1;
   // True while draw() runs through the surface map canvas it made.
   bool drawingSurfaceMap = false;
   // A pixel bake holds what was painted as pixels, which a surface map

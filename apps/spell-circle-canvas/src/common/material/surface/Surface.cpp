@@ -420,7 +420,12 @@ Material program(const texture::TextureMaps& maps, SurfaceParameters base) {
   if (metallic && base.metallic == stock.metallic) base.metallic = 1;
   if (roughness && base.roughness == stock.roughness) base.roughness = 1;
   if (has(Role::Emissive)) {
-    if (base.emissiveStrength <= 0) base.emissiveStrength = 1;
+    // A set that says what its emissive map's white stands for is read at
+    // that strength, so a map normalised to its brightest emission glows
+    // past white.
+    if (base.emissiveStrength <= 0)
+      base.emissiveStrength =
+          maps.emissiveStrength > 0 ? maps.emissiveStrength : 1;
     if (base.emissive == stock.emissive) base.emissive = {1, 1, 1, 1};
   }
   base.normalDirectX = maps.normalDirectX ? 1.0f : 0.0f;
@@ -473,6 +478,35 @@ Material program(const texture::TextureMaps& maps, SurfaceParameters base) {
     }
   }
 
+  // A TRANSMISSION MAP is the weight in red, its thickness map the depth
+  // over what the set says its white stands for, and the volume the set
+  // states bends and tints what passes; a distortion map moves what stands
+  // behind by the strength its full swing stands for.
+  const Texture* transmission = maps.map(Role::Transmission);
+  const Texture* thickness = maps.map(Role::Thickness);
+  const Texture* distortion = maps.map(Role::Distortion);
+  if (transmission) {
+    carried.transmission = true;
+    if (base.transmission == stock.transmission) base.transmission = 1;
+    if (thickness && base.thickness == stock.thickness)
+      base.thickness = maps.thickness > 0 ? maps.thickness : 1;
+    if (maps.volume) {
+      if (base.ior == stock.ior) base.ior = maps.volume->ior;
+      if (base.attenuationColor == stock.attenuationColor)
+        base.attenuationColor = maps.volume->attenuationColor;
+      if (base.attenuationDistance == stock.attenuationDistance)
+        base.attenuationDistance = maps.volume->attenuationDistance;
+      if (base.dispersion == stock.dispersion)
+        base.dispersion = maps.volume->dispersion;
+    }
+  }
+  if (distortion) {
+    if (base.distortionStrength == stock.distortionStrength)
+      base.distortionStrength =
+          maps.distortionStrength > 0 ? maps.distortionStrength : 1;
+    carried.distortion = base.distortionStrength != 0;
+  }
+
   Material m = program(base, Reflection::SplitSum, carried);
   const auto place = [&](std::string_view slot, const Texture* t) {
     if (t) m.slot(slot, *t);
@@ -508,6 +542,11 @@ Material program(const texture::TextureMaps& maps, SurfaceParameters base) {
   data(kAnisotropySlot, anisotropy);
   data(kIridescenceSlot, iridescence);
   data(kIridescenceThicknessSlot, iridescence);
+  if (transmission) {
+    data(kTransmissionSlot, transmission);
+    data(kThicknessSlot, thickness);
+  }
+  if (carried.distortion) data(kDistortionSlot, distortion);
   return m;
 }
 

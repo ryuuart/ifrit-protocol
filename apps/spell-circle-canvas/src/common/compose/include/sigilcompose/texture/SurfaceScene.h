@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <optional>
 
 namespace sigil::weave {
 class FontContext;
@@ -48,13 +49,30 @@ namespace sigil::compose {
  * share the `Clearcoat` map in red and green.
  *
  *  THE OPTIONAL LOBES COST NOTHING UNTIL STATED. A page whose materials
- *  state no sheen, brushing, film or specular paints those five maps only;
- *  the first render that paints a material stating one adds the maps that
- *  lobe needs — `Sheen` and `SheenSpecular` for a sheen, `SpecularColor`
- *  and `SheenSpecular` for a specular, `Anisotropy`, `Iridescence` — paints
- *  them in that same render, and keeps them from then on. A coat's own
- *  normal is the same: the first material stating one adds the
- *  `ClearcoatNormal` map.
+ *  state no sheen, brushing, film, specular, transmission or distortion
+ *  paints those five maps only; the first render that paints a material
+ *  stating one adds the maps that lobe needs — `Sheen` and `SheenSpecular`
+ *  for a sheen, `SpecularColor` and `SheenSpecular` for a specular,
+ *  `Anisotropy`, `Iridescence`, `Transmission` with `Thickness` for a
+ *  transmission, `Distortion` — paints them in that same render, and keeps
+ *  them from then on. A coat's own normal is the same: the first material
+ *  stating one adds the `ClearcoatNormal` map.
+ *
+ *  A TRANSMITTING REGION SEES THROUGH THE BODY WEARING THE PAGE. The
+ *  transmission map is the weight in red, the thickness map the depth of
+ *  the volume over the deepest any material on the page states, and the
+ *  distortion map the displacement, red across and green up, over the
+ *  strongest stated; `maps()` states those two, and the index,
+ *  attenuation and dispersion of the first transmitting material painted,
+ *  which the whole page carries — a second stating another is reported
+ *  once.
+ *
+ *  AN EMISSION PAST WHITE KEEPS ITS LIGHT. The emissive map's white stands
+ *  for the brightest emission the page's materials have stated, one at
+ *  least: a page whose brightest is four paints four as white and every
+ *  other emission as its share of that light, and `maps()` states four as
+ *  the strength the map is read at. A page that states nothing brighter
+ *  than one paints its emission as stated.
  *
  *  `maps()` hands the set to `material::surface::program`, which dresses a
  *  surface a lit renderer shades, so the page is lit by the renderer's own
@@ -117,6 +135,18 @@ class SurfaceScene {
   sigil::skia::GraphiteContext* m_context = nullptr;
   material::Lobes m_lobes;
   bool m_clearcoatNormal = false;
+  /** What the map of @p role is read against: its white, or its full
+   *  swing. */
+  float scaleOf(material::texture::Role role) const;
+  /** The brightest emission painted so far, at least one: what the
+   *  emissive map's white stands for. */
+  float m_emissionScale = 1;
+  /** The deepest volume and the strongest distortion painted so far, in
+   *  scene units; zero before a material states one. */
+  float m_thicknessScale = 0;
+  float m_distortionScale = 0;
+  /** The first transmitting material's volume. */
+  std::optional<material::texture::Volume> m_volume;
 };
 
 }  // namespace sigil::compose

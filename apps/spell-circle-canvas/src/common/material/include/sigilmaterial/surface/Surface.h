@@ -319,7 +319,12 @@ const Texture* map(const Material& material, std::string_view slot);
  *  channels 0, 1 and 2; the set's normal convention flagged; and the
  *  scalar a present map multiplies started at one — left at its stock
  *  value a metallic map would multiply zero and never be seen — unless
- *  @p base already moved it. */
+ *  @p base already moved it. An emissive map is read at the strength the
+ *  set's `emissiveStrength` states, when it states one; a transmission map
+ *  carries the transmission, its thickness map read at the set's
+ *  `thickness` and its volume at the set's `volume`; a distortion map
+ *  carries the distortion at the set's `distortionStrength`, one where it
+ *  states none. */
 Material program(const texture::TextureMaps& maps, SurfaceParameters base = {});
 
 /** THE SURFACE PROGRAM @p material states. A bare program — a surface

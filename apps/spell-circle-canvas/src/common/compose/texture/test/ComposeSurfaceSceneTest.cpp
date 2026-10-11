@@ -756,3 +756,93 @@ TEST(ComposeSurfaceScene,
         << "the ribbon";
   }
 }
+
+TEST(ComposeSurfaceScene,
+     AnEmissionPastWhiteIsPaintedAgainstThePagesBrightest) {
+  const auto glowing = [](float strength) {
+    return material::from(material::Color{0, 0, 0, 1})
+        .surface({.emission = {1, 1, 1, 1}, .emissionStrength = strength});
+  };
+  const auto twoGlows = [&](float left, float right) {
+    return box().width(kWidth).height(kHeight).children({
+        box().absolute().rect(0, 0, 64, 112).fill(glowing(left)),
+        box().absolute().rect(64, 0, 64, 112).fill(glowing(right)),
+    });
+  };
+  // A page whose brightest emission is one paints its emission as stated,
+  // and its map is read at the stock strength.
+  const auto plain = SurfaceScene::make({kWidth, kHeight}, fonts());
+  ASSERT_NE(plain, nullptr);
+  plain->render(twoGlows(1, .5f));
+  EXPECT_EQ(plain->maps().emissiveStrength, 1);
+  expectNear(pixelsOf(*plain, Role::Emissive).getColor4f(32, 56), 1, 1, 1);
+  expectNear(pixelsOf(*plain, Role::Emissive).getColor4f(96, 56), .5f, .5f,
+             .5f);
+
+  // Four is painted white and one as a quarter of that light, encoded for
+  // display, and the map is read at four: both keep the light they state.
+  const auto bright = SurfaceScene::make({kWidth, kHeight}, fonts());
+  ASSERT_NE(bright, nullptr);
+  bright->render(twoGlows(4, 1));
+  EXPECT_EQ(bright->maps().emissiveStrength, 4);
+  const SkBitmap emissive = pixelsOf(*bright, Role::Emissive);
+  expectNear(emissive.getColor4f(32, 56), 1, 1, 1);
+  // The display encoding of a quarter.
+  const float quarter = 1.055f * std::pow(.25f, 1 / 2.4f) - .055f;
+  expectNear(emissive.getColor4f(96, 56), quarter, quarter, quarter);
+  // The strength stands once raised, as a stated lobe's maps do.
+  bright->render(twoGlows(1, .5f), 1);
+  EXPECT_EQ(bright->maps().emissiveStrength, 4);
+}
+
+TEST(ComposeSurfaceScene, ATransmittingRegionPaintsItsWeightDepthAndVolume) {
+  const auto scene = SurfaceScene::make({kWidth, kHeight}, fonts());
+  ASSERT_NE(scene, nullptr);
+  const material::Material glass = material::from(material::Color{1, 1, 1, 1})
+                                       .surface({.roughness = .05f,
+                                                 .transmission = 1.0f,
+                                                 .ior = 1.33f,
+                                                 .thickness = 20.0f});
+  const material::Material shallow =
+      material::from(material::Color{1, 1, 1, 1})
+          .surface({.transmission = .5f, .ior = 1.33f, .thickness = 5.0f});
+  // A swirl moving what stands behind right and down, at a strength of
+  // two scene units.
+  const material::Material haze =
+      material::from(material::Color{.5f, .5f, .5f, 1})
+          .surface(
+              {.distortion = material::from(material::Color{1, .25f, .5f, 1}),
+               .distortionStrength = 2.0f});
+  scene->render(box().width(kWidth).height(kHeight).children({
+      box().absolute().rect(0, 0, 64, 56).fill(glass),
+      box().absolute().rect(0, 56, 64, 56).fill(shallow),
+      box().absolute().rect(64, 0, 64, 56).fill(haze),
+  }));
+  EXPECT_TRUE(scene->lobes().transmission);
+  EXPECT_TRUE(scene->lobes().distortion);
+  const material::texture::TextureMaps maps = scene->maps();
+  ASSERT_NE(maps.map(Role::Transmission), nullptr);
+  ASSERT_NE(maps.map(Role::Thickness), nullptr);
+  ASSERT_NE(maps.map(Role::Distortion), nullptr);
+  // The deepest volume stated is what the thickness map's white stands
+  // for; the strongest distortion what its full swing does; the first
+  // transmitting material's volume is the page's.
+  EXPECT_EQ(maps.thickness, 20);
+  EXPECT_EQ(maps.distortionStrength, 2);
+  ASSERT_TRUE(maps.volume.has_value());
+  EXPECT_FLOAT_EQ(maps.volume->ior, 1.33f);
+
+  const SkBitmap weight = pixelsOf(*scene, Role::Transmission);
+  expectNear(weight.getColor4f(32, 28), 1, 1, 1);
+  expectNear(weight.getColor4f(32, 84), .5f, .5f, .5f);
+  expectNear(weight.getColor4f(96, 84), 0, 0, 0);
+  const SkBitmap depth = pixelsOf(*scene, Role::Thickness);
+  expectNear(depth.getColor4f(32, 28), 1, 1, 1);
+  expectNear(depth.getColor4f(32, 84), .25f, .25f, .25f);
+  expectNear(depth.getColor4f(96, 84), 0, 0, 0);
+  // Red the full two units across, green one unit down; still elsewhere.
+  const SkBitmap moved = pixelsOf(*scene, Role::Distortion);
+  expectNear(moved.getColor4f(96, 28), 1, .25f, 0);
+  expectNear(moved.getColor4f(32, 28), .5f, .5f, 0);
+  expectNear(moved.getColor4f(96, 84), .5f, .5f, 0);
+}

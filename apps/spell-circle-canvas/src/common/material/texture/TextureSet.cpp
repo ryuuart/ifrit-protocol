@@ -191,6 +191,12 @@ std::string_view name(Role role) {
       return "iridescence";
     case Role::ClearcoatNormal:
       return "clearcoatNormal";
+    case Role::Transmission:
+      return "transmission";
+    case Role::Thickness:
+      return "thickness";
+    case Role::Distortion:
+      return "distortion";
   }
   return "?";
 }

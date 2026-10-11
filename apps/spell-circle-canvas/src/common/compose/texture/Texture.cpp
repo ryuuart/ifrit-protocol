@@ -190,6 +190,14 @@ void TextureScene::setSurfaceMap(std::optional<material::texture::Role> role) {
   impl.painted = false;
 }
 
+void TextureScene::setSurfaceMapScale(float scale) {
+  Impl& impl = *m_impl;
+  const float before = impl.composer->surfaceMapScale();
+  impl.composer->setSurfaceMapScale(scale);
+  // What stands in the surface was read against the other scale.
+  if (impl.composer->surfaceMapScale() != before) impl.painted = false;
+}
+
 void TextureScene::render(const Element& root, double seconds) {
   Impl& impl = *m_impl;
   impl.engine.advance(motion::Duration(seconds));

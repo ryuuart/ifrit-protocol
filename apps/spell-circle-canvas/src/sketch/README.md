@@ -321,10 +321,14 @@ surface at the frame's time, put on the frame with `pass`, and
 `Page::surface()` is the one material a body wears to show it. Compose paints
 each lit material's maps and the page's flat content as its own colour, and
 the scene's lights, environment and camera shade the page — every lit
-material's base colour, normal, roughness, metalness, occlusion, emission
-and clear coat (its weight and roughness; a coat's own normal is not
-carried yet) reach the scene's shading through `Page::surface()`, and which
-maps carry them is the page's business. Flat content on a page is its own
+material's base colour, normal, roughness, metalness, occlusion, emission,
+clear coat with its own normal, sheen, specular, brushing, thin film,
+transmission and distortion reach the scene's shading through
+`Page::surface()`, and which maps carry them is the page's business. An
+emission keeps its light past white, so a page's glow reaches a bloom's
+threshold; a body wearing a page that states transmission sees through
+itself where the page transmits, bent by the index and the thickness the
+page states there, and shows its own colour everywhere else. Flat content on a page is its own
 light and goes through the camera's exposure and tone curve like any
 other light, so a page meant to read as painted is seen through
 `world::ToneCurve::Neutral`. Nothing paints
