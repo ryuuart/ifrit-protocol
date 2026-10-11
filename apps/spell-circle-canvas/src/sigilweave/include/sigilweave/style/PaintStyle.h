@@ -35,9 +35,6 @@ struct PaintStyle {
   /// replaces only the foreground shader; absent a resolver or shader,
   /// the configured foreground stands. Shared copies retain one source,
   /// and separately held materials compare by identity.
-  /// @silent a glyph added to GlyphRSXformBatches: those batches consult
-  /// no resolver and draw the configured foreground, so a span shaded at
-  /// rest draws unshaded while it moves.
   std::shared_ptr<const sigil::material::Material> foregroundMaterial;
   std::vector<PaintLayer> underlays;  ///< drawn in order beneath `foreground`
   std::vector<PaintLayer> overlays;   ///< drawn in order above `foreground`

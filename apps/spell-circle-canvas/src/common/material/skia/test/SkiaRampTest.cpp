@@ -9,15 +9,21 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkImageInfo.h>
+#include <include/core/SkMatrix.h>
 #include <include/core/SkPaint.h>
+#include <include/core/SkSamplingOptions.h>
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/Ramp.h>
 
+#include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <vector>
 
 #include "support/Shade.h"
@@ -49,8 +55,7 @@ TEST(SkiaGradient, ABoxUnitGradientFillsWhateverBoxItIsGiven) {
   // but for its first line. Asked over a 100 px box, the gradient is
   // spread over all 100 rows: red at the top, green halfway, blue at the
   // bottom.
-  const Paint ramp =
-      Paint::linearGradient({0, 0}, {0, 1}, threeStops());
+  const Paint ramp = Paint::linearGradient({0, 0}, {0, 1}, threeStops());
   EXPECT_TRUE(ramp.geometryDependent());
   const SkBitmap bm =
       render(skia::shader(ramp, FrameData{.resolution = {100, 100}}), 100, 100);
@@ -65,8 +70,8 @@ TEST(SkiaGradient, APixelGradientRunsBetweenTheTwoPointsItIsGiven) {
   // Pixel units measure in the coordinates a node is painted in, so a
   // caller who knows its span says it, and both ends pad because the
   // stops carry no answer beyond themselves.
-  const Paint ramp = Paint::linearGradient(
-      {0, 20}, {0, 80}, threeStops(), {.units = GradientUnits::Pixels});
+  const Paint ramp = Paint::linearGradient({0, 20}, {0, 80}, threeStops(),
+                                           {.units = GradientUnits::Pixels});
   EXPECT_FALSE(ramp.geometryDependent());
   const SkBitmap bm = render(skia::staticShader(ramp), 100, 100);
   EXPECT_GT(SkColorGetR(bm.getColor(50, 22)), 180u);
@@ -84,9 +89,9 @@ TEST(SkiaGradient, TheStopsComeFromAListPlainColoursOrARamp) {
   // alone (spaced evenly), and a ramp read straight in sRGB, which hands
   // over its own stops.
   const GradientOptions pixels{.units = GradientUnits::Pixels};
-  const SkBitmap wanted =
-      render(skia::staticShader(Paint::linearGradient({0, 0}, {0, 64}, threeStops(), pixels)),
-             8, 64);
+  const SkBitmap wanted = render(skia::staticShader(Paint::linearGradient(
+                                     {0, 0}, {0, 64}, threeStops(), pixels)),
+                                 8, 64);
   const Ramp straight{.stops = threeStops(), .space = RampSpace::Srgb};
   for (const Paint& other :
        {Paint::linearGradient(
@@ -109,8 +114,8 @@ TEST(SkiaGradient, TheStopsComeFromAListPlainColoursOrARamp) {
 TEST(SkiaGradient, ARepeatingBoxGradientStartsOverPastItsEnd) {
   // Half the box long, repeated: the lower half paints what the upper
   // half does, where the default pad would paint it flat blue.
-  const Paint repeated = Paint::linearGradient(
-      {0, 0}, {0, 0.5f}, threeStops(), {.repeat = Repeat::Repeat});
+  const Paint repeated = Paint::linearGradient({0, 0}, {0, 0.5f}, threeStops(),
+                                               {.repeat = Repeat::Repeat});
   EXPECT_TRUE(repeated.geometryDependent());
   const SkBitmap bm = render(
       skia::shader(repeated, FrameData{.resolution = {100, 100}}), 100, 100);
@@ -125,13 +130,14 @@ TEST(SkiaGradient, TheExtentSaysWhatARadiusOfOneReaches) {
   const std::vector<ColorStop> whiteToBlack{{0.0f, Color{1, 1, 1, 1}},
                                             {1.0f, Color{0, 0, 0, 1}}};
   const FrameData frame{.resolution = {100, 100}};
-  const SkBitmap corner =
-      render(skia::shader(Paint::radialGradient({0.5f, 0.5f}, 1, whiteToBlack), frame),
-             100, 100);
-  const SkBitmap side =
-      render(skia::shader(Paint::radialGradient({0.5f, 0.5f}, 1, whiteToBlack,
-                                         {.extent = RadialExtent::ClosestSide}), frame),
-             100, 100);
+  const SkBitmap corner = render(
+      skia::shader(Paint::radialGradient({0.5f, 0.5f}, 1, whiteToBlack), frame),
+      100, 100);
+  const SkBitmap side = render(
+      skia::shader(Paint::radialGradient({0.5f, 0.5f}, 1, whiteToBlack,
+                                         {.extent = RadialExtent::ClosestSide}),
+                   frame),
+      100, 100);
   EXPECT_GT(SkColorGetR(corner.getColor(99, 50)), 60u);
   EXPECT_LT(SkColorGetR(side.getColor(99, 50)), 8u);
   EXPECT_LT(SkColorGetR(corner.getColor(99, 99)), 8u);
@@ -143,8 +149,8 @@ TEST(SkiaGradient, AConicInBoxUnitsTurnsAroundThePointOfTheBoxItNames) {
   const Paint conic = Paint::conicGradient(
       {0.25f, 0.5f}, {Color{1, 0, 0, 1}, Color{0, 0, 1, 1}});
   EXPECT_TRUE(conic.geometryDependent());
-  const SkBitmap bm =
-      render(skia::shader(conic, FrameData{.resolution = {100, 100}}), 100, 100);
+  const SkBitmap bm = render(
+      skia::shader(conic, FrameData{.resolution = {100, 100}}), 100, 100);
   EXPECT_GT(SkColorGetR(bm.getColor(60, 52)), 200u);
   EXPECT_GT(SkColorGetB(bm.getColor(60, 48)), 200u);
 }
@@ -175,4 +181,117 @@ TEST(SkiaRamp, APaletteCrossesToAShaderAsATableSampledNearest) {
     EXPECT_EQ(SkColorGetG(got), (uint32_t)std::lround(want.g * 255.0f)) << i;
     EXPECT_EQ(SkColorGetB(got), (uint32_t)std::lround(want.b * 255.0f)) << i;
   }
+}
+
+namespace {
+
+/** @p count stops from @p from to @p to, evenly spaced along a straight
+ *  mix — the same ramp as the two ends alone, spelled long. */
+std::vector<ColorStop> spelledLong(int count, Color from, Color to) {
+  std::vector<ColorStop> stops;
+  for (int i = 0; i < count; ++i) {
+    const float t = (float)i / (float)(count - 1);
+    stops.push_back(
+        {t, Color{from.r + (to.r - from.r) * t, from.g + (to.g - from.g) * t,
+                  from.b + (to.b - from.b) * t, from.a + (to.a - from.a) * t}});
+  }
+  return stops;
+}
+
+int channelDifference(SkColor a, SkColor b) {
+  return std::max({std::abs((int)SkColorGetR(a) - (int)SkColorGetR(b)),
+                   std::abs((int)SkColorGetG(a) - (int)SkColorGetG(b)),
+                   std::abs((int)SkColorGetB(a) - (int)SkColorGetB(b)),
+                   std::abs((int)SkColorGetA(a) - (int)SkColorGetA(b))});
+}
+
+/** The fastest of a few paints of @p shader over @p size square, in
+ *  microseconds. */
+double fastestPaint(const sk_sp<SkShader>& shader, int size) {
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(size, size));
+  SkCanvas canvas(bitmap);
+  SkPaint paint;
+  paint.setShader(shader);
+  double fastest = 1e30;
+  for (int run = 0; run < 5; ++run) {
+    const auto start = std::chrono::steady_clock::now();
+    canvas.drawPaint(paint);
+    (void)bitmap.getColor(size / 2, size / 2);
+    fastest = std::min(fastest, std::chrono::duration<double, std::micro>(
+                                    std::chrono::steady_clock::now() - start)
+                                    .count());
+  }
+  return fastest;
+}
+
+}  // namespace
+
+TEST(SkiaGradient, ALongRampReadsAsTheStopsItIsSpelledWith) {
+  // A ramp of many stops is read from a lookup made once rather than
+  // mixed stop by stop per pixel, and reads the same picture: sixty-five
+  // stops along a straight mix are the two ends' gradient, and so is a
+  // two hundred and fifty-six stop one, horizontally and radially.
+  const Color red{1, 0, 0, 1};
+  const Color blue{0, 0.4f, 1, 0.5f};
+  for (const bool radial : {false, true})
+    for (const int count : {65, 256}) {
+      const auto ramp = [&](std::vector<ColorStop> stops) {
+        return radial
+                   ? Paint::radialGradient({0.5f, 0.5f}, 0.5f, std::move(stops))
+                   : Paint::linearGradient({0, 0}, {1, 0}, std::move(stops));
+      };
+      const FrameData frame{.resolution = {256, 64}};
+      const SkBitmap two =
+          render(skia::shader(ramp({{0, red}, {1, blue}}), frame), 256, 64);
+      const SkBitmap many = render(
+          skia::shader(ramp(spelledLong(count, red, blue)), frame), 256, 64);
+      int worst = 0;
+      for (int y = 0; y < 64; y += 3)
+        for (int x = 0; x < 256; ++x)
+          worst = std::max(worst, channelDifference(two.getColor(x, y),
+                                                    many.getColor(x, y)));
+      EXPECT_LE(worst, 1) << count << " stops, radial " << radial;
+    }
+}
+
+TEST(SkiaGradient, AManyStopRampMaskCostsAboutWhatAStripMaskCosts) {
+  // A page masked by a ramp of many stops against the same page masked by
+  // the ramp painted once into a strip: the ramp is read from a lookup
+  // made once per paint, so its cost per pixel does not grow with its
+  // stops.
+  constexpr int kSize = 512;
+  std::vector<ColorStop> stops;
+  for (int i = 0; i < 256; ++i) {
+    const float t = (float)i / 255.0f;
+    const float grey = 0.5f + 0.5f * std::sin(t * 37.0f);
+    stops.push_back({t * t, Color{grey, grey, grey, 1}});
+  }
+  const Material ramp = linearGradient({0, 0}, {1, 0}, stops);
+  SkBitmap strip;
+  strip.allocPixels(SkImageInfo::MakeN32Premul(256, 1));
+  {
+    SkCanvas canvas(strip);
+    SkPaint paint;
+    paint.setShader(
+        skia::shader(skia::paint(ramp), FrameData{.resolution = {256, 1}}));
+    canvas.drawPaint(paint);
+  }
+  strip.setImmutable();
+  const Material stripped = skia::base(
+      skia::image(strip.asImage(), Repeat::Pad, Repeat::Pad,
+                  SkMatrix::Scale((float)kSize / 256.0f, (float)kSize),
+                  SkSamplingOptions(SkFilterMode::kLinear)));
+  const auto page = [](const Material& mask) {
+    return Material(Color{0.9f, 0.2f, 0.1f, 1})
+        .layer(Color{0.1f, 0.3f, 0.9f, 1},
+               {.mask = {mask, ColorChannel::Luminance}});
+  };
+  const FrameData frame{.resolution = {(float)kSize, (float)kSize}};
+  const double rampCost =
+      fastestPaint(skia::shader(skia::paint(page(ramp)), frame), kSize);
+  const double stripCost =
+      fastestPaint(skia::shader(skia::paint(page(stripped)), frame), kSize);
+  EXPECT_LT(rampCost, stripCost * 3.0)
+      << "ramp " << rampCost << " us, strip " << stripCost << " us";
 }

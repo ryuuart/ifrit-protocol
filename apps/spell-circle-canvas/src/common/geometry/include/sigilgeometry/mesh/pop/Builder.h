@@ -346,8 +346,8 @@ class Builder {
    *  on this builder's chain. */
   Mesh stamps(const Mesh& stamp, const Runtime& runtime = Runtime::cpu()) const;
   /** The chain cooked and @p stamp standing at every point as instanced
-   *  geometry, each scalar lane @p attributes names carried per instance
-   *  — pop::cookInstances on this builder's chain. */
+   *  geometry, each lane @p attributes names carried per instance as
+   *  its first number — pop::cookInstances on this builder's chain. */
   Instances instances(const Mesh& stamp,
                       std::vector<std::string> attributes = {},
                       const Runtime& runtime = Runtime::cpu()) const;

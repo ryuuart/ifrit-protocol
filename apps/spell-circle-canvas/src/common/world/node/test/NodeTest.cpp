@@ -301,6 +301,45 @@ TEST(WorldNode, InstancedGeometryIsDrawnAsItIsAndCooksNothing) {
   EXPECT_TRUE(cook(body.node()->geometry).mesh.indices.empty());
 }
 
+namespace {
+
+/** A consumer's own solid value: a square card of a side, counting how
+ *  many times it was formed. */
+struct CountedCard {
+  float side = 1;
+  std::shared_ptr<int> formed = std::make_shared<int>(0);
+  bool operator==(const CountedCard& other) const { return side == other.side; }
+  [[nodiscard]] geometry::mesh::Mesh mesh() const {
+    ++*formed;
+    return geometry::mesh::quad(side, side);
+  }
+};
+
+}  // namespace
+
+TEST(WorldNode, ASolidValueIsHeldAsAValueAndFormedOnlyByTheCook) {
+  static_assert(geometry::mesh::Solid<CountedCard>);
+  const CountedCard card{.side = 12};
+  // Described twice, as two frames of a sketch describe it: the slot holds
+  // the value, nothing is formed, and the two descriptions are one body to
+  // the prune and one artefact to the content-keyed store.
+  const Mesh first = mesh(card).key("card");
+  const Mesh second = mesh(card).key("card");
+  EXPECT_EQ(*card.formed, 0) << "describing a solid forms nothing";
+  EXPECT_TRUE(propertiesEqual(*first.node(), *second.node()));
+  EXPECT_EQ(first.node()->geometry, second.node()->geometry);
+  EXPECT_EQ(signature(first.node()->geometry),
+            signature(second.node()->geometry));
+  // An equal value built afresh is the same body; another side is not.
+  EXPECT_TRUE(propertiesEqual(
+      *first.node(), *mesh(CountedCard{.side = 12}).key("card").node()));
+  EXPECT_FALSE(propertiesEqual(
+      *first.node(), *mesh(CountedCard{.side = 13}).key("card").node()));
+  // The cook is what forms it, once per cook, into what the value says.
+  EXPECT_EQ(cook(first.node()->geometry).mesh, geometry::mesh::quad(12, 12));
+  EXPECT_EQ(*card.formed, 1);
+}
+
 TEST(WorldNode, ANullIsAPlacementAndNothingElse) {
   const Null pivot = null().key("pivot").at({1, 2, 3}).collection("marks");
   const NodeDescription& node = *pivot.node();

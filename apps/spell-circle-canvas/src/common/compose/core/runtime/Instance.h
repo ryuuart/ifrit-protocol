@@ -16,6 +16,7 @@
 #include <yoga/Yoga.h>
 
 #include "TextState.h"
+#include "cache/MarkStates.h"
 #include "cache/StampCache.h"
 #include "description/ComposeInternal.h"
 #include "style/ComputedStyle.h"
@@ -941,6 +942,10 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // PaintContext::stamps), so a brush value rebuilt every describe reuses
   // its art's bake instead of re-rastering it.
   StampCache stampCache;
+  // What each mark keeps between paints — a lit keyline's prepared
+  // surface, a bevel's shoulder — by its place among the node's marks,
+  // handed to the mark through PaintContext::markState.
+  MarkStates markStates;
 
   /** THE MOTION-PATH TABLE — `Element::travel()`'s measured curve.
    *

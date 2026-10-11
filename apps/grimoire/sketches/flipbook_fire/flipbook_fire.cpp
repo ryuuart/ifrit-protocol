@@ -9,6 +9,7 @@
 #include <sigilgeometry/mesh/Instances.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/Channel.h>
@@ -245,16 +246,20 @@ float scatter(int n, float salt) {
 }
 
 /** THE EMBERS over one fire at @p seconds: sparks rising off the coals
- *  and drifting, as instanced geometry. Each is a pure function of the
- *  time and its own seed — how far through its rise it is, which way it
- *  drifts, which cell of the sheet it shows — so the drift plays and
- *  nothing is simulated. Every rise lasts the loop or half of it. */
+ *  and drifting, as instanced geometry stood on a point chain. Each is a
+ *  pure function of the time and its own seed — how far through its rise
+ *  it is, which way it drifts, which cell of the sheet it shows — so the
+ *  drift plays and nothing is simulated; the points carry the size, the
+ *  tint and the cell, and the chain stands a spark at each with its cell
+ *  as the scalar the flipbook reads. Every rise lasts the loop or half of
+ *  it. */
 gm::Instances risingEmbers(float seconds, float salt) {
   constexpr int kEmbers = 40;
   constexpr float kRise = 250;
-  gm::Instances out;
-  out.stamp = gm::quad(10, 10);
-  std::vector<float>& cell = out.attributes["cell"];
+  gm::Cloud sparks;
+  std::vector<float>& size = sparks.scalar("size");
+  std::vector<glm::vec4>& tint = sparks.color("tint");
+  std::vector<float>& cell = sparks.scalar("cell");
   for (int n = 0; n < kEmbers; ++n) {
     const float own = scatter(n, salt);
     const float life =
@@ -264,17 +269,17 @@ gm::Instances risingEmbers(float seconds, float salt) {
     const float bearing = scatter(n, salt + 2) * kTau;
     const float reach = 10.0f + 26.0f * scatter(n, salt + 3);
     const float sway = 9.0f * std::sin(age * kTau * 1.5f + own * kTau) * age;
-    out.positions.push_back({std::cos(bearing) * reach * (0.4f + age) + sway,
-                             kRim - 6 + age * kRise,
-                             std::sin(bearing) * reach * (0.4f + age)});
-    out.scales.emplace_back(1.0f - 0.6f * age);
+    sparks.positions.push_back({std::cos(bearing) * reach * (0.4f + age) + sway,
+                                kRim - 6 + age * kRise,
+                                std::sin(bearing) * reach * (0.4f + age)});
+    size.push_back(1.0f - 0.6f * age);
     // Brightest just off the coals, gone by the top of the rise.
     const float shown = smooth(0.0f, 0.08f, age) * std::pow(1.0f - age, 1.6f);
-    out.colors.push_back({1, 1, 1, shown});
+    tint.push_back({1, 1, 1, shown});
     const float frame = own * kFrames + seconds * kFramesPerSecond;
     cell.push_back(frame - std::floor(frame / kFrames) * kFrames);
   }
-  return out;
+  return gm::pop::on(std::move(sparks)).instances(gm::quad(10, 10), {"cell"});
 }
 
 /** THE COALS: dark where they are cold, and glowing brighter than white

@@ -73,4 +73,11 @@ void setMaterialResolver(MaterialResolver resolver);
 /** Whether a resolver is registered. */
 bool hasMaterialResolver();
 
+/** The registered resolver's shader for @p material over @p bounds; null
+ *  with no resolver registered or none returned. What every painter that
+ *  shades a pass by its material asks — the paragraph draws and the glyph
+ *  batches alike. */
+sk_sp<SkShader> resolveMaterial(const sigil::material::Material& material,
+                                const SkRect& bounds);
+
 }  // namespace sigil::weave::paint

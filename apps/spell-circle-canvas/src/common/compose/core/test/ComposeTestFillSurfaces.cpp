@@ -9,9 +9,15 @@
 #include <sigilmaterial/pattern/Tile.h>
 
 #include <algorithm>
+#include <array>
 #include <concepts>
+#include <cstring>
 #include <vector>
 
+#include "cache/MarkStates.h"
+#include "paint/MaterialEffects.h"
+#include "paint/PenOnCanvas.h"
+#include "paint/SurfaceMap.h"
 #include "support/CoreTestSupport.h"
 
 namespace {
@@ -26,19 +32,16 @@ std::vector<SkColor> pixelsOf(Host& host, int width, int height) {
 }
 
 template <class Value>
-concept FillableWith = requires(Element element, Value value) {
-  element.fill(value);
-};
+concept FillableWith =
+    requires(Element element, Value value) { element.fill(value); };
 
 template <class Value>
-concept InkableWith = requires(Element element, Value value) {
-  element.ink(value);
-};
+concept InkableWith =
+    requires(Element element, Value value) { element.ink(value); };
 
 template <class Value>
-concept TextStrokableWith = requires(Text text, Value value) {
-  text.textStroke(1.0f, value);
-};
+concept TextStrokableWith =
+    requires(Text text, Value value) { text.textStroke(1.0f, value); };
 
 template <class Value>
 concept RuleFillableWith = requires(Rule rule, Value value) {
@@ -78,4 +81,88 @@ TEST(ComposeFill, EveryVerbThatTakesASurfaceTakesAMaterial) {
   static_assert(InkableWith<material::Material>);
   static_assert(TextStrokableWith<material::Material>);
   static_assert(RuleFillableWith<material::Material>);
+}
+
+// ---- a lit keyline's paint state --------------------------------------------
+
+namespace {
+
+/** A lit finish: metal three quarters, roughness one quarter. */
+material::Material litFinish() {
+  return material::from(material::Color{.8f, .4f, .2f, 1})
+      .surface({.metallic = .75f, .roughness = .25f});
+}
+
+/** A plate dressed only by a lit keyline six pixels wide inside it. */
+Element keylined() {
+  return box().width(64).height(64).children(
+      {box()
+           .absolute()
+           .rect(8, 8, 48, 48)
+           .stroke(
+               litFinish(),
+               {.width = 6, .position = material::StrokePosition::Inside})});
+}
+
+}  // namespace
+
+TEST(ComposeMaterialStroke, OneDescriptionPaintsAsEachComposersOwnMap) {
+  // One description handed to two composers painting different surface
+  // maps, frame after frame in turn: each keyline is its own composer's
+  // map, as a composer that alone was handed the description paints it.
+  const Element described = keylined();
+  Host rough(64, 64), metal(64, 64);
+  rough.composer.setSurfaceMap(material::texture::Role::Roughness);
+  metal.composer.setSurfaceMap(material::texture::Role::Metallic);
+  rough.composer.render(described);
+  metal.composer.render(described);
+  for (int frame = 0; frame < 3; ++frame) {
+    rough.frame();
+    metal.frame();
+  }
+  const SkColor4f roughKeyline = SkColor4f::FromColor(rough.pixel(10, 32));
+  const SkColor4f metalKeyline = SkColor4f::FromColor(metal.pixel(10, 32));
+  EXPECT_NEAR(roughKeyline.fG, .25f, .012f);
+  EXPECT_NEAR(metalKeyline.fG, .75f, .012f);
+  Host roughAlone(64, 64), metalAlone(64, 64);
+  roughAlone.composer.setSurfaceMap(material::texture::Role::Roughness);
+  metalAlone.composer.setSurfaceMap(material::texture::Role::Metallic);
+  roughAlone.composer.render(keylined());
+  metalAlone.composer.render(keylined());
+  roughAlone.frame();
+  metalAlone.frame();
+  EXPECT_TRUE(identicalPixels(rough, roughAlone, 64, 64));
+  EXPECT_TRUE(identicalPixels(metal, metalAlone, 64, 64));
+}
+
+TEST(ComposeMaterialStroke, PaintingAKeylineLeavesItsDescriptionUnchanged) {
+  // Described once and painted as a surface map — outside a composer and
+  // on a composer's instance alike — the mark's value is the bytes it was
+  // described as: what the paint prepared stands with the painter.
+  const material::Material finish = litFinish();
+  const detail::MaterialStroke described{
+      material::skia::paint(finish),
+      {.width = 6, .position = material::StrokePosition::Inside},
+      detail::surfacedForMaps(finish)};
+  ASSERT_TRUE(described.surfaced.has_value());
+  std::array<unsigned char, sizeof(detail::MaterialStroke)> before{};
+  std::memcpy(before.data(), &described, sizeof(described));
+
+  SkBitmap pixels;
+  pixels.allocN32Pixels(64, 64);
+  SkCanvas canvas(pixels);
+  PaintContext context;
+  context.size = {48, 48};
+  context.outline = geometry::path::fromSk(SkPath::Rect({0, 0, 48, 48}));
+  context.surfaceMap = material::texture::Role::Roughness;
+  detail::MarkState state;
+  for (detail::MarkState* kept : {(detail::MarkState*)nullptr, &state}) {
+    context.markState = kept;
+    detail::PenOnCanvas pen(canvas, context);
+    described.paint(pen.pen(), context);
+  }
+  EXPECT_NE(state.stroke, nullptr) << "the instance keeps what was prepared";
+  EXPECT_EQ(std::memcmp(before.data(), &described, sizeof(described)), 0)
+      << "painting wrote into the description";
+  EXPECT_NEAR(pixels.getColor4f(2, 24).fG, .25f, .012f);
 }

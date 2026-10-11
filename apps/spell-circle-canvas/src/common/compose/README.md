@@ -464,7 +464,12 @@ must use `Cache::None`. Custom decoration schemes must forward their
 animation, overflow, mark width, backdrop, root-space sampling and borrowing
 capabilities when composed; `DecorationStack` and the stock adaptors do
 that for their members. A scheme that samples root coordinates declares
-`usesWorldSpace()` so a moved ancestor invalidates its held paint.
+`usesWorldSpace()` so a moved ancestor invalidates its held paint. A
+described tree may be painted by several composers at once, so a scheme
+keeps nothing it prepares in its own value: what a mark keeps between
+paints stands on the instance painting it, handed to the mark through
+`PaintContext::markState` and `PaintContext::stamps`, and a mark painted
+outside a composer prepares what it needs for that one paint.
 
 `Cache::Picture`, `Cache::Texture` and `Cache::Group` express explicit
 reuse choices. Global texture promotion is a separate measured policy,

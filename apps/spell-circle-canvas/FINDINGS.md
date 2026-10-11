@@ -662,31 +662,6 @@ montage rendering. File-based stills and registry-based montages should
 retain their existing selections.
 
 
-## Bug: Material root anchoring is discarded by Skia lowering
-
-`Material::worldSpace` stores its flag in
-`src/common/material/core/Material.cpp`, and its public contract anchors
-the material to the root. `src/common/material/skia/Bases.cpp` copies a
-composed gradient's PaintPart into the accumulated Paint and returns it
-without transferring that flag. `Material::geometryDependent` also omits
-the flag.
-
-A native C++ probe uses ordinary Compose fills for both rows. A gradient
-Material marked `worldSpace` restarts its red-to-blue ramp in each
-translated 310-pixel panel, while a Paint marked `worldSpace` and wrapped
-as a Material stays continuous on the 800-pixel root. At root x406 the
-Material-level row is RGB(251, 65, 68), and the Paint-level row is
-RGB(158, 97, 161). This is distinct from the hosted Pen defect: no Pen
-leaf participates in this probe.
-
-The intended root anchor should survive Material lowering and participate
-in geometry-dependency classification. A regression should render both
-authoring forms at identical root coordinates across translated, scaled
-and rotated nodes, assert matching pixels, and assert geometry changes
-invalidate the anchored Material's cached result. Local-space materials
-should retain their existing behavior.
-
-
 ## API request: paragraphs cannot state the bidi base of their page
 
 `src/sigilweave/paragraph/ParagraphAnalysis.cpp` calls
@@ -1195,43 +1170,6 @@ independently; changing destination precision must not change authored tint
 semantics silently. Keep the bounded batch path when it meets that contract.
 
 
-## Contract gap: a material stroke keeps its prepared surface in the description
-
-`detail::MaterialStroke` in
-`src/common/compose/core/paint/MaterialEffects.h` holds a
-`mutable std::shared_ptr<MaterialStrokeCache>`, and its const `paint()`
-in `MaterialEffects.cpp` replaces and mutates it. A `Decoration` is a
-value an author keeps and hands to several trees, so two composers
-painting one description — a `TextureScene` beside the window's
-composer — write the same cache, and neither owns its lifetime.
-
-A description is immutable once described; retained paint state belongs
-to the instance that paints. The prepared `LitSurface` and its surface map
-passes should stand beside the instance's other lit inputs, keyed by the
-mark's place among the node's strokes. A test should paint one
-description through two composers painting different surface maps and
-find each painted as its own map; a second should describe the stroke
-once, paint it, and find the description's bytes unchanged.
-
-## Rendering gap: glyph batches draw a span's material unshaded
-
-`GlyphRSXformBatches::addGlyph` in
-`src/sigilweave/choreograph/Choreograph.cpp` builds every pass from
-`style.foreground` and `PaintLayer::resolvedPaint`, and never consults
-`PaintStyle::foregroundMaterial` or `PaintLayer::material`; the batches
-have no material resolver. The paragraph draws, `ParagraphLayout::draw`
-and `drawBatched`, paint those passes through `paint::setMaterialResolver`
-over the glyph ink bounds. So a span whose material paints it at rest
-draws in its configured foreground as soon as a text effect moves its
-glyphs into the batches.
-
-One material should paint a glyph the same way at rest and in motion. A
-test should draw one styled glyph with a `foregroundMaterial` and an
-installed resolver twice, through `drawBatched` and through
-`GlyphRSXformBatches` at the same pose, and assert that both resolve the
-material once per bucket and produce the same pixels. Layer materials
-want the same.
-
 ## Bug: a workspace's own `assets/` is not what `res://` mounts
 
 `python3 scripts/sigil.py workspace new <dir>` writes `<dir>/<dir>.cpp`
@@ -1355,21 +1293,6 @@ brushed plate under a long strip light aligned with the brushing shows a
 longer highlight than one across it, and that a sheen under a wide panel
 grazing a cloth plate spreads over the panel's width.
 
-## API gap: a lane a point chain fills does not reach its instances
-
-`pop::Builder::instances(stamp, attributes)` in SigilGeometry carries a
-named lane to the instances only when the cooked points hold it as one
-scalar per point. The lanes a chain itself creates — `fill`, `cluster`,
-`select` — hold four numbers per point, so naming one in `attributes`
-carries nothing, and a chain cannot feed a flipbook's `frameAttribute`.
-`flipbook_fire` and its Python port build their `Instances` by hand for
-that reason.
-
-A lane the chain filled should reach each instance as the scalar the
-material asks for, by its first number. A test should assert that
-`pop::on(loop).fill("cell", {3, 0, 0, 0}).instances(quad, {"cell"})`
-answers 3 for every instance's `"cell"`.
-
 ## A canvas on the shared Vulkan device still reads a scene3d sketch's picture back
 
 `Gpu::present` in `src/common/world/diligent/Gpu.cpp` hands a picture
@@ -1382,37 +1305,22 @@ by design. A test should present a live frame onto a surface of the
 device's own Graphite and assert `SceneStats::readbacks` is zero and the
 pixels equal the readback's.
 
-## The geometry kit's solids are not comparable values a node can keep
-
-`gm::superellipsoid`, `quad` and the other solids in
-`src/common/geometry/include/sigilgeometry/kit/Solids.h` return a formed
-mesh, so a scene3d sketch that spells one in `describe()` builds the triangles every
-frame only for reconcile to find them equal; `world::Generator` keeps a
-cook by value but needs a hand-written model. The shape vocabulary in
-2D already answers with comparable values. The intended shape is a solid
-spelled as a value (its radii, exponent and divisions) that a node's
-geometry slot holds and cooks once while it is unchanged. `set_stagger`
-forms its meshes once in members until then. A test should describe a
-scene3d sketch naming a solid value twice and assert the solid was formed once.
-
-## Device tier: four scene2d sketches stand beyond tolerance of their CPU plates
+## Device tier: a device-cooked frame draws nothing in the headless device sweep
 
 `sigil.py plates --tier device` renders every scene2d sketch on the CPU
-and on the device and compares them per colour channel. Four stand OVER
-the tolerance (mean above 12, p99 above 128): `andromeda_optical_lab`,
-`stargate_slit_scan`, `voyager_instruction_plate` and
-`substance_swatches`. Each of them paints through a runtime effect or a
-material map, so the drift is in how Graphite and the raster backend
-execute the same program, not in the sketch. The tier's exit status is
-1 while the rows read OVER, and the scene3d set's byte-neutral verdict
-stands beside it.
-
-A scene2d picture should be the same picture on either backend within
-the tolerance the tier states, or the sketch should say which backend it
-is drawn on. A test should render each of the four on both backends at
-the plate moment and find the per-channel mean and p99 within the
-tier's tolerance; until then the four rows are the finding, and a run
-of the tier is read by its rows and not by its last line.
+and on the device and compares them per colour channel. One stands OVER
+the tolerance: `substance_swatches`, whose seven cooked cards are empty
+only in the headless device sweep. It cooks its channels on the Substance
+Metal engine, so its frames are device frames with a `CookedBinding`
+(`material/substance/Metal.mm`); the CPU sweep and a still taken with
+`Grimoire …/substance_swatches.cpp --frame x.png --gpu` draw the cards.
+The suspects are the sweep's stepping onto an `SkNoDrawCanvas` followed by
+`still()` onto a `PaintOrderCanvas` (`src/sketch/plate/Sweep.cpp`), and
+`CookedBinding::image` caching its wrap by recorder pointer. A device
+frame should be bound for the plate's recorder as in the live host. A test
+should sweep the sketch on the device and find the cards' mean equal to the
+CPU plate's within the tier's tolerance; until then the row is the finding,
+and a run of the tier is read by its rows and not by its last line.
 
 ## Performance: wet_glass_console is very demanding
 
@@ -1430,14 +1338,6 @@ material's index, attenuation and dispersion for the whole page and
 reports a second once. A test should paint two transmitting regions with
 different indices and find each region's volume in its own maps.
 
-## Performance gap: a ramp used as a mask is evaluated per pixel
-
-A ramp of many stops used as a mask is evaluated per pixel in every map
-pass; it should be sampled from a lookup made once per paint, in the
-Skia material executor. A test should time a page masked by a many-stop
-ramp against the same page masked by a strip and find them within a
-small factor.
-
 ## A scene3d sketch's first frame still builds its pipelines on the thread that draws
 
 The fixed programs compile when the device comes up, on the calling
@@ -1454,13 +1354,6 @@ none, in the filter and the light loop and not in overdraw, which the
 device already removes. A hardware comparison sampler for the shadow
 taps should cut it. A test should time the laid phase with and without a
 casting light and find the ratio within a stated bound.
-
-## Bug: a point chain drops a filled scalar lane from its instances
-
-`pop::on(cloud).instances(stamp, {name})` returns no attributes for a
-cloud whose named lane is filled, while a hand-built `Instances` carries
-them; the lane is lost in cooking. A test should fill a lane on a cloud,
-instance a stamp with it named, and find the attribute on every instance.
 
 ## Limit: a glass body's shadow is one colour, and a lens's back mirrors its front
 
@@ -1495,3 +1388,28 @@ honours. A declaration the registry honours should hold wherever the
 sketch is catalogued. A test should catalogue a workspace `.py` file with
 `NAME` and `CATEGORY`, find both in its row, keep the stem as the key, and
 not execute the file.
+
+## Rendering gap: a body's per-face slots draw only the first slot
+
+`SurfaceVerbs::fill(std::span<const material::Material>)` stores
+`NodeDescription::slots`, but the scene wears `surfaceOf(node)`, the
+first slot, on every face (`src/common/world/scene/Phases.cpp`), and
+nothing reads a mesh's `"Material"` primitive lane. An extrusion with
+`ExtrudeOptions::faceSets = true` filled with two materials wears the
+first on its caps and its walls alike, while the geometry README states
+that each triangle wears the slot its lane names. `carved_marks` keeps
+its two-extrusion `lying()` until this holds, and its rounded edges wait
+on it too, since a rounded edge needs cap and walls in one mesh. A test
+should extrude a square with face sets, fill it with two materials, render
+it, and find the caps the first and the walls the second.
+
+## Follow-up: a scene-level test and Python bindings for solid values
+
+`geometry::solids::*` and `world::mesh(Solid)` hold a solid as a comparable
+value the store cooks once while it stands, proven at the node. A
+`world/scene/test` case should describe a scene naming
+`geometry::solids::Superellipsoid` on two nodes, render twice, and find
+`SceneStats::cooked` one then zero and `resources` one. The solid values
+and `world.mesh(solid)` are not bound in Python; bind them and regenerate
+the typing, with a Python test that describes one twice and finds it
+formed once.

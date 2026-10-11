@@ -1,4 +1,11 @@
-float hash(float2 p) { return fract(sin(dot(p,float2(127.1,311.7)))*43758.5453); }
+// A hash of products and fractions alone, so the raster canvas and the
+// device answer the same pattern: a sine of a large argument rounds
+// differently on each.
+float hash(float2 p) {
+    float3 q=fract(float3(p.xyx)*.1031);
+    q+=dot(q,q.yzx+33.33);
+    return fract((q.x+q.y)*q.z);
+}
 half4 main(float2 p) {
     float2 uv=p/uResolution;
     float pool=exp(-length((uv-float2(.34,.54))*float2(1.55,1.45)));

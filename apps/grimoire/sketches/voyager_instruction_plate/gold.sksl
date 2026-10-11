@@ -1,5 +1,11 @@
-// White is the face of the cover; black vector marks are recessed cuts.
-float hash(float2 p) { return fract(sin(dot(p,float2(127.1,311.7)))*43758.5453); }
+// A hash of products and fractions alone, so the raster canvas and the
+// device answer the same pattern: a sine of a large argument rounds
+// differently on each.
+float hash(float2 p) {
+    float3 q=fract(float3(p.xyx)*.1031);
+    q+=dot(q,q.yzx+33.33);
+    return fract((q.x+q.y)*q.z);
+}
 float noise(float2 p) {
     float2 q=floor(p),f=fract(p); f=f*f*(3.0-2.0*f);
     return mix(mix(hash(q),hash(q+float2(1,0)),f.x),mix(hash(q+float2(0,1)),hash(q+1.0),f.x),f.y);
@@ -8,6 +14,7 @@ float heightAt(float2 p) {
     half4 q=content.eval(p);
     return q.a>0.003 ? float(q.r/q.a) : 1.0;
 }
+// White is the face of the cover; black vector marks are recessed cuts.
 half4 main(float2 p) {
     half4 source=content.eval(p);
     if(source.a<0.003) return half4(0);
@@ -22,8 +29,12 @@ half4 main(float2 p) {
     float brushed=noise(float2(p.x*.10+p.y*.18,p.y*2.3-p.x*.84));
     float patch=noise(p/180.0)*.58+noise(p/39.0)*.42;
     // An elongated softbox reflects along the brushed face and into cut walls.
-    float band=exp(-pow((diagonal+normal.x*.20+normal.y*.26-.03)/.20,2.0));
-    float narrow=exp(-pow((diagonal+normal.x*.25+normal.y*.19+.26)/.055,2.0));
+    // Each falloff is squared by a product: a power of a negative base is
+    // undefined, and the device and the raster canvas answer it apart.
+    float across=(diagonal+normal.x*.20+normal.y*.26-.03)/.20;
+    float band=exp(-across*across);
+    float acrossNarrow=(diagonal+normal.x*.25+normal.y*.19+.26)/.055;
+    float narrow=exp(-acrossNarrow*acrossNarrow);
     float shade=max(0.0,dot(normal,normalize(float3(-.62,-.5,.61))));
     float3 body=mix(float3(.11,.086,.048),float3(.42,.28,.086),patch);
     float3 colour=body*(.57+.49*shade)*(1.0+.15*(brushed-.5));

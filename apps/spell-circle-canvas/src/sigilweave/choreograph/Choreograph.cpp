@@ -8,6 +8,8 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColorFilter.h>
 #include <include/core/SkFont.h>
+#include <include/core/SkMatrix.h>
+#include <include/core/SkShader.h>
 #include <include/core/SkSpan.h>
 #include <include/core/SkTextBlob.h>
 #include <include/effects/SkColorMatrix.h>
@@ -21,11 +23,13 @@
 #include <list>
 #include <numbers>
 #include <utility>
+#include <vector>
 
 #include "sigilgeometry/advanced/Skia.h"
 #include "sigilweave/advanced/Skia.h"
 #include "sigilweave/choreograph/GlyphBatches.h"
 #include "sigilweave/choreograph/GlyphDress.h"
+#include "sigilweave/paint/Paint.h"
 
 namespace sigil::weave {
 
@@ -61,6 +65,26 @@ void quantizeAngle(float angle, int steps, float& cosine, float& sine) {
 }
 
 namespace {
+
+/** The ink of a bucket's glyphs where they stand, before the pass's own
+ *  offset: each glyph's ink as the font measures it, turned and placed by
+ *  its transform or its matrix. What a material over the bucket is
+ *  resolved against, as the paragraph draws resolve it over a run's. */
+SkRect inkBounds(const SkFont& font, const GlyphRSXformBatches::Batch& batch) {
+  static thread_local std::vector<SkRect> ink;
+  SkRect bounds = SkRect::MakeEmpty();
+  ink.resize(batch.glyphs.size());
+  font.getBounds(batch.glyphs, {ink.data(), ink.size()}, nullptr);
+  for (size_t index = 0; index < ink.size(); ++index)
+    bounds.join(
+        SkMatrix().setRSXform(batch.transforms[index]).mapRect(ink[index]));
+  ink.resize(batch.matrixGlyphs.size());
+  font.getBounds(batch.matrixGlyphs, {ink.data(), ink.size()}, nullptr);
+  for (size_t index = 0; index < ink.size(); ++index)
+    bounds.join(batch.matrices[index].mapRect(ink[index]));
+  return bounds;
+}
+
 std::array<uint32_t, 9> tintKey(const material::Color& tint,
                                 const material::Color& add,
                                 const material::Color& screen) {
@@ -142,13 +166,15 @@ sk_sp<SkColorFilter> GlyphRSXformBatches::tintPass(const GlyphDress& dress,
 
 GlyphRSXformBatches::Batch& GlyphRSXformBatches::batchForPass(
     const ShapedWord* font, const sk_sp<SkTypeface>& face, const SkPaint& paint,
-    SkVector offset, PassBand band) {
+    SkVector offset, PassBand band,
+    const std::shared_ptr<const material::Material>& material) {
   const sk_sp<SkTypeface> resolved = face ? face : toSk(font->typeface);
   auto matches = [&](const Batch& batch) {
     return batch.typeface.get() == resolved.get() &&
            batch.fontSize == font->fontSize && batch.scaleX == font->scaleX &&
            batch.aliased == font->aliased && batch.offset == offset &&
-           batch.band == band && batch.paint == paint;
+           batch.band == band && batch.material == material &&
+           batch.paint == paint;
   };
   if (recentBatch < batches.size() && matches(batches[recentBatch]))
     return batches[recentBatch];
@@ -176,6 +202,7 @@ GlyphRSXformBatches::Batch& GlyphRSXformBatches::batchForPass(
   batch.paint = std::move(ownedPaint);
   batch.offset = offset;
   batch.band = band;
+  batch.material = material;
   return batch;
 }
 
@@ -206,49 +233,54 @@ void GlyphRSXformBatches::addGlyph(const ShapedWord* font,
       batch.transforms.push_back(transform);
     }
   };
-  auto addPass = [&](const SkPaint& source, SkVector offset, PassBand band) {
-    if (alpha >= 1.0f && !tinted) {
-      if (source.nothingToDraw()) return;
-      place(batchForPass(font, dress.face, source, offset, band));
-      return;
-    }
-    SkPaint dressed = source;
-    if (alpha != 1.0f) dressed.setAlphaf(source.getAlphaf() * alpha);
-    if (tinted) {
-      // A flat pass takes the modulation in its colour; a pass whose
-      // colour is decided downstream — by a shader, or by a filter
-      // already on it — takes the equivalent modulation as a filter over
-      // that colour. Same arithmetic both ways: multiply, add, clamp,
-      // then screen.
-      if (dressed.getShader() || dressed.getColorFilter()) {
-        dressed.setColorFilter(tintPass(dress, dressed.refColorFilter()));
-      } else {
-        const auto channel = [&](float base, float mul, float add,
-                                 float screen) {
-          const float lit = std::clamp(base * mul + add, 0.0f, 1.0f);
-          return lit + (1.0f - lit) * screen;
-        };
-        const SkColor4f base = dressed.getColor4f();
-        dressed.setColor4f({channel(base.fR, dress.colorMultiplier.r,
-                                    dress.colorAdd.r, dress.colorScreen.r),
-                            channel(base.fG, dress.colorMultiplier.g,
-                                    dress.colorAdd.g, dress.colorScreen.g),
-                            channel(base.fB, dress.colorMultiplier.b,
-                                    dress.colorAdd.b, dress.colorScreen.b),
-                            base.fA},
-                           nullptr);
-      }
-    }
-    if (dressed.nothingToDraw()) return;
-    place(batchForPass(font, dress.face, dressed, offset, band));
-  };
+  auto addPass =
+      [&](const SkPaint& source, SkVector offset, PassBand band,
+          const std::shared_ptr<const material::Material>& material) {
+        if (alpha >= 1.0f && !tinted) {
+          if (source.nothingToDraw()) return;
+          place(batchForPass(font, dress.face, source, offset, band, material));
+          return;
+        }
+        SkPaint dressed = source;
+        if (alpha != 1.0f) dressed.setAlphaf(source.getAlphaf() * alpha);
+        if (tinted) {
+          // A flat pass takes the modulation in its colour; a pass whose
+          // colour is decided downstream — by a shader, or by a filter
+          // already on it — takes the equivalent modulation as a filter over
+          // that colour. Same arithmetic both ways: multiply, add, clamp,
+          // then screen.
+          if (dressed.getShader() || dressed.getColorFilter()) {
+            dressed.setColorFilter(tintPass(dress, dressed.refColorFilter()));
+          } else {
+            const auto channel = [&](float base, float mul, float add,
+                                     float screen) {
+              const float lit = std::clamp(base * mul + add, 0.0f, 1.0f);
+              return lit + (1.0f - lit) * screen;
+            };
+            const SkColor4f base = dressed.getColor4f();
+            dressed.setColor4f({channel(base.fR, dress.colorMultiplier.r,
+                                        dress.colorAdd.r, dress.colorScreen.r),
+                                channel(base.fG, dress.colorMultiplier.g,
+                                        dress.colorAdd.g, dress.colorScreen.g),
+                                channel(base.fB, dress.colorMultiplier.b,
+                                        dress.colorAdd.b, dress.colorScreen.b),
+                                base.fA},
+                               nullptr);
+          }
+        }
+        if (dressed.nothingToDraw()) return;
+        place(batchForPass(font, dress.face, dressed, offset, band, material));
+      };
   for (const PaintLayer& layer : style.underlays)
     addPass(layer.resolvedPaint(style.foreground),
-            geometry::path::toSk(layer.offset), PassBand::Underlay);
-  addPass(style.foreground, {0, 0}, PassBand::Foreground);
+            geometry::path::toSk(layer.offset), PassBand::Underlay,
+            layer.material);
+  addPass(style.foreground, {0, 0}, PassBand::Foreground,
+          style.foregroundMaterial);
   for (const PaintLayer& layer : style.overlays)
     addPass(layer.resolvedPaint(style.foreground),
-            geometry::path::toSk(layer.offset), PassBand::Overlay);
+            geometry::path::toSk(layer.offset), PassBand::Overlay,
+            layer.material);
 }
 
 void GlyphRSXformBatches::clear() {
@@ -266,6 +298,7 @@ void GlyphRSXformBatches::clear() {
   }
   for (Batch& batch : batches) {
     batch.paint = SkPaint{};
+    batch.material.reset();
     batch.typeface.reset();
     batch.glyphs.clear();
     batch.transforms.clear();
@@ -294,6 +327,19 @@ int GlyphRSXformBatches::drawBatch(SkCanvas* canvas, const Batch& batch,
   // Whole-pixel origins unless the run declared itself in motion — see
   // `subpixel` above for which way that trade runs.
   font.setSubpixel(subpixel);
+  // A material shades the bucket over its glyphs' ink where they stand,
+  // asked once for the whole bucket; without a resolver or a shader the
+  // configured paint stands.
+  const SkPaint* paint = &batch.paint;
+  SkPaint shaded;
+  if (batch.material && paint::hasMaterialResolver()) {
+    if (sk_sp<SkShader> shader =
+            paint::resolveMaterial(*batch.material, inkBounds(font, batch))) {
+      shaded = batch.paint;
+      shaded.setShader(std::move(shader));
+      paint = &shaded;
+    }
+  }
   if (!batch.glyphs.empty()) {
     total += static_cast<int>(batch.glyphs.size());
     // workaround: a turned-and-placed glyph run handed to the canvas
@@ -317,7 +363,7 @@ int GlyphRSXformBatches::drawBatch(SkCanvas* canvas, const Batch& batch,
     std::memcpy(run.xforms(), batch.transforms.data(),
                 batch.transforms.size() * sizeof(SkRSXform));
     canvas->drawTextBlob(builder.make(), batch.offset.x(), batch.offset.y(),
-                         batch.paint);
+                         *paint);
   }
   // The bucket's matrix lane, inside the bucket's own place in the pass
   // order: one save/concat and one draw per glyph, but still one font
@@ -330,7 +376,7 @@ int GlyphRSXformBatches::drawBatch(SkCanvas* canvas, const Batch& batch,
     canvas->concat(batch.matrices[index]);
     canvas->drawGlyphs(SkSpan<const SkGlyphID>(&batch.matrixGlyphs[index], 1),
                        SkSpan<const SkPoint>(&kAtTheMatrixOrigin, 1), {0, 0},
-                       font, batch.paint);
+                       font, *paint);
     canvas->restore();
     ++total;
   }

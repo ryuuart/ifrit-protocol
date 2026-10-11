@@ -12,14 +12,19 @@
 #include <include/core/SkTileMode.h>
 #include <include/effects/SkGradient.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/core/Material.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/difference/Difference.h>
 #include <sigilweave/kit/PaintLayers.h>
+#include <sigilweave/paint/Paint.h>
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "sigilgeometry/advanced/Skia.h"
@@ -663,4 +668,82 @@ TEST(GlyphBatches, ATurnedRunDrawsIntoASurfaceTheSizeOfItsOwnBounds) {
     for (int x = 0; x < pixmap.width(); ++x)
       if (SkColorGetR(pixmap.getColor(x, y)) < 128) ++inked;
   EXPECT_GT(inked, 0) << "a turned batch reached the canvas";
+}
+
+namespace {
+
+/// The resolver is process-wide, so a case that installs one puts it back
+/// however it leaves.
+class InstalledResolver {
+ public:
+  explicit InstalledResolver(paint::MaterialResolver resolver) {
+    paint::setMaterialResolver(std::move(resolver));
+  }
+  InstalledResolver(const InstalledResolver&) = delete;
+  InstalledResolver& operator=(const InstalledResolver&) = delete;
+  ~InstalledResolver() { paint::setMaterialResolver({}); }
+};
+
+}  // namespace
+
+TEST(GlyphBatches, AMaterialShadesAGlyphAsTheParagraphDrawShadesIt) {
+  // One glyph whose span is shaded by a material, drawn at rest by the
+  // paragraph's batched draw and by the glyph batches at the same pose:
+  // each asks the resolver once for its one bucket, over the same ink, and
+  // the two put down the same pixels. The resolver answers a ramp across
+  // the bounds it is handed, so a bucket shaded over other bounds — or not
+  // shaded at all — shows.
+  BlockFlow flow(sigil::geometry::path::Rect::of({10, 10}, {380, 100}));
+  auto [paragraph, layout] = laidOut(u8"H", 64.0f, flow);
+  const auto source = std::make_shared<const sigil::material::Material>(
+      sigil::material::Color{1, 1, 1, 1});
+  PaintStyle style(SK_ColorWHITE);
+  style.foregroundMaterial = source;
+  paragraph.setPaint(0, 1, style);
+  int calls = 0;
+  std::vector<SkRect> asked;
+  const InstalledResolver installed(
+      [&](const sigil::material::Material& material, const SkRect& bounds) {
+        ++calls;
+        asked.push_back(bounds);
+        EXPECT_EQ(&material, source.get());
+        return horizontalGradient(bounds.left(), bounds.right(), SK_ColorRED,
+                                  SK_ColorBLUE);
+      });
+
+  const auto render = [](const auto& drawInto) {
+    sk_sp<SkSurface> surface =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(400, 120));
+    surface->getCanvas()->clear(SK_ColorTRANSPARENT);
+    drawInto(surface->getCanvas());
+    return surface;
+  };
+  const sk_sp<SkSurface> atRest =
+      render([&](SkCanvas* canvas) { layout.drawBatched(canvas, paragraph); });
+  EXPECT_EQ(calls, 1) << "the paragraph's draw resolves once per bucket";
+  GlyphRSXformBatches batches = batchAtRest(layout, paragraph);
+  ASSERT_EQ(batches.batches.size(), 1u);
+  EXPECT_EQ(batches.batches.front().material, source);
+  const sk_sp<SkSurface> inMotion =
+      render([&](SkCanvas* canvas) { batches.draw(canvas); });
+  EXPECT_EQ(calls, 2) << "the batches resolve once per bucket";
+  ASSERT_EQ(asked.size(), 2u);
+  EXPECT_NEAR(asked[0].left(), asked[1].left(), 1e-3f);
+  EXPECT_NEAR(asked[0].right(), asked[1].right(), 1e-3f);
+  EXPECT_NEAR(asked[0].top(), asked[1].top(), 1e-3f);
+  EXPECT_NEAR(asked[0].bottom(), asked[1].bottom(), 1e-3f);
+
+  SkPixmap rest, motion;
+  ASSERT_TRUE(atRest->peekPixels(&rest));
+  ASSERT_TRUE(inMotion->peekPixels(&motion));
+  EXPECT_EQ(sigil::media::difference(motion, rest).worst, 0);
+  bool sawRed = false, sawBlue = false;
+  for (int y = 0; y < motion.height(); ++y)
+    for (int x = 0; x < motion.width(); ++x) {
+      const SkColor pixel = motion.getColor(x, y);
+      if (SkColorGetA(pixel) < 200) continue;
+      sawRed |= SkColorGetR(pixel) > 200 && SkColorGetB(pixel) < 60;
+      sawBlue |= SkColorGetB(pixel) > 200 && SkColorGetR(pixel) < 60;
+    }
+  EXPECT_TRUE(sawRed && sawBlue) << "the glyph wears the ramp, not white";
 }

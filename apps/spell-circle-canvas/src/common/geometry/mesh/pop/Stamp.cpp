@@ -315,12 +315,25 @@ Instances instances(const Cloud& cloud, const Mesh& stamp,
       out.textureWindows.push_back(
           i < textureLane->size() ? (*textureLane)[i] : glm::vec4{0, 0, 1, 1});
   }
+  // A named lane reaches each instance as one scalar wherever the cloud
+  // keeps it: a scalar lane as it is, and a lane a chain cooked — four
+  // numbers per point, exported as a colour lane — or a vector lane by its
+  // first number, which is the number a filled or selected lane writes.
   for (const std::string& name : options.attributes) {
-    const std::vector<float>* lane = cloud.scalarIf(name);
-    if (!lane) continue;
-    std::vector<float>& values = out.attributes[name];
-    values.assign(lane->begin(), lane->end());
+    std::vector<float> values;
+    if (const std::vector<float>* scalars = cloud.scalarIf(name)) {
+      values.assign(scalars->begin(), scalars->end());
+    } else if (const std::vector<glm::vec4>* fours = cloud.colorIf(name)) {
+      values.reserve(fours->size());
+      for (const glm::vec4& value : *fours) values.push_back(value.x);
+    } else if (const std::vector<glm::vec3>* threes = cloud.vectorIf(name)) {
+      values.reserve(threes->size());
+      for (const glm::vec3& value : *threes) values.push_back(value.x);
+    } else {
+      continue;
+    }
     values.resize(points, 0.0f);
+    out.attributes[name] = std::move(values);
   }
   return out;
 }

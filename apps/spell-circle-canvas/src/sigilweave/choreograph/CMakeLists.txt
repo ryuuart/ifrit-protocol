@@ -7,7 +7,7 @@ sigil_library(SigilWeaveChoreograph
   SOURCES Choreograph.cpp
   HEADERS PlacedGlyph.h GlyphDress.h GlyphBatches.h Choreograph.h
   PUBLIC SigilWeaveLayout
-  PRIVATE Boost::container)
+  PRIVATE SigilWeavePaint Boost::container)
 
 # Two subjects, one file each: the walk over a finished layout with the
 # glyph on a contour it re-places from its pen, and the batches a paint-
@@ -16,4 +16,4 @@ sigil_library(SigilWeaveChoreograph
 sigil_test(weave_test
   SOURCES test/ChoreographTest.cpp test/GlyphBatchesTest.cpp
   LIBRARIES SigilWeaveChoreograph SigilWeavePorts SigilWeaveKit
-            SigilMediaDifference)
+            SigilMaterialCore SigilMediaDifference)

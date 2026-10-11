@@ -10,11 +10,13 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImage.h>
+#include <include/core/SkImageInfo.h>
+#include <include/core/SkMatrix.h>
+#include <include/core/SkSamplingOptions.h>
 #include <include/core/SkShader.h>
 #include <include/core/SkTypes.h>  // SkDebugf
 #include <include/effects/SkGradient.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilmaterial/advanced/Program.h>  // reportOnce
 #include <sigilmaterial/skia/Color.h>
 #include <sigilshaders/MaterialSkia.h>
 
@@ -324,23 +326,109 @@ sk_sp<SkImage> PixelBuffer::image() {
 
 namespace detail {
 
+namespace {
+
+/** The ramp's own source with its stop markers filled in: either the
+ *  chain of mixes of a short ramp, or the read of a long one's lookup. */
+sk_sp<SkRuntimeEffect> rampEffect(const std::string& declarations,
+                                  const std::string& mixes, size_t count) {
+  std::string source(shaderSource("UnitRamp.sksl"));
+  const auto insert = [&](std::string_view marker,
+                          std::string_view replacement) {
+    const size_t at = source.find(marker);
+    if (at != std::string::npos) source.replace(at, marker.size(), replacement);
+  };
+  insert("// SIGIL_STOP_DECLARATIONS", declarations);
+  insert("// SIGIL_STOP_MIXES", mixes);
+  auto [effect, error] =
+      SkRuntimeEffect::MakeForShader(SkString(source.c_str()));
+  if (!effect)
+    SkDebugf("sigilmaterial unitRamp shader (%zu stops): %s\n", count,
+             error.c_str());
+  return effect;
+}
+
+/** How many stops a ramp mixes inline per pixel. Past this the chain of
+ *  mixes costs more than one filtered read, so the ramp is evaluated once
+ *  into a lookup and the pixel reads that. */
+constexpr size_t kStopsMixedInline = 16;
+
+/** How many entries a lookup holds. One less than it is a multiple of
+ *  every power of two up to 1024, so the stops of an evenly spaced ramp
+ *  of up to 1025 stops land on entries exactly and the filtered read
+ *  between two entries is the straight mix the stops describe. */
+constexpr int kLookupEntries = 1025;
+
+/** The ramp's colour at @p t, unpremultiplied — the same chain of mixes
+ *  the inline form runs per pixel, run here once per entry. */
+std::array<float, 4> rampAt(const std::vector<ColorStop>& stops, float t) {
+  Color colour = stops.front().color;
+  for (size_t i = 1; i < stops.size(); ++i) {
+    const float span = std::max(stops[i].offset - stops[i - 1].offset, 1e-6f);
+    const float weight =
+        std::clamp((t - stops[i - 1].offset) / span, 0.0f, 1.0f);
+    const Color& next = stops[i].color;
+    colour = {colour.r + (next.r - colour.r) * weight,
+              colour.g + (next.g - colour.g) * weight,
+              colour.b + (next.b - colour.b) * weight,
+              colour.a + (next.a - colour.a) * weight};
+  }
+  return {colour.r, colour.g, colour.b, colour.a};
+}
+
+/** THE LOOKUP: the ramp evaluated once at every entry, in half floats with
+ *  no colour space so the read hands the shader the very numbers the
+ *  stops hold. */
+sk_sp<SkImage> rampLookup(const std::vector<ColorStop>& stops) {
+  SkBitmap exact;
+  exact.allocPixels(SkImageInfo::Make(kLookupEntries, 1, kRGBA_F32_SkColorType,
+                                      kUnpremul_SkAlphaType));
+  auto* entries = static_cast<std::array<float, 4>*>(exact.getAddr(0, 0));
+  for (int i = 0; i < kLookupEntries; ++i)
+    entries[i] = rampAt(stops, (float)i / (float)(kLookupEntries - 1));
+  SkBitmap half;
+  half.allocPixels(SkImageInfo::Make(kLookupEntries, 1, kRGBA_F16_SkColorType,
+                                     kUnpremul_SkAlphaType));
+  exact.readPixels(half.pixmap());
+  half.setImmutable();
+  return half.asImage();
+}
+
+/** A ramp of many stops: the unit-square ramp reading its lookup at t
+ *  once per pixel, with the lookup made once when the paint is. */
+Paint lookupRamp(SkPoint a, SkPoint b, const std::vector<ColorStop>& stops,
+                 bool radial) {
+  static const sk_sp<SkRuntimeEffect> effect = rampEffect(
+      "uniform shader uLookup;\n"
+      "uniform float uLookupEntries;\n",
+      "  col = float4(unpremul(uLookup.eval(\n"
+      "      float2(t * (uLookupEntries - 1.0) + 0.5, 0.5))));\n",
+      stops.size());
+  if (!effect) return Paint::solid(stops.front().color);
+  Paint material =
+      PaintAccess::sksl(effect, {{"uRadial", radial ? 1.0f : 0.0f},
+                                 {"uLookupEntries", (float)kLookupEntries}});
+  material.set("uA", std::array<float, 2>{a.x(), a.y()});
+  material.set("uB", std::array<float, 2>{b.x(), b.y()});
+  material.set("uC0", stops.front().color);
+  material.set("uS0", stops.front().offset);
+  material.slot("uLookup",
+                image(rampLookup(stops), Repeat::Pad, Repeat::Pad,
+                      SkMatrix::I(), SkSamplingOptions(SkFilterMode::kLinear)));
+  return material;
+}
+
+}  // namespace
+
 Paint unitRamp(SkPoint a, SkPoint b, std::vector<ColorStop> stops,
                bool radial) {
-  // The stop count is baked into the source and one effect is cached per
-  // count. Generating per count leaves no arbitrary ceiling below the
-  // uniform budget and avoids a uniform-guarded fixed-maximum loop.
+  // A short ramp bakes its stop count into the source and one effect is
+  // cached per count: the chain of mixes is cheaper than a read. A long
+  // one reads a lookup made once, so its cost per pixel does not grow with
+  // its stops and it takes as many as it is given.
   if (stops.empty()) return Paint::solid(material::Color{0, 0, 0, 0});
   if (stops.size() == 1) return Paint::solid(stops.front().color);
-  constexpr size_t kMaxStops = 256;
-  if (stops.size() > kMaxStops) {
-    material::reportOnce(
-        "ramp:stops",
-        "a unit-space ramp takes at most " + std::to_string(kMaxStops) +
-            " stops and was given " + std::to_string(stops.size()) +
-            "; the rest are dropped, so the ramp ends at stop " +
-            std::to_string(kMaxStops) + "'s colour rather than the last one");
-    stops.resize(kMaxStops);
-  }
+  if (stops.size() > kStopsMixedInline) return lookupRamp(a, b, stops, radial);
   const size_t n = stops.size();
 
   struct Cached {
@@ -369,23 +457,8 @@ Paint unitRamp(SkPoint a, SkPoint b, std::vector<ColorStop> stops,
                  previous + ") / max(uS" + current + " - uS" + previous +
                  ", 1e-6), 0.0, 1.0));\n";
       }
-      std::string source(shaderSource("UnitRamp.sksl"));
-      const auto insert = [&](std::string_view marker,
-                              std::string_view replacement) {
-        const size_t at = source.find(marker);
-        if (at != std::string::npos)
-          source.replace(at, marker.size(), replacement);
-      };
-      insert("// SIGIL_STOP_DECLARATIONS", declarations);
-      insert("// SIGIL_STOP_MIXES", mixes);
-      auto [effect, error] =
-          SkRuntimeEffect::MakeForShader(SkString(source.c_str()));
-      if (!effect) {
-        SkDebugf("sigilmaterial unitRamp shader (%zu stops): %s\n", n,
-                 error.c_str());
-        return Paint::solid(stops.front().color);
-      }
-      fx = std::move(effect);
+      fx = rampEffect(declarations, mixes, n);
+      if (!fx) return Paint::solid(stops.front().color);
       cache.push_back({n, fx});
     }
   }

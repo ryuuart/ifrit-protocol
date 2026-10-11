@@ -124,6 +124,7 @@ sigil_library(SigilComposeCore
     # cache validity, recordings, bakes and resource stores
     cache/GroupBake.cpp
     cache/GroupScalars.cpp
+    cache/MarkStates.h
     cache/Pattern.cpp
     cache/PictureTier.cpp
     cache/PromotionTier.cpp

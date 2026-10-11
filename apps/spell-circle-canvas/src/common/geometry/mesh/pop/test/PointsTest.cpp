@@ -699,3 +699,38 @@ TEST(Points, AChainEndsInInstancesThroughItsOwnWindow) {
       windowed,
       pop::on(loop).count(40).window(0.5f, 0.25f).instances(mesh::quad(1, 1)));
 }
+
+TEST(Points, ALaneTheChainFillsReachesEveryInstanceByItsFirstNumber) {
+  const std::vector<glm::vec3> loop = {
+      {0, 0, 0}, {100, 0, 0}, {100, 100, 0}, {0, 100, 0}};
+  const Instances instances = pop::on(loop)
+                                  .count(24)
+                                  .fill("cell", {3, 0, 0, 0})
+                                  .instances(mesh::quad(1, 1), {"cell"});
+  ASSERT_EQ(instances.size(), 24u);
+  const std::vector<float>* cell = instances.attributeIf("cell");
+  ASSERT_NE(cell, nullptr) << "a lane the chain made is carried, not dropped";
+  ASSERT_EQ(cell->size(), 24u);
+  for (float value : *cell) EXPECT_FLOAT_EQ(value, 3.0f);
+}
+
+TEST(Points, AFilledScalarLaneOnACloudSurvivesTheChainToItsInstances) {
+  Cloud cloud;
+  cloud.positions = {{0, 0, 0}, {10, 0, 0}, {0, 5, 0}};
+  cloud.scalar("age") = {0.25f, 0.5f, 0.75f};
+  const Instances instances =
+      pop::on(cloud).instances(mesh::quad(2, 2), {"age"});
+  ASSERT_EQ(instances.size(), 3u);
+  const std::vector<float>* age = instances.attributeIf("age");
+  ASSERT_NE(age, nullptr) << "the cook keeps the lane it was handed";
+  ASSERT_EQ(age->size(), 3u);
+  EXPECT_FLOAT_EQ((*age)[0], 0.25f);
+  EXPECT_FLOAT_EQ((*age)[1], 0.5f);
+  EXPECT_FLOAT_EQ((*age)[2], 0.75f);
+  // …and as a hand-built set of instances carries it.
+  points::InstanceOptions options = points::stampOptions(cloud);
+  options.attributes = {"age"};
+  EXPECT_EQ(
+      *points::instances(cloud, mesh::quad(2, 2), options).attributeIf("age"),
+      *age);
+}

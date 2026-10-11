@@ -195,6 +195,22 @@ const mesh::Mesh plaque = mesh::extrude(
             .wallTexture = mesh::WallTexture::Projected, .faceSets = true});
 ```
 
+Each solid is also a comparable value in `solids::` — `solids::Torus`,
+`solids::Superellipsoid`, `solids::Box`, `solids::RegularSolid`,
+`solids::CylinderPanel`, `solids::Quad`, `solids::Extrusion`,
+`solids::Revolution` and `solids::Loft` — holding its former's arguments
+by name and forming the same mesh only when `mesh()` asks. A description
+that names a value instead of a formed mesh lets whatever keeps it compare
+the values and form the mesh once while the value stands, as a 2D shape
+value keeps one outline; `mesh::Solid` is the concept a consumer's own
+value meets to stand among them:
+
+```cpp
+const solids::Superellipsoid slab{
+    .radii = {22, 30, 22}, .exponent = 3, .longitudeSteps = 18, .latitudeSteps = 12};
+const mesh::Mesh formed = slab.mesh();  // mesh::superellipsoid({22, 30, 22}, 3, 18, 12)
+```
+
 Nothing above holds a device, a context or a frame. An `Outline` is a
 shared immutable value; `Mesh` is a plain struct of vectors; `pop::Chain`
 is a `std::vector` of variants.
@@ -306,7 +322,10 @@ one instanced draw. A point-operator chain ends in it —
 `pop::cookInstances()` spelled out — and a cloud reaches it through
 `points::instances()`, which places each copy by the same table
 `points::instance()` forms merged stamps by, so the two agree vertex for
-vertex up to the rounding a quaternion adds. `Instances::placement` is one
+vertex up to the rounding a quaternion adds. A named lane reaches each
+instance as one scalar by its first number, so a lane the chain itself
+fills, clusters or selects feeds a flipbook's frame or any per-instance
+scalar a material reads. `Instances::placement` is one
 instance's matrix.
 
 **A draw runs on a `Runtime`, and the runtime is a value.**

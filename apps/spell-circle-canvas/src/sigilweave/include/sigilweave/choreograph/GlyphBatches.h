@@ -20,6 +20,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
@@ -38,10 +39,11 @@ namespace sigil::weave {
 /// its gradient, stroke, blend mode and mask filter. Batches draw BAND BY
 /// BAND rather than in creation order, which is what keeps every underlay
 /// beneath every foreground when per-glyph fades split one style.
-/// @silent a style's `foregroundMaterial` and its layers' `material`: the
-/// batches consult no material resolver and draw each pass's configured
-/// paint, where the paragraph draws shade it by the material. A span
-/// shaded at rest therefore draws unshaded while it moves.
+/// A pass whose style gives it a material — `PaintStyle::foregroundMaterial`,
+/// a layer's `material` — is shaded as the paragraph draws shade it: the
+/// installed `paint::setMaterialResolver` is asked once per bucket, over the
+/// bucket's glyph ink where the glyphs stand and before the pass's offset,
+/// so one material paints a glyph the same way at rest and in motion.
 struct GlyphRSXformBatches {
   /// Which stratum of a PaintStyle a bucket's pass came from. The draw
   /// walks these in declaration order, so a bucket's band — not when it was
@@ -66,6 +68,9 @@ struct GlyphRSXformBatches {
     /// one style's underlay and another's foreground is two buckets,
     /// because the two composite differently.
     PassBand band = PassBand::Foreground;
+    /// Bucket key, by identity as a style compares it: the material the
+    /// pass is shaded by, or none, where the paint alone draws it.
+    std::shared_ptr<const sigil::material::Material> material;
     std::vector<SkGlyphID> glyphs;      ///< parallel to `transforms`
     std::vector<SkRSXform> transforms;  ///< per-glyph scale/rotate/translate
     /// The glyphs of this bucket that an RSXform cannot place — a shear,
@@ -92,10 +97,10 @@ struct GlyphRSXformBatches {
    * `face` overrides the shaped word's own typeface when it is non-null —
    * the varied clone a driven variable-font axis asks for — and is part of
    * the key, so the same word set at two axis coordinates is two buckets. */
-  [[nodiscard]] Batch& batchForPass(const ShapedWord* font,
-                                    const sk_sp<SkTypeface>& face,
-                                    const SkPaint& paint, SkVector offset,
-                                    PassBand band);
+  [[nodiscard]] Batch& batchForPass(
+      const ShapedWord* font, const sk_sp<SkTypeface>& face,
+      const SkPaint& paint, SkVector offset, PassBand band,
+      const std::shared_ptr<const sigil::material::Material>& material = {});
 
   /** Appends one glyph, once per pass of @p style, anchored at its
    * advance-centre and rotated by the cosine and sine — the placement
@@ -151,7 +156,8 @@ struct GlyphRSXformBatches {
 
   /** Draws every batch — underlay buckets, then foreground buckets, then
    * overlay buckets, each band in creation order — and returns the number
-   * of glyph draws it issued, one per glyph per pass. */
+   * of glyph draws it issued, one per glyph per pass. A bucket with a
+   * material asks the resolver once for its shader. */
   int draw(SkCanvas* canvas) const;
 
  private:

@@ -21,18 +21,11 @@ class SkCanvas;
 namespace sigil::compose::detail {
 
 struct ElementNode;
-struct MaterialStrokeCache;
-struct BevelFaceCache;
 
 /** One coverage step, painted around the node's outline. */
 struct CoverageMark {
   material::CoverageEffect effect;
-  // The shoulder a bevel shaded from its face last cut; paint-time state
-  // does not participate in the mark's value equality.
-  mutable std::shared_ptr<BevelFaceCache> face = {};
-  bool operator==(const CoverageMark& other) const {
-    return effect == other.effect;
-  }
+  bool operator==(const CoverageMark&) const = default;
   /** How far past the node's box the mark paints. */
   float bleed() const;
   void paint(draw::Pen& pen, const PaintContext& context) const;
@@ -49,13 +42,7 @@ struct MaterialStroke {
   material::Paint source;
   material::StrokeOptions options;
   std::optional<material::Material> surfaced;
-  bool operator==(const MaterialStroke& other) const {
-    return source == other.source && options == other.options &&
-           surfaced == other.surfaced;
-  }
-  // One prepared material and its surface map passes; paint-time state
-  // does not participate in the mark's value equality.
-  mutable std::shared_ptr<MaterialStrokeCache> cache = {};
+  bool operator==(const MaterialStroke&) const = default;
   bool isRunning() const;
   bool usesWorldSpace() const;
   /** How far the keyline reaches past the node's box. One set inside a

@@ -18,9 +18,15 @@
  * They produce `mesh::Mesh` values and are spelled in its namespace, so a
  * caller reaching for `mesh::torus` links this shelf and nothing changes
  * in what it says.
+ *
+ * Each of them is also a comparable VALUE in `solids::` — its radii, its
+ * exponent, its divisions — that forms its mesh on asking, so a holder
+ * that compares descriptions keeps one formed mesh while the value is
+ * unchanged, as the 2D shape values keep one outline.
  */
 
 #include <glm/glm.hpp>
+#include <utility>
 #include <vector>
 
 #include "sigilgeometry/mesh/Mesh.h"
@@ -67,6 +73,8 @@ struct ExtrudeOptions {
    *  and the edges, so a body filled with two materials in slot order
    *  wears the first on its caps and the second round its sides. */
   bool faceSets = false;
+
+  bool operator==(const ExtrudeOptions&) const = default;
 };
 
 /** Lift a filled outline into a solid: front/back caps triangulated with
@@ -101,6 +109,8 @@ struct LoftOptions {
   /** Face the skin into the solid rather than out of it — the inside
    *  of a tunnel or a vessel seen from within. */
   bool inward = false;
+
+  bool operator==(const LoftOptions&) const = default;
 };
 
 /** A SKIN THROUGH SECTIONS: each section a closed ring of points in 3D,
@@ -129,6 +139,8 @@ struct RevolveOptions {
   /** Face the surface toward the axis rather than away from the
    *  solid — the inside of a bowl seen from within. */
   bool inward = false;
+
+  bool operator==(const RevolveOptions&) const = default;
 };
 
 /** Lathe a profile polyline around the +y axis: each profile point is
@@ -175,6 +187,8 @@ struct BoxOptions {
   bool bottom = true;  ///< -y
   glm::vec4 tint = {1, 1, 1, 1};
   float sideShade = 1;
+
+  bool operator==(const BoxOptions&) const = default;
 };
 
 /** The axis-aligned box spanning @p lo to @p hi — the one primitive
@@ -215,6 +229,8 @@ enum class Platonic {
 struct PlatonicOptions {
   float circumradius = 1.0f;  ///< every corner stands this far from the centre
   bool sharedVertices = false;
+
+  bool operator==(const PlatonicOptions&) const = default;
 };
 
 /** One of the five regular solids, centred on the origin, wound outward.
@@ -248,3 +264,122 @@ Mesh cylinderPanel(float width, float height, float radius, int nu = 32,
                    int nv = 8);
 
 }  // namespace sigil::geometry::mesh
+
+/** THE SOLIDS AS VALUES: each stock solid spelled as the numbers that
+ *  decide it, comparable, forming its mesh only when asked. A description
+ *  that names one says WHAT the solid is rather than handing over its
+ *  triangles, so whatever keeps descriptions — a scene's geometry slot —
+ *  compares two values instead of two meshes and forms the mesh once while
+ *  the value stands unchanged. This is the 3D counterpart of the shape
+ *  vocabulary's comparable outline generators.
+ *
+ *  The lowercase formers in `mesh::` stay the one place each solid is
+ *  formed; a value here holds the same arguments by name and answers
+ *  exactly what its former answers. A consumer's own value is a peer of
+ *  these when it meets `mesh::Solid`. */
+namespace sigil::geometry::solids {
+
+/** A flat `width` x `height` card facing +z — `mesh::quad()`. */
+struct Quad {
+  float width = 1;
+  float height = 1;
+  bool operator==(const Quad&) const = default;
+  [[nodiscard]] mesh::Mesh mesh() const { return mesh::quad(width, height); }
+};
+
+/** The axis-aligned box from `low` to `high` — `mesh::box()`. */
+struct Box {
+  glm::vec3 low = {-0.5f, -0.5f, -0.5f};
+  glm::vec3 high = {0.5f, 0.5f, 0.5f};
+  mesh::BoxOptions options = {};
+  bool operator==(const Box&) const = default;
+  [[nodiscard]] mesh::Mesh mesh() const {
+    return mesh::box(low, high, options);
+  }
+};
+
+/** One of the five regular solids — `mesh::platonic()`. */
+struct RegularSolid {
+  mesh::Platonic solid = mesh::Platonic::Cube;
+  mesh::PlatonicOptions options = {};
+  bool operator==(const RegularSolid&) const = default;
+  [[nodiscard]] mesh::Mesh mesh() const {
+    return mesh::platonic(solid, options);
+  }
+};
+
+/** A ring around +y: `majorRadius` from the axis to the tube's centre,
+ *  `tubeRadius` across the tube, `ringSteps` around the axis and
+ *  `tubeSteps` around the tube — `mesh::torus()`. */
+struct Torus {
+  float majorRadius = 1;
+  float tubeRadius = 0.25f;
+  int ringSteps = 64;
+  int tubeSteps = 32;
+  bool operator==(const Torus&) const = default;
+  [[nodiscard]] mesh::Mesh mesh() const {
+    return mesh::torus(majorRadius, tubeRadius, ringSteps, tubeSteps);
+  }
+};
+
+/** A superellipsoid of `radii`: `exponent` 2 is an ellipsoid and higher
+ *  is a rounded box; `longitudeSteps` around +y and `latitudeSteps` from
+ *  pole to pole — `mesh::superellipsoid()`. */
+struct Superellipsoid {
+  glm::vec3 radii = {1, 1, 1};
+  float exponent = 2;
+  int longitudeSteps = 48;
+  int latitudeSteps = 32;
+  bool operator==(const Superellipsoid&) const = default;
+  [[nodiscard]] mesh::Mesh mesh() const {
+    return mesh::superellipsoid(radii, exponent, longitudeSteps, latitudeSteps);
+  }
+};
+
+/** A `width` x `height` panel curved round a vertical cylinder of
+ *  `radius`, `widthSteps` across and `heightSteps` up —
+ *  `mesh::cylinderPanel()`. */
+struct CylinderPanel {
+  float width = 1;
+  float height = 1;
+  float radius = 0;
+  int widthSteps = 32;
+  int heightSteps = 8;
+  bool operator==(const CylinderPanel&) const = default;
+  [[nodiscard]] mesh::Mesh mesh() const {
+    return mesh::cylinderPanel(width, height, radius, widthSteps, heightSteps);
+  }
+};
+
+/** A filled outline lifted into a solid — `mesh::extrude()`. */
+struct Extrusion {
+  path::Outline outline;
+  mesh::ExtrudeOptions options = {};
+  bool operator==(const Extrusion&) const = default;
+  [[nodiscard]] mesh::Mesh mesh() const {
+    return mesh::extrude(outline, options);
+  }
+};
+
+/** A profile of (radius, height) points lathed around +y —
+ *  `mesh::revolve()`. */
+struct Revolution {
+  std::vector<glm::vec2> profile;
+  mesh::RevolveOptions options = {};
+  bool operator==(const Revolution&) const = default;
+  [[nodiscard]] mesh::Mesh mesh() const {
+    return mesh::revolve(profile, options);
+  }
+};
+
+/** A skin through closed rings of points — `mesh::loft()`. */
+struct Loft {
+  std::vector<std::vector<glm::vec3>> sections;
+  mesh::LoftOptions options = {};
+  bool operator==(const Loft&) const = default;
+  [[nodiscard]] mesh::Mesh mesh() const {
+    return mesh::loft(sections, options);
+  }
+};
+
+}  // namespace sigil::geometry::solids

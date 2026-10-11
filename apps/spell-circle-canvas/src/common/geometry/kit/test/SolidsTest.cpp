@@ -494,3 +494,48 @@ TEST(Solids, ChosenFaceUpTurnsThatFaceOntoTheAxisAndTheOneAcrossAway) {
     EXPECT_NEAR(faceNormal(settled, *across).y, -1.0f, 1e-4f);
   }
 }
+
+// ---- the solids as values ------------------------------------------------
+
+TEST(SolidValues, EachFormsWhatItsFormerFormsAndComparesByItsFields) {
+  namespace solids = sigil::geometry::solids;
+  static_assert(Solid<solids::Torus>);
+  static_assert(Solid<solids::Revolution>);
+  static_assert(!Solid<Mesh>, "a formed mesh is not a value to form");
+
+  const solids::Superellipsoid slab{.radii = {22, 30, 22},
+                                    .exponent = 3,
+                                    .longitudeSteps = 18,
+                                    .latitudeSteps = 12};
+  EXPECT_EQ(slab.mesh(), superellipsoid({22, 30, 22}, 3, 18, 12));
+  EXPECT_EQ(slab, (solids::Superellipsoid{.radii = {22, 30, 22},
+                                          .exponent = 3,
+                                          .longitudeSteps = 18,
+                                          .latitudeSteps = 12}));
+  solids::Superellipsoid rounder = slab;
+  rounder.exponent = 4;
+  EXPECT_NE(slab, rounder);
+
+  EXPECT_EQ((solids::Torus{.majorRadius = 40, .tubeRadius = 8}).mesh(),
+            torus(40, 8));
+  EXPECT_EQ((solids::Box{.low = {0, 0, 0}, .high = {2, 3, 4}}).mesh(),
+            box({0, 0, 0}, {2, 3, 4}));
+  EXPECT_EQ((solids::Quad{.width = 10, .height = 6}).mesh(), quad(10, 6));
+  EXPECT_EQ((solids::RegularSolid{.solid = Platonic::Icosahedron}).mesh(),
+            platonic(Platonic::Icosahedron));
+  EXPECT_EQ(
+      (solids::CylinderPanel{.width = 80, .height = 40, .radius = 60}).mesh(),
+      cylinderPanel(80, 40, 60));
+  const std::vector<glm::vec2> profile = {{0, 0}, {10, 2}, {12, 20}, {0, 24}};
+  EXPECT_EQ((solids::Revolution{.profile = profile}).mesh(), revolve(profile));
+  const std::vector<std::vector<glm::vec3>> sections = {
+      {{0, 0, 0}, {10, 0, 0}, {10, 0, 10}, {0, 0, 10}},
+      {{0, 20, 0}, {10, 20, 0}, {10, 20, 10}, {0, 20, 10}}};
+  EXPECT_EQ((solids::Loft{.sections = sections}).mesh(), loft(sections));
+  const sigil::geometry::path::Outline outline = path::fromSk(square(40));
+  EXPECT_EQ(
+      (solids::Extrusion{.outline = outline, .options = {.depth = 6}}).mesh(),
+      extrude(outline, 6));
+  EXPECT_NE((solids::Extrusion{.outline = outline, .options = {.depth = 6}}),
+            (solids::Extrusion{.outline = outline, .options = {.depth = 7}}));
+}

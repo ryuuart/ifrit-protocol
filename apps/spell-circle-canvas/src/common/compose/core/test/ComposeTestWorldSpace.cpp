@@ -4,7 +4,9 @@
 // transform. The flag rides the prune signature and the node's world matrix
 // joins the resolve digest.
 
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/skia/Paint.h>
+
 #include "support/CoreTestSupport.h"
 
 namespace {
@@ -32,8 +34,7 @@ SkPoint brightestPixel(Host& host) {
  *  (70,70). Flagged, it is authored once; unflagged, the caller has to
  *  hand-convert it into the node's local px, which is what the flag
  *  exists to spare them. */
-material::Paint canvasLight(bool flagged,
-                                  SkPoint nodeOriginForHandConversion) {
+material::Paint canvasLight(bool flagged, SkPoint nodeOriginForHandConversion) {
   const glm::vec2 c = flagged ? glm::vec2{70, 70}
                               : glm::vec2{70 - nodeOriginForHandConversion.x(),
                                           70 - nodeOriginForHandConversion.y()};
@@ -115,8 +116,9 @@ TEST(ComposeWorldSpace, TwoSiblingsShareOneContinuousField) {
         {0, 0}, {200, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}},
         {.units = material::GradientUnits::Pixels});
     if (flagged) ramp.worldSpace();
-    return box().row().children({box().width(100).height(200).fill(material::skia::base(ramp)),
-                                 box().width(100).height(200).fill(material::skia::base(ramp))});
+    return box().row().children(
+        {box().width(100).height(200).fill(material::skia::base(ramp)),
+         box().width(100).height(200).fill(material::skia::base(ramp))});
   };
   Host flagged, control;
   flagged.composer.render(scene(true));
@@ -146,7 +148,8 @@ TEST(ComposeWorldSpace, TwoSiblingsShareOneContinuousField) {
 TEST(ComposeWorldSpace, TheLayoutOffsetAlignsTheFieldAndIdentityDegrades) {
   Host host;
   host.composer.render(box().children(
-      {box().absolute().left(40).top(40).width(120).height(120).fill(material::skia::base(canvasLight(true, {0, 0})))}));
+      {box().absolute().left(40).top(40).width(120).height(120).fill(
+          material::skia::base(canvasLight(true, {0, 0})))}));
   host.frame();
   EXPECT_LT(SkPoint::Distance(brightestPixel(host), {70, 70}), 3.0f)
       << "the composer resolve did not anchor through the layout offset";
@@ -155,11 +158,13 @@ TEST(ComposeWorldSpace, TheLayoutOffsetAlignsTheFieldAndIdentityDegrades) {
   // node's offset it sits at canvas (110,110), a (40,40) shift.
   PaintContext bare;
   bare.size = {120, 120};
-  const Fill f = resolveFill(material::skia::base(canvasLight(true, {0, 0})), bare);
+  const Fill f =
+      resolveFill(material::skia::base(canvasLight(true, {0, 0})), bare);
   ASSERT_EQ(f.kind, Fill::Kind::Paint);
   Host raw;
   SkPaint p;
-  p.setShader(material::skia::staticShader(material::skia::paint(*f.material())));
+  p.setShader(
+      material::skia::staticShader(material::skia::paint(*f.material())));
   raw.surface->getCanvas()->clear(SK_ColorBLACK);
   raw.surface->getCanvas()->save();
   raw.surface->getCanvas()->translate(40, 40);
@@ -185,8 +190,12 @@ TEST(ComposeWorldSpace, ALayoutMoveLeavesTheFieldAnchored) {
     // this pin exists to close).
     return box().row().children(
         {box().width(spacer).height(10),
-         box().width(120).height(200).key("panel").fill(material::skia::base(light)).children(
-             {box().absolute().left(0).top(0).width(4).height(4).fill(
+         box()
+             .width(120)
+             .height(200)
+             .key("panel")
+             .fill(material::skia::base(light))
+             .children({box().absolute().left(0).top(0).width(4).height(4).fill(
                  green())})});
   };
   Host host;
@@ -214,10 +223,10 @@ TEST(ComposeWorldSpace, AnAncestorsMoveReanchorsTheDescendant) {
             .worldSpace();
     // column: spacer, then a group whose panel child is absolutely inset —
     // the group MOVES, the panel's rect relative to the group does not.
-    return box().children(
-        {box().width(10).height(spacerH),
-         box().width(200).height(140).key("group").children(
-             {box().absolute().inset(10).key("panel").fill(material::skia::base(light))})});
+    return box().children({box().width(10).height(spacerH),
+                           box().width(200).height(140).key("group").children(
+                               {box().absolute().inset(10).key("panel").fill(
+                                   material::skia::base(light))})});
   };
   Host host;
   host.composer.render(scene(20));
@@ -245,14 +254,15 @@ TEST(ComposeWorldSpace, ABoundTransformKeepsTheFieldAnchoredPerFrame) {
                      .key("group")
                      .rotate(rot)
                      .transformOrigin(pct(50), pct(50));
-    group.children({box()
-                        .absolute()
-                        .left(20)
-                        .top(20)
-                        .width(120)
-                        .height(120)
-                        .key("panel")
-                        .fill(material::skia::base(canvasLight(true, {40, 40})))});
+    group.children(
+        {box()
+             .absolute()
+             .left(20)
+             .top(20)
+             .width(120)
+             .height(120)
+             .key("panel")
+             .fill(material::skia::base(canvasLight(true, {40, 40})))});
     host.composer.render(box().children({std::move(group)}));
   };
   describe();
@@ -300,7 +310,8 @@ TEST(ComposeWorldSpace, TheFlagRidesThePruneSignature) {
     material::Paint m = material::Paint::linearGradient(
         {0, 0}, {200, 0}, stops, {.units = material::GradientUnits::Pixels});
     if (flagged) m.worldSpace();
-    return box().children({box().width(100).height(100).key("panel").fill(material::skia::base(m))});
+    return box().children({box().width(100).height(100).key("panel").fill(
+        material::skia::base(m))});
   };
   Host host;
   host.composer.render(scene(true));
@@ -329,14 +340,16 @@ TEST(ComposeWorldSpace, TheResolveDigestSeesTheNodeMove) {
                "                     : half4(0, 0, 1, 1);"
                "}"));
   ASSERT_TRUE(fx) << err.c_str();
-  sigil::motion::Animatable<float> drive = sigil::motion::animatable(0.0f);  // bound and HELD — the digest's other input
+  sigil::motion::Animatable<float> drive = sigil::motion::animatable(
+      0.0f);  // bound and HELD — the digest's other input
   material::Paint m = material::skia::sksl(fx);
   m.bind("uDrive", drive);
   m.worldSpace();
   Host host;
-  host.composer.render(box().row().children(
-      {box().flexGrow(1).height(10),
-       box().width(120).height(200).key("panel").fill(material::skia::base(m))}));
+  host.composer.render(
+      box().row().children({box().flexGrow(1).height(10),
+                            box().width(120).height(200).key("panel").fill(
+                                material::skia::base(m))}));
   host.frame();
   // Canvas 200 wide: the spacer grows to 80, the panel spans [80, 200] —
   // the red→blue boundary sits at CANVAS x=130 (world coordinates).
@@ -351,4 +364,80 @@ TEST(ComposeWorldSpace, TheResolveDigestSeesTheNodeMove) {
       << "the boundary rode the node — the digest served a stale shader";
   EXPECT_GT(SkColorGetB(host.pixel(136, 100)), 200u)
       << "the boundary rode the node — the digest served a stale shader";
+}
+
+// THE ROOT ANCHOR IS THE MATERIAL'S AS MUCH AS THE PAINT'S. A gradient
+// Material marked `worldSpace` paints the same root-anchored field as a
+// Paint marked `worldSpace` and wrapped as a Material, across translated,
+// scaled and rotated nodes; the control without the flag restarts per
+// node. The anchored Material is geometry-dependent, so moving its node
+// repaints it where it now stands.
+TEST(ComposeWorldSpace, AMaterialMarkedWorldSpaceAnchorsAsItsPaintDoes) {
+  const material::ColorStops stops = {{0.0f, {1, 0, 0, 1}},
+                                      {1.0f, {0, 0, 1, 1}}};
+  const material::GradientOptions pixels{.units =
+                                             material::GradientUnits::Pixels};
+  const auto materialLevel = [&](bool flagged) {
+    material::Material ramp =
+        material::linearGradient({0, 0}, {200, 0}, stops, pixels);
+    if (flagged) ramp.worldSpace();
+    return ramp;
+  };
+  const auto paintLevel = [&] {
+    material::Paint ramp =
+        material::Paint::linearGradient({0, 0}, {200, 0}, stops, pixels);
+    ramp.worldSpace();
+    return material::skia::base(ramp);
+  };
+  EXPECT_TRUE(materialLevel(true).geometryDependent());
+  const auto scene = [](const material::Material& ramp, float shift) {
+    return box().children({box()
+                               .absolute()
+                               .left(10 + shift)
+                               .top(10)
+                               .width(60)
+                               .height(50)
+                               .fill(ramp),
+                           box()
+                               .absolute()
+                               .left(80)
+                               .top(70)
+                               .width(60)
+                               .height(50)
+                               .scale(1.4f)
+                               .fill(ramp),
+                           box()
+                               .absolute()
+                               .left(110)
+                               .top(130)
+                               .width(60)
+                               .height(50)
+                               .rotate(30)
+                               .transformOrigin(pct(50), pct(50))
+                               .fill(ramp)});
+  };
+  for (const float shift : {0.0f, 23.0f}) {
+    Host material, paint, control;
+    material.composer.render(scene(materialLevel(true), shift));
+    paint.composer.render(scene(paintLevel(), shift));
+    control.composer.render(scene(materialLevel(false), shift));
+    material.frame();
+    paint.frame();
+    control.frame();
+    EXPECT_TRUE(identicalPixels(material, paint, 200, 200))
+        << "the Material-level anchor did not survive lowering, shift "
+        << shift;
+    EXPECT_FALSE(identicalPixels(control, paint, 200, 200))
+        << "the unflagged control matches — the pin lost its contrast";
+  }
+  // The same host, the node moved: an anchored Material repaints at its new
+  // place in the root's field rather than replaying its old recording.
+  Host moved, fresh;
+  moved.composer.render(scene(materialLevel(true), 0));
+  moved.frame();
+  moved.composer.render(scene(materialLevel(true), 23));
+  moved.frame();
+  fresh.composer.render(scene(paintLevel(), 23));
+  fresh.frame();
+  EXPECT_TRUE(identicalPixels(moved, fresh, 200, 200));
 }

@@ -140,8 +140,8 @@ struct InstanceOptions {
    *  keep the stamp's own orientation. */
   std::string orientLane;
   glm::vec3 up = {0, 1, 0};
-  /** The scalar lanes each instance carries as its named attributes, in
-   *  order — what a material reads per instance by name. Read by
+  /** The lanes each instance carries as its named attributes, in order,
+   *  each by its first number — what a material reads per instance by name. Read by
    *  `instances()` only: merged triangles have nowhere per instance to
    *  hold them. */
   std::vector<std::string> attributes;
@@ -188,8 +188,10 @@ Mesh instance(const Cloud& cloud, const Mesh& stamp,
  *  stamp's +z onto the point's direction about the same basis, the scale
  *  lane and the uniform scale scale it, the tint lane colours it and the
  *  cloud's "Tex" lane is each instance's texture window. Each lane
- *  `options.attributes` names that the cloud carries as a scalar lane is
- *  carried across under its name. */
+ *  `options.attributes` names that the cloud carries is carried across
+ *  under its name as one scalar per instance: a scalar lane as it is, a
+ *  four-number lane (what a cook exports a chain's own lanes as) or a
+ *  vector lane by its first number. */
 Instances instances(const Cloud& cloud, const Mesh& stamp,
                     const InstanceOptions& options = {});
 

@@ -19,6 +19,8 @@
 #include <sigilskia/graphite/Readback.h>
 
 #include <chrono>
+#include <cmath>
+#include <vector>
 
 namespace {
 
@@ -495,3 +497,28 @@ INSTANTIATE_TEST_SUITE_P(
       return test.param.name;
     });
 #endif
+
+TEST_F(SkiaPaintGpu, ALongRampReadsTheSameLookupOnTheDeviceAsOnTheRaster) {
+  // A ramp of many stops is read from a lookup made once: the device
+  // filters the same entries the raster canvas does, so the two draws of
+  // one ramp agree to a code value.
+  std::vector<ColorStop> stops;
+  for (int i = 0; i < 64; ++i) {
+    const float t = (float)i / 63.0f;
+    stops.push_back({t, Color{t, 1 - t, .5f + .5f * std::sin(t * 9), 1}});
+  }
+  const Paint ramp = Paint::linearGradient({0, 0}, {1, 1}, stops);
+  const SkBitmap raster = draw(skia::shader(ramp, frame()));
+  const SkBitmap device =
+      draw(skia::shader(ramp, frame(first.get())), first.get());
+  ASSERT_FALSE(raster.empty());
+  ASSERT_FALSE(device.empty());
+  for (int y = 0; y < raster.height(); ++y)
+    for (int x = 0; x < raster.width(); ++x) {
+      const SkColor4f a = raster.getColor4f(x, y);
+      const SkColor4f b = device.getColor4f(x, y);
+      for (int channel = 0; channel < 4; ++channel)
+        EXPECT_NEAR(a[channel], b[channel], 1.5f / 255.0f)
+            << x << ", " << y << " channel " << channel;
+    }
+}

@@ -13,6 +13,9 @@
 #include <sigilworld/advanced/Node.h>
 #include <sigilworld/node/Verbs.h>
 
+#include <string>
+#include <utility>
+
 namespace sigil::world {
 
 /** ONE BODY: geometry, placed, wearing a surface. */
@@ -57,5 +60,35 @@ Mesh mesh(geometry::mesh::Instances instances);
 /** A body a value builds itself — the escape from the geometry
  *  vocabulary. */
 Mesh mesh(Generator generator);
+
+/** The geometry slot's reading of a solid value: the value is the
+ *  generator's identity and its `mesh()` is the cook, so two descriptions
+ *  naming equal values share one cooked mesh and a value that stands
+ *  unchanged is formed once. */
+template <geometry::mesh::Solid Value>
+class SolidGenerator final : public GeneratorOperations {
+ public:
+  explicit SolidGenerator(Value solid) : m_solid(std::move(solid)) {}
+  [[nodiscard]] std::string name() const override { return "solid"; }
+  [[nodiscard]] geometry::mesh::Mesh cook() const override {
+    return m_solid.mesh();
+  }
+  bool operator==(const SolidGenerator& other) const {
+    return m_solid == other.m_solid;
+  }
+
+ private:
+  Value m_solid;
+};
+
+/** A body of a solid spelled as a value — `geometry::solids::Torus`,
+ *  `Superellipsoid`, a consumer's own `geometry::mesh::Solid` — whose
+ *  geometry slot holds the value and forms its mesh once while the value
+ *  stands unchanged, where a formed mesh handed over is compared triangle
+ *  for triangle on every description. */
+template <geometry::mesh::Solid Value>
+Mesh mesh(Value solid) {
+  return mesh(Generator(SolidGenerator<Value>(std::move(solid))));
+}
 
 }  // namespace sigil::world

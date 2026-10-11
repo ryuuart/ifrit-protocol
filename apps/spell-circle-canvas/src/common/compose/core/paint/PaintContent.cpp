@@ -712,6 +712,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
     const size_t cover = coverStack.size();
     const int saves =
         granularPlane ? enterGates(false, Parts::kMarks, label) : -1;
+    detail::MarkState& state = inst.markStates.at((uint8_t)slot, index);
     if (refine) {
       std::vector<Span> run = *refine;
       if (marksShow) run = intersect(run, *marksShow);
@@ -721,11 +722,14 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       markCtx.silhouette =
           geometry::path::fromSk(gateSilhouette(fullOutline, run));
       markCtx.stamps = nullptr;  // each mark keeps its own art cache
+      markCtx.markState = &state;
       detail::PenOnCanvas markPen(canvas, markCtx);
       d.paint(markPen.pen(), markCtx);
     } else {
-      detail::PenOnCanvas markPen(canvas, paintCtx);
-      d.paint(markPen.pen(), paintCtx);
+      PaintContext markCtx = paintCtx;
+      markCtx.markState = &state;
+      detail::PenOnCanvas markPen(canvas, markCtx);
+      d.paint(markPen.pen(), markCtx);
     }
     if (granularPlane) leaveGates(saves, cover);
   };

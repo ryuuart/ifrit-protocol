@@ -95,6 +95,11 @@ SigilMedia decodes pixels; SigilIO resolves and reloads resources.
 Gradient coordinates use box units by default: `{0, 0}` is one corner
 and `{1, 1}` the opposite. `GradientOptions` selects pixel units, repeat
 and the other gradient controls. `ImageOptions` controls image repeat.
+A box-unit linear or radial gradient of more than sixteen stops is read
+from a lookup made once when its paint is made, the gradient evaluated at
+1025 entries in half floats and filtered between them, so its cost per
+pixel does not grow with its stops and it takes any number of them;
+sixteen or fewer mix inline.
 
 A `Texture` combines a pixel source with sampling, tiling, placement and
 an optional pixel region. Its `frameAt(time)` reads the source at the
@@ -343,7 +348,9 @@ holds one pass per role, and `SurfaceMaps::mapShader` places a map for one
 draw whose unit square maps into the node. Construct another when the
 material changes. `reflectionWeight` has no map. A material anchored to the
 root frame (`Material::worldSpace`) anchors every map there, so its normal
-and numbers stand where its colours do.
+and numbers stand where its colours do. The anchor survives lowering
+to a Skia paint, as a paint marked `worldSpace` does, and such a material
+is geometry-dependent.
 
 In Skia, a positive `SurfaceOptions::alphaCutoff` removes color-stack samples
 whose alpha is below the threshold, in a flat paint and in every map.

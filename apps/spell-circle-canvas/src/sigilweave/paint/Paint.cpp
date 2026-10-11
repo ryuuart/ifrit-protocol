@@ -45,6 +45,12 @@ void setMaterialResolver(MaterialResolver resolver) {
 }
 
 bool hasMaterialResolver() { return (bool)resolverSlot(); }
+
+sk_sp<SkShader> resolveMaterial(const material::Material& material,
+                                const SkRect& bounds) {
+  const MaterialResolver& resolver = resolverSlot();
+  return resolver ? resolver(material, bounds) : nullptr;
+}
 }  // namespace paint
 
 namespace {

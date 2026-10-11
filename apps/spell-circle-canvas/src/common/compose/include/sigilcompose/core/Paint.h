@@ -62,6 +62,8 @@ struct FillMaterial;
 struct FillAccess;
 /** The ink in force as a paint, as the cascade carries it down. */
 struct InkInForce;
+/** What one mark keeps between paints, on the instance painting it. */
+struct MarkState;
 }  // namespace detail
 
 // ---------------------------------------------------------------------------
@@ -295,6 +297,13 @@ struct PaintContext {
    *  through a const context on purpose: a bake is a cache write, not a
    *  paint output. */
   class StampCache* stamps = nullptr;
+  /** WHAT THE MARK BEING PAINTED KEEPS between paints, on the instance
+   *  painting it — null outside a composer and wherever the painter keeps
+   *  nothing for the mark, where a mark prepares what it needs for that
+   *  one paint. A mark never keeps paint state in its own value, which
+   *  every composer painting the description shares. Mutable through a
+   *  const context, as `stamps` is. */
+  detail::MarkState* markState = nullptr;
 
   /** The node→composer-root matrix, i.e. the forward accumulation of
    *  paint()'s own transform stack; the hit test walks its inverse. This

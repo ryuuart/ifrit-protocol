@@ -30,6 +30,7 @@
 
 #include "SurfaceMap.h"
 #include "UnitSurface.h"
+#include "cache/MarkStates.h"
 #include "description/ComposeInternal.h"
 
 namespace sigil::compose::detail {
@@ -294,6 +295,11 @@ void CoverageMark::paintBevelFace(draw::Pen& pen,
   if (outline.isEmpty() || !(bevel.size > 0)) return;
   const float density =
       context.bakeDensity > 0 ? context.bakeDensity : context.contentScale;
+  // The shoulder stands on the instance painting the mark; painted
+  // outside a composer, it is cut for this paint alone.
+  std::shared_ptr<BevelFaceCache> local;
+  std::shared_ptr<BevelFaceCache>& face =
+      context.markState ? context.markState->face : local;
   if (!face) face = std::make_shared<BevelFaceCache>();
   if (face->outline != outline || face->size != bevel.size ||
       face->depth != bevel.depth || face->density != density) {
@@ -330,6 +336,11 @@ void MaterialStroke::paint(draw::Pen& pen, const PaintContext& context) const {
   // On a page painted as a surface map the keyline paints that map of its
   // surface; every other draw paints its colours flat.
   if (surfaced && context.surfaceMap) {
+    // The prepared surface stands on the instance painting the mark;
+    // painted outside a composer, it is prepared for this paint alone.
+    std::shared_ptr<MaterialStrokeCache> local;
+    std::shared_ptr<MaterialStrokeCache>& cache =
+        context.markState ? context.markState->stroke : local;
     if (!cache || cache->material != *surfaced)
       cache = std::make_shared<MaterialStrokeCache>(*surfaced);
     // A keyline that reads its unit reads the band it covers: the relief

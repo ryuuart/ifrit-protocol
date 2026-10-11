@@ -69,8 +69,10 @@ Mesh cookMesh(const Chain& chain, const Mesh& stamp,
 
 /** THE INSTANCING SINK — instance on points: cook @p chain and stand
  *  @p stamp at every point as instanced geometry, placed and coloured by
- *  the same lanes `cookMesh` reads, each scalar lane @p attributes names
- *  carried per instance under its name. A window the chain's loop entry
+ *  the same lanes `cookMesh` reads, each lane @p attributes names
+ *  carried per instance under its name as its first number — so a lane
+ *  the chain itself filled, clustered or selected feeds a material's
+ *  per-instance scalar. A window the chain's loop entry
  *  carries selects which points stand, as it does for every sink. */
 Instances cookInstances(const Chain& chain, const Mesh& stamp,
                         std::vector<std::string> attributes = {},

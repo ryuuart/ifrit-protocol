@@ -22,6 +22,7 @@
 #include <sigilcore/callable/Callable.h>
 
 #include <boost/container/map.hpp>
+#include <concepts>
 #include <cstdint>
 #include <functional>
 #include <glm/glm.hpp>
@@ -107,6 +108,16 @@ struct Mesh {
 
   /** Content equality, lane for lane. */
   bool operator==(const Mesh&) const = default;
+};
+
+/** A SOLID SPELLED AS A VALUE: compared by the numbers that decide it,
+ *  and asked for its mesh with `mesh()`. A holder that keeps descriptions
+ *  compares two such values instead of two meshes, and forms the mesh
+ *  once while the value stands unchanged. The stock solids are the kit's
+ *  `solids::` values; a consumer's own value meeting this is their peer. */
+template <typename Value>
+concept Solid = std::equality_comparable<Value> && requires(const Value& v) {
+  { v.mesh() } -> std::same_as<Mesh>;
 };
 
 /** A rectangle laid flat in a sheet's own space that a texture covers:
