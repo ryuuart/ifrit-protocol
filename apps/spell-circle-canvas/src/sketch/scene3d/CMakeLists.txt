@@ -13,7 +13,7 @@ sigil_test(sketch_test
   SUPPORT_DIRS ${SIGIL_GEOMETRY_DEVICE_TEST_SUPPORT_DIR}
   LIBRARIES SigilSketch SigilWeavePorts SigilWeaveFonts SigilGeometryKit
             SigilCompose SigilComposeTexture SigilWorldDiligent
-  SUITES Scene3DSession Scene3DDoors Scene3DWindow Scene3DBodies Scene3DKinds TheScene3DSession/*
+  SUITES Scene3DSession Scene3DDoors Scene3DPages Scene3DWindow Scene3DBodies Scene3DKinds TheScene3DSession/*
   LABELS gpu)
 
 sigil_bench(sketch_bench

@@ -59,6 +59,19 @@ SkCanvas& Composer::Impl::paintDestination(SkCanvas& canvas) const {
   return recording.depth > 0 && recording.canvas ? *recording.canvas : canvas;
 }
 
+sk_sp<SkSurface> Composer::Impl::localBakeSurface(
+    SkCanvas& canvas, const SkImageInfo& info) const {
+  // A recorder makes no surface, so a bake inside a recording allocates on
+  // the device the recording will be drawn on; on a raster destination it
+  // takes the raster it always took.
+  SkCanvas& destination = paintDestination(canvas);
+  sk_sp<SkSurface> surface =
+      destination.recorder() || destination.recordingContext()
+          ? destination.makeSurface(info)
+          : canvas.makeSurface(info);
+  return surface ? surface : SkSurfaces::Raster(info);
+}
+
 SkSurface* Composer::Impl::bakeSurface(SkCanvas& canvas, SkISize need) {
   if (need.width() <= 0 || need.height() <= 0) return nullptr;
   if (bakeSurfaces.size() <= bakeDepth) bakeSurfaces.resize(bakeDepth + 1);

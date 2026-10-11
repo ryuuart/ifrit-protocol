@@ -337,7 +337,7 @@ is an error naming both, and a page whose tree has not changed paints nothing
 and is counted as skipped. A page whose tree changes repaints only what
 changed: a clock's numerals ticking over a sheet of lit materials repaint
 the numerals' few pixels in every map, and the sheet around them stays as
-it was painted, on the CPU of a capture as on a live device.
+it was painted.
 
 One page can dress several bodies. `Page::surface(region)` is the material
 that shows one rectangle of the page, in page pixels, spread across the
@@ -369,9 +369,9 @@ on the frame it bakes: the frame carries `page.render(tree)`, a body on it
 wears `page.surface()`, and `bakeScene3D` runs the page's pass at the bake's
 moment before anything draws a body. The session keeps what the page paints
 into until the body declares again, as it keeps a texture scene; the page is
-painted on the device a live session draws on, and on the CPU for a capture
-that will be diffed, because the device draws every edge differently from
-the CPU and a capture is judged against plates made on the CPU.
+painted on the device the process draws on — in a window and in a capture
+alike, so a capture's page is the page the window shows — and on the CPU
+where the process holds no device.
 
 ```cpp
 struct Plaque {

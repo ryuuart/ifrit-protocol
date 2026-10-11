@@ -137,7 +137,7 @@ TEST(ComposeGpu, PromotionScratchFollowsTheDestinationBackend) {
   EXPECT_EQ(mismatchedPixels(expected, raster), 0u);
 }
 
-TEST(ComposeGpu, PromotionInsideALocalTextureKeepsTheRasterDestination) {
+TEST(ComposeGpu, PromotionInsideALocalTextureTakesTheDeviceDestination) {
   REQUIRE_GPU();
   constexpr int width = 128, height = 112;
   const auto tree = [](Cache childCache, const std::shared_ptr<PaintBackends> &painted) {
@@ -200,13 +200,15 @@ TEST(ComposeGpu, PromotionInsideALocalTextureKeepsTheRasterDestination) {
   const SkBitmap firstActual = drawOnGpu(nested, width, height);
   ASSERT_FALSE(firstActual.empty());
   EXPECT_GE(nested.stats().texturesBaked, 2u);
-  EXPECT_GT(nestedPaint->raster, 0);
-  EXPECT_EQ(nestedPaint->graphite, 0);
+  // The local bake is taken inside a recording, on the device that
+  // recording is drawn on, and the promotion inside it paints there too.
+  EXPECT_GT(nestedPaint->graphite, 0);
+  EXPECT_EQ(nestedPaint->raster, 0);
   EXPECT_EQ(mismatchedPixels(expected, firstActual), 0u);
-  const int paintsAfterBake = nestedPaint->raster;
+  const int paintsAfterBake = nestedPaint->graphite;
   const SkBitmap retained = drawOnGpu(nested, width, height);
   ASSERT_FALSE(retained.empty());
   EXPECT_EQ(nested.stats().texturesBaked, 0u);
-  EXPECT_EQ(nestedPaint->raster, paintsAfterBake);
+  EXPECT_EQ(nestedPaint->graphite, paintsAfterBake);
   EXPECT_EQ(mismatchedPixels(expected, retained), 0u);
 }

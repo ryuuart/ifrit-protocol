@@ -335,21 +335,14 @@ TEST_P(ComposeGpuMaterialDestination, DeviceSourceUsesTheOwningDestinationAndRet
   const SkBitmap first = drawOnGpu(composer, width, height);
   ASSERT_FALSE(first.empty());
   EXPECT_GT(composer.stats().picturesRecorded, 0u);
-  if (test.localBake) {
-    EXPECT_EQ(composer.stats().texturesBaked, 1u);
-    if (test.plain)
-      EXPECT_EQ(binding->rasterReads, 0);
-    else
-      EXPECT_GT(binding->rasterReads, 0);
-    EXPECT_EQ(binding->deviceReads, 0);
-  } else {
-    EXPECT_EQ(composer.stats().texturesBaked, 0u);
-    EXPECT_GT(binding->deviceReads, 0);
-    EXPECT_EQ(binding->rasterReads, 0);
-  }
+  // A local bake inside the recording is taken on the device the recording
+  // is drawn on, so it reads the device's binding exactly as a live draw does.
+  EXPECT_EQ(composer.stats().texturesBaked, test.localBake ? 1u : 0u);
+  EXPECT_GT(binding->deviceReads, 0);
+  EXPECT_EQ(binding->rasterReads, 0);
   EXPECT_FALSE(binding->unexpectedRecorder);
-  EXPECT_EQ(first.getColor(24, 40), test.localBake ? SK_ColorMAGENTA : SK_ColorCYAN);
-  EXPECT_EQ(first.getColor(84, 40), test.localBake ? SK_ColorYELLOW : SK_ColorWHITE);
+  EXPECT_EQ(first.getColor(24, 40), SK_ColorCYAN);
+  EXPECT_EQ(first.getColor(84, 40), SK_ColorWHITE);
   EXPECT_EQ(first.getColor(104, 40), SK_ColorBLACK);
   EXPECT_EQ(first.getColor(28, 84), SK_ColorBLACK);
 
@@ -375,9 +368,9 @@ INSTANTIATE_TEST_SUITE_P(
     Destinations, ComposeGpuMaterialDestination,
     testing::Values(MaterialDestinationCase{"Picture", false, false},
                     MaterialDestinationCase{"LivePicture", true, false},
-                    MaterialDestinationCase{"LocalRasterPicture", false, true},
+                    MaterialDestinationCase{"LocalDevicePicture", false, true},
                     MaterialDestinationCase{"PlainPicture", false, false, true},
-                    MaterialDestinationCase{"PlainLocalRasterPicture", false, true, true}),
+                    MaterialDestinationCase{"PlainLocalDevicePicture", false, true, true}),
     [](const auto &info) { return info.param.name; });
 
 TEST(ComposeGpu, StaticDeviceFillAndInkRebindHeldPicturesAcrossDestinations) {

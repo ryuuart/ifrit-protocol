@@ -374,6 +374,11 @@ struct Composer::Impl {
   size_t bakeDepth = 0;  ///< how many bakes are in flight above this one
   /** The device or raster layer that receives this canvas's commands. */
   SkCanvas& paintDestination(SkCanvas& canvas) const;
+  /** A surface a local bake is taken into: on the device the canvas's paint
+   *  reaches when that is a device, a bake inside a recording included, and
+   *  otherwise where the canvas makes one, or a raster. */
+  sk_sp<SkSurface> localBakeSurface(SkCanvas& canvas,
+                                    const SkImageInfo& info) const;
   SkSurface* bakeSurface(SkCanvas& canvas, SkISize need);
   std::vector<Composer::NodeCost> profileRows;
   double profChildMs = 0;

@@ -81,8 +81,7 @@ bool paintGroupLocalBake(PaintPass& pass, const LocalGroupBake& plan) {
   const float scale = plan.scale;
   if (!plan.held) {
     inst.textureImage.reset();
-    sk_sp<SkSurface> layer = canvas.makeSurface(plan.info);
-    if (!layer) layer = SkSurfaces::Raster(plan.info);
+    sk_sp<SkSurface> layer = impl.localBakeSurface(canvas, plan.info);
     if (!layer) return false;
     layer->getCanvas()->scale(scale, scale);
     layer->getCanvas()->translate(-bake.left(), -bake.top());

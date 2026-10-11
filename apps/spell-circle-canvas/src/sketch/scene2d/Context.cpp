@@ -39,7 +39,7 @@ std::shared_ptr<compose::TextureScene> Scene2DContext::textureScene(
 
 Page Scene2DContext::page(glm::ivec2 size, compose::SurfaceRange range) {
   if (!fonts) return Page();
-  return detail::keptPage(size, range, *fonts, deterministic, pages);
+  return detail::keptPage(size, range, *fonts, pages);
 }
 
 sk_sp<SkImage> Scene2DContext::bakeScene3D(const world::Frame& frame,

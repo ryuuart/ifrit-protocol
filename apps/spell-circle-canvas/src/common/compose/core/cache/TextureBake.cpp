@@ -302,8 +302,7 @@ bool paintTextureBake(PaintPass& pass) {
   if (bakeStale) inst.textureImage.reset();
   if (bakeStale && !dimensions.isEmpty()) {
     const SkImageInfo info = impl.bakeInfo(dimensions);
-    sk_sp<SkSurface> layer = canvas.makeSurface(info);
-    if (!layer) layer = SkSurfaces::Raster(info);
+    sk_sp<SkSurface> layer = impl.localBakeSurface(canvas, info);
     if (layer) {
       layer->getCanvas()->scale(scale, scale);
       layer->getCanvas()->translate(-bake.left(), -bake.top());
@@ -325,8 +324,7 @@ bool paintTextureBake(PaintPass& pass) {
       // nothing resamples on the way through.
       if (deferStaticEffect && deferredFilter) {
         const sk_sp<SkImage> content = layer->makeImageSnapshot();
-        sk_sp<SkSurface> filtered = canvas.makeSurface(info);
-        if (!filtered) filtered = SkSurfaces::Raster(info);
+        sk_sp<SkSurface> filtered = impl.localBakeSurface(canvas, info);
         if (content && filtered) {
           SkCanvas* fc = filtered->getCanvas();
           fc->scale(scale, scale);

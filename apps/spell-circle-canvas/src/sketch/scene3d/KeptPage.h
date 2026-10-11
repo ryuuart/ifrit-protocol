@@ -26,14 +26,13 @@ namespace sigil::sketch::detail {
 /** A PAGE @p size pixels across, its maps read against @p range, painting
  *  with @p fonts, and the scene it
  *  paints into put in @p pages when the session lent somewhere to keep it.
- *  A live page paints on the device the sketch is drawn on; a capture that
- *  will be diffed, @p deterministic, keeps the CPU's pixels. The first page
+ *  It paints on the device the process draws on, in a window and in a
+ *  capture alike, and on the CPU where the process holds none. The first page
  *  in @p pages is named "page" and each one after it is numbered, so two
  *  pages on one frame are two passes an error can tell apart. No page when
  *  the scene cannot be made. */
 [[nodiscard]] Page keptPage(
     glm::ivec2 size, compose::SurfaceRange range, weave::FontContext& fonts,
-    bool deterministic,
     std::vector<std::shared_ptr<compose::SurfaceScene>>* pages);
 
 }  // namespace sigil::sketch::detail

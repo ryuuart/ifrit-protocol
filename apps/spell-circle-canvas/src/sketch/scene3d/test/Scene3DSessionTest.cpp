@@ -783,6 +783,60 @@ TEST_F(Scene3DDoors, ALiveScene3DPaintsItsScreensOnTheDeviceItIsDrawnOn) {
   useDevice(nullptr);
 }
 
+TEST_F(Scene3DDoors, APageCapturedOnTheDeviceIsThePageTheWindowPaints) {
+  // A capture that will be diffed paints its page on the device the window
+  // paints it on, so the frame a capture takes is the frame the window
+  // shows, pixel for pixel.
+  const sigil::geometry::device::test::OnDevice on =
+      sigil::geometry::device::test::onDevice();
+  ASSERT_TRUE(on);
+  useDevice(on.device);
+  const SkBitmap window = shadedFrame(
+      *kindOf<Surfaced>()->open(fonts(), assets(), /*deterministic=*/false));
+  const SkBitmap capture = shadedFrame(
+      *kindOf<Surfaced>()->open(fonts(), assets(), /*deterministic=*/true));
+  EXPECT_TRUE(samePicture(window, capture));
+  // The page a capture asks for stands on that device.
+  std::vector<std::shared_ptr<sigil::compose::SurfaceScene>> pages;
+  Scene3DContext ctx{.assets = assets(),
+                     .fonts = fonts(),
+                     .pages = &pages,
+                     .deterministic = true};
+  (void)ctx.page({16, 16});
+  ASSERT_EQ(pages.size(), 1u);
+  pages.front()->render(sigil::compose::box().width(16).height(16).fill(
+      sigil::compose::Fill::color({0, 1, 0, 1})));
+  const auto* base =
+      pages.front()->scene(sigil::material::texture::Role::BaseColor);
+  ASSERT_NE(base, nullptr);
+  EXPECT_TRUE((bool)base->deviceImage());
+  useDevice(nullptr);
+}
+
+TEST(Scene3DPages, ACaptureWithNoDevicePaintsItsPageOnTheCpu) {
+  // Where the process holds no device a page paints on the CPU, and paints.
+  useDevice(nullptr);
+  std::vector<std::shared_ptr<sigil::compose::SurfaceScene>> pages;
+  Scene3DContext ctx{.assets = assets(),
+                     .fonts = fonts(),
+                     .pages = &pages,
+                     .deterministic = true};
+  (void)ctx.page({16, 16});
+  ASSERT_EQ(pages.size(), 1u);
+  pages.front()->render(sigil::compose::box().width(16).height(16).fill(
+      sigil::compose::Fill::color({0, 1, 0, 1})));
+  const auto* base =
+      pages.front()->scene(sigil::material::texture::Role::BaseColor);
+  ASSERT_NE(base, nullptr);
+  EXPECT_FALSE((bool)base->deviceImage());
+  ASSERT_NE(base->image(), nullptr);
+  EXPECT_FALSE(base->image()->isTextureBacked());
+  SkBitmap pixels;
+  pixels.allocN32Pixels(16, 16);
+  ASSERT_TRUE(base->image()->readPixels(nullptr, pixels.pixmap(), 0, 0));
+  EXPECT_EQ(pixels.getColor(8, 8), SK_ColorGREEN);
+}
+
 TEST_F(Scene3DDoors, PaintsASurfaceSceneThatTheScene3DLights) {
   std::unique_ptr<Session> session =
       kindOf<Surfaced>()->open(fonts(), assets());
