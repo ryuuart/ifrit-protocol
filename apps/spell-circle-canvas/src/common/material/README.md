@@ -277,7 +277,8 @@ material the page paints standing for the whole page.
 
 Emission above white is `emissionStrength` past one: the colour decoded
 into light and multiplied, and a page's emissive map's white stands for the
-brightest emission the page states. Colours in it are
+brightest emission the page states, or for the strength a page states as
+its range from its first paint. Colours in it are
 encoded as an author types them; occlusion darkens only light arriving
 from everywhere. A surface carries only the lobes it states
 (`material::lobes(SurfaceOptions)`, `material::Lobes`): the surface program
@@ -319,7 +320,11 @@ on its thread state, and how far they reach past a map's white
 strongest distortion, the first volume), which is how a page learns which
 of those maps it needs and what each one's white stands for. The normal comes
 back as `(n + 1) / 2` with green up the picture whatever convention the
-material stated, including a height-derived or blended normal; a scalar
+material stated, including a height-derived or blended normal, and its lean is
+written in the root frame the node is drawn into — turned by the inverse
+transpose of the node's placement with its steepness kept, so a node turned a
+quarter writes a normal leaning a quarter round, while a material anchored to
+the root frame writes its normal as sampled; a scalar
 comes back grey, its number times its map; a role a material states
 nothing for reads the stock `SurfaceOptions` number. Every map carries the
 colour stack's alpha as its coverage. A material with no surface reads as
