@@ -1254,21 +1254,6 @@ description through two composers painting different surface maps and
 find each painted as its own map; a second should describe the stroke
 once, paint it, and find the description's bytes unchanged.
 
-## Performance gap: a local bake inside a recording is always a raster
-
-`src/common/compose/core/cache/GroupBake.cpp` and `TextureBake.cpp` make
-a local bake's surface with `canvas.makeSurface(...)`. While a picture is
-being recorded the canvas is the recorder's, which makes no surface, so
-both fall back to `SkSurfaces::Raster` on a device destination and the
-bake is uploaded each time it is drawn. `Composer::Impl::bakeSurface`
-allocates against `paintDestination(canvas)`, which is the device under
-the recording.
-
-The local bakes should allocate against the same destination. A test on
-a device should record a picture holding a `Cache::Texture` child and
-find the child's bake texture-backed.
-The fix — allocating a local bake on the paint destination when that is a device canvas — contradicts the GPU tests that pin a local bake to a raster destination (`ComposeGpu.PromotionInsideALocalTextureKeepsTheRasterDestination` and the local raster picture cases), so which contract stands is the owner's decision before either changes.
-
 ## Rendering gap: glyph batches draw a span's material unshaded
 
 `GlyphRSXformBatches::addGlyph` in
@@ -1767,20 +1752,6 @@ as there are steps to it. `python_carved_linework` pays about a hundred
 and twenty bakes for one still. The declaration should hold for a Python
 body as it does for a C++ one. A test should count `draw` calls in such a
 capture and find one.
-
-## Performance gap: a page-wide change is painted whole on the CPU in a capture
-
-A page repaints only the region its tree changed, so a changing corner
-of a page costs a few milliseconds per frame per map in a capture. A
-change across the whole page — a page-wide live material, a ground that
-recolours — still repaints every map whole on the CPU, two orders slower
-than on the device, and a capture stepped to its moment pays it every
-frame. Captures stay on the CPU because the device draws every edge
-differently and the plates are made on the CPU. Either the whole-page
-CPU paint comes within a small factor of the region paint, or page
-captures move to the device with every page plate rebased — the owner's
-decision. A test should time a whole-page change against a corner change
-on the CPU and find them within a small factor.
 
 ## Authoring gap: Python cannot wear one region of a page or state a page's range
 
