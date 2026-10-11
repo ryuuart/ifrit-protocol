@@ -20,6 +20,17 @@ namespace sigil::world::diligent {
  */
 void installSlangCompiler();
 
+/** COMPILES THE BACKEND'S FIXED PROGRAMS — the scaffold in each build a
+ *  body is drawn with under one kind of light, the shadow stage's, the
+ *  sky's and every post stage's — once per process, on the calling
+ *  thread. `runtime()` calls it, so they are made when the device comes up
+ *  rather than the first time a frame uses each; a program the store kept
+ *  from an earlier run is read rather than compiled. */
+void prepareFixedPrograms();
+
+/** Whether every program `prepareFixedPrograms` makes has been made. */
+[[nodiscard]] bool fixedProgramsReady();
+
 /** THE VARIANT BITS this backend specialises a program on. A recipe
  *  compiles once per variant, so a bit belongs here only when it changes
  *  the PROGRAM. Neither the mesh vertex layout nor the blended build
@@ -41,6 +52,10 @@ enum : uint32_t {
   kVariantAreaLights = 1u << 2u,
   kVariantCascadedShadows = 1u << 3u,
   kVariantPointShadows = 1u << 4u,
+  /** Beside `kVariantLit`, a frame whose casting lights pass through a
+   *  transmissive body: the program reads what colour of each light comes
+   *  through. */
+  kVariantTintedShadows = 1u << 5u,
 };
 
 }  // namespace sigil::world::diligent

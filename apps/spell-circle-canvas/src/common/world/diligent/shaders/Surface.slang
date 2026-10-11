@@ -41,8 +41,9 @@
 // renderer from the lights it hands the draw: SIGIL_AREA_LIGHTS when one
 // of them has a size, SIGIL_CASCADED_SHADOWS when one reads a directional
 // light's cascades, SIGIL_POINT_SHADOWS when one reads a point light's six
-// faces. A program built without one of them has no code for that kind of
-// light at all, and is drawn only under lights that are not of it, so a
+// faces, SIGIL_TINTED_SHADOWS when a casting light passes through a
+// transmissive body in the frame. A program built without one of them has
+// no code for that kind of light at all, and is drawn only under lights that are not of it, so a
 // body pays in its program for the lights that reach it rather than for
 // every kind a scene could hold.
 //
@@ -74,12 +75,14 @@
 //      states none compiles to the program it would be if the lobes were
 //      not in this text;
 //   5. a surface that states TRANSMISSION (SIGIL_TRANSMISSION) gives up
-//      its diffuse side to what passes through it: the eye's ray is bent
-//      at the surface, carried across the stated thickness, projected back
-//      onto the picture and read from the frame's copy of the scene behind
-//      — a blurrier level of it for a rougher surface, one reading per
-//      colour where the index disperses — tinted by the base colour,
-//      dimmed by the volume, and weighted by what the reflection left;
+//      its diffuse side to what passes through it and reflects what its
+//      index says: the eye's ray is bent in at the surface, carried
+//      across the body to a back the stated thickness behind, bent out
+//      there, followed on to the scene behind and read from the frame's
+//      copy of it — a blurrier level of it for a rougher surface, one
+//      reading per colour where the index disperses — tinted by the base
+//      colour, dimmed by the volume, and weighted by what the reflection
+//      left;
 //   6. a clear coat, where the surface has one, reflects a second,
 //      colourless lobe over all of that and dims it by what it reflected;
 //   7. emission adds its own light;
@@ -107,9 +110,9 @@
 // A SURFACE THAT SEES THROUGH ITSELF — one that transmits, one that
 // distorts (SIGIL_DISTORTION) — reads the frame's lit colour as it stood
 // once every body that does not was drawn, which the renderer copies with
-// its chain of smaller, blurrier levels beside the depth. One copy serves
-// every such surface in the frame, so one does not see another through
-// itself.
+// its chain of smaller, blurrier levels beside the depth. The copy is
+// taken again before such a surface that stands in front of another drawn
+// since, so one sees another through itself.
 
 import Portable;
 import Shading;
@@ -210,6 +213,14 @@ uniform float4 uLightCount;
  *  texel: a texel holds the depth, zero at a map's near plane and one at
  *  its far one, of the nearest body blocking that light. */
 uniform Sampler2D uShadowAtlas;
+#ifdef SIGIL_TINTED_SHADOWS
+/** WHAT A TRANSMISSIVE BODY LETS THROUGH, laid out as the atlas is: the
+ *  colour of a light that comes through, white where nothing transmissive
+ *  stands in front of what blocks it, and the depth of the nearest
+ *  transmissive body, which says which points stand behind it. */
+uniform Sampler2D uShadowTint;
+uniform Sampler2D uShadowGlass;
+#endif
 /** x: one over the atlas's side in texels; y: one when this body is
  *  darkened by shadows, zero when it is not; z: how many maps there are. */
 uniform float4 uShadowDials;
@@ -234,6 +245,13 @@ uniform float4 uShadowDepth[24];
  *  in texels; w: the share of the map over which a shadow fades out at
  *  its edge. */
 uniform float4 uShadowBias[24];
+/** …and how wide the source of its light is, which is what widens a
+ *  shadow's edge with the distance between a caster and what it shades.
+ *  x: on an orthographic map, how far the edge spreads per unit of that
+ *  distance; on a perspective one, the source's width in scene units, the
+ *  spread then shrinking with the caster's distance from the light. Zero
+ *  is a point, and every edge is as soft as the filter radius alone. */
+uniform float4 uShadowSource[24];
 /** …and on the first of a directional light's cascades, which follow it
  *  one after another, how far in front of the camera each reaches, zero
  *  past the last; zero throughout on every other map. */
@@ -358,10 +376,17 @@ static float3 gSurfaceAttenuationColor = float3(1.0, 1.0, 1.0);
 static float gSurfaceAttenuationDistance = 0.0;
 static float gSurfaceDispersion = 0.0;
 /** DISTORTION: how far, in scene units at the surface, what stands behind
- *  is displaced — across and up the picture. */
+ *  is displaced — along the way u runs and the way a normal map's green
+ *  points. */
 static float2 gSurfaceDistortion = float2(0.0, 0.0);
-/** What a body states for an additive reflection. Nothing here reads it:
- *  the environment reaches every surface through its own reflectance. */
+/** Where the distortion moves what is seen behind the surface, in the
+ *  space the shading is written in: its two numbers laid along the
+ *  surface where it is lit, and across and up the picture where it is
+ *  not. */
+static float3 gDistortionMoved = float3(0.0, 0.0, 0.0);
+/** What a body states for an ADDITIVE reflection: the share of what it
+ *  mirrors it adds, with no Fresnel. Below zero is the split sum, where
+ *  the environment reaches the surface through its own reflectance. */
 static float gSurfaceReflection = -1.0;
 /** The light this pixel gives off of its own, in LINEAR radiance: added to
  *  the lit sum before the exposure and the curve, so a strength above one
@@ -582,18 +607,83 @@ float3 irradianceAt(float3 normal) {
 }
 
 #ifdef SIGIL_TRANSMISSION
-/** WHAT IS SEEN THROUGH THE SURFACE at @p p, facing @p n and seen from
- *  @p v, along a medium of index @p ior: the eye's ray bent and carried
- *  across the thickness, projected back onto the picture and read from
- *  the scene behind at @p level. Where that lands off the picture, or on
- *  something nearer the eye than the surface itself — which cannot be
- *  behind it — the panorama along the bent ray stands in, or, with no
- *  panorama, the picture at the nearest place it has. */
-float3 seenThrough(float3 p, float3 v, float3 n, float ior, float rough,
-                   float level, float2 here) {
-  let travel = refractedTravel(v, n, ior, gSurfaceThickness);
+/** HOW THE SURFACE BENDS where the pixel stands: how far its facing turns
+ *  per scene unit across the picture — one over the radius of a ball,
+ *  zero on a flat face, below zero where it hollows away from the eye.
+ *  Read off the screen derivatives, so every pixel finds it alike. */
+float curvatureOf(float3 geometric, float3 p) {
+  let dpx = ddx(p);
+  let dpy = ddy(p);
+  let across = dotP(dpx, dpx) + dotP(dpy, dpy);
+  if (across <= 0.0) return 0.0;
+  return (dotP(ddx(geometric), dpx) + dotP(ddy(geometric), dpy)) / across;
+}
+
+/** WHERE THE EYE'S RAY LEAVES THE BODY and which way it goes on. The body
+ *  is read as a lens: its front is the surface at @p p facing @p n, bent
+ *  by @p curvature; its back stands @p thickness behind the front along
+ *  the normal, curved the same way, so a flat face is a slab whose back is
+ *  parallel to it and a ball as thick as it is wide is a ball. The ray,
+ *  bent into the medium at the front, crosses to the back, and is bent
+ *  again leaving it. @p travelled says how far it went inside. */
+void passage(float3 p, float3 v, float3 n, float curvature, float ior,
+             out float3 leftAt, out float3 leaving, out float travelled) {
+  leftAt = p;
+  leaving = -v;
+  travelled = 0.0;
+  let bent = refraction(-v, n, 1.0 / ior);
+  if (dotP(bent, bent) <= 0.0) return;
+  // A ball cannot be thicker than it is wide.
+  let k = curvature;
+  var thick = max(gSurfaceThickness, 0.0);
+  if (k > 0.0) thick = min(thick, 2.0 / k);
+  // THE BACK, a sphere of the front's radius whose centre stands the
+  // thickness behind the front's own, met by the bent ray: the root
+  // written so that it stays exact as the curvature goes to zero.
+  let q = min(dotP(n, bent), -1e-4);
+  let a = 1.0 - k * thick;
+  let d = max(a * a * q * q + k * thick * (2.0 - k * thick), 0.0);
+  let across = a >= 0.0 ? thick * (2.0 - k * thick) / (sqrtP(d) - a * q)
+                        : (a * q + sqrtP(d)) / k;
+  travelled = max(across, 0.0);
+  leftAt = p + bent * travelled;
+  if (thick <= 0.0) return;
+  let outward = normalizeP(bent * (travelled * k) - n * a);
+  let out = refraction(bent, -outward, ior);
+  leaving = dotP(out, out) > 0.0 ? normalizeP(out) : bent;
+}
+
+/** WHAT IS SEEN THROUGH THE SURFACE at @p p, facing @p n with
+ *  @p curvature and seen from @p v, along a medium of index @p ior: the
+ *  eye's ray carried through the body as `passage` carries it, displaced
+ *  along the surface by @p moved, then followed on to whatever the scene
+ *  behind holds where it goes, and read from it at @p level. Where that
+ *  lands off the picture, or on something nearer the eye than the surface
+ *  itself — which cannot be behind it — the panorama along the ray
+ *  leaving stands in, or, with no panorama, the picture at the nearest
+ *  place it has. @p travelled says how far the ray went inside. */
+float3 seenThrough(float3 p, float3 v, float3 n, float curvature, float ior,
+                   float3 moved, float rough, float level, float2 here,
+                   out float travelled) {
+  float3 leftAt;
+  float3 leaving;
+  passage(p, v, n, curvature, ior, leftAt, leaving, travelled);
+  leftAt = leftAt + moved;
   if (uSceneColorDials.w > 0.5) {
-    let uv = screenUvOf(p + travel);
+    // ON TO THE SCENE BEHIND: the reach along the leaving ray at which it
+    // stands as deep as what the depth holds where it lands, found by
+    // stepping to that depth a few times over.
+    float reach = 0.0;
+    if (uDepthFade.z > 0.5 && leaving.z < -1e-4) {
+      [ForceUnroll]
+      for (int step = 0; step < 3; ++step) {
+        let uv = clamp(screenUvOf(leftAt + leaving * reach), float2(0.0, 0.0),
+                       float2(1.0, 1.0));
+        let behind = viewPointAt(uv, uSceneDepth.SampleLevel(uv, 0.0).r);
+        reach = max((behind.z - leftAt.z) / leaving.z, 0.0);
+      }
+    }
+    let uv = screenUvOf(leftAt + leaving * reach);
     var landed = uv.x >= 0.0 && uv.x <= 1.0 && uv.y >= 0.0 && uv.y <= 1.0;
     if (landed && uDepthFade.z > 0.5) {
       let behind = uSceneDepth.SampleLevel(uv, 0.0).r;
@@ -601,8 +691,7 @@ float3 seenThrough(float3 p, float3 v, float3 n, float ior, float rough,
     }
     if (landed) return uSceneColor.SampleLevel(uv, level).rgb;
   }
-  if (uEnvDials.w > 0.0)
-    return environmentAt(refraction(-v, n, 1.0 / max(ior, 1.0)), rough);
+  if (uEnvDials.w > 0.0) return environmentAt(leaving, rough);
   if (uSceneColorDials.w > 0.5)
     return uSceneColor.SampleLevel(here, level).rgb;
   return float3(0.0, 0.0, 0.0);
@@ -621,11 +710,94 @@ float shadowTexel(int map, float2 texel, float receiver, float bias) {
                     bias);
 }
 
+/** HOW FAR FROM THE LIGHT the stored depth at the atlas texel @p texel of
+ *  map @p map stands, in scene units. */
+float shadowStored(int map, float2 texel) {
+  let depth = uShadowDepth[map];
+  let stored =
+      uShadowAtlas.SampleLevel((texel + float2(0.5, 0.5)) * uShadowDials.x, 0.0)
+          .r;
+  return shadowDistance(stored, depth.x, depth.y, depth.z);
+}
+
+/** A SHADOW FROM A SOURCE WITH A WIDTH: what blocks the point is looked
+ *  for around it first, and the filter then spreads as wide as the
+ *  penumbra the source casts across the distance between the blockers
+ *  found and the point — tight where a body rests on what it shades,
+ *  wide where it stands far above it. A point no blocker covers is lit
+ *  without filtering at all. @p centre is the point's texel in the atlas,
+ *  @p receiver its distance from the light, @p texel the width one texel
+ *  covers there and @p compareBias the bias its comparisons take. */
+float shadowSoft(int map, float2 centre, float receiver, float texel,
+                 float nDotL, float2 low, float2 high) {
+  let depth = uShadowDepth[map];
+  let bias = uShadowBias[map];
+  let source = uShadowSource[map].x;
+  let compareBias = shadowDepthBias(bias.x, texel, nDotL, bias.z);
+  // THE SEARCH reaches as far as the widest penumbra a blocker at the
+  // light's own near plane could cast here, in texels, within a bound.
+  let widest = depth.z > 0.5 ? source * (receiver - depth.x) /
+                                   max(depth.x, 1e-3)
+                             : source * (receiver - depth.x);
+  let reach = clamp(widest / max(texel, 1e-6) * 0.5, 1.0, 32.0);
+  float blockers = 0.0;
+  float found = 0.0;
+  [ForceUnroll]
+  for (int y = 0; y < 4; ++y) {
+    [ForceUnroll]
+    for (int x = 0; x < 4; ++x) {
+      let at = centre + (float2(float(x), float(y)) / 3.0 * 2.0 -
+                         float2(1.0, 1.0)) *
+                            reach;
+      let stored = shadowStored(map, clamp(floor(at + 0.5), low, high));
+      if (stored < receiver - compareBias) {
+        blockers = blockers + stored;
+        found = found + 1.0;
+      }
+    }
+  }
+  if (found <= 0.0) return 1.0;
+  let blocker = blockers / found;
+  let spread = depth.z > 0.5
+                   ? source * (receiver - blocker) / max(blocker, 1e-3)
+                   : source * (receiver - blocker);
+  let radius = clamp(max(spread / max(texel, 1e-6) * 0.5, bias.z), 0.5, 32.0);
+  let filterBias = shadowDepthBias(bias.x, texel, nDotL, radius);
+  // THE FILTER: five taps a side across the penumbra, each blended from
+  // the four texels around it.
+  float lit = 0.0;
+  [ForceUnroll]
+  for (int ty = 0; ty < 5; ++ty) {
+    [ForceUnroll]
+    for (int tx = 0; tx < 5; ++tx) {
+      let at = centre + (float2(float(tx), float(ty)) * 0.5 -
+                         float2(1.0, 1.0)) *
+                            radius;
+      let corner = floor(at);
+      let f = at - corner;
+      let t00 = clamp(corner, low, high);
+      let t11 = clamp(corner + float2(1.0, 1.0), low, high);
+      lit = lit + shadowBilinear(
+                      shadowTest(receiver, shadowStored(map, t00), filterBias),
+                      shadowTest(receiver,
+                                 shadowStored(map, float2(t11.x, t00.y)),
+                                 filterBias),
+                      shadowTest(receiver,
+                                 shadowStored(map, float2(t00.x, t11.y)),
+                                 filterBias),
+                      shadowTest(receiver, shadowStored(map, t11), filterBias),
+                      f);
+    }
+  }
+  return lit / 25.0;
+}
+
 /** HOW MUCH OF A CASTING LIGHT REACHES the point @p p, whose geometric
  *  normal is @p geometric, from the direction @p l: one where nothing it
  *  stored stands between, zero where something does, and between along a
  *  shadow's filtered edge. Nine taps a radius apart, each blended from the
- *  four texels around it, every one kept inside the light's own tile. */
+ *  four texels around it, every one kept inside the light's own tile — or,
+ *  from a source with a width, the penumbra it casts (`shadowSoft`). */
 float shadowAt(int map, float3 p, float3 geometric, float3 l) {
   let depth = uShadowDepth[map];
   let bias = uShadowBias[map];
@@ -656,6 +828,10 @@ float shadowAt(int map, float3 p, float3 geometric, float3 l) {
   let low = tile.xy * side;
   let high = (tile.xy + tile.zw) * side - float2(1.0, 1.0);
   let centre = shadowAtlasUv(uv, tile) * side - float2(0.5, 0.5);
+  if (uShadowSource[map].x > 0.0)
+    return shadowed(shadowSoft(map, centre, receiver, movedTexel, nDotL, low,
+                               high),
+                    shadowEdgeFade(uv, bias.w));
   float lit = 0.0;
   // A FILTER ONE TEXEL WIDE reads overlapping blocks: its three taps a side
   // stand on three consecutive texels, so the nine blocks of four lie in
@@ -763,6 +939,67 @@ float shadowOf(int map, float3 p, float3 geometric, float3 l) {
 #endif
 }
 
+#ifdef SIGIL_TINTED_SHADOWS
+/** WHICH OF THE MAPS STARTING AT @p map the point @p p reads: for a
+ *  directional light split into cascades, the one its distance in front
+ *  of the camera falls in; for a point light, the face it stands most
+ *  squarely in front of; otherwise that map. */
+int shadowMapFor(int map, float3 p) {
+  let ends = uShadowCascade[map];
+  if (ends.x > 0.0) return map + int(shadowCascade(-p.z, ends));
+  if (uShadowDepth[map].z < 1.5) return map;
+  let position = float4(p, 1.0);
+  int best = map;
+  float squarest = -1e30;
+  for (int face = 0; face < 6; ++face) {
+    let at = map + face;
+    let x = dotP(uShadowMatrix[at * 4 + 0], position);
+    let y = dotP(uShadowMatrix[at * 4 + 1], position);
+    let w = dotP(uShadowMatrix[at * 4 + 3], position);
+    let square = w - max(abs(x), abs(y));
+    if (square > squarest) {
+      squarest = square;
+      best = at;
+    }
+  }
+  return best;
+}
+
+/** WHAT COLOUR OF A CASTING LIGHT COMES THROUGH to the point @p p, read
+ *  through the maps starting at @p first: the colour the transmissive
+ *  bodies between it and the light let through, where the point stands
+ *  behind the nearest of them, and white where it does not. */
+float3 shadowTintOf(int first, float3 p, float3 geometric, float3 l) {
+  let map = shadowMapFor(first, p);
+  let depth = uShadowDepth[map];
+  let bias = uShadowBias[map];
+  let nDotL = max(dotP(geometric, l), 0.0);
+  let lightRow = uShadowMatrix[map * 4 + 3];
+  let distanceAway = depth.z > 0.5 ? max(dotP(lightRow, float4(p, 1.0)), 0.0)
+                                   : 1.0;
+  let texel = depth.w * distanceAway;
+  let position =
+      float4(p + geometric * shadowNormalOffset(bias.y, texel, nDotL), 1.0);
+  let clip = float4(dotP(uShadowMatrix[map * 4 + 0], position),
+                    dotP(uShadowMatrix[map * 4 + 1], position),
+                    dotP(uShadowMatrix[map * 4 + 2], position),
+                    dotP(uShadowMatrix[map * 4 + 3], position));
+  if (clip.w <= 0.0) return float3(1.0, 1.0, 1.0);
+  let ndc = clip.xyz / clip.w;
+  let uv = float2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5);
+  if (ndc.z > 1.0 || uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0)
+    return float3(1.0, 1.0, 1.0);
+  let receiver = shadowDistance(ndc.z, depth.x, depth.y, depth.z);
+  let movedTexel = depth.z > 0.5 ? depth.w * receiver : depth.w;
+  let compareBias = shadowDepthBias(bias.x, movedTexel, nDotL, bias.z);
+  let at = shadowAtlasUv(uv, uShadowTile[map]);
+  let glass = shadowDistance(uShadowGlass.SampleLevel(at, 0.0).r, depth.x,
+                             depth.y, depth.z);
+  if (receiver - compareBias <= glass) return float3(1.0, 1.0, 1.0);
+  return uShadowTint.SampleLevel(at, 0.0).rgb;
+}
+#endif
+
 /** THE MAP light @p light reads, or below zero for none. */
 int shadowMapOf(int light) {
   if (uShadowDials.y < 0.5) return -1;
@@ -790,6 +1027,18 @@ float3 shadeLit(VSOut input, float3 base) {
   float3 t;
   float3 b;
   tangentAxes(geometric, input.viewPos, input.uv, t, b);
+#ifdef SIGIL_DISTORTION
+  // A DISTORTION is stated along the surface's own directions — across
+  // the way u runs, and up the way a map's green points — so it follows
+  // the surface however it is turned.
+  let alongU = dotP(t, t) > 0.0 ? normalizeP(t) : float3(1.0, 0.0, 0.0);
+  let alongV = dotP(b, b) > 0.0 ? normalizeP(b) : float3(0.0, 1.0, 0.0);
+  gDistortionMoved =
+      alongU * gSurfaceDistortion.x + alongV * gSurfaceDistortion.y;
+#endif
+#ifdef SIGIL_TRANSMISSION
+  let curvature = curvatureOf(geometric, input.viewPos);
+#endif
   float3 n = geometric;
   if (gSurfaceNormal.x != 0.0 || gSurfaceNormal.y != 0.0)
     n = normalizeP(t * gSurfaceNormal.x + b * gSurfaceNormal.y +
@@ -814,6 +1063,27 @@ float3 shadeLit(VSOut input, float3 base) {
   diffuse = diffuseColorFrom(base, metal, dielectric);
   f0 = specularColorFrom(base, metal, dielectric);
   f90 = reflectance90From(metal, gSurfaceSpecular);
+#endif
+#ifdef SIGIL_TRANSMISSION
+  // A SURFACE LIGHT PASSES THROUGH reflects what its index says it does: an
+  // interface's own head-on share, rising at the grazing angle only as far
+  // as an interface that reflects so little can, so at an index of one —
+  // no interface at all — it mirrors nothing and what is behind it is seen
+  // whole, however it curves.
+#ifdef SIGIL_SPECULAR
+  let interfaceStrength = gSurfaceSpecular;
+  let interfaceColor = gSurfaceSpecularColor;
+#else
+  let interfaceStrength = 1.0;
+  let interfaceColor = float3(1.0, 1.0, 1.0);
+#endif
+  let atIndex = dielectricReflectance(interfaceColor, interfaceStrength,
+                                      gSurfaceIor);
+  diffuse = diffuseColorFrom(base, metal, atIndex);
+  f0 = specularColorFrom(base, metal, atIndex);
+  f90 = reflectance90From(
+      metal, interfaceStrength *
+                 saturateP(reflectanceOfIndex(gSurfaceIor) * 50.0));
 #endif
   let nDotV = max(dotP(n, v), 0.0);
 #ifdef SIGIL_IRIDESCENCE
@@ -945,7 +1215,15 @@ float3 shadeLit(VSOut input, float3 base) {
         shade = shadowOf(areaMap, input.viewPos, geometric, toCentre);
         if (shade <= 0.0) continue;
       }
+#ifdef SIGIL_TINTED_SHADOWS
+      let shaded =
+          areaMap >= 0
+              ? colour * shade *
+                    shadowTintOf(areaMap, input.viewPos, geometric, toCentre)
+              : colour * shade;
+#else
       let shaded = colour * shade;
+#endif
       let highlight = strength * areaNormalization(rough, solid);
       var areaDiffuseOne =
           shaded * areaDiffuse(n, toCentre, v, diffuse, f0, f90, irradiance);
@@ -1034,12 +1312,16 @@ float3 shadeLit(VSOut input, float3 base) {
     if (reach <= 0.0) continue;
     // THE SHADOW takes its share of this light, and of nothing else.
     let map = shadowMapOf(i);
+    var through = float3(1.0, 1.0, 1.0);
     if (map >= 0) {
       let toward = kind > 0.5 ? l : -normalizeP(uLightDirection[i].xyz);
       reach = reach * shadowOf(map, input.viewPos, geometric, toward);
       if (reach <= 0.0) continue;
+#ifdef SIGIL_TINTED_SHADOWS
+      through = shadowTintOf(map, input.viewPos, geometric, toward);
+#endif
     }
-    let radiance = colour * reach;
+    let radiance = colour * through * reach;
     var diffuseOne = radiance * directDiffuse(n, l, v, diffuse, f0, f90);
 #ifdef SIGIL_ANISOTROPY
     var specularOne = radiance * directSpecularAnisotropic(n, brushed, l, v, f0,
@@ -1093,10 +1375,17 @@ float3 shadeLit(VSOut input, float3 base) {
                  .SampleLevel(environmentBrdfUv(rough, nDotV, tableSize), 0.0)
                  .rg;
   var aroundDiffuse =
-      environmentDiffuse(irradiance, diffuse, f0, rough, nDotV, brdf) *
+      environmentDiffuse(irradiance, diffuse, f0, f90, rough, nDotV, brdf) *
       occluded;
+  // AN ADDITIVE REFLECTION is the stated share of what is mirrored, with
+  // no Fresnel and no energy taken from anything else; the split sum is
+  // the surface's own reflectance. The body writes one or the other as a
+  // constant, so a program carries only the one it states.
   var aroundSpecular =
-      environmentSpecular(mirrored, f0, rough, nDotV, brdf) * occluded;
+      gSurfaceReflection >= 0.0
+          ? environmentReflection(mirrored, gSurfaceReflection) * occluded
+          : environmentSpecular(mirrored, f0, f90, rough, nDotV, brdf) *
+                occluded;
 #ifdef SIGIL_SHEEN
   // From everywhere the base gives up what the sheen reflects toward the
   // eye, so a white sheen over a white surface in a uniform surround
@@ -1123,18 +1412,25 @@ float3 shadeLit(VSOut input, float3 base) {
                              uSceneColorDials.z);
   let here = input.position.xy * uSceneColorDials.xy;
   float3 seen;
+  float travelled;
   if (gSurfaceDispersion > 0.0) {
     let iors = dispersedIors(ior, gSurfaceDispersion);
-    seen = float3(
-        seenThrough(input.viewPos, v, n, iors.x, rough, level, here).r,
-        seenThrough(input.viewPos, v, n, iors.y, rough, level, here).g,
-        seenThrough(input.viewPos, v, n, iors.z, rough, level, here).b);
+    float spreadRed;
+    float spreadBlue;
+    seen = float3(seenThrough(input.viewPos, v, n, curvature, iors.x,
+                              gDistortionMoved, rough, level, here, spreadRed)
+                      .r,
+                  seenThrough(input.viewPos, v, n, curvature, iors.y,
+                              gDistortionMoved, rough, level, here, travelled)
+                      .g,
+                  seenThrough(input.viewPos, v, n, curvature, iors.z,
+                              gDistortionMoved, rough, level, here, spreadBlue)
+                      .b);
   } else {
-    seen = seenThrough(input.viewPos, v, n, ior, rough, level, here);
+    seen = seenThrough(input.viewPos, v, n, curvature, ior, gDistortionMoved,
+                       rough, level, here, travelled);
   }
-  let travelled = lengthP(refractedTravel(v, n, ior, gSurfaceThickness));
-  let reflected = fresnelRough(f0, nDotV, rough) * brdf.x +
-                  float3(brdf.y, brdf.y, brdf.y);
+  let reflected = fresnelRough(f0, f90, nDotV, rough) * brdf.x + f90 * brdf.y;
   let through = seen * base *
                 volumeTransmittance(gSurfaceAttenuationColor,
                                     gSurfaceAttenuationDistance, travelled) *
@@ -1202,12 +1498,18 @@ float4 shade(float4 surface, VSOut input) {
 #endif
 #ifdef SIGIL_DISTORTION
   // A DISTORTING SURFACE is drawn over what stands behind it AS what
-  // stands behind it, displaced across the picture by the map at the
-  // surface's own depth; its own colour is laid over that by its alpha.
+  // stands behind it, displaced along the surface by the map at the
+  // surface's own depth; its own colour is laid over that by its alpha. A
+  // surface that also transmits has the same displacement in what it
+  // passes, whatever its alpha.
   if (uSceneColorDials.w > 0.5) {
     let here = input.position.xy * uSceneColorDials.xy;
     let at = viewPointAt(here, input.position.z);
+#ifdef SIGIL_LIT
+    let moved = screenUvOf(at + gDistortionMoved);
+#else
     let moved = screenUvOf(at + float3(gSurfaceDistortion, 0.0));
+#endif
     let behind = uSceneColor
                      .SampleLevel(clamp(moved, float2(0.0, 0.0),
                                         float2(1.0, 1.0)),
@@ -1233,6 +1535,14 @@ void shadowCoverage(float4 surface, VSOut input) {
   let mapUv = mul(uBaseColorMapUv, float4(input.uv, 0.0, 1.0)).xy;
   let map = uBaseColorMap.Sample(mapUv);
   if (surface.a * input.tint.a * map.a < 0.5) discard;
+}
+
+/** THE SHADOW STAGE'S TINT for a transmissive body: the colour of a light
+ *  it lets through, which the stage lays over what is there by
+ *  multiplying. */
+[shader("fragment")]
+float4 fsShadowTint(VSOut input) : SV_Target {
+  return float4(uBaseColor.rgb, 1.0);
 }
 
 /** THE SHADOW STAGE'S OWN DRAW for a body whose surface does not decide

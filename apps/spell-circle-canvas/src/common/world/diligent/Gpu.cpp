@@ -63,6 +63,7 @@ void Gpu::resize(SkISize size) {
   opaqueDepthView.Release();
   opaqueDepth.Release();
   sceneColor.Release();
+  sceneColorViews.clear();
   display.Release();
   // A picture still out with another queue keeps its texture alive
   // through the retain that queue's image holds, so letting go of it here
@@ -142,6 +143,7 @@ dg::ITexture* Gpu::previous(std::string_view name) {
 }
 
 void Gpu::beginFrame() {
+  ++framesBegun;
   for (auto& [name, image] : images) {
     if (!image.written) continue;
     // THE ROTATION HAPPENS HERE and not at the end, because between one
@@ -168,6 +170,11 @@ void Gpu::endFrame() {
   }
   meshes.endFrame();
   maps.endFrame();
+  // A filtered panorama no frame has asked for lately goes with the
+  // upload it was made from.
+  std::erase_if(prefiltered, [&](const Prefiltered& made) {
+    return made.used + 120 < framesBegun;
+  });
 }
 
 dg::ITexture* Gpu::depthForReading() {
@@ -212,6 +219,51 @@ dg::ITexture* Gpu::sceneColorForReading() {
   desc.Usage = dg::USAGE_DEFAULT;
   device->renderDevice()->CreateTexture(desc, nullptr, &sceneColor);
   return sceneColor;
+}
+
+dg::ITextureView* Gpu::sceneColorLevels(int count) {
+  if (!sceneColor || count < 1) return nullptr;
+  count = std::min(count, (int)sceneColor->GetDesc().MipLevels);
+  if ((int)sceneColorViews.size() <= count) sceneColorViews.resize(count + 1);
+  dg::RefCntAutoPtr<dg::ITextureView>& made = sceneColorViews[count];
+  if (!made) {
+    dg::TextureViewDesc view;
+    view.ViewType = dg::TEXTURE_VIEW_SHADER_RESOURCE;
+    view.MostDetailedMip = 0;
+    view.NumMipLevels = (dg::Uint32)count;
+    view.Flags = dg::TEXTURE_VIEW_FLAG_ALLOW_MIP_MAP_GENERATION;
+    sceneColor->CreateView(view, &made);
+  }
+  return made;
+}
+
+bool Gpu::shadowTintAt(int side) {
+  if (shadowTint && shadowGlass && shadowTintSide == side) return true;
+  shadowTint.Release();
+  shadowGlass.Release();
+  shadowGlassView.Release();
+  shadowTintSide = 0;
+  if (side <= 0 || !device->renderDevice()) return false;
+  dg::TextureDesc desc;
+  desc.Name = "world shadow tint";
+  desc.Type = dg::RESOURCE_DIM_TEX_2D;
+  desc.Width = desc.Height = (dg::Uint32)side;
+  desc.Format = dg::TEX_FORMAT_RGBA8_UNORM;
+  desc.BindFlags = dg::BIND_RENDER_TARGET | dg::BIND_SHADER_RESOURCE;
+  desc.Usage = dg::USAGE_DEFAULT;
+  device->renderDevice()->CreateTexture(desc, nullptr, &shadowTint);
+  desc.Name = "world shadow glass depth";
+  desc.Format = kDepthFormat;
+  desc.BindFlags = dg::BIND_DEPTH_STENCIL | dg::BIND_SHADER_RESOURCE;
+  device->renderDevice()->CreateTexture(desc, nullptr, &shadowGlass);
+  if (!shadowTint || !shadowGlass) return false;
+  dg::TextureViewDesc view;
+  view.ViewType = dg::TEXTURE_VIEW_SHADER_RESOURCE;
+  view.Format = kDepthFormat;
+  shadowGlass->CreateView(view, &shadowGlassView);
+  if (!shadowGlassView) return false;
+  shadowTintSide = side;
+  return true;
 }
 
 dg::ITexture* Gpu::shadowAtlasAt(int side) {

@@ -55,12 +55,15 @@ struct HeightNormalOptions {
   bool operator==(const HeightNormalOptions&) const = default;
 };
 
-/** A Skia program differentiating grayscale height into opaque encoded normals.
- *  Premultiplied RGB luminance supplies height, clamped to [0, 1], so
- *  transparent input is zero. Smooth hard coverage before supplying it
- *  when a rounded shoulder is wanted. Sampling follows the input's placement
- *  and repeat settings. Zero/nonfinite depth or an invalid step yields flat
- *  normals. The input's colour stack is sampled; its surface/effects are not.
+/** A program differentiating grayscale height into opaque encoded normals,
+ *  on a page and on a device body alike. Premultiplied RGB luminance
+ *  supplies height, clamped to [0, 1], so transparent input is zero. Smooth
+ *  hard coverage before supplying it when a rounded shoulder is wanted.
+ *  Sampling follows the input's placement and repeat settings. On a body a
+ *  logical pixel is the span of the surface one pixel of the picture covers,
+ *  unless the region states its size. Zero/nonfinite depth or an invalid
+ *  step yields flat normals. The input's colour stack is sampled; its
+ *  surface/effects are not.
  */
 Material normalFromHeight(Material height, HeightNormalOptions options = {});
 
@@ -173,6 +176,9 @@ struct SurfaceParameters {
   float transmission = 0;
   float ior = 1.5f;
   float thickness = 0;
+  /** The number the instance scalar that multiplies `thickness` is asked
+   *  for by (`instanceAttributeKey`), or zero for none. */
+  float thicknessAttribute = 0;
   /** VOLUME: light that has crossed `attenuationDistance` scene units of
    *  the medium has become `attenuationColor`, a colour as an author types
    *  it; zero distance takes nothing out. */

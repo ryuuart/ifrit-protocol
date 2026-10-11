@@ -69,6 +69,19 @@ geometry::mesh::camera::Camera Scene::Impl::viewpoint() const {
 }
 
 std::string Scene::Impl::missingTexturePass() const {
+  for (const material::Texture& overlay : frame.overlays()) {
+    const std::string pass = producingPass(overlay);
+    if (pass.empty()) continue;
+    bool painted = false;
+    for (const Pass& candidate : frame.passes())
+      painted = painted ||
+                (candidate.stage() == Stage::Texture && candidate.producer() &&
+                 candidate.producer()->paints(overlay));
+    if (!painted)
+      return "an overlay is a texture the pass \"" + pass +
+             "\" paints, and that pass is not on the frame: add it with "
+             "Frame::pass";
+  }
   for (const Draw& body : draws) {
     if (!body.material) continue;
     std::string missing;

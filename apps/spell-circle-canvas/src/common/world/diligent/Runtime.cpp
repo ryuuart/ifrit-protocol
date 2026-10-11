@@ -140,6 +140,7 @@ class GpuExecutor : public Executor {
 
 Runtime runtime(Device& device) {
   installSlangCompiler();
+  prepareFixedPrograms();
   return Runtime{GpuExecutor{
       makeGpu(device), ::sigil::geometry::mesh::pop::deviceRuntime(device)}};
 }

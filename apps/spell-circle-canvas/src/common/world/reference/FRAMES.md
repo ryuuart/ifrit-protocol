@@ -44,8 +44,15 @@ named is an error.
 `readback` names the resource handed back the frame after it was
 written.
 
-`readback` names the resource handed back the frame after it was
-written.
+`Frame::overlay` lays a picture over the finished frame — a heads-up
+display, a caption, a page about the picture rather than standing in the
+scene. It is drawn over the whole picture when the scene is drawn on a
+canvas, after the camera's reading, in the canvas's display values, so a
+translucent panel's edge is mixed with what is behind it as a page
+composited over a picture is, rather than in light before the reading as
+an unlit body in the scene is. Overlays are laid in the order they were
+added; the pass that paints one must be on the frame, as for a texture a
+body wears.
 
 ## Pass: one stage of making a frame
 
@@ -245,8 +252,9 @@ specialises a program on. A recipe compiles once per variant, so a bit
 belongs there only when it changes the PROGRAM, and this one does:
 without it the lighting, the uniforms it reads and the loop over the
 lights are not in the compiled shader at all. `kVariantAreaLights`,
-`kVariantCascadedShadows` and `kVariantPointShadows` are the others: the
-renderer sets each from the lights a draw is handed, and a lit program
+`kVariantCascadedShadows`, `kVariantPointShadows` and
+`kVariantTintedShadows` are the others: the renderer sets each from the
+lights a draw is handed and what they pass through, and a lit program
 built without one has no code for that kind of light.
 
 Two things a backend might be expected to specialise on are not bits,

@@ -84,7 +84,12 @@ float4 surface(float2 uv) {
   gSurfaceTransmission =
       clamp(transmission * (dressedS(tm) ? tm.r : 1.0), 0.0, 1.0);
   gSurfaceIor = max(ior, 1.0);
-  gSurfaceThickness = max(thickness * (dressedS(thm) ? thm.r : 1.0), 0.0);
+  float copyThickness = thicknessAttribute != 0.0 &&
+                                instanceCarries(thicknessAttribute)
+                            ? instanceAttribute(thicknessAttribute)
+                            : 1.0;
+  gSurfaceThickness =
+      max(thickness * (dressedS(thm) ? thm.r : 1.0) * copyThickness, 0.0);
   // The attenuation colour is a colour as it was typed, decoded like the
   // base colour before any light passes through it.
   gSurfaceAttenuationColor = linearFromSrgb(attenuationColor.rgb);

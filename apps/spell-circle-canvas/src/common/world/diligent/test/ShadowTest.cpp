@@ -452,3 +452,225 @@ TEST(Shadow, MovingOneCasterRedrawsOnlyTheMapsItCastsInto) {
                                             on.runtime, kExtent)),
             0);
 }
+
+namespace {
+
+/** How wide, in scene units along the ground's x axis, the far edge of
+ *  the shadow a card held @p height over the ground's middle throws under
+ *  a sun of @p size degrees shining down at forty-five degrees: the run
+ *  between a tenth and nine tenths of the way from the shadow's core to
+ *  the lit ground beyond it. */
+float edgeWidth(const Runtime& runtime, float height, float size) {
+  // The edge stands the card's half width past the height along x.
+  const float edge = height + 20;
+  // Seen from straight above the edge, so a unit of the ground is the
+  // same number of pixels everywhere across it.
+  gm::camera::Camera above;
+  above.eye = {edge, 120, 0};
+  above.target = {edge, 0, 0};
+  above.up = {0, 0, -1};
+  const SkBitmap plate = photographed(
+      {directionalLight({1, -1, 0}, {.intensity = 3.0f,
+                                     .castShadow = true,
+                                     .shadow = {.radius = 0.5f, .size = size}})
+           .key("sun"),
+       mesh(gm::quad(600, 600)).key("ground").rotateX(-90).fill(matte(0.8f)),
+       mesh(gm::quad(40, 40))
+           .key("card")
+           .rotateX(-90)
+           .at({0, height, 0})
+           .fill(matte(0.8f))},
+      runtime, above);
+  const auto at = [&](float x) {
+    const std::optional<glm::vec2> seen =
+        above.project({x, 0, 0}, glm::vec2((float)kExtent.x, (float)kExtent.y));
+    return seen ? luma(plate.getColor4f(
+                      std::clamp((int)seen->x, 0, kExtent.x - 1),
+                      std::clamp((int)seen->y, 0, kExtent.y - 1)))
+                : 0.0f;
+  };
+  const float dark = at(edge - 10);
+  const float lit = at(edge + 25);
+  float width = 0;
+  for (float x = edge - 10; x < edge + 25; x += 0.25f) {
+    const float share = (at(x) - dark) / std::max(lit - dark, 1e-3f);
+    if (share > 0.1f && share < 0.9f) width += 0.25f;
+  }
+  return width;
+}
+
+}  // namespace
+
+TEST(Shadow, ASunWithAWidthCastsAWiderEdgeFromAFartherCaster) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  const float near = edgeWidth(on.runtime, 10, 10);
+  const float far = edgeWidth(on.runtime, 100, 10);
+  EXPECT_GT(far, near + 6.0f) << near << " " << far;
+  // A sun of no width keeps the filter's own edge at any height.
+  EXPECT_NEAR(edgeWidth(on.runtime, 100, 0), edgeWidth(on.runtime, 10, 0),
+              2.0f);
+}
+
+TEST(Shadow, ALargePanelsShadowIsSharpAtTheContactAndSoftAwayFromIt) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // A tall post standing on the ground under a wide panel off to one
+  // side: its shadow runs across the ground away from its foot.
+  gm::camera::Camera above;
+  above.eye = {0, 260, 0};
+  above.target = {0, 0, 0};
+  above.up = {0, 0, -1};
+  const SkBitmap plate = photographed(
+      {rectLight(
+           {0.6f, -1, 0},
+           {.width = 60, .height = 60, .intensity = 6, .castShadow = true})
+           .key("panel")
+           .at({-120, 200, 0}),
+       ground(),
+       mesh(gm::box({-4, 0, -4}, {4, 120, 4})).key("post").fill(matte(0.8f))},
+      on.runtime, above);
+  const auto at = [&](float x, float z) {
+    const std::optional<glm::vec2> seen =
+        above.project({x, 0, z}, glm::vec2((float)kExtent.x, (float)kExtent.y));
+    return seen ? luma(plate.getColor4f(
+                      std::clamp((int)seen->x, 0, kExtent.x - 1),
+                      std::clamp((int)seen->y, 0, kExtent.y - 1)))
+                : 0.0f;
+  };
+  // Across the shadow near the post's foot and far along it: how many
+  // units of z stand between a tenth and nine tenths of the way from its
+  // core to the lit ground beside it.
+  const auto across = [&](float x) {
+    const float dark = at(x, 0);
+    const float lit = at(x, 40);
+    float width = 0;
+    for (float z = 0; z < 40; z += 0.25f) {
+      const float share = (at(x, z) - dark) / std::max(lit - dark, 1e-3f);
+      if (share > 0.1f && share < 0.9f) width += 0.25f;
+    }
+    return width;
+  };
+  const float foot = across(10);
+  const float away = across(60);
+  EXPECT_GT(away, foot + 3.0f) << foot << " " << away;
+}
+
+TEST(Shadow, ACascadeHoldsStillAsTheCameraTurns) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // A coarse map over a reach shorter than the ground, so the fit follows
+  // what the camera sees and a texel is wide enough to see move.
+  const auto edgeSeenBy = [&](glm::vec3 target) {
+    gm::camera::Camera eye;
+    eye.eye = {0, 150, 250};
+    eye.target = target;
+    const SkBitmap plate = photographed(
+        {directionalLight(
+             {1, -1, 0},
+             {.intensity = 3.0f,
+              .castShadow = true,
+              .shadow = {.radius = 1.0f, .mapSize = 128, .distance = 400}})
+             .key("sun"),
+         mesh(gm::quad(2000, 2000))
+             .key("ground")
+             .rotateX(-90)
+             .fill(matte(0.8f)),
+         card()},
+        on.runtime, eye);
+    // The ground's light at a point, read between the four pixels round
+    // where it is seen.
+    const auto at = [&](float x) {
+      const std::optional<glm::vec2> seen =
+          eye.project({x, 0, 0}, glm::vec2((float)kExtent.x, (float)kExtent.y));
+      if (!seen) return 0.0f;
+      const glm::vec2 p = *seen - glm::vec2(0.5f);
+      const int x0 = std::clamp((int)std::floor(p.x), 0, kExtent.x - 2);
+      const int y0 = std::clamp((int)std::floor(p.y), 0, kExtent.y - 2);
+      const glm::vec2 f = glm::clamp(p - glm::vec2(x0, y0), 0.0f, 1.0f);
+      const float top = luma(plate.getColor4f(x0, y0)) * (1 - f.x) +
+                        luma(plate.getColor4f(x0 + 1, y0)) * f.x;
+      const float bottom = luma(plate.getColor4f(x0, y0 + 1)) * (1 - f.x) +
+                           luma(plate.getColor4f(x0 + 1, y0 + 1)) * f.x;
+      return top * (1 - f.y) + bottom * f.y;
+    };
+    // Where along x, past the card's far edge, the shadow rises through
+    // half of the lit ground beyond it.
+    const float dark = at(30);
+    const float lit = at(70);
+    float before = at(30);
+    for (float x = 30.1f; x < 70; x += 0.1f) {
+      const float here = at(x);
+      if ((before - dark) < 0.5f * (lit - dark) &&
+          (here - dark) >= 0.5f * (lit - dark))
+        return x;
+      before = here;
+    }
+    return 0.0f;
+  };
+  const float ahead = edgeSeenBy({0, 0, 0});
+  const float turned = edgeSeenBy({14, 0, 0});
+  EXPECT_GT(ahead, 35.0f);
+  EXPECT_NEAR(turned, ahead, 0.3f) << "the edge stands where it stood";
+}
+
+TEST(Shadow, AGreenGlassCastsAGreenShadow) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // The sun shines down at forty-five degrees through a green pane held
+  // over the ground, so its shadow falls beside it, where the eye sees the
+  // ground directly.
+  const auto litGround = [&](bool pane) {
+    std::vector<Node> content{
+        directionalLight({1, -1, 0}, sun(true)).key("sun"), ground()};
+    if (pane)
+      content.push_back(
+          mesh(gm::quad(40, 40))
+              .key("pane")
+              .rotateX(-90)
+              .at({0, 40, 0})
+              .fill(material::from(material::Color{0.2f, 0.9f, 0.2f, 1})
+                        .surface({.roughness = 0.1f,
+                                  .transmission = 1.0f,
+                                  .ior = 1.5f})));
+    return photographed(content, on.runtime);
+  };
+  const SkBitmap through = litGround(true);
+  const SkColor4f behind = groundAt(through, 40, 0);
+  const SkColor4f beside = groundAt(through, 40, 60);
+  EXPECT_LT(luma(behind), luma(beside) * 0.95f) << "darker behind the pane";
+  EXPECT_GT(behind.fG, behind.fR + 0.1f) << "and greener than red";
+  EXPECT_GT(luma(behind), luma(beside) * 0.2f) << "but lit through it";
+}
+
+TEST(Shadow, APanelCastsAcrossTheWholeOfItsFrontHalf) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // A small panel facing straight down, and a post far off to its side —
+  // more than sixty degrees from where the panel faces — whose shadow
+  // falls further out still.
+  gm::camera::Camera above;
+  above.eye = {200, 300, 0};
+  above.target = {200, 0, 0};
+  above.up = {0, 0, -1};
+  const SkBitmap plate = photographed(
+      {rectLight(
+           {0, -1, 0},
+           {.width = 4, .height = 4, .intensity = 6000, .castShadow = true})
+           .key("panel")
+           .at({0, 100, 0}),
+       mesh(gm::quad(800, 800)).key("ground").rotateX(-90).fill(matte(0.8f)),
+       mesh(gm::box({196, 0, -4}, {204, 40, 4})).key("post").fill(matte(0.8f))},
+      on.runtime, above);
+  const auto at = [&](float x, float z) {
+    const std::optional<glm::vec2> seen =
+        above.project({x, 0, z}, glm::vec2((float)kExtent.x, (float)kExtent.y));
+    return seen ? luma(plate.getColor4f(
+                      std::clamp((int)seen->x, 0, kExtent.x - 1),
+                      std::clamp((int)seen->y, 0, kExtent.y - 1)))
+                : 0.0f;
+  };
+  const float beside = at(270, 40);
+  EXPECT_GT(beside, 0.02f) << "the ground out there is lit";
+  EXPECT_LT(at(270, 0), beside * 0.5f) << "and the post shadows it";
+}

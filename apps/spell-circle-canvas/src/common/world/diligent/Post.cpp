@@ -14,6 +14,7 @@
 #include <sigilworld/diligent/Runtime.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <initializer_list>
@@ -100,7 +101,7 @@ constexpr size_t kFarTarget = 4;
  *  level may be asked for, in its own texels. Below two texels a level's
  *  Gaussian is too coarse to read back smoothly, so a spread is taken at
  *  the smallest level where it is still at least that wide. */
-constexpr int kDeepestLevel = 4;
+constexpr int kDeepestLevel = 7;
 constexpr float kNarrowestSpread = 2.0f;
 
 /** WHAT HALVING AND READING BACK SPREAD ON THEIR OWN, in squared pixels
@@ -476,6 +477,74 @@ void applyPost(Gpu& gpu, const PassWork& work) {
         baseUniforms(gpu, programs.copy, 0.0f, opacity);
     drawStage(gpu, programs.copy, into, blend, uniforms, {layers[i]}, false);
   }
+}
+
+dg::ITexture* prefilteredPanorama(Gpu& gpu, dg::ITexture* uploaded) {
+  if (!uploaded) return nullptr;
+  for (Gpu::Prefiltered& made : gpu.prefiltered)
+    if (made.source.RawPtr() == uploaded) {
+      made.used = gpu.framesBegun;
+      return made.chain ? made.chain.RawPtr() : uploaded;
+    }
+  Gpu::Prefiltered made;
+  made.source = uploaded;
+  made.used = gpu.framesBegun;
+  const material::slang::Compiled& program = postPrograms().prefilter;
+  const dg::TextureDesc& from = uploaded->GetDesc();
+  dg::TextureDesc desc;
+  desc.Name = "world filtered panorama";
+  desc.Type = dg::RESOURCE_DIM_TEX_2D;
+  desc.Width = from.Width;
+  desc.Height = from.Height;
+  desc.MipLevels = from.MipLevels;
+  desc.Format = dg::TEX_FORMAT_RGBA16_FLOAT;
+  desc.BindFlags = dg::BIND_SHADER_RESOURCE | dg::BIND_RENDER_TARGET;
+  desc.Usage = dg::USAGE_DEFAULT;
+  if (!program.empty())
+    gpu.device->renderDevice()->CreateTexture(desc, nullptr, &made.chain);
+  PipelineKey key{&program, SkBlendMode::kSrc, false, false, true};
+  key.target = desc.Format;
+  const Pipeline* pipeline = made.chain ? gpu.pipelines.pipeline(key) : nullptr;
+  if (!pipeline) made.chain.Release();
+  dg::IDeviceContext* context = gpu.device->context();
+  for (dg::Uint32 level = 0; made.chain && level < desc.MipLevels; ++level) {
+    // EACH LEVEL ITS OWN DRAW, into a view of that level alone, reading
+    // the upload as a panorama: periodic round the horizon, ended at the
+    // poles, and across its levels.
+    dg::TextureViewDesc view;
+    view.ViewType = dg::TEXTURE_VIEW_RENDER_TARGET;
+    view.MostDetailedMip = level;
+    view.NumMipLevels = 1;
+    dg::RefCntAutoPtr<dg::ITextureView> into;
+    made.chain->CreateView(view, &into);
+    if (!into) {
+      made.chain.Release();
+      break;
+    }
+    dg::ITextureView* targets[1] = {into};
+    context->SetRenderTargets(1, targets, nullptr,
+                              dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+    material::slang::Uniforms uniforms(program);
+    uniforms.set(
+        "uPrefilter",
+        desc.MipLevels > 1 ? (float)level / (float)(desc.MipLevels - 1) : 0.0f,
+        (float)from.Width, (float)from.Height, (float)from.MipLevels);
+    std::vector<dg::ITexture*> textures(program.textures.size(), nullptr);
+    for (size_t i = 0; i < program.textures.size(); ++i)
+      if (program.textures[i] == "uEnvironment") textures[i] = uploaded;
+    context->SetPipelineState(pipeline->state);
+    device::bindDraw(gpu.shared, *pipeline, program, uniforms, textures,
+                     SkFilterMode::kLinear, false, [](std::string_view slot) {
+                       return slot == "uEnvironment";
+                     });
+    dg::DrawAttribs draw;
+    draw.NumVertices = kFullscreenVertices;
+    draw.Flags = dg::DRAW_FLAG_VERIFY_ALL;
+    context->Draw(draw);
+  }
+  gpu.prefiltered.push_back(std::move(made));
+  const Gpu::Prefiltered& kept = gpu.prefiltered.back();
+  return kept.chain ? kept.chain.RawPtr() : uploaded;
 }
 
 }  // namespace sigil::world::diligent

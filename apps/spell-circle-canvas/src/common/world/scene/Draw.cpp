@@ -7,6 +7,7 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImage.h>
+#include <include/core/SkSamplingOptions.h>
 #include <sigilworld/advanced/Skia.h>
 
 #include "SceneImpl.h"
@@ -34,6 +35,22 @@ void draw(Scene& scene, SkCanvas& canvas, Presentation presentation) {
   const glm::ivec2 corner =
       isPart(offset, impl.frame.extent()) ? offset.origin : glm::ivec2{0, 0};
   canvas.drawImage(picture, (float)corner.x, (float)corner.y);
+  // THE OVERLAYS, over the whole picture and after its reading, in the
+  // values the canvas holds — which is what a page composited over a
+  // picture is mixed in.
+  const glm::ivec2 whole =
+      isPart(offset, impl.frame.extent()) ? offset.whole : impl.frame.extent();
+  for (const material::Texture& overlay : impl.frame.overlays()) {
+    sk_sp<SkImage> laid = overlay.frameAt(impl.view.time).image;
+    // A picture standing on a device the canvas cannot sample is read
+    // back first.
+    if (laid && laid->isTextureBacked() && !canvas.recorder() &&
+        !canvas.recordingContext())
+      laid = laid->makeRasterImage(nullptr);
+    if (!laid) continue;
+    canvas.drawImageRect(laid, SkRect::MakeWH((float)whole.x, (float)whole.y),
+                         SkSamplingOptions(SkFilterMode::kLinear));
+  }
 }
 
 }  // namespace sigil::world

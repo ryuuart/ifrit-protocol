@@ -119,6 +119,21 @@ public float3 fresnelRough(float3 f0, float cosTheta, float roughness) {
   return f0 + (ceiling - f0) * f;
 }
 
+/** …and the same for a surface whose reflectance rises only to @p f90 at
+ *  the grazing angle: the ceiling a rough surface stops short of is never
+ *  above it. With an @p f90 of one it is the form above. */
+public float3 fresnelRough(float3 f0, float3 f90, float cosTheta,
+                           float roughness) {
+  float c = 1.0 - min(max(cosTheta, 0.0), 1.0);
+  float c2 = c * c;
+  float f = c2 * c2 * c;
+  float3 ceiling = max(min(float3(1.0 - roughness, 1.0 - roughness,
+                                  1.0 - roughness),
+                           f90),
+                       f0);
+  return f0 + (ceiling - f0) * f;
+}
+
 // ---- the microfacet model --------------------------------------------
 // A surface is a field of tiny mirrors whose facing spreads with its
 // roughness. What it reflects toward the eye from one light is the share
@@ -583,6 +598,24 @@ public float3 specularColorFrom(float3 baseColor, float metal,
   return dielectric * (1.0 - m) + baseColor * m;
 }
 
+/** THE HEAD-ON REFLECTANCE OF AN INTERFACE between air and a medium of
+ *  index @p ior: four per cent at one and a half, nothing at all at one,
+ *  where there is no interface to reflect. */
+public float reflectanceOfIndex(float ior) {
+  float n = max(ior, 1.0);
+  float r = (n - 1.0) / (n + 1.0);
+  return r * r;
+}
+
+/** …and a dielectric's head-on reflectance at a strength, a colour and an
+ *  index: the interface's own, tinted by the linear @p color, held under
+ *  one, scaled by @p strength. At an index of one and a half it is
+ *  `dielectricReflectance`. */
+public float3 dielectricReflectance(float3 color, float strength, float ior) {
+  float s = max(strength, 0.0);
+  return min(color * reflectanceOfIndex(ior), float3(1.0, 1.0, 1.0)) * s;
+}
+
 /** …the grazing reflectance it rises to: the dielectric's own @p strength,
  *  mixed toward white as the surface turns metal. */
 public float3 reflectance90From(float metal, float strength) {
@@ -866,6 +899,15 @@ public float3 environmentSpecular(float3 radiance, float3 f0,
   return radiance * (k * brdf.x + float3(brdf.y, brdf.y, brdf.y));
 }
 
+/** …and for a surface whose reflectance rises only to @p f90 at the
+ *  grazing angle, which scales the split sum's bias as it does the rise.
+ *  With an @p f90 of one it is the form above. */
+public float3 environmentSpecular(float3 radiance, float3 f0, float3 f90,
+                                  float roughness, float nDotV, float2 brdf) {
+  float3 k = fresnelRough(f0, f90, nDotV, roughness);
+  return radiance * (k * brdf.x + f90 * brdf.y);
+}
+
 /** ENVIRONMENT DIFFUSE, with the light a rough surface scatters more than
  *  once put back. A single-bounce microfacet lobe loses energy as the
  *  surface roughens — the light that leaves after a second bounce is not
@@ -886,6 +928,23 @@ public float3 environmentDiffuse(float3 irradiance, float3 diffuse,
   float3 singleBounce = k * brdf.x + float3(brdf.y, brdf.y, brdf.y);
   float missed = 1.0 - (brdf.x + brdf.y);
   float3 average = f0 + (one - f0) / 21.0;
+  float3 returned = singleBounce * average / (one - average * missed);
+  float3 remaining = one - (singleBounce + returned * missed);
+  return (returned * missed + diffuse * remaining) * irradiance;
+}
+
+/** …and for a surface whose reflectance rises only to @p f90 at the
+ *  grazing angle: what the single bounce reflects is scaled as
+ *  `environmentSpecular` scales it, and the diffuse keeps the rest. With an
+ *  @p f90 of one it is the form above. */
+public float3 environmentDiffuse(float3 irradiance, float3 diffuse,
+                                 float3 f0, float3 f90, float roughness,
+                                 float nDotV, float2 brdf) {
+  float3 k = fresnelRough(f0, f90, nDotV, roughness);
+  float3 one = float3(1.0, 1.0, 1.0);
+  float3 singleBounce = k * brdf.x + f90 * brdf.y;
+  float missed = 1.0 - (brdf.x + brdf.y);
+  float3 average = f0 + (f90 - f0) / 21.0;
   float3 returned = singleBounce * average / (one - average * missed);
   float3 remaining = one - (singleBounce + returned * missed);
   return (returned * missed + diffuse * remaining) * irradiance;

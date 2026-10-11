@@ -16,6 +16,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkImageInfo.h>
+#include <include/core/SkPaint.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/surface/Surface.h>
@@ -473,6 +474,40 @@ TEST(FinalStage, ASurfaceDrawnAsAuthoredLeavesItExactly) {
     EXPECT_EQ(SkColorGetG(color), authored[1]);
     EXPECT_EQ(SkColorGetB(color), authored[2]);
   }
+}
+
+TEST(FinalStage, AnOverlayIsLaidOverThePictureAsAPageIs) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // A half-transparent grey panel with a soft edge, as a page paints one.
+  const sk_sp<SkImage> panel = [] {
+    SkBitmap bitmap;
+    bitmap.allocPixels(SkImageInfo::MakeN32Premul(kExtent.x, kExtent.y));
+    SkCanvas canvas(bitmap);
+    canvas.clear(SK_ColorTRANSPARENT);
+    SkPaint paint;
+    paint.setColor(SkColorSetARGB(128, 90, 90, 90));
+    paint.setAntiAlias(true);
+    canvas.drawCircle(kExtent.x * 0.5f, kExtent.y * 0.5f, kExtent.x * 0.3f,
+                      paint);
+    return bitmap.asImage();
+  }();
+  // A bright scene, and the same scene with the panel laid over it.
+  const auto scene = [&](bool overlaid) {
+    Frame frame(group({card("card", flat({0.95f, 0.8f, 0.3f, 1})),
+                       camera(diligent::levelEye()).key("camera")})
+                    .key("set"));
+    frame.extent(kExtent).pass(
+        geometryPass("colour").writes("colour").clear(SkColors::kBlack));
+    if (overlaid) frame.overlay(material::Texture(media::PixelSource(panel)));
+    return diligent::photograph(frame, on.runtime, kExtent);
+  };
+  SkBitmap composited = scene(false);
+  {
+    SkCanvas canvas(composited);
+    canvas.drawImage(panel, 0, 0);
+  }
+  EXPECT_LE(diligent::worstChannel(scene(true), composited), 1);
 }
 
 // ---- bloom -------------------------------------------------------------

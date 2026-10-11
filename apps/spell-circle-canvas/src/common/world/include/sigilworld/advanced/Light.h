@@ -52,7 +52,16 @@ enum class LightKind : uint8_t {
  *  - `cascades`, for a directional light, is how many maps that reach is
  *    split into along the camera's depth, at most four: each nearer one
  *    covers less of the scene at the same size, so a shadow near the camera
- *    is sharper. One is a single map for the whole reach. */
+ *    is sharper. One is a single map for the whole reach;
+ *  - `size` is how wide the source the shadow is cast from is — for a
+ *    directional light the angle across the sky it spans, in degrees, and
+ *    for a point or spot light its diameter in scene units — and is the
+ *    one length here not in texels. A source with a width casts a
+ *    penumbra that widens with the distance between a caster and what it
+ *    shades, tight where a body rests on the ground and wide where it
+ *    stands far above it, and never narrower than `radius` makes it. Zero
+ *    is a point. A rect, disk or sphere light casts from its own size
+ *    whatever this says. */
 struct LightShadow {
   float bias = 1.0f;
   float normalBias = 1.0f;
@@ -60,6 +69,7 @@ struct LightShadow {
   int mapSize = 2048;
   float distance = 0.0f;
   int cascades = 1;
+  float size = 0.0f;
 
   bool operator==(const LightShadow&) const = default;
 };
@@ -133,7 +143,8 @@ struct LightDescription {
   Collection shadowLink;
   /** WHETHER IT CASTS SHADOWS. Off unless stated, so a scene written without
    *  shadows looks the same. Every light but an ambient and a hemisphere
-   *  light casts; a light with a size casts from its centre. */
+   *  light casts; a light with a size casts through six maps from its centre,
+   *  its size widening the shadow's edge. */
   bool castShadow = false;
   /** How its shadow is made, when it casts one. */
   LightShadow shadow;

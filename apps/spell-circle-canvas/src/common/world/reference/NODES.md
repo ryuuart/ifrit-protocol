@@ -101,9 +101,10 @@ The per-face form takes one material per slot, in slot order.
 `Mesh::castShadow` and `Mesh::receiveShadow` say whether a body blocks
 the lights that cast shadows and whether their shadows darken it. Both
 are on unless the body says otherwise, so shadows appear as soon as a
-light casts; what the surface is decides the rest — a blended, a
-transmissive or an unlit body casts nothing, and an unlit one receives
-nothing ([LIGHTING.md](LIGHTING.md) holds the table).
+light casts; what the surface is decides the rest — a blended or an
+unlit body casts nothing, a transmissive one colours the light it lets
+through rather than blocking it, and an unlit one receives nothing
+([LIGHTING.md](LIGHTING.md) holds the table).
 
 `Backface` is WHICH SIDES OF A BODY'S TRIANGLES ARE DRAWN.
 `Backface::Hidden` is the default for closed solids;

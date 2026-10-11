@@ -198,9 +198,12 @@ Material normalFromHeight(Material height, HeightNormalOptions options) {
   static const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<Parameters>("surface.normalFromHeight")
           .frame(FrameInput::LocalToSample)
+          .frame(FrameInput::Resolution)
           .slot("height")
           .body(Target::SkSL,
-                std::string(shaderSource("NormalFromHeight.sksl"))));
+                std::string(shaderSource("NormalFromHeight.sksl")))
+          .body(Target::Slang,
+                std::string(shaderSource("NormalFromHeight.slang"))));
   Material result(recipe, Parameters{options.depth, options.step,
                                      options.directX ? -1.0f : 1.0f});
   result.slot("height", std::move(height));

@@ -125,9 +125,10 @@ struct RectLightOptions {
   /** How bright its face is, as a factor on the colour: a larger panel
    *  at the same intensity delivers more. */
   motion::Animatable<float> intensity = 1.0f;
-  /** WHETHER IT CASTS SHADOWS — from its centre, as a spot light aimed
-   *  along its face would, so their edges are no softer for its size:
-   *  off unless stated. */
+  /** WHETHER IT CASTS SHADOWS — through six maps from its centre turned
+   *  to its face, which hold its whole front half, with an edge the panel's
+   *  size widens away from where a caster meets what it shades: off unless
+   *  stated. */
   bool castShadow = false;
   /** How its shadow is made, when it casts one. */
   LightShadow shadow = {};
@@ -145,8 +146,9 @@ struct SphereLightOptions {
   /** Past zero, the distance at which it has been brought smoothly to
    *  nothing; zero reaches everywhere. */
   float range = 0;
-  /** WHETHER IT CASTS SHADOWS, every way from its centre: off unless
-   *  stated. */
+  /** WHETHER IT CASTS SHADOWS, every way from its centre, with an edge the
+   *  ball's size widens away from where a caster meets what it shades: off
+   *  unless stated. */
   bool castShadow = false;
   /** How its shadow is made, when it casts one. */
   LightShadow shadow = {};
@@ -161,8 +163,10 @@ struct DiskLightOptions {
   /** How strongly: what it delivers along its face's normal at one
    *  unit, whatever its size. */
   motion::Animatable<float> intensity = 1.0f;
-  /** WHETHER IT CASTS SHADOWS — from its centre, as a spot light aimed
-   *  along its face would: off unless stated. */
+  /** WHETHER IT CASTS SHADOWS — through six maps from its centre turned
+   *  to its face, which hold its whole front half, with an edge the panel's
+   *  size widens away from where a caster meets what it shades: off unless
+   *  stated. */
   bool castShadow = false;
   /** How its shadow is made, when it casts one. */
   LightShadow shadow = {};

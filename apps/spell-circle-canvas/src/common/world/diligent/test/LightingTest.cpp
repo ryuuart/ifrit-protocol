@@ -20,6 +20,7 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilworld/World.h>
+#include <sigilworld/kit/Kit.h>
 
 #include <cmath>
 #include <functional>
@@ -422,4 +423,139 @@ TEST(Lighting, ALightLookingAtANullLightsTheSideFacingIt) {
       << "aimed at the null, it lights the side facing it";
   EXPECT_LT(luma(at(aimed, 0.38f, 0.5f)), 1.0f / 255.0f)
       << "and the side away from it is dark";
+}
+
+TEST(Lighting, ANearMirrorShowsTwoSmallWindowsAsTwoHighlights) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // A black room with two small bright windows behind the eye, a few
+  // degrees apart on the horizon.
+  const EnvironmentMap room =
+      kit::environmentMap({.width = 512,
+                           .softBoxes = {{.centre = {0.97f, 0.5f},
+                                          .size = {0.004f, 0.008f},
+                                          .radiance = {40, 40, 40}},
+                                         {.centre = {0.03f, 0.5f},
+                                          .size = {0.004f, 0.008f},
+                                          .radiance = {40, 40, 40}}}});
+  constexpr glm::ivec2 kSide{240, 240};
+  Frame frame(
+      group({mesh(gm::superellipsoid({60, 60, 60}, 2.0f, 128, 96))
+                 .key("mirror")
+                 .fill(material::from(material::Color{1, 1, 1, 1})
+                           .surface({.metallic = 1.0f, .roughness = 0.05f})),
+             camera(diligent::levelEye(),
+                    {.exposure = 1.0f, .toneCurve = ToneCurve::Linear})
+                 .key("camera")})
+          .key("set"));
+  frame.environment(room).extent(kSide).pass(
+      geometryPass("colour").writes("colour").clear(SkColors::kBlack));
+  const SkBitmap plate = diligent::photograph(frame, on.runtime, kSide);
+  // Along the middle row: two peaks, with the sphere between them darker
+  // than half the dimmer of the two.
+  std::vector<float> row;
+  for (int x = 0; x < kSide.x; ++x)
+    row.push_back(luma(plate.getColor4f(x, kSide.y / 2)));
+  const auto peak = [&](int from, int to) {
+    int best = from;
+    for (int x = from; x < to; ++x)
+      if (row[x] > row[best]) best = x;
+    return best;
+  };
+  const int left = peak(60, kSide.x / 2);
+  const int right = peak(kSide.x / 2, 180);
+  const float valley =
+      *std::min_element(row.begin() + left, row.begin() + right + 1);
+  EXPECT_GT(right - left, 4);
+  EXPECT_GT(std::min(row[left], row[right]), 0.3f);
+  EXPECT_LT(valley, 0.5f * std::min(row[left], row[right]))
+      << row[left] << " " << valley << " " << row[right];
+}
+
+TEST(Lighting, AReflectionSpreadsAsWideNearAPoleAsAtTheHorizon) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  constexpr glm::ivec2 kSide{240, 240};
+  // One small bright window, mirrored in the middle of a rough metal
+  // ball by an eye looking at the ball from the other side.
+  const auto highlight = [&](glm::vec2 window, glm::vec3 eye, glm::vec3 up) {
+    const EnvironmentMap room = kit::environmentMap(
+        {.width = 512,
+         .softBoxes = {{.centre = window,
+                        .size = {0.002f, 0.004f},
+                        .radiance = {4000, 4000, 4000}}}});
+    geometry::mesh::camera::Camera lens;
+    lens.eye = eye;
+    lens.up = up;
+    Frame frame(
+        group({mesh(gm::superellipsoid({60, 60, 60}, 2.0f, 192, 128))
+                   .key("ball")
+                   .fill(material::from(material::Color{1, 1, 1, 1})
+                             .surface({.metallic = 1.0f, .roughness = 0.35f})),
+               camera(lens, {.exposure = 0.05f,
+                             .toneCurve = ToneCurve::Linear})
+                   .key("camera")})
+            .key("set"));
+    frame.environment(room).extent(kSide).pass(
+        geometryPass("colour").writes("colour").clear(SkColors::kBlack));
+    const SkBitmap plate = diligent::photograph(frame, on.runtime, kSide);
+    // How many pixels across and down the middle stand above half the
+    // brightest.
+    const float middle = luma(plate.getColor4f(kSide.x / 2, kSide.y / 2));
+    int across = 0;
+    int down = 0;
+    for (int i = 0; i < kSide.x; ++i) {
+      if (luma(plate.getColor4f(i, kSide.y / 2)) > middle * 0.5f) ++across;
+      if (luma(plate.getColor4f(kSide.x / 2, i)) > middle * 0.5f) ++down;
+    }
+    EXPECT_GT(middle, 0.2f);
+    return glm::vec2(across, down);
+  };
+  // Behind an eye looking along -z, on the horizon; above an eye looking
+  // straight down, a few degrees from the zenith.
+  const glm::vec2 horizon = highlight({0.0f, 0.5f}, {0, 0, 200}, {0, 1, 0});
+  const glm::vec2 pole = highlight({0.0f, 0.04f}, {0, 200, 0}, {0, 0, -1});
+  EXPECT_GT(horizon.x, 6.0f);
+  EXPECT_NEAR(pole.x, pole.y, 0.25f * pole.y) << "round near the pole";
+  EXPECT_NEAR(pole.x, horizon.x, 0.25f * horizon.x)
+      << "as wide near the pole as at the horizon";
+  EXPECT_NEAR(horizon.x, horizon.y, 0.25f * horizon.y);
+}
+
+TEST(Lighting, AnAdditiveReflectionAddsItsWeightOfTheEnvironment) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // A black dielectric card under an even grey surround: whatever shows
+  // is what it mirrors.
+  const EnvironmentMap even = kit::environmentMap(
+      {.zenith = {0.4f, 0.4f, 0.4f}, .nadir = {0.4f, 0.4f, 0.4f}});
+  const auto shown = [&](material::surface::Reflection reflection,
+                         float weight) {
+    material::surface::SurfaceParameters black;
+    black.baseColor = {0, 0, 0, 1};
+    black.roughness = 0.2f;
+    black.reflectionWeight = weight;
+    Frame frame(group({mesh(gm::quad(120, 120))
+                           .key("card")
+                           .fill(material::surface::program(black, reflection)),
+                       camera(diligent::levelEye(),
+                              {.exposure = 1.0f,
+                               .toneCurve = ToneCurve::Linear})
+                           .key("camera")})
+                    .key("set"));
+    frame.environment(even, {.intensity = 1.0f, .diffuse = 1.0f})
+        .extent({64, 64})
+        .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack));
+    return decoded(
+        diligent::at(diligent::photograph(frame, on.runtime, {64, 64}), 0.5f,
+                     0.5f)
+            .fG);
+  };
+  using material::surface::Reflection;
+  const float none = shown(Reflection::Additive, 0.0f);
+  const float half = shown(Reflection::Additive, 0.5f);
+  const float splitSum = shown(Reflection::SplitSum, 0.5f);
+  EXPECT_LT(none, 0.01f);
+  EXPECT_NEAR(half - none, 0.2f, 0.02f) << "half of a surround of 0.4";
+  EXPECT_LT(splitSum, 0.1f) << "a dielectric mirrors little head on";
 }

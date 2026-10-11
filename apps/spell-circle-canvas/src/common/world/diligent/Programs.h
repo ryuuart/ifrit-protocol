@@ -38,6 +38,12 @@ const material::slang::Compiled& scaffold(bool lit, uint32_t lights = 0u);
  *  Empty when it failed to compile, which is reported once. */
 const material::slang::Compiled& shadowScaffold(bool coverage);
 
+/** THE SHADOW STAGE'S TINT: a transmissive body's own colour — what of a
+ *  light it lets through — laid over what the map holds by multiplying,
+ *  for every such body nearer the light than what blocks it. Empty when it
+ *  failed to compile, which is reported once. */
+const material::slang::Compiled& tintScaffold();
+
 /** THE SKY ITSELF, as one triangle over the whole target: the same
  *  scaffold text, compiled at its other pair of entry points. It is a
  *  pass rather than a body because a body would need a mesh, a placement
@@ -73,6 +79,9 @@ struct PostPrograms {
   material::slang::Compiled composite;
   /** A masked grade in one draw. */
   material::slang::Compiled maskedLevels;
+  /** One level of a panorama's chain, filtered for the lobe of the
+   *  roughness it is read at. */
+  material::slang::Compiled prefilter;
 };
 const PostPrograms& postPrograms();
 

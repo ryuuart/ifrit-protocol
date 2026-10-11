@@ -254,3 +254,85 @@ float4 fsMaskedLevels(VSOut input) : SV_Target {
 float4 fsMasked(VSOut input) : SV_Target {
   return uSource.Sample(input.uv) * uCoverage.Sample(input.uv).a * uGrade.z;
 }
+
+// ---- THE PANORAMA'S CHAIN ----------------------------------------------
+// A surface of a roughness mirrors the panorama convolved with the GGX
+// lobe of that roughness. Each level of the chain it reads is that
+// convolution for one roughness, gathered here once per panorama: for
+// every direction of the level, the directions the lobe about it reaches,
+// drawn where the lobe is dense, each read from a smoother level of the
+// uploaded panorama the farther apart the draws stand, so a few hundred
+// draws see as much of the sky as the lobe does.
+
+/** The panorama as uploaded: its sharpest level and smoother ones below
+ *  it. */
+uniform Sampler2D uEnvironment;
+/** x: the roughness the level is filtered for; y, z: the width and height
+ *  of the uploaded panorama's sharpest level; w: how many levels it has. */
+uniform float4 uPrefilter;
+
+/** The direction a panorama's (u, v) stands for: `equirectangularUv` run
+ *  backward. */
+float3 panoramaDirection(float2 uv) {
+  let around = (uv.x - 0.5) * 6.28318531;
+  let down = uv.y * 3.14159265;
+  let ring = sin(down);
+  return float3(ring * sin(around), cos(down), -ring * cos(around));
+}
+
+/** The @p i-th of @p count points spread evenly over the unit square:
+ *  the radical inverse of its index in base two against its share. */
+float2 evenlySpread(uint i, uint count) {
+  var bits = i;
+  bits = (bits << 16u) | (bits >> 16u);
+  bits = ((bits & 0x55555555u) << 1u) | ((bits & 0xAAAAAAAAu) >> 1u);
+  bits = ((bits & 0x33333333u) << 2u) | ((bits & 0xCCCCCCCCu) >> 2u);
+  bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0F0u) >> 4u);
+  bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u);
+  return float2(float(i) / float(count), float(bits) * 2.3283064365386963e-10);
+}
+
+[shader("fragment")]
+float4 fsPrefilter(VSOut input) : SV_Target {
+  let rough = saturateP(uPrefilter.x);
+  if (rough <= 0.0)
+    return float4(uEnvironment.SampleLevel(input.uv, 0.0).rgb, 1.0);
+  // The direction this texel stands for is the normal, the eye and the
+  // mirror direction at once, which is the assumption a prefiltered chain
+  // makes.
+  let n = panoramaDirection(input.uv);
+  let up = abs(n.y) < 0.999 ? float3(0.0, 1.0, 0.0) : float3(1.0, 0.0, 0.0);
+  let across = normalizeP(cross(up, n));
+  let along = cross(n, across);
+  let alpha = rough * rough;
+  let alpha2 = alpha * alpha;
+  // The solid angle one texel of the sharpest level covers, on average
+  // over the sphere.
+  let texelAngle = 12.5663706 / max(uPrefilter.y * uPrefilter.z, 1.0);
+  let count = 256u;
+  float3 sum = float3(0.0, 0.0, 0.0);
+  float weight = 0.0;
+  for (uint i = 0u; i < count; ++i) {
+    let spread = evenlySpread(i, count);
+    let turn = 6.28318531 * spread.x;
+    let cosine = sqrt((1.0 - spread.y) / (1.0 + (alpha2 - 1.0) * spread.y));
+    let sine = sqrt(max(1.0 - cosine * cosine, 0.0));
+    let half = across * (sine * cos(turn)) + along * (sine * sin(turn)) +
+               n * cosine;
+    let l = half * (2.0 * dotP(n, half)) - n;
+    let facing = dotP(n, l);
+    if (facing <= 0.0) continue;
+    // The lobe's density at this draw, over the four the mirror turns it
+    // by, says how much of the sphere one draw stands for; the level read
+    // is the one whose texels are that size.
+    let bend = cosine * cosine * (alpha2 - 1.0) + 1.0;
+    let density = alpha2 / (3.14159265 * bend * bend) * 0.25;
+    let drawAngle = 1.0 / (float(count) * max(density, 1e-6));
+    let level = clamp(0.5 * log2(drawAngle / texelAngle) + 1.0, 0.0,
+                      uPrefilter.w - 1.0);
+    sum = sum + uEnvironment.SampleLevel(equirectangularUv(l), level).rgb *
+                    facing;
+    weight = weight + facing;
+  }
+  return float4(sum / max(weight, 1e-6), 1.0);
+}

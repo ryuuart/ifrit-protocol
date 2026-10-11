@@ -9,6 +9,7 @@
  */
 
 #include <sigilcore/callable/Callable.h>
+#include <sigilmaterial/texture/Texture.h>
 #include <sigilmedia/core/Picture.h>
 #include <sigilworld/advanced/Node.h>
 #include <sigilworld/advanced/Runtime.h>
@@ -104,6 +105,15 @@ class Frame {
   Frame& pass(Pass p);
   /** Asks for a resource back once the frame has made it. */
   Frame& readback(Readback r);
+  /** A PICTURE LAID OVER THE FINISHED FRAME — a page about the picture, a
+   *  heads-up display, a caption — rather than one standing in the scene:
+   *  drawn over the whole of the picture when it is put on a canvas,
+   *  after the camera's reading, in display values, exactly as a page
+   *  composited over a picture is, so a translucent panel's edge is mixed
+   *  with what is behind it as a display shows both. Each is laid over
+   *  the ones before it. The pass that paints it must be on the frame, as
+   *  for a texture a body wears. */
+  Frame& overlay(material::Texture picture);
   /** @} */
 
   /** @name What a host states
@@ -188,6 +198,11 @@ class Frame {
   [[nodiscard]] bool standIns() const { return m_standIns; }
   /** Whether the device times this frame's stages. */
   [[nodiscard]] bool timeStages() const { return m_timeStages; }
+  /** The pictures laid over the finished frame, in the order they are
+   *  laid. */
+  [[nodiscard]] std::span<const material::Texture> overlays() const {
+    return m_overlays;
+  }
 
  private:
   Node m_scene;
@@ -200,6 +215,7 @@ class Frame {
   std::optional<geometry::mesh::camera::Camera> m_cameraOverride;
   std::vector<Pass> m_passes;
   std::vector<Readback> m_readbacks;
+  std::vector<material::Texture> m_overlays;
   Runtime m_runtime;
   std::string m_present;
   bool m_standIns = false;

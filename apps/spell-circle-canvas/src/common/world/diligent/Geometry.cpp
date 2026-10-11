@@ -246,6 +246,7 @@ uint32_t lightVariant(const Gpu& gpu,
           bits |= kVariantCascadedShadows;
         else if (map.cube)
           bits |= kVariantPointShadows;
+        if (gpu.shadowTinted) bits |= kVariantTintedShadows;
         break;
       }
   return bits;
@@ -382,6 +383,29 @@ void writeInstancing(material::slang::Uniforms& uniforms, const glm::mat4& view,
  *  space the shading is written in, and which of @p lights reads which.
  *  A body that receives none, or a pass that drew none, says so and is
  *  shaded exactly as it would be without them. */
+/** HOW WIDE THE SOURCE OF @p light's SHADOW IS, as the map reads it: on
+ *  an orthographic map the spread of a shadow's edge per unit between
+ *  caster and receiver, on a perspective one the source's width in scene
+ *  units. A light with a size of its own casts from it. */
+float sourceWidth(const PlacedLight& placed, bool perspective) {
+  const LightDescription& light = placed.light;
+  float width = std::max(light.shadow.size, 0.0f);
+  switch (light.kind) {
+    case LightKind::Rect:
+      width =
+          std::sqrt(std::max(light.width, 0.0f) * std::max(light.height, 0.0f));
+      break;
+    case LightKind::Disk:
+    case LightKind::Sphere:
+      width = 2.0f * std::max(light.radius, 0.0f);
+      break;
+    default:
+      break;
+  }
+  if (perspective || light.kind != LightKind::Directional) return width;
+  return 2.0f * std::tan(glm::radians(std::min(width, 60.0f)) * 0.5f);
+}
+
 void writeShadows(material::slang::Uniforms& uniforms, const Gpu& gpu,
                   const glm::mat4& view,
                   std::span<const PlacedLight* const> lights, bool receives) {
@@ -418,6 +442,9 @@ void writeShadows(material::slang::Uniforms& uniforms, const Gpu& gpu,
     uniforms.setElement("uShadowBias", m, bias, 4);
     const float ends[4] = {map.ends.x, map.ends.y, map.ends.z, map.ends.w};
     uniforms.setElement("uShadowCascade", m, ends, 4);
+    const float source[4] = {sourceWidth(*map.light, map.perspective), 0.0f,
+                             0.0f, 0.0f};
+    uniforms.setElement("uShadowSource", m, source, 4);
   }
   float slots[16];
   std::fill(std::begin(slots), std::end(slots), -1.0f);
@@ -579,6 +606,10 @@ struct Shape {
 struct Caster {
   glm::mat4 viewProjection{1.0f};
   bool coverage = false;
+  /** Drawn into the tint beside the map rather than into its depth: the
+   *  body's colour, the share of a light it lets through, laid over what
+   *  is there by multiplying, behind nothing the map holds. */
+  bool tint = false;
 };
 
 /** One body, drawn. @p map is the texture it is dressed with, or null;
@@ -613,7 +644,9 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
   const uint32_t reaching =
       lit && !caster ? lightVariant(gpu, lights, receives) : 0u;
   Surface surface;
-  if (caster && !caster->coverage)
+  if (caster && caster->tint)
+    surface.program = &tintScaffold();
+  else if (caster && !caster->coverage)
     surface.program = &shadowScaffold(/*coverage=*/false);
   else
     surface = surfaceOf(material, lit, gpu.seconds, caster != nullptr,
@@ -657,6 +690,11 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
         surface.program, SkBlendMode::kSrc, true, true, false, false, false};
     key.target = dg::TEX_FORMAT_UNKNOWN;
     key.instanced = true;
+    if (caster->tint) {
+      key.blend = SkBlendMode::kModulate;
+      key.depthWrite = false;
+      key.target = dg::TEX_FORMAT_RGBA8_UNORM;
+    }
   }
   const Pipeline* pipeline = gpu.pipelines.pipeline(key);
   if (!pipeline) return;
@@ -664,8 +702,10 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
   // THE PANORAMA, uploaded once per map and kept. Its level count is
   // what says there is a sky at all, so it is asked for before the
   // uniforms are written.
-  dg::ITexture* panorama = lit ? gpu.maps.environment(sky.map) : nullptr;
-  dg::ITexture* panoramaNext = lit ? gpu.maps.environment(sky.next) : nullptr;
+  dg::ITexture* panorama =
+      lit ? prefilteredPanorama(gpu, gpu.maps.environment(sky.map)) : nullptr;
+  dg::ITexture* panoramaNext =
+      lit ? prefilteredPanorama(gpu, gpu.maps.environment(sky.next)) : nullptr;
   dg::ITexture* lobe = lit ? gpu.maps.irradiance(sky.map) : nullptr;
   dg::ITexture* lobeNext = lit ? gpu.maps.irradiance(sky.next) : nullptr;
   if (!panoramaNext) panoramaNext = panorama;
@@ -760,6 +800,21 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
       textures[i] = gpu.maps.sample(brdfTable());
       continue;
     }
+    // …and so is what transmissive bodies let through of each light,
+    // read texel by texel beside it…
+    if (slot == "uShadowTint") {
+      if (gpu.shadowTinted) textures[i] = gpu.shadowTint;
+      samplers[i] = gpu.shared.samplerFor(SkFilterMode::kNearest, false);
+      continue;
+    }
+    if (slot == "uShadowGlass") {
+      if (gpu.shadowTinted) {
+        textures[i] = gpu.shadowGlass;
+        views[i] = gpu.shadowGlassView;
+      }
+      samplers[i] = gpu.shared.samplerFor(SkFilterMode::kNearest, false);
+      continue;
+    }
     // …and so is the shadow atlas, read texel by texel through a view of
     // its depth format.
     if (slot == kShadowSlot) {
@@ -832,9 +887,11 @@ void drawBackdrop(Gpu& gpu, const View& view, const glm::mat4& projection,
   if (!sky.valid() || sky.shown <= 0) return;
   const material::slang::Compiled& program = backdropProgram();
   if (program.empty()) return;
-  dg::ITexture* panorama = gpu.maps.environment(sky.map);
+  dg::ITexture* panorama =
+      prefilteredPanorama(gpu, gpu.maps.environment(sky.map));
   if (!panorama) return;
-  dg::ITexture* panoramaNext = gpu.maps.environment(sky.next);
+  dg::ITexture* panoramaNext =
+      prefilteredPanorama(gpu, gpu.maps.environment(sky.next));
   if (!panoramaNext) panoramaNext = panorama;
   dg::ITexture* lobe = gpu.maps.irradiance(sky.map);
   dg::ITexture* lobeNext = gpu.maps.irradiance(sky.next);
@@ -923,7 +980,61 @@ bool blended(const Draw& body, const Blending& blending, bool flat) {
 bool seesThrough(const Draw& body, bool flat) {
   if (flat || !body.material) return false;
   const material::Lobes carried = material::surface::lobes(*body.material);
-  return carried.transmission || carried.distortion;
+  if (carried.transmission || carried.distortion) return true;
+  // A STACK states what its operands state, in the body composed out of
+  // theirs, which writes a lobe's variables only when an operand does.
+  if (!body.material->hasProgram()) return false;
+  const std::string* text =
+      body.material->recipe().body(material::Target::Slang);
+  return text && (text->find("gSurfaceTransmission") != std::string::npos ||
+                  text->find("gSurfaceDistortion") != std::string::npos);
+}
+
+/** WHERE A BODY STANDS IN THE PICTURE: the rectangle its box covers, in
+ *  the picture's own normalised coordinates, and how far in front of the
+ *  eye its box reaches — nearest, middle and farthest. A box reaching
+ *  behind the eye covers the whole picture. */
+struct Region {
+  glm::vec4 rect{-1.0f, -1.0f, 1.0f, 1.0f};
+  float nearest = 0.0f;
+  float middle = 0.0f;
+  float farthest = 0.0f;
+};
+Region regionOf(const Draw& body, const glm::mat4& viewProj,
+                const glm::mat4& view);
+
+/** Whether @p behind, drawn earlier, stands behind @p front where they
+ *  overlap in the picture: the middle of its box farther than the whole of
+ *  the other's. Bodies standing at one depth — drops on one pane — are
+ *  beside each other, not behind. */
+bool standsBehind(const Region& behind, const Region& front) {
+  const bool overlaps =
+      behind.rect.x < front.rect.z && front.rect.x < behind.rect.z &&
+      behind.rect.y < front.rect.w && front.rect.y < behind.rect.w;
+  return overlaps && behind.middle > front.farthest;
+}
+
+/** HOW MANY OF THE SCENE COPY'S SMALLER LEVELS @p body READS, out of the
+ *  copy's @p levels: none for a smooth surface, which reads the copy as it
+ *  is, and up to the level its roughness picks — scattered by how strongly
+ *  it bends — and the one past it a read between two levels takes. A
+ *  roughness map multiplies the number, so the number bounds it; a body
+ *  whose numbers this cannot read is taken to read every level. */
+int levelsRead(const Draw& body, int levels) {
+  const material::Material& worn = *body.material;
+  if (!worn.hasProgram()) return levels - 1;
+  const material::Schema& fields = worn.recipe().parameters();
+  const material::Field* roughness = fields.find("roughness");
+  const material::Field* ior = fields.find("ior");
+  if (!material::surface::lobes(worn).transmission)
+    return material::surface::lobes(worn).distortion ? 0 : levels - 1;
+  if (!roughness || !ior || roughness->floats != 1 || ior->floats != 1)
+    return levels - 1;
+  const float rough = std::clamp(worn.get<float>("roughness"), 0.0f, 1.0f);
+  const float bend =
+      std::clamp(worn.get<float>("ior") * 2.0f - 2.0f, 0.0f, 1.0f);
+  const float level = rough * bend * (float)(levels - 1);
+  return std::min((int)std::ceil(level) + (level > 0.0f ? 1 : 0), levels - 1);
 }
 
 /** The phases a frame's bodies are drawn in, in order. */
@@ -951,8 +1062,11 @@ void copyForReading(Gpu& gpu, dg::ITexture* from, dg::ITexture* into) {
  *  them, then the blended ones, each phase back to front. A body that
  *  sees through itself reads the lit colour and the depth as they stood
  *  once the first phase was down, copied before the first of them is
- *  drawn; a blended body that fades into the scene reads that same depth,
- *  or copies it before the first of them when nothing copied it yet. */
+ *  drawn — and copied again before one that stands in front of another
+ *  drawn since the last copy, so glass seen through glass shows both, as
+ *  deep as the bodies are layered; a blended body that fades into the
+ *  scene reads that same depth, or copies it before the first of them
+ *  when nothing copied it yet. */
 void drawBodies(Gpu& gpu, const View& view, const glm::mat4& viewProj,
                 const glm::mat4& viewMatrix, const Collection* only, bool lit,
                 const glm::vec4* flat, dg::ITexture* target,
@@ -971,6 +1085,12 @@ void drawBodies(Gpu& gpu, const View& view, const glm::mat4& viewProj,
   // laid over the bodies a collection names and stands under the pass's
   // lights like any other.
   dg::ITexture* sceneColor = nullptr;
+  // The bodies that see through themselves drawn since the scene was last
+  // copied, by where they stand in the picture.
+  std::vector<Region> sinceCopied;
+  // How many of the copy's smaller levels the frame's bodies read, found
+  // at the first copy.
+  std::optional<int> readLevels;
   for (const Phase phase :
        {Phase::LaidOver, Phase::SeenThrough, Phase::Blended}) {
     for (const Draw& body : view.draws) {
@@ -988,16 +1108,43 @@ void drawBodies(Gpu& gpu, const View& view, const glm::mat4& viewProj,
       // through itself is laid over and before the first that does: the
       // lit colour with its blurrier levels derived from it, and the depth
       // beside it, which says where what was copied stands.
-      if (phase == Phase::SeenThrough && !sceneColor) {
+      // …AND AGAIN before one standing in front of a body that saw through
+      // itself since, which the copy then holds as it was drawn.
+      bool copying = false;
+      if (phase == Phase::SeenThrough) {
+        const Region here = regionOf(body, viewProj, viewMatrix);
+        copying =
+            !sceneColor || std::any_of(sinceCopied.begin(), sinceCopied.end(),
+                                       [&](const Region& drawn) {
+                                         return standsBehind(drawn, here);
+                                       });
+        if (copying) sinceCopied.clear();
+        sinceCopied.push_back(here);
+      }
+      if (copying) {
         if (dg::ITexture* copy = gpu.sceneColorForReading()) {
           copyForReading(gpu, target, copy);
           if (timed) gpu.mark("colour-copy");
-          gpu.device->context()->GenerateMips(
-              copy->GetDefaultView(dg::TEXTURE_VIEW_SHADER_RESOURCE));
-          if (timed) gpu.mark("mips");
+          // ONLY THE LEVELS SOMETHING READS: the deepest any body that sees
+          // through itself in this frame reaches, and none at all where
+          // every one of them is smooth.
+          if (!readLevels) {
+            readLevels = 0;
+            const int levels = (int)copy->GetDesc().MipLevels;
+            for (const Draw& other : view.draws)
+              if (other.mesh && (!only || only->contains(memberOf(other))) &&
+                  seesThrough(other, flat != nullptr))
+                *readLevels = std::max(*readLevels, levelsRead(other, levels));
+          }
+          if (*readLevels > 0)
+            if (dg::ITextureView* chain =
+                    gpu.sceneColorLevels(*readLevels + 1)) {
+              gpu.device->context()->GenerateMips(chain);
+              if (timed) gpu.mark("mips");
+            }
           sceneColor = copy;
         }
-        if (!sceneDepth && gpu.depth)
+        if (gpu.depth)
           if (dg::ITexture* depthCopy = gpu.depthForReading()) {
             copyForReading(gpu, gpu.depth, depthCopy);
             if (timed) gpu.mark("depth-copy");
@@ -1099,6 +1246,37 @@ Box boxOf(const Draw& body) {
   return out;
 }
 
+Region regionOf(const Draw& body, const glm::mat4& viewProj,
+                const glm::mat4& view) {
+  Region out;
+  const Box box = boxOf(body);
+  if (box.low.x > box.high.x) return out;
+  glm::vec2 low(std::numeric_limits<float>::max());
+  glm::vec2 high(std::numeric_limits<float>::lowest());
+  float nearest = std::numeric_limits<float>::max();
+  float farthest = std::numeric_limits<float>::lowest();
+  bool behindEye = false;
+  for (int i = 0; i < 8; ++i) {
+    const glm::vec4 corner(box.corner(i), 1.0f);
+    const float depth = -(view * corner).z;
+    nearest = std::min(nearest, depth);
+    farthest = std::max(farthest, depth);
+    const glm::vec4 clip = viewProj * corner;
+    if (clip.w <= 1e-4f) {
+      behindEye = true;
+      continue;
+    }
+    const glm::vec2 ndc = glm::vec2(clip) / clip.w;
+    low = glm::min(low, ndc);
+    high = glm::max(high, ndc);
+  }
+  if (!behindEye) out.rect = glm::vec4(low, high);
+  out.nearest = nearest;
+  out.farthest = farthest;
+  out.middle = (nearest + farthest) * 0.5f;
+  return out;
+}
+
 /** WHETHER @p body BLOCKS LIGHT: it says it casts, it is lit, and it is
  *  laid over writing depth. A body that adds, multiplies, screens, fades or
  *  writes no depth, one that sees through itself, and one that is its own
@@ -1180,9 +1358,14 @@ float shadowReach(const PlacedLight& light, const View& view,
 /** A DIRECTIONAL LIGHT'S MAP: an orthographic view along the light, square
  *  across, covering what the camera sees of the scene between @p from and
  *  @p to in front of it — zero for either is the near or the far plane —
- *  and deep enough to hold every body between the light and them. Its
- *  corner is snapped to whole texels, so a still light's shadow does not
- *  crawl as the fit moves. */
+ *  and deep enough to hold every body between the light and them.
+ *
+ *  IT HOLDS STILL AS THE CAMERA TURNS. Across, it covers the sphere round
+ *  that slice of the camera's view, whose size is the lens's and not the
+ *  way it faces, or the scene's own box where that is the smaller; its
+ *  corner is snapped to whole texels in the light's own frame. So the
+ *  texels stand at the same places in the world from one frame to the
+ *  next, and a still shadow's edge does not crawl while the camera moves. */
 ShadowMap fitDirectional(const PlacedLight& light, const View& view,
                          const Box& scene, int size, float from, float to) {
   ShadowMap out;
@@ -1198,21 +1381,35 @@ ShadowMap fitDirectional(const PlacedLight& light, const View& view,
   Box sceneSeen;
   for (int i = 0; i < 8; ++i)
     sceneSeen.add(glm::vec3(looking * glm::vec4(scene.corner(i), 1.0f)));
-  Box cameraSeen;
-  for (const glm::vec3& corner : cameraCorners(view, from, to))
-    cameraSeen.add(glm::vec3(looking * glm::vec4(corner, 1.0f)));
-  // Across, what the camera sees of the scene; deep, the whole scene.
-  glm::vec2 low = glm::max(glm::vec2(sceneSeen.low), glm::vec2(cameraSeen.low));
-  glm::vec2 high =
-      glm::min(glm::vec2(sceneSeen.high), glm::vec2(cameraSeen.high));
-  const bool clipped = low.x > sceneSeen.low.x || low.y > sceneSeen.low.y ||
-                       high.x < sceneSeen.high.x || high.y < sceneSeen.high.y;
-  if (low.x >= high.x || low.y >= high.y) {
-    low = glm::vec2(sceneSeen.low);
-    high = glm::vec2(sceneSeen.high);
+  // THE SPHERE ROUND THE SLICE: its centre where the slice's corners
+  // average, its radius the farthest of them from it — a length the lens
+  // decides and the turn does not — rounded up to a step so it does not
+  // flicker in its last digits.
+  const std::array<glm::vec3, 8> corners = cameraCorners(view, from, to);
+  glm::vec3 middleOfSlice(0.0f);
+  for (const glm::vec3& corner : corners) middleOfSlice += corner / 8.0f;
+  float reach = 0.0f;
+  for (const glm::vec3& corner : corners)
+    reach = std::max(reach, glm::length(corner - middleOfSlice));
+  const float step = std::max(reach / 64.0f, 1e-3f);
+  reach = std::ceil(reach / step) * step;
+  const glm::vec2 sliceMiddle =
+      glm::vec2(looking * glm::vec4(middleOfSlice, 1.0f));
+  glm::vec2 low = sliceMiddle - glm::vec2(reach);
+  glm::vec2 high = sliceMiddle + glm::vec2(reach);
+  const glm::vec2 sceneLow = glm::vec2(sceneSeen.low);
+  const glm::vec2 sceneHigh = glm::vec2(sceneSeen.high);
+  // The scene's own box, where it is no wider than the sphere, holds still
+  // too, and spends the map on less.
+  bool clipped = true;
+  if (std::max(sceneHigh.x - sceneLow.x, sceneHigh.y - sceneLow.y) <=
+      2.0f * reach) {
+    low = sceneLow;
+    high = sceneHigh;
+    clipped = false;
   }
-  // A little past the scene on every side, so a shadow at its edge is never
-  // the last texel of the map.
+  // A little past what it covers on every side, so a shadow at its edge is
+  // never the last texel of the map.
   const float half =
       std::max(high.x - low.x, high.y - low.y) * 0.5f * 1.02f + 1e-3f;
   out.texel = 2.0f * half / (float)size;
@@ -1262,11 +1459,6 @@ std::vector<ShadowMap> fitCascades(const PlacedLight& light, const View& view,
   return out;
 }
 
-/** THE HALF ANGLE, in degrees, a rect or disk light's shadow map opens
- *  to: the map is a spot's from the panel's centre, and what stands
- *  further off its face than this casts no shadow. */
-constexpr float kPanelShadowAngle = 50.0f;
-
 /** A SPOT LIGHT'S MAP: a perspective view from where it stands along where
  *  it aims, opening a little wider than its cone, reaching its range or,
  *  with none, the far side of the scene. */
@@ -1285,11 +1477,7 @@ ShadowMap fitSpot(const PlacedLight& light, const Box& scene, int size) {
   }
   out.far = std::max(far, 1e-2f);
   out.near = std::max(out.far * 0.002f, 1e-3f);
-  // A panel shines over its whole front half, which one perspective map
-  // cannot hold; its map opens as a spot of `kPanelShadowAngle` would.
-  const bool panel = light.light.kind == LightKind::Rect ||
-                     light.light.kind == LightKind::Disk;
-  const float outer = panel ? kPanelShadowAngle : light.light.outerAngle;
+  const float outer = light.light.outerAngle;
   const float opening = std::min(
       glm::radians(std::max(outer, 1.0f) * 2.0f + 2.0f), glm::radians(170.0f));
   out.texel = 2.0f * std::tan(opening * 0.5f) / (float)size;
@@ -1309,7 +1497,7 @@ constexpr float kFaceReach = 1.05f;
  *  the far side of the scene. The shading reads the face the point stands
  *  most squarely in front of. */
 std::array<ShadowMap, 6> fitPoint(const PlacedLight& light, const Box& scene,
-                                  int size) {
+                                  int size, const glm::mat3& axes) {
   float far = light.light.range;
   if (far <= 0.0f)
     for (int i = 0; i < 8; ++i)
@@ -1318,8 +1506,8 @@ std::array<ShadowMap, 6> fitPoint(const PlacedLight& light, const Box& scene,
   const float near = std::max(far * 0.002f, 1e-3f);
   const glm::mat4 projection = toDeviceDepth(
       glm::perspectiveRH_NO(2.0f * std::atan(kFaceReach), 1.0f, near, far));
-  static const glm::vec3 kAxes[6] = {{1, 0, 0},  {-1, 0, 0}, {0, 1, 0},
-                                     {0, -1, 0}, {0, 0, 1},  {0, 0, -1}};
+  const glm::vec3 kAxes[6] = {axes[0],  -axes[0], axes[1],
+                              -axes[1], axes[2],  -axes[2]};
   std::array<ShadowMap, 6> out;
   for (size_t face = 0; face < 6; ++face) {
     ShadowMap& map = out[face];
@@ -1463,7 +1651,9 @@ int64_t drawShadows(Gpu& gpu, const View& view, const glm::mat4& cameraView) {
     const PlacedLight& light = view.lights[index];
     tile = std::max(tile, std::clamp(light.light.shadow.mapSize, 64, 2048));
     count += light.light.kind == LightKind::Point ||
-                     light.light.kind == LightKind::Sphere
+                     light.light.kind == LightKind::Sphere ||
+                     light.light.kind == LightKind::Rect ||
+                     light.light.kind == LightKind::Disk
                  ? 6
              : light.light.kind == LightKind::Directional
                  ? (size_t)std::clamp(light.light.shadow.cascades, 1, 4)
@@ -1483,14 +1673,28 @@ int64_t drawShadows(Gpu& gpu, const View& view, const glm::mat4& cameraView) {
   for (const size_t index : chosen) {
     const PlacedLight& light = view.lights[index];
     const int size = std::clamp(light.light.shadow.mapSize, 64, tile);
-    // A light with a size casts from its centre: a sphere as a point
-    // light, a rect or a disk as a spot aimed along its face.
+    // A light with a size casts from its centre through six maps, so a
+    // panel's whole front half is covered: a sphere's along the world's
+    // axes as a point light's, a rect's or a disk's turned to its face.
     if (light.light.kind == LightKind::Point ||
         light.light.kind == LightKind::Sphere) {
-      for (const ShadowMap& face : fitPoint(light, scene, size)) place(face);
-    } else if (light.light.kind == LightKind::Spot ||
-               light.light.kind == LightKind::Rect ||
+      for (const ShadowMap& face :
+           fitPoint(light, scene, size, glm::mat3(1.0f)))
+        place(face);
+    } else if (light.light.kind == LightKind::Rect ||
                light.light.kind == LightKind::Disk) {
+      const glm::vec3 ahead = glm::length(light.light.direction) > 1e-5f
+                                  ? glm::normalize(light.light.direction)
+                                  : glm::vec3(0, -1, 0);
+      glm::vec3 across = light.across - ahead * glm::dot(light.across, ahead);
+      if (glm::length(across) < 1e-4f)
+        across =
+            std::abs(ahead.x) < 0.9f ? glm::vec3(1, 0, 0) : glm::vec3(0, 0, 1);
+      across = glm::normalize(across - ahead * glm::dot(across, ahead));
+      const glm::mat3 axes(ahead, across, glm::cross(ahead, across));
+      for (const ShadowMap& face : fitPoint(light, scene, size, axes))
+        place(face);
+    } else if (light.light.kind == LightKind::Spot) {
       place(fitSpot(light, scene, size));
     } else {
       for (const ShadowMap& slice : fitCascades(light, view, scene, size))
@@ -1575,6 +1779,121 @@ int64_t drawShadows(Gpu& gpu, const View& view, const glm::mat4& cameraView) {
 
 }  // namespace
 
+/** WHETHER @p body TINTS A LIGHT PASSING THROUGH IT: it says it casts, it
+ *  is lit, it is laid over normally, and its surface transmits. */
+bool tints(const Draw& body) {
+  if (!body.mesh || !body.castShadow || !body.lit || !body.material)
+    return false;
+  if (!seesThrough(body, false)) return false;
+  const Blending blending = blendingOf(body, body.baseColor, false);
+  if (blending.blend != SkBlendMode::kSrcOver || blending.fades) return false;
+  const std::string* text =
+      body.material->hasProgram()
+          ? body.material->recipe().body(material::Target::Slang)
+          : nullptr;
+  return material::surface::lobes(*body.material).transmission ||
+         (text && text->find("gSurfaceTransmission") != std::string::npos);
+}
+
+/** WHAT OF A LIGHT @p body LETS THROUGH, in linear light: of the share it
+ *  transmits, its colour dimmed by the volume across its thickness, and
+ *  all of the share it does not, which its depth in the map already
+ *  answers for. A number the material does not state reads as a clear
+ *  pane's. */
+glm::vec4 transmittanceOf(const Draw& body) {
+  const material::Material& worn = *body.material;
+  const material::Schema& fields = worn.recipe().parameters();
+  const auto number = [&](std::string_view name, float otherwise) {
+    const material::Field* field = fields.find(name);
+    return field && field->floats == 1 ? worn.get<float>(name) : otherwise;
+  };
+  const float weight = std::clamp(number("transmission", 1.0f), 0.0f, 1.0f);
+  glm::vec3 colour(1.0f);
+  if (const material::Field* field = fields.find("baseColor");
+      field && field->floats == 4) {
+    const material::Color base = worn.get<material::Color>("baseColor");
+    colour = glm::vec3(base.r, base.g, base.b);
+  }
+  // Typed as a display shows it, and carried as light.
+  const auto decoded = [](float code) {
+    return code <= 0.04045f ? code / 12.92f
+                            : std::pow((code + 0.055f) / 1.055f, 2.4f);
+  };
+  colour = glm::vec3(decoded(colour.r), decoded(colour.g), decoded(colour.b));
+  const float distance = number("attenuationDistance", 0.0f);
+  if (distance > 0.0f) {
+    if (const material::Field* field = fields.find("attenuationColor");
+        field && field->floats == 4) {
+      const material::Color tint =
+          worn.get<material::Color>("attenuationColor");
+      const float crossed =
+          std::max(number("thickness", 0.0f), 0.0f) / distance;
+      colour *= glm::vec3(std::pow(std::max(decoded(tint.r), 1e-4f), crossed),
+                          std::pow(std::max(decoded(tint.g), 1e-4f), crossed),
+                          std::pow(std::max(decoded(tint.b), 1e-4f), crossed));
+    }
+  }
+  return glm::vec4(glm::vec3(1.0f - weight) + colour * weight, 1.0f);
+}
+
+/** THE TINT BESIDE THE SHADOW MAPS: for every map the stage laid out, the
+ *  nearest transmissive body's depth, and the colour every transmissive
+ *  body nearer the light than what blocks it lets through, multiplied
+ *  together. Drawn whole in every frame that holds such a body, and in no
+ *  other. */
+void drawTints(Gpu& gpu, const View& view, const glm::mat4& cameraView) {
+  gpu.shadowTinted = false;
+  if (gpu.shadows.empty() || !gpu.shadowAtlas) return;
+  bool any = false;
+  for (const Draw& body : view.draws) any = any || tints(body);
+  if (!any || !gpu.shadowTintAt(gpu.shadowAtlasSide)) return;
+  dg::IDeviceContext* context = gpu.device->context();
+  const dg::Uint32 side = (dg::Uint32)gpu.shadowAtlasSide;
+  const auto eachMap = [&](bool tint) {
+    for (const ShadowMap& map : gpu.shadows) {
+      dg::Viewport viewport;
+      viewport.TopLeftX = (float)map.x;
+      viewport.TopLeftY = (float)map.y;
+      viewport.Width = viewport.Height = (float)map.size;
+      viewport.MinDepth = 0.0f;
+      viewport.MaxDepth = 1.0f;
+      context->SetViewports(1, &viewport, side, side);
+      const Collection& link = map.light->light.shadowLink;
+      for (const Draw& body : view.draws) {
+        if (!tints(body)) continue;
+        if (!link.everything() && !link.contains(memberOf(body))) continue;
+        Caster caster{map.viewProjection, false, tint};
+        drawBody(gpu, map.viewProjection, cameraView,
+                 Shape{body.geometry, body.mesh, body.instances, body.facing},
+                 body.world, tint ? transmittanceOf(body) : body.baseColor,
+                 nullptr, nullptr, {}, view.environment, /*lit=*/false,
+                 Blending{}, /*cull=*/false, nullptr, nullptr, &caster);
+      }
+    }
+  };
+  // THE NEAREST TRANSMISSIVE DEPTH, which says what stands behind one.
+  dg::ITextureView* glass =
+      gpu.shadowGlass->GetDefaultView(dg::TEXTURE_VIEW_DEPTH_STENCIL);
+  context->SetRenderTargets(0, nullptr, glass,
+                            dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+  context->ClearDepthStencil(glass, dg::CLEAR_DEPTH_FLAG, 1.0f, 0,
+                             dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+  eachMap(false);
+  // THE TINT, against the map's own depth, so a transmissive body behind
+  // what blocks the light tints nothing.
+  dg::ITextureView* tint =
+      gpu.shadowTint->GetDefaultView(dg::TEXTURE_VIEW_RENDER_TARGET);
+  dg::ITextureView* blockers =
+      gpu.shadowAtlas->GetDefaultView(dg::TEXTURE_VIEW_DEPTH_STENCIL);
+  context->SetRenderTargets(1, &tint, blockers,
+                            dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+  const float white[4] = {1, 1, 1, 1};
+  context->ClearRenderTarget(tint, white,
+                             dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+  eachMap(true);
+  gpu.shadowTinted = true;
+}
+
 void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
                    Targets& targets) {
   const Pass& pass = *work.pass;
@@ -1616,9 +1935,17 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
     return;
   }
 
+  // THE PANORAMA'S FILTERED CHAIN, before the target is opened: made on
+  // the device the first time a sky is met, which draws into a target of
+  // its own.
+  if (view.environment.valid()) {
+    (void)prefilteredPanorama(gpu, gpu.maps.environment(view.environment.map));
+    (void)prefilteredPanorama(gpu, gpu.maps.environment(view.environment.next));
+  }
   // THE SHADOW STAGE, before the target is opened: the maps every lit
   // body below reads.
   targets.addShadowMapsDrawn(drawShadows(gpu, view, viewMatrix));
+  drawTints(gpu, view, viewMatrix);
   gpu.mark("shadow");
   // THE CLEAR IS AN AUTHORED COLOUR, so it is filled as the light the
   // final stage turns back into it, and the depth is cleared beside it.

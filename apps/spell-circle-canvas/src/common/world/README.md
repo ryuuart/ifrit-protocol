@@ -679,7 +679,11 @@ overlay, a pass's clear colour) is written as the light the final stage
 turns back into exactly its colour — the curve run backward — so where it
 is opaque it leaves as it was authored, to the byte for a colour eight bits
 hold. Where it is translucent it is mixed with what is behind it in light,
-before the reading, as anything translucent in a lit scene is.
+before the reading, as anything translucent in a lit scene is. A picture
+that is about the frame rather than standing in it — a heads-up display,
+a caption — is laid over with `Frame::overlay(texture)` instead: drawn over
+the whole picture when it is put on a canvas, after the reading, in
+display values, exactly as a page composited over a picture is.
 
 **Post passes run on light.** A blur, a composite and a bloom spread and
 add the light as it stands; a grade (`Levels`) states its gain, lift and

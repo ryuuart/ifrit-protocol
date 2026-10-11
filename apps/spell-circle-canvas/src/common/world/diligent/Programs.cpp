@@ -11,6 +11,7 @@
 #include <sigilworld/diligent/Runtime.h>
 
 #include <array>
+#include <atomic>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -56,12 +57,15 @@ std::string lightDefinitions(uint32_t variant) {
   if (variant & kVariantCascadedShadows)
     out += "#define SIGIL_CASCADED_SHADOWS 1\n";
   if (variant & kVariantPointShadows) out += "#define SIGIL_POINT_SHADOWS 1\n";
+  if (variant & kVariantTintedShadows)
+    out += "#define SIGIL_TINTED_SHADOWS 1\n";
   return out;
 }
 
 /** The variant bits that name the lights a lit build is specialised on. */
 constexpr uint32_t kLightVariants =
-    kVariantAreaLights | kVariantCascadedShadows | kVariantPointShadows;
+    kVariantAreaLights | kVariantCascadedShadows | kVariantPointShadows |
+    kVariantTintedShadows;
 
 }  // namespace
 
@@ -105,6 +109,20 @@ const Compiled& shadowScaffold(bool coverage) {
   return coverage ? covered : depthOnly;
 }
 
+const Compiled& tintScaffold() {
+  static const Compiled built = [] {
+    Compiled program;
+    std::string error;
+    if (!material::slang::compileModule(shaderSource("Surface.slang"), "vsMain",
+                                        "fsShadowTint", /*lit=*/false, &program,
+                                        &error))
+      material::reportOnce("world.diligent.shadow.tint",
+                           "the shadow stage's tint did not compile: " + error);
+    return program;
+  }();
+  return built;
+}
+
 const Compiled& backdropProgram() {
   static const Compiled built = [] {
     Compiled program;
@@ -145,10 +163,43 @@ const PostPrograms& postPrograms() {
     one("fsBloom", &built.bloom);
     one("fsComposite", &built.composite);
     one("fsMaskedLevels", &built.maskedLevels);
+    one("fsPrefilter", &built.prefilter);
     return built;
   }();
   return programs;
 }
+
+namespace {
+
+/** Whether every fixed program has been made. */
+std::atomic<bool>& fixedReady() {
+  static std::atomic<bool> ready{false};
+  return ready;
+}
+
+}  // namespace
+
+void prepareFixedPrograms() {
+  // ON THE THREAD THAT BRINGS THE DEVICE UP, and not on a worker of its
+  // own: the compiler and its store are statics a worker still compiling
+  // when the process ends would outlive.
+  static std::once_flag once;
+  std::call_once(once, [] {
+    (void)scaffold(false);
+    for (const uint32_t lights :
+         std::array<uint32_t, 4>{0u, kVariantAreaLights,
+                                 kVariantCascadedShadows, kVariantPointShadows})
+      (void)scaffold(true, lights);
+    (void)shadowScaffold(false);
+    (void)shadowScaffold(true);
+    (void)tintScaffold();
+    (void)backdropProgram();
+    (void)postPrograms();
+    fixedReady() = true;
+  });
+}
+
+bool fixedProgramsReady() { return fixedReady().load(); }
 
 void installSlangCompiler() {
   static std::once_flag once;

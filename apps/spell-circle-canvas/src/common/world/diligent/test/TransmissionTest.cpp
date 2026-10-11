@@ -19,9 +19,12 @@
 #include <include/core/SkSurface.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
+#include <sigilmaterial/advanced/Combine.h>
+#include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/Image.h>
 #include <sigilworld/World.h>
+#include <sigilworld/kit/Kit.h>
 
 #include <algorithm>
 #include <cmath>
@@ -45,7 +48,8 @@ constexpr glm::ivec2 kExtent{160, 160};
 /** @p content in front of the half-black, half-white backdrop, seen
  *  square on and photographed through a camera that reads light as it
  *  is. */
-SkBitmap photographed(std::vector<Node> content, const Runtime& runtime) {
+SkBitmap photographed(std::vector<Node> content, const Runtime& runtime,
+                      const EnvironmentMap* room = nullptr) {
   const auto unlit = [](float grey) {
     return material::from(material::Color{grey, grey, grey, 1})
         .surface({.unlit = true});
@@ -62,6 +66,7 @@ SkBitmap photographed(std::vector<Node> content, const Runtime& runtime) {
                            {.exposure = 1.0f, .toneCurve = ToneCurve::Linear})
                         .key("camera"));
   Frame frame(group(std::move(content)).key("set"));
+  if (room) frame.environment(*room, {.intensity = 0.6f, .diffuse = 0.08f});
   frame.extent(kExtent).pass(
       geometryPass("colour").writes("colour").clear(SkColors::kBlack));
   return diligent::photograph(frame, runtime, kExtent);
@@ -273,4 +278,176 @@ TEST(Transmission, DistortionMovesWhatIsBehindByItsMapAndNotAtZeroStrength) {
   // What is seen at a pixel is what stands half the strength to its
   // right, so the edge moves left.
   EXPECT_LT(edge(20.0f), bare - 3.0f);
+}
+
+TEST(Transmission, ACurvedBodyAtIndexOneShowsWhatIsBehindAsAFlatOneDoes) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // A dim room with one bright window, which a surface that reflected
+  // anything would show over what is behind it, most at its rim.
+  const EnvironmentMap room =
+      kit::environmentMap({.zenith = {0.09f, 0.11f, 0.14f},
+                           .nadir = {0.02f, 0.02f, 0.025f},
+                           .softBoxes = {{.centre = {0.0f, 0.34f},
+                                          .size = {0.12f, 0.08f},
+                                          .radiance = {3.0f, 3.6f, 4.6f}}}});
+  const auto clear =
+      material::from(material::Color{1, 1, 1, 1}).surface(glass(1.0f, 0.0f));
+  const SkBitmap bare = photographed({}, on.runtime, &room);
+  // A ball standing on the backdrop's edge, over black and white alike,
+  // and a card where it stands: through either the picture is the one
+  // with neither, to its last level.
+  const SkBitmap ball =
+      photographed({mesh(gm::superellipsoid({30, 30, 30}, 2.0f, 64, 48))
+                        .key("ball")
+                        .fill(clear)},
+                   on.runtime, &room);
+  const SkBitmap card = photographed(
+      {mesh(gm::quad(60, 60)).key("card").fill(clear)}, on.runtime, &room);
+  EXPECT_LE(diligent::worstChannel(card, bare), 1)
+      << "an index of one reflects nothing";
+  EXPECT_LE(diligent::worstChannel(ball, bare), 1)
+      << "curvature darkens and blurs nothing at index one";
+}
+
+TEST(Transmission, GlassBehindGlassShowsTheTintOfBoth) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  material::SurfaceOptions tinted = glass(1.5f, 5);
+  tinted.attenuationColor = {0.3f, 1.0f, 0.3f, 1};
+  tinted.attenuationDistance = 5;
+  const auto pane = [](std::string key, float depth,
+                       const material::SurfaceOptions& options) {
+    return mesh(gm::quad(60, 60))
+        .key(std::move(key))
+        .at({40, 0, depth})
+        .fill(material::from(material::Color{1, 1, 1, 1}).surface(options));
+  };
+  // Face on, over the white half: the green pane behind, a clear one in
+  // front of it.
+  const SkBitmap plate = photographed(
+      {pane("green", -30, tinted), pane("clear", 20, glass(1.5f, 5))},
+      on.runtime);
+  const SkColor4f through = at(plate, 0.75f, 0.5f);
+  EXPECT_GT(through.fG, 0.6f);
+  EXPECT_LT(through.fR, through.fG - 0.3f)
+      << "the clear pane shows the green one behind it";
+}
+
+TEST(Transmission,
+     ABallLensTurnsWhatStandsFarBehindItRoundThroughBothSurfaces) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // A glass ball as thick as it is wide, on the backdrop's edge: bent in
+  // at its front and again out at its back, the rays cross before they
+  // reach the backdrop, so the white half shows on the left of the ball
+  // and the black half on its right.
+  const SkBitmap plate =
+      photographed({mesh(gm::superellipsoid({20, 20, 20}, 2.0f, 96, 64))
+                        .key("lens")
+                        .fill(material::from(material::Color{1, 1, 1, 1})
+                                  .surface(glass(1.5f, 40)))},
+                   on.runtime);
+  const float left = luma(plate.getColor4f(72, 80));
+  const float right = luma(plate.getColor4f(88, 80));
+  EXPECT_GT(left, 0.6f);
+  EXPECT_LT(right, 0.3f);
+}
+
+TEST(Transmission,
+     ADistortionFollowsTheSurfaceAndBendsWhatATransmittingBodyPasses) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // A map that says "a half, up the map's green" everywhere — on a dome
+  // whose v runs from its crown out to its rim, a push along its radius.
+  const sk_sp<SkImage> push = [] {
+    sk_sp<SkSurface> surface =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(2, 2));
+    surface->getCanvas()->clear(SkColorSetARGB(255, 128, 191, 128));
+    return surface->makeImageSnapshot();
+  }();
+  std::vector<glm::vec2> profile;
+  for (int step = 0; step <= 24; ++step) {
+    const float angle = 1.5707963f * (float)step / 24.0f;
+    profile.push_back({30.0f * std::sin(angle), 10.0f * std::cos(angle)});
+  }
+  const gm::Mesh dome = gm::revolve(profile, {.segments = 64});
+  const float bare = edgeAt(photographed({}, on.runtime)).value_or(0.0f);
+  // How far the dome standing at @p across moves the backdrop's edge.
+  const auto shift = [&](float across, bool transmits) {
+    material::SurfaceOptions options{
+        .distortion = material::image(media::PixelSource(push)),
+        .distortionStrength = 16.0f};
+    if (transmits) {
+      options.transmission = 1.0f;
+      options.ior = 1.0f;
+      options.thickness = 0.0f;
+      options.roughness = 0.0f;
+    }
+    const SkBitmap plate = photographed(
+        {mesh(dome)
+             .key("dome")
+             .at({across, 0, 0})
+             .rotateX(90)
+             .fill(material::from(
+                       material::Color{1, 1, 1, transmits ? 1.0f : 0.0f})
+                       .surface(options))},
+        on.runtime);
+    return edgeAt(plate).value_or(bare) - bare;
+  };
+  for (const bool transmits : {false, true}) {
+    // The edge under the dome's right side and under its left side moves
+    // the opposite ways: the push is along the radius, not across the
+    // picture.
+    const float right = shift(-22, transmits);
+    const float left = shift(22, transmits);
+    EXPECT_GT(std::abs(right), 2.0f) << transmits;
+    EXPECT_GT(std::abs(left), 2.0f) << transmits;
+    EXPECT_LT(right * left, 0.0f) << transmits;
+  }
+}
+
+TEST(Transmission, EachInstanceStatesItsOwnThickness) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  material::SurfaceOptions options = glass(1.5f, 1.0f);
+  options.thicknessAttribute = "depth";
+  const auto clear =
+      material::from(material::Color{1, 1, 1, 1}).surface(options);
+  const float bare = edgeAt(photographed({}, on.runtime)).value_or(0.0f);
+  // One copy of a glass card, turned to the eye, whose instance says how
+  // deep the glass is.
+  const auto shift = [&](float depth) {
+    gm::Instances copy;
+    copy.stamp = gm::quad(90, 90);
+    copy.positions.push_back({0, 0, 0});
+    copy.attributes["depth"] = {depth};
+    const SkBitmap plate = photographed(
+        {mesh(copy).key("glass").rotateY(35).fill(clear)}, on.runtime);
+    return std::abs(edgeAt(plate).value_or(bare) - bare);
+  };
+  const float thin = shift(5);
+  const float thick = shift(40);
+  EXPECT_GT(thin, 0.5f);
+  EXPECT_GT(thick, thin + 3.0f) << "the deeper copy bends the edge further";
+}
+
+TEST(Transmission, AStackWhoseTopTransmitsSeesTheSceneBehindIt) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  material::surface::SurfaceParameters clear;
+  clear.baseColor = {1, 1, 1, 1};
+  clear.roughness = 0.0f;
+  clear.transmission = 1.0f;
+  clear.ior = 1.0f;
+  const material::Material stack = material::over(
+      material::surface::program(
+          {.baseColor = {0.1f, 0.1f, 0.1f, 1}, .roughness = 0.8f}),
+      material::surface::program(clear), material::maskConstant(1.0f));
+  // Over the white half, the stack is the glass on top of it, which shows
+  // the white standing behind.
+  const SkBitmap plate = photographed(
+      {mesh(gm::quad(60, 60)).key("stack").at({40, 0, 0}).fill(stack)},
+      on.runtime);
+  EXPECT_GT(luma(at(plate, 0.75f, 0.5f)), 0.8f);
 }

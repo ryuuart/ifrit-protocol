@@ -634,6 +634,11 @@ struct SurfaceOptions {
   Channel transmission = 0.0f;
   float ior = 1.5f;
   Channel thickness = 0.0f;
+  /** …and for instanced geometry, the instance scalar named here
+   *  multiplies `thickness` on each copy, so one body of drops of many
+   *  sizes is as thick as each drop is. Empty, or a name the instances do
+   *  not carry, multiplies by one. */
+  std::string thicknessAttribute;
   /** VOLUME: what the medium takes out of the light it carries. Light that
    *  has travelled `attenuationDistance` scene units through it has become
    *  `attenuationColor`; farther, deeper still — so a thick slab of tinted
@@ -648,8 +653,9 @@ struct SurfaceOptions {
   float dispersion = 0;
   /** DISTORTION, for an authored effect rather than a material: what
    *  stands behind the surface is displaced by a two-channel DATA map —
-   *  red across, green up, half-grey still — by `distortionStrength` scene
-   *  units at the surface, as heat haze and a shockwave bend what is seen
+   *  red across and green up the surface, which on a body is the way its u
+   *  runs and the way a normal map's green points, half-grey still — by
+   *  `distortionStrength` scene units at the surface, as heat haze and a shockwave bend what is seen
    *  through them. No light is involved in the displacement: the
    *  surface's own lit colour is laid over the displaced picture by its
    *  alpha, so a fully transparent surface is the displacement alone. An

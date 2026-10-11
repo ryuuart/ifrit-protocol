@@ -759,3 +759,11 @@ TEST(Programs, TheShaderTableHoldsEveryFileTheDirectoryDoes) {
   sigil::test::expectShaderTableIsWholeDirectory(diligent::shaderSources(),
                                                  SIGIL_WORLD_SHADER_DIR);
 }
+
+TEST(GpuRuntime, ItsFixedProgramsAreMadeWhenTheDeviceComesUp) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // The runtime is made; nothing is drawn. The programs every frame uses
+  // are already there.
+  EXPECT_TRUE(world::diligent::fixedProgramsReady());
+}

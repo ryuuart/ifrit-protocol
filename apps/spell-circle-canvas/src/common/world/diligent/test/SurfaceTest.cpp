@@ -17,6 +17,7 @@
 #include <include/core/SkSurface.h>
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/mesh/Mesh.h>
+#include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Image.h>
@@ -269,22 +270,15 @@ TEST(SurfaceSlots, AChannelThatIsAMaterialReadsAsEmptyAndSaysSo) {
   const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;
 
-  // A normal DERIVED from a height is a material the device has no image
-  // of, so its slot binds the same white texel an undressed one does —
+  // A normal given as a turbulence is a material the device has no body
+  // for, so its slot binds the same white texel an undressed one does —
   // the card is the plain card exactly — and the slot is named once on
   // the diagnostic stream, because the picture alone would show a flat
   // surface and no reason for it.
-  const material::Material height = material::image(
-      drawnTexture("world.test.height", 2, 1, [](SkCanvas& canvas) {
-        canvas.clear(SK_ColorWHITE);
-        SkPaint paint;
-        paint.setColor(SK_ColorBLACK);
-        canvas.drawRect(SkRect::MakeXYWH(0, 0, 1, 1), paint);
-      }));
   const material::Color grey{0.8f, 0.8f, 0.8f, 1.0f};
   const material::Material plain = material::from(grey).surface({});
-  const material::Material derived = material::from(grey).surface(
-      {.normal = material::surface::normalFromHeight(height, {.depth = 4})});
+  const material::Material derived =
+      material::from(grey).surface({.normal = material::field::noise(0.05f)});
 
   const SkBitmap bare = cardOn(plain, on.runtime);
   testing::internal::CaptureStderr();
@@ -618,4 +612,37 @@ TEST(SurfaceRefusals, ALayeredStackOnABareBodyIsRefusedByName) {
   EXPECT_GT(luma(at(drawn, 0.5f, 0.5f)), 0.05f) << "the card is drawn";
   EXPECT_NE(said.find("\"card\""), std::string::npos) << said;
   EXPECT_NE(said.find("layered colour stack"), std::string::npos) << said;
+}
+
+TEST(SurfaceSlots, ANormalDerivedFromAHeightDressesADeviceBody) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  constexpr glm::ivec2 kSide{96, 96};
+  // How far the shading strays from its mean across the middle of a card.
+  const auto spread = [&](std::optional<material::Material> normal) {
+    material::SurfaceOptions options{.roughness = 0.6f};
+    options.normal = std::move(normal);
+    const SkBitmap plate = diligent::photograph(
+        diligent::card(material::from(material::Color{0.7f, 0.7f, 0.7f, 1})
+                           .surface(options),
+                       kSide),
+        on.runtime, kSide);
+    double sum = 0;
+    double squares = 0;
+    int count = 0;
+    for (int y = 24; y < 72; ++y)
+      for (int x = 24; x < 72; ++x) {
+        const double grey = plate.getColor4f(x, y).fG;
+        sum += grey;
+        squares += grey * grey;
+        ++count;
+      }
+    const double mean = sum / count;
+    return std::sqrt(std::max(squares / count - mean * mean, 0.0));
+  };
+  const double plain = spread(std::nullopt);
+  const double dressed = spread(material::surface::normalFromHeight(
+      material::field::cellular(6.0f), {.depth = 16.0f}));
+  EXPECT_LT(plain, 0.01);
+  EXPECT_GT(dressed, plain + 0.03) << "the relief turns the shading across it";
 }

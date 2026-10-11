@@ -164,7 +164,13 @@ bright spot; a rough one spreads the same energy wide.
 **Light from everywhere** is the environment's panorama — its cosine
 convolution for the diffuse side, its prefiltered chain at the level the
 roughness picks for the mirrored side — plus every ambient and hemisphere
-light. The split sum's scale and bias come from a table SigilMaterial
+light. The chain is filtered on the device the first time a panorama is
+met: level k is the panorama convolved with the GGX lobe of roughness k
+over the last level, gathered by direction, so a reflection is as wide
+near a pole as at the horizon and a near-mirror resolves a small window
+the panorama holds. A surface whose recipe is
+`surface::Reflection::Additive` mirrors `reflectionWeight` of that
+radiance instead, with no Fresnel and no energy taken from the rest. The split sum's scale and bias come from a table SigilMaterial
 integrates from the same distribution and visibility the lights use
 (`material::environmentBrdfTable`). The single-bounce share and the
 multiply-scattered share together return all of a uniform surround to a
@@ -187,16 +193,23 @@ describe light passing THROUGH the surface, in the glTF physical
 material's terms. It is an optional lobe (`Lobes::transmission`): only a
 surface that states it compiles it. Per pixel:
 
-- the eye's ray is bent at the surface by `ior` (`refraction`), carried
-  `thickness` scene units along the bent direction (`refractedTravel`),
-  and projected back onto the picture, where the frame's **copy of the
-  scene behind** is read — the lit colour as it stood once every body that
-  does not see through itself was drawn. At an index of one, or through a
-  thin wall, the ray carries straight on and what is behind is seen where
-  it stands;
-- where the bent ray lands off the picture, or on something the depth says
-  stands nearer the eye than the surface, the panorama along the bent ray
-  stands in; with no panorama, the nearest part of the picture;
+- the surface is read as a LENS: its front is the surface itself, bent as
+  much as the surface curves where the pixel stands, and its back stands
+  `thickness` behind the front along the normal, curved the same way — a
+  flat card is a slab with a parallel back, a ball as thick as it is wide
+  is a ball. The eye's ray is bent into the medium at the front by `ior`
+  (`refraction`), crosses to the back, is bent again leaving it, and goes
+  on until it meets what the depth says stands there, where the frame's
+  **copy of the scene behind** is read. So a slab shifts what is behind it
+  sideways and keeps its direction, and a ball lens turns what stands far
+  behind it round. At an index of one, or through a thin wall, the ray
+  carries straight on and what is behind is seen where it stands;
+- where the ray lands off the picture, or on something the depth says
+  stands nearer the eye than the surface, the panorama along the ray
+  leaving stands in; with no panorama, the nearest part of the picture;
+- `thicknessAttribute` names an instance scalar that multiplies
+  `thickness` on each copy, so one body of drops of many sizes is as thick
+  as each drop is;
 - a rough surface reads a blurrier level of the copy — its roughness
   scattered by how strongly it bends (`transmissionRoughness`), so an
   index of one blurs nothing;
@@ -211,20 +224,34 @@ surface that states it compiles it. Per pixel:
 - energy: what passes is the share the reflection did not take
   (`transmittedShare` of the split sum's specular albedo), times the
   weight; the diffuse side gives up that weight, and a metal transmits
-  nothing — so reflected and transmitted light never exceed what arrived.
+  nothing — so reflected and transmitted light never exceed what arrived;
+- the reflection is the interface's: head on, what the index reflects
+  (`reflectanceOfIndex`, four per cent at one and a half), times
+  `specular` and its colour, rising at the grazing angle only as far as an
+  interface reflecting so little can. At an index of one there is no
+  interface, so a transmitting body mirrors nothing and the page behind a
+  curved one is seen exactly as behind a flat one.
 
-**One layer of refraction.** One copy of the scene is taken per frame, so
-a transmissive body never sees another through itself: glass behind glass
-shows what stood behind both. Nothing is cast through a transmissive body
-either — no caustic — and it casts no shadow at all (see Shadows).
+**Layers of refraction.** The copy of the scene is taken before the
+first body that sees through itself, and taken again before one standing
+in front of another drawn since the last copy, where the two overlap in
+the picture — so glass behind glass shows both, as deep as the bodies are
+layered, while drops standing side by side on one pane share one copy.
+Nothing is cast through a transmissive body — no caustic — and it casts no
+shadow at all (see Shadows).
 
 **Distortion.** `distortion` (a two-channel DATA map, half-grey still)
 with `distortionStrength` (scene units at the surface) displaces what
-stands behind the surface, read from the same copy, with no light
-involved: the surface's own lit colour is laid over the displaced picture
-by its alpha, so an invisible surface is the displacement alone — heat
-haze, a shockwave. It is the lobe `Lobes::distortion`, carried only with a
-map at a strength other than zero; an unlit surface does not carry it.
+stands behind the surface along the surface's own directions — red the
+way u runs, green the way a normal map's green points — so a map that
+pushes along v on a revolved drop pushes along its radius however the drop
+is turned. It is read from the same copy, with no light involved: the
+surface's own lit colour is laid over the displaced picture by its alpha,
+so an invisible surface is the displacement alone — heat haze, a
+shockwave — and a surface that also transmits has what it passes displaced
+the same way, whatever its alpha. It is the lobe `Lobes::distortion`,
+carried only with a map at a strength other than zero; an unlit surface
+does not carry it.
 
 **Both sides.** A body whose back face is drawn is lit as the side it
 shows.
@@ -243,10 +270,10 @@ looks the same.
 
 | light | its map |
 |---|---|
-| directional | one orthographic map along the light, square across, fitted to what the camera sees of the scene — every body, or the ones within `shadow.distance` of the camera when that is past zero — and deep enough to hold every body between the light and them; its corner snapped to whole texels. With `shadow.cascades` past one, that reach is split along the camera's depth into as many slices — growing with the distance, three parts of the way from even to geometric — each fitted with its own map, so the nearer ones cover less at the same size; a point reads the slice its distance in front of the camera falls in, crossing into the next over the last tenth of it (`shadowCascade`, `shadowCascadeBlend`) |
+| directional | one orthographic map along the light, square across, covering the sphere round what the camera sees — out to `shadow.distance` in front of it when that is past zero — or the scene's own box where that is smaller, and deep enough to hold every body between the light and them; its corner snapped to whole texels in the light's own frame. The sphere's size is the lens's and not the way the camera faces, so the texels stand still in the world as the camera turns and a still shadow's edge does not crawl. With `shadow.cascades` past one, that reach is split along the camera's depth into as many slices — growing with the distance, three parts of the way from even to geometric — each fitted with its own map, so the nearer ones cover less at the same size; a point reads the slice its distance in front of the camera falls in, crossing into the next over the last tenth of it (`shadowCascade`, `shadowCascadeBlend`) |
 | spot | one perspective map from where it stands along its aim, opening a little wider than its cone, reaching its range or the far side of the scene |
 | point | six perspective maps, one along each axis each way; a point is read through the face it stands most squarely in front of |
-| rect, disk | a spot's map from the panel's centre along its face, opening fifty degrees either side of its normal |
+| rect, disk | six perspective maps from the panel's centre, one along its face, one behind it and four across, so its whole front half is covered; a point is read through the face it stands most squarely in front of |
 | sphere | a point light's six maps from its centre |
 | ambient, hemisphere | none: light from everywhere casts nothing |
 
@@ -264,7 +291,8 @@ ITS shadow, exactly as `lightLink` narrows which bodies it lights.
 | opaque, laid over writing depth | yes | yes |
 | dressed with a map or an opacity map | through its coverage: where coverage falls short of one half, nothing | yes |
 | translucent, additive, multiplying, screening, fading, or writing no depth | no | yes, when lit |
-| transmissive or distorting | no | yes |
+| transmissive | it tints: what stands behind it from the light receives the share of the light it lets through — its colour, dimmed by its volume across its thickness, where it transmits | yes |
+| distorting only | no | yes |
 | unlit — its own light | no | no |
 | instanced geometry | every instance | every instance |
 | turned to the camera | the shape the eye sees it at, turned as the camera turns it | yes |
@@ -283,14 +311,27 @@ dressed with a map runs its own program's shadow build, which keeps only
 the pixels its coverage reaches. A pass under no light that casts draws no
 map and binds no atlas.
 
+**What passes through glass.** In a frame where a casting light passes
+through a transmissive body, the stage draws two more images laid out as
+the atlas is: the depth of the nearest transmissive body from each light,
+and the colour every transmissive body nearer the light than what blocks
+it lets through, multiplied together, tested against the map's own depth
+so glass behind a blocker tints nothing. A point standing behind the
+nearest of them takes that colour of the light; one in front of them, or
+where none stands, takes all of it. Both are drawn whole in every frame
+that holds such a body, and the lit programs read them only then
+(`kVariantTintedShadows`).
+
 **What a map costs.** A map is drawn only in a frame where something its
 depth depends on moved — its light, its fit, or a body casting into it —
 and kept otherwise, so a still scene pays for its shadows once. A frame
 that draws one pays for every casting body drawn into it once more and
 for its tile's texels: doubling `shadow.mapSize` quadruples the texels
-written and read, a point light draws six maps and a directional one a
-map per cascade. Reading a map costs every lit pixel nine filtered taps
-per casting light whatever the map's size. A frame timed with
+written and read, a point, sphere, rect or disk light draws six maps and a
+directional one a map per cascade. Reading a map costs every lit pixel nine filtered taps
+per casting light whatever the map's size — or, from a source with a
+width, sixteen texels searched and, where something blocks, twenty-five
+filtered taps. A frame timed with
 `Frame::timeStages` reports the stage as `<pass>.shadow`.
 
 **Filtering.** A shaded point is moved out along its surface's normal,
@@ -299,7 +340,19 @@ texels apart, each blended from the four texels around it — so a shadow's
 edge is soft over about two radii and moves smoothly as the point does.
 Every tap stays inside the light's own tile. A directional map that the
 camera's view cut short fades its shadow out over the last twentieth of
-the map. The terms are `shadowDistance`, `shadowDepthBias`,
+the map.
+
+**A source with a width.** A light whose source is wide — a directional
+or positioned light stating `shadow.size`, and a rect, disk or sphere light
+by its own size — casts a penumbra that widens with the distance between a
+caster and what it shades: the map is searched around the point for what
+blocks it, and the filter spreads, over five taps a side each blended from
+four texels, as wide as that source casts across the distance from the
+blockers found to the point, divided by their distance from the light for
+a perspective map. A shadow is tight where a body rests on the ground and
+wide where it stands far above it, never narrower than `radius` makes it,
+and a point nothing blocks is not filtered at all. The search and the
+filter each reach at most thirty-two texels. The terms are `shadowDistance`, `shadowDepthBias`,
 `shadowNormalOffset`, `shadowTest`, `shadowBilinear`, `shadowTapOffset`,
 `shadowTapWeight`, `shadowAtlasUv`, `shadowEdgeFade` and `shadowed`.
 
@@ -315,6 +368,7 @@ a set of any scale (`LightShadow`, on the light's options as `shadow`):
 | `mapSize` | 2048 | how many texels a side the map has |
 | `distance` | 0 | a directional light's reach in front of the camera; zero fits every body in view |
 | `cascades` | 1 | how many maps a directional light's reach is split into along the camera's depth, at most four |
+| `size` | 0 | how wide the source is: a directional light's angle across the sky in degrees, a point or spot light's diameter in scene units; zero is a point. A rect, disk or sphere light uses its own size |
 
 ## The optional lobes
 
@@ -418,15 +472,13 @@ backdrop and the same sun reflected in a body are one brightness.
 
 ## What it does not do
 
-Shadows are opaque or absent — a transmissive body casts none rather
-than a coloured or partial one — a shadow's softness is the filter's and
-does not widen with the distance from its caster, and a directional
-light's cascades are fitted to the camera's view each frame and are not
-held still as the camera moves. A sized light's shadow is cast from its
-centre, with no widening toward a penumbra its size would make; its
-highlight is a representative point's, not an integral of the lobe over
-it; a sized light has no range and no cone. The environment's
-prefiltered chain is a set of wrap-aware blurs rather than a GGX
-convolution of the panorama — the sheen reads the same chain rather than
-one filtered for its own lobe. A sheen, a brushing and a film are
+A transmissive body's shadow is one colour across it, read off its
+material's numbers — a transmission, attenuation or thickness map does
+not vary it — and a stack's or a recipe's that states no such numbers is
+a clear pane's. A sized light's shadow is cast through maps from its centre, its size
+widening the penumbra the filter draws rather than the maps holding the
+panel's extent; its highlight is a
+representative point's, not an integral of the lobe over it; a sized light
+has no range and no cone. The sheen reads the GGX chain
+rather than one filtered for its own lobe. A sheen, a brushing and a film are
 single-scattering terms with no energy put back of their own.

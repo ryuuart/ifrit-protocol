@@ -106,16 +106,92 @@ std::shared_ptr<const Recipe> make(Blend blend) {
           .body(Target::SkSL, std::string(shaderSource(skslFile(blend)))));
 }
 
+/** Whether @p body spells @p name as a WHOLE IDENTIFIER, so a `low`
+ *  inside `lowEdge` is a different name. */
+bool spells(std::string_view body, std::string_view name) {
+  const auto part = [](char c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+           (c >= '0' && c <= '9') || c == '_';
+  };
+  for (size_t at = body.find(name); at != std::string_view::npos;
+       at = body.find(name, at + 1)) {
+    if (at > 0 && part(body[at - 1])) continue;
+    const size_t end = at + name.size();
+    if (end < body.size() && part(body[end])) continue;
+    return true;
+  }
+  return false;
+}
+
+/** @p text with its comments taken out, so the composed body spells only
+ *  what its code names: a slot or a lobe a comment mentions is not one
+ *  the stack reads. The text carries no string a comment marker could
+ *  stand inside. */
+std::string uncommented(const std::string& text) {
+  std::string out;
+  out.reserve(text.size());
+  for (size_t at = 0; at < text.size();) {
+    if (text.compare(at, 2, "//") == 0) {
+      const size_t end = text.find('\n', at);
+      at = end == std::string::npos ? text.size() : end;
+      continue;
+    }
+    if (text.compare(at, 2, "/*") == 0) {
+      const size_t end = text.find("*/", at + 2);
+      at = end == std::string::npos ? text.size() : end + 2;
+      out += ' ';
+      continue;
+    }
+    out += text[at++];
+  }
+  return out;
+}
+
 /** The names one operand's body spells that the composed recipe declares
- *  under a prefix: its parameters and its sampled slots. They are the
- *  one set another operand's declarations can collide with, because a
- *  frame input is spelled the same by every recipe and shared, and
- *  everything else a body names it defines itself. */
+ *  under a prefix: its parameters and the sampled slots its body reads.
+ *  They are the one set another operand's declarations can collide with,
+ *  because a frame input is spelled the same by every recipe and shared,
+ *  and everything else a body names it defines itself. A slot the body
+ *  never reads is left out, so the stack declares no slot an operand
+ *  does not sample. */
 std::vector<std::string> renamed(const Recipe& recipe) {
   std::vector<std::string> names;
   for (const Field& f : recipe.parameters().fields) names.push_back(f.name);
-  for (const std::string& slot : recipe.slots()) names.push_back(slot);
+  const std::string body = uncommented(*recipe.body(Target::Slang));
+  for (const std::string& slot : recipe.slots())
+    if (spells(body, slot)) names.push_back(slot);
   return names;
+}
+
+/** THE OPTIONAL LOBES, by the variable whose writing states each one and
+ *  the mark its text stands between in the prelude. */
+struct OverLobe {
+  std::string_view variable;
+  std::string_view mark;
+};
+constexpr OverLobe kOverLobes[] = {
+    {"gSurfaceSheenColor", "sheen"},
+    {"gSurfaceAnisotropy", "anisotropy"},
+    {"gSurfaceIridescence", "iridescence"},
+    {"gSurfaceSpecular", "specular"},
+    {"gSurfaceTransmission", "transmission"},
+    {"gSurfaceDistortion", "distortion"},
+};
+
+/** The text between `// <mark> {` and `// } <mark>`, its two marking
+ *  lines included, taken out of @p text wherever it stands. */
+void strike(std::string& text, std::string_view mark) {
+  const std::string open = "// " + std::string(mark) + " {";
+  const std::string close = "// } " + std::string(mark);
+  for (size_t at = text.find(open); at != std::string::npos;
+       at = text.find(open, at)) {
+    const size_t start = text.rfind('\n', at);
+    const size_t end = text.find(close, at);
+    if (end == std::string::npos) return;
+    const size_t after = text.find('\n', end);
+    const size_t from = start == std::string::npos ? 0 : start;
+    text.erase(from, (after == std::string::npos ? text.size() : after) - from);
+  }
 }
 
 /** ONE OPERAND'S BODY, INLINED. Its uniforms and its slots are the
@@ -158,10 +234,20 @@ std::string inlined(const Recipe& recipe, const Operand& operand) {
  *  under their own names, and the surface that asks all three and
  *  combines what they said. */
 std::string composedSlang(Blend blend, const Recipe* operands[3]) {
+  // A lobe is mixed by the mask only where an operand states it; a stack
+  // of operands that state none carries none.
   std::string out(shaderSource("OverPrelude.slang"));
+  for (const OverLobe& lobe : kOverLobes) {
+    bool stated = false;
+    for (int i = 0; i < 3; ++i)
+      stated =
+          stated || operands[i]->body(Target::Slang)->find(lobe.variable) !=
+                        std::string::npos;
+    if (!stated) strike(out, lobe.mark);
+  }
   for (int i = 0; i < 3; ++i) out += inlined(*operands[i], kOperands[i]);
   out += shaderSource(slangFile(blend));
-  return out;
+  return uncommented(out);
 }
 
 /** The composed recipe for @p blend over these three definitions: the

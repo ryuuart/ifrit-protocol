@@ -38,8 +38,12 @@ and nothing of the engine.
   opaque one only; then, in a frame holding a body that SEES THROUGH
   ITSELF — one whose surface transmits or distorts — it copies the lit
   colour, deriving a chain of smaller levels each the average of the one
-  above, and the depth, and draws those bodies back to front reading that
-  one copy; then the blended ones — added, multiplied, screened, writing
+  above as deep as the roughest of those bodies reads — none where every
+  one is smooth — and the depth, and draws those bodies back to front reading that
+  copy — copying again before one that stands in front of another drawn
+  since the last copy where the two overlap in the picture, so a
+  transmissive body sees the transmissive bodies behind it; then the
+  blended ones — added, multiplied, screened, writing
   no depth by their own say, or fading into the scene — back to front
   over them all, each in the blend state its surface names. A body that
   fades reads the depth copied for the bodies that see through
@@ -47,9 +51,8 @@ and nothing of the engine.
   body is in the frame. So the phases are: laid over; copy; seen through;
   blended — and a frame with nothing that sees through itself copies
   nothing and draws laid over, then blended, as it would without the
-  middle phase. A transmissive body sees the opaque scene, never another
-  transmissive body nor a blended one; a glow standing behind glass is
-  not seen through it. The order and the depth buffer agree wherever the
+  middle phase. A transmissive body never sees a blended one; a glow
+  standing behind glass is not seen through it. The order and the depth buffer agree wherever the
   view's centroid sort is right, and where it is not the depth buffer is
   the one telling the truth.
 - a **compute pass** cooks its chain on the DEVICE when the whole of it
@@ -157,7 +160,8 @@ specialised on the kinds of light that reach the body —
 `kVariantAreaLights` when one of them has a size,
 `kVariantCascadedShadows` when one is read through a directional light's
 cascades, `kVariantPointShadows` when one is read through a point light's
-six faces — so a program holds the code of the lights it is drawn under
+six faces, `kVariantTintedShadows` when a casting light passes through a
+transmissive body in the frame — so a program holds the code of the lights it is drawn under
 and no other. Which build a body is drawn
 with is the body's own answer as much as the pass's — a surface that is
 its own light takes the unlit one whatever the pass asked for. The mesh vertex layout is not a
@@ -354,8 +358,13 @@ adds to it:
   Slang body out of its three operands' own bodies, so both surfaces are
   evaluated and their colours mixed by the mask, and what each of them
   said per pixel — a normal, a roughness, a metal weight, an occlusion,
-  a coat — is mixed by the same coverage, so a top wearing a normal map
-  bumps the surface only where the mask lets the top show. A stack whose
+  a coat, and each optional lobe an operand states, its sheen, brushing,
+  film, specular, transmission or distortion — is mixed by the same
+  coverage, so a top wearing a normal map bumps the surface only where
+  the mask lets the top show and a sheened top shines only as far as it
+  shows. A stack carries only the lobes its operands state, and one whose
+  operand transmits or distorts is drawn among the bodies that see
+  through themselves. A stack whose
   operands do not all have a Slang body is not composed and is drawn as
   the surface at the bottom of it.
 - **a stack running its own body owns every map in it.** The frame
@@ -367,11 +376,11 @@ adds to it:
   than where the mask says.
 - `alphaCutoff` turns the opacity map into a CUTOUT — below the
   threshold the surface is absent rather than translucent.
-- a surface program declares ten sampled slots and the scaffold six of
-  its own — the base-colour map, the two panoramas and their two
-  convolutions, and the split sum's table — which is the sixteen a
-  fragment program may declare. A stack of two surface programs is over
-  that budget and is reported as such.
+- a program declares only the sampled slots its body reads: a surface
+  the maps of the lobes it carries, a stack each operand's own — none a
+  comment or an unstated lobe only names — beside the scaffold's, the
+  base-colour map, the scene's depth, the shadow atlas, the two panoramas
+  and their two convolutions, and the split sum's table.
 - a foreign texture — one another engine, a decoder or a capture painted
   with the graphics API — reaches a slot through
   `diligent::importNative`, and is bound where it stands. It answers no

@@ -150,6 +150,52 @@ void BM_FrameOnDevice(benchmark::State& state) {
 }
 BENCHMARK(BM_FrameOnDevice)->Unit(benchmark::kMillisecond);
 
+/** A WIDE BLOOM ON A FULL-SIZE FRAME, steady state: one point brighter
+ *  than white on a 1440 by 960 frame, bloomed at a radius most of the
+ *  frame wide, so what is timed is the chain of reduced levels the spread
+ *  is taken at rather than taps at full size. */
+void BM_WideBloomOnDevice(benchmark::State& state) {
+  const device::DeviceConfig config;
+  std::string error;
+  std::unique_ptr<device::Device> gpu = device::Device::create(config, &error);
+  if (!gpu) {
+    state.SkipWithError(error);
+    return;
+  }
+  namespace gm = ::sigil::geometry::mesh;
+  const Runtime runtime = diligent::runtime(*gpu);
+  motion::Engine engine;
+  Scene scene(engine);
+  const Group set =
+      group({mesh(gm::quad(4, 4))
+                 .key("spark")
+                 .fill(material::from(material::Color{0, 0, 0, 1})
+                           .surface({.metallic = 1.0f,
+                                     .emission = {1.0f, 0.8f, 0.6f, 1},
+                                     .emissionStrength = 6.0f}))})
+          .key("set");
+  geometry::mesh::camera::Camera camera;
+  camera.eye = {0, 0, 200};
+  Frame frame(set);
+  frame.extent({1440, 960})
+      .defaultCamera(camera)
+      .runtime(runtime)
+      .pass(geometryPass("colour").writes("colour"))
+      .pass(postPass("bloom").reads("colour").writes("bloom").bloom(
+          {.threshold = 1.0f,
+           .intensity = 1.0f,
+           .radius = (float)state.range(0)}));
+  scene.render(frame);
+  for ([[maybe_unused]] auto iteration : state) {
+    engine.advance(engine.elapsed() + motion::Duration(1.0 / 60.0));
+    scene.render(frame);
+  }
+}
+BENCHMARK(BM_WideBloomOnDevice)
+    ->Arg(64)
+    ->Arg(1200)
+    ->Unit(benchmark::kMillisecond);
+
 /** A CHAIN COOKED ON THE DEVICE, steady state: the generator's lanes
  *  uploaded, one dispatch per operator, and the one readback that brings
  *  every lane home. The readback is in the number on purpose — a cook

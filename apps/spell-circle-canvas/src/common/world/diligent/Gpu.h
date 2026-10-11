@@ -224,11 +224,15 @@ struct Gpu {
    *  samples, rather than the colour format the engine would choose. */
   dg::RefCntAutoPtr<dg::ITextureView> opaqueDepthView;
   /** THE SCENE BEHIND A SURFACE THAT SEES THROUGH ITSELF: the frame's lit
-   *  colour as it stood once every body that does not was drawn, with the
-   *  full chain of smaller levels below it, each the average of the one
-   *  above, so a rough surface reads a blurrier picture. Made on the first
+   *  colour as it stood once every body that does not was drawn, with room
+   *  for the full chain of smaller levels below it, each the average of the
+   *  one above, so a rough surface reads a blurrier picture; a frame
+   *  derives only as many as its roughest such surface reads. Made on the first
    *  frame that holds such a surface. */
   dg::RefCntAutoPtr<dg::ITexture> sceneColor;
+  /** Views of its first so many levels, by how many, made on the first
+   *  ask. */
+  std::vector<dg::RefCntAutoPtr<dg::ITextureView>> sceneColorViews;
   /** What a display reads: the final stage's eight-bit picture of the
    *  resource last read, made on the first ask. */
   dg::RefCntAutoPtr<dg::ITexture> display;
@@ -287,6 +291,17 @@ struct Gpu {
     dg::RefCntAutoPtr<dg::ITexture> texture;
   };
   std::vector<Reduced> reduced;
+  /** THE PANORAMAS A SURFACE MIRRORS, each filtered here for the lobe it
+   *  is read by: the uploaded chain it was made from, held so the address
+   *  cannot be reused while it stands for this one, the chain made from
+   *  it, and the frame it was last asked for in. */
+  struct Prefiltered {
+    dg::RefCntAutoPtr<dg::ITexture> source;
+    dg::RefCntAutoPtr<dg::ITexture> chain;
+    uint64_t used = 0;
+  };
+  std::vector<Prefiltered> prefiltered;
+  uint64_t framesBegun = 0;
   /** Whether the device draws into the packed three-channel float format
    *  a bloom's spreads are held in; asked once. */
   int packedLight = -1;
@@ -298,6 +313,17 @@ struct Gpu {
   /** …read through a view of the depth format itself. */
   dg::RefCntAutoPtr<dg::ITextureView> shadowAtlasView;
   int shadowAtlasSide = 0;
+  /** WHAT OF EACH CASTING LIGHT A TRANSMISSIVE BODY LETS THROUGH, beside
+   *  the atlas and laid out as it is: the colour that comes through, one
+   *  where nothing transmissive stands in front of what blocks the light,
+   *  and the depth of the nearest transmissive body, which says what lies
+   *  behind it. Drawn in a frame where a casting light passes through one,
+   *  and `shadowTinted` says so. */
+  dg::RefCntAutoPtr<dg::ITexture> shadowTint;
+  dg::RefCntAutoPtr<dg::ITexture> shadowGlass;
+  dg::RefCntAutoPtr<dg::ITextureView> shadowGlassView;
+  int shadowTintSide = 0;
+  bool shadowTinted = false;
   /** The maps the geometry pass under way drew, empty when no light in it
    *  casts. */
   std::vector<ShadowMap> shadows;
@@ -381,11 +407,28 @@ struct Gpu {
   /** The copy of the lit colour a surface that sees through itself
    *  reads, made on the first ask; null where the device refused it. */
   dg::ITexture* sceneColorForReading();
+  /** A view of that copy's first @p count levels, through which those and
+   *  no more are derived; null where the device refused it. */
+  dg::ITextureView* sceneColorLevels(int count);
   /** The shadow atlas at @p side texels or more a side, made on the first
    *  ask and again when a larger one is asked for; null where the device
    *  refused it. */
   dg::ITexture* shadowAtlasAt(int side);
+  /** The tint and the nearest transmissive depth beside an atlas of
+   *  @p side texels, made on the first ask and again at another side;
+   *  false where the device refused them. */
+  bool shadowTintAt(int side);
 };
+
+/** THE PANORAMA @p uploaded FILTERED FOR THE LOBE IT IS READ BY: a chain
+ *  of the same size and levels whose level k holds what a surface of
+ *  roughness k over the last level mirrors — the sharpest level the
+ *  panorama itself, every other its convolution with the GGX lobe of that
+ *  roughness, gathered by direction so it is as wide at a pole as at the
+ *  horizon. Made on the device the first time a panorama is asked for and
+ *  kept while it is asked for; the panorama itself where the device
+ *  refuses. */
+dg::ITexture* prefilteredPanorama(Gpu& gpu, dg::ITexture* uploaded);
 
 /** The number the programs read a tone curve by. */
 float curveNumber(ToneCurve curve);

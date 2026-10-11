@@ -275,6 +275,49 @@ TEST(PostChain, ABloomOfOneBrightPointSpreadsAsFarAsAtFullSize) {
   EXPECT_LE(worstAgainst(glowing, expected, kExposure), 8);
 }
 
+TEST(PostChain, ABloomKeepsWideningPastAFullSizeBlursReach) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  constexpr float kExposure = 0.1f;
+  // A small patch bright enough that its light spread most of the frame
+  // wide still reads above the picture's quantisation.
+  const std::vector<Node> lamp = {
+      mesh(gm::quad(6, 6))
+          .key("lamp")
+          .fill(material::from(material::Color{0, 0, 0, 1})
+                    .surface({.metallic = 1.0f,
+                              .emission = {1.0f, 1.0f, 1.0f, 1},
+                              .emissionStrength = 4000.0f}))};
+  const SkBitmap plain = photographed(lamp, on.runtime, kExposure);
+  const Radiance light = lightOf(plain, kExposure);
+  const int row = light.height / 2;
+  // How far out along the row through the point the bloom adds light:
+  // the root of the mean squared distance its added light stands at.
+  const auto reach = [&](float radius) {
+    const SkBitmap glowing = photographed(
+        lamp, on.runtime, kExposure,
+        {bloom({.threshold = 1.0f, .intensity = 1.0f, .radius = radius})});
+    float sum = 0.0f;
+    float moment = 0.0f;
+    for (int x = 0; x < light.width; ++x) {
+      const float d = (float)(x - light.width / 2);
+      if (std::abs(d) < 8.0f) continue;
+      const float shown =
+          decoded(SkColor4f::FromColor(glowing.getColor(x, row)).fR) /
+          kExposure;
+      const float added = std::max(shown - light.at(x, row, 0), 0.0f);
+      sum += added;
+      moment += added * d * d;
+    }
+    return sum > 0 ? std::sqrt(moment / sum) : 0.0f;
+  };
+  // Both radii past what one blur at full size could spread.
+  const float wide = reach(120.0f);
+  const float wider = reach(400.0f);
+  EXPECT_GT(wide, 10.0f);
+  EXPECT_GT(wider, wide * 1.2f) << wide << " " << wider;
+}
+
 // ---- the device's clock --------------------------------------------------
 
 namespace {
@@ -395,4 +438,89 @@ TEST(PostChain, AFrameNothingReadsTheSceneFromCopiesNothing) {
     named += stage.stage + " ";
   EXPECT_TRUE(hasStage(faded, "colour.depth-copy")) << named;
   EXPECT_FALSE(hasStage(faded, "colour.mips"));
+}
+
+TEST(PostChain, ASmoothPaneDerivesNoSmallerLevelsOfTheScene) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  const auto stagesOf = [&](float roughness) {
+    std::vector<Node> content = patchwork();
+    content.push_back(mesh(gm::quad(60, 60))
+                          .key("pane")
+                          .at({0, 0, 20})
+                          .fill(material::from(material::Color{1, 1, 1, 1})
+                                    .surface({.roughness = roughness,
+                                              .transmission = 1.0f,
+                                              .ior = 1.5f})));
+    content.push_back(camera(diligent::levelEye()).key("camera"));
+    Frame frame(group(std::move(content)).key("set"));
+    frame.extent(kExtent)
+        .runtime(on.runtime)
+        .timeStages(true)
+        .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack));
+    motion::Engine engine;
+    Scene scene(engine);
+    double longest = 0.0;
+    return SceneStats(timedUntilRead(scene, frame, &longest));
+  };
+  const SceneStats smooth = stagesOf(0.0f);
+  if (smooth.deviceTiming == DeviceTiming::Unavailable)
+    GTEST_SKIP() << "the device writes no timestamps";
+  ASSERT_EQ(smooth.deviceTiming, DeviceTiming::Measured);
+  EXPECT_TRUE(hasStage(smooth, "colour.colour-copy"));
+  EXPECT_FALSE(hasStage(smooth, "colour.mips"))
+      << "a smooth pane reads level 0";
+  const SceneStats rough = stagesOf(0.6f);
+  EXPECT_TRUE(hasStage(rough, "colour.mips")) << "a rough one reads below it";
+}
+
+TEST(PostChain, TheLaidPhaseCostsWhatIsSeenNotWhatIsDrawn) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // The device time of the phase that lays the opaque bodies over, at a
+  // full-size frame: the least of a few timed frames, so a frame the
+  // device was slow to start does not decide it.
+  const auto laid = [&](int cards, bool shadowed) {
+    std::vector<Node> content;
+    for (int i = 0; i < cards; ++i)
+      content.push_back(
+          mesh(gm::quad(400, 400))
+              .key("card" + std::to_string(i))
+              .at({0, 0, -2.0f * (float)i})
+              .fill(material::surface::program(
+                  {.baseColor = {0.5f, 0.5f, 0.5f, 1}, .roughness = 0.5f})));
+    content.push_back(
+        directionalLight({-0.2f, -0.3f, -1}, {.castShadow = shadowed})
+            .key("sun"));
+    content.push_back(camera(diligent::levelEye()).key("camera"));
+    Frame frame(group(std::move(content)).key("set"));
+    frame.extent({1440, 960})
+        .runtime(on.runtime)
+        .timeStages(true)
+        .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack));
+    motion::Engine engine;
+    Scene scene(engine);
+    double least = 1e9;
+    bool measured = false;
+    for (int k = 0; k < 6; ++k) {
+      double longest = 0.0;
+      const SceneStats stats = timedUntilRead(scene, frame, &longest);
+      measured = measured || stats.deviceTiming == DeviceTiming::Measured;
+      for (const DeviceStage& stage : stats.deviceStages)
+        if (stage.stage == "colour.laid") least = std::min(least, stage.ms);
+    }
+    return measured ? least : -1.0;
+  };
+  const double one = laid(1, false);
+  if (one < 0) GTEST_SKIP() << "the device writes no timestamps";
+  const double sixteen = laid(16, false);
+  const double shadowed = laid(1, true);
+  RecordProperty("oneCardMs", std::to_string(one));
+  RecordProperty("sixteenCardsMs", std::to_string(sixteen));
+  RecordProperty("oneShadowedCardMs", std::to_string(shadowed));
+  // Sixteen cards over one another cost about what the one in front does:
+  // the device does not shade what is hidden.
+  EXPECT_LT(sixteen, one * 2.5) << one << " " << sixteen;
+  // A casting light's filter is a bounded share of a lit pixel.
+  EXPECT_LT(shadowed, one * 4.0) << one << " " << shadowed;
 }

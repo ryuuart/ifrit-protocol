@@ -5,6 +5,7 @@
  */
 
 #include <sigilmaterial/advanced/Program.h>  // reportOnce
+#include <sigilmaterial/core/Instance.h>
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/Texture.h>
@@ -90,6 +91,8 @@ Material lower(const Material& material) {
   parameters.transmission = factor(stated.transmission);
   parameters.ior = stated.ior;
   parameters.thickness = factor(stated.thickness);
+  parameters.thicknessAttribute =
+      instanceAttributeKey(stated.thicknessAttribute);
   parameters.attenuationColor = stated.attenuationColor;
   parameters.attenuationDistance = stated.attenuationDistance;
   parameters.dispersion = stated.dispersion;
