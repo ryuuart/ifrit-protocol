@@ -192,10 +192,9 @@ coverage-derived bevel and drop shadow, so the sheet's own paint is
 re-recorded over the whole canvas each frame and a `Cache::Texture` over
 the rete's engraving bakes nothing. Compose's retained drawing of a
 coverage decoration under a moving child should let the unchanged parts
-hold while the mover is composited, or state that a turning sheet is not
-bakeable. A test should bench a full-canvas sheet with a coverage shadow
-over one turning child and find its frame within a small multiple of the
-child's own cost; the plate moves whichever way is chosen.
+hold while the mover is composited. A test should bench a full-canvas
+sheet with a coverage shadow over one turning child and find its frame
+within a small multiple of the child's own cost; the plate moves.
 
 ## `text_paints::sparkle`'s cells follow the run's extent, and no test binary can hold that
 
