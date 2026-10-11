@@ -39,6 +39,10 @@ def erased_annotation(node: ast.AST | None) -> bool:
     # An optional parameter keeps the erasure of the type it makes optional.
     if text.endswith(" | None"):
         return erased_annotation(expression(text.removesuffix(" | None")))
+    # A run of an erased element is erased too, however deeply it is nested.
+    for wrapper in ("collections.abc.Sequence[", "list["):
+        if text.startswith(wrapper) and text.endswith("]"):
+            return erased_annotation(expression(text[len(wrapper) : -1]))
     return any(
         token in text for token in ("typing.Any", "...", "os.PathLike |")
     ) or text in {
