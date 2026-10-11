@@ -60,6 +60,7 @@ from _sigil.compose import (
     TextJustify,
     TextPath,
     TextSettling,
+    TextShadow,
     TextWrap,
     Track,
     VarRef,
@@ -102,6 +103,7 @@ from _sigil.compose import (
     stack,
     stroke,
     text,
+    textStyleOf,
     var,
 )
 
@@ -199,6 +201,7 @@ __all__ = [
     "TextJustify",
     "TextPath",
     "TextSettling",
+    "TextShadow",
     "TextWrap",
     "Track",
     "VarRef",
@@ -263,6 +266,7 @@ __all__ = [
     "styles",
     "text",
     "textFx",
+    "textStyleOf",
     "tiles",
     "var",
 ]

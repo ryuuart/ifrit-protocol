@@ -77,7 +77,44 @@ sk_sp<SkMaskFilter> shadowBlurOf(float sigma) {
   return made;
 }
 
+/** The stand-ins, one per property, in both directions. */
+struct ShadowPropertyMarkers {
+  std::mutex guard;
+  std::map<uint32_t, std::shared_ptr<const material::Material>> byProperty;
+  std::map<const material::Material*, uint32_t> byMarker;
+};
+
+ShadowPropertyMarkers& shadowPropertyMarkers() {
+  static ShadowPropertyMarkers markers;
+  return markers;
+}
+
 }  // namespace
+
+std::shared_ptr<const material::Material> detail::shadowPropertyMarker(
+    VarRef property) {
+  ShadowPropertyMarkers& markers = shadowPropertyMarkers();
+  const std::lock_guard<std::mutex> lock(markers.guard);
+  std::shared_ptr<const material::Material>& held =
+      markers.byProperty[property.id];
+  if (!held) {
+    // Clear, so a stand-in the cascade never reached paints nothing.
+    held =
+        std::make_shared<const material::Material>(material::Color{0, 0, 0, 0});
+    markers.byMarker[held.get()] = property.id;
+  }
+  return held;
+}
+
+std::optional<VarRef> detail::shadowPropertyOf(
+    const std::shared_ptr<const material::Material>& material) {
+  if (!material) return std::nullopt;
+  ShadowPropertyMarkers& markers = shadowPropertyMarkers();
+  const std::lock_guard<std::mutex> lock(markers.guard);
+  const auto found = markers.byMarker.find(material.get());
+  if (found == markers.byMarker.end()) return std::nullopt;
+  return VarRef{found->second};
+}
 
 template <class Derived>
 Derived& FontVerbs<Derived>::font(sigil::weave::Type partial) {
@@ -157,18 +194,23 @@ template <class Derived>
 Derived& FontVerbs<Derived>::textShadow(std::vector<TextShadow> shadows) {
   // The underlays are drawn back to front and CSS draws its first shadow
   // nearest the glyph, so the list is laid down in reverse. A pass whose
-  // colour is transparent is drawn in the colour its glyph is painted in.
+  // colour is transparent is drawn in the colour its glyph is painted in,
+  // which is the ink in force; one naming a property carries its stand-in
+  // until the cascade reads the property where the shadow is stated.
   std::vector<sigil::weave::PaintLayer> passes;
   passes.reserve(shadows.size());
   for (auto shadow = shadows.rbegin(); shadow != shadows.rend(); ++shadow) {
+    const ColorTerm& colour = shadow->color;
     // A shadow stated clear draws nothing, and a clear pass would read as
     // the glyph's own colour.
-    if (shadow->color && shadow->color->a <= 0) continue;
+    if (!colour.references() && colour.a <= 0) continue;
     sigil::weave::PaintLayer pass;
-    pass.paint.setColor4f(shadow->color
-                              ? material::skia::toSkColor(*shadow->color)
-                              : SkColor4f{0, 0, 0, 0},
+    pass.paint.setColor4f(colour.references()
+                              ? SkColor4f{0, 0, 0, 0}
+                              : material::skia::toSkColor(colour),
                           nullptr);
+    if (colour.ref == Fill::Ref::Var)
+      pass.material = detail::shadowPropertyMarker(VarRef{colour.varId});
     if (shadow->blur > 0) pass.paint.setMaskFilter(shadowBlurOf(shadow->blur));
     pass.offset = shadow->offset;
     passes.push_back(std::move(pass));

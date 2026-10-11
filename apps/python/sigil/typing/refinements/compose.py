@@ -98,6 +98,10 @@ def registerFont(table: _Returning, node: str) -> None:
     # A style, or a bare number of degrees, which is the oblique of that lean.
     table.erased(node, "fontStyle", "FontStyle | _t.FloatLike")
     table.erased(node, "ink", "_t.ElementInkLike")
+    # One shadow, or any iterable of them, the first drawn nearest the glyph.
+    table.erased(
+        node, "textShadow", "TextShadow | collections.abc.Iterable[TextShadow]"
+    )
 
 
 def registerDeclarations(table: _Returning, node: str) -> None:
@@ -248,6 +252,10 @@ def layout(scheme: _t.OperatorLike, children: collections.abc.Iterable[_t.NodeLi
     table.erased("_sigil.compose.PathFormat", "strokeFill", "_t.FillLike")
     table.erased("_sigil.compose.Shadow", "ink", "_t.FillLike")
     table.erased("_sigil.compose.Shadow", "offset", "_t.PointLike")
+    # A glyph's shadow is coloured by a colour term: a colour, the ink in
+    # force or a custom property, never a paint.
+    table.erased("_sigil.compose.TextShadow", "offset", "_t.PointLike")
+    table.erased("_sigil.compose.TextShadow", "color", "_t.FillLike")
     table.erased("_sigil.compose.Shape", "__init__", "_t.ShapeLike")
     table.erased("_sigil.compose", "shadow", "_t.FillLike", "_t.PointLike")
     table.erased("_sigil.compose", "shape", "_t.ShapeLike")

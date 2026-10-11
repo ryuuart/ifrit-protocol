@@ -295,8 +295,9 @@ inset are inherited length properties that a theme can override.
 drawn with its glyph, beneath it, so a `textFx()` track that fades, tints
 or deforms the glyph takes the shadow along, and a blurred shadow is
 rasterised once per glyph and size rather than over the passage's box. A
-shadow naming no colour is the colour its glyph is painted in. It inherits
-as the font does. A shadow, glow or bevel among an ink material's effects
+shadow naming no colour is the colour its glyph is painted in; one naming a
+custom property, `ColorTerm::var(name)`, reads it where the shadow is
+stated. It inherits as the font does. A shadow, glow or bevel among an ink material's effects
 dresses the node's outline instead, the glyphs at rest under
 `Boundary::Glyphs`.
 

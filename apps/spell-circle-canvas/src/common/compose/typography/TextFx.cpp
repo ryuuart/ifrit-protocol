@@ -12,6 +12,7 @@
  */
 
 #include <sigilcompose/typography/TextEffect.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Tween.h>
 #include <sigilweave/unicode/Unicode.h>
 
@@ -21,7 +22,6 @@
 #include <vector>
 
 #include "TextEngine.h"
-#include <sigilmotion/ease/Ease.h>
 
 namespace sigil::compose {
 
@@ -131,7 +131,13 @@ void appendStopParameters(std::vector<float>& out, const GlyphModifier& m) {
                          m.skewXDeg,
                          m.skewYDeg,
                          (float)m.codepoint,
-                         m.axis ? 1.0f : 0.0f});
+                         m.axis ? 1.0f : 0.0f,
+                         (float)(int)m.colorMultiplier.ref,
+                         (float)m.colorMultiplier.varId,
+                         (float)(int)m.colorAdd.ref,
+                         (float)m.colorAdd.varId,
+                         (float)(int)m.colorScreen.ref,
+                         (float)m.colorScreen.varId});
   const sigil::weave::FontVariation axis =
       m.axis.value_or(sigil::weave::FontVariation());
   for (const char byte : axis.tag) out.push_back((float)(unsigned char)byte);
@@ -204,21 +210,36 @@ TextEffect tween(motion::Tween<GlyphModifier> description) {
   appendStopParameters(parameters, shape.from->value());
   for (const motion::Keyframe<GlyphModifier>& step : shape.keyframes) {
     appendStopParameters(parameters, step.to);
-    parameters.push_back(total > motion::Duration{}
-                             ? (float)(*step.duration / total)
-                             : 0.0f);
+    parameters.push_back(
+        total > motion::Duration{} ? (float)(*step.duration / total) : 0.0f);
     curves.push_back(step.ease);
     reach = std::max(reach, stopReach(step.to));
     displaces |= stopDisplaces(step.to);
   }
 
+  // A stop naming the ink in force or a custom property is read for the
+  // glyph before the path is walked, so the walk runs between colours.
+  const auto refers = [](const GlyphModifier& stop) {
+    return stop.colorMultiplier.references() || stop.colorAdd.references() ||
+           stop.colorScreen.references();
+  };
+  bool readsColors = refers(shape.from->value());
+  for (const motion::Keyframe<GlyphModifier>& step : shape.keyframes)
+    readsColors |= refers(step.to);
+
   return TextEffect(
       "tween", std::move(parameters),
-      [shape = std::move(shape), total](const GlyphInfo&, float t,
-                                        core::noise::Mix64Stream&) {
+      [shape = std::move(shape), total, readsColors](
+          const GlyphInfo& glyph, float t, core::noise::Mix64Stream&) {
         // The whole path is one unit of local progress, whatever the
         // tween's own length: the track's schedule says when a unit runs.
-        return shape.at(total * (double)std::clamp(t, 0.0f, 1.0f));
+        const motion::Duration at = total * (double)std::clamp(t, 0.0f, 1.0f);
+        if (!readsColors) return shape.at(at);
+        motion::Tween<GlyphModifier> read = shape;
+        read.from = TextEffect::resolvedColors(shape.from->value(), glyph);
+        for (motion::Keyframe<GlyphModifier>& step : read.keyframes)
+          step.to = TextEffect::resolvedColors(step.to, glyph);
+        return read.at(at);
       },
       reach, std::move(curves), displaces);
 }
@@ -245,8 +266,7 @@ TextEffect tintToTheInk(const material::Color& from,
   std::vector<float> parameters{from.r, from.g, from.b, from.a, -1.0f};
   return TextEffect(
       "tint", std::move(parameters),
-      [weight = std::move(weight), total, from](const GlyphInfo& glyph,
-                                                float t,
+      [weight = std::move(weight), total, from](const GlyphInfo& glyph, float t,
                                                 core::noise::Mix64Stream&) {
         const float amount =
             weight.at(total * (double)std::clamp(t, 0.0f, 1.0f));
@@ -295,8 +315,8 @@ TextEffect tint(motion::Tween<material::Color> description) {
     const motion::Duration share =
         length / (double)description.keyframes.size();
     for (const motion::Keyframe<material::Color>& step : description.keyframes)
-      shape.keyframes.push_back({multiplierFor(step.to),
-                                 step.duration.value_or(share), step.ease});
+      shape.keyframes.push_back(
+          {multiplierFor(step.to), step.duration.value_or(share), step.ease});
   }
   motion::Duration total{};
   for (const motion::Keyframe<material::Color>& step : shape.keyframes)
@@ -312,7 +332,8 @@ TextEffect tint(motion::Tween<material::Color> description) {
   std::vector<float> parameters{start.r, start.g, start.b, start.a};
   std::vector<motion::Easing> curves{description.ease};
   const auto appendColor = [&parameters](const material::Color& colour) {
-    parameters.insert(parameters.end(), {colour.r, colour.g, colour.b, colour.a});
+    parameters.insert(parameters.end(),
+                      {colour.r, colour.g, colour.b, colour.a});
   };
   if (description.keyframes.empty()) {
     appendColor(rest);

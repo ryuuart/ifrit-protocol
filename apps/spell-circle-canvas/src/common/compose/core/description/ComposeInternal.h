@@ -811,6 +811,15 @@ void warnRuleCannotState(Property property);
  *  paint on, so the paint is stretched over `PaintBox::Element`. */
 void warnInkTextUnitNeedsAPassage();
 
+/** THE STAND-IN A GLYPH SHADOW NAMING A CUSTOM PROPERTY carries as its
+ *  pass's material until the cascade reads the property where the shadow
+ *  is stated: one per property, so a shadow described again compares
+ *  equal. */
+std::shared_ptr<const material::Material> shadowPropertyMarker(VarRef property);
+/** The property @p material stands in for, where it is such a stand-in. */
+std::optional<VarRef> shadowPropertyOf(
+    const std::shared_ptr<const material::Material>& material);
+
 /** The once-per-property diagnostic behind a memo's shell carrying
  *  something other than its key and how its recording is held: the
  *  shell's look is what the deferred describe produces, so the rest is

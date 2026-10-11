@@ -117,6 +117,21 @@ void bindFontVerbs(py::class_<Node>& element) {
           },
           py::arg("tracking"), fluent)
       .def(
+          "textShadow",
+          [](Node& self, py::object shadows) -> Node& {
+            // One shadow, or any iterable of them, the first drawn nearest
+            // the glyph.
+            if (py::isinstance<compose::TextShadow>(shadows))
+              return self.textShadow(shadows.cast<compose::TextShadow>());
+            std::vector<compose::TextShadow> list;
+            for (py::handle shadow : shadows)
+              list.push_back(shadow.cast<compose::TextShadow>());
+            return self.textShadow(std::move(list));
+          },
+          py::arg("shadows"), fluent,
+          "The shadows each glyph casts, CSS's text-shadow: a TextShadow or "
+          "a list of them, the first drawn nearest the glyph.")
+      .def(
           "ink",
           [](Node& self, py::object value, compose::PaintBox box) -> Node& {
             if (py::isinstance<compose::VarRef>(value))

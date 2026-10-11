@@ -35,9 +35,10 @@ struct TextShadow {
   /** The Gaussian's standard deviation in local pixels; 0 is a hard copy
    *  of the glyph. A blurred shadow with no offset is a glow. */
   float blur = 0;
-  /** What the shadow is painted in; unset, the colour each glyph is
-   *  painted in, as CSS's `currentcolor`. */
-  std::optional<material::Color> color;
+  /** What the shadow is painted in: a colour, a custom property read
+   *  where the shadow is stated, or — unless stated — the ink in force,
+   *  the colour each glyph is painted in, as CSS's `currentcolor`. */
+  ColorTerm color = ColorTerm::currentInk();
   bool operator==(const TextShadow&) const = default;
 };
 

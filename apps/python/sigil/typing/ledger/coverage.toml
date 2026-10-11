@@ -331,6 +331,14 @@ python = [
 ]
 
 [[section.surface.item]]
+bound = "the glyph shadows `textShadow` over `TextShadow` records, each coloured by a colour, the ink in force or a custom property, and `textStyleOf`, the style a text leaf in a tree is set in"
+python = [
+  "compose.Element.textShadow",
+  "compose.TextShadow",
+  "compose.textStyleOf",
+]
+
+[[section.surface.item]]
 bound = "the fact verbs `attribute` and `attributes` over an `Attributes` table"
 python = [
   "compose.Element.attribute",
@@ -1027,6 +1035,16 @@ bound = "`Paragraph` editing and inspection over UTF-16 ranges; `ParagraphBuilde
 python = ["weave.Paragraph", "weave.ParagraphBuilder"]
 
 [[section.surface.item]]
+bound = "a page's bidirectional base, `Paragraph.setBaseDirection` and `ParagraphBlock.baseDirection`, and the `Word`s analysis made with their levels"
+python = [
+  "weave.Paragraph.setBaseDirection",
+  "weave.Paragraph.baseDirection",
+  "weave.ParagraphBlock.baseDirection",
+  "weave.ParagraphField.BaseDirection",
+  "weave.Word",
+]
+
+[[section.surface.item]]
 bound = "a thread-checked `FontContext` over the system font manager"
 python = ["weave.FontContext"]
 
@@ -1542,8 +1560,12 @@ native = "path queries beyond `contains`, `getBounds` and `isEmpty`, SVG path st
 python = ["skia.Simplify", "skia.fillPathWithPaint", "skia.ContourMeasure"]
 
 [[section.surface.item]]
-native = "`SkTypeface` variation axes and style read-back"
-python = ["skia.Typeface.variationAxes", "skia.Typeface.fontStyle"]
+bound = "a typeface's `variationAxes`, each a `weave.VariationAxis` with its tag and range"
+python = ["skia.Typeface.variationAxes", "weave.VariationAxis"]
+
+[[section.surface.item]]
+native = "`SkTypeface` style read-back"
+python = ["skia.Typeface.fontStyle"]
 
 [[section.surface.item]]
 native = "`SkFont` and `SkTextBlob`"

@@ -7,6 +7,7 @@
  */
 
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/SurfaceMaps.h>
 #include <sigilweave/fonts/Shaper.h>
 #include <sigilweave/style/Type.h>
@@ -14,6 +15,7 @@
 #include <algorithm>
 #include <boost/unordered/unordered_flat_map.hpp>
 #include <cmath>
+#include <cstddef>
 #include <deque>
 #include <mutex>
 #include <string>
@@ -159,6 +161,57 @@ Fill resolveRef(const Fill& fill, const PaintContext& ctx) {
   }
   return fill;
 }
+
+material::Color resolveColor(const ColorTerm& term, const PaintContext& ctx) {
+  switch (term.ref) {
+    case Fill::Ref::None:
+      return term;
+    case Fill::Ref::CurrentInk:
+      return ctx.ink;
+    case Fill::Ref::Var: {
+      const VarValue* value =
+          ctx.vars ? ctx.vars->find(VarRef{term.varId}) : nullptr;
+      if (const material::Color* colour =
+              value ? std::get_if<material::Color>(value) : nullptr)
+        return *colour;
+      warnNoSuchVar(VarRef{term.varId}, true);
+      return term;
+    }
+  }
+  return term;
+}
+
+namespace {
+
+/** THE GLYPH SHADOWS NAMING A CUSTOM PROPERTY in @p font, read against
+ *  @p vars: each takes the property's colour here, where it is stated,
+ *  and is inherited as that colour, as CSS computes a `var()`. A property
+ *  nobody set, or one holding no colour, leaves its shadow out. */
+void resolveShadowProperties(sigil::weave::Type& font, const VarTable* vars) {
+  if (!font.underlays) return;
+  std::vector<sigil::weave::PaintLayer>& passes = *font.underlays;
+  for (size_t at = 0; at < passes.size();) {
+    const std::optional<VarRef> property =
+        detail::shadowPropertyOf(passes[at].material);
+    if (!property) {
+      ++at;
+      continue;
+    }
+    const VarValue* value = vars ? vars->find(*property) : nullptr;
+    const material::Color* colour =
+        value ? std::get_if<material::Color>(value) : nullptr;
+    if (!colour || colour->a <= 0) {
+      if (!colour) warnNoSuchVar(*property, true);
+      passes.erase(passes.begin() + (std::ptrdiff_t)at);
+      continue;
+    }
+    passes[at].paint.setColor4f(material::skia::toSkColor(*colour), nullptr);
+    passes[at].material.reset();
+    ++at;
+  }
+}
+
+}  // namespace
 
 // ---------------------------------------------------------------------------
 // Lengths against the font
@@ -812,6 +865,7 @@ void Composer::Impl::resolveCascade(
   } else {
     inst.surfaceMapInkInputs.reset();
   }
+  resolveShadowProperties(font, vars.get());
   const bool shapeChanged = first || !sameFontButColour(font, inst.font);
   const bool inkChanged =
       first || !(font.color == inst.font.color) || !(inkPaint == inst.inkPaint);

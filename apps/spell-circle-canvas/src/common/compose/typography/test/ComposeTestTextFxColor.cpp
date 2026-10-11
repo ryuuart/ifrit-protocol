@@ -1,6 +1,7 @@
 // THE COLOUR TERMS a deviation carries: the multiplier, the additive and the
-// screen term across stacked tracks and inside a keyframed tween, the snap ladder
-// that bounds them, and the two paths — flat colour and filter — agreeing.
+// screen term across stacked tracks and inside a keyframed tween, the snap
+// ladder that bounds them, and the two paths — flat colour and filter —
+// agreeing.
 //
 // The text binary's share of the content suites, one file per subject.
 
@@ -131,12 +132,13 @@ TEST(ComposeTextFx, TheColourTermsLerpComponentwiseInATween) {
   // 0.5 sits on the snap ladder, so the compare is byte-exact.
   const auto renderTweenAt = [](TextEffect effect) {
     Host host(140, 140);
-    host.composer.render(
-        box().padding(10).children({text(u8"I", greyStyle(52, 0.25f))
-                                        .key("k")
-                                        .textFx({.effect = std::move(effect),
-                                                 .tween = {.duration = 450ms, .delay = sigil::motion::stagger(0ms)},
-                                                 .progress = 0.5f})}));
+    host.composer.render(box().padding(10).children(
+        {text(u8"I", greyStyle(52, 0.25f))
+             .key("k")
+             .textFx({.effect = std::move(effect),
+                      .tween = {.duration = 450ms,
+                                .delay = sigil::motion::stagger(0ms)},
+                      .progress = 0.5f})}));
     host.frame();
     return surfaceBytes(host, 140, 140);
   };
@@ -228,4 +230,63 @@ TEST(ComposeTextFx, TheFilterPathAgreesWithTheFlatColourPath) {
   EXPECT_LE(worst, 2)
       << "the matrix-filter path and the flat-colour path disagree about "
          "the colour-term arithmetic";
+}
+
+// ---------------------------------------------------------------------------
+// A colour term naming the ink in force or a custom property, read where
+// the glyph is painted.
+
+namespace {
+
+/** A white letter set in a style of its own inside a box of @p classes
+ *  under a sheet that inks and colours them, its glyph multiplied toward
+ *  @p term by a one-keyframe table. */
+Element termPage(const char* classes, ColorTerm term) {
+  const TextEffect table = textFx::tween(
+      {.keyframes = {{.to = GlyphModifier{.colorMultiplier = term}}}});
+  return box()
+      .applyStyleSheet(StyleSheet{
+          sigil::compose::rule(".red").ink(material::Color{1, 0, 0, 1}),
+          sigil::compose::rule(".blue").ink(material::Color{0, 0, 1, 1}),
+          sigil::compose::rule(".green").var("x", material::Color{0, 1, 0, 1}),
+          sigil::compose::rule(".magenta")
+              .var("x", material::Color{1, 0, 1, 1})})
+      .children({box().styleClass(classes).padding(10).children(
+          {text(u8"IIII", whiteStyle(48))
+               .key("k")
+               .textFx({.effect = table})})});
+}
+
+/** How many of @p host's pixels are exactly @p colour. */
+int pixelsOf(Host& host, SkColor colour) {
+  return countColor(host, SkIRect::MakeWH(200, 100), colour);
+}
+
+}  // namespace
+
+TEST(ComposeTextFxColor, ATableNamingTheInkInForceFollowsTheSheetsInk) {
+  Host host(200, 100);
+  host.composer.render(termPage("red", ColorTerm::currentInk()));
+  host.frame();
+  EXPECT_GT(pixelsOf(host, SK_ColorRED), 50)
+      << "the white letters were not multiplied toward the red ink";
+  // The sheet's ink changes; the table names no colour of its own, so the
+  // letters follow.
+  host.composer.render(termPage("blue", ColorTerm::currentInk()));
+  host.frame();
+  EXPECT_GT(pixelsOf(host, SK_ColorBLUE), 50);
+  EXPECT_EQ(pixelsOf(host, SK_ColorRED), 0);
+}
+
+TEST(ComposeTextFxColor, ATableNamingACustomPropertyFollowsTheSheetsPalette) {
+  Host host(200, 100);
+  host.composer.render(termPage("green", ColorTerm::var("x")));
+  host.frame();
+  EXPECT_GT(pixelsOf(host, SK_ColorGREEN), 50)
+      << "the letters were not multiplied toward the property's green";
+  // A class restating the property recolours the letters with it.
+  host.composer.render(termPage("magenta", ColorTerm::var("x")));
+  host.frame();
+  EXPECT_GT(pixelsOf(host, SK_ColorMAGENTA), 50);
+  EXPECT_EQ(pixelsOf(host, SK_ColorGREEN), 0);
 }

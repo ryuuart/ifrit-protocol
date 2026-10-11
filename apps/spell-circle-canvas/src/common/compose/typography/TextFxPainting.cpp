@@ -281,6 +281,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
         RestPose pose;
         if (!restPoseOf(poseCtx, placed, pose)) return;
         GlyphInfo info = structure.glyphs[g];
+        info.painted = &ctx;
         info.ink =
             material::skia::toColor(styleOf(g, placed).foreground.getColor4f());
 

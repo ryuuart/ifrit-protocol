@@ -19,6 +19,7 @@
  * the key its author gave it.
  */
 
+#include <sigilcompose/core/Paint.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -85,6 +86,17 @@ struct GlyphInfo {
    *  `textFx::tint` naming no rest comes to rest at. White where no paint
    *  is known, which is no tint. */
   material::Color ink{1, 1, 1, 1};
+  /** WHERE THE GLYPH IS PAINTED: the ink in force and the custom
+   *  properties a colour term reads. Null outside a paint — a query of a
+   *  track's beats, say — where a term reads as its stand-in numbers. */
+  const PaintContext* painted = nullptr;
+
+  /** @p term as this glyph reads it: its value, or the colour the ink in
+   *  force or the custom property names where the glyph is painted. */
+  [[nodiscard]] material::Color colorOf(const ColorTerm& term) const {
+    return painted && term.references() ? resolveColor(term, *painted)
+                                        : material::Color(term);
+  }
 };
 
 /** One glyph's deviation from rest — what an effect returns for local
@@ -110,8 +122,13 @@ struct GlyphModifier {
   /** A per-channel multiplier over EVERY pass the glyph's style draws. A
    *  pass painting a flat colour multiplies it; a pass painting a shader
    *  takes the equivalent modulation, so a gradient keeps its ramp and
-   *  wears the tint over it. White is no tint. */
-  material::Color colorMultiplier = {1, 1, 1, 1};
+   *  wears the tint over it. White is no tint.
+   *
+   *  Each of the three colour terms is a `ColorTerm`: a colour, or the
+   *  ink in force (`ColorTerm::currentInk()`) or a custom property
+   *  (`ColorTerm::var`) read where the glyph is painted when the effect is
+   *  applied, so a keyframe table follows the sheet's palette. */
+  ColorTerm colorMultiplier = {1, 1, 1, 1};
   /** A per-channel ADDITIVE term over every pass the glyph's style draws —
    *  the hard flash a multiplier cannot say, because a multiplier only
    *  moves a colour toward black and moves a zero channel not at all. The
@@ -121,7 +138,7 @@ struct GlyphModifier {
    *  full one. RGB only: the alpha component rides the algebra but reaches
    *  no draw — coverage is the multiplicative lane's (`alpha`,
    *  `colorMultiplier.fA`). Zero is no flash and costs nothing. */
-  material::Color colorAdd = {0, 0, 0, 0};
+  ColorTerm colorAdd = {0, 0, 0, 0};
   /** A per-channel SCREEN term — the painted colour c becomes
    *  1 − (1 − c)(1 − colorScreen) — the phosphor glow that lifts each
    *  channel in proportion to its headroom and never clips. Screens
@@ -130,7 +147,7 @@ struct GlyphModifier {
    * `colorMultiplier` and `colorAdd`, which is what makes one colour-matrix
    * carry all three. RGB only, as `colorAdd` is. Zero is no glow and costs
    *  nothing. */
-  material::Color colorScreen = {0, 0, 0, 0};
+  ColorTerm colorScreen = {0, 0, 0, 0};
   /** Non-uniform scale and shear on each axis (degrees). An RSXform encodes
    *  a rotation and ONE scale and no shear at all, so a glyph whose composed
    *  deviation uses any of these draws under its own matrix — same passes,
@@ -277,11 +294,24 @@ class TextEffect {
         0.0f, {}, /*displaces=*/false);
   }
 
-  /** Evaluates the deviation. An empty effect answers the identity. */
+  /** Evaluates the deviation. An empty effect answers the identity. A
+   *  colour term it names as a reference is read for @p g, where the
+   *  glyph is painted. */
   GlyphModifier operator()(const GlyphInfo& g, float t,
                            core::noise::Mix64Stream& rng) const {
-    return m_state && m_state->function ? m_state->function(g, t, rng)
-                                        : GlyphModifier{};
+    if (!m_state || !m_state->function) return GlyphModifier{};
+    return resolvedColors(m_state->function(g, t, rng), g);
+  }
+  /** @p modifier with each colour term read for @p g. */
+  [[nodiscard]] static GlyphModifier resolvedColors(GlyphModifier modifier,
+                                                    const GlyphInfo& g) {
+    if (modifier.colorMultiplier.references())
+      modifier.colorMultiplier = g.colorOf(modifier.colorMultiplier);
+    if (modifier.colorAdd.references())
+      modifier.colorAdd = g.colorOf(modifier.colorAdd);
+    if (modifier.colorScreen.references())
+      modifier.colorScreen = g.colorOf(modifier.colorScreen);
+    return modifier;
   }
   explicit operator bool() const { return m_state && (bool)m_state->function; }
   /** Pixels beyond the element's box this effect may paint. */

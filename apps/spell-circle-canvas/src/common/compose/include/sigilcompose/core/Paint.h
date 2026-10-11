@@ -176,6 +176,68 @@ struct Fill {
   }
 };
 
+/** A COLOUR THAT MAY BE A REFERENCE — the colour kinds of a `Fill`: a
+ *  value, the ink in force, or a custom property, read where the term is
+ *  applied. It IS its numbers, so a plain colour is spelled as a colour is
+ *  and every channel reads as one; a reference keeps the numbers that
+ *  stand in for it until it is read with a context in hand — the root's
+ *  black for the ink, clear for a property — as a `Fill` naming one
+ *  does. */
+struct ColorTerm : material::Color {
+  constexpr ColorTerm() = default;
+  constexpr ColorTerm(float red, float green, float blue, float alpha = 1)
+      : material::Color(red, green, blue, alpha) {}
+  /** A colour, as the value it is. */
+  // NOLINTNEXTLINE(google-explicit-constructor)
+  constexpr ColorTerm(const material::Color& value) : material::Color(value) {}
+  /** Any four-float colour a `material::Color` takes, as that value. */
+  template <material::FourFloatColor C>
+  // NOLINTNEXTLINE(google-explicit-constructor)
+  constexpr ColorTerm(const C& value) : material::Color(value) {}
+
+  /** THE INK IN FORCE where the term is applied — CSS's currentColor. */
+  static ColorTerm currentInk() {
+    ColorTerm term(0, 0, 0, 1);
+    term.ref = Fill::Ref::CurrentInk;
+    return term;
+  }
+  /** The colour the custom property @p reference names where the term is
+   *  applied. */
+  static ColorTerm var(VarRef reference) {
+    ColorTerm term(0, 0, 0, 0);
+    term.ref = Fill::Ref::Var;
+    term.varId = reference.id;
+    return term;
+  }
+  static ColorTerm var(std::string_view name) {
+    return var(compose::var(name));
+  }
+
+  Fill::Ref ref = Fill::Ref::None;
+  uint32_t varId = 0;
+
+  /** Whether it is a reference a context still has to resolve. */
+  [[nodiscard]] bool references() const { return ref != Fill::Ref::None; }
+  /** The term as the fill it is a colour kind of, which `resolveRef`
+   *  reads. */
+  [[nodiscard]] Fill fill() const {
+    Fill as = Fill::color(*this);
+    as.ref = ref;
+    as.varId = varId;
+    return as;
+  }
+  /** Equal numbers and the same reference. */
+  bool operator==(const ColorTerm& other) const {
+    return static_cast<const material::Color&>(*this) ==
+               static_cast<const material::Color&>(other) &&
+           ref == other.ref && varId == other.varId;
+  }
+  /** A value equal to @p value; a reference equals no colour. */
+  bool operator==(const material::Color& value) const {
+    return !references() && static_cast<const material::Color&>(*this) == value;
+  }
+};
+
 /** Corner radii, clockwise from top-left. `{r}` rounds all four; the
  *  four-value form dresses each corner independently. For shapes whose
  *  corners aren't box corners (stars, polygons, custom outlines), use
@@ -386,6 +448,13 @@ using PaintProgram = core::Callable<void(draw::Pen&, const PaintContext&)>;
  *  through here first; one that reads the colour without a context sees the
  *  root's black for the ink and nothing for a property. */
 [[nodiscard]] Fill resolveRef(const Fill& fill, const PaintContext& ctx);
+
+/** @p term read against @p ctx: its value, or the colour the ink in force
+ *  or the property names there. A property nobody set, or one holding a
+ *  length or a paint, reads as the term's stand-in numbers, and the miss
+ *  is reported once per name. */
+[[nodiscard]] material::Color resolveColor(const ColorTerm& term,
+                                           const PaintContext& ctx);
 
 // ---------------------------------------------------------------------------
 // A material as a node's fill — the adapter between SigilMaterial's value

@@ -526,7 +526,11 @@ fast path is byte-identical to a deviation that never mentions them.
 flat pass multiplies its colour, a shader pass takes an equivalent modulation,
 so a gradient keeps its ramp and wears the tint over it); `colorAdd` and
 `colorScreen` brighten over every pass the same way — the flash and the glow of
-the tint section above; `scaleX`, `scaleY`, `skewXDeg` and `skewYDeg` place the
+the tint section above. Each of the three is a `ColorTerm`: a colour as
+written, or `ColorTerm::currentInk()` or `ColorTerm::var(name)`, read where
+the glyph is painted when the effect is applied — a keyframe table naming
+them follows the sheet's ink and palette, and a class restating either
+recolours the letters with no second table; `scaleX`, `scaleY`, `skewXDeg` and `skewYDeg` place the
 glyph with a full matrix, because an RSXform carries a rotation and one scale
 and no shear at all — the two shear angles read as `Element::skewX` and
 `Element::skewY` do, and a glyph naming both takes CSS's `skewX(x) skewY(y)`,

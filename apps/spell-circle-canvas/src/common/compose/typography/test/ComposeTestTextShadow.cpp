@@ -203,3 +203,41 @@ TEST(ComposeTextShadow, ARestatedShadowRepaintsAndAnEqualOneHolds) {
   host.frame();
   EXPECT_TRUE(identicalPixels(host, fresh, 200, 140));
 }
+
+TEST(ComposeTextShadow, AShadowNamingACustomPropertyFollowsTheSheet) {
+  // The shadow's colour is a property, read where the shadow is stated: a
+  // class restating it recolours the echo and leaves the letter white.
+  const auto page = [](const char* classes) {
+    return box()
+        .applyStyleSheet(StyleSheet{sigil::compose::rule(".green").var(
+                                        "accent", material::Color{0, 1, 0, 1}),
+                                    sigil::compose::rule(".blue").var(
+                                        "accent", material::Color{0, 0, 1, 1})})
+        .children(
+            {box()
+                 .styleClass(classes)
+                 .font({.face = sigil::test::instrument::sans(), .size = 48})
+                 .ink(material::Color{1, 1, 1, 1})
+                 .children(
+                     {text(u8"I")
+                          .key("t")
+                          .absolute()
+                          .left(30.0f)
+                          .top(30.0f)
+                          .textShadow({.offset = {12, 0},
+                                       .color = ColorTerm::var("accent")})})});
+  };
+  const auto count = [](Host& host, SkColor colour) {
+    return countColor(host, SkIRect::MakeWH(200, 140), colour);
+  };
+  Host host(200, 140);
+  host.composer.render(page("green"));
+  host.frame();
+  EXPECT_GT(count(host, SK_ColorGREEN), 20) << "no echo in the property";
+  EXPECT_GT(count(host, SK_ColorWHITE), 20) << "the letter lost its ink";
+  host.composer.render(page("blue"));
+  host.frame();
+  EXPECT_GT(count(host, SK_ColorBLUE), 20);
+  EXPECT_EQ(count(host, SK_ColorGREEN), 0)
+      << "the echo kept the property's old colour";
+}

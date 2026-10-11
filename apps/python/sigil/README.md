@@ -929,7 +929,15 @@ Font selection follows the host's native font context. `fontFamily` takes
 CSS's family list as one string, on an element, a rule and a `SpanStyle`
 alike: `.fontFamily("Inter, Helvetica Neue, sans-serif")` sets the run in
 the first family installed, and the generic names `serif`, `sans-serif`,
-`monospace` and `system-ui` are the platform's own families. Explicit retained
+`monospace` and `system-ui` are the platform's own families.
+`textShadow(TextShadow(offset=(2, 2), blur=4, color=…))`, or a list of them,
+casts a shadow from each glyph, CSS's `text-shadow`, which fades, tints and
+deforms with its glyph; its `color` is a colour, `Fill.var(name)` read where
+the shadow is stated, or by default the ink in force. `compose.textStyleOf(root,
+key)` answers the `weave.TextStyle` the keyed leaf is set in, a typeface's
+`variationAxes()` the `weave.VariationAxis` ranges it carries, and a paragraph
+states its page's bidirectional base with `Paragraph.setBaseDirection` or
+`ParagraphBlock(baseDirection=…)`. Explicit retained
 drawings use `graphics("identity", program)` followed by fluent properties.
 The graphics key identifies its paint program as well as its node:
 reusing it across descriptions promises an equivalent program. A drawing

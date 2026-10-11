@@ -387,3 +387,105 @@ class Scene:
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GlyphShadowsAndPageDirection(unittest.TestCase):
+    """A glow each glyph casts, which fades with its glyph; and a page that
+    states the direction its bidirectional analysis resolves against."""
+
+    def render(self, source):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "shadow.py"
+            output = Path(folder) / "shadow.png"
+            path.write_text(source)
+            render_file(path, output, at=0)
+            return media.load(output).frameAt(0).image.rgba()
+
+    def glowBeside(self, opacity):
+        """The green the glow leaves just left of the letter's stem, with
+        the glyph held at `opacity` by an entrance track."""
+        pixels = self.render(f"""from sigil import compose
+from sigil.compose import TextShadow, box, text, textFx
+from sigil.sketch import sketch
+from sigil.weave import Type
+@sketch(size=(160, 120), background="#000000")
+class Scene:
+    def setup(self, ctx):
+        held = textFx.DisplacedTween(from_=textFx.Displaced(opacity={opacity}, fadeOver=0))
+        track = textFx.entrance(held, compose.Track(progress=0))
+        ctx.render(box().width(160).height(120).padding(30).children(
+            text("I").font(Type(size=64, color="#ffffff"))
+            .textShadow(TextShadow(blur=6, color="#00ff00")).textFx(track)))
+""")
+        width, row = 160, 70
+        stem = next(x for x in range(width) if pixels[(row * width + x) * 4] > 10)
+        return pixels[(row * width + stem - 4) * 4 + 1]
+
+    def test_a_glow_fades_with_its_glyph(self):
+        full = self.glowBeside(1)
+        self.assertGreater(full, 40, "no glow stands beside the glyph")
+        self.assertAlmostEqual(self.glowBeside(0.25), full * 0.25, delta=3)
+
+    def test_a_shadow_is_coloured_by_a_colour_term(self):
+        shadow = compose.TextShadow(offset=(4, 0), blur=2)
+        self.assertEqual(shadow.color, compose.Fill.currentInk())
+        shadow.color = compose.Fill.var("accent")
+        self.assertEqual(shadow.color, compose.Fill.var("accent"))
+        shadow.color = "#ff0000"
+        self.assertEqual(shadow.color, compose.Fill.color("#ff0000"))
+        with self.assertRaises(TypeError):
+            shadow.color = material.Paint.linearGradient(
+                (0, 0), (1, 0), [(0, "#000000"), (1, "#ffffff")]
+            )
+        leaf = text("I")
+        self.assertIs(leaf.textShadow([shadow, compose.TextShadow(blur=6)]), leaf)
+
+    def test_a_leaf_answers_the_style_the_cascade_sets_it_in(self):
+        page = (
+            compose.box().font(weave.Type(size=34)).children(text("Wave").key("hero"))
+        )
+        style = compose.textStyleOf(page, "hero")
+        self.assertIsNotNone(style)
+        assert style is not None
+        self.assertEqual(style.shaping.fontSize, 34)
+        self.assertIsNone(compose.textStyleOf(page, "absent"))
+
+    def test_a_page_resolves_its_levels_against_its_stated_base(self):
+        folio = "۱۵۲۵ · Folio 22v"
+        fonts = weave.FontContext()
+        paragraph = weave.Paragraph(folio, weave.Type(size=16))
+        self.assertEqual(
+            paragraph.baseDirection(), weave.unicode.BaseDirection.AutoLeftToRight
+        )
+
+        def levels(base):
+            runs = weave.unicode.bidi(folio, base)
+            paragraph.ensureAnalyzed(fonts)
+            for word in paragraph.words():
+                if word.textEnd <= word.textBegin:
+                    continue
+                expected = next(
+                    run.level for run in runs if run.start <= word.textBegin < run.end
+                )
+                self.assertEqual(word.bidiLevel, expected, word.textBegin)
+            return [word.bidiLevel for word in paragraph.words()]
+
+        automatic = levels(weave.unicode.BaseDirection.AutoLeftToRight)
+        before = paragraph.wordRevision()
+        paragraph.setBaseDirection(weave.unicode.BaseDirection.RightToLeft)
+        self.assertNotEqual(paragraph.wordRevision(), before)
+        self.assertNotEqual(levels(weave.unicode.BaseDirection.RightToLeft), automatic)
+        block = weave.ParagraphBlock(
+            baseDirection=weave.unicode.BaseDirection.RightToLeft
+        )
+        self.assertEqual(block.baseDirection, weave.unicode.BaseDirection.RightToLeft)
+        self.assertTrue(hasattr(weave.ParagraphField, "BaseDirection"))
+
+    def test_a_typeface_answers_its_variation_axes(self):
+        face = weave.typeface("Helvetica Neue")
+        axes = face.variationAxes()
+        self.assertIsInstance(axes, list)
+        for axis in axes:
+            self.assertIsInstance(axis, weave.VariationAxis)
+            self.assertEqual(len(axis.tag), 4)
+            self.assertLessEqual(axis.minimum, axis.maximum)

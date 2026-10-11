@@ -315,6 +315,7 @@ void bindWeaveLayout(py::module_& root) {
       .def("setHyphenator", &Paragraph::setHyphenator, py::arg("hyphenator"),
            py::arg("limits") = HyphenationLimits{}, py::keep_alive<1, 2>())
       .def("setWritingMode", &Paragraph::setWritingMode, py::arg("mode"))
+      .def("setBaseDirection", &Paragraph::setBaseDirection, py::arg("base"))
       .def("setSoftHyphenBreaks", &Paragraph::setSoftHyphenBreaks,
            py::arg("enabled"))
       .def("setKinsoku", &Paragraph::setKinsoku, py::arg("table"))
@@ -332,6 +333,20 @@ void bindWeaveLayout(py::module_& root) {
   paragraph.def("clear", &Paragraph::clear, py::return_value_policy::copy);
   paragraph.def("writingMode", &Paragraph::writingMode,
                 py::return_value_policy::copy);
+  paragraph.def("baseDirection", &Paragraph::baseDirection,
+                py::return_value_policy::copy);
+  // A word as analysis left it: where it stands in the text and the
+  // embedding level its bidirectional analysis resolved.
+  py::class_<Word>(module, "Word",
+                   "One word of an analysed paragraph: its content range in "
+                   "the text and its bidirectional embedding level, odd "
+                   "reading right to left.")
+      .def_readonly("textBegin", &Word::textBegin)
+      .def_readonly("textEnd", &Word::textEnd)
+      .def_readonly("bidiLevel", &Word::bidiLevel);
+  paragraph.def(
+      "words", [](const Paragraph& p) { return p.words(); },
+      "The words analysis made, in text order; empty before ensureAnalyzed.");
   paragraph.def("softHyphenBreaks", &Paragraph::softHyphenBreaks,
                 py::return_value_policy::copy);
   paragraph.def("identity", &Paragraph::identity,

@@ -7,6 +7,7 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/FontStyle.h>
 #include <sigilcompose/core/LineSetting.h>
+#include <sigilcompose/core/Measure.h>
 #include <sigilcompose/core/Stroke.h>
 #include <sigilcompose/typography/Annotation.h>
 #include <sigilcompose/typography/Selector.h>
@@ -18,7 +19,9 @@
 #include <sigilpython/compose/Registration.h>
 #include <sigilpython/motion/Convert.h>
 #include <sigilpython/skia/Values.h>
+#include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/layout/Story.h>
+#include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/query/Selector.h>
 
 #include <algorithm>
@@ -35,6 +38,22 @@ namespace {
 constexpr auto fluent = py::return_value_policy::reference_internal;
 using compose::Element;
 using Model = std::shared_ptr<PythonValue>;
+
+/** A colour term from what a fill takes: a colour, the ink in force or a
+ *  custom property — never a paint. */
+compose::ColorTerm colorTerm(py::handle value) {
+  if (py::isinstance<compose::VarRef>(value))
+    return compose::ColorTerm::var(value.cast<compose::VarRef>());
+  const compose::Fill paint = fill(value);
+  if (paint.kind != compose::Fill::Kind::Color)
+    throw py::type_error(
+        "A colour term is a colour, the ink in force (Fill.currentInk()) or "
+        "a custom property (Fill.var(name)), never a paint.");
+  compose::ColorTerm term(paint.colorValue);
+  term.ref = paint.ref;
+  term.varId = paint.varId;
+  return term;
+}
 
 Element memo(py::object properties, py::function describe) {
   // Capture a model value, rather than an alias whose mutation would make
@@ -563,6 +582,45 @@ void bindCompose(py::module_& module) {
       .def_readwrite("blur", &Shadow::blur)
       .def_readwrite("maxBind", &Shadow::maxBind)
       .def_readwrite("knockout", &Shadow::knockout);
+  // The shadow each glyph casts: its colour is a colour term, read back
+  // as the fill of that colour kind.
+  using compose::TextShadow;
+  auto textShadow = bindRecord<TextShadow>(composition, "TextShadow",
+                                           "A text shadow has no field named ");
+  textShadow.doc() =
+      "One shadow each glyph casts, CSS's text-shadow: offset pixels from "
+      "its glyph, blurred by a Gaussian of blur pixels, and painted in "
+      "color — a colour, a custom property (Fill.var(name)) read where the "
+      "shadow is stated, or by default the ink in force.";
+  textShadow
+      .def_property(
+          "offset",
+          [](const TextShadow& self) {
+            return geometry::path::toSk(self.offset);
+          },
+          [](TextShadow& self, py::object value) {
+            self.offset = geometry::path::fromSk(point(value));
+          })
+      .def_readwrite("blur", &TextShadow::blur)
+      .def_property(
+          "color", [](const TextShadow& self) { return self.color.fill(); },
+          [](TextShadow& self, py::object value) {
+            self.color = colorTerm(value);
+          })
+      .def(py::self == py::self);
+  composition.def(
+      "textStyleOf",
+      [](const Element& root, std::optional<std::string> key) {
+        // Resolved against the system's fonts, the families a sketch
+        // names are found in.
+        weave::FontContext fonts(weave::ports::systemFontManager());
+        return key ? compose::textStyleOf(root, *key, fonts)
+                   : compose::textStyleOf(root, fonts);
+      },
+      py::arg("root"), py::arg("key") = py::none(),
+      "The style the text leaf keyed `key` in `root` is set in — or `root`'s "
+      "own, where it is the leaf — resolved through the cascade as a "
+      "composer resolves it; None where there is no such leaf.");
   composition.def(
       "shadow",
       [](py::object value, py::object offset, float blur) {

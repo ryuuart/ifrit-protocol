@@ -23,7 +23,9 @@ sound model; nothing below them changes kernel semantics.
 - `core/PaintBox.h` — `PaintBox`, the rectangle a fill's or an ink's
   paint is stretched over: the element's own box, its padding or content
   box, the subtree's, the canvas, or each unit of a passage.
-- `core/Paint.h` — the paint values: `Fill`, `Corners`,
+- `core/Paint.h` — the paint values: `Fill`, `ColorTerm` (the colour kinds
+  of a fill: a value, the ink in force or a custom property, which
+  `resolveColor` reads against a paint context), `Corners`,
   `PaintContext`, `KeyState` — the keys a host fed, as a paint program
   reads them beside `PaintContext::pointer` — `PromotionPolicy`, what
   decides a texture promotion, which `PaintContext::promotion` carries as
