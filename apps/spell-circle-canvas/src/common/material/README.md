@@ -548,7 +548,7 @@ library; smaller consumers can select these targets:
 | `SigilMaterialMask` | Mask generators and transformations. |
 | `SigilMaterialSdf` | Signed-distance shapes and their appearance. |
 | `SigilMaterialPattern` | Baked tiles and cloth generators. |
-| `SigilMaterialField` | Noise, grain, halftone and ripple fields. |
+| `SigilMaterialField` | Noise, grain, cellular noise, halftone and ripple fields. |
 | `SigilMaterialOcio` | OpenColorIO transforms baked into materials. |
 
 The core has no renderer. Skia types belong to the Skia executor headers;
