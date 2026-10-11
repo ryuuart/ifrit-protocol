@@ -78,6 +78,8 @@ struct Body {
 struct Surface {
   glm::vec4 baseColor{0.8f, 0.8f, 0.85f, 1.0f};
   std::optional<::sigil::material::Material> material;
+  /** Every per-face slot, where the node wears more than one. */
+  std::vector<::sigil::material::Material> slots;
   /** The base-colour map that material carries, resolved once at
    *  extract. It addresses a leaf the material above holds, so it stands
    *  exactly as long as this component does. */
@@ -154,6 +156,12 @@ inline constexpr int kConvergeRounds = 8;
 
 /** THE HOST. It implements the ReconcileHost operations on itself and
  *  holds the reconciler over its own node and description types. */
+/** The surface at the bottom of whatever @p material stacks — the one a
+ *  body's colour, map and lighting are read off — or null for none. */
+const material::Material* readableSurface(const material::Material* material);
+/** The base colour @p material states, or the stock grey. */
+glm::vec4 baseColorOf(const material::Material* material);
+
 struct Scene::Impl {
   using Description = std::shared_ptr<NodeDescription>;
 

@@ -305,6 +305,8 @@ declares; the .geo reader's own attribute-class decoding is
   (the parts, and `merged()`, `mergedCloud()`, `bounds()`,
   `fitTransform()`, `materialSlotCount()` across them) and the `Resolver`
   a reader consults for external references.
+- **`mesh/codec/Surface.h`** — `surfaceOptions()`: the surface a part
+  states, as SigilMaterial's options, its maps left to the caller.
 - **`mesh/codec/Decode.h`** — the doors in: `decode::model()` from bytes with
   a path hint, or from a file with its siblings resolved; and
   `decode::alembic()` with `AlembicOptions` choosing the time. OBJ (with

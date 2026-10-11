@@ -61,6 +61,9 @@ struct Part {
   /** The texture's ENCODED bytes when reachable — embedded in the file
    *  or pulled through the resolver. Decode via SigilImage. */
   std::vector<std::byte> textureBytes;
+  /** The colour space the file states the base-colour image is in, as
+   *  `TextureReference::colorSpace` says one. */
+  std::string textureColorSpace;
 
   /** The rest of a metallic-roughness material, as glTF carries it:
    *  the scalar factors, and the other maps keyed by USAGE word —
@@ -75,6 +78,10 @@ struct Part {
   struct TextureReference {
     std::string uri;
     std::vector<std::byte> bytes;
+    /** The colour space the file states the image is in, in the file's
+     *  own word — "sRGB" or "raw" — or empty where it states none and the
+     *  role the map fills decides. */
+    std::string colorSpace;
 
     /** Value equality: the same URI carrying the same bytes. */
     bool operator==(const TextureReference&) const = default;
@@ -91,6 +98,33 @@ struct Part {
   float ior = 1.5f;
   float alphaCutoff = 0;
   bool opaque = true;
+  /** THE REST OF THE TRANSMISSION LOBE, as glTF's volume and dispersion
+   *  extensions carry it: how deep the body is in scene units (zero a thin
+   *  wall), the colour light has become after `attenuationDistance` of it
+   *  (zero takes nothing), and how far the index spreads across the three
+   *  colours. */
+  float thickness = 0;
+  glm::vec3 attenuationColor = {1, 1, 1};
+  float attenuationDistance = 0;
+  float dispersion = 0;
+  /** THE OPTIONAL LOBES, each as glTF's extension names it and neutral
+   *  where the file states none: a sheen's colour and spread; a brushing's
+   *  strength and its turn from the way u runs, in degrees; a thin film's
+   *  weight, index and the thickness its white and its black stand for, in
+   *  nanometres; a dielectric's specular strength and colour; a clear
+   *  coat's weight and roughness. */
+  glm::vec3 sheenColor = {0, 0, 0};
+  float sheenRoughness = 0;
+  float anisotropy = 0;
+  float anisotropyRotation = 0;
+  float iridescence = 0;
+  float iridescenceIor = 1.3f;
+  float iridescenceThickness = 400;
+  float iridescenceThicknessMinimum = 100;
+  float specular = 1;
+  glm::vec3 specularColor = {1, 1, 1};
+  float clearcoat = 0;
+  float clearcoatRoughness = 0;
   /** The file's material SLOT this part wears (glTF: the material's
    *  index in the file; -1 when the part names none). The same number
    *  is written across the part's `mesh.primitives["Material"]` lane, so a

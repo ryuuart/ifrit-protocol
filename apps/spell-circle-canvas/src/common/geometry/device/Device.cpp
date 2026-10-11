@@ -123,6 +123,9 @@ std::unique_ptr<Device> Device::create(const DeviceConfig& config,
   // OPTIONAL, so a driver without them brings the device up and a timed
   // frame says it could not be.
   engineCI.Features.TimestampQueries = DEVICE_FEATURE_STATE_OPTIONAL;
+  // Workers that build a pipeline while the thread that asked goes on
+  // drawing. OPTIONAL, so a driver without them builds where it is asked.
+  engineCI.Features.AsyncShaderCompilation = DEVICE_FEATURE_STATE_OPTIONAL;
   IRenderDevice* rawDevice = nullptr;
   IDeviceContext* rawContext = nullptr;
 #ifdef __APPLE__

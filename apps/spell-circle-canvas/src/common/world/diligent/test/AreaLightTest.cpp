@@ -193,3 +193,34 @@ TEST(AreaLight, APointLitPictureIsUnchangedBesideAPanelThatDoesNotReachIt) {
       on.runtime);
   EXPECT_EQ(diligent::worstChannel(alone, beside), 0);
 }
+
+TEST(AreaLight, ANodesScaleSizesThePanelItHolds) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // A panel forty units a side under a group scaled twice over lights the
+  // plate as a panel eighty a side does.
+  const SkBitmap scaled = photographed(
+      {group({rectLight({0, 0, -1},
+                        {.width = 40, .height = 40, .intensity = 1.0f})
+                  .key("panel")})
+           .key("rig")
+           .at({0, 0, 30})
+           .scale(2),
+       card(matte())},
+      on.runtime);
+  const SkBitmap stated = photographed(
+      {rectLight({0, 0, -1}, {.width = 80, .height = 80, .intensity = 1.0f})
+           .key("panel")
+           .at({0, 0, 30}),
+       card(matte())},
+      on.runtime);
+  EXPECT_LE(diligent::worstChannel(scaled, stated), 1);
+  const SkBitmap unscaled = photographed(
+      {rectLight({0, 0, -1}, {.width = 40, .height = 40, .intensity = 1.0f})
+           .key("panel")
+           .at({0, 0, 30}),
+       card(matte())},
+      on.runtime);
+  EXPECT_GT(diligent::worstChannel(scaled, unscaled), 8)
+      << "a larger panel lights the plate otherwise";
+}

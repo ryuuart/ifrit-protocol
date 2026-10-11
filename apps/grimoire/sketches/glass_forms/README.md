@@ -69,8 +69,10 @@ glass from two causes at once.
 - Every glass is `material::from(white).surface({...})` with
   `transmission`, `ior` and `thickness`; the annulus, the liquid and the
   cover add `attenuationColor` and `attenuationDistance`, the
-  lens-shaped pane `dispersion`. The haze is a colourless surface with a
-  two-channel `distortion` map whose `distortionStrength` breathes. The
+  lens-shaped pane `dispersion`. The haze is a colourless surface whose
+  `distortion` is `material::surface::normalFromHeight` over a
+  `material::noise`, differentiated on the device, and whose
+  `distortionStrength` breathes. The
   cell's front glass is a black `PlusLighter` surface that writes no
   depth: it shows only the room it reflects.
 - Light: one `world::directionalLight` key that casts shadows, a

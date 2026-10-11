@@ -1078,6 +1078,18 @@ public float shadowDistance(float depth, float near, float far,
   return near + depth * span;
 }
 
+/** THE DEPTH A MAP WOULD STORE for a point `distance` scene units from
+ *  the light: `shadowDistance` read backwards, so a point can be compared
+ *  against the stored depths themselves. Below the near plane it answers
+ *  below zero, and every stored depth passes it. */
+public float shadowDepthOf(float distance, float near, float far,
+                           float perspective) {
+  float span = max(far - near, 1e-6);
+  if (perspective > 0.5)
+    return distance > 0.0 ? (far - near * far / distance) / span : -1.0;
+  return (distance - near) / span;
+}
+
 /** HOW MUCH NEARER THE LIGHT a stored depth must stand to shadow a point:
  *  `bias` texels, and a share that grows as the surface turns away from
  *  the light — its depth changes by the tangent of that angle across a

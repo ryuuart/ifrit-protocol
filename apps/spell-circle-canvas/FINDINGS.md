@@ -1183,85 +1183,14 @@ A workspace should mount the `assets/` folder it was written with. A test
 should make a workspace, put a file in its `assets/`, open the entry and
 read the file through `res://`.
 
-## A World body reads an animated texture at its first frame
+## `texture::fromUsageMap` ignores a texture's stated colour space
 
-`geometry::device::TextureResidency::sample` reads `Texture::frameAt()` with
-no time, and `Texture::deviceImage` reads its source at time zero, so a video
-or an animated image worn by a World body shows its first frame whatever
-the frame's time. A flipbook advances because its clock is a uniform, not a
-new image.
-
-Wanted: the residency handed the frame's time and keyed by the image the
-source answers then. A device test should wear a two-frame animated image
-and read each frame at its own time.
-
-## The USD reader ignores a texture's stated colour space
-
-`usd/read/Material.cpp` fetches each `UsdUVTexture`'s file and drops its
-`sourceColorSpace`; the role a map fills decides colour or data afterwards.
-A texture authored `raw` in a colour role, or `sRGB` in a data role, is read
-by its role. The writer states the colour space it read.
-
-Wanted: the decoded part carrying each texture's stated space, and
-`texture::fromUsageMap` honouring it. A regression should round-trip a
-material whose base colour is stated `raw` and read it back as data.
-
-## The USD reader drops the optional lobes the writer keeps
-
-`usd/write/Material.cpp` keeps a surface's sheen, brushing, thin film and
-specular in the material prim's custom data (`sigil:sheenColor`,
-`sigil:anisotropy`, `sigil:iridescenceThickness`, `sigil:specular` and
-their siblings), because UsdPreviewSurface has no input for them.
-`usd/read/Material.cpp` reads `sigil:transmission` back and none of
-these, nor the transmission lobe's `sigil:thickness`,
-`sigil:attenuationColor`, `sigil:attenuationDistance` and
-`sigil:dispersion`: `geometry::mesh::codec::decode::Part` has no field for
-them, so a stage written and read back loses every lobe but the
-transmission weight.
-
-Wanted: the decoded part carrying the lobes and the reader filling them,
-and the part's lowering into a material stating them. A regression should
-write a sheened, brushed surface and a tinted glass and read them back
-with the same lobes.
-
-## A decoded part's transmission reaches no material
-
-`geometry::mesh::codec::decode::Part` carries `transmission` and `ior`,
-which the glTF reader (`mesh/codec/Gltf.cpp`, from
-`KHR_materials_transmission` and `KHR_materials_ior`) and the USD reader
-fill, but nothing that lowers a decoded part into a material reads them,
-so an imported glass model draws opaque. The glTF reader reads neither
-the volume (`KHR_materials_volume`: thickness, attenuation colour and
-distance) nor `KHR_materials_dispersion`. Intended: a part states the
-whole transmission lobe and its lowering states it on
-`SurfaceOptions`. A test should import a glTF glass cube with a volume and
-find `material::lobes` of the lowered material carrying transmission at
-the file's thickness and attenuation.
-
-## A brushed highlight shows a coarse mesh's facets and a uv pole
-
-The tangent a brushing runs along is read off the screen derivatives of
-the position and the uv (`world/diligent/shaders/Surface.slang`,
-`tangentAxes`), which are constant across each triangle, so a strongly
-brushed highlight on a coarse mesh steps at the triangle edges; on a
-generated sphere the uv's poles pinch the brushing into a knot. No mesh
-lane carries an authored tangent (`geometry/device/residency/Meshes.cpp`
-packs position, normal, uv and colour).
-
-Wanted: an optional tangent lane — a mesh primitive the generators fill
-and the vertex layout carries when present — read in preference to the
-derivative frame. A device test should brush a sphere of few segments and
-assert the highlight varies smoothly across a triangle edge.
-
-## Per-body shadow flags do not reach a USD stage
-
-`Writer::mesh` in `src/common/usd/write/Mesh.cpp` writes geometry,
-placement and material, and nothing of a body's `castShadow` or
-`receiveShadow`; a stage read back casts and receives everywhere. The
-lights' own shadow switch and settings are written. The intended mapping
-writes a body that opts out as custom data on its prim, or folds it into
-each casting light's shadow link. A test should write a mesh with
-`castShadow(false)` and assert that the body read back carries the flag.
+The decoded part carries each texture's colour space, read from a USD
+`sourceColorSpace` and from the glTF file, but the texture-set door in
+`material/texture` still decides colour or data by the role a map fills.
+A texture authored `raw` in a colour role should lower as data. A test
+should lower a part whose base colour is stated `raw` to a `Texture`
+whose `colorSpace()` is `Data`.
 
 ## A sized light's highlight is a representative point's, not the lobe's integral
 
@@ -1282,37 +1211,37 @@ should compare the rect's specular response on a plate at roughness 0.3,
 rectangle, within a stated bound, and the fitted tables against direct
 integration at their texel centres.
 
-## A sized light's sheen, brushing and range are simplified
+## A sized light's sheen and brushing are simplified, and a rect or disk light has no range
 
 Under a rect, sphere or disk light a sheen is lit as by a point light at
 the light's centre carrying the whole light, and a brushing keeps the
 isotropic representative point and stretches the lobe there. Neither
-follows the light's shape, a rect and a disk have no `range` window, and
-a node's scale does not resize a sized light. A test should assert that a
-brushed plate under a long strip light aligned with the brushing shows a
-longer highlight than one across it, and that a sheen under a wide panel
-grazing a cloth plate spreads over the panel's width.
+follows the light's shape, and `RectLightOptions` and `DiskLightOptions`
+carry no `range` window. A test should assert that a brushed plate under
+a long strip light aligned with the brushing shows a longer highlight than
+one across it, that a sheen under a wide panel grazing a cloth plate
+spreads over the panel's width, and that a rect light's range darkens
+what stands past it.
 
-## A canvas on the shared Vulkan device still reads a scene3d sketch's picture back
+## Performance: a Compose page's path strokes are rasterised on the CPU every frame
 
-`Gpu::present` in `src/common/world/diligent/Gpu.cpp` hands a picture
-over in place only to a Metal recorder — a window's. A canvas drawn
-through the device's own Graphite on Vulkan (`--bench --gpu`, a headless
-sweep on the device) stands on the very queue the picture was drawn on
-and could wrap the image with no fence at all, but is read back. Only a
-live run would take that road: a capture that will be diffed reads back
-by design. A test should present a live frame onto a surface of the
-device's own Graphite and assert `SceneStats::readbacks` is zero and the
-pixels equal the readback's.
+`wet_glass_console`'s page is repainted each frame, and Graphite draws
+its ribbon paths through its raster path atlas, Skia's CPU anti-aliased
+fill, which is most of the main thread's time in the window. Path
+coverage should come from Graphite's tessellating or compute path
+renderer, or ribbons should keep their coverage while unchanged. A test
+should be a bench arm painting six long ribbons on a large page each frame
+whose host time stays within a stated bound.
 
-## Performance: wet_glass_console is very demanding
+## Performance: a transmissive pixel costs several times an opaque lit one
 
-The owner reports `wet_glass_console` as very demanding in the window;
-its window bench fails its gate on the describe phase. Whether that is
-the six hundred instanced transmitting beads, the page repainted every
-frame, or the three swept rivulets rebuilt per frame is not measured.
-Profile it with the per-stage timers and `--bench`, name the cost, and
-fix it at the library if the cost is the library's.
+In `wet_glass_console` the full-screen cover glass, the beads, and the
+thin rivulets, heads and wipe ridges each cost a comparable share of the
+device frame, the thin bodies out of proportion to the pixels they cover.
+Seen-through shading should cost a small multiple of an opaque lit pixel.
+A test should time the seen phase of a full-frame pane against the laid
+phase of an opaque card on the device and find the ratio within a stated
+bound.
 
 ## Contract limit: a page carries one volume
 
@@ -1321,65 +1250,16 @@ material's index, attenuation and dispersion for the whole page and
 reports a second once. A test should paint two transmitting regions with
 different indices and find each region's volume in its own maps.
 
-## A scene3d sketch's first frame still builds its pipelines on the thread that draws
+## Limit: a lens's back mirrors its front
 
-The fixed programs compile when the device comes up, on the calling
-thread, but each pipeline is still built inside the frame that first
-needs it, in the geometry library's pipeline cache. The pipelines a frame
-will need should be built on a worker ahead of it. A test should open a
-scene on a cold store and find the first frame's draw time within a small
-factor of the second's.
-
-## A casting light's shadow filter doubles a lit pixel's cost
-
-A lit pixel under one casting light costs about twice a lit pixel under
-none, in the filter and the light loop and not in overdraw, which the
-device already removes. A hardware comparison sampler for the shadow
-taps should cut it. A test should time the laid phase with and without a
-casting light and find the ratio within a stated bound.
-
-## Limit: a glass body's shadow is one colour, and a lens's back mirrors its front
-
-A transmissive body's shadow tint is one colour per body from the
-material's numbers, so its transmission, attenuation and thickness maps
-do not vary it; and the refraction lens assumes the back mirrors the
-front's curvature, so a drop resting flat on glass cannot be stated. The
-tint should read the maps, and a body should be able to state a flat
-back. Tests: a glass with a transmission map casts a shadow that varies
-with it; a plano-convex body bends like one.
-
-## A surface restated by a texture pass is drawn with its anisotropy map read otherwise than the same surface described on the frame
-
-A page's surface described before the page first paints is restated onto
-the body after the paint (`PagePaint::restated` in
-`src/sketch/scene3d/Page.cpp`, then `Scene::Impl::restate` in
-`src/common/world/scene/Execute.cpp`). The restated surface equals the one
-a later description gets, and its parameters and lobe program reach the
-picture; its anisotropy map, though, shades differently from the same map
-in a described surface, on every frame that wears the stale description.
-The candidates are per-body state taken at extraction from the described
-material (`component::Surface` in `scene/Phases.cpp`) and how `drawBody`
-in `diligent/Geometry.cpp` binds that slot. A restated surface should be
-drawn exactly as if it had been described on the frame, as
-`sketch/scene3d/Page.h` states. The test is
-`SketchPythonBakes.DISABLED_APageDescribedBeforeItsFirstPaintIsWornWithTheLobesItPaints`
-in `src/sketch/python/test/PythonTest.cpp`; it passes with the prefix
-removed once this holds. `python_carved_linework`'s device plate shows the
-stale picture until then and is not rebased.
-
-## Rendering gap: a body's per-face slots draw only the first slot
-
-`SurfaceVerbs::fill(std::span<const material::Material>)` stores
-`NodeDescription::slots`, but the scene wears `surfaceOf(node)`, the
-first slot, on every face (`src/common/world/scene/Phases.cpp`), and
-nothing reads a mesh's `"Material"` primitive lane. An extrusion with
-`ExtrudeOptions::faceSets = true` filled with two materials wears the
-first on its caps and its walls alike, while the geometry README states
-that each triangle wears the slot its lane names. `carved_marks` keeps
-its two-extrusion `lying()` until this holds, and its rounded edges wait
-on it too, since a rounded edge needs cap and walls in one mesh. A test
-should extrude a square with face sets, fill it with two materials, render
-it, and find the caps the first and the walls the second.
+The refraction lens assumes a body's back mirrors the front's curvature,
+so a drop resting flat on glass, or any plano-convex body, cannot be
+stated. A body should be able to state a flat back: a field on
+`SurfaceOptions` in material core, carried to the surface program as a
+plane at the body's own zero depth. A test should bend a plano-convex
+body like one; a dome's edge shift against the mirrored back is too close
+to tell them apart, so the test wants a thick slab whose far face is flat
+and a grid behind it, measuring the grid's displacement across the slab.
 
 ## A device binding may answer nothing to a recorder that cannot sample its surface
 
@@ -1396,3 +1276,34 @@ contract should say so. A test should bind each kind of device frame for a
 Vulkan Graphite recorder and find a drawable image. The copy that host
 answer costs could go once the shared device imports a Metal texture into
 Vulkan, as it already exports its own objects the other way.
+
+## Contract: a live frame waits for a newly arrived program's pipeline
+
+When a body's program arrives, the next live frame builds its pipeline on
+a worker but waits for it, so hosts and tests that wait only on
+`ProgramCache::compiling()`, such as `shadedFrame` in
+`src/sketch/scene3d/test/Scene3DSessionTest.cpp`, see a whole body on the
+following frame. The body should stand in until the pipeline is built, as
+the first frame's bodies do, once those hosts and tests loop until
+`SceneStats::programsPending` is zero; then `drawBody` can take the
+cache's non-waiting answer for every live body. A test should run a live
+scene whose program arrives mid-run and find no frame longer than a small
+multiple of the steady frame.
+
+## Present on device covers only the device Graphite's main recorder
+
+`Gpu::present` takes the in-place path only when the canvas's recorder is
+the device Graphite's own recorder; a recorder made from the same context
+with `makeRecorder()` is read back. Any recorder of that context should be
+served in place, which needs a SigilSkia query naming a Vulkan recorder's
+device the way `drawsOnDeviceOf` does for Metal. A test should present onto
+a surface of a second recorder of the same context and find readbacks zero.
+
+## The tangent lane is filled only by the grid generator
+
+`Mesh::tangents` is filled by `grid()`, so brushing follows the surface on
+a sphere, a torus and a superellipsoid, while `revolve`, `extrude`, `box`
+and the sweeps carry no tangents and an operation that rebuilds vertices
+drops them, since a mis-sized lane reads as none. Every generator should
+fill the lane and every rebuilding operation carry it. A test should brush
+a revolved cap of a coarse profile and find no facet steps.

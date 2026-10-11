@@ -96,7 +96,11 @@ every copy of instanced geometry's stamp alike: a material's base is the base co
 the lit response, lowered once at the verb into the surface program. A
 material that states no response is lit at the stock one, so a plain
 `material::Color` lights; `.surface({.unlit = true})` is its own light.
-The per-face form takes one material per slot, in slot order.
+The per-face form takes one material per slot, in slot order, and each
+triangle wears the slot its mesh's `"Material"` primitive lane names —
+the device draws the body once a slot, each draw that slot's triangles.
+A body is sorted into the frame's phases and casts its shadow by its
+first slot, and instanced geometry wears the first slot on every face.
 
 `Mesh::castShadow` and `Mesh::receiveShadow` say whether a body blocks
 the lights that cast shadows and whether their shadows darken it. Both

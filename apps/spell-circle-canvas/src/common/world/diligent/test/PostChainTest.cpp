@@ -502,7 +502,7 @@ TEST(PostChain, TheLaidPhaseCostsWhatIsSeenNotWhatIsDrawn) {
     Scene scene(engine);
     double least = 1e9;
     bool measured = false;
-    for (int k = 0; k < 6; ++k) {
+    for (int k = 0; k < 10; ++k) {
       double longest = 0.0;
       const SceneStats stats = timedUntilRead(scene, frame, &longest);
       measured = measured || stats.deviceTiming == DeviceTiming::Measured;
@@ -511,8 +511,10 @@ TEST(PostChain, TheLaidPhaseCostsWhatIsSeenNotWhatIsDrawn) {
     }
     return measured ? least : -1.0;
   };
+  // The first scene timed meets a device still raising its clocks, so it
+  // is timed once to be thrown away.
+  if (laid(1, false) < 0) GTEST_SKIP() << "the device writes no timestamps";
   const double one = laid(1, false);
-  if (one < 0) GTEST_SKIP() << "the device writes no timestamps";
   const double sixteen = laid(16, false);
   const double shadowed = laid(1, true);
   RecordProperty("oneCardMs", std::to_string(one));
@@ -521,6 +523,7 @@ TEST(PostChain, TheLaidPhaseCostsWhatIsSeenNotWhatIsDrawn) {
   // Sixteen cards over one another cost about what the one in front does:
   // the device does not shade what is hidden.
   EXPECT_LT(sixteen, one * 2.5) << one << " " << sixteen;
-  // A casting light's filter is a bounded share of a lit pixel.
-  EXPECT_LT(shadowed, one * 4.0) << one << " " << shadowed;
+  // A casting light's filter — four comparing gathers a tap block — is
+  // less than a lit pixel's own cost again.
+  EXPECT_LT(shadowed, one * 2.0) << one << " " << shadowed;
 }

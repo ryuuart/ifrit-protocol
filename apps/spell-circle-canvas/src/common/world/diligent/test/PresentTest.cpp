@@ -156,3 +156,43 @@ TEST_F(PresentedPicture, ACaptureIsReadBack) {
   EXPECT_EQ(scene.stats().readbacks, 1);
   EXPECT_EQ(scene.stats().presentedOnDevice, 0);
 }
+
+TEST(PresentedOnQueue, AFrameOnTheDevicesOwnGraphiteIsSampledWhereItStands) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
+  skia::GraphiteContext* own = on.device->graphite();
+  if (!own) GTEST_SKIP() << "the device carries no Graphite of its own";
+  motion::Engine engine;
+  Scene scene(engine);
+  engine.advance(engine.elapsed() + motion::Duration(1.0 / 60.0));
+  scene.render(lit(on.runtime));
+
+  // A canvas of the device's own Graphite, which records onto the queue
+  // the picture was drawn on; its pixels are read once it is submitted,
+  // under the lock every submission on that queue takes.
+  const auto shown = [&](world::Presentation how) {
+    const SkImageInfo info = SkImageInfo::MakeN32Premul(kExtent.x, kExtent.y);
+    sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(own->recorder(), info);
+    SkBitmap pixels;
+    if (!surface) return pixels;
+    surface->getCanvas()->clear(SK_ColorBLACK);
+    draw(scene, *surface->getCanvas(), how);
+    pixels.allocPixels(info);
+    geometry::device::Device::QueueLock lock(*on.device);
+    if (!skia::readbackPixels(*own, *surface, pixels.pixmap())) pixels.reset();
+    own->context()->checkAsyncWorkCompletion();
+    return pixels;
+  };
+  const SkBitmap inPlace = shown(world::Presentation::OnDevice);
+  ASSERT_FALSE(inPlace.drawsNothing());
+  EXPECT_EQ(scene.stats().presentedOnDevice, 1);
+  // NOTHING CROSSED BACK: the picture was sampled where it was drawn.
+  EXPECT_EQ(scene.stats().readbacks, 0);
+
+  const SkBitmap readBack = shown(world::Presentation::Readback);
+  ASSERT_FALSE(readBack.drawsNothing());
+  EXPECT_EQ(scene.stats().readbacks, 1);
+  EXPECT_LE(diligent::worstChannel(inPlace, readBack), 1);
+  const SkColor4f middle = inPlace.getColor4f(kExtent.x / 2, kExtent.y / 2);
+  EXPECT_GT(middle.fR, 0.1f);
+}

@@ -78,14 +78,12 @@ const dg::BlendStateDesc& blendFor(SkBlendMode mode) {
 
 PipelineCache::PipelineCache(Device& device) : m_device(&device) {}
 
-const Pipeline* PipelineCache::pipeline(const PipelineKey& key) {
-  if (!key.program || key.program->empty()) return nullptr;
+PipelineCache::Entry& PipelineCache::start(const PipelineKey& key) {
   const auto found = m_pipelines.find(key);
-  if (found != m_pipelines.end())
-    return found->second.state ? &found->second : nullptr;
+  if (found != m_pipelines.end()) return found->second;
 
   dg::IRenderDevice* renderDevice = m_device->renderDevice();
-  Pipeline built;
+  Entry built;
   dg::RefCntAutoPtr<dg::IShader> vs;
   dg::RefCntAutoPtr<dg::IShader> ps;
   {
@@ -106,10 +104,7 @@ const Pipeline* PipelineCache::pipeline(const PipelineKey& key) {
     ci.ByteCodeSize = key.program->fragment.size() * sizeof(uint32_t);
     renderDevice->CreateShader(ci, &ps);
   }
-  if (!vs || !ps) {
-    m_pipelines.emplace(key, Pipeline{});
-    return nullptr;
-  }
+  if (!vs || !ps) return m_pipelines.emplace(key, Entry{}).first->second;
 
   dg::GraphicsPipelineStateCreateInfoX info{"device pipeline"};
   // DYNAMIC, because every one of these is rebound per draw: one uniform
@@ -147,19 +142,59 @@ const Pipeline* PipelineCache::pipeline(const PipelineKey& key) {
   // draw declares none: it reads no vertex buffer.
   if (!key.fullscreen) {
     const std::span<const dg::LayoutElement> elements =
-        meshLayout(key.primitive, key.instanced);
+        meshLayout(key.primitive, key.instanced, key.tangent);
     info.SetInputLayout(
         dg::InputLayoutDesc{elements.data(), (dg::Uint32)elements.size()});
   }
 
   // Through the driver's cache, so a pipeline an earlier run built is read
-  // back rather than built again.
+  // back rather than built again — and on the device's workers, where it
+  // has them, so the thread that asked goes on drawing. A device without
+  // them ignores the flag and builds here.
   info.pPSOCache = m_device->pipelineStateCache();
-  renderDevice->CreateGraphicsPipelineState(info, &built.state);
-  if (built.state)
-    built.state->CreateShaderResourceBinding(&built.binding, true);
-  const auto placed = m_pipelines.emplace(key, std::move(built)).first;
-  return placed->second.state ? &placed->second : nullptr;
+  info.Flags |= dg::PSO_CREATE_FLAG_ASYNCHRONOUS;
+  renderDevice->CreateGraphicsPipelineState(info, &built.made.state);
+  built.building = built.made.state != nullptr;
+  return m_pipelines.emplace(key, std::move(built)).first->second;
+}
+
+const Pipeline* PipelineCache::finish(Entry& entry, bool wait) {
+  if (entry.building) {
+    const dg::PIPELINE_STATE_STATUS status = entry.made.state->GetStatus(wait);
+    if (status == dg::PIPELINE_STATE_STATUS_COMPILING ||
+        status == dg::PIPELINE_STATE_STATUS_UNINITIALIZED)
+      return nullptr;
+    entry.building = false;
+    if (status == dg::PIPELINE_STATE_STATUS_READY)
+      entry.made.state->CreateShaderResourceBinding(&entry.made.binding, true);
+    else
+      entry.made.state.Release();
+    if (!entry.made.binding) entry.made.state.Release();
+  }
+  return entry.made.state ? &entry.made : nullptr;
+}
+
+const Pipeline* PipelineCache::pipeline(const PipelineKey& key) {
+  if (!key.program || key.program->empty()) return nullptr;
+  return finish(start(key), /*wait=*/true);
+}
+
+const Pipeline* PipelineCache::ready(const PipelineKey& key) {
+  if (!key.program || key.program->empty()) return nullptr;
+  return finish(start(key), /*wait=*/false);
+}
+
+void PipelineCache::prepare(const PipelineKey& key) {
+  if (key.program && !key.program->empty()) (void)start(key);
+}
+
+size_t PipelineCache::building() const {
+  size_t count = 0;
+  for (const auto& [key, entry] : m_pipelines)
+    if (entry.building && entry.made.state->GetStatus(false) ==
+                              dg::PIPELINE_STATE_STATUS_COMPILING)
+      ++count;
+  return count;
 }
 
 void bindDraw(Resources& shared, const Pipeline& pipeline,

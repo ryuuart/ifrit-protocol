@@ -240,8 +240,10 @@ types it; the scaffold decodes it.
 
 **Every lit pixel is shaded on its own.** The tangent frame a normal map
 is authored against is read off the screen derivatives of the view
-position and the uv, because a mesh carries no tangent lane and every
-generator would have to fill one. What the shading is — the lights'
+position and the uv. A brushing reads the mesh's own tangent lane where
+it carries one — the vertex layout declares it at `kTangentInput` for
+every body — and the same derivatives where it does not. What the
+shading is — the lights'
 falloff, the microfacet terms, the clear coat, light from everywhere,
 colour and the tone curve — is **[LIGHTING.md](LIGHTING.md)**.
 

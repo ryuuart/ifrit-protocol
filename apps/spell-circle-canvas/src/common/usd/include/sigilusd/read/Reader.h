@@ -31,6 +31,11 @@ namespace sigil::usd {
  *  readModel() found — parallel to Part::materialIndex. */
 struct ReadInfo {
   std::vector<std::string> materialNames;
+  /** WHETHER EACH PART'S BODY CASTS SHADOWS AND RECEIVES THEM, parallel to
+   *  `Model::parts`: false where its prim states `sigil:castShadow` or
+   *  `sigil:receiveShadow` false, true where it states nothing. */
+  std::vector<bool> castShadow;
+  std::vector<bool> receiveShadow;
 };
 
 /** Read a USD file (.usd, .usda, .usdc, .usdz) into a Model: every

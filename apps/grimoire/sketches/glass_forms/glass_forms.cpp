@@ -69,10 +69,6 @@ float smooth(float edge0, float edge1, float x) {
   return t * t * (3 - 2 * t);
 }
 
-uint8_t byte(float value) {
-  return (uint8_t)std::lround(std::clamp(value, 0.0f, 1.0f) * 255.0f);
-}
-
 // ---------------------------------------------------------------------------
 // The page
 
@@ -383,49 +379,12 @@ gm::Mesh liquid(float level) {
   return gm::extrude(path::Outline::svg(outline), kCellDepth - 12);
 }
 
-/** A smooth value noise that repeats every @p period cells. */
-float noise(float x, float y, int period) {
-  const auto hash = [period](int i, int j) {
-    i = ((i % period) + period) % period;
-    j = ((j % period) + period) % period;
-    uint32_t h = (uint32_t)i * 374761393u + (uint32_t)j * 668265263u;
-    h = (h ^ (h >> 13)) * 1274126177u;
-    return (float)((h ^ (h >> 16)) & 0xffffu) / 65535.0f;
-  };
-  const int i = (int)std::floor(x), j = (int)std::floor(y);
-  const float fx = smooth(0, 1, x - (float)i), fy = smooth(0, 1, y - (float)j);
-  const float a = hash(i, j), b = hash(i + 1, j);
-  const float c = hash(i, j + 1), d = hash(i + 1, j + 1);
-  return a + (b - a) * fx + (c - a) * fy + (a - b - c + d) * fx * fy;
-}
-
-/** THE HAZE: two channels of noise, red across and green up, half-grey
- *  still — DATA, read as stored — fading to still at the square's edge so
- *  the square itself never shows. */
-material::Texture hazeMap() {
-  constexpr int kSize = 128;
-  SkBitmap haze;
-  haze.allocPixels(SkImageInfo::Make(kSize, kSize, kRGBA_8888_SkColorType,
-                                     kUnpremul_SkAlphaType));
-  for (int y = 0; y < kSize; ++y)
-    for (int x = 0; x < kSize; ++x) {
-      const float u = ((float)x + 0.5f) / kSize, v = ((float)y + 0.5f) / kSize;
-      const float edge = smooth(0.0f, 0.3f, std::min(u, 1 - u)) *
-                         smooth(0.0f, 0.2f, v) * smooth(0.0f, 0.45f, 1 - v);
-      const float across =
-          0.7f * noise(u * 4, v * 6, 4) + 0.3f * noise(u * 8, v * 12, 8);
-      const float up = 0.7f * noise(u * 4 + 3.5f, v * 6 + 1.5f, 4) +
-                       0.3f * noise(u * 8 + 7, v * 12 + 2, 8);
-      auto* texel = static_cast<uint8_t*>(haze.getAddr(x, y));
-      texel[0] = byte(0.5f + (across - 0.5f) * edge);
-      texel[1] = byte(0.5f + (up - 0.5f) * edge);
-      texel[2] = 128;
-      texel[3] = 255;
-    }
-  haze.setImmutable();
-  return material::Texture(media::PixelSource(haze.asImage()))
-      .colorSpace(media::ColorSpace::Data)
-      .tile(material::Repeat::Repeat);
+/** THE HAZE: a value noise read as a height and differentiated into a
+ *  normal on the device — red across and green up, half-grey still — which
+ *  is the two channels a distortion reads. */
+material::Material hazeField() {
+  return material::surface::normalFromHeight(
+      material::noise(.035f, {.octaves = 3, .seed = 7}), {.depth = 5});
 }
 
 /** Glass: white, so it tints nothing of its own. */
@@ -444,7 +403,6 @@ struct GlassForms {
   Element tableTree = compose::stack();
   Rails rails;
   world::EnvironmentMap room;
-  material::Texture haze;
   gm::Mesh pageSheet, table, square, lensPane, ring, lens, rim, stem, footing,
       foot, plinth, walls, backWall, frontWall, rod, tick, longTick, shimmer,
       cover;
@@ -486,7 +444,6 @@ struct GlassForms {
                        {.centre = {.52f, .18f},
                         .size = {.30f, .04f},
                         .radiance = {2.4f, 2.4f, 2.4f}}}});
-    haze = hazeMap();
 
     pageSheet = gm::quad(kPage.x, kPage.y);
     table = gm::quad(3400, 2000);
@@ -567,7 +524,7 @@ struct GlassForms {
     const material::Material shimmerSurface =
         material::from(material::Color{1, 1, 1, 0})
             .surface({.roughness = 1.0f,
-                      .distortion = material::image(haze),
+                      .distortion = hazeField(),
                       .distortionStrength = 7 + 3 * std::sin(phase * 2)});
 
     const auto brass = solid(hexColor(0xb08a4a), 0.32f, 1.0f);
@@ -581,11 +538,12 @@ struct GlassForms {
     std::vector<world::Node> nodes{
         world::camera(camera(phase), {.exposure = 1.0f,
                                       .toneCurve = world::ToneCurve::Neutral}),
-        world::directionalLight({0.5f, -0.55f, -0.67f},
-                                {.color = material::Color{1, .95f, .86f, 1},
-                                 .intensity = 2.6f,
-                                 .castShadow = true,
-                                 .shadow = {.radius = 1.6f, .cascades = 2}})
+        world::directionalLight(
+            {0.5f, -0.55f, -0.67f},
+            {.color = material::Color{1, .95f, .86f, 1},
+             .intensity = 2.6f,
+             .castShadow = true,
+             .shadow = {.radius = 1.6f, .cascades = 2, .size = 2}})
             .key("key"),
         world::hemisphereLight(
             {.color = material::Color{.6f, .66f, .78f, 1},

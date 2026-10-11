@@ -8,6 +8,7 @@
  * tree, and that is the point.
  */
 
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilworld/advanced/TextureProducer.h>
@@ -60,6 +61,15 @@ void Scene::Impl::restate(const TextureProducerOperations& producer) {
       continue;
     restatedMaterials.push_back(std::move(*restated));
     body.material = &restatedMaterials.back();
+    // …and everything extraction read off the surface is read again off
+    // the one restated, so the body draws exactly as if the frame had
+    // described it so: its colour, its map and whether light reaches it.
+    const material::Material* readable = readableSurface(body.material);
+    body.baseColor = baseColorOf(readable);
+    body.texture = readable ? material::surface::map(
+                                  *readable, material::surface::kBaseColorSlot)
+                            : nullptr;
+    body.lit = !(readable && material::surface::isUnlit(*readable));
   }
 }
 
@@ -197,6 +207,7 @@ void Scene::Impl::collectBodies(const geometry::mesh::camera::Camera& eye,
                            : kNoNames,
         .ancestors = named.ancestors,
         .material = surface.material ? &*surface.material : nullptr,
+        .slots = surface.slots,
         .lit = surface.lit,
         .texture = surface.texture,
         .castShadow = body.castShadow,

@@ -6,6 +6,8 @@
 #include "Meshes.h"
 
 #include <Graphics/GraphicsTools/interface/DynamicBuffer.hpp>
+#include <cmath>
+#include <cstddef>
 #include <utility>
 #include <vector>
 
@@ -34,6 +36,7 @@ void fillVertices(const mesh::Mesh& mesh, std::string_view primitiveColorLane,
   const bool hasNormals = mesh.normals.size() == n;
   const bool hasUvs = mesh.uvs.size() == n;
   const bool hasColors = mesh.colors.size() == n;
+  const bool hasTangents = mesh.tangents.size() == n;
   const std::vector<glm::vec4>* primitive =
       primitiveColorLane.empty() ? nullptr
                                  : mesh.primitiveIf(primitiveColorLane);
@@ -61,6 +64,11 @@ void fillVertices(const mesh::Mesh& mesh, std::string_view primitiveColorLane,
     v.primitive[1] = tint.g;
     v.primitive[2] = tint.b;
     v.primitive[3] = tint.a;
+    const glm::vec4 t = hasTangents ? mesh.tangents[i] : glm::vec4(0.0f);
+    v.tangent[0] = t.x;
+    v.tangent[1] = t.y;
+    v.tangent[2] = t.z;
+    v.tangent[3] = t.w;
     vertices->push_back(v);
   };
 
@@ -82,7 +90,8 @@ void fillVertices(const mesh::Mesh& mesh, std::string_view primitiveColorLane,
 }  // namespace
 
 std::span<const dg::LayoutElement> meshLayout(bool withPrimitiveLane,
-                                              bool instanced) {
+                                              bool instanced,
+                                              bool withTangent) {
   // THE STRIDE IS STATED rather than derived from the elements, because
   // a vertex carries the primitive lane whether or not the program that
   // reads the others declares it: a layout of four elements over these
@@ -108,20 +117,33 @@ std::span<const dg::LayoutElement> meshLayout(bool withPrimitiveLane,
                              sizeof(InstanceVertex),
                              dg::INPUT_ELEMENT_FREQUENCY_PER_INSTANCE};
   };
-  const auto build = [&](bool primitive, bool instances) {
+  // The tangent stands after the primitive lane in the vertex, so its
+  // offset is stated rather than counted from the elements declared.
+  const auto tangent = [] {
+    return dg::LayoutElement{
+        kTangentInput,     0,         4,
+        dg::VT_FLOAT32,    dg::False, (dg::Uint32)offsetof(MeshVertex, tangent),
+        sizeof(MeshVertex)};
+  };
+  const auto build = [&](int which) {
+    const bool primitive = (which & 1) != 0;
+    const bool instances = (which & 2) != 0;
+    const bool tangents = (which & 4) != 0;
     std::vector<dg::LayoutElement> elements = {vertex(0, 3), vertex(1, 3),
                                                vertex(2, 2), vertex(3, 4)};
     if (primitive) elements.push_back(vertex(4, 4));
     if (instances)
       for (dg::Uint32 i = 0; i < 6; ++i)
         elements.push_back(instance(kFirstInstanceInput + i));
+    if (tangents) elements.push_back(tangent());
     return elements;
   };
-  static const std::vector<dg::LayoutElement> layouts[4] = {
-      build(false, false), build(true, false), build(false, true),
-      build(true, true)};
+  static const std::vector<dg::LayoutElement> layouts[8] = {
+      build(0), build(1), build(2), build(3),
+      build(4), build(5), build(6), build(7)};
   const std::vector<dg::LayoutElement>& chosen =
-      layouts[(withPrimitiveLane ? 1 : 0) + (instanced ? 2 : 0)];
+      layouts[(withPrimitiveLane ? 1 : 0) + (instanced ? 2 : 0) +
+              (withTangent ? 4 : 0)];
   return {chosen.data(), chosen.size()};
 }
 
@@ -168,6 +190,55 @@ MeshResidency::MeshResidency(Device& device) : m_device(&device) {}
 
 MeshResidency::~MeshResidency() = default;
 
+dg::IBuffer* MeshResidency::slotIndices(uint64_t artefact,
+                                        const mesh::Mesh& mesh, size_t slot,
+                                        uint32_t* count) {
+  *count = 0;
+  const auto held = m_meshes.find(artefact);
+  if (held == m_meshes.end() || !held->second.vertices) return nullptr;
+  MeshBuffers& buffers = held->second;
+  if (buffers.slotIndices.empty()) {
+    const std::vector<glm::vec4>* lane = mesh.primitiveIf("Material");
+    if (!lane || lane->size() != mesh.triangleCount()) return nullptr;
+    // The packed indices are the mesh's own where no primitive lane
+    // unshared the vertices, and one vertex a corner, in order, where one
+    // did.
+    const std::vector<glm::vec4>* tinted =
+        buffers.primitiveColorLane.empty()
+            ? nullptr
+            : mesh.primitiveIf(buffers.primitiveColorLane);
+    const bool unshared = tinted && tinted->size() == mesh.triangleCount();
+    std::vector<std::vector<uint32_t>> bySlot;
+    for (size_t t = 0; t < lane->size(); ++t) {
+      const float named = (*lane)[t].x;
+      if (!(named >= 0.0f)) continue;
+      const size_t k = (size_t)std::lround(named);
+      if (k >= bySlot.size()) bySlot.resize(k + 1);
+      for (size_t c = 0; c < 3; ++c)
+        bySlot[k].push_back(unshared ? (uint32_t)(t * 3 + c)
+                                     : mesh.indices[t * 3 + c]);
+    }
+    buffers.slotIndices.resize(bySlot.size());
+    buffers.slotIndexCounts.assign(bySlot.size(), 0);
+    for (size_t k = 0; k < bySlot.size(); ++k) {
+      if (bySlot[k].empty()) continue;
+      dg::BufferDesc desc;
+      desc.Name = "mesh slot indices";
+      desc.Size = bySlot[k].size() * sizeof(uint32_t);
+      desc.BindFlags = dg::BIND_INDEX_BUFFER;
+      desc.Usage = dg::USAGE_IMMUTABLE;
+      dg::BufferData data{bySlot[k].data(), desc.Size};
+      m_device->renderDevice()->CreateBuffer(desc, &data,
+                                             &buffers.slotIndices[k]);
+      if (buffers.slotIndices[k])
+        buffers.slotIndexCounts[k] = (uint32_t)bySlot[k].size();
+    }
+  }
+  if (slot >= buffers.slotIndices.size()) return nullptr;
+  *count = buffers.slotIndexCounts[slot];
+  return *count ? buffers.slotIndices[slot].RawPtr() : nullptr;
+}
+
 const MeshBuffers* MeshResidency::upload(uint64_t artefact,
                                          const mesh::Mesh& mesh,
                                          std::string_view primitiveColorLane) {
@@ -188,6 +259,8 @@ const MeshBuffers* MeshResidency::upload(uint64_t artefact,
 
   buffers.vertices.Release();
   buffers.indices.Release();
+  buffers.slotIndices.clear();
+  buffers.slotIndexCounts.clear();
   dg::BufferDesc vd;
   vd.Name = "mesh vertices";
   vd.Size = vertices.size() * sizeof(MeshVertex);

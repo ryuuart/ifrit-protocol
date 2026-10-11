@@ -21,11 +21,16 @@
 #include <sigilgeometry/mesh/Instances.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/surface/Surface.h>
+#include <sigilmaterial/texture/Image.h>
+#include <sigilmaterial/texture/Texture.h>
+#include <sigilmedia/core/ColorSpace.h>
+#include <sigilmedia/core/PixelSource.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilworld/World.h>
 #include <sigilworld/scene/Scene.h>
 
 #include <algorithm>
+#include <cmath>
 #include <optional>
 #include <string>
 #include <utility>
@@ -641,6 +646,41 @@ TEST(Shadow, AGreenGlassCastsAGreenShadow) {
   EXPECT_LT(luma(behind), luma(beside) * 0.95f) << "darker behind the pane";
   EXPECT_GT(behind.fG, behind.fR + 0.1f) << "and greener than red";
   EXPECT_GT(luma(behind), luma(beside) * 0.2f) << "but lit through it";
+}
+
+TEST(Shadow, AGlassWithATransmissionMapCastsAShadowThatFollowsIt) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // A green pane whose transmission map lets light through its one half
+  // and none through the other: the half that transmits tints the ground
+  // green, the half that does not leaves the tint white.
+  SkBitmap halves;
+  halves.allocPixels(
+      SkImageInfo::Make(2, 1, kRGBA_8888_SkColorType, kUnpremul_SkAlphaType));
+  *halves.getAddr32(0, 0) = 0xFFFFFFFFu;
+  *halves.getAddr32(1, 0) = 0xFF000000u;
+  halves.setImmutable();
+  const material::Texture transmits =
+      material::Texture(media::PixelSource(halves.asImage()))
+          .colorSpace(media::ColorSpace::Data)
+          .sampling(material::Sampling::Nearest);
+  const SkBitmap plate = photographed(
+      {directionalLight({1, -1, 0}, sun(true)).key("sun"), ground(),
+       mesh(gm::quad(40, 40))
+           .key("pane")
+           .rotateX(-90)
+           .at({0, 40, 0})
+           .fill(material::from(material::Color{0.2f, 0.9f, 0.2f, 1})
+                     .surface({.roughness = 0.1f,
+                               .transmission = material::image(transmits),
+                               .ior = 1.5f}))},
+      on.runtime);
+  // The pane's two halves along x throw their tints forty units along x.
+  const SkColor4f through = groundAt(plate, 30, -10);
+  const SkColor4f held = groundAt(plate, 50, -10);
+  const auto green = [](SkColor4f c) { return c.fG - c.fR; };
+  EXPECT_GT(std::abs(green(through) - green(held)), 0.1f)
+      << "the half that transmits tints its shadow, the other does not";
 }
 
 TEST(Shadow, APanelCastsAcrossTheWholeOfItsFrontHalf) {

@@ -57,9 +57,10 @@ key light throws the shadow of the glass's mount across the page.
   states `transmission`, `ior` 1.5, a small `thickness` and a lowered
   `specular`.
 - The beads are `geometry::mesh::revolve` caps, stood at points by
-  `geometry::mesh::pop::on(cloud).instances(stamp)` with a `"size"` lane,
-  in three sizes of body, each with the `thickness` its size of drop
-  carries light through, at `ior` 1.33.
+  `geometry::mesh::points::instances(cloud, stamp)` with a `"size"` lane
+  that scales each copy and is carried to it as an attribute: one body a
+  shape, whose surface's `thicknessAttribute` makes each drop as deep as
+  it is wide, at `ior` 1.33.
 - A rivulet is `geometry::mesh::pop::on(points).sweep(profile)` carrying
   a flattened arch along a Catmull-Rom rail down the glass, its size
   tapered toward the head; its head is one more bead.

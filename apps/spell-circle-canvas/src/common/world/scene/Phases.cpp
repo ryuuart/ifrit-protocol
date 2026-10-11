@@ -38,19 +38,6 @@ const material::Material* surfaceOf(const NodeDescription& node) {
   return node.slots.empty() ? nullptr : &node.slots.front();
 }
 
-/** THE SURFACE AT THE BOTTOM OF A STACK. A stack is a base, a top and a
- *  mask that decides where the top shows, and a mask is a program — so
- *  what can be read off a stack without running it is the surface
- *  everything else was laid over. Any other material is itself. */
-const material::Material* readableSurface(const material::Material* material) {
-  while (material) {
-    const material::Material* base = material::under(*material);
-    if (base == material) break;
-    material = base;
-  }
-  return material;
-}
-
 /** WHAT A BODY CANNOT WEAR, named once per body: a source read of the
  *  unit a page paints a material into, which a body has none of, and a
  *  layered colour stack, which has no program a device can run. The body
@@ -78,19 +65,6 @@ void refuseUnreadable(const NodeDescription& node,
             "stack on a page the body wears, or bake it into an image.");
 }
 
-/** THE COLOUR A BODY IS EXTRACTED WITH: what a pass draws it in where
- *  its recipe carries no program the device can compile, and what a
- *  selection reads. A recipe declaring a four-float `baseColor` is read
- *  for it; anything else takes a neutral grey. */
-glm::vec4 baseColorOf(const material::Material* material) {
-  constexpr glm::vec4 kDefault{0.8f, 0.8f, 0.85f, 1.0f};
-  if (!material) return kDefault;
-  const material::Field* field =
-      material->recipe().parameters().find("baseColor");
-  if (!field || field->floats != 4) return kDefault;
-  return material->get<glm::vec4>("baseColor");
-}
-
 /** The light, carried by the placement of the node that declared it and
  *  held still for the frame. A direction is not carried the way a point
  *  is: under a non-uniform scale the basis tilts it off the surfaces it
@@ -114,6 +88,28 @@ PlacedLight placeLight(const LightDescription& light, const glm::mat4& world,
   const glm::vec3 turned = glm::mat3(world) * across;
   placed.across = glm::dot(turned, turned) > 0.0f ? glm::normalize(turned)
                                                   : glm::vec3(1, 0, 0);
+  // A NODE'S SCALE SIZES A LIGHT WITH A SIZE, as it does a body: a rect's
+  // width by how far the scale stretches the axis its width runs along
+  // and its height by the axis beside it, a disk's radius by the mean of
+  // the two, and a ball's by the mean of all three.
+  const LightKind kind = placed.light.kind;
+  if (kind == LightKind::Rect || kind == LightKind::Disk ||
+      kind == LightKind::Sphere) {
+    const glm::mat3 linear(world);
+    const glm::vec3 alongWidth = glm::normalize(across);
+    const float widthScale = glm::length(linear * alongWidth);
+    const float heightScale = glm::length(linear * glm::cross(aim, alongWidth));
+    if (kind == LightKind::Rect) {
+      placed.light.width *= widthScale;
+      placed.light.height *= heightScale;
+    } else if (kind == LightKind::Disk) {
+      placed.light.radius *= 0.5f * (widthScale + heightScale);
+    } else {
+      placed.light.radius *= (glm::length(linear[0]) + glm::length(linear[1]) +
+                              glm::length(linear[2])) /
+                             3.0f;
+    }
+  }
   return placed;
 }
 
@@ -176,6 +172,32 @@ std::array<float, 16> scalarsOf(const glm::mat4& world) {
 }
 
 }  // namespace
+
+/** THE SURFACE AT THE BOTTOM OF A STACK. A stack is a base, a top and a
+ *  mask that decides where the top shows, and a mask is a program — so
+ *  what can be read off a stack without running it is the surface
+ *  everything else was laid over. Any other material is itself. */
+const material::Material* readableSurface(const material::Material* material) {
+  while (material) {
+    const material::Material* base = material::under(*material);
+    if (base == material) break;
+    material = base;
+  }
+  return material;
+}
+
+/** THE COLOUR A BODY IS EXTRACTED WITH: what a pass draws it in where
+ *  its recipe carries no program the device can compile, and what a
+ *  selection reads. A recipe declaring a four-float `baseColor` is read
+ *  for it; anything else takes a neutral grey. */
+glm::vec4 baseColorOf(const material::Material* material) {
+  constexpr glm::vec4 kDefault{0.8f, 0.8f, 0.85f, 1.0f};
+  if (!material) return kDefault;
+  const material::Field* field =
+      material->recipe().parameters().find("baseColor");
+  if (!field || field->floats != 4) return kDefault;
+  return material->get<glm::vec4>("baseColor");
+}
 
 Scene::Impl::Impl(motion::Engine& t)
     : engine(t), reconciler(*this), bake(DrawOrderBake{}) {}
@@ -493,6 +515,7 @@ void Scene::Impl::writeComponents(Instance& inst) {
       inst.entity, baseColorOf(readableSurface(worn)),
       worn ? std::optional<material::Material>(*worn)
            : std::optional<material::Material>());
+  if (!node.material && node.slots.size() > 1) surface.slots = node.slots;
   // The colour and the map are read HERE, once, so that an execution
   // reading a body never walks a material tree — and both are read off
   // the same surface, the one at the bottom of whatever was stacked.

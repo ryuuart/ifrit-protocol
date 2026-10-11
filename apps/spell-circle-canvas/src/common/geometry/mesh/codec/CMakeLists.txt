@@ -17,13 +17,18 @@ find_package(simdjson CONFIG REQUIRED)
 sigil_library(SigilGeometryMeshCodec
   SOURCES Alembic.cpp Geo.cpp GeoEncode.cpp GeoInternal.h GeoLanes.cpp
           Gltf.cpp Internal.h Model.cpp
-          Obj.cpp PlyDecode.cpp PlyEncode.cpp Stl.cpp
-  HEADERS Decode.h Encode.h Model.h
+          Obj.cpp PlyDecode.cpp PlyEncode.cpp Stl.cpp Surface.cpp
+  HEADERS Decode.h Encode.h Model.h Surface.h
   INCLUDE_PRIVATE ${CGLTF_INCLUDE_DIR}
   PUBLIC SigilGeometryMesh SigilGeometryMeshPop Boost::container
+         SigilMaterialCore
   PRIVATE SigilIOSource tinyobjloader::tinyobjloader Alembic::Alembic
           Boost::unordered simdjson::simdjson)
 
+# SigilMaterialCore is PUBLIC because Surface.h answers a part's surface in
+# its vocabulary, `material::SurfaceOptions`; nothing in SigilMaterial
+# reads a decoded part, so the dependency runs one way.
+#
 # The decode tests write Alembic archives in memory with the O* API, so
 # the binary needs the library directly, not just the codec's door; they
 # also cook a pop chain over an imported cloud.

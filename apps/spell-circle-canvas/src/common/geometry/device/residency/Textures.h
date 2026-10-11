@@ -25,6 +25,7 @@
 
 #include <Common/interface/RefCntAutoPtr.hpp>
 #include <boost/container/map.hpp>
+#include <chrono>
 #include <cstdint>
 #include <vector>
 
@@ -91,12 +92,16 @@ class TextureResidency {
  public:
   explicit TextureResidency(Device& device);
 
-  /** THE MAP @p map IS, on this device — wrapped where its pixels
-   *  already stand, or brought over once in @p form and held. Null when
-   *  the texture yields no image or the device refused it. One image put
-   *  on the device in two forms is two textures. */
+  /** THE MAP @p map IS AT @p time, on this device — wrapped where its
+   *  pixels already stand, or brought over once in @p form and held. Each
+   *  is held under the image the source answers at that time, so a video
+   *  or an animated image crosses once per frame of its own and a still
+   *  crosses once. Null when the texture yields no image or the device
+   *  refused it. One image put on the device in two forms is two
+   *  textures. */
   Diligent::ITexture* sample(const material::Texture& map,
-                             const MapForm& form = {});
+                             const MapForm& form = {},
+                             std::chrono::duration<double> time = {});
 
   /** THE PANORAMA on the device: one texture whose levels are the map's
    *  prefiltered chain, uploaded once per map and kept.

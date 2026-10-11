@@ -27,6 +27,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace Diligent {
 class DynamicBuffer;
@@ -48,6 +49,10 @@ struct MeshVertex {
    *  ones where no lane was named. A triangle has nowhere of its own to
    *  hold a value, so its three vertices each carry it. */
   float primitive[4];
+  /** The way u runs along the surface and the side v runs on, as the
+   *  mesh's tangent lane carries it; zeros where it carries none, which a
+   *  program reads as a direction to find off the uvs itself. */
+  float tangent[4];
 };
 
 /** ONE INSTANCE, as an instanced draw reads it from a second buffer that
@@ -77,7 +82,12 @@ inline constexpr unsigned kFirstInstanceInput = 5;
  *  `InstanceVertex` elements follow from `kFirstInstanceInput`, read from
  *  the second buffer once per instance. */
 std::span<const Diligent::LayoutElement> meshLayout(bool withPrimitiveLane,
-                                                    bool instanced = false);
+                                                    bool instanced = false,
+                                                    bool withTangent = false);
+
+/** The input number the tangent is read at, when the layout declares it:
+ *  after every instance element. */
+inline constexpr unsigned kTangentInput = 11;
 
 /** INSTANCED GEOMETRY'S INSTANCES UPLOADED, under the number of the
  *  artefact they came from, as `MeshBuffers` are. */
@@ -107,6 +117,13 @@ struct MeshBuffers {
    *  of buffers. Answering the held pair for the other request would
    *  hand a draw the wrong vertex count and the wrong tints. */
   std::string primitiveColorLane;
+  /** THE TRIANGLES EACH MATERIAL SLOT WEARS, as index buffers over the
+   *  same vertices: slot k's holds every triangle whose "Material"
+   *  primitive lane names k, in the mesh's order. Made on the first ask,
+   *  every slot at once, with an empty buffer and a count of zero for a
+   *  slot no triangle names. */
+  std::vector<Diligent::RefCntAutoPtr<Diligent::IBuffer>> slotIndices;
+  std::vector<uint32_t> slotIndexCounts;
   /** The frame this was last drawn in, so a mesh nobody names any more
    *  is let go. */
   uint64_t used = 0;
@@ -151,6 +168,13 @@ class MeshResidency {
    *  asked for and kept as a mesh is. The stamp is uploaded apart, under
    *  its own number. Null when there are no instances or the device
    *  refused the buffer. */
+  /** THE TRIANGLES OF @p artefact's buffers that wear slot @p slot, read
+   *  off @p mesh's "Material" primitive lane — which the buffers must
+   *  have been uploaded from first. Null when the mesh carries no such
+   *  lane, names no triangle with that slot, or was never uploaded; the
+   *  count is written to @p count. */
+  Diligent::IBuffer* slotIndices(uint64_t artefact, const mesh::Mesh& mesh,
+                                 size_t slot, uint32_t* count);
   const InstanceBuffers* instances(uint64_t artefact,
                                    const mesh::Instances& instances);
 

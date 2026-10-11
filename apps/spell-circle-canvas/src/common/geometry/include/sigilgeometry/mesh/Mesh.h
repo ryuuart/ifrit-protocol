@@ -97,14 +97,26 @@ struct Mesh {
    *  consumers read "lane sized to positions" as the presence bit for
    *  the whole mesh (render::drawMesh's hasNormals is exactly that), so
    *  an undersized merge would turn lighting, texturing or tinting off
-   *  for BOTH halves. Pads: colors white, normals +Z, uvs (0, 0). */
+   *  for BOTH halves. Pads: colors white, normals +Z, uvs (0, 0), and
+   *  tangents none, so a side that carried none reads its own off the
+   *  uvs. */
   void append(const Mesh& other);
-  /** Transform positions by @p m and normals by its inverse transpose. */
+  /** Transform positions by @p m, normals by its inverse transpose and
+   *  tangents by its own turn, their handedness flipped by a mirror. */
   void transform(const glm::mat4& m);
   /** Recompute vertex normals as area-weighted triangle-normal sums. */
   void computeNormals();
   /** Axis-aligned bounds. */
   void bounds(glm::vec3* lo, glm::vec3* hi) const;
+
+  /** THE TANGENT LANE, optional: per vertex, in xyz the unit direction u
+   *  runs along the surface, and in w which way v runs beside it — the
+   *  direction v grows along is cross(normal, xyz) times w, one or minus
+   *  one. A generator that knows how its surface is parameterised fills
+   *  it; empty, or any count other than positions, is a mesh that carries
+   *  none, and a renderer reads the direction off the uvs where it draws.
+   *  A vertex whose xyz has no length carries none either. */
+  std::vector<glm::vec4> tangents;
 
   /** Content equality, lane for lane. */
   bool operator==(const Mesh&) const = default;

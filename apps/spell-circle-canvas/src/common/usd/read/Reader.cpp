@@ -7,6 +7,9 @@
 
 #include "sigilusd/read/Reader.h"
 
+#include <pxr/base/tf/token.h>
+#include <pxr/base/vt/value.h>
+#include <pxr/usd/usd/prim.h>
 #include <pxr/usd/usd/primRange.h>
 #include <pxr/usd/usd/stage.h>
 #include <pxr/usd/usdGeom/mesh.h>
@@ -46,11 +49,23 @@ std::optional<geometry::mesh::codec::decode::Model> readModel(
   ReadContext context;
   context.stageDir = file.parent_path();
   geometry::mesh::codec::decode::Model model;
+  // A body's shadow flags ride as custom data on its prim, one value for
+  // every part the prim became.
+  const auto stated = [](const UsdPrim& prim, const char* key) {
+    const VtValue value = prim.GetCustomDataByKey(TfToken(key));
+    return !value.IsHolding<bool>() || value.Get<bool>();
+  };
   for (const UsdPrim& prim : stage->Traverse()) {
+    const size_t before = model.parts.size();
     if (prim.IsA<UsdGeomMesh>())
       readMesh(prim, context, model);
     else if (prim.IsA<UsdGeomPointInstancer>())
       readInstancer(prim, context, model);
+    if (!info) continue;
+    for (size_t added = before; added < model.parts.size(); ++added) {
+      info->castShadow.push_back(stated(prim, "sigil:castShadow"));
+      info->receiveShadow.push_back(stated(prim, "sigil:receiveShadow"));
+    }
   }
   if (info) info->materialNames = std::move(context.materialNames);
   return model;

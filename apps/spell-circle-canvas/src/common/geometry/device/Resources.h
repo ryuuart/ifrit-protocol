@@ -65,6 +65,15 @@ class Resources {
    *  linearly ACROSS them as well as within one. */
   Diligent::ISampler* panoramaSampler() const { return m_panorama.RawPtr(); }
 
+  /** …and ONE THAT COMPARES, for a depth map read as a shadow: each texel
+   *  it reads answers one where the reference handed with the lookup
+   *  stands no deeper than the depth stored there and zero where it
+   *  stands deeper, the four texels of a gather compared at once. It
+   *  clamps at the edge. */
+  Diligent::ISampler* comparisonSampler() const {
+    return m_comparison.RawPtr();
+  }
+
   /** What an unfilled sampled slot reads: one white texel, so a body
    *  multiplied by a map it was not given is the body. */
   Diligent::ITexture* white() const { return m_white.RawPtr(); }
@@ -95,6 +104,7 @@ class Resources {
   Diligent::RefCntAutoPtr<Diligent::ISampler> m_linearTiled;
   Diligent::RefCntAutoPtr<Diligent::ISampler> m_nearestTiled;
   Diligent::RefCntAutoPtr<Diligent::ISampler> m_panorama;
+  Diligent::RefCntAutoPtr<Diligent::ISampler> m_comparison;
   Diligent::RefCntAutoPtr<Diligent::ITexture> m_white;
 };
 

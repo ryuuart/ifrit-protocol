@@ -18,6 +18,7 @@
 #include <include/core/SkColorSpace.h>
 #include <include/core/SkImageInfo.h>
 #include <sigilcore/hardware/GpuDevice.h>
+#include <sigilmedia/advanced/Device.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilskia/graphite/Pixels.h>
 
@@ -140,13 +141,17 @@ int mapMipLevels(int width, int height) {
 TextureResidency::TextureResidency(Device& device) : m_device(&device) {}
 
 dg::ITexture* TextureResidency::sample(const material::Texture& map,
-                                       const MapForm& form) {
+                                       const MapForm& form,
+                                       std::chrono::duration<double> time) {
   if (!m_device->renderDevice()) return nullptr;
 
   // ZERO COPY: the pixels already stand on this very device, so what a
-  // draw needs is a name for them and not a second copy of them.
-  const material::DeviceImage where = map.deviceImage();
-  if (where && where.device == m_device->gpu() && where.handle != 0) {
+  // draw needs is a name for them and not a second copy of them. The
+  // source is asked at the frame's time, and a frame of it standing on a
+  // device is named rather than read back.
+  const media::DeviceFrame where = map.source().frameAt(time).device;
+  if (where.kind == media::DeviceFrame::Kind::Texture &&
+      where.device == m_device->gpu() && where.handle != 0) {
     SampledImage& held = m_wrapped[where.handle];
     held.used = m_frame;
     if (!held.texture) {
@@ -165,7 +170,7 @@ dg::ITexture* TextureResidency::sample(const material::Texture& map,
     // The wrap was refused; the pixels are still readable the long way.
   }
 
-  const sk_sp<SkImage> image = map.frameAt().image;
+  const sk_sp<SkImage> image = map.frameAt(time).image;
   if (!image) return nullptr;
   const Layout layout = layoutFor(*image, form, *m_device);
   const uint64_t key = ((uint64_t)image->uniqueID() << 8u) |

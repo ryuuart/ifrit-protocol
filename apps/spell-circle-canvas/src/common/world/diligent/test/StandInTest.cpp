@@ -17,6 +17,7 @@
 #include <sigilworld/advanced/Stats.h>
 #include <sigilworld/scene/Scene.h>
 
+#include <algorithm>
 #include <chrono>
 #include <memory>
 #include <string>
@@ -92,13 +93,15 @@ TEST(StandIn, ALiveFrameDrawsTheStandInUntilTheProgramArrives) {
   const SkColor4f first = middle(scene);
   EXPECT_GT(first.fR, 0.95f);
 
-  // A later frame, once the worker is done, draws the program.
+  // A later frame, once the workers have compiled the program and built
+  // its pipeline, draws it.
   const auto deadline =
       std::chrono::steady_clock::now() + std::chrono::seconds(30);
-  while (material::ProgramCache::shared().compiling() > 0 &&
-         std::chrono::steady_clock::now() < deadline)
+  do {
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  scene.render(card(surface, on.runtime, /*standIns=*/true));
+    scene.render(card(surface, on.runtime, /*standIns=*/true));
+  } while (scene.stats().programsPending > 0 &&
+           std::chrono::steady_clock::now() < deadline);
   EXPECT_EQ(scene.stats().programsPending, 0);
   const SkColor4f later = middle(scene);
   EXPECT_GT(later.fR, 0.05f);
@@ -125,14 +128,14 @@ TEST(StandIn, ALightKindEnteringStandsInForOneFrameAtMost) {
       uncompiled("world.test.stand-in.light-enters");
   motion::Engine engine;
   Scene scene(engine);
-  // The body opens and its program streams in.
-  scene.render(card(surface, on.runtime, /*standIns=*/true));
+  // The body opens and its program and pipeline stream in.
   const auto deadline =
       std::chrono::steady_clock::now() + std::chrono::seconds(30);
-  while (material::ProgramCache::shared().compiling() > 0 &&
-         std::chrono::steady_clock::now() < deadline)
+  do {
+    scene.render(card(surface, on.runtime, /*standIns=*/true));
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  scene.render(card(surface, on.runtime, /*standIns=*/true));
+  } while (scene.stats().programsPending > 0 &&
+           std::chrono::steady_clock::now() < deadline);
   ASSERT_EQ(scene.stats().programsPending, 0);
 
   // A rect light enters: the frame that meets it may stand the body in
@@ -144,4 +147,59 @@ TEST(StandIn, ALightKindEnteringStandsInForOneFrameAtMost) {
   EXPECT_EQ(scene.stats().programsPending, 0);
   const SkColor4f lit = middle(scene);
   EXPECT_LT(lit.fR, 0.95f) << "the body is lit, not its unlit stand-in";
+}
+
+TEST(StandIn, AFirstLiveFrameBuildsNoPipelineOnTheThreadThatDraws) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // A RUNTIME OF ITS OWN, so its pipelines are cold: the ones every frame
+  // draws with start building on the device's workers when it is made.
+  const ::sigil::world::Runtime fresh = diligent::runtime(*on.device);
+  // Two surfaces no other case compiled, so the first frame holds neither
+  // program: every body in it is a stand-in, whose pipeline the runtime
+  // started when it was made.
+  const material::Material surface = uncompiled("world.test.stand-in.cold");
+  const material::Material wall = uncompiled("world.test.stand-in.cold-wall");
+  const auto lit = [&] {
+    Frame frame = card(surface, fresh, /*standIns=*/true);
+    frame.scene(group({directionalLight({0, -0.4f, -1},
+                                        {.intensity = 0.8f, .castShadow = true})
+                           .key("sun"),
+                       mesh(::sigil::geometry::mesh::quad(120, 120))
+                           .key("card")
+                           .fill(surface),
+                       mesh(::sigil::geometry::mesh::quad(400, 400))
+                           .key("wall")
+                           .at({0, 0, -60})
+                           .fill(wall)})
+                    .key("set"));
+    return frame;
+  };
+  motion::Engine engine;
+  Scene scene(engine);
+  // What a first frame makes that is not a pipeline — the readback's
+  // staging copy, the uploads — is made by a plain card first, whose
+  // frame is also the moment the pipelines started with the runtime are
+  // built in.
+  scene.render(card(material::from(material::Color{0.2f, 0.3f, 0.4f, 1}), fresh,
+                    /*standIns=*/true));
+  (void)middle(scene);
+  const auto timed = [&] {
+    const auto start = std::chrono::steady_clock::now();
+    scene.render(lit());
+    (void)middle(scene);
+    return std::chrono::duration<double, std::milli>(
+               std::chrono::steady_clock::now() - start)
+        .count();
+  };
+  const double first = timed();
+  const double second = timed();
+  double steady = second;
+  for (int k = 0; k < 4; ++k) steady = std::min(steady, timed());
+  RecordProperty("firstMs", std::to_string(first));
+  RecordProperty("secondMs", std::to_string(second));
+  RecordProperty("steadyMs", std::to_string(steady));
+  // Within a small factor of a frame that builds nothing, with a floor
+  // for a frame so short that the clock's own grain decides the ratio.
+  EXPECT_LT(first, std::max(steady * 6.0, 6.0)) << first << " " << steady;
 }

@@ -123,9 +123,12 @@ is silently, plausibly wrong rather than obviously broken.
   concern. glTF's whole metallic-roughness material rides along the same
   way: `Part::textures` keys the normal, packed metallicRoughness
   (`"orm"`), occlusion and emissive images by usage word, beside the
-  `metallic`/`roughness`/`emissive` factors, the transmission and ior
-  extensions and the alpha mode — words SigilWorld's texture-set door
-  reads directly. A part's material SLOT (`materialIndex`, glTF's material
+  `metallic`/`roughness`/`emissive` factors, the whole transmission lobe
+  (weight, index, the volume's thickness and attenuation, dispersion), the
+  optional lobes (sheen, anisotropy, iridescence, specular, clear coat), each
+  image's stated colour space and the alpha mode — words SigilWorld's
+  texture-set door reads directly, and every number of which
+  `decode::surfaceOptions()` lowers onto SigilMaterial's surface options. A part's material SLOT (`materialIndex`, glTF's material
   index; a `.geo`'s `shop_materialpath` string index) is also written
   across its `mesh.primitives["Material"]` lane, so `Model::merged()` keeps
   per-triangle materials and `materialSlotCount()` says how many.

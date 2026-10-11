@@ -6,7 +6,9 @@
 
 #include <pxr/base/tf/token.h>
 #include <pxr/base/vt/array.h>
+#include <pxr/base/vt/value.h>
 #include <pxr/usd/sdf/types.h>
+#include <pxr/usd/usd/prim.h>
 #include <pxr/usd/usdGeom/primvarsAPI.h>
 #include <pxr/usd/usdGeom/subset.h>
 #include <pxr/usd/usdGeom/tokens.h>
@@ -115,6 +117,24 @@ std::string Writer::mesh(std::string_view name,
   impl.fillMesh(usdMesh, mesh);
   impl.bind(usdMesh, mesh, slots, name);
   return path;
+}
+
+void Writer::shadows(std::string_view path, bool castShadow,
+                     bool receiveShadow) {
+  Impl& impl = *m_impl;
+  if (!impl.stage) return;
+  const UsdPrim prim = impl.stage->GetPrimAtPath(SdfPath(std::string(path)));
+  if (!prim) return;
+  const TfToken cast("sigil:castShadow");
+  const TfToken receive("sigil:receiveShadow");
+  if (castShadow)
+    prim.ClearCustomDataByKey(cast);
+  else
+    prim.SetCustomDataByKey(cast, VtValue(false));
+  if (receiveShadow)
+    prim.ClearCustomDataByKey(receive);
+  else
+    prim.SetCustomDataByKey(receive, VtValue(false));
 }
 
 }  // namespace sigil::usd

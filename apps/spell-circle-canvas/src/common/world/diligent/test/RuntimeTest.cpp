@@ -16,6 +16,7 @@
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
+#include <sigilgeometry/path/Outline.h>
 #include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/slang/SlangCompiler.h>
@@ -283,6 +284,88 @@ TEST_F(DeviceFrame, TheMapABodyIsDressedWithReachesThePixels) {
   const SkColor4f centre = plate.getColor4f(kExtent.x / 2, kExtent.y / 2);
   EXPECT_GT(centre.fG, centre.fR + 0.15f);
   EXPECT_GT(centre.fG, centre.fB + 0.15f);
+}
+
+namespace {
+
+/** AN ANIMATED IMAGE OF TWO FRAMES: the first for the first half second,
+ *  the second after it. */
+struct TwoFrames {
+  sk_sp<SkImage> first;
+  sk_sp<SkImage> second;
+  media::Frame frameAt(std::chrono::duration<double> time) const {
+    media::Frame frame;
+    frame.image = time.count() < 0.5 ? first : second;
+    return frame;
+  }
+  bool isRunning() const { return true; }
+  bool operator==(const TwoFrames& other) const {
+    return first == other.first && second == other.second;
+  }
+};
+
+/** The middle of what @p scene last drew. */
+SkColor4f centreOf(Scene& scene) {
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(kExtent.x, kExtent.y));
+  SkCanvas canvas(bitmap);
+  canvas.clear(SK_ColorBLACK);
+  draw(scene, canvas);
+  return bitmap.getColor4f(kExtent.x / 2, kExtent.y / 2);
+}
+
+}  // namespace
+
+TEST_F(DeviceFrame, AnAnimatedMapIsReadAtTheFramesTime) {
+  const auto image = [](SkColor4f colour) {
+    return flatMap(colour).frameAt().image;
+  };
+  const material::Texture animated{media::PixelSource(
+      TwoFrames{image({0.9f, 0.1f, 0.1f, 1}), image({0.1f, 0.9f, 0.1f, 1})})};
+  Frame frame = dressedQuad(dressed(animated));
+  frame.runtime(runtime);
+  motion::Engine engine;
+  Scene scene(engine);
+  engine.advance(motion::Duration(0.25));
+  scene.render(frame);
+  const SkColor4f early = centreOf(scene);
+  EXPECT_GT(early.fR, early.fG + 0.15f) << "the first frame, at its time";
+  engine.advance(motion::Duration(0.75));
+  scene.render(frame);
+  const SkColor4f late = centreOf(scene);
+  EXPECT_GT(late.fG, late.fR + 0.15f) << "the second frame, at its time";
+}
+
+TEST_F(DeviceFrame, EachFaceWearsTheSlotItsLaneNames) {
+  namespace gm = ::sigil::geometry::mesh;
+  // A square lifted into a block whose caps name slot 0 and whose walls
+  // name slot 1, filled with a red and a blue that light does not change.
+  const gm::Mesh block = gm::extrude(::sigil::geometry::path::Outline::svg(
+                                         "M-50 -50 L50 -50 L50 50 L-50 50 Z"),
+                                     {.depth = 60, .faceSets = true});
+  const std::vector<material::Material> slots{
+      material::surface::unlit({.baseColor = {1, 0, 0, 1}}),
+      material::surface::unlit({.baseColor = {0, 0, 1, 1}})};
+  Frame frame(group({mesh(block).key("block").fill(slots)}).key("set"));
+  frame.extent(kExtent)
+      .defaultCamera(diligent::raisedEye())
+      .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack));
+  const SkBitmap plate = photograph(frame, runtime);
+  const auto seen = [&](glm::vec3 point) {
+    const std::optional<glm::vec2> at = diligent::raisedEye().project(
+        point, glm::vec2((float)kExtent.x, (float)kExtent.y));
+    if (!at) return SkColor4f{0, 0, 0, 0};
+    return plate.getColor4f(std::clamp((int)at->x, 0, kExtent.x - 1),
+                            std::clamp((int)at->y, 0, kExtent.y - 1));
+  };
+  // The front cap, square to the eye, and the top wall the raised eye
+  // looks down onto.
+  const SkColor4f cap = seen({0, 0, 30});
+  const SkColor4f wall = seen({0, 50, 0});
+  EXPECT_GT(cap.fR, 0.8f);
+  EXPECT_LT(cap.fB, 0.2f);
+  EXPECT_GT(wall.fB, 0.8f);
+  EXPECT_LT(wall.fR, 0.2f);
 }
 
 // ---- what a texture and a surface each say about themselves ----------------

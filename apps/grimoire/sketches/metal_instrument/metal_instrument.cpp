@@ -208,12 +208,9 @@ material::Material metal(material::Color color, float roughness) {
        .metallic = 1,
        .roughness = bounded(roughness, 0, 1, 0.27f)});
 }
-/** A picture shown as it is: the device's display, or — @p overlay — a
- *  sheet in front of the whole scene, which writes no depth so the scene
- *  shows through where the sheet is clear. */
-material::Material screen(material::Texture texture, bool overlay = false) {
-  auto result = material::surface::unlit(
-      {.baseColor = {1, 1, 1, 1}, .depthWrite = overlay ? 0.0f : -1.0f});
+/** A picture shown as it is: the device's display. */
+material::Material screen(material::Texture texture) {
+  auto result = material::surface::unlit({.baseColor = {1, 1, 1, 1}});
   result.slot(material::surface::kBaseColorSlot, std::move(texture));
   return result;
 }
@@ -518,16 +515,6 @@ struct MetalInstrument {
     return root;
   }
 
-  world::Mesh overlayQuad(const gm::camera::Camera& camera) const {
-    const glm::vec3 forward = glm::normalize(camera.target - camera.eye);
-    const float distance = camera.zNear + 4;
-    const glm::vec2 extent = camera.extentAt(distance, float(kWidth) / kHeight);
-    const glm::vec3 at = camera.eye + forward * distance;
-    return part("overlay", gm::quad(extent.x, extent.y),
-                screen(overlayScene->texture(), true))
-        .transform(gm::camera::faceCamera(camera.eye, at, camera.up));
-  }
-
   world::Frame describe(sigil::motion::Duration now) {
     const double seconds = now.count();
     const Moment m = moment(seconds);
@@ -600,12 +587,13 @@ struct MetalInstrument {
                                       .at({-175 + float(i) * 208, -218, 115})
                                       .rotateX(68)
                                       .rotateY(-15 + 8 * std::sin(m.t * 0.4f));
-                                }),
-                    overlayQuad(camera)}))
+                                })}))
         .environment(environment, {.intensity = 0.95f,
                                    .diffuse = 0.45f,
                                    .specular = 1,
-                                   .rotation = lightTurn});
+                                   .rotation = lightTurn})
+        // The page about the instrument, laid over the finished frame.
+        .overlay(overlayScene->texture());
   }
 };
 

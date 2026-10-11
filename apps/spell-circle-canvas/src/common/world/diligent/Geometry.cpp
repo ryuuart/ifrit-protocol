@@ -63,6 +63,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstring>
 #include <glm/common.hpp>
@@ -590,6 +591,8 @@ constexpr std::string_view kSceneDepthSlot = "uSceneDepth";
 constexpr std::string_view kSceneColorSlot = "uSceneColor";
 /** …and the one every light's shadow map is read through. */
 constexpr std::string_view kShadowSlot = "uShadowAtlas";
+/** …and the one the same atlas is compared through. */
+constexpr std::string_view kShadowCompareSlot = "uShadowCompare";
 
 /** What one body is drawn as: its mesh, the artefact number its buffers
  *  are held under, and the instances it is repeated at — null for one
@@ -599,6 +602,10 @@ struct Shape {
   const geometry::mesh::Mesh* mesh = nullptr;
   const geometry::mesh::Instances* instances = nullptr;
   Facing facing = Facing::None;
+  /** THE ONE MATERIAL SLOT drawn, of a mesh whose faces wear several: only
+   *  the triangles its "Material" lane names with it. Below zero draws
+   *  every triangle. */
+  int slot = -1;
 };
 
 /** A BODY DRAWN INTO A SHADOW MAP: the light's projection, and whether
@@ -611,6 +618,84 @@ struct Caster {
    *  is there by multiplying, behind nothing the map holds. */
   bool tint = false;
 };
+
+/** WHAT OF A LIGHT A TRANSMISSIVE SURFACE LETS THROUGH, as its tint reads
+ *  it: its colour in linear light, the share it transmits, how deep it is,
+ *  and its volume's colour and distance. The tint multiplies the first two
+ *  numbers by their maps, dims the colour by the volume across the depth,
+ *  and lets all of the share it does not transmit through, which its depth
+ *  in the map already answers for. A number the material does not state
+ *  reads as a clear pane's. */
+struct TintTerms {
+  glm::vec3 colour{1.0f};
+  float weight = 1.0f;
+  float thickness = 0.0f;
+  float distance = 0.0f;
+  glm::vec3 attenuation{1.0f};
+};
+
+TintTerms tintTermsOf(const material::Material& worn) {
+  const material::Schema& fields = worn.recipe().parameters();
+  const auto number = [&](std::string_view name, float otherwise) {
+    const material::Field* field = fields.find(name);
+    return field && field->floats == 1 ? worn.get<float>(name) : otherwise;
+  };
+  // Typed as a display shows it, and carried as light.
+  const auto decoded = [](float code) {
+    return code <= 0.04045f ? code / 12.92f
+                            : std::pow((code + 0.055f) / 1.055f, 2.4f);
+  };
+  const auto colourOf = [&](std::string_view name) {
+    const material::Field* field = fields.find(name);
+    if (!field || field->floats != 4) return glm::vec3(1.0f);
+    const material::Color c = worn.get<material::Color>(name);
+    return glm::vec3(decoded(c.r), decoded(c.g), decoded(c.b));
+  };
+  TintTerms out;
+  out.colour = colourOf("baseColor");
+  out.weight = std::clamp(number("transmission", 1.0f), 0.0f, 1.0f);
+  out.thickness = std::max(number("thickness", 0.0f), 0.0f);
+  out.distance = std::max(number("attenuationDistance", 0.0f), 0.0f);
+  out.attenuation = colourOf("attenuationColor");
+  return out;
+}
+
+/** HOW A BODY'S PIPELINE DIFFERS from another built out of @p program:
+ *  into the picture, by how it blends and whether it writes depth and
+ *  drops its back faces; into a shadow map (@p caster), depth and no
+ *  colour from both faces, or the tint laid over by multiplying. */
+PipelineKey bodyKey(const material::slang::Compiled& program,
+                    const Blending& blending, bool cull, const Caster* caster) {
+  // A BODY WRITING DEPTH IS OPAQUE: what it covers it replaces, so a
+  // body composited normally and writing depth is drawn with blending
+  // off, which is also what lets the device skip the pixels a nearer
+  // opaque body hides. Translucency is a body that writes no depth or
+  // states a blend of its own.
+  const SkBlendMode blend =
+      blending.depthWrite && blending.blend == SkBlendMode::kSrcOver
+          ? SkBlendMode::kSrc
+          : blending.blend;
+  PipelineKey key{&program, blend, true, blending.depthWrite,
+                  false,    false, cull};
+  key.target = kRadianceFormat;
+  key.instanced = true;
+  key.tangent = true;
+  if (caster) {
+    // Depth and no colour; both faces, so a card blocks the light from
+    // behind as well as in front.
+    key = PipelineKey{&program, SkBlendMode::kSrc, true, true, false, false,
+                      false};
+    key.target = dg::TEX_FORMAT_UNKNOWN;
+    key.instanced = true;
+    key.tangent = true;
+    if (caster->tint) {
+      key.blend = SkBlendMode::kModulate;
+      key.depthWrite = false;
+      key.target = dg::TEX_FORMAT_RGBA8_UNORM;
+    }
+  }
+  return key;
+}
 
 /** One body, drawn. @p map is the texture it is dressed with, or null;
  *  @p sceneDepth the copy of the opaque depth, or null; @p sceneColor the
@@ -627,6 +712,13 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
               const Caster* caster = nullptr, bool receives = true) {
   const MeshBuffers* buffers = gpu.meshes.upload(shape.artefact, *shape.mesh);
   if (!buffers) return;
+  dg::IBuffer* indexBuffer = buffers->indices;
+  uint32_t indexCount = buffers->indexCount;
+  if (shape.slot >= 0) {
+    indexBuffer = gpu.meshes.slotIndices(shape.artefact, *shape.mesh,
+                                         (size_t)shape.slot, &indexCount);
+    if (!indexBuffer) return;
+  }
   const device::InstanceBuffers* instances =
       shape.instances ? gpu.meshes.instances(shape.artefact, *shape.instances)
                       : gpu.meshes.single();
@@ -651,6 +743,23 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
   else
     surface = surfaceOf(material, lit, gpu.seconds, caster != nullptr,
                         gpu.standIns, reaching);
+  // THE PIPELINE, built on the device's workers: a stand-in's is started
+  // when the runtime is made, and where a live frame still finds it
+  // building the body is left out of that frame and counted as waiting.
+  if (!surface.program || surface.program->empty()) return;
+  PipelineKey key = bodyKey(*surface.program, blending, cull, caster);
+  // A body whose own program is in hand waits for its pipeline, so the
+  // frame after a program arrives draws it whole; only a stand-in in a
+  // live frame — whose pipeline every runtime starts ahead of its first
+  // frame — is not waited for.
+  const Pipeline* pipeline = gpu.standIns && surface.standIn
+                                 ? gpu.pipelines.ready(key)
+                                 : gpu.pipelines.pipeline(key);
+  if (!pipeline && gpu.standIns && surface.standIn) {
+    ++gpu.programsPending;
+    return;
+  }
+  if (!pipeline) return;
   // A LIGHT KIND ENTERING, told from a body opening by the light bits its
   // lit program was last drawn whole with: the compile the stand-in
   // started is waited for before the next geometry pass draws.
@@ -668,36 +777,6 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
     lit = false;
   }
   if (caster) lit = false;
-  if (!surface.program || surface.program->empty()) return;
-
-  // A BODY WRITING DEPTH IS OPAQUE: what it covers it replaces, so a
-  // body composited normally and writing depth is drawn with blending
-  // off, which is also what lets the device skip the pixels a nearer
-  // opaque body hides. Translucency is a body that writes no depth or
-  // states a blend of its own.
-  const SkBlendMode blend =
-      blending.depthWrite && blending.blend == SkBlendMode::kSrcOver
-          ? SkBlendMode::kSrc
-          : blending.blend;
-  PipelineKey key{surface.program, blend, true, blending.depthWrite,
-                  false,           false, cull};
-  key.target = kRadianceFormat;
-  key.instanced = true;
-  if (caster) {
-    // Depth and no colour; both faces, so a card blocks the light from
-    // behind as well as in front.
-    key = PipelineKey{
-        surface.program, SkBlendMode::kSrc, true, true, false, false, false};
-    key.target = dg::TEX_FORMAT_UNKNOWN;
-    key.instanced = true;
-    if (caster->tint) {
-      key.blend = SkBlendMode::kModulate;
-      key.depthWrite = false;
-      key.target = dg::TEX_FORMAT_RGBA8_UNORM;
-    }
-  }
-  const Pipeline* pipeline = gpu.pipelines.pipeline(key);
-  if (!pipeline) return;
 
   // THE PANORAMA, uploaded once per map and kept. Its level count is
   // what says there is a sky at all, so it is asked for before the
@@ -720,6 +799,13 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
   writeInstancing(uniforms, view, shape.instances ? shape.facing : Facing::None,
                   *instances);
   writeMaterial(uniforms, surface);
+  if (caster && caster->tint && material) {
+    const TintTerms terms = tintTermsOf(*material);
+    uniforms.set("uTintVolume", terms.weight, terms.thickness, terms.distance,
+                 0.0f);
+    uniforms.set("uTintAttenuation", terms.attenuation.r, terms.attenuation.g,
+                 terms.attenuation.b, 1.0f);
+  }
   // THE SCENE BEHIND, for a body that sees through itself: its size, its
   // levels, and the projection that carries a point onto it.
   uniforms.set("uSceneColorDials",
@@ -760,7 +846,8 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
       // pixels stand on this device has no host image to check for.
       if (map)
         textures[i] = gpu.maps.sample(
-            *map, formFor(material::surface::kBaseColorSlot, *map));
+            *map, formFor(material::surface::kBaseColorSlot, *map),
+            std::chrono::duration<double>(gpu.seconds));
       continue;
     }
     // …the scene behind is the frame's, read between its texels and
@@ -825,6 +912,32 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
       samplers[i] = gpu.shared.samplerFor(SkFilterMode::kNearest, false);
       continue;
     }
+    // …and through the comparison sampler, four depths compared in one
+    // gather. A comparison reads only a depth texture, so a pass with no
+    // map binds the atlas as it stands, or a one-texel one — which the
+    // dials say nothing reads.
+    if (slot == kShadowCompareSlot) {
+      if (gpu.shadowAtlas || gpu.shadowAtlasAt(1)) {
+        textures[i] = gpu.shadowAtlas;
+        views[i] = gpu.shadowCompareView;
+      }
+      samplers[i] = gpu.shared.comparisonSampler();
+      continue;
+    }
+    // …and a transmissive body's own transmission and thickness maps,
+    // which its tint beside the shadow maps reads.
+    if (slot == "uTintTransmissionMap" || slot == "uTintThicknessMap") {
+      if (material)
+        if (const material::Texture* own = material::surface::map(
+                *material, slot == "uTintTransmissionMap"
+                               ? material::surface::kTransmissionSlot
+                               : material::surface::kThicknessSlot))
+          textures[i] = gpu.maps.sample(
+              *own, formFor(material::surface::kTransmissionSlot, *own),
+              std::chrono::duration<double>(gpu.seconds));
+      samplers[i] = gpu.shared.samplerFor(SkFilterMode::kLinear, true);
+      continue;
+    }
     if (!material) continue;
     // …and every OTHER slot is the material's own. `material::surface::map`
     // answers null for a slot still holding the neutral dressing a
@@ -832,7 +945,10 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
     // reading the one white texel rather than a map that says nothing.
     const material::Texture* own = material::surface::map(*material, slot);
     if (own) {
-      if (own != map) textures[i] = gpu.maps.sample(*own, formFor(slot, *own));
+      if (own != map)
+        textures[i] =
+            gpu.maps.sample(*own, formFor(slot, *own),
+                            std::chrono::duration<double>(gpu.seconds));
       // A slot a child material brought is read the way its own texture
       // asks — a flipbook's sheet held at its edge, a flow map repeating.
       if (!surfaceSlot(slot)) {
@@ -867,10 +983,10 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
   context->SetVertexBuffers(0, 2, streams, offsets,
                             dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
                             dg::SET_VERTEX_BUFFERS_FLAG_RESET);
-  context->SetIndexBuffer(buffers->indices, 0,
+  context->SetIndexBuffer(indexBuffer, 0,
                           dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
   dg::DrawIndexedAttribs draw;
-  draw.NumIndices = buffers->indexCount;
+  draw.NumIndices = indexCount;
   draw.NumInstances = instances->count;
   draw.IndexType = dg::VT_UINT32;
   draw.Flags = dg::DRAW_FLAG_VERIFY_ALL;
@@ -1111,6 +1227,7 @@ void drawBodies(Gpu& gpu, const View& view, const glm::mat4& viewProj,
       // …AND AGAIN before one standing in front of a body that saw through
       // itself since, which the copy then holds as it was drawn.
       bool copying = false;
+      bool drewSeen = false;
       if (phase == Phase::SeenThrough) {
         const Region here = regionOf(body, viewProj, viewMatrix);
         copying =
@@ -1118,10 +1235,14 @@ void drawBodies(Gpu& gpu, const View& view, const glm::mat4& viewProj,
                                        [&](const Region& drawn) {
                                          return standsBehind(drawn, here);
                                        });
+        drewSeen = !sinceCopied.empty();
         if (copying) sinceCopied.clear();
         sinceCopied.push_back(here);
       }
       if (copying) {
+        // What the bodies seen through before this copy cost is theirs,
+        // not the copy's.
+        if (timed && drewSeen) gpu.mark("seen");
         if (dg::ITexture* copy = gpu.sceneColorForReading()) {
           copyForReading(gpu, target, copy);
           if (timed) gpu.mark("colour-copy");
@@ -1171,16 +1292,31 @@ void drawBodies(Gpu& gpu, const View& view, const glm::mat4& viewProj,
       // A BODY THAT IS ITS OWN LIGHT is drawn unlit whatever the pass
       // says, because that is what its surface is and not how this pass
       // reads it — a variant laid over it included.
-      drawBody(
-          gpu, viewProj, viewMatrix,
-          Shape{body.geometry, body.mesh, body.instances, body.facing},
-          body.world, colour, flat ? nullptr : body.material,
-          flat ? nullptr : body.texture, reaching, view.environment,
-          lit && body.lit, blending,
-          /*cull=*/body.backface == material::Backface::Hidden,
-          blending.fades || phase == Phase::SeenThrough ? sceneDepth : nullptr,
-          phase == Phase::SeenThrough ? sceneColor : nullptr, nullptr,
-          body.receiveShadow);
+      // A MESH WHOSE FACES WEAR SEVERAL SLOTS is drawn once a slot, each
+      // draw the triangles its "Material" lane names with that slot,
+      // wearing that slot's surface and map.
+      const bool perSlot = !flat && body.slots.size() > 1 && !body.instances;
+      const size_t draws = perSlot ? body.slots.size() : 1;
+      for (size_t k = 0; k < draws; ++k) {
+        const material::Material* worn = flat      ? nullptr
+                                         : perSlot ? &body.slots[k]
+                                                   : body.material;
+        const material::Texture* map =
+            flat      ? nullptr
+            : perSlot ? material::surface::map(
+                            body.slots[k], material::surface::kBaseColorSlot)
+                      : body.texture;
+        drawBody(gpu, viewProj, viewMatrix,
+                 Shape{body.geometry, body.mesh, body.instances, body.facing,
+                       perSlot ? (int)k : -1},
+                 body.world, colour, worn, map, reaching, view.environment,
+                 lit && body.lit, blending,
+                 /*cull=*/body.backface == material::Backface::Hidden,
+                 blending.fades || phase == Phase::SeenThrough ? sceneDepth
+                                                               : nullptr,
+                 phase == Phase::SeenThrough ? sceneColor : nullptr, nullptr,
+                 body.receiveShadow);
+      }
     }
     if (timed)
       gpu.mark(phase == Phase::LaidOver      ? "laid"
@@ -1795,47 +1931,6 @@ bool tints(const Draw& body) {
          (text && text->find("gSurfaceTransmission") != std::string::npos);
 }
 
-/** WHAT OF A LIGHT @p body LETS THROUGH, in linear light: of the share it
- *  transmits, its colour dimmed by the volume across its thickness, and
- *  all of the share it does not, which its depth in the map already
- *  answers for. A number the material does not state reads as a clear
- *  pane's. */
-glm::vec4 transmittanceOf(const Draw& body) {
-  const material::Material& worn = *body.material;
-  const material::Schema& fields = worn.recipe().parameters();
-  const auto number = [&](std::string_view name, float otherwise) {
-    const material::Field* field = fields.find(name);
-    return field && field->floats == 1 ? worn.get<float>(name) : otherwise;
-  };
-  const float weight = std::clamp(number("transmission", 1.0f), 0.0f, 1.0f);
-  glm::vec3 colour(1.0f);
-  if (const material::Field* field = fields.find("baseColor");
-      field && field->floats == 4) {
-    const material::Color base = worn.get<material::Color>("baseColor");
-    colour = glm::vec3(base.r, base.g, base.b);
-  }
-  // Typed as a display shows it, and carried as light.
-  const auto decoded = [](float code) {
-    return code <= 0.04045f ? code / 12.92f
-                            : std::pow((code + 0.055f) / 1.055f, 2.4f);
-  };
-  colour = glm::vec3(decoded(colour.r), decoded(colour.g), decoded(colour.b));
-  const float distance = number("attenuationDistance", 0.0f);
-  if (distance > 0.0f) {
-    if (const material::Field* field = fields.find("attenuationColor");
-        field && field->floats == 4) {
-      const material::Color tint =
-          worn.get<material::Color>("attenuationColor");
-      const float crossed =
-          std::max(number("thickness", 0.0f), 0.0f) / distance;
-      colour *= glm::vec3(std::pow(std::max(decoded(tint.r), 1e-4f), crossed),
-                          std::pow(std::max(decoded(tint.g), 1e-4f), crossed),
-                          std::pow(std::max(decoded(tint.b), 1e-4f), crossed));
-    }
-  }
-  return glm::vec4(glm::vec3(1.0f - weight) + colour * weight, 1.0f);
-}
-
 /** THE TINT BESIDE THE SHADOW MAPS: for every map the stage laid out, the
  *  nearest transmissive body's depth, and the colour every transmissive
  *  body nearer the light than what blocks it lets through, multiplied
@@ -1865,9 +1960,12 @@ void drawTints(Gpu& gpu, const View& view, const glm::mat4& cameraView) {
         Caster caster{map.viewProjection, false, tint};
         drawBody(gpu, map.viewProjection, cameraView,
                  Shape{body.geometry, body.mesh, body.instances, body.facing},
-                 body.world, tint ? transmittanceOf(body) : body.baseColor,
-                 nullptr, nullptr, {}, view.environment, /*lit=*/false,
-                 Blending{}, /*cull=*/false, nullptr, nullptr, &caster);
+                 body.world,
+                 tint ? glm::vec4(tintTermsOf(*body.material).colour, 1.0f)
+                      : body.baseColor,
+                 tint ? body.material : nullptr, nullptr, {}, view.environment,
+                 /*lit=*/false, Blending{}, /*cull=*/false, nullptr, nullptr,
+                 &caster);
       }
     }
   };
@@ -1892,6 +1990,34 @@ void drawTints(Gpu& gpu, const View& view, const glm::mat4& cameraView) {
                              dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
   eachMap(true);
   gpu.shadowTinted = true;
+}
+
+void prepareFixedPipelines(Gpu& gpu) {
+  // THE BODIES' OWN: a stand-in and a body with no Slang body of its own,
+  // opaque, with its back faces dropped and kept, and the two depth-only
+  // programs a shadow map is drawn with.
+  for (const bool cull : {true, false}) {
+    gpu.pipelines.prepare(bodyKey(scaffold(false), Blending{}, cull, nullptr));
+    gpu.pipelines.prepare(bodyKey(scaffold(true), Blending{}, cull, nullptr));
+  }
+  const Caster depthOnly{};
+  gpu.pipelines.prepare(bodyKey(shadowScaffold(/*coverage=*/false), Blending{},
+                                false, &depthOnly));
+  gpu.pipelines.prepare(bodyKey(shadowScaffold(/*coverage=*/true), Blending{},
+                                false, &depthOnly));
+  // THE FRAME'S OWN: the sky, the clear, a copy and the final stage, each a
+  // triangle over the whole target, the last into the display's format.
+  const PostPrograms& programs = postPrograms();
+  const auto stage = [&](const material::slang::Compiled& program,
+                         dg::TEXTURE_FORMAT target) {
+    PipelineKey key{&program, SkBlendMode::kSrc, false, false, true};
+    key.target = target;
+    gpu.pipelines.prepare(key);
+  };
+  stage(backdropProgram(), kRadianceFormat);
+  stage(programs.fill, kRadianceFormat);
+  stage(programs.copy, kRadianceFormat);
+  stage(programs.final, kColorFormat);
 }
 
 void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,

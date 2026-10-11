@@ -14,10 +14,9 @@
  * lit bodies; the reach sphere is real wire in real space, so it reads
  * by intersecting geometry rather than by being drawn to look as though
  * it did; and the overlay is a compose tree painted into a texture and
- * hung on one unlit quad that fills the frustum. Nothing about the
- * overlay knows it is on a quad and nothing about the quad knows it is
- * an overlay — the seam is an ordinary `material::Texture` in a
- * base-colour slot.
+ * laid over the finished frame, after the camera's reading, as a display
+ * lays a bitmap over a rendered picture. Nothing about the overlay knows
+ * what it is laid over — the seam is an ordinary `material::Texture`.
  *
  * THE TWO GRIDS ARE REAL AND THEY SURVIVE THE MOVE. Vagrant Story
  * displays at a 512x240 hi-res framebuffer but computes polygon
@@ -504,15 +503,13 @@ namespace {
 
 struct VagrantStoryTarget {
   /** THE SESSION KEEPS THE SCENE. Asked for once while the scene3d sketch
-   *  declares itself, so the texture the overlay quad wears outlives every
-   * frame that wears it; asked for per frame it would be one scene per frame,
-   *  each holding a texture the last one's body was pointing at. */
+   *  declares itself, so the texture laid over the frame outlives every
+   *  frame that lays it; asked for per frame it would be one scene per
+   *  frame, each holding a texture the last one was pointing at. */
   std::shared_ptr<compose::TextureScene> overlay;
   weave::FontContext* fonts = nullptr;
   compose::Element retained;
-  /** The camera. It is a member because the overlay's quad has to be put
-   *  where the frustum is, and a scene3d sketch whose camera is declared
-   *  once is one whose overlay is a fixed rectangle rather than a guess. */
+  /** The camera, declared once. */
   geometry::mesh::camera::Camera lens;
 
   void setup(sketch::Scene3DContext& ctx) {
@@ -639,86 +636,68 @@ struct VagrantStoryTarget {
              compose::each(kLimbs, limbCard)});
   }
 
-  /** The overlay's quad: it stands one metre in front of the eye and is
-   *  exactly as wide and as tall as the frustum is there, so a texture
-   *  pixel and a plate pixel are the same pixel. */
-  Mesh overlayQuad(material::Texture texture) {
-    const glm::vec3 forward = glm::normalize(lens.target - lens.eye);
-    constexpr float kAt = 100.0f;
-    const glm::vec2 frame =
-        lens.extentAt(kAt, (float)vs::kHudW / (float)vs::kHudH);
-    const float w = frame.x, h = frame.y;
-    const glm::vec3 at = lens.eye + forward * kAt;
-    material::Material surface = material::surface::unlit(
-        {.baseColor = {1, 1, 1, 1}, .depthWrite = false});
-    surface.slot(material::surface::kBaseColorSlot, std::move(texture));
-    return mesh(vs::gm::quad(w, h))
-        .key("overlay")
-        .transform(
-            ::sigil::geometry::mesh::camera::faceCamera(lens.eye, at, lens.up))
-        .fill(std::move(surface))
-        .collection("overlay");
-  }
-
   world::Frame describe(sigil::motion::Duration now) {
     const float seconds = (float)now.count();
     using namespace vs;
     const float pulse = 0.5f + 0.5f * std::sin(seconds * 4.2f);
     overlay->render(retained, (double)seconds);
-    return group(
-               // The floor of the Iron Maiden: one dark flag, lit, so the
-               // figures
-               // and the sphere have something to stand on and cast their
-               // values against.
-               {mesh(gm::quad(1800.0f, 1800.0f))
-                    .key("floor")
-                    .rotateX(-90.0f)
-                    .fill(material::surface::program(
-                        {.baseColor = {0.112f, 0.104f, 0.116f, 1.0f},
-                         .roughness = 0.9f}))
-                    .collection("ground"),
-                // The chamber's far wall. Without it the upper half of the
-                // frame is the clear colour, and a wireframe read against
-                // nothing is a wireframe with no depth in it.
-                mesh(gm::quad(2400.0f, 1200.0f))
-                    .key("wall")
-                    .at({0.0f, 300.0f, -900.0f})
-                    .fill(material::surface::program(
-                        {.baseColor = {0.088f, 0.086f, 0.104f, 1.0f},
-                         .roughness = 0.95f}))
-                    .collection("ground"),
-                // A cold key from behind the enemy and a warm fill at Ashley's
-                // back: the dungeon's own two-source reading, which is what
-                // separates the two figures without a rim pass.
-                directionalLight(
-                    {-0.42f, -0.74f, -0.52f},
-                    {.color = material::Color{0.62f, 0.72f, 1.00f, 1.0f},
-                     .intensity = 2.3f})
-                    .key("key"),
-                pointLight({.color = material::Color{1.00f, 0.58f, 0.26f, 1.0f},
-                            .intensity = intensityAt(2.5f, 500.0f),
-                            .range = 1100.0f})
-                    .at({-330.0f, 240.0f, 300.0f})
-                    .key("torch"),
-                directionalLight(
-                    {0.34f, -0.42f, 0.84f},
-                    {.color = material::Color{0.44f, 0.50f, 0.66f, 1.0f},
-                     .intensity = 0.85f})
-                    .key("bounce"),
-                ambientLight({.intensity = 0.04f}).key("ambient"),
-                figure("ashley", kAshleyAt, 72.0f, 1.0f,
-                       material::surface::program(
-                           {.baseColor = {0.62f, 0.60f, 0.55f, 1.0f},
-                            .roughness = 0.44f}),
-                       0.0f, -1),
-                figure("dullahan", kEnemyAt, -104.0f, 1.34f,
-                       material::surface::program(
-                           {.baseColor = {0.22f, 0.24f, 0.30f, 1.0f},
-                            .roughness = 0.28f}),
-                       pulse, kSelected),
-                reachSphere(seconds), attackLadder(),
-                overlayQuad(overlay->texture())})
-        .key("battle");
+    return world::Frame(
+               group(
+                   // The floor of the Iron Maiden: one dark flag, lit, so the
+                   // figures
+                   // and the sphere have something to stand on and cast their
+                   // values against.
+                   {mesh(gm::quad(1800.0f, 1800.0f))
+                        .key("floor")
+                        .rotateX(-90.0f)
+                        .fill(material::surface::program(
+                            {.baseColor = {0.112f, 0.104f, 0.116f, 1.0f},
+                             .roughness = 0.9f}))
+                        .collection("ground"),
+                    // The chamber's far wall. Without it the upper half of the
+                    // frame is the clear colour, and a wireframe read against
+                    // nothing is a wireframe with no depth in it.
+                    mesh(gm::quad(2400.0f, 1200.0f))
+                        .key("wall")
+                        .at({0.0f, 300.0f, -900.0f})
+                        .fill(material::surface::program(
+                            {.baseColor = {0.088f, 0.086f, 0.104f, 1.0f},
+                             .roughness = 0.95f}))
+                        .collection("ground"),
+                    // A cold key from behind the enemy and a warm fill at
+                    // Ashley's back: the dungeon's own two-source reading,
+                    // which is what separates the two figures without a rim
+                    // pass.
+                    directionalLight(
+                        {-0.42f, -0.74f, -0.52f},
+                        {.color = material::Color{0.62f, 0.72f, 1.00f, 1.0f},
+                         .intensity = 2.3f})
+                        .key("key"),
+                    pointLight(
+                        {.color = material::Color{1.00f, 0.58f, 0.26f, 1.0f},
+                         .intensity = intensityAt(2.5f, 500.0f),
+                         .range = 1100.0f})
+                        .at({-330.0f, 240.0f, 300.0f})
+                        .key("torch"),
+                    directionalLight(
+                        {0.34f, -0.42f, 0.84f},
+                        {.color = material::Color{0.44f, 0.50f, 0.66f, 1.0f},
+                         .intensity = 0.85f})
+                        .key("bounce"),
+                    ambientLight({.intensity = 0.04f}).key("ambient"),
+                    figure("ashley", kAshleyAt, 72.0f, 1.0f,
+                           material::surface::program(
+                               {.baseColor = {0.62f, 0.60f, 0.55f, 1.0f},
+                                .roughness = 0.44f}),
+                           0.0f, -1),
+                    figure("dullahan", kEnemyAt, -104.0f, 1.34f,
+                           material::surface::program(
+                               {.baseColor = {0.22f, 0.24f, 0.30f, 1.0f},
+                                .roughness = 0.28f}),
+                           pulse, kSelected),
+                    reachSphere(seconds), attackLadder()})
+                   .key("battle"))
+        .overlay(overlay->texture());
   }
 };
 
@@ -727,4 +706,4 @@ struct VagrantStoryTarget {
 SIGIL_SKETCH(VagrantStoryTarget, "Study · Game UI",
              "Vagrant Story's battle-mode targeting screen as what it is "
              "— a lit 3D scene with a wireframe reach sphere in it "
-             "and a baked bitmap overlay on one quad over the frustum")
+             "and a baked bitmap overlay laid over the finished frame")

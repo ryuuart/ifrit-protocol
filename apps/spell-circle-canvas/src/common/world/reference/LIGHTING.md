@@ -43,6 +43,12 @@ no environment has black shadows.
 | ambient | `ambientLight(options)` | radiance `color * intensity` arriving equally from every direction |
 | hemisphere | `hemisphereLight(options)` | radiance `color * intensity` from above the horizon its node's up names, `groundColor * intensity` from below |
 
+A node's scale sizes a light with a size as it sizes a body: a rect's
+width and height by how far it stretches the axes they run along, a
+disk's radius by the mean of those two, and a ball's by the mean of all
+three — so a panel and the mesh `kit::visibleLight` stands beside it stay
+one size under a scaled group.
+
 A white matte surface square to a directional light of intensity one
 shows one over pi of it — a matte surface scatters what it receives over
 the whole hemisphere. Under an ambient light of one it shows all of it,
@@ -406,13 +412,16 @@ term is the isotropic one.
 
 **The tangent frame** is the surface's own uv, read off the screen
 derivatives of the position and the uv at each pixel — the frame a
-tangent-space normal map is authored against. No mesh lane carries an
-authored tangent, so a mesh says how it is brushed through its uv layout:
-on a generated sphere u runs around the equator and a brushing at zero
-turns runs around it, converging at the poles. Where the uv does not vary
-across the pixel there is no frame to read, and the brushing runs around
-the body's own up axis instead. The frame is read per triangle, so a
-coarse mesh shows its facets in a strongly brushed highlight.
+tangent-space normal map is authored against. A mesh says how it is
+brushed through its uv layout: on a generated sphere u runs around the
+equator and a brushing at zero turns runs around it, converging at the
+poles. Where the mesh carries a tangent lane — a grid fills one along its
+own u — the brushing runs along that, interpolated across each triangle,
+so a coarse mesh's brushed highlight runs smoothly over its edges; where
+it carries none the direction is read off the derivatives per triangle,
+and a coarse mesh shows its facets in a strongly brushed highlight. Where
+the uv does not vary across the pixel there is no frame to read, and the
+brushing runs around the body's own up axis instead.
 
 **Iridescence.** `iridescence` (a weight), `iridescenceIor` and
 `iridescenceThickness` in nanometres describe a thin film over the

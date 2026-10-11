@@ -1124,12 +1124,8 @@ int largestDifference(const SkBitmap& first, const SkBitmap& second) {
   return largest;
 }
 
-// Disabled while the device draws a surface restated by a texture pass
-// with its anisotropy map read otherwise than the same surface described
-// on the frame: the first bake's highlight lies differently from the
-// second's. The restated surface itself equals the later description's.
 TEST_F(SketchPythonBakes,
-       DISABLED_APageDescribedBeforeItsFirstPaintIsWornWithTheLobesItPaints) {
+       APageDescribedBeforeItsFirstPaintIsWornWithTheLobesItPaints) {
   const std::vector<std::pair<std::string, std::string>> contents = {
       {"brushed",
        "compose.box().width(64).height(64).fill(material.from_('#e6e6e6')"

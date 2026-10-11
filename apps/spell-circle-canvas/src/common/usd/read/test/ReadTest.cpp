@@ -11,6 +11,7 @@
 #include <gtest/gtest.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
+#include <sigilmedia/core/ColorSpace.h>
 #include <sigilusd/read/Reader.h>
 #include <sigilusd/runtime/Runtime.h>
 #include <sigilusd/write/Writer.h>
@@ -736,4 +737,104 @@ TEST(UsdRead, LightsWithASizeComeBackAsTheirShapeWithTheirSizeAndStrength) {
   EXPECT_FLOAT_EQ(disk->light.radius, 2);
   EXPECT_NEAR(disk->light.intensity.value(), 12.0f, 1e-3f);
   EXPECT_NEAR(disk->light.direction.x, 1.0f, 1e-5f);
+}
+
+TEST(UsdRead, TheOptionalLobesTheWriterKeepsComeBack) {
+  SKIP_WITHOUT_USD();
+  const std::filesystem::path file = scratch("lobes-back.usdc");
+  material::surface::SurfaceParameters velvet;
+  velvet.sheenColor = {1, 0.5f, 0.25f, 1};
+  velvet.sheenRoughness = 0.4f;
+  velvet.anisotropy = 0.7f;
+  velvet.anisotropyRotation = 30;
+  material::surface::SurfaceParameters glass;
+  glass.transmission = 1;
+  glass.ior = 1.45f;
+  glass.thickness = 2;
+  glass.attenuationColor = {0.9f, 0.5f, 0.2f, 1};
+  glass.attenuationDistance = 5;
+  glass.dispersion = 0.3f;
+  const geometry::mesh::Mesh plate = geometry::mesh::quad(4, 4);
+  {
+    usd::Writer writer(file);
+    writer.mesh("velvet", plate, glm::mat4(1.0f),
+                material::surface::program(velvet));
+    writer.mesh("glass", plate, glm::mat4(1.0f),
+                material::surface::program(glass));
+    std::string error;
+    ASSERT_TRUE(writer.save(&error)) << error;
+  }
+  std::string error;
+  const auto back = usd::readModel(file, &error);
+  ASSERT_TRUE(back) << error;
+  ASSERT_EQ(back->parts.size(), 2u);
+  const auto named = [&](const std::string& name) {
+    for (const auto& part : back->parts)
+      if (part.name == name) return &part;
+    return static_cast<const geometry::mesh::codec::decode::Part*>(nullptr);
+  };
+  const auto* cloth = named("velvet");
+  const auto* pane = named("glass");
+  ASSERT_TRUE(cloth && pane);
+  EXPECT_FLOAT_EQ(cloth->sheenColor.g, 0.5f);
+  EXPECT_FLOAT_EQ(cloth->sheenRoughness, 0.4f);
+  EXPECT_FLOAT_EQ(cloth->anisotropy, 0.7f);
+  EXPECT_FLOAT_EQ(cloth->anisotropyRotation, 30.0f);
+  EXPECT_FLOAT_EQ(pane->transmission, 1.0f);
+  EXPECT_FLOAT_EQ(pane->ior, 1.45f);
+  EXPECT_FLOAT_EQ(pane->thickness, 2.0f);
+  EXPECT_FLOAT_EQ(pane->attenuationColor.b, 0.2f);
+  EXPECT_FLOAT_EQ(pane->attenuationDistance, 5.0f);
+  EXPECT_FLOAT_EQ(pane->dispersion, 0.3f);
+  // A lobe a surface did not carry comes back neutral.
+  EXPECT_FLOAT_EQ(pane->sheenColor.r, 0.0f);
+  EXPECT_FLOAT_EQ(cloth->transmission, 0.0f);
+}
+
+TEST(UsdRead, ABaseColourStatedAsDataComesBackAsData) {
+  SKIP_WITHOUT_USD();
+  const std::filesystem::path file = scratch("raw-base.usdc");
+  material::Material surface = material::surface::program();
+  surface.slot(material::surface::kBaseColorSlot,
+               material::Texture(solid(SK_ColorBLUE))
+                   .colorSpace(media::ColorSpace::Data));
+  {
+    usd::Writer writer(file);
+    writer.mesh("raw", geometry::mesh::quad(4, 4), glm::mat4(1.0f), surface);
+    std::string error;
+    ASSERT_TRUE(writer.save(&error)) << error;
+  }
+  std::string error;
+  const auto back = usd::readModel(file, &error);
+  ASSERT_TRUE(back) << error;
+  ASSERT_EQ(back->parts.size(), 1u);
+  EXPECT_FALSE(back->parts.front().textureBytes.empty());
+  EXPECT_EQ(back->parts.front().textureColorSpace, "raw");
+}
+
+TEST(UsdRead, ABodyThatCastsNoShadowComesBackSaying) {
+  SKIP_WITHOUT_USD();
+  const std::filesystem::path file = scratch("shadows.usdc");
+  const geometry::mesh::Mesh plate = geometry::mesh::quad(4, 4);
+  {
+    usd::Writer writer(file);
+    const std::string shy = writer.mesh("shy", plate, glm::mat4(1.0f),
+                                        material::surface::program());
+    writer.shadows(shy, /*castShadow=*/false, /*receiveShadow=*/true);
+    writer.mesh("plain", plate, glm::mat4(1.0f), material::surface::program());
+    std::string error;
+    ASSERT_TRUE(writer.save(&error)) << error;
+  }
+  usd::ReadInfo info;
+  std::string error;
+  const auto back = usd::readModel(file, &info, &error);
+  ASSERT_TRUE(back) << error;
+  ASSERT_EQ(back->parts.size(), 2u);
+  ASSERT_EQ(info.castShadow.size(), 2u);
+  ASSERT_EQ(info.receiveShadow.size(), 2u);
+  for (size_t i = 0; i < back->parts.size(); ++i) {
+    const bool shy = back->parts[i].name == "shy";
+    EXPECT_EQ(info.castShadow[i], !shy) << back->parts[i].name;
+    EXPECT_TRUE(info.receiveShadow[i]) << back->parts[i].name;
+  }
 }

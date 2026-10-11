@@ -62,6 +62,9 @@ struct PipelineKey {
    *  an instance is drawn with one bound, a single neutral one for a
    *  mesh that is not instanced. */
   bool instanced = false;
+  /** Does the vertex layout declare the TANGENT, for a program whose
+   *  vertex stage reads it? Every vertex carries one either way. */
+  bool tangent = false;
   auto operator<=>(const PipelineKey&) const = default;
 };
 
@@ -73,19 +76,47 @@ struct Pipeline {
 
 /** The pipelines standing on one device, built on the first ask and kept
  *  for the device's life. A program compiles once and is drawn with many
- *  times; what varies between two draws of it is the key. */
+ *  times; what varies between two draws of it is the key.
+ *
+ *  A BUILD RUNS ON THE DEVICE'S WORKERS where the device offers them:
+ *  `prepare` starts one and returns at once, `ready` answers a pipeline
+ *  only once it is built and never waits, and `pipeline` waits for one
+ *  still building. A device with no workers builds on the calling thread,
+ *  and every one of the three is then the same build. The cache is asked
+ *  from one thread. */
 class PipelineCache {
  public:
   explicit PipelineCache(Device& device);
 
-  /** The pipeline for @p key. Null when the program is empty or the
-   *  device refused it — the refusal is remembered, so a program that
-   *  cannot be built is not attempted once per draw. */
+  /** The pipeline for @p key, waiting for it while it builds. Null when
+   *  the program is empty or the device refused it — the refusal is
+   *  remembered, so a program that cannot be built is not attempted once
+   *  per draw. */
   const Pipeline* pipeline(const PipelineKey& key);
 
+  /** The pipeline for @p key if it is built, starting the build when it
+   *  was never asked for; null while it builds and where it was refused. */
+  const Pipeline* ready(const PipelineKey& key);
+
+  /** Starts building the pipeline for @p key ahead of the frame that will
+   *  draw with it. Nothing when it was asked for before. */
+  void prepare(const PipelineKey& key);
+
+  /** How many pipelines are building and not yet asked for since. */
+  size_t building() const;
+
  private:
+  /** A pipeline, and whether its build was last seen under way. */
+  struct Entry {
+    Pipeline made;
+    bool building = false;
+  };
+  Entry& start(const PipelineKey& key);
+  /** @p entry once built — waiting for it when @p wait — or null. */
+  const Pipeline* finish(Entry& entry, bool wait);
+
   Device* m_device = nullptr;
-  boost::container::map<PipelineKey, Pipeline> m_pipelines;
+  boost::container::map<PipelineKey, Entry> m_pipelines;
 };
 
 /** Binds @p pipeline's uniform buffer to @p values and its sampled slots

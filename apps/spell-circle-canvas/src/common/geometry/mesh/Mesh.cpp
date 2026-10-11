@@ -135,6 +135,15 @@ void Mesh::append(const Mesh& other) {
     uvs.insert(uvs.end(), other.uvs.begin(), other.uvs.end());
     uvs.resize(merged, kUvPad);
   }
+  // A tangent with no length is a vertex that carries none, so a side
+  // without the lane pads with that rather than with a direction it
+  // never stated.
+  if (!tangents.empty() || !other.tangents.empty()) {
+    tangents.resize(positions.size(), glm::vec4(0.0f));
+    tangents.insert(tangents.end(), other.tangents.begin(),
+                    other.tangents.end());
+    tangents.resize(merged, glm::vec4(0.0f));
+  }
   positions.insert(positions.end(), other.positions.begin(),
                    other.positions.end());
   indices.reserve(indices.size() + other.indices.size());
@@ -155,6 +164,14 @@ void Mesh::transform(const glm::mat4& m) {
   if (std::abs(glm::determinant(basis)) < 1e-12f) return;
   const glm::mat3 normalTransform = glm::inverseTranspose(basis);
   for (glm::vec3& n : normals) n = normalized(normalTransform * n, n);
+  // A tangent lies IN the surface, so it moves as the surface does; a
+  // mirror turns which way v runs beside it.
+  const float mirrored = glm::determinant(basis) < 0.0f ? -1.0f : 1.0f;
+  for (glm::vec4& t : tangents) {
+    const glm::vec3 along(t);
+    if (glm::dot(along, along) <= 0.0f) continue;
+    t = glm::vec4(normalized(basis * along, along), t.w * mirrored);
+  }
 }
 
 void Mesh::computeNormals() {

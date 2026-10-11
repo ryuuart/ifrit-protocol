@@ -13,6 +13,7 @@
 #define CGLTF_IMPLEMENTATION
 #include <cgltf.h>
 
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -228,6 +229,54 @@ void importGltfMesh(const cgltf_options& options, const cgltf_data& data,
       if (material.has_transmission)
         part.transmission = material.transmission.transmission_factor;
       if (material.has_ior) part.ior = material.ior.ior;
+      if (material.has_volume) {
+        const cgltf_volume& volume = material.volume;
+        part.thickness = volume.thickness_factor;
+        part.attenuationColor = {volume.attenuation_color[0],
+                                 volume.attenuation_color[1],
+                                 volume.attenuation_color[2]};
+        // The extension's "no attenuation" is an endless distance; this
+        // part's is zero.
+        part.attenuationDistance = std::isfinite(volume.attenuation_distance) &&
+                                           volume.attenuation_distance < 1e30f
+                                       ? volume.attenuation_distance
+                                       : 0.0f;
+        fetch(volume.thickness_texture, "thickness");
+      }
+      if (material.has_transmission)
+        fetch(material.transmission.transmission_texture, "transmission");
+      if (material.has_dispersion)
+        part.dispersion = material.dispersion.dispersion;
+      if (material.has_sheen) {
+        part.sheenColor = {material.sheen.sheen_color_factor[0],
+                           material.sheen.sheen_color_factor[1],
+                           material.sheen.sheen_color_factor[2]};
+        part.sheenRoughness = material.sheen.sheen_roughness_factor;
+      }
+      if (material.has_anisotropy) {
+        part.anisotropy = material.anisotropy.anisotropy_strength;
+        // The extension turns by radians; the part, by degrees.
+        part.anisotropyRotation =
+            material.anisotropy.anisotropy_rotation * 57.29577951f;
+      }
+      if (material.has_iridescence) {
+        part.iridescence = material.iridescence.iridescence_factor;
+        part.iridescenceIor = material.iridescence.iridescence_ior;
+        part.iridescenceThickness =
+            material.iridescence.iridescence_thickness_max;
+        part.iridescenceThicknessMinimum =
+            material.iridescence.iridescence_thickness_min;
+      }
+      if (material.has_specular) {
+        part.specular = material.specular.specular_factor;
+        part.specularColor = {material.specular.specular_color_factor[0],
+                              material.specular.specular_color_factor[1],
+                              material.specular.specular_color_factor[2]};
+      }
+      if (material.has_clearcoat) {
+        part.clearcoat = material.clearcoat.clearcoat_factor;
+        part.clearcoatRoughness = material.clearcoat.clearcoat_roughness_factor;
+      }
       part.opaque = material.alpha_mode == cgltf_alpha_mode_opaque;
       if (material.alpha_mode == cgltf_alpha_mode_mask)
         part.alphaCutoff = material.alpha_cutoff;

@@ -60,6 +60,11 @@ struct Draw {
   /** The keys from the root down to this body's parent. */
   std::span<const std::string> ancestors;
   const ::sigil::material::Material* material = nullptr;
+  /** THE PER-FACE SLOTS of a body whose faces wear more than one: each
+   *  triangle wears the slot its mesh's "Material" primitive lane names,
+   *  and `material` is the first of them. Empty for a body wearing one
+   *  surface. */
+  std::span<const ::sigil::material::Material> slots;
   /** DO THE FRAME'S LIGHTS REACH THIS BODY? False for a surface that
    *  is its own light — a screen, a decal, an emissive set. It is read
    *  off the material once per frame, beside the map, so an executor

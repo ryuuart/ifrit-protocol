@@ -13,6 +13,7 @@
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilgeometry/mesh/pop/Points.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilgeometry/path/Outline.h>
 #include <sigilgeometry/path/Profile.h>
@@ -362,13 +363,19 @@ material::Material water(float thickness) {
                 .thickness = thickness});
 }
 
-/** The bead sizes and the path light takes through each. */
-struct BeadClass {
-  float smallest;
-  float thickness;
-};
-constexpr std::array kBeadClasses{BeadClass{0, 6}, BeadClass{9, 16},
-                                  BeadClass{18, 32}};
+/** The path light takes through a bead, per unit of its radius: each
+ *  copy's own radius, carried as its "size", multiplies it. */
+constexpr float kBeadDepth = 1.1f;
+
+/** The water a bead is: its thickness each copy's size times its depth. */
+material::Material beadWater() {
+  return material::from(material::Color{1, 1, 1, 1})
+      .surface({.roughness = .04f,
+                .transmission = 1.0f,
+                .ior = 1.33f,
+                .thickness = kBeadDepth,
+                .thicknessAttribute = "size"});
+}
 
 /** THE CAMERA: a little above the console and to its left. */
 gm::camera::Camera lens() {
@@ -456,14 +463,14 @@ struct WetGlassConsole {
     return marks;
   }
 
-  /** THE BEADS AT @p seconds, one instanced body per size and shape: a
-   *  bead a rivulet's head has passed over is taken up, and forms again
-   *  as that trail drains. */
+  /** THE BEADS AT @p seconds, one instanced body per shape, each copy as
+   *  deep as it is wide: a bead a rivulet's head has passed over is taken
+   *  up, and forms again as that trail drains. */
   std::vector<world::Node> beadBodies(float seconds) const {
     std::array<RunState, kRivulets.size()> runs{};
     for (size_t index = 0; index < kRivulets.size(); ++index)
       runs[index] = runAt(kRivulets[index], seconds);
-    std::array<std::array<gm::Cloud, 2>, kBeadClasses.size()> clouds;
+    std::array<gm::Cloud, 2> clouds;
     for (const Bead& bead : beads) {
       float scale = 1;
       for (size_t index = 0; index < kRivulets.size(); ++index) {
@@ -474,26 +481,21 @@ struct WetGlassConsole {
           scale = std::min(scale, runs[index].regrowth);
       }
       if (scale < .05f) continue;
-      size_t sizeClass = 0;
-      while (sizeClass + 1 < kBeadClasses.size() &&
-             bead.radius >= kBeadClasses[sizeClass + 1].smallest)
-        ++sizeClass;
-      gm::Cloud& cloud = clouds[sizeClass][bead.droops ? 1 : 0];
+      gm::Cloud& cloud = clouds[bead.droops ? 1 : 0];
       cloud.positions.push_back({bead.at, kGlassFace});
       cloud.scalar("size").back() = bead.radius * scale;
     }
     std::vector<world::Node> bodies;
-    for (size_t sizeClass = 0; sizeClass < kBeadClasses.size(); ++sizeClass)
-      for (int shape = 0; shape < 2; ++shape) {
-        const gm::Cloud& cloud = clouds[sizeClass][shape];
-        if (cloud.size() == 0) continue;
-        bodies.push_back(world::mesh(gm::pop::on(cloud).instances(
-                                         shape ? droopingCap : roundCap))
-                             .key("beads " + std::to_string(sizeClass) +
-                                  (shape ? " drooping" : " round"))
-                             .fill(water(kBeadClasses[sizeClass].thickness))
-                             .collection("glazing"));
-      }
+    for (int shape = 0; shape < 2; ++shape) {
+      if (clouds[shape].size() == 0) continue;
+      bodies.push_back(
+          world::mesh(gm::points::instances(
+                          clouds[shape], shape ? droopingCap : roundCap,
+                          {.scaleLane = "size", .attributes = {"size"}}))
+              .key(shape ? "beads drooping" : "beads round")
+              .fill(beadWater())
+              .collection("glazing"));
+    }
     return bodies;
   }
 
@@ -601,7 +603,8 @@ struct WetGlassConsole {
                                              .shadow = {.bias = 2,
                                                         .normalBias = 1.5f,
                                                         .radius = 2.5f,
-                                                        .mapSize = 2048}})
+                                                        .mapSize = 2048,
+                                                        .size = 3}})
                         .key("key"),
                     // THE PANEL every bead shows as its highlight,
                     // drifting slowly across above the eye; it reaches

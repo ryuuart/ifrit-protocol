@@ -6,9 +6,24 @@
 
 #include "Gpu.h"
 
+// clang-format off
+// ORDER IS LOAD-BEARING HERE, which is why the sorter is held off: the
+// engine's Vulkan interface names Vulkan's handle types and does not
+// include the header that declares them.
+#include <vulkan/vulkan.h>
+#include <Graphics/GraphicsEngineVulkan/interface/TextureVk.h>
+// clang-format on
+
 #include <Graphics/GraphicsTools/interface/CommonlyUsedStates.h>
 #include <include/core/SkCanvas.h>
 #include <include/gpu/graphite/Recorder.h>
+#include <sigilskia/graphite/GraphiteContext.h>
+#ifdef SK_VULKAN
+#include <include/gpu/graphite/BackendTexture.h>
+#include <include/gpu/graphite/Image.h>
+#include <include/gpu/graphite/vk/VulkanGraphiteTypes.h>
+#include <include/gpu/vk/VulkanTypes.h>
+#endif
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilskia/graphite/TextureImage.h>
 #include <sigilworld/advanced/Skia.h>
@@ -270,6 +285,7 @@ dg::ITexture* Gpu::shadowAtlasAt(int side) {
   if (shadowAtlas && shadowAtlasSide >= side) return shadowAtlas;
   if (side <= 0 || !device->renderDevice()) return nullptr;
   shadowAtlasView.Release();
+  shadowCompareView.Release();
   shadowAtlas.Release();
   shadowAtlasSide = 0;
   // A new atlas holds none of the tiles the folds describe.
@@ -287,7 +303,10 @@ dg::ITexture* Gpu::shadowAtlasAt(int side) {
   view.ViewType = dg::TEXTURE_VIEW_SHADER_RESOURCE;
   view.Format = kDepthFormat;
   shadowAtlas->CreateView(view, &shadowAtlasView);
-  if (!shadowAtlasView) {
+  shadowAtlas->CreateView(view, &shadowCompareView);
+  if (!shadowAtlasView || !shadowCompareView) {
+    shadowAtlasView.Release();
+    shadowCompareView.Release();
     shadowAtlas.Release();
     return nullptr;
   }
@@ -315,7 +334,101 @@ sk_sp<SkImage> Gpu::read(std::string_view name) {
   return shared.read(display);
 }
 
+namespace {
+
+/** A PRESENTED TEXTURE no draw is still sampling, or a new one while fewer
+ *  than the most a window keeps out are made; null when every one is out. */
+PresentedImage* freePresented(Gpu& gpu) {
+  for (PresentedImage& image : gpu.presented)
+    if (!image.sampling->load(std::memory_order_acquire)) return &image;
+  if (gpu.presented.size() >= kPresentedInFlight) return nullptr;
+  PresentedImage made;
+  made.texture = gpu.makeColor("world presented", kColorFormat);
+  if (!made.texture) return nullptr;
+  made.sampling = std::make_shared<std::atomic<bool>>(false);
+  gpu.presented.push_back(std::move(made));
+  return &gpu.presented.back();
+}
+
+/** THE PICTURE ON THE DEVICE'S OWN QUEUE: a canvas recorded by this
+ *  device's own Graphite draws on the very queue the picture was drawn on,
+ *  so the final stage's texture is handed over as it stands — left
+ *  readable behind a barrier that every later submission on the queue
+ *  waits for, which is all the order the two need; no fence and nothing
+ *  read back. Null for a recorder that is not the device's own, which the
+ *  caller answers otherwise. */
+sk_sp<SkImage> presentOnQueue(Gpu& gpu, std::string_view name,
+                              skgpu::graphite::Recorder& recorder) {
+#ifdef SK_VULKAN
+  skia::GraphiteContext* own = gpu.device->graphite();
+  if (gpu.presentRefused || !own || own->recorder() != &recorder)
+    return nullptr;
+  dg::ITexture* texture = gpu.current(name);
+  if (!texture) texture = gpu.previous(name);
+  if (!texture) return nullptr;
+  PresentedImage* slot = freePresented(gpu);
+  if (!slot) return nullptr;
+  dg::RefCntAutoPtr<dg::ITextureVk> vulkan{slot->texture, dg::IID_TextureVk};
+  if (!vulkan || !vulkan->GetVkImage()) {
+    gpu.presentRefused = true;
+    return nullptr;
+  }
+
+  gpu.markWhole("");
+  finalStage(gpu, texture, slot->texture);
+  gpu.markWhole("present");
+  dg::IDeviceContext* context = gpu.device->context();
+  context->SetRenderTargets(0, nullptr, nullptr,
+                            dg::RESOURCE_STATE_TRANSITION_MODE_NONE);
+  // READABLE BEFORE ANYTHING LATER ON THE QUEUE: a barrier's second scope
+  // is every command submitted after it on the same queue, the canvas's
+  // sampling among them.
+  const dg::StateTransitionDesc readable{
+      slot->texture, dg::RESOURCE_STATE_UNKNOWN,
+      dg::RESOURCE_STATE_SHADER_RESOURCE,
+      dg::STATE_TRANSITION_FLAG_UPDATE_STATE};
+  context->TransitionResourceStates(1, &readable);
+  context->Flush();
+
+  const dg::TextureDesc& desc = slot->texture->GetDesc();
+  const skgpu::graphite::VulkanTextureInfo info(
+      VK_SAMPLE_COUNT_1_BIT, skgpu::Mipmapped::kNo, /*flags=*/0,
+      VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
+      static_cast<VkImageUsageFlags>(VK_IMAGE_USAGE_SAMPLED_BIT) |
+          static_cast<VkImageUsageFlags>(VK_IMAGE_USAGE_TRANSFER_SRC_BIT) |
+          static_cast<VkImageUsageFlags>(VK_IMAGE_USAGE_TRANSFER_DST_BIT),
+      VK_SHARING_MODE_EXCLUSIVE, VK_IMAGE_ASPECT_COLOR_BIT,
+      skgpu::VulkanYcbcrConversionInfo());
+  const skgpu::graphite::BackendTexture backend =
+      skgpu::graphite::BackendTextures::MakeVulkan(
+          SkISize::Make((int)desc.Width, (int)desc.Height), info,
+          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_QUEUE_FAMILY_IGNORED,
+          vulkan->GetVkImage(), skgpu::VulkanAlloc{});
+  slot->sampling->store(true, std::memory_order_release);
+  using Flag = std::shared_ptr<std::atomic<bool>>;
+  sk_sp<SkImage> image = SkImages::WrapTexture(
+      &recorder, backend, kPremul_SkAlphaType, nullptr,
+      [](void* context) {
+        const std::unique_ptr<Flag> flag(static_cast<Flag*>(context));
+        (*flag)->store(false, std::memory_order_release);
+      },
+      new Flag(slot->sampling));
+  if (!image) gpu.presentRefused = true;
+  return image;
+#else
+  (void)gpu;
+  (void)name;
+  (void)recorder;
+  return nullptr;
+#endif
+}
+
+}  // namespace
+
 sk_sp<SkImage> Gpu::present(std::string_view name, SkCanvas& canvas) {
+  if (skgpu::graphite::Recorder* own = canvas.recorder();
+      own && own->backend() == skgpu::BackendApi::kVulkan)
+    return presentOnQueue(*this, name, *own);
 #ifdef __APPLE__
   skgpu::graphite::Recorder* recorder = canvas.recorder();
   ::sigil::core::hardware::GpuDevice* shared = device->gpu();
@@ -432,7 +545,9 @@ void openTarget(Gpu& gpu, dg::ITexture* colour, const float* clear,
 }
 
 std::shared_ptr<Gpu> makeGpu(Device& device) {
-  return std::make_shared<Gpu>(device);
+  auto gpu = std::make_shared<Gpu>(device);
+  prepareFixedPipelines(*gpu);
+  return gpu;
 }
 
 }  // namespace sigil::world::diligent

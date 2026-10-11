@@ -25,6 +25,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -299,4 +300,48 @@ TEST(Lobes, AStatedLobeIsCompiledAndAnUnstatedOneCostsNoSampler) {
             (material::Lobes{true, true, true, true}));
   const SkBitmap all = cardUnderALamp(everything, on.runtime);
   EXPECT_GT(luma(at(all, 0.5f, 0.5f)), 0.05f) << "every lobe at once draws";
+}
+
+TEST(Lobes, ABrushedHighlightRunsSmoothlyAcrossACoarseMeshsEdges) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  surface::SurfaceParameters brushed;
+  brushed.baseColor = {0.9f, 0.9f, 0.9f, 1};
+  brushed.metallic = 1.0f;
+  brushed.roughness = 0.35f;
+  brushed.anisotropy = 0.9f;
+  // A ball of few segments, whose uvs' derivatives are constant across
+  // each triangle: the brushing read off them steps at every edge, the
+  // brushing read off the mesh's own tangents does not.
+  const gm::Mesh coarse = gm::superellipsoid({60, 60, 60}, 2.0f, 12, 8);
+  ASSERT_EQ(coarse.tangents.size(), coarse.positions.size());
+  gm::Mesh bare = coarse;
+  bare.tangents.clear();
+  const auto plate = [&](const gm::Mesh& ball) {
+    return photographed(
+        {directionalLight({-0.3f, -0.4f, -1}, {.intensity = 2.5f}).key("sun"),
+         mesh(ball).key("ball").fill(surface::program(brushed))},
+        on.runtime);
+  };
+  // How much the light steps across the picture: the sum of the second
+  // differences of its brightness, pixel to pixel, both ways. The
+  // silhouette is the same in both pictures; what differs is the edges
+  // inside it.
+  const auto steps = [](const SkBitmap& image) {
+    float sum = 0;
+    for (int y = 1; y + 1 < kExtent.y; ++y)
+      for (int x = 1; x + 1 < kExtent.x; ++x) {
+        const float here = luma(image.getColor4f(x, y));
+        sum += std::fabs(luma(image.getColor4f(x - 1, y)) - 2 * here +
+                         luma(image.getColor4f(x + 1, y))) +
+               std::fabs(luma(image.getColor4f(x, y - 1)) - 2 * here +
+                         luma(image.getColor4f(x, y + 1)));
+      }
+    return sum;
+  };
+  const float stated = steps(plate(coarse));
+  const float derived = steps(plate(bare));
+  RecordProperty("stated", std::to_string(stated));
+  RecordProperty("derived", std::to_string(derived));
+  EXPECT_LT(stated, derived * 0.85f) << stated << " " << derived;
 }

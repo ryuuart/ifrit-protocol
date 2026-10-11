@@ -72,6 +72,7 @@ Group  group({child, child, …});              // the one kind with children
 Null   null();                                // a placement to refer to
 Mesh   mesh(geometry::mesh::Mesh triangles);
 Mesh   mesh(geometry::mesh::Instances instances);  // one stamp, repeated
+Mesh   mesh(geometry::mesh::Solid value);  // a solid spelled as a value, formed once while it stands
 Light  directionalLight(glm::vec3 direction, DirectionalLightOptions = {});
 Light  pointLight(PointLightOptions = {});
 Light  spotLight(glm::vec3 direction, SpotLightOptions = {});
@@ -611,8 +612,11 @@ a texture handed to the canvas's queue, a fence is signalled behind it
 on the device's queue, and the canvas's next submission waits on the
 GPU for that signal — the same order a compose texture sampled by a 3D
 pass keeps by riding one queue, made explicit because a window draws on
-a queue of its own. A texture is drawn into again only once the
-window's submission that sampled it has finished. Where the canvas
+a queue of its own. A canvas recorded by the device's own Graphite
+stands on the very queue the picture was drawn on, so the texture is
+handed over behind a barrier alone, with no fence. A texture is drawn
+into again only once the canvas's submission that sampled it has
+finished. Where the canvas
 cannot reach the device — another API, another device, a raster canvas
 — or every presented texture is still out, the picture is read back, as
 `Presentation::Readback`, the default, always reads it: the same bytes
@@ -625,10 +629,16 @@ way each picture went.
 yet is drawn in its base colour, unlit, while
 `material::ProgramCache::prepare` compiles it on a worker, and whole on
 the first frame after it arrives; `SceneStats::programsPending` counts
-the bodies drawn so. A frame left waiting compiles every program before
-it draws, so its first frame holds the real surfaces. The pipelines
-built from programs go through the driver's cache on the device they
-stand on, which a host that names a store keeps between runs.
+the bodies drawn so. Pipelines are built on the device's workers: the
+stand-in's own, with every other one each frame draws with, is started
+when the runtime is made, ahead of the first frame, and a live frame
+that still finds it building leaves the body out and counts it so; a
+body whose program is in hand waits for its pipeline, so the frame after
+a program arrives draws it whole. A frame left waiting compiles every
+program and builds every pipeline before it draws, so its first frame
+holds the real surfaces. The pipelines go through the
+driver's cache on the device they stand on, which a host that names a
+store keeps between runs.
 
 **A shadow map nothing moved in is kept.** The atlas stands from frame
 to frame, and a light's map is drawn again only when what its depth is

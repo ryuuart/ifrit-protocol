@@ -128,6 +128,14 @@ uniform float4x4 uViewProj;
 uniform float4x4 uModel;
 /** The colour a body wears when its material has no program to run. */
 uniform float4 uBaseColor;
+/** WHAT A TRANSMISSIVE BODY LETS THROUGH, for its tint beside the shadow
+ *  maps: x the share it transmits, y how deep it is in scene units, z the
+ *  distance after which light has become `uTintAttenuation` (zero takes
+ *  nothing); each of the first two multiplied by its map. */
+uniform float4 uTintVolume;
+uniform float4 uTintAttenuation;
+uniform Sampler2D uTintTransmissionMap;
+uniform Sampler2D uTintThicknessMap;
 /** THE MAP the body is dressed with, multiplied into the surface's colour
  *  before the lighting. A body given no map reads one white texel, so a
  *  colour multiplied by a map it does not have is that colour. */
@@ -213,6 +221,10 @@ uniform float4 uLightCount;
  *  texel: a texel holds the depth, zero at a map's near plane and one at
  *  its far one, of the nearest body blocking that light. */
 uniform Sampler2D uShadowAtlas;
+/** …the same atlas read through a sampler that compares: a gather of four
+ *  texels answers, for each, one where the reference handed with it is no
+ *  deeper than what the texel stores. */
+uniform Sampler2DShadow uShadowCompare;
 #ifdef SIGIL_TINTED_SHADOWS
 /** WHAT A TRANSMISSIVE BODY LETS THROUGH, laid out as the atlas is: the
  *  colour of a light that comes through, white where nothing transmissive
@@ -322,6 +334,9 @@ struct VSIn {
   [[vk::location(9)]] float4 instanceTextureWindow : ATTRIB9;
   /** …and its four named scalars. */
   [[vk::location(10)]] float4 instanceAttributes : ATTRIB10;
+  /** THE WAY u RUNS along the surface where the mesh states it, and in w
+   *  the side v runs on; no length where it states none. */
+  [[vk::location(11)]] float4 tangent : ATTRIB11;
   uint instanceIndex : SV_InstanceID;
 };
 
@@ -340,6 +355,9 @@ struct VSOut {
    *  shading is written in. */
   float3 viewNormal : NORMAL0;
   float3 viewPos : TEXCOORD1;
+  /** …and the way u runs along it where the mesh states that, with w the
+   *  side v runs on; no length where the mesh states none. */
+  float4 viewTangent : TANGENT0;
 #endif
 };
 
@@ -462,6 +480,13 @@ VSOut vsMain(VSIn input) {
 #ifdef SIGIL_LIT
     out.viewPos = mul(uView, world).xyz;
     out.viewNormal = mul(uView, float4(worldNormal, 0.0)).xyz;
+    let along = input.tangent.xyz * s * bodyScale;
+    out.viewTangent =
+        float4(mul(uView, float4(right * along.x + up * along.y +
+                                     back * along.z,
+                                 0.0))
+                   .xyz,
+               input.tangent.w);
 #endif
   } else {
     let local = input.instancePosition.xyz +
@@ -471,6 +496,11 @@ VSOut vsMain(VSIn input) {
 #ifdef SIGIL_LIT
     out.viewPos = mul(uModelView, float4(local, 1.0)).xyz;
     out.viewNormal = mul(uNormalMatrix, float4(localNormal, 0.0)).xyz;
+    // A tangent lies in the surface, so it moves as a position does.
+    let localTangent = rotateByQuaternion(q, input.tangent.xyz * s);
+    out.viewTangent =
+        float4(mul(uModelView, float4(localTangent, 0.0)).xyz,
+               input.tangent.w);
 #endif
   }
   let window = input.instanceTextureWindow;
@@ -720,6 +750,29 @@ float shadowStored(int map, float2 texel) {
   return shadowDistance(stored, depth.x, depth.y, depth.z);
 }
 
+/** FOUR NEIGHBOURING COMPARISONS, from the texel @p corner and the three
+ *  after it, blended by @p f: one gather through the comparison sampler
+ *  against @p reference, the depth a map would store for the point brought
+ *  @p bias nearer the light — or, where the block reaches past the light's
+ *  own tile, each texel kept inside it and compared on its own. */
+float shadowFour(int map, float2 corner, float2 f, float receiver, float bias,
+                 float reference, float2 low, float2 high) {
+  if (all(corner >= low) && all(corner + float2(1.0, 1.0) <= high)) {
+    // The gather's four, read at the corner the texels share, come back
+    // as (0, 1), (1, 1), (1, 0) and (0, 0) of the block.
+    let passed = uShadowCompare.GatherCmp(
+        (corner + float2(1.0, 1.0)) * uShadowDials.x, reference);
+    return shadowBilinear(passed.w, passed.z, passed.x, passed.y, f);
+  }
+  let t00 = clamp(corner, low, high);
+  let t11 = clamp(corner + float2(1.0, 1.0), low, high);
+  return shadowBilinear(
+      shadowTexel(map, t00, receiver, bias),
+      shadowTexel(map, float2(t11.x, t00.y), receiver, bias),
+      shadowTexel(map, float2(t00.x, t11.y), receiver, bias),
+      shadowTexel(map, t11, receiver, bias), f);
+}
+
 /** A SHADOW FROM A SOURCE WITH A WIDTH: what blocks the point is looked
  *  for around it first, and the filter then spreads as wide as the
  *  penumbra the source casts across the distance between the blockers
@@ -763,6 +816,8 @@ float shadowSoft(int map, float2 centre, float receiver, float texel,
                    : source * (receiver - blocker);
   let radius = clamp(max(spread / max(texel, 1e-6) * 0.5, bias.z), 0.5, 32.0);
   let filterBias = shadowDepthBias(bias.x, texel, nDotL, radius);
+  let reference =
+      shadowDepthOf(receiver - filterBias, depth.x, depth.y, depth.z);
   // THE FILTER: five taps a side across the penumbra, each blended from
   // the four texels around it.
   float lit = 0.0;
@@ -775,18 +830,8 @@ float shadowSoft(int map, float2 centre, float receiver, float texel,
                             radius;
       let corner = floor(at);
       let f = at - corner;
-      let t00 = clamp(corner, low, high);
-      let t11 = clamp(corner + float2(1.0, 1.0), low, high);
-      lit = lit + shadowBilinear(
-                      shadowTest(receiver, shadowStored(map, t00), filterBias),
-                      shadowTest(receiver,
-                                 shadowStored(map, float2(t11.x, t00.y)),
-                                 filterBias),
-                      shadowTest(receiver,
-                                 shadowStored(map, float2(t00.x, t11.y)),
-                                 filterBias),
-                      shadowTest(receiver, shadowStored(map, t11), filterBias),
-                      f);
+      lit = lit + shadowFour(map, corner, f, receiver, filterBias,
+                             reference, low, high);
     }
   }
   return lit / 25.0;
@@ -848,13 +893,36 @@ float shadowAt(int map, float3 p, float3 geometric, float3 l) {
   if (all(middle == first + float2(1.0, 1.0)) &&
       all(last == first + float2(2.0, 2.0))) {
     float compared[16];
-    [ForceUnroll]
-    for (int y = 0; y < 4; ++y) {
+    if (all(first >= low) && all(first + float2(3.0, 3.0) <= high)) {
+      // INSIDE THE TILE the sixteen are four gathers through the
+      // comparison sampler, each the block of four around the corner its
+      // texels share, returned (0, 1), (1, 1), (1, 0), (0, 0).
+      let reference =
+          shadowDepthOf(receiver - compareBias, depth.x, depth.y, depth.z);
       [ForceUnroll]
-      for (int x = 0; x < 4; ++x)
-        compared[y * 4 + x] = shadowTexel(
-            map, clamp(first + float2(float(x), float(y)), low, high),
-            receiver, compareBias);
+      for (int by = 0; by < 2; ++by) {
+        [ForceUnroll]
+        for (int bx = 0; bx < 2; ++bx) {
+          let passed = uShadowCompare.GatherCmp(
+              (first + float2(float(bx * 2 + 1), float(by * 2 + 1))) *
+                  uShadowDials.x,
+              reference);
+          let k = by * 8 + bx * 2;
+          compared[k] = passed.w;
+          compared[k + 1] = passed.z;
+          compared[k + 4] = passed.x;
+          compared[k + 5] = passed.y;
+        }
+      }
+    } else {
+      [ForceUnroll]
+      for (int y = 0; y < 4; ++y) {
+        [ForceUnroll]
+        for (int x = 0; x < 4; ++x)
+          compared[y * 4 + x] = shadowTexel(
+              map, clamp(first + float2(float(x), float(y)), low, high),
+              receiver, compareBias);
+      }
     }
     [ForceUnroll]
     for (int ty = 0; ty < 3; ++ty) {
@@ -871,23 +939,17 @@ float shadowAt(int map, float3 p, float3 geometric, float3 l) {
     }
     return shadowed(lit, shadowEdgeFade(uv, bias.w));
   }
+  let reference =
+      shadowDepthOf(receiver - compareBias, depth.x, depth.y, depth.z);
   for (int ty = 0; ty < 3; ++ty) {
     for (int tx = 0; tx < 3; ++tx) {
       let at = centre + float2(shadowTapOffset(float(tx), bias.z),
                                shadowTapOffset(float(ty), bias.z));
       let corner = floor(at);
       let f = at - corner;
-      let t00 = clamp(corner, low, high);
-      let t11 = clamp(corner + float2(1.0, 1.0), low, high);
-      lit = lit + shadowTapWeight() *
-                      shadowBilinear(
-                          shadowTexel(map, t00, receiver, compareBias),
-                          shadowTexel(map, float2(t11.x, t00.y), receiver,
-                                      compareBias),
-                          shadowTexel(map, float2(t00.x, t11.y), receiver,
-                                      compareBias),
-                          shadowTexel(map, t11, receiver, compareBias),
-                          f);
+      lit = lit + shadowTapWeight() * shadowFour(map, corner, f, receiver,
+                                                 compareBias, reference, low,
+                                                 high);
     }
   }
   return shadowed(lit, shadowEdgeFade(uv, bias.w));
@@ -1101,7 +1163,19 @@ float3 shadeLit(VSOut input, float3 base) {
   var around = bodyUp - n * dotP(bodyUp, n);
   if (dotP(around, around) < 1e-8) around = float3(1.0, 0.0, 0.0) - n * n.x;
   around = normalizeP(cross(around, n));
-  let brushed = anisotropyTangent(n, t, b, gSurfaceAnisotropyDirection,
+  // …read off the mesh's own tangent where it states one, which runs
+  // smoothly across a triangle's edge where the uvs' derivatives step.
+  var brushT = t;
+  var brushB = b;
+  let stated = input.viewTangent.xyz - n * dotP(input.viewTangent.xyz, n);
+  if (dotP(stated, stated) > 1e-12) {
+    brushT = normalizeP(stated);
+    // v grows along cross(n, t) times w, and a map's green points up the
+    // picture, against v.
+    brushB = -cross(n, brushT) * (input.viewTangent.w < 0.0 ? -1.0 : 1.0);
+  }
+  let brushed = anisotropyTangent(n, brushT, brushB,
+                                  gSurfaceAnisotropyDirection,
                                   gSurfaceAnisotropyRotation, around);
   let anisotropy = saturateP(gSurfaceAnisotropy);
   // Light from everywhere is mirrored about a normal bent across the
@@ -1542,7 +1616,16 @@ void shadowCoverage(float4 surface, VSOut input) {
  *  multiplying. */
 [shader("fragment")]
 float4 fsShadowTint(VSOut input) : SV_Target {
-  return float4(uBaseColor.rgb, 1.0);
+  // The share it transmits and how deep it is, each as its map says where
+  // it has one — an unbound map reads white, which says the number.
+  let weight = clamp(uTintVolume.x * uTintTransmissionMap.Sample(input.uv).r,
+                     0.0, 1.0);
+  let depth = max(uTintVolume.y * uTintThicknessMap.Sample(input.uv).r, 0.0);
+  var colour = uBaseColor.rgb;
+  if (uTintVolume.z > 0.0)
+    colour = colour * pow(max(uTintAttenuation.rgb, float3(1e-4, 1e-4, 1e-4)),
+                          float3(depth / uTintVolume.z));
+  return float4(float3(1.0 - weight) + colour * weight, 1.0);
 }
 
 /** THE SHADOW STAGE'S OWN DRAW for a body whose surface does not decide

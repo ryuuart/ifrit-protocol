@@ -52,6 +52,22 @@ Resources::Resources(Device& device) : m_device(&device) {
     desc.MaxLOD = 32;
     device.renderDevice()->CreateSampler(desc, &m_panorama);
   }
+  {
+    // THE SHADOW'S SAMPLER: the reference passes where it is no deeper
+    // than the stored depth, which is the test a shadow map's lookup
+    // makes. Point filtered, because what reads it gathers the four
+    // comparisons and blends them itself.
+    dg::SamplerDesc desc;
+    desc.Name = "device comparison";
+    desc.MinFilter = dg::FILTER_TYPE_COMPARISON_POINT;
+    desc.MagFilter = dg::FILTER_TYPE_COMPARISON_POINT;
+    desc.MipFilter = dg::FILTER_TYPE_COMPARISON_POINT;
+    desc.AddressU = dg::TEXTURE_ADDRESS_CLAMP;
+    desc.AddressV = dg::TEXTURE_ADDRESS_CLAMP;
+    desc.AddressW = dg::TEXTURE_ADDRESS_CLAMP;
+    desc.ComparisonFunc = dg::COMPARISON_FUNC_LESS_EQUAL;
+    device.renderDevice()->CreateSampler(desc, &m_comparison);
+  }
 
   // What an unfilled sampled slot reads: one white texel, so a body
   // multiplied by a map it was not given is the body.

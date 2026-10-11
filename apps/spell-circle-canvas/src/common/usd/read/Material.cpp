@@ -69,7 +69,15 @@ void readMaterial(const UsdShadeMaterial& material,
     return texture;
   };
   const auto fetch = [&](const UsdShadeShader& texture, std::string& uriOut,
-                         std::vector<std::byte>& bytesOut) {
+                         std::vector<std::byte>& bytesOut,
+                         std::string& colorSpaceOut) {
+    // The colour space the stage states the image is in; "auto" states
+    // none, and the role the map fills decides.
+    if (UsdShadeInput space = texture.GetInput(TfToken("sourceColorSpace"))) {
+      TfToken stated;
+      if (space.Get(&stated) && stated != TfToken("auto"))
+        colorSpaceOut = stated.GetString();
+    }
     SdfAssetPath asset;
     if (UsdShadeInput file = texture.GetInput(TfToken("file")))
       file.Get(&asset);
@@ -90,7 +98,7 @@ void readMaterial(const UsdShadeMaterial& material,
       bytesOut.assign(bytes->begin(), bytes->end());
   };
   if (auto tex = image("diffuseColor")) {
-    fetch(*tex, part.textureUri, part.textureBytes);
+    fetch(*tex, part.textureUri, part.textureBytes, part.textureColorSpace);
   } else if (UsdShadeInput in = surface.GetInput(TfToken("diffuseColor"))) {
     GfVec3f c;
     if (in.Get(&c)) part.baseColor = {c[0], c[1], c[2], part.baseColor.a};
@@ -104,31 +112,31 @@ void readMaterial(const UsdShadeMaterial& material,
   if (auto tex = image("roughness")) {
     geometry::mesh::codec::decode::Part::TextureReference& ref =
         part.textures["roughness"];
-    fetch(*tex, ref.uri, ref.bytes);
+    fetch(*tex, ref.uri, ref.bytes, ref.colorSpace);
   } else {
     scalar("roughness", part.roughness);
   }
   if (auto tex = image("metallic")) {
     geometry::mesh::codec::decode::Part::TextureReference& ref =
         part.textures["metallic"];
-    fetch(*tex, ref.uri, ref.bytes);
+    fetch(*tex, ref.uri, ref.bytes, ref.colorSpace);
   } else {
     scalar("metallic", part.metallic);
   }
   if (auto tex = image("occlusion")) {
     geometry::mesh::codec::decode::Part::TextureReference& ref =
         part.textures["occlusion"];
-    fetch(*tex, ref.uri, ref.bytes);
+    fetch(*tex, ref.uri, ref.bytes, ref.colorSpace);
   }
   if (auto tex = image("normal")) {
     geometry::mesh::codec::decode::Part::TextureReference& ref =
         part.textures["normal"];
-    fetch(*tex, ref.uri, ref.bytes);
+    fetch(*tex, ref.uri, ref.bytes, ref.colorSpace);
   }
   if (auto tex = image("emissiveColor")) {
     geometry::mesh::codec::decode::Part::TextureReference& ref =
         part.textures["emissive"];
-    fetch(*tex, ref.uri, ref.bytes);
+    fetch(*tex, ref.uri, ref.bytes, ref.colorSpace);
     part.emissive = {1, 1, 1, 1};
   } else if (UsdShadeInput in = surface.GetInput(TfToken("emissiveColor"))) {
     GfVec3f c;
@@ -137,7 +145,7 @@ void readMaterial(const UsdShadeMaterial& material,
   if (auto tex = image("opacity")) {
     geometry::mesh::codec::decode::Part::TextureReference& ref =
         part.textures["opacity"];
-    fetch(*tex, ref.uri, ref.bytes);
+    fetch(*tex, ref.uri, ref.bytes, ref.colorSpace);
     part.opaque = false;
   } else if (UsdShadeInput in = surface.GetInput(TfToken("opacity"))) {
     float a;
@@ -148,10 +156,34 @@ void readMaterial(const UsdShadeMaterial& material,
   }
   scalar("ior", part.ior);
   scalar("opacityThreshold", part.alphaCutoff);
-  const VtValue transmission =
-      material.GetPrim().GetCustomDataByKey(TfToken("sigil:transmission"));
-  if (transmission.IsHolding<float>())
-    part.transmission = transmission.Get<float>();
+  // THE OPTIONAL LOBES, which UsdPreviewSurface has no input for and the
+  // writer keeps in the material's custom data, each under its own name.
+  const UsdPrim prim = material.GetPrim();
+  const auto kept = [&](const char* key, float& out) {
+    const VtValue value = prim.GetCustomDataByKey(TfToken(key));
+    if (value.IsHolding<float>()) out = value.Get<float>();
+  };
+  const auto keptColour = [&](const char* key, glm::vec3& out) {
+    const VtValue value = prim.GetCustomDataByKey(TfToken(key));
+    if (!value.IsHolding<GfVec3f>()) return;
+    const GfVec3f c = value.Get<GfVec3f>();
+    out = {c[0], c[1], c[2]};
+  };
+  kept("sigil:transmission", part.transmission);
+  kept("sigil:thickness", part.thickness);
+  keptColour("sigil:attenuationColor", part.attenuationColor);
+  kept("sigil:attenuationDistance", part.attenuationDistance);
+  kept("sigil:dispersion", part.dispersion);
+  keptColour("sigil:sheenColor", part.sheenColor);
+  kept("sigil:sheenRoughness", part.sheenRoughness);
+  kept("sigil:anisotropy", part.anisotropy);
+  kept("sigil:anisotropyRotation", part.anisotropyRotation);
+  kept("sigil:iridescence", part.iridescence);
+  kept("sigil:iridescenceIor", part.iridescenceIor);
+  kept("sigil:iridescenceThickness", part.iridescenceThickness);
+  kept("sigil:iridescenceThicknessMinimum", part.iridescenceThicknessMinimum);
+  kept("sigil:specular", part.specular);
+  keptColour("sigil:specularColor", part.specularColor);
 }
 
 }  // namespace sigil::usd

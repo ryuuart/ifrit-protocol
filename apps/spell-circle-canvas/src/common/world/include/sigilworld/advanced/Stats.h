@@ -66,7 +66,8 @@ struct SceneStats {
    *  cascade — leaving out every map nothing moved in, which is kept. */
   int64_t shadowMapsDrawn = 0;
   /** Bodies drawn as a stand-in because their program was still
-   *  compiling: zero in a frame that waits for every program. */
+   *  compiling, or left out because the stand-in's own pipeline was still
+   *  building: zero in a frame that waits for both. */
   int64_t programsPending = 0;
   int64_t readbacks = 0;  ///< images read back into host memory this frame
   /** Pictures presented by sampling the executor's own texture where it

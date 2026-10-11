@@ -310,8 +310,11 @@ struct Gpu {
    *  map, each in a square tile of its own, made on the first frame with
    *  a light that casts and kept while it is large enough. */
   dg::RefCntAutoPtr<dg::ITexture> shadowAtlas;
-  /** …read through a view of the depth format itself. */
+  /** …read through a view of the depth format itself, and through a
+   *  second such view the comparison sampler is set on, so the two reads
+   *  never hand each other their sampler. */
   dg::RefCntAutoPtr<dg::ITextureView> shadowAtlasView;
+  dg::RefCntAutoPtr<dg::ITextureView> shadowCompareView;
   int shadowAtlasSide = 0;
   /** WHAT OF EACH CASTING LIGHT A TRANSMISSIVE BODY LETS THROUGH, beside
    *  the atlas and laid out as it is: the colour that comes through, one
@@ -458,6 +461,13 @@ void openTarget(Gpu& gpu, dg::ITexture* colour, const float* clear,
 /** A texture's placement as a shader reads it: the same matrix a host
  *  tier puts on its style, in the four-by-four the uniform is. */
 glm::mat4 mapMatrix(const SkMatrix& uv);
+
+/** STARTS BUILDING THE PIPELINES EVERY FRAME DRAWS WITH on the device's
+ *  workers — a stand-in body, a body with no program of its own, the
+ *  depth-only shadow programs, the sky, the clear, a copy and the final
+ *  stage — so the first frame finds them built rather than building them
+ *  on the thread that draws. */
+void prepareFixedPipelines(Gpu& gpu);
 
 /** The two stages of a frame, one file each. */
 void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,

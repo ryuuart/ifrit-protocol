@@ -11,10 +11,12 @@
 #include <cstring>
 #include <string>
 #include <string_view>
+#include <variant>
 #include <vector>
 
 #include "sigilgeometry/mesh/Mesh.h"
 #include "sigilgeometry/mesh/codec/Decode.h"
+#include "sigilgeometry/mesh/codec/Surface.h"
 #include "support/GeometrySupport.h"
 
 using namespace sigil::geometry;
@@ -280,4 +282,58 @@ TEST(ReadGltf, APrimitiveCarriesTheWholeMaterialItNames) {
     EXPECT_EQ(part.textures.at("occlusion").bytes,
               part.textures.at("orm").bytes)
         << "the Avocado packs occlusion into the same image";
+}
+
+TEST(ReadGltf, AGlassCubeLowersToItsWholeTransmissionLobe) {
+  // The red triangle's file, its material swapped for a tinted glass with a
+  // volume, an index and a dispersion.
+  std::string json = triangleGltfJson("data:application/octet-stream;base64," +
+                                      base64(triangleBufferBytes()));
+  const std::string red = R"("materials": [{"pbrMetallicRoughness":
+    {"baseColorFactor": [1, 0, 0, 1]}}])";
+  const std::string glass = R"("extensionsUsed": ["KHR_materials_transmission",
+    "KHR_materials_volume", "KHR_materials_ior", "KHR_materials_dispersion"],
+  "materials": [{"pbrMetallicRoughness": {"roughness": 0.1},
+    "extensions": {
+      "KHR_materials_transmission": {"transmissionFactor": 1.0},
+      "KHR_materials_ior": {"ior": 1.45},
+      "KHR_materials_volume": {"thicknessFactor": 0.25,
+        "attenuationColor": [0.9, 0.5, 0.2], "attenuationDistance": 3.0},
+      "KHR_materials_dispersion": {"dispersion": 0.4}}}])";
+  const size_t at = json.find(red);
+  ASSERT_NE(at, std::string::npos);
+  json.replace(at, red.size(), glass);
+  auto model = codec::decode::model(json.data(), json.size(), "glass.gltf");
+  ASSERT_TRUE(model.has_value());
+  ASSERT_EQ(model->parts.size(), 1u);
+  const Part& part = model->parts.front();
+  EXPECT_FLOAT_EQ(part.transmission, 1.0f);
+  EXPECT_FLOAT_EQ(part.thickness, 0.25f);
+  EXPECT_FLOAT_EQ(part.attenuationDistance, 3.0f);
+  EXPECT_FLOAT_EQ(part.dispersion, 0.4f);
+
+  // …and its lowering states every number of the lobe on the surface.
+  const sigil::material::SurfaceOptions surface =
+      codec::decode::surfaceOptions(part);
+  EXPECT_TRUE(sigil::material::lobes(surface).transmission);
+  EXPECT_FLOAT_EQ(std::get<float>(surface.transmission), 1.0f);
+  EXPECT_FLOAT_EQ(surface.ior, 1.45f);
+  EXPECT_FLOAT_EQ(std::get<float>(surface.thickness), 0.25f);
+  EXPECT_FLOAT_EQ(surface.attenuationColor.g, 0.5f);
+  EXPECT_FLOAT_EQ(surface.attenuationDistance, 3.0f);
+  EXPECT_FLOAT_EQ(surface.dispersion, 0.4f);
+}
+
+TEST(ReadGltf, AVolumeWithNoAttenuationDistanceTakesNothing) {
+  std::string json = triangleGltfJson("data:application/octet-stream;base64," +
+                                      base64(triangleBufferBytes()));
+  const std::string red = R"("materials": [{"pbrMetallicRoughness":
+    {"baseColorFactor": [1, 0, 0, 1]}}])";
+  const std::string glass = R"("materials": [{"extensions": {
+      "KHR_materials_transmission": {"transmissionFactor": 1.0},
+      "KHR_materials_volume": {"thicknessFactor": 2.0}}}])";
+  json.replace(json.find(red), red.size(), glass);
+  auto model = codec::decode::model(json.data(), json.size(), "glass.gltf");
+  ASSERT_TRUE(model.has_value());
+  EXPECT_FLOAT_EQ(model->parts.front().attenuationDistance, 0.0f);
 }

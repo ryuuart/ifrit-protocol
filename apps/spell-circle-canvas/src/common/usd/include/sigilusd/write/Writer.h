@@ -73,6 +73,12 @@ class Writer {
     return this->mesh(name, mesh, model,
                       std::vector<material::Material>{material}, parent);
   }
+  /** WHETHER THE BODY AT @p path — a prim `mesh` or `instances` returned —
+   *  casts shadows and receives them, which UsdGeom has no word for: a body
+   *  that opts out of either says so as `sigil:castShadow` or
+   *  `sigil:receiveShadow` custom data on its prim, and one that does both
+   *  states nothing. */
+  void shadows(std::string_view path, bool castShadow, bool receiveShadow);
   /** Instanced geometry: a UsdGeomPointInstancer with the stamp as its
    *  one prototype, the instances' positions, scales and orientations as
    *  its own, their colours as `displayColor` and `displayOpacity`, and

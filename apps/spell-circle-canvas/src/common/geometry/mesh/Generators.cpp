@@ -74,6 +74,43 @@ Mesh sheet(
       out.normals.push_back(normalized(raw));
     }
   }
+  // THE TANGENTS, where the uvs are the sheet's own parameters: u runs
+  // along the difference between a vertex's neighbours across the row,
+  // squared to the normal, and v — which runs opposite the parameter —
+  // stands beside it on the side the column's neighbours say. A pole,
+  // where a row collapses onto one point, takes its direction from the
+  // row beside it, which is the way u runs as the pole is approached.
+  // A sheet whose texture is placed some other way carries none.
+  if (!options.textureFromPosition && !options.textureRectangle) {
+    out.tangents.assign(out.positions.size(), glm::vec4(0.0f));
+    const auto at = [&](int i, int j) {
+      return out.positions[(size_t)j * nu + i];
+    };
+    for (int j = 0; j < nv; ++j)
+      for (int i = 0; i < nu; ++i) {
+        const glm::vec3 n = out.normals[(size_t)j * nu + i];
+        glm::vec3 across{0.0f};
+        // The row itself, or the nearest row that has a length.
+        for (int reach = 0; reach < nv; ++reach) {
+          for (const int row : {j - reach, j + reach}) {
+            if (row < 0 || row >= nv) continue;
+            across =
+                at(std::min(i + 1, nu - 1), row) - at(std::max(i - 1, 0), row);
+            across -= n * glm::dot(across, n);
+            if (glm::dot(across, across) > 1e-12f) break;
+          }
+          if (glm::dot(across, across) > 1e-12f) break;
+        }
+        if (glm::dot(across, across) <= 1e-12f) continue;
+        across = glm::normalize(across);
+        // v in the uvs grows as the parameter falls.
+        const glm::vec3 up =
+            at(i, std::max(j - 1, 0)) - at(i, std::min(j + 1, nv - 1));
+        const float side =
+            glm::dot(glm::cross(n, across), up) < 0.0f ? -1.0f : 1.0f;
+        out.tangents[(size_t)j * nu + i] = glm::vec4(across, side);
+      }
+  }
   placeTexture(out, options);
   for (int j = 0; j + 1 < nv; ++j) {
     for (int i = 0; i + 1 < nu; ++i) {

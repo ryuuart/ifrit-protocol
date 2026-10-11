@@ -103,8 +103,10 @@ struct ShadowPlay {
                    .intensity = 2.2f,
                    .castShadow = true,
                    // Three maps along the camera's depth, the nearest
-                   // covering the front of the scene.
-                   .shadow = {.cascades = 3}})
+                   // covering the front of the scene, from a sun a degree
+                   // and a half across, so a shadow softens away from
+                   // its caster.
+                   .shadow = {.cascades = 3, .size = 1.5f}})
              .key("sun"),
          world::spotLight({0, -1, 0},
                           {.color = material::Color{0.62f, 0.78f, 1.0f, 1},
@@ -112,7 +114,7 @@ struct ShadowPlay {
                            .innerAngle = 16,
                            .outerAngle = 30,
                            .castShadow = true,
-                           .shadow = {.radius = 1.5f}})
+                           .shadow = {.radius = 1.5f, .size = 36}})
              .key("spot")
              .at(spotAt)
              .lookAt("aim")
@@ -121,7 +123,9 @@ struct ShadowPlay {
          world::pointLight({.color = material::Color{1.0f, 0.62f, 0.32f, 1},
                             .intensity = world::intensityAt(2.6f, 160.0f),
                             .range = 900,
-                            .castShadow = true})
+                            .castShadow = true,
+                            // As wide as the bulb that stands for it.
+                            .shadow = {.size = 20}})
              .key("lamp")
              .at({70, 60, 150}),
          world::ambientLight({.intensity = 0.06f}).key("fill"),
