@@ -122,7 +122,10 @@ id<MTLComputePipelineState> spreadPipeline(id<MTLDevice> device) {
 }
 
 /** ONE COOKED OUTPUT, STANDING ON THE DEVICE: wrapped once per recorder
- *  that asks, read back once for every caller with none. */
+ *  that asks, read back once for every caller with none. A recorder that
+ *  cannot sample a Metal texture — Graphite on the shared Vulkan device —
+ *  is handed that read-back copy, which any recorder draws, rather than
+ *  nothing. */
 class CookedBinding final : public media::DeviceBinding {
  public:
   CookedBinding(id<MTLTexture> texture, id<MTLCommandQueue> queue,
@@ -132,13 +135,13 @@ class CookedBinding final : public media::DeviceBinding {
   sk_sp<SkImage> image(skgpu::graphite::Recorder* recorder) override {
     std::lock_guard lock(m_mutex);
     if (recorder) {
-      if (m_recorder != recorder || !m_wrapped) {
+      if (m_recorder != recorder) {
         m_recorder = recorder;
         m_wrapped = skia::wrapImage(*recorder, (__bridge void*)m_texture,
                                     kUnpremul_SkAlphaType,
                                     colorSpaceOf(m_encoding));
       }
-      return m_wrapped;
+      if (m_wrapped) return m_wrapped;
     }
     if (!m_read) m_read = readBack();
     return m_read;

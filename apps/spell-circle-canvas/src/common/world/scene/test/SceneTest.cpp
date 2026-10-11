@@ -16,6 +16,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkImageInfo.h>
+#include <sigilgeometry/kit/Solids.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmotion/clock/Engine.h>
@@ -217,6 +218,28 @@ TEST_F(WorldScene, AGeometrySlotChangeKeepsTheNodeAndItsLanes) {
   EXPECT_FLOAT_EQ((*world)[3].y, 12.0f);
   // … and the artefact is a new one, cooked from the new slot.
   EXPECT_EQ(scene.stats().cooked, 1);
+  EXPECT_EQ(scene.stats().resources, 1);
+}
+
+TEST_F(WorldScene, ASolidSpelledAsAValueIsFormedOnceWhileItStands) {
+  // Two nodes name one solid by its numbers, frame after frame: the
+  // geometry slot holds the value, so the store forms it once, shares it
+  // between the two, and a second frame naming it again forms nothing.
+  const auto describe = [] {
+    const geometry::solids::Superellipsoid slab{.radii = {22, 30, 22},
+                                                .exponent = 3,
+                                                .longitudeSteps = 18,
+                                                .latitudeSteps = 12};
+    return group({mesh(slab).key("left").at({-40, 0, 0}),
+                  mesh(slab).key("right").at({40, 0, 0})})
+        .key("root");
+  };
+  scene.render(describe());
+  EXPECT_EQ(scene.stats().cooked, 1);
+  EXPECT_EQ(scene.stats().resources, 1);
+  scene.render(describe());
+  EXPECT_EQ(scene.stats().cooked, 0)
+      << "an unchanged solid is not formed again";
   EXPECT_EQ(scene.stats().resources, 1);
 }
 

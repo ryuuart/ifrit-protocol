@@ -20,10 +20,12 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/program/Shader.h>
+#include <sigilmaterial/substance/Substance.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/image/Decode.h>
 #include <sigilmedia/video/Video.h>
+#include <sigilsketch/core/Device.h>
 #include <sigilsketch/plate/Story.h>
 #include <sigilsketch/plate/Sweep.h>
 #include <sigilsketch/scene2d/Scene2D.h>
@@ -33,6 +35,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <limits>
@@ -225,6 +228,82 @@ struct MissingShader {
         ctx.assets.hub(), "res://missing_sweep_program.sksl")));
   }
 };
+
+/** A FRAME COOKED ON THE DEVICE: one output of the Substance SDK's leaf
+ *  sample, cooked by the GPU engine so it stands on the device as a Metal
+ *  texture, drawn as an image. The sweep photographs it on whichever
+ *  backend it runs, and both must show the cooked picture. */
+struct DeviceCookedSwatch {
+  static std::string archive() {
+    return (std::filesystem::path(SIGIL_SUBSTANCE_SDK_DIR) / "assets" /
+            "Autumn_Leaves.sbsar")
+        .string();
+  }
+  static bool available(std::string* why) {
+    if (!sigil::material::sbsar::available(
+            sigil::material::sbsar::Engine::Metal)) {
+      if (why) *why = "the Substance GPU engine does not start here";
+      return false;
+    }
+    if (!std::filesystem::exists(archive())) {
+      if (why) *why = "the Substance SDK's leaf sample is not installed";
+      return false;
+    }
+    return true;
+  }
+  void setup(Scene2DContext& ctx) {
+    ctx.canvas(96, 96);
+    ctx.background({0, 0, 0, 1});
+    ctx.captureAt(0.1);
+    const sigil::material::Material leaves = sigil::material::substance(
+        ctx.assets.hub(), archive(),
+        {.resolution = 64,
+         .outputs = {{"diffuse"}},
+         .engine = sigil::material::sbsar::Engine::Metal});
+    sigil::material::sbsar::settle(leaves);
+    ctx.composer.render(box().width(96).height(96).children(
+        {image(sigil::material::sbsar::output(leaves, "diffuse"))
+             .absolute()
+             .left(16)
+             .top(16)
+             .width(64)
+             .height(64)}));
+  }
+};
+
+/** Per colour channel, the mean and the 99th percentile of how far two
+ *  plates of one size stand apart, in code values — what the device tier
+ *  judges a scene2d plate by. */
+struct ChannelDrift {
+  double mean = 256;
+  int p99 = 256;
+};
+
+ChannelDrift channelDrift(const SkImage& a, const SkImage& b) {
+  if (a.width() != b.width() || a.height() != b.height()) return {};
+  SkBitmap left, right;
+  left.allocN32Pixels(a.width(), a.height());
+  right.allocN32Pixels(b.width(), b.height());
+  if (!a.readPixels(left.pixmap(), 0, 0) || !b.readPixels(right.pixmap(), 0, 0))
+    return {};
+  ChannelDrift worst{0, 0};
+  for (int shift : {0, 8, 16}) {
+    std::vector<int> apart;
+    apart.reserve((size_t)a.width() * (size_t)a.height());
+    double sum = 0;
+    for (int y = 0; y < a.height(); ++y)
+      for (int x = 0; x < a.width(); ++x) {
+        const int d = std::abs((int)((left.getColor(x, y) >> shift) & 0xffu) -
+                               (int)((right.getColor(x, y) >> shift) & 0xffu));
+        apart.push_back(d);
+        sum += d;
+      }
+    std::sort(apart.begin(), apart.end());
+    worst.mean = std::max(worst.mean, sum / (double)apart.size());
+    worst.p99 = std::max(worst.p99, apart[apart.size() * 99 / 100]);
+  }
+  return worst;
+}
 
 /** A PNG's width and height, read off IHDR — the first chunk of the
  *  file, its two big-endian dimensions at a fixed offset. Read rather
@@ -487,6 +566,56 @@ TEST_F(DeviceSweep, SelectsByRuntime) {
       std::filesystem::exists(out.path / "plate_initial_set_probe.png"));
 }
 
+TEST_F(DeviceSweep, AFrameCookedOnTheDeviceIsThePictureTheRasterPlateShows) {
+  // The sweep's device is the shared Vulkan one, whose Graphite cannot
+  // sample a Metal texture: the cooked frame reaches it as the host copy,
+  // so the device plate is the raster plate's picture and not an empty
+  // card.
+  std::string why;
+  if (!DeviceCookedSwatch::available(&why)) GTEST_SKIP() << why;
+  // The device the runtime stands on, installed as a host installs it, so
+  // the sweep photographs on its Graphite as Grimoire's device tier does.
+  const sigil::geometry::device::test::OnDevice on =
+      sigil::geometry::device::test::onDevice();
+  if (!on->graphite()) GTEST_SKIP() << "the device carries no Graphite";
+  useDevice(on.device);
+  struct Uninstall {
+    ~Uninstall() { useDevice(nullptr); }
+  } uninstall;
+  const ScratchDir raster("sigil_sweep_cooked_raster");
+  const ScratchDir device("sigil_sweep_cooked_device");
+  SweepOptions options = ledgerRun(raster.path);
+  options.only = find("device_cooked_swatch");
+  ASSERT_GE(options.only, 0);
+  ASSERT_EQ(0, sweep(options, fonts(), assets()));
+  options.outputDirectory = device.path.string();
+  options.gpu = true;
+  ASSERT_EQ(0, sweep(options, fonts(), assets()));
+
+  const sk_sp<SkImage> onRaster =
+      plateImage(raster.path / "plate_device_cooked_swatch.png");
+  const sk_sp<SkImage> onDevice =
+      plateImage(device.path / "plate_device_cooked_swatch.png");
+  ASSERT_TRUE(onRaster);
+  ASSERT_TRUE(onDevice);
+  const ChannelDrift drift = channelDrift(*onRaster, *onDevice);
+  // The device tier's tolerance, per colour channel.
+  EXPECT_LE(drift.mean, 12.0);
+  EXPECT_LE(drift.p99, 128);
+  // …and the card holds the cooked leaves, not the black ground.
+  SkBitmap pixels;
+  pixels.allocN32Pixels(onDevice->width(), onDevice->height());
+  ASSERT_TRUE(onDevice->readPixels(pixels.pixmap(), 0, 0));
+  long inked = 0;
+  for (int y = pixels.height() / 4; y < pixels.height() * 3 / 4; ++y)
+    for (int x = pixels.width() / 4; x < pixels.width() * 3 / 4; ++x) {
+      const SkColor c = pixels.getColor(x, y);
+      inked += (long)SkColorGetR(c) + SkColorGetG(c) + SkColorGetB(c);
+    }
+  EXPECT_GT(inked, 0) << "the device plate's card is empty";
+  EXPECT_LT(drift.mean, 2.0) << "one picture on both backends";
+}
+
 TEST(Sweep, PassesOverASketchWhoseProbeSaysThisMachineCannotDrawIt) {
   // A skip is not a failure and not a mover: the run still succeeds, and
   // no plate is written. A card naming what is missing is not the
@@ -684,6 +813,10 @@ TEST(Story, AKeptCanvasSurvivesThePreRoll) {
 [[maybe_unused]] const bool initialScene3DRegistered =
     add("initial_set_probe", nullptr, "Test", "a retained scene at time zero",
         &kindOf<InitialScene3DProbe>);
+[[maybe_unused]] const bool deviceCookedRegistered =
+    add("device_cooked_swatch", nullptr, "Test",
+        "a frame the Substance GPU engine left on the device",
+        &kindOf<DeviceCookedSwatch>, &probeOf<DeviceCookedSwatch>);
 [[maybe_unused]] const bool densityPlateRegistered =
     add("density_plate", nullptr, "Test", "the first frame's capture density",
         &kindOf<DensityPlate>);

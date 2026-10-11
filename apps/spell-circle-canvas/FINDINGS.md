@@ -1305,23 +1305,6 @@ by design. A test should present a live frame onto a surface of the
 device's own Graphite and assert `SceneStats::readbacks` is zero and the
 pixels equal the readback's.
 
-## Device tier: a device-cooked frame draws nothing in the headless device sweep
-
-`sigil.py plates --tier device` renders every scene2d sketch on the CPU
-and on the device and compares them per colour channel. One stands OVER
-the tolerance: `substance_swatches`, whose seven cooked cards are empty
-only in the headless device sweep. It cooks its channels on the Substance
-Metal engine, so its frames are device frames with a `CookedBinding`
-(`material/substance/Metal.mm`); the CPU sweep and a still taken with
-`Grimoire …/substance_swatches.cpp --frame x.png --gpu` draw the cards.
-The suspects are the sweep's stepping onto an `SkNoDrawCanvas` followed by
-`still()` onto a `PaintOrderCanvas` (`src/sketch/plate/Sweep.cpp`), and
-`CookedBinding::image` caching its wrap by recorder pointer. A device
-frame should be bound for the plate's recorder as in the live host. A test
-should sweep the sketch on the device and find the cards' mean equal to the
-CPU plate's within the tier's tolerance; until then the row is the finding,
-and a run of the tier is read by its rows and not by its last line.
-
 ## Performance: wet_glass_console is very demanding
 
 The owner reports `wet_glass_console` as very demanding in the window;
@@ -1408,13 +1391,26 @@ on it too, since a rounded edge needs cap and walls in one mesh. A test
 should extrude a square with face sets, fill it with two materials, render
 it, and find the caps the first and the walls the second.
 
-## Follow-up: a scene-level test and Python bindings for solid values
+## Follow-up: Python bindings for solid values
 
 `geometry::solids::*` and `world::mesh(Solid)` hold a solid as a comparable
-value the store cooks once while it stands, proven at the node. A
-`world/scene/test` case should describe a scene naming
-`geometry::solids::Superellipsoid` on two nodes, render twice, and find
-`SceneStats::cooked` one then zero and `resources` one. The solid values
-and `world.mesh(solid)` are not bound in Python; bind them and regenerate
-the typing, with a Python test that describes one twice and finds it
-formed once.
+value the store cooks once while it stands, proven at the node and in the
+scene. The solid values and `world.mesh(solid)` are not bound in Python;
+bind them and regenerate the typing, with a Python test that describes one
+twice and finds it formed once.
+
+## A device binding may answer nothing to a recorder that cannot sample its surface
+
+The media `DeviceBinding` contract (`include/sigilmedia/advanced/Skia.h`)
+says `image(recorder)` wraps the surface for the recorder or reads back
+when the recorder is null, and says nothing of a recorder that cannot
+sample the surface, such as a Vulkan Graphite handed a Metal texture. The
+Substance binding now answers its host copy there. The video decoder's
+`FrameBinding` (`media/video/decode/Raster.cpp`) and the received frames
+binding under `io/frames` may still answer null to such a recorder, so an
+image leaf drawing them in a headless device sweep draws nothing. A
+binding should answer the host copy wherever it cannot wrap, and the
+contract should say so. A test should bind each kind of device frame for a
+Vulkan Graphite recorder and find a drawable image. The copy that host
+answer costs could go once the shared device imports a Metal texture into
+Vulkan, as it already exports its own objects the other way.

@@ -6,12 +6,16 @@
 #
 # A sweep over a scene3d sketch draws it on the device, so the cases that
 # photograph one link the device executor and the one device a test process
-# brings up, and skip where the machine has no Vulkan runtime.
+# brings up, and skip where the machine has no Vulkan runtime. One case
+# photographs a frame the Substance GPU engine cooked, found through the
+# SDK's own sample, and skips where the SDK or its engine is absent.
 sigil_test(sketch_test
   SOURCES test/CompareTest.cpp test/SweepTest.cpp test/ThumbnailQueueTest.cpp
           test/ThumbnailWriterTest.cpp test/ThumbnailsTest.cpp
   SUPPORT_DIRS ${SIGIL_GEOMETRY_DEVICE_TEST_SUPPORT_DIR}
   LIBRARIES SigilSketch SigilWeavePorts SigilWorldDiligent
+            SigilMaterialSubstance
+  DEFINITIONS SIGIL_SUBSTANCE_SDK_DIR="${SUBSTANCE_SDK_DIR}"
   SUITES DeviceSweep
   LABELS gpu)
 
