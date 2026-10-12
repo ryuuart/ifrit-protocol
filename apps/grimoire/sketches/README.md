@@ -112,6 +112,13 @@ last acknowledgment. Headless captures replay synthetic arrivals without
 opening a socket or writing a file; the live waiting state labels its
 reference traces until a sender arrives.
 
+`cue_deck/` is the same door read through a schema: a TouchDesigner patch
+sends each cue as a FlatBuffer built from the Python modules `flatc`
+generated from `cue_deck.fbs`, and the sketch reads it through the
+`cue_deck.bfbs` the build compiles beside the entry. Its README and the
+guide it links say how the patch is wired and how the canvas returns to
+TouchDesigner over Syphon.
+
 The table below is every sketch filed under a `Study ·` category — the
 studies that rebuild a REFERENCE — with what each one puts under load.
 Every other sketch here carries its own line in its own `SIGIL_SKETCH`

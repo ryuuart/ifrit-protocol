@@ -35,6 +35,11 @@ the product, a window server or a network.
    — a specimen sheet worn by one quad: carved limestone type, brushed
    copper ribbons, a crackled glaze, velvet, a thin film, a glowing mark,
    satin and matte, each a fill whose material the scene lights.
+7. **[A FlatBuffers wire from TouchDesigner, drawn and sent back over Syphon](guide:sigilio-flatbuffers-touchdesigner)**
+   — a schema for one cue, Python modules and a binary schema generated
+   from it, a sketch that reads a UDP door through that schema, a
+   recording a still replays, the canvas published over Syphon, and the
+   TouchDesigner patch that sends the cues and shows the picture.
 
 ## What to read next
 

@@ -1,0 +1,38 @@
+// cue_deck.fbs — one cue of a show, as a desk or a patch sends it.
+//
+// One message is the whole cue rather than a change to it: every
+// channel's level, the colour the cue is lit in, the markers on the bar
+// and where the show stands among them. So a reader that missed a
+// datagram draws what is true now from the next one, and nothing has to
+// arrive in order.
+//
+// A TouchDesigner patch makes one of these from what it already holds:
+// a CHOP's channels are the levels, a colour parameter is the colour, a
+// Table DAT is the markers and the timeline's beat is the beat.
+namespace CueDeck;
+
+struct Color {
+  r: float;  // each from zero to one
+  g: float;
+  b: float;
+}
+
+table Channel {
+  name: string;  // the label under its meter
+  level: float;  // from zero to one
+}
+
+table Marker {
+  name: string;  // the label over its tick
+  beat: float;   // where on the bar it stands, from zero
+}
+
+table Cue {
+  show: string;          // the name the marquee carries
+  channels: [Channel];   // one meter each, in order
+  color: Color;          // the colour every meter is filled with
+  markers: [Marker];
+  beat: float;           // where the show stands, in beats from zero
+}
+
+root_type Cue;
