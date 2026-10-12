@@ -35,6 +35,16 @@ using namespace sigil::world::test;
 
 namespace {
 
+// Whether the sanitizer or coverage instrumentation is compiled in.
+#if defined(__SANITIZE_ADDRESS__) || defined(__SANITIZE_THREAD__)
+constexpr bool kInstrumented = true;
+#elif defined(__has_feature)
+constexpr bool kInstrumented =
+    __has_feature(address_sanitizer) || __has_feature(thread_sanitizer);
+#else
+constexpr bool kInstrumented = false;
+#endif
+
 constexpr glm::ivec2 kExtent{96, 96};
 
 /** A RECIPE NO OTHER CASE COMPILED, so its program is not held when the
@@ -273,8 +283,13 @@ TEST(StandIn, ALiveFrameDoesNotWaitForANewlyArrivedProgramsPipeline) {
   RecordProperty("longestMs", std::to_string(longest));
   RecordProperty("frames", std::to_string(frames));
   // Within a small factor of a frame that builds nothing, with a floor
-  // for a frame so short that the clock's own grain decides the ratio.
-  EXPECT_LT(longest, std::max(steady * 6.0, 6.0)) << longest << " " << steady;
+  // for a frame so short that the clock's own grain decides the ratio. An
+  // instrumented build slows the host side of a frame by more than the
+  // factor allows, and its claim is memory, not time, so the bound is
+  // read only where the code runs as shipped.
+  if (!kInstrumented) {
+    EXPECT_LT(longest, std::max(steady * 6.0, 6.0)) << longest << " " << steady;
+  }
   // The arrival is drawn whole: lit, short of its authored red.
   const SkColor4f arrived = middle(scene);
   EXPECT_LT(arrived.fR, 0.8f);
