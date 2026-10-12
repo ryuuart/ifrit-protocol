@@ -367,22 +367,6 @@ no image test tells the shape-following treatment from today's; a
 discriminating test needs a numerical integral of the lobe over the
 light, as the representative-point entry states.
 
-## Performance: a page on the Vulkan device fills its paths on the CPU
-
-A scene3d page draws on the Vulkan Graphite context made with internal
-multisampling off (the `workaround:` in
-`src/common/skia/graphite/GraphiteContextVulkan.cpp`), so Skia takes its
-raster-atlas path strategy and every non-simple path is filled on the
-CPU; the scrolling traces of `wet_glass_console` are new geometry each
-frame, so the atlas never hits, and the fill is a third of the host
-frame. The workaround's reason holds: with multisampling on, a pass that
-resumes after a fence loses what the pass before it drew
-(`AdoptedGraphite.AFencedPassKeepsWhatThePassBeforeItDrew`). The
-multisampled attachment can come back once a resumed pass keeps its
-samples, a resolve and reload of the multisampled target around the
-fence. The bench arm `BM_Draw_Ribbons_Scrolling` and the console's
-`--bench --gpu` hold the numbers it must move.
-
 ## A casting light's shadow filter and tint cost a lit pixel in proportion to its program's size
 
 The lens, the layered refraction and the environment cost a transmitting
@@ -476,3 +460,26 @@ as a failed pipeline, or a threading rule of the compiler, is not known.
 A failed asynchronous build must become a pipeline the frame stands in
 for, never an abort. A test should hand the pipeline cache a program
 that cannot compile and find the body stood in and the error reported.
+
+## Skia's whole-attachment reload for multisampling is keyed to Qualcomm, not MoltenVK
+
+`VulkanCaps::applyDriverCorrectnessWorkarounds` in the Skia the port
+builds sets `fMustLoadFullImageForMSAA` only for Qualcomm's proprietary
+driver, and its own comment describes exactly MoltenVK's defect: the
+device resolves an area larger than the render pass bounds, so Graphite
+reloads a multisample attachment only inside a pass's render area while
+the whole attachment is resolved. The paint-order canvas covers each
+device before a continuing pass (the second `workaround:` in
+`src/common/skia/include/sigilskia/graphite/PaintOrder.h`), which cannot
+see a recording a caller snaps itself (`src/sketch/plate/Sweep.cpp`,
+harmless only because every sweep frame begins with a clear) nor a pass
+Graphite ends inside one recording, such as a `makeImageSnapshot` of a
+surface still being drawn, which corrupts on this machine. Every
+continuing pass should keep what the previous pass drew, whoever ended
+it: a patch in the sigil-vcpkg-registry Skia port setting
+`fMustLoadFullImageForMSAA` for `VK_DRIVER_ID_MOLTENVK`, a Skia rebuild
+and a baseline bump, after which the cover and the closed-recording
+count in `Waits` go. A test should draw a surface multisampled, snapshot
+it with `makeImageSnapshot`, draw one small path, and find every
+flat-coloured pixel of the first drawing kept; and the same after a
+caller's own snap and insert with no clear.

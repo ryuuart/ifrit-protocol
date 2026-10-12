@@ -1,5 +1,5 @@
 // What this library notes about a recorder: the GPU waits its next
-// inserted recording carries.
+// inserted recording carries, and how many recordings it has closed.
 
 #include "Waits.h"
 
@@ -25,13 +25,15 @@ struct Wait {
   uint64_t value = 0;
 };
 
-/** EVERY RECORDER'S WAITS, under one lock: a wait is registered on the
- *  thread that records the sampling draw and taken on whichever thread
- *  inserts, which is most often the same one but need not be. */
+/** EVERY RECORDER'S WAITS AND CLOSED RECORDINGS, under one lock: a wait
+ *  is registered on the thread that records the sampling draw and taken
+ *  on whichever thread inserts, which is most often the same one but need
+ *  not be. */
 struct Registry {
   std::mutex mutex;
   boost::unordered_flat_map<const skgpu::graphite::Recorder*, std::vector<Wait>>
       waits;
+  boost::unordered_flat_map<const skgpu::graphite::Recorder*, uint32_t> closed;
 };
 
 Registry& registry() {
@@ -47,6 +49,14 @@ void forgetRecorder(const skgpu::graphite::Recorder* recorder) {
   Registry& store = registry();
   const std::lock_guard<std::mutex> lock(store.mutex);
   store.waits.erase(recorder);
+  store.closed.erase(recorder);
+}
+
+uint32_t recordingsClosed(const skgpu::graphite::Recorder* recorder) {
+  Registry& store = registry();
+  const std::lock_guard<std::mutex> lock(store.mutex);
+  const auto found = store.closed.find(recorder);
+  return found == store.closed.end() ? 0 : found->second;
 }
 
 #ifdef __APPLE__
@@ -74,6 +84,7 @@ PendingWaits::PendingWaits(const skgpu::graphite::Recorder* recorder) {
   {
     Registry& store = registry();
     const std::lock_guard<std::mutex> lock(store.mutex);
+    ++store.closed[recorder];
     const auto found = store.waits.find(recorder);
     if (found == store.waits.end()) return;
     taken = std::move(found->second);

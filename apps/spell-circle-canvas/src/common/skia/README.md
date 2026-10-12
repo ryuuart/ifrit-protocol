@@ -497,16 +497,27 @@ forwards everything and closes nothing, so a host wraps unconditionally.
 that draws through a wrapped texture pays nothing to be right. A host
 that makes its own `SkSurfaces::RenderTarget` wraps it itself.
 
-Ending a pass has a price the same backend charges: it cannot bring a
-colour attachment's pixels back into a multisample attachment, so a pass
-that begins where another ended starts from undefined samples and
-resolves them over everything the pass before it drew — the ground and
-the whole top of a sheet come back as garbage. Since the fence ends
-passes mid-scene by design, the Vulkan context is built with Graphite's
-internal multisampling off (`fInternalMultisampleCount` of one), and a
-path is antialiased through the atlas instead, which survives the cut.
-The two belong together: turn the fence on for a backend and this goes
-with it.
+Ending a pass has a price the same backend charges. Graphite fills a
+path on the device by rendering it into a multisample attachment and
+resolving the samples onto the target, and a pass that begins where
+another ended reloads the attachment from the target first — but only
+inside the area that pass's own draws cover. **MoltenVK resolves the whole
+attachment whatever area the pass names**, so everything outside that
+area comes back as undefined samples: the ground and the whole top of a
+sheet turn to garbage. Graphite reloads the whole attachment when a pass
+covers the whole target, so `PaintOrderCanvas` covers it: before the
+first draw that lands in a device after this library has closed a
+recording — the fence, `OffscreenSurface::submit()`, a readback — or
+after a backdrop has been read from the device, it draws one transparent
+rectangle over the whole device, clip lifted, which changes no pixel and
+makes the pass reload everything. The Vulkan context therefore keeps
+Graphite's internal multisampling, and a path is filled on the device
+rather than rasterised into an atlas on the CPU. Two pass ends stay
+outside what the canvas sees: a recording closed by a caller's own
+`snap()` rather than through this library, and a pass Graphite ends
+inside one recording when a surface is snapshotted while it is still
+being drawn. A host on this backend closes its recordings through the
+surface's submit and does not snapshot a surface mid-scene.
 
 ## Boundary
 

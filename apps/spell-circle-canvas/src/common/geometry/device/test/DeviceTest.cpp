@@ -444,13 +444,15 @@ TEST(AdoptedGraphite, PaintingOrderHoldsThroughADestinationRead) {
 
 // A pass the fence cut in two must keep what the pass before it drew.
 // Graphite antialiases a large path by rendering it multisampled and
-// resolving the samples onto the target; a backend that cannot bring the
-// target's pixels back into the multisample attachment starts the second
-// pass from undefined samples and resolves them over the first pass's
-// work, so the ground and everything on it comes back as garbage. The
-// scene here is the smallest one that asks for both: a path big enough to
-// take the multisample renderer on either side of a draw whose blend the
-// hardware cannot express, which is what ends the pass between them.
+// resolving the samples onto the target, and a pass that begins where
+// another ended reloads the multisample attachment from the target first
+// — but only inside the area its own draws cover, while a backend that
+// resolves the whole attachment writes undefined samples over everything
+// outside that area: the ground and whatever the first pass drew on it
+// come back as garbage. The scene here is the smallest one that asks for
+// both: a path big enough to take the multisample renderer on either side
+// of a draw whose blend the hardware cannot express, which is what ends
+// the pass between them.
 //
 // Antialiased edges are the one thing two rasterisers are allowed to
 // disagree about, so the claim is made where neither is guessing: every

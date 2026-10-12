@@ -1,6 +1,7 @@
 // The fence a device whose destination reads cost the depth attachment
-// needs to paint a scene in the order it was described. PaintOrder.h says
-// what goes wrong without it.
+// needs to paint a scene in the order it was described, and the cover a
+// pass that resumes on that device needs to keep what came before it.
+// PaintOrder.h says what goes wrong without either.
 
 #include <gpu/GpuTypes.h>
 #include <gpu/graphite/Context.h>
@@ -10,8 +11,13 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPicture.h>
+#include <include/core/SkRect.h>
+#include <include/core/SkShader.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/PaintOrder.h>
+// Semi-private, installed by the vcpkg port: the clip reset a cover takes
+// to reach the whole device.
+#include <src/core/SkCanvasPriv.h>
 
 #include <optional>
 
@@ -59,7 +65,8 @@ PaintOrderCanvas::PaintOrderCanvas(GraphiteContext& context, SkCanvas* target)
     : SkPaintFilterCanvas(target),
       m_context(&context),
       m_target(target),
-      m_fencing(needed(context)) {}
+      m_fencing(needed(context)),
+      m_coveredAt{kNeverCovered} {}
 
 bool PaintOrderCanvas::needed(const GraphiteContext& context) {
   const skgpu::graphite::Context* on = context.context();
@@ -68,6 +75,10 @@ bool PaintOrderCanvas::needed(const GraphiteContext& context) {
 
 skgpu::graphite::Recorder* PaintOrderCanvas::recorder() const {
   return m_target->recorder();
+}
+
+uint32_t PaintOrderCanvas::recordingsClosed() const {
+  return skia::recordingsClosed(m_context->recorder());
 }
 
 void PaintOrderCanvas::fence() const {
@@ -87,12 +98,33 @@ void PaintOrderCanvas::fence() const {
   ++m_fences;
 }
 
+void PaintOrderCanvas::cover() const {
+  if (!m_fencing || m_coveredAt.empty()) return;
+  const uint32_t now = this->recordingsClosed();
+  if (m_coveredAt.back() == now) return;
+  m_coveredAt.back() = now;
+  // A transparent source over the destination leaves every pixel as it
+  // was, and a shader rather than a transparent paint colour keeps the
+  // canvas from discarding the draw as one that paints nothing. The clip
+  // is lifted for it alone: the pass has to reach every pixel of the
+  // device whatever the scene has clipped to.
+  SkPaint transparent;
+  transparent.setShader(SkShaders::Color(SK_ColorTRANSPARENT));
+  m_target->save();
+  SkCanvasPriv::ResetClip(m_target);
+  m_target->resetMatrix();
+  m_target->drawRect(SkRect::Make(m_target->getDeviceClipBounds()),
+                     transparent);
+  m_target->restore();
+}
+
 bool PaintOrderCanvas::onFilter(SkPaint& paint) const {
   if (!m_fencing) return true;
   if (m_pending) {
     m_pending = false;
     this->fence();
   }
+  this->cover();
   if (readsDestination(paint)) m_pending = true;
   return true;
 }
@@ -104,27 +136,45 @@ void PaintOrderCanvas::onDrawPicture(const SkPicture* picture,
 }
 
 void PaintOrderCanvas::willSave() {
-  m_layerReadsDestination.push_back(false);
+  m_saves.push_back({.layer = false, .readsDestination = false});
   SkPaintFilterCanvas::willSave();
 }
 
 SkCanvas::SaveLayerStrategy PaintOrderCanvas::getSaveLayerStrategy(
     const SaveLayerRec& rec) {
-  m_layerReadsDestination.push_back(m_fencing && rec.fPaint &&
-                                    readsDestination(*rec.fPaint));
+  // A backdrop is read from the device beneath, which ends that device's
+  // pass where the layer opens; the device resumes when the layer is
+  // composited back, and must be covered then.
+  if (m_fencing && rec.fBackdrop && !m_coveredAt.empty())
+    m_coveredAt.back() = kNeverCovered;
+  m_saves.push_back({.layer = true,
+                     .readsDestination = m_fencing && rec.fPaint &&
+                                         readsDestination(*rec.fPaint)});
+  // A new layer begins cleared, so its first pass loads nothing.
+  m_coveredAt.push_back(this->recordingsClosed());
   return SkPaintFilterCanvas::getSaveLayerStrategy(rec);
 }
 
 void PaintOrderCanvas::willRestore() {
-  if (!m_layerReadsDestination.empty()) {
-    m_restoreReadsDestination = m_layerReadsDestination.back();
-    m_layerReadsDestination.pop_back();
+  if (!m_saves.empty()) {
+    const Save closing = m_saves.back();
+    m_saves.pop_back();
+    m_restoreReadsDestination = closing.readsDestination;
+    m_restoreCloses = closing.layer;
+    if (closing.layer && m_coveredAt.size() > 1) m_coveredAt.pop_back();
   }
   SkPaintFilterCanvas::willRestore();
 }
 
 void PaintOrderCanvas::didRestore() {
   SkPaintFilterCanvas::didRestore();
+  // The composite a closing layer draws lands in the device beneath it,
+  // which may be resuming a pass; covering it now puts the cover in the
+  // same pass as the composite.
+  if (m_restoreCloses) {
+    m_restoreCloses = false;
+    this->cover();
+  }
   // The composite a layer's restore draws is the reading draw, so the
   // pass ends after it rather than before it.
   if (m_restoreReadsDestination) {
