@@ -23,7 +23,7 @@
  * header declares, so the pin is held from both ends: the assertion at the
  * foot of this file proves the layout it produced, and vcpkg.json carries
  * a `version>=` constraint naming the sigil-vcpkg-registry skia port this
- * was read from — 151#2 — so the port cannot resolve backwards underneath
+ * was read from — 151#5 — so the port cannot resolve backwards underneath
  * it. Read that port's include/private/SkASAN.h when raising either.
  */
 

@@ -23,10 +23,12 @@
 #include <include/core/SkYUVAInfo.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <include/gpu/graphite/BackendSemaphore.h>
 #include <include/gpu/graphite/Context.h>
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
+#include <include/gpu/graphite/mtl/MtlGraphiteTypes_cpp.h>
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilskia/draw/Direct.h>
 #include <sigilskia/graphite/GraphiteContext.h>
@@ -684,6 +686,47 @@ TEST(SigilSkiaGraphite, SubmitSignalsAFence) {
 
   dev->destroyFence(fence);
   dev->destroy(handle);
+}
+
+// A recording inserted with a Metal signal semaphore raises the
+// semaphore's event to its value once the submit that carries it has
+// run. The event is the one a device fence keeps behind it, so the CPU
+// wait on that fence is what reads the raise; nothing else signals the
+// fence, so reaching the value is the semaphore's doing alone.
+TEST(SigilSkiaGraphite, ASignalSemaphoreRaisesItsEventOnceTheRecordingHasRun) {
+  SKIP_WITHOUT_METAL();
+  GraphiteContext *ctx = graphite();
+  GpuDevice *dev = adoptedDevice();
+  ASSERT_NE(dev, nullptr);
+
+  const FenceHandle fence = dev->createFence();
+  ASSERT_TRUE(dev->isValid(fence));
+  void *event = dev->exportNative(fence).mtlSharedEvent;
+  ASSERT_NE(event, nullptr);
+  const FenceValue value = dev->completedValue(fence) + 1;
+
+  sk_sp<SkSurface> surface =
+      SkSurfaces::RenderTarget(ctx->recorder(), SkImageInfo::MakeN32Premul(8, 8));
+  ASSERT_NE(surface, nullptr);
+  surface->getCanvas()->clear(SkColorSetARGB(255, 0, 0, 255));
+  std::unique_ptr<skgpu::graphite::Recording> recording = ctx->recorder()->snap();
+  ASSERT_NE(recording, nullptr);
+
+  skgpu::graphite::BackendSemaphore signal =
+      skgpu::graphite::BackendSemaphores::MakeMetal(static_cast<CFTypeRef>(event), value);
+  skgpu::graphite::InsertRecordingInfo insert;
+  insert.fRecording = recording.get();
+  insert.fNumSignalSemaphores = 1;
+  insert.fSignalSemaphores = &signal;
+  {
+    const std::unique_lock<std::mutex> lock = ctx->lockContext();
+    ASSERT_TRUE(ctx->context()->insertRecording(insert));
+    ASSERT_TRUE(ctx->context()->submit(skgpu::graphite::SyncToCpu::kNo));
+  }
+
+  EXPECT_EQ(dev->waitCpu(fence, value), FenceWait::Reached);
+  EXPECT_GE(dev->completedValue(fence), value);
+  dev->destroyFence(fence);
 }
 
 TEST(SigilSkiaGraphite, StaleHandleWrapsNothing) {

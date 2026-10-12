@@ -9,9 +9,11 @@
 #include <Graphics/GraphicsEngine/interface/RenderDevice.h>
 #include <gpu/graphite/Context.h>
 #include <gpu/graphite/Recorder.h>
+#include <gpu/graphite/Recording.h>
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
+#include <include/core/SkImage.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
@@ -28,6 +30,8 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
+#include <initializer_list>
 #include <memory>
 #include <string>
 
@@ -572,6 +576,85 @@ TEST(AdoptedGraphite, PaintingOrderHoldsThroughADestinationRead) {
       ASSERT_EQ(cpu.getColor(x, y), device.getColor(x, y)) << x << "," << y;
 }
 
+namespace {
+
+/** A star centred on (@p centerX, @p centerY): concave, many-sided and,
+ *  at any size, a shape Graphite hands to its multisample renderer rather
+ *  than to an analytic one. */
+SkPath star(float centerX, float centerY, float outer, float inner) {
+  SkPathBuilder path;
+  for (int point = 0; point < 10; ++point) {
+    const float angle = (float)point * 3.14159265f / 5.0f - 1.5707963f;
+    const float radius = (point % 2 == 0) ? outer : inner;
+    const float x = centerX + radius * std::cos(angle);
+    const float y = centerY + radius * std::sin(angle);
+    if (point == 0)
+      path.moveTo(x, y);
+    else
+      path.lineTo(x, y);
+  }
+  path.close();
+  return path.detach();
+}
+
+/** The CPU's picture of a scene, the reference a device picture is
+ *  judged against. */
+SkBitmap rasterise(const SkImageInfo& info,
+                   const std::function<void(SkCanvas&)>& describe) {
+  SkBitmap pixels;
+  sk_sp<SkSurface> raster = SkSurfaces::Raster(info);
+  if (!raster) return pixels;
+  describe(*raster->getCanvas());
+  pixels.allocPixels(info);
+  if (!raster->readPixels(pixels, 0, 0)) return {};
+  return pixels;
+}
+
+/** Whether every pixel @p cpu painted one of @p flat came back from the
+ *  device the same colour, and how many pixels that judged.
+ *
+ *  Antialiased edges are the one thing two rasterisers are allowed to
+ *  disagree about, so the claim is made where neither is guessing. A flat
+ *  colour is flat on both, but a pixel one of them still resolved through
+ *  a coverage value can come back a code value or two off it; the claim is
+ *  that the pixel is the colour it was painted, not that two rasterisers
+ *  agree bit for bit, so a couple of code values are allowed and a lost
+ *  pass — a whole colour away — is not. */
+::testing::AssertionResult keepsFlatColours(const SkBitmap& cpu,
+                                            const SkBitmap& device,
+                                            std::initializer_list<SkColor> flat,
+                                            int& judged) {
+  const auto worstChannel = [](SkColor first, SkColor second) {
+    const auto gap = [](uint32_t left, uint32_t right) {
+      return (int)(left > right ? left - right : right - left);
+    };
+    return std::max({gap(SkColorGetR(first), SkColorGetR(second)),
+                     gap(SkColorGetG(first), SkColorGetG(second)),
+                     gap(SkColorGetB(first), SkColorGetB(second)),
+                     gap(SkColorGetA(first), SkColorGetA(second))});
+  };
+  judged = 0;
+  if (cpu.empty() || device.empty() || cpu.dimensions() != device.dimensions())
+    return ::testing::AssertionFailure() << "no picture to compare";
+  for (int y = 0; y < cpu.height(); ++y) {
+    for (int x = 0; x < cpu.width(); ++x) {
+      const SkColor want = cpu.getColor(x, y);
+      bool isFlat = false;
+      for (const SkColor colour : flat) isFlat = isFlat || colour == want;
+      if (!isFlat) continue;
+      ++judged;
+      const SkColor got = device.getColor(x, y);
+      if (worstChannel(want, got) > 4)
+        return ::testing::AssertionFailure()
+               << "pixel " << x << "," << y << " was painted " << std::hex
+               << want << " and came back " << got;
+    }
+  }
+  return ::testing::AssertionSuccess();
+}
+
+}  // namespace
+
 // A pass the fence cut in two must keep what the pass before it drew.
 // Graphite antialiases a large path by rendering it multisampled and
 // resolving the samples onto the target, and a pass that begins where
@@ -593,25 +676,7 @@ TEST(AdoptedGraphite, AFencedPassKeepsWhatThePassBeforeItDrew) {
   skia::GraphiteContext* ctx = on->graphite();
   if (!ctx) GTEST_SKIP() << "this Skia carries no Vulkan backend";
 
-  // A star: concave, many-sided and large, which is the shape Graphite
-  // hands to its multisample renderer rather than to an analytic one.
-  const auto star = [](float cx, float cy, float outer, float inner) {
-    SkPathBuilder path;
-    for (int i = 0; i < 10; ++i) {
-      const float angle = (float)i * 3.14159265f / 5.0f - 1.5707963f;
-      const float r = (i % 2 == 0) ? outer : inner;
-      const float x = cx + r * std::cos(angle);
-      const float y = cy + r * std::sin(angle);
-      if (i == 0)
-        path.moveTo(x, y);
-      else
-        path.lineTo(x, y);
-    }
-    path.close();
-    return path.detach();
-  };
-
-  const auto describe = [&star](SkCanvas& c) {
+  const auto describe = [](SkCanvas& c) {
     c.clear(SK_ColorWHITE);
     SkPaint fill;
     fill.setAntiAlias(true);
@@ -630,12 +695,8 @@ TEST(AdoptedGraphite, AFencedPassKeepsWhatThePassBeforeItDrew) {
   };
 
   const SkImageInfo info = SkImageInfo::MakeN32Premul(600, 600);
-  sk_sp<SkSurface> raster = SkSurfaces::Raster(info);
-  ASSERT_NE(raster, nullptr);
-  describe(*raster->getCanvas());
-  SkBitmap cpu;
-  cpu.allocPixels(info);
-  ASSERT_TRUE(raster->readPixels(cpu, 0, 0));
+  const SkBitmap cpu = rasterise(info, describe);
+  ASSERT_FALSE(cpu.empty());
 
   sk_sp<SkSurface> target = SkSurfaces::RenderTarget(ctx->recorder(), info);
   ASSERT_NE(target, nullptr);
@@ -645,34 +706,115 @@ TEST(AdoptedGraphite, AFencedPassKeepsWhatThePassBeforeItDrew) {
   ASSERT_FALSE(device.empty());
   EXPECT_EQ(ordered.fences(), skia::PaintOrderCanvas::needed(*ctx) ? 1 : 0);
 
-  const SkColor flat[] = {SK_ColorWHITE, SK_ColorRED, SK_ColorBLUE,
-                          SkColorSetARGB(255, 128, 128, 128)};
-  // A flat colour is flat on both rasterisers, but a pixel one of them
-  // still resolved through a coverage value can come back a code value or
-  // two off it. The claim is that the pixel is the colour it was painted,
-  // not that two rasterisers agree bit for bit, so a couple of code values
-  // are allowed and a lost pass — a whole colour away — is not.
-  const auto worstChannel = [](SkColor a, SkColor b) {
-    const auto gap = [](uint32_t l, uint32_t r) {
-      return (int)(l > r ? l - r : r - l);
-    };
-    return std::max({gap(SkColorGetR(a), SkColorGetR(b)),
-                     gap(SkColorGetG(a), SkColorGetG(b)),
-                     gap(SkColorGetB(a), SkColorGetB(b)),
-                     gap(SkColorGetA(a), SkColorGetA(b))});
-  };
   int judged = 0;
-  for (int y = 0; y < info.height(); ++y) {
-    for (int x = 0; x < info.width(); ++x) {
-      const SkColor want = cpu.getColor(x, y);
-      bool isFlat = false;
-      for (const SkColor c : flat) isFlat = isFlat || c == want;
-      if (!isFlat) continue;
-      ++judged;
-      ASSERT_LE(worstChannel(want, device.getColor(x, y)), 4) << x << "," << y;
-    }
-  }
+  EXPECT_TRUE(keepsFlatColours(cpu, device,
+                               {SK_ColorWHITE, SK_ColorRED, SK_ColorBLUE,
+                                SkColorSetARGB(255, 128, 128, 128)},
+                               judged));
   // The whole ground, both stars and the multiplied corner: a scene this
   // size has no way to be judged on a handful of pixels.
+  EXPECT_GT(judged, 300000);
+}
+
+// Every pass that continues a target keeps what the pass before it drew,
+// whoever ended that pass. Here Graphite ends it itself, inside one
+// recording, because a snapshot of the surface is taken while the surface
+// is still being drawn; nothing in this repository sees that pass end, so
+// the canvas is the surface's own and nothing covers the device. The
+// pass that follows holds one small path, so the area its draws cover is a
+// corner of the target and everything the first drawing left outside that
+// corner has to come through the multisample attachment's reload.
+TEST(AdoptedGraphite, ASnapshotTakenMidSceneKeepsWhatThePassBeforeItDrew) {
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  skia::GraphiteContext* ctx = on->graphite();
+  if (!ctx) GTEST_SKIP() << "this Skia carries no Vulkan backend";
+
+  const auto first = [](SkCanvas& c) {
+    c.clear(SK_ColorWHITE);
+    SkPaint fill;
+    fill.setAntiAlias(true);
+    fill.setColor(SK_ColorRED);
+    c.drawPath(star(300, 250, 200, 80), fill);
+  };
+  const auto second = [](SkCanvas& c) {
+    SkPaint fill;
+    fill.setAntiAlias(true);
+    fill.setColor(SK_ColorBLUE);
+    c.drawPath(star(70, 530, 40, 16), fill);
+  };
+
+  const SkImageInfo info = SkImageInfo::MakeN32Premul(600, 600);
+  const SkBitmap cpu = rasterise(info, [&](SkCanvas& c) {
+    first(c);
+    second(c);
+  });
+  ASSERT_FALSE(cpu.empty());
+
+  sk_sp<SkSurface> target = SkSurfaces::RenderTarget(ctx->recorder(), info);
+  ASSERT_NE(target, nullptr);
+  first(*target->getCanvas());
+  const sk_sp<SkImage> snapshot = target->makeImageSnapshot();
+  ASSERT_NE(snapshot, nullptr);
+  second(*target->getCanvas());
+  const SkBitmap device = skia::test::readGraphiteSurface(*ctx, target.get());
+  ASSERT_FALSE(device.empty());
+
+  int judged = 0;
+  EXPECT_TRUE(keepsFlatColours(
+      cpu, device, {SK_ColorWHITE, SK_ColorRED, SK_ColorBLUE}, judged));
+  EXPECT_GT(judged, 300000);
+}
+
+// The same promise across a recording a caller closes itself: the first
+// drawing is snapped and inserted by the test rather than through this
+// repository, and the recording after it begins with no clear, so the
+// pass it opens continues the target and nothing covers the device.
+TEST(AdoptedGraphite, ACallersOwnSnapKeepsWhatThePassBeforeItDrew) {
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  skia::GraphiteContext* ctx = on->graphite();
+  if (!ctx) GTEST_SKIP() << "this Skia carries no Vulkan backend";
+
+  const auto first = [](SkCanvas& c) {
+    c.clear(SK_ColorWHITE);
+    SkPaint fill;
+    fill.setAntiAlias(true);
+    fill.setColor(SK_ColorRED);
+    c.drawPath(star(300, 250, 200, 80), fill);
+  };
+  const auto second = [](SkCanvas& c) {
+    SkPaint fill;
+    fill.setAntiAlias(true);
+    fill.setColor(SK_ColorBLUE);
+    c.drawPath(star(70, 530, 40, 16), fill);
+  };
+
+  const SkImageInfo info = SkImageInfo::MakeN32Premul(600, 600);
+  const SkBitmap cpu = rasterise(info, [&](SkCanvas& c) {
+    first(c);
+    second(c);
+  });
+  ASSERT_FALSE(cpu.empty());
+
+  sk_sp<SkSurface> target = SkSurfaces::RenderTarget(ctx->recorder(), info);
+  ASSERT_NE(target, nullptr);
+  first(*target->getCanvas());
+  {
+    // A snapped recording must be inserted: the recorder replays in
+    // order, and one dropped recording stops it for good.
+    std::unique_ptr<skgpu::graphite::Recording> recording =
+        ctx->recorder()->snap();
+    ASSERT_NE(recording, nullptr);
+    const auto lock = ctx->lockContext();
+    skgpu::graphite::InsertRecordingInfo insert;
+    insert.fRecording = recording.get();
+    ASSERT_TRUE(ctx->context()->insertRecording(insert));
+  }
+  second(*target->getCanvas());
+  const SkBitmap device = skia::test::readGraphiteSurface(*ctx, target.get());
+  ASSERT_FALSE(device.empty());
+
+  int judged = 0;
+  EXPECT_TRUE(keepsFlatColours(
+      cpu, device, {SK_ColorWHITE, SK_ColorRED, SK_ColorBLUE}, judged));
   EXPECT_GT(judged, 300000);
 }
