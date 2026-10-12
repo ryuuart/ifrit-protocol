@@ -78,6 +78,15 @@ add_test(NAME sigil_build_slot
     "${CMAKE_CURRENT_SOURCE_DIR}/sketch-pass/test_buildslot.py")
 set_tests_properties(sigil_build_slot PROPERTIES TIMEOUT 120)
 
+# THE ADMINISTRATION'S OWN TESTS: how a tree names its registered tests
+# and the binaries behind them, which the instrumented lanes derive their
+# targets from.
+add_test(NAME sigil_scripts
+  COMMAND ${Python3_EXECUTABLE} -m unittest discover
+    -s "${CMAKE_CURRENT_SOURCE_DIR}/scripts/sigil/test"
+    -t "${CMAKE_CURRENT_SOURCE_DIR}/scripts" -p "test_*.py")
+set_tests_properties(sigil_scripts PROPERTIES TIMEOUT 300)
+
 add_custom_target(fetch_assets
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/scripts/sigil.py assets
           --out ${SIGIL_ASSET_DIR}

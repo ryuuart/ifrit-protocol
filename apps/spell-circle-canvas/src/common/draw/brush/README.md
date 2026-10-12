@@ -75,7 +75,10 @@ takes `[](Pen& pen) {…}`.
 Deposition pushes and pops the pen around the mark, so the style and
 transform it found are restored while the transform still moves the
 mark. The round tips' sprite uses the canvas recorder's image provider,
-so pens drawing through one recorder share its retained texture.
+so pens drawing through one recorder share its retained texture, and is
+read through its mipmaps, so a stamp drawn far smaller than the sprite
+takes the disc's average ink. A stamp narrower than a pixel still lays
+its ink: the run of a fine nib is continuous at any width.
 
 ### Strokes and fields
 

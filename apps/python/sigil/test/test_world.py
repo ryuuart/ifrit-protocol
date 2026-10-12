@@ -243,6 +243,25 @@ class World(unittest.TestCase):
         self.assertEqual(disk.description.kind, world.LightKind.Disk)
         self.assertIsInstance(world.kit.visibleLight(panel.key("panel")), world.Group)
 
+    def test_a_panel_with_a_range_leaves_a_card_past_it_dark(self):
+        # Each panel faces down -z from the origin; one card stands inside
+        # the range and one past it.
+        near, far = (0, 0, -5), (0, 0, -20)
+        for make in (
+            lambda **options: world.rectLight((0, 0, -1), width=2, height=2, **options),
+            lambda **options: world.diskLight((0, 0, -1), radius=1, **options),
+        ):
+            reaching = make(range=10)
+            self.assertEqual(reaching.description.range, 10)
+            scene = world.Scene()
+            scene.render(world.group(reaching.key("panel")))
+            placed = scene.lights[0]
+            self.assertGreater(world.attenuation(placed, near), 0)
+            self.assertEqual(world.attenuation(placed, far), 0)
+            # With no range stated it reaches everywhere.
+            scene.render(world.group(make().key("panel")))
+            self.assertGreater(world.attenuation(scene.lights[0], far), 0)
+
     def test_instanced_geometry_is_a_mesh_and_a_null_is_looked_at(self):
         sparks = mesh.Instances()
         sparks.stamp = mesh.quad(4, 4)

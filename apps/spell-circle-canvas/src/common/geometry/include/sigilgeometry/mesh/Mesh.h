@@ -177,8 +177,11 @@ struct GridOptions {
  *  vertex. A formula answering the position AND ITS NORMAL, in that order,
  *  is taken at its word — one evaluation per vertex, and an exact normal
  *  at a pole, where a difference has no direction to normalize. Either way
- *  the normals come back unit length, and a normal with no length at all
- *  borrows the nearest one that has. */
+ *  the normals come back unit length. A pole — a vertex with no normal of
+ *  its own or, for a differenced formula, one standing on its row's or
+ *  column's neighbour — takes the sheet's limit there: the area-weighted
+ *  sum of the triangles meeting the point it collapses onto, which at a
+ *  revolved apex is the axis. */
 Mesh grid(int nu, int nv, const core::Callable<glm::vec3(float u, float v)>& fn,
           const GridOptions& options = {});
 /** The same sheet from a formula answering the position and its normal

@@ -403,6 +403,11 @@ half rather than the context, so it is made where the context is and
 spent on another thread while the thread that draws keeps drawing. It is
 what `precompile` runs through, and what a caller hands to Graphite's
 own `Precompile` over a described paint when it has no keys to replay.
+Making it first makes every one of the backend's own runtime effects —
+its blurs and their neighbours — known to the context, because a recorded
+key names them by number and this Skia otherwise knows one only once a
+draw has keyed it: a key recorded after a blur, replayed before one, is
+built rather than taking the process down.
 
 ## The two draws Graphite does not implement
 
@@ -413,7 +418,18 @@ with no error anywhere. `<sigilskia/draw/Direct.h>` is the way round it:
 `draw::drawLattice` emits per-cell `drawImageRect`s over the alternating
 fixed and stretchable bands `draw::detail::latticeEdges` computes, and
 `draw::drawSpriteAtlas` emits one `drawVertices` quad list sampling the
-sheet.
+sheet. A vertex draw ignores the paint's antialiasing on every backend
+and lights a pixel whose centre a sprite covers, so a sprite narrower
+than a pixel would light none — a run of fine stamps breaks into dots —
+and one a pixel or two wide lights one more or one fewer as it moves, so
+the run beads. A sprite narrower than four device pixels, as the canvas
+stands when the batch is drawn, therefore carries its own edge: an inner
+quad half a pixel inside its outline and an outer one half a pixel
+outside it, its alpha falling from the inner to nothing at the outer,
+which lays exactly its area as ink wherever it falls. One narrower than a
+pixel is spread over a pixel and faded by the part of it it covers, so it
+reads its cell inside itself rather than at the cell's rim. A wider
+sprite is drawn as it stands.
 
 The sprites are ONE VALUE, `draw::SpriteBatch`: four spans — `transforms`
 and `sourceRectangles`, which are the draw, and `colors` and `sizes`, optional lanes

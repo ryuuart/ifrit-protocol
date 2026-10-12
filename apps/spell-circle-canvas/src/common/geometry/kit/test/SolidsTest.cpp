@@ -387,6 +387,50 @@ TEST(Solids, TheNamedSurfacesAreTheSheetSeamEvaluated) {
   EXPECT_GT(hi.z - lo.z, 0.0f);
 }
 
+/** The largest angle, in degrees, between the normal at a vertex standing
+ *  on the y axis and that axis, pointing the way @p mesh's surface faces
+ *  there: up at the top, down at the bottom. Counts the poles it reads in
+ *  @p poles. */
+float poleLeanDegrees(const Mesh& mesh, int* poles) {
+  glm::vec3 lo, hi;
+  mesh.bounds(&lo, &hi);
+  const float centre = (lo.y + hi.y) * 0.5f;
+  const float onAxis = glm::length(hi - lo) * 1e-4f;
+  float worst = 0.0f;
+  *poles = 0;
+  for (size_t i = 0; i < mesh.positions.size(); ++i) {
+    const glm::vec3 p = mesh.positions[i];
+    if (std::hypot(p.x, p.z) > onAxis) continue;
+    ++*poles;
+    const glm::vec3 axis{0, p.y > centre ? 1.0f : -1.0f, 0};
+    const float cosine = std::clamp(glm::dot(mesh.normals[i], axis), -1.f, 1.f);
+    worst = std::max(worst, std::acos(cosine) * 180.0f / (float)M_PI);
+  }
+  return worst;
+}
+
+TEST(Solids, APolesNormalIsTheSheetsLimitOnTheAxis) {
+  int poles = 0;
+  // A dome lathed from a quarter circle closes on the axis at its top.
+  const std::vector<glm::vec2> dome = {
+      {30, 0}, {28, 11}, {21, 21}, {11, 28}, {0, 30}};
+  for (const int segments : {12, 24, 31}) {
+    const Mesh lathed = revolve(dome, {.segments = segments});
+    EXPECT_LT(poleLeanDegrees(lathed, &poles), 0.5f) << segments;
+    EXPECT_EQ(poles, segments + 1);
+  }
+  // A superellipsoid closes on both poles, round, pinched and boxed, and
+  // with radii that differ across the axis.
+  for (const float exponent : {0.5f, 1.0f, 2.0f, 3.0f})
+    for (const int nu : {24, 33}) {
+      const Mesh solid = superellipsoid({2, 3, 1.5f}, exponent, nu, 16);
+      EXPECT_LT(poleLeanDegrees(solid, &poles), 0.5f)
+          << "exponent " << exponent << " across " << nu;
+      EXPECT_EQ(poles, 2 * nu);
+      EXPECT_TRUE(normalsAreUnit(solid));
+    }
+}
+
 TEST(Solids, TorusNormalsPointOutward) {
   Mesh m = torus(100, 30, 32, 16);
   // Parameterization convention: the first vertex is u = v = 0, which is on

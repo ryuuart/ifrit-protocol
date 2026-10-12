@@ -28,6 +28,19 @@ the native op: raster's own `drawAtlas` lowers to the same vertices
 internally, and a recorded `drawVertices` replays on Graphite where a
 recorded native atlas op would vanish.
 
+A vertex draw ignores the paint's antialiasing on every backend and
+lights a pixel whose centre a sprite covers: a sprite narrower than a
+pixel lights none, so a run of fine stamps breaks into dots, and one a
+pixel or two wide lights one more or one fewer as it moves, so the run
+beads. A sprite narrower than four device pixels, as the canvas stands
+when the batch is drawn, carries its own edge instead — an inner quad
+half a pixel inside its outline and an outer one half a pixel outside
+it, its alpha falling to nothing across the pixel between — and lays
+exactly its area as ink. One narrower than a pixel is spread over a pixel
+and faded by the part of it it covers, so it reads its cell inside
+itself rather than at the cell's rim, which for a round tip is no ink at
+all. A wider sprite is drawn as it stands.
+
 ## See also
 
 - `draw/Direct.h` — the header: `drawSpriteAtlas`, `SpriteBatch`,

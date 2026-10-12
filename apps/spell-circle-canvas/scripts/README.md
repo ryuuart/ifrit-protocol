@@ -632,7 +632,14 @@ coverage, `ASAN_OPTIONS`/`UBSAN_OPTIONS`/`TSAN_OPTIONS` for the
 sanitizers — so each lane is a preflight, a configure, a build, a ctest
 and what CMake cannot do. Which targets a `--filter` needs built, and
 which binaries the selected tests ran, come from `ctest --show-only`, so
-nothing here parses generated files.
+nothing here parses generated files. A lane tree that is configured and
+not built registers one placeholder per test binary and no case names, so
+a filter over suite or case names is read in the primary tree, whose
+binaries are built, and each binary it names is built in the lane where
+the lane holds that binary's placeholder. The cases for that arithmetic
+are under `scripts/sigil/test/`: a small project with two GoogleTest
+binaries, configured as a built primary tree and an unbuilt lane, asked
+for the targets of a suite-name filter.
 
 A tree of its own per lane, because switching a tree's flags recompiles
 every object in it. Only the C++ flags are set: every `.mm` in this tree

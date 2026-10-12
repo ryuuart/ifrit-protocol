@@ -163,7 +163,10 @@ class GraphiteContext {
    *  warm-up run where frames are drawn would be the stall it exists to
    *  remove. It holds the context's shared half rather than the
    *  context, so the thread that draws keeps drawing while it stands.
-   *  Null when there is no context. */
+   *  Making it makes the backend's own runtime effects known to the
+   *  context first, so a recorded key naming one that no draw here has
+   *  used yet is built rather than faulting. Null when there is no
+   *  context. */
   [[nodiscard]] std::unique_ptr<skgpu::graphite::PrecompileContext>
   makePrecompileContext() const;
 

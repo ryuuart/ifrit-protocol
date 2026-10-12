@@ -16,7 +16,6 @@ is a directory under `bin/` rather than a tree of its own.
 import importlib.machinery
 import importlib.util
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -179,12 +178,21 @@ def capture(
     )
 
 
-def registered_tests(preset: str, configuration: str, test_filter: str | None) -> list:
-    """Every test the preset's tree registers, as (name, command) pairs,
-    narrowed by the ctest regex when one is given. A test whose binary is
-    not built yet has no command. Read from ctest rather than from
-    generated files, so nothing here parses the build's output."""
-    command = ["ctest", "--preset", preset, "-C", configuration, "--show-only=json-v1"]
+def registered_tests(
+    directory: Path, configuration: str, test_filter: str | None
+) -> list:
+    """Every test the tree at @p directory registers, as (name, command)
+    pairs, narrowed by the ctest regex when one is given. A test whose
+    binary is not built yet has no command. Read from ctest rather than
+    from generated files, so nothing here parses the build's output."""
+    command = [
+        "ctest",
+        "--test-dir",
+        directory,
+        "-C",
+        configuration,
+        "--show-only=json-v1",
+    ]
     if test_filter:
         command += ["-R", test_filter]
     result = capture(command, check=True)
@@ -194,34 +202,79 @@ def registered_tests(preset: str, configuration: str, test_filter: str | None) -
     ]
 
 
-def build_targets(preset: str, configuration: str, test_filter: str) -> list:
-    """The targets a test filter needs built. A built GoogleTest case
-    names its binary in its command; an unbuilt binary registers one
-    `<target>_NOT_BUILT` entry in place of its cases, and a test the build
-    itself runs — a header self-test — is registered under its own target
-    name. A test driven by something outside the tree — a build tool, an
-    interpreter — needs no target of its own and is left out."""
-    binaries = str(bin_dir(configuration, preset))
+def _executable(command: list) -> Path:
+    """The binary a registered test runs. A GoogleTest case is registered
+    either as its binary or as CMake running a launch script with the
+    binary handed over as `TEST_EXECUTABLE`, depending on the CMake that
+    configured the tree; either way the binary is what is answered."""
+    for argument in command:
+        if argument.startswith("TEST_EXECUTABLE="):
+            return Path(argument.removeprefix("TEST_EXECUTABLE="))
+    return Path(command[0])
+
+
+def _targets_named(directory: Path, configuration: str, test_filter: str) -> set:
+    """The targets the tests the filter selects in one tree are built from.
+    A built GoogleTest case names its binary in its command; an unbuilt
+    binary registers one `<target>_NOT_BUILT` entry in place of its cases,
+    and a test the build itself runs — a header self-test — is registered
+    under its own target name. A test driven by something outside the tree
+    — a build tool, an interpreter — needs no target of its own and is left
+    out."""
+    binaries = (directory / "bin" / configuration).resolve()
     targets = set()
-    for name, command in registered_tests(preset, configuration, test_filter):
+    for name, command in registered_tests(directory, configuration, test_filter):
         if name.endswith("_NOT_BUILT"):
             targets.add(name.removesuffix("_NOT_BUILT"))
         elif command is None:
             targets.add(name)
-        elif command[0].startswith(binaries + os.sep):
-            targets.add(Path(command[0]).name)
+        elif _executable(command).resolve().is_relative_to(binaries):
+            targets.add(_executable(command).name)
+    return targets
+
+
+def build_targets(
+    directory: Path,
+    configuration: str,
+    test_filter: str,
+    primary: Path | None = None,
+) -> list:
+    """The targets a test filter needs built in the tree at @p directory.
+
+    A tree whose binaries are not built yet registers a placeholder per
+    binary and no case names, so a filter over suite or case names matches
+    nothing there. Those cases are read where they are registered: the
+    primary tree, @p primary, whose binaries are built, in whichever
+    configuration has them. A binary the primary tree names counts when
+    this tree holds a placeholder for it."""
+    targets = _targets_named(directory, configuration, test_filter)
+    unbuilt = {
+        name.removesuffix("_NOT_BUILT")
+        for name, _ in registered_tests(directory, configuration, "_NOT_BUILT$")
+    }
+    if unbuilt - targets:
+        primary = primary or build_dir()
+        others = [other for other in CONFIGURATIONS if other != configuration]
+        for other in [configuration, *others]:
+            if (primary / "bin" / other).is_dir():
+                named = _targets_named(primary, other, test_filter)
+                targets |= named & unbuilt
     return sorted(targets)
 
 
-def test_executables(preset: str, configuration: str, test_filter: str | None) -> list:
+def test_executables(
+    directory: Path, configuration: str, test_filter: str | None
+) -> list:
     """The distinct built test binaries the selected tests run, in test
     order."""
-    binaries = str(bin_dir(configuration, preset))
+    binaries = (directory / "bin" / configuration).resolve()
     found: list = []
-    for _, command in registered_tests(preset, configuration, test_filter):
-        if not command or not command[0].startswith(binaries + os.sep):
+    for _, command in registered_tests(directory, configuration, test_filter):
+        if not command:
             continue
-        executable = Path(command[0])
+        executable = _executable(command)
+        if not executable.resolve().is_relative_to(binaries):
+            continue
         if executable.exists() and executable not in found:
             found.append(executable)
     return found

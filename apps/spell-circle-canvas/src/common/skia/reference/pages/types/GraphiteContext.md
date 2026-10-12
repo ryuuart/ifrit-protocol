@@ -132,7 +132,11 @@ warm-up builds pipelines through, made where the context is and usable on
 ANOTHER THREAD — which is the point: a warm-up run where frames are drawn
 would be the stall it exists to remove. It holds the context's shared half
 rather than the context, so the thread that draws keeps drawing while it
-stands. Null when there is no context.
+stands. Null when there is no context. Making it makes every one of the
+backend's own runtime effects — its blurs and their neighbours — known to
+the context first: a recorded key names them by number, and a key
+recorded after a blur and replayed before one is built rather than
+taking the process down.
 
 `sigil::skia::GraphiteContext::precompile` rebuilds the pipelines a span of
 keys names, on the calling thread. A key this backend or this version of

@@ -180,14 +180,17 @@ class ParametricSheet(unittest.TestCase):
         for normal in sheet.normals:
             self.assertAlmostEqual(abs(normal[2]), 1, places=5)
 
-    def test_a_stated_normal_survives_a_pole_a_difference_cannot_read(self):
+    def test_a_pole_stands_on_the_axis_stated_or_differenced(self):
         # Every station of the first row stands on the same point, where
         # the sheet's two parameter directions collapse and a difference
-        # has no direction left to normalize.
+        # has no direction left to normalize. A stated normal is taken at
+        # its word; a differenced pole takes the sheet's limit there, which
+        # for a sphere is the axis through it.
         stated = native.grid(9, 5, sphereWithNormal, normals=True)
         differenced = native.grid(9, 5, sphere)
-        self.assertAlmostEqual(stated.normals[0][1], 1, places=5)
-        self.assertLess(abs(differenced.normals[0][1]), 0.99)
+        for station in range(9):
+            self.assertAlmostEqual(stated.normals[station][1], 1, places=5)
+            self.assertAlmostEqual(differenced.normals[station][1], 1, places=4)
 
     def test_a_grid_too_small_or_too_large_is_refused(self):
         for nu, nv in ((1, 5), (5, 1), (3000, 3000)):
@@ -381,6 +384,26 @@ class ValueProtocol(unittest.TestCase):
         self.assertEqual(built.triangleCount(), 1)
         with self.assertRaises(TypeError):
             native.Mesh(vertices=[])
+
+    def test_a_mesh_with_uvs_gains_a_tangent_lane(self):
+        built = native.Mesh(
+            positions=[(0, 0, 0), (2, 0, 0), (0, 2, 0)],
+            normals=[(0, 0, 1)] * 3,
+            uvs=[(0, 0), (1, 0), (0, 1)],
+            indices=[0, 1, 2],
+        )
+        self.assertEqual(built.tangents, [])
+        built.computeTangents()
+        self.assertEqual(len(built.tangents), 3)
+        for tangent in built.tangents:
+            # u grows along x, square to the normal, and v along y beside it.
+            self.assertAlmostEqual(tangent[0], 1, places=5)
+            self.assertAlmostEqual(tangent[1], 0, places=5)
+            self.assertAlmostEqual(tangent[2], 0, places=5)
+            self.assertAlmostEqual(abs(tangent[3]), 1, places=5)
+        # A stock generator carries the lane already, one per vertex.
+        sheet = native.grid(4, 4, plane)
+        self.assertEqual(len(sheet.tangents), sheet.vertexCount())
 
     def test_two_meshes_compare_by_content(self):
         self.assertEqual(native.Mesh(), native.Mesh())

@@ -15,6 +15,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkImage.h>
+#include <include/core/SkMatrix.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkRSXform.h>
 #include <include/core/SkSamplingOptions.h>
@@ -195,9 +196,13 @@ struct SpriteBatch {
 };
 
 /** drawAtlas on every backend, as one drawVertices quad list sampling
- *  the promoted sheet. @p blend is how each sprite hits the DESTINATION
- *  — kPlus is the whole colour model of an additive particle system,
- *  which the element's saveLayer would flatten instead.
+ *  the promoted sheet. A sprite narrower than four device pixels carries
+ *  its own edge: its coverage falls from full to none across the pixel
+ *  either side of its outline, and one narrower than a pixel is spread
+ *  over a pixel and faded by the part of it it covers. @p blend is how
+ *  each sprite hits the DESTINATION — kPlus is the whole colour model of
+ *  an additive particle system, which the element's saveLayer would
+ *  flatten instead.
  *  @silent @p batch's lanes disagree: a short lane is a caller bug, and
  *  the whole batch is refused rather than read past. */
 inline void drawSpriteAtlas(SkCanvas& canvas, sk_sp<SkImage> sheet,
@@ -211,8 +216,9 @@ inline void drawSpriteAtlas(SkCanvas& canvas, sk_sp<SkImage> sheet,
   sheet = ready(canvas, std::move(sheet),
                 {.fMipmapped = !sampling.useCubic &&
                                sampling.mipmap != SkMipmapMode::kNone});
-  // uint16 indices cap one vertex list at 16383 sprites — chunk above it.
-  constexpr size_t kMaxSprites = 16000;
+  // uint16 indices cap one vertex list at 65535 vertices, and a sprite
+  // carrying its own edge takes eight — chunk above that many sprites.
+  constexpr size_t kMaxSprites = 8000;
   size_t count = batch.size();
   for (size_t start = 0; count - start > kMaxSprites; start += kMaxSprites)
     drawSpriteAtlas(canvas, sheet, batch.slice(start, kMaxSprites), sampling,
@@ -224,7 +230,24 @@ inline void drawSpriteAtlas(SkCanvas& canvas, sk_sp<SkImage> sheet,
   const SkColor* colors = run.colors.empty() ? nullptr : run.colors.data();
   const SkSize* sizes = run.sizes.empty() ? nullptr : run.sizes.data();
   count = tail;
-  // Two triangles per sprite, indexed; positions from RSXform::toQuad.
+  // A NARROW SPRITE CARRIES ITS OWN EDGE. A vertex draw ignores the
+  // paint's antialiasing on every backend and lights a pixel whose centre
+  // the sprite covers, so a sprite narrower than a pixel lights none and
+  // a run of fine stamps breaks into dots, and one a pixel or two wide
+  // lights one more or one fewer as it moves, so the run beads. A narrow
+  // sprite is drawn instead as an inner quad half a pixel inside its
+  // outline and an outer one half a pixel outside it, its alpha falling
+  // from the inner to nothing at the outer, which lays exactly its area
+  // as ink wherever it falls; one narrower than a pixel is spread over a
+  // pixel and faded by the part of it it covers, and so reads its cell
+  // inside itself rather than at the cell's rim. From four pixels across,
+  // the pixel a sprite gains or loses is a small part of it, and it is
+  // drawn as it stands. The width is the device's as the canvas stands
+  // when the batch is drawn; across a perspective there is no one width
+  // to read, and every sprite is drawn as it stands.
+  constexpr float kNarrow = 4.0f;
+  const SkMatrix canvasMatrix = canvas.getTotalMatrix();
+  const bool measurable = !canvasMatrix.hasPerspective();
   static thread_local std::vector<SkPoint> positions;
   static thread_local std::vector<SkPoint> textureCoordinates;
   static thread_local std::vector<SkColor> vertexColors;
@@ -235,8 +258,9 @@ inline void drawSpriteAtlas(SkCanvas& canvas, sk_sp<SkImage> sheet,
   indices.clear();
   positions.reserve(count * 4);
   textureCoordinates.reserve(count * 4);
+  vertexColors.reserve(count * 4);
   indices.reserve(count * 6);
-  if (colors) vertexColors.reserve(count * 4);
+  bool edged = false;
   for (size_t i = 0; i < count; ++i) {
     SkPoint quad[4];
     if (sizes) {
@@ -267,36 +291,77 @@ inline void drawSpriteAtlas(SkCanvas& canvas, sk_sp<SkImage> sheet,
       transforms[i].toQuad(sourceRectangles[i].width(),
                            sourceRectangles[i].height(), quad);
     }
+    const SkRect& cell = sourceRectangles[i];
+    const SkColor tint = colors ? colors[i] : SK_ColorWHITE;
     const uint16_t base = (uint16_t)positions.size();
+    float across = 0.0f, down = 0.0f;
+    if (measurable) {
+      const SkPoint corner = canvasMatrix.mapPoint(quad[0]);
+      across = SkPoint::Distance(corner, canvasMatrix.mapPoint(quad[1]));
+      down = SkPoint::Distance(corner, canvasMatrix.mapPoint(quad[3]));
+    }
+    if (across > 0.0f && down > 0.0f && (across < kNarrow || down < kNarrow)) {
+      edged = true;
+      // In the sprite's own units, where a side is one long: how far the
+      // inner and the outer quad stand from its centre along each side.
+      // A side narrower than a pixel is spread over one first.
+      const float spreadAcross = std::max(across, 1.0f);
+      const float spreadDown = std::max(down, 1.0f);
+      const float inner[2] = {(spreadAcross - 1.0f) / (2.0f * across),
+                              (spreadDown - 1.0f) / (2.0f * down)};
+      const float outer[2] = {(spreadAcross + 1.0f) / (2.0f * across),
+                              (spreadDown + 1.0f) / (2.0f * down)};
+      const float fade = (across / spreadAcross) * (down / spreadDown);
+      const SkPoint centre = (quad[0] + quad[2]) * 0.5f;
+      const SkVector side = quad[1] - quad[0];
+      const SkVector up = quad[3] - quad[0];
+      const SkPoint cellCentre = {cell.centerX(), cell.centerY()};
+      const SkColor full =
+          SkColorSetA(tint, (U8CPU)std::lround(SkColorGetA(tint) * fade));
+      const SkColor none = SkColorSetA(tint, 0);
+      // Inner corners first, then outer, each in the quad's own order.
+      const float signs[4][2] = {{-1, -1}, {1, -1}, {1, 1}, {-1, 1}};
+      for (const float* extent : {inner, outer})
+        for (const auto& sign : signs) {
+          const float along = sign[0] * extent[0], over = sign[1] * extent[1];
+          positions.push_back(centre + side * along + up * over);
+          // The cell is read inside itself: the outer quad takes the
+          // cell's own corners.
+          textureCoordinates.push_back(
+              {cellCentre.fX + std::clamp(along, -0.5f, 0.5f) * cell.width(),
+               cellCentre.fY + std::clamp(over, -0.5f, 0.5f) * cell.height()});
+          vertexColors.push_back(extent == inner ? full : none);
+        }
+      const auto quadOf = [&](int a, int b, int c, int d) {
+        const uint16_t corner[4] = {(uint16_t)(base + a), (uint16_t)(base + b),
+                                    (uint16_t)(base + c), (uint16_t)(base + d)};
+        indices.insert(indices.end(), {corner[0], corner[1], corner[2],
+                                       corner[0], corner[2], corner[3]});
+      };
+      quadOf(0, 1, 2, 3);
+      for (int k = 0; k < 4; ++k)
+        quadOf(4 + k, 4 + (k + 1) % 4, (k + 1) % 4, k);
+      continue;
+    }
     for (const SkPoint& corner : quad) positions.push_back(corner);
-    textureCoordinates.push_back(
-        {sourceRectangles[i].left(), sourceRectangles[i].top()});
-    textureCoordinates.push_back(
-        {sourceRectangles[i].right(), sourceRectangles[i].top()});
-    textureCoordinates.push_back(
-        {sourceRectangles[i].right(), sourceRectangles[i].bottom()});
-    textureCoordinates.push_back(
-        {sourceRectangles[i].left(), sourceRectangles[i].bottom()});
-    if (colors)
-      for (int k = 0; k < 4; ++k) vertexColors.push_back(colors[i]);
+    textureCoordinates.push_back({cell.left(), cell.top()});
+    textureCoordinates.push_back({cell.right(), cell.top()});
+    textureCoordinates.push_back({cell.right(), cell.bottom()});
+    textureCoordinates.push_back({cell.left(), cell.bottom()});
+    for (int k = 0; k < 4; ++k) vertexColors.push_back(tint);
     const uint16_t quadIndices[6] = {
         base, (uint16_t)(base + 1), (uint16_t)(base + 2),
         base, (uint16_t)(base + 2), (uint16_t)(base + 3)};
     indices.insert(indices.end(), quadIndices, quadIndices + 6);
   }
+  // A batch with neither a tint nor an edge draws its cells as they are.
+  const bool tinted = colors || edged;
   sk_sp<SkVertices> vertices = SkVertices::MakeCopy(
       SkVertices::kTriangles_VertexMode, (int)positions.size(),
       positions.data(), textureCoordinates.data(),
-      colors ? vertexColors.data() : nullptr, (int)indices.size(),
+      tinted ? vertexColors.data() : nullptr, (int)indices.size(),
       indices.data());
   SkPaint p;
-  // WITHOUT this, a sprite narrower than a pixel does not draw at all —
-  // it simply covers no sample centre. A corridor of stamps whose sprite
-  // width falls with depth loses its far half without antialiasing, BY
-  // CONSTRUCTION of the sprite widths. Antialiasing makes a thin sprite
-  // contribute its true coverage instead of nothing, which is the only
-  // behaviour an accumulation can be built on.
-  p.setAntiAlias(true);
   p.setBlendMode(blend);
   p.setShader(
       sheet->makeShader(SkTileMode::kClamp, SkTileMode::kClamp, sampling));

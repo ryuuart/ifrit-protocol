@@ -1990,7 +1990,7 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "mesh primitive lanes, face queries, and extrusion caps, a rounded or bevelled `edge` with its `edgeSize` and `edgeSegments`, the `wallTexture` along the outline or projected from the cap, and `faceSets` that let a body wear its caps and walls as two surfaces"
+bound = "mesh primitive lanes, the tangent lane and `computeTangents`, face queries, and extrusion caps, a rounded or bevelled `edge` with its `edgeSize` and `edgeSegments`, the `wallTexture` along the outline or projected from the cap, and `faceSets` that let a body wear its caps and walls as two surfaces"
 python = [
   "geometry.mesh.Mesh.primitive",
   "geometry.mesh.faceCount",
@@ -2128,7 +2128,7 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "directional, point and spot lights with light and shadow links and a `LightShadow` whose `size` widens the penumbra away from the caster; the `kit` rig, turntable, lit set and environment map"
+bound = "directional, point, spot, rect, disk and sphere lights, each but the directional with a `range` past which it reaches nothing, with light and shadow links and a `LightShadow` whose `size` widens the penumbra away from the caster; the `kit` rig, turntable, lit set and environment map"
 python = [
   "world.directionalLight",
   "world.pointLight",

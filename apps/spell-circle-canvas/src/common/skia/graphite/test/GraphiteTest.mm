@@ -21,6 +21,7 @@
 #include <include/core/SkString.h>
 #include <include/core/SkSurface.h>
 #include <include/core/SkYUVAInfo.h>
+#include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <include/gpu/graphite/Context.h>
 #include <include/gpu/graphite/Recorder.h>
@@ -33,6 +34,7 @@
 #include <sigilskia/graphite/Readback.h>
 #include <sigilskia/graphite/TextureImage.h>
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <cstring>
@@ -264,6 +266,49 @@ TEST(SigilSkiaGraphite, DirectDrawsReuseTheImageProvidersTexture) {
   EXPECT_EQ(pixels.getColor(5, 1), SK_ColorWHITE);
   EXPECT_EQ(pixels.getColor(1, 5), SK_ColorWHITE);
   EXPECT_EQ(pixels.getColor(5, 5), SK_ColorBLACK);
+}
+
+TEST(SigilSkiaGraphite, ARunOfSpritesNarrowerThanAPixelLaysContinuousTintedCover) {
+  // The raster case's run, on the device: square sprites narrower than a
+  // pixel, tinted, laid densely along a row at subpixel offsets. Every
+  // column the run crosses takes some of its ink, about as much as its
+  // neighbours, and the ink is the tint's.
+  SKIP_WITHOUT_METAL();
+  GraphiteContext *ctx = graphite();
+  const sk_sp<SkImage> sheet = whiteSheet();
+  const SkColor tint = SkColorSetARGB(255, 0x33, 0x66, 0xCC);
+  for (const float width : {0.35f, 0.6f, 1.0f, 2.0f})
+    for (const float offset : {0.0f, 0.5f}) {
+      std::vector<SkRSXform> transforms;
+      for (float x = 20.0f; x < 180.0f; x += width * 0.5f)
+        transforms.push_back(
+            SkRSXform::MakeFromRadians(width / 4.0f, 0.0f, x + offset, 20.0f + offset, 2.0f, 2.0f));
+      const std::vector<SkRect> cells(transforms.size(), SkRect::MakeWH(4, 4));
+      const std::vector<SkColor> colors(transforms.size(), tint);
+      sk_sp<SkSurface> surface =
+          SkSurfaces::RenderTarget(ctx->recorder(), SkImageInfo::MakeN32Premul(200, 40));
+      ASSERT_NE(surface, nullptr);
+      SkCanvas &canvas = *surface->getCanvas();
+      canvas.clear(SK_ColorBLACK);
+      sigil::skia::draw::drawSpriteAtlas(
+          canvas, sheet, {.transforms = transforms, .sourceRectangles = cells, .colors = colors},
+          SkSamplingOptions(SkFilterMode::kLinear));
+      const SkBitmap pixels = readGraphiteSurface(*ctx, surface.get());
+      ASSERT_FALSE(pixels.empty());
+      int least = 1 << 30, most = 0;
+      for (int x = 25; x < 175; ++x) {
+        int column = 0;
+        for (int y = 15; y <= 26; ++y) {
+          const SkColor pixel = pixels.getColor(x, y);
+          column += (int)SkColorGetB(pixel);
+          EXPECT_GE(SkColorGetB(pixel), SkColorGetR(pixel)) << "the tint at " << x << "," << y;
+        }
+        least = std::min(least, column);
+        most = std::max(most, column);
+      }
+      EXPECT_GT(least, 0) << "every column is inked: width " << width << " offset " << offset;
+      EXPECT_GE(least * 2, most) << "and evenly: width " << width << " offset " << offset;
+    }
 }
 
 TEST(SigilSkiaGraphite, ARasterImagesTextureGoesWithTheImage) {
@@ -867,6 +912,20 @@ bool drawTheTintedScene(GraphiteContext &ctx) {
   return submitRecorder(ctx, *ctx.recorder());
 }
 
+/** A scene drawn through a blur, which Graphite lowers to its own runtime
+ *  effects — made by the backend the first time a draw keys one. */
+bool drawTheBlurredScene(GraphiteContext &ctx) {
+  const SkImageInfo info = SkImageInfo::MakeN32Premul(64, 64);
+  sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(ctx.recorder(), info);
+  if (!surface) return false;
+  SkPaint paint;
+  paint.setColor(SK_ColorWHITE);
+  paint.setImageFilter(SkImageFilters::Blur(3, 3, nullptr));
+  surface->getCanvas()->clear(SK_ColorBLACK);
+  surface->getCanvas()->drawRect(SkRect::MakeXYWH(16, 16, 32, 32), paint);
+  return submitRecorder(ctx, *ctx.recorder());
+}
+
 /** A context of this case's own: the shared one above is built the
  *  first time anything asks for it, which is before a reporter could
  *  have been installed — and a reporter only reaches contexts built
@@ -945,4 +1004,34 @@ TEST(SigilSkiaGraphite, PrecompilingARecordedKeySetRemovesTheFirstBuild) {
   second.reset();
   GraphiteContext::reportPipelinesTo(nullptr);
   GraphiteContext::registerRuntimeEffects({});
+}
+
+TEST(SigilSkiaGraphite, AKeyNamingTheBackendsOwnEffectsIsBuiltByAFreshContext) {
+  // A key recorded by a run whose draws made the backend's own blur
+  // effects, replayed by a context where no draw has made them yet —
+  // every second launch of a sketch that blurs. The replay builds the
+  // program rather than taking the process down.
+  SKIP_WITHOUT_METAL();
+  PipelineLog log;
+  GraphiteContext::reportPipelinesTo(&log);
+  std::vector<sk_sp<SkData>> keys;
+  {
+    std::unique_ptr<GraphiteContext> first = watchedContext();
+    ASSERT_NE(first, nullptr);
+    ASSERT_TRUE(drawTheBlurredScene(*first));
+    keys = log.keys();
+  }
+  if (keys.empty()) {
+    GraphiteContext::reportPipelinesTo(nullptr);
+    GTEST_SKIP() << "this backend serialises no pipeline key";
+  }
+  log.clear();
+  std::unique_ptr<GraphiteContext> second = watchedContext();
+  ASSERT_NE(second, nullptr);
+  EXPECT_EQ(second->precompile(keys), keys.size());
+  const int builtAhead = log.addedCount();
+  ASSERT_TRUE(drawTheBlurredScene(*second));
+  EXPECT_EQ(log.addedCount(), builtAhead) << "the draw built a pipeline anyway";
+  second.reset();
+  GraphiteContext::reportPipelinesTo(nullptr);
 }

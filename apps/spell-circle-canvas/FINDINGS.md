@@ -98,26 +98,6 @@ the set a headless sweep left is the one that open replays —
 `sketch_pipeline_warmup` what a second launch replays, but nothing yet
 joins the two lanes end to end.
 
-## Replaying a recorded pipeline key walks a null name
-
-`PrecompileContext::precompile` builds the program a serialised key
-names, and the key names the pieces that program is inlined out of by
-number. A piece the reading run cannot put a name to is not refused: the
-generator reads the name anyway and walks a null string, which is a
-segmentation fault inside `ShaderInfo::generateFragmentSkSL`. The pieces
-this reaches are the backend's own — Skia's `$1DBlur16` and its
-neighbours are made on first use — so a key recorded by a run whose
-draws made one is a crash in a run whose draws have not yet, which is
-every second launch of a sketch that blurs.
-
-`apps/grimoire/src/PipelineWarm.cpp` works around it by keeping each key's
-description beside it and reading the description back before replaying:
-a piece with no name reads back as a hole, the description differs, and
-the key is dropped. It carries a `workaround:` marker. The fix belongs
-upstream — `precompile` should refuse a key it cannot resolve — and a
-test should assert that a key naming an unmade piece comes back false
-rather than taking the process down.
-
 ## A zoom that settles re-rasterises everything at once, and varied glyphs grow with the scale
 
 When the pane's zoom settles, `GrimoireRenderer` redraws the frame at
@@ -360,31 +340,6 @@ defined reset/resize policy. Capture cadence should not change the
 exposure's duration.
 
 
-## Bug: sprite nib strokes lose continuous coverage below a pixel
-
-The monochord and miniature studies need continuous fine ink. Drawing
-marker splines at widths 0.35, 0.6, 1, 2 and 4 with all scatter, jitter
-and noise disabled reproduces it on raster: the thin nib splines become
-separated dots, while adjacent Pen curves at the same nominal width remain
-continuous. Selecting the existing fibre tip with one bristle gives
-continuous antialiased ink.
-
-`src/common/skia/include/sigilskia/draw/Direct.h` sets antialiasing on the
-paint for its textured sprite vertices and states that this makes a
-subpixel sprite contribute coverage. It then calls SkCanvas::drawVertices.
-The installed Skia header explicitly states that drawVertices ignores
-paint antialiasing. The nib stamp path reaches this sprite lowering, so
-the flag cannot provide its stated coverage behavior. This differs from
-the white-disc tint defect in hosted nib strokes.
-
-The sprite lowering should preserve smooth area coverage for narrow
-sprites through a supported Skia drawing operation or equivalent coverage
-construction. A regression should draw colored thin sprites and dense nib
-strokes at several subpixel translations and scales, assert nonzero smooth
-coverage along the whole run, and exercise raster and Graphite. It should
-also preserve tint and the stated destination blend mode.
-
-
 ## API request: a tonal screen cannot use an arbitrary child material
 
 The radio poster screens a shaded metal horn with positive ink dots and
@@ -620,33 +575,14 @@ host of its own. Mounting them needs either an agent that adopts an
 external host and hops its calls to the render thread, or a different
 split; the choice is the owner's.
 
-## A grid's pole normals lean toward one column
+## A raster image drawn below its smallest mipmap level is point-sampled from the base
 
-`grid()` gives every degenerate pole vertex the nearest valid normal in
-vertex order, so every vertex of a pole row takes one neighbour's normal
-and leans toward that column; at a superellipsoid's or a revolved dome's
-apex the normal stands well off the axis. A pole's normal should be the
-sheet's limit there, which for a revolved profile is the axis. A test
-should find every pole vertex's normal of a revolved dome and a
-superellipsoid within a small angle of the axis; every superellipsoid
-plate moves.
-
-## Python lacks a rect's and a disk's range and a mesh's tangents
-
-`rectLight` and `diskLight` in `python/world/World.cpp` take no `range`,
-and `Mesh.computeTangents` is not bound. Bind both and regenerate the
-typing; a Python rect light with a short range should leave a card past
-it dark, and a Python mesh with uvs should gain a tangent lane.
-
-## `sigil.py sanitize --filter` cannot name its targets on a fresh instrumented tree
-
-`sanitize` derives the targets a `--filter` needs from `ctest --show-only`
-on the lane's tree, but a tree that has not been built registers one
-`<lib>_test_NOT_BUILT` placeholder per discovered suite and no case
-names, so a filter over suite names matches nothing and the verb stops
-with "matches no buildable tests" before building anything; the lane
-runs only with `--targets` spelled by hand. The verb should derive the
-targets from the primary tree's registered tests, which are built, or
-from the test binaries the placeholders name. A test should configure a
-fresh lane tree and ask the verb for the targets of a suite-name filter
-and find the library's test binary.
+Skia's raster mipmap accessor falls back to the full-size level with no
+mipmapping when the requested level lies past the image's smallest, so a
+raster image drawn below one over two to the levels of its size is
+point-sampled from the base and lays its whole area at one placement and
+nothing at another. The smallest level should be used. Narrow sprites
+are spread to a pixel before they reach this, so sprite runs no longer
+show it; other raster draws still do. A test should draw a 32 pixel disc
+at 0.35 pixels with linear mipmap sampling and find about three quarters
+of its area laid as alpha at every placement.

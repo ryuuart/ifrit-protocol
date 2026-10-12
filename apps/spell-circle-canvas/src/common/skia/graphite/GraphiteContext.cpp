@@ -14,6 +14,9 @@
 // `src/image/SkImage_Raster.h` and `SkImage_Base.h` are private for the
 // same reason and read for one thing only: the pixel memory behind a
 // raster image, which is what says when that image's pixels go.
+// `src/gpu/graphite/ContextPriv.h` and `ShaderCodeDictionary.h` are read
+// for one thing too: making the backend's own runtime effects known to a
+// context before a recorded key that names them is replayed.
 
 #include <gpu/graphite/Context.h>
 #include <gpu/graphite/ContextOptions.h>
@@ -30,6 +33,8 @@
 #include <include/private/SkIDChangeListener.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <src/core/SkKnownRuntimeEffects.h>
+#include <src/gpu/graphite/ContextPriv.h>
+#include <src/gpu/graphite/ShaderCodeDictionary.h>
 #include <src/image/SkImage_Base.h>
 #include <src/image/SkImage_Raster.h>
 
@@ -253,6 +258,21 @@ std::unique_ptr<skgpu::graphite::PrecompileContext>
 GraphiteContext::makePrecompileContext() const {
   if (!m_context) return nullptr;
   const auto lock = lockContext();
+  // workaround: a recorded key names the backend's own runtime effects —
+  // its blurs and their neighbours — by number, and this Skia makes each
+  // one's shader snippet only when a draw first keys it, so a key naming
+  // one no draw of this context has made yet is not refused: its program
+  // is generated from a snippet with no name, and the process faults.
+  // Every one of them is made before a key can be replayed.
+  if (skgpu::graphite::ShaderCodeDictionary* dictionary =
+          m_context->priv().shaderCodeDictionary()) {
+    using SkKnownRuntimeEffects::StableKey;
+    for (uint32_t key = (uint32_t)StableKey::kStart + 1;
+         key <= (uint32_t)StableKey::kLast; ++key)
+      if (const SkRuntimeEffect* effect =
+              SkKnownRuntimeEffects::GetKnownRuntimeEffect((StableKey)key))
+        dictionary->findOrCreateRuntimeEffectSnippet(effect);
+  }
   return m_context->makePrecompileContext();
 }
 

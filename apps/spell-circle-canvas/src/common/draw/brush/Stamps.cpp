@@ -270,9 +270,13 @@ void drawStamps(Pen& pen, Constant blend, std::span<const Stamp> stamps) {
   batch.sourceRectangles = textureRects;
   batch.colors = colors;
   batch.sizes = sizes;
-  sigil::skia::draw::drawSpriteAtlas(*canvas, roundTip(), batch,
-                                     SkSamplingOptions(SkFilterMode::kLinear),
-                                     *mode);
+  // The tip is drawn far smaller than its sheet, down to a fraction of a
+  // pixel, so it is read through its mipmaps: a pixel a fine stamp only
+  // partly covers then takes the disc's average ink rather than the one
+  // texel its centre happens to land on, which at the disc's rim is none.
+  sigil::skia::draw::drawSpriteAtlas(
+      *canvas, roundTip(), batch,
+      SkSamplingOptions(SkFilterMode::kLinear, SkMipmapMode::kLinear), *mode);
 }
 
 }  // namespace sigil::draw::brush

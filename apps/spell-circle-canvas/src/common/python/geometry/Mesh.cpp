@@ -49,12 +49,14 @@ void bindGeometryMesh(py::module_& module) {
       .def_readwrite("normals", &mesh::Mesh::normals)
       .def_readwrite("uvs", &mesh::Mesh::uvs)
       .def_readwrite("colors", &mesh::Mesh::colors)
+      .def_readwrite("tangents", &mesh::Mesh::tangents)
       .def_readwrite("indices", &mesh::Mesh::indices)
       .def("vertexCount", &mesh::Mesh::vertexCount)
       .def("triangleCount", &mesh::Mesh::triangleCount)
       .def("append", &mesh::Mesh::append, py::arg("mesh"))
       .def("transform", &mesh::Mesh::transform, py::arg("matrix"))
       .def("computeNormals", &mesh::Mesh::computeNormals)
+      .def("computeTangents", &mesh::Mesh::computeTangents)
       .def("bounds",
            [](const mesh::Mesh& value) {
              glm::vec3 low, high;

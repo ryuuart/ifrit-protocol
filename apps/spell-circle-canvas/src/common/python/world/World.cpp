@@ -454,19 +454,21 @@ void bindKinds(py::module_& module) {
   module.def(
       "rectLight",
       [](const glm::vec3& direction, float width, float height, py::handle tint,
-         py::handle intensity, bool castShadow,
+         py::handle intensity, float range, bool castShadow,
          const world::LightShadow& shadow) {
         return world::rectLight(direction,
                                 {.width = width,
                                  .height = height,
                                  .color = lightColor(tint),
                                  .intensity = motionAnimatable(intensity),
+                                 .range = range,
                                  .castShadow = castShadow,
                                  .shadow = shadow});
       },
       py::arg("direction"), py::arg("width") = 1, py::arg("height") = 1,
       py::arg("color") = glm::vec4(1), py::arg("intensity") = 1,
-      py::arg("castShadow") = false, py::arg("shadow") = world::LightShadow{});
+      py::arg("range") = 0, py::arg("castShadow") = false,
+      py::arg("shadow") = world::LightShadow{});
   module.def(
       "sphereLight",
       [](float radius, py::handle tint, py::handle intensity, float range,
@@ -484,18 +486,20 @@ void bindKinds(py::module_& module) {
   module.def(
       "diskLight",
       [](const glm::vec3& direction, float radius, py::handle tint,
-         py::handle intensity, bool castShadow,
+         py::handle intensity, float range, bool castShadow,
          const world::LightShadow& shadow) {
         return world::diskLight(direction,
                                 {.radius = radius,
                                  .color = lightColor(tint),
                                  .intensity = motionAnimatable(intensity),
+                                 .range = range,
                                  .castShadow = castShadow,
                                  .shadow = shadow});
       },
       py::arg("direction"), py::arg("radius") = 0.1f,
       py::arg("color") = glm::vec4(1), py::arg("intensity") = 1,
-      py::arg("castShadow") = false, py::arg("shadow") = world::LightShadow{});
+      py::arg("range") = 0, py::arg("castShadow") = false,
+      py::arg("shadow") = world::LightShadow{});
   module.def(
       "ambientLight",
       [](py::handle tint, py::handle intensity) {

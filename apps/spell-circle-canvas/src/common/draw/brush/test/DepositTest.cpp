@@ -321,3 +321,44 @@ TEST(Deposit, ADenseNibStrokeAccumulatesItsDiscs) {
       EXPECT_EQ(over, black.getColor(x, y)) << x << "," << y;
     }
 }
+
+// A nib narrower than a pixel still lays a continuous line: every column
+// the stroke crosses takes some of its ink, about as much as its
+// neighbours, at every width and wherever the line falls between pixel
+// centres.
+TEST(Deposit, AFineNibStrokeLaysContinuousInkBelowAPixel) {
+  for (const float width : {0.35f, 0.6f, 1.0f, 2.0f, 4.0f})
+    for (const float offset : {0.0f, 0.3f, 0.5f}) {
+      brush::Tool tool = brush::marker({0.2f, 0.4f, 0.8f, 1}, width);
+      tool.opacity = 1;
+      tool.pressureOpacity = 0;
+      tool.opacityJitter = 0;
+      tool.sizeJitter = 0;
+      tool.scatter = 0;
+      tool.noise = 0;
+      // The pooled ink at the stroke's ends is the marker's own; the run
+      // between them is what is asked of here.
+      tool.markerTip = false;
+      Paper paper(200, 100, SK_ColorTRANSPARENT);
+      paper.begin();
+      brush::line(paper.pen, tool, {20 + offset, 50 + offset},
+                  {180 + offset, 50 + offset});
+      paper.end();
+      const SkBitmap pixels = paper.pixels();
+      int least = 1 << 30, most = 0;
+      for (int x = 40; x < 160; ++x) {
+        int column = 0;
+        for (int y = 44; y <= 56; ++y) {
+          const SkColor pixel = pixels.getColor(x, y);
+          column += (int)SkColorGetA(pixel);
+          if (SkColorGetA(pixel) > 0)
+            EXPECT_GE(SkColorGetB(pixel), SkColorGetR(pixel))
+                << "the ink is the tool's at " << x << "," << y;
+        }
+        least = std::min(least, column);
+        most = std::max(most, column);
+      }
+      EXPECT_GT(least, 0) << "width " << width << " offset " << offset;
+      EXPECT_GE(least * 2, most) << "width " << width << " offset " << offset;
+    }
+}

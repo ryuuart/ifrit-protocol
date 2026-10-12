@@ -368,13 +368,11 @@ void warmStockPipelines(
   size_t stale = 0;
   for (const pipelines::RecordedPipeline& one : recorded) {
     if (!one.key) continue;
-    // workaround: a key naming a piece this run cannot put a name to
-    // walks a null string inside the backend's shader generator rather
-    // than being refused, so the description is read back first and a
-    // key that no longer describes what it described is dropped. The
-    // backend's own pieces are made on first use, so a key recorded
-    // after a draw that made one can be read by a run where nothing has
-    // yet — which reads back with the name missing.
+    // A KEY NAMES ITS PIECES BY NUMBER, and the numbers are the
+    // backend's: a backend that numbers its pieces differently reads the
+    // same key as another program. The description is read back first and
+    // a key that no longer describes what it described is dropped rather
+    // than built as something else.
     const std::string description = precompile->getPipelineLabel(one.key);
     if (namesEveryPipeline())
       std::fprintf(stderr, "[grimoire] pipeline replaying: %s\n",
@@ -388,9 +386,8 @@ void warmStockPipelines(
   g_replayed += replayed;
   // WHAT THE SET WAS WORTH, said whenever there was one. A store whose
   // every key has gone stale is the one state an operator has to be
-  // able to see: the stale drop works around a crash, so a set silently
-  // dropped whole reads as a warm-up that helps and costs nothing while
-  // being neither.
+  // able to see: a set silently dropped whole reads as a warm-up that
+  // helps and costs nothing while being neither.
   if (!recorded.empty())
     std::fprintf(stderr,
                  "[grimoire] pipelines: %zu of %zu recorded programs stood "

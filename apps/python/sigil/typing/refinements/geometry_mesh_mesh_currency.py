@@ -39,6 +39,7 @@ def register(table: Table) -> None:
         ("colors", 4),
         ("normals", 3),
         ("positions", 3),
+        ("tangents", 4),
         ("uvs", 2),
     ):
         table.returns(MESH_CLASS, name, f"list[_t.Vec{dimension}]")

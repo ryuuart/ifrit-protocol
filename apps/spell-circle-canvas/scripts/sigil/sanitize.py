@@ -113,7 +113,7 @@ def configure_and_build(preset: str, args) -> int:
         return code
     targets = args.targets
     if targets is None and args.filter:
-        targets = tree.build_targets(preset, args.config, args.filter)
+        targets = tree.build_targets(tree.build_dir(preset), args.config, args.filter)
         if not targets:
             tree.fail(f"--filter {args.filter!r} matches no buildable tests")
         print(f"targets derived from --filter: {' '.join(targets)}")
@@ -214,7 +214,7 @@ def coverage_lane(args) -> int:
         [*llvm_tool("llvm-profdata"), "merge", "-sparse", *raw_profiles, "-o", profdata]
     )
 
-    objects = tree.test_executables(preset, args.config, args.filter)
+    objects = tree.test_executables(build_dir, args.config, args.filter)
     if not objects:
         tree.fail("no test executables found in the coverage tree")
 

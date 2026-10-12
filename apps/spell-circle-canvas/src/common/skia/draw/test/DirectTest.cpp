@@ -12,6 +12,7 @@
 #include <include/core/SkSurface.h>
 #include <sigilskia/draw/Direct.h>
 
+#include <algorithm>
 #include <span>
 #include <vector>
 
@@ -128,6 +129,15 @@ struct Raster {
   }
 };
 
+/** An opaque white sheet of 8x8, so what lands is the tint. */
+sk_sp<SkImage> whiteSheet() {
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(8, 8));
+  bitmap.eraseColor(SK_ColorWHITE);
+  bitmap.setImmutable();
+  return bitmap.asImage();
+}
+
 }  // namespace
 
 TEST(DirectDraws, ANineSliceKeepsItsCornersAndStretchesTheMiddle) {
@@ -143,10 +153,10 @@ TEST(DirectDraws, ANineSliceKeepsItsCornersAndStretchesTheMiddle) {
 }
 
 TEST(DirectDraws, EverySpriteIsDrawnAcrossTheChunkBoundary) {
-  // One vertex list indexes at most 16383 sprites, so a bigger run is cut
-  // into chunks — and the LAST chunk is the one an off-by-one loses. The
-  // run is one sprite past the cut, with the last one somewhere else, so
-  // a lost tail is a pixel that is not there.
+  // One vertex list indexes a bounded number of sprites, so a bigger run
+  // is cut into chunks — and the LAST chunk is the one an off-by-one
+  // loses. The run is one sprite past a cut, with the last one somewhere
+  // else, so a lost tail is a pixel that is not there.
   constexpr size_t kCount = 16001;
   std::vector<SkRSXform> transforms(
       kCount, SkRSXform::MakeFromRadians(1, 0, 10, 10, 0, 0));
@@ -230,4 +240,76 @@ TEST(DirectDraws, ReadyHandsBackTheImageWhereThereIsNoRecorder) {
   EXPECT_EQ(ready(raster.canvas(), sheet), sheet);
   // …and a null image is answered with null rather than promoted.
   EXPECT_EQ(ready(raster.canvas(), nullptr), nullptr);
+}
+
+TEST(DirectDraws, ARunOfSpritesNarrowerThanAPixelLaysContinuousTintedCover) {
+  // A dense run of square sprites, each narrower than a pixel, laid along
+  // a row at several subpixel offsets and canvas scales. Every column the
+  // run crosses takes some of its ink, about as much as its neighbours,
+  // and the ink is the tint's.
+  const SkColor tint = SkColorSetARGB(255, 0x33, 0x66, 0xCC);
+  const sk_sp<SkImage> sheet = whiteSheet();
+  for (const float width : {0.35f, 0.6f, 1.0f, 2.0f})
+    for (const float offset : {0.0f, 0.25f, 0.5f, 0.75f})
+      for (const float scale : {1.0f, 0.5f}) {
+        std::vector<SkRSXform> transforms;
+        // The width and the spacing are the device's; the canvas scale
+        // is divided out of where the sprites are stated.
+        const float stated = width / scale, step = stated * 0.5f;
+        for (float x = 20.0f / scale; x < 180.0f / scale; x += step)
+          transforms.push_back(SkRSXform::MakeFromRadians(
+              stated / 8.0f, 0.0f, x + offset / scale,
+              (100.0f + offset) / scale, 4.0f, 4.0f));
+        const std::vector<SkRect> cells(transforms.size(),
+                                        SkRect::MakeWH(8, 8));
+        const std::vector<SkColor> colors(transforms.size(), tint);
+        Raster raster;
+        raster.canvas().clear(SK_ColorBLACK);
+        raster.canvas().scale(scale, scale);
+        drawSpriteAtlas(raster.canvas(), sheet,
+                        SpriteBatch{.transforms = transforms,
+                                    .sourceRectangles = cells,
+                                    .colors = colors},
+                        SkSamplingOptions(SkFilterMode::kLinear));
+        int least = 1 << 30, most = 0;
+        for (int x = 25; x < 175; ++x) {
+          int column = 0;
+          for (int y = 95; y <= 106; ++y) {
+            const SkColor pixel = raster.pixel(x, y);
+            column += (int)SkColorGetB(pixel);
+            EXPECT_GE(SkColorGetB(pixel), SkColorGetR(pixel))
+                << "the tint is kept at " << x << "," << y;
+          }
+          least = std::min(least, column);
+          most = std::max(most, column);
+        }
+        EXPECT_GT(least, 0) << "every column is inked: width " << width
+                            << " offset " << offset << " scale " << scale;
+        EXPECT_GE(least * 2, most)
+            << "and evenly: width " << width << " offset " << offset
+            << " scale " << scale;
+      }
+}
+
+TEST(DirectDraws, TheStatedBlendIsHowEachSpriteMeetsTheDestination) {
+  // Two sprites over one place, tinted a quarter grey: added, they make
+  // half grey; laid over, the second covers the first.
+  const SkColor tint = SkColorSetARGB(255, 0x40, 0x40, 0x40);
+  const std::vector<SkRSXform> transforms(
+      2, SkRSXform::MakeFromRadians(2.5f, 0, 50, 50, 4, 4));
+  const std::vector<SkRect> cells(2, SkRect::MakeWH(8, 8));
+  const std::vector<SkColor> colors(2, tint);
+  for (const SkBlendMode blend : {SkBlendMode::kPlus, SkBlendMode::kSrcOver}) {
+    Raster raster;
+    raster.canvas().clear(SK_ColorBLACK);
+    drawSpriteAtlas(raster.canvas(), whiteSheet(),
+                    SpriteBatch{.transforms = transforms,
+                                .sourceRectangles = cells,
+                                .colors = colors},
+                    SkSamplingOptions(), blend);
+    const SkColor inside = raster.pixel(50, 50);
+    const int expected = blend == SkBlendMode::kPlus ? 0x80 : 0x40;
+    EXPECT_NEAR((int)SkColorGetR(inside), expected, 2);
+    EXPECT_NEAR((int)SkColorGetB(inside), expected, 2);
+  }
 }

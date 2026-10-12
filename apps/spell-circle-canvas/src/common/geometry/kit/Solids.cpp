@@ -787,7 +787,7 @@ Mesh superellipsoid(glm::vec3 radii, float exponent, int nu, int nv) {
   return grid(nu, nv, [=](float u, float v) -> glm::vec3 {
     const float theta = u * 2.0f * (float)M_PI - (float)M_PI;
     // Full pole-to-pole sweep: shaped(cos(±pi/2)) = 0 closes the poles
-    // to points; grid()'s fallback covers the degenerate normals there.
+    // to points, where grid() gives the sheet's limit normal.
     const float phi = (v - 0.5f) * (float)M_PI;
     const float cp = std::cos(phi), sp = std::sin(phi);
     const float ct = std::cos(theta), st = std::sin(theta);
