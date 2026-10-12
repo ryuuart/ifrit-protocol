@@ -528,3 +528,15 @@ the Vulkan queue through the offscreen surface's own fence signal and
 `Device::waitForMetalEvent`. A test should insert a recording on a Metal
 context with one signal semaphore and find a Metal fence's CPU wait
 reach its value.
+
+## An OSC bundle's elements reach no address handler
+
+`data::Connection` reads an OSC bundle as one message with no name
+(`nameOf` in `src/common/data/connection/Connection.cpp`), so only
+`on("*")` and `otherwise()` see it and `latest(address)` latches none of
+its elements, while a single message is dispatched to every handler whose
+pattern matches. OSC dispatch delivers each message inside a bundle to
+the methods matching it. A test should deliver a bundle holding `/a/x 1`
+and `/a/y 2` to an `osc://` connection, find an `on("/a/*")` handler run
+twice, and find both `latest("/a/x")` and `latest("/a/y")` non-empty. An
+OSC Out CHOP set to send bundles draws nothing until then.

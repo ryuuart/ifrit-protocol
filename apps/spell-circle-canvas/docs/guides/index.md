@@ -35,11 +35,12 @@ the product, a window server or a network.
    — a specimen sheet worn by one quad: carved limestone type, brushed
    copper ribbons, a crackled glaze, velvet, a thin film, a glowing mark,
    satin and matte, each a fill whose material the scene lights.
-7. **[A FlatBuffers wire from TouchDesigner, drawn and sent back over Syphon](guide:sigilio-flatbuffers-touchdesigner)**
-   — a schema for one cue, Python modules and a binary schema generated
-   from it, a sketch that reads a UDP door through that schema, a
-   recording a still replays, the canvas published over Syphon, and the
-   TouchDesigner patch that sends the cues and shows the picture.
+7. **[A wire from TouchDesigner: JSON first, OSC for channels, a schema when it settles](guide:sigilio-flatbuffers-touchdesigner)**
+   — a cue sent from a patch as JSON text, then as OSC from a CHOP with
+   no script, then as a FlatBuffer through a schema once the message
+   settles; one sketch reading all three as the same `data.Json`, a
+   recording a still replays, and the canvas published back to the
+   patch over Syphon.
 
 ## What to read next
 

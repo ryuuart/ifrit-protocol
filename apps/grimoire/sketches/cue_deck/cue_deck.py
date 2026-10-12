@@ -1,21 +1,28 @@
-"""A show's cues from a TouchDesigner patch: FlatBuffers over UDP, read through the sketch's own schema.
+"""A show's cues from a TouchDesigner patch: JSON, OSC or a FlatBuffer over UDP.
 
-Every datagram on UDP port 27025 is one Cue as cue_deck.fbs beside this
-file states it: the show's name, a level per channel, the colour the cue
-is lit in, the markers on the bar and the beat the show stands on. The
-build compiles that schema into cue_deck.bfbs, and the door reads every
-arrival through it, so the page reads each cue as the schema's JSON form
-and counts an arrival that is no cue rather than drawing it.
+The same cue can arrive through three doors, and each reads it into the
+same data.Json: the show's name, a level per channel, the colour the cue
+is lit in, the markers on the bar and the beat the show stands on.
 
-    python3 sender.py            # cues to port 27025, ten a second
-    python3 sender.py --record   # the recording a capture replays
+    udp://:27025   JSON text, one datagram a cue, read as it arrives
+    osc://:27026   OSC messages, one value each, gathered into a cue
+    udp://:27027   a FlatBuffer, read through cue_deck.fbs, the schema
+                   the build compiles into cue_deck.bfbs beside this file
 
-touchdesigner/scripts/cue_deck.py sends the same bytes from a patch.
-A window listens; a capture replays data/cue.feed at the same URI, so a
-still is the same picture every run.
+The page draws the newest cue, whichever door it came through, and says
+which one that was.
 
-EDIT THESE FIRST: PORT, the canvas, METER_HEIGHT, MARQUEE_SPEED, and
-cue_deck.fbs for what a cue carries.
+    python3 sender.py                       # JSON cues, ten a second
+    python3 sender.py --wire osc            # the same cues over OSC
+    python3 sender.py --wire flatbuffers    # the same cues as FlatBuffers
+    python3 sender.py --record              # the recording a capture replays
+
+touchdesigner/scripts/cue_deck.py sends the same cues from a patch. A
+window listens; a capture replays data/cue.feed at the JSON door and a
+recording with nothing in it at the other two, so a still opens no socket
+and is the same picture every run.
+
+EDIT THESE FIRST: the doors, the canvas, METER_HEIGHT, MARQUEE_SPEED.
 
 TAGS: Data/Schema, Runtime/Live Input, Data/Sources
 """
@@ -32,15 +39,17 @@ from sigil.sketch import Scene2DContext, kit, sketch
 NAME = "Cue deck"
 CATEGORY = "Data"
 
-PORT = 27025
-DOOR = f"udp://:{PORT}"
+JSON_DOOR = "udp://:27025"  # a cue as JSON text
+OSC_DOOR = "osc://:27026"  # a cue as OSC messages, one value each
+SCHEMA_DOOR = "udp://:27027"  # a cue as a FlatBuffer
 SCHEMA = "cue_deck.bfbs"
-RECORDING = "data/cue.feed"
+RECORDING = "data/cue.feed"  # JSON cues, replayed at the JSON door
+SILENCE = "data/silence.feed"  # a recording with nothing in it
 
 WIDTH, HEIGHT = 1280, 800
 CAPTURE_AT = 3.0  # by now thirty cues have landed and the playhead has moved
 CONTENT = 1184  # the page's measure
-SIDE = 300  # the door's column
+SIDE = 300  # the doors' column
 METER_HEIGHT = 250
 MARQUEE_HEIGHT = 92
 MARQUEE_SPEED = 90.0  # pixels a second the show's name slides left
@@ -165,46 +174,127 @@ class Deck:
         with kit.provide(self.look):
             kit.stage(ctx, size=(WIDTH, HEIGHT), capture_at=CAPTURE_AT)
         hub = ctx.assets.hub()
-        # THE SCHEMA THE BUILD WROTE beside this file from cue_deck.fbs.
+        # A CAPTURE OPENS NO SOCKET: every later ask for a door's URI
+        # answers the recording replayed there instead.
+        self.replaying = ctx.deterministic
+        if self.replaying:
+            hub.replay(JSON_DOOR, ctx.local(RECORDING))
+            hub.replay(OSC_DOOR, ctx.local(SILENCE))
+            hub.replay(SCHEMA_DOOR, ctx.local(SILENCE))
+
+        # JSON TEXT: every datagram is read as one data.Json.
+        self.json_door = data.connect(hub, JSON_DOOR)
+
+        # OSC: one message a value, gathered into the cue they add up to.
+        self.osc_door = data.connect(hub, OSC_DOOR)
+        self.gathered = {"channels": {}, "color": {}, "markers": {}}
+        self.osc_door.on("/cue/show", self.take_show)
+        self.osc_door.on("/cue/level/*", self.take_level)
+        self.osc_door.on("/cue/color/{r,g,b}", self.take_color)
+        self.osc_door.on("/cue/marker", self.take_marker)
+        self.osc_door.on("/cue/beat", self.take_beat)
+
+        # A FLATBUFFER, read through the schema the build compiled from
+        # cue_deck.fbs, into the same JSON form the JSON door reads.
         binary = hub.read(ctx.local(SCHEMA))
         if binary is None:
             raise RuntimeError(
                 f"{SCHEMA} is missing: build the SigilSketchSchemas target"
             )
-        # A CAPTURE READS THE RECORDING, a window opens the door: every
-        # later ask for the URI answers the replaying feed.
-        self.replaying = ctx.deterministic
-        if self.replaying:
-            hub.replay(DOOR, ctx.local(RECORDING))
-        self.door = data.connect(hub, DOOR, schema=data.Schema.fromBinarySchema(binary))
-        self.shown = self.door.state()
+        schema = data.Schema.fromBinarySchema(binary)
+        self.schema_door = data.connect(hub, SCHEMA_DOOR, schema=schema)
+
+        self.doors = {
+            "JSON": self.json_door,
+            "OSC": self.osc_door,
+            "FLATBUFFER": self.schema_door,
+        }
+        self.shown = self.states()
         # One clock for the marquee: the name slides on a binding of it, so
         # nothing is described again between two cues.
         self.clock = animatable(0)
         ctx.engine.timer(lambda delta, elapsed: self.clock.set(elapsed))
         self.describe(ctx)
 
+    # ── the OSC door's handlers, run as each message is read ──────────
+
+    def take_show(self, message: data.Message) -> None:
+        self.gathered["show"] = message.string()
+
+    def take_level(self, message: data.Message) -> None:
+        name = message.address().rsplit("/", 1)[1]
+        self.gathered["channels"][name] = message.number()
+
+    def take_color(self, message: data.Message) -> None:
+        name = message.address().rsplit("/", 1)[1]
+        self.gathered["color"][name] = message.number()
+
+    def take_marker(self, message: data.Message) -> None:
+        self.gathered["markers"][message[0].string()] = message[1].number()
+
+    def take_beat(self, message: data.Message) -> None:
+        self.gathered["beat"] = message.number()
+
+    def osc_cue(self) -> data.Json:
+        """What the OSC messages add up to, in the shape the other two
+        doors' cues arrive in."""
+        gathered = self.gathered
+        cue = {
+            "channels": [
+                {"name": name, "level": level}
+                for name, level in gathered["channels"].items()
+            ],
+            "markers": [
+                {"name": name, "beat": beat}
+                for name, beat in gathered["markers"].items()
+            ],
+        }
+        if gathered["color"]:
+            cue["color"] = gathered["color"]
+        for field in ("show", "beat"):
+            if field in gathered:
+                cue[field] = gathered[field]
+        return data.Json(cue)
+
+    # ── the page ──────────────────────────────────────────────────────
+
+    def states(self) -> dict:
+        return {name: door.state() for name, door in self.doors.items()}
+
     def update(self, elapsed: float, ctx: Scene2DContext) -> None:
         """A door whose vitals moved has a new cue, or a new state to show."""
-        state = self.door.state()
-        if state != self.shown:
-            self.shown = state
+        states = self.states()
+        if states != self.shown:
+            self.shown = states
             self.describe(ctx)
 
+    def newest(self) -> tuple[str, data.Json]:
+        """The door the newest message came through, and the cue it holds."""
+        arrived = [
+            (door.latest().receivedAt(), name)
+            for name, door in self.doors.items()
+            if not door.latest().empty()
+        ]
+        if not arrived:
+            return "", data.Json()
+        name = max(arrived)[1]
+        if name == "OSC":
+            return name, self.osc_cue()
+        return name, self.doors[name].latest().payload
+
     def describe(self, ctx: Scene2DContext) -> None:
-        # The newest cue whole, kept by the door until the next replaces it.
-        cue = self.door.latest().payload
+        door, cue = self.newest()
         with kit.provide(self.look):
             ctx.render(
                 kit.page(
-                    self.content(ctx, cue),
+                    self.content(ctx, cue, door),
                     title="The cue deck.",
-                    subtitle="A show's cues, sent from a TouchDesigner patch as FlatBuffers over UDP",
-                    footer=f"UDP {PORT} · cue_deck.fbs · sender.py · touchdesigner/scripts/cue_deck.py",
+                    subtitle="A show's cues from a TouchDesigner patch, as JSON, OSC or a FlatBuffer over UDP",
+                    footer="JSON udp 27025 · OSC 27026 · FlatBuffer udp 27027 · sender.py · touchdesigner/scripts/cue_deck.py",
                 )
             )
 
-    def content(self, ctx: Scene2DContext, cue: data.Json) -> Element:
+    def content(self, ctx: Scene2DContext, cue: data.Json, door: str) -> Element:
         color = hex_of(cue["color"])
         channels = cue["channels"].array()
         return (
@@ -212,7 +302,13 @@ class Deck:
             .width(CONTENT)
             .gap(18)
             .children(
-                self.marquee(ctx, cue["show"].string("WAITING FOR A CUE"), color),
+                self.marquee(
+                    ctx,
+                    cue["show"].string(
+                        "WAITING FOR A CUE" if cue.null() else "A SHOW WITH NO NAME"
+                    ),
+                    color,
+                ),
                 row()
                 .gap(18)
                 .width(CONTENT)
@@ -236,7 +332,7 @@ class Deck:
                         if channels
                         else [doc.caption("The meters stand here once a cue arrives.")]
                     ),
-                    self.door_column(color),
+                    self.door_column(color, door),
                 ),
                 kit.well(padding=24, corners=6)
                 .column()
@@ -280,9 +376,9 @@ class Deck:
             )
         )
 
-    def door_column(self, color: str) -> Element:
-        """The door's own account of itself, read from its state."""
-        state = self.shown
+    def door_column(self, color: str, door: str) -> Element:
+        """The doors' own account of themselves, read from their states,
+        and the one the drawn cue came through."""
         status, ink = self.status()
         return (
             kit.well(padding=24, corners=6)
@@ -290,12 +386,17 @@ class Deck:
             .gap(14)
             .width(SIDE)
             .children(
-                doc.label("THE DOOR"),
+                doc.label("THE DOORS"),
                 door_row("STATE", status, ink),
-                door_row("ADDRESS", state.localAddress or DOOR),
-                door_row("CUES", f"{state.revision}"),
-                door_row("NOT A CUE", f"{state.undecodable}"),
-                door_row("DROPPED", f"{state.dropped}"),
+                *(
+                    door_row(name, f"{state.revision}", self.ink(state))
+                    for name, state in self.shown.items()
+                ),
+                door_row("NEWEST", door or "NONE"),
+                door_row(
+                    "NOT A CUE",
+                    f"{sum(state.undecodable for state in self.shown.values())}",
+                ),
                 row()
                 .gap(10)
                 .alignItems("center")
@@ -304,31 +405,36 @@ class Deck:
                     text(color.upper()).styleClass("control"),
                 ),
                 doc.caption(
-                    self.waiting_line()
-                    if self.door.latest().empty()
-                    else "The newest cue is drawn whole."
+                    f"The newest cue came through the {door} door, "
+                    f"{self.doors[door].uri()}."
+                    if door
+                    else self.waiting_line()
                 ),
             )
         )
 
-    def status(self) -> tuple[str, str]:
-        state = self.shown
+    @staticmethod
+    def ink(state: data.ConnectionState) -> str:
         if state.error:
+            return TROUBLE
+        return LIVE if state.revision else WAITING
+
+    def status(self) -> tuple[str, str]:
+        states = self.shown.values()
+        if any(state.error for state in states):
             return "UNAVAILABLE", TROUBLE
+        arrived = any(state.revision for state in states)
         if self.replaying:
-            return "REPLAY", LIVE if state.revision else WAITING
-        if state.readiness == ReadyState.Closed:
+            return "REPLAY", LIVE if arrived else WAITING
+        if all(state.readiness == ReadyState.Closed for state in states):
             return "CLOSED", TROUBLE
-        if state.readiness == ReadyState.Connecting:
-            return "OPENING", WAITING
-        return ("LISTENING", LIVE) if state.revision else ("WAITING", WAITING)
+        return ("LISTENING", LIVE) if arrived else ("WAITING", WAITING)
 
     def waiting_line(self) -> str:
-        state = self.shown
-        if state.error:
-            return state.error
-        if state.undecodable:
-            return f"{state.undecodable} arrivals were no cue"
-        if state.readiness == ReadyState.Closed:
-            return "The door is closed: nothing else is coming."
-        return f"Waiting at {state.localAddress or DOOR}: nothing has arrived."
+        for state in self.shown.values():
+            if state.error:
+                return state.error
+        undecodable = sum(state.undecodable for state in self.shown.values())
+        if undecodable:
+            return f"{undecodable} arrivals were no cue."
+        return "Waiting on all three doors: nothing has arrived."
