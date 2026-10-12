@@ -32,6 +32,13 @@ struct TextureSlot {
 struct FenceSlot {
   void* native = nullptr;
   FenceValue lastSignalled = kFenceInitialValue;
+  /** The fence as the API's own objects, read once when it was named. */
+  NativeFence exported;
+  /** Whether the device made the native fence and so releases it. */
+  bool owned = true;
+  /** Whether another queue raises it, which leaves `signal` nothing to
+   *  number. */
+  bool imported = false;
 };
 
 struct DeferredRelease {
@@ -112,18 +119,21 @@ GpuDevice::GpuDevice(std::unique_ptr<DeviceBackend> backend)
 // release its own textures has nothing to unwind to.
 // NOLINTNEXTLINE(bugprone-exception-escape)
 GpuDevice::~GpuDevice() {
-  // The device going away is the last frame: nothing can still be in
-  // flight once the backend's queue is dropped with it, so every texture
-  // still named and every deferred one is released now, and every fence
-  // with them.
+  // The device going away is the last frame: every texture still named
+  // and every deferred one is released now, and every fence with them —
+  // once the queue has finished what it holds, since a draw into one of
+  // them or a wait on one may still be queued.
   Impl& impl = *m_impl;
+  if (impl.textures.size() != 0 || !impl.deferred.empty() ||
+      impl.fences.size() != 0)
+    impl.backend->waitIdle();
   for (const TextureSlot& slot : impl.textures.drain())
     if (slot.owned) impl.backend->releaseTexture(slot.native);
   for (const DeferredRelease& release : impl.deferred)
     if (release.owned) impl.backend->releaseTexture(release.native);
   impl.deferred.clear();
   for (const FenceSlot& slot : impl.fences.drain())
-    impl.backend->destroyFence(slot.native);
+    if (slot.owned) impl.backend->destroyFence(slot.native);
 }
 
 Backend GpuDevice::backend() const { return m_impl->backend->native().backend; }
@@ -161,10 +171,16 @@ TextureHandle GpuDevice::createTexture(const TextureDescription& desc) {
 
 TextureHandle GpuDevice::importNative(const NativeTexture& texture,
                                       bool takeOwnership) {
-  if (!texture || texture.backend != backend()) return {};
+  if (!texture) return {};
   const std::lock_guard<std::mutex> lock(m_impl->mutex);
-  if (takeOwnership) m_impl->backend->retainTexture(texture);
-  return m_impl->textures.allocate(TextureSlot{texture, takeOwnership});
+  bool made = false;
+  const NativeTexture named = m_impl->backend->importTexture(texture, &made);
+  if (!named) return {};
+  // The handle owns what the import made and nothing it was handed
+  // unless asked to.
+  if (made) return m_impl->textures.allocate(TextureSlot{named, true});
+  if (takeOwnership) m_impl->backend->retainTexture(named);
+  return m_impl->textures.allocate(TextureSlot{named, takeOwnership});
 }
 
 NativeTexture GpuDevice::exportNative(TextureHandle handle) const {
@@ -200,7 +216,26 @@ FenceHandle GpuDevice::createFence() {
   const std::lock_guard<std::mutex> lock(m_impl->mutex);
   void* native = m_impl->backend->createFence();
   if (!native) return {};
-  return m_impl->fences.allocate(FenceSlot{native, kFenceInitialValue});
+  FenceSlot slot;
+  slot.native = native;
+  slot.exported = m_impl->backend->exportFence(native);
+  return m_impl->fences.allocate(slot);
+}
+
+FenceHandle GpuDevice::importNative(const NativeFence& fence) {
+  if (!fence) return {};
+  const std::lock_guard<std::mutex> lock(m_impl->mutex);
+  bool made = false;
+  void* native = m_impl->backend->importFence(fence, &made);
+  if (!native) return {};
+  FenceSlot slot;
+  slot.native = native;
+  slot.exported = m_impl->backend->exportFence(native);
+  // The very object it was imported from is what it exports as.
+  if (fence.mtlSharedEvent) slot.exported.mtlSharedEvent = fence.mtlSharedEvent;
+  slot.owned = made;
+  slot.imported = true;
+  return m_impl->fences.allocate(slot);
 }
 
 void GpuDevice::destroyFence(FenceHandle fence) {
@@ -208,13 +243,13 @@ void GpuDevice::destroyFence(FenceHandle fence) {
   const std::lock_guard<std::mutex> lock(m_impl->mutex);
   if (!impl.fences.contains(fence)) return;
   FenceSlot slot = impl.fences.release(fence);
-  impl.backend->destroyFence(slot.native);
+  if (slot.owned) impl.backend->destroyFence(slot.native);
 }
 
 FenceValue GpuDevice::signal(FenceHandle fence) {
   const std::lock_guard<std::mutex> lock(m_impl->mutex);
   FenceSlot* slot = m_impl->fences.find(fence);
-  if (!slot) return kFenceInitialValue;
+  if (!slot || slot->imported) return kFenceInitialValue;
   const FenceValue value = ++slot->lastSignalled;
   m_impl->backend->signalFence(slot->native, value);
   return value;
@@ -244,10 +279,10 @@ FenceWait GpuDevice::waitCpu(FenceHandle fence, FenceValue value,
              : FenceWait::TimedOut;
 }
 
-void* GpuDevice::exportNative(FenceHandle fence) const {
+NativeFence GpuDevice::exportNative(FenceHandle fence) const {
   const std::lock_guard<std::mutex> lock(m_impl->mutex);
   const FenceSlot* slot = m_impl->fences.find(fence);
-  return slot ? slot->native : nullptr;
+  return slot ? slot->exported : NativeFence{};
 }
 
 FenceValue GpuDevice::completedValue(FenceHandle fence) const {

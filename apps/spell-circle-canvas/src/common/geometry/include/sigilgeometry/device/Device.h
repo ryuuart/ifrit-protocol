@@ -7,7 +7,6 @@
  * submissions in one stream.
  */
 
-#include <sigilcore/hardware/Fence.h>
 #include <sigilcore/hardware/Handle.h>
 
 #include <filesystem>
@@ -23,7 +22,6 @@ struct IPipelineStateCache;
 
 namespace sigil::core::hardware {
 class GpuDevice;
-struct TextureDescription;
 }  // namespace sigil::core::hardware
 
 namespace sigil::skia {
@@ -99,53 +97,17 @@ class Device {
 
   /** THE METAL OBJECTS BEHIND THIS DEVICE'S OWN, where the driver runs
    *  Vulkan over Metal and exports what it made: @p texture's
-   *  id<MTLTexture>, and the id<MTLSharedEvent> a fence made on `gpu()`
-   *  is, both bridged to void* and neither retained. What a queue a host
-   *  made on Metal itself — a window's — needs to sample a texture drawn
-   *  here and to wait on the GPU for the drawing to finish.
+   *  id<MTLTexture>, for a texture the engine made, and the
+   *  id<MTLSharedEvent> a fence made on `gpu()` is, both bridged to void*
+   *  and neither retained. What a queue a host made on Metal itself — a
+   *  window's — needs to sample a texture drawn here and to wait on the
+   *  GPU for the drawing to finish. A texture or fence named on `gpu()`
+   *  answers its Metal object through `gpu()->exportNative`, and a Metal
+   *  texture or event comes in through `gpu()->importNative`.
    *  @silent Null where the driver is not one over Metal or cannot say,
    *  which a caller answers by taking the long way round. */
   void* metalTexture(Diligent::ITexture* texture) const;
   void* metalEvent(core::hardware::FenceHandle fence) const;
-  /** …and the same for a texture named on `gpu()`, which is how a
-   *  texture 2D paints into is named: what a Graphite context on Metal
-   *  paints through for a texture this device made. Null for a stale
-   *  handle, besides everything the two above are null for. */
-  void* metalTexture(core::hardware::TextureHandle texture) const;
-
-  /** A TEXTURE METAL MADE, NAMED ON `gpu()` WITH NO COPY: @p mtlTexture —
-   *  an id<MTLTexture> bridged to void*, made on the Metal device the
-   *  driver runs over — becomes a Vulkan image over the very same
-   *  memory, so a pass on this device samples what a queue on Metal drew
-   *  into it. @p description states the texture as Metal made it: its
-   *  size, format and levels, and its usage, which bounds what this side
-   *  may do with it — a texture made without render-target usage cannot
-   *  be drawn into here either. The handle owns the image and not the
-   *  texture; destroying it lets go of the image, and the texture lives
-   *  as long as its maker keeps it.
-   *  @silent A null handle where there is no `gpu()`, where the driver is
-   *  not one over Metal or cannot import, and where the texture is
-   *  missing. */
-  core::hardware::TextureHandle importMetalTexture(
-      void* mtlTexture,
-      const core::hardware::TextureDescription& description) const;
-
-  /** A WAIT ON THIS DEVICE'S QUEUE FOR WORK A QUEUE ON METAL DID: nothing
-   *  submitted to the queue after this runs until @p mtlSharedEvent — an
-   *  id<MTLSharedEvent> bridged to void*, raised by that other queue —
-   *  reaches @p value. It is `metalEvent()` the other way round: there
-   *  this device signals and a Metal queue waits, here a Metal queue
-   *  signals and this device waits, so what that queue painted is
-   *  sampled here only once it is painted and no thread waits for it.
-   *  Each event is brought over once and kept for as long as the device
-   *  lives, so a timeline raised every frame costs one crossing.
-   *  @trap Made while a `QueueLock` is held, like every wait on `gpu()`.
-   *  The value must be raised by the other queue: nothing queued here
-   *  after the wait runs until it is.
-   *  @silent False, with nothing queued, where there is no `gpu()` or the
-   *  driver is not one over Metal or cannot bring the event over. */
-  bool waitForMetalEvent(void* mtlSharedEvent,
-                         core::hardware::FenceValue value);
 
   /** Holds the one command queue for as long as it lives.
    *

@@ -73,6 +73,12 @@ enum class Backend { Metal, Vulkan };
  * the VulkanHandles set for Vulkan. Only the fields of `backend` are
  * read. A device adopted from one of these never frees the objects; the
  * caller keeps them alive for the device's lifetime.
+ *
+ * A VULKAN DEVICE WHOSE DRIVER RUNS OVER METAL also answers, in the
+ * `native()` it reports, the id<MTLDevice> the driver runs on as
+ * `mtlDevice` — the device a Metal texture must stand on for this one to
+ * name it, and the one a Metal queue painting for it is made on. Its
+ * `mtlCommandQueue` stays null: that queue is the driver's.
  */
 struct NativeDevice {
   Backend backend = Backend::Metal;
@@ -134,6 +140,13 @@ int mipLevelsFor(int width, int height);
  * Vulkan does not carry it on the handle. `vkLayout` is the layout the
  * image was last left in as far as the device knows; a device-created
  * image starts undefined.
+ *
+ * ON A VULKAN DEVICE WHOSE DRIVER RUNS OVER METAL a texture is both: the
+ * VkImage, and in `mtlTexture` the id<MTLTexture> the driver keeps behind
+ * it, which is the very memory the image names — what a queue on Metal
+ * draws into or samples for a texture this device holds. It is the
+ * driver's object, held by the image, and is never retained for the
+ * caller. Elsewhere `mtlTexture` is null on a Vulkan texture.
  */
 struct NativeTexture {
   Backend backend = Backend::Metal;
@@ -149,6 +162,24 @@ struct NativeTexture {
 
   explicit operator bool() const {
     return mtlTexture != nullptr || vkImage != 0;
+  }
+};
+
+/**
+ * A fence as the API's own object, bridged to an opaque value: an
+ * id<MTLSharedEvent> for Metal, a timeline VkSemaphore for Vulkan. On a
+ * Vulkan device whose driver runs over Metal a fence is both, the
+ * semaphore and in `mtlSharedEvent` the event the driver keeps behind it,
+ * which a queue on Metal waits on or raises; elsewhere that field is null
+ * on a Vulkan fence.
+ */
+struct NativeFence {
+  Backend backend = Backend::Metal;
+  void* mtlSharedEvent = nullptr;
+  uint64_t vkSemaphore = 0;
+
+  explicit operator bool() const {
+    return mtlSharedEvent != nullptr || vkSemaphore != 0;
   }
 };
 
@@ -193,6 +224,10 @@ class GpuDevice {
   static std::unique_ptr<GpuDevice> adopt(const NativeDevice& native,
                                           std::string* error = nullptr);
 
+  /** Releases every texture and fence the device still names, once the
+   *  queue has gone idle — the device going away is the last frame, and
+   *  a wait or a draw still queued on one of them is let finish first.
+   *  @trap On an adopted queue, under the same lock as any other submit. */
   ~GpuDevice();
   GpuDevice(const GpuDevice&) = delete;
   GpuDevice& operator=(const GpuDevice&) = delete;
@@ -213,8 +248,23 @@ class GpuDevice {
   TextureHandle createTexture(const TextureDescription& desc);
   /** A handle over a texture the host made. With @p takeOwnership the
    *  device releases it on destroy like one of its own; without, the
-   *  host keeps it alive and destroy only forgets it. A null handle
-   *  when the texture is missing or from another API. */
+   *  host keeps it alive and destroy only forgets it.
+   *
+   *  A METAL TEXTURE ON A VULKAN DEVICE whose driver runs over Metal is
+   *  named by a VkImage made over the texture's own memory, so a pass
+   *  here samples what a queue on Metal drew into it with no copy. The
+   *  texture states itself — size, levels, format, the usage it was made
+   *  with — and the image may do no more than that usage allows: an
+   *  image is drawn into only where the texture was made a render target,
+   *  and written by shaders only where it was made writable. The handle
+   *  OWNS THE IMAGE and never the texture, whatever @p takeOwnership
+   *  says: destroy releases the image, and the texture lives as long as
+   *  its maker keeps it, which is past the frames in flight after the
+   *  destroy. `exportNative` answers the image and that very texture.
+   *  @silent A null handle when the texture is missing, from another API
+   *  this device cannot take (a Vulkan image on Metal; a Metal texture on
+   *  a driver not over Metal, on another Metal device, or in a format
+   *  `TextureFormat` does not name). */
   TextureHandle importNative(const NativeTexture& texture,
                              bool takeOwnership = false);
   /** The native object behind a live handle, for a host that draws with
@@ -233,11 +283,32 @@ class GpuDevice {
 
   /** A fence at kFenceInitialValue. */
   FenceHandle createFence();
+  /** A HANDLE OVER A FENCE ANOTHER QUEUE RAISES, the reverse of
+   *  `exportNative(fence)`: there this device's queue raises a fence and
+   *  another waits on it, here another queue raises one and this device
+   *  waits — `waitGpu` holds this queue until it reaches a value, and
+   *  `waitCpu` and `completedValue` read it. On a Vulkan device whose
+   *  driver runs over Metal an id<MTLSharedEvent> is brought over as a
+   *  timeline semaphore over that very event; a fence of the device's
+   *  own API is named as it stands. The numbering is the other queue's,
+   *  so `signal` on an imported fence queues nothing.
+   *
+   *  IMPORT AN EVENT ONCE AND KEEP THE HANDLE for as long as its waits
+   *  are wanted: each import is a semaphore of its own. The handle owns
+   *  what the import made and never what it was handed — destroying it
+   *  releases the semaphore and leaves the event its maker's — and, like
+   *  every fence, nothing may still wait on it when it goes. A device
+   *  going away lets its queue go idle before it releases one.
+   *  @silent A null handle when the fence is missing or from another API
+   *  this device cannot take (a Vulkan semaphore on Metal; a Metal event
+   *  on a driver not over Metal). */
+  FenceHandle importNative(const NativeFence& fence);
   /** Releases the fence now; nothing may still wait on it. */
   void destroyFence(FenceHandle fence);
   /** Queues a signal after everything submitted so far and returns the
-   *  value it raises the fence to; kFenceInitialValue for a stale
-   *  handle. */
+   *  value it raises the fence to; kFenceInitialValue for a stale handle
+   *  and for an imported one, which only the queue that made it
+   *  raises. */
   FenceValue signal(FenceHandle fence);
   /** Queues a wait: nothing submitted to the queue after this runs until
    *  the fence reaches @p value. The value must already be signalled or
@@ -246,11 +317,12 @@ class GpuDevice {
    *  eventually fails the whole batch. `exportNative` hands the fence
    *  to another queue for exactly that. */
   void waitGpu(FenceHandle fence, FenceValue value);
-  /** The native fence behind a live handle — an id<MTLSharedEvent>
-   *  bridged to void* on Metal, a timeline VkSemaphore as void* on
-   *  Vulkan — for another queue or process to signal or wait on; null
-   *  for a stale handle. */
-  void* exportNative(FenceHandle fence) const;
+  /** The native fence behind a live handle — an id<MTLSharedEvent> on
+   *  Metal, a timeline VkSemaphore on Vulkan and, where the driver runs
+   *  over Metal, the event behind it as well — for another queue or
+   *  process to signal or wait on; empty for a stale handle. An imported
+   *  fence answers the very object it was imported from. */
+  NativeFence exportNative(FenceHandle fence) const;
   /** Blocks until the fence reaches @p value or @p timeout passes. */
   FenceWait waitCpu(
       FenceHandle fence, FenceValue value,

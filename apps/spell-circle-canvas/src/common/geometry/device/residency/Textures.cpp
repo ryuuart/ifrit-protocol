@@ -39,20 +39,39 @@ namespace {
 constexpr uint64_t kMapLifetime = 2;
 
 /** The description a WRAPPED map is given: a plain two-dimensional
- *  colour texture a shader reads, at the one level the image someone
- *  else painted actually has. A wrap describes what is there and cannot
+ *  texture a shader reads, in @p format, at the level the image someone
+ *  else painted is painted at. A wrap describes what is there and cannot
  *  ask for anything more. */
-dg::TextureDesc wrappedMapDesc(const char* label, int width, int height) {
+dg::TextureDesc wrappedMapDesc(const char* label, int width, int height,
+                               dg::TEXTURE_FORMAT format = kColorFormat) {
   dg::TextureDesc desc;
   desc.Name = label;
   desc.Type = dg::RESOURCE_DIM_TEX_2D;
   desc.Width = (dg::Uint32)width;
   desc.Height = (dg::Uint32)height;
   desc.MipLevels = 1;
-  desc.Format = kColorFormat;
+  desc.Format = format;
   desc.BindFlags = dg::BIND_SHADER_RESOURCE;
   desc.Usage = dg::USAGE_DEFAULT;
   return desc;
+}
+
+/** THE FORMAT A PAGE STANDING ON THE DEVICE IS IN, as the device names
+ *  it, for the formats a texture on the device is made in; a frame that
+ *  states none is the eight-bit colour every target here holds.
+ *  Undefined for any other, which no wrap may claim. */
+dg::TEXTURE_FORMAT wrappedFormat(uint32_t vulkanFormat) {
+  switch (vulkanFormat) {
+    case VK_FORMAT_UNDEFINED:
+    case VK_FORMAT_R8G8B8A8_UNORM:
+      return dg::TEX_FORMAT_RGBA8_UNORM;
+    case VK_FORMAT_B8G8R8A8_UNORM:
+      return dg::TEX_FORMAT_BGRA8_UNORM;
+    case VK_FORMAT_R16G16B16A16_SFLOAT:
+      return dg::TEX_FORMAT_RGBA16_FLOAT;
+    default:
+      return dg::TEX_FORMAT_UNKNOWN;
+  }
 }
 
 /** …and the description an UPLOADED one is given: the same texture with
@@ -150,10 +169,19 @@ dg::ITexture* TextureResidency::sample(const material::Texture& map,
   // source is asked at the frame's time, and a frame of it standing on a
   // device is named rather than read back.
   const media::DeviceFrame where = map.source().frameAt(time).device;
+  const dg::TEXTURE_FORMAT format = wrappedFormat(where.format);
   if (where.kind == media::DeviceFrame::Kind::Texture &&
-      where.device == m_device->gpu() && where.handle != 0) {
-    SampledImage& held = m_wrapped[where.handle];
+      where.device == m_device->gpu() && where.handle != 0 &&
+      format != dg::TEX_FORMAT_UNKNOWN) {
+    WrappedImage& held = m_wrapped[where.handle];
     held.used = m_frame;
+    // A name the device reused for another image is wrapped again.
+    if (held.texture) {
+      const dg::TextureDesc& was = held.texture->GetDesc();
+      if (was.Width != (dg::Uint32)where.width ||
+          was.Height != (dg::Uint32)where.height || was.Format != format)
+        held = WrappedImage{.used = m_frame};
+    }
     if (!held.texture) {
       auto* vk = static_cast<dg::IRenderDeviceVk*>(m_device->renderDevice());
       // The image was drawn into and then submitted, so what a sampler
@@ -163,10 +191,16 @@ dg::ITexture* TextureResidency::sample(const material::Texture& map,
       vk->CreateTextureFromVulkanImage(
           reinterpret_cast<VkImage>(  // NOLINT(performance-no-int-to-ptr)
               where.handle),
-          wrappedMapDesc("sampled map", where.width, where.height),
+          wrappedMapDesc("sampled map", where.width, where.height, format),
           dg::RESOURCE_STATE_SHADER_RESOURCE, &held.texture);
     }
-    if (held.texture) return held.texture;
+    if (held.texture) {
+      if (!form.mipmaps || mapMipLevels(where.width, where.height) <= 1 ||
+          !filterable(*m_device, format))
+        return held.texture;
+      if (dg::ITexture* chain = chainOf(held)) return chain;
+      return held.texture;
+    }
     // The wrap was refused; the pixels are still readable the long way.
   }
 
@@ -216,6 +250,43 @@ dg::ITexture* TextureResidency::sample(const material::Texture& map,
     context->GenerateMips(
         held.texture->GetDefaultView(dg::TEXTURE_VIEW_SHADER_RESOURCE));
   return held.texture;
+}
+
+dg::ITexture* TextureResidency::chainOf(WrappedImage& held) {
+  const dg::TextureDesc& page = held.texture->GetDesc();
+  if (!held.chain) {
+    dg::TextureDesc desc =
+        uploadedMapDesc("sampled map chain", (int)page.Width, (int)page.Height);
+    desc.Format = page.Format;
+    m_device->renderDevice()->CreateTexture(desc, nullptr, &held.chain);
+    if (!held.chain) return nullptr;
+  }
+  // ONCE A FRAME, AFTER THE PAINTING: the page may be painted again
+  // between two frames and nothing says when, so its level zero is copied
+  // under the chain on the first draw of every frame that wears it. The
+  // copy is recorded after whatever the queue was told to wait for, so it
+  // reads the page as painted.
+  if (held.filled != m_frame) {
+    dg::IDeviceContext* context = m_device->context();
+    dg::CopyTextureAttribs copy;
+    copy.pSrcTexture = held.texture;
+    copy.SrcTextureTransitionMode =
+        dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION;
+    copy.pDstTexture = held.chain;
+    copy.DstTextureTransitionMode =
+        dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION;
+    context->CopyTexture(copy);
+    // The page is left as it was found: a shader resource, which is the
+    // layout its painter and every other wrap of it expect.
+    const dg::StateTransitionDesc back{held.texture, dg::RESOURCE_STATE_UNKNOWN,
+                                       dg::RESOURCE_STATE_SHADER_RESOURCE,
+                                       dg::STATE_TRANSITION_FLAG_UPDATE_STATE};
+    context->TransitionResourceStates(1, &back);
+    context->GenerateMips(
+        held.chain->GetDefaultView(dg::TEXTURE_VIEW_SHADER_RESOURCE));
+    held.filled = m_frame;
+  }
+  return held.chain;
 }
 
 dg::ITexture* TextureResidency::environment(

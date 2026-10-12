@@ -75,6 +75,14 @@ class MetalBackend final : public GpuDevice::DeviceBackend {
     return out;
   }
 
+  // A Metal device names a Metal texture as it stands; it has no way to
+  // reach a Vulkan image.
+  NativeTexture importTexture(const NativeTexture &texture, bool *made) override {
+    *made = false;
+    if (texture.backend != Backend::Metal || !texture.mtlTexture) return {};
+    return texture;
+  }
+
   void retainTexture(const NativeTexture &texture) override {
     CFRetain(static_cast<CFTypeRef>(texture.mtlTexture));
   }
@@ -88,6 +96,21 @@ class MetalBackend final : public GpuDevice::DeviceBackend {
     if (!event) return nullptr;
     event.signaledValue = kFenceInitialValue;
     return (void *)event;  // +1, released in destroyFence
+  }
+
+  // …and a Metal event as it stands, borrowed: the handle forgets it and
+  // its maker releases it.
+  void *importFence(const NativeFence &fence, bool *made) override {
+    *made = false;
+    if (fence.backend != Backend::Metal) return nullptr;
+    return fence.mtlSharedEvent;
+  }
+
+  NativeFence exportFence(void *fence) override {
+    NativeFence out;
+    out.backend = Backend::Metal;
+    out.mtlSharedEvent = fence;
+    return out;
   }
 
   void destroyFence(void *fence) override { CFRelease(static_cast<CFTypeRef>(fence)); }
@@ -118,6 +141,14 @@ class MetalBackend final : public GpuDevice::DeviceBackend {
 
   FenceValue completedValue(void *fence) override { return event(fence).signaledValue; }
 
+  // A queue runs its command buffers in order, so one empty buffer
+  // finishing is everything before it finished.
+  void waitIdle() override {
+    id<MTLCommandBuffer> commands = [queue() commandBuffer];
+    [commands commit];
+    [commands waitUntilCompleted];
+  }
+
  private:
   id<MTLDevice> device() const { return (id<MTLDevice>)m_native.mtlDevice; }
   id<MTLCommandQueue> queue() const { return (id<MTLCommandQueue>)m_native.mtlCommandQueue; }
@@ -128,6 +159,39 @@ class MetalBackend final : public GpuDevice::DeviceBackend {
 };
 
 }  // namespace
+
+bool readMetalTexture(void *mtlTexture, MetalTextureFacts *facts) {
+  id<MTLTexture> texture = (id<MTLTexture>)mtlTexture;
+  if (!texture || texture.textureType != MTLTextureType2D || texture.sampleCount != 1 ||
+      texture.arrayLength != 1)
+    return false;
+  switch (texture.pixelFormat) {
+    case MTLPixelFormatRGBA8Unorm:
+      facts->format = TextureFormat::RGBA8Unorm;
+      break;
+    case MTLPixelFormatBGRA8Unorm:
+      facts->format = TextureFormat::BGRA8Unorm;
+      break;
+    case MTLPixelFormatRGBA16Float:
+      facts->format = TextureFormat::RGBA16Float;
+      break;
+    default:
+      return false;
+  }
+  facts->mtlDevice = (void *)texture.device;
+  facts->width = (int)texture.width;
+  facts->height = (int)texture.height;
+  facts->mipLevels = (int)texture.mipmapLevelCount;
+  const MTLTextureUsage usage = texture.usage;
+  // A usage of Unknown is a texture that may be used every way.
+  const bool any = usage == MTLTextureUsageUnknown;
+  TextureUsage out{};
+  if (any || (usage & MTLTextureUsageShaderRead) != 0) out = out | TextureUsage::ShaderRead;
+  if (any || (usage & MTLTextureUsageShaderWrite) != 0) out = out | TextureUsage::ShaderWrite;
+  if (any || (usage & MTLTextureUsageRenderTarget) != 0) out = out | TextureUsage::RenderTarget;
+  facts->usage = out;
+  return true;
+}
 
 std::unique_ptr<GpuDevice::DeviceBackend> createMetalBackend(const NativeDevice &native,
                                                              bool owned) {

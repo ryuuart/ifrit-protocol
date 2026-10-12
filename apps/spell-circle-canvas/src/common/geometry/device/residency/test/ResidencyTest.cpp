@@ -1,12 +1,22 @@
 /** @file
  * What the device keeps between draws: the depth of a map's chain, the
  * buffers a named mesh is uploaded into once and drawn from after, the
- * streaming pair a mesh nobody can name is written through, and the
- * letting go that keeps a scene from holding everything it ever cooked.
+ * streaming pair a mesh nobody can name is written through, a page that
+ * stands on the device worn in the format it was painted in and with a
+ * chain, and the letting go that keeps a scene from holding everything
+ * it ever cooked.
  */
 
 #include <Graphics/GraphicsEngine/interface/Buffer.h>
+#include <Graphics/GraphicsEngine/interface/DeviceContext.h>
 #include <gtest/gtest.h>
+#include <include/core/SkCanvas.h>
+#include <sigilcore/hardware/GpuDevice.h>
+#include <sigilmedia/advanced/Device.h>
+#include <sigilmedia/core/Frame.h>
+#include <sigilskia/graphite/OffscreenSurface.h>
+
+#include <chrono>
 
 #include "Meshes.h"
 #include "OnDevice.h"
@@ -15,6 +25,50 @@
 using namespace sigil::geometry;
 
 namespace {
+
+namespace hardware = ::sigil::core::hardware;
+
+/** A SOURCE WHOSE PIXELS STAND ON THE DEVICE AND NOWHERE ELSE: its frame
+ *  names the texture and carries no image, so a map sampled from it is
+ *  the texture wrapped or nothing. */
+struct StandingSource {
+  const void* device = nullptr;
+  hardware::NativeTexture image;
+  sigil::media::Frame frameAt(std::chrono::duration<double>) const {
+    sigil::media::Frame frame;
+    frame.device.kind = sigil::media::DeviceFrame::Kind::Texture;
+    frame.device.device = device;
+    frame.device.handle = image.vkImage;
+    frame.device.format = image.vkFormat;
+    frame.device.layout = image.vkLayout;
+    frame.device.width = image.width;
+    frame.device.height = image.height;
+    return frame;
+  }
+  bool isRunning() const { return false; }
+  bool operator==(const StandingSource& other) const {
+    return device == other.device && image.vkImage == other.image.vkImage;
+  }
+};
+
+/** A page of @p side in @p format painted one colour on @p on's device,
+ *  or an empty handle where the device carries no 2D side. */
+hardware::TextureHandle paintedPage(device::Device& on,
+                                    hardware::TextureFormat format, int side) {
+  hardware::GpuDevice* gpu = on.gpu();
+  if (!gpu || !on.graphite()) return {};
+  hardware::TextureDescription description;
+  description.width = description.height = side;
+  description.format = format;
+  const hardware::TextureHandle page = gpu->createTexture(description);
+  if (!page) return {};
+  const device::Device::QueueLock lock(on);
+  sigil::skia::OffscreenSurface surface(*on.graphite(), *gpu, page);
+  if (!surface.canvas()) return page;
+  surface.canvas()->clear(SkColor4f{0.25f, 0.5f, 0.75f, 1.0f});
+  surface.submit();
+  return page;
+}
 
 /** Two triangles, enough to have vertices and indices and nothing more. */
 mesh::Mesh quad() {
@@ -149,4 +203,83 @@ TEST(TextureResidency, ReadsNothingFromAMapThatYieldsNoImage) {
   EXPECT_EQ(resident.sample(sigil::material::Texture{}), nullptr);
   EXPECT_EQ(resident.environment(sigil::material::EnvironmentMap{}), nullptr);
   EXPECT_EQ(resident.irradiance(sigil::material::EnvironmentMap{}), nullptr);
+}
+
+// A PAGE IS DESCRIBED AS IT WAS MADE: in the format it was painted in —
+// a half-float page is half floats to the device, which keeps whatever
+// it holds above one — and, worn without smaller copies, as the one
+// level it was painted at.
+TEST(TextureResidency, APageIsWornInTheFormatItWasPaintedIn) {
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  hardware::GpuDevice* gpu = on->gpu();
+  if (!gpu) GTEST_SKIP() << "2D on the 3D device is unavailable";
+  const struct {
+    hardware::TextureFormat made;
+    Diligent::TEXTURE_FORMAT described;
+  } formats[] = {
+      {hardware::TextureFormat::RGBA8Unorm, Diligent::TEX_FORMAT_RGBA8_UNORM},
+      {hardware::TextureFormat::BGRA8Unorm, Diligent::TEX_FORMAT_BGRA8_UNORM},
+      {hardware::TextureFormat::RGBA16Float, Diligent::TEX_FORMAT_RGBA16_FLOAT},
+  };
+  device::TextureResidency resident(*on);
+  for (const auto& format : formats) {
+    const hardware::TextureHandle page = paintedPage(*on, format.made, 32);
+    ASSERT_TRUE(gpu->isValid(page));
+    const sigil::material::Texture map(sigil::media::PixelSource(
+        StandingSource{gpu, gpu->exportNative(page)}));
+    Diligent::ITexture* worn = resident.sample(map, {.mipmaps = false});
+    ASSERT_NE(worn, nullptr);
+    EXPECT_EQ(worn->GetDesc().Format, format.described);
+    EXPECT_EQ(worn->GetDesc().MipLevels, 1u);
+    gpu->destroy(page);
+  }
+  on->context()->WaitForIdle();
+}
+
+// A PAGE WORN WITH ITS SMALLER COPIES is read through a chain as deep as
+// an uploaded map of its size carries, in the page's own format, and one
+// draw after another in the same frame reads the same chain.
+TEST(TextureResidency, APageWornWithItsSmallerCopiesCarriesAChain) {
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  hardware::GpuDevice* gpu = on->gpu();
+  if (!gpu) GTEST_SKIP() << "2D on the 3D device is unavailable";
+  const hardware::TextureHandle page =
+      paintedPage(*on, hardware::TextureFormat::RGBA16Float, 64);
+  ASSERT_TRUE(gpu->isValid(page));
+  const sigil::material::Texture map(
+      sigil::media::PixelSource(StandingSource{gpu, gpu->exportNative(page)}));
+  device::TextureResidency resident(*on);
+  Diligent::ITexture* worn = resident.sample(map);
+  ASSERT_NE(worn, nullptr);
+  EXPECT_EQ(worn->GetDesc().MipLevels,
+            (Diligent::Uint32)device::mapMipLevels(64, 64));
+  EXPECT_EQ(worn->GetDesc().Format, Diligent::TEX_FORMAT_RGBA16_FLOAT);
+  EXPECT_EQ(resident.sample(map), worn);
+  // …and worn without them, the same page is the page itself.
+  Diligent::ITexture* flat = resident.sample(map, {.mipmaps = false});
+  ASSERT_NE(flat, nullptr);
+  EXPECT_NE(flat, worn);
+  EXPECT_EQ(flat->GetDesc().MipLevels, 1u);
+  on->context()->Flush();
+  on->context()->WaitForIdle();
+  gpu->destroy(page);
+}
+
+// A FRAME IN A FORMAT NO TEXTURE ON THE DEVICE IS MADE IN is not claimed
+// to be one: nothing is wrapped, and with no image beside it nothing is
+// sampled.
+TEST(TextureResidency, AFrameInAFormatNoPageHasIsNotWrapped) {
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  hardware::GpuDevice* gpu = on->gpu();
+  if (!gpu) GTEST_SKIP() << "2D on the 3D device is unavailable";
+  const hardware::TextureHandle page =
+      paintedPage(*on, hardware::TextureFormat::RGBA8Unorm, 16);
+  ASSERT_TRUE(gpu->isValid(page));
+  hardware::NativeTexture image = gpu->exportNative(page);
+  image.vkFormat = 9; /* R8_UNORM */
+  const sigil::material::Texture map(
+      sigil::media::PixelSource(StandingSource{gpu, image}));
+  device::TextureResidency resident(*on);
+  EXPECT_EQ(resident.sample(map), nullptr);
+  gpu->destroy(page);
 }

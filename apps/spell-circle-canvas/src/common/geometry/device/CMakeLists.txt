@@ -62,7 +62,6 @@ find_package(VulkanHeaders CONFIG REQUIRED)
 find_package(unofficial-diligent-engine CONFIG REQUIRED)
 sigil_library(SigilGeometryDevice
   SOURCES AdoptDevice.cpp AdoptDevice.h Device.cpp MetalObjects.cpp
-          MetalObjects.h
           Resources.cpp Resources.h
           VolkShim.c
   HEADERS Device.h

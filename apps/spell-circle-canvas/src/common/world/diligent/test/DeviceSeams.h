@@ -180,11 +180,13 @@ struct PaintedTexture {
   core::hardware::NativeTexture native;
 };
 
-/** Paint a square of @p colour into a texture on @p device through the
- *  2D path, and hand back the graphics API's own object for it — the
- *  pixels a 3D pass then binds where they already stand. */
-inline PaintedTexture paintOnDevice(geometry::device::Device& device,
-                                    SkColor4f colour, int side = 16) {
+/** Paint a page of @p side in @p format on @p device through the 2D path,
+ *  drawn by @p paint, and hand back the graphics API's own object for it
+ *  — the pixels a 3D pass then binds where they already stand. */
+template <class Paint>
+inline PaintedTexture paintOnDevice(geometry::device::Device& device, int side,
+                                    core::hardware::TextureFormat format,
+                                    const Paint& paint) {
   PaintedTexture out;
   core::hardware::GpuDevice* gpu = device.gpu();
   skia::GraphiteContext* graphite = device.graphite();
@@ -192,7 +194,7 @@ inline PaintedTexture paintOnDevice(geometry::device::Device& device,
 
   core::hardware::TextureDescription desc;
   desc.width = desc.height = side;
-  desc.format = core::hardware::TextureFormat::RGBA8Unorm;
+  desc.format = format;
   out.handle = gpu->createTexture(desc);
   if (!out.handle) return out;
   {
@@ -201,11 +203,18 @@ inline PaintedTexture paintOnDevice(geometry::device::Device& device,
     const geometry::device::Device::QueueLock lock(device);
     skia::OffscreenSurface surface(*graphite, *gpu, out.handle);
     if (!surface.canvas()) return out;
-    surface.canvas()->clear(colour);
+    paint(*surface.canvas());
     surface.submit();
   }
   out.native = gpu->exportNative(out.handle);
   return out;
+}
+
+/** …a square of @p colour, eight bits a channel. */
+inline PaintedTexture paintOnDevice(geometry::device::Device& device,
+                                    SkColor4f colour, int side = 16) {
+  return paintOnDevice(device, side, core::hardware::TextureFormat::RGBA8Unorm,
+                       [colour](SkCanvas& canvas) { canvas.clear(colour); });
 }
 
 }  // namespace sigil::world::diligent

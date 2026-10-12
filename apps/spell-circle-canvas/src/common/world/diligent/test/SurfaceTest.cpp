@@ -367,6 +367,85 @@ TEST(SurfaceSlots, AnImportedNativeTextureStandsWhereARasterOneWould) {
   on.device->gpu()->destroy(painted.handle);
 }
 
+namespace {
+
+/** THE FINEST PATTERN A PAGE HOLDS: one-pixel squares of black and white.
+ *  Read from a level its size on screen calls for it is grey; read from
+ *  its own level at a distance it is whichever squares the pixels happen
+ *  to land on. */
+void checkerboard(SkCanvas& canvas) {
+  canvas.clear(SK_ColorBLACK);
+  SkPaint white;
+  white.setColor(SK_ColorWHITE);
+  for (int y = 0; y < 64; ++y)
+    for (int x = y % 2; x < 64; x += 2)
+      canvas.drawRect(SkRect::MakeXYWH((float)x, (float)y, 1, 1), white);
+}
+
+/** A card of @p size wearing @p map square on, far enough that each of
+ *  its pixels covers several of the map's. */
+SkBitmap atADistance(const material::Texture& map, const Runtime& runtime) {
+  const Group root = group({mesh(::sigil::geometry::mesh::quad(9.3f, 9.3f))
+                                .key("card")
+                                .fill(dressedWith(map))})
+                         .key("set");
+  Frame frame(root);
+  frame.extent(kExtent)
+      .defaultCamera(diligent::levelEye())
+      .pass(geometryPass("colour").writes("colour").clear(SkColors::kBlack));
+  return plateOf(frame, runtime);
+}
+
+/** How far apart the lightest and darkest pixels of the three by three
+ *  block at the middle of @p plate stand, in the green channel. */
+float spreadAtTheMiddle(const SkBitmap& plate) {
+  float lightest = 0, darkest = 1;
+  for (int y = -1; y <= 1; ++y)
+    for (int x = -1; x <= 1; ++x) {
+      const float green =
+          plate.getColor4f(plate.width() / 2 + x, plate.height() / 2 + y).fG;
+      lightest = std::max(lightest, green);
+      darkest = std::min(darkest, green);
+    }
+  return lightest - darkest;
+}
+
+}  // namespace
+
+// A PAGE WORN AT A DISTANCE IS READ FROM A SMALLER LEVEL: a page standing
+// on the device, worn by a card a few of its pixels across, reads as the
+// grey its squares average to, as the same page uploaded from host memory
+// does — and worn with no smaller copies, as the squares it lands on.
+TEST(SurfaceSlots, APageWornAtADistanceIsReadFromASmallerLevel) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  const diligent::PaintedTexture painted = diligent::paintOnDevice(
+      *on.device, 64, core::hardware::TextureFormat::RGBA8Unorm, checkerboard);
+  if (!painted.native) GTEST_SKIP() << "2D on the 3D device is unavailable";
+  const material::Texture page =
+      world::diligent::importNative(*on.device, painted.native);
+  ASSERT_TRUE(page.valid());
+
+  const SkBitmap worn = atADistance(page, on.runtime);
+  const SkBitmap uploaded =
+      atADistance(drawnTexture("world.test.checkerboard", 64, 64, checkerboard),
+                  on.runtime);
+  material::Texture flat = page;
+  flat.mipmaps(false);
+  const SkBitmap aliased = atADistance(flat, on.runtime);
+
+  const SkColor4f middle = at(worn, 0.5f, 0.5f);
+  EXPECT_GT(middle.fG, 0.3f) << "the card is not grey";
+  EXPECT_LT(middle.fG, 0.7f) << "the card is not grey";
+  EXPECT_LT(spreadAtTheMiddle(worn), 0.08f)
+      << "the page is read from its own level at a distance";
+  EXPECT_NEAR(middle.fG, at(uploaded, 0.5f, 0.5f).fG, 0.04f)
+      << "a page standing on the device and the same page uploaded differ";
+  EXPECT_GT(spreadAtTheMiddle(aliased), 0.2f)
+      << "the pattern does not tell a chain from none";
+  on.device->gpu()->destroy(painted.handle);
+}
+
 TEST(SurfaceSlots, AnImportOfNothingIsNoTextureRatherThanOneThatLies) {
   const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;

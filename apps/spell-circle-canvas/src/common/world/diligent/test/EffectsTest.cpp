@@ -23,6 +23,7 @@
 #include <sigilmaterial/texture/Flipbook.h>
 #include <sigilmedia/advanced/Skia.h>
 #include <sigilworld/World.h>
+#include <sigilworld/diligent/Import.h>
 
 #include <cmath>
 #include <cstdint>
@@ -202,6 +203,31 @@ TEST(DataTexture, AFloatTexelReachesAShaderExactly) {
   EXPECT_GT(at(plate, 0.5f, 0.5f).fG, 0.95f)
       << "a float texel, above one, below zero and with no alpha, reaches "
          "the shader as it was written";
+}
+
+// A PAGE PAINTED IN HALF FLOATS ON THE DEVICE is worn as half floats: the
+// value above one it holds reaches the shader as it was painted, with no
+// copy through host memory.
+TEST(DataTexture, AHalfFloatPageHoldsAValueAboveOneOnABody) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  const diligent::PaintedTexture painted = diligent::paintOnDevice(
+      *on.device, 8, core::hardware::TextureFormat::RGBA16Float,
+      [](SkCanvas& canvas) { canvas.clear(SkColor4f{3.5f, 0.5f, 0.25f, 1}); });
+  if (!painted.native) GTEST_SKIP() << "2D on the 3D device is unavailable";
+  const material::Texture page =
+      world::diligent::importNative(*on.device, painted.native)
+          .colorSpace(media::ColorSpace::Data)
+          .sampling(material::Sampling::Nearest);
+  ASSERT_TRUE(page.valid());
+  const SkBitmap plate = photographed(
+      {card("probe", probe("abs(read.r - 3.5) < 1e-2 && abs(read.g - 0.5) < "
+                           "1e-2 && abs(read.b - 0.25) < 1e-2",
+                           page))},
+      on.runtime);
+  EXPECT_GT(at(plate, 0.5f, 0.5f).fG, 0.95f)
+      << "a half-float page, above one, reaches the shader as it was painted";
+  on.device->gpu()->destroy(painted.handle);
 }
 
 TEST(DataTexture, AnEightBitTexelWithNoAlphaKeepsItsColour) {

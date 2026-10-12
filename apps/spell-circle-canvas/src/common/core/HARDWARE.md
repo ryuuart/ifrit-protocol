@@ -13,7 +13,7 @@ link the other. A host that holds one never spells a graphics API.
 
 | header | holds |
 |--------|-------|
-| `hardware/GpuDevice.h` | `GpuDevice`, `Backend`, `NativeDevice`, `VulkanHandles`, `NativeTexture`, `TextureDescription`, `TextureFormat`, `TextureUsage`, `mipLevelsFor` — the device, what it is made of, and what a texture on it is |
+| `hardware/GpuDevice.h` | `GpuDevice`, `Backend`, `NativeDevice`, `VulkanHandles`, `NativeTexture`, `NativeFence`, `TextureDescription`, `TextureFormat`, `TextureUsage`, `mipLevelsFor` — the device, what it is made of, and what a texture and a fence on it are |
 | `hardware/Handle.h` | `Handle`, `TypedHandle<Tag>`, `TextureHandle`, `BufferHandle`, `FenceHandle`, `HandleTable<T, H>` — a name that goes stale, and the slot store behind it |
 | `hardware/Fence.h` | `FenceValue`, `FenceWait`, `kFenceInitialValue`, `kFenceDefaultTimeout` — a timeline and what waiting on one answers |
 
@@ -56,7 +56,40 @@ that draws with the API directly or publishes the texture onwards. A
 texture the host made enters the same table through
 `importNative(nativeTexture)` — borrowed, so destroy only forgets it — or
 `importNative(nativeTexture, /*takeOwnership=*/true)`, after which the
-device releases it like one of its own.
+device releases it like one of its own. A fence goes the same two ways:
+`exportNative(fence)` hands a `NativeFence` to another queue to wait on
+or raise, and `importNative(nativeFence)` names a fence another queue
+raises, which `waitGpu` then holds this device's queue on and `signal`
+leaves alone — the other queue numbers it. An event is imported once and
+its handle kept for every wait after.
+
+**A Vulkan device over Metal is Metal's too.** Where the driver runs
+Vulkan over Metal and the device was created with its metal-objects
+extension, the device answers Metal's objects behind its own and takes
+Metal's in:
+
+- `native().mtlDevice` is the id<MTLDevice> the driver runs on — what a
+  Metal texture must stand on to be taken, and what a Metal queue
+  painting for the device is made on. `mtlCommandQueue` stays null; that
+  queue is the driver's.
+- `exportNative(texture).mtlTexture` is the id<MTLTexture> behind every
+  image, and `exportNative(fence).mtlSharedEvent` the id<MTLSharedEvent>
+  behind every timeline, both the driver's and never retained for the
+  caller.
+- `importNative` of a Metal texture names it by a VkImage made over the
+  texture's own memory, read off the texture — its size, levels, format
+  and the usage it was made with. The image is used no further than that
+  usage: sampled where the texture is read by shaders, drawn into where it
+  is a render target, stored into where shaders write it, and copied both
+  ways always, since a copy needs no Metal usage. The handle owns the
+  image and never the texture, whatever `takeOwnership` says, and
+  exports the very texture it was given. A texture on another Metal
+  device, or in a format `TextureFormat` does not name, is refused.
+- `importNative` of a Metal event names it by a timeline semaphore over
+  that very event, which the handle owns; the event stays its maker's.
+
+A device going away lets its queue go idle first, so a wait still queued
+on an imported event finishes before the semaphore over it is released.
 
 **A texture may carry a chain.** `TextureDescription::mipLevels` asks for one,
 level 0 at the description's size and each level after it half the last;
@@ -141,10 +174,15 @@ its device and queue when it dies; one from `adopt` never does.
 | `adopt` | `mtlDevice` + `mtlCommandQueue` | instance, physical device, device, queue and family index, and the host's own `getInstanceProcAddr`; the device must have timeline semaphores enabled |
 | texture | `id<MTLTexture>`; `cpuAccessible` is shared storage | `VkImage` + `VkDeviceMemory`, optimal tiling, sampled, colour-attachment, input-attachment and transfer usage (+ storage for `ShaderWrite`) — input attachment because a 2D backend reads a render target back through one; `cpuAccessible` prefers host-visible coherent memory and falls back to device-local; formats map to `R8G8B8A8_UNORM`, `B8G8R8A8_UNORM`, `R16G16B16A16_SFLOAT` |
 | import with ownership | retains the texture | destroys the `VkImage` and frees `vkMemory` when given |
+| import of the other API | refused | a Metal texture as an image over its memory, and a Metal event as a timeline semaphore over it, where the driver runs over Metal; the device owns what it made |
 | fence | `MTLSharedEvent` | timeline `VkSemaphore`; `waitCpu` is `vkWaitSemaphores`, queue signal and wait are empty submissions |
+| import of a fence of its own API | borrowed: destroy only forgets it | borrowed: destroy only forgets it |
 | loading | the framework | every entry point resolved from the host's own `vkGetInstanceProcAddr` at run time; nothing links Vulkan |
 
 The Vulkan arms of this feature are therefore exercised where a Vulkan
 device is made: SigilGeometry's `Device` suite, beside the feature that
-creates one. They skip, naming why, on a machine with no Vulkan runtime (on
+creates one, and — for the Metal objects under a driver that runs over
+Metal — this library's `HardwareVulkanOverMetal` suite, over a Vulkan
+device the test brings up from the loader itself as a renderer owning the
+API would. Both skip, naming why, on a machine with no Vulkan runtime (on
 macOS: `brew install molten-vk vulkan-loader`).

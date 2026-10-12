@@ -48,14 +48,16 @@ sigil_test(core_test
 # …and this one is every claim that needs a real device, so each case
 # skips where there is none and the entry carries the `gpu` label. It
 # compiles without ARC: it counts retains to prove ownership, and ARC
-# would hide the counts it asserts on. The same claims on the Vulkan
-# backend are asked in `geometry_test`, where a Vulkan device
-# exists to ask them of.
+# would hide the counts it asserts on. The Vulkan backend's doors to the
+# Metal objects under a driver that runs over Metal are asked of a Vulkan
+# device the test brings up from the loader itself; the rest of the
+# Vulkan backend's claims are asked in `geometry_test`, of the device a
+# renderer made.
 if(APPLE)
   sigil_test(core_test
-    SOURCES test/DeviceTest.mm
-    LIBRARIES SigilCoreHardware ${METAL_FRAMEWORK}
-    SUITES HardwareDevice LABELS gpu)
+    SOURCES test/DeviceTest.mm test/VulkanOverMetalTest.mm
+    LIBRARIES SigilCoreHardware Vulkan::Headers ${METAL_FRAMEWORK}
+    SUITES HardwareDevice HardwareVulkanOverMetal LABELS gpu)
 
   sigil_bench(core_bench
     SOURCES bench/DeviceBench.mm

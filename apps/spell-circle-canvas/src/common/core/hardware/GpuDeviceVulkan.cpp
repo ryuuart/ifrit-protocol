@@ -11,9 +11,17 @@
 // physical device, device, queue and its own loader entry point. Two
 // instances in one process would mean two loaders, two queues and a copy
 // between them, which is exactly what adopting exists to avoid.
+//
+// WHERE THE DRIVER RUNS VULKAN OVER METAL, every texture and fence here
+// is also the Metal object the driver keeps behind it, and a Metal texture
+// or event comes in as an image or a semaphore over that very object —
+// the driver's metal-objects extension, read both ways. A driver without
+// it simply answers no Metal objects and takes none.
 
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan_core.h>
+// After the core header, whose types it names.
+#include <vulkan/vulkan_metal.h>
 
 #include <algorithm>
 #include <chrono>
@@ -49,6 +57,11 @@ struct Api {
   PFN_vkDestroySemaphore destroySemaphore = nullptr;
   PFN_vkWaitSemaphores waitSemaphores = nullptr;
   PFN_vkGetSemaphoreCounterValue getSemaphoreCounterValue = nullptr;
+  PFN_vkQueueWaitIdle queueWaitIdle = nullptr;
+  /** Null on a device whose driver does not run over Metal, or that was
+   *  not created with the extension: it then names no Metal object and
+   *  takes none. */
+  PFN_vkExportMetalObjectsEXT exportMetalObjects = nullptr;
 
   template <typename Fn>
   static Fn instanceProc(GetInstanceProcAddr gipa, VkInstance instance,
@@ -81,10 +94,13 @@ struct Api {
     SIGIL_VK_DEVICE(destroySemaphore, "vkDestroySemaphore");
     SIGIL_VK_DEVICE(waitSemaphores, "vkWaitSemaphores");
     SIGIL_VK_DEVICE(getSemaphoreCounterValue, "vkGetSemaphoreCounterValue");
+    SIGIL_VK_DEVICE(queueWaitIdle, "vkQueueWaitIdle");
+    SIGIL_VK_DEVICE(exportMetalObjects, "vkExportMetalObjectsEXT");
 #undef SIGIL_VK_DEVICE
     return queueSubmit && createImage && destroyImage && allocateMemory &&
            freeMemory && bindImageMemory && createSemaphore &&
-           destroySemaphore && waitSemaphores && getSemaphoreCounterValue;
+           destroySemaphore && waitSemaphores && getSemaphoreCounterValue &&
+           queueWaitIdle;
   }
 };
 
@@ -101,6 +117,27 @@ VkFormat toVulkan(TextureFormat format) {
       return VK_FORMAT_R16G16B16A16_SFLOAT;
   }
   return VK_FORMAT_R8G8B8A8_UNORM;
+}
+
+/** WHAT AN IMAGE OVER A METAL TEXTURE MAY BE USED FOR: no more than the
+ *  usage Metal made the texture with. The driver derives a Metal usage
+ *  from the Vulkan one, and a texture that lacks what was derived refuses
+ *  the operation that needed it. A copy needs no Metal usage, so every
+ *  such image is copied both ways; the rest follows the texture: sampled
+ *  where it is read by shaders, drawn into where it is a render target,
+ *  stored into where shaders write it. */
+VkImageUsageFlags importedUsage(TextureUsage usage) {
+  VkImageUsageFlags flags =
+      static_cast<VkImageUsageFlags>(VK_IMAGE_USAGE_TRANSFER_SRC_BIT) |
+      static_cast<VkImageUsageFlags>(VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+  if (has(usage, TextureUsage::ShaderRead))
+    flags |= static_cast<VkImageUsageFlags>(VK_IMAGE_USAGE_SAMPLED_BIT);
+  if (has(usage, TextureUsage::RenderTarget))
+    flags |=
+        static_cast<VkImageUsageFlags>(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+  if (has(usage, TextureUsage::ShaderWrite))
+    flags |= static_cast<VkImageUsageFlags>(VK_IMAGE_USAGE_STORAGE_BIT);
+  return flags;
 }
 
 /** Every image can be sampled, drawn into and copied both ways — the
@@ -136,6 +173,19 @@ class VulkanBackend final : public GpuDevice::DeviceBackend {
  public:
   VulkanBackend(Api api, NativeDevice native) : m_api(api), m_native(native) {
     m_api.getMemoryProperties(physicalDevice(), &m_memory);
+    // The Metal device the driver runs on, named once: what a texture
+    // brought over must stand on, and what a host making a Metal queue
+    // for this device makes it on.
+    if (m_api.exportMetalObjects) {
+      VkExportMetalDeviceInfoEXT wanted{};
+      wanted.sType = VK_STRUCTURE_TYPE_EXPORT_METAL_DEVICE_INFO_EXT;
+      VkExportMetalObjectsInfoEXT objects{};
+      objects.sType = VK_STRUCTURE_TYPE_EXPORT_METAL_OBJECTS_INFO_EXT;
+      objects.pNext = &wanted;
+      m_api.exportMetalObjects(device(), &objects);
+      m_native.mtlDevice = static_cast<void*>(wanted.mtlDevice);
+      if (!m_native.mtlDevice) m_api.exportMetalObjects = nullptr;
+    }
   }
 
   // Nothing is torn down: every Vulkan object behind an adopted device
@@ -204,6 +254,22 @@ class VulkanBackend final : public GpuDevice::DeviceBackend {
     out.width = desc.width;
     out.height = desc.height;
     out.mipLevels = static_cast<int>(info.mipLevels);
+    out.mtlTexture = metalTextureOf(image);
+    return out;
+  }
+
+  NativeTexture importTexture(const NativeTexture& texture,
+                              bool* made) override {
+    *made = false;
+    if (texture.backend == Backend::Vulkan) {
+      if (!texture.vkImage) return {};
+      NativeTexture out = texture;
+      if (!out.mtlTexture)
+        out.mtlTexture = metalTextureOf(fromHandle<VkImage>(texture.vkImage));
+      return out;
+    }
+    NativeTexture out = imageOverMetal(texture.mtlTexture);
+    *made = static_cast<bool>(out);
     return out;
   }
 
@@ -233,6 +299,52 @@ class VulkanBackend final : public GpuDevice::DeviceBackend {
         VK_SUCCESS)
       return nullptr;
     return fromHandle<void*>(toHandle(semaphore));
+  }
+
+  void* importFence(const NativeFence& fence, bool* made) override {
+    *made = false;
+    if (fence.backend == Backend::Vulkan)
+      return fromHandle<void*>(fence.vkSemaphore);
+    // A TIMELINE OVER THE VERY SAME EVENT: the driver takes the event as
+    // the semaphore's payload, so the value the other queue raises it to
+    // is the value a wait here reads. The import is the export's
+    // extension read the other way, so a device that names no Metal
+    // object takes none either.
+    if (!fence.mtlSharedEvent || !m_api.exportMetalObjects) return nullptr;
+    VkImportMetalSharedEventInfoEXT imported{};
+    imported.sType = VK_STRUCTURE_TYPE_IMPORT_METAL_SHARED_EVENT_INFO_EXT;
+    imported.mtlSharedEvent =
+        static_cast<MTLSharedEvent_id>(fence.mtlSharedEvent);
+    VkSemaphoreTypeCreateInfo type{};
+    type.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO;
+    type.pNext = &imported;
+    type.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
+    VkSemaphoreCreateInfo info{};
+    info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    info.pNext = &type;
+    VkSemaphore semaphore = VK_NULL_HANDLE;
+    if (m_api.createSemaphore(device(), &info, nullptr, &semaphore) !=
+        VK_SUCCESS)
+      return nullptr;
+    *made = true;
+    return fromHandle<void*>(toHandle(semaphore));
+  }
+
+  NativeFence exportFence(void* fence) override {
+    NativeFence out;
+    out.backend = Backend::Vulkan;
+    out.vkSemaphore = toHandle(fence);
+    if (m_api.exportMetalObjects) {
+      VkExportMetalSharedEventInfoEXT wanted{};
+      wanted.sType = VK_STRUCTURE_TYPE_EXPORT_METAL_SHARED_EVENT_INFO_EXT;
+      wanted.semaphore = semaphore(fence);
+      VkExportMetalObjectsInfoEXT objects{};
+      objects.sType = VK_STRUCTURE_TYPE_EXPORT_METAL_OBJECTS_INFO_EXT;
+      objects.pNext = &wanted;
+      m_api.exportMetalObjects(device(), &objects);
+      out.mtlSharedEvent = static_cast<void*>(wanted.mtlSharedEvent);
+    }
+    return out;
   }
 
   void destroyFence(void* fence) override {
@@ -268,6 +380,8 @@ class VulkanBackend final : public GpuDevice::DeviceBackend {
     return value;
   }
 
+  void waitIdle() override { m_api.queueWaitIdle(queue()); }
+
  private:
   VkInstance instance() const {
     return static_cast<VkInstance>(m_native.vulkan.instance);
@@ -281,6 +395,76 @@ class VulkanBackend final : public GpuDevice::DeviceBackend {
   VkQueue queue() const { return static_cast<VkQueue>(m_native.vulkan.queue); }
   static VkSemaphore semaphore(void* fence) {
     return fromHandle<VkSemaphore>(toHandle(fence));
+  }
+
+  /** The Metal texture the driver keeps behind @p image; null where it
+   *  names none. */
+  void* metalTextureOf(VkImage image) const {
+    if (!m_api.exportMetalObjects || !image) return nullptr;
+    VkExportMetalTextureInfoEXT wanted{};
+    wanted.sType = VK_STRUCTURE_TYPE_EXPORT_METAL_TEXTURE_INFO_EXT;
+    wanted.image = image;
+    wanted.plane = VK_IMAGE_ASPECT_PLANE_0_BIT;
+    VkExportMetalObjectsInfoEXT objects{};
+    objects.sType = VK_STRUCTURE_TYPE_EXPORT_METAL_OBJECTS_INFO_EXT;
+    objects.pNext = &wanted;
+    m_api.exportMetalObjects(device(), &objects);
+    return static_cast<void*>(wanted.mtlTexture);
+  }
+
+  /** THE TEXTURE IS THE IMAGE'S MEMORY: the driver takes @p mtlTexture as
+   *  the image's backing in place of memory bound to it, so the image is
+   *  created and nothing is allocated. Its size, format, levels and usage
+   *  are the texture's own, read off it, and stated here only because a
+   *  Vulkan image is created from a description. Empty where the driver
+   *  takes no Metal object, or the texture stands on another Metal device
+   *  or is not one `TextureFormat` names. */
+  NativeTexture imageOverMetal(void* mtlTexture) const {
+#ifdef __APPLE__
+    MetalTextureFacts facts;
+    if (!mtlTexture || !m_api.exportMetalObjects ||
+        !readMetalTexture(mtlTexture, &facts) ||
+        facts.mtlDevice != m_native.mtlDevice)
+      return {};
+    VkImportMetalTextureInfoEXT imported{};
+    imported.sType = VK_STRUCTURE_TYPE_IMPORT_METAL_TEXTURE_INFO_EXT;
+    imported.plane = VK_IMAGE_ASPECT_PLANE_0_BIT;
+    imported.mtlTexture = static_cast<MTLTexture_id>(mtlTexture);
+    // Vulkan's create-info structs are zero-filled and then written field
+    // by field; every field this call depends on, `samples` included, is
+    // given its value below.
+    // NOLINTNEXTLINE(bugprone-invalid-enum-default-initialization)
+    VkImageCreateInfo info{};
+    info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    info.pNext = &imported;
+    info.imageType = VK_IMAGE_TYPE_2D;
+    info.format = toVulkan(facts.format);
+    info.extent = {static_cast<uint32_t>(facts.width),
+                   static_cast<uint32_t>(facts.height), 1};
+    info.mipLevels = static_cast<uint32_t>(facts.mipLevels);
+    info.arrayLayers = 1;
+    info.samples = VK_SAMPLE_COUNT_1_BIT;
+    info.tiling = VK_IMAGE_TILING_OPTIMAL;
+    info.usage = importedUsage(facts.usage);
+    info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    VkImage image = VK_NULL_HANDLE;
+    if (m_api.createImage(device(), &info, nullptr, &image) != VK_SUCCESS)
+      return {};
+    NativeTexture out;
+    out.backend = Backend::Vulkan;
+    out.mtlTexture = mtlTexture;
+    out.vkImage = toHandle(image);
+    out.vkLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    out.vkFormat = info.format;
+    out.width = facts.width;
+    out.height = facts.height;
+    out.mipLevels = facts.mipLevels;
+    return out;
+#else
+    (void)mtlTexture;
+    return {};
+#endif
   }
 
   int memoryType(uint32_t allowed, VkMemoryPropertyFlags wanted) const {
@@ -327,6 +511,9 @@ std::unique_ptr<GpuDevice::DeviceBackend> createVulkanBackend(
     const NativeDevice& native, std::string* error) {
   NativeDevice resolved = native;
   resolved.backend = Backend::Vulkan;
+  // The Metal fields of a Vulkan device are the driver's to answer.
+  resolved.mtlDevice = nullptr;
+  resolved.mtlCommandQueue = nullptr;
   const VulkanHandles& handles = native.vulkan;
   if (!handles.instance || !handles.physicalDevice || !handles.device ||
       !handles.queue) {

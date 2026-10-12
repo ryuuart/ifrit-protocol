@@ -1,8 +1,9 @@
 // A real device: what it comes up with, what it refuses to adopt, when a
 // destroyed resource is really gone, who releases an imported texture,
-// fences as timelines, and the levels a Metal texture is built with. Every
-// case here needs a GPU, which is why the binary carries the `gpu` label
-// and every case skips rather than fails where there is none.
+// fences as timelines, an event another queue raises, and the levels a
+// Metal texture is built with. Every case here needs a GPU, which is why
+// the binary carries the `gpu` label and every case skips rather than
+// fails where there is none.
 
 #import <Metal/Metal.h>
 
@@ -187,7 +188,7 @@ TEST(HardwareDevice, AGpuWaitHoldsLaterWorkUntilAnotherQueueSignalsTheValue) {
   id<MTLCommandBuffer> held = [queue commandBuffer];
   [held commit];
 
-  id<MTLSharedEvent> event = (id<MTLSharedEvent>)device->exportNative(fence);
+  id<MTLSharedEvent> event = (id<MTLSharedEvent>)device->exportNative(fence).mtlSharedEvent;
   ASSERT_NE(event, nil);
   id<MTLCommandQueue> other = [(id<MTLDevice>)device->native().mtlDevice newCommandQueue];
   id<MTLCommandBuffer> release = [other commandBuffer];
@@ -221,9 +222,47 @@ TEST(HardwareDevice, ADestroyedFenceIsStaleAndRefusesEverySpellingOfItsName) {
   device->signal(fence);
   device->destroyFence(fence);
   EXPECT_FALSE(device->isValid(fence));
-  EXPECT_EQ(device->exportNative(fence), nullptr);
+  EXPECT_FALSE(device->exportNative(fence));
   EXPECT_EQ(device->signal(fence), kFenceInitialValue);
   EXPECT_EQ(device->waitCpu(fence, 1), FenceWait::Invalid);
+}
+
+TEST(HardwareDevice, AnImportedEventIsWaitedOnAndStaysItsMakers) {
+  DEVICE_OR_SKIP(device);
+  id<MTLDevice> mtl = (id<MTLDevice>)device->native().mtlDevice;
+  id<MTLSharedEvent> event = [mtl newSharedEvent];
+  // Released at the end of the test. The one path that skips that
+  // release is a failed assertion, which ends the run.
+  // NOLINTNEXTLINE(clang-analyzer-osx.cocoa.RetainCount)
+  ASSERT_NE(event, nil);
+  const NSUInteger before = CFGetRetainCount((CFTypeRef)event);
+
+  NativeFence native;
+  native.backend = Backend::Metal;
+  native.mtlSharedEvent = (void *)event;
+  const FenceHandle imported = device->importNative(native);
+  ASSERT_TRUE(device->isValid(imported));
+  EXPECT_EQ(device->exportNative(imported).mtlSharedEvent, (void *)event);
+  EXPECT_EQ(CFGetRetainCount((CFTypeRef)event), before) << "borrowed, not retained";
+
+  // Another queue numbers it, so this device raises nothing on it; what
+  // that queue raises is what a wait here reads.
+  EXPECT_EQ(device->signal(imported), kFenceInitialValue);
+  EXPECT_EQ(device->waitCpu(imported, 1, std::chrono::milliseconds(20)), FenceWait::TimedOut);
+  event.signaledValue = 1;
+  EXPECT_EQ(device->waitCpu(imported, 1), FenceWait::Reached);
+  EXPECT_EQ(device->completedValue(imported), 1u);
+
+  device->destroyFence(imported);
+  EXPECT_FALSE(device->isValid(imported));
+  EXPECT_EQ(CFGetRetainCount((CFTypeRef)event), before) << "the event stays its maker's";
+
+  NativeFence vulkan;
+  vulkan.backend = Backend::Vulkan;
+  vulkan.vkSemaphore = 1;
+  EXPECT_FALSE(device->importNative(vulkan)) << "another API's fence";
+  EXPECT_FALSE(device->importNative(NativeFence{}));
+  CFRelease((CFTypeRef)event);
 }
 
 TEST(HardwareDevice, ATextureIsBuiltWithTheLevelsTheSizeAllowsAndNoMore) {

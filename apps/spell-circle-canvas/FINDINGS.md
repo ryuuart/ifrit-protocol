@@ -484,17 +484,6 @@ it with `makeImageSnapshot`, draw one small path, and find every
 flat-coloured pixel of the first drawing kept; and the same after a
 caller's own snap and insert with no clear.
 
-## A page worn by a body is described to the device as eight-bit with one mip level
-
-`TextureResidency::sample` in `src/common/geometry/device/residency/Textures.cpp`
-wraps a page standing on the device with a fixed colour format and one
-mip level, so an F16 page is mis-described to Diligent and a page worn
-by a body has no mip chain, whatever the page's format or the body's
-distance. The wrap should describe the page's own format and carry a
-mip chain the body can sample. A test should wear an F16 page and read a
-value above one off the body, and wear a page at a distance and find it
-sampled from a smaller level.
-
 ## The Python kit has no connection readout
 
 `sigil::sketch::kit::connectionReadout` shows a door's state over
@@ -524,8 +513,8 @@ function's address as the receiver. A recording inserted with one Metal
 signal semaphore should raise the semaphore's event to its value once
 the submit completes. The fix is a patch to the Skia port in the
 sigil-vcpkg-registry. Until then the Metal queue orders itself before
-the Vulkan queue through the offscreen surface's own fence signal and
-`Device::waitForMetalEvent`. A test should insert a recording on a Metal
+the Vulkan queue through the offscreen surface's own fence signal, the
+event imported with `GpuDevice::importNative` and `waitGpu`. A test should insert a recording on a Metal
 context with one signal semaphore and find a Metal fence's CPU wait
 reach its value.
 

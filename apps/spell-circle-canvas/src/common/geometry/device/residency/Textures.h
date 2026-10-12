@@ -79,6 +79,19 @@ struct SampledImage {
   uint64_t used = 0;
 };
 
+/** A PAGE WRAPPED WHERE IT STANDS, in its own format, and the chain a
+ *  body wearing it at a distance reads: the page's level zero copied
+ *  under levels the device derives, refilled on the first draw of every
+ *  frame that wears it, since a page may be painted again between two
+ *  frames and nothing says when. `filled` is the frame it was last filled
+ *  on; `used` the frame it was last drawn with. */
+struct WrappedImage {
+  Diligent::RefCntAutoPtr<Diligent::ITexture> texture;
+  Diligent::RefCntAutoPtr<Diligent::ITexture> chain;
+  uint64_t used = 0;
+  uint64_t filled = UINT64_MAX;
+};
+
 /**
  * The maps standing on one device, and what it takes to put one there.
  *
@@ -98,7 +111,16 @@ class TextureResidency {
    *  or an animated image crosses once per frame of its own and a still
    *  crosses once. Null when the texture yields no image or the device
    *  refused it. One image put on the device in two forms is two
-   *  textures. */
+   *  textures.
+   *
+   *  A WRAP IS DESCRIBED AS THE PAGE IS: in the format the page was made
+   *  in, so a half-float page keeps the values above one it holds. Where
+   *  @p form asks for the smaller copies and the page is wide enough to
+   *  halve, what a draw samples is the page's chain — its level zero
+   *  copied on the device under the levels the device derives, once a
+   *  frame — so a body wearing a page at a distance reads a level its
+   *  size calls for rather than aliasing across level zero. Nothing
+   *  crosses through host memory for either. */
   Diligent::ITexture* sample(const material::Texture& map,
                              const MapForm& form = {},
                              std::chrono::duration<double> time = {});
@@ -130,11 +152,16 @@ class TextureResidency {
   void endFrame();
 
  private:
+  /** The chain @p held is worn through, filled for this frame; null when
+   *  the device refused it. */
+  Diligent::ITexture* chainOf(WrappedImage& held);
+
   Device* m_device = nullptr;
   uint64_t m_frame = 0;
   /** Maps whose pixels already stand on this device, under the name the
-   *  API gave them. Nothing is copied for one of these. */
-  boost::container::map<uint64_t, SampledImage> m_wrapped;
+   *  API gave them. Nothing crosses through host memory for one of
+   *  these. */
+  boost::container::map<uint64_t, WrappedImage> m_wrapped;
   /** …and maps that had to be brought over, under the id of the image
    *  they were brought from and the form they were brought in. */
   boost::container::map<uint64_t, SampledImage> m_uploaded;

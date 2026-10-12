@@ -191,12 +191,13 @@ what a label promises. What is only true of SigilCore:
 | `reconcile/test/` | `Reconciler`, `Environment`, `Phases`, `Reads` | the reconciler over a fake host, the inherited-value channel and restored scope identities, the phase runner and the read ordering |
 | `cache/test/` | `CacheProof`, `Volatility`, `CacheHost`, `CacheSettle`, `CacheBake`, `RebuildGuard`, `CachedValue`, `QuantizeKey` | the settled-subtree proof, the stability release and the bake seam over a fake host, and the keyed rebuild guard with the quantized key a continuous input is bucketed by |
 | `hardware/test/` | `HardwareHandle`, `MipChain` | what the device feature decides without a device: generation-checked handles, and how deep a mip chain a size allows |
-| `hardware/test/DeviceTest.mm` | `HardwareDevice` (`gpu`) | a real device — what it comes up with, what it refuses to adopt, when a destroyed resource is really gone, who releases an imported texture, fences as timelines, and the levels a texture is built with |
+| `hardware/test/DeviceTest.mm` | `HardwareDevice` (`gpu`) | a real device — what it comes up with, what it refuses to adopt, when a destroyed resource is really gone, who releases an imported texture, fences as timelines, an imported event waited on and left its maker's, and the levels a texture is built with |
+| `hardware/test/VulkanOverMetalTest.mm` | `HardwareVulkanOverMetal` (`gpu`) | a Vulkan device over Metal, brought up from the loader and adopted — the Metal device it names, a texture made here reached on Metal, a Metal texture named by an image over its own memory and refused in a format no texture here has, a Metal event holding the queue until Metal raises it, a fence made here holding a Metal queue, and the device going away only once a queued wait has run |
 
-The `HardwareDevice` suite exists on Apple alone and every case in it
-skips where there is no GPU. The same questions on the Vulkan backend
-are asked in SigilGeometry's `Device` suite, since that is where a
-Vulkan device exists to ask them of. Nothing else here needs a device, a
+Both suites exist on Apple alone and every case in them skips where
+there is no GPU, no Vulkan runtime or no driver over Metal. The rest of
+the Vulkan backend's questions are asked in SigilGeometry's `Device`
+suite, of the device a renderer made. Nothing else here needs a device, a
 font or a network.
 
 **The exact words and floats in `compute/test/` are the one place this

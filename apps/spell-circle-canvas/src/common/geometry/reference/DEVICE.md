@@ -66,21 +66,20 @@ takes the same lock from inside its own submissions, which is why the
 lock does not nest: no Diligent call may be made while one is held.
 
 **A queue made on Metal itself reaches the device through its Metal
-objects.** Where the driver runs Vulkan over Metal, `metalTexture()` and
-`metalEvent()` answer the id<MTLTexture> behind a texture and the
-id<MTLSharedEvent> behind a fence on `gpu()`, so a window drawing on a
-Metal queue of its own samples a picture drawn here and waits for it on
-the GPU. `metalTexture()` also takes a texture's handle on `gpu()`, which
-is what a Graphite context on Metal paints through for a texture this
-device made. The other way round, `importMetalTexture()` names a texture
-Metal made on `gpu()` as a Vulkan image over the same memory, stated by
-the `core::hardware::TextureDescription` it was made from; the handle
-owns the image and the texture stays its maker's, and
-`waitForMetalEvent()` holds this device's queue until an event a Metal
-queue raises reaches a value, so a texture painted there is sampled here
-only once it is painted. The wait is queued under a `QueueLock`, like
-every wait on `gpu()`. All of them answer null or false on any other
-driver, and a caller then reads the picture back.
+objects.** Where the driver runs Vulkan over Metal, every texture and
+fence named on `gpu()` is also the Metal object the driver keeps behind
+it: `core::hardware::GpuDevice::exportNative` answers the id<MTLTexture>
+behind a texture and the id<MTLSharedEvent> behind a fence, so a queue on
+Metal paints into a texture this device made, or samples one drawn here,
+and waits for the drawing on the GPU. `metalEvent()` is that event for a
+fence on `gpu()`, and `metalTexture()` the same texture for one the
+engine made rather than `gpu()`. The other way round,
+`core::hardware::GpuDevice::importNative` names a texture Metal made as a
+Vulkan image over the same memory — the handle owns the image and the
+texture stays its maker's — and brings a Metal event over as a fence the
+queue waits on with `waitGpu`, under a `QueueLock` like every wait on
+`gpu()`. On any other driver none of them answers a Metal object, and a
+caller reads the picture back.
 
 **Pipelines are kept between runs.** Every pipeline is built through the
 driver's own cache, `pipelineStateCache()`, which `Device::create` seeds
@@ -100,8 +99,13 @@ for a mesh that carries no normals, uvs or tint — and `meshLayout()` is
 that layout as a pipeline states it, with the primitive lane declared or
 not over the same stride. `device::TextureResidency` (`device/residency/Textures.h`)
 is the same story for maps: pixels that already stand on this very
-device are wrapped where they are and nothing is copied, everything else
-is brought over once and held under the image it came from, and the
+device are wrapped where they are, in the format they were painted in,
+and nothing crosses through host memory — a page worn with its smaller
+copies is read through a chain of the residency's own, its level zero
+copied from the page on the device once a frame and the levels under it
+derived, so a body wearing a page at a distance does not alias across it
+— everything else is brought over once and held under the image it came
+from, and the
 prefiltered panorama and its cosine convolution are uploaded once per
 sky as half floats, because a sky holds values above one. `endFrame()`
 on either lets go of what no draw has named lately, so a window sliding

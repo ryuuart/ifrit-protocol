@@ -232,6 +232,10 @@ class PageAcrossQueues : public testing::Test {
    *  bring the event over. */
   bool paintAcross(skia::OffscreenSurface& surface,
                    hardware::FenceHandle painted) {
+    // The Metal queue's fence, brought over to the device's queue once.
+    const hardware::FenceHandle brought =
+        device->importNative(metal->exportNative(painted));
+    if (!brought) return false;
     const hardware::FenceHandle behind = device->createFence();
     // A fence's first signal raises it to one, so that is the value the
     // page will stand at.
@@ -239,11 +243,7 @@ class PageAcrossQueues : public testing::Test {
     hardware::FenceValue queued = hardware::kFenceInitialValue;
     {
       const geometry::device::Device::QueueLock lock(*on.device);
-      if (!on.device->waitForMetalEvent(metal->exportNative(painted),
-                                        kPainted)) {
-        device->destroyFence(behind);
-        return false;
-      }
+      device->waitGpu(brought, kPainted);
       queued = device->signal(behind);
     }
     EXPECT_EQ(device->waitCpu(behind, queued, std::chrono::milliseconds(50)),
@@ -255,7 +255,9 @@ class PageAcrossQueues : public testing::Test {
     paintPage(*surface.surface()->getCanvas());
     EXPECT_EQ(surface.submit(*metal, painted), kPainted);
     EXPECT_EQ(device->waitCpu(behind, queued), hardware::FenceWait::Reached);
+    // The wait has run, so nothing waits on the semaphore any more.
     device->destroyFence(behind);
+    device->destroyFence(brought);
     return true;
   }
 
@@ -299,7 +301,7 @@ TEST_F(PageAcrossQueues, APagePaintedOnMetalIsWornByABodyUnderAFence) {
   description.format = hardware::TextureFormat::RGBA8Unorm;
   const hardware::TextureHandle page = device->createTexture(description);
   ASSERT_TRUE(device->isValid(page));
-  void* texture = on.device->metalTexture(page);
+  void* texture = device->exportNative(page).mtlTexture;
   if (!texture) {
     device->destroy(page);
     GTEST_SKIP() << "this driver does not name the Metal objects behind its "
@@ -347,8 +349,10 @@ TEST_F(PageAcrossQueues, AMetalTextureImportedIntoTheDeviceIsWornAsItStands) {
   ASSERT_TRUE(metal->isValid(made));
   void* texture = metal->exportNative(made).mtlTexture;
   ASSERT_NE(texture, nullptr);
-  const hardware::TextureHandle page =
-      on.device->importMetalTexture(texture, description);
+  hardware::NativeTexture given;
+  given.backend = hardware::Backend::Metal;
+  given.mtlTexture = texture;
+  const hardware::TextureHandle page = device->importNative(given);
   if (!page) {
     metal->destroy(made);
     GTEST_SKIP() << "this driver does not import a Metal texture";
@@ -358,9 +362,9 @@ TEST_F(PageAcrossQueues, AMetalTextureImportedIntoTheDeviceIsWornAsItStands) {
       "(1 untracked, 2 tracked)\n",
       hazardTrackingOf(texture));
 
-  // THE CHAIN IS PRESENT ON BOTH SIDES, level for level. What fills the
-  // levels below zero is not here: Graphite paints level zero, and a map
-  // the residency wraps is described to the device at that one level.
+  // THE CHAIN IS PRESENT ON BOTH SIDES, level for level. Graphite paints
+  // level zero; a body wearing the page reads the residency's chain, whose
+  // level zero is copied from this one on the device.
   const hardware::NativeTexture image = device->exportNative(page);
   EXPECT_EQ(image.mipLevels, description.mipLevels);
   EXPECT_EQ(mipmapLevelsOf(texture), (unsigned long)description.mipLevels);

@@ -153,6 +153,7 @@ using core::hardware::FenceValue;
 using core::hardware::FenceWait;
 using core::hardware::GpuDevice;
 using core::hardware::kFenceInitialValue;
+using core::hardware::NativeFence;
 using core::hardware::NativeTexture;
 using core::hardware::TextureDescription;
 using core::hardware::TextureFormat;
@@ -279,8 +280,7 @@ TEST(AdoptedDevice, ImportExportRoundTrip) {
 
   NativeTexture metal;
   metal.backend = Backend::Metal;
-  metal.mtlTexture = &metal;
-  EXPECT_FALSE(device->importNative(metal)) << "another API's texture";
+  EXPECT_FALSE(device->importNative(metal)) << "a Metal texture with none";
 }
 
 // THE METAL OBJECT BEHIND A TEXTURE NAMED HERE, on a driver that runs
@@ -292,21 +292,23 @@ TEST(AdoptedDevice, ATextureNamedHereIsReachedOnMetal) {
   if (!device) GTEST_SKIP() << "the device was created but not adopted";
   const TextureHandle texture = device->createTexture(smallTexture());
   ASSERT_TRUE(device->isValid(texture));
-  void* metal = on->metalTexture(texture);
+  void* metal = device->exportNative(texture).mtlTexture;
   if (!metal) {
     device->destroy(texture);
     GTEST_SKIP() << "this driver does not name the Metal objects behind its "
                     "own";
   }
-  EXPECT_EQ(on->metalTexture(texture), metal);
+  EXPECT_EQ(device->exportNative(texture).mtlTexture, metal);
   device->destroy(texture);
-  EXPECT_EQ(on->metalTexture(texture), nullptr) << "a stale handle";
-  EXPECT_EQ(on->metalTexture(TextureHandle{}), nullptr) << "a null handle";
+  EXPECT_EQ(device->exportNative(texture).mtlTexture, nullptr)
+      << "a stale handle";
+  EXPECT_EQ(device->exportNative(TextureHandle{}).mtlTexture, nullptr)
+      << "a null handle";
 }
 
 // A TEXTURE METAL MADE, NAMED HERE OVER THE SAME MEMORY: the image the
 // import names is backed by the very texture it was handed — asked for
-// the Metal object behind it, the driver answers that texture — and it
+// the Metal object behind it, the handle answers that texture — and it
 // carries the size, format and levels the texture was made with. The
 // image is the handle's and the texture its maker's, so destroying the
 // one leaves the other standing.
@@ -329,7 +331,10 @@ TEST(AdoptedDevice, ATextureMetalMadeIsNamedHereOverTheSameMemory) {
   void* texture = metal->exportNative(made).mtlTexture;
   ASSERT_NE(texture, nullptr);
 
-  const TextureHandle imported = on->importMetalTexture(texture, desc);
+  NativeTexture given;
+  given.backend = Backend::Metal;
+  given.mtlTexture = texture;
+  const TextureHandle imported = device->importNative(given);
   if (!imported) {
     metal->destroy(made);
     GTEST_SKIP() << "this driver does not import a Metal texture";
@@ -343,7 +348,7 @@ TEST(AdoptedDevice, ATextureMetalMadeIsNamedHereOverTheSameMemory) {
   EXPECT_EQ(native.width, 64);
   EXPECT_EQ(native.height, 32);
   EXPECT_EQ(native.mipLevels, 4);
-  EXPECT_EQ(on->metalTexture(imported), texture) << "the very same texture";
+  EXPECT_EQ(native.mtlTexture, texture) << "the very same texture";
 
   device->destroy(imported);
   for (int i = 0; i < 3; ++i) device->beginFrame();
@@ -351,7 +356,8 @@ TEST(AdoptedDevice, ATextureMetalMadeIsNamedHereOverTheSameMemory) {
   EXPECT_EQ(metal->exportNative(made).mtlTexture, texture);
   metal->destroy(made);
 
-  EXPECT_FALSE(on->importMetalTexture(nullptr, desc)) << "no texture";
+  given.mtlTexture = nullptr;
+  EXPECT_FALSE(device->importNative(given)) << "no texture";
 }
 
 // A QUEUE ON METAL ORDERS THIS DEVICE'S QUEUE: a wait for an event that
@@ -369,17 +375,20 @@ TEST(AdoptedDevice, AQueueOnMetalOrdersThisDevicesQueue) {
     GTEST_SKIP() << "no Metal device: " << error;
 
   const FenceHandle painted = metal->createFence();
-  void* event = metal->exportNative(painted);
-  ASSERT_NE(event, nullptr);
+  const NativeFence event = metal->exportNative(painted);
+  ASSERT_NE(event.mtlSharedEvent, nullptr);
+  // The event is brought over once, and every wait after is on the one
+  // handle.
+  const FenceHandle brought = device->importNative(event);
+  if (!brought) {
+    metal->destroyFence(painted);
+    GTEST_SKIP() << "this driver does not bring a Metal event over";
+  }
   const FenceHandle after = device->createFence();
   FenceValue reached = kFenceInitialValue;
   {
     geometry::device::Device::QueueLock lock(*on);
-    if (!on->waitForMetalEvent(event, 1)) {
-      device->destroyFence(after);
-      metal->destroyFence(painted);
-      GTEST_SKIP() << "this driver does not bring a Metal event over";
-    }
+    device->waitGpu(brought, 1);
     reached = device->signal(after);
   }
   EXPECT_EQ(device->waitCpu(after, reached, std::chrono::milliseconds(50)),
@@ -389,17 +398,18 @@ TEST(AdoptedDevice, AQueueOnMetalOrdersThisDevicesQueue) {
   EXPECT_EQ(metal->signal(painted), 1u);
   EXPECT_EQ(device->waitCpu(after, reached), FenceWait::Reached);
 
-  // The event is brought over once: a second wait, for a value already
-  // raised, holds nothing.
+  // A second wait on the same handle, for a value already raised, holds
+  // nothing.
   {
     geometry::device::Device::QueueLock lock(*on);
-    EXPECT_TRUE(on->waitForMetalEvent(event, 1));
+    device->waitGpu(brought, 1);
     reached = device->signal(after);
   }
   EXPECT_EQ(device->waitCpu(after, reached), FenceWait::Reached);
-  EXPECT_FALSE(on->waitForMetalEvent(nullptr, 1)) << "no event";
+  EXPECT_FALSE(device->importNative(NativeFence{})) << "no event";
 
   device->destroyFence(after);
+  device->destroyFence(brought);
   metal->destroyFence(painted);
 }
 
@@ -410,7 +420,7 @@ TEST(AdoptedDevice, TimelineFenceSignalsAndWaits) {
   const FenceHandle fence = device->createFence();
   ASSERT_TRUE(device->isValid(fence));
   EXPECT_EQ(device->completedValue(fence), kFenceInitialValue);
-  EXPECT_NE(device->exportNative(fence), nullptr);
+  EXPECT_TRUE(device->exportNative(fence));
 
   const FenceValue first = device->signal(fence);
   EXPECT_EQ(first, 1u);
@@ -428,7 +438,7 @@ TEST(AdoptedDevice, TimelineFenceSignalsAndWaits) {
 
   device->destroyFence(fence);
   EXPECT_FALSE(device->isValid(fence));
-  EXPECT_EQ(device->exportNative(fence), nullptr);
+  EXPECT_FALSE(device->exportNative(fence));
   EXPECT_EQ(device->waitCpu(fence, 1), FenceWait::Invalid);
 }
 
