@@ -19,6 +19,7 @@
 #include "cache/MarkStates.h"
 #include "cache/StampCache.h"
 #include "description/ComposeInternal.h"
+#include "paint/HeldCoverage.h"
 #include "style/ComputedStyle.h"
 #include "style/SelectorMatch.h"
 
@@ -863,6 +864,10 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // re-rasterized every frame only so a small moving child can land on top
   // of it.
   bool ownContentVolatile = false;
+  // What the node's own paint COVERS may change: its own content apart
+  // from marks cast from its silhouette, which follow its children and
+  // which a trace of the node never holds.
+  bool ownCoverageVolatile = false;
   // ---- the split bake ------------------------------------------------------
   // The node's own paint, baked alone; the children are painted LIVE over
   // the blit. Deliberately NOT `textureImage`: a node can only ever hold one
@@ -947,6 +952,11 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
     float threshold = -1.0f;
   };
   OwnCoverage coverageOwn;
+  /** The held parts the silhouette above was composed from — the own
+   *  trace and each moving child's, each with where it stands — or none
+   *  where it was traced whole. A decoration cast from the silhouette
+   *  casts from these, so what it blurs is held with them. */
+  std::vector<CoveragePart> coverageParts;
   // The silhouette a custom shape resolved to, and the shape VALUE it came
   // from. The description it was read off is not an identity: a
   // description freed and rebuilt can land on the address the old one

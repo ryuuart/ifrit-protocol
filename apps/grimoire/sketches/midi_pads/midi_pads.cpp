@@ -51,6 +51,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilmotion/ease/Ease.h>
+#include <sigilsketch/kit/Connection.h>
 #include <sigilsketch/kit/Instrument.h>
 #include <sigilsketch/kit/Theme.h>
 #include <sigilsketch/scene2d/Scene2D.h>
@@ -164,27 +165,19 @@ struct Cell {
   bool shown = false;
 };
 
-/** WHAT THE READOUT SAYS, and the whole of what says to write it again.
+/** WHAT THE READOUT WAS WRITTEN FROM, and the whole of what says to write
+ *  it again: the door's own state, and what the pads did through it.
  *  Nothing continuous is in here: the glows and the wind move every
  *  frame, and a description rebuilt every frame is a description
  *  nothing can be pruned against. */
 struct Reading {
-  uint64_t generation = 0;
-  uint64_t undecodable = 0;
+  data::ConnectionState door;
   uint64_t strikes = 0;
   uint64_t turns = 0;
   uint64_t lights = 0;
-  std::string address;
-  std::string trouble;
   std::string lit;
   bool operator==(const Reading&) const = default;
 };
-
-/** One row of the readout: what it is called, and what it answers. */
-compose::Element row(const char* name, const std::string& answer) {
-  return compose::text(
-      compose::kit::formatted("%-11s %s", name, answer.c_str()));
-}
 
 }  // namespace
 
@@ -357,13 +350,10 @@ struct MidiPads {
     std::string lit;
     for (size_t index = 0; index != kCells; ++index)
       lit += cells[index].shown ? '#' : '.';
-    Reading now{.generation = pads.state().revision,
-                .undecodable = pads.state().undecodable,
+    Reading now{.door = pads.state(),
                 .strikes = strikes,
                 .turns = turns,
                 .lights = sent,
-                .address = pads.state().localAddress,
-                .trouble = pads.state().error,
                 .lit = std::move(lit)};
     if (now == shown) return false;
     shown = std::move(now);
@@ -500,38 +490,25 @@ struct MidiPads {
     pen.circle(centre + reach, base + kThickness * 0.5f, kThickness * 2.2f);
   }
 
-  /** WHAT THE CONNECTION ANSWERS, in the reading panel: how many
-   *  messages have arrived, how many of them were no MIDI message at
-   *  all, how many pads have been struck and how far the knob has been
-   *  turned, which cells are lit, how many lights have gone back down
-   *  the cable, and where the door is — or the sentence saying why
-   *  there is none, which on a cable is the list of the ports that do
-   *  exist. */
-  compose::Element readout() {
-    const sketch::kit::Theme& look = sketch::kit::theme();
-    std::vector<compose::Element> lines{
-        row("controller", kController[0] == '\0' ? "(the first one plugged in)"
-                                                 : kController),
-        row("generation", compose::kit::formatted(
-                              "%llu", (unsigned long long)shown.generation)),
-        row("undecodable", compose::kit::formatted(
-                               "%llu", (unsigned long long)shown.undecodable)),
-        row("struck", compose::kit::formatted("%llu  ·  knob %llu",
-                                              (unsigned long long)shown.strikes,
-                                              (unsigned long long)shown.turns)),
-        row("lit", shown.lit),
-        row("lights",
-            compose::kit::formatted("%llu", (unsigned long long)shown.lights))};
-    if (!shown.trouble.empty())
-      lines.push_back(row("error", shown.trouble));
-    else
-      lines.push_back(row("port", shown.address.empty() ? "-" : shown.address));
-    return compose::box()
-        .column()
-        .gap(12)
-        .font(look.font({.size = 12, .mono = true}))
-        .ink(look.palette.ink)
-        .children(std::move(lines));
+  /** WHAT THE DOOR ANSWERS, in the reading panel — the port it opened,
+   *  whether it stands, its revision, what it dropped and how much of it
+   *  was no MIDI message at all, and who spoke last or why nobody can,
+   *  which on a cable is the list of the ports that do exist — and after
+   *  it how many pads have been struck and how far the knob has been
+   *  turned, which cells are lit, and how many lights have gone back down
+   *  the cable. */
+  compose::Element readout() const {
+    return sketch::kit::connectionReadout(
+        pads,
+        {.door = kController[0] == '\0' ? "(the first one plugged in)"
+                                        : kController,
+         .readings = {
+             {.name = u8"struck",
+              .value = compose::kit::formatted(
+                  "%llu  ·  knob %llu", (unsigned long long)shown.strikes,
+                  (unsigned long long)shown.turns)},
+             {.name = u8"lit", .value = shown.lit},
+             {.name = u8"lights", .value = std::to_string(shown.lights)}}});
   }
 };
 

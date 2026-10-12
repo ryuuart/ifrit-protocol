@@ -102,6 +102,21 @@ struct TextPath {
    *  than that. Set it for STATIC artwork set large, where the steps show
    *  and nothing is paying per frame. */
   bool exactTangent = false;
+  /** HOW THE RUN FILLS ITS BASELINE, the way a paragraph says justify:
+   *  resolved at layout against the baseline's length, so a ring's
+   *  lettering closes on its seam from the declaration alone and follows a
+   *  face or a word change with nothing measured beside the tree.
+   *
+   *  `None` sets the run at the size it was written in. `Size` scales the
+   *  type until the run spans `fill` of the baseline; its tracking and
+   *  word spacing are lengths and keep theirs. `Spacing` keeps the type's
+   *  size and stretches every advance by one factor instead, so the
+   *  letters stand further apart, or closer, and none of them grows. */
+  enum class Fit { None, Size, Spacing } fit = Fit::None;
+  /** The fraction of the baseline's length a fitted run spans: 1 closes a
+   *  run on a ring on its own beginning, less leaves a gap at the seam of
+   *  that fraction's complement. Read only under a `fit`. */
+  float fill = 1.0f;
 };
 
 }  // namespace sigil::compose

@@ -98,6 +98,8 @@ sigil_library(SigilComposeCore
     paint/Coverage.cpp
     paint/Depth.cpp
     paint/FillLowering.h
+    paint/HeldCoverage.cpp
+    paint/HeldCoverage.h
     paint/GlyphInk.h
     paint/InstanceStamp.h
     paint/Instances.cpp

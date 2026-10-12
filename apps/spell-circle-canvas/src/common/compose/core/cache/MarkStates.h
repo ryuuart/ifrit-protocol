@@ -9,14 +9,18 @@
 #include <map>
 #include <memory>
 #include <utility>
+#include <vector>
 
 namespace sigil::compose::detail {
 
 struct MaterialStrokeCache;
 struct BevelFaceCache;
+struct CoveragePart;
+class HeldCoverageMasks;
 
 /** WHAT ONE MARK KEEPS BETWEEN PAINTS: a lit keyline's prepared surface
- *  and the maps of the band it covers, a bevel's shaded shoulder. A
+ *  and the maps of the band it covers, a bevel's shaded shoulder, the
+ *  masks a shadow casts from a silhouette's held parts. A
  *  description is immutable once described and may be painted by several
  *  composers at once, so what a paint prepares stands here, on the
  *  instance that paints it, and never in the mark's value. Each entry is
@@ -26,6 +30,11 @@ struct BevelFaceCache;
 struct MarkState {
   std::shared_ptr<MaterialStrokeCache> stroke;
   std::shared_ptr<BevelFaceCache> face;
+  std::shared_ptr<HeldCoverageMasks> coverage;
+  /** The held parts the outline handed to the mark is composed from, for
+   *  this paint: null wherever that outline is not a silhouette composed
+   *  from held parts. Owned by the instance, valid for the paint call. */
+  const std::vector<CoveragePart>* coverageParts = nullptr;
 };
 
 /** One instance's mark states, by the mark's slot (beneath, over or in

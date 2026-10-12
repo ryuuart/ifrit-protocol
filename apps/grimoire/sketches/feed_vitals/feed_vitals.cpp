@@ -50,27 +50,6 @@ constexpr float kWindow = 4.0f;   // seconds the strip chart reaches back
 constexpr size_t kHexBytes = 32;  // how much of a message the row shows
 constexpr size_t kHexPerRow = 8;  // pairs on one line of it
 
-/** WHAT A FEED SAYS ABOUT ITSELF — the whole of it. A reading that
- *  differs from the one the sheet was written from is what says to write
- *  it again. */
-struct Vitals {
-  uint64_t generation = 0;
-  uint64_t dropped = 0;
-  bool closed = false;
-  std::string address;
-  std::string trouble;
-  bool operator==(const Vitals&) const = default;
-};
-
-Vitals vitalsOf(const io::Feed& feed) {
-  const io::FeedState state = feed.state();
-  return {.generation = state.revision,
-          .dropped = state.dropped,
-          .closed = state.readiness == io::ReadyState::Closed,
-          .address = state.localAddress,
-          .trouble = state.error};
-}
-
 }  // namespace
 
 namespace {
@@ -81,8 +60,13 @@ struct FeedVitals {
   /** When each message still on the strip arrived, on the clock it was
    *  stamped with: one tick each, drained in order and never revisited. */
   std::deque<double> ticks;
-  /** What the sheet standing now was written from. */
-  Vitals shown;
+  /** WHAT THE FEED SAID ABOUT ITSELF when the sheet standing now was
+   *  written, and the whole of what says to write it again. The door is
+   *  read as the feed it is rather than through a connection over it: a
+   *  connection drains the feed to decode it, and this sheet's strip is
+   *  every arrival received in order, so the feed's own state is set here
+   *  as its own rows. */
+  io::FeedState shown;
   /** The scene time the strip is drawn against — the same number the
    *  hub was moved to before this frame, so a tick's place on the strip
    *  is its own arrival time against the clock that delivered it. */
@@ -121,7 +105,7 @@ struct FeedVitals {
       ticks.push_back(arrival->arrivedAt().count());
     while (!ticks.empty() && ticks.front() < now - (double)kWindow)
       ticks.pop_front();
-    const Vitals reading = vitalsOf(arrivals);
+    const io::FeedState reading = arrivals.state();
     if (reading == shown) return false;
     shown = reading;
     return true;
@@ -226,7 +210,7 @@ struct FeedVitals {
         .alignItems(Align::Start)
         .children(
             {document::eyebrow("GENERATION").ink(look.palette.ash),
-             text(kit::formatted("%llu", (unsigned long long)shown.generation))
+             text(kit::formatted("%llu", (unsigned long long)shown.revision))
                  .font(look.font({.size = 52, .mono = true},
                                  look.palette.figure)),
              document::eyebrow("DROPPED").ink(look.palette.ash),
@@ -282,10 +266,13 @@ struct FeedVitals {
     const sketch::kit::Theme& look = sketch::kit::theme();
     std::vector<std::string> rows{
         kit::formatted("uri     %s", kAddress),
-        kit::formatted("address %s",
-                       shown.address.empty() ? "-" : shown.address.c_str()),
-        kit::formatted("state   %s", shown.closed ? "closed" : "open")};
-    if (!shown.trouble.empty()) rows.push_back(shown.trouble);
+        kit::formatted("address %s", shown.localAddress.empty()
+                                         ? "-"
+                                         : shown.localAddress.c_str()),
+        kit::formatted("state   %s", shown.readiness == io::ReadyState::Closed
+                                         ? "closed"
+                                         : "open")};
+    if (!shown.error.empty()) rows.push_back(shown.error);
     return box()
         .column()
         .gap(look.spacing.rowGap)

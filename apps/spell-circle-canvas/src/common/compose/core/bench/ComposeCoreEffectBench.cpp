@@ -424,8 +424,10 @@ BENCHMARK(BM_Draw_VaryingBlur_ConstantMax_Graphite)
 // A FULL-CANVAS SHEET DRESSED BY ITS COVERAGE OVER ONE TURNING CHILD: a
 // shadow and a bevel cast from the silhouette of what the sheet holds, and a
 // lacy wheel turning inside it. Arm 0 is the wheel alone; arm 1 the dressed
-// sheet over it. The sheet's silhouette is composed from held parts, so its
-// frame stays within a small multiple of the wheel's own.
+// sheet over it. The sheet's silhouette is composed from held parts, and the
+// masks its shadow and bevel are cast from are held in the wheel's own
+// frame, so a frame samples them where the wheel stands rather than
+// blurring the turned wheel anew.
 
 namespace {
 

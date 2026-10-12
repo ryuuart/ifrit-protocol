@@ -39,7 +39,37 @@ bool samePathLayout(const TextPath& a, const TextPath& b) {
   const float restA = a.at.constant() ? *a.at.constant() : 0.0f;
   const float restB = b.at.constant() ? *b.at.constant() : 0.0f;
   return a.path == b.path && a.align == b.align && a.autoFlip == b.autoFlip &&
-         restA == restB;
+         a.fit == b.fit && a.fill == b.fill && restA == restB;
+}
+
+/** How wide @p paragraph's run stands laid straight, from its shaped
+ *  advances. */
+float straightWidth(Composer::Impl& impl, const Instance& inst,
+                    sigil::weave::Paragraph& paragraph) {
+  sigil::weave::BlockFlow flow(geometry::path::Rect::of(
+      {0, 0}, {Composer::Impl::kUnbounded, Composer::Impl::kUnbounded}));
+  const sigil::weave::ParagraphLayout laid = sigil::weave::layoutParagraph(
+      impl.fonts, paragraph, flow,
+      impl.textLayoutOptions(inst, Composer::Impl::kUnbounded));
+  float width = 0;
+  sigil::weave::forEachPlacedGlyph(
+      laid, paragraph, [&](const sigil::weave::PlacedGlyph& placed) {
+        width = std::max(width, placed.rest.x + placed.advance);
+      });
+  return width;
+}
+
+/** @p paragraph with every span's type scaled by @p scale. Tracking and
+ *  word spacing are lengths, not proportions of the type, and keep theirs. */
+sigil::weave::Paragraph scaledType(const sigil::weave::Paragraph& paragraph,
+                                   float scale) {
+  sigil::weave::Paragraph scaled = paragraph;
+  for (const sigil::weave::StyleSpan& span : paragraph.spans()) {
+    sigil::weave::TextStyle style = span.style;
+    style.shaping.fontSize *= scale;
+    scaled.setStyle(span.start, span.end, style);
+  }
+  return scaled;
 }
 
 /** Directions a path tangent snaps to at LAYOUT time — the tangents baked
@@ -112,6 +142,7 @@ void detail::ensurePathLayout(Composer::Impl& impl, Instance& inst,
   textStateOf(inst).pathSize = size;
   textStateOf(inst).pathSpec = spec;
   textStateOf(inst).pathTotalLength = 0;
+  textStateOf(inst).pathParagraph.reset();
   if (!spec.path) return;
 
   const SkPath baseline = skiaOutline(spec.path, size);
@@ -170,6 +201,45 @@ void detail::ensurePathLayout(Composer::Impl& impl, Instance& inst,
     glm::vec2 ignored;
     if (posTan(0, &head, &ignored) && posTan(length, &tail, &ignored))
       closed = glm::distance(head, tail) <= std::max(1.0f, length * 0.002f);
+  }
+
+  // THE FIT: the run brought to `fill` of the baseline's length. By
+  // SPACING, every advance is stretched by one factor, which is the arc
+  // the interval walks per unit of advance, and the type keeps its size.
+  // By SIZE, the type is scaled. A run's width is its glyphs, which scale
+  // with the type, and its tracking and word spacing, which do not, so it
+  // is a straight line in the scale: the run set at one trial scale gives
+  // the line, and the scale it answers is where the line meets the length.
+  float advanceScale = 1.0f;
+  float typeScale = 1.0f;
+  if (spec.fit != TextPath::Fit::None && runWidth > 0 && spec.fill > 0) {
+    const float target = spec.fill * length;
+    if (spec.fit == TextPath::Fit::Spacing) {
+      advanceScale = target / runWidth;
+    } else {
+      const float trial = target / runWidth;
+      float scale = trial;
+      if (std::abs(trial - 1.0f) > 1e-4f) {
+        sigil::weave::Paragraph probe = scaledType(*inst.paragraph, trial);
+        const float glyphs =
+            (straightWidth(impl, inst, probe) - runWidth) / (trial - 1.0f);
+        const float lengths = runWidth - glyphs;
+        if (glyphs > 0) scale = (target - lengths) / glyphs;
+      }
+      if (scale > 0) {
+        typeScale = scale;
+        textStateOf(inst).pathParagraph = scaledType(*inst.paragraph, scale);
+        runWidth = straightWidth(impl, inst, *textStateOf(inst).pathParagraph);
+      }
+    }
+  }
+  // What the run spans along the baseline, which is what `Align` measures.
+  runWidth *= advanceScale;
+  // A type set at another size reaches another distance off the baseline,
+  // so what the node's paint bounds hold is measured again.
+  if (typeScale != textStateOf(inst).pathTypeScale) {
+    textStateOf(inst).pathTypeScale = typeScale;
+    inst.markPaintDirtyUp();
   }
 
   const float restAt = spec.at.constant() ? *spec.at.constant() : 0.0f;
@@ -255,16 +325,22 @@ void detail::ensurePathLayout(Composer::Impl& impl, Instance& inst,
     sigil::weave::LineInterval interval;
     interval.contour = contours[index];
     interval.contourStart = localStart;
-    interval.advanceScale = flipRun ? -1.0f : 1.0f;
+    interval.advanceScale = flipRun ? -advanceScale : advanceScale;
     interval.wrapContour = closed;
     // How much baseline this contour still offers from where the pen
     // entered it — the whole of it when the pen wraps, because a loop has
     // no end to run out of.
+    // The length is in units of advance, which a stretched advance walks
+    // more arc for. A fitted run is exactly as long as what it fills, so
+    // it is offered half a pixel more, and a rounding past the end does
+    // not drop its last word.
     const float contourLength = contours[index].length();
-    interval.length =
+    const float offered =
         closed
             ? contourLength
             : std::max(flipRun ? localStart : contourLength - localStart, 0.0f);
+    interval.length = offered / advanceScale +
+                      (spec.fit == TextPath::Fit::None ? 0.0f : 0.5f);
     textStateOf(inst).pathIntervals.push_back(std::move(interval));
   };
   if (flipRun) {
@@ -286,8 +362,8 @@ void detail::ensurePathLayout(Composer::Impl& impl, Instance& inst,
   options.alignment = sigil::weave::TextAlignment::kStart;
   options.pathText.tangentRotationSteps =
       spec.exactTangent ? 0 : kPathTangentSteps;
-  textStateOf(inst).pathLayout =
-      sigil::weave::layoutParagraph(impl.fonts, *inst.paragraph, flow, options);
+  textStateOf(inst).pathLayout = sigil::weave::layoutParagraph(
+      impl.fonts, pathParagraphOf(inst), flow, options);
   textStateOf(inst).pathValid = true;
 }
 

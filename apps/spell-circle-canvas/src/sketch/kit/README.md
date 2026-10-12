@@ -760,8 +760,8 @@ state stands behind a pointer, as a connection's does.
 
 | | |
 | --- | --- |
-| `sketch::kit::connectionReadout` | a `data::Connection`'s state as the compose kit's readout rows: the door, whether it is connecting, open or closed, its revision, what it dropped, what was undecodable, and the newest sender — or its error in that row |
-| `sketch::kit::ConnectionReadout` | what the door row calls the door where the transport bound no address, and how the rows range |
+| `sketch::kit::connectionReadout` | a `data::Connection`'s state as the compose kit's readout rows: the door, whether it is connecting, open or closed, its revision, what it dropped, what was undecodable, and the newest sender — or its error in that row — then the sketch's own readings |
+| `sketch::kit::ConnectionReadout` | what the door row calls the door where the transport bound no address, how the rows range, and the readings the sketch sets after the door's own |
 
 ```cpp
 sketch::kit::connectionReadout(sky, {.door = "the sky's recording",
@@ -779,7 +779,11 @@ and the URI the connection was opened on where the sketch names none. A
 door that reports an error shows it where the sender stood, since a door
 that failed has nobody to answer. Nothing here sets type or colour: the
 names are captions and the figures the `readout` class, as the compose
-kit's readout sets them in the sheet in force.
+kit's readout sets them in the sheet in force. What a sketch reads of
+what came through — how many messages it acted on, where the pages it
+serves stand — are `ConnectionReadout::readings`, set after the door's
+rows, so every door reads in one order and a sketch's own figures follow
+it.
 
 ### A run of checks, judged — `Verdict.h`
 

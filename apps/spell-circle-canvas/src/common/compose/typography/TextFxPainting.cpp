@@ -273,7 +273,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
   // thread-locally: a frame of animated text rebuilds it, but never
   // reallocates it.
   static thread_local detail::GlyphStructure structure;
-  structure.build(layout, *inst.paragraph, scopeOf(inst));
+  structure.build(layout, paragraphOfLayout(inst, layout), scopeOf(inst));
   const uint32_t count = (uint32_t)structure.glyphs.size();
   if (count == 0) return;
 
@@ -410,7 +410,8 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
 
   uint32_t ordinal = 0;
   sigil::weave::forEachPlacedGlyph(
-      layout, *inst.paragraph, [&](const sigil::weave::PlacedGlyph& placed) {
+      layout, paragraphOfLayout(inst, layout),
+      [&](const sigil::weave::PlacedGlyph& placed) {
         const uint32_t g = ordinal++;
         if (g >= count) return;
         RestPose pose;
@@ -671,7 +672,7 @@ bool detail::deviatedGlyphOutline(Composer::Impl& impl, Instance& inst,
   // The same walk, selections and schedules the glyph draw takes, so the
   // outline stands exactly where the letters are drawn.
   static thread_local detail::GlyphStructure structure;
-  structure.build(layout, *inst.paragraph, scopeOf(inst));
+  structure.build(layout, paragraphOfLayout(inst, layout), scopeOf(inst));
   const auto count = (uint32_t)structure.glyphs.size();
   if (count == 0) return false;
   refreshSelections(inst, tracks, structure, count);
@@ -697,7 +698,8 @@ bool detail::deviatedGlyphOutline(Composer::Impl& impl, Instance& inst,
   bool moved = false;
   uint32_t ordinal = 0;
   sigil::weave::forEachPlacedGlyph(
-      layout, *inst.paragraph, [&](const sigil::weave::PlacedGlyph& placed) {
+      layout, paragraphOfLayout(inst, layout),
+      [&](const sigil::weave::PlacedGlyph& placed) {
         const uint32_t g = ordinal++;
         if (g >= count || !placed.shaped) return;
         RestPose pose;

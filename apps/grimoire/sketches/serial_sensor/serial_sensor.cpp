@@ -51,6 +51,7 @@
 #include <sigildraw/Pen.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilsketch/kit/Connection.h>
 #include <sigilsketch/kit/Instrument.h>
 #include <sigilsketch/kit/Theme.h>
 #include <sigilsketch/scene2d/Scene2D.h>
@@ -130,30 +131,16 @@ constexpr std::array<material::Color, 3> kTints = {
      {0.58f, 0.52f, 0.90f, 0.76f},
      {0.38f, 0.78f, 0.86f, 0.72f}}};
 
-/** WHAT THE READOUT SAYS, and the whole of what says to write it again:
- *  the door's own figures, and the newest reading as the board wrote
- *  it. */
+/** WHAT THE READOUT WAS WRITTEN FROM, and the whole of what says to write
+ *  it again: the door's own state, and the newest reading as the board
+ *  wrote it. */
 struct Reading {
-  uint64_t generation = 0;
-  uint64_t undecodable = 0;
-  bool closed = false;
+  data::ConnectionState door;
   double lux = 0;
   double tilt = 0;
   bool heard = false;
-  std::string address;
-  std::string trouble;
   bool operator==(const Reading&) const = default;
 };
-
-/** One row of the readout: what it is called, and what it answers. */
-compose::Element row(const char* name, const std::string& answer) {
-  return compose::box()
-      .row()
-      .children({compose::text(name).width(84).flexShrink(0),
-                 compose::text(answer).flexBasis(0).flexGrow()})
-      .gap(6)
-      .alignItems(compose::Align::Start);
-}
 
 }  // namespace
 
@@ -240,15 +227,10 @@ struct SerialSensor {
   /** Takes what the connection answers, and says whether the readout
    *  standing now was written from something else. */
   bool read() {
-    Reading now{
-        .generation = sensor.state().revision,
-        .undecodable = sensor.state().undecodable,
-        .closed = sensor.state().readiness == sigil::io::ReadyState::Closed,
-        .lux = readLux,
-        .tilt = readTilt,
-        .heard = heard,
-        .address = sensor.state().localAddress,
-        .trouble = sensor.state().error};
+    Reading now{.door = sensor.state(),
+                .lux = readLux,
+                .tilt = readTilt,
+                .heard = heard};
     if (now == shown) return false;
     shown = std::move(now);
     return true;
@@ -343,14 +325,16 @@ struct SerialSensor {
    *  file is not there, and the door says so in the system's own
    *  words. */
   std::string state() const {
-    if (!shown.trouble.empty()) return shown.trouble;
-    if (shown.undecodable != 0)
+    const data::ConnectionState& door = shown.door;
+    if (!door.error.empty()) return door.error;
+    if (door.undecodable != 0)
       return compose::kit::formatted("%llu lines were no reading",
-                                     (unsigned long long)shown.undecodable);
-    if (shown.closed) return "the port is closed: nothing else is coming";
+                                     (unsigned long long)door.undecodable);
+    if (door.readiness == sigil::io::ReadyState::Closed)
+      return "the port is closed: nothing else is coming";
     return compose::kit::formatted(
         "reading %s · the board has said nothing",
-        shown.address.empty() ? kPort : shown.address.c_str());
+        door.localAddress.empty() ? kPort : door.localAddress.c_str());
   }
 
   /** The door's state where the sky would be, until there is one. */
@@ -362,33 +346,20 @@ struct SerialSensor {
         .centerAt({kCanvas.width() * 0.5f, kCanvas.height() * 0.5f - 24.0f});
   }
 
-  /** THE DOOR'S OWN WORDS, in the reading panel: the port a person
-   *  edits, how many lines have come off it, how many were no reading,
-   *  and the newest one as the board wrote it. */
-  compose::Element readout() {
-    const sketch::kit::Theme& look = sketch::kit::theme();
-    std::vector<compose::Element> lines{
-        row("port", kPort),
-        row("generation", compose::kit::formatted(
-                              "%llu", (unsigned long long)shown.generation)),
-        row("undecodable", compose::kit::formatted(
-                               "%llu", (unsigned long long)shown.undecodable))};
-    lines.push_back(row("reading", shown.heard ? compose::kit::formatted(
-                                                     "lux %.0f · tilt %+.1f",
+  /** THE DOOR'S OWN WORDS, in the reading panel — the port a person
+   *  edits, whether it stands, its revision, what it dropped and how many
+   *  lines were no reading, and who spoke last or why nobody can — and
+   *  after it the newest reading as the board wrote it. */
+  compose::Element readout() const {
+    return sketch::kit::connectionReadout(
+        sensor,
+        {.door = kPort,
+         .readings = {
+             {.name = u8"reading",
+              .value = shown.heard
+                           ? compose::kit::formatted("lux %.0f · tilt %+.1f",
                                                      shown.lux, shown.tilt)
-                                               : "nothing has arrived"));
-    if (!shown.trouble.empty())
-      lines.push_back(row("error", shown.trouble));
-    else
-      lines.push_back(row("address", shown.address.empty()
-                                         ? (shown.closed ? "closed" : "-")
-                                         : shown.address));
-    return compose::box()
-        .column()
-        .gap(12)
-        .font(look.font({.size = 12, .mono = true}))
-        .ink(look.palette.ink)
-        .children(std::move(lines));
+                           : std::string("nothing has arrived")}}});
   }
 };
 

@@ -130,8 +130,11 @@ SkRect Composer::Impl::ownPaintBounds(Instance& inst) {
         skiaOutline(spec.path, SkSize{rect.width(), rect.height()});
     if (!baseline.isEmpty()) {
       const TextMetrics band = metrics(baseStyleOf(inst), fonts);
-      const float reach =
-          std::max(band.ascent, band.descent) + std::abs(spec.offset) + bleed;
+      // A run fitted by size reaches as far as the size it was fitted to.
+      const float typeScale =
+          inst.textState ? inst.textState->pathTypeScale : 1.0f;
+      const float reach = std::max(band.ascent, band.descent) * typeScale +
+                          std::abs(spec.offset) + bleed;
       SkRect curve = baseline.getBounds();
       curve.outset(reach, reach);
       local.join(curve);

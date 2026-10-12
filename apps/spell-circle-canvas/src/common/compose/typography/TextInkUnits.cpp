@@ -157,7 +157,8 @@ void detail::resolveGlyphInk(const sigil::weave::ParagraphLayout& layout,
   constexpr uint32_t kNone = ~0u;
   uint32_t openInk = kNone, openUnit = kNone;
   sigil::weave::forEachPlacedGlyph(
-      layout, *inst.paragraph, [&](const sigil::weave::PlacedGlyph& placed) {
+      layout, paragraphOfLayout(inst, layout),
+      [&](const sigil::weave::PlacedGlyph& placed) {
         const uint32_t ordinal = placed.ordinal;
         if (ordinal >= structure.glyphs.size()) return;
         uint32_t whose = kNone;

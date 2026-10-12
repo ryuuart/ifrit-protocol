@@ -48,6 +48,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilmotion/ease/Ease.h>
+#include <sigilsketch/kit/Connection.h>
 #include <sigilsketch/kit/Instrument.h>
 #include <sigilsketch/kit/Theme.h>
 #include <sigilsketch/scene2d/Scene2D.h>
@@ -149,24 +150,15 @@ float channel(const data::Json& colour, size_t at, float fallback) {
   return (float)colour[at].number(fallback);
 }
 
-/** WHAT THE READOUT SAYS, and the whole of what says to write it again.
- *  Nothing here is computed about the sky; every figure is one the
- *  connection or a hand on a phone answered. */
+/** WHAT THE READOUT WAS WRITTEN FROM, and the whole of what says to write
+ *  it again: the door's own state, and what the phones did through it.
+ *  Nothing here is computed about the sky. */
 struct Reading {
-  uint64_t generation = 0;
-  uint64_t undecodable = 0;
+  data::ConnectionState door;
   uint64_t turns = 0;
   uint64_t messages = 0;
-  std::string address;
-  std::string trouble;
   bool operator==(const Reading&) const = default;
 };
-
-/** One row of the readout: what it is called, and what it answers. */
-compose::Element row(const std::string& name, const std::string& answer) {
-  return compose::text(
-      compose::kit::formatted("%-11s %s", name.c_str(), answer.c_str()));
-}
 
 }  // namespace
 
@@ -342,12 +334,7 @@ struct PhoneSky {
   /** Takes what the connection answers, and says whether the readout
    *  standing now was written from something else. */
   bool read() {
-    Reading now{.generation = phone.state().revision,
-                .undecodable = phone.state().undecodable,
-                .turns = turns,
-                .messages = messages,
-                .address = phone.state().localAddress,
-                .trouble = phone.state().error};
+    Reading now{.door = phone.state(), .turns = turns, .messages = messages};
     if (now == shown) return false;
     shown = std::move(now);
     return true;
@@ -407,35 +394,20 @@ struct PhoneSky {
         .centerAt({kCanvas.width() * 0.5f, kCanvas.height() - 96.0f});
   }
 
-  /** WHAT THE CONNECTION ANSWERS, in the reading panel: where the door
-   *  is and where its pages stand, how many messages have arrived, how
-   *  many were no message at all, how many of them turned the palette,
-   *  and the local end as the transport bound it — or the sentence
-   *  saying why there is none. */
-  compose::Element readout() {
-    const sketch::kit::Theme& look = sketch::kit::theme();
-    std::vector<compose::Element> lines{
-        row("door", compose::kit::formatted("ws://:%d%s", kPort, kPath)),
-        row("pages", pages),
-        row("generation", compose::kit::formatted(
-                              "%llu", (unsigned long long)shown.generation)),
-        row("undecodable", compose::kit::formatted(
-                               "%llu", (unsigned long long)shown.undecodable)),
-        row("messages", compose::kit::formatted(
-                            "%llu", (unsigned long long)shown.messages)),
-        row("palette", compose::kit::formatted(
-                           "%llu turns", (unsigned long long)shown.turns))};
-    if (!shown.trouble.empty())
-      lines.push_back(row("error", shown.trouble));
-    else
-      lines.push_back(
-          row("address", shown.address.empty() ? "-" : shown.address));
-    return compose::box()
-        .column()
-        .gap(12)
-        .font(look.font({.size = 12, .mono = true}))
-        .ink(look.palette.ink)
-        .children(std::move(lines));
+  /** WHAT THE DOOR ANSWERS, in the reading panel — where it is, whether
+   *  it stands, its revision, what it dropped and could not read, and who
+   *  spoke last or why nobody can — and after it where the pages stand,
+   *  how many messages arrived and how many of them turned the palette. */
+  compose::Element readout() const {
+    return sketch::kit::connectionReadout(
+        phone,
+        {.door = compose::kit::formatted("ws://:%d%s", kPort, kPath),
+         .readings = {
+             {.name = u8"pages", .value = pages},
+             {.name = u8"messages", .value = std::to_string(shown.messages)},
+             {.name = u8"palette",
+              .value = compose::kit::formatted(
+                  "%llu turns", (unsigned long long)shown.turns)}}});
   }
 };
 

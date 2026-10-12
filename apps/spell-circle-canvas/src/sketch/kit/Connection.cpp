@@ -31,7 +31,7 @@ compose::Element connectionReadout(const data::Connection& connection,
       !state.localAddress.empty()
           ? compose::Utf8(state.localAddress)
           : (!how.door.empty() ? how.door : compose::Utf8(connection.uri()));
-  const std::vector<compose::kit::Reading> rows{
+  std::vector<compose::kit::Reading> rows{
       {.name = u8"door", .value = door},
       {.name = u8"state", .value = compose::Utf8(readinessOf(state.readiness))},
       {.name = u8"revision", .value = std::to_string(state.revision)},
@@ -43,6 +43,7 @@ compose::Element connectionReadout(const data::Connection& connection,
                                                ? compose::Utf8("-")
                                                : compose::Utf8(sender)}
           : compose::kit::Reading{.name = u8"error", .value = state.error}};
+  rows.insert(rows.end(), how.readings.begin(), how.readings.end());
   return compose::kit::readout(rows, how.rows);
 }
 

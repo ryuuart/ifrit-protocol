@@ -95,7 +95,14 @@ A coverage silhouette over children that only move, rigidly and at full
 opacity, is composed from held parts: the node's own paint traced alone and
 each child's own silhouette placed by its current transform, so a turning
 child costs a path transform rather than a raster trace of the subtree. Its
-edges are then the child's own steps turned with it. A custom program whose
+edges are then the child's own steps turned with it. The shadows and
+bevels cast from such a silhouette are held the same way: each part's cast
+is kept as a mask in the part's own frame — its coverage, and that coverage
+filled or banded and blurred — and a frame samples the masks where the part
+stands, which matches the cast of the whole wherever parts do not overlap,
+since a Gaussian has no direction. Those marks move with the silhouette, so
+the node's own paint is volatile while it changes and no bake of its own
+half holds them. A custom program whose
 drawing is held is a callable, so it is counted as reading its root
 placement and its recording is remade when an ancestor moves it.
 

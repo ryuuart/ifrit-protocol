@@ -902,3 +902,95 @@ TEST(ComposeText, ALeafsFaceAnswersItsVariationAxes) {
   if (const auto systemGrade = gradeOf(*system))
     EXPECT_LT(systemGrade->minimum, systemGrade->maximum);
 }
+
+// ---------------------------------------------------------------------------
+// A RUN FITTED TO ITS BASELINE: under a size or a spacing fit at a fill of
+// one, a run on a ring closes on its own beginning. Read off where each
+// letter's box landed: every glyph is the same upright letter, so the boxes
+// are the baseline points all moved by one vector, and the space between
+// neighbouring letters is the chord between baseline points. A run that ends
+// where it began leaves the same space across the seam as between any two of
+// its letters.
+
+namespace {
+
+constexpr float kFitRing = 320;
+
+struct FittedRun {
+  std::vector<SkRect> letters;
+};
+
+FittedRun fittedRun(std::u8string_view letters, TextPath::Fit fit) {
+  Host host((int)kFitRing, (int)kFitRing);
+  host.composer.render(
+      box().children({text(letters, whiteStyle(24))
+                          .key("ring")
+                          .width(kFitRing)
+                          .height(kFitRing)
+                          .absolute()
+                          .left(0)
+                          .top(0)
+                          .textOnPath({.path = geometry::shapes::circle(),
+                                       .orient = TextPath::Orient::Upright,
+                                       .fit = fit})
+                          .textFx({.effect = textFx::enter(textFx::rise(6)),
+                                   .tween = {.duration = 100ms}})}));
+  host.frame();
+  FittedRun run;
+  for (const Beat& beat : host.composer.beatsOf("ring", 0))
+    run.letters.push_back(geometry::path::toSk(beat.rect));
+  return run;
+}
+
+/** The chord from each letter to the next, and last the one across the
+ *  seam from the last letter back to the first. */
+std::vector<float> chordsOf(const FittedRun& run) {
+  std::vector<float> chords;
+  const size_t count = run.letters.size();
+  for (size_t index = 0; index < count; ++index) {
+    const SkRect& from = run.letters[index];
+    const SkRect& to = run.letters[(index + 1) % count];
+    chords.push_back(SkPoint::Distance({from.centerX(), from.centerY()},
+                                       {to.centerX(), to.centerY()}));
+  }
+  return chords;
+}
+
+void expectClosesOnItsSeam(const FittedRun& run) {
+  ASSERT_GT(run.letters.size(), 2u);
+  const std::vector<float> chords = chordsOf(run);
+  for (size_t index = 0; index + 1 < chords.size(); ++index)
+    EXPECT_NEAR(chords[index], chords.front(), 1.0f) << "letter " << index;
+  EXPECT_NEAR(chords.back(), chords.front(), 1.0f) << "the seam";
+}
+
+}  // namespace
+
+TEST(ComposeText, ASizeFitClosesARingRunOnItsSeamWhateverItsLength) {
+  const FittedRun shortRun = fittedRun(u8"OOOOO", TextPath::Fit::Size);
+  const FittedRun longRun = fittedRun(u8"OOOOOOOOOOOO", TextPath::Fit::Size);
+  ASSERT_EQ(shortRun.letters.size(), 5u);
+  ASSERT_EQ(longRun.letters.size(), 12u);
+  expectClosesOnItsSeam(shortRun);
+  expectClosesOnItsSeam(longRun);
+  // The fewer letters are set larger to gird the same ring.
+  EXPECT_GT(shortRun.letters.front().height(),
+            longRun.letters.front().height() * 1.5f);
+}
+
+TEST(ComposeText, ASpacingFitClosesARingRunAndKeepsItsTypeSize) {
+  const FittedRun spaced = fittedRun(u8"OOOOO", TextPath::Fit::Spacing);
+  const FittedRun unfitted = fittedRun(u8"OOOOO", TextPath::Fit::None);
+  ASSERT_EQ(spaced.letters.size(), 5u);
+  ASSERT_EQ(unfitted.letters.size(), 5u);
+  expectClosesOnItsSeam(spaced);
+  // Upright letters' boxes are their advance and their band, so a size
+  // left alone is a box of the same width and height.
+  EXPECT_NEAR(spaced.letters.front().width(), unfitted.letters.front().width(),
+              0.01f);
+  EXPECT_NEAR(spaced.letters.front().height(),
+              unfitted.letters.front().height(), 0.01f);
+  // …and without a fit the five letters do not reach round the ring.
+  const std::vector<float> chords = chordsOf(unfitted);
+  EXPECT_GT(chords.back(), chords.front() + 10.0f);
+}

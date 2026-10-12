@@ -5,6 +5,7 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkM44.h>
+#include <include/core/SkSurface.h>
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/typography/Presets.h>
 #include <sigilcompose/typography/Typography.h>
@@ -14,6 +15,7 @@
 
 #include <chrono>
 #include <cmath>
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -150,6 +152,125 @@ BENCHMARK(BM_Draw_KineticColumns)
     ->Arg(4)
     ->Unit(benchmark::kMicrosecond);
 
+// ---------------------------------------------------------------------------
+// A PAGE UNDER A ZOOM, drawn on a pane-sized raster the way the window
+// draws it: the view's scale stands on the canvas, the pane clips what is
+// off it. The page holds a run whose every letter is drawn at its own
+// grade, staggered on a looping cascade, over a static block the page asks
+// to keep as a texture. Arm Steady draws frame after frame at one zoom,
+// which is what a zoom costs while it holds; arm Settle draws each frame
+// at the other of two zooms, so every frame is the first one after a zoom
+// settled. The second argument is 1 for the varied run and 0 for the same
+// run at its own grade, which is what the varied one is read against.
+
+namespace {
+
+constexpr int kPaneWidth = 1200;
+constexpr int kPaneHeight = 700;
+
+Element zoomedPage(const sigil::motion::Animatable<float>& phase, bool varied) {
+  const TextEffect grade =
+      textFx::effect(
+          "gradeSwell",
+          [varied](const GlyphInfo&, float local,
+                   sigil::core::noise::Mix64Stream&) {
+            GlyphModifier modifier;
+            if (!varied) return modifier;
+            modifier.axis = sigil::weave::FontVariation(
+                "GRAD",
+                400.0f + 600.0f * (0.5f - 0.5f * std::cos(6.2831853f * local)));
+            return modifier;
+          },
+          0.0f, {400.0f, 1000.0f})
+          .displacing(false);
+  sigil::weave::TextStyle body;
+  body.shaping.fontSize = 13.0f;
+  std::u8string para;
+  for (int i = 0; i < 24; ++i)
+    para += u8"the quick brown fox jumps over the lazy dog ";
+  return box().column().gap(16).padding(24).children(
+      {text(u8"HAMBURGEFONTSIV")
+           .fontFamily(".SF NS, SF Pro, system-ui")
+           .fontSize(96)
+           .textFx({.effect = grade,
+                    .tween = {.duration = 1800ms,
+                              .delay = sigil::motion::stagger(90ms),
+                              .loop = -1},
+                    .progress = phase}),
+       box().width(1100).cache(Cache::Texture).children({text(para, body)})});
+}
+
+/** Frames the page on @p canvas at the arm's zoom — or, settling, at it
+ *  and another in turn — handing each frame to @p submit. */
+void zoomArm(benchmark::State& state, bool settle, SkCanvas& canvas,
+             const std::function<void()>& submit) {
+  const float zoom = (float)state.range(0);
+  const float other = zoom == 1.0f ? 2.0f : 1.0f;
+  sigil::motion::Animatable<float> phase = sigil::motion::animatable(0.0f);
+  Host host(kPaneWidth, kPaneHeight);
+  // The second argument, where given, sets the run at its own grade
+  // alone: the same page with no letter varied, for the varied run to be
+  // read against.
+  const bool varied = state.range(1) != 0;
+  host.composer.render(zoomedPage(phase, varied));
+  const auto frameAt = [&](float scale) {
+    canvas.clear(SK_ColorBLACK);
+    canvas.save();
+    canvas.clipRect(SkRect::MakeWH(kPaneWidth, kPaneHeight));
+    canvas.scale(scale, scale);
+    host.composer.draw(canvas);
+    canvas.restore();
+    submit();
+  };
+  float t = 0;
+  for (int warm = 0; warm < 8; ++warm) frameAt(zoom);
+  size_t baked = 0, recorded = 0;
+  bool atZoom = true;
+  for ([[maybe_unused]] auto iteration : state) {
+    t += 1.0f / 60.0f;
+    phase = std::fmod(t, 1.0f);
+    if (settle) atZoom = !atZoom;
+    frameAt(atZoom ? zoom : other);
+    baked += host.composer.stats().texturesBaked;
+    recorded += host.composer.stats().picturesRecorded;
+  }
+  const double frames = (double)std::max<int64_t>(state.iterations(), 1);
+  state.counters["zoom"] = zoom;
+  state.counters["varied"] = varied ? 1 : 0;
+  state.counters["bakedPerFrame"] = (double)baked / frames;
+  state.counters["recordedPerFrame"] = (double)recorded / frames;
+}
+
+void rasterZoomArm(benchmark::State& state, bool settle) {
+  const sk_sp<SkSurface> pane =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kPaneWidth, kPaneHeight));
+  zoomArm(state, settle, *pane->getCanvas(), [] {});
+}
+
+}  // namespace
+
+static void BM_Draw_ZoomedPage_Steady(benchmark::State& state) {
+  rasterZoomArm(state, false);
+}
+BENCHMARK(BM_Draw_ZoomedPage_Steady)
+    ->Args({1, 1})
+    ->Args({1, 0})
+    ->Args({2, 1})
+    ->Args({2, 0})
+    ->Args({4, 1})
+    ->Args({4, 0})
+    ->Unit(benchmark::kMillisecond);
+
+static void BM_Draw_ZoomedPage_Settle(benchmark::State& state) {
+  rasterZoomArm(state, true);
+}
+BENCHMARK(BM_Draw_ZoomedPage_Settle)
+    ->Args({1, 1})
+    ->Args({1, 0})
+    ->Args({4, 1})
+    ->Args({4, 0})
+    ->Unit(benchmark::kMillisecond);
+
 #ifdef SIGIL_BENCH_GPU
 
 // ---- Dense static text on Graphite ---------------------------------------
@@ -235,6 +356,35 @@ static void BM_Draw_KineticText_Graphite(benchmark::State& state) {
   state.counters["lines"] = (double)lines;
 }
 BENCHMARK(BM_Draw_KineticText_Graphite)->Arg(14)->Arg(56);
+
+/** The zoomed page on Graphite, where a glyph is rasterised into the atlas
+ *  at the size it is drawn: each frame is waited for, so the number is
+ *  what the frame cost the device as well as the recorder. */
+static void BM_Draw_ZoomedPage_Steady_Graphite(benchmark::State& state) {
+  GraphiteTarget target(state, kPaneWidth, kPaneHeight);
+  if (!target.ok()) return;
+  zoomArm(state, false, target.canvas(), [&] { target.submitSynced(); });
+}
+BENCHMARK(BM_Draw_ZoomedPage_Steady_Graphite)
+    ->Args({1, 1})
+    ->Args({1, 0})
+    ->Args({2, 1})
+    ->Args({2, 0})
+    ->Args({4, 1})
+    ->Args({4, 0})
+    ->Unit(benchmark::kMillisecond);
+
+static void BM_Draw_ZoomedPage_Settle_Graphite(benchmark::State& state) {
+  GraphiteTarget target(state, kPaneWidth, kPaneHeight);
+  if (!target.ok()) return;
+  zoomArm(state, true, target.canvas(), [&] { target.submitSynced(); });
+}
+BENCHMARK(BM_Draw_ZoomedPage_Settle_Graphite)
+    ->Args({1, 1})
+    ->Args({1, 0})
+    ->Args({4, 1})
+    ->Args({4, 0})
+    ->Unit(benchmark::kMillisecond);
 
 // ---------------------------------------------------------------------------
 // Dense GLYPHS under a perspective CTM on Graphite. A projective matrix can

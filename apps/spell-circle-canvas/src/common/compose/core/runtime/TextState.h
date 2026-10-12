@@ -35,6 +35,13 @@ struct TextState {
   // baseline value changes; the `at` phase is applied at PAINT and never
   // touches it.
   sigil::weave::ParagraphLayout pathLayout;
+  /** The run as a fit by size set it — the node's own paragraph with every
+   *  span's type scaled — which is what `pathLayout`'s glyphs are read
+   *  from; empty where the run keeps its own size. */
+  std::optional<sigil::weave::Paragraph> pathParagraph;
+  /** The scale that fit set the type at, which is how far the type's band
+   *  reaches off the baseline beside the size it was written in. */
+  float pathTypeScale = 1.0f;
   std::vector<sigil::weave::LineInterval> pathIntervals;
   float pathTotalLength = 0;   // every contour's arc length together
   float pathRestAt = 0;        // the `at` the layout's entry point baked in

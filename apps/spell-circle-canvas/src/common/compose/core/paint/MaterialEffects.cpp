@@ -28,6 +28,7 @@
 #include <algorithm>
 #include <cmath>
 
+#include "HeldCoverage.h"
 #include "SurfaceMap.h"
 #include "UnitSurface.h"
 #include "cache/MarkStates.h"
@@ -83,16 +84,32 @@ SkPath shapeOf(const PaintContext& context) {
                                     : geometry::path::toSk(context.silhouette);
 }
 
+/** How far an inner shadow's band reaches in from the edge. */
+float innerReach(float blur, float spread, glm::vec2 offset) {
+  return std::max(blur, 1.0f) + 2 * spread +
+         std::max(std::abs(offset.x), std::abs(offset.y));
+}
+
+/** The band an inner shadow casts: blurred by half its blur. */
+CoverageCast innerCast(float blur, float reach) {
+  return {.sigma = blur > 0 ? blur * 0.5f : 0, .bandWidth = reach};
+}
+
 /** A band hugging the inner edge, displaced along @p offset. */
 void innerShadow(SkCanvas& canvas, const PaintContext& context,
                  material::Color color, glm::vec2 offset, float blur,
                  float spread) {
+  const float reach = innerReach(blur, spread, offset);
+  // Cast from held parts, the band is each part's own, blurred once in
+  // the part's frame and cut to where the part stands.
+  const CoverageInk ink{painted(color), {offset.x, offset.y}};
+  if (paintHeldCoverage(canvas, context, {&ink, 1}, innerCast(blur, reach),
+                        true))
+    return;
   canvas.save();
   canvas.clipPath(shapeOf(context), true);
   SkPaint paint = painted(color);
   paint.setStyle(SkPaint::kStroke_Style);
-  const float reach = std::max(blur, 1.0f) + 2 * spread +
-                      std::max(std::abs(offset.x), std::abs(offset.y));
   paint.setStrokeWidth(reach);
   blurred(paint, blur);
   canvas.translate(offset.x, offset.y);
@@ -254,6 +271,13 @@ void CoverageMark::paint(draw::Pen& pen, const PaintContext& context) const {
                     shadow.spread);
         return;
       }
+      const CoverageInk ink{painted(effect.color),
+                            {shadow.offset.x, shadow.offset.y}};
+      if (paintHeldCoverage(canvas, context, {&ink, 1},
+                            {.sigma = shadow.blur > 0 ? shadow.blur * 0.5f : 0,
+                             .spread = std::max(shadow.spread, 0.0f)},
+                            false))
+        return;
       SkPaint paint = painted(effect.color);
       if (shadow.spread > 0) {
         paint.setStyle(SkPaint::kStrokeAndFill_Style);
@@ -281,6 +305,14 @@ void CoverageMark::paint(draw::Pen& pen, const PaintContext& context) const {
       // one opposite its offset: the lit band is cast away from the light.
       const glm::vec2 away = {-std::cos(radians) * bevel.depth,
                               std::sin(radians) * bevel.depth};
+      // Cast from held parts, the lit band and the shaded one are one
+      // band, held once and laid twice in one draw.
+      const CoverageInk inks[] = {{painted(bevel.highlight), {away.x, away.y}},
+                                  {painted(bevel.shadow), {-away.x, -away.y}}};
+      if (paintHeldCoverage(
+              canvas, context, inks,
+              innerCast(bevel.size, innerReach(bevel.size, 0, away)), true))
+        return;
       innerShadow(canvas, context, bevel.highlight, away, bevel.size, 0);
       innerShadow(canvas, context, bevel.shadow, -away, bevel.size, 0);
       return;

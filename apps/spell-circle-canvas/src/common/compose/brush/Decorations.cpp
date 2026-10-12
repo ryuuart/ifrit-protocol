@@ -25,6 +25,7 @@
 
 #include "Ink.h"
 #include "paint/FillLowering.h"
+#include "paint/HeldCoverage.h"
 
 namespace sigil::compose {
 
@@ -49,14 +50,23 @@ void Shadow::paint(draw::Pen& pen, const PaintContext& ctx) const {
   SkPaint p;
   p.setAntiAlias(true);
   if (!detail::layInk(p, resolveFill(ink, ctx))) return;
+  const SkVector at = {bindOffsetX ? bindOffsetX->value() : offset.x,
+                       bindOffsetY ? bindOffsetY->value() : offset.y};
+  // Cast from a silhouette of held parts, each part's blur is held in its
+  // own frame and placed where the part stands.
+  if (!knockout) {
+    const detail::CoverageInk cast{p, at};
+    if (detail::paintHeldCoverage(canvas, ctx, {&cast, 1},
+                                  {.sigma = blur > 0 ? blur * 0.5f : 0}, false))
+      return;
+  }
   if (blur > 0)
     p.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, blur * 0.5f));
   canvas.save();
   if (knockout)
     canvas.clipPath(geometry::path::toSk(ctx.outline), SkClipOp::kDifference,
                     true);
-  canvas.translate(bindOffsetX ? bindOffsetX->value() : offset.x,
-                   bindOffsetY ? bindOffsetY->value() : offset.y);
+  canvas.translate(at.x(), at.y());
   canvas.drawPath(geometry::path::toSk(ctx.outline), p);
   canvas.restore();
 }

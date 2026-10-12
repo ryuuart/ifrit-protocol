@@ -13,7 +13,6 @@
 // share.
 
 #include <include/core/SkColor.h>
-#include <include/core/SkColorFilter.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPoint.h>
@@ -32,7 +31,6 @@
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
-#include <array>
 #include <cstdint>
 
 #include "Crt.h"
@@ -214,7 +212,8 @@ inline sigil::weave::Face minchoHeavy() {
 /** The shared colour-screen treatment, applied once to the whole display:
  *  the phosphor light first — lit cores whitened, a close glow spread and
  *  deepened toward each colour's strongest channel — then the tube, whose
- *  own bloom is the last pass over everything. */
+ *  own light, the layer blurred once and read through the bent glass, is
+ *  the last thing over everything. */
 inline sigil::material::Filter crt(float width, float height) {
   static const auto light = sigil::material::Filter::bloom({
       .sigma = 2.5f,
@@ -229,32 +228,12 @@ inline sigil::material::Filter crt(float width, float height) {
       .deepening = 2.0f,
   });
   using sigil::material::Filter;
-  // The two light lobes are blurred after the screen bends. The tube's
-  // unused light slot has zero radius as well as zero strength, so it
-  // does not blur content the glass never reads.
+  // The tube's light at its own strength, over a radius tight enough to
+  // keep the phosphor's close glow on the lettering it came from.
   auto screen = crtTube(SkRect::MakeWH(width, height));
-  screen.set("uBloom", 0.0f);
-  screen.set("uBloomRadius", 0.0f);
-  static const Filter tubeLight = [] {
-    const auto weigh = [](float w) {
-      const float m[20] = {w, 0, 0, 0, 0, 0, w, 0, 0, 0,
-                           0, 0, w, 0, 0, 0, 0, 0, 1, 0};
-      return sigil::material::skia::filter(SkColorFilters::Matrix(m));
-    };
-    std::array<uint8_t, 256> half{};
-    for (int i = 0; i < 256; ++i)
-      half[i] = static_cast<uint8_t>(std::min(i, 128));
-    const Filter glow =
-        Filter::blur(0.8f)
-            .then(weigh(0.7f * 0.38f))
-            .emit(Filter::blur(2.4f).then(weigh(0.3f * 0.38f)),
-                  sigil::material::BlendMode::PlusLighter)
-            .then(sigil::material::skia::filter(SkColorFilters::TableARGB(
-                nullptr, half.data(), half.data(), half.data())));
-    return Filter().emit(glow, sigil::material::BlendMode::PlusLighter);
-  }();
-  return light.then(Filter::of(screen, std::max(width, height) * 0.05f + 10.0f))
-      .then(tubeLight);
+  screen.set("uBloomRadius", 1.4f);
+  return light.then(
+      Filter::of(screen, std::max(width, height) * 0.05f + 10.0f));
 }
 
 /** The Japanese display register used where Matisse EB is unavailable. */

@@ -23,6 +23,7 @@
 #include <optional>
 #include <vector>
 
+#include "HeldCoverage.h"
 #include "PaintInternal.h"
 #include "runtime/ComposeRuntime.h"
 
@@ -45,6 +46,8 @@ namespace {
  *  alternative to refusing outright. */
 constexpr int kMaxTraceRaster = 2048;
 
+}  // namespace
+
 /** THE ALPHA, AS A REGION, at the tolerance the node declared: a pixel is
  *  inside when its coverage reaches `covered`, which
  *  `Element::decorationOutline` states as a fraction of full opacity and which
@@ -60,7 +63,7 @@ constexpr int kMaxTraceRaster = 2048;
  *  answer is exact for the raster it was given — every edge axis-aligned,
  *  every step one pixel — which is the honest shape of a traced raster and
  *  not an approximation of a smooth curve. */
-SkRegion regionOfCoveredPixels(const SkPixmap& alpha, uint8_t covered) {
+SkRegion detail::regionOfCoveredPixels(const SkPixmap& alpha, uint8_t covered) {
   const int width = alpha.width(), height = alpha.height();
   std::vector<SkIRect> rects;
   std::vector<SkIRect> row, previous;  // the runs of this row, and the last
@@ -105,8 +108,6 @@ SkRegion regionOfCoveredPixels(const SkPixmap& alpha, uint8_t covered) {
   return region;
 }
 
-}  // namespace
-
 const SkPath& Composer::Impl::coverageOutline(Instance& inst, SkSize size,
                                               float contentScale) {
   const bool sized = size.width() > 0 && size.height() > 0;
@@ -135,6 +136,7 @@ const SkPath& Composer::Impl::coverageOutline(Instance& inst, SkSize size,
   if (!stale || !sized) {
     if (!sized) {
       inst.coverageOutline.reset();
+      inst.coverageParts.clear();
       inst.coverageOutlineSize = size;
       inst.coverageOutlineBounds = covers;
       inst.coverageOutlineScale = contentScale;
@@ -147,6 +149,7 @@ const SkPath& Composer::Impl::coverageOutline(Instance& inst, SkSize size,
   inst.coverageOutlineScale = contentScale;
   inst.coverageOutlineThreshold = threshold;
   inst.coverageOutline.reset();
+  inst.coverageParts.clear();
   if (covers.isEmpty()) return inst.coverageOutline;
 
   const float longer = std::max(covers.width(), covers.height());
@@ -257,7 +260,7 @@ std::optional<SkPath> Composer::Impl::composedCoverage(Instance& inst,
   // The node's own paint must hold, and nothing of its own may wrap its
   // children: a clip, a mask or a filter over the layer reads the children
   // where they stand and is not the union of their silhouettes.
-  if (inst.ownContentVolatile || inst.paintDirty || style.clipContent ||
+  if (inst.ownCoverageVolatile || inst.paintDirty || style.clipContent ||
       layerEffectOf(node) || backdropEffectOf(node) || node.hasMasks() ||
       hostsSpace(inst))
     return std::nullopt;
@@ -305,23 +308,35 @@ std::optional<SkPath> Composer::Impl::composedCoverage(Instance& inst,
     own.scale = contentScale;
     own.threshold = threshold;
   }
+  std::vector<CoveragePart> held;
   std::vector<SkPath> pieces;
-  if (!own.outline.isEmpty()) pieces.push_back(own.outline);
+  if (!own.outline.isEmpty()) {
+    held.push_back({own.outline, SkMatrix::I()});
+    pieces.push_back(own.outline);
+  }
   for (const Part& part : parts) {
     Instance& child = *part.child;
     const SkRect rect = instanceRect(child);
-    const SkPath& held =
+    const SkPath& outline =
         coverageOutline(child, {rect.width(), rect.height()}, contentScale);
-    if (!held.isEmpty()) pieces.push_back(held.makeTransform(part.placed));
+    if (outline.isEmpty()) continue;
+    held.push_back({outline, part.placed});
+    pieces.push_back(outline.makeTransform(part.placed));
   }
-  if (pieces.empty()) return SkPath();
-  if (pieces.size() == 1) return std::move(pieces.front());
-  // Silhouettes overlap where children do, and a hole in one may be
-  // covered by another, so the parts are united rather than appended.
-  SkOpBuilder united;
-  for (const SkPath& piece : pieces) united.add(piece, kUnion_SkPathOp);
-  if (std::optional<SkPath> result = united.resolve()) return result;
-  return std::nullopt;
+  std::optional<SkPath> result;
+  if (pieces.empty()) {
+    result = SkPath();
+  } else if (pieces.size() == 1) {
+    result = std::move(pieces.front());
+  } else {
+    // Silhouettes overlap where children do, and a hole in one may be
+    // covered by another, so the parts are united rather than appended.
+    SkOpBuilder united;
+    for (const SkPath& piece : pieces) united.add(piece, kUnion_SkPathOp);
+    result = united.resolve();
+  }
+  if (result) inst.coverageParts = std::move(held);
+  return result;
 }
 
 }  // namespace sigil::compose

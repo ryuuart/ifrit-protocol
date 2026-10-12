@@ -55,6 +55,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilmotion/ease/Ease.h>
+#include <sigilsketch/kit/Connection.h>
 #include <sigilsketch/kit/Instrument.h>
 #include <sigilsketch/kit/Theme.h>
 #include <sigilsketch/scene2d/Scene2D.h>
@@ -176,26 +177,18 @@ constexpr size_t kAnsweringChannels = kLamps * kLampChannels;
  *  writes. */
 constexpr int kSequenceCeiling = 255;
 
-/** WHAT THE READOUT SAYS, and the whole of what says to write it again.
+/** WHAT THE READOUT WAS WRITTEN FROM, and the whole of what says to write
+ *  it again: the door's own state, and what the desk sent through it.
  *  Nothing continuous is in here: the wash, the wind and the flashes
  *  move every frame, and a description rebuilt every frame is a
  *  description nothing can be pruned against. */
 struct Reading {
-  uint64_t generation = 0;
-  uint64_t undecodable = 0;
+  data::ConnectionState door;
   uint64_t answered = 0;
   int universe = -1;
   std::string dimmers;
-  std::string address;
-  std::string trouble;
   bool operator==(const Reading&) const = default;
 };
-
-/** One row of the readout: what it is called, and what it answers. */
-compose::Element row(const char* name, const std::string& answer) {
-  return compose::text(
-      compose::kit::formatted("%-11s %s", name, answer.c_str()));
-}
 
 /** The dimmer a desk calls @p number, as a fraction of full, out of the
  *  list a packet reads as. A channel the packet did not reach stands at
@@ -419,13 +412,10 @@ struct ArtNetLights {
                                             "%4d", (int)channels[at].number())
                                       : std::string("   -");
     Reading now{
-        .generation = desk.state().revision,
-        .undecodable = desk.state().undecodable,
+        .door = desk.state(),
         .answered = answered,
         .universe = newest.null() ? -1 : (int)newest["universe"].number(),
-        .dimmers = std::move(dimmers),
-        .address = desk.state().localAddress,
-        .trouble = desk.state().error};
+        .dimmers = std::move(dimmers)};
     if (now == shown) return false;
     shown = std::move(now);
     return true;
@@ -523,36 +513,21 @@ struct ArtNetLights {
     }
   }
 
-  /** WHAT THE CONNECTION ANSWERS, in the reading panel: how many packets
-   *  have arrived, how many of them were no Art-Net packet at all,
-   *  which universe the newest one was for and what the head of it
-   *  holds, how many universes have gone back to the desk, and where
-   *  the door is — or the sentence saying why there is none. */
-  compose::Element readout() {
-    const sketch::kit::Theme& look = sketch::kit::theme();
-    std::vector<compose::Element> lines{
-        row("door", kDesk),
-        row("generation", compose::kit::formatted(
-                              "%llu", (unsigned long long)shown.generation)),
-        row("undecodable", compose::kit::formatted(
-                               "%llu", (unsigned long long)shown.undecodable)),
-        row("universe", shown.universe < 0
-                            ? "nothing has arrived"
-                            : compose::kit::formatted("%d", shown.universe)),
-        row("channels", shown.dimmers),
-        row("answered", compose::kit::formatted(
-                            "%llu", (unsigned long long)shown.answered))};
-    if (!shown.trouble.empty())
-      lines.push_back(row("error", shown.trouble));
-    else
-      lines.push_back(
-          row("address", shown.address.empty() ? "-" : shown.address));
-    return compose::box()
-        .column()
-        .gap(12)
-        .font(look.font({.size = 12, .mono = true}))
-        .ink(look.palette.ink)
-        .children(std::move(lines));
+  /** WHAT THE DOOR ANSWERS, in the reading panel — where it is, whether
+   *  it stands, its revision, what it dropped and how much of it was no
+   *  Art-Net packet at all, and who spoke last or why nobody can — and
+   *  after it which universe the newest packet was for, what the head of
+   *  it holds, and how many universes have gone back to the desk. */
+  compose::Element readout() const {
+    return sketch::kit::connectionReadout(
+        desk,
+        {.door = kDesk,
+         .readings = {
+             {.name = u8"universe",
+              .value = shown.universe < 0 ? std::string("nothing has arrived")
+                                          : std::to_string(shown.universe)},
+             {.name = u8"channels", .value = shown.dimmers},
+             {.name = u8"answered", .value = std::to_string(shown.answered)}}});
   }
 };
 

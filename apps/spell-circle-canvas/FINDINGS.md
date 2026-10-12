@@ -17,27 +17,6 @@ remain unchanged. A test should compare a turning text ring and a seeded
 fibre stroke at the same moment and fractional capture density under the
 chosen capture policy, with an explicit bound on the permitted difference.
 
-## Two MAGI studies build the tube's light outside its recipe
-
-`eva_magi_interior/EvangelionUi.h` sets `uBloom` and `uBloomRadius` to zero on the tube
-(`evangelion::crtTube`, `eva_magi_interior/Crt.h`)
-and adds the tube's light itself — two Gaussians, two weighting matrices
-and a table holding the sum at half. The zero radius makes the unused
-recipe slot an identity; no unused blur remains. The recipe can supply
-light through a slot an executor fills with the layer blurred once.
-
-Defense and deliberation use this shared treatment; interior already
-uses the recipe's own light. The intended consolidation is for all three
-to take the tube light from the recipe. It needs a visual decision:
-the shared treatment blurs two lobes after curvature, while the recipe
-supplies one Gaussian before curvature. Radius and strength must match
-the reference before an approved plate rebase names the cause.
-
-A test should assert that each tube requests its light with `uBloom`
-above zero and has no separate tube-light pass after it. The phosphor
-treatment before the tube is a separate stage and stays. The approved
-plates should hold the chosen radius, strength and order.
-
 ## A stack's programs cannot be stood up before the sketch wearing it is read
 
 Grimoire's warm-up (`apps/grimoire/src/PipelineWarm.cpp`) describes a
@@ -48,66 +27,28 @@ sketch description should be enough to stand a stack's programs up before
 the sketch opens. A test should warm a sketch wearing a stack and find
 its first frame building no program.
 
-## A zoom that settles re-rasterises everything at once, and varied glyphs grow with the scale
+## A run of driven variation instances costs its atlas entries at every device size
 
-When the pane's zoom settles, `GrimoireRenderer` redraws the frame at
-the new scale, and everything rasterised per device scale is redone in
-that frame: texture bakes on their coarse scale ladder, and every glyph
-at its new pixel size through the glyph atlas. A fast zoom in and out
-crosses several rungs in a second, so each settle costs a spike rather
-than a steady frame. `axis_ripple`, whose glyphs are each a varied
-typeface instance, slows with the zoom itself: every instance
-re-rasterises at the larger size and the atlas, sized by an environment
-variable, fills and evicts.
+A run whose letters are each a driven variation instance costs an atlas
+entry per instance at every device size inside the atlas range: on
+Graphite a varied page costs several times at zoom two what it does at
+zoom one while the same run undriven is flat, and a settle across sizes
+rasterises every instance again. Above the atlas range the glyphs draw
+as paths and the cost vanishes. SigilWeave's glyph batches should draw a
+driven face as a path above a device size where an atlas entry per
+instance is wasteful. `BM_Draw_ZoomedPage_Steady_Graphite` varied and
+plain at zoom two should then agree within a stated ratio.
 
-A zoom is evidently meant to cost what the pane costs at any scale, as
-the pane-sized render target now makes true for fill, with a settle
-paying once and a varied glyph drawn as a path where the size makes an
-atlas entry wasteful.
+## A dressed sheet over a turning child costs many times the child on the raster
 
-Once measured, `sketch_bench` should carry an arm that frames
-`axis_ripple` at zoom 1, 2 and 4 reading back the reshaped-words and
-atlas counters, and an arm that alternates two scales across a settle,
-so a test can assert that a settle's cost is bounded and that a varied
-passage's frame cost does not grow with the zoom.
-
-## A run on a closed baseline cannot be fitted to the baseline's length
-
-`TextPath` places a run along its path at the size the run was set in,
-and a run shorter than a closed baseline leaves a gap at the seam while
-a longer one is cut off at the end. A ring inscription girds its circle
-exactly, so `rota_convocationis` measures each band with
-`Scene2DContext::measure` and rescales the font size twice (tracking is
-px and does not scale with the type) before it describes the tree:
-twelve seals and four bands, each a probe outside the tree.
-
-`TextPath` is evidently meant to be able to say "fill the baseline",
-the way a paragraph says justify: a field (a fit mode of none, size or
-spacing, with a fill fraction) resolved at layout against the resolved
-path's length, so a ring's lettering closes on its seam from the
-declaration alone and follows a face or word change without a
-re-measure.
-
-A test should assert that a run on `shapes::circle()` with a size fit
-at fraction 1 ends within a pixel of where it starts, for two runs of
-different lengths in the same box, and that a spacing fit leaves the
-font size unchanged.
-
-Also wanted by `cosmati`: the onyx roundel's brass ring is sized by eye to come near its seam, and its gap comment states the constraint.
-
-## A coverage decoration under a turning child is blurred anew every frame
-
-A sheet's silhouette over children that only turn or slide is composed
-from held parts, but the decorations drawn from it, the drop shadow and
-the bevel's two inner shadows, are blurred from the turning silhouette on
-every frame, which dominates `chaucer_astrolabe`'s frame. The highlight
-angle and the shadow offset are fixed in page space while the silhouette
-turns, so the decorations cannot be held as paths; holding them means
-keeping the child's coverage and blurred-coverage masks in the child's
-own frame and compositing them each frame, exact for the drop shadow and
-two masks per inner shadow, in `brush::Shadow` and `CoverageMark`. The
-bench `BM_Draw_CoverageSheet_TurningChild` holds the number; the dressed
-sheet should cost a small multiple of the child's own paint.
+A sheet's coverage decorations over a turning child are drawn from held
+masks, each part's coverage and blurred coverage kept in its own frame
+and sampled where the part stands, so nothing is blurred anew. On the CPU
+raster the dressed sheet still costs many times the turning child alone:
+what remains is the per-pixel sampling of three turned masks over their
+footprints. A test should hold `BM_Draw_CoverageSheet_TurningChild`'s
+dressed arm under a stated ratio of the child's arm on the Graphite arm,
+where sampling a turned mask is cheap.
 
 ## `text_paints::sparkle`'s cells follow the run's extent, and no test binary can hold that
 
@@ -129,26 +70,6 @@ sketch's own assertions run (a sketch-side check printed at startup, as
 `black_watch` prints its invariants; a test binary over the sketches'
 headers; or the text paints lifted into a kit that a library test can
 reach).
-
-## Ten Data sketches still snapshot and print a connection's vitals by hand
-
-`data::Connection::state()` answers one comparable
-`data::ConnectionState`, and `sketch::kit::connectionReadout(connection,
-{.door, .rows})` is the one readout over it; `feed_sky` reads both. Ten
-registered sketches still declare their own `Reading` (or `Vitals`)
-struct of those fields, fill it by hand, test it for a change and set
-their own rows in an order of their own: `phone_sky`, `webrtc_sky`,
-`osc_desk`, `feed_events`, `grpc_watch`, `midi_pads`, `serial_sensor`,
-`artnet_lights` and `channel_bind` over a `data::Connection`, and
-`feed_vitals` (`Vitals`, `vitalsOf`) over the `io::Feed` beneath one.
-
-What the sketches should say: a door keeps the `ConnectionState` it last
-showed and describes again when `state() != shown`, and its readout is
-`connectionReadout`. `feed_vitals` reads the feed with no connection
-over it, so it either opens one or keeps its own rows and says why. Each
-plate moves only where the kit's rows differ from the sketch's own (a
-row's name, its order, `-` for no sender, the error in the sender's
-row), and each commit names those rows.
 
 ## Separating a text bevel from changing ink can change its coverage
 
@@ -516,3 +437,18 @@ written into the body) has no Slang body, so on a World body it reads as
 empty and is reported once. Grain is a channel a body can wear, like the
 other fields. A test should put `field::grain` on a World card's base
 colour and find it varying across the card.
+
+## Python lacks a text path's fit
+
+`TextPath::fit` (none, size or spacing) and `TextPath::fill` resolve a
+run against a closed baseline's length, but `python/compose/Elements.cpp`
+binds the path's fields one by one with no `Fit` enum. A Python
+`TextPath(fit=..., fill=...)` should round-trip, and a ring run with a
+size fit should close on its seam.
+
+## Two sketches still hand-fit ring text
+
+`rota_convocationis` measures and rescales its twelve seals and four
+bands with `Scene2DContext::measure`, and `cosmati`'s onyx roundel ring
+is sized by eye. Both can declare `.fit = TextPath::Fit::Size` and drop
+the measurement; their plates move by the fit's residual.

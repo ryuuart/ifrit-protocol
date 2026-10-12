@@ -348,6 +348,8 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   // no marks, so it needs no boundary for them either, and that is what
   // keeps the trace from re-entering itself.
   const SkPath* decorationBase = &fullOutline;
+  // The held parts the marks' outline was composed from, where it was.
+  const std::vector<CoveragePart>* composedParts = nullptr;
   SkPath deviatedGlyphs;
   if (node.boundary == Boundary::Glyphs && node.kind == Kind::Text &&
       inst.paragraph) {
@@ -371,7 +373,11 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
     // one cached trace serves both.
     const SkPath& traced =
         coverageOutline(inst, {bounds.width(), bounds.height()}, hostScale);
-    if (!traced.isEmpty()) decorationBase = &traced;
+    if (!traced.isEmpty()) {
+      decorationBase = &traced;
+      if (!marksShow && !inst.coverageParts.empty())
+        composedParts = &inst.coverageParts;
+    }
     // A staircase of whole device pixels is a different path at a
     // different scale, so a recording that freezes one in is pinned to the
     // scale it was traced at, exactly as one holding a device blit is
@@ -690,14 +696,17 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       markCtx.silhouette =
           geometry::path::fromSk(gateSilhouette(fullOutline, run));
       markCtx.stamps = nullptr;  // each mark keeps its own art cache
+      state.coverageParts = nullptr;
       markCtx.markState = &state;
       detail::PenOnCanvas markPen(canvas, markCtx);
       d.paint(markPen.pen(), markCtx);
     } else {
       PaintContext markCtx = paintCtx;
+      state.coverageParts = composedParts;
       markCtx.markState = &state;
       detail::PenOnCanvas markPen(canvas, markCtx);
       d.paint(markPen.pen(), markCtx);
+      state.coverageParts = nullptr;
     }
     if (granularPlane) leaveGates(saves, cover);
   };

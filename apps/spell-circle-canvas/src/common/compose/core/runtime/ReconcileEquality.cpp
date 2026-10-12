@@ -45,7 +45,7 @@ bool effectEqual(const std::optional<material::Filter>& a,
 // ---- block equality: presence must match first, then contents; a block
 // holding a callable stays conservatively unequal ---------------------------
 
-static_assert(kFieldCount<TextPath> == 7,
+static_assert(kFieldCount<TextPath> == 9,
               "TextPath gained or lost a field — rule on it in "
               "textPathEqual() below, then bump this count. The comparator "
               "is hand-written at all because `at` is an Animatable, and "
@@ -54,7 +54,8 @@ static_assert(kFieldCount<TextPath> == 7,
 bool textPathEqual(const TextPath& a, const TextPath& b) {
   return a.path == b.path && propertyEqual(a.at, b.at) && a.align == b.align &&
          a.offset == b.offset && a.autoFlip == b.autoFlip &&
-         a.orient == b.orient && a.exactTangent == b.exactTangent;
+         a.orient == b.orient && a.exactTangent == b.exactTangent &&
+         a.fit == b.fit && a.fill == b.fill;
 }
 
 static_assert(kFieldCount<TextData> == 19 && kFieldCount<TextOptions> == 10 &&

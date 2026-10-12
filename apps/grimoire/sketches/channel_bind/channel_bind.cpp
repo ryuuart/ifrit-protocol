@@ -58,6 +58,7 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Animatable.h>
+#include <sigilsketch/kit/Connection.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilsketch/scene2d/Scene2D.h>
 
@@ -170,15 +171,14 @@ struct ChannelBind {
   /** One per fader, each following one argument of one address. */
   std::array<sketch::kit::Channel, kFaders> faders;
 
-  /** WHAT THE READOUT SAYS, and the whole of what says to write it again.
-   *  Each fader's reading is in it, so a description is rebuilt exactly
-   *  when a fader moved — which is also exactly when the drawing changed,
-   *  the three properties being pure functions of the three readings. */
+  /** WHAT THE READOUT WAS WRITTEN FROM, and the whole of what says to
+   *  write it again: each fader's reading and the door's own state, so a
+   *  description is rebuilt exactly when a fader moved — which is also
+   *  exactly when the drawing changed, the three properties being pure
+   *  functions of the three readings — or the door changed. */
   struct Shown {
     std::array<std::optional<double>, kFaders> read;
-    uint64_t generation = 0;
-    uint64_t undecodable = 0;
-    std::string trouble;
+    data::ConnectionState door;
     bool operator==(const Shown&) const = default;
   };
   Shown shown;
@@ -242,9 +242,7 @@ struct ChannelBind {
     Shown now;
     for (size_t index = 0; index != kFaders; ++index)
       now.read[index] = faders[index].lastRead();
-    now.generation = desk.state().revision;
-    now.undecodable = desk.state().undecodable;
-    now.trouble = desk.state().error;
+    now.door = desk.state();
     if (now == shown) return false;
     shown = std::move(now);
     return true;
@@ -414,16 +412,11 @@ struct ChannelBind {
     return compose::kit::formatted("%.1f deg", swing().value());
   }
 
-  /** WHAT THE DOOR ANSWERS, under the table: where it is, how much has
-   *  arrived, how much of it was no OSC packet at all, and the sentence
-   *  saying why there is no door where there is none. */
-  compose::Element door() {
-    return compose::document::caption(compose::kit::formatted(
-        "%s   ·   arrivals %llu   ·   undecodable %llu"
-        "   ·   %s",
-        kDesk, (unsigned long long)shown.generation,
-        (unsigned long long)shown.undecodable,
-        shown.trouble.empty() ? "listening" : shown.trouble.c_str()));
+  /** WHAT THE DOOR ANSWERS, under the table: where it is, whether it
+   *  stands, its revision, what it dropped and how much of it was no OSC
+   *  packet at all, and who spoke last or why nobody can. */
+  compose::Element door() const {
+    return sketch::kit::connectionReadout(desk, {.door = kDesk});
   }
 };
 

@@ -49,6 +49,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilmotion/ease/Ease.h>
+#include <sigilsketch/kit/Connection.h>
 #include <sigilsketch/kit/Instrument.h>
 #include <sigilsketch/kit/Theme.h>
 #include <sigilsketch/scene2d/Scene2D.h>
@@ -134,23 +135,15 @@ struct Wave {
   float strength = 0;
 };
 
-/** WHAT THE READOUT SAYS, and the whole of what says to write it again.
- *  Every kind that has arrived is in it, in the order they first did,
- *  so a vocabulary this scene does not read still shows up by name. */
+/** WHAT THE READOUT WAS WRITTEN FROM, and the whole of what says to write
+ *  it again: the door's own state, and every kind that has arrived, in
+ *  the order they first did, so a vocabulary this scene does not read
+ *  still shows up by name. */
 struct Reading {
-  uint64_t generation = 0;
-  uint64_t undecodable = 0;
+  data::ConnectionState door;
   std::vector<std::pair<std::string, uint64_t>> kinds;
-  std::string address;
-  std::string trouble;
   bool operator==(const Reading&) const = default;
 };
-
-/** One row of the readout: what it is called, and what it answers. */
-compose::Element row(const std::string& name, const std::string& answer) {
-  return compose::text(
-      compose::kit::formatted("%-11s %s", name.c_str(), answer.c_str()));
-}
 
 }  // namespace
 
@@ -293,11 +286,7 @@ struct FeedEvents {
   /** Takes what the connection answers, and says whether the readout
    *  standing now was written from something else. */
   bool read() {
-    Reading now{.generation = door.state().revision,
-                .undecodable = door.state().undecodable,
-                .kinds = kinds,
-                .address = door.state().localAddress,
-                .trouble = door.state().error};
+    Reading now{.door = door.state(), .kinds = kinds};
     if (now == shown) return false;
     shown = std::move(now);
     return true;
@@ -379,37 +368,23 @@ struct FeedEvents {
     }
   }
 
-  /** WHAT THE CONNECTION ANSWERS, in the reading panel: how many
-   *  messages have arrived, how many were no JSON document at all, one
-   *  line per kind with how many of each, and where the door is — or
-   *  the sentence saying why there is none. */
-  compose::Element readout() {
-    const sketch::kit::Theme& look = sketch::kit::theme();
-    std::vector<compose::Element> lines{
-        row("door", kDoor),
-        row("generation", compose::kit::formatted(
-                              "%llu", (unsigned long long)shown.generation)),
-        row("undecodable", compose::kit::formatted(
-                               "%llu", (unsigned long long)shown.undecodable))};
+  /** WHAT THE DOOR ANSWERS, in the reading panel — where it is, whether
+   *  it stands, its revision, what it dropped and how much of it was no
+   *  JSON document at all, and who spoke last or why nobody can — and
+   *  after it one row per kind with how many of each, marked where
+   *  nothing here reads that kind. */
+  compose::Element readout() const {
+    std::vector<compose::kit::Reading> kindRows;
     if (shown.kinds.empty())
-      lines.push_back(row("kinds", "nothing has arrived"));
+      kindRows.push_back({.name = u8"kinds", .value = u8"nothing has arrived"});
     for (const std::pair<std::string, uint64_t>& counted : shown.kinds)
-      lines.push_back(row(
-          counted.first,
-          compose::kit::formatted(
-              "%llu%s", (unsigned long long)counted.second,
-              handled(counted.first) ? "" : "   · no reader for this kind")));
-    if (!shown.trouble.empty())
-      lines.push_back(row("error", shown.trouble));
-    else
-      lines.push_back(
-          row("address", shown.address.empty() ? "-" : shown.address));
-    return compose::box()
-        .column()
-        .gap(12)
-        .font(look.font({.size = 12, .mono = true}))
-        .ink(look.palette.ink)
-        .children(std::move(lines));
+      kindRows.push_back({.name = counted.first,
+                          .value = std::to_string(counted.second),
+                          .note = handled(counted.first)
+                                      ? compose::Utf8()
+                                      : compose::Utf8("no reader")});
+    return sketch::kit::connectionReadout(
+        door, {.door = kDoor, .readings = std::move(kindRows)});
   }
 
   /** Whether a kind is one this scene has a handler for. */

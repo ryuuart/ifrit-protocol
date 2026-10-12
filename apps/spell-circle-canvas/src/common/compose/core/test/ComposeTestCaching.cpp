@@ -826,36 +826,66 @@ Element dressedSheet(const motion::Animatable<float>& turn) {
 
 }  // namespace
 
-TEST(ComposeCaching, ACoverageDressedSheetOverATurningChildPaintsItsTurn) {
+namespace {
+
+/** How far a dressed sheet turned to its angle frame by frame lands from
+ *  the same sheet standing at that angle from its first frame: the count
+ *  of pixels apart by more than three eighths of the range, and the mean
+ *  difference per pixel. Both are drawn on a pale ground, where the dark
+ *  shadow shows. */
+constexpr SkColor kGround = 0xFFE8E0D0;
+
+std::pair<int, double> turnedAgainstStill(Composer::PromotionPolicy policy) {
   motion::Animatable<float> turn = motion::animatable(0.0f);
   Host turning(240, 240);
+  turning.composer.setAutoTexturePromotion(policy);
   turning.composer.render(dressedSheet(turn));
   for (int frame = 0; frame <= 12; ++frame) {
     turn = (float)frame / 100.0f;
-    turning.frame();
+    turning.frame(0, kGround);
   }
   // The same sheet at that turn, standing still from its first frame, is
   // traced whole.
   motion::Animatable<float> held = motion::animatable(0.12f);
   Host still(240, 240);
   still.composer.render(dressedSheet(held));
-  still.frame();
+  still.frame(0, kGround);
   const std::vector<SkColor> a = grab(turning), b = grab(still);
-  ASSERT_EQ(a.size(), b.size());
-  // The held child silhouette is traced square in the child's own space
-  // and turned with it, so its edges are straight where a trace of the
-  // whole subtree steps along them a device pixel at a time: the two agree
-  // everywhere but in that staircase, and nowhere by much.
+  EXPECT_EQ(a.size(), b.size());
   int far = 0;
   long total = 0;
-  for (size_t i = 0; i < a.size(); ++i) {
+  for (size_t i = 0; i < std::min(a.size(), b.size()); ++i) {
     const int d =
         std::max({std::abs((int)SkColorGetR(a[i]) - (int)SkColorGetR(b[i])),
                   std::abs((int)SkColorGetG(a[i]) - (int)SkColorGetG(b[i])),
                   std::abs((int)SkColorGetB(a[i]) - (int)SkColorGetB(b[i]))});
     total += d;
-    if (d > 64) ++far;
+    if (d > 96) ++far;
   }
+  return {far, (double)total / (double)std::max<size_t>(a.size(), 1)};
+}
+
+}  // namespace
+
+TEST(ComposeCaching, ACoverageDressedSheetOverATurningChildPaintsItsTurn) {
+  // The held child silhouette is traced square in the child's own space
+  // and turned with it, and so are the masks its shadow and its bevel are
+  // cast from, so its edges are straight where a trace of the whole
+  // subtree steps along them a device pixel at a time, and a turned mask
+  // is sampled between its pixels: the two agree everywhere but along
+  // that edge, and nowhere by much.
+  const auto [far, mean] =
+      turnedAgainstStill(Composer::PromotionPolicy::ByCost);
   EXPECT_EQ(far, 0);
-  EXPECT_LT((double)total / (double)a.size(), 3.0);
+  EXPECT_LT(mean, 3.0);
+}
+
+// The sheet's own paint holds nothing still while its silhouette turns: a
+// shadow cast from that silhouette moves with it, so a promotion that keeps
+// the sheet's own half baked under its live children would keep a shadow
+// of where the child stood.
+TEST(ComposeCaching, ACoverageDressedSheetKeepsNoShadowOfWhereItsChildStood) {
+  const auto [far, mean] = turnedAgainstStill(Composer::PromotionPolicy::Eager);
+  EXPECT_EQ(far, 0);
+  EXPECT_LT(mean, 3.0);
 }

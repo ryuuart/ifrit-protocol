@@ -236,6 +236,22 @@ void glyphInkAtRest(Instance& inst, const TextInk& ink, GlyphInk& glyphs);
  *  contour-interval geometry, and caches the result on the instance. */
 void ensurePathLayout(Composer::Impl& impl, Instance& inst,
                       const TextPath& spec, SkSize size);
+/** The paragraph a path run's glyphs are read from: the run as a fit by
+ *  size set it, else the node's own paragraph. Whatever walks the path
+ *  layout walks it with this. */
+inline sigil::weave::Paragraph& pathParagraphOf(Instance& inst) {
+  TextState& state = textStateOf(inst);
+  return state.pathParagraph ? *state.pathParagraph : *inst.paragraph;
+}
+/** The paragraph whose glyphs @p layout places: the run a fit by size set
+ *  where @p layout is the node's path layout, else the node's own. */
+inline const sigil::weave::Paragraph& paragraphOfLayout(
+    const Instance& inst, const sigil::weave::ParagraphLayout& layout) {
+  const TextState* state = inst.textState.get();
+  if (state && &layout == &state->pathLayout && state->pathParagraph)
+    return *state->pathParagraph;
+  return *inst.paragraph;
+}
 /** THE SCHEDULE ONE TRACK IS RUNNING, resolved against the layout the
  *  last draw() produced — the read-back behind Composer::beatsOf. Rects
  *  come out in the NODE's own space; the caller offsets them into the

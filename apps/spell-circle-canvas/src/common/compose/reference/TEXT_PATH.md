@@ -31,6 +31,19 @@ the contours once, and the phase re-places glyphs that were already placed,
 so a marquee costs a repaint and never a reflow. It declares content
 volatility while it runs and releases once it provably holds still.
 
+**A RUN CAN FILL ITS BASELINE**, the way a paragraph justifies.
+`TextPath::fit` resolves against the baseline's length at layout: `Size`
+scales the type until the run spans `TextPath::fill` of it, keeping the
+tracking and word spacing, which are lengths; `Spacing` keeps the type's
+size and stretches every advance by one factor. At a fill of 1 a ring's
+lettering closes on its own beginning, and a change of face or words fits
+again with nothing measured beside the tree.
+
+```cpp
+text(u8"ECCE SIGNUM").textOnPath({.path = geometry::shapes::circle(),
+                                  .fit = TextPath::Fit::Size})
+```
+
 **A CONTOUR BOUNDARY IS A BREAK.** A word that does not fit the contour it
 reached starts the next one, rather than bending across the gap between two
 disconnected curves. A run that outlasts the last contour simply stops, and a

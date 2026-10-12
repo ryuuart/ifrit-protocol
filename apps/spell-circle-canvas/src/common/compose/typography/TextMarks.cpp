@@ -81,7 +81,7 @@ void detail::resolveTextMarks(Composer::Impl& impl, Instance& inst) {
   const sigil::weave::ParagraphLayout& layout =
       onPath ? textStateOf(inst).pathLayout : inst.textLayout;
   static thread_local detail::GlyphStructure structure;
-  structure.build(layout, *inst.paragraph, scopeOf(inst));
+  structure.build(layout, paragraphOfLayout(inst, layout), scopeOf(inst));
   if (structure.glyphs.empty()) return;
   const auto count = (uint32_t)structure.glyphs.size();
 
@@ -98,7 +98,8 @@ void detail::resolveTextMarks(Composer::Impl& impl, Instance& inst) {
     bool any = false;
     uint32_t ordinal = 0;
     sigil::weave::forEachPlacedGlyph(
-        layout, *inst.paragraph, [&](const sigil::weave::PlacedGlyph& placed) {
+        layout, paragraphOfLayout(inst, layout),
+        [&](const sigil::weave::PlacedGlyph& placed) {
           const uint32_t g = ordinal++;
           if (g >= count || !selected[g]) return;
           RestPose pose;
@@ -140,7 +141,7 @@ std::vector<TextUnit> detail::unitsOfText(
       onPath ? textStateOf(inst).pathLayout : inst.textLayout;
 
   static thread_local detail::GlyphStructure structure;
-  structure.build(layout, paragraph, scopeOf(inst));
+  structure.build(layout, paragraphOfLayout(inst, layout), scopeOf(inst));
   if (structure.glyphs.empty()) return {};
   const auto count = (uint32_t)structure.glyphs.size();
   // THE SELECTION IS ITS OWN UNIT. The five walk lanes are numbered off
@@ -269,7 +270,8 @@ bool resolveTrackSchedule(Instance& inst, size_t trackIndex,
   out.layout = out.ridesPath ? &textStateOf(inst).pathLayout : &inst.textLayout;
 
   static thread_local detail::GlyphStructure structure;
-  structure.build(*out.layout, *inst.paragraph, scopeOf(inst));
+  structure.build(*out.layout, paragraphOfLayout(inst, *out.layout),
+                  scopeOf(inst));
   out.glyphCount = (uint32_t)structure.glyphs.size();
   if (out.glyphCount == 0) return false;
 
@@ -324,7 +326,8 @@ std::vector<Beat> detail::beatsOfTrack(Instance& inst, size_t trackIndex) {
   std::vector<std::pair<BandKey, GlyphBand>> bandMemo;
   uint32_t ordinal = 0;
   sigil::weave::forEachPlacedGlyph(
-      layout, paragraph, [&](const sigil::weave::PlacedGlyph& placed) {
+      layout, paragraphOfLayout(inst, layout),
+      [&](const sigil::weave::PlacedGlyph& placed) {
         const uint32_t g = ordinal++;
         if (g >= count || !selected[g]) return;
         RestPose pose;

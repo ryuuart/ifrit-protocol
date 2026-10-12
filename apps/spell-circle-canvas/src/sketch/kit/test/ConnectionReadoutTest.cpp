@@ -1,7 +1,8 @@
 /** @file
  * A door's own words: the readout of a connection's state is the compose
  * kit's readout of the rows that state answers — for a door that is open
- * and has heard a sender, one that has shut and bound no address, one
+ * and has heard a sender, one carrying a sketch's own readings after its
+ * rows, one that has shut and bound no address, one
  * whose transport failed after it opened, and one whose URI never opened
  * at all.
  */
@@ -9,9 +10,9 @@
 #include <gtest/gtest.h>
 #include <sigilcompose/kit/Rows.h>
 #include <sigildata/connection/Connection.h>
+#include <sigilio/advanced/Time.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/testing/Testing.h>
-#include <sigilio/advanced/Time.h>
 #include <sigilsketch/kit/Connection.h>
 #include <sigilsketch/kit/Theme.h>
 
@@ -58,7 +59,7 @@ Element onTheSheet(Element tree) {
 }
 
 /** The readout spelled by hand from the six rows a door's readout
- *  holds, in its order. */
+ *  holds, in its order, and any the sketch reads after them. */
 Element byHand(std::vector<compose::kit::Reading> rows) {
   return onTheSheet(compose::kit::readout(rows, {.measure = 300}));
 }
@@ -67,9 +68,10 @@ TEST(SketchKitConnectionReadout, AnOpenDoorReadsItsAddressCountsAndSender) {
   Hub hub;
   sigil::io::registerTransport(hub, "ws", binding("ws://127.0.0.1:8848"));
   data::Connection sky = data::connect(hub, "ws://:8848/sky");
-  inletOf(sky.feed()).deliver(bytesOf(R"({"kind":"gust"})"), "ws://127.0.0.1:52341");
-  inletOf(sky.feed()).deliver(bytesOf("this is no document at all"),
-                              "ws://127.0.0.1:52341");
+  inletOf(sky.feed())
+      .deliver(bytesOf(R"({"kind":"gust"})"), "ws://127.0.0.1:52341");
+  inletOf(sky.feed())
+      .deliver(bytesOf("this is no document at all"), "ws://127.0.0.1:52341");
   sigil::io::advance(hub, std::chrono::duration<double>(0.0));
   ASSERT_EQ(sky.state().revision, 2u);
 
@@ -81,6 +83,30 @@ TEST(SketchKitConnectionReadout, AnOpenDoorReadsItsAddressCountsAndSender) {
               {.name = u8"dropped", .value = u8"0"},
               {.name = u8"undecodable", .value = u8"1"},
               {.name = u8"sender", .value = u8"ws://127.0.0.1:52341"}})));
+}
+
+TEST(SketchKitConnectionReadout, ASketchsOwnReadingsFollowTheDoorsRows) {
+  Hub hub;
+  sigil::io::registerTransport(hub, "ws", binding("ws://127.0.0.1:8852"));
+  data::Connection sky = data::connect(hub, "ws://:8852/sky");
+  inletOf(sky.feed())
+      .deliver(bytesOf(R"({"kind":"gust"})"), "ws://127.0.0.1:52342");
+  sigil::io::advance(hub, std::chrono::duration<double>(0.0));
+  ASSERT_EQ(sky.state().revision, 1u);
+
+  EXPECT_TRUE(sameDrawing(
+      onTheSheet(kit::connectionReadout(
+          sky, {.rows = {.measure = 300},
+                .readings = {{.name = u8"gusts", .value = u8"1"},
+                             {.name = u8"pages", .value = u8"web/"}}})),
+      byHand({{.name = u8"door", .value = u8"ws://127.0.0.1:8852"},
+              {.name = u8"state", .value = u8"open"},
+              {.name = u8"revision", .value = u8"1"},
+              {.name = u8"dropped", .value = u8"0"},
+              {.name = u8"undecodable", .value = u8"0"},
+              {.name = u8"sender", .value = u8"ws://127.0.0.1:52342"},
+              {.name = u8"gusts", .value = u8"1"},
+              {.name = u8"pages", .value = u8"web/"}})));
 }
 
 TEST(SketchKitConnectionReadout, AShutDoorWithNoAddressReadsWhatItIsCalled) {

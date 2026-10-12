@@ -55,6 +55,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilmotion/ease/Ease.h>
+#include <sigilsketch/kit/Connection.h>
 #include <sigilsketch/kit/Instrument.h>
 #include <sigilsketch/kit/Theme.h>
 #include <sigilsketch/scene2d/Scene2D.h>
@@ -133,27 +134,19 @@ constexpr std::array<Band, 6> kBands = {{{54, -18, 16},
                                          {58, -26, 18},
                                          {30, 13, 9}}};
 
-/** WHAT THE READOUT SAYS, and the whole of what says to write it again.
+/** WHAT THE READOUT WAS WRITTEN FROM, and the whole of what says to write
+ *  it again: the door's own state, and what the desk did through it.
  *  Nothing continuous is in here: the wind and the gust move every
  *  frame, and a description rebuilt every frame is a description
  *  nothing can be pruned against. Those two are drawn by the pen. */
 struct Reading {
-  uint64_t generation = 0;
-  uint64_t undecodable = 0;
+  data::ConnectionState door;
   uint64_t gusts = 0;
   uint64_t palettes = 0;
   uint64_t replies = 0;
   std::string spoken;
-  std::string address;
-  std::string trouble;
   bool operator==(const Reading&) const = default;
 };
-
-/** One row of the readout: what it is called, and what it answers. */
-compose::Element row(const char* name, const std::string& answer) {
-  return compose::text(
-      compose::kit::formatted("%-11s %s", name, answer.c_str()));
-}
 
 }  // namespace
 
@@ -291,14 +284,11 @@ struct OscDesk {
   /** Takes what the connection answers, and says whether the readout
    *  standing now was written from something else. */
   bool read() {
-    Reading now{.generation = desk.state().revision,
-                .undecodable = desk.state().undecodable,
+    Reading now{.door = desk.state(),
                 .gusts = gusts,
                 .palettes = palettes,
                 .replies = replies,
-                .spoken = std::string(desk.latest()["address"].string()),
-                .address = desk.state().localAddress,
-                .trouble = desk.state().error};
+                .spoken = std::string(desk.latest()["address"].string())};
     if (now == shown) return false;
     shown = std::move(now);
     return true;
@@ -405,39 +395,24 @@ struct OscDesk {
     pen.text("GUST", left - kLabelGap, above);
   }
 
-  /** WHAT THE CONNECTION ANSWERS, in the reading panel: how many
-   *  messages have arrived, how many of them were no OSC packet at all,
-   *  what the newest one was addressed to, where the door is — or the
-   *  sentence saying why there is none — and how many answers have gone
-   *  back to a desk. */
-  compose::Element readout() {
-    const sketch::kit::Theme& look = sketch::kit::theme();
-    std::vector<compose::Element> lines{
-        row("desk", kDesk),
-        row("generation", compose::kit::formatted(
-                              "%llu", (unsigned long long)shown.generation)),
-        row("undecodable", compose::kit::formatted(
-                               "%llu", (unsigned long long)shown.undecodable)),
-        row("gusts",
-            compose::kit::formatted("%llu  ·  palettes %llu",
-                                    (unsigned long long)shown.gusts,
-                                    (unsigned long long)shown.palettes)),
-        row("last",
-            shown.spoken.empty() ? "nothing has arrived" : shown.spoken)};
-    if (!shown.trouble.empty())
-      lines.push_back(row("error", shown.trouble));
-    else
-      lines.push_back(
-          row("address", shown.address.empty() ? "-" : shown.address));
-    lines.push_back(row(
-        "replies",
-        compose::kit::formatted("%llu", (unsigned long long)shown.replies)));
-    return compose::box()
-        .column()
-        .gap(12)
-        .font(look.font({.size = 12, .mono = true}))
-        .ink(look.palette.ink)
-        .children(std::move(lines));
+  /** WHAT THE DOOR ANSWERS, in the reading panel — where it is, whether
+   *  it stands, its revision, what it dropped and how much of it was no
+   *  OSC packet at all, and who spoke last or why nobody can — and after
+   *  it the gusts and palettes the desk sent, what the newest message was
+   *  addressed to, and how many answers have gone back to a desk. */
+  compose::Element readout() const {
+    return sketch::kit::connectionReadout(
+        desk,
+        {.door = kDesk,
+         .readings = {
+             {.name = u8"gusts",
+              .value = compose::kit::formatted(
+                  "%llu  ·  palettes %llu", (unsigned long long)shown.gusts,
+                  (unsigned long long)shown.palettes)},
+             {.name = u8"last",
+              .value =
+                  shown.spoken.empty() ? "nothing has arrived" : shown.spoken},
+             {.name = u8"replies", .value = std::to_string(shown.replies)}}});
   }
 };
 

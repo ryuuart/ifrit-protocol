@@ -474,6 +474,14 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
     inst.silhouetteVolatile = silhouette;
     inst.ownPaintMoves = ownPaint;
   }
+  // A MARK CAST FROM A SILHOUETTE THAT MOVES moves with it: a node dressed
+  // by its coverage casts its shadows from what its children cover, so
+  // while that changes its own paint is no more still than its children,
+  // and no bake of its own half may hold it.
+  const bool marksFollowCoverage =
+      node.boundary == Boundary::Coverage && inst.silhouetteVolatile &&
+      (!node.backgrounds.empty() || !node.foregrounds.empty());
+  const bool ownPaintVolatile = ownContent || marksFollowCoverage;
   // Does anything here composite against what is ALREADY on the canvas? If
   // so the subtree can never be baked into a transparent layer and blitted
   // back — a kMultiply child would resolve against transparent black. This
@@ -523,7 +531,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
           .policy = cachePolicy(node.cacheMode),
           .holdSubtree = node.cacheMode == Cache::Group,
           .ownPaint = ownPaint,
-          .ownContent = ownContent,
+          .ownContent = ownPaintVolatile,
           .memoOpaque = opaqueToTheMemo || worldUnderMotion,
           .readsBackdrop = inst.ownReadsBackdrop,
           // The node's own blend rides `readsBackdrop` alone: a group
@@ -565,8 +573,9 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // is the split bake's whole population: the node's own paint is provably
   // static and only its children move.
   inst.ownContentVolatile = verdict.ownContentVolatile;
-  inst.ownVaries = ownPaint || ownContent;
-  if (ownContent)
+  inst.ownCoverageVolatile = ownContent;
+  inst.ownVaries = ownPaint || ownPaintVolatile;
+  if (ownPaintVolatile)
     inst.ownImage.reset();  // a volatile own paint can never hold a bake
   // The resolve-memo carve-out: volatility caused SOLELY by a live
   // material keeps its picture — paint() replays it while resolve() stays
