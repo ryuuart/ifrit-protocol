@@ -637,3 +637,16 @@ plate moves.
 and `Mesh.computeTangents` is not bound. Bind both and regenerate the
 typing; a Python rect light with a short range should leave a card past
 it dark, and a Python mesh with uvs should gain a tangent lane.
+
+## `sigil.py sanitize --filter` cannot name its targets on a fresh instrumented tree
+
+`sanitize` derives the targets a `--filter` needs from `ctest --show-only`
+on the lane's tree, but a tree that has not been built registers one
+`<lib>_test_NOT_BUILT` placeholder per discovered suite and no case
+names, so a filter over suite names matches nothing and the verb stops
+with "matches no buildable tests" before building anything; the lane
+runs only with `--targets` spelled by hand. The verb should derive the
+targets from the primary tree's registered tests, which are built, or
+from the test binaries the placeholders name. A test should configure a
+fresh lane tree and ask the verb for the targets of a suite-name filter
+and find the library's test binary.
