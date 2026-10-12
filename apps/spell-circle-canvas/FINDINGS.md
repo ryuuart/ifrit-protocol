@@ -483,3 +483,14 @@ count in `Waits` go. A test should draw a surface multisampled, snapshot
 it with `makeImageSnapshot`, draw one small path, and find every
 flat-coloured pixel of the first drawing kept; and the same after a
 caller's own snap and insert with no clear.
+
+## A page worn by a body is described to the device as eight-bit with one mip level
+
+`TextureResidency::sample` in `src/common/geometry/device/residency/Textures.cpp`
+wraps a page standing on the device with a fixed colour format and one
+mip level, so an F16 page is mis-described to Diligent and a page worn
+by a body has no mip chain, whatever the page's format or the body's
+distance. The wrap should describe the page's own format and carry a
+mip chain the body can sample. A test should wear an F16 page and read a
+value above one off the body, and wear a page at a distance and find it
+sampled from a smaller level.
