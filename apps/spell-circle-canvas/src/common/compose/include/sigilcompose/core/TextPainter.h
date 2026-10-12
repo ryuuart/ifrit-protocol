@@ -38,6 +38,7 @@ class FontContext;
 }  // namespace sigil::weave
 
 class SkCanvas;
+class SkPath;
 
 namespace sigil::compose {
 
@@ -121,6 +122,16 @@ class TextPainterOperations {
   virtual void paint(detail::Instance& inst, SkCanvas& canvas,
                      const detail::TextInk& ink, const TextPath* onPath,
                      SkSize size, const PaintContext& ctx) const = 0;
+  /** THE GLYPH OUTLINE AS THE TRACKS DEVIATE IT this frame — what
+   *  `Boundary::Glyphs` dresses while they move — in the node's own space:
+   *  every glyph's contour under the matrix it is drawn with, and a glyph
+   *  faded or shrunk away left out. False, leaving @p outline alone, where
+   *  no track displaces a glyph or every glyph stands at rest; the outline
+   *  the layout cut at rest is then the answer. @p onPath and @p size are
+   *  as `paint` takes them. */
+  virtual bool deviatedGlyphOutline(detail::Instance& inst,
+                                    const TextPath* onPath, SkSize size,
+                                    SkPath& outline) const = 0;
   /** WHAT EACH GLYPH OF THE PASSAGE AT REST IS PAINTED WITH: resolved
    *  span ink, or a paint restarted on each unit's text-metric box,
    *  read off the layout the kernel draws. */

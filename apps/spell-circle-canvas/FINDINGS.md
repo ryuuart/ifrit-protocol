@@ -218,20 +218,6 @@ plate moves only where the kit's rows differ from the sketch's own (a
 row's name, its order, `-` for no sender, the error in the sender's
 row), and each commit names those rows.
 
-## The glyph boundary outline is cut from the glyphs at rest
-
-A shadow or glow that follows a track's deformation in each glyph's own
-colour is `textShadow`, which Weave's glyph pass draws per glyph. The
-`Boundary::Glyphs` outline itself, which bevels, strokes and ink-effect
-shadows cut from, is still taken from the glyphs at rest
-(`decorationBase = &inst.glyphOutline` in `core/paint/PaintContent.cpp`),
-so a bevel on a track that scales or shears its glyphs sits on the
-undeformed letters. When the leaf's tracks displace, the outline should
-be built from the deviated glyph matrices, a text-engine operation on
-`TextPainterOperations` that the painter calls. A test should bevel a
-word under a track that scales one glyph and find the bevel on the
-scaled outline.
-
 ## Separating a text bevel from changing ink can change its coverage
 
 A stationary bevel on an overlaid text copy can produce rectangular coverage

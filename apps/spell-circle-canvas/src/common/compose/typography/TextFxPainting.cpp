@@ -7,6 +7,8 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
+#include <include/core/SkPath.h>
+#include <include/core/SkPathBuilder.h>
 #include <include/core/SkPicture.h>
 #include <include/core/SkPictureRecorder.h>
 #include <include/core/SkShader.h>
@@ -18,6 +20,7 @@
 #include <sigilweave/choreograph/GlyphBatches.h>
 #include <sigilweave/choreograph/GlyphDress.h>
 #include <sigilweave/choreograph/PlacedGlyph.h>
+#include <sigilweave/fonts/Shaper.h>  // makeFont — a deviated glyph's contour
 #include <src/core/SkScopeExit.h>
 
 #include <algorithm>
@@ -48,6 +51,201 @@ float passUnitSeed(uint32_t outer, uint32_t inner) {
   core::noise::Mix64Stream rng(((uint64_t)outer << 32u) | (uint64_t)inner);
   return 1.0f + rng.unit() * 255.0f;
 }
+
+namespace {
+
+/** Each track's selection mask over the glyphs, resolved once per
+ *  (content, layout width, selector list): a regular expression over the
+ *  paragraph is a per-EDIT cost, not a per-frame one. */
+void refreshSelections(Instance& inst, std::span<const Track> tracks,
+                       const detail::GlyphStructure& structure,
+                       uint32_t count) {
+  bool selectionsStale =
+      textStateOf(inst).selectionRev != inst.contentRev ||
+      textStateOf(inst).selectionWidth != inst.measuredForWidth ||
+      textStateOf(inst).selectionHeight != inst.measuredForHeight ||
+      textStateOf(inst).selectionKeys.size() != tracks.size();
+  if (!selectionsStale)
+    for (size_t i = 0; i < tracks.size(); ++i)
+      if (!(textStateOf(inst).selectionKeys[i] == tracks[i].where)) {
+        selectionsStale = true;
+        break;
+      }
+  if (!selectionsStale)
+    for (const std::vector<uint8_t>& mask : textStateOf(inst).selectionMasks)
+      if (mask.size() != count) {
+        selectionsStale = true;
+        break;
+      }
+  if (selectionsStale) {
+    textStateOf(inst).selectionKeys.clear();
+    textStateOf(inst).selectionMasks.clear();
+    textStateOf(inst).selectionPieces.clear();
+    textStateOf(inst).selectionKeys.reserve(tracks.size());
+    textStateOf(inst).selectionMasks.reserve(tracks.size());
+    textStateOf(inst).selectionPieces.resize(tracks.size());
+    for (size_t i = 0; i < tracks.size(); ++i) {
+      const Track& track = tracks[i];
+      textStateOf(inst).selectionKeys.push_back(track.where);
+      // THE EXTENTS THE SELECTOR NAMED, only where a track beats over
+      // them: the mask alone cannot tell two occurrences that touch apart,
+      // and every other unit is numbered off the walk.
+      const bool bySelection = track.unit == sigil::weave::Unit::Selection ||
+                               track.innerUnit == sigil::weave::Unit::Selection;
+      textStateOf(inst).selectionMasks.push_back(detail::resolveSelection(
+          track.where, structure, *inst.paragraph, inst.textNamedRuns,
+          bySelection ? &textStateOf(inst).selectionPieces[i] : nullptr));
+    }
+    textStateOf(inst).selectionRev = inst.contentRev;
+    textStateOf(inst).selectionWidth = inst.measuredForWidth;
+    textStateOf(inst).selectionHeight = inst.measuredForHeight;
+  }
+}
+
+/** One track as this frame runs it. */
+struct Resolved {
+  const Track* track = nullptr;
+  const std::vector<uint8_t>* selected = nullptr;
+  const std::vector<uint32_t>* pieces = nullptr;
+  detail::TrackBeats resolved;
+  float master = 1.0f;
+};
+
+/** Each live track's schedule into @p resolved, reused in place; the count
+ *  of live tracks. */
+size_t resolveTracks(Instance& inst, std::span<const Track> tracks,
+                     const detail::GlyphStructure& structure,
+                     std::vector<Resolved>& resolved) {
+  size_t used = 0;
+  for (size_t i = 0; i < tracks.size(); ++i) {
+    const Track& track = tracks[i];
+    if (!track.effect) continue;
+    if (used == resolved.size()) resolved.emplace_back();
+    Resolved& r = resolved[used++];
+    r.track = &track;
+    r.selected = &textStateOf(inst).selectionMasks[i];
+    r.pieces = &textStateOf(inst).selectionPieces[i];
+    const HeldMotion* anim =
+        i < inst.trackAnims.size() ? inst.trackAnims[i].get() : nullptr;
+    r.master =
+        std::clamp(inst.resolveFloatAt(anim, track.progress), 0.0f, 1.0f);
+    r.resolved.build(track, structure, *r.selected, *r.pieces);
+  }
+  return used;
+}
+
+/** Every track that addresses glyph @p g, composed: offsets, shear and
+ *  rotations add, scale, alpha and the colour multiplier multiply, and the
+ *  two substitutions are last-one-wins. A glyph no track addresses keeps
+ *  the identity deviation and draws at rest. @p continuous says whether a
+ *  track opted out of the snapping ladders. */
+GlyphModifier deviationOf(std::span<const Resolved> live, uint32_t g,
+                          GlyphInfo& info, bool& continuous) {
+  GlyphModifier modifier;
+  for (const Resolved& r : live) {
+    if (!(*r.selected)[g]) continue;
+    // A pass deviates nothing per glyph — its whole evaluation is
+    // the layer draw below, downstream of every deviation here.
+    if (r.track->effect.passMaterial()) continue;
+    const detail::TrackBeats& rc = r.resolved;
+    info.unitIndex = rc.outerUnit[g];
+    info.unitCount =
+        std::max<uint32_t>((uint32_t)rc.schedule.outerOrder.size(), 1u);
+    // The unit's own place in its beat, then what the track's tween
+    // says that place reads: from, to, curve and keyframes.
+    const float t = r.track->unitProgress(
+        rc.schedule.localProgress(r.master, rc.outerUnit[g],
+                                  rc.innerUnit.empty() ? 0u : rc.innerUnit[g]),
+        {info.unitIndex, info.unitCount});
+    core::noise::Mix64Stream rng(detail::glyphSeed(info));
+    detail::compose(modifier, r.track->effect(info, t, rng));
+    continuous |= r.track->continuous;
+  }
+  return modifier;
+}
+
+/** Where a deviated glyph draws: under its own matrix where it shears or
+ *  scales unevenly, else as an RSXform's centre, cosine and sine. */
+struct GlyphPlacement {
+  bool full = false;
+  SkMatrix matrix;
+  glm::vec2 centre{0, 0};
+  float cosine = 1, sine = 0;
+};
+
+/** The placement @p modifier gives the glyph @p placed standing at
+ *  @p pose. An RSXform carries a rotation and ONE scale, so a glyph that
+ *  shears or scales unevenly takes a matrix of its own. */
+GlyphPlacement placementOf(const GlyphModifier& modifier, const RestPose& pose,
+                           const sigil::weave::PlacedGlyph& placed,
+                           bool continuous) {
+  float cosv = 1.0f, sinv = 0.0f;
+  if (modifier.rotateDeg != 0) {
+    const float radians = geometry::path::radians(modifier.rotateDeg);
+    if (continuous) {
+      cosv = std::cos(radians);
+      sinv = std::sin(radians);
+    } else {
+      // The SAME size-cut ladder the baseline's tangent takes, and
+      // for the same reason: a track's rotation composes with that
+      // tangent onto one glyph, so a coarser ladder here would be the
+      // coarsest thing in the letter's motion and would tick where the
+      // baseline does not. Track::continuous is still the opt-out
+      // that buys the exact angle at a fresh strike per letter per
+      // frame.
+      sigil::weave::quantizeAngle(
+          radians,
+          tangentLadderSteps(placed.shaped ? placed.shaped->fontSize : 0.0f),
+          cosv, sinv);
+    }
+  }
+  const float halfAdvance = placed.advance * 0.5f;
+  // The glyph-local back-out from the pose centre to the draw origin.
+  // Horizontal type and tate-chu-yoko take the (halfAdvance, 0) the
+  // RSXform convention assumes; an upright glyph in a column does not,
+  // because half of ITS advance is a step down the page.
+  const glm::vec2 local = pose.centreOffset.value_or(glm::vec2{halfAdvance, 0});
+  // THE DEVIATION APPLIES IN THE REST POSE'S OWN FRAME. On a level
+  // baseline that is the canvas frame and this is the identity, so a
+  // plain run is untouched; on a curve it is what makes `textFx::rise`
+  // lift a letter off the CURVE rather than off the canvas, and what
+  // keeps a stagger's shove tangential to the lettering it belongs
+  // to. The rotations compose the same way: the track's angle turns
+  // the glyph from wherever the baseline had already turned it.
+  const glm::vec2 centre = {
+      pose.centre.x + pose.cosine * modifier.dx - pose.sine * modifier.dy,
+      pose.centre.y + pose.sine * modifier.dx + pose.cosine * modifier.dy};
+  const float turnCos = pose.cosine * cosv - pose.sine * sinv;
+  const float turnSin = pose.sine * cosv + pose.cosine * sinv;
+  GlyphPlacement placement;
+  if (modifier.skewXDeg != 0 || modifier.skewYDeg != 0 ||
+      modifier.scaleX != 1 || modifier.scaleY != 1) {
+    SkMatrix& matrix = placement.matrix;
+    matrix.setAll(turnCos, -turnSin, centre.x, turnSin, turnCos, centre.y, 0, 0,
+                  1);
+    // CSS's `skewX(x) skewY(y)`, as the node's own skew lanes take
+    // it: an x shear, then a y shear inside it, so a glyph naming
+    // both widens by the product of the tangents exactly as a
+    // browser's transform list does.
+    if (modifier.skewXDeg != 0)
+      matrix.preSkew(std::tan(geometry::path::radians(modifier.skewXDeg)), 0);
+    if (modifier.skewYDeg != 0)
+      matrix.preSkew(0, std::tan(geometry::path::radians(modifier.skewYDeg)));
+    matrix.preScale(modifier.scale * modifier.scaleX,
+                    modifier.scale * modifier.scaleY);
+    // Innermost, so the pivot shift rides the scale exactly as it
+    // does inside an RSXform.
+    matrix.preTranslate(-local.x, -local.y);
+    placement.full = true;
+  } else {
+    placement.centre = centre;
+    placement.cosine = turnCos * modifier.scale;
+    placement.sine = turnSin * modifier.scale;
+  }
+  return placement;
+}
+
+}  // namespace
 
 void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
                          const TextInk& ink, const TextPath* onPath,
@@ -89,59 +287,10 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
     phaseArc = (inst.resolvePathAt() - textStateOf(inst).pathRestAt) *
                textStateOf(inst).pathTotalLength;
 
-  // Selections, resolved once per (content, layout width, selector list).
-  // A regular expression over the paragraph is a per-EDIT cost this way,
-  // not a per-frame one.
-  bool selectionsStale =
-      textStateOf(inst).selectionRev != inst.contentRev ||
-      textStateOf(inst).selectionWidth != inst.measuredForWidth ||
-      textStateOf(inst).selectionHeight != inst.measuredForHeight ||
-      textStateOf(inst).selectionKeys.size() != tracks.size();
-  if (!selectionsStale)
-    for (size_t i = 0; i < tracks.size(); ++i)
-      if (!(textStateOf(inst).selectionKeys[i] == tracks[i].where)) {
-        selectionsStale = true;
-        break;
-      }
-  if (!selectionsStale)
-    for (const std::vector<uint8_t>& mask : textStateOf(inst).selectionMasks)
-      if (mask.size() != count) {
-        selectionsStale = true;
-        break;
-      }
-  if (selectionsStale) {
-    textStateOf(inst).selectionKeys.clear();
-    textStateOf(inst).selectionMasks.clear();
-    textStateOf(inst).selectionPieces.clear();
-    textStateOf(inst).selectionKeys.reserve(tracks.size());
-    textStateOf(inst).selectionMasks.reserve(tracks.size());
-    textStateOf(inst).selectionPieces.resize(tracks.size());
-    for (size_t i = 0; i < tracks.size(); ++i) {
-      const Track& track = tracks[i];
-      textStateOf(inst).selectionKeys.push_back(track.where);
-      // THE EXTENTS THE SELECTOR NAMED, only where a track beats over
-      // them: the mask alone cannot tell two occurrences that touch apart,
-      // and every other unit is numbered off the walk.
-      const bool bySelection = track.unit == sigil::weave::Unit::Selection ||
-                               track.innerUnit == sigil::weave::Unit::Selection;
-      textStateOf(inst).selectionMasks.push_back(detail::resolveSelection(
-          track.where, structure, *inst.paragraph, inst.textNamedRuns,
-          bySelection ? &textStateOf(inst).selectionPieces[i] : nullptr));
-    }
-    textStateOf(inst).selectionRev = inst.contentRev;
-    textStateOf(inst).selectionWidth = inst.measuredForWidth;
-    textStateOf(inst).selectionHeight = inst.measuredForHeight;
-  }
+  refreshSelections(inst, tracks, structure, count);
 
   // Each track's schedule, numbered against whichever list its stagger names
   // — its own selection by default, the whole paragraph under beats::Text.
-  struct Resolved {
-    const Track* track = nullptr;
-    const std::vector<uint8_t>* selected = nullptr;
-    const std::vector<uint32_t>* pieces = nullptr;
-    detail::TrackBeats resolved;
-    float master = 1.0f;
-  };
   // Kept across frames and reused in place: clearing would drop the two
   // per-glyph vectors' allocations, which is a fresh pair per track per
   // text node per frame on a page full of animated type.
@@ -155,21 +304,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
       entry.resolved.schedule.innerDistribution = {};
     }
   });
-  size_t used = 0;
-  for (size_t i = 0; i < tracks.size(); ++i) {
-    const Track& track = tracks[i];
-    if (!track.effect) continue;
-    if (used == resolved.size()) resolved.emplace_back();
-    Resolved& r = resolved[used++];
-    r.track = &track;
-    r.selected = &textStateOf(inst).selectionMasks[i];
-    r.pieces = &textStateOf(inst).selectionPieces[i];
-    const HeldMotion* anim =
-        i < inst.trackAnims.size() ? inst.trackAnims[i].get() : nullptr;
-    r.master =
-        std::clamp(inst.resolveFloatAt(anim, track.progress), 0.0f, 1.0f);
-    r.resolved.build(track, structure, *r.selected, *r.pieces);
-  }
+  const size_t used = resolveTracks(inst, tracks, structure, resolved);
   // A path run with no tracks still draws: every glyph keeps the identity
   // deviation and rests on the curve.
   if (used == 0 && !ridesPath) return;
@@ -285,33 +420,9 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
         info.ink =
             material::skia::toColor(styleOf(g, placed).foreground.getColor4f());
 
-        // Every track that addresses this glyph, composed: offsets, shear
-        // and rotations add, scale, alpha and the colour multiplier
-        // multiply, and the two substitutions are last-one-wins.
-        // A glyph no track addresses keeps the identity deviation and
-        // draws at rest.
-        GlyphModifier modifier;
+        // Every track that addresses this glyph, composed.
         bool continuous = false;
-        for (const Resolved& r : live) {
-          if (!(*r.selected)[g]) continue;
-          // A pass deviates nothing per glyph — its whole evaluation is
-          // the layer draw below, downstream of every deviation here.
-          if (r.track->effect.passMaterial()) continue;
-          const detail::TrackBeats& rc = r.resolved;
-          info.unitIndex = rc.outerUnit[g];
-          info.unitCount =
-              std::max<uint32_t>((uint32_t)rc.schedule.outerOrder.size(), 1u);
-          // The unit's own place in its beat, then what the track's tween
-          // says that place reads: from, to, curve and keyframes.
-          const float t = r.track->unitProgress(
-              rc.schedule.localProgress(
-                  r.master, rc.outerUnit[g],
-                  rc.innerUnit.empty() ? 0u : rc.innerUnit[g]),
-              {info.unitIndex, info.unitCount});
-          core::noise::Mix64Stream rng(detail::glyphSeed(info));
-          detail::compose(modifier, r.track->effect(info, t, rng));
-          continuous |= r.track->continuous;
-        }
+        const GlyphModifier modifier = deviationOf(live, g, info, continuous);
         // THE BEAT IS NOTED BEFORE THE INK IS. A glyph the deviation faded
         // or shrank away draws nothing, but it is still a member of its
         // beat, and a pass's uniform arrays are numbered against the beats
@@ -380,47 +491,9 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
         const material::Color glow{snap(modifier.colorScreen.r, 1.0f),
                                    snap(modifier.colorScreen.g, 1.0f),
                                    snap(modifier.colorScreen.b, 1.0f), 0.0f};
-        float cosv = 1.0f, sinv = 0.0f;
-        if (modifier.rotateDeg != 0) {
-          const float radians = geometry::path::radians(modifier.rotateDeg);
-          if (continuous) {
-            cosv = std::cos(radians);
-            sinv = std::sin(radians);
-          } else {
-            // The SAME size-cut ladder the baseline's tangent takes, and
-            // for the same reason: a track's rotation composes with that
-            // tangent onto one glyph, so a coarser ladder here would be the
-            // coarsest thing in the letter's motion and would tick where the
-            // baseline does not. Track::continuous is still the opt-out
-            // that buys the exact angle at a fresh strike per letter per
-            // frame.
-            sigil::weave::quantizeAngle(
-                radians,
-                tangentLadderSteps(placed.shaped ? placed.shaped->fontSize
-                                                 : 0.0f),
-                cosv, sinv);
-          }
-        }
+        const GlyphPlacement placement =
+            placementOf(modifier, pose, placed, continuous);
         const float halfAdvance = placed.advance * 0.5f;
-        // The glyph-local back-out from the pose centre to the draw origin.
-        // Horizontal type and tate-chu-yoko take the (halfAdvance, 0) the
-        // RSXform convention assumes; an upright glyph in a column does not,
-        // because half of ITS advance is a step down the page.
-        const glm::vec2 local =
-            pose.centreOffset.value_or(glm::vec2{halfAdvance, 0});
-        // THE DEVIATION APPLIES IN THE REST POSE'S OWN FRAME. On a level
-        // baseline that is the canvas frame and this is the identity, so a
-        // plain run is untouched; on a curve it is what makes `textFx::rise`
-        // lift a letter off the CURVE rather than off the canvas, and what
-        // keeps a stagger's shove tangential to the lettering it belongs
-        // to. The rotations compose the same way: the track's angle turns
-        // the glyph from wherever the baseline had already turned it.
-        const glm::vec2 centre = {
-            pose.centre.x + pose.cosine * modifier.dx - pose.sine * modifier.dy,
-            pose.centre.y + pose.sine * modifier.dx +
-                pose.cosine * modifier.dy};
-        const float turnCos = pose.cosine * cosv - pose.sine * sinv;
-        const float turnSin = pose.sine * cosv + pose.cosine * sinv;
 
         // The whole span style rides along, so a letter in flight keeps the
         // gradient, stroke and glow passes it was styled with — and the
@@ -446,33 +519,14 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
         // rotation and ONE scale, so a glyph that shears or scales
         // unevenly draws under its own matrix while every glyph that does
         // not keeps the shared transform array untouched.
-        SkMatrix matrix;
         geometry::path::Transform transform;
-        if (modifier.skewXDeg != 0 || modifier.skewYDeg != 0 ||
-            modifier.scaleX != 1 || modifier.scaleY != 1) {
-          matrix.setAll(turnCos, -turnSin, centre.x, turnSin, turnCos, centre.y,
-                        0, 0, 1);
-          // CSS's `skewX(x) skewY(y)`, as the node's own skew lanes take
-          // it: an x shear, then a y shear inside it, so a glyph naming
-          // both widens by the product of the tangents exactly as a
-          // browser's transform list does.
-          if (modifier.skewXDeg != 0)
-            matrix.preSkew(std::tan(geometry::path::radians(modifier.skewXDeg)),
-                           0);
-          if (modifier.skewYDeg != 0)
-            matrix.preSkew(
-                0, std::tan(geometry::path::radians(modifier.skewYDeg)));
-          matrix.preScale(modifier.scale * modifier.scaleX,
-                          modifier.scale * modifier.scaleY);
-          // Innermost, so the pivot shift rides the scale exactly as it
-          // does inside an RSXform.
-          matrix.preTranslate(-local.x, -local.y);
-          transform = geometry::path::fromSk(matrix);
+        if (placement.full) {
+          transform = geometry::path::fromSk(placement.matrix);
           dress.matrix = &transform;
         } else {
-          dress.center = centre;
-          dress.cosine = turnCos * modifier.scale;
-          dress.sine = turnSin * modifier.scale;
+          dress.center = placement.centre;
+          dress.cosine = placement.cosine;
+          dress.sine = placement.sine;
         }
         // ROUTE: a glyph a pass addresses is drawn inside that pass's
         // layer — with the deviation just composed, because the pass reads
@@ -593,6 +647,111 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
   // storage outlives the frame.
   for (const auto& [rect, bandPaint] : aboveBands)
     canvas.drawRect(rect, bandPaint);
+}
+
+bool detail::deviatedGlyphOutline(Composer::Impl& impl, Instance& inst,
+                                  const TextPath* onPath, SkSize size,
+                                  SkPath& outline) {
+  if (!inst.paragraph) return false;
+  static thread_local std::vector<Track> joinedTracks;
+  const SkScopeExit releaseTracks([&] { joinedTracks.clear(); });
+  const std::span<const Track> tracks = paintedTracksOf(inst, joinedTracks);
+  // Only a track that can move a glyph off its rest shape can change the
+  // outline; every other leaf keeps the one its layout cut.
+  if (std::none_of(tracks.begin(), tracks.end(), [](const Track& track) {
+        return track.effect && track.effect.displaces();
+      }))
+    return false;
+  if (onPath) ensurePathLayout(impl, inst, *onPath, size);
+  const bool ridesPath = onPath && textStateOf(inst).pathValid;
+  if (onPath && !ridesPath) return false;
+  const sigil::weave::ParagraphLayout& layout =
+      ridesPath ? textStateOf(inst).pathLayout : inst.textLayout;
+
+  // The same walk, selections and schedules the glyph draw takes, so the
+  // outline stands exactly where the letters are drawn.
+  static thread_local detail::GlyphStructure structure;
+  structure.build(layout, *inst.paragraph, scopeOf(inst));
+  const auto count = (uint32_t)structure.glyphs.size();
+  if (count == 0) return false;
+  refreshSelections(inst, tracks, structure, count);
+  static thread_local std::vector<Resolved> resolved;
+  const SkScopeExit releaseResolved([&] {
+    for (Resolved& entry : resolved) {
+      entry.track = nullptr;
+      entry.selected = nullptr;
+      entry.pieces = nullptr;
+      entry.resolved.schedule.outerDistribution = {};
+      entry.resolved.schedule.innerDistribution = {};
+    }
+  });
+  const size_t used = resolveTracks(inst, tracks, structure, resolved);
+  const std::span<const Resolved> live(resolved.data(), used);
+  float phaseArc = 0;
+  if (ridesPath)
+    phaseArc = (inst.resolvePathAt() - textStateOf(inst).pathRestAt) *
+               textStateOf(inst).pathTotalLength;
+  const PoseContext poseCtx{&inst, &layout, onPath, ridesPath, phaseArc};
+
+  SkPathBuilder deviated;
+  bool moved = false;
+  uint32_t ordinal = 0;
+  sigil::weave::forEachPlacedGlyph(
+      layout, *inst.paragraph, [&](const sigil::weave::PlacedGlyph& placed) {
+        const uint32_t g = ordinal++;
+        if (g >= count || !placed.shaped) return;
+        RestPose pose;
+        if (!restPoseOf(poseCtx, placed, pose)) return;
+        GlyphInfo info = structure.glyphs[g];
+        bool continuous = false;
+        const GlyphModifier modifier = deviationOf(live, g, info, continuous);
+        // A glyph faded or shrunk away is drawn nowhere, so it cuts no
+        // outline either.
+        if (modifier.alpha <= 0.003f || modifier.scale <= 0.001f) {
+          moved = true;
+          return;
+        }
+        moved |= modifier.dx != 0 || modifier.dy != 0 ||
+                 modifier.rotateDeg != 0 || modifier.scale != 1 ||
+                 modifier.scaleX != 1 || modifier.scaleY != 1 ||
+                 modifier.skewXDeg != 0 || modifier.skewYDeg != 0 ||
+                 modifier.codepoint != 0 || modifier.axis.has_value();
+        const sigil::weave::ShapedWord& word = *placed.shaped;
+        sigil::weave::Face face = word.typeface;
+        if (modifier.axis)
+          face = drivenFace(impl.fonts, word.typeface, word.fontSize,
+                            *modifier.axis, continuous);
+        SkGlyphID glyph = placed.glyph;
+        if (modifier.codepoint)
+          if (const SkGlyphID substitute =
+                  substituteGlyph(impl.fonts, word.typeface, placed.glyph,
+                                  modifier.codepoint, word.vertical))
+            glyph = substitute;
+        const std::optional<SkPath> contour =
+            sigil::weave::makeFont(face, word.fontSize, word.scaleX,
+                                   word.aliased)
+                .getPath(glyph);
+        if (!contour) return;
+        // The matrix the glyph is drawn under: its own where it shears or
+        // scales unevenly, else the RSXform's turn about its centre.
+        const GlyphPlacement placement =
+            placementOf(modifier, pose, placed, continuous);
+        SkMatrix matrix = placement.matrix;
+        if (!placement.full) {
+          const glm::vec2 local =
+              pose.centreOffset.value_or(glm::vec2{placed.advance * 0.5f, 0});
+          const float cosine = placement.cosine, sine = placement.sine;
+          matrix.setAll(
+              cosine, -sine,
+              placement.centre.x - (cosine * local.x - sine * local.y), sine,
+              cosine, placement.centre.y - (sine * local.x + cosine * local.y),
+              0, 0, 1);
+        }
+        deviated.addPath(contour->makeTransform(matrix));
+      });
+  if (!moved) return false;
+  outline = deviated.detach();
+  return true;
 }
 
 }  // namespace sigil::compose

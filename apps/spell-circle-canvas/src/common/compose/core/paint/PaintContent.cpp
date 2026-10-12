@@ -348,6 +348,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   // no marks, so it needs no boundary for them either, and that is what
   // keeps the trace from re-entering itself.
   const SkPath* decorationBase = &fullOutline;
+  SkPath deviatedGlyphs;
   if (node.boundary == Boundary::Glyphs && node.kind == Kind::Text &&
       inst.paragraph) {
     if (inst.glyphOutlineRev != inst.measuredRev) {
@@ -355,6 +356,13 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       inst.glyphOutlineRev = inst.measuredRev;
     }
     decorationBase = &inst.glyphOutline;
+    // Glyphs a track moves this frame are dressed where they are drawn.
+    if (const TextPainterOperations* painter = textPainterOf(inst);
+        painter && hasTextFx(inst) &&
+        painter->deviatedGlyphOutline(
+            inst, node.textData->onPath ? &*node.textData->onPath : nullptr,
+            {bounds.width(), bounds.height()}, deviatedGlyphs))
+      decorationBase = &deviatedGlyphs;
   } else if (node.boundary == Boundary::Coverage && emitMarks) {
     // TRACED AT THE HOST'S SCALE, whatever scale this paint is running at:
     // a bake paints its content at a reduced raster scale of its own, and

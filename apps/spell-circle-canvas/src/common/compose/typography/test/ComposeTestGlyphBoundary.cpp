@@ -175,3 +175,73 @@ TEST(ComposeBoundary, ABevelOnAnOverlaidCopyStaysOnTheGlyphs) {
   EXPECT_GT(onTheLetters, 100) << "the copy's bevel drew nothing";
   EXPECT_EQ(offTheLetters, 0) << "the copy's bevel left the glyphs";
 }
+
+namespace {
+
+/** "I H" in a clear ink whose material carries only a bevel in red and
+ *  blue, on the glyph boundary; the H, the last word, under
+ *  a track widening it to twice its width at @p progress, where one is
+ *  asked for. */
+Element bevelledWord(bool tracked, float progress) {
+  Text word =
+      text(u8"I H", whiteStyle(90))
+          .key("word")
+          .absolute()
+          .left(20.0f)
+          .top(20.0f)
+          .decorationOutline(Boundary::Glyphs)
+          .ink(material::from(material::Color{0, 0, 0, 0})
+                   .effects(material::Filter::bevel({.depth = 3,
+                                                     .size = 3,
+                                                     .highlight = {1, 0, 0, 1},
+                                                     .shadow = {0, 0, 1, 1}})));
+  if (tracked)
+    word.textFx({.where = sigil::weave::selectors::word(1),
+                 .effect = textFx::tween({.to = GlyphModifier{.scaleX = 2.0f}}),
+                 .progress = progress});
+  return box().fill(Fill::color({0, 0, 0, 1})).children({std::move(word)});
+}
+
+/** The rightmost column the bevel's red or blue stands in, whatever
+ *  else is painted. */
+int rightmostPainted(Host& host, int width, int height) {
+  int right = -1;
+  for (int y = 0; y < height; ++y)
+    for (int x = 0; x < width; ++x) {
+      const SkColor colour = host.pixel(x, y);
+      const int red = (int)SkColorGetR(colour),
+                green = (int)SkColorGetG(colour),
+                blue = (int)SkColorGetB(colour);
+      if (red - green > 60 || blue - green > 60) right = std::max(right, x);
+    }
+  return right;
+}
+
+}  // namespace
+
+TEST(ComposeBoundary, ABevelFollowsATrackThatWidensItsGlyph) {
+  // The bevel dresses the glyphs where they are drawn: the H widened to
+  // twice its width carries its bevel out to its widened edge, where the
+  // letter at rest ends half a letter sooner.
+  Host rest(400, 160), widened(400, 160);
+  rest.composer.render(bevelledWord(false, 0));
+  rest.frame();
+  widened.composer.render(bevelledWord(true, 1));
+  widened.frame();
+  const int restEdge = rightmostPainted(rest, 400, 160);
+  ASSERT_GT(restEdge, 0) << "the bevel drew nothing";
+  EXPECT_GT(rightmostPainted(widened, 400, 160), restEdge + 10)
+      << "the bevel stayed on the letter at rest";
+}
+
+TEST(ComposeBoundary, ABevelUnderATrackAtRestIsTheBevelOfStillText) {
+  // A track whose glyphs stand at rest moves nothing, so the outline is
+  // the one the layout cut and the picture is still text's, pixel for
+  // pixel.
+  Host still(400, 160), resting(400, 160);
+  still.composer.render(bevelledWord(false, 0));
+  still.frame();
+  resting.composer.render(bevelledWord(true, 0));
+  resting.frame();
+  EXPECT_TRUE(identicalPixels(still, resting, 400, 160));
+}

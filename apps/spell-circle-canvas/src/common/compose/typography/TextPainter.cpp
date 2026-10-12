@@ -47,6 +47,11 @@ struct TextEngine final : TextPainterOperations {
              const PaintContext& ctx) const override {
     paintTextFx(*inst.owner, inst, canvas, ink, onPath, size, ctx);
   }
+  bool deviatedGlyphOutline(Instance& inst, const TextPath* onPath, SkSize size,
+                            SkPath& outline) const override {
+    return detail::deviatedGlyphOutline(*inst.owner, inst, onPath, size,
+                                        outline);
+  }
   void glyphInk(Instance& inst, const TextInk& ink,
                 GlyphInk& glyphs) const override {
     glyphInkAtRest(inst, ink, glyphs);

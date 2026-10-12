@@ -297,9 +297,9 @@ or deforms the glyph takes the shadow along, and a blurred shadow is
 rasterised once per glyph and size rather than over the passage's box. A
 shadow naming no colour is the colour its glyph is painted in; one naming a
 custom property, `ColorTerm::var(name)`, reads it where the shadow is
-stated. It inherits as the font does. A shadow, glow or bevel among an ink material's effects
-dresses the node's outline instead, the glyphs at rest under
-`Boundary::Glyphs`.
+stated. It inherits as the font does. A shadow, glow or bevel among an
+ink material's effects dresses the node's outline instead, its glyphs
+under `Boundary::Glyphs`, in one colour.
 
 [The cascade](reference/CASCADE.md) explains precedence, keywords and
 custom properties; [selectors](reference/SELECTORS.md) explains matching.
@@ -330,7 +330,10 @@ marks attached around a boundary; material effects supply surface looks
 such as shadows and bevels. These are layer styles, not lighting: each
 states its own highlight direction, colours and, for chrome, the picture
 its face reflects, and paints the same with no scene and no light. `Element::decorationOutline` chooses the
-shape, placed glyph contours or rendered coverage. Coverage tracing uses
+shape, placed glyph contours or rendered coverage. Glyph contours are
+taken where the glyphs are drawn: a `textFx()` track that moves, scales,
+turns, shears or hides a glyph this frame moves its contour with it, and a
+passage no track deviates keeps the outline its layout cut. Coverage tracing uses
 a bounded raster, produces stepped edges, follows device scale and has an
 opacity threshold. It excludes the node's own decorations, includes its
 content and children, and falls back to the shape when empty.

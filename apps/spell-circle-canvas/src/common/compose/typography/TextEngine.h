@@ -215,6 +215,14 @@ uint64_t glyphSeed(const GlyphInfo& g, uint32_t lane = 0);
 void paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
                  const TextInk& ink, const TextPath* onPath, SkSize size,
                  const PaintContext& ctx);
+/** THE GLYPH OUTLINE AS THE TRACKS DEVIATE IT this frame, in the node's
+ *  own space: every glyph's contour under the matrix it is drawn with,
+ *  each moved, scaled, turned, sheared or substituted as its tracks say,
+ *  and a glyph faded or shrunk away left out. False, leaving @p outline
+ *  alone, where no track displaces a glyph or every glyph stands at rest,
+ *  so the outline the layout cut at rest stands. */
+bool deviatedGlyphOutline(Composer::Impl& impl, Instance& inst,
+                          const TextPath* onPath, SkSize size, SkPath& outline);
 /** The resolved foreground per glyph of @p layout as @p structure
  *  numbers them and @p poses places them. A span keeps its painted
  *  coordinates; restarting ink maps onto each unit's text-metric box. */
