@@ -1,21 +1,19 @@
 # Findings
 
-## Explicit texture bakes change deterministic reference samples
+## Explicit texture bakes are resampled onto a capture's grid within no stated bound
 
 The rotating text bands in `rota_convocationis` and the retained ink in
 `thunder_fulu` request local texture bakes. Their content, geometry and
 materials stay fixed, but their cached pixels are resampled onto the
-capture's grid. `src/common/compose/core/cache/TextureBake.cpp` uses the declared
-bake density for these images; disabling automatic promotion does not
-disable an author's explicit `Cache::Texture` request.
-
-The reference photographs consequently differ along glyph and brush
-edges. The sketch pass's unchanged-plate requirement needs a decision
-about whether a reference capture should evaluate the drawing without
-explicit bakes or accept their sampling differences. The standing plates
-remain unchanged. A test should compare a turning text ring and a seeded
-fibre stroke at the same moment and fractional capture density under the
-chosen capture policy, with an explicit bound on the permitted difference.
+capture's grid, since `src/common/compose/core/cache/TextureBake.cpp`
+bakes at the declared density and a turning node can take no
+device-aligned bake; disabling automatic promotion does not disable an
+author's explicit `Cache::Texture`. A deterministic capture keeps the
+explicit bakes, so a plate is what the window shows, and the plate tier
+states a tolerance for a drawing with explicit bakes. A test should
+compare a turning text ring and a seeded fibre stroke at the same moment
+and fractional capture density against the same drawing without its
+bakes, and find the difference within that bound.
 
 ## A stack's programs cannot be stood up before the sketch wearing it is read
 
